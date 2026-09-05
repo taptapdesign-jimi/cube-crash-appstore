@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 
-import { Container } from 'pixi.js';
+import { Container, Sprite, Texture } from 'pixi.js';
 import animationManager from '../animation-manager';
 import {
   keepsSpecialDiceIdleRunningDuringDrag,
@@ -109,6 +109,35 @@ describe('special-dice idle lifecycle', () => {
 
     stopSpecialDiceIdleMotion(tile);
     expect(animationManager.getStats().activeTimelines).toBe(baseline);
+  });
+
+  test('Bee keeps its frame owner during drag without taking ownership of drag tilt', () => {
+    const tile: any = {
+      base: new Sprite(Texture.WHITE),
+      rotG: new Container(),
+      destroyed: false,
+      _ccSpecialDiceVariant: 'bee',
+    };
+
+    startSpecialDiceIdleMotion(tile);
+    const controller = tile._ccBeeDiceIdle;
+    expect(controller).toBeTruthy();
+    expect(keepsSpecialDiceIdleRunningDuringDrag(tile)).toBe(false);
+    tile.rotG.position.set(3, -5);
+    tile.rotG.rotation = 0.2;
+    tile.rotG.scale.set(1.04, 0.96);
+    expect(setSpecialDiceIdleDragging(tile, true)).toBe(true);
+    expect(tile.rotG.position.x).toBe(0);
+    expect(tile.rotG.position.y).toBe(0);
+    expect(tile.rotG.rotation).toBe(0);
+    expect(tile.rotG.scale.x).toBe(1);
+    expect(tile.rotG.scale.y).toBe(1);
+    expect(tile._ccBeeDiceIdle).toBe(controller);
+
+    startSpecialDiceIdleMotion(tile);
+    expect(tile._ccBeeDiceIdle).toBe(controller);
+    stopSpecialDiceIdleMotion(tile);
+    expect(tile._ccBeeDiceIdle).toBeUndefined();
   });
 
   test('Mushroom owns one smoke master plus its existing pop timeline', () => {

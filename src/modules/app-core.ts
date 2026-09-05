@@ -10780,7 +10780,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             } else if (isPureWildStarMerge) {
               // ⭐ Wild star merge: yellow shards using template-based pooling (ORIGINAL COLOR)
               const wildStarVariant = getSpecialDiceVariantForTile(src) || getSpecialDiceVariantForTile(dst);
-              const wildStarShardColor = wildStarVariant?.id === 'cubero' ? 0xFE9130 : undefined;
+              const wildStarShardColor = getSpecialDiceShardColor(wildStarVariant);
+              const wildStarShardColors = getSpecialDiceShardColors(wildStarVariant);
               devLog('⭐ Wild star merge 6 - using template-based pooling with shards', {
                 variant: wildStarVariant?.id || 'core-wild',
                 color: wildStarShardColor ? `0x${wildStarShardColor.toString(16)}` : 'default'
@@ -10793,7 +10794,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               wildStarMerge6ShardsTemplated(board, dst, { 
                 skipStars: true,  // 🔥 USER REQUEST: Skip star particles for pure wild star merge 6
                 zIndex: 9993,
-                color: wildStarShardColor
+                color: wildStarShardColor,
+                colors: wildStarShardColors,
               });
               // Trigger stars-to-HUD exactly between shards and smoke phase.
               if (shouldAnimateStarsToHUD && !starsToHudTriggered && savedStarPositionsEarly.length > 0) {

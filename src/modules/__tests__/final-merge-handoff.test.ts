@@ -95,7 +95,7 @@ test('final sparkle handoff waits for sparkle completion signal', async () => {
   });
 
   expect(waitForSparkleTextComplete).toHaveBeenCalledTimes(1);
-  expect(waitForSparkleTextComplete).toHaveBeenCalledWith(2200);
+  expect(waitForSparkleTextComplete).toHaveBeenCalledWith(3400);
 });
 
 test('final juice handoff starts missing finale through central callback', async () => {
@@ -137,7 +137,7 @@ test('final sparkle handoff starts missing finale through central callback', asy
   });
 
   expect(showSparkleFinale).toHaveBeenCalledTimes(1);
-  expect(waitForSparkleTextComplete).toHaveBeenCalledWith(2200);
+  expect(waitForSparkleTextComplete).toHaveBeenCalledWith(3400);
 });
 
 test('generic handoff waits for any active finale runtime', async () => {

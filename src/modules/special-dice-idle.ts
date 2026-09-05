@@ -7,6 +7,8 @@ import { startHoneyBeeIdleOrbit } from './honey-bee-idle-orbit.ts';
 import { startRoboCubeIdle } from './robo-cube-idle.ts';
 import { preloadSpaceshipFinaleAssets } from './spaceship-finale-scene.ts';
 import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
+import { startBeeDiceIdle } from './bee-dice-idle.ts';
+import { preloadBeeFinaleAssets } from './bee-finale-scene.ts';
 import {
   isUsablePixiImageTexture,
   pinPixiImageTexture,
@@ -153,6 +155,8 @@ export function stopSpecialDiceIdleMotion(tile: any): void {
     if (tile) delete tile._ccRoboCubeIdle;
     try { tile?._ccHoneyBeeIdleOrbit?.dispose?.(); } catch {}
     if (tile) delete tile._ccHoneyBeeIdleOrbit;
+    try { tile?._ccBeeDiceIdle?.dispose?.(); } catch {}
+    if (tile) delete tile._ccBeeDiceIdle;
     try { tile?._ccSpaceshipSpriteIdle?.dispose?.(); } catch {}
     if (tile) delete tile._ccSpaceshipSpriteIdle;
     if (tile?._ccSpaceshipEngineIdleContainer) {
@@ -205,6 +209,11 @@ export function stopSpecialDiceIdleMotion(tile: any): void {
 }
 
 export function setSpecialDiceIdleDragging(tile: any, dragging: boolean): boolean {
+  const beeController = tile?._ccBeeDiceIdle;
+  if (beeController?.setDragging) {
+    beeController.setDragging(dragging);
+    return true;
+  }
   if (keepsSpecialDiceIdleRunningDuringDrag(tile)) {
     // Spaceship animation is painted on rotG/base, below the outer tile that
     // owns pointer translation. Keeping the existing owner alive preserves
@@ -238,6 +247,10 @@ export function updateSpecialDiceIdleDragMotion(
   tile?._ccHoneyBeeIdleOrbit?.updateDragMotion?.(offsetX, offsetY, velocityX, velocityY);
 }
 
+export function refreshSpecialDiceIdleDragFacing(tile: any): void {
+  tile?._ccBeeDiceIdle?.refreshFacing?.();
+}
+
 export function startSpecialDiceIdleMotion(tile: any): void {
   try {
     const variant = getSpecialDiceVariantForTile(tile);
@@ -248,6 +261,8 @@ export function startSpecialDiceIdleMotion(tile: any): void {
       tile._ccHoneyBeeIdleOrbit.setDragging?.(false);
       return;
     }
+
+    if (variant.idleMotion === 'bee-sprite-cycle' && tile._ccBeeDiceIdle) return;
 
     // Drop/snap-back callbacks defensively call start again. Spaceship never
     // pauses for drag, so reusing its live owner avoids a visible frame reset
@@ -268,6 +283,14 @@ export function startSpecialDiceIdleMotion(tile: any): void {
         ...(Array.isArray(variant.finaleAccentSpriteSources) ? variant.finaleAccentSpriteSources : []),
       ];
       tile._ccRoboCubeIdle = startRoboCubeIdle(tile, idleSources, finaleSources);
+      return;
+    }
+
+
+    if (variant.idleMotion === 'bee-sprite-cycle') {
+      void preloadBeeFinaleAssets();
+      const idleSources = Array.isArray(variant.idleSpriteSources) ? variant.idleSpriteSources : [];
+      tile._ccBeeDiceIdle = startBeeDiceIdle(tile, idleSources);
       return;
     }
 

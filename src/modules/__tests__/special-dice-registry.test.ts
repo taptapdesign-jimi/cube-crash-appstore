@@ -226,7 +226,7 @@ test('archetype preserves TNT finale when generic special field is missing', () 
   expect(isSpecialDiceTntLikeTile(tnt)).toBe(true);
 });
 
-test('Forest progression introduces Mushroom 02, Flower 03, Honey 04 and TNT 07', () => {
+test('Forest progression introduces Mushroom 02, Flower 03, Honey 04, Bee 06 and TNT 07', () => {
   expect(pickSpecialDiceVariantForWildSpawn({
     isArcade: false,
     journeyBoard: 1,
@@ -299,6 +299,26 @@ test('Forest progression introduces Mushroom 02, Flower 03, Honey 04 and TNT 07'
   expect(getSpecialDiceShardColors(honey)).toEqual([0xF1BA79, 0xFDCF58]);
   expect(honey?.burstParticleSources).toHaveLength(7);
 
+  const bee = pickSpecialDiceVariantForWildSpawn({
+    isArcade: false,
+    journeyBoard: 6,
+    wildSpawnCount: 0,
+    worldIntroRoll: 0.99,
+  });
+  expect(bee).toMatchObject({
+    id: 'bee',
+    archetype: 'wild-star',
+    splashText: 'WEEEE!',
+    splashColor: '#E6815E',
+    finaleScene: 'bee-forest-flight',
+    idleOrbit: false,
+    idleMotion: 'bee-sprite-cycle',
+  });
+  expect(bee?.texture).toMatch(/assets\/shop\/bee\/bee1(?:@2x)?\.png$/);
+  expect(bee?.idleSpriteSources).toHaveLength(4);
+  expect(getSpecialDiceTrailColors(bee)).toEqual([0xFAF4ED, 0xFAE0BB, 0xDB8265, 0xD68E62]);
+  expect(getSpecialDiceShardColors(bee)).toEqual([0xFBE8C7, 0xDD8564]);
+
   // TNT is the core texture, not a collectible skin, so its variant is null.
   expect(pickSpecialDiceVariantForWildSpawn({
     isArcade: false,
@@ -326,13 +346,13 @@ test('later Forest Stages keep only earned Forest skins and never generic visual
     journeyBoard: 6,
     wildSpawnCount: 1,
     worldIntroRoll: 0.9,
-  })).toMatchObject({ id: 'honey' });
+  })).toMatchObject({ id: 'bee' });
   expect(pickSpecialDiceVariantForWildSpawn({
     isArcade: false,
     journeyBoard: 10,
     wildSpawnCount: 1,
     worldIntroRoll: 0.5,
-  })).toMatchObject({ id: 'flower' });
+  })).toMatchObject({ id: 'honey' });
 });
 
 test('later Beach stages map one shared random slot to Star, Juice, Beach Ball, or Bottle', () => {

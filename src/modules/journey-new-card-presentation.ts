@@ -14,10 +14,10 @@ export const JOURNEY_FOREST_CARD_NAMES = [
   'Final Gate',
   'Honey Splat',
   'Dreamy',
-  'Flying Tent',
+  'Weee - Beee',
   'Kaboom',
   'Break Out',
-  'Weee - Beee',
+  'Flying Tent',
   'Winner',
 ] as const;
 

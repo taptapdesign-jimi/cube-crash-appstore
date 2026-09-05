@@ -2459,7 +2459,10 @@ export function wildStarMerge6ShardsTemplated(board, tile, opts = {}) {
   
   const { patternName, patternData, pool, template } = patternInfo;
   const params = getParams('wildStar');
-  const yellowColor = opts.color ?? getColor('wildStar'); // 🔥 ORIGINAL COLOR: Yellow (#FFCB47), override for special dice
+  const shardPalette = Array.isArray(opts.colors) && opts.colors.length
+    ? opts.colors.filter((color) => Number.isFinite(color))
+    : [];
+  const yellowColor = opts.color ?? shardPalette[0] ?? getColor('wildStar'); // 🔥 ORIGINAL COLOR: Yellow (#FFCB47), override for special dice
   
   console.log(`⭐ wildStarMerge6ShardsTemplated: Using pattern: ${patternName} (${patternData.length} shards)`, {
     yellowColor: `0x${yellowColor.toString(16)}`,
@@ -2533,14 +2536,15 @@ export function wildStarMerge6ShardsTemplated(board, tile, opts = {}) {
     }
     
     // Draw filled polygon using PixiJS v8 API - 🔥 ORIGINAL COLOR: Yellow
+    const shardColor = shardPalette.length ? shardPalette[index % shardPalette.length] : yellowColor;
     try {
-      shard.poly(points).fill({ color: yellowColor, alpha: params.lineAlpha || 0.9 });
+      shard.poly(points).fill({ color: shardColor, alpha: params.lineAlpha || 0.9 });
     } catch (e) {
       // Fallback to rect if poly fails
       console.warn('⚠️ Failed to draw poly, using rect fallback:', e);
       shard.clear();
       const size = Math.max(4, Math.max(...points.map((p, i) => Math.abs(p))) * 2);
-      shard.rect(-size/2, -size/2, size, size).fill({ color: yellowColor, alpha: params.lineAlpha || 0.9 });
+      shard.rect(-size/2, -size/2, size, size).fill({ color: shardColor, alpha: params.lineAlpha || 0.9 });
     }
     
     // 🔥 CRITICAL: Force bounds update AFTER drawing

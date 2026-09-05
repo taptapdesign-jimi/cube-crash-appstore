@@ -243,6 +243,14 @@
   visibility: hidden;
 }
 
+/* During a physical turn, let the browser's backface-visibility choose the
+   painted side. Combining that 3D rule with manual visibility culling while
+   WebKit is rapidly interrupted can transiently hide both faces. */
+.journey-card-flip-overlay:is(.is-flipping, .is-dragging, .is-face-settling)
+  .journey-card-flip-face {
+  visibility: visible;
+}
+
 .journey-card-flip-card-host,
 .journey-card-flip-card-host > .journey-card-overlay-portaled-card {
   position: absolute;
@@ -284,15 +292,23 @@
   inset: 0;
   pointer-events: none;
   border-radius: inherit;
+  -webkit-clip-path: inset(0 round var(--journey-card-flip-radius));
   clip-path: inset(0 round var(--journey-card-flip-radius));
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-type: alpha;
+  mask-mode: alpha;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
   background: linear-gradient(118deg, transparent 28%, rgba(255,255,255,0.28) 47%, transparent 64%);
-  opacity: 0.55;
-  transform: translateX(-115%);
-  transition: transform 700ms ease, opacity 220ms ease;
-}
-
-.journey-card-flip-overlay.is-settled[data-face="front"] .journey-card-flip-shine {
-  transform: translateX(115%);
+  background-repeat: no-repeat;
+  background-position: 240% 50%;
+  background-size: 250% 100%;
+  opacity: 0;
+  transform: translateZ(1.1px);
+  transition: none;
 }
 
 /* A NEW card already owns one ribbon-masked sweep. Do not let the modal's
@@ -332,21 +348,21 @@
     linear-gradient(
       104deg,
       rgba(255, 197, 69, 0) 16%,
-      rgba(255, 194, 68, 0.34) 32%,
-      rgba(255, 247, 195, 0.82) 43%,
-      rgba(255, 255, 242, 0.72) 50%,
-      rgba(255, 203, 92, 0.48) 60%,
-      rgba(255, 178, 50, 0.32) 67%,
+      rgba(255, 204, 112, 0.16) 32%,
+      rgba(255, 249, 218, 0.44) 43%,
+      rgba(255, 255, 248, 0.38) 50%,
+      rgba(255, 213, 128, 0.22) 60%,
+      rgba(255, 190, 86, 0.14) 67%,
       rgba(255, 197, 69, 0) 82%
     ),
     linear-gradient(
       76deg,
       rgba(128, 224, 255, 0) 8%,
-      rgba(128, 224, 255, 0.18) 24%,
-      rgba(169, 139, 255, 0.17) 37%,
-      rgba(255, 137, 211, 0.20) 49%,
-      rgba(255, 232, 116, 0.14) 61%,
-      rgba(124, 255, 190, 0.18) 73%,
+      rgba(128, 224, 255, 0.32) 24%,
+      rgba(169, 139, 255, 0.32) 37%,
+      rgba(255, 137, 211, 0.36) 49%,
+      rgba(255, 232, 116, 0.23) 61%,
+      rgba(124, 255, 190, 0.34) 73%,
       rgba(128, 224, 255, 0) 91%
     );
   background-repeat: no-repeat;
@@ -367,6 +383,13 @@
 .journey-card-flip-overlay:is(.is-dragging, .is-legendary-drag-shine, .is-legendary-idle-holo)
   .journey-card-flip-legendary-shine {
   will-change: background-position, opacity;
+}
+
+/* The automatic tilt is intentionally shallow, so strengthen only its color
+   separation. Pointer-controlled holo keeps the authored unfiltered balance. */
+.journey-card-flip-overlay.is-legendary-idle-holo
+  .journey-card-flip-legendary-shine {
+  filter: saturate(1.72) contrast(1.06);
 }
 
 .journey-card-flip-overlay:is(.is-entering, .is-exiting, .is-flipping, .is-dragging)

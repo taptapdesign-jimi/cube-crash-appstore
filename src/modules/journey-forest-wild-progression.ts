@@ -1,4 +1,4 @@
-export type ForestWildReward = 'wild-star' | 'mushroom' | 'flower' | 'honey' | 'tnt';
+export type ForestWildReward = 'wild-star' | 'mushroom' | 'flower' | 'honey' | 'bee' | 'tnt';
 export type ForestWildCoreType = 'wild' | 'wild-juice' | 'wild-magnet' | 'wild-tnt';
 
 const FOREST_FIRST_BOARD = 1;
@@ -10,11 +10,11 @@ const FOREST_WILD_POOLS = {
   3: ['wild-star', 'mushroom', 'flower'],
   4: ['wild-star', 'mushroom', 'flower', 'honey'],
   5: ['wild-star', 'mushroom', 'flower', 'honey'],
-  6: ['wild-star', 'mushroom', 'flower', 'honey'],
-  7: ['wild-star', 'mushroom', 'flower', 'honey', 'tnt'],
-  8: ['wild-star', 'mushroom', 'flower', 'honey', 'tnt'],
-  9: ['wild-star', 'mushroom', 'flower', 'honey', 'tnt'],
-  10: ['wild-star', 'mushroom', 'flower', 'honey', 'tnt'],
+  6: ['wild-star', 'mushroom', 'flower', 'honey', 'bee'],
+  7: ['wild-star', 'mushroom', 'flower', 'honey', 'bee', 'tnt'],
+  8: ['wild-star', 'mushroom', 'flower', 'honey', 'bee', 'tnt'],
+  9: ['wild-star', 'mushroom', 'flower', 'honey', 'bee', 'tnt'],
+  10: ['wild-star', 'mushroom', 'flower', 'honey', 'bee', 'tnt'],
 } as const satisfies Readonly<Record<number, readonly ForestWildReward[]>>;
 
 const FOREST_INTRO_REWARD_BY_BOARD: Readonly<Partial<Record<number, ForestWildReward>>> = Object.freeze({
@@ -22,6 +22,7 @@ const FOREST_INTRO_REWARD_BY_BOARD: Readonly<Partial<Record<number, ForestWildRe
   2: 'mushroom',
   3: 'flower',
   4: 'honey',
+  6: 'bee',
   7: 'tnt',
 });
 
@@ -30,6 +31,7 @@ const FOREST_REWARD_CORE_TYPE: Readonly<Record<ForestWildReward, ForestWildCoreT
   mushroom: 'wild-juice',
   flower: 'wild-tnt',
   honey: 'wild-magnet',
+  bee: 'wild',
   tnt: 'wild-tnt',
 });
 

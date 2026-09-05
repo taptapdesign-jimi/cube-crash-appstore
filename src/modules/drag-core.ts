@@ -22,6 +22,7 @@ import {
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
 import {
   keepsSpecialDiceIdleRunningDuringDrag,
+  refreshSpecialDiceIdleDragFacing,
   setSpecialDiceIdleDragging,
   startSpecialDiceIdleMotion,
   stopSpecialDiceIdleMotion,
@@ -1573,6 +1574,10 @@ export function initDrag(cfg) {
         t.position.set(parentPoint.x, parentPoint.y);
       }
     }
+    // Position is authoritative only after the drag owner writes it. Refresh
+    // Bee artwork now so crossing the viewport midpoint flips on this exact
+    // pointer frame rather than waiting for a later idle-timeline sample.
+    try { refreshSpecialDiceIdleDragFacing(t); } catch {}
 
     // Restore the original generated-shadow movement owner. drag.vx/vy are
     // already low-pass filtered above, so reversals settle naturally without a

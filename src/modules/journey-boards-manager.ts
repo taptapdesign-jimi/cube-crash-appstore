@@ -9566,6 +9566,11 @@ class JourneyBoardsManager {
       } catch (e) {
         logger.warn('⚠️ Error checking viewed boards in localStorage:', e instanceof Error ? e.message : String(e));
       }
+      // Every unlocked World card owns the same bottom contact shadow,
+      // including a newly earned card that still carries the NEW ribbon.
+      // Return placeholder/landing classes keep it hidden until the accepted
+      // terminal pose, so this does not reveal it during portal motion.
+      card.classList.add('journey-board-card-settled-shadow');
     }
 
     // 🔥 FIX: Ensure all cards (unlocked, interim, locked) exactly match wrapper dimensions
@@ -10223,6 +10228,7 @@ class JourneyBoardsManager {
       const controller = presentJourneyCardOverlayModal({
         boardId: board.id,
         origin,
+        cardImagePath1x: overlayCardAsset.path1x,
         cardImagePath2x: overlayCardAsset.path2x,
         cardRarity: overlayCardAsset.rarity,
         hasSavedState: hasResumableSavedStateForBoard(board.id, { clearInvalid: true }),
@@ -10494,6 +10500,7 @@ class JourneyBoardsManager {
       const controller = presentJourneyCardOverlayModal({
         boardId,
         origin,
+        cardImagePath1x: overlayCardAsset.path1x,
         cardImagePath2x: overlayCardAsset.path2x,
         cardRarity: overlayCardAsset.rarity,
         hasSavedState: hasResumableSavedStateForBoard(boardId, { clearInvalid: true }),

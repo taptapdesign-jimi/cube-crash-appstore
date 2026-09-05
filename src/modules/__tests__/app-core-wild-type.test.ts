@@ -71,6 +71,7 @@ describe('Forest progressive Wild pool', () => {
     [2, 'wild-juice', 'mushroom'],
     [3, 'wild-tnt', 'flower'],
     [4, 'wild-magnet', 'honey'],
+    [6, 'wild', 'bee'],
     [7, 'wild-tnt', null],
   ] as const)(
     'guarantees the newly introduced reward on Cjelina %i first drop',

@@ -166,7 +166,10 @@ function buildFinaleRuntimes(options: FinalMergeHandoffOptions): FinaleRuntime[]
   // prevents a missing completion signal from delaying Clean Board beyond it.
   const magnetMaxWaitMs = 4000;
   const juiceMaxWaitMs = options.isArcade ? 5200 : 6500;
-  const sparkleMaxWaitMs = options.isArcade ? 1400 : 2200;
+  // Bee's Wild-Star visual is intentionally longer than the basic sparkle
+  // burst. The real completion signal normally resolves first; this is only
+  // fallback headroom so Clean Board cannot truncate the authored flight.
+  const sparkleMaxWaitMs = options.isArcade ? 1800 : 3400;
 
   return [
     {

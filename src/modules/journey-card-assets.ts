@@ -13,9 +13,10 @@ export interface JourneyCardAsset {
 const FOREST_FIRST_BOARD = 1;
 const FOREST_LAST_BOARD = 10;
 const FOREST_CARD_ROOT = './assets/colelctibles/Forest';
+const REDUNDANT_CARD_ROOT = './assets/redundant assets/collectible cards old';
 // Keep authored filenames immutable while progression reorders their Stages:
-// Shroomy 06 <-> Tent 02 and Final Gate 09 <-> Weee-Beee 03.
-const FOREST_CARD_ART_STAGE_BY_STAGE = Object.freeze([1, 6, 9, 4, 5, 2, 7, 8, 3, 10] as const);
+// Shroomy uses authored 06, Weee-Beee uses authored 03 and Flying Tent uses authored 02.
+const FOREST_CARD_ART_STAGE_BY_STAGE = Object.freeze([1, 6, 9, 4, 5, 3, 7, 8, 2, 10] as const);
 
 export function isForestJourneyBoard(boardId: number): boolean {
   const safeBoardId = Math.trunc(boardId);
@@ -51,13 +52,16 @@ export function resolveJourneyCardAsset(
     };
   }
 
-  // Beach and Area 55 keep their established artwork until their own two-tier
-  // asset packs exist. Do not infer Forest rarity or filenames for those worlds.
-  const legacyId = safeBoardId >= 21 ? stageInWorld : safeBoardId;
+  // Temporary authored placeholders until Beach and Area 55 receive their own
+  // common/legendary packs. The redundant set ends at 26, so Area 55 Stages
+  // 07-10 repeat 21-24 without copying any multi-megabyte source files.
+  const redundantId = safeBoardId <= 20
+    ? safeBoardId
+    : 21 + ((stageInWorld - 1) % 6);
   return {
     boardId: safeBoardId,
     stageInWorld,
     rarity: 'common',
-    path1x: `./assets/colelctibles/common/${String(legacyId).padStart(2, '0')}.png`,
+    path1x: `${REDUNDANT_CARD_ROOT}/${String(redundantId).padStart(2, '0')}.png`,
   };
 }

@@ -40,7 +40,7 @@ export type SpecialDiceVariantDefinition = {
   shardColors?: number[];
   trailColors?: number[];
   idleBubbleColors?: number[];
-  finaleScene?: 'bottle-ocean' | 'spaceship-abduction' | 'lasergun-crossfire';
+  finaleScene?: 'bottle-ocean' | 'spaceship-abduction' | 'lasergun-crossfire' | 'bee-forest-flight';
   explosionSpriteSources?: string[];
   explosionScale?: number;
   explosionHorizontalScale?: number;
@@ -52,7 +52,7 @@ export type SpecialDiceVariantDefinition = {
   visualFit?: 'height';
   hitAreaSize?: 'tile';
   idleOrbit?: boolean;
-  idleMotion?: 'float' | 'beach-ball-bounce' | 'bottle-float' | 'cubero-hop' | 'mushroom-pop' | 'robo-sprite-cycle' | 'spaceship-hover';
+  idleMotion?: 'float' | 'beach-ball-bounce' | 'bottle-float' | 'cubero-hop' | 'mushroom-pop' | 'robo-sprite-cycle' | 'spaceship-hover' | 'bee-sprite-cycle';
   idleSpriteSources?: string[];
   juiceDropProfile?: 'beach-ball' | 'mushroom' | 'robo';
   finaleAccentSpriteSources?: string[];
@@ -171,6 +171,14 @@ const honeyBeeSources2x = Array.from(
   { length: 7 },
   (_, index) => `./assets/shop/honey/bee${index + 1}@2x.png`,
 );
+const forestBeeIdleSources1x = Array.from(
+  { length: 4 },
+  (_, index) => `./assets/shop/bee/bee${index + 1}.png`,
+);
+const forestBeeIdleSources2x = Array.from(
+  { length: 4 },
+  (_, index) => `./assets/shop/bee/bee${index + 1}@2x.png`,
+);
 const spaceshipIdleSources1x = Array.from(
   { length: 4 },
   (_, index) => `./assets/shop/spaceship/spaceship-idle${index + 1}.png`,
@@ -191,6 +199,26 @@ const useHighResolutionSpecialDiceFx = typeof navigator !== 'undefined'
   && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
 export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition> = {
+  bee: {
+    id: 'bee',
+    archetype: 'wild-star',
+    texture: useHighResolutionSpecialDiceFx
+      ? './assets/shop/bee/bee1@2x.png'
+      : './assets/shop/bee/bee1.png',
+    splashText: 'WEEEE!',
+    splashColor: '#E6815E',
+    shardColor: 0xFBE8C7,
+    shardColors: [0xFBE8C7, 0xDD8564],
+    trailColors: [0xFAF4ED, 0xFAE0BB, 0xDB8265, 0xD68E62],
+    finaleScene: 'bee-forest-flight',
+    hitAreaSize: 'tile',
+    idleOrbit: false,
+    idleMotion: 'bee-sprite-cycle',
+    idleSpriteSources: useHighResolutionSpecialDiceFx
+      ? forestBeeIdleSources2x
+      : forestBeeIdleSources1x,
+    inputReleaseAtRatio: 0.25,
+  },
   'laser-gun': {
     id: 'laser-gun',
     archetype: 'wild-tnt',

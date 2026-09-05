@@ -69,16 +69,16 @@ describe('Journey New Reward presentation', () => {
       'Final Gate',
       'Honey Splat',
       'Dreamy',
-      'Flying Tent',
+      'Weee - Beee',
       'Kaboom',
       'Break Out',
-      'Weee - Beee',
+      'Flying Tent',
       'Winner',
     ]);
     expect(getJourneyNewCardDisplayName(2, 'SO SPECIAL')).toBe('Shroomy');
     expect(getJourneyNewCardDisplayName(3, 'SO SPECIAL')).toBe('Final Gate');
-    expect(getJourneyNewCardDisplayName(6, 'SO SPECIAL')).toBe('Flying Tent');
-    expect(getJourneyNewCardDisplayName(9, 'SO SPECIAL')).toBe('Weee - Beee');
+    expect(getJourneyNewCardDisplayName(6, 'SO SPECIAL')).toBe('Weee - Beee');
+    expect(getJourneyNewCardDisplayName(9, 'SO SPECIAL')).toBe('Flying Tent');
     expect(manager).toContain('...JOURNEY_FOREST_CARD_NAMES');
   });
 

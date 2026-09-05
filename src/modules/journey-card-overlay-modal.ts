@@ -40,6 +40,7 @@ export interface JourneyCardOverlayModalController {
 interface JourneyCardOverlayModalOptions {
   boardId: number;
   origin: JourneyCardOriginLease;
+  cardImagePath1x?: string;
   cardImagePath2x?: string;
   cardRarity?: JourneyCardRarity;
   hasSavedState: boolean;
@@ -102,7 +103,7 @@ export function getJourneyCardLegendaryDragShineState(
   const normalized = ((angle % 360) + 360) % 360;
   const signedFrontTilt = normalized <= 90 ? normalized : normalized >= 270 ? normalized - 360 : 180;
   const tilt = Math.abs(signedFrontTilt);
-  if (tilt <= 1 || tilt >= 90) {
+  if (tilt >= 88) {
     return {
       active: false,
       opacity: 0,
@@ -110,15 +111,17 @@ export function getJourneyCardLegendaryDragShineState(
       rainbowBackgroundPositionPercent: 50,
     };
   }
-  const reveal = smoothstep((tilt - 1) / 10);
-  const edgeFade = smoothstep((90 - tilt) / 18);
+  const reveal = smoothstep(tilt / 18);
+  const edgeFade = smoothstep((88 - tilt) / 20);
   return {
     active: true,
-    opacity: Number((0.88 * reveal * edgeFade).toFixed(4)),
-    backgroundPositionPercent: Number((50 + signedFrontTilt / 72 * 70).toFixed(2)),
+    // Real foil retains a quiet ambient reflection at the neutral angle. The
+    // previous hard cutoff at one degree caused a visible centre pop.
+    opacity: Number(((0.104 + 0.39 * reveal) * edgeFade).toFixed(4)),
+    backgroundPositionPercent: Number((50 + signedFrontTilt / 72 * 60).toFixed(2)),
     // A softer diffraction layer travels against the dominant gold specular,
     // like the opposing color shift on a tilted holographic foil surface.
-    rainbowBackgroundPositionPercent: Number((50 - signedFrontTilt / 72 * 42).toFixed(2)),
+    rainbowBackgroundPositionPercent: Number((50 - signedFrontTilt / 72 * 48).toFixed(2)),
   };
 }
 
@@ -211,7 +214,8 @@ export function resolveJourneyCardDragAxis(
     return horizontalDistance > verticalDistance * 1.15 ? 'horizontal' : 'vertical';
   }
   if (currentAxis === 'horizontal') {
-    return verticalDistance > horizontalDistance * 1.15 ? 'vertical' : 'horizontal';
+    // Once rotation is intentional, diagonal finger noise cannot steal it.
+    return 'horizontal';
   }
   return verticalDistance > horizontalDistance * 1.15 ? 'vertical' : 'horizontal';
 }
@@ -258,6 +262,7 @@ export function getJourneyCardImpactPresentationPose(transform: string, translat
   if (matrix3dMatch) {
     const values = matrix3dMatch[1].split(',').map(Number);
     if (values.length === 16 && values.every(Number.isFinite)) {
+      translateX += values[12];
       translateY = values[13];
       scale = Math.hypot(values[0], values[1], values[2]);
     }
@@ -266,6 +271,7 @@ export function getJourneyCardImpactPresentationPose(transform: string, translat
     if (matrixMatch) {
       const values = matrixMatch[1].split(',').map(Number);
       if (values.length === 6 && values.every(Number.isFinite)) {
+        translateX += values[4];
         translateY = values[5];
         scale = Math.hypot(values[0], values[1]);
       }
@@ -333,6 +339,12 @@ export function getJourneyCardRenderedRotateYAngle(transform: string): number | 
   const m11 = values[0];
   const m13 = values[2];
   return Math.atan2(-m13, m11) * (180 / Math.PI);
+}
+
+export function getJourneyCardUnwrappedAngleNear(angle: number, reference: number): number {
+  if (!Number.isFinite(angle) || !Number.isFinite(reference)) return angle;
+  const turns = Math.round((reference - angle) / 360);
+  return angle + turns * 360;
 }
 
 export function getJourneyCardDragFlipAngle(
@@ -587,12 +599,13 @@ export function presentJourneyCardOverlayModal(
   const back = stage.querySelector<HTMLElement>('.journey-card-flip-back');
   const backShell = stage.querySelector<HTMLElement>('.journey-card-flip-back-shell');
   const cardHost = stage.querySelector<HTMLElement>('.journey-card-flip-card-host');
+  const commonShine = stage.querySelector<HTMLElement>('.journey-card-flip-shine');
   const legendaryShine = stage.querySelector<HTMLElement>('.journey-card-flip-legendary-shine');
   const cta = stage.querySelector<HTMLButtonElement>('.journey-card-flip-cta');
   const turnControl = stage.querySelector<HTMLButtonElement>('.journey-card-flip-turn-control');
   const idleHand = stage.querySelector<HTMLImageElement>('.journey-card-flip-idle-hand');
   const idleCopy = stage.querySelector<HTMLElement>('.journey-card-flip-idle-copy');
-  if (!backdrop || !frame || !spatialShell || !impactShell || !idleShell || !poseShell || !rotor || !front || !back || !backShell || !cardHost || !cta || !turnControl || !idleHand || !idleCopy) {
+  if (!backdrop || !frame || !spatialShell || !impactShell || !idleShell || !poseShell || !rotor || !front || !back || !backShell || !cardHost || !commonShine || !cta || !turnControl || !idleHand || !idleCopy) {
     stage.remove();
     throw new Error('Journey flip card failed to create its required owners');
   }
@@ -609,6 +622,10 @@ export function presentJourneyCardOverlayModal(
   }
   if (cardRarity === 'legendary' && options.cardImagePath2x) {
     setJourneyInterimShineMask(legendaryShine, options.cardImagePath2x);
+  }
+  const commonShineMaskPath = options.cardImagePath2x ?? options.cardImagePath1x;
+  if (cardRarity === 'common' && commonShineMaskPath) {
+    setJourneyInterimShineMask(commonShine, commonShineMaskPath);
   }
   markOpenProfile('origin-mounted');
   stage.classList.toggle(
@@ -648,19 +665,25 @@ export function presentJourneyCardOverlayModal(
   let spatialFlight: JourneyCardSpatialFlightController | null = null;
   let flipAnimation: Animation | null = null;
   let flipRecoilAnimation: Animation | null = null;
+  let flipGeneration = 0;
   let impactAnimation: Animation | null = null;
   let dragPreviewSettleAnimation: Animation | null = null;
+  let idleShellHandoffAnimation: Animation | null = null;
+  let idleCoachImpactHandoffAnimation: Animation | null = null;
   let exitNeutralAnimations: Animation[] = [];
   let idleCoachTimer = 0;
   let idleCoachCardAnimation: Animation | null = null;
   let idleCoachHandAnimation: Animation | null = null;
   let legendaryIdleRotorAnimation: Animation | null = null;
   let legendaryIdleShineAnimation: Animation | null = null;
+  let commonIdleShineAnimation: Animation | null = null;
   let idleCoachGeneration = 0;
   let nextIdleCoachMode: 'drag' | 'tap' = 'drag';
   let backContentEnterTimer = 0;
   let backContentRestoreTimer = 0;
   let flipEdgeRaf = 0;
+  let legendaryShinePaintRaf = 0;
+  let pendingLegendaryShineAngle: number | null = null;
   let backContentEnterScheduled = false;
   let closeController: GameplaySheetCloseController | null = null;
   let ctaController: CtaController | null = null;
@@ -683,12 +706,15 @@ export function presentJourneyCardOverlayModal(
   let dragImpactStartTranslateX = 0;
   let dragImpactStartTranslateY = 0;
   let dragImpactStartScale = 1;
+  let dragPresentationTranslateX = 0;
   let dragAxis: 'horizontal' | 'vertical' | null = null;
   let dismissDragReleaseY = 0;
   let dismissDragReleaseScale = 1;
+  let exitImpactReleaseX = 0;
   let pointerTraceSequence = 0;
   let pointerTraceMoveCount = 0;
   let pointerTraceStartedAt = 0;
+  let pointerTakeoverAuditRaf = 0;
   const tracePointerOwnership = (
     event: string,
     detail: Record<string, unknown> = {},
@@ -704,6 +730,8 @@ export function presentJourneyCardOverlayModal(
       closing,
       settled,
       flipping,
+      flipAnimationActive: flipAnimation !== null,
+      recoilActive: flipRecoilAnimation !== null,
       stableFace,
       currentAngle: Number(currentAngle.toFixed(2)),
       idleRotorActive: legendaryIdleRotorAnimation !== null,
@@ -714,6 +742,11 @@ export function presentJourneyCardOverlayModal(
     });
   };
   const clearLegendaryDragShine = (removeMask = false): void => {
+    if (legendaryShinePaintRaf !== 0) {
+      cancelAnimationFrame(legendaryShinePaintRaf);
+      legendaryShinePaintRaf = 0;
+    }
+    pendingLegendaryShineAngle = null;
     stage.classList.remove('is-legendary-drag-shine');
     legendaryShine?.style.removeProperty('background-position');
     legendaryShine?.style.removeProperty('opacity');
@@ -725,7 +758,7 @@ export function presentJourneyCardOverlayModal(
     const isHorizontalDrag = allowSettling || (
       activePointerId !== null
       && stage.classList.contains('is-dragging')
-      && dragAxis === 'horizontal'
+      && dragMoved
     );
     if (
       !legendaryShine
@@ -757,6 +790,17 @@ export function presentJourneyCardOverlayModal(
     legendaryShine.style.opacity = String(shine.opacity);
   };
 
+  const queueLegendaryDragShine = (angle: number): void => {
+    pendingLegendaryShineAngle = angle;
+    if (legendaryShinePaintRaf !== 0) return;
+    legendaryShinePaintRaf = requestAnimationFrame(() => {
+      legendaryShinePaintRaf = 0;
+      const nextAngle = pendingLegendaryShineAngle;
+      pendingLegendaryShineAngle = null;
+      if (nextAngle !== null) paintLegendaryDragShine(nextAngle);
+    });
+  };
+
   const setPaintFaceForAngle = (angle: number) => {
     const normalized = ((angle % 360) + 360) % 360;
     const edgeDistance = Math.abs(normalized - 90) < 0.001 || Math.abs(normalized - 270) < 0.001;
@@ -772,6 +816,8 @@ export function presentJourneyCardOverlayModal(
     const safeDurationMs = Math.max(1, Math.round(durationMs));
     stage.style.setProperty('--journey-card-exit-neutral-duration', `${safeDurationMs}ms`);
     stopSurfaceIdle();
+    idleShellHandoffAnimation?.cancel();
+    idleShellHandoffAnimation = null;
     exitNeutralAnimations.forEach((animation) => animation.cancel());
     exitNeutralAnimations = [];
     if (prefersReducedMotion || typeof idleShell.animate !== 'function') {
@@ -807,14 +853,27 @@ export function presentJourneyCardOverlayModal(
     front.setAttribute('aria-hidden', String(!frontActive));
     back.setAttribute('aria-hidden', String(frontActive));
     stage.dataset.face = face;
+    // Stable presentation is an atomic invariant: accessibility ownership and
+    // the WebKit paint-face culler must never point at different faces.
+    stage.dataset.paintFace = face;
   };
 
   const stableRotorAngle = () => stableFace === 'front' ? 0 : -180;
 
   const readPointerHandoffAngle = (): number => {
-    if (!legendaryIdleRotorAnimation && !dragPreviewSettleAnimation) return stableRotorAngle();
+    if (
+      !legendaryIdleRotorAnimation
+      && !dragPreviewSettleAnimation
+      && !flipAnimation
+      && !flipRecoilAnimation
+    ) {
+      return stableRotorAngle();
+    }
     const renderedTransform = window.getComputedStyle(rotor).transform || rotor.style.transform;
-    return getJourneyCardRenderedRotateYAngle(renderedTransform) ?? stableRotorAngle();
+    const renderedAngle = getJourneyCardRenderedRotateYAngle(renderedTransform);
+    return renderedAngle === null
+      ? stableRotorAngle()
+      : getJourneyCardUnwrappedAngleNear(renderedAngle, currentAngle);
   };
 
   const stopLegendaryIdleHolo = (): void => {
@@ -827,6 +886,43 @@ export function presentJourneyCardOverlayModal(
       legendaryShine?.style.removeProperty('background-position');
       legendaryShine?.style.removeProperty('opacity');
     }
+  };
+
+  const stopCommonIdleShine = (): void => {
+    commonIdleShineAnimation?.cancel();
+    commonIdleShineAnimation = null;
+    commonShine.style.removeProperty('background-position');
+    commonShine.style.removeProperty('opacity');
+  };
+
+  const startCommonIdleShine = (): void => {
+    stopCommonIdleShine();
+    if (
+      cardRarity !== 'common'
+      || stableFace !== 'front'
+      || prefersReducedMotion
+      || entering
+      || closing
+      || settled
+      || flipping
+      || activePointerId !== null
+      || stage.classList.contains('has-new-ribbon')
+      || stage.classList.contains('is-idle-coach')
+      || typeof commonShine.animate !== 'function'
+    ) return;
+
+    commonIdleShineAnimation = commonShine.animate([
+      { backgroundPosition: '240% 50%', opacity: 0, offset: 0 },
+      { backgroundPosition: '240% 50%', opacity: 0, offset: 0.4 },
+      { backgroundPosition: '205% 50%', opacity: 0.55, offset: 0.46 },
+      { backgroundPosition: '-105% 50%', opacity: 0.55, offset: 0.78 },
+      { backgroundPosition: '-140% 50%', opacity: 0, offset: 0.84 },
+      { backgroundPosition: '-140% 50%', opacity: 0, offset: 1 },
+    ], {
+      duration: 3000,
+      easing: 'ease-in-out',
+      iterations: Infinity,
+    });
   };
 
   const startLegendaryIdleHolo = (): void => {
@@ -855,12 +951,21 @@ export function presentJourneyCardOverlayModal(
     const offsets = [0, 0.25, 0.5, 0.75, 1];
     const shineKeyframes = idleAngles.map((angle, index): Keyframe => {
       const shine = getJourneyCardLegendaryDragShineState(angle);
+      const leftLightCatch = angle < 0
+        ? Math.min(1, Math.abs(angle) / JOURNEY_CARD_LEGENDARY_IDLE_TILT_DEG)
+        : 0;
+      const idleOpacity = Math.max(0.13, shine.opacity * 0.68);
       return {
         backgroundPosition: [
           `${shine.backgroundPositionPercent}% 50%`,
           `${shine.rainbowBackgroundPositionPercent}% 50%`,
         ].join(', '),
-        opacity: Math.max(0.12, shine.opacity * 0.58),
+        // Idle uses a slightly clearer diffraction read than the neutral drag
+        // pose. The artwork remains visible, while the cyan/violet/pink/mint
+        // layer no longer disappears at the shallow automatic tilt angles.
+        // The leftward pass gets one small extra lift so the existing near-white
+        // specular band reads as a natural light catch instead of another sweep.
+        opacity: Number((idleOpacity * (1 + leftLightCatch * 0.12)).toFixed(4)),
         offset: offsets[index],
       };
     });
@@ -887,11 +992,57 @@ export function presentJourneyCardOverlayModal(
   const stopSurfaceIdle = () => {
     stage.classList.remove('is-surface-idle');
     stopLegendaryIdleHolo();
+    stopCommonIdleShine();
+  };
+  const handoffSurfaceIdle = (mode: 'settle' | 'freeze-for-pointer' = 'settle'): void => {
+    const renderedTransform = window.getComputedStyle(idleShell).transform || idleShell.style.transform || 'none';
+    stopSurfaceIdle();
+    idleShellHandoffAnimation?.cancel();
+    idleShellHandoffAnimation = null;
+    idleShell.style.transform = renderedTransform;
+    // A live finger is the sole presentation owner. Continuing the former
+    // 160ms idle-shell handoff under that finger makes the card appear to
+    // ignore the first drag frames even though rotor pointer events arrive.
+    if (mode === 'freeze-for-pointer') return;
+    if (prefersReducedMotion || typeof idleShell.animate !== 'function') {
+      idleShell.style.transform = 'none';
+      return;
+    }
+    const animation = idleShell.animate([
+      { transform: renderedTransform },
+      { transform: 'none' },
+    ], {
+      duration: 160,
+      easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      fill: 'forwards',
+    });
+    idleShellHandoffAnimation = animation;
+    void animation.finished.catch(() => undefined).then(() => {
+      if (idleShellHandoffAnimation !== animation) return;
+      idleShellHandoffAnimation = null;
+      animation.cancel();
+      idleShell.style.transform = 'none';
+    });
   };
   const startSurfaceIdle = () => {
-    if (!prefersReducedMotion && !entering && !closing && !settled && !flipping && activePointerId === null) {
+    if (
+      !prefersReducedMotion
+      && !entering
+      && !closing
+      && !settled
+      && !flipping
+      && !flipAnimation
+      && !flipRecoilAnimation
+      && !impactAnimation
+      && !dragPreviewSettleAnimation
+      && activePointerId === null
+    ) {
+      idleShellHandoffAnimation?.cancel();
+      idleShellHandoffAnimation = null;
+      idleShell.style.removeProperty('transform');
       stage.classList.add('is-surface-idle');
       startLegendaryIdleHolo();
+      startCommonIdleShine();
     }
   };
 
@@ -1003,9 +1154,65 @@ export function presentJourneyCardOverlayModal(
     stage.classList.remove('is-idle-coach', 'is-idle-coach-drag', 'is-idle-coach-tap');
   };
 
+  const freezeIdleCoachImpact = (): { transform: string; translate: string } | null => {
+    const hasPresentedCoachPose = idleCoachCardAnimation !== null
+      || idleCoachImpactHandoffAnimation !== null;
+    if (!hasPresentedCoachPose) {
+      stopIdleCoach();
+      return null;
+    }
+    const renderedStyle = window.getComputedStyle(impactShell);
+    const renderedTransform = renderedStyle.transform || impactShell.style.transform || 'none';
+    const renderedTranslate = renderedStyle.translate || impactShell.style.translate || 'none';
+    stopIdleCoach();
+    idleCoachImpactHandoffAnimation?.cancel();
+    idleCoachImpactHandoffAnimation = null;
+    impactShell.style.transform = renderedTransform;
+    impactShell.style.translate = renderedTranslate;
+    return { transform: renderedTransform, translate: renderedTranslate };
+  };
+
+  const handoffIdleCoachImpact = (): void => {
+    const pose = freezeIdleCoachImpact();
+    if (!pose) return;
+    const { transform: renderedTransform, translate: renderedTranslate } = pose;
+    if (prefersReducedMotion || typeof impactShell.animate !== 'function') {
+      impactShell.style.transform = 'translate3d(0, 0, 0) scale(1)';
+      impactShell.style.translate = 'none';
+      return;
+    }
+    const animation = impactShell.animate([
+      { transform: renderedTransform, translate: renderedTranslate },
+      { transform: 'translate3d(0, 0, 0) scale(1)', translate: 'none' },
+    ], {
+      duration: 160,
+      easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      fill: 'forwards',
+    });
+    idleCoachImpactHandoffAnimation = animation;
+    void animation.finished.catch(() => undefined).then(() => {
+      if (idleCoachImpactHandoffAnimation !== animation) return;
+      idleCoachImpactHandoffAnimation = null;
+      animation.cancel();
+      impactShell.style.transform = 'translate3d(0, 0, 0) scale(1)';
+      impactShell.style.translate = 'none';
+    });
+  };
+
   const scheduleIdleCoach = () => {
     stopIdleCoach();
-    if (prefersReducedMotion || entering || closing || settled || flipping || activePointerId !== null) return;
+    if (
+      prefersReducedMotion
+      || entering
+      || closing
+      || settled
+      || flipping
+      || flipAnimation
+      || flipRecoilAnimation
+      || impactAnimation
+      || dragPreviewSettleAnimation
+      || activePointerId !== null
+    ) return;
     const generation = idleCoachGeneration;
     idleCoachTimer = window.setTimeout(() => {
       idleCoachTimer = 0;
@@ -1015,10 +1222,10 @@ export function presentJourneyCardOverlayModal(
       stage.classList.add('is-idle-coach', `is-idle-coach-${coachMode}`);
       const cardAnimation = coachMode === 'drag'
         ? impactShell.animate([
-          { transform: 'translate3d(0, 0, 0) rotateY(0deg)', offset: 0 },
-          { transform: 'translate3d(-34px, 0, 0) rotateY(-17deg)', offset: 0.28 },
-          { transform: 'translate3d(38px, 0, 0) rotateY(19deg)', offset: 0.68 },
-          { transform: 'translate3d(0, 0, 0) rotateY(0deg)', offset: 1 },
+          { transform: 'translate3d(0, 0, 0)', offset: 0 },
+          { transform: 'translate3d(-34px, 0, 0)', offset: 0.28 },
+          { transform: 'translate3d(38px, 0, 0)', offset: 0.68 },
+          { transform: 'translate3d(0, 0, 0)', offset: 1 },
         ], {
           duration: JOURNEY_CARD_FLIP_IDLE_COACH_DURATION_MS,
           easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
@@ -1069,8 +1276,14 @@ export function presentJourneyCardOverlayModal(
   };
 
   const cancelMotion = () => {
+    flipGeneration += 1;
     stopSurfaceIdle();
+    if (pointerTakeoverAuditRaf !== 0) {
+      cancelAnimationFrame(pointerTakeoverAuditRaf);
+      pointerTakeoverAuditRaf = 0;
+    }
     clearLegendaryDragShine(true);
+    clearJourneyInterimShineMask(commonShine);
     stopIdleCoach();
     clearBackContentTimers();
     spatialFlight?.cancel();
@@ -1079,10 +1292,16 @@ export function presentJourneyCardOverlayModal(
     flipAnimation = null;
     flipRecoilAnimation?.cancel();
     flipRecoilAnimation = null;
+    idleShellHandoffAnimation?.cancel();
+    idleShellHandoffAnimation = null;
+    idleShell.style.removeProperty('transform');
+    idleCoachImpactHandoffAnimation?.cancel();
+    idleCoachImpactHandoffAnimation = null;
     impactAnimation?.cancel();
     impactAnimation = null;
     dragPreviewSettleAnimation?.cancel();
     dragPreviewSettleAnimation = null;
+    stage.classList.remove('is-face-settling');
     exitNeutralAnimations.forEach((animation) => animation.cancel());
     exitNeutralAnimations = [];
     if (activePointerId !== null) {
@@ -1147,20 +1366,30 @@ export function presentJourneyCardOverlayModal(
   const animateInteractiveFlip = async (
     targetFace: 'front' | 'back',
     preferredDirection?: -1 | 1,
+    pointerReleaseAngle?: number,
   ): Promise<void> => {
     if (entering || closing || settled || flipping || impactAnimation || dragPreviewSettleAnimation) return;
-    clearLegendaryDragShine();
+    // An in-contact handoff must continue from the exact angle last painted by
+    // the pointer. readPointerHandoffAngle() intentionally falls back to the
+    // stable face when no WAAPI owner exists, which would otherwise jump a
+    // ±72deg manual scrub back to 0/-180 before auto-completing the flip.
+    const from = Number.isFinite(pointerReleaseAngle)
+      ? Number(pointerReleaseAngle)
+      : activePointerId !== null && stage.classList.contains('is-dragging')
+        ? currentAngle
+        : readPointerHandoffAngle();
+    const generation = ++flipGeneration;
+    paintLegendaryDragShine(from, true);
     if (flipRecoilAnimation) {
       flipRecoilAnimation.cancel();
       flipRecoilAnimation = null;
-      setRotorAngle(stableRotorAngle());
     }
     flipping = true;
-    stopSurfaceIdle();
+    handoffSurfaceIdle(activePointerId !== null ? 'freeze-for-pointer' : 'settle');
+    setRotorAngle(from);
     stage.classList.add('is-flipping');
     stage.classList.toggle('is-flipping-to-front', targetFace === 'front');
     stage.classList.toggle('is-flipping-to-back', targetFace === 'back');
-    const from = currentAngle;
     const canonical = targetFace === 'back' ? -180 : 0;
     const candidates = [canonical - 360, canonical, canonical + 360];
     const directionalCandidates = preferredDirection === undefined
@@ -1188,14 +1417,21 @@ export function presentJourneyCardOverlayModal(
       const animation = rotor.animate(keyframes, { duration, easing: 'linear' });
       flipAnimation = animation;
       if (crossesFaceEdge) {
+        let faceEdgeCommitted = false;
         const watchPhysicalEdge = () => {
           if (closing || settled || flipAnimation !== animation) {
             flipEdgeRaf = 0;
             return;
           }
-          const elapsed = Number(animation.currentTime ?? 0);
-          if (elapsed / Math.max(1, duration) >= edgeProgress) {
+          const progress = clamp01(Number(animation.currentTime ?? 0) / Math.max(1, duration));
+          const liveAngle = from + (to - from) * progress;
+          currentAngle = liveAngle;
+          if (!faceEdgeCommitted && progress >= edgeProgress) {
             stage.dataset.paintFace = targetFace;
+            faceEdgeCommitted = true;
+          }
+          paintLegendaryDragShine(liveAngle, true);
+          if (progress >= 1) {
             flipEdgeRaf = 0;
             return;
           }
@@ -1206,13 +1442,14 @@ export function presentJourneyCardOverlayModal(
       try { await animation.finished; } catch {}
       if (flipAnimation === animation) flipAnimation = null;
     }
-    if (closing || settled) return;
+    if (generation !== flipGeneration || closing || settled) return;
     setRotorAngle(targetFace === 'back' ? -180 : 0);
     setStableFace(targetFace);
+    if (targetFace === 'back') restoreBackContentVisible();
     flipping = false;
     stage.classList.remove('is-flipping', 'is-flipping-to-front', 'is-flipping-to-back');
     if (activePointerId === null) stage.classList.remove('is-dragging');
-    if (!prefersReducedMotion && typeof rotor.animate === 'function') {
+    if (activePointerId === null && !prefersReducedMotion && typeof rotor.animate === 'function') {
       const recoil = rotor.animate([
         { transform: `rotateY(${to}deg)`, easing: JOURNEY_CARD_FLIP_RECOIL_EASE },
         ...JOURNEY_CARD_FLIP_RECOIL_STOPS.map((stop): Keyframe => ({
@@ -1223,13 +1460,31 @@ export function presentJourneyCardOverlayModal(
         { transform: `rotateY(${to}deg)` },
       ], { duration: JOURNEY_CARD_FLIP_RECOIL_DURATION_MS, easing: 'linear' });
       flipRecoilAnimation = recoil;
+      const watchRecoilShine = () => {
+        if (closing || settled || flipRecoilAnimation !== recoil) {
+          flipEdgeRaf = 0;
+          return;
+        }
+        const renderedTransform = window.getComputedStyle(rotor).transform || rotor.style.transform;
+        const renderedAngle = getJourneyCardRenderedRotateYAngle(renderedTransform) ?? stableRotorAngle();
+        setPaintFaceForAngle(renderedAngle);
+        paintLegendaryDragShine(renderedAngle, true);
+        flipEdgeRaf = requestAnimationFrame(watchRecoilShine);
+      };
+      if (flipEdgeRaf !== 0) cancelAnimationFrame(flipEdgeRaf);
+      flipEdgeRaf = requestAnimationFrame(watchRecoilShine);
       void recoil.finished.catch(() => undefined).then(() => {
         if (flipRecoilAnimation !== recoil || closing || settled) return;
         flipRecoilAnimation = null;
+        if (flipEdgeRaf !== 0) {
+          cancelAnimationFrame(flipEdgeRaf);
+          flipEdgeRaf = 0;
+        }
         recoil.cancel();
         setRotorAngle(stableRotorAngle());
         if (activePointerId === null && !flipping && !impactAnimation && !dragPreviewSettleAnimation) {
           startSurfaceIdle();
+          clearLegendaryDragShine();
           scheduleIdleCoach();
         }
       });
@@ -1367,6 +1622,7 @@ export function presentJourneyCardOverlayModal(
           // while the card is already travelling toward its Unit.
           const remaining = 1 - smoothstep(rawProgress);
           const scale = 1 - (1 - dismissDragReleaseScale) * remaining;
+          impactShell.style.translate = `${(exitImpactReleaseX * remaining).toFixed(2)}px 0`;
           impactShell.style.transform = `translate3d(0, ${(dismissDragReleaseY * remaining).toFixed(2)}px, 0) scale(${scale})`;
           return;
         }
@@ -1387,7 +1643,10 @@ export function presentJourneyCardOverlayModal(
           const backIn = p * p * (((1.7 + 1) * p) - 1.7);
           scale = Math.max(0, 1.14 * (1 - backIn));
         }
-        impactShell.style.transform = `scale(${scale})`;
+        const handoffRemaining = 1 - smoothstep(elapsedMs / 160);
+        const composedScale = scale * (1 + (dismissDragReleaseScale - 1) * handoffRemaining);
+        impactShell.style.translate = `${(exitImpactReleaseX * handoffRemaining).toFixed(2)}px 0`;
+        impactShell.style.transform = `translate3d(0, ${(dismissDragReleaseY * handoffRemaining).toFixed(2)}px, 0) scale(${composedScale})`;
         impactShell.style.opacity = elapsedMs >= totalDurationMs ? '0' : '1';
       },
     });
@@ -1443,8 +1702,10 @@ export function presentJourneyCardOverlayModal(
       if (!settled) void beginClose(value);
       return;
     }
+    freezeIdleCoachImpact();
     closing = true;
     options.onPerformancePhase?.(`${value}-close-owned`);
+    flipGeneration += 1;
     flipping = false;
     clearBackContentTimers();
     const exitNeutralDurationMs = value === 'play'
@@ -1461,6 +1722,13 @@ export function presentJourneyCardOverlayModal(
     const visibleRotorTransform = window.getComputedStyle(rotor).transform || rotor.style.transform;
     const visibleImpactTransform = window.getComputedStyle(impactShell).transform || impactShell.style.transform;
     const visibleImpactTranslate = window.getComputedStyle(impactShell).translate || impactShell.style.translate;
+    const visibleImpactPose = getJourneyCardImpactPresentationPose(
+      visibleImpactTransform,
+      visibleImpactTranslate,
+    );
+    exitImpactReleaseX = visibleImpactPose.translateX;
+    dismissDragReleaseY = visibleImpactPose.translateY;
+    dismissDragReleaseScale = visibleImpactPose.scale;
     if (value === 'dismiss') options.onPerformancePhase?.('dismiss-style-snapshot-complete');
     impactAnimation?.cancel();
     impactAnimation = null;
@@ -1469,7 +1737,7 @@ export function presentJourneyCardOverlayModal(
     rotor.style.transform = visibleRotorTransform;
     impactShell.style.transform = visibleImpactTransform;
     impactShell.style.translate = visibleImpactTranslate;
-    stage.classList.remove('is-flipping', 'is-flipping-to-front', 'is-flipping-to-back', 'is-dragging');
+    stage.classList.remove('is-flipping', 'is-flipping-to-front', 'is-flipping-to-back', 'is-dragging', 'is-face-settling');
     stage.classList.add('is-flipping-to-front');
     stage.classList.add('is-exiting', 'is-backdrop-exiting');
     const returnEdgeAtMs = value === 'play'
@@ -1500,8 +1768,7 @@ export function presentJourneyCardOverlayModal(
         : entering ? 'entering'
           : closing ? 'closing'
             : settled ? 'settled'
-              : flipping ? 'flipping'
-                : activePointerId !== null ? 'active-pointer'
+              : activePointerId !== null ? 'active-pointer'
                   : interactiveControl ? 'interactive-control'
                     : null;
     if (blockedBy) {
@@ -1522,12 +1789,35 @@ export function presentJourneyCardOverlayModal(
     // rotor pose, invalidate both settle owners, and hand that exact pose to
     // the new drag. Their completion callbacks are identity-guarded below.
     const dragHandoffAngle = readPointerHandoffAngle();
+    const idleRotorBeforeTakeover = legendaryIdleRotorAnimation;
+    const renderedRotorBeforeTakeover = window.getComputedStyle(rotor).transform || rotor.style.transform || 'none';
+    tracePointerOwnership('pointerdown-preflight', {
+      pointerId: event.pointerId,
+      pointerType: event.pointerType,
+      renderedAngle: getJourneyCardRenderedRotateYAngle(renderedRotorBeforeTakeover),
+      idleRotorPlayState: idleRotorBeforeTakeover?.playState ?? null,
+      idleRotorCurrentTime: Number(idleRotorBeforeTakeover?.currentTime ?? 0),
+      rotorAnimationCount: rotor.getAnimations?.().length ?? null,
+      idleShellAnimationCount: idleShell.getAnimations?.().length ?? null,
+    });
     const renderedImpactStyle = window.getComputedStyle(impactShell);
     const impactHandoffPose = getJourneyCardImpactPresentationPose(
       renderedImpactStyle.transform || impactShell.style.transform,
       renderedImpactStyle.translate || impactShell.style.translate,
     );
-    stopSurfaceIdle();
+    handoffSurfaceIdle('freeze-for-pointer');
+    stopIdleCoach();
+    idleCoachImpactHandoffAnimation?.cancel();
+    idleCoachImpactHandoffAnimation = null;
+    const interruptedFlip = flipping;
+    const interruptedFlipAnimation = flipAnimation;
+    if (interruptedFlip) {
+      flipGeneration += 1;
+      flipAnimation = null;
+      interruptedFlipAnimation?.cancel();
+      flipping = false;
+      stage.classList.remove('is-flipping', 'is-flipping-to-front', 'is-flipping-to-back');
+    }
     flipRecoilAnimation?.cancel();
     flipRecoilAnimation = null;
     const interruptedImpactAnimation = impactAnimation;
@@ -1536,6 +1826,7 @@ export function presentJourneyCardOverlayModal(
     dragPreviewSettleAnimation = null;
     interruptedImpactAnimation?.cancel();
     interruptedPreviewAnimation?.cancel();
+    stage.classList.remove('is-face-settling');
     if (flipEdgeRaf !== 0) {
       cancelAnimationFrame(flipEdgeRaf);
       flipEdgeRaf = 0;
@@ -1567,6 +1858,7 @@ export function presentJourneyCardOverlayModal(
     dragImpactStartTranslateX = impactHandoffPose.translateX;
     dragImpactStartTranslateY = impactHandoffPose.translateY;
     dragImpactStartScale = impactHandoffPose.scale;
+    dragPresentationTranslateX = impactHandoffPose.translateX;
     dragAxis = null;
     dismissDragReleaseY = 0;
     dismissDragReleaseScale = 1;
@@ -1587,13 +1879,30 @@ export function presentJourneyCardOverlayModal(
       dragHandoffAngle: Number(dragHandoffAngle.toFixed(2)),
       interruptedImpactSettle: interruptedImpactAnimation !== null,
       interruptedPreviewSettle: interruptedPreviewAnimation !== null,
+      interruptedFlip,
       captureRequested,
       hasPointerCapture: rotor.hasPointerCapture?.(event.pointerId) ?? null,
     });
+    if (pointerTakeoverAuditRaf !== 0) cancelAnimationFrame(pointerTakeoverAuditRaf);
+    const takeoverSequence = pointerTraceSequence;
+    const takeoverPointerId = event.pointerId;
+    pointerTakeoverAuditRaf = requestAnimationFrame(() => {
+      pointerTakeoverAuditRaf = 0;
+      if (pointerTraceSequence !== takeoverSequence || activePointerId !== takeoverPointerId) return;
+      const renderedTransform = window.getComputedStyle(rotor).transform || rotor.style.transform || 'none';
+      tracePointerOwnership('pointerdown-next-paint', {
+        pointerId: takeoverPointerId,
+        renderedAngle: getJourneyCardRenderedRotateYAngle(renderedTransform),
+        rotorAnimationCount: rotor.getAnimations?.().length ?? null,
+        idleShellAnimationCount: idleShell.getAnimations?.().length ?? null,
+      });
+    });
   }
 
-  function handleAnyPointerInteraction(): void {
-    stopIdleCoach();
+  function handleAnyPointerInteraction(event: PointerEvent): void {
+    // Let the rotor owner snapshot the painted coach pose before cancellation.
+    if (event.composedPath().includes(rotor)) return;
+    handoffIdleCoachImpact();
   }
 
   function handlePointerMove(event: PointerEvent): void {
@@ -1626,44 +1935,32 @@ export function presentJourneyCardOverlayModal(
         deltaX: Number(deltaX.toFixed(2)),
         deltaY: Number(deltaY.toFixed(2)),
       });
-      if (dragAxis === 'horizontal') {
-        dismissDragReleaseY = dragImpactStartTranslateY;
-        dismissDragReleaseScale = dragImpactStartScale;
-        impactShell.style.transform = `translate3d(0, ${dragImpactStartTranslateY}px, 0) scale(${dragImpactStartScale})`;
-      } else {
-        setRotorAngle(dragStartAngle);
-        impactShell.style.translate = dragImpactStartTranslateX === 0
-          ? 'none'
-          : `${dragImpactStartTranslateX}px 0`;
-      }
+      // Intent may change, but presentation continues from the same live 2D
+      // vector below. Never reset either channel on the switching frame.
     }
-    if (dragAxis === 'vertical') {
-      clearLegendaryDragShine();
-      const verticalDistance = Math.abs(deltaY);
-      const commitDistance = getJourneyCardDismissDragDistance(dragCardHeight);
-      const previewProgress = clamp01(verticalDistance / commitDistance);
-      const boundedDeltaY = dragCardRect
-        ? getIosResistedModalVerticalDelta(deltaY, dragCardRect, dragViewportHeight)
-        : deltaY;
-      // Vertical dismiss is release-owned: keep following the live pointer even
-      // after it crosses the commit distance. Returning near the origin before
-      // pointerup therefore cancels the close and runs the normal snapback.
-      dismissDragReleaseY = dragImpactStartTranslateY + boundedDeltaY;
-      dismissDragReleaseScale = Math.max(0.9, dragImpactStartScale - previewProgress * 0.035);
-      impactShell.style.transform = `translate3d(0, ${dismissDragReleaseY}px, 0) scale(${dismissDragReleaseScale})`;
-      return;
-    }
+    const verticalDistance = Math.abs(deltaY);
+    const commitDistance = getJourneyCardDismissDragDistance(dragCardHeight);
+    const previewProgress = clamp01(verticalDistance / commitDistance);
+    const boundedDeltaY = dragCardRect
+      ? getIosResistedModalVerticalDelta(deltaY, dragCardRect, dragViewportHeight)
+      : deltaY;
+    // Both axes stay live. Vertical movement can preview dismiss while the
+    // same contact remains free to become a horizontal card rotation.
+    dismissDragReleaseY = dragImpactStartTranslateY + boundedDeltaY;
+    dismissDragReleaseScale = Math.max(0.9, dragImpactStartScale - previewProgress * 0.035);
+    impactShell.style.transform = `translate3d(0, ${dismissDragReleaseY}px, 0) scale(${dismissDragReleaseScale})`;
     const translateX = Math.max(
       dragHorizontalMinX,
       Math.min(dragHorizontalMaxX, dragImpactStartTranslateX + deltaX * 0.12),
     );
+    dragPresentationTranslateX = translateX;
     impactShell.style.translate = `${translateX.toFixed(2)}px 0`;
     if (dragFlipCommitted) return;
     const direction = Math.sign(deltaX) as -1 | 0 | 1;
     if (dragAllowedDirection !== 0 && direction !== 0 && direction !== dragAllowedDirection) {
       dragFlipProgress = 0;
       setRotorAngle(dragStartAngle);
-      paintLegendaryDragShine(dragStartAngle);
+      queueLegendaryDragShine(dragStartAngle);
       return;
     }
     const handoffDistance = Math.max(
@@ -1673,10 +1970,12 @@ export function presentJourneyCardOverlayModal(
     dragFlipProgress = clamp01(Math.abs(deltaX) / handoffDistance);
     const dragAngle = getJourneyCardDragFlipAngle(dragStartAngle, deltaX, dragViewportWidth);
     setRotorAngle(dragAngle);
-    paintLegendaryDragShine(dragAngle);
-    if (dragFlipProgress >= 1) {
+    queueLegendaryDragShine(dragAngle);
+    if (dragAxis === 'horizontal' && dragFlipProgress >= 1) {
       dragFlipCommitted = true;
       const committedDirection = direction || 1;
+      const committedPointerId = activePointerId;
+      const committedPointerSequence = pointerTraceSequence;
       tracePointerOwnership('pointer-flip-commit', {
         pointerId: event.pointerId,
         moveCount: pointerTraceMoveCount,
@@ -1684,12 +1983,24 @@ export function presentJourneyCardOverlayModal(
         deltaX: Number(deltaX.toFixed(2)),
       });
       void animateInteractiveFlip(stableFace === 'front' ? 'back' : 'front').then(() => {
-        if (activePointerId === null || closing || settled || flipping) return;
+        if (
+          activePointerId === null
+          || activePointerId !== committedPointerId
+          || pointerTraceSequence !== committedPointerSequence
+          || closing
+          || settled
+          || flipping
+        ) return;
         dragStartX = dragLatestX;
+        dragStartY = dragLatestY;
+        dragImpactStartTranslateX = dragPresentationTranslateX;
+        dragImpactStartTranslateY = dismissDragReleaseY;
+        dragImpactStartScale = dismissDragReleaseScale;
         dragStartAngle = stableRotorAngle();
         dragFlipProgress = 0;
         dragFlipCommitted = false;
         dragAllowedDirection = committedDirection === -1 ? 1 : -1;
+        dragAxis = 'horizontal';
       });
     }
   }
@@ -1719,41 +2030,15 @@ export function presentJourneyCardOverlayModal(
     activePointerId = null;
     try { rotor.releasePointerCapture(event.pointerId); } catch {}
     stage.classList.remove('is-dragging');
-    if (dragAxis === 'vertical') {
+    const shouldDismiss = allowCommit
+      && dragAxis !== 'horizontal'
+      && Math.abs(deltaY) >= getJourneyCardDismissDragDistance(dragCardHeight)
+      && isJourneyCardVerticalDismissGesture(deltaX, deltaY);
+    if (shouldDismiss) {
       clearLegendaryDragShine();
       event.preventDefault();
       event.stopPropagation();
-      const shouldDismiss = allowCommit
-        && Math.abs(deltaY) >= getJourneyCardDismissDragDistance(dragCardHeight)
-        && isJourneyCardVerticalDismissGesture(deltaX, deltaY);
-      if (shouldDismiss) {
-        void beginClose('dismiss');
-        return;
-      }
-      const verticalSettle = impactShell.animate?.([
-        {
-          transform: impactShell.style.transform || 'translate3d(0, 0, 0) scale(1)',
-          translate: impactShell.style.translate || 'none',
-        },
-        { transform: 'translate3d(0, 0, 0) scale(1)', translate: 'none' },
-      ], { duration: prefersReducedMotion ? 1 : 180, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'forwards' }) ?? null;
-      impactAnimation = verticalSettle;
-      if (!verticalSettle) {
-        impactShell.style.transform = 'translate3d(0, 0, 0) scale(1)';
-        impactShell.style.translate = 'none';
-        startSurfaceIdle();
-        scheduleIdleCoach();
-        return;
-      }
-      void verticalSettle.finished.catch(() => undefined).then(() => {
-        if (impactAnimation !== verticalSettle || closing || settled) return;
-        impactAnimation = null;
-        impactShell.style.transform = 'translate3d(0, 0, 0) scale(1)';
-        impactShell.style.translate = 'none';
-        verticalSettle.cancel();
-        startSurfaceIdle();
-        scheduleIdleCoach();
-      });
+      void beginClose('dismiss');
       return;
     }
     if (!allowCommit) {
@@ -1773,28 +2058,38 @@ export function presentJourneyCardOverlayModal(
     event.preventDefault();
     event.stopPropagation();
     if (!moved) {
-      clearLegendaryDragShine();
       impactShell.style.translate = 'none';
       impactShell.style.transform = 'translate3d(0, 0, 0) scale(1)';
       const targetFace = stableFace === 'front' ? 'back' : 'front';
       void animateInteractiveFlip(targetFace, targetFace === 'back' ? 1 : -1);
       return;
     }
+    const releaseDirection = Math.sign(deltaX) as -1 | 0 | 1;
     const shouldCommitReleasedDrag = !flipping
       && !dragFlipCommitted
+      && dragAxis === 'horizontal'
       && shouldCommitJourneyCardReleasedDrag(deltaX, dragViewportWidth, dragAllowedDirection);
     if (shouldCommitReleasedDrag) {
       clearLegendaryDragShine();
       impactShell.style.translate = 'none';
       impactShell.style.transform = 'translate3d(0, 0, 0) scale(1)';
-      void animateInteractiveFlip(stableFace === 'front' ? 'back' : 'front');
+      const targetFace = stableFace === 'front' ? 'back' : 'front';
+      void animateInteractiveFlip(
+        targetFace,
+        releaseDirection === 0 ? undefined : releaseDirection,
+        currentAngle,
+      );
       return;
     }
+    // Releasing any partial horizontal scrub returns to its starting face.
+    // A short release below the KING threshold returns to its starting face;
+    // crossing the live 40% handoff while held still commits immediately.
     const fromTranslate = impactShell.style.translate || 'none';
     const fromImpactTransform = impactShell.style.transform || 'translate3d(0, 0, 0) scale(1)';
     const previewFromAngle = currentAngle;
     const committedFlipInFlight = allowCommit && dragFlipCommitted;
-    const previewToAngle = committedFlipInFlight ? previewFromAngle : dragStartAngle;
+    const previewToAngle = committedFlipInFlight ? previewFromAngle : stableRotorAngle();
+    handoffSurfaceIdle();
     const animation = impactShell.animate?.([
       { translate: fromTranslate, transform: fromImpactTransform },
       { translate: 'none', transform: 'translate3d(0, 0, 0) scale(1)' },
@@ -1814,6 +2109,7 @@ export function presentJourneyCardOverlayModal(
         fill: 'forwards',
       }) ?? null
       : null;
+    if (dragPreviewSettleAnimation) stage.classList.add('is-face-settling');
     if (!animation) {
       clearLegendaryDragShine();
       impactShell.style.translate = 'none';
@@ -1823,6 +2119,7 @@ export function presentJourneyCardOverlayModal(
         startSurfaceIdle();
         scheduleIdleCoach();
       }
+      stage.classList.remove('is-face-settling');
       return;
     }
     const previewAnimation = dragPreviewSettleAnimation;
@@ -1845,7 +2142,7 @@ export function presentJourneyCardOverlayModal(
         flipEdgeRaf = requestAnimationFrame(watchSettlePaintFace);
       };
       flipEdgeRaf = requestAnimationFrame(watchSettlePaintFace);
-    } else clearLegendaryDragShine();
+    } else paintLegendaryDragShine(previewFromAngle, true);
     void Promise.allSettled([
       animation.finished,
       previewAnimation?.finished ?? Promise.resolve(),
@@ -1857,7 +2154,7 @@ export function presentJourneyCardOverlayModal(
       }
       impactAnimation = null;
       if (dragPreviewSettleAnimation === previewAnimation) dragPreviewSettleAnimation = null;
-      clearLegendaryDragShine();
+      stage.classList.remove('is-face-settling');
       impactShell.style.translate = 'none';
       impactShell.style.transform = 'translate3d(0, 0, 0) scale(1)';
       if (!flipping) {
@@ -1867,7 +2164,10 @@ export function presentJourneyCardOverlayModal(
       animation.cancel();
       if (!flipping) {
         startSurfaceIdle();
+        clearLegendaryDragShine();
         scheduleIdleCoach();
+      } else {
+        clearLegendaryDragShine();
       }
     });
   }
@@ -1882,7 +2182,12 @@ export function presentJourneyCardOverlayModal(
 
   function handleLostPointerCapture(event: PointerEvent): void {
     if (event.pointerId !== activePointerId) return;
-    finishPointer(event, false, 'lost-capture', dragLatestX, dragLatestY);
+    // Capture loss is only a transport change. Window listeners keep the same
+    // gesture alive until a real pointerup/pointercancel arrives.
+    tracePointerOwnership('pointer-capture-fallback', {
+      pointerId: event.pointerId,
+      moveCount: pointerTraceMoveCount,
+    });
   }
 
   function handleWindowPointerMove(event: PointerEvent): void {
@@ -1901,14 +2206,14 @@ export function presentJourneyCardOverlayModal(
   function handleRotorKeyDown(event: KeyboardEvent): void {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     if (event.target !== front) return;
-    stopIdleCoach();
+    handoffIdleCoachImpact();
     event.preventDefault();
     const targetFace = stableFace === 'front' ? 'back' : 'front';
     void animateInteractiveFlip(targetFace, targetFace === 'back' ? 1 : -1);
   }
 
   function handleTurnControlClick(event: MouseEvent): void {
-    stopIdleCoach();
+    handoffIdleCoachImpact();
     event.preventDefault();
     event.stopPropagation();
     void animateInteractiveFlip('front', -1);
@@ -1919,7 +2224,6 @@ export function presentJourneyCardOverlayModal(
   }
 
   function handleDocumentKeyDown(event: KeyboardEvent): void {
-    stopIdleCoach();
     if (event.key !== 'Escape') return;
     event.preventDefault();
     void beginClose('dismiss');

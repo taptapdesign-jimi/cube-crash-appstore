@@ -41,32 +41,41 @@ describe('Journey collectible card assets', () => {
     });
     expect(resolveJourneyCardAsset(6, 999999)).toMatchObject({
       stageInWorld: 6,
-      path1x: './assets/colelctibles/Forest/legendary/02-gold.png',
-      path2x: './assets/colelctibles/Forest/legendary/02-gold@2x.png',
-    });
-    expect(resolveJourneyCardAsset(9, 999999)).toMatchObject({
-      stageInWorld: 9,
       path1x: './assets/colelctibles/Forest/legendary/03-gold.png',
       path2x: './assets/colelctibles/Forest/legendary/03-gold@2x.png',
     });
+    expect(resolveJourneyCardAsset(9, 999999)).toMatchObject({
+      stageInWorld: 9,
+      path1x: './assets/colelctibles/Forest/legendary/02-gold.png',
+      path2x: './assets/colelctibles/Forest/legendary/02-gold@2x.png',
+    });
   });
 
-  test('does not apply the Forest pack to Beach or Area 55', () => {
+  test('uses redundant placeholders for Beach and Area 55 without Forest rarity', () => {
     expect(resolveJourneyCardAsset(11, 999999)).toMatchObject({
       rarity: 'common',
-      path1x: './assets/colelctibles/common/11.png',
+      path1x: './assets/redundant assets/collectible cards old/11.png',
     });
     expect(resolveJourneyCardAsset(11, 999999).path2x).toBeUndefined();
     expect(resolveJourneyCardAsset(21, 999999)).toMatchObject({
       rarity: 'common',
-      path1x: './assets/colelctibles/common/01.png',
+      path1x: './assets/redundant assets/collectible cards old/21.png',
     });
     expect(resolveJourneyCardAsset(21, 999999).path2x).toBeUndefined();
     expect(resolveJourneyCardAsset(30, 999999)).toMatchObject({
       rarity: 'common',
-      path1x: './assets/colelctibles/common/10.png',
+      path1x: './assets/redundant assets/collectible cards old/24.png',
     });
     expect(resolveJourneyCardAsset(30, 999999).path2x).toBeUndefined();
+  });
+
+  test('every temporary Beach and Area 55 card resolves to an existing redundant asset', () => {
+    for (let boardId = 11; boardId <= 30; boardId += 1) {
+      const asset = resolveJourneyCardAsset(boardId, 999999);
+      expect(asset.rarity).toBe('common');
+      expect(asset.path2x).toBeUndefined();
+      expect(fs.existsSync(path.resolve(process.cwd(), asset.path1x))).toBe(true);
+    }
   });
 
   test('all 40 declared Forest files exist', () => {

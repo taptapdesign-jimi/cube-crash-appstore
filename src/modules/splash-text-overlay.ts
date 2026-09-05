@@ -9,6 +9,7 @@ import { attachSmallStarCenterBurst } from './text-sparkles.js';
 import { attachBoltSprites } from './text-bolts.js';
 import { attachBottleFinaleScene } from './bottle-finale-scene.js';
 import { attachSpaceshipFinaleScene } from './spaceship-finale-scene.js';
+import { attachBeeFinaleScene } from './bee-finale-scene.js';
 import { setWildFxDragLock, startWildFxDragLockForAnimation } from './wild-fx-drag-lock.ts';
 import { applyEffectLetterOpacity, resolveEffectLetterOpacity } from './effect-letter-opacity.ts';
 
@@ -527,16 +528,29 @@ export function showSparkleText(origin?: { x: number; y: number } | null, option
       'justify-content: center',
     ].join(';');
     sparkleOverlay = overlay;
-    const smallStarBurstCleanup = attachSmallStarCenterBurst(overlay, {
-      count: options?.burstMotion?.count ?? 26,
-      zIndex: 2,
-      origin,
-      sources: options?.burstSources,
-      motion: options?.burstMotion,
-    });
+    // Bee/leaf compositing must start while connected. WebKit can skip the
+    // first transform/opacity paint when an animated image tree starts detached.
+    document.body.appendChild(overlay);
+    const sparkleFxStartedAt = performance.now();
+    const usesBeeForestFlight = options?.finaleScene === 'bee-forest-flight';
+    const smallStarBurstCleanup = usesBeeForestFlight
+      ? attachBeeFinaleScene(overlay, 1, origin)
+      : attachSmallStarCenterBurst(overlay, {
+          count: options?.burstMotion?.count ?? 26,
+          zIndex: 2,
+          origin,
+          sources: options?.burstSources,
+          motion: options?.burstMotion,
+        });
     sparkleFxCleanup = () => {
       try { smallStarBurstCleanup(); } catch {}
     };
+    (sparkleFxCleanup as any).startExit = () => {
+      try { (smallStarBurstCleanup as any)?.startExit?.(); } catch {}
+    };
+    const sparkleFxCompletionDelaySeconds = Number(
+      (smallStarBurstCleanup as any)?.completionDelaySeconds,
+    ) || 0;
     triggerSparkleHapticTrain();
 
     const container = document.createElement('div');
@@ -627,12 +641,16 @@ export function showSparkleText(origin?: { x: number; y: number } | null, option
     });
 
     overlay.appendChild(container);
-    document.body.appendChild(overlay);
 
     let exitStarted = false;
     const startExit = () => {
       if (exitStarted) return;
       exitStarted = true;
+      // Bee owns a complete four-second flight. The normal text exit may hide
+      // letters, but must not interrupt that finale before its fly-by begins.
+      if (!usesBeeForestFlight) {
+        try { (smallStarBurstCleanup as any)?.startExit?.(); } catch {}
+      }
       bounceTimelines.forEach((tl) => {
         killTrackedTimeline(tl);
       });
@@ -667,7 +685,15 @@ export function showSparkleText(origin?: { x: number; y: number } | null, option
         EXIT_BOUNCE_DURATION + BOOM_EXIT_EXTRA * 0.2 +
         EXIT_FADE_DURATION + BOOM_EXIT_EXTRA * 0.8 +
         0.05;
-      const exitCleanupCall = trackDelayedCall(exitTotal, () => cleanupSparkleOverlay());
+      const sparkleFxElapsedSeconds = Math.max(0, (performance.now() - sparkleFxStartedAt) / 1000);
+      const sparkleFxRemainingSeconds = Math.max(
+        0,
+        sparkleFxCompletionDelaySeconds - sparkleFxElapsedSeconds,
+      );
+      const exitCleanupCall = trackDelayedCall(
+        Math.max(exitTotal, sparkleFxRemainingSeconds + 0.05),
+        () => cleanupSparkleOverlay(),
+      );
       sparkleDelayedCallsRef.push(exitCleanupCall);
     };
 

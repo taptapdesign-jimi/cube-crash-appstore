@@ -9,6 +9,7 @@ import {
   getJourneyCardFlipFaceForAngle,
   getJourneyCardImpactPresentationPose,
   getJourneyCardRenderedRotateYAngle,
+  getJourneyCardUnwrappedAngleNear,
   resolveJourneyCardDragAxis,
   shouldCommitJourneyCardReleasedDrag,
   JOURNEY_CARD_FLIP_DRAG_HANDOFF_VIEWPORT_RATIO,
@@ -108,6 +109,23 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(css).not.toContain('.journey-card-flip-cta.cc-cta .cc-cta__visual');
   });
 
+  test('alpha-masks the Common card shimmer and repeats one lifecycle-owned sweep every three seconds', () => {
+    const modal = read('src/modules/journey-card-overlay-modal.ts');
+    const css = read('src/collectibles-screen.css');
+
+    expect(modal).toContain('const commonShineMaskPath = options.cardImagePath2x ?? options.cardImagePath1x;');
+    expect(modal).toContain("if (cardRarity === 'common' && commonShineMaskPath)");
+    expect(modal).toContain('setJourneyInterimShineMask(commonShine, commonShineMaskPath);');
+    expect(modal).toContain('commonIdleShineAnimation = commonShine.animate([');
+    expect(modal).toContain("{ backgroundPosition: '240% 50%', opacity: 0, offset: 0 }");
+    expect(modal).toContain("{ backgroundPosition: '-140% 50%', opacity: 0, offset: 1 }");
+    expect(modal).toContain('duration: 3000');
+    expect(modal).toContain('commonIdleShineAnimation?.cancel();');
+    expect(modal).toContain('clearJourneyInterimShineMask(commonShine);');
+    expect(css).toMatch(/\.journey-card-flip-shine \{[\s\S]*?-webkit-mask-repeat: no-repeat;[\s\S]*?mask-size: contain;[\s\S]*?background-position: 240% 50%;[\s\S]*?transition: none;/);
+    expect(css).not.toContain('.journey-card-flip-overlay.is-settled[data-face="front"] .journey-card-flip-shine');
+  });
+
   test('drives one Legendary reflection directly from front-face drag angle without a drag-side timer cadence', () => {
     const modal = read('src/modules/journey-card-overlay-modal.ts');
     const css = read('src/collectibles-screen.css');
@@ -117,20 +135,20 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(shouldShowJourneyCardLegendaryDragShine('legendary', 'back', false, true)).toBe(false);
     expect(shouldShowJourneyCardLegendaryDragShine('common', 'front', false, true)).toBe(false);
     expect(shouldShowJourneyCardLegendaryDragShine('legendary', 'front', true, true)).toBe(false);
-    expect(getJourneyCardLegendaryDragShineState(0).active).toBe(false);
-    expect(getJourneyCardLegendaryDragShineState(1).active).toBe(false);
-    expect(getJourneyCardLegendaryDragShineState(5).opacity).toBeGreaterThan(0.25);
+    expect(getJourneyCardLegendaryDragShineState(0)).toMatchObject({ active: true, opacity: 0.104 });
+    expect(getJourneyCardLegendaryDragShineState(1).active).toBe(true);
+    expect(getJourneyCardLegendaryDragShineState(5).opacity).toBeGreaterThan(0.12);
     expect(getJourneyCardLegendaryDragShineState(36)).toMatchObject({
       active: true,
-      backgroundPositionPercent: 85,
-      rainbowBackgroundPositionPercent: 29,
+      backgroundPositionPercent: 80,
+      rainbowBackgroundPositionPercent: 26,
     });
     expect(getJourneyCardLegendaryDragShineState(-36)).toMatchObject({
       active: true,
-      backgroundPositionPercent: 15,
-      rainbowBackgroundPositionPercent: 71,
+      backgroundPositionPercent: 20,
+      rainbowBackgroundPositionPercent: 74,
     });
-    expect(getJourneyCardLegendaryDragShineState(72).opacity).toBeCloseTo(0.88, 4);
+    expect(getJourneyCardLegendaryDragShineState(72).opacity).toBeCloseTo(0.4426, 4);
     expect(getJourneyCardLegendaryDragShineState(90).active).toBe(false);
     expect(getJourneyCardLegendaryDragShineState(180).active).toBe(false);
     expect(getJourneyCardLegendaryDragShineState(Number.NaN).active).toBe(false);
@@ -141,7 +159,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).not.toContain('createJourneyInterimShineLoop({');
     expect(modal).not.toContain('JOURNEY_INTERIM_CARD_SHINE_PROFILE.cadenceMs');
     expect(modal).toContain('const paintLegendaryDragShine = (angle: number, allowSettling = false): void => {');
-    expect(modal).toContain("activePointerId !== null\n      && stage.classList.contains('is-dragging')\n      && dragAxis === 'horizontal'");
+    expect(modal).toContain("activePointerId !== null\n      && stage.classList.contains('is-dragging')\n      && dragMoved");
     const pointerDown = modal.slice(
       modal.indexOf('function handlePointerDown('),
       modal.indexOf('function handleAnyPointerInteraction('),
@@ -153,11 +171,14 @@ describe('Journey two-sided card overlay prototype', () => {
       modal.indexOf('function handlePointerUp('),
     );
     expect(pointerRelease).toContain('paintLegendaryDragShine(settleAngle, true);');
+    expect(pointerRelease).toContain('else paintLegendaryDragShine(previewFromAngle, true);');
     expect(pointerRelease).toContain('clearLegendaryDragShine();');
-    expect(modal).toContain('paintLegendaryDragShine(dragAngle);');
+    expect(modal).toContain('queueLegendaryDragShine(dragAngle);');
+    expect(modal).toContain('if (legendaryShinePaintRaf !== 0) return;');
+    expect(modal).toContain('pendingLegendaryShineAngle = angle;');
     expect(css).toMatch(/\.journey-card-flip-overlay\.is-legendary-card \.journey-card-flip-shine \{[\s\S]*?display: none;/);
     expect(css).toMatch(/\.journey-card-flip-legendary-shine \{[\s\S]*?-webkit-mask-size: contain;[\s\S]*?mask-size: contain;/);
-    expect(css).toMatch(/\.journey-card-flip-legendary-shine \{[\s\S]*?rgba\(255, 137, 211, 0\.20\)[\s\S]*?rgba\(124, 255, 190, 0\.18\)[\s\S]*?background-position: 50% 50%, 50% 50%;[\s\S]*?background-size: 280% 100%, 220% 145%;[\s\S]*?transition: none;/);
+    expect(css).toMatch(/\.journey-card-flip-legendary-shine \{[\s\S]*?rgba\(255, 137, 211, 0\.36\)[\s\S]*?rgba\(124, 255, 190, 0\.34\)[\s\S]*?background-position: 50% 50%, 50% 50%;[\s\S]*?background-size: 280% 100%, 220% 145%;[\s\S]*?transition: none;/);
     expect(css).not.toContain('.journey-card-flip-overlay .journey-card-flip-legendary-shine::after');
     expect(modal).toContain('`${shine.backgroundPositionPercent}% 50%`');
     expect(modal).toContain('`${shine.rainbowBackgroundPositionPercent}% 50%`');
@@ -177,7 +198,8 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain('const idleAngles = [');
     expect(modal).toContain('-JOURNEY_CARD_LEGENDARY_IDLE_TILT_DEG');
     expect(modal).toContain('JOURNEY_CARD_LEGENDARY_IDLE_TILT_DEG');
-    expect(modal).toContain('opacity: Math.max(0.12, shine.opacity * 0.58)');
+    expect(modal).toContain('const idleOpacity = Math.max(0.13, shine.opacity * 0.68);');
+    expect(modal).toContain('idleOpacity * (1 + leftLightCatch * 0.12)');
     expect(modal).toContain('legendaryIdleRotorAnimation = rotor.animate(');
     expect(modal).toContain('legendaryIdleShineAnimation = legendaryShine.animate(shineKeyframes');
     expect(modal).toContain('iterations: Infinity');
@@ -186,9 +208,11 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain("stage.classList.contains('is-idle-coach')");
     expect(modal).toContain('legendaryIdleRotorAnimation?.cancel();');
     expect(modal).toContain('legendaryIdleShineAnimation?.cancel();');
-    expect(modal).toContain('const cancelMotion = () => {\n    stopSurfaceIdle();');
+    expect(modal).toContain('const cancelMotion = () => {\n    flipGeneration += 1;\n    stopSurfaceIdle();');
     expect(css).toContain('.is-legendary-idle-holo)\n  .journey-card-flip-rotor');
     expect(css).toContain('.is-legendary-idle-holo)\n  .journey-card-flip-legendary-shine');
+    expect(css).toMatch(/\.journey-card-flip-overlay\.is-legendary-idle-holo[\s\S]*?\.journey-card-flip-legendary-shine \{[\s\S]*?filter: saturate\(1\.72\) contrast\(1\.06\);/);
+    expect(css).not.toContain('journey-card-flip-idle-shimmer');
   });
 
   test('hands the currently rendered Legendary idle angle directly to pointer drag', () => {
@@ -206,6 +230,9 @@ describe('Journey two-sided card overlay prototype', () => {
       'matrix3d(0.8660254, 0, 0.5, 0, 0, 1, 0, 0, -0.5, 0, 0.8660254, 0, 0, 0, 0, 1)',
     )).toBeCloseTo(-30, 5);
     expect(getJourneyCardRenderedRotateYAngle('none')).toBeNull();
+    expect(getJourneyCardUnwrappedAngleNear(60, -300)).toBe(-300);
+    expect(getJourneyCardUnwrappedAngleNear(-60, 300)).toBe(300);
+    expect(getJourneyCardUnwrappedAngleNear(12, -348)).toBe(-348);
     expect(pointerDown).toContain('const dragHandoffAngle = readPointerHandoffAngle();');
     expect(getJourneyCardImpactPresentationPose('matrix(0.97, 0, 0, 0.97, 0, 24)', '3px 0px'))
       .toEqual({ translateX: 3, translateY: 24, scale: 0.97 });
@@ -213,13 +240,19 @@ describe('Journey two-sided card overlay prototype', () => {
       'matrix3d(0.95, 0, 0, 0, 0, 0.95, 0, 0, 0, 0, 1, 0, 0, -18, 0, 1)',
       'none',
     )).toEqual({ translateX: 0, translateY: -18, scale: 0.95 });
+    expect(getJourneyCardImpactPresentationPose('matrix(1, 0, 0, 1, -34, 0)', 'none'))
+      .toEqual({ translateX: -34, translateY: 0, scale: 1 });
     expect(pointerDown).toContain('const impactHandoffPose = getJourneyCardImpactPresentationPose(');
     expect(pointerDown.indexOf('const dragHandoffAngle = readPointerHandoffAngle();'))
-      .toBeLessThan(pointerDown.indexOf('stopSurfaceIdle();'));
-    expect(pointerDown.indexOf('stopSurfaceIdle();'))
+      .toBeLessThan(pointerDown.indexOf("handoffSurfaceIdle('freeze-for-pointer');"));
+    expect(pointerDown.indexOf("handoffSurfaceIdle('freeze-for-pointer');"))
       .toBeLessThan(pointerDown.indexOf('setRotorAngle(dragHandoffAngle);'));
     expect(pointerDown).toContain('dragStartAngle = dragHandoffAngle;');
     expect(pointerDown).not.toContain('setRotorAngle(stableRotorAngle());');
+    expect(pointerDown).toContain('interruptedFlipAnimation?.cancel();');
+    expect(pointerDown).toContain('flipping = false;');
+    expect(pointerDown).toContain("tracePointerOwnership('pointerdown-preflight'");
+    expect(pointerDown).toContain("tracePointerOwnership('pointerdown-next-paint'");
   });
 
   test('lets a fresh pointer interrupt snapback and cannot strand ownership when capture is lost', () => {
@@ -246,7 +279,8 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain("window.addEventListener('pointermove', handleWindowPointerMove, { passive: false })");
     expect(modal).toContain("window.addEventListener('pointerup', handleWindowPointerUp)");
     expect(modal).toContain("window.addEventListener('pointercancel', handleWindowPointerCancel)");
-    expect(modal).toContain("finishPointer(event, false, 'lost-capture', dragLatestX, dragLatestY);");
+    expect(modal).toContain("tracePointerOwnership('pointer-capture-fallback'");
+    expect(modal).not.toContain("finishPointer(event, false, 'lost-capture'");
     expect(cleanup).toContain("rotor.removeEventListener('lostpointercapture', handleLostPointerCapture)");
     expect(cleanup).toContain("window.removeEventListener('pointermove', handleWindowPointerMove)");
     expect(cleanup).toContain("window.removeEventListener('pointerup', handleWindowPointerUp)");
@@ -311,14 +345,21 @@ describe('Journey two-sided card overlay prototype', () => {
     );
     expect(interactiveFlip).toContain("rotor.animate(keyframes, { duration, easing: 'linear' })");
     expect(interactiveFlip).toContain('easing: JOURNEY_CARD_FLIP_RECOIL_EASE');
+    expect(interactiveFlip).toContain('const from = Number.isFinite(pointerReleaseAngle)');
+    expect(interactiveFlip).toContain(": activePointerId !== null && stage.classList.contains('is-dragging')");
+    expect(interactiveFlip).toContain('? currentAngle\n        : readPointerHandoffAngle();');
     expect(interactiveFlip).toContain(
-      'if (flipRecoilAnimation) {\n      flipRecoilAnimation.cancel();\n      flipRecoilAnimation = null;\n      setRotorAngle(stableRotorAngle());\n    }',
+      "handoffSurfaceIdle(activePointerId !== null ? 'freeze-for-pointer' : 'settle');",
     );
+    expect(interactiveFlip).toContain('const generation = ++flipGeneration;');
+    expect(interactiveFlip).toContain('if (generation !== flipGeneration || closing || settled) return;');
     expect(interactiveFlip).toContain(
       '...JOURNEY_CARD_FLIP_RECOIL_STOPS.map((stop): Keyframe => ({',
     );
     expect(interactiveFlip).toContain('to + direction * stop.degrees');
     expect(interactiveFlip).toContain('flipRecoilAnimation = recoil');
+    expect(interactiveFlip).toContain('requestAnimationFrame(watchRecoilShine)');
+    expect(interactiveFlip).toContain('activePointerId === null && !prefersReducedMotion');
     expect(interactiveFlip).toContain('flipping = false');
     expect(interactiveFlip).toContain('preferredDirection?: -1 | 1');
     expect(interactiveFlip).toContain('Math.sign(candidate - from) === preferredDirection');
@@ -364,6 +405,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(pointerRelease).toContain('const shouldCommitReleasedDrag = !flipping');
     expect(pointerRelease).toContain('shouldCommitJourneyCardReleasedDrag(deltaX, dragViewportWidth, dragAllowedDirection)');
     expect(pointerRelease).toContain("if (shouldCommitReleasedDrag) {");
+    expect(pointerRelease).toContain('currentAngle,');
     expect(pointerRelease).not.toContain('setStableFace(committedFace)');
     expect(pointerRelease).toContain('Number(previewAnimation.currentTime ?? 0) / settleDuration');
     expect(pointerRelease).toContain('const settleAngle = previewFromAngle + (previewToAngle - previewFromAngle) * progress;');
@@ -384,7 +426,7 @@ describe('Journey two-sided card overlay prototype', () => {
 
     const modal = read('src/modules/journey-card-overlay-modal.ts');
     expect(modal).toContain("dragAxis: 'horizontal' | 'vertical' | null");
-    expect(modal).toContain("dragAxis === 'vertical'");
+    expect(modal).toContain("dragAxis !== 'horizontal'");
     expect(modal).toContain("void beginClose('dismiss')");
     const pointerMove = modal.slice(
       modal.indexOf('function handlePointerMove('),
@@ -404,7 +446,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(resolveJourneyCardDragAxis(null, 5, 23)).toBe('vertical');
     expect(resolveJourneyCardDragAxis('vertical', 30, 20)).toBe('horizontal');
     expect(resolveJourneyCardDragAxis('vertical', 20, 20)).toBe('vertical');
-    expect(resolveJourneyCardDragAxis('horizontal', 20, 30)).toBe('vertical');
+    expect(resolveJourneyCardDragAxis('horizontal', 20, 30)).toBe('horizontal');
     expect(resolveJourneyCardDragAxis('horizontal', 20, 20)).toBe('horizontal');
 
     const modal = read('src/modules/journey-card-overlay-modal.ts');
@@ -413,9 +455,14 @@ describe('Journey two-sided card overlay prototype', () => {
       modal.indexOf('function finishPointer('),
     );
     expect(pointerMove).toContain('dragAxis = resolveJourneyCardDragAxis(dragAxis, deltaX, deltaY);');
-    expect(pointerMove).toContain("if (dragAxis === 'horizontal') {");
-    expect(pointerMove).toContain('dismissDragReleaseY = dragImpactStartTranslateY;');
-    expect(pointerMove).toContain('setRotorAngle(dragStartAngle);');
+    expect(pointerMove).toContain("if (dragAxis === 'horizontal' && dragFlipProgress >= 1) {");
+    expect(pointerMove).toContain('dismissDragReleaseY = dragImpactStartTranslateY + boundedDeltaY;');
+    expect(pointerMove).toContain('setRotorAngle(dragAngle);');
+    expect(pointerMove).not.toContain("if (dragAxis === 'vertical')");
+    expect(pointerMove).toContain('const committedPointerId = activePointerId;');
+    expect(pointerMove).toContain('const committedPointerSequence = pointerTraceSequence;');
+    expect(pointerMove).toContain('activePointerId !== committedPointerId');
+    expect(pointerMove).toContain('pointerTraceSequence !== committedPointerSequence');
     expect(pointerMove).toContain('previousAxis,');
   });
 
@@ -452,10 +499,26 @@ describe('Journey two-sided card overlay prototype', () => {
       modal.indexOf('const scheduleIdleCoach = () => {'),
       modal.indexOf('const cancelMotion = () => {'),
     );
-    expect(idleCoach).toContain("const cardAnimation = coachMode === 'drag'\n        ? impactShell.animate([");
+    expect(idleCoach).toContain("? impactShell.animate([");
+    expect(idleCoach).toContain("{ transform: 'translate3d(-34px, 0, 0)', offset: 0.28 }");
+    expect(idleCoach).not.toContain('rotateY(');
     expect(idleCoach).not.toContain('rotor.animate(');
     expect(idleCoach).not.toContain('stopLegendaryIdleHolo();');
     expect(idleCoach).not.toContain('startLegendaryIdleHolo();');
+    expect(modal).toContain('const handoffIdleCoachImpact = (): void => {');
+    expect(modal).toContain('const hasPresentedCoachPose = idleCoachCardAnimation !== null');
+    expect(modal).toContain('if (!hasPresentedCoachPose) {');
+    expect(modal).toContain('const renderedStyle = window.getComputedStyle(impactShell);');
+    expect(modal).toContain('handoffIdleCoachImpact();\n    event.preventDefault();');
+    expect(modal).toContain('if (event.composedPath().includes(rotor)) return;\n    handoffIdleCoachImpact();');
+    const closeFlow = modal.slice(
+      modal.indexOf('const beginClose = async'),
+      modal.indexOf('function isInteractiveControl'),
+    );
+    expect(closeFlow.indexOf('freezeIdleCoachImpact();'))
+      .toBeLessThan(closeFlow.indexOf('closing = true;'));
+    expect(closeFlow).toContain('exitImpactReleaseX = visibleImpactPose.translateX;');
+    expect(modal).toContain('const composedScale = scale * (1 + (dismissDragReleaseScale - 1) * handoffRemaining);');
     expect(modal).toContain("{ transform: 'scale(1.06)', offset: 0.57 }");
     expect(modal).toContain("stage.addEventListener('pointerdown', handleAnyPointerInteraction, true)");
     expect(modal).toContain("stage.removeEventListener('pointerdown', handleAnyPointerInteraction, true)");
@@ -515,6 +578,11 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain("{ duration: safeDurationMs, easing: 'linear', fill: 'forwards' }");
     expect(css).toContain('.journey-card-flip-overlay[data-paint-face="front"] .journey-card-flip-back');
     expect(css).toContain('.journey-card-flip-overlay[data-paint-face="back"] .journey-card-flip-front');
+    expect(css).toContain('.journey-card-flip-overlay:is(.is-flipping, .is-dragging, .is-face-settling)');
+    expect(css).toMatch(/\.is-face-settling\)[\s\S]*?\.journey-card-flip-face \{[\s\S]*?visibility: visible;/);
+    expect(modal).toContain('stage.dataset.face = face;\n    // Stable presentation is an atomic invariant');
+    expect(modal).toContain('stage.dataset.paintFace = face;');
+    expect(modal).toContain("if (targetFace === 'back') restoreBackContentVisible();");
     expect(css).toMatch(/\.journey-card-flip-pose-shell\.cc-modal-pose-target \{[\s\S]*?translate3d\(0, 0, var\(--cc-modal-pose-z\)\)[\s\S]*?rotateY\(var\(--cc-modal-pose-ry\)\);/);
     expect(css).toMatch(/\.journey-card-flip-back-shell > \.gameplay-sheet-close \{[\s\S]*?backface-visibility: hidden;/);
     expect(css).not.toContain('.journey-card-flip-overlay[data-face="back"]\n  .journey-card-flip-back-shell > .gameplay-sheet-close');
@@ -795,6 +863,12 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(stopLandingBounce).toContain('shouldReleaseRuntimeSettle');
     expect(stopLandingBounce).toContain('this.journeyWorldRuntime.endInteractionSettle()');
     expect(manager).toContain("card.classList.add('journey-board-card-settled-shadow');\n            isViewed = true;");
+    expect(manager).toContain(
+      '// Every unlocked World card owns the same bottom contact shadow,',
+    );
+    expect(manager).toMatch(
+      /if \(isUnlocked && !isInterim\) \{[\s\S]*?card\.classList\.add\('journey-board-card-settled-shadow'\);[\s\S]*?if \(isUnlocked\) \{/,
+    );
     expect(manager).toContain("settledContactShadow.className = 'journey-board-card-settled-contact-shadow'");
     expect(manager).toContain("settledContactShadow.setAttribute('aria-hidden', 'true')");
     expect(modal).toContain("preserveLandingSuppression: outcome === 'complete'");
