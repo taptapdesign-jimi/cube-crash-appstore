@@ -1,4 +1,4 @@
-export type Area55WildReward = 'wild-star' | 'robo-cube' | 'laser-gun' | 'spaceship';
+export type Area55WildReward = 'wild-star' | 'robo-cube' | 'laser-gun' | 'spaceship' | 'kanta';
 export type Area55WildCoreType = 'wild' | 'wild-juice' | 'wild-magnet' | 'wild-tnt';
 
 const AREA55_FIRST_BOARD = 21;
@@ -8,17 +8,20 @@ const AREA55_REWARD_ORDER = Object.freeze([
   'robo-cube',
   'laser-gun',
   'spaceship',
+  'kanta',
 ] as const);
 const AREA55_FIRST_REWARD_BY_BOARD: Readonly<Partial<Record<number, Area55WildReward>>> = Object.freeze({
   21: 'wild-star',
   22: 'laser-gun',
   23: 'spaceship',
+  24: 'kanta',
 });
 const AREA55_REWARD_CORE_TYPE: Readonly<Record<Area55WildReward, Area55WildCoreType>> = Object.freeze({
   'wild-star': 'wild',
   'robo-cube': 'wild-juice',
   'laser-gun': 'wild-tnt',
   spaceship: 'wild-magnet',
+  kanta: 'wild',
 });
 
 export function isArea55JourneyBoard(boardNumber: number): boolean {
@@ -31,6 +34,7 @@ export function getArea55WildPool(boardNumber: number): readonly Area55WildRewar
   if (!isArea55JourneyBoard(board)) return [];
   if (board === 21) return AREA55_REWARD_ORDER.slice(0, 2);
   if (board === 22) return AREA55_REWARD_ORDER.slice(0, 3);
+  if (board === 23) return AREA55_REWARD_ORDER.slice(0, 4);
   return AREA55_REWARD_ORDER;
 }
 

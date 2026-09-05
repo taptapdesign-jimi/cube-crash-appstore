@@ -110,7 +110,7 @@ function getSettingsToggleTarget(event: Event): HTMLElement | null {
   return null;
 }
 
-function openJourneyDevPicker(action: 'show' | 'hide' | 'reset'): void {
+function openJourneyDevPicker(action: 'show' | 'hide' | 'legendary' | 'reset'): void {
   import('../../modules/journey-boards-manager.js')
     .then(({ journeyBoardsManager }) => {
       journeyBoardsManager.showBoardPickerModal(action);
@@ -124,7 +124,7 @@ function openJourneyDevPicker(action: 'show' | 'hide' | 'reset'): void {
 function getCurrentDevBoardNumber(): number {
   const rawBoardNumber = (window as any).STATE?.boardNumber || (window as any).__ccStartAtLevel || 1;
   const boardNumber = Number(rawBoardNumber);
-  return Number.isFinite(boardNumber) && boardNumber >= 1 && boardNumber <= 16 ? boardNumber : 1;
+  return Number.isFinite(boardNumber) && boardNumber >= 1 && boardNumber <= 30 ? boardNumber : 1;
 }
 
 function triggerSettingsDevHaptic(): void {
@@ -452,7 +452,11 @@ function showLastMergeDevPicker(): void {
   applySelectedState();
 }
 
-function createDevButton(id: string, text: string, action: 'show' | 'hide' | 'reset'): HTMLElementConfig {
+function createDevButton(
+  id: string,
+  text: string,
+  action: 'show' | 'hide' | 'legendary' | 'reset',
+): HTMLElementConfig {
   return {
     tag: 'button',
     id,
@@ -549,6 +553,7 @@ function createSettingsDevArea(): HTMLElementConfig {
         children: [
           createDevButton('settings-dev-show-card-btn', 'Show Card', 'show'),
           createDevButton('settings-dev-hide-card-btn', 'Hide Card', 'hide'),
+          createDevButton('settings-dev-legendary-card-btn', 'Legendary Card', 'legendary'),
           createDevButton('settings-dev-reset-board-btn', 'Reset Stage', 'reset'),
           createSettingsDevActionButton('settings-dev-new-card-btn', 'New Card', 'new-card', showNewCardDevScreen),
           createSettingsDevActionButton('settings-dev-new-dice-btn', 'New Dice', 'new-dice', showNewDiceDevScreen),

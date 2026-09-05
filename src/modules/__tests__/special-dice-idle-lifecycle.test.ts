@@ -65,6 +65,39 @@ describe('special-dice idle lifecycle', () => {
     expect(base.y).toBe(0);
   });
 
+  test('Kanta owns one bottom-centre frame/rock controller and restores the board sprite', () => {
+    const base = new Sprite(Texture.WHITE);
+    base.anchor.set(0.5);
+    base.position.set(2, -3);
+    base.width = 96;
+    base.height = 128;
+    const tile: any = {
+      base,
+      rotG: new Container(),
+      destroyed: false,
+      _ccSpecialDiceVariant: 'kanta',
+    };
+    const baseline = animationManager.getStats().activeTimelines;
+
+    startSpecialDiceIdleMotion(tile);
+    const controller = tile._ccKantaDiceIdle;
+    expect(controller).toBeTruthy();
+    expect(base.anchor).toMatchObject({ x: 0.5, y: 1 });
+    expect(base.position).toMatchObject({ x: 2, y: 61 });
+    expect(animationManager.getStats().activeTimelines).toBe(baseline + 1);
+
+    expect(setSpecialDiceIdleDragging(tile, true)).toBe(true);
+    startSpecialDiceIdleMotion(tile);
+    expect(tile._ccKantaDiceIdle).toBe(controller);
+    expect(animationManager.getStats().activeTimelines).toBe(baseline + 1);
+
+    stopSpecialDiceIdleMotion(tile);
+    expect(tile._ccKantaDiceIdle).toBeUndefined();
+    expect(base.anchor).toMatchObject({ x: 0.5, y: 0.5 });
+    expect(base.position).toMatchObject({ x: 2, y: -3 });
+    expect(animationManager.getStats().activeTimelines).toBe(baseline);
+  });
+
   test('Spaceship hover owns rotG and restores its exact board pose on cleanup', () => {
     const rotG = new Container();
     rotG.position.set(8, -6);

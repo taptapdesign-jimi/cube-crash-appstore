@@ -396,7 +396,7 @@ test('later Beach stages map one shared random slot to Star, Juice, Beach Ball, 
   }
 });
 
-test('Area 55 introduces LaserGun in Cjelina 02 and Spaceship in Cjelina 03', () => {
+test('Area 55 introduces LaserGun in 02, Spaceship in 03, and Kanta in 04', () => {
   expect([0, 1].map((wildSpawnCount) => pickSpecialDiceVariantForWildSpawn({
     isArcade: false,
     journeyBoard: 21,
@@ -417,4 +417,10 @@ test('Area 55 introduces LaserGun in Cjelina 02 and Spaceship in Cjelina 03', ()
     wildSpawnCount: 0,
     worldIntroRoll: 0,
   })?.id).toBe('spaceship');
+  expect(pickSpecialDiceVariantForWildSpawn({
+    isArcade: false,
+    journeyBoard: 24,
+    wildSpawnCount: 0,
+    worldIntroRoll: 0,
+  })?.id).toBe('kanta');
 });

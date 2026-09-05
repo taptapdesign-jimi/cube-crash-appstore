@@ -65,13 +65,13 @@ describe('Journey two-sided card overlay prototype', () => {
       .toBeLessThan(gameHandoff.lastIndexOf('didStart = true;'));
   });
 
-  test('builds the minimal Stage stats model', () => {
+  test('builds the minimal context-heading stats model', () => {
     expect(buildJourneyCardOverlayModalViewModel(5, {
       highScore: 6775.9,
       longestCombo: 14.8,
     }, false)).toEqual({
-      stageLabel: 'Stage 05',
-      stageNumber: '05',
+      heading: 'Forest 05',
+      earnedStars: 2,
       highScore: '6,775',
       longestCombo: '14',
       ctaLabel: 'Play',
@@ -81,32 +81,62 @@ describe('Journey two-sided card overlay prototype', () => {
       highScore: -1,
       longestCombo: Number.NaN,
     }, true)).toEqual({
-      stageLabel: 'Stage 01',
-      stageNumber: '01',
+      heading: 'Forest 01',
+      earnedStars: 0,
       highScore: '0',
       longestCombo: '0',
       ctaLabel: 'Continue',
       ctaAriaLabel: 'Continue Stage',
     });
+    expect(buildJourneyCardOverlayModalViewModel(11, {
+      highScore: 10,
+      longestCombo: 2,
+    }, false).heading).toBe('Beach 01');
     expect(buildJourneyCardOverlayModalViewModel(21, {
       highScore: 10,
       longestCombo: 2,
-    }, false).stageLabel).toBe('Stage 01');
+    }, false).heading).toBe('Area 01');
+    expect(buildJourneyCardOverlayModalViewModel(23, {
+      highScore: 10,
+      longestCombo: 2,
+    }, false).heading).toBe('Area 03');
+    expect(buildJourneyCardOverlayModalViewModel(30, {
+      highScore: 10,
+      longestCombo: 2,
+    }, false).heading).toBe('Area 10');
   });
 
-  test('keeps only Stage uppercase while stat labels use their written casing and numbers stay orange', () => {
+  test('shows the written World name and local Stage number above the stats', () => {
     const modal = read('src/modules/journey-card-overlay-modal.ts');
     const css = read('src/collectibles-screen.css');
 
-    expect(modal).toContain('<span class="journey-card-flip-title-label">STAGE</span>');
-    expect(modal).toContain('<span class="journey-card-flip-title-number">${viewModel.stageNumber}</span>');
-    expect(css).toMatch(/\.journey-card-flip-title-label \{[\s\S]*?color: #ad8675;/);
-    expect(css).toMatch(/\.journey-card-flip-title-number \{[\s\S]*?color: #e8744a;/);
+    expect(modal).toContain('<h2 id="journey-card-flip-title" class="cc-gameplay-modal-title">${viewModel.heading}</h2>');
+    expect(modal).not.toContain('journey-card-flip-title-label');
+    expect(modal).not.toContain('journey-card-flip-title-number');
+    expect(css).toMatch(/\.journey-card-flip-title-section > h2 \{[\s\S]*?color: #ad8675;[\s\S]*?text-transform: none;/);
     expect(css).toMatch(/\.journey-card-flip-stat strong \{[\s\S]*?color: #e8744a;/);
     expect(modal).toContain('<strong>${viewModel.highScore}</strong><span>High score</span>');
     expect(modal).toContain('<strong>${viewModel.longestCombo}</strong><span>Longest combo</span>');
     expect(css).toMatch(/\.journey-card-flip-stat span \{[\s\S]*?color: #ad8775;[\s\S]*?text-transform: none;/);
     expect(css).not.toContain('.journey-card-flip-cta.cc-cta .cc-cta__visual');
+  });
+
+  test('reuses the Clean Board stars at the iterated size and vertical offsets', () => {
+    const modal = read('src/modules/journey-card-overlay-modal.ts');
+    const css = read('src/collectibles-screen.css');
+
+    expect(modal).toContain('earnedStars: getJourneyEarnedStars(highScore, safeBoardId)');
+    expect(modal).toContain('aria-label="${viewModel.earnedStars} of 3 stars earned"');
+    expect(modal).toContain('src="./assets/modals/star-empty.png"');
+    expect(modal).toContain('src="./assets/modals/star.png"');
+    expect(modal).toContain("'./assets/modals/star-empty.png',");
+    expect(modal).toContain("'./assets/modals/star.png',");
+    expect(css).toMatch(/\.journey-card-flip-star \{[\s\S]*?width: clamp\(24\.192px, 8\.064vw, 36\.288px\);[\s\S]*?height: clamp\(24\.192px, 8\.064vw, 36\.288px\);/);
+    expect(css).toMatch(/\.journey-card-flip-title-section \{[\s\S]*?margin: 36px 0 24px;/);
+    expect(css).toMatch(/\.journey-card-flip-stars \{[\s\S]*?gap: 8px;[\s\S]*?transform: translate\(-50%, 12px\);/);
+    expect(css).toMatch(/\.journey-card-flip-star-2 \{[\s\S]*?translateY\(-8px\)/);
+    expect(css).toMatch(/\.journey-card-flip-title-section > h2 \{[\s\S]*?top: 16px;/);
+    expect(css).toMatch(/\.journey-card-flip-star\.is-earned \.journey-card-flip-star-filled \{[\s\S]*?opacity: 1;/);
   });
 
   test('alpha-masks the Common card shimmer and repeats one lifecycle-owned sweep every three seconds', () => {
@@ -523,7 +553,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain("stage.addEventListener('pointerdown', handleAnyPointerInteraction, true)");
     expect(modal).toContain("stage.removeEventListener('pointerdown', handleAnyPointerInteraction, true)");
     expect(css).toMatch(/\.journey-card-flip-title-section > h2 \{[\s\S]*?font-size: 32px;/);
-    expect(css).toMatch(/\.journey-card-flip-title-section \{[\s\S]*?margin: 20px 0 24px;/);
+    expect(css).toMatch(/\.journey-card-flip-title-section \{[\s\S]*?margin: 36px 0 24px;/);
     expect(css).toMatch(/\.journey-card-flip-stats \{[\s\S]*?margin-bottom: 24px;/);
     expect(css).toContain('.journey-card-flip-turn-control {');
     expect(css).toContain('.journey-card-flip-overlay.is-idle-coach .journey-card-flip-idle-hand {');

@@ -125,7 +125,11 @@ import {
   shouldStartJourneyInterimShine,
   type JourneyInterimShineLoopController,
 } from './journey-interim-card-shine.js';
-import { JOURNEY_FOREST_CARD_NAMES } from './journey-new-card-presentation.js';
+import {
+  JOURNEY_AREA55_CARD_NAMES,
+  JOURNEY_BEACH_CARD_NAMES,
+  JOURNEY_FOREST_CARD_NAMES,
+} from './journey-new-card-presentation.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 // trackTween/trackTimeline must use original GSAP functions, not gsap.to/gsap.timeline
@@ -6073,26 +6077,8 @@ class JourneyBoardsManager {
   private getBoardName(boardNumber: number): string {
     const names = [
       ...JOURNEY_FOREST_CARD_NAMES,
-      'PEAKABOO',
-      'COOL DICE',
-      'BEST PLAY',
-      'HURRICANE',
-      'LEGACY',
-      'RUMBLE',
-      'SHORELINE',
-      'SUN SPLASH',
-      'TIDE TURN',
-      'CASTAWAY',
-      'AREA 55',
-      'CRATER RUN',
-      'BEAMLINE',
-      'MARS METAL',
-      'LASER LIFT',
-      'DUST SIGNAL',
-      'AREA 55 RIFT',
-      'ALIEN ARC',
-      'ORBIT OUT',
-      'FINAL SIGNAL',
+      ...JOURNEY_BEACH_CARD_NAMES,
+      ...JOURNEY_AREA55_CARD_NAMES,
     ];
     return names[boardNumber - 1] || formatGameplayProgressLabel('journey', boardNumber);
   }
@@ -14492,7 +14478,31 @@ class JourneyBoardsManager {
     }
   }
 
-  public showBoardPickerModal(action: 'show' | 'hide' | 'reset'): void {
+  private async showLegendaryBoardCardPreview(boardNumber: number): Promise<void> {
+    const safeBoardNumber = Math.max(1, Math.min(JOURNEY_MAX_BOARDS, Math.trunc(boardNumber) || 1));
+    const legendaryAsset = resolveJourneyCardAsset(safeBoardNumber, Number.MAX_SAFE_INTEGER);
+    const board = this.boards.find((candidate) => candidate.id === safeBoardNumber);
+
+    if (legendaryAsset.rarity !== 'legendary') {
+      alert('This Stage does not have Legendary artwork yet.');
+      return;
+    }
+
+    try {
+      const { showJourneyNewCardScreen } = await import('./journey-new-card-screen.js');
+      await showJourneyNewCardScreen({
+        boardNumber: safeBoardNumber,
+        cardImagePath: legendaryAsset.path2x || legendaryAsset.path1x,
+        cardName: board?.name || this.getBoardName(safeBoardNumber),
+        cardRarity: 'legendary',
+      });
+    } catch (error) {
+      logger.warn(`⚠️ Failed to preview Legendary Journey card ${safeBoardNumber}:`, error);
+      alert('Legendary card preview is not available right now.');
+    }
+  }
+
+  public showBoardPickerModal(action: 'show' | 'hide' | 'legendary' | 'reset'): void {
     logger.debug('🗺️ showBoardPickerModal called', { action });
     
     // Create modal overlay
@@ -14535,7 +14545,9 @@ class JourneyBoardsManager {
       ? 'Show Stages'
       : action === 'hide'
         ? 'Hide Stages'
-        : 'Reset Stage';
+        : action === 'legendary'
+          ? 'Legendary Card'
+          : 'Reset Stage';
     title.style.cssText = `
       font-size: 24px;
       font-weight: 800;
@@ -14556,6 +14568,7 @@ class JourneyBoardsManager {
     // Store selected boards
     const selectedBoards: Set<number> = new Set();
     let arcadeSelected = false;
+    let selectedLegendaryButton: HTMLButtonElement | null = null;
 
     const setPickerButtonSelected = (btn: HTMLButtonElement, selected: boolean) => {
       btn.style.background = selected ? '#e8734a' : '#f3eee8';
@@ -14597,8 +14610,16 @@ class JourneyBoardsManager {
       
       // For "show" action, only show locked boards.
       // For "hide" action, only show unlocked boards.
-      // For "reset", allow every board to be selected.
-      const shouldShow = action === 'show' ? !isUnlocked : action === 'hide' ? isUnlocked : true;
+      // Legendary preview is available only where dedicated artwork exists;
+      // Beach remains disabled until its own Legendary pack is authored.
+      const hasLegendaryCard = resolveJourneyCardAsset(i, Number.MAX_SAFE_INTEGER).rarity === 'legendary';
+      const shouldShow = action === 'show'
+        ? !isUnlocked
+        : action === 'hide'
+          ? isUnlocked
+          : action === 'legendary'
+            ? hasLegendaryCard
+            : true;
       
       btn.style.cssText = `
         background: ${shouldShow ? '#f3eee8' : '#e0e0e0'};
@@ -14619,7 +14640,15 @@ class JourneyBoardsManager {
             // Deselect
             selectedBoards.delete(i);
             setPickerButtonSelected(btn, false);
+            if (action === 'legendary') selectedLegendaryButton = null;
           } else {
+            if (action === 'legendary') {
+              selectedBoards.clear();
+              if (selectedLegendaryButton) {
+                setPickerButtonSelected(selectedLegendaryButton, false);
+              }
+              selectedLegendaryButton = btn;
+            }
             // Select
             selectedBoards.add(i);
             setPickerButtonSelected(btn, true);
@@ -14639,7 +14668,7 @@ class JourneyBoardsManager {
 
     // OK button
     const okBtn = document.createElement('button');
-    okBtn.textContent = 'OK';
+    okBtn.textContent = action === 'legendary' ? 'Open Legendary' : 'OK';
     okBtn.style.cssText = `
       flex: 1;
       background: #e8734a;
@@ -14685,6 +14714,14 @@ class JourneyBoardsManager {
     };
 
     okBtn.addEventListener('click', async () => {
+      if (action === 'legendary') {
+        const boardNumber = selectedBoards.values().next().value;
+        if (typeof boardNumber !== 'number') return;
+        handleClose();
+        await this.showLegendaryBoardCardPreview(boardNumber);
+        return;
+      }
+
       const resetLabels: string[] = [];
 
       if (action === 'reset' && arcadeSelected) {

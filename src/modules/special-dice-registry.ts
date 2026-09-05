@@ -56,7 +56,7 @@ export type SpecialDiceVariantDefinition = {
   visualFit?: 'height';
   hitAreaSize?: 'tile';
   idleOrbit?: boolean;
-  idleMotion?: 'float' | 'beach-ball-bounce' | 'bottle-float' | 'cubero-hop' | 'mushroom-pop' | 'robo-sprite-cycle' | 'spaceship-hover' | 'bee-sprite-cycle';
+  idleMotion?: 'float' | 'beach-ball-bounce' | 'bottle-float' | 'cubero-hop' | 'mushroom-pop' | 'robo-sprite-cycle' | 'spaceship-hover' | 'bee-sprite-cycle' | 'kanta-rock';
   idleSpriteSources?: string[];
   juiceDropProfile?: 'beach-ball' | 'mushroom' | 'robo';
   finaleAccentSpriteSources?: string[];
@@ -191,6 +191,14 @@ const spaceshipIdleSources2x = Array.from(
   { length: 4 },
   (_, index) => `./assets/shop/spaceship/spaceship-idle${index + 1}@2x.png`,
 );
+const kantaIdleSources1x = Array.from(
+  { length: 6 },
+  (_, index) => `./assets/shop/kanta/kanta${index + 1}.png`,
+);
+const kantaIdleSources2x = Array.from(
+  { length: 6 },
+  (_, index) => `./assets/shop/kanta/kanta${index + 1}@2x.png`,
+);
 const laserGunFinaleSources1x = Array.from(
   { length: 6 },
   (_, index) => `./assets/shop/gun/lasergun${index + 1}.png`,
@@ -203,6 +211,28 @@ const useHighResolutionSpecialDiceFx = typeof navigator !== 'undefined'
   && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
 export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition> = {
+  kanta: {
+    id: 'kanta',
+    archetype: 'wild-star',
+    texture: useHighResolutionSpecialDiceFx
+      ? './assets/shop/kanta/kanta1@2x.png'
+      : './assets/shop/kanta/kanta1.png',
+    // The dedicated merge-6 scene will replace this inherited Wild Star
+    // presentation when its authored animation package arrives.
+    splashText: 'KANTA!',
+    splashColor: '#EBC29B',
+    shardColor: 0xE4B688,
+    shardColors: [0xE4B688, 0x96FDFC],
+    trailColors: [0xEBC29B, 0xDDAD7F, 0xDCFEFB, 0x9CFDFC],
+    visualFit: 'height',
+    hitAreaSize: 'tile',
+    idleOrbit: false,
+    idleMotion: 'kanta-rock',
+    idleSpriteSources: useHighResolutionSpecialDiceFx
+      ? kantaIdleSources2x
+      : kantaIdleSources1x,
+    inputReleaseAtRatio: 0.25,
+  },
   bee: {
     id: 'bee',
     archetype: 'wild-star',
@@ -454,6 +484,11 @@ export function getSpecialDiceVariant(id?: string | null): SpecialDiceVariantDef
 
 export function getSpecialDiceVariantForTile(tile: any): SpecialDiceVariantDefinition | null {
   return getSpecialDiceVariant(tile?._ccSpecialDiceVariant || tile?.specialDiceVariant || null);
+}
+
+/** Kanta owns a rigid bottom-centre rock and must never inherit generic cube squash/stretch. */
+export function usesRigidSpecialDiceIdle(tile: any): boolean {
+  return getSpecialDiceVariantForTile(tile)?.idleMotion === 'kanta-rock';
 }
 
 /** Beach water-themed dice use a round bubble drag trail; every other die keeps its established trail. */

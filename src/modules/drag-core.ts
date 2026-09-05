@@ -1025,6 +1025,7 @@ export function initDrag(cfg) {
         return;
       }
       clearHover({ immediateMagnet: true });
+      try { setSpecialDiceIdleDragging(t, false); } catch {}
       clearDragRuntime();
       drag.t = null;
       resumeSpecialDiceIdleAfterDrag();
@@ -2173,6 +2174,7 @@ export function initDrag(cfg) {
   function onCancel(e) {
     if (!isActivePointerEvent(e)) return;
     const t = drag.t;
+    try { setSpecialDiceIdleDragging(t, false); } catch {}
     drag.t = null;
     finishDragPerfSample('pointercancel');
     clearHover({ immediateMagnet: true });

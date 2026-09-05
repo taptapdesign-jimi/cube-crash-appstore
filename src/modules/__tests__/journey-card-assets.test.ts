@@ -2,6 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { resolveJourneyCardAsset } from '../journey-card-assets';
 
+const read = (relativePath: string): string => fs.readFileSync(
+  path.resolve(process.cwd(), relativePath),
+  'utf8',
+);
+
 describe('Journey collectible card assets', () => {
   test.each([
     [1, 0, 'common'],
@@ -16,6 +21,10 @@ describe('Journey collectible card assets', () => {
     [4, 8000, 'legendary'],
     [10, 9499, 'common'],
     [10, 9500, 'legendary'],
+    [21, 0, 'common'],
+    [21, 999999, 'legendary'],
+    [30, 0, 'common'],
+    [30, 999999, 'legendary'],
   ])('Forest board %i at score %i resolves %s', (boardId, score, rarity) => {
     expect(resolveJourneyCardAsset(boardId, score)).toMatchObject({ rarity });
   });
@@ -51,26 +60,16 @@ describe('Journey collectible card assets', () => {
     });
   });
 
-  test('uses redundant placeholders for Beach and Area 55 without Forest rarity', () => {
+  test('keeps redundant placeholders only for Beach', () => {
     expect(resolveJourneyCardAsset(11, 999999)).toMatchObject({
       rarity: 'common',
       path1x: './assets/redundant assets/collectible cards old/11.png',
     });
     expect(resolveJourneyCardAsset(11, 999999).path2x).toBeUndefined();
-    expect(resolveJourneyCardAsset(21, 999999)).toMatchObject({
-      rarity: 'common',
-      path1x: './assets/redundant assets/collectible cards old/21.png',
-    });
-    expect(resolveJourneyCardAsset(21, 999999).path2x).toBeUndefined();
-    expect(resolveJourneyCardAsset(30, 999999)).toMatchObject({
-      rarity: 'common',
-      path1x: './assets/redundant assets/collectible cards old/24.png',
-    });
-    expect(resolveJourneyCardAsset(30, 999999).path2x).toBeUndefined();
   });
 
-  test('every temporary Beach and Area 55 card resolves to an existing redundant asset', () => {
-    for (let boardId = 11; boardId <= 30; boardId += 1) {
+  test('every temporary Beach card resolves to an existing redundant asset', () => {
+    for (let boardId = 11; boardId <= 20; boardId += 1) {
       const asset = resolveJourneyCardAsset(boardId, 999999);
       expect(asset.rarity).toBe('common');
       expect(asset.path2x).toBeUndefined();
@@ -82,6 +81,32 @@ describe('Journey collectible card assets', () => {
     for (let boardId = 1; boardId <= 10; boardId += 1) {
       for (const score of [1, 999999]) {
         const asset = resolveJourneyCardAsset(boardId, score);
+        for (const relativePath of [asset.path1x, asset.path2x]) {
+          expect(relativePath).toBeDefined();
+          expect(fs.existsSync(path.resolve(process.cwd(), relativePath!))).toBe(true);
+        }
+      }
+    }
+  });
+
+  test('uses all 40 dedicated Area 55 common/legendary density files without redundant fallbacks', () => {
+    expect(resolveJourneyCardAsset(21, 0)).toMatchObject({
+      stageInWorld: 1,
+      rarity: 'common',
+      path1x: './assets/colelctibles/Area55/common/01.png',
+      path2x: './assets/colelctibles/Area55/common/01@2x.png',
+    });
+    expect(resolveJourneyCardAsset(30, 999999)).toMatchObject({
+      stageInWorld: 10,
+      rarity: 'legendary',
+      path1x: './assets/colelctibles/Area55/legendary/10-gold.png',
+      path2x: './assets/colelctibles/Area55/legendary/10-gold@2x.png',
+    });
+
+    for (let boardId = 21; boardId <= 30; boardId += 1) {
+      for (const score of [0, 999999]) {
+        const asset = resolveJourneyCardAsset(boardId, score);
+        expect(asset.path1x).not.toContain('redundant assets');
         for (const relativePath of [asset.path1x, asset.path2x]) {
           expect(relativePath).toBeDefined();
           expect(fs.existsSync(path.resolve(process.cwd(), relativePath!))).toBe(true);
@@ -124,5 +149,28 @@ describe('Journey collectible card assets', () => {
     expect(overlay).toContain('portaledCard.style.backgroundImage');
     expect(preloader).toContain('imagesToPreload.push(asset.path2x || asset.path1x)');
     expect(preloader).not.toContain("imagesToPreload.push(`./assets/colelctibles/common/${id}.png`)");
+  });
+
+  test('keeps Legendary card preview isolated to the DEV picker without changing score or unlock state', () => {
+    const manager = read('src/modules/journey-boards-manager.ts');
+    const settings = read('src/ui/components/settings-screen.ts');
+    const previewOwner = manager.match(
+      /private async showLegendaryBoardCardPreview[\s\S]*?\n {2}public showBoardPickerModal/,
+    )?.[0] ?? '';
+
+    expect(settings).toContain(
+      "createDevButton('settings-dev-legendary-card-btn', 'Legendary Card', 'legendary')",
+    );
+    expect(settings).toContain('boardNumber >= 1 && boardNumber <= 30');
+    expect(manager).toContain("action: 'show' | 'hide' | 'legendary' | 'reset'");
+    expect(manager).toContain("action === 'legendary' ? 'Open Legendary' : 'OK'");
+    expect(manager).toContain("resolveJourneyCardAsset(i, Number.MAX_SAFE_INTEGER).rarity === 'legendary'");
+    expect(previewOwner).toContain(
+      'resolveJourneyCardAsset(safeBoardNumber, Number.MAX_SAFE_INTEGER)',
+    );
+    expect(previewOwner).toContain("cardRarity: 'legendary'");
+    expect(previewOwner).not.toContain('updateBoardHighScore');
+    expect(previewOwner).not.toContain('unlockBoardByNumber');
+    expect(previewOwner).not.toContain('localStorage');
   });
 });

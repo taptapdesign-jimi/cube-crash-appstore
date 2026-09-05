@@ -17,6 +17,7 @@ import {
   createDetailModalStatsEnterDelays,
   getDetailModalStatsEnterTotalDuration,
 } from './detail-modal-stats-enter-motion.js';
+import { getJourneyEarnedStars } from './journey-stage-balance.js';
 import { formatJourneyWorldStageNumber } from './journey-world-stage.js';
 import { getIosResistedModalVerticalDelta } from './modal-vertical-drag-dismiss.js';
 import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.js';
@@ -57,8 +58,8 @@ interface JourneyCardOverlayModalOptions {
 }
 
 export interface JourneyCardOverlayModalViewModel {
-  stageLabel: string;
-  stageNumber: string;
+  heading: string;
+  earnedStars: number;
   highScore: string;
   longestCombo: string;
   ctaLabel: 'Play' | 'Continue';
@@ -129,6 +130,8 @@ let activeJourneyCardOverlayModal: JourneyCardOverlayModalController | null = nu
 const JOURNEY_CARD_OVERLAY_ASSETS = [
   './assets/highscore-icon.png',
   './assets/combo-icon.png',
+  './assets/modals/star-empty.png',
+  './assets/modals/star.png',
   './assets/hand-pointer.png',
 ] as const;
 let journeyCardOverlayPreloadPromise: Promise<void> | null = null;
@@ -380,12 +383,18 @@ export function buildJourneyCardOverlayModalViewModel(
   stats: { highScore: number; longestCombo: number },
   hasSavedState: boolean,
 ): JourneyCardOverlayModalViewModel {
-  const stageNumber = formatJourneyWorldStageNumber(boardId);
+  const safeBoardId = Math.max(1, Math.trunc(Number.isFinite(boardId) ? boardId : 1));
+  const stageNumber = formatJourneyWorldStageNumber(safeBoardId);
+  const heading = safeBoardId >= 21
+    ? `Area ${stageNumber}`
+    : safeBoardId >= 11
+      ? `Beach ${stageNumber}`
+      : `Forest ${stageNumber}`;
   const highScore = Math.max(0, Math.trunc(Number.isFinite(stats.highScore) ? stats.highScore : 0));
   const longestCombo = Math.max(0, Math.trunc(Number.isFinite(stats.longestCombo) ? stats.longestCombo : 0));
   return {
-    stageLabel: `Stage ${stageNumber}`,
-    stageNumber,
+    heading,
+    earnedStars: getJourneyEarnedStars(highScore, safeBoardId),
     highScore: highScore.toLocaleString(),
     longestCombo: longestCombo.toLocaleString(),
     ctaLabel: hasSavedState ? 'Continue' : 'Play',
@@ -548,7 +557,15 @@ export function presentJourneyCardOverlayModal(
                 <div class="cc-gameplay-modal-idle-shell journey-card-flip-back-shell">
                   <div class="cc-gameplay-modal-paper-shell journey-card-flip-paper" data-board-id="${options.boardId}-modal">
                     <div class="journey-card-flip-title-section">
-                      <h2 id="journey-card-flip-title" class="cc-gameplay-modal-title"><span class="journey-card-flip-title-label">STAGE</span> <span class="journey-card-flip-title-number">${viewModel.stageNumber}</span></h2>
+                      <div class="journey-card-flip-stars" role="img" aria-label="${viewModel.earnedStars} of 3 stars earned">
+                        ${Array.from({ length: 3 }, (_, index) => `
+                          <span class="journey-card-flip-star journey-card-flip-star-${index + 1}${index < viewModel.earnedStars ? ' is-earned' : ''}">
+                            <img class="journey-card-flip-star-empty" src="./assets/modals/star-empty.png" alt="" aria-hidden="true" draggable="false">
+                            <img class="journey-card-flip-star-filled" src="./assets/modals/star.png" alt="" aria-hidden="true" draggable="false">
+                          </span>
+                        `).join('')}
+                      </div>
+                      <h2 id="journey-card-flip-title" class="cc-gameplay-modal-title">${viewModel.heading}</h2>
                     </div>
                     <div class="journey-card-flip-stats">
                       <div class="journey-card-flip-stat">

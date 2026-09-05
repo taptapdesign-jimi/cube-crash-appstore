@@ -12,6 +12,7 @@ import type { Tile } from '../types';
 import { smokeBubblesAtTile } from "./fx.ts";
 import { TILE } from './constants.js';
 import { createGameplayTileCartoonVariant } from './gameplay-tile-cartoon-motion.js';
+import { usesRigidSpecialDiceIdle } from './special-dice-registry.js';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 const isVerboseGameplayLogsEnabled = () => (typeof window !== 'undefined') && (window as any).__ccVerboseGameplayLogs === true;
@@ -54,7 +55,9 @@ function isWildTile(tile: Tile | null | undefined): boolean {
 export function startTileIdleBounce(tiles: Tile[], board: any): void {
   if (!ENABLE_TILE_IDLE_BOUNCE) return;
   
-  state.tiles = tiles.filter(t => t && t.value > 0 && !t.locked && !t.destroyed);
+  state.tiles = tiles.filter(t => (
+    t && t.value > 0 && !t.locked && !t.destroyed && !usesRigidSpecialDiceIdle(t)
+  ));
   state.board = board;
   state.isActive = true;
   state.lastInteractionTime = Date.now();
@@ -157,7 +160,12 @@ function animateRandomTile(): void {
   }
   
   const availableTiles = state.tiles.filter(t => 
-    t && t.value > 0 && !t.locked && !t.destroyed && !state.activeAnimations.has(t)
+    t
+    && t.value > 0
+    && !t.locked
+    && !t.destroyed
+    && !usesRigidSpecialDiceIdle(t)
+    && !state.activeAnimations.has(t)
   );
   
   if (availableTiles.length === 0) {
@@ -176,7 +184,7 @@ function animateRandomTile(): void {
 }
 
 function animateTile(tile: Tile): void {
-  if (!tile || tile.destroyed) return;
+  if (!tile || tile.destroyed || usesRigidSpecialDiceIdle(tile)) return;
   
   state.activeAnimations.add(tile);
   
@@ -314,6 +322,7 @@ export function updateTileList(tiles: Tile[]): void {
     if (t.visible === false) return false;
     if (t.locked) return false;
     if ((t.value | 0) <= 0) return false;
+    if (usesRigidSpecialDiceIdle(t)) return false;
     if (t.eventMode && t.eventMode !== 'static') return false;
     if (boardGrid && typeof t.gridX === 'number' && typeof t.gridY === 'number') {
       const row = boardGrid[t.gridY];

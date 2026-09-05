@@ -105,10 +105,12 @@ Area 55 uses one cumulative player-facing reward pool. Cjelina 01 contains only
 Wild Star and Robo Cube: Star is the first Wild Meter reward and Robo Cube is
 guaranteed immediately after it. Cjelina 02 adds LaserGun and guarantees it on
 that Cjelina's first reward. Cjelina 03 adds Spaceship and guarantees it on that
-Cjelina's first reward. Later Area 55 rewards use only Wild Star plus the Area 55
-rewards introduced up to that Cjelina. LaserGun and Spaceship retain their
-canonical Wild TNT and Wild Magnet gameplay archetypes respectively. The
-per-board `wildSpawnCount` remains persisted across reloads.
+Cjelina's first reward. Cjelina 04 adds Kanta and guarantees it on that Cjelina's
+first reward. Later Area 55 rewards use only Wild Star plus the Area 55 rewards
+introduced up to that Cjelina. LaserGun and Spaceship retain their canonical Wild
+TNT and Wild Magnet gameplay archetypes respectively; Kanta retains canonical
+Wild Star gameplay. The per-board `wildSpawnCount` remains persisted across
+reloads.
 
 ### 5.3 Clean board and final merge
 

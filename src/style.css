@@ -5497,6 +5497,11 @@ body:has(:root) .tile.wild-3d-glow {
   box-shadow: 0 7px 0 #8D6E61;
 }
 
+.settings-dev-button-legendary {
+  background: #D6A13D;
+  box-shadow: 0 7px 0 #A87824;
+}
+
 .settings-dev-button-reset {
   background: #735C4C;
   box-shadow: 0 7px 0 #5A4639;

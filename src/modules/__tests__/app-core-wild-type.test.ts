@@ -192,7 +192,7 @@ describe('Area 55 progressive Wild pool', () => {
     }).result).toMatchObject({ wildType: 'wild-juice', specialDiceVariantId: 'robo-cube' });
   });
 
-  test('introduces LaserGun in Cjelina 02 and Spaceship in Cjelina 03', () => {
+  test('introduces LaserGun in 02, Spaceship in 03, and Kanta in 04', () => {
     const laser = decideForRoll({
       roll: 0,
       boardNumber: 22,
@@ -218,5 +218,20 @@ describe('Area 55 progressive Wild pool', () => {
       specialDiceVariantId: 'spaceship',
     });
     expect(spaceship.filterWildType).not.toHaveBeenCalled();
+
+    const kanta = decideForRoll({
+      roll: 0,
+      boardNumber: 24,
+      wildSpawnCount: 0,
+      lastWildDropType: null,
+    });
+    expect(kanta.result).toMatchObject({
+      spawnJuice: false,
+      spawnMagnet: false,
+      spawnTnt: false,
+      wildType: 'wild',
+      specialDiceVariantId: 'kanta',
+    });
+    expect(kanta.filterWildType).not.toHaveBeenCalled();
   });
 });

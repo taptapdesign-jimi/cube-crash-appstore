@@ -8,11 +8,12 @@ import {
 } from '../journey-area55-wild-progression';
 
 describe('Area 55 progressive Wild pool', () => {
-  test('adds LaserGun in Cjelina 02 and Spaceship in Cjelina 03', () => {
+  test('adds LaserGun in 02, Spaceship in 03, and Kanta in 04', () => {
     expect(getArea55WildPool(21)).toEqual(['wild-star', 'robo-cube']);
     expect(getArea55WildPool(22)).toEqual(['wild-star', 'robo-cube', 'laser-gun']);
     expect(getArea55WildPool(23)).toEqual(['wild-star', 'robo-cube', 'laser-gun', 'spaceship']);
-    expect(getArea55WildPool(30)).toEqual(['wild-star', 'robo-cube', 'laser-gun', 'spaceship']);
+    expect(getArea55WildPool(24)).toEqual(['wild-star', 'robo-cube', 'laser-gun', 'spaceship', 'kanta']);
+    expect(getArea55WildPool(30)).toEqual(['wild-star', 'robo-cube', 'laser-gun', 'spaceship', 'kanta']);
     expect(getArea55WildPool(20)).toEqual([]);
     expect(getArea55WildPool(31)).toEqual([]);
   });
@@ -24,6 +25,8 @@ describe('Area 55 progressive Wild pool', () => {
       .toBe('laser-gun');
     expect(pickArea55WildReward({ boardNumber: 23, wildSpawnCount: 0, roll: 0 }))
       .toBe('spaceship');
+    expect(pickArea55WildReward({ boardNumber: 24, wildSpawnCount: 0, roll: 0 }))
+      .toBe('kanta');
   });
 
   test('keeps Cjelina 01 Star/Robo-only and forces Robo immediately after Star', () => {
@@ -64,6 +67,11 @@ describe('Area 55 progressive Wild pool', () => {
       wildSpawnCount: 1,
       roll,
     }))).toEqual(['wild-star', 'robo-cube', 'laser-gun', 'spaceship']);
+    expect([0, 0.21, 0.41, 0.61, 0.9999].map((roll) => pickArea55WildReward({
+      boardNumber: 24,
+      wildSpawnCount: 1,
+      roll,
+    }))).toEqual(['wild-star', 'robo-cube', 'laser-gun', 'spaceship', 'kanta']);
   });
 
   test('maps each visual reward to its existing gameplay archetype', () => {
@@ -72,8 +80,10 @@ describe('Area 55 progressive Wild pool', () => {
     expect(getArea55AllowedWildCoreTypes(23)).toEqual(['wild', 'wild-juice', 'wild-tnt', 'wild-magnet']);
     expect(getArea55WildRewardCoreType('laser-gun')).toBe('wild-tnt');
     expect(getArea55WildRewardCoreType('spaceship')).toBe('wild-magnet');
+    expect(getArea55WildRewardCoreType('kanta')).toBe('wild');
     expect(getArea55WildRewardVariantId('wild-star')).toBeNull();
     expect(getArea55WildRewardVariantId('robo-cube')).toBe('robo-cube');
+    expect(getArea55WildRewardVariantId('kanta')).toBe('kanta');
     expect(isArea55JourneyBoard(21)).toBe(true);
     expect(isArea55JourneyBoard(30)).toBe(true);
     expect(isArea55JourneyBoard(31)).toBe(false);

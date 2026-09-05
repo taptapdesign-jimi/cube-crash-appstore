@@ -534,7 +534,7 @@ export async function showJourneyNewCardScreen({
   try { cleanupJourneySmokeEffects(); } catch {}
   ensureJourneyNewCardStyles();
 
-  const safeBoardNumber = Math.max(1, Math.min(16, boardNumber | 0));
+  const safeBoardNumber = Math.max(1, Math.min(30, boardNumber | 0));
   const fallbackAsset = resolveJourneyCardAsset(safeBoardNumber, 0);
   const safeCardPath = cardImagePath || fallbackAsset.path2x || fallbackAsset.path1x;
   const safeCardName = getJourneyNewCardDisplayName(
@@ -640,9 +640,8 @@ export async function showJourneyNewCardScreen({
       cardNameAccent.className = 'cc-journey-new-card-subtitle-card-name';
       cardNameAccent.textContent = safeCardName;
       subtitle.replaceChildren(
-        document.createTextNode('Unlocked "'),
+        document.createTextNode('Unlocked '),
         cardNameAccent,
-        document.createTextNode('" card'),
       );
     };
     const unlockedIdleAngles = [

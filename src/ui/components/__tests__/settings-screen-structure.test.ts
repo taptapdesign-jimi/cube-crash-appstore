@@ -37,6 +37,7 @@ describe('Settings screen structure', () => {
     expect(screen.querySelector('#settings-dev-open-btn')).not.toBeNull();
     expect(developerPanel?.hidden).toBe(true);
     expect(developerPanel?.querySelector('.settings-dev-area')).not.toBeNull();
+    expect(developerPanel?.querySelector('#settings-dev-legendary-card-btn')?.textContent).toBe('Legendary Card');
     expect(developerPanel?.querySelector('#settings-dev-last-merge-btn')).not.toBeNull();
     expect(developerPanel?.querySelector('#settings-dev-reset-spatial-intro-btn')).toBeNull();
   });

@@ -21,6 +21,32 @@ export const JOURNEY_FOREST_CARD_NAMES = [
   'Winner',
 ] as const;
 
+export const JOURNEY_BEACH_CARD_NAMES = [
+  'Peekaboo',
+  'Cool Dice',
+  'Best Play',
+  'Hurricane',
+  'Legacy',
+  'Rumble',
+  'Shoreline',
+  'Sun Splash',
+  'Tide Turn',
+  'Castaway',
+] as const;
+
+export const JOURNEY_AREA55_CARD_NAMES = [
+  'Bibi - Ribi',
+  'Zap - Zap',
+  'Woombuu',
+  'The Bloob',
+  'Beam Up',
+  'Bloob Spill',
+  'Team Party',
+  'Transport',
+  'Fixer Upper',
+  'Take Over',
+] as const;
+
 export type JourneyNewCardRevealCopy = {
   title: string;
   subtitle: string;
@@ -28,7 +54,9 @@ export type JourneyNewCardRevealCopy = {
 
 export function getJourneyNewCardDisplayName(boardNumber: number, fallbackName: string): string {
   const forestName = JOURNEY_FOREST_CARD_NAMES[(boardNumber | 0) - 1];
-  return forestName || String(fallbackName || '').trim();
+  const beachName = JOURNEY_BEACH_CARD_NAMES[(boardNumber | 0) - 11];
+  const area55Name = JOURNEY_AREA55_CARD_NAMES[(boardNumber | 0) - 21];
+  return forestName || beachName || area55Name || String(fallbackName || '').trim();
 }
 
 export function getJourneyNewCardRevealCopy(
@@ -38,6 +66,6 @@ export function getJourneyNewCardRevealCopy(
   const safeCardName = String(cardName || '').trim();
   return {
     title: rarity === 'legendary' ? 'Legendary!' : 'Common',
-    subtitle: `Unlocked "${safeCardName}" card`,
+    subtitle: `Unlocked ${safeCardName}`,
   };
 }

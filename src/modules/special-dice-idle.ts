@@ -9,6 +9,7 @@ import { preloadSpaceshipFinaleAssets } from './spaceship-finale-scene.ts';
 import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
 import { startBeeDiceIdle } from './bee-dice-idle.ts';
 import { preloadBeeFinaleAssets } from './bee-finale-scene.ts';
+import { startKantaDiceIdle } from './kanta-dice-idle.ts';
 import {
   isUsablePixiImageTexture,
   pinPixiImageTexture,
@@ -151,6 +152,8 @@ function startSpaceshipEngineIdle(tile: any, host: any): ((elapsedSeconds: numbe
 
 export function stopSpecialDiceIdleMotion(tile: any): void {
   try {
+    try { tile?._ccKantaDiceIdle?.dispose?.(); } catch {}
+    if (tile) delete tile._ccKantaDiceIdle;
     try { tile?._ccRoboCubeIdle?.dispose?.(); } catch {}
     if (tile) delete tile._ccRoboCubeIdle;
     try { tile?._ccHoneyBeeIdleOrbit?.dispose?.(); } catch {}
@@ -209,6 +212,11 @@ export function stopSpecialDiceIdleMotion(tile: any): void {
 }
 
 export function setSpecialDiceIdleDragging(tile: any, dragging: boolean): boolean {
+  const kantaController = tile?._ccKantaDiceIdle;
+  if (kantaController?.setDragging) {
+    kantaController.setDragging(dragging);
+    return true;
+  }
   const beeController = tile?._ccBeeDiceIdle;
   if (beeController?.setDragging) {
     beeController.setDragging(dragging);
@@ -263,6 +271,7 @@ export function startSpecialDiceIdleMotion(tile: any): void {
     }
 
     if (variant.idleMotion === 'bee-sprite-cycle' && tile._ccBeeDiceIdle) return;
+    if (variant.idleMotion === 'kanta-rock' && tile._ccKantaDiceIdle) return;
 
     // Drop/snap-back callbacks defensively call start again. Spaceship never
     // pauses for drag, so reusing its live owner avoids a visible frame reset
@@ -273,6 +282,12 @@ export function startSpecialDiceIdleMotion(tile: any): void {
 
     if (variant.id === 'honey') {
       tile._ccHoneyBeeIdleOrbit = startHoneyBeeIdleOrbit(tile);
+      return;
+    }
+
+    if (variant.idleMotion === 'kanta-rock') {
+      const idleSources = Array.isArray(variant.idleSpriteSources) ? variant.idleSpriteSources : [];
+      tile._ccKantaDiceIdle = startKantaDiceIdle(tile, idleSources);
       return;
     }
 

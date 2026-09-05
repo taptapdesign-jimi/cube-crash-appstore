@@ -3,6 +3,8 @@ import path from 'node:path';
 import {
   getJourneyNewCardDisplayName,
   getJourneyNewCardRevealCopy,
+  JOURNEY_AREA55_CARD_NAMES,
+  JOURNEY_BEACH_CARD_NAMES,
   JOURNEY_FOREST_CARD_NAMES,
   JOURNEY_NEW_CARD_INTERIM_OFFSET_Y_PX,
   JOURNEY_NEW_CARD_INTERIM_SCALE,
@@ -18,23 +20,23 @@ const read = (relativePath: string): string => fs.readFileSync(
 );
 
 describe('Journey New Reward presentation', () => {
-  test('uses score-derived rarity for the post-reveal title and complete card sentence', () => {
+  test('uses score-derived rarity and a written card name for the post-reveal copy', () => {
     const screen = read('src/modules/journey-new-card-screen.ts');
     expect(getJourneyNewCardRevealCopy('Star Is Out', 'legendary')).toEqual({
       title: 'Legendary!',
-      subtitle: 'Unlocked "Star Is Out" card',
+      subtitle: 'Unlocked Star Is Out',
     });
     expect(getJourneyNewCardRevealCopy('Star Is Out', 'common')).toEqual({
       title: 'Common',
-      subtitle: 'Unlocked "Star Is Out" card',
+      subtitle: 'Unlocked Star Is Out',
     });
-    expect(getJourneyNewCardRevealCopy('Shroomy', 'legendary')).toEqual({
+    expect(getJourneyNewCardRevealCopy('Woombuu', 'legendary')).toEqual({
       title: 'Legendary!',
-      subtitle: 'Unlocked "Shroomy" card',
+      subtitle: 'Unlocked Woombuu',
     });
     expect(screen).toContain("cardNameAccent.className = 'cc-journey-new-card-subtitle-card-name'");
-    expect(screen).toContain("document.createTextNode('Unlocked \"')");
-    expect(screen).toContain("document.createTextNode('\" card')");
+    expect(screen).toContain("document.createTextNode('Unlocked ')");
+    expect(screen).not.toContain("document.createTextNode('\" card')");
     expect(screen).toMatch(/\.cc-journey-new-card-subtitle-card-name \{[\s\S]*?color: #ef744d;/);
     expect(screen).toContain('.call(applyRevealCopy, undefined, titleStart)');
     expect(screen).toContain('applyRevealCopy();');
@@ -80,6 +82,47 @@ describe('Journey New Reward presentation', () => {
     expect(getJourneyNewCardDisplayName(6, 'SO SPECIAL')).toBe('Shroomy');
     expect(getJourneyNewCardDisplayName(9, 'SO SPECIAL')).toBe('Flying Tent');
     expect(manager).toContain('...JOURNEY_FOREST_CARD_NAMES');
+  });
+
+  test('uses the authored Area 55 01-10 names for World and New Reward copy', () => {
+    const manager = read('src/modules/journey-boards-manager.ts');
+    const screen = read('src/modules/journey-new-card-screen.ts');
+    expect(JOURNEY_AREA55_CARD_NAMES).toEqual([
+      'Bibi - Ribi',
+      'Zap - Zap',
+      'Woombuu',
+      'The Bloob',
+      'Beam Up',
+      'Bloob Spill',
+      'Team Party',
+      'Transport',
+      'Fixer Upper',
+      'Take Over',
+    ]);
+    expect(getJourneyNewCardDisplayName(21, 'AREA 55')).toBe('Bibi - Ribi');
+    expect(getJourneyNewCardDisplayName(23, 'AREA 55')).toBe('Woombuu');
+    expect(getJourneyNewCardDisplayName(30, 'FINAL SIGNAL')).toBe('Take Over');
+    expect(manager).toContain('...JOURNEY_AREA55_CARD_NAMES');
+    expect(screen).toContain('Math.min(30, boardNumber | 0)');
+  });
+
+  test('keeps Beach card names written consistently with the other Worlds', () => {
+    const manager = read('src/modules/journey-boards-manager.ts');
+    expect(JOURNEY_BEACH_CARD_NAMES).toEqual([
+      'Peekaboo',
+      'Cool Dice',
+      'Best Play',
+      'Hurricane',
+      'Legacy',
+      'Rumble',
+      'Shoreline',
+      'Sun Splash',
+      'Tide Turn',
+      'Castaway',
+    ]);
+    expect(getJourneyNewCardDisplayName(11, 'STAGE 01')).toBe('Peekaboo');
+    expect(getJourneyNewCardDisplayName(18, 'STAGE 08')).toBe('Sun Splash');
+    expect(manager).toContain('...JOURNEY_BEACH_CARD_NAMES');
   });
 
   test('makes both faces exactly 10% smaller and aligns both at the same lower resting position', () => {
