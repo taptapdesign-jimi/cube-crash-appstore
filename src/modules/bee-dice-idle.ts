@@ -18,6 +18,15 @@ export function shouldFlipBeeDiceForViewport(
     && globalCenterX > viewportWidth * 0.5;
 }
 
+export function isBeeDiceHostPoseSettled(scaleX: number, scaleY: number): boolean {
+  if (!Number.isFinite(scaleX) || !Number.isFinite(scaleY)) return false;
+  const widthScale = Math.abs(scaleX);
+  const heightScale = Math.abs(scaleY);
+  const largestScale = Math.max(widthScale, heightScale);
+  if (largestScale < 0.01) return false;
+  return Math.abs(widthScale - heightScale) / largestScale <= 0.05;
+}
+
 export function sampleBeeDiceIdleMotion(elapsedSeconds: number): {
   offsetX: number;
   offsetY: number;
@@ -58,11 +67,12 @@ export function startBeeDiceIdle(tile: any, frameSources: string[]): BeeDiceIdle
   if (!motionHost || motionHost.destroyed) return null;
 
   const originalTexture = base.texture;
-  const originalX = motionHost.x;
-  const originalY = motionHost.y;
-  const originalRotation = motionHost.rotation;
-  const originalScaleX = motionHost.scale?.x ?? 1;
-  const originalScaleY = motionHost.scale?.y ?? 1;
+  let originalX = motionHost.x;
+  let originalY = motionHost.y;
+  let originalRotation = motionHost.rotation;
+  let originalScaleX = motionHost.scale?.x ?? 1;
+  let originalScaleY = motionHost.scale?.y ?? 1;
+  let poseSettled = isBeeDiceHostPoseSettled(originalScaleX, originalScaleY);
   const paintedWidth = base.width;
   const paintedHeight = base.height;
   const originalBaseScaleX = base.scale?.x ?? 1;
@@ -71,8 +81,22 @@ export function startBeeDiceIdle(tile: any, frameSources: string[]): BeeDiceIdle
   let dragging = false;
   let paintedFrameIndex = -1;
 
+  const captureSettledPose = (): boolean => {
+    if (poseSettled || motionHost.destroyed) return poseSettled;
+    const scaleX = motionHost.scale?.x ?? 1;
+    const scaleY = motionHost.scale?.y ?? 1;
+    if (!isBeeDiceHostPoseSettled(scaleX, scaleY)) return false;
+    originalX = motionHost.x;
+    originalY = motionHost.y;
+    originalRotation = motionHost.rotation;
+    originalScaleX = scaleX;
+    originalScaleY = scaleY;
+    poseSettled = true;
+    return true;
+  };
+
   const restorePose = () => {
-    if (base.destroyed || motionHost.destroyed) return;
+    if (!poseSettled || base.destroyed || motionHost.destroyed) return;
     motionHost.x = originalX;
     motionHost.y = originalY;
     motionHost.rotation = originalRotation;
@@ -110,6 +134,7 @@ export function startBeeDiceIdle(tile: any, frameSources: string[]): BeeDiceIdle
         applyGameplayTextureFiltering(base.texture);
       }
       applyArtworkFacing();
+      if (!captureSettledPose()) return;
       if (dragging) {
         restorePose();
         return;

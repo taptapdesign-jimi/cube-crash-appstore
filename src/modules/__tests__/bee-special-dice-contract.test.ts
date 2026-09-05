@@ -5,6 +5,7 @@ import {
   BEE_IDLE_FRAME_SECONDS,
   BEE_ORIGINAL_FRAME_SECONDS,
   getBeeIdleFrameIndex,
+  isBeeDiceHostPoseSettled,
   sampleBeeDiceIdleMotion,
   shouldFlipBeeDiceForViewport,
 } from '../bee-dice-idle';
@@ -71,6 +72,20 @@ describe('Forest Bee special-die contract', () => {
     expect(dragSource.indexOf('t.position.set(parentPoint.x, parentPoint.y);')).toBeLessThan(
       dragSource.indexOf('refreshSpecialDiceIdleDragFacing(t);'),
     );
+  });
+
+  test('does not adopt a transient squash or stretch frame as the idle host baseline', () => {
+    expect(isBeeDiceHostPoseSettled(1, 1)).toBe(true);
+    expect(isBeeDiceHostPoseSettled(0.98, 1.02)).toBe(true);
+    expect(isBeeDiceHostPoseSettled(0.08, 1)).toBe(false);
+    expect(isBeeDiceHostPoseSettled(1.2, 0.8)).toBe(false);
+    expect(isBeeDiceHostPoseSettled(0, 0)).toBe(false);
+
+    const source = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/modules/bee-dice-idle.ts'),
+      'utf8',
+    );
+    expect(source).toContain('if (!captureSettledPose()) return;');
   });
 
   test('keeps the complete Bee die on a gentle hover, wobble and bounce', () => {

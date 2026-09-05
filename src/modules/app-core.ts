@@ -10550,6 +10550,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 	                        ? tntVisualOptionsForMerge?.burstSources
 	                        : undefined,
 	                      bonusParticleScale: tntVariantForMerge?.id === 'flower' ? 1.4 : 1,
+	                      initialImpactDelayMs: tntVariantForMerge?.id === 'flower' ? 700 : 0,
 	                      impactProfile: tntVariantForMerge?.id === 'beach-ball'
 	                        ? 'beach-ball'
 	                        : tntVariantForMerge?.id === 'laser-gun'
@@ -14085,6 +14086,7 @@ function runTntBoomBonusBreak2Tiles(deps: {
   devWarn: (...args: any[]) => void;
   bonusParticleSources?: string[];
   bonusParticleScale?: number;
+  initialImpactDelayMs?: number;
   impactProfile?: 'standard' | 'beach-ball' | 'laser-gun';
   skipFx?: boolean;
   onTargetsSelected?: (
@@ -14093,7 +14095,8 @@ function runTntBoomBonusBreak2Tiles(deps: {
   onBoardCommitted?: () => void;
   onComplete?: () => void;
 }) {
-  const { board, dst, addWildProgress, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn, bonusParticleSources, bonusParticleScale = 1, impactProfile = 'standard', skipFx, onTargetsSelected, onBoardCommitted, onComplete } = deps;
+  const { board, dst, addWildProgress, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn, bonusParticleSources, bonusParticleScale = 1, initialImpactDelayMs = 0, impactProfile = 'standard', skipFx, onTargetsSelected, onBoardCommitted, onComplete } = deps;
+  const boundedInitialImpactDelayMs = Math.max(0, Math.round(initialImpactDelayMs));
   // The activating merge already awards one full BIG increment. Each of the
   // four TNT/Ball bonus impacts contributes a small, explicit 5% reward.
   const bonusProgressPerImpact = 0.05;
@@ -14228,11 +14231,11 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	        try { checkLevelEnd(); } catch {}
 	      }, 80);
 	    };
-	    const lastScheduledImpactMs = impactProfile === 'laser-gun'
+	    const lastScheduledImpactMs = boundedInitialImpactDelayMs + (impactProfile === 'laser-gun'
 	      ? LASERGUN_FIRST_SHOT_LEAD_MS + Math.max(0, count - 1) * LASERGUN_SHOT_INTERVAL_MS
 	      : impactProfile === 'beach-ball'
 	        ? [0, 260, 560, 900][count - 1] ?? 0
-	        : Math.max(0, count - 1) * 200;
+	        : Math.max(0, count - 1) * 200);
 	    const armForceCompleteTimeout = () => trackAppTimeout(() => {
 	      if (completed) return;
 	      devWarn('⚠️ TNT boom bonus safety: forcing completion after native timeout');
@@ -14250,9 +14253,10 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	    const laserGunRunGeneration = gameplayRunGeneration;
 	    let laserGunVisualsEnabled = false;
 	    toBreak.forEach((tile: Tile, i: number) => {
-	      const delayMs = impactProfile === 'beach-ball'
+	      const impactStaggerMs = impactProfile === 'beach-ball'
 	        ? beachBallImpactDelaysMs[i] ?? i * 300
 	        : i * 200; // native timeout: mobile-safe, does not wait for GSAP ticker wake
+	      const delayMs = boundedInitialImpactDelayMs + impactStaggerMs;
 	      const doBreak = (laserGunVisualArrived = false) => {
 	        if (!tile || tile.destroyed || !board || !STATE?.tiles) {
 	          releaseTntBonusTile(tile);

@@ -37,7 +37,10 @@ export const BEE_FINALE_LEFT_CHARGE_END_SECONDS = 2.65;
 export const BEE_FINALE_FLYBY_START_SECONDS = BEE_FINALE_LEFT_CHARGE_END_SECONDS;
 export const BEE_FINALE_IDLE_FRAME_SECONDS = 1 / 960;
 export const BEE_FINALE_IDLE_CROSSFADE_RATIO = 0.38;
-export const BEE_FINALE_WEAVE_VIEWPORT_RATIO = 0.085;
+export const BEE_FINALE_CURVE_VIEWPORT_RATIO = 0.38;
+export const BEE_FINALE_WEAVE_VIEWPORT_RATIO = 0.30;
+export const BEE_FINALE_EXIT_RELEASE_PROGRESS = 0.90;
+export const BEE_FINALE_VISIBLE_ART_RADIUS_RATIO = 0.128;
 export const BEE_FINALE_LEAF_COUNT = 42;
 export const BEE_FINALE_LEAF_START_SECONDS = 0;
 export const BEE_FINALE_LEAF_END_SECONDS = 2.90;
@@ -61,9 +64,23 @@ export type BeeFinalePose = {
   facing: -1 | 1;
   phase: BeeFinalePhase;
 };
+export type BeeFinaleRoutePlan = {
+  progress: number[];
+  lateral: number[];
+};
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const sineInOut = (progress: number) => 0.5 - Math.cos(Math.PI * clamp(progress, 0, 1)) * 0.5;
+
+export function getBeeFinaleForwardProgress(rawProgress: number): number {
+  const progress = clamp(rawProgress, 0, 1);
+  const previousFlight = progress ** 1.5;
+  const finishRamp = clamp((progress - 0.55) / 0.45, 0, 1);
+  const finishBlend = finishRamp * finishRamp * (3 - 2 * finishRamp);
+  // Keep the established launch, then blend into p^3. Its endpoint velocity is
+  // exactly twice the previous p^1.5 flight without adding a timing seam.
+  return previousFlight + (progress ** 3 - previousFlight) * finishBlend;
+}
 export function resolveBeeFinaleOrigin(
   origin: BeeFinaleOrigin | null | undefined,
   viewport: BeeFinaleViewport,
@@ -95,6 +112,40 @@ export function resolveBeeFinaleExit(
   };
 }
 
+export function createBeeFinaleRoutePlan(
+  origin: BeeFinaleOrigin,
+  viewport: BeeFinaleViewport,
+  routeSeed: number,
+): BeeFinaleRoutePlan {
+  const seed = Number.isFinite(routeSeed) ? routeSeed : 0;
+  const exit = resolveBeeFinaleExit(origin, viewport, seed);
+  const distance = Math.max(1, Math.hypot(exit.x - origin.x, exit.y - origin.y));
+  const normalX = -(exit.y - origin.y) / distance;
+  const outwardX = origin.x < viewport.width * 0.5
+    ? -1
+    : origin.x > viewport.width * 0.5 ? 1 : (Math.cos(seed) >= 0 ? -1 : 1);
+  const introDirection = Math.sign(normalX || 1) === outwardX ? 1 : -1;
+  const templates = [
+    [0, 0.34, -0.46, -0.12, -0.52, 0.25, 0.14, 0],
+    [0, 0.29, 0.51, -0.20, -0.43, 0.18, -0.30, 0],
+    [0, 0.42, -0.16, -0.49, 0.12, 0.38, -0.15, 0],
+    [0, 0.31, -0.40, 0.11, 0.48, 0.26, -0.34, 0],
+  ];
+  const routeNoise = Math.abs(Math.sin(seed * 1.913 + origin.x * 0.017 + origin.y * 0.011));
+  const template = templates[Math.min(templates.length - 1, Math.floor(routeNoise * templates.length))];
+  const baseProgress = [0, 0.075, 0.23, 0.405, 0.565, 0.755, 0.905, 1];
+  const progress = baseProgress.map((value, index) => {
+    if (index === 0 || index === baseProgress.length - 1) return value;
+    return value + Math.sin(seed * 2.17 + origin.x * 0.009 + index * 2.31) * 0.022;
+  });
+  const lateral = template.map((value, index) => {
+    if (index === 0 || index === template.length - 1) return 0;
+    const variation = 0.88 + 0.18 * Math.abs(Math.sin(seed * 1.37 + origin.y * 0.006 + index * 1.79));
+    return value * introDirection * variation;
+  });
+  return { progress, lateral };
+}
+
 function basePosition(
   elapsedSeconds: number,
   origin: BeeFinaleOrigin,
@@ -103,12 +154,12 @@ function basePosition(
 ): { x: number; y: number; phase: BeeFinalePhase } {
   const time = clamp(elapsedSeconds, 0, BEE_FINALE_SCENE_SECONDS);
   const rawProgress = clamp(time / BEE_FINALE_FLIGHT_SECONDS, 0, 1);
-  const acceleratedProgress = rawProgress ** 1.5;
+  const acceleratedProgress = getBeeFinaleForwardProgress(rawProgress);
   const exit = resolveBeeFinaleExit(origin, viewport, routeSeed);
   const deltaX = exit.x - origin.x;
   const deltaY = exit.y - origin.y;
   const distance = Math.max(1, Math.hypot(deltaX, deltaY));
-  const curve = Math.min(viewport.width, viewport.height) * 0.28;
+  const curve = Math.min(viewport.width, viewport.height) * BEE_FINALE_CURVE_VIEWPORT_RATIO;
   const controlX = (origin.x + exit.x) * 0.5 - (deltaY / distance) * curve;
   const controlY = (origin.y + exit.y) * 0.5 + (deltaX / distance) * curve;
   const oneMinusProgress = 1 - acceleratedProgress;
@@ -139,6 +190,7 @@ function visiblePosition(
   origin: BeeFinaleOrigin,
   viewport: BeeFinaleViewport,
   wobblePhase: number,
+  suppliedRoutePlan?: BeeFinaleRoutePlan,
 ): { x: number; y: number; phase: BeeFinalePhase } {
   const time = clamp(elapsedSeconds, 0, BEE_FINALE_SCENE_SECONDS);
   const base = basePosition(time, origin, viewport, wobblePhase);
@@ -149,29 +201,46 @@ function visiblePosition(
   const distance = Math.max(1, Math.hypot(deltaX, deltaY));
   const normalX = -deltaY / distance;
   const normalY = deltaX / distance;
-  // Several smooth, route-local waypoints create an irregular elliptical
-  // flight without ever changing forward progress. Their zero endpoints keep
-  // the real merge origin and opposite-quadrant exit exact, with no snap.
-  const waypointProgress = rawProgress * 6;
-  const waypointIndex = Math.min(5, Math.floor(waypointProgress));
-  const localProgress = waypointProgress - waypointIndex;
+  // A seeded asymmetric play route replaces the old equal-time alternating
+  // zig-zag. Uneven knots and same-side runs create feints, wide sweeps and
+  // short calming beats while the base curve continues toward the exit.
+  const routePlan = suppliedRoutePlan ?? createBeeFinaleRoutePlan(origin, viewport, wobblePhase);
+  let waypointIndex = routePlan.progress.length - 2;
+  for (let index = 0; index < routePlan.progress.length - 1; index += 1) {
+    if (rawProgress <= routePlan.progress[index + 1]) {
+      waypointIndex = index;
+      break;
+    }
+  }
+  const segmentStart = routePlan.progress[waypointIndex];
+  const segmentEnd = routePlan.progress[waypointIndex + 1];
+  const localProgress = clamp((rawProgress - segmentStart) / Math.max(0.001, segmentEnd - segmentStart), 0, 1);
   const smoothLocal = localProgress * localProgress * (3 - 2 * localProgress);
-  const seedDirection = Math.cos(wobblePhase) >= 0 ? 1 : -1;
-  const magnitudes = [0, 0.72, -0.58, 0.9, -0.68, 0.46, 0];
-  const seededMagnitude = (index: number): number => {
-    const baseMagnitude = magnitudes[index] ?? 0;
-    if (baseMagnitude === 0) return 0;
-    const variation = 0.88 + 0.12 * Math.sin(wobblePhase * 1.37 + index * 2.41);
-    return baseMagnitude * seedDirection * variation;
-  };
-  const weaveMagnitude = seededMagnitude(waypointIndex)
-    + (seededMagnitude(waypointIndex + 1) - seededMagnitude(waypointIndex)) * smoothLocal;
+  const weaveMagnitude = routePlan.lateral[waypointIndex]
+    + (routePlan.lateral[waypointIndex + 1] - routePlan.lateral[waypointIndex]) * smoothLocal;
   const weave = Math.min(viewport.width, viewport.height)
     * BEE_FINALE_WEAVE_VIEWPORT_RATIO
     * weaveMagnitude;
+  const rawX = base.x + normalX * weave;
+  const rawY = base.y + normalY * weave;
+  if (rawProgress >= 1) return { x: rawX, y: rawY, phase: base.phase };
+  // Keep the complete hero inside the viewport while it plays. Only the final
+  // 10% of the flight smoothly releases the clamp toward the real offscreen
+  // exit, avoiding both early clipping and a last-frame positional snap.
+  // The 128px source has transparent horizontal padding; constrain the visible
+  // Bee artwork rather than the empty square canvas around it.
+  const heroRadius = Math.min(viewport.width * BEE_FINALE_VISIBLE_ART_RADIUS_RATIO, 56) + 3;
+  const safeX = clamp(rawX, heroRadius, viewport.width - heroRadius);
+  const safeY = clamp(rawY, heroRadius, viewport.height - heroRadius);
+  const releaseProgress = clamp(
+    (rawProgress - BEE_FINALE_EXIT_RELEASE_PROGRESS) / (1 - BEE_FINALE_EXIT_RELEASE_PROGRESS),
+    0,
+    1,
+  );
+  const releaseBlend = releaseProgress * releaseProgress * (3 - 2 * releaseProgress);
   return {
-    x: base.x + normalX * weave,
-    y: base.y + normalY * weave,
+    x: safeX + (rawX - safeX) * releaseBlend,
+    y: safeY + (rawY - safeY) * releaseBlend,
     phase: base.phase,
   };
 }
@@ -181,12 +250,13 @@ export function sampleBeeFinalePose(
   origin: BeeFinaleOrigin,
   viewport: BeeFinaleViewport,
   wobblePhase = 0,
+  routePlan?: BeeFinaleRoutePlan,
 ): BeeFinalePose {
   const time = clamp(elapsedSeconds, 0, BEE_FINALE_SCENE_SECONDS);
   const delta = 0.004;
-  const current = visiblePosition(time, origin, viewport, wobblePhase);
-  const before = visiblePosition(Math.max(0, time - delta), origin, viewport, wobblePhase);
-  const after = visiblePosition(Math.min(BEE_FINALE_SCENE_SECONDS, time + delta), origin, viewport, wobblePhase);
+  const current = visiblePosition(time, origin, viewport, wobblePhase, routePlan);
+  const before = visiblePosition(Math.max(0, time - delta), origin, viewport, wobblePhase, routePlan);
+  const after = visiblePosition(Math.min(BEE_FINALE_SCENE_SECONDS, time + delta), origin, viewport, wobblePhase, routePlan);
   const vx = after.x - before.x;
   const vy = after.y - before.y;
   // The head follows each real lateral turn. Paint owns a 50ms stability gate,
@@ -394,12 +464,13 @@ export function attachBeeFinaleScene(
   const leafParticles: BeeLeafParticle[] = [];
   const clock = { time: 0 };
   const wobblePhase = Math.random() * Math.PI * 2;
+  const routePlan = createBeeFinaleRoutePlan(origin, viewport, wobblePhase);
   let facing: -1 | 1 = 1;
   let candidateFacing: -1 | 1 = 1;
   let candidateSince = 0;
   let priorTime = 0;
   const paint = () => {
-    const pose = sampleBeeFinalePose(clock.time, origin, viewport, wobblePhase);
+    const pose = sampleBeeFinalePose(clock.time, origin, viewport, wobblePhase, routePlan);
     const delta = Math.max(0, clock.time - priorTime);
     priorTime = clock.time;
     if (pose.facing !== facing) {
@@ -493,7 +564,7 @@ export function attachBeeFinaleScene(
       : BEE_FINALE_LEAF_START_SECONDS
         + burstIndex * BEE_FINALE_LEAF_STAGGER_SECONDS
         + burstLane * 0.018;
-    const pose = sampleBeeFinalePose(startAt, origin, viewport, wobblePhase);
+    const pose = sampleBeeFinalePose(startAt, origin, viewport, wobblePhase, routePlan);
     const isFront = index % 3 !== 0;
     const wrap = document.createElement('div');
     wrap.className = `cc-bee-finale-leaf-wrap cc-bee-finale-leaf-wrap-${isFront ? 'front' : 'back'}`;

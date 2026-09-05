@@ -80,6 +80,8 @@ describe('Flower special-die visual contract', () => {
     const appCoreSource = read('src/modules/app-core.ts');
     expect(appCoreSource).toContain("tntVariantForMerge?.id === 'flower'");
     expect(appCoreSource).toContain('bonusParticleScale: tntVariantForMerge?.id === \'flower\' ? 1.4 : 1');
+    expect(appCoreSource).toContain("initialImpactDelayMs: tntVariantForMerge?.id === 'flower' ? 700 : 0");
+    expect(appCoreSource).toContain('const delayMs = boundedInitialImpactDelayMs + impactStaggerMs;');
     for (let frame = 1; frame <= 9; frame += 1) {
       expect(fs.existsSync(path.resolve(process.cwd(), `assets/shop/bush/bush${frame}.png`))).toBe(true);
       expect(fs.existsSync(path.resolve(process.cwd(), `assets/shop/bush/bush${frame}@2x.png`))).toBe(true);

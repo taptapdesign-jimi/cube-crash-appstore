@@ -6,6 +6,8 @@ import animationManager from '../animation-manager';
 import {
   attachBeeFinaleScene,
   BEE_FINALE_FLYBY_START_SECONDS,
+  BEE_FINALE_CURVE_VIEWPORT_RATIO,
+  BEE_FINALE_EXIT_RELEASE_PROGRESS,
   BEE_FINALE_FLIGHT_SECONDS,
   BEE_FINALE_IDLE_FRAME_SECONDS,
   BEE_FINALE_LEAF_COUNT,
@@ -14,6 +16,9 @@ import {
   BEE_FINALE_ORBIT_END_SECONDS,
   BEE_FINALE_SCENE_SECONDS,
   BEE_FINALE_WEAVE_VIEWPORT_RATIO,
+  BEE_FINALE_VISIBLE_ART_RADIUS_RATIO,
+  createBeeFinaleRoutePlan,
+  getBeeFinaleForwardProgress,
   getBeeFinaleHorizontalAssetForVelocity,
   getBeeFinaleIdleBlend,
   resolveBeeFinaleOrigin,
@@ -102,9 +107,8 @@ describe('Bee merge-six finale', () => {
     expect(right.phase).toBe('right-feint');
     expect(left.phase).toBe('left-charge');
     expect(finish.phase).toBe('flyby');
-    expect(firstArc.x).toBeGreaterThan(origin.x);
-    expect(right.x).toBeGreaterThan(firstArc.x);
-    expect(left.x).toBeGreaterThan(right.x);
+    expect(Math.hypot(firstArc.x - origin.x, firstArc.y - origin.y)).toBeGreaterThan(40);
+    expect(Math.hypot(left.x - right.x, left.y - right.y)).toBeGreaterThan(20);
     expect(lateArc.x).toBeGreaterThan(viewport.width * 0.25);
     expect(finish.x).toBeGreaterThan(viewport.width);
     expect(Math.abs(finish.y - origin.y)).toBeGreaterThan(40);
@@ -131,6 +135,13 @@ describe('Bee merge-six finale', () => {
     expect(route[route.length - 1]).toMatchObject({ x: -78, y: -168.8, facing: -1 });
     const distance = (a: typeof origin, b: typeof origin) => Math.hypot(a.x - b.x, a.y - b.y);
     expect(BEE_FINALE_FLIGHT_SECONDS).toBe(3);
+    expect(BEE_FINALE_CURVE_VIEWPORT_RATIO).toBe(0.38);
+    const oldFinishVelocity = 1.5;
+    const sampleStep = 0.0001;
+    const newFinishVelocity = (
+      getBeeFinaleForwardProgress(1) - getBeeFinaleForwardProgress(1 - sampleStep)
+    ) / sampleStep;
+    expect(newFinishVelocity).toBeCloseTo(oldFinishVelocity * 2, 2);
     const earlyDistance = distance(sampleBeeFinalePose(0.5, bottomRight, viewport, 0), bottomRight);
     const lateDistance = distance(sampleBeeFinalePose(3, bottomRight, viewport, 0), sampleBeeFinalePose(2.5, bottomRight, viewport, 0));
     expect(lateDistance).toBeGreaterThan(earlyDistance * 2);
@@ -179,13 +190,70 @@ describe('Bee merge-six finale', () => {
 
       expect(forward.every((value, index) => index === 0 || value >= forward[index - 1] - 0.01)).toBe(true);
       expect(Math.max(...lateral) - Math.min(...lateral)).toBeGreaterThan(55);
-      expect(lateralTurns).toBeGreaterThanOrEqual(4);
+      expect(lateralTurns).toBeGreaterThanOrEqual(3);
       expect(samples.every((pose) => Math.abs(pose.vx) <= 0.01 || pose.facing === Math.sign(pose.vx))).toBe(true);
       expect(samples.every((pose) => Number.isFinite(pose.rotation) && Math.abs(pose.rotation) <= 20)).toBe(true);
       expect(samples[0]).toMatchObject({ x: start.x, y: start.y });
       expect(samples[samples.length - 1]).toMatchObject({ x: exit.x, y: exit.y });
     });
-    expect(BEE_FINALE_WEAVE_VIEWPORT_RATIO).toBe(0.085);
+    expect(BEE_FINALE_WEAVE_VIEWPORT_RATIO).toBe(0.30);
+  });
+
+  test('builds deterministic asymmetric play routes instead of an equal alternating metronome', () => {
+    const starts = [
+      { x: 60, y: 700 },
+      { x: 330, y: 700 },
+      { x: 60, y: 170 },
+      { x: 330, y: 170 },
+      origin,
+    ];
+    starts.forEach((start, index) => {
+      const seed = 0.37 + index * 0.91;
+      const plan = createBeeFinaleRoutePlan(start, viewport, seed);
+      expect(createBeeFinaleRoutePlan(start, viewport, seed)).toEqual(plan);
+      expect(plan.progress[0]).toBe(0);
+      expect(plan.progress[plan.progress.length - 1]).toBe(1);
+      expect(plan.lateral[0]).toBe(0);
+      expect(plan.lateral[plan.lateral.length - 1]).toBe(0);
+      const gaps = plan.progress.slice(1).map((value, gapIndex) => value - plan.progress[gapIndex]);
+      expect(Math.max(...gaps) - Math.min(...gaps)).toBeGreaterThan(0.07);
+      expect(plan.lateral.slice(1, -1).some((value, lateralIndex, values) => (
+        lateralIndex > 0 && Math.sign(value) === Math.sign(values[lateralIndex - 1])
+      ))).toBe(true);
+      expect(Math.max(...plan.lateral.map(Math.abs))).toBeGreaterThan(0.3);
+    });
+    expect(createBeeFinaleRoutePlan(origin, viewport, 0.2)).not.toEqual(
+      createBeeFinaleRoutePlan(origin, viewport, 2.8),
+    );
+
+    const bottomLeft = { x: 60, y: 700 };
+    const bottomRight = { x: 330, y: 700 };
+    expect(sampleBeeFinalePose(0.15, bottomLeft, viewport, 0.37).x).toBeLessThan(bottomLeft.x);
+    expect(sampleBeeFinalePose(0.15, bottomRight, viewport, 0.37).x).toBeGreaterThan(bottomRight.x);
+  });
+
+  test('keeps the complete hero onscreen until the final exit release', () => {
+    const starts = [
+      { x: 60, y: 700 },
+      { x: 330, y: 700 },
+      { x: 60, y: 170 },
+      { x: 330, y: 170 },
+      origin,
+    ];
+    const heroRadius = Math.min(viewport.width * BEE_FINALE_VISIBLE_ART_RADIUS_RATIO, 56) + 3;
+    expect(BEE_FINALE_EXIT_RELEASE_PROGRESS).toBe(0.90);
+    starts.forEach((start, routeIndex) => {
+      const seed = routeIndex * 0.83;
+      for (let index = 0; index <= 90; index += 1) {
+        const pose = sampleBeeFinalePose(index * BEE_FINALE_FLIGHT_SECONDS / 100, start, viewport, seed);
+        expect(pose.x).toBeGreaterThanOrEqual(heroRadius - 0.01);
+        expect(pose.x).toBeLessThanOrEqual(viewport.width - heroRadius + 0.01);
+        expect(pose.y).toBeGreaterThanOrEqual(heroRadius - 0.01);
+        expect(pose.y).toBeLessThanOrEqual(viewport.height - heroRadius + 0.01);
+      }
+      expect(sampleBeeFinalePose(BEE_FINALE_FLIGHT_SECONDS, start, viewport, seed))
+        .toMatchObject(resolveBeeFinaleExit(start, viewport, seed));
+    });
   });
 
   test('crossfades bee1 through bee4 four times faster on a 1.04ms cadence', () => {
