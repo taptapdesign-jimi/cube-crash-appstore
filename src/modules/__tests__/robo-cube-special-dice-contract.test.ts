@@ -8,7 +8,6 @@ import {
   getSpecialDiceTrailColors,
   getSpecialDiceVariant,
   pickSpecialDiceVariantForWildSpawn,
-  ROBO_WILD_VARIANT_CHANCE,
 } from '../special-dice-registry';
 
 const read = (relativePath: string) => fs.readFileSync(path.resolve(process.cwd(), relativePath), 'utf8');
@@ -59,8 +58,7 @@ describe('Robo Cube special die', () => {
     }
   });
 
-  test('uses Robo Cube as the Area 55 introduction theme and randomizes only later stages', () => {
-    expect(ROBO_WILD_VARIANT_CHANCE).toBe(0.25);
+  test('keeps Robo Cube in every Area 55 pool while later dice unlock cumulatively', () => {
     expect(pickSpecialDiceVariantForWildSpawn({
       isArcade: false,
       journeyBoard: 21,
@@ -72,37 +70,37 @@ describe('Robo Cube special die', () => {
       isArcade: false,
       journeyBoard: 21,
       wildSpawnCount: 1,
-      previousWildType: 'wild-juice',
-      worldIntroRoll: 0.5999,
-    })?.id).toBe('robo-cube');
-    expect(pickSpecialDiceVariantForWildSpawn({
-      isArcade: false,
-      journeyBoard: 21,
-      wildSpawnCount: 2,
-      previousWildType: 'wild-juice',
-      worldIntroRoll: 0.60,
-    })).toBeNull();
-    expect(pickSpecialDiceVariantForWildSpawn({
-      isArcade: false,
-      journeyBoard: 21,
-      wildSpawnCount: 3,
-      previousWildType: 'wild',
+      previousWildType: null,
       worldIntroRoll: 0.9999,
     })?.id).toBe('robo-cube');
+    expect(pickSpecialDiceVariantForWildSpawn({
+      isArcade: false,
+      journeyBoard: 22,
+      wildSpawnCount: 1,
+      previousWildType: 'wild-tnt',
+      worldIntroRoll: 0.34,
+    })?.id).toBe('robo-cube');
+    expect(pickSpecialDiceVariantForWildSpawn({
+      isArcade: false,
+      journeyBoard: 23,
+      wildSpawnCount: 1,
+      previousWildType: 'wild-magnet',
+      worldIntroRoll: 0.26,
+    })?.id).toBe('robo-cube');
 
-    for (let journeyBoard = 22; journeyBoard <= 30; journeyBoard += 1) {
+    for (let journeyBoard = 23; journeyBoard <= 30; journeyBoard += 1) {
       expect(pickSpecialDiceVariantForWildSpawn({
         isArcade: false,
         journeyBoard,
         wildSpawnCount: 7,
-        roboWildRoll: 0.249999,
+        worldIntroRoll: 0.25,
       })?.id).toBe('robo-cube');
       expect(pickSpecialDiceVariantForWildSpawn({
         isArcade: false,
         journeyBoard,
         wildSpawnCount: 7,
-        roboWildRoll: 0.25,
-      })).toBeNull();
+        worldIntroRoll: 0.50,
+      })?.id).toBe('laser-gun');
     }
 
     for (const journeyBoard of [1, 2, 10, 11, 20, 31]) {

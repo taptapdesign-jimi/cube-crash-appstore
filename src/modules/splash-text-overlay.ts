@@ -504,7 +504,7 @@ function cleanupSparkleOverlay(): void {
 
 /**
  * Show SPARKLE text overlay for wild-star merge 6.
- * Uses the same enter/exit style as BUBBLY, but in yellow.
+ * Uses the same enter/exit style as BUBBLY with the configured letter palette.
  */
 export function showSparkleText(origin?: { x: number; y: number } | null, options: any = {}): void {
   try {
@@ -513,8 +513,15 @@ export function showSparkleText(origin?: { x: number; y: number } | null, option
     startWildFxDragLockForAnimation('sparkle-text', 3600, options?.inputReleaseAtRatio ?? 0.25);
     const sparkleText = String(options?.text || 'SPARKLE');
     const sparkleColor = String(options?.color || '#FFCB81');
+    const sparkleLightColor = String(options?.colors?.[0] || sparkleColor);
+    const sparkleDarkColor = String(options?.colors?.[1] || sparkleColor);
+    const sparkleSplitIndex = Number.isFinite(options?.splitIndex) ? Number(options.splitIndex) : -1;
 
     const overlay = document.createElement('div');
+    overlay.dataset.effectText = sparkleText;
+    overlay.dataset.effectPalette = Array.isArray(options?.colors) && options.colors.length >= 2
+      ? 'split'
+      : 'solid';
     overlay.style.cssText = [
       'position: fixed',
       'left: 0',
@@ -554,6 +561,7 @@ export function showSparkleText(origin?: { x: number; y: number } | null, option
     triggerSparkleHapticTrain();
 
     const container = document.createElement('div');
+    container.className = 'cc-sparkle-text-letters';
     container.style.cssText = [
       'position: absolute',
       'left: 50%',
@@ -590,17 +598,26 @@ export function showSparkleText(origin?: { x: number; y: number } | null, option
       const rotation = 0;
       const el = document.createElement('span');
       el.textContent = letter;
-      const visibleSparkleColor = applyEffectLetterOpacity(
-        sparkleColor,
-        resolveSplashLetterOpacity(options?.letterOpacityRange),
-      );
+      el.className = 'cc-sparkle-text-letter';
+      const isSplitLetter = index === Math.floor(sparkleSplitIndex) && sparkleSplitIndex % 1 !== 0;
+      const letterAlpha = resolveSplashLetterOpacity(options?.letterOpacityRange);
+      const visibleLightColor = applyEffectLetterOpacity(sparkleLightColor, letterAlpha);
+      const visibleDarkColor = applyEffectLetterOpacity(sparkleDarkColor, letterAlpha);
+      const visibleSparkleColor = index < sparkleSplitIndex ? visibleLightColor : visibleDarkColor;
+      el.dataset.effectLetterIndex = String(index);
+      el.dataset.effectLetterColor = index < sparkleSplitIndex
+        ? sparkleLightColor
+        : sparkleDarkColor;
       el.style.cssText = [
         'font-family: "Baloo2", system-ui, -apple-system, sans-serif',
         'font-weight: 800',
         `font-size: ${letterFontSize.toFixed(1)}px`,
         'line-height: 1',
         `color: ${visibleSparkleColor}`,
-        `-webkit-text-fill-color: ${visibleSparkleColor}`,
+        `-webkit-text-fill-color: ${isSplitLetter ? 'transparent' : visibleSparkleColor}`,
+        isSplitLetter ? `background: linear-gradient(90deg, ${visibleLightColor} 0 50%, ${visibleDarkColor} 50% 100%)` : 'background: none',
+        isSplitLetter ? '-webkit-background-clip: text' : '-webkit-background-clip: border-box',
+        isSplitLetter ? 'background-clip: text' : 'background-clip: border-box',
         'text-align: center',
         'opacity: 0',
         'transform: scale(0) perspective(1000px) translateZ(0)',

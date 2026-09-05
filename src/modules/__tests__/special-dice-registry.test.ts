@@ -245,7 +245,10 @@ test('Forest progression introduces Bee 02, Flower 03, Honey 04, Mushroom 06 and
     id: 'bee',
     archetype: 'wild-star',
     splashText: 'WEEEE!',
-    splashColor: '#E6815E',
+    splashColor: '#DB7654',
+    splashColors: ['#DB7654', '#FFD978'],
+    splashLetterOpacityRange: [1, 1],
+    splashSplitIndex: 3,
     finaleScene: 'bee-forest-flight',
     idleOrbit: false,
     idleMotion: 'bee-sprite-cycle',
@@ -391,4 +394,27 @@ test('later Beach stages map one shared random slot to Star, Juice, Beach Ball, 
       wildSpawnCount: 3,
     })?.id).not.toBe('bottle');
   }
+});
+
+test('Area 55 introduces LaserGun in Cjelina 02 and Spaceship in Cjelina 03', () => {
+  expect([0, 1].map((wildSpawnCount) => pickSpecialDiceVariantForWildSpawn({
+    isArcade: false,
+    journeyBoard: 21,
+    wildSpawnCount,
+    previousWildType: wildSpawnCount === 1 ? 'wild' : null,
+    worldIntroRoll: 0.9999,
+  })?.id ?? null)).toEqual([null, 'robo-cube']);
+
+  expect(pickSpecialDiceVariantForWildSpawn({
+    isArcade: false,
+    journeyBoard: 22,
+    wildSpawnCount: 0,
+    worldIntroRoll: 0,
+  })?.id).toBe('laser-gun');
+  expect(pickSpecialDiceVariantForWildSpawn({
+    isArcade: false,
+    journeyBoard: 23,
+    wildSpawnCount: 0,
+    worldIntroRoll: 0,
+  })?.id).toBe('spaceship');
 });

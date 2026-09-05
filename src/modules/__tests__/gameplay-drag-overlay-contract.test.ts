@@ -4,6 +4,8 @@ import path from 'node:path';
 const root = path.resolve(__dirname, '../../..');
 const dragSource = fs.readFileSync(path.join(root, 'src/modules/drag-core.ts'), 'utf8');
 const installSource = fs.readFileSync(path.join(root, 'src/modules/install-drag.ts'), 'utf8');
+const hudSource = fs.readFileSync(path.join(root, 'src/modules/hud-helpers.ts'), 'utf8');
+const styleSource = fs.readFileSync(path.join(root, 'src/style.css'), 'utf8');
 
 describe('gameplay drag overlay contract', () => {
   test('keeps the active tile above the Pixi HUD without raising its shared parent', () => {
@@ -14,6 +16,22 @@ describe('gameplay drag overlay contract', () => {
     expect(dragSource).not.toContain('t.zIndex = 9999;');
     expect(dragSource).toContain('activeDragLayer.zIndex = DRAG_LAYER_Z_INDEX;');
     expect(dragSource).not.toContain('activeDragLayer.parent.zIndex =');
+  });
+
+  test('lifts every dragged die above the DOM top HUD only for the owned drag lifecycle', () => {
+    const domHudZ = Number(hudSource.match(/height: 140px;\s*z-index: (\d+);/)?.[1]);
+    const dragCanvasZ = Number(styleSource.match(
+      /body\.gameplay-drag-active #app canvas \{\s*z-index: (\d+) !important;/,
+    )?.[1]);
+    const clearRuntime = dragSource.split('function clearDragRuntime() {')[1]
+      ?.split('\n  function resetTileDragShadowPose', 1)[0] ?? '';
+
+    expect(domHudZ).toBe(2000);
+    expect(dragCanvasZ).toBeGreaterThan(domHudZ);
+    expect(dragSource).toContain("document.body?.classList.toggle('gameplay-drag-active', active);");
+    expect(dragSource).toContain('setGameplayDragActive(true);');
+    expect(clearRuntime).toContain('setGameplayDragActive(false);');
+    expect(styleSource).not.toContain('body.gameplay-drag-active #app {');
   });
 
   test('mirrors the board transform so every existing scale-to-one owner stays safe', () => {

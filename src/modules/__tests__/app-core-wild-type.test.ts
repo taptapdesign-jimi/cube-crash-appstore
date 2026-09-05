@@ -167,16 +167,56 @@ describe('Beach Cjelina 01 Wild pool', () => {
   });
 });
 
-test('Area 55 Cjelina 01 keeps the core drop on Star before Robo selection', () => {
-  expect(decideForRoll({
-    roll: 0.95,
-    boardNumber: 21,
-    wildSpawnCount: 3,
-    lastWildDropType: 'wild-juice',
-  }).result).toEqual({
-    spawnJuice: false,
-    spawnMagnet: false,
-    spawnTnt: false,
-    wildType: 'wild',
+describe('Area 55 progressive Wild pool', () => {
+  test.each([
+    [21, ['wild', 'wild-juice']],
+    [22, ['wild', 'wild-juice', 'wild-tnt']],
+    [23, ['wild', 'wild-juice', 'wild-tnt', 'wild-magnet']],
+    [30, ['wild', 'wild-juice', 'wild-tnt', 'wild-magnet']],
+  ] as const)('publishes only earned gameplay archetypes for Cjelina %i', (board, expected) => {
+    expect(getAllowedWildTypes(board)).toEqual(expected);
+  });
+
+  test('keeps Cjelina 01 on Star and Robo Cube only', () => {
+    expect(decideForRoll({
+      roll: 0.95,
+      boardNumber: 21,
+      wildSpawnCount: 0,
+      lastWildDropType: null,
+    }).result).toMatchObject({ wildType: 'wild', specialDiceVariantId: null });
+    expect(decideForRoll({
+      roll: 0.95,
+      boardNumber: 21,
+      wildSpawnCount: 1,
+      lastWildDropType: 'wild',
+    }).result).toMatchObject({ wildType: 'wild-juice', specialDiceVariantId: 'robo-cube' });
+  });
+
+  test('introduces LaserGun in Cjelina 02 and Spaceship in Cjelina 03', () => {
+    const laser = decideForRoll({
+      roll: 0,
+      boardNumber: 22,
+      wildSpawnCount: 0,
+      lastWildDropType: null,
+    });
+    expect(laser.result).toMatchObject({
+      spawnTnt: true,
+      wildType: 'wild-tnt',
+      specialDiceVariantId: 'laser-gun',
+    });
+    expect(laser.filterWildType).not.toHaveBeenCalled();
+
+    const spaceship = decideForRoll({
+      roll: 0,
+      boardNumber: 23,
+      wildSpawnCount: 0,
+      lastWildDropType: null,
+    });
+    expect(spaceship.result).toMatchObject({
+      spawnMagnet: true,
+      wildType: 'wild-magnet',
+      specialDiceVariantId: 'spaceship',
+    });
+    expect(spaceship.filterWildType).not.toHaveBeenCalled();
   });
 });

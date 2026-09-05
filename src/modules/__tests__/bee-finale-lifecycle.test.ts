@@ -5,6 +5,7 @@ import path from 'path';
 import animationManager from '../animation-manager';
 import {
   attachBeeFinaleScene,
+  BEE_FINALE_AMBIENT_PLANS,
   BEE_FINALE_FLYBY_START_SECONDS,
   BEE_FINALE_CURVE_VIEWPORT_RATIO,
   BEE_FINALE_EXIT_GUIDE_PROGRESS,
@@ -25,6 +26,7 @@ import {
   resolveBeeFinaleOrigin,
   resolveBeeFinaleExit,
   sampleBeeFinalePose,
+  sampleBeeFinaleAmbientPose,
 } from '../bee-finale-scene';
 
 const viewport = { width: 390, height: 844 };
@@ -75,6 +77,38 @@ describe('Bee merge-six finale', () => {
     expect(sources.some((src) => /\/bee[4-7]\.png/.test(src ?? ''))).toBe(false);
     cleanup();
     overlay.remove();
+  });
+
+  test('gives every ambient Bee an asymmetric nervous route and stronger irregular bounce', () => {
+    BEE_FINALE_AMBIENT_PLANS.forEach((plan) => {
+      const samples = Array.from({ length: 241 }, (_, index) => (
+        sampleBeeFinaleAmbientPose(
+          plan,
+          index * BEE_FINALE_SCENE_SECONDS / 240,
+          origin,
+          viewport,
+        )
+      ));
+      const directionChanges = (axis: 'vx' | 'vy') => {
+        const signs = samples
+          .map((sample) => sample[axis])
+          .filter((velocity) => Math.abs(velocity) > 0.03)
+          .map(Math.sign);
+        return signs.slice(1).filter((sign, index) => sign !== signs[index]).length;
+      };
+      const rotationPeak = Math.max(...samples.map((sample) => Math.abs(sample.rotation)));
+      const scaleX = samples.map((sample) => sample.scaleX);
+
+      expect(samples[0]).toMatchObject({ x: origin.x, y: origin.y });
+      expect(samples[samples.length - 1].x).toBeCloseTo(plan.endX * viewport.width, 4);
+      expect(samples[samples.length - 1].y).toBeCloseTo(plan.endY * viewport.height, 4);
+      expect(directionChanges('vx') + directionChanges('vy')).toBeGreaterThanOrEqual(5);
+      expect(rotationPeak).toBeGreaterThan(10);
+      expect(rotationPeak).toBeLessThanOrEqual(13.01);
+      expect(Math.max(...scaleX) - Math.min(...scaleX)).toBeGreaterThan(0.14);
+      expect(Math.min(...scaleX)).toBeGreaterThanOrEqual(0.90);
+      expect(Math.max(...scaleX)).toBeLessThanOrEqual(1.10);
+    });
   });
 
   test('uses the real merge origin and a safe fallback', () => {

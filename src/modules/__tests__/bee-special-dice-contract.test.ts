@@ -11,9 +11,11 @@ import {
 } from '../bee-dice-idle';
 import {
   getSpecialDiceFinaleFxForArchetype,
+  getSpecialDiceSplashLetterColors,
   getSpecialDiceVariant,
   getSpecialDiceSplashOptions,
 } from '../special-dice-registry';
+import { showSparkleText, stopSparkleText } from '../splash-text-overlay';
 
 describe('Forest Bee special-die contract', () => {
   test('inherits Wild Star gameplay but owns Bee visuals and no orbit', () => {
@@ -27,9 +29,38 @@ describe('Forest Bee special-die contract', () => {
     expect(getSpecialDiceFinaleFxForArchetype(bee?.archetype)).toBe('star');
     expect(getSpecialDiceSplashOptions(bee)).toMatchObject({
       text: 'WEEEE!',
-      color: '#E6815E',
+      color: '#DB7654',
+      colors: ['#DB7654', '#FFD978'],
+      letterOpacityRange: [1, 1],
+      splitIndex: 3,
       finaleScene: 'bee-forest-flight',
     });
+    expect(getSpecialDiceSplashLetterColors(bee)).toEqual([
+      '#DB7654', '#DB7654', '#DB7654', '#FFD978', '#FFD978', '#FFD978',
+    ]);
+  });
+
+  test('paints the live Cjelina 02 Bee WEEEE! glyphs with the configured half split', () => {
+    const bee = getSpecialDiceVariant('bee');
+    showSparkleText({ x: 195, y: 430 }, getSpecialDiceSplashOptions(bee));
+    try {
+      const overlay = document.querySelector<HTMLElement>('[data-effect-text="WEEEE!"]');
+      const letters = Array.from(
+        overlay?.querySelectorAll<HTMLElement>('.cc-sparkle-text-letter') ?? [],
+      );
+
+      expect(overlay?.dataset.effectPalette).toBe('split');
+      expect(letters.map((letter) => letter.textContent)).toEqual(['W', 'E', 'E', 'E', 'E', '!']);
+      expect(letters.map((letter) => letter.dataset.effectLetterColor)).toEqual([
+        '#DB7654', '#DB7654', '#DB7654', '#FFD978', '#FFD978', '#FFD978',
+      ]);
+      expect(letters.map((letter) => letter.style.color)).toEqual([
+        'rgb(219, 118, 84)', 'rgb(219, 118, 84)', 'rgb(219, 118, 84)',
+        'rgb(255, 217, 120)', 'rgb(255, 217, 120)', 'rgb(255, 217, 120)',
+      ]);
+    } finally {
+      stopSparkleText();
+    }
   });
 
   test('uses original speed plus four times that speed while dragging', () => {

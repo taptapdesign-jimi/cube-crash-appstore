@@ -420,7 +420,7 @@ type BeeLeafParticle = {
   peakOpacity: number;
 };
 
-type BeeAmbientPlan = {
+export type BeeFinaleAmbientPlan = {
   startX: number;
   startY: number;
   endX: number;
@@ -429,6 +429,16 @@ type BeeAmbientPlan = {
   frequency: number;
   phase: number;
   scale: number;
+};
+
+export type BeeFinaleAmbientPose = {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  rotation: number;
+  scaleX: number;
+  scaleY: number;
 };
 
 type JourneyBeeAsset = 'bee1' | 'bee2' | 'bee3' | 'bee4' | 'bee5' | 'bee6' | 'bee7';
@@ -444,7 +454,7 @@ export function getBeeFinaleHorizontalAssetForVelocity(
 type BeeAmbientState = {
   host: HTMLElement;
   frames: HTMLImageElement[];
-  plan: BeeAmbientPlan;
+  plan: BeeFinaleAmbientPlan;
   currentAsset: JourneyBeeAsset;
   previousAsset: JourneyBeeAsset | null;
   pendingAsset: JourneyBeeAsset | null;
@@ -452,7 +462,7 @@ type BeeAmbientState = {
   blendSeconds: number;
 };
 
-const BEE_AMBIENT_PLANS: readonly BeeAmbientPlan[] = [
+export const BEE_FINALE_AMBIENT_PLANS: readonly BeeFinaleAmbientPlan[] = [
   { startX: -0.12, startY: 0.20, endX: 1.12, endY: 0.34, wave: 38, frequency: 2.1, phase: 0.2, scale: 0.78 },
   { startX: 1.10, startY: 0.28, endX: -0.12, endY: 0.46, wave: 31, frequency: 2.6, phase: 1.4, scale: 0.64 },
   { startX: -0.14, startY: 0.58, endX: 1.14, endY: 0.67, wave: 44, frequency: 2.3, phase: 2.5, scale: 0.90 },
@@ -461,28 +471,56 @@ const BEE_AMBIENT_PLANS: readonly BeeAmbientPlan[] = [
   { startX: 0.92, startY: 0.10, endX: 0.18, endY: 0.86, wave: 33, frequency: 2.7, phase: 5.0, scale: 0.60 },
 ];
 
-function sampleAmbientBee(
-  plan: BeeAmbientPlan,
+export function sampleBeeFinaleAmbientPose(
+  plan: BeeFinaleAmbientPlan,
   elapsedSeconds: number,
   origin: BeeFinaleOrigin,
   viewport: BeeFinaleViewport,
-): { x: number; y: number; vx: number; vy: number } {
+): BeeFinaleAmbientPose {
   const position = (time: number) => {
-    const progress = sineInOut(clamp(time / BEE_FINALE_SCENE_SECONDS, 0, 1));
+    const baseProgress = sineInOut(clamp(time / BEE_FINALE_SCENE_SECONDS, 0, 1));
+    const routeEnvelope = Math.sin(baseProgress * Math.PI);
+    const surge = Math.sin(
+      baseProgress * Math.PI * (plan.frequency * 2.15 + 1.35) + plan.phase * 1.41,
+    ) * 0.052 * routeEnvelope;
+    const progress = clamp(baseProgress + surge, 0, 1);
     const routeX = (plan.startX + (plan.endX - plan.startX) * progress) * viewport.width;
-    const routeY = (plan.startY + (plan.endY - plan.startY) * progress) * viewport.height
-      + Math.sin(progress * Math.PI * plan.frequency + plan.phase) * plan.wave * Math.sin(progress * Math.PI);
+    const routeY = (plan.startY + (plan.endY - plan.startY) * progress) * viewport.height;
+    const primarySwerve = Math.sin(
+      progress * Math.PI * (plan.frequency + 0.9) + plan.phase,
+    ) * plan.wave;
+    const nervousSwerve = Math.sin(
+      progress * Math.PI * (plan.frequency * 3.2 + 1.1) + plan.phase * 1.73,
+    ) * plan.wave * 0.56;
+    const crossSwerve = Math.cos(
+      progress * Math.PI * (plan.frequency * 2.55 + 0.7) + plan.phase * 1.19,
+    ) * plan.wave * 0.68;
     const launchBlend = sineInOut(clamp(time / 0.55, 0, 1));
     return {
-      x: origin.x + (routeX - origin.x) * launchBlend,
-      y: origin.y + (routeY - origin.y) * launchBlend,
+      x: origin.x + (
+        routeX + crossSwerve * routeEnvelope - origin.x
+      ) * launchBlend,
+      y: origin.y + (
+        routeY + (primarySwerve + nervousSwerve) * routeEnvelope - origin.y
+      ) * launchBlend,
     };
   };
   const delta = 0.004;
   const current = position(elapsedSeconds);
   const before = position(Math.max(0, elapsedSeconds - delta));
   const after = position(Math.min(BEE_FINALE_SCENE_SECONDS, elapsedSeconds + delta));
-  return { ...current, vx: after.x - before.x, vy: after.y - before.y };
+  const nervousBounce = Math.sin(elapsedSeconds * Math.PI * 7.4 + plan.phase) * 0.064
+    + Math.sin(elapsedSeconds * Math.PI * 12.6 + plan.phase * 1.67) * 0.026;
+  const rotation = Math.sin(elapsedSeconds * Math.PI * 5.2 + plan.phase) * 9
+    + Math.sin(elapsedSeconds * Math.PI * 10.8 + plan.phase * 1.43) * 4;
+  return {
+    ...current,
+    vx: after.x - before.x,
+    vy: after.y - before.y,
+    rotation,
+    scaleX: 1 + nervousBounce,
+    scaleY: 1 - nervousBounce * 0.78,
+  };
 }
 
 function makeImage(src: string, className: string, parent: HTMLElement): HTMLImageElement {
@@ -541,7 +579,7 @@ export function attachBeeFinaleScene(
   ambientBeeLayer.className = 'cc-bee-finale-journey-bees';
   ambientBeeLayer.style.cssText = 'position:absolute;inset:0;z-index:4;pointer-events:none;overflow:visible';
   field.appendChild(ambientBeeLayer);
-  const ambientBees: BeeAmbientState[] = BEE_AMBIENT_PLANS.map((plan, beeIndex) => {
+  const ambientBees: BeeAmbientState[] = BEE_FINALE_AMBIENT_PLANS.map((plan, beeIndex) => {
     const host = document.createElement('div');
     host.className = `cc-bee-finale-journey-bee cc-bee-finale-journey-bee-${beeIndex + 1}`;
     host.style.cssText = `position:absolute;left:0;top:0;width:${42 * plan.scale}px;height:${42 * plan.scale}px;pointer-events:none;will-change:transform`;
@@ -595,7 +633,7 @@ export function attachBeeFinaleScene(
     hero.style.opacity = '1';
     hero.style.transform = `translate3d(${pose.x.toFixed(2)}px,${pose.y.toFixed(2)}px,0) translate3d(-50%,-50%,0) rotate(${pose.rotation.toFixed(2)}deg) scale(${(pose.scale * facing).toFixed(4)},${pose.scale.toFixed(4)})`;
     ambientBees.forEach((bee) => {
-      const sample = sampleAmbientBee(bee.plan, clock.time, origin, viewport);
+      const sample = sampleBeeFinaleAmbientPose(bee.plan, clock.time, origin, viewport);
       const candidate = getBeeFinaleHorizontalAssetForVelocity(sample.vx, bee.currentAsset);
       if (candidate === bee.currentAsset) {
         bee.pendingAsset = null;
@@ -625,10 +663,8 @@ export function attachBeeFinaleScene(
         frame.style.opacity = opacity.toFixed(4);
       });
       if (blend >= 1) bee.previousAsset = null;
-      const bounce = Math.sin(clock.time * Math.PI * 5 + bee.plan.phase);
-      const rotation = Math.sin(clock.time * Math.PI * 3.5 + bee.plan.phase) * 7;
       bee.host.dataset.asset = bee.currentAsset;
-      bee.host.style.transform = `translate3d(${sample.x.toFixed(2)}px,${sample.y.toFixed(2)}px,0) translate3d(-50%,-50%,0) rotate(${rotation.toFixed(2)}deg) scale(${(1 + bounce * 0.045).toFixed(3)},${(1 - bounce * 0.035).toFixed(3)})`;
+      bee.host.style.transform = `translate3d(${sample.x.toFixed(2)}px,${sample.y.toFixed(2)}px,0) translate3d(-50%,-50%,0) rotate(${sample.rotation.toFixed(2)}deg) scale(${sample.scaleX.toFixed(3)},${sample.scaleY.toFixed(3)})`;
     });
     let visibleLeafCount = 0;
     leafParticles.forEach((particle) => {

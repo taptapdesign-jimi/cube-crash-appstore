@@ -5,6 +5,12 @@ import {
   isForestJourneyBoard,
   pickForestWildReward,
 } from './journey-forest-wild-progression';
+import {
+  getArea55WildRewardCoreType,
+  getArea55WildRewardVariantId,
+  isArea55JourneyBoard,
+  pickArea55WildReward,
+} from './journey-area55-wild-progression';
 
 type WildTypeDeps = {
   boardNumber: number;
@@ -74,9 +80,30 @@ export function decideWildType({
     };
   }
 
-  // Beach and Area 55 keep their established first-Stage theme cadence after
-  // the Forest progression owner has handled boards 01-10 above.
-  const isJourneyWorldIntro = !isArcade && [11, 21].includes(boardNumber);
+  if (!isArcade && isArea55JourneyBoard(boardNumber)) {
+    const area55Reward = pickArea55WildReward({
+      boardNumber,
+      wildSpawnCount,
+      previousWildType: lastWildDropType,
+      roll,
+    });
+    if (!area55Reward) {
+      devWarn(`⚠️ Area 55 Cjelina ${boardNumber - 20}: No progression Wild reward available`);
+      return null;
+    }
+    const wildType = getArea55WildRewardCoreType(area55Reward);
+    return {
+      spawnJuice: wildType === 'wild-juice',
+      spawnMagnet: wildType === 'wild-magnet',
+      spawnTnt: wildType === 'wild-tnt',
+      wildType,
+      specialDiceVariantId: getArea55WildRewardVariantId(area55Reward),
+    };
+  }
+
+  // Beach keeps its established first-Stage theme cadence after the authored
+  // Forest and Area 55 progression owners have handled their worlds above.
+  const isJourneyWorldIntro = !isArcade && boardNumber === 11;
   const isBeachStageOne = !isArcade && boardNumber === 11;
   let filtered = isJourneyWorldIntro
     ? (isBeachStageOne && shouldUseJourneyWorldIntroTheme({

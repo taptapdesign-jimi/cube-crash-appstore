@@ -25,8 +25,15 @@ describe('shared gameplay effect-letter opacity', () => {
     expect(splash.match(/resolveEffectLetterOpacity\(/g)).toHaveLength(2);
     expect(splash).toContain('applyEffectLetterOpacity(lightColor, letterAlpha)');
     expect(splash).toContain('resolveSplashLetterOpacity(options?.letterOpacityRange)');
-    expect(splash).toContain('const visibleSparkleColor = applyEffectLetterOpacity(');
-    expect(splash).toContain('sparkleColor,\n        resolveSplashLetterOpacity(options?.letterOpacityRange)');
+    expect(splash).toContain(
+      'const visibleLightColor = applyEffectLetterOpacity(sparkleLightColor, letterAlpha)',
+    );
+    expect(splash).toContain(
+      'const visibleDarkColor = applyEffectLetterOpacity(sparkleDarkColor, letterAlpha)',
+    );
+    expect(splash).toContain(
+      'const visibleSparkleColor = index < sparkleSplitIndex ? visibleLightColor : visibleDarkColor',
+    );
     expect(bubbly).toContain('const letterAlpha = resolveEffectLetterOpacity()');
     expect(bubbly).not.toContain('options.text ? 0.8 + Math.random() * 0.2 : 1');
     expect(tnt).toContain('resolveEffectLetterOpacity(options.letterOpacityRange)');

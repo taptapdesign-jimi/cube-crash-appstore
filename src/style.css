@@ -672,8 +672,18 @@ body{
   z-index: 1 !important;
 }
 
+/* The active die already moves into Pixi's dedicated GAMEPLAY_DRAG_OVERLAY,
+   above HUD_ROOT. Lift that shared canvas stacking context above the DOM HUD
+   only while the drag owner is active, so regular, Wild and Special dice can
+   visibly cross the complete top HUD without leaving the canvas raised after
+   release, cancel, watchdog recovery, restart or teardown. */
+body.gameplay-drag-active #app canvas {
+  z-index: 2001 !important;
+}
+
 /* Mushroom finale grows in front of the lower HUD/decor only while its
-   bounded FX owner is active. Top DOM HUD remains above the canvas. */
+   bounded FX owner is active. Outside an active drag, the top DOM HUD remains
+   above the canvas. */
 #app.cc-mushroom-finale-foreground canvas {
   z-index: 3 !important;
 }

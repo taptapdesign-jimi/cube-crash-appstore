@@ -1,12 +1,16 @@
 // Registry for collectible/special dice skins that reuse existing wild mechanics.
 // Add future dice here by choosing an archetype and providing texture/FX assets.
 
-import { shouldUseJourneyWorldIntroTheme } from './journey-world-intro-wild';
 import {
   getForestWildRewardVariantId,
   isForestJourneyBoard,
   pickForestWildReward,
 } from './journey-forest-wild-progression';
+import {
+  getArea55WildRewardVariantId,
+  isArea55JourneyBoard,
+  pickArea55WildReward,
+} from './journey-area55-wild-progression';
 
 export type CoreWildType = 'wild' | 'wild-juice' | 'wild-magnet' | 'wild-tnt';
 export type SpecialDiceArchetype = 'wild-star' | 'wild-juice' | 'wild-magnet' | 'wild-tnt';
@@ -206,7 +210,10 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
       ? './assets/shop/bee/bee1@2x.png'
       : './assets/shop/bee/bee1.png',
     splashText: 'WEEEE!',
-    splashColor: '#E6815E',
+    splashColor: '#DB7654',
+    splashColors: ['#DB7654', '#FFD978'],
+    splashLetterOpacityRange: [1, 1],
+    splashSplitIndex: 3,
     shardColor: 0xFBE8C7,
     shardColors: [0xFBE8C7, 0xDD8564],
     trailColors: [0xFAF4ED, 0xFAE0BB, 0xDB8265, 0xD68E62],
@@ -793,8 +800,6 @@ export function getSpecialDiceFinaleAccentSpriteSources(tileOrVariant: any): str
     : null;
 }
 
-export const ROBO_WILD_VARIANT_CHANCE = 0.25;
-
 export function pickSpecialDiceVariantForWildSpawn({
   isArcade,
   wildSpawnCount,
@@ -825,17 +830,16 @@ export function pickSpecialDiceVariantForWildSpawn({
       const variantId = forestReward ? getForestWildRewardVariantId(forestReward) : null;
       return variantId ? SPECIAL_DICE_VARIANTS[variantId] || null : null;
     }
-    // Area 55 introduces Robo Cube beside Wild Star. Beach uses the same
-    // shared decision in the core type owner because its introductory theme is
-    // ordinary Juice, not a visual variant.
-    if (board === 21) {
-      const useTheme = shouldUseJourneyWorldIntroTheme({
+    if (isArea55JourneyBoard(board)) {
+      const area55Reward = pickArea55WildReward({
+        boardNumber: board,
         wildSpawnCount,
         previousWildType,
-        roll: worldIntroRoll,
+        roll: worldIntroRoll ?? roboWildRoll ?? Math.random(),
       });
-      if (!useTheme) return null;
-      return SPECIAL_DICE_VARIANTS['robo-cube'];
+      if (!area55Reward) return null;
+      const variantId = getArea55WildRewardVariantId(area55Reward);
+      return variantId ? SPECIAL_DICE_VARIANTS[variantId] || null : null;
     }
     // Beach uses one weighted roll per spawn. Ball and Bottle are explicit
     // Magnet-gameplay variants; Star and Juice remain core wild types. Generic
@@ -847,13 +851,6 @@ export function pickSpecialDiceVariantForWildSpawn({
       if (beachSlot === 2) return SPECIAL_DICE_VARIANTS['beach-ball'];
       if (beachSlot === 3) return SPECIAL_DICE_VARIANTS.bottle;
       return null;
-    }
-    // Remaining Robo stages use one bounded roll per spawn; no other world or
-    // Arcade route can consume this visual variant.
-    if (board >= 22 && board <= 30) {
-      const finiteRoll = Number.isFinite(roboWildRoll) ? Number(roboWildRoll) : Math.random();
-      const roll = Math.max(0, Math.min(1 - Number.EPSILON, finiteRoll));
-      return roll < ROBO_WILD_VARIANT_CHANCE ? SPECIAL_DICE_VARIANTS['robo-cube'] : null;
     }
     return null;
   }

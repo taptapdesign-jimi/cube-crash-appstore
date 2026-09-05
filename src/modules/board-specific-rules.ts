@@ -8,6 +8,10 @@ import {
   getForestAllowedWildCoreTypes,
   isForestJourneyBoard,
 } from './journey-forest-wild-progression.js';
+import {
+  getArea55AllowedWildCoreTypes,
+  isArea55JourneyBoard,
+} from './journey-area55-wild-progression.js';
 
 export interface BoardRule {
   boardNumber: number;
@@ -118,6 +122,9 @@ class BoardSpecificRules {
     const board = boardNumber ?? this.currentBoard;
     if (isForestJourneyBoard(board)) {
       return getForestAllowedWildCoreTypes(board);
+    }
+    if (isArea55JourneyBoard(board)) {
+      return getArea55AllowedWildCoreTypes(board);
     }
     // Beach keeps generic Magnet/TNT out of the fallback pool. Beach Ball and
     // Bottle may still explicitly reuse Magnet gameplay through the registry.

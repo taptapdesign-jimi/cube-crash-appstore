@@ -25,7 +25,10 @@ import {
 import {
   createRoboAirCombatVariation,
   createRoboTransitionVariation,
+  sampleRoboAirCombatSway,
+  type RoboAirCombatSwaySample,
   type RoboAirCombatVariation,
+  type RoboTravelDirection,
   type RoboTransitionVariation,
 } from './board-transition-robo-variation.js';
 import { getRunMode } from './run-mode.js';
@@ -116,6 +119,8 @@ const ROBO_AIR_COMBAT_LAYER_KEYS = new Set([
   'robo-beam-after',
   'robo-beam-final',
 ]);
+const ROBO_FIGHTER_BEHIND_NUMBER_Z_INDEX = 9;
+const ROBO_FIGHTER_FRONT_NUMBER_Z_INDEX = 11;
 const CLOUD_CSS_STYLES = `
 @keyframes cc-cloud-enter {
   0% { opacity: 0; transform: translate(-50%, -50%) scale(0) rotate(var(--cloud-rot, 0deg)); }
@@ -1071,6 +1076,8 @@ function startRoboAirCombatMotion(
   const frontGround = sceneImagesByKey.get('robo-ground-front');
   const rearGround = sceneImagesByKey.get('robo-ground-rear');
   if (!leftShip || !rightShip || !beamRight || !beamHit || !beamAfter || !beamFinal || !frontGround || !rearGround) return;
+  const sceneParent = forestContainer.parentElement;
+  if (!sceneParent) return;
 
   // Keep the right fighter's path on a stable outer wrapper while its inner
   // image owns only the lightweight engine wobble and the normal scene exit.
@@ -1094,6 +1101,58 @@ function startRoboAirCombatMotion(
     'transform-origin: 50% 50%',
   ].join('; ');
   activeSceneElements.push(rightShipMotion);
+
+  // The scene container is one z-index context behind the complete NN unit, so
+  // fighter-local z-index values can never cross the number. Two geometry-
+  // matched hosts beside that context give the existing fighter nodes one rear
+  // and one front lane without cloning sprites or adding another motion owner.
+  const createFighterDepthLayer = (
+    fighterSide: 'left' | 'right',
+    zIndex: number,
+  ): HTMLElement => {
+    const layer = document.createElement('div');
+    layer.className = `cc-robo-fighter-depth cc-robo-fighter-depth--${fighterSide}`;
+    layer.dataset.roboFighterSide = fighterSide;
+    layer.style.cssText = [
+      'position: absolute',
+      'left: 0',
+      'right: 0',
+      `bottom: ${forestContainer.style.bottom || '0px'}`,
+      'width: 100%',
+      `height: ${forestContainer.style.height || `${forestContainer.clientHeight}px`}`,
+      'pointer-events: none',
+      `z-index: ${zIndex}`,
+      'overflow: visible',
+      'transform-origin: center bottom',
+    ].join('; ');
+    sceneParent.appendChild(layer);
+    activeSceneElements.push(layer);
+    return layer;
+  };
+  const leftFighterDepthLayer = createFighterDepthLayer(
+    'left',
+    ROBO_FIGHTER_BEHIND_NUMBER_Z_INDEX,
+  );
+  const rightFighterDepthLayer = createFighterDepthLayer(
+    'right',
+    ROBO_FIGHTER_FRONT_NUMBER_Z_INDEX,
+  );
+  leftFighterDepthLayer.appendChild(leftShip);
+  rightFighterDepthLayer.appendChild(rightShipMotion);
+  const setRoboFighterNumberDepth = (leftShipInFront: boolean): void => {
+    leftFighterDepthLayer.style.zIndex = String(leftShipInFront
+      ? ROBO_FIGHTER_FRONT_NUMBER_Z_INDEX
+      : ROBO_FIGHTER_BEHIND_NUMBER_Z_INDEX);
+    rightFighterDepthLayer.style.zIndex = String(leftShipInFront
+      ? ROBO_FIGHTER_BEHIND_NUMBER_Z_INDEX
+      : ROBO_FIGHTER_FRONT_NUMBER_Z_INDEX);
+    leftShip.dataset.roboNnDepth = leftShipInFront ? 'front' : 'behind';
+    rightShipMotion.dataset.roboNnDepth = leftShipInFront ? 'behind' : 'front';
+  };
+  // The larger/lower right fighter starts in front. Their authored scale-depth
+  // crossover later swaps both roles atomically, so one fighter always stays
+  // behind NN while the other remains in front.
+  setRoboFighterNumberDepth(false);
 
   const timeline = trackTimeline({ paused: true });
   roboAirCombatMasterTimeline = timeline;
@@ -1228,6 +1287,8 @@ function startRoboAirCombatMotion(
     points: FlightPoint[];
     delay: number;
     bankPhase: number;
+    actionDirection: RoboTravelDirection;
+    actionSway: RoboAirCombatSwaySample;
     duration: number;
     onComplete?: () => void;
     finished: boolean;
@@ -1263,16 +1324,27 @@ function startRoboAirCombatMotion(
     points: FlightPoint[],
     delay: number,
     bankPhase: number,
+    actionDirection: RoboTravelDirection,
     onComplete?: () => void,
   ): void => {
     const duration = points[points.length - 1].time;
-    combatFlights.push({ ship, points, delay, bankPhase, duration, onComplete, finished: false });
+    combatFlights.push({
+      ship,
+      points,
+      delay,
+      bankPhase,
+      actionDirection,
+      actionSway: { x: 0, y: 0, bank: 0 },
+      duration,
+      onComplete,
+      finished: false,
+    });
   };
   const updateContinuousFlight = (
     runtime: (typeof combatFlights)[number],
     elapsed: number,
   ): void => {
-        const { ship, points, bankPhase } = runtime;
+        const { ship, points, bankPhase, actionDirection, duration } = runtime;
         let segmentIndex = 0;
         while (segmentIndex < points.length - 2 && elapsed >= points[segmentIndex + 1].time) {
           segmentIndex += 1;
@@ -1282,13 +1354,23 @@ function startRoboAirCombatMotion(
         const segmentDuration = Math.max(0.001, next.time - current.time);
         const progress = Math.max(0, Math.min(1, (elapsed - current.time) / segmentDuration));
         const smoothProgress = progress * progress * (3 - 2 * progress);
-        const bank = Math.max(-10, Math.min(10,
+        const actionSway = sampleRoboAirCombatSway(
+          elapsed / Math.max(0.001, duration),
+          bankPhase,
+          actionDirection,
+          combatVariation.actionSwayX,
+          combatVariation.actionSwayY,
+          combatVariation.actionSwayCycles,
+          runtime.actionSway,
+        );
+        const bank = Math.max(-15, Math.min(15,
           Math.sin(elapsed * 5.2 + bankPhase) * 8
-          + Math.sin(elapsed * 8.7 + bankPhase * 0.7) * 2,
+          + Math.sin(elapsed * 8.7 + bankPhase * 0.7) * 2
+          + actionSway.bank,
         ));
         gsap.set(ship, {
-          x: sampleSmoothFlightValue(points, elapsed, 'x'),
-          y: sampleSmoothFlightValue(points, elapsed, 'y'),
+          x: sampleSmoothFlightValue(points, elapsed, 'x') + actionSway.x,
+          y: sampleSmoothFlightValue(points, elapsed, 'y') + actionSway.y,
           scale: current.scale + (next.scale - current.scale) * smoothProgress,
           rotation: bank,
         });
@@ -1336,6 +1418,7 @@ function startRoboAirCombatMotion(
     beamFourStartSeconds + 0.18,
     secondCrossTime + crossingVariation.swapMidpointGap,
   );
+  timeline.call(() => setRoboFighterNumberDepth(true), undefined, swapMidpointTime);
   const finalLowerY = crossingVariation.upperY + crossingVariation.verticalSeparation;
   const verticalDepthScaleRatio = 0.60;
   const leftShipAtBeamFour = {
@@ -1371,7 +1454,7 @@ function startRoboAirCombatMotion(
     { time: beamFourStartSeconds, x: leftShipAtBeamFour.x, y: leftShipAtBeamFour.y, scale: leftShipBaseScale * 1.48 },
     { time: swapMidpointTime, x: lowerShipPostBeamFourMidpoint.x, y: lowerShipPostBeamFourMidpoint.y, scale: leftShipBaseScale * 1.72 },
     { time: fighterFlightDurationSeconds, x: lowerShipPostBeamFourEnd.x, y: lowerShipPostBeamFourEnd.y, scale: leftShipBaseScale * 1.48 / verticalDepthScaleRatio },
-  ], LEFT_SHIP_START_DELAY_SECONDS, crossingVariation.leftBankPhase);
+  ], LEFT_SHIP_START_DELAY_SECONDS, crossingVariation.leftBankPhase, crossingPolarity);
   startContinuousFlight(rightShipMotion, [
     { time: 0, x: fighterOnScreenX, y: rightShipEnterY, scale: rightShipEnterScale },
     { time: 0.72, x: rightShipBeforeNn.x, y: rightShipBeforeNn.y, scale: rightShipBaseScale * 1.60 },
@@ -1381,7 +1464,7 @@ function startRoboAirCombatMotion(
     { time: beamFourStartSeconds, x: rightShipAtBeamFour.x, y: rightShipAtBeamFour.y, scale: rightShipBaseScale * 1.46 },
     { time: swapMidpointTime, x: rightShipPostBeamFourMidpoint.x, y: rightShipPostBeamFourMidpoint.y, scale: rightShipBaseScale * 1.12 },
     { time: fighterFlightDurationSeconds, x: rightShipPostBeamFourEnd.x, y: rightShipPostBeamFourEnd.y, scale: rightShipBaseScale * 1.46 * verticalDepthScaleRatio },
-  ], RIGHT_SHIP_START_DELAY_SECONDS, crossingVariation.rightBankPhase);
+  ], RIGHT_SHIP_START_DELAY_SECONDS, crossingVariation.rightBankPhase, (crossingPolarity * -1) as RoboTravelDirection);
 
   // One runtime clock replaces the former two wobble and two flight
   // onUpdate timelines. Flight paths clamp once at their authored end while
@@ -1581,6 +1664,7 @@ function resetPooledImage(img: HTMLImageElement): void {
   img.removeAttribute('data-forest-bee-low-fence');
   img.removeAttribute('data-forest-special-bee-index');
   img.removeAttribute('data-forest-special-bee-role');
+  img.removeAttribute('data-robo-nn-depth');
   img.removeAttribute('fetchpriority');
   img.style.animation = 'none';
   img.draggable = false;
@@ -3087,11 +3171,11 @@ function startExitAnimation(
   onComplete: () => void
 ): void {
   void container;
-  const leftFighterExit = transitionTheme === 'area55' && forestContainer
-    ? forestContainer.querySelector('[data-scene-layer="robo-fighter-left"]') as HTMLElement | null
+  const leftFighterExit = transitionTheme === 'area55'
+    ? overlay.querySelector('[data-scene-layer="robo-fighter-left"]') as HTMLElement | null
     : null;
-  const rightFighterExit = transitionTheme === 'area55' && forestContainer
-    ? forestContainer.querySelector('[data-scene-layer="robo-fighter-right"]') as HTMLElement | null
+  const rightFighterExit = transitionTheme === 'area55'
+    ? overlay.querySelector('[data-scene-layer="robo-fighter-right"]') as HTMLElement | null
     : null;
   if (!leftFighterExit || !rightFighterExit) stopRoboAirCombatMotion();
   if (transitionTheme === 'area55' && forestContainer) {

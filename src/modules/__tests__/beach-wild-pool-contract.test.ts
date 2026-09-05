@@ -15,7 +15,9 @@ describe('Beach World wild pool', () => {
       expect(getAllowedWildTypes(board)).toEqual(['wild', 'wild-juice']);
     }
     expect(getAllowedWildTypes(10)).toContain('wild-magnet');
-    expect(getAllowedWildTypes(21)).toContain('wild-tnt');
+    expect(getAllowedWildTypes(21)).toEqual(['wild', 'wild-juice']);
+    expect(getAllowedWildTypes(22)).toContain('wild-tnt');
+    expect(getAllowedWildTypes(23)).toContain('wild-magnet');
   });
 
   test('uses the four-slot Beach roll only after the Juice introduction stage', () => {
