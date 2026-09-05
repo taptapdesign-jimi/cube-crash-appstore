@@ -10,11 +10,11 @@ export const JOURNEY_NEW_CARD_UNLOCKED_SHADOW_Y_PX = JOURNEY_NEW_CARD_UNLOCKED_O
 
 export const JOURNEY_FOREST_CARD_NAMES = [
   'Star Is Out',
-  'Shroomy',
+  'Weee - Beee',
   'Final Gate',
   'Honey Splat',
   'Dreamy',
-  'Weee - Beee',
+  'Shroomy',
   'Kaboom',
   'Break Out',
   'Flying Tent',

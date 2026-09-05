@@ -15,8 +15,8 @@ const FOREST_LAST_BOARD = 10;
 const FOREST_CARD_ROOT = './assets/colelctibles/Forest';
 const REDUNDANT_CARD_ROOT = './assets/redundant assets/collectible cards old';
 // Keep authored filenames immutable while progression reorders their Stages:
-// Shroomy uses authored 06, Weee-Beee uses authored 03 and Flying Tent uses authored 02.
-const FOREST_CARD_ART_STAGE_BY_STAGE = Object.freeze([1, 6, 9, 4, 5, 3, 7, 8, 2, 10] as const);
+// Weee-Beee uses authored 03, Shroomy uses authored 06 and Flying Tent uses authored 02.
+const FOREST_CARD_ART_STAGE_BY_STAGE = Object.freeze([1, 3, 9, 4, 5, 6, 7, 8, 2, 10] as const);
 
 export function isForestJourneyBoard(boardId: number): boolean {
   const safeBoardId = Math.trunc(boardId);

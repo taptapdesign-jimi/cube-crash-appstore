@@ -65,19 +65,19 @@ describe('Journey New Reward presentation', () => {
     const manager = read('src/modules/journey-boards-manager.ts');
     expect(JOURNEY_FOREST_CARD_NAMES).toEqual([
       'Star Is Out',
-      'Shroomy',
+      'Weee - Beee',
       'Final Gate',
       'Honey Splat',
       'Dreamy',
-      'Weee - Beee',
+      'Shroomy',
       'Kaboom',
       'Break Out',
       'Flying Tent',
       'Winner',
     ]);
-    expect(getJourneyNewCardDisplayName(2, 'SO SPECIAL')).toBe('Shroomy');
+    expect(getJourneyNewCardDisplayName(2, 'SO SPECIAL')).toBe('Weee - Beee');
     expect(getJourneyNewCardDisplayName(3, 'SO SPECIAL')).toBe('Final Gate');
-    expect(getJourneyNewCardDisplayName(6, 'SO SPECIAL')).toBe('Weee - Beee');
+    expect(getJourneyNewCardDisplayName(6, 'SO SPECIAL')).toBe('Shroomy');
     expect(getJourneyNewCardDisplayName(9, 'SO SPECIAL')).toBe('Flying Tent');
     expect(manager).toContain('...JOURNEY_FOREST_CARD_NAMES');
   });

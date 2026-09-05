@@ -7,6 +7,7 @@ import {
   attachBeeFinaleScene,
   BEE_FINALE_FLYBY_START_SECONDS,
   BEE_FINALE_CURVE_VIEWPORT_RATIO,
+  BEE_FINALE_EXIT_GUIDE_PROGRESS,
   BEE_FINALE_EXIT_RELEASE_PROGRESS,
   BEE_FINALE_FLIGHT_SECONDS,
   BEE_FINALE_IDLE_FRAME_SECONDS,
@@ -232,7 +233,7 @@ describe('Bee merge-six finale', () => {
     expect(sampleBeeFinalePose(0.15, bottomRight, viewport, 0.37).x).toBeGreaterThan(bottomRight.x);
   });
 
-  test('keeps the complete hero onscreen until the final exit release', () => {
+  test('turns inside the viewport and crosses both exit edges together without boundary gliding', () => {
     const starts = [
       { x: 60, y: 700 },
       { x: 330, y: 700 },
@@ -241,16 +242,55 @@ describe('Bee merge-six finale', () => {
       origin,
     ];
     const heroRadius = Math.min(viewport.width * BEE_FINALE_VISIBLE_ART_RADIUS_RATIO, 56) + 3;
+    expect(BEE_FINALE_EXIT_GUIDE_PROGRESS).toBe(0.72);
     expect(BEE_FINALE_EXIT_RELEASE_PROGRESS).toBe(0.90);
     starts.forEach((start, routeIndex) => {
       const seed = routeIndex * 0.83;
-      for (let index = 0; index <= 90; index += 1) {
-        const pose = sampleBeeFinalePose(index * BEE_FINALE_FLIGHT_SECONDS / 100, start, viewport, seed);
+      const safeSamples = Array.from({ length: 181 }, (_, index) => (
+        sampleBeeFinalePose(index * BEE_FINALE_FLIGHT_SECONDS / 200, start, viewport, seed)
+      ));
+      safeSamples.forEach((pose) => {
         expect(pose.x).toBeGreaterThanOrEqual(heroRadius - 0.01);
         expect(pose.x).toBeLessThanOrEqual(viewport.width - heroRadius + 0.01);
         expect(pose.y).toBeGreaterThanOrEqual(heroRadius - 0.01);
         expect(pose.y).toBeLessThanOrEqual(viewport.height - heroRadius + 0.01);
-      }
+      });
+      const hasBoundaryGlide = safeSamples.slice(1).some((pose, index) => {
+        const previous = safeSamples[index];
+        const isOnVerticalEdge = Math.min(
+          Math.abs(pose.x - heroRadius),
+          Math.abs(pose.x - (viewport.width - heroRadius)),
+        ) < 0.05;
+        const isOnHorizontalEdge = Math.min(
+          Math.abs(pose.y - heroRadius),
+          Math.abs(pose.y - (viewport.height - heroRadius)),
+        ) < 0.05;
+        return (isOnVerticalEdge && Math.abs(pose.y - previous.y) > 0.5)
+          || (isOnHorizontalEdge && Math.abs(pose.x - previous.x) > 0.5);
+      });
+      expect(hasBoundaryGlide).toBe(false);
+
+      const exitSamples = Array.from({ length: 41 }, (_, index) => (
+        sampleBeeFinalePose(
+          (BEE_FINALE_EXIT_RELEASE_PROGRESS + index / 40 * (1 - BEE_FINALE_EXIT_RELEASE_PROGRESS))
+            * BEE_FINALE_FLIGHT_SECONDS,
+          start,
+          viewport,
+          seed,
+        )
+      ));
+      exitSamples.forEach((pose) => {
+        const outsideX = pose.x < heroRadius - 0.01 || pose.x > viewport.width - heroRadius + 0.01;
+        const outsideY = pose.y < heroRadius - 0.01 || pose.y > viewport.height - heroRadius + 0.01;
+        expect(outsideX).toBe(outsideY);
+      });
+      const releasePose = sampleBeeFinalePose(
+        BEE_FINALE_EXIT_RELEASE_PROGRESS * BEE_FINALE_FLIGHT_SECONDS,
+        start,
+        viewport,
+        seed,
+      );
+      expect(Math.hypot(releasePose.vx, releasePose.vy)).toBeGreaterThan(0.1);
       expect(sampleBeeFinalePose(BEE_FINALE_FLIGHT_SECONDS, start, viewport, seed))
         .toMatchObject(resolveBeeFinaleExit(start, viewport, seed));
     });

@@ -12,6 +12,7 @@ import { logger } from '../core/logger.js';
 import { attachBubblySprites } from './text-bubbly-sprites.js';
 import { setWildFxDragLock, startWildFxDragLockForAnimation } from './wild-fx-drag-lock.ts';
 import { createMushroomSporeFlightProfiles } from './mushroom-spore-flight-plan.ts';
+import { MUSHROOM_PILE_TIME_SCALE } from './mushroom-pile-timing.ts';
 import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
 import { acquirePixiMobileActivityLease } from './pixi-mobile-frame-controller.ts';
 import { applyEffectLetterOpacity, resolveEffectLetterOpacity } from './effect-letter-opacity.ts';
@@ -82,11 +83,11 @@ const MUSHROOM_GROWTH_MIN_SIZE_PX = 160;
 const MUSHROOM_GROWTH_MAX_SIZE_PX = 200;
 const MUSHROOM_GROWTH_MIN_ROTATION_DEG = 8;
 const MUSHROOM_GROWTH_MAX_ROTATION_DEG = 15;
-// The reduced 21-sprite pile samples the complete 30-slot silhouette. Its
-// complete birth motion runs at 60% of the previous duration (40% shorter).
-const MUSHROOM_GROWTH_SPEED_SCALE = 0.6;
-const MUSHROOM_GROWTH_STAGGER_MS = 25;
-const MUSHROOM_EXIT_REVERSE_STAGGER_MS = 50;
+// The complete rise-stack-exit pile is exactly one second shorter
+// (2.86s -> 1.86s). Every pile phase shares this one proportional scale.
+const MUSHROOM_GROWTH_SPEED_SCALE = 0.6 * MUSHROOM_PILE_TIME_SCALE;
+const MUSHROOM_GROWTH_STAGGER_MS = 25 * MUSHROOM_PILE_TIME_SCALE;
+const MUSHROOM_EXIT_REVERSE_STAGGER_MS = 50 * MUSHROOM_PILE_TIME_SCALE;
 const MUSHROOM_POLLEN_COUNT = 72;
 const MUSHROOM_POLLEN_MIN_RADIUS = 3.2;
 const MUSHROOM_POLLEN_MAX_RADIUS = MUSHROOM_POLLEN_MIN_RADIUS * 1.4;
@@ -823,24 +824,26 @@ async function showWildJuiceBubblesExplosionInternal(
       const reverseExitDelaySeconds = (MUSHROOM_GROWTH_COUNT - 1 - growthIndex)
         * MUSHROOM_EXIT_REVERSE_STAGGER_MS / 1000;
       tl.to(bubble, {
-        duration: 0.62 + Math.max(0, fullWorldRevealSeconds - revealDelaySeconds) + reverseExitDelaySeconds,
+        duration: 0.62 * MUSHROOM_PILE_TIME_SCALE
+          + Math.max(0, fullWorldRevealSeconds - revealDelaySeconds)
+          + reverseExitDelaySeconds,
       });
       tl.to(bubble.scale, {
         x: targetScale * 1.08,
         y: targetScale * 0.92,
-        duration: 0.12,
+        duration: 0.12 * MUSHROOM_PILE_TIME_SCALE,
         ease: 'power1.out',
       });
       tl.to(bubble, {
         y: screenH + tex.height * targetScale,
         rotation: targetRotation * 0.35,
-        duration: 0.32,
+        duration: 0.32 * MUSHROOM_PILE_TIME_SCALE,
         ease: 'back.in(1.7)',
       });
       tl.to(bubble.scale, {
         x: targetScale * 0.06,
         y: targetScale * 0.06,
-        duration: 0.32,
+        duration: 0.32 * MUSHROOM_PILE_TIME_SCALE,
         ease: 'back.in(1.9)',
       }, '<');
       tl.call(onBubbleComplete);

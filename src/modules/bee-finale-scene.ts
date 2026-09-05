@@ -39,6 +39,7 @@ export const BEE_FINALE_IDLE_FRAME_SECONDS = 1 / 960;
 export const BEE_FINALE_IDLE_CROSSFADE_RATIO = 0.38;
 export const BEE_FINALE_CURVE_VIEWPORT_RATIO = 0.38;
 export const BEE_FINALE_WEAVE_VIEWPORT_RATIO = 0.30;
+export const BEE_FINALE_EXIT_GUIDE_PROGRESS = 0.72;
 export const BEE_FINALE_EXIT_RELEASE_PROGRESS = 0.90;
 export const BEE_FINALE_VISIBLE_ART_RADIUS_RATIO = 0.128;
 export const BEE_FINALE_LEAF_COUNT = 42;
@@ -193,7 +194,6 @@ function visiblePosition(
   suppliedRoutePlan?: BeeFinaleRoutePlan,
 ): { x: number; y: number; phase: BeeFinalePhase } {
   const time = clamp(elapsedSeconds, 0, BEE_FINALE_SCENE_SECONDS);
-  const base = basePosition(time, origin, viewport, wobblePhase);
   const rawProgress = clamp(time / BEE_FINALE_FLIGHT_SECONDS, 0, 1);
   const exit = resolveBeeFinaleExit(origin, viewport, wobblePhase);
   const deltaX = exit.x - origin.x;
@@ -201,47 +201,150 @@ function visiblePosition(
   const distance = Math.max(1, Math.hypot(deltaX, deltaY));
   const normalX = -deltaY / distance;
   const normalY = deltaX / distance;
-  // A seeded asymmetric play route replaces the old equal-time alternating
-  // zig-zag. Uneven knots and same-side runs create feints, wide sweeps and
-  // short calming beats while the base curve continues toward the exit.
   const routePlan = suppliedRoutePlan ?? createBeeFinaleRoutePlan(origin, viewport, wobblePhase);
-  let waypointIndex = routePlan.progress.length - 2;
-  for (let index = 0; index < routePlan.progress.length - 1; index += 1) {
-    if (rawProgress <= routePlan.progress[index + 1]) {
-      waypointIndex = index;
-      break;
-    }
-  }
-  const segmentStart = routePlan.progress[waypointIndex];
-  const segmentEnd = routePlan.progress[waypointIndex + 1];
-  const localProgress = clamp((rawProgress - segmentStart) / Math.max(0.001, segmentEnd - segmentStart), 0, 1);
-  const smoothLocal = localProgress * localProgress * (3 - 2 * localProgress);
-  const weaveMagnitude = routePlan.lateral[waypointIndex]
-    + (routePlan.lateral[waypointIndex + 1] - routePlan.lateral[waypointIndex]) * smoothLocal;
-  const weave = Math.min(viewport.width, viewport.height)
-    * BEE_FINALE_WEAVE_VIEWPORT_RATIO
-    * weaveMagnitude;
-  const rawX = base.x + normalX * weave;
-  const rawY = base.y + normalY * weave;
-  if (rawProgress >= 1) return { x: rawX, y: rawY, phase: base.phase };
-  // Keep the complete hero inside the viewport while it plays. Only the final
-  // 10% of the flight smoothly releases the clamp toward the real offscreen
-  // exit, avoiding both early clipping and a last-frame positional snap.
-  // The 128px source has transparent horizontal padding; constrain the visible
-  // Bee artwork rather than the empty square canvas around it.
   const heroRadius = Math.min(viewport.width * BEE_FINALE_VISIBLE_ART_RADIUS_RATIO, 56) + 3;
-  const safeX = clamp(rawX, heroRadius, viewport.width - heroRadius);
-  const safeY = clamp(rawY, heroRadius, viewport.height - heroRadius);
-  const releaseProgress = clamp(
+  const safeMinX = heroRadius;
+  const safeMaxX = viewport.width - heroRadius;
+  const safeMinY = heroRadius;
+  const safeMaxY = viewport.height - heroRadius;
+
+  const sampleRawRoute = (progress: number) => {
+    const routeProgress = clamp(progress, 0, 1);
+    const base = basePosition(routeProgress * BEE_FINALE_FLIGHT_SECONDS, origin, viewport, wobblePhase);
+    let waypointIndex = routePlan.progress.length - 2;
+    for (let index = 0; index < routePlan.progress.length - 1; index += 1) {
+      if (routeProgress <= routePlan.progress[index + 1]) {
+        waypointIndex = index;
+        break;
+      }
+    }
+    const segmentStart = routePlan.progress[waypointIndex];
+    const segmentEnd = routePlan.progress[waypointIndex + 1];
+    const localProgress = clamp(
+      (routeProgress - segmentStart) / Math.max(0.001, segmentEnd - segmentStart),
+      0,
+      1,
+    );
+    const smoothLocal = localProgress * localProgress * (3 - 2 * localProgress);
+    const weaveMagnitude = routePlan.lateral[waypointIndex]
+      + (routePlan.lateral[waypointIndex + 1] - routePlan.lateral[waypointIndex]) * smoothLocal;
+    const weave = Math.min(viewport.width, viewport.height)
+      * BEE_FINALE_WEAVE_VIEWPORT_RATIO
+      * weaveMagnitude;
+    return {
+      x: base.x + normalX * weave,
+      y: base.y + normalY * weave,
+      phase: base.phase,
+    };
+  };
+
+  const turnInsideEdge = (value: number, start: number, min: number, max: number) => {
+    const turnDepth = Math.min(32, Math.max(18, (max - min) * 0.08));
+    const upperTurnStart = Math.max(start, max - turnDepth);
+    if (value > upperTurnStart) {
+      const travel = value - upperTurnStart;
+      const turnRadius = Math.max(4, (max - upperTurnStart) * 0.82);
+      return upperTurnStart + travel * Math.exp(-travel / turnRadius);
+    }
+    const lowerTurnStart = Math.min(start, min + turnDepth);
+    if (value < lowerTurnStart) {
+      const travel = lowerTurnStart - value;
+      const turnRadius = Math.max(4, (lowerTurnStart - min) * 0.82);
+      return lowerTurnStart - travel * Math.exp(-travel / turnRadius);
+    }
+    return value;
+  };
+  const containPlayPoint = (point: { x: number; y: number }) => ({
+    x: turnInsideEdge(point.x, origin.x, safeMinX, safeMaxX),
+    y: turnInsideEdge(point.y, origin.y, safeMinY, safeMaxY),
+  });
+
+  const raw = sampleRawRoute(rawProgress);
+  if (rawProgress >= 1) return raw;
+  if (rawProgress < BEE_FINALE_EXIT_GUIDE_PROGRESS) {
+    return { ...containPlayPoint(raw), phase: raw.phase };
+  }
+
+  // Commit to one diagonal departure corridor before the hero reaches an edge.
+  // The corridor intersects both safe axes at the same corner, so the Bee can
+  // cross the viewport boundary only once instead of clamping one coordinate
+  // and visibly sliding along that edge until the other coordinate catches up.
+  const corner = {
+    x: exit.x >= viewport.width * 0.5 ? safeMaxX : safeMinX,
+    y: exit.y >= viewport.height * 0.5 ? safeMaxY : safeMinY,
+  };
+  const cornerToExitX = exit.x - corner.x;
+  const cornerToExitY = exit.y - corner.y;
+  const cornerToExitDistance = Math.max(1, Math.hypot(cornerToExitX, cornerToExitY));
+  const exitUnitX = cornerToExitX / cornerToExitDistance;
+  const exitUnitY = cornerToExitY / cornerToExitDistance;
+  const gateInset = Math.min(44, Math.max(24, Math.min(viewport.width, viewport.height) * 0.075));
+  const gate = {
+    x: corner.x - exitUnitX * gateInset,
+    y: corner.y - exitUnitY * gateInset,
+  };
+  const guideStartRaw = sampleRawRoute(BEE_FINALE_EXIT_GUIDE_PROGRESS);
+  const guideStart = containPlayPoint(guideStartRaw);
+  const guideBefore = containPlayPoint(sampleRawRoute(BEE_FINALE_EXIT_GUIDE_PROGRESS - 0.012));
+  const guideDistance = Math.max(1, Math.hypot(gate.x - guideStart.x, gate.y - guideStart.y));
+  const incomingX = guideStart.x - guideBefore.x;
+  const incomingY = guideStart.y - guideBefore.y;
+  const incomingDistance = Math.max(0.001, Math.hypot(incomingX, incomingY));
+  const firstControlDistance = Math.min(48, guideDistance * 0.28);
+  const firstControl = {
+    x: clamp(guideStart.x + incomingX / incomingDistance * firstControlDistance, safeMinX, safeMaxX),
+    y: clamp(guideStart.y + incomingY / incomingDistance * firstControlDistance, safeMinY, safeMaxY),
+  };
+  const departureLead = Math.min(
+    guideDistance * 0.32,
+    Math.max(24, Math.min(viewport.width, viewport.height) * 0.11),
+  );
+  const secondControl = {
+    x: gate.x - exitUnitX * departureLead,
+    y: gate.y - exitUnitY * departureLead,
+  };
+
+  if (rawProgress <= BEE_FINALE_EXIT_RELEASE_PROGRESS) {
+    const progress = clamp(
+      (rawProgress - BEE_FINALE_EXIT_GUIDE_PROGRESS)
+        / (BEE_FINALE_EXIT_RELEASE_PROGRESS - BEE_FINALE_EXIT_GUIDE_PROGRESS),
+      0,
+      1,
+    );
+    const inverse = 1 - progress;
+    return {
+      x: inverse ** 3 * guideStart.x
+        + 3 * inverse ** 2 * progress * firstControl.x
+        + 3 * inverse * progress ** 2 * secondControl.x
+        + progress ** 3 * gate.x,
+      y: inverse ** 3 * guideStart.y
+        + 3 * inverse ** 2 * progress * firstControl.y
+        + 3 * inverse * progress ** 2 * secondControl.y
+        + progress ** 3 * gate.y,
+      phase: raw.phase,
+    };
+  }
+
+  const exitProgress = clamp(
     (rawProgress - BEE_FINALE_EXIT_RELEASE_PROGRESS) / (1 - BEE_FINALE_EXIT_RELEASE_PROGRESS),
     0,
     1,
   );
-  const releaseBlend = releaseProgress * releaseProgress * (3 - 2 * releaseProgress);
+  const initialExitSlope = clamp(
+    3 * departureLead * (1 - BEE_FINALE_EXIT_RELEASE_PROGRESS)
+      / ((BEE_FINALE_EXIT_RELEASE_PROGRESS - BEE_FINALE_EXIT_GUIDE_PROGRESS) * cornerToExitDistance),
+    0.12,
+    0.9,
+  );
+  const exitProgressSquared = exitProgress * exitProgress;
+  const exitProgressCubed = exitProgressSquared * exitProgress;
+  const acceleratedExit = (exitProgressCubed - 2 * exitProgressSquared + exitProgress) * initialExitSlope
+    + (-2 * exitProgressCubed + 3 * exitProgressSquared)
+    + (exitProgressCubed - exitProgressSquared) * 2;
   return {
-    x: safeX + (rawX - safeX) * releaseBlend,
-    y: safeY + (rawY - safeY) * releaseBlend,
-    phase: base.phase,
+    x: gate.x + (exit.x - gate.x) * acceleratedExit,
+    y: gate.y + (exit.y - gate.y) * acceleratedExit,
+    phase: raw.phase,
   };
 }
 

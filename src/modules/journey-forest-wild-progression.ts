@@ -6,23 +6,23 @@ const FOREST_LAST_BOARD = 10;
 
 const FOREST_WILD_POOLS = {
   1: ['wild-star'],
-  2: ['wild-star', 'mushroom'],
-  3: ['wild-star', 'mushroom', 'flower'],
-  4: ['wild-star', 'mushroom', 'flower', 'honey'],
-  5: ['wild-star', 'mushroom', 'flower', 'honey'],
-  6: ['wild-star', 'mushroom', 'flower', 'honey', 'bee'],
-  7: ['wild-star', 'mushroom', 'flower', 'honey', 'bee', 'tnt'],
-  8: ['wild-star', 'mushroom', 'flower', 'honey', 'bee', 'tnt'],
-  9: ['wild-star', 'mushroom', 'flower', 'honey', 'bee', 'tnt'],
-  10: ['wild-star', 'mushroom', 'flower', 'honey', 'bee', 'tnt'],
+  2: ['wild-star', 'bee'],
+  3: ['wild-star', 'bee', 'flower'],
+  4: ['wild-star', 'bee', 'flower', 'honey'],
+  5: ['wild-star', 'bee', 'flower', 'honey'],
+  6: ['wild-star', 'bee', 'flower', 'honey', 'mushroom'],
+  7: ['wild-star', 'bee', 'flower', 'honey', 'mushroom', 'tnt'],
+  8: ['wild-star', 'bee', 'flower', 'honey', 'mushroom', 'tnt'],
+  9: ['wild-star', 'bee', 'flower', 'honey', 'mushroom', 'tnt'],
+  10: ['wild-star', 'bee', 'flower', 'honey', 'mushroom', 'tnt'],
 } as const satisfies Readonly<Record<number, readonly ForestWildReward[]>>;
 
 const FOREST_INTRO_REWARD_BY_BOARD: Readonly<Partial<Record<number, ForestWildReward>>> = Object.freeze({
   1: 'wild-star',
-  2: 'mushroom',
+  2: 'bee',
   3: 'flower',
   4: 'honey',
-  6: 'bee',
+  6: 'mushroom',
   7: 'tnt',
 });
 

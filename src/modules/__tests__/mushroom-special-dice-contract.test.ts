@@ -38,9 +38,9 @@ describe('Mushroom special-die visual contract', () => {
     expect(juiceSource).toContain('const MUSHROOM_GROWTH_MAX_SIZE_PX = 200');
     expect(juiceSource).toContain('const MUSHROOM_GROWTH_MIN_ROTATION_DEG = 8');
     expect(juiceSource).toContain('const MUSHROOM_GROWTH_MAX_ROTATION_DEG = 15');
-    expect(juiceSource).toContain('const MUSHROOM_GROWTH_SPEED_SCALE = 0.6');
-    expect(juiceSource).toContain('const MUSHROOM_GROWTH_STAGGER_MS = 25');
-    expect(juiceSource).toContain('const MUSHROOM_EXIT_REVERSE_STAGGER_MS = 50');
+    expect(juiceSource).toContain('const MUSHROOM_GROWTH_SPEED_SCALE = 0.6 * MUSHROOM_PILE_TIME_SCALE');
+    expect(juiceSource).toContain('const MUSHROOM_GROWTH_STAGGER_MS = 25 * MUSHROOM_PILE_TIME_SCALE');
+    expect(juiceSource).toContain('const MUSHROOM_EXIT_REVERSE_STAGGER_MS = 50 * MUSHROOM_PILE_TIME_SCALE');
     expect(juiceSource).toContain('const MUSHROOM_PILE_SLOTS: MushroomPileSlot[] = [');
     expect(juiceSource).toContain('Four heavily interlocked rows occupy only the lower ~30%');
     expect(juiceSource).toContain('{ x: -0.08, y: 1.085');
@@ -66,6 +66,9 @@ describe('Mushroom special-die visual contract', () => {
     expect(juiceSource).toContain('duration: 0.21 * MUSHROOM_GROWTH_SPEED_SCALE');
     expect(juiceSource).toContain('duration: 0.13 * MUSHROOM_GROWTH_SPEED_SCALE');
     expect(juiceSource).toContain('duration: 0.16 * MUSHROOM_GROWTH_SPEED_SCALE');
+    expect(juiceSource).toContain('duration: 0.62 * MUSHROOM_PILE_TIME_SCALE');
+    expect(juiceSource).toContain('duration: 0.12 * MUSHROOM_PILE_TIME_SCALE');
+    expect(juiceSource).toContain('duration: 0.32 * MUSHROOM_PILE_TIME_SCALE');
     expect(juiceSource).toContain('}, i * MUSHROOM_GROWTH_STAGGER_MS)');
     expect(juiceSource).toContain('idx = Math.max(0, scheduledIndex as number) % bubbleTextures.length');
     expect(juiceSource).toContain('let releaseScheduled = false');

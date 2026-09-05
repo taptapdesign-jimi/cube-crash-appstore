@@ -41,12 +41,12 @@ function decideForRoll({
 describe('Forest progressive Wild pool', () => {
   test.each([
     [1, ['wild']],
-    [2, ['wild', 'wild-juice']],
-    [3, ['wild', 'wild-juice', 'wild-tnt']],
-    [4, ['wild', 'wild-juice', 'wild-tnt', 'wild-magnet']],
-    [6, ['wild', 'wild-juice', 'wild-tnt', 'wild-magnet']],
-    [7, ['wild', 'wild-juice', 'wild-tnt', 'wild-magnet']],
-    [10, ['wild', 'wild-juice', 'wild-tnt', 'wild-magnet']],
+    [2, ['wild']],
+    [3, ['wild', 'wild-tnt']],
+    [4, ['wild', 'wild-tnt', 'wild-magnet']],
+    [6, ['wild', 'wild-tnt', 'wild-magnet', 'wild-juice']],
+    [7, ['wild', 'wild-tnt', 'wild-magnet', 'wild-juice']],
+    [10, ['wild', 'wild-tnt', 'wild-magnet', 'wild-juice']],
   ] as const)('publishes only earned gameplay archetypes for Cjelina %i', (board, expected) => {
     expect(getAllowedWildTypes(board)).toEqual(expected);
   });
@@ -68,10 +68,10 @@ describe('Forest progressive Wild pool', () => {
   );
 
   test.each([
-    [2, 'wild-juice', 'mushroom'],
+    [2, 'wild', 'bee'],
     [3, 'wild-tnt', 'flower'],
     [4, 'wild-magnet', 'honey'],
-    [6, 'wild', 'bee'],
+    [6, 'wild-juice', 'mushroom'],
     [7, 'wild-tnt', null],
   ] as const)(
     'guarantees the newly introduced reward on Cjelina %i first drop',
@@ -87,7 +87,7 @@ describe('Forest progressive Wild pool', () => {
 
   test.each([
     [2, 0.01, 'wild', null],
-    [2, 0.75, 'wild-juice', 'mushroom'],
+    [2, 0.75, 'wild', 'bee'],
     [3, 0.8, 'wild-tnt', 'flower'],
     [4, 0.9, 'wild-magnet', 'honey'],
     [7, 0.85, 'wild-tnt', null],

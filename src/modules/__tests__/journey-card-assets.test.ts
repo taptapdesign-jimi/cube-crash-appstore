@@ -31,8 +31,8 @@ describe('Journey collectible card assets', () => {
     });
     expect(resolveJourneyCardAsset(2, 999999)).toMatchObject({
       stageInWorld: 2,
-      path1x: './assets/colelctibles/Forest/legendary/06-gold.png',
-      path2x: './assets/colelctibles/Forest/legendary/06-gold@2x.png',
+      path1x: './assets/colelctibles/Forest/legendary/03-gold.png',
+      path2x: './assets/colelctibles/Forest/legendary/03-gold@2x.png',
     });
     expect(resolveJourneyCardAsset(3, 999999)).toMatchObject({
       stageInWorld: 3,
@@ -41,8 +41,8 @@ describe('Journey collectible card assets', () => {
     });
     expect(resolveJourneyCardAsset(6, 999999)).toMatchObject({
       stageInWorld: 6,
-      path1x: './assets/colelctibles/Forest/legendary/03-gold.png',
-      path2x: './assets/colelctibles/Forest/legendary/03-gold@2x.png',
+      path1x: './assets/colelctibles/Forest/legendary/06-gold.png',
+      path2x: './assets/colelctibles/Forest/legendary/06-gold@2x.png',
     });
     expect(resolveJourneyCardAsset(9, 999999)).toMatchObject({
       stageInWorld: 9,

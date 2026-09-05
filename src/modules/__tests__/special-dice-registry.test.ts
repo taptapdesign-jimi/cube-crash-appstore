@@ -30,6 +30,7 @@ import {
   markSpecialDiceResolutionOwned,
   releaseSpecialDiceResolution,
 } from '../special-dice-registry';
+import { getForestWildPool } from '../journey-forest-wild-progression';
 const makeTile = (overrides: Partial<any> = {}) => ({
   special: null,
   _ccSpecialDiceVariant: null,
@@ -226,7 +227,7 @@ test('archetype preserves TNT finale when generic special field is missing', () 
   expect(isSpecialDiceTntLikeTile(tnt)).toBe(true);
 });
 
-test('Forest progression introduces Mushroom 02, Flower 03, Honey 04, Bee 06 and TNT 07', () => {
+test('Forest progression introduces Bee 02, Flower 03, Honey 04, Mushroom 06 and TNT 07', () => {
   expect(pickSpecialDiceVariantForWildSpawn({
     isArcade: false,
     journeyBoard: 1,
@@ -234,31 +235,25 @@ test('Forest progression introduces Mushroom 02, Flower 03, Honey 04, Bee 06 and
     worldIntroRoll: 0.99,
   })).toBeNull();
 
-  const mushroom = pickSpecialDiceVariantForWildSpawn({
+  const bee = pickSpecialDiceVariantForWildSpawn({
     isArcade: false,
     journeyBoard: 2,
     wildSpawnCount: 0,
     worldIntroRoll: 0.99,
   });
-  expect(mushroom).toMatchObject({
-    id: 'mushroom',
-    archetype: 'wild-juice',
-    texture: './assets/shop/mushroom/mushroom.png',
-    splashText: 'SHROOMY',
-    splashColors: ['#FD7D5F'],
-    idleMotion: 'mushroom-pop',
-    juiceDropProfile: 'mushroom',
+  expect(bee).toMatchObject({
+    id: 'bee',
+    archetype: 'wild-star',
+    splashText: 'WEEEE!',
+    splashColor: '#E6815E',
+    finaleScene: 'bee-forest-flight',
+    idleOrbit: false,
+    idleMotion: 'bee-sprite-cycle',
   });
-  expect(getSpecialDiceTrailColors(mushroom)).toEqual([0xFFE1C8, 0xFFEDD9, 0xFF9A80, 0xFF7D61]);
-  expect(getSpecialDiceShardColors(mushroom)).toEqual([0xE7B392, 0xFF7B60]);
-  expect(mushroom?.explosionSpriteSources).toEqual([
-    './assets/shop/mushroom/mushroom@2x.png',
-    './assets/shop/mushroom/mushroom1.png',
-    './assets/shop/mushroom/mushroom2.png',
-    './assets/shop/mushroom/mushroom3.png',
-    './assets/shop/mushroom/mushroom4.png',
-    './assets/shop/mushroom/mushroom5.png',
-  ]);
+  expect(bee?.texture).toMatch(/assets\/shop\/bee\/bee1(?:@2x)?\.png$/);
+  expect(bee?.idleSpriteSources).toHaveLength(4);
+  expect(getSpecialDiceTrailColors(bee)).toEqual([0xFAF4ED, 0xFAE0BB, 0xDB8265, 0xD68E62]);
+  expect(getSpecialDiceShardColors(bee)).toEqual([0xFBE8C7, 0xDD8564]);
 
   const flower = pickSpecialDiceVariantForWildSpawn({
     isArcade: false,
@@ -299,25 +294,31 @@ test('Forest progression introduces Mushroom 02, Flower 03, Honey 04, Bee 06 and
   expect(getSpecialDiceShardColors(honey)).toEqual([0xF1BA79, 0xFDCF58]);
   expect(honey?.burstParticleSources).toHaveLength(7);
 
-  const bee = pickSpecialDiceVariantForWildSpawn({
+  const mushroom = pickSpecialDiceVariantForWildSpawn({
     isArcade: false,
     journeyBoard: 6,
     wildSpawnCount: 0,
     worldIntroRoll: 0.99,
   });
-  expect(bee).toMatchObject({
-    id: 'bee',
-    archetype: 'wild-star',
-    splashText: 'WEEEE!',
-    splashColor: '#E6815E',
-    finaleScene: 'bee-forest-flight',
-    idleOrbit: false,
-    idleMotion: 'bee-sprite-cycle',
+  expect(mushroom).toMatchObject({
+    id: 'mushroom',
+    archetype: 'wild-juice',
+    texture: './assets/shop/mushroom/mushroom.png',
+    splashText: 'SHROOMY',
+    splashColors: ['#FD7D5F'],
+    idleMotion: 'mushroom-pop',
+    juiceDropProfile: 'mushroom',
   });
-  expect(bee?.texture).toMatch(/assets\/shop\/bee\/bee1(?:@2x)?\.png$/);
-  expect(bee?.idleSpriteSources).toHaveLength(4);
-  expect(getSpecialDiceTrailColors(bee)).toEqual([0xFAF4ED, 0xFAE0BB, 0xDB8265, 0xD68E62]);
-  expect(getSpecialDiceShardColors(bee)).toEqual([0xFBE8C7, 0xDD8564]);
+  expect(getSpecialDiceTrailColors(mushroom)).toEqual([0xFFE1C8, 0xFFEDD9, 0xFF9A80, 0xFF7D61]);
+  expect(getSpecialDiceShardColors(mushroom)).toEqual([0xE7B392, 0xFF7B60]);
+  expect(mushroom?.explosionSpriteSources).toEqual([
+    './assets/shop/mushroom/mushroom@2x.png',
+    './assets/shop/mushroom/mushroom1.png',
+    './assets/shop/mushroom/mushroom2.png',
+    './assets/shop/mushroom/mushroom3.png',
+    './assets/shop/mushroom/mushroom4.png',
+    './assets/shop/mushroom/mushroom5.png',
+  ]);
 
   // TNT is the core texture, not a collectible skin, so its variant is null.
   expect(pickSpecialDiceVariantForWildSpawn({
@@ -329,12 +330,15 @@ test('Forest progression introduces Mushroom 02, Flower 03, Honey 04, Bee 06 and
 });
 
 test('later Forest Stages keep only earned Forest skins and never generic visual variants', () => {
+  expect(getForestWildPool(2)).toEqual(['wild-star', 'bee']);
+  expect(getForestWildPool(5)).toEqual(['wild-star', 'bee', 'flower', 'honey']);
+  expect(getForestWildPool(6)).toEqual(['wild-star', 'bee', 'flower', 'honey', 'mushroom']);
   expect(pickSpecialDiceVariantForWildSpawn({
     isArcade: false,
     journeyBoard: 2,
     wildSpawnCount: 1,
     worldIntroRoll: 0.75,
-  })).toMatchObject({ id: 'mushroom' });
+  })).toMatchObject({ id: 'bee' });
   expect(pickSpecialDiceVariantForWildSpawn({
     isArcade: false,
     journeyBoard: 3,
@@ -346,7 +350,7 @@ test('later Forest Stages keep only earned Forest skins and never generic visual
     journeyBoard: 6,
     wildSpawnCount: 1,
     worldIntroRoll: 0.9,
-  })).toMatchObject({ id: 'bee' });
+  })).toMatchObject({ id: 'mushroom' });
   expect(pickSpecialDiceVariantForWildSpawn({
     isArcade: false,
     journeyBoard: 10,
