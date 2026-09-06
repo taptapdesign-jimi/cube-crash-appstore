@@ -10,6 +10,7 @@ import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
 import { startBeeDiceIdle } from './bee-dice-idle.ts';
 import { preloadBeeFinaleAssets } from './bee-finale-scene.ts';
 import { startKantaDiceIdle } from './kanta-dice-idle.ts';
+import { preloadKantaFinaleAssets } from './kanta-finale-scene.ts';
 import {
   isUsablePixiImageTexture,
   pinPixiImageTexture,
@@ -286,6 +287,7 @@ export function startSpecialDiceIdleMotion(tile: any): void {
     }
 
     if (variant.idleMotion === 'kanta-rock') {
+      void preloadKantaFinaleAssets();
       const idleSources = Array.isArray(variant.idleSpriteSources) ? variant.idleSpriteSources : [];
       tile._ccKantaDiceIdle = startKantaDiceIdle(tile, idleSources);
       return;

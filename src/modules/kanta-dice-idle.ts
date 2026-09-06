@@ -3,58 +3,45 @@ import { Assets, Sprite, type Texture } from 'pixi.js';
 import animationManager from './animation-manager.js';
 import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.js';
 import {
-  isUsablePixiImageTexture,
-  pinPixiImageTexture,
-} from '../utils/pixi-image-texture-health.js';
+  createJourneyInterimBounceVariant,
+  JOURNEY_INTERIM_IDLE_MOTION,
+} from './journey-interim-idle-policy.js';
+import { isUsablePixiImageTexture, pinPixiImageTexture } from '../utils/pixi-image-texture-health.js';
 
-export const KANTA_IDLE_FRAME_SECONDS = 0.16;
-export const KANTA_IDLE_ROCK_CYCLE_SECONDS = 2.88;
-export const KANTA_IDLE_ROCK_DEGREES = 3;
+export const KANTA_IDLE_FRAME_SOURCE = './assets/shop/kanta/04.png';
+export const KANTA_IDLE_REPEAT_DELAY_SECONDS = JOURNEY_INTERIM_IDLE_MOTION.repeatDelaySeconds;
 
 export type KantaDiceIdleController = {
   setDragging: (dragging: boolean) => void;
   dispose: () => void;
 };
 
-export function getKantaIdleFrameIndex(
-  elapsedSeconds: number,
-  frameCount = 6,
-): number {
-  const count = Math.max(1, Math.floor(frameCount));
-  return Math.floor(Math.max(0, elapsedSeconds) / KANTA_IDLE_FRAME_SECONDS) % count;
-}
-
-export function getKantaIdleRockRotation(elapsedSeconds: number): number {
-  const time = Math.max(0, elapsedSeconds);
-  const amplitude = KANTA_IDLE_ROCK_DEGREES * Math.PI / 180;
-  return Math.sin((time / KANTA_IDLE_ROCK_CYCLE_SECONDS) * Math.PI * 2) * amplitude;
-}
-
 /**
- * Loops the authored Kanta frames and applies one gentle, grounded rock around
- * the artwork's bottom centre. Drag owns the outer tile transform; while a
- * drag is active this owner keeps only the sprite frames alive and rests the
- * local artwork rotation at its neutral pose.
+ * Holds Kanta on authored frame 04 and gives only its local artwork the shared
+ * random gameplay-card squeeze/stretch cycle. The bottom-centre pivot keeps
+ * the die grounded while the outer tile remains exclusively owned by drag.
  */
 export function startKantaDiceIdle(
   tile: any,
   frameSources: string[],
 ): KantaDiceIdleController | null {
   const base = tile?.base as Sprite | null;
-  if (!base || base.destroyed || frameSources.length < 2) return null;
+  const frameSource = frameSources[0] || KANTA_IDLE_FRAME_SOURCE;
+  if (!base || base.destroyed || !frameSource) return null;
 
   const originalTexture = base.texture;
   const originalX = base.x;
   const originalY = base.y;
   const originalRotation = base.rotation;
+  const originalScaleX = base.scale.x;
+  const originalScaleY = base.scale.y;
   const originalAnchorX = base.anchor?.x ?? 0.5;
   const originalAnchorY = base.anchor?.y ?? 0.5;
   const displayedWidth = base.width;
   const displayedHeight = base.height;
-  let textures: Texture[] = [];
+  let loadedTexture: Texture | null = null;
   let disposed = false;
-  let dragging = false;
-  let paintedFrameIndex = -1;
+  let variant = createJourneyInterimBounceVariant();
 
   base.anchor.set(0.5, 1);
   base.x = originalX + displayedWidth * (0.5 - originalAnchorX);
@@ -67,48 +54,67 @@ export function startKantaDiceIdle(
     base.x = pivotX;
     base.y = pivotY;
     base.rotation = originalRotation;
+    base.scale.set(originalScaleX, originalScaleY);
   };
 
-  let controller: KantaDiceIdleController;
   const timeline = animationManager.trackExternalTimeline(gsap.timeline({
     repeat: -1,
-    onUpdate: () => {
-      if (disposed || tile?.destroyed || base.destroyed) return;
-      const elapsedSeconds = timeline.totalTime();
-      if (textures.length >= 2) {
-        const frameIndex = getKantaIdleFrameIndex(elapsedSeconds, textures.length);
-        if (frameIndex !== paintedFrameIndex) {
-          const texture = textures[frameIndex];
-          if (isUsablePixiImageTexture(texture)) {
-            paintedFrameIndex = frameIndex;
-            base.texture = texture;
-            applyGameplayTextureFiltering(base.texture);
-          }
-        }
-      }
-      base.x = pivotX;
-      base.y = pivotY;
-      base.rotation = dragging
-        ? originalRotation
-        : originalRotation + getKantaIdleRockRotation(elapsedSeconds);
+    repeatDelay: KANTA_IDLE_REPEAT_DELAY_SECONDS,
+    repeatRefresh: true,
+    onRepeat: () => {
+      variant = createJourneyInterimBounceVariant();
     },
   }));
-  timeline.to({}, { duration: KANTA_IDLE_ROCK_CYCLE_SECONDS, ease: 'none' });
+  timeline.to(base.scale, {
+    x: originalScaleX * JOURNEY_INTERIM_IDLE_MOTION.anticipationScaleX,
+    y: originalScaleY * JOURNEY_INTERIM_IDLE_MOTION.anticipationScaleY,
+    duration: JOURNEY_INTERIM_IDLE_MOTION.anticipationDurationSeconds,
+    ease: 'power2.in',
+  });
+  timeline.to(base.scale, {
+    x: () => originalScaleX * variant.peakScaleX,
+    y: () => originalScaleY * variant.peakScaleY,
+    duration: JOURNEY_INTERIM_IDLE_MOTION.riseDurationSeconds,
+    ease: 'back.out(2.5)',
+  });
+  timeline.to(base.scale, {
+    x: () => originalScaleX * variant.landScaleX,
+    y: () => originalScaleY * variant.landScaleY,
+    duration: JOURNEY_INTERIM_IDLE_MOTION.landDurationSeconds,
+    ease: 'power2.in',
+  });
+  timeline.to(base.scale, {
+    x: originalScaleX * JOURNEY_INTERIM_IDLE_MOTION.reboundScaleX,
+    y: originalScaleY * JOURNEY_INTERIM_IDLE_MOTION.reboundScaleY,
+    duration: JOURNEY_INTERIM_IDLE_MOTION.reboundDurationSeconds,
+    ease: 'power2.out',
+  });
+  timeline.to(base.scale, {
+    x: originalScaleX,
+    y: originalScaleY,
+    duration: JOURNEY_INTERIM_IDLE_MOTION.settleDurationSeconds,
+    ease: 'back.out(1.7)',
+  });
 
-  controller = {
+  const controller: KantaDiceIdleController = {
     setDragging: (active: boolean) => {
-      dragging = active;
-      if (dragging) restoreNeutralPose();
+      if (active) {
+        timeline.pause();
+        restoreNeutralPose();
+      } else if (!disposed) {
+        variant = createJourneyInterimBounceVariant();
+        timeline.restart();
+      }
     },
     dispose: () => {
       if (disposed) return;
       disposed = true;
       try { animationManager.killExternalTimeline(timeline); } catch { timeline.kill(); }
-      const ownsCurrentFrame = textures.includes(base.texture);
-      textures = [];
+      const ownsLoadedTexture = loadedTexture !== null && base.texture === loadedTexture;
+      loadedTexture = null;
       if (base.destroyed) return;
       restoreNeutralPose();
-      if (ownsCurrentFrame && originalTexture) {
+      if (ownsLoadedTexture && originalTexture) {
         base.texture = originalTexture;
         applyGameplayTextureFiltering(base.texture);
       }
@@ -116,21 +122,22 @@ export function startKantaDiceIdle(
       base.x = originalX;
       base.y = originalY;
       base.rotation = originalRotation;
+      base.scale.set(originalScaleX, originalScaleY);
     },
   };
 
-  void Promise.allSettled(frameSources.map((source) => Assets.load(source))).then((results) => {
-    if (disposed || tile?.destroyed || tile?._ccKantaDiceIdle !== controller) return;
-    textures = results
-      .filter((result): result is PromiseFulfilledResult<Texture> => result.status === 'fulfilled')
-      .map((result) => result.value)
-      .filter(isUsablePixiImageTexture);
-    if (textures.length < 2) {
-      textures = [];
-      return;
-    }
-    textures.forEach(pinPixiImageTexture);
-  });
+  void Assets.load<Texture>(frameSource).then((texture) => {
+    if (
+      disposed
+      || tile?.destroyed
+      || tile?._ccKantaDiceIdle !== controller
+      || !isUsablePixiImageTexture(texture)
+    ) return;
+    loadedTexture = texture;
+    pinPixiImageTexture(texture);
+    base.texture = texture;
+    applyGameplayTextureFiltering(base.texture);
+  }).catch(() => {});
 
   return controller;
 }

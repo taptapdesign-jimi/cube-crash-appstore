@@ -44,7 +44,7 @@ export type SpecialDiceVariantDefinition = {
   shardColors?: number[];
   trailColors?: number[];
   idleBubbleColors?: number[];
-  finaleScene?: 'bottle-ocean' | 'spaceship-abduction' | 'lasergun-crossfire' | 'bee-forest-flight';
+  finaleScene?: 'bottle-ocean' | 'spaceship-abduction' | 'lasergun-crossfire' | 'bee-forest-flight' | 'kanta-center-sequence';
   explosionSpriteSources?: string[];
   explosionScale?: number;
   explosionHorizontalScale?: number;
@@ -191,14 +191,15 @@ const spaceshipIdleSources2x = Array.from(
   { length: 4 },
   (_, index) => `./assets/shop/spaceship/spaceship-idle${index + 1}@2x.png`,
 );
-const kantaIdleSources1x = Array.from(
-  { length: 6 },
-  (_, index) => `./assets/shop/kanta/kanta${index + 1}.png`,
+const kantaIdleSources = Array.from(
+  { length: 10 },
+  (_, index) => `./assets/shop/kanta/${String(index + 1).padStart(2, '0')}.png`,
 );
-const kantaIdleSources2x = Array.from(
-  { length: 6 },
-  (_, index) => `./assets/shop/kanta/kanta${index + 1}@2x.png`,
-);
+const KANTA_IDLE_SOURCE_WIDTH = 128;
+const KANTA_IDLE_SOURCE_HEIGHT = 171;
+const KANTA_IDLE_DISPLAY_HEIGHT = 128;
+const KANTA_IDLE_DISPLAY_WIDTH = KANTA_IDLE_DISPLAY_HEIGHT
+  * (KANTA_IDLE_SOURCE_WIDTH / KANTA_IDLE_SOURCE_HEIGHT);
 const laserGunFinaleSources1x = Array.from(
   { length: 6 },
   (_, index) => `./assets/shop/gun/lasergun${index + 1}.png`,
@@ -214,23 +215,19 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
   kanta: {
     id: 'kanta',
     archetype: 'wild-star',
-    texture: useHighResolutionSpecialDiceFx
-      ? './assets/shop/kanta/kanta1@2x.png'
-      : './assets/shop/kanta/kanta1.png',
-    // The dedicated merge-6 scene will replace this inherited Wild Star
-    // presentation when its authored animation package arrives.
-    splashText: 'KANTA!',
-    splashColor: '#EBC29B',
+    texture: kantaIdleSources[3],
+    finaleScene: 'kanta-center-sequence',
+    splashText: 'BLOOBY',
+    splashColor: '#50D6FE',
     shardColor: 0xE4B688,
     shardColors: [0xE4B688, 0x96FDFC],
     trailColors: [0xEBC29B, 0xDDAD7F, 0xDCFEFB, 0x9CFDFC],
-    visualFit: 'height',
+    visualWidth: KANTA_IDLE_DISPLAY_WIDTH,
+    visualHeight: KANTA_IDLE_DISPLAY_HEIGHT,
     hitAreaSize: 'tile',
     idleOrbit: false,
     idleMotion: 'kanta-rock',
-    idleSpriteSources: useHighResolutionSpecialDiceFx
-      ? kantaIdleSources2x
-      : kantaIdleSources1x,
+    idleSpriteSources: [kantaIdleSources[3]],
     inputReleaseAtRatio: 0.25,
   },
   bee: {
@@ -486,7 +483,7 @@ export function getSpecialDiceVariantForTile(tile: any): SpecialDiceVariantDefin
   return getSpecialDiceVariant(tile?._ccSpecialDiceVariant || tile?.specialDiceVariant || null);
 }
 
-/** Kanta owns a rigid bottom-centre rock and must never inherit generic cube squash/stretch. */
+/** Kanta owns a sprite-local idle and must never inherit the whole-tile generic owner. */
 export function usesRigidSpecialDiceIdle(tile: any): boolean {
   return getSpecialDiceVariantForTile(tile)?.idleMotion === 'kanta-rock';
 }

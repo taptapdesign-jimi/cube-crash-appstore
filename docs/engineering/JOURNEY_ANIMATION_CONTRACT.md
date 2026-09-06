@@ -54,7 +54,7 @@ Journey hub layout notes:
 
 - Hub world positions are controlled in `src/collectibles-screen.css` by `.journey-v700-world-forest`, `.journey-v700-world-beach`, and `.journey-v700-world-robo`.
 - Hub clouds are created near `renderJourneyV700Hub` in `src/modules/journey-boards-manager.ts`.
-- Current cloud-to-world mapping is by Y position: top clouds belong to Forest, middle to Beach, bottom to Area 55. Locked/inactive clouds use `.journey-v700-world-cloud.is-locked`.
+- Current cloud-to-world mapping is by Y position: top clouds belong to Forest, middle to Area 55, bottom to Beach. Locked/inactive clouds use `.journey-v700-world-cloud.is-locked`.
 
 Navigation rules:
 
@@ -67,7 +67,7 @@ Navigation rules:
 
 Context: **Homepage slider → Journey Worlds hub**.
 
-Order: **Forest → Beach → Area 55** (top to bottom).
+Order: **Forest → Area 55 → Beach** (top to bottom).
 
 Each World Unit starts at:
 
@@ -104,7 +104,7 @@ Lifecycle requirement: background preparation may render the Hub, but it must no
 
 Context: **Journey Worlds hub → Homepage slider**.
 
-Order: **Area 55 → Beach → Forest** (bottom to top).
+Order: **Beach → Area 55 → Forest** (bottom to top).
 
 Each World Unit animates from its idle/base state to:
 

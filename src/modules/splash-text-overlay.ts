@@ -10,6 +10,7 @@ import { attachBoltSprites } from './text-bolts.js';
 import { attachBottleFinaleScene } from './bottle-finale-scene.js';
 import { attachSpaceshipFinaleScene } from './spaceship-finale-scene.js';
 import { attachBeeFinaleScene } from './bee-finale-scene.js';
+import { attachKantaFinaleScene } from './kanta-finale-scene.ts';
 import { setWildFxDragLock, startWildFxDragLockForAnimation } from './wild-fx-drag-lock.ts';
 import { applyEffectLetterOpacity, resolveEffectLetterOpacity } from './effect-letter-opacity.ts';
 
@@ -540,7 +541,10 @@ export function showSparkleText(origin?: { x: number; y: number } | null, option
     document.body.appendChild(overlay);
     const sparkleFxStartedAt = performance.now();
     const usesBeeForestFlight = options?.finaleScene === 'bee-forest-flight';
-    const smallStarBurstCleanup = usesBeeForestFlight
+    const usesKantaCenterSequence = options?.finaleScene === 'kanta-center-sequence';
+    const smallStarBurstCleanup = usesKantaCenterSequence
+      ? attachKantaFinaleScene(overlay, 2)
+      : usesBeeForestFlight
       ? attachBeeFinaleScene(overlay, 1, origin)
       : attachSmallStarCenterBurst(overlay, {
           count: options?.burstMotion?.count ?? 26,

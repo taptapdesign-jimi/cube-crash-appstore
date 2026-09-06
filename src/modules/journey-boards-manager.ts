@@ -761,7 +761,7 @@ const JOURNEY_V700_HUB_CLOUDS: JourneyV700WorldCloudSpec[] = [
   { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[2], x: 136, y: 418, width: 236, opacity: 0.78, dx: -8, dy: 6, duration: 6.6, delay: -1.2, scale: 1.03 },
   { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[0], x: 32, y: 576, width: 214, opacity: 0.72, dx: 7, dy: -5, duration: 5.9, delay: -2.7, scale: 1.04 },
   { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[5], x: 198, y: 598, width: 184, opacity: 0.68, dx: -7, dy: 5, duration: 7.1, delay: -0.4, scale: 1.03 },
-  { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[2], x: -10, y: 632, width: 198, opacity: 0.62, dx: -6, dy: 4, duration: 7.6, delay: -6.1, scale: 1.04, worldId: 3 },
+  { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[2], x: -10, y: 632, width: 198, opacity: 0.62, dx: -6, dy: 4, duration: 7.6, delay: -6.1, scale: 1.04, worldId: 2 },
 ];
 
 // Helper to convert pixels to viewport width units (vw)
@@ -6709,7 +6709,9 @@ class JourneyBoardsManager {
     hubCloudLayer.className = 'journey-v700-hub-cloud-layer';
     hubCloudLayer.setAttribute('aria-hidden', 'true');
     JOURNEY_V700_HUB_CLOUDS.forEach((cloudSpec, cloudIndex) => {
-      const cloudWorldId = cloudSpec.worldId ?? (cloudSpec.y < 220 ? 1 : cloudSpec.y < 560 ? 2 : 3);
+      // Hub visual order is Forest, Area 55, Beach. Cloud ownership follows
+      // those screen slots while gameplay World IDs and board ranges stay stable.
+      const cloudWorldId = cloudSpec.worldId ?? (cloudSpec.y < 220 ? 1 : cloudSpec.y < 560 ? 3 : 2);
       const cloudLocked = cloudWorldId > activeWorldId;
       const cloud = document.createElement('img');
       cloud.src = cloudSpec.src;
@@ -6731,11 +6733,11 @@ class JourneyBoardsManager {
     });
     hub.appendChild(hubCloudLayer);
 
-    const worldIds = [1, 2, 3];
+    const worldIds = [1, 3, 2];
     const resolveLiveHubContainer = (): HTMLElement => (
       document.getElementById('journey-boards-container') as HTMLElement | null
     ) || container;
-    worldIds.forEach((worldId) => {
+    worldIds.forEach((worldId, worldIndex) => {
       const meta = JOURNEY_WORLD_LABELS[worldId];
       const range = this.getJourneyWorldRange(worldId);
       if (!meta || !range) return;
@@ -6772,7 +6774,7 @@ class JourneyBoardsManager {
       tiltShell.style.animationDirection = Math.random() < 0.5 ? 'normal' : 'reverse';
 
       const banner = document.createElement('span');
-      banner.className = `journey-v700-world-banner journey-v700-world-banner-${worldId === 2 ? 'left' : 'right'}`;
+      banner.className = `journey-v700-world-banner journey-v700-world-banner-${worldIndex === 1 ? 'left' : 'right'}`;
       banner.setAttribute('aria-hidden', 'true');
 
       const bannerImage = document.createElement('img');

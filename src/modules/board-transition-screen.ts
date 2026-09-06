@@ -1158,9 +1158,9 @@ function startRoboAirCombatMotion(
   roboAirCombatMasterTimeline = timeline;
   roboAirCombatTimelines.push(timeline);
   contentTimelines.push(timeline);
-  // This master is the Area55 exit barrier. It ends with the final beam tail,
-  // so every scene element starts the shared exit immediately after the rapid
-  // opening volley instead of waiting for independent character traversals.
+  // This master is the Area55 exit barrier. It includes the delayed fighter's
+  // complete extended path so both ships keep roaming until the shared exit
+  // takes over, without adding a second transition timer.
   const ships = [leftShip, rightShipMotion];
   const combatVariation = createRoboAirCombatVariation();
   activeRoboAirCombatVariation = combatVariation;
@@ -1263,7 +1263,8 @@ function startRoboAirCombatMotion(
   };
   const LEFT_SHIP_START_DELAY_SECONDS = 0;
   const RIGHT_SHIP_START_DELAY_SECONDS = 0.20;
-  const fighterFlightDurationSeconds = 3.00;
+  const fighterFlightDurationSeconds = 4.20;
+  const fighterCombatDurationSeconds = fighterFlightDurationSeconds + RIGHT_SHIP_START_DELAY_SECONDS;
   const beamFourStartSeconds = 2.12;
   addContinuousFlightWobble(
     leftShip,
@@ -1363,14 +1364,18 @@ function startRoboAirCombatMotion(
           combatVariation.actionSwayCycles,
           runtime.actionSway,
         );
+        const lateWanderProgress = Math.max(0, Math.min(1,
+          (elapsed - beamFourStartSeconds) / Math.max(0.001, duration - beamFourStartSeconds),
+        ));
+        const lateWanderStrength = 1 + lateWanderProgress * 0.32;
         const bank = Math.max(-15, Math.min(15,
           Math.sin(elapsed * 5.2 + bankPhase) * 8
           + Math.sin(elapsed * 8.7 + bankPhase * 0.7) * 2
-          + actionSway.bank,
+          + actionSway.bank * lateWanderStrength,
         ));
         gsap.set(ship, {
-          x: sampleSmoothFlightValue(points, elapsed, 'x') + actionSway.x,
-          y: sampleSmoothFlightValue(points, elapsed, 'y') + actionSway.y,
+          x: sampleSmoothFlightValue(points, elapsed, 'x') + actionSway.x * lateWanderStrength,
+          y: sampleSmoothFlightValue(points, elapsed, 'y') + actionSway.y * lateWanderStrength,
           scale: current.scale + (next.scale - current.scale) * smoothProgress,
           rotation: bank,
         });
@@ -1445,6 +1450,18 @@ function startRoboAirCombatMotion(
     x: rightShipAtBeamFour.x - combatVariation.postBeamDirection * 44,
     y: rightShipAtBeamFour.y + 10,
   };
+  const lateFlightVariation = {
+    firstTime: 3.34,
+    secondTime: 3.78,
+    leftFirstX: gsap.utils.random(-92, 92),
+    leftFirstY: gsap.utils.random(-52, 52),
+    leftSecondX: gsap.utils.random(-78, 78),
+    leftSecondY: gsap.utils.random(-44, 44),
+    rightFirstX: gsap.utils.random(-84, 84),
+    rightFirstY: gsap.utils.random(-48, 48),
+    rightSecondX: gsap.utils.random(-72, 72),
+    rightSecondY: gsap.utils.random(-40, 40),
+  };
   startContinuousFlight(leftShip, [
     { time: 0, x: leftShipEnterX, y: leftShipEnterY, scale: leftShipBaseScale },
     { time: 0.72, x: leftShipBeforeNn.x, y: leftShipBeforeNn.y, scale: leftShipBaseScale * 1.50 },
@@ -1453,7 +1470,10 @@ function startRoboAirCombatMotion(
     { time: secondCrossTime, x: crossingPolarity * crossingVariation.secondX + flightJitter[6].x, y: crossingVariation.upperY, scale: leftShipBaseScale * 1.48 },
     { time: beamFourStartSeconds, x: leftShipAtBeamFour.x, y: leftShipAtBeamFour.y, scale: leftShipBaseScale * 1.48 },
     { time: swapMidpointTime, x: lowerShipPostBeamFourMidpoint.x, y: lowerShipPostBeamFourMidpoint.y, scale: leftShipBaseScale * 1.72 },
-    { time: fighterFlightDurationSeconds, x: lowerShipPostBeamFourEnd.x, y: lowerShipPostBeamFourEnd.y, scale: leftShipBaseScale * 1.48 / verticalDepthScaleRatio },
+    { time: 3.00, x: lowerShipPostBeamFourEnd.x, y: lowerShipPostBeamFourEnd.y, scale: leftShipBaseScale * 1.48 / verticalDepthScaleRatio },
+    { time: lateFlightVariation.firstTime, x: lowerShipPostBeamFourEnd.x + lateFlightVariation.leftFirstX, y: lowerShipPostBeamFourEnd.y + lateFlightVariation.leftFirstY, scale: leftShipBaseScale * 2.34 },
+    { time: lateFlightVariation.secondTime, x: lowerShipPostBeamFourEnd.x + lateFlightVariation.leftSecondX, y: lowerShipPostBeamFourEnd.y + lateFlightVariation.leftSecondY, scale: leftShipBaseScale * 2.42 },
+    { time: fighterFlightDurationSeconds, x: lowerShipPostBeamFourEnd.x + flightJitter[9].x, y: lowerShipPostBeamFourEnd.y + flightJitter[10].y, scale: leftShipBaseScale * 2.38 },
   ], LEFT_SHIP_START_DELAY_SECONDS, crossingVariation.leftBankPhase, crossingPolarity);
   startContinuousFlight(rightShipMotion, [
     { time: 0, x: fighterOnScreenX, y: rightShipEnterY, scale: rightShipEnterScale },
@@ -1463,7 +1483,10 @@ function startRoboAirCombatMotion(
     { time: secondCrossTime, x: -crossingPolarity * crossingVariation.secondX + flightJitter[7].x, y: finalLowerY, scale: rightShipBaseScale * 1.46 },
     { time: beamFourStartSeconds, x: rightShipAtBeamFour.x, y: rightShipAtBeamFour.y, scale: rightShipBaseScale * 1.46 },
     { time: swapMidpointTime, x: rightShipPostBeamFourMidpoint.x, y: rightShipPostBeamFourMidpoint.y, scale: rightShipBaseScale * 1.12 },
-    { time: fighterFlightDurationSeconds, x: rightShipPostBeamFourEnd.x, y: rightShipPostBeamFourEnd.y, scale: rightShipBaseScale * 1.46 * verticalDepthScaleRatio },
+    { time: 3.00, x: rightShipPostBeamFourEnd.x, y: rightShipPostBeamFourEnd.y, scale: rightShipBaseScale * 1.46 * verticalDepthScaleRatio },
+    { time: lateFlightVariation.firstTime, x: rightShipPostBeamFourEnd.x + lateFlightVariation.rightFirstX, y: rightShipPostBeamFourEnd.y + lateFlightVariation.rightFirstY, scale: rightShipBaseScale * 0.90 },
+    { time: lateFlightVariation.secondTime, x: rightShipPostBeamFourEnd.x + lateFlightVariation.rightSecondX, y: rightShipPostBeamFourEnd.y + lateFlightVariation.rightSecondY, scale: rightShipBaseScale * 0.86 },
+    { time: fighterFlightDurationSeconds, x: rightShipPostBeamFourEnd.x + flightJitter[10].x, y: rightShipPostBeamFourEnd.y + flightJitter[11].y, scale: rightShipBaseScale * 0.88 },
   ], RIGHT_SHIP_START_DELAY_SECONDS, crossingVariation.rightBankPhase, (crossingPolarity * -1) as RoboTravelDirection);
 
   // One runtime clock replaces the former two wobble and two flight
@@ -1642,7 +1665,7 @@ function startRoboAirCombatMotion(
 
   // Keep the swapped-height fighters visible and wobbling until NN exit owns
   // their one-way off-screen departure.
-  timeline.to({}, { duration: 0.001, ease: 'none' }, fighterFlightDurationSeconds);
+  timeline.to({}, { duration: 0.001, ease: 'none' }, fighterCombatDurationSeconds);
   roboAirCombatTimelines
     .filter((ownedTimeline) => ownedTimeline !== timeline)
     .forEach((ownedTimeline) => ownedTimeline.play(0));

@@ -709,7 +709,11 @@ describe('Journey Hub transition ownership', () => {
     expect(hubRenderSource).toContain('tiltShell.appendChild(banner)');
     expect(hubRenderSource).toContain('tiltShell.appendChild(image)');
     expect(hubRenderSource).toContain('visual.appendChild(tiltShell)');
-    expect(hubRenderSource).toContain("worldId === 2 ? 'left' : 'right'");
+    expect(hubRenderSource).toContain('const worldIds = [1, 3, 2];');
+    expect(hubRenderSource).toContain("worldIndex === 1 ? 'left' : 'right'");
+    expect(hubRenderSource).toContain(
+      'cloudSpec.y < 220 ? 1 : cloudSpec.y < 560 ? 3 : 2',
+    );
     expect(hubRenderSource).toContain('board.unlocked && !board.interim');
     expect(hubRenderSource).toContain('const hasInterimCard = worldBoards.some((board) => board.interim)');
     expect(hubRenderSource).toContain("hasInterimCard ? ' has-interim-card' : ''");
@@ -740,9 +744,9 @@ describe('Journey Hub transition ownership', () => {
     expect(collectiblesCssSource).toContain('top: calc(50% - 14px);');
     expect(collectiblesCssSource).toContain('right: calc(max(-12.8vw, -50px) - 30px);');
     expect(collectiblesCssSource).toContain('top: calc(50% - 20px);');
-    expect(collectiblesCssSource).toContain('left: calc(max(-12.8vw, -50px) - 30px);');
+    expect(collectiblesCssSource).toContain('right: calc(max(-12.8vw, -50px) - 30px);');
     expect(collectiblesCssSource).toContain('top: calc(50% - 26px);');
-    expect(collectiblesCssSource).toContain('right: calc(max(-12.8vw, -50px) - 38px);');
+    expect(collectiblesCssSource).toContain('left: calc(max(-12.8vw, -50px) - 38px);');
     expect(collectiblesCssSource).toContain('.journey-v700-world-card.is-locked {\n  opacity: 1;\n  filter: none;');
     expect(collectiblesCssSource).toContain('.journey-v700-world-cloud.is-locked {\n  opacity: var(--cloud-opacity, 0.82);\n  filter: none;');
     expect(collectiblesCssSource).toContain('top: calc(57% + 5px);\n  right: 3px;');
@@ -837,15 +841,15 @@ describe('Journey Hub transition ownership', () => {
     );
   });
 
-  test('keeps the three Hub Worlds in the compact approved vertical composition', () => {
+  test('keeps Forest, Area 55, then Beach in the compact Hub composition', () => {
     expect(collectiblesCssSource).toContain(
       '.journey-v700-world-forest {\n  left: -2px;\n  top: calc(env(safe-area-inset-top, 0px) + 118px);',
     );
     expect(collectiblesCssSource).toContain(
-      '.journey-v700-world-beach {\n  right: -8px;\n  top: calc(env(safe-area-inset-top, 0px) + 334px);',
+      '.journey-v700-world-robo {\n  right: -8px;\n  top: calc(env(safe-area-inset-top, 0px) + 334px);',
     );
     expect(collectiblesCssSource).toContain(
-      '.journey-v700-world-robo {\n  left: -6px;\n  top: calc(env(safe-area-inset-top, 0px) + 580px);',
+      '.journey-v700-world-beach {\n  left: -6px;\n  top: calc(env(safe-area-inset-top, 0px) + 580px);',
     );
     expect(collectiblesCssSource).toContain('height: calc(892px - var(--journey-v700-hub-bottom-trim)');
     expect(journeyManagerSource).toContain('x: 24, y: 222, width: 214');

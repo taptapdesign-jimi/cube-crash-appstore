@@ -2767,13 +2767,13 @@
 }
 
 .journey-v700-world-beach {
-  right: -8px;
-  top: calc(env(safe-area-inset-top, 0px) + 334px);
+  left: -6px;
+  top: calc(env(safe-area-inset-top, 0px) + 580px);
 }
 
 .journey-v700-world-robo {
-  left: -6px;
-  top: calc(env(safe-area-inset-top, 0px) + 580px);
+  right: -8px;
+  top: calc(env(safe-area-inset-top, 0px) + 334px);
 }
 
 .journey-v700-world-card.is-locked {
@@ -2966,7 +2966,7 @@
   --journey-world-banner-reveal-delay: 0.11s;
   --journey-world-banner-idle-duration: 8.35s;
   top: calc(50% - 20px);
-  left: calc(max(-12.8vw, -50px) - 30px);
+  right: calc(max(-12.8vw, -50px) - 30px);
 }
 
 .journey-v700-world-robo .journey-v700-world-banner {
@@ -2974,7 +2974,7 @@
   --journey-world-banner-reveal-delay: 0.22s;
   --journey-world-banner-idle-duration: 7.9s;
   top: calc(50% - 26px);
-  right: calc(max(-12.8vw, -50px) - 38px);
+  left: calc(max(-12.8vw, -50px) - 38px);
 }
 
 .journey-v700-world-banner-image {

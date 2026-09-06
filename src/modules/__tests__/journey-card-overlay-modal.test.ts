@@ -410,12 +410,47 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(pointerMove).not.toContain('releasePointerCapture');
     expect(pointerMove).toContain("impactShell.style.translate = `${translateX.toFixed(2)}px 0`");
     expect(pointerMove).toContain('getJourneyCardDragFlipAngle(dragStartAngle, deltaX, dragViewportWidth)');
-    expect(pointerMove).toContain('dragFlipProgress = clamp01(Math.abs(deltaX) / handoffDistance)');
+    expect(pointerMove).toContain('? clamp01(Math.abs(deltaX) / handoffDistance)');
     expect(pointerMove).toContain('if (dragFlipCommitted) return;');
-    expect(pointerMove).toContain('direction !== dragAllowedDirection');
+    expect(pointerMove).toContain('interruptCommittedFlipForPointerMove(event)');
+    expect(pointerMove).toContain('direction === dragAllowedDirection');
+    expect(pointerMove).toContain('dragFlipProgress = canCommitDirection');
+    expect(pointerMove).toContain('setRotorAngle(dragAngle);');
+    expect(pointerMove).toContain('if (!canCommitDirection) return;');
+    expect(pointerMove.indexOf('setRotorAngle(dragAngle);'))
+      .toBeLessThan(pointerMove.indexOf('if (!canCommitDirection) return;'));
     expect(pointerMove).toContain('dragStartX = dragLatestX;');
     expect(pointerMove).toContain("dragAllowedDirection = committedDirection === -1 ? 1 : -1;");
     expect(pointerMove).toContain("void animateInteractiveFlip(stableFace === 'front' ? 'back' : 'front')");
+    expect(pointerMove).toContain('|| !dragFlipCommitted');
+    const committedFlipTakeover = modal.slice(
+      modal.indexOf('function interruptCommittedFlipForPointerMove('),
+      modal.indexOf('function handlePointerMove('),
+    );
+    expect(committedFlipTakeover).toContain(
+      'if (!dragFlipCommitted || !flipping || activePointerId !== event.pointerId) return false;',
+    );
+    expect(committedFlipTakeover).toContain('Math.abs(event.clientX - dragFlipCommitX)');
+    expect(committedFlipTakeover).toContain('Math.abs(event.clientY - dragFlipCommitY)');
+    expect(committedFlipTakeover).toContain(
+      'if (takeoverDistance <= JOURNEY_CARD_FLIP_TAKEOVER_SLOP_PX) return false;',
+    );
+    expect(committedFlipTakeover).toContain('const handoffAngle = readPointerHandoffAngle();');
+    expect(committedFlipTakeover.indexOf('const handoffAngle = readPointerHandoffAngle();'))
+      .toBeLessThan(committedFlipTakeover.indexOf('interruptedAnimation?.cancel();'));
+    expect(committedFlipTakeover).toContain('flipGeneration += 1;');
+    expect(committedFlipTakeover).toContain('flipAnimation = null;');
+    expect(committedFlipTakeover).toContain('flipping = false;');
+    expect(committedFlipTakeover).toContain("stage.classList.remove('is-flipping', 'is-flipping-to-front', 'is-flipping-to-back');");
+    expect(committedFlipTakeover).toContain('setRotorAngle(handoffAngle);');
+    expect(committedFlipTakeover).toContain('dragStartX = event.clientX;');
+    expect(committedFlipTakeover).toContain('dragStartAngle = handoffAngle;');
+    expect(committedFlipTakeover).toContain('dragFlipCommitted = false;');
+    expect(committedFlipTakeover).toContain("dragAxis = 'horizontal';");
+    expect(committedFlipTakeover).toContain("tracePointerOwnership('pointer-flip-interrupted-by-drag'");
+    expect(committedFlipTakeover).not.toContain("stage.classList.remove('is-dragging')");
+    expect(pointerMove).toContain('dragFlipCommitX = event.clientX;');
+    expect(pointerMove).toContain('dragFlipCommitY = event.clientY;');
     expect(modal).toContain('dragPreviewSettleAnimation?.cancel()');
     expect(modal).toContain('visibleRotorTransform');
     expect(modal).not.toContain('disposeSpatialMotion');

@@ -519,7 +519,8 @@ describe('Board Transition World themes', () => {
     expect(source).toContain('enterTimeline.call(() => {');
     expect(source).toContain('}, undefined, 0)');
     expect(source).toContain('], LEFT_SHIP_START_DELAY_SECONDS, crossingVariation.leftBankPhase, crossingPolarity);');
-    expect(source).toContain('const fighterFlightDurationSeconds = 3.00');
+    expect(source).toContain('const fighterFlightDurationSeconds = 4.20');
+    expect(source).toContain('const fighterCombatDurationSeconds = fighterFlightDurationSeconds + RIGHT_SHIP_START_DELAY_SECONDS');
     expect(source).toContain('const beamFourStartSeconds = 2.12');
     expect(source).not.toContain('leftShipEscapeTimeline');
     expect(source).not.toContain('rightShipEscapeTimeline');
@@ -557,7 +558,11 @@ describe('Board Transition World themes', () => {
     expect(source).toContain('y: rightShipAtBeamFour.y + 4');
     expect(source).toContain('x: rightShipAtBeamFour.x - combatVariation.postBeamDirection * 44');
     expect(source).toContain('y: rightShipAtBeamFour.y + 10');
-    expect(source).toContain('{ time: fighterFlightDurationSeconds, x: rightShipPostBeamFourEnd.x, y: rightShipPostBeamFourEnd.y');
+    expect(source).toContain('const lateFlightVariation = {');
+    expect(source).toContain('firstTime: 3.34');
+    expect(source).toContain('secondTime: 3.78');
+    expect(source).toContain('lateWanderProgress * 0.32');
+    expect(source).toContain('{ time: fighterFlightDurationSeconds, x: rightShipPostBeamFourEnd.x + flightJitter[10].x');
     expect(source).toContain('scale: leftShipBaseScale * 1.48 / verticalDepthScaleRatio');
     expect(source).toContain('scale: rightShipBaseScale * 1.46 * verticalDepthScaleRatio');
     expect(source).toContain('const fighterExitVerticalDistance = (window.innerHeight || 760) * 0.85 + 100');
@@ -726,7 +731,7 @@ describe('Board Transition World themes', () => {
     expect(source).not.toContain('damageSequenceStart');
     expect(source).not.toContain('damageSequenceEnd');
     expect(source).toContain("ease: 'none'");
-    expect(source).toContain("timeline.to({}, { duration: 0.001, ease: 'none' }, fighterFlightDurationSeconds)");
+    expect(source).toContain("timeline.to({}, { duration: 0.001, ease: 'none' }, fighterCombatDurationSeconds)");
     expect(source).toContain('ROBO_AIR_COMBAT_HOLD_DURATION_SECONDS = 0');
     expect(source).toContain('let roboAirCombatMasterTimeline: gsap.core.Timeline | null = null');
     expect(source).toContain('function getRoboAirCombatHoldSeconds(): number');

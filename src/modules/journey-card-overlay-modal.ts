@@ -191,6 +191,7 @@ export const JOURNEY_CARD_DISMISS_DRAG_COMMIT_RATIO = 0.22;
 export const JOURNEY_CARD_DISMISS_DRAG_MIN_PX = 88;
 export const JOURNEY_CARD_DISMISS_DRAG_MAX_PX = 140;
 const JOURNEY_CARD_FLIP_TAP_SLOP_PX = 7;
+const JOURNEY_CARD_FLIP_TAKEOVER_SLOP_PX = 1;
 
 export function getJourneyCardDismissDragDistance(cardHeight: number): number {
   const proportionalDistance = Math.max(1, cardHeight) * JOURNEY_CARD_DISMISS_DRAG_COMMIT_RATIO;
@@ -712,6 +713,8 @@ export function presentJourneyCardOverlayModal(
   let dragStartAngle = 0;
   let dragFlipProgress = 0;
   let dragFlipCommitted = false;
+  let dragFlipCommitX = 0;
+  let dragFlipCommitY = 0;
   let dragAllowedDirection: -1 | 0 | 1 = 0;
   let dragMoved = false;
   let dragCardHeight = 1;
@@ -1857,6 +1860,8 @@ export function presentJourneyCardOverlayModal(
     dragStartAngle = dragHandoffAngle;
     dragFlipProgress = 0;
     dragFlipCommitted = false;
+    dragFlipCommitX = event.clientX;
+    dragFlipCommitY = event.clientY;
     dragAllowedDirection = 0;
     dragMoved = false;
     dragCardRect = frame.getBoundingClientRect();
@@ -1922,11 +1927,53 @@ export function presentJourneyCardOverlayModal(
     handoffIdleCoachImpact();
   }
 
+  function interruptCommittedFlipForPointerMove(event: PointerEvent): boolean {
+    if (!dragFlipCommitted || !flipping || activePointerId !== event.pointerId) return false;
+    const takeoverDistance = Math.max(
+      Math.abs(event.clientX - dragFlipCommitX),
+      Math.abs(event.clientY - dragFlipCommitY),
+    );
+    if (takeoverDistance <= JOURNEY_CARD_FLIP_TAKEOVER_SLOP_PX) return false;
+    // The same held finger must be able to retake the rotor from the automatic
+    // completion. Snapshot the WebKit presentation angle before cancelling its
+    // WAAPI owner, then restart the scrub baseline at this exact pointer pose.
+    const handoffAngle = readPointerHandoffAngle();
+    const interruptedAnimation = flipAnimation;
+    flipGeneration += 1;
+    flipAnimation = null;
+    interruptedAnimation?.cancel();
+    flipping = false;
+    stage.classList.remove('is-flipping', 'is-flipping-to-front', 'is-flipping-to-back');
+    if (flipEdgeRaf !== 0) {
+      cancelAnimationFrame(flipEdgeRaf);
+      flipEdgeRaf = 0;
+    }
+    setRotorAngle(handoffAngle);
+    dragStartX = event.clientX;
+    dragStartY = event.clientY;
+    dragStartAngle = handoffAngle;
+    dragImpactStartTranslateX = dragPresentationTranslateX;
+    dragImpactStartTranslateY = dismissDragReleaseY;
+    dragImpactStartScale = dismissDragReleaseScale;
+    dragFlipProgress = 0;
+    dragFlipCommitted = false;
+    dragAllowedDirection = 0;
+    dragAxis = 'horizontal';
+    paintLegendaryDragShine(handoffAngle, true);
+    tracePointerOwnership('pointer-flip-interrupted-by-drag', {
+      pointerId: event.pointerId,
+      moveCount: pointerTraceMoveCount,
+      handoffAngle: Number(handoffAngle.toFixed(2)),
+    });
+    return true;
+  }
+
   function handlePointerMove(event: PointerEvent): void {
     if (event.pointerId !== activePointerId) return;
     pointerTraceMoveCount += 1;
     dragLatestX = event.clientX;
     dragLatestY = event.clientY;
+    if (interruptCommittedFlipForPointerMove(event)) return;
     const deltaX = event.clientX - dragStartX;
     const deltaY = event.clientY - dragStartY;
     if (pointerTraceMoveCount === 1) {
@@ -1974,22 +2021,27 @@ export function presentJourneyCardOverlayModal(
     impactShell.style.translate = `${translateX.toFixed(2)}px 0`;
     if (dragFlipCommitted) return;
     const direction = Math.sign(deltaX) as -1 | 0 | 1;
-    if (dragAllowedDirection !== 0 && direction !== 0 && direction !== dragAllowedDirection) {
-      dragFlipProgress = 0;
-      setRotorAngle(dragStartAngle);
-      queueLegendaryDragShine(dragStartAngle);
-      return;
-    }
+    const canCommitDirection = dragAllowedDirection === 0
+      || direction === 0
+      || direction === dragAllowedDirection;
     const handoffDistance = Math.max(
       1,
       dragViewportWidth * JOURNEY_CARD_FLIP_DRAG_HANDOFF_VIEWPORT_RATIO,
     );
-    dragFlipProgress = clamp01(Math.abs(deltaX) / handoffDistance);
+    dragFlipProgress = canCommitDirection
+      ? clamp01(Math.abs(deltaX) / handoffDistance)
+      : 0;
     const dragAngle = getJourneyCardDragFlipAngle(dragStartAngle, deltaX, dragViewportWidth);
     setRotorAngle(dragAngle);
     queueLegendaryDragShine(dragAngle);
+    // After one completed turn, continued travel in that same direction still
+    // follows the finger, but cannot chain a second automatic turn. Reversing
+    // direction remains the explicit gesture that can flip back.
+    if (!canCommitDirection) return;
     if (dragAxis === 'horizontal' && dragFlipProgress >= 1) {
       dragFlipCommitted = true;
+      dragFlipCommitX = event.clientX;
+      dragFlipCommitY = event.clientY;
       const committedDirection = direction || 1;
       const committedPointerId = activePointerId;
       const committedPointerSequence = pointerTraceSequence;
@@ -2007,6 +2059,7 @@ export function presentJourneyCardOverlayModal(
           || closing
           || settled
           || flipping
+          || !dragFlipCommitted
         ) return;
         dragStartX = dragLatestX;
         dragStartY = dragLatestY;

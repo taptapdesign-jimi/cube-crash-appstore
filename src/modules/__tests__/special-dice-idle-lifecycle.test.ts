@@ -65,7 +65,7 @@ describe('special-dice idle lifecycle', () => {
     expect(base.y).toBe(0);
   });
 
-  test('Kanta owns one bottom-centre frame/rock controller and restores the board sprite', () => {
+  test('Kanta owns one bottom-centre frame-04 squeeze controller and restores the board sprite', () => {
     const base = new Sprite(Texture.WHITE);
     base.anchor.set(0.5);
     base.position.set(2, -3);
