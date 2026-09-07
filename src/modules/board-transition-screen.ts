@@ -23,9 +23,13 @@ import {
   type BeachTransitionVariation,
 } from './board-transition-beach-variation.js';
 import {
+  createRoboFighterFinaleExitDirections,
   createRoboAirCombatVariation,
   createRoboTransitionVariation,
+  resolveRoboFighterOffscreenVisualCenterX,
+  sampleRoboFighterFinalePath,
   type RoboAirCombatVariation,
+  type RoboFighterFinalePoint,
   type RoboTransitionVariation,
 } from './board-transition-robo-variation.js';
 import { getRunMode } from './run-mode.js';
@@ -43,7 +47,11 @@ import {
   type BoardTransitionSettlement,
 } from './board-transition-lifecycle.js';
 import { boardTransitionPresentationHandoff } from './board-transition-presentation-handoff.js';
-import { resolveRoboAirCombatHoldSeconds } from './board-transition-robo-combat-timing.js';
+import {
+  resolveRoboArea55ExitTimeScale,
+  resolveRoboAirCombatHoldSeconds,
+  resolveRoboFighterFinaleDuration,
+} from './board-transition-robo-combat-timing.js';
 import { areContinuousRuntimeDiagnosticsEnabled } from '../utils/runtime-diagnostics-policy.js';
 
 interface BoardTransitionOptions {
@@ -88,6 +96,7 @@ let isCleaningUp = false;
 let activeTransitionSettlement: BoardTransitionSettlement | null = null;
 let transitionGeneration = 0;
 const createNextBeachTransitionVariation = createBeachTransitionVariationSequence();
+const isRejectedPostKingRoboExitEnabled = (): boolean => false;
 
 const TRANSITION_CLOUD_IMAGES = [
   './assets/board transition/oblak+srednji.png', // ~103KB - consider compressing if memory critical
@@ -1349,10 +1358,11 @@ function startRoboAirCombatMotion(
           Math.sin(elapsed * 5.2 + bankPhase) * 8
           + Math.sin(elapsed * 8.7 + bankPhase * 0.7) * 2,
         ));
+        const renderedScale = current.scale + (next.scale - current.scale) * smoothProgress;
         gsap.set(ship, {
           x: sampleSmoothFlightValue(points, elapsed, 'x'),
           y: sampleSmoothFlightValue(points, elapsed, 'y'),
-          scale: current.scale + (next.scale - current.scale) * smoothProgress,
+          scale: renderedScale,
           rotation: bank,
         });
   };
@@ -1448,8 +1458,8 @@ function startRoboAirCombatMotion(
   ], RIGHT_SHIP_START_DELAY_SECONDS, crossingVariation.rightBankPhase);
 
   // One runtime clock replaces the former two wobble and two flight
-  // onUpdate timelines. Flight paths clamp once at their authored end while
-  // engine wobble remains continuous until the Area55 exit owner stops it.
+  // onUpdate timelines. The exit timeline captures and takes over their exact
+  // live pose after Beam 4; this runtime never owns the finale departure.
   const combatRuntimeClock = { elapsed: 0 };
   const combatRuntimeTimeline = trackTimeline({ paused: true });
   roboAirCombatTimelines.push(combatRuntimeTimeline);
@@ -3311,12 +3321,6 @@ function startExitAnimation(
           });
         },
         onComplete: () => {
-          if (!areContinuousRuntimeDiagnosticsEnabled()) {
-            fighter.style.opacity = '0';
-            fighter.style.visibility = 'hidden';
-            fighter.style.display = 'none';
-            return;
-          }
           const rect = fighter.getBoundingClientRect();
           const payload = {
             side,
@@ -3347,18 +3351,19 @@ function startExitAnimation(
         ? { left: [-1, 1], right: [1, -1] }
         : { left: [1, -1], right: [-1, 1] };
     const exitVerticalDistance = fighterExitVerticalDistance * exitVariation.exitVerticalScale;
-    addFighterExit(
-      leftFighterExit,
-      'left',
-      exitDirections.left[0] * fighterExitDistance,
-      exitDirections.left[1] * exitVerticalDistance,
-    );
-    addFighterExit(
-      rightFighterExit,
-      'right',
-      exitDirections.right[0] * fighterExitDistance,
-      exitDirections.right[1] * exitVerticalDistance,
-    );
+    addFighterExit(leftFighterExit, 'left', exitDirections.left[0] * fighterExitDistance, exitDirections.left[1] * exitVerticalDistance);
+    addFighterExit(rightFighterExit, 'right', exitDirections.right[0] * fighterExitDistance, exitDirections.right[1] * exitVerticalDistance);
+  }
+
+  if (isRejectedPostKingRoboExitEnabled() && transitionTheme === 'area55' && forestContainer) {
+    // Beam 4 still finishes during the parallax lead after the 500ms retime.
+    // Hand beam ownership to the exit only after that authored shot completes.
+    exitTimeline.call(() => {
+      ['robo-beam-right', 'robo-beam-hit', 'robo-beam-after', 'robo-beam-final'].forEach((layerKey) => {
+        const effect = forestContainer.querySelector(`[data-scene-layer="${layerKey}"]`) as HTMLElement | null;
+        if (effect) effect.style.opacity = '0';
+      });
+    }, undefined, sceneParallaxLead);
   }
 
   // Replay same two digit haptics on exit (numbers disappearing), aligned with delayed digit exit.
@@ -3369,10 +3374,17 @@ function startExitAnimation(
         i === 0
           ? sceneParallaxLead + TRANSITION_EXIT_HAPTIC_FIRST_DELAY
           : sceneParallaxLead + TRANSITION_EXIT_HAPTIC_FIRST_DELAY + TRANSITION_EXIT_HAPTIC_SECOND_GAP;
-      const hapticCall = trackDelayedCall(exitDelay, () => {
+      const triggerExitHaptic = () => {
         try { (window as any).triggerHapticImpact?.('light'); } catch {}
-      });
-      activeTweens.push(hapticCall as any);
+      };
+      if (isRejectedPostKingRoboExitEnabled() && transitionTheme === 'area55') {
+        // Area55's complete exit timeline is compressed as one unit below, so
+        // keep its haptics on that same clock instead of an external delay.
+        exitTimeline.call(triggerExitHaptic, undefined, exitDelay);
+      } else {
+        const hapticCall = trackDelayedCall(exitDelay, triggerExitHaptic);
+        activeTweens.push(hapticCall as any);
+      }
     }
   }
 
@@ -3624,6 +3636,122 @@ function startExitAnimation(
   }
   sceneFadeStart = Math.max(sceneFadeStart, latestCloudExitEnd + 0.02);
 
+  if (isRejectedPostKingRoboExitEnabled() && leftFighterExit && rightFighterExit) {
+    const fighterFinaleDuration = resolveRoboFighterFinaleDuration(
+      sceneFadeStart - sceneParallaxLead,
+    );
+    const fighterFinaleEnd = sceneParallaxLead + fighterFinaleDuration;
+    type FinalePose = {
+      target: HTMLElement;
+      points: RoboFighterFinalePoint[];
+      startRotation: number;
+      sample: { x: number; y: number; rotation: number; scale: number };
+    };
+    const finaleClock = { progress: 0 };
+    const finaleDirections = createRoboFighterFinaleExitDirections();
+    let finalePoses: FinalePose[] = [];
+    let crossDepthSwapped = false;
+    const leftDepthLayer = leftFighterExit.closest('.cc-robo-fighter-depth') as HTMLElement | null;
+    const rightDepthLayer = rightFighterExit.closest('.cc-robo-fighter-depth') as HTMLElement | null;
+    const createFinalePose = (
+      target: HTMLElement,
+      targetRect: DOMRect,
+      sharedCrossingVisualCenterY: number,
+      exitDirection: -1 | 1,
+      verticalPolarity: -1 | 1,
+    ): FinalePose => {
+      const startX = Number(gsap.getProperty(target, 'x')) || 0;
+      const startY = Number(gsap.getProperty(target, 'y')) || 0;
+      const startScale = Number(gsap.getProperty(target, 'scale')) || 1;
+      const startRotation = Number(gsap.getProperty(target, 'rotation')) || 0;
+      const viewportWidth = Math.max(1, window.innerWidth || overlay.clientWidth || 390);
+      const renderedWidth = Math.max(1, targetRect.width || target.offsetWidth * startScale);
+      const renderedHeight = Math.max(1, targetRect.height || target.offsetHeight * startScale);
+      const currentVisualCenterX = targetRect.left + targetRect.width * 0.5 - viewportWidth * 0.5;
+      const currentVisualCenterY = targetRect.top + targetRect.height * 0.5;
+      const maximumVisibleCenterX = Math.max(24, viewportWidth * 0.5 - renderedWidth * 0.5 - 18);
+      const safeCrossingRadius = Math.min(viewportWidth * 0.32, maximumVisibleCenterX);
+      const xForVisualCenter = (visualCenterX: number): number => (
+        startX + visualCenterX - currentVisualCenterX
+      );
+      const yForVisualCenter = (visualCenterY: number): number => (
+        startY + visualCenterY - currentVisualCenterY
+      );
+      const offscreenVisualCenterX = resolveRoboFighterOffscreenVisualCenterX(
+        exitDirection,
+        viewportWidth,
+        renderedWidth,
+        renderedHeight,
+      );
+      const exitYOffset = gsap.utils.random(-26, 26);
+      return {
+        target,
+        startRotation,
+        sample: { x: startX, y: startY, rotation: startRotation, scale: startScale },
+        points: [
+          { progress: 0, x: startX, y: startY, scale: startScale },
+          { progress: 0.38, x: xForVisualCenter(exitDirection * safeCrossingRadius), y: yForVisualCenter(sharedCrossingVisualCenterY - verticalPolarity * 34), scale: startScale * 1.01 },
+          { progress: 0.68, x: xForVisualCenter(exitDirection * (safeCrossingRadius + (Math.abs(offscreenVisualCenterX) - safeCrossingRadius) * 0.56)), y: yForVisualCenter(sharedCrossingVisualCenterY + exitYOffset * 0.45), scale: startScale * 0.98 },
+          { progress: 1, x: xForVisualCenter(offscreenVisualCenterX), y: yForVisualCenter(sharedCrossingVisualCenterY + exitYOffset), scale: startScale * 0.94 },
+        ],
+      };
+    };
+    exitTimeline.to(finaleClock, {
+      progress: 1,
+      duration: fighterFinaleDuration,
+      ease: 'none',
+      onStart: () => {
+        // Capture first, then release the old runtime. The first finale sample
+        // is therefore pixel-identical to the live fighter pose: no handoff snap.
+        const leftRect = leftFighterExit.getBoundingClientRect();
+        const rightRect = rightFighterExit.getBoundingClientRect();
+        const sharedCrossingVisualCenterY = (
+          leftRect.top + leftRect.height * 0.5
+          + rightRect.top + rightRect.height * 0.5
+        ) * 0.5;
+        finalePoses = [
+          createFinalePose(leftFighterExit, leftRect, sharedCrossingVisualCenterY, finaleDirections.left, -1),
+          createFinalePose(rightFighterExit, rightRect, sharedCrossingVisualCenterY, finaleDirections.right, 1),
+        ];
+        // Beam 4 has completed at this established handoff boundary. Stop the
+        // complete old combat owner so no late beam/depth callback can contend
+        // with the finale's transform and crossover-depth ownership.
+        stopRoboAirCombatMotion();
+        if (areContinuousRuntimeDiagnosticsEnabled()) {
+          console.info('[CC_ROBO_FINALE]', {
+            directions: finaleDirections,
+            start: sceneParallaxLead,
+            end: fighterFinaleEnd,
+          });
+        }
+      },
+      onUpdate: () => {
+        if (finalePoses.length !== 2) return;
+        if (!crossDepthSwapped && finaleClock.progress >= 0.38) {
+          crossDepthSwapped = true;
+          if (leftDepthLayer && rightDepthLayer) {
+            const leftZ = leftDepthLayer.style.zIndex;
+            leftDepthLayer.style.zIndex = rightDepthLayer.style.zIndex;
+            rightDepthLayer.style.zIndex = leftZ;
+          }
+        }
+        finalePoses.forEach((pose) => {
+          const sample = sampleRoboFighterFinalePath(
+            pose.points,
+            finaleClock.progress,
+            pose.startRotation,
+            pose.sample,
+          );
+          gsap.set(pose.target, sample);
+        });
+      },
+    }, sceneParallaxLead);
+    // Never hide the fighters at the endpoint: their own motion carries their
+    // complete rotated bounds beyond opposite edges. Overlay teardown remains
+    // the sole removal owner after that off-screen pose has painted.
+    exitTimeline.call(stopRoboAirCombatMotion, undefined, fighterFinaleEnd);
+  }
+
   // Finish the authored scene exit without exposing the unprepared Pixi
   // surface. Gameplay releases this opaque cover after two prepared frames.
   exitTimeline.to(overlay, {
@@ -3631,6 +3759,12 @@ function startExitAnimation(
     duration: 0.001,
     ease: 'none'
   }, sceneFadeStart);
+
+  if (isRejectedPostKingRoboExitEnabled() && transitionTheme === 'area55') {
+    const completeArea55ExitDurationSeconds = exitTimeline.duration();
+    exitTimeline.timeScale(resolveRoboArea55ExitTimeScale(completeArea55ExitDurationSeconds));
+    exitTimeline.play(0);
+  }
 }
 
 /**

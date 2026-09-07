@@ -13,8 +13,11 @@ import {
 } from '../board-transition-beach-variation';
 import {
   createRoboAirCombatVariation,
+  createRoboFighterFinaleExitDirections,
   createRoboTransitionVariation,
+  resolveRoboFighterOffscreenVisualCenterX,
   sampleRoboAirCombatSway,
+  sampleRoboFighterFinalePath,
 } from '../board-transition-robo-variation';
 import { RUN_MODE_ARCADE_HOME, RUN_MODE_JOURNEY } from '../run-mode';
 import fs from 'node:fs';
@@ -33,9 +36,7 @@ describe('Board Transition World themes', () => {
     const source = fs.readFileSync(path.resolve(__dirname, '../board-transition-screen.ts'), 'utf8');
     expect(source).toContain("import { areContinuousRuntimeDiagnosticsEnabled } from '../utils/runtime-diagnostics-policy.js';");
     expect(source).toContain('if (!areContinuousRuntimeDiagnosticsEnabled()) return;');
-    expect(source).toContain('if (!areContinuousRuntimeDiagnosticsEnabled()) {');
     expect(source).toContain("console.info('[CC_ROBO_BEAM_DEPTH]', payload);");
-    expect(source).toContain("console.info('[CC_ROBO_SHIP_EXIT]', payload);");
   });
   test('randomizes the two Robo character directions as one opposite pair per transition', () => {
     expect(createRoboTransitionVariation(() => 0.1)).toEqual({
@@ -69,6 +70,57 @@ describe('Board Transition World themes', () => {
       beamFour: { launchXRatio: 0.2, rotationOffset: 16, travelMultiplier: 1.66, scaleMultiplier: 1.78, destinationXOffset: 52 },
       exitPattern: 2, exitVerticalScale: 1.12, exitDurationSeconds: 1.08,
     });
+  });
+
+  test('continues from the captured fighter pose into crossing and opposite randomized exits', () => {
+    expect(createRoboFighterFinaleExitDirections(() => 0.1)).toEqual({ left: -1, right: 1 });
+    expect(createRoboFighterFinaleExitDirections(() => 0.9)).toEqual({ left: 1, right: -1 });
+    const points = [
+      { progress: 0, x: 37, y: -18, scale: 1.2 },
+      { progress: 0.38, x: -110, y: -6, scale: 1.2 },
+      { progress: 0.68, x: -190, y: -1, scale: 1.17 },
+      { progress: 1, x: -260, y: 4, scale: 1.12 },
+    ] as const;
+    const start = sampleRoboFighterFinalePath(points, 0, 7);
+    const crossing = sampleRoboFighterFinalePath(points, 0.38, 7);
+    const outward = sampleRoboFighterFinalePath(points, 0.62, 7);
+    const exit = sampleRoboFighterFinalePath(points, 1, 7);
+
+    expect(start).toEqual({ x: 37, y: -18, rotation: 7, scale: 1.2 });
+    expect(crossing.x).toBeCloseTo(-110, 8);
+    expect(crossing.y).toBeCloseTo(-6, 8);
+    expect(outward.x).toBeLessThan(-110);
+    expect(exit.x).toBeCloseTo(-260, 8);
+    expect(exit.scale).toBeCloseTo(1.12, 8);
+
+    const movingSamples = Array.from({ length: 21 }, (_, index) => (
+      sampleRoboFighterFinalePath(points, 0.38 + index * 0.031, 7)
+    ));
+    movingSamples.slice(1).forEach((sample, index) => {
+      const previous = movingSamples[index];
+      expect(Math.hypot(sample.x - previous.x, sample.y - previous.y)).toBeGreaterThan(0.1);
+    });
+  });
+
+  test.each([-1, 1] as const)('places the complete rotated fighter beyond its %s exit edge', (direction) => {
+    const viewportWidth = 390;
+    const renderedWidth = 108;
+    const renderedHeight = 90;
+    const margin = 18;
+    const centerX = resolveRoboFighterOffscreenVisualCenterX(
+      direction,
+      viewportWidth,
+      renderedWidth,
+      renderedHeight,
+      margin,
+    );
+    const rotatedBoundsRadius = Math.hypot(renderedWidth, renderedHeight) * 0.5;
+
+    if (direction === 1) {
+      expect(centerX - rotatedBoundsRadius).toBeGreaterThanOrEqual(viewportWidth * 0.5 + margin);
+    } else {
+      expect(centerX + rotatedBoundsRadius).toBeLessThanOrEqual(-viewportWidth * 0.5 - margin);
+    }
   });
 
   test('adds bounded asymmetric action sway without moving the authored flight endpoints', () => {
@@ -511,6 +563,8 @@ describe('Board Transition World themes', () => {
     expect(source).toContain('const combatRuntimeTimeline = trackTimeline({ paused: true })');
     expect(source).toContain('combatWobbles.forEach((runtime) => {');
     expect(source).toContain('combatFlights.forEach((runtime) => {');
+    expect(source).not.toContain('updateContinuousFinaleOrbit');
+    expect(source).toContain('this runtime never owns the finale departure');
     expect(source).toContain('rightShipMotion.dataset.sceneLayer = \'robo-fighter-right\'');
     expect(source).toContain("rightShip.removeAttribute('data-scene-layer')");
     expect(source).toContain('.filter((ownedTimeline) => ownedTimeline !== timeline)');
@@ -536,8 +590,6 @@ describe('Board Transition World themes', () => {
     expect(source).toContain('scale: leftShipBaseScale * 1.50 * 0.90');
     expect(source).toContain('const fighterExitDistance = (window.innerWidth || 390) * 2');
     expect(source).toContain("console.info('[CC_ROBO_SHIP_EXIT]', payload)");
-    expect(source).toContain("fighter.style.opacity = '0'");
-    expect(source).toContain("fighter.style.visibility = 'hidden'");
     expect(source).toContain("fighter.style.display = 'none'");
     expect(source).not.toContain('time: 2.22, x: -104 + flightJitter[8].x');
     expect(source).not.toContain('time: 2.22, x: 108 + flightJitter[9].x');
@@ -566,22 +618,21 @@ describe('Board Transition World themes', () => {
     expect(source).toContain('{ time: fighterFlightDurationSeconds, x: rightShipPostBeamFourEnd.x');
     expect(source).toContain('scale: leftShipBaseScale * 1.48 / verticalDepthScaleRatio');
     expect(source).toContain('scale: rightShipBaseScale * 1.46 * verticalDepthScaleRatio');
-    expect(source).toContain('const fighterExitVerticalDistance = (window.innerHeight || 760) * 0.85 + 100');
-    expect(source).toContain('const exitDirections = exitVariation.exitPattern === 0');
-    expect(source).toContain('exitDirections.left[0] * fighterExitDistance');
-    expect(source).toContain('exitDirections.right[0] * fighterExitDistance');
-    expect(source).toContain('exitTimeline?.add(fighterExitTimeline, sceneParallaxLead)');
-    expect(source).toContain('const wobbleStrength = gsap.utils.random(1.8, 2.8)');
-    expect(source).toContain('const circleRadius = gsap.utils.random(16, 26)');
-    expect(source).toContain('exitTimeline.call(stopRoboAirCombatMotion, undefined, sceneParallaxLead)');
-    expect(source).toContain('const acceleratedProgress = 0.12 * progress + 0.88 * progress * progress');
-    expect(source).toContain('const fighterExitDuration = exitVariation.exitDurationSeconds');
-    expect(source).toContain('const arcProgress = Math.sin(Math.PI * progress)');
+    expect(source).toContain('duration: fighterFinaleDuration');
+    expect(source).toContain('{ progress: 0.38, x: xForVisualCenter(exitDirection * safeCrossingRadius)');
+    expect(source).toContain('finaleClock.progress >= 0.38');
+    expect(source).toContain('resolveRoboFighterFinaleDuration(');
+    expect(source).toContain("fighter.style.visibility = 'hidden'");
+    expect(source).toContain("fighter.style.opacity = '0'");
+    expect(source).toContain('resolveRoboFighterOffscreenVisualCenterX(');
+    expect(source).toContain('exitTimeline.call(stopRoboAirCombatMotion, undefined, fighterFinaleEnd)');
+    expect(source).toContain('createRoboFighterFinaleExitDirections()');
+    expect(source).not.toContain('stopRoboAirCombatFighterRuntime');
+    expect(source).toContain('with the finale\'s transform and crossover-depth ownership');
+    expect(source).toContain('sampleRoboFighterFinalePath(');
+    expect(source).toContain('exitTimeline.play(0)');
+    expect(source).not.toContain('sampleRoboFighterFinaleOrbit');
     expect(source).toContain("console.info('[CC_ROBO_VARIATION]', combatVariation)");
-    expect(source).toContain('const wobbleEnvelope = 0.65 + Math.sin(Math.PI * progress) * 0.35');
-    expect(source).toContain('Math.sin(wobblePhaseNow) - Math.sin(wobblePhase)');
-    expect(source).toContain('progress * Math.PI * 2 + wobblePhase');
-    expect(source).toContain('progress * Math.PI * 10 + wobblePhase');
     expect(source).toContain('stopRoboAirCombatMotion();');
     expect(source).toContain('const roboGroundBounceCompleteSeconds = 0.62');
     expect(source).toContain('const roboFrontLeadSeconds = 0.30');

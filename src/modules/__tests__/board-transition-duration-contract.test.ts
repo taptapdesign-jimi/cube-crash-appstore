@@ -18,6 +18,7 @@ describe('Board Transition duration contract', () => {
     const source = read('src/modules/board-transition-screen.ts');
     expect(source).toContain('export const BOARD_TRANSITION_HOLD_DURATION_SECONDS = 0.4');
     expect(source).toContain('export const ROBO_AREA55_NUMBER_ENTER_START_SECONDS = 1.30');
+    expect(source).toContain('resolveRoboArea55ExitTimeScale(completeArea55ExitDurationSeconds)');
     expect(source).toContain('export const BOARD_TRANSITION_EXIT_PARALLAX_LEAD_SECONDS = 0.35');
     expect(source).toContain('export const BOARD_TRANSITION_HILL_EXIT_LAG_SECONDS = 0.2');
     expect(source).toContain('const BOARD_TRANSITION_REGULAR_SCENE_EXIT_SECONDS = 0.28');

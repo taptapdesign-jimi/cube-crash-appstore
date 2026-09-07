@@ -1,10 +1,106 @@
 export type RoboTravelDirection = -1 | 1;
 export type RoboAirCombatSwaySample = { x: number; y: number; bank: number };
+export type RoboFighterFinalePoint = Readonly<{
+  progress: number;
+  x: number;
+  y: number;
+  scale: number;
+}>;
+export type RoboFighterFinaleSample = {
+  x: number;
+  y: number;
+  rotation: number;
+  scale: number;
+};
 
 export type RoboTransitionVariation = Readonly<{
   frontTravelDirection: RoboTravelDirection;
   walkerTravelDirection: RoboTravelDirection;
 }>;
+
+export function createRoboFighterFinaleExitDirections(
+  random: () => number = Math.random,
+): Readonly<{ left: RoboTravelDirection; right: RoboTravelDirection }> {
+  const left: RoboTravelDirection = Number(random()) < 0.5 ? -1 : 1;
+  return Object.freeze({ left, right: (left * -1) as RoboTravelDirection });
+}
+
+export function resolveRoboFighterOffscreenVisualCenterX(
+  exitDirection: RoboTravelDirection,
+  viewportWidth: number,
+  renderedWidth: number,
+  renderedHeight: number,
+  edgeMargin = 18,
+): number {
+  // Half the sprite diagonal safely contains its rotated axis-aligned bounds,
+  // so the finale can remain visible and rely on geometry instead of hiding.
+  const rotatedBoundsRadius = Math.hypot(
+    Math.max(0, renderedWidth),
+    Math.max(0, renderedHeight),
+  ) * 0.5;
+  return exitDirection * (
+    Math.max(1, viewportWidth) * 0.5
+    + rotatedBoundsRadius
+    + Math.max(0, edgeMargin)
+  );
+}
+
+export function sampleRoboFighterFinalePath(
+  points: readonly RoboFighterFinalePoint[],
+  progress: number,
+  startRotation: number,
+  out: RoboFighterFinaleSample = { x: 0, y: 0, rotation: 0, scale: 1 },
+): RoboFighterFinaleSample {
+  if (points.length < 2) throw new Error('Robo fighter finale requires at least two points');
+  const boundedProgress = Math.max(0, Math.min(1, Number.isFinite(progress) ? progress : 0));
+  const sampleValue = (sampleProgress: number, key: 'x' | 'y' | 'scale'): number => {
+    const boundedSample = Number.isFinite(sampleProgress)
+      ? Math.max(0, Math.min(1, sampleProgress))
+      : boundedProgress;
+    let segmentIndex = 0;
+    while (
+      segmentIndex < points.length - 2
+      && boundedSample >= points[segmentIndex + 1].progress
+    ) segmentIndex += 1;
+    const current = points[segmentIndex];
+    const next = points[Math.min(points.length - 1, segmentIndex + 1)];
+    const previous = points[Math.max(0, segmentIndex - 1)];
+    const after = points[Math.min(points.length - 1, segmentIndex + 2)];
+    const segmentDuration = Math.max(0.001, next.progress - current.progress);
+    const local = Math.max(0, Math.min(1, (boundedSample - current.progress) / segmentDuration));
+    const local2 = local * local;
+    const local3 = local2 * local;
+    const currentSpan = Math.max(0.001, next.progress - previous.progress);
+    const nextSpan = Math.max(0.001, after.progress - current.progress);
+    const currentTangent = ((next[key] - previous[key]) / currentSpan) * segmentDuration;
+    const nextTangent = ((after[key] - current[key]) / nextSpan) * segmentDuration;
+    return (2 * local3 - 3 * local2 + 1) * current[key]
+      + (local3 - 2 * local2 + local) * currentTangent
+      + (-2 * local3 + 3 * local2) * next[key]
+      + (local3 - local2) * nextTangent;
+  };
+  if (boundedProgress === 0) {
+    const first = points[0];
+    out.x = first.x;
+    out.y = first.y;
+    out.scale = first.scale;
+    out.rotation = startRotation;
+    return out;
+  }
+  out.x = sampleValue(boundedProgress, 'x');
+  out.y = sampleValue(boundedProgress, 'y');
+  out.scale = sampleValue(boundedProgress, 'scale');
+  const derivativeWindow = 0.003;
+  const before = Math.max(0, boundedProgress - derivativeWindow);
+  const after = Math.min(1, boundedProgress + derivativeWindow);
+  const dx = sampleValue(after, 'x') - sampleValue(before, 'x');
+  const dy = sampleValue(after, 'y') - sampleValue(before, 'y');
+  const pathBank = Math.max(-14, Math.min(14, Math.atan2(dy, Math.max(0.001, Math.abs(dx))) * 180 / Math.PI));
+  const rotationBlend = Math.min(1, boundedProgress / 0.12);
+  const smoothRotationBlend = rotationBlend * rotationBlend * (3 - 2 * rotationBlend);
+  out.rotation = startRotation + (pathBank - startRotation) * smoothRotationBlend;
+  return out;
+}
 
 export type RoboAirCombatVariation = Readonly<{
   routeProfile: 'high-wide' | 'low-tight' | 'reverse-sweep';
