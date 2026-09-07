@@ -62,7 +62,10 @@ describe('first-play tutorial entry routing', () => {
       mainSource.indexOf('(window as any).__ccPlayHomepageSliderEnterHandoff'),
     );
     expect(homepageEnter).toContain('sliderManager.syncHiddenSlideState(targetSlideIndex);');
-    expect(homepageEnter).toContain('await primeHomepageForEnterLikeStartup(reason, targetSlideIndex);');
+    expect(homepageEnter).toContain(
+      'await primeHomepageForEnterLikeStartup(reason, targetSlideIndex, ownsHomepagePresentation);',
+    );
+    expect(homepageEnter).toContain("appZoneManager.isPresentationCurrent(presentationEpoch, 'home')");
     expect(homepageEnter).toContain('prepareSliderEnter();');
     expect(homepageEnter).toContain('options.onEnterPrepared?.();');
     expect(homepageEnter).toContain('await animateSliderEnter();');

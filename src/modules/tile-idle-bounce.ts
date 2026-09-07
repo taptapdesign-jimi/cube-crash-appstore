@@ -52,8 +52,41 @@ function isWildTile(tile: Tile | null | undefined): boolean {
   return special === 'wild' || special.startsWith('wild-');
 }
 
+function hasCompetingOuterTransformOwner(tile: Tile | null | undefined): boolean {
+  if (!tile) return true;
+  const candidate = tile as any;
+  return (
+    candidate._mergeImpactTl != null ||
+    candidate._ccPickupScaleTimeline != null ||
+    candidate._ccSnapBackTimeline != null ||
+    candidate._isBeingSpawned === true ||
+    candidate._ccWildSpawnDropping === true ||
+    candidate._pendingRemoval === true ||
+    candidate._beingRemoved === true ||
+    candidate._cleanupQueued === true ||
+    candidate._skipIdleScaleReset === true
+  );
+}
+
+function restoreCanonicalIdlePose(tile: Tile | null | undefined): void {
+  if (!tile || tile.destroyed || (tile as any)._skipIdleScaleReset === true) return;
+  try {
+    tile.scale?.set?.(1, 1);
+    tile.rotation = 0;
+    (tile as any)._ccDragBaseScaleX = 1;
+    (tile as any)._ccDragBaseScaleY = 1;
+  } catch {}
+}
+
 export function startTileIdleBounce(tiles: Tile[], board: any): void {
   if (!ENABLE_TILE_IDLE_BOUNCE) return;
+
+  // `start` is a lifecycle boundary, not an additive subscription. Layout and
+  // recovery paths may legitimately call it more than once for the same board.
+  // Dispose the previous timer/timelines before replacing their tracking Set;
+  // otherwise old idle timelines become orphaned and several asymmetric scale
+  // poses can multiply into a permanently squashed regular tile.
+  stopTileIdleBounce();
   
   state.tiles = tiles.filter(t => (
     t && t.value > 0 && !t.locked && !t.destroyed && !usesRigidSpecialDiceIdle(t)
@@ -166,6 +199,8 @@ function animateRandomTile(): void {
     && !t.destroyed
     && !usesRigidSpecialDiceIdle(t)
     && !state.activeAnimations.has(t)
+    && !(t as any)._idleBounceTl
+    && !hasCompetingOuterTransformOwner(t)
   );
   
   if (availableTiles.length === 0) {
@@ -184,13 +219,23 @@ function animateRandomTile(): void {
 }
 
 function animateTile(tile: Tile): void {
-  if (!tile || tile.destroyed || usesRigidSpecialDiceIdle(tile)) return;
+  if (
+    !tile ||
+    tile.destroyed ||
+    usesRigidSpecialDiceIdle(tile) ||
+    (tile as any)._idleBounceTl ||
+    hasCompetingOuterTransformOwner(tile)
+  ) return;
+
+  // The outer board-tile contract is always 1x1/0deg. Never capture a live or
+  // interrupted squash frame as the next idle cycle's baseline.
+  restoreCanonicalIdlePose(tile);
   
   state.activeAnimations.add(tile);
   
   // Animate the complete tile from its center so every stack layer follows.
-  const baseTileScaleX = tile.scale?.x || 1;
-  const baseTileScaleY = tile.scale?.y || 1;
+  const baseTileScaleX = 1;
+  const baseTileScaleY = 1;
   const variant = createGameplayTileCartoonVariant('idle');
 
   // Keep tilt secondary to the shared stretch/squash pose.
@@ -199,16 +244,12 @@ function animateTile(tile: Tile): void {
   const tiltRadians = (tiltDegrees * tiltDirection) * (Math.PI / 180);
   
   // Store original rotation
-  const originalRotation = tile.rotation || 0;
+  const originalRotation = 0;
   const restoreIdlePose = () => {
     state.activeAnimations.delete(tile);
     if ((tile as any)._idleBounceTl !== tl) return;
     (tile as any)._idleBounceTl = null;
-    if (!tile.destroyed && tile.scale) {
-      tile.scale.x = baseTileScaleX;
-      tile.scale.y = baseTileScaleY;
-      tile.rotation = originalRotation;
-    }
+    restoreCanonicalIdlePose(tile);
   };
   
   // 🔥 CRITICAL: Store timeline reference on tile for cleanup
@@ -305,14 +346,14 @@ function stopTileAnimation(tile: Tile): void {
   
   if (tile) {
     // Reset scale/rotation unless tile is being manipulated by another system (e.g., wild-magnet pull)
-    if (!((tile as any)._skipIdleScaleReset)) {
-      if (tile.scale) {
-        tile.scale.x = 1;
-        tile.scale.y = 1;
-      }
-      tile.rotation = 0;
-    }
+    restoreCanonicalIdlePose(tile);
   }
+}
+
+export function stopTileIdleBounceForTile(tile: Tile): void {
+  if (!tile) return;
+  state.activeAnimations.delete(tile);
+  stopTileAnimation(tile);
 }
 
 export function updateTileList(tiles: Tile[]): void {
@@ -342,5 +383,6 @@ export const TILE_IDLE_BOUNCE = {
   stop: stopTileIdleBounce,
   reset: resetTileIdleBounce, // 🔥 CRITICAL FIX: Export reset function
   notifyInteraction: notifyBoardInteraction,
+  stopForTile: stopTileIdleBounceForTile,
   updateTileList
 };

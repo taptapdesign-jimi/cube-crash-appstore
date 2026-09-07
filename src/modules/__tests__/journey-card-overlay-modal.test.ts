@@ -223,7 +223,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain('clearLegendaryDragShine(true);');
   });
 
-  test('runs the front Legendary idle tilt and holo from one bounded WAAPI owner pair', () => {
+  test('keeps Legendary rotation user-owned while retaining its bounded idle holo', () => {
     const modal = read('src/modules/journey-card-overlay-modal.ts');
     const css = read('src/collectibles-screen.css');
 
@@ -235,7 +235,8 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain('JOURNEY_CARD_LEGENDARY_IDLE_TILT_DEG');
     expect(modal).toContain('const idleOpacity = Math.max(0.13, shine.opacity * 0.68);');
     expect(modal).toContain('idleOpacity * (1 + leftLightCatch * 0.12)');
-    expect(modal).toContain('legendaryIdleRotorAnimation = rotor.animate(');
+    expect(modal).not.toContain('legendaryIdleRotorAnimation = rotor.animate(');
+    expect(modal).toContain('the card rotor\n    // stays neutral until a real tap or pointer drag explicitly owns the flip');
     expect(modal).toContain('legendaryIdleShineAnimation = legendaryShine.animate(shineKeyframes');
     expect(modal).toContain('iterations: Infinity');
     expect(modal).toContain('cardRarity !== \'legendary\'');

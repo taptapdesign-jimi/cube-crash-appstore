@@ -4,6 +4,7 @@ import {
   isSpecialDiceJuiceLikeTile,
 } from './special-dice-registry.ts';
 import { startSpecialDiceIdleMotion } from './special-dice-idle.ts';
+import { isPlainWildStarBouncyTile } from './wild-star-bouncy-artwork.ts';
 import { isWildLikeSpecial } from './final-merge-rules.ts';
 import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
 import {
@@ -186,7 +187,10 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
   
     try {
       if ((tile as any)._ccDeferWildIdleFx === true) return;
-      startWildShimmer(tile); // Use shimmer instead of bounce
+      // The authored Star SVG owns its own masked gloss. Keep the legacy Pixi
+      // shimmer for every other special, but do not run a hidden duplicate on
+      // the exact generic Wild Star.
+      if (!isPlainWildStarBouncyTile(tile)) startWildShimmer(tile);
       // Orbitirajuće zvjezdice SAMO za wild zvjezdicu (special === 'wild'); nikad za drugi wild
       if (isSpecialDiceJuiceLikeTile(tile)) {
         // A visual variant may intentionally keep Juice idle animation while

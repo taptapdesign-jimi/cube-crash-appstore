@@ -18,6 +18,7 @@ import {
   hideHomepageNavigation,
   primeHomepageNavigation,
 } from './navigation-control.js';
+import { homepageEnterTransitionOwner } from './homepage-enter-transition-owner.js';
 
 export type AppZone =
   | 'loader'
@@ -104,12 +105,13 @@ function normalizeBoardId(boardId: unknown): number | null {
   const value = Number(boardId);
   if (!Number.isFinite(value)) return null;
   const normalized = Math.floor(value);
-  return normalized >= 1 && normalized <= 25 ? normalized : null;
+  return normalized >= 1 && normalized <= 30 ? normalized : null;
 }
 
 class AppZoneManager {
   private currentZone: AppZone = 'loader';
   private lastMenuTarget: MenuReturnTarget = 'home';
+  private presentationEpoch = 0;
 
   getCurrentZone(): AppZone {
     return this.currentZone;
@@ -119,10 +121,21 @@ class AppZoneManager {
     return this.lastMenuTarget;
   }
 
+  getPresentationEpoch(): number {
+    return this.presentationEpoch;
+  }
+
+  isPresentationCurrent(epoch: number, expectedZone?: AppZone): boolean {
+    return this.presentationEpoch === epoch
+      && (expectedZone === undefined || this.currentZone === expectedZone);
+  }
+
   setZone(zone: AppZone, reason = 'manual', options: SetZoneOptions = {}): void {
+    this.presentationEpoch += 1;
     this.currentZone = zone;
     try { (window as any).__ccAppZone = zone; } catch {}
     if (zone !== 'home' && options.preserveHomepageNavigation !== true) {
+      homepageEnterTransitionOwner.cancel(`app-zone:${zone}:${reason}`);
       hideHomepageNavigation(`app-zone:set-zone:${zone}:${reason}`);
     }
     logger.debug(`🧭 App zone set to ${zone}`, 'app-zone-manager', { reason });
@@ -319,12 +332,15 @@ class AppZoneManager {
 
   async showHomepageShell(reason = 'show-home', targetSlideIndex: 0 | 1 = 0): Promise<void> {
     this.markHomeMenu(reason);
+    const epoch = this.presentationEpoch;
     try {
       await this.cleanupTransientVisuals(reason);
+      if (!this.isPresentationCurrent(epoch, 'home')) return;
       try {
         const { assetPreloader } = await import('./asset-preloader.js');
         await assetPreloader.preloadHTMLImages?.();
       } catch {}
+      if (!this.isPresentationCurrent(epoch, 'home')) return;
       const home = document.getElementById('home') as HTMLElement | null;
       const sliderContainer = document.getElementById('slider-container') as HTMLElement | null;
       const sliderWrapper = document.getElementById('slider-wrapper') as HTMLElement | null;
@@ -339,9 +355,11 @@ class AppZoneManager {
       if (sliderWrapper) sliderWrapper.style.pointerEvents = 'auto';
       const uiManagerModule = await import('./ui-manager.js');
       const sliderManagerModule = await import('./slider-manager.js');
+      if (!this.isPresentationCurrent(epoch, 'home')) return;
       uiManagerModule.default?.showHomepageQuietly?.();
       sliderManagerModule.default?.forceReady?.();
       sliderManagerModule.default?.setSlideInstant?.(targetSlideIndex);
+      if (!this.isPresentationCurrent(epoch, 'home')) return;
       commitHomepageNavigation(`app-zone:${reason}:shell-ready`);
     } catch (error) {
       logger.warn('⚠️ app-zone-manager: showHomepageShell failed', 'app-zone-manager', { reason, error });
@@ -350,15 +368,22 @@ class AppZoneManager {
 
   async showJourneyShell(reason = 'show-journey'): Promise<void> {
     this.markJourneyMenu(reason);
+    const epoch = this.presentationEpoch;
+    const home = document.getElementById('home') as HTMLElement | null;
+    const sliderContainer = document.getElementById('slider-container') as HTMLElement | null;
+    // Retire the complete Homepage family synchronously at ownership transfer.
+    // The Journey root is transparent, so even a single stale frame is visible.
+    setVisible(home, false);
+    setVisible(sliderContainer, false);
     try {
       hideHomepageNavigation(`app-zone:${reason}`);
       await this.cleanupTransientVisuals(reason);
-      const home = document.getElementById('home') as HTMLElement | null;
-      const sliderContainer = document.getElementById('slider-container') as HTMLElement | null;
+      if (!this.isPresentationCurrent(epoch, 'journey')) return;
       setVisible(home, false);
       setVisible(sliderContainer, false);
 
       const uiManagerModule = await import('./ui-manager.js');
+      if (!this.isPresentationCurrent(epoch, 'journey')) return;
       uiManagerModule.default?.hideHomepage?.();
     } catch (error) {
       logger.warn('⚠️ app-zone-manager: showJourneyShell failed', 'app-zone-manager', { reason, error });

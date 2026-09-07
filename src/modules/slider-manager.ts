@@ -1294,6 +1294,12 @@ class SliderManager {
    * Use this when showing homepage at specific slide to avoid visual glitches
    */
   setSlideInstant(slideIndex: number): void {
+    const activeZone = (window as any).__ccAppZone;
+    if (activeZone && activeZone !== 'home') {
+      this.syncHiddenSlideState(slideIndex);
+      logger.debug('setSlideInstant: off-Home request reduced to hidden state sync', undefined, { activeZone });
+      return;
+    }
     slideIndex = this.resolveHiddenSlideTarget(slideIndex);
     if (slideIndex < 0 || slideIndex >= this.totalSlides) {
       logger.warn(`⚠️ Invalid slide index: ${slideIndex}`);
@@ -1400,6 +1406,11 @@ class SliderManager {
    * Reinitializes if needed, unlocks slider, ensures pointer events work
    */
   ensureReady(): void {
+    const activeZone = (window as any).__ccAppZone;
+    if (activeZone && activeZone !== 'home') {
+      logger.debug('ensureReady: ignored outside the Home app-zone', undefined, { activeZone });
+      return;
+    }
     logger.info('🔧 ensureReady: Ensuring slider is ready for interaction');
     
     // 🔥 V140 FIX: Reset animation flags to allow animateSliderEnter() to run
@@ -1468,6 +1479,11 @@ class SliderManager {
    * Resets pointer-events and visibility on all critical elements
    */
   private ensureInteractive(): void {
+    const activeZone = (window as any).__ccAppZone;
+    if (activeZone && activeZone !== 'home') {
+      logger.debug('ensureInteractive: refused to paint slider outside Home', undefined, { activeZone });
+      return;
+    }
     // 🔥 DEBUG: Always use fresh DOM references
     const container = document.getElementById('slider-container');
     const wrapper = document.getElementById('slider-wrapper');
@@ -1513,6 +1529,11 @@ class SliderManager {
    * the slider is interactive.
    */
   forceReady(): void {
+    const activeZone = (window as any).__ccAppZone;
+    if (activeZone && activeZone !== 'home') {
+      logger.debug('forceReady: ignored outside the Home app-zone', undefined, { activeZone });
+      return;
+    }
     logger.debug('FORCE READY: Nuclear slider reset initiated');
     
     // 0. FIRST: Reset LOCAL animation flags in animations.ts SYNCHRONOUSLY

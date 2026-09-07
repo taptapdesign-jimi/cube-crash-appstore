@@ -76,6 +76,11 @@ interface ShowCleanBoardModalParams {
   arcadeRunReached?: boolean;
 }
 
+export interface CleanBoardModalResult {
+  action: string;
+  visualExitAlreadyComplete?: boolean;
+}
+
 // 🔥 REFACTORED: Koristimo pickRandom iz clean-board-utils.ts umjesto lokalne verzije
 
 // 🔥 MEMORY LEAK FIX: Track all timeouts for cleanup
@@ -246,7 +251,7 @@ export async function showCleanBoardModal({
   devMode = false, // 🧪 DEV: Enable dev mode for testing board transition screen
   isFromInterimBoardOverride,
   arcadeRunReached = false
-}: ShowCleanBoardModalParams = {}): Promise<{ action: string }> {
+}: ShowCleanBoardModalParams = {}): Promise<CleanBoardModalResult> {
   return new Promise((resolve) => {
     _modalCleanupInProgress = false;
     attachNavigationCleanup();
@@ -257,7 +262,10 @@ export async function showCleanBoardModal({
     const navigationAbortPromise = new Promise<void>((resolveAbort) => {
       resolveNavigationAbort = resolveAbort;
     });
-    const safeResolve = (action: string = 'continue') => {
+    const safeResolve = (
+      action: string = 'continue',
+      result: Omit<CleanBoardModalResult, 'action'> = {},
+    ) => {
       if (settled) return;
       settled = true;
       delete (window as any).__ccTerminalExitInProgress;
@@ -265,7 +273,7 @@ export async function showCleanBoardModal({
         try { window.removeEventListener('cc-navigation', navigationAbortHandler); } catch {}
         navigationAbortHandler = null;
       }
-      try { resolve({ action }); } catch {}
+      try { resolve({ action, ...result }); } catch {}
     };
     navigationAbortHandler = () => {
       // Navigation owns the destination now. Resolve the modal promise as an
@@ -1663,14 +1671,18 @@ export async function showCleanBoardModal({
         // 🔥 CRITICAL: DO NOT kill GSAP tweens or hide board yet - let exit animation play first
         // Start board exit animation (don't await yet - let it run in parallel with modal exit)
         let boardExitPromise: Promise<void> = Promise.resolve();
+        let boardExitSucceeded = false;
         if (arcadeRunReached && (window as any).__ccGameOverBoardExitComplete === true) {
+          boardExitSucceeded = true;
           console.log('⏭️ clean-board-modal: Arcade summary board exit already completed - skipping duplicate exit');
         } else {
           try {
             const { STATE } = await import('./app-state.js');
             if (STATE && typeof (window as any).animateBoardExit === 'function') {
               console.log('🎬 clean-board-modal: Calling animateBoardExit() to play board exit animation...');
-              boardExitPromise = (window as any).animateBoardExit();
+              boardExitPromise = Promise.resolve((window as any).animateBoardExit()).then(() => {
+                boardExitSucceeded = true;
+              });
             } else {
               console.warn('⚠️ clean-board-modal: animateBoardExit not available, skipping board exit animation');
             }
@@ -1837,11 +1849,17 @@ export async function showCleanBoardModal({
         // Retire the overlay only after both independent owners have completed.
         // Round 02+ summaries arrive with an already-resolved board exit; that
         // must never truncate the Clean Board paper/card exit again.
-        const exitsCompleted = await Promise.race([
-          Promise.all([boardExitCompletePromise, modalExitPromise]).then(() => true),
-          navigationAbortPromise.then(() => false),
+        const exitCompletion = await Promise.race([
+          Promise.all([boardExitCompletePromise, modalExitPromise]).then(() => ({
+            completed: true,
+            visualExitAlreadyComplete: boardExitSucceeded,
+          })),
+          navigationAbortPromise.then(() => ({
+            completed: false,
+            visualExitAlreadyComplete: false,
+          })),
         ]);
-        if (!exitsCompleted) return;
+        if (!exitCompletion.completed) return;
         killAllGSAPTweens();
         clearAllModalTimeouts();
         clearAllModalAnimationFrames();
@@ -1857,7 +1875,9 @@ export async function showCleanBoardModal({
           overlayConnected: el.isConnected,
         });
         console.log(`✅ clean-board-modal: Resolving with action: ${exitAction} (board + complete modal exit settled)`);
-        safeResolve(exitAction);
+        safeResolve(exitAction, {
+          visualExitAlreadyComplete: exitCompletion.visualExitAlreadyComplete,
+        });
       }, 'secondary');
     }
       } catch (error) {

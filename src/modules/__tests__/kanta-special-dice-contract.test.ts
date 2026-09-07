@@ -38,6 +38,8 @@ import {
 } from '../kanta-dice-idle';
 import {
   KANTA_FINALE_CAN_COUNT,
+  KANTA_FINALE_CAN_ENTRY_DELAY_SECONDS,
+  KANTA_FINALE_CAN_ENTRY_STAGGER_SECONDS,
   KANTA_FINALE_CAN_PILE_SLOTS,
   KANTA_FINALE_CAN_SCALE,
   KANTA_FINALE_CAN_SOURCE_ASPECT_RATIO,
@@ -59,6 +61,7 @@ import {
   KANTA_FINALE_ROBOT_COUNT,
   KANTA_FINALE_ROBOT_ENTRY_DELAY_SECONDS,
   KANTA_FINALE_ROBOT_ENTRY_STAGGER_SECONDS,
+  KANTA_FINALE_ROBOT_ENTRY_WINDOW_SECONDS,
   KANTA_FINALE_ROBOT_LOWER_RATIO,
   KANTA_FINALE_ROBOT_RAISE_RATIO,
   KANTA_FINALE_ROBOT_SCALE,
@@ -145,16 +148,19 @@ describe('Kanta special die', () => {
   });
 
   test('builds four enlarged collectors and one dense Kanta heap without spaceships', () => {
-    expect(KANTA_FINALE_SCENE_SECONDS).toBeCloseTo(3.18, 10);
+    expect(KANTA_FINALE_SCENE_SECONDS).toBeCloseTo(3.18 - 1, 10);
     expect(KANTA_FINALE_ENTRY_SECONDS).toBe(0.36);
-    expect(KANTA_FINALE_EXIT_START_SECONDS).toBeCloseTo(2.56, 10);
+    expect(KANTA_FINALE_EXIT_START_SECONDS).toBeCloseTo(1.56, 10);
     expect(KANTA_FINALE_EXIT_ADVANCE_SECONDS).toBe(0.50);
     expect(KANTA_FINALE_ROBOT_COUNT).toBe(4);
     expect(KANTA_FINALE_ROBOT_SCALE).toBeCloseTo(1.89 * 2, 10);
     expect(KANTA_FINALE_ROBOT_RAISE_RATIO).toBeCloseTo(0.14 + 0.08, 10);
     expect(KANTA_FINALE_ROBOT_LOWER_RATIO).toBe(0.35);
-    expect(KANTA_FINALE_ROBOT_ENTRY_DELAY_SECONDS).toBe(0.80);
-    expect(KANTA_FINALE_ROBOT_ENTRY_STAGGER_SECONDS).toBe(0.30);
+    expect(KANTA_FINALE_ROBOT_ENTRY_DELAY_SECONDS).toBe(0);
+    expect(KANTA_FINALE_ROBOT_ENTRY_WINDOW_SECONDS).toBe(0.70);
+    expect(KANTA_FINALE_ROBOT_ENTRY_STAGGER_SECONDS).toBeCloseTo(7 / 30, 10);
+    expect(KANTA_FINALE_CAN_ENTRY_DELAY_SECONDS).toBe(0);
+    expect(KANTA_FINALE_CAN_ENTRY_STAGGER_SECONDS).toBe(0.026);
     expect(KANTA_FINALE_ROBOT_TRAVEL_SECONDS).toBe(1.48);
     expect(KANTA_FINALE_ROBOT_STEP_BOUNCE_PX).toBe(10);
     expect(KANTA_FINALE_ROBOT_Z_INDEX).toBe(11);
@@ -355,7 +361,7 @@ describe('Kanta special die', () => {
       'utf8',
     );
     expect(idleSource).toContain("import { usesRigidSpecialDiceIdle } from './special-dice-registry.js';");
-    expect(idleSource).toContain('if (!tile || tile.destroyed || usesRigidSpecialDiceIdle(tile)) return;');
+    expect(idleSource).toMatch(/function animateTile\(tile: Tile\): void \{[\s\S]*?usesRigidSpecialDiceIdle\(tile\)[\s\S]*?\) return;/);
     expect(idleSource).toContain('if (usesRigidSpecialDiceIdle(t)) return false;');
   });
 

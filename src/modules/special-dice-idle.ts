@@ -4,7 +4,6 @@ import { Assets, Container, Graphics, Sprite, type Texture } from 'pixi.js';
 import animationManager from './animation-manager.js';
 import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
 import { startHoneyBeeIdleOrbit } from './honey-bee-idle-orbit.ts';
-import { startRoboCubeIdle } from './robo-cube-idle.ts';
 import { preloadSpaceshipFinaleAssets } from './spaceship-finale-scene.ts';
 import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
 import { startBeeDiceIdle } from './bee-dice-idle.ts';
@@ -15,6 +14,30 @@ import {
   isUsablePixiImageTexture,
   pinPixiImageTexture,
 } from '../utils/pixi-image-texture-health.ts';
+import {
+  isPlainJuiceBounceTile,
+  setJuiceBounceArtworkDragging,
+  startJuiceBounceArtwork,
+  stopJuiceBounceArtwork,
+} from './juice-bounce-artwork.ts';
+import {
+  isBeachBallBouncyTile,
+  setBallBouncyArtworkDragging,
+  startBallBouncyArtwork,
+  stopBallBouncyArtwork,
+} from './ball-bouncy-artwork.ts';
+import {
+  isPlainWildStarBouncyTile,
+  setWildStarBouncyArtworkDragging,
+  startWildStarBouncyArtwork,
+  stopWildStarBouncyArtwork,
+} from './wild-star-bouncy-artwork.ts';
+import {
+  isRoboBouncyTile,
+  setRoboBouncyArtworkDragging,
+  startRoboBouncyArtwork,
+  stopRoboBouncyArtwork,
+} from './robo-bouncy-artwork.ts';
 
 const trackTimeline = (opts: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(opts));
 
@@ -153,6 +176,10 @@ function startSpaceshipEngineIdle(tile: any, host: any): ((elapsedSeconds: numbe
 
 export function stopSpecialDiceIdleMotion(tile: any): void {
   try {
+    stopWildStarBouncyArtwork(tile);
+    stopJuiceBounceArtwork(tile);
+    stopBallBouncyArtwork(tile);
+    stopRoboBouncyArtwork(tile);
     try { tile?._ccKantaDiceIdle?.dispose?.(); } catch {}
     if (tile) delete tile._ccKantaDiceIdle;
     try { tile?._ccRoboCubeIdle?.dispose?.(); } catch {}
@@ -213,6 +240,20 @@ export function stopSpecialDiceIdleMotion(tile: any): void {
 }
 
 export function setSpecialDiceIdleDragging(tile: any, dragging: boolean): boolean {
+  if (tile?._ccRoboBouncyArtwork && isRoboBouncyTile(tile)) {
+    return setRoboBouncyArtworkDragging(tile, dragging);
+  }
+  if (tile?._ccWildStarBouncyArtwork && isPlainWildStarBouncyTile(tile)) {
+    return setWildStarBouncyArtworkDragging(tile, dragging);
+  }
+  if (tile?._ccBallBouncyArtwork && isBeachBallBouncyTile(tile)) {
+    return setBallBouncyArtworkDragging(tile, dragging);
+  }
+  if (tile?._ccJuiceBounceArtwork && isPlainJuiceBounceTile(tile)) {
+    // The SVG frame owner lives on the base sprite layer and safely follows
+    // the outer drag transform. Keep its single shared ticker alive.
+    return setJuiceBounceArtworkDragging(tile, dragging);
+  }
   const kantaController = tile?._ccKantaDiceIdle;
   if (kantaController?.setDragging) {
     kantaController.setDragging(dragging);
@@ -229,11 +270,6 @@ export function setSpecialDiceIdleDragging(tile: any, dragging: boolean): boolea
     // hover, sprite frames and engine particles while either this tile or a
     // different tile is dragged.
     if (dragging && !tile?._ccSpecialDiceIdleTl) startSpecialDiceIdleMotion(tile);
-    return true;
-  }
-  const roboController = tile?._ccRoboCubeIdle;
-  if (roboController?.setDragging) {
-    roboController.setDragging(dragging);
     return true;
   }
   const controller = tile?._ccHoneyBeeIdleOrbit;
@@ -263,8 +299,46 @@ export function refreshSpecialDiceIdleDragFacing(tile: any): void {
 export function startSpecialDiceIdleMotion(tile: any): void {
   try {
     const variant = getSpecialDiceVariantForTile(tile);
-    if (!tile || tile.destroyed || (!variant?.idleMotion && variant?.id !== 'honey')) return;
+    if (!tile || tile.destroyed) return;
     if (tile._ccWildSpawnDropping === true) return;
+    if (isPlainWildStarBouncyTile(tile)) {
+      stopJuiceBounceArtwork(tile);
+      stopBallBouncyArtwork(tile);
+      stopRoboBouncyArtwork(tile);
+      startWildStarBouncyArtwork(tile);
+      return;
+    }
+    if (isPlainJuiceBounceTile(tile)) {
+      stopWildStarBouncyArtwork(tile);
+      stopBallBouncyArtwork(tile);
+      stopRoboBouncyArtwork(tile);
+      startJuiceBounceArtwork(tile);
+      return;
+    }
+    if (isBeachBallBouncyTile(tile)) {
+      stopWildStarBouncyArtwork(tile);
+      stopJuiceBounceArtwork(tile);
+      stopRoboBouncyArtwork(tile);
+      startBallBouncyArtwork(tile);
+      return;
+    }
+    if (isRoboBouncyTile(tile)) {
+      stopWildStarBouncyArtwork(tile);
+      stopJuiceBounceArtwork(tile);
+      stopBallBouncyArtwork(tile);
+      const idleSources = Array.isArray(variant?.idleSpriteSources) ? variant.idleSpriteSources : [];
+      const finaleSources = [
+        ...(Array.isArray(variant?.explosionSpriteSources) ? variant.explosionSpriteSources : []),
+        ...(Array.isArray(variant?.finaleAccentSpriteSources) ? variant.finaleAccentSpriteSources : []),
+      ];
+      startRoboBouncyArtwork(tile, idleSources, finaleSources);
+      return;
+    }
+    stopWildStarBouncyArtwork(tile);
+    stopJuiceBounceArtwork(tile);
+    stopBallBouncyArtwork(tile);
+    stopRoboBouncyArtwork(tile);
+    if (!variant?.idleMotion && variant?.id !== 'honey') return;
 
     if (variant.id === 'honey' && tile._ccHoneyBeeIdleOrbit) {
       tile._ccHoneyBeeIdleOrbit.setDragging?.(false);
@@ -295,17 +369,6 @@ export function startSpecialDiceIdleMotion(tile: any): void {
       });
       return;
     }
-
-    if (variant.idleMotion === 'robo-sprite-cycle') {
-      const idleSources = Array.isArray(variant.idleSpriteSources) ? variant.idleSpriteSources : [];
-      const finaleSources = [
-        ...(Array.isArray(variant.explosionSpriteSources) ? variant.explosionSpriteSources : []),
-        ...(Array.isArray(variant.finaleAccentSpriteSources) ? variant.finaleAccentSpriteSources : []),
-      ];
-      tile._ccRoboCubeIdle = startRoboCubeIdle(tile, idleSources, finaleSources);
-      return;
-    }
-
 
     if (variant.idleMotion === 'bee-sprite-cycle') {
       void preloadBeeFinaleAssets();
@@ -408,11 +471,7 @@ export function startSpecialDiceIdleMotion(tile: any): void {
       tile._ccMushroomSmokeTimeline = smokeTimeline;
     }
 
-    const repeatDelay = variant.idleMotion === 'beach-ball-bounce'
-      ? 0
-      : variant.idleMotion === 'mushroom-pop'
-        ? 0.72
-        : 0.12;
+    const repeatDelay = variant.idleMotion === 'mushroom-pop' ? 0.72 : 0.12;
     let tl: any = null;
     tl = trackTimeline({
       repeat: -1,
@@ -425,26 +484,7 @@ export function startSpecialDiceIdleMotion(tile: any): void {
         }
         : undefined,
     });
-    if (variant.idleMotion === 'beach-ball-bounce') {
-      tl.to(host, {
-        y: base.y - 8,
-        rotation: base.rotation,
-        duration: 0.46,
-        ease: 'sine.inOut',
-      });
-      tl.to(host, {
-        y: base.y + 2,
-        rotation: base.rotation,
-        duration: 0.52,
-        ease: 'sine.inOut',
-      });
-      tl.to(host, {
-        y: base.y,
-        rotation: base.rotation,
-        duration: 0.34,
-        ease: 'sine.inOut',
-      });
-    } else if (variant.idleMotion === 'spaceship-hover') {
+    if (variant.idleMotion === 'spaceship-hover') {
       const hoverTiltRadians = 15 * Math.PI / 180;
       tl.to(host, {
         x: motionBase.x - 5,

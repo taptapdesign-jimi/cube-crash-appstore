@@ -27,6 +27,7 @@ import {
   markIOSJourneyRouteAudit,
 } from './utils/ios-journey-world-enter-audit.js';
 import { resolveJourneyReturnEntryPolicy } from './modules/journey-return-entry-policy.js';
+import { appZoneManager } from './modules/app-zone-manager.js';
 import {
   areContinuousRuntimeDiagnosticsEnabled,
   areDetailedRuntimeDiagnosticsEnabled,
@@ -36,6 +37,7 @@ logger.info('🎁 Collectibles Manager module loaded');
 
 const JOURNEY_TAP_BOUNCE_ACTION_DELAY_MS = 410;
 const JOURNEY_ACTIVE_AREA_ENTER_OVERLAP_DELAY_MS = 260;
+const JOURNEY_POST_TERMINAL_ACTIVE_AREA_ENTER_OVERLAP_DELAY_MS = 80;
 const JOURNEY_SCROLL_TOP_KEY = '__ccJourneyScrollTop';
 const JOURNEY_RETURN_BOARD_ID_KEY = '__ccJourneyReturnBoardId';
 
@@ -529,6 +531,7 @@ export interface CollectiblesShowOptions {
   scrollToCard?: string;
   rarity?: string;
   animateCard?: boolean;
+  journeyEnterTiming?: 'standard' | 'post-terminal-exit';
 }
 
 // Global window extensions - Window interface is now defined in src/types/window.d.ts
@@ -1017,6 +1020,10 @@ class CollectiblesManager {
       logger.error('❌ collectibles-screen element not found');
       return;
     }
+    const activeAreaEnterOverlapDelayMs = options?.journeyEnterTiming === 'post-terminal-exit'
+      ? JOURNEY_POST_TERMINAL_ACTIVE_AREA_ENTER_OVERLAP_DELAY_MS
+      : JOURNEY_ACTIVE_AREA_ENTER_OVERLAP_DELAY_MS;
+    const journeyPresentationEpoch = appZoneManager.getPresentationEpoch();
     primeJourneyScreenHiddenForEnter(screen as HTMLElement, 'showCollectibles-start');
     emitIOSNativeDiagnostic('show-start');
 
@@ -1371,26 +1378,38 @@ class CollectiblesManager {
                 let activeAreaEnterStarted = false;
                 const startActiveAreaEnter = (source: string): void => {
                   if (!shouldPlayActiveBoardAreaEnter || activeAreaEnterStarted) return;
+                  if (
+                    !screen.isConnected
+                    || !journeyContainer.isConnected
+                    || !appZoneManager.isPresentationCurrent(journeyPresentationEpoch, 'journey')
+                  ) {
+                    try { delete (window as any).__ccJourneyActiveAreaEnterPending; } catch {}
+                    logger.info('⏭️ Journey active-area enter cancelled after presentation ownership changed', {
+                      source,
+                      journeyPresentationEpoch,
+                    });
+                    return;
+                  }
                   activeAreaEnterStarted = true;
                   try {
                     delete (window as any).__ccJourneyActiveAreaEnterPending;
                   } catch {}
                   logger.info('🧭 JourneyForestAnim collectibles-active-enter-fired', {
                     source,
-                    delayMs: JOURNEY_ACTIVE_AREA_ENTER_OVERLAP_DELAY_MS,
+                    delayMs: activeAreaEnterOverlapDelayMs,
                   });
                   emitIOSNativeDiagnostic('active-area-enter-fired', { source });
                   activeJourneyBoardsManager.playActiveJourneyBoardAreaEnterAnimation?.();
                 };
                 if (shouldPlayActiveBoardAreaEnter) {
                   logger.info('🧭 JourneyForestAnim collectibles-active-enter-scheduled', {
-                    delayMs: JOURNEY_ACTIVE_AREA_ENTER_OVERLAP_DELAY_MS,
+                    delayMs: activeAreaEnterOverlapDelayMs,
                     returningFromInterimBoardEarly,
                     returningFromDetailModalEarly,
                   });
                   window.setTimeout(() => {
                     startActiveAreaEnter('viewport-enter-overlap');
-                  }, JOURNEY_ACTIVE_AREA_ENTER_OVERLAP_DELAY_MS);
+                  }, activeAreaEnterOverlapDelayMs);
                 }
                 const restoreScrollAfterEnter = (source: string): void => {
                   restoreJourneyScrollableInteractivity(source);

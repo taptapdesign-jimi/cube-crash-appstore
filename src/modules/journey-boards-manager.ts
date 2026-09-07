@@ -49,6 +49,7 @@ import {
   shouldRestoreJourneyInterimWrapperForIdle,
 } from './journey-v700-motion.js';
 import { shouldBlockHiddenJourneyRender } from './journey-background-preparation.js';
+import { isJourneyDetailModalPresentationReady } from './journey-return-presentation.js';
 import { emitIOSNativeDiagnostic } from '../utils/ios-native-diagnostic.js';
 import {
   areContinuousRuntimeDiagnosticsEnabled,
@@ -11323,19 +11324,34 @@ class JourneyBoardsManager {
   }
 
   // Public method to open board details by ID
-  public async openBoardDetailsById(boardId: number, skipJourneyExit: boolean = false): Promise<void> {
+  public async openBoardDetailsById(boardId: number, skipJourneyExit: boolean = false): Promise<boolean> {
     const board = this.boards.find(b => b.id === boardId);
-    if (board) {
-      // Direct game-return callers use `skipJourneyExit=true` only after the
-      // board exit has already completed. Pass an explicitly completed owner
-      // promise so openBoardDetails does not mistake the missing card-tap
-      // promise for an interrupted Journey Unit exit and start a second exit
-      // over the destination modal.
-      const completedJourneyExit = skipJourneyExit ? Promise.resolve() : undefined;
-      await this.openBoardDetails(board, skipJourneyExit, completedJourneyExit);
-    } else {
+    if (!board) {
       logger.warn(`⚠️ Board ${boardId} not found`);
+      return false;
     }
+
+    // Gameplay entry deliberately disposes the Journey render generation.
+    // A direct return has no renderBoards() call to reactivate it, so tracked
+    // detail-enter frames would otherwise cancel and silently leave only the
+    // paper shell visible.
+    if (skipJourneyExit && this.renderDisposed) {
+      this.beginRenderLifecycle();
+      emitIOSNativeDiagnostic('journey-detail-return-lifecycle-reactivated', { boardId });
+    }
+
+    // Direct game-return callers use `skipJourneyExit=true` only after the
+    // board exit has already completed. Pass an explicitly completed owner
+    // promise so openBoardDetails does not mistake the missing card-tap
+    // promise for an interrupted Journey Unit exit and start a second exit
+    // over the destination modal.
+    const completedJourneyExit = skipJourneyExit ? Promise.resolve() : undefined;
+    await this.openBoardDetails(board, skipJourneyExit, completedJourneyExit);
+    const presented = isJourneyDetailModalPresentationReady();
+    if (!presented) {
+      emitIOSNativeDiagnostic('journey-detail-return-presentation-missing', { boardId });
+    }
+    return presented;
   }
 
   // 🔥 FIGMA DESIGN: Simple swipe - stats+card+text visible, swipe to buttons

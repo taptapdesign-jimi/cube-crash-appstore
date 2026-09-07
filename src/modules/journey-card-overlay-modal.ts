@@ -991,17 +991,8 @@ export function presentJourneyCardOverlayModal(
     });
 
     stage.classList.add('is-legendary-idle-holo');
-    legendaryIdleRotorAnimation = rotor.animate(
-      idleAngles.map((angle, index): Keyframe => ({
-        transform: `rotateY(${angle}deg)`,
-        offset: offsets[index],
-      })),
-      {
-        duration: JOURNEY_CARD_LEGENDARY_IDLE_DURATION_MS,
-        easing: 'ease-in-out',
-        iterations: Infinity,
-      },
-    );
+    // Legendary keeps its bounded holographic light sweep, but the card rotor
+    // stays neutral until a real tap or pointer drag explicitly owns the flip.
     legendaryIdleShineAnimation = legendaryShine.animate(shineKeyframes, {
       duration: JOURNEY_CARD_LEGENDARY_IDLE_DURATION_MS,
       easing: 'ease-in-out',

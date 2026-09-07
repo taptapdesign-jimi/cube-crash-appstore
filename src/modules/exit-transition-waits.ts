@@ -1,6 +1,6 @@
 type ExitWaitContext = {
   skipBoardExit?: boolean;
-  fastArcadeCleanExit?: boolean;
+  visualExitAlreadyComplete?: boolean;
 };
 
 export type ExitWaitConfig = {
@@ -23,15 +23,15 @@ const BASE_WAITS: ExitWaitConfig = {
   postPopOutSettleMs: 24,
 };
 
-const FAST_SKIP_WAITS: Partial<ExitWaitConfig> = {
+const COMPLETED_VISUAL_EXIT_WAITS: Partial<ExitWaitConfig> = {
   hudExitMs: 0,
   postExitSettleMs: 16,
   uiHandoffMs: 90,
 };
 
 export function resolveExitWaits(ctx: ExitWaitContext = {}): ExitWaitConfig {
-  if (ctx.skipBoardExit && ctx.fastArcadeCleanExit) {
-    return { ...BASE_WAITS, ...FAST_SKIP_WAITS };
+  if (ctx.skipBoardExit && ctx.visualExitAlreadyComplete) {
+    return { ...BASE_WAITS, ...COMPLETED_VISUAL_EXIT_WAITS };
   }
   return { ...BASE_WAITS };
 }

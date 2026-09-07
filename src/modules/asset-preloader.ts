@@ -153,6 +153,10 @@ const ALL_ASSETS: string[] = [
   ...Array.from({ length: 6 }, (_, index) => `./assets/shop/bottle/bottle animation pack/bubble${index + 1}@2x.png`),
   './assets/shop/ball/ball.png',
   './assets/shop/ball/ball@2x.png',
+  './assets/shop/ball/ball-bouncy.svg',
+  './assets/shop/robo/robo-bouncy.svg',
+  './assets/shop/star/star.svg',
+  './assets/shop/star/stars.svg',
   './assets/shop/ball/ball1.png',
   './assets/shop/ball/ball2.png',
   './assets/shop/ball/ball3.png',
@@ -179,9 +183,9 @@ const ALL_ASSETS: string[] = [
   './assets/small-star@3x.png',
   
   // Other UI assets
-  './assets/journey-map-homepage.png',
-  './assets/journey-map-homepage@2x.png',
-  './assets/journey-map-homepage@3x.png',
+  './assets/journey.png',
+  './assets/journey@2x.png',
+  './assets/journey@3x.png',
   './assets/journey assets/natpis.png',
   './assets/journey assets/natpis@2x.png',
   './assets/collectibles-box.png',
@@ -236,7 +240,7 @@ const ALL_ASSETS: string[] = [
   './assets/modals/paper@3x.png',
   // restart-icon, resume-game, settings-icon, time-icon, unpause-icon, wild-stats, stop - removed: decode fails (InvalidStateError) in preload; add back when assets fixed
   './assets/settings-slider.png',
-  './assets/journey-map-homepage.png',
+  './assets/journey.png',
   './assets/wild.png',
   
   // Fonts
@@ -275,9 +279,9 @@ const CRITICAL_ASSETS: string[] = [
   './assets/home-shadow@3x.png',
   
   // Homepage slider images (ALL slides must be loaded before showing homepage)
-  './assets/journey-map-homepage.png',
-  './assets/journey-map-homepage@2x.png',
-  './assets/journey-map-homepage@3x.png',
+  './assets/journey.png',
+  './assets/journey@2x.png',
+  './assets/journey@3x.png',
   './assets/journey assets/natpis.png',
   './assets/journey assets/natpis@2x.png',
   './assets/collectibles-box.png',
@@ -300,6 +304,10 @@ const CRITICAL_ASSETS: string[] = [
   ...['botle1', 'botle2', 'botle3'].map((name) => `./assets/shop/bottle/bottle animation pack/${name}@2x.png`),
   ...Array.from({ length: 6 }, (_, index) => `./assets/shop/bottle/bottle animation pack/bubble${index + 1}@2x.png`),
   './assets/shop/ball/ball.png',
+  './assets/shop/ball/ball-bouncy.svg',
+  './assets/shop/robo/robo-bouncy.svg',
+  './assets/shop/star/star.svg',
+  './assets/shop/star/stars.svg',
   './assets/shop/bush/flower.png',
   './assets/shop/honey/honey.png',
   './assets/shop/mushroom/mushroom.png',
@@ -507,9 +515,9 @@ export class AssetPreloader {
       './assets/crash-cubes-homepage@2x.png',
       './assets/crash-cubes-homepage@3x.png',
       // Stats slide
-      './assets/journey-map-homepage.png',
-      './assets/journey-map-homepage@2x.png',
-      './assets/journey-map-homepage@3x.png',
+      './assets/journey.png',
+      './assets/journey@2x.png',
+      './assets/journey@3x.png',
       './assets/journey assets/natpis.png',
       './assets/journey assets/natpis@2x.png',
       // Collectibles slide

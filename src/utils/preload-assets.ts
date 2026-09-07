@@ -18,9 +18,9 @@ const CRITICAL_IMAGES: string[] = [
   './assets/home-shadow@3x.png',
 
   // Slide hero art (ALL slider images must be cached)
-  './assets/journey-map-homepage.png',
-  './assets/journey-map-homepage@2x.png',
-  './assets/journey-map-homepage@3x.png',
+  './assets/journey.png',
+  './assets/journey@2x.png',
+  './assets/journey@3x.png',
   './assets/collectibles-box.png',
   './assets/collectibles-box@2x.png',
   './assets/collectibles-box@3x.png',

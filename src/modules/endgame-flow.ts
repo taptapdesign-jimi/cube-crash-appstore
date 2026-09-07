@@ -10,6 +10,7 @@ import { wasFinalMergeHandoffRecentlySettled } from './final-merge-handoff.ts';
 import { waitForEndgameAnimationHandoff } from './endgame-animation-handoff.ts';
 import { requestExitToMenu } from './menu-exit-handoff.ts';
 import { resolveCleanBoardActionDecision } from './clean-board-action-decision.ts';
+import type { CleanBoardModalResult } from './clean-board-modal.js';
 import {
   clearJourneyDetailReturn,
   isJourneyInterimOriginActive,
@@ -252,7 +253,7 @@ async function clearCompletedBoardSaveState(boardNumber: number, source: string)
   }
 }
 
-async function handleCleanBoardBackToJourney(): Promise<void> {
+async function handleCleanBoardBackToJourney(visualExitAlreadyComplete: boolean): Promise<void> {
   console.log('🧭 endgame-flow: Back to Journey action');
   logger.info('🧭 endgame-flow: Back to Journey action');
   try {
@@ -263,6 +264,7 @@ async function handleCleanBoardBackToJourney(): Promise<void> {
       reason: 'clean-board-back-to-journey',
       target: 'auto',
       skipBoardExit: true,
+      visualExitAlreadyComplete,
     });
   } catch (error) {
     console.error('❌ endgame-flow: Failed to return to Journey:', error);
@@ -270,19 +272,18 @@ async function handleCleanBoardBackToJourney(): Promise<void> {
   }
 }
 
-async function handleArcadeCleanBoardExit(): Promise<void> {
+async function handleArcadeCleanBoardExit(visualExitAlreadyComplete: boolean): Promise<void> {
   console.log('🚪 endgame-flow: Exit action in arcade_home mode - returning to homepage');
   logger.info('🚪 endgame-flow: arcade_home exit -> homepage');
   try {
     markArcadeHomeRunOrigin();
     delete (window as any).__skipBoardExitAnimation;
-    (window as any).__skipBoardExitAnimation = true;
-    (window as any).__ccFastArcadeCleanExit = true;
     await requestExitToMenu({
       reason: 'clean-board-arcade-exit',
       target: 'homepage',
       skipBoardExit: true,
       fastArcadeCleanExit: true,
+      visualExitAlreadyComplete,
     });
   } catch (error) {
     console.error('❌ endgame-flow: Failed to exit arcade_home run:', error);
@@ -337,7 +338,11 @@ async function handleCleanBoardPlayAgain(ctx: EndgameContext, boardNumber: numbe
   }
 }
 
-async function handleJourneyCleanBoardExit(ctx: EndgameContext, boardNumber: number): Promise<void> {
+async function handleJourneyCleanBoardExit(
+  ctx: EndgameContext,
+  boardNumber: number,
+  visualExitAlreadyComplete: boolean,
+): Promise<void> {
   console.log('🚪 endgame-flow: Exit action - returning DIRECTLY to detail modal');
   logger.info(`🚪 endgame-flow: Exit action - opening detail modal for board ${boardNumber}`);
 
@@ -382,6 +387,7 @@ async function handleJourneyCleanBoardExit(ctx: EndgameContext, boardNumber: num
       reason: 'clean-board-detail-exit',
       target: 'auto',
       skipBoardExit: true,
+      visualExitAlreadyComplete,
     });
   } catch (error) {
     console.error('❌ endgame-flow: Failed to exit to detail modal:', error);
@@ -1165,7 +1171,7 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       return;
     }
     
-    let modalResult: { action: string } | undefined;
+    let modalResult: CleanBoardModalResult | undefined;
     try {
       const { showCleanBoardModal } = await import('./clean-board-modal.js');
       modalResult = await showCleanBoardModal({
@@ -1205,17 +1211,21 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     
     // 🔥 NEW LOGIC: Handle different actions from clean board modal
     if (modalActionDecision.type === 'back-to-journey') {
-      await handleCleanBoardBackToJourney();
+      await handleCleanBoardBackToJourney(modalResult?.visualExitAlreadyComplete === true);
       return;
     }
 
     if (modalActionDecision.type === 'arcade-exit') {
-      await handleArcadeCleanBoardExit();
+      await handleArcadeCleanBoardExit(modalResult?.visualExitAlreadyComplete === true);
       return;
     }
 
     if (modalActionDecision.type === 'journey-exit') {
-      await handleJourneyCleanBoardExit(ctx, boardNumber);
+      await handleJourneyCleanBoardExit(
+        ctx,
+        boardNumber,
+        modalResult?.visualExitAlreadyComplete === true,
+      );
       return;
     }
     

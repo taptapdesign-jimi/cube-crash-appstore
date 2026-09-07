@@ -644,6 +644,41 @@ function repairBoardTileVisuals(reason = 'unknown'): void {
       const isActive = value > 0 || isWildLike;
       if (!isActive) return;
 
+      // Regular board tiles have one immutable outer rest pose: 1x1/0deg.
+      // Mild idle squash is intentionally well above the older 0.86 emergency
+      // threshold, so an interrupted/orphaned idle cycle could survive every
+      // post-Juice repair and later become the next animation's baseline.
+      // Repair any unowned residue, while leaving drag/spawn/merge owners alone.
+      const isRegularPlayableTile = !special && t.isWild !== true && t.isWildFace !== true;
+      const hasOuterTransformOwner = (
+        t === drag?.t ||
+        t._idleBounceTl != null ||
+        t._mergeImpactTl != null ||
+        t._ccPickupScaleTimeline != null ||
+        t._ccSnapBackTimeline != null ||
+        t._isBeingSpawned === true ||
+        t._pendingRemoval === true ||
+        t._beingRemoved === true ||
+        t._cleanupQueued === true ||
+        t._skipIdleScaleReset === true
+      );
+      const hasStaleOuterPose = (
+        Math.abs(sx - 1) > 0.005 ||
+        Math.abs(sy - 1) > 0.005 ||
+        Math.abs(Number(t.rotation) || 0) > 0.005
+      );
+      if (isRegularPlayableTile && !hasOuterTransformOwner && hasStaleOuterPose) {
+        try { gsap?.killTweensOf?.(t.scale); } catch {}
+        try { gsap?.killTweensOf?.(t, 'rotation'); } catch {}
+        try { t.scale?.set?.(1, 1); } catch {}
+        try { t.rotation = 0; } catch {}
+        try {
+          t._ccDragBaseScaleX = 1;
+          t._ccDragBaseScaleY = 1;
+        } catch {}
+        repaired++;
+      }
+
       // A regular playable tile must never retain the internal squash/tilt of
       // an interrupted wild-impact frame. Older repair logic checked only the
       // outer tile.scale, while Cubero animates rotG.scale and rotG.rotation.
@@ -15042,14 +15077,13 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
         devLog('🚪 Arcade run reached Exit - returning to menu');
         try {
           markArcadeHomeRunOrigin();
-          (window as any).__skipBoardExitAnimation = true;
-          (window as any).__ccFastArcadeCleanExit = true;
           const { requestExitToMenu } = await import('./menu-exit-handoff.js');
           await requestExitToMenu({
             reason: 'arcade-summary-exit',
             target: 'homepage',
             skipBoardExit: true,
             fastArcadeCleanExit: true,
+            visualExitAlreadyComplete: result?.visualExitAlreadyComplete === true,
           });
         } catch (error) {
           devWarn('⚠️ Arcade run reached exitToMenu failed:', error);

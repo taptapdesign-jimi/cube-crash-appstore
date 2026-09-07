@@ -22,6 +22,10 @@ declare global {
       target?: 'homepage' | 'auto';
       homepageSlideIndex?: 0 | 1;
       onHomepageEnterPrepared?: () => void;
+      skipBoardExit?: boolean;
+      fastArcadeCleanExit?: boolean;
+      visualExitAlreadyComplete?: boolean;
+      expectedMenuDestination?: 'home' | 'journey' | 'detail-modal';
     }) => void | Promise<void>;
     
     // Modals

@@ -29,11 +29,11 @@ export function createStatsSlide(config: SlideConfig): HTMLElementConfig {
                 tag: 'img',
                 className: 'hero-image hero-image-cta',
                 attributes: {
-                  src: './assets/journey-map-homepage.png',
+                  src: './assets/journey.png',
                   srcset: [
-                    './assets/journey-map-homepage.png 1x',
-                    './assets/journey-map-homepage@2x.png 2x',
-                    './assets/journey-map-homepage@3x.png 3x',
+                    './assets/journey.png 1x',
+                    './assets/journey@2x.png 2x',
+                    './assets/journey@3x.png 3x',
                   ].join(', '),
                   sizes: '(max-width: 500px) 90vw, 320px',
                   alt: 'Journey Map',

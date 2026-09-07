@@ -16,6 +16,8 @@ import { trackAppInterval, clearAppInterval } from './app-core-utils.js';
 import { graphicsPool } from './object-pool.ts';
 import { acquirePixiMobileActivityLease } from './pixi-mobile-frame-controller.ts';
 import { selectPattern, getColor, getParams, getActiveTemplate, getDragParticleColors, getBubbleColors } from './templates/template-manager.ts';
+import { releaseJuiceBounceFrontBubbles } from './juice-bounce-artwork.ts';
+import { releaseBallBouncyFrontBubbles } from './ball-bouncy-artwork.ts';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
@@ -142,6 +144,7 @@ export function startWildJuiceBubbles(tile) {
     try {
       if (bubble.parent) bubble.parent.removeChild(bubble);
       bubble.tint = 0xFFFFFF;
+      delete bubble._ccIdleBubblePaint;
       graphicsPool.release(bubble);
     } catch {}
   };
@@ -181,6 +184,7 @@ export function startWildJuiceBubbles(tile) {
           Math.floor(Math.random() * (idleBubbleColors || juiceIdleBubbleColors).length)
         ];
     bubble.fill({ color: bubbleColor, alpha: 0.6 });
+    bubble._ccIdleBubblePaint = { radius, color: bubbleColor };
     
     // Add highlight (smaller circle at top-left) for 3D sparkling effect
     const highlightRadius = radius * 0.3;
@@ -307,6 +311,8 @@ export function startWildJuiceBubbles(tile) {
  */
 export function stopWildJuiceBubbles(tile) {
   if (!tile) return;
+  releaseJuiceBounceFrontBubbles(tile);
+  releaseBallBouncyFrontBubbles(tile);
   
   let system = null;
   try {
@@ -365,6 +371,7 @@ export function stopWildJuiceBubbles(tile) {
         delete bubble._ccBottleCrossPhase;
         delete bubble._ccBottleRiseSpeed;
         delete bubble._ccBottleTintProgress;
+        delete bubble._ccIdleBubblePaint;
         graphicsPool.release(bubble);
       } catch {}
     });

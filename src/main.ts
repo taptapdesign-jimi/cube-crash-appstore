@@ -74,6 +74,10 @@ import {
   getJourneyCardOverlayReturnBoardId,
   isJourneyInterimOriginActive,
 } from './modules/journey-origin-state.js';
+import {
+  prepareJourneyWorldRecovery,
+  waitForJourneyReturnPresentation,
+} from './modules/journey-return-presentation.js';
 import { appZoneManager } from './modules/app-zone-manager.js';
 import { waitForHomepageFirstPaintReady } from './utils/startup-readiness.js';
 import { MOBILE_RUNTIME_PROFILE } from './modules/mobile-runtime-profile.js';
@@ -204,7 +208,12 @@ function lockHomepageEnterInteraction(): void {
   });
 }
 
-async function primeHomepageForEnterLikeStartup(reason: string, targetSlideIndex = 0): Promise<void> {
+async function primeHomepageForEnterLikeStartup(
+  reason: string,
+  targetSlideIndex = 0,
+  isCurrent: () => boolean = () => true,
+): Promise<void> {
+  if (!isCurrent()) return;
   const home = document.getElementById('home') as HTMLElement | null;
   if (!home) {
     console.warn('⚠️ Homepage enter: #home missing during prime', { reason });
@@ -256,6 +265,7 @@ async function primeHomepageForEnterLikeStartup(reason: string, targetSlideIndex
   });
 
   await waitForHomepageEnterPrime();
+  if (!isCurrent()) return;
 
   home.style.display = 'block';
   home.style.visibility = 'visible';
@@ -281,6 +291,7 @@ async function primeHomepageForEnterLikeStartup(reason: string, targetSlideIndex
   });
 
   await waitForHomepageEnterPrime();
+  if (!isCurrent()) return;
 
   home.style.opacity = '1';
   // The enter owner unlocks Homepage only after every delayed visual callback
@@ -318,6 +329,10 @@ async function playHomepageSliderEnterHandoff(
   // gives the nav its deterministic scale(0) state, then makes it visible so
   // Arcade return cannot flash full-size icons before their bounce begins.
   appZoneManager.prepareHomeMenuEnter(`homepage-enter-owner:${reason}`);
+  const presentationEpoch = appZoneManager.getPresentationEpoch();
+  const ownsHomepagePresentation = (): boolean =>
+    lease.isCurrent()
+    && appZoneManager.isPresentationCurrent(presentationEpoch, 'home');
   gameState.setState({
     homepageReady: true,
     isGameActive: false,
@@ -336,8 +351,8 @@ async function playHomepageSliderEnterHandoff(
   // positioning. Spatial motion remains held until the enter is complete.
   sliderManager.syncHiddenSlideState(targetSlideIndex);
   emitHomepageEnterOwnerSnapshot('hidden-sync', targetSlideIndex);
-  await primeHomepageForEnterLikeStartup(reason, targetSlideIndex);
-  if (!lease.isCurrent()) return;
+  await primeHomepageForEnterLikeStartup(reason, targetSlideIndex, ownsHomepagePresentation);
+  if (!ownsHomepagePresentation()) return;
 
   try {
     if (gameState && typeof (gameState as any).set === 'function') {
@@ -356,7 +371,7 @@ async function playHomepageSliderEnterHandoff(
       targetSlideIndex,
     });
   }
-  if (!lease.isCurrent()) return;
+  if (!ownsHomepagePresentation()) return;
   prepareSliderEnter();
   try {
     const activeSlide = document.querySelector('.slider-slide.active') as HTMLElement | null;
@@ -372,7 +387,7 @@ async function playHomepageSliderEnterHandoff(
     });
   } catch {}
   await waitForHomepageEnterPrime();
-  if (!lease.isCurrent()) return;
+  if (!ownsHomepagePresentation()) return;
   emitHomepageEnterOwnerSnapshot('before-animation', targetSlideIndex);
   try {
     options.onEnterPrepared?.();
@@ -393,7 +408,7 @@ async function playHomepageSliderEnterHandoff(
     });
   }
   await animateSliderEnter();
-  if (!lease.isCurrent()) return;
+  if (!ownsHomepagePresentation()) return;
   {
     {
       const activeSlide = document.querySelector('.slider-slide.active') as HTMLElement | null;
@@ -445,7 +460,7 @@ async function playHomepageSliderEnterHandoff(
     // A rejected image/readiness/animation await must never strand the already
     // primed logo, hero, CTA or navigation at opacity/scale zero. Only the
     // current lease may recover; a newer route owns its own prepared state.
-    if (!homepageFinalized && lease.isCurrent()) {
+    if (!homepageFinalized && ownsHomepagePresentation()) {
       cancelSliderEnterAnimation(`${reason}:safe-finalize`);
       forceHomepageSlideTarget(`${reason}:safe-finalize`, targetSlideIndex);
       finalizeSliderEnterVisibility(`${reason}:safe-finalize`);
@@ -2136,6 +2151,10 @@ async function startNewRun(boardId: number): Promise<void> {
   target?: 'homepage' | 'auto';
   homepageSlideIndex?: 0 | 1;
   onHomepageEnterPrepared?: () => void;
+  skipBoardExit?: boolean;
+  fastArcadeCleanExit?: boolean;
+  visualExitAlreadyComplete?: boolean;
+  expectedMenuDestination?: 'home' | 'journey' | 'detail-modal';
 } = {}) => {
   logger.info('🏠 exitToMenu called from window');
   
@@ -2452,11 +2471,17 @@ async function startNewRun(boardId: number): Promise<void> {
     // Step 1: Play board exit animations (tiles + HUD)
     // 🎯 NEW: Skip board exit animation if flag is set (clean board scenario - no tiles to animate)
     // 🔥 CRITICAL FIX: Double-check flag value and log it for debugging
-    const shouldSkipBoardExit = (window as any).__skipBoardExitAnimation === true;
-    const isFastArcadeCleanExit = (window as any).__ccFastArcadeCleanExit === true;
+    const shouldSkipBoardExit = options.skipBoardExit === true
+      || (window as any).__skipBoardExitAnimation === true;
+    const isFastArcadeCleanExit = options.fastArcadeCleanExit === true
+      || (window as any).__ccFastArcadeCleanExit === true;
+    const visualExitAlreadyComplete = options.visualExitAlreadyComplete === true;
+    const expectedJourneyFamily =
+      options.expectedMenuDestination === 'journey'
+      || options.expectedMenuDestination === 'detail-modal';
     const exitWaits = resolveExitWaits({
       skipBoardExit: shouldSkipBoardExit,
-      fastArcadeCleanExit: isFastArcadeCleanExit,
+      visualExitAlreadyComplete,
     });
     console.log(`🔍 exitToMenu: shouldSkipBoardExit = ${shouldSkipBoardExit}, flag value = ${(window as any).__skipBoardExitAnimation}`);
     if (shouldSkipBoardExit) {
@@ -2464,7 +2489,7 @@ async function startNewRun(boardId: number): Promise<void> {
       
       // 🔥 CRITICAL FIX: Still play HUD exit animation even when skipping board exit
       // This ensures HUD animates out properly before returning to Journey screen
-      if (!isFastArcadeCleanExit) {
+      if (exitWaits.hudExitMs > 0) {
         try {
           const { STATE } = await import('./modules/app-state.js');
           if (STATE && STATE.hud && typeof STATE.hud.playHudRise === 'function') {
@@ -2478,7 +2503,7 @@ async function startNewRun(boardId: number): Promise<void> {
           console.warn('⚠️ Failed to play HUD exit animation:', error);
         }
       } else {
-        console.log('⚡ Fast arcade clean exit: skipping duplicate HUD exit wait');
+        console.log('⚡ Completed terminal visual exit: skipping duplicate HUD exit wait');
       }
       
       // Hide board and HUD immediately (no animation)
@@ -2652,7 +2677,7 @@ async function startNewRun(boardId: number): Promise<void> {
     // The fast Arcade summary path reuses the warm Homepage slider. Destroying
     // and rebuilding its listeners here adds visible churn before the one
     // authoritative enter handoff below.
-    if (!isFastArcadeCleanExit) {
+    if (!isFastArcadeCleanExit && !expectedJourneyFamily) {
       try {
         console.log('🧹 Cleaning up homepage/slider event listeners and animations...');
         
@@ -2700,7 +2725,9 @@ async function startNewRun(boardId: number): Promise<void> {
         console.warn('⚠️ Failed to cleanup homepage/slider:', error);
       }
     } else {
-      console.log('⚡ Fast arcade clean exit: skipped destructive homepage cleanup for seamless handoff');
+      console.log(expectedJourneyFamily
+        ? '⏸️ Journey return: preserving the hidden Homepage slider lifecycle'
+        : '⚡ Fast arcade clean exit: skipped destructive homepage cleanup for seamless handoff');
     }
     
     // The iOS visibility owner is app-lifetime. Removing it on the first game
@@ -2862,7 +2889,7 @@ async function startNewRun(boardId: number): Promise<void> {
     // showHomepage()/forceReady(). Non-home routes keep the existing reset.
     if (exitRoute.target !== 'home') {
       gameState.setState({
-        homepageReady: true,
+        homepageReady: false,
         isGameActive: false,
         isPaused: false,
       });
@@ -2871,64 +2898,30 @@ async function startNewRun(boardId: number): Promise<void> {
     }
     
     if (exitRoute.target === 'journey') {
-      // 🔥 USER REQUEST: When returning to Journey screen, ensure all slides are visible
-      // This prevents empty slides when user goes back from Journey screen
-      const slides = document.querySelectorAll('.slider-slide');
-      
-      // 🔥 NEW API: Use setSlideInstant() to atomically update ALL states
-      // This replaces manual GSAP positioning + class manipulation
-      // 🔥 CRITICAL FIX: Wrap in try-catch to prevent forEach error
-      if (sliderManager && typeof sliderManager.setSlideInstant === 'function') {
-        try {
-          sliderManager.setSlideInstant(1); // Journey slide is index 1
-          console.log(`✅ Slider positioned at Journey slide (1) using setSlideInstant (atomic)`);
-        } catch (error) {
-          console.warn('⚠️ Error calling setSlideInstant for Journey slide, using fallback:', error);
-          // Fall through to fallback
-        }
-      } else {
-        // Fallback: Manual positioning (if setSlideInstant not available)
-        console.warn('⚠️ SliderManager.setSlideInstant not available, using fallback');
-        const sliderWrapper = document.getElementById('slider-wrapper');
-        const sliderContainer = document.getElementById('slider-container');
-        if (sliderWrapper && sliderContainer && typeof gsap !== 'undefined') {
-          const slideWidth = sliderContainer.offsetWidth;
-          const targetOffset = -1 * slideWidth; // Journey slide is index 1
-          gsap.set(sliderWrapper, { x: targetOffset });
-        }
-        
-        slides.forEach((slide, index) => {
-          if (index === 1) {
-            slide.classList.add('active');
-          } else {
-            slide.classList.remove('active');
-          }
-        });
-      }
-      
-      // 🔥 CRITICAL: Ensure ALL slides are visible for slider to work (slider uses translateX)
-      slides.forEach((slide, index) => {
-        // ALL slides must be visible for slider positioning to work
-        (slide as HTMLElement).style.display = 'block';
-        (slide as HTMLElement).style.visibility = 'visible';
-        (slide as HTMLElement).style.opacity = '1';
-      });
-      console.log('✅ All slides made visible for Journey screen return');
+      // Keep only the future Homepage slide selection synchronized. This API
+      // cannot initialize or paint the hidden Homepage family.
+      sliderManager.syncHiddenSlideState(1);
+      console.log('✅ Hidden Homepage slider state synchronized for a future Journey back action');
     }
     
-    console.log('✅ Game state reset - homepage should be visible now');
+    console.log('✅ Game state reset for the resolved menu destination');
     
     // 🔥 APP STORE FIX: Complete separation of Journey and Homepage pathways
     // Step 3: Show appropriate screen WITHOUT mixing pathways
     if (returnToDetailModal && detailModalBoardId !== null) {
       (window as any).__ccSuppressJourneyShowForDirectDetailReturn = true;
       (window as any).__ccDirectDetailModalReturnActive = true;
+      let detailPresentationReady = false;
+      let recoveredDetailReturnToWorld = false;
 
       // ⚡ SKIP if detail modal already opened from exit button (fast path)
       const modalAlreadyOpened = (window as any).__ccDetailModalAlreadyOpened === true;
       if (modalAlreadyOpened) {
         console.log('⚡ SKIP: Detail modal already opened from exit button, skipping duplicate open');
         delete (window as any).__ccDetailModalAlreadyOpened; // Clear flag
+        detailPresentationReady = await waitForJourneyReturnPresentation('detail-modal', {
+          timeoutMs: 900,
+        });
       } else {
         // 🔥 USER REQUEST: Return directly to detail modal (Journey screen hidden, no enter animation)
         console.log(`🎯 Detail modal pathway - opening detail modal INSTANTLY for board ${detailModalBoardId}...`);
@@ -2958,8 +2951,10 @@ async function startNewRun(boardId: number): Promise<void> {
           if (typeof journeyBoardsManager.openBoardDetailsById === 'function') {
             // openBoardDetailsById will handle enter animation for detail modal
             // Skip Journey exit animation because Journey screen is already hidden
-            await journeyBoardsManager.openBoardDetailsById(detailModalBoardId, true);
-            console.log(`✅ Detail modal opened IMMEDIATELY for board ${detailModalBoardId} with enter animation`);
+            detailPresentationReady = await journeyBoardsManager.openBoardDetailsById(detailModalBoardId, true);
+            if (detailPresentationReady) {
+              console.log(`✅ Detail modal opened IMMEDIATELY for board ${detailModalBoardId} with enter animation`);
+            }
           } else {
             console.warn('⚠️ openBoardDetailsById method not found');
             delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
@@ -2972,6 +2967,27 @@ async function startNewRun(boardId: number): Promise<void> {
         });
 
         await detailModalOpenPromise;
+      }
+
+      if (!detailPresentationReady) {
+        emitIOSNativeDiagnostic('main-detail-modal-return-recovering-to-world', {
+          boardId: detailModalBoardId,
+        });
+        prepareJourneyWorldRecovery({
+          boardId: detailModalBoardId,
+          fromInterim: false,
+          reason: 'main-detail-modal-return-missing',
+        });
+        await appZoneManager.showJourneyShell('exitToMenu:detail-return-recovery');
+        const { ensureCollectiblesManager, showCollectiblesScreen } = await import('./collectibles-manager.js');
+        await ensureCollectiblesManager();
+        await showCollectiblesScreen();
+        const journeyRecoveryReady = await waitForJourneyReturnPresentation('screen');
+        if (!journeyRecoveryReady) {
+          throw new Error(`Journey World recovery failed for board ${detailModalBoardId}`);
+        }
+        recoveredDetailReturnToWorld = true;
+        console.log(`✅ Recovered failed detail return to Journey World for board ${detailModalBoardId}`);
       }
       
       // Ensure navigation stays hidden (Journey has its own back button)
@@ -2990,7 +3006,9 @@ async function startNewRun(boardId: number): Promise<void> {
         fadeInAndResume();
       } catch (_) { /* ignore */ }
       (window as any).__ccSoundtrackResumedThisExit = true;
-      console.log('✅ Detail modal pathway complete - Journey screen hidden, detail modal shown');
+      console.log(recoveredDetailReturnToWorld
+        ? '✅ Detail modal pathway recovered - Journey World shown'
+        : '✅ Detail modal pathway complete - Journey screen hidden, detail modal shown');
     } else if (exitRoute.target === 'journey') {
       // 🔥 Journey pathway - NO homepage slider involvement
       console.log('🗺️ Journey pathway - showing Journey screen directly...');
@@ -3020,13 +3038,17 @@ async function startNewRun(boardId: number): Promise<void> {
       emitIOSNativeDiagnostic('main-before-show');
       if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
         // This will handle Journey screen enter animation internally
-        await collectiblesManager.showCollectibles();
+        await collectiblesManager.showCollectibles({
+          journeyEnterTiming: visualExitAlreadyComplete ? 'post-terminal-exit' : 'standard',
+        });
         console.log('✅ Journey screen shown with enter animation');
       } else {
         try {
           const { ensureCollectiblesManager, showCollectiblesScreen } = await import('./collectibles-manager.js');
           await ensureCollectiblesManager();
-          await showCollectiblesScreen();
+          await showCollectiblesScreen({
+            journeyEnterTiming: visualExitAlreadyComplete ? 'post-terminal-exit' : 'standard',
+          });
           console.log('✅ Journey screen shown with enter animation (fallback import)');
         } catch (error) {
           console.warn('⚠️ CollectiblesManager not found and fallback import failed:', error);
@@ -3040,6 +3062,31 @@ async function startNewRun(boardId: number): Promise<void> {
         }
       }
       emitIOSNativeDiagnostic('main-after-show-scheduled');
+
+      let journeyPresentationReady = await waitForJourneyReturnPresentation('screen');
+      if (!journeyPresentationReady) {
+        const recoveryBoardId = Number(
+          (window as any).__ccJourneyReturnBoardId
+          || (window as any).__ccLastActiveJourneyBoardAreaId
+          || (window as any).__ccStartAtLevel
+          || STATE?.boardNumber
+          || 0
+        );
+        emitIOSNativeDiagnostic('main-journey-return-presentation-retry', {
+          boardId: Number.isFinite(recoveryBoardId) && recoveryBoardId > 0 ? recoveryBoardId : null,
+        });
+        prepareJourneyWorldRecovery({
+          boardId: Number.isFinite(recoveryBoardId) && recoveryBoardId > 0 ? recoveryBoardId : null,
+          reason: 'main-journey-return-presentation-missing',
+        });
+        const { ensureCollectiblesManager, showCollectiblesScreen } = await import('./collectibles-manager.js');
+        await ensureCollectiblesManager();
+        await showCollectiblesScreen();
+        journeyPresentationReady = await waitForJourneyReturnPresentation('screen');
+      }
+      if (!journeyPresentationReady) {
+        throw new Error('Journey return did not present a visible Hub or World Unit');
+      }
 
       const overlayReturnBoardId = getJourneyCardOverlayReturnBoardId();
       if (overlayReturnBoardId !== null) {
@@ -3114,6 +3161,8 @@ async function startNewRun(boardId: number): Promise<void> {
     (window as any).__ccLastGameExitAt = Date.now();
     (window as any).__ccLastGameExitWasArcade = (window as any).__ccRunMode === RUN_MODE_ARCADE_HOME;
     delete (window as any).__ccEarlyHomepageHandoff;
+    delete (window as any).__skipBoardExitAnimation;
+    delete (window as any).__ccFastArcadeCleanExit;
     // Resume soundtrack if not already triggered in pathway (e.g. error path)
     try {
       const { soundtrackManager } = await import('./modules/soundtrack-manager.js');

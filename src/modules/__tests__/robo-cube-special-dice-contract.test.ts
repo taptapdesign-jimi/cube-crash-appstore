@@ -13,12 +13,14 @@ import {
 const read = (relativePath: string) => fs.readFileSync(path.resolve(process.cwd(), relativePath), 'utf8');
 
 describe('Robo Cube special die', () => {
-  const idleSource = read('src/modules/robo-cube-idle.ts');
+  const artworkSource = read('src/modules/robo-bouncy-artwork.ts');
   const specialIdleSource = read('src/modules/special-dice-idle.ts');
   const juiceSource = read('src/modules/wild-juice-bubbles-explosion.ts');
   const appCoreSource = read('src/modules/app-core.ts');
   const wildSkinSource = read('src/modules/app-core-wild-skin.ts');
   const fxSource = read('src/modules/fx.ts');
+  const assetPreloaderSource = read('src/modules/asset-preloader.ts');
+  const startupPreloaderSource = read('src/utils/comprehensive-image-preloader.ts');
 
   test('owns the requested Juice identity, palette, text, and exact supplied assets', () => {
     const robo = getSpecialDiceVariant('robo-cube');
@@ -119,55 +121,23 @@ describe('Robo Cube special die', () => {
     })?.id).not.toBe('robo-cube');
   });
 
-  test('crossfades four idle frames with one reusable overlay and bounded on-demand preload', () => {
-    expect(specialIdleSource).toContain("variant.idleMotion === 'robo-sprite-cycle'");
-    expect(specialIdleSource).toContain('startRoboCubeIdle(tile, idleSources, finaleSources)');
-    expect(idleSource).toContain("overlay.label = 'robo-cube-idle-crossfade'");
-    expect(idleSource).not.toContain('portalGlow');
-    expect(idleSource.match(/new Graphics\(\)/g)).toHaveLength(1);
-    expect(idleSource).toContain('index !== currentFrameIndex');
-    expect(idleSource).toContain('Math.floor(Math.random() * candidates.length)');
-    expect(idleSource).toContain('currentFrameIndex = Math.min(1, textures.length - 1)');
-    expect(idleSource).toContain('timeline?.pause()');
-    expect(idleSource).toContain('timeline?.resume()');
-    expect(idleSource).toContain("trailContainer.label = 'robo-cube-antenna-trail'");
-    expect(idleSource).toContain('const ANTENNA_TRAIL_PARTICLE_COUNT = 15');
-    expect(idleSource).toContain('const ANTENNA_TRAIL_BURST_COUNT = 5');
-    expect(idleSource).toContain('ANTENNA_TRAIL_EMISSION_INTERVAL_SECONDS = 0.06');
-    expect(idleSource).toContain('ANTENNA_TRAIL_BOUNCE_IN_SECONDS = 0.16');
-    expect(idleSource).toContain('ANTENNA_TRAIL_FADE_OUT_SECONDS = 0.20');
-    expect(idleSource).toContain('const antennaEmitterY = -paintedHeight * 0.54 + 8');
-    expect(idleSource).toContain("Math.min(4, paintedWidth * 0.045)) * 3");
-    expect(idleSource).toContain('const distance = 10 + Math.random() * 18');
-    expect(idleSource).toContain('_ccTrailExitX');
-    expect(idleSource).toContain("ease: 'back.out(2.2)'");
-    expect(idleSource).toContain("ease: 'back.in(1.5)'");
-    expect(idleSource).toContain('0.82 + Math.random() * 0.68');
-    expect(idleSource).toContain('0.32 + Math.random() * 0.46');
-    expect(idleSource).toContain('trailDirection = trailDirection === -1 ? 1 : -1');
-    expect(idleSource).toContain('particle.rect(');
-    expect(idleSource).toContain('particle.circle(');
-    expect(idleSource).toContain('particle.poly([');
-    expect(idleSource).toContain('color: 0x8AEEFE');
-    expect(idleSource).toContain('trailContainer.destroy({ children: true })');
-    expect(specialIdleSource).toContain('const roboController = tile?._ccRoboCubeIdle');
-    expect(specialIdleSource).toContain('roboController.setDragging(dragging)');
-    expect(idleSource).toContain('new Sprite(textures[0])');
-    expect(idleSource).not.toContain('FRAME_HOLD_SECONDS');
-    expect(idleSource).toContain('EXPRESSION_FRAME_SECONDS = 0.35');
-    expect(idleSource).toContain('EXPRESSION_CYCLE_SECONDS = EXPRESSION_FRAME_SECONDS * 4');
-    expect(idleSource).toContain('CROSSFADE_SECONDS = 0.12');
-    expect(idleSource).toContain('timeline.call(prepareRandomFrame, undefined, phaseStart)');
-    expect(idleSource).toContain('timeline.call(() => {}, undefined, EXPRESSION_CYCLE_SECONDS)');
-    expect(idleSource).toContain('trailTimeline = animationManager.trackExternalTimeline');
-    expect(idleSource).toContain('animationManager.killExternalTimeline(trailTimeline)');
-    expect(idleSource).toContain('PRELOAD_BATCH_SIZE = 3');
-    expect(idleSource).toContain('animationManager.killExternalTimeline(timeline)');
-    expect(idleSource).toContain('overlay.destroy({ texture: false, textureSource: false })');
-    expect(idleSource).toContain('loaded.filter(isUsablePixiImageTexture)');
-    expect(idleSource).toContain('textures.forEach(pinPixiImageTexture)');
-    expect(idleSource).toContain('if (!isUsablePixiImageTexture(pendingTexture)) return');
-    expect(idleSource).toContain('if (!isUsablePixiImageTexture(dragTexture)) return');
+  test('uses the dedicated Robo SVG idle owner with static drag fallback and bounded finale warming', () => {
+    expect(specialIdleSource).toContain('if (isRoboBouncyTile(tile))');
+    expect(specialIdleSource).toContain('startRoboBouncyArtwork(tile, idleSources, finaleSources)');
+    expect(specialIdleSource).toContain('setRoboBouncyArtworkDragging(tile, dragging)');
+    expect(specialIdleSource).not.toContain('startRoboCubeIdle(tile, idleSources, finaleSources)');
+    expect(artworkSource).toContain("ROBO_BOUNCY_SVG_URL = './assets/shop/robo/robo-bouncy.svg'");
+    expect(artworkSource).toContain("getSpecialDiceVariantForTile(tile)?.id === 'robo-cube'");
+    expect(artworkSource).toContain('const PRELOAD_BATCH_SIZE = 3');
+    expect(artworkSource).toContain('warmFinaleInBoundedBatches(controller, finalePreloadSources)');
+    expect(artworkSource).toContain('idleFrameSources[1] ?? idleFrameSources[0] ?? null');
+    expect(artworkSource).toContain('pinPixiImageTexture(texture)');
+    expect(artworkSource).toContain('controller.wrapper.style.visibility = \'hidden\'');
+    expect(artworkSource).toContain('controller.base.renderable = true');
+    expect(artworkSource).not.toContain('new Graphics(');
+    expect(artworkSource).not.toContain('gsap.timeline');
+    expect(assetPreloaderSource).toContain("'./assets/shop/robo/robo-bouncy.svg'");
+    expect(startupPreloaderSource).toContain("'./assets/shop/robo/robo-bouncy.svg'");
     expect(wildSkinSource).not.toContain('Texture.from(requestedAssetPath)');
     expect(wildSkinSource).toContain('isUsablePixiImageTexture(resolvedTexture)');
     expect(wildSkinSource).toContain('reloadPixiImageTexture(requestedAssetPath)');

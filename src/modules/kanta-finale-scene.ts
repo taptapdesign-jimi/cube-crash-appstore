@@ -28,9 +28,14 @@ export const KANTA_FINALE_COMPOSITE_ENTRY_DELAY_SECONDS = 0;
 export const KANTA_FINALE_COMPOSITE_ENTRY_TRAVEL_PX = 125;
 export const KANTA_FINALE_ROBOT_RAISE_RATIO = 0.14 + 0.08;
 export const KANTA_FINALE_ROBOT_LOWER_RATIO = 0.35;
-export const KANTA_FINALE_ROBOT_ENTRY_DELAY_SECONDS = 0.80;
-export const KANTA_FINALE_ROBOT_ENTRY_STAGGER_SECONDS = 0.30;
+export const KANTA_FINALE_ROBOT_ENTRY_DELAY_SECONDS = 0;
+export const KANTA_FINALE_ROBOT_ENTRY_WINDOW_SECONDS = 0.70;
+export const KANTA_FINALE_ROBOT_ENTRY_STAGGER_SECONDS = (
+  KANTA_FINALE_ROBOT_ENTRY_WINDOW_SECONDS / (KANTA_FINALE_ROBOT_COUNT - 1)
+);
 export const KANTA_FINALE_ROBOT_TRAVEL_SECONDS = 1.48;
+export const KANTA_FINALE_CAN_ENTRY_DELAY_SECONDS = 0;
+export const KANTA_FINALE_CAN_ENTRY_STAGGER_SECONDS = 0.026;
 export const KANTA_FINALE_PICKUP_BASE_SECONDS = 0.32;
 export const KANTA_FINALE_PICKUP_SECONDS = KANTA_FINALE_PICKUP_BASE_SECONDS / 0.60;
 export const KANTA_FINALE_POST_PICKUP_EXIT_HOLD_SECONDS = 0.30;
@@ -52,6 +57,9 @@ export const KANTA_FINALE_SCENE_SECONDS = Math.max(
     + KANTA_FINALE_CLEANUP_MARGIN_SECONDS,
   KANTA_FINALE_LAST_ROBOT_END_SECONDS,
 );
+export const KANTA_FINALE_LATEST_PICKUP_START_SECONDS = KANTA_FINALE_SCENE_SECONDS
+  - KANTA_FINALE_PICKUP_SECONDS
+  - KANTA_FINALE_CLEANUP_MARGIN_SECONDS;
 export const KANTA_FINALE_ROBOT_Z_INDEX = 11;
 export const KANTA_FINALE_ROBOT_STEP_BOUNCE_PX = 10;
 export const KANTA_FINALE_ROBOT_WALK_ROTATION_MIN_DEGREES = 5;
@@ -68,6 +76,8 @@ export const KANTA_FINALE_PICKUP_EXIT_LANES = [
 export const KANTA_FINALE_PICKUP_MAX_SIDE_OVERFLOW_RATIO = 0.10;
 export const KANTA_FINALE_PICKUP_ROTATION_MIN_DEGREES = 16;
 export const KANTA_FINALE_PICKUP_ROTATION_MAX_DEGREES = 44;
+export const KANTA_FINALE_PICKUP_HAPTIC_STYLE = 'light' as const;
+export const KANTA_FINALE_COMPOSITE_EXIT_HAPTIC_PROGRESS = [0.62, 0.80, 0.98] as const;
 export const KANTA_FINALE_PICKUP_MIN_START_GAP_SECONDS = 0.11;
 export const KANTA_FINALE_PICKUP_START_JITTER_SECONDS = 0.18;
 export const KANTA_FINALE_PICKUP_START_ADVANCE_SECONDS = 0.40;
@@ -248,37 +258,66 @@ export function createKantaFinalePickupStartTimes(
 ): readonly number[] {
   const candidates = ownerCrossingSeconds.map((ownerCrossing, canIndex) => ({
     canIndex,
-    desiredStart: ownerCrossing - KANTA_FINALE_PICKUP_START_ADVANCE_SECONDS
-      + boundedRandom(random) * KANTA_FINALE_PICKUP_START_JITTER_SECONDS,
+    earliestStart: KANTA_FINALE_CAN_ENTRY_DELAY_SECONDS
+      + canIndex * KANTA_FINALE_CAN_ENTRY_STAGGER_SECONDS
+      + KANTA_FINALE_ENTRY_SECONDS,
+    desiredStart: Math.max(
+      ownerCrossing - KANTA_FINALE_PICKUP_START_ADVANCE_SECONDS
+        + boundedRandom(random) * KANTA_FINALE_PICKUP_START_JITTER_SECONDS,
+      KANTA_FINALE_CAN_ENTRY_DELAY_SECONDS
+        + canIndex * KANTA_FINALE_CAN_ENTRY_STAGGER_SECONDS
+        + KANTA_FINALE_ENTRY_SECONDS,
+    ),
   })).sort((left, right) => (
     left.desiredStart - right.desiredStart
     || left.canIndex - right.canIndex
   ));
-  const scheduled = Array<number>(ownerCrossingSeconds.length);
+  const proposed = Array<number>(ownerCrossingSeconds.length);
+  const earliestFeasible = Array<number>(ownerCrossingSeconds.length);
   let previousStart = Number.NEGATIVE_INFINITY;
-  candidates.forEach(({ canIndex, desiredStart }) => {
+  let previousFeasibleStart = Number.NEGATIVE_INFINITY;
+  candidates.forEach(({ desiredStart, earliestStart }, index) => {
     const randomGap = KANTA_FINALE_PICKUP_MIN_START_GAP_SECONDS
       + boundedRandom(random) * (
         KANTA_FINALE_PICKUP_START_JITTER_SECONDS
         - KANTA_FINALE_PICKUP_MIN_START_GAP_SECONDS
       );
     const pickupStart = Math.max(desiredStart, previousStart + randomGap);
-    scheduled[canIndex] = pickupStart;
+    proposed[index] = pickupStart;
     previousStart = pickupStart;
+    const feasibleStart = Math.max(
+      earliestStart,
+      previousFeasibleStart + KANTA_FINALE_PICKUP_MIN_START_GAP_SECONDS,
+    );
+    earliestFeasible[index] = feasibleStart;
+    previousFeasibleStart = feasibleStart;
   });
-  const latestFirst = [...scheduled.keys()].sort((left, right) => (
-    scheduled[left] - scheduled[right]
-  ));
-  const lastCanIndex = latestFirst[latestFirst.length - 1];
-  scheduled[lastCanIndex] -= KANTA_FINALE_LAST_PICKUP_EXTRA_ADVANCE_SECONDS;
-  for (let index = latestFirst.length - 2; index >= 0; index -= 1) {
-    const canIndex = latestFirst[index];
-    const nextCanIndex = latestFirst[index + 1];
-    scheduled[canIndex] = Math.min(
-      scheduled[canIndex],
-      scheduled[nextCanIndex] - KANTA_FINALE_PICKUP_MIN_START_GAP_SECONDS,
+  const scheduledInOrder = Array<number>(ownerCrossingSeconds.length);
+  const lastIndex = candidates.length - 1;
+  const unadvancedLastStart = Math.min(
+    Math.max(
+      proposed[lastIndex],
+      earliestFeasible[lastIndex] + KANTA_FINALE_LAST_PICKUP_EXTRA_ADVANCE_SECONDS,
+    ),
+    KANTA_FINALE_LATEST_PICKUP_START_SECONDS
+      + KANTA_FINALE_LAST_PICKUP_EXTRA_ADVANCE_SECONDS,
+  );
+  scheduledInOrder[lastIndex] = (
+    unadvancedLastStart - KANTA_FINALE_LAST_PICKUP_EXTRA_ADVANCE_SECONDS
+  );
+  for (let index = lastIndex - 1; index >= 0; index -= 1) {
+    scheduledInOrder[index] = Math.max(
+      earliestFeasible[index],
+      Math.min(
+        proposed[index],
+        scheduledInOrder[index + 1] - KANTA_FINALE_PICKUP_MIN_START_GAP_SECONDS,
+      ),
     );
   }
+  const scheduled = Array<number>(ownerCrossingSeconds.length);
+  candidates.forEach(({ canIndex }, index) => {
+    scheduled[canIndex] = scheduledInOrder[index];
+  });
   return Object.freeze(scheduled);
 }
 
@@ -348,6 +387,12 @@ function createSceneImage(
 export function attachKantaFinaleScene(
   overlay: HTMLElement,
   zIndex = 2,
+  triggerFinaleHaptic: (
+    style: typeof KANTA_FINALE_PICKUP_HAPTIC_STYLE,
+    phase?: 'pickup' | 'composite-exit',
+  ) => void = (style) => {
+    try { (window as any).triggerHapticImpact?.(style); } catch {}
+  },
 ): KantaFinaleCleanup {
   if (!overlay) return (() => {}) as KantaFinaleCleanup;
 
@@ -452,6 +497,7 @@ export function attachKantaFinaleScene(
     baseZIndex: number;
     pickupRotation: number;
     pickupStartSeconds: number;
+    pickupHapticTriggered: boolean;
   };
   const pickupRobotIndices = Array.from({ length: KANTA_FINALE_CAN_COUNT }, (_, index) => {
     if (index >= KANTA_FINALE_UPPER_CAN_COUNT) {
@@ -535,12 +581,14 @@ export function attachKantaFinaleScene(
         + (isFeaturedCan ? renderedCanHeight * KANTA_FINALE_FEATURED_CAN_LOWER_RATIO : 0)
         - remainingCanRaisePx,
       rotation: pileSlot.rotation + upperCanRotationOffset,
-      entryDelay: 0.12 + index * 0.026,
+      entryDelay: KANTA_FINALE_CAN_ENTRY_DELAY_SECONDS
+        + index * KANTA_FINALE_CAN_ENTRY_STAGGER_SECONDS,
       pickupRobot: pickupRobot ?? null,
       pickupTarget,
       baseZIndex,
       pickupRotation,
       pickupStartSeconds: pickupStartSeconds[index],
+      pickupHapticTriggered: false,
     };
   });
 
@@ -631,6 +679,10 @@ export function attachKantaFinaleScene(
     );
     const settledY = startY + (runtime.restY - startY) * entry;
     const hasPickupStarted = isPickupOwned && localPickup >= 0;
+    if (hasPickupStarted && !runtime.pickupHapticTriggered) {
+      runtime.pickupHapticTriggered = true;
+      try { triggerFinaleHaptic(KANTA_FINALE_PICKUP_HAPTIC_STYLE, 'pickup'); } catch {}
+    }
     const x = hasPickupStarted ? pickupSample.x : restingX;
     const y = hasPickupStarted
       ? pickupSample.y
@@ -693,6 +745,8 @@ export function attachKantaFinaleScene(
 
   let disposed = false;
   let animationFrameId = 0;
+  const compositeExitHapticsTriggered = KANTA_FINALE_COMPOSITE_EXIT_HAPTIC_PROGRESS
+    .map(() => false);
   const startedAt = performance.now();
   const paint = (now: number) => {
     if (disposed) return;
@@ -700,6 +754,14 @@ export function attachKantaFinaleScene(
     robots.forEach((robot) => paintRobot(robot, elapsedSeconds));
     cans.forEach((can) => paintCan(can, elapsedSeconds));
     composites.forEach((composite) => paintComposite(composite, elapsedSeconds));
+    const compositeExitProgress = (
+      elapsedSeconds - KANTA_FINALE_EXIT_START_SECONDS
+    ) / KANTA_FINALE_EXIT_DURATION_SECONDS;
+    KANTA_FINALE_COMPOSITE_EXIT_HAPTIC_PROGRESS.forEach((threshold, index) => {
+      if (compositeExitHapticsTriggered[index] || compositeExitProgress < threshold) return;
+      compositeExitHapticsTriggered[index] = true;
+      try { triggerFinaleHaptic(KANTA_FINALE_PICKUP_HAPTIC_STYLE, 'composite-exit'); } catch {}
+    });
     if (elapsedSeconds < KANTA_FINALE_SCENE_SECONDS) {
       animationFrameId = window.requestAnimationFrame(paint);
     }

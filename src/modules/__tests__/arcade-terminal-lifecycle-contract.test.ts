@@ -50,15 +50,15 @@ describe('Arcade terminal lifecycle regression contract', () => {
     expect(exitOwner).toContain('const starExitDuration = 500 + Math.max(0, numStars - 1) * 70;');
     expect(exitOwner).toContain('const cardExitDuration = starExitDuration + 650;');
     expect(exitOwner).toContain('const collapseDuration = Math.max(');
-    expect(exitOwner.indexOf('const exitsCompleted = await Promise.race(['))
+    expect(exitOwner.indexOf('const exitCompletion = await Promise.race(['))
       .toBeLessThan(exitOwner.indexOf('try { el.remove(); } catch {}'));
     expect(exitOwner).not.toContain('boardExitPromise.then(() => {\n          trackTimeout(() => {');
     expect(exitOwner).toContain('trackAnimationFrame(() => {');
     expect(exitOwner).toContain('trackTimeout(resolveModalExit, collapseDuration + 300);');
-    expect(exitOwner).toContain('const exitsCompleted = await Promise.race([');
-    expect(exitOwner).toContain('navigationAbortPromise.then(() => false)');
-    expect(exitOwner).toContain('if (!exitsCompleted) return;');
-    expect(exitOwner).toContain('safeResolve(exitAction);');
+    expect(exitOwner).toContain('const exitCompletion = await Promise.race([');
+    expect(exitOwner).toContain('navigationAbortPromise.then(() => ({');
+    expect(exitOwner).toContain('if (!exitCompletion.completed) return;');
+    expect(exitOwner).toContain('safeResolve(exitAction, {');
     expect(exitOwner).toContain('(window as any).__ccTerminalExitInProgress = true;');
     expect(modal).toContain('delete (window as any).__ccTerminalExitInProgress;');
 

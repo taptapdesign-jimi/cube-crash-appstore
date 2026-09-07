@@ -1,6 +1,17 @@
 // @ts-nocheck
 
+import {
+  isJourneyDetailModalPresentationReady,
+  isJourneyScreenPresentationReady,
+  prepareJourneyWorldRecovery,
+  waitForJourneyReturnPresentation,
+} from './journey-return-presentation.js';
+
 type MenuExitTarget = 'homepage' | 'auto';
+type ExpectedMenuDestination = {
+  target: 'home' | 'journey' | 'detail-modal';
+  boardId: number | null;
+};
 
 type MenuExitOptions = {
   reason: string;
@@ -10,9 +21,11 @@ type MenuExitOptions = {
   timeoutMs?: number;
   skipBoardExit?: boolean;
   fastArcadeCleanExit?: boolean;
+  visualExitAlreadyComplete?: boolean;
 };
 
 const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+let activeExpectedDestination: ExpectedMenuDestination | null = null;
 
 function isVisible(el: HTMLElement | null): boolean {
   if (!el || el.hidden) return false;
@@ -21,9 +34,10 @@ function isVisible(el: HTMLElement | null): boolean {
 }
 
 export function isAnyMenuScreenVisible(): boolean {
-  return isVisible(document.getElementById('home') as HTMLElement | null)
-    || isVisible(document.getElementById('journey-screen') as HTMLElement | null)
-    || isVisible(document.getElementById('collectibles-detail-modal') as HTMLElement | null);
+  return isHomepageMenuReady(0)
+    || isHomepageMenuReady(1)
+    || isJourneyScreenPresentationReady()
+    || isJourneyDetailModalPresentationReady();
 }
 
 function isHomepageMenuReady(targetSlideIndex = 0): boolean {
@@ -40,7 +54,47 @@ function isHomepageMenuReady(targetSlideIndex = 0): boolean {
   const activeSlideIndex = Number(activeSlide?.dataset.slide);
   return activeSlideIndex === targetSlideIndex
     && hasArea(home) && hasArea(container) && hasArea(activeSlide)
-    && (hasArea(hero) || hasArea(cta));
+    && (hasArea(hero) || hasArea(cta))
+    && !isVisible(document.getElementById('journey-screen') as HTMLElement | null)
+    && !isVisible(document.getElementById('collectibles-detail-modal') as HTMLElement | null);
+}
+
+function readRecoveryBoardId(): number | null {
+  const value = Number(
+    (window as any).__ccDetailModalBoardId
+    || (window as any).__ccJourneyReturnBoardId
+    || (window as any).__ccLastActiveJourneyBoardAreaId
+    || (window as any).__ccStartAtLevel
+    || 0
+  );
+  return Number.isInteger(value) && value >= 1 && value <= 30 ? value : null;
+}
+
+async function resolveExpectedDestination(options: MenuExitOptions): Promise<ExpectedMenuDestination> {
+  if (options.target === 'homepage') return { target: 'home', boardId: null };
+  try {
+    const { appZoneManager } = await import('./app-zone-manager.js');
+    return {
+      target: appZoneManager.resolveMenuReturnTarget(),
+      boardId: readRecoveryBoardId(),
+    };
+  } catch {
+    return {
+      target: (window as any).__ccRunMode === 'arcade_home' ? 'home' : 'journey',
+      boardId: readRecoveryBoardId(),
+    };
+  }
+}
+
+function isExpectedDestinationReady(
+  expected: ExpectedMenuDestination,
+  homepageSlideIndex: 0 | 1 = 0,
+): boolean {
+  if (expected.target === 'home') return isHomepageMenuReady(homepageSlideIndex);
+  if ((window as any).__ccAppZone !== 'journey') return false;
+  return expected.target === 'detail-modal'
+    ? isJourneyDetailModalPresentationReady() || isJourneyScreenPresentationReady()
+    : isJourneyScreenPresentationReady();
 }
 
 async function forceHomepageVisible(
@@ -92,43 +146,32 @@ async function forceHomepageVisible(
   }
 }
 
-async function forceAutoMenuVisible(reason: string): Promise<void> {
-  const cameFromJourney =
-    (() => {
-      try {
-        return (window as any).__ccRunMode !== 'arcade_home'
-          && (
-            (window as any).__ccCameFromJourney === true ||
-            localStorage.getItem('__ccCameFromJourney') === 'true' ||
-            (window as any).__ccFromInterimBoard === true ||
-            localStorage.getItem('__ccFromInterimBoard') === 'true'
-          );
-      } catch {
-        return false;
-      }
-    })();
-
-  if (!cameFromJourney) {
+async function forceAutoMenuVisible(
+  reason: string,
+  expected: ExpectedMenuDestination,
+): Promise<void> {
+  if (expected.target === 'home') {
     await forceHomepageVisible(reason);
     return;
   }
 
   try {
-    const home = document.getElementById('home') as HTMLElement | null;
-    if (home) {
-      home.hidden = true;
-      home.setAttribute('hidden', 'true');
-      home.style.display = 'none';
-      home.style.visibility = 'hidden';
-      home.style.opacity = '0';
-    }
-    try {
-      const { appZoneManager } = await import('./app-zone-manager.js');
-      appZoneManager.markJourneyMenu(`menu-exit-handoff:${reason}`);
-    } catch {}
+    // A failed direct-detail return degrades only to its Journey World. The
+    // immutable destination captured before exit prevents consumed origin
+    // flags from ever redirecting a Journey run to Homepage.
+    prepareJourneyWorldRecovery({
+      boardId: expected.boardId,
+      reason: `menu-exit-handoff:${reason}`,
+    });
+    const { appZoneManager } = await import('./app-zone-manager.js');
+    await appZoneManager.showJourneyShell(`menu-exit-handoff:${reason}`);
     const { ensureCollectiblesManager, showCollectiblesScreen } = await import('../collectibles-manager.js');
     await ensureCollectiblesManager?.();
     await showCollectiblesScreen?.();
+    const journeyReady = await waitForJourneyReturnPresentation('screen');
+    if (!journeyReady) {
+      throw new Error('Journey recovery did not present a visible Hub or World Unit');
+    }
     try {
       const { journeyBoardsManager } = await import('./journey-boards-manager.js');
       journeyBoardsManager.resumeInterimCardIdleEffects?.(`menu-exit-handoff:${reason}`);
@@ -143,37 +186,45 @@ async function forceAutoMenuVisible(reason: string): Promise<void> {
     const uiManagerModule = await import('./ui-manager.js');
     uiManagerModule.default?.hideApp?.();
   } catch (error) {
-    console.warn('⚠️ menu-exit-handoff: force journey fallback failed, using homepage', { reason, error });
-    await forceHomepageVisible(reason);
+    console.warn('⚠️ menu-exit-handoff: Journey recovery failed; preserving Journey ownership', {
+      reason,
+      expected,
+      error,
+    });
   }
 }
 
-export async function ensureMenuVisibleAfterExit(options: MenuExitOptions): Promise<void> {
+export async function ensureMenuVisibleAfterExit(
+  options: MenuExitOptions,
+  expectedDestination?: ExpectedMenuDestination,
+): Promise<void> {
+  const expected = expectedDestination ?? await resolveExpectedDestination(options);
   await wait(320);
-  if (options.target === 'homepage') {
+  if (expected.target === 'home') {
     const targetSlideIndex = options.homepageSlideIndex ?? 0;
-    if (isHomepageMenuReady(targetSlideIndex)) return;
+    if (isExpectedDestinationReady(expected, targetSlideIndex)) return;
     console.warn('⚠️ menu-exit-handoff: homepage shell incomplete after exit, applying fallback', options);
     (window as any).exitingToMenu = false;
     await forceHomepageVisible(options.reason, targetSlideIndex, options.onHomepageEnterPrepared);
     return;
   }
-  if (isAnyMenuScreenVisible()) return;
-  console.warn('⚠️ menu-exit-handoff: no visible menu after exit, applying fallback', options);
+  if (isExpectedDestinationReady(expected)) return;
+  console.warn('⚠️ menu-exit-handoff: expected Journey destination incomplete after exit, applying fallback', {
+    ...options,
+    expected,
+  });
   (window as any).exitingToMenu = false;
-  await forceAutoMenuVisible(options.reason);
+  await forceAutoMenuVisible(options.reason, expected);
 }
 
 export async function requestExitToMenu(options: MenuExitOptions): Promise<void> {
-  try {
-    if (options.skipBoardExit) (window as any).__skipBoardExitAnimation = true;
-    if (options.fastArcadeCleanExit) (window as any).__ccFastArcadeCleanExit = true;
-  } catch {}
-
   const startedAt = Date.now();
   const timeoutMs = options.timeoutMs ?? (options.skipBoardExit ? 2500 : 4500);
+  const requestedDestination = await resolveExpectedDestination(options);
+  let expectedDestination = requestedDestination;
 
   if ((window as any).exitingToMenu === true) {
+    expectedDestination = activeExpectedDestination ?? requestedDestination;
     let watchdogReported = false;
     while ((window as any).exitingToMenu === true) {
       await wait(120);
@@ -186,12 +237,17 @@ export async function requestExitToMenu(options: MenuExitOptions): Promise<void>
       }
     }
   } else if (typeof (window as any).exitToMenu === 'function') {
+    activeExpectedDestination = requestedDestination;
     let watchdog: number | undefined;
     try {
       const exitPromise = Promise.resolve((window as any).exitToMenu({
         target: options.target,
         homepageSlideIndex: options.homepageSlideIndex,
         onHomepageEnterPrepared: options.onHomepageEnterPrepared,
+        skipBoardExit: options.skipBoardExit,
+        fastArcadeCleanExit: options.fastArcadeCleanExit,
+        visualExitAlreadyComplete: options.visualExitAlreadyComplete,
+        expectedMenuDestination: expectedDestination.target,
       }));
       watchdog = window.setTimeout(() => {
         console.warn('⚠️ menu-exit-handoff: exit exceeded watchdog; waiting for the authoritative owner', {
@@ -209,5 +265,9 @@ export async function requestExitToMenu(options: MenuExitOptions): Promise<void>
     console.warn('⚠️ menu-exit-handoff: window.exitToMenu not found', options);
   }
 
-  await ensureMenuVisibleAfterExit(options);
+  try {
+    await ensureMenuVisibleAfterExit(options, expectedDestination);
+  } finally {
+    if (activeExpectedDestination === expectedDestination) activeExpectedDestination = null;
+  }
 }

@@ -1,5 +1,7 @@
 import {
   attachKantaFinaleScene,
+  KANTA_FINALE_CAN_ENTRY_DELAY_SECONDS,
+  KANTA_FINALE_CAN_ENTRY_STAGGER_SECONDS,
   clampKantaPickupLaneX,
   createKantaFinaleExtraPickupRobotIndices,
   createKantaFinalePickupStartTimes,
@@ -14,7 +16,11 @@ import {
   KANTA_FINALE_COMPOSITE_ENTRY_DELAY_SECONDS,
   KANTA_FINALE_COMPOSITE_ENTRY_SECONDS,
   KANTA_FINALE_COMPOSITE_ENTRY_TRAVEL_PX,
+  KANTA_FINALE_COMPOSITE_EXIT_HAPTIC_PROGRESS,
+  KANTA_FINALE_CLEANUP_MARGIN_SECONDS,
   KANTA_FINALE_ENTRY_SECONDS,
+  KANTA_FINALE_EXIT_DURATION_SECONDS,
+  KANTA_FINALE_EXIT_START_SECONDS,
   KANTA_FINALE_EXTRA_PICKUP_CAN_RAISE_RATIO,
   KANTA_FINALE_EXTRA_PICKUP_CAN_COUNT,
   KANTA_FINALE_FEATURED_CAN_INDEX,
@@ -25,10 +31,12 @@ import {
   KANTA_FINALE_GROUND_BELOW_VIEWPORT_RATIO,
   KANTA_FINALE_INDIVIDUAL_CAN_LOWER_RATIO,
   KANTA_FINALE_LAST_PICKUP_EXTRA_ADVANCE_SECONDS,
+  KANTA_FINALE_LATEST_PICKUP_START_SECONDS,
   KANTA_FINALE_PICKUP_SECONDS,
   KANTA_FINALE_PICKUP_APEX_PROGRESS,
   KANTA_FINALE_PICKUP_END_SCALE,
   KANTA_FINALE_PICKUP_EXIT_LANES,
+  KANTA_FINALE_PICKUP_HAPTIC_STYLE,
   KANTA_FINALE_PICKUP_MAX_SIDE_OVERFLOW_RATIO,
   KANTA_FINALE_PICKUP_MIN_START_GAP_SECONDS,
   KANTA_FINALE_PICKUP_START_ADVANCE_SECONDS,
@@ -39,6 +47,8 @@ import {
   KANTA_FINALE_PICKUP_CAN_Z_INDEX,
   KANTA_FINALE_ROBOT_ENTRY_DELAY_SECONDS,
   KANTA_FINALE_ROBOT_ENTRY_STAGGER_SECONDS,
+  KANTA_FINALE_ROBOT_ENTRY_WINDOW_SECONDS,
+  KANTA_FINALE_ROBOT_COUNT,
   KANTA_FINALE_ROBOT_LOWER_RATIO,
   KANTA_FINALE_ROBOT_RAISE_RATIO,
   KANTA_FINALE_ROBOT_STEP_BOUNCE_PX,
@@ -103,8 +113,11 @@ describe('Kanta finale collection lifecycle', () => {
     expect(sampleKantaCompositeEntry(1)).toBe(1);
     expect(KANTA_FINALE_ROBOT_RAISE_RATIO).toBeCloseTo(0.14 + 0.08, 10);
     expect(KANTA_FINALE_ROBOT_LOWER_RATIO).toBe(0.35);
-    expect(KANTA_FINALE_ROBOT_ENTRY_DELAY_SECONDS).toBe(0.80);
-    expect(KANTA_FINALE_ROBOT_ENTRY_STAGGER_SECONDS).toBe(0.30);
+    expect(KANTA_FINALE_ROBOT_ENTRY_DELAY_SECONDS).toBe(0);
+    expect(KANTA_FINALE_ROBOT_ENTRY_WINDOW_SECONDS).toBe(0.70);
+    expect(KANTA_FINALE_ROBOT_ENTRY_STAGGER_SECONDS).toBeCloseTo(7 / 30, 10);
+    expect(KANTA_FINALE_CAN_ENTRY_DELAY_SECONDS).toBe(0);
+    expect(KANTA_FINALE_CAN_ENTRY_STAGGER_SECONDS).toBe(0.026);
     expect(KANTA_FINALE_ROBOT_TRAVEL_SECONDS).toBe(1.48);
     expect(KANTA_FINALE_ROBOT_STEP_BOUNCE_PX).toBe(10);
     expect(KANTA_FINALE_ROBOT_Z_INDEX).toBe(11);
@@ -152,6 +165,14 @@ describe('Kanta finale collection lifecycle', () => {
       .map(({ dataset }) => Number(dataset.kantaFinalePickupStartSeconds))
       .sort((left, right) => left - right);
     expect(new Set(pickupStarts).size).toBe(11);
+    pickupCans.forEach(({ dataset }) => {
+      const canIndex = Number(dataset.kantaFinaleStackedCan);
+      expect(Number(dataset.kantaFinalePickupStartSeconds)).toBeGreaterThanOrEqual(
+        KANTA_FINALE_CAN_ENTRY_DELAY_SECONDS
+          + canIndex * KANTA_FINALE_CAN_ENTRY_STAGGER_SECONDS
+          + KANTA_FINALE_ENTRY_SECONDS,
+      );
+    });
     pickupStarts.slice(1).forEach((start, index) => {
       expect(start - pickupStarts[index]).toBeGreaterThanOrEqual(
         KANTA_FINALE_PICKUP_MIN_START_GAP_SECONDS - 0.0001,
@@ -258,10 +279,14 @@ describe('Kanta finale collection lifecycle', () => {
     expect(scheduledPaint).not.toBeNull();
     scheduledPaint?.(KANTA_FINALE_COMPOSITE_ENTRY_DELAY_SECONDS * 1000);
     expect(composites.every(({ style }) => style.opacity === '1')).toBe(true);
-    expect(cans.every(({ style }) => style.opacity === '0')).toBe(true);
-    scheduledPaint?.((KANTA_FINALE_ROBOT_ENTRY_DELAY_SECONDS - 0.01) * 1000);
+    expect(cans[0].style.opacity).toBe('1');
+    expect(robots[0].style.opacity).toBe('1');
+    expect(robots.slice(1).every(({ style }) => style.opacity === '0')).toBe(true);
+    scheduledPaint?.((KANTA_FINALE_COMPOSITE_ENTRY_SECONDS - 0.01) * 1000);
     expect(cans.every(({ style }) => style.opacity === '1')).toBe(true);
-    expect(robots.every(({ style }) => style.opacity === '0')).toBe(true);
+    expect(robots.every(({ style }) => style.opacity === '1')).toBe(true);
+    expect(Math.max(...robots.map(({ dataset }) => Number(dataset.kantaFinaleEntryAt))))
+      .toBeLessThan(KANTA_FINALE_COMPOSITE_ENTRY_SECONDS);
 
     const readX = (element: HTMLImageElement) => Number(
       element.style.transform.match(/translate3d\((-?[\d.]+)px/)?.[1],
@@ -319,11 +344,15 @@ describe('Kanta finale collection lifecycle', () => {
         pickupAt: Number(can.dataset.kantaFinalePickupStartSeconds),
       }))
       .sort((left, right) => left.pickupAt - right.pickupAt)[0];
-    scheduledPaint?.((firstPickup.pickupAt - 0.01) * 1000);
+    scheduledPaint?.((firstPickup.pickupAt - 0.0001) * 1000);
+    const pickupStartX = readX(firstPickup.can);
     const pickupStartY = Number(
       firstPickup.can.style.transform.match(/translate3d\(-?[\d.]+px, (-?[\d.]+)px/)?.[1],
     );
     expect(firstPickup.can.dataset.kantaFinalePickupState).toBe('waiting');
+    scheduledPaint?.(firstPickup.pickupAt * 1000);
+    expect(readX(firstPickup.can)).toBeCloseTo(pickupStartX, 0);
+    expect(readY(firstPickup.can)).toBeCloseTo(pickupStartY, 0);
     scheduledPaint?.((
       firstPickup.pickupAt + KANTA_FINALE_PICKUP_SECONDS * KANTA_FINALE_PICKUP_APEX_PROGRESS
     ) * 1000);
@@ -399,6 +428,89 @@ describe('Kanta finale collection lifecycle', () => {
     expect(clampKantaPickupLaneX(390, 120, -999)).toBe(-147);
   });
 
+  test('fires one lifecycle-owned light haptic when each individual Kanta starts its exit', () => {
+    let paintFrame: FrameRequestCallback | null = null;
+    jest.spyOn(performance, 'now').mockReturnValue(0);
+    jest.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      paintFrame = callback;
+      return 1;
+    });
+    jest.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
+    const triggerFinaleHaptic = jest.fn();
+    const overlay = document.createElement('div');
+    document.body.appendChild(overlay);
+
+    const cleanup = attachKantaFinaleScene(overlay, 2, triggerFinaleHaptic);
+    const pickupStarts = Array.from(
+      overlay.querySelectorAll<HTMLElement>('[data-kanta-finale-pickup-start-seconds]'),
+    ).map(({ dataset }) => Number(dataset.kantaFinalePickupStartSeconds))
+      .sort((left, right) => left - right);
+    const scheduledPaint = paintFrame as FrameRequestCallback | null;
+
+    expect(pickupStarts).toHaveLength(11);
+    scheduledPaint?.((pickupStarts[0] - 0.01) * 1000);
+    expect(triggerFinaleHaptic).not.toHaveBeenCalled();
+
+    pickupStarts.forEach((pickupStart, index) => {
+      scheduledPaint?.((pickupStart + 0.001) * 1000);
+      expect(triggerFinaleHaptic.mock.calls.filter(([, phase]) => phase === 'pickup'))
+        .toHaveLength(index + 1);
+    });
+    const pickupCalls = triggerFinaleHaptic.mock.calls.filter(([, phase]) => phase === 'pickup');
+    expect(pickupCalls).toHaveLength(11);
+    expect(pickupCalls.every(([style]) => (
+      style === KANTA_FINALE_PICKUP_HAPTIC_STYLE
+    ))).toBe(true);
+
+    scheduledPaint?.(KANTA_FINALE_SCENE_SECONDS * 1000);
+    expect(triggerFinaleHaptic.mock.calls.filter(([, phase]) => phase === 'pickup'))
+      .toHaveLength(11);
+    cleanup();
+    scheduledPaint?.((KANTA_FINALE_SCENE_SECONDS + 1) * 1000);
+    expect(triggerFinaleHaptic.mock.calls.filter(([, phase]) => phase === 'pickup'))
+      .toHaveLength(11);
+  });
+
+  test('fires three final light haptics across the tail of the composite bounce-out', () => {
+    let paintFrame: FrameRequestCallback | null = null;
+    jest.spyOn(performance, 'now').mockReturnValue(0);
+    jest.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      paintFrame = callback;
+      return 1;
+    });
+    jest.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
+    const triggerFinaleHaptic = jest.fn();
+    const overlay = document.createElement('div');
+    document.body.appendChild(overlay);
+
+    const cleanup = attachKantaFinaleScene(overlay, 2, triggerFinaleHaptic);
+    const scheduledPaint = paintFrame as FrameRequestCallback | null;
+    const hapticTimes = KANTA_FINALE_COMPOSITE_EXIT_HAPTIC_PROGRESS.map((progress) => (
+      KANTA_FINALE_EXIT_START_SECONDS + KANTA_FINALE_EXIT_DURATION_SECONDS * progress
+    ));
+
+    scheduledPaint?.((hapticTimes[0] - 0.001) * 1000);
+    expect(triggerFinaleHaptic.mock.calls.filter(([, phase]) => phase === 'composite-exit'))
+      .toHaveLength(0);
+    hapticTimes.forEach((hapticTime, index) => {
+      scheduledPaint?.((hapticTime + 0.001) * 1000);
+      const finalCalls = triggerFinaleHaptic.mock.calls.filter(([, phase]) => (
+        phase === 'composite-exit'
+      ));
+      expect(finalCalls).toHaveLength(index + 1);
+      expect(finalCalls.every(([style]) => style === KANTA_FINALE_PICKUP_HAPTIC_STYLE))
+        .toBe(true);
+    });
+
+    scheduledPaint?.(KANTA_FINALE_SCENE_SECONDS * 1000);
+    expect(triggerFinaleHaptic.mock.calls.filter(([, phase]) => phase === 'composite-exit'))
+      .toHaveLength(3);
+    cleanup();
+    scheduledPaint?.((KANTA_FINALE_SCENE_SECONDS + 1) * 1000);
+    expect(triggerFinaleHaptic.mock.calls.filter(([, phase]) => phase === 'composite-exit'))
+      .toHaveLength(3);
+  });
+
   test('randomizes a balanced two-way pickup plan with unique individual cans', () => {
     const samples = [0.91, 0.08, 0.74, 0.31, 0.62, 0.17];
     let index = 0;
@@ -445,9 +557,15 @@ describe('Kanta finale collection lifecycle', () => {
   });
 
   test('schedules every pickup individually with randomized non-paired intervals', () => {
+    const crossings = Array.from({ length: KANTA_FINALE_ROBOT_COUNT }, (_, index) => (
+      KANTA_FINALE_ROBOT_ENTRY_DELAY_SECONDS
+      + index * KANTA_FINALE_ROBOT_ENTRY_STAGGER_SECONDS
+      + KANTA_FINALE_ROBOT_TRAVEL_SECONDS * 0.5
+    ));
     const ownerCrossings = [
-      1.54, 1.84, 2.14, 2.44,
-      1.54, 1.84, 2.14, 2.44, 1.54, 1.84, 2.14,
+      crossings[0], crossings[1], crossings[2], crossings[3],
+      crossings[0], crossings[1], crossings[2], crossings[3],
+      crossings[0], crossings[1], crossings[2],
     ];
     const first = createKantaFinalePickupStartTimes(ownerCrossings, () => 0);
     let roll = 0;
@@ -463,8 +581,11 @@ describe('Kanta finale collection lifecycle', () => {
     expect(KANTA_FINALE_PICKUP_START_JITTER_SECONDS).toBe(0.18);
     expect(KANTA_FINALE_PICKUP_START_ADVANCE_SECONDS).toBe(0.40);
     expect(KANTA_FINALE_LAST_PICKUP_EXTRA_ADVANCE_SECONDS).toBe(0.15);
-    expect(Math.min(...first)).toBeLessThanOrEqual(
-      Math.min(...ownerCrossings) - KANTA_FINALE_PICKUP_START_ADVANCE_SECONDS,
+    expect(KANTA_FINALE_LATEST_PICKUP_START_SECONDS + KANTA_FINALE_PICKUP_SECONDS)
+      .toBeCloseTo(KANTA_FINALE_SCENE_SECONDS - KANTA_FINALE_CLEANUP_MARGIN_SECONDS, 10);
+    expect(Math.min(...first)).toBeCloseTo(
+      KANTA_FINALE_CAN_ENTRY_DELAY_SECONDS + KANTA_FINALE_ENTRY_SECONDS,
+      10,
     );
     for (const schedule of [first, second].map((values) => (
       [...values].sort((left, right) => left - right)
@@ -472,6 +593,17 @@ describe('Kanta finale collection lifecycle', () => {
       schedule.slice(1).forEach((start, index) => {
         expect(start - schedule[index]).toBeGreaterThanOrEqual(
           KANTA_FINALE_PICKUP_MIN_START_GAP_SECONDS - Number.EPSILON,
+        );
+      });
+      expect(schedule[schedule.length - 1])
+        .toBeLessThanOrEqual(KANTA_FINALE_LATEST_PICKUP_START_SECONDS);
+    }
+    for (const pickupStarts of [first, second]) {
+      pickupStarts.forEach((pickupStart, canIndex) => {
+        expect(pickupStart).toBeGreaterThanOrEqual(
+          KANTA_FINALE_CAN_ENTRY_DELAY_SECONDS
+            + canIndex * KANTA_FINALE_CAN_ENTRY_STAGGER_SECONDS
+            + KANTA_FINALE_ENTRY_SECONDS,
         );
       });
     }

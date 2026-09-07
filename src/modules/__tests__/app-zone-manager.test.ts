@@ -116,6 +116,20 @@ describe('app-zone-manager', () => {
     expect(localStorage.getItem('__ccCameFromJourney')).toBe('true');
   });
 
+  it('invalidates stale async presentation ownership even when a newer route uses the same zone', () => {
+    appZoneManager.setZone('home', 'first-home-owner');
+    const firstHomeEpoch = appZoneManager.getPresentationEpoch();
+    expect(appZoneManager.isPresentationCurrent(firstHomeEpoch, 'home')).toBe(true);
+
+    appZoneManager.setZone('journey', 'journey-owner');
+    expect(appZoneManager.isPresentationCurrent(firstHomeEpoch, 'home')).toBe(false);
+
+    const firstJourneyEpoch = appZoneManager.getPresentationEpoch();
+    appZoneManager.setZone('journey', 'replacement-journey-owner');
+    expect(appZoneManager.isPresentationCurrent(firstJourneyEpoch, 'journey')).toBe(false);
+    expect(appZoneManager.isPresentationCurrent(appZoneManager.getPresentationEpoch(), 'journey')).toBe(true);
+  });
+
   it('lets an animated Settings transition retain nav ownership until its exit owner finishes', () => {
     document.body.innerHTML = `
       <div id="independent-nav">

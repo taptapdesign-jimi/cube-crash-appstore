@@ -694,6 +694,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             target: isArcadeHomeRunMode() ? 'homepage' : 'auto',
             skipBoardExit: true,
             fastArcadeCleanExit: isArcadeHomeRunMode(),
+            visualExitAlreadyComplete: (window as any).__ccGameOverBoardExitComplete === true,
           });
           logger.info('✅ menu exit handoff completed from board-fail-modal');
         } catch (error) {

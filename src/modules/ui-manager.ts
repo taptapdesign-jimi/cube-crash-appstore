@@ -399,7 +399,11 @@ class UIManager {
     // 🔥 MEMORY LEAK FIX: Store unsubscribe functions
     // Homepage visibility
     const unsubscribeHomepageReady = gameState.subscribe('homepageReady', (isReady: boolean) => {
-      if (isReady && !homepageEnterTransitionOwner.isActive()) {
+      if (
+        isReady
+        && appZoneManager.getCurrentZone() === 'home'
+        && !homepageEnterTransitionOwner.isActive()
+      ) {
         this.showHomepage();
       }
     });
@@ -409,7 +413,10 @@ class UIManager {
     const unsubscribeGameActive = gameState.subscribe('isGameActive', (isActive: boolean) => {
       if (isActive) {
         this.hideHomepage();
-      } else if (!homepageEnterTransitionOwner.isActive()) {
+      } else if (
+        appZoneManager.getCurrentZone() === 'home'
+        && !homepageEnterTransitionOwner.isActive()
+      ) {
         this.showHomepage();
       }
     });
@@ -869,6 +876,10 @@ class UIManager {
   
   // Show homepage
   showHomepage(): void {
+    if (appZoneManager.getCurrentZone() !== 'home') {
+      logger.warn('Homepage reveal rejected because the Home app-zone is not current');
+      return;
+    }
     logger.info('🏠 showHomepage() called');
     
     // Keep Homepage on the same viewport-relative paper surface as the intro.
@@ -1354,6 +1365,10 @@ class UIManager {
   
   // Show homepage with animation
   showHomepageWithAnimation(): void {
+    if (appZoneManager.getCurrentZone() !== 'home') {
+      logger.warn('Animated Homepage reveal rejected because the Home app-zone is not current');
+      return;
+    }
     if (this.elements.home) {
       this.elements.home.style.display = 'block';
       this.elements.home.removeAttribute('hidden');
@@ -1368,6 +1383,10 @@ class UIManager {
   
   // Show homepage QUIETLY - no animations, just show it (for exit flow)
   showHomepageQuietly(options: { skipSliderForceReady?: boolean } = {}): void {
+    if (appZoneManager.getCurrentZone() !== 'home') {
+      logger.warn('Quiet Homepage reveal rejected because the Home app-zone is not current');
+      return;
+    }
     applyPaperBackground();
     if (this.elements.home) {
       this.elements.home.style.display = 'block';
