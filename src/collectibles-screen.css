@@ -450,6 +450,7 @@
 
 .journey-card-flip-title-section {
   position: relative;
+  top: -4px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -527,6 +528,8 @@
 }
 
 .journey-card-flip-stats {
+  position: relative;
+  top: -8px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -536,6 +539,7 @@
 
 .journey-card-flip-stat {
   display: flex;
+  position: relative;
   flex-direction: row;
   align-items: center;
   justify-content: flex-start;
@@ -543,6 +547,16 @@
   width: 100%;
   padding: 16px 0;
   text-align: left;
+}
+
+/* Pull both complete stat rows six pixels toward the fixed divider without
+   changing its position or competing with their animation transforms. */
+.journey-card-flip-stat:first-child {
+  top: 6px;
+}
+
+.journey-card-flip-stat:last-child {
+  top: -6px;
 }
 
 .journey-card-flip-stat-icon {
@@ -625,6 +639,8 @@
 }
 
 .journey-card-flip-cta.cc-cta {
+  position: relative;
+  top: -16px;
   min-height: 64px;
   margin-top: auto;
   align-self: center;

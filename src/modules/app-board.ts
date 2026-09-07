@@ -9,6 +9,7 @@ import { randVal } from './app-core-utils.js';
 import type { Tile } from '../types/game-types.js';
 import { removeTileFully } from './tile-lifecycle-service.ts';
 import { markBoardLifecycle, startBoardLifecycleFrameWindow } from '../utils/board-lifecycle-performance.ts';
+import { settleBoardPopInTileTransform } from './board-popin-transform.ts';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
@@ -23,6 +24,18 @@ interface SweetPopOptions {
   rate?: number;
   durationScale?: number;
   signal?: AbortSignal;
+}
+
+/**
+ * A board entrance exclusively owns the outer tile scale. If navigation
+ * interrupts that entrance, leaving its current tween frame behind makes the
+ * same tile permanently small when the board is shown again (most noticeable
+ * on composite specials such as Kanta). Always close that ownership boundary
+ * at the canonical board scale before releasing the entrance.
+ */
+function settleBoardPopInTile(tile: any): void {
+  settleBoardPopInTileTransform(tile);
+  try { makeBoard.syncTileZIndex(tile, STATE.board); } catch {}
 }
 
 function isFirstPlayTutorialDemoBoard(): boolean {
@@ -220,6 +233,7 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
       }
       activeTimelines.forEach(timeline => { try { timeline.kill(); } catch {} });
       activeDelayedCalls.forEach(delayed => { try { delayed.kill(); } catch {} });
+      sourceTiles.forEach(settleBoardPopInTile);
       stopPopInFrameWindow();
       markBoardLifecycle('popin-aborted');
       resolve();
@@ -227,30 +241,8 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
 
     const forceTileFinalState = (t: any) => {
       if (!t || t.destroyed) return;
-      try { gsap.killTweensOf(t); } catch {}
-      try { gsap.killTweensOf(t.scale); } catch {}
       try { gsap.killTweensOf(t.rotG); } catch {}
-      t.visible = true;
-      t.renderable = true;
-      if (t.scale?.set) t.scale.set(1, 1);
-      else if (t.scale) {
-        t.scale.x = 1;
-        t.scale.y = 1;
-      }
-      if (t.locked) {
-        t.alpha = (t.value > 0) ? 0 : 0.25;
-      } else {
-        t.alpha = 1;
-      }
-      if (t.rotG) t.rotG.alpha = 1;
-      if (t.base) t.base.alpha = 1;
-      if (t.overlay) {
-        t.overlay.alpha = 1;
-        t.overlay.visible = false;
-      }
-      if (t.num) t.num.alpha = 1;
-      if (t.pips) t.pips.alpha = 1;
-      try { makeBoard.syncTileZIndex(t, STATE.board); } catch {}
+      settleBoardPopInTile(t);
     };
 
     const finishPopIn = (forced = false) => {
@@ -386,6 +378,7 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
       if (safetyTimeout) clearTimeout(safetyTimeout);
       activeTimelines.forEach(tl => { try { tl.kill(); } catch {} });
       activeDelayedCalls.forEach(dc => { try { dc.kill(); } catch {} });
+      sourceTiles.forEach(settleBoardPopInTile);
     };
   });
 }

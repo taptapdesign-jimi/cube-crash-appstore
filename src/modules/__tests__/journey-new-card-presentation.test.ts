@@ -88,10 +88,10 @@ describe('Journey New Reward presentation', () => {
     const manager = read('src/modules/journey-boards-manager.ts');
     const screen = read('src/modules/journey-new-card-screen.ts');
     expect(JOURNEY_AREA55_CARD_NAMES).toEqual([
-      'Bibi - Ribi',
-      'Zap - Zap',
-      'Woombuu',
       'The Bloob',
+      'Bibi - Ribi',
+      'Woombuu',
+      'Zap - Zap',
       'Beam Up',
       'Bloob Spill',
       'Team Party',
@@ -99,8 +99,10 @@ describe('Journey New Reward presentation', () => {
       'Fixer Upper',
       'Take Over',
     ]);
-    expect(getJourneyNewCardDisplayName(21, 'AREA 55')).toBe('Bibi - Ribi');
+    expect(getJourneyNewCardDisplayName(21, 'AREA 55')).toBe('The Bloob');
+    expect(getJourneyNewCardDisplayName(22, 'AREA 55')).toBe('Bibi - Ribi');
     expect(getJourneyNewCardDisplayName(23, 'AREA 55')).toBe('Woombuu');
+    expect(getJourneyNewCardDisplayName(24, 'AREA 55')).toBe('Zap - Zap');
     expect(getJourneyNewCardDisplayName(30, 'FINAL SIGNAL')).toBe('Take Over');
     expect(manager).toContain('...JOURNEY_AREA55_CARD_NAMES');
     expect(screen).toContain('Math.min(30, boardNumber | 0)');

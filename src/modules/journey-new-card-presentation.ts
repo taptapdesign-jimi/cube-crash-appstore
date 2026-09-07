@@ -35,10 +35,10 @@ export const JOURNEY_BEACH_CARD_NAMES = [
 ] as const;
 
 export const JOURNEY_AREA55_CARD_NAMES = [
-  'Bibi - Ribi',
-  'Zap - Zap',
-  'Woombuu',
   'The Bloob',
+  'Bibi - Ribi',
+  'Woombuu',
+  'Zap - Zap',
   'Beam Up',
   'Bloob Spill',
   'Team Party',

@@ -25,10 +25,7 @@ import {
 import {
   createRoboAirCombatVariation,
   createRoboTransitionVariation,
-  sampleRoboAirCombatSway,
-  type RoboAirCombatSwaySample,
   type RoboAirCombatVariation,
-  type RoboTravelDirection,
   type RoboTransitionVariation,
 } from './board-transition-robo-variation.js';
 import { getRunMode } from './run-mode.js';
@@ -1158,9 +1155,8 @@ function startRoboAirCombatMotion(
   roboAirCombatMasterTimeline = timeline;
   roboAirCombatTimelines.push(timeline);
   contentTimelines.push(timeline);
-  // This master is the Area55 exit barrier. It includes the delayed fighter's
-  // complete extended path so both ships keep roaming until the shared exit
-  // takes over, without adding a second transition timer.
+  // This master is the Area55 exit barrier. Keep the Gameplay KING cadence;
+  // only fighter depth relative to NN differs from that baseline.
   const ships = [leftShip, rightShipMotion];
   const combatVariation = createRoboAirCombatVariation();
   activeRoboAirCombatVariation = combatVariation;
@@ -1263,8 +1259,7 @@ function startRoboAirCombatMotion(
   };
   const LEFT_SHIP_START_DELAY_SECONDS = 0;
   const RIGHT_SHIP_START_DELAY_SECONDS = 0.20;
-  const fighterFlightDurationSeconds = 4.20;
-  const fighterCombatDurationSeconds = fighterFlightDurationSeconds + RIGHT_SHIP_START_DELAY_SECONDS;
+  const fighterFlightDurationSeconds = 3.00;
   const beamFourStartSeconds = 2.12;
   addContinuousFlightWobble(
     leftShip,
@@ -1288,8 +1283,6 @@ function startRoboAirCombatMotion(
     points: FlightPoint[];
     delay: number;
     bankPhase: number;
-    actionDirection: RoboTravelDirection;
-    actionSway: RoboAirCombatSwaySample;
     duration: number;
     onComplete?: () => void;
     finished: boolean;
@@ -1325,7 +1318,6 @@ function startRoboAirCombatMotion(
     points: FlightPoint[],
     delay: number,
     bankPhase: number,
-    actionDirection: RoboTravelDirection,
     onComplete?: () => void,
   ): void => {
     const duration = points[points.length - 1].time;
@@ -1334,8 +1326,6 @@ function startRoboAirCombatMotion(
       points,
       delay,
       bankPhase,
-      actionDirection,
-      actionSway: { x: 0, y: 0, bank: 0 },
       duration,
       onComplete,
       finished: false,
@@ -1345,7 +1335,7 @@ function startRoboAirCombatMotion(
     runtime: (typeof combatFlights)[number],
     elapsed: number,
   ): void => {
-        const { ship, points, bankPhase, actionDirection, duration } = runtime;
+        const { ship, points, bankPhase } = runtime;
         let segmentIndex = 0;
         while (segmentIndex < points.length - 2 && elapsed >= points[segmentIndex + 1].time) {
           segmentIndex += 1;
@@ -1355,27 +1345,13 @@ function startRoboAirCombatMotion(
         const segmentDuration = Math.max(0.001, next.time - current.time);
         const progress = Math.max(0, Math.min(1, (elapsed - current.time) / segmentDuration));
         const smoothProgress = progress * progress * (3 - 2 * progress);
-        const actionSway = sampleRoboAirCombatSway(
-          elapsed / Math.max(0.001, duration),
-          bankPhase,
-          actionDirection,
-          combatVariation.actionSwayX,
-          combatVariation.actionSwayY,
-          combatVariation.actionSwayCycles,
-          runtime.actionSway,
-        );
-        const lateWanderProgress = Math.max(0, Math.min(1,
-          (elapsed - beamFourStartSeconds) / Math.max(0.001, duration - beamFourStartSeconds),
-        ));
-        const lateWanderStrength = 1 + lateWanderProgress * 0.32;
-        const bank = Math.max(-15, Math.min(15,
+        const bank = Math.max(-10, Math.min(10,
           Math.sin(elapsed * 5.2 + bankPhase) * 8
-          + Math.sin(elapsed * 8.7 + bankPhase * 0.7) * 2
-          + actionSway.bank * lateWanderStrength,
+          + Math.sin(elapsed * 8.7 + bankPhase * 0.7) * 2,
         ));
         gsap.set(ship, {
-          x: sampleSmoothFlightValue(points, elapsed, 'x') + actionSway.x * lateWanderStrength,
-          y: sampleSmoothFlightValue(points, elapsed, 'y') + actionSway.y * lateWanderStrength,
+          x: sampleSmoothFlightValue(points, elapsed, 'x'),
+          y: sampleSmoothFlightValue(points, elapsed, 'y'),
           scale: current.scale + (next.scale - current.scale) * smoothProgress,
           rotation: bank,
         });
@@ -1450,18 +1426,6 @@ function startRoboAirCombatMotion(
     x: rightShipAtBeamFour.x - combatVariation.postBeamDirection * 44,
     y: rightShipAtBeamFour.y + 10,
   };
-  const lateFlightVariation = {
-    firstTime: 3.34,
-    secondTime: 3.78,
-    leftFirstX: gsap.utils.random(-92, 92),
-    leftFirstY: gsap.utils.random(-52, 52),
-    leftSecondX: gsap.utils.random(-78, 78),
-    leftSecondY: gsap.utils.random(-44, 44),
-    rightFirstX: gsap.utils.random(-84, 84),
-    rightFirstY: gsap.utils.random(-48, 48),
-    rightSecondX: gsap.utils.random(-72, 72),
-    rightSecondY: gsap.utils.random(-40, 40),
-  };
   startContinuousFlight(leftShip, [
     { time: 0, x: leftShipEnterX, y: leftShipEnterY, scale: leftShipBaseScale },
     { time: 0.72, x: leftShipBeforeNn.x, y: leftShipBeforeNn.y, scale: leftShipBaseScale * 1.50 },
@@ -1470,11 +1434,8 @@ function startRoboAirCombatMotion(
     { time: secondCrossTime, x: crossingPolarity * crossingVariation.secondX + flightJitter[6].x, y: crossingVariation.upperY, scale: leftShipBaseScale * 1.48 },
     { time: beamFourStartSeconds, x: leftShipAtBeamFour.x, y: leftShipAtBeamFour.y, scale: leftShipBaseScale * 1.48 },
     { time: swapMidpointTime, x: lowerShipPostBeamFourMidpoint.x, y: lowerShipPostBeamFourMidpoint.y, scale: leftShipBaseScale * 1.72 },
-    { time: 3.00, x: lowerShipPostBeamFourEnd.x, y: lowerShipPostBeamFourEnd.y, scale: leftShipBaseScale * 1.48 / verticalDepthScaleRatio },
-    { time: lateFlightVariation.firstTime, x: lowerShipPostBeamFourEnd.x + lateFlightVariation.leftFirstX, y: lowerShipPostBeamFourEnd.y + lateFlightVariation.leftFirstY, scale: leftShipBaseScale * 2.34 },
-    { time: lateFlightVariation.secondTime, x: lowerShipPostBeamFourEnd.x + lateFlightVariation.leftSecondX, y: lowerShipPostBeamFourEnd.y + lateFlightVariation.leftSecondY, scale: leftShipBaseScale * 2.42 },
-    { time: fighterFlightDurationSeconds, x: lowerShipPostBeamFourEnd.x + flightJitter[9].x, y: lowerShipPostBeamFourEnd.y + flightJitter[10].y, scale: leftShipBaseScale * 2.38 },
-  ], LEFT_SHIP_START_DELAY_SECONDS, crossingVariation.leftBankPhase, crossingPolarity);
+    { time: fighterFlightDurationSeconds, x: lowerShipPostBeamFourEnd.x, y: lowerShipPostBeamFourEnd.y, scale: leftShipBaseScale * 1.48 / verticalDepthScaleRatio },
+  ], LEFT_SHIP_START_DELAY_SECONDS, crossingVariation.leftBankPhase);
   startContinuousFlight(rightShipMotion, [
     { time: 0, x: fighterOnScreenX, y: rightShipEnterY, scale: rightShipEnterScale },
     { time: 0.72, x: rightShipBeforeNn.x, y: rightShipBeforeNn.y, scale: rightShipBaseScale * 1.60 },
@@ -1483,11 +1444,8 @@ function startRoboAirCombatMotion(
     { time: secondCrossTime, x: -crossingPolarity * crossingVariation.secondX + flightJitter[7].x, y: finalLowerY, scale: rightShipBaseScale * 1.46 },
     { time: beamFourStartSeconds, x: rightShipAtBeamFour.x, y: rightShipAtBeamFour.y, scale: rightShipBaseScale * 1.46 },
     { time: swapMidpointTime, x: rightShipPostBeamFourMidpoint.x, y: rightShipPostBeamFourMidpoint.y, scale: rightShipBaseScale * 1.12 },
-    { time: 3.00, x: rightShipPostBeamFourEnd.x, y: rightShipPostBeamFourEnd.y, scale: rightShipBaseScale * 1.46 * verticalDepthScaleRatio },
-    { time: lateFlightVariation.firstTime, x: rightShipPostBeamFourEnd.x + lateFlightVariation.rightFirstX, y: rightShipPostBeamFourEnd.y + lateFlightVariation.rightFirstY, scale: rightShipBaseScale * 0.90 },
-    { time: lateFlightVariation.secondTime, x: rightShipPostBeamFourEnd.x + lateFlightVariation.rightSecondX, y: rightShipPostBeamFourEnd.y + lateFlightVariation.rightSecondY, scale: rightShipBaseScale * 0.86 },
-    { time: fighterFlightDurationSeconds, x: rightShipPostBeamFourEnd.x + flightJitter[10].x, y: rightShipPostBeamFourEnd.y + flightJitter[11].y, scale: rightShipBaseScale * 0.88 },
-  ], RIGHT_SHIP_START_DELAY_SECONDS, crossingVariation.rightBankPhase, (crossingPolarity * -1) as RoboTravelDirection);
+    { time: fighterFlightDurationSeconds, x: rightShipPostBeamFourEnd.x, y: rightShipPostBeamFourEnd.y, scale: rightShipBaseScale * 1.46 * verticalDepthScaleRatio },
+  ], RIGHT_SHIP_START_DELAY_SECONDS, crossingVariation.rightBankPhase);
 
   // One runtime clock replaces the former two wobble and two flight
   // onUpdate timelines. Flight paths clamp once at their authored end while
@@ -1665,7 +1623,7 @@ function startRoboAirCombatMotion(
 
   // Keep the swapped-height fighters visible and wobbling until NN exit owns
   // their one-way off-screen departure.
-  timeline.to({}, { duration: 0.001, ease: 'none' }, fighterCombatDurationSeconds);
+  timeline.to({}, { duration: 0.001, ease: 'none' }, fighterFlightDurationSeconds);
   roboAirCombatTimelines
     .filter((ownedTimeline) => ownedTimeline !== timeline)
     .forEach((ownedTimeline) => ownedTimeline.play(0));
@@ -1700,6 +1658,7 @@ const TRANSITION_EXIT_HAPTIC_FIRST_DELAY = 0.3;
 const TRANSITION_EXIT_HAPTIC_SECOND_GAP = 0.3;
 export const BOARD_TRANSITION_HOLD_DURATION_SECONDS = 0.4;
 export const ROBO_AIR_COMBAT_HOLD_DURATION_SECONDS = 0;
+export const ROBO_AREA55_NUMBER_ENTER_START_SECONDS = 1.30;
 export const BOARD_TRANSITION_EXIT_PARALLAX_LEAD_SECONDS = 0.35;
 export const BOARD_TRANSITION_HILL_EXIT_LAG_SECONDS = 0.2;
 const BOARD_TRANSITION_REGULAR_SCENE_EXIT_SECONDS = 0.28;
@@ -2672,9 +2631,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         : [];
 
       const sceneEnterSpeedFactor = 0.945;
-      // The accepted slow pass became the scene's longest owner. Remove two
-      // seconds from that path itself so exit waits remain honest and never
-      // truncate a still-running frontal/walker tween.
+      // Gameplay KING cadence for the two Robo character passes.
       const roboWalkerTravelDurationScale = 1 / 0.60;
       const roboFrontTravelDurationScale = 1 / 0.70;
       const roboGroundBounceCompleteSeconds = 0.62;
@@ -2994,7 +2951,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     // Step 3: Animate digits with bounce animation (staggered)
     digitElements.forEach((digitEl, index) => {
       const digitEnterBaseDelay = resolvedTheme === 'area55'
-        ? 1.3
+        ? ROBO_AREA55_NUMBER_ENTER_START_SECONDS
         : BOARD_TRANSITION_NUMBER_ENTER_START_SECONDS;
       const delay = digitEnterBaseDelay + (index * 0.3); // Stagger by 0.3s per digit
       const digitHapticLocalDelay = index === 0 ? TRANSITION_HAPTIC_FIRST_DELAY : TRANSITION_HAPTIC_OTHER_DELAY;

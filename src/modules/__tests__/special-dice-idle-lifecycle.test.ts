@@ -2,6 +2,11 @@
 
 import { Container, Sprite, Texture } from 'pixi.js';
 import animationManager from '../animation-manager';
+import { graphicsPool } from '../object-pool';
+import {
+  getKantaIdleCompositeCenterCorrectionX,
+  KANTA_IDLE_FRONT_OFFSET_X_PX,
+} from '../kanta-dice-idle';
 import {
   keepsSpecialDiceIdleRunningDuringDrag,
   setSpecialDiceIdleDragging,
@@ -71,9 +76,11 @@ describe('special-dice idle lifecycle', () => {
     base.position.set(2, -3);
     base.width = 96;
     base.height = 128;
+    const rotG = new Container();
+    rotG.addChild(base);
     const tile: any = {
       base,
-      rotG: new Container(),
+      rotG,
       destroyed: false,
       _ccSpecialDiceVariant: 'kanta',
     };
@@ -83,8 +90,23 @@ describe('special-dice idle lifecycle', () => {
     const controller = tile._ccKantaDiceIdle;
     expect(controller).toBeTruthy();
     expect(base.anchor).toMatchObject({ x: 0.5, y: 1 });
-    expect(base.position).toMatchObject({ x: 2, y: 61 });
+    const displayedWidth = 128 * (128 / 171);
+    expect(base.x).toBeCloseTo(
+      2 + KANTA_IDLE_FRONT_OFFSET_X_PX + getKantaIdleCompositeCenterCorrectionX(displayedWidth, -1),
+      6,
+    );
+    expect(base.y).toBe(61);
+    expect(base.width).toBeCloseTo(128 * (128 / 171), 6);
+    expect(base.height).toBeCloseTo(128, 6);
     expect(animationManager.getStats().activeTimelines).toBe(baseline + 1);
+    const bubbleContainer = rotG.getChildByLabel('kanta-idle-top-bubbles') as Container;
+    const backBubbleContainer = rotG.getChildByLabel('kanta-idle-back-bubbles') as Container;
+    expect(bubbleContainer).toBeTruthy();
+    expect(backBubbleContainer).toBeTruthy();
+    expect(bubbleContainer.children).toHaveLength(2);
+    expect(backBubbleContainer.children).toHaveLength(1);
+    const bubbles = [...bubbleContainer.children, ...backBubbleContainer.children] as any[];
+    expect(bubbles.every((bubble) => !graphicsPool.isInPool(bubble))).toBe(true);
 
     expect(setSpecialDiceIdleDragging(tile, true)).toBe(true);
     startSpecialDiceIdleMotion(tile);
@@ -95,7 +117,21 @@ describe('special-dice idle lifecycle', () => {
     expect(tile._ccKantaDiceIdle).toBeUndefined();
     expect(base.anchor).toMatchObject({ x: 0.5, y: 0.5 });
     expect(base.position).toMatchObject({ x: 2, y: -3 });
+    expect(base.width).toBeCloseTo(128 * (128 / 171), 6);
+    expect(base.height).toBeCloseTo(128, 6);
     expect(animationManager.getStats().activeTimelines).toBe(baseline);
+    expect(rotG.getChildByLabel('kanta-idle-top-bubbles')).toBeNull();
+    expect(rotG.getChildByLabel('kanta-idle-back-bubbles')).toBeNull();
+    expect(bubbles.every((bubble) => graphicsPool.isInPool(bubble))).toBe(true);
+
+    // A stale squeeze-scale from a prior board must not become the new neutral
+    // geometry when the same logical Kanta is reconstructed.
+    base.width = 44;
+    base.height = 82;
+    startSpecialDiceIdleMotion(tile);
+    expect(base.width).toBeCloseTo(128 * (128 / 171), 6);
+    expect(base.height).toBeCloseTo(128, 6);
+    stopSpecialDiceIdleMotion(tile);
   });
 
   test('Spaceship hover owns rotG and restores its exact board pose on cleanup', () => {

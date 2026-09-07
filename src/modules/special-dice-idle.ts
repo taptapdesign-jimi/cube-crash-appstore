@@ -289,7 +289,10 @@ export function startSpecialDiceIdleMotion(tile: any): void {
     if (variant.idleMotion === 'kanta-rock') {
       void preloadKantaFinaleAssets();
       const idleSources = Array.isArray(variant.idleSpriteSources) ? variant.idleSpriteSources : [];
-      tile._ccKantaDiceIdle = startKantaDiceIdle(tile, idleSources);
+      tile._ccKantaDiceIdle = startKantaDiceIdle(tile, idleSources, {
+        width: variant.visualWidth,
+        height: variant.visualHeight,
+      });
       return;
     }
 

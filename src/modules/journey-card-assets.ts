@@ -20,6 +20,9 @@ const REDUNDANT_CARD_ROOT = './assets/redundant assets/collectible cards old';
 // Keep authored filenames immutable while progression reorders their Stages:
 // Weee-Beee uses authored 03, Shroomy uses authored 06 and Flying Tent uses authored 02.
 const FOREST_CARD_ART_STAGE_BY_STAGE = Object.freeze([1, 3, 9, 4, 5, 6, 7, 8, 2, 10] as const);
+// Linear Area 55 swap result: authored 04 -> Stage 01, 01 -> Stage 02,
+// authored 03 remains Stage 03, and authored 02 -> Stage 04.
+const AREA55_CARD_ART_STAGE_BY_STAGE = Object.freeze([4, 1, 3, 2, 5, 6, 7, 8, 9, 10] as const);
 
 export function isForestJourneyBoard(boardId: number): boolean {
   const safeBoardId = Math.trunc(boardId);
@@ -48,7 +51,7 @@ export function resolveJourneyCardAsset(
   if (isForest || isArea55) {
     const artStage = isForest
       ? FOREST_CARD_ART_STAGE_BY_STAGE[stageInWorld - 1] || stageInWorld
-      : stageInWorld;
+      : AREA55_CARD_ART_STAGE_BY_STAGE[stageInWorld - 1] || stageInWorld;
     const paddedStage = String(artStage).padStart(2, '0');
     const rarity: JourneyCardRarity = getJourneyEarnedStars(highScore, safeBoardId) === 3
       ? 'legendary'

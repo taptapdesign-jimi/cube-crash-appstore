@@ -558,6 +558,12 @@ const JOURNEY_BOARD_UNIT_HORIZONTAL_OFFSETS_PX: Readonly<Record<number, number>>
   23: -16,
   27: -16,
 });
+/** Card-only fine tuning; never moves the rest of the Journey Unit. */
+const JOURNEY_BOARD_CARD_POSITION_OFFSETS_PX: Readonly<Record<number, Readonly<{ x: number; y: number }>>> = Object.freeze({
+  21: Object.freeze({ x: 0, y: 6 }),
+  23: Object.freeze({ x: -4, y: 0 }),
+  24: Object.freeze({ x: 6, y: 6 }),
+});
 const ENABLE_INTERIM_CARD_IDLE_EFFECTS = true;
 export const JOURNEY_CARD_OVERLAY_MODAL_EXPERIMENT_ENABLED = true;
 const BOARD_AREA_MODAL_ENTER_SCALE = 0.65;
@@ -821,6 +827,10 @@ function getJourneyEarnedLevelStars(score: number, boardNumber: number): number 
 
 function getJourneyBoardUnitHorizontalOffsetPx(boardId: number): number {
   return JOURNEY_BOARD_UNIT_HORIZONTAL_OFFSETS_PX[boardId] ?? 0;
+}
+
+function getJourneyBoardCardPositionOffsetPx(boardId: number): Readonly<{ x: number; y: number }> {
+  return JOURNEY_BOARD_CARD_POSITION_OFFSETS_PX[boardId] ?? { x: 0, y: 0 };
 }
 
 // Card positions - specify in PIXELS, system converts to VIEWPORT UNITS (vw/vh)
@@ -9483,6 +9493,10 @@ class JourneyBoardsManager {
         topPx -= 20; // Podignuta gore za 20px
       }
     }
+
+    const cardPositionOffset = getJourneyBoardCardPositionOffsetPx(board.id);
+    leftPx += cardPositionOffset.x;
+    topPx += cardPositionOffset.y;
 
     // A Unit-specific layout correction belongs to the wrapper's base left
     // coordinate, never its transform (owned by enter/exit/idle motion).

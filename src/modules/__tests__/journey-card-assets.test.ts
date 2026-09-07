@@ -93,9 +93,15 @@ describe('Journey collectible card assets', () => {
     expect(resolveJourneyCardAsset(21, 0)).toMatchObject({
       stageInWorld: 1,
       rarity: 'common',
-      path1x: './assets/colelctibles/Area55/common/01.png',
-      path2x: './assets/colelctibles/Area55/common/01@2x.png',
+      path1x: './assets/colelctibles/Area55/common/04.png',
+      path2x: './assets/colelctibles/Area55/common/04@2x.png',
     });
+    expect(resolveJourneyCardAsset(22, 0).path1x)
+      .toBe('./assets/colelctibles/Area55/common/01.png');
+    expect(resolveJourneyCardAsset(23, 0).path1x)
+      .toBe('./assets/colelctibles/Area55/common/03.png');
+    expect(resolveJourneyCardAsset(24, 0).path1x)
+      .toBe('./assets/colelctibles/Area55/common/02.png');
     expect(resolveJourneyCardAsset(30, 999999)).toMatchObject({
       stageInWorld: 10,
       rarity: 'legendary',

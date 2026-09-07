@@ -396,21 +396,21 @@ test('later Beach stages map one shared random slot to Star, Juice, Beach Ball, 
   }
 });
 
-test('Area 55 introduces LaserGun in 02, Spaceship in 03, and Kanta in 04', () => {
+test('Area 55 introduces Kanta in 01, Robo in 02, Spaceship in 03, and LaserGun in 04', () => {
   expect([0, 1].map((wildSpawnCount) => pickSpecialDiceVariantForWildSpawn({
     isArcade: false,
     journeyBoard: 21,
     wildSpawnCount,
     previousWildType: wildSpawnCount === 1 ? 'wild' : null,
     worldIntroRoll: 0.9999,
-  })?.id ?? null)).toEqual([null, 'robo-cube']);
+  })?.id ?? null)).toEqual(['kanta', 'kanta']);
 
   expect(pickSpecialDiceVariantForWildSpawn({
     isArcade: false,
     journeyBoard: 22,
     wildSpawnCount: 0,
     worldIntroRoll: 0,
-  })?.id).toBe('laser-gun');
+  })?.id).toBe('robo-cube');
   expect(pickSpecialDiceVariantForWildSpawn({
     isArcade: false,
     journeyBoard: 23,
@@ -422,5 +422,5 @@ test('Area 55 introduces LaserGun in 02, Spaceship in 03, and Kanta in 04', () =
     journeyBoard: 24,
     wildSpawnCount: 0,
     worldIntroRoll: 0,
-  })?.id).toBe('kanta');
+  })?.id).toBe('laser-gun');
 });

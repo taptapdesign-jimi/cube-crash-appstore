@@ -58,18 +58,18 @@ describe('Robo Cube special die', () => {
     }
   });
 
-  test('keeps Robo Cube in every Area 55 pool while later dice unlock cumulatively', () => {
+  test('introduces Robo Cube in Area 55 Cjelina 02 and keeps it in later pools', () => {
     expect(pickSpecialDiceVariantForWildSpawn({
       isArcade: false,
       journeyBoard: 21,
       wildSpawnCount: 0,
       previousWildType: null,
       worldIntroRoll: 0,
-    })).toBeNull();
+    })?.id).toBe('kanta');
     expect(pickSpecialDiceVariantForWildSpawn({
       isArcade: false,
-      journeyBoard: 21,
-      wildSpawnCount: 1,
+      journeyBoard: 22,
+      wildSpawnCount: 0,
       previousWildType: null,
       worldIntroRoll: 0.9999,
     })?.id).toBe('robo-cube');
@@ -78,28 +78,28 @@ describe('Robo Cube special die', () => {
       journeyBoard: 22,
       wildSpawnCount: 1,
       previousWildType: 'wild-tnt',
-      worldIntroRoll: 0.34,
+      worldIntroRoll: 0.9999,
     })?.id).toBe('robo-cube');
     expect(pickSpecialDiceVariantForWildSpawn({
       isArcade: false,
       journeyBoard: 23,
       wildSpawnCount: 1,
       previousWildType: 'wild-magnet',
-      worldIntroRoll: 0.26,
+      worldIntroRoll: 0.51,
     })?.id).toBe('robo-cube');
 
-    for (let journeyBoard = 23; journeyBoard <= 30; journeyBoard += 1) {
+    for (let journeyBoard = 24; journeyBoard <= 30; journeyBoard += 1) {
       expect(pickSpecialDiceVariantForWildSpawn({
         isArcade: false,
         journeyBoard,
         wildSpawnCount: 7,
-        worldIntroRoll: 0.25,
+        worldIntroRoll: 0.41,
       })?.id).toBe('robo-cube');
       expect(pickSpecialDiceVariantForWildSpawn({
         isArcade: false,
         journeyBoard,
         wildSpawnCount: 7,
-        worldIntroRoll: 0.50,
+        worldIntroRoll: 0.9999,
       })?.id).toBe('laser-gun');
     }
 

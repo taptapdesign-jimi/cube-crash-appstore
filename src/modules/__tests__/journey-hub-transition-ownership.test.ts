@@ -249,6 +249,19 @@ describe('Journey Hub transition ownership', () => {
     expect(cardSource).toContain('leftPx += getJourneyBoardUnitHorizontalOffsetPx(board.id)');
   });
 
+  test('applies only the requested Area 55 card position corrections', () => {
+    const cardSource = journeyManagerSource.split(
+      'private createBoardCardFixed(',
+    )[1]?.split('private ')[0] ?? '';
+
+    expect(journeyManagerSource).toContain('21: Object.freeze({ x: 0, y: 6 })');
+    expect(journeyManagerSource).toContain('23: Object.freeze({ x: -4, y: 0 })');
+    expect(journeyManagerSource).toContain('24: Object.freeze({ x: 6, y: 6 })');
+    expect(cardSource).toContain('const cardPositionOffset = getJourneyBoardCardPositionOffsetPx(board.id)');
+    expect(cardSource).toContain('leftPx += cardPositionOffset.x');
+    expect(cardSource).toContain('topPx += cardPositionOffset.y');
+  });
+
   test('World idle ownership starts only after the Unit cascade', () => {
     const worldEnterSource = journeyManagerSource.split(
       'private playJourneyV700WorldEnter(',

@@ -169,42 +169,42 @@ describe('Beach Cjelina 01 Wild pool', () => {
 
 describe('Area 55 progressive Wild pool', () => {
   test.each([
-    [21, ['wild', 'wild-juice']],
-    [22, ['wild', 'wild-juice', 'wild-tnt']],
-    [23, ['wild', 'wild-juice', 'wild-tnt', 'wild-magnet']],
-    [30, ['wild', 'wild-juice', 'wild-tnt', 'wild-magnet']],
+    [21, ['wild']],
+    [22, ['wild', 'wild-juice']],
+    [23, ['wild', 'wild-juice', 'wild-magnet']],
+    [30, ['wild', 'wild-juice', 'wild-magnet', 'wild-tnt']],
   ] as const)('publishes only earned gameplay archetypes for Cjelina %i', (board, expected) => {
     expect(getAllowedWildTypes(board)).toEqual(expected);
   });
 
-  test('keeps Cjelina 01 on Star and Robo Cube only', () => {
+  test('keeps Cjelina 01 on Star and Kanta only', () => {
     expect(decideForRoll({
       roll: 0.95,
       boardNumber: 21,
       wildSpawnCount: 0,
       lastWildDropType: null,
-    }).result).toMatchObject({ wildType: 'wild', specialDiceVariantId: null });
+    }).result).toMatchObject({ wildType: 'wild', specialDiceVariantId: 'kanta' });
     expect(decideForRoll({
       roll: 0.95,
       boardNumber: 21,
       wildSpawnCount: 1,
       lastWildDropType: 'wild',
-    }).result).toMatchObject({ wildType: 'wild-juice', specialDiceVariantId: 'robo-cube' });
+    }).result).toMatchObject({ wildType: 'wild', specialDiceVariantId: 'kanta' });
   });
 
-  test('introduces LaserGun in 02, Spaceship in 03, and Kanta in 04', () => {
-    const laser = decideForRoll({
+  test('introduces Robo in 02, Spaceship in 03, and LaserGun in 04', () => {
+    const robo = decideForRoll({
       roll: 0,
       boardNumber: 22,
       wildSpawnCount: 0,
       lastWildDropType: null,
     });
-    expect(laser.result).toMatchObject({
-      spawnTnt: true,
-      wildType: 'wild-tnt',
-      specialDiceVariantId: 'laser-gun',
+    expect(robo.result).toMatchObject({
+      spawnJuice: true,
+      wildType: 'wild-juice',
+      specialDiceVariantId: 'robo-cube',
     });
-    expect(laser.filterWildType).not.toHaveBeenCalled();
+    expect(robo.filterWildType).not.toHaveBeenCalled();
 
     const spaceship = decideForRoll({
       roll: 0,
@@ -219,19 +219,17 @@ describe('Area 55 progressive Wild pool', () => {
     });
     expect(spaceship.filterWildType).not.toHaveBeenCalled();
 
-    const kanta = decideForRoll({
+    const laser = decideForRoll({
       roll: 0,
       boardNumber: 24,
       wildSpawnCount: 0,
       lastWildDropType: null,
     });
-    expect(kanta.result).toMatchObject({
-      spawnJuice: false,
-      spawnMagnet: false,
-      spawnTnt: false,
-      wildType: 'wild',
-      specialDiceVariantId: 'kanta',
+    expect(laser.result).toMatchObject({
+      spawnTnt: true,
+      wildType: 'wild-tnt',
+      specialDiceVariantId: 'laser-gun',
     });
-    expect(kanta.filterWildType).not.toHaveBeenCalled();
+    expect(laser.filterWildType).not.toHaveBeenCalled();
   });
 });

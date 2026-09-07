@@ -5,16 +5,16 @@ const AREA55_FIRST_BOARD = 21;
 const AREA55_LAST_BOARD = 30;
 const AREA55_REWARD_ORDER = Object.freeze([
   'wild-star',
-  'robo-cube',
-  'laser-gun',
-  'spaceship',
   'kanta',
+  'robo-cube',
+  'spaceship',
+  'laser-gun',
 ] as const);
 const AREA55_FIRST_REWARD_BY_BOARD: Readonly<Partial<Record<number, Area55WildReward>>> = Object.freeze({
-  21: 'wild-star',
-  22: 'laser-gun',
+  21: 'kanta',
+  22: 'robo-cube',
   23: 'spaceship',
-  24: 'kanta',
+  24: 'laser-gun',
 });
 const AREA55_REWARD_CORE_TYPE: Readonly<Record<Area55WildReward, Area55WildCoreType>> = Object.freeze({
   'wild-star': 'wild',
@@ -41,7 +41,6 @@ export function getArea55WildPool(boardNumber: number): readonly Area55WildRewar
 export function pickArea55WildReward({
   boardNumber,
   wildSpawnCount,
-  previousWildType,
   roll,
 }: {
   boardNumber: number;
@@ -59,13 +58,6 @@ export function pickArea55WildReward({
 
   const finiteRoll = Number.isFinite(roll) ? Number(roll) : 0;
   const boundedRoll = Math.max(0, Math.min(1 - Number.EPSILON, finiteRoll));
-  if (board === 21) {
-    // Preserve the established introduction cadence: Star opens the Unit,
-    // Robo follows Star, then later rewards remain 60% Robo / 40% Star.
-    if (spawnCount === 1 || previousWildType === 'wild') return 'robo-cube';
-    return boundedRoll < 0.60 ? 'robo-cube' : 'wild-star';
-  }
-
   return pool[Math.floor(boundedRoll * pool.length)] || pool[0];
 }
 

@@ -17,6 +17,7 @@ describe('Board Transition duration contract', () => {
   test('removes about two seconds without changing the choreography order', () => {
     const source = read('src/modules/board-transition-screen.ts');
     expect(source).toContain('export const BOARD_TRANSITION_HOLD_DURATION_SECONDS = 0.4');
+    expect(source).toContain('export const ROBO_AREA55_NUMBER_ENTER_START_SECONDS = 1.30');
     expect(source).toContain('export const BOARD_TRANSITION_EXIT_PARALLAX_LEAD_SECONDS = 0.35');
     expect(source).toContain('export const BOARD_TRANSITION_HILL_EXIT_LAG_SECONDS = 0.2');
     expect(source).toContain('const BOARD_TRANSITION_REGULAR_SCENE_EXIT_SECONDS = 0.28');
@@ -67,7 +68,7 @@ describe('Board Transition duration contract', () => {
     expect(source).not.toContain("opacity: 0,\n      scaleX: 0,\n      scaleY: 0,");
   });
 
-  test('slows Robo walker by 40 percent and frontal Robo by 30 percent', () => {
+  test('keeps both Robo passes on the Gameplay KING cadence', () => {
     const source = read('src/modules/board-transition-screen.ts');
     expect(source).toContain('const roboWalkerTravelDurationScale = 1 / 0.60');
     expect(source).toContain('const roboFrontTravelDurationScale = 1 / 0.70');

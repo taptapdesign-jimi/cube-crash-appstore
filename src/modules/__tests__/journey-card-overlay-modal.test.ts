@@ -133,6 +133,11 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain("'./assets/modals/star.png',");
     expect(css).toMatch(/\.journey-card-flip-star \{[\s\S]*?width: clamp\(24\.192px, 8\.064vw, 36\.288px\);[\s\S]*?height: clamp\(24\.192px, 8\.064vw, 36\.288px\);/);
     expect(css).toMatch(/\.journey-card-flip-title-section \{[\s\S]*?margin: 36px 0 24px;/);
+    expect(css).toMatch(/\.journey-card-flip-title-section \{[\s\S]*?top: -4px;/);
+    expect(css).toMatch(/\.journey-card-flip-stats \{[\s\S]*?top: -8px;/);
+    expect(css).toMatch(/\.journey-card-flip-stat:first-child \{[\s\S]*?top: 6px;/);
+    expect(css).toMatch(/\.journey-card-flip-stat:last-child \{[\s\S]*?top: -6px;/);
+    expect(css).toMatch(/\.journey-card-flip-cta\.cc-cta \{[\s\S]*?top: -16px;/);
     expect(css).toMatch(/\.journey-card-flip-stars \{[\s\S]*?gap: 8px;[\s\S]*?transform: translate\(-50%, 12px\);/);
     expect(css).toMatch(/\.journey-card-flip-star-2 \{[\s\S]*?translateY\(-8px\)/);
     expect(css).toMatch(/\.journey-card-flip-title-section > h2 \{[\s\S]*?top: 16px;/);

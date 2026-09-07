@@ -75,6 +75,12 @@ const BOOM_EXIT_EXTRA = 0.3;
 const EXIT_BOUNCE_DURATION = 0.13;
 const EXIT_FADE_DURATION = 0.17;
 const MAX_TEXT_CONTAINER_TILT_DEG = 15;
+const KANTA_SPLAT_NEON_GLOW_CSS = [
+  '0 0 6px rgba(240, 255, 255, 0.98)',
+  '0 0 14px rgba(153, 252, 255, 0.95)',
+  '0 0 30px rgba(88, 238, 250, 0.82)',
+  '0 0 48px rgba(6, 244, 255, 0.62)',
+].join(', ');
 const SPARKLE_HAPTIC_COUNT = 7;
 const SPARKLE_HAPTIC_INTERVAL = 0.095;
 const SPARKLE_LATE_HAPTIC_COUNT = 6;
@@ -612,6 +618,7 @@ export function showSparkleText(origin?: { x: number; y: number } | null, option
       el.dataset.effectLetterColor = index < sparkleSplitIndex
         ? sparkleLightColor
         : sparkleDarkColor;
+      el.dataset.effectLetterGlow = usesKantaCenterSequence ? 'kanta-neon' : 'none';
       el.style.cssText = [
         'font-family: "Baloo2", system-ui, -apple-system, sans-serif',
         'font-weight: 800',
@@ -634,7 +641,7 @@ export function showSparkleText(origin?: { x: number; y: number } | null, option
         'border: 0',
         'outline: 0',
         'vertical-align: top',
-        'text-shadow: none',
+        `text-shadow: ${usesKantaCenterSequence ? KANTA_SPLAT_NEON_GLOW_CSS : 'none'}`,
         'transform-style: preserve-3d',
         'backface-visibility: hidden',
         '-webkit-font-smoothing: antialiased',

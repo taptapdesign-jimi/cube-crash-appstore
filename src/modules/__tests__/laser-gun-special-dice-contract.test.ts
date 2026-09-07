@@ -91,20 +91,21 @@ describe('LaserGun special die contract', () => {
     expect(getSpecialDiceSplashOptions(laserGun)).not.toHaveProperty('followupTexts');
   });
 
-  test('first appears as the guaranteed first drop in Area 55 Cjelina 02', () => {
-    for (const wildSpawnCount of [0, 1, 2, 3]) {
-      expect(pickSpecialDiceVariantForWildSpawn({
-        isArcade: false,
-        journeyBoard: 21,
-        wildSpawnCount,
-        previousWildType: wildSpawnCount === 1 ? 'wild' : 'wild-juice',
-        worldIntroRoll: 0.9999,
-      })?.id).not.toBe('laser-gun');
+  test('first appears as the guaranteed first drop in Area 55 Cjelina 04', () => {
+    for (const journeyBoard of [21, 22, 23]) {
+      for (const wildSpawnCount of [0, 1, 2, 3]) {
+        expect(pickSpecialDiceVariantForWildSpawn({
+          isArcade: false,
+          journeyBoard,
+          wildSpawnCount,
+          worldIntroRoll: 0.9999,
+        })?.id).not.toBe('laser-gun');
+      }
     }
     for (const worldIntroRoll of [0, 0.5999, 0.60, 0.9999]) {
       expect(pickSpecialDiceVariantForWildSpawn({
         isArcade: false,
-        journeyBoard: 22,
+        journeyBoard: 24,
         wildSpawnCount: 0,
         previousWildType: null,
         worldIntroRoll,
