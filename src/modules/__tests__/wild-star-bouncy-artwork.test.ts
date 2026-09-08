@@ -13,7 +13,9 @@ import {
   isPlainWildStarBouncyTile,
   WILD_STAR_BOUNCY_DISPLAY_SIZE,
   WILD_STAR_BOUNCY_DRAG_Z_INDEX,
+  WILD_STAR_BOUNCY_CYCLE_MS,
   WILD_STAR_BOUNCY_REST_ART,
+  WILD_STAR_BOUNCY_VIEWBOX,
 } from '../wild-star-bouncy-artwork';
 import {
   setSpecialDiceIdleDragging,
@@ -95,6 +97,11 @@ describe('Wild Star animated SVG board artwork', () => {
     expect(geometry.restingArtworkHeight).toBeCloseTo(WILD_STAR_BOUNCY_DISPLAY_SIZE, 8);
     expect(WILD_STAR_BOUNCY_REST_ART.centerX).toBe(260);
     expect(WILD_STAR_BOUNCY_REST_ART.centerY).toBeCloseTo(302.65, 8);
+    expect(WILD_STAR_BOUNCY_REST_ART.size).toBeCloseTo(367.2, 8);
+    expect(WILD_STAR_BOUNCY_VIEWBOX).toEqual({ minX: 0, minY: 0, width: 520, height: 560 });
+    expect(WILD_STAR_BOUNCY_CYCLE_MS).toBe(2000);
+    expect(geometry.anchorX).toBeCloseTo(0.5, 8);
+    expect(geometry.anchorY).toBeCloseTo(302.65 / 560, 8);
     expect(geometry.width).toBeGreaterThan(WILD_STAR_BOUNCY_DISPLAY_SIZE);
     expect(geometry.height).toBeGreaterThan(WILD_STAR_BOUNCY_DISPLAY_SIZE);
     expect(geometry.anchorX).toBeGreaterThan(0);
@@ -103,7 +110,7 @@ describe('Wild Star animated SVG board artwork', () => {
     expect(geometry.anchorY).toBeLessThan(1);
   });
 
-  test('uses the supplied optimized two-second self-contained SMIL asset', () => {
+  test('uses the restored supplied two-second self-contained SMIL asset', () => {
     const svg = fs.readFileSync(
       path.resolve(process.cwd(), 'assets/shop/star/star.svg'),
       'utf8',
@@ -155,6 +162,34 @@ describe('Wild Star animated SVG board artwork', () => {
     expect(isPlainWildStarBouncyTile({ special: 'wild', _ccSpecialDiceVariant: 'kanta' })).toBe(false);
     expect(isPlainWildStarBouncyTile({ special: 'wild-juice' })).toBe(false);
     expect(isPlainWildStarBouncyTile({ special: 'wild-tnt' })).toBe(false);
+  });
+
+  test('keeps duplicate Wild Stars animated on distinct start and end phases', () => {
+    const first = makeTile();
+    const second = makeTile();
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.99);
+    try {
+      startSpecialDiceIdleMotion(first.tile);
+      startSpecialDiceIdleMotion(second.tile);
+
+      const firstController = first.tile._ccWildStarBouncyArtwork;
+      const secondController = second.tile._ccWildStarBouncyArtwork;
+      expect(firstController).toBeDefined();
+      expect(secondController).toBeDefined();
+      expect(firstController.image.dataset.ccSvgPhaseGroup).toBe('wild-star-composition');
+      expect(secondController.image.dataset.ccSvgPhaseGroup).toBe('wild-star-composition');
+      expect(firstController.image.dataset.ccSvgPhaseSlot).not.toBe(
+        secondController.image.dataset.ccSvgPhaseSlot,
+      );
+      expect(Number(firstController.image.dataset.ccSvgPhaseDelayMs)).toBe(0);
+      expect(Number(secondController.image.dataset.ccSvgPhaseDelayMs)).toBeGreaterThan(0);
+      expect(firstController.image.getAttribute('src')).toBe('./assets/shop/star/star.svg');
+      expect(secondController.image.getAttribute('src')).toBeNull();
+    } finally {
+      randomSpy.mockRestore();
+      stopSpecialDiceIdleMotion(second.tile);
+      stopSpecialDiceIdleMotion(first.tile);
+    }
   });
 
   test('deduplicates, mirrors the original Pixi orbit above star.svg, survives drag, and restores every fallback', () => {

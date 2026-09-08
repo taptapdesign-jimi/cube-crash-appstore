@@ -316,9 +316,11 @@ class AppZoneManager {
   }
 
   async hideHomepageForGame(reason = 'enter-game'): Promise<void> {
+    const epoch = this.presentationEpoch;
     try {
       hideHomepageNavigation(`app-zone:${reason}`);
       await this.cleanupTransientVisuals(reason);
+      if (!this.isPresentationCurrent(epoch)) return;
       const home = document.getElementById('home') as HTMLElement | null;
       const sliderContainer = document.getElementById('slider-container') as HTMLElement | null;
       setVisible(home, false);
@@ -391,9 +393,11 @@ class AppZoneManager {
   }
 
   async hideHomepageShell(reason = 'hide-home'): Promise<void> {
+    const epoch = this.presentationEpoch;
     try {
       hideHomepageNavigation(`app-zone:${reason}`);
       await this.cleanupTransientVisuals(reason);
+      if (!this.isPresentationCurrent(epoch)) return;
       const home = document.getElementById('home') as HTMLElement | null;
       const sliderContainer = document.getElementById('slider-container') as HTMLElement | null;
       setVisible(home, false);
@@ -410,24 +414,31 @@ class AppZoneManager {
   }
 
   async cleanupTransientVisuals(reason = 'zone-handoff'): Promise<void> {
+    const epoch = this.presentationEpoch;
+    const ownsCleanup = (): boolean => this.isPresentationCurrent(epoch);
     try {
       const { forceClearEndgameHint } = await import('./endgame-hint.js');
+      if (!ownsCleanup()) return;
       forceClearEndgameHint?.();
     } catch {}
     try {
       const { cleanupJourneySmokeEffects } = await import('./journey-card-idle-bounce.js');
+      if (!ownsCleanup()) return;
       cleanupJourneySmokeEffects?.();
     } catch {}
     try {
       const { cleanupJourneyNewCardScreen } = await import('./journey-new-card-screen.js');
+      if (!ownsCleanup()) return;
       cleanupJourneyNewCardScreen?.();
     } catch {}
     try {
-      const { cancelArcadeStageClearModal } = await import('./arcade-stage-clear-modal.js');
-      cancelArcadeStageClearModal?.();
+      const { cancelArcadeEntryCueOwner } = await import('./arcade-entry-cue-owner.js');
+      if (!ownsCleanup()) return;
+      cancelArcadeEntryCueOwner?.();
     } catch {}
     try {
       const fx = await import('./fx.js');
+      if (!ownsCleanup()) return;
       fx.cleanupAllFxContainers?.();
       fx.cleanupAllTntIdleEffects?.(`app-zone:${reason}`);
     } catch {}

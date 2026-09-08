@@ -1,0 +1,55 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import {
+  SOUND_EFFECTS_MASTER_GAIN,
+  applySoundEffectsMasterGain,
+} from '../sound-effects-volume';
+import {
+  GAMEPLAY_PICKUP_SOUND_VOLUME,
+  GAMEPLAY_RETURN_SOUND_VOLUME,
+} from '../gameplay-pickup-sound';
+import {
+  ORDINARY_STACK_SOUND_VOLUME,
+} from '../ordinary-stack-sound';
+import {
+  REGULAR_MERGE6_BOOM_VOLUME,
+  REGULAR_MERGE6_CRASH_VOLUME,
+  REGULAR_MERGE6_SOUND_VOLUME,
+  REGULAR_MERGE6_STACK_VOLUME,
+} from '../regular-merge6-sound';
+
+describe('sound effects master volume', () => {
+  it('reduces every currently active SFX voice by exactly 40 percent', () => {
+    expect(SOUND_EFFECTS_MASTER_GAIN).toBe(0.6);
+    expect(GAMEPLAY_PICKUP_SOUND_VOLUME).toBeCloseTo(0.2592);
+    expect(GAMEPLAY_RETURN_SOUND_VOLUME).toBeCloseTo(0.51);
+    expect(ORDINARY_STACK_SOUND_VOLUME).toBeCloseTo(0.6);
+    expect(REGULAR_MERGE6_SOUND_VOLUME).toBeCloseTo(0.3);
+    expect(REGULAR_MERGE6_CRASH_VOLUME).toBeCloseTo(0.1632);
+    expect(REGULAR_MERGE6_BOOM_VOLUME).toBeCloseTo(0.36);
+    expect(REGULAR_MERGE6_STACK_VOLUME).toBeCloseTo(0.36);
+  });
+
+  it('keeps the shared multiplier bounded and excludes music ownership', () => {
+    expect(applySoundEffectsMasterGain(-1)).toBe(0);
+    expect(applySoundEffectsMasterGain(2)).toBe(0.6);
+    expect(applySoundEffectsMasterGain(Number.NaN)).toBe(0);
+
+    const soundtrack = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/modules/soundtrack-manager.ts'),
+      'utf8',
+    );
+    expect(soundtrack).not.toContain('applySoundEffectsMasterGain');
+  });
+
+  it('is consumed by all three active SFX owners', () => {
+    for (const filename of [
+      'gameplay-pickup-sound.ts',
+      'ordinary-stack-sound.ts',
+      'regular-merge6-sound.ts',
+    ]) {
+      const source = fs.readFileSync(path.resolve(process.cwd(), 'src/modules', filename), 'utf8');
+      expect(source).toContain('applySoundEffectsMasterGain');
+    }
+  });
+});

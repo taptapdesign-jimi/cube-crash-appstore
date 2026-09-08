@@ -46,7 +46,13 @@ export function installMobileSaveLifecycle({
   };
   const resumeHandler: EventListener = () => {
     if (typeof window.loadGameState === 'function') {
-      trackAppTimeout(() => { void window.loadGameState?.(); }, 100);
+      trackAppTimeout(() => {
+        // A resume event can enqueue this while an old gameplay boot still
+        // owns the listener. If Exit/Play replaces that boot before the delay
+        // expires, the retired callback must not load over the new entry.
+        if (document.hidden || getLifecycleWindow()._resumeHandlerRef !== resumeHandler) return;
+        void window.loadGameState?.();
+      }, 100);
     }
   };
 

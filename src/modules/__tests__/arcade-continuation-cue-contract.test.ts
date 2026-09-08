@@ -26,7 +26,7 @@ describe('Arcade continuation Round cue contract', () => {
 
     expect(modalSource).toContain("cancel?.({ action: 'cancel' });");
     expect(endgameSource).toContain("if (stageClearResult.action !== 'continue')");
-    expect(zoneSource).toContain('cancelArcadeStageClearModal?.();');
+    expect(zoneSource).toContain('cancelArcadeEntryCueOwner?.();');
     expect(zoneSource).not.toContain('cleanupArcadeStageClearModal?.(false)');
   });
 

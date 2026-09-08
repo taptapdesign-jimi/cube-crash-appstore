@@ -23,8 +23,15 @@ jest.mock('../journey-boards-manager.js', () => ({
   },
 }));
 
+jest.mock('../arcade-entry-cue-owner.js', () => ({
+  cancelArcadeEntryCueOwner: jest.fn(),
+}));
+
+import { cancelArcadeEntryCueOwner } from '../arcade-entry-cue-owner.js';
+
 describe('app-zone-manager', () => {
   beforeEach(() => {
+    jest.clearAllMocks();
     cleanupNavigationControl();
     document.body.innerHTML = '';
     localStorage.clear();
@@ -128,6 +135,16 @@ describe('app-zone-manager', () => {
     appZoneManager.setZone('journey', 'replacement-journey-owner');
     expect(appZoneManager.isPresentationCurrent(firstJourneyEpoch, 'journey')).toBe(false);
     expect(appZoneManager.isPresentationCurrent(appZoneManager.getPresentationEpoch(), 'journey')).toBe(true);
+  });
+
+  it('does not let retired menu cleanup cancel the Round cue owned by a newer Play route', async () => {
+    appZoneManager.setZone('home', 'background-return');
+    const staleCleanup = appZoneManager.cleanupTransientVisuals('background-return');
+    appZoneManager.enterArcadeBoardZone('new-play');
+
+    await staleCleanup;
+
+    expect(cancelArcadeEntryCueOwner).not.toHaveBeenCalled();
   });
 
   it('lets an animated Settings transition retain nav ownership until its exit owner finishes', () => {

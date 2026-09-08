@@ -2,6 +2,7 @@ import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
 import {
   acquireAnimatedSpecialArtworkLayer,
   doesAnimatedSpecialArtworkOverlapGameplayDrag,
+  installAnimatedSpecialArtworkOverlapFootprint,
   setAnimatedSpecialArtworkDragging,
   type AnimatedSpecialArtworkFrame,
   type AnimatedSpecialArtworkLayerLease,
@@ -10,9 +11,10 @@ import {
   acquireAnimatedSvgPhase,
   type AnimatedSvgPhaseLease,
 } from './animated-svg-phase-scheduler.ts';
+import { releaseAnimatedSpecialArtworkFamily } from './animated-special-artwork-mode.ts';
 
 export const WILD_STAR_BOUNCY_SVG_URL = './assets/shop/star/star.svg';
-export const WILD_STAR_BOUNCY_VIEWBOX = Object.freeze({ width: 520, height: 560 });
+export const WILD_STAR_BOUNCY_VIEWBOX = Object.freeze({ minX: 0, minY: 0, width: 520, height: 560 });
 export const WILD_STAR_BOUNCY_REST_ART = Object.freeze({
   centerX: 260,
   centerY: 465 + (-407 + 432 / 2) * 0.85,
@@ -26,8 +28,12 @@ export const WILD_STAR_BOUNCY_PHASE_GROUP = 'wild-star-composition';
 const DISPLAY_SCALE = WILD_STAR_BOUNCY_DISPLAY_SIZE / WILD_STAR_BOUNCY_REST_ART.size;
 const DISPLAY_WIDTH = WILD_STAR_BOUNCY_VIEWBOX.width * DISPLAY_SCALE;
 const DISPLAY_HEIGHT = WILD_STAR_BOUNCY_VIEWBOX.height * DISPLAY_SCALE;
-const DISPLAY_ANCHOR_X = WILD_STAR_BOUNCY_REST_ART.centerX / WILD_STAR_BOUNCY_VIEWBOX.width;
-const DISPLAY_ANCHOR_Y = WILD_STAR_BOUNCY_REST_ART.centerY / WILD_STAR_BOUNCY_VIEWBOX.height;
+const DISPLAY_ANCHOR_X = (
+  WILD_STAR_BOUNCY_REST_ART.centerX - WILD_STAR_BOUNCY_VIEWBOX.minX
+) / WILD_STAR_BOUNCY_VIEWBOX.width;
+const DISPLAY_ANCHOR_Y = (
+  WILD_STAR_BOUNCY_REST_ART.centerY - WILD_STAR_BOUNCY_VIEWBOX.minY
+) / WILD_STAR_BOUNCY_VIEWBOX.height;
 const DISPLAY_ANCHOR_OFFSET_X = DISPLAY_WIDTH * DISPLAY_ANCHOR_X;
 const DISPLAY_ANCHOR_OFFSET_Y = DISPLAY_HEIGHT * DISPLAY_ANCHOR_Y;
 const ORBIT_STAR_DISPLAY_SIZE = 40;
@@ -415,6 +421,21 @@ function createController(
     willChange: 'transform',
   });
 
+  installAnimatedSpecialArtworkOverlapFootprint(wrapper, {
+    left: (
+      WILD_STAR_BOUNCY_REST_ART.centerX
+      - WILD_STAR_BOUNCY_REST_ART.size / 2
+      - WILD_STAR_BOUNCY_VIEWBOX.minX
+    ) * DISPLAY_SCALE,
+    top: (
+      WILD_STAR_BOUNCY_REST_ART.centerY
+      - WILD_STAR_BOUNCY_REST_ART.size / 2
+      - WILD_STAR_BOUNCY_VIEWBOX.minY
+    ) * DISPLAY_SCALE,
+    width: WILD_STAR_BOUNCY_DISPLAY_SIZE,
+    height: WILD_STAR_BOUNCY_DISPLAY_SIZE,
+  });
+
   const image = new Image();
   image.alt = '';
   image.draggable = false;
@@ -521,6 +542,7 @@ export function setWildStarBouncyArtworkDragging(tile: any, dragging: boolean): 
 
 export function destroyWildStarBouncyArtworkRuntime(): void {
   Array.from(controllers.values()).forEach(disposeController);
+  releaseAnimatedSpecialArtworkFamily('wild-star');
   if (runtimeLease) {
     runtimeLease.release();
     runtimeLease = null;

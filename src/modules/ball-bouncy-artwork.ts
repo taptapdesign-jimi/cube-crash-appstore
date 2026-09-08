@@ -2,6 +2,7 @@ import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
 import {
   acquireAnimatedSpecialArtworkLayer,
   doesAnimatedSpecialArtworkOverlapGameplayDrag,
+  installAnimatedSpecialArtworkOverlapFootprint,
   setAnimatedSpecialArtworkDragging,
   type AnimatedSpecialArtworkFrame,
   type AnimatedSpecialArtworkLayerLease,
@@ -10,6 +11,7 @@ import {
   acquireAnimatedSvgPhase,
   type AnimatedSvgPhaseLease,
 } from './animated-svg-phase-scheduler.ts';
+import { releaseAnimatedSpecialArtworkFamily } from './animated-special-artwork-mode.ts';
 
 export const BALL_BOUNCY_SVG_URL = './assets/shop/ball/ball-bouncy.svg';
 export const BALL_BOUNCY_VIEWBOX = Object.freeze({ width: 390, height: 440 });
@@ -340,6 +342,13 @@ function createController(
     willChange: 'transform',
   });
 
+  installAnimatedSpecialArtworkOverlapFootprint(wrapper, {
+    left: (BALL_BOUNCY_REST_ART.centerX - BALL_BOUNCY_REST_ART.size / 2) * DISPLAY_SCALE,
+    top: (BALL_BOUNCY_REST_ART.centerY - BALL_BOUNCY_REST_ART.size / 2) * DISPLAY_SCALE,
+    width: BALL_BOUNCY_DISPLAY_SIZE,
+    height: BALL_BOUNCY_DISPLAY_SIZE,
+  });
+
   const image = new Image();
   image.alt = '';
   image.draggable = false;
@@ -460,6 +469,7 @@ export function releaseBallBouncyFrontBubbles(tile: any): void {
 
 export function destroyBallBouncyArtworkRuntime(): void {
   Array.from(controllers.values()).forEach(disposeController);
+  releaseAnimatedSpecialArtworkFamily('ball');
   if (runtimeLease) {
     runtimeLease.release();
     runtimeLease = null;

@@ -2,6 +2,7 @@
 
 import { Container, Sprite, Texture } from 'pixi.js';
 import animationManager from '../animation-manager';
+import { STATE } from '../app-state';
 import { graphicsPool } from '../object-pool';
 import {
   getKantaIdleCompositeCenterCorrectionX,
@@ -15,8 +16,14 @@ import {
 } from '../special-dice-idle';
 
 describe('special-dice idle lifecycle', () => {
-  beforeEach(() => animationManager.killAll());
-  afterEach(() => animationManager.killAll());
+  beforeEach(() => {
+    animationManager.killAll();
+    STATE.app = null;
+  });
+  afterEach(() => {
+    animationManager.killAll();
+    STATE.app = null;
+  });
 
   test('explicit tile cleanup releases its infinite timeline from the manager', () => {
     const tile: any = {
@@ -71,6 +78,9 @@ describe('special-dice idle lifecycle', () => {
   });
 
   test('Kanta owns one bottom-centre frame-04 squeeze controller and restores the board sprite', () => {
+    const tickerAdd = jest.fn();
+    const tickerRemove = jest.fn();
+    STATE.app = { ticker: { add: tickerAdd, remove: tickerRemove } } as any;
     const base = new Sprite(Texture.WHITE);
     base.anchor.set(0.5);
     base.position.set(2, -3);
@@ -99,6 +109,8 @@ describe('special-dice idle lifecycle', () => {
     expect(base.width).toBeCloseTo(128 * (128 / 171), 6);
     expect(base.height).toBeCloseTo(128, 6);
     expect(animationManager.getStats().activeTimelines).toBe(baseline + 1);
+    expect(tickerAdd).toHaveBeenCalledTimes(1);
+    const bubbleTick = tickerAdd.mock.calls[0][0];
     const bubbleContainer = rotG.getChildByLabel('kanta-idle-top-bubbles') as Container;
     const backBubbleContainer = rotG.getChildByLabel('kanta-idle-back-bubbles') as Container;
     expect(bubbleContainer).toBeTruthy();
@@ -120,6 +132,8 @@ describe('special-dice idle lifecycle', () => {
     expect(base.width).toBeCloseTo(128 * (128 / 171), 6);
     expect(base.height).toBeCloseTo(128, 6);
     expect(animationManager.getStats().activeTimelines).toBe(baseline);
+    expect(tickerRemove).toHaveBeenCalledTimes(1);
+    expect(tickerRemove).toHaveBeenCalledWith(bubbleTick);
     expect(rotG.getChildByLabel('kanta-idle-top-bubbles')).toBeNull();
     expect(rotG.getChildByLabel('kanta-idle-back-bubbles')).toBeNull();
     expect(bubbles.every((bubble) => graphicsPool.isInPool(bubble))).toBe(true);

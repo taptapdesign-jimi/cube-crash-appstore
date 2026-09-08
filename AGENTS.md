@@ -13,6 +13,8 @@ When changing, debugging, or discussing Journey animations, first read and follo
 
 When validating changes, investigating regressions, preparing a commit/release, or performing QA, read and follow [`.agents/skills/stack-to-six-qa/SKILL.md`](.agents/skills/stack-to-six-qa/SKILL.md). Use its deterministic gates and explicit `PASS`, `FAIL`, or `NEEDS PHYSICAL TEST` verdict.
 
+When auditing, designing, generating, naming, mixing, or integrating sound effects, read and follow [`.agents/skills/stack-to-six-sound-design/SKILL.md`](.agents/skills/stack-to-six-sound-design/SKILL.md). Keep Gameplay, Navigation/CTA, Journey, Settings, Wild/Special and Board Transition sound families modular; do not let a generic tap or impact replace an authored feature-specific cue.
+
 For every gameplay-affecting change or cleanup of gameplay-adjacent legacy code, run `npm run qa:gameplay-lock`. Never optimize, deduplicate, rename, move, or delete assets unless the user explicitly revokes the asset-preservation order in `GAMEPLAY_KING_CONTRACT.md`.
 
 When the user asks to connect to the phone, observe or collect problems, reproduce a physical issue, use **KRENI/GOTOVO**, compare phone and web behavior, or test on `localhost:5174`, read and follow [`docs/engineering/LIVE_DEBUG_WORKFLOW.md`](docs/engineering/LIVE_DEBUG_WORKFLOW.md). The required order is capture through the user's explicit **GOTOVO**, fix and show it on `http://localhost:5174`, obtain explicit web approval, and only then install on `iPhone 13 blue`.

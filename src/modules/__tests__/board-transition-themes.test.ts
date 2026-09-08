@@ -24,10 +24,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 describe('Board Transition World themes', () => {
-  test('keeps soundtrack loading outside the transition mount critical path and motion sensors absent', () => {
+  test('keeps the global soundtrack uninterrupted by transition mounts and motion sensors absent', () => {
     const source = fs.readFileSync(path.resolve(__dirname, '../board-transition-screen.ts'), 'utf8');
-    expect(source).toContain("void import('./soundtrack-manager.js')");
-    expect(source).not.toContain("await import('./soundtrack-manager.js')");
+    expect(source).not.toContain('soundtrack-manager');
+    expect(source).not.toContain('fadeOutAndPause');
     expect(source).not.toContain('appSpatialMotion');
     expect(source).not.toContain('DeviceOrientationEvent');
   });

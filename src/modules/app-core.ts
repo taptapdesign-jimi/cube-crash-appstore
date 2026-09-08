@@ -206,6 +206,10 @@ import { resolveRegularMerge6SpawnCount } from './regular-merge6-spawn-count.ts'
 import { resolveMerge6MovesDepletedStuckAction } from './merge6-terminal-handoff-decision.ts';
 import { Merge6DestinationCleanupOwner } from './merge6-destination-cleanup-owner.ts';
 import { shouldDeferEndgameForActiveDrag } from './active-drag-endgame-policy.ts';
+import { shouldDisposeGameplayDragOwner } from './gameplay-drag-cleanup-policy.ts';
+import { playRegularMerge6Sound, stopRegularMerge6Sounds } from './regular-merge6-sound.ts';
+import { playOrdinaryStackSound, stopOrdinaryStackSound } from './ordinary-stack-sound.ts';
+import { stopGameplayPickupSound } from './gameplay-pickup-sound.ts';
 import { resolvePostSpawnEndgameDelayMs } from './post-spawn-endgame-delay.ts';
 import { resolveWildEndgameSpawnMult } from './wild-endgame-spawn-mult-decision.ts';
 import {
@@ -2453,12 +2457,20 @@ function logRuntimeStats(reason: string = 'unknown'): void {
 
 function cleanupFxForBoardReset(reason: string = 'unknown') {
   devLog('🧹 cleanupFxForBoardReset:', reason);
+  try { stopRegularMerge6Sounds(); } catch {}
+  try { stopOrdinaryStackSound(); } catch {}
+  try { stopGameplayPickupSound(); } catch {}
   const isPlayAgainCleanup = reason.includes('play-again');
   const isNavCleanup =
     typeof reason === 'string' &&
     (reason.includes('nav:') || reason.includes('cc-navigation') || reason.includes('journey') || reason.includes('settings') || reason.includes('collectibles'));
   const shouldClearPools = reason.includes('cleanupGame') || reason.includes('restartGame');
-  if (isNavCleanup || shouldClearPools) {
+  // A soft Play Again restart retains the installed drag manager and its
+  // GAMEPLAY_DRAG_OVERLAY. Disposing it here leaves the new board bound to a
+  // manager whose overlay is destroyed, so dragged dice fall back into the
+  // board below HUD_ROOT. Only a real route/hard teardown owns drag disposal.
+  const shouldDisposeDrag = shouldDisposeGameplayDragOwner(reason, isNavCleanup);
+  if (shouldDisposeDrag) {
     try { (drag as any)?.cleanup?.({ resumeIdle: false }); } catch {}
   }
   try { cleanupTntBoomArtifacts(`fx:${reason}`); } catch {}
@@ -3293,11 +3305,6 @@ export async function boot(){
   }
   // 🔥 CRITICAL: Start loading Baloo2 font early - HUD text shows black boxes if font isn't ready
   ensureFonts().catch(() => {});
-  // Fade out menu soundtrack when entering board game without board transition (e.g. direct continue)
-  try {
-    const { fadeOutAndPause } = await import('./soundtrack-manager.js');
-    fadeOutAndPause(2000);
-  } catch (_) { /* ignore */ }
   if (reuseApp) {
     devLog('♻️ Reusing existing PIXI app (soft reset)');
   }
@@ -7560,6 +7567,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       markMergePerformance('stack-contact');
       playRegularMergeContactPresentation(dst, src);
     }
+    if (!wildActive && !srcSpecial && !dstSpecial) {
+      playOrdinaryStackSound();
+    }
 
     // 2. Rotation and overlay for all stack layers (each rotates opposite to previous)
     if (srcDepth > 1 && dst.stackG && dst.stackG.children.length > 0) {
@@ -7647,7 +7657,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       devLog,
       devError,
     });
-
     // 🔥 CRITICAL FIX: Check if this is last merge BEFORE adding wild progress
     // This prevents wild meter from filling and triggering wild spawn on last merge
     // We need to check early (before merge 6 block) to prevent race condition
@@ -8211,6 +8220,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 
   // ---- 6 (računaj combo i ovdje – nastavlja x6, x7, x8…)
   if (effSum === 6){
+    // Only an ordinary die-on-ordinary-die merge owns this sound family.
+    // Wild/Special merge-6 finales keep their authored audio behavior.
+    if (!wildActive && !srcSpecial && !dstSpecial) {
+      playRegularMerge6Sound();
+    }
     // 🔥 CRITICAL FIX: Use saved srcSpecial/dstSpecial from line 3653-3654 (don't overwrite!)
     // These values were saved BEFORE any modifications to src/dst and BEFORE any branches
     // The saved values from outer scope (line 3653-3654) are already available in this closure
@@ -14344,12 +14358,16 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	        // them at beam-tip contact while its spring scale remains visible.
 	        const emitImpactFx = () => {
 	          if (skipFx) return;
-	          try {
-	            regularMerge6ShardsTemplated(board, tile, {
-	              zIndex: 9993,
-	              groupedOwner: impactProfile === 'beach-ball',
-	            });
-	          } catch (e) { devWarn('TNT boom bonus shards:', e); }
+	          // Beach Ball already owns a large four-impact smoke/explosion
+	          // composition. Adding a full regular shard burst at each exact
+	          // cube centre creates the Ball-only clumps the player rejected.
+	          if (impactProfile !== 'beach-ball') {
+	            try {
+	              regularMerge6ShardsTemplated(board, tile, {
+	                zIndex: 9993,
+	              });
+	            } catch (e) { devWarn('TNT boom bonus shards:', e); }
+	          }
 	          try {
 	            smokeBubblesAtTile(board, tile, TILE * 1.0, impactProfile === 'beach-ball' ? 1.25 : impactProfile === 'laser-gun' ? 0.62 : 1.0, {
 	              sizeScale: impactProfile === 'beach-ball' ? 1.9 : impactProfile === 'laser-gun' ? 1.15 : 1.5,

@@ -1,9 +1,9 @@
 import { gsap } from 'gsap';
-import { Assets, Container, Graphics, Sprite, type Texture } from 'pixi.js';
+import { Assets, Container, Graphics, Sprite, type Texture, type Ticker } from 'pixi.js';
 import animationManager from './animation-manager.js';
 import { graphicsPool } from './object-pool.js';
 import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.js';
-import { acquirePixiMobileActivityLease } from './pixi-mobile-frame-controller.js';
+import { STATE } from './app-state.js';
 import {
   createJourneyInterimBounceVariant,
   JOURNEY_INTERIM_IDLE_MOTION,
@@ -23,15 +23,37 @@ export const KANTA_IDLE_TOP_BUBBLE_INSET_PX = 3;
 export const KANTA_IDLE_TOP_BUBBLE_Z_INDEX = 2600;
 export const KANTA_IDLE_TOP_BUBBLE_ORIGIN_FROM_BOTTOM_RATIO = 0.75;
 export const KANTA_IDLE_TOP_BUBBLE_TRAVEL_RATIO = 0.48 * 1.15;
-export const KANTA_IDLE_TOP_BUBBLE_COUNT = 9;
-export const KANTA_IDLE_TOP_BUBBLE_INITIAL_BURST_COUNT = 3;
-export const KANTA_IDLE_TOP_BUBBLE_EMIT_MIN_SECONDS = 0.11 * 1.35;
-export const KANTA_IDLE_TOP_BUBBLE_EMIT_MAX_SECONDS = 0.19 * 1.35;
-export const KANTA_IDLE_TOP_BUBBLE_TRAVEL_MIN_SECONDS = 0.76 * 1.35;
-export const KANTA_IDLE_TOP_BUBBLE_TRAVEL_MAX_SECONDS = 1.08 * 1.35;
+export const KANTA_IDLE_TOP_BUBBLE_COUNT = 3;
+export const KANTA_IDLE_TOP_BUBBLE_INITIAL_BURST_COUNT = 1;
+export const KANTA_IDLE_TOP_BUBBLE_EMIT_MIN_SECONDS = 0.70;
+export const KANTA_IDLE_TOP_BUBBLE_EMIT_MAX_SECONDS = 1.10;
+export const KANTA_IDLE_TOP_BUBBLE_TRAVEL_MIN_SECONDS = 1.10;
+export const KANTA_IDLE_TOP_BUBBLE_TRAVEL_MAX_SECONDS = 1.50;
+export const KANTA_IDLE_TOP_BUBBLE_DOUBLE_EVERY = 4;
+export const KANTA_IDLE_TOP_BUBBLE_DOUBLE_DELAY_SECONDS = 0.12;
 export const KANTA_IDLE_BACK_TILT_MIN_DEGREES = 3;
 export const KANTA_IDLE_BACK_TILT_MAX_DEGREES = 7;
-export const KANTA_IDLE_REPEAT_DELAY_SECONDS = JOURNEY_INTERIM_IDLE_MOTION.repeatDelaySeconds;
+export const KANTA_IDLE_REPEAT_DELAY_SECONDS = 1.60;
+export const KANTA_IDLE_BREATH_DURATION_SECONDS = 1.20;
+export const KANTA_IDLE_BREATH_SCALE_X = 0.992;
+export const KANTA_IDLE_BREATH_SCALE_Y = 1.012;
+export const KANTA_IDLE_ACCENT_STRENGTH = 0.50;
+
+type KantaIdleBubbleState = {
+  bubble: Graphics;
+  active: boolean;
+  ageSeconds: number;
+  durationSeconds: number;
+  startX: number;
+  crossDirection: -1 | 1;
+  crossDistance: number;
+  restingAlpha: number;
+  startScale: number;
+};
+
+function softenScale(target: number): number {
+  return 1 + (target - 1) * KANTA_IDLE_ACCENT_STRENGTH;
+}
 
 export type KantaDiceIdleController = {
   setDragging: (dragging: boolean) => void;
@@ -104,11 +126,14 @@ export function startKantaDiceIdle(
   let backdropRevealTween: gsap.core.Tween | null = null;
   let topBubbleContainer: Container | null = null;
   let backBubbleContainer: Container | null = null;
-  let topBubbleSpawnCall: gsap.core.Tween | null = null;
-  let releaseTopBubbleMobileActivity: (() => void) | null = null;
   const topBubbleGraphics: Graphics[] = [];
-  const topBubbleTweens = new Set<gsap.core.Tween>();
-  const topBubbleTweenMap = new Map<Graphics, Set<gsap.core.Tween>>();
+  const topBubbleStates: KantaIdleBubbleState[] = [];
+  let topBubbleTicker: Ticker | null = null;
+  let topBubbleTick: ((ticker: Ticker) => void) | null = null;
+  let nextBubbleInSeconds = KANTA_IDLE_TOP_BUBBLE_EMIT_MIN_SECONDS;
+  let pendingDoubleInSeconds = 0;
+  let bubbleSlotCursor = 0;
+  let bubbleRuntimePaused = false;
   let disposed = false;
   let variant = createJourneyInterimBounceVariant();
   let backdropSide: -1 | 1 = -1;
@@ -199,26 +224,38 @@ export function startKantaDiceIdle(
     onUpdate: syncBackdropPose,
   }));
   timeline.to(base.scale, {
-    x: originalScaleX * JOURNEY_INTERIM_IDLE_MOTION.anticipationScaleX,
-    y: originalScaleY * JOURNEY_INTERIM_IDLE_MOTION.anticipationScaleY,
+    x: originalScaleX * KANTA_IDLE_BREATH_SCALE_X,
+    y: originalScaleY * KANTA_IDLE_BREATH_SCALE_Y,
+    duration: KANTA_IDLE_BREATH_DURATION_SECONDS,
+    ease: 'sine.inOut',
+  });
+  timeline.to(base.scale, {
+    x: originalScaleX,
+    y: originalScaleY,
+    duration: KANTA_IDLE_BREATH_DURATION_SECONDS,
+    ease: 'sine.inOut',
+  });
+  timeline.to(base.scale, {
+    x: originalScaleX * softenScale(JOURNEY_INTERIM_IDLE_MOTION.anticipationScaleX),
+    y: originalScaleY * softenScale(JOURNEY_INTERIM_IDLE_MOTION.anticipationScaleY),
     duration: JOURNEY_INTERIM_IDLE_MOTION.anticipationDurationSeconds,
     ease: 'power2.in',
   });
   timeline.to(base.scale, {
-    x: () => originalScaleX * variant.peakScaleX,
-    y: () => originalScaleY * variant.peakScaleY,
+    x: () => originalScaleX * softenScale(variant.peakScaleX),
+    y: () => originalScaleY * softenScale(variant.peakScaleY),
     duration: JOURNEY_INTERIM_IDLE_MOTION.riseDurationSeconds,
     ease: 'back.out(2.5)',
   });
   timeline.to(base.scale, {
-    x: () => originalScaleX * variant.landScaleX,
-    y: () => originalScaleY * variant.landScaleY,
+    x: () => originalScaleX * softenScale(variant.landScaleX),
+    y: () => originalScaleY * softenScale(variant.landScaleY),
     duration: JOURNEY_INTERIM_IDLE_MOTION.landDurationSeconds,
     ease: 'power2.in',
   });
   timeline.to(base.scale, {
-    x: originalScaleX * JOURNEY_INTERIM_IDLE_MOTION.reboundScaleX,
-    y: originalScaleY * JOURNEY_INTERIM_IDLE_MOTION.reboundScaleY,
+    x: originalScaleX * softenScale(JOURNEY_INTERIM_IDLE_MOTION.reboundScaleX),
+    y: originalScaleY * softenScale(JOURNEY_INTERIM_IDLE_MOTION.reboundScaleY),
     duration: JOURNEY_INTERIM_IDLE_MOTION.reboundDurationSeconds,
     ease: 'power2.out',
   });
@@ -234,13 +271,21 @@ export function startKantaDiceIdle(
       if (active) {
         timeline.pause();
         backdropRevealTween?.pause();
+        bubbleRuntimePaused = true;
+        topBubbleStates.forEach((state) => {
+          state.active = false;
+          state.bubble.visible = false;
+          state.bubble.renderable = false;
+        });
         restoreNeutralPose();
       } else if (!disposed) {
         variant = createJourneyInterimBounceVariant();
         refreshBackdropPlacement();
         timeline.restart();
         backdropRevealTween?.resume();
-        releaseTopBubbleMobileActivity ??= acquirePixiMobileActivityLease('kanta-idle-bubbles');
+        bubbleRuntimePaused = false;
+        pendingDoubleInSeconds = 0;
+        nextBubbleInSeconds = 0.25;
       }
     },
     dispose: () => {
@@ -249,15 +294,12 @@ export function startKantaDiceIdle(
       try { animationManager.killExternalTimeline(timeline); } catch { timeline.kill(); }
       try { animationManager.killExternalTween(backdropRevealTween); } catch { backdropRevealTween?.kill(); }
       backdropRevealTween = null;
-      try { animationManager.killExternalTween(topBubbleSpawnCall); } catch { topBubbleSpawnCall?.kill(); }
-      topBubbleSpawnCall = null;
-      topBubbleTweens.forEach((tween) => {
-        try { animationManager.killExternalTween(tween); } catch { tween.kill(); }
-      });
-      topBubbleTweens.clear();
-      topBubbleTweenMap.clear();
-      releaseTopBubbleMobileActivity?.();
-      releaseTopBubbleMobileActivity = null;
+      if (topBubbleTicker && topBubbleTick) {
+        try { topBubbleTicker.remove(topBubbleTick); } catch {}
+      }
+      topBubbleTicker = null;
+      topBubbleTick = null;
+      topBubbleStates.length = 0;
       const ownsLoadedTexture = loadedTexture !== null && base.texture === loadedTexture;
       loadedTexture = null;
       backdropSprites.splice(0).forEach(({ sprite }) => {
@@ -319,111 +361,120 @@ export function startKantaDiceIdle(
     backBubbleContainer = rearContainer;
     bubbleParent.sortChildren();
 
-    const ownBubbleTween = (bubble: Graphics, tween: gsap.core.Tween): gsap.core.Tween => {
-      topBubbleTweens.add(tween);
-      let owned = topBubbleTweenMap.get(bubble);
-      if (!owned) {
-        owned = new Set();
-        topBubbleTweenMap.set(bubble, owned);
-      }
-      owned.add(tween);
-      return tween;
+    const deactivateBubble = (state: KantaIdleBubbleState) => {
+      state.active = false;
+      state.bubble.visible = false;
+      state.bubble.renderable = false;
+      state.bubble.alpha = 0;
     };
 
-    const retireBubble = (bubble: Graphics) => {
-      if (bubble.destroyed || graphicsPool.isInPool(bubble)) return;
-      const owned = topBubbleTweenMap.get(bubble);
-      owned?.forEach((tween) => topBubbleTweens.delete(tween));
-      owned?.clear();
-      topBubbleTweenMap.delete(bubble);
-      const index = topBubbleGraphics.indexOf(bubble);
-      if (index >= 0) topBubbleGraphics.splice(index, 1);
-      try { bubble.parent?.removeChild(bubble); } catch {}
-      try { graphicsPool.release(bubble); } catch {}
-    };
-
-    const spawnBubble = () => {
-      if (disposed || !container.parent || topBubbleGraphics.length >= KANTA_IDLE_TOP_BUBBLE_COUNT) return;
+    for (let index = 0; index < KANTA_IDLE_TOP_BUBBLE_COUNT; index += 1) {
       const bubble = graphicsPool.acquire();
-      const isBackBubble = bubbleEmissionCount % 2 === 1;
-      bubbleEmissionCount += 1;
-      const bubbleHost = isBackBubble ? rearContainer : container;
-      const hostWidth = displayedWidth * (isBackBubble ? KANTA_IDLE_BACK_SCALE : 1);
-      const radius = 3.5 + Math.random() * 3;
-      const startX = (Math.random() - 0.5) * hostWidth * 0.66;
-      const crossDirection = Math.random() < 0.5 ? -1 : 1;
-      const crossDistance = 6 + Math.random() * 6;
-      const duration = KANTA_IDLE_TOP_BUBBLE_TRAVEL_MIN_SECONDS
-        + Math.random() * (
-          KANTA_IDLE_TOP_BUBBLE_TRAVEL_MAX_SECONDS - KANTA_IDLE_TOP_BUBBLE_TRAVEL_MIN_SECONDS
-        );
-      bubble.label = `kanta-idle-top-bubble-${Date.now()}-${topBubbleGraphics.length + 1}`;
+      const isBackBubble = index % 2 === 1;
+      const radius = 3.8 + index * 0.9;
+      bubble.label = `kanta-idle-top-bubble-slot-${index + 1}`;
       bubble.eventMode = 'none';
       bubble.circle(0, 0, radius).fill({ color: KANTA_IDLE_TOP_BUBBLE_COLOR, alpha: 1 });
       bubble.circle(-radius * 0.2, -radius * 0.2, radius * 0.30)
         .fill({ color: 0xFFFFFF, alpha: 0.86 });
       bubble.circle(0, 0, radius)
         .stroke({ color: KANTA_IDLE_TOP_BUBBLE_COLOR, alpha: 1, width: 1.5 });
-      bubble.x = startX;
-      bubble.y = radius + 3;
-      bubble.alpha = 0.82 + Math.random() * 0.18;
-      bubble.scale.set(0.28 + Math.random() * 0.12);
-      bubbleHost.addChild(bubble);
+      (isBackBubble ? rearContainer : container).addChild(bubble);
       topBubbleGraphics.push(bubble);
+      const state: KantaIdleBubbleState = {
+        bubble,
+        active: false,
+        ageSeconds: 0,
+        durationSeconds: KANTA_IDLE_TOP_BUBBLE_TRAVEL_MIN_SECONDS,
+        startX: 0,
+        crossDirection: 1,
+        crossDistance: 8,
+        restingAlpha: 1,
+        startScale: 0.32,
+      };
+      topBubbleStates.push(state);
+      deactivateBubble(state);
+    }
 
-      ownBubbleTween(bubble, animationManager.trackExternalTween(gsap.to(bubble.scale, {
-        x: 1.12,
-        y: 1.05,
-        duration: duration * 0.42,
-        ease: 'power2.out',
-      })));
-      ownBubbleTween(bubble, animationManager.trackExternalTween(gsap.to(bubble, {
-        keyframes: [
-          { x: startX + crossDirection * crossDistance, y: radius + 3 - topBubbleTravelPx * 0.32 },
-          { x: startX - crossDirection * crossDistance * 0.72, y: radius + 3 - topBubbleTravelPx * 0.68 },
-          { x: startX + crossDirection * crossDistance * 0.35, y: radius + 3 - topBubbleTravelPx },
-        ],
-        duration,
-        ease: 'sine.inOut',
-        onComplete: () => {
-          queueMicrotask(() => {
-            if (!disposed) retireBubble(bubble);
-          });
-        },
-      })));
-      ownBubbleTween(bubble, animationManager.trackExternalTween(gsap.to(bubble, {
-        alpha: 0,
-        duration: duration * 0.10,
-        delay: duration * 0.90,
-        ease: 'power3.in',
-      })));
-      ownBubbleTween(bubble, animationManager.trackExternalTween(gsap.to(bubble.scale, {
-        x: 1.58,
-        y: 1.58,
-        duration: duration * 0.12,
-        delay: duration * 0.88,
-        ease: 'back.in(2.4)',
-      })));
+    const activateNextBubble = (): boolean => {
+      for (let offset = 0; offset < topBubbleStates.length; offset += 1) {
+        const index = (bubbleSlotCursor + offset) % topBubbleStates.length;
+        const state = topBubbleStates[index];
+        if (state.active) continue;
+        bubbleSlotCursor = (index + 1) % topBubbleStates.length;
+        const isBackBubble = state.bubble.parent === rearContainer;
+        const hostWidth = displayedWidth * (isBackBubble ? KANTA_IDLE_BACK_SCALE : 1);
+        state.active = true;
+        state.ageSeconds = 0;
+        state.durationSeconds = KANTA_IDLE_TOP_BUBBLE_TRAVEL_MIN_SECONDS
+          + Math.random() * (
+            KANTA_IDLE_TOP_BUBBLE_TRAVEL_MAX_SECONDS - KANTA_IDLE_TOP_BUBBLE_TRAVEL_MIN_SECONDS
+          );
+        state.startX = (Math.random() - 0.5) * hostWidth * 0.62;
+        state.crossDirection = Math.random() < 0.5 ? -1 : 1;
+        state.crossDistance = 6 + Math.random() * 6;
+        state.restingAlpha = 0.82 + Math.random() * 0.18;
+        state.startScale = 0.28 + Math.random() * 0.12;
+        state.bubble.position.set(state.startX, 6);
+        state.bubble.scale.set(state.startScale);
+        state.bubble.alpha = state.restingAlpha;
+        state.bubble.visible = true;
+        state.bubble.renderable = true;
+        bubbleEmissionCount += 1;
+        return true;
+      }
+      return false;
     };
 
-    const scheduleNextBubble = () => {
-      if (disposed || !container.parent) return;
-      const nextDelay = KANTA_IDLE_TOP_BUBBLE_EMIT_MIN_SECONDS
-        + Math.random() * (
-          KANTA_IDLE_TOP_BUBBLE_EMIT_MAX_SECONDS - KANTA_IDLE_TOP_BUBBLE_EMIT_MIN_SECONDS
-        );
-      topBubbleSpawnCall = animationManager.trackExternalTween(gsap.delayedCall(nextDelay, () => {
-        topBubbleSpawnCall = null;
-        spawnBubble();
-        scheduleNextBubble();
-      }));
+    const updateBubble = (state: KantaIdleBubbleState, deltaSeconds: number) => {
+      if (!state.active) return;
+      state.ageSeconds += deltaSeconds;
+      const progress = Math.min(1, state.ageSeconds / state.durationSeconds);
+      const lateralWave = Math.sin(progress * Math.PI * 3) * state.crossDistance * (1 - progress * 0.30);
+      state.bubble.x = state.startX + state.crossDirection * lateralWave;
+      state.bubble.y = 6 - topBubbleTravelPx * progress;
+      const scale = progress < 0.42
+        ? state.startScale + (1.10 - state.startScale) * (progress / 0.42)
+        : progress < 0.88
+          ? 1.10
+          : 1.10 + (1.48 - 1.10) * ((progress - 0.88) / 0.12);
+      state.bubble.scale.set(scale, scale * 0.96);
+      state.bubble.alpha = progress < 0.90
+        ? state.restingAlpha
+        : state.restingAlpha * (1 - (progress - 0.90) / 0.10);
+      if (progress >= 1) deactivateBubble(state);
     };
 
     for (let index = 0; index < KANTA_IDLE_TOP_BUBBLE_INITIAL_BURST_COUNT; index += 1) {
-      spawnBubble();
+      activateNextBubble();
     }
-    scheduleNextBubble();
-    releaseTopBubbleMobileActivity = acquirePixiMobileActivityLease('kanta-idle-bubbles');
+    nextBubbleInSeconds = KANTA_IDLE_TOP_BUBBLE_EMIT_MIN_SECONDS
+      + Math.random() * (
+        KANTA_IDLE_TOP_BUBBLE_EMIT_MAX_SECONDS - KANTA_IDLE_TOP_BUBBLE_EMIT_MIN_SECONDS
+      );
+    topBubbleTicker = STATE.app?.ticker as Ticker | null;
+    if (topBubbleTicker) {
+      topBubbleTick = (ticker: Ticker) => {
+        if (disposed || bubbleRuntimePaused || document.hidden || !container.parent) return;
+        const deltaSeconds = Math.max(0, Math.min(0.10, ticker.deltaMS / 1000));
+        topBubbleStates.forEach((state) => updateBubble(state, deltaSeconds));
+        if (pendingDoubleInSeconds > 0) {
+          pendingDoubleInSeconds -= deltaSeconds;
+          if (pendingDoubleInSeconds <= 0) activateNextBubble();
+        }
+        nextBubbleInSeconds -= deltaSeconds;
+        if (nextBubbleInSeconds > 0) return;
+        const emitted = activateNextBubble();
+        if (emitted && bubbleEmissionCount % KANTA_IDLE_TOP_BUBBLE_DOUBLE_EVERY === 0) {
+          pendingDoubleInSeconds = KANTA_IDLE_TOP_BUBBLE_DOUBLE_DELAY_SECONDS;
+        }
+        nextBubbleInSeconds = KANTA_IDLE_TOP_BUBBLE_EMIT_MIN_SECONDS
+          + Math.random() * (
+            KANTA_IDLE_TOP_BUBBLE_EMIT_MAX_SECONDS - KANTA_IDLE_TOP_BUBBLE_EMIT_MIN_SECONDS
+          );
+      };
+      topBubbleTicker.add(topBubbleTick);
+    }
     syncBackdropPose();
   }
 

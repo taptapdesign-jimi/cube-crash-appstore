@@ -2884,7 +2884,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
 	        }
 	        playHudScoreSoftCartoonBounce(comboHud);
 
-		        if (scoreSheetMode === 'combo') {
+	        if (scoreSheetMode === 'combo') {
 		          console.log('🔥 Combo bottom sheet already open - closing it');
 		          trackHudTimeout(() => {
 		            if (typeof window.hideScoreBottomSheet === 'function') {
@@ -2936,7 +2936,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
 	        window.triggerHapticImpact('light');
 	      }
 
-		      playHudScoreSoftCartoonBounce(comboHud);
+	      playHudScoreSoftCartoonBounce(comboHud);
 		      if (typeof window.showComboBottomSheet === 'function') {
 		        window.showComboBottomSheet();
 		      } else if (typeof window.showScoreBottomSheet === 'function') {

@@ -76,6 +76,7 @@ describe('app-core mobile save lifecycle ownership', () => {
     owner._iosVisibilityHandler?.(new Event('visibilitychange'));
     expect(saveGameState).toHaveBeenCalledTimes(1);
 
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false });
     owner._resumeHandlerRef?.(new Event('resume'));
     expect(trackAppTimeout).toHaveBeenCalledTimes(1);
     expect(loadGameState).toHaveBeenCalledTimes(1);
@@ -104,5 +105,24 @@ describe('app-core mobile save lifecycle ownership', () => {
 
     windowRemove.mockRestore();
     documentRemove.mockRestore();
+  });
+
+  test('a delayed resume from a retired gameplay boot cannot load over the next Play entry', () => {
+    const callbacks: Array<() => void | Promise<void>> = [];
+    const trackAppTimeout = jest.fn((callback: () => void | Promise<void>) => {
+      callbacks.push(callback);
+      return callbacks.length;
+    });
+    const loadGameState = jest.fn().mockResolvedValue(true);
+    window.loadGameState = loadGameState;
+
+    installMobileSaveLifecycle({ saveGameState: jest.fn(), trackAppTimeout });
+    const staleResume = lifecycleWindow()._resumeHandlerRef;
+    staleResume?.(new Event('resume'));
+
+    installMobileSaveLifecycle({ saveGameState: jest.fn(), trackAppTimeout });
+    void callbacks.shift()?.();
+
+    expect(loadGameState).not.toHaveBeenCalled();
   });
 });

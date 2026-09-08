@@ -1,12 +1,14 @@
 import { cancelArcadeEntrySurfaceGate } from './arcade-entry-surface-gate.js';
 
 type ActiveArcadeEntryCue = {
+  generation: number;
   round: number;
   promise: Promise<void>;
   settled: boolean;
 };
 
 let activeCue: ActiveArcadeEntryCue | null = null;
+let cueGeneration = 0;
 const presentationWaiters = new Map<number, Set<() => void>>();
 
 const normalizeRound = (round: number): number => Math.max(1, Math.trunc(Number(round) || 1));
@@ -42,18 +44,30 @@ export function beginArcadeEntryCue(round: number): Promise<void> {
   }
 
   const owner: ActiveArcadeEntryCue = {
+    generation: ++cueGeneration,
     round: normalizedRound,
     settled: false,
     promise: Promise.resolve(),
   };
   owner.promise = import('./arcade-stage-clear-modal.js')
-    .then(({ showArcadeContinuationRoundCue }) => showArcadeContinuationRoundCue(
-      normalizedRound,
-      () => resolvePresentationWaiters(normalizedRound),
-    ))
+    .then(({ showArcadeContinuationRoundCue }) => {
+      // The chunk can finish loading after reset/Exit/new Play transferred
+      // ownership. A retired starter must never mount over the current cue.
+      if (owner.generation !== cueGeneration) return;
+      return showArcadeContinuationRoundCue(
+        normalizedRound,
+        () => {
+          if (owner.generation === cueGeneration) {
+            resolvePresentationWaiters(normalizedRound);
+          }
+        },
+      );
+    })
     .finally(() => {
       owner.settled = true;
-      resolvePresentationWaiters(normalizedRound);
+      if (owner.generation === cueGeneration) {
+        resolvePresentationWaiters(normalizedRound);
+      }
     });
   activeCue = owner;
   return owner.promise;
@@ -78,6 +92,7 @@ export function isArcadeEntryCuePending(): boolean {
 }
 
 export function resetArcadeEntryCueOwner(): void {
+  cueGeneration += 1;
   activeCue = null;
   presentationWaiters.forEach((waiters) => waiters.forEach((resolve) => resolve()));
   presentationWaiters.clear();
@@ -85,11 +100,18 @@ export function resetArcadeEntryCueOwner(): void {
 
 /** Abort an entry that can no longer reach board pop-in (for example boot failure). */
 export function cancelArcadeEntryCueOwner(): void {
+  const cancellationGeneration = ++cueGeneration;
   activeCue = null;
   presentationWaiters.forEach((waiters) => waiters.forEach((resolve) => resolve()));
   presentationWaiters.clear();
   cancelArcadeEntrySurfaceGate();
   void import('./arcade-stage-clear-modal.js')
-    .then(({ cancelArcadeStageClearModal }) => cancelArcadeStageClearModal())
+    .then(({ cancelArcadeStageClearModal }) => {
+      // Lazy cleanup from a retired route must not arrive after a newer Play
+      // has acquired the Round cue and cut that new animation short.
+      if (cancellationGeneration === cueGeneration) {
+        cancelArcadeStageClearModal();
+      }
+    })
     .catch(() => {});
 }

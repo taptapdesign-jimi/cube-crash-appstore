@@ -3000,7 +3000,7 @@ async function startNewRun(boardId: number): Promise<void> {
       uiManager.hideApp();
       console.log('✅ App element hidden AFTER detail modal shown (prevents click blocking)');
       
-      // Resume menu soundtrack when returning to detail modal (Journey context)
+      // Ensure the global theme remains active after the Journey handoff.
       try {
         const { fadeInAndResume } = await import('./modules/soundtrack-manager.js');
         fadeInAndResume();
@@ -3106,7 +3106,7 @@ async function startNewRun(boardId: number): Promise<void> {
       // idle effects only after enter completion. Starting them here as well
       // races the Forest/Beach/Area Unit enter on physical iOS.
 
-      // Resume menu soundtrack with fade in when Journey is shown (so music plays on Journey)
+      // Ensure the global theme remains active after the Journey handoff.
       try {
         const { fadeInAndResume } = await import('./modules/soundtrack-manager.js');
         fadeInAndResume();
@@ -3138,7 +3138,7 @@ async function startNewRun(boardId: number): Promise<void> {
         skipFirstPaintReady: true,
         onEnterPrepared: options.onHomepageEnterPrepared,
       });
-      // Resume menu soundtrack with fade in when homepage is shown
+      // Ensure the global theme remains active after the Homepage handoff.
       try {
         const { fadeInAndResume } = await import('./modules/soundtrack-manager.js');
         fadeInAndResume();
@@ -3163,7 +3163,7 @@ async function startNewRun(boardId: number): Promise<void> {
     delete (window as any).__ccEarlyHomepageHandoff;
     delete (window as any).__skipBoardExitAnimation;
     delete (window as any).__ccFastArcadeCleanExit;
-    // Resume soundtrack if not already triggered in pathway (e.g. error path)
+    // Ensure the global theme is active if no pathway already checked it.
     try {
       const { soundtrackManager } = await import('./modules/soundtrack-manager.js');
       if (!(window as any).__ccSoundtrackResumedThisExit) {

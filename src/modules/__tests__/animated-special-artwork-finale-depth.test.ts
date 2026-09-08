@@ -6,7 +6,9 @@ import { STATE } from '../app-state';
 import {
   acquireAnimatedSpecialArtworkFinaleDepth,
   acquireAnimatedSpecialArtworkLayer,
+  doesAnimatedSpecialArtworkOverlapGameplayDrag,
   getAnimatedSpecialArtworkLayerStats,
+  installAnimatedSpecialArtworkOverlapFootprint,
   setAnimatedSpecialArtworkDragging,
 } from '../animated-special-artwork-layer';
 import { acquireGameplayDragForeground } from '../gameplay-drag-foreground-owner';
@@ -141,6 +143,57 @@ describe('animated special artwork merge-6 depth ownership', () => {
     expect(Number(draggedSvg.parentElement?.style.zIndex))
       .toBeGreaterThan(Number(getComputedStyle(canvas).zIndex || '1'));
     setAnimatedSpecialArtworkDragging(draggedSvg, false);
+  });
+
+  test('ignores transparent SVG stage margins and falls back only on visible-die overlap', () => {
+    const wrapper = document.createElement('div');
+    const footprint = installAnimatedSpecialArtworkOverlapFootprint(wrapper, {
+      left: 100,
+      top: 100,
+      width: 128,
+      height: 128,
+    });
+    jest.spyOn(wrapper, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      right: 340,
+      bottom: 380,
+      width: 340,
+      height: 380,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    jest.spyOn(footprint, 'getBoundingClientRect').mockReturnValue({
+      left: 100,
+      top: 100,
+      right: 228,
+      bottom: 228,
+      width: 128,
+      height: 128,
+      x: 100,
+      y: 100,
+      toJSON: () => ({}),
+    });
+
+    expect(doesAnimatedSpecialArtworkOverlapGameplayDrag(wrapper, {
+      x: 250,
+      y: 120,
+      width: 128,
+      height: 128,
+    })).toBe(false);
+    expect(doesAnimatedSpecialArtworkOverlapGameplayDrag(wrapper, {
+      x: 227,
+      y: 120,
+      width: 128,
+      height: 128,
+    })).toBe(true);
+    expect(doesAnimatedSpecialArtworkOverlapGameplayDrag(wrapper, {
+      x: 228,
+      y: 120,
+      width: 128,
+      height: 128,
+    })).toBe(false);
   });
 
   test('connects the shared depth lease to all four merge-6 finale families', () => {

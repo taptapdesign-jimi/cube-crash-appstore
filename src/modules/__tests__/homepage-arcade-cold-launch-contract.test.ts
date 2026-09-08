@@ -90,8 +90,8 @@ describe('Homepage cold-launch Arcade handoff', () => {
       .toBeLessThan(showAppOwner.indexOf("canvas.style.visibility = 'visible'"));
 
     const bootStart = coreSource.indexOf('export async function boot()');
-    const bootFirstTextureAwait = coreSource.indexOf("await import('./soundtrack-manager.js')", bootStart);
-    const bootBeforeAwait = coreSource.slice(bootStart, bootFirstTextureAwait);
+    const bootFirstAsyncBoundary = coreSource.indexOf('await ', bootStart);
+    const bootBeforeAwait = coreSource.slice(bootStart, bootFirstAsyncBoundary);
     expect(bootBeforeAwait).toContain('const reuseApp = !!(app && !app.destroyed && app.renderer && app.canvas);');
     expect(bootBeforeAwait).toContain('if (reuseApp) {');
     expect(bootBeforeAwait).toContain("app.canvas.style.opacity = '0';");
@@ -102,7 +102,7 @@ describe('Homepage cold-launch Arcade handoff', () => {
     const initialRenderOwner = coreSource.indexOf('// 🔥 CRITICAL FIX: Force render to ensure everything is visible', bootStart);
     const initialRender = coreSource.indexOf('app.renderer.render(stage);', initialRenderOwner);
     const reusedCanvasReveal = coreSource.indexOf("app.canvas.style.visibility = 'visible';", initialRender);
-    expect(initialRender).toBeGreaterThan(bootFirstTextureAwait);
+    expect(initialRender).toBeGreaterThan(bootFirstAsyncBoundary);
     expect(reusedCanvasReveal).toBeGreaterThan(initialRender);
     expect(coreSource.slice(initialRender, reusedCanvasReveal))
       .toContain('if (reuseApp && !isArcadeEntrySurfaceGateActive()) {');

@@ -8,6 +8,7 @@ import {
 import {
   acquireAnimatedSpecialArtworkLayer,
   doesAnimatedSpecialArtworkOverlapGameplayDrag,
+  installAnimatedSpecialArtworkOverlapFootprint,
   setAnimatedSpecialArtworkDragging,
   type AnimatedSpecialArtworkFrame,
   type AnimatedSpecialArtworkLayerLease,
@@ -16,6 +17,7 @@ import {
   acquireAnimatedSvgPhase,
   type AnimatedSvgPhaseLease,
 } from './animated-svg-phase-scheduler.ts';
+import { releaseAnimatedSpecialArtworkFamily } from './animated-special-artwork-mode.ts';
 
 export const ROBO_BOUNCY_SVG_URL = './assets/shop/robo/robo-bouncy.svg';
 export const ROBO_BOUNCY_VIEWBOX = Object.freeze({ width: 390, height: 440 });
@@ -240,6 +242,13 @@ function createController(
     willChange: 'transform',
   });
 
+  installAnimatedSpecialArtworkOverlapFootprint(wrapper, {
+    left: (ROBO_BOUNCY_REST_ART.centerX - ROBO_BOUNCY_REST_ART.size / 2) * DISPLAY_SCALE,
+    top: (ROBO_BOUNCY_REST_ART.centerY - ROBO_BOUNCY_REST_ART.size / 2) * DISPLAY_SCALE,
+    width: ROBO_BOUNCY_DISPLAY_SIZE,
+    height: ROBO_BOUNCY_DISPLAY_SIZE,
+  });
+
   const image = new Image();
   image.alt = '';
   image.draggable = false;
@@ -368,6 +377,7 @@ export function setRoboBouncyArtworkDragging(tile: any, dragging: boolean): bool
 
 export function destroyRoboBouncyArtworkRuntime(): void {
   Array.from(controllers.values()).forEach(disposeController);
+  releaseAnimatedSpecialArtworkFamily('robo');
   if (runtimeLease) {
     runtimeLease.release();
     runtimeLease = null;

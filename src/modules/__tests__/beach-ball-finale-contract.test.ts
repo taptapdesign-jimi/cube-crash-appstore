@@ -84,7 +84,16 @@ describe('Beach Ball finale regression contract', () => {
     expect(appCoreSource).toContain("impactProfile: tntVariantForMerge?.id === 'beach-ball'");
     expect(appCoreSource).toContain("tntVariantForMerge?.id === 'laser-gun'");
     expect(appCoreSource).toContain("impactProfile === 'beach-ball'");
-    expect(appCoreSource).toContain("groupedOwner: impactProfile === 'beach-ball'");
+    const impactFxStart = appCoreSource.indexOf('const emitImpactFx = () =>');
+    const impactFxEnd = appCoreSource.indexOf('const oldValue =', impactFxStart);
+    const impactFx = appCoreSource.slice(impactFxStart, impactFxEnd);
+    const ballShardGuard = impactFx.indexOf("if (impactProfile !== 'beach-ball') {");
+    const shardBurst = impactFx.indexOf('regularMerge6ShardsTemplated(board, tile');
+    const smokeBurst = impactFx.indexOf('smokeBubblesAtTile(board, tile');
+    expect(ballShardGuard).toBeGreaterThan(-1);
+    expect(shardBurst).toBeGreaterThan(ballShardGuard);
+    expect(smokeBurst).toBeGreaterThan(shardBurst);
+    expect(impactFx).toContain("groupedOwner: impactProfile === 'beach-ball'");
     expect(appCoreSource).toContain('selectSpatiallySeparatedTntTargets(candidates, count)');
     expect(appCoreSource).toContain('const beachBallImpactDelaysMs = [0, 260, 560, 900] as const');
     expect(appCoreSource).toContain('trackAppTimeout(replaceTile, 120)');

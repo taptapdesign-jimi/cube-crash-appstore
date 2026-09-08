@@ -2,6 +2,7 @@ import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
 import {
   acquireAnimatedSpecialArtworkLayer,
   doesAnimatedSpecialArtworkOverlapGameplayDrag,
+  installAnimatedSpecialArtworkOverlapFootprint,
   setAnimatedSpecialArtworkDragging,
   type AnimatedSpecialArtworkFrame,
   type AnimatedSpecialArtworkLayerLease,
@@ -10,6 +11,7 @@ import {
   acquireAnimatedSvgPhase,
   type AnimatedSvgPhaseLease,
 } from './animated-svg-phase-scheduler.ts';
+import { releaseAnimatedSpecialArtworkFamily } from './animated-special-artwork-mode.ts';
 
 export const MUSHROOM_BOUNCY_SVG_URL = './assets/shop/mushroom/mushroom.svg';
 export const MUSHROOM_BOUNCY_VIEWBOX = Object.freeze({ x: -26, y: -34, width: 180, height: 180 });
@@ -204,6 +206,13 @@ function createController(
     willChange: 'transform',
   });
 
+  installAnimatedSpecialArtworkOverlapFootprint(wrapper, {
+    left: (MUSHROOM_BOUNCY_REST_ART.centerX - MUSHROOM_BOUNCY_VIEWBOX.x - MUSHROOM_BOUNCY_REST_ART.size / 2) * DISPLAY_SCALE,
+    top: (MUSHROOM_BOUNCY_REST_ART.centerY - MUSHROOM_BOUNCY_VIEWBOX.y - MUSHROOM_BOUNCY_REST_ART.size / 2) * DISPLAY_SCALE,
+    width: MUSHROOM_BOUNCY_DISPLAY_SIZE,
+    height: MUSHROOM_BOUNCY_DISPLAY_SIZE,
+  });
+
   const image = new Image();
   image.alt = '';
   image.draggable = false;
@@ -301,6 +310,7 @@ export function setMushroomBouncyArtworkDragging(tile: any, dragging: boolean): 
 
 export function destroyMushroomBouncyArtworkRuntime(): void {
   Array.from(controllers.values()).forEach(disposeController);
+  releaseAnimatedSpecialArtworkFamily('mushroom');
   if (runtimeLease) {
     runtimeLease.release();
     runtimeLease = null;

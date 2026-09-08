@@ -74,3 +74,25 @@ test('cancelling an abandoned cue releases presentation waiters', async () => {
   cancelArcadeEntryCueOwner();
   await expect(presented).resolves.toBeUndefined();
 });
+
+test('a lazy cancellation from a retired route cannot cut off a newer Play cue', async () => {
+  cancelArcadeEntryCueOwner();
+  const currentCue = beginArcadeEntryCue(4);
+  await currentCue;
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  expect(showArcadeContinuationRoundCue).toHaveBeenCalledTimes(1);
+  expect(showArcadeContinuationRoundCue).toHaveBeenCalledWith(4, expect.any(Function));
+  expect(cancelArcadeStageClearModal).not.toHaveBeenCalled();
+});
+
+test('a retired lazy cue starter cannot mount over the cue owned by the latest Play', async () => {
+  const staleCue = beginArcadeEntryCue(2);
+  resetArcadeEntryCueOwner();
+  const currentCue = beginArcadeEntryCue(3);
+
+  await Promise.all([staleCue, currentCue]);
+
+  expect(showArcadeContinuationRoundCue).toHaveBeenCalledTimes(1);
+  expect(showArcadeContinuationRoundCue).toHaveBeenCalledWith(3, expect.any(Function));
+});

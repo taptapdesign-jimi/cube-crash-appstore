@@ -131,6 +131,9 @@ import {
   JOURNEY_BEACH_CARD_NAMES,
   JOURNEY_FOREST_CARD_NAMES,
 } from './journey-new-card-presentation.js';
+import { preloadRegularMerge6Sounds } from './regular-merge6-sound.ts';
+import { preloadOrdinaryStackSound } from './ordinary-stack-sound.ts';
+import { preloadGameplayPickupSound } from './gameplay-pickup-sound.ts';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 // trackTween/trackTimeline must use original GSAP functions, not gsap.to/gsap.timeline
@@ -12648,6 +12651,9 @@ class JourneyBoardsManager {
           floatingPlayButton.style.pointerEvents = 'none';
 
           logger.info(`🎮 Play button clicked for board ${boardIdForPlay}`, { boardName: boardNameForPlay });
+          preloadRegularMerge6Sounds();
+          preloadOrdinaryStackSound();
+          preloadGameplayPickupSound();
           delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
           delete (window as any).__ccDirectDetailModalReturnActive;
 

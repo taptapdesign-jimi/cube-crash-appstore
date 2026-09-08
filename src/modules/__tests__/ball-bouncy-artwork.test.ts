@@ -16,6 +16,7 @@ import {
   isBeachBallBouncyTile,
 } from '../ball-bouncy-artwork';
 import { getAnimatedSpecialArtworkLayerStats } from '../animated-special-artwork-layer';
+import { getAnimatedSpecialArtworkMode } from '../animated-special-artwork-mode';
 import {
   acquireGameplayDragForeground,
   setGameplayDragBounds,
@@ -218,11 +219,51 @@ describe('Beach Ball animated SVG board artwork', () => {
     expect((controller as any).wrapper.style.visibility).toBe('hidden');
   });
 
+  test('keeps a stable PNG choice for one duplicate while another duplicate uses a phased SVG', () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
+    const random = jest.spyOn(Math, 'random')
+      .mockReturnValueOnce(0.75)
+      .mockReturnValueOnce(0.25);
+    const first = makeTile('beach-ball', 'wild-tnt');
+    const pngDuplicate = makeTile('beach-ball', 'wild-tnt');
+    const svgDuplicate = makeTile('beach-ball', 'wild-tnt');
+    try {
+      startSpecialDiceIdleMotion(first.tile);
+      startSpecialDiceIdleMotion(pngDuplicate.tile);
+      startSpecialDiceIdleMotion(svgDuplicate.tile);
+
+      expect(first.tile._ccBallBouncyArtwork).toBeDefined();
+      expect(getAnimatedSpecialArtworkMode(first.tile)).toBe('svg');
+      expect(pngDuplicate.tile._ccBallBouncyArtwork).toBeUndefined();
+      expect(getAnimatedSpecialArtworkMode(pngDuplicate.tile)).toBe('png');
+      expect(pngDuplicate.base.renderable).toBe(true);
+      expect(setSpecialDiceIdleDragging(pngDuplicate.tile, true)).toBe(true);
+      expect(setSpecialDiceIdleDragging(pngDuplicate.tile, false)).toBe(true);
+      startSpecialDiceIdleMotion(pngDuplicate.tile);
+      expect(getAnimatedSpecialArtworkMode(pngDuplicate.tile)).toBe('png');
+      expect(random).toHaveBeenCalledTimes(2);
+
+      expect(getAnimatedSpecialArtworkMode(svgDuplicate.tile)).toBe('svg');
+      expect((svgDuplicate.tile._ccBallBouncyArtwork as any).phaseLease.phaseSlot).toBe(1);
+      expect((svgDuplicate.tile._ccBallBouncyArtwork as any).phaseLease.delayMs).toBeGreaterThan(0);
+    } finally {
+      stopSpecialDiceIdleMotion(svgDuplicate.tile);
+      stopSpecialDiceIdleMotion(pngDuplicate.tile);
+      stopSpecialDiceIdleMotion(first.tile);
+      random.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
   test('keeps Ball animated during another drag and swaps only while their bounds overlap', () => {
     const { tile, base } = makeTile('beach-ball', 'wild-tnt');
     startSpecialDiceIdleMotion(tile);
     const controller = tile._ccBallBouncyArtwork;
-    (controller as any).wrapper.getBoundingClientRect = () => ({
+    const overlapFootprint = (controller as any).wrapper.querySelector(
+      '[data-animated-special-artwork-overlap-footprint]',
+    ) as HTMLElement;
+    overlapFootprint.getBoundingClientRect = () => ({
       x: 100,
       y: 100,
       left: 100,

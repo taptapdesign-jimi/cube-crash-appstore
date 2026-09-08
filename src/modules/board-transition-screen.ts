@@ -1856,11 +1856,6 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
 
             // Defensive cleanup is handled centrally in endgame-flow before transition
 
-  // Fade out menu soundtrack over 2s when board transition starts (board game has its own melody)
-  void import('./soundtrack-manager.js')
-    .then(({ fadeOutAndPause }) => fadeOutAndPause(2000))
-    .catch(() => undefined);
-
   // Main Forest bees change directional PNGs on their first flight frame. Decode
   // those seven small textures before the overlay starts so a cold iOS cache
   // cannot turn scheduled bees into visually blank elements.

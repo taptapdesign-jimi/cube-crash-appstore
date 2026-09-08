@@ -20,6 +20,15 @@ export type AnimatedSpecialArtworkLayerLease = {
 
 type FrameOwner = (frame: AnimatedSpecialArtworkFrame) => void;
 
+export type AnimatedSpecialArtworkFootprint = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+const OVERLAP_FOOTPRINT_ATTRIBUTE = 'data-animated-special-artwork-overlap-footprint';
+
 const frameOwners = new Set<FrameOwner>();
 let overlayRoot: HTMLDivElement | null = null;
 let dragOverlayRoot: HTMLDivElement | null = null;
@@ -216,7 +225,11 @@ export function doesAnimatedSpecialArtworkOverlapGameplayDrag(
 ): boolean {
   if (!wrapper || !dragBounds) return false;
   try {
-    const artworkBounds = wrapper.getBoundingClientRect();
+    // The wrapper preserves the complete authored SVG motion corridor and can
+    // be much larger than the visible die. Collision ownership belongs to the
+    // explicit 128px resting-art footprint, not those transparent margins.
+    const footprint = wrapper.querySelector<HTMLElement>(`[${OVERLAP_FOOTPRINT_ATTRIBUTE}]`);
+    const artworkBounds = (footprint ?? wrapper).getBoundingClientRect();
     if (artworkBounds.width <= 0 || artworkBounds.height <= 0) return false;
     const dragRight = dragBounds.x + dragBounds.width;
     const dragBottom = dragBounds.y + dragBounds.height;
@@ -227,6 +240,25 @@ export function doesAnimatedSpecialArtworkOverlapGameplayDrag(
   } catch {
     return false;
   }
+}
+
+export function installAnimatedSpecialArtworkOverlapFootprint(
+  wrapper: HTMLElement,
+  footprint: AnimatedSpecialArtworkFootprint,
+): HTMLDivElement {
+  const node = document.createElement('div');
+  node.setAttribute(OVERLAP_FOOTPRINT_ATTRIBUTE, 'true');
+  Object.assign(node.style, {
+    position: 'absolute',
+    left: `${footprint.left}px`,
+    top: `${footprint.top}px`,
+    width: `${footprint.width}px`,
+    height: `${footprint.height}px`,
+    pointerEvents: 'none',
+    visibility: 'hidden',
+  });
+  wrapper.appendChild(node);
+  return node;
 }
 
 export function acquireAnimatedSpecialArtworkFinaleDepth(): () => void {

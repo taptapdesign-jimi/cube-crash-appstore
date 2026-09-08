@@ -50,6 +50,11 @@ import {
   startFlowerBouncyArtwork,
   stopFlowerBouncyArtwork,
 } from './flower-bouncy-artwork.ts';
+import {
+  acquireAnimatedSpecialArtworkMode,
+  getAnimatedSpecialArtworkMode,
+  releaseAnimatedSpecialArtworkMode,
+} from './animated-special-artwork-mode.ts';
 
 const trackTimeline = (opts: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(opts));
 
@@ -187,6 +192,7 @@ function startSpaceshipEngineIdle(tile: any, host: any): ((elapsedSeconds: numbe
 }
 
 export function stopSpecialDiceIdleMotion(tile: any): void {
+  releaseAnimatedSpecialArtworkMode(tile);
   try {
     stopWildStarBouncyArtwork(tile);
     stopJuiceBounceArtwork(tile);
@@ -254,6 +260,16 @@ export function stopSpecialDiceIdleMotion(tile: any): void {
 }
 
 export function setSpecialDiceIdleDragging(tile: any, dragging: boolean): boolean {
+  if (getAnimatedSpecialArtworkMode(tile) === 'png') {
+    if (isMushroomBouncyTile(tile)) {
+      if (tile?._ccMushroomSmokeContainer) tile._ccMushroomSmokeContainer.visible = !dragging;
+      if (dragging) tile?._ccMushroomSmokeTimeline?.pause?.();
+      else tile?._ccMushroomSmokeTimeline?.resume?.();
+    }
+    // PNG mode is still an intentional direct-artwork owner. Keep its stable
+    // assignment through pointer acquisition instead of stopping and rerolling.
+    return true;
+  }
   if (tile?._ccFlowerBouncyArtwork && isFlowerBouncyTile(tile)) {
     return setFlowerBouncyArtworkDragging(tile, dragging);
   }
@@ -333,7 +349,9 @@ export function startSpecialDiceIdleMotion(tile: any): void {
       stopRoboBouncyArtwork(tile);
       stopMushroomBouncyArtwork(tile);
       stopFlowerBouncyArtwork(tile);
-      startWildStarBouncyArtwork(tile);
+      if (acquireAnimatedSpecialArtworkMode(tile, 'wild-star') === 'svg') {
+        startWildStarBouncyArtwork(tile);
+      }
       return;
     }
     if (isPlainJuiceBounceTile(tile)) {
@@ -342,7 +360,9 @@ export function startSpecialDiceIdleMotion(tile: any): void {
       stopRoboBouncyArtwork(tile);
       stopMushroomBouncyArtwork(tile);
       stopFlowerBouncyArtwork(tile);
-      startJuiceBounceArtwork(tile);
+      if (acquireAnimatedSpecialArtworkMode(tile, 'juice') === 'svg') {
+        startJuiceBounceArtwork(tile);
+      }
       return;
     }
     if (isBeachBallBouncyTile(tile)) {
@@ -351,7 +371,9 @@ export function startSpecialDiceIdleMotion(tile: any): void {
       stopRoboBouncyArtwork(tile);
       stopMushroomBouncyArtwork(tile);
       stopFlowerBouncyArtwork(tile);
-      startBallBouncyArtwork(tile);
+      if (acquireAnimatedSpecialArtworkMode(tile, 'ball') === 'svg') {
+        startBallBouncyArtwork(tile);
+      }
       return;
     }
     if (isRoboBouncyTile(tile)) {
@@ -365,7 +387,9 @@ export function startSpecialDiceIdleMotion(tile: any): void {
         ...(Array.isArray(variant?.explosionSpriteSources) ? variant.explosionSpriteSources : []),
         ...(Array.isArray(variant?.finaleAccentSpriteSources) ? variant.finaleAccentSpriteSources : []),
       ];
-      startRoboBouncyArtwork(tile, idleSources, finaleSources);
+      if (acquireAnimatedSpecialArtworkMode(tile, 'robo') === 'svg') {
+        startRoboBouncyArtwork(tile, idleSources, finaleSources);
+      }
       return;
     }
     if (isFlowerBouncyTile(tile)) {
@@ -374,7 +398,9 @@ export function startSpecialDiceIdleMotion(tile: any): void {
       stopBallBouncyArtwork(tile);
       stopRoboBouncyArtwork(tile);
       stopMushroomBouncyArtwork(tile);
-      startFlowerBouncyArtwork(tile);
+      if (acquireAnimatedSpecialArtworkMode(tile, 'flower') === 'svg') {
+        startFlowerBouncyArtwork(tile);
+      }
       return;
     }
     if (
@@ -410,7 +436,10 @@ export function startSpecialDiceIdleMotion(tile: any): void {
 
     stopSpecialDiceIdleMotion(tile);
 
-    if (isMushroomBouncyTile(tile)) {
+    if (
+      isMushroomBouncyTile(tile)
+      && acquireAnimatedSpecialArtworkMode(tile, 'mushroom') === 'svg'
+    ) {
       startMushroomBouncyArtwork(tile);
     }
 

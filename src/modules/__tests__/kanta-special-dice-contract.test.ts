@@ -21,11 +21,16 @@ import {
   KANTA_IDLE_BACK_SCALE,
   KANTA_IDLE_BACK_TILT_MAX_DEGREES,
   KANTA_IDLE_BACK_TILT_MIN_DEGREES,
+  KANTA_IDLE_BREATH_DURATION_SECONDS,
+  KANTA_IDLE_BREATH_SCALE_X,
+  KANTA_IDLE_BREATH_SCALE_Y,
   KANTA_IDLE_FRAME_SOURCE,
   KANTA_IDLE_FRONT_OFFSET_X_PX,
   KANTA_IDLE_REPEAT_DELAY_SECONDS,
   KANTA_IDLE_TOP_BUBBLE_COLOR,
   KANTA_IDLE_TOP_BUBBLE_COUNT,
+  KANTA_IDLE_TOP_BUBBLE_DOUBLE_DELAY_SECONDS,
+  KANTA_IDLE_TOP_BUBBLE_DOUBLE_EVERY,
   KANTA_IDLE_TOP_BUBBLE_EMIT_MAX_SECONDS,
   KANTA_IDLE_TOP_BUBBLE_EMIT_MIN_SECONDS,
   KANTA_IDLE_TOP_BUBBLE_INSET_PX,
@@ -282,17 +287,22 @@ describe('Kanta special die', () => {
     expect(KANTA_IDLE_BACK_OFFSET_Y_PX).toBe(-2);
     expect(KANTA_IDLE_BACK_POP_IN_SECONDS).toBe(0.42);
     expect(KANTA_IDLE_TOP_BUBBLE_COLOR).toBe(0x06F4FF);
-    expect(KANTA_IDLE_TOP_BUBBLE_COUNT).toBe(9);
+    expect(KANTA_IDLE_TOP_BUBBLE_COUNT).toBe(3);
     expect(KANTA_IDLE_TOP_BUBBLE_INSET_PX).toBe(3);
     expect(KANTA_IDLE_TOP_BUBBLE_Z_INDEX).toBe(2600);
     expect(KANTA_IDLE_TOP_BUBBLE_ORIGIN_FROM_BOTTOM_RATIO).toBe(0.75);
-    expect(KANTA_IDLE_TOP_BUBBLE_INITIAL_BURST_COUNT).toBe(3);
-    expect(KANTA_IDLE_TOP_BUBBLE_EMIT_MIN_SECONDS).toBeCloseTo(0.1485, 10);
-    expect(KANTA_IDLE_TOP_BUBBLE_EMIT_MAX_SECONDS).toBeCloseTo(0.2565, 10);
+    expect(KANTA_IDLE_TOP_BUBBLE_INITIAL_BURST_COUNT).toBe(1);
+    expect(KANTA_IDLE_TOP_BUBBLE_EMIT_MIN_SECONDS).toBe(0.70);
+    expect(KANTA_IDLE_TOP_BUBBLE_EMIT_MAX_SECONDS).toBe(1.10);
     expect(KANTA_IDLE_TOP_BUBBLE_TRAVEL_RATIO).toBeCloseTo(0.552, 10);
-    expect(KANTA_IDLE_TOP_BUBBLE_TRAVEL_MIN_SECONDS).toBeCloseTo(1.026, 10);
-    expect(KANTA_IDLE_TOP_BUBBLE_TRAVEL_MAX_SECONDS).toBeCloseTo(1.458, 10);
-    expect(KANTA_IDLE_REPEAT_DELAY_SECONDS).toBe(0.58);
+    expect(KANTA_IDLE_TOP_BUBBLE_TRAVEL_MIN_SECONDS).toBe(1.10);
+    expect(KANTA_IDLE_TOP_BUBBLE_TRAVEL_MAX_SECONDS).toBe(1.50);
+    expect(KANTA_IDLE_TOP_BUBBLE_DOUBLE_EVERY).toBe(4);
+    expect(KANTA_IDLE_TOP_BUBBLE_DOUBLE_DELAY_SECONDS).toBe(0.12);
+    expect(KANTA_IDLE_REPEAT_DELAY_SECONDS).toBe(1.60);
+    expect(KANTA_IDLE_BREATH_DURATION_SECONDS).toBe(1.20);
+    expect(KANTA_IDLE_BREATH_SCALE_X).toBe(0.992);
+    expect(KANTA_IDLE_BREATH_SCALE_Y).toBe(1.012);
     for (const side of [-1, 1] as const) {
       const width = 128 * (128 / 171);
       const correction = getKantaIdleCompositeCenterCorrectionX(width, side);
@@ -316,8 +326,8 @@ describe('Kanta special die', () => {
     expect(idleSource).toContain('JOURNEY_INTERIM_IDLE_MOTION.anticipationScaleX');
     expect(idleSource).toContain('repeatRefresh: true');
     expect(idleSource).toContain('variant = createJourneyInterimBounceVariant()');
-    expect(idleSource).toContain('originalScaleX * variant.peakScaleX');
-    expect(idleSource).toContain('originalScaleY * variant.peakScaleY');
+    expect(idleSource).toContain('softenScale(variant.peakScaleX)');
+    expect(idleSource).toContain('softenScale(variant.peakScaleY)');
     expect(idleSource).toContain("'kanta-idle-back'");
     expect(idleSource).not.toContain("'kanta-idle-back-right'");
     expect(idleSource).toContain('onUpdate: syncBackdropPose');
@@ -331,20 +341,14 @@ describe('Kanta special die', () => {
     expect(idleSource).toContain('container.zIndex = KANTA_IDLE_TOP_BUBBLE_Z_INDEX');
     expect(idleSource).toContain('bubbleParent.sortChildren()');
     expect(idleSource).toContain('color: KANTA_IDLE_TOP_BUBBLE_COLOR, alpha: 1');
-    expect(idleSource).not.toContain('topBubbleSpawnCall?.pause()');
-    expect(idleSource).not.toContain('topBubbleTweens.forEach((tween) => tween.pause())');
-    expect(idleSource).toContain("acquirePixiMobileActivityLease('kanta-idle-bubbles')");
-    expect(idleSource).toContain('releaseTopBubbleMobileActivity?.()');
-    expect(idleSource).toContain('animationManager.killExternalTween(topBubbleSpawnCall)');
+    expect(idleSource).not.toContain('acquirePixiMobileActivityLease');
+    expect(idleSource).toContain('topBubbleTicker.add(topBubbleTick)');
+    expect(idleSource).toContain('topBubbleTicker.remove(topBubbleTick)');
     expect(idleSource).toContain('const bubble = graphicsPool.acquire()');
     expect(idleSource).toContain('graphicsPool.release(bubble)');
-    expect(idleSource).toContain('const scheduleNextBubble = () =>');
-    expect(idleSource).toContain('gsap.delayedCall(nextDelay');
-    expect(idleSource).toContain('keyframes: [');
-    expect(idleSource).toContain("ease: 'sine.inOut'");
-    expect(idleSource).toContain("ease: 'back.in(2.4)'");
-    expect(idleSource).toContain('x: 1.58');
-    expect(idleSource).toContain('queueMicrotask(() =>');
+    expect(idleSource).toContain('const activateNextBubble = (): boolean =>');
+    expect(idleSource).toContain('const updateBubble = (state: KantaIdleBubbleState');
+    expect(idleSource).not.toContain('gsap.delayedCall(nextDelay');
     expect(idleSource).toContain('parent.addChildAt(sprite');
     expect(idleSource).not.toContain('getKantaIdleFrameIndex');
     expect(idleSource).not.toContain('getKantaIdleRockRotation');

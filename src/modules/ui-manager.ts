@@ -48,6 +48,9 @@ import {
   hideHomepageNavigation,
   primeHomepageNavigation,
 } from './navigation-control.js';
+import { preloadRegularMerge6Sounds } from './regular-merge6-sound.ts';
+import { preloadOrdinaryStackSound } from './ordinary-stack-sound.ts';
+import { preloadGameplayPickupSound } from './gameplay-pickup-sound.ts';
 // 🔥 OPTIMIZATION: Preload settings animations module statically to avoid 15s delay on Settings click
 import { animateSettingsScreenEnter, animateSettingsScreenExit, cleanupSettingsAnimations } from '../ui/settings-animations.js';
 
@@ -438,6 +441,9 @@ class UIManager {
 
     // IMPORTANT: Do not clear board-specific Journey saves here.
     markArcadeHomeRunOrigin();
+    preloadRegularMerge6Sounds();
+    preloadOrdinaryStackSound();
+    preloadGameplayPickupSound();
     try {
       localStorage.removeItem('cc_saved_game');
       localStorage.removeItem('cc_board_completed');
@@ -587,6 +593,9 @@ class UIManager {
     const shouldStartFirstPlayTutorial = beginFirstPlayTutorialRun('arcade');
     // 🔥 USER REQUEST: Mark that we came from homepage (not Journey)
     markArcadeHomeRunOrigin();
+    preloadRegularMerge6Sounds();
+    preloadOrdinaryStackSound();
+    preloadGameplayPickupSound();
     // Ensure fresh Arcade run always triggers HUD entry/drop initialization.
     (window as any).__ccTriggerHudDrop = true;
     // The first-play tutorial owns its board introduction, so it must not be
@@ -700,6 +709,9 @@ class UIManager {
       console.log('🔄 ====================================');
       logger.info('🔄 Starting new game WITH saved state...');
       markArcadeHomeRunOrigin();
+      preloadRegularMerge6Sounds();
+      preloadOrdinaryStackSound();
+      preloadGameplayPickupSound();
       (window as any).__ccTriggerHudDrop = true;
       const continuationRound = getArcadeSavedRound();
       if (continuationRound !== null && continuationRound > 0) {
@@ -2370,6 +2382,17 @@ class UIManager {
       }
       if (typeof (window as any).saveSettings === 'function') {
         (window as any).saveSettings((window as any)._settings);
+      }
+      if (!enabled) {
+        void import('./regular-merge6-sound.ts').then(({ stopRegularMerge6Sounds }) => {
+          stopRegularMerge6Sounds();
+        });
+        void import('./ordinary-stack-sound.ts').then(({ stopOrdinaryStackSound }) => {
+          stopOrdinaryStackSound();
+        });
+        void import('./gameplay-pickup-sound.ts').then(({ stopGameplayPickupSound }) => {
+          stopGameplayPickupSound();
+        });
       }
     };
     

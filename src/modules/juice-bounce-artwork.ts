@@ -2,6 +2,7 @@ import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
 import {
   acquireAnimatedSpecialArtworkLayer,
   doesAnimatedSpecialArtworkOverlapGameplayDrag,
+  installAnimatedSpecialArtworkOverlapFootprint,
   setAnimatedSpecialArtworkDragging,
   type AnimatedSpecialArtworkFrame,
   type AnimatedSpecialArtworkLayerLease,
@@ -10,6 +11,7 @@ import {
   acquireAnimatedSvgPhase,
   type AnimatedSvgPhaseLease,
 } from './animated-svg-phase-scheduler.ts';
+import { releaseAnimatedSpecialArtworkFamily } from './animated-special-artwork-mode.ts';
 
 export const JUICE_BOUNCE_SVG_URL = './assets/shop/juice/juice-bounce.svg';
 
@@ -358,6 +360,13 @@ function createController(tile: any, base: any, host: any, root: HTMLDivElement)
     willChange: 'transform',
   });
 
+  installAnimatedSpecialArtworkOverlapFootprint(wrapper, {
+    left: (JUICE_BOUNCE_REST_ART.centerX - JUICE_BOUNCE_CROP.x - JUICE_BOUNCE_REST_ART.size / 2) * DISPLAY_SCALE,
+    top: (JUICE_BOUNCE_REST_ART.centerY - JUICE_BOUNCE_CROP.y - JUICE_BOUNCE_REST_ART.size / 2) * DISPLAY_SCALE,
+    width: JUICE_BOUNCE_DISPLAY_SIZE,
+    height: JUICE_BOUNCE_DISPLAY_SIZE,
+  });
+
   const image = new Image();
   image.alt = '';
   image.draggable = false;
@@ -473,6 +482,7 @@ export function setJuiceBounceArtworkDragging(tile: any, dragging: boolean): boo
 
 export function destroyJuiceBounceArtworkRuntime(): void {
   Array.from(controllers.values()).forEach(disposeController);
+  releaseAnimatedSpecialArtworkFamily('juice');
   if (runtimeLease) {
     runtimeLease.release();
     runtimeLease = null;

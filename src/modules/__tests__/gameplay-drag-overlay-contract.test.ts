@@ -64,6 +64,7 @@ describe('gameplay drag overlay contract', () => {
       expect(source).toContain('setAnimatedSpecialArtworkDragging(controller.wrapper, dragging);');
       expect(source).toContain('gameplayDragActive');
       expect(source).toContain('doesAnimatedSpecialArtworkOverlapGameplayDrag');
+      expect(source).toContain('installAnimatedSpecialArtworkOverlapFootprint(wrapper, {');
     }
     expect(artworkLayerSource).toContain('gameplayDragActive: isGameplayDragActive()');
     expect(artworkLayerSource).toContain('if (frameOwners.size > 0) updateAnimatedSpecialArtworkLayer();');
@@ -116,6 +117,20 @@ describe('gameplay drag overlay contract', () => {
     expect(installSource).toContain('dragLayer.removeFromParent();');
     expect(installSource).toContain('dragLayer.destroy({ children: false });');
     expect(installSource).toContain('drag.cleanup = cleanup;');
+  });
+
+  test('Play Again retains the installed drag overlay while hard teardown still disposes it', () => {
+    const fxCleanup = appCoreSource.split("function cleanupFxForBoardReset(reason: string = 'unknown')")[1]
+      ?.split('\n/**', 1)[0] ?? '';
+    const restart = appCoreSource.split('async function performRestartGame(): Promise<void> {')[1]
+      ?.split('\n// Pause/Resume functions', 1)[0] ?? '';
+
+    expect(restart).toContain("cleanupFxForBoardReset('restartGame');");
+    expect(restart).toContain('(drag as any)?.cancelActive?.({ resumeIdle: false });');
+    expect(fxCleanup).toContain('const shouldDisposeDrag = shouldDisposeGameplayDragOwner(reason, isNavCleanup);');
+    expect(fxCleanup).toContain('if (shouldDisposeDrag) {');
+    expect(fxCleanup).not.toContain('if (isNavCleanup || shouldClearPools) {');
+    expect(fxCleanup).toContain("const shouldClearPools = reason.includes('cleanupGame') || reason.includes('restartGame');");
   });
 
   test('preserves board-local transforms without a stale first-frame world-matrix conversion', () => {

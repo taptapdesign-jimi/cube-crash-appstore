@@ -2,6 +2,7 @@ import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
 import {
   acquireAnimatedSpecialArtworkLayer,
   doesAnimatedSpecialArtworkOverlapGameplayDrag,
+  installAnimatedSpecialArtworkOverlapFootprint,
   setAnimatedSpecialArtworkDragging,
   type AnimatedSpecialArtworkFrame,
   type AnimatedSpecialArtworkLayerLease,
@@ -10,6 +11,7 @@ import {
   acquireAnimatedSvgPhase,
   type AnimatedSvgPhaseLease,
 } from './animated-svg-phase-scheduler.ts';
+import { releaseAnimatedSpecialArtworkFamily } from './animated-special-artwork-mode.ts';
 
 export const FLOWER_BOUNCY_SVG_URL = './assets/shop/bush/flower.svg';
 export const FLOWER_BOUNCY_VIEWBOX = Object.freeze({ x: 0, y: 0, width: 160, height: 160 });
@@ -422,6 +424,13 @@ function createController(
     willChange: 'transform',
   });
 
+  installAnimatedSpecialArtworkOverlapFootprint(wrapper, {
+    left: (FLOWER_BOUNCY_REST_ART.centerX - FLOWER_BOUNCY_VIEWBOX.x - FLOWER_BOUNCY_REST_ART.size / 2) * DISPLAY_SCALE,
+    top: (FLOWER_BOUNCY_REST_ART.centerY - FLOWER_BOUNCY_VIEWBOX.y - FLOWER_BOUNCY_REST_ART.size / 2) * DISPLAY_SCALE,
+    width: FLOWER_BOUNCY_DISPLAY_SIZE,
+    height: FLOWER_BOUNCY_DISPLAY_SIZE,
+  });
+
   const image = new Image();
   image.alt = '';
   image.draggable = false;
@@ -536,6 +545,7 @@ export function setFlowerBouncyArtworkDragging(tile: any, dragging: boolean): bo
 
 export function destroyFlowerBouncyArtworkRuntime(): void {
   Array.from(controllers.values()).forEach(disposeController);
+  releaseAnimatedSpecialArtworkFamily('flower');
   if (runtimeLease) {
     runtimeLease.release();
     runtimeLease = null;

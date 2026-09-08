@@ -19,8 +19,17 @@ let priorityPaperBgLoadPromise: Promise<void> | null = null;
 const STUDIO_LOGO_URL = new URL('../../assets/logo addons/taplogo.png', import.meta.url).href;
 const studioCharacterModules = import.meta.glob([
   '../../assets/logo addons/lik-*.png',
+  '../../assets/logo addons/lik-game.svg',
+  '../../assets/logo addons/lik-gitara.svg',
+  '../../assets/logo addons/lik-pas-SVG.svg',
+  '../../assets/logo addons/lik-cvijet.svg',
   '../../assets/logo addons/lik slikanje.png',
   '!../../assets/logo addons/lik-*@2x.png',
+  '!../../assets/logo addons/lik-game.png',
+  '!../../assets/logo addons/lik-gitara.png',
+  '!../../assets/logo addons/lik-pas.png',
+  '!../../assets/logo addons/lik-cvijet.png',
+  '!../../assets/logo addons/lik-lajna.png',
   '!../../assets/logo addons/lik-board.png',
   '!../../assets/logo addons/lik-dron.png',
   '!../../assets/logo addons/lik-klizanje.png',
@@ -30,10 +39,19 @@ const studioCharacterModules = import.meta.glob([
   query: '?url',
   import: 'default',
 }) as Record<string, string>;
-const STUDIO_CHARACTER_URLS = Object.values(studioCharacterModules);
-const selectedStudioCharacterUrl = STUDIO_CHARACTER_URLS[
-  Math.floor(Math.random() * STUDIO_CHARACTER_URLS.length)
-] || new URL('../../assets/logo addons/lik-game.png', import.meta.url).href;
+const STUDIO_CHARACTER_ENTRIES = Object.entries(studioCharacterModules);
+const selectedStudioCharacterEntry = STUDIO_CHARACTER_ENTRIES[
+  Math.floor(Math.random() * STUDIO_CHARACTER_ENTRIES.length)
+] || [
+  '../../assets/logo addons/lik-game.svg',
+  new URL('../../assets/logo addons/lik-game.svg', import.meta.url).href,
+];
+const [selectedStudioCharacterPath, selectedStudioCharacterUrl] = selectedStudioCharacterEntry;
+const selectedStudioCharacterHasOwnMotion =
+  selectedStudioCharacterPath.endsWith('/lik-game.svg') ||
+  selectedStudioCharacterPath.endsWith('/lik-gitara.svg') ||
+  selectedStudioCharacterPath.endsWith('/lik-pas-SVG.svg') ||
+  selectedStudioCharacterPath.endsWith('/lik-cvijet.svg');
 
 interface LaunchScreenElements {
   container: HTMLElement | null;
@@ -333,7 +351,7 @@ class LaunchScreen {
     // This runs while the paper launch surface is displayed.
     const priorityPaperLoad = this.preloadPriorityPaperBg();
 
-    // Start soundtrack with the studio intro (fades out when board game starts).
+    // Start the one global theme with the studio intro; it continues through gameplay.
     try {
       const { startSoundtrack } = await import('./soundtrack-manager.js');
       startSoundtrack();
@@ -471,7 +489,7 @@ class LaunchScreen {
     const idleDirection = Math.random() < 0.5 ? -1 : 1;
     const idleBreathScale = 1.008 + Math.random() * 0.012;
     const idleHalfDuration = 0.9 + Math.random() * 0.35;
-    const characterIdleTween = trackTween(studioCharacter, {
+    const characterIdleTween = selectedStudioCharacterHasOwnMotion ? null : trackTween(studioCharacter, {
       keyframes: [
         {
           rotation: -idleRotation * idleDirection,
@@ -494,11 +512,15 @@ class LaunchScreen {
       ],
       repeat: -1
     });
-    logger.info('🎭 Studio character gentle idle started', {
-      rotationDegrees: Number(idleRotation.toFixed(2)),
-      breathScale: Number(idleBreathScale.toFixed(3)),
-      firstDirection: idleDirection < 0 ? 'counterclockwise' : 'clockwise'
-    });
+    if (selectedStudioCharacterHasOwnMotion) {
+      logger.info('🎭 Studio character uses authored SVG motion');
+    } else {
+      logger.info('🎭 Studio character gentle idle started', {
+        rotationDegrees: Number(idleRotation.toFixed(2)),
+        breathScale: Number(idleBreathScale.toFixed(3)),
+        firstDirection: idleDirection < 0 ? 'counterclockwise' : 'clockwise'
+      });
+    }
 
     // Keep the intro visible for its hero moment and for all critical preload work.
     const preloadCompleted = await this.waitForRun(Promise.all([

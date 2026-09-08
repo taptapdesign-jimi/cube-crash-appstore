@@ -55,6 +55,10 @@ import {
   acquireGameplayDragForeground,
   setGameplayDragBounds,
 } from './gameplay-drag-foreground-owner.ts';
+import {
+  playGameplayPickupSound,
+  playGameplayReturnSound,
+} from './gameplay-pickup-sound.ts';
 
 // --- GSAP SAFETY WRAPPERS (kao u tvom originalu) ---------------------------
 // 🔥 CRITICAL FIX: Save original GSAP functions BEFORE defining trackTween/trackTimeline
@@ -1351,6 +1355,7 @@ export function initDrag(cfg) {
       try { stopTntIdleShake(t); } catch {}
     }
     drag.t = t;
+    playGameplayPickupSound();
     try { releaseGameplayDragForeground?.(); } catch {}
     releaseGameplayDragForeground = acquireGameplayDragForeground();
     try { (window as any).__ccFirstPlayTutorialDragStarted?.(t); } catch {}
@@ -2915,6 +2920,7 @@ export function initDrag(cfg) {
     if (isVerboseGameplayLogsEnabled()) {
       console.log('🔍 SNAPBACK: Tile at', t?.gridX, t?.gridY, 'value:', t?.value, 'locked:', t?.locked);
     }
+    playGameplayReturnSound();
     releaseMagnet({ immediate: true });
     restoreGridCell(t); // Restore to grid before snapping back
     // Snap-back targets are board-local. Return from the stage overlay first,

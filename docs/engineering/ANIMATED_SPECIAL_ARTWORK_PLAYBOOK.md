@@ -138,8 +138,13 @@ Every new animated-board-art implementation must prove:
 - optional foreground FX paint above the artwork without duplicate rendering;
 - stop, destruction, and global teardown restore state and leave zero controllers/tickers/overlay roots;
 - a late `load` callback cannot resurrect a disposed owner.
-- two or more simultaneous copies reserve distinct phase slots, start on
-  different clocks, and cancel every pending stagger during cleanup.
+- the first live copy of a direct-SVG family uses SVG; every additional Wild
+  Star also uses SVG, while later copies in the other families keep one
+  lifetime-stable 50/50 choice between the original Pixi PNG and SVG;
+- every duplicate that selects SVG reserves a distinct phase slot, starts on a
+  different clock, and cancels its pending stagger during cleanup;
+- PNG-selected duplicates preserve that decision through drag and release it
+  only at tile stop/destruction or family runtime teardown.
 
 Run focused tests first. Because this touches board visuals and tile lifecycle, then run `npm run qa:gameplay-lock`, `npm run qa:fast`, and `npm run qa:full` before release handoff. Use `npm run qa:ios` before any native build or install.
 
@@ -173,7 +178,7 @@ The current optimized Juice reference is 205,685 bytes raw, 149,928 bytes with d
 
 The current Beach Ball asset is 179,826 bytes raw, 126,511 bytes with deterministic gzip (`-9 -n`), embeds one 368x368 PNG, and contains 3 `<animateTransform>` nodes. Its calibrated resting ball maps to the existing 128px board footprint while the complete 390x440 motion stage remains available for the bounce, squash, spin and shadow. `ball-bouncy-artwork.ts` is an exact `beach-ball`-only lifecycle owner; the preceding GSAP Ball bounce is not allowed to run beside the SVG. Its idle composition is offset 56 local pixels downward: the preceding 16px calibration plus the requested additional 40px. The established Juice-style Pixi bubble system remains the only emitter/tween owner, while the Ball bridge mirrors its paint at local DOM z-index 2 above the SVG at 1. Mirrored bubbles receive an exact -56px local compensation, so the wrapper's artwork-only lowering cancels out and their world-space origin stays at the canonical static PNG position. Pointer acquisition synchronously hides the SVG, releases the paint bridge and reveals the existing `ball.png`; pointer release returns through the same controller without restarting the asset. Direct Safari/WKWebView playback, full motion clearance, perceived ground alignment and renderer swap still require physical verification.
 
-The generic Wild Star uses only `star.svg` through `wild-star-bouncy-artwork.ts`. The current supplied file is 231,632 bytes raw / 139,501 bytes with deterministic gzip (`-9 -n`), contains 28 `<animate>` plus 34 `<animateTransform>` nodes, and maps its `translate(260 465) scale(.85)` foreground art to 128px. The original Pixi orbit system is restored for the surrounding one-to-three baby stars and remains the sole owner of their randomized count, direction, radius, pulse, rotation, intro bounce and merge-to-HUD state. Because the direct-DOM Star sits above the Pixi canvas, the same artwork controller mirrors only each live Pixi star's current paint with the existing `small-star.png` density set in a local z-index-2 layer above `star.svg`; it adds no second motion clock, ticker or emitter. Pixi paint is disabled only after every corresponding foreground image is load-ready, and is restored on a pending/failed image, orbit replacement, SVG failure, stop or teardown. `stars.svg` is preserved in the asset folder but has no gameplay runtime or preload reference. The superseded separate Pixi shimmer is not started for this exact generic tile. Registry variants remain excluded. Direct Safari/WKWebView playback, orbit depth, additive-blend appearance, the SVG-to-HUD flight handoff and sustained multi-instance performance still require physical verification.
+The generic Wild Star uses only `star.svg` through `wild-star-bouncy-artwork.ts`. The restored supplied file is 231,632 bytes raw, SHA-256 `62f2b0b6730a377c98dd03375d1997c9fd14c335aef8aae1dd3bbe8499f808bd`, contains 28 `<animate>` and 34 `<animateTransform>` nodes on one two-second loop, and embeds the preserved `wild@3x.png`. Its authored `0 0 520 560` stage places the 432-unit image inside `translate(260 465) scale(.85)`; runtime maps that effective 367.2-unit resting canvas exactly to the established 128px PNG board footprint while retaining the complete bounce, squeeze, shine and sparkle corridor. The original Pixi orbit system is restored for the surrounding one-to-three baby stars and remains the sole owner of their randomized count, direction, radius, pulse, rotation, intro bounce and merge-to-HUD state. Because the direct-DOM Star sits above the Pixi canvas, the same artwork controller mirrors only each live Pixi star's current paint with the existing `small-star.png` density set in a local z-index-2 layer above `star.svg`; it adds no second motion clock, ticker or emitter. Pixi paint is disabled only after every corresponding foreground image is load-ready, and is restored on a pending/failed image, orbit replacement, SVG failure, stop or teardown. `stars.svg` and `slow-star.svg` are preserved in the asset folder but have no gameplay runtime or preload reference. The superseded separate Pixi shimmer is not started for this exact generic tile. Registry variants remain excluded. Direct Safari/WKWebView playback, exact perceived size, orbit depth, additive-blend appearance, the SVG-to-HUD flight handoff and sustained multi-instance performance still require physical verification.
 
 The Robo Cube uses `robo-bouncy.svg` through the exact `robo-cube`-only `robo-bouncy-artwork.ts` owner. Its authored 256-unit resting composition at centre `(195,239)` maps to the existing 128px board footprint while retaining the complete 390x440 bounce/rotation stage. The supplied file is 831,834 bytes raw / 620,358 bytes with deterministic gzip (`-9 -n`), contains 15 `<animate>` plus 4 `<animateTransform>` nodes on a 2.4-second loop, and embeds fourteen losslessly compressed PNG pose sources: seven 128x128 sources plus seven larger sources between 256x256 and 256x294. The former GSAP four-frame crossfade and antenna-trail idle do not run behind the SVG. The registry PNG remains visible until successful SVG load and on any load failure; pointer acquisition immediately returns paint to the established static second Robo frame, and release resumes the same SVG controller. Finale assets retain their bounded three-at-a-time warmup without becoming part of the idle render owner. Six simultaneous Robo instances expose 114 SMIL nodes, so direct Safari/WKWebView fidelity, decoded-memory behavior, sustained FPS and thermal state remain required physical checks.
 
@@ -182,15 +187,24 @@ The Mushroom uses `mushroom.svg` through the exact `mushroom`-only `mushroom-bou
 The Flower uses `flower.svg` through the exact `flower`-only `flower-bouncy-artwork.ts` owner while retaining Wild TNT gameplay and its existing Pixi pollen emitter. The authored `0 0 160 160` stage places a 108.36-unit resting image canvas at centre `(79.33,74.78)`; that canvas scales to the established 128px board footprint while the complete 160x160 hop/tilt corridor remains available. The supplied file is 772,783 bytes raw / 531,173 bytes with deterministic gzip (`-9 -n`), SHA-256 `85c49c63a0d7ef4bbb520873719d698e221607995cdaf5fd66c221e05cb37830`, contains three `<animateTransform>` nodes on one 1.6-second loop, and embeds one 2048x2048 PNG source. The existing pooled Pixi pollen system remains the only emitter/timeline/motion owner, but each live grain records its authored ellipse, polygon or double-ellipse paint geometry. While the SVG is active, `flower-bouncy-artwork.ts` redirects only that live paint into a local DOM foreground layer at z-index 2 above the image at 1; its shared ticker reads the particle's current position, rotation, scale and alpha, so no second animation clock is introduced. Drag, SVG failure, stop and teardown synchronously remove the mirror and restore each original particle's Pixi `renderable` state before pool release. The registry `flower.png` remains visible through the bounded phase wait, load failure and drag; release resumes the same SVG controller without changing Flower merge-6. Six simultaneous Flower instances expose 18 SMIL nodes, but direct Safari/WKWebView fidelity, pollen depth, the large embedded raster's decoded-memory cost, sustained FPS and thermal state remain required physical checks.
 
 All six direct board-SVG owners (Juice, Beach Ball, Wild Star, Robo Cube, Mushroom and Flower)
-use one shared phase scheduler. The first live copy starts immediately. Every
-additional copy reserves the lowest free cache-identity slot and a different
-start clock, targeting at least one twelfth of the asset loop between nearby
-starts (minimum 100ms, maximum one-second fallback wait). The existing static
-Pixi artwork remains visible during that bounded wait. Wild Star reserves one
+use one shared visual-mode owner plus one shared phase scheduler. The first live
+copy of each family always uses SVG and starts immediately. Every additional
+Wild Star also stays on SVG; its separately reserved phase ensures that its
+two-second loop does not share the first Star's start or end. Additional tiles
+in the other families make one 50/50 choice for their complete tile lifetime:
+retain the original Pixi PNG, or use SVG. SVG-selected duplicates reserve the lowest
+free cache-identity slot and a different start clock, targeting at least one
+twelfth of the asset loop between nearby starts (minimum 100ms, maximum
+one-second fallback wait). The existing static Pixi artwork remains visible
+during that bounded wait. PNG-selected duplicates never create a DOM image or
+phase lease, and pointer acquisition does not reroll their choice. If removal
+leaves only PNG copies, the next arriving same-family tile is forced to SVG.
+Each Wild Star reserves one
 phase lease for `star.svg`; its restored baby-star orbit keeps the established
 Pixi motion clock and is therefore outside the SMIL phase scheduler. Tile stop,
 restart, route teardown and late-load cleanup release the slot and cancel
-pending work.
+pending work; family runtime teardown also clears every retained PNG/SVG mode
+assignment.
 
 ## When to extract a shared adapter
 

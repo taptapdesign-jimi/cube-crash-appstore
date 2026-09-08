@@ -1,251 +1,355 @@
 /**
- * Stack to Six soundtrack manager.
- * - Plays soundtrack everywhere except on board game.
- * - Starts with the Stack to Six preloader; fades out when board game starts.
- * - Loop: 8 seconds before end, volume fades out; on loop restart, volume back to 1.
- * - When app goes to background (tab/visibility hidden), soundtrack pauses so it doesn't play "through the player".
+ * Stack to Six global soundtrack owner.
+ * - Plays one theme continuously across intro, menus, Journey and board gameplay.
+ * - Respects only the player-facing Music setting and app visibility.
+ * - Uses a very short fade-out/fade-in at the file boundary for a softer loop.
  */
 
 import { logger } from '../core/logger.js';
 
-const SOUNDTRACK_URL = './assets/sound/soundtrack/stacktosix-soundtrack.mp3';
-const PRE_END_FADE_SEC = 8;
-const LOOP_FADE_STEP_MS = 100;
-const BOARD_GAME_FADEOUT_MS = 2000;
-const RESUME_FADEIN_MS = 2000;
+export const SOUNDTRACK_URL =
+  './assets/sound/soundtrack/stack to six theme.wav';
+export const SOUNDTRACK_LOOP_FADE_OUT_MS = 180;
+export const SOUNDTRACK_LOOP_FADE_IN_MS = 180;
+export const SOUNDTRACK_RESUME_FADE_IN_MS = 240;
+export const SOUNDTRACK_VOLUME = 0.8;
 
 let audio: HTMLAudioElement | null = null;
-let loopFadeInterval: ReturnType<typeof setInterval> | null = null;
-let pausedForBoardGame = false;
-let isStarted = false;
-/** True when we paused because page became hidden (so we can resume on visible if not in board game). */
+let loopFadeStartTimer: ReturnType<typeof setTimeout> | null = null;
+let loopFadeOutActive = false;
 let pausedForVisibility = false;
 let activeFadeToken = 0;
 let fadeInProgress = false;
+let isStarted = false;
+let visibilityListenerInstalled = false;
+let autoplayRetryArmed = false;
+let autoplayRetryInFlight = false;
+let playRequestToken = 0;
 
-function getAudio(): HTMLAudioElement {
-  if (!audio) {
-    audio = new Audio(SOUNDTRACK_URL);
-    audio.loop = false;
-    audio.volume = 1;
-    audio.preload = 'auto';
-    audio.addEventListener('ended', onEnded);
-    audio.addEventListener('canplaythrough', onCanPlayThrough);
-    audio.addEventListener('timeupdate', onTimeUpdate);
-    setupVisibilityListener();
-  }
-  return audio;
-}
-
-function setupVisibilityListener(): void {
-  if (typeof document === 'undefined' || document.hidden === undefined) return;
-  const onVisibilityChange = (): void => {
-    if (document.hidden) {
-      if (!audio) return;
-      if (!pausedForBoardGame && !audio.paused) {
-        audio.pause();
-        pausedForVisibility = true;
-        logger.info('🔊 Soundtrack paused (app in background)');
-      }
-    } else {
-      if (pausedForVisibility && !pausedForBoardGame && audio) {
-        pausedForVisibility = false;
-        audio.volume = 0;
-        audio.play().catch((e) => logger.warn('🔊 Soundtrack resume after visibility failed:', e));
-        linearFade(0, 1, RESUME_FADEIN_MS, (v) => {
-          if (audio) audio.volume = v;
-        }, () => logger.info('🔊 Soundtrack resumed (app visible)'));
-      } else if (pausedForVisibility) {
-        pausedForVisibility = false;
-      }
-    }
-  };
-  document.addEventListener('visibilitychange', onVisibilityChange);
-}
-
-function clearLoopFade(): void {
-  if (loopFadeInterval) {
-    clearInterval(loopFadeInterval);
-    loopFadeInterval = null;
+function isMusicEnabled(): boolean {
+  try {
+    const settings = (typeof window !== 'undefined' && (window as any)._settings) || {};
+    return settings.musicEnabled !== false;
+  } catch {
+    return true;
   }
 }
 
-function onCanPlayThrough(): void {
-  logger.info('🔊 Soundtrack can play through');
-}
-
-let loopFadeOutActive = false;
-
-function onTimeUpdate(): void {
-  const a = audio;
-  if (!a || pausedForBoardGame || loopFadeOutActive || a.paused) return;
-  const d = a.duration;
-  if (!Number.isFinite(d) || d <= 0) return;
-  const remaining = d - a.currentTime;
-  if (remaining <= PRE_END_FADE_SEC && !loopFadeOutActive) {
-    loopFadeOutActive = true;
-    startLoopFadeOut();
+function clearLoopFadeSchedule(): void {
+  if (loopFadeStartTimer !== null) {
+    clearTimeout(loopFadeStartTimer);
+    loopFadeStartTimer = null;
   }
-}
-
-function startLoopFadeOut(): void {
-  clearLoopFade();
-  const a = audio;
-  if (!a) return;
-  const steps = Math.max(1, (PRE_END_FADE_SEC * 1000) / LOOP_FADE_STEP_MS);
-  let step = 0;
-  loopFadeInterval = setInterval(() => {
-    step++;
-    if (!audio) return;
-    const v = Math.max(0, 1 - (step / steps));
-    audio.volume = v;
-    if (v <= 0 || step >= steps) {
-      clearLoopFade();
-    }
-  }, LOOP_FADE_STEP_MS);
-}
-
-function onEnded(): void {
-  if (pausedForBoardGame) return;
-  loopFadeOutActive = false;
-  clearLoopFade();
-  const a = audio;
-  if (!a) return;
-  a.currentTime = 0;
-  a.volume = 1;
-  a.play().catch((e) => logger.warn('🔊 Soundtrack loop play failed:', e));
 }
 
 function linearFade(
   from: number,
   to: number,
   durationMs: number,
-  onStep: (v: number) => void,
-  onDone: () => void
+  onStep: (volume: number) => void,
+  onDone: () => void,
 ): void {
+  if (!Number.isFinite(durationMs) || durationMs <= 0) {
+    activeFadeToken++;
+    onStep(to);
+    onDone();
+    return;
+  }
   const token = ++activeFadeToken;
   const start = performance.now();
   const run = (): void => {
     if (token !== activeFadeToken) return;
-    const elapsed = performance.now() - start;
-    const t = Math.min(1, elapsed / durationMs);
-    const v = from + (to - from) * t;
-    onStep(v);
-    if (t < 1) requestAnimationFrame(run);
+    const progress = Math.min(1, (performance.now() - start) / durationMs);
+    onStep(from + (to - from) * progress);
+    if (progress < 1) requestAnimationFrame(run);
     else onDone();
   };
   requestAnimationFrame(run);
 }
 
-/** Check if music is enabled in settings. */
-function isMusicEnabled(): boolean {
-  try {
-    const s = (typeof window !== 'undefined' && (window as any)._settings) || {};
-    return s.musicEnabled !== false; // default true
-  } catch {
-    return true;
-  }
+function scheduleLoopFadeOut(): void {
+  clearLoopFadeSchedule();
+  const currentAudio = audio;
+  if (!currentAudio || currentAudio.paused || loopFadeOutActive) return;
+  if (!Number.isFinite(currentAudio.duration) || currentAudio.duration <= 0) return;
+
+  const remainingMs = Math.max(
+    0,
+    (currentAudio.duration - currentAudio.currentTime) * 1000,
+  );
+  loopFadeStartTimer = setTimeout(() => {
+    loopFadeStartTimer = null;
+    startLoopFadeOut();
+  }, Math.max(0, remainingMs - SOUNDTRACK_LOOP_FADE_OUT_MS));
 }
 
-/**
- * Stop soundtrack (kill, cleanup). Call when user turns music OFF in settings.
- */
-export function stopSoundtrack(): void {
+function startLoopFadeOut(): void {
+  const currentAudio = audio;
+  if (!currentAudio || currentAudio.paused || loopFadeOutActive) return;
+  loopFadeOutActive = true;
+  linearFade(
+    currentAudio.volume,
+    0,
+    SOUNDTRACK_LOOP_FADE_OUT_MS,
+    (volume) => {
+      if (audio === currentAudio) currentAudio.volume = volume;
+    },
+    () => {
+      if (audio === currentAudio) currentAudio.volume = 0;
+    },
+  );
+}
+
+function onTimeUpdate(): void {
+  const currentAudio = audio;
+  if (!currentAudio || currentAudio.paused || loopFadeOutActive) return;
+  if (!Number.isFinite(currentAudio.duration) || currentAudio.duration <= 0) return;
+  const remainingMs = (currentAudio.duration - currentAudio.currentTime) * 1000;
+  if (remainingMs <= SOUNDTRACK_LOOP_FADE_OUT_MS) startLoopFadeOut();
+  else if (loopFadeStartTimer === null) scheduleLoopFadeOut();
+}
+
+function armAutoplayRetry(): void {
+  if (autoplayRetryArmed || typeof document === 'undefined' || !isMusicEnabled()) return;
+  autoplayRetryArmed = true;
+  document.addEventListener('pointerdown', onAutoplayRetry, true);
+  document.addEventListener('touchend', onAutoplayRetry, true);
+  document.addEventListener('keydown', onAutoplayRetry, true);
+}
+
+function disarmAutoplayRetry(): void {
+  if (!autoplayRetryArmed || typeof document === 'undefined') return;
+  autoplayRetryArmed = false;
+  document.removeEventListener('pointerdown', onAutoplayRetry, true);
+  document.removeEventListener('touchend', onAutoplayRetry, true);
+  document.removeEventListener('keydown', onAutoplayRetry, true);
+}
+
+function markPlaybackActive(currentAudio: HTMLAudioElement, message: string): void {
+  if (audio !== currentAudio) return;
+  isStarted = true;
+  disarmAutoplayRetry();
+  scheduleLoopFadeOut();
+  logger.info(message);
+}
+
+function onAutoplayRetry(): void {
+  if (autoplayRetryInFlight) return;
+  if (!isMusicEnabled()) {
+    disarmAutoplayRetry();
+    return;
+  }
+  autoplayRetryInFlight = true;
+  disarmAutoplayRetry();
+  const currentAudio = getAudio();
+  const requestToken = ++playRequestToken;
+  currentAudio.play().then(() => {
+    if (requestToken !== playRequestToken || audio !== currentAudio || !isMusicEnabled()) {
+      currentAudio.pause();
+      return;
+    }
+    autoplayRetryInFlight = false;
+    markPlaybackActive(currentAudio, '🔊 Soundtrack started after user gesture');
+  }).catch((error) => {
+    if (requestToken !== playRequestToken) return;
+    autoplayRetryInFlight = false;
+    armAutoplayRetry();
+    logger.warn('🔊 Soundtrack user-gesture retry failed:', error);
+  });
+}
+
+function playWithFadeIn(
+  currentAudio: HTMLAudioElement,
+  durationMs: number,
+  successMessage: string,
+): void {
   activeFadeToken++;
-  fadeInProgress = false;
-  loopFadeOutActive = false;
-  clearLoopFade();
-  pausedForBoardGame = true;
-  pausedForVisibility = false;
-  const a = audio;
-  if (a) {
-    try {
-      a.pause();
-      a.currentTime = 0;
-      a.volume = 0;
-    } catch {}
-    logger.info('🔊 Soundtrack stopped (music toggle OFF)');
-  }
+  fadeInProgress = true;
+  currentAudio.volume = 0;
+  const requestToken = ++playRequestToken;
+  currentAudio.play().then(() => {
+    if (requestToken !== playRequestToken || audio !== currentAudio || !isMusicEnabled()) {
+      currentAudio.pause();
+      if (requestToken === playRequestToken) fadeInProgress = false;
+      return;
+    }
+    isStarted = true;
+    disarmAutoplayRetry();
+    linearFade(0, SOUNDTRACK_VOLUME, durationMs, (volume) => {
+      if (audio === currentAudio) currentAudio.volume = volume;
+    }, () => {
+      if (audio !== currentAudio) return;
+      currentAudio.volume = SOUNDTRACK_VOLUME;
+      fadeInProgress = false;
+      scheduleLoopFadeOut();
+      logger.info(successMessage);
+    });
+  }).catch((error) => {
+    if (requestToken !== playRequestToken) return;
+    fadeInProgress = false;
+    armAutoplayRetry();
+    logger.warn('🔊 Soundtrack play failed (user gesture may be required):', error);
+  });
 }
 
-/**
- * Start soundtrack with the Stack to Six preloader.
- * Plays from start and sets up loop with 8s pre-end fade.
- * Skips if music is disabled in settings.
- */
+function onEnded(): void {
+  clearLoopFadeSchedule();
+  loopFadeOutActive = false;
+  const currentAudio = audio;
+  if (!currentAudio || pausedForVisibility || !isMusicEnabled()) return;
+  currentAudio.currentTime = 0;
+  playWithFadeIn(
+    currentAudio,
+    SOUNDTRACK_LOOP_FADE_IN_MS,
+    '🔊 Soundtrack loop restarted',
+  );
+}
+
+function onAudioReady(): void {
+  scheduleLoopFadeOut();
+}
+
+function onVisibilityChange(): void {
+  const currentAudio = audio;
+  if (document.hidden) {
+    if (!currentAudio) return;
+    activeFadeToken++;
+    playRequestToken++;
+    fadeInProgress = false;
+    loopFadeOutActive = false;
+    clearLoopFadeSchedule();
+    currentAudio.pause();
+    pausedForVisibility = isMusicEnabled();
+    logger.info('🔊 Soundtrack paused (app in background)');
+    return;
+  }
+
+  if (!pausedForVisibility) return;
+  pausedForVisibility = false;
+  if (!currentAudio || !isMusicEnabled()) return;
+  playWithFadeIn(
+    currentAudio,
+    SOUNDTRACK_RESUME_FADE_IN_MS,
+    '🔊 Soundtrack resumed (app visible)',
+  );
+}
+
+function setupVisibilityListener(): void {
+  if (
+    visibilityListenerInstalled ||
+    typeof document === 'undefined' ||
+    document.hidden === undefined
+  ) return;
+  visibilityListenerInstalled = true;
+  document.addEventListener('visibilitychange', onVisibilityChange);
+}
+
+function getAudio(): HTMLAudioElement {
+  if (!audio) {
+    audio = new Audio(SOUNDTRACK_URL);
+    audio.loop = false;
+    audio.volume = SOUNDTRACK_VOLUME;
+    audio.preload = 'auto';
+    audio.addEventListener('ended', onEnded);
+    audio.addEventListener('loadedmetadata', onAudioReady);
+    audio.addEventListener('durationchange', onAudioReady);
+    audio.addEventListener('canplaythrough', onAudioReady);
+    audio.addEventListener('timeupdate', onTimeUpdate);
+    setupVisibilityListener();
+  }
+  return audio;
+}
+
+/** Start the global theme. Repeated calls do not restart an active track. */
 export function startSoundtrack(): void {
   if (!isMusicEnabled()) return;
-  const a = getAudio();
-  pausedForBoardGame = false;
-  loopFadeOutActive = false;
-  clearLoopFade();
-  a.volume = 1;
-  a.currentTime = 0;
-  a.play().then(() => {
-    isStarted = true;
-    logger.info('🔊 Soundtrack started');
-  }).catch((e) => {
-    logger.warn('🔊 Soundtrack play failed (user gesture may be required):', e);
-  });
-}
-
-/**
- * Fade out and pause (e.g. when entering board game).
- */
-export function fadeOutAndPause(durationMs: number = BOARD_GAME_FADEOUT_MS): void {
-  if (fadeInProgress) return;
-  fadeInProgress = true;
-  activeFadeToken++;
-  pausedForBoardGame = true;
-  loopFadeOutActive = false;
-  clearLoopFade();
-  const a = audio;
-  if (!a || a.paused) {
-    fadeInProgress = false;
+  const currentAudio = getAudio();
+  if (!currentAudio.paused) {
+    scheduleLoopFadeOut();
     return;
   }
-  const from = a.volume;
-  linearFade(from, 0, durationMs, (v) => {
-    if (audio) audio.volume = v;
-  }, () => {
-    if (audio) {
-      audio.pause();
-      logger.info('🔊 Soundtrack faded out and paused (board game)');
+  loopFadeOutActive = false;
+  clearLoopFadeSchedule();
+  currentAudio.volume = SOUNDTRACK_VOLUME;
+  const requestToken = ++playRequestToken;
+  currentAudio.play().then(() => {
+    if (requestToken !== playRequestToken || audio !== currentAudio || !isMusicEnabled()) {
+      currentAudio.pause();
+      return;
     }
-    fadeInProgress = false;
+    markPlaybackActive(currentAudio, '🔊 Stack to Six theme started');
+  }).catch((error) => {
+    if (requestToken !== playRequestToken) return;
+    armAutoplayRetry();
+    logger.warn('🔊 Soundtrack play failed (user gesture may be required):', error);
   });
 }
 
-/**
- * Fade in and resume (e.g. when leaving board game).
- * Skips if music is disabled in settings.
- */
-export function fadeInAndResume(durationMs: number = RESUME_FADEIN_MS): void {
-  if (fadeInProgress) return;
-  fadeInProgress = true;
+/** Stop and rewind only when the player turns Music OFF. */
+export function stopSoundtrack(): void {
   activeFadeToken++;
-  if (!isMusicEnabled()) {
-    fadeInProgress = false;
+  playRequestToken++;
+  fadeInProgress = false;
+  loopFadeOutActive = false;
+  pausedForVisibility = false;
+  clearLoopFadeSchedule();
+  disarmAutoplayRetry();
+  autoplayRetryInFlight = false;
+  const currentAudio = audio;
+  if (currentAudio) {
+    try {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      currentAudio.volume = 0;
+    } catch {}
+  }
+  isStarted = false;
+  logger.info('🔊 Soundtrack stopped (Music OFF)');
+}
+
+/** Resume after Music ON, visibility recovery, or an interrupted playback. */
+export function fadeInAndResume(
+  durationMs: number = SOUNDTRACK_RESUME_FADE_IN_MS,
+): void {
+  if (!isMusicEnabled() || fadeInProgress) return;
+  const currentAudio = getAudio();
+  if (!currentAudio.paused) {
+    scheduleLoopFadeOut();
     return;
   }
-  const a = getAudio();
-  pausedForBoardGame = false;
   loopFadeOutActive = false;
-  clearLoopFade();
-  a.volume = 0;
-  a.play().catch((e) => logger.warn('🔊 Soundtrack resume play failed:', e));
-  linearFade(0, 1, durationMs, (v) => {
-    if (audio) audio.volume = v;
-  }, () => {
-    logger.info('🔊 Soundtrack faded in and resumed');
-    fadeInProgress = false;
-  });
+  clearLoopFadeSchedule();
+  playWithFadeIn(currentAudio, durationMs, '🔊 Soundtrack faded in and resumed');
+}
+
+export function resetSoundtrackForTests(): void {
+  activeFadeToken++;
+  playRequestToken++;
+  clearLoopFadeSchedule();
+  disarmAutoplayRetry();
+  autoplayRetryInFlight = false;
+  if (visibilityListenerInstalled && typeof document !== 'undefined') {
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+  }
+  visibilityListenerInstalled = false;
+  if (audio) {
+    audio.removeEventListener('ended', onEnded);
+    audio.removeEventListener('loadedmetadata', onAudioReady);
+    audio.removeEventListener('durationchange', onAudioReady);
+    audio.removeEventListener('canplaythrough', onAudioReady);
+    audio.removeEventListener('timeupdate', onTimeUpdate);
+    try { audio.pause(); } catch {}
+  }
+  audio = null;
+  loopFadeOutActive = false;
+  pausedForVisibility = false;
+  fadeInProgress = false;
+  isStarted = false;
 }
 
 export const soundtrackManager = {
   start: startSoundtrack,
   stop: stopSoundtrack,
-  fadeOutAndPause,
   fadeInAndResume,
-  get isStarted() { return isStarted; }
+  get isStarted() { return isStarted; },
 };
