@@ -9,20 +9,18 @@ import { getAnimatedSpecialArtworkLayerStats } from '../animated-special-artwork
 import {
   destroyWildStarBouncyArtworkRuntime,
   getWildStarBouncyDisplayGeometry,
-  getWildStarOrbitDisplayGeometry,
   getWildStarBouncyRuntimeStats,
   isPlainWildStarBouncyTile,
   WILD_STAR_BOUNCY_DISPLAY_SIZE,
   WILD_STAR_BOUNCY_DRAG_Z_INDEX,
   WILD_STAR_BOUNCY_REST_ART,
-  WILD_STAR_ORBIT_REST_ART,
-  WILD_STAR_ORBIT_SVG_URL,
 } from '../wild-star-bouncy-artwork';
 import {
   setSpecialDiceIdleDragging,
   startSpecialDiceIdleMotion,
   stopSpecialDiceIdleMotion,
 } from '../special-dice-idle';
+import { acquireGameplayDragForeground } from '../gameplay-drag-foreground-owner';
 
 function makeTile(special = 'wild', variant?: string) {
   const base = new Sprite(Texture.WHITE);
@@ -93,7 +91,6 @@ describe('Wild Star animated SVG board artwork', () => {
 
   test('maps the nominal authored star to the existing 128px footprint without cropping motion', () => {
     const geometry = getWildStarBouncyDisplayGeometry();
-    const orbitGeometry = getWildStarOrbitDisplayGeometry();
     expect(geometry.restingArtworkWidth).toBeCloseTo(WILD_STAR_BOUNCY_DISPLAY_SIZE, 8);
     expect(geometry.restingArtworkHeight).toBeCloseTo(WILD_STAR_BOUNCY_DISPLAY_SIZE, 8);
     expect(WILD_STAR_BOUNCY_REST_ART.centerX).toBe(260);
@@ -104,14 +101,6 @@ describe('Wild Star animated SVG board artwork', () => {
     expect(geometry.anchorX).toBeLessThan(1);
     expect(geometry.anchorY).toBeGreaterThan(0);
     expect(geometry.anchorY).toBeLessThan(1);
-    expect(orbitGeometry.restingArtworkWidth).toBeCloseTo(WILD_STAR_BOUNCY_DISPLAY_SIZE, 8);
-    expect(orbitGeometry.restingArtworkHeight).toBeCloseTo(WILD_STAR_BOUNCY_DISPLAY_SIZE, 8);
-    expect(WILD_STAR_ORBIT_REST_ART.centerX).toBe(260);
-    expect(WILD_STAR_ORBIT_REST_ART.centerY).toBeCloseTo(352.57, 8);
-    expect(orbitGeometry.width).toBeGreaterThan(geometry.width);
-    expect(orbitGeometry.height).toBeGreaterThan(geometry.height);
-    expect(orbitGeometry.left).toBeLessThan(0);
-    expect(orbitGeometry.top).toBeLessThan(0);
   });
 
   test('uses the supplied optimized two-second self-contained SMIL asset', () => {
@@ -139,31 +128,25 @@ describe('Wild Star animated SVG board artwork', () => {
     expect(svg).not.toMatch(/<(?:script|foreignObject|filter)\b/);
   });
 
-  test('uses the supplied three-star SVG as one complete orbit composition', () => {
-    const svg = fs.readFileSync(
-      path.resolve(process.cwd(), 'assets/shop/star/stars.svg'),
+  test('preserves stars.svg as an unused asset and excludes it from runtime and preload paths', () => {
+    const retiredUrl = './assets/shop/star/stars.svg';
+    const artworkSource = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/modules/wild-star-bouncy-artwork.ts'),
       'utf8',
     );
-    const animateCount = svg.match(/<animate(?=\s)/g)?.length ?? 0;
-    const animateTransformCount = svg.match(/<animateTransform(?=\s)/g)?.length ?? 0;
-    const embeddedPng = svg.match(/<image[^>]+href="data:image\/png;base64,([^"]+)"[^>]+id="star-art"/s)?.[1];
-
-    expect(WILD_STAR_ORBIT_SVG_URL).toBe('./assets/shop/star/stars.svg');
-    expect(Buffer.byteLength(svg, 'utf8')).toBeLessThanOrEqual(275_000);
-    expect(svg).toContain('<title>Three playful squishy stars</title>');
-    expect(svg).toContain('viewBox="0 0 520 560"');
-    expect(svg).toContain('id="left-star" transform="translate(147 350) scale(0.46)"');
-    expect(svg).toContain('id="right-star" transform="translate(377 376) scale(0.43)"');
-    expect(svg).toContain('transform="translate(260 492) scale(.73)" id="front-star"');
-    expect(svg).toContain('dur="2s"');
-    expect(svg).toContain('repeatCount="indefinite"');
-    expect(animateCount).toBe(28);
-    expect(animateTransformCount).toBe(40);
-    expect(embeddedPng).toBeDefined();
-    expect(Buffer.from(embeddedPng || '', 'base64')).toEqual(
-      fs.readFileSync(path.resolve(process.cwd(), 'assets/wild@3x.png')),
+    const assetPreloaderSource = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/modules/asset-preloader.ts'),
+      'utf8',
     );
-    expect(svg).not.toMatch(/<(?:script|foreignObject|filter)\b/);
+    const comprehensivePreloaderSource = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/utils/comprehensive-image-preloader.ts'),
+      'utf8',
+    );
+
+    expect(fs.existsSync(path.resolve(process.cwd(), 'assets/shop/star/stars.svg'))).toBe(true);
+    expect(artworkSource).not.toContain(retiredUrl);
+    expect(assetPreloaderSource).not.toContain(retiredUrl);
+    expect(comprehensivePreloaderSource).not.toContain(retiredUrl);
   });
 
   test('owns only the generic Wild Star and rejects registry-backed Star archetypes', () => {
@@ -174,9 +157,9 @@ describe('Wild Star animated SVG board artwork', () => {
     expect(isPlainWildStarBouncyTile({ special: 'wild-tnt' })).toBe(false);
   });
 
-  test('deduplicates, switches to the complete stars SVG only for a live orbit, survives drag, and restores every fallback', () => {
+  test('deduplicates, mirrors the original Pixi orbit above star.svg, survives drag, and restores every fallback', () => {
     const { tile, base, rotG } = makeTile();
-    const { container } = attachOrbitSystem(tile, rotG);
+    const { container, sprite } = attachOrbitSystem(tile, rotG);
 
     startSpecialDiceIdleMotion(tile);
     const first = tile._ccWildStarBouncyArtwork;
@@ -189,15 +172,20 @@ describe('Wild Star animated SVG board artwork', () => {
     expect(base.renderable).toBe(false);
     expect(container.renderable).toBe(true);
     expect((first as any).image.style.visibility).toBe('visible');
-    expect((first as any).orbitImage.style.visibility).toBe('hidden');
+    expect((first as any).orbitLayer.style.visibility).toBe('hidden');
 
-    (first as any).orbitImage.onload(new Event('load'));
+    const orbitNode = (first as any).orbitNodes.get(sprite);
+    expect(orbitNode).toBeDefined();
+    expect(orbitNode.image.src).toContain('/assets/small-star.png');
+    expect(orbitNode.image.srcset).toContain('/assets/small-star@3x.png 3x');
+    orbitNode.image.onload(new Event('load'));
     expect(container.renderable).toBe(false);
     expect((first as any).image.style.zIndex).toBe('1');
-    expect((first as any).image.style.visibility).toBe('hidden');
-    expect((first as any).orbitImage.style.zIndex).toBe('2');
-    expect((first as any).orbitImage.style.visibility).toBe('visible');
-    expect((first as any).orbitImage.src).toContain('/assets/shop/star/stars.svg');
+    expect((first as any).image.style.visibility).not.toBe('hidden');
+    expect((first as any).orbitLayer.style.zIndex).toBe('2');
+    expect((first as any).orbitLayer.style.visibility).toBe('visible');
+    expect(orbitNode.image.style.visibility).toBe('visible');
+    expect(orbitNode.image.style.transform).toMatch(/^matrix\(/);
     expect((first as any).wrapper.querySelectorAll('img')).toHaveLength(2);
     expect(getWildStarBouncyRuntimeStats()).toMatchObject({
       controllers: 1,
@@ -222,9 +210,39 @@ describe('Wild Star animated SVG board artwork', () => {
     });
   });
 
-  test('uses independent load-safe fallbacks for the single-star and orbit compositions', () => {
+  test('keeps idle Wild Star live during another drag and portals only the owned Star', () => {
+    const { tile, base } = makeTile();
+    startSpecialDiceIdleMotion(tile);
+    const controller = tile._ccWildStarBouncyArtwork;
+    (controller as any).image.onload(new Event('load'));
+    expect(base.renderable).toBe(false);
+
+    const releaseForeground = acquireGameplayDragForeground();
+    try {
+      expect((controller as any).wrapper.style.visibility).toBe('visible');
+      expect(base.renderable).toBe(false);
+
+      expect(setSpecialDiceIdleDragging(tile, true)).toBe(true);
+      expect((controller as any).wrapper.parentElement?.className)
+        .toBe('animated-special-artwork-drag-layer');
+      expect((controller as any).wrapper.style.visibility).toBe('visible');
+      expect(base.renderable).toBe(false);
+
+      expect(setSpecialDiceIdleDragging(tile, false)).toBe(true);
+      expect((controller as any).wrapper.parentElement?.className)
+        .toBe('animated-special-artwork-layer');
+      expect((controller as any).wrapper.style.visibility).toBe('visible');
+      expect(base.renderable).toBe(false);
+    } finally {
+      releaseForeground();
+    }
+    expect((controller as any).wrapper.style.visibility).toBe('visible');
+    expect(base.renderable).toBe(false);
+  });
+
+  test('keeps the static/Pixi fallbacks until both the main SVG and orbit paint are load-safe', () => {
     const { tile, base, rotG } = makeTile();
-    const { container } = attachOrbitSystem(tile, rotG);
+    const { container, sprite } = attachOrbitSystem(tile, rotG);
     startSpecialDiceIdleMotion(tile);
     const controller = tile._ccWildStarBouncyArtwork;
 
@@ -232,21 +250,20 @@ describe('Wild Star animated SVG board artwork', () => {
     expect(base.renderable).toBe(true);
     expect(container.renderable).toBe(true);
 
-    // stars.svg is a complete composition, so it remains sufficient even if
-    // the standalone star.svg is unavailable.
-    (controller as any).orbitImage.onload(new Event('load'));
-    expect(base.renderable).toBe(false);
-    expect(container.renderable).toBe(false);
-    expect((controller as any).orbitImage.style.visibility).toBe('visible');
-
-    (controller as any).orbitImage.onerror(new Event('error'));
-    expect(base.renderable).toBe(true);
-    expect(container.renderable).toBe(true);
-
     (controller as any).image.onload(new Event('load'));
     expect(base.renderable).toBe(false);
     expect(container.renderable).toBe(true);
-    expect((controller as any).image.style.visibility).toBe('visible');
+    const orbitNode = (controller as any).orbitNodes.get(sprite);
+    expect(orbitNode).toBeDefined();
+
+    orbitNode.image.onerror(new Event('error'));
+    expect(base.renderable).toBe(false);
+    expect(container.renderable).toBe(true);
+    expect((controller as any).orbitLayer.style.visibility).toBe('hidden');
+
+    orbitNode.image.onload(new Event('load'));
+    expect(container.renderable).toBe(false);
+    expect((controller as any).orbitLayer.style.visibility).toBe('visible');
   });
 
   test('a late SVG load cannot resurrect a disposed owner', () => {

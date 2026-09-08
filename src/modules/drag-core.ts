@@ -51,6 +51,10 @@ import { isBoardFxReduced } from './board-frame-budget.ts';
 import { getDragTrailPerformanceProfile } from './drag-trail-performance-profile.ts';
 import { areContinuousRuntimeDiagnosticsEnabled } from '../utils/runtime-diagnostics-policy.ts';
 import { resolveDragShadowAppearance } from './drag-shadow-pose.ts';
+import {
+  acquireGameplayDragForeground,
+  setGameplayDragBounds,
+} from './gameplay-drag-foreground-owner.ts';
 
 // --- GSAP SAFETY WRAPPERS (kao u tvom originalu) ---------------------------
 // 🔥 CRITICAL FIX: Save original GSAP functions BEFORE defining trackTween/trackTimeline
@@ -131,13 +135,6 @@ const PICKUP_HOLD_SCALE = 1.105;
 
 function isIOSRuntime(): boolean {
   return typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-}
-
-function setGameplayDragActive(active: boolean): void {
-  try {
-    (window as any).__ccGameplayDragActive = active;
-    document.body?.classList.toggle('gameplay-drag-active', active);
-  } catch {}
 }
 
 function getTileSpecial(tile: any): string | null {
@@ -469,7 +466,6 @@ export function initDrag(cfg) {
     _watchdogTimeout: null as any,
     _lastWatchdogRefreshAt: 0,
     _lastMagnetFieldUpdateAt: 0,
-    _pausedSpecialIdleTiles: new Set<any>(),
     _perfSample: null as any,
     _perfTicker: null as any,
     _pendingMoveEvent: null as any,
@@ -478,6 +474,23 @@ export function initDrag(cfg) {
 
   const DRAG_LAYER_Z_INDEX = 12000;
   const activeDragLayer: any = dragLayer || (board && (board.parent || board)) || board;
+  let releaseGameplayDragForeground: (() => void) | null = null;
+  let activeDragArtworkTile: any = null;
+
+  function setActiveDragArtworkDragging(tile: any, dragging: boolean): boolean {
+    const ownedTile = dragging ? tile : (activeDragArtworkTile || tile);
+    if (!ownedTile) return false;
+    if (dragging) activeDragArtworkTile = ownedTile;
+    try {
+      const handled = setSpecialDiceIdleDragging(ownedTile, dragging);
+      if (!dragging) activeDragArtworkTile = null;
+      return handled;
+    } catch {
+      // Keep the captured tile on release failure so clearDragRuntime() can
+      // retry after pointerup/cancel has already nulled mutable drag.t.
+      return false;
+    }
+  }
 
   function getDragLayer(): any {
     if (!activeDragLayer) return board;
@@ -529,7 +542,19 @@ export function initDrag(cfg) {
     if (!t || !activeDragLayer) return;
     const readyDragLayer = getDragLayer();
     if (!readyDragLayer || readyDragLayer === board || readyDragLayer.destroyed) return;
-    if ((t as any)._dragOriginalParent !== undefined) return;
+    if ((t as any)._dragOriginalParent !== undefined) {
+      // A failed/interrupted reparent can leave ownership metadata behind while
+      // the tile itself is still in the board. Only a real overlay parent means
+      // promotion is complete; otherwise retire the stale marker and retry.
+      if (t.parent === readyDragLayer) {
+        t.zIndex = DRAG_LAYER_Z_INDEX;
+        try { readyDragLayer.sortChildren?.(); } catch {}
+        try { readyDragLayer.parent?.sortChildren?.(); } catch {}
+        return;
+      }
+      delete (t as any)._dragOriginalParent;
+      delete (t as any)._dragOriginalIndex;
+    }
 
     const originalParent = t.parent || board;
     if (!originalParent || originalParent === activeDragLayer) {
@@ -563,6 +588,10 @@ export function initDrag(cfg) {
         t.position?.set?.(layerPosition.x, layerPosition.y);
       }
       t.zIndex = DRAG_LAYER_Z_INDEX;
+      // Sort after the tile is connected. Sorting only before addChild leaves a
+      // one-frame window where Pixi may still paint the HUD/board above it.
+      try { layer.sortChildren?.(); } catch {}
+      try { layer.parent?.sortChildren?.(); } catch {}
     } catch {
       // keep safe on frame churn.
     }
@@ -989,13 +1018,21 @@ export function initDrag(cfg) {
     resetWildDragTrailCadence(drag._wildTrailCadence);
     drag.pointerId = null;
     drag.pointerType = null;
+    // This uses the captured artwork tile when pointerup/cancel has already
+    // cleared drag.t, and is deliberately safe to repeat after a first failure.
+    setActiveDragArtworkDragging(activeDragTile, false);
     if (activeDragTile && typeof activeDragTile === 'object') {
+      // The ordinary cleanup/restart path can run without a pointerup/cancel.
+      // Return a live SVG wrapper from its DOM drag portal before lowering the
+      // shared foreground lease, just as the explicit pointer paths do.
       restoreTileParent(activeDragTile);
       delete (activeDragTile as any)._shadowDirX;
       delete (activeDragTile as any)._shadowDirY;
     }
     drag._lastWatchdogRefreshAt = 0;
-    setGameplayDragActive(false);
+    setGameplayDragBounds(null);
+    try { releaseGameplayDragForeground?.(); } catch {}
+    releaseGameplayDragForeground = null;
   }
 
   function resetTileDragShadowPose(tile: any) {
@@ -1025,10 +1062,9 @@ export function initDrag(cfg) {
         return;
       }
       clearHover({ immediateMagnet: true });
-      try { setSpecialDiceIdleDragging(t, false); } catch {}
+      setActiveDragArtworkDragging(t, false);
       clearDragRuntime();
       drag.t = null;
-      resumeSpecialDiceIdleAfterDrag();
       try {
         if (t && !t.destroyed) {
           snapBack(t, () => {
@@ -1041,28 +1077,39 @@ export function initDrag(cfg) {
     }, 9000);
   }
 
-  function pauseSpecialDiceIdleForDrag(activeTile: any): void {
-    drag._pausedSpecialIdleTiles.clear();
-    const list = (typeof getTiles === 'function' ? getTiles() : []) || [];
-    for (const tile of list) {
-      if (!tile || tile.destroyed || tile === activeTile) continue;
-      if (!tile._ccSpecialDiceIdleTl) continue;
-      if (keepsSpecialDiceIdleRunningDuringDrag(tile)) continue;
-      drag._pausedSpecialIdleTiles.add(tile);
-      try { stopSpecialDiceIdleMotion(tile); } catch {}
+  function publishActiveDragBounds(tile: any): void {
+    if (!tile || tile.destroyed) {
+      setGameplayDragBounds(null);
+      return;
     }
+    try {
+      const bounds = tile.getBounds?.();
+      if (!bounds) return;
+      const canvas = app?.canvas as HTMLCanvasElement | null | undefined;
+      const canvasRect = canvas?.getBoundingClientRect?.();
+      const screen = app?.renderer?.screen;
+      const scaleX = canvasRect && Number(screen?.width) > 0
+        ? canvasRect.width / Number(screen.width)
+        : 1;
+      const scaleY = canvasRect && Number(screen?.height) > 0
+        ? canvasRect.height / Number(screen.height)
+        : 1;
+      setGameplayDragBounds({
+        x: (canvasRect?.left || 0) + (Number(bounds.x) || 0) * scaleX,
+        y: (canvasRect?.top || 0) + (Number(bounds.y) || 0) * scaleY,
+        width: Math.max(1, (Number(bounds.width) || tileSize) * scaleX),
+        height: Math.max(1, (Number(bounds.height) || tileSize) * scaleY),
+      });
+    } catch {}
   }
 
-  function resumeSpecialDiceIdleAfterDrag() {
-    if (!drag._pausedSpecialIdleTiles.size) return;
-    const pausedTiles = Array.from(drag._pausedSpecialIdleTiles);
-    drag._pausedSpecialIdleTiles.clear();
-    setTimeout(() => {
-      for (const tile of pausedTiles) {
-        if (!tile || tile.destroyed || tile.locked || tile._ccWildSpawnDropping === true) continue;
-        try { startSpecialDiceIdleMotion(tile); } catch {}
-      }
-    }, 350);
+  function cancelActiveDrag(_options: { resumeIdle?: boolean } = {}): void {
+    const tile = drag.t || activeDragArtworkTile;
+    try { setActiveDragArtworkDragging(tile, false); } catch {}
+    try { clearHover({ immediateMagnet: true }); } catch {}
+    try { if (tile && !tile.destroyed) restoreZ(tile); } catch {}
+    clearDragRuntime();
+    drag.t = null;
   }
 
   // ⚙️ Z-INDEX SAFETY HELPERS
@@ -1304,9 +1351,9 @@ export function initDrag(cfg) {
       try { stopTntIdleShake(t); } catch {}
     }
     drag.t = t;
-    setGameplayDragActive(true);
+    try { releaseGameplayDragForeground?.(); } catch {}
+    releaseGameplayDragForeground = acquireGameplayDragForeground();
     try { (window as any).__ccFirstPlayTutorialDragStarted?.(t); } catch {}
-    pauseSpecialDiceIdleForDrag(t);
     drag.pointerId = eventPointerId(e);
     drag.pointerType = e?.pointerType || null;
     emitFastStackTrace('drag-acquired', {
@@ -1345,7 +1392,7 @@ export function initDrag(cfg) {
     drag.lagX = 0; drag.lagY = 0;
     const keepsIdleRunningDuringDrag = keepsSpecialDiceIdleRunningDuringDrag(t);
     try {
-      if (!setSpecialDiceIdleDragging(t, true)) stopSpecialDiceIdleMotion(t);
+      if (!setActiveDragArtworkDragging(t, true)) stopSpecialDiceIdleMotion(t);
     } catch {}
     if (t.rotG && !keepsIdleRunningDuringDrag) gsap.killTweensOf(t.rotG);
     // Remember board baseline and enable wobble only for juice wild
@@ -1365,6 +1412,7 @@ export function initDrag(cfg) {
     rememberZ(t);
     promoteTileToDragLayer(t);
     t.zIndex = DRAG_LAYER_Z_INDEX;
+    publishActiveDragBounds(t);
 
     // Temporarily set grid cell to null so ghost placeholder becomes visible
     if (cfg.getGrid) {
@@ -1476,7 +1524,6 @@ export function initDrag(cfg) {
       clearHover();
       
       clearDragRuntime();
-      resumeSpecialDiceIdleAfterDrag();
       
       return;
     }
@@ -1579,6 +1626,7 @@ export function initDrag(cfg) {
     // Bee artwork now so crossing the viewport midpoint flips on this exact
     // pointer frame rather than waiting for a later idle-timeline sample.
     try { refreshSpecialDiceIdleDragFacing(t); } catch {}
+    publishActiveDragBounds(t);
 
     // Restore the original generated-shadow movement owner. drag.vx/vy are
     // already low-pass filtered above, so reversals settle naturally without a
@@ -1878,7 +1926,7 @@ export function initDrag(cfg) {
     }
 
     const t = drag.t;
-    try { setSpecialDiceIdleDragging(t, false); } catch {}
+    setActiveDragArtworkDragging(t, false);
     emitFastStackTrace('pointer-up-entry', {
       pointerId: eventPointerId(e),
       moved: drag.moved === true,
@@ -1887,7 +1935,6 @@ export function initDrag(cfg) {
     drag.t = null;
     finishDragPerfSample('pointerup');
     clearDragRuntime();
-    resumeSpecialDiceIdleAfterDrag();
     
     // Notify idle bounce that drag has ended - start 2-second idle timer
     try {
@@ -2174,12 +2221,11 @@ export function initDrag(cfg) {
   function onCancel(e) {
     if (!isActivePointerEvent(e)) return;
     const t = drag.t;
-    try { setSpecialDiceIdleDragging(t, false); } catch {}
+    setActiveDragArtworkDragging(t, false);
     drag.t = null;
     finishDragPerfSample('pointercancel');
     clearHover({ immediateMagnet: true });
     clearDragRuntime();
-    resumeSpecialDiceIdleAfterDrag();
     if (!t || t.destroyed) return;
     try {
       snapBack(t, () => {
@@ -2946,12 +2992,7 @@ export function initDrag(cfg) {
       app?.canvas?.removeEventListener('pointerdown', onCanvasPointerDownTrace, true);
       app?.canvas?.removeEventListener('pointerup', onCanvasPointerUpTrace, true);
     } catch {}
-    clearDragRuntime();
-    if (options.resumeIdle !== false) {
-      resumeSpecialDiceIdleAfterDrag();
-    } else {
-      drag._pausedSpecialIdleTiles.clear();
-    }
+    cancelActiveDrag(options);
     try { clearHover({ immediateMagnet: true }); } catch {}
     try { releaseMagnet({ immediate: true }); } catch {}
     
@@ -2962,5 +3003,5 @@ export function initDrag(cfg) {
     console.log('✅ Drag system cleaned up');
   }
 
-  return Object.assign(drag, { bindToTile, clearHover, snapBack, cleanup }); 
+  return Object.assign(drag, { bindToTile, clearHover, snapBack, cancelActive: cancelActiveDrag, cleanup });
 }

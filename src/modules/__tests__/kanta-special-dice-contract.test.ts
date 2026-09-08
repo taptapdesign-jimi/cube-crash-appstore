@@ -371,13 +371,13 @@ describe('Kanta special die', () => {
       'utf8',
     );
     const watchdogStart = dragSource.indexOf('function restartDragWatchdog');
-    const watchdogEnd = dragSource.indexOf('function pauseSpecialDiceIdleForDrag', watchdogStart);
+    const watchdogEnd = dragSource.indexOf('function publishActiveDragBounds', watchdogStart);
     const cancelStart = dragSource.indexOf('function onCancel');
     const cancelEnd = dragSource.indexOf('// === STABLE HIT-TEST', cancelStart);
 
     expect(dragSource.slice(watchdogStart, watchdogEnd))
-      .toContain('setSpecialDiceIdleDragging(t, false)');
+      .toContain('setActiveDragArtworkDragging(t, false)');
     expect(dragSource.slice(cancelStart, cancelEnd))
-      .toContain('setSpecialDiceIdleDragging(t, false)');
+      .toContain('setActiveDragArtworkDragging(t, false)');
   });
 });

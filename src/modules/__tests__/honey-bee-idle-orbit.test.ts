@@ -198,7 +198,7 @@ describe('Honey bee idle orbit', () => {
   });
 
   test('retains the same Honey owner and counter-applies exact drag displacement', () => {
-    expect(dragSource).toContain('if (!setSpecialDiceIdleDragging(t, true)) stopSpecialDiceIdleMotion(t)');
+    expect(dragSource).toContain('if (!setActiveDragArtworkDragging(t, true)) stopSpecialDiceIdleMotion(t)');
     expect(dragSource).toContain('px - drag.startX');
     expect(dragSource).toContain('py - drag.startY');
     expect(dragSource).toContain('drag.vx');
@@ -208,7 +208,7 @@ describe('Honey bee idle orbit', () => {
     expect(source).toContain('state.bee.x -= deltaX');
     expect(source).toContain('state.bee.y -= deltaY');
     expect(source).toContain('toHoneyX * chaseHeadingBlend');
-    expect(dragSource).toContain('setSpecialDiceIdleDragging(t, false)');
+    expect(dragSource).toContain('setActiveDragArtworkDragging(t, false)');
     expect(idleSource).toContain("if (variant.id === 'honey' && tile._ccHoneyBeeIdleOrbit)");
     expect(idleSource).toContain('tile._ccHoneyBeeIdleOrbit.setDragging?.(false)');
   });

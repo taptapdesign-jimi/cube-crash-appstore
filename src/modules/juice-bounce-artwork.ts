@@ -1,6 +1,8 @@
 import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
 import {
   acquireAnimatedSpecialArtworkLayer,
+  doesAnimatedSpecialArtworkOverlapGameplayDrag,
+  setAnimatedSpecialArtworkDragging,
   type AnimatedSpecialArtworkFrame,
   type AnimatedSpecialArtworkLayerLease,
 } from './animated-special-artwork-layer.ts';
@@ -241,6 +243,8 @@ function syncController(
   screenWidth: number,
   screenHeight: number,
   canvasOpacity: number,
+  gameplayDragActive: boolean,
+  gameplayDragBounds: AnimatedSpecialArtworkFrame['gameplayDragBounds'],
 ): void {
   const { tile, base, host, wrapper } = controller;
   if (
@@ -254,6 +258,20 @@ function syncController(
     || !isPlainJuiceBounceTile(tile)
   ) {
     disposeController(controller);
+    return;
+  }
+
+  // The shared canvas moves above the idle DOM-SVG root during any drag. An
+  // SVG that is not itself being dragged must therefore swap to its proven
+  // Pixi PNG fallback; otherwise it visibly bounces underneath grid ghosts.
+  if (
+    gameplayDragActive
+    && !controller.dragging
+    && doesAnimatedSpecialArtworkOverlapGameplayDrag(wrapper, gameplayDragBounds)
+  ) {
+    releaseFrontBubbleSystem(controller);
+    try { base.renderable = controller.baseRenderable; } catch {}
+    wrapper.style.visibility = 'hidden';
     return;
   }
 
@@ -285,6 +303,7 @@ function syncController(
   const f = canvasRect.top - rootRect.top
     + (transform.ty - transform.b * anchorOffsetX - transform.d * anchorOffsetY) * scaleY;
 
+  try { base.renderable = false; } catch {}
   wrapper.style.transform = `matrix(${a}, ${b}, ${c}, ${d}, ${e}, ${f})`;
   wrapper.style.opacity = String(getPixiBranchAlpha(base) * canvasOpacity);
   wrapper.style.zIndex = String(
@@ -297,7 +316,15 @@ function syncController(
 }
 
 function updateJuiceBounceArtwork(frame: AnimatedSpecialArtworkFrame): void {
-  const { canvasRect, rootRect, screenWidth, screenHeight, canvasOpacity } = frame;
+  const {
+    canvasRect,
+    rootRect,
+    screenWidth,
+    screenHeight,
+    canvasOpacity,
+    gameplayDragActive,
+    gameplayDragBounds,
+  } = frame;
   controllers.forEach((controller) => syncController(
     controller,
     canvasRect,
@@ -305,6 +332,8 @@ function updateJuiceBounceArtwork(frame: AnimatedSpecialArtworkFrame): void {
     screenWidth,
     screenHeight,
     canvasOpacity,
+    gameplayDragActive,
+    gameplayDragBounds,
   ));
 }
 
@@ -433,6 +462,7 @@ export function setJuiceBounceArtworkDragging(tile: any, dragging: boolean): boo
   const controller = controllers.get(tile) || tile?._ccJuiceBounceArtwork;
   if (!controller || controller.disposed || !isPlainJuiceBounceTile(tile)) return false;
   controller.dragging = dragging;
+  setAnimatedSpecialArtworkDragging(controller.wrapper, dragging);
   // A dragged Juice shares the canonical Pixi drag priority (12000), plus one
   // DOM step so its live SVG remains above every canvas-rendered die.
   controller.wrapper.style.zIndex = String(

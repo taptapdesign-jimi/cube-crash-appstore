@@ -10,6 +10,7 @@ import { setInputGateLock } from './input-gate.ts';
 import { attachSmallStarCenterBurst } from './text-sparkles.ts';
 import { acquirePixiMobileActivityLease } from './pixi-mobile-frame-controller.ts';
 import { applyEffectLetterOpacity, resolveEffectLetterOpacity } from './effect-letter-opacity.ts';
+import { acquireAnimatedSpecialArtworkFinaleDepth } from './animated-special-artwork-layer.ts';
 import {
   attachLaserGunFinaleScene,
   preloadLaserGunFinaleAssets,
@@ -310,6 +311,7 @@ let pooledFrameSprites: Sprite[] = [];
 let pooledFrameContainer: Container | null = null;
 let foregroundBurstCleanups: Array<() => void> = [];
 let releaseTntMobileActivity: (() => void) | null = null;
+let releaseTntFinaleDepth: (() => void) | null = null;
 
 function releaseTntInputGate(): void {
   try { (window as any).__ccTntDragBlocked = false; } catch {}
@@ -866,6 +868,8 @@ function cleanup(): void {
   } finally {
     try { releaseTntMobileActivity?.(); } catch {}
     releaseTntMobileActivity = null;
+    try { releaseTntFinaleDepth?.(); } catch {}
+    releaseTntFinaleDepth = null;
     cleanupInProgress = false;
     tntMemSample('tnt_4_cleanup_end');
     tntMemReport();
@@ -951,6 +955,7 @@ export function showTntAnimation(options: {
   lastTntStartMs = now;
 
   isActive = true;
+  releaseTntFinaleDepth = acquireAnimatedSpecialArtworkFinaleDepth();
   // Own active cadence for the real TNT/Flower lifecycle. HUD Star flights
   // acquire their own leases, so the handoff cannot fall through to 30fps.
   releaseTntMobileActivity = acquirePixiMobileActivityLease('tnt-flower-finale');

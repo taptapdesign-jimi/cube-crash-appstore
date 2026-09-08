@@ -19,6 +19,7 @@ import {
   startSpecialDiceIdleMotion,
   stopSpecialDiceIdleMotion,
 } from '../special-dice-idle';
+import { acquireGameplayDragForeground } from '../gameplay-drag-foreground-owner';
 
 describe('Juice animated SVG board artwork', () => {
   beforeEach(() => {
@@ -148,5 +149,38 @@ describe('Juice animated SVG board artwork', () => {
       tickerAttached: false,
       overlayAttached: false,
     });
+  });
+
+  test('keeps idle Juice live during another drag and portals only the owned Juice', () => {
+    const base = new Sprite(Texture.WHITE);
+    const rotG = new Container();
+    rotG.addChild(base);
+    const tile: any = { special: 'wild-juice', destroyed: false, base, rotG };
+    startSpecialDiceIdleMotion(tile);
+    const controller = tile._ccJuiceBounceArtwork;
+    (controller as any).image.onload(new Event('load'));
+    expect(base.renderable).toBe(false);
+
+    const releaseForeground = acquireGameplayDragForeground();
+    try {
+      expect((controller as any).wrapper.style.visibility).toBe('visible');
+      expect(base.renderable).toBe(false);
+
+      expect(setSpecialDiceIdleDragging(tile, true)).toBe(true);
+      expect((controller as any).wrapper.parentElement?.className)
+        .toBe('animated-special-artwork-drag-layer');
+      expect((controller as any).wrapper.style.visibility).toBe('visible');
+      expect(base.renderable).toBe(false);
+
+      expect(setSpecialDiceIdleDragging(tile, false)).toBe(true);
+      expect((controller as any).wrapper.parentElement?.className)
+        .toBe('animated-special-artwork-layer');
+      expect((controller as any).wrapper.style.visibility).toBe('visible');
+      expect(base.renderable).toBe(false);
+    } finally {
+      releaseForeground();
+    }
+    expect((controller as any).wrapper.style.visibility).toBe('visible');
+    expect(base.renderable).toBe(false);
   });
 });

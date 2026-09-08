@@ -59,13 +59,13 @@ describe('animated SVG phase scheduler', () => {
     const orbit = new Image();
     const lease = acquireAnimatedSvgPhase('wild-star-composition', 2000, [
       { image: single, url: './assets/shop/star/star.svg' },
-      { image: orbit, url: './assets/shop/star/stars.svg' },
+      { image: orbit, url: './assets/test-orbit.svg' },
     ]);
 
     expect(lease.delayMs).toBe(0);
     expect(lease.phaseSlot).toBe(0);
     expect(single.getAttribute('src')).toBe('./assets/shop/star/star.svg');
-    expect(orbit.getAttribute('src')).toBe('./assets/shop/star/stars.svg');
+    expect(orbit.getAttribute('src')).toBe('./assets/test-orbit.svg');
     lease.release();
   });
 

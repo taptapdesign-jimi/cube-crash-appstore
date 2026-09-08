@@ -105,4 +105,21 @@ describe('Beach Ball finale regression contract', () => {
     expect(appCoreSource).toContain("ease: 'back.out(2.9)'");
     expect(appCoreSource).toContain('if (!isWildTntMerge) playShortWildMerge6TileBlast(\'Wild-juice\')');
   });
+
+  test('finishes each outward wave before a longer springy Ball-only return', () => {
+    expect(appCoreSource).toContain(
+      'returnNotBeforeMs: Date.now() + Math.round((waveDelay + tileBlastDuration) * 1000)',
+    );
+    expect(appCoreSource).toContain('returnDuration: 0.82 + Math.random() * 0.10');
+    expect(appCoreSource).toContain('returnElastic: 0.22 + Math.random() * 0.05');
+    expect(appCoreSource).toContain('returnAmplitude: 1.02 + Math.random() * 0.08');
+    expect(appCoreSource).toContain('(h.returnNotBeforeMs - Date.now()) / 1000');
+    expect(appCoreSource).toContain('delay: returnDelaySeconds');
+    expect(appCoreSource).toContain(
+      'ease: `elastic.out(${h.returnAmplitude ?? 0.6}, ${h.returnElastic})`',
+    );
+    expect(appCoreSource).toContain(
+      'maxReturnDuration = Math.max(maxReturnDuration, returnDelaySeconds + h.returnDuration)',
+    );
+  });
 });

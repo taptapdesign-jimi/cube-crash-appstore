@@ -1,10 +1,4 @@
-import { Assets, type Texture } from 'pixi.js';
 import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
-import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
-import {
-  isUsablePixiImageTexture,
-  pinPixiImageTexture,
-} from '../utils/pixi-image-texture-health.ts';
 import {
   acquireAnimatedSpecialArtworkLayer,
   doesAnimatedSpecialArtworkOverlapGameplayDrag,
@@ -17,30 +11,29 @@ import {
   type AnimatedSvgPhaseLease,
 } from './animated-svg-phase-scheduler.ts';
 
-export const ROBO_BOUNCY_SVG_URL = './assets/shop/robo/robo-bouncy.svg';
-export const ROBO_BOUNCY_VIEWBOX = Object.freeze({ width: 390, height: 440 });
-export const ROBO_BOUNCY_REST_ART = Object.freeze({ centerX: 195, centerY: 239, size: 256 });
-export const ROBO_BOUNCY_DISPLAY_SIZE = 128;
-export const ROBO_BOUNCY_DRAG_Z_INDEX = 12001;
-export const ROBO_BOUNCY_CYCLE_MS = 2400;
+export const MUSHROOM_BOUNCY_SVG_URL = './assets/shop/mushroom/mushroom.svg';
+export const MUSHROOM_BOUNCY_VIEWBOX = Object.freeze({ x: -26, y: -34, width: 180, height: 180 });
+export const MUSHROOM_BOUNCY_REST_ART = Object.freeze({ centerX: 64, centerY: 64, size: 128 });
+export const MUSHROOM_BOUNCY_DISPLAY_SIZE = 128;
+export const MUSHROOM_BOUNCY_DRAG_Z_INDEX = 12001;
+export const MUSHROOM_BOUNCY_CYCLE_MS = 2000;
 
-const DISPLAY_SCALE = ROBO_BOUNCY_DISPLAY_SIZE / ROBO_BOUNCY_REST_ART.size;
-const DISPLAY_WIDTH = ROBO_BOUNCY_VIEWBOX.width * DISPLAY_SCALE;
-const DISPLAY_HEIGHT = ROBO_BOUNCY_VIEWBOX.height * DISPLAY_SCALE;
-const DISPLAY_ANCHOR_X = ROBO_BOUNCY_REST_ART.centerX / ROBO_BOUNCY_VIEWBOX.width;
-const DISPLAY_ANCHOR_Y = ROBO_BOUNCY_REST_ART.centerY / ROBO_BOUNCY_VIEWBOX.height;
-const PRELOAD_BATCH_SIZE = 3;
+const DISPLAY_SCALE = MUSHROOM_BOUNCY_DISPLAY_SIZE / MUSHROOM_BOUNCY_REST_ART.size;
+const DISPLAY_WIDTH = MUSHROOM_BOUNCY_VIEWBOX.width * DISPLAY_SCALE;
+const DISPLAY_HEIGHT = MUSHROOM_BOUNCY_VIEWBOX.height * DISPLAY_SCALE;
+const DISPLAY_ANCHOR_X = (
+  MUSHROOM_BOUNCY_REST_ART.centerX - MUSHROOM_BOUNCY_VIEWBOX.x
+) / MUSHROOM_BOUNCY_VIEWBOX.width;
+const DISPLAY_ANCHOR_Y = (
+  MUSHROOM_BOUNCY_REST_ART.centerY - MUSHROOM_BOUNCY_VIEWBOX.y
+) / MUSHROOM_BOUNCY_VIEWBOX.height;
 
-type RoboBouncyController = {
+type MushroomBouncyController = {
   tile: any;
   base: any;
   host: any;
   wrapper: HTMLDivElement;
   image: HTMLImageElement;
-  originalTexture: Texture | null;
-  dragTexture: Texture | null;
-  paintedWidth: number;
-  paintedHeight: number;
   baseRenderable: boolean;
   dragging: boolean;
   ready: boolean;
@@ -48,21 +41,21 @@ type RoboBouncyController = {
   phaseLease: AnimatedSvgPhaseLease | null;
 };
 
-const controllers = new Map<any, RoboBouncyController>();
+const controllers = new Map<any, MushroomBouncyController>();
 let runtimeLease: AnimatedSpecialArtworkLayerLease | null = null;
 
-export function isRoboBouncyTile(tile: any): boolean {
-  return !!tile && getSpecialDiceVariantForTile(tile)?.id === 'robo-cube';
+export function isMushroomBouncyTile(tile: any): boolean {
+  return !!tile && getSpecialDiceVariantForTile(tile)?.id === 'mushroom';
 }
 
-export function getRoboBouncyDisplayGeometry() {
+export function getMushroomBouncyDisplayGeometry() {
   return {
     width: DISPLAY_WIDTH,
     height: DISPLAY_HEIGHT,
     anchorX: DISPLAY_ANCHOR_X,
     anchorY: DISPLAY_ANCHOR_Y,
-    restingArtworkWidth: ROBO_BOUNCY_REST_ART.size * DISPLAY_SCALE,
-    restingArtworkHeight: ROBO_BOUNCY_REST_ART.size * DISPLAY_SCALE,
+    restingArtworkWidth: MUSHROOM_BOUNCY_REST_ART.size * DISPLAY_SCALE,
+    restingArtworkHeight: MUSHROOM_BOUNCY_REST_ART.size * DISPLAY_SCALE,
   };
 }
 
@@ -86,30 +79,12 @@ function getPixiBranchAlpha(displayObject: any): number {
   return Math.max(0, Math.min(1, alpha));
 }
 
-function restoreOriginalTexture(controller: RoboBouncyController): void {
-  const { base, dragTexture, originalTexture, paintedWidth, paintedHeight } = controller;
-  if (!base || base.destroyed || !originalTexture || base.texture !== dragTexture) return;
-  base.texture = originalTexture;
-  base.width = paintedWidth;
-  base.height = paintedHeight;
-  applyGameplayTextureFiltering(base.texture);
-}
-
-function paintDragFallback(controller: RoboBouncyController): void {
-  const { base, dragTexture, paintedWidth, paintedHeight } = controller;
-  if (!base || base.destroyed || !dragTexture || !isUsablePixiImageTexture(dragTexture)) return;
-  base.texture = dragTexture;
-  base.width = paintedWidth;
-  base.height = paintedHeight;
-  applyGameplayTextureFiltering(base.texture);
-}
-
-function disposeController(controller: RoboBouncyController): void {
+function disposeController(controller: MushroomBouncyController): void {
   if (controller.disposed) return;
   controller.disposed = true;
   controllers.delete(controller.tile);
-  if (controller.tile?._ccRoboBouncyArtwork === controller) {
-    delete controller.tile._ccRoboBouncyArtwork;
+  if (controller.tile?._ccMushroomBouncyArtwork === controller) {
+    delete controller.tile._ccMushroomBouncyArtwork;
   }
   controller.phaseLease?.release();
   controller.phaseLease = null;
@@ -118,7 +93,6 @@ function disposeController(controller: RoboBouncyController): void {
     controller.image.onerror = null;
     controller.wrapper.remove();
   } catch {}
-  restoreOriginalTexture(controller);
   if (controller.base && !controller.base.destroyed) {
     try { controller.base.renderable = controller.baseRenderable; } catch {}
   }
@@ -128,7 +102,10 @@ function disposeController(controller: RoboBouncyController): void {
   }
 }
 
-function syncController(controller: RoboBouncyController, frame: AnimatedSpecialArtworkFrame): void {
+function syncController(
+  controller: MushroomBouncyController,
+  frame: AnimatedSpecialArtworkFrame,
+): void {
   const { tile, base, host, wrapper } = controller;
   const { canvasRect, rootRect, screenWidth, screenHeight, canvasOpacity } = frame;
   if (
@@ -139,7 +116,7 @@ function syncController(controller: RoboBouncyController, frame: AnimatedSpecial
     || base.destroyed
     || !host
     || host.destroyed
-    || !isRoboBouncyTile(tile)
+    || !isMushroomBouncyTile(tile)
   ) {
     disposeController(controller);
     return;
@@ -150,7 +127,6 @@ function syncController(controller: RoboBouncyController, frame: AnimatedSpecial
     && !controller.dragging
     && doesAnimatedSpecialArtworkOverlapGameplayDrag(wrapper, frame.gameplayDragBounds)
   ) {
-    restoreOriginalTexture(controller);
     wrapper.style.visibility = 'hidden';
     try { base.renderable = controller.baseRenderable; } catch {}
     return;
@@ -159,7 +135,6 @@ function syncController(controller: RoboBouncyController, frame: AnimatedSpecial
   if (controller.dragging) {
     wrapper.style.visibility = 'hidden';
     try { base.renderable = true; } catch {}
-    paintDragFallback(controller);
     return;
   }
 
@@ -192,7 +167,6 @@ function syncController(controller: RoboBouncyController, frame: AnimatedSpecial
   const f = canvasRect.top - rootRect.top
     + (transform.ty - transform.b * anchorOffsetX - transform.d * anchorOffsetY) * scaleY;
 
-  restoreOriginalTexture(controller);
   try { base.renderable = false; } catch {}
   wrapper.style.transform = `matrix(${a}, ${b}, ${c}, ${d}, ${e}, ${f})`;
   wrapper.style.opacity = String(getPixiBranchAlpha(base) * canvasOpacity);
@@ -200,21 +174,13 @@ function syncController(controller: RoboBouncyController, frame: AnimatedSpecial
   wrapper.style.visibility = 'visible';
 }
 
-function updateRoboBouncyArtwork(frame: AnimatedSpecialArtworkFrame): void {
+function updateMushroomBouncyArtwork(frame: AnimatedSpecialArtworkFrame): void {
   controllers.forEach((controller) => syncController(controller, frame));
 }
 
 function ensureRuntimeLease(): AnimatedSpecialArtworkLayerLease | null {
-  if (!runtimeLease) runtimeLease = acquireAnimatedSpecialArtworkLayer(updateRoboBouncyArtwork);
+  if (!runtimeLease) runtimeLease = acquireAnimatedSpecialArtworkLayer(updateMushroomBouncyArtwork);
   return runtimeLease;
-}
-
-async function warmFinaleInBoundedBatches(controller: RoboBouncyController, sources: string[]): Promise<void> {
-  for (let index = 0; index < sources.length && !controller.disposed; index += PRELOAD_BATCH_SIZE) {
-    await Promise.allSettled(
-      sources.slice(index, index + PRELOAD_BATCH_SIZE).map((source) => Assets.load(source)),
-    );
-  }
 }
 
 function createController(
@@ -222,11 +188,9 @@ function createController(
   base: any,
   host: any,
   root: HTMLDivElement,
-  dragTextureSource: string | null,
-  finalePreloadSources: string[],
-): RoboBouncyController {
+): MushroomBouncyController {
   const wrapper = document.createElement('div');
-  wrapper.className = 'robo-bouncy-artwork';
+  wrapper.className = 'mushroom-bouncy-artwork';
   Object.assign(wrapper.style, {
     position: 'absolute',
     left: '0',
@@ -257,16 +221,12 @@ function createController(
   wrapper.appendChild(image);
   root.appendChild(wrapper);
 
-  const controller: RoboBouncyController = {
+  const controller: MushroomBouncyController = {
     tile,
     base,
     host,
     wrapper,
     image,
-    originalTexture: base.texture ?? null,
-    dragTexture: null,
-    paintedWidth: base.width,
-    paintedHeight: base.height,
     baseRenderable: base.renderable !== false,
     dragging: false,
     ready: false,
@@ -274,50 +234,31 @@ function createController(
     phaseLease: null,
   };
   image.onload = () => {
-    if (controller.disposed || !isRoboBouncyTile(tile)) return;
+    if (controller.disposed || !isMushroomBouncyTile(tile)) return;
     controller.ready = true;
     runtimeLease?.requestSync();
-    void warmFinaleInBoundedBatches(controller, finalePreloadSources);
   };
   image.onerror = () => {
     controller.ready = false;
-    if (controller.dragging) paintDragFallback(controller);
-    else restoreOriginalTexture(controller);
     try { base.renderable = controller.baseRenderable; } catch {}
     wrapper.style.visibility = 'hidden';
   };
   controller.phaseLease = acquireAnimatedSvgPhase(
-    ROBO_BOUNCY_SVG_URL,
-    ROBO_BOUNCY_CYCLE_MS,
-    [{ image, url: ROBO_BOUNCY_SVG_URL }],
+    MUSHROOM_BOUNCY_SVG_URL,
+    MUSHROOM_BOUNCY_CYCLE_MS,
+    [{ image, url: MUSHROOM_BOUNCY_SVG_URL }],
   );
-
-  if (dragTextureSource) {
-    void Assets.load(dragTextureSource)
-      .then((texture) => {
-        if (controller.disposed || !isUsablePixiImageTexture(texture)) return;
-        controller.dragTexture = texture;
-        pinPixiImageTexture(texture);
-        if (controller.dragging) paintDragFallback(controller);
-      })
-      .catch(() => {
-        // The canonical first Robo frame remains a safe drag fallback.
-      });
-  }
   return controller;
 }
 
-export function startRoboBouncyArtwork(
-  tile: any,
-  idleFrameSources: string[] = [],
-  finalePreloadSources: string[] = [],
-): RoboBouncyController | null {
-  if (!isRoboBouncyTile(tile) || tile.destroyed) {
-    stopRoboBouncyArtwork(tile);
+export function startMushroomBouncyArtwork(tile: any): MushroomBouncyController | null {
+  if (!isMushroomBouncyTile(tile) || tile.destroyed) {
+    stopMushroomBouncyArtwork(tile);
     return null;
   }
-  const existing = controllers.get(tile) || tile._ccRoboBouncyArtwork;
+  const existing = controllers.get(tile) || tile._ccMushroomBouncyArtwork;
   if (existing && !existing.disposed) {
+    existing.dragging = false;
     ensureRuntimeLease()?.requestSync();
     return existing;
   }
@@ -326,47 +267,39 @@ export function startRoboBouncyArtwork(
   if (!base || base.destroyed || !host || host.destroyed) return null;
   const lease = ensureRuntimeLease();
   if (!lease) return null;
-  const dragTextureSource = idleFrameSources[1] ?? idleFrameSources[0] ?? null;
-  const controller = createController(
-    tile,
-    base,
-    host,
-    lease.root,
-    dragTextureSource,
-    finalePreloadSources,
-  );
+  const controller = createController(tile, base, host, lease.root);
   controllers.set(tile, controller);
-  tile._ccRoboBouncyArtwork = controller;
+  tile._ccMushroomBouncyArtwork = controller;
   lease.requestSync();
   return controller;
 }
 
-export function stopRoboBouncyArtwork(tile: any): void {
+export function stopMushroomBouncyArtwork(tile: any): void {
   if (!tile) return;
-  const controller = controllers.get(tile) || tile._ccRoboBouncyArtwork;
+  const controller = controllers.get(tile) || tile._ccMushroomBouncyArtwork;
   if (controller) disposeController(controller);
 }
 
-export function setRoboBouncyArtworkDragging(tile: any, dragging: boolean): boolean {
-  const controller = controllers.get(tile) || tile?._ccRoboBouncyArtwork;
-  if (!controller || controller.disposed || !isRoboBouncyTile(tile)) return false;
+export function setMushroomBouncyArtworkDragging(tile: any, dragging: boolean): boolean {
+  const controller = controllers.get(tile) || tile?._ccMushroomBouncyArtwork;
+  if (!controller || controller.disposed || !isMushroomBouncyTile(tile)) return false;
   controller.dragging = dragging;
   setAnimatedSpecialArtworkDragging(controller.wrapper, dragging);
   controller.wrapper.style.zIndex = String(
-    dragging ? ROBO_BOUNCY_DRAG_Z_INDEX : (Number.isFinite(tile.zIndex) ? Math.round(tile.zIndex) : 0),
+    dragging
+      ? MUSHROOM_BOUNCY_DRAG_Z_INDEX
+      : (Number.isFinite(tile.zIndex) ? Math.round(tile.zIndex) : 0),
   );
   if (dragging) {
     controller.wrapper.style.visibility = 'hidden';
     try { controller.base.renderable = true; } catch {}
-    paintDragFallback(controller);
   } else {
-    restoreOriginalTexture(controller);
     runtimeLease?.requestSync();
   }
   return true;
 }
 
-export function destroyRoboBouncyArtworkRuntime(): void {
+export function destroyMushroomBouncyArtworkRuntime(): void {
   Array.from(controllers.values()).forEach(disposeController);
   if (runtimeLease) {
     runtimeLease.release();
@@ -374,7 +307,7 @@ export function destroyRoboBouncyArtworkRuntime(): void {
   }
 }
 
-export function getRoboBouncyRuntimeStats() {
+export function getMushroomBouncyRuntimeStats() {
   let ready = 0;
   controllers.forEach((controller) => {
     if (controller.ready && !controller.disposed) ready += 1;

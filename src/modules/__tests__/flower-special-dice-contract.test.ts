@@ -7,6 +7,28 @@ describe('Flower special-die visual contract', () => {
   const registrySource = read('src/modules/special-dice-registry.ts');
   const fxSource = read('src/modules/fx.ts');
   const tntSource = read('src/modules/tnt-animation.ts');
+  const specialIdleSource = read('src/modules/special-dice-idle.ts');
+  const artworkSource = read('src/modules/flower-bouncy-artwork.ts');
+  const comprehensivePreloaderSource = read('src/utils/comprehensive-image-preloader.ts');
+
+  test('routes only the exact Flower variant through the shared SVG lifecycle', () => {
+    expect(artworkSource).toContain("FLOWER_BOUNCY_SVG_URL = './assets/shop/bush/flower.svg'");
+    expect(artworkSource).toContain("getSpecialDiceVariantForTile(tile)?.id === 'flower'");
+    expect(artworkSource).toContain('acquireAnimatedSpecialArtworkLayer(updateFlowerBouncyArtwork)');
+    expect(artworkSource).toContain('acquireAnimatedSvgPhase(');
+    expect(artworkSource).toContain('FLOWER_BOUNCY_CYCLE_MS');
+    expect(artworkSource).toContain('controller.base.renderable = controller.baseRenderable');
+    expect(artworkSource).toContain("pollenLayer.className = 'flower-bouncy-front-pollen'");
+    expect(artworkSource).toContain("zIndex: '2'");
+    expect(artworkSource).toContain('particle.renderable = false');
+    expect(artworkSource).toContain('releaseFrontPollenSystem(controller)');
+    expect(specialIdleSource).toContain("from './flower-bouncy-artwork.ts'");
+    expect(specialIdleSource).toContain('if (isFlowerBouncyTile(tile)) {');
+    expect(specialIdleSource).toContain('startFlowerBouncyArtwork(tile)');
+    expect(specialIdleSource).toContain('stopFlowerBouncyArtwork(tile)');
+    expect(specialIdleSource).toContain('setFlowerBouncyArtworkDragging(tile, dragging)');
+    expect(comprehensivePreloaderSource.match(/\.\/assets\/shop\/bush\/flower\.svg/g)).toHaveLength(2);
+  });
 
   test('keeps Flower on TNT gameplay while owning a separate pollen-only idle profile', () => {
     const flowerDefinition = registrySource.slice(
@@ -39,6 +61,10 @@ describe('Flower special-die visual contract', () => {
     expect(fxSource).toContain('(2 + Math.random() * 1.45) * FLOWER_POLLEN_SIZE_SCALE');
     expect(fxSource).toContain('const peakAlpha = 0.6 + Math.random() * 0.35');
     expect(fxSource).toContain('const grainShape = Math.random()');
+    expect(fxSource).toContain("kind: 'ellipse'");
+    expect(fxSource).toContain("kind: 'polygon'");
+    expect(fxSource).toContain("kind: 'double-ellipse'");
+    expect(fxSource).toContain('delete particle._ccFlowerPollenPaint');
     expect(fxSource).toContain('particle.ellipse(0, 0, width, height)');
     expect(fxSource).toContain('particle.poly(points)');
     expect(fxSource).toContain('_flowerPollenProgress: 1');

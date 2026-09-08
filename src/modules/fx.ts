@@ -6238,6 +6238,12 @@ function releaseFlowerPollenParticle(tile, particle) {
     __globalGraphicsObjects.delete(particle);
     const owned = tile?._flowerPollenParticles;
     if (owned instanceof Set) owned.delete(particle);
+    if (particle._ccFlowerFrontPollenOwner) {
+      particle.renderable = particle._ccFlowerFrontPollenRenderableBefore !== false;
+    }
+    delete particle._ccFlowerFrontPollenOwner;
+    delete particle._ccFlowerFrontPollenRenderableBefore;
+    delete particle._ccFlowerPollenPaint;
     graphicsPool.release(particle);
   } catch {}
 }
@@ -6279,6 +6285,13 @@ function startFlowerPollenIdle(tile) {
         const width = radius * (1.15 + Math.random() * 0.65);
         const height = radius * (0.38 + Math.random() * 0.42);
         particle.ellipse(0, 0, width, height).fill({ color, alpha: peakAlpha });
+        particle._ccFlowerPollenPaint = {
+          kind: 'ellipse',
+          color,
+          fillAlpha: peakAlpha,
+          width,
+          height,
+        };
       } else if (grainShape < 0.82) {
         const points = [];
         const sides = 5 + Math.floor(Math.random() * 3);
@@ -6288,11 +6301,23 @@ function startFlowerPollenIdle(tile) {
           points.push(Math.cos(angle) * irregularRadius, Math.sin(angle) * irregularRadius * 0.72);
         }
         particle.poly(points).fill({ color, alpha: peakAlpha });
+        particle._ccFlowerPollenPaint = {
+          kind: 'polygon',
+          color,
+          fillAlpha: peakAlpha,
+          points: points.slice(),
+        };
       } else {
         particle
           .ellipse(-radius * 0.3, 0, radius * 0.72, radius * 0.42)
           .ellipse(radius * 0.5, radius * 0.12, radius * 0.4, radius * 0.25)
           .fill({ color, alpha: peakAlpha });
+        particle._ccFlowerPollenPaint = {
+          kind: 'double-ellipse',
+          color,
+          fillAlpha: peakAlpha,
+          radius,
+        };
       }
       particle.x = center.x + (Math.random() - 0.5) * 9;
       particle.y = center.y - 2 + (Math.random() - 0.5) * 5;

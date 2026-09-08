@@ -10231,6 +10231,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           origY: number;
           returnDuration: number;
           returnElastic: number;
+          returnAmplitude?: number;
+          returnNotBeforeMs?: number;
         };
         const playShortWildMerge6TileBlast = (
           label: string,
@@ -10331,8 +10333,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   tile,
                   origX,
                   origY,
-                  returnDuration: tileReturnDuration,
-                  returnElastic: 0.30 + Math.random() * 0.12,
+                  // Beach Ball releases TNT gameplay at the start of its visual
+                  // sequence. Do not let that early handoff overwrite this
+                  // tile's outward wave before it actually reaches the spread.
+                  returnNotBeforeMs: Date.now() + Math.round((waveDelay + tileBlastDuration) * 1000),
+                  returnDuration: 0.82 + Math.random() * 0.10,
+                  returnElastic: 0.22 + Math.random() * 0.05,
+                  returnAmplitude: 1.02 + Math.random() * 0.08,
                 });
               } else {
                 timeline.to(tile, {
@@ -10372,7 +10379,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           let markTntVisualSequenceComplete: ((reason: string) => void) | null = null;
           if (isMainWildTntMerge) {
             try {
-              const blastReturnHandles: Array<{ tile: Tile; wobble: gsap.core.Tween | null; origX: number; origY: number; returnDuration: number; returnElastic: number }> = [];
+              const blastReturnHandles: Array<WildMerge6TileBlastHandle & { wobble: gsap.core.Tween | null }> = [];
               const startTntBoardBlast = () => {
                 // Pokreni blast+shake tek nakon što TNT sprite sekvenca završi.
                 try {
@@ -10493,13 +10500,17 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   blastReturnHandles.forEach((h) => {
                     if (!h.tile || h.tile.destroyed || !STATE?.tiles?.includes?.(h.tile)) return;
                     pending += 1;
-                    maxReturnDuration = Math.max(maxReturnDuration, h.returnDuration);
+                    const returnDelaySeconds = h.returnNotBeforeMs
+                      ? Math.max(0, (h.returnNotBeforeMs - Date.now()) / 1000)
+                      : 0;
+                    maxReturnDuration = Math.max(maxReturnDuration, returnDelaySeconds + h.returnDuration);
                     try { h.wobble?.kill(); } catch {}
                     trackTween(h.tile, {
                       x: h.origX,
                       y: h.origY,
                       duration: h.returnDuration,
-                      ease: `elastic.out(0.6, ${h.returnElastic})`,
+                      delay: returnDelaySeconds,
+                      ease: `elastic.out(${h.returnAmplitude ?? 0.6}, ${h.returnElastic})`,
                       overwrite: 'auto',
                       onComplete: () => {
                         try { gsap.set(h.tile, { x: h.origX, y: h.origY }); } catch {}
@@ -15141,6 +15152,15 @@ async function restartGame(): Promise<void> {
 
 async function performRestartGame(): Promise<void> {
   devLog('🔄 Starting clean restart - preserving HUD position');
+
+  // Retire pointer, Pixi-parent and DOM-SVG ownership before the board is
+  // detached. The drag manager itself remains installed for the rebuilt board.
+  try { (drag as any)?.cancelActive?.({ resumeIdle: false }); } catch {}
+  try {
+    (STATE?.tiles || tiles || []).forEach((tile: any) => {
+      try { stopSpecialDiceIdleMotion(tile); } catch {}
+    });
+  } catch {}
   
   // CRITICAL FIX: Reset game ended flag when restarting
   window._gameHasEnded = false;
@@ -15553,6 +15573,9 @@ export function cleanupGame(options: { destroyRenderer?: boolean } = {}) {
   // callers. Ordinary route exit must opt into the soft renderer session.
   const destroyRenderer = options.destroyRenderer !== false;
   devLog('🧹 Cleaning up game state');
+  // Release drag/canvas/SVG ownership while the renderer and live tile parents
+  // still exist; end-of-cleanup is too late for a reliable restore.
+  try { (drag as any)?.cancelActive?.({ resumeIdle: false }); } catch {}
   // Retire every hidden-entry owner before destroying its Pixi/DOM targets.
   // Waiting for uiManager.hideApp() leaves a window where a stale Round cue or
   // prepared commit can re-hide the next Homepage/new-game surface.
@@ -15708,6 +15731,7 @@ export function cleanupGame(options: { destroyRenderer?: boolean } = {}) {
   if (tiles) {
     tiles.forEach(t => {
       // 🔥 MEMORY LEAK FIX: Cleanup all tile animations and intervals before destroy
+      try { stopSpecialDiceIdleMotion(t); } catch {}
       try { stopWildIdle?.(t); } catch {}
       try { stopWildShimmer?.(t); } catch {}
       try { stopWildStars?.(t); } catch {}

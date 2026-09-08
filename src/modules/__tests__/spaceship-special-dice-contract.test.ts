@@ -210,7 +210,7 @@ describe('Spaceship special die', () => {
 
     expect(idle).toContain("return getSpecialDiceVariantForTile(tile)?.idleMotion === 'spaceship-hover'");
     expect(idle).toContain("if (variant.idleMotion === 'spaceship-hover' && tile._ccSpecialDiceIdleTl) return;");
-    expect(drag).toContain('if (keepsSpecialDiceIdleRunningDuringDrag(tile)) continue;');
+    expect(drag).not.toContain('pauseSpecialDiceIdleForDrag');
     expect(drag).toContain('if (t.rotG && !keepsIdleRunningDuringDrag) gsap.killTweensOf(t.rotG);');
     expect(drag).toContain('if (t.rotG && !keepsSpecialDiceIdleRunningDuringDrag(t)) {');
     expect(drag).toContain('if (t?.rotG && !keepsSpecialDiceIdleRunningDuringDrag(t)) {');

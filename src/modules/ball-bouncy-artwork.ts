@@ -1,6 +1,8 @@
 import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
 import {
   acquireAnimatedSpecialArtworkLayer,
+  doesAnimatedSpecialArtworkOverlapGameplayDrag,
+  setAnimatedSpecialArtworkDragging,
   type AnimatedSpecialArtworkFrame,
   type AnimatedSpecialArtworkLayerLease,
 } from './animated-special-artwork-layer.ts';
@@ -247,6 +249,17 @@ function syncController(controller: BallBouncyController, frame: AnimatedSpecial
     return;
   }
 
+  if (
+    frame.gameplayDragActive
+    && !controller.dragging
+    && doesAnimatedSpecialArtworkOverlapGameplayDrag(wrapper, frame.gameplayDragBounds)
+  ) {
+    releaseFrontBubbleSystem(controller);
+    wrapper.style.visibility = 'hidden';
+    try { base.renderable = controller.baseRenderable; } catch {}
+    return;
+  }
+
   if (controller.dragging) {
     releaseFrontBubbleSystem(controller);
     wrapper.style.visibility = 'hidden';
@@ -423,6 +436,7 @@ export function setBallBouncyArtworkDragging(tile: any, dragging: boolean): bool
   const controller = controllers.get(tile) || tile?._ccBallBouncyArtwork;
   if (!controller || controller.disposed || !isBeachBallBouncyTile(tile)) return false;
   controller.dragging = dragging;
+  setAnimatedSpecialArtworkDragging(controller.wrapper, dragging);
   controller.wrapper.style.zIndex = String(
     dragging ? BALL_BOUNCY_DRAG_Z_INDEX : (Number.isFinite(tile.zIndex) ? Math.round(tile.zIndex) : 0),
   );

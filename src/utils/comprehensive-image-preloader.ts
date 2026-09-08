@@ -97,7 +97,8 @@ async function loadMobileLaunchRouteAssets(): Promise<void> {
     './assets/shop/ball/ball-bouncy.svg',
     './assets/shop/robo/robo-bouncy.svg',
     './assets/shop/star/star.svg',
-    './assets/shop/star/stars.svg',
+    './assets/shop/mushroom/mushroom.svg',
+    './assets/shop/bush/flower.svg',
   ];
   const pending = [...new Set(routeAssets)];
   const workers = Array.from({ length: Math.min(2, pending.length) }, async () => {
@@ -210,7 +211,8 @@ const ALL_STARTUP_IMAGES: string[] = [
   './assets/shop/ball/ball-bouncy.svg',
   './assets/shop/robo/robo-bouncy.svg',
   './assets/shop/star/star.svg',
-  './assets/shop/star/stars.svg',
+  './assets/shop/mushroom/mushroom.svg',
+  './assets/shop/bush/flower.svg',
   './assets/shop/explosion pack/tnt.png',
   './assets/shop/explosion pack/tnt@2x.png',
   './assets/shop/explosion pack/tnt@3x.png',

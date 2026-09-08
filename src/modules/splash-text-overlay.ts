@@ -13,6 +13,7 @@ import { attachBeeFinaleScene } from './bee-finale-scene.js';
 import { attachKantaFinaleScene } from './kanta-finale-scene.ts';
 import { setWildFxDragLock, startWildFxDragLockForAnimation } from './wild-fx-drag-lock.ts';
 import { applyEffectLetterOpacity, resolveEffectLetterOpacity } from './effect-letter-opacity.ts';
+import { acquireAnimatedSpecialArtworkFinaleDepth } from './animated-special-artwork-layer.ts';
 
 const trackTimeline = (opts?: any) => animationManager.trackExternalTimeline(gsap.timeline(opts));
 const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
@@ -27,6 +28,7 @@ let swoopFxCleanup: (() => void) | null = null;
 let magneticTextActive = false;
 let magneticTextWaiters: Array<() => void> = [];
 let magneticRunId = 0;
+let releaseMagneticFinaleDepth: (() => void) | null = null;
 let sparkleOverlay: HTMLElement | null = null;
 let sparkleTimelinesRef: gsap.core.Timeline[] = [];
 let sparkleBounceTimelinesRef: gsap.core.Timeline[] = [];
@@ -34,6 +36,7 @@ let sparkleDelayedCallsRef: gsap.core.Tween[] = [];
 let sparkleFxCleanup: (() => void) | null = null;
 let sparkleTextActive = false;
 let sparkleTextWaiters: Array<() => void> = [];
+let releaseSparkleFinaleDepth: (() => void) | null = null;
 let noMovesOverlay: HTMLElement | null = null;
 let noMovesTimelinesRef: gsap.core.Timeline[] = [];
 let noMovesBounceTimelinesRef: gsap.core.Timeline[] = [];
@@ -156,7 +159,10 @@ function cleanupBuzzzOverlay(expectedRunId?: number): void {
     magneticTextActive = false;
     setWildFxDragLock('magnetic-text', false);
     resolveMagneticTextWaiters();
-  } catch {}
+  } catch {} finally {
+    try { releaseMagneticFinaleDepth?.(); } catch {}
+    releaseMagneticFinaleDepth = null;
+  }
 }
 
 /**
@@ -169,6 +175,7 @@ export function showMagneticText(options: any = {}): void {
     cleanupBuzzzOverlay();
     runId = ++magneticRunId;
     magneticTextActive = true;
+    releaseMagneticFinaleDepth = acquireAnimatedSpecialArtworkFinaleDepth();
     startWildFxDragLockForAnimation('magnetic-text', 3600, options?.inputReleaseAtRatio ?? 0.25);
 
     const overlay = document.createElement('div');
@@ -506,7 +513,10 @@ function cleanupSparkleOverlay(): void {
     sparkleTextActive = false;
     setWildFxDragLock('sparkle-text', false);
     resolveSparkleTextWaiters();
-  } catch {}
+  } catch {} finally {
+    try { releaseSparkleFinaleDepth?.(); } catch {}
+    releaseSparkleFinaleDepth = null;
+  }
 }
 
 /**
@@ -517,6 +527,7 @@ export function showSparkleText(origin?: { x: number; y: number } | null, option
   try {
     cleanupSparkleOverlay();
     sparkleTextActive = true;
+    releaseSparkleFinaleDepth = acquireAnimatedSpecialArtworkFinaleDepth();
     startWildFxDragLockForAnimation('sparkle-text', 3600, options?.inputReleaseAtRatio ?? 0.25);
     const sparkleText = String(options?.text || 'SPARKLE');
     const sparkleColor = String(options?.color || '#FFCB81');

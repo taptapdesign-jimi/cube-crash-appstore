@@ -17,6 +17,7 @@ import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
 import { acquirePixiMobileActivityLease } from './pixi-mobile-frame-controller.ts';
 import { applyEffectLetterOpacity, resolveEffectLetterOpacity } from './effect-letter-opacity.ts';
 import { selectRoboExitFrameIndex } from './robo-exit-frame-selector.ts';
+import { acquireAnimatedSpecialArtworkFinaleDepth } from './animated-special-artwork-layer.ts';
 
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
@@ -65,6 +66,7 @@ let bubblyBounceTimelinesRef: gsap.core.Timeline[] = [];
 let bubblyDelayedCallsRef: gsap.core.Tween[] = [];
 let bubblyFxCleanup: (() => void) | null = null;
 let releaseExplosionMobileActivity: (() => void) | null = null;
+let releaseExplosionFinaleDepth: (() => void) | null = null;
 let lastRoboExitFrameIndex: number | null = null;
 const lifecycle = createScreenLifecycle('wild-juice-bubbles-explosion');
 const WILD_JUICE_HAPTIC_INITIAL_COUNT = 3;
@@ -560,6 +562,7 @@ async function showWildJuiceBubblesExplosionInternal(
     return;
   }
 
+  releaseExplosionFinaleDepth = acquireAnimatedSpecialArtworkFinaleDepth();
   isExplosionActive = true;
   releaseExplosionMobileActivity?.();
   releaseExplosionMobileActivity = acquirePixiMobileActivityLease('juice-family-finale');
@@ -2400,6 +2403,8 @@ function cleanup(): void {
     
     isExplosionActive = false;
   } finally {
+    try { releaseExplosionFinaleDepth?.(); } catch {}
+    releaseExplosionFinaleDepth = null;
     cleanupInProgress = false;
   }
 }

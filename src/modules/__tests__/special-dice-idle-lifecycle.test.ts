@@ -209,9 +209,12 @@ describe('special-dice idle lifecycle', () => {
     expect(tile._ccBeeDiceIdle).toBeUndefined();
   });
 
-  test('Mushroom owns one smoke master plus its existing pop timeline', () => {
+  test('Mushroom keeps one smoke master without the former GSAP pop timeline', () => {
     const rotG = new Container();
+    const base = new Sprite(Texture.WHITE);
+    rotG.addChild(base);
     const tile: any = {
+      base,
       rotG,
       destroyed: false,
       _ccSpecialDiceVariant: 'mushroom',
@@ -220,7 +223,7 @@ describe('special-dice idle lifecycle', () => {
 
     startSpecialDiceIdleMotion(tile);
     expect(tile._ccMushroomSmokeTimeline).toBeTruthy();
-    expect(animationManager.getStats().activeTimelines).toBe(baseline + 2);
+    expect(animationManager.getStats().activeTimelines).toBe(baseline + 1);
 
     stopSpecialDiceIdleMotion(tile);
     expect(tile._ccMushroomSmokeTimeline).toBeUndefined();

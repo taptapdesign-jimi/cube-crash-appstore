@@ -17,6 +17,10 @@ import {
 } from '../ball-bouncy-artwork';
 import { getAnimatedSpecialArtworkLayerStats } from '../animated-special-artwork-layer';
 import {
+  acquireGameplayDragForeground,
+  setGameplayDragBounds,
+} from '../gameplay-drag-foreground-owner';
+import {
   destroyJuiceBounceArtworkRuntime,
   startJuiceBounceArtwork,
 } from '../juice-bounce-artwork';
@@ -30,15 +34,17 @@ function makeTile(variant: string, special: string) {
   const base = new Sprite(Texture.WHITE);
   const rotG = new Container();
   rotG.addChild(base);
-  return {
-    tile: {
+  const tile = {
       special,
       _ccSpecialDiceVariant: variant,
       destroyed: false,
       zIndex: 7,
       base,
       rotG,
-    } as any,
+      getBounds: () => ({ x: 100, y: 100, width: 128, height: 128 }),
+    } as any;
+  return {
+    tile,
     base,
   };
 }
@@ -210,6 +216,47 @@ describe('Beach Ball animated SVG board artwork', () => {
     expect(base.renderable).toBe(true);
     expect((controller as any).ready).toBe(false);
     expect((controller as any).wrapper.style.visibility).toBe('hidden');
+  });
+
+  test('keeps Ball animated during another drag and swaps only while their bounds overlap', () => {
+    const { tile, base } = makeTile('beach-ball', 'wild-tnt');
+    startSpecialDiceIdleMotion(tile);
+    const controller = tile._ccBallBouncyArtwork;
+    (controller as any).wrapper.getBoundingClientRect = () => ({
+      x: 100,
+      y: 100,
+      left: 100,
+      top: 100,
+      right: 228,
+      bottom: 228,
+      width: 128,
+      height: 128,
+      toJSON: () => ({}),
+    });
+    (controller as any).image.onload(new Event('load'));
+    expect(base.renderable).toBe(false);
+    expect((controller as any).wrapper.style.visibility).toBe('visible');
+
+    const releaseForeground = acquireGameplayDragForeground();
+    try {
+      expect((controller as any).dragging).toBe(false);
+      setGameplayDragBounds({ x: 300, y: 300, width: 128, height: 128 });
+      expect((controller as any).wrapper.style.visibility).toBe('visible');
+      expect(base.renderable).toBe(false);
+
+      setGameplayDragBounds({ x: 150, y: 150, width: 128, height: 128 });
+      expect((controller as any).wrapper.style.visibility).toBe('hidden');
+      expect(base.renderable).toBe(true);
+
+      setGameplayDragBounds({ x: 300, y: 300, width: 128, height: 128 });
+      expect((controller as any).wrapper.style.visibility).toBe('visible');
+      expect(base.renderable).toBe(false);
+    } finally {
+      releaseForeground();
+    }
+
+    expect((controller as any).wrapper.style.visibility).toBe('visible');
+    expect(base.renderable).toBe(false);
   });
 
   test('shares one depth-sorted overlay with Juice instead of creating competing roots', () => {

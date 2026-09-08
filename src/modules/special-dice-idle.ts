@@ -38,6 +38,18 @@ import {
   startRoboBouncyArtwork,
   stopRoboBouncyArtwork,
 } from './robo-bouncy-artwork.ts';
+import {
+  isMushroomBouncyTile,
+  setMushroomBouncyArtworkDragging,
+  startMushroomBouncyArtwork,
+  stopMushroomBouncyArtwork,
+} from './mushroom-bouncy-artwork.ts';
+import {
+  isFlowerBouncyTile,
+  setFlowerBouncyArtworkDragging,
+  startFlowerBouncyArtwork,
+  stopFlowerBouncyArtwork,
+} from './flower-bouncy-artwork.ts';
 
 const trackTimeline = (opts: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(opts));
 
@@ -180,6 +192,8 @@ export function stopSpecialDiceIdleMotion(tile: any): void {
     stopJuiceBounceArtwork(tile);
     stopBallBouncyArtwork(tile);
     stopRoboBouncyArtwork(tile);
+    stopMushroomBouncyArtwork(tile);
+    stopFlowerBouncyArtwork(tile);
     try { tile?._ccKantaDiceIdle?.dispose?.(); } catch {}
     if (tile) delete tile._ccKantaDiceIdle;
     try { tile?._ccRoboCubeIdle?.dispose?.(); } catch {}
@@ -240,6 +254,18 @@ export function stopSpecialDiceIdleMotion(tile: any): void {
 }
 
 export function setSpecialDiceIdleDragging(tile: any, dragging: boolean): boolean {
+  if (tile?._ccFlowerBouncyArtwork && isFlowerBouncyTile(tile)) {
+    return setFlowerBouncyArtworkDragging(tile, dragging);
+  }
+  if (tile?._ccMushroomBouncyArtwork && isMushroomBouncyTile(tile)) {
+    const handled = setMushroomBouncyArtworkDragging(tile, dragging);
+    if (handled) {
+      if (tile._ccMushroomSmokeContainer) tile._ccMushroomSmokeContainer.visible = !dragging;
+      if (dragging) tile._ccMushroomSmokeTimeline?.pause?.();
+      else tile._ccMushroomSmokeTimeline?.resume?.();
+    }
+    return handled;
+  }
   if (tile?._ccRoboBouncyArtwork && isRoboBouncyTile(tile)) {
     return setRoboBouncyArtworkDragging(tile, dragging);
   }
@@ -305,6 +331,8 @@ export function startSpecialDiceIdleMotion(tile: any): void {
       stopJuiceBounceArtwork(tile);
       stopBallBouncyArtwork(tile);
       stopRoboBouncyArtwork(tile);
+      stopMushroomBouncyArtwork(tile);
+      stopFlowerBouncyArtwork(tile);
       startWildStarBouncyArtwork(tile);
       return;
     }
@@ -312,6 +340,8 @@ export function startSpecialDiceIdleMotion(tile: any): void {
       stopWildStarBouncyArtwork(tile);
       stopBallBouncyArtwork(tile);
       stopRoboBouncyArtwork(tile);
+      stopMushroomBouncyArtwork(tile);
+      stopFlowerBouncyArtwork(tile);
       startJuiceBounceArtwork(tile);
       return;
     }
@@ -319,6 +349,8 @@ export function startSpecialDiceIdleMotion(tile: any): void {
       stopWildStarBouncyArtwork(tile);
       stopJuiceBounceArtwork(tile);
       stopRoboBouncyArtwork(tile);
+      stopMushroomBouncyArtwork(tile);
+      stopFlowerBouncyArtwork(tile);
       startBallBouncyArtwork(tile);
       return;
     }
@@ -326,6 +358,8 @@ export function startSpecialDiceIdleMotion(tile: any): void {
       stopWildStarBouncyArtwork(tile);
       stopJuiceBounceArtwork(tile);
       stopBallBouncyArtwork(tile);
+      stopMushroomBouncyArtwork(tile);
+      stopFlowerBouncyArtwork(tile);
       const idleSources = Array.isArray(variant?.idleSpriteSources) ? variant.idleSpriteSources : [];
       const finaleSources = [
         ...(Array.isArray(variant?.explosionSpriteSources) ? variant.explosionSpriteSources : []),
@@ -334,10 +368,31 @@ export function startSpecialDiceIdleMotion(tile: any): void {
       startRoboBouncyArtwork(tile, idleSources, finaleSources);
       return;
     }
+    if (isFlowerBouncyTile(tile)) {
+      stopWildStarBouncyArtwork(tile);
+      stopJuiceBounceArtwork(tile);
+      stopBallBouncyArtwork(tile);
+      stopRoboBouncyArtwork(tile);
+      stopMushroomBouncyArtwork(tile);
+      startFlowerBouncyArtwork(tile);
+      return;
+    }
+    if (
+      isMushroomBouncyTile(tile)
+      && tile._ccMushroomBouncyArtwork
+      && tile._ccMushroomSmokeTimeline
+    ) {
+      setMushroomBouncyArtworkDragging(tile, false);
+      tile._ccMushroomSmokeContainer.visible = true;
+      tile._ccMushroomSmokeTimeline.resume?.();
+      return;
+    }
     stopWildStarBouncyArtwork(tile);
     stopJuiceBounceArtwork(tile);
     stopBallBouncyArtwork(tile);
     stopRoboBouncyArtwork(tile);
+    stopMushroomBouncyArtwork(tile);
+    stopFlowerBouncyArtwork(tile);
     if (!variant?.idleMotion && variant?.id !== 'honey') return;
 
     if (variant.id === 'honey' && tile._ccHoneyBeeIdleOrbit) {
@@ -354,6 +409,10 @@ export function startSpecialDiceIdleMotion(tile: any): void {
     if (variant.idleMotion === 'spaceship-hover' && tile._ccSpecialDiceIdleTl) return;
 
     stopSpecialDiceIdleMotion(tile);
+
+    if (isMushroomBouncyTile(tile)) {
+      startMushroomBouncyArtwork(tile);
+    }
 
     if (variant.id === 'honey') {
       tile._ccHoneyBeeIdleOrbit = startHoneyBeeIdleOrbit(tile);
@@ -471,7 +530,12 @@ export function startSpecialDiceIdleMotion(tile: any): void {
       tile._ccMushroomSmokeTimeline = smokeTimeline;
     }
 
-    const repeatDelay = variant.idleMotion === 'mushroom-pop' ? 0.72 : 0.12;
+    // The authored SVG owns Mushroom bounce/squash/rotation. Retain only the
+    // established smoke timeline so two independent motion owners never
+    // compound the tile transform.
+    if (variant.idleMotion === 'mushroom-pop') return;
+
+    const repeatDelay = 0.12;
     let tl: any = null;
     tl = trackTimeline({
       repeat: -1,
@@ -529,47 +593,6 @@ export function startSpecialDiceIdleMotion(tile: any): void {
         duration: 1.8,
         ease: 'sine.inOut',
       });
-    } else if (variant.idleMotion === 'mushroom-pop') {
-      tl.to(host, {
-        y: base.y - 2,
-        duration: 0.10,
-        ease: 'power2.out',
-      });
-      tl.to(host.scale, {
-        x: base.scaleX * 0.94,
-        y: base.scaleY * 1.06,
-        duration: 0.10,
-        ease: 'power2.out',
-      }, '<');
-      tl.to(host, {
-        y: base.y - 7,
-        duration: 0.20,
-        ease: 'sine.out',
-      });
-      tl.to(host.scale, {
-        x: base.scaleX * 1.02,
-        y: base.scaleY * 0.98,
-        duration: 0.20,
-        ease: 'sine.out',
-      }, '<');
-      tl.to(host, {
-        y: base.y + 1,
-        duration: 0.16,
-        ease: 'power2.in',
-      });
-      tl.to(host.scale, {
-        x: base.scaleX * 1.07,
-        y: base.scaleY * 0.91,
-        duration: 0.16,
-        ease: 'power2.in',
-      }, '<');
-      tl.to(host, { y: base.y, duration: 0.22, ease: 'back.out(2.1)' });
-      tl.to(host.scale, {
-        x: base.scaleX,
-        y: base.scaleY,
-        duration: 0.22,
-        ease: 'back.out(2.1)',
-      }, '<');
     } else if (variant.idleMotion === 'cubero-hop') {
       tl.to(host, {
         x: base.x - 2,

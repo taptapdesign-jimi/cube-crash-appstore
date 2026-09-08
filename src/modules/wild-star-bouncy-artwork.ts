@@ -1,6 +1,8 @@
 import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
 import {
   acquireAnimatedSpecialArtworkLayer,
+  doesAnimatedSpecialArtworkOverlapGameplayDrag,
+  setAnimatedSpecialArtworkDragging,
   type AnimatedSpecialArtworkFrame,
   type AnimatedSpecialArtworkLayerLease,
 } from './animated-special-artwork-layer.ts';
@@ -10,17 +12,11 @@ import {
 } from './animated-svg-phase-scheduler.ts';
 
 export const WILD_STAR_BOUNCY_SVG_URL = './assets/shop/star/star.svg';
-export const WILD_STAR_ORBIT_SVG_URL = './assets/shop/star/stars.svg';
 export const WILD_STAR_BOUNCY_VIEWBOX = Object.freeze({ width: 520, height: 560 });
 export const WILD_STAR_BOUNCY_REST_ART = Object.freeze({
   centerX: 260,
   centerY: 465 + (-407 + 432 / 2) * 0.85,
   size: 432 * 0.85,
-});
-export const WILD_STAR_ORBIT_REST_ART = Object.freeze({
-  centerX: 260,
-  centerY: 492 + (-407 + 432 / 2) * 0.73,
-  size: 432 * 0.73,
 });
 export const WILD_STAR_BOUNCY_DISPLAY_SIZE = 128;
 export const WILD_STAR_BOUNCY_DRAG_Z_INDEX = 12001;
@@ -32,13 +28,25 @@ const DISPLAY_WIDTH = WILD_STAR_BOUNCY_VIEWBOX.width * DISPLAY_SCALE;
 const DISPLAY_HEIGHT = WILD_STAR_BOUNCY_VIEWBOX.height * DISPLAY_SCALE;
 const DISPLAY_ANCHOR_X = WILD_STAR_BOUNCY_REST_ART.centerX / WILD_STAR_BOUNCY_VIEWBOX.width;
 const DISPLAY_ANCHOR_Y = WILD_STAR_BOUNCY_REST_ART.centerY / WILD_STAR_BOUNCY_VIEWBOX.height;
-const ORBIT_DISPLAY_SCALE = WILD_STAR_BOUNCY_DISPLAY_SIZE / WILD_STAR_ORBIT_REST_ART.size;
-const ORBIT_DISPLAY_WIDTH = WILD_STAR_BOUNCY_VIEWBOX.width * ORBIT_DISPLAY_SCALE;
-const ORBIT_DISPLAY_HEIGHT = WILD_STAR_BOUNCY_VIEWBOX.height * ORBIT_DISPLAY_SCALE;
-const ORBIT_DISPLAY_ANCHOR_X = WILD_STAR_ORBIT_REST_ART.centerX / WILD_STAR_BOUNCY_VIEWBOX.width;
-const ORBIT_DISPLAY_ANCHOR_Y = WILD_STAR_ORBIT_REST_ART.centerY / WILD_STAR_BOUNCY_VIEWBOX.height;
 const DISPLAY_ANCHOR_OFFSET_X = DISPLAY_WIDTH * DISPLAY_ANCHOR_X;
 const DISPLAY_ANCHOR_OFFSET_Y = DISPLAY_HEIGHT * DISPLAY_ANCHOR_Y;
+const ORBIT_STAR_DISPLAY_SIZE = 40;
+const ORBIT_STAR_HALF_SIZE = ORBIT_STAR_DISPLAY_SIZE / 2;
+
+type WildStarOrbitPaintNode = {
+  image: HTMLImageElement;
+  ready: boolean;
+  failed: boolean;
+};
+
+type Matrix2D = {
+  a: number;
+  b: number;
+  c: number;
+  d: number;
+  tx: number;
+  ty: number;
+};
 
 type WildStarBouncyController = {
   tile: any;
@@ -46,12 +54,12 @@ type WildStarBouncyController = {
   host: any;
   wrapper: HTMLDivElement;
   image: HTMLImageElement;
-  orbitImage: HTMLImageElement;
+  orbitLayer: HTMLDivElement;
+  orbitNodes: Map<any, WildStarOrbitPaintNode>;
   orbitSystem: any | null;
   baseRenderable: boolean;
   dragging: boolean;
   ready: boolean;
-  orbitReady: boolean;
   disposed: boolean;
   phaseLease: AnimatedSvgPhaseLease | null;
 };
@@ -73,19 +81,6 @@ export function getWildStarBouncyDisplayGeometry() {
     anchorY: DISPLAY_ANCHOR_Y,
     restingArtworkWidth: WILD_STAR_BOUNCY_REST_ART.size * DISPLAY_SCALE,
     restingArtworkHeight: WILD_STAR_BOUNCY_REST_ART.size * DISPLAY_SCALE,
-  };
-}
-
-export function getWildStarOrbitDisplayGeometry() {
-  return {
-    width: ORBIT_DISPLAY_WIDTH,
-    height: ORBIT_DISPLAY_HEIGHT,
-    anchorX: ORBIT_DISPLAY_ANCHOR_X,
-    anchorY: ORBIT_DISPLAY_ANCHOR_Y,
-    left: DISPLAY_ANCHOR_OFFSET_X - ORBIT_DISPLAY_WIDTH * ORBIT_DISPLAY_ANCHOR_X,
-    top: DISPLAY_ANCHOR_OFFSET_Y - ORBIT_DISPLAY_HEIGHT * ORBIT_DISPLAY_ANCHOR_Y,
-    restingArtworkWidth: WILD_STAR_ORBIT_REST_ART.size * ORBIT_DISPLAY_SCALE,
-    restingArtworkHeight: WILD_STAR_ORBIT_REST_ART.size * ORBIT_DISPLAY_SCALE,
   };
 }
 
@@ -119,14 +114,98 @@ function releaseOrbitSystem(controller: WildStarBouncyController): void {
     delete system._ccWildStarArtworkRenderableBefore;
   }
   controller.orbitSystem = null;
-  controller.orbitImage.style.visibility = 'hidden';
-  controller.image.style.visibility = controller.ready ? 'visible' : 'hidden';
+  controller.orbitNodes.forEach((node) => {
+    node.image.onload = null;
+    node.image.onerror = null;
+    try { node.image.remove(); } catch {}
+  });
+  controller.orbitNodes.clear();
+  controller.orbitLayer.style.visibility = 'hidden';
+}
+
+function createLocalMatrix(displayObject: any, baseWidth?: number, baseHeight?: number): Matrix2D {
+  const rotation = Number(displayObject?.rotation) || 0;
+  const scaleXFromSize = Number(baseWidth) > 0
+    ? Number(displayObject?.width) / Number(baseWidth)
+    : Number.NaN;
+  const scaleYFromSize = Number(baseHeight) > 0
+    ? Number(displayObject?.height) / Number(baseHeight)
+    : Number.NaN;
+  const rawScaleX = Number(displayObject?.scale?.x);
+  const rawScaleY = Number(displayObject?.scale?.y);
+  const scaleX = Number.isFinite(scaleXFromSize)
+    ? scaleXFromSize
+    : (Number.isFinite(rawScaleX) ? rawScaleX : 1);
+  const scaleY = Number.isFinite(scaleYFromSize)
+    ? scaleYFromSize
+    : (Number.isFinite(rawScaleY) ? rawScaleY : 1);
+  const cosine = Math.cos(rotation);
+  const sine = Math.sin(rotation);
+  return {
+    a: cosine * scaleX,
+    b: sine * scaleX,
+    c: -sine * scaleY,
+    d: cosine * scaleY,
+    tx: Number(displayObject?.x) || 0,
+    ty: Number(displayObject?.y) || 0,
+  };
+}
+
+function multiplyMatrices(parent: Matrix2D, child: Matrix2D): Matrix2D {
+  return {
+    a: parent.a * child.a + parent.c * child.b,
+    b: parent.b * child.a + parent.d * child.b,
+    c: parent.a * child.c + parent.c * child.d,
+    d: parent.b * child.c + parent.d * child.d,
+    tx: parent.a * child.tx + parent.c * child.ty + parent.tx,
+    ty: parent.b * child.tx + parent.d * child.ty + parent.ty,
+  };
+}
+
+function createOrbitPaintNode(controller: WildStarBouncyController): WildStarOrbitPaintNode {
+  const image = new Image();
+  const node: WildStarOrbitPaintNode = { image, ready: false, failed: false };
+  image.alt = '';
+  image.draggable = false;
+  image.decoding = 'async';
+  image.setAttribute('aria-hidden', 'true');
+  image.className = 'wild-star-orbit-star';
+  Object.assign(image.style, {
+    position: 'absolute',
+    left: '0',
+    top: '0',
+    width: `${ORBIT_STAR_DISPLAY_SIZE}px`,
+    height: `${ORBIT_STAR_DISPLAY_SIZE}px`,
+    maxWidth: 'none',
+    pointerEvents: 'none',
+    userSelect: 'none',
+    visibility: 'hidden',
+    transformOrigin: '0 0',
+    willChange: 'transform, opacity',
+    mixBlendMode: 'screen',
+  });
+  image.onload = () => {
+    if (controller.disposed) return;
+    node.ready = true;
+    node.failed = false;
+    runtimeLease?.requestSync();
+  };
+  image.onerror = () => {
+    if (controller.disposed) return;
+    node.ready = false;
+    node.failed = true;
+    runtimeLease?.requestSync();
+  };
+  image.srcset = './assets/small-star.png 1x, ./assets/small-star@2x.png 2x, ./assets/small-star@3x.png 3x';
+  image.src = './assets/small-star.png';
+  controller.orbitLayer.appendChild(image);
+  return node;
 }
 
 function syncOrbitArtwork(controller: WildStarBouncyController): boolean {
   const system = controller.tile?._wildStarSystem;
   if (
-    !controller.orbitReady
+    !controller.ready
     || !system
     || system.disposed
     || !system.container
@@ -142,18 +221,70 @@ function syncOrbitArtwork(controller: WildStarBouncyController): boolean {
 
   if (controller.orbitSystem !== system) {
     releaseOrbitSystem(controller);
+    if (system._ccWildStarArtworkOwner && system._ccWildStarArtworkOwner !== controller) {
+      return false;
+    }
     controller.orbitSystem = system;
     system._ccWildStarArtworkOwner = controller;
     system._ccWildStarArtworkRenderableBefore = system.container.renderable !== false;
   }
 
-  // The existing Pixi system stays alive as the gameplay/merge-to-HUD owner.
-  // While it is active, the supplied three-star SVG owns the complete visible
-  // composition, including its foreground star, so star.svg must not be
-  // painted underneath it.
+  const liveSprites = new Set<any>();
+  system.stars.forEach((star: any) => {
+    const sprite = star?.sprite;
+    if (!sprite || sprite.destroyed) return;
+    liveSprites.add(sprite);
+    if (!controller.orbitNodes.has(sprite)) {
+      controller.orbitNodes.set(sprite, createOrbitPaintNode(controller));
+    }
+  });
+  controller.orbitNodes.forEach((node, sprite) => {
+    if (liveSprites.has(sprite)) return;
+    node.image.onload = null;
+    node.image.onerror = null;
+    try { node.image.remove(); } catch {}
+    controller.orbitNodes.delete(sprite);
+  });
+
+  const nodes = Array.from(controller.orbitNodes.entries());
+  if (
+    nodes.length === 0
+    || nodes.some(([, node]) => !node.ready || node.failed)
+  ) {
+    system.container.renderable = system._ccWildStarArtworkRenderableBefore !== false;
+    controller.orbitLayer.style.visibility = 'hidden';
+    return false;
+  }
+
+  const containerMatrix = createLocalMatrix(system.container);
+  nodes.forEach(([sprite, node]) => {
+    const spriteMatrix = createLocalMatrix(
+      sprite,
+      ORBIT_STAR_DISPLAY_SIZE,
+      ORBIT_STAR_DISPLAY_SIZE,
+    );
+    const matrix = multiplyMatrices(containerMatrix, spriteMatrix);
+    const e = DISPLAY_ANCHOR_OFFSET_X + matrix.tx
+      - matrix.a * ORBIT_STAR_HALF_SIZE
+      - matrix.c * ORBIT_STAR_HALF_SIZE;
+    const f = DISPLAY_ANCHOR_OFFSET_Y + matrix.ty
+      - matrix.b * ORBIT_STAR_HALF_SIZE
+      - matrix.d * ORBIT_STAR_HALF_SIZE;
+    node.image.style.transform = `matrix(${matrix.a}, ${matrix.b}, ${matrix.c}, ${matrix.d}, ${e}, ${f})`;
+    node.image.style.opacity = String(Math.max(
+      0,
+      Math.min(1, (Number(system.container.alpha) || 0) * (Number(sprite.alpha) || 0)),
+    ));
+    node.image.style.visibility = sprite.visible === false || sprite.renderable === false
+      ? 'hidden'
+      : 'visible';
+  });
+
+  // The established Pixi system remains the only owner of star count, orbit
+  // motion, intro bounce and merge-to-HUD state. Once every small-star image is
+  // load-ready, this layer mirrors only its paint above the direct star.svg.
   system.container.renderable = false;
-  controller.image.style.visibility = 'hidden';
-  controller.orbitImage.style.visibility = 'visible';
+  controller.orbitLayer.style.visibility = 'visible';
   return true;
 }
 
@@ -170,8 +301,6 @@ function disposeController(controller: WildStarBouncyController): void {
   try {
     controller.image.onload = null;
     controller.image.onerror = null;
-    controller.orbitImage.onload = null;
-    controller.orbitImage.onerror = null;
     controller.wrapper.remove();
   } catch {}
   if (controller.base && !controller.base.destroyed) {
@@ -200,21 +329,35 @@ function syncController(controller: WildStarBouncyController, frame: AnimatedSpe
     return;
   }
 
-  const usingOrbitArtwork = syncOrbitArtwork(controller);
-  const artworkReady = usingOrbitArtwork || controller.ready;
-  try { base.renderable = artworkReady ? false : controller.baseRenderable; } catch {}
-  const visible = artworkReady
+  if (
+    frame.gameplayDragActive
+    && !controller.dragging
+    && doesAnimatedSpecialArtworkOverlapGameplayDrag(wrapper, frame.gameplayDragBounds)
+  ) {
+    releaseOrbitSystem(controller);
+    try { base.renderable = controller.baseRenderable; } catch {}
+    controller.image.style.visibility = 'hidden';
+    wrapper.style.visibility = 'hidden';
+    return;
+  }
+
+  const visible = controller.ready
     && base.visible !== false
     && isPixiBranchVisible(host)
     && canvasRect.width > 0
     && canvasRect.height > 0;
   if (!visible) {
+    releaseOrbitSystem(controller);
+    try { base.renderable = controller.baseRenderable; } catch {}
+    controller.image.style.visibility = 'hidden';
     wrapper.style.visibility = 'hidden';
     return;
   }
 
   const transform = host.worldTransform;
   if (!transform) {
+    releaseOrbitSystem(controller);
+    controller.image.style.visibility = 'hidden';
     wrapper.style.visibility = 'hidden';
     return;
   }
@@ -229,6 +372,8 @@ function syncController(controller: WildStarBouncyController, frame: AnimatedSpe
   const f = canvasRect.top - rootRect.top
     + (transform.ty - transform.b * DISPLAY_ANCHOR_OFFSET_X - transform.d * DISPLAY_ANCHOR_OFFSET_Y) * scaleY;
 
+  try { base.renderable = false; } catch {}
+  controller.image.style.visibility = 'visible';
   wrapper.style.transform = `matrix(${a}, ${b}, ${c}, ${d}, ${e}, ${f})`;
   wrapper.style.opacity = String(getPixiBranchAlpha(base) * canvasOpacity);
   wrapper.style.zIndex = String(
@@ -236,6 +381,7 @@ function syncController(controller: WildStarBouncyController, frame: AnimatedSpe
       ? WILD_STAR_BOUNCY_DRAG_Z_INDEX
       : (Number.isFinite(tile.zIndex) ? Math.round(tile.zIndex) : 0),
   );
+  syncOrbitArtwork(controller);
   wrapper.style.visibility = 'visible';
 }
 
@@ -282,30 +428,22 @@ function createController(
     maxWidth: 'none',
     pointerEvents: 'none',
     userSelect: 'none',
+    visibility: 'hidden',
     zIndex: '1',
   });
 
-  const orbitGeometry = getWildStarOrbitDisplayGeometry();
-  const orbitImage = new Image();
-  orbitImage.alt = '';
-  orbitImage.draggable = false;
-  orbitImage.decoding = 'async';
-  orbitImage.setAttribute('aria-hidden', 'true');
-  orbitImage.className = 'wild-star-orbit-artwork';
-  Object.assign(orbitImage.style, {
+  const orbitLayer = document.createElement('div');
+  orbitLayer.className = 'wild-star-orbit-artwork';
+  Object.assign(orbitLayer.style, {
     position: 'absolute',
-    left: `${orbitGeometry.left}px`,
-    top: `${orbitGeometry.top}px`,
-    width: `${orbitGeometry.width}px`,
-    height: `${orbitGeometry.height}px`,
-    maxWidth: 'none',
+    inset: '0',
+    overflow: 'visible',
     pointerEvents: 'none',
-    userSelect: 'none',
     visibility: 'hidden',
     zIndex: '2',
   });
   wrapper.appendChild(image);
-  wrapper.appendChild(orbitImage);
+  wrapper.appendChild(orbitLayer);
   root.appendChild(wrapper);
 
   const controller: WildStarBouncyController = {
@@ -314,12 +452,12 @@ function createController(
     host,
     wrapper,
     image,
-    orbitImage,
+    orbitLayer,
+    orbitNodes: new Map(),
     orbitSystem: null,
     baseRenderable: base.renderable !== false,
     dragging: false,
     ready: false,
-    orbitReady: false,
     disposed: false,
     phaseLease: null,
   };
@@ -332,26 +470,10 @@ function createController(
     controller.ready = false;
     runtimeLease?.requestSync();
   };
-  orbitImage.onload = () => {
-    if (controller.disposed) return;
-    controller.orbitReady = true;
-    runtimeLease?.requestSync();
-  };
-  orbitImage.onerror = () => {
-    if (controller.disposed) return;
-    controller.orbitReady = false;
-    releaseOrbitSystem(controller);
-    runtimeLease?.requestSync();
-  };
-  // Both mutually exclusive Star compositions start on the same clock, while
-  // another Star tile receives a different clock from the shared scheduler.
   controller.phaseLease = acquireAnimatedSvgPhase(
     WILD_STAR_BOUNCY_PHASE_GROUP,
     WILD_STAR_BOUNCY_CYCLE_MS,
-    [
-      { image, url: WILD_STAR_BOUNCY_SVG_URL },
-      { image: orbitImage, url: WILD_STAR_ORBIT_SVG_URL },
-    ],
+    [{ image, url: WILD_STAR_BOUNCY_SVG_URL }],
   );
   return controller;
 }
@@ -388,6 +510,7 @@ export function setWildStarBouncyArtworkDragging(tile: any, dragging: boolean): 
   const controller = controllers.get(tile) || tile?._ccWildStarBouncyArtwork;
   if (!controller || controller.disposed || !isPlainWildStarBouncyTile(tile)) return false;
   controller.dragging = dragging;
+  setAnimatedSpecialArtworkDragging(controller.wrapper, dragging);
   controller.wrapper.style.zIndex = String(
     dragging
       ? WILD_STAR_BOUNCY_DRAG_Z_INDEX
@@ -408,7 +531,9 @@ export function getWildStarBouncyRuntimeStats() {
   return {
     controllers: controllers.size,
     ready: Array.from(controllers.values()).filter((controller) => controller.ready).length,
-    orbitBridged: Array.from(controllers.values()).filter((controller) => controller.orbitSystem).length,
+    orbitBridged: Array.from(controllers.values()).filter((controller) => (
+      controller.orbitSystem && controller.orbitLayer.style.visibility === 'visible'
+    )).length,
     runtimeAttached: runtimeLease !== null,
     overlayAttached: runtimeLease?.root.isConnected === true,
   };

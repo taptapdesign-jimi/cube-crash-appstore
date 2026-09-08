@@ -6,6 +6,15 @@ const dragSource = fs.readFileSync(path.join(root, 'src/modules/drag-core.ts'), 
 const installSource = fs.readFileSync(path.join(root, 'src/modules/install-drag.ts'), 'utf8');
 const hudSource = fs.readFileSync(path.join(root, 'src/modules/hud-helpers.ts'), 'utf8');
 const styleSource = fs.readFileSync(path.join(root, 'src/style.css'), 'utf8');
+const foregroundOwnerSource = fs.readFileSync(
+  path.join(root, 'src/modules/gameplay-drag-foreground-owner.ts'),
+  'utf8',
+);
+const artworkLayerSource = fs.readFileSync(
+  path.join(root, 'src/modules/animated-special-artwork-layer.ts'),
+  'utf8',
+);
+const appCoreSource = fs.readFileSync(path.join(root, 'src/modules/app-core.ts'), 'utf8');
 
 describe('gameplay drag overlay contract', () => {
   test('keeps the active tile above the Pixi HUD without raising its shared parent', () => {
@@ -28,10 +37,68 @@ describe('gameplay drag overlay contract', () => {
 
     expect(domHudZ).toBe(2000);
     expect(dragCanvasZ).toBeGreaterThan(domHudZ);
-    expect(dragSource).toContain("document.body?.classList.toggle('gameplay-drag-active', active);");
-    expect(dragSource).toContain('setGameplayDragActive(true);');
-    expect(clearRuntime).toContain('setGameplayDragActive(false);');
+    expect(dragSource).toContain('releaseGameplayDragForeground = acquireGameplayDragForeground();');
+    expect(clearRuntime).toContain('releaseGameplayDragForeground?.();');
+    expect(clearRuntime).toContain('setActiveDragArtworkDragging(activeDragTile, false);');
+    expect(foregroundOwnerSource).toContain("document.body?.classList.toggle('gameplay-drag-active', active);");
+    expect(foregroundOwnerSource).toContain('activeOwners += 1;');
+    expect(foregroundOwnerSource).toContain('activeOwners = Math.max(0, activeOwners - 1);');
     expect(styleSource).not.toContain('body.gameplay-drag-active #app {');
+    expect(foregroundOwnerSource).toContain('refreshAnimatedSpecialArtworkDepth();');
+    expect(artworkLayerSource).toContain('finaleDepthOwners > 0 && !gameplayDragActive');
+    expect(artworkLayerSource).toContain("dragOverlayRoot.className = 'animated-special-artwork-drag-layer';");
+    expect(artworkLayerSource).toContain("console.info('[CC_DRAG_DEPTH]', payload);");
+  });
+
+  test('portals every direct SVG wrapper through the same drag foreground owner', () => {
+    const artworkFiles = [
+      'juice-bounce-artwork.ts',
+      'ball-bouncy-artwork.ts',
+      'wild-star-bouncy-artwork.ts',
+      'robo-bouncy-artwork.ts',
+      'mushroom-bouncy-artwork.ts',
+      'flower-bouncy-artwork.ts',
+    ];
+    for (const filename of artworkFiles) {
+      const source = fs.readFileSync(path.join(root, 'src/modules', filename), 'utf8');
+      expect(source).toContain('setAnimatedSpecialArtworkDragging(controller.wrapper, dragging);');
+      expect(source).toContain('gameplayDragActive');
+      expect(source).toContain('doesAnimatedSpecialArtworkOverlapGameplayDrag');
+    }
+    expect(artworkLayerSource).toContain('gameplayDragActive: isGameplayDragActive()');
+    expect(artworkLayerSource).toContain('if (frameOwners.size > 0) updateAnimatedSpecialArtworkLayer();');
+  });
+
+  test('never pauses unrelated dice animations and publishes only overlap geometry', () => {
+    expect(dragSource).not.toContain('pauseSpecialDiceIdleForDrag');
+    expect(dragSource).not.toContain('_pausedSpecialIdleTiles');
+    expect(dragSource).toContain('publishActiveDragBounds(t);');
+    expect(dragSource).toContain('setGameplayDragBounds(null);');
+    expect(foregroundOwnerSource).toContain('__ccGameplayDragBounds = bounds');
+    expect(artworkLayerSource).toContain('doesAnimatedSpecialArtworkOverlapGameplayDrag');
+  });
+
+  test('captures artwork ownership independently of mutable drag.t for cleanup retry', () => {
+    expect(dragSource).toContain('let activeDragArtworkTile: any = null;');
+    expect(dragSource).toContain('const ownedTile = dragging ? tile : (activeDragArtworkTile || tile);');
+    expect(dragSource).toContain('if (dragging) activeDragArtworkTile = ownedTile;');
+    expect(dragSource).toContain('if (!dragging) activeDragArtworkTile = null;');
+    expect(dragSource).toContain('setActiveDragArtworkDragging(activeDragTile, false);');
+  });
+
+  test('retires active drag and every direct-SVG owner before restart or hard cleanup detaches the board', () => {
+    expect(dragSource).toContain('cancelActive: cancelActiveDrag');
+    expect(appCoreSource).toContain("(drag as any)?.cancelActive?.({ resumeIdle: false });");
+    const restart = appCoreSource.split('async function performRestartGame(): Promise<void> {')[1]
+      ?.split('\nasync function', 1)[0] ?? '';
+    expect(restart.indexOf('cancelActive?.({ resumeIdle: false })'))
+      .toBeLessThan(restart.indexOf("softResetBoardView('restartGame-immediate-clear')"));
+    expect(restart.indexOf('stopSpecialDiceIdleMotion(tile)'))
+      .toBeLessThan(restart.indexOf("softResetBoardView('restartGame-immediate-clear')"));
+    const cleanup = appCoreSource.split('export function cleanupGame(')[1] ?? '';
+    expect(cleanup.indexOf('cancelActive?.({ resumeIdle: false })'))
+      .toBeLessThan(cleanup.indexOf('app.ticker.stop()'));
+    expect(cleanup).toContain('stopSpecialDiceIdleMotion(t);');
   });
 
   test('mirrors the board transform so every existing scale-to-one owner stays safe', () => {
@@ -79,6 +146,9 @@ describe('gameplay drag overlay contract', () => {
     expect(dragSource).toContain('activeDragLayer.alpha = 1;');
     expect(dragSource).toContain('if ((t as any)._dragOriginalParent === board && t.parent === layer)');
     expect(dragSource).toContain('t.position.set(px, py);');
+    expect(dragSource).toContain('if (t.parent === readyDragLayer)');
+    expect(dragSource).toContain('delete (t as any)._dragOriginalParent;');
+    expect(dragSource).toContain('layer.parent?.sortChildren?.();');
     expect(dragSource.indexOf('t.position.set(px, py);'))
       .toBeLessThan(dragSource.indexOf('const globalPoint = board.toGlobal?.(boardPoint) ?? boardPoint;', dragSource.indexOf('t.position.set(px, py);')));
   });

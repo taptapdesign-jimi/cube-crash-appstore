@@ -1,0 +1,164 @@
+/** @jest-environment jsdom */
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { STATE } from '../app-state';
+import {
+  acquireAnimatedSpecialArtworkFinaleDepth,
+  acquireAnimatedSpecialArtworkLayer,
+  getAnimatedSpecialArtworkLayerStats,
+  setAnimatedSpecialArtworkDragging,
+} from '../animated-special-artwork-layer';
+import { acquireGameplayDragForeground } from '../gameplay-drag-foreground-owner';
+
+describe('animated special artwork merge-6 depth ownership', () => {
+  const releases: Array<() => void> = [];
+
+  beforeEach(() => {
+    const host = document.createElement('div');
+    const canvas = document.createElement('canvas');
+    canvas.style.zIndex = '1';
+    host.appendChild(canvas);
+    document.body.appendChild(host);
+    STATE.app = {
+      canvas,
+      renderer: { screen: { width: 390, height: 844 } },
+      ticker: { add: jest.fn(), remove: jest.fn() },
+    } as any;
+  });
+
+  afterEach(() => {
+    while (releases.length) {
+      try { releases.pop()?.(); } catch {}
+    }
+    STATE.app = null;
+    document.body.replaceChildren();
+  });
+
+  test('reference-counts overlapping finales and restores SVG dice above Pixi afterward', () => {
+    const artworkLease = acquireAnimatedSpecialArtworkLayer(jest.fn());
+    expect(artworkLease).not.toBeNull();
+    if (!artworkLease) return;
+    releases.push(artworkLease.release);
+    artworkLease.requestSync();
+    expect(artworkLease.root.style.zIndex).toBe('11');
+
+    const releaseFirstFinale = acquireAnimatedSpecialArtworkFinaleDepth();
+    const releaseSecondFinale = acquireAnimatedSpecialArtworkFinaleDepth();
+    releases.push(releaseFirstFinale, releaseSecondFinale);
+    expect(artworkLease.root.style.zIndex).toBe('0');
+
+    releaseFirstFinale();
+    expect(artworkLease.root.style.zIndex).toBe('0');
+    releaseSecondFinale();
+    expect(artworkLease.root.style.zIndex).toBe('11');
+
+    artworkLease.release();
+    expect(getAnimatedSpecialArtworkLayerStats()).toEqual({
+      owners: 0,
+      tickerAttached: false,
+      overlayAttached: false,
+    });
+  });
+
+  test('applies finale depth when the finale starts before an SVG owner attaches', () => {
+    const releaseFinale = acquireAnimatedSpecialArtworkFinaleDepth();
+    releases.push(releaseFinale);
+    const artworkLease = acquireAnimatedSpecialArtworkLayer(jest.fn());
+    expect(artworkLease).not.toBeNull();
+    if (!artworkLease) return;
+    releases.push(artworkLease.release);
+
+    expect(artworkLease.root.style.zIndex).toBe('0');
+    releaseFinale();
+    expect(artworkLease.root.style.zIndex).toBe('11');
+  });
+
+  test('keeps idle SVG animation live during drag while preserving the dragged SVG portal', () => {
+    const frameOwner = jest.fn();
+    const artworkLease = acquireAnimatedSpecialArtworkLayer(frameOwner);
+    expect(artworkLease).not.toBeNull();
+    if (!artworkLease) return;
+    releases.push(artworkLease.release);
+
+    const idleSvg = document.createElement('div');
+    const draggedSvg = document.createElement('div');
+    artworkLease.root.append(idleSvg, draggedSvg);
+
+    const releaseDragForeground = acquireGameplayDragForeground();
+    releases.push(releaseDragForeground);
+    expect(frameOwner).toHaveBeenLastCalledWith(expect.objectContaining({ gameplayDragActive: true }));
+    const canvas = STATE.app?.canvas as HTMLCanvasElement;
+    const idleLayerZ = Number(artworkLease.root.style.zIndex);
+    const canvasZ = Number(getComputedStyle(canvas).zIndex || '1');
+    expect(idleLayerZ).toBeGreaterThan(canvasZ);
+    expect(idleSvg.parentElement).toBe(artworkLease.root);
+
+    setAnimatedSpecialArtworkDragging(draggedSvg, true);
+    expect(draggedSvg.parentElement).not.toBe(artworkLease.root);
+    expect(Number(draggedSvg.parentElement?.style.zIndex)).toBeGreaterThan(canvasZ);
+
+    setAnimatedSpecialArtworkDragging(draggedSvg, false);
+    expect(draggedSvg.parentElement).toBe(artworkLease.root);
+    releaseDragForeground();
+    expect(frameOwner).toHaveBeenLastCalledWith(expect.objectContaining({ gameplayDragActive: false }));
+    expect(Number(artworkLease.root.style.zIndex)).toBeGreaterThan(canvasZ);
+  });
+
+  test('hides both idle and dragged SVG roots when the Pixi canvas stops painting', () => {
+    const artworkLease = acquireAnimatedSpecialArtworkLayer(jest.fn());
+    expect(artworkLease).not.toBeNull();
+    if (!artworkLease) return;
+    releases.push(artworkLease.release);
+    const draggedSvg = document.createElement('div');
+    artworkLease.root.appendChild(draggedSvg);
+    setAnimatedSpecialArtworkDragging(draggedSvg, true);
+    const dragRoot = draggedSvg.parentElement as HTMLDivElement;
+
+    const canvas = STATE.app?.canvas as HTMLCanvasElement;
+    canvas.style.display = 'none';
+    artworkLease.requestSync();
+
+    expect(artworkLease.root.style.visibility).toBe('hidden');
+    expect(dragRoot.style.visibility).toBe('hidden');
+    setAnimatedSpecialArtworkDragging(draggedSvg, false);
+  });
+
+  test('keeps a live dragged SVG above the canvas even if a stale finale lease overlaps', () => {
+    const artworkLease = acquireAnimatedSpecialArtworkLayer(jest.fn());
+    expect(artworkLease).not.toBeNull();
+    if (!artworkLease) return;
+    releases.push(artworkLease.release);
+    const draggedSvg = document.createElement('div');
+    artworkLease.root.appendChild(draggedSvg);
+
+    const releaseFinale = acquireAnimatedSpecialArtworkFinaleDepth();
+    const releaseDrag = acquireGameplayDragForeground();
+    releases.push(releaseFinale, releaseDrag);
+    setAnimatedSpecialArtworkDragging(draggedSvg, true);
+
+    const canvas = STATE.app?.canvas as HTMLCanvasElement;
+    expect(Number(draggedSvg.parentElement?.style.zIndex))
+      .toBeGreaterThan(Number(getComputedStyle(canvas).zIndex || '1'));
+    setAnimatedSpecialArtworkDragging(draggedSvg, false);
+  });
+
+  test('connects the shared depth lease to all four merge-6 finale families', () => {
+    const read = (relativePath: string) => fs.readFileSync(
+      path.resolve(process.cwd(), relativePath),
+      'utf8',
+    );
+    const tnt = read('src/modules/tnt-animation.ts');
+    const juice = read('src/modules/wild-juice-bubbles-explosion.ts');
+    const splash = read('src/modules/splash-text-overlay.ts');
+
+    expect(tnt).toContain('releaseTntFinaleDepth = acquireAnimatedSpecialArtworkFinaleDepth()');
+    expect(juice).toContain('releaseExplosionFinaleDepth = acquireAnimatedSpecialArtworkFinaleDepth()');
+    expect(splash).toContain('releaseMagneticFinaleDepth = acquireAnimatedSpecialArtworkFinaleDepth()');
+    expect(splash).toContain('releaseSparkleFinaleDepth = acquireAnimatedSpecialArtworkFinaleDepth()');
+    expect(tnt).toContain('releaseTntFinaleDepth?.()');
+    expect(juice).toContain('releaseExplosionFinaleDepth?.()');
+    expect(splash).toContain('releaseMagneticFinaleDepth?.()');
+    expect(splash).toContain('releaseSparkleFinaleDepth?.()');
+  });
+});
