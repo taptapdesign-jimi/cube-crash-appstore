@@ -208,6 +208,19 @@ body{
   -webkit-touch-callout: none;
 }
 
+#launch-screen .launch-studio-character--slikanje {
+  left: 20px;
+}
+
+#launch-screen .launch-studio-character--large-dog {
+  transform: scale(0.9184);
+  transform-origin: center top;
+}
+
+#launch-screen .launch-studio-character--ten-percent-larger {
+  transform: scale(0.902);
+}
+
 @keyframes launch-studio-sheen {
   0%, 4% {
     opacity: 0;

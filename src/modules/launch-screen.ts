@@ -23,12 +23,23 @@ const studioCharacterModules = import.meta.glob([
   '../../assets/logo addons/lik-gitara.svg',
   '../../assets/logo addons/lik-pas-SVG.svg',
   '../../assets/logo addons/lik-cvijet.svg',
-  '../../assets/logo addons/lik slikanje.png',
+  '../../assets/logo addons/lik-kauc.svg',
+  '../../assets/logo addons/lik-board.svg',
+  '../../assets/logo addons/lik slikanje.svg',
+  '../../assets/logo addons/lik-laptop.svg',
+  '../../assets/logo addons/lik-nogomet.svg',
+  '../../assets/logo addons/lik-speceraj.svg',
+  '../../assets/logo addons/pas novine.svg',
   '!../../assets/logo addons/lik-*@2x.png',
   '!../../assets/logo addons/lik-game.png',
   '!../../assets/logo addons/lik-gitara.png',
   '!../../assets/logo addons/lik-pas.png',
   '!../../assets/logo addons/lik-cvijet.png',
+  '!../../assets/logo addons/lik-kauc.png',
+  '!../../assets/logo addons/lik-laptop.png',
+  '!../../assets/logo addons/lik-nogomet.png',
+  '!../../assets/logo addons/lik-speceraj.png',
+  '!../../assets/logo addons/lik slikanje.png',
   '!../../assets/logo addons/lik-lajna.png',
   '!../../assets/logo addons/lik-board.png',
   '!../../assets/logo addons/lik-dron.png',
@@ -51,7 +62,27 @@ const selectedStudioCharacterHasOwnMotion =
   selectedStudioCharacterPath.endsWith('/lik-game.svg') ||
   selectedStudioCharacterPath.endsWith('/lik-gitara.svg') ||
   selectedStudioCharacterPath.endsWith('/lik-pas-SVG.svg') ||
-  selectedStudioCharacterPath.endsWith('/lik-cvijet.svg');
+  selectedStudioCharacterPath.endsWith('/lik-cvijet.svg') ||
+  selectedStudioCharacterPath.endsWith('/lik-kauc.svg') ||
+  selectedStudioCharacterPath.endsWith('/lik-board.svg') ||
+  selectedStudioCharacterPath.endsWith('/lik slikanje.svg') ||
+  selectedStudioCharacterPath.endsWith('/lik-laptop.svg') ||
+  selectedStudioCharacterPath.endsWith('/lik-nogomet.svg') ||
+  selectedStudioCharacterPath.endsWith('/lik-speceraj.svg') ||
+  selectedStudioCharacterPath.endsWith('/pas novine.svg');
+const selectedStudioCharacterNeedsRightOffset =
+  selectedStudioCharacterPath.endsWith('/lik slikanje.svg');
+const selectedStudioCharacterUsesLargeTopPivot =
+  selectedStudioCharacterPath.endsWith('/lik-pas-SVG.svg');
+const selectedStudioCharacterUsesTenPercentScale =
+  selectedStudioCharacterPath.endsWith('/pas novine.svg') ||
+  selectedStudioCharacterPath.endsWith('/lik-speceraj.svg') ||
+  selectedStudioCharacterPath.endsWith('/lik-laptop.svg');
+const selectedStudioCharacterRestScale = selectedStudioCharacterUsesLargeTopPivot
+  ? 1.12
+  : selectedStudioCharacterUsesTenPercentScale
+    ? 1.1
+    : 1;
 
 interface LaunchScreenElements {
   container: HTMLElement | null;
@@ -195,6 +226,18 @@ class LaunchScreen {
       }
       if (this.elements.studioCharacter) {
         this.elements.studioCharacter.src = selectedStudioCharacterUrl;
+        this.elements.studioCharacter.classList.toggle(
+          'launch-studio-character--slikanje',
+          selectedStudioCharacterNeedsRightOffset
+        );
+        this.elements.studioCharacter.classList.toggle(
+          'launch-studio-character--large-dog',
+          selectedStudioCharacterUsesLargeTopPivot
+        );
+        this.elements.studioCharacter.classList.toggle(
+          'launch-studio-character--ten-percent-larger',
+          selectedStudioCharacterUsesTenPercentScale
+        );
       }
       
       // 🔥 PREMIUM: Disable drag and long press on existing images
@@ -281,6 +324,18 @@ class LaunchScreen {
     const studioCharacter = document.createElement('img');
     studioCharacter.id = 'launch-studio-character';
     studioCharacter.className = 'launch-studio-character';
+    studioCharacter.classList.toggle(
+      'launch-studio-character--slikanje',
+      selectedStudioCharacterNeedsRightOffset
+    );
+    studioCharacter.classList.toggle(
+      'launch-studio-character--large-dog',
+      selectedStudioCharacterUsesLargeTopPivot
+    );
+    studioCharacter.classList.toggle(
+      'launch-studio-character--ten-percent-larger',
+      selectedStudioCharacterUsesTenPercentScale
+    );
     studioCharacter.src = selectedStudioCharacterUrl;
     studioCharacter.alt = '';
     studioCharacter.loading = 'eager';
@@ -467,7 +522,7 @@ class LaunchScreen {
       const characterEnterTimer = window.setTimeout(() => {
         trackTween(studioCharacter, {
           opacity: 1,
-          scale: 1,
+          scale: selectedStudioCharacterRestScale,
           duration: 0.55,
           ease: 'back.out(1.8)',
           onComplete: resolve,

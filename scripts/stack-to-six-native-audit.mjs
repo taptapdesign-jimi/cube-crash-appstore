@@ -18,14 +18,16 @@ const EXPECTED_BUNDLE_ID = 'com.taptapdesign.stacktosix.Stack-to-Six';
 const EXPECTED_INTRO_CHARACTERS = [
   'lik-game.svg',
   'lik-gitara.svg',
-  'lik-kauc.png',
+  'lik-board.svg',
+  'lik-kauc.svg',
   'lik-lajna.png',
-  'lik-laptop.png',
-  'lik-nogomet.png',
+  'lik-laptop.svg',
+  'lik-nogomet.svg',
   'lik-pas-SVG.svg',
-  'lik slikanje.png',
+  'lik slikanje.svg',
   'lik-cvijet.svg',
-  'lik-speceraj.png',
+  'lik-speceraj.svg',
+  'pas novine.svg',
 ];
 const sourceOnly = process.argv.includes('--source-only');
 const builtAppIndex = process.argv.indexOf('--built-app');
