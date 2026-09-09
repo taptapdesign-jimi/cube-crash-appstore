@@ -132,6 +132,7 @@ import {
   JOURNEY_FOREST_CARD_NAMES,
 } from './journey-new-card-presentation.js';
 import { preloadRegularMerge6Sounds } from './regular-merge6-sound.ts';
+import { preloadWildStarMerge6Sound } from './wild-star-merge6-sound.ts';
 import { preloadOrdinaryStackSound } from './ordinary-stack-sound.ts';
 import { preloadGameplayPickupSound } from './gameplay-pickup-sound.ts';
 
@@ -12652,6 +12653,7 @@ class JourneyBoardsManager {
 
           logger.info(`🎮 Play button clicked for board ${boardIdForPlay}`, { boardName: boardNameForPlay });
           preloadRegularMerge6Sounds();
+          preloadWildStarMerge6Sound();
           preloadOrdinaryStackSound();
           preloadGameplayPickupSound();
           delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;

@@ -4,6 +4,7 @@ import {
   doesAnimatedSpecialArtworkOverlapGameplayDrag,
   installAnimatedSpecialArtworkOverlapFootprint,
   setAnimatedSpecialArtworkDragging,
+  setAnimatedSpecialArtworkOccluded,
   type AnimatedSpecialArtworkFrame,
   type AnimatedSpecialArtworkLayerLease,
 } from './animated-special-artwork-layer.ts';
@@ -335,16 +336,11 @@ function syncController(controller: WildStarBouncyController, frame: AnimatedSpe
     return;
   }
 
-  if (
-    frame.gameplayDragActive
+  const occludedByGameplayDrag = frame.gameplayDragActive
     && !controller.dragging
-    && doesAnimatedSpecialArtworkOverlapGameplayDrag(wrapper, frame.gameplayDragBounds)
-  ) {
-    releaseOrbitSystem(controller);
-    try { base.renderable = controller.baseRenderable; } catch {}
-    controller.image.style.visibility = 'hidden';
-    wrapper.style.visibility = 'hidden';
-    return;
+    && doesAnimatedSpecialArtworkOverlapGameplayDrag(wrapper, frame.gameplayDragBounds);
+  if (!controller.dragging) {
+    setAnimatedSpecialArtworkOccluded(wrapper, occludedByGameplayDrag);
   }
 
   const visible = controller.ready

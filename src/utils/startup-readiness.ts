@@ -95,8 +95,10 @@ async function waitForImageDecoded(img: HTMLImageElement): Promise<boolean> {
 }
 
 async function waitForStartupImagesDecoded(selector = STARTUP_IMAGE_SELECTOR): Promise<ImageReadinessResult> {
-  const images = Array.from(document.querySelectorAll<HTMLImageElement>(selector))
-    .filter((img) => !!(img.currentSrc || img.src));
+  const images = Array.from(document.querySelectorAll(selector))
+    .filter((element): element is HTMLImageElement =>
+      element instanceof HTMLImageElement && !!(element.currentSrc || element.src)
+    );
 
   if (images.length === 0) {
     return { total: 0, decoded: 0, failed: 0 };

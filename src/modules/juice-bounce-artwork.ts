@@ -4,6 +4,7 @@ import {
   doesAnimatedSpecialArtworkOverlapGameplayDrag,
   installAnimatedSpecialArtworkOverlapFootprint,
   setAnimatedSpecialArtworkDragging,
+  setAnimatedSpecialArtworkOccluded,
   type AnimatedSpecialArtworkFrame,
   type AnimatedSpecialArtworkLayerLease,
 } from './animated-special-artwork-layer.ts';
@@ -263,18 +264,16 @@ function syncController(
     return;
   }
 
-  // The shared canvas moves above the idle DOM-SVG root during any drag. An
-  // SVG that is not itself being dragged must therefore swap to its proven
-  // Pixi PNG fallback; otherwise it visibly bounces underneath grid ghosts.
-  if (
+  const occludedByGameplayDrag = (
     gameplayDragActive
     && !controller.dragging
     && doesAnimatedSpecialArtworkOverlapGameplayDrag(wrapper, gameplayDragBounds)
-  ) {
-    releaseFrontBubbleSystem(controller);
-    try { base.renderable = controller.baseRenderable; } catch {}
-    wrapper.style.visibility = 'hidden';
-    return;
+  );
+  // Keep the exact live SVG and its DOM bubble paint running through the
+  // crossing. Only its layer changes, so the dragged Pixi die remains above it
+  // without a visible SVG -> static PNG -> SVG reset.
+  if (!controller.dragging) {
+    setAnimatedSpecialArtworkOccluded(wrapper, occludedByGameplayDrag);
   }
 
   const visible = controller.ready

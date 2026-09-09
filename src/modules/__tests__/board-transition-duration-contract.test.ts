@@ -25,7 +25,8 @@ describe('Board Transition duration contract', () => {
     expect(source).toContain('export const BOARD_TRANSITION_CLOUD_EXIT_ANTICIPATION_SECONDS = 0.07');
     expect(source).toContain('export const BOARD_TRANSITION_CLOUD_EXIT_REBOUND_SECONDS = 0.065');
     expect(source).toContain('export const BOARD_TRANSITION_CLOUD_EXIT_COLLAPSE_SECONDS = 0.46');
-    expect(source).toContain("duration: resolvedTheme === 'area55'");
+    expect(source).toContain("const transitionHoldDurationSeconds = resolvedTheme === 'area55'");
+    expect(source).toContain('duration: transitionHoldDurationSeconds');
     expect(source).toContain('? Math.max(');
     expect(source).toContain('getRoboAirCombatHoldSeconds()');
     expect(source).toContain(': BOARD_TRANSITION_HOLD_DURATION_SECONDS');

@@ -98,6 +98,48 @@ export default defineConfig({
           res.end(JSON.stringify({ version }));
         });
 
+        // Vite's default static middleware treats an encoded filename hash as
+        // a route miss. Serve only those asset requests explicitly so authored
+        // filenames containing a literal `#` remain usable without renaming or
+        // duplicating the source asset. Packaged file URLs decode `%23` normally.
+        server.middlewares.use((req, res, next) => {
+          const requestPath = new URL(req.url || '/', 'http://localhost').pathname;
+          if (!/%23/i.test(requestPath)) {
+            next();
+            return;
+          }
+
+          let decodedPath;
+          try {
+            decodedPath = decodeURIComponent(requestPath);
+          } catch {
+            next();
+            return;
+          }
+          if (!decodedPath.startsWith('/assets/')) {
+            next();
+            return;
+          }
+
+          const assetsRoot = path.resolve(process.cwd(), 'assets');
+          const relativePath = decodedPath.replace(/^\/assets\//, '');
+          const filePath = path.resolve(assetsRoot, relativePath);
+          if (!filePath.startsWith(`${assetsRoot}${path.sep}`)) {
+            res.statusCode = 400;
+            res.end('Bad request');
+            return;
+          }
+          if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+            next();
+            return;
+          }
+
+          res.statusCode = 200;
+          res.setHeader('Content-Type', contentTypeFor(filePath));
+          res.setHeader('Cache-Control', 'no-cache');
+          res.end(fs.readFileSync(filePath));
+        });
+
         server.middlewares.use('/native-bundle', (req, res) => {
           const distRoot = path.resolve(process.cwd(), 'dist');
           const requestUrl = new URL(req.url || '/', 'http://localhost');

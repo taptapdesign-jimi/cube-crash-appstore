@@ -26,6 +26,7 @@ declare global {
       fastArcadeCleanExit?: boolean;
       visualExitAlreadyComplete?: boolean;
       expectedMenuDestination?: 'home' | 'journey' | 'detail-modal';
+      allowTerminalNoMovesExit?: boolean;
     }) => void | Promise<void>;
     
     // Modals

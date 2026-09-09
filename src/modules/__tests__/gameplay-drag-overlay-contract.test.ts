@@ -62,6 +62,7 @@ describe('gameplay drag overlay contract', () => {
     for (const filename of artworkFiles) {
       const source = fs.readFileSync(path.join(root, 'src/modules', filename), 'utf8');
       expect(source).toContain('setAnimatedSpecialArtworkDragging(controller.wrapper, dragging);');
+      expect(source).toContain('setAnimatedSpecialArtworkOccluded(wrapper, occludedByGameplayDrag);');
       expect(source).toContain('gameplayDragActive');
       expect(source).toContain('doesAnimatedSpecialArtworkOverlapGameplayDrag');
       expect(source).toContain('installAnimatedSpecialArtworkOverlapFootprint(wrapper, {');
@@ -77,6 +78,7 @@ describe('gameplay drag overlay contract', () => {
     expect(dragSource).toContain('setGameplayDragBounds(null);');
     expect(foregroundOwnerSource).toContain('__ccGameplayDragBounds = bounds');
     expect(artworkLayerSource).toContain('doesAnimatedSpecialArtworkOverlapGameplayDrag');
+    expect(artworkLayerSource).toContain('same DOM wrapper moves below the transparent canvas');
   });
 
   test('captures artwork ownership independently of mutable drag.t for cleanup retry', () => {

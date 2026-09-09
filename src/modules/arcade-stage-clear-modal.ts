@@ -2,6 +2,10 @@
 
 import { gsap } from 'gsap';
 import { formatGameplayProgressLabel, getGameplayProgressTerm } from './gameplay-terminology.ts';
+import {
+  completeGameplayTransitionFade,
+  fadeOutSoundtrackForGameplay,
+} from './soundtrack-manager.ts';
 
 const HEADLINES = [
   'Sweet Win',
@@ -37,6 +41,29 @@ const TEXT_ENTER_STAGGER = 0.02;
 const TEXT_EXIT_STAGGER = 0.012;
 const TEXT_EXIT_BOUNCE_DURATION = 0.13;
 const TEXT_EXIT_FADE_DURATION = 0.17;
+const ROUND_DIGIT_ENTER_STAGGER = 0.3;
+const ROUND_DIGIT_ENTER_DURATION = 0.4 + 0.15 + 0.2;
+const ROUND_SETTLED_HOLD_DURATION = 0.3;
+const ROUND_DIGIT_EXIT_STAGGER = 0.4;
+const ROUND_DIGIT_EXIT_DURATION = 0.15 + 0.3;
+
+export function getArcadeRoundCueDurationMs(displayedStage: number): number {
+  const letterCount = Array.from(getGameplayProgressTerm('arcade')).length;
+  const digitCount = Array.from(String(Math.max(1, displayedStage | 0)).padStart(2, '0')).length;
+  const labelEnterSeconds = Math.max(0, letterCount - 1) * TEXT_ENTER_STAGGER
+    + TEXT_ENTER_DURATION + TEXT_SETTLE_DURATION + TEXT_FINAL_SETTLE_DURATION;
+  const digitEnterSeconds = Math.max(0, digitCount - 1) * ROUND_DIGIT_ENTER_STAGGER
+    + ROUND_DIGIT_ENTER_DURATION;
+  const labelExitSeconds = Math.max(0, letterCount - 1) * TEXT_EXIT_STAGGER
+    + TEXT_EXIT_BOUNCE_DURATION + TEXT_EXIT_FADE_DURATION;
+  const digitExitSeconds = Math.max(0, digitCount - 1) * ROUND_DIGIT_EXIT_STAGGER
+    + ROUND_DIGIT_EXIT_DURATION;
+  return Math.round(1000 * (
+    Math.max(labelEnterSeconds, digitEnterSeconds)
+    + ROUND_SETTLED_HOLD_DURATION
+    + Math.max(labelExitSeconds, digitExitSeconds)
+  ));
+}
 
 function pickHeadline(): string {
   return HEADLINES[Math.floor(Math.random() * HEADLINES.length)] || 'Woow!';
@@ -608,7 +635,7 @@ async function playRoundNumberPhase(parts: ReturnType<typeof createOverlay>, dis
     let completedDigits = 0;
     digits.forEach((digit, index) => {
       const timeline = gsap.timeline({
-        delay: index * 0.3,
+        delay: index * ROUND_DIGIT_ENTER_STAGGER,
         onStart: () => {
           triggerStageNumberHaptic(index === 0 ? 'medium' : 'light');
           playStageNumberScreenShake(overlay);
@@ -667,7 +694,7 @@ async function playRoundNumberPhase(parts: ReturnType<typeof createOverlay>, dis
   // Give the completed Round composition one readable settled beat. Without
   // this hold, its last enter frame and first exit frame shared the same task
   // and looked like an interrupted/double transition on physical iPhone.
-  await wait(300);
+  await wait(ROUND_SETTLED_HOLD_DURATION * 1000);
 
   await Promise.all([
     playBubblyLetterExit(letters),
@@ -675,7 +702,7 @@ async function playRoundNumberPhase(parts: ReturnType<typeof createOverlay>, dis
       let completedDigits = 0;
       digits.forEach((digit, index) => {
         const timeline = gsap.timeline({
-          delay: index * 0.4,
+          delay: index * ROUND_DIGIT_EXIT_STAGGER,
           onComplete: () => {
             completedDigits += 1;
             if (completedDigits === digits.length) resolveExit();
@@ -751,11 +778,15 @@ export async function showArcadeContinuationRoundCue(
   const parts = createOverlay(resumedStage - 1, resumedStage);
   activeOverlay = parts.overlay;
   gsap.set(parts.clearCard, { opacity: 0 });
+  const soundtrackFadeGeneration = fadeOutSoundtrackForGameplay(
+    getArcadeRoundCueDurationMs(resumedStage),
+  );
   onPresented?.();
 
   try {
     await playRoundNumberPhase(parts, resumedStage);
   } finally {
+    completeGameplayTransitionFade(soundtrackFadeGeneration);
     cleanupArcadeStageClearModal(false);
   }
 }

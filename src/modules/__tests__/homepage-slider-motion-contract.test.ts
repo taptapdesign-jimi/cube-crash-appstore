@@ -57,8 +57,15 @@ describe('Homepage slider motion contract', () => {
       'private hideSettingsScreenWithAnimation(): Promise<void>',
     )[1]?.split('// Handle settings back button click')[0] ?? '';
 
+    expect(settingsEnter).toContain("homepageEnterTransitionOwner.cancel('homepage-to-settings')");
+    expect(settingsEnter).toContain("cancelSliderEnterAnimation('homepage-to-settings')");
     expect(settingsEnter).toContain("appZoneManager.setZone('settings', 'settings-enter', {");
     expect(settingsEnter).toContain('preserveHomepageNavigation: true');
+    expect(settingsEnter).toContain('sliderManager.syncHiddenSlideState(SETTINGS_SLIDE_INDEX)');
+    expect(settingsEnter.indexOf("homepageEnterTransitionOwner.cancel('homepage-to-settings')"))
+      .toBeLessThan(settingsEnter.indexOf("appZoneManager.setZone('settings', 'settings-enter'"));
+    expect(settingsEnter.indexOf('sliderManager.syncHiddenSlideState(SETTINGS_SLIDE_INDEX)'))
+      .toBeLessThan(settingsEnter.indexOf('const homepageExitPromise = animateSliderExit();'));
     expect(settingsEnter).toContain("cancelJourneyScreenPreparation?.('settings-enter')");
     expect(settingsExit).toContain('if (this.settingsExitPromise) return this.settingsExitPromise');
     expect(settingsExit).toContain('await animateSettingsScreenExit()');
@@ -78,6 +85,20 @@ describe('Homepage slider motion contract', () => {
     expect(hiddenSync).toContain("gameState.set('currentSlide', slideIndex)");
     expect(hiddenSync).toContain('this.suppressCurrentSlideSubscription = false');
     expect(enterOwner.match(/set\(['"]currentSlide['"]/g) ?? []).toHaveLength(0);
+  });
+
+  test('rapid nav taps wait for the complete Homepage enter lease before changing slide', () => {
+    const navOwner = sliderManagerSource.split(
+      '// Independent navigation buttons',
+    )[1]?.split('// 🔥 FIX: Setup global swipe detection')[0] ?? '';
+
+    expect(navOwner).toContain('const navIntentGeneration = ++this.navIntentGeneration');
+    expect(navOwner).toContain('while (homepageEnterTransitionOwner.isActive())');
+    expect(navOwner).toContain('homepageEnterTransitionOwner.getCurrentSettled()');
+    expect(navOwner).toContain('await settled;');
+    expect(navOwner).toContain("(window as any).__ccAppZone !== 'home'");
+    expect(navOwner).toContain("emitNativeConsoleDiagnostic('[CC_HOME_NAV]', 'queued-after-homepage-enter'");
+    expect(navOwner.indexOf('await settled;')).toBeLessThan(navOwner.indexOf('this.goToSlide(slideIndex)'));
   });
 
   test('Homepage enter has a real Promise completion and direction-specific easing', () => {

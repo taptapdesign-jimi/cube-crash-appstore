@@ -8,6 +8,7 @@ import { logger } from '../core/logger.js';
 import { getOriginalGsapTo } from './drag-core.js';
 import { waitForCriticalStartupReadiness } from '../utils/startup-readiness.js';
 import { applyAppPaperBackground } from '../utils/app-paper-background.js';
+import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 const trackTween = (target: any, vars: any) => {
@@ -51,13 +52,52 @@ const studioCharacterModules = import.meta.glob([
   import: 'default',
 }) as Record<string, string>;
 const STUDIO_CHARACTER_ENTRIES = Object.entries(studioCharacterModules);
-const selectedStudioCharacterEntry = STUDIO_CHARACTER_ENTRIES[
+const requestedDevStudioCharacter = import.meta.env.DEV
+  ? new URLSearchParams(window.location.search).get('ccIntroCharacter')
+  : null;
+const requestedBuildStudioCharacter = import.meta.env.VITE_CC_FORCE_INTRO_CHARACTER?.trim() || null;
+const requestedStudioCharacter = requestedDevStudioCharacter || requestedBuildStudioCharacter;
+const forcedStudioCharacterEntry = requestedStudioCharacter
+  ? STUDIO_CHARACTER_ENTRIES.find(([characterPath]) => characterPath.endsWith(`/${requestedStudioCharacter}`))
+  : undefined;
+const selectedStudioCharacterEntry = forcedStudioCharacterEntry || STUDIO_CHARACTER_ENTRIES[
   Math.floor(Math.random() * STUDIO_CHARACTER_ENTRIES.length)
 ] || [
   '../../assets/logo addons/lik-game.svg',
   new URL('../../assets/logo addons/lik-game.svg', import.meta.url).href,
 ];
-const [selectedStudioCharacterPath, selectedStudioCharacterUrl] = selectedStudioCharacterEntry;
+const [selectedStudioCharacterPath, selectedStudioCharacterSvgUrl] = selectedStudioCharacterEntry;
+const MOBILE_ANIMATION_PROXIES = [
+  ['/lik-game.svg', new URL('../../assets/logo addons/optimized/lik-game-mobile.webp', import.meta.url).href, new URL('../../assets/logo addons/optimized/lik-game-mobile-hevc.mov', import.meta.url).href],
+  ['/lik-gitara.svg', new URL('../../assets/logo addons/optimized/lik-gitara-mobile.webp', import.meta.url).href, new URL('../../assets/logo addons/optimized/lik-gitara-mobile-hevc.mov', import.meta.url).href],
+  ['/lik-pas-SVG.svg', new URL('../../assets/logo addons/optimized/lik-pas-SVG-mobile.webp', import.meta.url).href, new URL('../../assets/logo addons/optimized/lik-pas-SVG-mobile-hevc.mov', import.meta.url).href],
+  ['/lik-cvijet.svg', new URL('../../assets/logo addons/optimized/lik-cvijet-mobile.webp', import.meta.url).href, new URL('../../assets/logo addons/optimized/lik-cvijet-mobile-hevc.mov', import.meta.url).href],
+  ['/lik-kauc.svg', new URL('../../assets/logo addons/optimized/lik-kauc-mobile.webp', import.meta.url).href, new URL('../../assets/logo addons/optimized/lik-kauc-mobile-hevc.mov', import.meta.url).href],
+  ['/lik-board.svg', new URL('../../assets/logo addons/optimized/lik-board-mobile.webp', import.meta.url).href, new URL('../../assets/logo addons/optimized/lik-board-mobile-hevc.mov', import.meta.url).href],
+  ['/lik slikanje.svg', new URL('../../assets/logo addons/optimized/lik-slikanje-mobile.webp', import.meta.url).href, new URL('../../assets/logo addons/optimized/lik-slikanje-mobile-hevc.mov', import.meta.url).href],
+  ['/lik-laptop.svg', new URL('../../assets/logo addons/optimized/lik-laptop-mobile.webp', import.meta.url).href, new URL('../../assets/logo addons/optimized/lik-laptop-mobile-hevc.mov', import.meta.url).href],
+  ['/lik-nogomet.svg', new URL('../../assets/logo addons/optimized/lik-nogomet-mobile.webp', import.meta.url).href, new URL('../../assets/logo addons/optimized/lik-nogomet-mobile-hevc.mov', import.meta.url).href],
+  ['/lik-speceraj.svg', new URL('../../assets/logo addons/optimized/lik-speceraj-mobile.webp', import.meta.url).href, new URL('../../assets/logo addons/optimized/lik-speceraj-mobile-hevc.mov', import.meta.url).href],
+  ['/pas novine.svg', new URL('../../assets/logo addons/optimized/pas-novine-mobile.webp', import.meta.url).href, new URL('../../assets/logo addons/optimized/pas-novine-mobile-hevc.mov', import.meta.url).href],
+] as const;
+const selectedStudioCharacterMobileProxy = MOBILE_ANIMATION_PROXIES.find(
+  ([sourceSuffix]) => selectedStudioCharacterPath.endsWith(sourceSuffix),
+);
+const selectedStudioCharacterMobileAnimationUrl = selectedStudioCharacterMobileProxy?.[1];
+const selectedStudioCharacterMobileVideoUrl = selectedStudioCharacterMobileProxy?.[2];
+const forceMobileAnimationProxyInDev = import.meta.env.DEV &&
+  new URLSearchParams(window.location.search).get('ccIntroMobileProxy') === '1';
+const selectedStudioCharacterUsesMobileAnimationProxy =
+  Boolean(selectedStudioCharacterMobileAnimationUrl) &&
+  (MOBILE_RUNTIME_PROFILE.isMobileDevice || forceMobileAnimationProxyInDev);
+const selectedStudioCharacterUsesMobileVideoProxy =
+  Boolean(selectedStudioCharacterMobileVideoUrl) &&
+  (MOBILE_RUNTIME_PROFILE.isMobileDevice || forceMobileAnimationProxyInDev);
+const selectedStudioCharacterUrl = selectedStudioCharacterUsesMobileVideoProxy
+  ? selectedStudioCharacterMobileVideoUrl!
+  : selectedStudioCharacterUsesMobileAnimationProxy
+    ? selectedStudioCharacterMobileAnimationUrl!
+    : selectedStudioCharacterSvgUrl;
 const selectedStudioCharacterHasOwnMotion =
   selectedStudioCharacterPath.endsWith('/lik-game.svg') ||
   selectedStudioCharacterPath.endsWith('/lik-gitara.svg') ||
@@ -70,19 +110,109 @@ const selectedStudioCharacterHasOwnMotion =
   selectedStudioCharacterPath.endsWith('/lik-nogomet.svg') ||
   selectedStudioCharacterPath.endsWith('/lik-speceraj.svg') ||
   selectedStudioCharacterPath.endsWith('/pas novine.svg');
-const selectedStudioCharacterNeedsRightOffset =
-  selectedStudioCharacterPath.endsWith('/lik slikanje.svg');
-const selectedStudioCharacterUsesLargeTopPivot =
-  selectedStudioCharacterPath.endsWith('/lik-pas-SVG.svg');
-const selectedStudioCharacterUsesTenPercentScale =
-  selectedStudioCharacterPath.endsWith('/pas novine.svg') ||
-  selectedStudioCharacterPath.endsWith('/lik-speceraj.svg') ||
-  selectedStudioCharacterPath.endsWith('/lik-laptop.svg');
-const selectedStudioCharacterRestScale = selectedStudioCharacterUsesLargeTopPivot
-  ? 1.12
-  : selectedStudioCharacterUsesTenPercentScale
-    ? 1.1
-    : 1;
+interface StudioCharacterPresentation {
+  restScale: number;
+  offsetX: number;
+  offsetY: number;
+  transformOrigin: string;
+}
+
+const DEFAULT_STUDIO_CHARACTER_PRESENTATION: StudioCharacterPresentation = {
+  restScale: 1,
+  offsetX: 0,
+  offsetY: 0,
+  transformOrigin: 'center center',
+};
+const STUDIO_CHARACTER_PRESENTATIONS = [
+  ['/lik-kauc.svg', { restScale: 1.1475, offsetX: 0, offsetY: 40, transformOrigin: 'center center' }],
+  ['/lik-gitara.svg', { restScale: 1.1, offsetX: 0, offsetY: 16, transformOrigin: 'center center' }],
+  ['/lik slikanje.svg', { restScale: 1.08, offsetX: 20, offsetY: 10, transformOrigin: 'center center' }],
+  ['/lik-cvijet.svg', { restScale: 1.08, offsetX: 0, offsetY: 8, transformOrigin: 'center center' }],
+  ['/lik-board.svg', { restScale: 1.04, offsetX: 0, offsetY: 16, transformOrigin: 'center center' }],
+  ['/lik-game.svg', { restScale: 1.08, offsetX: 0, offsetY: 0, transformOrigin: 'center center' }],
+  ['/lik-laptop.svg', { restScale: 1.452, offsetX: 0, offsetY: 8, transformOrigin: 'center center' }],
+  ['/lik-pas-SVG.svg', { restScale: 1.12, offsetX: 0, offsetY: 0, transformOrigin: 'center top' }],
+  ['/lik-speceraj.svg', { restScale: 1.21, offsetX: 0, offsetY: 20, transformOrigin: 'center center' }],
+  ['/lik-nogomet.svg', { restScale: 1.1, offsetX: 0, offsetY: 0, transformOrigin: 'center center' }],
+  ['/pas novine.svg', { restScale: 1.1, offsetX: 0, offsetY: 16, transformOrigin: 'center center' }],
+] as const satisfies ReadonlyArray<readonly [string, StudioCharacterPresentation]>;
+const selectedStudioCharacterPresentation = STUDIO_CHARACTER_PRESENTATIONS.find(
+  ([sourceSuffix]) => selectedStudioCharacterPath.endsWith(sourceSuffix),
+)?.[1] || DEFAULT_STUDIO_CHARACTER_PRESENTATION;
+const selectedStudioCharacterRestScale = selectedStudioCharacterPresentation.restScale;
+const selectedStudioCharacterInitialScale = Number((0.82 * selectedStudioCharacterRestScale).toFixed(4));
+
+function applySelectedStudioCharacterSource(studioCharacter: HTMLImageElement): void {
+  const selectedImageUrl = selectedStudioCharacterUsesMobileAnimationProxy
+    ? selectedStudioCharacterMobileAnimationUrl!
+    : selectedStudioCharacterSvgUrl;
+  studioCharacter.dataset.launchMotionSource = selectedStudioCharacterUsesMobileAnimationProxy
+    ? 'animated-webp'
+    : 'svg';
+  studioCharacter.onerror = selectedStudioCharacterUsesMobileAnimationProxy
+    ? () => {
+        logger.warn('⚠️ Mobile intro animation proxy failed; restoring authored SVG');
+        studioCharacter.onerror = null;
+        studioCharacter.dataset.launchMotionSource = 'svg-fallback';
+        studioCharacter.src = selectedStudioCharacterSvgUrl;
+      }
+    : null;
+  studioCharacter.src = selectedImageUrl;
+}
+
+function applySelectedStudioCharacterClasses(studioCharacter: HTMLElement): void {
+  studioCharacter.style.setProperty('--launch-character-initial-scale', String(selectedStudioCharacterInitialScale));
+  studioCharacter.style.setProperty('--launch-character-offset-x', `${selectedStudioCharacterPresentation.offsetX}px`);
+  studioCharacter.style.setProperty('--launch-character-offset-y', `${selectedStudioCharacterPresentation.offsetY}px`);
+  studioCharacter.style.setProperty('--launch-character-transform-origin', selectedStudioCharacterPresentation.transformOrigin);
+}
+
+function applySelectedStudioCharacterVideoSource(studioCharacter: HTMLVideoElement): void {
+  const fallbackUrl = selectedStudioCharacterMobileAnimationUrl || selectedStudioCharacterSvgUrl;
+  let fellBack = false;
+  const useImageFallback = () => {
+    if (fellBack) return;
+    fellBack = true;
+    logger.warn('⚠️ HEVC-alpha intro proxy failed; restoring animated image proxy');
+    studioCharacter.dataset.launchMotionSource = 'animated-webp-fallback';
+    studioCharacter.pause();
+    studioCharacter.removeAttribute('src');
+    studioCharacter.style.backgroundImage = `url("${fallbackUrl}")`;
+    studioCharacter.style.backgroundPosition = 'center';
+    studioCharacter.style.backgroundRepeat = 'no-repeat';
+    studioCharacter.style.backgroundSize = 'contain';
+  };
+
+  studioCharacter.dataset.launchMotionSource = 'hevc-alpha';
+  studioCharacter.muted = true;
+  studioCharacter.defaultMuted = true;
+  studioCharacter.autoplay = true;
+  studioCharacter.loop = true;
+  studioCharacter.playsInline = true;
+  studioCharacter.preload = 'auto';
+  studioCharacter.disablePictureInPicture = true;
+  studioCharacter.setAttribute('muted', '');
+  studioCharacter.setAttribute('playsinline', '');
+  studioCharacter.setAttribute('webkit-playsinline', '');
+  studioCharacter.setAttribute('aria-hidden', 'true');
+  studioCharacter.addEventListener('error', useImageFallback, { once: true });
+  studioCharacter.addEventListener('playing', () => {
+    studioCharacter.style.backgroundImage = '';
+  }, { once: true });
+  studioCharacter.src = selectedStudioCharacterMobileVideoUrl!;
+  studioCharacter.load();
+}
+
+type StudioCharacterElement = HTMLImageElement | HTMLVideoElement;
+
+function applySelectedStudioCharacterMedia(studioCharacter: StudioCharacterElement): void {
+  applySelectedStudioCharacterClasses(studioCharacter);
+  if (studioCharacter instanceof HTMLVideoElement) {
+    applySelectedStudioCharacterVideoSource(studioCharacter);
+    return;
+  }
+  applySelectedStudioCharacterSource(studioCharacter);
+}
 
 interface LaunchScreenElements {
   container: HTMLElement | null;
@@ -90,7 +220,7 @@ interface LaunchScreenElements {
   studioLogoUnit: HTMLElement | null;
   studioLogo: HTMLImageElement | null;
   studioLogoSheen: HTMLImageElement | null;
-  studioCharacter: HTMLImageElement | null;
+  studioCharacter: StudioCharacterElement | null;
 }
 
 class LaunchScreen {
@@ -217,7 +347,16 @@ class LaunchScreen {
       this.elements.studioLogoUnit = existingContainer.querySelector('#launch-studio-logo-unit') as HTMLElement;
       this.elements.studioLogo = existingContainer.querySelector('#launch-studio-logo') as HTMLImageElement;
       this.elements.studioLogoSheen = existingContainer.querySelector('#launch-studio-logo-sheen') as HTMLImageElement;
-      this.elements.studioCharacter = existingContainer.querySelector('#launch-studio-character') as HTMLImageElement;
+      const existingStudioCharacter = existingContainer.querySelector('#launch-studio-character') as StudioCharacterElement | null;
+      if (selectedStudioCharacterUsesMobileVideoProxy && !(existingStudioCharacter instanceof HTMLVideoElement)) {
+        const studioCharacterVideo = document.createElement('video');
+        studioCharacterVideo.id = 'launch-studio-character';
+        studioCharacterVideo.className = 'launch-studio-character';
+        existingStudioCharacter?.replaceWith(studioCharacterVideo);
+        this.elements.studioCharacter = studioCharacterVideo;
+      } else {
+        this.elements.studioCharacter = existingStudioCharacter;
+      }
       if (this.elements.studioLogo) {
         this.elements.studioLogo.src = STUDIO_LOGO_URL;
       }
@@ -225,19 +364,7 @@ class LaunchScreen {
         this.elements.studioLogoSheen.src = STUDIO_LOGO_URL;
       }
       if (this.elements.studioCharacter) {
-        this.elements.studioCharacter.src = selectedStudioCharacterUrl;
-        this.elements.studioCharacter.classList.toggle(
-          'launch-studio-character--slikanje',
-          selectedStudioCharacterNeedsRightOffset
-        );
-        this.elements.studioCharacter.classList.toggle(
-          'launch-studio-character--large-dog',
-          selectedStudioCharacterUsesLargeTopPivot
-        );
-        this.elements.studioCharacter.classList.toggle(
-          'launch-studio-character--ten-percent-larger',
-          selectedStudioCharacterUsesTenPercentScale
-        );
+        applySelectedStudioCharacterMedia(this.elements.studioCharacter);
       }
       
       // 🔥 PREMIUM: Disable drag and long press on existing images
@@ -321,24 +448,16 @@ class LaunchScreen {
     presentsLabel.className = 'launch-studio-presents-label';
     presentsLabel.textContent = 'PRESENTS';
 
-    const studioCharacter = document.createElement('img');
+    const studioCharacter = document.createElement(
+      selectedStudioCharacterUsesMobileVideoProxy ? 'video' : 'img'
+    ) as StudioCharacterElement;
     studioCharacter.id = 'launch-studio-character';
     studioCharacter.className = 'launch-studio-character';
-    studioCharacter.classList.toggle(
-      'launch-studio-character--slikanje',
-      selectedStudioCharacterNeedsRightOffset
-    );
-    studioCharacter.classList.toggle(
-      'launch-studio-character--large-dog',
-      selectedStudioCharacterUsesLargeTopPivot
-    );
-    studioCharacter.classList.toggle(
-      'launch-studio-character--ten-percent-larger',
-      selectedStudioCharacterUsesTenPercentScale
-    );
-    studioCharacter.src = selectedStudioCharacterUrl;
-    studioCharacter.alt = '';
-    studioCharacter.loading = 'eager';
+    applySelectedStudioCharacterMedia(studioCharacter);
+    if (studioCharacter instanceof HTMLImageElement) {
+      studioCharacter.alt = '';
+      studioCharacter.loading = 'eager';
+    }
     studioCharacter.draggable = false;
     this.disableImageDrag(studioCharacter);
 
@@ -454,6 +573,18 @@ class LaunchScreen {
     }
 
     const launchStyle = getComputedStyle(container);
+    const characterComplete = studioCharacter instanceof HTMLVideoElement
+      ? studioCharacter.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA ||
+        studioCharacter.dataset.launchMotionSource === 'animated-webp-fallback'
+      : studioCharacter.complete;
+    const characterNaturalWidth = studioCharacter instanceof HTMLVideoElement
+      ? studioCharacter.videoWidth
+      : studioCharacter.naturalWidth;
+    if (studioCharacter instanceof HTMLVideoElement) {
+      studioCharacter.play().catch((error) => {
+        logger.warn('⚠️ HEVC-alpha intro autoplay did not start immediately:', error);
+      });
+    }
     console.info('[CC_STARTUP_BG] phase=studio-presents', {
       background: launchStyle.background,
       backgroundColor: launchStyle.backgroundColor,
@@ -461,8 +592,8 @@ class LaunchScreen {
       paperComplete: priorityPaperBgLoadPromise !== null,
       logoComplete: studioLogo.complete,
       logoNaturalWidth: studioLogo.naturalWidth,
-      characterComplete: studioCharacter.complete,
-      characterNaturalWidth: studioCharacter.naturalWidth,
+      characterComplete,
+      characterNaturalWidth,
     });
     try {
       (window as any).webkit?.messageHandlers?.consoleLog?.postMessage?.({
@@ -473,13 +604,13 @@ class LaunchScreen {
           backgroundImage: launchStyle.backgroundImage,
           logoComplete: studioLogo.complete,
           logoNaturalWidth: studioLogo.naturalWidth,
-          characterComplete: studioCharacter.complete,
-          characterNaturalWidth: studioCharacter.naturalWidth,
+          characterComplete,
+          characterNaturalWidth,
         })}`,
       });
     } catch {}
-    const launchImagesReady = this.waitForImages([studioLogo, studioLogoSheen, studioCharacter], 1800).catch(() => {
-      logger.warn('⚠️ Studio intro image load timeout - continuing anyway');
+    const launchImagesReady = this.waitForMedia([studioLogo, studioLogoSheen, studioCharacter], 1800).catch(() => {
+      logger.warn('⚠️ Studio intro media load timeout - continuing anyway');
     });
 
     const launchImagesCompleted = await this.waitForRun(Promise.all([
@@ -490,7 +621,7 @@ class LaunchScreen {
 
     // Begin actual homepage asset work behind the studio intro.
     logger.info('🔥 Starting critical image preloading behind studio intro...');
-    const criticalImagePreloadPromise = (async () => {
+    const backgroundCriticalImagePreloadPromise = (async () => {
       try {
         const { preloadAllStartupImages } = await import('../utils/comprehensive-image-preloader.js');
         await preloadAllStartupImages();
@@ -499,6 +630,11 @@ class LaunchScreen {
         logger.warn('⚠️ Critical image preloading failed softly behind studio intro:', error);
       }
     })();
+    backgroundCriticalImagePreloadPromise.catch(() => {});
+    const criticalStartupReadinessPromise = waitForCriticalStartupReadiness({
+      reason: 'studio-intro-preloader',
+      timeoutMs: 3500,
+    });
 
     studioPresentsContainer.style.setProperty('opacity', '1');
     const idleSheenTimer = window.setTimeout(() => {
@@ -577,18 +713,13 @@ class LaunchScreen {
       });
     }
 
-    // Keep the intro visible for its hero moment and for all critical preload work.
+    // Keep the intro visible for its hero moment while bounded critical readiness
+    // runs in parallel. Remaining route preloads continue safely in the background.
     const preloadCompleted = await this.waitForRun(Promise.all([
       new Promise(resolve => setTimeout(resolve, 2800)),
-      criticalImagePreloadPromise.catch(() => {})
+      criticalStartupReadinessPromise
     ]), runSignal);
     if (!preloadCompleted || !this.isCurrentRun(container)) return;
-
-    const readinessCompleted = await this.waitForRun(waitForCriticalStartupReadiness({
-      reason: 'studio-intro-preloader',
-      timeoutMs: 10000,
-    }), runSignal);
-    if (!readinessCompleted || !this.isCurrentRun(container)) return;
 
     studioLogoSheen.classList.remove('is-idle-active');
     characterIdleTween?.kill?.();
@@ -733,6 +864,12 @@ class LaunchScreen {
     if (elementsToKill.length > 0) {
       gsap.killTweensOf(elementsToKill);
     }
+
+    if (this.elements.studioCharacter instanceof HTMLVideoElement) {
+      this.elements.studioCharacter.pause();
+      this.elements.studioCharacter.removeAttribute('src');
+      this.elements.studioCharacter.load();
+    }
     
     if (this.elements.container && this.elements.container.parentElement) {
       this.elements.container.parentElement.removeChild(this.elements.container);
@@ -751,7 +888,7 @@ class LaunchScreen {
    * Disable image dragging and long press (premium app behavior)
    * @param img Image element to disable drag on
    */
-  private disableImageDrag(img: HTMLImageElement | null): void {
+  private disableImageDrag(img: HTMLElement | null): void {
     if (!img) return;
     
     img.draggable = false;
@@ -790,14 +927,14 @@ class LaunchScreen {
   }
 
   /**
-   * Wait for images to load (with optional timeout)
-   * @param images Array of image elements to wait for
+   * Wait for launch images/video to load (with optional timeout)
+   * @param media Array of image or video elements to wait for
    * @param timeoutMs Maximum time to wait in milliseconds (default: no timeout)
    */
-  private waitForImages(images: HTMLImageElement[], timeoutMs?: number): Promise<void> {
+  private waitForMedia(media: Array<HTMLImageElement | HTMLVideoElement>, timeoutMs?: number): Promise<void> {
     return new Promise((resolve) => {
       let loadedCount = 0;
-      const total = images.length;
+      const total = media.length;
       let resolved = false;
       const cleanups: Array<() => void> = [];
       let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -825,7 +962,7 @@ class LaunchScreen {
         if (resolved) return;
         loadedCount++;
         if (loadedCount === total) {
-          logger.info(`✅ All ${total} launch images loaded`);
+          logger.info(`✅ All ${total} launch media elements loaded`);
           finish();
         }
       };
@@ -833,11 +970,34 @@ class LaunchScreen {
       // Set timeout if provided
       if (timeoutMs && timeoutMs > 0) {
         timeoutId = setTimeout(() => {
-          finish(`⚠️ Image loading timeout after ${timeoutMs}ms - continuing anyway`);
+          finish(`⚠️ Media loading timeout after ${timeoutMs}ms - continuing anyway`);
         }, timeoutMs);
       }
 
-      images.forEach((img) => {
+      media.forEach((item) => {
+        if (item instanceof HTMLVideoElement) {
+          const markVideoLoaded = () => checkComplete();
+          const markVideoFailed = () => {
+            logger.warn(`⚠️ Failed to load launch video: ${item.currentSrc || item.src}`);
+            checkComplete();
+          };
+          if (
+            item.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA ||
+            item.dataset.launchMotionSource === 'animated-webp-fallback'
+          ) {
+            markVideoLoaded();
+            return;
+          }
+          item.addEventListener('loadeddata', markVideoLoaded, { once: true });
+          item.addEventListener('error', markVideoFailed, { once: true });
+          cleanups.push(() => {
+            item.removeEventListener('loadeddata', markVideoLoaded);
+            item.removeEventListener('error', markVideoFailed);
+          });
+          return;
+        }
+
+        const img = item;
         const markLoaded = () => {
           if (typeof img.decode === 'function' && img.naturalWidth > 0) {
             img.decode().catch(() => {}).finally(checkComplete);

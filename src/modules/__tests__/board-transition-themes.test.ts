@@ -24,10 +24,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 describe('Board Transition World themes', () => {
-  test('keeps the global soundtrack uninterrupted by transition mounts and motion sensors absent', () => {
+  test('fades the soundtrack through the authored transition while motion sensors stay absent', () => {
     const source = fs.readFileSync(path.resolve(__dirname, '../board-transition-screen.ts'), 'utf8');
-    expect(source).not.toContain('soundtrack-manager');
-    expect(source).not.toContain('fadeOutAndPause');
+    expect(source).toContain("from './soundtrack-manager.js';");
+    expect(source).toContain('beginGameplayTransitionFade();');
+    expect(source).toContain('continueGameplayTransitionFade(');
+    expect(source).toContain('completeGameplayTransitionFade(');
+    expect(source).toContain('SOUNDTRACK_GAMEPLAY_VOLUME_RATIO');
+    expect(source).toContain('effectiveExitDurationMs');
     expect(source).not.toContain('appSpatialMotion');
     expect(source).not.toContain('DeviceOrientationEvent');
   });
@@ -542,7 +546,7 @@ describe('Board Transition World themes', () => {
     expect(source).toContain('function startRoboAirCombatMotion');
     expect(source).toContain("const digitEnterBaseDelay = resolvedTheme === 'area55'");
     expect(source).toContain(': BOARD_TRANSITION_NUMBER_ENTER_START_SECONDS;');
-    expect(source).toContain('const delay = digitEnterBaseDelay + (index * 0.3)');
+    expect(source).toContain('const delay = digitEnterBaseDelay + (index * BOARD_TRANSITION_DIGIT_ENTER_STAGGER_SECONDS)');
     expect(source).toContain('scale: 1.15');
     expect(source).toContain('const combatVariation = createRoboAirCombatVariation()');
     expect(source).toContain('const fighterOnScreenX = Math.min(combatVariation.fighterEntryX, (window.innerWidth || 390) * 0.34)');
@@ -968,7 +972,7 @@ describe('Board Transition World themes', () => {
     expect(source).toContain("target.dataset.sceneLayer === 'beach-castle' ? 1.24 : 1.15");
     expect(source).toContain('beachShoreAmbientTimeline = timeline');
     expect(source).toContain('ownAmbientTimeline(ambientTimeline)');
-    expect(source).toContain('forestContainer, resolvedTheme, () =>');
+    expect(source).toContain('forestContainer,\n                      resolvedTheme,\n                      soundtrackFadeGeneration,');
     expect(source).toContain("transitionTheme: BoardTransitionThemeId | 'none'");
     expect(source).toContain("{ 'beach-sea-3': 'beach-ball', 'beach-shore-2': 'beach-castle' }");
     expect(source).toContain("{ 'beach-bottle': -0.2, 'beach-ball': 0.1 }");

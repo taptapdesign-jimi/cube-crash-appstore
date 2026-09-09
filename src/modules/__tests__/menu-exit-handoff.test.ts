@@ -1,5 +1,6 @@
 import { isAnyMenuScreenVisible, requestExitToMenu } from '../menu-exit-handoff';
 import { appZoneManager } from '../app-zone-manager';
+import { setNoMovesNavigationLocked } from '../terminal-navigation-lock';
 
 describe('menu exit handoff', () => {
   beforeEach(() => {
@@ -28,6 +29,7 @@ describe('menu exit handoff', () => {
         });
       });
     delete (window as any).exitingToMenu;
+    setNoMovesNavigationLocked(false);
   });
 
   afterEach(() => {
@@ -35,6 +37,7 @@ describe('menu exit handoff', () => {
     document.body.innerHTML = '';
     delete (window as any).exitToMenu;
     delete (window as any).exitingToMenu;
+    setNoMovesNavigationLocked(false);
   });
 
   it('forwards the one-shot Slider 2 intent and prepared callback to the authoritative owner', async () => {
@@ -66,8 +69,46 @@ describe('menu exit handoff', () => {
       fastArcadeCleanExit: undefined,
       visualExitAlreadyComplete: undefined,
       expectedMenuDestination: 'home',
+      allowTerminalNoMovesExit: undefined,
     });
     expect(onHomepageEnterPrepared).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not start or recover a menu exit while NO MOVES owns navigation', async () => {
+    const exitToMenu = jest.fn();
+    (window as any).exitToMenu = exitToMenu;
+    setNoMovesNavigationLocked(true);
+
+    await requestExitToMenu({
+      reason: 'test-no-moves-race',
+      target: 'homepage',
+      skipBoardExit: true,
+    });
+
+    expect(exitToMenu).not.toHaveBeenCalled();
+    expect((window as any).exitingToMenu).not.toBe(true);
+  });
+
+  it('allows the terminal Fail modal to perform its explicit exit handoff', async () => {
+    const exitToMenu = jest.fn();
+    (window as any).exitToMenu = exitToMenu;
+    setNoMovesNavigationLocked(true);
+    (document.querySelector('.slider-slide') as HTMLElement).dataset.slide = '0';
+
+    const handoff = requestExitToMenu({
+      reason: 'test-fail-modal-exit',
+      target: 'homepage',
+      skipBoardExit: true,
+      allowTerminalNoMovesExit: true,
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(320);
+    await handoff;
+
+    expect(exitToMenu).toHaveBeenCalledWith(expect.objectContaining({
+      allowTerminalNoMovesExit: true,
+    }));
   });
 
   it('does not accept a visible Journey paper shell without a painted Unit', () => {

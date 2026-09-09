@@ -19,7 +19,10 @@ import {
   startSpecialDiceIdleMotion,
   stopSpecialDiceIdleMotion,
 } from '../special-dice-idle';
-import { acquireGameplayDragForeground } from '../gameplay-drag-foreground-owner';
+import {
+  acquireGameplayDragForeground,
+  setGameplayDragBounds,
+} from '../gameplay-drag-foreground-owner';
 
 describe('Juice animated SVG board artwork', () => {
   beforeEach(() => {
@@ -182,5 +185,59 @@ describe('Juice animated SVG board artwork', () => {
     }
     expect((controller as any).wrapper.style.visibility).toBe('visible');
     expect(base.renderable).toBe(false);
+  });
+
+  test('keeps the live Juice SVG and bubbles running while another die crosses it', () => {
+    const base = new Sprite(Texture.WHITE);
+    const rotG = new Container();
+    rotG.addChild(base);
+    const tile: any = { special: 'wild-juice', destroyed: false, base, rotG };
+    const pixiBubbleContainer = { destroyed: false, renderable: true };
+    tile._wildJuiceBubbleSystem = {
+      disposed: false,
+      container: pixiBubbleContainer,
+      bubbles: [],
+    };
+    startSpecialDiceIdleMotion(tile);
+    const controller = tile._ccJuiceBounceArtwork as any;
+    controller.image.onload(new Event('load'));
+    const footprint = controller.wrapper.querySelector(
+      '[data-animated-special-artwork-overlap-footprint]',
+    ) as HTMLElement;
+    jest.spyOn(footprint, 'getBoundingClientRect').mockReturnValue({
+      x: 100,
+      y: 100,
+      left: 100,
+      top: 100,
+      right: 228,
+      bottom: 228,
+      width: 128,
+      height: 128,
+      toJSON: () => ({}),
+    });
+
+    const originalImage = controller.image;
+    const originalSrc = originalImage.getAttribute('src');
+    const releaseForeground = acquireGameplayDragForeground();
+    try {
+      setGameplayDragBounds({ x: 120, y: 120, width: 128, height: 128 });
+      expect(controller.wrapper.parentElement?.className)
+        .toBe('animated-special-artwork-occluded-layer');
+      expect(controller.wrapper.style.visibility).toBe('visible');
+      expect(controller.image).toBe(originalImage);
+      expect(controller.image.getAttribute('src')).toBe(originalSrc);
+      expect(base.renderable).toBe(false);
+      expect(pixiBubbleContainer.renderable).toBe(false);
+
+      setGameplayDragBounds({ x: 260, y: 120, width: 128, height: 128 });
+      expect(controller.wrapper.parentElement?.className)
+        .toBe('animated-special-artwork-layer');
+      expect(controller.image).toBe(originalImage);
+      expect(controller.image.getAttribute('src')).toBe(originalSrc);
+      expect(base.renderable).toBe(false);
+    } finally {
+      setGameplayDragBounds(null);
+      releaseForeground();
+    }
   });
 });

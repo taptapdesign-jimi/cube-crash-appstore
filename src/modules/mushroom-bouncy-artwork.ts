@@ -4,6 +4,7 @@ import {
   doesAnimatedSpecialArtworkOverlapGameplayDrag,
   installAnimatedSpecialArtworkOverlapFootprint,
   setAnimatedSpecialArtworkDragging,
+  setAnimatedSpecialArtworkOccluded,
   type AnimatedSpecialArtworkFrame,
   type AnimatedSpecialArtworkLayerLease,
 } from './animated-special-artwork-layer.ts';
@@ -124,14 +125,11 @@ function syncController(
     return;
   }
 
-  if (
-    frame.gameplayDragActive
+  const occludedByGameplayDrag = frame.gameplayDragActive
     && !controller.dragging
-    && doesAnimatedSpecialArtworkOverlapGameplayDrag(wrapper, frame.gameplayDragBounds)
-  ) {
-    wrapper.style.visibility = 'hidden';
-    try { base.renderable = controller.baseRenderable; } catch {}
-    return;
+    && doesAnimatedSpecialArtworkOverlapGameplayDrag(wrapper, frame.gameplayDragBounds);
+  if (!controller.dragging) {
+    setAnimatedSpecialArtworkOccluded(wrapper, occludedByGameplayDrag);
   }
 
   if (controller.dragging) {

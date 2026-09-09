@@ -4,6 +4,16 @@ import animationManager from './animation-manager.js';
 import { ASSET_WILD, ASSET_WILD_MAGNET, ASSET_WILD_JUICE, ASSET_WILD_TNT } from './constants.js';
 import { isArcadeHomeRunMode } from './run-mode.js';
 import { getSpecialDiceVariantForTile, getSpecialDiceVisualConfig } from './special-dice-registry.ts';
+import {
+  playArcadeCrateSounds,
+  preloadArcadeCrateSounds,
+  stopArcadeCrateSounds,
+} from './arcade-crate-sound.ts';
+import {
+  playJourneyBackpackSounds,
+  preloadJourneyBackpackSounds,
+  stopJourneyBackpackSounds,
+} from './journey-backpack-sound.ts';
 
 type Point = { x: number; y: number };
 
@@ -42,6 +52,8 @@ let assetsPreloadPromise: Promise<void> | null = null;
 const activeDropCleanups = new Set<() => void>();
 
 export function preloadWildSpawnDropAssets(): Promise<void> {
+  preloadArcadeCrateSounds();
+  preloadJourneyBackpackSounds();
   if (assetsPreloadPromise) return assetsPreloadPromise;
   assetsPreloadPromise = Assets.load([...BACKPACK_PLAYBACK_SOURCES, ...CRATE_IN_SOURCES])
     .then(() => undefined)
@@ -125,9 +137,11 @@ function createBackpackSpawn(stage: any, point: Point, tileSize: number, baseZ: 
   let backpack: any = null;
   let frameTimeline: gsap.core.Timeline | null = null;
   let bounceTimeline: gsap.core.Timeline | null = null;
+  const useArcadeCrate = isArcadeHomeRunMode();
   const restoreBoardIndicatorDividers = maskBoardIndicatorDividersForBackpack();
   try {
-    const useArcadeCrate = isArcadeHomeRunMode();
+    if (useArcadeCrate) playArcadeCrateSounds();
+    else playJourneyBackpackSounds();
     const playbackSources = useArcadeCrate ? CRATE_PLAYBACK_SOURCES : BACKPACK_PLAYBACK_SOURCES;
     const textureWidth = useArcadeCrate ? CRATE_TEXTURE_WIDTH : BACKPACK_TEXTURE_WIDTH;
     stage.sortableChildren = true;
@@ -195,6 +209,11 @@ function createBackpackSpawn(stage: any, point: Point, tileSize: number, baseZ: 
     activeDropCleanups.delete(cleanup);
     try { frameTimeline?.kill(); } catch {}
     try { bounceTimeline?.kill(); } catch {}
+    if (useArcadeCrate) {
+      try { stopArcadeCrateSounds(); } catch {}
+    } else {
+      try { stopJourneyBackpackSounds(); } catch {}
+    }
     try { gsap.killTweensOf(backpack); } catch {}
     try { gsap.killTweensOf(backpack?.scale); } catch {}
     try { restoreBoardIndicatorDividers(); } catch {}
@@ -707,6 +726,8 @@ export async function animateWildSpawnDropFromMeter({
 }
 
 export function cleanupWildSpawnDropAnimations(): void {
+  try { stopArcadeCrateSounds(); } catch {}
+  try { stopJourneyBackpackSounds(); } catch {}
   const cleanups = Array.from(activeDropCleanups);
   activeDropCleanups.clear();
   cleanups.forEach((cleanup) => {

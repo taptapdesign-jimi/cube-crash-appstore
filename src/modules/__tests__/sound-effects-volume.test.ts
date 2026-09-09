@@ -10,6 +10,7 @@ import {
 } from '../gameplay-pickup-sound';
 import {
   ORDINARY_STACK_SOUND_VOLUME,
+  ORDINARY_STACK_SECONDARY_VOLUME,
 } from '../ordinary-stack-sound';
 import {
   REGULAR_MERGE6_BOOM_VOLUME,
@@ -17,17 +18,38 @@ import {
   REGULAR_MERGE6_SOUND_VOLUME,
   REGULAR_MERGE6_STACK_VOLUME,
 } from '../regular-merge6-sound';
+import {
+  WILD_STAR_MERGE6_BOOM_VOLUME,
+  WILD_STAR_MERGE6_PRIMARY_VOLUME,
+  WILD_STAR_MERGE6_SOUND_VOLUME,
+  WILD_STAR_MERGE6_SPARKLE_VOLUME,
+  WILD_STAR_MERGE6_STACK_VOLUME,
+} from '../wild-star-merge6-sound';
+import { WILD_SPECIAL_LANDING_SOUND_VOLUME } from '../wild-special-landing-sound';
+import { ARCADE_CRATE_SOUND_VOLUMES } from '../arcade-crate-sound';
+import { JOURNEY_BACKPACK_SOUND_VOLUMES } from '../journey-backpack-sound';
+import { NO_MOVES_SOUND_VOLUME } from '../no-moves-sound';
 
 describe('sound effects master volume', () => {
   it('reduces every currently active SFX voice by exactly 40 percent', () => {
     expect(SOUND_EFFECTS_MASTER_GAIN).toBe(0.6);
     expect(GAMEPLAY_PICKUP_SOUND_VOLUME).toBeCloseTo(0.2592);
     expect(GAMEPLAY_RETURN_SOUND_VOLUME).toBeCloseTo(0.51);
-    expect(ORDINARY_STACK_SOUND_VOLUME).toBeCloseTo(0.6);
+    expect(ORDINARY_STACK_SOUND_VOLUME).toBeCloseTo(0.2304);
+    expect(ORDINARY_STACK_SECONDARY_VOLUME).toBeCloseTo(0.48);
     expect(REGULAR_MERGE6_SOUND_VOLUME).toBeCloseTo(0.3);
     expect(REGULAR_MERGE6_CRASH_VOLUME).toBeCloseTo(0.1632);
     expect(REGULAR_MERGE6_BOOM_VOLUME).toBeCloseTo(0.36);
     expect(REGULAR_MERGE6_STACK_VOLUME).toBeCloseTo(0.36);
+    expect(WILD_STAR_MERGE6_SOUND_VOLUME).toBeCloseTo(0.4);
+    expect(WILD_STAR_MERGE6_BOOM_VOLUME).toBeCloseTo(0.2);
+    expect(WILD_STAR_MERGE6_SPARKLE_VOLUME).toBeCloseTo(0.36);
+    expect(WILD_STAR_MERGE6_STACK_VOLUME).toBeCloseTo(0.048);
+    expect(WILD_STAR_MERGE6_PRIMARY_VOLUME).toBeCloseTo(0.42);
+    expect(WILD_SPECIAL_LANDING_SOUND_VOLUME).toBeCloseTo(0.3);
+    expect(ARCADE_CRATE_SOUND_VOLUMES).toEqual([0.2688, 0.2016, 0.1344, 0.2352]);
+    expect(JOURNEY_BACKPACK_SOUND_VOLUMES).toEqual([0.48, 0.15]);
+    expect(NO_MOVES_SOUND_VOLUME).toBeCloseTo(0.42);
   });
 
   it('keeps the shared multiplier bounded and excludes music ownership', () => {
@@ -42,11 +64,16 @@ describe('sound effects master volume', () => {
     expect(soundtrack).not.toContain('applySoundEffectsMasterGain');
   });
 
-  it('is consumed by all three active SFX owners', () => {
+  it('is consumed by all eight active SFX owners', () => {
     for (const filename of [
       'gameplay-pickup-sound.ts',
       'ordinary-stack-sound.ts',
       'regular-merge6-sound.ts',
+      'wild-star-merge6-sound.ts',
+      'wild-special-landing-sound.ts',
+      'arcade-crate-sound.ts',
+      'journey-backpack-sound.ts',
+      'no-moves-sound.ts',
     ]) {
       const source = fs.readFileSync(path.resolve(process.cwd(), 'src/modules', filename), 'utf8');
       expect(source).toContain('applySoundEffectsMasterGain');

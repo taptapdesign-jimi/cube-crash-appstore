@@ -64,6 +64,7 @@ import {
   primeHomepageNavigation,
 } from './modules/navigation-control.js';
 import { showEndRunModalFromGame } from './modules/end-run-modal.js';
+import { isNoMovesNavigationLocked } from './modules/terminal-navigation-lock.ts';
 import './modules/score-bottom-sheet.js'; // Score bottom sheet for HUD clicks
 import { animateSliderExit, animateSliderEnter, cancelSliderEnterAnimation, finalizeJourneySliderExit, finalizeSliderEnterVisibility, prepareSliderEnter, primeHomepageCtaEnterTransform, resetAnimationFlags } from './utils/animations.js';
 import { resolveExitWaits, runWithBudget } from './modules/exit-transition-waits.js';
@@ -2155,8 +2156,14 @@ async function startNewRun(boardId: number): Promise<void> {
   fastArcadeCleanExit?: boolean;
   visualExitAlreadyComplete?: boolean;
   expectedMenuDestination?: 'home' | 'journey' | 'detail-modal';
+  allowTerminalNoMovesExit?: boolean;
 } = {}) => {
   logger.info('🏠 exitToMenu called from window');
+
+  if (!options.allowTerminalNoMovesExit && isNoMovesNavigationLocked()) {
+    logger.info('🔒 exitToMenu blocked while NO MOVES owns navigation');
+    return;
+  }
   
   // Guard: Prevent multiple simultaneous calls
   if ((window as any).exitingToMenu) {

@@ -31,6 +31,7 @@ const OVERLAP_FOOTPRINT_ATTRIBUTE = 'data-animated-special-artwork-overlap-footp
 
 const frameOwners = new Set<FrameOwner>();
 let overlayRoot: HTMLDivElement | null = null;
+let occludedOverlayRoot: HTMLDivElement | null = null;
 let dragOverlayRoot: HTMLDivElement | null = null;
 let ticker: Ticker | null = null;
 let finaleDepthOwners = 0;
@@ -65,6 +66,12 @@ function syncOverlayZIndex(
   root.style.zIndex = finaleDepthOwners > 0 && !gameplayDragActive
     ? String(Math.max(0, canvasZIndex - 1))
     : String(Math.max(11, canvasZIndex + 1));
+  if (occludedOverlayRoot) {
+    // Keep a live idle SVG immediately below the transparent Pixi canvas only
+    // while a dragged die crosses it. Moving the same wrapper preserves the
+    // SVG playhead; the canvas still paints the active drag above it.
+    occludedOverlayRoot.style.zIndex = String(Math.max(0, canvasZIndex - 1));
+  }
   if (dragOverlayRoot) {
     // A real pointer owner is always the highest paint owner. Finale/input
     // locks normally prevent overlap, but a stale or interrupted finale lease
@@ -92,6 +99,28 @@ function syncOverlayZIndex(
       }
     }
   } catch {}
+}
+
+function ensureOccludedOverlayRoot(): HTMLDivElement | null {
+  const root = ensureOverlayRoot();
+  const parent = root?.parentElement;
+  if (!root || !parent) return null;
+  if (!occludedOverlayRoot) {
+    occludedOverlayRoot = document.createElement('div');
+    occludedOverlayRoot.className = 'animated-special-artwork-occluded-layer';
+    occludedOverlayRoot.setAttribute('aria-hidden', 'true');
+    Object.assign(occludedOverlayRoot.style, {
+      position: 'absolute',
+      inset: '0',
+      overflow: 'visible',
+      pointerEvents: 'none',
+      zIndex: '0',
+    });
+  }
+  if (occludedOverlayRoot.parentElement !== parent) parent.appendChild(occludedOverlayRoot);
+  const canvas = STATE.app?.canvas as HTMLCanvasElement | null | undefined;
+  if (canvas) syncOverlayZIndex(root, canvas);
+  return occludedOverlayRoot;
 }
 
 function ensureOverlayRoot(): HTMLDivElement | null {
@@ -170,6 +199,10 @@ function releaseRuntimeWhenUnused(): void {
     try { overlayRoot.remove(); } catch {}
     overlayRoot = null;
   }
+  if (occludedOverlayRoot) {
+    try { occludedOverlayRoot.remove(); } catch {}
+    occludedOverlayRoot = null;
+  }
   if (dragOverlayRoot) {
     try { dragOverlayRoot.remove(); } catch {}
     dragOverlayRoot = null;
@@ -183,6 +216,7 @@ function updateAnimatedSpecialArtworkLayer(): void {
   const canvas = app?.canvas as HTMLCanvasElement | null | undefined;
   if (!root || !canvas || !app?.renderer) {
     if (root) root.style.visibility = 'hidden';
+    if (occludedOverlayRoot) occludedOverlayRoot.style.visibility = 'hidden';
     if (dragOverlayRoot) dragOverlayRoot.style.visibility = 'hidden';
     return;
   }
@@ -196,10 +230,12 @@ function updateAnimatedSpecialArtworkLayer(): void {
     && canvasOpacity > 0.001;
   if (!canvasPaintable) {
     root.style.visibility = 'hidden';
+    if (occludedOverlayRoot) occludedOverlayRoot.style.visibility = 'hidden';
     if (dragOverlayRoot) dragOverlayRoot.style.visibility = 'hidden';
     return;
   }
   root.style.visibility = 'visible';
+  if (occludedOverlayRoot) occludedOverlayRoot.style.visibility = 'visible';
   if (dragOverlayRoot) dragOverlayRoot.style.visibility = 'visible';
 
   const canvasRect = canvas.getBoundingClientRect();
@@ -277,8 +313,8 @@ export function acquireAnimatedSpecialArtworkFinaleDepth(): () => void {
 
 /**
  * Moves only the actively dragged SVG wrapper into a sibling foreground root.
- * The normal SVG root remains live above Pixi; individual overlapping idle
- * wrappers switch to their Pixi fallback while the active wrapper stays above
+ * The normal SVG root remains live above Pixi; each overlapping idle owner
+ * selects its scoped occlusion policy while the active wrapper stays above
  * every canvas-rendered die.
  */
 export function setAnimatedSpecialArtworkDragging(
@@ -291,12 +327,26 @@ export function setAnimatedSpecialArtworkDragging(
   refreshAnimatedSpecialArtworkDepth();
 }
 
+/**
+ * Keeps an idle direct-SVG owner alive while the Pixi drag crosses it. The
+ * same DOM wrapper moves below the transparent canvas instead of switching to
+ * a static PNG fallback, so its internal SMIL clock never stops or restarts.
+ */
+export function setAnimatedSpecialArtworkOccluded(
+  wrapper: HTMLDivElement,
+  occluded: boolean,
+): void {
+  if (!wrapper) return;
+  const destination = occluded ? ensureOccludedOverlayRoot() : ensureOverlayRoot();
+  if (destination && wrapper.parentElement !== destination) destination.appendChild(wrapper);
+}
+
 export function refreshAnimatedSpecialArtworkDepth(): void {
   const canvas = STATE.app?.canvas as HTMLCanvasElement | null | undefined;
   if (overlayRoot && canvas) syncOverlayZIndex(overlayRoot, canvas);
   // Drag acquisition/release and bounds updates happen between Pixi ticker
-  // frames. Repaint every direct-SVG owner synchronously so overlap fallback
-  // switches cannot lag one frame behind the pointer.
+  // frames. Repaint every direct-SVG owner synchronously so overlap depth
+  // changes cannot lag one frame behind the pointer.
   if (frameOwners.size > 0) updateAnimatedSpecialArtworkLayer();
 }
 

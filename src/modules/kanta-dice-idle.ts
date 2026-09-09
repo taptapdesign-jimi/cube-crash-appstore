@@ -17,7 +17,6 @@ export const KANTA_IDLE_BACK_HORIZONTAL_OFFSET_RATIO = 0.40;
 export const KANTA_IDLE_BACK_LOWER_RATIO = -0.10;
 export const KANTA_IDLE_FRONT_OFFSET_X_PX = 8;
 export const KANTA_IDLE_BACK_OFFSET_Y_PX = -2;
-export const KANTA_IDLE_BACK_POP_IN_SECONDS = 0.42;
 export const KANTA_IDLE_TOP_BUBBLE_COLOR = 0x06F4FF;
 export const KANTA_IDLE_TOP_BUBBLE_INSET_PX = 3;
 export const KANTA_IDLE_TOP_BUBBLE_Z_INDEX = 2600;
@@ -122,8 +121,6 @@ export function startKantaDiceIdle(
     neutralScaleY: number;
     offsetX: number;
   }> = [];
-  const backdropReveal = { progress: 0 };
-  let backdropRevealTween: gsap.core.Tween | null = null;
   let topBubbleContainer: Container | null = null;
   let backBubbleContainer: Container | null = null;
   const topBubbleGraphics: Graphics[] = [];
@@ -181,10 +178,10 @@ export function startKantaDiceIdle(
       sprite.rotation = originalRotation
         + sideDirection * backdropTiltDegrees * (Math.PI / 180);
       sprite.scale.set(
-        neutralScaleX * opposingScaleRatioX * backdropReveal.progress,
-        neutralScaleY * opposingScaleRatioY * backdropReveal.progress,
+        neutralScaleX * opposingScaleRatioX,
+        neutralScaleY * opposingScaleRatioY,
       );
-      sprite.alpha = Math.min(1, backdropReveal.progress * 1.6);
+      sprite.alpha = 1;
     });
     if (topBubbleContainer && !topBubbleContainer.destroyed) {
       topBubbleContainer.x = pivotX;
@@ -201,7 +198,7 @@ export function startKantaDiceIdle(
         - displayedHeight * KANTA_IDLE_BACK_SCALE
           * KANTA_IDLE_TOP_BUBBLE_ORIGIN_FROM_BOTTOM_RATIO * opposingScaleRatioY
         + KANTA_IDLE_TOP_BUBBLE_INSET_PX;
-      backBubbleContainer.alpha = backdropReveal.progress;
+      backBubbleContainer.alpha = 1;
     }
   };
 
@@ -270,7 +267,6 @@ export function startKantaDiceIdle(
     setDragging: (active: boolean) => {
       if (active) {
         timeline.pause();
-        backdropRevealTween?.pause();
         bubbleRuntimePaused = true;
         topBubbleStates.forEach((state) => {
           state.active = false;
@@ -282,7 +278,6 @@ export function startKantaDiceIdle(
         variant = createJourneyInterimBounceVariant();
         refreshBackdropPlacement();
         timeline.restart();
-        backdropRevealTween?.resume();
         bubbleRuntimePaused = false;
         pendingDoubleInSeconds = 0;
         nextBubbleInSeconds = 0.25;
@@ -292,8 +287,6 @@ export function startKantaDiceIdle(
       if (disposed) return;
       disposed = true;
       try { animationManager.killExternalTimeline(timeline); } catch { timeline.kill(); }
-      try { animationManager.killExternalTween(backdropRevealTween); } catch { backdropRevealTween?.kill(); }
-      backdropRevealTween = null;
       if (topBubbleTicker && topBubbleTick) {
         try { topBubbleTicker.remove(topBubbleTick); } catch {}
       }
@@ -525,12 +518,6 @@ export function startKantaDiceIdle(
     });
     parent.sortChildren();
     syncBackdropPose();
-    backdropRevealTween = animationManager.trackExternalTween(gsap.to(backdropReveal, {
-      progress: 1,
-      duration: KANTA_IDLE_BACK_POP_IN_SECONDS,
-      ease: 'back.out(2.35)',
-      onUpdate: syncBackdropPose,
-    }));
   }).catch(() => {});
 
   return controller;

@@ -14,6 +14,7 @@ import { attachKantaFinaleScene } from './kanta-finale-scene.ts';
 import { setWildFxDragLock, startWildFxDragLockForAnimation } from './wild-fx-drag-lock.ts';
 import { applyEffectLetterOpacity, resolveEffectLetterOpacity } from './effect-letter-opacity.ts';
 import { acquireAnimatedSpecialArtworkFinaleDepth } from './animated-special-artwork-layer.ts';
+import { playNoMovesSound } from './no-moves-sound.ts';
 
 const trackTimeline = (opts?: any) => animationManager.trackExternalTimeline(gsap.timeline(opts));
 const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
@@ -1011,6 +1012,7 @@ export function showNoMovesText(): void {
 
     overlay.appendChild(container);
     document.body.appendChild(overlay);
+    playNoMovesSound();
 
     let enterComplete = 0;
     let textEnterStarted = false;

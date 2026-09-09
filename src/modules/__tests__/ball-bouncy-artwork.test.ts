@@ -256,7 +256,7 @@ describe('Beach Ball animated SVG board artwork', () => {
     }
   });
 
-  test('keeps Ball animated during another drag and swaps only while their bounds overlap', () => {
+  test('keeps the same live Ball SVG running below the canvas while another drag overlaps it', () => {
     const { tile, base } = makeTile('beach-ball', 'wild-tnt');
     startSpecialDiceIdleMotion(tile);
     const controller = tile._ccBallBouncyArtwork;
@@ -284,14 +284,18 @@ describe('Beach Ball animated SVG board artwork', () => {
       setGameplayDragBounds({ x: 300, y: 300, width: 128, height: 128 });
       expect((controller as any).wrapper.style.visibility).toBe('visible');
       expect(base.renderable).toBe(false);
+      expect((controller as any).wrapper.parentElement?.className).toBe('animated-special-artwork-layer');
 
       setGameplayDragBounds({ x: 150, y: 150, width: 128, height: 128 });
-      expect((controller as any).wrapper.style.visibility).toBe('hidden');
-      expect(base.renderable).toBe(true);
+      expect((controller as any).wrapper.style.visibility).toBe('visible');
+      expect(base.renderable).toBe(false);
+      expect((controller as any).wrapper.parentElement?.className)
+        .toBe('animated-special-artwork-occluded-layer');
 
       setGameplayDragBounds({ x: 300, y: 300, width: 128, height: 128 });
       expect((controller as any).wrapper.style.visibility).toBe('visible');
       expect(base.renderable).toBe(false);
+      expect((controller as any).wrapper.parentElement?.className).toBe('animated-special-artwork-layer');
     } finally {
       releaseForeground();
     }

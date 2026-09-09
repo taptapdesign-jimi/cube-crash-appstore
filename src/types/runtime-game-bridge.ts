@@ -66,6 +66,7 @@ export interface RuntimeGameBridge {
   beginEndgameGuard: (source: string, ttlMs?: number) => number;
   endEndgameGuard: (source: string) => void;
   getEndgameGuardState: () => RuntimeEndgameGuardState;
+  isNoMovesNavigationLocked: () => boolean;
   debugResolveGameplayState: (reason?: string, overrides?: unknown) => unknown;
   isWildMagnetPullInProgress: () => boolean;
   applyWildSkinLocal: (tile: unknown) => void;

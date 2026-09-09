@@ -1,5 +1,11 @@
 import { logger } from '../core/logger.js';
 import { applySoundEffectsMasterGain } from './sound-effects-volume.ts';
+import {
+  getDecodedGameplaySoundsState,
+  playDecodedGameplaySound,
+  preloadDecodedGameplaySounds,
+  stopDecodedGameplayVoices,
+} from './gameplay-audio-buffer-player.ts';
 
 export const GAMEPLAY_PICKUP_SOUND_SOURCE = './assets/sound/merge 6/woosh.mp3';
 export const GAMEPLAY_PICKUP_SOUND_PLAYBACK_RATE = 1;
@@ -18,6 +24,11 @@ export const GAMEPLAY_RETURN_SOUND_VOLUME = applySoundEffectsMasterGain(
 
 let pickupAudio: HTMLAudioElement | null = null;
 let returnAudio: HTMLAudioElement | null = null;
+const GAMEPLAY_WOOSH_SOURCES = [
+  GAMEPLAY_PICKUP_SOUND_SOURCE,
+  GAMEPLAY_RETURN_SOUND_SOURCE,
+] as const;
+const GAMEPLAY_WOOSH_VOICE_IDS = ['gameplay-pickup', 'gameplay-return'] as const;
 
 export function areGameplayPickupSoundsEnabled(): boolean {
   return typeof window !== 'undefined' &&
@@ -70,11 +81,22 @@ function startAudio(
 
 export function preloadGameplayPickupSound(): boolean {
   if (!areGameplayPickupSoundsEnabled()) return false;
+  if (preloadDecodedGameplaySounds(GAMEPLAY_WOOSH_SOURCES)) return true;
   return getPickupAudio() !== null && getReturnAudio() !== null;
 }
 
 export function playGameplayPickupSound(): boolean {
   if (!areGameplayPickupSoundsEnabled()) return false;
+  const decodedState = getDecodedGameplaySoundsState(GAMEPLAY_WOOSH_SOURCES);
+  if (decodedState === 'ready') {
+    return playDecodedGameplaySound(GAMEPLAY_PICKUP_SOUND_SOURCE, {
+      voiceId: GAMEPLAY_WOOSH_VOICE_IDS[0],
+      playbackRate: GAMEPLAY_PICKUP_SOUND_PLAYBACK_RATE,
+      volume: GAMEPLAY_PICKUP_SOUND_VOLUME,
+      startOffsetSeconds: GAMEPLAY_PICKUP_SOUND_START_OFFSET_SECONDS,
+    }) === 'played';
+  }
+  if (decodedState === 'pending') return false;
   return startAudio(
     getPickupAudio(),
     GAMEPLAY_PICKUP_SOUND_PLAYBACK_RATE,
@@ -86,6 +108,16 @@ export function playGameplayPickupSound(): boolean {
 
 export function playGameplayReturnSound(): boolean {
   if (!areGameplayPickupSoundsEnabled()) return false;
+  const decodedState = getDecodedGameplaySoundsState(GAMEPLAY_WOOSH_SOURCES);
+  if (decodedState === 'ready') {
+    return playDecodedGameplaySound(GAMEPLAY_RETURN_SOUND_SOURCE, {
+      voiceId: GAMEPLAY_WOOSH_VOICE_IDS[1],
+      playbackRate: GAMEPLAY_RETURN_SOUND_PLAYBACK_RATE,
+      volume: GAMEPLAY_RETURN_SOUND_VOLUME,
+      startOffsetSeconds: GAMEPLAY_RETURN_SOUND_START_OFFSET_SECONDS,
+    }) === 'played';
+  }
+  if (decodedState === 'pending') return false;
   return startAudio(
     getReturnAudio(),
     GAMEPLAY_RETURN_SOUND_PLAYBACK_RATE,
@@ -96,6 +128,7 @@ export function playGameplayReturnSound(): boolean {
 }
 
 export function stopGameplayPickupSound(): void {
+  stopDecodedGameplayVoices(GAMEPLAY_WOOSH_VOICE_IDS);
   for (const audio of [pickupAudio, returnAudio]) {
     if (!audio) continue;
     try {

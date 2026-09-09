@@ -17,7 +17,6 @@ import {
   KANTA_IDLE_BACK_LEFT_SOURCE,
   KANTA_IDLE_BACK_LOWER_RATIO,
   KANTA_IDLE_BACK_OFFSET_Y_PX,
-  KANTA_IDLE_BACK_POP_IN_SECONDS,
   KANTA_IDLE_BACK_SCALE,
   KANTA_IDLE_BACK_TILT_MAX_DEGREES,
   KANTA_IDLE_BACK_TILT_MIN_DEGREES,
@@ -285,7 +284,6 @@ describe('Kanta special die', () => {
     expect(KANTA_IDLE_BACK_LOWER_RATIO).toBe(-0.10);
     expect(KANTA_IDLE_FRONT_OFFSET_X_PX).toBe(8);
     expect(KANTA_IDLE_BACK_OFFSET_Y_PX).toBe(-2);
-    expect(KANTA_IDLE_BACK_POP_IN_SECONDS).toBe(0.42);
     expect(KANTA_IDLE_TOP_BUBBLE_COLOR).toBe(0x06F4FF);
     expect(KANTA_IDLE_TOP_BUBBLE_COUNT).toBe(3);
     expect(KANTA_IDLE_TOP_BUBBLE_INSET_PX).toBe(3);
@@ -334,7 +332,11 @@ describe('Kanta special die', () => {
     expect(idleSource).toContain('const opposingScaleRatioX = Math.max(0.8, 2 - scaleRatioX)');
     expect(idleSource).toContain('const opposingScaleRatioY = Math.max(0.8, 2 - scaleRatioY)');
     expect(idleSource).toContain('const sideDirection = Math.sign(offsetX) || -1');
-    expect(idleSource).toContain("ease: 'back.out(2.35)'");
+    expect(idleSource).toContain('neutralScaleX * opposingScaleRatioX');
+    expect(idleSource).toContain('neutralScaleY * opposingScaleRatioY');
+    expect(idleSource).toContain('sprite.alpha = 1');
+    expect(idleSource).not.toContain('backdropReveal');
+    expect(idleSource).not.toContain('KANTA_IDLE_BACK_POP_IN_SECONDS');
     expect(idleSource).toContain('bubble.circle(0, 0, radius).fill');
     expect(idleSource).toContain("container.label = 'kanta-idle-top-bubbles'");
     expect(idleSource).toContain("rearContainer.label = 'kanta-idle-back-bubbles'");

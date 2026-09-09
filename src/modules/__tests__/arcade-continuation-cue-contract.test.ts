@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { getArcadeRoundCueDurationMs } from '../arcade-stage-clear-modal';
 
 const repoRoot = path.resolve(__dirname, '../../..');
 
@@ -13,10 +14,20 @@ describe('Arcade continuation Round cue contract', () => {
 
     expect(cue).toContain('await playRoundNumberPhase(parts, resumedStage)');
     expect(cue).toContain('onPresented?.();');
+    expect(cue).toContain('fadeOutSoundtrackForGameplay(');
+    expect(cue).toContain('getArcadeRoundCueDurationMs(resumedStage)');
+    expect(cue.indexOf('fadeOutSoundtrackForGameplay(')).toBeLessThan(cue.indexOf('onPresented?.();'));
+    expect(cue).toContain('completeGameplayTransitionFade(soundtrackFadeGeneration)');
     expect(cue).toContain('cancelArcadeStageClearModal();');
     expect(cue).not.toContain('gsap.timeline(');
     expect(cue).not.toContain("action: 'continue'");
     expect(cue).not.toContain('startLevel(');
+  });
+
+  test('provides the complete visible Round duration before the shared fade tail', () => {
+    expect(getArcadeRoundCueDurationMs(1)).toBe(2200);
+    expect(getArcadeRoundCueDurationMs(99)).toBe(2200);
+    expect(getArcadeRoundCueDurationMs(100)).toBe(2900);
   });
 
   test('an abandoned stage-clear resolves as cancel and endgame never advances it', () => {

@@ -53,6 +53,12 @@ import {
   resolveRoboFighterFinaleDuration,
 } from './board-transition-robo-combat-timing.js';
 import { areContinuousRuntimeDiagnosticsEnabled } from '../utils/runtime-diagnostics-policy.js';
+import {
+  SOUNDTRACK_GAMEPLAY_VOLUME_RATIO,
+  beginGameplayTransitionFade,
+  completeGameplayTransitionFade,
+  continueGameplayTransitionFade,
+} from './soundtrack-manager.js';
 
 interface BoardTransitionOptions {
   boardNumber: number;
@@ -115,6 +121,10 @@ const FOREST_TRANSITION_BEE_ASSETS = [
   './assets/shop/honey/bee7@2x.png',
 ];
 const BOARD_TRANSITION_NUMBER_ENTER_START_SECONDS = 0.3;
+const BOARD_TRANSITION_DIGIT_ENTER_STAGGER_SECONDS = 0.3;
+const BOARD_TRANSITION_DIGIT_ENTER_DURATION_SECONDS = 0.4 + 0.15 + 0.2;
+const BOARD_TRANSITION_SOUNDTRACK_AFTER_ENTER_RATIO = 0.62;
+const BOARD_TRANSITION_SOUNDTRACK_AFTER_HOLD_RATIO = 0.5;
 const FOREST_TRANSITION_SPECIAL_BEE_SCALE_MULTIPLIER = 1.7;
 
 const ROBO_AIR_COMBAT_LAYER_KEYS = new Set([
@@ -1852,6 +1862,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
 
   isTransitionActive = true;
   const activeGeneration = ++transitionGeneration;
+  let soundtrackFadeGeneration: number | null = null;
   logger.info('✅ board-transition-screen: isTransitionActive set to true, starting transition');
 
             // Defensive cleanup is handled centrally in endgame-flow before transition
@@ -1892,6 +1903,9 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       resolve,
       reject,
       onSettled: () => {
+        if (soundtrackFadeGeneration !== null) {
+          completeGameplayTransitionFade(soundtrackFadeGeneration);
+        }
         if (activeTransitionSettlement === finishOnce) activeTransitionSettlement = null;
         try { sampleMemorySpike('4_transition_complete'); } catch {}
         stopMemSampling('finished');
@@ -2520,6 +2534,20 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     document.body.appendChild(overlay);
     currentOverlay = overlay;
     overlay.dataset.transitionTheme = resolvedTheme;
+    soundtrackFadeGeneration = beginGameplayTransitionFade();
+    const digitEnterBaseDelay = resolvedTheme === 'area55'
+      ? ROBO_AREA55_NUMBER_ENTER_START_SECONDS
+      : BOARD_TRANSITION_NUMBER_ENTER_START_SECONDS;
+    const transitionEnterDurationMs = 1000 * (
+      digitEnterBaseDelay
+      + Math.max(0, digitElements.length - 1) * BOARD_TRANSITION_DIGIT_ENTER_STAGGER_SECONDS
+      + BOARD_TRANSITION_DIGIT_ENTER_DURATION_SECONDS
+    );
+    continueGameplayTransitionFade(
+      soundtrackFadeGeneration,
+      BOARD_TRANSITION_SOUNDTRACK_AFTER_ENTER_RATIO,
+      transitionEnterDurationMs,
+    );
     if (showScene) {
       // Let the overlay and its first authored pose commit before idle starts
       // writing transforms. This keeps sensor setup out of the mount frame.
@@ -2958,7 +2986,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       const digitEnterBaseDelay = resolvedTheme === 'area55'
         ? ROBO_AREA55_NUMBER_ENTER_START_SECONDS
         : BOARD_TRANSITION_NUMBER_ENTER_START_SECONDS;
-      const delay = digitEnterBaseDelay + (index * 0.3); // Stagger by 0.3s per digit
+      const delay = digitEnterBaseDelay + (index * BOARD_TRANSITION_DIGIT_ENTER_STAGGER_SECONDS);
       const digitHapticLocalDelay = index === 0 ? TRANSITION_HAPTIC_FIRST_DELAY : TRANSITION_HAPTIC_OTHER_DELAY;
       const digitHapticDelay = delay + digitHapticLocalDelay;
 
@@ -3067,6 +3095,20 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
             if (index === digitElements.length - 1) {
               logger.info('✅ board-transition-screen: All enter animations complete, starting exit');
 
+              const transitionHoldDurationSeconds = resolvedTheme === 'area55'
+                ? Math.max(
+                    ROBO_AIR_COMBAT_HOLD_DURATION_SECONDS,
+                    getRoboAirCombatHoldSeconds(),
+                  )
+                : BOARD_TRANSITION_HOLD_DURATION_SECONDS;
+              if (soundtrackFadeGeneration !== null) {
+                continueGameplayTransitionFade(
+                  soundtrackFadeGeneration,
+                  BOARD_TRANSITION_SOUNDTRACK_AFTER_HOLD_RATIO,
+                  transitionHoldDurationSeconds * 1000,
+                );
+              }
+
               // Add a small pause before starting exit using GSAP timeline
               // 🔥 CRITICAL FIX: Store pauseTimeline for cleanup
               if (pauseTimeline) {
@@ -3086,16 +3128,27 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
                       return;
                     }
                     
-                    startExitAnimation(overlay, container, digitElements, forestContainer, resolvedTheme, () => {
-                      // Keep one opaque paper owner above Pixi while the async
-                      // Journey boot prepares its first valid board frame.
-                      cleanup({ preserveDom: true, keepVisibleCover: true });
-                      boardTransitionPresentationHandoff.retain(() => {
-                        cleanup({ preserveDom: true });
-                        isTransitionActive = false;
-                      });
-                      finishOnce();
-                    });
+                    startExitAnimation(
+                      overlay,
+                      container,
+                      digitElements,
+                      forestContainer,
+                      resolvedTheme,
+                      soundtrackFadeGeneration,
+                      () => {
+                        if (soundtrackFadeGeneration !== null) {
+                          completeGameplayTransitionFade(soundtrackFadeGeneration);
+                        }
+                        // Keep one opaque paper owner above Pixi while the async
+                        // Journey boot prepares its first valid board frame.
+                        cleanup({ preserveDom: true, keepVisibleCover: true });
+                        boardTransitionPresentationHandoff.retain(() => {
+                          cleanup({ preserveDom: true });
+                          isTransitionActive = false;
+                        });
+                        finishOnce();
+                      },
+                    );
                   } catch (exitError) {
                     logger.error('❌ board-transition-screen: Failed to start exit animation:', exitError);
                     // Fallback: cleanup and resolve anyway
@@ -3106,12 +3159,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
                 }
               });
               pauseTimeline.to({}, {
-                duration: resolvedTheme === 'area55'
-                  ? Math.max(
-                      ROBO_AIR_COMBAT_HOLD_DURATION_SECONDS,
-                      getRoboAirCombatHoldSeconds(),
-                    )
-                  : BOARD_TRANSITION_HOLD_DURATION_SECONDS,
+                duration: transitionHoldDurationSeconds,
                 ease: 'none'
               });
             }
@@ -3153,6 +3201,7 @@ function startExitAnimation(
   digitElements: HTMLElement[],
   forestContainer: HTMLElement | null,
   transitionTheme: BoardTransitionThemeId | 'none',
+  soundtrackFadeGeneration: number | null,
   onComplete: () => void
 ): void {
   void container;
@@ -3759,6 +3808,14 @@ function startExitAnimation(
     const completeArea55ExitDurationSeconds = exitTimeline.duration();
     exitTimeline.timeScale(resolveRoboArea55ExitTimeScale(completeArea55ExitDurationSeconds));
     exitTimeline.play(0);
+  }
+  if (soundtrackFadeGeneration !== null) {
+    const effectiveExitDurationMs = 1000 * exitTimeline.duration() / exitTimeline.timeScale();
+    continueGameplayTransitionFade(
+      soundtrackFadeGeneration,
+      SOUNDTRACK_GAMEPLAY_VOLUME_RATIO,
+      effectiveExitDurationMs,
+    );
   }
 }
 

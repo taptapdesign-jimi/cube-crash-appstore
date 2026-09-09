@@ -29,8 +29,8 @@ describe('mobile resource architecture', () => {
 
     expect(imagePreloads).toHaveLength(2);
     expect(imagePreloads.join('\n')).toContain('./assets/logo addons/taplogo.png');
-    expect(imagePreloads.join('\n')).toContain('./assets/logo addons/lik-game.svg');
-    expect(imagePreloads.join('\n')).not.toContain('./assets/logo addons/lik-game.png');
+    expect(imagePreloads.join('\n')).toContain('./assets/logo addons/lik-game.png');
+    expect(imagePreloads.join('\n')).not.toContain('./assets/logo addons/lik-game.svg');
     expect(imagePreloads.join('\n')).not.toMatch(/@2x|@3x/);
     expect(imagePreloads.join('\n')).not.toMatch(/crash-cubes-homepage|\/nav\/|modals\/paper|journey assets|tile\.png/);
   });
@@ -135,6 +135,7 @@ describe('mobile resource architecture', () => {
     expect(boardSvg).toContain('viewBox="-30 -15 644 930"');
     expect(boardSvg.match(/<animateTransform(?=\s)/g)).toHaveLength(1197);
     expect(boardSvg.match(/<animate(?=\s)/g)).toHaveLength(2);
+    expect(boardSvg.match(/dur="1\.3798623s"/g)).toHaveLength(1199);
     expect(boardSvg).not.toMatch(/<(?:script|foreignObject|filter)\b/);
     expect(painterSvg).toContain('viewBox="-30 -15 644 930"');
     expect(painterSvg.match(/<animateTransform(?=\s)/g)).toHaveLength(1498);
@@ -154,6 +155,101 @@ describe('mobile resource architecture', () => {
     expect(laptopSvg).not.toMatch(/<(?:script|foreignObject|filter)\b/);
   });
 
+  test('uses matched prerendered animations for the complete mobile SVG cast with WebP and authored SVG fallbacks', () => {
+    const index = read('index.html');
+    const launch = read('src/modules/launch-screen.ts');
+    const proxyExpectations = [
+      ['lik-game-mobile.webp', 'lik-game-mobile-hevc.mov', 680, 981, 30, 990],
+      ['lik-gitara-mobile.webp', 'lik-gitara-mobile-hevc.mov', 680, 959, 30, 990],
+      ['lik-pas-SVG-mobile.webp', 'lik-pas-SVG-mobile-hevc.mov', 680, 962, 60, 1980],
+      ['lik-cvijet-mobile.webp', 'lik-cvijet-mobile-hevc.mov', 680, 995, 30, 990],
+      ['lik-kauc-mobile.webp', 'lik-kauc-mobile-hevc.mov', 680, 883, 19, 638],
+      ['lik-board-mobile.webp', 'lik-board-mobile-hevc.mov', 680, 982, 21, 804],
+      ['lik-slikanje-mobile.webp', 'lik-slikanje-mobile-hevc.mov', 680, 982, 30, 990],
+      ['lik-laptop-mobile.webp', 'lik-laptop-mobile-hevc.mov', 680, 773, 45, 1485],
+      ['lik-nogomet-mobile.webp', 'lik-nogomet-mobile-hevc.mov', 680, 1020, 30, 990],
+      ['lik-speceraj-mobile.webp', 'lik-speceraj-mobile-hevc.mov', 680, 980, 30, 990],
+      ['pas-novine-mobile.webp', 'pas-novine-mobile-hevc.mov', 680, 730, 30, 990],
+    ] as const;
+
+    expect(index).toContain('src="./assets/logo addons/lik-game.png"');
+    expect(index).not.toContain('src="./assets/logo addons/lik-game.svg"');
+    expect(launch).toContain("import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.js';");
+    expect(launch).toContain('const MOBILE_ANIMATION_PROXIES = [');
+    expect(launch).toContain('Boolean(selectedStudioCharacterMobileAnimationUrl) &&');
+    expect(launch).toContain('MOBILE_RUNTIME_PROFILE.isMobileDevice || forceMobileAnimationProxyInDev');
+    expect(launch).toContain("new URLSearchParams(window.location.search).get('ccIntroCharacter')");
+    expect(launch).toContain('import.meta.env.VITE_CC_FORCE_INTRO_CHARACTER?.trim() || null');
+    expect(launch).toContain("new URLSearchParams(window.location.search).get('ccIntroMobileProxy') === '1'");
+    expect(launch).toContain("studioCharacter.dataset.launchMotionSource = 'svg-fallback';");
+
+    for (const [webpFilename, hevcFilename, expectedWidth, expectedHeight, expectedFrames, expectedDuration] of proxyExpectations) {
+      expect(launch).toContain(`'../../assets/logo addons/optimized/${webpFilename}'`);
+      expect(launch).toContain(`'../../assets/logo addons/optimized/${hevcFilename}'`);
+      const proxy = fs.readFileSync(path.resolve(process.cwd(), `assets/logo addons/optimized/${webpFilename}`));
+      expect(proxy.subarray(0, 4).toString('ascii')).toBe('RIFF');
+      expect(proxy.subarray(8, 12).toString('ascii')).toBe('WEBP');
+      expect(proxy.includes(Buffer.from('ANIM'))).toBe(true);
+      expect(proxy.includes(Buffer.from('ANMF'))).toBe(true);
+      expect(proxy.subarray(12, 16).toString('ascii')).toBe('VP8X');
+      expect(proxy.readUIntLE(24, 3) + 1).toBe(expectedWidth);
+      expect(proxy.readUIntLE(27, 3) + 1).toBe(expectedHeight);
+
+      let chunkOffset = 12;
+      const frameDurations: number[] = [];
+      while (chunkOffset + 8 <= proxy.length) {
+        const chunkType = proxy.subarray(chunkOffset, chunkOffset + 4).toString('ascii');
+        const chunkSize = proxy.readUInt32LE(chunkOffset + 4);
+        const payloadOffset = chunkOffset + 8;
+        if (chunkType === 'ANMF') frameDurations.push(proxy.readUIntLE(payloadOffset + 12, 3));
+        chunkOffset = payloadOffset + chunkSize + (chunkSize % 2);
+      }
+      expect(frameDurations).toHaveLength(expectedFrames);
+      expect(frameDurations.reduce((sum, duration) => sum + duration, 0)).toBe(expectedDuration);
+      expect(Math.max(...frameDurations) - Math.min(...frameDurations)).toBeLessThanOrEqual(1);
+
+      const video = fs.readFileSync(path.resolve(process.cwd(), `assets/logo addons/optimized/${hevcFilename}`));
+      expect(video.subarray(4, 8).toString('ascii')).toBe('ftyp');
+      expect(video.includes(Buffer.from('hvc1'))).toBe(true);
+    }
+  });
+
+  test('uses bounded HEVC-alpha video for the complete mobile cast and retains image fallbacks', () => {
+    const launch = read('src/modules/launch-screen.ts');
+    const startupReadiness = read('src/utils/startup-readiness.ts');
+    const encoder = read('scripts/encode-hevc-alpha-frames.swift');
+    const generator = read('scripts/build-mobile-intro-proxies.mjs');
+    const renderer = read('scripts/render-animated-svg-frames.mjs');
+
+    expect(launch).toContain('Boolean(selectedStudioCharacterMobileVideoUrl) &&');
+    expect(launch).toContain('const selectedStudioCharacterUsesMobileVideoProxy =');
+    expect(launch).toContain("dataset.launchMotionSource = 'hevc-alpha';");
+    expect(launch).toContain("dataset.launchMotionSource = 'animated-webp-fallback';");
+    expect(launch).toContain("selectedStudioCharacterUsesMobileVideoProxy ? 'video' : 'img'");
+    expect(launch).toContain("studioCharacter.setAttribute('playsinline', '');");
+    expect(launch).toContain('studioCharacter.muted = true;');
+    expect(launch).toContain('studioCharacter.loop = true;');
+    expect(launch).toContain("this.elements.studioCharacter.removeAttribute('src');");
+    expect(launch).toContain("timeoutMs: 3500,");
+    expect(launch).toContain('backgroundCriticalImagePreloadPromise.catch(() => {});');
+    expect(launch).toContain('criticalStartupReadinessPromise');
+    expect(launch).not.toContain('timeoutMs: 10000,');
+    expect(launch).not.toContain('criticalImagePreloadPromise.catch(() => {})');
+    expect(encoder).toContain('AVVideoCodecType.hevcWithAlpha');
+    expect(encoder).toContain('kVTCompressionPropertyKey_TargetQualityForAlpha');
+    expect(encoder).not.toContain('context.scaleBy(x: 1, y: -1)');
+    expect(generator).toContain("await Promise.all([buildWebp(), buildHevc()]);");
+    expect(generator).toContain("await run('/usr/bin/xcrun', ['swiftc', '-O', HEVC_ENCODER_SOURCE");
+    expect(generator).toContain("['lik-pas-SVG.svg', 'lik-pas-SVG-mobile.webp', 'lik-pas-SVG-mobile-hevc.mov', 4, 1980]");
+    expect(generator).toContain("['lik-kauc.svg', 'lik-kauc-mobile.webp', 'lik-kauc-mobile-hevc.mov', 1.2755102, 638]");
+    expect(renderer).toContain('const time = index * durationSeconds / frameCount;');
+    expect(renderer).not.toContain('const time = index / fps;');
+    expect(generator).toContain("['lik-board.svg', 'lik-board-mobile.webp', 'lik-board-mobile-hevc.mov', 1.3798623, 804]");
+    expect(generator).toContain("['lik-laptop.svg', 'lik-laptop-mobile.webp', 'lik-laptop-mobile-hevc.mov', 3, 1485]");
+    expect(encoder).toContain('arguments.outputDurationMilliseconds');
+    expect(startupReadiness).toContain('element instanceof HTMLImageElement');
+  });
+
   test('centers the studio logo and character as one composition with a 20px gap', () => {
     const index = read('index.html');
     const launch = read('src/modules/launch-screen.ts');
@@ -164,36 +260,32 @@ describe('mobile resource architecture', () => {
     expect(launch).toContain('studioComposition.append(studioLogoUnit, studioCharacter);');
     expect(styles).toContain('#launch-screen .launch-studio-composition');
     expect(styles).toContain('gap: 20px;');
-    expect(launch).toContain("selectedStudioCharacterPath.endsWith('/lik slikanje.svg');");
-    expect(launch).toContain("'launch-studio-character--slikanje'");
-    expect(styles).toContain('#launch-screen .launch-studio-character--slikanje');
-    expect(styles).toContain('left: 20px;');
+    expect(styles).toContain('left: var(--launch-character-offset-x, 0px);');
+    expect(styles).toContain('top: var(--launch-character-offset-y, 0px);');
     expect(styles).not.toContain('transform: translate(-50%, -265px) scale(0.92);');
     expect(styles).not.toContain('transform: translate(-50%, -105px) scale(0.82);');
   });
 
-  test('makes only lik-pas-SVG twelve percent larger from a top-center pivot', () => {
+  test('owns every requested character scale, offset and pivot through one presentation table', () => {
     const launch = read('src/modules/launch-screen.ts');
     const styles = read('src/style.css');
 
-    expect(launch).toContain("selectedStudioCharacterPath.endsWith('/lik-pas-SVG.svg');");
-    expect(launch).toContain('const selectedStudioCharacterRestScale = selectedStudioCharacterUsesLargeTopPivot\n  ? 1.12');
-    expect(launch).toContain("'launch-studio-character--large-dog'");
+    expect(launch).toContain("['/lik-kauc.svg', { restScale: 1.1475, offsetX: 0, offsetY: 40, transformOrigin: 'center center' }]");
+    expect(launch).toContain("['/lik-gitara.svg', { restScale: 1.1, offsetX: 0, offsetY: 16, transformOrigin: 'center center' }]");
+    expect(launch).toContain("['/lik slikanje.svg', { restScale: 1.08, offsetX: 20, offsetY: 10, transformOrigin: 'center center' }]");
+    expect(launch).toContain("['/lik-cvijet.svg', { restScale: 1.08, offsetX: 0, offsetY: 8, transformOrigin: 'center center' }]");
+    expect(launch).toContain("['/lik-board.svg', { restScale: 1.04, offsetX: 0, offsetY: 16, transformOrigin: 'center center' }]");
+    expect(launch).toContain("['/lik-game.svg', { restScale: 1.08, offsetX: 0, offsetY: 0, transformOrigin: 'center center' }]");
+    expect(launch).toContain("['/lik-laptop.svg', { restScale: 1.452, offsetX: 0, offsetY: 8, transformOrigin: 'center center' }]");
+    expect(launch).toContain("['/lik-pas-SVG.svg', { restScale: 1.12, offsetX: 0, offsetY: 0, transformOrigin: 'center top' }]");
+    expect(launch).toContain("['/lik-speceraj.svg', { restScale: 1.21, offsetX: 0, offsetY: 20, transformOrigin: 'center center' }]");
+    expect(launch).toContain("['/lik-nogomet.svg', { restScale: 1.1, offsetX: 0, offsetY: 0, transformOrigin: 'center center' }]");
+    expect(launch).toContain("['/pas novine.svg', { restScale: 1.1, offsetX: 0, offsetY: 16, transformOrigin: 'center center' }]");
+    expect(launch).toContain('const selectedStudioCharacterInitialScale = Number((0.82 * selectedStudioCharacterRestScale).toFixed(4));');
     expect(launch).toContain('scale: selectedStudioCharacterRestScale,');
-    expect(styles).toMatch(/#launch-screen \.launch-studio-character--large-dog \{\s*transform: scale\(0\.9184\);\s*transform-origin: center top;\s*\}/);
-  });
-
-  test('makes only pas novine, lik-speceraj and lik-laptop ten percent larger with the shared centered pivot', () => {
-    const launch = read('src/modules/launch-screen.ts');
-    const styles = read('src/style.css');
-
-    expect(launch).toContain("selectedStudioCharacterPath.endsWith('/pas novine.svg') ||");
-    expect(launch).toContain("selectedStudioCharacterPath.endsWith('/lik-speceraj.svg') ||");
-    expect(launch).toContain("selectedStudioCharacterPath.endsWith('/lik-laptop.svg');");
-    expect(launch).toContain('selectedStudioCharacterUsesTenPercentScale');
-    expect(launch).toContain(': selectedStudioCharacterUsesTenPercentScale\n    ? 1.1\n    : 1;');
-    expect(launch).toContain("'launch-studio-character--ten-percent-larger'");
-    expect(styles).toMatch(/#launch-screen \.launch-studio-character--ten-percent-larger \{\s*transform: scale\(0\.902\);\s*\}/);
+    expect(styles).toContain('transform: scale(var(--launch-character-initial-scale, 0.82));');
+    expect(styles).toContain('transform-origin: var(--launch-character-transform-origin, center center);');
+    expect(launch).not.toContain('launch-studio-character--ten-percent-larger');
   });
 
   test('keeps both flex children mounted until the complete launch exit is removed', () => {

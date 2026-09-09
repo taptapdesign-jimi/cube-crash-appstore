@@ -49,8 +49,10 @@ import {
   primeHomepageNavigation,
 } from './navigation-control.js';
 import { preloadRegularMerge6Sounds } from './regular-merge6-sound.ts';
+import { preloadWildStarMerge6Sound } from './wild-star-merge6-sound.ts';
 import { preloadOrdinaryStackSound } from './ordinary-stack-sound.ts';
 import { preloadGameplayPickupSound } from './gameplay-pickup-sound.ts';
+import { preloadNoMovesSound } from './no-moves-sound.ts';
 // 🔥 OPTIMIZATION: Preload settings animations module statically to avoid 15s delay on Settings click
 import { animateSettingsScreenEnter, animateSettingsScreenExit, cleanupSettingsAnimations } from '../ui/settings-animations.js';
 
@@ -442,8 +444,10 @@ class UIManager {
     // IMPORTANT: Do not clear board-specific Journey saves here.
     markArcadeHomeRunOrigin();
     preloadRegularMerge6Sounds();
+    preloadWildStarMerge6Sound();
     preloadOrdinaryStackSound();
     preloadGameplayPickupSound();
+    preloadNoMovesSound();
     try {
       localStorage.removeItem('cc_saved_game');
       localStorage.removeItem('cc_board_completed');
@@ -594,6 +598,7 @@ class UIManager {
     // 🔥 USER REQUEST: Mark that we came from homepage (not Journey)
     markArcadeHomeRunOrigin();
     preloadRegularMerge6Sounds();
+    preloadWildStarMerge6Sound();
     preloadOrdinaryStackSound();
     preloadGameplayPickupSound();
     // Ensure fresh Arcade run always triggers HUD entry/drop initialization.
@@ -710,6 +715,7 @@ class UIManager {
       logger.info('🔄 Starting new game WITH saved state...');
       markArcadeHomeRunOrigin();
       preloadRegularMerge6Sounds();
+      preloadWildStarMerge6Sound();
       preloadOrdinaryStackSound();
       preloadGameplayPickupSound();
       (window as any).__ccTriggerHudDrop = true;
@@ -2005,8 +2011,14 @@ class UIManager {
   // Show settings screen
   private showSettingsScreenWithAnimation(): void {
     this.cancelSettingsEnterTimeouts();
+    // Settings can be tapped immediately after Arcade returns to Homepage.
+    // Revoke that still-running enter before Settings starts its own exit;
+    // otherwise both owners animate the same hero/nav tree and the stale
+    // Homepage owner can visibly replay the first slide over Settings.
+    homepageEnterTransitionOwner.cancel('homepage-to-settings');
+    cancelSliderEnterAnimation('homepage-to-settings');
     // Settings must own async/preload policy immediately, while the existing
-    // Homepage exit animation retains visual ownership of the nav icons.
+    // Homepage tree remains visible for the Settings exit animation.
     appZoneManager.setZone('settings', 'settings-enter', {
       preserveHomepageNavigation: true,
     });
@@ -2031,25 +2043,10 @@ class UIManager {
     logger.info('✅ [Settings ENTER] Paper background set to 60% opacity IMMEDIATELY (at function start)');
     gameState.set('sliderLocked', true);
     
-    // CRITICAL: Switch to Settings slide BEFORE animation so it animates the correct slide
-    const navButtons = document.querySelectorAll('.independent-nav-button');
-    const slides = document.querySelectorAll('.slider-slide');
-    slides.forEach((slide) => {
-      const slideIndex = parseInt(slide.getAttribute('data-slide') || '0', 10);
-      if (slideIndex === SETTINGS_SLIDE_INDEX) {
-        slide.classList.add('active');
-      } else {
-        slide.classList.remove('active');
-      }
-    });
-    navButtons.forEach((button) => {
-      const slideIndex = parseInt(button.getAttribute('data-slide') || '0', 10);
-      if (slideIndex === SETTINGS_SLIDE_INDEX) {
-        button.classList.add('active');
-      } else {
-        button.classList.remove('active');
-      }
-    });
+    // Atomically align the internal index, game state, wrapper position and
+    // active classes before the Settings slide exits. A class-only switch can
+    // be overwritten by a queued SliderManager update from the Arcade return.
+    sliderManager.syncHiddenSlideState(SETTINGS_SLIDE_INDEX);
     
     console.log('🎨 [Settings ENTER] Preserving shared paper surface - GSAP:', !!gsap, 'App:', !!appElement);
     
@@ -2387,11 +2384,17 @@ class UIManager {
         void import('./regular-merge6-sound.ts').then(({ stopRegularMerge6Sounds }) => {
           stopRegularMerge6Sounds();
         });
+        void import('./wild-star-merge6-sound.ts').then(({ stopWildStarMerge6Sound }) => {
+          stopWildStarMerge6Sound();
+        });
         void import('./ordinary-stack-sound.ts').then(({ stopOrdinaryStackSound }) => {
           stopOrdinaryStackSound();
         });
         void import('./gameplay-pickup-sound.ts').then(({ stopGameplayPickupSound }) => {
           stopGameplayPickupSound();
+        });
+        void import('./no-moves-sound.ts').then(({ stopNoMovesSound }) => {
+          stopNoMovesSound();
         });
       }
     };

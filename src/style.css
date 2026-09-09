@@ -193,32 +193,21 @@ body{
 
 #launch-screen .launch-studio-character {
   position: relative;
+  left: var(--launch-character-offset-x, 0px);
+  top: var(--launch-character-offset-y, 0px);
   width: min(74vw, 289px);
   max-height: 54vh;
   height: auto;
   object-fit: contain;
   display: block;
-  transform: scale(0.82);
-  transform-origin: center center;
+  transform: scale(var(--launch-character-initial-scale, 0.82));
+  transform-origin: var(--launch-character-transform-origin, center center);
   opacity: 0;
   pointer-events: none;
   user-select: none;
   -webkit-user-select: none;
   -webkit-user-drag: none;
   -webkit-touch-callout: none;
-}
-
-#launch-screen .launch-studio-character--slikanje {
-  left: 20px;
-}
-
-#launch-screen .launch-studio-character--large-dog {
-  transform: scale(0.9184);
-  transform-origin: center top;
-}
-
-#launch-screen .launch-studio-character--ten-percent-larger {
-  transform: scale(0.902);
 }
 
 @keyframes launch-studio-sheen {

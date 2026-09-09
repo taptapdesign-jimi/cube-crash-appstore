@@ -1,5 +1,11 @@
 import { logger } from '../core/logger.js';
 import { applySoundEffectsMasterGain } from './sound-effects-volume.ts';
+import {
+  getDecodedGameplaySoundsState,
+  playDecodedGameplaySound,
+  preloadDecodedGameplaySounds,
+  stopDecodedGameplayVoices,
+} from './gameplay-audio-buffer-player.ts';
 
 export const REGULAR_MERGE6_SOUND_SOURCE =
   './assets/sound/merge 6/merge six obicna.mp3';
@@ -49,6 +55,18 @@ let stackAudio: HTMLAudioElement | null = null;
 let crashFadeStartTimer: number | null = null;
 let crashFadeInterval: number | null = null;
 let crashStopTimer: number | null = null;
+const REGULAR_MERGE6_SOUND_SOURCES = [
+  REGULAR_MERGE6_SOUND_SOURCE,
+  REGULAR_MERGE6_CRASH_SOUND_SOURCE,
+  REGULAR_MERGE6_BOOM_SOUND_SOURCE,
+  REGULAR_MERGE6_STACK_SOUND_SOURCE,
+] as const;
+const REGULAR_MERGE6_VOICE_IDS = [
+  'regular-merge6-primary',
+  'regular-merge6-crash',
+  'regular-merge6-boom',
+  'regular-merge6-stack',
+] as const;
 
 export function areRegularMerge6SoundsEnabled(): boolean {
   return typeof window !== 'undefined' &&
@@ -85,6 +103,7 @@ function getStackAudio(): HTMLAudioElement | null {
 
 export function preloadRegularMerge6Sounds(): boolean {
   if (!areRegularMerge6SoundsEnabled()) return false;
+  if (preloadDecodedGameplaySounds(REGULAR_MERGE6_SOUND_SOURCES)) return true;
   return getPrimaryAudio() !== null
     && getCrashAudio() !== null
     && getBoomAudio() !== null
@@ -141,6 +160,38 @@ function startAudio(
 export function playRegularMerge6Sound(): boolean {
   if (!areRegularMerge6SoundsEnabled()) return false;
 
+  const decodedState = getDecodedGameplaySoundsState(REGULAR_MERGE6_SOUND_SOURCES);
+  if (decodedState === 'ready') {
+    clearCrashTimers();
+    stopDecodedGameplayVoices(REGULAR_MERGE6_VOICE_IDS);
+    const results = [
+      playDecodedGameplaySound(REGULAR_MERGE6_SOUND_SOURCE, {
+        voiceId: REGULAR_MERGE6_VOICE_IDS[0],
+        volume: REGULAR_MERGE6_SOUND_VOLUME,
+        playbackRate: REGULAR_MERGE6_SOUND_PLAYBACK_RATE,
+      }),
+      playDecodedGameplaySound(REGULAR_MERGE6_CRASH_SOUND_SOURCE, {
+        voiceId: REGULAR_MERGE6_VOICE_IDS[1],
+        volume: REGULAR_MERGE6_CRASH_VOLUME,
+        playbackRate: REGULAR_MERGE6_CRASH_PLAYBACK_RATE,
+        stopAfterSeconds: REGULAR_MERGE6_CRASH_AUDIBLE_DURATION_MS / 1000,
+        fadeOutSeconds: REGULAR_MERGE6_CRASH_FADE_OUT_DURATION_MS / 1000,
+      }),
+      playDecodedGameplaySound(REGULAR_MERGE6_BOOM_SOUND_SOURCE, {
+        voiceId: REGULAR_MERGE6_VOICE_IDS[2],
+        volume: REGULAR_MERGE6_BOOM_VOLUME,
+      }),
+      playDecodedGameplaySound(REGULAR_MERGE6_STACK_SOUND_SOURCE, {
+        voiceId: REGULAR_MERGE6_VOICE_IDS[3],
+        volume: REGULAR_MERGE6_STACK_VOLUME,
+      }),
+    ];
+    return results.every((result) => result === 'played');
+  }
+  // Never fall back to synchronous media-element startup while Web Audio is
+  // still decoding; skipping one early cue is safer than blocking its merge.
+  if (decodedState === 'pending') return false;
+
   const primary = getPrimaryAudio();
   const crash = getCrashAudio();
   const boom = getBoomAudio();
@@ -192,6 +243,7 @@ export function playRegularMerge6Sound(): boolean {
 
 export function stopRegularMerge6Sounds(): void {
   clearCrashTimers();
+  stopDecodedGameplayVoices(REGULAR_MERGE6_VOICE_IDS);
   for (const audio of [primaryAudio, crashAudio, boomAudio, stackAudio]) {
     if (!audio) continue;
     try {

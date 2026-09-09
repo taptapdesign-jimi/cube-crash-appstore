@@ -24,6 +24,7 @@ import {
   runGameplayModalParallelExit,
 } from './gameplay-modal-benchmark.ts';
 import { installGameplayOverlayModalDragMotion } from './modal-vertical-drag-dismiss.js';
+import { isNoMovesNavigationLocked } from './terminal-navigation-lock.ts';
 
 // Reversible visual experiment. The outer sheet remains the sole owner of
 // translateY, drag, CTA, pause, and cleanup; only the nested paper shell flips.
@@ -77,6 +78,12 @@ function hideModalWithCtas(clicked: HTMLButtonElement): void {
     () => exitEndRunCtas(clicked),
     () => hideModal(null, true),
   );
+}
+
+function shouldBlockEndRunActionForNoMoves(source: string): boolean {
+  if (!isNoMovesNavigationLocked()) return false;
+  console.warn(`🔒 End Run ${source} ignored while NO MOVES owns navigation`);
+  return true;
 }
 
 // 🔥 MEMORY LEAK FIX: Track all timeouts, intervals, rAFs, and event listeners for cleanup
@@ -421,6 +428,7 @@ function createModal(): HTMLElement {
   
   if (restartBtn) {
     const restartClickHandler = async () => {
+      if (shouldBlockEndRunActionForNoMoves('restart')) return;
       console.log('🔄 Restart button clicked - starting restart sequence');
       
       // Haptic for Restart button
@@ -435,6 +443,7 @@ function createModal(): HTMLElement {
       // 🔥 CRITICAL: Use setTimeout directly (NOT trackEndRunTimeout) because this action
       // MUST execute even after modal cleanup - cleanupAllEndRunResources would cancel it!
       setTimeout(async () => {
+        if (shouldBlockEndRunActionForNoMoves('restart-handoff')) return;
         console.log('🎯 Modal hidden, calling restart');
         try {
           const currentBoardNumber = (window as any).STATE?.boardNumber || (window as any).__ccStartAtLevel || 1;
@@ -471,6 +480,7 @@ function createModal(): HTMLElement {
   if (exitBtn) {
     let exitActionInProgress = false;
     const exitClickHandler = async () => {
+      if (shouldBlockEndRunActionForNoMoves('exit')) return;
       if (exitActionInProgress) {
         console.log('🚪 Duplicate Exit button event ignored while handoff owns the transition');
         return;
@@ -503,6 +513,10 @@ function createModal(): HTMLElement {
       
       // Wait for the already-running modal animation before handing off.
       await modalExitComplete;
+      if (shouldBlockEndRunActionForNoMoves('exit-handoff')) {
+        exitActionInProgress = false;
+        return;
+      }
       try {
         console.log('🎯 Modal hidden, starting board exit...');
         
@@ -600,6 +614,7 @@ function createModal(): HTMLElement {
 }
 
 export function showEndRunModal(): void {
+  if (shouldBlockEndRunActionForNoMoves('open')) return;
   if (endRunTransitionInProgress) {
     const transitionElapsedMs = endRunOpenStartedAt > 0 ? Date.now() - endRunOpenStartedAt : 0;
     if (transitionElapsedMs > 950 && recoverStuckEndRunModalState('show-transition-stuck')) {
@@ -1314,7 +1329,7 @@ export function forceHideEndRunModal(reason = 'force-hide'): void {
 }
 
 export function showEndRunModalFromGame(): void {
-  if ((window as any).__ccTerminalEndScreenPending === true) {
+  if (isNoMovesNavigationLocked() || (window as any).__ccTerminalEndScreenPending === true) {
     console.warn('⏭️ End Run modal blocked while terminal No Moves/Fail handoff owns input');
     return;
   }

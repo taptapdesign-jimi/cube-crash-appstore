@@ -3,9 +3,15 @@ import path from 'node:path';
 import {
   SOUNDTRACK_LOOP_FADE_IN_MS,
   SOUNDTRACK_LOOP_FADE_OUT_MS,
+  SOUNDTRACK_GAMEPLAY_FADE_TAIL_MS,
+  SOUNDTRACK_GAMEPLAY_VOLUME,
+  SOUNDTRACK_GAMEPLAY_VOLUME_RATIO,
+  SOUNDTRACK_RESUME_FADE_IN_MS,
   SOUNDTRACK_URL,
   SOUNDTRACK_VOLUME,
+  completeGameplayTransitionFade,
   fadeInAndResume,
+  fadeOutSoundtrackForGameplay,
   resetSoundtrackForTests,
   soundtrackManager,
   startSoundtrack,
@@ -14,6 +20,7 @@ import {
 
 class MockAudio {
   static instances: MockAudio[] = [];
+  static rejectNextPlay = false;
   readonly src: string;
   preload = '';
   loop = true;
@@ -24,6 +31,10 @@ class MockAudio {
   private listeners = new Map<string, Set<() => void>>();
 
   play = jest.fn(() => {
+    if (MockAudio.rejectNextPlay) {
+      MockAudio.rejectNextPlay = false;
+      return Promise.reject(new DOMException('User activation required', 'NotAllowedError'));
+    }
     this.paused = false;
     return Promise.resolve();
   });
@@ -58,6 +69,7 @@ describe('global Stack to Six soundtrack', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     MockAudio.instances = [];
+    MockAudio.rejectNextPlay = false;
     (global as any).Audio = MockAudio;
     (window as any)._settings = { musicEnabled: true };
     resetSoundtrackForTests();
@@ -79,13 +91,17 @@ describe('global Stack to Six soundtrack', () => {
     expect(SOUNDTRACK_URL).toBe('./assets/sound/soundtrack/stack to six theme.wav');
     expect(SOUNDTRACK_LOOP_FADE_OUT_MS).toBe(180);
     expect(SOUNDTRACK_LOOP_FADE_IN_MS).toBe(180);
-    expect(SOUNDTRACK_VOLUME).toBe(0.8);
+    expect(SOUNDTRACK_VOLUME).toBe(0.68);
+    expect(SOUNDTRACK_GAMEPLAY_VOLUME_RATIO).toBe(0.20);
+    expect(SOUNDTRACK_GAMEPLAY_VOLUME).toBeCloseTo(0.136, 10);
+    expect(SOUNDTRACK_GAMEPLAY_FADE_TAIL_MS).toBe(320);
+    expect(SOUNDTRACK_RESUME_FADE_IN_MS).toBe(420);
     expect(source).not.toContain('stacktosix-soundtrack.mp3');
     expect(source).not.toContain('stacktosix-soundtrackold.mp3');
     expect(source).not.toContain('oldstacktosix-soundtrack.mp3');
   });
 
-  it('does not pause or restart the theme at board and transition boundaries', async () => {
+  it('ducks to 20% across a gameplay intro and restores full volume without restarting', async () => {
     const appCore = fs.readFileSync(
       path.resolve(process.cwd(), 'src/modules/app-core.ts'),
       'utf8',
@@ -96,7 +112,9 @@ describe('global Stack to Six soundtrack', () => {
     );
 
     expect(appCore).not.toContain('fadeOutAndPause');
-    expect(boardTransition).not.toContain('fadeOutAndPause');
+    expect(boardTransition).toContain('beginGameplayTransitionFade');
+    expect(boardTransition).toContain('continueGameplayTransitionFade');
+    expect(boardTransition).toContain('completeGameplayTransitionFade');
 
     startSoundtrack();
     await Promise.resolve();
@@ -104,11 +122,60 @@ describe('global Stack to Six soundtrack', () => {
     expect(currentAudio.play).toHaveBeenCalledTimes(1);
     expect(soundtrackManager.isStarted).toBe(true);
 
-    startSoundtrack();
+    const fadeGeneration = fadeOutSoundtrackForGameplay(1000);
+    jest.advanceTimersByTime(520);
+    expect(currentAudio.volume).toBeGreaterThan(SOUNDTRACK_GAMEPLAY_VOLUME);
+    expect(currentAudio.volume).toBeLessThan(SOUNDTRACK_VOLUME);
+
+    jest.advanceTimersByTime(500);
+    completeGameplayTransitionFade(fadeGeneration);
+    expect(currentAudio.volume).toBeGreaterThan(SOUNDTRACK_GAMEPLAY_VOLUME);
+    jest.advanceTimersByTime(SOUNDTRACK_GAMEPLAY_FADE_TAIL_MS + 20);
+    expect(currentAudio.volume).toBeCloseTo(SOUNDTRACK_GAMEPLAY_VOLUME, 10);
+    expect(currentAudio.pause).not.toHaveBeenCalled();
+
     fadeInAndResume();
+    jest.advanceTimersByTime(SOUNDTRACK_RESUME_FADE_IN_MS + 20);
     expect(currentAudio.play).toHaveBeenCalledTimes(1);
     expect(currentAudio.currentTime).toBe(0);
     expect(currentAudio.volume).toBe(SOUNDTRACK_VOLUME);
+
+    completeGameplayTransitionFade(fadeGeneration);
+    expect(currentAudio.volume).toBe(SOUNDTRACK_VOLUME);
+  });
+
+  it('keeps looping at the ducked gameplay level', async () => {
+    startSoundtrack();
+    await Promise.resolve();
+    const currentAudio = MockAudio.instances[0];
+
+    const fadeGeneration = fadeOutSoundtrackForGameplay(100);
+    jest.advanceTimersByTime(100);
+    completeGameplayTransitionFade(fadeGeneration);
+    jest.advanceTimersByTime(SOUNDTRACK_GAMEPLAY_FADE_TAIL_MS + 20);
+    expect(currentAudio.volume).toBeCloseTo(SOUNDTRACK_GAMEPLAY_VOLUME, 10);
+
+    currentAudio.emit('ended');
+    await Promise.resolve();
+    expect(currentAudio.play).toHaveBeenCalledTimes(2);
+    jest.advanceTimersByTime(SOUNDTRACK_LOOP_FADE_IN_MS + 20);
+    expect(currentAudio.volume).toBeCloseTo(SOUNDTRACK_GAMEPLAY_VOLUME, 10);
+  });
+
+  it('does not attenuate below 20% on a later transition while gameplay is already ducked', async () => {
+    startSoundtrack();
+    await Promise.resolve();
+    const currentAudio = MockAudio.instances[0];
+
+    const firstGeneration = fadeOutSoundtrackForGameplay(100);
+    jest.advanceTimersByTime(100);
+    completeGameplayTransitionFade(firstGeneration);
+    jest.advanceTimersByTime(SOUNDTRACK_GAMEPLAY_FADE_TAIL_MS + 20);
+    expect(currentAudio.volume).toBeCloseTo(SOUNDTRACK_GAMEPLAY_VOLUME, 10);
+
+    fadeOutSoundtrackForGameplay(1000);
+    jest.advanceTimersByTime(500);
+    expect(currentAudio.volume).toBeCloseTo(SOUNDTRACK_GAMEPLAY_VOLUME, 10);
   });
 
   it('fades out and back in around each loop boundary', async () => {
@@ -143,5 +210,28 @@ describe('global Stack to Six soundtrack', () => {
 
     fadeInAndResume();
     expect(currentAudio.play).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits for touch pointerup before retrying an autoplay-blocked theme', async () => {
+    MockAudio.rejectNextPlay = true;
+    startSoundtrack();
+    await Promise.resolve();
+    await Promise.resolve();
+    const currentAudio = MockAudio.instances[0];
+    expect(currentAudio.play).toHaveBeenCalledTimes(1);
+    expect(soundtrackManager.isStarted).toBe(false);
+
+    const pointerDown = new Event('pointerdown', { bubbles: true });
+    Object.defineProperty(pointerDown, 'pointerType', { value: 'touch' });
+    document.dispatchEvent(pointerDown);
+    expect(currentAudio.play).toHaveBeenCalledTimes(1);
+
+    const pointerUp = new Event('pointerup', { bubbles: true });
+    Object.defineProperty(pointerUp, 'pointerType', { value: 'touch' });
+    document.dispatchEvent(pointerUp);
+    await Promise.resolve();
+
+    expect(currentAudio.play).toHaveBeenCalledTimes(2);
+    expect(soundtrackManager.isStarted).toBe(true);
   });
 });

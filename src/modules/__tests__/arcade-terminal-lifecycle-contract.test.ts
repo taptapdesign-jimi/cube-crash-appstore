@@ -114,7 +114,7 @@ describe('Arcade terminal lifecycle regression contract', () => {
       .toBeLessThan(startLevelOwner.indexOf("await ensureCoreRenderTexturesGpuReady('startLevel')"));
     expect(layoutHelper).toContain('export async function ensureStartLevelLayout');
     expect(layoutHelper).toContain('await layoutBoard();');
-    expect(stageModal).toContain('await wait(300);');
+    expect(stageModal).toContain('await wait(ROUND_SETTLED_HOLD_DURATION * 1000);');
 
     const bootStart = appCore.indexOf('export async function boot()');
     const bootEnd = appCore.indexOf('// -------------------- layout + HUD', bootStart);

@@ -30,12 +30,29 @@ describe('gameplay HUD exit ownership contract', () => {
   it('blocks every HUD close path from the NO MOVES candidate through Fail ownership', () => {
     const hud = fs.readFileSync(path.join(repoRoot, 'src/modules/hud-helpers.ts'), 'utf8');
     const appCore = fs.readFileSync(path.join(repoRoot, 'src/modules/app-core.ts'), 'utf8');
+    const endRun = fs.readFileSync(path.join(repoRoot, 'src/modules/end-run-modal.ts'), 'utf8');
+    const exitHandoff = fs.readFileSync(path.join(repoRoot, 'src/modules/menu-exit-handoff.ts'), 'utf8');
+    const main = fs.readFileSync(path.join(repoRoot, 'src/main.ts'), 'utf8');
+    const failModal = fs.readFileSync(path.join(repoRoot, 'src/modules/board-fail-modal.ts'), 'utf8');
 
     expect(appCore).toContain('activeNoMovesFailFlowToken !== null');
+    expect(appCore).toContain('setNoMovesNavigationLocked(true)');
+    expect(appCore).toContain('setNoMovesNavigationLocked(false)');
     expect(hud).toContain("shouldBlockHudCloseForTerminalResolution('dom-close')");
     expect(hud).toContain("shouldBlockHudCloseForTerminalResolution('circle-close')");
     expect(hud).toContain("shouldBlockHudCloseForTerminalResolution('x-hit-area')");
     expect(hud).toContain("shouldBlockHudCloseForTerminalResolution('x-delayed-open')");
+    expect(endRun).toContain("shouldBlockEndRunActionForNoMoves('restart')");
+    expect(endRun).toContain("shouldBlockEndRunActionForNoMoves('restart-handoff')");
+    expect(endRun).toContain("shouldBlockEndRunActionForNoMoves('exit')");
+    expect(endRun).toContain("shouldBlockEndRunActionForNoMoves('exit-handoff')");
+    expect(exitHandoff).toContain(
+      'if (!options.allowTerminalNoMovesExit && isNoMovesNavigationLocked())',
+    );
+    expect(main).toContain(
+      'if (!options.allowTerminalNoMovesExit && isNoMovesNavigationLocked())',
+    );
+    expect(failModal).toContain('allowTerminalNoMovesExit: true');
   });
 
   it.each([

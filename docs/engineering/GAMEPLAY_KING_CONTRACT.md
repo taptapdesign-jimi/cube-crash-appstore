@@ -125,6 +125,7 @@ reloads.
 
 - Candidate stuck state does **not** immediately own all input.
 - The confirmation window remains playable.
+- From the first visible `NO MOVES` candidate frame, navigation alone is locked: HUD X, an already-open End Run restart/exit, the menu handoff and the final `exitToMenu` boundary must not replace the board underneath the terminal presentation. Only the CTA owned by the mounted Fail/summary modal may explicitly bypass that navigation lock.
 - Immediately before fail presentation, the board is re-snapshotted and re-resolved.
 - `terminal-no-moves` is acquired only at the atomic final commit boundary.
 - After acquiring the lock, the board is checked again before presenting fail.

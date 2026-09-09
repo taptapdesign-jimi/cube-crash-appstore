@@ -10,6 +10,7 @@ import {
   getAnimatedSpecialArtworkLayerStats,
   installAnimatedSpecialArtworkOverlapFootprint,
   setAnimatedSpecialArtworkDragging,
+  setAnimatedSpecialArtworkOccluded,
 } from '../animated-special-artwork-layer';
 import { acquireGameplayDragForeground } from '../gameplay-drag-foreground-owner';
 
@@ -105,6 +106,32 @@ describe('animated special artwork merge-6 depth ownership', () => {
     releaseDragForeground();
     expect(frameOwner).toHaveBeenLastCalledWith(expect.objectContaining({ gameplayDragActive: false }));
     expect(Number(artworkLease.root.style.zIndex)).toBeGreaterThan(canvasZ);
+  });
+
+  test('moves an occluded live SVG below the canvas without replacing its DOM owner', () => {
+    const artworkLease = acquireAnimatedSpecialArtworkLayer(jest.fn());
+    expect(artworkLease).not.toBeNull();
+    if (!artworkLease) return;
+    releases.push(artworkLease.release);
+
+    const wrapper = document.createElement('div');
+    const image = document.createElement('img');
+    image.src = './assets/shop/juice/juice-bounce.svg?cc-svg-phase=4';
+    wrapper.appendChild(image);
+    artworkLease.root.appendChild(wrapper);
+
+    setAnimatedSpecialArtworkOccluded(wrapper, true);
+    const canvas = STATE.app?.canvas as HTMLCanvasElement;
+    expect(wrapper.parentElement?.className).toBe('animated-special-artwork-occluded-layer');
+    expect(Number((wrapper.parentElement as HTMLElement).style.zIndex))
+      .toBeLessThan(Number(getComputedStyle(canvas).zIndex || '1'));
+    expect(wrapper.firstElementChild).toBe(image);
+    expect(image.getAttribute('src')).toBe('./assets/shop/juice/juice-bounce.svg?cc-svg-phase=4');
+
+    setAnimatedSpecialArtworkOccluded(wrapper, false);
+    expect(wrapper.parentElement).toBe(artworkLease.root);
+    expect(wrapper.firstElementChild).toBe(image);
+    expect(image.getAttribute('src')).toBe('./assets/shop/juice/juice-bounce.svg?cc-svg-phase=4');
   });
 
   test('hides both idle and dragged SVG roots when the Pixi canvas stops painting', () => {

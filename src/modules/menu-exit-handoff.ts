@@ -6,6 +6,7 @@ import {
   prepareJourneyWorldRecovery,
   waitForJourneyReturnPresentation,
 } from './journey-return-presentation.js';
+import { isNoMovesNavigationLocked } from './terminal-navigation-lock.ts';
 
 type MenuExitTarget = 'homepage' | 'auto';
 type ExpectedMenuDestination = {
@@ -22,6 +23,7 @@ type MenuExitOptions = {
   skipBoardExit?: boolean;
   fastArcadeCleanExit?: boolean;
   visualExitAlreadyComplete?: boolean;
+  allowTerminalNoMovesExit?: boolean;
 };
 
 const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
@@ -218,6 +220,12 @@ export async function ensureMenuVisibleAfterExit(
 }
 
 export async function requestExitToMenu(options: MenuExitOptions): Promise<void> {
+  if (!options.allowTerminalNoMovesExit && isNoMovesNavigationLocked()) {
+    console.warn('🔒 menu-exit-handoff blocked while NO MOVES owns navigation', {
+      reason: options.reason,
+    });
+    return;
+  }
   const startedAt = Date.now();
   const timeoutMs = options.timeoutMs ?? (options.skipBoardExit ? 2500 : 4500);
   const requestedDestination = await resolveExpectedDestination(options);
@@ -248,6 +256,7 @@ export async function requestExitToMenu(options: MenuExitOptions): Promise<void>
         fastArcadeCleanExit: options.fastArcadeCleanExit,
         visualExitAlreadyComplete: options.visualExitAlreadyComplete,
         expectedMenuDestination: expectedDestination.target,
+        allowTerminalNoMovesExit: options.allowTerminalNoMovesExit,
       }));
       watchdog = window.setTimeout(() => {
         console.warn('⚠️ menu-exit-handoff: exit exceeded watchdog; waiting for the authoritative owner', {

@@ -12,6 +12,8 @@ import { getOriginalGsapTo } from './drag-core.js';
 import { isSlideVisible } from './shop-module.js';
 import { resolveHomepageSliderViewportWidth } from './homepage-slider-layout.js';
 import { isFirstPlayTutorialForced } from './first-play-tutorial.js';
+import { homepageEnterTransitionOwner } from './homepage-enter-transition-owner.js';
+import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 const trackTween = (target: any, vars: any) => {
@@ -65,6 +67,7 @@ class SliderManager {
   private pendingNavBounceSlide: number | null = null;
   private pendingHeroBounceSlide: number | null = null;
   private firstPlayJourneyNavigationPending = false;
+  private navIntentGeneration = 0;
   private suppressCurrentSlideSubscription: boolean = false;
   private gestureLastX: number = 0;
   private gestureLastTs: number = 0;
@@ -492,6 +495,45 @@ class SliderManager {
           (window as any).triggerHapticImpact('light');
         }
         const slideIndex = parseInt(button.getAttribute('data-slide') || '0', 10);
+        const resolvedSlideIndex = this.resolveHiddenSlideTarget(slideIndex);
+        const navIntentGeneration = ++this.navIntentGeneration;
+
+        // Fail -> Exit may reveal an interactive nav just before the single
+        // Homepage enter owner has finalized slide 0. Do not let goToSlide()
+        // race that finalizer: wait for the complete lease, including any
+        // replacement lease, then apply only the newest nav intent.
+        if (homepageEnterTransitionOwner.isActive()) {
+          emitNativeConsoleDiagnostic('[CC_HOME_NAV]', 'queued-after-homepage-enter', {
+            slideIndex: resolvedSlideIndex,
+            navIntentGeneration,
+            currentSlide: this.currentSlide,
+            gameStateSlide: gameState.get('currentSlide'),
+          });
+          while (homepageEnterTransitionOwner.isActive()) {
+            const settled = homepageEnterTransitionOwner.getCurrentSettled();
+            if (!settled) break;
+            await settled;
+          }
+          if (
+            navIntentGeneration !== this.navIntentGeneration
+            || (window as any).__ccAppZone !== 'home'
+            || !button.isConnected
+          ) {
+            emitNativeConsoleDiagnostic('[CC_HOME_NAV]', 'queued-intent-retired', {
+              slideIndex: resolvedSlideIndex,
+              navIntentGeneration,
+              latestNavIntentGeneration: this.navIntentGeneration,
+              appZone: (window as any).__ccAppZone ?? null,
+            });
+            return;
+          }
+          emitNativeConsoleDiagnostic('[CC_HOME_NAV]', 'homepage-enter-settled', {
+            slideIndex: resolvedSlideIndex,
+            navIntentGeneration,
+            currentSlide: this.currentSlide,
+            gameStateSlide: gameState.get('currentSlide'),
+          });
+        }
 
         // On a clean install the Journey nav icon is itself a tutorial choice.
         // Reuse the canonical Journey CTA handler so the Homepage exit remains
@@ -512,7 +554,7 @@ class SliderManager {
           }
         }
 
-        this.pendingNavBounceSlide = this.resolveHiddenSlideTarget(slideIndex);
+        this.pendingNavBounceSlide = resolvedSlideIndex;
         this.goToSlide(slideIndex);
       };
       this.boundHandlers.navButtonClick!.set(button, handler);
@@ -1620,6 +1662,8 @@ class SliderManager {
   
   // Cleanup
   destroy(): void {
+    // Retire any nav tap waiting on a Homepage enter owned by this lifecycle.
+    this.navIntentGeneration += 1;
     // 🔥 FIX: Clear all active intervals first
     this.activeIntervals.forEach(interval => {
       clearInterval(interval);

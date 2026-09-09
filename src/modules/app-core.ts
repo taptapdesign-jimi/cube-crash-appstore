@@ -88,6 +88,10 @@ import { createHudHelpers } from './app-core-hud-helpers.ts';
 import type { Tile, Board, Grid, HUD as HUDType, Stage as StageType, Drag } from '../types/game-types.js';
 import type { RuntimeGameBridge } from '../types/runtime-game-bridge.ts';
 import { getArcadeSaveKey, getBoardSaveKey } from '../utils/board-save-utils.js';
+import {
+  isNoMovesNavigationLocked,
+  setNoMovesNavigationLocked,
+} from './terminal-navigation-lock.ts';
 import { 
   setPendingCleanBoard, 
   clearPendingCleanBoard, 
@@ -208,8 +212,19 @@ import { Merge6DestinationCleanupOwner } from './merge6-destination-cleanup-owne
 import { shouldDeferEndgameForActiveDrag } from './active-drag-endgame-policy.ts';
 import { shouldDisposeGameplayDragOwner } from './gameplay-drag-cleanup-policy.ts';
 import { playRegularMerge6Sound, stopRegularMerge6Sounds } from './regular-merge6-sound.ts';
+import {
+  isCoreWildStarMerge6SoundEvent,
+  playWildStarMerge6Sound,
+  stopWildStarMerge6Sound,
+} from './wild-star-merge6-sound.ts';
 import { playOrdinaryStackSound, stopOrdinaryStackSound } from './ordinary-stack-sound.ts';
 import { stopGameplayPickupSound } from './gameplay-pickup-sound.ts';
+import { preloadNoMovesSound } from './no-moves-sound.ts';
+import {
+  playWildSpecialLandingSound,
+  preloadWildSpecialLandingSound,
+  stopWildSpecialLandingSound,
+} from './wild-special-landing-sound.ts';
 import { resolvePostSpawnEndgameDelayMs } from './post-spawn-endgame-delay.ts';
 import { resolveWildEndgameSpawnMult } from './wild-endgame-spawn-mult-decision.ts';
 import {
@@ -1090,6 +1105,7 @@ function resetTransientRunGuards(reason: string = 'unknown'): void {
   regularMergeHandoffFinalizers.clear();
   activeNoMovesFailFlowToken = null;
   activeNoMovesInputLockToken = null;
+  setNoMovesNavigationLocked(false);
   try { setInputGateLock('special-transaction', false); } catch {}
   wildMagnetPullInProgress = false;
   try { (window as any).__ccWildMagnetPullInProgress = false; } catch {}
@@ -1749,6 +1765,7 @@ function cancelNoMovesFailFlow(token: number, reason: string, blockReason: strin
     ...getNoMovesTraceState(reason, 'cancelled'),
   });
   activeNoMovesFailFlowToken = null;
+  setNoMovesNavigationLocked(false);
   try { clearNoMovesText(); } catch {}
   if (activeNoMovesInputLockToken === token) {
     activeNoMovesInputLockToken = null;
@@ -1795,6 +1812,7 @@ async function runNoMovesFailFlow({
   }
   const flowToken = ++noMovesFailFlowSequence;
   activeNoMovesFailFlowToken = flowToken;
+  setNoMovesNavigationLocked(true);
   devLog('⏳ Running no-moves fail flow before fail screen', { reason, waitMs, extraWaitMs });
   emitIOSSpecialTransactionTrace('no-moves-candidate', {
     token: flowToken,
@@ -2458,8 +2476,10 @@ function logRuntimeStats(reason: string = 'unknown'): void {
 function cleanupFxForBoardReset(reason: string = 'unknown') {
   devLog('🧹 cleanupFxForBoardReset:', reason);
   try { stopRegularMerge6Sounds(); } catch {}
+  try { stopWildStarMerge6Sound(); } catch {}
   try { stopOrdinaryStackSound(); } catch {}
   try { stopGameplayPickupSound(); } catch {}
+  try { stopWildSpecialLandingSound(); } catch {}
   const isPlayAgainCleanup = reason.includes('play-again');
   const isNavCleanup =
     typeof reason === 'string' &&
@@ -4370,6 +4390,7 @@ export async function boot(){
     beginEndgameGuard: (source: string, ttlMs?: number) => beginEndgameGuard(source, ttlMs),
     endEndgameGuard: (source: string) => endEndgameGuard(source),
     getEndgameGuardState: () => getEndgameGuardState(),
+    isNoMovesNavigationLocked: () => isNoMovesNavigationLocked(),
     debugResolveGameplayState: (reason?: string, overrides?: any) => debugResolveGameplayState(reason, overrides),
     isWildMagnetPullInProgress: () => wildMagnetPullInProgress === true,
     applyWildSkinLocal: (tile) => applyWildSkinLocal(tile), // 🔥 CRITICAL: Export for wild-magnet electric glow
@@ -6214,6 +6235,8 @@ async function startLevel(n): Promise<void> {
   // first reward must not begin decoding its entrance only after the meter is
   // already visibly full.
   void preloadWildSpawnDropAssets();
+  preloadWildSpecialLandingSound();
+  preloadNoMovesSound();
   // Retire every callback/wait owned by the previous board before the new
   // generation begins awaiting textures or creating tiles.
   try { clearAllAppTimeouts(); } catch {}
@@ -6928,6 +6951,7 @@ async function spawnWildFromMeter(){
             from: wildDropOrigin,
             tileSize: TILE,
             onImpact: () => {
+              playWildSpecialLandingSound();
               try {
                 screenShake(app, { strength: 14, duration: 0.38, steps: 18, ease: 'power2.out', yScale: 0.85 });
               } catch {}
@@ -8224,6 +8248,15 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // Wild/Special merge-6 finales keep their authored audio behavior.
     if (!wildActive && !srcSpecial && !dstSpecial) {
       playRegularMerge6Sound();
+    }
+    if (isCoreWildStarMerge6SoundEvent({
+      effectiveSum: effSum,
+      srcSpecial,
+      dstSpecial,
+      srcSpecialDiceVariantId: srcSpecialVariantAtMergeEntry?.id,
+      dstSpecialDiceVariantId: dstSpecialVariantAtMergeEntry?.id,
+    })) {
+      playWildStarMerge6Sound();
     }
     // 🔥 CRITICAL FIX: Use saved srcSpecial/dstSpecial from line 3653-3654 (don't overwrite!)
     // These values were saved BEFORE any modifications to src/dst and BEFORE any branches
@@ -15113,6 +15146,7 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
             skipBoardExit: true,
             fastArcadeCleanExit: true,
             visualExitAlreadyComplete: result?.visualExitAlreadyComplete === true,
+            allowTerminalNoMovesExit: true,
           });
         } catch (error) {
           devWarn('⚠️ Arcade run reached exitToMenu failed:', error);
@@ -15141,6 +15175,7 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
     busyEnding = false;
     failScreenFlowInProgress = false;
     activeNoMovesInputLockToken = null;
+    setNoMovesNavigationLocked(false);
     try { (window as any).__ccTerminalEndScreenPending = false; } catch {}
     try { setInputGateLock('terminal-no-moves', false); } catch {}
   }
