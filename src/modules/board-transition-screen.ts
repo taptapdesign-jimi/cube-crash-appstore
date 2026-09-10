@@ -59,6 +59,12 @@ import {
   completeGameplayTransitionFade,
   continueGameplayTransitionFade,
 } from './soundtrack-manager.js';
+import {
+  playBoardTransitionDigitSound,
+  playBoardTransitionExitSound,
+  preloadBoardTransitionDigitSounds,
+  stopBoardTransitionDigitSounds,
+} from './arcade-round-digit-sound.ts';
 
 interface BoardTransitionOptions {
   boardNumber: number;
@@ -1891,6 +1897,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
   
   // Cleanup any existing overlay (preserve DOM for reuse)
   cleanup({ preserveDom: true });
+  preloadBoardTransitionDigitSounds();
   startIOSJourneyPerformanceAudit(boardNumber);
   
   // 🔥 USER REQUEST: Reset paper background when transition screen closes
@@ -3041,9 +3048,12 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         z: 20, // 3D depth
         x: 0, // 🔥 CRITICAL FIX: Explicitly ensure no horizontal movement
         y: 0, // 🔥 CRITICAL FIX: Explicitly ensure no vertical movement
-        transformOrigin: 'center center', // 🔥 CRITICAL FIX: Ensure transform origin is center
+          transformOrigin: 'center center', // 🔥 CRITICAL FIX: Ensure transform origin is center
           duration: 0.4,
-          ease: 'back.out(2.0)'
+          ease: 'back.out(2.0)',
+          onStart: () => {
+            playBoardTransitionDigitSound(index);
+          },
         });
       
       // Settle: scale 1.2 → 0.95 with 3D return
@@ -3449,7 +3459,10 @@ function startExitAnimation(
         scale: 1.1,
       z: 30, // Push forward in 3D
         duration: 0.15,
-        ease: 'power2.out'
+        ease: 'power2.out',
+        onStart: () => {
+          if (index === 0) playBoardTransitionExitSound();
+        },
       });
     
     // Then: scale 1.1 → 0 with 3D rotation and depth fade
@@ -3830,6 +3843,7 @@ function cleanup(options: { preserveDom?: boolean; keepVisibleCover?: boolean } 
   try {
     stopMemSampling(preserveDom ? 'cleanup-preserved' : 'cleanup');
     stopIOSJourneyPerformanceAudit(preserveDom ? 'transition-cleanup-preserved' : 'transition-cleanup');
+    stopBoardTransitionDigitSounds();
     lifecycle.cleanup();
     // 🔥 CRITICAL: Kill all active tweens
     activeTweens.forEach(tween => {

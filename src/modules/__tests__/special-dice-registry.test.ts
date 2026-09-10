@@ -362,6 +362,20 @@ test('later Forest Stages keep only earned Forest skins and never generic visual
   })).toMatchObject({ id: 'honey' });
 });
 
+test('Arcade Round 01 drops Beach Ball first and Bottle second without Cubero', () => {
+  expect([0, 1, 2].map((wildSpawnCount) => pickSpecialDiceVariantForWildSpawn({
+    isArcade: true,
+    arcadeStage: 1,
+    wildSpawnCount,
+  })?.id ?? null)).toEqual(['beach-ball', 'bottle', null]);
+
+  expect(pickSpecialDiceVariantForWildSpawn({
+    isArcade: true,
+    arcadeStage: 2,
+    wildSpawnCount: 1,
+  })).toBeNull();
+});
+
 test('later Beach stages map one shared random slot to Star, Juice, Beach Ball, or Bottle', () => {
   for (let journeyBoard = 12; journeyBoard <= 20; journeyBoard += 1) {
     const variants = [0, 1, 2, 3].map((beachWildSlot) => pickSpecialDiceVariantForWildSpawn({

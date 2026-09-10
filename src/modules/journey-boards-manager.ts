@@ -135,6 +135,8 @@ import {
 import { preloadRegularMerge6Sounds } from './regular-merge6-sound.ts';
 import { preloadWildStarMerge6Sound } from './wild-star-merge6-sound.ts';
 import { preloadBeachBallMerge6Sounds } from './beach-ball-merge6-sound.ts';
+import { preloadCoreTntMerge6Sound } from './core-tnt-merge6-sound.ts';
+import { preloadBottleFinaleSounds } from './bottle-finale-sound.ts';
 import { preloadOrdinaryStackSound } from './ordinary-stack-sound.ts';
 import { preloadGameplayPickupSound } from './gameplay-pickup-sound.ts';
 
@@ -12657,6 +12659,8 @@ class JourneyBoardsManager {
           preloadRegularMerge6Sounds();
           preloadWildStarMerge6Sound();
           preloadBeachBallMerge6Sounds();
+          preloadCoreTntMerge6Sound();
+          preloadBottleFinaleSounds();
           preloadOrdinaryStackSound();
           preloadGameplayPickupSound();
           delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;

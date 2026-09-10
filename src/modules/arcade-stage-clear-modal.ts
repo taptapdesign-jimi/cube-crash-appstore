@@ -6,6 +6,12 @@ import {
   completeGameplayTransitionFade,
   fadeOutSoundtrackForGameplay,
 } from './soundtrack-manager.ts';
+import {
+  playArcadeRoundDigitSound,
+  playArcadeRoundExitSound,
+  preloadArcadeRoundDigitSounds,
+  stopArcadeRoundDigitSounds,
+} from './arcade-round-digit-sound.ts';
 
 const HEADLINES = [
   'Sweet Win',
@@ -611,6 +617,7 @@ function animateBottomHudStageIndicator(nextStage: number): void {
 
 async function playRoundNumberPhase(parts: ReturnType<typeof createOverlay>, displayedStage: number): Promise<void> {
   const { overlay, nextCard, letters, digits } = parts;
+  preloadArcadeRoundDigitSounds();
   animateBottomHudStageIndicator(displayedStage);
   gsap.set(nextCard, { opacity: 1, xPercent: -50, yPercent: -50, scale: 1 });
   prepareBubblyLetters(letters);
@@ -637,6 +644,7 @@ async function playRoundNumberPhase(parts: ReturnType<typeof createOverlay>, dis
       const timeline = gsap.timeline({
         delay: index * ROUND_DIGIT_ENTER_STAGGER,
         onStart: () => {
+          playArcadeRoundDigitSound(index);
           triggerStageNumberHaptic(index === 0 ? 'medium' : 'light');
           playStageNumberScreenShake(overlay);
         },
@@ -703,6 +711,9 @@ async function playRoundNumberPhase(parts: ReturnType<typeof createOverlay>, dis
       digits.forEach((digit, index) => {
         const timeline = gsap.timeline({
           delay: index * ROUND_DIGIT_EXIT_STAGGER,
+          onStart: () => {
+            if (index === 0) playArcadeRoundExitSound();
+          },
           onComplete: () => {
             completedDigits += 1;
             if (completedDigits === digits.length) resolveExit();
@@ -804,6 +815,7 @@ export function cancelArcadeStageClearModal(): void {
 }
 
 export function cleanupArcadeStageClearModal(resolveActive: boolean = true): void {
+  stopArcadeRoundDigitSounds();
   activeTweens.forEach((tween) => {
     try { tween.kill(); } catch {}
   });

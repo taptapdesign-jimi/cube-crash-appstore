@@ -24,9 +24,10 @@ describe('Bottle finale lifecycle ownership', () => {
 
     expect(overlay.querySelectorAll('.cc-bottle-finale-scene').length).toBe(1);
     expect(overlay.querySelectorAll('img').length).toBe(103);
-    // 9 hero bottle owners + 1 shared trail clock + 40 foreground bubbles.
+    // 9 hero bottle owners + 1 shared trail clock + 1 shared sound clock
+    // + 40 foreground bubbles.
     // The 60 trail particles must never return to one root timeline each.
-    expect(animationManager.getStats().activeTimelines).toBe(baseline.activeTimelines + 50);
+    expect(animationManager.getStats().activeTimelines).toBe(baseline.activeTimelines + 51);
 
     cleanup();
     cleanup();

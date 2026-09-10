@@ -34,11 +34,13 @@ export const BEACH_BALL_MERGE6_BALL2_SOUND_SOURCE =
 export const BEACH_BALL_MERGE6_BALL4_SOUND_SOURCE =
   './assets/sound/Wild and special kockice/ball/ball4.wav';
 export const BEACH_BALL_MERGE6_BALL5_SOUND_SOURCE =
-  './assets/sound/Wild and special kockice/ball/ball5.wav';
+  './assets/sound/Wild and special kockice/ball/ball5-60pct.wav';
 export const BEACH_BALL_MERGE6_IMPACT_SOUND_SOURCE =
   './assets/sound/Wild and special kockice/ball/ball impact.mp3';
 export const BEACH_BALL_MERGE6_BALL4_DELAY_MS = 0;
 export const BEACH_BALL_MERGE6_BALL5_DELAY_MS = 100;
+export const BEACH_BALL_MERGE6_BALL5_PLAYBACK_RATE = 1.8;
+export const BEACH_BALL_MERGE6_BALL5_SOURCE_DURATION_SECONDS = 1.2;
 export const BEACH_BALL_MERGE6_LAYER_BASE_VOLUME = 2 / 3;
 export const BEACH_BALL_MERGE6_LAYER_VOLUME = applySoundEffectsMasterGain(
   BEACH_BALL_MERGE6_LAYER_BASE_VOLUME,
@@ -65,24 +67,11 @@ export const BEACH_BALL_MERGE6_STACK_SOUND_SOURCE = REGULAR_MERGE6_STACK_SOUND_S
 export const BEACH_BALL_MERGE6_STACK_BASE_VOLUME = REGULAR_MERGE6_STACK_BASE_VOLUME;
 export const BEACH_BALL_MERGE6_STACK_VOLUME = REGULAR_MERGE6_STACK_VOLUME;
 
-export type BeachBallMerge6Variant = Readonly<{
-  primarySource: string;
-  secondarySource: string;
-  secondaryDelayMs: number;
-}>;
-
-export const BEACH_BALL_MERGE6_VARIANTS: readonly BeachBallMerge6Variant[] = Object.freeze([
-  Object.freeze({
-    primarySource: BEACH_BALL_MERGE6_BALL2_SOUND_SOURCE,
-    secondarySource: BEACH_BALL_MERGE6_BALL4_SOUND_SOURCE,
-    secondaryDelayMs: BEACH_BALL_MERGE6_BALL4_DELAY_MS,
-  }),
-  Object.freeze({
-    primarySource: BEACH_BALL_MERGE6_BALL1_SOUND_SOURCE,
-    secondarySource: BEACH_BALL_MERGE6_BALL5_SOUND_SOURCE,
-    secondaryDelayMs: BEACH_BALL_MERGE6_BALL5_DELAY_MS,
-  }),
-]);
+export const BEACH_BALL_MERGE6_IMMEDIATE_SOUND_SOURCES = Object.freeze([
+  BEACH_BALL_MERGE6_BALL1_SOUND_SOURCE,
+  BEACH_BALL_MERGE6_BALL2_SOUND_SOURCE,
+  BEACH_BALL_MERGE6_BALL4_SOUND_SOURCE,
+] as const);
 
 const BEACH_BALL_MERGE6_SOUND_SOURCES = [
   BEACH_BALL_MERGE6_BALL1_SOUND_SOURCE,
@@ -91,14 +80,17 @@ const BEACH_BALL_MERGE6_SOUND_SOURCES = [
   BEACH_BALL_MERGE6_BALL5_SOUND_SOURCE,
   BEACH_BALL_MERGE6_IMPACT_SOUND_SOURCE,
 ] as const;
-const BEACH_BALL_MERGE6_VOICE_IDS = [
-  'beach-ball-merge6-primary',
-  'beach-ball-merge6-secondary',
-  'beach-ball-merge6-impact',
-] as const;
+const BEACH_BALL_MERGE6_VOICE_ID = Object.freeze({
+  ball1: 'beach-ball-merge6-ball1',
+  ball2: 'beach-ball-merge6-ball2',
+  ball4: 'beach-ball-merge6-ball4',
+  ball5: 'beach-ball-merge6-ball5',
+  impact: 'beach-ball-merge6-impact',
+});
+const BEACH_BALL_MERGE6_VOICE_IDS = Object.values(BEACH_BALL_MERGE6_VOICE_ID);
 
 const mediaAudioBySource = new Map<string, HTMLAudioElement>();
-let secondaryStartTimer: number | null = null;
+let ball5StartTimer: number | null = null;
 
 export interface BeachBallMerge6SoundEvent {
   effectiveSum: number;
@@ -118,14 +110,6 @@ export function areBeachBallMerge6SoundsEnabled(): boolean {
     (window as any)._settings?.gameSoundsEnabled === true;
 }
 
-export function selectBeachBallMerge6Variant(
-  randomValue: number = Math.random(),
-): BeachBallMerge6Variant {
-  return randomValue < 0.5
-    ? BEACH_BALL_MERGE6_VARIANTS[0]
-    : BEACH_BALL_MERGE6_VARIANTS[1];
-}
-
 function getMediaAudio(source: string): HTMLAudioElement | null {
   const existing = mediaAudioBySource.get(source);
   if (existing) return existing;
@@ -137,10 +121,15 @@ function getMediaAudio(source: string): HTMLAudioElement | null {
   return audio;
 }
 
-function startMediaLayer(audio: HTMLAudioElement, volume: number, label: string): void {
+function startMediaLayer(
+  audio: HTMLAudioElement,
+  volume: number,
+  label: string,
+  playbackRate: number = 1,
+): void {
   audio.pause();
-  audio.defaultPlaybackRate = 1;
-  audio.playbackRate = 1;
+  audio.defaultPlaybackRate = playbackRate;
+  audio.playbackRate = playbackRate;
   audio.volume = volume;
   audio.currentTime = 0;
   audio.play()?.catch((error) => {
@@ -148,10 +137,10 @@ function startMediaLayer(audio: HTMLAudioElement, volume: number, label: string)
   });
 }
 
-function clearSecondaryStartTimer(): void {
-  if (secondaryStartTimer === null || typeof window === 'undefined') return;
-  window.clearTimeout(secondaryStartTimer);
-  secondaryStartTimer = null;
+function clearBall5StartTimer(): void {
+  if (ball5StartTimer === null || typeof window === 'undefined') return;
+  window.clearTimeout(ball5StartTimer);
+  ball5StartTimer = null;
 }
 
 export function preloadBeachBallMerge6Sounds(): boolean {
@@ -165,36 +154,46 @@ export function preloadBeachBallMerge6Sounds(): boolean {
 export function playBeachBallMerge6Sound(): boolean {
   if (!areBeachBallMerge6SoundsEnabled()) return false;
   const ordinaryMergeStarted = playRegularMerge6Sound();
-  const variant = selectBeachBallMerge6Variant();
   const decodedState = getDecodedGameplaySoundsState(BEACH_BALL_MERGE6_SOUND_SOURCES);
 
   if (decodedState !== 'unavailable') {
     stopDecodedGameplayVoices(BEACH_BALL_MERGE6_VOICE_IDS);
     const results = [
       playDecodedGameplaySound(BEACH_BALL_MERGE6_IMPACT_SOUND_SOURCE, {
-        voiceId: BEACH_BALL_MERGE6_VOICE_IDS[2],
+        voiceId: BEACH_BALL_MERGE6_VOICE_ID.impact,
         volume: BEACH_BALL_MERGE6_IMPACT_VOLUME,
       }),
-      playDecodedGameplaySound(variant.primarySource, {
-        voiceId: BEACH_BALL_MERGE6_VOICE_IDS[0],
+      playDecodedGameplaySound(BEACH_BALL_MERGE6_BALL1_SOUND_SOURCE, {
+        voiceId: BEACH_BALL_MERGE6_VOICE_ID.ball1,
         volume: BEACH_BALL_MERGE6_LAYER_VOLUME,
       }),
-      playDecodedGameplaySound(variant.secondarySource, {
-        voiceId: BEACH_BALL_MERGE6_VOICE_IDS[1],
+      playDecodedGameplaySound(BEACH_BALL_MERGE6_BALL2_SOUND_SOURCE, {
+        voiceId: BEACH_BALL_MERGE6_VOICE_ID.ball2,
         volume: BEACH_BALL_MERGE6_LAYER_VOLUME,
-        startDelaySeconds: variant.secondaryDelayMs / 1000,
+      }),
+      playDecodedGameplaySound(BEACH_BALL_MERGE6_BALL4_SOUND_SOURCE, {
+        voiceId: BEACH_BALL_MERGE6_VOICE_ID.ball4,
+        volume: BEACH_BALL_MERGE6_LAYER_VOLUME,
+      }),
+      playDecodedGameplaySound(BEACH_BALL_MERGE6_BALL5_SOUND_SOURCE, {
+        voiceId: BEACH_BALL_MERGE6_VOICE_ID.ball5,
+        volume: BEACH_BALL_MERGE6_LAYER_VOLUME,
+        playbackRate: BEACH_BALL_MERGE6_BALL5_PLAYBACK_RATE,
+        startDelaySeconds: BEACH_BALL_MERGE6_BALL5_DELAY_MS / 1000,
       }),
     ];
     return ordinaryMergeStarted && results.every((result) => result !== 'unavailable');
   }
 
   const impact = getMediaAudio(BEACH_BALL_MERGE6_IMPACT_SOUND_SOURCE);
-  const primary = getMediaAudio(variant.primarySource);
-  const secondary = getMediaAudio(variant.secondarySource);
-  if (!impact || !primary || !secondary) return false;
+  const ball1 = getMediaAudio(BEACH_BALL_MERGE6_BALL1_SOUND_SOURCE);
+  const ball2 = getMediaAudio(BEACH_BALL_MERGE6_BALL2_SOUND_SOURCE);
+  const ball4 = getMediaAudio(BEACH_BALL_MERGE6_BALL4_SOUND_SOURCE);
+  const ball5 = getMediaAudio(BEACH_BALL_MERGE6_BALL5_SOUND_SOURCE);
+  if (!impact || !ball1 || !ball2 || !ball4 || !ball5) return false;
 
   try {
-    clearSecondaryStartTimer();
+    clearBall5StartTimer();
     BEACH_BALL_MERGE6_SOUND_SOURCES.forEach((source) => {
       const audio = mediaAudioBySource.get(source);
       if (!audio) return;
@@ -204,16 +203,19 @@ export function playBeachBallMerge6Sound(): boolean {
       } catch {}
     });
     startMediaLayer(impact, BEACH_BALL_MERGE6_IMPACT_VOLUME, 'impact');
-    startMediaLayer(primary, BEACH_BALL_MERGE6_LAYER_VOLUME, 'primary');
-    if (variant.secondaryDelayMs === 0) {
-      startMediaLayer(secondary, BEACH_BALL_MERGE6_LAYER_VOLUME, 'secondary');
-    } else {
-      secondaryStartTimer = window.setTimeout(() => {
-        secondaryStartTimer = null;
-        if (!areBeachBallMerge6SoundsEnabled()) return;
-        startMediaLayer(secondary, BEACH_BALL_MERGE6_LAYER_VOLUME, 'secondary');
-      }, variant.secondaryDelayMs);
-    }
+    startMediaLayer(ball1, BEACH_BALL_MERGE6_LAYER_VOLUME, 'ball1');
+    startMediaLayer(ball2, BEACH_BALL_MERGE6_LAYER_VOLUME, 'ball2');
+    startMediaLayer(ball4, BEACH_BALL_MERGE6_LAYER_VOLUME, 'ball4');
+    ball5StartTimer = window.setTimeout(() => {
+      ball5StartTimer = null;
+      if (!areBeachBallMerge6SoundsEnabled()) return;
+      startMediaLayer(
+        ball5,
+        BEACH_BALL_MERGE6_LAYER_VOLUME,
+        'ball5',
+        BEACH_BALL_MERGE6_BALL5_PLAYBACK_RATE,
+      );
+    }, BEACH_BALL_MERGE6_BALL5_DELAY_MS);
     return ordinaryMergeStarted;
   } catch (error) {
     logger.warn('Failed to start Beach Ball merge-6 sounds:', error);
@@ -222,7 +224,7 @@ export function playBeachBallMerge6Sound(): boolean {
 }
 
 export function stopBeachBallMerge6Sounds(): void {
-  clearSecondaryStartTimer();
+  clearBall5StartTimer();
   stopRegularMerge6Sounds();
   stopDecodedGameplayVoices(BEACH_BALL_MERGE6_VOICE_IDS);
   mediaAudioBySource.forEach((audio) => {

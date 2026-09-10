@@ -323,6 +323,7 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
     hitAreaSize: 'tile',
     idleOrbit: false,
     idleMotion: 'bottle-float',
+    arcadeTestOrder: 2,
     inputReleaseAtRatio: 0.25,
   },
   honey: {
@@ -447,7 +448,6 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
       waveDurationScale: 1.05,
       mixBlendMode: 'normal',
     },
-    arcadeTestOrder: 2,
     inputReleaseAtRatio: 0.25,
   },
   'beach-ball': {

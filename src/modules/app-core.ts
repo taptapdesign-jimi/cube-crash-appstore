@@ -222,6 +222,16 @@ import {
   playBeachBallMerge6Sound,
   stopBeachBallMerge6Sounds,
 } from './beach-ball-merge6-sound.ts';
+import {
+  isCoreTntMerge6SoundEvent,
+  playCoreTntMerge6Sound,
+  stopCoreTntMerge6Sound,
+} from './core-tnt-merge6-sound.ts';
+import {
+  isBottleMerge6SoundEvent,
+  playBottleMerge6Foundation,
+  stopBottleFinaleSounds,
+} from './bottle-finale-sound.ts';
 import { playOrdinaryStackSound, stopOrdinaryStackSound } from './ordinary-stack-sound.ts';
 import { stopGameplayPickupSound } from './gameplay-pickup-sound.ts';
 import { preloadNoMovesSound } from './no-moves-sound.ts';
@@ -2483,6 +2493,8 @@ function cleanupFxForBoardReset(reason: string = 'unknown') {
   try { stopRegularMerge6Sounds(); } catch {}
   try { stopWildStarMerge6Sound(); } catch {}
   try { stopBeachBallMerge6Sounds(); } catch {}
+  try { stopCoreTntMerge6Sound(); } catch {}
+  try { stopBottleFinaleSounds(); } catch {}
   try { stopOrdinaryStackSound(); } catch {}
   try { stopGameplayPickupSound(); } catch {}
   try { stopWildSpecialLandingSound(); } catch {}
@@ -8270,6 +8282,22 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       dstSpecialDiceVariantId: dstSpecialVariantAtMergeEntry?.id,
     })) {
       playBeachBallMerge6Sound();
+    }
+    if (isCoreTntMerge6SoundEvent({
+      effectiveSum: effSum,
+      srcSpecial,
+      dstSpecial,
+      srcSpecialDiceVariantId: srcSpecialVariantAtMergeEntry?.id,
+      dstSpecialDiceVariantId: dstSpecialVariantAtMergeEntry?.id,
+    })) {
+      playCoreTntMerge6Sound();
+    }
+    if (isBottleMerge6SoundEvent({
+      effectiveSum: effSum,
+      srcSpecialDiceVariantId: srcSpecialVariantAtMergeEntry?.id,
+      dstSpecialDiceVariantId: dstSpecialVariantAtMergeEntry?.id,
+    })) {
+      playBottleMerge6Foundation();
     }
     // 🔥 CRITICAL FIX: Use saved srcSpecial/dstSpecial from line 3653-3654 (don't overwrite!)
     // These values were saved BEFORE any modifications to src/dst and BEFORE any branches

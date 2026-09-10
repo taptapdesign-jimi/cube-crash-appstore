@@ -66,16 +66,20 @@ describe('sound effects master volume', () => {
     expect(soundtrack).not.toContain('applySoundEffectsMasterGain');
   });
 
-  it('is consumed by all eight active SFX owners', () => {
+  it('is consumed by all twelve active SFX owners', () => {
     for (const filename of [
       'gameplay-pickup-sound.ts',
       'ordinary-stack-sound.ts',
       'regular-merge6-sound.ts',
       'wild-star-merge6-sound.ts',
+      'beach-ball-merge6-sound.ts',
+      'core-tnt-merge6-sound.ts',
       'wild-special-landing-sound.ts',
       'arcade-crate-sound.ts',
       'journey-backpack-sound.ts',
       'no-moves-sound.ts',
+      'arcade-round-digit-sound.ts',
+      'bottle-finale-sound.ts',
     ]) {
       const source = fs.readFileSync(path.resolve(process.cwd(), 'src/modules', filename), 'utf8');
       expect(source).toContain('applySoundEffectsMasterGain');

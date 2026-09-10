@@ -52,9 +52,12 @@ import {
 import { preloadRegularMerge6Sounds } from './regular-merge6-sound.ts';
 import { preloadWildStarMerge6Sound } from './wild-star-merge6-sound.ts';
 import { preloadBeachBallMerge6Sounds } from './beach-ball-merge6-sound.ts';
+import { preloadCoreTntMerge6Sound } from './core-tnt-merge6-sound.ts';
+import { preloadBottleFinaleSounds } from './bottle-finale-sound.ts';
 import { preloadOrdinaryStackSound } from './ordinary-stack-sound.ts';
 import { preloadGameplayPickupSound } from './gameplay-pickup-sound.ts';
 import { preloadNoMovesSound } from './no-moves-sound.ts';
+import { preloadArcadeRoundDigitSounds } from './arcade-round-digit-sound.ts';
 import {
   ARCADE_SLIDE_INDEX,
   JOURNEY_SLIDE_INDEX,
@@ -452,9 +455,12 @@ class UIManager {
     preloadRegularMerge6Sounds();
     preloadWildStarMerge6Sound();
     preloadBeachBallMerge6Sounds();
+    preloadCoreTntMerge6Sound();
+    preloadBottleFinaleSounds();
     preloadOrdinaryStackSound();
     preloadGameplayPickupSound();
     preloadNoMovesSound();
+    preloadArcadeRoundDigitSounds();
     try {
       localStorage.removeItem('cc_saved_game');
       localStorage.removeItem('cc_board_completed');
@@ -607,8 +613,11 @@ class UIManager {
     preloadRegularMerge6Sounds();
     preloadWildStarMerge6Sound();
     preloadBeachBallMerge6Sounds();
+    preloadCoreTntMerge6Sound();
+    preloadBottleFinaleSounds();
     preloadOrdinaryStackSound();
     preloadGameplayPickupSound();
+    preloadArcadeRoundDigitSounds();
     // Ensure fresh Arcade run always triggers HUD entry/drop initialization.
     (window as any).__ccTriggerHudDrop = true;
     // The first-play tutorial owns its board introduction, so it must not be
@@ -725,8 +734,11 @@ class UIManager {
       preloadRegularMerge6Sounds();
       preloadWildStarMerge6Sound();
       preloadBeachBallMerge6Sounds();
+      preloadCoreTntMerge6Sound();
+      preloadBottleFinaleSounds();
       preloadOrdinaryStackSound();
       preloadGameplayPickupSound();
+      preloadArcadeRoundDigitSounds();
       (window as any).__ccTriggerHudDrop = true;
       const continuationRound = getArcadeSavedRound();
       if (continuationRound !== null && continuationRound > 0) {
@@ -2422,6 +2434,12 @@ class UIManager {
         void import('./beach-ball-merge6-sound.ts').then(({ stopBeachBallMerge6Sounds }) => {
           stopBeachBallMerge6Sounds();
         });
+        void import('./core-tnt-merge6-sound.ts').then(({ stopCoreTntMerge6Sound }) => {
+          stopCoreTntMerge6Sound();
+        });
+        void import('./bottle-finale-sound.ts').then(({ stopBottleFinaleSounds }) => {
+          stopBottleFinaleSounds();
+        });
         void import('./ordinary-stack-sound.ts').then(({ stopOrdinaryStackSound }) => {
           stopOrdinaryStackSound();
         });
@@ -2430,6 +2448,9 @@ class UIManager {
         });
         void import('./no-moves-sound.ts').then(({ stopNoMovesSound }) => {
           stopNoMovesSound();
+        });
+        void import('./arcade-round-digit-sound.ts').then(({ stopArcadeRoundDigitSounds }) => {
+          stopArcadeRoundDigitSounds();
         });
       }
     };

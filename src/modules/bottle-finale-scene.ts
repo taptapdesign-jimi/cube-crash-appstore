@@ -3,6 +3,11 @@
 
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
+import {
+  playBottleFinaleSound,
+  preloadBottleFinaleSounds,
+  stopBottleFinaleSounds,
+} from './bottle-finale-sound.js';
 import { domElementPool } from './dom-element-pool.js';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
@@ -67,6 +72,9 @@ const TRAIL_BUBBLES_PER_BOTTLE = 20;
 const TRAIL_MAX_LIFETIME_SECONDS = 0.72;
 const BOTTLE_SINK_DURATION_SECONDS = 3.2;
 const BOTTLE_START_DELAY_SECONDS = 0.3;
+export const BOTTLE_FINALE_SECOND_CUE_PATH_RATIO = 0.2;
+export const BOTTLE_FINALE_CLING2_PATH_RATIO = 0.4;
+export const BOTTLE_FINALE_BUBLESI_PATH_RATIO = 0.3;
 const BOTTLE_SINK_START_SCALE = 0.9;
 const BOTTLE_SINK_END_SCALE = BOTTLE_SINK_START_SCALE * 1.4;
 const BOTTLE_WEAVE_MAX_VIEWPORT_RATIO = 0.1;
@@ -137,6 +145,9 @@ export function attachBottleFinaleScene(
 ): BottleFinaleCleanup {
   if (!overlay) return (() => {}) as BottleFinaleCleanup;
 
+  stopBottleFinaleSounds();
+  preloadBottleFinaleSounds();
+
   const field = document.createElement('div');
   field.className = 'cc-bottle-finale-scene';
   field.style.cssText = [
@@ -197,6 +208,25 @@ export function attachBottleFinaleScene(
     delay: bottleStartDelaySeconds,
     paused: true,
   }));
+  const soundTimeline = own(trackTimeline({
+    delay: bottleStartDelaySeconds,
+    paused: true,
+  }));
+  soundTimeline.call(() => playBottleFinaleSound('bottle1'), [], 0);
+  soundTimeline.call(() => {
+    playBottleFinaleSound('bottle2');
+    playBottleFinaleSound('cling');
+  }, [], BOTTLE_SINK_DURATION_SECONDS * BOTTLE_FINALE_SECOND_CUE_PATH_RATIO);
+  soundTimeline.call(
+    () => playBottleFinaleSound('cling2'),
+    [],
+    BOTTLE_SINK_DURATION_SECONDS * BOTTLE_FINALE_CLING2_PATH_RATIO,
+  );
+  soundTimeline.call(
+    () => playBottleFinaleSound('bublesi'),
+    [],
+    BOTTLE_SINK_DURATION_SECONDS * BOTTLE_FINALE_BUBLESI_PATH_RATIO,
+  );
   let fieldOrigin: { left: number; top: number } | null = null;
   const getFieldOrigin = (): { left: number; top: number } => {
     if (fieldOrigin) return fieldOrigin;
@@ -444,7 +474,9 @@ export function attachBottleFinaleScene(
   }
 
   overlay.appendChild(field);
+  playBottleFinaleSound('water-waves');
   trailTimeline.play(0);
+  soundTimeline.play(0);
   try { (window as any).triggerHapticImpact?.('medium'); } catch {}
 
   const beginExit = (): void => {
@@ -455,6 +487,7 @@ export function attachBottleFinaleScene(
     activeTimelines.splice(0).forEach((timeline) => {
       animationManager.killExternalTimeline(timeline);
     });
+    stopBottleFinaleSounds();
     const finish = own(trackTimeline());
     finish.set(images, { opacity: 0 });
   };
@@ -475,6 +508,7 @@ export function attachBottleFinaleScene(
     activeTimelines.splice(0).forEach((timeline) => {
       animationManager.killExternalTimeline(timeline);
     });
+    stopBottleFinaleSounds();
     images.forEach((image) => {
       try {
         gsap.killTweensOf(image);
