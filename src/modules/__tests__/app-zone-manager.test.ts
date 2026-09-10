@@ -28,6 +28,7 @@ jest.mock('../arcade-entry-cue-owner.js', () => ({
 }));
 
 import { cancelArcadeEntryCueOwner } from '../arcade-entry-cue-owner.js';
+import { ARCADE_SLIDE_INDEX, JOURNEY_SLIDE_INDEX } from '../homepage-slide-order.js';
 
 describe('app-zone-manager', () => {
   beforeEach(() => {
@@ -196,7 +197,7 @@ describe('app-zone-manager', () => {
 
     await expect(appZoneManager.resolveGameExitRoute({ reason: 'test-exit' })).resolves.toMatchObject({
       target: 'home',
-      targetSlide: 0,
+      targetSlide: ARCADE_SLIDE_INDEX,
       returnToDetailModal: false,
       detailModalBoardId: null,
     });
@@ -207,7 +208,7 @@ describe('app-zone-manager', () => {
 
     await expect(appZoneManager.resolveGameExitRoute({ reason: 'test-exit' })).resolves.toMatchObject({
       target: 'journey',
-      targetSlide: 1,
+      targetSlide: JOURNEY_SLIDE_INDEX,
       returnToDetailModal: false,
       detailModalBoardId: null,
     });
@@ -234,10 +235,10 @@ describe('app-zone-manager', () => {
     await expect(appZoneManager.resolveGameExitRoute({
       reason: 'test-first-play-homepage-return',
       requestedTarget: 'homepage',
-      requestedHomepageSlide: 1,
+      requestedHomepageSlide: JOURNEY_SLIDE_INDEX,
     })).resolves.toEqual({
       target: 'home',
-      targetSlide: 1,
+      targetSlide: JOURNEY_SLIDE_INDEX,
       returnToDetailModal: false,
       detailModalBoardId: null,
     });
@@ -267,7 +268,7 @@ describe('app-zone-manager', () => {
 
     await expect(appZoneManager.resolveGameExitRoute({ reason: 'test-exit' })).resolves.toMatchObject({
       target: 'detail-modal',
-      targetSlide: 1,
+      targetSlide: JOURNEY_SLIDE_INDEX,
       returnToDetailModal: true,
       detailModalBoardId: 4,
     });

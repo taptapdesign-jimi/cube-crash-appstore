@@ -1,5 +1,6 @@
 // Stats Slide Component
 import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
+import { DEFAULT_HOMEPAGE_SLIDE_INDEX } from '../../modules/homepage-slide-order.js';
 
 export interface SlideConfig {
   slideIndex: number;
@@ -12,7 +13,7 @@ export function createStatsSlide(config: SlideConfig): HTMLElementConfig {
 
   return {
     tag: 'div',
-    className: `slider-slide${isActive ? ' active' : ''}`,
+    className: `slider-slide journey-slide${isActive ? ' active' : ''}`,
     attributes: {
       'data-slide': slideIndex.toString(),
     },
@@ -125,7 +126,7 @@ export function renderStatsSlide(
   if (slideButton) {
     // 🔥 CHROME FIX: Osigurati da je CTA button vidljiv na Chrome-u (ne samo iPad)
     // Na Chrome-u, neaktivni slide-ovi također trebaju imati vidljive CTA button-e
-    const isActiveSlide = config.isActive || config.slideIndex === 0; // Slide 0 (home) je defaultno aktivni
+    const isActiveSlide = config.isActive || config.slideIndex === DEFAULT_HOMEPAGE_SLIDE_INDEX;
     
     if (!isActiveSlide) {
       // Za neaktivne slide-ove, NE dodavati animate-enter-initial, već odmah postaviti display

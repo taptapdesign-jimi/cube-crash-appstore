@@ -1,5 +1,6 @@
 // Home Slide Component
 import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
+import { DEFAULT_HOMEPAGE_SLIDE_INDEX } from '../../modules/homepage-slide-order.js';
 
 export interface SlideConfig {
   slideIndex: number;
@@ -12,7 +13,7 @@ export function createHomeSlide(config: SlideConfig): HTMLElementConfig {
 
   return {
     tag: 'div',
-    className: `slider-slide${isActive ? ' active' : ''}`,
+    className: `slider-slide arcade-slide${isActive ? ' active' : ''}`,
     attributes: {
       'data-slide': slideIndex.toString(),
     },
@@ -44,7 +45,7 @@ export function createHomeSlide(config: SlideConfig): HTMLElementConfig {
                   'data-hero-cta': 'play',
                   role: 'button',
                   tabindex: '0',
-                  'aria-label': 'Play',
+                  'aria-label': 'Arcade',
                 },
               },
               {
@@ -66,10 +67,10 @@ export function createHomeSlide(config: SlideConfig): HTMLElementConfig {
                 tag: 'button',
                 id: 'btn-home',
                 className: 'slide-button tap-scale menu-btn-primary',
-                text: 'Play',
+                text: 'Arcade',
                 attributes: {
                   type: 'button',
-                  'aria-label': 'Play',
+                  'aria-label': 'Arcade',
                 },
                 eventListeners: onButtonClick ? { click: onButtonClick } : undefined,
               },
@@ -125,7 +126,18 @@ export function renderHomeSlide(
   const slideTagline = element.querySelector('.slide-tagline') as HTMLElement;
   
   if (slideButton) {
-    slideButton.classList.add('animate-enter-initial');
+    const isActiveSlide = config.isActive || config.slideIndex === DEFAULT_HOMEPAGE_SLIDE_INDEX;
+    if (!isActiveSlide) {
+      slideButton.style.display = 'flex';
+      slideButton.style.visibility = 'visible';
+      slideButton.style.opacity = '1';
+      slideButton.style.transform = 'translateY(0px) scale(1)';
+      slideButton.style.webkitTransform = 'translateY(0px) scale(1)';
+      slideButton.style.transition = 'none';
+      slideButton.style.webkitTransition = 'none';
+    } else {
+      slideButton.classList.add('animate-enter-initial');
+    }
   }
   if (slideText) {
     slideText.classList.add('animate-enter-initial');

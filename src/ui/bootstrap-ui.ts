@@ -12,6 +12,11 @@ import {
 import { renderSettingsScreen } from './components/settings-screen.js';
 import { renderMenuModal } from './components/menu-modal.js';
 import { renderNavigation, updateNavBadge } from './components/navigation.js';
+import {
+  ARCADE_SLIDE_INDEX,
+  DEFAULT_HOMEPAGE_SLIDE_INDEX,
+  JOURNEY_SLIDE_INDEX,
+} from '../modules/homepage-slide-order.js';
 import { HTMLBuilder } from './components/html-builder.js';
 import { logger } from '../core/logger.js';
 import { SETTINGS_SLIDE_INDEX, SHOP_MODULE_ENABLED, SHOP_MODULE_SLIDE_INDEX } from '../modules/shop-module.js';
@@ -79,11 +84,11 @@ function bootstrapUI() {
     
     // 🗺️ Initialize journey badge from journey_last_viewed_count
     // This ensures badge is correctly restored after hard exit
-    // Badge shows on Journey icon (stats-nav.png, slideIndex 1) ONLY
+    // Badge shows on the Journey icon (stats-nav.png) ONLY.
     import('../modules/journey-boards-manager.js').then(({ journeyBoardsManager }) => {
       try {
         const newlyUnlockedCount = journeyBoardsManager.getNewlyUnlockedCount();
-        updateNavBadge(newlyUnlockedCount, 1); // slideIndex 1 = Journey (stats-nav.png)
+        updateNavBadge(newlyUnlockedCount, JOURNEY_SLIDE_INDEX);
         console.log('✅ Journey badge initialized with', newlyUnlockedCount, 'newly unlocked boards');
       } catch (error) {
         console.warn('⚠️ Failed to initialize journey badge on startup:', error);
@@ -253,8 +258,8 @@ function renderHome(root: HTMLElement): void {
   home.appendChild(content);
   root.appendChild(home);
 
-  renderHomeSlide(sliderWrapper, { slideIndex: 0, isActive: true });
-  renderStatsSlide(sliderWrapper, { slideIndex: 1 });
+  renderStatsSlide(sliderWrapper, { slideIndex: JOURNEY_SLIDE_INDEX, isActive: true });
+  renderHomeSlide(sliderWrapper, { slideIndex: ARCADE_SLIDE_INDEX });
   if (SHOP_MODULE_ENABLED) {
     renderCollectiblesSlide(sliderWrapper, { slideIndex: SHOP_MODULE_SLIDE_INDEX, isShopModuleEnabled: true });
   }
@@ -296,5 +301,5 @@ function renderCollectiblesModal(root: HTMLElement): void {
 
 function renderNav(root: HTMLElement): void {
   if (document.getElementById('independent-nav')) return;
-  renderNavigation(root, { currentSlide: 0 });
+  renderNavigation(root, { currentSlide: DEFAULT_HOMEPAGE_SLIDE_INDEX });
 }

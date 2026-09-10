@@ -1,4 +1,5 @@
 import { logger } from '../core/logger.js';
+import { DEFAULT_HOMEPAGE_SLIDE_INDEX } from './homepage-slide-order.js';
 // Game State Management Module
 // Centralized state management for Cube Crash game
 
@@ -65,7 +66,7 @@ class GameState {
       combo: 0,
       
       // Navigation
-      currentSlide: 0,
+      currentSlide: DEFAULT_HOMEPAGE_SLIDE_INDEX,
       navigationReset: false,
       
       // Collectibles
@@ -145,7 +146,7 @@ class GameState {
       highScore: this.state.highScore, // Keep high score
       level: 1,
       combo: 0,
-      currentSlide: 0,
+      currentSlide: DEFAULT_HOMEPAGE_SLIDE_INDEX,
       navigationReset: false,
       pendingCollectibleRewards: [],
       lastFrameTime: 0,
@@ -177,4 +178,3 @@ export default gameState;
 
 // Export class for testing
 export { GameState };
-

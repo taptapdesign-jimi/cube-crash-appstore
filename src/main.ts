@@ -38,6 +38,11 @@ import uiManager, { applyPaperBackground } from './modules/ui-manager.js';
 import animationManager from './modules/animation-manager.js';
 import sliderManager from './modules/slider-manager.js';
 import iosOptimizer from './modules/ios-optimizer.js';
+import {
+  DEFAULT_HOMEPAGE_SLIDE_INDEX,
+  JOURNEY_SLIDE_INDEX,
+  type PrimaryHomepageSlideIndex,
+} from './modules/homepage-slide-order.js';
 
 // Import new services
 import { initializeServices } from './core/service-registry.js';
@@ -132,7 +137,7 @@ function getHomeEnterDiagSnapshot(element: HTMLElement | null | undefined) {
 
 function forceHomepageSlideTarget(
   reason: string,
-  targetSlideIndex = 0,
+  targetSlideIndex = DEFAULT_HOMEPAGE_SLIDE_INDEX,
   options: { revealActiveSlide?: boolean } = {}
 ): void {
   const { revealActiveSlide = true } = options;
@@ -173,7 +178,7 @@ function forceHomepageSlideTarget(
     slideCount: slides.length,
     wrapperTransform: sliderWrapper?.style.transform || null,
   });
-  console.log(HOME_ENTER_DIAG_PREFIX, 'main:force-slide-zero', {
+  console.log(HOME_ENTER_DIAG_PREFIX, 'main:force-slide-target', {
     reason,
     home: getHomeEnterDiagSnapshot(document.getElementById('home') as HTMLElement | null),
     sliderContainer: getHomeEnterDiagSnapshot(sliderContainer),
@@ -211,7 +216,7 @@ function lockHomepageEnterInteraction(): void {
 
 async function primeHomepageForEnterLikeStartup(
   reason: string,
-  targetSlideIndex = 0,
+  targetSlideIndex = DEFAULT_HOMEPAGE_SLIDE_INDEX,
   isCurrent: () => boolean = () => true,
 ): Promise<void> {
   if (!isCurrent()) return;
@@ -231,7 +236,7 @@ async function primeHomepageForEnterLikeStartup(
   const activeSlide =
     document.querySelector(`.slider-slide[data-slide="${targetSlideIndex}"]`) ||
     document.querySelector('.slider-slide.active') ||
-    document.querySelector('.slider-slide[data-slide="0"]');
+    document.querySelector(`.slider-slide[data-slide="${DEFAULT_HOMEPAGE_SLIDE_INDEX}"]`);
   const targets = [
     document.getElementById('home-logo'),
     document.getElementById('logo-shards-gore-ljevo'),
@@ -322,7 +327,7 @@ async function playHomepageSliderEnterHandoff(
     onEnterPrepared?: () => void;
   } = {}
 ): Promise<void> {
-  const targetSlideIndex = Math.max(0, Number(options.targetSlideIndex ?? 0) || 0);
+  const targetSlideIndex = Math.max(0, Number(options.targetSlideIndex ?? DEFAULT_HOMEPAGE_SLIDE_INDEX) || 0);
   const skipFirstPaintReady = options.skipFirstPaintReady === true;
   const lease = homepageEnterTransitionOwner.begin(reason, targetSlideIndex);
   console.log(`🏠 Homepage enter handoff: ${reason}`, { targetSlideIndex, skipFirstPaintReady });
@@ -871,9 +876,9 @@ interface GameState {
   // Game starting
 
 // Ensure the homepage CTA starts hidden and ready for the enter animation (prevents preload flash)
-function primeHomeCtaForEnter(): void {
+function primeDefaultHomepageCtaForEnter(): void {
   try {
-    const firstSlide = document.querySelector('.slider-slide[data-slide="0"]');
+    const firstSlide = document.querySelector(`.slider-slide[data-slide="${DEFAULT_HOMEPAGE_SLIDE_INDEX}"]`);
     const slideButton = firstSlide?.querySelector('.slide-button') as HTMLElement | null;
     if (!slideButton) return;
 
@@ -885,7 +890,7 @@ function primeHomeCtaForEnter(): void {
     slideButton.style.removeProperty('transform');
     slideButton.style.removeProperty('transition');
   } catch (error) {
-    logger.warn('⚠️ Failed to prime home CTA for enter animation:', String(error));
+    logger.warn('⚠️ Failed to prime default Homepage CTA for enter animation:', String(error));
   }
 }
 
@@ -1152,12 +1157,12 @@ async function startAssetPreloading(): Promise<void> {
     
     // The launch modal is allowed to outlive Homepage preparation. Acquire the
     // canonical first slide again while Homepage is still paint-proof hidden,
-    // so no stale/late iOS navigation gesture can make Journey the startup
-    // truth or leave PLAY offscreen.
-    sliderManager.syncHiddenSlideState(0);
+    // so no stale/late iOS navigation gesture can replace Journey as startup
+    // truth or leave its CTA offscreen.
+    sliderManager.syncHiddenSlideState(DEFAULT_HOMEPAGE_SLIDE_INDEX);
 
-    // Make sure the Play CTA is hidden and in its initial state before the enter animation starts
-    primeHomeCtaForEnter();
+    // Make sure the initial Journey CTA is hidden and ready before enter starts.
+    primeDefaultHomepageCtaForEnter();
     await startupAssetPreloadPromise;
     schedulePostCriticalAssetWarmup();
 
@@ -1257,7 +1262,7 @@ async function startAssetPreloading(): Promise<void> {
     
     // Hide only active slide elements (others will be visible but not animated)
     // Only hide elements from the active slide - other slides should remain visible
-    let activeSlide = document.querySelector('.slider-slide.active') || document.querySelector('.slider-slide[data-slide="0"]');
+    let activeSlide = document.querySelector('.slider-slide.active') || document.querySelector(`.slider-slide[data-slide="${DEFAULT_HOMEPAGE_SLIDE_INDEX}"]`);
     if (activeSlide) {
       const heroContainer = activeSlide.querySelector('.hero-container');
       const slideButton = activeSlide.querySelector('.slide-button');
@@ -1328,7 +1333,7 @@ async function startAssetPreloading(): Promise<void> {
     // 🔥 CRITICAL: Ensure first slide is active if no active slide found
     if (!activeSlide) {
       console.warn('⚠️ No active slide found - activating first slide');
-      const firstSlide = document.querySelector('.slider-slide[data-slide="0"]');
+      const firstSlide = document.querySelector(`.slider-slide[data-slide="${DEFAULT_HOMEPAGE_SLIDE_INDEX}"]`);
       if (firstSlide) {
         firstSlide.classList.add('active');
         activeSlide = firstSlide;
@@ -1518,7 +1523,7 @@ async function startNewRun(boardId: number): Promise<void> {
   let homepageExitPromise: Promise<void> | null = null;
   
   // 🔥 USER REQUEST: If NOT from Journey, mark as coming from homepage
-  // This ensures exitToMenu returns to homepage (slide 0) instead of Journey (slide 1)
+  // This ensures exitToMenu returns to the Arcade Homepage slide instead of Journey.
   if (!cameFromJourney) {
     (window as any).__ccCameFromHomepage = true;
     (window as any).__ccCameFromJourney = false;
@@ -1670,7 +1675,7 @@ async function startNewRun(boardId: number): Promise<void> {
         let homepageExitPromise: Promise<void> | null = null;
         
         // 🔥 USER REQUEST: If NOT from Journey, mark as coming from homepage
-        // This ensures exitToMenu returns to homepage (slide 0) instead of Journey (slide 1)
+        // This ensures exitToMenu returns to the Arcade Homepage slide instead of Journey.
         if (!cameFromJourney) {
           (window as any).__ccCameFromHomepage = true;
           (window as any).__ccCameFromJourney = false;
@@ -2125,7 +2130,7 @@ async function startNewRun(boardId: number): Promise<void> {
     resetEndgameRuntimeFlags(arcadeStartReason);
 
     // 🔥 USER REQUEST: Mark that we came from homepage (not Journey)
-    // This ensures exitToMenu returns to homepage (slide 0) instead of Journey (slide 1)
+    // This ensures exitToMenu returns to the Arcade Homepage slide instead of Journey.
     console.log('🏠 Marked as coming from homepage');
 
     // Step 1: Play exit animation FIRST
@@ -2150,7 +2155,7 @@ async function startNewRun(boardId: number): Promise<void> {
 // Export exitToMenu function for End This Run modal
 (window as any).exitToMenu = async (options: {
   target?: 'homepage' | 'auto';
-  homepageSlideIndex?: 0 | 1;
+  homepageSlideIndex?: PrimaryHomepageSlideIndex;
   onHomepageEnterPrepared?: () => void;
   skipBoardExit?: boolean;
   fastArcadeCleanExit?: boolean;
@@ -2907,7 +2912,7 @@ async function startNewRun(boardId: number): Promise<void> {
     if (exitRoute.target === 'journey') {
       // Keep only the future Homepage slide selection synchronized. This API
       // cannot initialize or paint the hidden Homepage family.
-      sliderManager.syncHiddenSlideState(1);
+      sliderManager.syncHiddenSlideState(JOURNEY_SLIDE_INDEX);
       console.log('✅ Hidden Homepage slider state synchronized for a future Journey back action');
     }
     

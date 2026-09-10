@@ -8,6 +8,11 @@ import {
 } from './journey-return-presentation.js';
 import { isNoMovesNavigationLocked } from './terminal-navigation-lock.ts';
 import { emitSettingsRouteDiagnostic } from './settings-route-diagnostic.js';
+import {
+  ARCADE_SLIDE_INDEX,
+  JOURNEY_SLIDE_INDEX,
+  type PrimaryHomepageSlideIndex,
+} from './homepage-slide-order.js';
 
 type MenuExitTarget = 'homepage' | 'auto';
 type ExpectedMenuDestination = {
@@ -18,7 +23,7 @@ type ExpectedMenuDestination = {
 type MenuExitOptions = {
   reason: string;
   target?: MenuExitTarget;
-  homepageSlideIndex?: 0 | 1;
+  homepageSlideIndex?: PrimaryHomepageSlideIndex;
   onHomepageEnterPrepared?: () => void;
   timeoutMs?: number;
   skipBoardExit?: boolean;
@@ -37,13 +42,13 @@ function isVisible(el: HTMLElement | null): boolean {
 }
 
 export function isAnyMenuScreenVisible(): boolean {
-  return isHomepageMenuReady(0)
-    || isHomepageMenuReady(1)
+  return isHomepageMenuReady(JOURNEY_SLIDE_INDEX)
+    || isHomepageMenuReady(ARCADE_SLIDE_INDEX)
     || isJourneyScreenPresentationReady()
     || isJourneyDetailModalPresentationReady();
 }
 
-function isHomepageMenuReady(targetSlideIndex = 0): boolean {
+function isHomepageMenuReady(targetSlideIndex: PrimaryHomepageSlideIndex = ARCADE_SLIDE_INDEX): boolean {
   const home = document.getElementById('home') as HTMLElement | null;
   const container = document.getElementById('slider-container') as HTMLElement | null;
   const activeSlide = document.querySelector('.slider-slide.active') as HTMLElement | null;
@@ -101,7 +106,7 @@ async function resolveExpectedDestination(options: MenuExitOptions): Promise<Exp
 
 function isExpectedDestinationReady(
   expected: ExpectedMenuDestination,
-  homepageSlideIndex: 0 | 1 = 0,
+  homepageSlideIndex: PrimaryHomepageSlideIndex = ARCADE_SLIDE_INDEX,
 ): boolean {
   if (expected.target === 'home') return isHomepageMenuReady(homepageSlideIndex);
   if ((window as any).__ccAppZone !== 'journey') return false;
@@ -112,7 +117,7 @@ function isExpectedDestinationReady(
 
 async function forceHomepageVisible(
   reason: string,
-  targetSlideIndex: 0 | 1 = 0,
+  targetSlideIndex: PrimaryHomepageSlideIndex = ARCADE_SLIDE_INDEX,
   onHomepageEnterPrepared?: () => void,
 ): Promise<void> {
   emitSettingsRouteDiagnostic('force-homepage-start', {
@@ -220,7 +225,7 @@ export async function ensureMenuVisibleAfterExit(
   expectedDestination?: ExpectedMenuDestination,
 ): Promise<void> {
   const expected = expectedDestination ?? await resolveExpectedDestination(options);
-  const targetSlideIndex = options.homepageSlideIndex ?? 0;
+  const targetSlideIndex = options.homepageSlideIndex ?? ARCADE_SLIDE_INDEX;
   const readyBeforeWait = isExpectedDestinationReady(expected, targetSlideIndex);
   if (readyBeforeWait) {
     emitSettingsRouteDiagnostic('post-exit-ready-immediate', {
@@ -327,7 +332,7 @@ export async function requestExitToMenu(options: MenuExitOptions): Promise<void>
     reason: options.reason,
     requestedTarget: options.target ?? 'auto',
     expectedTarget: requestedDestination.target,
-    targetSlideIndex: options.homepageSlideIndex ?? 0,
+    targetSlideIndex: options.homepageSlideIndex ?? ARCADE_SLIDE_INDEX,
   });
 
   if ((window as any).exitingToMenu === true) {
@@ -367,7 +372,7 @@ export async function requestExitToMenu(options: MenuExitOptions): Promise<void>
       emitSettingsRouteDiagnostic('authoritative-exit-resolved', {
         reason: options.reason,
         expectedTarget: expectedDestination.target,
-        targetSlideIndex: options.homepageSlideIndex ?? 0,
+        targetSlideIndex: options.homepageSlideIndex ?? ARCADE_SLIDE_INDEX,
         elapsedMs: Date.now() - startedAt,
       });
     } catch (error) {

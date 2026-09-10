@@ -24,6 +24,7 @@ import {
   beginJourneyPlayAgainIncidentCycle,
   recordJourneyPlayAgainIncident,
 } from '../utils/journey-play-again-incident-ring.js';
+import { JOURNEY_SLIDE_INDEX } from './homepage-slide-order.js';
 // public/src/modules/endgame-flow.ts
 // Orkestracija (simplified): STARS → NEXT
 // Privremeno maknuto: Clean Board i Mystery Prize.
@@ -139,9 +140,9 @@ async function continueFirstPlayTutorialToJourneyHomepage(cleanupCover: () => vo
     await requestExitToMenu({
       reason: 'first-play-tutorial-complete-journey-homepage',
       target: 'homepage',
-      homepageSlideIndex: 1,
+      homepageSlideIndex: JOURNEY_SLIDE_INDEX,
       // Tutorial Complete deliberately leaves an opaque cover mounted. Remove
-      // it only after Slider 2 has been primed hidden and immediately before
+      // it only after the Journey slide has been primed hidden and immediately before
       // the canonical Homepage enter becomes visible.
       onHomepageEnterPrepared: releaseCover,
       skipBoardExit: true,

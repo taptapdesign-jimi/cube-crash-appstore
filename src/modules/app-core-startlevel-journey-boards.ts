@@ -1,3 +1,5 @@
+import { JOURNEY_SLIDE_INDEX } from './homepage-slide-order.js';
+
 type StartLevelJourneyBoardsDeps = {
   n: number;
   devLog: (...args: any[]) => void;
@@ -11,12 +13,12 @@ export function syncJourneyBoards({ n, devLog, devWarn }: StartLevelJourneyBoard
     try {
       journeyBoardsManager.syncWithGameProgress(n);
       
-      // Update journey badge count (slideIndex 1 = Journey)
+      // Update Journey badge count.
       // Show NEWLY unlocked boards count (excluding board 1 and already viewed boards) as badge
       // This ensures badge only shows boards that haven't been viewed yet
       const newlyUnlockedCount = journeyBoardsManager.getNewlyUnlockedCount();
       if (typeof (window as any).updateNavBadge === 'function') {
-        (window as any).updateNavBadge(newlyUnlockedCount, 1); // Pass slideIndex 1 for Journey
+        (window as any).updateNavBadge(newlyUnlockedCount, JOURNEY_SLIDE_INDEX);
         devLog(`🗺️ Journey badge updated: ${newlyUnlockedCount} newly unlocked boards (not yet viewed)`);
       }
     } catch (error) {

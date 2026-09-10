@@ -16,6 +16,7 @@ import { clearArcadeSaveState, getBoardSaveKey, hasResumableSavedStateForBoard }
 import { playNavIconCartoonBounce } from '../utils/nav-icon-bounce.js';
 import { arcadeStatsService } from '../services/arcade-stats-service.js';
 import { boardStatsService } from '../services/board-stats-service.js';
+import { JOURNEY_SLIDE_INDEX } from './homepage-slide-order.js';
 import {
   cancelJourneyCardOverlayReturn,
   clearJourneyInterimOrigin,
@@ -133,6 +134,7 @@ import {
 } from './journey-new-card-presentation.js';
 import { preloadRegularMerge6Sounds } from './regular-merge6-sound.ts';
 import { preloadWildStarMerge6Sound } from './wild-star-merge6-sound.ts';
+import { preloadBeachBallMerge6Sounds } from './beach-ball-merge6-sound.ts';
 import { preloadOrdinaryStackSound } from './ordinary-stack-sound.ts';
 import { preloadGameplayPickupSound } from './gameplay-pickup-sound.ts';
 
@@ -12654,6 +12656,7 @@ class JourneyBoardsManager {
           logger.info(`🎮 Play button clicked for board ${boardIdForPlay}`, { boardName: boardNameForPlay });
           preloadRegularMerge6Sounds();
           preloadWildStarMerge6Sound();
+          preloadBeachBallMerge6Sounds();
           preloadOrdinaryStackSound();
           preloadGameplayPickupSound();
           delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
@@ -14175,7 +14178,7 @@ class JourneyBoardsManager {
         
         // Reset badge in UI
         if (typeof (window as any).updateNavBadge === 'function') {
-          (window as any).updateNavBadge(0, 1, { forceReset: true }); // Reset journey badge (slideIndex 1)
+          (window as any).updateNavBadge(0, JOURNEY_SLIDE_INDEX, { forceReset: true });
           logger.info('✅ DEV RESET: Journey badge reset in UI');
         }
       }
@@ -14334,7 +14337,7 @@ class JourneyBoardsManager {
       logger.debug(`🗺️ unlockBoardOnCompletion: Badge count calculated: ${newlyUnlockedCount} for board ${boardNumber} (was already unlocked: ${wasAlreadyUnlocked})`);
       
       if (typeof (window as any).updateNavBadge === 'function') {
-        (window as any).updateNavBadge(newlyUnlockedCount, 1); // Pass slideIndex 1 for Journey
+        (window as any).updateNavBadge(newlyUnlockedCount, JOURNEY_SLIDE_INDEX);
         logger.debug(`🗺️ Journey badge updated after unlocking board ${boardNumber}: ${newlyUnlockedCount} newly unlocked boards (was already unlocked: ${wasAlreadyUnlocked})`);
       } else {
         logger.warn(`⚠️ updateNavBadge function not found! Badge will not be updated for board ${boardNumber}`);
@@ -14424,7 +14427,7 @@ class JourneyBoardsManager {
         // Update badge count in UI
         const newBadgeCount = this.getNewlyUnlockedCount();
         if (typeof (window as any).updateNavBadge === 'function') {
-          (window as any).updateNavBadge(newBadgeCount, 1, { forceReset: true }); // Update journey badge (slideIndex 1)
+          (window as any).updateNavBadge(newBadgeCount, JOURNEY_SLIDE_INDEX, { forceReset: true });
           logger.debug(`🗺️ Journey badge updated to ${newBadgeCount} after viewing board ${boardId}`);
         }
       } else {

@@ -435,7 +435,7 @@
 }
 
 /* Journey nav badge module is hidden for now, but kept restorable in code/storage. */
-.independent-nav-button[data-slide="1"] .nav-badge {
+.independent-nav-button[data-slide="0"] .nav-badge {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;

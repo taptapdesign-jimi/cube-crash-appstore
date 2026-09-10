@@ -111,7 +111,7 @@ describe('Journey Hub transition ownership', () => {
     )[1]?.split('async hideCollectibles(')[0] ?? '';
 
     expect(showSource).not.toContain('sliderManager.forceReady(');
-    expect(showSource).toContain('sliderManager.syncHiddenSlideState(1)');
+    expect(showSource).toContain('sliderManager.syncHiddenSlideState(JOURNEY_SLIDE_INDEX)');
   });
 
   test('Homepage enter ownership is cancelled before its Journey exit starts', () => {

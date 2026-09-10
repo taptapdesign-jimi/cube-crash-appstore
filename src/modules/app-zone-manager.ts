@@ -20,6 +20,11 @@ import {
 } from './navigation-control.js';
 import { homepageEnterTransitionOwner } from './homepage-enter-transition-owner.js';
 import { emitSettingsRouteDiagnostic } from './settings-route-diagnostic.js';
+import {
+  ARCADE_SLIDE_INDEX,
+  JOURNEY_SLIDE_INDEX,
+  type PrimaryHomepageSlideIndex,
+} from './homepage-slide-order.js';
 
 export type AppZone =
   | 'loader'
@@ -48,7 +53,7 @@ export interface SetZoneOptions {
 
 export interface GameExitRoute {
   target: MenuReturnTarget;
-  targetSlide: 0 | 1;
+  targetSlide: PrimaryHomepageSlideIndex;
   returnToDetailModal: boolean;
   detailModalBoardId: number | null;
 }
@@ -57,7 +62,7 @@ export interface GameExitRouteOptions {
   reason: string;
   fastArcadeCleanExit?: boolean;
   requestedTarget?: 'homepage' | 'auto';
-  requestedHomepageSlide?: 0 | 1;
+  requestedHomepageSlide?: PrimaryHomepageSlideIndex;
 }
 
 function setStorageFlag(key: string, enabled: boolean): void {
@@ -247,7 +252,7 @@ class AppZoneManager {
       this.prepareHomeMenuEnter(`${options.reason}:requested-homepage`);
       return {
         target: 'home',
-        targetSlide: options.requestedHomepageSlide ?? 0,
+        targetSlide: options.requestedHomepageSlide ?? ARCADE_SLIDE_INDEX,
         returnToDetailModal: false,
         detailModalBoardId: null,
       };
@@ -257,7 +262,7 @@ class AppZoneManager {
       markArcadeHomeRunOrigin();
       this.lastMenuTarget = 'home';
       logger.debug('🎮 App zone exit route: arcade -> home', 'app-zone-manager', options);
-      return { target: 'home', targetSlide: 0, returnToDetailModal: false, detailModalBoardId: null };
+      return { target: 'home', targetSlide: ARCADE_SLIDE_INDEX, returnToDetailModal: false, detailModalBoardId: null };
     }
 
     const detailBoardId = normalizeBoardId(w.__ccDetailModalBoardId);
@@ -270,7 +275,7 @@ class AppZoneManager {
           delete w.__ccDetailModalBoardId;
           this.lastMenuTarget = 'detail-modal';
           this.setZone('journey', `${options.reason}:detail-modal`);
-          return { target: 'detail-modal', targetSlide: 1, returnToDetailModal: true, detailModalBoardId: detailBoardId };
+          return { target: 'detail-modal', targetSlide: JOURNEY_SLIDE_INDEX, returnToDetailModal: true, detailModalBoardId: detailBoardId };
         }
       } catch (error) {
         logger.warn('⚠️ app-zone-manager: failed to verify detail-modal board, returning to detail modal fallback', 'app-zone-manager', { detailBoardId, error });
@@ -278,7 +283,7 @@ class AppZoneManager {
         delete w.__ccDetailModalBoardId;
         this.lastMenuTarget = 'detail-modal';
         this.setZone('journey', `${options.reason}:detail-modal-fallback`);
-        return { target: 'detail-modal', targetSlide: 1, returnToDetailModal: true, detailModalBoardId: detailBoardId };
+        return { target: 'detail-modal', targetSlide: JOURNEY_SLIDE_INDEX, returnToDetailModal: true, detailModalBoardId: detailBoardId };
       }
 
       delete w.__ccCameFromDetailModal;
@@ -316,12 +321,12 @@ class AppZoneManager {
     if (cameFromJourney) {
       this.lastMenuTarget = 'journey';
       this.setZone('journey', `${options.reason}:journey`);
-      return { target: 'journey', targetSlide: 1, returnToDetailModal: false, detailModalBoardId: null };
+      return { target: 'journey', targetSlide: JOURNEY_SLIDE_INDEX, returnToDetailModal: false, detailModalBoardId: null };
     }
 
     this.lastMenuTarget = 'home';
     this.setZone('home', `${options.reason}:home`);
-    return { target: 'home', targetSlide: 0, returnToDetailModal: false, detailModalBoardId: null };
+    return { target: 'home', targetSlide: ARCADE_SLIDE_INDEX, returnToDetailModal: false, detailModalBoardId: null };
   }
 
   async hideHomepageForGame(reason = 'enter-game'): Promise<void> {
@@ -341,7 +346,7 @@ class AppZoneManager {
     }
   }
 
-  async showHomepageShell(reason = 'show-home', targetSlideIndex: 0 | 1 = 0): Promise<void> {
+  async showHomepageShell(reason = 'show-home', targetSlideIndex: PrimaryHomepageSlideIndex = ARCADE_SLIDE_INDEX): Promise<void> {
     this.markHomeMenu(reason);
     const epoch = this.presentationEpoch;
     try {

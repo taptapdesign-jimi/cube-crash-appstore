@@ -51,9 +51,14 @@ import {
 } from './navigation-control.js';
 import { preloadRegularMerge6Sounds } from './regular-merge6-sound.ts';
 import { preloadWildStarMerge6Sound } from './wild-star-merge6-sound.ts';
+import { preloadBeachBallMerge6Sounds } from './beach-ball-merge6-sound.ts';
 import { preloadOrdinaryStackSound } from './ordinary-stack-sound.ts';
 import { preloadGameplayPickupSound } from './gameplay-pickup-sound.ts';
 import { preloadNoMovesSound } from './no-moves-sound.ts';
+import {
+  ARCADE_SLIDE_INDEX,
+  JOURNEY_SLIDE_INDEX,
+} from './homepage-slide-order.js';
 // 🔥 OPTIMIZATION: Preload settings animations module statically to avoid 15s delay on Settings click
 import { animateSettingsScreenEnter, animateSettingsScreenExit, cleanupSettingsAnimations } from '../ui/settings-animations.js';
 
@@ -446,6 +451,7 @@ class UIManager {
     markArcadeHomeRunOrigin();
     preloadRegularMerge6Sounds();
     preloadWildStarMerge6Sound();
+    preloadBeachBallMerge6Sounds();
     preloadOrdinaryStackSound();
     preloadGameplayPickupSound();
     preloadNoMovesSound();
@@ -600,6 +606,7 @@ class UIManager {
     markArcadeHomeRunOrigin();
     preloadRegularMerge6Sounds();
     preloadWildStarMerge6Sound();
+    preloadBeachBallMerge6Sounds();
     preloadOrdinaryStackSound();
     preloadGameplayPickupSound();
     // Ensure fresh Arcade run always triggers HUD entry/drop initialization.
@@ -717,6 +724,7 @@ class UIManager {
       markArcadeHomeRunOrigin();
       preloadRegularMerge6Sounds();
       preloadWildStarMerge6Sound();
+      preloadBeachBallMerge6Sounds();
       preloadOrdinaryStackSound();
       preloadGameplayPickupSound();
       (window as any).__ccTriggerHudDrop = true;
@@ -970,7 +978,7 @@ class UIManager {
         const lastBadge = (window as any).__ccJourneyBadgeCount || 0;
         const effectiveCount = Math.max(lastBadge, newlyUnlockedCount);
         if (typeof (window as any).updateNavBadge === 'function') {
-          (window as any).updateNavBadge(effectiveCount, 1); // Pass slideIndex 1 for Journey
+          (window as any).updateNavBadge(effectiveCount, JOURNEY_SLIDE_INDEX);
           logger.debug(`🗺️ Journey badge updated on homepage: ${effectiveCount} newly unlocked boards (not yet viewed, raw=${newlyUnlockedCount}, last=${lastBadge})`);
         }
       } catch (error) {
@@ -1475,7 +1483,7 @@ class UIManager {
             const lastBadge = (window as any).__ccJourneyBadgeCount || 0;
             const effectiveCount = Math.max(lastBadge, newlyUnlockedCount);
             if (typeof (window as any).updateNavBadge === 'function') {
-              (window as any).updateNavBadge(effectiveCount, 1); // Pass slideIndex 1 for Journey
+              (window as any).updateNavBadge(effectiveCount, JOURNEY_SLIDE_INDEX);
               logger.info(`🗺️ Journey badge updated in showHomepageQuietly: ${effectiveCount} newly unlocked boards (raw=${newlyUnlockedCount}, last=${lastBadge})`);
             }
           } catch (error) {
@@ -1541,7 +1549,7 @@ class UIManager {
     homepageEnterTransitionOwner.cancel('homepage-to-journey');
     cancelSliderEnterAnimation('homepage-to-journey');
     
-    // CRITICAL: Switch to Journey slide (index 1) BEFORE animation so its elements animate out
+    // CRITICAL: Switch to the Journey slide BEFORE animation so its elements animate out
     // (CTA, text, hero). We still open the Journey screen after the animation.
     // 🔥 BUG FIX: Only switch slides if NOT already on Journey slide (prevents unwanted swipe visual)
     const slides = document.querySelectorAll('.slider-slide');
@@ -1549,8 +1557,8 @@ class UIManager {
     const currentSlide = document.querySelector('.slider-slide.active');
     const currentSlideIndex = currentSlide ? parseInt(currentSlide.getAttribute('data-slide') || '0') : 0;
     
-    if (currentSlideIndex !== 1) {
-      console.log('🔄 Switching from slide', currentSlideIndex, 'to Journey slide (1)');
+    if (currentSlideIndex !== JOURNEY_SLIDE_INDEX) {
+      console.log('🔄 Switching from slide', currentSlideIndex, 'to Journey slide', JOURNEY_SLIDE_INDEX);
       
       // 🔥 BUG FIX: Sync GSAP wrapper position BEFORE setting active classes
       // This prevents slider from skipping animation when user clicks nav button later
@@ -1558,13 +1566,13 @@ class UIManager {
       const sliderContainer = document.getElementById('slider-container');
       if (sliderWrapper && sliderContainer && typeof (window as any).gsap !== 'undefined') {
         const slideWidth = sliderContainer.offsetWidth;
-        const targetOffset = -1 * slideWidth; // Journey slide is index 1
-        console.log(`🔧 Syncing GSAP wrapper to Journey slide (1), offset: ${targetOffset}px`);
+        const targetOffset = -JOURNEY_SLIDE_INDEX * slideWidth;
+        console.log(`🔧 Syncing GSAP wrapper to Journey slide (${JOURNEY_SLIDE_INDEX}), offset: ${targetOffset}px`);
         (window as any).gsap.set(sliderWrapper, { x: targetOffset });
       }
       
       slides.forEach((slide, index) => {
-        if (index === 1) {
+        if (index === JOURNEY_SLIDE_INDEX) {
           slide.classList.add('active');
         } else {
           slide.classList.remove('active');
@@ -1572,14 +1580,14 @@ class UIManager {
       });
       navButtons.forEach((button) => {
         const slideIndex = parseInt(button.getAttribute('data-slide') || '0', 10);
-        if (slideIndex === 1) {
+        if (slideIndex === JOURNEY_SLIDE_INDEX) {
           button.classList.add('active');
         } else {
           button.classList.remove('active');
         }
       });
     } else {
-      console.log('✅ Already on Journey slide (1) - no slide switch needed');
+      console.log(`✅ Already on Journey slide (${JOURNEY_SLIDE_INDEX}) - no slide switch needed`);
     }
     
     // 🔥 BUG FIX: Hide slider container immediately to prevent any visual glitches
@@ -1852,7 +1860,7 @@ class UIManager {
     clearSliderBackgrounds();
     
     // 🔥 USER REQUEST: Ensure all slides are visible (slider position controlled by collectibles-manager.ts)
-    // Back button returns to Journey slide (index 1), NOT homepage slide (index 0)
+    // Back button returns to the Journey slide, not the Arcade slide.
     const slides = document.querySelectorAll('.slider-slide');
     slides.forEach((slide) => {
       // All slides should be visible (slider uses translateX for positioning)
@@ -1897,8 +1905,7 @@ class UIManager {
       logger.warn('⚠️ Failed to call journeyBoardsManager.cleanup after hide:', error);
     }
     
-    // 🔥 USER REQUEST: Check if we're returning to Journey slide (slide 1) or homepage slide (slide 0)
-    // Journey games should ALWAYS return to slide 1 (Journey slide), NOT slide 0 (homepage PLAY slide)
+    // Check whether ownership returns to Journey or to the Arcade Homepage slide.
     const cameFromJourney = (window as any).__ccCameFromJourney === true || 
                             localStorage.getItem('__ccCameFromJourney') === 'true';
     const cameFromHomepage = (window as any).__ccCameFromHomepage === true || 
@@ -1924,24 +1931,23 @@ class UIManager {
     }
     
     if (cameFromJourney) {
-      // 🔥 USER REQUEST: Journey games → return to Journey slide (slide 1), NOT homepage slide (slide 0)
+      // Journey games return to Journey ownership, not to the Arcade slide.
       // DO NOT show homepage - Journey screen will be shown directly by exitToMenu
-      logger.info('🗺️ Returning to Journey slide (slide 1) - skipping showHomepageQuietly');
+      logger.info('🗺️ Returning to Journey - skipping showHomepageQuietly');
       // Don't call showHomepageQuietly() - exitToMenu will handle showing Journey screen
     } else if (cameFromHomepage) {
-      // 🔥 USER REQUEST: Homepage PLAY games → return to homepage slide (slide 0)
-      logger.info('🏠 Returning to homepage slide (slide 0) - showing homepage');
+      logger.info(`🏠 Returning to Arcade slide (${ARCADE_SLIDE_INDEX}) - showing homepage`);
       // The shared paper surface is already active.
       // No need to set it again - showHomepageQuietly() will ensure it stays at 60%
       const { appZoneManager } = await import('./app-zone-manager.js');
-      await appZoneManager.showHomepageShell('ui-manager:hideCollectibles:homepage');
+      await appZoneManager.showHomepageShell('ui-manager:hideCollectibles:homepage', ARCADE_SLIDE_INDEX);
     } else {
       // Default: show homepage (for backward compatibility)
-      logger.info('🏠 No context found - defaulting to homepage slide (slide 0)');
+      logger.info(`🏠 No context found - defaulting to Arcade slide (${ARCADE_SLIDE_INDEX})`);
       // The shared paper surface is already active.
       // No need to set it again - showHomepageQuietly() will ensure it stays at 60%
       const { appZoneManager } = await import('./app-zone-manager.js');
-      await appZoneManager.showHomepageShell('ui-manager:hideCollectibles:default-homepage');
+      await appZoneManager.showHomepageShell('ui-manager:hideCollectibles:default-homepage', ARCADE_SLIDE_INDEX);
     }
     
     // 🔥 USER BUG FIX: Update Journey badge when returning to homepage from Journey screen
@@ -1957,7 +1963,7 @@ class UIManager {
           const lastBadge = (window as any).__ccJourneyBadgeCount || 0;
           const effectiveCount = Math.max(lastBadge, newlyUnlockedCount);
           if (typeof (window as any).updateNavBadge === 'function') {
-            (window as any).updateNavBadge(effectiveCount, 1); // Pass slideIndex 1 for Journey
+            (window as any).updateNavBadge(effectiveCount, JOURNEY_SLIDE_INDEX);
             logger.info(`🗺️ Journey badge updated when returning to homepage: ${effectiveCount} newly unlocked boards (raw=${newlyUnlockedCount}, last=${lastBadge})`);
           }
         } catch (error) {
@@ -1983,7 +1989,7 @@ class UIManager {
     });
     
     // 🔥 USER REQUEST: Slider position and enter animation controlled by collectibles-manager.ts
-    // Back button returns to Journey slide (index 1), NOT homepage slide (index 0)
+    // Back button returns to the Journey slide, not the Arcade slide.
     // collectibles-manager.ts will handle slider positioning and animateSliderEnter() call
     console.log('✅ Slider position and enter animation delegated to collectibles-manager.ts');
     
@@ -2412,6 +2418,9 @@ class UIManager {
         });
         void import('./wild-star-merge6-sound.ts').then(({ stopWildStarMerge6Sound }) => {
           stopWildStarMerge6Sound();
+        });
+        void import('./beach-ball-merge6-sound.ts').then(({ stopBeachBallMerge6Sounds }) => {
+          stopBeachBallMerge6Sounds();
         });
         void import('./ordinary-stack-sound.ts').then(({ stopOrdinaryStackSound }) => {
           stopOrdinaryStackSound();

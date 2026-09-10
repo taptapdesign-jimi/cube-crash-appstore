@@ -14,6 +14,10 @@ import { resolveHomepageSliderViewportWidth } from './homepage-slider-layout.js'
 import { isFirstPlayTutorialForced } from './first-play-tutorial.js';
 import { homepageEnterTransitionOwner } from './homepage-enter-transition-owner.js';
 import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.js';
+import {
+  DEFAULT_HOMEPAGE_SLIDE_INDEX,
+  JOURNEY_SLIDE_INDEX,
+} from './homepage-slide-order.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 const trackTween = (target: any, vars: any) => {
@@ -38,7 +42,7 @@ type SliderTouchEvent = globalThis.TouchEvent;
 type SliderMouseEvent = globalThis.MouseEvent;
 
 class SliderManager {
-  private currentSlide: number = 0;
+  private currentSlide: number = DEFAULT_HOMEPAGE_SLIDE_INDEX;
   private totalSlides: number = SLIDER_CONFIG.TOTAL_SLIDES;
   private isDragging: boolean = false;
   private startX: number = 0;
@@ -318,7 +322,7 @@ class SliderManager {
   private unsubscribeFunctions: (() => void)[] = [];
 
   constructor() {
-    this.currentSlide = 0;
+    this.currentSlide = DEFAULT_HOMEPAGE_SLIDE_INDEX;
     this.totalSlides = SLIDER_CONFIG.TOTAL_SLIDES;
     this.isDragging = false;
     this.startX = 0;
@@ -499,7 +503,7 @@ class SliderManager {
         const navIntentGeneration = ++this.navIntentGeneration;
 
         // Fail -> Exit may reveal an interactive nav just before the single
-        // Homepage enter owner has finalized slide 0. Do not let goToSlide()
+        // Homepage enter owner has finalized the requested slide. Do not let goToSlide()
         // race that finalizer: wait for the complete lease, including any
         // replacement lease, then apply only the newest nav intent.
         if (homepageEnterTransitionOwner.isActive()) {
@@ -538,13 +542,13 @@ class SliderManager {
         // On a clean install the Journey nav icon is itself a tutorial choice.
         // Reuse the canonical Journey CTA handler so the Homepage exit remains
         // identical and no Journey Worlds frame is exposed before gameplay.
-        if (slideIndex === 1 && isFirstPlayTutorialForced()) {
+        if (slideIndex === JOURNEY_SLIDE_INDEX && isFirstPlayTutorialForced()) {
           const journeyButton = document.getElementById('btn-journey');
           if (journeyButton instanceof HTMLButtonElement && !this.firstPlayJourneyNavigationPending) {
             this.firstPlayJourneyNavigationPending = true;
             (window as any).__ccFirstPlayJourneyNavHapticHandled = true;
             try {
-              const settled = await this.goToSlideAndWait(1);
+              const settled = await this.goToSlideAndWait(JOURNEY_SLIDE_INDEX);
               if (settled && isFirstPlayTutorialForced()) journeyButton.click();
             } finally {
               this.firstPlayJourneyNavigationPending = false;

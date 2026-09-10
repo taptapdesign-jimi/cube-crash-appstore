@@ -32,6 +32,7 @@ import {
   areContinuousRuntimeDiagnosticsEnabled,
   areDetailedRuntimeDiagnosticsEnabled,
 } from './utils/runtime-diagnostics-policy.js';
+import { JOURNEY_SLIDE_INDEX } from './modules/homepage-slide-order.js';
 // Collectibles Manager - Handles all collectibles functionality
 logger.info('🎁 Collectibles Manager module loaded');
 
@@ -1122,7 +1123,7 @@ class CollectiblesManager {
     if (sliderManager) {
       try {
         if (typeof sliderManager.syncHiddenSlideState === 'function') {
-          sliderManager.syncHiddenSlideState(1);
+          sliderManager.syncHiddenSlideState(JOURNEY_SLIDE_INDEX);
           logger.info('✅ Hidden slider state synchronized without Homepage recovery lifecycle');
         }
       } catch (err) {
@@ -1715,10 +1716,10 @@ class CollectiblesManager {
 
           void finishJourneyBackCleanup();
 
-          console.log('🏠 Step 2: Fast showing homepage slide 2 after Journey exit animation');
+          console.log('🏠 Step 2: Fast showing Journey homepage slide after Journey exit animation');
           markIOSJourneyRouteAudit('homepage-return-enter');
-          await homepageEnterHandoff('journey-exit-homepage-slide-1-fast', {
-            targetSlideIndex: 1,
+          await homepageEnterHandoff('journey-exit-homepage-fast', {
+            targetSlideIndex: JOURNEY_SLIDE_INDEX,
             skipFirstPaintReady: true,
           });
           finishIOSJourneyRouteAudit('complete');
@@ -1806,8 +1807,8 @@ class CollectiblesManager {
       const homepageEnterHandoff = (window as any).__ccPlayHomepageSliderEnterHandoff;
       if (typeof homepageEnterHandoff === 'function') {
         markIOSJourneyRouteAudit('homepage-return-enter');
-        await homepageEnterHandoff('journey-exit-homepage-slide-1', {
-          targetSlideIndex: 1,
+        await homepageEnterHandoff('journey-exit-homepage', {
+          targetSlideIndex: JOURNEY_SLIDE_INDEX,
           skipFirstPaintReady: true,
         });
         finishIOSJourneyRouteAudit('complete');
@@ -1942,9 +1943,9 @@ class CollectiblesManager {
       });
       logger.info('✅ All slides and content made visible');
 
-      // Step 2d: Position slider on Journey slide (index 1) using NEW atomic API
+      // Step 2d: Position slider on the Journey slide using the atomic API
       // When exiting Journey screen, ALWAYS return to Journey slide on homepage slider
-      const targetSlideIndex = 1;
+      const targetSlideIndex = JOURNEY_SLIDE_INDEX;
       console.log(`🔍 Journey exit: returning to Journey slide (index ${targetSlideIndex})`);
 
       // 🔥 CRITICAL FIX: Reinitialize slider FIRST before using it

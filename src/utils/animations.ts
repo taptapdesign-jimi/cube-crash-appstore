@@ -9,6 +9,7 @@ import {
   markHomepageNavigationEntering,
   primeHomepageNavigation,
 } from '../modules/navigation-control.js';
+import { JOURNEY_SLIDE_INDEX } from '../modules/homepage-slide-order.js';
 
 // Safe element getter
 export const getElement = (id: string): HTMLElement | null => {
@@ -310,7 +311,7 @@ export const prepareSliderEnter = (): void => {
   sliderEnterNavigationGeneration = primeHomepageNavigation('animations:prepare-slider-enter');
   cachedElements = {};
   const activeSlide = document.querySelector('.slider-slide.active') ||
-    document.querySelector('.slider-slide[data-slide="0"]');
+    document.querySelector(`.slider-slide[data-slide="${JOURNEY_SLIDE_INDEX}"]`);
   const slides = Array.from(document.querySelectorAll('.slider-slide')) as HTMLElement[];
   let restoredInactiveTargets = 0;
 
@@ -371,7 +372,7 @@ export const prepareSliderEnter = (): void => {
 
 export const finalizeSliderEnterVisibility = (reason = 'homepage-enter-finalize'): void => {
   const activeSlide = document.querySelector('.slider-slide.active') ||
-    document.querySelector('.slider-slide[data-slide="0"]');
+    document.querySelector(`.slider-slide[data-slide="${JOURNEY_SLIDE_INDEX}"]`);
   const shellTargets = [
     document.getElementById('home'),
     document.querySelector('#home .content'),
@@ -761,7 +762,7 @@ const animateSliderExitLegacy = (): void => {
     logger.info('🎬 Starting CARTOONISH PROCEDURAL exit animation...');
     
     // 🔥 CRITICAL: Ensure badge is visible and ready BEFORE starting animation
-    const journeyNavButton = document.querySelector('.independent-nav-button[data-slide="1"]') as HTMLElement;
+    const journeyNavButton = document.querySelector(`.independent-nav-button[data-slide="${JOURNEY_SLIDE_INDEX}"]`) as HTMLElement;
     if (journeyNavButton) {
       const ensuredCount = ensureJourneyBadge(journeyNavButton);
       if (JOURNEY_NAV_BADGE_ENABLED && ensuredCount > 0) {
@@ -966,7 +967,7 @@ function startExitAnimationSequence(): void {
     // STEP 5: Navigation and Shadow LAST (120ms delay - finishes at 420ms, close to 400ms)
     // 🔥 CRITICAL: Find badge FIRST and ensure it's protected before animating navigation
     // Badge is child of navigation button, so it will animate with navigation via CSS
-    const journeyNavButton = document.querySelector('.independent-nav-button[data-slide="1"]') as HTMLElement;
+    const journeyNavButton = document.querySelector(`.independent-nav-button[data-slide="${JOURNEY_SLIDE_INDEX}"]`) as HTMLElement;
     let journeyBadge: HTMLElement | null = null;
     if (journeyNavButton) {
       ensureJourneyBadge(journeyNavButton);
@@ -1002,7 +1003,7 @@ function startExitAnimationSequence(): void {
       const badgeRemoveTimeout = setTimeout(() => {
         activeTimeouts.delete(badgeRemoveTimeout);
         // Double-check that badge still exists and has animate-exit class
-        const stillExists = document.querySelector('.independent-nav-button[data-slide="1"] .nav-badge') as HTMLElement;
+        const stillExists = document.querySelector(`.independent-nav-button[data-slide="${JOURNEY_SLIDE_INDEX}"] .nav-badge`) as HTMLElement;
         if (stillExists && stillExists.classList.contains('animate-exit')) {
           const storedBadgeCount = (window as any).__ccJourneyBadgeCount;
           const persistedBadgeCount = readPersistedJourneyBadge();
@@ -1020,7 +1021,7 @@ function startExitAnimationSequence(): void {
             return;
           }
           if (typeof (window as any).updateNavBadge === 'function') {
-            (window as any).updateNavBadge(0, 1);
+            (window as any).updateNavBadge(0, JOURNEY_SLIDE_INDEX);
             logger.info('✅ Journey badge removed after exit animation');
           }
         } else {
@@ -1286,7 +1287,7 @@ function startEnterAnimationSequence(): void {
     if (!activeSlide) {
       logger.warn('⚠️ No active slide found, animating from first slide');
       // 🔥 CRITICAL: Try to activate first slide if none is active
-      const firstSlide = document.querySelector('.slider-slide[data-slide="0"]');
+      const firstSlide = document.querySelector(`.slider-slide[data-slide="${JOURNEY_SLIDE_INDEX}"]`);
       if (firstSlide) {
         activeSlide = firstSlide;
         firstSlide.classList.add('active');

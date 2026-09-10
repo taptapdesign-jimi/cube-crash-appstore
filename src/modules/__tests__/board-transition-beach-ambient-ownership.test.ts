@@ -14,12 +14,15 @@ describe('Beach transition ambient ownership', () => {
   const floatSource = ambientSource.slice(floatStart, seaStart);
   const seaSource = ambientSource.slice(seaStart);
 
-  test('owns one tracked root per float or sea element while preserving independent channels', () => {
-    expect(source).toContain('new Map<HTMLElement, gsap.core.Timeline>()');
-    expect(floatSource.match(/trackTimeline\(/g)).toHaveLength(1);
-    expect(floatSource.match(/ambientTimeline\.to\(sceneImg/g)).toHaveLength(3);
-    expect(floatSource).toContain('ownAmbientTimeline(ambientTimeline)');
-    expect(floatSource).toContain('ambientTimeline.play(0)');
+  test('restores independent simultaneous drift, bounce, and rotation channels for Beach floats', () => {
+    expect(source).toContain('new Map<HTMLElement, gsap.core.Timeline[]>()');
+    expect(floatSource.match(/trackTimeline\(/g)).toHaveLength(3);
+    expect(floatSource).toContain('horizontalTimeline.to(sceneImg');
+    expect(floatSource).toContain('bounceTimeline.to(sceneImg');
+    expect(floatSource).toContain('rotationTimeline.to(sceneImg');
+    expect(floatSource).toContain('ownAmbientTimeline(horizontalTimeline)');
+    expect(floatSource).toContain('ownAmbientTimeline(bounceTimeline)');
+    expect(floatSource).toContain('ownAmbientTimeline(rotationTimeline)');
     expect(floatSource.match(/repeat: -1/g)).toHaveLength(3);
     expect(floatSource.match(/repeatRefresh: true/g)).toHaveLength(3);
     expect(floatSource.match(/yoyo: true/g)).toHaveLength(2);
@@ -41,9 +44,9 @@ describe('Beach transition ambient ownership', () => {
     const stopSource = source.slice(stopStart, stopEnd);
 
     expect(stopSource).toContain("if (sceneImg.dataset.motionRole === 'shore' && beachShoreAmbientTimeline)");
-    expect(stopSource).toContain('const owned = beachAmbientTimelines.get(sceneImg) ?? null');
-    expect(stopSource).toContain('owned?.kill()');
+    expect(stopSource).toContain('const owned = beachAmbientTimelines.get(sceneImg) ?? []');
+    expect(stopSource).toContain('owned.forEach((timeline) => {');
+    expect(stopSource).toContain('timeline.kill()');
     expect(stopSource).toContain('beachAmbientTimelines.delete(sceneImg)');
-    expect(stopSource).not.toContain('owned.forEach');
   });
 });

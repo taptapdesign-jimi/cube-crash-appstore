@@ -1,6 +1,7 @@
 import { isAnyMenuScreenVisible, requestExitToMenu } from '../menu-exit-handoff';
 import { appZoneManager } from '../app-zone-manager';
 import { setNoMovesNavigationLocked } from '../terminal-navigation-lock';
+import { ARCADE_SLIDE_INDEX, JOURNEY_SLIDE_INDEX } from '../homepage-slide-order';
 
 describe('menu exit handoff', () => {
   beforeEach(() => {
@@ -8,7 +9,7 @@ describe('menu exit handoff', () => {
     document.body.innerHTML = `
       <main id="home">
         <section id="slider-container">
-          <article class="slider-slide active" data-slide="1">
+          <article class="slider-slide active" data-slide="${ARCADE_SLIDE_INDEX}">
             <div class="hero-container"></div>
           </article>
         </section>
@@ -40,8 +41,9 @@ describe('menu exit handoff', () => {
     setNoMovesNavigationLocked(false);
   });
 
-  it('forwards the one-shot Slider 2 intent and prepared callback to the authoritative owner', async () => {
+  it('forwards the one-shot Journey slide intent and prepared callback to the authoritative owner', async () => {
     const onHomepageEnterPrepared = jest.fn();
+    (document.querySelector('.slider-slide') as HTMLElement).dataset.slide = String(JOURNEY_SLIDE_INDEX);
     const exitToMenu = jest.fn(async (options) => {
       options.onHomepageEnterPrepared?.();
     });
@@ -50,7 +52,7 @@ describe('menu exit handoff', () => {
     const handoff = requestExitToMenu({
       reason: 'test-first-play-journey-homepage',
       target: 'homepage',
-      homepageSlideIndex: 1,
+      homepageSlideIndex: JOURNEY_SLIDE_INDEX,
       onHomepageEnterPrepared,
       skipBoardExit: true,
     });
@@ -63,7 +65,7 @@ describe('menu exit handoff', () => {
     expect(exitToMenu).toHaveBeenCalledTimes(1);
     expect(exitToMenu).toHaveBeenCalledWith({
       target: 'homepage',
-      homepageSlideIndex: 1,
+      homepageSlideIndex: JOURNEY_SLIDE_INDEX,
       onHomepageEnterPrepared,
       skipBoardExit: true,
       fastArcadeCleanExit: undefined,
@@ -93,7 +95,7 @@ describe('menu exit handoff', () => {
     const exitToMenu = jest.fn();
     (window as any).exitToMenu = exitToMenu;
     setNoMovesNavigationLocked(true);
-    (document.querySelector('.slider-slide') as HTMLElement).dataset.slide = '0';
+    (document.querySelector('.slider-slide') as HTMLElement).dataset.slide = String(ARCADE_SLIDE_INDEX);
 
     const handoff = requestExitToMenu({
       reason: 'test-fail-modal-exit',
@@ -112,7 +114,7 @@ describe('menu exit handoff', () => {
   });
 
   it('finishes immediately when the authoritative exit already delivered its Homepage', async () => {
-    (document.querySelector('.slider-slide') as HTMLElement).dataset.slide = '0';
+    (document.querySelector('.slider-slide') as HTMLElement).dataset.slide = String(JOURNEY_SLIDE_INDEX);
     const homepageRecovery = jest.spyOn(appZoneManager, 'showHomepageShell');
     (window as any).exitToMenu = jest.fn(async () => {
       appZoneManager.setZone('home', 'test-ready-home');
@@ -121,7 +123,7 @@ describe('menu exit handoff', () => {
     await requestExitToMenu({
       reason: 'test-ready-home-no-watchdog',
       target: 'homepage',
-      homepageSlideIndex: 0,
+      homepageSlideIndex: JOURNEY_SLIDE_INDEX,
       skipBoardExit: true,
     });
 
@@ -148,7 +150,7 @@ describe('menu exit handoff', () => {
     const handoff = requestExitToMenu({
       reason: 'test-settings-successor-route',
       target: 'homepage',
-      homepageSlideIndex: 0,
+      homepageSlideIndex: JOURNEY_SLIDE_INDEX,
       skipBoardExit: true,
     });
     await Promise.resolve();
@@ -176,7 +178,7 @@ describe('menu exit handoff', () => {
     const handoff = requestExitToMenu({
       reason: 'test-settings-nav-before-exit-resolve',
       target: 'homepage',
-      homepageSlideIndex: 0,
+      homepageSlideIndex: JOURNEY_SLIDE_INDEX,
       skipBoardExit: true,
     });
     await Promise.resolve();
@@ -214,7 +216,7 @@ describe('menu exit handoff', () => {
     const handoff = requestExitToMenu({
       reason: 'test-genuine-incomplete-exit',
       target: 'homepage',
-      homepageSlideIndex: 0,
+      homepageSlideIndex: JOURNEY_SLIDE_INDEX,
       skipBoardExit: true,
     });
     await jest.advanceTimersByTimeAsync(400);

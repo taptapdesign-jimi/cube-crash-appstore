@@ -54,7 +54,7 @@ describe('first-play tutorial completion Arcade continuation', () => {
     expect(cleanup).not.toContain('requestExitToMenu');
   });
 
-  test('Journey-owned tutorial returns to Homepage Slider 2 instead of starting Arcade Round 01', () => {
+  test('Journey-owned tutorial returns to the Journey Homepage slide instead of starting Arcade Round 01', () => {
     const source = fs.readFileSync(path.join(repoRoot, 'src/modules/endgame-flow.ts'), 'utf8');
     const journeyContinuation = source.slice(
       source.indexOf('async function continueFirstPlayTutorialToJourneyHomepage'),
@@ -66,7 +66,7 @@ describe('first-play tutorial completion Arcade continuation', () => {
     expect(source).toContain('continueTutorialIntoJourney = true;');
     expect(journeyContinuation).toContain("reason: 'first-play-tutorial-complete-journey-homepage'");
     expect(journeyContinuation).toContain("target: 'homepage'");
-    expect(journeyContinuation).toContain('homepageSlideIndex: 1');
+    expect(journeyContinuation).toContain('homepageSlideIndex: JOURNEY_SLIDE_INDEX');
     expect(journeyContinuation).toContain('onHomepageEnterPrepared: releaseCover');
     expect(journeyContinuation).toContain('if (coverReleased) return;');
     expect(journeyContinuation).not.toContain('markJourneyGameOrigin');

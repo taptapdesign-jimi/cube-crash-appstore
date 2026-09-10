@@ -10,9 +10,9 @@ describe('first-play tutorial entry routing', () => {
 
   test('both the Journey CTA and bottom Journey icon choose tutorial gameplay immediately', () => {
     expect(uiManagerSource).toContain('this.showCollectiblesScreenWithAnimation(isFirstPlayTutorialForced());');
-    expect(sliderManagerSource).toContain('slideIndex === 1 && isFirstPlayTutorialForced()');
+    expect(sliderManagerSource).toContain('slideIndex === JOURNEY_SLIDE_INDEX && isFirstPlayTutorialForced()');
     expect(sliderManagerSource).toContain("document.getElementById('btn-journey')");
-    expect(sliderManagerSource).toContain('await this.goToSlideAndWait(1);');
+    expect(sliderManagerSource).toContain('await this.goToSlideAndWait(JOURNEY_SLIDE_INDEX);');
     expect(sliderManagerSource).toContain('journeyButton.click();');
     expect(sliderManagerSource).toContain('SLIDER_CONFIG.SLIDE_DURATION_S * 1000');
     expect(sliderManagerSource).toContain('this.currentSlide === resolvedSlide && !sliderState.isAnimatingEnter');
@@ -40,7 +40,7 @@ describe('first-play tutorial entry routing', () => {
     expect(tutorialSource).toContain('(window as any).__ccFirstPlayTutorialRunSource = source;');
   });
 
-  test('Journey tutorial completion returns to Homepage Slider 2 through its full enter owner', () => {
+  test('Journey tutorial completion returns to the Journey Homepage slide through its full enter owner', () => {
     const mainSource = fs.readFileSync(path.join(repoRoot, 'src/main.ts'), 'utf8');
     const endgameSource = fs.readFileSync(path.join(repoRoot, 'src/modules/endgame-flow.ts'), 'utf8');
     const continuation = endgameSource.slice(
@@ -49,7 +49,7 @@ describe('first-play tutorial entry routing', () => {
     );
     expect(continuation).toContain("reason: 'first-play-tutorial-complete-journey-homepage'");
     expect(continuation).toContain("target: 'homepage'");
-    expect(continuation).toContain('homepageSlideIndex: 1');
+    expect(continuation).toContain('homepageSlideIndex: JOURNEY_SLIDE_INDEX');
     expect(continuation).toContain('onHomepageEnterPrepared: releaseCover');
     expect(continuation).not.toContain('prepareFirstPlayTutorialHubReturn');
     expect(continuation).not.toContain('waitForJourneyV700HubPresentation');

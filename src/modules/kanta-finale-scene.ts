@@ -28,6 +28,9 @@ export const KANTA_FINALE_COMPOSITE_ENTRY_DELAY_SECONDS = 0;
 export const KANTA_FINALE_COMPOSITE_ENTRY_TRAVEL_PX = 125;
 export const KANTA_FINALE_ROBOT_RAISE_RATIO = 0.14 + 0.08;
 export const KANTA_FINALE_ROBOT_LOWER_RATIO = 0.35;
+export const KANTA_FINALE_ROBOT_FIXED_EXTRA_RAISE_RATIOS = [0.10, 0.15, 0.05] as const;
+export const KANTA_FINALE_ROBOT_RANDOM_EXTRA_RAISE_MIN_RATIO = 0.05;
+export const KANTA_FINALE_ROBOT_RANDOM_EXTRA_RAISE_MAX_RATIO = 0.10;
 export const KANTA_FINALE_ROBOT_ENTRY_DELAY_SECONDS = 0;
 export const KANTA_FINALE_ROBOT_ENTRY_WINDOW_SECONDS = 0.70;
 export const KANTA_FINALE_ROBOT_ENTRY_STAGGER_SECONDS = (
@@ -221,6 +224,20 @@ const boundedRandom = (random: () => number) => {
   return Number.isFinite(value) ? Math.max(0, Math.min(0.999999, value)) : 0.5;
 };
 
+export function createKantaFinaleRobotExtraRaiseRatios(
+  random: () => number = Math.random,
+): readonly number[] {
+  const randomRaiseRatio = KANTA_FINALE_ROBOT_RANDOM_EXTRA_RAISE_MIN_RATIO
+    + boundedRandom(random) * (
+      KANTA_FINALE_ROBOT_RANDOM_EXTRA_RAISE_MAX_RATIO
+      - KANTA_FINALE_ROBOT_RANDOM_EXTRA_RAISE_MIN_RATIO
+    );
+  return Object.freeze([
+    ...KANTA_FINALE_ROBOT_FIXED_EXTRA_RAISE_RATIOS,
+    randomRaiseRatio,
+  ]);
+}
+
 function shuffleWithRandom<T>(values: readonly T[], random: () => number): T[] {
   const shuffled = [...values];
   for (let index = shuffled.length - 1; index > 0; index -= 1) {
@@ -410,6 +427,7 @@ export function attachKantaFinaleScene(
   const viewportWidth = Math.max(320, window.innerWidth || 390);
   const viewportHeight = Math.max(520, window.innerHeight || 844);
   const robotPlans = createKantaFinaleRobotPickupPlans();
+  const robotExtraRaiseRatios = createKantaFinaleRobotExtraRaiseRatios();
   const extraPickupRobotIndices = createKantaFinaleExtraPickupRobotIndices();
   const pickupLaneRatios = createKantaFinalePickupLaneRatios();
 
@@ -442,6 +460,8 @@ export function attachKantaFinaleScene(
     element.dataset.kantaFinaleRobot = String(index);
     element.dataset.kantaFinaleDirection = String(plan.direction);
     element.dataset.kantaFinalePickupCan = String(plan.canIndex);
+    const extraRaiseRatio = robotExtraRaiseRatios[index];
+    element.dataset.kantaFinaleExtraRaiseRatio = extraRaiseRatio.toFixed(6);
     field.appendChild(element);
     const laneOffsetY = plan.direction * 34 + (index < 2 ? -8 : 8);
     const restY = viewportHeight * 0.5
@@ -449,7 +469,9 @@ export function attachKantaFinaleScene(
       - width * KANTA_FINALE_ROBOT_RAISE_RATIO
       + width * KANTA_FINALE_ROBOT_LOWER_RATIO
       - 2
-      + laneOffsetY;
+      + laneOffsetY
+      - width * extraRaiseRatio;
+    element.dataset.kantaFinaleRestY = restY.toFixed(4);
     const leftX = -viewportWidth * 0.5 - width * 0.65;
     const rightX = viewportWidth * 0.5
       + width * 0.65;

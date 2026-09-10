@@ -7,6 +7,7 @@ import {
   createKantaFinalePickupStartTimes,
   createKantaFinalePickupLaneRatios,
   createKantaFinaleRobotPickupPlans,
+  createKantaFinaleRobotExtraRaiseRatios,
   KANTA_FINALE_CAN_SCALE,
   KANTA_FINALE_CAN_PILE_SLOTS,
   KANTA_FINALE_CAN_SOURCE_ASPECT_RATIO,
@@ -51,6 +52,9 @@ import {
   KANTA_FINALE_ROBOT_COUNT,
   KANTA_FINALE_ROBOT_LOWER_RATIO,
   KANTA_FINALE_ROBOT_RAISE_RATIO,
+  KANTA_FINALE_ROBOT_FIXED_EXTRA_RAISE_RATIOS,
+  KANTA_FINALE_ROBOT_RANDOM_EXTRA_RAISE_MAX_RATIO,
+  KANTA_FINALE_ROBOT_RANDOM_EXTRA_RAISE_MIN_RATIO,
   KANTA_FINALE_ROBOT_STEP_BOUNCE_PX,
   KANTA_FINALE_ROBOT_TRAVEL_SECONDS,
   KANTA_FINALE_ROBOT_WALK_ROTATION_MAX_DEGREES,
@@ -113,6 +117,31 @@ describe('Kanta finale collection lifecycle', () => {
     expect(sampleKantaCompositeEntry(1)).toBe(1);
     expect(KANTA_FINALE_ROBOT_RAISE_RATIO).toBeCloseTo(0.14 + 0.08, 10);
     expect(KANTA_FINALE_ROBOT_LOWER_RATIO).toBe(0.35);
+    expect(robots.slice(0, 3).map(({ dataset }) => (
+      Number(dataset.kantaFinaleExtraRaiseRatio)
+    ))).toEqual([...KANTA_FINALE_ROBOT_FIXED_EXTRA_RAISE_RATIOS]);
+    expect(Number(robots[3].dataset.kantaFinaleExtraRaiseRatio)).toBeGreaterThanOrEqual(
+      KANTA_FINALE_ROBOT_RANDOM_EXTRA_RAISE_MIN_RATIO,
+    );
+    expect(Number(robots[3].dataset.kantaFinaleExtraRaiseRatio)).toBeLessThanOrEqual(
+      KANTA_FINALE_ROBOT_RANDOM_EXTRA_RAISE_MAX_RATIO,
+    );
+    robots.forEach((robot, index) => {
+      const width = Number.parseFloat(robot.style.width);
+      const direction = Number(robot.dataset.kantaFinaleDirection);
+      const extraRaiseRatio = Number(robot.dataset.kantaFinaleExtraRaiseRatio);
+      const laneOffsetY = direction * 34 + (index < 2 ? -8 : 8);
+      expect(Number(robot.dataset.kantaFinaleRestY)).toBeCloseTo(
+        window.innerHeight * 0.5
+          - width * 0.51
+          - width * KANTA_FINALE_ROBOT_RAISE_RATIO
+          + width * KANTA_FINALE_ROBOT_LOWER_RATIO
+          - 2
+          + laneOffsetY
+          - width * extraRaiseRatio,
+        3,
+      );
+    });
     expect(KANTA_FINALE_ROBOT_ENTRY_DELAY_SECONDS).toBe(0);
     expect(KANTA_FINALE_ROBOT_ENTRY_WINDOW_SECONDS).toBe(0.70);
     expect(KANTA_FINALE_ROBOT_ENTRY_STAGGER_SECONDS).toBeCloseTo(7 / 30, 10);
@@ -522,6 +551,13 @@ describe('Kanta finale collection lifecycle', () => {
     ))).toBe(true);
     expect(new Set(plans.map(({ canIndex }) => canIndex)).size).toBe(4);
     expect(plans.every(({ canIndex }) => canIndex >= 0 && canIndex < 4)).toBe(true);
+  });
+
+  test('raises the four Robo lanes by ten, fifteen, five, and a bounded random five-to-ten percent', () => {
+    expect(createKantaFinaleRobotExtraRaiseRatios(() => 0)).toEqual([0.10, 0.15, 0.05, 0.05]);
+    const maximumRaise = createKantaFinaleRobotExtraRaiseRatios(() => 0.999999);
+    expect(maximumRaise.slice(0, 3)).toEqual([0.10, 0.15, 0.05]);
+    expect(maximumRaise[3]).toBeCloseTo(0.10, 5);
   });
 
   test('randomizes eleven balanced pickup lanes across left, centre, and right', () => {

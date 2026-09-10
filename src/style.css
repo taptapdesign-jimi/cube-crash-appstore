@@ -40,7 +40,7 @@ body{
 
 /* ===== HOMEPAGE IMAGE - NO FADE-IN ===== */
 /* Homepage image is always visible without fade-in animation */
-.slider-slide[data-slide="0"] .hero-image {
+.slider-slide.arcade-slide .hero-image {
   opacity: 1;
   transform: scale(1) translateZ(0);  /* Combine scale + iOS GPU acceleration */
 }
@@ -60,14 +60,14 @@ body{
 }
 
 /* Ensure other slides are visible */
-.slider-slide[data-slide="1"] .hero-image,
+.slider-slide.journey-slide .hero-image,
 .slider-slide[data-slide="2"] .hero-image,
 .slider-slide[data-slide="3"] .hero-image {
   opacity: 1;
   transform: scale(1) translateZ(0);  /* Combine scale + iOS GPU acceleration */
 }
 
-.slider-slide[data-slide="1"] .hero-image {
+.slider-slide.journey-slide .hero-image {
   width: 120% !important;
   height: 120% !important;
   max-width: none !important;

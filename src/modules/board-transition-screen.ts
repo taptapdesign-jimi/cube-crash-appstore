@@ -92,7 +92,7 @@ let forestTransitionSpecialBeeBehindMountainLayer: HTMLElement | null = null;
 let forestTransitionSpecialBeeRearLayer: HTMLElement | null = null;
 let forestTransitionSpecialBeeFrontLayer: HTMLElement | null = null;
 let contentTimelines: gsap.core.Timeline[] = []; // 🔥 MEMORY LEAK FIX: Track scene and digit timelines
-let beachAmbientTimelines = new Map<HTMLElement, gsap.core.Timeline>();
+let beachAmbientTimelines = new Map<HTMLElement, gsap.core.Timeline[]>();
 let roboGroundAmbientTimelines = new Map<HTMLElement, gsap.core.Timeline[]>();
 let beachShoreAmbientTimeline: gsap.core.Timeline | null = null;
 let roboAirCombatTimelines: gsap.core.Timeline[] = [];
@@ -933,17 +933,23 @@ function getTransitionHillBaseX(layerKey: string): number {
 function startBeachAmbientMotion(sceneImg: HTMLElement, layerKey: string, motionRole: string): void {
   const ownAmbientTimeline = (timeline: gsap.core.Timeline): void => {
     contentTimelines.push(timeline);
-    beachAmbientTimelines.set(sceneImg, timeline);
+    const owned = beachAmbientTimelines.get(sceneImg) ?? [];
+    owned.push(timeline);
+    beachAmbientTimelines.set(sceneImg, owned);
   };
   if (motionRole === 'float') {
     const isBottle = layerKey === 'beach-bottle';
     const horizontalDirection = sceneImg.dataset.floatDirection === 'left' ? -1 : 1;
     const rotationLimit = isBottle ? 24 : 84;
-    const ambientTimeline = trackTimeline({ paused: true });
-    ownAmbientTimeline(ambientTimeline);
+    const horizontalTimeline = trackTimeline({ repeat: -1, yoyo: true, repeatRefresh: true });
+    const bounceTimeline = trackTimeline({ repeat: -1, yoyo: true, repeatRefresh: true });
+    const rotationTimeline = trackTimeline({ repeat: -1, repeatRefresh: true });
+    ownAmbientTimeline(horizontalTimeline);
+    ownAmbientTimeline(bounceTimeline);
+    ownAmbientTimeline(rotationTimeline);
 
     gsap.set(sceneImg, { transformOrigin: '50% 50%' });
-    ambientTimeline.to(sceneImg, {
+    horizontalTimeline.to(sceneImg, {
       // Keep xPercent exclusively owned by the base -50% centering pose. A small,
       // refreshed px drift avoids the former mechanical full-width wiper motion.
       x: () => horizontalDirection * (isBottle
@@ -951,26 +957,17 @@ function startBeachAmbientMotion(sceneImg: HTMLElement, layerKey: string, motion
         : gsap.utils.random(73, 117)),
       duration: () => gsap.utils.random(4.68, 6.24),
       ease: 'sine.out',
-      repeat: -1,
-      yoyo: true,
-      repeatRefresh: true,
-    }, 0);
-    ambientTimeline.to(sceneImg, {
+    });
+    bounceTimeline.to(sceneImg, {
       y: () => isBottle ? gsap.utils.random(-18, -9) : gsap.utils.random(-22, -10),
       duration: () => gsap.utils.random(0.58, 0.96),
       ease: 'sine.inOut',
-      repeat: -1,
-      yoyo: true,
-      repeatRefresh: true,
-    }, 0);
-    ambientTimeline.to(sceneImg, {
+    });
+    rotationTimeline.to(sceneImg, {
       rotation: () => gsap.utils.random(-rotationLimit, rotationLimit),
       duration: () => gsap.utils.random(0.58, 0.96),
       ease: 'sine.inOut',
-      repeat: -1,
-      repeatRefresh: true,
-    }, 0);
-    ambientTimeline.play(0);
+    });
     return;
   }
 
@@ -1032,8 +1029,10 @@ function stopBeachAmbientMotion(sceneImg: HTMLElement): void {
     try { beachShoreAmbientTimeline.kill(); } catch {}
     beachShoreAmbientTimeline = null;
   }
-  const owned = beachAmbientTimelines.get(sceneImg) ?? null;
-  try { owned?.kill(); } catch {}
+  const owned = beachAmbientTimelines.get(sceneImg) ?? [];
+  owned.forEach((timeline) => {
+    try { timeline.kill(); } catch {}
+  });
   beachAmbientTimelines.delete(sceneImg);
 }
 
