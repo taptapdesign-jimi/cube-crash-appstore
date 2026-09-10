@@ -29,7 +29,10 @@ export function createSweetPopInRunner({
       try {
         await beforePopIn();
       } catch (error) {
-        devLog('⚠️ Fresh Arcade Round cue failed; continuing with board entrance:', error);
+        // The Round cue is an essential presentation gate. Fail closed: an
+        // interrupted/rejected cue must never reveal or animate the board.
+        devLog('❌ Fresh Arcade Round cue failed; board entrance remains gated:', error);
+        return;
       }
     }
     if (shouldAbort?.()) return;

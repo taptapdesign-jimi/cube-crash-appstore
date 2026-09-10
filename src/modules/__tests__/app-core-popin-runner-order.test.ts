@@ -21,6 +21,20 @@ test('fresh board cubes wait for the current-Round cue before sweetPopIn', async
   expect(sweetPopIn).toHaveBeenCalledTimes(1);
 });
 
+test('a failed current-Round cue keeps a fresh board entrance gated', async () => {
+  const sweetPopIn = jest.fn(() => Promise.resolve());
+  const runner = createSweetPopInRunner({
+    tiles: [{ visible: false }],
+    sweetPopIn,
+    beforePopIn: jest.fn(() => Promise.reject(new Error('cue interrupted'))),
+    onHalf: jest.fn(),
+    devLog: jest.fn(),
+  });
+
+  await runner();
+  expect(sweetPopIn).not.toHaveBeenCalled();
+});
+
 test('an aborted in-flight pop-in cannot finalize a newer entry', async () => {
   let finishPopIn!: () => void;
   const controller = new AbortController();

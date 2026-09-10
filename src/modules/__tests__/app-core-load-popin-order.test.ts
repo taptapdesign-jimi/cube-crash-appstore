@@ -41,6 +41,26 @@ test('saved tiles stay hidden until the continuation cue finishes', async () => 
   }
 });
 
+test('a failed continuation cue keeps saved tiles and board entrance gated', async () => {
+  const tile = { visible: true };
+  const sweetPopIn = jest.fn(() => Promise.resolve());
+  const onComplete = jest.fn();
+
+  await playLoadPopInAnimation({
+    tiles: [tile],
+    backgroundLayer: null,
+    sweetPopIn,
+    beforePopIn: jest.fn(() => Promise.reject(new Error('cue interrupted'))),
+    onHalf: jest.fn(),
+    onComplete,
+    devLog: jest.fn(),
+  });
+
+  expect(tile.visible).toBe(false);
+  expect(sweetPopIn).not.toHaveBeenCalled();
+  expect(onComplete).not.toHaveBeenCalled();
+});
+
 test('restored TNT idle starts only after the board pop-in owner completes', () => {
   const liveTnt = { special: 'wild-tnt', _ccDeferTntIdleFx: true };
   const destroyedTnt = { special: 'wild-tnt', destroyed: true, _ccDeferTntIdleFx: true };

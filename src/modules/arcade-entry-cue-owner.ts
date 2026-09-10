@@ -1,4 +1,7 @@
 import { cancelArcadeEntrySurfaceGate } from './arcade-entry-surface-gate.js';
+import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.js';
+
+const ARCADE_ENTRY_TRACE = '[CC_ARCADE_NN_ENTRY]';
 
 type ActiveArcadeEntryCue = {
   generation: number;
@@ -29,14 +32,7 @@ export function waitForArcadeEntryCuePresentation(round: number): Promise<void> 
   });
 }
 
-/** Native WebKit can animate the DOM cue while PIXI warms; desktop web init can block GSAP mid-frame. */
-export function shouldOverlapArcadeEntryCueWithColdBoot(
-  protocol = typeof window !== 'undefined' ? window.location?.protocol : '',
-): boolean {
-  return protocol === 'app:';
-}
-
-/** Start the visual cue as soon as Homepage has exited, overlapping board preparation. */
+/** Start the visual cue after board preparation has reached its guarded presentation commit. */
 export function beginArcadeEntryCue(round: number): Promise<void> {
   const normalizedRound = normalizeRound(round);
   if (activeCue && !activeCue.settled && activeCue.round === normalizedRound) {
@@ -49,15 +45,30 @@ export function beginArcadeEntryCue(round: number): Promise<void> {
     settled: false,
     promise: Promise.resolve(),
   };
+  emitNativeConsoleDiagnostic(ARCADE_ENTRY_TRACE, 'owner-begin', {
+    round: normalizedRound,
+    generation: owner.generation,
+  });
   owner.promise = import('./arcade-stage-clear-modal.js')
     .then(({ showArcadeContinuationRoundCue }) => {
       // The chunk can finish loading after reset/Exit/new Play transferred
       // ownership. A retired starter must never mount over the current cue.
-      if (owner.generation !== cueGeneration) return;
+      if (owner.generation !== cueGeneration) {
+        emitNativeConsoleDiagnostic(ARCADE_ENTRY_TRACE, 'owner-retired-before-mount', {
+          round: normalizedRound,
+          generation: owner.generation,
+          currentGeneration: cueGeneration,
+        });
+        return;
+      }
       return showArcadeContinuationRoundCue(
         normalizedRound,
         () => {
           if (owner.generation === cueGeneration) {
+            emitNativeConsoleDiagnostic(ARCADE_ENTRY_TRACE, 'overlay-presented', {
+              round: normalizedRound,
+              generation: owner.generation,
+            });
             resolvePresentationWaiters(normalizedRound);
           }
         },
@@ -65,6 +76,11 @@ export function beginArcadeEntryCue(round: number): Promise<void> {
     })
     .finally(() => {
       owner.settled = true;
+      emitNativeConsoleDiagnostic(ARCADE_ENTRY_TRACE, 'owner-settled', {
+        round: normalizedRound,
+        generation: owner.generation,
+        current: owner.generation === cueGeneration,
+      });
       if (owner.generation === cueGeneration) {
         resolvePresentationWaiters(normalizedRound);
       }
@@ -80,8 +96,21 @@ export async function consumeArcadeEntryCue(round: number): Promise<void> {
     ? activeCue
     : null;
   const promise = owner?.promise || beginArcadeEntryCue(normalizedRound);
+  emitNativeConsoleDiagnostic(ARCADE_ENTRY_TRACE, 'consume-await', {
+    round: normalizedRound,
+    reusedOwner: !!owner,
+  });
   try {
     await promise;
+    emitNativeConsoleDiagnostic(ARCADE_ENTRY_TRACE, 'consume-complete', {
+      round: normalizedRound,
+    });
+  } catch (error) {
+    emitNativeConsoleDiagnostic(ARCADE_ENTRY_TRACE, 'consume-rejected', {
+      round: normalizedRound,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
   } finally {
     if (activeCue?.promise === promise) activeCue = null;
   }
@@ -93,6 +122,9 @@ export function isArcadeEntryCuePending(): boolean {
 
 export function resetArcadeEntryCueOwner(): void {
   cueGeneration += 1;
+  emitNativeConsoleDiagnostic(ARCADE_ENTRY_TRACE, 'owner-reset', {
+    generation: cueGeneration,
+  });
   activeCue = null;
   presentationWaiters.forEach((waiters) => waiters.forEach((resolve) => resolve()));
   presentationWaiters.clear();
@@ -101,6 +133,9 @@ export function resetArcadeEntryCueOwner(): void {
 /** Abort an entry that can no longer reach board pop-in (for example boot failure). */
 export function cancelArcadeEntryCueOwner(): void {
   const cancellationGeneration = ++cueGeneration;
+  emitNativeConsoleDiagnostic(ARCADE_ENTRY_TRACE, 'owner-cancel', {
+    generation: cancellationGeneration,
+  });
   activeCue = null;
   presentationWaiters.forEach((waiters) => waiters.forEach((resolve) => resolve()));
   presentationWaiters.clear();

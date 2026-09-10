@@ -9,7 +9,6 @@ import {
   cancelArcadeEntryCueOwner,
   consumeArcadeEntryCue,
   resetArcadeEntryCueOwner,
-  shouldOverlapArcadeEntryCueWithColdBoot,
   waitForArcadeEntryCuePresentation,
 } from '../arcade-entry-cue-owner';
 import {
@@ -36,12 +35,6 @@ test('failed boot cancellation removes the active visual owner', async () => {
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   expect(cancelArcadeStageClearModal).toHaveBeenCalledTimes(1);
-});
-
-test('cold renderer overlap is native-only so web GSAP cannot freeze during WebGL init', () => {
-  expect(shouldOverlapArcadeEntryCueWithColdBoot('app:')).toBe(true);
-  expect(shouldOverlapArcadeEntryCueWithColdBoot('http:')).toBe(false);
-  expect(shouldOverlapArcadeEntryCueWithColdBoot('https:')).toBe(false);
 });
 
 test('begin and consume share one visual cue instead of replaying it after load', async () => {

@@ -99,6 +99,7 @@ describe('Homepage cold-launch Arcade handoff', () => {
     expect(bootBeforeAwait).toContain('if (stage) stage.visible = false;');
     expect(bootBeforeAwait).toContain('if (board) board.visible = false;');
     expect(bootBeforeAwait).toContain('if (hud) hud.visible = false;');
+    expect(coreSource).toContain('if (!reuseApp && !enforceArcadeEntrySurfaceGate(app.canvas)) {');
     const initialRenderOwner = coreSource.indexOf('// 🔥 CRITICAL FIX: Force render to ensure everything is visible', bootStart);
     const initialRender = coreSource.indexOf('app.renderer.render(stage);', initialRenderOwner);
     const reusedCanvasReveal = coreSource.indexOf("app.canvas.style.visibility = 'visible';", initialRender);

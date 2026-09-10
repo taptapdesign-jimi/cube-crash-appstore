@@ -12,6 +12,9 @@ import {
   preloadArcadeRoundDigitSounds,
   stopArcadeRoundDigitSounds,
 } from './arcade-round-digit-sound.ts';
+import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.js';
+
+const ARCADE_ENTRY_TRACE = '[CC_ARCADE_NN_ENTRY]';
 
 const HEADLINES = [
   'Sweet Win',
@@ -617,6 +620,10 @@ function animateBottomHudStageIndicator(nextStage: number): void {
 
 async function playRoundNumberPhase(parts: ReturnType<typeof createOverlay>, displayedStage: number): Promise<void> {
   const { overlay, nextCard, letters, digits } = parts;
+  emitNativeConsoleDiagnostic(ARCADE_ENTRY_TRACE, 'round-phase-start', {
+    round: displayedStage,
+    digits: digits.length,
+  });
   preloadArcadeRoundDigitSounds();
   animateBottomHudStageIndicator(displayedStage);
   gsap.set(nextCard, { opacity: 1, xPercent: -50, yPercent: -50, scale: 1 });
@@ -645,6 +652,10 @@ async function playRoundNumberPhase(parts: ReturnType<typeof createOverlay>, dis
         delay: index * ROUND_DIGIT_ENTER_STAGGER,
         onStart: () => {
           playArcadeRoundDigitSound(index);
+          emitNativeConsoleDiagnostic(ARCADE_ENTRY_TRACE, 'digit-enter-start', {
+            round: displayedStage,
+            index,
+          });
           triggerStageNumberHaptic(index === 0 ? 'medium' : 'light');
           playStageNumberScreenShake(overlay);
         },
@@ -713,6 +724,10 @@ async function playRoundNumberPhase(parts: ReturnType<typeof createOverlay>, dis
           delay: index * ROUND_DIGIT_EXIT_STAGGER,
           onStart: () => {
             if (index === 0) playArcadeRoundExitSound();
+            emitNativeConsoleDiagnostic(ARCADE_ENTRY_TRACE, 'digit-exit-start', {
+              round: displayedStage,
+              index,
+            });
           },
           onComplete: () => {
             completedDigits += 1;
@@ -745,6 +760,9 @@ async function playRoundNumberPhase(parts: ReturnType<typeof createOverlay>, dis
     }),
   ]);
   gsap.set(nextCard, { opacity: 0 });
+  emitNativeConsoleDiagnostic(ARCADE_ENTRY_TRACE, 'round-phase-complete', {
+    round: displayedStage,
+  });
 }
 
 export async function showArcadeStageClearModal(stageNumber: number, nextStageNumber?: number): Promise<ArcadeStageClearResult> {
@@ -786,6 +804,9 @@ export async function showArcadeContinuationRoundCue(
   ensureStyles();
 
   const resumedStage = Math.max(1, stageNumber | 0);
+  emitNativeConsoleDiagnostic(ARCADE_ENTRY_TRACE, 'overlay-mount', {
+    round: resumedStage,
+  });
   const parts = createOverlay(resumedStage - 1, resumedStage);
   activeOverlay = parts.overlay;
   gsap.set(parts.clearCard, { opacity: 0 });
@@ -797,6 +818,9 @@ export async function showArcadeContinuationRoundCue(
   try {
     await playRoundNumberPhase(parts, resumedStage);
   } finally {
+    emitNativeConsoleDiagnostic(ARCADE_ENTRY_TRACE, 'overlay-cleanup', {
+      round: resumedStage,
+    });
     completeGameplayTransitionFade(soundtrackFadeGeneration);
     cleanupArcadeStageClearModal(false);
   }

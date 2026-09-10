@@ -62,7 +62,10 @@ export function playLoadPopInAnimation({
       try {
         await beforePopIn();
       } catch (error) {
-        devLog('⚠️ Deferred load pre-pop-in cue failed; continuing with board entrance:', error);
+        // The Round cue is an essential presentation gate. Fail closed: saved
+        // tiles stay hidden when the cue cannot complete.
+        devLog('❌ Deferred load pre-pop-in cue failed; board entrance remains gated:', error);
+        return;
       }
     }
     if (shouldAbort?.()) return;

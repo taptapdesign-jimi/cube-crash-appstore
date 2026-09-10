@@ -354,10 +354,8 @@ import { restoreTilesFromSave, resumeDeferredTntIdleEffects } from './app-core-l
 import { playLoadPopInAnimation } from './app-core-load-popin.ts';
 import { cleanupMobileSaveLifecycle, installMobileSaveLifecycle } from './app-core-mobile-save-lifecycle.ts';
 import {
-  beginArcadeEntryCue,
   cancelArcadeEntryCueOwner,
   consumeArcadeEntryCue,
-  shouldOverlapArcadeEntryCueWithColdBoot,
 } from './arcade-entry-cue-owner.js';
 import {
   engageArcadeEntrySurfaceGate,
@@ -3550,19 +3548,10 @@ export async function boot(){
     }
   }
 
-  // The global GSAP/runtime cleanup above is the last destructive animation
-  // boundary in boot. Start the one-shot Arcade entry cue now so a cold PIXI
-  // renderer, HUD cache, and board texture warmup happen behind Round 0N
-  // instead of delaying the first visible feedback. The board entrance later
-  // consumes this exact owner and therefore cannot replay or overtake it.
-  const pendingArcadeEntryRound = isArcadeHomeRunMode()
-    ? Math.max(0, Math.trunc(Number((window as any).__ccArcadeContinuationCueRound) || 0))
-    : 0;
-  if (pendingArcadeEntryRound > 0 && shouldOverlapArcadeEntryCueWithColdBoot()) {
-    void beginArcadeEntryCue(pendingArcadeEntryRound).catch((error) => {
-      devWarn('⚠️ Arcade entry cue failed during post-cleanup boot warmup; board entrance will continue safely', error);
-    });
-  }
+  // Never start the Round cue inside cold renderer initialization. A first
+  // native launch can block WebKit's main thread long enough for GSAP to jump
+  // an already-running timeline to its end. The prepared gameplay commit below
+  // consumes the cue only after boot/layout/load have settled.
   
   if (!reuseApp) {
     devLog('🎮 Creating fresh PIXI app');
@@ -3711,7 +3700,7 @@ export async function boot(){
   
   // 🔥 CRITICAL FIX: Ensure canvas is visible and properly styled
   app.canvas.style.display = 'block';
-  if (!reuseApp) {
+  if (!reuseApp && !enforceArcadeEntrySurfaceGate(app.canvas)) {
     app.canvas.style.visibility = 'visible';
     app.canvas.style.opacity = '1';
   }
@@ -5848,21 +5837,30 @@ function rebuildBoard(){
     },
     beforePopIn: arcadeEntryCueRound > 0
       ? async () => {
-          try {
-            await consumeArcadeEntryCue(arcadeEntryCueRound);
-            devLog(`🎮 Fresh Arcade Round ${String(arcadeEntryCueRound).padStart(2, '0')} cue completed before tile entrance`);
-          } finally {
-            if (!gameplayEntrySignal?.aborted && isGameplayEntryGenerationLatest(gameplayEntryGeneration)) {
-              // The 800ms visibility watchdog must start after the intentional
-              // multi-second Round cue. Starting it at board construction used
-              // to force all hidden dice visible through the cue backdrop.
-              scheduleBoardPopInSafetyNet();
-            }
+          emitNativeConsoleDiagnostic('[CC_ARCADE_NN_ENTRY]', 'fresh-board-await-cue', {
+            round: arcadeEntryCueRound,
+            gameplayEntryGeneration,
+          });
+          await consumeArcadeEntryCue(arcadeEntryCueRound);
+          emitNativeConsoleDiagnostic('[CC_ARCADE_NN_ENTRY]', 'fresh-board-cue-complete', {
+            round: arcadeEntryCueRound,
+            gameplayEntryGeneration,
+          });
+          devLog(`🎮 Fresh Arcade Round ${String(arcadeEntryCueRound).padStart(2, '0')} cue completed before tile entrance`);
+          if (!gameplayEntrySignal?.aborted && isGameplayEntryGenerationLatest(gameplayEntryGeneration)) {
+            // The 800ms visibility watchdog must start after the intentional
+            // multi-second Round cue. Starting it at board construction used
+            // to force all hidden dice visible through the cue backdrop.
+            scheduleBoardPopInSafetyNet();
           }
         }
       : undefined,
     onPopInStarted: () => {
       if (gameplayEntrySignal?.aborted || !isGameplayEntryGenerationLatest(gameplayEntryGeneration)) return;
+      emitNativeConsoleDiagnostic('[CC_ARCADE_NN_ENTRY]', 'fresh-board-popin-start', {
+        round: arcadeEntryCueRound,
+        gameplayEntryGeneration,
+      });
       if (arcadeEntryCueRound > 0) releaseArcadeEntrySurfaceGateAfterPreparedFrame(app, stage);
     },
     shouldAbort: () => gameplayEntrySignal?.aborted === true ||
@@ -16356,12 +16354,24 @@ async function loadGameState(overrideBoardNumber?: number) {
       sweetPopIn,
       beforePopIn: arcadeContinuationCueRound > 0
         ? async () => {
+            emitNativeConsoleDiagnostic('[CC_ARCADE_NN_ENTRY]', 'saved-board-await-cue', {
+              round: arcadeContinuationCueRound,
+              gameplayEntryGeneration: loadedEntryGeneration,
+            });
             await consumeArcadeEntryCue(arcadeContinuationCueRound);
+            emitNativeConsoleDiagnostic('[CC_ARCADE_NN_ENTRY]', 'saved-board-cue-complete', {
+              round: arcadeContinuationCueRound,
+              gameplayEntryGeneration: loadedEntryGeneration,
+            });
             devLog(`🎮 Arcade continuation cue completed before Round ${String(arcadeContinuationCueRound).padStart(2, '0')} tile entrance`);
           }
         : undefined,
       onPopInStarted: () => {
         if (loadedEntrySignal?.aborted || !isGameplayEntryGenerationLatest(loadedEntryGeneration)) return;
+        emitNativeConsoleDiagnostic('[CC_ARCADE_NN_ENTRY]', 'saved-board-popin-start', {
+          round: arcadeContinuationCueRound,
+          gameplayEntryGeneration: loadedEntryGeneration,
+        });
         if (arcadeContinuationCueRound > 0) releaseArcadeEntrySurfaceGateAfterPreparedFrame(app, stage);
       },
       shouldAbort: () => loadedEntrySignal?.aborted === true ||

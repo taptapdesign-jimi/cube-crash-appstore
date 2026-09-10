@@ -283,7 +283,7 @@ describe('Kanta special die', () => {
     expect(getKantaBackdropSide(196, 390)).toBe(1);
     expect(KANTA_IDLE_FRAME_SOURCE).toBe('./assets/shop/kanta/04.png');
     expect(KANTA_IDLE_BACK_LEFT_SOURCE).toBe('./assets/shop/kanta/02.png');
-    expect(KANTA_IDLE_BACK_SCALE).toBeCloseTo(0.76, 10);
+    expect(KANTA_IDLE_BACK_SCALE).toBe(1);
     expect(KANTA_IDLE_BACK_TILT_MIN_DEGREES).toBe(3);
     expect(KANTA_IDLE_BACK_TILT_MAX_DEGREES).toBe(7);
     expect(KANTA_IDLE_BACK_HORIZONTAL_OFFSET_RATIO).toBe(0.40);

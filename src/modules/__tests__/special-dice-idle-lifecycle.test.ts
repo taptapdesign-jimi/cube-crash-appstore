@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 
-import { Container, Sprite, Texture } from 'pixi.js';
+import { Assets, Container, Sprite, Texture, TextureSource } from 'pixi.js';
 import animationManager from '../animation-manager';
 import { STATE } from '../app-state';
 import { graphicsPool } from '../object-pool';
@@ -146,6 +146,54 @@ describe('special-dice idle lifecycle', () => {
     expect(base.width).toBeCloseTo(128 * (128 / 171), 6);
     expect(base.height).toBeCloseTo(128, 6);
     stopSpecialDiceIdleMotion(tile);
+  });
+
+  test('Kanta mounts a full-size rear can behind the front and removes it on cleanup', async () => {
+    const loadedSource = new TextureSource({
+      resource: { width: 128, height: 171 } as any,
+      width: 128,
+      height: 171,
+    });
+    const loadedTexture = new Texture({ source: loadedSource });
+    const loadSpy = jest.spyOn(Assets, 'load').mockImplementation(async () => loadedTexture as any);
+    const base = new Sprite(loadedTexture);
+    base.anchor.set(0.5);
+    base.width = 96;
+    base.height = 128;
+    base.zIndex = 12;
+    const rotG = new Container();
+    rotG.sortableChildren = true;
+    rotG.addChild(base);
+    const tile: any = {
+      base,
+      rotG,
+      destroyed: false,
+      _ccSpecialDiceVariant: 'kanta',
+    };
+
+    try {
+      startSpecialDiceIdleMotion(tile);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      // Freeze at the neutral authored pose before measuring the asynchronous
+      // rear texture mount. Both cans use the same registered dimensions.
+      expect(setSpecialDiceIdleDragging(tile, true)).toBe(true);
+      const rear = rotG.getChildByLabel('kanta-idle-back') as Sprite;
+      expect(rear).toBeTruthy();
+      expect(rear.parent).toBe(rotG);
+      expect(rear.width).toBeCloseTo(base.width, 6);
+      expect(rear.height).toBeCloseTo(base.height, 6);
+      expect(rear.zIndex).toBeLessThan(base.zIndex);
+      expect(rotG.getChildIndex(rear)).toBeLessThan(rotG.getChildIndex(base));
+
+      stopSpecialDiceIdleMotion(tile);
+      expect(rotG.getChildByLabel('kanta-idle-back')).toBeNull();
+    } finally {
+      stopSpecialDiceIdleMotion(tile);
+      loadSpy.mockRestore();
+      loadedTexture.destroy(true);
+    }
   });
 
   test('Spaceship hover owns rotG and restores its exact board pose on cleanup', () => {

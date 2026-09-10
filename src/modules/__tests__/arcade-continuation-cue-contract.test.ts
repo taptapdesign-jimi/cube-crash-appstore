@@ -89,20 +89,19 @@ describe('Arcade continuation Round cue contract', () => {
     expect(modalSource).toContain('const resumedStage = Math.max(1, stageNumber | 0);');
   });
 
-  test('boot starts the saved Round cue after destructive cleanup and before cold renderer warmup', () => {
+  test('cold boot and saved-load preparation cannot start or overtake the Round cue', () => {
     const uiSource = fs.readFileSync(path.join(repoRoot, 'src/modules/ui-manager.ts'), 'utf8');
     const coreSource = fs.readFileSync(path.join(repoRoot, 'src/modules/app-core.ts'), 'utf8');
     const boot = coreSource.slice(
       coreSource.indexOf('export async function boot()'),
       coreSource.indexOf('export async function layoutBoard'),
     );
-    const cueStart = boot.indexOf('void beginArcadeEntryCue(pendingArcadeEntryRound)');
     expect(boot).not.toContain('gsap.globalTimeline.clear()');
-    expect(cueStart).toBeGreaterThan(boot.indexOf("killAllGsapTweensCommon(tiles, 'boot-hard-reset')"));
-    expect(cueStart).toBeLessThan(boot.indexOf('await app.init(initOptions)'));
-    expect(boot).toContain('shouldOverlapArcadeEntryCueWithColdBoot()');
-    expect(uiSource).toContain('!shouldOverlapArcadeEntryCueWithColdBoot()');
-    expect(uiSource).toContain('void beginArcadeEntryCue(continuationRound)');
+    expect(boot).not.toContain('beginArcadeEntryCue(');
+    expect(uiSource).not.toContain('beginArcadeEntryCue(');
+    expect(coreSource).toContain('beforePopIn: arcadeEntryCueRound > 0');
+    expect(coreSource).toContain('beforePopIn: arcadeContinuationCueRound > 0');
+    expect(coreSource).toContain('await consumeArcadeEntryCue(arcadeEntryCueRound)');
     expect(coreSource).toContain('await consumeArcadeEntryCue(arcadeContinuationCueRound)');
   });
 

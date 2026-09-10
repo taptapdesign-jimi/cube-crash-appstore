@@ -32,10 +32,8 @@ import { homepageEnterTransitionOwner } from './homepage-enter-transition-owner.
 import { appZoneManager } from './app-zone-manager.js';
 import { emitSettingsRouteDiagnostic } from './settings-route-diagnostic.js';
 import {
-  beginArcadeEntryCue,
   cancelArcadeEntryCueOwner,
   resetArcadeEntryCueOwner,
-  shouldOverlapArcadeEntryCueWithColdBoot,
 } from './arcade-entry-cue-owner.js';
 import { enforceArcadeEntrySurfaceGate } from './arcade-entry-surface-gate.js';
 import {
@@ -845,19 +843,6 @@ class UIManager {
         await bootGame();
         console.log('✅ boot() complete');
 
-        // Desktop browsers can block GSAP while creating a cold WebGL renderer.
-        // Native app:// keeps the earlier safe overlap; web starts only after
-        // boot so the Round cue remains fluid instead of freezing mid-letter.
-        if (
-          continuationRound !== null &&
-          continuationRound > 0 &&
-          !shouldOverlapArcadeEntryCueWithColdBoot()
-        ) {
-          void beginArcadeEntryCue(continuationRound).catch((error) => {
-            logger.warn('⚠️ Web Arcade entry cue failed; board entrance will continue safely:', error);
-          });
-        }
-        
         await layoutGame();
         console.log('✅ layout() complete');
         

@@ -12,7 +12,10 @@ import { isUsablePixiImageTexture, pinPixiImageTexture } from '../utils/pixi-ima
 
 export const KANTA_IDLE_FRAME_SOURCE = './assets/shop/kanta/04.png';
 export const KANTA_IDLE_BACK_LEFT_SOURCE = './assets/shop/kanta/02.png';
-export const KANTA_IDLE_BACK_SCALE = 0.80 * 0.95;
+// Both authored cans share the same 128x171 canvas and must read as one
+// full-size overlapped pair. Shrinking the rear sprite made the front can
+// conceal almost all of it and recreated the detached-miniature silhouette.
+export const KANTA_IDLE_BACK_SCALE = 1;
 export const KANTA_IDLE_BACK_HORIZONTAL_OFFSET_RATIO = 0.40;
 export const KANTA_IDLE_BACK_LOWER_RATIO = -0.10;
 export const KANTA_IDLE_FRONT_OFFSET_X_PX = 8;
