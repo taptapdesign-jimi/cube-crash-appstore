@@ -21,12 +21,19 @@ type ActiveVoice = {
   gain: GainNode;
 };
 
+type PendingVoiceStart = {
+  source: string;
+  options: GameplayAudioPlaybackOptions;
+  token: symbol;
+};
+
 let audioContext: AudioContext | null = null;
 let audioContextUnavailable = false;
 const decodedBuffers = new Map<string, AudioBuffer>();
 const pendingBuffers = new Map<string, Promise<void>>();
 const failedBuffers = new Set<string>();
 const activeVoices = new Map<string, ActiveVoice>();
+const pendingVoiceStarts = new Map<string, PendingVoiceStart>();
 
 function resolveSource(source: string): string {
   if (typeof document === 'undefined') return source;
@@ -54,9 +61,9 @@ function getAudioContext(): AudioContext | null {
   }
 }
 
-function resumeAudioContext(context: AudioContext): void {
-  if (context.state !== 'suspended') return;
-  void context.resume().catch((error) => {
+function resumeAudioContext(context: AudioContext): Promise<void> {
+  if (context.state === 'running' || context.state === 'closed') return Promise.resolve();
+  return context.resume().catch((error) => {
     logger.warn('Failed to resume Web Audio gameplay owner:', error);
   });
 }
@@ -108,6 +115,7 @@ export function getDecodedGameplaySoundsState(
 }
 
 export function stopDecodedGameplayVoice(voiceId: string): void {
+  pendingVoiceStarts.delete(voiceId);
   const voice = activeVoices.get(voiceId);
   if (!voice) return;
   activeVoices.delete(voiceId);
@@ -131,13 +139,26 @@ export function playDecodedGameplaySound(
   const resolvedSource = resolveSource(source);
   if (failedBuffers.has(resolvedSource)) return 'unavailable';
   const buffer = decodedBuffers.get(resolvedSource);
-  if (!buffer) {
+  if (!buffer || context.state !== 'running') {
+    const token = Symbol(options.voiceId);
+    pendingVoiceStarts.set(options.voiceId, { source, options: { ...options }, token });
     preloadSource(context, source);
+    const decodeReady = pendingBuffers.get(resolvedSource) ?? Promise.resolve();
+    void Promise.all([decodeReady, resumeAudioContext(context)]).then(() => {
+      const pendingStart = pendingVoiceStarts.get(options.voiceId);
+      if (!pendingStart || pendingStart.token !== token) return;
+      if (failedBuffers.has(resolvedSource)) {
+        pendingVoiceStarts.delete(options.voiceId);
+        return;
+      }
+      if (context.state !== 'running') return;
+      pendingVoiceStarts.delete(options.voiceId);
+      playDecodedGameplaySound(pendingStart.source, pendingStart.options);
+    });
     return 'pending';
   }
 
   try {
-    resumeAudioContext(context);
     stopDecodedGameplayVoice(options.voiceId);
 
     const sourceNode = context.createBufferSource();
@@ -189,6 +210,7 @@ export function getDecodedGameplayAudioStats() {
     pendingBuffers: pendingBuffers.size,
     failedBuffers: failedBuffers.size,
     activeVoices: activeVoices.size,
+    pendingVoiceStarts: pendingVoiceStarts.size,
   };
 }
 
@@ -197,6 +219,7 @@ export function resetDecodedGameplayAudioForTests(): void {
   decodedBuffers.clear();
   pendingBuffers.clear();
   failedBuffers.clear();
+  pendingVoiceStarts.clear();
   if (audioContext) void audioContext.close().catch(() => {});
   audioContext = null;
   audioContextUnavailable = false;

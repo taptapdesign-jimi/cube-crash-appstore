@@ -111,6 +111,121 @@ describe('menu exit handoff', () => {
     }));
   });
 
+  it('finishes immediately when the authoritative exit already delivered its Homepage', async () => {
+    (document.querySelector('.slider-slide') as HTMLElement).dataset.slide = '0';
+    const homepageRecovery = jest.spyOn(appZoneManager, 'showHomepageShell');
+    (window as any).exitToMenu = jest.fn(async () => {
+      appZoneManager.setZone('home', 'test-ready-home');
+    });
+
+    await requestExitToMenu({
+      reason: 'test-ready-home-no-watchdog',
+      target: 'homepage',
+      homepageSlideIndex: 0,
+      skipBoardExit: true,
+    });
+
+    expect(homepageRecovery).not.toHaveBeenCalled();
+    expect(jest.getTimerCount()).toBe(0);
+    homepageRecovery.mockRestore();
+  });
+
+  it('retires delayed Homepage recovery when Settings acquires a newer presentation', async () => {
+    document.body.innerHTML = `
+      <main id="home" hidden style="display:none;visibility:hidden;opacity:0">
+        <section id="slider-container" hidden style="display:none;visibility:hidden;opacity:0">
+          <article class="slider-slide active" data-slide="0">
+            <div class="hero-container"></div>
+          </article>
+        </section>
+      </main>
+      <section id="settings-screen" style="display:flex;visibility:visible;opacity:1"></section>`;
+    const homepageRecovery = jest.spyOn(appZoneManager, 'showHomepageShell');
+    (window as any).exitToMenu = jest.fn(async () => {
+      appZoneManager.setZone('home', 'test-incomplete-home');
+    });
+
+    const handoff = requestExitToMenu({
+      reason: 'test-settings-successor-route',
+      target: 'homepage',
+      homepageSlideIndex: 0,
+      skipBoardExit: true,
+    });
+    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(1);
+    appZoneManager.setZone('settings', 'test-settings-successor', {
+      preserveHomepageNavigation: true,
+    });
+    await jest.advanceTimersByTimeAsync(320);
+    await handoff;
+
+    expect(appZoneManager.getCurrentZone()).toBe('settings');
+    expect(homepageRecovery).not.toHaveBeenCalled();
+    homepageRecovery.mockRestore();
+  });
+
+  it('preserves a Settings nav slide selected before the authoritative exit resolves', async () => {
+    (document.querySelector('.slider-slide') as HTMLElement).dataset.slide = '0';
+    const homepageRecovery = jest.spyOn(appZoneManager, 'showHomepageShell');
+    let resolveExit!: () => void;
+    (window as any).exitToMenu = jest.fn(() => new Promise<void>((resolve) => {
+      resolveExit = resolve;
+      appZoneManager.setZone('home', 'test-home-before-settings-nav');
+    }));
+
+    const handoff = requestExitToMenu({
+      reason: 'test-settings-nav-before-exit-resolve',
+      target: 'homepage',
+      homepageSlideIndex: 0,
+      skipBoardExit: true,
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // The Settings nav is a Homepage-owned slide until its CTA acquires the
+    // dedicated Settings app zone. This is the real rapid-nav race window.
+    (document.querySelector('.slider-slide') as HTMLElement).dataset.slide = '2';
+    resolveExit();
+    await handoff;
+
+    expect(appZoneManager.getCurrentZone()).toBe('home');
+    expect((document.querySelector('.slider-slide.active') as HTMLElement).dataset.slide).toBe('2');
+    expect(homepageRecovery).not.toHaveBeenCalled();
+    expect(jest.getTimerCount()).toBe(0);
+    homepageRecovery.mockRestore();
+  });
+
+  it('keeps the bounded fallback for a genuinely incomplete unchanged exit', async () => {
+    document.body.innerHTML = `
+      <main id="home" hidden style="display:none;visibility:hidden;opacity:0">
+        <section id="slider-container" hidden style="display:none;visibility:hidden;opacity:0">
+          <article class="slider-slide active" data-slide="0">
+            <div class="hero-container"></div>
+          </article>
+        </section>
+      </main>`;
+    const homepageRecovery = jest.spyOn(appZoneManager, 'showHomepageShell').mockResolvedValue();
+    const homepageEnter = jest.fn(async () => {});
+    (window as any).__ccPlayHomepageSliderEnterHandoff = homepageEnter;
+    (window as any).exitToMenu = jest.fn(async () => {
+      appZoneManager.setZone('fail-screen', 'test-stuck-exit');
+    });
+
+    const handoff = requestExitToMenu({
+      reason: 'test-genuine-incomplete-exit',
+      target: 'homepage',
+      homepageSlideIndex: 0,
+      skipBoardExit: true,
+    });
+    await jest.advanceTimersByTimeAsync(400);
+    await handoff;
+
+    expect(homepageRecovery).toHaveBeenCalledTimes(1);
+    expect(homepageEnter).toHaveBeenCalledTimes(1);
+    homepageRecovery.mockRestore();
+    delete (window as any).__ccPlayHomepageSliderEnterHandoff;
+  });
+
   it('does not accept a visible Journey paper shell without a painted Unit', () => {
     document.body.innerHTML = `
       <section id="journey-screen" style="display:flex;visibility:visible;opacity:1">

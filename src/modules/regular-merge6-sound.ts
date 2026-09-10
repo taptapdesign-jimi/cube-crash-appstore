@@ -161,7 +161,7 @@ export function playRegularMerge6Sound(): boolean {
   if (!areRegularMerge6SoundsEnabled()) return false;
 
   const decodedState = getDecodedGameplaySoundsState(REGULAR_MERGE6_SOUND_SOURCES);
-  if (decodedState === 'ready') {
+  if (decodedState !== 'unavailable') {
     clearCrashTimers();
     stopDecodedGameplayVoices(REGULAR_MERGE6_VOICE_IDS);
     const results = [
@@ -186,11 +186,8 @@ export function playRegularMerge6Sound(): boolean {
         volume: REGULAR_MERGE6_STACK_VOLUME,
       }),
     ];
-    return results.every((result) => result === 'played');
+    return results.every((result) => result !== 'unavailable');
   }
-  // Never fall back to synchronous media-element startup while Web Audio is
-  // still decoding; skipping one early cue is safer than blocking its merge.
-  if (decodedState === 'pending') return false;
 
   const primary = getPrimaryAudio();
   const crash = getCrashAudio();

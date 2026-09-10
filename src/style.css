@@ -5267,10 +5267,14 @@ body:has(:root) .tile.wild-3d-glow {
 }
 
 .settings-privacy-policy-paper {
-  height: min(calc((100vw - 64px) / 0.732), calc(390px / 0.732));
+  height: auto;
   max-height: calc(100dvh - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   padding: 40px;
   overflow: hidden;
+}
+
+.settings-privacy-policy-paper::after {
+  inset: 0 0 -96px;
 }
 
 .settings-privacy-policy-paper .simple-content,
@@ -5280,13 +5284,13 @@ body:has(:root) .tile.wild-3d-glow {
 }
 
 .settings-privacy-policy-paper .simple-content {
-  height: 100%;
+  height: auto;
   margin-top: 0;
 }
 
 .settings-privacy-policy-paper .simple-header,
 .settings-privacy-policy-copy {
-  flex: 1;
+  flex: 0 0 auto;
 }
 
 .settings-privacy-policy-copy {
@@ -5304,63 +5308,19 @@ body:has(:root) .tile.wild-3d-glow {
 
 .settings-privacy-policy-copy p {
   font-family: "Baloo2", system-ui, -apple-system, sans-serif;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 500 !important;
-  line-height: 1.155;
+  line-height: 22.5px;
   text-align: left;
 }
 
-.settings-privacy-policy-scroll-shell {
-  position: relative;
+.settings-privacy-policy-body {
   width: 100%;
-  min-height: 0;
-  margin-top: 8px;
-  flex: 1;
+  margin-top: 12px;
+  overflow: visible;
 }
 
-.settings-privacy-policy-scroll {
-  height: 100%;
-  width: 100%;
-  min-height: 0;
-  padding-right: 8px;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
-  scrollbar-width: none;
-}
-
-.settings-privacy-policy-scroll::-webkit-scrollbar {
-  display: none;
-}
-
-.settings-privacy-policy-scroll-track {
-  position: absolute;
-  top: 50%;
-  right: -24px;
-  height: 62.5%;
-  width: 4px;
-  overflow: hidden;
-  border-radius: 2px;
-  background: #eadfd6;
-  transform: translateY(-50%);
-  pointer-events: none;
-}
-
-.settings-privacy-policy-scroll-thumb {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 4px;
-  min-height: 14px;
-  border-radius: 2px;
-  background: #e7744a;
-  transform: translate3d(0, 0, 0);
-  will-change: transform;
-}
-
-.settings-privacy-policy-scroll p + p {
+.settings-privacy-policy-body p + p {
   margin-top: 8px;
 }
 
@@ -5382,13 +5342,15 @@ body:has(:root) .tile.wild-3d-glow {
 
 .settings-privacy-policy-copy .settings-privacy-policy-updated {
   margin-top: 8px;
-  font-size: 15px;
+  font-size: 16px;
   opacity: 0.72;
 }
 
 @media (max-height: 700px) {
   .settings-privacy-policy-paper {
-    height: min(calc((100vw - 82px) / 0.732), calc(330px / 0.732));
+    height: auto;
+    max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    padding: 32px 36px;
   }
 }
 

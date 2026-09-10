@@ -41,13 +41,12 @@ export function playWildSpecialLandingSound(): boolean {
   if (!areWildSpecialLandingSoundsEnabled()) return false;
 
   const decodedState = getDecodedGameplaySoundsState([WILD_SPECIAL_LANDING_SOUND_SOURCE]);
-  if (decodedState === 'ready') {
+  if (decodedState !== 'unavailable') {
     return playDecodedGameplaySound(WILD_SPECIAL_LANDING_SOUND_SOURCE, {
       voiceId: WILD_SPECIAL_LANDING_VOICE_ID,
       volume: WILD_SPECIAL_LANDING_SOUND_VOLUME,
-    }) === 'played';
+    }) !== 'unavailable';
   }
-  if (decodedState === 'pending') return false;
 
   const audio = getAudio();
   if (!audio) return false;

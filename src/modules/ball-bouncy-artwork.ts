@@ -1,10 +1,8 @@
 import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
 import {
   acquireAnimatedSpecialArtworkLayer,
-  doesAnimatedSpecialArtworkOverlapGameplayDrag,
-  installAnimatedSpecialArtworkOverlapFootprint,
   setAnimatedSpecialArtworkDragging,
-  setAnimatedSpecialArtworkOccluded,
+  setAnimatedSpecialArtworkPinnedForeground,
   type AnimatedSpecialArtworkFrame,
   type AnimatedSpecialArtworkLayerLease,
 } from './animated-special-artwork-layer.ts';
@@ -252,11 +250,8 @@ function syncController(controller: BallBouncyController, frame: AnimatedSpecial
     return;
   }
 
-  const occludedByGameplayDrag = frame.gameplayDragActive
-    && !controller.dragging
-    && doesAnimatedSpecialArtworkOverlapGameplayDrag(wrapper, frame.gameplayDragBounds);
   if (!controller.dragging) {
-    setAnimatedSpecialArtworkOccluded(wrapper, occludedByGameplayDrag);
+    setAnimatedSpecialArtworkPinnedForeground(wrapper, true);
   }
 
   if (controller.dragging) {
@@ -337,13 +332,6 @@ function createController(
     transformOrigin: '0 0',
     visibility: 'hidden',
     willChange: 'transform',
-  });
-
-  installAnimatedSpecialArtworkOverlapFootprint(wrapper, {
-    left: (BALL_BOUNCY_REST_ART.centerX - BALL_BOUNCY_REST_ART.size / 2) * DISPLAY_SCALE,
-    top: (BALL_BOUNCY_REST_ART.centerY - BALL_BOUNCY_REST_ART.size / 2) * DISPLAY_SCALE,
-    width: BALL_BOUNCY_DISPLAY_SIZE,
-    height: BALL_BOUNCY_DISPLAY_SIZE,
   });
 
   const image = new Image();
@@ -442,7 +430,11 @@ export function setBallBouncyArtworkDragging(tile: any, dragging: boolean): bool
   const controller = controllers.get(tile) || tile?._ccBallBouncyArtwork;
   if (!controller || controller.disposed || !isBeachBallBouncyTile(tile)) return false;
   controller.dragging = dragging;
-  setAnimatedSpecialArtworkDragging(controller.wrapper, dragging);
+  if (dragging) {
+    setAnimatedSpecialArtworkDragging(controller.wrapper, true);
+  } else {
+    setAnimatedSpecialArtworkPinnedForeground(controller.wrapper, true);
+  }
   controller.wrapper.style.zIndex = String(
     dragging ? BALL_BOUNCY_DRAG_Z_INDEX : (Number.isFinite(tile.zIndex) ? Math.round(tile.zIndex) : 0),
   );

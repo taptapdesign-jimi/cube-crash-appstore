@@ -14,7 +14,8 @@ export const ARCADE_CRATE_SOUND_SOURCES = [
   './assets/sound/crate and backpack animaitons/crate/crate 4.wav',
 ] as const;
 export const ARCADE_CRATE_SOUND_DELAYS_MS = [0, 300, 600, 800] as const;
-export const ARCADE_CRATE_SOUND_BASE_VOLUMES = [0.448, 0.336, 0.224, 0.392] as const;
+export const ARCADE_CRATE_SOUND_PLAYBACK_RATE = 1.4;
+export const ARCADE_CRATE_SOUND_BASE_VOLUMES = [0.4256, 0.3192, 0.2128, 0.3724] as const;
 export const ARCADE_CRATE_SOUND_VOLUMES = ARCADE_CRATE_SOUND_BASE_VOLUMES.map(
   applySoundEffectsMasterGain,
 );
@@ -52,8 +53,8 @@ function playFallbackLayer(audio: HTMLAudioElement, index: number): void {
   if (!areArcadeCrateSoundsEnabled()) return;
   try {
     audio.pause();
-    audio.defaultPlaybackRate = 1;
-    audio.playbackRate = 1;
+    audio.defaultPlaybackRate = ARCADE_CRATE_SOUND_PLAYBACK_RATE;
+    audio.playbackRate = ARCADE_CRATE_SOUND_PLAYBACK_RATE;
     audio.volume = ARCADE_CRATE_SOUND_VOLUMES[index];
     audio.currentTime = 0;
     audio.play()?.catch((error) => {
@@ -69,17 +70,16 @@ export function playArcadeCrateSounds(): boolean {
   stopArcadeCrateSounds();
 
   const decodedState = getDecodedGameplaySoundsState(ARCADE_CRATE_SOUND_SOURCES);
-  if (decodedState === 'ready') {
+  if (decodedState !== 'unavailable') {
     return ARCADE_CRATE_SOUND_SOURCES.every((source, index) => (
       playDecodedGameplaySound(source, {
         voiceId: ARCADE_CRATE_VOICE_IDS[index],
         volume: ARCADE_CRATE_SOUND_VOLUMES[index],
-        playbackRate: 1,
+        playbackRate: ARCADE_CRATE_SOUND_PLAYBACK_RATE,
         startDelaySeconds: ARCADE_CRATE_SOUND_DELAYS_MS[index] / 1000,
-      }) === 'played'
+      }) !== 'unavailable'
     ));
   }
-  if (decodedState === 'pending') return false;
 
   const audioLayers = getOwnedAudio();
   if (!audioLayers) return false;

@@ -33,6 +33,7 @@ const frameOwners = new Set<FrameOwner>();
 let overlayRoot: HTMLDivElement | null = null;
 let occludedOverlayRoot: HTMLDivElement | null = null;
 let dragOverlayRoot: HTMLDivElement | null = null;
+let pinnedForegroundOverlayRoot: HTMLDivElement | null = null;
 let ticker: Ticker | null = null;
 let finaleDepthOwners = 0;
 let lastDragDepthDiagnostic = '';
@@ -81,6 +82,16 @@ function syncOverlayZIndex(
       : String(finaleDepthOwners > 0
         ? Math.max(0, canvasZIndex - 1)
         : Math.max(11, canvasZIndex + 1));
+  }
+  if (pinnedForegroundOverlayRoot) {
+    // Beach Ball's authored hop intentionally crosses neighboring cells. Its
+    // idle artwork must remain above Pixi ghosts/dice and above a dragged SVG,
+    // while merge-6 finales keep their existing whole-canvas foreground.
+    pinnedForegroundOverlayRoot.style.zIndex = finaleDepthOwners > 0 && !gameplayDragActive
+      ? String(Math.max(0, canvasZIndex - 1))
+      : String(gameplayDragActive
+        ? Math.max(12_002, canvasZIndex + 2)
+        : Math.max(12, canvasZIndex + 2));
   }
   try {
     if ((window as any).__ccDragDepthDiagnostics === true) {
@@ -175,6 +186,28 @@ function ensureDragOverlayRoot(): HTMLDivElement | null {
   return dragOverlayRoot;
 }
 
+function ensurePinnedForegroundOverlayRoot(): HTMLDivElement | null {
+  const root = ensureOverlayRoot();
+  const parent = root?.parentElement;
+  if (!root || !parent) return null;
+  if (!pinnedForegroundOverlayRoot) {
+    pinnedForegroundOverlayRoot = document.createElement('div');
+    pinnedForegroundOverlayRoot.className = 'animated-special-artwork-pinned-foreground-layer';
+    pinnedForegroundOverlayRoot.setAttribute('aria-hidden', 'true');
+    Object.assign(pinnedForegroundOverlayRoot.style, {
+      position: 'absolute',
+      inset: '0',
+      overflow: 'visible',
+      pointerEvents: 'none',
+      zIndex: '12',
+    });
+  }
+  if (pinnedForegroundOverlayRoot.parentElement !== parent) parent.appendChild(pinnedForegroundOverlayRoot);
+  const canvas = STATE.app?.canvas as HTMLCanvasElement | null | undefined;
+  if (canvas) syncOverlayZIndex(root, canvas);
+  return pinnedForegroundOverlayRoot;
+}
+
 function detachTicker(): void {
   if (!ticker) return;
   try { ticker.remove(updateAnimatedSpecialArtworkLayer); } catch {}
@@ -207,6 +240,10 @@ function releaseRuntimeWhenUnused(): void {
     try { dragOverlayRoot.remove(); } catch {}
     dragOverlayRoot = null;
   }
+  if (pinnedForegroundOverlayRoot) {
+    try { pinnedForegroundOverlayRoot.remove(); } catch {}
+    pinnedForegroundOverlayRoot = null;
+  }
   lastDragDepthDiagnostic = '';
 }
 
@@ -218,6 +255,7 @@ function updateAnimatedSpecialArtworkLayer(): void {
     if (root) root.style.visibility = 'hidden';
     if (occludedOverlayRoot) occludedOverlayRoot.style.visibility = 'hidden';
     if (dragOverlayRoot) dragOverlayRoot.style.visibility = 'hidden';
+    if (pinnedForegroundOverlayRoot) pinnedForegroundOverlayRoot.style.visibility = 'hidden';
     return;
   }
 
@@ -232,11 +270,13 @@ function updateAnimatedSpecialArtworkLayer(): void {
     root.style.visibility = 'hidden';
     if (occludedOverlayRoot) occludedOverlayRoot.style.visibility = 'hidden';
     if (dragOverlayRoot) dragOverlayRoot.style.visibility = 'hidden';
+    if (pinnedForegroundOverlayRoot) pinnedForegroundOverlayRoot.style.visibility = 'hidden';
     return;
   }
   root.style.visibility = 'visible';
   if (occludedOverlayRoot) occludedOverlayRoot.style.visibility = 'visible';
   if (dragOverlayRoot) dragOverlayRoot.style.visibility = 'visible';
+  if (pinnedForegroundOverlayRoot) pinnedForegroundOverlayRoot.style.visibility = 'visible';
 
   const canvasRect = canvas.getBoundingClientRect();
   const rootRect = root.getBoundingClientRect();
@@ -338,6 +378,20 @@ export function setAnimatedSpecialArtworkOccluded(
 ): void {
   if (!wrapper) return;
   const destination = occluded ? ensureOccludedOverlayRoot() : ensureOverlayRoot();
+  if (destination && wrapper.parentElement !== destination) destination.appendChild(wrapper);
+}
+
+/**
+ * Pins an authored idle SVG above every gameplay die/ghost and active SVG drag.
+ * This is intentionally separate from the pointer-owned drag portal so the
+ * artwork can keep its idle playhead without claiming gameplay input.
+ */
+export function setAnimatedSpecialArtworkPinnedForeground(
+  wrapper: HTMLDivElement,
+  pinned: boolean,
+): void {
+  if (!wrapper) return;
+  const destination = pinned ? ensurePinnedForegroundOverlayRoot() : ensureOverlayRoot();
   if (destination && wrapper.parentElement !== destination) destination.appendChild(wrapper);
 }
 

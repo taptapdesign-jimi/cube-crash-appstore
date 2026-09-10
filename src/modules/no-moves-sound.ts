@@ -38,13 +38,12 @@ export function playNoMovesSound(): boolean {
   if (!areNoMovesSoundsEnabled()) return false;
 
   const decodedState = getDecodedGameplaySoundsState([NO_MOVES_SOUND_SOURCE]);
-  if (decodedState === 'ready') {
+  if (decodedState !== 'unavailable') {
     return playDecodedGameplaySound(NO_MOVES_SOUND_SOURCE, {
       voiceId: NO_MOVES_SOUND_VOICE_ID,
       volume: NO_MOVES_SOUND_VOLUME,
-    }) === 'played';
+    }) !== 'unavailable';
   }
-  if (decodedState === 'pending') return false;
 
   const audio = getAudio();
   if (!audio) return false;

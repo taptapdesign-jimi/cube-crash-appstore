@@ -45,8 +45,8 @@ describe('Journey backpack sound sequence', () => {
   it('preserves both supplied WAVs, volumes, and the requested 200ms spacing', () => {
     expect(JOURNEY_BACKPACK_SOUND_DELAYS_MS).toEqual([0, 200]);
     expect(JOURNEY_BACKPACK_SOUND_PLAYBACK_RATES).toEqual([1.4, 2.1]);
-    expect(JOURNEY_BACKPACK_SOUND_BASE_VOLUMES).toEqual([0.8, 0.25]);
-    expect(JOURNEY_BACKPACK_SOUND_VOLUMES).toEqual([0.48, 0.15]);
+    expect(JOURNEY_BACKPACK_SOUND_BASE_VOLUMES).toEqual([0.96, 0.3]);
+    expect(JOURNEY_BACKPACK_SOUND_VOLUMES).toEqual([0.576, 0.18]);
     const hashes = [
       'f9fb0e93766326bd5705393c78f071da8af6fff468bf55e785875ace2f06f9a0',
       '50b246f10e535fd854c9637e2efd7d3969db833d048fcb1c021b58a47071b8dd',
@@ -65,7 +65,7 @@ describe('Journey backpack sound sequence', () => {
     expect(MockAudio.instances[1].play).not.toHaveBeenCalled();
     jest.advanceTimersByTime(1);
     expect(MockAudio.instances.map((audio) => audio.play.mock.calls.length)).toEqual([1, 1]);
-    expect(MockAudio.instances.map((audio) => audio.volume)).toEqual([0.48, 0.15]);
+    expect(MockAudio.instances.map((audio) => audio.volume)).toEqual([0.576, 0.18]);
     expect(MockAudio.instances.map((audio) => audio.playbackRate)).toEqual([1.4, 2.1]);
   });
 

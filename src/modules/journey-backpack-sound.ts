@@ -13,7 +13,7 @@ export const JOURNEY_BACKPACK_SOUND_SOURCES = [
 ] as const;
 export const JOURNEY_BACKPACK_SOUND_DELAYS_MS = [0, 200] as const;
 export const JOURNEY_BACKPACK_SOUND_PLAYBACK_RATES = [1.4, 2.1] as const;
-export const JOURNEY_BACKPACK_SOUND_BASE_VOLUMES = [0.8, 0.25] as const;
+export const JOURNEY_BACKPACK_SOUND_BASE_VOLUMES = [0.96, 0.3] as const;
 export const JOURNEY_BACKPACK_SOUND_VOLUMES = JOURNEY_BACKPACK_SOUND_BASE_VOLUMES.map(
   applySoundEffectsMasterGain,
 );
@@ -65,17 +65,16 @@ export function playJourneyBackpackSounds(): boolean {
   if (!areJourneyBackpackSoundsEnabled()) return false;
   stopJourneyBackpackSounds();
   const decodedState = getDecodedGameplaySoundsState(JOURNEY_BACKPACK_SOUND_SOURCES);
-  if (decodedState === 'ready') {
+  if (decodedState !== 'unavailable') {
     return JOURNEY_BACKPACK_SOUND_SOURCES.every((source, index) => (
       playDecodedGameplaySound(source, {
         voiceId: JOURNEY_BACKPACK_VOICE_IDS[index],
         volume: JOURNEY_BACKPACK_SOUND_VOLUMES[index],
         playbackRate: JOURNEY_BACKPACK_SOUND_PLAYBACK_RATES[index],
         startDelaySeconds: JOURNEY_BACKPACK_SOUND_DELAYS_MS[index] / 1000,
-      }) === 'played'
+      }) !== 'unavailable'
     ));
   }
-  if (decodedState === 'pending') return false;
   const audioLayers = getOwnedAudio();
   if (!audioLayers) return false;
   audioLayers.forEach((audio, index) => {

@@ -55,7 +55,7 @@ export function preloadOrdinaryStackSound(): boolean {
 export function playOrdinaryStackSound(): boolean {
   if (!areOrdinaryStackSoundsEnabled()) return false;
   const decodedState = getDecodedGameplaySoundsState(ORDINARY_STACK_SOUND_SOURCES);
-  if (decodedState === 'ready') {
+  if (decodedState !== 'unavailable') {
     const wood = playDecodedGameplaySound(ORDINARY_STACK_SOUND_SOURCE, {
       voiceId: ORDINARY_STACK_VOICE_IDS[0],
       volume: ORDINARY_STACK_SOUND_VOLUME,
@@ -66,9 +66,8 @@ export function playOrdinaryStackSound(): boolean {
       volume: ORDINARY_STACK_SECONDARY_VOLUME,
       playbackRate: ORDINARY_STACK_SECONDARY_PLAYBACK_RATE,
     });
-    return wood === 'played' && original === 'played';
+    return wood !== 'unavailable' && original !== 'unavailable';
   }
-  if (decodedState === 'pending') return false;
   const audioLayers = getAudio();
   if (!audioLayers) return false;
 

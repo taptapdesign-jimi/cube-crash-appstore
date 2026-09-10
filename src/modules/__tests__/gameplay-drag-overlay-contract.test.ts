@@ -51,15 +51,14 @@ describe('gameplay drag overlay contract', () => {
   });
 
   test('portals every direct SVG wrapper through the same drag foreground owner', () => {
-    const artworkFiles = [
+    const overlapOcclusionFiles = [
       'juice-bounce-artwork.ts',
-      'ball-bouncy-artwork.ts',
       'wild-star-bouncy-artwork.ts',
       'robo-bouncy-artwork.ts',
       'mushroom-bouncy-artwork.ts',
       'flower-bouncy-artwork.ts',
     ];
-    for (const filename of artworkFiles) {
+    for (const filename of overlapOcclusionFiles) {
       const source = fs.readFileSync(path.join(root, 'src/modules', filename), 'utf8');
       expect(source).toContain('setAnimatedSpecialArtworkDragging(controller.wrapper, dragging);');
       expect(source).toContain('setAnimatedSpecialArtworkOccluded(wrapper, occludedByGameplayDrag);');
@@ -67,6 +66,12 @@ describe('gameplay drag overlay contract', () => {
       expect(source).toContain('doesAnimatedSpecialArtworkOverlapGameplayDrag');
       expect(source).toContain('installAnimatedSpecialArtworkOverlapFootprint(wrapper, {');
     }
+    const ballSource = fs.readFileSync(path.join(root, 'src/modules/ball-bouncy-artwork.ts'), 'utf8');
+    expect(ballSource).toContain('setAnimatedSpecialArtworkDragging(controller.wrapper, true);');
+    expect(ballSource).toContain('setAnimatedSpecialArtworkPinnedForeground(wrapper, true);');
+    expect(ballSource).not.toContain('setAnimatedSpecialArtworkOccluded');
+    expect(ballSource).not.toContain('installAnimatedSpecialArtworkOverlapFootprint');
+    expect(artworkLayerSource).toContain("pinnedForegroundOverlayRoot.className = 'animated-special-artwork-pinned-foreground-layer';");
     expect(artworkLayerSource).toContain('gameplayDragActive: isGameplayDragActive()');
     expect(artworkLayerSource).toContain('if (frameOwners.size > 0) updateAnimatedSpecialArtworkLayer();');
   });

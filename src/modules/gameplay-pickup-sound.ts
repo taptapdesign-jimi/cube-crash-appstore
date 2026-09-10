@@ -88,15 +88,14 @@ export function preloadGameplayPickupSound(): boolean {
 export function playGameplayPickupSound(): boolean {
   if (!areGameplayPickupSoundsEnabled()) return false;
   const decodedState = getDecodedGameplaySoundsState(GAMEPLAY_WOOSH_SOURCES);
-  if (decodedState === 'ready') {
+  if (decodedState !== 'unavailable') {
     return playDecodedGameplaySound(GAMEPLAY_PICKUP_SOUND_SOURCE, {
       voiceId: GAMEPLAY_WOOSH_VOICE_IDS[0],
       playbackRate: GAMEPLAY_PICKUP_SOUND_PLAYBACK_RATE,
       volume: GAMEPLAY_PICKUP_SOUND_VOLUME,
       startOffsetSeconds: GAMEPLAY_PICKUP_SOUND_START_OFFSET_SECONDS,
-    }) === 'played';
+    }) !== 'unavailable';
   }
-  if (decodedState === 'pending') return false;
   return startAudio(
     getPickupAudio(),
     GAMEPLAY_PICKUP_SOUND_PLAYBACK_RATE,
@@ -109,15 +108,14 @@ export function playGameplayPickupSound(): boolean {
 export function playGameplayReturnSound(): boolean {
   if (!areGameplayPickupSoundsEnabled()) return false;
   const decodedState = getDecodedGameplaySoundsState(GAMEPLAY_WOOSH_SOURCES);
-  if (decodedState === 'ready') {
+  if (decodedState !== 'unavailable') {
     return playDecodedGameplaySound(GAMEPLAY_RETURN_SOUND_SOURCE, {
       voiceId: GAMEPLAY_WOOSH_VOICE_IDS[1],
       playbackRate: GAMEPLAY_RETURN_SOUND_PLAYBACK_RATE,
       volume: GAMEPLAY_RETURN_SOUND_VOLUME,
       startOffsetSeconds: GAMEPLAY_RETURN_SOUND_START_OFFSET_SECONDS,
-    }) === 'played';
+    }) !== 'unavailable';
   }
-  if (decodedState === 'pending') return false;
   return startAudio(
     getReturnAudio(),
     GAMEPLAY_RETURN_SOUND_PLAYBACK_RATE,

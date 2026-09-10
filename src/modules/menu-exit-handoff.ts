@@ -7,6 +7,7 @@ import {
   waitForJourneyReturnPresentation,
 } from './journey-return-presentation.js';
 import { isNoMovesNavigationLocked } from './terminal-navigation-lock.ts';
+import { emitSettingsRouteDiagnostic } from './settings-route-diagnostic.js';
 
 type MenuExitTarget = 'homepage' | 'auto';
 type ExpectedMenuDestination = {
@@ -61,6 +62,16 @@ function isHomepageMenuReady(targetSlideIndex = 0): boolean {
     && !isVisible(document.getElementById('collectibles-detail-modal') as HTMLElement | null);
 }
 
+function isAnyHomepageSlideReady(): boolean {
+  const activeSlide = document.querySelector('.slider-slide.active') as HTMLElement | null;
+  const activeSlideIndex = Number(activeSlide?.dataset.slide);
+  return Number.isInteger(activeSlideIndex) && isHomepageMenuReady(activeSlideIndex);
+}
+
+function isMenuZone(zone: string): boolean {
+  return zone === 'home' || zone === 'journey' || zone === 'settings';
+}
+
 function readRecoveryBoardId(): number | null {
   const value = Number(
     (window as any).__ccDetailModalBoardId
@@ -104,6 +115,10 @@ async function forceHomepageVisible(
   targetSlideIndex: 0 | 1 = 0,
   onHomepageEnterPrepared?: () => void,
 ): Promise<void> {
+  emitSettingsRouteDiagnostic('force-homepage-start', {
+    reason,
+    targetSlideIndex,
+  });
   try {
     const { appZoneManager } = await import('./app-zone-manager.js');
     appZoneManager.markHomeMenu(`menu-exit-handoff:${reason}`);
@@ -126,6 +141,10 @@ async function forceHomepageVisible(
     const uiManager = uiManagerModule.default;
     await wait(80);
     uiManager?.hideApp?.();
+    emitSettingsRouteDiagnostic('force-homepage-complete', {
+      reason,
+      targetSlideIndex,
+    });
   } catch (error) {
     console.warn('⚠️ menu-exit-handoff: forceHomepageVisible failed', { reason, error });
     const appEl = document.getElementById('app');
@@ -201,11 +220,85 @@ export async function ensureMenuVisibleAfterExit(
   expectedDestination?: ExpectedMenuDestination,
 ): Promise<void> {
   const expected = expectedDestination ?? await resolveExpectedDestination(options);
+  const targetSlideIndex = options.homepageSlideIndex ?? 0;
+  const readyBeforeWait = isExpectedDestinationReady(expected, targetSlideIndex);
+  if (readyBeforeWait) {
+    emitSettingsRouteDiagnostic('post-exit-ready-immediate', {
+      reason: options.reason,
+      expectedTarget: expected.target,
+      targetSlideIndex,
+    });
+    return;
+  }
+
+  const { appZoneManager } = await import('./app-zone-manager.js');
+  const recoveryEpoch = appZoneManager.getPresentationEpoch();
+  const recoveryZone = appZoneManager.getCurrentZone();
+  const expectedZone = expected.target === 'home' ? 'home' : 'journey';
+
+  // A completed exit may be followed immediately by a legitimate menu route.
+  // That successor owns presentation even when it no longer matches the exit's
+  // original destination, so the old recovery must not reclaim Homepage.
+  if (
+    (isMenuZone(recoveryZone) && recoveryZone !== expectedZone)
+    || (expected.target === 'home' && recoveryZone === 'home' && isAnyHomepageSlideReady())
+  ) {
+    emitSettingsRouteDiagnostic('post-exit-check-retired-before-wait', {
+      reason: options.reason,
+      expectedTarget: expected.target,
+      targetSlideIndex,
+      recoveryEpoch,
+      recoveryZone,
+    });
+    return;
+  }
+
+  emitSettingsRouteDiagnostic('post-exit-check-armed', {
+    reason: options.reason,
+    expectedTarget: expected.target,
+    targetSlideIndex,
+    readyBeforeWait,
+    recoveryEpoch,
+    recoveryZone,
+  });
   await wait(320);
+
+  if (!appZoneManager.isPresentationCurrent(recoveryEpoch, recoveryZone)) {
+    emitSettingsRouteDiagnostic('post-exit-check-retired-after-wait', {
+      reason: options.reason,
+      expectedTarget: expected.target,
+      targetSlideIndex,
+      recoveryEpoch,
+      recoveryZone,
+      currentEpoch: appZoneManager.getPresentationEpoch(),
+      currentZone: appZoneManager.getCurrentZone(),
+    });
+    return;
+  }
+
+  const readyAfterWait = isExpectedDestinationReady(expected, targetSlideIndex);
+  const newerHomepageSlideReady = expected.target === 'home'
+    && recoveryZone === 'home'
+    && isAnyHomepageSlideReady();
+  emitSettingsRouteDiagnostic('post-exit-check-fired', {
+    reason: options.reason,
+    expectedTarget: expected.target,
+    targetSlideIndex,
+    readyBeforeWait,
+    readyAfterWait,
+    newerHomepageSlideReady,
+    recoveryEpoch,
+    recoveryZone,
+  });
+  if (newerHomepageSlideReady) return;
   if (expected.target === 'home') {
-    const targetSlideIndex = options.homepageSlideIndex ?? 0;
-    if (isExpectedDestinationReady(expected, targetSlideIndex)) return;
+    if (readyAfterWait) return;
     console.warn('⚠️ menu-exit-handoff: homepage shell incomplete after exit, applying fallback', options);
+    emitSettingsRouteDiagnostic('homepage-fallback-start', {
+      reason: options.reason,
+      expectedTarget: expected.target,
+      targetSlideIndex,
+    });
     (window as any).exitingToMenu = false;
     await forceHomepageVisible(options.reason, targetSlideIndex, options.onHomepageEnterPrepared);
     return;
@@ -230,6 +323,12 @@ export async function requestExitToMenu(options: MenuExitOptions): Promise<void>
   const timeoutMs = options.timeoutMs ?? (options.skipBoardExit ? 2500 : 4500);
   const requestedDestination = await resolveExpectedDestination(options);
   let expectedDestination = requestedDestination;
+  emitSettingsRouteDiagnostic('request-exit-start', {
+    reason: options.reason,
+    requestedTarget: options.target ?? 'auto',
+    expectedTarget: requestedDestination.target,
+    targetSlideIndex: options.homepageSlideIndex ?? 0,
+  });
 
   if ((window as any).exitingToMenu === true) {
     expectedDestination = activeExpectedDestination ?? requestedDestination;
@@ -265,6 +364,12 @@ export async function requestExitToMenu(options: MenuExitOptions): Promise<void>
         });
       }, timeoutMs);
       await exitPromise;
+      emitSettingsRouteDiagnostic('authoritative-exit-resolved', {
+        reason: options.reason,
+        expectedTarget: expectedDestination.target,
+        targetSlideIndex: options.homepageSlideIndex ?? 0,
+        elapsedMs: Date.now() - startedAt,
+      });
     } catch (error) {
       console.warn('⚠️ menu-exit-handoff: exitToMenu failed', { reason: options.reason, error });
     } finally {

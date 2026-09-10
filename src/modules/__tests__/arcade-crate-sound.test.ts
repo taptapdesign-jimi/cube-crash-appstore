@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import {
   ARCADE_CRATE_SOUND_BASE_VOLUMES,
   ARCADE_CRATE_SOUND_DELAYS_MS,
+  ARCADE_CRATE_SOUND_PLAYBACK_RATE,
   ARCADE_CRATE_SOUND_SOURCES,
   ARCADE_CRATE_SOUND_VOLUMES,
   playArcadeCrateSounds,
@@ -48,8 +49,9 @@ describe('Arcade crate sound sequence', () => {
 
   it('preserves all four supplied WAVs and the requested 0/300/600/800ms order', () => {
     expect(ARCADE_CRATE_SOUND_DELAYS_MS).toEqual([0, 300, 600, 800]);
-    expect(ARCADE_CRATE_SOUND_BASE_VOLUMES).toEqual([0.448, 0.336, 0.224, 0.392]);
-    expect(ARCADE_CRATE_SOUND_VOLUMES).toEqual([0.2688, 0.2016, 0.1344, 0.2352]);
+    expect(ARCADE_CRATE_SOUND_PLAYBACK_RATE).toBe(1.4);
+    expect(ARCADE_CRATE_SOUND_BASE_VOLUMES).toEqual([0.4256, 0.3192, 0.2128, 0.3724]);
+    expect(ARCADE_CRATE_SOUND_VOLUMES).toEqual([0.25536, 0.19152, 0.12768, 0.22344]);
     const expectedHashes = [
       'b41e49bac458088ce959317ba39c9c82f2d7255d5dcdf61c569271ce90b9f632',
       '2d2caa9dc055d3cba7e04c1fe1e1f915fa0dcc5f3470dcf92c9717ad434da7cd',
@@ -73,7 +75,8 @@ describe('Arcade crate sound sequence', () => {
     expect(MockAudio.instances.map((audio) => audio.play.mock.calls.length)).toEqual([1, 1, 1, 0]);
     jest.advanceTimersByTime(200);
     expect(MockAudio.instances.map((audio) => audio.play.mock.calls.length)).toEqual([1, 1, 1, 1]);
-    expect(MockAudio.instances.map((audio) => audio.volume)).toEqual([0.2688, 0.2016, 0.1344, 0.2352]);
+    expect(MockAudio.instances.map((audio) => audio.volume)).toEqual([0.25536, 0.19152, 0.12768, 0.22344]);
+    expect(MockAudio.instances.map((audio) => audio.playbackRate)).toEqual([1.4, 1.4, 1.4, 1.4]);
   });
 
   it('is Arcade-crate-only and cleanup cancels every delayed layer', () => {

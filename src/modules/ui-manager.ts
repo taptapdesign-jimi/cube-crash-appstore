@@ -30,6 +30,7 @@ import { clearArcadeSaveState, getArcadeSavedRound, hasArcadeSavedState } from '
 import { applyAppPaperBackground } from '../utils/app-paper-background.js';
 import { homepageEnterTransitionOwner } from './homepage-enter-transition-owner.js';
 import { appZoneManager } from './app-zone-manager.js';
+import { emitSettingsRouteDiagnostic } from './settings-route-diagnostic.js';
 import {
   beginArcadeEntryCue,
   cancelArcadeEntryCueOwner,
@@ -2011,6 +2012,13 @@ class UIManager {
   // Show settings screen
   private showSettingsScreenWithAnimation(): void {
     this.cancelSettingsEnterTimeouts();
+    emitSettingsRouteDiagnostic('settings-enter-start', {
+      presentationEpoch: appZoneManager.getPresentationEpoch(),
+      homepageEnterActive: homepageEnterTransitionOwner.isActive(),
+      sliderEnterActive: sliderState.isAnimatingEnter,
+      sliderCurrentSlide: sliderManager.getCurrentSlide(),
+      gameStateSlide: gameState.get('currentSlide'),
+    });
     // Settings can be tapped immediately after Arcade returns to Homepage.
     // Revoke that still-running enter before Settings starts its own exit;
     // otherwise both owners animate the same hero/nav tree and the stale
@@ -2047,6 +2055,14 @@ class UIManager {
     // active classes before the Settings slide exits. A class-only switch can
     // be overwritten by a queued SliderManager update from the Arcade return.
     sliderManager.syncHiddenSlideState(SETTINGS_SLIDE_INDEX);
+    emitSettingsRouteDiagnostic('settings-enter-claimed', {
+      presentationEpoch: appZoneManager.getPresentationEpoch(),
+      homepageEnterActive: homepageEnterTransitionOwner.isActive(),
+      sliderEnterActive: sliderState.isAnimatingEnter,
+      sliderCurrentSlide: sliderManager.getCurrentSlide(),
+      gameStateSlide: gameState.get('currentSlide'),
+      settingsSlideIndex: SETTINGS_SLIDE_INDEX,
+    });
     
     console.log('🎨 [Settings ENTER] Preserving shared paper surface - GSAP:', !!gsap, 'App:', !!appElement);
     
@@ -2082,6 +2098,11 @@ class UIManager {
     // 🔥 OPTIMIZATION: Show Settings screen immediately after exit animation, don't wait for fade
     // Fade animation can happen in parallel - no need to block Settings screen display
     void homepageExitPromise.then(() => {
+      emitSettingsRouteDiagnostic('settings-homepage-exit-settled', {
+        presentationEpoch: appZoneManager.getPresentationEpoch(),
+        sliderCurrentSlide: sliderManager.getCurrentSlide(),
+        gameStateSlide: gameState.get('currentSlide'),
+      });
       console.log('⚙️ Step 2: Exit animation complete, showing Settings screen IMMEDIATELY');
         
         const settingsScreen = this.elements.settingsScreen;
@@ -2130,6 +2151,11 @@ class UIManager {
       settingsScreen.style.display = 'flex';
       settingsScreen.removeAttribute('hidden');
       settingsScreen.setAttribute('aria-hidden', 'false');
+      emitSettingsRouteDiagnostic('settings-screen-mounted', {
+        presentationEpoch: appZoneManager.getPresentationEpoch(),
+        sliderCurrentSlide: sliderManager.getCurrentSlide(),
+        gameStateSlide: gameState.get('currentSlide'),
+      });
       
       // 🔥 CRITICAL: Setup toggle event listeners AFTER settings screen is shown
       // This ensures toggles work even if screen was recreated or elements were not available during init

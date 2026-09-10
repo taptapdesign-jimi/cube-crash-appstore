@@ -131,7 +131,7 @@ describe('decoded gameplay audio owner', () => {
     expect(getDecodedGameplayAudioStats().activeVoices).toBe(0);
   });
 
-  it('reports pending instead of starting a media decoder on the interaction frame', () => {
+  it('queues a cold-start event and plays it as soon as decoding completes', async () => {
     const source = './assets/sound/merge 6/merge six obicna.mp3';
     expect(playDecodedGameplaySound(source, {
       voiceId: 'regular-merge6-primary',
@@ -139,6 +139,35 @@ describe('decoded gameplay audio owner', () => {
     })).toBe('pending');
     expect(MockAudioContext.instances[0].sources).toHaveLength(0);
     expect(getDecodedGameplaySoundsState([source])).toBe('pending');
+    expect(getDecodedGameplayAudioStats().pendingVoiceStarts).toBe(1);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(MockAudioContext.instances[0].sources).toHaveLength(1);
+    expect(MockAudioContext.instances[0].sources[0].start).toHaveBeenCalledWith(10, 0);
+    expect(getDecodedGameplayAudioStats().pendingVoiceStarts).toBe(0);
+  });
+
+  it('waits for a suspended context to resume and can cancel the queued voice', async () => {
+    const source = './assets/sound/merge 6/woosh.mp3';
+    preloadDecodedGameplaySounds([source]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const context = MockAudioContext.instances[0];
+    context.state = 'suspended';
+    context.resume.mockImplementation(async () => { context.state = 'running'; });
+
+    expect(playDecodedGameplaySound(source, {
+      voiceId: 'gameplay-pickup',
+      volume: 0.25,
+    })).toBe('pending');
+    expect(context.sources).toHaveLength(0);
+
+    stopDecodedGameplayVoice('gameplay-pickup');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(context.resume).toHaveBeenCalledTimes(1);
+    expect(context.sources).toHaveLength(0);
+    expect(getDecodedGameplayAudioStats().pendingVoiceStarts).toBe(0);
   });
 
   it('schedules a decoded layer from the requested event-relative delay', async () => {

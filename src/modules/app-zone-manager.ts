@@ -19,6 +19,7 @@ import {
   primeHomepageNavigation,
 } from './navigation-control.js';
 import { homepageEnterTransitionOwner } from './homepage-enter-transition-owner.js';
+import { emitSettingsRouteDiagnostic } from './settings-route-diagnostic.js';
 
 export type AppZone =
   | 'loader'
@@ -131,6 +132,7 @@ class AppZoneManager {
   }
 
   setZone(zone: AppZone, reason = 'manual', options: SetZoneOptions = {}): void {
+    const previousZone = this.currentZone;
     this.presentationEpoch += 1;
     this.currentZone = zone;
     try { (window as any).__ccAppZone = zone; } catch {}
@@ -139,6 +141,13 @@ class AppZoneManager {
       hideHomepageNavigation(`app-zone:set-zone:${zone}:${reason}`);
     }
     logger.debug(`🧭 App zone set to ${zone}`, 'app-zone-manager', { reason });
+    emitSettingsRouteDiagnostic('app-zone-set', {
+      previousZone,
+      nextZone: zone,
+      reason,
+      presentationEpoch: this.presentationEpoch,
+      preserveHomepageNavigation: options.preserveHomepageNavigation === true,
+    });
   }
 
   prepareArcadeRunOrigin(reason = 'arcade-run'): void {

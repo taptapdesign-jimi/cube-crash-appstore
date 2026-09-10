@@ -90,20 +90,17 @@ describe('Settings screen structure', () => {
     expect(modals[0].querySelector('.cc-gameplay-modal-pose-shell')).not.toBeNull();
     expect(modals[0].querySelector('.cc-gameplay-modal-paper-shell')).not.toBeNull();
     expect(modals[0].querySelector('.cc-gameplay-modal-title')?.textContent).toBe('Privacy Policy');
-    const scrollRegion = modals[0].querySelector<HTMLElement>('.settings-privacy-policy-scroll');
-    expect(scrollRegion).not.toBeNull();
-    expect(scrollRegion?.getAttribute('role')).toBe('region');
-    expect(scrollRegion?.getAttribute('tabindex')).toBe('0');
-    expect(scrollRegion?.hasAttribute('data-modal-drag-ignore')).toBe(true);
-    expect(scrollRegion?.contains(modals[0].querySelector('.cc-gameplay-modal-title'))).toBe(false);
-    expect(modals[0].querySelector('.settings-privacy-policy-scroll-track')?.getAttribute('aria-hidden')).toBe('true');
-    expect(modals[0].querySelector('.settings-privacy-policy-scroll-thumb')).not.toBeNull();
+    const policyBody = modals[0].querySelector<HTMLElement>('.settings-privacy-policy-body');
+    expect(policyBody).not.toBeNull();
+    expect(modals[0].querySelector('.settings-privacy-policy-scroll')).toBeNull();
+    expect(modals[0].querySelector('.settings-privacy-policy-scroll-track')).toBeNull();
+    expect(policyBody?.contains(modals[0].querySelector('.cc-gameplay-modal-title'))).toBe(false);
     expect(modals[0].querySelector('.gameplay-sheet-close')).not.toBeNull();
     expect(modals[0].textContent).toContain('does not collect, transmit, sell, or share personal data');
     expect(modals[0].textContent).toContain('stored only on your device');
     expect(modals[0].textContent).toContain('does not use accounts, advertising, analytics, or in-app purchases');
     expect(modals[0].querySelector('.settings-privacy-policy-online-link')?.textContent).toBe('Read Privacy Policy');
-    expect(scrollRegion?.contains(modals[0].querySelector('.settings-privacy-policy-online-link'))).toBe(true);
+    expect(policyBody?.contains(modals[0].querySelector('.settings-privacy-policy-online-link'))).toBe(true);
 
     window.dispatchEvent(new Event('cc-navigation'));
     expect(document.getElementById('settings-privacy-policy-modal')).toBeNull();

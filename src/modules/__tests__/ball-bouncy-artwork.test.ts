@@ -19,7 +19,6 @@ import { getAnimatedSpecialArtworkLayerStats } from '../animated-special-artwork
 import { getAnimatedSpecialArtworkMode } from '../animated-special-artwork-mode';
 import {
   acquireGameplayDragForeground,
-  setGameplayDragBounds,
 } from '../gameplay-drag-foreground-owner';
 import {
   destroyJuiceBounceArtworkRuntime,
@@ -256,24 +255,10 @@ describe('Beach Ball animated SVG board artwork', () => {
     }
   });
 
-  test('keeps the same live Ball SVG running below the canvas while another drag overlaps it', () => {
+  test('keeps the same live Ball SVG pinned above ghosts, dice, and Wild SVGs during another drag', () => {
     const { tile, base } = makeTile('beach-ball', 'wild-tnt');
     startSpecialDiceIdleMotion(tile);
     const controller = tile._ccBallBouncyArtwork;
-    const overlapFootprint = (controller as any).wrapper.querySelector(
-      '[data-animated-special-artwork-overlap-footprint]',
-    ) as HTMLElement;
-    overlapFootprint.getBoundingClientRect = () => ({
-      x: 100,
-      y: 100,
-      left: 100,
-      top: 100,
-      right: 228,
-      bottom: 228,
-      width: 128,
-      height: 128,
-      toJSON: () => ({}),
-    });
     (controller as any).image.onload(new Event('load'));
     expect(base.renderable).toBe(false);
     expect((controller as any).wrapper.style.visibility).toBe('visible');
@@ -281,21 +266,11 @@ describe('Beach Ball animated SVG board artwork', () => {
     const releaseForeground = acquireGameplayDragForeground();
     try {
       expect((controller as any).dragging).toBe(false);
-      setGameplayDragBounds({ x: 300, y: 300, width: 128, height: 128 });
-      expect((controller as any).wrapper.style.visibility).toBe('visible');
-      expect(base.renderable).toBe(false);
-      expect((controller as any).wrapper.parentElement?.className).toBe('animated-special-artwork-layer');
-
-      setGameplayDragBounds({ x: 150, y: 150, width: 128, height: 128 });
       expect((controller as any).wrapper.style.visibility).toBe('visible');
       expect(base.renderable).toBe(false);
       expect((controller as any).wrapper.parentElement?.className)
-        .toBe('animated-special-artwork-occluded-layer');
-
-      setGameplayDragBounds({ x: 300, y: 300, width: 128, height: 128 });
-      expect((controller as any).wrapper.style.visibility).toBe('visible');
-      expect(base.renderable).toBe(false);
-      expect((controller as any).wrapper.parentElement?.className).toBe('animated-special-artwork-layer');
+        .toBe('animated-special-artwork-pinned-foreground-layer');
+      expect(Number((controller as any).wrapper.parentElement?.style.zIndex)).toBe(12_002);
     } finally {
       releaseForeground();
     }
@@ -304,7 +279,7 @@ describe('Beach Ball animated SVG board artwork', () => {
     expect(base.renderable).toBe(false);
   });
 
-  test('shares one depth-sorted overlay with Juice instead of creating competing roots', () => {
+  test('keeps one shared lifecycle owner while pinning Ball above another idle SVG', () => {
     const { tile: ballTile } = makeTile('beach-ball', 'wild-tnt');
     const { tile: juiceTile } = makeTile('', 'wild-juice');
 
@@ -313,8 +288,11 @@ describe('Beach Ball animated SVG board artwork', () => {
 
     const ballWrapper = ballTile._ccBallBouncyArtwork.wrapper as HTMLDivElement;
     const juiceWrapper = juiceTile._ccJuiceBounceArtwork.wrapper as HTMLDivElement;
-    expect(ballWrapper.parentElement).toBe(juiceWrapper.parentElement);
-    expect(ballWrapper.parentElement?.classList.contains('animated-special-artwork-layer')).toBe(true);
+    expect(ballWrapper.parentElement).not.toBe(juiceWrapper.parentElement);
+    expect(ballWrapper.parentElement?.classList.contains('animated-special-artwork-pinned-foreground-layer')).toBe(true);
+    expect(juiceWrapper.parentElement?.classList.contains('animated-special-artwork-layer')).toBe(true);
+    expect(Number((ballWrapper.parentElement as HTMLElement).style.zIndex))
+      .toBeGreaterThan(Number((juiceWrapper.parentElement as HTMLElement).style.zIndex));
     expect(getAnimatedSpecialArtworkLayerStats()).toMatchObject({
       owners: 2,
       tickerAttached: true,
