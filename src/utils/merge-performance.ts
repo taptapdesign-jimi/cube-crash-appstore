@@ -12,6 +12,8 @@ export type MergePerformanceMeta = {
   targetValue: number;
   sourceSpecial?: string | null;
   targetSpecial?: string | null;
+  sourceVariantId?: string | null;
+  targetVariantId?: string | null;
   rendererResolution?: number;
 };
 
@@ -30,6 +32,7 @@ export type MergePerformanceSummary = MergePerformanceMeta & {
   framesOver20Ms: number;
   framesOver28Ms: number;
   framesOver34Ms: number;
+  framesOver50Ms: number;
   milestones: MergePerformanceMilestone[];
 };
 
@@ -65,7 +68,13 @@ export function summarizeMergeFrames(samples: number[]) {
     framesOver20Ms: usable.filter(value => value > 20).length,
     framesOver28Ms: usable.filter(value => value > 28).length,
     framesOver34Ms: usable.filter(value => value > 34).length,
+    framesOver50Ms: usable.filter(value => value > 50).length,
   };
+}
+
+export function getMergePerformanceWindowMs(meta: MergePerformanceMeta): number {
+  if (meta.sourceVariantId === 'fish' || meta.targetVariantId === 'fish') return 4000;
+  return meta.kind === 'regular-stack' ? 700 : 2200;
 }
 
 function publish(summary: MergePerformanceSummary): void {
@@ -125,7 +134,7 @@ export function beginMergePerformanceTrace(meta: MergePerformanceMeta): number {
     };
     trace.frameId = requestAnimationFrame(loop);
   }
-  const windowMs = meta.kind === 'regular-stack' ? 700 : 2200;
+  const windowMs = getMergePerformanceWindowMs(meta);
   trace.timeoutId = setTimeout(() => finishMergePerformanceTrace('settled-window-complete'), windowMs);
   return trace.id;
 }

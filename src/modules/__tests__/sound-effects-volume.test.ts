@@ -82,7 +82,7 @@ describe('sound effects master volume', () => {
     expect(FLOWER_MERGE6_LEAVES_VOLUME).toBeCloseTo(0.48);
     expect(FLOWER_MERGE6_SPARK_VOLUME).toBeCloseTo(0.36);
     expect(BEE_MERGE6_VOLUME).toBeCloseTo(0.6);
-    expect(BEE_MERGE6_HAPPY_VOLUME).toBeCloseTo(0.3);
+    expect(BEE_MERGE6_HAPPY_VOLUME).toBeCloseTo(0.12);
     expect(WILD_SPECIAL_MERGE6_POOF_VOLUME).toBeCloseTo(0.6);
   });
 

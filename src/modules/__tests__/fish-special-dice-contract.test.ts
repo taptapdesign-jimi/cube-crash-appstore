@@ -22,6 +22,7 @@ import {
   FISH_BUBBLES_DURATION_MS,
   FISH_BUBBLES_HEVC_SOURCE,
   FISH_BUBBLES_END_SCALE,
+  FISH_BUBBLES_FADE_OUT_START_RATIO,
   FISH_BUBBLES_SCALE_DOWN_START_RATIO,
   FISH_BUBBLES_SOURCE_DURATION_MS,
   FISH_BUBBLES_START_SCALE,
@@ -124,14 +125,15 @@ describe('Beach Fish special-die contract', () => {
     expect(getSpecialDiceSplashOptions(fish).burstSources).toBeUndefined();
   });
 
-  test('runs only the supplied Fishy Bubbles field 15% larger and 30% higher at 0.864x speed', () => {
+  test('runs only the supplied Fishy Bubbles field at original size and 0.864x speed', () => {
     expect(FISH_BUBBLES_SOURCE_DURATION_MS).toBe(2666.667);
     expect(FISH_BUBBLES_SPEED).toBe(0.864);
     expect(FISH_BUBBLES_DURATION_MS).toBeCloseTo(3086.42, 3);
-    expect(FISH_BUBBLES_START_SCALE).toBe(1.15);
-    expect(FISH_BUBBLES_END_SCALE).toBe(1.15);
+    expect(FISH_BUBBLES_START_SCALE).toBe(1);
+    expect(FISH_BUBBLES_END_SCALE).toBe(1);
     expect(FISH_BUBBLES_SCALE_DOWN_START_RATIO).toBe(0.72);
-    expect(FISH_BUBBLES_VERTICAL_OFFSET_VIEWPORT_RATIO).toBe(0.175);
+    expect(FISH_BUBBLES_FADE_OUT_START_RATIO).toBe(0.9);
+    expect(FISH_BUBBLES_VERTICAL_OFFSET_VIEWPORT_RATIO).toBe(-0.066);
     const finaleSvgPath = path.resolve(process.cwd(), FISH_BUBBLES_SVG_SOURCE.replace('./', ''));
     const hevcPath = path.resolve(process.cwd(), FISH_BUBBLES_HEVC_SOURCE.replace('./', ''));
     const finaleSvg = fs.readFileSync(finaleSvgPath, 'utf8');
@@ -140,7 +142,9 @@ describe('Beach Fish special-die contract', () => {
     expect(finaleSvg.match(/dur="3\.086420139s" repeatCount="1"/g)).toHaveLength(442);
     expect(finaleSvg.match(/dur="0\.192901620s" repeatCount="16"/g)).toHaveLength(9);
     expect(fs.existsSync(hevcPath)).toBe(true);
+    expect(FISH_BUBBLES_HEVC_SOURCE).toContain('0864x-60fps-hevc.mov');
     expect(fs.statSync(hevcPath).size).toBeGreaterThan(0);
+    expect(fs.statSync(hevcPath).size).toBeLessThan(6_000_000);
 
     const fish = getSpecialDiceVariant('fish');
     showSparkleText({ x: 195, y: 430 }, getSpecialDiceSplashOptions(fish));

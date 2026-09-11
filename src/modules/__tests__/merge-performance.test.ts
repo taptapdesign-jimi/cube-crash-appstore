@@ -1,4 +1,5 @@
 import {
+  getMergePerformanceWindowMs,
   markMergePerformance,
   resetMergePerformanceForTests,
   summarizeMergeFrames,
@@ -14,7 +15,28 @@ test('merge frame summary reports slow-frame thresholds', () => {
     framesOver20Ms: 3,
     framesOver28Ms: 2,
     framesOver34Ms: 1,
+    framesOver50Ms: 0,
   });
+});
+
+test('keeps the frame trace alive through the complete Fish finale', () => {
+  expect(getMergePerformanceWindowMs({
+    kind: 'wild-merge',
+    sourceValue: 0,
+    targetValue: 6,
+    sourceVariantId: 'fish',
+  })).toBe(4000);
+  expect(getMergePerformanceWindowMs({
+    kind: 'regular-stack',
+    sourceValue: 2,
+    targetValue: 3,
+  })).toBe(700);
+  expect(getMergePerformanceWindowMs({
+    kind: 'wild-merge',
+    sourceValue: 0,
+    targetValue: 3,
+    sourceVariantId: 'bee',
+  })).toBe(2200);
 });
 
 test('marking a merge with no active trace is safe', () => {

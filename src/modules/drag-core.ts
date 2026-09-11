@@ -2209,6 +2209,8 @@ export function initDrag(cfg) {
     // Wild-juice bubbles explosion is triggered centrally in app-core effSum === 6 flow.
     const sourceSpecial = getTileSpecial(t);
     const targetSpecial = getTileSpecial(target);
+    const sourceVariantId = getSpecialDiceVariantForTile(t)?.id ?? null;
+    const targetVariantId = getSpecialDiceVariantForTile(target)?.id ?? null;
     const isWildMerge = !!sourceSpecial || !!targetSpecial;
     const regularSum = (t.value | 0) + (target.value | 0);
     beginMergePerformanceTrace({
@@ -2217,6 +2219,8 @@ export function initDrag(cfg) {
       targetValue: target.value | 0,
       sourceSpecial,
       targetSpecial,
+      sourceVariantId,
+      targetVariantId,
       rendererResolution: Number(app?.renderer?.resolution || 1),
     });
     

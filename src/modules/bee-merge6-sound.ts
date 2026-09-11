@@ -21,7 +21,19 @@ export const BEE_MERGE6_HAPPY_SOUND_SOURCE = `${BEE_SOUND_BASE}happy bee.wav`;
 export const BEE_MERGE6_BRUSHING_SOUND_SOURCE = `${BEE_SOUND_BASE}brushing.wav`;
 export const BEE_MERGE6_BASE_VOLUME = 1;
 export const BEE_MERGE6_VOLUME = applySoundEffectsMasterGain(BEE_MERGE6_BASE_VOLUME);
-export const BEE_MERGE6_HAPPY_BASE_VOLUME = 0.5;
+export const BEE_MERGE6_START_BASE_VOLUME = 0.75;
+export const BEE_MERGE6_START_VOLUME = applySoundEffectsMasterGain(
+  BEE_MERGE6_START_BASE_VOLUME,
+);
+export const BEE_MERGE6_BEE_BASE_VOLUME = 0.7;
+export const BEE_MERGE6_BEE_VOLUME = applySoundEffectsMasterGain(
+  BEE_MERGE6_BEE_BASE_VOLUME,
+);
+export const BEE_MERGE6_BRUSHING_BASE_VOLUME = 0.8;
+export const BEE_MERGE6_BRUSHING_VOLUME = applySoundEffectsMasterGain(
+  BEE_MERGE6_BRUSHING_BASE_VOLUME,
+);
+export const BEE_MERGE6_HAPPY_BASE_VOLUME = 0.2;
 export const BEE_MERGE6_HAPPY_VOLUME = applySoundEffectsMasterGain(
   BEE_MERGE6_HAPPY_BASE_VOLUME,
 );
@@ -125,7 +137,15 @@ export function playBeeMerge6Sound(): boolean {
   if (!areBeeMerge6SoundsEnabled()) return false;
   stopBeeOwnedVoices();
   const ordinaryMergeStarted = playRegularMerge6Sound();
-  const beeLayersStarted = playSources(BEE_MERGE6_IMMEDIATE_SOUND_SOURCES);
+  const beeLayersStarted = playSources(
+    BEE_MERGE6_IMMEDIATE_SOUND_SOURCES,
+    (source) => {
+      if (source === BEE_MERGE6_START_SOUND_SOURCE) return BEE_MERGE6_START_VOLUME;
+      if (source === BEE_MERGE6_BEE_SOUND_SOURCE) return BEE_MERGE6_BEE_VOLUME;
+      if (source === BEE_MERGE6_BRUSHING_SOUND_SOURCE) return BEE_MERGE6_BRUSHING_VOLUME;
+      return BEE_MERGE6_VOLUME;
+    },
+  );
   return ordinaryMergeStarted && beeLayersStarted;
 }
 

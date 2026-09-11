@@ -35,6 +35,10 @@ export const BEE_FINALE_ORBIT_END_SECONDS = 0.9;
 export const BEE_FINALE_RIGHT_FEINT_END_SECONDS = 1.8;
 export const BEE_FINALE_LEFT_CHARGE_END_SECONDS = 2.65;
 export const BEE_FINALE_FLYBY_START_SECONDS = BEE_FINALE_LEFT_CHARGE_END_SECONDS;
+export const BEE_FINALE_HAPPY_SOUND_PROGRESS = 0.4;
+export const BEE_FINALE_HAPPY_SOUND_SECONDS = (
+  BEE_FINALE_SCENE_SECONDS * BEE_FINALE_HAPPY_SOUND_PROGRESS
+);
 export const BEE_FINALE_IDLE_FRAME_SECONDS = 1 / 960;
 export const BEE_FINALE_IDLE_CROSSFADE_RATIO = 0.38;
 export const BEE_FINALE_CURVE_VIEWPORT_RATIO = 0.38;
@@ -700,7 +704,7 @@ export function attachBeeFinaleScene(
   master.to(clock, { time: 4, duration: 4, ease: 'none', onUpdate: paint }, 0);
   master.call(() => {
     try { soundMilestones.onFinale?.(); } catch {}
-  }, [], BEE_FINALE_FLYBY_START_SECONDS);
+  }, [], BEE_FINALE_HAPPY_SOUND_SECONDS);
 
   for (let index = 0; index < BEE_FINALE_LEAF_COUNT; index += 1) {
     const burstIndex = Math.floor(index / BEE_FINALE_LEAVES_PER_BURST);

@@ -2,13 +2,21 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   BEE_MERGE6_BASE_VOLUME,
+  BEE_MERGE6_BEE_BASE_VOLUME,
+  BEE_MERGE6_BEE_SOUND_SOURCE,
+  BEE_MERGE6_BEE_VOLUME,
+  BEE_MERGE6_BRUSHING_BASE_VOLUME,
   BEE_MERGE6_BRUSHING_SOUND_SOURCE,
+  BEE_MERGE6_BRUSHING_VOLUME,
   BEE_MERGE6_FINALE_SOUND_SOURCES,
   BEE_MERGE6_HAPPY_BASE_VOLUME,
   BEE_MERGE6_HAPPY_SOUND_SOURCE,
   BEE_MERGE6_HAPPY_VOLUME,
   BEE_MERGE6_IMMEDIATE_SOUND_SOURCES,
   BEE_MERGE6_SOUND_SOURCES,
+  BEE_MERGE6_START_BASE_VOLUME,
+  BEE_MERGE6_START_SOUND_SOURCE,
+  BEE_MERGE6_START_VOLUME,
   BEE_MERGE6_VOLUME,
   areBeeMerge6SoundsEnabled,
   isBeeMerge6SoundEvent,
@@ -73,8 +81,14 @@ describe('Bee merge-6 sound', () => {
     expect(BEE_MERGE6_SOUND_SOURCES.some((source) => source.endsWith('/leaves.wav'))).toBe(false);
     expect(BEE_MERGE6_BASE_VOLUME).toBe(1);
     expect(BEE_MERGE6_VOLUME).toBeCloseTo(0.6);
-    expect(BEE_MERGE6_HAPPY_BASE_VOLUME).toBe(0.5);
-    expect(BEE_MERGE6_HAPPY_VOLUME).toBeCloseTo(0.3);
+    expect(BEE_MERGE6_START_BASE_VOLUME).toBe(0.75);
+    expect(BEE_MERGE6_START_VOLUME).toBeCloseTo(0.45);
+    expect(BEE_MERGE6_BEE_BASE_VOLUME).toBe(0.7);
+    expect(BEE_MERGE6_BEE_VOLUME).toBeCloseTo(0.42);
+    expect(BEE_MERGE6_BRUSHING_BASE_VOLUME).toBe(0.8);
+    expect(BEE_MERGE6_BRUSHING_VOLUME).toBeCloseTo(0.48);
+    expect(BEE_MERGE6_HAPPY_BASE_VOLUME).toBe(0.2);
+    expect(BEE_MERGE6_HAPPY_VOLUME).toBeCloseTo(0.12);
   });
 
   test('matches only exact Bee Merge-6 provenance', () => {
@@ -91,7 +105,15 @@ describe('Bee merge-6 sound', () => {
     expect(played('./assets/sound/merge 6/stack.mp3').play).toHaveBeenCalledTimes(1);
     BEE_MERGE6_IMMEDIATE_SOUND_SOURCES.forEach((source) => {
       expect(played(source).play).toHaveBeenCalledTimes(1);
-      expect(played(source).volume).toBeCloseTo(0.6);
+      expect(played(source).volume).toBeCloseTo(
+        source === BEE_MERGE6_START_SOUND_SOURCE
+          ? 0.45
+          : source === BEE_MERGE6_BEE_SOUND_SOURCE
+            ? 0.42
+            : source === BEE_MERGE6_BRUSHING_SOUND_SOURCE
+              ? 0.48
+              : 0.6,
+      );
     });
     BEE_MERGE6_FINALE_SOUND_SOURCES.forEach((source) => {
       expect(played(source).play).not.toHaveBeenCalled();
@@ -100,7 +122,7 @@ describe('Bee merge-6 sound', () => {
     BEE_MERGE6_FINALE_SOUND_SOURCES.forEach((source) => {
       expect(played(source).play).toHaveBeenCalledTimes(1);
     });
-    expect(played(BEE_MERGE6_HAPPY_SOUND_SOURCE).volume).toBeCloseTo(0.3);
+    expect(played(BEE_MERGE6_HAPPY_SOUND_SOURCE).volume).toBeCloseTo(0.12);
   });
 
   test('wires Bee start and exact visual-owner milestones without entering Flower/TNT timing', () => {
@@ -108,7 +130,8 @@ describe('Bee merge-6 sound', () => {
     const scene = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/bee-finale-scene.ts'), 'utf8');
     const splash = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/splash-text-overlay.ts'), 'utf8');
     expect(appCore.match(/playBeeMerge6Sound\(\);/g)).toHaveLength(1);
-    expect(scene).toContain('BEE_FINALE_FLYBY_START_SECONDS');
+    expect(scene).toContain('BEE_FINALE_HAPPY_SOUND_PROGRESS = 0.4');
+    expect(scene).toContain('BEE_FINALE_HAPPY_SOUND_SECONDS');
     expect(splash).toContain('onFinale: playBeeMerge6FinaleSounds');
   });
 
