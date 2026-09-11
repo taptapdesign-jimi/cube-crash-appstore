@@ -14,6 +14,10 @@ import {
 } from '../utils/animations.js';
 import { logger } from '../core/logger.js';
 import { emitIOSNativeDiagnostic } from '../utils/ios-native-diagnostic.js';
+import {
+  beginIOSJourneyRouteAudit,
+  markIOSJourneyRouteAudit,
+} from '../utils/ios-journey-world-enter-audit.js';
 import { boot as bootGame, layoutBoard as layoutGame, recoverFreshArcadeEntryAfterFailedLoad } from './app-core.js';
 import memoryManager from '../utils/memory-manager.js';
 import sliderManager from './slider-manager.js';
@@ -65,6 +69,7 @@ import {
   ARCADE_SLIDE_INDEX,
   JOURNEY_SLIDE_INDEX,
 } from './homepage-slide-order.js';
+import { getPersistedJourneyNewlyUnlockedCount } from './journey-badge-state.js';
 // 🔥 OPTIMIZATION: Preload settings animations module statically to avoid 15s delay on Settings click
 import { animateSettingsScreenEnter, animateSettingsScreenExit, cleanupSettingsAnimations } from '../ui/settings-animations.js';
 
@@ -984,26 +989,18 @@ class UIManager {
     // 🗺️ JOURNEY BADGE: Update badge when returning to homepage
     // Show NEWLY unlocked boards count (excluding board 1 and already viewed boards) as badge
     // This ensures badge only shows boards that haven't been viewed yet
-    import('./journey-boards-manager.js').then(({ journeyBoardsManager }) => {
-      try {
-        // 🔥 USER BUG FIX: Sync journey boards with current game progress first
-        // This ensures board states are up to date before calculating badge count
-        journeyBoardsManager.syncWithGameProgress();
-        
-        const newlyUnlockedCount = journeyBoardsManager.getNewlyUnlockedCount();
-        // Keep badge persistent if previously higher (e.g., after navigation rebuild)
-        const lastBadge = (window as any).__ccJourneyBadgeCount || 0;
-        const effectiveCount = Math.max(lastBadge, newlyUnlockedCount);
-        if (typeof (window as any).updateNavBadge === 'function') {
-          (window as any).updateNavBadge(effectiveCount, JOURNEY_SLIDE_INDEX);
-          logger.debug(`🗺️ Journey badge updated on homepage: ${effectiveCount} newly unlocked boards (not yet viewed, raw=${newlyUnlockedCount}, last=${lastBadge})`);
-        }
-      } catch (error) {
-        logger.warn('⚠️ Failed to update journey badge on homepage:', error);
+    try {
+      const newlyUnlockedCount = getPersistedJourneyNewlyUnlockedCount();
+      // Keep badge persistent if previously higher (e.g., after navigation rebuild)
+      const lastBadge = (window as any).__ccJourneyBadgeCount || 0;
+      const effectiveCount = Math.max(lastBadge, newlyUnlockedCount);
+      if (typeof (window as any).updateNavBadge === 'function') {
+        (window as any).updateNavBadge(effectiveCount, JOURNEY_SLIDE_INDEX);
+        logger.debug(`🗺️ Journey badge updated on homepage: ${effectiveCount} newly unlocked boards (not yet viewed, raw=${newlyUnlockedCount}, last=${lastBadge})`);
       }
-    }).catch((error) => {
-      logger.warn('⚠️ Failed to import journey boards manager on homepage:', error);
-    });
+    } catch (error) {
+      logger.warn('⚠️ Failed to update journey badge on homepage:', error);
+    }
   }
   
   // Hide homepage
@@ -1489,26 +1486,19 @@ class UIManager {
       // 🔥 USER BUG FIX: Update Journey badge when showing homepage quietly
       // This ensures badge is always up-to-date when homepage is displayed (e.g., after Journey screen)
       setTimeout(() => {
-        import('./journey-boards-manager.js').then(({ journeyBoardsManager }) => {
-          try {
-            // Sync journey boards with current game progress first
-            journeyBoardsManager.syncWithGameProgress();
-            
-            const newlyUnlockedCount = journeyBoardsManager.getNewlyUnlockedCount();
-            // 🔒 Preserve any pending badge count already cached so we don't accidentally wipe it
-            // (exit animations or intermediate calls can briefly compute 0 while animations are running)
-            const lastBadge = (window as any).__ccJourneyBadgeCount || 0;
-            const effectiveCount = Math.max(lastBadge, newlyUnlockedCount);
-            if (typeof (window as any).updateNavBadge === 'function') {
-              (window as any).updateNavBadge(effectiveCount, JOURNEY_SLIDE_INDEX);
-              logger.info(`🗺️ Journey badge updated in showHomepageQuietly: ${effectiveCount} newly unlocked boards (raw=${newlyUnlockedCount}, last=${lastBadge})`);
-            }
-          } catch (error) {
-            logger.warn('⚠️ Failed to update journey badge in showHomepageQuietly:', error);
+        try {
+          const newlyUnlockedCount = getPersistedJourneyNewlyUnlockedCount();
+          // 🔒 Preserve any pending badge count already cached so we don't accidentally wipe it
+          // (exit animations or intermediate calls can briefly compute 0 while animations are running)
+          const lastBadge = (window as any).__ccJourneyBadgeCount || 0;
+          const effectiveCount = Math.max(lastBadge, newlyUnlockedCount);
+          if (typeof (window as any).updateNavBadge === 'function') {
+            (window as any).updateNavBadge(effectiveCount, JOURNEY_SLIDE_INDEX);
+            logger.info(`🗺️ Journey badge updated in showHomepageQuietly: ${effectiveCount} newly unlocked boards (raw=${newlyUnlockedCount}, last=${lastBadge})`);
           }
-        }).catch((error) => {
-          logger.warn('⚠️ Failed to import journey boards manager in showHomepageQuietly:', error);
-        });
+        } catch (error) {
+          logger.warn('⚠️ Failed to update journey badge in showHomepageQuietly:', error);
+        }
       }, 150); // Slightly longer delay to ensure navigation is fully rendered
 
       // The shared paper helper has already synchronized every global owner.
@@ -1561,6 +1551,10 @@ class UIManager {
     }
     (window as any).__ccUiJourneyTransitioning = true;
     gameState.set('sliderLocked', true);
+    if (!launchFirstPlayTutorial) {
+      beginIOSJourneyRouteAudit('homepage-journey-cta');
+      markIOSJourneyRouteAudit('homepage-exit-plus-journey-prepare');
+    }
     // Revoke any still-running Homepage return before Journey takes ownership.
     // Otherwise its delayed hero/CTA/nav finalize can reveal Homepage again.
     homepageEnterTransitionOwner.cancel('homepage-to-journey');
@@ -1647,6 +1641,9 @@ class UIManager {
         : Promise.resolve();
     // Exit and preparation run concurrently and join at one exact handoff.
     Promise.all([exitCompletePromise, journeyPreparePromise]).then(async () => {
+      if (!launchFirstPlayTutorial) {
+        markIOSJourneyRouteAudit('journey-show-handoff');
+      }
       console.log('🗺️ Homepage exit and Journey preparation complete - revealing Journey once');
       // The shared paper surface is already active.
       // No need to change it - it stays at 60% throughout
@@ -1971,24 +1968,17 @@ class UIManager {
     // This ensures badge is visible immediately after returning, showing newly unlocked boards
     // Wait for navigation to be rendered before updating badge
     setTimeout(() => {
-      import('./journey-boards-manager.js').then(({ journeyBoardsManager }) => {
-        try {
-          // Sync journey boards with current game progress first
-          journeyBoardsManager.syncWithGameProgress();
-          
-          const newlyUnlockedCount = journeyBoardsManager.getNewlyUnlockedCount();
-          const lastBadge = (window as any).__ccJourneyBadgeCount || 0;
-          const effectiveCount = Math.max(lastBadge, newlyUnlockedCount);
-          if (typeof (window as any).updateNavBadge === 'function') {
-            (window as any).updateNavBadge(effectiveCount, JOURNEY_SLIDE_INDEX);
-            logger.info(`🗺️ Journey badge updated when returning to homepage: ${effectiveCount} newly unlocked boards (raw=${newlyUnlockedCount}, last=${lastBadge})`);
-          }
-        } catch (error) {
-          logger.warn('⚠️ Failed to update journey badge when returning to homepage:', error);
+      try {
+        const newlyUnlockedCount = getPersistedJourneyNewlyUnlockedCount();
+        const lastBadge = (window as any).__ccJourneyBadgeCount || 0;
+        const effectiveCount = Math.max(lastBadge, newlyUnlockedCount);
+        if (typeof (window as any).updateNavBadge === 'function') {
+          (window as any).updateNavBadge(effectiveCount, JOURNEY_SLIDE_INDEX);
+          logger.info(`🗺️ Journey badge updated when returning to homepage: ${effectiveCount} newly unlocked boards (raw=${newlyUnlockedCount}, last=${lastBadge})`);
         }
-      }).catch((error) => {
-        logger.warn('⚠️ Failed to import journey boards manager when returning to homepage:', error);
-      });
+      } catch (error) {
+        logger.warn('⚠️ Failed to update journey badge when returning to homepage:', error);
+      }
     }, 100);
     
     // 🔥 CRITICAL: Force navigation visibility update after journey screen is hidden
@@ -2465,6 +2455,9 @@ class UIManager {
         });
         void import('./arcade-round-digit-sound.ts').then(({ stopArcadeRoundDigitSounds }) => {
           stopArcadeRoundDigitSounds();
+        });
+        void import('./cta-activation-sound.ts').then(({ stopCtaActivationSounds }) => {
+          stopCtaActivationSounds();
         });
       }
     };

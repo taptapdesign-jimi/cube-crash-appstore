@@ -1,3 +1,5 @@
+import { JOURNEY_WORLD_COUNT } from './journey-world-definitions.js';
+
 export interface JourneyPreparationRuntimeState {
   appZone?: string;
   gameStartInProgress?: boolean;
@@ -64,7 +66,7 @@ export function isJourneyViewStructurallyPrepared(container: HTMLElement | null)
     const hub = container.querySelector<HTMLElement>('.journey-v700-hub');
     const cloudLayer = hub?.querySelector<HTMLElement>('.journey-v700-hub-cloud-layer');
     const worldCards = hub?.querySelectorAll<HTMLElement>('.journey-v700-world-card');
-    return !!hub && !!cloudLayer && worldCards?.length === 3;
+    return !!hub && !!cloudLayer && worldCards?.length === JOURNEY_WORLD_COUNT;
   }
 
   if (view === 'world') {

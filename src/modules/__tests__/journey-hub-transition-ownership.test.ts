@@ -126,6 +126,27 @@ describe('Journey Hub transition ownership', () => {
     expect(handoffSource).not.toContain('new Promise<void>(resolve => setTimeout(resolve, 900))');
   });
 
+  test('cold-route audit starts at CTA acceptance before concurrent exit and preparation', () => {
+    const handoffSource = uiManagerSource.split(
+      'private showCollectiblesScreenWithAnimation(launchFirstPlayTutorial = false): void',
+    )[1]?.split('async hideCollectiblesScreenWithAnimation')[0] ?? '';
+    const auditStartIndex = handoffSource.indexOf("beginIOSJourneyRouteAudit('homepage-journey-cta')");
+    const exitIndex = handoffSource.indexOf('animateJourneySliderExit()');
+    const prepareIndex = handoffSource.indexOf('collectiblesManager.prepareJourneyScreen()');
+
+    expect(auditStartIndex).toBeGreaterThanOrEqual(0);
+    expect(auditStartIndex).toBeLessThan(exitIndex);
+    expect(auditStartIndex).toBeLessThan(prepareIndex);
+    expect(handoffSource).toContain("markIOSJourneyRouteAudit('homepage-exit-plus-journey-prepare')");
+    expect(handoffSource).toContain("markIOSJourneyRouteAudit('journey-show-handoff')");
+
+    const showSource = collectiblesSource.split(
+      'async showCollectibles(options?: CollectiblesShowOptions): Promise<void>',
+    )[1]?.split('async hideCollectibles(')[0] ?? '';
+    expect(showSource).toContain("ensureIOSJourneyRouteAudit('show-collectibles-direct-enter')");
+    expect(showSource).not.toContain("beginIOSJourneyRouteAudit('homepage-slider-to-journey')");
+  });
+
   test('fast Back to Enter cancels the Homepage owner before Journey starts', () => {
     const journeyHandoffSource = uiManagerSource.split(
       'private showCollectiblesScreenWithAnimation(launchFirstPlayTutorial = false): void',
@@ -639,7 +660,7 @@ describe('Journey Hub transition ownership', () => {
       "private playJourneyV700HubEnter(source: 'homepage' | 'world-return'): void",
     )[1]?.split('public playJourneyV700HubEnterFromHomepage')[0] ?? '';
     const imageBarrierIndex = hubEnterSource.indexOf(
-      "const hubImages = Array.from(hub?.querySelectorAll<HTMLImageElement>('img') ?? []);",
+      "const hubImages = Array.from(hub?.querySelectorAll<HTMLImageElement>('img') ?? []).filter",
     );
     const imageReadyIndex = hubEnterSource.indexOf('void hubImagesReady.then(() => {');
     const cloudTweenIndex = hubEnterSource.indexOf('const cloudTween = trackTween(hubCloudLayer');
@@ -652,6 +673,28 @@ describe('Journey Hub transition ownership', () => {
     expect(hubEnterSource).toContain("this.journeyV700View !== 'hub'");
     expect(hubEnterSource).toContain("hub-visible-enter-stale-before-images-ready");
     expect(hubEnterSource).toContain("hub-visible-enter-images-ready");
+  });
+
+  test('mobile Hub enter cost stays bounded when more Worlds are registered', () => {
+    const hubEnterSource = journeyManagerSource.split(
+      "private playJourneyV700HubEnter(source: 'homepage' | 'world-return'): void",
+    )[1]?.split('public playJourneyV700HubEnterFromHomepage')[0] ?? '';
+
+    expect(hubEnterSource).toContain(
+      'allWorldCards.slice(0, JOURNEY_HUB_EAGER_WORLD_COUNT)',
+    );
+    expect(hubEnterSource).toContain('const enteringWorldIds = new Set(');
+    expect(hubEnterSource).toContain('return !worldId || enteringWorldIds.has(worldId)');
+    expect(hubEnterSource).toContain(
+      'this.journeyHubRuntime.prepareForTransition(hub, worldCards)',
+    );
+
+    const hubRenderSource = journeyManagerSource.split(
+      'private renderJourneyV700Hub(',
+    )[1]?.split('private playJourneyV700HubEnter')[0] ?? '';
+    expect(hubRenderSource).toContain(
+      "image.loading = worldIndex < JOURNEY_HUB_EAGER_WORLD_COUNT ? 'eager' : 'lazy'",
+    );
   });
 
   test('expensive Hub geometry diagnostics require explicit detailed tracing', () => {
@@ -722,7 +765,7 @@ describe('Journey Hub transition ownership', () => {
     expect(hubRenderSource).toContain('tiltShell.appendChild(banner)');
     expect(hubRenderSource).toContain('tiltShell.appendChild(image)');
     expect(hubRenderSource).toContain('visual.appendChild(tiltShell)');
-    expect(hubRenderSource).toContain('const worldIds = [1, 3, 2];');
+    expect(hubRenderSource).toContain('JOURNEY_HUB_WORLD_DEFINITIONS.forEach((meta, worldIndex) => {');
     expect(hubRenderSource).toContain("worldIndex === 1 ? 'left' : 'right'");
     expect(hubRenderSource).toContain(
       'cloudSpec.y < 220 ? 1 : cloudSpec.y < 560 ? 3 : 2',

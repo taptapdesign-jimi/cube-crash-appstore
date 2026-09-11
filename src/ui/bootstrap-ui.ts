@@ -20,6 +20,7 @@ import {
 import { HTMLBuilder } from './components/html-builder.js';
 import { logger } from '../core/logger.js';
 import { SETTINGS_SLIDE_INDEX, SHOP_MODULE_ENABLED, SHOP_MODULE_SLIDE_INDEX } from '../modules/shop-module.js';
+import { getPersistedJourneyNewlyUnlockedCount } from '../modules/journey-badge-state.js';
 // Note: preloadCriticalAssets removed - startup preloading is orchestrated in main.ts
 
 const BOOTSTRAP_FLAG = '__cube_crash_ui_bootstrapped__';
@@ -82,20 +83,11 @@ function bootstrapUI() {
       }
     }
     
-    // 🗺️ Initialize journey badge from journey_last_viewed_count
-    // This ensures badge is correctly restored after hard exit
+    // Restore the Journey badge without importing/instantiating its renderer.
     // Badge shows on the Journey icon (stats-nav.png) ONLY.
-    import('../modules/journey-boards-manager.js').then(({ journeyBoardsManager }) => {
-      try {
-        const newlyUnlockedCount = journeyBoardsManager.getNewlyUnlockedCount();
-        updateNavBadge(newlyUnlockedCount, JOURNEY_SLIDE_INDEX);
-        console.log('✅ Journey badge initialized with', newlyUnlockedCount, 'newly unlocked boards');
-      } catch (error) {
-        console.warn('⚠️ Failed to initialize journey badge on startup:', error);
-      }
-    }).catch((error) => {
-      console.warn('⚠️ Failed to import journey boards manager on startup:', error);
-    });
+    const newlyUnlockedCount = getPersistedJourneyNewlyUnlockedCount();
+    updateNavBadge(newlyUnlockedCount, JOURNEY_SLIDE_INDEX);
+    console.log('✅ Journey badge initialized with', newlyUnlockedCount, 'newly unlocked boards');
   } catch (error) {
     console.warn('Failed to load badge counts from localStorage:', error);
   }

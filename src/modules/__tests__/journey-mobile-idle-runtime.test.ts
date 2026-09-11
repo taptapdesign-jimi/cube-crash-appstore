@@ -40,4 +40,24 @@ describe('Journey mobile idle runtime', () => {
     expect(source).toContain('!MOBILE_RUNTIME_PROFILE.isMobileDevice');
     expect(source).toContain('MOBILE_RUNTIME_PROFILE.isMobileDevice\n        || this.journeyWorldRuntime');
   });
+
+  it('bounds settled Hub CSS animation to Worlds near the scroll viewport', () => {
+    const schedulerSource = fs.readFileSync(
+      path.join(root, 'src/modules/journey-hub-runtime-scheduler.ts'),
+      'utf8',
+    );
+    const cssSource = fs.readFileSync(
+      path.join(root, 'src/collectibles-screen.css'),
+      'utf8',
+    );
+    expect(schedulerSource).toContain("rootMargin: '160px 0px'");
+    expect(schedulerSource).toContain(".journey-v700-world-cloud[data-world-id=\"${worldId}\"]");
+    expect(schedulerSource).toContain("card.classList.toggle(ACTIVE_CLASS, active)");
+    expect(cssSource).toContain(
+      '.journey-v700-world-card.journey-v700-runtime-active .journey-v700-world-visual',
+    );
+    expect(cssSource).toContain(
+      '.journey-v700-world-cloud.journey-v700-runtime-active',
+    );
+  });
 });

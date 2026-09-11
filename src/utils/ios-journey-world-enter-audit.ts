@@ -110,6 +110,11 @@ export function beginIOSJourneyRouteAudit(source = 'homepage-slider'): void {
   audit.stopTimer = setTimeout(() => finishIOSJourneyRouteAudit('timeout'), 60_000);
 }
 
+export function ensureIOSJourneyRouteAudit(source = 'homepage-slider'): void {
+  if (activeRouteAudit) return;
+  beginIOSJourneyRouteAudit(source);
+}
+
 export function markIOSJourneyRouteAudit(marker: string): void {
   const audit = activeRouteAudit;
   if (!audit) return;

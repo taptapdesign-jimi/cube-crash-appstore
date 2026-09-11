@@ -22,7 +22,7 @@ import {
 import { playNavIconCartoonBounce } from './utils/nav-icon-bounce.js';
 import { emitIOSNativeDiagnostic } from './utils/ios-native-diagnostic.js';
 import {
-  beginIOSJourneyRouteAudit,
+  ensureIOSJourneyRouteAudit,
   finishIOSJourneyRouteAudit,
   markIOSJourneyRouteAudit,
 } from './utils/ios-journey-world-enter-audit.js';
@@ -1091,7 +1091,8 @@ class CollectiblesManager {
     const isReturningToJourneyWithActiveArea =
       returningFromDetailModalEarly || returningFromInterimBoardEarly;
     if (!isReturningToJourneyWithActiveArea) {
-      beginIOSJourneyRouteAudit('homepage-slider-to-journey');
+      ensureIOSJourneyRouteAudit('show-collectibles-direct-enter');
+      markIOSJourneyRouteAudit('show-collectibles-start');
       unlockJourneyViewportTransition('showCollectibles-fresh-enter');
     }
 

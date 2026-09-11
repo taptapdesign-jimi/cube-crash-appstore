@@ -4,6 +4,7 @@ import {
   isJourneyVisibleEnterPreparationAllowed,
   shouldBlockHiddenJourneyRender,
 } from '../journey-background-preparation';
+import { JOURNEY_WORLD_COUNT } from '../journey-world-definitions';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -68,12 +69,14 @@ describe('Journey background preparation ownership', () => {
   test('recognizes a complete prepared Hub without requiring board cards', () => {
     const container = document.createElement('div');
     container.dataset.journeyV700View = 'hub';
+    const worldCards = Array.from(
+      { length: JOURNEY_WORLD_COUNT },
+      () => '<button class="journey-v700-world-card"></button>',
+    ).join('');
     container.innerHTML = `
       <div class="journey-v700-hub">
         <div class="journey-v700-hub-cloud-layer"></div>
-        <button class="journey-v700-world-card"></button>
-        <button class="journey-v700-world-card"></button>
-        <button class="journey-v700-world-card"></button>
+        ${worldCards}
       </div>`;
     document.body.appendChild(container);
 

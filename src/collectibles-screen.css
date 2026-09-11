@@ -2870,13 +2870,16 @@
   will-change: auto;
 }
 
-.cc-mobile-runtime .journey-v700-hub.journey-v700-idle-ready .journey-v700-world-visual,
-.cc-mobile-runtime .journey-v700-hub.journey-v700-idle-ready .journey-v700-world-cloud {
+.cc-mobile-runtime .journey-v700-hub.journey-v700-idle-ready
+  .journey-v700-world-card.journey-v700-runtime-active .journey-v700-world-visual,
+.cc-mobile-runtime .journey-v700-hub.journey-v700-idle-ready
+  .journey-v700-world-cloud.journey-v700-runtime-active {
   animation-play-state: running;
   will-change: transform;
 }
 
-.cc-mobile-runtime .journey-v700-hub.journey-v700-tilt-ready .journey-v700-world-tilt-shell {
+.cc-mobile-runtime .journey-v700-hub.journey-v700-tilt-ready
+  .journey-v700-world-card.journey-v700-runtime-active .journey-v700-world-tilt-shell {
   animation-play-state: running;
   will-change: transform;
 }
@@ -2887,12 +2890,28 @@
 }
 
 .cc-mobile-runtime .journey-v700-hub.journey-v700-banners-presented
-  .journey-v700-world-banner,
+  .journey-v700-world-card.journey-v700-runtime-active .journey-v700-world-banner,
 .cc-mobile-runtime .journey-v700-hub.journey-v700-banners-presented
-  .journey-v700-world-banner-flag-fx::before,
+  .journey-v700-world-card.journey-v700-runtime-active .journey-v700-world-banner-flag-fx::before,
 .cc-mobile-runtime .journey-v700-hub.journey-v700-banners-presented
-  .journey-v700-world-banner-flag-fx::after {
+  .journey-v700-world-card.journey-v700-runtime-active .journey-v700-world-banner-flag-fx::after {
   animation-play-state: running;
+}
+
+.cc-mobile-runtime .journey-v700-hub.journey-v700-idle-ready
+  .journey-v700-world-card:not(.journey-v700-runtime-active) .journey-v700-world-visual,
+.cc-mobile-runtime .journey-v700-hub.journey-v700-idle-ready
+  .journey-v700-world-cloud:not(.journey-v700-runtime-active),
+.cc-mobile-runtime .journey-v700-hub.journey-v700-tilt-ready
+  .journey-v700-world-card:not(.journey-v700-runtime-active) .journey-v700-world-tilt-shell,
+.cc-mobile-runtime .journey-v700-hub.journey-v700-banners-presented
+  .journey-v700-world-card:not(.journey-v700-runtime-active) .journey-v700-world-banner,
+.cc-mobile-runtime .journey-v700-hub.journey-v700-banners-presented
+  .journey-v700-world-card:not(.journey-v700-runtime-active) .journey-v700-world-banner-flag-fx::before,
+.cc-mobile-runtime .journey-v700-hub.journey-v700-banners-presented
+  .journey-v700-world-card:not(.journey-v700-runtime-active) .journey-v700-world-banner-flag-fx::after {
+  animation-play-state: paused;
+  will-change: auto;
 }
 
 .cc-mobile-runtime #journey-screen[hidden] .journey-v700-world-visual,

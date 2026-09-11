@@ -1,6 +1,6 @@
 // @ts-nocheck
 // Journey Boards Manager
-// Manages rendering of 25 board cards in Journey screen
+// Manages Journey Hub worlds and their board cards.
 // 
 // IMPORTANT: This system uses PIXEL-TO-PERCENTAGE conversion for positioning
 // - You specify positions in PIXELS
@@ -17,6 +17,16 @@ import { playNavIconCartoonBounce } from '../utils/nav-icon-bounce.js';
 import { arcadeStatsService } from '../services/arcade-stats-service.js';
 import { boardStatsService } from '../services/board-stats-service.js';
 import { JOURNEY_SLIDE_INDEX } from './homepage-slide-order.js';
+import { JOURNEY_LAYOUT_STATE_VERSION } from './journey-badge-state.js';
+import {
+  getJourneyWorldDefinition,
+  getJourneyWorldIdForBoard as resolveJourneyWorldIdForBoard,
+  getJourneyWorldRange as resolveJourneyWorldRange,
+  JOURNEY_HUB_EAGER_WORLD_COUNT,
+  JOURNEY_HUB_WORLD_DEFINITIONS,
+  JOURNEY_MAX_BOARDS,
+} from './journey-world-definitions.js';
+import { JourneyHubRuntimeScheduler } from './journey-hub-runtime-scheduler.js';
 import {
   cancelJourneyCardOverlayReturn,
   clearJourneyInterimOrigin,
@@ -548,9 +558,7 @@ const JOURNEY_LEVEL_STAR_ASSETS = Object.freeze({
 const BOARD_TRANSITION_ASSET_BASE = './assets/board transition';
 const FOREST_MAP_DESIGN_WIDTH = 390;
 const FOREST_MAP_DESIGN_HEIGHT = 760;
-const JOURNEY_MAX_BOARDS = 30;
-const JOURNEY_RENDERED_BOARDS = 30;
-const JOURNEY_FOREST_LAYOUT_STATE_VERSION = 'forest-board-1-interim-v1';
+const JOURNEY_RENDERED_BOARDS = JOURNEY_MAX_BOARDS;
 const JOURNEY_DEV_BOARD_REFRESH_KEY = '__ccJourneyDevBoardsDirty';
 const JOURNEY_RETURN_BOARD_ID_KEY = '__ccJourneyReturnBoardId';
 /** Single start offset for the full Journey world stack; adding later worlds below must not change it. */
@@ -603,36 +611,6 @@ const LAST_ACTIVE_WORLD_BOARD_STORAGE_KEY = '__ccLastActiveJourneyWorldBoardId';
 const JOURNEY_V700_VIEW_STORAGE_KEY = '__ccJourneyV700View';
 const JOURNEY_V700_HUB_SCROLL_STORAGE_KEY = '__ccJourneyV700HubScrollTop';
 const JOURNEY_V700_WORLD_STORAGE_KEY = '__ccJourneyV700WorldId';
-const JOURNEY_WORLD_SIZE = 10;
-const JOURNEY_WORLD_MAIN_OFFSETS_PX: Record<number, number> = {
-  1: 0,
-  2: 1454,
-  3: 3166,
-};
-const JOURNEY_WORLD_LABELS: Record<number, { id: number; name: string; subtitle: string; asset: string; className: string }> = {
-  1: {
-    id: 1,
-    name: 'Forest',
-    subtitle: 'Stages 01-10',
-    asset: `${FOREST_WORLD_ASSET_BASE}/Forest main.png`,
-    className: 'journey-v700-world-forest',
-  },
-  2: {
-    id: 2,
-    name: 'Beach',
-    subtitle: 'Stages 01-10',
-    asset: `${BEACH_WORLD_ASSET_BASE}/beach-main.png`,
-    className: 'journey-v700-world-beach',
-  },
-  3: {
-    id: 3,
-    name: 'Area 55',
-    subtitle: 'Stages 01-10',
-    asset: `${ROBO_WORLD_ASSET_BASE}/robo-main.png`,
-    className: 'journey-v700-world-robo',
-  },
-};
-
 type JourneyV700WorldCloudSpec = {
   src: string;
   x: number;
@@ -1021,6 +999,7 @@ class JourneyBoardsManager {
   private journeyV700HubEnterTweens: gsap.core.Tween[] = [];
   private journeyV700HubEnterEpoch = 0;
   private journeyV700HubPresentationWaiters = new Set<(presented?: boolean) => void>();
+  private journeyHubRuntime = new JourneyHubRuntimeScheduler();
   private journeyWorldAnimation = new JourneyWorldAnimationCoordinator();
   private journeyV700WorldMotionEpoch = 0;
   private journeyV700PreparedWorldEnter: { worldId: number; targets: HTMLElement[] } | null = null;
@@ -2204,17 +2183,11 @@ class JourneyBoardsManager {
   }
 
   private getJourneyWorldIdForBoard(boardId: number): number | null {
-    if (!Number.isFinite(boardId) || boardId <= 0) return null;
-    return Math.floor((boardId - 1) / JOURNEY_WORLD_SIZE) + 1;
+    return resolveJourneyWorldIdForBoard(boardId);
   }
 
   private getJourneyWorldRange(worldId: number): { start: number; end: number } | null {
-    if (!Number.isFinite(worldId) || worldId <= 0) return null;
-    const start = ((Math.floor(worldId) - 1) * JOURNEY_WORLD_SIZE) + 1;
-    return {
-      start,
-      end: Math.min(start + JOURNEY_WORLD_SIZE - 1, JOURNEY_MAX_BOARDS),
-    };
+    return resolveJourneyWorldRange(worldId);
   }
 
   private rememberLastActiveJourneyWorld(boardId: number): void {
@@ -5847,6 +5820,7 @@ class JourneyBoardsManager {
       this.journeyCardInteractionProfiler.dispose('manager-cleanup');
       this.cancelJourneyWorldPrepaint('manager-cleanup');
       this.cancelJourneyHubPrepaint('manager-cleanup');
+      this.journeyHubRuntime.deactivate();
       this.journeyMainCloudCompositeCache.clear();
       this.journeyMainCloudCompositeBuilds.clear();
       if (this.journeyOverlayLandingCard) {
@@ -6457,6 +6431,7 @@ class JourneyBoardsManager {
     this.cancelJourneyHubPrepaint('render-replaced');
     this.beginRenderLifecycle();
     this.cancelJourneyV700HubEnter('render-before-dom-replace');
+    this.journeyHubRuntime.deactivate();
     this.retireJourneyBoardOwnersBeforeDomReplace(container);
     try {
       const staleHubTargets = Array.from(container.querySelectorAll<HTMLElement>(
@@ -6742,7 +6717,7 @@ class JourneyBoardsManager {
       cloud.alt = '';
       cloud.draggable = false;
       cloud.setAttribute('aria-hidden', 'true');
-      cloud.className = `journey-v700-world-cloud journey-v700-hub-cloud journey-v700-hub-cloud-${cloudIndex + 1}${cloudLocked ? ' is-locked' : ''}`;
+      cloud.className = `journey-v700-world-cloud journey-v700-hub-cloud journey-v700-hub-cloud-${cloudIndex + 1} journey-v700-runtime-active${cloudLocked ? ' is-locked' : ''}`;
       cloud.dataset.worldId = String(cloudWorldId);
       cloud.style.setProperty('--cloud-x', `${cloudSpec.x}px`);
       cloud.style.setProperty('--cloud-y', `${cloudSpec.y}px`);
@@ -6757,14 +6732,13 @@ class JourneyBoardsManager {
     });
     hub.appendChild(hubCloudLayer);
 
-    const worldIds = [1, 3, 2];
     const resolveLiveHubContainer = (): HTMLElement => (
       document.getElementById('journey-boards-container') as HTMLElement | null
     ) || container;
-    worldIds.forEach((worldId, worldIndex) => {
-      const meta = JOURNEY_WORLD_LABELS[worldId];
+    JOURNEY_HUB_WORLD_DEFINITIONS.forEach((meta, worldIndex) => {
+      const worldId = meta.id;
       const range = this.getJourneyWorldRange(worldId);
-      if (!meta || !range) return;
+      if (!range) return;
 
       const worldBoards = this.boards.filter((board) => board.id >= range.start && board.id <= range.end);
       const unlockedCount = worldBoards.filter((board) => board.unlocked && !board.interim).length;
@@ -6775,7 +6749,7 @@ class JourneyBoardsManager {
 
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = `journey-v700-world-card ${meta.className}${locked ? ' is-locked' : ''}${hasInterimCard ? ' has-interim-card' : ''} has-progress-banner`;
+      button.className = `journey-v700-world-card ${meta.className} journey-v700-runtime-active${locked ? ' is-locked' : ''}${hasInterimCard ? ' has-interim-card' : ''} has-progress-banner`;
       button.dataset.worldId = String(worldId);
       button.setAttribute('aria-label', `${meta.name} world`);
 
@@ -6806,6 +6780,8 @@ class JourneyBoardsManager {
       bannerImage.srcset = `${encodeURI(JOURNEY_WORLD_BANNER_ASSET_2X)} 2x`;
       bannerImage.alt = '';
       bannerImage.draggable = false;
+      bannerImage.decoding = 'async';
+      bannerImage.loading = worldIndex < JOURNEY_HUB_EAGER_WORLD_COUNT ? 'eager' : 'lazy';
       bannerImage.className = 'journey-v700-world-banner-image';
       banner.appendChild(bannerImage);
 
@@ -6831,6 +6807,8 @@ class JourneyBoardsManager {
       image.src = meta.asset;
       image.alt = '';
       image.draggable = false;
+      image.decoding = 'async';
+      image.loading = worldIndex < JOURNEY_HUB_EAGER_WORLD_COUNT ? 'eager' : 'lazy';
       image.setAttribute('aria-hidden', 'true');
       image.className = 'journey-v700-world-image';
       tiltShell.appendChild(image);
@@ -6968,9 +6946,12 @@ class JourneyBoardsManager {
     const container = document.getElementById('journey-boards-container') as HTMLElement | null;
     if (!container || container.dataset.journeyV700View !== 'hub') return;
 
-    const worldCards = Array.from(
+    const allWorldCards = Array.from(
       container.querySelectorAll<HTMLElement>('.journey-v700-world-card')
     );
+    const worldCards = MOBILE_RUNTIME_PROFILE.isMobileDevice
+      ? allWorldCards.slice(0, JOURNEY_HUB_EAGER_WORLD_COUNT)
+      : allWorldCards;
     if (!worldCards.length) return;
     const hub = container.querySelector<HTMLElement>('.journey-v700-hub');
     const hubCloudLayer = container.querySelector<HTMLElement>('.journey-v700-hub-cloud-layer');
@@ -7004,6 +6985,8 @@ class JourneyBoardsManager {
       return;
     }
 
+    this.journeyHubRuntime.prepareForTransition(hub, worldCards);
+
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
     const motion = getJourneyV700MotionProfile(reducedMotion);
     const stagger = getJourneyV700HubEnterStagger(reducedMotion);
@@ -7034,7 +7017,7 @@ class JourneyBoardsManager {
     // keyframe in WebKit, so waiting until completion made Beach/Area 55 fall
     // 7–12px when their delay changed to zero at the idle handoff.
     hub?.classList.add('journey-v700-idle-seamless-start');
-    worldCards.forEach((card) => card.classList.remove('journey-v700-idle-ready'));
+    allWorldCards.forEach((card) => card.classList.remove('journey-v700-idle-ready'));
 
     try {
       gsap.killTweensOf(worldCards);
@@ -7057,7 +7040,13 @@ class JourneyBoardsManager {
       }
     } catch {}
 
-    const hubImages = Array.from(hub?.querySelectorAll<HTMLImageElement>('img') ?? []);
+    const enteringWorldIds = new Set(worldCards.map(card => card.dataset.worldId));
+    const hubImages = Array.from(hub?.querySelectorAll<HTMLImageElement>('img') ?? []).filter((image) => {
+      const cardOwner = image.closest<HTMLElement>('.journey-v700-world-card');
+      const cloudOwner = image.matches('.journey-v700-world-cloud') ? image : null;
+      const worldId = cardOwner?.dataset.worldId || cloudOwner?.dataset.worldId;
+      return !worldId || enteringWorldIds.has(worldId);
+    });
     const hubImagesReady = Promise.all(hubImages.map((image) => waitForImageReady(image))).then(() => undefined);
     void hubImagesReady.then(() => {
       if (
@@ -7101,7 +7090,7 @@ class JourneyBoardsManager {
       // and cloud layers own idle transforms. Start those independent owners
       // on the first visible enter tick so the Hub is alive throughout enter,
       // without competing for the same transform or creating a handoff gap.
-      worldCards.forEach((worldCard) => worldCard.classList.add('journey-v700-idle-ready'));
+      allWorldCards.forEach((worldCard) => worldCard.classList.add('journey-v700-idle-ready'));
       hub?.classList.add('journey-v700-idle-ready');
       const presentationWaiters = Array.from(this.journeyV700HubPresentationWaiters);
       this.journeyV700HubPresentationWaiters.clear();
@@ -7125,13 +7114,17 @@ class JourneyBoardsManager {
       // root mutation. This prevents Beach/Area 55 from exposing one WebKit
       // frame at their negative animation-delay phase after a World return.
       hub?.classList.add('journey-v700-idle-seamless-start');
-      worldCards.forEach((worldCard) => worldCard.classList.add('journey-v700-idle-ready'));
+      allWorldCards.forEach((worldCard) => worldCard.classList.add('journey-v700-idle-ready'));
       if (hubCloudLayer) {
         gsap.set(hubCloudLayer, { clearProps: 'transform,opacity,visibility,willChange' });
       }
       hub?.classList.add('journey-v700-idle-ready');
       hub?.classList.add('journey-v700-tilt-ready');
       this.journeyV700Phase = 'idle';
+      if (hub) {
+        const hubScrollRoot = container.closest('#journey-screen .collectibles-scrollable') as HTMLElement | null;
+        this.journeyHubRuntime.activate(hub, hubScrollRoot);
+      }
       if (source === 'world-return') {
         this.emitJourneyV700HubGeometryDiagnostic('idle-ready', container);
       }
@@ -7865,7 +7858,7 @@ class JourneyBoardsManager {
     options: { prepaint?: boolean } = {},
   ): void {
     const range = this.getJourneyWorldRange(worldId);
-    const worldOffsetPx = JOURNEY_WORLD_MAIN_OFFSETS_PX[worldId] || 0;
+    const worldOffsetPx = getJourneyWorldDefinition(worldId)?.mainOffsetPx || 0;
     const worldOffsetPercent = (worldOffsetPx / FOREST_MAP_DESIGN_HEIGHT) * 100;
     const worldScopeOffsetPx = worldId === 1
       ? JOURNEY_V700_FOREST_SCOPE_EXTRA_DOWN_PX
@@ -8022,6 +8015,9 @@ class JourneyBoardsManager {
 
 	  public playJourneyV700HubExit(reason = 'hub-exit', selectedWorldCard: HTMLElement | null = null): Promise<void> {
 	    this.cancelJourneyV700HubEnter(reason);
+	    this.journeyHubRuntime.prepareForTransition(
+	      document.querySelector<HTMLElement>('#journey-boards-container .journey-v700-hub'),
+	    );
 	    this.releaseJourneyV700HubTopGuard(reason);
 	    const container = document.getElementById('journey-boards-container') as HTMLElement | null;
 	    const worldCards = Array.from(
@@ -8834,7 +8830,7 @@ class JourneyBoardsManager {
     const title = document.getElementById('collectibles-title') as HTMLElement | null;
     const backButton = document.getElementById('collectibles-back') as HTMLButtonElement | null;
     const backIcon = backButton?.querySelector('img') as HTMLImageElement | null;
-    const meta = worldId ? JOURNEY_WORLD_LABELS[worldId] : null;
+    const meta = worldId ? getJourneyWorldDefinition(worldId) : null;
 
     if (title) {
       title.textContent = view === 'world' && meta ? meta.name : 'Journey';
@@ -14237,7 +14233,7 @@ class JourneyBoardsManager {
   private loadBoardsState(): void {
     try {
       const version = localStorage.getItem('journey_forest_layout_state_version');
-      const shouldResetForForestLayout = version !== JOURNEY_FOREST_LAYOUT_STATE_VERSION;
+      const shouldResetForForestLayout = version !== JOURNEY_LAYOUT_STATE_VERSION;
       const saved = shouldResetForForestLayout ? null : localStorage.getItem('journey_boards_state');
 
       if (saved) {
@@ -14254,7 +14250,7 @@ class JourneyBoardsManager {
 
       this.boards = this.boards.slice(0, JOURNEY_MAX_BOARDS);
       this.ensureWorldInterimCards();
-      localStorage.setItem('journey_forest_layout_state_version', JOURNEY_FOREST_LAYOUT_STATE_VERSION);
+      localStorage.setItem('journey_forest_layout_state_version', JOURNEY_LAYOUT_STATE_VERSION);
       this.saveBoardsState();
     } catch (error) {
       logger.warn('Failed to load journey boards state:', error instanceof Error ? error.message : String(error));
