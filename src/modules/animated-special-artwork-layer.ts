@@ -27,6 +27,10 @@ export type AnimatedSpecialArtworkFootprint = {
   height: number;
 };
 
+export type AnimatedSpecialArtworkPinnedForegroundOptions = {
+  preserveDuringFinale?: boolean;
+};
+
 const OVERLAP_FOOTPRINT_ATTRIBUTE = 'data-animated-special-artwork-overlap-footprint';
 
 const frameOwners = new Set<FrameOwner>();
@@ -34,6 +38,7 @@ let overlayRoot: HTMLDivElement | null = null;
 let occludedOverlayRoot: HTMLDivElement | null = null;
 let dragOverlayRoot: HTMLDivElement | null = null;
 let pinnedForegroundOverlayRoot: HTMLDivElement | null = null;
+let finalePersistentForegroundOverlayRoot: HTMLDivElement | null = null;
 let ticker: Ticker | null = null;
 let finaleDepthOwners = 0;
 let lastDragDepthDiagnostic = '';
@@ -84,14 +89,21 @@ function syncOverlayZIndex(
         : Math.max(11, canvasZIndex + 1));
   }
   if (pinnedForegroundOverlayRoot) {
-    // Beach Ball's authored hop intentionally crosses neighboring cells. Its
-    // idle artwork must remain above Pixi ghosts/dice and above a dragged SVG,
-    // while merge-6 finales keep their existing whole-canvas foreground.
+    // Ordinary pinned artwork still yields to a merge-6 finale so the Pixi
+    // canvas can own its complete particle foreground.
     pinnedForegroundOverlayRoot.style.zIndex = finaleDepthOwners > 0 && !gameplayDragActive
       ? String(Math.max(0, canvasZIndex - 1))
       : String(gameplayDragActive
         ? Math.max(12_002, canvasZIndex + 2)
         : Math.max(12, canvasZIndex + 2));
+  }
+  if (finalePersistentForegroundOverlayRoot) {
+    // Beach Ball is a bounded exception: its wide authored idle hop must not
+    // fall below board ghosts just because a different Special owns a finale.
+    // Ball's own idle wrapper is disposed before its merge-6 finale begins.
+    finalePersistentForegroundOverlayRoot.style.zIndex = gameplayDragActive
+      ? String(Math.max(12_002, canvasZIndex + 2))
+      : String(Math.max(12, canvasZIndex + 2));
   }
   try {
     if ((window as any).__ccDragDepthDiagnostics === true) {
@@ -208,6 +220,30 @@ function ensurePinnedForegroundOverlayRoot(): HTMLDivElement | null {
   return pinnedForegroundOverlayRoot;
 }
 
+function ensureFinalePersistentForegroundOverlayRoot(): HTMLDivElement | null {
+  const root = ensureOverlayRoot();
+  const parent = root?.parentElement;
+  if (!root || !parent) return null;
+  if (!finalePersistentForegroundOverlayRoot) {
+    finalePersistentForegroundOverlayRoot = document.createElement('div');
+    finalePersistentForegroundOverlayRoot.className = 'animated-special-artwork-finale-persistent-foreground-layer';
+    finalePersistentForegroundOverlayRoot.setAttribute('aria-hidden', 'true');
+    Object.assign(finalePersistentForegroundOverlayRoot.style, {
+      position: 'absolute',
+      inset: '0',
+      overflow: 'visible',
+      pointerEvents: 'none',
+      zIndex: '12',
+    });
+  }
+  if (finalePersistentForegroundOverlayRoot.parentElement !== parent) {
+    parent.appendChild(finalePersistentForegroundOverlayRoot);
+  }
+  const canvas = STATE.app?.canvas as HTMLCanvasElement | null | undefined;
+  if (canvas) syncOverlayZIndex(root, canvas);
+  return finalePersistentForegroundOverlayRoot;
+}
+
 function detachTicker(): void {
   if (!ticker) return;
   try { ticker.remove(updateAnimatedSpecialArtworkLayer); } catch {}
@@ -244,6 +280,10 @@ function releaseRuntimeWhenUnused(): void {
     try { pinnedForegroundOverlayRoot.remove(); } catch {}
     pinnedForegroundOverlayRoot = null;
   }
+  if (finalePersistentForegroundOverlayRoot) {
+    try { finalePersistentForegroundOverlayRoot.remove(); } catch {}
+    finalePersistentForegroundOverlayRoot = null;
+  }
   lastDragDepthDiagnostic = '';
 }
 
@@ -256,6 +296,7 @@ function updateAnimatedSpecialArtworkLayer(): void {
     if (occludedOverlayRoot) occludedOverlayRoot.style.visibility = 'hidden';
     if (dragOverlayRoot) dragOverlayRoot.style.visibility = 'hidden';
     if (pinnedForegroundOverlayRoot) pinnedForegroundOverlayRoot.style.visibility = 'hidden';
+    if (finalePersistentForegroundOverlayRoot) finalePersistentForegroundOverlayRoot.style.visibility = 'hidden';
     return;
   }
 
@@ -271,12 +312,14 @@ function updateAnimatedSpecialArtworkLayer(): void {
     if (occludedOverlayRoot) occludedOverlayRoot.style.visibility = 'hidden';
     if (dragOverlayRoot) dragOverlayRoot.style.visibility = 'hidden';
     if (pinnedForegroundOverlayRoot) pinnedForegroundOverlayRoot.style.visibility = 'hidden';
+    if (finalePersistentForegroundOverlayRoot) finalePersistentForegroundOverlayRoot.style.visibility = 'hidden';
     return;
   }
   root.style.visibility = 'visible';
   if (occludedOverlayRoot) occludedOverlayRoot.style.visibility = 'visible';
   if (dragOverlayRoot) dragOverlayRoot.style.visibility = 'visible';
   if (pinnedForegroundOverlayRoot) pinnedForegroundOverlayRoot.style.visibility = 'visible';
+  if (finalePersistentForegroundOverlayRoot) finalePersistentForegroundOverlayRoot.style.visibility = 'visible';
 
   const canvasRect = canvas.getBoundingClientRect();
   const rootRect = root.getBoundingClientRect();
@@ -389,9 +432,14 @@ export function setAnimatedSpecialArtworkOccluded(
 export function setAnimatedSpecialArtworkPinnedForeground(
   wrapper: HTMLDivElement,
   pinned: boolean,
+  options: AnimatedSpecialArtworkPinnedForegroundOptions = {},
 ): void {
   if (!wrapper) return;
-  const destination = pinned ? ensurePinnedForegroundOverlayRoot() : ensureOverlayRoot();
+  const destination = pinned
+    ? options.preserveDuringFinale
+      ? ensureFinalePersistentForegroundOverlayRoot()
+      : ensurePinnedForegroundOverlayRoot()
+    : ensureOverlayRoot();
   if (destination && wrapper.parentElement !== destination) destination.appendChild(wrapper);
 }
 

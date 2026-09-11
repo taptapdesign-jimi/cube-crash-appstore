@@ -1,6 +1,7 @@
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { LASERGUN_TIMING_SCALE } from './laser-gun-impact-scheduler';
+import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.ts';
 import {
   getLaserGunPlannerMuzzleX,
   LASERGUN_LEFT_MUZZLE_X_RATIO,
@@ -10,6 +11,12 @@ import {
 } from './tnt-bonus-target-selection.js';
 
 const BASE = './assets/shop/gun/';
+export const LASERGUN_ORBS_SVG_SOURCE = `${BASE}electric blue orbs.svg`;
+export const LASERGUN_ORBS_HEVC_SOURCE = `${BASE}electric-blue-orbs-hevc.mov`;
+export const LASERGUN_ORBS_DURATION_SECONDS = 3;
+export const LASERGUN_ORBS_WIDTH = 432;
+export const LASERGUN_ORBS_HEIGHT = 768;
+export const LASERGUN_ORBS_FRAMES_PER_SECOND = 60;
 const useHighResolutionAssets = typeof navigator !== 'undefined'
   && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 const source = (name: string): string => `${BASE}${name}${useHighResolutionAssets ? '@2x' : ''}.png`;
@@ -298,6 +305,73 @@ export type LaserGunEntryReadiness = 'painted' | 'cancelled';
 
 let activeController: LaserGunFinaleController | null = null;
 let preloadPromise: Promise<void> | null = null;
+let preloadedOrbsVideo: HTMLVideoElement | null = null;
+let orbsHevcUnavailable = false;
+
+function configureOrbsVideo(video: HTMLVideoElement): void {
+  video.muted = true;
+  video.defaultMuted = true;
+  video.autoplay = true;
+  video.loop = false;
+  video.playsInline = true;
+  video.preload = 'auto';
+  video.disablePictureInPicture = true;
+  video.setAttribute('muted', '');
+  video.setAttribute('playsinline', '');
+  video.setAttribute('webkit-playsinline', '');
+  video.setAttribute('aria-hidden', 'true');
+  video.style.cssText = [
+    'position:absolute',
+    'inset:0',
+    'width:100%',
+    'height:100%',
+    'display:block',
+    'object-fit:contain',
+    'object-position:center',
+    'pointer-events:none',
+  ].join(';');
+}
+
+function getOrCreatePreloadedOrbsVideo(): HTMLVideoElement {
+  if (preloadedOrbsVideo) return preloadedOrbsVideo;
+  const video = document.createElement('video');
+  configureOrbsVideo(video);
+  video.src = LASERGUN_ORBS_HEVC_SOURCE;
+  preloadedOrbsVideo = video;
+  return video;
+}
+
+function preloadLaserGunOrbsAsset(): Promise<void> {
+  if (MOBILE_RUNTIME_PROFILE.platform !== 'ios' || orbsHevcUnavailable) {
+    // The animated SVG is a desktop/failure fallback. Loading and decoding its
+    // large filter graph while a Journey board is being prepared can contend
+    // with first paint, so create it only if the LaserGun finale actually runs.
+    return Promise.resolve();
+  }
+
+  const video = getOrCreatePreloadedOrbsVideo();
+  if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) return Promise.resolve();
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (available: boolean, definitiveFailure = !available) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      video.removeEventListener('loadeddata', handleLoaded);
+      video.removeEventListener('error', handleError);
+      if (definitiveFailure) orbsHevcUnavailable = true;
+      resolve();
+    };
+    const handleLoaded = () => finish(true);
+    const handleError = () => finish(false);
+    const timeoutId = window.setTimeout(() => {
+      finish(video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA, false);
+    }, 1800);
+    video.addEventListener('loadeddata', handleLoaded, { once: true });
+    video.addEventListener('error', handleError, { once: true });
+    try { video.load(); } catch { finish(false); }
+  });
+}
 
 export function preloadLaserGunFinaleAssets(): Promise<void> {
   if (preloadPromise) return preloadPromise;
@@ -306,7 +380,7 @@ export function preloadLaserGunFinaleAssets(): Promise<void> {
     source('left laser'),
     source('right laser'),
   ];
-  preloadPromise = Promise.allSettled(sources.map((assetSource) => new Promise<void>((resolve) => {
+  const rasterPreload = Promise.allSettled(sources.map((assetSource) => new Promise<void>((resolve) => {
     const image = new Image();
     const finish = () => {
       if (typeof image.decode !== 'function') {
@@ -320,7 +394,84 @@ export function preloadLaserGunFinaleAssets(): Promise<void> {
     image.src = assetSource;
     if (image.complete) finish();
   }))).then(() => undefined);
+  preloadPromise = Promise.all([
+    rasterPreload,
+    preloadLaserGunOrbsAsset(),
+  ]).then(() => undefined);
   return preloadPromise;
+}
+
+function attachLaserGunOrbsLayer(overlay: HTMLElement): () => void {
+  let disposed = false;
+  let fallbackImage: HTMLImageElement | null = null;
+  let video: HTMLVideoElement | null = null;
+
+  const field = document.createElement('div');
+  field.className = 'cc-lasergun-orbs-layer';
+  field.dataset.lasergunOrbs = 'active';
+  field.style.cssText = [
+    'position:absolute',
+    'inset:0',
+    'overflow:hidden',
+    'pointer-events:none',
+    'z-index:0',
+    'contain:layout style paint',
+  ].join(';');
+
+  const showSvgFallback = () => {
+    if (disposed || fallbackImage) return;
+    if (video) {
+      try { video.pause(); } catch {}
+      video.remove();
+    }
+    fallbackImage = createImage(LASERGUN_ORBS_SVG_SOURCE, 'cc-lasergun-orbs-fallback');
+    fallbackImage.dataset.lasergunOrbsSource = 'svg-fallback';
+    fallbackImage.style.cssText += [
+      'inset:0',
+      'width:100%',
+      'height:100%',
+      'object-fit:contain',
+      'object-position:center',
+    ].join(';');
+    field.appendChild(fallbackImage);
+  };
+  const handleVideoFailure = () => {
+    orbsHevcUnavailable = true;
+    showSvgFallback();
+  };
+
+  if (MOBILE_RUNTIME_PROFILE.platform === 'ios' && !orbsHevcUnavailable) {
+    video = getOrCreatePreloadedOrbsVideo();
+    configureOrbsVideo(video);
+    video.dataset.lasergunOrbsSource = 'hevc-alpha';
+    video.addEventListener('error', handleVideoFailure, { once: true });
+    field.appendChild(video);
+  } else {
+    showSvgFallback();
+  }
+
+  overlay.insertBefore(field, overlay.firstChild);
+
+  if (video) {
+    try { video.currentTime = 0; } catch {}
+    void video.play().catch(handleVideoFailure);
+  }
+
+  return () => {
+    if (disposed) return;
+    disposed = true;
+    if (video) {
+      video.removeEventListener('error', handleVideoFailure);
+      try {
+        video.pause();
+        video.currentTime = 0;
+      } catch {}
+      video.remove();
+    }
+    fallbackImage?.remove();
+    fallbackImage = null;
+    field.remove();
+  };
 }
 
 export function setActiveLaserGunFinaleTargets(
@@ -492,6 +643,7 @@ export function attachLaserGunFinaleScene(
     right: [],
   };
 
+  const cleanupOrbsLayer = attachLaserGunOrbsLayer(overlay);
   overlay.insertBefore(field, overlay.firstChild);
   overlay.insertBefore(rightGunField, field.nextSibling);
   const ensureGunBeamPair = (side: LaserGunShooter, slot: number) => {
@@ -1291,6 +1443,7 @@ export function attachLaserGunFinaleScene(
     entryPaintFrameA = null;
     entryPaintFrameB = null;
     try {
+      cleanupOrbsLayer();
       gsap.killTweensOf(field);
       field.querySelectorAll('*').forEach((element) => gsap.killTweensOf(element));
       gsap.killTweensOf(rightGunField);

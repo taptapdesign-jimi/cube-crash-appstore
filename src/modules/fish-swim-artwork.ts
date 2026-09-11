@@ -1,0 +1,575 @@
+import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
+import {
+  acquireAnimatedSpecialArtworkLayer,
+  installAnimatedSpecialArtworkOverlapFootprint,
+  setAnimatedSpecialArtworkDragging,
+  setAnimatedSpecialArtworkPinnedForeground,
+  type AnimatedSpecialArtworkFrame,
+  type AnimatedSpecialArtworkLayerLease,
+} from './animated-special-artwork-layer.ts';
+import {
+  acquireAnimatedSvgPhase,
+  type AnimatedSvgPhaseLease,
+} from './animated-svg-phase-scheduler.ts';
+import { releaseAnimatedSpecialArtworkFamily } from './animated-special-artwork-mode.ts';
+import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.ts';
+
+export const FISH_SWIM_PNG_URL = './assets/shop/fish/fish.png';
+export const FISH_SWIM_SVG_URL = './assets/shop/fish/fish.svg';
+export const FISH_SWIM_HEVC_URL = './assets/shop/fish/fish-mobile-hevc.mov';
+export const FISH_SWIM_VIEWBOX = Object.freeze({ minX: -24, minY: -28, width: 272, height: 280 });
+export const FISH_SWIM_REST_ART = Object.freeze({ centerX: 112, centerY: 112, size: 224 });
+export const FISH_SWIM_DISPLAY_SIZE = 128;
+export const FISH_SWIM_CYCLE_MS = 1125;
+export const FISH_SWIM_DRAG_Z_INDEX = 12001;
+
+const DISPLAY_SCALE = FISH_SWIM_DISPLAY_SIZE / FISH_SWIM_REST_ART.size;
+const DISPLAY_WIDTH = FISH_SWIM_VIEWBOX.width * DISPLAY_SCALE;
+const DISPLAY_HEIGHT = FISH_SWIM_VIEWBOX.height * DISPLAY_SCALE;
+const DISPLAY_ANCHOR_X = (FISH_SWIM_REST_ART.centerX - FISH_SWIM_VIEWBOX.minX)
+  / FISH_SWIM_VIEWBOX.width;
+const DISPLAY_ANCHOR_Y = (FISH_SWIM_REST_ART.centerY - FISH_SWIM_VIEWBOX.minY)
+  / FISH_SWIM_VIEWBOX.height;
+const ARTWORK_LEFT = (0 - FISH_SWIM_VIEWBOX.minX) * DISPLAY_SCALE;
+const ARTWORK_TOP = (0 - FISH_SWIM_VIEWBOX.minY) * DISPLAY_SCALE;
+
+type FishSwimController = {
+  tile: any;
+  base: any;
+  host: any;
+  wrapper: HTMLDivElement;
+  image: HTMLImageElement | null;
+  video: HTMLVideoElement | null;
+  bubbleLayer: HTMLDivElement;
+  bubbleNodes: Map<any, HTMLDivElement>;
+  bubbleSystem: any | null;
+  baseRenderable: boolean;
+  baseScaleX: number;
+  dragging: boolean;
+  ready: boolean;
+  disposed: boolean;
+  phaseLease: AnimatedSvgPhaseLease | null;
+};
+
+type FishIdleBubblePaint = {
+  radius: number;
+  color: number;
+};
+
+const controllers = new Map<any, FishSwimController>();
+let runtimeLease: AnimatedSpecialArtworkLayerLease | null = null;
+let fishHevcUnavailable = false;
+
+export function isFishSwimTile(tile: any): boolean {
+  return !!tile && getSpecialDiceVariantForTile(tile)?.id === 'fish';
+}
+
+export function shouldFlipFishForViewport(
+  globalCenterX: number,
+  viewportWidth: number,
+): boolean {
+  return Number.isFinite(globalCenterX)
+    && Number.isFinite(viewportWidth)
+    && viewportWidth > 0
+    && globalCenterX > viewportWidth * 0.5;
+}
+
+function applyFishDragFacing(controller: FishSwimController): void {
+  const { base } = controller;
+  if (!base || base.destroyed || !base.scale) return;
+  if (!controller.dragging) {
+    base.scale.x = controller.baseScaleX;
+    return;
+  }
+  let globalCenterX = Number.NaN;
+  try { globalCenterX = base.getGlobalPosition().x; } catch {}
+  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 0;
+  const magnitude = Math.abs(controller.baseScaleX);
+  base.scale.x = shouldFlipFishForViewport(globalCenterX, viewportWidth)
+    ? -magnitude
+    : magnitude;
+}
+
+function colorToCss(color: number, alpha: number): string {
+  const safeColor = Number.isFinite(color) ? Math.max(0, Math.min(0xFFFFFF, color | 0)) : 0xFFFFFF;
+  const red = (safeColor >> 16) & 0xFF;
+  const green = (safeColor >> 8) & 0xFF;
+  const blue = safeColor & 0xFF;
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
+
+function clearFrontBubbleNodes(controller: FishSwimController): void {
+  controller.bubbleNodes.forEach((node) => {
+    try { node.remove(); } catch {}
+  });
+  controller.bubbleNodes.clear();
+}
+
+function releaseFrontBubbleSystem(controller: FishSwimController): void {
+  const system = controller.bubbleSystem;
+  if (system?._ccFishFrontBubbleOwner === controller) {
+    if (system.container && !system.container.destroyed) {
+      system.container.renderable = system._ccFishFrontBubbleRenderableBefore !== false;
+    }
+    delete system._ccFishFrontBubbleOwner;
+    delete system._ccFishFrontBubbleRenderableBefore;
+  }
+  controller.bubbleSystem = null;
+  clearFrontBubbleNodes(controller);
+  controller.bubbleLayer.style.visibility = 'hidden';
+}
+
+function createFrontBubbleNode(paint: FishIdleBubblePaint): HTMLDivElement {
+  const node = document.createElement('div');
+  const diameter = paint.radius * 2;
+  Object.assign(node.style, {
+    position: 'absolute',
+    left: '0',
+    top: '0',
+    width: `${diameter}px`,
+    height: `${diameter}px`,
+    borderRadius: '50%',
+    boxSizing: 'border-box',
+    background: colorToCss(paint.color, 0.6),
+    border: `1px solid ${colorToCss(paint.color, 0.4)}`,
+    pointerEvents: 'none',
+    transformOrigin: '50% 50%',
+    willChange: 'transform, opacity',
+  });
+  const highlight = document.createElement('span');
+  Object.assign(highlight.style, {
+    position: 'absolute',
+    left: '20%',
+    top: '20%',
+    width: '30%',
+    height: '30%',
+    borderRadius: '50%',
+    background: colorToCss(paint.color, 0.8),
+    pointerEvents: 'none',
+  });
+  node.appendChild(highlight);
+  return node;
+}
+
+function syncFrontBubbles(controller: FishSwimController): void {
+  const system = controller.tile?._wildJuiceBubbleSystem;
+  if (
+    !controller.ready
+    || controller.dragging
+    || !system
+    || system.disposed
+    || !system.container
+    || system.container.destroyed
+    || !Array.isArray(system.bubbles)
+  ) {
+    releaseFrontBubbleSystem(controller);
+    return;
+  }
+
+  if (controller.bubbleSystem !== system) {
+    releaseFrontBubbleSystem(controller);
+    controller.bubbleSystem = system;
+    system._ccFishFrontBubbleOwner = controller;
+    system._ccFishFrontBubbleRenderableBefore = system.container.renderable !== false;
+  }
+  // The established Ball/juice Pixi emitter remains the only motion owner;
+  // only its live paint is mirrored over the direct Fish artwork.
+  system.container.renderable = false;
+  controller.bubbleLayer.style.visibility = 'visible';
+
+  const liveBubbles = new Set<any>();
+  const anchorX = DISPLAY_WIDTH * DISPLAY_ANCHOR_X;
+  const anchorY = DISPLAY_HEIGHT * DISPLAY_ANCHOR_Y;
+  system.bubbles.forEach((bubble: any) => {
+    const paint = bubble?._ccIdleBubblePaint as FishIdleBubblePaint | undefined;
+    if (!bubble || bubble.destroyed || !paint) return;
+    liveBubbles.add(bubble);
+    let node = controller.bubbleNodes.get(bubble);
+    if (!node) {
+      node = createFrontBubbleNode(paint);
+      controller.bubbleNodes.set(bubble, node);
+      controller.bubbleLayer.appendChild(node);
+    }
+    const x = anchorX + (Number(bubble.x) || 0) - paint.radius;
+    const y = anchorY + (Number(bubble.y) || 0) - paint.radius;
+    const scaleX = Number(bubble.scale?.x) || 0;
+    const scaleY = Number(bubble.scale?.y) || 0;
+    node.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scaleX}, ${scaleY})`;
+    node.style.opacity = String(Math.max(0, Math.min(1, Number(bubble.alpha) || 0)));
+    node.style.visibility = bubble.visible === false || bubble.renderable === false ? 'hidden' : 'visible';
+  });
+
+  controller.bubbleNodes.forEach((node, bubble) => {
+    if (liveBubbles.has(bubble)) return;
+    try { node.remove(); } catch {}
+    controller.bubbleNodes.delete(bubble);
+  });
+}
+
+export function getFishSwimDisplayGeometry() {
+  return {
+    width: DISPLAY_WIDTH,
+    height: DISPLAY_HEIGHT,
+    anchorX: DISPLAY_ANCHOR_X,
+    anchorY: DISPLAY_ANCHOR_Y,
+    restingArtworkWidth: FISH_SWIM_REST_ART.size * DISPLAY_SCALE,
+    restingArtworkHeight: FISH_SWIM_REST_ART.size * DISPLAY_SCALE,
+    artworkLeft: ARTWORK_LEFT,
+    artworkTop: ARTWORK_TOP,
+  };
+}
+
+function isPixiBranchVisible(displayObject: any): boolean {
+  let current = displayObject;
+  while (current) {
+    if (current.destroyed || current.visible === false || current.renderable === false) return false;
+    if (typeof current.alpha === 'number' && current.alpha <= 0.001) return false;
+    current = current.parent;
+  }
+  return true;
+}
+
+function getPixiBranchAlpha(displayObject: any): number {
+  let alpha = 1;
+  let current = displayObject;
+  while (current) {
+    if (typeof current.alpha === 'number') alpha *= current.alpha;
+    current = current.parent;
+  }
+  return Math.max(0, Math.min(1, alpha));
+}
+
+function disposeController(controller: FishSwimController): void {
+  if (controller.disposed) return;
+  controller.disposed = true;
+  controllers.delete(controller.tile);
+  if (controller.tile?._ccFishSwimArtwork === controller) {
+    delete controller.tile._ccFishSwimArtwork;
+  }
+  controller.phaseLease?.release();
+  controller.phaseLease = null;
+  releaseFrontBubbleSystem(controller);
+  if (controller.image) {
+    controller.image.onload = null;
+    controller.image.onerror = null;
+    controller.image.remove();
+    controller.image = null;
+  }
+  if (controller.video) {
+    controller.video.onloadeddata = null;
+    controller.video.onerror = null;
+    try {
+      controller.video.pause();
+      controller.video.removeAttribute('src');
+      controller.video.load();
+    } catch {}
+    controller.video.remove();
+    controller.video = null;
+  }
+  try { controller.wrapper.remove(); } catch {}
+  if (controller.base && !controller.base.destroyed) {
+    try { controller.base.renderable = controller.baseRenderable; } catch {}
+    try { controller.base.scale.x = controller.baseScaleX; } catch {}
+  }
+  if (controllers.size === 0 && runtimeLease) {
+    runtimeLease.release();
+    runtimeLease = null;
+  }
+}
+
+function syncController(controller: FishSwimController, frame: AnimatedSpecialArtworkFrame): void {
+  const { tile, base, host, wrapper } = controller;
+  const { canvasRect, rootRect, screenWidth, screenHeight, canvasOpacity } = frame;
+  if (
+    controller.disposed
+    || !tile
+    || tile.destroyed
+    || !base
+    || base.destroyed
+    || !host
+    || host.destroyed
+    || !isFishSwimTile(tile)
+  ) {
+    disposeController(controller);
+    return;
+  }
+
+  if (!controller.dragging) setAnimatedSpecialArtworkPinnedForeground(wrapper, true);
+  if (controller.dragging) {
+    releaseFrontBubbleSystem(controller);
+    wrapper.style.visibility = 'hidden';
+    try { base.renderable = true; } catch {}
+    return;
+  }
+
+  const visible = controller.ready
+    && base.visible !== false
+    && isPixiBranchVisible(host)
+    && canvasRect.width > 0
+    && canvasRect.height > 0;
+  if (!visible) {
+    try { base.renderable = controller.baseRenderable; } catch {}
+    wrapper.style.visibility = 'hidden';
+    return;
+  }
+
+  const transform = host.worldTransform;
+  if (!transform) {
+    wrapper.style.visibility = 'hidden';
+    return;
+  }
+  const scaleX = canvasRect.width / Math.max(1, screenWidth);
+  const scaleY = canvasRect.height / Math.max(1, screenHeight);
+  const anchorOffsetX = DISPLAY_WIDTH * DISPLAY_ANCHOR_X;
+  const anchorOffsetY = DISPLAY_HEIGHT * DISPLAY_ANCHOR_Y;
+  const a = transform.a * scaleX;
+  const b = transform.b * scaleY;
+  const c = transform.c * scaleX;
+  const d = transform.d * scaleY;
+  const e = canvasRect.left - rootRect.left
+    + (transform.tx - transform.a * anchorOffsetX - transform.c * anchorOffsetY) * scaleX;
+  const f = canvasRect.top - rootRect.top
+    + (transform.ty - transform.b * anchorOffsetX - transform.d * anchorOffsetY) * scaleY;
+
+  try { base.renderable = false; } catch {}
+  wrapper.style.transform = `matrix(${a}, ${b}, ${c}, ${d}, ${e}, ${f})`;
+  wrapper.style.opacity = String(getPixiBranchAlpha(base) * canvasOpacity);
+  wrapper.style.zIndex = String(Number.isFinite(tile.zIndex) ? Math.round(tile.zIndex) : 0);
+  syncFrontBubbles(controller);
+  wrapper.style.visibility = 'visible';
+}
+
+function updateFishSwimArtwork(frame: AnimatedSpecialArtworkFrame): void {
+  controllers.forEach((controller) => syncController(controller, frame));
+}
+
+function ensureRuntimeLease(): AnimatedSpecialArtworkLayerLease | null {
+  if (!runtimeLease) runtimeLease = acquireAnimatedSpecialArtworkLayer(updateFishSwimArtwork);
+  return runtimeLease;
+}
+
+function configureMediaElement(media: HTMLImageElement | HTMLVideoElement): void {
+  Object.assign(media.style, {
+    position: 'absolute',
+    inset: '0',
+    width: `${DISPLAY_WIDTH}px`,
+    height: `${DISPLAY_HEIGHT}px`,
+    maxWidth: 'none',
+    objectFit: 'contain',
+    objectPosition: 'center',
+    pointerEvents: 'none',
+    userSelect: 'none',
+    zIndex: '1',
+  });
+  media.setAttribute('aria-hidden', 'true');
+}
+
+function attachSvgFallback(controller: FishSwimController): void {
+  if (controller.disposed || controller.image) return;
+  if (controller.video) {
+    controller.video.onloadeddata = null;
+    controller.video.onerror = null;
+    try { controller.video.pause(); } catch {}
+    controller.video.remove();
+    controller.video = null;
+  }
+  const image = new Image();
+  image.alt = '';
+  image.draggable = false;
+  image.decoding = 'async';
+  image.dataset.fishSwimSource = 'svg-fallback';
+  configureMediaElement(image);
+  controller.image = image;
+  controller.wrapper.appendChild(image);
+  image.onload = () => {
+    if (controller.disposed || !isFishSwimTile(controller.tile)) return;
+    controller.ready = true;
+    runtimeLease?.requestSync();
+  };
+  image.onerror = () => {
+    controller.ready = false;
+    try { controller.base.renderable = controller.baseRenderable; } catch {}
+    controller.wrapper.style.visibility = 'hidden';
+  };
+  controller.phaseLease = acquireAnimatedSvgPhase(
+    'fish-swim-composition',
+    FISH_SWIM_CYCLE_MS,
+    [{ image, url: FISH_SWIM_SVG_URL }],
+  );
+}
+
+function attachIosHevc(controller: FishSwimController): void {
+  const video = document.createElement('video');
+  video.muted = true;
+  video.defaultMuted = true;
+  video.autoplay = true;
+  video.loop = true;
+  video.playsInline = true;
+  video.preload = 'auto';
+  video.disablePictureInPicture = true;
+  video.setAttribute('muted', '');
+  video.setAttribute('playsinline', '');
+  video.setAttribute('webkit-playsinline', '');
+  video.dataset.fishSwimSource = 'hevc-alpha';
+  configureMediaElement(video);
+  controller.video = video;
+  controller.wrapper.appendChild(video);
+  video.onloadeddata = () => {
+    if (controller.disposed || !isFishSwimTile(controller.tile)) return;
+    controller.ready = true;
+    runtimeLease?.requestSync();
+  };
+  video.onerror = () => {
+    fishHevcUnavailable = true;
+    controller.ready = false;
+    attachSvgFallback(controller);
+  };
+  video.src = FISH_SWIM_HEVC_URL;
+  try { video.load(); } catch {
+    fishHevcUnavailable = true;
+    attachSvgFallback(controller);
+    return;
+  }
+  void video.play().catch(() => {
+    if (controller.disposed) return;
+    attachSvgFallback(controller);
+  });
+}
+
+function createController(
+  tile: any,
+  base: any,
+  host: any,
+  root: HTMLDivElement,
+): FishSwimController {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'fish-swim-artwork';
+  Object.assign(wrapper.style, {
+    position: 'absolute',
+    left: '0',
+    top: '0',
+    width: `${DISPLAY_WIDTH}px`,
+    height: `${DISPLAY_HEIGHT}px`,
+    overflow: 'hidden',
+    pointerEvents: 'none',
+    transformOrigin: '0 0',
+    visibility: 'hidden',
+    willChange: 'transform',
+  });
+  installAnimatedSpecialArtworkOverlapFootprint(wrapper, {
+    left: ARTWORK_LEFT,
+    top: ARTWORK_TOP,
+    width: FISH_SWIM_DISPLAY_SIZE,
+    height: FISH_SWIM_DISPLAY_SIZE,
+  });
+  const bubbleLayer = document.createElement('div');
+  bubbleLayer.className = 'fish-swim-front-bubbles';
+  Object.assign(bubbleLayer.style, {
+    position: 'absolute',
+    inset: '0',
+    overflow: 'visible',
+    pointerEvents: 'none',
+    visibility: 'hidden',
+    zIndex: '2',
+  });
+  wrapper.appendChild(bubbleLayer);
+  root.appendChild(wrapper);
+
+  const controller: FishSwimController = {
+    tile,
+    base,
+    host,
+    wrapper,
+    image: null,
+    video: null,
+    bubbleLayer,
+    bubbleNodes: new Map(),
+    bubbleSystem: null,
+    baseRenderable: base.renderable !== false,
+    baseScaleX: base.scale?.x ?? 1,
+    dragging: false,
+    ready: false,
+    disposed: false,
+    phaseLease: null,
+  };
+  if (MOBILE_RUNTIME_PROFILE.platform === 'ios' && !fishHevcUnavailable) {
+    attachIosHevc(controller);
+  } else {
+    attachSvgFallback(controller);
+  }
+  return controller;
+}
+
+export function startFishSwimArtwork(tile: any): FishSwimController | null {
+  if (!isFishSwimTile(tile) || tile.destroyed) {
+    stopFishSwimArtwork(tile);
+    return null;
+  }
+  const existing = controllers.get(tile) || tile._ccFishSwimArtwork;
+  if (existing && !existing.disposed) {
+    ensureRuntimeLease()?.requestSync();
+    return existing;
+  }
+  const base = tile.base;
+  const host = tile.rotG || tile;
+  if (!base || base.destroyed || !host || host.destroyed) return null;
+  const lease = ensureRuntimeLease();
+  if (!lease) return null;
+  const controller = createController(tile, base, host, lease.root);
+  controllers.set(tile, controller);
+  tile._ccFishSwimArtwork = controller;
+  lease.requestSync();
+  return controller;
+}
+
+export function stopFishSwimArtwork(tile: any): void {
+  if (!tile) return;
+  const controller = controllers.get(tile) || tile._ccFishSwimArtwork;
+  if (controller) disposeController(controller);
+}
+
+export function setFishSwimArtworkDragging(tile: any, dragging: boolean): boolean {
+  const controller = controllers.get(tile) || tile?._ccFishSwimArtwork;
+  if (!controller || controller.disposed || !isFishSwimTile(tile)) return false;
+  controller.dragging = dragging;
+  applyFishDragFacing(controller);
+  if (dragging) {
+    releaseFrontBubbleSystem(controller);
+    setAnimatedSpecialArtworkDragging(controller.wrapper, true);
+    controller.wrapper.style.visibility = 'hidden';
+    try { controller.base.renderable = true; } catch {}
+  } else {
+    setAnimatedSpecialArtworkPinnedForeground(controller.wrapper, true);
+    runtimeLease?.requestSync();
+  }
+  controller.wrapper.style.zIndex = String(
+    dragging ? FISH_SWIM_DRAG_Z_INDEX : (Number.isFinite(tile.zIndex) ? Math.round(tile.zIndex) : 0),
+  );
+  return true;
+}
+
+export function refreshFishSwimArtworkDragFacing(tile: any): void {
+  const controller = controllers.get(tile) || tile?._ccFishSwimArtwork;
+  if (!controller || controller.disposed || !isFishSwimTile(tile)) return;
+  applyFishDragFacing(controller);
+}
+
+export function destroyFishSwimArtworkRuntime(): void {
+  Array.from(controllers.values()).forEach(disposeController);
+  releaseAnimatedSpecialArtworkFamily('fish');
+  if (runtimeLease) {
+    runtimeLease.release();
+    runtimeLease = null;
+  }
+}
+
+export function getFishSwimRuntimeStats() {
+  return {
+    controllers: controllers.size,
+    ready: Array.from(controllers.values()).filter((controller) => controller.ready).length,
+    hevc: Array.from(controllers.values()).filter((controller) => controller.video !== null).length,
+    svg: Array.from(controllers.values()).filter((controller) => controller.image !== null).length,
+    runtimeAttached: runtimeLease !== null,
+    overlayAttached: runtimeLease?.root.isConnected === true,
+  };
+}

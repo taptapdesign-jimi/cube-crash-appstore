@@ -30,6 +30,13 @@ import { WILD_SPECIAL_LANDING_SOUND_VOLUME } from '../wild-special-landing-sound
 import { ARCADE_CRATE_SOUND_VOLUMES } from '../arcade-crate-sound';
 import { JOURNEY_BACKPACK_SOUND_VOLUMES } from '../journey-backpack-sound';
 import { NO_MOVES_SOUND_VOLUME } from '../no-moves-sound';
+import {
+  FISH_MERGE6_FISH0_VOLUME,
+  FISH_MERGE6_FISH1_VOLUME,
+  FISH_MERGE6_FISH2_VOLUME,
+  FISH_MERGE6_PLOMP_VOLUME,
+  FISH_MERGE6_SPEAKS_VOLUME,
+} from '../fish-merge6-sound';
 
 describe('sound effects master volume', () => {
   it('reduces every currently active SFX voice by exactly 40 percent', () => {
@@ -52,6 +59,11 @@ describe('sound effects master volume', () => {
     expect(ARCADE_CRATE_SOUND_VOLUMES).toEqual([0.25536, 0.19152, 0.12768, 0.22344]);
     expect(JOURNEY_BACKPACK_SOUND_VOLUMES).toEqual([0.576, 0.18]);
     expect(NO_MOVES_SOUND_VOLUME).toBeCloseTo(0.42);
+    expect(FISH_MERGE6_FISH0_VOLUME).toBeCloseTo(0.24);
+    expect(FISH_MERGE6_FISH1_VOLUME).toBeCloseTo(0.4);
+    expect(FISH_MERGE6_FISH2_VOLUME).toBeCloseTo(0.4);
+    expect(FISH_MERGE6_PLOMP_VOLUME).toBeCloseTo(0.4);
+    expect(FISH_MERGE6_SPEAKS_VOLUME).toBeCloseTo(0.24);
   });
 
   it('keeps the shared multiplier bounded and excludes music ownership', () => {
@@ -66,7 +78,7 @@ describe('sound effects master volume', () => {
     expect(soundtrack).not.toContain('applySoundEffectsMasterGain');
   });
 
-  it('is consumed by all twelve active SFX owners', () => {
+  it('is consumed by all thirteen active SFX owners', () => {
     for (const filename of [
       'gameplay-pickup-sound.ts',
       'ordinary-stack-sound.ts',
@@ -80,6 +92,7 @@ describe('sound effects master volume', () => {
       'no-moves-sound.ts',
       'arcade-round-digit-sound.ts',
       'bottle-finale-sound.ts',
+      'fish-merge6-sound.ts',
     ]) {
       const source = fs.readFileSync(path.resolve(process.cwd(), 'src/modules', filename), 'utf8');
       expect(source).toContain('applySoundEffectsMasterGain');

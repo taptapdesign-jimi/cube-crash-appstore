@@ -251,7 +251,7 @@ function syncController(controller: BallBouncyController, frame: AnimatedSpecial
   }
 
   if (!controller.dragging) {
-    setAnimatedSpecialArtworkPinnedForeground(wrapper, true);
+    setAnimatedSpecialArtworkPinnedForeground(wrapper, true, { preserveDuringFinale: true });
   }
 
   if (controller.dragging) {
@@ -433,7 +433,11 @@ export function setBallBouncyArtworkDragging(tile: any, dragging: boolean): bool
   if (dragging) {
     setAnimatedSpecialArtworkDragging(controller.wrapper, true);
   } else {
-    setAnimatedSpecialArtworkPinnedForeground(controller.wrapper, true);
+    setAnimatedSpecialArtworkPinnedForeground(
+      controller.wrapper,
+      true,
+      { preserveDuringFinale: true },
+    );
   }
   controller.wrapper.style.zIndex = String(
     dragging ? BALL_BOUNCY_DRAG_Z_INDEX : (Number.isFinite(tile.zIndex) ? Math.round(tile.zIndex) : 0),

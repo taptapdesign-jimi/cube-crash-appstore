@@ -27,6 +27,13 @@ import {
   stopBallBouncyArtwork,
 } from './ball-bouncy-artwork.ts';
 import {
+  isFishSwimTile,
+  setFishSwimArtworkDragging,
+  refreshFishSwimArtworkDragFacing,
+  startFishSwimArtwork,
+  stopFishSwimArtwork,
+} from './fish-swim-artwork.ts';
+import {
   isPlainWildStarBouncyTile,
   setWildStarBouncyArtworkDragging,
   startWildStarBouncyArtwork,
@@ -197,6 +204,7 @@ export function stopSpecialDiceIdleMotion(tile: any): void {
     stopWildStarBouncyArtwork(tile);
     stopJuiceBounceArtwork(tile);
     stopBallBouncyArtwork(tile);
+    stopFishSwimArtwork(tile);
     stopRoboBouncyArtwork(tile);
     stopMushroomBouncyArtwork(tile);
     stopFlowerBouncyArtwork(tile);
@@ -291,6 +299,9 @@ export function setSpecialDiceIdleDragging(tile: any, dragging: boolean): boolea
   if (tile?._ccBallBouncyArtwork && isBeachBallBouncyTile(tile)) {
     return setBallBouncyArtworkDragging(tile, dragging);
   }
+  if (tile?._ccFishSwimArtwork && isFishSwimTile(tile)) {
+    return setFishSwimArtworkDragging(tile, dragging);
+  }
   if (tile?._ccJuiceBounceArtwork && isPlainJuiceBounceTile(tile)) {
     // The SVG frame owner lives on the base sprite layer and safely follows
     // the outer drag transform. Keep its single shared ticker alive.
@@ -336,6 +347,7 @@ export function updateSpecialDiceIdleDragMotion(
 
 export function refreshSpecialDiceIdleDragFacing(tile: any): void {
   tile?._ccBeeDiceIdle?.refreshFacing?.();
+  refreshFishSwimArtworkDragFacing(tile);
 }
 
 export function startSpecialDiceIdleMotion(tile: any): void {
@@ -346,6 +358,7 @@ export function startSpecialDiceIdleMotion(tile: any): void {
     if (isPlainWildStarBouncyTile(tile)) {
       stopJuiceBounceArtwork(tile);
       stopBallBouncyArtwork(tile);
+      stopFishSwimArtwork(tile);
       stopRoboBouncyArtwork(tile);
       stopMushroomBouncyArtwork(tile);
       stopFlowerBouncyArtwork(tile);
@@ -354,9 +367,22 @@ export function startSpecialDiceIdleMotion(tile: any): void {
       }
       return;
     }
+    if (isFishSwimTile(tile)) {
+      stopWildStarBouncyArtwork(tile);
+      stopJuiceBounceArtwork(tile);
+      stopBallBouncyArtwork(tile);
+      stopRoboBouncyArtwork(tile);
+      stopMushroomBouncyArtwork(tile);
+      stopFlowerBouncyArtwork(tile);
+      if (acquireAnimatedSpecialArtworkMode(tile, 'fish') === 'svg') {
+        startFishSwimArtwork(tile);
+      }
+      return;
+    }
     if (isPlainJuiceBounceTile(tile)) {
       stopWildStarBouncyArtwork(tile);
       stopBallBouncyArtwork(tile);
+      stopFishSwimArtwork(tile);
       stopRoboBouncyArtwork(tile);
       stopMushroomBouncyArtwork(tile);
       stopFlowerBouncyArtwork(tile);
@@ -368,6 +394,7 @@ export function startSpecialDiceIdleMotion(tile: any): void {
     if (isBeachBallBouncyTile(tile)) {
       stopWildStarBouncyArtwork(tile);
       stopJuiceBounceArtwork(tile);
+      stopFishSwimArtwork(tile);
       stopRoboBouncyArtwork(tile);
       stopMushroomBouncyArtwork(tile);
       stopFlowerBouncyArtwork(tile);
@@ -380,6 +407,7 @@ export function startSpecialDiceIdleMotion(tile: any): void {
       stopWildStarBouncyArtwork(tile);
       stopJuiceBounceArtwork(tile);
       stopBallBouncyArtwork(tile);
+      stopFishSwimArtwork(tile);
       stopMushroomBouncyArtwork(tile);
       stopFlowerBouncyArtwork(tile);
       const idleSources = Array.isArray(variant?.idleSpriteSources) ? variant.idleSpriteSources : [];
@@ -396,6 +424,7 @@ export function startSpecialDiceIdleMotion(tile: any): void {
       stopWildStarBouncyArtwork(tile);
       stopJuiceBounceArtwork(tile);
       stopBallBouncyArtwork(tile);
+      stopFishSwimArtwork(tile);
       stopRoboBouncyArtwork(tile);
       stopMushroomBouncyArtwork(tile);
       if (acquireAnimatedSpecialArtworkMode(tile, 'flower') === 'svg') {
@@ -416,6 +445,7 @@ export function startSpecialDiceIdleMotion(tile: any): void {
     stopWildStarBouncyArtwork(tile);
     stopJuiceBounceArtwork(tile);
     stopBallBouncyArtwork(tile);
+    stopFishSwimArtwork(tile);
     stopRoboBouncyArtwork(tile);
     stopMushroomBouncyArtwork(tile);
     stopFlowerBouncyArtwork(tile);

@@ -44,7 +44,7 @@ export type SpecialDiceVariantDefinition = {
   shardColors?: number[];
   trailColors?: number[];
   idleBubbleColors?: number[];
-  finaleScene?: 'bottle-ocean' | 'spaceship-abduction' | 'lasergun-crossfire' | 'bee-forest-flight' | 'kanta-center-sequence';
+  finaleScene?: 'bottle-ocean' | 'spaceship-abduction' | 'lasergun-crossfire' | 'bee-forest-flight' | 'kanta-center-sequence' | 'fish-bubbles';
   explosionSpriteSources?: string[];
   explosionScale?: number;
   explosionHorizontalScale?: number;
@@ -56,7 +56,7 @@ export type SpecialDiceVariantDefinition = {
   visualFit?: 'height';
   hitAreaSize?: 'tile';
   idleOrbit?: boolean;
-  idleMotion?: 'float' | 'beach-ball-bounce' | 'bottle-float' | 'cubero-hop' | 'mushroom-pop' | 'robo-sprite-cycle' | 'spaceship-hover' | 'bee-sprite-cycle' | 'kanta-rock';
+  idleMotion?: 'float' | 'beach-ball-bounce' | 'bottle-float' | 'cubero-hop' | 'fish-swim' | 'mushroom-pop' | 'robo-sprite-cycle' | 'spaceship-hover' | 'bee-sprite-cycle' | 'kanta-rock';
   idleSpriteSources?: string[];
   juiceDropProfile?: 'beach-ball' | 'mushroom' | 'robo';
   finaleAccentSpriteSources?: string[];
@@ -212,6 +212,28 @@ const useHighResolutionSpecialDiceFx = typeof navigator !== 'undefined'
   && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
 export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition> = {
+  fish: {
+    id: 'fish',
+    archetype: 'wild-star',
+    texture: './assets/shop/fish/fish.png',
+    splashText: 'FISHY',
+    splashColor: '#FD7C41',
+    splashColors: ['#FD7C41', '#FCA470'],
+    splashLetterOpacityRange: [1, 1],
+    splashSplitIndex: 3,
+    shardColor: 0xFCA470,
+    shardColors: [0xFCA470, 0xFD6B38],
+    trailColors: [0xF5D8BF, 0xFDAC78, 0xFDA458, 0xFD7C41],
+    idleBubbleColors: [0xFFE6E1, 0xFFF2E9, 0xFFD5D6],
+    burstParticleSources: ['./assets/shop/fish/fish.png'],
+    finaleScene: 'fish-bubbles',
+    visualWidth: 128,
+    visualHeight: 128,
+    hitAreaSize: 'tile',
+    idleOrbit: false,
+    idleMotion: 'fish-swim',
+    inputReleaseAtRatio: 0.25,
+  },
   kanta: {
     id: 'kanta',
     archetype: 'wild-star',
@@ -492,7 +514,7 @@ export function usesRigidSpecialDiceIdle(tile: any): boolean {
 /** Beach water-themed dice use a round bubble drag trail; every other die keeps its established trail. */
 export function usesRoundBubbleDragTrail(tile: any): boolean {
   const variantId = getSpecialDiceVariantForTile(tile)?.id;
-  if (variantId) return variantId === 'beach-ball' || variantId === 'bottle';
+  if (variantId) return variantId === 'fish' || variantId === 'beach-ball' || variantId === 'bottle';
   return tile?.special === 'wild-juice' || tile?._ccWildSpecial === 'wild-juice';
 }
 
@@ -567,6 +589,11 @@ export function isSpecialDiceStarLikeTile(tile: any, coreWildTypeOverride?: Core
 
 export function isSpecialDiceJuiceLikeTile(tile: any, coreWildTypeOverride?: CoreWildType | string | null): boolean {
   return specialDiceTileMatchesFinaleFx(tile, 'juice', coreWildTypeOverride);
+}
+
+export function usesSpecialDiceIdleBubbles(tile: any, coreWildTypeOverride?: CoreWildType | string | null): boolean {
+  return getSpecialDiceIdleBubbleColors(tile) !== null
+    || isSpecialDiceJuiceLikeTile(tile, coreWildTypeOverride);
 }
 
 export function isSpecialDiceTntLikeTile(tile: any, coreWildTypeOverride?: CoreWildType | string | null): boolean {
@@ -874,13 +901,14 @@ export function pickSpecialDiceVariantForWildSpawn({
       const variantId = getArea55WildRewardVariantId(area55Reward);
       return variantId ? SPECIAL_DICE_VARIANTS[variantId] || null : null;
     }
-    // Beach uses one weighted roll per spawn. Ball and Bottle are explicit
-    // Magnet-gameplay variants; Star and Juice remain core wild types. Generic
-    // Magnet and TNT are intentionally absent from the Beach fallback pool.
+    // Beach uses one weighted roll per spawn. Fish owns the Star slot while
+    // Ball and Bottle are explicit visual variants over their core mechanics.
+    // Generic Magnet and TNT remain absent from the Beach fallback pool.
     if (board >= 12 && board <= 20) {
       const beachSlot = Number.isFinite(beachWildSlot)
         ? Math.max(0, Math.min(3, Math.trunc(beachWildSlot as number)))
         : pickBeachWildSlot();
+      if (beachSlot === 0) return SPECIAL_DICE_VARIANTS.fish;
       if (beachSlot === 2) return SPECIAL_DICE_VARIANTS['beach-ball'];
       if (beachSlot === 3) return SPECIAL_DICE_VARIANTS.bottle;
       return null;
@@ -894,7 +922,7 @@ export function pickSpecialDiceVariantForWildSpawn({
   return testVariants[wildSpawnCount] || null;
 }
 
-// Slots: 0 Star, 1 Juice, 2 Beach Ball, 3 Bottle.
+// Slots: 0 Fish (Wild Star gameplay), 1 Juice, 2 Beach Ball, 3 Bottle.
 export const BEACH_WILD_SLOT_WEIGHTS = Object.freeze([0.25, 0.25, 0.25, 0.25] as const);
 
 export function pickBeachWildSlot(randomValue: number = Math.random()): number {

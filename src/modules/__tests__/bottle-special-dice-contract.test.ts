@@ -22,11 +22,13 @@ describe('Bottle special-die visual contract', () => {
     expect(splashSource).toContain('? attachBottleFinaleScene(overlay, 1, BOOM_ENTER_DELAY)');
   });
 
-  test('uses only three lifted bottles and the PNG bubble pack', () => {
+  test('uses five lifted bottles and the PNG bubble pack', () => {
     const scene = read('src/modules/bottle-finale-scene.ts');
     for (const key of ['botle1', 'botle2', 'botle3']) {
       expect(scene).toContain(`key: '${key}'`);
     }
+    expect(scene).toContain("key: 'botle4', src: source('botle1')");
+    expect(scene).toContain("key: 'botle5', src: source('botle3')");
     for (const removedKey of ['sea1', 'sea2', 'sea3', 'splav1', 'splav2', 'splav3']) {
       expect(scene).not.toContain(`key: '${removedKey}'`);
       expect(scene).not.toContain(`source('${removedKey}'`);
@@ -36,9 +38,12 @@ describe('Bottle special-die visual contract', () => {
     expect(scene).toContain('const BUBBLE_COUNT = ORIGINAL_BUBBLE_COUNT + SMALL_BUBBLE_COUNT');
     expect(scene).toContain('const BUBBLE_WAVE_SIZES = [6, 10, 7, 7, 5, 5] as const');
     expect(scene).toContain('const BUBBLE_WAVE_STARTS = [0, 0.4, 0.9, 1.4, 1.9, 2.35] as const');
-    expect(scene).toContain("key: 'botle1', src: source('botle1'), z: 8, widthPercent: 30, lane: [18, 30]");
-    expect(scene).toContain("key: 'botle2', src: source('botle2'), z: 9, widthPercent: 36, lane: [42, 58]");
-    expect(scene).toContain("key: 'botle3', src: source('botle3'), z: 10, widthPercent: 27, lane: [70, 82]");
+    expect(scene).toContain("key: 'botle1', src: source('botle1'), z: 8, widthPercent: 30,");
+    expect(scene).toContain('centerPathPercents: [23, 34, 48, 55, 60], startYViewportRatio: -0.07');
+    expect(scene).toContain("key: 'botle2', src: source('botle2'), z: 10, widthPercent: 36,");
+    expect(scene).toContain('centerPathPercents: [58, 57, 55, 50, 42], startYViewportRatio: 0.03');
+    expect(scene).toContain("key: 'botle3', src: source('botle3'), z: 12, widthPercent: 27,");
+    expect(scene).toContain('centerPathPercents: [81.8, 80, 76, 70, 64], startYViewportRatio: 0.1');
     expect(scene).toContain('source(`bubble${(index % 6) + 1}`)');
     expect(scene).not.toContain('backgroundColor');
     expect(scene).not.toContain('borderRadius');
@@ -79,23 +84,19 @@ describe('Bottle special-die visual contract', () => {
   test('sinks bottles from above with a bounded trailing-bubble stream, then cleans up idempotently', () => {
     const scene = read('src/modules/bottle-finale-scene.ts');
     expect(scene).toContain("ease: 'sine.inOut'");
-    expect(scene).toContain('restY: 100, speedMultiplier: 1');
-    expect(scene).toContain('restY: 0, speedMultiplier: 1.488');
-    expect(scene).toContain('restY: -60, speedMultiplier: 1.332');
+    expect(scene).toContain('const BOTTLE_WOBBLE_PHASE_RATIOS = [0.25, 0.25, 0.25, 0.25] as const');
     expect(scene).toContain("mover.style.top = '-9%'");
-    expect(scene).toContain('y: -viewportH * (0.07 + index * 0.006)');
-    expect(scene).toContain('const TRAIL_BUBBLES_PER_BOTTLE = 20');
+    expect(scene).toContain('y: sinkMotionPlan.startYPx');
+    expect(scene).toContain('const TRAIL_BUBBLES_PER_BOTTLE = 12');
     expect(scene).toContain('const TRAIL_MAX_LIFETIME_SECONDS = 0.72');
     expect(scene).toContain('const BOTTLE_SINK_DURATION_SECONDS = 3.2');
     expect(scene).toContain('const BOTTLE_START_DELAY_SECONDS = 0.3');
     expect(scene).toContain('const BOTTLE_SINK_START_SCALE = 0.9');
     expect(scene).toContain('const BOTTLE_SINK_END_SCALE = BOTTLE_SINK_START_SCALE * 1.4');
-    expect(scene).toContain('const BOTTLE_WEAVE_MAX_VIEWPORT_RATIO = 0.1');
-    expect(scene).toContain('const BOTTLE_WEAVE_STRENGTH = 1.3');
     expect(scene).toContain('const BOTTLE_WOBBLE_STRENGTH = 1.3');
-    expect(scene).toContain('const layerSinkDuration = BOTTLE_SINK_DURATION_SECONDS / layer.speedMultiplier');
-    expect(scene).toContain('const horizontalPlan = createBottleHorizontalMotionPlan(');
-    expect(scene).toContain('mover.style.left = `${horizontalPlan.leftPercent}%`');
+    expect(scene).toContain('const layerSinkDuration = BOTTLE_SINK_DURATION_SECONDS');
+    expect(scene).toContain('const sinkMotionPlans = createBottleCrossingSinkPlans(viewportH)');
+    expect(scene).toContain('mover.style.left = `${layer.centerPathPercents[0]}%`');
     expect(scene).toContain('opacity: 1');
     expect(scene).toContain("visibility: 'visible'");
     expect(scene).toContain('xPercent: 0');
@@ -112,27 +113,37 @@ describe('Bottle special-die visual contract', () => {
     expect(scene).toContain('Math.min(BUBBLE_OPACITY_MAX, bubbleOpacity + 0.06)');
     expect(scene).toContain('const wobbleDirection = Math.random() < 0.5 ? -1 : 1');
     expect(scene).toContain('const initialRotation = wobbleDirection * (6 + Math.random() * 4)');
-    expect(scene).toContain('-wobbleDirection * (14 + Math.random() * 4)');
-    expect(scene).toContain('wobbleDirection * (12 + Math.random() * 5)');
-    expect(scene).toContain('-wobbleDirection * (17 + Math.random() * 3)');
-    expect(scene).toContain('wobbleDirection * (14 + Math.random() * 6)');
-    expect(scene).toContain('const wobblePhaseRatios = [0.22, 0.28, 0.23, 0.27] as const');
+    expect(scene).toContain('const authoredDirection = phaseIndex % 2 === 0 ? -wobbleDirection : wobbleDirection');
+    expect(scene).toContain('rotation: authoredDirection * (10 + Math.random() * 4)');
     expect(scene).toContain("mover.className = `cc-bottle-finale-mover cc-bottle-finale-mover-${layer.key}`");
     expect(scene).toContain('parent.appendChild(image)');
     expect(scene).not.toContain('field.appendChild(image)');
     expect(scene).toContain('bottleTimeline.to(mover, {');
     expect(scene).toContain('const wobbleTimeline = own(trackTimeline({ delay: bottleStartDelaySeconds }))');
     expect(scene).toContain('wobbleTimeline.to(image, {');
-    expect(scene).toContain('duration: layerSinkDuration * wobblePhaseRatios[phaseIndex]');
+    expect(scene).toContain('duration: layerSinkDuration * durationRatio');
     expect(scene).toContain('image.style.transformOrigin = \'50% 82%\'');
     expect(scene).toContain('const mainBubbleStartDelaySeconds = 0');
     expect(scene).toContain('const bottleStartDelaySeconds = BOTTLE_START_DELAY_SECONDS');
-    expect(scene).toContain('const weaveOffsets = createBottleSinkWeaveOffsets(');
     expect(scene).toContain('const weaveTimeline = own(trackTimeline({ delay: bottleStartDelaySeconds }))');
-    expect(scene).toContain('weaveTimeline.to(weaveShell, {');
+    expect(scene).toContain("const setWeaveX = gsap.quickSetter(weaveShell, 'x', 'px')");
+    expect(scene).toContain('weaveTimeline.to(weaveProgress, {');
+    expect(scene).toContain('sampleBottleCrossingCenterPercent(');
+    expect(scene).toContain('setWeaveX(((centerPercent - startCenterPercent) / 100) * viewportW)');
+    expect(scene).toContain('duration: layerSinkDuration');
     expect(scene).toContain('y: sinkEndY');
     expect(scene).toContain('scale: BOTTLE_SINK_END_SCALE');
-    expect(scene).toContain("ease: 'none'");
+    expect(scene).toContain("ease: 'power1.in'");
+    expect(scene).not.toContain('contactMotionPlan');
+    expect(scene).not.toContain('contactWith');
+    expect(scene).not.toContain('contactSide');
+    const weaveOwner = scene.slice(
+      scene.indexOf('const weaveTimeline = own('),
+      scene.indexOf('const wobbleTimeline = own('),
+    );
+    expect(weaveOwner.match(/weaveTimeline\.to\(/g)).toHaveLength(1);
+    expect(weaveOwner).not.toContain('keyframes');
+    expect(weaveOwner).not.toContain(' y:');
     expect(scene).toContain('const trailBubbleCount = TRAIL_BUBBLES_PER_BOTTLE');
     expect(scene).toContain('trailIndex < trailBubbleCount');
     expect(scene).toContain("'cc-bottle-finale-bubble cc-bottle-finale-trail-bubble'");
@@ -239,7 +250,7 @@ describe('Bottle special-die visual contract', () => {
     expect(fxSource).toContain('queueMicrotask(() =>');
     expect(fxSource).toContain('graphicsPool.isInPool(bubble)');
     expect(fxSource).toContain('system.container.destroy({ children: false })');
-    expect(dragSource).toContain('const usesJuiceIdleFx = isSpecialDiceJuiceLikeTile(t)');
+    expect(dragSource).toContain('const usesJuiceIdleFx = usesSpecialDiceIdleBubbles(t)');
   });
 
   test('keeps exact Magnet replacement density while canonically normalizing the reused survivor', () => {

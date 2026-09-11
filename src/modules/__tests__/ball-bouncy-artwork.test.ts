@@ -269,7 +269,7 @@ describe('Beach Ball animated SVG board artwork', () => {
       expect((controller as any).wrapper.style.visibility).toBe('visible');
       expect(base.renderable).toBe(false);
       expect((controller as any).wrapper.parentElement?.className)
-        .toBe('animated-special-artwork-pinned-foreground-layer');
+        .toBe('animated-special-artwork-finale-persistent-foreground-layer');
       expect(Number((controller as any).wrapper.parentElement?.style.zIndex)).toBe(12_002);
     } finally {
       releaseForeground();
@@ -289,7 +289,11 @@ describe('Beach Ball animated SVG board artwork', () => {
     const ballWrapper = ballTile._ccBallBouncyArtwork.wrapper as HTMLDivElement;
     const juiceWrapper = juiceTile._ccJuiceBounceArtwork.wrapper as HTMLDivElement;
     expect(ballWrapper.parentElement).not.toBe(juiceWrapper.parentElement);
-    expect(ballWrapper.parentElement?.classList.contains('animated-special-artwork-pinned-foreground-layer')).toBe(true);
+    expect(
+      ballWrapper.parentElement?.classList.contains(
+        'animated-special-artwork-finale-persistent-foreground-layer',
+      ),
+    ).toBe(true);
     expect(juiceWrapper.parentElement?.classList.contains('animated-special-artwork-layer')).toBe(true);
     expect(Number((ballWrapper.parentElement as HTMLElement).style.zIndex))
       .toBeGreaterThan(Number((juiceWrapper.parentElement as HTMLElement).style.zIndex));

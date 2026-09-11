@@ -40,6 +40,10 @@ describe('Beach World wild pool', () => {
     expect(getCoreWildTypeForSpecialDiceVariant(getSpecialDiceVariant('beach-ball'))).toBe('wild-tnt');
   });
 
+  test('Fish reuses Wild Star gameplay as the first Beach reward', () => {
+    expect(getCoreWildTypeForSpecialDiceVariant(getSpecialDiceVariant('fish'))).toBe('wild');
+  });
+
   test('gives all four later-stage Beach slots an equal independent 25-percent range', () => {
     expect(BEACH_WILD_SLOT_WEIGHTS).toEqual([0.25, 0.25, 0.25, 0.25]);
     expect([
@@ -62,11 +66,11 @@ describe('Beach World wild pool', () => {
         journeyBoard,
         beachWildSlot,
       })?.id ?? null);
-      expect(variants).toEqual([null, null, 'beach-ball', 'bottle']);
+      expect(variants).toEqual(['fish', null, 'beach-ball', 'bottle']);
     }
   });
 
-  test('Beach Cjelina 01 cannot assign Beach Ball or Bottle variants', () => {
+  test('Beach Cjelina 01 leaves its Fish introduction to the Wild decision owner', () => {
     for (const beachWildSlot of [0, 1, 2, 3]) {
       expect(pickSpecialDiceVariantForWildSpawn({
         isArcade: false,

@@ -40,6 +40,10 @@ import {
   LASERGUN_MAX_BEAM_ANGLE_DEGREES,
   LASERGUN_MIN_BEAM_TRAVEL_PX,
   LASERGUN_LAYOUT_TRAVEL_MARGIN_PX,
+  LASERGUN_ORBS_DURATION_SECONDS,
+  LASERGUN_ORBS_FRAMES_PER_SECOND,
+  LASERGUN_ORBS_HEIGHT,
+  LASERGUN_ORBS_WIDTH,
   LASERGUN_MUZZLE_EDGE_INSET_RATIO,
   LASERGUN_RIG_MAX_WIDTH_PX,
   LASERGUN_LEFT_BEAM_GEOMETRY,
@@ -184,6 +188,48 @@ describe('LaserGun special die contract', () => {
     expect(LASERGUN_PREFLIGHT_LEAD_MS).toBe(154);
     expect(LASERGUN_SHOT_INTERVAL_MS).toBe(300);
     expect(LASERGUN_ARRIVAL_TIMEOUT_MS).toBe(900);
+  });
+
+  test('uses a bounded HEVC-alpha orb layer behind ZAP - ZAP with SVG fallback', () => {
+    const assetRoot = path.resolve(process.cwd(), 'assets/shop/gun');
+    const svgPath = path.join(assetRoot, 'electric blue orbs.svg');
+    const hevcPath = path.join(assetRoot, 'electric-blue-orbs-hevc.mov');
+    const svg = fs.readFileSync(svgPath, 'utf8');
+    const hevc = fs.readFileSync(hevcPath);
+    const scene = read('src/modules/lasergun-finale-scene.ts');
+    const generator = read('scripts/build-lasergun-orbs-hevc.mjs');
+    const encoder = read('scripts/encode-hevc-alpha-frames.swift');
+
+    expect(LASERGUN_ORBS_DURATION_SECONDS).toBe(3);
+    expect(LASERGUN_ORBS_FRAMES_PER_SECOND).toBe(60);
+    expect([LASERGUN_ORBS_WIDTH, LASERGUN_ORBS_HEIGHT]).toEqual([432, 768]);
+    expect(svg.match(/<animate(?=[\s>])/g)).toHaveLength(86);
+    expect(svg.match(/<animateTransform(?=[\s>])/g)).toHaveLength(68);
+    expect(hevc.subarray(4, 8).toString('ascii')).toBe('ftyp');
+    expect(hevc.includes(Buffer.from('hvc1'))).toBe(true);
+
+    expect(scene).toContain("field.className = 'cc-lasergun-orbs-layer'");
+    expect(scene).toContain("field.dataset.lasergunOrbs = 'active'");
+    expect(scene).toContain("'z-index:0'");
+    expect(scene).toContain("video.dataset.lasergunOrbsSource = 'hevc-alpha'");
+    expect(scene).toContain("fallbackImage.dataset.lasergunOrbsSource = 'svg-fallback'");
+    expect(scene).toContain("MOBILE_RUNTIME_PROFILE.platform === 'ios'");
+    expect(scene).toContain('large filter graph while a Journey board is being prepared');
+    expect(scene).toContain('return Promise.resolve();');
+    expect(scene).toContain('video.play().catch');
+    expect(scene).toContain('video.pause();');
+    expect(scene).toContain('video.currentTime = 0;');
+    expect(scene).toContain('cleanupOrbsLayer();');
+
+    expect(generator).toContain('const FRAMES_PER_SECOND = 60;');
+    expect(generator).toContain("'prores4444'");
+    expect(generator).toContain("'PresetHEVCHighestQualityWithAlpha'");
+    expect(encoder).toContain('AVVideoCodecType.proRes4444');
+    expect(encoder).toContain('AVVideoCodecType.hevcWithAlpha');
+    expect(encoder).toContain('kVTCompressionPropertyKey_AlphaChannelMode');
+    expect(encoder).toContain('if outputCodec == .proRes4444');
+    expect(encoder).toContain('(Int(pixel[channel]) * 255 + alpha / 2) / alpha');
+    expect(encoder).toContain('AVVideoExpectedSourceFrameRateKey: expectedFramesPerSecond');
   });
 
   test('aims the supplied beam from its barrel endpoint to the real target', () => {

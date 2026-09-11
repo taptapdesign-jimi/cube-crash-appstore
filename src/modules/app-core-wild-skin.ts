@@ -1,7 +1,7 @@
 import {
   getSpecialDiceTexturePath,
   getSpecialDiceVisualConfig,
-  isSpecialDiceJuiceLikeTile,
+  usesSpecialDiceIdleBubbles,
 } from './special-dice-registry.ts';
 import { startSpecialDiceIdleMotion } from './special-dice-idle.ts';
 import { isPlainWildStarBouncyTile } from './wild-star-bouncy-artwork.ts';
@@ -192,7 +192,7 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
       // the exact generic Wild Star.
       if (!isPlainWildStarBouncyTile(tile)) startWildShimmer(tile);
       // Orbitirajuće zvjezdice SAMO za wild zvjezdicu (special === 'wild'); nikad za drugi wild
-      if (isSpecialDiceJuiceLikeTile(tile)) {
+      if (usesSpecialDiceIdleBubbles(tile)) {
         // A visual variant may intentionally keep Juice idle animation while
         // reusing another gameplay archetype (Beach Ball currently uses TNT).
         stopTntIdleParticles(tile);

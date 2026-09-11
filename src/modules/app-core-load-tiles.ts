@@ -3,6 +3,7 @@ import {
   getCompatibleSpecialDiceVariant,
   getCoreWildTypeForSpecialDiceVariant,
   isSpecialDiceJuiceLikeTile,
+  usesSpecialDiceIdleBubbles,
 } from './special-dice-registry.ts';
 import { isWildLikeSpecial } from './final-merge-rules.ts';
 import { removeTileFully } from './tile-lifecycle-service.ts';
@@ -236,7 +237,7 @@ export function restoreTilesFromSave({
     if (isWildSnapshot) {
       applyWildSkinLocal(tile);
       try { startWildShimmer(tile); } catch {}
-      if (isSpecialDiceJuiceLikeTile(tile)) {
+      if (usesSpecialDiceIdleBubbles(tile)) {
         try {
           if (typeof startWildJuiceBubbles === 'function') {
             startWildJuiceBubbles(tile);

@@ -160,5 +160,15 @@ export function decideWildType({
     boardNumber
   });
 
-  return { spawnJuice, spawnMagnet, spawnTnt, wildType: filtered };
+  return {
+    spawnJuice,
+    spawnMagnet,
+    spawnTnt,
+    wildType: filtered,
+    // Beach Cjelina 01 introduces Fish through its guaranteed first Star.
+    // Juice remains the established alternate core reward on that board.
+    specialDiceVariantId: isBeachStageOne
+      ? (filtered === 'wild' ? 'fish' : null)
+      : undefined,
+  };
 }

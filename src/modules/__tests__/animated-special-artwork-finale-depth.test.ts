@@ -135,33 +135,37 @@ describe('animated special artwork merge-6 depth ownership', () => {
     expect(image.getAttribute('src')).toBe('./assets/shop/juice/juice-bounce.svg?cc-svg-phase=4');
   });
 
-  test('pins Ball-style idle artwork above Pixi and the active SVG drag without crossing a finale', () => {
+  test('keeps Ball above board ghosts during a sibling finale while ordinary pinned artwork yields', () => {
     const artworkLease = acquireAnimatedSpecialArtworkLayer(jest.fn());
     expect(artworkLease).not.toBeNull();
     if (!artworkLease) return;
     releases.push(artworkLease.release);
 
     const pinned = document.createElement('div');
+    const ordinaryPinned = document.createElement('div');
     const dragged = document.createElement('div');
-    artworkLease.root.append(pinned, dragged);
-    setAnimatedSpecialArtworkPinnedForeground(pinned, true);
+    artworkLease.root.append(pinned, ordinaryPinned, dragged);
+    setAnimatedSpecialArtworkPinnedForeground(pinned, true, { preserveDuringFinale: true });
+    setAnimatedSpecialArtworkPinnedForeground(ordinaryPinned, true);
     setAnimatedSpecialArtworkDragging(dragged, true);
 
     const canvas = STATE.app?.canvas as HTMLCanvasElement;
     const canvasZ = Number(getComputedStyle(canvas).zIndex || '1');
     expect(pinned.parentElement?.className)
-      .toBe('animated-special-artwork-pinned-foreground-layer');
+      .toBe('animated-special-artwork-finale-persistent-foreground-layer');
     expect(Number(pinned.parentElement?.style.zIndex)).toBeGreaterThan(canvasZ);
     expect(Number(pinned.parentElement?.style.zIndex))
       .toBeGreaterThan(Number(dragged.parentElement?.style.zIndex));
 
     const releaseFinale = acquireAnimatedSpecialArtworkFinaleDepth();
     releases.push(releaseFinale);
-    expect(Number(pinned.parentElement?.style.zIndex)).toBeLessThan(canvasZ);
+    expect(Number(pinned.parentElement?.style.zIndex)).toBeGreaterThan(canvasZ);
+    expect(Number(ordinaryPinned.parentElement?.style.zIndex)).toBeLessThan(canvasZ);
 
     releaseFinale();
     expect(Number(pinned.parentElement?.style.zIndex)).toBeGreaterThan(canvasZ);
     setAnimatedSpecialArtworkPinnedForeground(pinned, false);
+    setAnimatedSpecialArtworkPinnedForeground(ordinaryPinned, false);
     setAnimatedSpecialArtworkDragging(dragged, false);
   });
 
@@ -172,12 +176,20 @@ describe('animated special artwork merge-6 depth ownership', () => {
     releases.push(artworkLease.release);
     const draggedSvg = document.createElement('div');
     const pinnedSvg = document.createElement('div');
+    const persistentPinnedSvg = document.createElement('div');
     artworkLease.root.appendChild(draggedSvg);
     artworkLease.root.appendChild(pinnedSvg);
+    artworkLease.root.appendChild(persistentPinnedSvg);
     setAnimatedSpecialArtworkDragging(draggedSvg, true);
     setAnimatedSpecialArtworkPinnedForeground(pinnedSvg, true);
+    setAnimatedSpecialArtworkPinnedForeground(
+      persistentPinnedSvg,
+      true,
+      { preserveDuringFinale: true },
+    );
     const dragRoot = draggedSvg.parentElement as HTMLDivElement;
     const pinnedRoot = pinnedSvg.parentElement as HTMLDivElement;
+    const persistentPinnedRoot = persistentPinnedSvg.parentElement as HTMLDivElement;
 
     const canvas = STATE.app?.canvas as HTMLCanvasElement;
     canvas.style.display = 'none';
@@ -186,7 +198,9 @@ describe('animated special artwork merge-6 depth ownership', () => {
     expect(artworkLease.root.style.visibility).toBe('hidden');
     expect(dragRoot.style.visibility).toBe('hidden');
     expect(pinnedRoot.style.visibility).toBe('hidden');
+    expect(persistentPinnedRoot.style.visibility).toBe('hidden');
     setAnimatedSpecialArtworkPinnedForeground(pinnedSvg, false);
+    setAnimatedSpecialArtworkPinnedForeground(persistentPinnedSvg, false);
     setAnimatedSpecialArtworkDragging(draggedSvg, false);
   });
 

@@ -121,7 +121,7 @@ describe('Forest progressive Wild pool', () => {
 });
 
 describe('Beach Cjelina 01 Wild pool', () => {
-  test('starts with Wild Star', () => {
+  test('starts with Fish on Wild Star gameplay', () => {
     expect(decideForRoll({
       roll: 0,
       boardNumber: 11,
@@ -130,6 +130,7 @@ describe('Beach Cjelina 01 Wild pool', () => {
     }).result).toMatchObject({
       spawnJuice: false,
       wildType: 'wild',
+      specialDiceVariantId: 'fish',
     });
   });
 
@@ -142,6 +143,7 @@ describe('Beach Cjelina 01 Wild pool', () => {
     }).result).toMatchObject({
       spawnJuice: true,
       wildType: 'wild-juice',
+      specialDiceVariantId: null,
     });
     expect(decideForRoll({
       roll: 0.60,
@@ -151,6 +153,7 @@ describe('Beach Cjelina 01 Wild pool', () => {
     }).result).toMatchObject({
       spawnJuice: false,
       wildType: 'wild',
+      specialDiceVariantId: 'fish',
     });
   });
 
@@ -163,6 +166,7 @@ describe('Beach Cjelina 01 Wild pool', () => {
     }).result).toMatchObject({
       spawnJuice: true,
       wildType: 'wild-juice',
+      specialDiceVariantId: null,
     });
   });
 });

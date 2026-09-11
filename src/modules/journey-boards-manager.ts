@@ -134,6 +134,8 @@ import {
 } from './journey-new-card-presentation.js';
 import { preloadRegularMerge6Sounds } from './regular-merge6-sound.ts';
 import { preloadWildStarMerge6Sound } from './wild-star-merge6-sound.ts';
+import { preloadFishMerge6Sounds } from './fish-merge6-sound.ts';
+import { preloadFishFinaleBubbles } from './fish-finale-bubbles.ts';
 import { preloadBeachBallMerge6Sounds } from './beach-ball-merge6-sound.ts';
 import { preloadCoreTntMerge6Sound } from './core-tnt-merge6-sound.ts';
 import { preloadBottleFinaleSounds } from './bottle-finale-sound.ts';
@@ -12658,6 +12660,8 @@ class JourneyBoardsManager {
           logger.info(`🎮 Play button clicked for board ${boardIdForPlay}`, { boardName: boardNameForPlay });
           preloadRegularMerge6Sounds();
           preloadWildStarMerge6Sound();
+          preloadFishMerge6Sounds();
+          preloadFishFinaleBubbles();
           preloadBeachBallMerge6Sounds();
           preloadCoreTntMerge6Sound();
           preloadBottleFinaleSounds();

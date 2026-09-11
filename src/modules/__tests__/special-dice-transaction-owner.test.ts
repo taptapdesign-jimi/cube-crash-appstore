@@ -1,5 +1,6 @@
 import {
-  canRunOrdinaryStackDuringVisualTail,
+  canRunOrdinaryMergeDuringVisualTail,
+  isStableOrdinaryMerge,
   isStableOrdinarySubSixStack,
   getSpecialDiceEndgameBlock,
   PostCommitBoardRevisionGuard,
@@ -35,7 +36,7 @@ test('post-commit work cannot mutate a newer board revision', () => {
   expect(guard.capture()).toBe(12);
   expect(guard.runIfCurrent(() => mutations.push('current'))).toBe(true);
 
-  // Models an accepted ordinary stack during Magnet's 1200 ms visual tail.
+  // Models an accepted ordinary merge during Magnet's 1200 ms visual tail.
   boardRevision += 1;
   expect(guard.runIfCurrent(() => mutations.push('stale-fallback'))).toBe(false);
   expect(guard.runIfCurrent(() => mutations.push('stale-unlock'))).toBe(false);
@@ -72,22 +73,43 @@ test('only the active token can enter the post-commit visual-tail phase', () => 
   expect(owner.snapshot()).toMatchObject({ token, phase: 'visual-tail', boardRevisionAtCommit: 7 });
 });
 
-test('visual tail permits stable ordinary sub-six stacks but no new board transaction', () => {
-  const owner = new SpecialDiceTransactionOwner(() => 1000, 5000);
-  const token = owner.claim('magnet');
+test.each(['star', 'juice', 'magnet', 'tnt'] as const)(
+  '%s visual tail permits every stable ordinary merge through six',
+  (kind) => {
+    const owner = new SpecialDiceTransactionOwner(() => 1000, 5000);
+    const token = owner.claim(kind);
+    const decision = (sourceValue: number, destinationValue: number, stable = true) =>
+      canRunOrdinaryMergeDuringVisualTail(owner, {
+        sourceValue,
+        destinationValue,
+        sourceStableOrdinary: stable,
+        destinationStableOrdinary: stable,
+      });
+
+    expect(decision(1, 2)).toBe(false);
+    owner.markBoardCommitted(token, 3);
+    expect(decision(1, 2)).toBe(true);
+    expect(decision(3, 3)).toBe(true);
+    expect(decision(1, 5)).toBe(true);
+    expect(decision(4, 4)).toBe(false);
+    expect(decision(2, 2, false)).toBe(false);
+  },
+);
+
+test('classifies every stable ordinary merge through six for special visual tails', () => {
   const decision = (sourceValue: number, destinationValue: number, stable = true) =>
-    canRunOrdinaryStackDuringVisualTail(owner, {
+    isStableOrdinaryMerge({
       sourceValue,
       destinationValue,
       sourceStableOrdinary: stable,
       destinationStableOrdinary: stable,
     });
 
-  expect(decision(1, 2)).toBe(false);
-  owner.markBoardCommitted(token, 3);
   expect(decision(1, 2)).toBe(true);
-  expect(decision(3, 3)).toBe(false);
-  expect(decision(1, 5)).toBe(false);
+  expect(decision(2, 3)).toBe(true);
+  expect(decision(3, 3)).toBe(true);
+  expect(decision(1, 5)).toBe(true);
+  expect(decision(4, 4)).toBe(false);
   expect(decision(2, 2, false)).toBe(false);
 });
 

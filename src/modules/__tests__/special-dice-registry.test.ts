@@ -20,6 +20,7 @@ import {
   isSpecialDiceDirectWildLikeTile,
   isSpecialDiceGameplayResolvingLikeTile,
   isSpecialDiceJuiceLikeTile,
+  usesSpecialDiceIdleBubbles,
   isSpecialDiceMagnetLikeTile,
   isSpecialDiceStarLikeTile,
   isSpecialDiceTntLikeTile,
@@ -163,6 +164,7 @@ test('archetype helpers classify star, juice, tnt, and direct wild behavior', ()
 
   expect(isSpecialDiceStarLikeTile(cubero)).toBe(true);
   expect(isSpecialDiceJuiceLikeTile(beachBall)).toBe(true);
+  expect(usesSpecialDiceIdleBubbles({ special: 'wild', _ccSpecialDiceVariant: 'fish' })).toBe(true);
   expect(isSpecialDiceTntLikeTile(tnt)).toBe(true);
 
   expect(isSpecialDiceDirectWildLikeTile(cubero)).toBe(true);
@@ -376,7 +378,7 @@ test('Arcade Round 01 drops Beach Ball first and Bottle second without Cubero', 
   })).toBeNull();
 });
 
-test('later Beach stages map one shared random slot to Star, Juice, Beach Ball, or Bottle', () => {
+test('later Beach stages map one shared random slot to Fish, Juice, Beach Ball, or Bottle', () => {
   for (let journeyBoard = 12; journeyBoard <= 20; journeyBoard += 1) {
     const variants = [0, 1, 2, 3].map((beachWildSlot) => pickSpecialDiceVariantForWildSpawn({
       isArcade: false,
@@ -384,7 +386,7 @@ test('later Beach stages map one shared random slot to Star, Juice, Beach Ball, 
       wildSpawnCount: 999,
       beachWildSlot,
     })?.id ?? null);
-    expect(variants).toEqual([null, null, 'beach-ball', 'bottle']);
+    expect(variants).toEqual(['fish', null, 'beach-ball', 'bottle']);
   }
 
   for (const beachWildSlot of [0, 1, 2, 3]) {

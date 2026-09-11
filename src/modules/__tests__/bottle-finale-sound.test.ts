@@ -37,6 +37,7 @@ import {
 } from '../bottle-finale-sound';
 import {
   BOTTLE_FINALE_BUBLESI_PATH_RATIO,
+  BOTTLE_FINALE_CLING_PATH_RATIO,
   BOTTLE_FINALE_CLING2_PATH_RATIO,
   BOTTLE_FINALE_SECOND_CUE_PATH_RATIO,
 } from '../bottle-finale-scene';
@@ -102,8 +103,8 @@ describe('Bottle finale sound', () => {
     expect(BOTTLE_FINALE_WATER_WAVES_VOLUME).toBeCloseTo(0.24);
     expect(BOTTLE_FINALE_BOTTLE_BASE_VOLUME).toBe(1);
     expect(BOTTLE_FINALE_BOTTLE_VOLUME).toBeCloseTo(0.6);
-    expect(BOTTLE_FINALE_CLING_BASE_VOLUME).toBe(0.42);
-    expect(BOTTLE_FINALE_CLING_VOLUME).toBeCloseTo(0.252);
+    expect(BOTTLE_FINALE_CLING_BASE_VOLUME).toBe(0.378);
+    expect(BOTTLE_FINALE_CLING_VOLUME).toBeCloseTo(0.2268);
     expect(BOTTLE_FINALE_BUBLESI_BASE_VOLUME).toBe(0.64);
     expect(BOTTLE_FINALE_BUBLESI_VOLUME).toBeCloseTo(0.384);
 
@@ -163,8 +164,8 @@ describe('Bottle finale sound', () => {
       [BOTTLE_FINALE_WATER_WAVES_SOUND_SOURCE, 0.24],
       [BOTTLE_FINALE_BOTTLE1_SOUND_SOURCE, 0.6],
       [BOTTLE_FINALE_BOTTLE2_SOUND_SOURCE, 0.6],
-      [BOTTLE_FINALE_CLING_SOUND_SOURCE, 0.252],
-      [BOTTLE_FINALE_CLING2_SOUND_SOURCE, 0.252],
+      [BOTTLE_FINALE_CLING_SOUND_SOURCE, 0.2268],
+      [BOTTLE_FINALE_CLING2_SOUND_SOURCE, 0.2268],
       [BOTTLE_FINALE_BUBLESI_SOUND_SOURCE, 0.384],
     ]);
     const cues = ['water-waves', 'bottle1', 'bottle2', 'cling', 'cling2', 'bublesi'] as const;
@@ -198,16 +199,21 @@ describe('Bottle finale sound', () => {
 
   test('binds the cue order to the owned Bottle fall timeline and cleanup', () => {
     expect(BOTTLE_FINALE_SECOND_CUE_PATH_RATIO).toBe(0.2);
-    expect(BOTTLE_FINALE_CLING2_PATH_RATIO).toBe(0.4);
+    expect(BOTTLE_FINALE_CLING_PATH_RATIO).toBe(0.55);
+    expect(BOTTLE_FINALE_CLING2_PATH_RATIO).toBe(0.75);
     expect(BOTTLE_FINALE_BUBLESI_PATH_RATIO).toBe(0.3);
+    expect(BOTTLE_FINALE_CLING_PATH_RATIO).toBeGreaterThan(0.5);
+    expect(BOTTLE_FINALE_CLING2_PATH_RATIO).toBeGreaterThan(0.5);
     const scene = fs.readFileSync(
       path.resolve(process.cwd(), 'src/modules/bottle-finale-scene.ts'),
       'utf8',
     );
     expect(scene).toContain("playBottleFinaleSound('water-waves');");
     expect(scene).toContain("soundTimeline.call(() => playBottleFinaleSound('bottle1'), [], 0);");
-    expect(scene).toContain("playBottleFinaleSound('bottle2');\n    playBottleFinaleSound('cling');");
+    expect(scene).toContain("() => playBottleFinaleSound('bottle2')");
     expect(scene).toContain('BOTTLE_SINK_DURATION_SECONDS * BOTTLE_FINALE_SECOND_CUE_PATH_RATIO');
+    expect(scene).toContain("() => playBottleFinaleSound('cling')");
+    expect(scene).toContain('BOTTLE_SINK_DURATION_SECONDS * BOTTLE_FINALE_CLING_PATH_RATIO');
     expect(scene).toContain("() => playBottleFinaleSound('cling2')");
     expect(scene).toContain('BOTTLE_SINK_DURATION_SECONDS * BOTTLE_FINALE_CLING2_PATH_RATIO');
     expect(scene).toContain("() => playBottleFinaleSound('bublesi')");

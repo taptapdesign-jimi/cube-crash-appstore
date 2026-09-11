@@ -49,6 +49,8 @@ import {
 } from './navigation-control.js';
 import { preloadRegularMerge6Sounds } from './regular-merge6-sound.ts';
 import { preloadWildStarMerge6Sound } from './wild-star-merge6-sound.ts';
+import { preloadFishMerge6Sounds } from './fish-merge6-sound.ts';
+import { preloadFishFinaleBubbles } from './fish-finale-bubbles.ts';
 import { preloadBeachBallMerge6Sounds } from './beach-ball-merge6-sound.ts';
 import { preloadCoreTntMerge6Sound } from './core-tnt-merge6-sound.ts';
 import { preloadBottleFinaleSounds } from './bottle-finale-sound.ts';
@@ -452,6 +454,8 @@ class UIManager {
     markArcadeHomeRunOrigin();
     preloadRegularMerge6Sounds();
     preloadWildStarMerge6Sound();
+    preloadFishMerge6Sounds();
+    preloadFishFinaleBubbles();
     preloadBeachBallMerge6Sounds();
     preloadCoreTntMerge6Sound();
     preloadBottleFinaleSounds();
@@ -610,6 +614,8 @@ class UIManager {
     markArcadeHomeRunOrigin();
     preloadRegularMerge6Sounds();
     preloadWildStarMerge6Sound();
+    preloadFishMerge6Sounds();
+    preloadFishFinaleBubbles();
     preloadBeachBallMerge6Sounds();
     preloadCoreTntMerge6Sound();
     preloadBottleFinaleSounds();
@@ -731,6 +737,8 @@ class UIManager {
       markArcadeHomeRunOrigin();
       preloadRegularMerge6Sounds();
       preloadWildStarMerge6Sound();
+      preloadFishMerge6Sounds();
+      preloadFishFinaleBubbles();
       preloadBeachBallMerge6Sounds();
       preloadCoreTntMerge6Sound();
       preloadBottleFinaleSounds();
@@ -2415,6 +2423,9 @@ class UIManager {
         });
         void import('./wild-star-merge6-sound.ts').then(({ stopWildStarMerge6Sound }) => {
           stopWildStarMerge6Sound();
+        });
+        void import('./fish-merge6-sound.ts').then(({ stopFishMerge6Sounds }) => {
+          stopFishMerge6Sounds();
         });
         void import('./beach-ball-merge6-sound.ts').then(({ stopBeachBallMerge6Sounds }) => {
           stopBeachBallMerge6Sounds();

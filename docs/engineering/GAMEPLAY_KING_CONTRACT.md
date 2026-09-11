@@ -86,7 +86,7 @@ Regular tiles use a stable parent hit area and child visuals do not intercept th
 | Wild/special plus regular reaches final six | Resolver completes the board when those are the only physical active merge participants. |
 | Magnet still has playable pull/merge work | Continue/wait; never complete early. |
 | Special gameplay transaction is active | Terminal evaluation defers until the transaction releases or is safely cancelled. |
-| Visual tail remains after gameplay commit | Ordinary input may resume according to the registered gate scope; a visual tail alone must not create a global terminal lock. |
+| Visual tail remains after gameplay commit | Every stable ordinary stack/merge through six may resume, including a new ordinary merge-6; a visual tail alone must not create a global gameplay or terminal lock. Special dice and exact tiles still owned by unfinished gameplay mutation remain gated. |
 | Hidden/pending-removal residue | Must be classified by canonical active-tile rules and must not create false finality or false stuck. |
 | Locked future placeholder | Must follow canonical placeholder classification and must not invent a playable physical blocker. |
 

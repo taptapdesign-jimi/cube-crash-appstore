@@ -936,6 +936,11 @@ function getTransitionHillBaseX(layerKey: string): number {
   return 0;
 }
 
+export const BEACH_FLOAT_BOUNCE_VIEWPORT_RATIO = 0.05;
+export const BEACH_FLOAT_MOTION_STEP_COUNT = 6;
+export const BEACH_BOTTLE_HORIZONTAL_TRAVEL_RATIOS = [0.66, 0.74] as const;
+export const BEACH_BALL_HORIZONTAL_TRAVEL_RATIOS = [0.62, 0.70] as const;
+
 function startBeachAmbientMotion(sceneImg: HTMLElement, layerKey: string, motionRole: string): void {
   const ownAmbientTimeline = (timeline: gsap.core.Timeline): void => {
     contentTimelines.push(timeline);
@@ -944,36 +949,33 @@ function startBeachAmbientMotion(sceneImg: HTMLElement, layerKey: string, motion
     beachAmbientTimelines.set(sceneImg, owned);
   };
   if (motionRole === 'float') {
+    // A float owns one combined transform clock. Retire any stale owner before
+    // starting so horizontal travel, bounce and tilt cannot compete across
+    // repeated enter/exit lifecycles.
+    stopBeachAmbientMotion(sceneImg);
     const isBottle = layerKey === 'beach-bottle';
     const horizontalDirection = sceneImg.dataset.floatDirection === 'left' ? -1 : 1;
-    const rotationLimit = isBottle ? 24 : 84;
-    const horizontalTimeline = trackTimeline({ repeat: -1, yoyo: true, repeatRefresh: true });
-    const bounceTimeline = trackTimeline({ repeat: -1, yoyo: true, repeatRefresh: true });
-    const rotationTimeline = trackTimeline({ repeat: -1, repeatRefresh: true });
-    ownAmbientTimeline(horizontalTimeline);
-    ownAmbientTimeline(bounceTimeline);
-    ownAmbientTimeline(rotationTimeline);
+    const rotationLimit = isBottle ? 44 : 120;
+    const travelRatios = isBottle
+      ? BEACH_BOTTLE_HORIZONTAL_TRAVEL_RATIOS
+      : BEACH_BALL_HORIZONTAL_TRAVEL_RATIOS;
+    const horizontalTravelPx = window.innerWidth * gsap.utils.random(travelRatios[0], travelRatios[1]);
+    const bouncePx = window.innerHeight * BEACH_FLOAT_BOUNCE_VIEWPORT_RATIO;
+    const motionTimeline = trackTimeline({ repeat: -1, yoyo: true });
+    ownAmbientTimeline(motionTimeline);
 
     gsap.set(sceneImg, { transformOrigin: '50% 50%' });
-    horizontalTimeline.to(sceneImg, {
-      // Keep xPercent exclusively owned by the base -50% centering pose. A small,
-      // refreshed px drift avoids the former mechanical full-width wiper motion.
-      x: () => horizontalDirection * (isBottle
-        ? gsap.utils.random(69, 104)
-        : gsap.utils.random(73, 117)),
-      duration: () => gsap.utils.random(4.68, 6.24),
-      ease: 'sine.out',
-    });
-    bounceTimeline.to(sceneImg, {
-      y: () => isBottle ? gsap.utils.random(-18, -9) : gsap.utils.random(-22, -10),
-      duration: () => gsap.utils.random(0.58, 0.96),
-      ease: 'sine.inOut',
-    });
-    rotationTimeline.to(sceneImg, {
-      rotation: () => gsap.utils.random(-rotationLimit, rotationLimit),
-      duration: () => gsap.utils.random(0.58, 0.96),
-      ease: 'sine.inOut',
-    });
+    for (let stepIndex = 0; stepIndex < BEACH_FLOAT_MOTION_STEP_COUNT; stepIndex += 1) {
+      const progress = (stepIndex + 1) / BEACH_FLOAT_MOTION_STEP_COUNT;
+      const stepDirection = stepIndex % 2 === 0 ? -1 : 1;
+      motionTimeline.to(sceneImg, {
+        x: horizontalDirection * horizontalTravelPx * progress,
+        y: stepDirection * bouncePx,
+        rotation: stepDirection * rotationLimit * gsap.utils.random(0.72, 1),
+        duration: gsap.utils.random(0.32, 0.48),
+        ease: 'sine.inOut',
+      });
+    }
     return;
   }
 

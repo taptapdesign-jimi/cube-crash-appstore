@@ -70,6 +70,22 @@ describe('animated special artwork SVG/PNG mode', () => {
     });
   });
 
+  test('allows only one animated Fish while duplicate Fish tiles use PNG', () => {
+    const first = tile();
+    const second = tile();
+    const third = tile();
+
+    expect(acquireAnimatedSpecialArtworkMode(first, 'fish', () => 0)).toBe('svg');
+    expect(acquireAnimatedSpecialArtworkMode(second, 'fish', () => 0)).toBe('png');
+    expect(acquireAnimatedSpecialArtworkMode(third, 'fish', () => 0)).toBe('png');
+    expect(getAnimatedSpecialArtworkModeStats()).toEqual({
+      assignments: 3,
+      families: 1,
+      svg: 1,
+      png: 2,
+    });
+  });
+
   test('keeps one decision for the tile lifetime and releases it on cleanup', () => {
     const first = tile();
     const duplicate = tile();

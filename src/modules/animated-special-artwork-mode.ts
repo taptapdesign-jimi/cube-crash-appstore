@@ -2,6 +2,7 @@ export type AnimatedSpecialArtworkFamily =
   | 'ball'
   | 'juice'
   | 'wild-star'
+  | 'fish'
   | 'robo'
   | 'mushroom'
   | 'flower';
@@ -16,6 +17,7 @@ type ArtworkAssignment = {
 const assignments = new Map<object, ArtworkAssignment>();
 const liveTilesByFamily = new Map<AnimatedSpecialArtworkFamily, Set<object>>();
 const ALWAYS_PHASED_SVG_FAMILIES = new Set<AnimatedSpecialArtworkFamily>(['wild-star']);
+const SINGLE_ANIMATED_ARTWORK_FAMILIES = new Set<AnimatedSpecialArtworkFamily>(['fish']);
 
 function removeAssignment(tile: object, assignment: ArtworkAssignment): void {
   assignments.delete(tile);
@@ -49,7 +51,7 @@ export function acquireAnimatedSpecialArtworkMode(
   );
   const mode: AnimatedSpecialArtworkMode = !hasLiveSvg
     || ALWAYS_PHASED_SVG_FAMILIES.has(family)
-    || random() < 0.5
+    || (!SINGLE_ANIMATED_ARTWORK_FAMILIES.has(family) && random() < 0.5)
     ? 'svg'
     : 'png';
   assignments.set(tile, { family, mode });

@@ -2,9 +2,9 @@ import animationManager from '../animation-manager.js';
 import { gsap } from 'gsap';
 import {
   attachBottleFinaleScene,
-  createBottleHorizontalMotionPlan,
-  createBottleSinkWeaveOffsets,
+  createBottleCrossingSinkPlans,
   createMixedBottleBubbleOpacities,
+  sampleBottleCrossingCenterPercent,
 } from '../bottle-finale-scene.js';
 import { domElementPool } from '../dom-element-pool.js';
 
@@ -23,11 +23,11 @@ describe('Bottle finale lifecycle ownership', () => {
     const cleanup = attachBottleFinaleScene(overlay, 1, 0.3);
 
     expect(overlay.querySelectorAll('.cc-bottle-finale-scene').length).toBe(1);
-    expect(overlay.querySelectorAll('img').length).toBe(103);
-    // 9 hero bottle owners + 1 shared trail clock + 1 shared sound clock
+    expect(overlay.querySelectorAll('img').length).toBe(105);
+    // 15 hero bottle owners + 1 shared trail clock + 1 shared sound clock
     // + 40 foreground bubbles.
     // The 60 trail particles must never return to one root timeline each.
-    expect(animationManager.getStats().activeTimelines).toBe(baseline.activeTimelines + 51);
+    expect(animationManager.getStats().activeTimelines).toBe(baseline.activeTimelines + 57);
 
     cleanup();
     cleanup();
@@ -94,7 +94,7 @@ describe('Bottle finale lifecycle ownership', () => {
       overlay.querySelectorAll<HTMLImageElement>('.cc-bottle-finale-bubble'),
     );
 
-    expect(bottles).toHaveLength(3);
+    expect(bottles).toHaveLength(5);
     bottles.forEach((bottle) => expect(firstBottles).not.toContain(bottle));
     expect(secondBubbles.some((bubble) => firstBubbles.has(bubble))).toBe(true);
     bottles.forEach((bottle) => {
@@ -112,42 +112,46 @@ describe('Bottle finale lifecycle ownership', () => {
     cleanup();
   });
 
-  test('randomizes each bottle inside a separated lane without crossing the screen edge', () => {
-    const viewportWidth = 390;
-    const samples = [0, 1, 0.22, 0.84, 0.48, 0.51];
-    let sampleIndex = 0;
-    const random = () => samples[sampleIndex++ % samples.length];
-    const layers = [
-      { width: 30, lane: [18, 30] as const },
-      { width: 36, lane: [42, 58] as const },
-      { width: 27, lane: [70, 82] as const },
+  test('crosses three bottle pairs continuously at separate points in the gravity fall', () => {
+    const viewportHeight = 844;
+    const plans = createBottleCrossingSinkPlans(viewportHeight);
+
+    expect(plans).toHaveLength(5);
+    expect(plans.map((plan) => plan.startYPx)).toEqual([
+      -viewportHeight * 0.07,
+      -viewportHeight * 0.23,
+      viewportHeight * 0.03,
+      -viewportHeight * 0.17,
+      viewportHeight * 0.1,
+    ]);
+    const collisionCases = [
+      { first: 'botle1', second: 'botle4', progress: 0.25 },
+      { first: 'botle5', second: 'botle3', progress: 0.5 },
+      { first: 'botle4', second: 'botle2', progress: 0.75 },
     ];
-
-    const plans = layers.map((layer) => createBottleHorizontalMotionPlan(
-      layer.width,
-      layer.lane,
-      viewportWidth,
-      random,
-    ));
-
-    plans.forEach((plan, index) => {
-      const { width, lane } = layers[index];
-      const rotatedHalfWidth = width * 0.66;
-      expect(plan.leftPercent).toBeGreaterThanOrEqual(rotatedHalfWidth + 2);
-      expect(plan.endCenterPercent).toBeGreaterThanOrEqual(rotatedHalfWidth + 2);
-      expect(plan.leftPercent).toBeLessThanOrEqual(100 - rotatedHalfWidth - 2);
-      expect(plan.endCenterPercent).toBeLessThanOrEqual(100 - rotatedHalfWidth - 2);
-      expect(plan.leftPercent).toBeGreaterThanOrEqual(lane[0]);
-      expect(plan.leftPercent).toBeLessThanOrEqual(lane[1]);
-      expect(plan.endCenterPercent).toBeGreaterThanOrEqual(lane[0]);
-      expect(plan.endCenterPercent).toBeLessThanOrEqual(lane[1]);
-      expect(plan.driftPx).toBeCloseTo(
-        ((plan.endCenterPercent - plan.leftPercent) / 100) * viewportWidth,
+    collisionCases.forEach(({ first, second, progress }) => {
+      const firstPlan = plans.find((plan) => plan.key === first)!;
+      const secondPlan = plans.find((plan) => plan.key === second)!;
+      const sample = (plan: typeof firstPlan, at: number): number => (
+        sampleBottleCrossingCenterPercent(plan.centerPathPercents, at)
       );
+      expect(sample(firstPlan, progress)).toBeCloseTo(sample(secondPlan, progress));
+      const separationBefore = sample(firstPlan, progress - 0.02)
+        - sample(secondPlan, progress - 0.02);
+      const separationAfter = sample(firstPlan, progress + 0.02)
+        - sample(secondPlan, progress + 0.02);
+      expect(separationBefore * separationAfter).toBeLessThan(0);
     });
 
-    expect(plans[0].leftPercent).toBeLessThan(plans[1].leftPercent);
-    expect(plans[1].leftPercent).toBeLessThan(plans[2].leftPercent);
+    plans.forEach((plan) => {
+      const samples = Array.from({ length: 241 }, (_, index) => (
+        sampleBottleCrossingCenterPercent(plan.centerPathPercents, index / 240)
+      ));
+      const largestFrameStep = Math.max(
+        ...samples.slice(1).map((value, index) => Math.abs(value - samples[index])),
+      );
+      expect(largestFrameStep).toBeLessThan(0.5);
+    });
   });
 
   test('mixes every bubble opacity individually across the full 20-to-70-percent range', () => {
@@ -167,48 +171,4 @@ describe('Bottle finale lifecycle ownership', () => {
     expect(values.slice(0, 12)).not.toEqual([...values.slice(0, 12)].sort((a, b) => a - b));
   });
 
-  test('strengthens bottle weave while bounding every phase to ten percent of viewport width', () => {
-    const viewportWidth = 390;
-    const maxOffset = viewportWidth * 0.1;
-    const rightFirst = createBottleSinkWeaveOffsets(viewportWidth, 50, 30, 22, 1);
-    const leftFirst = createBottleSinkWeaveOffsets(viewportWidth, 50, 30, -18, -1);
-
-    expect(rightFirst).toHaveLength(5);
-    expect(leftFirst).toHaveLength(5);
-    [...rightFirst, ...leftFirst].forEach((offset) => {
-      expect(offset).toBeGreaterThanOrEqual(-maxOffset);
-      expect(offset).toBeLessThanOrEqual(maxOffset);
-    });
-    expect(rightFirst.some((offset) => offset > 0)).toBe(true);
-    expect(rightFirst.some((offset) => offset < 0)).toBe(true);
-    expect(leftFirst.some((offset) => offset > 0)).toBe(true);
-    expect(leftFirst.some((offset) => offset < 0)).toBe(true);
-    expect(Math.abs(rightFirst[4])).toBeCloseTo(22 * 1.3);
-  });
-
-  test('keeps every scaled weave phase inside the screen for all three bottle lanes', () => {
-    const viewportWidth = 390;
-    const phaseScales = [0.98, 1.08, 1.16, 1.22, 1.26];
-    const cases = [
-      { center: 22, width: 30, drift: -38, direction: -1 as const },
-      { center: 50, width: 36, drift: 34, direction: 1 as const },
-      { center: 80, width: 27, drift: 38, direction: 1 as const },
-    ];
-
-    cases.forEach(({ center, width, drift, direction }) => {
-      const offsets = createBottleSinkWeaveOffsets(
-        viewportWidth,
-        center,
-        width,
-        drift,
-        direction,
-      );
-      offsets.forEach((offset, index) => {
-        const centerAtPhase = center + (offset / viewportWidth) * 100;
-        const halfEnvelope = width * 0.7 * phaseScales[index];
-        expect(centerAtPhase).toBeGreaterThanOrEqual(halfEnvelope + 2);
-        expect(centerAtPhase).toBeLessThanOrEqual(100 - halfEnvelope - 2);
-      });
-    });
-  });
 });

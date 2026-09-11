@@ -15,6 +15,12 @@ struct Arguments {
     let frameCount: Int
     let sourceStride: Int
     let outputDurationMilliseconds: Int64
+    let codec: OutputCodec
+}
+
+enum OutputCodec: String {
+    case hevcWithAlpha = "hevc-alpha"
+    case proRes4444 = "prores4444"
 }
 
 func fail(_ message: String) -> Never {
@@ -24,8 +30,8 @@ func fail(_ message: String) -> Never {
 
 func parseArguments() -> Arguments {
     let values = Array(CommandLine.arguments.dropFirst())
-    guard values.count == 7 else {
-        fail("Usage: encode-hevc-alpha-frames.swift <input-dir> <output.mov> <width> <height> <frame-count> <source-stride> <output-duration-ms>")
+    guard values.count == 7 || values.count == 8 else {
+        fail("Usage: encode-hevc-alpha-frames.swift <input-dir> <output.mov> <width> <height> <frame-count> <source-stride> <output-duration-ms> [hevc-alpha|prores4444]")
     }
 
     guard
@@ -38,6 +44,11 @@ func parseArguments() -> Arguments {
         fail("Width, height, frame-count, source-stride and frame-duration-ms must be positive integers.")
     }
 
+    let codecName = values.count == 8 ? values[7] : OutputCodec.hevcWithAlpha.rawValue
+    guard let codec = OutputCodec(rawValue: codecName) else {
+        fail("Unsupported output codec: \(codecName)")
+    }
+
     return Arguments(
         inputDirectory: URL(fileURLWithPath: values[0], isDirectory: true),
         outputURL: URL(fileURLWithPath: values[1]),
@@ -45,7 +56,8 @@ func parseArguments() -> Arguments {
         height: height,
         frameCount: frameCount,
         sourceStride: sourceStride,
-        outputDurationMilliseconds: outputDurationMilliseconds
+        outputDurationMilliseconds: outputDurationMilliseconds,
+        codec: codec
     )
 }
 
@@ -59,7 +71,13 @@ func loadImage(at url: URL) -> CGImage {
     return image
 }
 
-func makePixelBuffer(from image: CGImage, width: Int, height: Int, pool: CVPixelBufferPool) -> CVPixelBuffer {
+func makePixelBuffer(
+    from image: CGImage,
+    width: Int,
+    height: Int,
+    pool: CVPixelBufferPool,
+    outputCodec: OutputCodec
+) -> CVPixelBuffer {
     var optionalBuffer: CVPixelBuffer?
     let result = CVPixelBufferPoolCreatePixelBuffer(nil, pool, &optionalBuffer)
     guard result == kCVReturnSuccess, let pixelBuffer = optionalBuffer else {
@@ -88,6 +106,26 @@ func makePixelBuffer(from image: CGImage, width: Int, height: Int, pool: CVPixel
     context.clear(CGRect(x: 0, y: 0, width: width, height: height))
     context.interpolationQuality = .high
     context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+
+    if outputCodec == .proRes4444 {
+        // CGContext produces premultiplied BGRA, while the ProRes 4444
+        // intermediary consumed by AVAssetExportSession expects straight
+        // alpha. Passing the premultiplied bytes through unchanged causes the
+        // HEVC export to multiply RGB by alpha again, visibly darkening glow.
+        let bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer)
+        let pixels = baseAddress.assumingMemoryBound(to: UInt8.self)
+        for row in 0..<height {
+            let rowStart = pixels.advanced(by: row * bytesPerRow)
+            for column in 0..<width {
+                let pixel = rowStart.advanced(by: column * 4)
+                let alpha = Int(pixel[3])
+                guard alpha > 0 && alpha < 255 else { continue }
+                for channel in 0..<3 {
+                    pixel[channel] = UInt8(min(255, (Int(pixel[channel]) * 255 + alpha / 2) / alpha))
+                }
+            }
+        }
+    }
     return pixelBuffer
 }
 
@@ -104,19 +142,28 @@ do {
     fail("Could not create AVAssetWriter: \(error)")
 }
 
-let compressionProperties: [String: Any] = [
+let expectedFramesPerSecond = max(
+    1,
+    Int((Double(arguments.frameCount) * 1_000.0 / Double(arguments.outputDurationMilliseconds)).rounded())
+)
+let hevcCompressionProperties: [String: Any] = [
     AVVideoAverageBitRateKey: 6_000_000,
-    AVVideoExpectedSourceFrameRateKey: 30,
+    AVVideoExpectedSourceFrameRateKey: expectedFramesPerSecond,
     AVVideoMaxKeyFrameIntervalKey: arguments.frameCount,
     AVVideoAllowFrameReorderingKey: false,
+    kVTCompressionPropertyKey_AlphaChannelMode as String: kVTAlphaChannelMode_PremultipliedAlpha,
     kVTCompressionPropertyKey_TargetQualityForAlpha as String: 1.0,
 ]
-let settings: [String: Any] = [
-    AVVideoCodecKey: AVVideoCodecType.hevcWithAlpha,
+var settings: [String: Any] = [
+    AVVideoCodecKey: arguments.codec == .proRes4444
+        ? AVVideoCodecType.proRes4444
+        : AVVideoCodecType.hevcWithAlpha,
     AVVideoWidthKey: arguments.width,
     AVVideoHeightKey: arguments.height,
-    AVVideoCompressionPropertiesKey: compressionProperties,
 ]
+if arguments.codec == .hevcWithAlpha {
+    settings[AVVideoCompressionPropertiesKey] = hevcCompressionProperties
+}
 let input = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
 input.expectsMediaDataInRealTime = false
 
@@ -162,7 +209,8 @@ for outputIndex in 0..<arguments.frameCount {
         from: image,
         width: arguments.width,
         height: arguments.height,
-        pool: pool
+        pool: pool,
+        outputCodec: arguments.codec
     )
     let presentationMilliseconds = (
         Int64(outputIndex) * arguments.outputDurationMilliseconds + Int64(arguments.frameCount / 2)
@@ -192,6 +240,7 @@ let result: [String: Any] = [
     "frames": arguments.frameCount,
     "sourceStride": arguments.sourceStride,
     "durationMilliseconds": arguments.outputDurationMilliseconds,
+    "codec": arguments.codec.rawValue,
 ]
 let data = try JSONSerialization.data(withJSONObject: result, options: [.sortedKeys])
 print(String(decoding: data, as: UTF8.self))

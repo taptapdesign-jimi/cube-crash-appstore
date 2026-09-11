@@ -40,13 +40,13 @@ describe('shared special-dice transaction contract', () => {
     expect(appMergeSource).not.toContain('usedSpawnLockedTilesWithPop');
   });
 
-  test('allows only ordinary sub-six stacks after Magnet board commit', () => {
+  test('allows every stable ordinary merge through six after Special board commit', () => {
     expect(appCoreSource).toContain('markSpecialDiceTransactionBoardCommitted(');
     expect(appCoreSource).toContain("'magnet-board-commit'");
     expect(appCoreSource).toContain("setInputGateLock('special-transaction', true, { ttlMs: 15000, scope: 'wild-only' })");
-    expect(appCoreSource).toContain('canOrdinaryStackDuringSpecialVisualTail(s, d)');
-    expect(appCoreSource).toContain('canOrdinaryStackDuringSpecialVisualTail(src, dst)');
-    expect(appCoreSource).toContain('canRunOrdinaryStackDuringVisualTail(specialDiceTransactionOwner');
+    expect(appCoreSource).toContain('canOrdinaryMergeDuringSpecialVisualTail(s, d)');
+    expect(appCoreSource).toContain('canOrdinaryMergeDuringSpecialVisualTail(src, dst)');
+    expect(appCoreSource).toContain('canRunOrdinaryMergeDuringVisualTail(specialDiceTransactionOwner');
     expect(appCoreSource).toContain("if (specialDiceTransactionOwner.isActive()) return 'special-transaction'");
     expect(appCoreSource).toContain('queueWildSpawnAfterGuardRelease(`special-transaction:${reason}`)');
   });
@@ -111,7 +111,7 @@ describe('shared special-dice transaction contract', () => {
     expect(bonusOwner).not.toContain('addWildProgress(WILD_INC_BIG);');
   });
 
-  test('TNT releases ordinary stacks after reserving exact bonus tiles, before its visual tail ends', () => {
+  test('TNT releases ordinary merges after reserving exact bonus tiles, before its visual tail ends', () => {
     const tntStart = appCoreSource.indexOf('let tntBonusGameplayComplete = false;');
     const sprite6Trigger = appCoreSource.indexOf("triggerTntBonusBreak('sprite-6-enter-complete')", tntStart);
     const reserveTiles = appCoreSource.indexOf('claimTntBonusTiles(toBreak)', tntStart);

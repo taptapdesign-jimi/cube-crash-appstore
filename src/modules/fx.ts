@@ -72,13 +72,14 @@ export function startWildJuiceBubbles(tile) {
   const isHoney = specialVariantId === 'honey';
   const isBottle = specialVariantId === 'bottle';
   const isBeachBall = specialVariantId === 'beach-ball';
+  const isFish = specialVariantId === 'fish';
   const usesJuiceFizzMotion = !isHoney && !isBottle;
   const bubbleMotionScale = isHoney ? 1.3 : usesJuiceFizzMotion ? 1.4 : 1;
   if (specialVariantId === 'mushroom' || specialVariantId === 'robo-cube') {
     stopWildJuiceBubbles(tile);
     return;
   }
-  if (!tile || (tile.special !== 'wild-juice' && !isHoney && !isBottle && !isBeachBall)) return;
+  if (!tile || (tile.special !== 'wild-juice' && !isHoney && !isBottle && !isBeachBall && !isFish)) return;
   
   // Stop existing bubble system if any
   stopWildJuiceBubbles(tile);

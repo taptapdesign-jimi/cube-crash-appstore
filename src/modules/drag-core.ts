@@ -32,7 +32,7 @@ import { canStartTileDrag } from './input-gate.ts';
 import {
   isSpecialDiceDirectWildLikeTile,
   getSpecialDiceFinaleFxForTile,
-  isSpecialDiceJuiceLikeTile,
+  usesSpecialDiceIdleBubbles,
   isSpecialDiceMagnetLikeTile,
   isSpecialDiceTntLikeTile,
   getSpecialDiceVariantForTile,
@@ -1498,7 +1498,7 @@ export function initDrag(cfg) {
 
     // Idle FX and drag trail have separate owners. Stop every idle producer
     // synchronously before seeding the distance-based trail cadence.
-    const usesJuiceIdleFx = isSpecialDiceJuiceLikeTile(t);
+    const usesJuiceIdleFx = usesSpecialDiceIdleBubbles(t);
     if (usesJuiceIdleFx) {
       try { stopWildJuiceBubbles(t); } catch {}
     }
@@ -2060,7 +2060,7 @@ export function initDrag(cfg) {
             }).catch(() => {});
           } catch {}
         }
-        if (isSpecialDiceJuiceLikeTile(tileRef)) {
+        if (usesSpecialDiceIdleBubbles(tileRef)) {
           try {
             import('./fx.js').then(fxModule => {
               if (fxModule?.startWildJuiceBubbles) fxModule.startWildJuiceBubbles(tileRef);
@@ -2117,7 +2117,7 @@ export function initDrag(cfg) {
         if (tileRef.special === 'wild-magnet') {
           try { import('./fx.js').then(fx => { if (fx?.startMagnetIdleParticles) fx.startMagnetIdleParticles(tileRef); }).catch(() => {}); } catch {}
         }
-        if (isSpecialDiceJuiceLikeTile(tileRef)) {
+        if (usesSpecialDiceIdleBubbles(tileRef)) {
           try { import('./fx.js').then(fx => { if (fx?.startWildJuiceBubbles) fx.startWildJuiceBubbles(tileRef); }).catch(() => {}); } catch {}
         }
         if (tileRef.special === 'wild-tnt' && !isSpecialDiceJuiceLikeTile(tileRef)) {
@@ -2179,7 +2179,7 @@ export function initDrag(cfg) {
         if (tileRef.special === 'wild-magnet') {
           try { import('./fx.js').then(fx => { if (fx?.startMagnetIdleParticles) fx.startMagnetIdleParticles(tileRef); }).catch(() => {}); } catch {}
         }
-        if (isSpecialDiceJuiceLikeTile(tileRef)) {
+        if (usesSpecialDiceIdleBubbles(tileRef)) {
           try { import('./fx.js').then(fx => { if (fx?.startWildJuiceBubbles) fx.startWildJuiceBubbles(tileRef); }).catch(() => {}); } catch {}
         }
         if (tileRef.special === 'wild-tnt' && !isSpecialDiceJuiceLikeTile(tileRef)) {

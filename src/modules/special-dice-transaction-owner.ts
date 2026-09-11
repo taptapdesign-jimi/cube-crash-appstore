@@ -139,7 +139,7 @@ export class PostCommitBoardRevisionGuard {
   }
 }
 
-export function canRunOrdinaryStackDuringVisualTail(
+export function canRunOrdinaryMergeDuringVisualTail(
   owner: Pick<SpecialDiceTransactionOwner, 'isVisualTail'>,
   input: {
     sourceValue: number;
@@ -149,7 +149,20 @@ export function canRunOrdinaryStackDuringVisualTail(
   },
 ): boolean {
   if (!owner.isVisualTail()) return false;
-  return isStableOrdinarySubSixStack(input);
+  return isStableOrdinaryMerge(input);
+}
+
+export function isStableOrdinaryMerge(input: {
+  sourceValue: number;
+  destinationValue: number;
+  sourceStableOrdinary: boolean;
+  destinationStableOrdinary: boolean;
+}): boolean {
+  if (!input.sourceStableOrdinary || !input.destinationStableOrdinary) return false;
+  const sourceValue = input.sourceValue | 0;
+  const destinationValue = input.destinationValue | 0;
+  return sourceValue > 0 && sourceValue < 6 && destinationValue > 0 && destinationValue < 6 &&
+    sourceValue + destinationValue <= 6;
 }
 
 export function isStableOrdinarySubSixStack(input: {
@@ -161,8 +174,8 @@ export function isStableOrdinarySubSixStack(input: {
   if (!input.sourceStableOrdinary || !input.destinationStableOrdinary) return false;
   const sourceValue = input.sourceValue | 0;
   const destinationValue = input.destinationValue | 0;
-  // Sum-six owns spawn/replacement work and must remain serialized. This
-  // exception is intentionally limited to a local ordinary stack below six.
+  // A second merge-six cannot begin while the first merge-six spawn owner is
+  // active. This narrower exception is only for a local stack below six.
   return sourceValue > 0 && sourceValue < 6 && destinationValue > 0 && destinationValue < 6 &&
     sourceValue + destinationValue < 6;
 }

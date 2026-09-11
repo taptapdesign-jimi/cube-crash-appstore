@@ -218,6 +218,11 @@ import {
   stopWildStarMerge6Sound,
 } from './wild-star-merge6-sound.ts';
 import {
+  isFishMerge6SoundEvent,
+  playFishMerge6Sound,
+  stopFishMerge6Sounds,
+} from './fish-merge6-sound.ts';
+import {
   isBeachBallMerge6SoundEvent,
   playBeachBallMerge6Sound,
   stopBeachBallMerge6Sounds,
@@ -294,6 +299,7 @@ import {
   getSpecialDiceVariantForTile,
   isSpecialDiceDirectWildLikeTile,
   isSpecialDiceJuiceLikeTile,
+  usesSpecialDiceIdleBubbles,
   isSpecialDiceMagnetLikeTile,
   isSpecialDiceStarLikeTile,
   isSpecialDiceTntLikeTile,
@@ -304,7 +310,7 @@ import { animateWildSpawnDropFromMeter, cleanupWildSpawnDropAnimations, preloadW
 import { startSpecialDiceIdleMotion } from './special-dice-idle.ts';
 import { clearInputGateLocks, setInputGateLock } from './input-gate.ts';
 import {
-  canRunOrdinaryStackDuringVisualTail,
+  canRunOrdinaryMergeDuringVisualTail,
   getSpecialDiceEndgameBlock,
   isStableOrdinarySubSixStack,
   SpecialDiceTransactionOwner,
@@ -1015,8 +1021,8 @@ function markSpecialDiceTransactionBoardCommitted(token: number | null, reason: 
   const active = specialDiceTransactionOwner.snapshot();
   if (!active || active.token !== token) return false;
   if (!specialDiceTransactionOwner.markBoardCommitted(token, gameplayBoardMutationRevision)) return false;
-  // Keep special/wild input serialized through the visual tail, while ordinary
-  // sub-six stacks are filtered separately by canDrop/merge below.
+  // Keep special/wild input serialized through the visual tail, while every
+  // stable ordinary merge through six is filtered separately below.
   setInputGateLock('special-transaction', true, { ttlMs: 15000, scope: 'wild-only' });
   devLog('🛡️ Special transaction entered visual tail', { ...active, reason });
   emitIOSSpecialTransactionTrace('board-committed-visual-tail', {
@@ -1027,7 +1033,7 @@ function markSpecialDiceTransactionBoardCommitted(token: number | null, reason: 
   return true;
 }
 
-function canOrdinaryStackDuringSpecialVisualTail(src: any, dst: any): boolean {
+function canOrdinaryMergeDuringSpecialVisualTail(src: any, dst: any): boolean {
   if (!src || !dst || src.destroyed || dst.destroyed || src.locked || dst.locked) return false;
   const isStableOrdinary = (tile: any) =>
     !isWildLikeTile(tile) &&
@@ -1037,7 +1043,7 @@ function canOrdinaryStackDuringSpecialVisualTail(src: any, dst: any): boolean {
     !isTntBonusTileOwned(tile) &&
     tile._ccWildSpawnDropping !== true &&
     tile._pendingRemoval !== true;
-  return canRunOrdinaryStackDuringVisualTail(specialDiceTransactionOwner, {
+  return canRunOrdinaryMergeDuringVisualTail(specialDiceTransactionOwner, {
     sourceValue: src.value | 0,
     destinationValue: dst.value | 0,
     sourceStableOrdinary: isStableOrdinary(src),
@@ -2490,6 +2496,7 @@ function cleanupFxForBoardReset(reason: string = 'unknown') {
   devLog('🧹 cleanupFxForBoardReset:', reason);
   try { stopRegularMerge6Sounds(); } catch {}
   try { stopWildStarMerge6Sound(); } catch {}
+  try { stopFishMerge6Sounds(); } catch {}
   try { stopBeachBallMerge6Sounds(); } catch {}
   try { stopCoreTntMerge6Sound(); } catch {}
   try { stopBottleFinaleSounds(); } catch {}
@@ -3999,7 +4006,7 @@ export async function boot(){
       if (
         specialDiceTransactionOwner.isActive() &&
         !isInternalPulledTilesMerge &&
-        !canOrdinaryStackDuringSpecialVisualTail(s, d)
+        !canOrdinaryMergeDuringSpecialVisualTail(s, d)
       ) {
         devLog('🛡️ canDrop (app-core): Another special transaction owns the board');
         return false;
@@ -7031,7 +7038,7 @@ async function spawnWildFromMeter(){
           if (spawnedTile && !spawnedTile.destroyed) {
             delete (spawnedTile as any)._ccDeferWildIdleFx;
             startWildShimmer(spawnedTile);
-            if (isSpecialDiceJuiceLikeTile(spawnedTile)) {
+            if (usesSpecialDiceIdleBubbles(spawnedTile)) {
               stopTntIdleParticles(spawnedTile);
               stopTntIdleShake(spawnedTile);
               startWildJuiceBubbles(spawnedTile);
@@ -7209,7 +7216,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
   if (
     specialDiceTransactionOwner.isActive() &&
     !isInternalPulledTilesMerge &&
-    !canOrdinaryStackDuringSpecialVisualTail(src, dst)
+    !canOrdinaryMergeDuringSpecialVisualTail(src, dst)
   ) {
     devWarn('🛡️ MERGE BLOCKED: Another special transaction still owns the board');
     helpers.snapBack?.(src);
@@ -8273,6 +8280,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       dstSpecialDiceVariantId: dstSpecialVariantAtMergeEntry?.id,
     })) {
       playWildStarMerge6Sound();
+    }
+    if (isFishMerge6SoundEvent({
+      effectiveSum: effSum,
+      srcSpecialDiceVariantId: srcSpecialVariantAtMergeEntry?.id,
+      dstSpecialDiceVariantId: dstSpecialVariantAtMergeEntry?.id,
+    })) {
+      playFishMerge6Sound();
     }
     if (isBeachBallMerge6SoundEvent({
       effectiveSum: effSum,
@@ -10632,11 +10646,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 	                if (tntBoardCommitted) return;
 	                tntBoardCommitted = true;
 	                // The blast displacement is finished and every remaining TNT
-	                // mutation is attached to an exact reserved tile. Ordinary
-	                // sub-six stacks elsewhere are now safe; specials stay gated.
+	                // mutation is attached to an exact reserved tile. Every stable
+	                // ordinary merge elsewhere is now safe; specials stay gated.
 	                releaseTntGameplayInputGate();
 	                markSpecialDiceTransactionBoardCommitted(specialTransactionToken, `tnt-board-commit:${reason}`);
-	                devLog('🌸 TNT/Flower board committed; ordinary stacks released:', reason);
+	                devLog('🌸 TNT/Flower board committed; ordinary merges released:', reason);
 	              };
 	              const releaseTntTransactionWhenSettled = (reason: string) => {
 	                if (tntTransactionReleased) return;

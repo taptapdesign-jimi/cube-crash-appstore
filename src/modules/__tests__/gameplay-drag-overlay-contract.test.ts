@@ -68,10 +68,15 @@ describe('gameplay drag overlay contract', () => {
     }
     const ballSource = fs.readFileSync(path.join(root, 'src/modules/ball-bouncy-artwork.ts'), 'utf8');
     expect(ballSource).toContain('setAnimatedSpecialArtworkDragging(controller.wrapper, true);');
-    expect(ballSource).toContain('setAnimatedSpecialArtworkPinnedForeground(wrapper, true);');
+    expect(ballSource).toContain(
+      'setAnimatedSpecialArtworkPinnedForeground(wrapper, true, { preserveDuringFinale: true });',
+    );
     expect(ballSource).not.toContain('setAnimatedSpecialArtworkOccluded');
     expect(ballSource).not.toContain('installAnimatedSpecialArtworkOverlapFootprint');
     expect(artworkLayerSource).toContain("pinnedForegroundOverlayRoot.className = 'animated-special-artwork-pinned-foreground-layer';");
+    expect(artworkLayerSource).toContain(
+      "finalePersistentForegroundOverlayRoot.className = 'animated-special-artwork-finale-persistent-foreground-layer';",
+    );
     expect(artworkLayerSource).toContain('gameplayDragActive: isGameplayDragActive()');
     expect(artworkLayerSource).toContain('if (frameOwners.size > 0) updateAnimatedSpecialArtworkLayer();');
   });
