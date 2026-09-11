@@ -133,7 +133,7 @@ describe('Beach Fish special-die contract', () => {
     expect(FISH_BUBBLES_END_SCALE).toBe(1);
     expect(FISH_BUBBLES_SCALE_DOWN_START_RATIO).toBe(0.72);
     expect(FISH_BUBBLES_FADE_OUT_START_RATIO).toBe(0.9);
-    expect(FISH_BUBBLES_VERTICAL_OFFSET_VIEWPORT_RATIO).toBe(-0.066);
+    expect(FISH_BUBBLES_VERTICAL_OFFSET_VIEWPORT_RATIO).toBe(0.074);
     const finaleSvgPath = path.resolve(process.cwd(), FISH_BUBBLES_SVG_SOURCE.replace('./', ''));
     const hevcPath = path.resolve(process.cwd(), FISH_BUBBLES_HEVC_SOURCE.replace('./', ''));
     const finaleSvg = fs.readFileSync(finaleSvgPath, 'utf8');

@@ -1,5 +1,6 @@
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
+import { playCtaActivationSounds, preloadCtaActivationSounds } from './cta-activation-sound.ts';
 
 export type CtaVariant = 'primary' | 'secondary';
 export type CtaLayout = 'phone' | 'tablet';
@@ -76,6 +77,7 @@ function ensureVisual(element: HTMLButtonElement): HTMLElement {
 
 export function registerCta(element: HTMLButtonElement, options: RegisterCtaOptions): CtaController {
   controllers.get(element)?.dispose();
+  preloadCtaActivationSounds();
 
   const visual = ensureVisual(element);
   const abortController = new AbortController();
@@ -83,6 +85,7 @@ export function registerCta(element: HTMLButtonElement, options: RegisterCtaOpti
   let exiting = false;
   let activating = false;
   let pointerId: number | null = null;
+  let activationSoundStarted = false;
   let pendingResolve: (() => void) | null = null;
 
   element.classList.add('cc-cta');
@@ -129,6 +132,7 @@ export function registerCta(element: HTMLButtonElement, options: RegisterCtaOpti
   const activateAfterRelease = async (withKeyboardPress = false): Promise<void> => {
     if (activating || exiting || element.disabled || !options.onActivate) return;
     activating = true;
+    if (!activationSoundStarted) playCtaActivationSounds();
     try {
       let immediateActivation: void | Promise<void> = undefined;
       if (options.activationTiming === 'immediate') {
@@ -154,6 +158,7 @@ export function registerCta(element: HTMLButtonElement, options: RegisterCtaOpti
       }
     } finally {
       activating = false;
+      activationSoundStarted = false;
     }
   };
 
@@ -161,6 +166,8 @@ export function registerCta(element: HTMLButtonElement, options: RegisterCtaOpti
     if (disposed || exiting || element.disabled || event.button !== 0) return;
     event.stopPropagation();
     pointerId = event.pointerId;
+    activationSoundStarted = true;
+    playCtaActivationSounds();
     try { element.setPointerCapture(event.pointerId); } catch {}
     element.dataset.ctaState = 'pressed';
     void animateTo({ scale: ctaMotion.pressScale, y: ctaMotion.pressOffsetY, duration: ctaMotion.pressDuration, ease: 'power2.out' });
@@ -173,6 +180,7 @@ export function registerCta(element: HTMLButtonElement, options: RegisterCtaOpti
     const inside = event.clientX >= rect.left && event.clientX <= rect.right &&
       event.clientY >= rect.top && event.clientY <= rect.bottom;
     if (!inside && !options.activateOnCapturedRelease) {
+      activationSoundStarted = false;
       void release();
       return;
     }
@@ -181,6 +189,7 @@ export function registerCta(element: HTMLButtonElement, options: RegisterCtaOpti
 
   const onPointerCancel = (event: PointerEvent) => {
     if (pointerId !== event.pointerId) return;
+    activationSoundStarted = false;
     void release();
   };
 
@@ -216,6 +225,7 @@ export function registerCta(element: HTMLButtonElement, options: RegisterCtaOpti
       exiting = false;
       activating = false;
       pointerId = null;
+      activationSoundStarted = false;
       element.disabled = false;
       element.dataset.ctaState = state;
       if (state === 'hidden') {

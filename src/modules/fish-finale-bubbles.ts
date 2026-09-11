@@ -12,7 +12,7 @@ export const FISH_BUBBLES_START_SCALE = 1;
 export const FISH_BUBBLES_END_SCALE = 1;
 export const FISH_BUBBLES_SCALE_DOWN_START_RATIO = 0.72;
 export const FISH_BUBBLES_FADE_OUT_START_RATIO = 0.9;
-export const FISH_BUBBLES_VERTICAL_OFFSET_VIEWPORT_RATIO = -0.066;
+export const FISH_BUBBLES_VERTICAL_OFFSET_VIEWPORT_RATIO = 0.074;
 
 let preloadedVideo: HTMLVideoElement | null = null;
 let hevcUnavailable = false;

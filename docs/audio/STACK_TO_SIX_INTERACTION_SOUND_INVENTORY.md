@@ -7,6 +7,7 @@ Updated: 2026-09-11
 Sound design has been reset to these user-supplied gameplay cues:
 
 - Shared active-SFX master: `0.60`, reducing every currently used effect by exactly 40%; soundtrack/music is a separate owner and is not multiplied by this SFX gain
+- Shared CTA activation cue: every CTA registered through the canonical `registerCta()` owner starts the four supplied layers simultaneously at the first valid pointer-down, ahead of the existing release/navigation motion; keyboard activation starts the same cue once from its accepted activation path. Sources and levels are `assets/sound/CTA/tap 1.wav` at `0.50 action / 0.30 effective`, `tap2.wav` at `0.40 / 0.24`, `tap3.wav` at `0.40 / 0.24`, and `tap4.wav` at `0.40 / 0.24`. A replacement CTA touch stops the preceding bounded voices, and Settings Sounds OFF stops active or pending playback.
 
 ## Music
 

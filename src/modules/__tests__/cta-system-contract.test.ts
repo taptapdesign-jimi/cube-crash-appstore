@@ -87,6 +87,10 @@ describe('shared CTA system contract', () => {
     expect(moduleSource).toContain('companionExitStaggerMs: 70');
     expect(moduleSource).toContain("prime(state: 'hidden' | 'idle')");
     expect(moduleSource).toContain("activationTiming?: 'after-release' | 'immediate'");
+    expect(moduleSource).toContain("from './cta-activation-sound.ts'");
+    expect(moduleSource).toContain('preloadCtaActivationSounds();');
+    expect(moduleSource).toContain('playCtaActivationSounds();');
+    expect(moduleSource).toContain('activationSoundStarted = true;');
   });
 
   test('keeps phone and iPad width tokens separate without changing motion', () => {
