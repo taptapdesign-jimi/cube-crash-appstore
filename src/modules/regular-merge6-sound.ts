@@ -43,7 +43,7 @@ export const REGULAR_MERGE6_BOOM_VOLUME = applySoundEffectsMasterGain(
 );
 export const REGULAR_MERGE6_STACK_SOUND_SOURCE =
   './assets/sound/merge 6/stack.mp3';
-export const REGULAR_MERGE6_STACK_BASE_VOLUME = 0.6;
+export const REGULAR_MERGE6_STACK_BASE_VOLUME = 0.8;
 export const REGULAR_MERGE6_STACK_VOLUME = applySoundEffectsMasterGain(
   REGULAR_MERGE6_STACK_BASE_VOLUME,
 );

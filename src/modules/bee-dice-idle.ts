@@ -110,9 +110,14 @@ export function startBeeDiceIdle(tile: any, frameSources: string[]): BeeDiceIdle
     let globalCenterX = Number.NaN;
     try { globalCenterX = base.getGlobalPosition().x; } catch {}
     const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 0;
+    // Facing owns only the sign. The magnitude must come from the currently
+    // attached frame: on a cold restore the controller can start on tile.png
+    // (512px) before Bee's 128px frame resolves, so reusing that temporary
+    // 0.25 scale would squeeze the Bee into a thin vertical strip.
+    const facingScaleX = Math.abs(base.scale.x);
     base.scale.x = shouldFlipBeeDiceForViewport(globalCenterX, viewportWidth)
-      ? -originalBaseScaleX
-      : originalBaseScaleX;
+      ? -facingScaleX
+      : facingScaleX;
   };
 
   const timeline = animationManager.trackExternalTimeline(gsap.timeline({
@@ -131,6 +136,10 @@ export function startBeeDiceIdle(tile: any, frameSources: string[]): BeeDiceIdle
         if (!isUsablePixiImageTexture(texture)) return;
         paintedFrameIndex = frameIndex;
         base.texture = texture;
+        // Texture replacement preserves Sprite.scale, not displayed width.
+        // Rebase both dimensions before facing reads the new frame magnitude.
+        base.width = paintedWidth;
+        base.height = paintedHeight;
         applyGameplayTextureFiltering(base.texture);
       }
       applyArtworkFacing();

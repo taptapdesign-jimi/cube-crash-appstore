@@ -1,17 +1,16 @@
 import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.ts';
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
-import { preloadFishFinaleSchool } from './fish-finale-school.ts';
 
-export const FISH_BUBBLES_SOURCE_DURATION_MS = 3600;
-export const FISH_BUBBLES_SPEED = 1.5;
+export const FISH_BUBBLES_SOURCE_DURATION_MS = 2666.667;
+export const FISH_BUBBLES_SPEED = 0.864;
 export const FISH_BUBBLES_DURATION_MS = FISH_BUBBLES_SOURCE_DURATION_MS / FISH_BUBBLES_SPEED;
-export const FISH_BUBBLES_SVG_SOURCE = './assets/shop/fish/bubbly-fast.svg';
-export const FISH_BUBBLES_HEVC_SOURCE = './assets/shop/fish/bubbly-fast-hevc.mov';
-export const FISH_BUBBLES_START_SCALE = 1.7;
-export const FISH_BUBBLES_END_SCALE = 1;
+export const FISH_BUBBLES_SVG_SOURCE = './assets/shop/fish/fishy-bubles-finale-0864x.svg';
+export const FISH_BUBBLES_HEVC_SOURCE = './assets/shop/fish/fishy-bubles-finale-0864x-hevc.mov';
+export const FISH_BUBBLES_START_SCALE = 1.15;
+export const FISH_BUBBLES_END_SCALE = 1.15;
 export const FISH_BUBBLES_SCALE_DOWN_START_RATIO = 0.72;
-export const FISH_BUBBLES_VERTICAL_OFFSET_VIEWPORT_RATIO = 0.25;
+export const FISH_BUBBLES_VERTICAL_OFFSET_VIEWPORT_RATIO = 0.175;
 
 let preloadedVideo: HTMLVideoElement | null = null;
 let hevcUnavailable = false;
@@ -68,7 +67,6 @@ function getSvgSourceForRun(runId: number): string {
 
 export function preloadFishFinaleBubbles(): void {
   if (typeof document === 'undefined') return;
-  preloadFishFinaleSchool();
   if (MOBILE_RUNTIME_PROFILE.platform === 'ios' && !hevcUnavailable) {
     const video = getOrCreatePreloadedVideo();
     try { video.load(); } catch { hevcUnavailable = true; }
@@ -80,7 +78,6 @@ export function preloadFishFinaleBubbles(): void {
 
 export function attachFishFinaleBubbles(
   overlay: HTMLElement,
-  attachFishBurst: (bubblyOrigin: { x: number; y: number }) => (() => void),
 ): (() => void) & { completionDelaySeconds?: number } {
   const runId = ++fishBubblesRunSequence;
   let disposed = false;
@@ -111,7 +108,7 @@ export function attachFishFinaleBubbles(
     image = new Image();
     image.alt = '';
     image.draggable = false;
-    image.dataset.fishBubblesSource = 'svg-fast-fallback';
+    image.dataset.fishBubblesSource = 'svg-slow-fallback';
     image.setAttribute('aria-hidden', 'true');
     image.style.cssText = [
       'position:absolute',
@@ -143,7 +140,6 @@ export function attachFishFinaleBubbles(
     showSvgFallback();
   }
 
-  const viewportWidth = Math.max(320, window.innerWidth || 390);
   const viewportHeight = Math.max(520, window.innerHeight || 844);
   const verticalOffset = viewportHeight * FISH_BUBBLES_VERTICAL_OFFSET_VIEWPORT_RATIO;
   gsap.set(field, {
@@ -167,11 +163,6 @@ export function attachFishFinaleBubbles(
       duration: totalDurationSeconds - holdDurationSeconds,
       ease: 'power2.inOut',
     });
-  const cleanupFishBurst = attachFishBurst({
-    x: viewportWidth * 0.5,
-    y: viewportHeight * 0.5 + verticalOffset,
-  });
-
   if (video) {
     try { video.currentTime = 0; } catch {}
     void video.play().catch(handleVideoFailure);
@@ -181,7 +172,6 @@ export function attachFishFinaleBubbles(
     if (disposed) return;
     disposed = true;
     animationManager.killExternalTimeline(scaleTimeline);
-    try { cleanupFishBurst(); } catch {}
     if (video) {
       video.removeEventListener('error', handleVideoFailure);
       try {
@@ -197,13 +187,7 @@ export function attachFishFinaleBubbles(
     image?.remove();
     image = null;
     field.remove();
-  }) as (() => void) & { completionDelaySeconds?: number; startExit?: () => void };
-  cleanup.startExit = () => {
-    try { (cleanupFishBurst as any)?.startExit?.(); } catch {}
-  };
-  cleanup.completionDelaySeconds = Math.max(
-    FISH_BUBBLES_DURATION_MS / 1000,
-    Number((cleanupFishBurst as any)?.completionDelaySeconds) || 0,
-  );
+  }) as (() => void) & { completionDelaySeconds?: number };
+  cleanup.completionDelaySeconds = FISH_BUBBLES_DURATION_MS / 1000;
   return cleanup;
 }

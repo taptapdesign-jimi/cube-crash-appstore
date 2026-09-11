@@ -1,5 +1,9 @@
 import { JOURNEY_STAGES_PER_WORLD } from './journey-world-stage';
 import { RUN_MODE_JOURNEY, type RunMode } from './run-mode';
+import {
+  BEACH_FLOAT_LEFT_EDGE_RATIO,
+  BEACH_FLOAT_RIGHT_EDGE_RATIO,
+} from './board-transition-beach-variation';
 
 export type BoardTransitionThemeId = 'forest' | 'beach' | 'area55';
 
@@ -48,9 +52,9 @@ export const BEACH_BOARD_TRANSITION_PROFILE = Object.freeze({
   sceneClass: 'cc-board-transition-scene--beach',
   layers: Object.freeze([
     { key: 'beach-sea-1', src: './assets/journey assets/beach/more1.png', alt: '', style: islandStyle('50%', 88, '695px', 6), spatialRole: 'terrain', motionRole: 'sea' },
-    { key: 'beach-bottle', src: './assets/journey assets/beach/bottle.png', alt: '', style: islandStyle('calc(100% - 60px)', 370, 'min(31.9vw, 124.3px)', 9), spatialRole: 'scene', motionRole: 'float' },
+    { key: 'beach-bottle', src: './assets/journey assets/beach/bottle.png', alt: '', style: islandStyle(`${BEACH_FLOAT_RIGHT_EDGE_RATIO * 100}%`, 'calc(370px - 4vh)', 'min(38.28vw, 149.16px)', 9), spatialRole: 'scene', motionRole: 'float' },
     { key: 'beach-sea-2', src: './assets/journey assets/beach/more2.png', alt: '', style: islandStyle('50%', 190, '674px', 12), spatialRole: 'terrain', motionRole: 'sea' },
-    { key: 'beach-ball', src: './assets/journey assets/beach/lopta.png', alt: '', style: islandStyle('calc(54% - 100px)', 'calc(284px - 2vh)', '149px', 15), spatialRole: 'scene', motionRole: 'float' },
+    { key: 'beach-ball', src: './assets/journey assets/beach/lopta.png', alt: '', style: islandStyle(`${BEACH_FLOAT_LEFT_EDGE_RATIO * 100}%`, 'calc(284px - 2vh)', '193.7px', 15), spatialRole: 'scene', motionRole: 'float' },
     { key: 'beach-sea-3', src: './assets/journey assets/beach/more3.png', alt: '', style: islandStyle('50%', -16, '1014px', 18), spatialRole: 'terrain', motionRole: 'sea' },
     { key: 'beach-shore-1', src: './assets/journey assets/beach/plaza1.png', alt: '', style: islandStyle('calc(34% - 40%)', 22, 'min(174vw, 679px)', 24), spatialRole: 'scene', motionRole: 'shore' },
     { key: 'beach-castle', src: './assets/journey assets/beach/dvorac.png', alt: 'Beach', style: islandStyle('calc(68% + 30px)', 134, 'min(78.2vw, 305px)', 27), spatialRole: 'primary', motionRole: 'shore' },

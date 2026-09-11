@@ -404,6 +404,10 @@ export type BeeFinaleCleanup = (() => void) & {
   completionDelaySeconds?: number;
 };
 
+export type BeeFinaleSoundMilestones = {
+  onFinale?: () => void;
+};
+
 type BeeLeafParticle = {
   wrap: HTMLElement;
   image: HTMLImageElement;
@@ -539,6 +543,7 @@ export function attachBeeFinaleScene(
   overlay: HTMLElement,
   zIndex = 1,
   requestedOrigin?: BeeFinaleOrigin | null,
+  soundMilestones: BeeFinaleSoundMilestones = {},
 ): BeeFinaleCleanup {
   if (!overlay) return (() => {}) as BeeFinaleCleanup;
   void preloadBeeFinaleAssets();
@@ -693,6 +698,9 @@ export function attachBeeFinaleScene(
   };
   paint();
   master.to(clock, { time: 4, duration: 4, ease: 'none', onUpdate: paint }, 0);
+  master.call(() => {
+    try { soundMilestones.onFinale?.(); } catch {}
+  }, [], BEE_FINALE_FLYBY_START_SECONDS);
 
   for (let index = 0; index < BEE_FINALE_LEAF_COUNT; index += 1) {
     const burstIndex = Math.floor(index / BEE_FINALE_LEAVES_PER_BURST);

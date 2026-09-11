@@ -92,7 +92,8 @@ describe('Forest Bee special-die contract', () => {
       'utf8',
     );
     expect(source).toContain('globalCenterX = base.getGlobalPosition().x;');
-    expect(source).toContain('? -originalBaseScaleX\n      : originalBaseScaleX;');
+    expect(source).toContain('const facingScaleX = Math.abs(base.scale.x);');
+    expect(source).toContain('? -facingScaleX\n      : facingScaleX;');
     expect(source).toContain('refreshFacing: applyArtworkFacing,');
     expect(source).toContain('if (!base.destroyed && base.scale) base.scale.x = originalBaseScaleX;');
 

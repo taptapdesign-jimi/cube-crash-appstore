@@ -87,7 +87,7 @@ describe('Beach Ball merge-6 sound', () => {
     );
     expect(BEACH_BALL_MERGE6_BOOM_VOLUME).toBeCloseTo(0.36);
     expect(BEACH_BALL_MERGE6_STACK_SOUND_SOURCE).toBe('./assets/sound/merge 6/stack.mp3');
-    expect(BEACH_BALL_MERGE6_STACK_VOLUME).toBeCloseTo(0.36);
+    expect(BEACH_BALL_MERGE6_STACK_VOLUME).toBeCloseTo(0.48);
   });
 
   test('locks one fixed Ball sequence and the immediate fifty-percent impact', () => {

@@ -53,6 +53,9 @@ import { preloadFishMerge6Sounds } from './fish-merge6-sound.ts';
 import { preloadFishFinaleBubbles } from './fish-finale-bubbles.ts';
 import { preloadBeachBallMerge6Sounds } from './beach-ball-merge6-sound.ts';
 import { preloadCoreTntMerge6Sound } from './core-tnt-merge6-sound.ts';
+import { preloadFlowerMerge6Sounds } from './flower-merge6-sound.ts';
+import { preloadBeeMerge6Sounds } from './bee-merge6-sound.ts';
+import { preloadWildSpecialMerge6PoofSounds } from './wild-special-merge6-poof-sound.ts';
 import { preloadBottleFinaleSounds } from './bottle-finale-sound.ts';
 import { preloadOrdinaryStackSound } from './ordinary-stack-sound.ts';
 import { preloadGameplayPickupSound } from './gameplay-pickup-sound.ts';
@@ -458,6 +461,9 @@ class UIManager {
     preloadFishFinaleBubbles();
     preloadBeachBallMerge6Sounds();
     preloadCoreTntMerge6Sound();
+    preloadFlowerMerge6Sounds();
+    preloadBeeMerge6Sounds();
+    preloadWildSpecialMerge6PoofSounds();
     preloadBottleFinaleSounds();
     preloadOrdinaryStackSound();
     preloadGameplayPickupSound();
@@ -618,6 +624,9 @@ class UIManager {
     preloadFishFinaleBubbles();
     preloadBeachBallMerge6Sounds();
     preloadCoreTntMerge6Sound();
+    preloadFlowerMerge6Sounds();
+    preloadBeeMerge6Sounds();
+    preloadWildSpecialMerge6PoofSounds();
     preloadBottleFinaleSounds();
     preloadOrdinaryStackSound();
     preloadGameplayPickupSound();
@@ -741,6 +750,9 @@ class UIManager {
       preloadFishFinaleBubbles();
       preloadBeachBallMerge6Sounds();
       preloadCoreTntMerge6Sound();
+      preloadFlowerMerge6Sounds();
+      preloadBeeMerge6Sounds();
+      preloadWildSpecialMerge6PoofSounds();
       preloadBottleFinaleSounds();
       preloadOrdinaryStackSound();
       preloadGameplayPickupSound();
@@ -2432,6 +2444,12 @@ class UIManager {
         });
         void import('./core-tnt-merge6-sound.ts').then(({ stopCoreTntMerge6Sound }) => {
           stopCoreTntMerge6Sound();
+        });
+        void import('./bee-merge6-sound.ts').then(({ stopBeeMerge6Sounds }) => {
+          stopBeeMerge6Sounds();
+        });
+        void import('./wild-special-merge6-poof-sound.ts').then(({ stopWildSpecialMerge6PoofSounds }) => {
+          stopWildSpecialMerge6PoofSounds();
         });
         void import('./bottle-finale-sound.ts').then(({ stopBottleFinaleSounds }) => {
           stopBottleFinaleSounds();

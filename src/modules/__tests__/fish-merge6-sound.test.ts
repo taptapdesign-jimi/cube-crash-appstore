@@ -80,7 +80,7 @@ describe('Fish merge-6 sound', () => {
     expect(FISH_MERGE6_BOOM_SOUND_SOURCE).toBe('./assets/sound/merge 6/merge6 boom.mp3');
     expect(FISH_MERGE6_BOOM_VOLUME).toBeCloseTo(0.36);
     expect(FISH_MERGE6_STACK_SOUND_SOURCE).toBe('./assets/sound/merge 6/stack.mp3');
-    expect(FISH_MERGE6_STACK_VOLUME).toBeCloseTo(0.36);
+    expect(FISH_MERGE6_STACK_VOLUME).toBeCloseTo(0.48);
   });
 
   test('locks exact Fish timing to the midpoint of the 3.6-second finale', () => {

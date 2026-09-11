@@ -1,6 +1,7 @@
 import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
 import {
   acquireAnimatedSpecialArtworkLayer,
+  createAnimatedSpecialArtworkClip,
   setAnimatedSpecialArtworkDragging,
   setAnimatedSpecialArtworkPinnedForeground,
   type AnimatedSpecialArtworkFrame,
@@ -32,6 +33,7 @@ type BallBouncyController = {
   base: any;
   host: any;
   wrapper: HTMLDivElement;
+  artworkClip: HTMLDivElement;
   image: HTMLImageElement;
   bubbleLayer: HTMLDivElement;
   bubbleNodes: Map<any, HTMLDivElement>;
@@ -327,7 +329,7 @@ function createController(
     top: '0',
     width: `${DISPLAY_WIDTH}px`,
     height: `${DISPLAY_HEIGHT}px`,
-    overflow: 'hidden',
+    overflow: 'visible',
     pointerEvents: 'none',
     transformOrigin: '0 0',
     visibility: 'hidden',
@@ -349,6 +351,7 @@ function createController(
     userSelect: 'none',
     zIndex: '1',
   });
+  const artworkClip = createAnimatedSpecialArtworkClip(wrapper);
 
   const bubbleLayer = document.createElement('div');
   bubbleLayer.className = 'ball-bouncy-front-bubbles';
@@ -360,7 +363,7 @@ function createController(
     visibility: 'hidden',
     zIndex: '2',
   });
-  wrapper.appendChild(image);
+  artworkClip.appendChild(image);
   wrapper.appendChild(bubbleLayer);
   root.appendChild(wrapper);
 
@@ -369,6 +372,7 @@ function createController(
     base,
     host,
     wrapper,
+    artworkClip,
     image,
     bubbleLayer,
     bubbleNodes: new Map(),

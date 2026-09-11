@@ -123,6 +123,10 @@ describe('Juice animated SVG board artwork', () => {
     startSpecialDiceIdleMotion(tile);
     const second = tile._ccJuiceBounceArtwork;
     expect(first).toBe(second);
+    expect((first as any).wrapper.style.overflow).toBe('visible');
+    expect((first as any).artworkClip.style.overflow).toBe('hidden');
+    expect((first as any).image.parentElement).toBe((first as any).artworkClip);
+    expect((first as any).bubbleLayer.parentElement).toBe((first as any).wrapper);
     expect(getJuiceBounceRuntimeStats()).toMatchObject({
       controllers: 1,
       ready: 0,

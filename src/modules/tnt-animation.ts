@@ -926,6 +926,8 @@ export function showTntAnimation(options: {
   onSprite10ExitStart?: () => void;
   onSprite10ExitLeadStart?: () => void;
   onSpriteSequenceComplete?: () => void;
+  onSpriteSequenceProgress?: () => void;
+  spriteSequenceProgressRatio?: number;
   onNinthSpriteStart?: () => void;
   frameSources?: string[];
   text?: string;
@@ -964,7 +966,17 @@ export function showTntAnimation(options: {
     (window as any).__ccTntDragBlocked = true;
     setInputGateLock('tnt-boom', true, { ttlMs: 5200, scope: 'all' });
   } catch {}
-  const { onComplete, onBoomExitStart, onSprite6Start, onSprite10ExitStart, onSprite10ExitLeadStart, onSpriteSequenceComplete, onNinthSpriteStart } = options;
+  const {
+    onComplete,
+    onBoomExitStart,
+    onSprite6Start,
+    onSprite10ExitStart,
+    onSprite10ExitLeadStart,
+    onSpriteSequenceComplete,
+    onSpriteSequenceProgress,
+    spriteSequenceProgressRatio,
+    onNinthSpriteStart,
+  } = options;
   const usesLaserGunScene = options.finaleScene === 'lasergun-crossfire';
   const { preferred: activeFrames, fallback: activeFallbackFrames } = resolveFrameSources(options);
   const numFrames = activeFrames.length;
@@ -1225,6 +1237,10 @@ export function showTntAnimation(options: {
   const sprite5EnterEndTime = 0.07 + 5 * 0.04 + ENTER_DURATION;
   const sprite5SettleTime = sprite5EnterEndTime + SETTLE_DURATION;
   const exitStartTime = sprite5SettleTime + HOLD_AT_FRAME_6 + SPRITE_EXTRA_DURATION - 0.2;
+  const standardSpriteSequenceEndTime = exitStartTime
+    + Math.max(0, numFrames - 1) * SPRITE_EXIT_STAGGER
+    + EXIT_BOUNCE_DURATION
+    + EXIT_FADE_DURATION;
   if (hiddenAtExitStart.size) {
     timeline.call(() => {
       hiddenAtExitStart.forEach((index) => {
@@ -1396,6 +1412,16 @@ export function showTntAnimation(options: {
       });
     }, [], '>0');
   });
+  if (
+    !usesLaserGunScene
+    && typeof onSpriteSequenceProgress === 'function'
+    && Number.isFinite(spriteSequenceProgressRatio)
+  ) {
+    const boundedProgressRatio = Math.max(0, Math.min(1, Number(spriteSequenceProgressRatio)));
+    timeline.call(() => {
+      try { onSpriteSequenceProgress(); } catch {}
+    }, [], standardSpriteSequenceEndTime * boundedProgressRatio);
+  }
   // Fire once when frame 6 enter animation is complete (no settle wait)
   let sprite6Triggered = false;
   if (!usesLaserGunScene) {

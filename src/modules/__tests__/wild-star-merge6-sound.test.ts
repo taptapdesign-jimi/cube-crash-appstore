@@ -112,8 +112,8 @@ describe('Wild Star merge-6 sound', () => {
     expect(WILD_STAR_MERGE6_BOOM_BASE_VOLUME).toBe(0.6);
     expect(WILD_STAR_MERGE6_BOOM_VOLUME).toBeCloseTo(0.36);
     expect(WILD_STAR_MERGE6_STACK_SOUND_SOURCE).toBe('./assets/sound/merge 6/stack.mp3');
-    expect(WILD_STAR_MERGE6_STACK_BASE_VOLUME).toBe(0.6);
-    expect(WILD_STAR_MERGE6_STACK_VOLUME).toBeCloseTo(0.36);
+    expect(WILD_STAR_MERGE6_STACK_BASE_VOLUME).toBe(0.8);
+    expect(WILD_STAR_MERGE6_STACK_VOLUME).toBeCloseTo(0.48);
   });
 
   it('URL-encodes filename hashes so browsers request the complete WAV path', () => {
@@ -225,7 +225,7 @@ describe('Wild Star merge-6 sound', () => {
     expect(primary.volume).toBeCloseTo(0.3);
     expect(crash.volume).toBeCloseTo(0.1632);
     expect(boom.volume).toBeCloseTo(0.36);
-    expect(stack.volume).toBeCloseTo(0.36);
+    expect(stack.volume).toBeCloseTo(0.48);
     expect(alternateMagic.volume).toBeCloseTo(0.4);
     expect(primary.currentTime).toBe(0);
     expect(crash.currentTime).toBe(0);

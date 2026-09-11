@@ -37,6 +37,18 @@ import {
   FISH_MERGE6_PLOMP_VOLUME,
   FISH_MERGE6_SPEAKS_VOLUME,
 } from '../fish-merge6-sound';
+import {
+  FLOWER_MERGE6_BUSH0_VOLUME,
+  FLOWER_MERGE6_BUSH2_VOLUME,
+  FLOWER_MERGE6_BUSH3_VOLUME,
+  FLOWER_MERGE6_LEAVES_VOLUME,
+  FLOWER_MERGE6_SPARK_VOLUME,
+} from '../flower-merge6-sound';
+import {
+  BEE_MERGE6_HAPPY_VOLUME,
+  BEE_MERGE6_VOLUME,
+} from '../bee-merge6-sound';
+import { WILD_SPECIAL_MERGE6_POOF_VOLUME } from '../wild-special-merge6-poof-sound';
 
 describe('sound effects master volume', () => {
   it('reduces every currently active SFX voice by exactly 40 percent', () => {
@@ -48,7 +60,7 @@ describe('sound effects master volume', () => {
     expect(REGULAR_MERGE6_SOUND_VOLUME).toBeCloseTo(0.3);
     expect(REGULAR_MERGE6_CRASH_VOLUME).toBeCloseTo(0.1632);
     expect(REGULAR_MERGE6_BOOM_VOLUME).toBeCloseTo(0.36);
-    expect(REGULAR_MERGE6_STACK_VOLUME).toBeCloseTo(0.36);
+    expect(REGULAR_MERGE6_STACK_VOLUME).toBeCloseTo(0.48);
     expect(WILD_STAR_MERGE6_SOUND_VOLUME).toBeCloseTo(0.4);
     expect(WILD_STAR_MERGE6_PRIMARY_VOLUME).toBeCloseTo(REGULAR_MERGE6_SOUND_VOLUME);
     expect(WILD_STAR_MERGE6_CRASH_VOLUME).toBeCloseTo(REGULAR_MERGE6_CRASH_VOLUME);
@@ -64,6 +76,14 @@ describe('sound effects master volume', () => {
     expect(FISH_MERGE6_FISH2_VOLUME).toBeCloseTo(0.4);
     expect(FISH_MERGE6_PLOMP_VOLUME).toBeCloseTo(0.4);
     expect(FISH_MERGE6_SPEAKS_VOLUME).toBeCloseTo(0.24);
+    expect(FLOWER_MERGE6_BUSH0_VOLUME).toBeCloseTo(0.48);
+    expect(FLOWER_MERGE6_BUSH2_VOLUME).toBeCloseTo(0.6);
+    expect(FLOWER_MERGE6_BUSH3_VOLUME).toBeCloseTo(0.21);
+    expect(FLOWER_MERGE6_LEAVES_VOLUME).toBeCloseTo(0.48);
+    expect(FLOWER_MERGE6_SPARK_VOLUME).toBeCloseTo(0.36);
+    expect(BEE_MERGE6_VOLUME).toBeCloseTo(0.6);
+    expect(BEE_MERGE6_HAPPY_VOLUME).toBeCloseTo(0.3);
+    expect(WILD_SPECIAL_MERGE6_POOF_VOLUME).toBeCloseTo(0.6);
   });
 
   it('keeps the shared multiplier bounded and excludes music ownership', () => {
@@ -78,7 +98,7 @@ describe('sound effects master volume', () => {
     expect(soundtrack).not.toContain('applySoundEffectsMasterGain');
   });
 
-  it('is consumed by all thirteen active SFX owners', () => {
+  it('is consumed by all sixteen active SFX owners', () => {
     for (const filename of [
       'gameplay-pickup-sound.ts',
       'ordinary-stack-sound.ts',
@@ -93,6 +113,9 @@ describe('sound effects master volume', () => {
       'arcade-round-digit-sound.ts',
       'bottle-finale-sound.ts',
       'fish-merge6-sound.ts',
+      'flower-merge6-sound.ts',
+      'bee-merge6-sound.ts',
+      'wild-special-merge6-poof-sound.ts',
     ]) {
       const source = fs.readFileSync(path.resolve(process.cwd(), 'src/modules', filename), 'utf8');
       expect(source).toContain('applySoundEffectsMasterGain');

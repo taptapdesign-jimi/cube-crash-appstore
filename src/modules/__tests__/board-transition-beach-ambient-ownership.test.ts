@@ -14,23 +14,33 @@ describe('Beach transition ambient ownership', () => {
   const floatSource = ambientSource.slice(floatStart, seaStart);
   const seaSource = ambientSource.slice(seaStart);
 
-  test('gives each Beach float one conflict-free long-travel stepped motion owner', () => {
+  test('gives each Beach float one conflict-free waterline drift, bounce, and wobble owner', () => {
     expect(source).toContain('new Map<HTMLElement, gsap.core.Timeline[]>()');
     expect(floatSource).toContain('stopBeachAmbientMotion(sceneImg)');
     expect(floatSource.match(/trackTimeline\(/g)).toHaveLength(1);
-    expect(floatSource).toContain('const motionTimeline = trackTimeline({ repeat: -1, yoyo: true })');
+    expect(floatSource).toContain('const motionTimeline = trackTimeline()');
     expect(floatSource).toContain('ownAmbientTimeline(motionTimeline)');
-    expect(floatSource).toContain('stepIndex < BEACH_FLOAT_MOTION_STEP_COUNT');
-    expect(floatSource).toContain('x: horizontalDirection * horizontalTravelPx * progress');
-    expect(floatSource).toContain('y: stepDirection * bouncePx');
-    expect(floatSource).toContain('rotation: stepDirection * rotationLimit');
-    expect(floatSource).toContain('duration: gsap.utils.random(0.32, 0.48)');
-    expect(floatSource).toContain('const bouncePx = window.innerHeight * BEACH_FLOAT_BOUNCE_VIEWPORT_RATIO');
-    expect(source).toContain('export const BEACH_FLOAT_BOUNCE_VIEWPORT_RATIO = 0.05');
-    expect(source).toContain('export const BEACH_FLOAT_MOTION_STEP_COUNT = 6');
-    expect(source).toContain('export const BEACH_BOTTLE_HORIZONTAL_TRAVEL_RATIOS = [0.66, 0.74]');
-    expect(source).toContain('export const BEACH_BALL_HORIZONTAL_TRAVEL_RATIOS = [0.62, 0.70]');
-    expect(floatSource).toContain('const rotationLimit = isBottle ? 44 : 120');
+    expect(floatSource).toContain('motionTimeline.to(motionClock, {');
+    expect(floatSource).toContain("ease: 'none'");
+    expect(floatSource).toContain('repeat: -1');
+    expect(floatSource).not.toContain('yoyo: true');
+    expect(floatSource).toContain('x: horizontalDirection * horizontalTravelPx * horizontalProgress');
+    expect(floatSource).toContain('y: -waveHeightPx * riseWave');
+    expect(floatSource).toContain('rotation: rotationWave * rotationLimit');
+    expect(source).toContain('export const BEACH_FLOAT_MOTION_CYCLE_SECONDS = 12');
+    expect(source).toContain('export const BEACH_FLOAT_BOUNCE_CYCLE_SECONDS = 1');
+    expect(source).toContain('export const BEACH_FLOAT_WOBBLE_CYCLE_SECONDS = 1.5');
+    expect(source).toContain('BEACH_FLOAT_LEFT_EDGE_RATIO');
+    expect(source).toContain('BEACH_FLOAT_RIGHT_EDGE_RATIO');
+    expect(source).toContain('BEACH_FLOAT_HORIZONTAL_TRAVEL_SCALE');
+    expect(floatSource).toContain('sampleBeachFloatHorizontalProgress(elapsedSeconds)');
+    expect(floatSource).toContain('BEACH_FLOAT_RIGHT_EDGE_RATIO - BEACH_FLOAT_LEFT_EDGE_RATIO');
+    expect(source).toContain('export const BEACH_BOTTLE_BOUNCE_PX = 18');
+    expect(source).toContain('export const BEACH_BALL_BOUNCE_PX = 22');
+    expect(source).toContain('export const BEACH_BOTTLE_WOBBLE_DEGREES = 50.4');
+    expect(source).toContain('export const BEACH_BALL_WOBBLE_DEGREES = 117.6');
+    expect(floatSource.match(/onUpdate:/g)).toHaveLength(1);
+    expect(floatSource.match(/gsap\.set\(sceneImg/g)).toHaveLength(2);
 
     expect(seaSource.match(/trackTimeline\(/g)).toHaveLength(1);
     expect(seaSource).toContain('const boingTimeline = gsap.timeline({ repeat: -1');
@@ -39,6 +49,14 @@ describe('Beach transition ambient ownership', () => {
     expect(seaSource).toContain('ambientTimeline.play(0)');
     expect(seaSource).toContain('const boingDuration = 0.2 + Math.random() * 0.35');
     expect(seaSource).toContain('repeatDelay: 0.18 + Math.random() * 0.35');
+  });
+
+  test('preserves the completed horizontal position when Beach floats exit', () => {
+    const exitStart = source.indexOf('function startExitAnimation');
+    const exitSource = source.slice(exitStart);
+
+    expect(exitSource).toContain("const isBeachFloatExit = isBeachSceneExit && sceneImg.dataset.motionRole === 'float'");
+    expect(exitSource).toContain('...(isBeachFloatExit ? {} : { x: 0 })');
   });
 
   test('stops only the requested element owner and retains the shared shore owner', () => {

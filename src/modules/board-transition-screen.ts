@@ -18,8 +18,12 @@ import {
 import { formatJourneyWorldStageNumber } from './journey-world-stage.js';
 import { buildBoardTransitionExitSchedule } from './board-transition-exit-schedule.js';
 import {
+  BEACH_FLOAT_LEFT_EDGE_RATIO,
+  BEACH_FLOAT_RIGHT_EDGE_RATIO,
+  BEACH_FLOAT_HORIZONTAL_TRAVEL_SCALE,
   BEACH_PALM_GLOBAL_VERTICAL_OFFSET_PX,
   createBeachTransitionVariationSequence,
+  sampleBeachFloatHorizontalProgress,
   type BeachTransitionVariation,
 } from './board-transition-beach-variation.js';
 import {
@@ -936,10 +940,13 @@ function getTransitionHillBaseX(layerKey: string): number {
   return 0;
 }
 
-export const BEACH_FLOAT_BOUNCE_VIEWPORT_RATIO = 0.05;
-export const BEACH_FLOAT_MOTION_STEP_COUNT = 6;
-export const BEACH_BOTTLE_HORIZONTAL_TRAVEL_RATIOS = [0.66, 0.74] as const;
-export const BEACH_BALL_HORIZONTAL_TRAVEL_RATIOS = [0.62, 0.70] as const;
+export const BEACH_FLOAT_MOTION_CYCLE_SECONDS = 12;
+export const BEACH_FLOAT_BOUNCE_CYCLE_SECONDS = 1;
+export const BEACH_FLOAT_WOBBLE_CYCLE_SECONDS = 1.5;
+export const BEACH_BOTTLE_BOUNCE_PX = 18;
+export const BEACH_BALL_BOUNCE_PX = 22;
+export const BEACH_BOTTLE_WOBBLE_DEGREES = 50.4;
+export const BEACH_BALL_WOBBLE_DEGREES = 117.6;
 
 function startBeachAmbientMotion(sceneImg: HTMLElement, layerKey: string, motionRole: string): void {
   const ownAmbientTimeline = (timeline: gsap.core.Timeline): void => {
@@ -955,27 +962,41 @@ function startBeachAmbientMotion(sceneImg: HTMLElement, layerKey: string, motion
     stopBeachAmbientMotion(sceneImg);
     const isBottle = layerKey === 'beach-bottle';
     const horizontalDirection = sceneImg.dataset.floatDirection === 'left' ? -1 : 1;
-    const rotationLimit = isBottle ? 44 : 120;
-    const travelRatios = isBottle
-      ? BEACH_BOTTLE_HORIZONTAL_TRAVEL_RATIOS
-      : BEACH_BALL_HORIZONTAL_TRAVEL_RATIOS;
-    const horizontalTravelPx = window.innerWidth * gsap.utils.random(travelRatios[0], travelRatios[1]);
-    const bouncePx = window.innerHeight * BEACH_FLOAT_BOUNCE_VIEWPORT_RATIO;
-    const motionTimeline = trackTimeline({ repeat: -1, yoyo: true });
+    const rotationLimit = isBottle
+      ? BEACH_BOTTLE_WOBBLE_DEGREES
+      : BEACH_BALL_WOBBLE_DEGREES;
+    const viewportWidth = Math.max(1, window.innerWidth || sceneImg.parentElement?.clientWidth || 390);
+    const horizontalTravelPx = viewportWidth
+      * (BEACH_FLOAT_RIGHT_EDGE_RATIO - BEACH_FLOAT_LEFT_EDGE_RATIO)
+      * BEACH_FLOAT_HORIZONTAL_TRAVEL_SCALE;
+    const waveHeightPx = isBottle
+      ? BEACH_BOTTLE_BOUNCE_PX
+      : BEACH_BALL_BOUNCE_PX;
+    const motionClock = { progress: 0 };
+    const motionTimeline = trackTimeline();
     ownAmbientTimeline(motionTimeline);
 
     gsap.set(sceneImg, { transformOrigin: '50% 50%' });
-    for (let stepIndex = 0; stepIndex < BEACH_FLOAT_MOTION_STEP_COUNT; stepIndex += 1) {
-      const progress = (stepIndex + 1) / BEACH_FLOAT_MOTION_STEP_COUNT;
-      const stepDirection = stepIndex % 2 === 0 ? -1 : 1;
-      motionTimeline.to(sceneImg, {
-        x: horizontalDirection * horizontalTravelPx * progress,
-        y: stepDirection * bouncePx,
-        rotation: stepDirection * rotationLimit * gsap.utils.random(0.72, 1),
-        duration: gsap.utils.random(0.32, 0.48),
-        ease: 'sine.inOut',
-      });
-    }
+    motionTimeline.to(motionClock, {
+      progress: 1,
+      duration: BEACH_FLOAT_MOTION_CYCLE_SECONDS,
+      ease: 'none',
+      repeat: -1,
+      onUpdate: () => {
+        const elapsedSeconds = motionClock.progress * BEACH_FLOAT_MOTION_CYCLE_SECONDS;
+        const bounceWavePhase = elapsedSeconds * Math.PI * 2 / BEACH_FLOAT_BOUNCE_CYCLE_SECONDS;
+        const wobbleWavePhase = elapsedSeconds * Math.PI * 2 / BEACH_FLOAT_WOBBLE_CYCLE_SECONDS;
+        const horizontalProgress = sampleBeachFloatHorizontalProgress(elapsedSeconds);
+        const riseWave = 0.5 - 0.5 * Math.cos(bounceWavePhase);
+        const rotationWave = Math.sin(wobbleWavePhase);
+        gsap.set(sceneImg, {
+          x: horizontalDirection * horizontalTravelPx * horizontalProgress,
+          y: -waveHeightPx * riseWave,
+          rotation: rotationWave * rotationLimit,
+          force3D: true,
+        });
+      },
+    });
     return;
   }
 
@@ -2486,7 +2507,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
           if (beachVariation && (layer.key === 'beach-bottle' || layer.key === 'beach-ball')) {
             const isBottle = layer.key === 'beach-bottle';
             const startsRight = beachVariation.floatsSwapped ? !isBottle : isBottle;
-            sceneImg.style.left = startsRight ? 'calc(100% - 60px)' : 'calc(54% - 100px)';
+            sceneImg.style.left = `${(startsRight ? BEACH_FLOAT_RIGHT_EDGE_RATIO : BEACH_FLOAT_LEFT_EDGE_RATIO) * 100}%`;
             sceneImg.dataset.floatDirection = startsRight ? 'left' : 'right';
           }
           if (beachVariation && layer.key === 'beach-castle') {
@@ -3643,6 +3664,7 @@ function startExitAnimation(
         const isBeachSceneExit = transitionTheme === 'beach';
         const isRoboSceneExit = transitionTheme === 'area55';
         const isBeachBallExit = isBeachSceneExit && layerKey === 'beach-ball';
+        const isBeachFloatExit = isBeachSceneExit && sceneImg.dataset.motionRole === 'float';
         if (isRoboSceneExit) {
           const isRoboFrontExit = layerKey === 'robo-front';
           sceneExitTimeline.to(sceneImg, {
@@ -3670,7 +3692,7 @@ function startExitAnimation(
         } else sceneExitTimeline.to(sceneImg, {
           opacity: isBeachSceneExit || isRoboSceneExit ? 1 : 0,
           scale: 0,
-          x: 0,
+          ...(isBeachFloatExit ? {} : { x: 0 }),
           y: isAggressiveDownPine ? 112 : 24,
           rotation: isBeachBallExit
             ? orderIndex % 2 === 0 ? '+=18' : '-=18'

@@ -114,8 +114,8 @@ export function startKantaDiceIdle(
   // flattened aspect ratio.
   base.width = displayedWidth;
   base.height = displayedHeight;
-  const originalScaleX = base.scale.x;
-  const originalScaleY = base.scale.y;
+  let neutralScaleX = base.scale.x;
+  let neutralScaleY = base.scale.y;
   const topBubbleTravelPx = displayedHeight * KANTA_IDLE_TOP_BUBBLE_TRAVEL_RATIO;
   let loadedTexture: Texture | null = null;
   const backdropSprites: Array<{
@@ -167,8 +167,8 @@ export function startKantaDiceIdle(
   refreshBackdropPlacement();
 
   const syncBackdropPose = () => {
-    const scaleRatioX = originalScaleX === 0 ? 1 : base.scale.x / originalScaleX;
-    const scaleRatioY = originalScaleY === 0 ? 1 : base.scale.y / originalScaleY;
+    const scaleRatioX = neutralScaleX === 0 ? 1 : base.scale.x / neutralScaleX;
+    const scaleRatioY = neutralScaleY === 0 ? 1 : base.scale.y / neutralScaleY;
     const opposingScaleRatioX = Math.max(0.8, 2 - scaleRatioX);
     const opposingScaleRatioY = Math.max(0.8, 2 - scaleRatioY);
     backdropSprites.forEach(({ sprite, neutralScaleX, neutralScaleY, offsetX }) => {
@@ -210,7 +210,7 @@ export function startKantaDiceIdle(
     base.x = pivotX;
     base.y = pivotY;
     base.rotation = originalRotation;
-    base.scale.set(originalScaleX, originalScaleY);
+    base.scale.set(neutralScaleX, neutralScaleY);
     syncBackdropPose();
   };
 
@@ -224,44 +224,44 @@ export function startKantaDiceIdle(
     onUpdate: syncBackdropPose,
   }));
   timeline.to(base.scale, {
-    x: originalScaleX * KANTA_IDLE_BREATH_SCALE_X,
-    y: originalScaleY * KANTA_IDLE_BREATH_SCALE_Y,
+    x: () => neutralScaleX * KANTA_IDLE_BREATH_SCALE_X,
+    y: () => neutralScaleY * KANTA_IDLE_BREATH_SCALE_Y,
     duration: KANTA_IDLE_BREATH_DURATION_SECONDS,
     ease: 'sine.inOut',
   });
   timeline.to(base.scale, {
-    x: originalScaleX,
-    y: originalScaleY,
+    x: () => neutralScaleX,
+    y: () => neutralScaleY,
     duration: KANTA_IDLE_BREATH_DURATION_SECONDS,
     ease: 'sine.inOut',
   });
   timeline.to(base.scale, {
-    x: originalScaleX * softenScale(JOURNEY_INTERIM_IDLE_MOTION.anticipationScaleX),
-    y: originalScaleY * softenScale(JOURNEY_INTERIM_IDLE_MOTION.anticipationScaleY),
+    x: () => neutralScaleX * softenScale(JOURNEY_INTERIM_IDLE_MOTION.anticipationScaleX),
+    y: () => neutralScaleY * softenScale(JOURNEY_INTERIM_IDLE_MOTION.anticipationScaleY),
     duration: JOURNEY_INTERIM_IDLE_MOTION.anticipationDurationSeconds,
     ease: 'power2.in',
   });
   timeline.to(base.scale, {
-    x: () => originalScaleX * softenScale(variant.peakScaleX),
-    y: () => originalScaleY * softenScale(variant.peakScaleY),
+    x: () => neutralScaleX * softenScale(variant.peakScaleX),
+    y: () => neutralScaleY * softenScale(variant.peakScaleY),
     duration: JOURNEY_INTERIM_IDLE_MOTION.riseDurationSeconds,
     ease: 'back.out(2.5)',
   });
   timeline.to(base.scale, {
-    x: () => originalScaleX * softenScale(variant.landScaleX),
-    y: () => originalScaleY * softenScale(variant.landScaleY),
+    x: () => neutralScaleX * softenScale(variant.landScaleX),
+    y: () => neutralScaleY * softenScale(variant.landScaleY),
     duration: JOURNEY_INTERIM_IDLE_MOTION.landDurationSeconds,
     ease: 'power2.in',
   });
   timeline.to(base.scale, {
-    x: originalScaleX * softenScale(JOURNEY_INTERIM_IDLE_MOTION.reboundScaleX),
-    y: originalScaleY * softenScale(JOURNEY_INTERIM_IDLE_MOTION.reboundScaleY),
+    x: () => neutralScaleX * softenScale(JOURNEY_INTERIM_IDLE_MOTION.reboundScaleX),
+    y: () => neutralScaleY * softenScale(JOURNEY_INTERIM_IDLE_MOTION.reboundScaleY),
     duration: JOURNEY_INTERIM_IDLE_MOTION.reboundDurationSeconds,
     ease: 'power2.out',
   });
   timeline.to(base.scale, {
-    x: originalScaleX,
-    y: originalScaleY,
+    x: () => neutralScaleX,
+    y: () => neutralScaleY,
     duration: JOURNEY_INTERIM_IDLE_MOTION.settleDurationSeconds,
     ease: 'back.out(1.7)',
   });
@@ -327,7 +327,7 @@ export function startKantaDiceIdle(
       base.x = originalX;
       base.y = originalY;
       base.rotation = originalRotation;
-      base.scale.set(originalScaleX, originalScaleY);
+      base.scale.set(neutralScaleX, neutralScaleY);
       base.width = displayedWidth;
       base.height = displayedHeight;
     },
@@ -483,9 +483,20 @@ export function startKantaDiceIdle(
     ) return;
     loadedTexture = texture;
     pinPixiImageTexture(texture);
+    // A restored holder can still own a regular/@2x texture while this frame
+    // decodes. Width/height setters encode their result in Sprite.scale, so a
+    // scale captured from that temporary texture is not portable to Kanta's
+    // 128x171 source. Rebase the neutral scale after the authored frame is
+    // attached and invalidate every function-based tween endpoint.
+    timeline.pause();
     base.texture = texture;
     base.width = displayedWidth;
     base.height = displayedHeight;
+    neutralScaleX = base.scale.x;
+    neutralScaleY = base.scale.y;
+    restoreNeutralPose();
+    timeline.invalidate();
+    if (!bubbleRuntimePaused) timeline.restart();
     applyGameplayTextureFiltering(base.texture);
   }).catch(() => {});
 

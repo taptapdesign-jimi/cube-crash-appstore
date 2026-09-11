@@ -1,6 +1,7 @@
 import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
 import {
   acquireAnimatedSpecialArtworkLayer,
+  createAnimatedSpecialArtworkClip,
   doesAnimatedSpecialArtworkOverlapGameplayDrag,
   installAnimatedSpecialArtworkOverlapFootprint,
   setAnimatedSpecialArtworkDragging,
@@ -44,6 +45,7 @@ type JuiceBounceController = {
   base: any;
   host: any;
   wrapper: HTMLDivElement;
+  artworkClip: HTMLDivElement;
   image: HTMLImageElement;
   bubbleLayer: HTMLDivElement;
   bubbleNodes: Map<any, HTMLDivElement>;
@@ -352,7 +354,7 @@ function createController(tile: any, base: any, host: any, root: HTMLDivElement)
     top: '0',
     width: `${DISPLAY_WIDTH}px`,
     height: `${DISPLAY_HEIGHT}px`,
-    overflow: 'hidden',
+    overflow: 'visible',
     pointerEvents: 'none',
     transformOrigin: '0 0',
     visibility: 'hidden',
@@ -365,6 +367,7 @@ function createController(tile: any, base: any, host: any, root: HTMLDivElement)
     width: JUICE_BOUNCE_DISPLAY_SIZE,
     height: JUICE_BOUNCE_DISPLAY_SIZE,
   });
+  const artworkClip = createAnimatedSpecialArtworkClip(wrapper);
 
   const image = new Image();
   image.alt = '';
@@ -393,7 +396,7 @@ function createController(tile: any, base: any, host: any, root: HTMLDivElement)
     visibility: 'hidden',
     zIndex: '2',
   });
-  wrapper.appendChild(image);
+  artworkClip.appendChild(image);
   wrapper.appendChild(bubbleLayer);
   root.appendChild(wrapper);
 
@@ -402,6 +405,7 @@ function createController(tile: any, base: any, host: any, root: HTMLDivElement)
     base,
     host,
     wrapper,
+    artworkClip,
     image,
     bubbleLayer,
     bubbleNodes: new Map(),

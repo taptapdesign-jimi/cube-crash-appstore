@@ -414,9 +414,9 @@ describe('Bee merge-six finale', () => {
       path.join(process.cwd(), 'src/modules/splash-text-overlay.ts'),
       'utf8',
     );
-    expect(splashSource).toContain('attachBeeFinaleScene(overlay, 1, origin)');
+    expect(splashSource).toContain('attachBeeFinaleScene(overlay, 1, origin, {');
     expect(splashSource.indexOf('document.body.appendChild(overlay)')).toBeLessThan(
-      splashSource.indexOf('attachBeeFinaleScene(overlay, 1, origin)'),
+      splashSource.indexOf('attachBeeFinaleScene(overlay, 1, origin, {'),
     );
     expect(splashSource).toMatch(
       /const startExit = \(\) => \{[\s\S]*?if \(!usesBeeForestFlight\) \{[\s\S]*?smallStarBurstCleanup[\s\S]*?bounceTimelines\.forEach/,

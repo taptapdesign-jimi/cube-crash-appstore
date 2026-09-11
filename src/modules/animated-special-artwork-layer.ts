@@ -380,6 +380,25 @@ export function installAnimatedSpecialArtworkOverlapFootprint(
   return node;
 }
 
+/**
+ * Keep authored SVG/video pixels inside their declared motion canvas without
+ * clipping sibling FX (for example idle bubbles that intentionally rise above
+ * the die). The outer transformed wrapper must remain overflow-visible.
+ */
+export function createAnimatedSpecialArtworkClip(wrapper: HTMLElement): HTMLDivElement {
+  const clip = document.createElement('div');
+  clip.className = 'animated-special-artwork-clip';
+  Object.assign(clip.style, {
+    position: 'absolute',
+    inset: '0',
+    overflow: 'hidden',
+    pointerEvents: 'none',
+    zIndex: '1',
+  });
+  wrapper.appendChild(clip);
+  return clip;
+}
+
 export function acquireAnimatedSpecialArtworkFinaleDepth(): () => void {
   finaleDepthOwners += 1;
   const canvas = STATE.app?.canvas as HTMLCanvasElement | null | undefined;

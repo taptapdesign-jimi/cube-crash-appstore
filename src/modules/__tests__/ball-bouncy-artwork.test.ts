@@ -144,6 +144,10 @@ describe('Beach Ball animated SVG board artwork', () => {
     const second = tile._ccBallBouncyArtwork;
 
     expect(first).toBe(second);
+    expect((first as any).wrapper.style.overflow).toBe('visible');
+    expect((first as any).artworkClip.style.overflow).toBe('hidden');
+    expect((first as any).image.parentElement).toBe((first as any).artworkClip);
+    expect((first as any).bubbleLayer.parentElement).toBe((first as any).wrapper);
     expect(tile._ccSpecialDiceIdleTl).toBeUndefined();
     expect(getBallBouncyRuntimeStats()).toMatchObject({
       controllers: 1,

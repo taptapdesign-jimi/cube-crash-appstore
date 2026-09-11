@@ -7,9 +7,14 @@ import {
 } from '../board-transition-themes';
 import {
   BEACH_CURTAIN_LAYER_KEYS,
+  BEACH_FLOAT_HORIZONTAL_CROSSING_SECONDS,
+  BEACH_FLOAT_HORIZONTAL_TRAVEL_SCALE,
+  BEACH_FLOAT_LEFT_EDGE_RATIO,
+  BEACH_FLOAT_RIGHT_EDGE_RATIO,
   BEACH_PALM_GLOBAL_VERTICAL_OFFSET_PX,
   createBeachTransitionVariation,
   createBeachTransitionVariationSequence,
+  sampleBeachFloatHorizontalProgress,
 } from '../board-transition-beach-variation';
 import {
   createRoboAirCombatVariation,
@@ -364,11 +369,12 @@ describe('Board Transition World themes', () => {
     expect(byKey.get('beach-sea-3')?.style).toContain('width: 1014px');
     expect(byKey.get('beach-sea-3')?.style).toContain('left: 50%');
     expect(byKey.get('beach-sea-3')?.style).toContain('bottom: -16px');
-    expect(byKey.get('beach-bottle')?.style).toContain('left: calc(100% - 60px)');
-    expect(byKey.get('beach-bottle')?.style).toContain('bottom: 370px');
-    expect(byKey.get('beach-bottle')?.style).toContain('width: min(31.9vw, 124.3px)');
-    expect(byKey.get('beach-ball')?.style).toContain('left: calc(54% - 100px)');
+    expect(byKey.get('beach-bottle')?.style).toContain('left: 94%');
+    expect(byKey.get('beach-bottle')?.style).toContain('bottom: calc(370px - 4vh)');
+    expect(byKey.get('beach-bottle')?.style).toContain('width: min(38.28vw, 149.16px)');
+    expect(byKey.get('beach-ball')?.style).toContain('left: 6%');
     expect(byKey.get('beach-ball')?.style).toContain('bottom: calc(284px - 2vh)');
+    expect(byKey.get('beach-ball')?.style).toContain('width: 193.7px');
     expect(byKey.get('beach-castle')?.style).toContain('z-index: 27');
     expect(byKey.get('beach-castle')?.style).toContain('left: calc(68% + 30px)');
     expect(byKey.get('beach-castle')?.style).toContain('width: min(78.2vw, 305px)');
@@ -871,6 +877,23 @@ describe('Board Transition World themes', () => {
     ]).toEqual([false, true]);
   });
 
+  test('carries each Beach float monotonically across the reduced horizontal range before exit', () => {
+    expect(sampleBeachFloatHorizontalProgress(0)).toBe(0);
+    expect(sampleBeachFloatHorizontalProgress(BEACH_FLOAT_HORIZONTAL_CROSSING_SECONDS / 2)).toBeCloseTo(0.5, 6);
+    expect(sampleBeachFloatHorizontalProgress(BEACH_FLOAT_HORIZONTAL_CROSSING_SECONDS)).toBe(1);
+    expect(sampleBeachFloatHorizontalProgress(BEACH_FLOAT_HORIZONTAL_CROSSING_SECONDS + 1)).toBe(1);
+
+    const viewportWidth = 390;
+    const leftEdgeCenter = viewportWidth * BEACH_FLOAT_LEFT_EDGE_RATIO;
+    const rightEdgeCenter = viewportWidth * BEACH_FLOAT_RIGHT_EDGE_RATIO;
+    const fullEdgeTravel = viewportWidth * (BEACH_FLOAT_RIGHT_EDGE_RATIO - BEACH_FLOAT_LEFT_EDGE_RATIO);
+    const reducedTravel = fullEdgeTravel * BEACH_FLOAT_HORIZONTAL_TRAVEL_SCALE;
+    expect(BEACH_FLOAT_HORIZONTAL_TRAVEL_SCALE).toBe(0.75);
+    expect(reducedTravel).toBeCloseTo(fullEdgeTravel * 0.75, 6);
+    expect(leftEdgeCenter + reducedTravel).toBeCloseTo(viewportWidth * 0.72, 6);
+    expect(rightEdgeCenter - reducedTravel).toBeCloseTo(viewportWidth * 0.28, 6);
+  });
+
   test('clears semantic spatial ownership before pooled scene images are reused', () => {
     const source = fs.readFileSync(path.resolve(__dirname, '../board-transition-screen.ts'), 'utf8');
     expect(source).toContain("img.removeAttribute('data-spatial-role')");
@@ -923,7 +946,6 @@ describe('Board Transition World themes', () => {
     expect(source).toContain("sceneImg.style.left = 'calc(34% - 40% + 180px)'");
     expect(source).toContain('const exitDirection = palmPlacement?.exitDirection');
     expect(source).toContain('const beachPalmRestRotation = palmPlacement?.restRotationDeg ?? beachPalmMotion.restRotation');
-    expect(source).toContain("const horizontalDirection = sceneImg.dataset.floatDirection === 'left' ? -1 : 1");
     expect(source).toContain("2: Object.freeze({ restScale: 0.8, restRotation: -12, enterStartYRatio: 0.43");
     expect(source).toContain("4: Object.freeze({ restScale: 0.8, restRotation: -12, enterStartYRatio: 0.39");
     expect(source).toContain("5: Object.freeze({ restScale: 0.8, restRotation: 12, enterStartYRatio: 0.47");
@@ -943,17 +965,24 @@ describe('Board Transition World themes', () => {
     expect(source).not.toContain('scaleY: beachPalmRestScale * 0.985');
     expect(source).toContain("const isBeachCenterPalm = layerKey === 'beach-palm-center'");
     expect(source).toContain('const beachPalmMotion = BEACH_CURTAIN_PALM_MOTION[beachPalmNumber]');
-    expect(source).toContain('const rotationLimit = isBottle ? 44 : 120');
-    expect(source).toContain('x: horizontalDirection * horizontalTravelPx * progress');
-    expect(source).toContain('y: stepDirection * bouncePx');
-    expect(source).toContain('export const BEACH_FLOAT_BOUNCE_VIEWPORT_RATIO = 0.05');
-    expect(source).toContain('export const BEACH_BOTTLE_HORIZONTAL_TRAVEL_RATIOS = [0.66, 0.74]');
-    expect(source).toContain('export const BEACH_BALL_HORIZONTAL_TRAVEL_RATIOS = [0.62, 0.70]');
+    expect(source).toContain('const rotationLimit = isBottle');
+    expect(source).toContain('x: horizontalDirection * horizontalTravelPx * horizontalProgress');
+    expect(source).toContain('y: -waveHeightPx * riseWave');
+    expect(source).toContain('rotation: rotationWave * rotationLimit');
+    expect(source).toContain('export const BEACH_FLOAT_MOTION_CYCLE_SECONDS = 12');
+    expect(source).toContain('export const BEACH_FLOAT_BOUNCE_CYCLE_SECONDS = 1');
+    expect(source).toContain('export const BEACH_FLOAT_WOBBLE_CYCLE_SECONDS = 1.5');
+    expect(BEACH_FLOAT_HORIZONTAL_CROSSING_SECONDS).toBe(1.5);
+    expect(BEACH_FLOAT_LEFT_EDGE_RATIO).toBe(0.06);
+    expect(BEACH_FLOAT_RIGHT_EDGE_RATIO).toBe(0.94);
+    expect(BEACH_FLOAT_HORIZONTAL_TRAVEL_SCALE).toBe(0.75);
+    expect(source).toContain('export const BEACH_BOTTLE_WOBBLE_DEGREES = 50.4');
+    expect(source).toContain('export const BEACH_BALL_WOBBLE_DEGREES = 117.6');
     expect(source).toContain("ease: 'sine.out'");
     expect(source).not.toContain('xPercent: isBottle ? () => gsap.utils.random(-4, 4) : 0');
     expect(source).toContain('seaIndex === 2 ? -38 * 1.25');
     expect(source).toContain('seaIndex === 1 ? 34 * 1.4 * 1.4');
-    expect(source).toContain('duration: gsap.utils.random(0.32, 0.48)');
+    expect(source).toContain('duration: BEACH_FLOAT_MOTION_CYCLE_SECONDS');
     expect(source).toContain('duration: (1.55 + seaIndex * 0.12) / 0.88');
     expect(source).toContain('const boingDuration = 0.2 + Math.random() * 0.35');
     expect(source).toContain('repeatDelay: 0.18 + Math.random() * 0.35');

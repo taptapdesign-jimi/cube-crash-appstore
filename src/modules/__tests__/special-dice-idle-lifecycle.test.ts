@@ -8,6 +8,7 @@ import {
   getKantaIdleCompositeCenterCorrectionX,
   KANTA_IDLE_FRONT_OFFSET_X_PX,
 } from '../kanta-dice-idle';
+import { startBeeDiceIdle } from '../bee-dice-idle';
 import {
   keepsSpecialDiceIdleRunningDuringDrag,
   setSpecialDiceIdleDragging,
@@ -196,6 +197,54 @@ describe('special-dice idle lifecycle', () => {
     }
   });
 
+  test('Kanta rebases its neutral scale when the authored frame resolves after a restored 2x holder', async () => {
+    const restoredSource = new TextureSource({
+      resource: { width: 256, height: 256 } as any,
+      width: 256,
+      height: 256,
+    });
+    const restoredTexture = new Texture({ source: restoredSource });
+    const kantaSource = new TextureSource({
+      resource: { width: 128, height: 171 } as any,
+      width: 128,
+      height: 171,
+    });
+    const kantaTexture = new Texture({ source: kantaSource });
+    let resolveTexture!: (texture: Texture) => void;
+    const pendingTexture = new Promise<Texture>((resolve) => { resolveTexture = resolve; });
+    const loadSpy = jest.spyOn(Assets, 'load').mockImplementation(() => pendingTexture as any);
+    const base = new Sprite(restoredTexture);
+    base.anchor.set(0.5);
+    base.width = 128;
+    base.height = 128;
+    const rotG = new Container();
+    rotG.addChild(base);
+    const tile: any = {
+      base,
+      rotG,
+      destroyed: false,
+      _ccSpecialDiceVariant: 'kanta',
+    };
+
+    try {
+      startSpecialDiceIdleMotion(tile);
+      resolveTexture(kantaTexture);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(setSpecialDiceIdleDragging(tile, true)).toBe(true);
+      expect(base.width).toBeCloseTo(128 * (128 / 171), 6);
+      expect(base.height).toBeCloseTo(128, 6);
+      expect(base.scale.x).toBeCloseTo((128 * (128 / 171)) / 128, 6);
+      expect(base.scale.y).toBeCloseTo(128 / 171, 6);
+    } finally {
+      stopSpecialDiceIdleMotion(tile);
+      loadSpy.mockRestore();
+      restoredTexture.destroy(true);
+      kantaTexture.destroy(true);
+    }
+  });
+
   test('Spaceship hover owns rotG and restores its exact board pose on cleanup', () => {
     const rotG = new Container();
     rotG.position.set(8, -6);
@@ -269,6 +318,51 @@ describe('special-dice idle lifecycle', () => {
     expect(tile._ccBeeDiceIdle).toBe(controller);
     stopSpecialDiceIdleMotion(tile);
     expect(tile._ccBeeDiceIdle).toBeUndefined();
+  });
+
+  test('Bee preserves square geometry when its first frame resolves after a cold restored holder', async () => {
+    const restoredSource = new TextureSource({
+      resource: { width: 512, height: 512 } as any,
+      width: 512,
+      height: 512,
+    });
+    const restoredTexture = new Texture({ source: restoredSource });
+    const beeSource = new TextureSource({
+      resource: { width: 128, height: 128 } as any,
+      width: 128,
+      height: 128,
+    });
+    const beeTexture = new Texture({ source: beeSource });
+    const loadSpy = jest.spyOn(Assets, 'load').mockResolvedValue(beeTexture as any);
+    const base = new Sprite(restoredTexture);
+    base.anchor.set(0.5);
+    base.width = 128;
+    base.height = 128;
+    const rotG = new Container();
+    rotG.addChild(base);
+    const tile: any = { base, rotG, destroyed: false };
+    const controller = startBeeDiceIdle(tile, ['bee1', 'bee2', 'bee3', 'bee4']);
+    tile._ccBeeDiceIdle = controller;
+
+    try {
+      expect(base.scale.x).toBeCloseTo(0.25, 6);
+      await Promise.resolve();
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      controller?.setDragging(true);
+
+      expect(base.texture).toBe(beeTexture);
+      expect(base.width).toBeCloseTo(128, 6);
+      expect(base.height).toBeCloseTo(128, 6);
+      expect(Math.abs(base.scale.x)).toBeCloseTo(1, 6);
+      expect(Math.abs(base.scale.y)).toBeCloseTo(1, 6);
+    } finally {
+      controller?.dispose();
+      delete tile._ccBeeDiceIdle;
+      loadSpy.mockRestore();
+      restoredTexture.destroy(true);
+      beeTexture.destroy(true);
+    }
   });
 
   test('Mushroom keeps one smoke master without the former GSAP pop timeline', () => {

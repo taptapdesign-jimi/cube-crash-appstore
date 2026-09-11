@@ -4963,7 +4963,10 @@ export function showMultiplierTile(board, tile, mult = 2, tileSize = 96, life = 
   // Keep one visual contract for every merge path, including merges over Wild tiles.
   const FILL   = 0xAB806E;
   const STROKE = 0xFAEDE0;
-  const TXT    = 0xF5F5F5;
+  // Keep the multiplier readable even after a busy merge frame forces a Pixi
+  // text texture rebuild. Explicit CSS colors avoid a stale/default black fill.
+  const TXT    = '#FFFFFF';
+  const TXT_STROKE = '#8F6959';
   const rr     = tileSize * 0.28;
 
   // disk + ring + soft outer halo
@@ -4980,7 +4983,12 @@ export function showMultiplierTile(board, tile, mult = 2, tileSize = 96, life = 
 
   const t = new Text({
     text: `×${mult}`,
-    style: { fill: TXT, fontSize: Math.round(tileSize * 0.26), fontWeight: '800' }
+    style: {
+      fill: TXT,
+      stroke: { color: TXT_STROKE, width: Math.max(1, Math.round(tileSize * 0.018)) },
+      fontSize: Math.round(tileSize * 0.26),
+      fontWeight: '800'
+    }
   });
   t.anchor.set(0.5);
   c.addChild(t);

@@ -1,6 +1,7 @@
 import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
 import {
   acquireAnimatedSpecialArtworkLayer,
+  createAnimatedSpecialArtworkClip,
   installAnimatedSpecialArtworkOverlapFootprint,
   setAnimatedSpecialArtworkDragging,
   setAnimatedSpecialArtworkPinnedForeground,
@@ -38,6 +39,7 @@ type FishSwimController = {
   base: any;
   host: any;
   wrapper: HTMLDivElement;
+  artworkClip: HTMLDivElement;
   image: HTMLImageElement | null;
   video: HTMLVideoElement | null;
   bubbleLayer: HTMLDivElement;
@@ -380,7 +382,7 @@ function attachSvgFallback(controller: FishSwimController): void {
   image.dataset.fishSwimSource = 'svg-fallback';
   configureMediaElement(image);
   controller.image = image;
-  controller.wrapper.appendChild(image);
+  controller.artworkClip.appendChild(image);
   image.onload = () => {
     if (controller.disposed || !isFishSwimTile(controller.tile)) return;
     controller.ready = true;
@@ -413,7 +415,7 @@ function attachIosHevc(controller: FishSwimController): void {
   video.dataset.fishSwimSource = 'hevc-alpha';
   configureMediaElement(video);
   controller.video = video;
-  controller.wrapper.appendChild(video);
+  controller.artworkClip.appendChild(video);
   video.onloadeddata = () => {
     if (controller.disposed || !isFishSwimTile(controller.tile)) return;
     controller.ready = true;
@@ -450,7 +452,7 @@ function createController(
     top: '0',
     width: `${DISPLAY_WIDTH}px`,
     height: `${DISPLAY_HEIGHT}px`,
-    overflow: 'hidden',
+    overflow: 'visible',
     pointerEvents: 'none',
     transformOrigin: '0 0',
     visibility: 'hidden',
@@ -462,6 +464,7 @@ function createController(
     width: FISH_SWIM_DISPLAY_SIZE,
     height: FISH_SWIM_DISPLAY_SIZE,
   });
+  const artworkClip = createAnimatedSpecialArtworkClip(wrapper);
   const bubbleLayer = document.createElement('div');
   bubbleLayer.className = 'fish-swim-front-bubbles';
   Object.assign(bubbleLayer.style, {
@@ -480,6 +483,7 @@ function createController(
     base,
     host,
     wrapper,
+    artworkClip,
     image: null,
     video: null,
     bubbleLayer,

@@ -12,11 +12,13 @@ import { attachSpaceshipFinaleScene } from './spaceship-finale-scene.js';
 import { attachBeeFinaleScene } from './bee-finale-scene.js';
 import { attachKantaFinaleScene } from './kanta-finale-scene.ts';
 import { attachFishFinaleBubbles } from './fish-finale-bubbles.ts';
-import { attachFishFinaleSchool } from './fish-finale-school.ts';
 import { setWildFxDragLock, startWildFxDragLockForAnimation } from './wild-fx-drag-lock.ts';
 import { applyEffectLetterOpacity, resolveEffectLetterOpacity } from './effect-letter-opacity.ts';
 import { acquireAnimatedSpecialArtworkFinaleDepth } from './animated-special-artwork-layer.ts';
 import { playNoMovesSound } from './no-moves-sound.ts';
+import {
+  playBeeMerge6FinaleSounds,
+} from './bee-merge6-sound.ts';
 
 const trackTimeline = (opts?: any) => animationManager.trackExternalTimeline(gsap.timeline(opts));
 const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
@@ -563,15 +565,14 @@ export function showSparkleText(origin?: { x: number; y: number } | null, option
     const usesBeeForestFlight = options?.finaleScene === 'bee-forest-flight';
     const usesKantaCenterSequence = options?.finaleScene === 'kanta-center-sequence';
     const usesFishBubbles = options?.finaleScene === 'fish-bubbles';
-    const fishSchoolCleanup = (bubblyOrigin: { x: number; y: number }) => (
-      attachFishFinaleSchool(overlay, origin, bubblyOrigin)
-    );
     const smallStarBurstCleanup = usesKantaCenterSequence
       ? attachKantaFinaleScene(overlay, 2)
       : usesBeeForestFlight
-      ? attachBeeFinaleScene(overlay, 1, origin)
+      ? attachBeeFinaleScene(overlay, 1, origin, {
+          onFinale: playBeeMerge6FinaleSounds,
+        })
       : usesFishBubbles
-      ? attachFishFinaleBubbles(overlay, fishSchoolCleanup)
+      ? attachFishFinaleBubbles(overlay)
       : attachSmallStarCenterBurst(overlay, {
           count: options?.burstMotion?.count ?? 26,
           zIndex: 2,

@@ -75,8 +75,8 @@ describe('regular merge-6 sound', () => {
     expect(REGULAR_MERGE6_BOOM_SOUND_SOURCE).toBe('./assets/sound/merge 6/merge6 boom.mp3');
     expect(REGULAR_MERGE6_BOOM_VOLUME).toBeCloseTo(0.36);
     expect(REGULAR_MERGE6_STACK_SOUND_SOURCE).toBe('./assets/sound/merge 6/stack.mp3');
-    expect(REGULAR_MERGE6_STACK_BASE_VOLUME).toBe(0.6);
-    expect(REGULAR_MERGE6_STACK_VOLUME).toBeCloseTo(0.36);
+    expect(REGULAR_MERGE6_STACK_BASE_VOLUME).toBe(0.8);
+    expect(REGULAR_MERGE6_STACK_VOLUME).toBeCloseTo(0.48);
   });
 
   it('is called once only by the committed ordinary die-on-die Merge-6 branch', () => {
@@ -120,7 +120,7 @@ describe('regular merge-6 sound', () => {
     expect(primary.volume).toBe(0.3);
     expect(crash.volume).toBeCloseTo(0.1632);
     expect(boom.volume).toBeCloseTo(0.36);
-    expect(stack.volume).toBeCloseTo(0.36);
+    expect(stack.volume).toBeCloseTo(0.48);
     expect(primary.currentTime).toBe(0);
     expect(crash.currentTime).toBe(0);
     expect(boom.currentTime).toBe(0);

@@ -229,14 +229,33 @@ import {
 } from './beach-ball-merge6-sound.ts';
 import {
   isCoreTntMerge6SoundEvent,
+  playCoreTntBonusImpactSound,
   playCoreTntMerge6Sound,
   stopCoreTntMerge6Sound,
 } from './core-tnt-merge6-sound.ts';
+import {
+  isFlowerMerge6SoundEvent,
+  FLOWER_MERGE6_LEAVES_START_RATIO,
+  playFlowerMerge6Sound,
+  playFlowerMerge6LeavesSound,
+  playFlowerMerge6SparkSound,
+  stopFlowerMerge6Sounds,
+} from './flower-merge6-sound.ts';
 import {
   isBottleMerge6SoundEvent,
   playBottleMerge6Foundation,
   stopBottleFinaleSounds,
 } from './bottle-finale-sound.ts';
+import {
+  isBeeMerge6SoundEvent,
+  playBeeMerge6Sound,
+  stopBeeMerge6Sounds,
+} from './bee-merge6-sound.ts';
+import {
+  isWildSpecialMerge6PoofEvent,
+  playWildSpecialMerge6PoofSounds,
+  stopWildSpecialMerge6PoofSounds,
+} from './wild-special-merge6-poof-sound.ts';
 import { playOrdinaryStackSound, stopOrdinaryStackSound } from './ordinary-stack-sound.ts';
 import { stopGameplayPickupSound } from './gameplay-pickup-sound.ts';
 import { preloadNoMovesSound } from './no-moves-sound.ts';
@@ -2499,7 +2518,10 @@ function cleanupFxForBoardReset(reason: string = 'unknown') {
   try { stopFishMerge6Sounds(); } catch {}
   try { stopBeachBallMerge6Sounds(); } catch {}
   try { stopCoreTntMerge6Sound(); } catch {}
+  try { stopFlowerMerge6Sounds(); } catch {}
   try { stopBottleFinaleSounds(); } catch {}
+  try { stopBeeMerge6Sounds(); } catch {}
+  try { stopWildSpecialMerge6PoofSounds(); } catch {}
   try { stopOrdinaryStackSound(); } catch {}
   try { stopGameplayPickupSound(); } catch {}
   try { stopWildSpecialLandingSound(); } catch {}
@@ -8267,6 +8289,15 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 
   // ---- 6 (računaj combo i ovdje – nastavlja x6, x7, x8…)
   if (effSum === 6){
+    if (isWildSpecialMerge6PoofEvent({
+      effectiveSum: effSum,
+      srcSpecial,
+      dstSpecial,
+      srcSpecialDiceVariantId: srcSpecialVariantAtMergeEntry?.id,
+      dstSpecialDiceVariantId: dstSpecialVariantAtMergeEntry?.id,
+    })) {
+      playWildSpecialMerge6PoofSounds();
+    }
     // Only an ordinary die-on-ordinary-die merge owns this sound family.
     // Wild/Special merge-6 finales keep their authored audio behavior.
     if (!wildActive && !srcSpecial && !dstSpecial) {
@@ -8303,6 +8334,20 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       dstSpecialDiceVariantId: dstSpecialVariantAtMergeEntry?.id,
     })) {
       playCoreTntMerge6Sound();
+    }
+    if (isFlowerMerge6SoundEvent({
+      effectiveSum: effSum,
+      srcSpecialDiceVariantId: srcSpecialVariantAtMergeEntry?.id,
+      dstSpecialDiceVariantId: dstSpecialVariantAtMergeEntry?.id,
+    })) {
+      playFlowerMerge6Sound();
+    }
+    if (isBeeMerge6SoundEvent({
+      effectiveSum: effSum,
+      srcSpecialDiceVariantId: srcSpecialVariantAtMergeEntry?.id,
+      dstSpecialDiceVariantId: dstSpecialVariantAtMergeEntry?.id,
+    })) {
+      playBeeMerge6Sound();
     }
     if (isBottleMerge6SoundEvent({
       effectiveSum: effSum,
@@ -10637,6 +10682,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 	              };
 	              // Start tile separation immediately on TNT merge-6.
 	              startTntBoardBlast();
+	              const tntBonusSoundRunGeneration = gameplayRunGeneration;
 	              let tntBonusTriggered = false;
 	              let tntBonusGameplayComplete = false;
 	              let tntVisibleSequenceComplete = false;
@@ -10702,6 +10748,12 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 	                        : tntVariantForMerge?.id === 'laser-gun'
 	                          ? 'laser-gun'
 	                          : 'standard',
+	                      onImpact: tntVariantForMerge && tntVariantForMerge.id !== 'flower'
+	                        ? undefined
+	                        : (impactIndex) => {
+	                            if (tntBonusSoundRunGeneration !== gameplayRunGeneration) return;
+	                            playCoreTntBonusImpactSound(impactIndex);
+	                          },
 	                      skipFx: false,
 	                      onTargetsSelected: tntVariantForMerge?.id === 'laser-gun'
 	                        ? (targets) => setActiveLaserGunFinaleTargets(targets)
@@ -10734,7 +10786,16 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 	                  onSprite10ExitLeadStart: () => {
 	                    triggerTntBonusBreak('sprite-10-exit-minus-300ms-fallback');
 	                  },
+	                  spriteSequenceProgressRatio: tntVariantForMerge?.id === 'flower'
+	                    ? FLOWER_MERGE6_LEAVES_START_RATIO
+	                    : undefined,
+	                  onSpriteSequenceProgress: tntVariantForMerge?.id === 'flower'
+	                    ? () => playFlowerMerge6LeavesSound()
+	                    : undefined,
 	                  onSpriteSequenceComplete: () => {
+	                    if (tntVariantForMerge?.id === 'flower') {
+	                      playFlowerMerge6SparkSound();
+	                    }
 	                    completeTntVisibleSequence('visible-sequence-complete');
 	                  }
 	                });
@@ -14234,6 +14295,7 @@ function runTntBoomBonusBreak2Tiles(deps: {
   bonusParticleScale?: number;
   initialImpactDelayMs?: number;
   impactProfile?: 'standard' | 'beach-ball' | 'laser-gun';
+  onImpact?: (impactIndex: number) => void;
   skipFx?: boolean;
   onTargetsSelected?: (
     targets: Array<{ x: number; y: number; shooter: LaserGunShooter }>,
@@ -14241,7 +14303,7 @@ function runTntBoomBonusBreak2Tiles(deps: {
   onBoardCommitted?: () => void;
   onComplete?: () => void;
 }) {
-  const { board, dst, addWildProgress, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn, bonusParticleSources, bonusParticleScale = 1, initialImpactDelayMs = 0, impactProfile = 'standard', skipFx, onTargetsSelected, onBoardCommitted, onComplete } = deps;
+  const { board, dst, addWildProgress, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn, bonusParticleSources, bonusParticleScale = 1, initialImpactDelayMs = 0, impactProfile = 'standard', onImpact, skipFx, onTargetsSelected, onBoardCommitted, onComplete } = deps;
   const boundedInitialImpactDelayMs = Math.max(0, Math.round(initialImpactDelayMs));
   // The activating merge already awards one full BIG increment. Each of the
   // four TNT/Ball bonus impacts contributes a small, explicit 5% reward.
@@ -14426,8 +14488,9 @@ function runTntBoomBonusBreak2Tiles(deps: {
             });
           }
         }
-        const c = tile.gridX ?? 0;
-        const r = tile.gridY ?? 0;
+	        const c = tile.gridX ?? 0;
+	        const r = tile.gridY ?? 0;
+	        try { onImpact?.(i); } catch (e) { devWarn('TNT bonus impact sound:', e); }
 	        // Preserve the stagger and award exactly 5% per completed impact:
 	        // four explosions together add 20% to the preload meter.
 		        if (i < 2) {
