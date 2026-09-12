@@ -3,7 +3,6 @@ import {
   getCompatibleSpecialDiceVariant,
   getCoreWildTypeForSpecialDiceVariant,
   isSpecialDiceJuiceLikeTile,
-  usesSpecialDiceIdleBubbles,
 } from './special-dice-registry.ts';
 import { isWildLikeSpecial } from './final-merge-rules.ts';
 import { removeTileFully } from './tile-lifecycle-service.ts';
@@ -20,15 +19,10 @@ type TileRestoreDeps = {
   createEmptyGrid: () => any[][];
   stopWildIdle?: (tile: any) => void;
   applyWildSkinLocal: (tile: any) => void;
-  startWildShimmer: (tile: any) => void;
   stopWildShimmer: (tile: any) => void;
-  startMagnetIdleParticles: (tile: any) => void;
   stopMagnetIdleParticles: (tile: any) => void;
-  startTntIdleParticles?: (tile: any) => void;
   stopTntIdleParticles?: (tile: any) => void;
-  startTntIdleShake?: (tile: any) => void;
   stopTntIdleShake?: (tile: any) => void;
-  startWildJuiceBubbles?: (tile: any) => void;
   stopWildJuiceBubbles?: (tile: any) => void;
   trackAppTimeout: (fn: () => void, ms: number) => any;
   STATE: { drag?: any };
@@ -39,20 +33,19 @@ type TileRestoreDeps = {
 
 type TileRestoreResult = {
   tilesToRestoreCount: number;
-  deferredTntIdleTiles: any[];
+  deferredWildIdleTiles: any[];
 };
 
-export function resumeDeferredTntIdleEffects(
+export function resumeDeferredWildIdleEffects(
   deferredTiles: any[],
-  startParticles: (tile: any) => void,
-  startShake: (tile: any) => void,
+  applyWildSkin: (tile: any) => void,
 ): void {
   deferredTiles.forEach((tile) => {
     if (!tile) return;
+    delete tile._ccDeferWildIdleFx;
     delete tile._ccDeferTntIdleFx;
-    if (tile.destroyed || tile.special !== 'wild-tnt') return;
-    try { startParticles(tile); } catch {}
-    try { startShake(tile); } catch {}
+    if (tile.destroyed || !isWildLikeSpecial(tile.special)) return;
+    try { applyWildSkin(tile); } catch {}
   });
 }
 
@@ -67,13 +60,10 @@ export function restoreTilesFromSave({
   createEmptyGrid,
   stopWildIdle,
   applyWildSkinLocal,
-  startWildShimmer,
   stopWildShimmer,
-  startMagnetIdleParticles,
   stopMagnetIdleParticles,
   stopTntIdleParticles,
   stopTntIdleShake,
-  startWildJuiceBubbles,
   stopWildJuiceBubbles,
   trackAppTimeout,
   STATE,
@@ -111,7 +101,7 @@ export function restoreTilesFromSave({
   const gridToUse = createEmptyGrid();
 
   const tilesToRestore: Array<{ snapshot: any; gridX: number; gridY: number }> = [];
-  const deferredTntIdleTiles: any[] = [];
+  const deferredWildIdleTiles: any[] = [];
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       const snapshot = savedGrid[r]?.[c];
@@ -192,11 +182,6 @@ export function restoreTilesFromSave({
     tile.isWild = !!isWildSnapshot;
     tile.isWildFace = !!(snapshot?.isWildFace || isWildSnapshot);
     tile.visible = typeof snapshot.visible === 'boolean' ? snapshot.visible : true;
-    if (tile.special === 'wild-tnt' && !isSpecialDiceJuiceLikeTile(tile)) {
-      tile._ccDeferTntIdleFx = true;
-      deferredTntIdleTiles.push(tile);
-    }
-
     tile.locked = shouldLock;
     makeBoard.setValue(tile, value, 0);
 
@@ -235,19 +220,17 @@ export function restoreTilesFromSave({
     }
 
     if (isWildSnapshot) {
-      applyWildSkinLocal(tile);
-      try { startWildShimmer(tile); } catch {}
-      if (usesSpecialDiceIdleBubbles(tile)) {
-        try {
-          if (typeof startWildJuiceBubbles === 'function') {
-            startWildJuiceBubbles(tile);
-          }
-        } catch (error) {
-          devWarn('⚠️ Failed to start Juice-style bubbles on load:', error);
-        }
-      } else if (tile.special === 'wild-magnet') {
-        try { startMagnetIdleParticles(tile); } catch {}
+      // A Continue restore is followed by one board pop-in owner. Starting a
+      // Special idle here lets its sprite-local scale/texture timeline race
+      // that outer entrance and can preserve a squeeze frame as the new rest
+      // pose. Apply the decoded canonical artwork now, but defer every idle FX
+      // until the board entrance has settled.
+      tile._ccDeferWildIdleFx = true;
+      if (tile.special === 'wild-tnt' && !isSpecialDiceJuiceLikeTile(tile)) {
+        tile._ccDeferTntIdleFx = true;
       }
+      deferredWildIdleTiles.push(tile);
+      applyWildSkinLocal(tile);
     } else {
       try { stopWildShimmer(tile); } catch {}
       try { stopMagnetIdleParticles(tile); } catch {}
@@ -268,5 +251,5 @@ export function restoreTilesFromSave({
     });
   } catch {}
 
-  return { tilesToRestoreCount: tilesToRestore.length, deferredTntIdleTiles };
+  return { tilesToRestoreCount: tilesToRestore.length, deferredWildIdleTiles };
 }

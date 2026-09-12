@@ -132,7 +132,7 @@ describe('Journey Hub transition ownership', () => {
     )[1]?.split('async hideCollectiblesScreenWithAnimation')[0] ?? '';
     const auditStartIndex = handoffSource.indexOf("beginIOSJourneyRouteAudit('homepage-journey-cta')");
     const exitIndex = handoffSource.indexOf('animateJourneySliderExit()');
-    const prepareIndex = handoffSource.indexOf('collectiblesManager.prepareJourneyScreen()');
+    const prepareIndex = handoffSource.indexOf('preparedCollectiblesManager.prepareJourneyScreen()');
 
     expect(auditStartIndex).toBeGreaterThanOrEqual(0);
     expect(auditStartIndex).toBeLessThan(exitIndex);
@@ -145,6 +145,24 @@ describe('Journey Hub transition ownership', () => {
     )[1]?.split('async hideCollectibles(')[0] ?? '';
     expect(showSource).toContain("ensureIOSJourneyRouteAudit('show-collectibles-direct-enter')");
     expect(showSource).not.toContain("beginIOSJourneyRouteAudit('homepage-slider-to-journey')");
+  });
+
+  test('cold Journey entry waits for its lazy manager before releasing Homepage exit ownership', () => {
+    const handoffSource = uiManagerSource.split(
+      'private showCollectiblesScreenWithAnimation(launchFirstPlayTutorial = false): void',
+    )[1]?.split('async hideCollectiblesScreenWithAnimation')[0] ?? '';
+    const prepareImportIndex = handoffSource.indexOf("import('../collectibles-manager.js')");
+    const ensureIndex = handoffSource.indexOf('await ensureCollectiblesManager()');
+    const showIndex = handoffSource.indexOf('await preparedCollectiblesManager.showCollectibles()');
+    const finalizeIndex = handoffSource.indexOf('finalizeJourneySliderExit()', showIndex);
+
+    expect(prepareImportIndex).toBeGreaterThanOrEqual(0);
+    expect(ensureIndex).toBeGreaterThan(prepareImportIndex);
+    expect(handoffSource).toContain(
+      'Promise.all([exitCompletePromise, journeyPreparePromise]).then(async ([, preparedCollectiblesManager])',
+    );
+    expect(showIndex).toBeGreaterThan(ensureIndex);
+    expect(finalizeIndex).toBeGreaterThan(showIndex);
   });
 
   test('fast Back to Enter cancels the Homepage owner before Journey starts', () => {
@@ -511,7 +529,8 @@ describe('Journey Hub transition ownership', () => {
     expect(prepareSource).not.toContain('applyAppPaperSurfaceToElement(host)');
     expect(prepareSource).toContain('only paper owner throughout World -> Hub');
     expect(prepareSource).toContain('this.renderJourneyV700Hub(root, { prepaint: true })');
-    expect(prepareSource).toContain('await Promise.all(images.map((image) => waitForImageReady(image)))');
+    expect(prepareSource).toContain('await Promise.all(workImages.map((image) => waitForImageReady(image)))');
+    expect(prepareSource).toContain('getJourneyHubWorkingSet(this.journeyV700WorldId)');
     expect(prepareSource).toContain('await this.waitForTrackedFrames(3)');
     const hideIndex = commitSource.indexOf("child.style.visibility = 'hidden'");
     const barrierIndex = commitSource.indexOf('await this.waitForTrackedFrames(1)');
@@ -680,9 +699,8 @@ describe('Journey Hub transition ownership', () => {
       "private playJourneyV700HubEnter(source: 'homepage' | 'world-return'): void",
     )[1]?.split('public playJourneyV700HubEnterFromHomepage')[0] ?? '';
 
-    expect(hubEnterSource).toContain(
-      'allWorldCards.slice(0, JOURNEY_HUB_EAGER_WORLD_COUNT)',
-    );
+    expect(hubEnterSource).toContain('getJourneyHubWorkingSet(');
+    expect(hubEnterSource).toContain('allWorldCards.filter(card => entryWorldIds.has(');
     expect(hubEnterSource).toContain('const enteringWorldIds = new Set(');
     expect(hubEnterSource).toContain('return !worldId || enteringWorldIds.has(worldId)');
     expect(hubEnterSource).toContain(
@@ -766,7 +784,7 @@ describe('Journey Hub transition ownership', () => {
     expect(hubRenderSource).toContain('tiltShell.appendChild(image)');
     expect(hubRenderSource).toContain('visual.appendChild(tiltShell)');
     expect(hubRenderSource).toContain('JOURNEY_HUB_WORLD_DEFINITIONS.forEach((meta, worldIndex) => {');
-    expect(hubRenderSource).toContain("worldIndex === 1 ? 'left' : 'right'");
+    expect(hubRenderSource).toContain('meta.hub.bannerSide');
     expect(hubRenderSource).toContain(
       'cloudSpec.y < 220 ? 1 : cloudSpec.y < 560 ? 3 : 2',
     );
@@ -886,7 +904,7 @@ describe('Journey Hub transition ownership', () => {
     )[1]?.split('public refreshBackgroundPosition')[0] ?? '';
     const completionSource = journeyManagerSource.split(
       'public unlockBoardOnCompletion(boardNumber: number): void',
-    )[1]?.split('public getNewlyUnlockedCount')[0] ?? '';
+    )[1]?.split('public markBoardAsViewed')[0] ?? '';
 
     expect(refreshSource).toContain('boardStatsService.getBoardStats(boardId).highScore');
     expect(refreshSource).toContain("const roleOrder = ['left', 'center', 'right'] as const");
@@ -898,16 +916,9 @@ describe('Journey Hub transition ownership', () => {
   });
 
   test('keeps Forest, Area 55, then Beach in the compact Hub composition', () => {
-    expect(collectiblesCssSource).toContain(
-      '.journey-v700-world-forest {\n  left: -2px;\n  top: calc(env(safe-area-inset-top, 0px) + 118px);',
-    );
-    expect(collectiblesCssSource).toContain(
-      '.journey-v700-world-robo {\n  right: -8px;\n  top: calc(env(safe-area-inset-top, 0px) + 334px);',
-    );
-    expect(collectiblesCssSource).toContain(
-      '.journey-v700-world-beach {\n  left: -6px;\n  top: calc(env(safe-area-inset-top, 0px) + 580px);',
-    );
-    expect(collectiblesCssSource).toContain('height: calc(892px - var(--journey-v700-hub-bottom-trim)');
+    expect(journeyManagerSource).toContain("button.style.setProperty(meta.hub.side, `${meta.hub.edgePx}px`)");
+    expect(journeyManagerSource).toContain('getJourneyHubExtentPx()');
+    expect(collectiblesCssSource).toContain('var(--journey-v700-hub-content-extent, 770px)');
     expect(journeyManagerSource).toContain('x: 24, y: 222, width: 214');
     expect(journeyManagerSource).toContain('x: 32, y: 576, width: 214');
     expect(journeyManagerSource).toContain('x: -10, y: 632, width: 198');

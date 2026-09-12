@@ -10,6 +10,11 @@ export type AnimatedSvgPhaseLease = {
   release: () => void;
 };
 
+export type AnimatedTimelinePhaseTarget = {
+  element: HTMLElement;
+  start: (phaseSlot: number) => void;
+};
+
 type PhaseEntry = {
   plannedStartAtMs: number;
   phaseSlot: number;
@@ -83,17 +88,16 @@ function choosePhaseStartDelayMs(
 }
 
 /**
- * Starts external self-animating SVG images on distinct clocks while keeping
- * the existing PNG fallback visible during the short stagger. This is needed
- * because CSS animation-delay cannot address SMIL inside a replaced <img>.
+ * Reserves distinct start clocks for self-animating media while its owner keeps
+ * the existing PNG fallback visible during the short stagger.
  */
-export function acquireAnimatedSvgPhase(
+export function acquireAnimatedTimelinePhase(
   groupKey: string,
   cycleMs: number,
-  sources: AnimatedSvgPhaseSource[],
+  targets: AnimatedTimelinePhaseTarget[],
 ): AnimatedSvgPhaseLease {
-  if (!groupKey || !Number.isFinite(cycleMs) || cycleMs <= 0 || sources.length === 0) {
-    throw new Error('Animated SVG phase scheduling requires a key, positive cycle, and source.');
+  if (!groupKey || !Number.isFinite(cycleMs) || cycleMs <= 0 || targets.length === 0) {
+    throw new Error('Animated phase scheduling requires a key, positive cycle, and target.');
   }
 
   let group = phaseGroups.get(groupKey);
@@ -138,18 +142,13 @@ export function acquireAnimatedSvgPhase(
     }
     entry.started = true;
     entry.plannedStartAtMs = actualNowMs;
-    sources.forEach(({ image, url }) => {
-      // A distinct resource identity is intentional. WebKit may share the
-      // animation clock of identical cached image URLs, which would undo the
-      // stagger even when src assignment happens later.
-      image.src = withPhaseSlot(url, phaseSlot);
-    });
+    targets.forEach(({ start }) => start(phaseSlot));
   };
 
-  sources.forEach(({ image }) => {
-    image.dataset.ccSvgPhaseGroup = groupKey;
-    image.dataset.ccSvgPhaseDelayMs = String(delayMs);
-    image.dataset.ccSvgPhaseSlot = String(phaseSlot);
+  targets.forEach(({ element }) => {
+    element.dataset.ccSvgPhaseGroup = groupKey;
+    element.dataset.ccSvgPhaseDelayMs = String(delayMs);
+    element.dataset.ccSvgPhaseSlot = String(phaseSlot);
   });
   if (delayMs === 0) startOrReplan();
   else timer = setTimeout(startOrReplan, delayMs);
@@ -171,6 +170,26 @@ export function acquireAnimatedSvgPhase(
       if (group?.entries.size === 0) phaseGroups.delete(groupKey);
     },
   };
+}
+
+export function acquireAnimatedSvgPhase(
+  groupKey: string,
+  cycleMs: number,
+  sources: AnimatedSvgPhaseSource[],
+): AnimatedSvgPhaseLease {
+  return acquireAnimatedTimelinePhase(
+    groupKey,
+    cycleMs,
+    sources.map(({ image, url }) => ({
+      element: image,
+      start: (phaseSlot) => {
+        // A distinct resource identity is intentional. WebKit may share the
+        // animation clock of identical cached image URLs, which would undo the
+        // stagger even when src assignment happens later.
+        image.src = withPhaseSlot(url, phaseSlot);
+      },
+    })),
+  );
 }
 
 export function getAnimatedSvgPhaseSchedulerStats() {

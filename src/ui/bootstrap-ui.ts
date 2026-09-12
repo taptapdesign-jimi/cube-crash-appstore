@@ -3,7 +3,6 @@
 
 import { renderHomeSlide } from './components/home-slide.js';
 import { renderStatsSlide } from './components/stats-slide.js';
-import { renderCollectiblesSlide } from './components/collectibles-slide.js';
 import { renderSettingsSlide } from './components/settings-slide.js';
 import {
   renderCollectiblesScreen,
@@ -11,16 +10,15 @@ import {
 } from './components/collectibles-screen.js';
 import { renderSettingsScreen } from './components/settings-screen.js';
 import { renderMenuModal } from './components/menu-modal.js';
-import { renderNavigation, updateNavBadge } from './components/navigation.js';
+import { renderNavigation } from './components/navigation.js';
 import {
   ARCADE_SLIDE_INDEX,
   DEFAULT_HOMEPAGE_SLIDE_INDEX,
   JOURNEY_SLIDE_INDEX,
+  SETTINGS_SLIDE_INDEX,
 } from '../modules/homepage-slide-order.js';
 import { HTMLBuilder } from './components/html-builder.js';
 import { logger } from '../core/logger.js';
-import { SETTINGS_SLIDE_INDEX, SHOP_MODULE_ENABLED, SHOP_MODULE_SLIDE_INDEX } from '../modules/shop-module.js';
-import { getPersistedJourneyNewlyUnlockedCount } from '../modules/journey-badge-state.js';
 // Note: preloadCriticalAssets removed - startup preloading is orchestrated in main.ts
 
 const BOOTSTRAP_FLAG = '__cube_crash_ui_bootstrapped__';
@@ -67,31 +65,6 @@ function bootstrapUI() {
   })();
   renderNav(bodyNav);
   
-  // Expose updateNavBadge globally
-  (window as any).updateNavBadge = updateNavBadge;
-  
-  // Initialize badge count on load from localStorage
-  try {
-    // 🔥 USER REQUEST: Badge ONLY on Journey icon (stats-nav.png), not on Collectibles
-    // Initialize pending collectibles list but don't show badge
-    const raw = localStorage.getItem('pending_collectible_flips_v1');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        (window as any).__pendingCollectibleFlips = parsed;
-        // No badge for Collectibles - badge only on Journey icon
-      }
-    }
-    
-    // Restore the Journey badge without importing/instantiating its renderer.
-    // Badge shows on the Journey icon (stats-nav.png) ONLY.
-    const newlyUnlockedCount = getPersistedJourneyNewlyUnlockedCount();
-    updateNavBadge(newlyUnlockedCount, JOURNEY_SLIDE_INDEX);
-    console.log('✅ Journey badge initialized with', newlyUnlockedCount, 'newly unlocked boards');
-  } catch (error) {
-    console.warn('Failed to load badge counts from localStorage:', error);
-  }
-
   windowRef[BOOTSTRAP_FLAG] = true;
   logger.info('✅ UI bootstrap completed');
 }
@@ -252,9 +225,6 @@ function renderHome(root: HTMLElement): void {
 
   renderStatsSlide(sliderWrapper, { slideIndex: JOURNEY_SLIDE_INDEX, isActive: true });
   renderHomeSlide(sliderWrapper, { slideIndex: ARCADE_SLIDE_INDEX });
-  if (SHOP_MODULE_ENABLED) {
-    renderCollectiblesSlide(sliderWrapper, { slideIndex: SHOP_MODULE_SLIDE_INDEX, isShopModuleEnabled: true });
-  }
   renderSettingsSlide(sliderWrapper, { slideIndex: SETTINGS_SLIDE_INDEX });
 }
 

@@ -244,7 +244,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain("stage.classList.contains('is-idle-coach')");
     expect(modal).toContain('legendaryIdleRotorAnimation?.cancel();');
     expect(modal).toContain('legendaryIdleShineAnimation?.cancel();');
-    expect(modal).toContain('const cancelMotion = () => {\n    flipGeneration += 1;\n    stopSurfaceIdle();');
+    expect(modal).toContain('const cancelMotion = () => {\n    flipGeneration += 1;\n    dragFlipSoundPending = false;\n    stopSurfaceIdle();');
     expect(css).toContain('.is-legendary-idle-holo)\n  .journey-card-flip-rotor');
     expect(css).toContain('.is-legendary-idle-holo)\n  .journey-card-flip-legendary-shine');
     expect(css).toMatch(/\.journey-card-flip-overlay\.is-legendary-idle-holo[\s\S]*?\.journey-card-flip-legendary-shine \{[\s\S]*?filter: saturate\(1\.72\) contrast\(1\.06\);/);
@@ -427,7 +427,8 @@ describe('Journey two-sided card overlay prototype', () => {
       .toBeLessThan(pointerMove.indexOf('if (!canCommitDirection) return;'));
     expect(pointerMove).toContain('dragStartX = dragLatestX;');
     expect(pointerMove).toContain("dragAllowedDirection = committedDirection === -1 ? 1 : -1;");
-    expect(pointerMove).toContain("void animateInteractiveFlip(stableFace === 'front' ? 'back' : 'front')");
+    expect(pointerMove).toContain("void animateInteractiveFlip(stableFace === 'front' ? 'back' : 'front', undefined, undefined, false)");
+    expect(pointerMove).not.toContain('playJourneyCardManualFlipSound();');
     expect(pointerMove).toContain('|| !dragFlipCommitted');
     const committedFlipTakeover = modal.slice(
       modal.indexOf('function interruptCommittedFlipForPointerMove('),
@@ -469,6 +470,8 @@ describe('Journey two-sided card overlay prototype', () => {
       modal.indexOf('function finishPointer('),
       modal.indexOf('function handlePointerUp('),
     );
+    expect(pointerRelease).toContain('const shouldPlayCommittedDragSound = allowCommit && dragFlipSoundPending;');
+    expect(pointerRelease).toContain('if (shouldPlayCommittedDragSound) playJourneyCardManualFlipSound();');
     expect(pointerRelease).toContain('const fromTranslate = impactShell.style.translate');
     expect(pointerRelease).toContain("void animateInteractiveFlip(targetFace, targetFace === 'back' ? 1 : -1)");
     expect(pointerRelease).toContain("{ translate: 'none', transform: 'translate3d(0, 0, 0) scale(1)' }");
@@ -589,6 +592,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(closeFlow.indexOf('freezeIdleCoachImpact();'))
       .toBeLessThan(closeFlow.indexOf('closing = true;'));
     expect(closeFlow).toContain('exitImpactReleaseX = visibleImpactPose.translateX;');
+    expect(modal).toContain('playJourneyCardReturnSwooshSound();');
     expect(modal).toContain('const composedScale = scale * (1 + (dismissDragReleaseScale - 1) * handoffRemaining);');
     expect(modal).toContain("{ transform: 'scale(1.06)', offset: 0.57 }");
     expect(modal).toContain("stage.addEventListener('pointerdown', handleAnyPointerInteraction, true)");
@@ -837,7 +841,8 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(manager).toContain('(window as any).__ccJourneyLandingPoseTrace = result');
     expect(manager).toContain("localStorage.getItem('__ccJourneyLandingTrace') === '1'");
     expect(manager).toContain("this.startJourneyLandingPoseTrace(cardElement, phase)");
-    expect(manager).toContain("this.startJourneyLandingPoseTrace(targetElement, phase)");
+    expect(manager).toContain("this.startJourneyLandingPoseTrace(targetElement, 'return-reminder-start')");
+    expect(manager).toContain("this.markJourneyLandingPoseTrace('return-reminder-flight-complete')");
     expect(manager).toContain("this.markJourneyLandingPoseTrace('settled-shadow-revealed')");
     expect(manager).toContain("this.markJourneyLandingPoseTrace('runtime-idle-resume-before')");
     expect(manager).toContain('legacyWrapperOwners: this.journeyAreaIdleEntries.filter');
@@ -894,6 +899,18 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(landingBounce).toContain("card.classList.add('journey-board-card-return-landing')");
     expect(landingBounce).toContain('this.scheduleOverlayCardLandingCommit(card, cardWrapper, {');
     expect(landingBounce).toContain('preserveLandingSuppression: true');
+    expect(landingBounce).toContain(
+      'scaleX: amplifyJourneyCardReturnLandingScale(JOURNEY_INTERIM_IDLE_MOTION.anticipationScaleX)',
+    );
+    expect(landingBounce).toContain(
+      'scaleX: amplifyJourneyCardReturnLandingScale(variant.peakScaleX)',
+    );
+    expect(landingBounce).toContain(
+      'scaleX: amplifyJourneyCardReturnLandingScale(variant.landScaleX)',
+    );
+    expect(landingBounce).toContain(
+      'scaleX: amplifyJourneyCardReturnLandingScale(JOURNEY_INTERIM_IDLE_MOTION.reboundScaleX)',
+    );
 
     const scheduledLandingCommit = manager.slice(
       manager.indexOf('private scheduleOverlayCardLandingCommit('),
@@ -945,12 +962,13 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain("preserveLandingSuppression: outcome === 'complete'");
   });
 
-  test('freezes World paint while the modal owns depth, with exact origin leasing and board handoff', () => {
+  test('freezes World paint for the modal while the decorative return reminder stays interactive', () => {
     const manager = read('src/modules/journey-boards-manager.ts');
     const portal = read('src/modules/journey-card-portal-transition.ts');
+    const reminder = read('src/modules/journey-card-return-reminder.ts');
     expect(manager).toContain('export const JOURNEY_CARD_OVERLAY_MODAL_EXPERIMENT_ENABLED = true');
-    expect(manager.match(/this\.pauseJourneyWorldForCardOverlay\(/g)).toHaveLength(2);
-    expect(manager.match(/this\.resumeJourneyWorldAfterCardOverlay\(/g)).toHaveLength(4);
+    expect(manager.match(/this\.pauseJourneyWorldForCardOverlay\(/g)).toHaveLength(1);
+    expect(manager.match(/this\.resumeJourneyWorldAfterCardOverlay\(/g)).toHaveLength(2);
     const overlayPause = manager.slice(
       manager.indexOf('private pauseJourneyWorldForCardOverlay('),
       manager.indexOf('private resumeJourneyWorldAfterCardOverlay('),
@@ -974,8 +992,13 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(manager).not.toContain('journeySpatialMotion');
     expect(manager).toContain('await this.startJourneyBoardFromOverlay(board, earlyJourneyExitPromise);');
     expect(manager).toContain('startOverlayPortaledCardJourneyExit(');
-    expect(manager.match(/onPlayCardExitStart: \(\) =>/g)).toHaveLength(2);
-    expect(manager.match(/onPlayCardExitComplete: \(\) =>/g)).toHaveLength(2);
+    expect(manager.match(/onPlayCardExitStart: \(\) =>/g)).toHaveLength(1);
+    expect(manager.match(/onPlayCardExitComplete: \(\) =>/g)).toHaveLength(1);
+    expect(manager).toContain('presentJourneyCardReturnReminder({');
+    expect(manager).not.toContain("this.pauseJourneyWorldForCardOverlay('game-return-card-reminder'");
+    expect(manager).toContain('activeReturnReminder.dispose();');
+    expect(reminder).toContain('options.origin.activatePortal();');
+    expect(reminder).toContain('options.origin.restoreNow();');
     expect(manager).toContain('origin.prepareSettledLanding();');
     expect(manager).toContain('origin.captureLandingGeometry();');
     const rapidReopenLandingCleanup = 'this.stopOverlayCardLandingBounce(cardEl, { preserveRuntimeSettle: true });';
@@ -1009,7 +1032,7 @@ describe('Journey two-sided card overlay prototype', () => {
       manager.indexOf('const origin = acquireJourneyCardOriginLease', manager.indexOf('if (!targetElement) {')),
     );
     expect(notReadyBranch).not.toContain('cancelJourneyCardOverlayReturn');
-    expect(manager).toContain('entryInitialOpacity: 1');
+    expect(manager).not.toContain('entryInitialOpacity: 1');
     expect(manager).toContain('preserveInitialTransform?: boolean');
     expect(manager).toContain("target.classList.contains('journey-board-card-wrapper') && !options.preserveInitialTransform");
     expect(manager).toContain('rampSeconds: preserveCurrentBoardTransforms ? 1.8 : undefined');

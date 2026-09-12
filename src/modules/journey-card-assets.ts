@@ -1,4 +1,9 @@
 import { getJourneyEarnedStars } from './journey-stage-balance.js';
+import {
+  getJourneyWorldDefinition,
+  getJourneyWorldIdForBoard,
+  normalizeJourneyBoardId,
+} from './journey-world-definitions.js';
 
 export type JourneyCardRarity = 'common' | 'legendary';
 
@@ -43,11 +48,12 @@ export function resolveJourneyCardAsset(
   boardId: number,
   highScore: number,
 ): JourneyCardAsset {
-  const safeBoardId = Math.max(1, Math.min(30, Math.trunc(boardId) || 1));
+  const safeBoardId = normalizeJourneyBoardId(Math.trunc(boardId)) ?? 1;
   const stageInWorld = ((safeBoardId - 1) % 10) + 1;
+  const world = getJourneyWorldDefinition(getJourneyWorldIdForBoard(safeBoardId) ?? 1);
 
-  const isForest = isForestJourneyBoard(safeBoardId);
-  const isArea55 = isArea55JourneyCardBoard(safeBoardId);
+  const isForest = world?.cardTheme === 'forest';
+  const isArea55 = world?.cardTheme === 'area55';
   if (isForest || isArea55) {
     const artStage = isForest
       ? FOREST_CARD_ART_STAGE_BY_STAGE[stageInWorld - 1] || stageInWorld

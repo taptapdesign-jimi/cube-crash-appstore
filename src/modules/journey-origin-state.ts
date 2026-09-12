@@ -1,5 +1,6 @@
 import { RUN_MODE_JOURNEY, setRunMode } from './run-mode.js';
 import { emitIOSNativeDiagnostic } from '../utils/ios-native-diagnostic.js';
+import { normalizeJourneyBoardId } from './journey-world-definitions.js';
 
 export interface JourneyOriginOptions {
   fromInterim?: boolean;
@@ -31,9 +32,7 @@ function setStorageFlag(key: string, enabled: boolean): void {
 
 function normalizeBoardId(boardId: unknown): number | null {
   const value = Number(boardId);
-  if (!Number.isFinite(value)) return null;
-  const normalized = Math.floor(value);
-  return normalized >= 1 && normalized <= 30 ? normalized : null;
+  return Number.isFinite(value) ? normalizeJourneyBoardId(Math.floor(value)) : null;
 }
 
 export function markJourneyGameOrigin(opts: JourneyOriginOptions = {}): void {
@@ -106,6 +105,15 @@ export function markJourneyCardOverlayReturn(boardId: unknown): number | null {
 export function getJourneyCardOverlayReturnBoardId(): number | null {
   if (typeof window === 'undefined') return null;
   return normalizeBoardId((window as any)[JOURNEY_CARD_OVERLAY_RETURN_BOARD_KEY]);
+}
+
+export function canPresentJourneyCardReturnReminder(
+  board: { id: number; unlocked: boolean; interim?: boolean } | null | undefined,
+  receiptBoardId: number | null,
+): boolean {
+  if (!board || (board.unlocked !== true && board.interim !== true)) return false;
+  const normalizedBoardId = normalizeBoardId(board.id);
+  return normalizedBoardId !== null && normalizedBoardId === receiptBoardId;
 }
 
 /**

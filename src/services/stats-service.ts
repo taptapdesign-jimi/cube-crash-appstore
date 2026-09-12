@@ -10,7 +10,6 @@ interface GameStats {
   longestCombo: number;
   helpersUsed: number;
   timePlayed: number; // in seconds
-  collectiblesUnlocked: number;
 }
 
 const STORAGE_KEY = 'cube_crash_stats_v1';
@@ -23,7 +22,6 @@ class StatsService {
     longestCombo: 0,
     helpersUsed: 0,
     timePlayed: 0,
-    collectiblesUnlocked: 0,
   };
 
   private listeners: Array<(stats: GameStats) => void> = [];
@@ -76,7 +74,6 @@ class StatsService {
       const cubesCrackedStr = localStorage.getItem('cc_cubes_cracked');
       const helpersUsedStr = localStorage.getItem('cc_helpers_used');
       const longestComboStr = localStorage.getItem('cc_longest_combo');
-      const collectiblesStr = localStorage.getItem('cc_collectibles_unlocked');
 
       const migrated: Partial<GameStats> = {};
       
@@ -86,7 +83,6 @@ class StatsService {
       if (cubesCrackedStr) migrated.cubesCracked = parseInt(cubesCrackedStr, 10) || 0;
       if (helpersUsedStr) migrated.helpersUsed = parseInt(helpersUsedStr, 10) || 0;
       if (longestComboStr) migrated.longestCombo = parseInt(longestComboStr, 10) || 0;
-      if (collectiblesStr) migrated.collectiblesUnlocked = parseInt(collectiblesStr, 10) || 0;
 
       return migrated;
     } catch (error) {
@@ -104,8 +100,7 @@ class StatsService {
         'cc_time_played',
         'cc_cubes_cracked',
         'cc_helpers_used',
-        'cc_longest_combo',
-        'cc_collectibles_unlocked'
+        'cc_longest_combo'
       ];
       oldKeys.forEach(key => localStorage.removeItem(key));
       logger.debug('Cleaned up old localStorage keys');
@@ -142,7 +137,6 @@ class StatsService {
             cubesCracked: this.stats.cubesCracked,
             longestCombo: this.stats.longestCombo,
             helpersUsed: this.stats.helpersUsed,
-            collectiblesUnlocked: this.stats.collectiblesUnlocked,
           };
           localStorage.setItem(STORAGE_KEY, JSON.stringify(minimalStats));
           logger.debug('Saved minimal stats after quota error');
@@ -253,14 +247,6 @@ class StatsService {
     this.saveStats();
   }
 
-  // Update collectibles unlocked
-  public updateCollectiblesUnlocked(count: number): void {
-    if (count !== this.stats.collectiblesUnlocked) {
-      this.stats.collectiblesUnlocked = count;
-      this.saveStats();
-    }
-  }
-
   // Get current stats
   public getStats(): GameStats {
     return { ...this.stats };
@@ -275,7 +261,6 @@ class StatsService {
       longestCombo: 0,
       helpersUsed: 0,
       timePlayed: 0,
-      collectiblesUnlocked: 0,
     };
     this.saveStats();
   }

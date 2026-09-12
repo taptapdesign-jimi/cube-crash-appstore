@@ -25,6 +25,7 @@ import {
 } from './gameplay-modal-benchmark.ts';
 import { installGameplayOverlayModalDragMotion } from './modal-vertical-drag-dismiss.js';
 import { isNoMovesNavigationLocked } from './terminal-navigation-lock.ts';
+import { playGameplayExitModalEnterSound, preloadGameplayExitModalEnterSound } from './gameplay-exit-modal-enter-sound.ts';
 
 // Reversible visual experiment. The outer sheet remains the sole owner of
 // translateY, drag, CTA, pause, and cleanup; only the nested paper shell flips.
@@ -614,6 +615,7 @@ function createModal(): HTMLElement {
 }
 
 export function showEndRunModal(): void {
+  preloadGameplayExitModalEnterSound();
   if (shouldBlockEndRunActionForNoMoves('open')) return;
   if (endRunTransitionInProgress) {
     const transitionElapsedMs = endRunOpenStartedAt > 0 ? Date.now() - endRunOpenStartedAt : 0;
@@ -801,6 +803,7 @@ export function showEndRunModal(): void {
         });
       }, END_RUN_CTA_ENTER_DELAY_MS);
       if (END_RUN_CENTERED_MODAL_TEST_ENABLED) {
+        playGameplayExitModalEnterSound();
         el.style.display = 'flex';
         el.style.visibility = 'visible';
         el.style.transform = 'none';

@@ -11,13 +11,21 @@ import {
   usesRigidSpecialDiceIdle,
 } from '../special-dice-registry';
 import {
-  getKantaBackdropSide,
+  getKantaOutwardTiltDirection,
   getKantaIdleCompositeCenterCorrectionX,
+  KANTA_IDLE_BACK_POP_IN_DELAY_SECONDS,
+  KANTA_IDLE_BACK_POP_IN_DIP_SCALE,
+  KANTA_IDLE_BACK_POP_IN_DIP_SECONDS,
+  KANTA_IDLE_BACK_POP_IN_PEAK_SCALE,
+  KANTA_IDLE_BACK_POP_IN_RISE_SECONDS,
+  KANTA_IDLE_BACK_POP_IN_SETTLE_SECONDS,
+  KANTA_IDLE_BACK_POP_IN_START_SCALE,
   KANTA_IDLE_BACK_HORIZONTAL_OFFSET_RATIO,
   KANTA_IDLE_BACK_LEFT_SOURCE,
   KANTA_IDLE_BACK_LOWER_RATIO,
   KANTA_IDLE_BACK_OFFSET_Y_PX,
   KANTA_IDLE_BACK_SCALE,
+  KANTA_IDLE_BACK_SIDE,
   KANTA_IDLE_BACK_TILT_MAX_DEGREES,
   KANTA_IDLE_BACK_TILT_MIN_DEGREES,
   KANTA_IDLE_BREATH_DURATION_SECONDS,
@@ -279,17 +287,25 @@ describe('Kanta special die', () => {
   });
 
   test('holds frame 04 and runs a random sprite-local squeeze/stretch idle', () => {
-    expect(getKantaBackdropSide(194, 390)).toBe(-1);
-    expect(getKantaBackdropSide(196, 390)).toBe(1);
     expect(KANTA_IDLE_FRAME_SOURCE).toBe('./assets/shop/kanta/04.png');
     expect(KANTA_IDLE_BACK_LEFT_SOURCE).toBe('./assets/shop/kanta/02.png');
-    expect(KANTA_IDLE_BACK_SCALE).toBe(1);
+    expect(KANTA_IDLE_BACK_SCALE).toBe(0.70);
+    expect(KANTA_IDLE_BACK_SIDE).toBe(-1);
     expect(KANTA_IDLE_BACK_TILT_MIN_DEGREES).toBe(3);
-    expect(KANTA_IDLE_BACK_TILT_MAX_DEGREES).toBe(7);
+    expect(KANTA_IDLE_BACK_TILT_MAX_DEGREES).toBe(10);
+    expect(getKantaOutwardTiltDirection(194, 390)).toBe(-1);
+    expect(getKantaOutwardTiltDirection(196, 390)).toBe(1);
     expect(KANTA_IDLE_BACK_HORIZONTAL_OFFSET_RATIO).toBe(0.40);
-    expect(KANTA_IDLE_BACK_LOWER_RATIO).toBe(-0.10);
+    expect(KANTA_IDLE_BACK_LOWER_RATIO).toBe(-0.14);
     expect(KANTA_IDLE_FRONT_OFFSET_X_PX).toBe(8);
-    expect(KANTA_IDLE_BACK_OFFSET_Y_PX).toBe(-2);
+    expect(KANTA_IDLE_BACK_OFFSET_Y_PX).toBe(0);
+    expect(KANTA_IDLE_BACK_POP_IN_DELAY_SECONDS).toBe(0.12);
+    expect(KANTA_IDLE_BACK_POP_IN_START_SCALE).toBe(0.12);
+    expect(KANTA_IDLE_BACK_POP_IN_PEAK_SCALE).toBe(1.26);
+    expect(KANTA_IDLE_BACK_POP_IN_DIP_SCALE).toBe(0.86);
+    expect(KANTA_IDLE_BACK_POP_IN_RISE_SECONDS).toBe(0.18);
+    expect(KANTA_IDLE_BACK_POP_IN_DIP_SECONDS).toBe(0.08);
+    expect(KANTA_IDLE_BACK_POP_IN_SETTLE_SECONDS).toBe(0.22);
     expect(KANTA_IDLE_TOP_BUBBLE_COLOR).toBe(0x06F4FF);
     expect(KANTA_IDLE_TOP_BUBBLE_COUNT).toBe(3);
     expect(KANTA_IDLE_TOP_BUBBLE_INSET_PX).toBe(3);
@@ -307,21 +323,20 @@ describe('Kanta special die', () => {
     expect(KANTA_IDLE_BREATH_DURATION_SECONDS).toBe(1.20);
     expect(KANTA_IDLE_BREATH_SCALE_X).toBe(0.992);
     expect(KANTA_IDLE_BREATH_SCALE_Y).toBe(1.012);
-    for (const side of [-1, 1] as const) {
-      const width = 128 * (128 / 171);
-      const correction = getKantaIdleCompositeCenterCorrectionX(width, side);
-      const frontCenter = KANTA_IDLE_FRONT_OFFSET_X_PX + correction;
-      const backCenter = side * width * KANTA_IDLE_BACK_HORIZONTAL_OFFSET_RATIO + correction;
-      const leftEdge = Math.min(
-        frontCenter - width * 0.5,
-        backCenter - width * KANTA_IDLE_BACK_SCALE * 0.5,
-      );
-      const rightEdge = Math.max(
-        frontCenter + width * 0.5,
-        backCenter + width * KANTA_IDLE_BACK_SCALE * 0.5,
-      );
-      expect((leftEdge + rightEdge) * 0.5).toBeCloseTo(0, 10);
-    }
+    const width = 128 * (128 / 171);
+    const correction = getKantaIdleCompositeCenterCorrectionX(width, KANTA_IDLE_BACK_SIDE);
+    const frontCenter = KANTA_IDLE_FRONT_OFFSET_X_PX + correction;
+    const backCenter = KANTA_IDLE_BACK_SIDE * width * KANTA_IDLE_BACK_HORIZONTAL_OFFSET_RATIO
+      + correction;
+    const leftEdge = Math.min(
+      frontCenter - width * 0.5,
+      backCenter - width * KANTA_IDLE_BACK_SCALE * 0.5,
+    );
+    const rightEdge = Math.max(
+      frontCenter + width * 0.5,
+      backCenter + width * KANTA_IDLE_BACK_SCALE * 0.5,
+    );
+    expect((leftEdge + rightEdge) * 0.5).toBeCloseTo(0, 10);
     const idleSource = fs.readFileSync(
       path.resolve(process.cwd(), 'src/modules/kanta-dice-idle.ts'),
       'utf8',
@@ -337,12 +352,22 @@ describe('Kanta special die', () => {
     expect(idleSource).toContain('onUpdate: syncBackdropPose');
     expect(idleSource).toContain('const opposingScaleRatioX = Math.max(0.8, 2 - scaleRatioX)');
     expect(idleSource).toContain('const opposingScaleRatioY = Math.max(0.8, 2 - scaleRatioY)');
-    expect(idleSource).toContain('const sideDirection = Math.sign(offsetX) || -1');
+    expect(idleSource).toContain('base.getGlobalPosition().x');
+    expect(idleSource).toContain('const backdropTiltDirection = getKantaOutwardTiltDirection');
+    expect(idleSource).toContain('backdropTiltDirection * backdropTiltDegrees');
+    expect(idleSource).toContain('displayedHeight * KANTA_IDLE_BACK_LOWER_RATIO');
+    expect(idleSource).not.toContain(
+      'displayedHeight * KANTA_IDLE_BACK_LOWER_RATIO * opposingScaleRatioY',
+    );
     expect(idleSource).toContain('neutralScaleX * opposingScaleRatioX');
     expect(idleSource).toContain('neutralScaleY * opposingScaleRatioY');
-    expect(idleSource).toContain('sprite.alpha = 1');
-    expect(idleSource).not.toContain('backdropReveal');
-    expect(idleSource).not.toContain('KANTA_IDLE_BACK_POP_IN_SECONDS');
+    expect(idleSource).toContain('sprite.alpha = state.revealAlpha');
+    expect(idleSource).toContain('playBackdropPopIn(state, KANTA_IDLE_BACK_POP_IN_DELAY_SECONDS)');
+    expect(idleSource).toContain("ease: 'back.out(3.4)'");
+    expect(idleSource).toContain("ease: 'elastic.out(1, 0.68)'");
+    expect(idleSource).toContain('const backdropSide = KANTA_IDLE_BACK_SIDE');
+    expect(idleSource).not.toContain('prepareReturn:');
+    expect(idleSource).not.toContain('completeReturn:');
     expect(idleSource).toContain('bubble.circle(0, 0, radius).fill');
     expect(idleSource).toContain("container.label = 'kanta-idle-top-bubbles'");
     expect(idleSource).toContain("rearContainer.label = 'kanta-idle-back-bubbles'");
@@ -360,6 +385,13 @@ describe('Kanta special die', () => {
     expect(idleSource).toContain('parent.addChildAt(sprite');
     expect(idleSource).not.toContain('getKantaIdleFrameIndex');
     expect(idleSource).not.toContain('getKantaIdleRockRotation');
+
+    const dragSource = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/modules/drag-core.ts'),
+      'utf8',
+    );
+    expect(dragSource).not.toContain('prepareActiveDragArtworkReturn');
+    expect(dragSource).not.toContain('completeSpecialDiceIdleReturn');
   });
 
   test('uses only its dedicated sprite-local stretch owner, never the generic whole-tile idle', () => {

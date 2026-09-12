@@ -12,14 +12,21 @@ import { isUsablePixiImageTexture, pinPixiImageTexture } from '../utils/pixi-ima
 
 export const KANTA_IDLE_FRAME_SOURCE = './assets/shop/kanta/04.png';
 export const KANTA_IDLE_BACK_LEFT_SOURCE = './assets/shop/kanta/02.png';
-// Both authored cans share the same 128x171 canvas and must read as one
-// full-size overlapped pair. Shrinking the rear sprite made the front can
-// conceal almost all of it and recreated the detached-miniature silhouette.
-export const KANTA_IDLE_BACK_SCALE = 1;
+// The rear can is one fixed depth layer of the same die, not a second equal
+// die or an interaction variant.
+export const KANTA_IDLE_BACK_SCALE = 0.70;
+export const KANTA_IDLE_BACK_SIDE = -1 as const;
 export const KANTA_IDLE_BACK_HORIZONTAL_OFFSET_RATIO = 0.40;
-export const KANTA_IDLE_BACK_LOWER_RATIO = -0.10;
+export const KANTA_IDLE_BACK_LOWER_RATIO = -0.14;
 export const KANTA_IDLE_FRONT_OFFSET_X_PX = 8;
-export const KANTA_IDLE_BACK_OFFSET_Y_PX = -2;
+export const KANTA_IDLE_BACK_OFFSET_Y_PX = 0;
+export const KANTA_IDLE_BACK_POP_IN_DELAY_SECONDS = 0.12;
+export const KANTA_IDLE_BACK_POP_IN_START_SCALE = 0.12;
+export const KANTA_IDLE_BACK_POP_IN_PEAK_SCALE = 1.26;
+export const KANTA_IDLE_BACK_POP_IN_DIP_SCALE = 0.86;
+export const KANTA_IDLE_BACK_POP_IN_RISE_SECONDS = 0.18;
+export const KANTA_IDLE_BACK_POP_IN_DIP_SECONDS = 0.08;
+export const KANTA_IDLE_BACK_POP_IN_SETTLE_SECONDS = 0.22;
 export const KANTA_IDLE_TOP_BUBBLE_COLOR = 0x06F4FF;
 export const KANTA_IDLE_TOP_BUBBLE_INSET_PX = 3;
 export const KANTA_IDLE_TOP_BUBBLE_Z_INDEX = 2600;
@@ -34,7 +41,7 @@ export const KANTA_IDLE_TOP_BUBBLE_TRAVEL_MAX_SECONDS = 1.50;
 export const KANTA_IDLE_TOP_BUBBLE_DOUBLE_EVERY = 4;
 export const KANTA_IDLE_TOP_BUBBLE_DOUBLE_DELAY_SECONDS = 0.12;
 export const KANTA_IDLE_BACK_TILT_MIN_DEGREES = 3;
-export const KANTA_IDLE_BACK_TILT_MAX_DEGREES = 7;
+export const KANTA_IDLE_BACK_TILT_MAX_DEGREES = 10;
 export const KANTA_IDLE_REPEAT_DELAY_SECONDS = 1.60;
 export const KANTA_IDLE_BREATH_DURATION_SECONDS = 1.20;
 export const KANTA_IDLE_BREATH_SCALE_X = 0.992;
@@ -62,8 +69,23 @@ export type KantaDiceIdleController = {
   dispose: () => void;
 };
 
-export function getKantaBackdropSide(globalX: number, viewportWidth: number): -1 | 1 {
-  return Number.isFinite(globalX) && Number.isFinite(viewportWidth) && globalX > viewportWidth * 0.5
+type KantaBackdropSpriteState = {
+  sprite: Sprite;
+  neutralScaleX: number;
+  neutralScaleY: number;
+  offsetX: number;
+  revealScale: number;
+  revealAlpha: number;
+  popInTimeline: gsap.core.Timeline | null;
+};
+
+export function getKantaOutwardTiltDirection(
+  globalX: number,
+  viewportWidth: number,
+): -1 | 1 {
+  return Number.isFinite(globalX)
+    && Number.isFinite(viewportWidth)
+    && globalX > viewportWidth * 0.5
     ? 1
     : -1;
 }
@@ -118,12 +140,7 @@ export function startKantaDiceIdle(
   let neutralScaleY = base.scale.y;
   const topBubbleTravelPx = displayedHeight * KANTA_IDLE_TOP_BUBBLE_TRAVEL_RATIO;
   let loadedTexture: Texture | null = null;
-  const backdropSprites: Array<{
-    sprite: Sprite;
-    neutralScaleX: number;
-    neutralScaleY: number;
-    offsetX: number;
-  }> = [];
+  const backdropSprites: KantaBackdropSpriteState[] = [];
   let topBubbleContainer: Container | null = null;
   let backBubbleContainer: Container | null = null;
   const topBubbleGraphics: Graphics[] = [];
@@ -136,55 +153,48 @@ export function startKantaDiceIdle(
   let bubbleRuntimePaused = false;
   let disposed = false;
   let variant = createJourneyInterimBounceVariant();
-  let backdropSide: -1 | 1 = -1;
-  let backdropTiltDegrees = KANTA_IDLE_BACK_TILT_MIN_DEGREES;
+  const backdropSide = KANTA_IDLE_BACK_SIDE;
+  let spawnGlobalX = originalX;
+  try { spawnGlobalX = base.getGlobalPosition().x; } catch {}
+  const viewportWidth = typeof window !== 'undefined'
+    ? window.innerWidth
+    : Number(STATE.app?.screen?.width || Math.max(1, spawnGlobalX * 2));
+  const backdropTiltDirection = getKantaOutwardTiltDirection(spawnGlobalX, viewportWidth);
+  const backdropTiltDegrees = KANTA_IDLE_BACK_TILT_MIN_DEGREES
+    + Math.random() * (KANTA_IDLE_BACK_TILT_MAX_DEGREES - KANTA_IDLE_BACK_TILT_MIN_DEGREES);
   let bubbleEmissionCount = 0;
 
   base.anchor.set(0.5, 1);
   const naturalPivotX = originalX + displayedWidth * (0.5 - originalAnchorX);
   base.x = naturalPivotX + KANTA_IDLE_FRONT_OFFSET_X_PX;
   base.y = originalY + displayedHeight * (1 - originalAnchorY);
-  let pivotX = base.x;
+  const compositeCenterCorrectionX = getKantaIdleCompositeCenterCorrectionX(
+    displayedWidth,
+    backdropSide,
+  );
+  const pivotX = naturalPivotX + KANTA_IDLE_FRONT_OFFSET_X_PX + compositeCenterCorrectionX;
+  base.x = pivotX;
   const pivotY = base.y;
-  let compositeCenterCorrectionX = 0;
-
-  const refreshBackdropPlacement = () => {
-    let globalX = pivotX;
-    try { globalX = base.getGlobalPosition().x; } catch {}
-    const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : Math.max(1, pivotX * 2);
-    backdropSide = getKantaBackdropSide(globalX, viewportWidth);
-    compositeCenterCorrectionX = getKantaIdleCompositeCenterCorrectionX(displayedWidth, backdropSide);
-    pivotX = naturalPivotX + KANTA_IDLE_FRONT_OFFSET_X_PX + compositeCenterCorrectionX;
-    base.x = pivotX;
-    backdropTiltDegrees = Math.random() < 0.28
-      ? 0
-      : KANTA_IDLE_BACK_TILT_MIN_DEGREES
-        + Math.random() * (KANTA_IDLE_BACK_TILT_MAX_DEGREES - KANTA_IDLE_BACK_TILT_MIN_DEGREES);
-    backdropSprites.forEach((state) => {
-      state.offsetX = backdropSide * displayedWidth * KANTA_IDLE_BACK_HORIZONTAL_OFFSET_RATIO;
-    });
-  };
-  refreshBackdropPlacement();
 
   const syncBackdropPose = () => {
     const scaleRatioX = neutralScaleX === 0 ? 1 : base.scale.x / neutralScaleX;
     const scaleRatioY = neutralScaleY === 0 ? 1 : base.scale.y / neutralScaleY;
     const opposingScaleRatioX = Math.max(0.8, 2 - scaleRatioX);
     const opposingScaleRatioY = Math.max(0.8, 2 - scaleRatioY);
-    backdropSprites.forEach(({ sprite, neutralScaleX, neutralScaleY, offsetX }) => {
+    backdropSprites.forEach((state) => {
+      const { sprite, neutralScaleX, neutralScaleY, offsetX } = state;
       if (sprite.destroyed) return;
       sprite.x = naturalPivotX + compositeCenterCorrectionX + offsetX * opposingScaleRatioX;
       sprite.y = pivotY
-        + displayedHeight * KANTA_IDLE_BACK_LOWER_RATIO * opposingScaleRatioY
+        + displayedHeight * KANTA_IDLE_BACK_LOWER_RATIO
         + KANTA_IDLE_BACK_OFFSET_Y_PX;
-      const sideDirection = Math.sign(offsetX) || -1;
       sprite.rotation = originalRotation
-        + sideDirection * backdropTiltDegrees * (Math.PI / 180);
+        + backdropTiltDirection * backdropTiltDegrees * (Math.PI / 180);
       sprite.scale.set(
-        neutralScaleX * opposingScaleRatioX,
-        neutralScaleY * opposingScaleRatioY,
+        neutralScaleX * opposingScaleRatioX * state.revealScale,
+        neutralScaleY * opposingScaleRatioY * state.revealScale,
       );
-      sprite.alpha = 1;
+      sprite.alpha = state.revealAlpha;
     });
     if (topBubbleContainer && !topBubbleContainer.destroyed) {
       topBubbleContainer.x = pivotX;
@@ -196,7 +206,7 @@ export function startKantaDiceIdle(
       backBubbleContainer.x = naturalPivotX + compositeCenterCorrectionX
         + backdropSide * displayedWidth * KANTA_IDLE_BACK_HORIZONTAL_OFFSET_RATIO * opposingScaleRatioX;
       backBubbleContainer.y = pivotY
-        + displayedHeight * KANTA_IDLE_BACK_LOWER_RATIO * opposingScaleRatioY
+        + displayedHeight * KANTA_IDLE_BACK_LOWER_RATIO
         + KANTA_IDLE_BACK_OFFSET_Y_PX
         - displayedHeight * KANTA_IDLE_BACK_SCALE
           * KANTA_IDLE_TOP_BUBBLE_ORIGIN_FROM_BOTTOM_RATIO * opposingScaleRatioY
@@ -212,6 +222,83 @@ export function startKantaDiceIdle(
     base.rotation = originalRotation;
     base.scale.set(neutralScaleX, neutralScaleY);
     syncBackdropPose();
+  };
+
+  const stopBackdropPopIn = (state: KantaBackdropSpriteState, settle: boolean) => {
+    const activePopIn = state.popInTimeline;
+    state.popInTimeline = null;
+    if (activePopIn) {
+      try { animationManager.killExternalTimeline(activePopIn); } catch { activePopIn.kill(); }
+    }
+    if (settle) {
+      state.revealScale = 1;
+      state.revealAlpha = 1;
+    }
+  };
+
+  const playBackdropPopIn = (
+    state: KantaBackdropSpriteState,
+    delaySeconds: number,
+  ) => {
+    stopBackdropPopIn(state, false);
+    state.revealScale = KANTA_IDLE_BACK_POP_IN_START_SCALE;
+    state.revealAlpha = 0;
+    syncBackdropPose();
+
+    const popInTimeline = animationManager.trackExternalTimeline(gsap.timeline({
+      onComplete: () => {
+        if (state.popInTimeline !== popInTimeline) return;
+        state.popInTimeline = null;
+        state.revealScale = 1;
+        state.revealAlpha = 1;
+        syncBackdropPose();
+      },
+      onInterrupt: () => {
+        if (state.popInTimeline !== popInTimeline) return;
+        state.popInTimeline = null;
+        // Interruption must release the rear-can entrance at its canonical
+        // 0.70 target, never at the tiny 0.12/overshoot intermediate frame.
+        if (!disposed) {
+          state.revealScale = 1;
+          state.revealAlpha = 1;
+          syncBackdropPose();
+        }
+      },
+    }));
+    state.popInTimeline = popInTimeline;
+    popInTimeline
+      .set(state, { revealAlpha: 1 }, delaySeconds)
+      .to(state, {
+        revealScale: KANTA_IDLE_BACK_POP_IN_PEAK_SCALE,
+        duration: KANTA_IDLE_BACK_POP_IN_RISE_SECONDS,
+        ease: 'back.out(3.4)',
+        onUpdate: syncBackdropPose,
+      }, delaySeconds)
+      .to(state, {
+        revealScale: KANTA_IDLE_BACK_POP_IN_DIP_SCALE,
+        duration: KANTA_IDLE_BACK_POP_IN_DIP_SECONDS,
+        ease: 'power2.inOut',
+        onUpdate: syncBackdropPose,
+      })
+      .to(state, {
+        revealScale: 1,
+        duration: KANTA_IDLE_BACK_POP_IN_SETTLE_SECONDS,
+        ease: 'elastic.out(1, 0.68)',
+        onUpdate: syncBackdropPose,
+      });
+  };
+
+  const resumeArtwork = () => {
+    restoreNeutralPose();
+    backdropSprites.forEach((state) => {
+      if (state.revealAlpha < 1 || state.revealScale < 1) {
+        playBackdropPopIn(state, 0);
+      }
+    });
+    timeline.restart();
+    bubbleRuntimePaused = false;
+    pendingDoubleInSeconds = 0;
+    nextBubbleInSeconds = 0.25;
   };
 
   const timeline = animationManager.trackExternalTimeline(gsap.timeline({
@@ -270,6 +357,7 @@ export function startKantaDiceIdle(
     setDragging: (active: boolean) => {
       if (active) {
         timeline.pause();
+        backdropSprites.forEach((state) => stopBackdropPopIn(state, true));
         bubbleRuntimePaused = true;
         topBubbleStates.forEach((state) => {
           state.active = false;
@@ -278,12 +366,7 @@ export function startKantaDiceIdle(
         });
         restoreNeutralPose();
       } else if (!disposed) {
-        variant = createJourneyInterimBounceVariant();
-        refreshBackdropPlacement();
-        timeline.restart();
-        bubbleRuntimePaused = false;
-        pendingDoubleInSeconds = 0;
-        nextBubbleInSeconds = 0.25;
+        resumeArtwork();
       }
     },
     dispose: () => {
@@ -298,7 +381,9 @@ export function startKantaDiceIdle(
       topBubbleStates.length = 0;
       const ownsLoadedTexture = loadedTexture !== null && base.texture === loadedTexture;
       loadedTexture = null;
-      backdropSprites.splice(0).forEach(({ sprite }) => {
+      backdropSprites.splice(0).forEach((state) => {
+        stopBackdropPopIn(state, false);
+        const { sprite } = state;
         if (sprite.destroyed) return;
         try { sprite.parent?.removeChild(sprite); } catch {}
         try { sprite.destroy(); } catch {}
@@ -522,13 +607,20 @@ export function startKantaDiceIdle(
       sprite.width = displayedWidth * KANTA_IDLE_BACK_SCALE;
       sprite.height = displayedHeight * KANTA_IDLE_BACK_SCALE;
       const offsetX = backdropSide * displayedWidth * KANTA_IDLE_BACK_HORIZONTAL_OFFSET_RATIO;
-      backdropSprites.push({
+      const state: KantaBackdropSpriteState = {
         sprite,
         neutralScaleX: sprite.scale.x,
         neutralScaleY: sprite.scale.y,
         offsetX,
-      });
+        revealScale: KANTA_IDLE_BACK_POP_IN_START_SCALE,
+        revealAlpha: 0,
+        popInTimeline: null,
+      };
+      backdropSprites.push(state);
       parent.addChildAt(sprite, Math.min(baseIndex + index, parent.children.length));
+      if (!bubbleRuntimePaused) {
+        playBackdropPopIn(state, KANTA_IDLE_BACK_POP_IN_DELAY_SECONDS);
+      }
     });
     parent.sortChildren();
     syncBackdropPose();

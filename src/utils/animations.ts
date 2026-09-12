@@ -303,9 +303,6 @@ const settleSliderEnter = (reason: string): void => {
   logger.info('✅ Homepage enter owner settled', 'animations', { reason });
 };
 
-// Persisted badge key (matches navigation.ts)
-const BADGE_STORAGE_KEY = 'journey_badge_count_v109';
-
 /** Prime the complete active Homepage slide while its shell is still hidden. */
 export const prepareSliderEnter = (): void => {
   sliderEnterNavigationGeneration = primeHomepageNavigation('animations:prepare-slider-enter');
@@ -446,68 +443,6 @@ export const finalizeSliderEnterVisibility = (reason = 'homepage-enter-finalize'
     shellTargetCount: shellTargets.length,
     targetCount: targets.length,
   });
-};
-
-// Journey nav badge module: kept in code/storage for later restore, currently hidden by request.
-const JOURNEY_NAV_BADGE_ENABLED = false;
-
-const readPersistedJourneyBadge = (): number => {
-  try {
-    const raw = localStorage.getItem(BADGE_STORAGE_KEY);
-    const parsed = raw ? parseInt(raw, 10) : 0;
-    return Number.isFinite(parsed) ? parsed : 0;
-  } catch {
-    return 0;
-  }
-};
-
-const writePersistedJourneyBadge = (count: number): void => {
-  try {
-    if (count > 0) {
-      localStorage.setItem(BADGE_STORAGE_KEY, String(count));
-    }
-  } catch {
-    // Ignore storage errors.
-  }
-};
-
-const ensureJourneyBadge = (journeyNavButton: HTMLElement | null): number => {
-  const cachedCount = (window as any).__ccJourneyBadgeCount || 0;
-  const persistedCount = readPersistedJourneyBadge();
-  const existingBadge = journeyNavButton?.querySelector('.nav-badge') as HTMLElement | null;
-  const domCount = existingBadge
-    ? parseInt(existingBadge.querySelector('.nav-badge-text')?.textContent || '0', 10)
-    : 0;
-  const effectiveCount = Math.max(cachedCount, persistedCount, domCount);
-
-  if (!JOURNEY_NAV_BADGE_ENABLED) {
-    if (effectiveCount > 0) {
-      (window as any).__ccJourneyBadgeCount = effectiveCount;
-      writePersistedJourneyBadge(effectiveCount);
-    }
-    existingBadge?.remove();
-    return effectiveCount;
-  }
-
-  if (effectiveCount > 0) {
-    (window as any).__ccJourneyBadgeCount = effectiveCount;
-    if (journeyNavButton && !existingBadge) {
-      const badge = document.createElement('div');
-      badge.className = 'nav-badge';
-      const badgeText = document.createElement('span');
-      badgeText.className = 'nav-badge-text';
-      badgeText.textContent = effectiveCount.toString();
-      badge.appendChild(badgeText);
-      journeyNavButton.appendChild(badge);
-    }
-    const badgeEl = journeyNavButton?.querySelector('.nav-badge') as HTMLElement | null;
-    if (badgeEl) {
-      badgeEl.style.display = 'flex';
-      badgeEl.style.visibility = 'visible';
-      badgeEl.style.opacity = '1';
-    }
-  }
-  return effectiveCount;
 };
 
 const scheduleHomepageEnterPatternHaptics = (): void => {
@@ -731,11 +666,6 @@ export const finalizeJourneySliderExit = (): void => {
     element.style.removeProperty('-webkit-transform');
     element.style.removeProperty('will-change');
   });
-  document.querySelectorAll<HTMLElement>('.nav-badge.animate-exit').forEach((badge) => {
-    badge.classList.remove('animate-exit');
-    badge.style.removeProperty('opacity');
-    badge.style.removeProperty('will-change');
-  });
   document.getElementById('home')?.removeAttribute('data-journey-exit');
   journeySliderExitPromise = null;
   isAnimatingExit = false;
@@ -760,21 +690,6 @@ const animateSliderExitLegacy = (): void => {
   
   try {
     logger.info('🎬 Starting CARTOONISH PROCEDURAL exit animation...');
-    
-    // 🔥 CRITICAL: Ensure badge is visible and ready BEFORE starting animation
-    const journeyNavButton = document.querySelector(`.independent-nav-button[data-slide="${JOURNEY_SLIDE_INDEX}"]`) as HTMLElement;
-    if (journeyNavButton) {
-      const ensuredCount = ensureJourneyBadge(journeyNavButton);
-      if (JOURNEY_NAV_BADGE_ENABLED && ensuredCount > 0) {
-        logger.info(`🎯 Badge ensured before exit animation: ${ensuredCount}`);
-      } else if (!JOURNEY_NAV_BADGE_ENABLED && ensuredCount > 0) {
-        logger.debug(`🗺️ Journey badge count preserved but hidden: ${ensuredCount}`);
-      } else {
-        logger.debug('🗺️ No journey badge to preserve (count=0)');
-      }
-    } else {
-      logger.warn('⚠️ Journey navigation button not found');
-    }
     
     // Start the actual exit animation sequence
     startExitAnimationSequence();
@@ -965,70 +880,11 @@ function startExitAnimationSequence(): void {
     
     
     // STEP 5: Navigation and Shadow LAST (120ms delay - finishes at 420ms, close to 400ms)
-    // 🔥 CRITICAL: Find badge FIRST and ensure it's protected before animating navigation
-    // Badge is child of navigation button, so it will animate with navigation via CSS
-    const journeyNavButton = document.querySelector(`.independent-nav-button[data-slide="${JOURNEY_SLIDE_INDEX}"]`) as HTMLElement;
-    let journeyBadge: HTMLElement | null = null;
-    if (journeyNavButton) {
-      ensureJourneyBadge(journeyNavButton);
-      journeyBadge = journeyNavButton.querySelector('.nav-badge') as HTMLElement;
-      if (journeyBadge && journeyBadge.isConnected) {
-        // 🔥 CRITICAL: Ensure badge is visible and protected BEFORE navigation animation starts
-        journeyBadge.style.display = 'flex';
-        journeyBadge.style.visibility = 'visible';
-        journeyBadge.style.opacity = '1';
-        // Prevent fade-out during exit; keep opacity solid while nav scales
-        journeyBadge.style.setProperty('opacity', '1', 'important');
-        // Add animate-exit class IMMEDIATELY to protect badge from removal
-        journeyBadge.classList.remove('animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
-        journeyBadge.classList.add('animate-exit');
-        logger.info('🎯 Badge found and protected - ready for exit animation');
-      } else {
-        logger.debug('🗺️ Journey badge not present in nav (count=0)');
-      }
-    } else {
-      logger.warn('⚠️ Journey navigation button not found');
-    }
-    
-    // Now animate navigation - badge will animate as child via CSS (#independent-nav.animate-exit .nav-badge)
     if (independentNav) {
       cartoonishBounce(independentNav as HTMLElement, 120);
-      logger.info('🎯 Step 5: Navigation cartoonish bounce - LAST (badge animates as child)');
+      logger.info('🎯 Step 5: Navigation cartoonish bounce - LAST');
     } else {
       logger.warn('⚠️ Navigation not found');
-    }
-    
-    // Remove badge after animation completes (650ms animation + 120ms delay = 770ms total)
-    if (journeyBadge) {
-      const badgeRemoveTimeout = setTimeout(() => {
-        activeTimeouts.delete(badgeRemoveTimeout);
-        // Double-check that badge still exists and has animate-exit class
-        const stillExists = document.querySelector(`.independent-nav-button[data-slide="${JOURNEY_SLIDE_INDEX}"] .nav-badge`) as HTMLElement;
-        if (stillExists && stillExists.classList.contains('animate-exit')) {
-          const storedBadgeCount = (window as any).__ccJourneyBadgeCount;
-          const persistedBadgeCount = readPersistedJourneyBadge();
-          const domCount = parseInt(stillExists.querySelector('.nav-badge-text')?.textContent || '0', 10);
-          const effectiveCount = Math.max(
-            Number.isFinite(storedBadgeCount) ? storedBadgeCount : 0,
-            domCount,
-            persistedBadgeCount
-          );
-          // Keep the badge if we already know there are unseen boards (or DOM shows a number)
-          if (effectiveCount > 0) {
-            // Ensure global cache is populated so rebuilds keep the badge
-            (window as any).__ccJourneyBadgeCount = effectiveCount;
-            logger.info('🎯 Journey badge removal skipped - preserving pending badge count');
-            return;
-          }
-          if (typeof (window as any).updateNavBadge === 'function') {
-            (window as any).updateNavBadge(0, JOURNEY_SLIDE_INDEX);
-            logger.info('✅ Journey badge removed after exit animation');
-          }
-        } else {
-          logger.warn('⚠️ Journey badge was already removed or animation was interrupted');
-        }
-      }, 770); // Match exit animation duration
-      activeTimeouts.add(badgeRemoveTimeout);
     }
     
     // Shadow animates together with navigation

@@ -49,6 +49,11 @@ import {
   BEE_MERGE6_VOLUME,
 } from '../bee-merge6-sound';
 import { WILD_SPECIAL_MERGE6_POOF_VOLUME } from '../wild-special-merge6-poof-sound';
+import { ROBO_CUBE_MERGE6_VOLUMES } from '../robo-cube-merge6-sound';
+import {
+  JOURNEY_CARD_ENTRY_FLIP_SOUND_VOLUMES,
+  JOURNEY_CARD_MANUAL_FLIP_SOUND_VOLUME,
+} from '../journey-card-entry-flip-sound';
 
 describe('sound effects master volume', () => {
   it('reduces every currently active SFX voice by exactly 40 percent', () => {
@@ -84,6 +89,9 @@ describe('sound effects master volume', () => {
     expect(BEE_MERGE6_VOLUME).toBeCloseTo(0.6);
     expect(BEE_MERGE6_HAPPY_VOLUME).toBeCloseTo(0.12);
     expect(WILD_SPECIAL_MERGE6_POOF_VOLUME).toBeCloseTo(0.6);
+    expect(ROBO_CUBE_MERGE6_VOLUMES).toEqual([0.6, 0.6, 0.42]);
+    expect(JOURNEY_CARD_ENTRY_FLIP_SOUND_VOLUMES).toEqual([0.6, 0.6, 0.6]);
+    expect(JOURNEY_CARD_MANUAL_FLIP_SOUND_VOLUME).toBeCloseTo(0.6);
   });
 
   it('keeps the shared multiplier bounded and excludes music ownership', () => {
@@ -98,7 +106,7 @@ describe('sound effects master volume', () => {
     expect(soundtrack).not.toContain('applySoundEffectsMasterGain');
   });
 
-  it('is consumed by all sixteen active SFX owners', () => {
+  it('is consumed by all eighteen active SFX owners', () => {
     for (const filename of [
       'gameplay-pickup-sound.ts',
       'ordinary-stack-sound.ts',
@@ -116,6 +124,8 @@ describe('sound effects master volume', () => {
       'flower-merge6-sound.ts',
       'bee-merge6-sound.ts',
       'wild-special-merge6-poof-sound.ts',
+      'robo-cube-merge6-sound.ts',
+      'journey-card-entry-flip-sound.ts',
     ]) {
       const source = fs.readFileSync(path.resolve(process.cwd(), 'src/modules', filename), 'utf8');
       expect(source).toContain('applySoundEffectsMasterGain');

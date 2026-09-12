@@ -652,6 +652,7 @@ async function playRoundNumberPhase(parts: ReturnType<typeof createOverlay>, dis
         delay: index * ROUND_DIGIT_ENTER_STAGGER,
         onStart: () => {
           playArcadeRoundDigitSound(index);
+          if (index === 0) playArcadeRoundExitSound();
           emitNativeConsoleDiagnostic(ARCADE_ENTRY_TRACE, 'digit-enter-start', {
             round: displayedStage,
             index,
@@ -723,7 +724,6 @@ async function playRoundNumberPhase(parts: ReturnType<typeof createOverlay>, dis
         const timeline = gsap.timeline({
           delay: index * ROUND_DIGIT_EXIT_STAGGER,
           onStart: () => {
-            if (index === 0) playArcadeRoundExitSound();
             emitNativeConsoleDiagnostic(ARCADE_ENTRY_TRACE, 'digit-exit-start', {
               round: displayedStage,
               index,

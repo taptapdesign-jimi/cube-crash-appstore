@@ -13,6 +13,7 @@ import { killInvalidPixiGsapTweens, killPixiGsapSubtree } from './pixi-gsap-clea
 import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
 import { isGameplayHudRevealAllowed } from './gameplay-hud-visibility-policy.ts';
 import { isUsablePixiImageTexture, reloadPixiImageTexture } from '../utils/pixi-image-texture-health.js';
+import { playNavigationCloseSound } from './navigation-close-sound.ts';
 import {
   clampWildMeterRatio,
   getWildMeterDrainGeometry,
@@ -1910,6 +1911,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
         e.stopPropagation();
         e.stopImmediatePropagation();
         if (!acquireHudBottomSheetTapLock('close-circle')) return;
+        playNavigationCloseSound();
         playHudCloseSoftCartoonBounce(closeButtonContainer);
         trackHudTimeout(() => {
           if (!closeButtonContainer.destroyed) {
@@ -2064,6 +2066,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
             e.stopPropagation();
             e.stopImmediatePropagation();
             if (!acquireHudBottomSheetTapLock('close-circle:async')) return;
+            playNavigationCloseSound();
             playHudCloseSoftCartoonBounce(closeButtonContainer);
             trackHudTimeout(() => {
               if (!closeButtonContainer.destroyed) {
@@ -2539,6 +2542,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     if (!acquireHudBottomSheetTapLock('x-hit-area')) return;
 
     console.log('🎯 RED RECTANGLE CLICKED - Opening End Run bottom sheet');
+    playNavigationCloseSound();
     playHudCloseSoftCartoonBounce(HUD_ROOT?._visibleCloseButton || xButton);
     trackHudTimeout(() => {
       if (!xButton.destroyed) {

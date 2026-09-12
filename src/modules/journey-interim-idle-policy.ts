@@ -17,6 +17,13 @@ export const JOURNEY_INTERIM_IDLE_MOTION = Object.freeze({
   repeatDelaySeconds: 0.58,
 });
 
+export const JOURNEY_CARD_RETURN_LANDING_SQUASH_STRENGTH = 2.2;
+
+/** Strengthen only return-to-Unit landing scale offsets, leaving idle cards unchanged. */
+export function amplifyJourneyCardReturnLandingScale(scale: number): number {
+  return 1 + (scale - 1) * JOURNEY_CARD_RETURN_LANDING_SQUASH_STRENGTH;
+}
+
 export type JourneyInterimBounceVariant = Readonly<{
   kind: 'stretch' | 'squash';
   peakScaleX: number;

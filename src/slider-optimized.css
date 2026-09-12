@@ -54,7 +54,7 @@
 
 #slider-wrapper {
   display: flex;
-  width: 400%; /* 4 slides */
+  width: 300%; /* Journey, Arcade, Settings */
   /* Transition removed - GSAP handles animation now */
   will-change: transform;
   position: relative;
@@ -79,7 +79,7 @@
 }
 
 .slider-slide {
-  width: 25%; /* 1/4 of 400% */
+  width: 33.333333%; /* 1/3 of 300% = one viewport */
   flex-shrink: 0;
   display: flex;
   align-items: flex-start;
@@ -93,11 +93,6 @@
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   contain: layout paint style;
-}
-
-.slider-slide.shop-module-hidden {
-  visibility: hidden !important;
-  pointer-events: none !important;
 }
 
 .slide-content {
@@ -173,16 +168,6 @@
   height: 120%;
 }
 
-.slider-slide[data-slide="2"] .hero-image {
-  width: 105%;
-  height: 105%;
-}
-
-.slider-slide[data-slide="3"] .hero-image {
-  width: 120%;
-  height: 120%;
-}
-
 .slider-slide.settings-slide .hero-image {
   width: 120%;
   height: 120%;
@@ -215,26 +200,6 @@
   50% {
     transform: translateY(-6px) rotate(-1deg) scale(1.05);
   }
-}
-
-.slider-slide[data-slide="2"] .hero-image {
-  animation: boxShake 2.5s ease-in-out infinite;
-}
-
-@keyframes boxShake {
-  0%, 100% {
-    transform: translateY(0px) rotate(0deg) scale(1);
-  }
-  25% {
-    transform: translateY(-5px) rotate(1deg) scale(1.01);
-  }
-  75% {
-    transform: translateY(-3px) rotate(-1deg) scale(1.01);
-  }
-}
-
-.slider-slide[data-slide="3"] .hero-image {
-  animation: settingsGlow 3.5s ease-in-out infinite;
 }
 
 .slider-slide.settings-slide .hero-image {
@@ -900,8 +865,7 @@
   #home .slider-slide #btn-home,
   #home .slider-slide #btn-stats,
   #home .slider-slide #btn-journey,
-  #home .slider-slide #btn-settings,
-  #home .slider-slide #btn-collectibles {
+  #home .slider-slide #btn-settings {
     width: 226px !important;
     max-width: 226px !important;
   }

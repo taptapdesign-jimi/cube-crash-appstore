@@ -68,6 +68,7 @@ import {
   initNavigationControl,
   primeHomepageNavigation,
 } from './modules/navigation-control.js';
+import { initNavigationCloseSound } from './modules/navigation-close-sound.js';
 import { showEndRunModalFromGame } from './modules/end-run-modal.js';
 import { isNoMovesNavigationLocked } from './modules/terminal-navigation-lock.ts';
 import './modules/score-bottom-sheet.js'; // Score bottom sheet for HUD clicks
@@ -912,11 +913,6 @@ async function initializeApp(): Promise<void> {
       console.warn('⚠️ Failed to migrate global save:', error);
     }
     
-    // Initialize pending collectibles flip list
-    if (!Array.isArray((window as any).__pendingCollectibleFlips)) {
-      (window as any).__pendingCollectibleFlips = [];
-    }
-    
     // Initializing core systems
     
     // Initialize error handling
@@ -961,6 +957,7 @@ async function initializeApp(): Promise<void> {
     
     // Initialize navigation control
     initNavigationControl();
+    initNavigationCloseSound();
     
     // Initialize the state while the launch surface still owns the viewport.
     // The launch handoff below is then the sole visible Homepage enter owner.
@@ -3101,13 +3098,17 @@ async function startNewRun(boardId: number): Promise<void> {
       }
 
       const overlayReturnBoardId = getJourneyCardOverlayReturnBoardId();
+      emitIOSNativeDiagnostic('journey-card-return-receipt-checked', {
+        boardId: overlayReturnBoardId,
+        hasReceipt: overlayReturnBoardId !== null,
+      });
       if (overlayReturnBoardId !== null) {
         try {
           const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
           void journeyBoardsManager.playJourneyOverlayReturnCard(overlayReturnBoardId);
           emitIOSNativeDiagnostic('journey-overlay-return-card-started', {
             boardId: overlayReturnBoardId,
-            presentation: 'spatial-enter-and-hold',
+            presentation: 'shortened-auto-reminder',
           });
         } catch (error) {
           console.warn('⚠️ Failed to start Journey overlay return card:', error);
@@ -3339,39 +3340,6 @@ let gameStartTime: number | null = null;
     console.log('✅ Longest combo tracked:', combo);
   } catch (error) {
     console.error('❌ Failed to track longest combo:', error);
-  }
-};
-
-// Track collectibles unlocked
-(window as any).trackCollectiblesUnlocked = async (count: number) => {
-  try {
-    const { statsService } = await import('./services/stats-service.js');
-    statsService.updateCollectiblesUnlocked(count);
-    console.log('✅ Collectibles unlocked tracked:', count);
-  } catch (error) {
-    console.error('❌ Failed to track collectibles unlocked:', error);
-  }
-};
-
-// Helper function to check and update collectibles based on score milestones
-(window as any).checkCollectiblesMilestones = async (score: number) => {
-  try {
-    const milestones = [100, 500, 1000, 2000, 5000, 10000, 20000, 50000];
-    let unlocked = 0;
-    
-    for (const milestone of milestones) {
-      if (score >= milestone) {
-        unlocked++;
-      }
-    }
-    
-    if (unlocked > 0) {
-      const { statsService } = await import('./services/stats-service.js');
-      statsService.updateCollectiblesUnlocked(unlocked);
-      console.log('🎁 Collectibles updated based on score milestones:', unlocked);
-    }
-  } catch (error) {
-    console.error('❌ Failed to update collectibles milestones:', error);
   }
 };
 

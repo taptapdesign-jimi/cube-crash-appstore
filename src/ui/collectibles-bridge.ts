@@ -7,10 +7,6 @@ type CollectiblesWindow = Window & {
   showCollectiblesScreen?: (options?: CollectiblesShowOptions) => Promise<void>;
   hideCollectiblesScreen?: () => Promise<void>;
   hideCollectiblesScreenWithAnimation?: () => Promise<void>;
-  unlockCollectible?: (eventName: string) => Promise<void>;
-  unlockCollectibleByNumber?: (num: number) => Promise<void>;
-  hideCollectibleByNumber?: (num: number) => Promise<void>;
-  showCollectibleRewardBottomSheet?: (detail: { cardName: string; imagePath: string }) => Promise<string>;
   collectiblesManager?: any;
 };
 
@@ -18,10 +14,6 @@ const win = window as unknown as CollectiblesWindow;
 
 const loadModule = async () => {
   return import('../collectibles-manager.js');
-};
-
-const loadRewardModule = async () => {
-  return import('../modules/collectible-reward-bottom-sheet.js');
 };
 
 const withModule = async <T>(handler: (mod: typeof import('../collectibles-manager.js')) => Promise<T>): Promise<T> => {
@@ -41,32 +33,3 @@ win.hideCollectibles = async () => {
 
 win.showCollectiblesScreen = win.showCollectibles;
 win.hideCollectiblesScreen = win.hideCollectibles;
-
-win.unlockCollectible = async (eventName: string) => {
-  await withModule(mod => mod.unlockCollectible(eventName));
-};
-
-win.unlockCollectibleByNumber = async (num: number) => {
-  await withModule(mod => mod.unlockCollectibleByNumber(num));
-};
-
-win.hideCollectibleByNumber = async (num: number) => {
-  await withModule(mod => mod.hideCollectibleByNumber(num));
-};
-
-// Export showCollectibleRewardBottomSheet to window
-win.showCollectibleRewardBottomSheet = async (detail: { cardName: string; imagePath: string }) => {
-  logger.info('🎁 showCollectibleRewardBottomSheet bridge invoked');
-  const rewardModule = await loadRewardModule();
-  if (rewardModule && typeof rewardModule.showCollectibleRewardBottomSheet === 'function') {
-    return rewardModule.showCollectibleRewardBottomSheet(detail);
-  }
-  return Promise.resolve('failed');
-};
-
-// CRITICAL: Initialize collectiblesManager on window
-// This triggers ensureCollectiblesManager which sets window.collectiblesManager
-loadModule().then(async (mod) => {
-  await mod.ensureCollectiblesManager();
-  logger.info('🎁 Collectibles manager initialized and exported to window');
-});

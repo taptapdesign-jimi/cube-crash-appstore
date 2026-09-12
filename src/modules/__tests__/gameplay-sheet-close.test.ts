@@ -46,7 +46,6 @@ describe('shared gameplay sheet close', () => {
   test('is shared by every active board gameplay modal family', () => {
     const endRunSource = fs.readFileSync(path.join(root, 'src/modules/end-run-modal.ts'), 'utf8');
     const scoreSource = fs.readFileSync(path.join(root, 'src/modules/score-bottom-sheet.ts'), 'utf8');
-    const rewardSource = fs.readFileSync(path.join(root, 'src/modules/collectible-reward-bottom-sheet.ts'), 'utf8');
     const appCss = fs.readFileSync(path.join(root, 'src/style.css'), 'utf8');
     const closePaperRule = appCss.match(
       /\.cc-gameplay-modal-pose-shell > \.gameplay-sheet-close::before\s*\{([^}]*)\}/,
@@ -55,7 +54,6 @@ describe('shared gameplay sheet close', () => {
     expect(endRunSource).toContain("modal.querySelector('.cc-gameplay-modal-pose-shell')");
     expect(endRunSource).toContain('mountGameplaySheetClose(endRunCloseHost');
     expect(scoreSource).toContain('mountGameplaySheetClose(scoreCloseHost');
-    expect(rewardSource).toContain('mountGameplaySheetClose(');
     expect(appCss).toContain('.cc-gameplay-modal-idle-shell > .gameplay-sheet-close,');
     expect(appCss).toContain('.cc-gameplay-modal-pose-shell > .gameplay-sheet-close {');
     expect(closePaperRule).not.toContain('clip-path');

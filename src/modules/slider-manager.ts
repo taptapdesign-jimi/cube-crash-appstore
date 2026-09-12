@@ -9,7 +9,7 @@ import { SLIDER_ANIMATION, SLIDER_CONFIG, getNavButtonActiveSize, getNavButtonIn
 import { sliderState } from './slider-state.js';
 import { resetAnimationFlags } from '../utils/animations.js';
 import { getOriginalGsapTo } from './drag-core.js';
-import { isSlideVisible } from './shop-module.js';
+import { isHomepageSlideVisible } from './homepage-slide-order.js';
 import { resolveHomepageSliderViewportWidth } from './homepage-slider-layout.js';
 import { isFirstPlayTutorialForced } from './first-play-tutorial.js';
 import { homepageEnterTransitionOwner } from './homepage-enter-transition-owner.js';
@@ -18,6 +18,7 @@ import {
   DEFAULT_HOMEPAGE_SLIDE_INDEX,
   JOURNEY_SLIDE_INDEX,
 } from './homepage-slide-order.js';
+import { playHomepageSliderSwipeSound, preloadHomepageSliderSwipeSound } from './homepage-slider-swipe-sound.ts';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 const trackTween = (target: any, vars: any) => {
@@ -296,14 +297,14 @@ class SliderManager {
   private getSlideStep(direction: 1 | -1): number | null {
     let target = this.currentSlide + direction;
     while (target >= 0 && target < this.totalSlides) {
-      if (isSlideVisible(target)) return target;
+      if (isHomepageSlideVisible(target)) return target;
       target += direction;
     }
     return null;
   }
 
   private resolveHiddenSlideTarget(slideIndex: number): number {
-    if (isSlideVisible(slideIndex)) return slideIndex;
+    if (isHomepageSlideVisible(slideIndex)) return slideIndex;
     const direction: 1 | -1 = slideIndex > this.currentSlide ? 1 : -1;
     return this.getSlideStep(direction) ?? this.currentSlide;
   }
@@ -363,10 +364,13 @@ class SliderManager {
 
     if (shouldChangeSlide) {
       const directionSignal = Math.abs(deltaX) > 0 ? deltaX : velocityX;
-      if (directionSignal > 0) {
-        this.previousSlide();
+      const direction: 1 | -1 = directionSignal > 0 ? -1 : 1;
+      const target = this.getSlideStep(direction);
+      if (target !== null) {
+        playHomepageSliderSwipeSound();
+        this.goToSlide(target);
       } else {
-        this.nextSlide();
+        this.updateSlider();
       }
     } else {
       // Snap back to current slide
@@ -383,6 +387,7 @@ class SliderManager {
     }
     
     try {
+      preloadHomepageSliderSwipeSound();
       // Cache elements
       this.elements = {
         container: document.getElementById('slider-container'),
@@ -715,6 +720,10 @@ class SliderManager {
         this.globalSwipeState.isTracking = false;
         return;
       }
+
+      // Wake/decode under the user gesture so an accepted release can start
+      // immediately. This does not play anything for a cancelled drag.
+      preloadHomepageSliderSwipeSound();
       
       this.globalSwipeState.isTracking = true;
       this.globalSwipeState.startX = touch.clientX;
@@ -849,6 +858,9 @@ class SliderManager {
       logger.debug('TOUCH BLOCKED BY CTA OWNER');
       return;
     }
+
+    // Prime only; playback remains owned by an accepted touchend commit.
+    preloadHomepageSliderSwipeSound();
     
     this.isDragging = true;
     const touch = event.touches[0];
@@ -916,6 +928,9 @@ class SliderManager {
       logger.debug('MOUSE BLOCKED BY CTA OWNER');
       return;
     }
+
+    // Prime only; playback remains owned by an accepted mouseup commit.
+    preloadHomepageSliderSwipeSound();
     
     this.isDragging = true;
     this.startX = event.clientX;

@@ -111,10 +111,7 @@ export async function waitForJourneyReturnPresentation(
  * return contract. The next showCollectibles() call owns rendering and enter.
  */
 export function prepareJourneyWorldRecovery(options: JourneyReturnRecoveryOptions): number | null {
-  const boardValue = Number(options.boardId);
-  const boardId = Number.isInteger(boardValue) && boardValue >= 1 && boardValue <= 30
-    ? boardValue
-    : null;
+  const boardId = normalizeJourneyBoardId(options.boardId);
   const fromInterim = options.fromInterim ?? isJourneyInterimOriginActive();
   const runtime = window as any;
 
@@ -151,3 +148,4 @@ export function prepareJourneyWorldRecovery(options: JourneyReturnRecoveryOption
   } catch {}
   return boardId;
 }
+import { normalizeJourneyBoardId } from './journey-world-definitions.js';

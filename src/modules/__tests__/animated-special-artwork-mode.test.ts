@@ -38,7 +38,7 @@ describe('animated special artwork SVG/PNG mode', () => {
     });
   });
 
-  test('splits later non-Star same-family copies 50/50 between phased SVG and PNG', () => {
+  test('splits later non-always-animated copies 50/50 between phased SVG and PNG', () => {
     const first = tile();
     const svgDuplicate = tile();
     const pngDuplicate = tile();
@@ -70,19 +70,19 @@ describe('animated special artwork SVG/PNG mode', () => {
     });
   });
 
-  test('allows only one animated Fish while duplicate Fish tiles use PNG', () => {
+  test('keeps every Fish copy animated so each can receive its own phase', () => {
     const first = tile();
     const second = tile();
     const third = tile();
 
     expect(acquireAnimatedSpecialArtworkMode(first, 'fish', () => 0)).toBe('svg');
-    expect(acquireAnimatedSpecialArtworkMode(second, 'fish', () => 0)).toBe('png');
-    expect(acquireAnimatedSpecialArtworkMode(third, 'fish', () => 0)).toBe('png');
+    expect(acquireAnimatedSpecialArtworkMode(second, 'fish', () => 0.99)).toBe('svg');
+    expect(acquireAnimatedSpecialArtworkMode(third, 'fish', () => 0.99)).toBe('svg');
     expect(getAnimatedSpecialArtworkModeStats()).toEqual({
       assignments: 3,
       families: 1,
-      svg: 1,
-      png: 2,
+      svg: 3,
+      png: 0,
     });
   });
 

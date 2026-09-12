@@ -2058,7 +2058,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     // accepted 15vh lift plus another 6vh places the number near 29vh.
     numberContainer.style.transform = 'translate3d(0, -21vh, 0)';
 
-    // Board IDs remain global (1-30) for save/progression ownership, while
+    // Board IDs remain global across the registered catalog for save/progression ownership, while
     // every Journey World presents its connected Unit as local Stage 01-10.
     const transitionText = (typeof displayText === 'string' && displayText.trim().length > 0)
       ? displayText.trim().toUpperCase()
@@ -3076,6 +3076,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
           ease: 'back.out(2.0)',
           onStart: () => {
             playBoardTransitionDigitSound(index);
+            if (index === 0) playBoardTransitionExitSound();
           },
         });
       
@@ -3483,9 +3484,6 @@ function startExitAnimation(
       z: 30, // Push forward in 3D
         duration: 0.15,
         ease: 'power2.out',
-        onStart: () => {
-          if (index === 0) playBoardTransitionExitSound();
-        },
       });
     
     // Then: scale 1.1 → 0 with 3D rotation and depth fade

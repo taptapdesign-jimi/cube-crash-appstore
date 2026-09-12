@@ -1,4 +1,4 @@
-import { JOURNEY_STAGES_PER_WORLD } from './journey-world-stage';
+import { getJourneyWorldDefinition, getJourneyWorldIdForBoard } from './journey-world-definitions';
 import { RUN_MODE_JOURNEY, type RunMode } from './run-mode';
 import {
   BEACH_FLOAT_LEFT_EDGE_RATIO,
@@ -94,9 +94,8 @@ export const AREA55_BOARD_TRANSITION_PROFILE = Object.freeze({
 } satisfies BoardTransitionThemeProfile);
 
 export function getJourneyBoardTransitionTheme(boardNumber: number): BoardTransitionThemeId {
-  const safeBoard = Math.max(1, Math.min(30, Math.trunc(Number.isFinite(boardNumber) ? boardNumber : 1)));
-  const worldIndex = Math.floor((safeBoard - 1) / JOURNEY_STAGES_PER_WORLD);
-  return worldIndex === 1 ? 'beach' : worldIndex >= 2 ? 'area55' : 'forest';
+  const worldId = getJourneyWorldIdForBoard(Math.trunc(Number.isFinite(boardNumber) ? boardNumber : 1));
+  return getJourneyWorldDefinition(worldId ?? 1)?.transitionTheme ?? 'forest';
 }
 
 export function resolveBoardTransitionTheme(options: {

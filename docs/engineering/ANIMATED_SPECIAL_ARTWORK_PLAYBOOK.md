@@ -186,11 +186,12 @@ The Mushroom uses `mushroom.svg` through the exact `mushroom`-only `mushroom-bou
 
 The Flower uses `flower.svg` through the exact `flower`-only `flower-bouncy-artwork.ts` owner while retaining Wild TNT gameplay and its existing Pixi pollen emitter. The authored `0 0 160 160` stage places a 108.36-unit resting image canvas at centre `(79.33,74.78)`; that canvas scales to the established 128px board footprint while the complete 160x160 hop/tilt corridor remains available. The supplied file is 772,783 bytes raw / 531,173 bytes with deterministic gzip (`-9 -n`), SHA-256 `85c49c63a0d7ef4bbb520873719d698e221607995cdaf5fd66c221e05cb37830`, contains three `<animateTransform>` nodes on one 1.6-second loop, and embeds one 2048x2048 PNG source. The existing pooled Pixi pollen system remains the only emitter/timeline/motion owner, but each live grain records its authored ellipse, polygon or double-ellipse paint geometry. While the SVG is active, `flower-bouncy-artwork.ts` redirects only that live paint into a local DOM foreground layer at z-index 2 above the image at 1; its shared ticker reads the particle's current position, rotation, scale and alpha, so no second animation clock is introduced. Drag, SVG failure, stop and teardown synchronously remove the mirror and restore each original particle's Pixi `renderable` state before pool release. The registry `flower.png` remains visible through the bounded phase wait, load failure and drag; release resumes the same SVG controller without changing Flower merge-6. Six simultaneous Flower instances expose 18 SMIL nodes, but direct Safari/WKWebView fidelity, pollen depth, the large embedded raster's decoded-memory cost, sustained FPS and thermal state remain required physical checks.
 
-All six direct board-SVG owners (Juice, Beach Ball, Wild Star, Robo Cube, Mushroom and Flower)
+All seven direct animated-artwork owners (Juice, Beach Ball, Wild Star, Fish, Robo Cube, Mushroom and Flower)
 use one shared visual-mode owner plus one shared phase scheduler. The first live
 copy of each family always uses SVG and starts immediately. Every additional
-Wild Star also stays on SVG; its separately reserved phase ensures that its
-two-second loop does not share the first Star's start or end. Additional tiles
+Wild Star and Fish also stay animated; their separately reserved phases ensure
+that their loops do not share the first copy's start or end. Fish uses the same
+phase lifecycle for its iOS HEVC proxy and its SVG fallback. Additional tiles
 in the other families make one 50/50 choice for their complete tile lifetime:
 retain the original Pixi PNG, or use SVG. SVG-selected duplicates reserve the lowest
 free cache-identity slot and a different start clock, targeting at least one
@@ -199,9 +200,9 @@ one-second fallback wait). The existing static Pixi artwork remains visible
 during that bounded wait. PNG-selected duplicates never create a DOM image or
 phase lease, and pointer acquisition does not reroll their choice. If removal
 leaves only PNG copies, the next arriving same-family tile is forced to SVG.
-Each Wild Star reserves one
-phase lease for `star.svg`; its restored baby-star orbit keeps the established
-Pixi motion clock and is therefore outside the SMIL phase scheduler. Tile stop,
+Each Wild Star reserves one phase lease for `star.svg`; each Fish reserves one
+phase lease for its `fish.svg` or iOS HEVC timeline. The restored baby-star orbit
+keeps the established Pixi motion clock and is therefore outside the SMIL phase scheduler. Tile stop,
 restart, route teardown and late-load cleanup release the slot and cancel
 pending work; family runtime teardown also clears every retained PNG/SVG mode
 assignment.

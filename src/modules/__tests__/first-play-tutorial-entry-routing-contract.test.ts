@@ -26,7 +26,8 @@ describe('first-play tutorial entry routing', () => {
       'private showCollectiblesScreenWithAnimation(launchFirstPlayTutorial = false): void',
     )[1]?.split('async hideCollectiblesScreenWithAnimation')[0] ?? '';
 
-    expect(handoff).toContain('!launchFirstPlayTutorial && collectiblesManager');
+    expect(handoff).toContain('const journeyPreparePromise: Promise<any | null> = !launchFirstPlayTutorial');
+    expect(handoff).toContain("const { ensureCollectiblesManager } = await import('../collectibles-manager.js');");
     expect(handoff).toContain('if (launchFirstPlayTutorial)');
     expect(handoff).toContain('await startJourneyTutorial(1);');
     expect(handoff).toContain("await appZoneManager.hideHomepageForGame('first-play-journey-slider-handoff');");

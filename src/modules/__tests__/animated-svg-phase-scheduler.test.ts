@@ -1,6 +1,7 @@
 /** @jest-environment jsdom */
 
 import {
+  acquireAnimatedTimelinePhase,
   acquireAnimatedSvgPhase,
   getAnimatedSvgPhaseSchedulerStats,
 } from '../animated-svg-phase-scheduler';
@@ -67,6 +68,31 @@ describe('animated SVG phase scheduler', () => {
     expect(single.getAttribute('src')).toBe('./assets/shop/star/star.svg');
     expect(orbit.getAttribute('src')).toBe('./assets/test-orbit.svg');
     lease.release();
+  });
+
+  test('phases non-SVG media through the same lifecycle owner', () => {
+    const firstVideo = document.createElement('video');
+    const secondVideo = document.createElement('video');
+    const starts: string[] = [];
+    const first = acquireAnimatedTimelinePhase('fish-swim-composition', 1125, [{
+      element: firstVideo,
+      start: (phaseSlot) => starts.push(`first-${phaseSlot}`),
+    }]);
+    const second = acquireAnimatedTimelinePhase('fish-swim-composition', 1125, [{
+      element: secondVideo,
+      start: (phaseSlot) => starts.push(`second-${phaseSlot}`),
+    }]);
+
+    expect(starts).toEqual(['first-0']);
+    expect(firstVideo.dataset.ccSvgPhaseSlot).toBe('0');
+    expect(secondVideo.dataset.ccSvgPhaseSlot).toBe('1');
+    expect(second.delayMs).toBeGreaterThanOrEqual(100);
+
+    jest.advanceTimersByTime(second.delayMs);
+    expect(starts).toEqual(['first-0', 'second-1']);
+
+    second.release();
+    first.release();
   });
 
   test('cancels a pending duplicate start during tile cleanup', () => {

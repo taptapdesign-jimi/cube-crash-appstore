@@ -16,18 +16,21 @@ import { clearArcadeSaveState, getBoardSaveKey, hasResumableSavedStateForBoard }
 import { playNavIconCartoonBounce } from '../utils/nav-icon-bounce.js';
 import { arcadeStatsService } from '../services/arcade-stats-service.js';
 import { boardStatsService } from '../services/board-stats-service.js';
-import { JOURNEY_SLIDE_INDEX } from './homepage-slide-order.js';
-import { JOURNEY_LAYOUT_STATE_VERSION } from './journey-badge-state.js';
 import {
   getJourneyWorldDefinition,
+  getJourneyHubExtentPx,
+  getJourneyHubWorkingSet,
   getJourneyWorldIdForBoard as resolveJourneyWorldIdForBoard,
   getJourneyWorldRange as resolveJourneyWorldRange,
   JOURNEY_HUB_EAGER_WORLD_COUNT,
   JOURNEY_HUB_WORLD_DEFINITIONS,
+  JOURNEY_WORLD_DEFINITIONS,
+  JOURNEY_LAYOUT_STATE_VERSION,
   JOURNEY_MAX_BOARDS,
 } from './journey-world-definitions.js';
 import { JourneyHubRuntimeScheduler } from './journey-hub-runtime-scheduler.js';
 import {
+  canPresentJourneyCardReturnReminder,
   cancelJourneyCardOverlayReturn,
   clearJourneyInterimOrigin,
   completeJourneyCardOverlayReturn,
@@ -77,6 +80,7 @@ import {
   type JourneyWorldAnimationUnit,
 } from './journey-world-animation-coordinator.js';
 import {
+  amplifyJourneyCardReturnLandingScale,
   createJourneyInterimBounceVariant,
   JOURNEY_INTERIM_IDLE_MOTION,
 } from './journey-interim-idle-policy.js';
@@ -91,6 +95,7 @@ import {
 } from './detail-modal-stats-enter-motion.js';
 import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.js';
 import { getJourneyEarnedStars } from './journey-stage-balance.js';
+import { playCtaActivationSounds, preloadCtaActivationSounds } from './cta-activation-sound.ts';
 import {
   resolveJourneyCardAsset,
   type JourneyCardAsset,
@@ -107,6 +112,11 @@ import {
   acquireJourneyCardOriginLease,
   type JourneyCardOriginLease,
 } from './journey-card-portal-transition.js';
+import {
+  preloadJourneyCardReturnReminderAssets,
+  presentJourneyCardReturnReminder,
+  type JourneyCardReturnReminderController,
+} from './journey-card-return-reminder.js';
 import {
   startJourneyForestBeeOrbits,
   type JourneyForestBeeOrbitController,
@@ -150,6 +160,7 @@ import { preloadBeachBallMerge6Sounds } from './beach-ball-merge6-sound.ts';
 import { preloadCoreTntMerge6Sound } from './core-tnt-merge6-sound.ts';
 import { preloadFlowerMerge6Sounds } from './flower-merge6-sound.ts';
 import { preloadBeeMerge6Sounds } from './bee-merge6-sound.ts';
+import { preloadRoboCubeMerge6Sounds } from './robo-cube-merge6-sound.ts';
 import { preloadWildSpecialMerge6PoofSounds } from './wild-special-merge6-poof-sound.ts';
 import { preloadBottleFinaleSounds } from './bottle-finale-sound.ts';
 import { preloadOrdinaryStackSound } from './ordinary-stack-sound.ts';
@@ -832,38 +843,15 @@ function getJourneyBoardCardPositionOffsetPx(boardId: number): Readonly<{ x: num
 const STANDARD_CARD_WIDTH = 90;
 const STANDARD_CARD_HEIGHT = 133;
 
-const CARD_POSITIONS = [
-  { x: pxToPercent(28), top: forestTopPercent(155), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -4 },
-  { x: pxToPercent(300), top: forestTopPercent(243), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
-  { x: pxToPercent(40), top: forestTopPercent(353), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
-  { x: pxToPercent(232), top: forestTopPercent(441), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
-  { x: pxToPercent(74), top: forestTopPercent(571), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
-  { x: pxToPercent(222), top: forestTopPercent(675), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
-  { x: pxToPercent(40), top: forestTopPercent(779), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
-  { x: pxToPercent(206), top: forestTopPercent(903), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
-  { x: pxToPercent(20), top: forestTopPercent(1007), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
-  { x: pxToPercent(222), top: forestTopPercent(1131), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
-  { x: pxToPercent(36), top: forestTopPercent(1691), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
-  { x: pxToPercent(230), top: forestTopPercent(1821), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
-  { x: pxToPercent(44), top: forestTopPercent(1955), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
-  { x: pxToPercent(222), top: forestTopPercent(2079), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
-  { x: pxToPercent(40), top: forestTopPercent(2193), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
-  { x: pxToPercent(226), top: forestTopPercent(2321), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
-  { x: pxToPercent(40), top: forestTopPercent(2449), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
-  { x: pxToPercent(228), top: forestTopPercent(2569), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
-  { x: pxToPercent(40), top: forestTopPercent(2695), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
-  { x: pxToPercent(226), top: forestTopPercent(2821), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
-  { x: pxToPercent(19), top: forestTopPercent(3419), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
-  { x: pxToPercent(242), top: forestTopPercent(3539), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
-  { x: pxToPercent(56), top: forestTopPercent(3663), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -11 },
-  { x: pxToPercent(246), top: forestTopPercent(3775), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 4 },
-  { x: pxToPercent(62), top: forestTopPercent(3943), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
-  { x: pxToPercent(234), top: forestTopPercent(4042), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
-  { x: pxToPercent(63), top: forestTopPercent(4176), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
-  { x: pxToPercent(203), top: forestTopPercent(4295), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
-  { x: pxToPercent(20), top: forestTopPercent(4415), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -8 },
-  { x: pxToPercent(240), top: forestTopPercent(4529), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 10 },
-];
+const CARD_POSITIONS = JOURNEY_WORLD_DEFINITIONS.flatMap((world) =>
+  world.stages.map((position) => ({
+    x: pxToPercent(position.xPx),
+    top: forestTopPercent(position.topPx + world.mainOffsetPx),
+    width: position.widthPx || STANDARD_CARD_WIDTH,
+    height: position.heightPx || STANDARD_CARD_HEIGHT,
+    rotation: position.rotationDeg,
+  })),
+);
 
 const LOCKED_BOARD_NUMBER_OFFSETS: Record<number, { x: number; y: number; rotation?: number }> = {
   2: { x: -4, y: 32, rotation: -15 },
@@ -984,6 +972,7 @@ class JourneyBoardsManager {
   private journeyV700WorldOpenInProgress = false;
   private journeyV700CloseQueuedDuringEnter = false;
   private journeyCardOverlayModal: JourneyCardOverlayModalController | null = null;
+  private journeyCardReturnReminder: JourneyCardReturnReminderController | null = null;
   private journeyOverlayLandingCard: HTMLElement | null = null;
   private journeyLandingPoseTrace: {
     boardId: number;
@@ -3394,6 +3383,8 @@ class JourneyBoardsManager {
   }
 
   private cleanupDetailModalRuntimeState(): void {
+    this.journeyCardReturnReminder?.dispose();
+    this.journeyCardReturnReminder = null;
     this.journeyCardOverlayModal?.dispose();
     this.journeyCardOverlayModal = null;
     try {
@@ -4238,13 +4229,6 @@ class JourneyBoardsManager {
   constructor() {
     this.initializeBoards();
     this.loadBoardsState();
-
-    // 🔥 USER BUG FIX: Initialize journey_last_viewed_board_id if it doesn't exist
-    // This ensures badge works correctly from the start
-    if (!localStorage.getItem('journey_last_viewed_board_id')) {
-      localStorage.setItem('journey_last_viewed_board_id', '0');
-      logger.info('🗺️ Initialized journey_last_viewed_board_id to 0 in constructor');
-    }
 
     // 🏆 LIVE UPDATE: Refresh open detail modal stats when high score changes
     window.addEventListener('cc-board-highscore-updated', async (event: any) => {
@@ -5365,6 +5349,26 @@ class JourneyBoardsManager {
     });
   }
 
+  private playOverlayCardImpactSmoke(card: HTMLElement): void {
+    if (this.renderDisposed || !card.isConnected) return;
+    try { JOURNEY_CARD_IDLE_BOUNCE?.cleanupSmokeEffects?.(card); } catch {}
+    const smokeAlpha = Math.min(1, (0.68 + Math.random() * 0.14) * 1.4);
+    smokeBubblesAtCard(card, {
+      sizeScale: 0.54,
+      distanceScale: 0.58,
+      countScale: 0.28,
+      haloScale: 0.52,
+      strength: 1.55 + Math.random() * 0.2,
+      trailAlpha: smokeAlpha,
+      baseAlpha: smokeAlpha,
+      allowOverlap: false,
+      allowNonInterim: true,
+      activeLockMs: 720,
+      fadeOutTime: 0.46,
+      cleanupTime: 0.92,
+    });
+  }
+
   private playOverlayCardLandingBounce(card: HTMLElement): void {
     const cardWrapper = card.closest('.journey-board-card-wrapper') as HTMLElement | null;
     if (this.renderDisposed || !card.isConnected || !cardWrapper) return;
@@ -5421,23 +5425,23 @@ class JourneyBoardsManager {
 
     timeline
       .to(card, {
-        scaleX: JOURNEY_INTERIM_IDLE_MOTION.anticipationScaleX,
-        scaleY: JOURNEY_INTERIM_IDLE_MOTION.anticipationScaleY,
+        scaleX: amplifyJourneyCardReturnLandingScale(JOURNEY_INTERIM_IDLE_MOTION.anticipationScaleX),
+        scaleY: amplifyJourneyCardReturnLandingScale(JOURNEY_INTERIM_IDLE_MOTION.anticipationScaleY),
         y: 1.5,
         duration: JOURNEY_INTERIM_IDLE_MOTION.anticipationDurationSeconds,
         ease: 'power2.in',
       })
       .to(card, {
-        scaleX: variant.peakScaleX,
-        scaleY: variant.peakScaleY,
+        scaleX: amplifyJourneyCardReturnLandingScale(variant.peakScaleX),
+        scaleY: amplifyJourneyCardReturnLandingScale(variant.peakScaleY),
         rotation: tiltDegrees * tiltDirection * variant.tiltMultiplier,
         y: -JOURNEY_INTERIM_IDLE_MOTION.liftPx,
         duration: JOURNEY_INTERIM_IDLE_MOTION.riseDurationSeconds,
         ease: 'back.out(2.5)',
       })
       .to(card, {
-        scaleX: variant.landScaleX,
-        scaleY: variant.landScaleY,
+        scaleX: amplifyJourneyCardReturnLandingScale(variant.landScaleX),
+        scaleY: amplifyJourneyCardReturnLandingScale(variant.landScaleY),
         rotation: -tiltDegrees * tiltDirection * variant.tiltMultiplier * 0.22,
         y: 1,
         duration: JOURNEY_INTERIM_IDLE_MOTION.landDurationSeconds,
@@ -5452,27 +5456,12 @@ class JourneyBoardsManager {
         onComplete: () => {
           if (this.renderDisposed || !card.isConnected) return;
           this.journeyCardInteractionProfiler.mark('dismiss-landing-smoke-start', boardId);
-          try { JOURNEY_CARD_IDLE_BOUNCE?.cleanupSmokeEffects?.(card); } catch {}
-          const smokeAlpha = Math.min(1, (0.68 + Math.random() * 0.14) * 1.4);
-          smokeBubblesAtCard(card, {
-            sizeScale: 0.54,
-            distanceScale: 0.58,
-            countScale: 0.28,
-            haloScale: 0.52,
-            strength: 1.55 + Math.random() * 0.2,
-            trailAlpha: smokeAlpha,
-            baseAlpha: smokeAlpha,
-            allowOverlap: false,
-            allowNonInterim: true,
-            activeLockMs: 720,
-            fadeOutTime: 0.46,
-            cleanupTime: 0.92,
-          });
+          this.playOverlayCardImpactSmoke(card);
         },
       })
       .to(card, {
-        scaleX: JOURNEY_INTERIM_IDLE_MOTION.reboundScaleX,
-        scaleY: JOURNEY_INTERIM_IDLE_MOTION.reboundScaleY,
+        scaleX: amplifyJourneyCardReturnLandingScale(JOURNEY_INTERIM_IDLE_MOTION.reboundScaleX),
+        scaleY: amplifyJourneyCardReturnLandingScale(JOURNEY_INTERIM_IDLE_MOTION.reboundScaleY),
         rotation: tiltDegrees * tiltDirection * 0.12,
         y: -2.5,
         duration: JOURNEY_INTERIM_IDLE_MOTION.reboundDurationSeconds,
@@ -5916,7 +5905,7 @@ class JourneyBoardsManager {
     // 🔥 APP STORE FIX: Kill all GSAP animations on Journey cards and smoke particles
     const journeyScreen = document.getElementById('journey-screen');
     if (journeyScreen) {
-      const cards = journeyScreen.querySelectorAll('.collectible-card-wrapper');
+      const cards = journeyScreen.querySelectorAll('.journey-board-card-wrapper');
       const smokeParticles = journeyScreen.querySelectorAll('.smoke-particle');
       const interimCards = journeyScreen.querySelectorAll('.journey-board-card.interim');
       
@@ -6684,6 +6673,7 @@ class JourneyBoardsManager {
   ): void {
     const prepaint = options.prepaint === true;
     if (!prepaint) {
+      preloadCtaActivationSounds();
       this.journeyWorldRuntime.deactivate();
       this.journeyV700Phase = 'entering';
       this.setJourneyV700View('hub');
@@ -6702,6 +6692,7 @@ class JourneyBoardsManager {
     const hub = document.createElement('div');
     hub.className = 'journey-v700-hub';
     hub.setAttribute('aria-label', 'Journey worlds');
+    hub.style.setProperty('--journey-v700-hub-content-extent', `${getJourneyHubExtentPx()}px`);
     const hubScrollOwner = container.closest('#journey-screen .collectibles-scrollable') as HTMLElement | null;
 
     const hubCloudLayer = document.createElement('div');
@@ -6752,6 +6743,10 @@ class JourneyBoardsManager {
       button.className = `journey-v700-world-card ${meta.className} journey-v700-runtime-active${locked ? ' is-locked' : ''}${hasInterimCard ? ' has-interim-card' : ''} has-progress-banner`;
       button.dataset.worldId = String(worldId);
       button.setAttribute('aria-label', `${meta.name} world`);
+      button.style.top = `calc(env(safe-area-inset-top, 0px) + ${meta.hub.topPx}px)`;
+      button.style.removeProperty('left');
+      button.style.removeProperty('right');
+      button.style.setProperty(meta.hub.side, `${meta.hub.edgePx}px`);
 
       const visual = document.createElement('div');
       visual.className = 'journey-v700-world-visual';
@@ -6772,16 +6767,16 @@ class JourneyBoardsManager {
       tiltShell.style.animationDirection = Math.random() < 0.5 ? 'normal' : 'reverse';
 
       const banner = document.createElement('span');
-      banner.className = `journey-v700-world-banner journey-v700-world-banner-${worldIndex === 1 ? 'left' : 'right'}`;
+      banner.className = `journey-v700-world-banner journey-v700-world-banner-${meta.hub.bannerSide}`;
       banner.setAttribute('aria-hidden', 'true');
 
       const bannerImage = document.createElement('img');
-      bannerImage.src = JOURNEY_WORLD_BANNER_ASSET;
-      bannerImage.srcset = `${encodeURI(JOURNEY_WORLD_BANNER_ASSET_2X)} 2x`;
       bannerImage.alt = '';
       bannerImage.draggable = false;
       bannerImage.decoding = 'async';
       bannerImage.loading = worldIndex < JOURNEY_HUB_EAGER_WORLD_COUNT ? 'eager' : 'lazy';
+      bannerImage.src = meta.hub.bannerAsset;
+      bannerImage.srcset = `${encodeURI(meta.hub.bannerAsset2x)} 2x`;
       bannerImage.className = 'journey-v700-world-banner-image';
       banner.appendChild(bannerImage);
 
@@ -6804,11 +6799,11 @@ class JourneyBoardsManager {
       tiltShell.appendChild(banner);
 
       const image = document.createElement('img');
-      image.src = meta.asset;
       image.alt = '';
       image.draggable = false;
       image.decoding = 'async';
       image.loading = worldIndex < JOURNEY_HUB_EAGER_WORLD_COUNT ? 'eager' : 'lazy';
+      image.src = meta.asset;
       image.setAttribute('aria-hidden', 'true');
       image.className = 'journey-v700-world-image';
       tiltShell.appendChild(image);
@@ -6949,8 +6944,11 @@ class JourneyBoardsManager {
     const allWorldCards = Array.from(
       container.querySelectorAll<HTMLElement>('.journey-v700-world-card')
     );
+    const entryWorldIds = new Set(
+      getJourneyHubWorkingSet(Number(allWorldCards[0]?.dataset.worldId || 1)).map(world => world.id),
+    );
     const worldCards = MOBILE_RUNTIME_PROFILE.isMobileDevice
-      ? allWorldCards.slice(0, JOURNEY_HUB_EAGER_WORLD_COUNT)
+      ? allWorldCards.filter(card => entryWorldIds.has(Number(card.dataset.worldId)))
       : allWorldCards;
     if (!worldCards.length) return;
     const hub = container.querySelector<HTMLElement>('.journey-v700-hub');
@@ -7123,7 +7121,11 @@ class JourneyBoardsManager {
       this.journeyV700Phase = 'idle';
       if (hub) {
         const hubScrollRoot = container.closest('#journey-screen .collectibles-scrollable') as HTMLElement | null;
-        this.journeyHubRuntime.activate(hub, hubScrollRoot);
+        this.journeyHubRuntime.activate(
+          hub,
+          hubScrollRoot,
+          MOBILE_RUNTIME_PROFILE.isMobileDevice ? Array.from(entryWorldIds) : undefined,
+        );
       }
       if (source === 'world-return') {
         this.emitJourneyV700HubGeometryDiagnostic('idle-ready', container);
@@ -7226,6 +7228,7 @@ class JourneyBoardsManager {
 
     this.journeyV700WorldOpenInProgress = true;
     (container as any).__ccJourneyV700Opening = true;
+    playCtaActivationSounds();
     // A manual Hub -> World tap starts a new visible lifecycle. Return-only
     // suppression markers from a prior game/tutorial may not own this render.
     delete (window as any).__ccSuppressJourneyV700AutoWorldEnter;
@@ -7494,26 +7497,30 @@ class JourneyBoardsManager {
     });
   }
 
-  private primeJourneyV700HubForHiddenHandoff(root: HTMLElement): void {
+  private primeJourneyV700HubForHiddenHandoff(root: HTMLElement, workWorldIds: readonly number[]): void {
     const worldCards = Array.from(root.querySelectorAll<HTMLElement>('.journey-v700-world-card'));
+    const workSet = new Set(workWorldIds);
+    const animatedCards = worldCards.filter(card => workSet.has(Number(card.dataset.worldId)));
+    const settledCards = worldCards.filter(card => !workSet.has(Number(card.dataset.worldId)));
     const hubCloudLayer = root.querySelector<HTMLElement>('.journey-v700-hub-cloud-layer');
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
     const motion = getJourneyV700MotionProfile(reducedMotion);
-    worldCards.forEach((card) => {
+    animatedCards.forEach((card) => {
       if (!card.dataset.journeyHubFinalOpacity) {
         const authoredOpacity = Number.parseFloat(getComputedStyle(card).opacity);
         card.dataset.journeyHubFinalOpacity = String(Number.isFinite(authoredOpacity) ? authoredOpacity : 1);
       }
     });
     try {
-      gsap.killTweensOf(worldCards);
-      gsap.set(worldCards, {
+      gsap.killTweensOf(animatedCards);
+      gsap.set(animatedCards, {
         y: motion.enter.y,
         scale: motion.enter.scale,
         opacity: 0,
         visibility: 'visible',
         force3D: true,
       });
+      gsap.set(settledCards, { clearProps: 'transform,opacity,visibility,willChange' });
       if (hubCloudLayer) {
         gsap.killTweensOf(hubCloudLayer);
         gsap.set(hubCloudLayer, {
@@ -7596,8 +7603,13 @@ class JourneyBoardsManager {
       });
       try {
         this.renderJourneyV700Hub(root, { prepaint: true });
+        const workWorldIds = new Set(getJourneyHubWorkingSet(this.journeyV700WorldId).map(world => world.id));
         const images = Array.from(root.querySelectorAll<HTMLImageElement>('img'));
-        await Promise.all(images.map((image) => waitForImageReady(image)));
+        const workImages = images.filter((image) => {
+          const owner = image.closest<HTMLElement>('[data-world-id]');
+          return owner ? workWorldIds.has(Number(owner.dataset.worldId)) : false;
+        });
+        await Promise.all(workImages.map((image) => waitForImageReady(image)));
         if (!isCurrent()) return false;
         void root.getBoundingClientRect();
         const painted = await this.waitForTrackedFrames(3);
@@ -7607,7 +7619,8 @@ class JourneyBoardsManager {
           emitIOSNativeDiagnostic('hub-prepaint-painted', {
             worldId: this.journeyV700WorldId,
             childCount: root.querySelectorAll('*').length,
-            imageCount: images.length,
+            imageCount: workImages.length,
+            totalLazyImageCount: images.length,
             durationMs: Math.round(performance.now() - startedAt),
           });
         }
@@ -7629,7 +7642,8 @@ class JourneyBoardsManager {
     const stage = this.journeyHubPrepaintStage;
     if (!stage || !stage.ready || !stage.host.isConnected || !stage.root.isConnected) return false;
 
-    this.primeJourneyV700HubForHiddenHandoff(stage.root);
+    const workWorldIds = getJourneyHubWorkingSet(this.journeyV700WorldId).map(world => world.id);
+    this.primeJourneyV700HubForHiddenHandoff(stage.root, workWorldIds);
     const outgoingChildren = Array.from(container.children).filter((child) => child !== stage.host) as HTMLElement[];
     outgoingChildren.forEach((child) => {
       child.style.visibility = 'hidden';
@@ -8015,14 +8029,19 @@ class JourneyBoardsManager {
 
 	  public playJourneyV700HubExit(reason = 'hub-exit', selectedWorldCard: HTMLElement | null = null): Promise<void> {
 	    this.cancelJourneyV700HubEnter(reason);
-	    this.journeyHubRuntime.prepareForTransition(
-	      document.querySelector<HTMLElement>('#journey-boards-container .journey-v700-hub'),
-	    );
+	    const transitionHub = document.querySelector<HTMLElement>('#journey-boards-container .journey-v700-hub');
+	    const activeWorldIds = this.journeyHubRuntime.getActiveWorldIds();
+	    const anchorWorldId = Number(selectedWorldCard?.dataset.worldId || activeWorldIds[0] || JOURNEY_HUB_WORLD_DEFINITIONS[0]?.id || 1);
+	    const transitionWorldIds = new Set(getJourneyHubWorkingSet(anchorWorldId).map(world => world.id));
+	    const transitionCards = Array.from(
+	      transitionHub?.querySelectorAll<HTMLElement>('.journey-v700-world-card') || [],
+	    ).filter(card => transitionWorldIds.has(Number(card.dataset.worldId)));
+	    this.journeyHubRuntime.prepareForTransition(transitionHub, transitionCards);
 	    this.releaseJourneyV700HubTopGuard(reason);
 	    const container = document.getElementById('journey-boards-container') as HTMLElement | null;
 	    const worldCards = Array.from(
 	      container?.querySelectorAll<HTMLElement>('.journey-v700-world-card') || []
-	    ).filter((card) => document.body.contains(card) && card.style.display !== 'none');
+	    ).filter((card) => transitionWorldIds.has(Number(card.dataset.worldId)) && document.body.contains(card) && card.style.display !== 'none');
 	    const hub = container?.querySelector<HTMLElement>('.journey-v700-hub') || null;
 	    const hubCloudLayer = container?.querySelector<HTMLElement>('.journey-v700-hub-cloud-layer') || null;
 	    const includeNavExit = reason === 'back-to-home';
@@ -8096,6 +8115,7 @@ class JourneyBoardsManager {
 	            force3D: true,
 	            overwrite: true,
 	            onComplete: finishTarget,
+	            onInterrupt: finishTarget,
 	          });
 	        } catch {
 	          finishTarget();
@@ -8115,6 +8135,7 @@ class JourneyBoardsManager {
             force3D: true,
             overwrite: true,
             onComplete: finishTarget,
+            onInterrupt: finishTarget,
           });
         } catch {
           finishTarget();
@@ -8191,6 +8212,7 @@ class JourneyBoardsManager {
               force3D: true,
               overwrite: true,
               onComplete: finishTarget,
+              onInterrupt: finishTarget,
             });
         } catch {
           finishTarget();
@@ -9106,6 +9128,7 @@ class JourneyBoardsManager {
     // Decode the three fixed modal assets while the World itself is being
     // prepared. A card tap then owns only geometry and the authored flight.
     void preloadJourneyCardOverlayAssets();
+    void preloadJourneyCardReturnReminderAssets();
     // 🔥 APP STORE FIX: Fixed background position using viewport units
     // Background starts at a fixed position from top of viewport
     // Based on iPhone 13/14 layout: header + section header + spacing = ~50px from top (moved up 150px)
@@ -9717,6 +9740,17 @@ class JourneyBoardsManager {
           e.preventDefault();
           e.stopPropagation();
         } catch {}
+
+        // The automatic gameplay-return reminder is decorative and must never
+        // consume a card interaction. A new card tap retires that portal, then
+        // continues through this card's normal handler without waiting.
+        const activeReturnReminder = this.journeyCardReturnReminder;
+        if (activeReturnReminder) {
+          activeReturnReminder.dispose();
+          if (this.journeyCardReturnReminder === activeReturnReminder) {
+            this.journeyCardReturnReminder = null;
+          }
+        }
 
         // Avoid duplicate trigger: ignore click right after touchend
         const now = Date.now();
@@ -10333,6 +10367,10 @@ class JourneyBoardsManager {
     const { journeyProgressionState } = await import('./journey-progression-state.js');
     journeyProgressionState.setLastOpenedBoardId(boardId);
     markJourneyCardOverlayReturn(boardId);
+    emitIOSNativeDiagnostic('journey-card-return-receipt-armed', {
+      boardId,
+      source: 'regular-overlay-play',
+    });
     markJourneyGameOrigin({ fromInterim: false });
 
     const hasSavedState = hasResumableSavedStateForBoard(boardId, { clearInvalid: true });
@@ -10466,7 +10504,16 @@ class JourneyBoardsManager {
 
   private async runJourneyOverlayReturnCard(boardId: number): Promise<void> {
     const board = this.getBoardById(boardId);
-    if (!board?.unlocked || getJourneyCardOverlayReturnBoardId() !== boardId) return;
+    const receiptBoardId = getJourneyCardOverlayReturnBoardId();
+    const reminderEligible = canPresentJourneyCardReturnReminder(board, receiptBoardId);
+    emitIOSNativeDiagnostic('journey-card-return-reminder-eligibility', {
+      boardId,
+      receiptBoardId,
+      unlocked: board?.unlocked === true,
+      interim: board?.interim === true,
+      reminderEligible,
+    });
+    if (!reminderEligible) return;
     const targetElement = await this.waitForJourneyOverlayReturnReady(boardId);
     if (getJourneyCardOverlayReturnBoardId() !== boardId) return;
     if (!targetElement) {
@@ -10479,16 +10526,11 @@ class JourneyBoardsManager {
     }
     const origin = acquireJourneyCardOriginLease(boardId, targetElement);
     if (!origin) {
-      logger.warn('⚠️ Journey overlay return could not lease the exact live card', { boardId });
+      logger.warn('⚠️ Journey card reminder could not lease the exact live card', { boardId });
       cancelJourneyCardOverlayReturn(boardId);
       return;
     }
 
-    const scrollOwner = document.querySelector<HTMLElement>(
-      '#journey-screen .collectibles-scrollable',
-    );
-    (targetElement as any)._openingDetail = true;
-    let worldPausedForOverlay = false;
     try {
       if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction === 'function') {
         JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction();
@@ -10500,84 +10542,45 @@ class JourneyBoardsManager {
       try { gsap.killTweensOf(targetElement); } catch {}
       origin.prepareSettledLanding();
       origin.captureLandingGeometry();
-      this.pauseJourneyWorldForCardOverlay('game-return-card-open', targetElement);
-      worldPausedForOverlay = true;
-      this.journeyCardOverlayModal?.dispose();
-      let earlyJourneyExitPromise: Promise<void> | null = null;
-      let resolveOverlayCardExit!: () => void;
-      const overlayCardExit = new Promise<void>((resolve) => {
-        resolveOverlayCardExit = resolve;
-      });
-      const overlayCardAsset = this.syncBoardCardAsset(board);
-      const controller = presentJourneyCardOverlayModal({
+      this.startJourneyLandingPoseTrace(targetElement, 'return-reminder-start');
+      this.journeyCardReturnReminder?.dispose();
+      const controller = presentJourneyCardReturnReminder({
         boardId,
         origin,
-        cardImagePath1x: overlayCardAsset.path1x,
-        cardImagePath2x: overlayCardAsset.path2x,
-        cardRarity: overlayCardAsset.rarity,
-        hasSavedState: hasResumableSavedStateForBoard(boardId, { clearInvalid: true }),
-        scrollOwner,
-        entryInitialOpacity: 1,
-        onPerformancePhase: (phase) => {
-          this.journeyCardInteractionProfiler.mark(phase, board.id);
-          if (phase === 'dismiss-origin-restored') {
-            this.startJourneyLandingPoseTrace(targetElement, phase);
-          } else if (phase.startsWith('dismiss-')) {
-            this.markJourneyLandingPoseTrace(phase);
-          }
-        },
-        onDismissCardLanded: () => {
-          this.playOverlayCardLandingBounce(targetElement);
-        },
-        onPlayCardReturnStart: () => {
-          this.stopJourneyAreaIdleForTargets(this.getJourneyAreaElements(board.id));
-        },
-        onPlayCardExitStart: () => {
-          if (this.renderDisposed || earlyJourneyExitPromise) return;
-          earlyJourneyExitPromise = this.startOverlayPortaledCardJourneyExit(
-            board.id,
-            overlayCardExit,
-          );
-          logger.info('🧪 Journey return overlay portaled card collapse started linked Journey exit', {
-            boardId: board.id,
-          });
-        },
-        onPlayCardExitComplete: () => {
-          resolveOverlayCardExit();
-          logger.info('🧪 Journey return overlay portaled card exit completed', {
-            boardId: board.id,
-          });
-        },
+        onImpactSmoke: () => this.playOverlayCardImpactSmoke(targetElement),
       });
-      this.journeyCardOverlayModal = controller;
-      logger.info('🧪 Journey gameplay return replayed the exact card-to-modal enter', {
+      this.journeyCardReturnReminder = controller;
+      logger.info('🧪 Journey gameplay return started the shortened automatic card reminder', {
         boardId,
         worldId: this.journeyV700WorldId,
+        travelRatio: 0.3,
       });
       const result = await controller.result;
-      if (this.journeyCardOverlayModal === controller) this.journeyCardOverlayModal = null;
-      if (result === 'dismiss') {
-        if (controller.didLandAtOrigin) completeJourneyCardOverlayReturn(boardId);
-        else cancelJourneyCardOverlayReturn(boardId);
-        this.resumeJourneyWorldAfterCardOverlay('game-return-card-dismiss');
-        worldPausedForOverlay = false;
-        return;
+      if (this.journeyCardReturnReminder === controller) {
+        this.journeyCardReturnReminder = null;
+      }
+      if (result === 'complete') {
+        this.markJourneyLandingPoseTrace('return-reminder-flight-complete');
+        completeJourneyCardOverlayReturn(boardId);
+        this.journeyCardInteractionProfiler.mark('return-reminder-landed', boardId);
+      } else {
+        cancelJourneyCardOverlayReturn(boardId);
+        try { JOURNEY_CARD_IDLE_BOUNCE?.cleanupSmokeEffects?.(targetElement); } catch {}
+        logger.warn('⚠️ Journey card reminder ended before exact landing', { boardId, result });
       }
       if (!this.renderDisposed) {
-        await this.startJourneyBoardFromOverlay(board, earlyJourneyExitPromise);
+        this.trackTimeout(() => this.startVisibleInterimCardIdleEffects(document), 900);
       }
     } catch (error) {
+      this.journeyCardReturnReminder?.dispose();
+      this.journeyCardReturnReminder = null;
       origin.restoreNow();
       cancelJourneyCardOverlayReturn(boardId);
-      if (worldPausedForOverlay && !this.renderDisposed) {
-        this.resumeJourneyWorldAfterCardOverlay('game-return-card-error');
-      }
-      logger.warn('⚠️ Journey gameplay return overlay failed safely', {
+      try { JOURNEY_CARD_IDLE_BOUNCE?.cleanupSmokeEffects?.(targetElement); } catch {}
+      logger.warn('⚠️ Journey gameplay return reminder failed safely', {
         boardId,
         error: error instanceof Error ? error.message : String(error),
       });
-    } finally {
-      (targetElement as any)._openingDetail = false;
     }
   }
 
@@ -11160,6 +11163,18 @@ class JourneyBoardsManager {
 
       // Step 5: Hide Journey UI (cleanup after hideCollectibles)
       this.hideHomeAndJourneyScreens('after journey exit', { setJourneyZIndex: true, cleanup: false });
+
+      // The direct interim-card path bypasses the regular card modal, so it
+      // must arm the same exact-card return receipt itself. Do this only after
+      // the visible Journey exit has completed: the receipt's placeholder
+      // class intentionally hides the live card until the return reminder
+      // leases it, and arming earlier would cut off the authored Unit exit.
+      const reminderBoardId = markJourneyCardOverlayReturn(board.id);
+      emitIOSNativeDiagnostic('journey-card-return-receipt-armed', {
+        boardId: board.id,
+        source: 'interim-direct-play',
+        accepted: reminderBoardId === board.id,
+      });
       
       // Step 7: Also call hideCollectibles to ensure proper cleanup (memory leak prevention)
       const collectiblesManager = (window as any).collectiblesManager;
@@ -12129,8 +12144,7 @@ class JourneyBoardsManager {
           }
         }
         
-        // 🔥 USER REQUEST: Mark board as viewed for badge counting
-        // Badge count decreases by 1 when details screen is opened
+        // Persist the viewed state used by the New ribbon and card idle owner.
         this.markBoardAsViewed(board.id);
       }
       }, 0);
@@ -12665,6 +12679,7 @@ class JourneyBoardsManager {
           preloadCoreTntMerge6Sound();
           preloadFlowerMerge6Sounds();
           preloadBeeMerge6Sounds();
+          preloadRoboCubeMerge6Sounds();
           preloadWildSpecialMerge6PoofSounds();
           preloadBottleFinaleSounds();
           preloadOrdinaryStackSound();
@@ -12695,6 +12710,12 @@ class JourneyBoardsManager {
             fromInterim: false,
             fromDetailModal: true,
             detailBoardId: boardIdForPlay,
+          });
+          const reminderBoardId = markJourneyCardOverlayReturn(boardIdForPlay);
+          emitIOSNativeDiagnostic('journey-card-return-receipt-armed', {
+            boardId: boardIdForPlay,
+            source: 'regular-detail-play',
+            accepted: reminderBoardId === boardIdForPlay,
           });
           logger.debug(`🎯 Marked regular Journey detail origin for board ${boardIdForPlay}`);
 
@@ -12797,6 +12818,12 @@ class JourneyBoardsManager {
               
               // 🔥 Mark from interim so clean board shows "Continue"
               this.setJourneyOriginFlags({ fromInterim: true });
+              const reminderBoardId = markJourneyCardOverlayReturn(board.id);
+              emitIOSNativeDiagnostic('journey-card-return-receipt-armed', {
+                boardId: board.id,
+                source: 'interim-detail-continue',
+                accepted: reminderBoardId === board.id,
+              });
               logger.info('🗺️ Marked as coming from interim (Continue button) - clean board will show Continue');
               
               if (typeof (window as any).continueGameWithSavedState === 'function') {
@@ -14123,7 +14150,7 @@ class JourneyBoardsManager {
       logger.info(`🗺️ Journey board ${boardNumber.toString().padStart(2, '0')} locked.`);
       
       // 🔥 DEV BUTTON RESET: Check if all boards are locked except board 1
-      // If so, reset game progress (highestBoard, boardNumber, badge count)
+      // If so, reset game progress (highestBoard and boardNumber)
       this.checkAndResetProgressIfNeeded();
       
       return true;
@@ -14182,15 +14209,6 @@ class JourneyBoardsManager {
           logger.warn('⚠️ DEV RESET: Failed to reset boardNumber:', error instanceof Error ? error.message : String(error));
         }
         
-        // Reset badge count (journey_last_viewed_board_id)
-        localStorage.setItem('journey_last_viewed_board_id', '0'); // Reset to 0 (no boards viewed)
-        logger.info('✅ DEV RESET: Badge count reset (journey_last_viewed_board_id = 0)');
-        
-        // Reset badge in UI
-        if (typeof (window as any).updateNavBadge === 'function') {
-          (window as any).updateNavBadge(0, JOURNEY_SLIDE_INDEX, { forceReset: true });
-          logger.info('✅ DEV RESET: Journey badge reset in UI');
-        }
       }
     } catch (error) {
       logger.warn('⚠️ DEV RESET: Failed to check and reset progress:', error instanceof Error ? error.message : String(error));
@@ -14340,86 +14358,14 @@ class JourneyBoardsManager {
         logger.warn('⚠️ Failed to update highest unlocked board ID:', error instanceof Error ? error.message : String(error));
       }
       
-      // 🔥 USER BUG FIX: Update navigation badge immediately after unlocking board
-      // This ensures badge shows newly unlocked board count even when user is still in game
-      // Even if board was already unlocked (like Board 1), we still need to check badge count
-      const newlyUnlockedCount = this.getNewlyUnlockedCount();
-      logger.debug(`🗺️ unlockBoardOnCompletion: Badge count calculated: ${newlyUnlockedCount} for board ${boardNumber} (was already unlocked: ${wasAlreadyUnlocked})`);
-      
-      if (typeof (window as any).updateNavBadge === 'function') {
-        (window as any).updateNavBadge(newlyUnlockedCount, JOURNEY_SLIDE_INDEX);
-        logger.debug(`🗺️ Journey badge updated after unlocking board ${boardNumber}: ${newlyUnlockedCount} newly unlocked boards (was already unlocked: ${wasAlreadyUnlocked})`);
-      } else {
-        logger.warn(`⚠️ updateNavBadge function not found! Badge will not be updated for board ${boardNumber}`);
-      }
     } catch (error) {
       logger.warn('Failed to unlock board on completion:', error instanceof Error ? error.message : String(error));
     }
   }
 
   /**
-   * Get count of newly unlocked boards (boards that were just unlocked/won)
-   * This is used for badge notification
-   * 
-   * IMPORTANT: Badge shows ONLY unlocked (completed/won) boards that user hasn't viewed yet
-   * - Interim boards are NOT counted (they are accessible but not won yet)
-   * - Only unlocked boards count towards badge
-   * - Badge resets to 0 when user visits journey screen
-   * 
-   * Example:
-   * - Win Board 1 → Board 1 unlocked → badge = 1
-   * - Start Board 2 → Board 2 interim (NOT unlocked) → badge = 1 (still, Board 2 doesn't count)
-   * - Win Board 2 → Board 2 unlocked → badge = 2
-   * - Visit journey screen → badge = 0 (all unlocked boards marked as viewed)
-   * - Win Board 3 → Board 3 unlocked → badge = 1 (Board 1 and 2 were already viewed)
-   */
-  public getNewlyUnlockedCount(): number {
-    try {
-      // 🔥 USER REQUEST: Get list of viewed boards (individual tracking)
-      // Each board is marked as viewed when user opens its details screen
-      const viewedBoardsStr = localStorage.getItem('journey_viewed_boards') || '[]';
-      const viewedBoards: number[] = JSON.parse(viewedBoardsStr);
-      
-      // Count ONLY unlocked boards (completed/won boards)
-      // Interim boards are NOT counted - they are accessible but not won yet
-      const unlockedBoards = this.boards.filter(b => b.unlocked);
-      const unlockedCount = unlockedBoards.length;
-      
-      // Count how many unlocked boards user has NOT viewed yet
-      // A board is "viewed" if its ID is in the viewedBoards list
-      // Only unlocked boards count towards badge
-      const newUnlockedBoards = unlockedBoards.filter(b => !viewedBoards.includes(b.id));
-      const newCount = newUnlockedBoards.length;
-      
-      logger.info(`🗺️ Badge count: ${unlockedCount} unlocked boards total, viewed boards: [${viewedBoards.join(', ')}], new boards: [${newUnlockedBoards.map(b => b.id).join(', ')}], ${newCount} new unlocked boards not viewed yet (interim boards NOT counted)`);
-      
-      return newCount;
-    } catch (error) {
-      logger.warn('Failed to get newly unlocked count:', error instanceof Error ? error.message : String(error));
-      return 0;
-    }
-  }
-
-  /**
-   * Get total unlocked boards count (excluding board 1)
-   * This is used to show badge with total number of unlocked boards
-   */
-  public getTotalUnlockedCount(): number {
-    try {
-      const currentUnlockedCount = this.boards.filter(b => b.unlocked).length;
-      // Subtract 1 for board 1 which is always unlocked
-      const unlockedBoardsExcludingFirst = Math.max(0, currentUnlockedCount - 1);
-      return unlockedBoardsExcludingFirst;
-    } catch (error) {
-      logger.warn('Failed to get total unlocked count:', error instanceof Error ? error.message : String(error));
-      return 0;
-    }
-  }
-
-  /**
-   * 🔥 USER REQUEST: Mark a specific board as viewed (when details screen is opened)
-   * Badge count decreases by 1 each time a board details screen is opened
-   * 
+   * Mark a board as viewed so its one-time New presentation and idle motion stop.
+   *
    * @param boardId - The ID of the board to mark as viewed
    */
   public markBoardAsViewed(boardId: number): void {
@@ -14433,13 +14379,6 @@ class JourneyBoardsManager {
         viewedBoards.push(boardId);
         localStorage.setItem('journey_viewed_boards', JSON.stringify(viewedBoards));
         logger.info(`🗺️ Board ${boardId} marked as viewed (total viewed: ${viewedBoards.length})`);
-        
-        // Update badge count in UI
-        const newBadgeCount = this.getNewlyUnlockedCount();
-        if (typeof (window as any).updateNavBadge === 'function') {
-          (window as any).updateNavBadge(newBadgeCount, JOURNEY_SLIDE_INDEX, { forceReset: true });
-          logger.debug(`🗺️ Journey badge updated to ${newBadgeCount} after viewing board ${boardId}`);
-        }
       } else {
         logger.info(`🗺️ Board ${boardId} already marked as viewed - no action needed`);
       }
@@ -14448,25 +14387,6 @@ class JourneyBoardsManager {
     }
   }
   
-  /**
-   * @deprecated Use markBoardAsViewed(boardId) instead for individual tracking
-   * Mark all currently unlocked (completed/won) boards as viewed (reset badge count)
-   * This is called when user visits journey screen
-   * 
-   * IMPORTANT: Only unlocked boards are marked as viewed (interim boards don't count)
-   * Badge resets to 0 after user visits journey screen
-   */
-  public markAsViewed(): void {
-    try {
-      // 🔥 USER REQUEST: Don't reset badge when opening journey screen
-      // Badge should only decrease when individual board details are opened
-      // Keep this method for backward compatibility but don't reset badge
-      logger.info('🗺️ markAsViewed() called - badge will NOT be reset (use markBoardAsViewed() instead)');
-    } catch (error) {
-      logger.warn('Failed to mark journey boards as viewed:', error instanceof Error ? error.message : String(error));
-    }
-  }
-
   public async resetBoardByNumber(boardNumber: number): Promise<boolean> {
     if (boardNumber < 1 || boardNumber > JOURNEY_MAX_BOARDS) return false;
 

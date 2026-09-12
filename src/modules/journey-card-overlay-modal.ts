@@ -27,6 +27,13 @@ import {
   clearJourneyInterimShineMask,
   setJourneyInterimShineMask,
 } from './journey-interim-card-shine.js';
+import {
+  playJourneyCardEntryFlipSounds,
+  playJourneyCardManualFlipSound,
+  playJourneyCardReturnSwooshSound,
+  preloadJourneyCardEntryFlipSounds,
+  stopJourneyCardEntryFlipSounds,
+} from './journey-card-entry-flip-sound.js';
 
 export type JourneyCardOverlayModalResult = 'dismiss' | 'play';
 
@@ -137,6 +144,7 @@ const JOURNEY_CARD_OVERLAY_ASSETS = [
 let journeyCardOverlayPreloadPromise: Promise<void> | null = null;
 
 export function preloadJourneyCardOverlayAssets(): Promise<void> {
+  preloadJourneyCardEntryFlipSounds();
   if (journeyCardOverlayPreloadPromise) return journeyCardOverlayPreloadPromise;
   if (typeof Image === 'undefined') return Promise.resolve();
   journeyCardOverlayPreloadPromise = Promise.allSettled(
@@ -713,6 +721,7 @@ export function presentJourneyCardOverlayModal(
   let dragStartAngle = 0;
   let dragFlipProgress = 0;
   let dragFlipCommitted = false;
+  let dragFlipSoundPending = false;
   let dragFlipCommitX = 0;
   let dragFlipCommitY = 0;
   let dragAllowedDirection: -1 | 0 | 1 = 0;
@@ -1288,7 +1297,9 @@ export function presentJourneyCardOverlayModal(
 
   const cancelMotion = () => {
     flipGeneration += 1;
+    dragFlipSoundPending = false;
     stopSurfaceIdle();
+    stopJourneyCardEntryFlipSounds();
     if (pointerTakeoverAuditRaf !== 0) {
       cancelAnimationFrame(pointerTakeoverAuditRaf);
       pointerTakeoverAuditRaf = 0;
@@ -1378,6 +1389,7 @@ export function presentJourneyCardOverlayModal(
     targetFace: 'front' | 'back',
     preferredDirection?: -1 | 1,
     pointerReleaseAngle?: number,
+    playSoundImmediately = true,
   ): Promise<void> => {
     if (entering || closing || settled || flipping || impactAnimation || dragPreviewSettleAnimation) return;
     // An in-contact handoff must continue from the exact angle last painted by
@@ -1396,6 +1408,7 @@ export function presentJourneyCardOverlayModal(
       flipRecoilAnimation = null;
     }
     flipping = true;
+    if (playSoundImmediately) playJourneyCardManualFlipSound();
     handoffSurfaceIdle(activePointerId !== null ? 'freeze-for-pointer' : 'settle');
     setRotorAngle(from);
     stage.classList.add('is-flipping');
@@ -1527,6 +1540,7 @@ export function presentJourneyCardOverlayModal(
     }
     const initialOpacity = Math.max(0, Math.min(1, options.entryInitialOpacity ?? 1));
     spatialShell.style.opacity = String(initialOpacity);
+    playJourneyCardEntryFlipSounds();
     spatialFlight = startJourneyCardSpatialFlight({
       motionElement: spatialShell,
       baseGeometry: destination,
@@ -1606,6 +1620,7 @@ export function presentJourneyCardOverlayModal(
     let exitNotified = false;
     setRotorAngle(stableFace === 'back' ? -180 : 0);
     if (!play) options.onPerformancePhase?.('dismiss-return-flight-start');
+    playJourneyCardReturnSwooshSound();
     spatialFlight = startJourneyCardSpatialFlight({
       motionElement: spatialShell,
       baseGeometry: source,
@@ -1851,6 +1866,7 @@ export function presentJourneyCardOverlayModal(
     dragStartAngle = dragHandoffAngle;
     dragFlipProgress = 0;
     dragFlipCommitted = false;
+    dragFlipSoundPending = false;
     dragFlipCommitX = event.clientX;
     dragFlipCommitY = event.clientY;
     dragAllowedDirection = 0;
@@ -2042,7 +2058,8 @@ export function presentJourneyCardOverlayModal(
         direction: committedDirection,
         deltaX: Number(deltaX.toFixed(2)),
       });
-      void animateInteractiveFlip(stableFace === 'front' ? 'back' : 'front').then(() => {
+      dragFlipSoundPending = true;
+      void animateInteractiveFlip(stableFace === 'front' ? 'back' : 'front', undefined, undefined, false).then(() => {
         if (
           activePointerId === null
           || activePointerId !== committedPointerId
@@ -2088,6 +2105,7 @@ export function presentJourneyCardOverlayModal(
       deltaY: Number(deltaY.toFixed(2)),
       hasPointerCapture: rotor.hasPointerCapture?.(event.pointerId) ?? null,
     });
+    const shouldPlayCommittedDragSound = allowCommit && dragFlipSoundPending;
     activePointerId = null;
     try { rotor.releasePointerCapture(event.pointerId); } catch {}
     stage.classList.remove('is-dragging');
@@ -2096,6 +2114,7 @@ export function presentJourneyCardOverlayModal(
       && Math.abs(deltaY) >= getJourneyCardDismissDragDistance(dragCardHeight)
       && isJourneyCardVerticalDismissGesture(deltaX, deltaY);
     if (shouldDismiss) {
+      dragFlipSoundPending = false;
       clearLegendaryDragShine();
       event.preventDefault();
       event.stopPropagation();
@@ -2103,6 +2122,7 @@ export function presentJourneyCardOverlayModal(
       return;
     }
     if (!allowCommit) {
+      dragFlipSoundPending = false;
       clearLegendaryDragShine();
       if (flipping) {
         impactShell.style.translate = 'none';
@@ -2116,6 +2136,8 @@ export function presentJourneyCardOverlayModal(
       scheduleIdleCoach();
       return;
     }
+    dragFlipSoundPending = false;
+    if (shouldPlayCommittedDragSound) playJourneyCardManualFlipSound();
     event.preventDefault();
     event.stopPropagation();
     if (!moved) {

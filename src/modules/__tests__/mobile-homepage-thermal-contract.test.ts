@@ -37,8 +37,8 @@ describe('mobile Homepage thermal ownership', () => {
     );
     expect(sliderCss).toContain('animation: cubesFloat 3s ease-in-out infinite;');
     expect(sliderCss).toContain('animation: trophyGlow 4s ease-in-out infinite;');
-    expect(sliderCss).toContain('animation: boxShake 2.5s ease-in-out infinite;');
     expect(sliderCss).toContain('animation: settingsGlow 3.5s ease-in-out infinite;');
+    expect(sliderCss).not.toContain('boxShake');
   });
 
   test('runs active navigation idle only while Homepage owns the tree', () => {
@@ -54,7 +54,7 @@ describe('mobile Homepage thermal ownership', () => {
     const sliderMobileContract = sliderCss.split('Mobile thermal contract:')[1]
       ?.split('@keyframes settingsGlow')[0] ?? '';
     const navigationMobileContract = navigationCss.split('Mobile thermal contract:')[1]
-      ?.split('.nav-badge-text')[0] ?? '';
+      ?.split('@media screen and (min-width: 768px)')[0] ?? '';
 
     expect(sliderMobileContract).toContain('will-change: auto;');
     expect(sliderMobileContract).not.toContain('!important');

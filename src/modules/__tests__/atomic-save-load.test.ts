@@ -170,9 +170,7 @@ describe('atomic restore boundary', () => {
       },
       createEmptyGrid: () => emptyGrid(),
       applyWildSkinLocal: jest.fn(),
-      startWildShimmer: jest.fn(),
       stopWildShimmer: jest.fn(),
-      startMagnetIdleParticles: jest.fn(),
       stopMagnetIdleParticles: jest.fn(),
       trackAppTimeout: jest.fn(),
       STATE: {},
@@ -184,5 +182,51 @@ describe('atomic restore boundary', () => {
     expect(liveTiles).toEqual([liveTile]);
     expect(liveGrid[0][0]).toBe(liveTile);
     expect(liveTile.destroy).not.toHaveBeenCalled();
+  });
+
+  test('defers restored Kanta idle until Continue board pop-in has settled', () => {
+    const restoredTile: any = regularTile({
+      value: 6,
+      scale: { set: jest.fn() },
+      base: {},
+    });
+    const applyWildSkinLocal = jest.fn((tile: any) => {
+      expect(tile._ccSpecialDiceVariant).toBe('kanta');
+      expect(tile._ccDeferWildIdleFx).toBe(true);
+    });
+
+    const result = restoreTilesFromSave({
+      gameState: {
+        grid: [[regularTile({
+          value: 6,
+          special: 'wild',
+          isWild: true,
+          isWildFace: true,
+          specialDiceVariant: 'kanta',
+        })]],
+      },
+      tiles: [],
+      grid: emptyGrid(),
+      ROWS: 1,
+      COLS: 1,
+      board: {},
+      makeBoard: {
+        createTile: jest.fn(() => restoredTile),
+        setValue: jest.fn(),
+      },
+      createEmptyGrid: () => emptyGrid(),
+      applyWildSkinLocal,
+      stopWildShimmer: jest.fn(),
+      stopMagnetIdleParticles: jest.fn(),
+      trackAppTimeout: jest.fn(),
+      STATE: {},
+      devLog: jest.fn(),
+      devWarn: jest.fn(),
+      devError: jest.fn(),
+    });
+
+    expect(applyWildSkinLocal).toHaveBeenCalledTimes(1);
+    expect(result.deferredWildIdleTiles).toEqual([restoredTile]);
+    expect(restoredTile._ccDeferWildIdleFx).toBe(true);
   });
 });

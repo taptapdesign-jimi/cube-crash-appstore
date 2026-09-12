@@ -1,5 +1,5 @@
 import { playLoadPopInAnimation } from '../app-core-load-popin';
-import { resumeDeferredTntIdleEffects } from '../app-core-load-tiles';
+import { resumeDeferredWildIdleEffects } from '../app-core-load-tiles';
 
 test('saved tiles stay hidden until the continuation cue finishes', async () => {
   document.body.innerHTML = '<main id="app"></main>';
@@ -61,24 +61,34 @@ test('a failed continuation cue keeps saved tiles and board entrance gated', asy
   expect(onComplete).not.toHaveBeenCalled();
 });
 
-test('restored TNT idle starts only after the board pop-in owner completes', () => {
-  const liveTnt = { special: 'wild-tnt', _ccDeferTntIdleFx: true };
-  const destroyedTnt = { special: 'wild-tnt', destroyed: true, _ccDeferTntIdleFx: true };
-  const changedTile = { special: 'wild-juice', _ccDeferTntIdleFx: true };
-  const startParticles = jest.fn();
-  const startShake = jest.fn();
+test('all restored Special idle owners start only after the board pop-in completes', () => {
+  const liveKanta = { special: 'wild', _ccDeferWildIdleFx: true };
+  const liveBee = { special: 'wild', _ccDeferWildIdleFx: true };
+  const liveTnt = {
+    special: 'wild-tnt',
+    _ccDeferWildIdleFx: true,
+    _ccDeferTntIdleFx: true,
+  };
+  const destroyedTnt = {
+    special: 'wild-tnt',
+    destroyed: true,
+    _ccDeferWildIdleFx: true,
+    _ccDeferTntIdleFx: true,
+  };
+  const changedTile = { special: null, _ccDeferWildIdleFx: true };
+  const applyWildSkin = jest.fn();
 
-  resumeDeferredTntIdleEffects(
-    [liveTnt, destroyedTnt, changedTile],
-    startParticles,
-    startShake,
+  resumeDeferredWildIdleEffects(
+    [liveKanta, liveBee, liveTnt, destroyedTnt, changedTile],
+    applyWildSkin,
   );
 
-  expect(startParticles).toHaveBeenCalledTimes(1);
-  expect(startParticles).toHaveBeenCalledWith(liveTnt);
-  expect(startShake).toHaveBeenCalledTimes(1);
-  expect(startShake).toHaveBeenCalledWith(liveTnt);
+  expect(applyWildSkin.mock.calls.map(([tile]) => tile)).toEqual([liveKanta, liveBee, liveTnt]);
+  expect(liveKanta).not.toHaveProperty('_ccDeferWildIdleFx');
+  expect(liveBee).not.toHaveProperty('_ccDeferWildIdleFx');
   expect(liveTnt).not.toHaveProperty('_ccDeferTntIdleFx');
+  expect(liveTnt).not.toHaveProperty('_ccDeferWildIdleFx');
   expect(destroyedTnt).not.toHaveProperty('_ccDeferTntIdleFx');
-  expect(changedTile).not.toHaveProperty('_ccDeferTntIdleFx');
+  expect(destroyedTnt).not.toHaveProperty('_ccDeferWildIdleFx');
+  expect(changedTile).not.toHaveProperty('_ccDeferWildIdleFx');
 });

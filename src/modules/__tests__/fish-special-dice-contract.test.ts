@@ -290,6 +290,39 @@ describe('Beach Fish special-die contract', () => {
     });
   });
 
+  test('keeps two Fish animated on distinct oscillation clocks', () => {
+    jest.useFakeTimers();
+    const first = makeFishTile();
+    const second = makeFishTile();
+    try {
+      startSpecialDiceIdleMotion(first.tile);
+      startSpecialDiceIdleMotion(second.tile);
+
+      const firstController = first.tile._ccFishSwimArtwork;
+      const secondController = second.tile._ccFishSwimArtwork;
+      expect(firstController).toBeDefined();
+      expect(secondController).toBeDefined();
+      expect(firstController.image?.dataset.ccSvgPhaseSlot).toBe('0');
+      expect(secondController.image?.dataset.ccSvgPhaseSlot).toBe('1');
+      expect(firstController.image?.getAttribute('src')).toBe(FISH_SWIM_SVG_URL);
+      expect(secondController.image?.getAttribute('src')).toBeNull();
+      expect(secondController.phaseLease.delayMs).toBeGreaterThanOrEqual(100);
+
+      jest.advanceTimersByTime(secondController.phaseLease.delayMs);
+      expect(secondController.image?.getAttribute('src')).toBe(
+        `${FISH_SWIM_SVG_URL}?cc-svg-phase=1`,
+      );
+      expect(getFishSwimRuntimeStats()).toMatchObject({
+        controllers: 2,
+        svg: 2,
+      });
+    } finally {
+      stopSpecialDiceIdleMotion(second.tile);
+      stopSpecialDiceIdleMotion(first.tile);
+      jest.useRealTimers();
+    }
+  });
+
   test('faces right on the left half and flips the dragged Fish on the right half like Bee', () => {
     expect(shouldFlipFishForViewport(0, 390)).toBe(false);
     expect(shouldFlipFishForViewport(195, 390)).toBe(false);

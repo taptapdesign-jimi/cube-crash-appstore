@@ -252,6 +252,11 @@ import {
   stopBeeMerge6Sounds,
 } from './bee-merge6-sound.ts';
 import {
+  isRoboCubeMerge6SoundEvent,
+  playRoboCubeMerge6Sounds,
+  stopRoboCubeMerge6Sounds,
+} from './robo-cube-merge6-sound.ts';
+import {
   isWildSpecialMerge6PoofEvent,
   playWildSpecialMerge6PoofSounds,
   stopWildSpecialMerge6PoofSounds,
@@ -375,7 +380,7 @@ import { handleEmptyLoadState } from './app-core-load-empty.ts';
 import { triggerHudDropIfPending, ensureHudFinalPosition } from './app-core-load-animation.ts';
 import { loadSavedBoardState } from './app-core-load-save.ts';
 import { ensureAppReadyForLoad } from './app-core-load-boot.ts';
-import { restoreTilesFromSave, resumeDeferredTntIdleEffects } from './app-core-load-tiles.ts';
+import { restoreTilesFromSave, resumeDeferredWildIdleEffects } from './app-core-load-tiles.ts';
 import { playLoadPopInAnimation } from './app-core-load-popin.ts';
 import { cleanupMobileSaveLifecycle, installMobileSaveLifecycle } from './app-core-mobile-save-lifecycle.ts';
 import {
@@ -2521,6 +2526,7 @@ function cleanupFxForBoardReset(reason: string = 'unknown') {
   try { stopFlowerMerge6Sounds(); } catch {}
   try { stopBottleFinaleSounds(); } catch {}
   try { stopBeeMerge6Sounds(); } catch {}
+  try { stopRoboCubeMerge6Sounds(); } catch {}
   try { stopWildSpecialMerge6PoofSounds(); } catch {}
   try { stopOrdinaryStackSound(); } catch {}
   try { stopGameplayPickupSound(); } catch {}
@@ -8348,6 +8354,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       dstSpecialDiceVariantId: dstSpecialVariantAtMergeEntry?.id,
     })) {
       playBeeMerge6Sound();
+    }
+    if (isRoboCubeMerge6SoundEvent({
+      effectiveSum: effSum,
+      srcSpecialDiceVariantId: srcSpecialVariantAtMergeEntry?.id,
+      dstSpecialDiceVariantId: dstSpecialVariantAtMergeEntry?.id,
+    })) {
+      playRoboCubeMerge6Sounds();
     }
     if (isBottleMerge6SoundEvent({
       effectiveSum: effSum,
@@ -16260,7 +16273,7 @@ async function loadGameState(overrideBoardNumber?: number) {
       devLog,
     });
 
-    const { deferredTntIdleTiles } = restoreTilesFromSave({
+    const { deferredWildIdleTiles } = restoreTilesFromSave({
       gameState,
       tiles,
       grid,
@@ -16271,15 +16284,10 @@ async function loadGameState(overrideBoardNumber?: number) {
       createEmptyGrid,
       stopWildIdle,
       applyWildSkinLocal,
-      startWildShimmer,
       stopWildShimmer,
-      startMagnetIdleParticles,
       stopMagnetIdleParticles,
-      startTntIdleParticles,
       stopTntIdleParticles,
-      startTntIdleShake,
       stopTntIdleShake,
-      startWildJuiceBubbles,
       stopWildJuiceBubbles,
       trackAppTimeout,
       STATE,
@@ -16471,11 +16479,7 @@ async function loadGameState(overrideBoardNumber?: number) {
       },
       onComplete: () => {
         if (!isGameplayEntryGenerationLatest(loadedEntryGeneration)) return;
-        resumeDeferredTntIdleEffects(
-          deferredTntIdleTiles,
-          startTntIdleParticles,
-          startTntIdleShake,
-        );
+        resumeDeferredWildIdleEffects(deferredWildIdleTiles, applyWildSkinLocal);
         // 🔥 CRITICAL FIX: Final check - ensure HUD is visible and positioned after animation
         ensureHudFinalPosition({
           getHudRoot: () => (window as any).HUD_ROOT || HUD.HUD_ROOT || null,

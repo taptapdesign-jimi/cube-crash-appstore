@@ -1,4 +1,5 @@
 import {
+  canPresentJourneyCardReturnReminder,
   cancelJourneyCardOverlayReturn,
   clearJourneyDetailReturn,
   clearJourneyInterimOrigin,
@@ -74,6 +75,38 @@ describe('journey-origin-state', () => {
       isUnlockedBoard: false,
       isInterim: true,
     });
+  });
+
+  it('preserves an interim gameplay receipt for the exact return-card reminder', async () => {
+    markJourneyGameOrigin({ fromInterim: true });
+    expect(markJourneyCardOverlayReturn(22)).toBe(22);
+
+    await expect(resolveJourneyReturnTarget(22)).resolves.toEqual({
+      target: 'journey',
+      boardId: 22,
+      isUnlockedBoard: false,
+      isInterim: true,
+    });
+    expect(getJourneyCardOverlayReturnBoardId()).toBe(22);
+  });
+
+  it('allows only an exact playable Unit to claim a return-card reminder receipt', () => {
+    expect(canPresentJourneyCardReturnReminder(
+      { id: 22, unlocked: false, interim: true },
+      22,
+    )).toBe(true);
+    expect(canPresentJourneyCardReturnReminder(
+      { id: 22, unlocked: true, interim: false },
+      22,
+    )).toBe(true);
+    expect(canPresentJourneyCardReturnReminder(
+      { id: 22, unlocked: false, interim: false },
+      22,
+    )).toBe(false);
+    expect(canPresentJourneyCardReturnReminder(
+      { id: 22, unlocked: false, interim: true },
+      21,
+    )).toBe(false);
   });
 
   it('returns directly to detail modal for unlocked regular journey boards', async () => {

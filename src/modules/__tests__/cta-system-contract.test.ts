@@ -54,14 +54,6 @@ describe('shared CTA system contract', () => {
     path.resolve(process.cwd(), 'src/modules/end-run-modal.ts'),
     'utf8',
   );
-  const collectibleRewardSheetSource = fs.readFileSync(
-    path.resolve(process.cwd(), 'src/modules/collectible-reward-bottom-sheet.ts'),
-    'utf8',
-  );
-  const collectibleRewardUiSource = fs.readFileSync(
-    path.resolve(process.cwd(), 'src/modules/collectible-reward-ui.ts'),
-    'utf8',
-  );
 
   test('owns one shared primary/secondary motion lifecycle with cleanup', () => {
     expect(moduleSource).toContain("export type CtaVariant = 'primary' | 'secondary'");
@@ -247,17 +239,6 @@ describe('shared CTA system contract', () => {
     expect(endRunSource).not.toContain("trackEndRunEventListener(restartBtn, 'touchend'");
     expect(endRunSource).not.toContain("trackEndRunEventListener(exitBtn, 'touchend'");
     expect(cssSource).toContain('.simple-bottom-sheet:not(.score-bottom-sheet) .simple-button-row .cc-cta');
-  });
-
-  test('starts active CTA and modal exits together while awaiting both owners', () => {
-    expect(collectibleRewardSheetSource).toContain('registerCta(viewCollectionButton');
-    expect(collectibleRewardSheetSource).toContain('registerCta(continueButton');
-    expect(collectibleRewardSheetSource).toContain("activationTiming: 'immediate'");
-    expect(collectibleRewardSheetSource).toContain('await runGameplayModalParallelExit(');
-    expect(collectibleRewardSheetSource).toContain('exitCtaPair(clicked, buttons.find(button => button !== clicked))');
-    expect(collectibleRewardSheetSource).toContain('Promise.all([hideSheetAnimation(sheet), overlayExit])');
-    expect(collectibleRewardUiSource).not.toContain("continueButton.addEventListener('click'");
-    expect(collectibleRewardUiSource).not.toContain("viewCollectionButton.addEventListener('click'");
   });
 
 });

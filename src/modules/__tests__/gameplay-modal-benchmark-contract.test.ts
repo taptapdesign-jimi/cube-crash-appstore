@@ -8,10 +8,6 @@ describe('shared gameplay modal benchmark', () => {
   const benchmark = read('src/modules/gameplay-modal-benchmark.ts');
   const endRun = read('src/modules/end-run-modal.ts');
   const score = read('src/modules/score-bottom-sheet.ts');
-  const reward = read('src/modules/collectible-reward-bottom-sheet.ts');
-  const rewardUtils = read('src/modules/collectible-reward-utils.ts');
-  const rewardUi = read('src/modules/collectible-reward-ui.ts');
-  const rewardAnimations = read('src/modules/collectible-reward-animations.ts');
   const privacy = read('src/ui/components/privacy-policy-modal.ts');
   const journeyOverlay = read('src/modules/journey-card-overlay-modal.ts');
   const modalDragMotion = read('src/modules/modal-vertical-drag-dismiss.ts');
@@ -30,8 +26,8 @@ describe('shared gameplay modal benchmark', () => {
     expect(benchmark).toContain('await Promise.all([ctaExit, surfaceExit]);');
   });
 
-  test('migrates score and collectible reward to the same structural motion owners', () => {
-    for (const source of [score, rewardUi, privacy]) {
+  test('keeps active score and privacy modals on the shared structural motion owners', () => {
+    for (const source of [score, privacy]) {
       expect(source).toContain('cc-gameplay-modal-bounce-shell');
       expect(source).toContain('cc-gameplay-modal-flip-shell');
       expect(source).toContain('cc-gameplay-modal-idle-shell');
@@ -44,35 +40,29 @@ describe('shared gameplay modal benchmark', () => {
     expect(score).toContain('cc-gameplay-modal-stage');
     expect(score).not.toContain('animateBottomSheetEntrance');
     expect(score).not.toContain('function addDragFunctionality');
-    expect(rewardUi).toContain('cc-gameplay-modal-stage');
     expect(privacy).toContain('cc-gameplay-modal-stage');
     expect(privacy).toContain('GAMEPLAY_MODAL_BENCHMARK.enterDurationMs');
     expect(privacy).toContain('GAMEPLAY_MODAL_BENCHMARK.exitDurationMs');
-    expect(reward).not.toContain('attachDragHandlers');
-    expect(rewardAnimations).toContain('GAMEPLAY_MODAL_BENCHMARK.enterDurationMs');
-    expect(rewardAnimations).toContain('GAMEPLAY_MODAL_BENCHMARK.exitDurationMs');
   });
 
   test('shares one physical vertical drag owner across backdrop gameplay modals', () => {
     expect(modalDragMotion).toContain('export function installGameplayOverlayModalDragMotion(');
     expect(modalDragMotion).toContain('options.onDragMove?.(dy)');
     expect(modalDragMotion).toContain('cubic-bezier(0.34, 1.56, 0.64, 1)');
-    for (const source of [score, reward, endRun]) {
+    for (const source of [score, endRun]) {
       expect(source).toContain('installGameplayOverlayModalDragMotion');
     }
     expect(privacy).toContain('installGameplayOverlayModalDragMotion');
-    expect(rewardUi).not.toContain('attachDragHandlers');
   });
 
   test('keeps authored modal pose shells while device-motion owners remain removed', () => {
-    for (const source of [score, reward, endRun, privacy, journeyOverlay]) {
+    for (const source of [score, endRun, privacy, journeyOverlay]) {
       expect(source).not.toContain('mountGameplayModalSpatialMotion');
       expect(source).not.toContain('DeviceOrientationEvent');
     }
     expect(journeyOverlay).not.toContain('mountJourneyCardFlipSpatialMotion');
     expect(endRun).not.toContain('mountGameplayModalSpatialMotion');
     expect(score).not.toContain('mountGameplayModalSpatialMotion');
-    expect(reward).not.toContain("'reduced-exit-score'");
     expect(journeyOverlay).not.toContain("'reduced-exit-score'");
     expect(css).toContain('.cc-modal-pose-target {');
   });
@@ -80,12 +70,11 @@ describe('shared gameplay modal benchmark', () => {
   test('owns one 32px headline size across every paper gameplay modal', () => {
     expect(css).toContain('--cc-gameplay-modal-title-size: 32px;');
     expect(css).toContain('.cc-gameplay-modal-title {\n  font-size: var(--cc-gameplay-modal-title-size);');
-    for (const source of [endRun, score, rewardUtils, journeyOverlay, privacy]) {
+    for (const source of [endRun, score, journeyOverlay, privacy]) {
       expect(source).toContain('cc-gameplay-modal-title');
     }
     expect(css.match(/--cc-gameplay-modal-title-size/g)).toHaveLength(2);
     expect(css).not.toContain('.score-bottom-sheet .simple-title-section h2 {\n  font-family: "Baloo2", system-ui, -apple-system, sans-serif;\n  font-size: 40px;');
-    expect(rewardUtils).not.toContain('class="collectible-reward-title"');
     expect(collectiblesCss).not.toContain('font-size: 40px;\n  font-weight: 900;\n  line-height: 1;\n  text-align: center;');
     expect(privacy).toContain('<span class="settings-privacy-policy-title-accent">Privacy</span> Policy');
     expect(css).toContain('.settings-privacy-policy-copy .settings-privacy-policy-title {\n  color: #ad8675;');
@@ -109,12 +98,10 @@ describe('shared gameplay modal benchmark', () => {
     expect(css).toContain('--cc-gameplay-modal-overlay-color: rgba(220, 183, 163, 0.52);');
     expect(css).toContain('background: var(--cc-gameplay-modal-overlay-color);');
     expect(css).toContain('background: var(--cc-gameplay-modal-overlay-color) !important;');
-    expect(rewardUi.match(/background: var\(--cc-gameplay-modal-overlay-color\);/g)).toHaveLength(2);
     expect(collectiblesCss.match(/background(?:-color)?: var\(--cc-gameplay-modal-overlay-color\);/g)).toHaveLength(1);
     expect(collectiblesCss).toContain('.journey-card-flip-backdrop {');
     expect(collectiblesCss).toMatch(/\.journey-card-flip-backdrop \{[\s\S]*?background: var\(--cc-gameplay-modal-overlay-color\);[\s\S]*?opacity: 0;/);
     expect(css).not.toContain('background: rgba(233, 210, 200, 0.24) !important;');
-    expect(rewardUi).not.toContain('background: rgba(233, 210, 200, 0.24);');
   });
 
   test('uses the accepted centered tilt, bounce, paper, and shadow presentation', () => {
@@ -141,9 +128,6 @@ describe('shared gameplay modal benchmark', () => {
 
   test('starts idle only after enter and keeps it on a transform-isolated owner', () => {
     expect(score).toContain("el.classList.add('cc-gameplay-modal-idle')");
-    expect(rewardAnimations).toContain("stage?.classList.add('cc-gameplay-modal-idle')");
-    expect(rewardAnimations.indexOf("classList.remove('cc-gameplay-modal-entering')"))
-      .toBeLessThan(rewardAnimations.indexOf("classList.add('cc-gameplay-modal-idle')"));
     expect(css).toContain('.cc-gameplay-modal-idle:has(.cc-cta[data-cta-state="pressed"])');
     expect(css).toContain('.cc-gameplay-modal-touch-tilt-shell {');
     expect(css).toContain('.score-bottom-sheet .cc-gameplay-modal-idle-shell {\n  rotate: var(--score-modal-rest-tilt, 0deg);');
@@ -169,9 +153,4 @@ describe('shared gameplay modal benchmark', () => {
     expect(css).toContain('animation-direction: reverse;');
   });
 
-  test('reveals reward CTAs at the benchmark progress instead of after modal entry', () => {
-    expect(reward).toContain('const ctaStartMs = getGameplayModalCtaEnterDelayMs()');
-    expect(reward).toContain('GAMEPLAY_MODAL_BENCHMARK.companionCtaStaggerMs');
-    expect(reward).not.toContain('showSheetAnimation(sheet).then(() => {\n        rewardCtaControllers');
-  });
 });

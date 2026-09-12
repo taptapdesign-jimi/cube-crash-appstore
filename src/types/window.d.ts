@@ -42,8 +42,6 @@ declare global {
     trackHelpersUsed?: (count?: number) => void | Promise<void>;
     trackHighestBoard?: (board: number) => void | Promise<void>;
     trackLongestCombo?: (combo: number) => void | Promise<void>;
-    trackCollectiblesUnlocked?: (count: number) => void | Promise<void>;
-    checkCollectiblesMilestones?: (score: number) => void | Promise<void>;
     resetAllStats?: () => void;
     
     // iOS Optimizer
@@ -73,11 +71,6 @@ declare global {
       animateCard?: boolean;
     }) => Promise<void>;
     hideCollectiblesScreen?: () => Promise<void>;
-    unlockCollectible?: (eventName: string) => Promise<void>;
-    unlockCollectibleByNumber?: (number: number) => Promise<void>;
-    hideCollectibleByNumber?: (number: number) => Promise<void>;
-    __pendingCollectibleFlips?: any[];
-    showCollectibleRewardBottomSheet?: (options: { cardName: string; imagePath: string }) => void;
     
     // High Score
     updateHighScore?: (score: number) => void;
@@ -123,7 +116,6 @@ declare global {
     __ccIsAnimatingSliderEnter?: () => boolean;
     __ccIsAnimatingSliderExit?: () => boolean;
     __ccIsHidingCollectibles?: boolean;
-    __ccJourneyBadgeCount?: number;
     __ccJourneyExitMode?: string;
     __ccPreserveScore?: boolean;
     __ccResumeScore?: number;

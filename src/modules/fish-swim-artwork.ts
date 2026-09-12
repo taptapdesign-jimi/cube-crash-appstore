@@ -9,6 +9,7 @@ import {
   type AnimatedSpecialArtworkLayerLease,
 } from './animated-special-artwork-layer.ts';
 import {
+  acquireAnimatedTimelinePhase,
   acquireAnimatedSvgPhase,
   type AnimatedSvgPhaseLease,
 } from './animated-svg-phase-scheduler.ts';
@@ -368,6 +369,8 @@ function configureMediaElement(media: HTMLImageElement | HTMLVideoElement): void
 
 function attachSvgFallback(controller: FishSwimController): void {
   if (controller.disposed || controller.image) return;
+  controller.phaseLease?.release();
+  controller.phaseLease = null;
   if (controller.video) {
     controller.video.onloadeddata = null;
     controller.video.onerror = null;
@@ -404,7 +407,7 @@ function attachIosHevc(controller: FishSwimController): void {
   const video = document.createElement('video');
   video.muted = true;
   video.defaultMuted = true;
-  video.autoplay = true;
+  video.autoplay = false;
   video.loop = true;
   video.playsInline = true;
   video.preload = 'auto';
@@ -417,9 +420,30 @@ function attachIosHevc(controller: FishSwimController): void {
   controller.video = video;
   controller.artworkClip.appendChild(video);
   video.onloadeddata = () => {
-    if (controller.disposed || !isFishSwimTile(controller.tile)) return;
-    controller.ready = true;
-    runtimeLease?.requestSync();
+    if (
+      controller.disposed
+      || !isFishSwimTile(controller.tile)
+      || controller.phaseLease
+    ) return;
+    controller.phaseLease = acquireAnimatedTimelinePhase(
+      'fish-swim-composition',
+      FISH_SWIM_CYCLE_MS,
+      [{
+        element: video,
+        start: () => {
+          if (controller.disposed || !isFishSwimTile(controller.tile)) return;
+          try { video.currentTime = 0; } catch {}
+          void video.play().then(() => {
+            if (controller.disposed || !isFishSwimTile(controller.tile)) return;
+            controller.ready = true;
+            runtimeLease?.requestSync();
+          }).catch(() => {
+            if (controller.disposed) return;
+            attachSvgFallback(controller);
+          });
+        },
+      }],
+    );
   };
   video.onerror = () => {
     fishHevcUnavailable = true;
@@ -430,12 +454,7 @@ function attachIosHevc(controller: FishSwimController): void {
   try { video.load(); } catch {
     fishHevcUnavailable = true;
     attachSvgFallback(controller);
-    return;
   }
-  void video.play().catch(() => {
-    if (controller.disposed) return;
-    attachSvgFallback(controller);
-  });
 }
 
 function createController(

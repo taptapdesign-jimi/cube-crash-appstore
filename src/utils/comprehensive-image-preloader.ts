@@ -10,6 +10,7 @@ import { markAssetAliasRegistered } from './asset-registry.js';
 import { MOBILE_RUNTIME_PROFILE } from '../modules/mobile-runtime-profile.js';
 import { resolveJourneyCardAsset } from '../modules/journey-card-assets.js';
 import { boardStatsService } from '../services/board-stats-service.js';
+import { normalizeJourneyBoardId } from '../modules/journey-world-definitions.js';
 
 const CACHE_NAME = 'cube-crash-images-v2';
 const CACHE_VERSION_KEY = 'image_cache_version';
@@ -81,7 +82,6 @@ async function loadMobileLaunchRouteAssets(): Promise<void> {
   const routeAssets = [
     withCurrentDpr('./assets/crash-cubes-homepage.png'),
     withCurrentDpr('./assets/journey.png'),
-    withCurrentDpr('./assets/collectibles-box.png'),
     withCurrentDpr('./assets/settings-slider.png'),
     withCurrentDpr('./assets/logo-cube-crash.png'),
     './assets/logo addons/gore ljevo shards.png',
@@ -90,7 +90,6 @@ async function loadMobileLaunchRouteAssets(): Promise<void> {
     './assets/logo addons/dole desni.png',
     './assets/nav/cube-nav.png',
     './assets/nav/stats-nav.png',
-    './assets/nav/collectibles-nav.png',
     './assets/nav/settings-nav.png',
     './assets/paper-bg.png',
     './assets/shop/juice/juice-bounce.svg',
@@ -120,9 +119,6 @@ const ALL_STARTUP_IMAGES: string[] = [
   './assets/journey.png',
   './assets/journey@2x.png',
   './assets/journey@3x.png',
-  './assets/collectibles-box.png',
-  './assets/collectibles-box@2x.png',
-  './assets/collectibles-box@3x.png',
   './assets/settings-slider.png',
   './assets/settings-slider@2x.png',
   './assets/settings-slider@3x.png',
@@ -182,7 +178,6 @@ const ALL_STARTUP_IMAGES: string[] = [
   // Navigation icons
   './assets/nav/cube-nav.png',
   './assets/nav/stats-nav.png',
-  './assets/nav/collectibles-nav.png',
   './assets/nav/settings-nav.png',
   
   // UI icons
@@ -605,9 +600,6 @@ export async function preloadAllStartupImages(): Promise<void> {
           './assets/journey.png',
           './assets/journey@2x.png',
           './assets/journey@3x.png',
-        './assets/collectibles-box.png',
-        './assets/collectibles-box@2x.png',
-        './assets/collectibles-box@3x.png',
         './assets/settings-slider.png',
         './assets/settings-slider@2x.png',
         './assets/settings-slider@3x.png',
@@ -752,7 +744,7 @@ export async function preloadJourneyBoardImages(boardIds: number[]): Promise<voi
     // already own 1x; this on-demand path prepares the single high-resolution
     // image used by the card/detail modal.
     boardIds.forEach(boardId => {
-      if (boardId < 1 || boardId > 30) return;
+      if (normalizeJourneyBoardId(boardId) === null) return;
       const score = boardStatsService.getBoardStats(boardId).highScore;
       const asset = resolveJourneyCardAsset(boardId, score);
       imagesToPreload.push(asset.path2x || asset.path1x);

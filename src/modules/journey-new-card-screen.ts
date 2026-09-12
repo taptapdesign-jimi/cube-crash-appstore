@@ -10,6 +10,7 @@ import {
   JOURNEY_NEW_CARD_DRAG_TAP_SLOP_PX,
 } from './journey-new-card-tilt.js';
 import { resolveJourneyCardAsset, type JourneyCardRarity } from './journey-card-assets.js';
+import { normalizeJourneyBoardId } from './journey-world-definitions.js';
 import {
   getJourneyNewCardDisplayName,
   getJourneyNewCardRevealCopy,
@@ -534,7 +535,7 @@ export async function showJourneyNewCardScreen({
   try { cleanupJourneySmokeEffects(); } catch {}
   ensureJourneyNewCardStyles();
 
-  const safeBoardNumber = Math.max(1, Math.min(30, boardNumber | 0));
+  const safeBoardNumber = normalizeJourneyBoardId(boardNumber | 0) ?? 1;
   const fallbackAsset = resolveJourneyCardAsset(safeBoardNumber, 0);
   const safeCardPath = cardImagePath || fallbackAsset.path2x || fallbackAsset.path1x;
   const safeCardName = getJourneyNewCardDisplayName(

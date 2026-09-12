@@ -1,5 +1,7 @@
 import {
+  amplifyJourneyCardReturnLandingScale,
   createJourneyInterimBounceVariant,
+  JOURNEY_CARD_RETURN_LANDING_SQUASH_STRENGTH,
   JOURNEY_INTERIM_IDLE_MOTION,
 } from '../journey-interim-idle-policy.js';
 
@@ -24,6 +26,13 @@ describe('Journey interim idle policy', () => {
     expect(createJourneyInterimBounceVariant(0.99).kind).toBe('squash');
     expect(createJourneyInterimBounceVariant(0).peakScaleY).toBeGreaterThan(1);
     expect(createJourneyInterimBounceVariant(0.99).peakScaleX).toBeGreaterThan(1);
+  });
+
+  test('gives only return-card landings a clearly readable 2.2x cartoon scale amplitude', () => {
+    expect(JOURNEY_CARD_RETURN_LANDING_SQUASH_STRENGTH).toBe(2.2);
+    expect(amplifyJourneyCardReturnLandingScale(1.075)).toBeCloseTo(1.165, 8);
+    expect(amplifyJourneyCardReturnLandingScale(0.94)).toBeCloseTo(0.868, 8);
+    expect(amplifyJourneyCardReturnLandingScale(1)).toBe(1);
   });
 
 });

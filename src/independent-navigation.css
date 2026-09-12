@@ -1,12 +1,11 @@
 /* INDEPENDENT NAVIGATION - COMPLETELY SEPARATE FROM EVERYTHING */
 /* This navigation is outside all containers and has its own lifecycle */
 
-/* Global reset for navigation buttons only - exclude divider and badge */
+/* Global reset for navigation buttons only */
 .independent-nav-button,
-.independent-nav-button *:not(.nav-badge),
-.independent-nav-button *:not(.nav-badge)::before,
-.independent-nav-button *:not(.nav-badge)::after,
-.independent-nav-button *:not(.nav-badge) * {
+.independent-nav-button *,
+.independent-nav-button *::before,
+.independent-nav-button *::after {
   background: none !important;
   background-color: transparent !important;
   border: none !important;
@@ -413,55 +412,18 @@
 /* Hide navigation during exit animations */
 /* Removed gradient-fade-out rules - gradient stays visible */
 
-/* Navigation badge for collectibles icon */
-.nav-badge {
-  position: absolute;
-  top: -8px;
-  right: -12px; /* 🔥 USER REQUEST: Pomaknuto za 4px prema desnom rubu ekrana (-8px - 4px = -12px) */
-  width: 40px;
-  height: 40px;
-  background: #E97A55; /* Orange background */
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10000000000; /* Super high to be above everything */
-  pointer-events: none;
-  transform: translate(0, 0) scale(1) !important; /* 🔥 CRITICAL: Fixed size - no scaling */
-  -webkit-transform: translate(0, 0) scale(1) !important;
-  /* 🔥 CRITICAL: Ensure badge maintains fixed size during animations */
-  will-change: opacity;
-  box-sizing: border-box; /* Ensure fixed size */
-}
-
-/* Journey nav badge module is hidden for now, but kept restorable in code/storage. */
-.independent-nav-button[data-slide="0"] .nav-badge {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-}
-
-/* 🔥 USER REQUEST: Badge prati bounce animaciju aktivne navigacijske ikone */
-.independent-nav-button.active .nav-badge {
-  animation: idleFloat 3s ease-in-out infinite; /* Ista animacija kao img element */
-}
-
 /* Mobile thermal contract: navigation idle belongs to the one active icon and
  * only while Homepage owns the navigation tree. Cancelling/hiding the owner
  * cannot leave a descendant CSS animation sampling in the background. */
 .cc-mobile-runtime #independent-nav .independent-nav-button.active img,
-.cc-mobile-runtime #independent-nav .independent-nav-button.active::after,
-.cc-mobile-runtime #independent-nav .independent-nav-button.active .nav-badge {
+.cc-mobile-runtime #independent-nav .independent-nav-button.active::after {
   animation-play-state: paused;
 }
 
 .cc-mobile-runtime #independent-nav[data-homepage-owner='active']
   .independent-nav-button.active img,
 .cc-mobile-runtime #independent-nav[data-homepage-owner='active']
-  .independent-nav-button.active::after,
-.cc-mobile-runtime #independent-nav[data-homepage-owner='active']
-  .independent-nav-button.active .nav-badge {
+  .independent-nav-button.active::after {
   animation-play-state: running;
 }
 
@@ -472,15 +434,6 @@
 .cc-mobile-runtime .nav-icon-motion,
 .cc-mobile-runtime .nav-icon-visual {
   will-change: auto;
-}
-
-.nav-badge-text {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  font-size: 20px;
-  font-weight: bold;
-  color: #FFFFFF; /* White text color */
-  line-height: 1;
-  text-align: center;
 }
 
 /* 🔥 iPad-specific adjustments */
@@ -510,16 +463,11 @@
 
 /* Baloo navigation typography test */
 .independent-nav,
-.independent-nav *,
-.nav-badge-text {
+.independent-nav * {
   letter-spacing: 0 !important;
 }
 
-.nav-badge-text {
-  font-size: 30px !important;
-}
-
 .independent-nav-button,
-.independent-nav-button *:not(img):not(.nav-icon-motion):not(.nav-icon-visual):not(.nav-badge) {
+.independent-nav-button *:not(img):not(.nav-icon-motion):not(.nav-icon-visual) {
   font-size: calc(1em + 10px) !important;
 }

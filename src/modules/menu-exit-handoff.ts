@@ -85,7 +85,7 @@ function readRecoveryBoardId(): number | null {
     || (window as any).__ccStartAtLevel
     || 0
   );
-  return Number.isInteger(value) && value >= 1 && value <= 30 ? value : null;
+  return normalizeJourneyBoardId(value);
 }
 
 async function resolveExpectedDestination(options: MenuExitOptions): Promise<ExpectedMenuDestination> {
@@ -390,3 +390,4 @@ export async function requestExitToMenu(options: MenuExitOptions): Promise<void>
     if (activeExpectedDestination === expectedDestination) activeExpectedDestination = null;
   }
 }
+import { normalizeJourneyBoardId } from './journey-world-definitions.js';

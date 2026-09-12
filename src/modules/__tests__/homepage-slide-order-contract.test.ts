@@ -7,8 +7,10 @@ import { createNavigation } from '../../ui/components/navigation';
 import { createStatsSlide } from '../../ui/components/stats-slide';
 import {
   ARCADE_SLIDE_INDEX,
+  ACTIVE_HOMEPAGE_SLIDE_COUNT,
   DEFAULT_HOMEPAGE_SLIDE_INDEX,
   JOURNEY_SLIDE_INDEX,
+  SETTINGS_SLIDE_INDEX,
 } from '../homepage-slide-order';
 import { appZoneManager } from '../app-zone-manager';
 
@@ -61,6 +63,43 @@ describe('Homepage Journey and Arcade slide order contract', () => {
     ]);
     expect(primaryButtons[0].classList.contains('active')).toBe(true);
     expect(primaryButtons[1].classList.contains('active')).toBe(false);
+  });
+
+  test('contains only the three live Homepage destinations and no legacy Shop slide', () => {
+    expect(ACTIVE_HOMEPAGE_SLIDE_COUNT).toBe(3);
+    expect(SETTINGS_SLIDE_INDEX).toBe(2);
+
+    const navigation = HTMLBuilder.createElement(createNavigation());
+    expect(Array.from(navigation.querySelectorAll('.independent-nav-button')).map((button) => (
+      button.getAttribute('aria-label')
+    ))).toEqual(['Journey', 'Arcade', 'Settings']);
+
+    const bootstrapSource = read('src/ui/bootstrap-ui.ts');
+    const navigationSource = read('src/ui/components/navigation.ts');
+    const imagePreloaderSource = read('src/utils/comprehensive-image-preloader.ts');
+    expect(bootstrapSource).not.toContain('renderCollectiblesSlide');
+    expect(navigationSource).not.toContain('collectibles-nav.png');
+    expect(imagePreloaderSource).not.toContain('collectibles-box');
+    expect(imagePreloaderSource).not.toContain('collectibles-nav.png');
+  });
+
+  test('keeps the active Journey screen despite its historical collectibles filenames', () => {
+    const journeyScreenSource = read('src/ui/components/collectibles-screen.ts');
+    expect(journeyScreenSource).toContain("id: 'journey-screen'");
+    expect(journeyScreenSource).toContain("text: 'Journey'");
+  });
+
+  test('keeps the Journey card New ribbon independent from the removed navigation badge', () => {
+    const journeyManagerSource = read('src/modules/journey-boards-manager.ts');
+    const journeyCss = read('src/collectibles-screen.css');
+
+    expect(journeyManagerSource).toContain("localStorage.getItem('journey_viewed_boards')");
+    expect(journeyManagerSource).toContain("ribbon.className = 'journey-card-ribbon'");
+    expect(journeyManagerSource).toContain("ribbonLabel.textContent = 'New'");
+    expect(journeyManagerSource).toContain("localStorage.setItem('journey_viewed_boards', JSON.stringify(viewedBoards))");
+    expect(journeyCss).toContain('.journey-card-ribbon');
+    expect(journeyCss).toContain('@keyframes journey-card-ribbon-shimmer');
+    expect(journeyManagerSource).not.toContain('updateNavBadge');
   });
 
   test('Arcade exit routing explicitly returns to Arcade instead of the new default Journey slide', async () => {

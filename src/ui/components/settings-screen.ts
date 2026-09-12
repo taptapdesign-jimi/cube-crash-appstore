@@ -1,10 +1,12 @@
 // Settings Screen Component
 import { gsap } from 'gsap';
+import { playNavigationIconSounds, preloadNavigationIconSounds } from '../../modules/navigation-icon-sound.js';
 import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
 import { isFirstPlayTutorialForced, setFirstPlayTutorialDevEnabled } from '../../modules/first-play-tutorial.js';
 import { SPECIAL_DICE_VARIANTS, getCoreWildTypeForSpecialDiceVariant } from '../../modules/special-dice-registry.js';
 import { formatGameplayProgressLabel } from '../../modules/gameplay-terminology.ts';
 import { closePrivacyPolicyModal, showPrivacyPolicyModal } from './privacy-policy-modal.js';
+import { normalizeJourneyBoardId } from '../../modules/journey-world-definitions.js';
 
 export interface SettingsScreenConfig {
   onBack?: () => void;
@@ -124,7 +126,7 @@ function openJourneyDevPicker(action: 'show' | 'hide' | 'legendary' | 'reset'): 
 function getCurrentDevBoardNumber(): number {
   const rawBoardNumber = (window as any).STATE?.boardNumber || (window as any).__ccStartAtLevel || 1;
   const boardNumber = Number(rawBoardNumber);
-  return Number.isFinite(boardNumber) && boardNumber >= 1 && boardNumber <= 30 ? boardNumber : 1;
+  return Number.isFinite(boardNumber) ? (normalizeJourneyBoardId(Math.floor(boardNumber)) ?? 1) : 1;
 }
 
 function triggerSettingsDevHaptic(): void {
@@ -967,9 +969,11 @@ export function renderSettingsScreen(
 
   let lastToggleBounceAt = 0;
   let lastToggleBounceTarget: HTMLElement | null = null;
+  preloadNavigationIconSounds();
   const toggleBounceHandler = (e: Event) => {
     const toggleTarget = getSettingsToggleTarget(e);
     if (!toggleTarget) return;
+    if (e.type === 'pointerdown') playNavigationIconSounds();
     const now = Date.now();
     if (toggleTarget === lastToggleBounceTarget && now - lastToggleBounceAt < 140) return;
     lastToggleBounceTarget = toggleTarget;

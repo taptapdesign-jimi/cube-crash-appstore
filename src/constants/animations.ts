@@ -1,5 +1,5 @@
 // Animation constants
-import { ACTIVE_SLIDER_TOTAL_SLIDES } from '../modules/shop-module.js';
+import { ACTIVE_HOMEPAGE_SLIDE_COUNT } from '../modules/homepage-slide-order.js';
 
 export const ANIMATION_DELAYS = {
   SHORT: 50,
@@ -44,7 +44,7 @@ export const SLIDER_ANIMATION = {
 // Slider drag and navigation constants
 export const SLIDER_CONFIG = {
   // Slide configuration
-  TOTAL_SLIDES: ACTIVE_SLIDER_TOTAL_SLIDES,
+  TOTAL_SLIDES: ACTIVE_HOMEPAGE_SLIDE_COUNT,
   
   // Drag thresholds (px)
   DRAG_THRESHOLD_PX: 100,           // Minimum drag distance to change slide

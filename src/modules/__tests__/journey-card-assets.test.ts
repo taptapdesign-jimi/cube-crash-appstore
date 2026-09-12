@@ -144,9 +144,10 @@ describe('Journey collectible card assets', () => {
     );
 
     expect(manager).toContain('const cardImagePath = cardAsset.path1x;');
-    expect(manager.match(/const overlayCardAsset = this\.syncBoardCardAsset\(board\);/g)).toHaveLength(2);
-    expect(manager.match(/cardImagePath2x: overlayCardAsset\.path2x/g)).toHaveLength(2);
-    expect(manager.match(/cardRarity: overlayCardAsset\.rarity/g)).toHaveLength(2);
+    expect(manager.match(/const overlayCardAsset = this\.syncBoardCardAsset\(board\);/g)).toHaveLength(1);
+    expect(manager.match(/cardImagePath2x: overlayCardAsset\.path2x/g)).toHaveLength(1);
+    expect(manager.match(/cardRarity: overlayCardAsset\.rarity/g)).toHaveLength(1);
+    expect(manager).toContain('presentJourneyCardReturnReminder({');
     expect(manager).toContain('(boardCardAsset.path2x || boardCardAsset.path1x)');
     expect(manager).toContain("this.refreshJourneyBoardCardArt(boardId, 'high-score-event')");
     expect(completion).toContain('cardImagePath: rewardAsset.path2x || rewardAsset.path1x');
@@ -167,7 +168,7 @@ describe('Journey collectible card assets', () => {
     expect(settings).toContain(
       "createDevButton('settings-dev-legendary-card-btn', 'Legendary Card', 'legendary')",
     );
-    expect(settings).toContain('boardNumber >= 1 && boardNumber <= 30');
+    expect(settings).toContain('normalizeJourneyBoardId(Math.floor(boardNumber))');
     expect(manager).toContain("action: 'show' | 'hide' | 'legendary' | 'reset'");
     expect(manager).toContain("action === 'legendary' ? 'Open Legendary' : 'OK'");
     expect(manager).toContain("resolveJourneyCardAsset(i, Number.MAX_SAFE_INTEGER).rarity === 'legendary'");

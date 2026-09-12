@@ -105,7 +105,7 @@ describe('Journey New Reward presentation', () => {
     expect(getJourneyNewCardDisplayName(24, 'AREA 55')).toBe('Zap - Zap');
     expect(getJourneyNewCardDisplayName(30, 'FINAL SIGNAL')).toBe('Take Over');
     expect(manager).toContain('...JOURNEY_AREA55_CARD_NAMES');
-    expect(screen).toContain('Math.min(30, boardNumber | 0)');
+    expect(screen).toContain('normalizeJourneyBoardId(boardNumber | 0) ?? 1');
   });
 
   test('keeps Beach card names written consistently with the other Worlds', () => {

@@ -700,7 +700,7 @@ export function cleanupCollectiblesAnimations(): void {
     const header = journeyScreen.querySelector('.collectibles-header');
     const scrollable = journeyScreen.querySelector('.collectibles-scrollable');
     const cards = journeyScreen.querySelectorAll(
-      '.collectible-card, .collectible-card-wrapper, .journey-board-card, .journey-board-card-wrapper'
+      '.journey-board-card, .journey-board-card-wrapper'
     );
     
     if (header) gsap.killTweensOf(header);
@@ -863,63 +863,6 @@ export function animateCollectiblesScreenEnter(): Promise<void> {
     });
   }
   
-  // STEP 3: Animate first 8 cards in grid (scale from 0.3 to 1.0)
-  // 🔥 OPTIMIZED: Only first 8 cards animated, remaining cards set to visible (no animation)
-  const cardWrappers = journeyScreen?.querySelectorAll('.collectible-card-wrapper') as NodeListOf<HTMLElement>;
-  if (cardWrappers && cardWrappers.length > 0) {
-    const cardsArray = Array.from(cardWrappers);
-
-    // Only animate first 8 cards
-    const cardsToAnimate = cardsArray.slice(0, 8);
-
-    // Set initial state for animated cards (scale 0.3, opacity 0)
-    gsap.set(cardsToAnimate, { 
-      scale: 0.3, 
-      opacity: 0,
-      visibility: 'hidden',
-      force3D: true,
-      immediateRender: true
-    });
-
-    // Set initial state for remaining cards (scale 1, opacity 1 - already visible)
-    if (cardsArray.length > 8) {
-      const remainingCards = cardsArray.slice(8);
-      gsap.set(remainingCards, { 
-        scale: 1, 
-        opacity: 1,
-        visibility: 'visible',
-        force3D: true,
-        immediateRender: true
-      });
-    }
-
-    // Animate first 8 cards with fast stagger
-    const baseDelay = 0.15;
-    const stagger = 0.03;
-    cardsToAnimate.forEach((card, index) => {
-      const delay = baseDelay + (index * stagger);
-      
-      // 🔥 GPU OPTIMIZATION: Add will-change for better performance
-      card.style.willChange = 'transform, opacity';
-      card.style.transform = 'translateZ(0)'; // Force GPU acceleration
-      
-      gsap.set(card, { visibility: 'visible', immediateRender: true });
-      trackTween(card, {
-        scale: 1,
-        opacity: 1,
-        duration: 0.4,
-        ease: 'back.out(1.7)',
-        delay: delay,
-        force3D: true,
-        immediateRender: false,
-        onComplete: () => {
-          // Remove will-change after animation to free resources
-          card.style.willChange = 'auto';
-        }
-      });
-    });
-  }
-
   return Promise.resolve();
 }
 

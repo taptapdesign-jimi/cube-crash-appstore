@@ -97,11 +97,7 @@ function isBottomSheetActive(): boolean {
     '.score-bottom-sheet',
     '.score-bottom-sheet.visible',
     '.simple-bottom-sheet',
-    '.simple-bottom-sheet.visible',
-    '.collectible-reward-bottom-sheet',
-    '.collectible-reward-bottom-sheet.visible',
-    '.collectible-reward-sheet',
-    '.collectible-reward-sheet.show'
+    '.simple-bottom-sheet.visible'
   ].join(','));
 }
 

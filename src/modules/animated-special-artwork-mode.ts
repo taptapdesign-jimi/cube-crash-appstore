@@ -16,8 +16,10 @@ type ArtworkAssignment = {
 
 const assignments = new Map<object, ArtworkAssignment>();
 const liveTilesByFamily = new Map<AnimatedSpecialArtworkFamily, Set<object>>();
-const ALWAYS_PHASED_SVG_FAMILIES = new Set<AnimatedSpecialArtworkFamily>(['wild-star']);
-const SINGLE_ANIMATED_ARTWORK_FAMILIES = new Set<AnimatedSpecialArtworkFamily>(['fish']);
+const ALWAYS_PHASED_SVG_FAMILIES = new Set<AnimatedSpecialArtworkFamily>([
+  'wild-star',
+  'fish',
+]);
 
 function removeAssignment(tile: object, assignment: ArtworkAssignment): void {
   assignments.delete(tile);
@@ -28,9 +30,9 @@ function removeAssignment(tile: object, assignment: ArtworkAssignment): void {
 
 /**
  * Keeps one visual mode for the lifetime of a board tile. The first live tile
- * in each family is always animated. Wild Star keeps every copy on a separately
- * phased SVG; later copies in the other families independently split 50/50
- * between SVG and the original Pixi PNG fallback.
+ * in each family is always animated. Wild Star and Fish keep every copy on a
+ * separately phased animation; later copies in the other families independently
+ * split 50/50 between SVG and the original Pixi PNG fallback.
  */
 export function acquireAnimatedSpecialArtworkMode(
   tile: object,
@@ -51,7 +53,7 @@ export function acquireAnimatedSpecialArtworkMode(
   );
   const mode: AnimatedSpecialArtworkMode = !hasLiveSvg
     || ALWAYS_PHASED_SVG_FAMILIES.has(family)
-    || (!SINGLE_ANIMATED_ARTWORK_FAMILIES.has(family) && random() < 0.5)
+    || random() < 0.5
     ? 'svg'
     : 'png';
   assignments.set(tile, { family, mode });

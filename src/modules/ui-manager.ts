@@ -29,7 +29,7 @@ import {
   beginFirstPlayTutorialRun,
   isFirstPlayTutorialForced,
 } from './first-play-tutorial.js';
-import { SETTINGS_SLIDE_INDEX } from './shop-module.js';
+import { SETTINGS_SLIDE_INDEX } from './homepage-slide-order.js';
 import { clearArcadeSaveState, getArcadeSavedRound, hasArcadeSavedState } from '../utils/board-save-utils.js';
 import { applyAppPaperBackground } from '../utils/app-paper-background.js';
 import { homepageEnterTransitionOwner } from './homepage-enter-transition-owner.js';
@@ -47,6 +47,10 @@ import {
 } from './gameplay-entry-coordinator.js';
 import { registerCta, type CtaController } from './cta-system.js';
 import {
+  playCtaActivationSounds,
+  preloadCtaActivationSounds,
+} from './cta-activation-sound.js';
+import {
   commitHomepageNavigation,
   hideHomepageNavigation,
   primeHomepageNavigation,
@@ -59,6 +63,7 @@ import { preloadBeachBallMerge6Sounds } from './beach-ball-merge6-sound.ts';
 import { preloadCoreTntMerge6Sound } from './core-tnt-merge6-sound.ts';
 import { preloadFlowerMerge6Sounds } from './flower-merge6-sound.ts';
 import { preloadBeeMerge6Sounds } from './bee-merge6-sound.ts';
+import { preloadRoboCubeMerge6Sounds } from './robo-cube-merge6-sound.ts';
 import { preloadWildSpecialMerge6PoofSounds } from './wild-special-merge6-poof-sound.ts';
 import { preloadBottleFinaleSounds } from './bottle-finale-sound.ts';
 import { preloadOrdinaryStackSound } from './ordinary-stack-sound.ts';
@@ -69,7 +74,6 @@ import {
   ARCADE_SLIDE_INDEX,
   JOURNEY_SLIDE_INDEX,
 } from './homepage-slide-order.js';
-import { getPersistedJourneyNewlyUnlockedCount } from './journey-badge-state.js';
 // 🔥 OPTIMIZATION: Preload settings animations module statically to avoid 15s delay on Settings click
 import { animateSettingsScreenEnter, animateSettingsScreenExit, cleanupSettingsAnimations } from '../ui/settings-animations.js';
 
@@ -159,7 +163,6 @@ export interface UIManagerElements {
   sliderDivider: Element | null;
   playButton: HTMLButtonElement | null;
   journeyButton: HTMLButtonElement | null;
-  collectiblesButton: HTMLButtonElement | null;
   settingsButton: HTMLButtonElement | null;
   settingsScreen: HTMLElement | null;
   settingsBackButton: HTMLButtonElement | null;
@@ -186,7 +189,6 @@ class UIManager {
     const registrations: Array<[HTMLButtonElement | null, (event: Event) => unknown]> = [
       [this.elements.playButton, this.handlePlayClick.bind(this)],
       [this.elements.journeyButton, this.handleStatsClick.bind(this)],
-      [this.elements.collectiblesButton, this.handleCollectiblesClick.bind(this)],
       [this.elements.settingsButton, this.handleSettingsClick.bind(this)],
     ];
 
@@ -239,7 +241,6 @@ class UIManager {
         sliderDivider: document.querySelector('.slider-nav-divider'),
         playButton: document.getElementById('btn-home') as HTMLButtonElement,
         journeyButton: (document.getElementById('btn-journey') || document.getElementById('btn-stats')) as HTMLButtonElement,
-        collectiblesButton: document.getElementById('btn-collectibles') as HTMLButtonElement,
         settingsButton: document.getElementById('btn-settings') as HTMLButtonElement,
         settingsScreen: document.getElementById('settings-screen'),
         settingsBackButton: document.getElementById('settings-back-btn') as HTMLButtonElement,
@@ -278,7 +279,6 @@ class UIManager {
       // Refresh element references
       this.elements.playButton = document.getElementById('btn-home') as HTMLButtonElement;
       this.elements.journeyButton = (document.getElementById('btn-journey') || document.getElementById('btn-stats')) as HTMLButtonElement;
-      this.elements.collectiblesButton = document.getElementById('btn-collectibles') as HTMLButtonElement;
       this.elements.settingsButton = document.getElementById('btn-settings') as HTMLButtonElement;
       this.elements.statsBackButton = document.getElementById('stats-back-btn') as HTMLButtonElement;
 
@@ -377,7 +377,6 @@ class UIManager {
     const selectors = [
       '[data-hero-cta="play"]',
       '[data-hero-cta="journey"]',
-      '[data-hero-cta="collectibles"]',
       '[data-hero-cta="settings"]',
     ];
 
@@ -395,24 +394,29 @@ class UIManager {
   private attachSliderHeroCtaListeners(
     addTrackedListener: (element: HTMLElement, event: string, handler: EventListener) => void
   ): void {
+    preloadCtaActivationSounds();
     const attachPair = (selector: string, clickHandler: EventListener) => {
       const el = document.querySelector(selector) as HTMLElement | null;
       if (!el || this.boundEventHandlers.has(el)) return;
+
+      const activationHandler: EventListener = (event: Event) => {
+        playCtaActivationSounds();
+        (clickHandler as (ev: Event) => unknown)(event);
+      };
 
       const keyHandler: EventListener = (event: Event) => {
         const keyEvent = event as KeyboardEvent;
         if (keyEvent.key !== 'Enter' && keyEvent.key !== ' ') return;
         keyEvent.preventDefault();
-        (clickHandler as (ev: Event) => unknown)(keyEvent);
+        activationHandler(keyEvent);
       };
 
-      addTrackedListener(el, 'click', clickHandler);
+      addTrackedListener(el, 'click', activationHandler);
       addTrackedListener(el, 'keydown', keyHandler);
     };
 
     attachPair('[data-hero-cta="play"]', this.handlePlayClick.bind(this));
     attachPair('[data-hero-cta="journey"]', this.handleStatsClick.bind(this));
-    attachPair('[data-hero-cta="collectibles"]', this.handleCollectiblesClick.bind(this));
     attachPair('[data-hero-cta="settings"]', this.handleSettingsClick.bind(this));
   }
   
@@ -468,6 +472,7 @@ class UIManager {
     preloadCoreTntMerge6Sound();
     preloadFlowerMerge6Sounds();
     preloadBeeMerge6Sounds();
+    preloadRoboCubeMerge6Sounds();
     preloadWildSpecialMerge6PoofSounds();
     preloadBottleFinaleSounds();
     preloadOrdinaryStackSound();
@@ -575,20 +580,6 @@ class UIManager {
     this.showCollectiblesScreenWithAnimation(isFirstPlayTutorialForced());
   }
 
-  // Handle collectibles button click
-  private handleCollectiblesClick(event: Event): void {
-    event.preventDefault();
-    logger.info('🏆 Collectibles button clicked');
-    
-    // Light haptic for Collectibles button
-    if (typeof (window as any).triggerHapticImpact === 'function') {
-      (window as any).triggerHapticImpact('light');
-    }
-    
-    // Show collectibles screen with animation
-    this.showCollectiblesScreenWithAnimation();
-  }
-  
   // Handle stats back button click (return to homepage)
   private handleStatsBackClick(event: Event): void {
     event.preventDefault();
@@ -631,6 +622,7 @@ class UIManager {
     preloadCoreTntMerge6Sound();
     preloadFlowerMerge6Sounds();
     preloadBeeMerge6Sounds();
+    preloadRoboCubeMerge6Sounds();
     preloadWildSpecialMerge6PoofSounds();
     preloadBottleFinaleSounds();
     preloadOrdinaryStackSound();
@@ -757,6 +749,7 @@ class UIManager {
       preloadCoreTntMerge6Sound();
       preloadFlowerMerge6Sounds();
       preloadBeeMerge6Sounds();
+      preloadRoboCubeMerge6Sounds();
       preloadWildSpecialMerge6PoofSounds();
       preloadBottleFinaleSounds();
       preloadOrdinaryStackSound();
@@ -986,21 +979,6 @@ class UIManager {
     
     // The shared paper helper has already synchronized every global owner.
     
-    // 🗺️ JOURNEY BADGE: Update badge when returning to homepage
-    // Show NEWLY unlocked boards count (excluding board 1 and already viewed boards) as badge
-    // This ensures badge only shows boards that haven't been viewed yet
-    try {
-      const newlyUnlockedCount = getPersistedJourneyNewlyUnlockedCount();
-      // Keep badge persistent if previously higher (e.g., after navigation rebuild)
-      const lastBadge = (window as any).__ccJourneyBadgeCount || 0;
-      const effectiveCount = Math.max(lastBadge, newlyUnlockedCount);
-      if (typeof (window as any).updateNavBadge === 'function') {
-        (window as any).updateNavBadge(effectiveCount, JOURNEY_SLIDE_INDEX);
-        logger.debug(`🗺️ Journey badge updated on homepage: ${effectiveCount} newly unlocked boards (not yet viewed, raw=${newlyUnlockedCount}, last=${lastBadge})`);
-      }
-    } catch (error) {
-      logger.warn('⚠️ Failed to update journey badge on homepage:', error);
-    }
   }
   
   // Hide homepage
@@ -1483,24 +1461,6 @@ class UIManager {
         this.reattachHomepageButtonListeners();
       });
       
-      // 🔥 USER BUG FIX: Update Journey badge when showing homepage quietly
-      // This ensures badge is always up-to-date when homepage is displayed (e.g., after Journey screen)
-      setTimeout(() => {
-        try {
-          const newlyUnlockedCount = getPersistedJourneyNewlyUnlockedCount();
-          // 🔒 Preserve any pending badge count already cached so we don't accidentally wipe it
-          // (exit animations or intermediate calls can briefly compute 0 while animations are running)
-          const lastBadge = (window as any).__ccJourneyBadgeCount || 0;
-          const effectiveCount = Math.max(lastBadge, newlyUnlockedCount);
-          if (typeof (window as any).updateNavBadge === 'function') {
-            (window as any).updateNavBadge(effectiveCount, JOURNEY_SLIDE_INDEX);
-            logger.info(`🗺️ Journey badge updated in showHomepageQuietly: ${effectiveCount} newly unlocked boards (raw=${newlyUnlockedCount}, last=${lastBadge})`);
-          }
-        } catch (error) {
-          logger.warn('⚠️ Failed to update journey badge in showHomepageQuietly:', error);
-        }
-      }, 150); // Slightly longer delay to ensure navigation is fully rendered
-
       // The shared paper helper has already synchronized every global owner.
       // NO TRANSITIONS, NO OPACITY - elements will be animated by animateSliderEnter
       // DO NOT set opacity 0 here - it will break animation visibility
@@ -1539,10 +1499,9 @@ class UIManager {
     logger.info('🗺️ Showing Journey screen - with exit animation');
     logger.info('✅ [Journey ENTER] Gradient background set with !important flags IMMEDIATELY (at function start)');
     
-    // 🔥 CRITICAL: Set exit animation flag IMMEDIATELY to prevent badge removal
-    // This must be done BEFORE anything else to protect badge from being removed
+    // Publish the Slider exit state before any asynchronous Journey preparation.
     (window as any).__ccIsAnimatingSliderExit = () => true;
-    logger.info('🔒 Exit animation flag set - badge is now protected');
+    logger.info('🔒 Homepage Slider exit state published');
     
     // 🔥 CRITICAL: Serialize CTA transitions to avoid double-click / overlapping animations
     if ((window as any).__ccUiJourneyTransitioning) {
@@ -1632,15 +1591,25 @@ class UIManager {
     sliderManager.freezeHomepageHeroBounceForExit();
     const exitCompletePromise = animateJourneySliderExit();
 
-    const collectiblesManager = (window as any).collectiblesManager;
-    const journeyPreparePromise: Promise<void> =
-      !launchFirstPlayTutorial && collectiblesManager && typeof collectiblesManager.prepareJourneyScreen === 'function'
-        ? collectiblesManager.prepareJourneyScreen().catch((error: Error) => {
-            logger.warn('⚠️ Failed to prepare Journey screen:', error);
-          })
-        : Promise.resolve();
+    const journeyPreparePromise: Promise<any | null> = !launchFirstPlayTutorial
+      ? (async () => {
+          let preparedCollectiblesManager = (window as any).collectiblesManager;
+          if (
+            !preparedCollectiblesManager ||
+            typeof preparedCollectiblesManager.prepareJourneyScreen !== 'function'
+          ) {
+            const { ensureCollectiblesManager } = await import('../collectibles-manager.js');
+            preparedCollectiblesManager = await ensureCollectiblesManager();
+          }
+          await preparedCollectiblesManager.prepareJourneyScreen();
+          return preparedCollectiblesManager;
+        })().catch((error: Error) => {
+          logger.warn('⚠️ Failed to prepare Journey screen:', error);
+          return null;
+        })
+      : Promise.resolve(null);
     // Exit and preparation run concurrently and join at one exact handoff.
-    Promise.all([exitCompletePromise, journeyPreparePromise]).then(async () => {
+    Promise.all([exitCompletePromise, journeyPreparePromise]).then(async ([, preparedCollectiblesManager]) => {
       if (!launchFirstPlayTutorial) {
         markIOSJourneyRouteAudit('journey-show-handoff');
       }
@@ -1677,10 +1646,18 @@ class UIManager {
       }
 
       try {
-        this.showCollectiblesScreen();
+        if (
+          preparedCollectiblesManager &&
+          typeof preparedCollectiblesManager.showCollectibles === 'function'
+        ) {
+          await preparedCollectiblesManager.showCollectibles();
+        } else {
+          await this.showCollectiblesScreen();
+        }
       } finally {
-        // showCollectibles hides Homepage synchronously before its first await.
-        // Only now is it safe to clear scale/transition ownership without flash.
+        // Keep the Homepage exit owner until the lazy Journey manager has hidden
+        // Homepage and started its visible enter. Releasing it earlier exposes a
+        // blank first open while the chunk is still loading.
         finalizeJourneySliderExit();
         (window as any).__ccIsAnimatingSliderExit = () => false;
         (window as any).__ccUiJourneyTransitioning = false;
@@ -1803,14 +1780,6 @@ class UIManager {
         });
         logger.info(`✅ Stopped CSS animations (shimmer, glow) on ${interimCards.length} interim cards`);
         
-        // Stop any CSS animations on collectible cards
-        const collectibleCards = journeyScreen.querySelectorAll('.collectible-card-wrapper');
-        collectibleCards.forEach((card) => {
-          const cardEl = card as HTMLElement;
-          cardEl.style.animation = 'none';
-          cardEl.style.animationPlayState = 'paused';
-        });
-        logger.info(`✅ Stopped CSS animations on ${collectibleCards.length} collectible cards`);
       }
     } catch (error) {
       logger.warn('⚠️ Failed to kill GSAP animations:', error);
@@ -1964,23 +1933,6 @@ class UIManager {
       await appZoneManager.showHomepageShell('ui-manager:hideCollectibles:default-homepage', ARCADE_SLIDE_INDEX);
     }
     
-    // 🔥 USER BUG FIX: Update Journey badge when returning to homepage from Journey screen
-    // This ensures badge is visible immediately after returning, showing newly unlocked boards
-    // Wait for navigation to be rendered before updating badge
-    setTimeout(() => {
-      try {
-        const newlyUnlockedCount = getPersistedJourneyNewlyUnlockedCount();
-        const lastBadge = (window as any).__ccJourneyBadgeCount || 0;
-        const effectiveCount = Math.max(lastBadge, newlyUnlockedCount);
-        if (typeof (window as any).updateNavBadge === 'function') {
-          (window as any).updateNavBadge(effectiveCount, JOURNEY_SLIDE_INDEX);
-          logger.info(`🗺️ Journey badge updated when returning to homepage: ${effectiveCount} newly unlocked boards (raw=${newlyUnlockedCount}, last=${lastBadge})`);
-        }
-      } catch (error) {
-        logger.warn('⚠️ Failed to update journey badge when returning to homepage:', error);
-      }
-    }, 100);
-    
     // 🔥 CRITICAL: Force navigation visibility update after journey screen is hidden
     // This ensures MutationObserver in navigation-control.ts detects the change
     requestAnimationFrame(async () => {
@@ -2007,18 +1959,18 @@ class UIManager {
   }
   
   // Show Journey screen
-  showCollectiblesScreen(): void {
+  async showCollectiblesScreen(): Promise<void> {
     logger.info('🗺️ Showing Journey screen');
     applyPaperBackground();
     try {
-      const promise =
-        window.showCollectiblesScreen?.() ??
-        window.showCollectibles?.();
-      promise?.catch(error => {
-        logger.error('❌ Failed to show collectibles screen:', error);
-      });
+      const showJourney = window.showCollectiblesScreen ?? window.showCollectibles;
+      if (typeof showJourney !== 'function') {
+        throw new Error('Journey screen bridge is unavailable');
+      }
+      await showJourney();
     } catch (error) {
       logger.error('❌ Failed to trigger collectibles screen:', error);
+      throw error;
     }
   }
   
@@ -2438,6 +2390,9 @@ class UIManager {
         void import('./bee-merge6-sound.ts').then(({ stopBeeMerge6Sounds }) => {
           stopBeeMerge6Sounds();
         });
+        void import('./robo-cube-merge6-sound.ts').then(({ stopRoboCubeMerge6Sounds }) => {
+          stopRoboCubeMerge6Sounds();
+        });
         void import('./wild-special-merge6-poof-sound.ts').then(({ stopWildSpecialMerge6PoofSounds }) => {
           stopWildSpecialMerge6PoofSounds();
         });
@@ -2458,6 +2413,18 @@ class UIManager {
         });
         void import('./cta-activation-sound.ts').then(({ stopCtaActivationSounds }) => {
           stopCtaActivationSounds();
+        });
+        void import('./navigation-icon-sound.ts').then(({ stopNavigationIconSounds }) => {
+          stopNavigationIconSounds();
+        });
+        void import('./navigation-close-sound.ts').then(({ stopNavigationCloseSound }) => {
+          stopNavigationCloseSound();
+        });
+        void import('./gameplay-exit-modal-enter-sound.ts').then(({ stopGameplayExitModalEnterSound }) => {
+          stopGameplayExitModalEnterSound();
+        });
+        void import('./homepage-slider-swipe-sound.ts').then(({ stopHomepageSliderSwipeSound }) => {
+          stopHomepageSliderSwipeSound();
         });
       }
     };

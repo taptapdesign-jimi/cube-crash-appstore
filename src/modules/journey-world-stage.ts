@@ -28,7 +28,7 @@ export function formatJourneyWorldStageNumber(boardId: number): string {
 }
 
 /**
- * Keep Journey save IDs global (1-30), while giving every World its own
+ * Keep Journey save IDs global across the registered catalog, while giving every World its own
  * independent next-stage marker. A completed World has no interim card.
  */
 export function reconcileJourneyWorldInterims<T extends JourneyWorldStageState>(boards: T[]): number[] {

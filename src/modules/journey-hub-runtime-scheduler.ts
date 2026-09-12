@@ -18,28 +18,35 @@ function getDefaultObserverFactory(): JourneyHubObserverFactory | null {
 export class JourneyHubRuntimeScheduler {
   private observer: IntersectionObserver | null = null;
   private hub: HTMLElement | null = null;
+  private intersectingWorldIds = new Set<number>();
+  private activeBudget = Number.POSITIVE_INFINITY;
 
   public constructor(
     private readonly observerFactory: JourneyHubObserverFactory | null = getDefaultObserverFactory(),
   ) {}
 
-  public activate(hub: HTMLElement, scrollRoot: HTMLElement | null): void {
+  public activate(hub: HTMLElement, scrollRoot: HTMLElement | null, initialWorldIds?: readonly number[]): void {
     this.deactivate();
     this.hub = hub;
     const worldCards = Array.from(
       hub.querySelectorAll<HTMLElement>('.journey-v700-world-card'),
     );
 
-    // Keep the accepted no-observer behavior and avoid a paused first idle
-    // frame before IntersectionObserver resolves the initial viewport.
-    worldCards.forEach(card => this.setWorldActive(card, true));
+    const initialSet = initialWorldIds ? new Set(initialWorldIds) : null;
+    this.activeBudget = initialSet?.size || worldCards.length;
+    this.intersectingWorldIds = new Set(initialSet ?? worldCards.map(card => Number(card.dataset.worldId)));
+    worldCards.forEach(card => this.setWorldActive(card, !initialSet || initialSet.has(Number(card.dataset.worldId))));
     if (!this.observerFactory) return;
 
     this.observer = this.observerFactory((entries) => {
       entries.forEach((entry) => {
-        const card = entry.target as HTMLElement;
-        this.setWorldActive(card, entry.isIntersecting);
+        const worldId = Number((entry.target as HTMLElement).dataset.worldId);
+        if (!Number.isInteger(worldId)) return;
+        if (entry.isIntersecting) this.intersectingWorldIds.add(worldId);
+        else this.intersectingWorldIds.delete(worldId);
       });
+      const activeIds = new Set(Array.from(this.intersectingWorldIds).slice(0, this.activeBudget));
+      worldCards.forEach(card => this.setWorldActive(card, activeIds.has(Number(card.dataset.worldId))));
     }, {
       root: scrollRoot,
       rootMargin: '160px 0px',
@@ -63,6 +70,15 @@ export class JourneyHubRuntimeScheduler {
     this.observer?.disconnect();
     this.observer = null;
     this.hub = null;
+    this.intersectingWorldIds.clear();
+    this.activeBudget = Number.POSITIVE_INFINITY;
+  }
+
+  public getActiveWorldIds(): readonly number[] {
+    if (!this.hub) return [];
+    return Array.from(this.hub.querySelectorAll<HTMLElement>(`.journey-v700-world-card.${ACTIVE_CLASS}`))
+      .map(card => Number(card.dataset.worldId))
+      .filter(worldId => Number.isInteger(worldId));
   }
 
   private setWorldActive(card: HTMLElement, active: boolean): void {

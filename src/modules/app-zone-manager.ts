@@ -20,6 +20,7 @@ import {
 } from './navigation-control.js';
 import { homepageEnterTransitionOwner } from './homepage-enter-transition-owner.js';
 import { emitSettingsRouteDiagnostic } from './settings-route-diagnostic.js';
+import { normalizeJourneyBoardId } from './journey-world-definitions.js';
 import {
   ARCADE_SLIDE_INDEX,
   JOURNEY_SLIDE_INDEX,
@@ -109,9 +110,7 @@ function clearInlineHiddenState(el: HTMLElement | null): void {
 
 function normalizeBoardId(boardId: unknown): number | null {
   const value = Number(boardId);
-  if (!Number.isFinite(value)) return null;
-  const normalized = Math.floor(value);
-  return normalized >= 1 && normalized <= 30 ? normalized : null;
+  return Number.isFinite(value) ? normalizeJourneyBoardId(Math.floor(value)) : null;
 }
 
 class AppZoneManager {

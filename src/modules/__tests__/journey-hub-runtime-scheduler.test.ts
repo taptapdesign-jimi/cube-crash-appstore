@@ -47,4 +47,22 @@ describe('Journey Hub runtime scheduler', () => {
     scheduler.deactivate();
     expect(disconnect).toHaveBeenCalledTimes(1);
   });
+
+  test.each([8, 13])('never activates more than the two-World budget across 20 cycles (%i Worlds)', (count) => {
+    const hub = document.createElement('div');
+    hub.innerHTML = Array.from({ length: count }, (_, index) => `
+      <button class="journey-v700-world-card" data-world-id="${index + 1}"></button>
+      <img class="journey-v700-world-cloud" data-world-id="${index + 1}">`).join('');
+    const scheduler = new JourneyHubRuntimeScheduler(null);
+
+    for (let cycle = 0; cycle < 20; cycle += 1) {
+      const anchor = (cycle % count) + 1;
+      const neighbour = anchor < count ? anchor + 1 : anchor - 1;
+      scheduler.activate(hub, null, [anchor, neighbour]);
+      expect(scheduler.getActiveWorldIds()).toHaveLength(2);
+      expect(hub.querySelectorAll('.journey-v700-world-cloud.journey-v700-runtime-active')).toHaveLength(2);
+      scheduler.deactivate();
+      expect(scheduler.getActiveWorldIds()).toHaveLength(0);
+    }
+  });
 });

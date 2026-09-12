@@ -21,9 +21,6 @@ const CRITICAL_IMAGES: string[] = [
   './assets/journey.png',
   './assets/journey@2x.png',
   './assets/journey@3x.png',
-  './assets/collectibles-box.png',
-  './assets/collectibles-box@2x.png',
-  './assets/collectibles-box@3x.png',
   './assets/settings-slider.png',
   './assets/settings-slider@2x.png',
   './assets/settings-slider@3x.png',
@@ -31,7 +28,6 @@ const CRITICAL_IMAGES: string[] = [
   // Nav icons
   './assets/nav/cube-nav.png',
   './assets/nav/stats-nav.png',
-  './assets/nav/collectibles-nav.png',
   './assets/nav/settings-nav.png',
 
   // Core gameplay visuals

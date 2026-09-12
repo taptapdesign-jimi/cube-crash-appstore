@@ -68,8 +68,8 @@ describe('Arcade Round digit sounds', () => {
 
     const expected = [
       [ARCADE_ROUND_FIRST_DIGIT_SOUND_SOURCE, '8ce95523fe197165b079d99aa98e5958604866fe1457407cdebc06509555509d'],
-      [ARCADE_ROUND_SECOND_DIGIT_SOUND_SOURCE, 'c16d07981e894a4451b858d7237d71fe80f0fccfc6ea78267bacbbc884809683'],
-      [ARCADE_ROUND_EXIT_SOUND_SOURCE, '876e21fe2b9c2befd02123654ce61b31689f89c18288da94350b4d440a9407b2'],
+      [ARCADE_ROUND_SECOND_DIGIT_SOUND_SOURCE, '07008b83bc65355c8ca3bdb93fceaa286447efa57e6dcee2c21a0a255a52c87f'],
+      [ARCADE_ROUND_EXIT_SOUND_SOURCE, '119c45760da6e2141cefae255e0766fd2b07f7c69f40e99fe76e1d207f0def92'],
     ] as const;
     expected.forEach(([source, hash]) => {
       const bytes = fs.readFileSync(path.resolve(process.cwd(), source.replace(/^\.\//, '')));
@@ -100,7 +100,7 @@ describe('Arcade Round digit sounds', () => {
     expect(playArcadeRoundDigitSound(2)).toBe(false);
   });
 
-  test('starts exit.wav only from the first digit exit animation callback', () => {
+  test('plays exit.wav once through its dedicated bounded voice', () => {
     expect(preloadArcadeRoundDigitSounds()).toBe(true);
     const exit = MockAudio.instances.find(
       (audio) => audio.src === ARCADE_ROUND_EXIT_SOUND_SOURCE,
@@ -131,7 +131,7 @@ describe('Arcade Round digit sounds', () => {
     });
   });
 
-  test('is wired to each digit timeline start and stopped by the Round overlay owner', () => {
+  test('starts exit.wav exactly when the first Arcade digit begins entering', () => {
     const source = fs.readFileSync(
       path.resolve(process.cwd(), 'src/modules/arcade-stage-clear-modal.ts'),
       'utf8',
@@ -141,8 +141,8 @@ describe('Arcade Round digit sounds', () => {
       source.indexOf('export async function showArcadeStageClearModal'),
     );
     expect(phase).toContain('preloadArcadeRoundDigitSounds();');
-    expect(phase).toContain('onStart: () => {\n          playArcadeRoundDigitSound(index);');
-    expect(phase).toContain('if (index === 0) playArcadeRoundExitSound();');
+    expect(phase).toContain('onStart: () => {\n          playArcadeRoundDigitSound(index);\n          if (index === 0) playArcadeRoundExitSound();');
+    expect(phase.slice(phase.indexOf('await Promise.all(['))).not.toContain('playArcadeRoundExitSound');
     const cleanup = source.slice(source.indexOf('export function cleanupArcadeStageClearModal'));
     expect(cleanup).toContain('stopArcadeRoundDigitSounds();');
   });
@@ -172,14 +172,14 @@ describe('Arcade Round digit sounds', () => {
     });
   });
 
-  test('wires Board Transition sounds to visual timeline starts without parallel timers', () => {
+  test('starts the Board Transition exit cue with the first digit enter callback', () => {
     const source = fs.readFileSync(
       path.resolve(process.cwd(), 'src/modules/board-transition-screen.ts'),
       'utf8',
     );
     expect(source).toContain('preloadBoardTransitionDigitSounds();');
-    expect(source).toContain('onStart: () => {\n            playBoardTransitionDigitSound(index);');
-    expect(source).toContain('if (index === 0) playBoardTransitionExitSound();');
+    expect(source).toContain('onStart: () => {\n            playBoardTransitionDigitSound(index);\n            if (index === 0) playBoardTransitionExitSound();');
+    expect(source).not.toContain('BOARD_TRANSITION_EXIT_SOUND_AT_SECONDS');
     expect(source).toContain('stopBoardTransitionDigitSounds();');
   });
 });

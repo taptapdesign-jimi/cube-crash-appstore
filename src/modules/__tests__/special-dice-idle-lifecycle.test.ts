@@ -149,7 +149,7 @@ describe('special-dice idle lifecycle', () => {
     stopSpecialDiceIdleMotion(tile);
   });
 
-  test('Kanta mounts a full-size rear can behind the front and removes it on cleanup', async () => {
+  test('Kanta mounts a 30%-smaller rear can behind the front and removes it on cleanup', async () => {
     const loadedSource = new TextureSource({
       resource: { width: 128, height: 171 } as any,
       width: 128,
@@ -178,18 +178,77 @@ describe('special-dice idle lifecycle', () => {
       await Promise.resolve();
 
       // Freeze at the neutral authored pose before measuring the asynchronous
-      // rear texture mount. Both cans use the same registered dimensions.
+      // rear texture mount.
       expect(setSpecialDiceIdleDragging(tile, true)).toBe(true);
       const rear = rotG.getChildByLabel('kanta-idle-back') as Sprite;
       expect(rear).toBeTruthy();
       expect(rear.parent).toBe(rotG);
-      expect(rear.width).toBeCloseTo(base.width, 6);
-      expect(rear.height).toBeCloseTo(base.height, 6);
+      expect(rear.width).toBeCloseTo(base.width * 0.70, 6);
+      expect(rear.height).toBeCloseTo(base.height * 0.70, 6);
+      expect(rear.y).toBeCloseTo(base.y - base.height * 0.14, 6);
       expect(rear.zIndex).toBeLessThan(base.zIndex);
       expect(rotG.getChildIndex(rear)).toBeLessThan(rotG.getChildIndex(base));
 
       stopSpecialDiceIdleMotion(tile);
       expect(rotG.getChildByLabel('kanta-idle-back')).toBeNull();
+    } finally {
+      stopSpecialDiceIdleMotion(tile);
+      loadSpy.mockRestore();
+      loadedTexture.destroy(true);
+    }
+  });
+
+  test('Kanta keeps the rear can on one fixed side across taps and drags', async () => {
+    const loadedSource = new TextureSource({
+      resource: { width: 128, height: 171 } as any,
+      width: 128,
+      height: 171,
+    });
+    const loadedTexture = new Texture({ source: loadedSource });
+    const loadSpy = jest.spyOn(Assets, 'load').mockImplementation(async () => loadedTexture as any);
+    const base = new Sprite(loadedTexture);
+    base.anchor.set(0.5);
+    base.width = 96;
+    base.height = 128;
+    const rotG = new Container();
+    rotG.x = window.innerWidth * 0.75;
+    rotG.addChild(base);
+    const tile: any = {
+      base,
+      rotG,
+      destroyed: false,
+      _ccSpecialDiceVariant: 'kanta',
+    };
+
+    try {
+      startSpecialDiceIdleMotion(tile);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const controller = tile._ccKantaDiceIdle;
+      controller.setDragging(true);
+      const rear = rotG.getChildByLabel('kanta-idle-back') as Sprite;
+      const oldOffsetFromFront = rear.x - base.x;
+      const oldOffsetFromFrontY = rear.y - base.y;
+      const oldRotation = rear.rotation;
+      expect(oldOffsetFromFront).toBeLessThan(0);
+      expect(oldOffsetFromFrontY).toBeCloseTo(-base.height * 0.14, 6);
+      expect(oldRotation).toBeGreaterThanOrEqual(3 * (Math.PI / 180));
+      expect(oldRotation).toBeLessThanOrEqual(10 * (Math.PI / 180));
+
+      controller.setDragging(false);
+      controller.setDragging(true);
+      expect(rear.x - base.x).toBeCloseTo(oldOffsetFromFront, 6);
+      expect(rear.y - base.y).toBeCloseTo(oldOffsetFromFrontY, 6);
+      expect(rear.rotation).toBeCloseTo(oldRotation, 6);
+      expect(rear.width).toBeCloseTo(base.width * 0.70, 6);
+
+      controller.setDragging(false);
+      controller.setDragging(true);
+      expect(rear.x - base.x).toBeCloseTo(oldOffsetFromFront, 6);
+      expect(rear.y - base.y).toBeCloseTo(oldOffsetFromFrontY, 6);
+      expect(rear.rotation).toBeCloseTo(oldRotation, 6);
+      expect(rear.width).toBeCloseTo(base.width * 0.70, 6);
     } finally {
       stopSpecialDiceIdleMotion(tile);
       loadSpy.mockRestore();
