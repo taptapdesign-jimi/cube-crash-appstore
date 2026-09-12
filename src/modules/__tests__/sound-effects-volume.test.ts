@@ -100,7 +100,7 @@ describe('sound effects master volume', () => {
     expect(JOURNEY_CARD_ENTRY_FLIP_SOUND_VOLUMES).toEqual([0.6, 0.6, 0.6]);
     expect(JOURNEY_CARD_MANUAL_FLIP_SOUND_VOLUME).toBeCloseTo(0.6);
     expect(MAGNET_PULL_FORCE_SOUND_VOLUMES).toEqual([0.3, 0.3, 0.6]);
-    expect(HONEY_PULL_MERGE_SOUND_VOLUMES).toEqual([0.6, 0.6]);
+    expect(HONEY_PULL_MERGE_SOUND_VOLUMES).toEqual([0.6, 0.6, 0.6]);
     expect(HONEY_POST_MERGE_SOUND_VOLUMES).toEqual([0.288]);
   });
 

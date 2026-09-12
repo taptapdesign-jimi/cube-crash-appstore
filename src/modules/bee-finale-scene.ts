@@ -41,9 +41,7 @@ export const BEE_FINALE_HAPPY_SOUND_SECONDS = (
 );
 export const BEE_FINALE_IDLE_FRAME_SECONDS = 1 / 960;
 export const BEE_FINALE_IDLE_CROSSFADE_RATIO = 0.38;
-export const BEE_FINALE_CURVE_VIEWPORT_RATIO = 0.38;
-export const BEE_FINALE_WEAVE_VIEWPORT_RATIO = 0.30;
-export const BEE_FINALE_EXIT_GUIDE_PROGRESS = 0.72;
+export const BEE_FINALE_EXIT_GUIDE_PROGRESS = 0.76;
 export const BEE_FINALE_EXIT_RELEASE_PROGRESS = 0.90;
 export const BEE_FINALE_VISIBLE_ART_RADIUS_RATIO = 0.128;
 export const BEE_FINALE_LEAF_COUNT = 42;
@@ -71,21 +69,14 @@ export type BeeFinalePose = {
 };
 export type BeeFinaleRoutePlan = {
   progress: number[];
-  lateral: number[];
+  points: BeeFinaleOrigin[];
+  controlOut: BeeFinaleOrigin[];
+  controlIn: BeeFinaleOrigin[];
 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const sineInOut = (progress: number) => 0.5 - Math.cos(Math.PI * clamp(progress, 0, 1)) * 0.5;
 
-export function getBeeFinaleForwardProgress(rawProgress: number): number {
-  const progress = clamp(rawProgress, 0, 1);
-  const previousFlight = progress ** 1.5;
-  const finishRamp = clamp((progress - 0.55) / 0.45, 0, 1);
-  const finishBlend = finishRamp * finishRamp * (3 - 2 * finishRamp);
-  // Keep the established launch, then blend into p^3. Its endpoint velocity is
-  // exactly twice the previous p^1.5 flight without adding a timing seam.
-  return previousFlight + (progress ** 3 - previousFlight) * finishBlend;
-}
 export function resolveBeeFinaleOrigin(
   origin: BeeFinaleOrigin | null | undefined,
   viewport: BeeFinaleViewport,
@@ -124,70 +115,77 @@ export function createBeeFinaleRoutePlan(
 ): BeeFinaleRoutePlan {
   const seed = Number.isFinite(routeSeed) ? routeSeed : 0;
   const exit = resolveBeeFinaleExit(origin, viewport, seed);
-  const distance = Math.max(1, Math.hypot(exit.x - origin.x, exit.y - origin.y));
-  const normalX = -(exit.y - origin.y) / distance;
-  const outwardX = origin.x < viewport.width * 0.5
-    ? -1
-    : origin.x > viewport.width * 0.5 ? 1 : (Math.cos(seed) >= 0 ? -1 : 1);
-  const introDirection = Math.sign(normalX || 1) === outwardX ? 1 : -1;
-  const templates = [
-    [0, 0.34, -0.46, -0.12, -0.52, 0.25, 0.14, 0],
-    [0, 0.29, 0.51, -0.20, -0.43, 0.18, -0.30, 0],
-    [0, 0.42, -0.16, -0.49, 0.12, 0.38, -0.15, 0],
-    [0, 0.31, -0.40, 0.11, 0.48, 0.26, -0.34, 0],
+  const heroRadius = Math.min(viewport.width * BEE_FINALE_VISIBLE_ART_RADIUS_RATIO, 56) + 3;
+  const safeWidth = Math.max(1, viewport.width - heroRadius * 2);
+  const safeHeight = Math.max(1, viewport.height - heroRadius * 2);
+  const exitRight = exit.x >= viewport.width * 0.5;
+  const exitTop = exit.y < viewport.height * 0.5;
+  const toCanonical = (point: BeeFinaleOrigin) => ({
+    u: exitRight
+      ? (point.x - heroRadius) / safeWidth
+      : 1 - (point.x - heroRadius) / safeWidth,
+    v: exitTop
+      ? (point.y - heroRadius) / safeHeight
+      : 1 - (point.y - heroRadius) / safeHeight,
+  });
+  const fromCanonical = (point: { u: number; v: number }): BeeFinaleOrigin => ({
+    x: heroRadius + (exitRight ? point.u : 1 - point.u) * safeWidth,
+    y: heroRadius + (exitTop ? point.v : 1 - point.v) * safeHeight,
+  });
+  const start = toCanonical(origin);
+  const jitter = (index: number, amount: number) => (
+    Math.sin(seed * 1.73 + origin.x * 0.009 + origin.y * 0.006 + index * 2.41) * amount
+  );
+  const firstRight = clamp(Math.max(0.43, start.u + 0.24), 0.43, 0.72);
+  const farRight = clamp(Math.max(0.70, firstRight + 0.18), 0.70, 0.94);
+  const lowTurn = clamp(start.v + 0.08, 0.66, 0.94);
+  const canonicalPoints = [
+    start,
+    { u: firstRight, v: start.v },
+    { u: farRight, v: lowTurn },
+    {
+      u: clamp(0.18 + jitter(3, 0.025), 0.15, 0.21),
+      v: clamp(lowTurn - 0.03 + jitter(4, 0.018), 0.64, 0.90),
+    },
+    {
+      u: clamp(0.24 + jitter(5, 0.022), 0.21, 0.27),
+      v: clamp(0.28 + jitter(6, 0.026), 0.24, 0.32),
+    },
+    {
+      u: clamp(0.50 + jitter(7, 0.030), 0.46, 0.54),
+      v: clamp(0.50 + jitter(8, 0.030), 0.46, 0.54),
+    },
+    {
+      u: clamp(0.78 + jitter(9, 0.026), 0.74, 0.82),
+      v: clamp(0.52 + jitter(10, 0.034), 0.47, 0.57),
+    },
   ];
-  const routeNoise = Math.abs(Math.sin(seed * 1.913 + origin.x * 0.017 + origin.y * 0.011));
-  const template = templates[Math.min(templates.length - 1, Math.floor(routeNoise * templates.length))];
-  const baseProgress = [0, 0.075, 0.23, 0.405, 0.565, 0.755, 0.905, 1];
-  const progress = baseProgress.map((value, index) => {
-    if (index === 0 || index === baseProgress.length - 1) return value;
-    return value + Math.sin(seed * 2.17 + origin.x * 0.009 + index * 2.31) * 0.022;
+  const points = canonicalPoints.map(fromCanonical);
+  // Fixed macro timing keeps the authored right/down/left/up/centre/right
+  // sequence intact for every seed. Seed variation only changes the shape
+  // inside bounded waypoint regions, so it cannot reverse that topology.
+  const progress = [0, 0.10, 0.19, 0.34, 0.50, 0.62, BEE_FINALE_EXIT_GUIDE_PROGRESS];
+  const controlOut: BeeFinaleOrigin[] = [];
+  const controlIn: BeeFinaleOrigin[] = [];
+  const safeMinX = heroRadius;
+  const safeMaxX = viewport.width - heroRadius;
+  const safeMinY = heroRadius;
+  const safeMaxY = viewport.height - heroRadius;
+  const controlScale = 0.13;
+  points.slice(0, -1).forEach((point, index) => {
+    const end = points[index + 1];
+    const previous = index > 0 ? points[index - 1] : point;
+    const next = index + 2 < points.length ? points[index + 2] : end;
+    controlOut.push({
+      x: clamp(point.x + (end.x - previous.x) * controlScale, safeMinX, safeMaxX),
+      y: clamp(point.y + (end.y - previous.y) * controlScale, safeMinY, safeMaxY),
+    });
+    controlIn.push({
+      x: clamp(end.x - (next.x - point.x) * controlScale, safeMinX, safeMaxX),
+      y: clamp(end.y - (next.y - point.y) * controlScale, safeMinY, safeMaxY),
+    });
   });
-  const lateral = template.map((value, index) => {
-    if (index === 0 || index === template.length - 1) return 0;
-    const variation = 0.88 + 0.18 * Math.abs(Math.sin(seed * 1.37 + origin.y * 0.006 + index * 1.79));
-    return value * introDirection * variation;
-  });
-  return { progress, lateral };
-}
-
-function basePosition(
-  elapsedSeconds: number,
-  origin: BeeFinaleOrigin,
-  viewport: BeeFinaleViewport,
-  routeSeed: number,
-): { x: number; y: number; phase: BeeFinalePhase } {
-  const time = clamp(elapsedSeconds, 0, BEE_FINALE_SCENE_SECONDS);
-  const rawProgress = clamp(time / BEE_FINALE_FLIGHT_SECONDS, 0, 1);
-  const acceleratedProgress = getBeeFinaleForwardProgress(rawProgress);
-  const exit = resolveBeeFinaleExit(origin, viewport, routeSeed);
-  const deltaX = exit.x - origin.x;
-  const deltaY = exit.y - origin.y;
-  const distance = Math.max(1, Math.hypot(deltaX, deltaY));
-  const curve = Math.min(viewport.width, viewport.height) * BEE_FINALE_CURVE_VIEWPORT_RATIO;
-  const controlX = (origin.x + exit.x) * 0.5 - (deltaY / distance) * curve;
-  const controlY = (origin.y + exit.y) * 0.5 + (deltaX / distance) * curve;
-  const oneMinusProgress = 1 - acceleratedProgress;
-  const x = oneMinusProgress * oneMinusProgress * origin.x
-    + 2 * oneMinusProgress * acceleratedProgress * controlX
-    + acceleratedProgress * acceleratedProgress * exit.x;
-  const y = oneMinusProgress * oneMinusProgress * origin.y
-    + 2 * oneMinusProgress * acceleratedProgress * controlY
-    + acceleratedProgress * acceleratedProgress * exit.y;
-  const hoverBuzz = Math.sin(rawProgress * Math.PI * 18) * Math.sin(rawProgress * Math.PI) * 5;
-  const phase: BeeFinalePhase = time <= BEE_FINALE_ORBIT_END_SECONDS
-    ? 'orbit'
-    : time <= BEE_FINALE_RIGHT_FEINT_END_SECONDS
-      ? 'right-feint'
-      : time <= BEE_FINALE_LEFT_CHARGE_END_SECONDS
-        ? 'left-charge'
-        : 'flyby';
-  return {
-    x,
-    y: y + hoverBuzz,
-    phase,
-  };
-
+  return { progress, points, controlOut, controlIn };
 }
 
 function visiblePosition(
@@ -200,21 +198,22 @@ function visiblePosition(
   const time = clamp(elapsedSeconds, 0, BEE_FINALE_SCENE_SECONDS);
   const rawProgress = clamp(time / BEE_FINALE_FLIGHT_SECONDS, 0, 1);
   const exit = resolveBeeFinaleExit(origin, viewport, wobblePhase);
-  const deltaX = exit.x - origin.x;
-  const deltaY = exit.y - origin.y;
-  const distance = Math.max(1, Math.hypot(deltaX, deltaY));
-  const normalX = -deltaY / distance;
-  const normalY = deltaX / distance;
   const routePlan = suppliedRoutePlan ?? createBeeFinaleRoutePlan(origin, viewport, wobblePhase);
   const heroRadius = Math.min(viewport.width * BEE_FINALE_VISIBLE_ART_RADIUS_RATIO, 56) + 3;
   const safeMinX = heroRadius;
   const safeMaxX = viewport.width - heroRadius;
   const safeMinY = heroRadius;
   const safeMaxY = viewport.height - heroRadius;
+  const phase: BeeFinalePhase = time <= BEE_FINALE_ORBIT_END_SECONDS
+    ? 'orbit'
+    : time <= BEE_FINALE_RIGHT_FEINT_END_SECONDS
+      ? 'right-feint'
+      : time <= BEE_FINALE_LEFT_CHARGE_END_SECONDS
+        ? 'left-charge'
+        : 'flyby';
 
   const sampleRawRoute = (progress: number) => {
-    const routeProgress = clamp(progress, 0, 1);
-    const base = basePosition(routeProgress * BEE_FINALE_FLIGHT_SECONDS, origin, viewport, wobblePhase);
+    const routeProgress = clamp(progress, 0, BEE_FINALE_EXIT_GUIDE_PROGRESS);
     let waypointIndex = routePlan.progress.length - 2;
     for (let index = 0; index < routePlan.progress.length - 1; index += 1) {
       if (routeProgress <= routePlan.progress[index + 1]) {
@@ -229,42 +228,32 @@ function visiblePosition(
       0,
       1,
     );
-    const smoothLocal = localProgress * localProgress * (3 - 2 * localProgress);
-    const weaveMagnitude = routePlan.lateral[waypointIndex]
-      + (routePlan.lateral[waypointIndex + 1] - routePlan.lateral[waypointIndex]) * smoothLocal;
-    const weave = Math.min(viewport.width, viewport.height)
-      * BEE_FINALE_WEAVE_VIEWPORT_RATIO
-      * weaveMagnitude;
+    const inverse = 1 - localProgress;
+    const start = routePlan.points[waypointIndex];
+    const end = routePlan.points[waypointIndex + 1];
+    const controlOut = routePlan.controlOut[waypointIndex];
+    const controlIn = routePlan.controlIn[waypointIndex];
+    const hoverBuzz = Math.sin(progress * Math.PI * 18) * Math.sin(progress * Math.PI) * 3;
     return {
-      x: base.x + normalX * weave,
-      y: base.y + normalY * weave,
-      phase: base.phase,
+      x: inverse ** 3 * start.x
+        + 3 * inverse ** 2 * localProgress * controlOut.x
+        + 3 * inverse * localProgress ** 2 * controlIn.x
+        + localProgress ** 3 * end.x,
+      y: inverse ** 3 * start.y
+        + 3 * inverse ** 2 * localProgress * controlOut.y
+        + 3 * inverse * localProgress ** 2 * controlIn.y
+        + localProgress ** 3 * end.y
+        + hoverBuzz,
+      phase,
     };
   };
-
-  const turnInsideEdge = (value: number, start: number, min: number, max: number) => {
-    const turnDepth = Math.min(32, Math.max(18, (max - min) * 0.08));
-    const upperTurnStart = Math.max(start, max - turnDepth);
-    if (value > upperTurnStart) {
-      const travel = value - upperTurnStart;
-      const turnRadius = Math.max(4, (max - upperTurnStart) * 0.82);
-      return upperTurnStart + travel * Math.exp(-travel / turnRadius);
-    }
-    const lowerTurnStart = Math.min(start, min + turnDepth);
-    if (value < lowerTurnStart) {
-      const travel = lowerTurnStart - value;
-      const turnRadius = Math.max(4, (lowerTurnStart - min) * 0.82);
-      return lowerTurnStart - travel * Math.exp(-travel / turnRadius);
-    }
-    return value;
-  };
   const containPlayPoint = (point: { x: number; y: number }) => ({
-    x: turnInsideEdge(point.x, origin.x, safeMinX, safeMaxX),
-    y: turnInsideEdge(point.y, origin.y, safeMinY, safeMaxY),
+    x: clamp(point.x, safeMinX, safeMaxX),
+    y: clamp(point.y, safeMinY, safeMaxY),
   });
 
   const raw = sampleRawRoute(rawProgress);
-  if (rawProgress >= 1) return raw;
+  if (rawProgress >= 1) return { x: exit.x, y: exit.y, phase };
   if (rawProgress < BEE_FINALE_EXIT_GUIDE_PROGRESS) {
     return { ...containPlayPoint(raw), phase: raw.phase };
   }

@@ -7,7 +7,6 @@ import {
   attachBeeFinaleScene,
   BEE_FINALE_AMBIENT_PLANS,
   BEE_FINALE_FLYBY_START_SECONDS,
-  BEE_FINALE_CURVE_VIEWPORT_RATIO,
   BEE_FINALE_EXIT_GUIDE_PROGRESS,
   BEE_FINALE_EXIT_RELEASE_PROGRESS,
   BEE_FINALE_FLIGHT_SECONDS,
@@ -17,10 +16,8 @@ import {
   BEE_FINALE_LEAF_START_SECONDS,
   BEE_FINALE_ORBIT_END_SECONDS,
   BEE_FINALE_SCENE_SECONDS,
-  BEE_FINALE_WEAVE_VIEWPORT_RATIO,
   BEE_FINALE_VISIBLE_ART_RADIUS_RATIO,
   createBeeFinaleRoutePlan,
-  getBeeFinaleForwardProgress,
   getBeeFinaleHorizontalAssetForVelocity,
   getBeeFinaleIdleBlend,
   resolveBeeFinaleOrigin,
@@ -156,7 +153,7 @@ describe('Bee merge-six finale', () => {
     });
   });
 
-  test('flies opposite the merge quadrant on a faster deeper curve and keeps its head forward', () => {
+  test('flies opposite the merge quadrant across the viewport and keeps its head forward', () => {
     const bottomRight = { x: 330, y: 700 };
     const bottomLeft = { x: 60, y: 700 };
     const topRight = { x: 330, y: 170 };
@@ -170,13 +167,6 @@ describe('Bee merge-six finale', () => {
     expect(route[route.length - 1]).toMatchObject({ x: -78, y: -168.8, facing: -1 });
     const distance = (a: typeof origin, b: typeof origin) => Math.hypot(a.x - b.x, a.y - b.y);
     expect(BEE_FINALE_FLIGHT_SECONDS).toBe(3);
-    expect(BEE_FINALE_CURVE_VIEWPORT_RATIO).toBe(0.38);
-    const oldFinishVelocity = 1.5;
-    const sampleStep = 0.0001;
-    const newFinishVelocity = (
-      getBeeFinaleForwardProgress(1) - getBeeFinaleForwardProgress(1 - sampleStep)
-    ) / sampleStep;
-    expect(newFinishVelocity).toBeCloseTo(oldFinishVelocity * 2, 2);
     const earlyDistance = distance(sampleBeeFinalePose(0.5, bottomRight, viewport, 0), bottomRight);
     const lateDistance = distance(sampleBeeFinalePose(3, bottomRight, viewport, 0), sampleBeeFinalePose(2.5, bottomRight, viewport, 0));
     expect(lateDistance).toBeGreaterThan(earlyDistance * 2);
@@ -191,80 +181,66 @@ describe('Bee merge-six finale', () => {
     expect(Math.abs(calm.x - shifted.x) + Math.abs(calm.y - shifted.y)).toBeGreaterThan(1);
   });
 
-  test('weaves strongly across every exit axis without loops, endpoint drift, or tail-first travel', () => {
-    const starts = [
-      { x: 330, y: 700 },
-      { x: 60, y: 700 },
-      { x: 330, y: 170 },
-      { x: 60, y: 170 },
-      origin,
-    ];
-    starts.forEach((start, routeIndex) => {
-      const seed = routeIndex * 0.83;
+  test('follows the mirrored right/down/left/up/centre/right route from every merge region', () => {
+    const starts = [60, 195, 330].flatMap((x) => [170, 430, 700].map((y) => ({ x, y })));
+    const seeds = [0.4, 2.0, 3.6, 5.2];
+    starts.forEach((start) => seeds.forEach((seed) => {
       const exit = resolveBeeFinaleExit(start, viewport, seed);
-      const dx = exit.x - start.x;
-      const dy = exit.y - start.y;
-      const distance = Math.hypot(dx, dy);
-      const tangent = { x: dx / distance, y: dy / distance };
-      const normal = { x: -tangent.y, y: tangent.x };
-      const samples = Array.from({ length: 121 }, (_, index) => (
-        sampleBeeFinalePose(index * BEE_FINALE_FLIGHT_SECONDS / 120, start, viewport, seed)
+      const exitX = Math.sign(exit.x - start.x);
+      const exitY = Math.sign(exit.y - start.y);
+      const plan = createBeeFinaleRoutePlan(start, viewport, seed);
+      const poses = plan.progress.map((progress) => (
+        sampleBeeFinalePose(progress * BEE_FINALE_FLIGHT_SECONDS, start, viewport, seed, plan)
       ));
-      const forward = samples.map((pose) => (
-        (pose.x - start.x) * tangent.x + (pose.y - start.y) * tangent.y
-      ));
-      const lateral = samples.map((pose) => (
-        (pose.x - start.x) * normal.x + (pose.y - start.y) * normal.y
-      ));
-      const lateralVelocitySigns = lateral.slice(1).map((value, index) => value - lateral[index])
-        .filter((velocity) => Math.abs(velocity) > 0.15)
-        .map((velocity) => Math.sign(velocity));
-      const lateralTurns = lateralVelocitySigns.slice(1).filter(
-        (sign, index) => sign !== lateralVelocitySigns[index],
-      ).length;
+      const [launch, right, down, left, up, centre, exitSide] = poses;
+      const gate = sampleBeeFinalePose(
+        BEE_FINALE_EXIT_RELEASE_PROGRESS * BEE_FINALE_FLIGHT_SECONDS,
+        start,
+        viewport,
+        seed,
+        plan,
+      );
+      const finish = sampleBeeFinalePose(BEE_FINALE_FLIGHT_SECONDS, start, viewport, seed, plan);
 
-      expect(forward.every((value, index) => index === 0 || value >= forward[index - 1] - 0.01)).toBe(true);
-      expect(Math.max(...lateral) - Math.min(...lateral)).toBeGreaterThan(55);
-      expect(lateralTurns).toBeGreaterThanOrEqual(3);
-      expect(samples.every((pose) => Math.abs(pose.vx) <= 0.01 || pose.facing === Math.sign(pose.vx))).toBe(true);
-      expect(samples.every((pose) => Number.isFinite(pose.rotation) && Math.abs(pose.rotation) <= 20)).toBe(true);
-      expect(samples[0]).toMatchObject({ x: start.x, y: start.y });
-      expect(samples[samples.length - 1]).toMatchObject({ x: exit.x, y: exit.y });
-    });
-    expect(BEE_FINALE_WEAVE_VIEWPORT_RATIO).toBe(0.30);
+      expect(launch).toMatchObject(start);
+      expect((right.x - start.x) * exitX).toBeGreaterThan(viewport.width * 0.10);
+      expect((down.y - right.y) * exitY).toBeLessThan(-viewport.height * 0.035);
+      expect((left.x - down.x) * exitX).toBeLessThan(-viewport.width * 0.20);
+      expect((up.y - left.y) * exitY).toBeGreaterThan(viewport.height * 0.16);
+      expect(Math.abs(centre.x - viewport.width * 0.5)).toBeLessThan(viewport.width * 0.16);
+      expect(Math.abs(centre.y - viewport.height * 0.5)).toBeLessThan(viewport.height * 0.16);
+      expect((exitSide.x - viewport.width * 0.5) * exitX).toBeGreaterThan(viewport.width * 0.16);
+      expect((gate.x - viewport.width * 0.5) * exitX).toBeGreaterThan(viewport.width * 0.18);
+      expect((gate.y - viewport.height * 0.5) * exitY).toBeGreaterThan(viewport.height * 0.08);
+      expect(finish).toMatchObject(exit);
+      expect(poses.every((pose) => Math.abs(pose.vx) <= 0.01 || pose.facing === Math.sign(pose.vx))).toBe(true);
+      expect(poses.every((pose) => Number.isFinite(pose.rotation) && Math.abs(pose.rotation) <= 20)).toBe(true);
+    }));
   });
 
-  test('builds deterministic asymmetric play routes instead of an equal alternating metronome', () => {
-    const starts = [
-      { x: 60, y: 700 },
-      { x: 330, y: 700 },
-      { x: 60, y: 170 },
-      { x: 330, y: 170 },
-      origin,
-    ];
-    starts.forEach((start, index) => {
-      const seed = 0.37 + index * 0.91;
-      const plan = createBeeFinaleRoutePlan(start, viewport, seed);
-      expect(createBeeFinaleRoutePlan(start, viewport, seed)).toEqual(plan);
-      expect(plan.progress[0]).toBe(0);
-      expect(plan.progress[plan.progress.length - 1]).toBe(1);
-      expect(plan.lateral[0]).toBe(0);
-      expect(plan.lateral[plan.lateral.length - 1]).toBe(0);
-      const gaps = plan.progress.slice(1).map((value, gapIndex) => value - plan.progress[gapIndex]);
-      expect(Math.max(...gaps) - Math.min(...gaps)).toBeGreaterThan(0.07);
-      expect(plan.lateral.slice(1, -1).some((value, lateralIndex, values) => (
-        lateralIndex > 0 && Math.sign(value) === Math.sign(values[lateralIndex - 1])
-      ))).toBe(true);
-      expect(Math.max(...plan.lateral.map(Math.abs))).toBeGreaterThan(0.3);
+  test('precomputes a deterministic but organically varied screen-space route', () => {
+    const start = { x: 60, y: 700 };
+    const seeds = [0.4, 2.0, 3.6, 5.2];
+    const plans = seeds.map((seed) => createBeeFinaleRoutePlan(start, viewport, seed));
+    plans.forEach((plan, index) => {
+      expect(createBeeFinaleRoutePlan(start, viewport, seeds[index])).toEqual(plan);
+      expect(plan.progress).toEqual([0, 0.10, 0.19, 0.34, 0.50, 0.62, BEE_FINALE_EXIT_GUIDE_PROGRESS]);
+      expect(plan.points).toHaveLength(plan.progress.length);
+      expect(plan.controlOut).toHaveLength(plan.progress.length - 1);
+      expect(plan.controlIn).toHaveLength(plan.progress.length - 1);
+      expect(plan.points[0]).toEqual(start);
     });
-    expect(createBeeFinaleRoutePlan(origin, viewport, 0.2)).not.toEqual(
-      createBeeFinaleRoutePlan(origin, viewport, 2.8),
-    );
-
-    const bottomLeft = { x: 60, y: 700 };
-    const bottomRight = { x: 330, y: 700 };
-    expect(sampleBeeFinalePose(0.15, bottomLeft, viewport, 0.37).x).toBeLessThan(bottomLeft.x);
-    expect(sampleBeeFinalePose(0.15, bottomRight, viewport, 0.37).x).toBeGreaterThan(bottomRight.x);
+    const signatures = new Set(plans.map((plan) => (
+      plan.points.slice(3).map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join('|')
+    )));
+    expect(signatures.size).toBeGreaterThanOrEqual(3);
+    const interiorSeparation = Math.max(...plans.slice(1).map((plan) => Math.max(
+      ...plan.points.slice(3).map((point, index) => Math.hypot(
+        point.x - plans[0].points[index + 3].x,
+        point.y - plans[0].points[index + 3].y,
+      )),
+    )));
+    expect(interiorSeparation).toBeGreaterThan(8);
   });
 
   test('turns inside the viewport and crosses both exit edges together without boundary gliding', () => {
@@ -276,7 +252,7 @@ describe('Bee merge-six finale', () => {
       origin,
     ];
     const heroRadius = Math.min(viewport.width * BEE_FINALE_VISIBLE_ART_RADIUS_RATIO, 56) + 3;
-    expect(BEE_FINALE_EXIT_GUIDE_PROGRESS).toBe(0.72);
+    expect(BEE_FINALE_EXIT_GUIDE_PROGRESS).toBe(0.76);
     expect(BEE_FINALE_EXIT_RELEASE_PROGRESS).toBe(0.90);
     starts.forEach((start, routeIndex) => {
       const seed = routeIndex * 0.83;
@@ -289,20 +265,30 @@ describe('Bee merge-six finale', () => {
         expect(pose.y).toBeGreaterThanOrEqual(heroRadius - 0.01);
         expect(pose.y).toBeLessThanOrEqual(viewport.height - heroRadius + 0.01);
       });
-      const hasBoundaryGlide = safeSamples.slice(1).some((pose, index) => {
-        const previous = safeSamples[index];
-        const isOnVerticalEdge = Math.min(
-          Math.abs(pose.x - heroRadius),
-          Math.abs(pose.x - (viewport.width - heroRadius)),
-        ) < 0.05;
-        const isOnHorizontalEdge = Math.min(
-          Math.abs(pose.y - heroRadius),
-          Math.abs(pose.y - (viewport.height - heroRadius)),
-        ) < 0.05;
-        return (isOnVerticalEdge && Math.abs(pose.y - previous.y) > 0.5)
-          || (isOnHorizontalEdge && Math.abs(pose.x - previous.x) > 0.5);
+      const safeEdges = [
+        { distance: (pose: typeof safeSamples[number]) => Math.abs(pose.x - heroRadius), tangent: 'y' as const, normal: 'x' as const },
+        { distance: (pose: typeof safeSamples[number]) => Math.abs(pose.x - (viewport.width - heroRadius)), tangent: 'y' as const, normal: 'x' as const },
+        { distance: (pose: typeof safeSamples[number]) => Math.abs(pose.y - heroRadius), tangent: 'x' as const, normal: 'y' as const },
+        { distance: (pose: typeof safeSamples[number]) => Math.abs(pose.y - (viewport.height - heroRadius)), tangent: 'x' as const, normal: 'y' as const },
+      ];
+      safeEdges.forEach((edge) => {
+        let runStart = -1;
+        safeSamples.forEach((pose, index) => {
+          const insideBand = edge.distance(pose) <= 6;
+          if (insideBand && runStart < 0) runStart = index;
+          const closesRun = runStart >= 0 && (!insideBand || index === safeSamples.length - 1);
+          if (!closesRun) return;
+          const runEnd = insideBand ? index : index - 1;
+          if (runEnd - runStart + 1 >= 4) {
+            const first = safeSamples[runStart];
+            const last = safeSamples[runEnd];
+            const tangentTravel = Math.abs(last[edge.tangent] - first[edge.tangent]);
+            const normalTravel = Math.abs(last[edge.normal] - first[edge.normal]);
+            expect(tangentTravel >= 10 && normalTravel <= 2).toBe(false);
+          }
+          runStart = -1;
+        });
       });
-      expect(hasBoundaryGlide).toBe(false);
 
       const exitSamples = Array.from({ length: 41 }, (_, index) => (
         sampleBeeFinalePose(
@@ -317,6 +303,14 @@ describe('Bee merge-six finale', () => {
         const outsideX = pose.x < heroRadius - 0.01 || pose.x > viewport.width - heroRadius + 0.01;
         const outsideY = pose.y < heroRadius - 0.01 || pose.y > viewport.height - heroRadius + 0.01;
         expect(outsideX).toBe(outsideY);
+      });
+      const exit = resolveBeeFinaleExit(start, viewport, seed);
+      const exitX = Math.sign(exit.x - start.x);
+      const exitY = Math.sign(exit.y - start.y);
+      exitSamples.slice(1).forEach((pose, index) => {
+        const previous = exitSamples[index];
+        expect((pose.x - previous.x) * exitX).toBeGreaterThanOrEqual(-0.05);
+        expect((pose.y - previous.y) * exitY).toBeGreaterThanOrEqual(-0.05);
       });
       const releasePose = sampleBeeFinalePose(
         BEE_FINALE_EXIT_RELEASE_PROGRESS * BEE_FINALE_FLIGHT_SECONDS,

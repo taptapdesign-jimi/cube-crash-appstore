@@ -12,11 +12,12 @@ const HONEY_SOUND_BASE = './assets/sound/Wild and special kockice/honey/';
 export const HONEY_PULL_MERGE_SOUND_SOURCES = [
   `${HONEY_SOUND_BASE}honeysplat.wav`,
   './assets/sound/Wild and special kockice/bee/smile.wav',
+  `${HONEY_SOUND_BASE}twinkle1.wav`,
 ] as const;
 export const HONEY_POST_MERGE_SOUND_SOURCES = [
   `${HONEY_SOUND_BASE}BEES3s.wav`,
 ] as const;
-export const HONEY_PULL_MERGE_SOUND_BASE_VOLUMES = [1, 1] as const;
+export const HONEY_PULL_MERGE_SOUND_BASE_VOLUMES = [1, 1, 1] as const;
 export const HONEY_POST_MERGE_SOUND_BASE_VOLUMES = [0.48] as const;
 export const HONEY_POST_MERGE_SOUND_VOLUMES = HONEY_POST_MERGE_SOUND_BASE_VOLUMES.map(
   applySoundEffectsMasterGain,
@@ -32,6 +33,7 @@ const ALL_SOURCES = [
 const VOICE_IDS = [
   'honey-pull-merge-honeysplat',
   'honey-pull-merge-smile',
+  'honey-pull-merge-twinkle1',
   'honey-post-merge-bees3s',
 ] as const;
 const mediaAudioBySource = new Map<string, HTMLAudioElement>();
