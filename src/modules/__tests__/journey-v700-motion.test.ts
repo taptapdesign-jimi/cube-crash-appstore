@@ -7,6 +7,7 @@ import {
   getJourneyV700HubWorldExitDuration,
   getJourneyV700MotionProfile,
   getJourneyV700UnitStagger,
+  getJourneyV700WorldMainExitDuration,
   isJourneyInterimIdleOwnedByEnter,
   JOURNEY_V700_HUB_BACK_EXIT_STAGGER_SECONDS,
   JOURNEY_V700_HUB_STANDARD_EXIT_BOUNCE_SCALE,
@@ -14,6 +15,7 @@ import {
   JOURNEY_V700_HUB_WORLD_EXIT_DURATION_SCALE,
   JOURNEY_V700_UNIT_CARD_EXIT_DURATION,
   JOURNEY_V700_UNIT_CARD_EXIT_EASE,
+  JOURNEY_V700_WORLD_MAIN_EXIT_DURATION_SCALE,
   shouldRestoreJourneyInterimWrapperForIdle,
   shouldCorrectJourneyHubAutomaticScroll,
   shouldIgnoreJourneyV700HubVisibleEnterRequest,
@@ -94,6 +96,16 @@ describe('Journey V700 motion contract', () => {
 
     const referenceMotion = getJourneyV700MotionProfile(false);
     expect(referenceMotion.enter.duration).toBe(0.56);
+    expect(referenceMotion.exit.duration).toBe(0.48);
+    expect(JOURNEY_V700_UNIT_CARD_EXIT_DURATION).toBe(0.4);
+  });
+
+  it('slows only the large World main-image Cartoon Bounce by another thirty percent', () => {
+    expect(JOURNEY_V700_WORLD_MAIN_EXIT_DURATION_SCALE).toBe(1.56);
+    expect(getJourneyV700WorldMainExitDuration(0.15)).toBeCloseTo(0.234);
+    expect(getJourneyV700WorldMainExitDuration(0.28)).toBeCloseTo(0.4368);
+
+    const referenceMotion = getJourneyV700MotionProfile(false);
     expect(referenceMotion.exit.duration).toBe(0.48);
     expect(JOURNEY_V700_UNIT_CARD_EXIT_DURATION).toBe(0.4);
   });

@@ -66,6 +66,8 @@ import { preloadBeeMerge6Sounds } from './bee-merge6-sound.ts';
 import { preloadRoboCubeMerge6Sounds } from './robo-cube-merge6-sound.ts';
 import { preloadWildSpecialMerge6PoofSounds } from './wild-special-merge6-poof-sound.ts';
 import { preloadBottleFinaleSounds } from './bottle-finale-sound.ts';
+import { preloadMagnetPullForceSounds } from './magnet-pull-force-sound.ts';
+import { preloadHoneyMerge6Sounds } from './honey-merge6-sound.ts';
 import { preloadOrdinaryStackSound } from './ordinary-stack-sound.ts';
 import { preloadGameplayPickupSound } from './gameplay-pickup-sound.ts';
 import { preloadNoMovesSound } from './no-moves-sound.ts';
@@ -475,6 +477,8 @@ class UIManager {
     preloadRoboCubeMerge6Sounds();
     preloadWildSpecialMerge6PoofSounds();
     preloadBottleFinaleSounds();
+    preloadMagnetPullForceSounds();
+    preloadHoneyMerge6Sounds();
     preloadOrdinaryStackSound();
     preloadGameplayPickupSound();
     preloadNoMovesSound();
@@ -625,6 +629,8 @@ class UIManager {
     preloadRoboCubeMerge6Sounds();
     preloadWildSpecialMerge6PoofSounds();
     preloadBottleFinaleSounds();
+    preloadMagnetPullForceSounds();
+    preloadHoneyMerge6Sounds();
     preloadOrdinaryStackSound();
     preloadGameplayPickupSound();
     preloadArcadeRoundDigitSounds();
@@ -752,6 +758,8 @@ class UIManager {
       preloadRoboCubeMerge6Sounds();
       preloadWildSpecialMerge6PoofSounds();
       preloadBottleFinaleSounds();
+      preloadMagnetPullForceSounds();
+      preloadHoneyMerge6Sounds();
       preloadOrdinaryStackSound();
       preloadGameplayPickupSound();
       preloadArcadeRoundDigitSounds();
@@ -2398,6 +2406,12 @@ class UIManager {
         });
         void import('./bottle-finale-sound.ts').then(({ stopBottleFinaleSounds }) => {
           stopBottleFinaleSounds();
+        });
+        void import('./magnet-pull-force-sound.ts').then(({ stopMagnetPullForceSounds }) => {
+          stopMagnetPullForceSounds();
+        });
+        void import('./honey-merge6-sound.ts').then(({ stopHoneyMerge6Sounds }) => {
+          stopHoneyMerge6Sounds();
         });
         void import('./ordinary-stack-sound.ts').then(({ stopOrdinaryStackSound }) => {
           stopOrdinaryStackSound();

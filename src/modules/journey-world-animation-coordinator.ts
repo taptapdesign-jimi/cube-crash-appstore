@@ -3,6 +3,8 @@ import {
   getJourneyV700EnterOffset,
   getJourneyV700MotionProfile,
   getJourneyV700UnitStagger,
+  getJourneyV700WorldMainExitDuration,
+  JOURNEY_WORLD_CARTOON_BOUNCE_ENTER,
   JOURNEY_V700_UNIT_CARD_EXIT_DURATION,
   JOURNEY_V700_UNIT_CARD_EXIT_EASE,
 } from './journey-v700-motion.js';
@@ -18,6 +20,14 @@ export interface JourneyWorldAnimationUnit {
   targets: HTMLElement[];
   clouds: HTMLElement[];
   enterDelayOffset?: number;
+}
+
+export function isJourneyWorldMainArtworkTarget(
+  unitId: string,
+  target: HTMLElement,
+): boolean {
+  return unitId.endsWith('-main')
+    && target.classList.contains('journey-forest-main-art');
 }
 
 interface JourneyWorldEnterOptions {
@@ -318,6 +328,9 @@ export class JourneyWorldAnimationCoordinator {
           target.classList.contains('journey-board-card-wrapper')
         ));
         const structuralTargets = unit.targets.filter((target) => !cardWrappers.includes(target));
+        const mainArtworkTargets = reducedMotion
+          ? []
+          : unit.targets.filter((target) => isJourneyWorldMainArtworkTarget(unit.id, target));
         const cardVisualTargets = cardWrappers.flatMap((wrapper) => {
           const card = wrapper.querySelector<HTMLElement>('.journey-board-card');
           return card ? [card] : [];
@@ -339,6 +352,58 @@ export class JourneyWorldAnimationCoordinator {
         unitExitFinalizers.push(finalizeUnitExit);
 
         gsap.killTweensOf([...unit.targets, ...cardVisualTargets]);
+
+        if (mainArtworkTargets.length) {
+          const companionTargets = unit.targets.filter((target) => !mainArtworkTargets.includes(target));
+          gsap.set(mainArtworkTargets, {
+            opacity: 1,
+            visibility: 'visible',
+            transformOrigin: JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.transformOrigin,
+            overwrite: true,
+          });
+          const mainArtworkExit = gsap.timeline({
+            onComplete: companionTargets.length ? undefined : finalizeUnitExit,
+            onInterrupt: finalizeUnitExit,
+          })
+            .to(mainArtworkTargets, {
+              scaleX: JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.scaleX,
+              scaleY: JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.scaleY,
+              duration: getJourneyV700WorldMainExitDuration(
+                JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.bounceDurationSeconds,
+              ),
+              ease: JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.bounceEase,
+              force3D: false,
+              overwrite: true,
+              onStart: markUnitExitStart,
+            })
+            .to(mainArtworkTargets, {
+              y: motion.exit.y,
+              scaleX: 0,
+              scaleY: 0,
+              opacity: 1,
+              duration: getJourneyV700WorldMainExitDuration(
+                JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.exitDurationSeconds,
+              ),
+              ease: JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.exitEase,
+              force3D: false,
+              overwrite: true,
+            });
+          timeline.add(mainArtworkExit, position);
+          if (companionTargets.length) {
+            timeline.add(gsap.to(companionTargets, {
+              y: motion.exit.y,
+              scale: motion.exit.scale,
+              opacity: 0,
+              duration: motion.exit.duration,
+              ease: motion.exit.ease,
+              force3D: false,
+              overwrite: true,
+              onComplete: finalizeUnitExit,
+              onInterrupt: finalizeUnitExit,
+            }), position);
+          }
+          return;
+        }
 
         if (reducedMotion || !cardVisualTargets.length) {
           const tween = gsap.to(unit.targets, {

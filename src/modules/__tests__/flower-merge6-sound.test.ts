@@ -15,6 +15,9 @@ import {
   FLOWER_MERGE6_BUSH3_BASE_VOLUME,
   FLOWER_MERGE6_BUSH3_SOUND_SOURCE,
   FLOWER_MERGE6_BUSH3_VOLUME,
+  FLOWER_MERGE6_BOOM_BASE_VOLUME,
+  FLOWER_MERGE6_BOOM_SOUND_SOURCE,
+  FLOWER_MERGE6_BOOM_VOLUME,
   FLOWER_MERGE6_IMMEDIATE_SOUND_SOURCES,
   FLOWER_MERGE6_LEAVES_BASE_VOLUME,
   FLOWER_MERGE6_LEAVES_START_RATIO,
@@ -73,11 +76,12 @@ describe('Flower merge-6 sound', () => {
     jest.useRealTimers();
   });
 
-  test('uses bush0, bush2 and bush3 immediately, excludes bush1, and reserves spark for the end', () => {
+  test('uses bush0, bush2, bush3 and boom immediately, excludes bush1, and reserves spark for the end', () => {
     expect(FLOWER_MERGE6_IMMEDIATE_SOUND_SOURCES).toEqual([
       './assets/sound/Wild and special kockice/flower/bush0.wav',
       './assets/sound/Wild and special kockice/flower/bush2.wav',
       './assets/sound/Wild and special kockice/flower/bush3.wav',
+      './assets/sound/Wild and special kockice/flower/boom.wav',
     ]);
     expect(FLOWER_MERGE6_SOUND_SOURCES).toEqual([
       ...FLOWER_MERGE6_IMMEDIATE_SOUND_SOURCES,
@@ -91,6 +95,8 @@ describe('Flower merge-6 sound', () => {
     expect(FLOWER_MERGE6_BUSH2_VOLUME).toBeCloseTo(0.6);
     expect(FLOWER_MERGE6_BUSH3_BASE_VOLUME).toBe(0.35);
     expect(FLOWER_MERGE6_BUSH3_VOLUME).toBeCloseTo(0.21);
+    expect(FLOWER_MERGE6_BOOM_BASE_VOLUME).toBe(1);
+    expect(FLOWER_MERGE6_BOOM_VOLUME).toBeCloseTo(0.6);
     expect(FLOWER_MERGE6_LEAVES_BASE_VOLUME).toBe(0.8);
     expect(FLOWER_MERGE6_LEAVES_VOLUME).toBeCloseTo(0.48);
     expect(FLOWER_MERGE6_LEAVES_START_RATIO).toBe(0.9);
@@ -117,13 +123,14 @@ describe('Flower merge-6 sound', () => {
     })).toBe(false);
   });
 
-  test('starts Merge-6 foundation plus bush0, bush2 and bush3 immediately, then spark only on its callback', () => {
+  test('starts Merge-6 foundation plus bush0, bush2, bush3 and boom immediately, then spark only on its callback', () => {
     expect(preloadFlowerMerge6Sounds()).toBe(true);
     expect(playFlowerMerge6Sound()).toBe(true);
 
     const bush0 = MockAudio.instances.find((audio) => audio.src === FLOWER_MERGE6_BUSH0_SOUND_SOURCE)!;
     const bush2 = MockAudio.instances.find((audio) => audio.src === FLOWER_MERGE6_BUSH2_SOUND_SOURCE)!;
     const bush3 = MockAudio.instances.find((audio) => audio.src === FLOWER_MERGE6_BUSH3_SOUND_SOURCE)!;
+    const boom = MockAudio.instances.find((audio) => audio.src === FLOWER_MERGE6_BOOM_SOUND_SOURCE)!;
     const spark = MockAudio.instances.find((audio) => audio.src === FLOWER_MERGE6_SPARK_SOUND_SOURCE)!;
     const stack = MockAudio.instances.find(
       (audio) => audio.src === './assets/sound/merge 6/stack.mp3',
@@ -136,6 +143,8 @@ describe('Flower merge-6 sound', () => {
     expect(bush2.volume).toBeCloseTo(0.6);
     expect(bush3.play).toHaveBeenCalledTimes(1);
     expect(bush3.volume).toBeCloseTo(0.21);
+    expect(boom.play).toHaveBeenCalledTimes(1);
+    expect(boom.volume).toBeCloseTo(0.6);
     expect(spark.play).not.toHaveBeenCalled();
 
     expect(playFlowerMerge6SparkSound()).toBe(true);

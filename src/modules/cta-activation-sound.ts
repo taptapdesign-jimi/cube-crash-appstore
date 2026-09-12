@@ -8,20 +8,22 @@ import {
 } from './gameplay-audio-buffer-player.ts';
 
 export const CTA_ACTIVATION_SOUND_SOURCES = [
-  './assets/sound/CTA/poping.wav',
-  './assets/sound/CTA/wood click.wav',
   './assets/sound/CTA/deeper.wav',
+  './assets/sound/CTA/pumb.wav',
+  './assets/sound/CTA/cta-splat.wav',
+  './assets/sound/CTA/cta squishy.wav',
 ] as const;
 
-export const CTA_ACTIVATION_SOUND_BASE_VOLUMES = [0.5, 0.7, 0.3] as const;
+export const CTA_ACTIVATION_SOUND_BASE_VOLUMES = [0.3, 1, 1, 1] as const;
 export const CTA_ACTIVATION_SOUND_VOLUMES = CTA_ACTIVATION_SOUND_BASE_VOLUMES.map(
   applySoundEffectsMasterGain,
 );
 
 const CTA_ACTIVATION_VOICE_IDS = [
-  'cta-activation-poping',
-  'cta-activation-wood-click',
   'cta-activation-deeper',
+  'cta-activation-pumb',
+  'cta-activation-splat',
+  'cta-activation-squishy',
 ] as const;
 
 let fallbackAudio: HTMLAudioElement[] | null = null;

@@ -48,6 +48,7 @@ Do not regress these rules:
 - No drag-to-open bug. Vertical dragging over a Journey world must scroll/overshoot, not open the world.
 - Preserve springy drag/overshoot on Journey Worlds and Forest/Beach/Area 55 world screens.
 - Preserve scroll interactivity after returning from card modal or board game.
+- Keep the automatic post-game return reminder attached to its exact live Unit while the World screen scrolls. Launch, outbound flip, return and landing impact must all inherit the Unit's live viewport displacement, and the reminder must scroll out of view with that Unit instead of floating above unrelated content. Scrolling never blocks or recentres the player. An accepted World X/back action atomically cancels both a visible reminder and any still-waiting reminder receipt before World-to-Hub exit paint, so no reminder layer may survive onto Journey Worlds.
 - Avoid old/new animation conflicts. Before adding a helper, search existing helpers/classes/listeners and remove or reuse stale paths.
 
 Journey hub layout notes:
@@ -62,6 +63,14 @@ Navigation rules:
 - Forest/Beach/Area 55 screen nav, Journey Worlds nav, and card-modal nav should use the same cartoon tap feeling.
 - Nav/header exit starts immediately with the relevant content exit. Do not leave header/nav visible while content waits to begin exit.
 - Card modal X/header exit should begin immediately on X tap, not after the card/stat content has mostly finished exiting.
+
+For Forest, Beach and Area 55 X-to-Journey-Worlds exits, the active World's
+large top main artwork exits first with the complete canonical Cartoon Bounce:
+`1 -> 1.18/1.15 -> 0` over `0.234s + 0.4368s`, using the shared transform origin
+and easing with no neutral frame or dwell. This is 30% longer than its preceding
+`0.18s + 0.336s` main-image timing and applies only to the main image.
+Its main clouds and all board-area Units keep their existing gentle World-exit
+motion and cascade. Reduced Motion keeps the pre-existing non-bounce exit.
 
 ## Named Reusable Effect: Cartoon Bounce Enter
 

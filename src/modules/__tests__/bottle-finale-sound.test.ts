@@ -29,7 +29,6 @@ import {
   BOTTLE_MERGE6_STACK_SOUND_SOURCE,
   BOTTLE_MERGE6_STACK_VOLUME,
   areBottleFinaleSoundsEnabled,
-  isBottleMerge6SoundEvent,
   playBottleFinaleSound,
   preloadBottleFinaleSounds,
   resetBottleFinaleSoundCacheForTests,
@@ -134,26 +133,9 @@ describe('Bottle finale sound', () => {
     expect(BOTTLE_MERGE6_STACK_SOUND_SOURCE).toBe(REGULAR_MERGE6_STACK_SOUND_SOURCE);
     expect(BOTTLE_MERGE6_STACK_VOLUME).toBe(REGULAR_MERGE6_STACK_VOLUME);
 
-    expect(isBottleMerge6SoundEvent({
-      effectiveSum: 6,
-      srcSpecialDiceVariantId: 'bottle',
-    })).toBe(true);
-    expect(isBottleMerge6SoundEvent({
-      effectiveSum: 6,
-      dstSpecialDiceVariantId: 'bottle',
-    })).toBe(true);
-    expect(isBottleMerge6SoundEvent({
-      effectiveSum: 5,
-      srcSpecialDiceVariantId: 'bottle',
-    })).toBe(false);
-    expect(isBottleMerge6SoundEvent({
-      effectiveSum: 6,
-      srcSpecialDiceVariantId: 'beach-ball',
-    })).toBe(false);
-
     const appCore = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/app-core.ts'), 'utf8');
-    expect(appCore).toContain('if (isBottleMerge6SoundEvent({');
-    expect(appCore).toContain('playBottleMerge6Foundation();');
+    expect(appCore).toContain('if (isMagnetArchetypeMerge6SoundEvent({');
+    expect(appCore).toContain('playMagnetArchetypeMerge6Sound();');
   });
 
   test('plays each cue on one bounded fallback voice at its assigned gain', () => {

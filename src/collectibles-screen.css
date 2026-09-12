@@ -315,6 +315,16 @@
   visibility: visible;
 }
 
+.journey-card-return-reminder-scroll-anchor {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  transform: translate3d(0, 0, 0);
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  will-change: transform;
+}
+
 .journey-card-return-reminder-motion {
   position: fixed;
   transform-style: preserve-3d;

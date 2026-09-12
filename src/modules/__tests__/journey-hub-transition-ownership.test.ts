@@ -347,6 +347,35 @@ describe('Journey Hub transition ownership', () => {
     );
   });
 
+  test('gives only each World main artwork the canonical Cartoon Bounce on X-to-Hub exit', () => {
+    const exitSource = worldAnimationCoordinatorSource.split(
+      'public async exit(',
+    )[1]?.split('private startIdle(')[0] ?? '';
+    const mainArtworkExit = exitSource.split(
+      'if (mainArtworkTargets.length) {',
+    )[1]?.split('if (reducedMotion || !cardVisualTargets.length)')[0] ?? '';
+
+    expect(worldAnimationCoordinatorSource).toContain("unitId.endsWith('-main')");
+    expect(worldAnimationCoordinatorSource).toContain(
+      "target.classList.contains('journey-forest-main-art')",
+    );
+    expect(exitSource).toContain('const mainArtworkTargets = reducedMotion');
+    expect(mainArtworkExit).toContain('JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.scaleX');
+    expect(mainArtworkExit).toContain('JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.scaleY');
+    expect(mainArtworkExit).toContain('getJourneyV700WorldMainExitDuration(');
+    expect(mainArtworkExit).toContain('JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.bounceDurationSeconds');
+    expect(mainArtworkExit).toContain('JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.bounceEase');
+    expect(mainArtworkExit).toContain('scaleX: 0');
+    expect(mainArtworkExit).toContain('scaleY: 0');
+    expect(mainArtworkExit).toContain('opacity: 1');
+    expect(mainArtworkExit).toContain('JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.exitDurationSeconds');
+    expect(mainArtworkExit).toContain('JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.exitEase');
+    expect(mainArtworkExit).toContain('const companionTargets = unit.targets.filter');
+    expect(mainArtworkExit).toContain('duration: motion.exit.duration');
+    expect(mainArtworkExit.indexOf('JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.scaleX'))
+      .toBeLessThan(mainArtworkExit.indexOf('scaleX: 0'));
+  });
+
   test('one generic runtime scheduler owns scroll, modal and transition paint for every World', () => {
     const pauseSource = journeyManagerSource.split(
       'private pauseJourneyWorldForCardOverlay(reason: string, card: HTMLElement): void',

@@ -41,6 +41,7 @@ import {
   FLOWER_MERGE6_BUSH0_VOLUME,
   FLOWER_MERGE6_BUSH2_VOLUME,
   FLOWER_MERGE6_BUSH3_VOLUME,
+  FLOWER_MERGE6_BOOM_VOLUME,
   FLOWER_MERGE6_LEAVES_VOLUME,
   FLOWER_MERGE6_SPARK_VOLUME,
 } from '../flower-merge6-sound';
@@ -54,6 +55,11 @@ import {
   JOURNEY_CARD_ENTRY_FLIP_SOUND_VOLUMES,
   JOURNEY_CARD_MANUAL_FLIP_SOUND_VOLUME,
 } from '../journey-card-entry-flip-sound';
+import { MAGNET_PULL_FORCE_SOUND_VOLUMES } from '../magnet-pull-force-sound';
+import {
+  HONEY_POST_MERGE_SOUND_VOLUMES,
+  HONEY_PULL_MERGE_SOUND_VOLUMES,
+} from '../honey-merge6-sound';
 
 describe('sound effects master volume', () => {
   it('reduces every currently active SFX voice by exactly 40 percent', () => {
@@ -84,6 +90,7 @@ describe('sound effects master volume', () => {
     expect(FLOWER_MERGE6_BUSH0_VOLUME).toBeCloseTo(0.48);
     expect(FLOWER_MERGE6_BUSH2_VOLUME).toBeCloseTo(0.6);
     expect(FLOWER_MERGE6_BUSH3_VOLUME).toBeCloseTo(0.21);
+    expect(FLOWER_MERGE6_BOOM_VOLUME).toBeCloseTo(0.6);
     expect(FLOWER_MERGE6_LEAVES_VOLUME).toBeCloseTo(0.48);
     expect(FLOWER_MERGE6_SPARK_VOLUME).toBeCloseTo(0.36);
     expect(BEE_MERGE6_VOLUME).toBeCloseTo(0.6);
@@ -92,6 +99,9 @@ describe('sound effects master volume', () => {
     expect(ROBO_CUBE_MERGE6_VOLUMES).toEqual([0.6, 0.6, 0.42]);
     expect(JOURNEY_CARD_ENTRY_FLIP_SOUND_VOLUMES).toEqual([0.6, 0.6, 0.6]);
     expect(JOURNEY_CARD_MANUAL_FLIP_SOUND_VOLUME).toBeCloseTo(0.6);
+    expect(MAGNET_PULL_FORCE_SOUND_VOLUMES).toEqual([0.3, 0.3, 0.6]);
+    expect(HONEY_PULL_MERGE_SOUND_VOLUMES).toEqual([0.6, 0.6]);
+    expect(HONEY_POST_MERGE_SOUND_VOLUMES).toEqual([0.288]);
   });
 
   it('keeps the shared multiplier bounded and excludes music ownership', () => {
@@ -106,7 +116,7 @@ describe('sound effects master volume', () => {
     expect(soundtrack).not.toContain('applySoundEffectsMasterGain');
   });
 
-  it('is consumed by all eighteen active SFX owners', () => {
+  it('is consumed by all twenty active SFX owners', () => {
     for (const filename of [
       'gameplay-pickup-sound.ts',
       'ordinary-stack-sound.ts',
@@ -126,6 +136,8 @@ describe('sound effects master volume', () => {
       'wild-special-merge6-poof-sound.ts',
       'robo-cube-merge6-sound.ts',
       'journey-card-entry-flip-sound.ts',
+      'magnet-pull-force-sound.ts',
+      'honey-merge6-sound.ts',
     ]) {
       const source = fs.readFileSync(path.resolve(process.cwd(), 'src/modules', filename), 'utf8');
       expect(source).toContain('applySoundEffectsMasterGain');

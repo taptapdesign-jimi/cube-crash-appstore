@@ -23,6 +23,7 @@ const FLOWER_SOUND_BASE = './assets/sound/Wild and special kockice/flower/';
 export const FLOWER_MERGE6_BUSH0_SOUND_SOURCE = `${FLOWER_SOUND_BASE}bush0.wav`;
 export const FLOWER_MERGE6_BUSH2_SOUND_SOURCE = `${FLOWER_SOUND_BASE}bush2.wav`;
 export const FLOWER_MERGE6_BUSH3_SOUND_SOURCE = `${FLOWER_SOUND_BASE}bush3.wav`;
+export const FLOWER_MERGE6_BOOM_SOUND_SOURCE = `${FLOWER_SOUND_BASE}boom.wav`;
 export const FLOWER_MERGE6_LEAVES_SOUND_SOURCE = `${FLOWER_SOUND_BASE}leaves.wav`;
 export const FLOWER_MERGE6_SPARK_SOUND_SOURCE = `${FLOWER_SOUND_BASE}spark.wav`;
 export const FLOWER_MERGE6_PLAYBACK_RATE = 1;
@@ -31,6 +32,7 @@ export const FLOWER_MERGE6_LEAVES_START_RATIO = 0.9;
 export const FLOWER_MERGE6_BUSH0_BASE_VOLUME = 0.8;
 export const FLOWER_MERGE6_BUSH2_BASE_VOLUME = 1;
 export const FLOWER_MERGE6_BUSH3_BASE_VOLUME = 0.35;
+export const FLOWER_MERGE6_BOOM_BASE_VOLUME = 1;
 export const FLOWER_MERGE6_LEAVES_BASE_VOLUME = 0.8;
 export const FLOWER_MERGE6_SPARK_BASE_VOLUME = 0.6;
 export const FLOWER_MERGE6_BUSH0_VOLUME = applySoundEffectsMasterGain(
@@ -41,6 +43,9 @@ export const FLOWER_MERGE6_BUSH2_VOLUME = applySoundEffectsMasterGain(
 );
 export const FLOWER_MERGE6_BUSH3_VOLUME = applySoundEffectsMasterGain(
   FLOWER_MERGE6_BUSH3_BASE_VOLUME,
+);
+export const FLOWER_MERGE6_BOOM_VOLUME = applySoundEffectsMasterGain(
+  FLOWER_MERGE6_BOOM_BASE_VOLUME,
 );
 export const FLOWER_MERGE6_LEAVES_VOLUME = applySoundEffectsMasterGain(
   FLOWER_MERGE6_LEAVES_BASE_VOLUME,
@@ -53,6 +58,7 @@ export const FLOWER_MERGE6_IMMEDIATE_SOUND_SOURCES = Object.freeze([
   FLOWER_MERGE6_BUSH0_SOUND_SOURCE,
   FLOWER_MERGE6_BUSH2_SOUND_SOURCE,
   FLOWER_MERGE6_BUSH3_SOUND_SOURCE,
+  FLOWER_MERGE6_BOOM_SOUND_SOURCE,
 ] as const);
 export const FLOWER_MERGE6_SOUND_SOURCES = Object.freeze([
   ...FLOWER_MERGE6_IMMEDIATE_SOUND_SOURCES,
@@ -64,6 +70,7 @@ const FLOWER_MERGE6_VOICE_ID = Object.freeze({
   bush0: 'flower-merge6-bush0',
   bush2: 'flower-merge6-bush2',
   bush3: 'flower-merge6-bush3',
+  boom: 'flower-merge6-boom',
   leaves: 'flower-merge6-leaves',
   spark: 'flower-merge6-spark',
 });
@@ -176,6 +183,11 @@ export function playFlowerMerge6Sound(): boolean {
         volume: FLOWER_MERGE6_BUSH3_VOLUME,
         playbackRate: FLOWER_MERGE6_PLAYBACK_RATE,
       }),
+      playDecodedGameplaySound(FLOWER_MERGE6_BOOM_SOUND_SOURCE, {
+        voiceId: FLOWER_MERGE6_VOICE_ID.boom,
+        volume: FLOWER_MERGE6_BOOM_VOLUME,
+        playbackRate: FLOWER_MERGE6_PLAYBACK_RATE,
+      }),
     ];
     return ordinaryMergeStarted && results.every((result) => result !== 'unavailable');
   }
@@ -183,7 +195,8 @@ export function playFlowerMerge6Sound(): boolean {
   const bush0 = getMediaAudio(FLOWER_MERGE6_BUSH0_SOUND_SOURCE);
   const bush2 = getMediaAudio(FLOWER_MERGE6_BUSH2_SOUND_SOURCE);
   const bush3 = getMediaAudio(FLOWER_MERGE6_BUSH3_SOUND_SOURCE);
-  if (!bush0 || !bush2 || !bush3) return false;
+  const boom = getMediaAudio(FLOWER_MERGE6_BOOM_SOUND_SOURCE);
+  if (!bush0 || !bush2 || !bush3 || !boom) return false;
   try {
     FLOWER_MERGE6_IMMEDIATE_SOUND_SOURCES.forEach((source) => {
       const audio = mediaAudioBySource.get(source);
@@ -196,6 +209,7 @@ export function playFlowerMerge6Sound(): boolean {
     startMediaLayer(bush0, FLOWER_MERGE6_BUSH0_VOLUME, 'bush0');
     startMediaLayer(bush2, FLOWER_MERGE6_BUSH2_VOLUME, 'bush2');
     startMediaLayer(bush3, FLOWER_MERGE6_BUSH3_VOLUME, 'bush3');
+    startMediaLayer(boom, FLOWER_MERGE6_BOOM_VOLUME, 'boom');
     return ordinaryMergeStarted;
   } catch (error) {
     logger.warn('Failed to start Flower merge-6 sounds:', error);

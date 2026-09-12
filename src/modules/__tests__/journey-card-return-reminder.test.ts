@@ -6,6 +6,7 @@ import {
   getJourneyCardReturnReminderFlipAngle,
   getJourneyCardReturnReminderImpactPose,
   getJourneyCardReturnReminderMotionBase,
+  getJourneyCardReturnReminderViewportOffset,
   getJourneyCardReturnReminderSqueezePose,
   JOURNEY_CARD_RETURN_REMINDER_BACK_ASSET,
   JOURNEY_CARD_RETURN_REMINDER_BACK_ASSET_2X,
@@ -45,7 +46,13 @@ describe('Journey gameplay-return card reminder', () => {
         <div class="journey-board-card unlocked" data-board-id="4"></div>
       </div>
     `;
+    const wrapper = document.querySelector<HTMLElement>('.journey-board-card-wrapper')!;
     const card = document.querySelector<HTMLElement>('.journey-board-card')!;
+    let wrapperTop = 40;
+    wrapper.getBoundingClientRect = () => ({
+      x: 20, y: wrapperTop, left: 20, top: wrapperTop, right: 120, bottom: wrapperTop + 150,
+      width: 100, height: 150, toJSON: () => ({}),
+    });
     Object.defineProperties(card, {
       offsetWidth: { configurable: true, value: 100 },
       offsetHeight: { configurable: true, value: 150 },
@@ -54,13 +61,28 @@ describe('Journey gameplay-return card reminder', () => {
       x: 20, y: 40, left: 20, top: 40, right: 120, bottom: 190,
       width: 100, height: 150, toJSON: () => ({}),
     });
+    const queuedFrames: FrameRequestCallback[] = [];
+    jest.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      queuedFrames.push(callback);
+      return queuedFrames.length;
+    });
+    jest.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined);
     const origin = acquireJourneyCardOriginLease(4, card)!;
 
     const controller = presentJourneyCardReturnReminder({ boardId: 4, origin });
 
     expect(controller.element.isConnected).toBe(true);
     expect(controller.element.querySelector('.journey-card-overlay-portaled-card')).not.toBeNull();
-    controller.dispose();
+    const scrollAnchor = controller.element.querySelector<HTMLElement>(
+      '.journey-card-return-reminder-scroll-anchor',
+    )!;
+    expect(scrollAnchor.style.transform).toBe('translate3d(0px, 0px, 0)');
+    wrapperTop = -180;
+    queuedFrames.shift()?.(16);
+    expect(scrollAnchor.style.transform).toBe('translate3d(0px, -220px, 0)');
+    wrapper.remove();
+    queuedFrames.shift()?.(32);
+    expect(controller.element.isConnected).toBe(false);
   });
 
   test('turns around at exactly 30% of the former full modal path', () => {
@@ -196,6 +218,31 @@ describe('Journey gameplay-return card reminder', () => {
     expect(computeJourneyCardSpatialPose(motionBase, apex, origin, 1).rotationDeg).toBe(-6);
   });
 
+  test('keeps the complete reminder attached to the live Unit while Journey scrolls', () => {
+    const reference = {
+      centerX: 82,
+      centerY: 640,
+      width: 90,
+      height: 133,
+      rotationDeg: -6,
+    };
+    expect(getJourneyCardReturnReminderViewportOffset(reference, {
+      ...reference,
+      centerX: 78,
+      centerY: 412,
+    })).toEqual({ x: -4, y: -228 });
+
+    const reminder = read('src/modules/journey-card-return-reminder.ts');
+    const css = read('src/collectibles-screen.css');
+    expect(reminder).toContain('const scrollReference = landingTarget;');
+    expect(reminder).toContain('const liveTarget = options.origin.readLiveGeometry();');
+    expect(reminder).toContain('scrollAnchor.style.transform = `translate3d(${offset.x}px, ${offset.y}px, 0)`;');
+    expect(reminder).toContain('if (scrollFollowRaf) cancelAnimationFrame(scrollFollowRaf);');
+    expect(reminder).toContain('readTarget: () => landingTarget,');
+    expect(reminder).not.toContain('readTarget: () => options.origin.readLiveGeometry(),');
+    expect(css).toMatch(/\.journey-card-return-reminder-scroll-anchor \{[\s\S]*?pointer-events: none;[\s\S]*?will-change: transform;/);
+  });
+
   test('uses the supplied cardflip artwork for the complete back face', () => {
     expect(JOURNEY_CARD_RETURN_REMINDER_BACK_ASSET).toBe('./assets/colelctibles/cardflip.png');
     expect(JOURNEY_CARD_RETURN_REMINDER_BACK_ASSET_2X).toBe('./assets/colelctibles/cardflip@22.png');
@@ -251,13 +298,40 @@ describe('Journey gameplay-return card reminder', () => {
     expect(reminder).toContain("window.addEventListener('pagehide', handleRouteChange);");
     expect(reminder).toContain('flight?.cancel();');
     expect(reminder).toContain('options.origin.restoreNow();');
-    expect(reminder).toContain("readTarget: () => options.origin.readLiveGeometry()");
+    expect(reminder).toContain('readTarget: () => landingTarget,');
     expect(manager).toContain('this.journeyCardReturnReminder?.dispose();');
     expect(manager).toContain('private journeyOverlayReturnInFlight:');
     expect(manager).not.toContain('if (this.journeyOverlayReturnInFlight || this.journeyCardReturnReminder) return;');
     expect(manager).toContain('const activeReturnReminder = this.journeyCardReturnReminder;');
     expect(manager).toContain('activeReturnReminder.dispose();');
     expect(manager).not.toContain("this.pauseJourneyWorldForCardOverlay('game-return-card-reminder'");
+  });
+
+  test('retires active and pending reminders before an accepted World X can paint the Hub exit', () => {
+    const manager = read('src/modules/journey-boards-manager.ts');
+    const closeWorld = manager.slice(
+      manager.indexOf('private closeJourneyV700World(): void'),
+      manager.indexOf('private markJourneyDevBoardRefresh'),
+    );
+    const returnWait = manager.slice(
+      manager.indexOf('private waitForJourneyOverlayReturnReady'),
+      manager.indexOf('public playJourneyOverlayReturnCard'),
+    );
+
+    expect(closeWorld).toContain('const activeReturnReminder = this.journeyCardReturnReminder;');
+    expect(closeWorld).toContain('activeReturnReminder.dispose();');
+    expect(closeWorld).toContain('const pendingReturnBoardId = getJourneyCardOverlayReturnBoardId();');
+    expect(closeWorld).toContain('cancelJourneyCardOverlayReturn(pendingReturnBoardId);');
+    expect(closeWorld.indexOf('activeReturnReminder.dispose();')).toBeLessThan(
+      closeWorld.indexOf("if (this.journeyV700Phase === 'entering')"),
+    );
+    expect(closeWorld.indexOf('cancelJourneyCardOverlayReturn(pendingReturnBoardId);')).toBeLessThan(
+      closeWorld.indexOf('this.playJourneyV700WorldExit(container, complete);'),
+    );
+    expect(returnWait).toContain('if (getJourneyCardOverlayReturnBoardId() !== boardId)');
+    expect(returnWait.indexOf('if (getJourneyCardOverlayReturnBoardId() !== boardId)')).toBeLessThan(
+      returnWait.indexOf("const phaseCanLaunch = this.journeyV700Phase === 'idle';"),
+    );
   });
 
   test('keeps completion, fail and Exit Game on the shared Journey receipt hook', () => {

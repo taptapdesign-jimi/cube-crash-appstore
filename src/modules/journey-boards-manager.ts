@@ -168,6 +168,8 @@ import { preloadBeeMerge6Sounds } from './bee-merge6-sound.ts';
 import { preloadRoboCubeMerge6Sounds } from './robo-cube-merge6-sound.ts';
 import { preloadWildSpecialMerge6PoofSounds } from './wild-special-merge6-poof-sound.ts';
 import { preloadBottleFinaleSounds } from './bottle-finale-sound.ts';
+import { preloadMagnetPullForceSounds } from './magnet-pull-force-sound.ts';
+import { preloadHoneyMerge6Sounds } from './honey-merge6-sound.ts';
 import { preloadOrdinaryStackSound } from './ordinary-stack-sound.ts';
 import { preloadGameplayPickupSound } from './gameplay-pickup-sound.ts';
 
@@ -9046,6 +9048,21 @@ class JourneyBoardsManager {
       this.logJourneyV700Flow('close-world-ignored-not-world', {}, container);
       return;
     }
+    // The gameplay-return flip belongs to this exact World/Unit. Scrolling
+    // keeps it alive and attached, but an accepted X/back action must retire
+    // both an already-mounted portal and a still-waiting receipt before any
+    // World-to-Hub exit frame can paint.
+    const activeReturnReminder = this.journeyCardReturnReminder;
+    if (activeReturnReminder) {
+      activeReturnReminder.dispose();
+      if (this.journeyCardReturnReminder === activeReturnReminder) {
+        this.journeyCardReturnReminder = null;
+      }
+    }
+    const pendingReturnBoardId = getJourneyCardOverlayReturnBoardId();
+    if (pendingReturnBoardId) {
+      cancelJourneyCardOverlayReturn(pendingReturnBoardId);
+    }
     if (this.journeyV700Phase === 'entering') {
       const alreadyQueued = this.journeyV700CloseQueuedDuringEnter;
       this.journeyV700CloseQueuedDuringEnter = true;
@@ -10477,6 +10494,13 @@ class JourneyBoardsManager {
 
     return new Promise((resolve) => {
       const sample = () => {
+        // A World X/back action cancels the exact-card receipt before starting
+        // its visual exit. Stop this pre-mount waiter at that same ownership
+        // boundary so a retired reminder cannot appear on a later route.
+        if (getJourneyCardOverlayReturnBoardId() !== boardId) {
+          resolve(null);
+          return;
+        }
         if (this.renderDisposed) {
           resolve(null);
           return;
@@ -12724,6 +12748,8 @@ class JourneyBoardsManager {
           preloadRoboCubeMerge6Sounds();
           preloadWildSpecialMerge6PoofSounds();
           preloadBottleFinaleSounds();
+          preloadMagnetPullForceSounds();
+          preloadHoneyMerge6Sounds();
           preloadOrdinaryStackSound();
           preloadGameplayPickupSound();
           delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;

@@ -242,8 +242,6 @@ import {
   stopFlowerMerge6Sounds,
 } from './flower-merge6-sound.ts';
 import {
-  isBottleMerge6SoundEvent,
-  playBottleMerge6Foundation,
   stopBottleFinaleSounds,
 } from './bottle-finale-sound.ts';
 import {
@@ -269,6 +267,19 @@ import {
   preloadWildSpecialLandingSound,
   stopWildSpecialLandingSound,
 } from './wild-special-landing-sound.ts';
+import {
+  isMagnetArchetypeMerge6SoundEvent,
+  playMagnetArchetypeMerge6Sound,
+  playMagnetPullForceSounds,
+  preloadMagnetPullForceSounds,
+  stopMagnetPullForceSounds,
+} from './magnet-pull-force-sound.ts';
+import {
+  playHoneyPostMergeSounds,
+  playHoneyPullMergeSounds,
+  preloadHoneyMerge6Sounds,
+  stopHoneyMerge6Sounds,
+} from './honey-merge6-sound.ts';
 import { resolvePostSpawnEndgameDelayMs } from './post-spawn-endgame-delay.ts';
 import { resolveWildEndgameSpawnMult } from './wild-endgame-spawn-mult-decision.ts';
 import {
@@ -2531,6 +2542,8 @@ function cleanupFxForBoardReset(reason: string = 'unknown') {
   try { stopOrdinaryStackSound(); } catch {}
   try { stopGameplayPickupSound(); } catch {}
   try { stopWildSpecialLandingSound(); } catch {}
+  try { stopMagnetPullForceSounds(); } catch {}
+  try { stopHoneyMerge6Sounds(); } catch {}
   const isPlayAgainCleanup = reason.includes('play-again');
   const isNavCleanup =
     typeof reason === 'string' &&
@@ -8362,12 +8375,14 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     })) {
       playRoboCubeMerge6Sounds();
     }
-    if (isBottleMerge6SoundEvent({
+    if (isMagnetArchetypeMerge6SoundEvent({
       effectiveSum: effSum,
+      srcSpecial,
+      dstSpecial,
       srcSpecialDiceVariantId: srcSpecialVariantAtMergeEntry?.id,
       dstSpecialDiceVariantId: dstSpecialVariantAtMergeEntry?.id,
     })) {
-      playBottleMerge6Foundation();
+      playMagnetArchetypeMerge6Sound();
     }
     // 🔥 CRITICAL FIX: Use saved srcSpecial/dstSpecial from line 3653-3654 (don't overwrite!)
     // These values were saved BEFORE any modifications to src/dst and BEFORE any branches
@@ -9102,7 +9117,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       (dst as any)._wasWildMagnetMerge6 = wasWildMagnet;
     }
     // SAFETY: prepare cleanup reference for magnet pulls (assigned inside block)
-    let cleanupAllPullAnimations: () => void = () => {};
+    let cleanupAllPullAnimations: (preserveCommittedPullSound?: boolean) => void = () => {};
 
     // 🔥 END GAME FIX: Check if this is the LAST MOVE (only 2 tiles: magnet + 1 tile)
     // If so, this is merge-6 WITHOUT spawn, WITHOUT pull - automatic clean board!
@@ -9361,6 +9376,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       };
       
       if (nearestTiles.length > 0) {
+        preloadMagnetPullForceSounds();
+        preloadHoneyMerge6Sounds();
         // Store original positions and mark tiles as magnet-affected IMMEDIATELY
         nearestTiles.forEach((tile: any) => {
           if (!tile || tile.destroyed) return;
@@ -9427,7 +9444,12 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         
         // 🔥 CRITICAL: Cleanup ALL timelines and pulled tiles (MEMORY LEAK FIX)
         // Use const binding to avoid block-function scoping quirks (keeps reference for timeouts)
-        cleanupAllPullAnimations = () => {
+        cleanupAllPullAnimations = (preserveCommittedPullSound = false) => {
+          devLog('[CC_MAGNET_PULL_SOUND] cleanup', {
+            preserveCommittedPullSound,
+            mergeStarted,
+          });
+          if (!preserveCommittedPullSound) stopMagnetPullForceSounds();
           devLog('🧹 Cleaning up all wild-magnet pull animations - killing', activeTimelines.length, 'timelines');
           
           // Kill all active timelines
@@ -9643,7 +9665,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 // validated start of app-merge, before its long visual tail.
                 
                 // 🔥 CRITICAL: Cleanup all timelines after successful merge (MEMORY LEAK FIX)
-                cleanupAllPullAnimations();
+                cleanupAllPullAnimations(true);
                 
                 // The immutable special owner stays active until app-merge has
                 // finished every spawn/endgame verification against STATE.
@@ -9823,6 +9845,14 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   devLog('🧲 All tiles reached 75%, triggering merge 6 IMMEDIATELY (no final alignment)');
                   allTilesArrived = true;
                   multiplierShown = true; // Mark multiplier as shown to trigger merge immediately
+                  const pullSoundAccepted = playMagnetPullForceSounds();
+                  if (magnetVariantAtMergeEntry?.id === 'honey') {
+                    playHoneyPullMergeSounds();
+                  }
+                  devLog('[CC_MAGNET_PULL_SOUND] converge-start', {
+                    pullSoundAccepted,
+                    totalTiles,
+                  });
                   
                   // Try to merge immediately (will merge right away)
                   // Shards animation will be triggered in mergePulledTilesIntoMerge6
@@ -10934,6 +10964,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               color: getSpecialDiceShardColor(wildMagnetVariant),
               colors: wildMagnetShardColors,
             });
+            if (wildMagnetVariant?.id === 'honey') {
+              playHoneyPostMergeSounds();
+            }
             showMagneticText(getSpecialDiceSplashOptions(wildMagnetVariant) || {
               inputReleaseAtRatio: getSpecialDiceInputReleaseAtRatio(wildMagnetVariant),
             });

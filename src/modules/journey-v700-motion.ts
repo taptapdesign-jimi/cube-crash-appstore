@@ -46,6 +46,9 @@ export const JOURNEY_V700_HUB_BACK_EXIT_STAGGER_SECONDS = 0.045;
  * timing from that baseline.
  */
 export const JOURNEY_V700_HUB_WORLD_EXIT_DURATION_SCALE = 1.2;
+// The large World main artwork was already 1.2x the reusable bounce preset.
+// The accepted follow-up slows that isolated timeline by another 30%.
+export const JOURNEY_V700_WORLD_MAIN_EXIT_DURATION_SCALE = 1.56;
 
 export function getJourneyV700HubWorldExitDuration(
   durationSeconds: number,
@@ -54,6 +57,10 @@ export function getJourneyV700HubWorldExitDuration(
   return reducedMotion
     ? durationSeconds
     : durationSeconds * JOURNEY_V700_HUB_WORLD_EXIT_DURATION_SCALE;
+}
+
+export function getJourneyV700WorldMainExitDuration(durationSeconds: number): number {
+  return durationSeconds * JOURNEY_V700_WORLD_MAIN_EXIT_DURATION_SCALE;
 }
 
 export const JOURNEY_V700_HUB_STANDARD_EXIT_BOUNCE_STRENGTH = 0.8;

@@ -20,14 +20,15 @@ describe('shared CTA activation sound', () => {
     delete (window as any)._settings;
   });
 
-  test('adds deeper only to the shared CTA activation mix', () => {
+  test('layers deeper, pumb, splat and squishy for the shared CTA activation mix', () => {
     expect(CTA_ACTIVATION_SOUND_SOURCES).toEqual([
-      './assets/sound/CTA/poping.wav',
-      './assets/sound/CTA/wood click.wav',
       './assets/sound/CTA/deeper.wav',
+      './assets/sound/CTA/pumb.wav',
+      './assets/sound/CTA/cta-splat.wav',
+      './assets/sound/CTA/cta squishy.wav',
     ]);
-    expect(CTA_ACTIVATION_SOUND_BASE_VOLUMES).toEqual([0.5, 0.7, 0.3]);
-    expect(CTA_ACTIVATION_SOUND_VOLUMES).toEqual([0.3, 0.42, 0.18]);
+    expect(CTA_ACTIVATION_SOUND_BASE_VOLUMES).toEqual([0.3, 1, 1, 1]);
+    expect(CTA_ACTIVATION_SOUND_VOLUMES).toEqual([0.18, 0.6, 0.6, 0.6]);
   });
 
   test('obeys Sounds OFF', () => {

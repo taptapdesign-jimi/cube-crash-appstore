@@ -21,7 +21,6 @@ import {
   REGULAR_MERGE6_STACK_BASE_VOLUME,
   REGULAR_MERGE6_STACK_SOUND_SOURCE,
   REGULAR_MERGE6_STACK_VOLUME,
-  playRegularMerge6Sound,
 } from './regular-merge6-sound.ts';
 
 export const BOTTLE_FINALE_WATER_WAVES_SOUND_SOURCE =
@@ -126,23 +125,6 @@ const BOTTLE_FINALE_VOICE_IDS = Object.freeze(
   Object.values(CUE_CONFIG).map(({ voiceId }) => voiceId),
 );
 const mediaAudioBySource = new Map<string, HTMLAudioElement>();
-
-export interface BottleMerge6SoundEvent {
-  effectiveSum: number;
-  srcSpecialDiceVariantId?: string | null;
-  dstSpecialDiceVariantId?: string | null;
-}
-
-export function isBottleMerge6SoundEvent(event: BottleMerge6SoundEvent): boolean {
-  return event.effectiveSum === 6 && (
-    event.srcSpecialDiceVariantId === 'bottle' ||
-    event.dstSpecialDiceVariantId === 'bottle'
-  );
-}
-
-export function playBottleMerge6Foundation(): boolean {
-  return playRegularMerge6Sound();
-}
 
 export function areBottleFinaleSoundsEnabled(): boolean {
   return typeof window !== 'undefined' &&

@@ -64,6 +64,16 @@ export interface JourneyCardReturnReminderController {
   dispose(): void;
 }
 
+export function getJourneyCardReturnReminderViewportOffset(
+  reference: JourneyCardGeometry,
+  live: JourneyCardGeometry,
+): { x: number; y: number } {
+  return {
+    x: live.centerX - reference.centerX,
+    y: live.centerY - reference.centerY,
+  };
+}
+
 type JourneyCardSqueezePose = Readonly<{ scaleX: number; scaleY: number }>;
 export type JourneyCardReturnReminderImpactPhase = 'launch' | 'landing';
 export type JourneyCardReturnReminderImpactPose = Readonly<{
@@ -349,15 +359,17 @@ export function presentJourneyCardReturnReminder(options: {
   stage.dataset.boardId = String(options.boardId);
   stage.setAttribute('aria-hidden', 'true');
   stage.innerHTML = `
-    <div class="journey-card-return-reminder-motion">
-      <div class="journey-card-return-reminder-impact">
-        <div class="journey-card-return-reminder-squeeze">
-          <div class="journey-card-return-reminder-rotor">
-            <div class="journey-card-return-reminder-face journey-card-return-reminder-front">
-              <div class="journey-card-return-reminder-front-host"></div>
-            </div>
-            <div class="journey-card-return-reminder-face journey-card-return-reminder-back">
-              <img src="${JOURNEY_CARD_RETURN_REMINDER_BACK_ASSET}" srcset="${JOURNEY_CARD_RETURN_REMINDER_BACK_ASSET_2X} 2x" alt="" draggable="false">
+    <div class="journey-card-return-reminder-scroll-anchor">
+      <div class="journey-card-return-reminder-motion">
+        <div class="journey-card-return-reminder-impact">
+          <div class="journey-card-return-reminder-squeeze">
+            <div class="journey-card-return-reminder-rotor">
+              <div class="journey-card-return-reminder-face journey-card-return-reminder-front">
+                <div class="journey-card-return-reminder-front-host"></div>
+              </div>
+              <div class="journey-card-return-reminder-face journey-card-return-reminder-back">
+                <img src="${JOURNEY_CARD_RETURN_REMINDER_BACK_ASSET}" srcset="${JOURNEY_CARD_RETURN_REMINDER_BACK_ASSET_2X} 2x" alt="" draggable="false">
+              </div>
             </div>
           </div>
         </div>
@@ -365,19 +377,22 @@ export function presentJourneyCardReturnReminder(options: {
     </div>
   `;
 
+  const scrollAnchor = stage.querySelector<HTMLElement>('.journey-card-return-reminder-scroll-anchor');
   const motion = stage.querySelector<HTMLElement>('.journey-card-return-reminder-motion');
   const impact = stage.querySelector<HTMLElement>('.journey-card-return-reminder-impact');
   const squeeze = stage.querySelector<HTMLElement>('.journey-card-return-reminder-squeeze');
   const rotor = stage.querySelector<HTMLElement>('.journey-card-return-reminder-rotor');
   const frontHost = stage.querySelector<HTMLElement>('.journey-card-return-reminder-front-host');
   const backImage = stage.querySelector<HTMLImageElement>('.journey-card-return-reminder-back img');
-  if (!motion || !impact || !squeeze || !rotor || !frontHost || !backImage) {
+  if (!scrollAnchor || !motion || !impact || !squeeze || !rotor || !frontHost || !backImage) {
     stage.remove();
     options.origin.restoreNow();
     throw new Error('Journey card return reminder failed to create its required owners');
   }
 
   const origin = options.origin.origin;
+  const landingTarget = options.origin.readLiveGeometry() ?? origin;
+  const scrollReference = landingTarget;
   const motionBase = getJourneyCardReturnReminderMotionBase(origin);
   motion.style.left = `${origin.centerX - origin.width / 2}px`;
   motion.style.top = `${origin.centerY - origin.height / 2}px`;
@@ -404,6 +419,20 @@ export function presentJourneyCardReturnReminder(options: {
   let resolvePaint: ((painted: boolean) => void) | null = null;
   let impactRaf = 0;
   let resolveImpact: ((completed: boolean) => void) | null = null;
+  let scrollFollowRaf = 0;
+
+  const followLiveUnit = () => {
+    scrollFollowRaf = 0;
+    if (settled) return;
+    const liveTarget = options.origin.readLiveGeometry();
+    if (!liveTarget) {
+      cleanup('target-lost', false);
+      return;
+    }
+    const offset = getJourneyCardReturnReminderViewportOffset(scrollReference, liveTarget);
+    scrollAnchor.style.transform = `translate3d(${offset.x}px, ${offset.y}px, 0)`;
+    scrollFollowRaf = requestAnimationFrame(followLiveUnit);
+  };
 
   const setRotorAngle = (angle: number) => {
     rotor.style.transform = `rotateY(${angle}deg)`;
@@ -492,6 +521,8 @@ export function presentJourneyCardReturnReminder(options: {
     impactRaf = 0;
     resolveImpact?.(false);
     resolveImpact = null;
+    if (scrollFollowRaf) cancelAnimationFrame(scrollFollowRaf);
+    scrollFollowRaf = 0;
     stopJourneyCardEntryFlipSounds();
     window.removeEventListener('cc-navigation', handleRouteChange);
     window.removeEventListener('pagehide', handleRouteChange);
@@ -522,6 +553,7 @@ export function presentJourneyCardReturnReminder(options: {
   activeReminder = controller;
   window.addEventListener('cc-navigation', handleRouteChange);
   window.addEventListener('pagehide', handleRouteChange);
+  followLiveUnit();
 
   const run = async () => {
     await preloadJourneyCardReturnReminderAssets();
@@ -596,7 +628,10 @@ export function presentJourneyCardReturnReminder(options: {
       motionElement: motion,
       baseGeometry: motionBase,
       from: apex,
-      readTarget: () => options.origin.readLiveGeometry(),
+      // The outer scroll owner translates the complete flight by the live
+      // Unit delta. Keeping this inner target at its captured landing geometry
+      // avoids applying that scroll movement twice during the return leg.
+      readTarget: () => landingTarget,
       direction: 'return',
       durationMs: JOURNEY_CARD_RETURN_REMINDER_BACK_DURATION_MS,
       spatialProgress: smoothstep,
