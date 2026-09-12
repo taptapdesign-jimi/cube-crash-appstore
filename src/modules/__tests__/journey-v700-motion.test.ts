@@ -2,10 +2,16 @@ import {
   getJourneyElasticPull,
   getJourneyHubEntryScrollTop,
   getJourneyV700EnterOffset,
+  getJourneyV700HubBackExitOrder,
   getJourneyV700HubEnterStagger,
+  getJourneyV700HubWorldExitDuration,
   getJourneyV700MotionProfile,
   getJourneyV700UnitStagger,
   isJourneyInterimIdleOwnedByEnter,
+  JOURNEY_V700_HUB_BACK_EXIT_STAGGER_SECONDS,
+  JOURNEY_V700_HUB_STANDARD_EXIT_BOUNCE_SCALE,
+  JOURNEY_V700_HUB_STANDARD_EXIT_BOUNCE_STRENGTH,
+  JOURNEY_V700_HUB_WORLD_EXIT_DURATION_SCALE,
   JOURNEY_V700_UNIT_CARD_EXIT_DURATION,
   JOURNEY_V700_UNIT_CARD_EXIT_EASE,
   shouldRestoreJourneyInterimWrapperForIdle,
@@ -58,6 +64,38 @@ describe('Journey V700 motion contract', () => {
     expect(stagger).toBeGreaterThanOrEqual(0.08);
     expect(stagger * 2).toBeLessThanOrEqual(0.2);
     expect(getJourneyV700HubEnterStagger(true)).toBeLessThan(stagger);
+  });
+
+  it('shuffles the Hub back-exit order once and keeps its starts super-fast but distinct', () => {
+    const worlds = ['forest', 'area-55', 'beach'];
+    const samples = [0, 0];
+    const shuffled = getJourneyV700HubBackExitOrder(worlds, () => samples.shift() ?? 0);
+
+    expect(shuffled).toEqual(['area-55', 'beach', 'forest']);
+    expect(shuffled).not.toBe(worlds);
+    expect(worlds).toEqual(['forest', 'area-55', 'beach']);
+    expect(JOURNEY_V700_HUB_BACK_EXIT_STAGGER_SECONDS).toBe(0.045);
+    expect(JOURNEY_V700_HUB_BACK_EXIT_STAGGER_SECONDS).toBeGreaterThan(0);
+    expect(JOURNEY_V700_HUB_BACK_EXIT_STAGGER_SECONDS * 2).toBeLessThan(0.1);
+  });
+
+  it('gives standard Hub World exits twenty percent less inflate displacement', () => {
+    expect(JOURNEY_V700_HUB_STANDARD_EXIT_BOUNCE_STRENGTH).toBe(0.8);
+    expect(JOURNEY_V700_HUB_STANDARD_EXIT_BOUNCE_SCALE.scaleX).toBeCloseTo(1.144);
+    expect(JOURNEY_V700_HUB_STANDARD_EXIT_BOUNCE_SCALE.scaleY).toBeCloseTo(1.12);
+  });
+
+  it('slows only normal-motion Hub World exits by twenty percent', () => {
+    expect(JOURNEY_V700_HUB_WORLD_EXIT_DURATION_SCALE).toBe(1.2);
+    expect(getJourneyV700HubWorldExitDuration(0.15, false)).toBeCloseTo(0.18);
+    expect(getJourneyV700HubWorldExitDuration(0.28, false)).toBeCloseTo(0.336);
+    expect(getJourneyV700HubWorldExitDuration(0.15, true)).toBe(0.15);
+    expect(getJourneyV700HubWorldExitDuration(0.28, true)).toBe(0.28);
+
+    const referenceMotion = getJourneyV700MotionProfile(false);
+    expect(referenceMotion.enter.duration).toBe(0.56);
+    expect(referenceMotion.exit.duration).toBe(0.48);
+    expect(JOURNEY_V700_UNIT_CARD_EXIT_DURATION).toBe(0.4);
   });
 
   it('makes repeated visible Hub enter requests idempotent', () => {

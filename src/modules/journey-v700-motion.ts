@@ -22,6 +22,73 @@ export interface JourneyV700MotionProfile {
 export const JOURNEY_V700_UNIT_CARD_EXIT_DURATION = 0.4;
 export const JOURNEY_V700_UNIT_CARD_EXIT_EASE = 'back.in(1.7)';
 
+/**
+ * Canonical "Cartoon Bounce Enter" requested for an accepted Journey World
+ * activation: one fast asymmetric inflate that flows directly into the
+ * selected World's scale-to-zero exit, with no neutral frame or dwell.
+ */
+export const JOURNEY_WORLD_CARTOON_BOUNCE_ENTER = Object.freeze({
+  transformOrigin: '50% 54%',
+  scaleX: 1.18,
+  scaleY: 1.15,
+  bounceDurationSeconds: 0.15,
+  bounceEase: 'power2.in',
+  exitDurationSeconds: 0.28,
+  exitEase: 'back.in(1.7)',
+});
+
+/** Back-to-Homepage Worlds overlap heavily but never start on the same frame. */
+export const JOURNEY_V700_HUB_BACK_EXIT_STAGGER_SECONDS = 0.045;
+/**
+ * Hub World cards used to finish their two-leg exit faster than the accepted
+ * individual-World X -> Hub transition. Lengthen only those Hub-owned legs;
+ * the shared preset stays unchanged because Homepage derives its own bounce
+ * timing from that baseline.
+ */
+export const JOURNEY_V700_HUB_WORLD_EXIT_DURATION_SCALE = 1.2;
+
+export function getJourneyV700HubWorldExitDuration(
+  durationSeconds: number,
+  reducedMotion: boolean,
+): number {
+  return reducedMotion
+    ? durationSeconds
+    : durationSeconds * JOURNEY_V700_HUB_WORLD_EXIT_DURATION_SCALE;
+}
+
+export const JOURNEY_V700_HUB_STANDARD_EXIT_BOUNCE_STRENGTH = 0.8;
+export const JOURNEY_V700_HUB_STANDARD_EXIT_BOUNCE_SCALE = Object.freeze({
+  scaleX: 1 + (
+    (JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.scaleX - 1)
+    * JOURNEY_V700_HUB_STANDARD_EXIT_BOUNCE_STRENGTH
+  ),
+  scaleY: 1 + (
+    (JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.scaleY - 1)
+    * JOURNEY_V700_HUB_STANDARD_EXIT_BOUNCE_STRENGTH
+  ),
+});
+
+const getBoundedRandomSample = (random: () => number): number => {
+  const sample = random();
+  return Number.isFinite(sample)
+    ? Math.max(0, Math.min(0.999999999, sample))
+    : 0;
+};
+
+/** Shuffle once per Back activation without mutating the live DOM-order array. */
+export function getJourneyV700HubBackExitOrder<T>(
+  items: readonly T[],
+  random: () => number = Math.random,
+): T[] {
+  const shuffled = items.slice();
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const boundedSample = getBoundedRandomSample(random);
+    const swapIndex = Math.floor(boundedSample * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled;
+}
+
 const DEFAULT_PROFILE: JourneyV700MotionProfile = {
   enter: {
     baseDelay: 0.08,

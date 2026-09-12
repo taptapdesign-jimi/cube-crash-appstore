@@ -63,6 +63,35 @@ Navigation rules:
 - Nav/header exit starts immediately with the relevant content exit. Do not leave header/nav visible while content waits to begin exit.
 - Card modal X/header exit should begin immediately on X tap, not after the card/stat content has mostly finished exiting.
 
+## Named Reusable Effect: Cartoon Bounce Enter
+
+When the user asks for **Cartoon Bounce Enter**, reuse the exported
+`JOURNEY_WORLD_CARTOON_BOUNCE_ENTER` preset from `journey-v700-motion.ts`.
+For an accepted Journey World activation, the complete World Unit immediately
+inflates to `scaleX: 1.18 / scaleY: 1.15` over `0.15s` with `power2.in` around
+the stable `50% 54%` pivot. At that exact peak, without a settle, rebound,
+neutral frame or dwell, it continues into a `0.28s` `back.in(1.7)` exit to
+scale zero. The name refers to the complete continuous `0.43s` motion.
+
+Destination prepaint runs concurrently beneath this effect and must never delay
+its first visible frame. Preserve the existing input guard, interruption
+completion and opacity-through-collapse. The non-selected Worlds use the same
+two-leg collapse timeline as the Back-to-Homepage Worlds, including the 20%
+reduced `1.144 / 1.12` inflate peak, while the selected World retains the full
+canonical `1.18 / 1.15` peak.
+
+For a Homepage slider route activation, **Cartoon Bounce Enter** means only its
+initial inflate beat and applies only to the active large `.hero-image`. It
+uses **50% of the full World bounce displacement**, inflating around a centered
+`50% 50%` pivot to `scaleX: 1.09 / scaleY: 1.075` over `0.09s` with the
+`power2.in` curve. This Homepage-only inflate is 40% shorter than the full
+World bounce's `0.15s`; it has no Y translation, then the
+pre-existing hero-container exit pulls it into its own center from that exact
+peak frame. The central hero exit uses `0.40s`, while the other Homepage parts
+retain their existing `0.46s` exit. CTA, text, logo and navigation must not inflate. Both hero-image
+and CTA-button activation converge on the same `animateSliderExit()` owner;
+never attach a second click-specific bounce or insert a neutral reset/dwell.
+
 ## Standard Journey Worlds Enter
 
 Context: **Homepage slider → Journey Worlds hub**.
@@ -104,9 +133,28 @@ Lifecycle requirement: background preparation may render the Hub, but it must no
 
 Context: **Journey Worlds hub → Homepage slider**.
 
-Order: **Beach → Area 55 → Forest** (bottom to top).
+Order on Back to Homepage: shuffle the visible complete Worlds once per accepted
+Back action, then start them one by one with a **0.045s** stagger. The order may
+therefore be Forest → Beach → Area 55 or another permutation, but the Worlds
+must never start simultaneously and the full three-World start window remains
+under `0.10s`.
 
-Each World Unit animates from its idle/base state to:
+Each standard exiting World Unit—including every Back-to-Homepage World and
+every non-selected World during Hub→World activation—uses the complete
+canonical Cartoon Bounce timeline, with only its inflate displacement reduced
+by 20%. It inflates around `50% 54%` to
+`scaleX: 1.144 / scaleY: 1.12` over `0.18s` with `power2.in`, then continues
+from that peak directly to `scaleX: 0 / scaleY: 0` over `0.336s` with
+`back.in(1.7)`. These two Hub-owned legs are 20% longer than the reusable
+`0.15s / 0.28s` preset so their tempo matches the gentler individual-World
+X-to-Hub reference. Opacity remains `1` through the collapse and the
+card hides only on completion. There is no neutral frame, fade, old `0.65`
+endpoint or dwell between the two legs. A World and its owned clouds remain
+one Unit. Hub→World selection keeps its full `1.18 / 1.15` inflate and uses
+the same `0.18s / 0.336s` Hub exit timing. Reduced Motion retains the original
+unscaled timing.
+
+The Hub cloud layer and navigation retain their surrounding structural exit:
 
 ```ts
 {
@@ -118,11 +166,11 @@ Each World Unit animates from its idle/base state to:
 }
 ```
 
-Timing:
+Base exit timing after the per-World Cartoon Bounce:
 
 ```ts
 baseDelay = 0;
-stagger = 0.065;
+backToHomepageStagger = 0.045;
 ```
 
 Lifecycle requirement: stop idle first, complete the entire reverse cascade, and only then switch to the Homepage slider and clean up the Journey state.

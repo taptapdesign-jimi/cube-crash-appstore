@@ -53,11 +53,16 @@ import {
 import {
   getJourneyElasticPull,
   getJourneyHubEntryScrollTop,
+  getJourneyV700HubBackExitOrder,
+  getJourneyV700HubWorldExitDuration,
   shouldCorrectJourneyHubAutomaticScroll,
   getJourneyV700HubEnterStagger,
   getJourneyV700MotionProfile,
+  JOURNEY_V700_HUB_BACK_EXIT_STAGGER_SECONDS,
+  JOURNEY_V700_HUB_STANDARD_EXIT_BOUNCE_SCALE,
   JOURNEY_V700_UNIT_CARD_EXIT_DURATION,
   JOURNEY_V700_UNIT_CARD_EXIT_EASE,
+  JOURNEY_WORLD_CARTOON_BOUNCE_ENTER,
   isJourneyInterimIdleOwnedByEnter,
   shouldIgnoreJourneyV700HubVisibleEnterRequest,
   shouldRestoreJourneyInterimWrapperForIdle,
@@ -7244,9 +7249,9 @@ class JourneyBoardsManager {
     };
     const beginWorldOpen = async () => {
       // Prepare the exact final active-World DOM behind the stable Hub. This
-      // includes decode, raster and compositor ownership, so the transition
-      // never becomes the first presentation of a freshly rebuilt scene.
-      const worldPrepaintReady = await this.prepareJourneyWorldPrepaint(container, worldId);
+      // includes decode, raster and compositor ownership. Keep that work under
+      // the visible Hub exit instead of delaying the first motion after a tap.
+      const worldPrepaintReady = this.prepareJourneyWorldPrepaint(container, worldId);
       const journeyScreenBeforeExit = document.getElementById('journey-screen') as HTMLElement | null;
       if (
         this.renderDisposed ||
@@ -7274,6 +7279,7 @@ class JourneyBoardsManager {
         }
         this.logJourneyV700Flow('open-world-hub-exit-complete-await-nav', { requestedWorldId: worldId }, container);
         await navExitPromise;
+        const preparedWorldReady = await worldPrepaintReady;
         const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
         const journeyStillOwnsScreen = !this.renderDisposed &&
           !!journeyScreen &&
@@ -7300,7 +7306,7 @@ class JourneyBoardsManager {
         // Release and replace occur synchronously, so the outgoing Hub cannot
         // paint without its compensation transform.
         releaseHubViewportPin();
-        const committedPrepaint = worldPrepaintReady &&
+        const committedPrepaint = preparedWorldReady &&
           this.commitJourneyWorldPrepaint(container, worldId);
         if (!committedPrepaint) {
           this.cancelJourneyWorldPrepaint('commit-fallback');
@@ -8076,6 +8082,14 @@ class JourneyBoardsManager {
     hub?.classList.remove('journey-v700-banners-presented');
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
     const motion = getJourneyV700MotionProfile(reducedMotion);
+    const hubWorldBounceDuration = getJourneyV700HubWorldExitDuration(
+      JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.bounceDurationSeconds,
+      reducedMotion,
+    );
+    const hubWorldCollapseDuration = getJourneyV700HubWorldExitDuration(
+      JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.exitDurationSeconds,
+      reducedMotion,
+    );
 
     return new Promise((resolve) => {
 	      let remaining = worldCards.length + (hubCloudLayer ? 1 : 0) + navTargets.length;
@@ -8142,63 +8156,91 @@ class JourneyBoardsManager {
         }
       }
 
-	      worldCards.slice().reverse().forEach((card, index) => {
+	      const orderedWorldCards = includeNavExit
+	        ? getJourneyV700HubBackExitOrder(worldCards)
+	        : worldCards.slice().reverse();
+	      orderedWorldCards.forEach((card, index) => {
 	        try {
 	          gsap.killTweensOf(card);
 	          if (card === selectedWorldCard) {
 	            gsap.set(card, {
 	              y: 0,
-	              scale: 1,
+	              scaleX: 1,
+	              scaleY: 1,
 	              opacity: 1,
 	              visibility: 'visible',
-	              transformOrigin: '50% 50%',
+	              transformOrigin: JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.transformOrigin,
 	              force3D: true,
 	            });
 	            gsap.timeline({
-	              defaults: { force3D: true, transformOrigin: '50% 50%' },
+	              defaults: {
+	                force3D: true,
+	                transformOrigin: JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.transformOrigin,
+	              },
 	              onComplete: finishTarget,
 	              onInterrupt: finishTarget,
 	            })
 	              .to(card, {
+	                scaleX: JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.scaleX,
+	                scaleY: JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.scaleY,
+	                duration: hubWorldBounceDuration,
+	                ease: JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.bounceEase,
+	              })
+	              .to(card, {
 	                y: 0,
-	                scale: 0,
+	                scaleX: 0,
+	                scaleY: 0,
 	                opacity: 1,
-	                duration: BOARD_AREA_CARD_TAP_EXIT_DURATION,
-	                ease: BOARD_AREA_CARD_TAP_EXIT_EASE,
+	                duration: hubWorldCollapseDuration,
+	                ease: JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.exitEase,
 	                onComplete: () => {
 	                  gsap.set(card, { opacity: 0, visibility: 'hidden' });
 	                },
 	              });
 	            return;
 	          }
-	          const delay = BOARD_AREA_MODAL_EXIT_BASE_DELAY + (index * motion.exit.groupStagger);
-	          if (includeNavExit && motion.exit.anticipationDuration > 0) {
+	          const backExitStagger = reducedMotion
+	            ? motion.exit.groupStagger
+	            : JOURNEY_V700_HUB_BACK_EXIT_STAGGER_SECONDS;
+	          const delay = BOARD_AREA_MODAL_EXIT_BASE_DELAY + (
+	            index * (includeNavExit ? backExitStagger : motion.exit.groupStagger)
+	          );
+	          if (motion.exit.anticipationDuration > 0) {
 	            gsap.set(card, {
 	              y: 0,
-	              scale: 1,
+	              scaleX: 1,
+	              scaleY: 1,
 	              opacity: 1,
 	              visibility: 'visible',
-	              transformOrigin: '50% 50%',
+	              transformOrigin: JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.transformOrigin,
 	              force3D: true,
 	              overwrite: true,
 	            });
 	            gsap.timeline({
 	              delay,
-	              defaults: { force3D: true, transformOrigin: '50% 50%' },
+	              defaults: {
+	                force3D: true,
+	                transformOrigin: JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.transformOrigin,
+	              },
 	              onComplete: finishTarget,
 	              onInterrupt: finishTarget,
-	            })
-	              .to(card, {
-	                scale: motion.exit.anticipationScale,
-	                duration: motion.exit.anticipationDuration,
-	                ease: 'power2.out',
 	              })
 	              .to(card, {
-	                y: motion.exit.y,
-	                scale: motion.exit.scale,
-	                opacity: 0,
-	                duration: Math.max(0.01, motion.exit.duration - motion.exit.anticipationDuration),
-	                ease: 'power2.in',
+	                scaleX: JOURNEY_V700_HUB_STANDARD_EXIT_BOUNCE_SCALE.scaleX,
+	                scaleY: JOURNEY_V700_HUB_STANDARD_EXIT_BOUNCE_SCALE.scaleY,
+	                duration: hubWorldBounceDuration,
+	                ease: JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.bounceEase,
+	              })
+	              .to(card, {
+	                y: 0,
+	                scaleX: 0,
+	                scaleY: 0,
+	                opacity: 1,
+	                duration: hubWorldCollapseDuration,
+	                ease: JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.exitEase,
+	                onComplete: () => {
+	                  gsap.set(card, { opacity: 0, visibility: 'hidden' });
+	                },
 	              });
 	            return;
 	          }

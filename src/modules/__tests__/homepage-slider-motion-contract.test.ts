@@ -10,6 +10,7 @@ describe('Homepage slider motion contract', () => {
   const uiManagerSource = read('src/modules/ui-manager.ts');
   const sliderManagerSource = read('src/modules/slider-manager.ts');
   const sliderCssSource = read('src/slider-optimized.css');
+  const journeyMotionSource = read('src/modules/journey-v700-motion.ts');
 
   test('all modern Homepage exits delegate to the single completion owner', () => {
     const publicExit = animationsSource.split(
@@ -32,6 +33,55 @@ describe('Homepage slider motion contract', () => {
     expect(exitOwner).toContain("element.style.setProperty('transform', paintedTransform, 'important')");
     expect(exitOwner).toContain("easing: 'cubic-bezier(0.60, -0.28, 0.735, 0.045)'");
     expect(finalize).toContain("element.style.removeProperty('transform')");
+  });
+
+  test('image and CTA activation share one Homepage exit whose inflate affects only the central hero image', () => {
+    const exitOwner = animationsSource.split(
+      'export const animateJourneySliderExit = (): Promise<void>',
+    )[1]?.split('const animateSliderExitLegacy')[0] ?? '';
+    const heroOwner = uiManagerSource.split(
+      'private attachSliderHeroCtaListeners(',
+    )[1]?.split('// Setup state subscriptions')[0] ?? '';
+    const buttonOwner = uiManagerSource.split(
+      'private registerHomepageCtaButtons(): void',
+    )[1]?.split('// Initialize UI elements')[0] ?? '';
+    const inflateBlock = exitOwner.split(
+      'inflateTargets.forEach((element) => {',
+    )[1]?.split('journeySliderInflateAnimations.push(animation);')[0] ?? '';
+
+    expect(journeyMotionSource).toContain('export const JOURNEY_WORLD_CARTOON_BOUNCE_ENTER');
+    expect(animationsSource).toContain("from '../modules/journey-v700-motion.js'");
+    expect(animationsSource).toContain("slide.querySelector<HTMLElement>('.hero-image')");
+    expect(animationsSource).not.toContain("slide.querySelector<HTMLElement>('.slide-content')\n    .filter");
+    expect(animationsSource).toContain('const HOMEPAGE_HERO_CARTOON_BOUNCE_STRENGTH = 0.5;');
+    expect(animationsSource).toContain('const HOMEPAGE_HERO_CARTOON_BOUNCE_SPEEDUP = 0.4;');
+    expect(animationsSource).toContain("* (1 - HOMEPAGE_HERO_CARTOON_BOUNCE_SPEEDUP)");
+    expect(animationsSource).toContain('1 + ((fullScale - 1) * HOMEPAGE_HERO_CARTOON_BOUNCE_STRENGTH)');
+    expect(animationsSource).toContain('JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.scaleX,');
+    expect(animationsSource).toContain('JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.scaleY,');
+    expect(exitOwner).toContain('HOMEPAGE_HERO_CARTOON_BOUNCE_SCALE_X');
+    expect(exitOwner).toContain('HOMEPAGE_HERO_CARTOON_BOUNCE_SCALE_Y');
+    expect(animationsSource).toContain('const HOMEPAGE_PART_EXIT_DURATION_MS = 460;');
+    expect(animationsSource).toContain('const HOMEPAGE_HERO_EXIT_DURATION_MS = 400;');
+    expect(exitOwner).toContain("element.classList.contains('hero-container')");
+    expect(exitOwner).toContain('? HOMEPAGE_HERO_EXIT_DURATION_MS');
+    expect(exitOwner).toContain(': HOMEPAGE_PART_EXIT_DURATION_MS');
+    expect(exitOwner).toContain('duration: HOMEPAGE_HERO_CARTOON_BOUNCE_DURATION_MS');
+    expect(animationsSource).toContain("const HOMEPAGE_HERO_CARTOON_BOUNCE_ORIGIN = '50% 50%';");
+    expect(exitOwner).toContain('element.style.transformOrigin = HOMEPAGE_HERO_CARTOON_BOUNCE_ORIGIN');
+    expect(exitOwner).toContain("{ scale: '1 1' }");
+    expect(exitOwner).not.toContain('JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.transformOrigin');
+    expect(inflateBlock).not.toContain('translateY');
+    expect(inflateBlock).not.toMatch(/\by\s*:/);
+    expect(exitOwner).toContain('animation.onfinish = finishInflate');
+    expect(exitOwner).toContain('animation.oncancel = finishInflate');
+    expect(exitOwner).toContain('exitsStarted = true;\n        startTargetExits();');
+    expect(heroOwner).toContain("attachPair('[data-hero-cta=\"play\"]', this.handlePlayClick.bind(this))");
+    expect(heroOwner).toContain("attachPair('[data-hero-cta=\"journey\"]', this.handleStatsClick.bind(this))");
+    expect(heroOwner).toContain("attachPair('[data-hero-cta=\"settings\"]', this.handleSettingsClick.bind(this))");
+    expect(buttonOwner).toContain('[this.elements.playButton, this.handlePlayClick.bind(this)]');
+    expect(buttonOwner).toContain('[this.elements.journeyButton, this.handleStatsClick.bind(this)]');
+    expect(buttonOwner).toContain('[this.elements.settingsButton, this.handleSettingsClick.bind(this)]');
   });
 
   test('Arcade and Settings route on real exit completion rather than a 770ms guess', () => {

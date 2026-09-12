@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { JOURNEY_WORLD_CARTOON_BOUNCE_ENTER } from '../journey-v700-motion';
 
 const root = path.resolve(__dirname, '../../..');
 const journeyManagerSource = fs.readFileSync(
@@ -469,9 +470,19 @@ describe('Journey Hub transition ownership', () => {
       'private commitJourneyWorldPrepaint(',
     )[1]?.split('private applyJourneyV700WorldScope')[0] ?? '';
 
-    expect(openWorldSource).toContain('await this.prepareJourneyWorldPrepaint(container, worldId)');
-    expect(openWorldSource.indexOf('await this.prepareJourneyWorldPrepaint(container, worldId)'))
-      .toBeLessThan(openWorldSource.indexOf('this.playJourneyV700HubExit('));
+    expect(openWorldSource).toContain(
+      'const worldPrepaintReady = this.prepareJourneyWorldPrepaint(container, worldId)',
+    );
+    expect(openWorldSource).toContain('const preparedWorldReady = await worldPrepaintReady');
+    const prepaintStartIndex = openWorldSource.indexOf(
+      'const worldPrepaintReady = this.prepareJourneyWorldPrepaint(container, worldId)',
+    );
+    const exitIndex = openWorldSource.indexOf('this.playJourneyV700HubExit(');
+    const prepaintBarrierIndex = openWorldSource.indexOf(
+      'const preparedWorldReady = await worldPrepaintReady',
+    );
+    expect(prepaintStartIndex).toBeLessThan(exitIndex);
+    expect(exitIndex).toBeLessThan(prepaintBarrierIndex);
     expect(openWorldSource).toContain('this.commitJourneyWorldPrepaint(container, worldId)');
     expect(openWorldSource).toContain("this.cancelJourneyWorldPrepaint('commit-fallback')");
     const touchStartSource = journeyManagerSource.split('const onWorldCardTouchStart =')[1]
@@ -637,6 +648,77 @@ describe('Journey Hub transition ownership', () => {
     expect(pinIndex).toBeGreaterThan(freezeIndex);
     expect(resolveIndex).toBeGreaterThan(pinIndex);
     expect(queuedReleaseIndex).toBeGreaterThan(resolveIndex);
+  });
+
+  test('Hub Back gives every complete World a shuffled, tightly staggered Cartoon Bounce before exit', () => {
+    const hubExitSource = journeyManagerSource.split(
+      "public playJourneyV700HubExit(reason = 'hub-exit', selectedWorldCard: HTMLElement | null = null): Promise<void>",
+    )[1]?.split('private getJourneyV700BoardIdForTarget')[0] ?? '';
+    const standardWorldExitSource = hubExitSource.split(
+      'if (motion.exit.anticipationDuration > 0) {',
+    )[1]?.split('return;')[0] ?? '';
+
+    expect(hubExitSource).toContain('const orderedWorldCards = includeNavExit');
+    expect(hubExitSource).toContain('? getJourneyV700HubBackExitOrder(worldCards)');
+    expect(hubExitSource).toContain(': JOURNEY_V700_HUB_BACK_EXIT_STAGGER_SECONDS;');
+    expect(hubExitSource).toContain('orderedWorldCards.forEach((card, index) =>');
+    expect(hubExitSource).not.toContain('if (includeNavExit && motion.exit.anticipationDuration > 0)');
+    expect(standardWorldExitSource).toContain('scaleX: JOURNEY_V700_HUB_STANDARD_EXIT_BOUNCE_SCALE.scaleX');
+    expect(standardWorldExitSource).toContain('scaleY: JOURNEY_V700_HUB_STANDARD_EXIT_BOUNCE_SCALE.scaleY');
+    expect(standardWorldExitSource).toContain('duration: hubWorldBounceDuration');
+    expect(standardWorldExitSource).toContain('JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.bounceEase');
+    expect(standardWorldExitSource).toContain('scaleX: 0');
+    expect(standardWorldExitSource).toContain('scaleY: 0');
+    expect(standardWorldExitSource).toContain('opacity: 1');
+    expect(standardWorldExitSource).toContain('duration: hubWorldCollapseDuration');
+    expect(standardWorldExitSource).toContain('ease: JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.exitEase');
+    expect(standardWorldExitSource).toContain("gsap.set(card, { opacity: 0, visibility: 'hidden' })");
+    expect(standardWorldExitSource).not.toContain('motion.exit.anticipationScale');
+    expect(standardWorldExitSource.indexOf('JOURNEY_V700_HUB_STANDARD_EXIT_BOUNCE_SCALE.scaleX'))
+      .toBeLessThan(standardWorldExitSource.indexOf('scaleX: 0'));
+  });
+
+  test('locks the reusable Cartoon Bounce Enter before the selected World exit', () => {
+    const openWorldSource = journeyManagerSource.split(
+      'private openJourneyV700World(worldId: number, source?: HTMLElement): void',
+    )[1]?.split('private async prepareJourneyWorldPrepaint')[0] ?? '';
+    const hubExitSource = journeyManagerSource.split(
+      "public playJourneyV700HubExit(reason = 'hub-exit'",
+    )[1]?.split('private getJourneyV700WorldTargetGroups')[0] ?? '';
+
+    const prepaintStartIndex = openWorldSource.indexOf(
+      'const worldPrepaintReady = this.prepareJourneyWorldPrepaint(container, worldId)',
+    );
+    const exitIndex = openWorldSource.indexOf('this.playJourneyV700HubExit(');
+    const prepaintBarrierIndex = openWorldSource.indexOf(
+      'const preparedWorldReady = await worldPrepaintReady',
+    );
+    expect(prepaintStartIndex).toBeGreaterThanOrEqual(0);
+    expect(exitIndex).toBeGreaterThan(prepaintStartIndex);
+    expect(prepaintBarrierIndex).toBeGreaterThan(exitIndex);
+    expect(openWorldSource).toContain('this.journeyV700WorldOpenInProgress = true;');
+    expect(hubExitSource).toContain('if (card === selectedWorldCard)');
+    expect(JOURNEY_WORLD_CARTOON_BOUNCE_ENTER).toEqual({
+      transformOrigin: '50% 54%',
+      scaleX: 1.18,
+      scaleY: 1.15,
+      bounceDurationSeconds: 0.15,
+      bounceEase: 'power2.in',
+      exitDurationSeconds: 0.28,
+      exitEase: 'back.in(1.7)',
+    });
+    expect(hubExitSource).toContain('JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.scaleX');
+    expect(hubExitSource).toContain('JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.scaleY');
+    expect(hubExitSource).toContain('getJourneyV700HubWorldExitDuration(');
+    expect(hubExitSource).toContain('duration: hubWorldBounceDuration');
+    expect(hubExitSource).toContain('JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.bounceEase');
+    expect(hubExitSource).toContain('JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.transformOrigin');
+    expect(hubExitSource).toContain('duration: hubWorldCollapseDuration');
+    expect(hubExitSource).toContain('JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.exitEase');
+    expect(hubExitSource.indexOf('JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.scaleX')).toBeLessThan(
+      hubExitSource.lastIndexOf('scaleX: 0'),
+    );
+    expect(hubExitSource).toContain('onInterrupt: finishTarget');
   });
 
   test('Hub root atomically owns the enter-to-idle handoff for every World', () => {

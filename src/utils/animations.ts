@@ -10,6 +10,7 @@ import {
   primeHomepageNavigation,
 } from '../modules/navigation-control.js';
 import { JOURNEY_SLIDE_INDEX } from '../modules/homepage-slide-order.js';
+import { JOURNEY_WORLD_CARTOON_BOUNCE_ENTER } from '../modules/journey-v700-motion.js';
 
 // Safe element getter
 export const getElement = (id: string): HTMLElement | null => {
@@ -272,6 +273,8 @@ let sliderEnterFallback: ReturnType<typeof setTimeout> | null = null;
 let sliderEnterNavigationGeneration: number | null = null;
 let journeySliderExitPromise: Promise<void> | null = null;
 let journeySliderExitAnimations: Animation[] = [];
+let journeySliderInflateAnimations: Animation[] = [];
+let journeySliderInflateElements: HTMLElement[] = [];
 let journeySliderExitFallback: ReturnType<typeof setTimeout> | null = null;
 
 // Track active animation timeouts for cleanup
@@ -569,10 +572,41 @@ const getJourneySliderExitTargets = (): Array<{ element: HTMLElement; delay: num
     .map((element) => ({ element, delay })));
 };
 
+const getHomepageSliderInflateTargets = (): HTMLElement[] => {
+  const activeSlide = document.querySelector<HTMLElement>('.slider-slide.active');
+  const visibleSlides = getPhysicallyVisibleHomepageSlides();
+  const exitSlides = visibleSlides.length > 0 ? visibleSlides : (activeSlide ? [activeSlide] : []);
+
+  return exitSlides
+    .map((slide) => slide.querySelector<HTMLElement>('.hero-image'))
+    .filter((element): element is HTMLElement => !!element && element.isConnected);
+};
+
+const HOMEPAGE_HERO_CARTOON_BOUNCE_ORIGIN = '50% 50%';
+const HOMEPAGE_HERO_POWER2_IN_EASING = 'cubic-bezier(0.55, 0.085, 0.68, 0.53)';
+const HOMEPAGE_PART_EXIT_DURATION_MS = 460;
+const HOMEPAGE_HERO_EXIT_DURATION_MS = 400;
+const HOMEPAGE_HERO_CARTOON_BOUNCE_STRENGTH = 0.5;
+const HOMEPAGE_HERO_CARTOON_BOUNCE_SPEEDUP = 0.4;
+const HOMEPAGE_HERO_CARTOON_BOUNCE_DURATION_MS = (
+  JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.bounceDurationSeconds
+  * 1000
+  * (1 - HOMEPAGE_HERO_CARTOON_BOUNCE_SPEEDUP)
+);
+const getHomepageHeroBounceScale = (fullScale: number): number => (
+  1 + ((fullScale - 1) * HOMEPAGE_HERO_CARTOON_BOUNCE_STRENGTH)
+);
+const HOMEPAGE_HERO_CARTOON_BOUNCE_SCALE_X = getHomepageHeroBounceScale(
+  JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.scaleX,
+);
+const HOMEPAGE_HERO_CARTOON_BOUNCE_SCALE_Y = getHomepageHeroBounceScale(
+  JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.scaleY,
+);
+
 /**
- * Homepage → Journey owns one continuous cartoony back-in exit. Unlike the
- * legacy global `.animate-exit` curve, the endpoint never crosses scale zero,
- * so the initial punch resolves into one shrink instead of a second "bom".
+ * Canonical Homepage route exit. Only the visible large hero image performs
+ * the centered inflate beat, then the established per-part exit continues
+ * directly on that peak frame.
  */
 export const animateJourneySliderExit = (): Promise<void> => {
   if (journeySliderExitPromise) return journeySliderExitPromise;
@@ -581,6 +615,8 @@ export const animateJourneySliderExit = (): Promise<void> => {
   sliderState.setAnimatingExit(true);
   gameState.set('sliderLocked', true);
   const targets = getJourneySliderExitTargets();
+  const inflateTargets = getHomepageSliderInflateTargets();
+  journeySliderInflateElements = inflateTargets;
 
   journeySliderExitPromise = new Promise<void>((resolve) => {
     let finished = false;
@@ -599,7 +635,7 @@ export const animateJourneySliderExit = (): Promise<void> => {
       if (remaining <= 0) finish();
     };
 
-    targets.forEach(({ element, delay }) => {
+    targets.forEach(({ element }) => {
       gsap.killTweensOf(element);
       const ctaController = element instanceof HTMLButtonElement ? getRegisteredCta(element) : null;
       if (!ctaController) {
@@ -618,31 +654,71 @@ export const animateJourneySliderExit = (): Promise<void> => {
         'animate-exit', 'animate-enter', 'animate-enter-initial',
         'animate-enter-complete', 'animate-reset', 'soft-cartoon-bounce',
       );
-      if (ctaController) {
-        void ctaController.exit({ delay }).then(finishTarget);
-        return;
-      }
-      element.style.willChange = 'scale';
-      // Animate the independent CSS `scale` longhand so every established
-      // responsive translate/transform rule remains untouched.
-      const animation = element.animate([
-        { scale: '1' },
-        { scale: '0' },
-      ], {
-        duration: 460,
-        delay: delay * 1000,
-        // CSS approximation of GSAP back.in(1.25), matching the Journey
-        // contract: a small outward anticipation followed by one clean exit.
-        easing: 'cubic-bezier(0.60, -0.28, 0.735, 0.045)',
-        fill: 'forwards',
-      });
-      animation.onfinish = finishTarget;
-      journeySliderExitAnimations.push(animation);
     });
 
-    journeySliderExitFallback = setTimeout(finish, 700);
-    if (targets.length === 0) finish();
-    logger.info('🎬 Journey Homepage exit started with one monotonic owner');
+    const startTargetExits = () => {
+      targets.forEach(({ element, delay }) => {
+        const ctaController = element instanceof HTMLButtonElement ? getRegisteredCta(element) : null;
+        if (ctaController) {
+          void ctaController.exit({ delay }).then(finishTarget);
+          return;
+        }
+        element.style.willChange = 'scale';
+        // Keep the established per-part exit intact. The active hero image has
+        // already reached its centered Cartoon Bounce inflate peak, so this
+        // starts on that same frame with no neutral reset or dwell.
+        const animation = element.animate([
+          { scale: '1' },
+          { scale: '0' },
+        ], {
+          duration: element.classList.contains('hero-container')
+            ? HOMEPAGE_HERO_EXIT_DURATION_MS
+            : HOMEPAGE_PART_EXIT_DURATION_MS,
+          delay: delay * 1000,
+          // CSS approximation of GSAP back.in(1.25), matching the Journey
+          // contract: a small outward anticipation followed by one clean exit.
+          easing: 'cubic-bezier(0.60, -0.28, 0.735, 0.045)',
+          fill: 'forwards',
+        });
+        animation.onfinish = finishTarget;
+        journeySliderExitAnimations.push(animation);
+      });
+      if (targets.length === 0) finish();
+    };
+
+    if (inflateTargets.length === 0) {
+      startTargetExits();
+    } else {
+      let remainingInflates = inflateTargets.length;
+      let exitsStarted = false;
+      const finishInflate = () => {
+        remainingInflates -= 1;
+        if (remainingInflates > 0 || exitsStarted) return;
+        exitsStarted = true;
+        startTargetExits();
+      };
+
+      inflateTargets.forEach((element) => {
+        element.style.willChange = 'scale';
+        element.style.transformOrigin = HOMEPAGE_HERO_CARTOON_BOUNCE_ORIGIN;
+        const animation = element.animate([
+          { scale: '1 1' },
+          {
+            scale: `${HOMEPAGE_HERO_CARTOON_BOUNCE_SCALE_X} ${HOMEPAGE_HERO_CARTOON_BOUNCE_SCALE_Y}`,
+          },
+        ], {
+          duration: HOMEPAGE_HERO_CARTOON_BOUNCE_DURATION_MS,
+          easing: HOMEPAGE_HERO_POWER2_IN_EASING,
+          fill: 'forwards',
+        });
+        animation.onfinish = finishInflate;
+        animation.oncancel = finishInflate;
+        journeySliderInflateAnimations.push(animation);
+      });
+    }
+
+    journeySliderExitFallback = setTimeout(finish, 850);
+    logger.info('🎬 Homepage exit started with half-strength hero Cartoon Bounce and one completion owner');
   });
 
   return journeySliderExitPromise;
@@ -650,6 +726,13 @@ export const animateJourneySliderExit = (): Promise<void> => {
 
 /** Call only after Homepage is hidden so normalization cannot flash on screen. */
 export const finalizeJourneySliderExit = (): void => {
+  journeySliderInflateAnimations.splice(0).forEach((animation) => {
+    try { animation.cancel(); } catch {}
+  });
+  journeySliderInflateElements.splice(0).forEach((element) => {
+    element.style.removeProperty('transform-origin');
+    element.style.removeProperty('will-change');
+  });
   journeySliderExitAnimations.splice(0).forEach((animation) => {
     try { animation.cancel(); } catch {}
   });
