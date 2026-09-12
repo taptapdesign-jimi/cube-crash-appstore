@@ -19,13 +19,20 @@ import {
   restoreJourneyBoardCardBaseTransform,
 } from './modules/journey-card-base-transform.js';
 import { playNavIconCartoonBounce } from './utils/nav-icon-bounce.js';
-import { emitIOSNativeDiagnostic } from './utils/ios-native-diagnostic.js';
+import {
+  emitIOSNativeDiagnostic,
+  emitNativeConsoleDiagnostic,
+} from './utils/ios-native-diagnostic.js';
 import {
   ensureIOSJourneyRouteAudit,
   finishIOSJourneyRouteAudit,
   markIOSJourneyRouteAudit,
 } from './utils/ios-journey-world-enter-audit.js';
 import { resolveJourneyReturnEntryPolicy } from './modules/journey-return-entry-policy.js';
+import {
+  applyJourneyReturnScrollIfOwned,
+  beginJourneyReturnScrollOwnership,
+} from './modules/journey-return-scroll-ownership.js';
 import { appZoneManager } from './modules/app-zone-manager.js';
 import {
   areContinuousRuntimeDiagnosticsEnabled,
@@ -199,7 +206,18 @@ function restoreJourneyReturnScrollPosition(reason: string): void {
     const apply = (phase: string) => {
       const targetScrollTop = getJourneyReturnScrollTop(scrollable);
       if (targetScrollTop === null) return;
-      scrollable.scrollTop = targetScrollTop;
+      const previousScrollTop = scrollable.scrollTop;
+      const applied = applyJourneyReturnScrollIfOwned(scrollable, () => {
+        scrollable.scrollTop = targetScrollTop;
+      });
+      emitNativeConsoleDiagnostic('JourneyReturnScrollIncident', applied ? 'restore-applied' : 'restore-skipped-user-owned', {
+        reason,
+        phase,
+        previousScrollTop,
+        targetScrollTop,
+        actualScrollTop: scrollable.scrollTop,
+      });
+      if (!applied) return;
       logger.info('🗺️ Journey return scroll restored', {
         reason,
         phase,
@@ -1041,23 +1059,21 @@ class CollectiblesManager {
       hideLastActiveJourneyBoardAreaBeforeEnter();
     }
     if (returningFromInterimBoardEarly || returningFromDetailModalEarly) {
-      restoreJourneyReturnScrollPosition('early-return-before-render');
-      try {
-        const scrollableEarly = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
-        const savedScrollTopEarly =
-          (window as any).__ccJourneyScrollTop ??
-          Number(localStorage.getItem('__ccJourneyScrollTop'));
-        if (scrollableEarly && typeof savedScrollTopEarly === 'number') {
-          // Apply multiple times to beat any layout/animation resets
-          scrollableEarly.scrollTop = savedScrollTopEarly;
-          requestAnimationFrame(() => {
-            scrollableEarly.scrollTop = savedScrollTopEarly;
-            setTimeout(() => {
-              scrollableEarly.scrollTop = savedScrollTopEarly;
-            }, 120);
+      const returnScrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
+      if (returnScrollable) {
+        beginJourneyReturnScrollOwnership(returnScrollable, (claimReason) => {
+          emitNativeConsoleDiagnostic('JourneyReturnScrollIncident', 'user-claimed-scroll', {
+            claimReason,
+            scrollTop: returnScrollable.scrollTop,
+            returnBoardId: getJourneyReturnBoardId(),
           });
-        }
-      } catch {}
+        });
+        emitNativeConsoleDiagnostic('JourneyReturnScrollIncident', 'return-ownership-started', {
+          scrollTop: returnScrollable.scrollTop,
+          returnBoardId: getJourneyReturnBoardId(),
+        });
+      }
+      restoreJourneyReturnScrollPosition('early-return-before-render');
     }
 
     // 🔥 OPTIMIZATION: Check if boards are already rendered (by prepareJourneyScreen)
@@ -1325,25 +1341,7 @@ class CollectiblesManager {
                   console.log('🗺️ Skipping auto-scroll (returning from detail modal or interim board)');
                   // 🔥 USER REQUEST: Restore previous scroll position when returning from detail modal or interim board
                   if (returningFromDetailModal || returningFromInterimBoard) {
-                    try {
-                      const scrollable = journeyContainer.querySelector('.collectibles-scrollable') as HTMLElement | null;
-                      const savedScrollTop =
-                        (window as any).__ccJourneyScrollTop ??
-                        Number(localStorage.getItem('__ccJourneyScrollTop'));
-                      if (scrollable && typeof savedScrollTop === 'number') {
-                        scrollable.scrollTop = savedScrollTop;
-                        requestAnimationFrame(() => {
-                          scrollable.scrollTop = savedScrollTop;
-                          // Apply again after layout settles (prevents reset to top)
-                          setTimeout(() => {
-                            scrollable.scrollTop = savedScrollTop;
-                          }, 50);
-                          setTimeout(() => {
-                            scrollable.scrollTop = savedScrollTop;
-                          }, 150);
-                        });
-                      }
-                    } catch {}
+                    restoreJourneyReturnScrollPosition('legacy-post-enter-return');
                   }
                   // Clear flags after checking
                   delete (window as any).__ccReturningFromDetailModal;
