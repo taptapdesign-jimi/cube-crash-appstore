@@ -5,6 +5,7 @@ export type GameplayAudioPlaybackResult = 'played' | 'pending' | 'unavailable';
 export interface GameplayAudioPlaybackOptions {
   voiceId: string;
   volume: number;
+  loop?: boolean;
   playbackRate?: number;
   startOffsetSeconds?: number;
   startDelaySeconds?: number;
@@ -129,6 +130,69 @@ export function stopDecodedGameplayVoices(voiceIds: readonly string[]): void {
   voiceIds.forEach(stopDecodedGameplayVoice);
 }
 
+export function fadeOutDecodedGameplayVoice(voiceId: string, durationSeconds: number): boolean {
+  pendingVoiceStarts.delete(voiceId);
+  const voice = activeVoices.get(voiceId);
+  const context = audioContext;
+  if (!voice || !context) return false;
+
+  const duration = Math.max(0, durationSeconds);
+  if (duration === 0) {
+    stopDecodedGameplayVoice(voiceId);
+    return true;
+  }
+
+  try {
+    const now = context.currentTime;
+    const currentVolume = voice.gain.gain.value;
+    voice.gain.gain.cancelScheduledValues(now);
+    voice.gain.gain.setValueAtTime(currentVolume, now);
+    voice.gain.gain.linearRampToValueAtTime(0, now + duration);
+    voice.source.stop(now + duration);
+    return true;
+  } catch {
+    stopDecodedGameplayVoice(voiceId);
+    return false;
+  }
+}
+
+export function setDecodedGameplayVoiceVolume(
+  voiceId: string,
+  volume: number,
+  durationSeconds = 0,
+): boolean {
+  const targetVolume = Math.max(0, Math.min(1, volume));
+  const pendingVoice = pendingVoiceStarts.get(voiceId);
+  if (pendingVoice) {
+    pendingVoice.options = {
+      ...pendingVoice.options,
+      volume: targetVolume,
+    };
+  }
+
+  const voice = activeVoices.get(voiceId);
+  const context = audioContext;
+  if (!voice || !context) return pendingVoice !== undefined;
+
+  try {
+    const now = context.currentTime;
+    const gain = voice.gain.gain;
+    const duration = Math.max(0, durationSeconds);
+    if (duration > 0 && typeof gain.cancelAndHoldAtTime === 'function') {
+      gain.cancelAndHoldAtTime(now);
+    } else {
+      const currentVolume = gain.value;
+      gain.cancelScheduledValues(now);
+      gain.setValueAtTime(currentVolume, now);
+    }
+    if (duration > 0) gain.linearRampToValueAtTime(targetVolume, now + duration);
+    else gain.setValueAtTime(targetVolume, now);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function playDecodedGameplaySound(
   source: string,
   options: GameplayAudioPlaybackOptions,
@@ -174,6 +238,7 @@ export function playDecodedGameplaySound(
     let stopAt: number | null = null;
 
     sourceNode.buffer = buffer;
+    sourceNode.loop = options.loop === true;
     sourceNode.playbackRate.setValueAtTime(playbackRate, now);
     gainNode.gain.setValueAtTime(volume, now);
     if (stopAfterSeconds !== undefined) {

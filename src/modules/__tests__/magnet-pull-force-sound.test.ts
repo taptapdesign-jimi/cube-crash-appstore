@@ -1,11 +1,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+  BOTTLE_PULL_FORCE_BOIING_BASE_VOLUME,
+  BOTTLE_PULL_FORCE_BOIING_VOLUME,
+  HONEY_PULL_FORCE_BOIING_BASE_VOLUME,
+  HONEY_PULL_FORCE_BOIING_VOLUME,
   MAGNET_PULL_FORCE_SOUND_BASE_VOLUMES,
   MAGNET_PULL_FORCE_SOUND_SOURCES,
   MAGNET_PULL_FORCE_SOUND_VOLUMES,
   isMagnetArchetypeMerge6SoundEvent,
   playMagnetPullForceSounds,
+  resolveMagnetPullForceBoiingVolume,
   resetMagnetPullForceSoundsForTests,
 } from '../magnet-pull-force-sound.ts';
 
@@ -20,14 +25,16 @@ describe('Magnet pull force sound', () => {
     delete (window as any)._settings;
   });
 
-  test('assigns quiet magnetpulls plus planks to the first merge and only boiing to the pull merge', () => {
+  test('removes magnetpulls and planks while retaining boiing on the pull merge', () => {
     expect(MAGNET_PULL_FORCE_SOUND_SOURCES).toEqual([
-      './assets/sound/magnet pul lforce/magnetpulls.wav',
-      './assets/sound/magnet pul lforce/planks break.wav',
       './assets/sound/magnet pul lforce/boiing.wav',
     ]);
-    expect(MAGNET_PULL_FORCE_SOUND_BASE_VOLUMES).toEqual([0.5, 0.5, 1]);
-    expect(MAGNET_PULL_FORCE_SOUND_VOLUMES).toEqual([0.3, 0.3, 0.6]);
+    expect(MAGNET_PULL_FORCE_SOUND_BASE_VOLUMES).toEqual([1]);
+    expect(MAGNET_PULL_FORCE_SOUND_VOLUMES).toEqual([0.6]);
+    expect(HONEY_PULL_FORCE_BOIING_BASE_VOLUME).toBe(0.6);
+    expect(HONEY_PULL_FORCE_BOIING_VOLUME).toBeCloseTo(0.36);
+    expect(BOTTLE_PULL_FORCE_BOIING_BASE_VOLUME).toBe(0.4);
+    expect(BOTTLE_PULL_FORCE_BOIING_VOLUME).toBeCloseTo(0.24);
   });
 
   test('uses the canonical Merge-6 foundation for both stages without the removed custom mix', () => {
@@ -42,9 +49,19 @@ describe('Magnet pull force sound', () => {
     expect(source).not.toContain('pull1.wav');
     expect(source).not.toContain('pull2.wav');
     expect(source).not.toContain('loop: true');
-    expect(source).toContain('const planksBreakStarted = playAccent(1);');
-    expect(source).toContain('const boiingStarted = playAccent(2);');
+    expect(source).toContain("if (variantId === 'honey')");
+    expect(source).toContain("if (variantId === 'bottle')");
+    expect(source).toContain('BOTTLE_PULL_FORCE_BOIING_VOLUME');
     expect(source).not.toContain('sparkle.wav');
+    expect(source).not.toContain('magnetpulls.wav');
+    expect(source).not.toContain('planks break.wav');
+  });
+
+  test('isolates the reduced boiing levels to Honey and Bottle', () => {
+    expect(resolveMagnetPullForceBoiingVolume()).toBeCloseTo(0.6);
+    expect(resolveMagnetPullForceBoiingVolume('spaceship')).toBeCloseTo(0.6);
+    expect(resolveMagnetPullForceBoiingVolume('honey')).toBeCloseTo(0.36);
+    expect(resolveMagnetPullForceBoiingVolume('bottle')).toBeCloseTo(0.24);
   });
 
   test('recognizes core Magnet, Bottle, Honey and Spaceship only at Merge 6', () => {
@@ -64,8 +81,8 @@ describe('Magnet pull force sound', () => {
     const pullBlock = source.split('if (nearestTiles.length > 0) {')[1]
       ?.split('// Store callback to trigger merge when multiplier appears')[0] ?? '';
     const convergeBlock = pullBlock.split('if (arrivedCount === totalTiles) {')[1] ?? '';
-    expect(convergeBlock).toContain('playMagnetPullForceSounds();');
-    expect(convergeBlock.indexOf('playMagnetPullForceSounds();')).toBeLessThan(
+    expect(convergeBlock).toContain('magnetVariantAtMergeEntry?.id,');
+    expect(convergeBlock.indexOf('playMagnetPullForceSounds(')).toBeLessThan(
       convergeBlock.indexOf('await tryMergePulledTiles();'),
     );
     expect(pullBlock).toContain('if (!preserveCommittedPullSound) stopMagnetPullForceSounds();');

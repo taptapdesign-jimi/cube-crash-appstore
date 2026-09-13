@@ -1,21 +1,25 @@
 import {
+  fadeOutDecodedGameplayVoice,
   getDecodedGameplayAudioStats,
   getDecodedGameplaySoundsState,
   playDecodedGameplaySound,
   preloadDecodedGameplaySounds,
   resetDecodedGameplayAudioForTests,
+  setDecodedGameplayVoiceVolume,
   stopDecodedGameplayVoice,
 } from '../gameplay-audio-buffer-player';
 
 class MockAudioParam {
   value = 1;
   setValueAtTime = jest.fn((value: number) => { this.value = value; });
+  cancelScheduledValues = jest.fn();
   linearRampToValueAtTime = jest.fn((value: number) => { this.value = value; });
 }
 
 class MockBufferSource {
   buffer: AudioBuffer | null = null;
   playbackRate = new MockAudioParam();
+  loop = false;
   onended: (() => void) | null = null;
   connect = jest.fn();
   disconnect = jest.fn();
@@ -131,6 +135,48 @@ describe('decoded gameplay audio owner', () => {
     expect(getDecodedGameplayAudioStats().activeVoices).toBe(0);
   });
 
+  it('loops and fades a decoded ambient voice through its native gain owner', async () => {
+    const source = './assets/sound/worlds/Forest/soft bees ambiance.wav';
+    preloadDecodedGameplaySounds([source]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(playDecodedGameplaySound(source, {
+      voiceId: 'journey-forest-soft-bees-ambient',
+      volume: 0.348,
+      loop: true,
+    })).toBe('played');
+
+    const context = MockAudioContext.instances[0];
+    const sourceNode = context.sources[0];
+    const gainNode = context.gains[0];
+    expect(sourceNode.loop).toBe(true);
+    expect(fadeOutDecodedGameplayVoice('journey-forest-soft-bees-ambient', 1.5)).toBe(true);
+    expect(gainNode.gain.cancelScheduledValues).toHaveBeenCalledWith(10);
+    expect(gainNode.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0, 11.5);
+    expect(sourceNode.stop).toHaveBeenCalledWith(11.5);
+  });
+
+  it('ramps a live looping voice without restarting or stopping its source', async () => {
+    const source = './assets/sound/worlds/crumbleworlds.wav';
+    preloadDecodedGameplaySounds([source]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(playDecodedGameplaySound(source, {
+      voiceId: 'journey-worlds-hub-loop',
+      volume: 0.348,
+      loop: true,
+    })).toBe('played');
+
+    const context = MockAudioContext.instances[0];
+    const sourceNode = context.sources[0];
+    const gainNode = context.gains[0];
+    expect(setDecodedGameplayVoiceVolume('journey-worlds-hub-loop', 0.1044, 1)).toBe(true);
+    expect(gainNode.gain.cancelScheduledValues).toHaveBeenCalledWith(10);
+    expect(gainNode.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.1044, 11);
+    expect(sourceNode.start).toHaveBeenCalledTimes(1);
+    expect(sourceNode.stop).not.toHaveBeenCalled();
+  });
+
   it('queues a cold-start event and plays it as soon as decoding completes', async () => {
     const source = './assets/sound/merge 6/merge six obicna.mp3';
     expect(playDecodedGameplaySound(source, {
@@ -146,6 +192,23 @@ describe('decoded gameplay audio owner', () => {
     expect(MockAudioContext.instances[0].sources).toHaveLength(1);
     expect(MockAudioContext.instances[0].sources[0].start).toHaveBeenCalledWith(10, 0);
     expect(getDecodedGameplayAudioStats().pendingVoiceStarts).toBe(0);
+  });
+
+  it('updates a pending loop gain before cold-start playback becomes ready', async () => {
+    const source = './assets/sound/worlds/crumbleworlds.wav';
+    expect(playDecodedGameplaySound(source, {
+      voiceId: 'journey-worlds-hub-loop',
+      volume: 0.348,
+      loop: true,
+    })).toBe('pending');
+    expect(setDecodedGameplayVoiceVolume('journey-worlds-hub-loop', 0.1044, 1)).toBe(true);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const context = MockAudioContext.instances[0];
+    expect(context.sources).toHaveLength(1);
+    expect(context.sources[0].loop).toBe(true);
+    expect(context.gains[0].gain.setValueAtTime).toHaveBeenCalledWith(0.1044, 10);
   });
 
   it('waits for a suspended context to resume and can cancel the queued voice', async () => {

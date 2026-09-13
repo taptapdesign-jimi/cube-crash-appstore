@@ -15,13 +15,11 @@ export const JOURNEY_CARD_ENTRY_FLIP_SOUND_SOURCES = [
   `${JOURNEY_CARD_FLIP_SOUND_BASE}flip soft.wav`,
 ] as const;
 export const JOURNEY_CARD_MANUAL_FLIP_SOUND_SOURCE = `${JOURNEY_CARD_FLIP_SOUND_BASE}flip soft.wav`;
-export const JOURNEY_CARD_RETURN_SWOOSH_SOUND_SOURCE = `${JOURNEY_CARD_FLIP_SOUND_BASE}swoosh back.wav`;
-export const JOURNEY_CARD_ENTRY_FLIP_SOUND_BASE_VOLUMES = [1, 1, 1] as const;
+export const JOURNEY_CARD_ENTRY_FLIP_SOUND_BASE_VOLUMES = [0.7, 0.7, 0.7] as const;
 export const JOURNEY_CARD_ENTRY_FLIP_SOUND_VOLUMES = JOURNEY_CARD_ENTRY_FLIP_SOUND_BASE_VOLUMES.map(
   applySoundEffectsMasterGain,
 );
 export const JOURNEY_CARD_MANUAL_FLIP_SOUND_VOLUME = applySoundEffectsMasterGain(1);
-export const JOURNEY_CARD_RETURN_SWOOSH_SOUND_VOLUME = applySoundEffectsMasterGain(1);
 
 const VOICE_IDS = [
   'journey-card-entry-menu-flip',
@@ -29,7 +27,6 @@ const VOICE_IDS = [
   'journey-card-entry-flip-soft',
 ] as const;
 const MANUAL_FLIP_VOICE_ID = 'journey-card-manual-flip-soft';
-const RETURN_SWOOSH_VOICE_ID = 'journey-card-return-swoosh-back';
 const mediaAudioBySource = new Map<string, HTMLAudioElement>();
 
 function areSoundsEnabled(): boolean {
@@ -53,34 +50,9 @@ export function preloadJourneyCardEntryFlipSounds(): boolean {
   const sources = [
     ...JOURNEY_CARD_ENTRY_FLIP_SOUND_SOURCES,
     JOURNEY_CARD_MANUAL_FLIP_SOUND_SOURCE,
-    JOURNEY_CARD_RETURN_SWOOSH_SOUND_SOURCE,
   ];
   return preloadDecodedGameplaySounds(sources)
     || sources.every(source => getMediaAudio(source) !== null);
-}
-
-export function playJourneyCardReturnSwooshSound(): boolean {
-  if (!areSoundsEnabled()) return false;
-  stopDecodedGameplayVoices([RETURN_SWOOSH_VOICE_ID]);
-  const decodedState = getDecodedGameplaySoundsState([JOURNEY_CARD_RETURN_SWOOSH_SOUND_SOURCE]);
-  if (decodedState !== 'unavailable') {
-    return playDecodedGameplaySound(JOURNEY_CARD_RETURN_SWOOSH_SOUND_SOURCE, {
-      voiceId: RETURN_SWOOSH_VOICE_ID,
-      volume: JOURNEY_CARD_RETURN_SWOOSH_SOUND_VOLUME,
-    }) !== 'unavailable';
-  }
-  const audio = getMediaAudio(JOURNEY_CARD_RETURN_SWOOSH_SOUND_SOURCE);
-  if (!audio) return false;
-  try {
-    audio.pause();
-    audio.volume = JOURNEY_CARD_RETURN_SWOOSH_SOUND_VOLUME;
-    audio.currentTime = 0;
-    audio.play()?.catch(error => logger.warn('Failed to play Journey card return swoosh sound:', error));
-    return true;
-  } catch (error) {
-    logger.warn('Failed to start Journey card return swoosh sound:', error);
-    return false;
-  }
 }
 
 export function playJourneyCardManualFlipSound(): boolean {
@@ -139,8 +111,12 @@ export function playJourneyCardEntryFlipSounds(): boolean {
   }
 }
 
+export function playJourneyCardReturnFlipSounds(): boolean {
+  return playJourneyCardEntryFlipSounds();
+}
+
 export function stopJourneyCardEntryFlipSounds(): void {
-  stopDecodedGameplayVoices([...VOICE_IDS, MANUAL_FLIP_VOICE_ID, RETURN_SWOOSH_VOICE_ID]);
+  stopDecodedGameplayVoices([...VOICE_IDS, MANUAL_FLIP_VOICE_ID]);
   mediaAudioBySource.forEach(audio => {
     try {
       audio.pause();

@@ -168,10 +168,25 @@ import { preloadBeeMerge6Sounds } from './bee-merge6-sound.ts';
 import { preloadRoboCubeMerge6Sounds } from './robo-cube-merge6-sound.ts';
 import { preloadWildSpecialMerge6PoofSounds } from './wild-special-merge6-poof-sound.ts';
 import { preloadBottleFinaleSounds } from './bottle-finale-sound.ts';
+import { preloadBottlePullMergeSounds } from './bottle-pull-merge-sound.ts';
 import { preloadMagnetPullForceSounds } from './magnet-pull-force-sound.ts';
 import { preloadHoneyMerge6Sounds } from './honey-merge6-sound.ts';
 import { preloadOrdinaryStackSound } from './ordinary-stack-sound.ts';
 import { preloadGameplayPickupSound } from './gameplay-pickup-sound.ts';
+import {
+  fadeOutJourneyForestAmbientSounds,
+  playJourneyForestAmbientSounds,
+  preloadJourneyForestAmbientSounds,
+  stopJourneyForestAmbientSounds,
+} from './journey-forest-ambient-sound.ts';
+import {
+  armJourneyWorldsSoundForBoardTransition,
+  playJourneyWorldsHubSound,
+  playJourneyWorldsWorldSound,
+  preloadJourneyWorldsHubSound,
+  reduceJourneyWorldsSoundForWorld,
+  stopJourneyWorldsHubSound,
+} from './journey-worlds-hub-sound.ts';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 // trackTween/trackTimeline must use original GSAP functions, not gsap.to/gsap.timeline
@@ -1014,6 +1029,13 @@ class JourneyBoardsManager {
   private journeyWorldRuntimeUnsubscribe = this.journeyWorldRuntime.subscribe((snapshot) => {
     this.applyJourneyWorldRuntimeSnapshot(snapshot);
   });
+
+  private prepareJourneyAmbientForGameEntry(): void {
+    armJourneyWorldsSoundForBoardTransition();
+    if (this.journeyV700View === 'world' && this.journeyV700WorldId === 1) {
+      fadeOutJourneyForestAmbientSounds();
+    }
+  }
   private journeyV700HubTopGuard: {
     scrollable: HTMLElement;
     onScroll: () => void;
@@ -5828,6 +5850,8 @@ class JourneyBoardsManager {
       this.stopForestBeeOrbits('manager-cleanup');
       this.stopBeachBubbleDrift('manager-cleanup');
       this.stopArea55ShipFlybys('manager-cleanup');
+      stopJourneyForestAmbientSounds({ preserveActiveFade: true });
+      stopJourneyWorldsHubSound({ preserveBoardTransitionHandoff: true });
     this.cancelJourneyV700HubEnter('cleanup');
     this.activeBoardAreaEnterInProgress = false;
     this.activeBoardAreaEnterPreparedTargets = [];
@@ -6502,6 +6526,7 @@ class JourneyBoardsManager {
   private setJourneyV700View(view: 'hub' | 'world', worldId: number | null = null): void {
     this.journeyV700View = view;
     this.journeyV700WorldId = view === 'world' && worldId ? worldId : null;
+    if (view !== 'world' || worldId !== 1) stopJourneyForestAmbientSounds();
     try {
       localStorage.setItem(JOURNEY_V700_VIEW_STORAGE_KEY, view);
       if (this.journeyV700WorldId) {
@@ -6681,6 +6706,7 @@ class JourneyBoardsManager {
     const prepaint = options.prepaint === true;
     if (!prepaint) {
       preloadCtaActivationSounds();
+      preloadJourneyWorldsHubSound();
       this.journeyWorldRuntime.deactivate();
       this.journeyV700Phase = 'entering';
       this.setJourneyV700View('hub');
@@ -6990,6 +7016,7 @@ class JourneyBoardsManager {
       return;
     }
 
+    playJourneyWorldsHubSound();
     this.journeyHubRuntime.prepareForTransition(hub, worldCards);
 
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
@@ -7235,6 +7262,8 @@ class JourneyBoardsManager {
 
     this.journeyV700WorldOpenInProgress = true;
     (container as any).__ccJourneyV700Opening = true;
+    reduceJourneyWorldsSoundForWorld();
+    if (worldId === 1) preloadJourneyForestAmbientSounds();
     playCtaActivationSounds();
     // A manual Hub -> World tap starts a new visible lifecycle. Return-only
     // suppression markers from a prior game/tutorial may not own this render.
@@ -7263,6 +7292,7 @@ class JourneyBoardsManager {
         journeyScreenBeforeExit.classList.contains('hidden')
       ) {
         this.cancelJourneyWorldPrepaint('open-aborted-before-hub-exit');
+        playJourneyWorldsHubSound();
         finishOpeningOwnership();
         return;
       }
@@ -8632,6 +8662,9 @@ class JourneyBoardsManager {
       lastBoardId: options.lastBoardId ?? this.getLastActiveJourneyBoardAreaId(),
     });
     const source = options.source || 'default';
+    playJourneyWorldsWorldSound();
+    if (worldId === 1) playJourneyForestAmbientSounds();
+    else stopJourneyForestAmbientSounds();
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
     const motion = getJourneyV700MotionProfile(reducedMotion);
     const motionEpoch = ++this.journeyV700WorldMotionEpoch;
@@ -9048,6 +9081,7 @@ class JourneyBoardsManager {
       this.logJourneyV700Flow('close-world-ignored-not-world', {}, container);
       return;
     }
+    if (this.journeyV700WorldId === 1) stopJourneyForestAmbientSounds();
     // The gameplay-return flip belongs to this exact World/Unit. Scrolling
     // keeps it alive and attached, but an accepted X/back action must retire
     // both an already-mounted portal and a still-waiting receipt before any
@@ -10357,6 +10391,7 @@ class JourneyBoardsManager {
           this.playOverlayCardLandingBounce(cardElement);
         },
         onPlayCardReturnStart: () => {
+          this.prepareJourneyAmbientForGameEntry();
           this.stopJourneyAreaIdleForTargets(this.getJourneyAreaElements(board.id));
         },
         onPlayCardExitStart: () => {
@@ -10415,6 +10450,7 @@ class JourneyBoardsManager {
     earlyJourneyExitPromise: Promise<void> | null = null,
   ): Promise<void> {
     const boardId = board.id;
+    this.prepareJourneyAmbientForGameEntry();
     delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
     delete (window as any).__ccDirectDetailModalReturnActive;
 
@@ -11198,6 +11234,7 @@ class JourneyBoardsManager {
     journeyExitPromise?: Promise<void>
   ): Promise<void> {
     logger.info(`🔄 Continue from interim board ${board.id} - starting cleanup and game`);
+    this.prepareJourneyAmbientForGameEntry();
     
     try {
       // Keep modal-only sheets from appearing over an already exited Journey screen.
@@ -12737,6 +12774,7 @@ class JourneyBoardsManager {
           floatingPlayButton.style.pointerEvents = 'none';
 
           logger.info(`🎮 Play button clicked for board ${boardIdForPlay}`, { boardName: boardNameForPlay });
+          this.prepareJourneyAmbientForGameEntry();
           preloadRegularMerge6Sounds();
           preloadWildStarMerge6Sound();
           preloadFishMerge6Sounds();
@@ -12748,6 +12786,7 @@ class JourneyBoardsManager {
           preloadRoboCubeMerge6Sounds();
           preloadWildSpecialMerge6PoofSounds();
           preloadBottleFinaleSounds();
+          preloadBottlePullMergeSounds();
           preloadMagnetPullForceSounds();
           preloadHoneyMerge6Sounds();
           preloadOrdinaryStackSound();
@@ -12860,6 +12899,7 @@ class JourneyBoardsManager {
           
           const handleContinueInterim = async (source: string) => {
             logger.info(`🔄 Continue Stage ${source} for board ${board.id}`);
+            this.prepareJourneyAmbientForGameEntry();
             try {
               if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.stop === 'function') {
                 JOURNEY_CARD_IDLE_BOUNCE.stop();

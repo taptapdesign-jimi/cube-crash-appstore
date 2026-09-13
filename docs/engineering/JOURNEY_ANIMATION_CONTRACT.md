@@ -48,6 +48,13 @@ Do not regress these rules:
 - No drag-to-open bug. Vertical dragging over a Journey world must scroll/overshoot, not open the world.
 - Preserve springy drag/overshoot on Journey Worlds and Forest/Beach/Area 55 world screens.
 - Preserve scroll interactivity after returning from card modal or board game.
+- Every accepted Journey card-modal exit (Play, Continue, X/Close, backdrop,
+  Escape, or committed vertical drag-down) owns a visible return flip before
+  its Unit landing. A stats/back-facing card keeps the canonical half-turn;
+  an artwork/front-facing card completes one full turn so it still lands on
+  artwork without a face swap. The return flight must remain marked as an
+  active physical flip for WebKit face painting; it may never degrade into a
+  translation-only descent.
 - Keep the automatic post-game return reminder attached to its exact live Unit while the World screen scrolls. Launch, outbound flip, return and landing impact must all inherit the Unit's live viewport displacement, and the reminder must scroll out of view with that Unit instead of floating above unrelated content. Scrolling never blocks or recentres the player. An accepted World X/back action atomically cancels both a visible reminder and any still-waiting reminder receipt before World-to-Hub exit paint, so no reminder layer may survive onto Journey Worlds.
 - Avoid old/new animation conflicts. Before adding a helper, search existing helpers/classes/listeners and remove or reuse stale paths.
 

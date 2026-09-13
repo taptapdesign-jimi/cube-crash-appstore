@@ -9,31 +9,38 @@ import {
 
 const HONEY_SOUND_BASE = './assets/sound/Wild and special kockice/honey/';
 
-export const HONEY_PULL_MERGE_SOUND_SOURCES = [
+export const HONEY_FIRST_MERGE_SOUND_SOURCES = [
   `${HONEY_SOUND_BASE}honeysplat.wav`,
-  './assets/sound/Wild and special kockice/bee/smile.wav',
-  `${HONEY_SOUND_BASE}twinkle1.wav`,
+] as const;
+export const HONEY_PULL_MERGE_SOUND_SOURCES = [
+  `${HONEY_SOUND_BASE}hapr.wav`,
+  `${HONEY_SOUND_BASE}supersplat.wav`,
 ] as const;
 export const HONEY_POST_MERGE_SOUND_SOURCES = [
   `${HONEY_SOUND_BASE}BEES3s.wav`,
 ] as const;
-export const HONEY_PULL_MERGE_SOUND_BASE_VOLUMES = [1, 1, 1] as const;
-export const HONEY_POST_MERGE_SOUND_BASE_VOLUMES = [0.48] as const;
+export const HONEY_FIRST_MERGE_SOUND_BASE_VOLUMES = [1] as const;
+export const HONEY_PULL_MERGE_SOUND_BASE_VOLUMES = [0.8, 0.8] as const;
+export const HONEY_POST_MERGE_SOUND_BASE_VOLUMES = [0.336] as const;
 export const HONEY_POST_MERGE_SOUND_VOLUMES = HONEY_POST_MERGE_SOUND_BASE_VOLUMES.map(
   applySoundEffectsMasterGain,
 );
 export const HONEY_PULL_MERGE_SOUND_VOLUMES = HONEY_PULL_MERGE_SOUND_BASE_VOLUMES.map(
   applySoundEffectsMasterGain,
 );
+export const HONEY_FIRST_MERGE_SOUND_VOLUMES = HONEY_FIRST_MERGE_SOUND_BASE_VOLUMES.map(
+  applySoundEffectsMasterGain,
+);
 
 const ALL_SOURCES = [
+  ...HONEY_FIRST_MERGE_SOUND_SOURCES,
   ...HONEY_PULL_MERGE_SOUND_SOURCES,
   ...HONEY_POST_MERGE_SOUND_SOURCES,
 ] as const;
 const VOICE_IDS = [
-  'honey-pull-merge-honeysplat',
-  'honey-pull-merge-smile',
-  'honey-pull-merge-twinkle1',
+  'honey-first-merge-honeysplat',
+  'honey-pull-merge-harp',
+  'honey-pull-merge-supersplat',
   'honey-post-merge-bees3s',
 ] as const;
 const mediaAudioBySource = new Map<string, HTMLAudioElement>();
@@ -96,7 +103,15 @@ export function playHoneyPostMergeSounds(): boolean {
   return playLayers(
     HONEY_POST_MERGE_SOUND_SOURCES,
     HONEY_POST_MERGE_SOUND_VOLUMES,
-    HONEY_PULL_MERGE_SOUND_SOURCES.length,
+    HONEY_FIRST_MERGE_SOUND_SOURCES.length + HONEY_PULL_MERGE_SOUND_SOURCES.length,
+  );
+}
+
+export function playHoneyFirstMergeSounds(): boolean {
+  return playLayers(
+    HONEY_FIRST_MERGE_SOUND_SOURCES,
+    HONEY_FIRST_MERGE_SOUND_VOLUMES,
+    0,
   );
 }
 
@@ -104,7 +119,7 @@ export function playHoneyPullMergeSounds(): boolean {
   return playLayers(
     HONEY_PULL_MERGE_SOUND_SOURCES,
     HONEY_PULL_MERGE_SOUND_VOLUMES,
-    0,
+    HONEY_FIRST_MERGE_SOUND_SOURCES.length,
   );
 }
 

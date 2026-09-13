@@ -15,18 +15,22 @@ import {
 const MAGNET_PULL_FORCE_SOUND_BASE = './assets/sound/magnet pul lforce/';
 
 export const MAGNET_PULL_FORCE_SOUND_SOURCES = [
-  `${MAGNET_PULL_FORCE_SOUND_BASE}magnetpulls.wav`,
-  `${MAGNET_PULL_FORCE_SOUND_BASE}planks break.wav`,
   `${MAGNET_PULL_FORCE_SOUND_BASE}boiing.wav`,
 ] as const;
-export const MAGNET_PULL_FORCE_SOUND_BASE_VOLUMES = [0.5, 0.5, 1] as const;
+export const MAGNET_PULL_FORCE_SOUND_BASE_VOLUMES = [1] as const;
 export const MAGNET_PULL_FORCE_SOUND_VOLUMES = MAGNET_PULL_FORCE_SOUND_BASE_VOLUMES.map(
   applySoundEffectsMasterGain,
 );
+export const HONEY_PULL_FORCE_BOIING_BASE_VOLUME = 0.6;
+export const HONEY_PULL_FORCE_BOIING_VOLUME = applySoundEffectsMasterGain(
+  HONEY_PULL_FORCE_BOIING_BASE_VOLUME,
+);
+export const BOTTLE_PULL_FORCE_BOIING_BASE_VOLUME = 0.4;
+export const BOTTLE_PULL_FORCE_BOIING_VOLUME = applySoundEffectsMasterGain(
+  BOTTLE_PULL_FORCE_BOIING_BASE_VOLUME,
+);
 
 const MAGNET_PULL_FORCE_VOICE_IDS = [
-  'magnet-pull-force-magnetpulls',
-  'magnet-pull-force-planks-break',
   'magnet-pull-force-boiing',
 ] as const;
 const MAGNET_ARCHETYPE_VARIANT_IDS = new Set(['bottle', 'honey', 'spaceship']);
@@ -75,13 +79,13 @@ export function isMagnetArchetypeMerge6SoundEvent(
     || MAGNET_ARCHETYPE_VARIANT_IDS.has(event.dstSpecialDiceVariantId ?? '');
 }
 
-function playAccent(index: 0 | 1 | 2): boolean {
+function playAccent(index: 0, volume = MAGNET_PULL_FORCE_SOUND_VOLUMES[index]): boolean {
   const source = MAGNET_PULL_FORCE_SOUND_SOURCES[index];
   const decodedState = getDecodedGameplaySoundsState(MAGNET_PULL_FORCE_SOUND_SOURCES);
   if (decodedState !== 'unavailable') {
     return playDecodedGameplaySound(source, {
       voiceId: MAGNET_PULL_FORCE_VOICE_IDS[index],
-      volume: MAGNET_PULL_FORCE_SOUND_VOLUMES[index],
+      volume,
     }) !== 'unavailable';
   }
 
@@ -89,7 +93,7 @@ function playAccent(index: 0 | 1 | 2): boolean {
   if (!audio) return false;
   try {
     audio.pause();
-    audio.volume = MAGNET_PULL_FORCE_SOUND_VOLUMES[index];
+    audio.volume = volume;
     audio.currentTime = 0;
     audio.play()?.catch((error) => logger.warn(`Failed to play Magnet accent ${index + 1}:`, error));
     return true;
@@ -103,16 +107,23 @@ export function playMagnetArchetypeMerge6Sound(): boolean {
   if (!areSoundsEnabled()) return false;
   stopMagnetPullForceSounds();
   const foundationStarted = playRegularMerge6Sound();
-  const magnetPullsStarted = playAccent(0);
-  const planksBreakStarted = playAccent(1);
-  return foundationStarted || magnetPullsStarted || planksBreakStarted;
+  return foundationStarted;
 }
 
-export function playMagnetPullForceSounds(): boolean {
+export function resolveMagnetPullForceBoiingVolume(variantId?: string | null): number {
+  if (variantId === 'honey') return HONEY_PULL_FORCE_BOIING_VOLUME;
+  if (variantId === 'bottle') return BOTTLE_PULL_FORCE_BOIING_VOLUME;
+  return MAGNET_PULL_FORCE_SOUND_VOLUMES[0];
+}
+
+export function playMagnetPullForceSounds(variantId?: string | null): boolean {
   if (!areSoundsEnabled()) return false;
   stopMagnetPullForceSounds();
   const foundationStarted = playRegularMerge6Sound();
-  const boiingStarted = playAccent(2);
+  const boiingStarted = playAccent(
+    0,
+    resolveMagnetPullForceBoiingVolume(variantId),
+  );
   return foundationStarted || boiingStarted;
 }
 

@@ -20,11 +20,15 @@ import {
   WILD_STAR_MERGE6_SOUND_PLAYBACK_RATE,
   WILD_STAR_MERGE6_SOUND_SOURCE,
   WILD_STAR_MERGE6_SOUND_VOLUME,
+  WILD_STAR_MERGE6_NEW_VARIANT_BASE_VOLUME,
+  WILD_STAR_MERGE6_NEW_VARIANT_VOLUME,
   WILD_STAR_MERGE6_SPARKLE_BASE_VOLUME,
   WILD_STAR_MERGE6_SPARKLE_DELAY_MS,
   WILD_STAR_MERGE6_SPARKLE_SOUND_SOURCE,
   WILD_STAR_MERGE6_SPARKLE_VOLUME,
   WILD_STAR_MERGE6_SPARKLE_VOLUME_SCALE,
+  WILD_STAR_MERGE6_STAR1_SOUND_SOURCE,
+  WILD_STAR_MERGE6_STAR2_SOUND_SOURCE,
   WILD_STAR_MERGE6_STACK_BASE_VOLUME,
   WILD_STAR_MERGE6_STACK_SOUND_SOURCE,
   WILD_STAR_MERGE6_STACK_VOLUME,
@@ -74,18 +78,26 @@ describe('Wild Star merge-6 sound', () => {
     jest.useRealTimers();
   });
 
-  it('locks the complete ordinary Merge-6 base plus both magic variants and quieter sparkle', () => {
+  it('locks the complete ordinary Merge-6 base plus four magic variants and quieter sparkle', () => {
     expect(WILD_STAR_MERGE6_SOUND_SOURCE).toBe(
       './assets/sound/Wild and special kockice/star/long_magica_happy_ac_%232-1788980185281.wav',
     );
     expect(WILD_STAR_MERGE6_ALTERNATE_SOUND_SOURCE).toBe(
       './assets/sound/Wild and special kockice/star/long_magica_happy_ac_%233-1788980189939.wav',
     );
+    expect(WILD_STAR_MERGE6_STAR1_SOUND_SOURCE).toBe(
+      './assets/sound/Wild and special kockice/star/star1.wav',
+    );
+    expect(WILD_STAR_MERGE6_STAR2_SOUND_SOURCE).toBe(
+      './assets/sound/Wild and special kockice/star/star2.wav',
+    );
     expect(WILD_STAR_MERGE6_SOUND_PLAYBACK_RATE).toBe(1);
     expect(WILD_STAR_MERGE6_SOUND_BASE_VOLUME).toBeCloseTo(2 / 3);
     expect(WILD_STAR_MERGE6_SOUND_VOLUME).toBeCloseTo(0.4);
     expect(WILD_STAR_MERGE6_ALTERNATE_SOUND_BASE_VOLUME).toBeCloseTo(2 / 3);
     expect(WILD_STAR_MERGE6_ALTERNATE_SOUND_VOLUME).toBeCloseTo(0.4);
+    expect(WILD_STAR_MERGE6_NEW_VARIANT_BASE_VOLUME).toBe(0.8);
+    expect(WILD_STAR_MERGE6_NEW_VARIANT_VOLUME).toBeCloseTo(0.48);
     expect(WILD_STAR_MERGE6_SPARKLE_SOUND_SOURCE).toBe(
       './assets/sound/Wild and special kockice/star/magicle_sparkle_for__%231-1788980027254.wav',
     );
@@ -132,6 +144,8 @@ describe('Wild Star merge-6 sound', () => {
     const expected = [
       [WILD_STAR_MERGE6_SOUND_SOURCE, 'e0555dd5d3672d369de514fa1b25221f1f81eeb81c0d80acfb9cffb522ced3d5'],
       [WILD_STAR_MERGE6_ALTERNATE_SOUND_SOURCE, '66edf82d2db355ac9a304d4d0745324fea065caf0c9ab487589535c005fa4bf4'],
+      [WILD_STAR_MERGE6_STAR1_SOUND_SOURCE, '23ace7bfc6c517d63ffff6a0780916ec8d4ea0d126d6f2775ee87bbeec4e14b4'],
+      [WILD_STAR_MERGE6_STAR2_SOUND_SOURCE, 'd22388a74836366d5f7e45f0aba65650a63f2a67752af2e8672662c090616cc2'],
       [WILD_STAR_MERGE6_SPARKLE_SOUND_SOURCE, 'eb6bd4cf538f00c9da587cd33a0f181e7d164a7768a76ead37fa24b8e4a071bc'],
     ] as const;
     expected.forEach(([source, hash]) => {
@@ -142,15 +156,17 @@ describe('Wild Star merge-6 sound', () => {
     });
   });
 
-  it('chooses either magic bed with an even per-event split', () => {
+  it('chooses one of four magic variants with an even per-event split', () => {
     expect(selectWildStarMerge6MagicSoundSource(0)).toBe(WILD_STAR_MERGE6_SOUND_SOURCE);
-    expect(selectWildStarMerge6MagicSoundSource(0.4999)).toBe(WILD_STAR_MERGE6_SOUND_SOURCE);
-    expect(selectWildStarMerge6MagicSoundSource(0.5)).toBe(
+    expect(selectWildStarMerge6MagicSoundSource(0.2499)).toBe(WILD_STAR_MERGE6_SOUND_SOURCE);
+    expect(selectWildStarMerge6MagicSoundSource(0.25)).toBe(
       WILD_STAR_MERGE6_ALTERNATE_SOUND_SOURCE,
     );
-    expect(selectWildStarMerge6MagicSoundSource(0.9999)).toBe(
-      WILD_STAR_MERGE6_ALTERNATE_SOUND_SOURCE,
-    );
+    expect(selectWildStarMerge6MagicSoundSource(0.4999)).toBe(WILD_STAR_MERGE6_ALTERNATE_SOUND_SOURCE);
+    expect(selectWildStarMerge6MagicSoundSource(0.5)).toBe(WILD_STAR_MERGE6_STAR1_SOUND_SOURCE);
+    expect(selectWildStarMerge6MagicSoundSource(0.7499)).toBe(WILD_STAR_MERGE6_STAR1_SOUND_SOURCE);
+    expect(selectWildStarMerge6MagicSoundSource(0.75)).toBe(WILD_STAR_MERGE6_STAR2_SOUND_SOURCE);
+    expect(selectWildStarMerge6MagicSoundSource(0.9999)).toBe(WILD_STAR_MERGE6_STAR2_SOUND_SOURCE);
   });
 
   it('accepts only the core Wild Star committed Merge-6 event', () => {
@@ -202,42 +218,46 @@ describe('Wild Star merge-6 sound', () => {
 
   it('plays the exact ordinary four-layer mix plus one selected magic bed and delayed sparkle', () => {
     expect(preloadWildStarMerge6Sound()).toBe(true);
-    expect(MockAudio.instances).toHaveLength(7);
-    const [primary, crash, boom, stack, magic, alternateMagic, sparkle] = MockAudio.instances;
+    expect(MockAudio.instances).toHaveLength(9);
+    const [primary, crash, boom, stack, magic, alternateMagic, star1, star2, sparkle] = MockAudio.instances;
     expect(primary.src).toBe(WILD_STAR_MERGE6_PRIMARY_SOUND_SOURCE);
     expect(crash.src).toBe(WILD_STAR_MERGE6_CRASH_SOUND_SOURCE);
     expect(boom.src).toBe(WILD_STAR_MERGE6_BOOM_SOUND_SOURCE);
     expect(stack.src).toBe(WILD_STAR_MERGE6_STACK_SOUND_SOURCE);
     expect(magic.src).toBe(WILD_STAR_MERGE6_SOUND_SOURCE);
     expect(alternateMagic.src).toBe(WILD_STAR_MERGE6_ALTERNATE_SOUND_SOURCE);
+    expect(star1.src).toBe(WILD_STAR_MERGE6_STAR1_SOUND_SOURCE);
+    expect(star2.src).toBe(WILD_STAR_MERGE6_STAR2_SOUND_SOURCE);
     expect(sparkle.src).toBe(WILD_STAR_MERGE6_SPARKLE_SOUND_SOURCE);
     MockAudio.instances.forEach((audio) => expect(audio.load).toHaveBeenCalledTimes(1));
 
-    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.75);
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.6);
     expect(playWildStarMerge6Sound()).toBe(true);
     expect(randomSpy).toHaveBeenCalledTimes(1);
-    expect(MockAudio.instances).toHaveLength(7);
+    expect(MockAudio.instances).toHaveLength(9);
     expect(primary.playbackRate).toBe(1.3);
     expect(crash.playbackRate).toBe(1.3);
     expect(boom.playbackRate).toBe(1);
     expect(stack.playbackRate).toBe(1);
-    expect(alternateMagic.playbackRate).toBe(1);
+    expect(star1.playbackRate).toBe(1);
     expect(primary.volume).toBeCloseTo(0.3);
     expect(crash.volume).toBeCloseTo(0.1632);
     expect(boom.volume).toBeCloseTo(0.36);
     expect(stack.volume).toBeCloseTo(0.48);
-    expect(alternateMagic.volume).toBeCloseTo(0.4);
+    expect(star1.volume).toBeCloseTo(0.48);
     expect(primary.currentTime).toBe(0);
     expect(crash.currentTime).toBe(0);
     expect(boom.currentTime).toBe(0);
     expect(stack.currentTime).toBe(0);
-    expect(alternateMagic.currentTime).toBe(0);
+    expect(star1.currentTime).toBe(0);
     expect(magic.play).not.toHaveBeenCalled();
     expect(primary.play).toHaveBeenCalledTimes(1);
     expect(crash.play).toHaveBeenCalledTimes(1);
     expect(boom.play).toHaveBeenCalledTimes(1);
     expect(stack.play).toHaveBeenCalledTimes(1);
-    expect(alternateMagic.play).toHaveBeenCalledTimes(1);
+    expect(alternateMagic.play).not.toHaveBeenCalled();
+    expect(star1.play).toHaveBeenCalledTimes(1);
+    expect(star2.play).not.toHaveBeenCalled();
     expect(sparkle.play).not.toHaveBeenCalled();
     jest.advanceTimersByTime(199);
     expect(sparkle.play).not.toHaveBeenCalled();
@@ -247,7 +267,7 @@ describe('Wild Star merge-6 sound', () => {
     expect(sparkle.currentTime).toBe(0);
   });
 
-  it('does not allocate while Settings sounds are off and stops all seven preloaded sources', () => {
+  it('does not allocate while Settings sounds are off and stops all nine preloaded sources', () => {
     (window as any)._settings.gameSoundsEnabled = false;
     expect(areWildStarMerge6SoundsEnabled()).toBe(false);
     expect(preloadWildStarMerge6Sound()).toBe(false);
@@ -257,7 +277,7 @@ describe('Wild Star merge-6 sound', () => {
     (window as any)._settings.gameSoundsEnabled = true;
     preloadWildStarMerge6Sound();
     stopWildStarMerge6Sound();
-    expect(MockAudio.instances).toHaveLength(7);
+    expect(MockAudio.instances).toHaveLength(9);
     MockAudio.instances.forEach((audio) => {
       expect(audio.pause).toHaveBeenCalled();
       expect(audio.currentTime).toBe(0);

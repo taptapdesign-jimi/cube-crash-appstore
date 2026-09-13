@@ -24,6 +24,18 @@ import { ctaMotion, exitCtaPair, getRegisteredCta, registerCta, type CtaControll
 import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.ts';
 import { ADDITIONAL_CLEAN_BOARD_WIN_MESSAGES } from './clean-board-win-messages.ts';
 import { computeCleanBoardFinalScore } from './clean-board-score-utils.ts';
+import { resolveCleanBoardCelebrationTheme } from './clean-board-celebration-theme.ts';
+import {
+  createCleanBoardStarHarpOrder,
+  playCleanBoardBonusCountSound,
+  playCleanBoardApplauseSound,
+  playCleanBoardCtaBounceSound,
+  playCleanBoardEarnedStarSound,
+  playCleanBoardMoneyCountSound,
+  playCleanBoardSaxophoneHappySound,
+  preloadCleanBoardSounds,
+  stopCleanBoardSounds,
+} from './clean-board-sound.ts';
 
 const ORIGINAL_HEADLINES = [
   'Outstanding!', 'Amazing!', 'Excellent!', 'Fantastic!', 'Incredible!',
@@ -172,6 +184,7 @@ export function cleanupCleanBoardModalLifecycle() {
     clearAllModalAnimationFrames();
   } catch {}
   lifecycle.cleanup();
+  stopCleanBoardSounds();
   _navigationCleanupAttached = false;
 }
 
@@ -189,6 +202,7 @@ function attachNavigationCleanup(): void {
     console.log('🧹 Clean board modal: Navigation/visibility cleanup triggered');
     clearAllModalTimeouts();
     clearAllModalAnimationFrames();
+    stopCleanBoardSounds();
     try {
       const overlay = document.getElementById('cc-clean-board-overlay');
       if (overlay) {
@@ -288,6 +302,7 @@ export async function showCleanBoardModal({
     window.addEventListener('cc-navigation', navigationAbortHandler, { once: true });
     const run = async () => {
       try {
+    preloadCleanBoardSounds();
     const stopConfettiSpawnsSafe = () => {
       try {
         import('./confetti-system.js').then(confettiModule => {
@@ -350,6 +365,10 @@ export async function showCleanBoardModal({
     });
     
     const isArcadeHomeRun = isArcadeHomeRunMode();
+    const celebrationTheme = resolveCleanBoardCelebrationTheme({
+      boardNumber,
+      runMode: getRunMode(),
+    });
 
     // Get previous best score (mode-specific).
     const getBestScore = (): number => {
@@ -753,6 +772,7 @@ export async function showCleanBoardModal({
     const triggerMainScoreCounterHaptic = createCounterLightHapticTrigger();
     const triggerComboCounterHaptic = createCounterLightHapticTrigger();
     const triggerEfficiencyCounterHaptic = createCounterLightHapticTrigger();
+    const starHarpOrder = createCleanBoardStarHarpOrder();
 
     // Set button to hidden state (before animation)
     const ctaControllers: CtaController[] = [];
@@ -763,7 +783,9 @@ export async function showCleanBoardModal({
 
     // Animate button in (bounce entrance)
     const animateButtonIn = (button: HTMLButtonElement) => {
-      void getRegisteredCta(button)?.enter();
+      const controller = getRegisteredCta(button);
+      if (controller) playCleanBoardCtaBounceSound(button === primaryBtn ? 0 : 1);
+      void controller?.enter();
       // CTA appearing on screen should feel confirmatory.
       triggerHapticImpactSafe('medium');
     };
@@ -785,6 +807,8 @@ export async function showCleanBoardModal({
     outerStack.appendChild(buttonContainer);
     el.appendChild(outerStack);
     document.body.appendChild(el);
+    playCleanBoardApplauseSound();
+    playCleanBoardSaxophoneHappySound();
 
     // 🔥 BOARD RECOVERY FIX: Clear pending clean board flag NOW that modal is visible
     // This prevents recovery from triggering on next app load if user hard-exits during modal/transition
@@ -869,7 +893,7 @@ export async function showCleanBoardModal({
       mainScore.style.transition = trans;
 
       // 🔥 ANIMATION: Animate score counting from 0 to target value
-      const updateScore = (newScore: number, animate: boolean = true): void => {
+      const updateScore = (newScore: number, animate: boolean = true, playCountSound = false): void => {
         if (!animate) {
           mainScore.textContent = formatScoreSimple(newScore);
           return;
@@ -905,6 +929,7 @@ export async function showCleanBoardModal({
         // Calculate duration: minimum 0.8s, maximum 1.5s, based on difference
         const diff = Math.abs(targetScore - currentDisplayed);
         const duration = Math.min(1.5, Math.max(0.8, diff / 500)); // Slower for better visibility
+        if (playCountSound) playCleanBoardMoneyCountSound(duration);
         
         console.log('🎯 Starting score animation:', { 
           from: currentDisplayed, 
@@ -934,6 +959,7 @@ export async function showCleanBoardModal({
       const transferComboBonus = (): void => {
         const durationMs = safeComboBonus > 0 ? 1400 : 800;
         const durationSec = durationMs / 1000;
+        playCleanBoardBonusCountSound(durationSec);
         mainScore.style.transition = 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
         mainScore.style.transform = 'scale(1.08) translateY(0)';
         trackTimeout(() => {
@@ -967,6 +993,7 @@ export async function showCleanBoardModal({
       const transferEfficiencyBonus = (): void => {
         const durationMs = safeEfficiencyBonus > 0 ? 1400 : 800;
         const durationSec = durationMs / 1000;
+        playCleanBoardBonusCountSound(durationSec);
         mainScore.style.transition = 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
         mainScore.style.transform = 'scale(1.08) translateY(0)';
         setTimeout(() => {
@@ -999,7 +1026,7 @@ export async function showCleanBoardModal({
         // SEQUENCE 1: Initial elements pop-in WITH CONFETTI EXPLOSION
         // Start confetti 400ms earlier (immediately, no delay)
         allowConfettiSpawns();
-        createConfettiExplosion(hero);
+        createConfettiExplosion(hero, celebrationTheme);
         
         setTimeout(() => {
           // 🌟 Hero is now stars container, animate it in
@@ -1025,6 +1052,7 @@ export async function showCleanBoardModal({
                   const { filledImg, emptyImg } = star;
                   // One medium haptic per earned (filled) star.
                   triggerHapticImpactSafe('medium');
+                  playCleanBoardEarnedStarSound(index, starHarpOrder[index]);
                   
                   // 🌟 Hide empty star when filled star appears (no background visibility when pulsing)
                   emptyImg.style.opacity = '0';
@@ -1084,7 +1112,7 @@ export async function showCleanBoardModal({
           // Add small delay to ensure element is fully visible before animation starts
           setTimeout(() => {
             console.log('🎯 Starting initial score animation from 0 to', currentScore);
-            updateScore(currentScore, true);
+            updateScore(currentScore, true, true);
           }, 50); // Small delay to ensure element is rendered
         }, 420);
 

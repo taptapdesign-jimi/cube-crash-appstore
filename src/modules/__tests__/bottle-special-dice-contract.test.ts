@@ -24,6 +24,7 @@ describe('Bottle special-die visual contract', () => {
 
   test('uses five lifted bottles and the PNG bubble pack', () => {
     const scene = read('src/modules/bottle-finale-scene.ts');
+    const bubblePresentation = read('src/modules/bottle-bubble-presentation.ts');
     for (const key of ['botle1', 'botle2', 'botle3']) {
       expect(scene).toContain(`key: '${key}'`);
     }
@@ -44,7 +45,8 @@ describe('Bottle special-die visual contract', () => {
     expect(scene).toContain('centerPathPercents: [58, 57, 55, 50, 42], startYViewportRatio: 0.03');
     expect(scene).toContain("key: 'botle3', src: source('botle3'), z: 12, widthPercent: 27,");
     expect(scene).toContain('centerPathPercents: [81.8, 80, 76, 70, 64], startYViewportRatio: 0.1');
-    expect(scene).toContain('source(`bubble${(index % 6) + 1}`)');
+    expect(scene).toContain('getBottleBubbleAssetSource(index)');
+    expect(bubblePresentation).toContain('bottle animation pack/bubble${safeIndex + 1}');
     expect(scene).not.toContain('backgroundColor');
     expect(scene).not.toContain('borderRadius');
     expect(scene).not.toContain("domElementPool.acquire('div')");

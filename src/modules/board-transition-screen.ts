@@ -36,7 +36,7 @@ import {
   type RoboFighterFinalePoint,
   type RoboTransitionVariation,
 } from './board-transition-robo-variation.js';
-import { getRunMode } from './run-mode.js';
+import { getRunMode, RUN_MODE_JOURNEY } from './run-mode.js';
 import { getJourneyForestBeeAssetForVelocity } from './journey-forest-bee-orbits.js';
 import {
   AREA55_BOARD_TRANSITION_PROFILE,
@@ -69,6 +69,11 @@ import {
   preloadBoardTransitionDigitSounds,
   stopBoardTransitionDigitSounds,
 } from './arcade-round-digit-sound.ts';
+import {
+  playBoardTransitionForestAmbientSound,
+  preloadBoardTransitionForestAmbientSound,
+} from './board-transition-forest-ambient-sound.ts';
+import { fadeOutJourneyWorldsSoundForBoardTransition } from './journey-worlds-hub-sound.ts';
 
 interface BoardTransitionOptions {
   boardNumber: number;
@@ -1833,12 +1838,14 @@ function stopMemSampling(label: string): void {
  */
 export async function showBoardTransitionScreen(options: BoardTransitionOptions): Promise<void> {
   const { boardNumber, onComplete, hideForest = false, displayText, theme } = options;
+  const runMode = getRunMode();
   const resolvedTheme = resolveBoardTransitionTheme({
     boardNumber,
     explicitTheme: theme,
     hideForest,
-    runMode: getRunMode(),
+    runMode,
   });
+  const isForestWorldTransition = resolvedTheme === 'forest' && runMode === RUN_MODE_JOURNEY;
   const selectedProfile = resolvedTheme === 'beach'
     ? BEACH_BOARD_TRANSITION_PROFILE
     : resolvedTheme === 'area55'
@@ -1921,6 +1928,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
   // Cleanup any existing overlay (preserve DOM for reuse)
   cleanup({ preserveDom: true });
   preloadBoardTransitionDigitSounds();
+  if (isForestWorldTransition) preloadBoardTransitionForestAmbientSound();
   startIOSJourneyPerformanceAudit(boardNumber);
   
   // 🔥 USER REQUEST: Reset paper background when transition screen closes
@@ -2561,6 +2569,8 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     container.appendChild(numberContainer);
     overlay.appendChild(container);
     document.body.appendChild(overlay);
+    if (runMode === RUN_MODE_JOURNEY) fadeOutJourneyWorldsSoundForBoardTransition();
+    if (isForestWorldTransition) playBoardTransitionForestAmbientSound();
     currentOverlay = overlay;
     overlay.dataset.transitionTheme = resolvedTheme;
     soundtrackFadeGeneration = beginGameplayTransitionFade();

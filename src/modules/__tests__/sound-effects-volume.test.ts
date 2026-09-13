@@ -23,6 +23,7 @@ import {
   WILD_STAR_MERGE6_CRASH_VOLUME,
   WILD_STAR_MERGE6_PRIMARY_VOLUME,
   WILD_STAR_MERGE6_SOUND_VOLUME,
+  WILD_STAR_MERGE6_NEW_VARIANT_VOLUME,
   WILD_STAR_MERGE6_SPARKLE_VOLUME,
   WILD_STAR_MERGE6_STACK_VOLUME,
 } from '../wild-star-merge6-sound';
@@ -55,7 +56,23 @@ import {
   JOURNEY_CARD_ENTRY_FLIP_SOUND_VOLUMES,
   JOURNEY_CARD_MANUAL_FLIP_SOUND_VOLUME,
 } from '../journey-card-entry-flip-sound';
-import { MAGNET_PULL_FORCE_SOUND_VOLUMES } from '../magnet-pull-force-sound';
+import { CLEAN_BOARD_FAST_POINTS_STACK_VOLUME, CLEAN_BOARD_SOUND_VOLUME } from '../clean-board-sound';
+import {
+  BOARD_TRANSITION_FOREST_AMBIENT_SOUND_VOLUME,
+  BOARD_TRANSITION_FOREST_BEES_SMALL_SOUND_VOLUME,
+} from '../board-transition-forest-ambient-sound';
+import { JOURNEY_FOREST_AMBIENT_VOLUME } from '../journey-forest-ambient-sound';
+import { JOURNEY_FOREST_GAMEPLAY_VOLUME } from '../journey-forest-gameplay-sound';
+import {
+  JOURNEY_WORLDS_HUB_VOLUME,
+  JOURNEY_WORLDS_WORLD_VOLUME,
+} from '../journey-worlds-hub-sound';
+import { FAIL_SCREEN_CTA_BOUNCE_SOUND_VOLUME } from '../fail-screen-sound';
+import {
+  BOTTLE_PULL_FORCE_BOIING_VOLUME,
+  MAGNET_PULL_FORCE_SOUND_VOLUMES,
+} from '../magnet-pull-force-sound';
+import { BOTTLE_PULL_MERGE_SOUND_VOLUMES } from '../bottle-pull-merge-sound';
 import {
   HONEY_POST_MERGE_SOUND_VOLUMES,
   HONEY_PULL_MERGE_SOUND_VOLUMES,
@@ -73,6 +90,7 @@ describe('sound effects master volume', () => {
     expect(REGULAR_MERGE6_BOOM_VOLUME).toBeCloseTo(0.36);
     expect(REGULAR_MERGE6_STACK_VOLUME).toBeCloseTo(0.48);
     expect(WILD_STAR_MERGE6_SOUND_VOLUME).toBeCloseTo(0.4);
+    expect(WILD_STAR_MERGE6_NEW_VARIANT_VOLUME).toBeCloseTo(0.48);
     expect(WILD_STAR_MERGE6_PRIMARY_VOLUME).toBeCloseTo(REGULAR_MERGE6_SOUND_VOLUME);
     expect(WILD_STAR_MERGE6_CRASH_VOLUME).toBeCloseTo(REGULAR_MERGE6_CRASH_VOLUME);
     expect(WILD_STAR_MERGE6_BOOM_VOLUME).toBeCloseTo(REGULAR_MERGE6_BOOM_VOLUME);
@@ -97,11 +115,22 @@ describe('sound effects master volume', () => {
     expect(BEE_MERGE6_HAPPY_VOLUME).toBeCloseTo(0.12);
     expect(WILD_SPECIAL_MERGE6_POOF_VOLUME).toBeCloseTo(0.6);
     expect(ROBO_CUBE_MERGE6_VOLUMES).toEqual([0.6, 0.6, 0.42]);
-    expect(JOURNEY_CARD_ENTRY_FLIP_SOUND_VOLUMES).toEqual([0.6, 0.6, 0.6]);
+    expect(JOURNEY_CARD_ENTRY_FLIP_SOUND_VOLUMES).toEqual([0.42, 0.42, 0.42]);
     expect(JOURNEY_CARD_MANUAL_FLIP_SOUND_VOLUME).toBeCloseTo(0.6);
-    expect(MAGNET_PULL_FORCE_SOUND_VOLUMES).toEqual([0.3, 0.3, 0.6]);
-    expect(HONEY_PULL_MERGE_SOUND_VOLUMES).toEqual([0.6, 0.6, 0.6]);
-    expect(HONEY_POST_MERGE_SOUND_VOLUMES).toEqual([0.288]);
+    expect(CLEAN_BOARD_SOUND_VOLUME).toBeCloseTo(0.6);
+    expect(CLEAN_BOARD_FAST_POINTS_STACK_VOLUME).toBeCloseTo(0.54);
+    expect(BOARD_TRANSITION_FOREST_AMBIENT_SOUND_VOLUME).toBeCloseTo(0.6);
+    expect(BOARD_TRANSITION_FOREST_BEES_SMALL_SOUND_VOLUME).toBeCloseTo(0.12);
+    expect(JOURNEY_FOREST_AMBIENT_VOLUME).toBeCloseTo(0.348);
+    expect(JOURNEY_FOREST_GAMEPLAY_VOLUME).toBeCloseTo(0.4176);
+    expect(JOURNEY_WORLDS_HUB_VOLUME).toBeCloseTo(0.348);
+    expect(JOURNEY_WORLDS_WORLD_VOLUME).toBeCloseTo(0.1044);
+    expect(FAIL_SCREEN_CTA_BOUNCE_SOUND_VOLUME).toBeCloseTo(0.6);
+    expect(MAGNET_PULL_FORCE_SOUND_VOLUMES).toEqual([0.6]);
+    expect(HONEY_PULL_MERGE_SOUND_VOLUMES).toEqual([0.48, 0.48]);
+    expect(HONEY_POST_MERGE_SOUND_VOLUMES).toEqual([0.2016]);
+    expect(BOTTLE_PULL_FORCE_BOIING_VOLUME).toBeCloseTo(0.24);
+    expect(BOTTLE_PULL_MERGE_SOUND_VOLUMES).toEqual([0.528, 0.528]);
   });
 
   it('keeps the shared multiplier bounded and excludes music ownership', () => {
@@ -116,7 +145,7 @@ describe('sound effects master volume', () => {
     expect(soundtrack).not.toContain('applySoundEffectsMasterGain');
   });
 
-  it('is consumed by all twenty active SFX owners', () => {
+  it('is consumed by all twenty-seven active SFX owners', () => {
     for (const filename of [
       'gameplay-pickup-sound.ts',
       'ordinary-stack-sound.ts',
@@ -130,6 +159,13 @@ describe('sound effects master volume', () => {
       'no-moves-sound.ts',
       'arcade-round-digit-sound.ts',
       'bottle-finale-sound.ts',
+      'clean-board-sound.ts',
+      'board-transition-forest-ambient-sound.ts',
+      'journey-forest-ambient-sound.ts',
+      'journey-forest-gameplay-sound.ts',
+      'journey-worlds-hub-sound.ts',
+      'fail-screen-sound.ts',
+      'bottle-pull-merge-sound.ts',
       'fish-merge6-sound.ts',
       'flower-merge6-sound.ts',
       'bee-merge6-sound.ts',

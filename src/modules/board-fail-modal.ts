@@ -9,6 +9,7 @@ import { clearJourneyDetailReturn, prepareJourneyFailReturnTarget } from './jour
 import { applyAppPaperSurfaceToElement } from '../utils/app-paper-background.js';
 import { formatGameplayResultProgressLabel } from './gameplay-terminology.ts';
 import { exitCtaPair, getRegisteredCta, registerCta, type CtaController } from './cta-system.ts';
+import { playFailScreenCtaBounceSound, preloadFailScreenSounds, stopFailScreenSounds } from './fail-screen-sound.ts';
 // public/src/modules/board-fail-modal.ts
 // Game-over overlay when the board isn't fully cleared
 
@@ -398,6 +399,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     }
 
     removeExisting();
+    preloadFailScreenSounds();
 
     const overlay = document.createElement('div');
     overlay.id = OVERLAY_ID;
@@ -559,6 +561,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     };
 
     const cleanupFailModalLifecycle = (): void => {
+      stopFailScreenSounds();
       cleanupButtonListeners();
       clearAllFailTimeouts();
       clearAllFailAnimationFrames();
@@ -777,8 +780,16 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       schedule(starsHero, 120);
       schedule(title, 240);
       schedule(boardStatus, 420);
-      trackFailTimeout(() => { void getRegisteredCta(continueBtn)?.enter(); }, 640);
-      trackFailTimeout(() => { void getRegisteredCta(exitBtn)?.enter(); }, 820);
+      trackFailTimeout(() => {
+        const controller = getRegisteredCta(continueBtn);
+        if (controller) playFailScreenCtaBounceSound(0);
+        void controller?.enter();
+      }, 640);
+      trackFailTimeout(() => {
+        const controller = getRegisteredCta(exitBtn);
+        if (controller) playFailScreenCtaBounceSound(1);
+        void controller?.enter();
+      }, 820);
 
       emptyStars.forEach((star, index) => {
         trackFailTimeout(() => {

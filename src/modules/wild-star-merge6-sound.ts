@@ -30,6 +30,10 @@ export const WILD_STAR_MERGE6_SOUND_SOURCE =
   './assets/sound/Wild and special kockice/star/long_magica_happy_ac_%232-1788980185281.wav';
 export const WILD_STAR_MERGE6_ALTERNATE_SOUND_SOURCE =
   './assets/sound/Wild and special kockice/star/long_magica_happy_ac_%233-1788980189939.wav';
+export const WILD_STAR_MERGE6_STAR1_SOUND_SOURCE =
+  './assets/sound/Wild and special kockice/star/star1.wav';
+export const WILD_STAR_MERGE6_STAR2_SOUND_SOURCE =
+  './assets/sound/Wild and special kockice/star/star2.wav';
 export const WILD_STAR_MERGE6_SOUND_PLAYBACK_RATE = 1;
 // Both random magic beds are mixed to exactly 0.40 after the shared 0.60 SFX master.
 export const WILD_STAR_MERGE6_SOUND_BASE_VOLUME = 2 / 3;
@@ -39,6 +43,10 @@ export const WILD_STAR_MERGE6_SOUND_VOLUME = applySoundEffectsMasterGain(
 export const WILD_STAR_MERGE6_ALTERNATE_SOUND_BASE_VOLUME = 2 / 3;
 export const WILD_STAR_MERGE6_ALTERNATE_SOUND_VOLUME = applySoundEffectsMasterGain(
   WILD_STAR_MERGE6_ALTERNATE_SOUND_BASE_VOLUME,
+);
+export const WILD_STAR_MERGE6_NEW_VARIANT_BASE_VOLUME = 0.8;
+export const WILD_STAR_MERGE6_NEW_VARIANT_VOLUME = applySoundEffectsMasterGain(
+  WILD_STAR_MERGE6_NEW_VARIANT_BASE_VOLUME,
 );
 export const WILD_STAR_MERGE6_SPARKLE_SOUND_SOURCE =
   './assets/sound/Wild and special kockice/star/magicle_sparkle_for__%231-1788980027254.wav';
@@ -71,6 +79,8 @@ export const WILD_STAR_MERGE6_STACK_VOLUME = REGULAR_MERGE6_STACK_VOLUME;
 const WILD_STAR_MERGE6_SOUND_SOURCES = [
   WILD_STAR_MERGE6_SOUND_SOURCE,
   WILD_STAR_MERGE6_ALTERNATE_SOUND_SOURCE,
+  WILD_STAR_MERGE6_STAR1_SOUND_SOURCE,
+  WILD_STAR_MERGE6_STAR2_SOUND_SOURCE,
   WILD_STAR_MERGE6_SPARKLE_SOUND_SOURCE,
 ] as const;
 const WILD_STAR_MERGE6_VOICE_IDS = [
@@ -79,6 +89,8 @@ const WILD_STAR_MERGE6_VOICE_IDS = [
 ] as const;
 let magicAudio: HTMLAudioElement | null = null;
 let alternateMagicAudio: HTMLAudioElement | null = null;
+let star1Audio: HTMLAudioElement | null = null;
+let star2Audio: HTMLAudioElement | null = null;
 let sparkleAudio: HTMLAudioElement | null = null;
 let sparkleStartTimer: number | null = null;
 
@@ -125,21 +137,40 @@ function getAlternateMagicAudio(): HTMLAudioElement | null {
   return alternateMagicAudio;
 }
 
+function getStar1Audio(): HTMLAudioElement | null {
+  star1Audio ??= createAudio(WILD_STAR_MERGE6_STAR1_SOUND_SOURCE);
+  return star1Audio;
+}
+
+function getStar2Audio(): HTMLAudioElement | null {
+  star2Audio ??= createAudio(WILD_STAR_MERGE6_STAR2_SOUND_SOURCE);
+  return star2Audio;
+}
+
 export function selectWildStarMerge6MagicSoundSource(
   randomValue: number = Math.random(),
 ): string {
-  return randomValue < 0.5
-    ? WILD_STAR_MERGE6_SOUND_SOURCE
-    : WILD_STAR_MERGE6_ALTERNATE_SOUND_SOURCE;
+  const variantIndex = Math.min(3, Math.max(0, Math.floor(randomValue * 4)));
+  return [
+    WILD_STAR_MERGE6_SOUND_SOURCE,
+    WILD_STAR_MERGE6_ALTERNATE_SOUND_SOURCE,
+    WILD_STAR_MERGE6_STAR1_SOUND_SOURCE,
+    WILD_STAR_MERGE6_STAR2_SOUND_SOURCE,
+  ][variantIndex];
 }
 
 function getMagicAudioForSource(source: string): HTMLAudioElement | null {
-  return source === WILD_STAR_MERGE6_ALTERNATE_SOUND_SOURCE
-    ? getAlternateMagicAudio()
-    : getMagicAudio();
+  if (source === WILD_STAR_MERGE6_ALTERNATE_SOUND_SOURCE) return getAlternateMagicAudio();
+  if (source === WILD_STAR_MERGE6_STAR1_SOUND_SOURCE) return getStar1Audio();
+  if (source === WILD_STAR_MERGE6_STAR2_SOUND_SOURCE) return getStar2Audio();
+  return getMagicAudio();
 }
 
 function getMagicVolumeForSource(source: string): number {
+  if (
+    source === WILD_STAR_MERGE6_STAR1_SOUND_SOURCE
+    || source === WILD_STAR_MERGE6_STAR2_SOUND_SOURCE
+  ) return WILD_STAR_MERGE6_NEW_VARIANT_VOLUME;
   return source === WILD_STAR_MERGE6_ALTERNATE_SOUND_SOURCE
     ? WILD_STAR_MERGE6_ALTERNATE_SOUND_VOLUME
     : WILD_STAR_MERGE6_SOUND_VOLUME;
@@ -177,6 +208,8 @@ export function preloadWildStarMerge6Sound(): boolean {
   const starLayersReady = preloadDecodedGameplaySounds(WILD_STAR_MERGE6_SOUND_SOURCES)
     || (getMagicAudio() !== null
     && getAlternateMagicAudio() !== null
+    && getStar1Audio() !== null
+    && getStar2Audio() !== null
     && getSparkleAudio() !== null);
   return ordinaryMergeReady && starLayersReady;
 }
@@ -230,6 +263,8 @@ export function stopWildStarMerge6Sound(): void {
   for (const audio of [
     magicAudio,
     alternateMagicAudio,
+    star1Audio,
+    star2Audio,
     sparkleAudio,
   ]) {
     if (!audio) continue;
@@ -245,5 +280,7 @@ export function resetWildStarMerge6SoundCacheForTests(): void {
   resetRegularMerge6SoundCacheForTests();
   magicAudio = null;
   alternateMagicAudio = null;
+  star1Audio = null;
+  star2Audio = null;
   sparkleAudio = null;
 }

@@ -777,6 +777,7 @@ export function showEndRunModal(): void {
 
     const el = createModal();
     console.log('🎯 END RUN MODAL CREATED');
+    playGameplayExitModalEnterSound();
 
     // 🔥 CRITICAL FIX: Mark modal as visible and set closing flag to false
     (el as any)._closing = false;
@@ -803,7 +804,6 @@ export function showEndRunModal(): void {
         });
       }, END_RUN_CTA_ENTER_DELAY_MS);
       if (END_RUN_CENTERED_MODAL_TEST_ENABLED) {
-        playGameplayExitModalEnterSound();
         el.style.display = 'flex';
         el.style.visibility = 'visible';
         el.style.transform = 'none';

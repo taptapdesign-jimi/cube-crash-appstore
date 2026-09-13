@@ -66,6 +66,7 @@ import { preloadBeeMerge6Sounds } from './bee-merge6-sound.ts';
 import { preloadRoboCubeMerge6Sounds } from './robo-cube-merge6-sound.ts';
 import { preloadWildSpecialMerge6PoofSounds } from './wild-special-merge6-poof-sound.ts';
 import { preloadBottleFinaleSounds } from './bottle-finale-sound.ts';
+import { preloadBottlePullMergeSounds } from './bottle-pull-merge-sound.ts';
 import { preloadMagnetPullForceSounds } from './magnet-pull-force-sound.ts';
 import { preloadHoneyMerge6Sounds } from './honey-merge6-sound.ts';
 import { preloadOrdinaryStackSound } from './ordinary-stack-sound.ts';
@@ -477,6 +478,7 @@ class UIManager {
     preloadRoboCubeMerge6Sounds();
     preloadWildSpecialMerge6PoofSounds();
     preloadBottleFinaleSounds();
+    preloadBottlePullMergeSounds();
     preloadMagnetPullForceSounds();
     preloadHoneyMerge6Sounds();
     preloadOrdinaryStackSound();
@@ -629,6 +631,7 @@ class UIManager {
     preloadRoboCubeMerge6Sounds();
     preloadWildSpecialMerge6PoofSounds();
     preloadBottleFinaleSounds();
+    preloadBottlePullMergeSounds();
     preloadMagnetPullForceSounds();
     preloadHoneyMerge6Sounds();
     preloadOrdinaryStackSound();
@@ -758,6 +761,7 @@ class UIManager {
       preloadRoboCubeMerge6Sounds();
       preloadWildSpecialMerge6PoofSounds();
       preloadBottleFinaleSounds();
+      preloadBottlePullMergeSounds();
       preloadMagnetPullForceSounds();
       preloadHoneyMerge6Sounds();
       preloadOrdinaryStackSound();
@@ -2407,6 +2411,9 @@ class UIManager {
         void import('./bottle-finale-sound.ts').then(({ stopBottleFinaleSounds }) => {
           stopBottleFinaleSounds();
         });
+        void import('./bottle-pull-merge-sound.ts').then(({ stopBottlePullMergeSounds }) => {
+          stopBottlePullMergeSounds();
+        });
         void import('./magnet-pull-force-sound.ts').then(({ stopMagnetPullForceSounds }) => {
           stopMagnetPullForceSounds();
         });
@@ -2439,6 +2446,15 @@ class UIManager {
         });
         void import('./homepage-slider-swipe-sound.ts').then(({ stopHomepageSliderSwipeSound }) => {
           stopHomepageSliderSwipeSound();
+        });
+        void import('./journey-forest-ambient-sound.ts').then(({ stopJourneyForestAmbientSounds }) => {
+          stopJourneyForestAmbientSounds();
+        });
+        void import('./journey-forest-gameplay-sound.ts').then(({ stopJourneyForestGameplaySound }) => {
+          stopJourneyForestGameplaySound();
+        });
+        void import('./journey-worlds-hub-sound.ts').then(({ stopJourneyWorldsHubSound }) => {
+          stopJourneyWorldsHubSound();
         });
       }
     };

@@ -1,5 +1,17 @@
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
+import {
+  BEE_LEAF_END_SECONDS,
+  BEE_LEAF_LAST_END_SECONDS,
+  BEE_LEAF_PARTICLE_COUNT,
+  BEE_LEAF_STAGGER_SECONDS,
+  BEE_LEAF_START_SECONDS,
+  BEE_LEAVES_PER_BURST,
+  getBeeLeafAssetSource,
+  resolveBeeLeafGravity,
+  sampleBeeLeafParticlePose,
+  type BeeLeafParticleMotion,
+} from './bee-leaf-particle-motion.js';
 
 const PACK = './assets/shop/bee';
 const use2x = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -11,7 +23,7 @@ const trackTimeline = (options: gsap.TimelineVars = {}) => (
 
 const SOURCES = [
   ...Array.from({ length: 4 }, (_, index) => source(`bee${index + 1}`)),
-  ...Array.from({ length: 6 }, (_, index) => source(`leaf${index + 1}`)),
+  ...Array.from({ length: 6 }, (_, index) => getBeeLeafAssetSource(index)),
   journeyBeeSource('bee1'),
   journeyBeeSource('bee3'),
 ];
@@ -44,15 +56,13 @@ export const BEE_FINALE_IDLE_CROSSFADE_RATIO = 0.38;
 export const BEE_FINALE_EXIT_GUIDE_PROGRESS = 0.76;
 export const BEE_FINALE_EXIT_RELEASE_PROGRESS = 0.90;
 export const BEE_FINALE_VISIBLE_ART_RADIUS_RATIO = 0.128;
-export const BEE_FINALE_LEAF_COUNT = 42;
-export const BEE_FINALE_LEAF_START_SECONDS = 0;
-export const BEE_FINALE_LEAF_END_SECONDS = 2.90;
-export const BEE_FINALE_LAST_LEAF_END_SECONDS = 3.86;
-const BEE_FINALE_LEAVES_PER_BURST = 3;
+export const BEE_FINALE_LEAF_COUNT = BEE_LEAF_PARTICLE_COUNT;
+export const BEE_FINALE_LEAF_START_SECONDS = BEE_LEAF_START_SECONDS;
+export const BEE_FINALE_LEAF_END_SECONDS = BEE_LEAF_END_SECONDS;
+export const BEE_FINALE_LAST_LEAF_END_SECONDS = BEE_LEAF_LAST_END_SECONDS;
+const BEE_FINALE_LEAVES_PER_BURST = BEE_LEAVES_PER_BURST;
 const BEE_FINALE_MERGE_BURST_LEAVES = 12;
-export const BEE_FINALE_LEAF_STAGGER_SECONDS = (
-  BEE_FINALE_LEAF_END_SECONDS - BEE_FINALE_LEAF_START_SECONDS
-) / (BEE_FINALE_LEAF_COUNT / BEE_FINALE_LEAVES_PER_BURST - 1);
+export const BEE_FINALE_LEAF_STAGGER_SECONDS = BEE_LEAF_STAGGER_SECONDS;
 
 export type BeeFinaleOrigin = { x: number; y: number };
 export type BeeFinaleViewport = { width: number; height: number };
@@ -401,20 +411,9 @@ export type BeeFinaleSoundMilestones = {
   onFinale?: () => void;
 };
 
-type BeeLeafParticle = {
+type BeeLeafParticle = BeeLeafParticleMotion & {
   wrap: HTMLElement;
   image: HTMLImageElement;
-  birth: number;
-  lifetime: number;
-  birthX: number;
-  birthY: number;
-  velocityX: number;
-  velocityY: number;
-  gravity: number;
-  flutter: number;
-  spin: number;
-  scale: number;
-  peakOpacity: number;
 };
 
 export type BeeFinaleAmbientPlan = {
@@ -666,26 +665,17 @@ export function attachBeeFinaleScene(
     });
     let visibleLeafCount = 0;
     leafParticles.forEach((particle) => {
-      const age = clock.time - particle.birth;
-      if (age < 0 || age > particle.lifetime) {
+      const pose = sampleBeeLeafParticlePose(particle, clock.time);
+      if (!pose.visible) {
         particle.wrap.style.opacity = '0';
         particle.wrap.style.visibility = 'hidden';
         return;
       }
-      const progress = clamp(age / particle.lifetime, 0, 1);
-      const enter = clamp(age / 0.07, 0, 1);
-      const exit = progress > 0.72 ? clamp((1 - progress) / 0.28, 0, 1) : 1;
-      const wildX = Math.sin(age * 8.5 + particle.flutter) * (18 + 28 * progress);
-      const wildY = Math.cos(age * 10.5 + particle.flutter) * (14 + 19 * progress);
-      const x = particle.birthX + particle.velocityX * age + wildX;
-      const y = particle.birthY + particle.velocityY * age + particle.gravity * age * age * 0.5 + wildY;
-      const scale = particle.scale * (0.45 + enter * 0.7) * (1 - progress * 0.18);
-      const rotation = particle.spin * age + Math.sin(age * 11 + particle.flutter) * 16;
       particle.wrap.style.visibility = 'visible';
       visibleLeafCount += 1;
-      particle.wrap.style.opacity = (particle.peakOpacity * enter * exit).toFixed(3);
-      particle.wrap.style.transform = `translate3d(${x.toFixed(2)}px,${y.toFixed(2)}px,0) translate3d(-50%,-50%,0) rotate(${rotation.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
-      particle.image.style.transform = `skewX(${(Math.sin(age * 13 + particle.flutter) * 9).toFixed(2)}deg) scale(${(0.96 + Math.sin(age * 12 + particle.flutter) * 0.07).toFixed(3)},${(1.01 - Math.sin(age * 12 + particle.flutter) * 0.06).toFixed(3)})`;
+      particle.wrap.style.opacity = pose.opacity.toFixed(3);
+      particle.wrap.style.transform = `translate3d(${pose.x.toFixed(2)}px,${pose.y.toFixed(2)}px,0) translate3d(-50%,-50%,0) rotate(${pose.rotation.toFixed(2)}deg) scale(${pose.scale.toFixed(3)})`;
+      particle.image.style.transform = `skewX(${pose.skewX.toFixed(2)}deg) scale(${pose.imageScaleX.toFixed(3)},${pose.imageScaleY.toFixed(3)})`;
     });
     field.dataset.visibleLeafCount = String(visibleLeafCount);
   };
@@ -709,7 +699,7 @@ export function attachBeeFinaleScene(
     const wrap = document.createElement('div');
     wrap.className = `cc-bee-finale-leaf-wrap cc-bee-finale-leaf-wrap-${isFront ? 'front' : 'back'}`;
     (isFront ? leafFront : leafBack).appendChild(wrap);
-    const leaf = makeImage(source(`leaf${index % 6 + 1}`), `cc-bee-finale-leaf cc-bee-finale-leaf-${isFront ? 'front' : 'back'}`, wrap);
+    const leaf = makeImage(getBeeLeafAssetSource(index), `cc-bee-finale-leaf cc-bee-finale-leaf-${isFront ? 'front' : 'back'}`, wrap);
     const randomUnit = (Math.sin((index + 1) * 91.731 + wobblePhase * 13.17) + 1) * 0.5;
     const angle = (index * 2.399963229728653 + randomUnit * 0.9) % (Math.PI * 2);
     const lane = 12 + index % 4 * 9;
@@ -719,8 +709,12 @@ export function attachBeeFinaleScene(
     const scatterDistance = viewport.width * (0.476 + randomUnit * 0.714);
     const velocityX = Math.cos(angle) * scatterDistance / lifetime;
     const velocityY = Math.sin(angle) * scatterDistance / lifetime - 90 - index % 3 * 18;
-    const floorDistance = Math.max(120, viewport.height - birthY + 110);
-    const gravity = Math.max(320, 2 * (floorDistance - velocityY * lifetime) / (lifetime * lifetime));
+    const gravity = resolveBeeLeafGravity({
+      viewportHeight: viewport.height,
+      birthY,
+      velocityY,
+      lifetime,
+    });
     leaf.dataset.startAt = startAt.toFixed(4);
     leaf.dataset.birthX = birthX.toFixed(3);
     leaf.dataset.birthY = birthY.toFixed(3);

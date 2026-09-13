@@ -9,6 +9,12 @@ import {
   stopBottleFinaleSounds,
 } from './bottle-finale-sound.js';
 import { domElementPool } from './dom-element-pool.js';
+import {
+  createMixedBottleBubbleOpacities,
+  getBottleBubbleAssetSource,
+} from './bottle-bubble-presentation.js';
+
+export { createMixedBottleBubbleOpacities } from './bottle-bubble-presentation.js';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
@@ -113,30 +119,6 @@ const BOTTLE_WOBBLE_STRENGTH = 1.3;
 const BUBBLE_FIELD_END_SECONDS = 5.1;
 const BUBBLE_OPACITY_MIN = 0.2;
 const BUBBLE_OPACITY_MAX = 0.7;
-
-export function createMixedBottleBubbleOpacities(
-  count: number,
-  random: () => number = Math.random,
-): number[] {
-  const safeCount = Math.max(0, Math.floor(count));
-  if (safeCount === 0) return [];
-  const opacityRange = BUBBLE_OPACITY_MAX - BUBBLE_OPACITY_MIN;
-  const values = Array.from({ length: safeCount }, (_, index) => {
-    // One sample per opacity stratum guarantees a real pale-to-strong mix;
-    // shuffling then prevents a wave or bottle emitter from forming a visual
-    // opacity cluster.
-    const normalized = (index + Math.min(1, Math.max(0, random()))) / safeCount;
-    return BUBBLE_OPACITY_MIN + normalized * opacityRange;
-  });
-  for (let index = values.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.min(
-      index,
-      Math.floor(Math.min(1, Math.max(0, random())) * (index + 1)),
-    );
-    [values[index], values[swapIndex]] = [values[swapIndex], values[index]];
-  }
-  return values;
-}
 
 export function attachBottleFinaleScene(
   overlay: HTMLElement,
@@ -343,7 +325,7 @@ export function attachBottleFinaleScene(
     const trailBubbleCount = TRAIL_BUBBLES_PER_BOTTLE;
     for (let trailIndex = 0; trailIndex < trailBubbleCount; trailIndex += 1) {
       const trailBubble = acquireImage(
-        source(`bubble${((index * 8 + trailIndex) % 6) + 1}`),
+        getBottleBubbleAssetSource(index * 8 + trailIndex),
         'cc-bottle-finale-bubble cc-bottle-finale-trail-bubble',
       );
       const trailSize = 8 + Math.pow(Math.random(), 0.72) * 48;
@@ -404,7 +386,7 @@ export function attachBottleFinaleScene(
   });
 
   for (let index = 0; index < BUBBLE_COUNT; index += 1) {
-    const bubble = acquireImage(source(`bubble${(index % 6) + 1}`), 'cc-bottle-finale-bubble');
+    const bubble = acquireImage(getBottleBubbleAssetSource(index), 'cc-bottle-finale-bubble');
     const isAddedSmallBubble = index >= ORIGINAL_BUBBLE_COUNT;
     const sizeMultiplier = isAddedSmallBubble ? 1.08 : 2.4;
     const size = (18 + Math.pow(Math.random(), 1.6) * 42) * sizeMultiplier;

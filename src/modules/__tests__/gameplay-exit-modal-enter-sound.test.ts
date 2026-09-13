@@ -10,7 +10,7 @@ describe('HUD gameplay exit modal enter sound', () => {
     expect(GAMEPLAY_EXIT_MODAL_ENTER_SOUND_VOLUME).toBe(0.6);
     const bytes = fs.readFileSync(path.resolve(process.cwd(), GAMEPLAY_EXIT_MODAL_ENTER_SOUND_SOURCE.replace(/^\.\//, '')));
     expect(crypto.createHash('sha256').update(bytes).digest('hex')).toBe(
-      '5475cb8e92f0bdc54685b25a73b276a0e23cb7093a4d505632f2ac9da87bd515',
+      'fbf66fa435afe49798431750d718c8fa0ff781dd2c736911ae1717bd5c8c2767',
     );
   });
 
@@ -21,5 +21,22 @@ describe('HUD gameplay exit modal enter sound', () => {
     expect(endRun).toContain('playGameplayExitModalEnterSound();');
     expect(card).not.toContain('playGameplayExitModalEnterSound');
     expect(journey).not.toContain('playGameplayExitModalEnterSound');
+  });
+
+  test('starts after accepted modal creation but before the first visible enter frame', () => {
+    const endRun = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/end-run-modal.ts'), 'utf8');
+    const showStart = endRun.indexOf('export function showEndRunModal(): void {');
+    const showEnd = endRun.indexOf('// Simple drag functionality', showStart);
+    const showSource = endRun.slice(showStart, showEnd);
+    const createIndex = showSource.indexOf('const el = createModal();');
+    const soundIndex = showSource.indexOf('playGameplayExitModalEnterSound();');
+    const frameIndex = showSource.indexOf('trackEndRunAnimationFrame(() => {');
+    const visibleIndex = showSource.indexOf("el.style.display = 'flex';");
+
+    expect(showSource.match(/playGameplayExitModalEnterSound\(\);/g)).toHaveLength(1);
+    expect(createIndex).toBeGreaterThan(-1);
+    expect(soundIndex).toBeGreaterThan(createIndex);
+    expect(frameIndex).toBeGreaterThan(soundIndex);
+    expect(visibleIndex).toBeGreaterThan(frameIndex);
   });
 });

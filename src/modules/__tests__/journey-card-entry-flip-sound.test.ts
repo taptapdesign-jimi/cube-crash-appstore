@@ -6,11 +6,9 @@ import {
   JOURNEY_CARD_ENTRY_FLIP_SOUND_VOLUMES,
   JOURNEY_CARD_MANUAL_FLIP_SOUND_SOURCE,
   JOURNEY_CARD_MANUAL_FLIP_SOUND_VOLUME,
-  JOURNEY_CARD_RETURN_SWOOSH_SOUND_SOURCE,
-  JOURNEY_CARD_RETURN_SWOOSH_SOUND_VOLUME,
   playJourneyCardEntryFlipSounds,
   playJourneyCardManualFlipSound,
-  playJourneyCardReturnSwooshSound,
+  playJourneyCardReturnFlipSounds,
   resetJourneyCardEntryFlipSoundsForTests,
 } from '../journey-card-entry-flip-sound.ts';
 
@@ -25,18 +23,23 @@ describe('Journey card modal entry flip sound', () => {
     delete (window as any)._settings;
   });
 
-  test('layers menu flip, flip and flip soft at the standard SFX level', () => {
+  test('layers menu flip, flip and flip soft at 70% of their prior level', () => {
     expect(JOURNEY_CARD_ENTRY_FLIP_SOUND_SOURCES).toEqual([
       './assets/sound/cjelina flip/menu flip.wav',
       './assets/sound/cjelina flip/flip.wav',
       './assets/sound/cjelina flip/flip soft.wav',
     ]);
-    expect(JOURNEY_CARD_ENTRY_FLIP_SOUND_BASE_VOLUMES).toEqual([1, 1, 1]);
-    expect(JOURNEY_CARD_ENTRY_FLIP_SOUND_VOLUMES).toEqual([0.6, 0.6, 0.6]);
+    expect(JOURNEY_CARD_ENTRY_FLIP_SOUND_BASE_VOLUMES).toEqual([0.7, 0.7, 0.7]);
+    expect(JOURNEY_CARD_ENTRY_FLIP_SOUND_VOLUMES).toEqual([0.42, 0.42, 0.42]);
     expect(JOURNEY_CARD_MANUAL_FLIP_SOUND_SOURCE).toBe('./assets/sound/cjelina flip/flip soft.wav');
     expect(JOURNEY_CARD_MANUAL_FLIP_SOUND_VOLUME).toBe(0.6);
-    expect(JOURNEY_CARD_RETURN_SWOOSH_SOUND_SOURCE).toBe('./assets/sound/cjelina flip/swoosh back.wav');
-    expect(JOURNEY_CARD_RETURN_SWOOSH_SOUND_VOLUME).toBe(0.6);
+    expect(playJourneyCardReturnFlipSounds).toBeDefined();
+    const owner = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/modules/journey-card-entry-flip-sound.ts'),
+      'utf8',
+    );
+    expect(owner).not.toContain('swoosh back.wav');
+    expect(owner).toContain('return playJourneyCardEntryFlipSounds();');
   });
 
   test('starts only with the visible spatial entry and has preload and cleanup owners', () => {
@@ -58,8 +61,8 @@ describe('Journey card modal entry flip sound', () => {
     expect(source).toContain('preloadJourneyCardEntryFlipSounds();');
     expect(source).toContain('stopJourneyCardEntryFlipSounds();');
     const startReturn = source.split('const startReturn = async')[1]?.split('let closeRequestProfiled')[0] ?? '';
-    expect(startReturn.match(/playJourneyCardReturnSwooshSound\(\);/g)).toHaveLength(1);
-    expect(startReturn.indexOf('playJourneyCardReturnSwooshSound();')).toBeLessThan(
+    expect(startReturn.match(/playJourneyCardReturnFlipSounds\(\);/g)).toHaveLength(1);
+    expect(startReturn.indexOf('playJourneyCardReturnFlipSounds();')).toBeLessThan(
       startReturn.indexOf('spatialFlight = startJourneyCardSpatialFlight({'),
     );
 
@@ -81,6 +84,6 @@ describe('Journey card modal entry flip sound', () => {
     (window as any)._settings.gameSoundsEnabled = false;
     expect(playJourneyCardEntryFlipSounds()).toBe(false);
     expect(playJourneyCardManualFlipSound()).toBe(false);
-    expect(playJourneyCardReturnSwooshSound()).toBe(false);
+    expect(playJourneyCardReturnFlipSounds()).toBe(false);
   });
 });

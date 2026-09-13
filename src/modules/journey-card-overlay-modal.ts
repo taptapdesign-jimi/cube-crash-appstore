@@ -30,7 +30,7 @@ import {
 import {
   playJourneyCardEntryFlipSounds,
   playJourneyCardManualFlipSound,
-  playJourneyCardReturnSwooshSound,
+  playJourneyCardReturnFlipSounds,
   preloadJourneyCardEntryFlipSounds,
   stopJourneyCardEntryFlipSounds,
 } from './journey-card-entry-flip-sound.js';
@@ -320,6 +320,19 @@ export function getJourneyCardFlightFlipAngle(
   const turn = smoothstep((clamp01(progress) - turnStartsAt) / 0.36);
   const signedTurn = turn === 0 ? 0 : turn * -180;
   return direction === 'enter' ? signedTurn : -180 - signedTurn;
+}
+
+export function getJourneyCardReturnFlipAngle(
+  progress: number,
+  startingFace: 'front' | 'back',
+): number {
+  const canonicalReturnAngle = getJourneyCardFlightFlipAngle(progress, 'return');
+  if (startingFace === 'back') return canonicalReturnAngle;
+  // A modal dismissed while its artwork/front face is showing must still own a
+  // visible return flip. One full turn preserves that face at the Unit landing
+  // instead of either skipping rotation or exposing a terminal face swap.
+  const fullTurnAngle = -2 * (canonicalReturnAngle + 180);
+  return fullTurnAngle === 0 ? 0 : fullTurnAngle;
 }
 
 export function getJourneyCardFlipEdgeProgress(fromAngle: number, toAngle: number): number {
@@ -1618,9 +1631,10 @@ export function presentJourneyCardOverlayModal(
     const landingAtMs = travelStartsAtMs + travelDurationMs;
     const exitAtMs = landingAtMs + JOURNEY_CARD_PLAY_LANDING_PUNCH_DURATION_MS;
     let exitNotified = false;
-    setRotorAngle(stableFace === 'back' ? -180 : 0);
+    const returnStartingFace = stableFace;
+    setRotorAngle(getJourneyCardReturnFlipAngle(0, returnStartingFace));
     if (!play) options.onPerformancePhase?.('dismiss-return-flight-start');
-    playJourneyCardReturnSwooshSound();
+    playJourneyCardReturnFlipSounds();
     spatialFlight = startJourneyCardSpatialFlight({
       motionElement: spatialShell,
       baseGeometry: source,
@@ -1640,9 +1654,9 @@ export function presentJourneyCardOverlayModal(
         const travelProgress = play
           ? clamp01((elapsedMs - travelStartsAtMs) / travelDurationMs)
           : rawProgress;
-        if (stableFace === 'back') {
-          setRotorAngle(prefersReducedMotion ? 0 : getJourneyCardFlightFlipAngle(travelProgress, 'return'));
-        }
+        setRotorAngle(prefersReducedMotion
+          ? 0
+          : getJourneyCardReturnFlipAngle(travelProgress, returnStartingFace));
         if (!play) {
           // Compose the release pose into the spatial return and settle it only
           // while the card is already travelling toward its Unit.
@@ -1764,7 +1778,9 @@ export function presentJourneyCardOverlayModal(
     impactShell.style.transform = visibleImpactTransform;
     impactShell.style.translate = visibleImpactTranslate;
     stage.classList.remove('is-flipping', 'is-flipping-to-front', 'is-flipping-to-back', 'is-dragging', 'is-face-settling');
-    stage.classList.add('is-flipping-to-front');
+    // Return flight is a real physical turn too. Keep both faces paintable so
+    // WebKit's backface owner cannot transiently cull the complete flip.
+    stage.classList.add('is-flipping', 'is-flipping-to-front');
     stage.classList.add('is-exiting', 'is-backdrop-exiting');
     const returnEdgeAtMs = value === 'play'
       ? JOURNEY_CARD_PLAY_LAUNCH_BOUNCE_DURATION_MS + JOURNEY_CARD_PLAY_TRAVEL_DURATION_MS / 2

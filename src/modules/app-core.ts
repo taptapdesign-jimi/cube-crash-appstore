@@ -245,6 +245,10 @@ import {
   stopBottleFinaleSounds,
 } from './bottle-finale-sound.ts';
 import {
+  playBottlePullMergeSounds,
+  stopBottlePullMergeSounds,
+} from './bottle-pull-merge-sound.ts';
+import {
   isBeeMerge6SoundEvent,
   playBeeMerge6Sound,
   stopBeeMerge6Sounds,
@@ -261,6 +265,12 @@ import {
 } from './wild-special-merge6-poof-sound.ts';
 import { playOrdinaryStackSound, stopOrdinaryStackSound } from './ordinary-stack-sound.ts';
 import { stopGameplayPickupSound } from './gameplay-pickup-sound.ts';
+import {
+  fadeOutJourneyForestGameplaySound,
+  playJourneyForestGameplaySound,
+  preloadJourneyForestGameplaySound,
+  stopJourneyForestGameplaySound,
+} from './journey-forest-gameplay-sound.ts';
 import { preloadNoMovesSound } from './no-moves-sound.ts';
 import {
   playWildSpecialLandingSound,
@@ -275,6 +285,7 @@ import {
   stopMagnetPullForceSounds,
 } from './magnet-pull-force-sound.ts';
 import {
+  playHoneyFirstMergeSounds,
   playHoneyPostMergeSounds,
   playHoneyPullMergeSounds,
   preloadHoneyMerge6Sounds,
@@ -1450,12 +1461,15 @@ async function prepareFinalMergeVisualHandoff(
         isArcade: isArcadeHomeRunMode(),
         finalMergeSnapshot: starters.finalMergeSnapshot,
       });
-    await Promise.all([
-      animateFinalResidualArtifactsPopOut(residualReason),
-      shouldPlayClearedCelebration
-        ? playFinalMergeDiceCelebration()
-        : Promise.resolve(),
-    ]);
+    const residualPopOutCompletion = animateFinalResidualArtifactsPopOut(residualReason);
+    const clearedCelebrationCompletion = shouldPlayClearedCelebration
+      ? playFinalMergeDiceCelebration()
+      : Promise.resolve();
+    const residualPopOutCompleted = await residualPopOutCompletion;
+    if (residualPopOutCompleted && handoffGeneration === gameplayRunGeneration) {
+      fadeOutJourneyForestGameplaySound();
+    }
+    await clearedCelebrationCompletion;
     await animateFinalHudExitHandoff(residualReason);
     if (handoffGeneration !== gameplayRunGeneration) return;
     try { (window as any).__ccFinalResidualPopOutPrepared = true; } catch {}
@@ -2536,11 +2550,13 @@ function cleanupFxForBoardReset(reason: string = 'unknown') {
   try { stopCoreTntMerge6Sound(); } catch {}
   try { stopFlowerMerge6Sounds(); } catch {}
   try { stopBottleFinaleSounds(); } catch {}
+  try { stopBottlePullMergeSounds(); } catch {}
   try { stopBeeMerge6Sounds(); } catch {}
   try { stopRoboCubeMerge6Sounds(); } catch {}
   try { stopWildSpecialMerge6PoofSounds(); } catch {}
   try { stopOrdinaryStackSound(); } catch {}
   try { stopGameplayPickupSound(); } catch {}
+  try { stopJourneyForestGameplaySound({ preserveActiveFade: true }); } catch {}
   try { stopWildSpecialLandingSound(); } catch {}
   try { stopMagnetPullForceSounds(); } catch {}
   try { stopHoneyMerge6Sounds(); } catch {}
@@ -5459,7 +5475,7 @@ function isNonFinalMerge6CleanVetoActive(target?: any): boolean {
   return Number.isFinite(blockerCount) && blockerCount > 0;
 }
 
-async function animateFinalResidualArtifactsPopOut(reason: string = 'final-merge'): Promise<void> {
+async function animateFinalResidualArtifactsPopOut(reason: string = 'final-merge'): Promise<boolean> {
   const residualGeneration = gameplayRunGeneration;
   const isArcadeStageResidualPopOut =
     isArcadeHomeRunMode() &&
@@ -5558,12 +5574,12 @@ async function animateFinalResidualArtifactsPopOut(reason: string = 'final-merge
           popOutPromise.then(() => 'animation' as const),
           waitTrackedResult(isArcadeStageResidualPopOut ? 1200 : 1800),
         ]);
-        if (popOutOutcome === 'cancelled') return;
+        if (popOutOutcome === 'cancelled') return false;
       } catch (animationError) {
         devWarn('⚠️ Final residual artifacts pop-out failed:', animationError);
       }
-      if (await waitTrackedResult(isArcadeStageResidualPopOut ? 60 : 120) === 'cancelled') return;
-      if (residualGeneration !== gameplayRunGeneration) return;
+      if (await waitTrackedResult(isArcadeStageResidualPopOut ? 60 : 120) === 'cancelled') return false;
+      if (residualGeneration !== gameplayRunGeneration) return false;
     }
 
     residualTilesToRemove.forEach((t: any) => {
@@ -5590,8 +5606,10 @@ async function animateFinalResidualArtifactsPopOut(reason: string = 'final-merge
 
     cleanupFinalGhostResidualTargets(ghostList);
     hideFinalGhostLayerAfterPopOut(reason);
+    return true;
   } catch (err) {
     devWarn('⚠️ Final residual artifacts pop-out cleanup failed:', err);
+    return false;
   }
 }
 
@@ -5924,6 +5942,10 @@ function rebuildBoard(){
       gameplayEntrySignal = signal;
       if (signal.aborted) return;
       revealPreparedGameplaySurface();
+      playJourneyForestGameplaySound({
+        boardNumber,
+        isArcade: isArcadeHomeRunMode(),
+      });
       // The committed generation is the authoritative prepared-surface owner.
       // Cover release must not depend on an optional cue/pop-in callback.
       releaseBoardTransitionCoverAfterPreparedFrame(gameplayEntryGeneration);
@@ -6368,6 +6390,10 @@ async function startLevel(n): Promise<void> {
     boardNumber = next.boardNumber;
     score = next.score;
   }
+  preloadJourneyForestGameplaySound({
+    boardNumber,
+    isArcade: isArcadeHomeRunMode(),
+  });
   
   if (isArcadeHomeRunMode()) {
     setJourneyGameBottomDecorVisible(false);
@@ -8383,6 +8409,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       dstSpecialDiceVariantId: dstSpecialVariantAtMergeEntry?.id,
     })) {
       playMagnetArchetypeMerge6Sound();
+      if (srcSpecialVariantAtMergeEntry?.id === 'honey' || dstSpecialVariantAtMergeEntry?.id === 'honey') {
+        playHoneyFirstMergeSounds();
+      }
     }
     // 🔥 CRITICAL FIX: Use saved srcSpecial/dstSpecial from line 3653-3654 (don't overwrite!)
     // These values were saved BEFORE any modifications to src/dst and BEFORE any branches
@@ -9845,9 +9874,14 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   devLog('🧲 All tiles reached 75%, triggering merge 6 IMMEDIATELY (no final alignment)');
                   allTilesArrived = true;
                   multiplierShown = true; // Mark multiplier as shown to trigger merge immediately
-                  const pullSoundAccepted = playMagnetPullForceSounds();
+                  const pullSoundAccepted = playMagnetPullForceSounds(
+                    magnetVariantAtMergeEntry?.id,
+                  );
                   if (magnetVariantAtMergeEntry?.id === 'honey') {
                     playHoneyPullMergeSounds();
+                  }
+                  if (magnetVariantAtMergeEntry?.id === 'bottle') {
+                    playBottlePullMergeSounds();
                   }
                   devLog('[CC_MAGNET_PULL_SOUND] converge-start', {
                     pullSoundAccepted,
@@ -16465,6 +16499,10 @@ async function loadGameState(overrideBoardNumber?: number) {
         loadedEntrySignal = signal;
         if (signal.aborted) return;
         revealPreparedGameplaySurface();
+        playJourneyForestGameplaySound({
+          boardNumber,
+          isArcade: isArcadeHomeRunMode(),
+        });
         releaseBoardTransitionCoverAfterPreparedFrame(loadedEntryGeneration);
         return playLoadPopInAnimation({
       tiles,
