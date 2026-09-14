@@ -17,8 +17,10 @@ import {
   REGULAR_MERGE6_STACK_BASE_VOLUME,
   REGULAR_MERGE6_STACK_SOUND_SOURCE,
   REGULAR_MERGE6_STACK_VOLUME,
+  SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE,
   areRegularMerge6SoundsEnabled,
   playRegularMerge6Sound,
+  playSpecialMerge6FoundationSound,
   preloadRegularMerge6Sounds,
   resetRegularMerge6SoundCacheForTests,
   stopRegularMerge6Sounds,
@@ -77,6 +79,7 @@ describe('regular merge-6 sound', () => {
     expect(REGULAR_MERGE6_STACK_SOUND_SOURCE).toBe('./assets/sound/merge 6/stack.mp3');
     expect(REGULAR_MERGE6_STACK_BASE_VOLUME).toBe(0.8);
     expect(REGULAR_MERGE6_STACK_VOLUME).toBeCloseTo(0.48);
+    expect(SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE).toBe(0.65);
   });
 
   it('is called once only by the committed ordinary die-on-die Merge-6 branch', () => {
@@ -156,6 +159,21 @@ describe('regular merge-6 sound', () => {
     expect(primary.pause).not.toHaveBeenCalled();
     expect(boom.pause).not.toHaveBeenCalled();
     expect(stack.pause).not.toHaveBeenCalled();
+  });
+
+  it('keeps ordinary Merge-6 unchanged while lowering the shared Special foundation', () => {
+    preloadRegularMerge6Sounds();
+    expect(playSpecialMerge6FoundationSound()).toBe(true);
+    const [primary, crash, boom, stack] = MockAudio.instances;
+    expect(primary.volume).toBeCloseTo(REGULAR_MERGE6_SOUND_VOLUME * 0.65);
+    expect(crash.volume).toBeCloseTo(REGULAR_MERGE6_CRASH_VOLUME * 0.65);
+    expect(boom.volume).toBeCloseTo(REGULAR_MERGE6_BOOM_VOLUME * 0.65);
+    expect(stack.volume).toBeCloseTo(REGULAR_MERGE6_STACK_VOLUME * 0.65);
+
+    const fadeStartMs = REGULAR_MERGE6_CRASH_AUDIBLE_DURATION_MS -
+      REGULAR_MERGE6_CRASH_FADE_OUT_DURATION_MS;
+    jest.advanceTimersByTime(fadeStartMs + (REGULAR_MERGE6_CRASH_FADE_OUT_DURATION_MS / 2));
+    expect(crash.volume).toBeCloseTo(REGULAR_MERGE6_CRASH_VOLUME * 0.65 * 0.5);
   });
 
   it('stops and rewinds all four owned voices', () => {

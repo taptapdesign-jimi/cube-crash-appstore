@@ -70,17 +70,17 @@ describe('Fish merge-6 sound', () => {
     jest.useRealTimers();
   });
 
-  test('inherits the complete ordinary Merge-6 foundation unchanged', () => {
+  test('inherits the reduced shared Merge-6 foundation', () => {
     expect(FISH_MERGE6_PRIMARY_SOUND_SOURCE).toBe('./assets/sound/merge 6/merge six obicna.mp3');
     expect(FISH_MERGE6_PRIMARY_PLAYBACK_RATE).toBe(1.3);
-    expect(FISH_MERGE6_PRIMARY_VOLUME).toBeCloseTo(0.3);
+    expect(FISH_MERGE6_PRIMARY_VOLUME).toBeCloseTo(0.195);
     expect(FISH_MERGE6_CRASH_SOUND_SOURCE).toBe('./assets/sound/merge 6/merge6 crash.mp3');
     expect(FISH_MERGE6_CRASH_PLAYBACK_RATE).toBe(1.3);
-    expect(FISH_MERGE6_CRASH_VOLUME).toBeCloseTo(0.1632);
+    expect(FISH_MERGE6_CRASH_VOLUME).toBeCloseTo(0.10608);
     expect(FISH_MERGE6_BOOM_SOUND_SOURCE).toBe('./assets/sound/merge 6/merge6 boom.mp3');
-    expect(FISH_MERGE6_BOOM_VOLUME).toBeCloseTo(0.36);
+    expect(FISH_MERGE6_BOOM_VOLUME).toBeCloseTo(0.234);
     expect(FISH_MERGE6_STACK_SOUND_SOURCE).toBe('./assets/sound/merge 6/stack.mp3');
-    expect(FISH_MERGE6_STACK_VOLUME).toBeCloseTo(0.48);
+    expect(FISH_MERGE6_STACK_VOLUME).toBeCloseTo(0.312);
   });
 
   test('locks exact Fish timing to the midpoint of the 3.6-second finale', () => {

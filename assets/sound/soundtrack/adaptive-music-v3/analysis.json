@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "status": "WIP audition candidates; not integrated",
+  "source": "assets/sound/soundtrack/SIx theme.wav",
+  "sourceSha256": "8090197724a74f876d12a17858b4900cc9becd85d8a0f6d5afd8444f3ec41786",
+  "sourceTechnicalNote": "48 kHz 16-bit stereo PCM lossless WAV master",
+  "sampleRate": 48000,
+  "channels": 2,
+  "outputBitDepth": 24,
+  "detectedTempoBpm": 116.6,
+  "detectedBeatPhaseSeconds": 0.3451972555746141,
+  "loopBars": 24,
+  "crossfadeBars": 1,
+  "candidates": [
+    {
+      "file": "gameplay-bed-calm-01.wav",
+      "sourceStartSeconds": 8.578473413379074,
+      "durationSeconds": 49.39966666666667,
+      "centerBandGain": 0.28,
+      "stereoSideGain": 1.08,
+      "gain": 1.4873208881161208,
+      "rmsDb": -18.999999999999996,
+      "peakDb": -3.9229058162469244,
+      "sha256": "5f61d3d3eb307e50655d3b645941fc1ad0361c10b592e80b7e505a11459de80b"
+    },
+    {
+      "file": "gameplay-bed-active-01.wav",
+      "sourceStartSeconds": 8.578473413379074,
+      "durationSeconds": 49.39966666666667,
+      "centerBandGain": 0.46,
+      "stereoSideGain": 1.04,
+      "gain": 1.489025610455713,
+      "rmsDb": -18.174525977684414,
+      "peakDb": -3.499999999999999,
+      "sha256": "40d14edaf379341771d6ff41c4aeb6d81cf9d37e08d16f3892bccc38f4279938"
+    }
+  ]
+}

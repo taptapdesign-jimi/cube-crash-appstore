@@ -1,0 +1,34 @@
+{
+  "version": 3,
+  "source": "assets/sound/soundtrack/SIx theme.wav",
+  "sourceSha256": "8090197724a74f876d12a17858b4900cc9becd85d8a0f6d5afd8444f3ec41786",
+  "sampleRate": 48000,
+  "channels": 2,
+  "outputBitDepth": 24,
+  "tempoBpm": 116.6,
+  "beatPhaseSeconds": 0.3451972555746141,
+  "candidates": [
+    {
+      "file": "saxophone-happy-theme-v3.wav",
+      "durationSeconds": 7.2585,
+      "sourceStartBar": 26,
+      "sourceStartSeconds": 53.8614922813036,
+      "treatment": "sax-forward final-theme cadence with natural resolved ending",
+      "gain": 1.3682007369543827,
+      "rmsDb": -18.46292924748268,
+      "peakDb": -3.499999999999999,
+      "sha256": "98fc6d7322dc76e51881338b5263ac5549aa237d88e938be55c177e8bd307ea3"
+    },
+    {
+      "file": "saxophone-fail-theme-v3.wav",
+      "durationSeconds": 2.9404375,
+      "sourceStartBar": 4,
+      "sourceStartSeconds": 8.578473413379074,
+      "treatment": "sax-forward shared motif with playful bounded tape-down",
+      "gain": 1.0719953656714003,
+      "rmsDb": -21.426683057638556,
+      "peakDb": -4.5,
+      "sha256": "94725695aa17ab6b44aa8c4c18392d4a514f6a3c963412104d6dad43147e0fc9"
+    }
+  ]
+}

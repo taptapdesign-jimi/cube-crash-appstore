@@ -42,7 +42,7 @@ describe('Magnet pull force sound', () => {
       path.resolve(process.cwd(), 'src/modules/magnet-pull-force-sound.ts'),
       'utf8',
     );
-    expect(source.match(/const foundationStarted = playRegularMerge6Sound\(\);/g)).toHaveLength(2);
+    expect(source.match(/const foundationStarted = playSpecialMerge6FoundationSound\(\);/g)).toHaveLength(2);
     expect(source).toContain('preloadRegularMerge6Sounds();');
     expect(source).toContain('stopRegularMerge6Sounds();');
     expect(source).not.toContain('magnet happy');

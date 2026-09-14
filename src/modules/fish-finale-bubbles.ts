@@ -2,17 +2,20 @@ import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.ts';
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { markMergePerformance } from '../utils/merge-performance.ts';
+import {
+  attachFishFinaleSwimmer,
+  preloadFishFinaleSwimmer,
+} from './fish-finale-swimmer.ts';
 
-export const FISH_BUBBLES_SOURCE_DURATION_MS = 2666.667;
-export const FISH_BUBBLES_SPEED = 0.864;
+export const FISH_BUBBLES_SOURCE_DURATION_MS = 3600;
+export const FISH_BUBBLES_SPEED = 1.5;
 export const FISH_BUBBLES_DURATION_MS = FISH_BUBBLES_SOURCE_DURATION_MS / FISH_BUBBLES_SPEED;
-export const FISH_BUBBLES_SVG_SOURCE = './assets/shop/fish/fishy-bubles-finale-0864x.svg';
-export const FISH_BUBBLES_HEVC_SOURCE = './assets/shop/fish/fishy-bubles-finale-0864x-60fps-hevc.mov';
-export const FISH_BUBBLES_START_SCALE = 1;
+export const FISH_BUBBLES_SVG_SOURCE = './assets/shop/fish/bubbly-fast.svg';
+export const FISH_BUBBLES_HEVC_SOURCE = './assets/shop/fish/bubbly-fast-hevc.mov';
+export const FISH_BUBBLES_START_SCALE = 1.7;
 export const FISH_BUBBLES_END_SCALE = 1;
 export const FISH_BUBBLES_SCALE_DOWN_START_RATIO = 0.72;
-export const FISH_BUBBLES_FADE_OUT_START_RATIO = 0.9;
-export const FISH_BUBBLES_VERTICAL_OFFSET_VIEWPORT_RATIO = 0.074;
+export const FISH_BUBBLES_VERTICAL_OFFSET_VIEWPORT_RATIO = 0.25;
 
 let preloadedVideo: HTMLVideoElement | null = null;
 let hevcUnavailable = false;
@@ -69,6 +72,7 @@ function getSvgSourceForRun(runId: number): string {
 
 export function preloadFishFinaleBubbles(): void {
   if (typeof document === 'undefined') return;
+  preloadFishFinaleSwimmer();
   if (MOBILE_RUNTIME_PROFILE.platform === 'ios' && !hevcUnavailable) {
     const video = getOrCreatePreloadedVideo();
     try { video.load(); } catch { hevcUnavailable = true; }
@@ -80,6 +84,7 @@ export function preloadFishFinaleBubbles(): void {
 
 export function attachFishFinaleBubbles(
   overlay: HTMLElement,
+  origin?: { x: number; y: number } | null,
 ): (() => void) & { completionDelaySeconds?: number } {
   const runId = ++fishBubblesRunSequence;
   let disposed = false;
@@ -110,7 +115,7 @@ export function attachFishFinaleBubbles(
     image = new Image();
     image.alt = '';
     image.draggable = false;
-    image.dataset.fishBubblesSource = 'svg-slow-fallback';
+    image.dataset.fishBubblesSource = 'svg-fast-fallback';
     image.setAttribute('aria-hidden', 'true');
     image.style.cssText = [
       'position:absolute',
@@ -153,11 +158,11 @@ export function attachFishFinaleBubbles(
   });
   field.dataset.fishBubblesVerticalOffset = String(verticalOffset);
   overlay.insertBefore(field, overlay.firstChild);
+  const cleanupSwimmer = attachFishFinaleSwimmer(overlay, origin);
   markMergePerformance('fish-finale-mounted');
   const presentationTimeline = animationManager.trackExternalTimeline(gsap.timeline());
   const totalDurationSeconds = FISH_BUBBLES_DURATION_MS / 1000;
   const holdDurationSeconds = totalDurationSeconds * FISH_BUBBLES_SCALE_DOWN_START_RATIO;
-  const fadeOutStartSeconds = totalDurationSeconds * FISH_BUBBLES_FADE_OUT_START_RATIO;
   presentationTimeline
     .to(field, {
       scale: FISH_BUBBLES_START_SCALE,
@@ -168,12 +173,7 @@ export function attachFishFinaleBubbles(
       scale: FISH_BUBBLES_END_SCALE,
       duration: totalDurationSeconds - holdDurationSeconds,
       ease: 'power2.inOut',
-    })
-    .to(field, {
-      opacity: 0,
-      duration: totalDurationSeconds - fadeOutStartSeconds,
-      ease: 'power1.out',
-    }, fadeOutStartSeconds);
+    });
   if (video) {
     try { video.currentTime = 0; } catch {}
     markMergePerformance('fish-hevc-play-requested');
@@ -185,6 +185,7 @@ export function attachFishFinaleBubbles(
     disposed = true;
     markMergePerformance('fish-finale-cleanup');
     animationManager.killExternalTimeline(presentationTimeline);
+    try { cleanupSwimmer(); } catch {}
     if (video) {
       video.removeEventListener('error', handleVideoFailure);
       try {
@@ -201,6 +202,9 @@ export function attachFishFinaleBubbles(
     image = null;
     field.remove();
   }) as (() => void) & { completionDelaySeconds?: number };
-  cleanup.completionDelaySeconds = FISH_BUBBLES_DURATION_MS / 1000;
+  cleanup.completionDelaySeconds = Math.max(
+    FISH_BUBBLES_DURATION_MS / 1000,
+    cleanupSwimmer.completionDelaySeconds || 0,
+  );
   return cleanup;
 }

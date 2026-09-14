@@ -11,6 +11,12 @@ export interface GameplayAudioPlaybackOptions {
   startDelaySeconds?: number;
   stopAfterSeconds?: number;
   fadeOutSeconds?: number;
+  onStarted?: () => void;
+  onEnded?: () => void;
+  /** Called when lifecycle cleanup cancels a queued or active voice. */
+  onStopped?: () => void;
+  /** Called only when a queued cold start later proves unavailable. */
+  onDeferredUnavailable?: () => void;
 }
 
 type WebkitAudioWindow = Window & typeof globalThis & {
@@ -20,6 +26,7 @@ type WebkitAudioWindow = Window & typeof globalThis & {
 type ActiveVoice = {
   source: AudioBufferSourceNode;
   gain: GainNode;
+  onStopped?: () => void;
 };
 
 type PendingVoiceStart = {
@@ -116,7 +123,9 @@ export function getDecodedGameplaySoundsState(
 }
 
 export function stopDecodedGameplayVoice(voiceId: string): void {
+  const pendingVoice = pendingVoiceStarts.get(voiceId);
   pendingVoiceStarts.delete(voiceId);
+  pendingVoice?.options.onStopped?.();
   const voice = activeVoices.get(voiceId);
   if (!voice) return;
   activeVoices.delete(voiceId);
@@ -124,6 +133,7 @@ export function stopDecodedGameplayVoice(voiceId: string): void {
   try { voice.source.stop(); } catch {}
   try { voice.source.disconnect(); } catch {}
   try { voice.gain.disconnect(); } catch {}
+  voice.onStopped?.();
 }
 
 export function stopDecodedGameplayVoices(voiceIds: readonly string[]): void {
@@ -213,9 +223,14 @@ export function playDecodedGameplaySound(
       if (!pendingStart || pendingStart.token !== token) return;
       if (failedBuffers.has(resolvedSource)) {
         pendingVoiceStarts.delete(options.voiceId);
+        pendingStart.options.onDeferredUnavailable?.();
         return;
       }
-      if (context.state !== 'running') return;
+      if (context.state !== 'running') {
+        pendingVoiceStarts.delete(options.voiceId);
+        pendingStart.options.onDeferredUnavailable?.();
+        return;
+      }
       pendingVoiceStarts.delete(options.voiceId);
       playDecodedGameplaySound(pendingStart.source, pendingStart.options);
     });
@@ -252,15 +267,17 @@ export function playDecodedGameplaySound(
 
     sourceNode.connect(gainNode);
     gainNode.connect(context.destination);
-    const voice = { source: sourceNode, gain: gainNode };
+    const voice = { source: sourceNode, gain: gainNode, onStopped: options.onStopped };
     activeVoices.set(options.voiceId, voice);
     sourceNode.onended = () => {
       if (activeVoices.get(options.voiceId) === voice) activeVoices.delete(options.voiceId);
       try { sourceNode.disconnect(); } catch {}
       try { gainNode.disconnect(); } catch {}
+      options.onEnded?.();
     };
     sourceNode.start(startAt, startOffsetSeconds);
     if (stopAt !== null) sourceNode.stop(stopAt);
+    options.onStarted?.();
     return 'played';
   } catch (error) {
     logger.warn(`Failed to start decoded gameplay sound ${source}:`, error);

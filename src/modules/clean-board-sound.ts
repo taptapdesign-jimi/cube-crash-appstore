@@ -10,7 +10,14 @@ import {
 const CLEAN_BOARD_SOUND_BASE = './assets/sound/Clean board/';
 
 export const CLEAN_BOARD_APPLAUSE_SOUND_SOURCE = `${CLEAN_BOARD_SOUND_BASE}applause.wav`;
-export const CLEAN_BOARD_SAXOPHONE_HAPPY_SOUND_SOURCE = `${CLEAN_BOARD_SOUND_BASE}saxophone happy.wav`;
+export const CLEAN_BOARD_APPLAUSE_DURATION_MS = 10000;
+export const CLEAN_BOARD_SAXOPHONE_HAPPY_SOUND_SOURCE =
+  `${CLEAN_BOARD_SOUND_BASE}happy victory sax .wav`;
+export const CLEAN_BOARD_SAXOPHONE_HAPPY_DURATION_MS = 5000;
+export const CLEAN_BOARD_RESULT_AUDIO_DURATION_MS = Math.max(
+  CLEAN_BOARD_APPLAUSE_DURATION_MS,
+  CLEAN_BOARD_SAXOPHONE_HAPPY_DURATION_MS,
+);
 export const CLEAN_BOARD_MONEY_COUNT_SOUND_SOURCE = `${CLEAN_BOARD_SOUND_BASE}money count.wav`;
 export const CLEAN_BOARD_FAST_POINTS_STACK_SOUND_SOURCE = `${CLEAN_BOARD_SOUND_BASE}fastpointsstack.wav`;
 export const CLEAN_BOARD_STAR_BOUNCE_SOUND_SOURCE = `${CLEAN_BOARD_SOUND_BASE}boinb.wav`;
@@ -21,23 +28,27 @@ export const CLEAN_BOARD_STAR_HARP_SOUND_SOURCES = [
 ] as const;
 export const CLEAN_BOARD_CTA_BOUNCE_SOUND_SOURCE = './assets/sound/magnet pul lforce/pull1.wav';
 export const CLEAN_BOARD_SOUND_VOLUME = applySoundEffectsMasterGain(1);
-export const CLEAN_BOARD_APPLAUSE_ACTION_VOLUME = 0.8;
+export const CLEAN_BOARD_APPLAUSE_ACTION_VOLUME = 0.6;
 export const CLEAN_BOARD_APPLAUSE_VOLUME = applySoundEffectsMasterGain(
   CLEAN_BOARD_APPLAUSE_ACTION_VOLUME,
 );
-export const CLEAN_BOARD_SAXOPHONE_HAPPY_ACTION_VOLUME = 0.9;
+export const CLEAN_BOARD_SAXOPHONE_HAPPY_ACTION_VOLUME = 0.76;
 export const CLEAN_BOARD_SAXOPHONE_HAPPY_VOLUME = applySoundEffectsMasterGain(
   CLEAN_BOARD_SAXOPHONE_HAPPY_ACTION_VOLUME,
 );
-export const CLEAN_BOARD_MONEY_COUNT_ACTION_VOLUME = 0.8;
+export const CLEAN_BOARD_MONEY_COUNT_ACTION_VOLUME = 0.95;
 export const CLEAN_BOARD_MONEY_COUNT_VOLUME = applySoundEffectsMasterGain(
   CLEAN_BOARD_MONEY_COUNT_ACTION_VOLUME,
 );
-export const CLEAN_BOARD_FAST_POINTS_STACK_ACTION_VOLUME = 0.9;
+export const CLEAN_BOARD_FAST_POINTS_STACK_ACTION_VOLUME = 0.6;
 export const CLEAN_BOARD_FAST_POINTS_STACK_VOLUME = applySoundEffectsMasterGain(
   CLEAN_BOARD_FAST_POINTS_STACK_ACTION_VOLUME,
 );
-export const CLEAN_BOARD_STAR_HARP_ACTION_VOLUME = 0.5;
+export const CLEAN_BOARD_STAR_BOUNCE_ACTION_VOLUME = 0.8;
+export const CLEAN_BOARD_STAR_BOUNCE_VOLUME = applySoundEffectsMasterGain(
+  CLEAN_BOARD_STAR_BOUNCE_ACTION_VOLUME,
+);
+export const CLEAN_BOARD_STAR_HARP_ACTION_VOLUME = 0.4;
 export const CLEAN_BOARD_STAR_HARP_VOLUME = applySoundEffectsMasterGain(
   CLEAN_BOARD_STAR_HARP_ACTION_VOLUME,
 );
@@ -58,11 +69,41 @@ const CLEAN_BOARD_VOICE_IDS = [
   'clean-board-fast-points-main-count',
   'clean-board-fast-points-bonus-count',
 ] as const;
-const mediaAudioByVoiceId = new Map<string, { source: string; audio: HTMLAudioElement }>();
+const mediaAudioByVoiceId = new Map<string, {
+  source: string;
+  audio: HTMLAudioElement;
+  onStopped?: () => void;
+}>();
 const mediaFadeTimeouts = new Map<string, number>();
 const mediaFadeFrames = new Map<string, number>();
 let previousHarpOrder = '';
 const CLEAN_BOARD_COUNTER_FADE_SECONDS = 0.12;
+
+export interface CleanBoardSoundLifecycle {
+  onStarted?: () => void;
+  onEnded?: () => void;
+  onStopped?: () => void;
+  onUnavailable?: () => void;
+}
+
+export function createCleanBoardResultAudioSettlements(
+  onAllSettled: () => void,
+): { applause: () => void; saxophone: () => void } {
+  let unsettledVoices = 2;
+  const createSettlement = (): (() => void) => {
+    let settled = false;
+    return () => {
+      if (settled) return;
+      settled = true;
+      unsettledVoices--;
+      if (unsettledVoices === 0) onAllSettled();
+    };
+  };
+  return {
+    applause: createSettlement(),
+    saxophone: createSettlement(),
+  };
+}
 
 function areSoundsEnabled(): boolean {
   return typeof window !== 'undefined'
@@ -90,10 +131,14 @@ function stopMediaVoice(voiceId: string): void {
   mediaFadeFrames.delete(voiceId);
   const entry = mediaAudioByVoiceId.get(voiceId);
   if (!entry) return;
+  const onStopped = entry.onStopped;
+  entry.onStopped = undefined;
   try {
+    entry.audio.onended = null;
     entry.audio.pause();
     entry.audio.currentTime = 0;
   } catch {}
+  onStopped?.();
 }
 
 function scheduleMediaFadeOut(
@@ -128,30 +173,76 @@ function playCleanBoardSound(
   voiceId: string,
   stopAfterSeconds?: number,
   volume = CLEAN_BOARD_SOUND_VOLUME,
+  lifecycle: CleanBoardSoundLifecycle = {},
 ): boolean {
-  if (!areSoundsEnabled()) return false;
+  if (!areSoundsEnabled()) {
+    lifecycle.onUnavailable?.();
+    return false;
+  }
   stopDecodedGameplayVoices([voiceId]);
   stopMediaVoice(voiceId);
   const decodedState = getDecodedGameplaySoundsState([source]);
   if (decodedState !== 'unavailable') {
-    return playDecodedGameplaySound(source, {
+    const decodedResult = playDecodedGameplaySound(source, {
       voiceId,
       volume,
       stopAfterSeconds,
       fadeOutSeconds: stopAfterSeconds === undefined ? undefined : CLEAN_BOARD_COUNTER_FADE_SECONDS,
-    }) !== 'unavailable';
+      onStarted: lifecycle.onStarted,
+      onEnded: lifecycle.onEnded,
+      onStopped: lifecycle.onStopped,
+      onDeferredUnavailable: () => {
+        playCleanBoardMediaFallback(source, voiceId, stopAfterSeconds, volume, lifecycle);
+      },
+    });
+    if (decodedResult !== 'unavailable') return true;
   }
+  return playCleanBoardMediaFallback(source, voiceId, stopAfterSeconds, volume, lifecycle);
+}
+
+function playCleanBoardMediaFallback(
+  source: string,
+  voiceId: string,
+  stopAfterSeconds: number | undefined,
+  volume: number,
+  lifecycle: CleanBoardSoundLifecycle,
+): boolean {
   const audio = getMediaAudio(source, voiceId);
-  if (!audio) return false;
+  if (!audio) {
+    lifecycle.onUnavailable?.();
+    return false;
+  }
   try {
+    const entry = mediaAudioByVoiceId.get(voiceId);
+    if (entry) entry.onStopped = lifecycle.onStopped;
     audio.pause();
     audio.volume = volume;
     audio.currentTime = 0;
-    audio.play()?.catch(error => logger.warn(`Failed to play Clean Board sound ${source}:`, error));
+    audio.onended = () => {
+      const activeEntry = mediaAudioByVoiceId.get(voiceId);
+      if (activeEntry?.audio === audio) activeEntry.onStopped = undefined;
+      lifecycle.onEnded?.();
+    };
+    const playResult = audio.play();
+    if (playResult && typeof playResult.then === 'function') {
+      void playResult.then(() => lifecycle.onStarted?.()).catch(error => {
+        audio.onended = null;
+        const activeEntry = mediaAudioByVoiceId.get(voiceId);
+        if (activeEntry?.audio === audio) activeEntry.onStopped = undefined;
+        logger.warn(`Failed to play Clean Board sound ${source}:`, error);
+        lifecycle.onUnavailable?.();
+      });
+    } else {
+      lifecycle.onStarted?.();
+    }
     if (stopAfterSeconds !== undefined) scheduleMediaFadeOut(audio, voiceId, stopAfterSeconds, volume);
     return true;
   } catch (error) {
+    audio.onended = null;
+    const activeEntry = mediaAudioByVoiceId.get(voiceId);
+    if (activeEntry?.audio === audio) activeEntry.onStopped = undefined;
     logger.warn(`Failed to start Clean Board sound ${source}:`, error);
+    lifecycle.onUnavailable?.();
     return false;
   }
 }
@@ -182,21 +273,27 @@ export function preloadCleanBoardSounds(): boolean {
     || sources.every((source, index) => getMediaAudio(source, `clean-board-preload-${index}`) !== null);
 }
 
-export function playCleanBoardApplauseSound(): boolean {
+export function playCleanBoardApplauseSound(
+  lifecycle: CleanBoardSoundLifecycle = {},
+): boolean {
   return playCleanBoardSound(
     CLEAN_BOARD_APPLAUSE_SOUND_SOURCE,
     CLEAN_BOARD_VOICE_IDS[0],
     undefined,
     CLEAN_BOARD_APPLAUSE_VOLUME,
+    lifecycle,
   );
 }
 
-export function playCleanBoardSaxophoneHappySound(): boolean {
+export function playCleanBoardSaxophoneHappySound(
+  lifecycle: CleanBoardSoundLifecycle = {},
+): boolean {
   return playCleanBoardSound(
     CLEAN_BOARD_SAXOPHONE_HAPPY_SOUND_SOURCE,
     CLEAN_BOARD_VOICE_IDS[11],
     undefined,
     CLEAN_BOARD_SAXOPHONE_HAPPY_VOLUME,
+    lifecycle,
   );
 }
 
@@ -237,7 +334,12 @@ export function playCleanBoardEarnedStarSound(
   harpSource: (typeof CLEAN_BOARD_STAR_HARP_SOUND_SOURCES)[number],
 ): boolean {
   if (starIndex < 0 || starIndex > 2 || !CLEAN_BOARD_STAR_HARP_SOUND_SOURCES.includes(harpSource)) return false;
-  const bounceStarted = playCleanBoardSound(CLEAN_BOARD_STAR_BOUNCE_SOUND_SOURCE, CLEAN_BOARD_VOICE_IDS[3 + starIndex]);
+  const bounceStarted = playCleanBoardSound(
+    CLEAN_BOARD_STAR_BOUNCE_SOUND_SOURCE,
+    CLEAN_BOARD_VOICE_IDS[3 + starIndex],
+    undefined,
+    CLEAN_BOARD_STAR_BOUNCE_VOLUME,
+  );
   const harpStarted = playCleanBoardSound(
     harpSource,
     CLEAN_BOARD_VOICE_IDS[6 + starIndex],

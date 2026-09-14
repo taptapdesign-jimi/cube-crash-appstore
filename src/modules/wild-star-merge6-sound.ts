@@ -20,7 +20,8 @@ import {
   REGULAR_MERGE6_STACK_BASE_VOLUME,
   REGULAR_MERGE6_STACK_SOUND_SOURCE,
   REGULAR_MERGE6_STACK_VOLUME,
-  playRegularMerge6Sound,
+  SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE,
+  playSpecialMerge6FoundationSound,
   preloadRegularMerge6Sounds,
   resetRegularMerge6SoundCacheForTests,
   stopRegularMerge6Sounds,
@@ -58,23 +59,31 @@ export const WILD_STAR_MERGE6_SPARKLE_VOLUME = applySoundEffectsMasterGain(
 );
 export const WILD_STAR_MERGE6_SPARKLE_DELAY_MS = 200;
 
-// Wild Star deliberately reuses the complete ordinary Merge-6 owner. These
-// aliases make the equality explicit for inventory/tests without duplicating
+// Wild Star deliberately reuses the reduced shared Special foundation. These
+// aliases keep that relationship explicit for inventory/tests without duplicating
 // playback, timing, cutoff, fade, or cleanup logic in this module.
 export const WILD_STAR_MERGE6_PRIMARY_SOUND_SOURCE = REGULAR_MERGE6_SOUND_SOURCE;
 export const WILD_STAR_MERGE6_PRIMARY_PLAYBACK_RATE = REGULAR_MERGE6_SOUND_PLAYBACK_RATE;
-export const WILD_STAR_MERGE6_PRIMARY_BASE_VOLUME = REGULAR_MERGE6_SOUND_BASE_VOLUME;
-export const WILD_STAR_MERGE6_PRIMARY_VOLUME = REGULAR_MERGE6_SOUND_VOLUME;
+export const WILD_STAR_MERGE6_PRIMARY_BASE_VOLUME =
+  REGULAR_MERGE6_SOUND_BASE_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
+export const WILD_STAR_MERGE6_PRIMARY_VOLUME =
+  REGULAR_MERGE6_SOUND_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
 export const WILD_STAR_MERGE6_CRASH_SOUND_SOURCE = REGULAR_MERGE6_CRASH_SOUND_SOURCE;
 export const WILD_STAR_MERGE6_CRASH_PLAYBACK_RATE = REGULAR_MERGE6_SOUND_PLAYBACK_RATE;
-export const WILD_STAR_MERGE6_CRASH_BASE_VOLUME = REGULAR_MERGE6_CRASH_BASE_VOLUME;
-export const WILD_STAR_MERGE6_CRASH_VOLUME = REGULAR_MERGE6_CRASH_VOLUME;
+export const WILD_STAR_MERGE6_CRASH_BASE_VOLUME =
+  REGULAR_MERGE6_CRASH_BASE_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
+export const WILD_STAR_MERGE6_CRASH_VOLUME =
+  REGULAR_MERGE6_CRASH_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
 export const WILD_STAR_MERGE6_BOOM_SOUND_SOURCE = REGULAR_MERGE6_BOOM_SOUND_SOURCE;
-export const WILD_STAR_MERGE6_BOOM_BASE_VOLUME = REGULAR_MERGE6_BOOM_BASE_VOLUME;
-export const WILD_STAR_MERGE6_BOOM_VOLUME = REGULAR_MERGE6_BOOM_VOLUME;
+export const WILD_STAR_MERGE6_BOOM_BASE_VOLUME =
+  REGULAR_MERGE6_BOOM_BASE_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
+export const WILD_STAR_MERGE6_BOOM_VOLUME =
+  REGULAR_MERGE6_BOOM_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
 export const WILD_STAR_MERGE6_STACK_SOUND_SOURCE = REGULAR_MERGE6_STACK_SOUND_SOURCE;
-export const WILD_STAR_MERGE6_STACK_BASE_VOLUME = REGULAR_MERGE6_STACK_BASE_VOLUME;
-export const WILD_STAR_MERGE6_STACK_VOLUME = REGULAR_MERGE6_STACK_VOLUME;
+export const WILD_STAR_MERGE6_STACK_BASE_VOLUME =
+  REGULAR_MERGE6_STACK_BASE_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
+export const WILD_STAR_MERGE6_STACK_VOLUME =
+  REGULAR_MERGE6_STACK_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
 
 const WILD_STAR_MERGE6_SOUND_SOURCES = [
   WILD_STAR_MERGE6_SOUND_SOURCE,
@@ -216,7 +225,7 @@ export function preloadWildStarMerge6Sound(): boolean {
 
 export function playWildStarMerge6Sound(): boolean {
   if (!areWildStarMerge6SoundsEnabled()) return false;
-  const ordinaryMergeStarted = playRegularMerge6Sound();
+  const foundationStarted = playSpecialMerge6FoundationSound();
 
   const decodedState = getDecodedGameplaySoundsState(WILD_STAR_MERGE6_SOUND_SOURCES);
   if (decodedState !== 'unavailable') {
@@ -234,7 +243,7 @@ export function playWildStarMerge6Sound(): boolean {
         startDelaySeconds: WILD_STAR_MERGE6_SPARKLE_DELAY_MS / 1000,
       }),
     ];
-    return ordinaryMergeStarted && results.every((result) => result !== 'unavailable');
+    return foundationStarted && results.every((result) => result !== 'unavailable');
   }
 
   const magicSource = selectWildStarMerge6MagicSoundSource();
@@ -249,7 +258,7 @@ export function playWildStarMerge6Sound(): boolean {
       if (!areWildStarMerge6SoundsEnabled()) return;
       startMediaLayer(sparkle, WILD_STAR_MERGE6_SPARKLE_VOLUME, 'sparkle');
     }, WILD_STAR_MERGE6_SPARKLE_DELAY_MS);
-    return ordinaryMergeStarted;
+    return foundationStarted;
   } catch (error) {
     logger.warn('Failed to start Wild Star merge-6 sound:', error);
     return false;

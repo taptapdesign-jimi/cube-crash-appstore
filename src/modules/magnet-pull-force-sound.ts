@@ -7,7 +7,7 @@ import {
   stopDecodedGameplayVoices,
 } from './gameplay-audio-buffer-player.ts';
 import {
-  playRegularMerge6Sound,
+  playSpecialMerge6FoundationSound,
   preloadRegularMerge6Sounds,
   stopRegularMerge6Sounds,
 } from './regular-merge6-sound.ts';
@@ -106,7 +106,7 @@ function playAccent(index: 0, volume = MAGNET_PULL_FORCE_SOUND_VOLUMES[index]): 
 export function playMagnetArchetypeMerge6Sound(): boolean {
   if (!areSoundsEnabled()) return false;
   stopMagnetPullForceSounds();
-  const foundationStarted = playRegularMerge6Sound();
+  const foundationStarted = playSpecialMerge6FoundationSound();
   return foundationStarted;
 }
 
@@ -119,7 +119,7 @@ export function resolveMagnetPullForceBoiingVolume(variantId?: string | null): n
 export function playMagnetPullForceSounds(variantId?: string | null): boolean {
   if (!areSoundsEnabled()) return false;
   stopMagnetPullForceSounds();
-  const foundationStarted = playRegularMerge6Sound();
+  const foundationStarted = playSpecialMerge6FoundationSound();
   const boiingStarted = playAccent(
     0,
     resolveMagnetPullForceBoiingVolume(variantId),

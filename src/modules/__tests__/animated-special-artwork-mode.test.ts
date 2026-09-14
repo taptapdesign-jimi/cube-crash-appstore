@@ -86,13 +86,29 @@ describe('animated special artwork SVG/PNG mode', () => {
     });
   });
 
+  test('keeps every Flower copy animated so duplicate flowers never fall back to PNG', () => {
+    const first = tile();
+    const second = tile();
+    const third = tile();
+
+    expect(acquireAnimatedSpecialArtworkMode(first, 'flower', () => 0.99)).toBe('svg');
+    expect(acquireAnimatedSpecialArtworkMode(second, 'flower', () => 0.99)).toBe('svg');
+    expect(acquireAnimatedSpecialArtworkMode(third, 'flower', () => 0.99)).toBe('svg');
+    expect(getAnimatedSpecialArtworkModeStats()).toEqual({
+      assignments: 3,
+      families: 1,
+      svg: 3,
+      png: 0,
+    });
+  });
+
   test('keeps one decision for the tile lifetime and releases it on cleanup', () => {
     const first = tile();
     const duplicate = tile();
-    acquireAnimatedSpecialArtworkMode(first, 'flower');
+    acquireAnimatedSpecialArtworkMode(first, 'robo');
 
-    expect(acquireAnimatedSpecialArtworkMode(duplicate, 'flower', () => 0.9)).toBe('png');
-    expect(acquireAnimatedSpecialArtworkMode(duplicate, 'flower', () => 0.1)).toBe('png');
+    expect(acquireAnimatedSpecialArtworkMode(duplicate, 'robo', () => 0.9)).toBe('png');
+    expect(acquireAnimatedSpecialArtworkMode(duplicate, 'robo', () => 0.1)).toBe('png');
     expect(getAnimatedSpecialArtworkMode(duplicate)).toBe('png');
 
     releaseAnimatedSpecialArtworkMode(duplicate);

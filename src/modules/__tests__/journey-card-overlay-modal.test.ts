@@ -913,7 +913,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(settledShadowRule).not.toContain('will-change');
     expect(settledShadowRule).not.toContain('animation');
     expect(css).toMatch(
-      /\.journey-board-card-settled-contact-shadow \{[\s\S]*?left: 20%;[\s\S]*?width: 60%;[\s\S]*?height: 20%;[\s\S]*?rgba\(126, 82, 57, 0\.6578\)[\s\S]*?rgba\(142, 94, 66, 0\.3542\)[\s\S]*?filter: blur\(5px\);[\s\S]*?transition: opacity 360ms cubic-bezier\(0\.4, 0, 0\.2, 1\);/,
+      /\.journey-board-card-settled-contact-shadow \{[\s\S]*?left: 20%;[\s\S]*?width: 60%;[\s\S]*?height: 20%;[\s\S]*?rgba\(183, 108, 10, 0\.85514\)[\s\S]*?rgba\(183, 108, 10, 0\.46046\)[\s\S]*?filter: blur\(5px\);[\s\S]*?transition: opacity 360ms cubic-bezier\(0\.4, 0, 0\.2, 1\);/,
     );
     expect(css).toMatch(
       /\.journey-board-card\.unlocked\.journey-board-card-settled-shadow:not\(\.journey-board-card-return-placeholder\):not\(\.journey-board-card-return-landing\)[\s\S]*?\+ \.journey-board-card-settled-contact-shadow \{[\s\S]*?opacity: 1;/,
@@ -989,6 +989,12 @@ describe('Journey two-sided card overlay prototype', () => {
     );
     expect(manager).toContain("settledContactShadow.className = 'journey-board-card-settled-contact-shadow'");
     expect(manager).toContain("settledContactShadow.setAttribute('aria-hidden', 'true')");
+    expect(manager).toContain('this.fadeJourneyBoardContactShadowFirst(boardId);');
+    expect(manager).toContain("contactShadow.classList.add('is-journey-unit-exiting');");
+    expect(manager.match(/this\.restoreJourneyBoardContactShadow\(card\);/g)).toHaveLength(2);
+    expect(css).toMatch(
+      /\.journey-board-card-settled-contact-shadow\.is-journey-unit-exiting[\s\S]*?opacity: 0 !important;[\s\S]*?transition: opacity 120ms linear;/,
+    );
     expect(modal).toContain("preserveLandingSuppression: outcome === 'complete'");
   });
 

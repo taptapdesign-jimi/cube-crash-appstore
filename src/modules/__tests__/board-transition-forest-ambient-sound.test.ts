@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
   BOARD_TRANSITION_FOREST_AMBIENT_SOUND_SOURCE,
+  BOARD_TRANSITION_FOREST_AMBIENT_BOOST,
   BOARD_TRANSITION_FOREST_AMBIENT_SOUND_VOLUME,
   BOARD_TRANSITION_FOREST_BEES_SMALL_ACTION_VOLUME,
   BOARD_TRANSITION_FOREST_BEES_SMALL_DURATION_SECONDS,
@@ -56,7 +57,8 @@ describe('Forest Board Transition ambiance', () => {
   test('locks the scalable Forest-folder sources and their independent gains', () => {
     expect(BOARD_TRANSITION_FOREST_AMBIENT_SOUND_SOURCE)
       .toBe('./assets/sound/Board transitions/Forest/Forest.wav');
-    expect(BOARD_TRANSITION_FOREST_AMBIENT_SOUND_VOLUME).toBeCloseTo(0.6);
+    expect(BOARD_TRANSITION_FOREST_AMBIENT_BOOST).toBe(1.2);
+    expect(BOARD_TRANSITION_FOREST_AMBIENT_SOUND_VOLUME).toBeCloseTo(0.72);
     const bytes = fs.readFileSync(path.resolve(
       process.cwd(),
       BOARD_TRANSITION_FOREST_AMBIENT_SOUND_SOURCE.replace(/^\.\//, ''),
@@ -66,7 +68,7 @@ describe('Forest Board Transition ambiance', () => {
     expect(BOARD_TRANSITION_FOREST_BEES_SMALL_SOUND_SOURCE)
       .toBe('./assets/sound/Board transitions/Forest/bees small.wav');
     expect(BOARD_TRANSITION_FOREST_BEES_SMALL_ACTION_VOLUME).toBe(0.2);
-    expect(BOARD_TRANSITION_FOREST_BEES_SMALL_SOUND_VOLUME).toBeCloseTo(0.12);
+    expect(BOARD_TRANSITION_FOREST_BEES_SMALL_SOUND_VOLUME).toBeCloseTo(0.144);
     expect(BOARD_TRANSITION_FOREST_BEES_SMALL_DURATION_SECONDS).toBe(4);
     expect(BOARD_TRANSITION_FOREST_BEES_SMALL_FADE_OUT_SECONDS).toBe(1);
     const beesBytes = fs.readFileSync(path.resolve(
@@ -86,22 +88,22 @@ describe('Forest Board Transition ambiance', () => {
     expect(beesAudio.src).toBe(BOARD_TRANSITION_FOREST_BEES_SMALL_SOUND_SOURCE);
     expect(ambientAudio.play).toHaveBeenCalledTimes(1);
     expect(beesAudio.play).toHaveBeenCalledTimes(1);
-    expect(ambientAudio.volume).toBeCloseTo(0.6);
-    expect(beesAudio.volume).toBeCloseTo(0.12);
+    expect(ambientAudio.volume).toBeCloseTo(0.72);
+    expect(beesAudio.volume).toBeCloseTo(0.144);
     expect(ambientAudio.currentTime).toBe(0);
     expect(beesAudio.currentTime).toBe(0);
 
     jest.advanceTimersByTime(3000);
     expect(beesAudio.paused).toBe(false);
-    expect(beesAudio.volume).toBeCloseTo(0.12);
+    expect(beesAudio.volume).toBeCloseTo(0.144);
     jest.advanceTimersByTime(500);
     expect(beesAudio.volume).toBeGreaterThan(0);
-    expect(beesAudio.volume).toBeLessThan(0.12);
+    expect(beesAudio.volume).toBeLessThan(0.144);
     expect(ambientAudio.paused).toBe(false);
     jest.advanceTimersByTime(500);
     expect(beesAudio.paused).toBe(true);
     expect(beesAudio.currentTime).toBe(0);
-    expect(beesAudio.volume).toBeCloseTo(0.12);
+    expect(beesAudio.volume).toBeCloseTo(0.144);
     expect(ambientAudio.paused).toBe(false);
 
     stopBoardTransitionForestAmbientSound();

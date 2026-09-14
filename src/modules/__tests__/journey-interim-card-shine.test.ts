@@ -37,7 +37,10 @@ describe('Journey interim card shine parity', () => {
     expect(world).toContain('createJourneyInterimShineLoop({');
     expect(world).toContain("image.className = 'journey-board-image cc-journey-interim-shine-face'");
     expect(world).toContain("shineLight.className = 'journey-interim-shine-light cc-journey-interim-shine-light'");
-    expect(world).toContain('setJourneyInterimShineMask(shineLight, image.src);');
+    expect(world).toContain("image.src = './assets/colelctibles/interim.png';");
+    expect(world).toContain("image.srcset = './assets/colelctibles/interim.png 1x, ./assets/colelctibles/interim@2x.png 2x';");
+    expect(world).toContain('setJourneyInterimShineMask(shineLight, image.currentSrc || image.src);');
+    expect(world).toContain("image.addEventListener('load', syncInterimShineMask, { once: true });");
 
     expect(css).toContain('@keyframes ccJourneyInterimCardShimmer');
     expect(css).toContain('@keyframes ccJourneyInterimCardGlowPulse');

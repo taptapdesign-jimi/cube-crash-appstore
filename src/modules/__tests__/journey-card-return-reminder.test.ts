@@ -42,9 +42,12 @@ describe('Journey gameplay-return card reminder', () => {
 
   test('connects the stage before validating its live-card portal', () => {
     document.body.innerHTML = `
-      <div class="journey-board-card-wrapper">
-        <div class="journey-board-card unlocked" data-board-id="4"></div>
-      </div>
+      <section id="journey-screen">
+        <header class="collectibles-header"></header>
+        <div class="journey-board-card-wrapper">
+          <div class="journey-board-card unlocked" data-board-id="4"></div>
+        </div>
+      </section>
     `;
     const wrapper = document.querySelector<HTMLElement>('.journey-board-card-wrapper')!;
     const card = document.querySelector<HTMLElement>('.journey-board-card')!;
@@ -72,6 +75,7 @@ describe('Journey gameplay-return card reminder', () => {
     const controller = presentJourneyCardReturnReminder({ boardId: 4, origin });
 
     expect(controller.element.isConnected).toBe(true);
+    expect(controller.element.parentElement).toBe(document.getElementById('journey-screen'));
     expect(controller.element.querySelector('.journey-card-overlay-portaled-card')).not.toBeNull();
     const scrollAnchor = controller.element.querySelector<HTMLElement>(
       '.journey-card-return-reminder-scroll-anchor',
@@ -241,6 +245,23 @@ describe('Journey gameplay-return card reminder', () => {
     expect(reminder).toContain('readTarget: () => landingTarget,');
     expect(reminder).not.toContain('readTarget: () => options.origin.readLiveGeometry(),');
     expect(css).toMatch(/\.journey-card-return-reminder-scroll-anchor \{[\s\S]*?pointer-events: none;[\s\S]*?will-change: transform;/);
+  });
+
+  test('keeps the fixed Journey top nav above the scrolling return-flip portal', () => {
+    const reminder = read('src/modules/journey-card-return-reminder.ts');
+    const css = read('src/collectibles-screen.css');
+    expect(reminder).toContain(
+      "options.origin.anchor.closest<HTMLElement>('#journey-screen') ?? document.body",
+    );
+    const reminderZIndex = Number(
+      css.match(/\.journey-card-return-reminder \{[\s\S]*?z-index:\s*(\d+);/)?.[1],
+    );
+    const headerZIndex = Number(
+      css.match(/#journey-screen \.collectibles-header \{[\s\S]*?z-index:\s*(\d+);/)?.[1],
+    );
+    expect(reminderZIndex).toBe(1000000);
+    expect(headerZIndex).toBe(1000002);
+    expect(headerZIndex).toBeGreaterThan(reminderZIndex);
   });
 
   test('uses the supplied cardflip artwork for the complete back face', () => {

@@ -572,7 +572,7 @@ export function showSparkleText(origin?: { x: number; y: number } | null, option
           onFinale: playBeeMerge6FinaleSounds,
         })
       : usesFishBubbles
-      ? attachFishFinaleBubbles(overlay)
+      ? attachFishFinaleBubbles(overlay, origin)
       : attachSmallStarCenterBurst(overlay, {
           count: options?.burstMotion?.count ?? 26,
           zIndex: 2,

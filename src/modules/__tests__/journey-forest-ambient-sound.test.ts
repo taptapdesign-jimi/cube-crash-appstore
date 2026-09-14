@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import {
   fadeOutJourneyForestAmbientSounds,
   JOURNEY_FOREST_AMBIENT_ACTION_VOLUME,
+  JOURNEY_FOREST_AMBIENT_BOOST,
   JOURNEY_FOREST_AMBIENT_FADE_OUT_MS,
   JOURNEY_FOREST_AMBIENT_SOUND_SOURCES,
   JOURNEY_FOREST_AMBIENT_VOLUME,
@@ -57,8 +58,9 @@ describe('Journey Forest ambient sound', () => {
       './assets/sound/worlds/Forest/soft bees ambiance.wav',
       './assets/sound/worlds/Forest/forest nature sounds.wav',
     ]);
-    expect(JOURNEY_FOREST_AMBIENT_ACTION_VOLUME).toBe(0.58);
-    expect(JOURNEY_FOREST_AMBIENT_VOLUME).toBeCloseTo(0.348);
+    expect(JOURNEY_FOREST_AMBIENT_ACTION_VOLUME).toBe(0.85);
+    expect(JOURNEY_FOREST_AMBIENT_BOOST).toBe(1.2);
+    expect(JOURNEY_FOREST_AMBIENT_VOLUME).toBeCloseTo(0.612);
 
     const expectedHashes = [
       '11094c17ae1ddaefece295a74ef516a13241d58c389318e3d930939c300c9b32',

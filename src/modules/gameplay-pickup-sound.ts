@@ -17,7 +17,7 @@ export const GAMEPLAY_PICKUP_SOUND_VOLUME = applySoundEffectsMasterGain(
 export const GAMEPLAY_RETURN_SOUND_SOURCE = './assets/sound/merge 6/woosh.mp3';
 export const GAMEPLAY_RETURN_SOUND_PLAYBACK_RATE = 1;
 export const GAMEPLAY_RETURN_SOUND_START_OFFSET_SECONDS = 0.045;
-export const GAMEPLAY_RETURN_SOUND_BASE_VOLUME = 0.85;
+export const GAMEPLAY_RETURN_SOUND_BASE_VOLUME = 0.4;
 export const GAMEPLAY_RETURN_SOUND_VOLUME = applySoundEffectsMasterGain(
   GAMEPLAY_RETURN_SOUND_BASE_VOLUME,
 );

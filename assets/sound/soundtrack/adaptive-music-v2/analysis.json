@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "status": "WIP audition candidates; not integrated",
+  "source": "assets/sound/soundtrack/TapTapDesign-Stacktosixtheme.wav",
+  "sourceSha256": "f1301da85c3964b4ef282c9d525f53f28cb59beca7f65c44ad317d886b6b7e21",
+  "sourceTechnicalNote": "48 kHz 16-bit stereo PCM lossless WAV master",
+  "sampleRate": 48000,
+  "channels": 2,
+  "outputBitDepth": 24,
+  "detectedTempoBpm": 116.6,
+  "detectedBeatPhaseSeconds": 0.06432246998284734,
+  "loopBars": 24,
+  "crossfadeBars": 1,
+  "candidates": [
+    {
+      "file": "gameplay-bed-calm-01.wav",
+      "sourceStartSeconds": 14.472555746140651,
+      "durationSeconds": 49.39966666666667,
+      "centerBandGain": 0.28,
+      "stereoSideGain": 1.08,
+      "gain": 1.606971726071973,
+      "rmsDb": -19,
+      "peakDb": -3.8249530837255645,
+      "sha256": "3e0612e7cc5c8c7546cbb1dd476aa396b556af85cdc97f904aeaf9027fcbef8c"
+    },
+    {
+      "file": "gameplay-bed-active-01.wav",
+      "sourceStartSeconds": 14.472555746140651,
+      "durationSeconds": 49.39966666666667,
+      "centerBandGain": 0.46,
+      "stereoSideGain": 1.04,
+      "gain": 1.5169104223876089,
+      "rmsDb": -18.67257934580735,
+      "peakDb": -3.499999999999999,
+      "sha256": "0283c8c7a909d6b4e16150c8d555249823e0da7d578069ada0616aba8d4c5333"
+    }
+  ]
+}

@@ -14,6 +14,7 @@ import {
   CORE_TNT_MERGE6_CRASH_PLAYBACK_RATE,
   CORE_TNT_MERGE6_CRASH_SOUND_SOURCE,
   CORE_TNT_MERGE6_CRASH_VOLUME,
+  CORE_TNT_MERGE6_CUSTOM_BUS_SCALE,
   CORE_TNT_MERGE6_HORN_BASE_VOLUME,
   CORE_TNT_MERGE6_HORN_PLAYBACK_RATE,
   CORE_TNT_MERGE6_HORN_SOUND_SOURCE,
@@ -82,24 +83,24 @@ describe('core TNT merge-6 sound', () => {
     jest.useRealTimers();
   });
 
-  test('inherits the complete ordinary Merge-6 foundation with its shared eighty-percent stack layer', () => {
+  test('inherits the reduced shared Merge-6 foundation', () => {
     expect(CORE_TNT_MERGE6_PRIMARY_SOUND_SOURCE).toBe(
       './assets/sound/merge 6/merge six obicna.mp3',
     );
     expect(CORE_TNT_MERGE6_PRIMARY_PLAYBACK_RATE).toBe(1.3);
-    expect(CORE_TNT_MERGE6_PRIMARY_VOLUME).toBeCloseTo(0.3);
+    expect(CORE_TNT_MERGE6_PRIMARY_VOLUME).toBeCloseTo(0.195);
     expect(CORE_TNT_MERGE6_CRASH_SOUND_SOURCE).toBe(
       './assets/sound/merge 6/merge6 crash.mp3',
     );
     expect(CORE_TNT_MERGE6_CRASH_PLAYBACK_RATE).toBe(1.3);
-    expect(CORE_TNT_MERGE6_CRASH_VOLUME).toBeCloseTo(0.1632);
+    expect(CORE_TNT_MERGE6_CRASH_VOLUME).toBeCloseTo(0.10608);
     expect(CORE_TNT_MERGE6_BOOM_SOUND_SOURCE).toBe(
       './assets/sound/merge 6/merge6 boom.mp3',
     );
-    expect(CORE_TNT_MERGE6_BOOM_VOLUME).toBeCloseTo(0.36);
+    expect(CORE_TNT_MERGE6_BOOM_VOLUME).toBeCloseTo(0.234);
     expect(CORE_TNT_MERGE6_STACK_SOUND_SOURCE).toBe('./assets/sound/merge 6/stack.mp3');
-    expect(CORE_TNT_MERGE6_STACK_BASE_VOLUME).toBe(0.8);
-    expect(CORE_TNT_MERGE6_STACK_VOLUME).toBeCloseTo(0.48);
+    expect(CORE_TNT_MERGE6_STACK_BASE_VOLUME).toBeCloseTo(0.52);
+    expect(CORE_TNT_MERGE6_STACK_VOLUME).toBeCloseTo(0.312);
   });
 
   test('locks tnt3, horn, staggered wood, and the five mini-crash source variants', () => {
@@ -108,8 +109,9 @@ describe('core TNT merge-6 sound', () => {
     );
     expect(CORE_TNT_MERGE6_SOUND_PLAYBACK_RATE).toBe(1);
     expect(CORE_TNT_MERGE6_SOUND_DELAY_MS).toBe(500);
+    expect(CORE_TNT_MERGE6_CUSTOM_BUS_SCALE).toBe(0.65);
     expect(CORE_TNT_MERGE6_SOUND_BASE_VOLUME).toBe(0.56);
-    expect(CORE_TNT_MERGE6_SOUND_VOLUME).toBeCloseTo(0.336);
+    expect(CORE_TNT_MERGE6_SOUND_VOLUME).toBeCloseTo(0.2184);
     expect(CORE_TNT_MERGE6_WOOD_BREAK_SOUND_SOURCE).toBe(
       './assets/sound/Wild and special kockice/tnt/wood break.wav',
     );
@@ -118,7 +120,7 @@ describe('core TNT merge-6 sound', () => {
     );
     expect(CORE_TNT_MERGE6_WOOD_PLAYBACK_RATE).toBe(1);
     expect(CORE_TNT_MERGE6_WOOD_BASE_VOLUME).toBe(0.9);
-    expect(CORE_TNT_MERGE6_WOOD_VOLUME).toBeCloseTo(0.54);
+    expect(CORE_TNT_MERGE6_WOOD_VOLUME).toBeCloseTo(0.351);
     expect(CORE_TNT_MERGE6_WOOD_BREAK_DELAY_MS).toBe(0);
     expect(CORE_TNT_MERGE6_WOOD_SPLINTER_DELAY_MS).toBe(100);
     expect(CORE_TNT_MERGE6_HORN_SOUND_SOURCE).toBe(
@@ -126,7 +128,7 @@ describe('core TNT merge-6 sound', () => {
     );
     expect(CORE_TNT_MERGE6_HORN_PLAYBACK_RATE).toBe(1);
     expect(CORE_TNT_MERGE6_HORN_BASE_VOLUME).toBe(0.8);
-    expect(CORE_TNT_MERGE6_HORN_VOLUME).toBeCloseTo(0.48);
+    expect(CORE_TNT_MERGE6_HORN_VOLUME).toBeCloseTo(0.312);
     expect(CORE_TNT_BONUS_IMPACT_SOUND_SOURCES).toEqual([
       './assets/sound/Wild and special kockice/tnt/mini crash1.wav',
       './assets/sound/mini explozije/mini2.mp3',
@@ -225,11 +227,11 @@ describe('core TNT merge-6 sound', () => {
     expect(tnt3.play).not.toHaveBeenCalled();
     expect(horn.play).toHaveBeenCalledTimes(1);
     expect(horn.playbackRate).toBe(1);
-    expect(horn.volume).toBeCloseTo(0.48);
+    expect(horn.volume).toBeCloseTo(0.312);
     expect(stack.play).toHaveBeenCalledTimes(1);
-    expect(stack.volume).toBeCloseTo(0.48);
+    expect(stack.volume).toBeCloseTo(0.312);
     expect(woodBreak.play).toHaveBeenCalledTimes(1);
-    expect(woodBreak.volume).toBeCloseTo(0.54);
+    expect(woodBreak.volume).toBeCloseTo(0.351);
     expect(woodSplinter.play).not.toHaveBeenCalled();
     jest.advanceTimersByTime(99);
     expect(tnt3.play).not.toHaveBeenCalled();
@@ -242,9 +244,9 @@ describe('core TNT merge-6 sound', () => {
     jest.advanceTimersByTime(1);
     expect(tnt3.play).toHaveBeenCalledTimes(1);
     expect(tnt3.playbackRate).toBe(1);
-    expect(tnt3.volume).toBeCloseTo(0.336);
+    expect(tnt3.volume).toBeCloseTo(0.2184);
     expect(tnt3.currentTime).toBe(0);
-    expect(woodSplinter.volume).toBeCloseTo(0.54);
+    expect(woodSplinter.volume).toBeCloseTo(0.351);
     expect(MockAudio.instances).toHaveLength(13);
   });
 

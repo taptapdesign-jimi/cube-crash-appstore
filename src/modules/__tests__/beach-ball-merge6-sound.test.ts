@@ -71,23 +71,23 @@ describe('Beach Ball merge-6 sound', () => {
     jest.useRealTimers();
   });
 
-  test('inherits the complete ordinary Merge-6 foundation unchanged', () => {
+  test('inherits the reduced shared Merge-6 foundation', () => {
     expect(BEACH_BALL_MERGE6_PRIMARY_SOUND_SOURCE).toBe(
       './assets/sound/merge 6/merge six obicna.mp3',
     );
     expect(BEACH_BALL_MERGE6_PRIMARY_PLAYBACK_RATE).toBe(1.3);
-    expect(BEACH_BALL_MERGE6_PRIMARY_VOLUME).toBeCloseTo(0.3);
+    expect(BEACH_BALL_MERGE6_PRIMARY_VOLUME).toBeCloseTo(0.195);
     expect(BEACH_BALL_MERGE6_CRASH_SOUND_SOURCE).toBe(
       './assets/sound/merge 6/merge6 crash.mp3',
     );
     expect(BEACH_BALL_MERGE6_CRASH_PLAYBACK_RATE).toBe(1.3);
-    expect(BEACH_BALL_MERGE6_CRASH_VOLUME).toBeCloseTo(0.1632);
+    expect(BEACH_BALL_MERGE6_CRASH_VOLUME).toBeCloseTo(0.10608);
     expect(BEACH_BALL_MERGE6_BOOM_SOUND_SOURCE).toBe(
       './assets/sound/merge 6/merge6 boom.mp3',
     );
-    expect(BEACH_BALL_MERGE6_BOOM_VOLUME).toBeCloseTo(0.36);
+    expect(BEACH_BALL_MERGE6_BOOM_VOLUME).toBeCloseTo(0.234);
     expect(BEACH_BALL_MERGE6_STACK_SOUND_SOURCE).toBe('./assets/sound/merge 6/stack.mp3');
-    expect(BEACH_BALL_MERGE6_STACK_VOLUME).toBeCloseTo(0.48);
+    expect(BEACH_BALL_MERGE6_STACK_VOLUME).toBeCloseTo(0.312);
   });
 
   test('locks one fixed Ball sequence and the immediate fifty-percent impact', () => {

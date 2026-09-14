@@ -2447,6 +2447,9 @@ class UIManager {
         void import('./homepage-slider-swipe-sound.ts').then(({ stopHomepageSliderSwipeSound }) => {
           stopHomepageSliderSwipeSound();
         });
+        void import('./fail-screen-sound.ts').then(({ stopFailScreenSounds }) => {
+          stopFailScreenSounds();
+        });
         void import('./journey-forest-ambient-sound.ts').then(({ stopJourneyForestAmbientSounds }) => {
           stopJourneyForestAmbientSounds();
         });

@@ -212,6 +212,7 @@ import { Merge6DestinationCleanupOwner } from './merge6-destination-cleanup-owne
 import { shouldDeferEndgameForActiveDrag } from './active-drag-endgame-policy.ts';
 import { shouldDisposeGameplayDragOwner } from './gameplay-drag-cleanup-policy.ts';
 import { playRegularMerge6Sound, stopRegularMerge6Sounds } from './regular-merge6-sound.ts';
+import { promoteArcadeSoundtrackAfterMerge6 } from './soundtrack-manager.ts';
 import {
   isCoreWildStarMerge6SoundEvent,
   playWildStarMerge6Sound,
@@ -8334,6 +8335,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 
   // ---- 6 (računaj combo i ovdje – nastavlja x6, x7, x8…)
   if (effSum === 6){
+    promoteArcadeSoundtrackAfterMerge6();
     if (isWildSpecialMerge6PoofEvent({
       effectiveSum: effSum,
       srcSpecial,
@@ -15272,6 +15274,10 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
   } else if (typeof (window as any).triggerHapticNotification === 'function') {
     (window as any).triggerHapticNotification('error');
   }
+
+  // Fail/result presentation owns the mix now. The Forest gameplay ambience
+  // must not continue underneath the Fail sax and later theme restoration.
+  stopJourneyForestGameplaySound();
   
   let result = null;
   try {

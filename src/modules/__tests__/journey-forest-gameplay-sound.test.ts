@@ -57,8 +57,8 @@ describe('Journey Forest gameplay sound', () => {
     expect(JOURNEY_FOREST_GAMEPLAY_SOUND_SOURCE).toBe(
       './assets/sound/worlds/Forest/gameplay/forest-gameplay-sound.wav',
     );
-    expect(JOURNEY_FOREST_GAMEPLAY_ACTION_VOLUME).toBe(0.696);
-    expect(JOURNEY_FOREST_GAMEPLAY_VOLUME).toBeCloseTo(0.4176);
+    expect(JOURNEY_FOREST_GAMEPLAY_ACTION_VOLUME).toBe(0.9);
+    expect(JOURNEY_FOREST_GAMEPLAY_VOLUME).toBeCloseTo(0.54);
     expect(JOURNEY_FOREST_GAMEPLAY_FADE_OUT_MS).toBe(2000);
 
     const bytes = fs.readFileSync(path.resolve(

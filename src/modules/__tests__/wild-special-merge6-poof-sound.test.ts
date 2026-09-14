@@ -44,13 +44,13 @@ describe('shared Wild/Special Merge-6 poofs', () => {
     delete (window as any)._settings;
   });
 
-  test('uses the two main Merge-6 poofs at the same gain as the former Bee layers', () => {
+  test('uses the two main Merge-6 poofs as restrained shared accents', () => {
     expect(WILD_SPECIAL_MERGE6_POOF_SOUND_SOURCES).toEqual([
       './assets/sound/merge 6/poof1.wav',
       './assets/sound/merge 6/poof2.wav',
     ]);
-    expect(WILD_SPECIAL_MERGE6_POOF_BASE_VOLUME).toBe(1);
-    expect(WILD_SPECIAL_MERGE6_POOF_VOLUME).toBeCloseTo(0.6);
+    expect(WILD_SPECIAL_MERGE6_POOF_BASE_VOLUME).toBe(0.55);
+    expect(WILD_SPECIAL_MERGE6_POOF_VOLUME).toBeCloseTo(0.33);
   });
 
   test.each(['wild', 'wild-juice', 'wild-magnet', 'wild-tnt'])(
@@ -82,7 +82,7 @@ describe('shared Wild/Special Merge-6 poofs', () => {
     WILD_SPECIAL_MERGE6_POOF_SOUND_SOURCES.forEach((source) => {
       const audio = MockAudio.instances.find((candidate) => candidate.src === source)!;
       expect(audio.play).toHaveBeenCalledTimes(1);
-      expect(audio.volume).toBeCloseTo(0.6);
+      expect(audio.volume).toBeCloseTo(0.33);
       expect(audio.playbackRate).toBe(1);
     });
     stopWildSpecialMerge6PoofSounds();

@@ -21,3 +21,13 @@ export function resolveCleanBoardCelebrationTheme(options: {
     ? animationTheme
     : 'area55';
 }
+
+export function shouldShowArea55CleanBoardShips(options: {
+  boardNumber: number;
+  runMode: RunMode | null;
+}): boolean {
+  if (options.runMode !== RUN_MODE_JOURNEY) return false;
+  const boardId = Math.trunc(Number.isFinite(options.boardNumber) ? options.boardNumber : 0);
+  const worldId = getJourneyWorldIdForBoard(boardId);
+  return getJourneyWorldDefinition(worldId ?? 0)?.animationTheme === 'area55';
+}

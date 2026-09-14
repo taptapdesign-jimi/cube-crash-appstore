@@ -179,9 +179,13 @@ describe('decoded gameplay audio owner', () => {
 
   it('queues a cold-start event and plays it as soon as decoding completes', async () => {
     const source = './assets/sound/merge 6/merge six obicna.mp3';
+    const onStarted = jest.fn();
+    const onEnded = jest.fn();
     expect(playDecodedGameplaySound(source, {
       voiceId: 'regular-merge6-primary',
       volume: 0.3,
+      onStarted,
+      onEnded,
     })).toBe('pending');
     expect(MockAudioContext.instances[0].sources).toHaveLength(0);
     expect(getDecodedGameplaySoundsState([source])).toBe('pending');
@@ -190,7 +194,12 @@ describe('decoded gameplay audio owner', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(MockAudioContext.instances[0].sources).toHaveLength(1);
-    expect(MockAudioContext.instances[0].sources[0].start).toHaveBeenCalledWith(10, 0);
+    const sourceNode = MockAudioContext.instances[0].sources[0];
+    expect(sourceNode.start).toHaveBeenCalledWith(10, 0);
+    expect(onStarted).toHaveBeenCalledTimes(1);
+    expect(onEnded).not.toHaveBeenCalled();
+    sourceNode.onended?.();
+    expect(onEnded).toHaveBeenCalledTimes(1);
     expect(getDecodedGameplayAudioStats().pendingVoiceStarts).toBe(0);
   });
 
@@ -219,9 +228,11 @@ describe('decoded gameplay audio owner', () => {
     context.state = 'suspended';
     context.resume.mockImplementation(async () => { context.state = 'running'; });
 
+    const onStopped = jest.fn();
     expect(playDecodedGameplaySound(source, {
       voiceId: 'gameplay-pickup',
       volume: 0.25,
+      onStopped,
     })).toBe('pending');
     expect(context.sources).toHaveLength(0);
 
@@ -230,6 +241,45 @@ describe('decoded gameplay audio owner', () => {
 
     expect(context.resume).toHaveBeenCalledTimes(1);
     expect(context.sources).toHaveLength(0);
+    expect(getDecodedGameplayAudioStats().pendingVoiceStarts).toBe(0);
+    expect(onStopped).toHaveBeenCalledTimes(1);
+  });
+
+  it('settles an active decoded owner when lifecycle cleanup stops it', async () => {
+    const source = './assets/sound/results/fail.wav';
+    const onStopped = jest.fn();
+    preloadDecodedGameplaySounds([source]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(playDecodedGameplaySound(source, {
+      voiceId: 'result-fail',
+      volume: 0.5,
+      onStopped,
+    })).toBe('played');
+
+    stopDecodedGameplayVoice('result-fail');
+    stopDecodedGameplayVoice('result-fail');
+    expect(onStopped).toHaveBeenCalledTimes(1);
+  });
+
+  it('releases a queued owner when cold decoding later proves unavailable', async () => {
+    const source = './assets/sound/results/missing.wav';
+    const onDeferredUnavailable = jest.fn();
+    global.fetch = jest.fn(async () => ({
+      ok: false,
+      status: 404,
+      arrayBuffer: async () => new ArrayBuffer(0),
+    })) as jest.Mock;
+
+    expect(playDecodedGameplaySound(source, {
+      voiceId: 'result-missing',
+      volume: 0.5,
+      onDeferredUnavailable,
+    })).toBe('pending');
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(onDeferredUnavailable).toHaveBeenCalledTimes(1);
     expect(getDecodedGameplayAudioStats().pendingVoiceStarts).toBe(0);
   });
 

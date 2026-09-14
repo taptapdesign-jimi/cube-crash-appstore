@@ -58,7 +58,7 @@ import {
 } from './board-transition-robo-combat-timing.js';
 import { areContinuousRuntimeDiagnosticsEnabled } from '../utils/runtime-diagnostics-policy.js';
 import {
-  SOUNDTRACK_GAMEPLAY_VOLUME_RATIO,
+  SOUNDTRACK_TRANSITION_VOLUME_RATIO,
   beginGameplayTransitionFade,
   completeGameplayTransitionFade,
   continueGameplayTransitionFade,
@@ -3857,7 +3857,7 @@ function startExitAnimation(
     const effectiveExitDurationMs = 1000 * exitTimeline.duration() / exitTimeline.timeScale();
     continueGameplayTransitionFade(
       soundtrackFadeGeneration,
-      SOUNDTRACK_GAMEPLAY_VOLUME_RATIO,
+      SOUNDTRACK_TRANSITION_VOLUME_RATIO,
       effectiveExitDurationMs,
     );
   }

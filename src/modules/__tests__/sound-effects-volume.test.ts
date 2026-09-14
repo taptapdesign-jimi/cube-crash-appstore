@@ -56,7 +56,13 @@ import {
   JOURNEY_CARD_ENTRY_FLIP_SOUND_VOLUMES,
   JOURNEY_CARD_MANUAL_FLIP_SOUND_VOLUME,
 } from '../journey-card-entry-flip-sound';
-import { CLEAN_BOARD_FAST_POINTS_STACK_VOLUME, CLEAN_BOARD_SOUND_VOLUME } from '../clean-board-sound';
+import {
+  CLEAN_BOARD_FAST_POINTS_STACK_VOLUME,
+  CLEAN_BOARD_MONEY_COUNT_VOLUME,
+  CLEAN_BOARD_SOUND_VOLUME,
+  CLEAN_BOARD_STAR_BOUNCE_VOLUME,
+  CLEAN_BOARD_STAR_HARP_VOLUME,
+} from '../clean-board-sound';
 import {
   BOARD_TRANSITION_FOREST_AMBIENT_SOUND_VOLUME,
   BOARD_TRANSITION_FOREST_BEES_SMALL_SOUND_VOLUME,
@@ -82,7 +88,7 @@ describe('sound effects master volume', () => {
   it('reduces every currently active SFX voice by exactly 40 percent', () => {
     expect(SOUND_EFFECTS_MASTER_GAIN).toBe(0.6);
     expect(GAMEPLAY_PICKUP_SOUND_VOLUME).toBeCloseTo(0.2592);
-    expect(GAMEPLAY_RETURN_SOUND_VOLUME).toBeCloseTo(0.51);
+    expect(GAMEPLAY_RETURN_SOUND_VOLUME).toBeCloseTo(0.24);
     expect(ORDINARY_STACK_SOUND_VOLUME).toBeCloseTo(0.2304);
     expect(ORDINARY_STACK_SECONDARY_VOLUME).toBeCloseTo(0.48);
     expect(REGULAR_MERGE6_SOUND_VOLUME).toBeCloseTo(0.3);
@@ -91,10 +97,10 @@ describe('sound effects master volume', () => {
     expect(REGULAR_MERGE6_STACK_VOLUME).toBeCloseTo(0.48);
     expect(WILD_STAR_MERGE6_SOUND_VOLUME).toBeCloseTo(0.4);
     expect(WILD_STAR_MERGE6_NEW_VARIANT_VOLUME).toBeCloseTo(0.48);
-    expect(WILD_STAR_MERGE6_PRIMARY_VOLUME).toBeCloseTo(REGULAR_MERGE6_SOUND_VOLUME);
-    expect(WILD_STAR_MERGE6_CRASH_VOLUME).toBeCloseTo(REGULAR_MERGE6_CRASH_VOLUME);
-    expect(WILD_STAR_MERGE6_BOOM_VOLUME).toBeCloseTo(REGULAR_MERGE6_BOOM_VOLUME);
-    expect(WILD_STAR_MERGE6_STACK_VOLUME).toBeCloseTo(REGULAR_MERGE6_STACK_VOLUME);
+    expect(WILD_STAR_MERGE6_PRIMARY_VOLUME).toBeCloseTo(REGULAR_MERGE6_SOUND_VOLUME * 0.65);
+    expect(WILD_STAR_MERGE6_CRASH_VOLUME).toBeCloseTo(REGULAR_MERGE6_CRASH_VOLUME * 0.65);
+    expect(WILD_STAR_MERGE6_BOOM_VOLUME).toBeCloseTo(REGULAR_MERGE6_BOOM_VOLUME * 0.65);
+    expect(WILD_STAR_MERGE6_STACK_VOLUME).toBeCloseTo(REGULAR_MERGE6_STACK_VOLUME * 0.65);
     expect(WILD_STAR_MERGE6_SPARKLE_VOLUME).toBeCloseTo(0.306);
     expect(WILD_SPECIAL_LANDING_SOUND_VOLUME).toBeCloseTo(0.3);
     expect(ARCADE_CRATE_SOUND_VOLUMES).toEqual([0.25536, 0.19152, 0.12768, 0.22344]);
@@ -105,32 +111,37 @@ describe('sound effects master volume', () => {
     expect(FISH_MERGE6_FISH2_VOLUME).toBeCloseTo(0.4);
     expect(FISH_MERGE6_PLOMP_VOLUME).toBeCloseTo(0.4);
     expect(FISH_MERGE6_SPEAKS_VOLUME).toBeCloseTo(0.24);
-    expect(FLOWER_MERGE6_BUSH0_VOLUME).toBeCloseTo(0.48);
-    expect(FLOWER_MERGE6_BUSH2_VOLUME).toBeCloseTo(0.6);
-    expect(FLOWER_MERGE6_BUSH3_VOLUME).toBeCloseTo(0.21);
-    expect(FLOWER_MERGE6_BOOM_VOLUME).toBeCloseTo(0.6);
+    expect(FLOWER_MERGE6_BUSH0_VOLUME).toBeCloseTo(0.312);
+    expect(FLOWER_MERGE6_BUSH2_VOLUME).toBeCloseTo(0.39);
+    expect(FLOWER_MERGE6_BUSH3_VOLUME).toBeCloseTo(0.1365);
+    expect(FLOWER_MERGE6_BOOM_VOLUME).toBeCloseTo(0.39);
     expect(FLOWER_MERGE6_LEAVES_VOLUME).toBeCloseTo(0.48);
     expect(FLOWER_MERGE6_SPARK_VOLUME).toBeCloseTo(0.36);
     expect(BEE_MERGE6_VOLUME).toBeCloseTo(0.6);
     expect(BEE_MERGE6_HAPPY_VOLUME).toBeCloseTo(0.12);
-    expect(WILD_SPECIAL_MERGE6_POOF_VOLUME).toBeCloseTo(0.6);
+    expect(WILD_SPECIAL_MERGE6_POOF_VOLUME).toBeCloseTo(0.33);
     expect(ROBO_CUBE_MERGE6_VOLUMES).toEqual([0.6, 0.6, 0.42]);
     expect(JOURNEY_CARD_ENTRY_FLIP_SOUND_VOLUMES).toEqual([0.42, 0.42, 0.42]);
     expect(JOURNEY_CARD_MANUAL_FLIP_SOUND_VOLUME).toBeCloseTo(0.6);
     expect(CLEAN_BOARD_SOUND_VOLUME).toBeCloseTo(0.6);
-    expect(CLEAN_BOARD_FAST_POINTS_STACK_VOLUME).toBeCloseTo(0.54);
-    expect(BOARD_TRANSITION_FOREST_AMBIENT_SOUND_VOLUME).toBeCloseTo(0.6);
-    expect(BOARD_TRANSITION_FOREST_BEES_SMALL_SOUND_VOLUME).toBeCloseTo(0.12);
-    expect(JOURNEY_FOREST_AMBIENT_VOLUME).toBeCloseTo(0.348);
-    expect(JOURNEY_FOREST_GAMEPLAY_VOLUME).toBeCloseTo(0.4176);
-    expect(JOURNEY_WORLDS_HUB_VOLUME).toBeCloseTo(0.348);
-    expect(JOURNEY_WORLDS_WORLD_VOLUME).toBeCloseTo(0.1044);
+    expect(CLEAN_BOARD_MONEY_COUNT_VOLUME).toBeCloseTo(0.57);
+    expect(CLEAN_BOARD_FAST_POINTS_STACK_VOLUME).toBeCloseTo(0.36);
+    expect(CLEAN_BOARD_STAR_BOUNCE_VOLUME).toBeCloseTo(0.48);
+    expect(CLEAN_BOARD_STAR_HARP_VOLUME).toBeCloseTo(0.24);
+    expect(BOARD_TRANSITION_FOREST_AMBIENT_SOUND_VOLUME).toBeCloseTo(0.72);
+    expect(BOARD_TRANSITION_FOREST_BEES_SMALL_SOUND_VOLUME).toBeCloseTo(0.144);
+    expect(JOURNEY_FOREST_AMBIENT_VOLUME).toBeCloseTo(0.612);
+    expect(JOURNEY_FOREST_GAMEPLAY_VOLUME).toBeCloseTo(0.54);
+    expect(JOURNEY_WORLDS_HUB_VOLUME).toBeCloseTo(0.45);
+    expect(JOURNEY_WORLDS_WORLD_VOLUME).toBeCloseTo(0.135);
     expect(FAIL_SCREEN_CTA_BOUNCE_SOUND_VOLUME).toBeCloseTo(0.6);
     expect(MAGNET_PULL_FORCE_SOUND_VOLUMES).toEqual([0.6]);
-    expect(HONEY_PULL_MERGE_SOUND_VOLUMES).toEqual([0.48, 0.48]);
+    expect(HONEY_PULL_MERGE_SOUND_VOLUMES).toEqual([0.288, 0.288]);
     expect(HONEY_POST_MERGE_SOUND_VOLUMES).toEqual([0.2016]);
     expect(BOTTLE_PULL_FORCE_BOIING_VOLUME).toBeCloseTo(0.24);
-    expect(BOTTLE_PULL_MERGE_SOUND_VOLUMES).toEqual([0.528, 0.528]);
+    BOTTLE_PULL_MERGE_SOUND_VOLUMES.forEach((volume) => {
+      expect(volume).toBeCloseTo(0.38016);
+    });
   });
 
   it('keeps the shared multiplier bounded and excludes music ownership', () => {

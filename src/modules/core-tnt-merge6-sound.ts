@@ -21,7 +21,8 @@ import {
   REGULAR_MERGE6_STACK_BASE_VOLUME,
   REGULAR_MERGE6_STACK_SOUND_SOURCE,
   REGULAR_MERGE6_STACK_VOLUME,
-  playRegularMerge6Sound,
+  SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE,
+  playSpecialMerge6FoundationSound,
   preloadRegularMerge6Sounds,
   resetRegularMerge6SoundCacheForTests,
   stopRegularMerge6Sounds,
@@ -38,20 +39,21 @@ export const CORE_TNT_MERGE6_HORN_SOUND_SOURCE =
 export const CORE_TNT_MERGE6_SOUND_PLAYBACK_RATE = 1;
 export const CORE_TNT_MERGE6_SOUND_DELAY_MS = 500;
 export const CORE_TNT_MERGE6_SOUND_BASE_VOLUME = 0.56;
+export const CORE_TNT_MERGE6_CUSTOM_BUS_SCALE = 0.65;
 export const CORE_TNT_MERGE6_SOUND_VOLUME = applySoundEffectsMasterGain(
-  CORE_TNT_MERGE6_SOUND_BASE_VOLUME,
+  CORE_TNT_MERGE6_SOUND_BASE_VOLUME * CORE_TNT_MERGE6_CUSTOM_BUS_SCALE,
 );
 export const CORE_TNT_MERGE6_WOOD_PLAYBACK_RATE = 1;
 export const CORE_TNT_MERGE6_WOOD_BASE_VOLUME = 0.9;
 export const CORE_TNT_MERGE6_WOOD_VOLUME = applySoundEffectsMasterGain(
-  CORE_TNT_MERGE6_WOOD_BASE_VOLUME,
+  CORE_TNT_MERGE6_WOOD_BASE_VOLUME * CORE_TNT_MERGE6_CUSTOM_BUS_SCALE,
 );
 export const CORE_TNT_MERGE6_WOOD_BREAK_DELAY_MS = 0;
 export const CORE_TNT_MERGE6_WOOD_SPLINTER_DELAY_MS = 100;
 export const CORE_TNT_MERGE6_HORN_PLAYBACK_RATE = 1;
 export const CORE_TNT_MERGE6_HORN_BASE_VOLUME = 0.8;
 export const CORE_TNT_MERGE6_HORN_VOLUME = applySoundEffectsMasterGain(
-  CORE_TNT_MERGE6_HORN_BASE_VOLUME,
+  CORE_TNT_MERGE6_HORN_BASE_VOLUME * CORE_TNT_MERGE6_CUSTOM_BUS_SCALE,
 );
 
 export const CORE_TNT_BONUS_IMPACT_SOUND_SOURCES = Object.freeze([
@@ -72,22 +74,30 @@ export const CORE_TNT_BONUS_MINI5_VOLUME = applySoundEffectsMasterGain(
 export const CORE_TNT_BONUS_MINI2_VOLUME_SCALE = 0.5;
 export const CORE_TNT_BONUS_IMPACT_PLAYBACK_RATE = 1;
 
-// Core TNT deliberately reuses the complete ordinary Merge-6 owner. These
-// aliases make that shared foundation explicit without duplicating its mix.
+// Core TNT deliberately reuses the reduced shared Special foundation. These
+// aliases make that mix explicit without duplicating its playback owner.
 export const CORE_TNT_MERGE6_PRIMARY_SOUND_SOURCE = REGULAR_MERGE6_SOUND_SOURCE;
 export const CORE_TNT_MERGE6_PRIMARY_PLAYBACK_RATE = REGULAR_MERGE6_SOUND_PLAYBACK_RATE;
-export const CORE_TNT_MERGE6_PRIMARY_BASE_VOLUME = REGULAR_MERGE6_SOUND_BASE_VOLUME;
-export const CORE_TNT_MERGE6_PRIMARY_VOLUME = REGULAR_MERGE6_SOUND_VOLUME;
+export const CORE_TNT_MERGE6_PRIMARY_BASE_VOLUME =
+  REGULAR_MERGE6_SOUND_BASE_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
+export const CORE_TNT_MERGE6_PRIMARY_VOLUME =
+  REGULAR_MERGE6_SOUND_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
 export const CORE_TNT_MERGE6_CRASH_SOUND_SOURCE = REGULAR_MERGE6_CRASH_SOUND_SOURCE;
 export const CORE_TNT_MERGE6_CRASH_PLAYBACK_RATE = REGULAR_MERGE6_CRASH_PLAYBACK_RATE;
-export const CORE_TNT_MERGE6_CRASH_BASE_VOLUME = REGULAR_MERGE6_CRASH_BASE_VOLUME;
-export const CORE_TNT_MERGE6_CRASH_VOLUME = REGULAR_MERGE6_CRASH_VOLUME;
+export const CORE_TNT_MERGE6_CRASH_BASE_VOLUME =
+  REGULAR_MERGE6_CRASH_BASE_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
+export const CORE_TNT_MERGE6_CRASH_VOLUME =
+  REGULAR_MERGE6_CRASH_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
 export const CORE_TNT_MERGE6_BOOM_SOUND_SOURCE = REGULAR_MERGE6_BOOM_SOUND_SOURCE;
-export const CORE_TNT_MERGE6_BOOM_BASE_VOLUME = REGULAR_MERGE6_BOOM_BASE_VOLUME;
-export const CORE_TNT_MERGE6_BOOM_VOLUME = REGULAR_MERGE6_BOOM_VOLUME;
+export const CORE_TNT_MERGE6_BOOM_BASE_VOLUME =
+  REGULAR_MERGE6_BOOM_BASE_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
+export const CORE_TNT_MERGE6_BOOM_VOLUME =
+  REGULAR_MERGE6_BOOM_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
 export const CORE_TNT_MERGE6_STACK_SOUND_SOURCE = REGULAR_MERGE6_STACK_SOUND_SOURCE;
-export const CORE_TNT_MERGE6_STACK_BASE_VOLUME = REGULAR_MERGE6_STACK_BASE_VOLUME;
-export const CORE_TNT_MERGE6_STACK_VOLUME = REGULAR_MERGE6_STACK_VOLUME;
+export const CORE_TNT_MERGE6_STACK_BASE_VOLUME =
+  REGULAR_MERGE6_STACK_BASE_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
+export const CORE_TNT_MERGE6_STACK_VOLUME =
+  REGULAR_MERGE6_STACK_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
 
 const CORE_TNT_MERGE6_SOUND_SOURCES = Object.freeze([
   CORE_TNT_MERGE6_SOUND_SOURCE,
@@ -225,7 +235,7 @@ export function preloadCoreTntMerge6Sound(): boolean {
 export function playCoreTntMerge6Sound(): boolean {
   if (!areCoreTntMerge6SoundsEnabled()) return false;
   beginCoreTntBonusImpactSoundSequence();
-  const ordinaryMergeStarted = playRegularMerge6Sound();
+  const foundationStarted = playSpecialMerge6FoundationSound();
   const decodedState = getDecodedGameplaySoundsState(CORE_TNT_MERGE6_SOUND_SOURCES);
 
   if (decodedState !== 'unavailable') {
@@ -254,7 +264,7 @@ export function playCoreTntMerge6Sound(): boolean {
         startDelaySeconds: CORE_TNT_MERGE6_WOOD_SPLINTER_DELAY_MS / 1000,
       }),
     ];
-    return ordinaryMergeStarted && results.every((result) => result !== 'unavailable');
+    return foundationStarted && results.every((result) => result !== 'unavailable');
   }
 
   const tnt3 = getMediaAudio(CORE_TNT_MERGE6_SOUND_SOURCE);
@@ -285,7 +295,7 @@ export function playCoreTntMerge6Sound(): boolean {
       if (!areCoreTntMerge6SoundsEnabled()) return;
       startMediaLayer(woodSplinter, CORE_TNT_MERGE6_WOOD_VOLUME, 'wood splinter');
     }, CORE_TNT_MERGE6_WOOD_SPLINTER_DELAY_MS);
-    return ordinaryMergeStarted;
+    return foundationStarted;
   } catch (error) {
     logger.warn('Failed to start core TNT merge-6 sound:', error);
     return false;

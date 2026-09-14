@@ -1,0 +1,34 @@
+{
+  "version": 2,
+  "source": "assets/sound/soundtrack/TapTapDesign-Stacktosixtheme.wav",
+  "sourceSha256": "f1301da85c3964b4ef282c9d525f53f28cb59beca7f65c44ad317d886b6b7e21",
+  "sampleRate": 48000,
+  "channels": 2,
+  "outputBitDepth": 24,
+  "tempoBpm": 116.6,
+  "beatPhaseSeconds": 0.06432246998284734,
+  "candidates": [
+    {
+      "file": "saxophone-happy-theme-v2.wav",
+      "durationSeconds": 6.011145833333333,
+      "sourceStartBar": 33,
+      "sourceStartSeconds": 67.98885077186964,
+      "treatment": "sax-forward final-theme cadence with natural resolved ending",
+      "gain": 1.3150375340720128,
+      "rmsDb": -19.998881960649456,
+      "peakDb": -3.499999999999999,
+      "sha256": "7f042985c533bf289a49b39486659a05bb617a0a1ba5380986e30d9c561b237e"
+    },
+    {
+      "file": "saxophone-fail-theme-v2.wav",
+      "durationSeconds": 2.9404375,
+      "sourceStartBar": 4,
+      "sourceStartSeconds": 8.297598627787307,
+      "treatment": "sax-forward shared motif with playful bounded tape-down",
+      "gain": 1.418501420411496,
+      "rmsDb": -20.70693798985947,
+      "peakDb": -4.5,
+      "sha256": "09f617fdb3112899d276eada92f4efdf7a27124f18b4fc281c41f205ccfe62bd"
+    }
+  ]
+}

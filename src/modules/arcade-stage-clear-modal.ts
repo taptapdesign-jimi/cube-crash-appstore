@@ -4,7 +4,9 @@ import { gsap } from 'gsap';
 import { formatGameplayProgressLabel, getGameplayProgressTerm } from './gameplay-terminology.ts';
 import {
   completeGameplayTransitionFade,
+  enterArcadeGameplaySoundtrack,
   fadeOutSoundtrackForGameplay,
+  setSoundtrackResultMix,
 } from './soundtrack-manager.ts';
 import {
   playArcadeRoundDigitSound,
@@ -773,6 +775,7 @@ export async function showArcadeStageClearModal(stageNumber: number, nextStageNu
   const nextStage = Math.max(1, (nextStageNumber ?? clearedStage + 1) | 0);
   const parts = createOverlay(clearedStage, nextStage);
   activeOverlay = parts.overlay;
+  setSoundtrackResultMix();
 
   return new Promise((resolve) => {
     activeResolve = resolve;
@@ -785,6 +788,7 @@ export async function showArcadeStageClearModal(stageNumber: number, nextStageNu
         cleanupArcadeStageClearModal(false);
         const finish = activeResolve;
         activeResolve = null;
+        if (finish) enterArcadeGameplaySoundtrack();
         finish?.({ action: 'continue' });
       }
     })();

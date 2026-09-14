@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import {
+  HONEY_MERGE6_CUSTOM_BUS_SCALE,
   HONEY_FIRST_MERGE_SOUND_BASE_VOLUMES,
   HONEY_FIRST_MERGE_SOUND_SOURCES,
   HONEY_FIRST_MERGE_SOUND_VOLUMES,
@@ -25,10 +26,11 @@ describe('Honey Merge-6 sound routing', () => {
     expect(HONEY_POST_MERGE_SOUND_SOURCES).toEqual([
       './assets/sound/Wild and special kockice/honey/BEES3s.wav',
     ]);
+    expect(HONEY_MERGE6_CUSTOM_BUS_SCALE).toBe(0.6);
     expect(HONEY_FIRST_MERGE_SOUND_BASE_VOLUMES).toEqual([1]);
-    expect(HONEY_FIRST_MERGE_SOUND_VOLUMES).toEqual([0.6]);
+    expect(HONEY_FIRST_MERGE_SOUND_VOLUMES).toEqual([0.36]);
     expect(HONEY_PULL_MERGE_SOUND_BASE_VOLUMES).toEqual([0.8, 0.8]);
-    expect(HONEY_PULL_MERGE_SOUND_VOLUMES).toEqual([0.48, 0.48]);
+    expect(HONEY_PULL_MERGE_SOUND_VOLUMES).toEqual([0.288, 0.288]);
     expect(HONEY_POST_MERGE_SOUND_BASE_VOLUMES).toEqual([0.336]);
     expect(HONEY_POST_MERGE_SOUND_VOLUMES).toEqual([0.2016]);
   });

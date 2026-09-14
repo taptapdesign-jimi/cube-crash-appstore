@@ -12,7 +12,7 @@ import {
   stopCoreTntBonusImpactSounds,
 } from './core-tnt-merge6-sound.ts';
 import {
-  playRegularMerge6Sound,
+  playSpecialMerge6FoundationSound,
   preloadRegularMerge6Sounds,
   resetRegularMerge6SoundCacheForTests,
   stopRegularMerge6Sounds,
@@ -35,17 +35,18 @@ export const FLOWER_MERGE6_BUSH3_BASE_VOLUME = 0.35;
 export const FLOWER_MERGE6_BOOM_BASE_VOLUME = 1;
 export const FLOWER_MERGE6_LEAVES_BASE_VOLUME = 0.8;
 export const FLOWER_MERGE6_SPARK_BASE_VOLUME = 0.6;
+export const FLOWER_MERGE6_CUSTOM_BUS_SCALE = 0.65;
 export const FLOWER_MERGE6_BUSH0_VOLUME = applySoundEffectsMasterGain(
-  FLOWER_MERGE6_BUSH0_BASE_VOLUME,
+  FLOWER_MERGE6_BUSH0_BASE_VOLUME * FLOWER_MERGE6_CUSTOM_BUS_SCALE,
 );
 export const FLOWER_MERGE6_BUSH2_VOLUME = applySoundEffectsMasterGain(
-  FLOWER_MERGE6_BUSH2_BASE_VOLUME,
+  FLOWER_MERGE6_BUSH2_BASE_VOLUME * FLOWER_MERGE6_CUSTOM_BUS_SCALE,
 );
 export const FLOWER_MERGE6_BUSH3_VOLUME = applySoundEffectsMasterGain(
-  FLOWER_MERGE6_BUSH3_BASE_VOLUME,
+  FLOWER_MERGE6_BUSH3_BASE_VOLUME * FLOWER_MERGE6_CUSTOM_BUS_SCALE,
 );
 export const FLOWER_MERGE6_BOOM_VOLUME = applySoundEffectsMasterGain(
-  FLOWER_MERGE6_BOOM_BASE_VOLUME,
+  FLOWER_MERGE6_BOOM_BASE_VOLUME * FLOWER_MERGE6_CUSTOM_BUS_SCALE,
 );
 export const FLOWER_MERGE6_LEAVES_VOLUME = applySoundEffectsMasterGain(
   FLOWER_MERGE6_LEAVES_BASE_VOLUME,
@@ -163,7 +164,7 @@ export function playFlowerMerge6Sound(): boolean {
   if (!areFlowerMerge6SoundsEnabled()) return false;
   stopFlowerOwnedVoices();
   beginCoreTntBonusImpactSoundSequence();
-  const ordinaryMergeStarted = playRegularMerge6Sound();
+  const foundationStarted = playSpecialMerge6FoundationSound();
   const decodedState = getDecodedGameplaySoundsState(FLOWER_MERGE6_IMMEDIATE_SOUND_SOURCES);
 
   if (decodedState !== 'unavailable') {
@@ -189,7 +190,7 @@ export function playFlowerMerge6Sound(): boolean {
         playbackRate: FLOWER_MERGE6_PLAYBACK_RATE,
       }),
     ];
-    return ordinaryMergeStarted && results.every((result) => result !== 'unavailable');
+    return foundationStarted && results.every((result) => result !== 'unavailable');
   }
 
   const bush0 = getMediaAudio(FLOWER_MERGE6_BUSH0_SOUND_SOURCE);
@@ -210,7 +211,7 @@ export function playFlowerMerge6Sound(): boolean {
     startMediaLayer(bush2, FLOWER_MERGE6_BUSH2_VOLUME, 'bush2');
     startMediaLayer(bush3, FLOWER_MERGE6_BUSH3_VOLUME, 'bush3');
     startMediaLayer(boom, FLOWER_MERGE6_BOOM_VOLUME, 'boom');
-    return ordinaryMergeStarted;
+    return foundationStarted;
   } catch (error) {
     logger.warn('Failed to start Flower merge-6 sounds:', error);
     return false;

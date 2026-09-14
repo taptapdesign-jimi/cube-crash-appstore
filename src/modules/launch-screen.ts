@@ -335,6 +335,13 @@ class LaunchScreen {
    * Initialize launch screen - creates DOM structure
    */
   init(): void {
+    // Begin decoding the single-source intro/loop master before its launch cue.
+    void import('./soundtrack-manager.js').then(({ preloadSoundtrack }) => {
+      preloadSoundtrack();
+    }).catch((error) => {
+      logger.warn('🔊 Soundtrack preload failed:', error);
+    });
+
     // Body is the single viewport-relative paper owner throughout startup.
     applyAppPaperBackground();
 

@@ -11,7 +11,7 @@ import { applySoundEffectsMasterGain } from './sound-effects-volume.ts';
 
 export const JOURNEY_FOREST_GAMEPLAY_SOUND_SOURCE =
   './assets/sound/worlds/Forest/gameplay/forest-gameplay-sound.wav';
-export const JOURNEY_FOREST_GAMEPLAY_ACTION_VOLUME = 0.696;
+export const JOURNEY_FOREST_GAMEPLAY_ACTION_VOLUME = 0.9;
 export const JOURNEY_FOREST_GAMEPLAY_VOLUME = applySoundEffectsMasterGain(
   JOURNEY_FOREST_GAMEPLAY_ACTION_VOLUME,
 );

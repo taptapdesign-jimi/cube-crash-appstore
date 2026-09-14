@@ -21,7 +21,8 @@ import {
   REGULAR_MERGE6_STACK_BASE_VOLUME,
   REGULAR_MERGE6_STACK_SOUND_SOURCE,
   REGULAR_MERGE6_STACK_VOLUME,
-  playRegularMerge6Sound,
+  SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE,
+  playSpecialMerge6FoundationSound,
   preloadRegularMerge6Sounds,
   resetRegularMerge6SoundCacheForTests,
   stopRegularMerge6Sounds,
@@ -60,22 +61,30 @@ export const FISH_MERGE6_FISH2_VOLUME = applySoundEffectsMasterGain(FISH_MERGE6_
 export const FISH_MERGE6_PLOMP_VOLUME = applySoundEffectsMasterGain(FISH_MERGE6_PLOMP_BASE_VOLUME);
 export const FISH_MERGE6_SPEAKS_VOLUME = applySoundEffectsMasterGain(FISH_MERGE6_SPEAKS_BASE_VOLUME);
 
-// Fish deliberately inherits the complete ordinary Merge-6 mix without
+// Fish deliberately inherits the reduced shared Special foundation without
 // recreating or retiming any of its four established layers.
 export const FISH_MERGE6_PRIMARY_SOUND_SOURCE = REGULAR_MERGE6_SOUND_SOURCE;
 export const FISH_MERGE6_PRIMARY_PLAYBACK_RATE = REGULAR_MERGE6_SOUND_PLAYBACK_RATE;
-export const FISH_MERGE6_PRIMARY_BASE_VOLUME = REGULAR_MERGE6_SOUND_BASE_VOLUME;
-export const FISH_MERGE6_PRIMARY_VOLUME = REGULAR_MERGE6_SOUND_VOLUME;
+export const FISH_MERGE6_PRIMARY_BASE_VOLUME =
+  REGULAR_MERGE6_SOUND_BASE_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
+export const FISH_MERGE6_PRIMARY_VOLUME =
+  REGULAR_MERGE6_SOUND_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
 export const FISH_MERGE6_CRASH_SOUND_SOURCE = REGULAR_MERGE6_CRASH_SOUND_SOURCE;
 export const FISH_MERGE6_CRASH_PLAYBACK_RATE = REGULAR_MERGE6_CRASH_PLAYBACK_RATE;
-export const FISH_MERGE6_CRASH_BASE_VOLUME = REGULAR_MERGE6_CRASH_BASE_VOLUME;
-export const FISH_MERGE6_CRASH_VOLUME = REGULAR_MERGE6_CRASH_VOLUME;
+export const FISH_MERGE6_CRASH_BASE_VOLUME =
+  REGULAR_MERGE6_CRASH_BASE_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
+export const FISH_MERGE6_CRASH_VOLUME =
+  REGULAR_MERGE6_CRASH_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
 export const FISH_MERGE6_BOOM_SOUND_SOURCE = REGULAR_MERGE6_BOOM_SOUND_SOURCE;
-export const FISH_MERGE6_BOOM_BASE_VOLUME = REGULAR_MERGE6_BOOM_BASE_VOLUME;
-export const FISH_MERGE6_BOOM_VOLUME = REGULAR_MERGE6_BOOM_VOLUME;
+export const FISH_MERGE6_BOOM_BASE_VOLUME =
+  REGULAR_MERGE6_BOOM_BASE_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
+export const FISH_MERGE6_BOOM_VOLUME =
+  REGULAR_MERGE6_BOOM_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
 export const FISH_MERGE6_STACK_SOUND_SOURCE = REGULAR_MERGE6_STACK_SOUND_SOURCE;
-export const FISH_MERGE6_STACK_BASE_VOLUME = REGULAR_MERGE6_STACK_BASE_VOLUME;
-export const FISH_MERGE6_STACK_VOLUME = REGULAR_MERGE6_STACK_VOLUME;
+export const FISH_MERGE6_STACK_BASE_VOLUME =
+  REGULAR_MERGE6_STACK_BASE_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
+export const FISH_MERGE6_STACK_VOLUME =
+  REGULAR_MERGE6_STACK_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
 
 const FISH_MERGE6_SOUND_SOURCES = [
   FISH_MERGE6_FISH0_SOUND_SOURCE,
@@ -156,7 +165,7 @@ export function preloadFishMerge6Sounds(): boolean {
 
 export function playFishMerge6Sound(): boolean {
   if (!areFishMerge6SoundsEnabled()) return false;
-  const ordinaryMergeStarted = playRegularMerge6Sound();
+  const foundationStarted = playSpecialMerge6FoundationSound();
   const decodedState = getDecodedGameplaySoundsState(FISH_MERGE6_SOUND_SOURCES);
 
   if (decodedState !== 'unavailable') {
@@ -189,7 +198,7 @@ export function playFishMerge6Sound(): boolean {
         startDelaySeconds: FISH_MERGE6_FISH2_DELAY_MS / 1000,
       }),
     ];
-    return ordinaryMergeStarted && results.every((result) => result !== 'unavailable');
+    return foundationStarted && results.every((result) => result !== 'unavailable');
   }
 
   const fish0 = getMediaAudio(FISH_MERGE6_FISH0_SOUND_SOURCE);
@@ -218,7 +227,7 @@ export function playFishMerge6Sound(): boolean {
       if (!areFishMerge6SoundsEnabled()) return;
       startMediaLayer(fish2, FISH_MERGE6_FISH2_VOLUME, 'fish2');
     }, FISH_MERGE6_FISH2_DELAY_MS);
-    return ordinaryMergeStarted;
+    return foundationStarted;
   } catch (error) {
     logger.warn('Failed to start Fish merge-6 sounds:', error);
     return false;

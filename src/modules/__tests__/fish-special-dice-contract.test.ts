@@ -22,7 +22,6 @@ import {
   FISH_BUBBLES_DURATION_MS,
   FISH_BUBBLES_HEVC_SOURCE,
   FISH_BUBBLES_END_SCALE,
-  FISH_BUBBLES_FADE_OUT_START_RATIO,
   FISH_BUBBLES_SCALE_DOWN_START_RATIO,
   FISH_BUBBLES_SOURCE_DURATION_MS,
   FISH_BUBBLES_START_SCALE,
@@ -30,6 +29,13 @@ import {
   FISH_BUBBLES_SVG_SOURCE,
   FISH_BUBBLES_VERTICAL_OFFSET_VIEWPORT_RATIO,
 } from '../fish-finale-bubbles';
+import {
+  FISH_FINALE_SWIMMER_DURATION_SECONDS,
+  FISH_FINALE_SWIMMER_SCALE,
+  FISH_FINALE_SWIMMER_VISIBLE_SIZE,
+  createFishFinaleSwimmerPlan,
+  sampleFishFinaleSwimmerPose,
+} from '../fish-finale-swimmer';
 import {
   getCoreWildTypeForSpecialDiceVariant,
   getSpecialDiceIdleBubbleColors,
@@ -125,26 +131,25 @@ describe('Beach Fish special-die contract', () => {
     expect(getSpecialDiceSplashOptions(fish).burstSources).toBeUndefined();
   });
 
-  test('runs only the supplied Fishy Bubbles field at original size and 0.864x speed', () => {
-    expect(FISH_BUBBLES_SOURCE_DURATION_MS).toBe(2666.667);
-    expect(FISH_BUBBLES_SPEED).toBe(0.864);
-    expect(FISH_BUBBLES_DURATION_MS).toBeCloseTo(3086.42, 3);
-    expect(FISH_BUBBLES_START_SCALE).toBe(1);
+  test('restores Bubbly Fast and mounts one reduced Fish at the exact Merge-6 origin', () => {
+    expect(FISH_BUBBLES_SOURCE_DURATION_MS).toBe(3600);
+    expect(FISH_BUBBLES_SPEED).toBe(1.5);
+    expect(FISH_BUBBLES_DURATION_MS).toBe(2400);
+    expect(FISH_BUBBLES_START_SCALE).toBe(1.7);
     expect(FISH_BUBBLES_END_SCALE).toBe(1);
     expect(FISH_BUBBLES_SCALE_DOWN_START_RATIO).toBe(0.72);
-    expect(FISH_BUBBLES_FADE_OUT_START_RATIO).toBe(0.9);
-    expect(FISH_BUBBLES_VERTICAL_OFFSET_VIEWPORT_RATIO).toBe(0.074);
+    expect(FISH_BUBBLES_VERTICAL_OFFSET_VIEWPORT_RATIO).toBe(0.25);
     const finaleSvgPath = path.resolve(process.cwd(), FISH_BUBBLES_SVG_SOURCE.replace('./', ''));
     const hevcPath = path.resolve(process.cwd(), FISH_BUBBLES_HEVC_SOURCE.replace('./', ''));
     const finaleSvg = fs.readFileSync(finaleSvgPath, 'utf8');
-    expect(finaleSvg).toContain('dur="3.086420139s"');
+    expect(finaleSvg).toContain('dur="2.4s"');
+    expect(finaleSvg).not.toContain('dur="3.6s"');
     expect(finaleSvg).not.toContain('repeatCount="indefinite"');
-    expect(finaleSvg.match(/dur="3\.086420139s" repeatCount="1"/g)).toHaveLength(442);
-    expect(finaleSvg.match(/dur="0\.192901620s" repeatCount="16"/g)).toHaveLength(9);
     expect(fs.existsSync(hevcPath)).toBe(true);
-    expect(FISH_BUBBLES_HEVC_SOURCE).toContain('0864x-60fps-hevc.mov');
+    expect(FISH_BUBBLES_SVG_SOURCE).toContain('bubbly-fast.svg');
+    expect(FISH_BUBBLES_HEVC_SOURCE).toContain('bubbly-fast-hevc.mov');
     expect(fs.statSync(hevcPath).size).toBeGreaterThan(0);
-    expect(fs.statSync(hevcPath).size).toBeLessThan(6_000_000);
+    expect(fs.statSync(hevcPath).size).toBeLessThan(2_000_000);
 
     const fish = getSpecialDiceVariant('fish');
     showSparkleText({ x: 195, y: 430 }, getSpecialDiceSplashOptions(fish));
@@ -154,10 +159,53 @@ describe('Beach Fish special-die contract', () => {
       Math.max(520, window.innerHeight || 844) * FISH_BUBBLES_VERTICAL_OFFSET_VIEWPORT_RATIO,
       5,
     );
-    expect(bubbles?.querySelector<HTMLImageElement>('[data-fish-bubbles-source="svg-slow-fallback"]')?.src)
-      .toContain('assets/shop/fish/fishy-bubles-finale-0864x.svg');
+    expect(bubbles?.querySelector<HTMLImageElement>('[data-fish-bubbles-source="svg-fast-fallback"]')?.src)
+      .toContain('assets/shop/fish/bubbly-fast.svg');
     expect(document.querySelector('[data-fish-finale-school="active"]')).toBeNull();
-    expect(document.querySelectorAll('.cc-fish-finale-swimmer')).toHaveLength(0);
+    const swimmerField = document.querySelector<HTMLElement>('[data-fish-finale-swimmer="active"]');
+    const swimmer = swimmerField?.querySelector<HTMLElement>('.cc-fish-finale-swimmer');
+    expect(document.querySelectorAll('[data-fish-finale-swimmer="active"]')).toHaveLength(1);
+    expect(document.querySelectorAll('.cc-fish-finale-swimmer')).toHaveLength(1);
+    expect(swimmerField?.dataset.fishFinaleOriginX).toBe('195.00');
+    expect(swimmerField?.dataset.fishFinaleOriginY).toBe('430.00');
+    expect(swimmerField?.dataset.fishFinaleVisibleSize).toBe('166.4');
+    expect(swimmer?.dataset.fishFinaleX).toBe('195.00');
+    expect(swimmer?.dataset.fishFinaleY).toBe('430.00');
+    expect(swimmer?.querySelector<HTMLImageElement>('[data-fish-finale-source="svg-fallback"]')?.src)
+      .toContain('assets/shop/fish/fish.svg?cc-fish-finale-run=');
+  });
+
+  test('flies in one monotonic direction with no Bee-style route reversal', () => {
+    const viewport = { width: 390, height: 844 };
+    expect(FISH_FINALE_SWIMMER_SCALE).toBe(1.3);
+    expect(FISH_FINALE_SWIMMER_VISIBLE_SIZE).toBe(FISH_SWIM_DISPLAY_SIZE * 1.3);
+    expect(FISH_FINALE_SWIMMER_DURATION_SECONDS).toBe(3.6);
+
+    const rightward = createFishFinaleSwimmerPlan({ x: 80, y: 430 }, viewport);
+    const leftward = createFishFinaleSwimmerPlan({ x: 310, y: 430 }, viewport);
+    expect(rightward.direction).toBe(1);
+    expect(leftward.direction).toBe(-1);
+    expect(rightward.origin).toEqual({ x: 80, y: 430 });
+    expect(leftward.origin).toEqual({ x: 310, y: 430 });
+    expect(rightward.end.x).toBeGreaterThan(viewport.width);
+    expect(leftward.end.x).toBeLessThan(0);
+
+    for (const plan of [rightward, leftward]) {
+      const poses = Array.from({ length: 25 }, (_, index) => (
+        sampleFishFinaleSwimmerPose(
+          FISH_FINALE_SWIMMER_DURATION_SECONDS * index / 24,
+          plan,
+          viewport,
+        )
+      ));
+      expect(poses[0]).toMatchObject({ x: plan.origin.x, y: plan.origin.y });
+      for (let index = 1; index < poses.length; index += 1) {
+        const deltaX = poses[index].x - poses[index - 1].x;
+        expect(deltaX * plan.direction).toBeGreaterThanOrEqual(0);
+      }
+      expect(poses[poses.length - 1].x).toBeCloseTo(plan.end.x, 8);
+      expect(poses[poses.length - 1].opacity).toBe(0);
+    }
   });
 
   test('gives every repeated Fish Merge-6 a fresh one-shot Bubbly playback owner', () => {
@@ -187,6 +235,7 @@ describe('Beach Fish special-die contract', () => {
     expect(secondMedia?.getAttribute('src')).toContain(
       `${FISH_BUBBLES_SVG_SOURCE}?cc-fish-bubbles-run=`,
     );
+    expect(document.querySelectorAll('[data-fish-finale-swimmer="active"]')).toHaveLength(1);
   });
 
   test('keeps the authored 128px fish centred inside its complete motion corridor', () => {

@@ -47,6 +47,7 @@ export const REGULAR_MERGE6_STACK_BASE_VOLUME = 0.8;
 export const REGULAR_MERGE6_STACK_VOLUME = applySoundEffectsMasterGain(
   REGULAR_MERGE6_STACK_BASE_VOLUME,
 );
+export const SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE = 0.65;
 
 let primaryAudio: HTMLAudioElement | null = null;
 let crashAudio: HTMLAudioElement | null = null;
@@ -126,14 +127,14 @@ function clearCrashTimers(): void {
   }
 }
 
-function startCrashFadeOut(audio: HTMLAudioElement): void {
+function startCrashFadeOut(audio: HTMLAudioElement, startingVolume: number): void {
   const fadeStartedAt = Date.now();
   crashFadeInterval = window.setInterval(() => {
     const fadeProgress = Math.min(
       1,
       (Date.now() - fadeStartedAt) / REGULAR_MERGE6_CRASH_FADE_OUT_DURATION_MS,
     );
-    audio.volume = REGULAR_MERGE6_CRASH_VOLUME * (1 - fadeProgress);
+    audio.volume = startingVolume * (1 - fadeProgress);
     if (fadeProgress >= 1 && crashFadeInterval !== null) {
       window.clearInterval(crashFadeInterval);
       crashFadeInterval = null;
@@ -157,8 +158,13 @@ function startAudio(
   });
 }
 
-export function playRegularMerge6Sound(): boolean {
+function playMerge6FoundationSound(volumeScale: number): boolean {
   if (!areRegularMerge6SoundsEnabled()) return false;
+  const safeVolumeScale = Math.max(0, Math.min(1, volumeScale));
+  const primaryVolume = REGULAR_MERGE6_SOUND_VOLUME * safeVolumeScale;
+  const crashVolume = REGULAR_MERGE6_CRASH_VOLUME * safeVolumeScale;
+  const boomVolume = REGULAR_MERGE6_BOOM_VOLUME * safeVolumeScale;
+  const stackVolume = REGULAR_MERGE6_STACK_VOLUME * safeVolumeScale;
 
   const decodedState = getDecodedGameplaySoundsState(REGULAR_MERGE6_SOUND_SOURCES);
   if (decodedState !== 'unavailable') {
@@ -167,23 +173,23 @@ export function playRegularMerge6Sound(): boolean {
     const results = [
       playDecodedGameplaySound(REGULAR_MERGE6_SOUND_SOURCE, {
         voiceId: REGULAR_MERGE6_VOICE_IDS[0],
-        volume: REGULAR_MERGE6_SOUND_VOLUME,
+        volume: primaryVolume,
         playbackRate: REGULAR_MERGE6_SOUND_PLAYBACK_RATE,
       }),
       playDecodedGameplaySound(REGULAR_MERGE6_CRASH_SOUND_SOURCE, {
         voiceId: REGULAR_MERGE6_VOICE_IDS[1],
-        volume: REGULAR_MERGE6_CRASH_VOLUME,
+        volume: crashVolume,
         playbackRate: REGULAR_MERGE6_CRASH_PLAYBACK_RATE,
         stopAfterSeconds: REGULAR_MERGE6_CRASH_AUDIBLE_DURATION_MS / 1000,
         fadeOutSeconds: REGULAR_MERGE6_CRASH_FADE_OUT_DURATION_MS / 1000,
       }),
       playDecodedGameplaySound(REGULAR_MERGE6_BOOM_SOUND_SOURCE, {
         voiceId: REGULAR_MERGE6_VOICE_IDS[2],
-        volume: REGULAR_MERGE6_BOOM_VOLUME,
+        volume: boomVolume,
       }),
       playDecodedGameplaySound(REGULAR_MERGE6_STACK_SOUND_SOURCE, {
         voiceId: REGULAR_MERGE6_VOICE_IDS[3],
-        volume: REGULAR_MERGE6_STACK_VOLUME,
+        volume: stackVolume,
       }),
     ];
     return results.every((result) => result !== 'unavailable');
@@ -199,21 +205,21 @@ export function playRegularMerge6Sound(): boolean {
     clearCrashTimers();
     startAudio(
       primary,
-      REGULAR_MERGE6_SOUND_VOLUME,
+      primaryVolume,
       REGULAR_MERGE6_SOUND_PLAYBACK_RATE,
       'sound',
     );
     startAudio(
       crash,
-      REGULAR_MERGE6_CRASH_VOLUME,
+      crashVolume,
       REGULAR_MERGE6_CRASH_PLAYBACK_RATE,
       'crash layer',
     );
-    startAudio(boom, REGULAR_MERGE6_BOOM_VOLUME, 1, 'boom layer');
-    startAudio(stack, REGULAR_MERGE6_STACK_VOLUME, 1, 'stack layer');
+    startAudio(boom, boomVolume, 1, 'boom layer');
+    startAudio(stack, stackVolume, 1, 'stack layer');
     crashFadeStartTimer = window.setTimeout(() => {
       crashFadeStartTimer = null;
-      startCrashFadeOut(crash);
+      startCrashFadeOut(crash, crashVolume);
     }, Math.max(
       0,
       REGULAR_MERGE6_CRASH_AUDIBLE_DURATION_MS -
@@ -236,6 +242,14 @@ export function playRegularMerge6Sound(): boolean {
     logger.warn('Failed to start regular merge-6 sounds:', error);
     return false;
   }
+}
+
+export function playRegularMerge6Sound(): boolean {
+  return playMerge6FoundationSound(1);
+}
+
+export function playSpecialMerge6FoundationSound(): boolean {
+  return playMerge6FoundationSound(SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE);
 }
 
 export function stopRegularMerge6Sounds(): void {

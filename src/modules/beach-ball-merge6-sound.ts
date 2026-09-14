@@ -21,7 +21,8 @@ import {
   REGULAR_MERGE6_STACK_BASE_VOLUME,
   REGULAR_MERGE6_STACK_SOUND_SOURCE,
   REGULAR_MERGE6_STACK_VOLUME,
-  playRegularMerge6Sound,
+  SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE,
+  playSpecialMerge6FoundationSound,
   preloadRegularMerge6Sounds,
   resetRegularMerge6SoundCacheForTests,
   stopRegularMerge6Sounds,
@@ -50,22 +51,30 @@ export const BEACH_BALL_MERGE6_IMPACT_VOLUME = applySoundEffectsMasterGain(
   BEACH_BALL_MERGE6_IMPACT_BASE_VOLUME,
 );
 
-// Beach Ball deliberately inherits the complete ordinary Merge-6 mix. These
-// aliases make that shared foundation explicit and prevent a second base mix.
+// Beach Ball deliberately inherits the reduced shared Special foundation.
+// These aliases make that mix explicit and prevent a second base owner.
 export const BEACH_BALL_MERGE6_PRIMARY_SOUND_SOURCE = REGULAR_MERGE6_SOUND_SOURCE;
 export const BEACH_BALL_MERGE6_PRIMARY_PLAYBACK_RATE = REGULAR_MERGE6_SOUND_PLAYBACK_RATE;
-export const BEACH_BALL_MERGE6_PRIMARY_BASE_VOLUME = REGULAR_MERGE6_SOUND_BASE_VOLUME;
-export const BEACH_BALL_MERGE6_PRIMARY_VOLUME = REGULAR_MERGE6_SOUND_VOLUME;
+export const BEACH_BALL_MERGE6_PRIMARY_BASE_VOLUME =
+  REGULAR_MERGE6_SOUND_BASE_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
+export const BEACH_BALL_MERGE6_PRIMARY_VOLUME =
+  REGULAR_MERGE6_SOUND_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
 export const BEACH_BALL_MERGE6_CRASH_SOUND_SOURCE = REGULAR_MERGE6_CRASH_SOUND_SOURCE;
 export const BEACH_BALL_MERGE6_CRASH_PLAYBACK_RATE = REGULAR_MERGE6_CRASH_PLAYBACK_RATE;
-export const BEACH_BALL_MERGE6_CRASH_BASE_VOLUME = REGULAR_MERGE6_CRASH_BASE_VOLUME;
-export const BEACH_BALL_MERGE6_CRASH_VOLUME = REGULAR_MERGE6_CRASH_VOLUME;
+export const BEACH_BALL_MERGE6_CRASH_BASE_VOLUME =
+  REGULAR_MERGE6_CRASH_BASE_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
+export const BEACH_BALL_MERGE6_CRASH_VOLUME =
+  REGULAR_MERGE6_CRASH_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
 export const BEACH_BALL_MERGE6_BOOM_SOUND_SOURCE = REGULAR_MERGE6_BOOM_SOUND_SOURCE;
-export const BEACH_BALL_MERGE6_BOOM_BASE_VOLUME = REGULAR_MERGE6_BOOM_BASE_VOLUME;
-export const BEACH_BALL_MERGE6_BOOM_VOLUME = REGULAR_MERGE6_BOOM_VOLUME;
+export const BEACH_BALL_MERGE6_BOOM_BASE_VOLUME =
+  REGULAR_MERGE6_BOOM_BASE_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
+export const BEACH_BALL_MERGE6_BOOM_VOLUME =
+  REGULAR_MERGE6_BOOM_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
 export const BEACH_BALL_MERGE6_STACK_SOUND_SOURCE = REGULAR_MERGE6_STACK_SOUND_SOURCE;
-export const BEACH_BALL_MERGE6_STACK_BASE_VOLUME = REGULAR_MERGE6_STACK_BASE_VOLUME;
-export const BEACH_BALL_MERGE6_STACK_VOLUME = REGULAR_MERGE6_STACK_VOLUME;
+export const BEACH_BALL_MERGE6_STACK_BASE_VOLUME =
+  REGULAR_MERGE6_STACK_BASE_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
+export const BEACH_BALL_MERGE6_STACK_VOLUME =
+  REGULAR_MERGE6_STACK_VOLUME * SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE;
 
 export const BEACH_BALL_MERGE6_IMMEDIATE_SOUND_SOURCES = Object.freeze([
   BEACH_BALL_MERGE6_BALL1_SOUND_SOURCE,
@@ -153,7 +162,7 @@ export function preloadBeachBallMerge6Sounds(): boolean {
 
 export function playBeachBallMerge6Sound(): boolean {
   if (!areBeachBallMerge6SoundsEnabled()) return false;
-  const ordinaryMergeStarted = playRegularMerge6Sound();
+  const foundationStarted = playSpecialMerge6FoundationSound();
   const decodedState = getDecodedGameplaySoundsState(BEACH_BALL_MERGE6_SOUND_SOURCES);
 
   if (decodedState !== 'unavailable') {
@@ -182,7 +191,7 @@ export function playBeachBallMerge6Sound(): boolean {
         startDelaySeconds: BEACH_BALL_MERGE6_BALL5_DELAY_MS / 1000,
       }),
     ];
-    return ordinaryMergeStarted && results.every((result) => result !== 'unavailable');
+    return foundationStarted && results.every((result) => result !== 'unavailable');
   }
 
   const impact = getMediaAudio(BEACH_BALL_MERGE6_IMPACT_SOUND_SOURCE);
@@ -216,7 +225,7 @@ export function playBeachBallMerge6Sound(): boolean {
         BEACH_BALL_MERGE6_BALL5_PLAYBACK_RATE,
       );
     }, BEACH_BALL_MERGE6_BALL5_DELAY_MS);
-    return ordinaryMergeStarted;
+    return foundationStarted;
   } catch (error) {
     logger.warn('Failed to start Beach Ball merge-6 sounds:', error);
     return false;

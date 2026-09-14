@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "status": "Source-audition integration: Arcade Calm to first Merge-6/Wild Active, then result duck",
+  "source": "assets/sound/soundtrack/stack to six theme.wav",
+  "sourceSha256": "ea4e1247b07781ed39f40f38490c5999f3d370c63ed1e34786b3a30b7b8c7133",
+  "sourceTechnicalNote": "64 kbps MPEG Layer III stream inside a RIFF/WAVE container",
+  "sampleRate": 48000,
+  "channels": 2,
+  "outputBitDepth": 24,
+  "detectedTempoBpm": 116.6,
+  "detectedBeatPhaseSeconds": 0.2787307032590051,
+  "loopBars": 24,
+  "crossfadeBars": 1,
+  "candidates": [
+    {
+      "file": "gameplay-bed-calm-01.wav",
+      "sourceStartSeconds": 125.836192109777,
+      "durationSeconds": 49.39966666666667,
+      "centerBandGain": 0.28,
+      "stereoSideGain": 1.08,
+      "gain": 0.9030309185640032,
+      "rmsDb": -23.606045634023182,
+      "peakDb": -3.499999999999999,
+      "sha256": "d8b6917402467fc97f8cf4fc247d634e2a21b9c9da76d7c1e62965ec36ecd428"
+    },
+    {
+      "file": "gameplay-bed-active-01.wav",
+      "sourceStartSeconds": 57.91166380789022,
+      "durationSeconds": 49.39966666666667,
+      "centerBandGain": 0.46,
+      "stereoSideGain": 1.04,
+      "gain": 0.9247244157551409,
+      "rmsDb": -23.239723021946254,
+      "peakDb": -3.499999999999999,
+      "sha256": "4b6a8d2f83b43d3828ce998a70403c90f9df80fbd0b8e6a8b8bcc634fd07f429"
+    }
+  ]
+}

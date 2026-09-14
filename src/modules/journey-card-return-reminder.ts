@@ -401,7 +401,11 @@ export function presentJourneyCardReturnReminder(options: {
   // The origin lease deliberately reports mounted only after its portal clone
   // is connected. Attach the stage first so this safety check reflects the
   // real document state instead of rejecting every valid reminder.
-  document.body.appendChild(stage);
+  // Keep the body-level geometry contract, but share Journey's stacking
+  // context so its fixed header (1000002) can paint above this portal
+  // (1000000) while the card continues following the scrolled live Unit.
+  const stageHost = options.origin.anchor.closest<HTMLElement>('#journey-screen') ?? document.body;
+  stageHost.appendChild(stage);
   options.origin.mountInto(frontHost);
   if (!options.origin.isMounted) {
     stage.remove();

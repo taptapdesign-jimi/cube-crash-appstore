@@ -1,26 +1,66 @@
 /**
  * Stack to Six global soundtrack owner.
- * - Plays one theme continuously across intro, menus and gameplay.
- * - Ducks to 20% across the Arcade Round cue or Journey board transition.
+ * - Plays the full theme across intro and menus.
+ * - Keeps Journey on a restrained gameplay duck so its authored World
+ *   ambiences remain authoritative.
+ * - Crossfades Arcade into a loopable Calm bed, then promotes the first
+ *   committed Merge-6/Wild event into the matching Active bed on a bar edge.
  * - Respects only the player-facing Music setting and app visibility.
- * - Uses a very short fade-out/fade-in at the file boundary for a softer loop.
+ * - Uses one sample-accurate Web Audio source for the original intro and loop.
  */
 
 import { logger } from '../core/logger.js';
+import { isArcadeHomeRunMode } from './run-mode.js';
+import {
+  createSampleAccurateMainThemeVoice,
+  isSampleAccurateMainThemeVoice,
+  type MainThemeVoiceLike,
+} from './main-theme-web-audio-transport.js';
 
 export const SOUNDTRACK_URL =
-  './assets/sound/soundtrack/stack to six theme.wav';
-export const SOUNDTRACK_LOOP_FADE_OUT_MS = 180;
-export const SOUNDTRACK_LOOP_FADE_IN_MS = 180;
+  './assets/sound/soundtrack/theme-loop-v1/SIx-theme-seamless-loop.wav';
+export const SOUNDTRACK_INTRO_URL =
+  './assets/sound/soundtrack/theme-loop-v1/SIx-theme-original-intro-bridge.wav';
+export const SOUNDTRACK_RUNTIME_URL =
+  './assets/sound/soundtrack/theme-loop-v1/SIx-theme-runtime-intro-loop.wav';
+export const SOUNDTRACK_LOOP_DURATION_SECONDS = 57.63275;
+export const SOUNDTRACK_INTRO_DURATION_MS = 2058.3125;
+export const SOUNDTRACK_RUNTIME_DURATION_SECONDS = 59.6910625;
+export const SOUNDTRACK_INTRO_CROSSFADE_MS = 320;
+export const SOUNDTRACK_INTRO_CROSSFADE_DELAY_MS = 120;
+export const SOUNDTRACK_INTRO_LOOP_PREROLL_SECONDS =
+  SOUNDTRACK_LOOP_DURATION_SECONDS - SOUNDTRACK_INTRO_DURATION_MS / 1000;
 export const SOUNDTRACK_RESUME_FADE_IN_MS = 420;
 export const SOUNDTRACK_VOLUME = 0.68;
-export const SOUNDTRACK_GAMEPLAY_VOLUME_RATIO = 0.20;
+export const SOUNDTRACK_TRANSITION_VOLUME_RATIO = 0.20;
+export const SOUNDTRACK_TRANSITION_VOLUME = SOUNDTRACK_VOLUME * SOUNDTRACK_TRANSITION_VOLUME_RATIO;
+export const SOUNDTRACK_GAMEPLAY_VOLUME_RATIO = 0.33;
 export const SOUNDTRACK_GAMEPLAY_VOLUME = SOUNDTRACK_VOLUME * SOUNDTRACK_GAMEPLAY_VOLUME_RATIO;
 export const SOUNDTRACK_GAMEPLAY_FADE_TAIL_MS = 320;
+export const SOUNDTRACK_GAMEPLAY_SETTLE_MS = 320;
+export const SOUNDTRACK_VICTORY_FADE_OUT_MS = 420;
+export const SOUNDTRACK_VICTORY_FADE_IN_MS = 1000;
+export const ARCADE_SOUNDTRACK_CALM_URL =
+  './assets/sound/soundtrack/adaptive-music-v3/gameplay-bed-calm-01.wav';
+export const ARCADE_SOUNDTRACK_ACTIVE_URL =
+  './assets/sound/soundtrack/adaptive-music-v3/gameplay-bed-active-01.wav';
+export const ARCADE_SOUNDTRACK_TEMPO_BPM = 116.6;
+export const ARCADE_SOUNDTRACK_BAR_SECONDS = (60 / ARCADE_SOUNDTRACK_TEMPO_BPM) * 4;
+export const ARCADE_SOUNDTRACK_CALM_VOLUME = 0.528;
+export const ARCADE_SOUNDTRACK_ACTIVE_VOLUME = 0.594;
+export const ARCADE_SOUNDTRACK_RESULT_VOLUME = 0.10;
+export const ARCADE_SOUNDTRACK_ENTRY_CROSSFADE_MS = 1250;
+export const ARCADE_SOUNDTRACK_BAR_CROSSFADE_MS = Math.round(
+  ARCADE_SOUNDTRACK_BAR_SECONDS * 1000,
+);
 
-let audio: HTMLAudioElement | null = null;
-let loopFadeStartTimer: ReturnType<typeof setTimeout> | null = null;
-let loopFadeOutActive = false;
+type ArcadeSoundtrackLayer = 'calm' | 'active';
+
+let audio: MainThemeVoiceLike | null = null;
+let introAudio: HTMLAudioElement | null = null;
+let introHandoffTimer: ReturnType<typeof setTimeout> | null = null;
+let introSequenceActive = false;
+let introHasPlayed = false;
 let pausedForVisibility = false;
 let activeFadeToken = 0;
 let fadeInProgress = false;
@@ -33,9 +73,23 @@ let gameplayDuckActive = false;
 let gameplayFadeGeneration = 0;
 let activeGameplayFade: {
   generation: number;
-  alreadyDucked: boolean;
   targetRatio: number;
+  transitionSettled: boolean;
+  completionRequested: boolean;
+  settlingToGameplay: boolean;
 } | null = null;
+let arcadeAudio: HTMLAudioElement | null = null;
+const arcadeVoices = new Set<HTMLAudioElement>();
+let arcadeLayer: ArcadeSoundtrackLayer | null = null;
+let arcadeRequestedLayer: ArcadeSoundtrackLayer | null = null;
+let arcadeTargetVolume = ARCADE_SOUNDTRACK_CALM_VOLUME;
+let arcadeSwitchGeneration = 0;
+let arcadeBarSwitchTimer: ReturnType<typeof setTimeout> | null = null;
+let victoryHookEnvelopeActive = false;
+let victoryHookMuteActive = false;
+let victoryHookGeneration = 0;
+let victoryHookThemeRestoreVolume = SOUNDTRACK_VOLUME;
+let victoryHookArcadeRestoreVolume = ARCADE_SOUNDTRACK_CALM_VOLUME;
 
 function isMusicEnabled(): boolean {
   try {
@@ -46,15 +100,52 @@ function isMusicEnabled(): boolean {
   }
 }
 
-function clearLoopFadeSchedule(): void {
-  if (loopFadeStartTimer !== null) {
-    clearTimeout(loopFadeStartTimer);
-    loopFadeStartTimer = null;
-  }
+function getPlaybackTargetVolume(): number {
+  if (victoryHookMuteActive) return 0;
+  return gameplayDuckActive ? SOUNDTRACK_GAMEPLAY_VOLUME : SOUNDTRACK_VOLUME;
 }
 
-function getPlaybackTargetVolume(): number {
-  return gameplayDuckActive ? SOUNDTRACK_GAMEPLAY_VOLUME : SOUNDTRACK_VOLUME;
+function clearVictoryHookEnvelope(): void {
+  victoryHookGeneration++;
+  if (victoryHookEnvelopeActive) {
+    activeFadeToken++;
+    arcadeSwitchGeneration++;
+  }
+  victoryHookEnvelopeActive = false;
+  victoryHookMuteActive = false;
+}
+
+function clearIntroHandoffTimer(): void {
+  if (introHandoffTimer === null) return;
+  clearTimeout(introHandoffTimer);
+  introHandoffTimer = null;
+}
+
+function stopIntroVoice(): void {
+  const currentIntroAudio = introAudio;
+  if (!currentIntroAudio) return;
+  try {
+    currentIntroAudio.pause();
+    currentIntroAudio.currentTime = 0;
+    currentIntroAudio.volume = 0;
+  } catch {}
+}
+
+function cancelIntroSequence(resetLoopToStart: boolean): boolean {
+  const wasActive = introSequenceActive || introHandoffTimer !== null;
+  clearIntroHandoffTimer();
+  if (wasActive) {
+    activeFadeToken++;
+    playRequestToken++;
+  }
+  introSequenceActive = false;
+  stopIntroVoice();
+  const currentAudio = audio;
+  if (wasActive && resetLoopToStart && currentAudio) {
+    try { currentAudio.currentTime = 0; } catch {}
+    currentAudio.volume = getPlaybackTargetVolume();
+  }
+  return wasActive;
 }
 
 function linearFade(
@@ -82,46 +173,331 @@ function linearFade(
   requestAnimationFrame(run);
 }
 
-function scheduleLoopFadeOut(): void {
-  clearLoopFadeSchedule();
-  const currentAudio = audio;
-  if (!currentAudio || currentAudio.paused || loopFadeOutActive || activeGameplayFade) return;
-  if (!Number.isFinite(currentAudio.duration) || currentAudio.duration <= 0) return;
-
-  const remainingMs = Math.max(
-    0,
-    (currentAudio.duration - currentAudio.currentTime) * 1000,
-  );
-  loopFadeStartTimer = setTimeout(() => {
-    loopFadeStartTimer = null;
-    startLoopFadeOut();
-  }, Math.max(0, remainingMs - SOUNDTRACK_LOOP_FADE_OUT_MS));
+function getIntroAudio(): HTMLAudioElement {
+  if (!introAudio) {
+    introAudio = new Audio(SOUNDTRACK_INTRO_URL);
+    introAudio.loop = false;
+    introAudio.volume = 0;
+    introAudio.preload = 'auto';
+  }
+  return introAudio;
 }
 
-function startLoopFadeOut(): void {
+function playOriginalIntroIntoLoop(
+  currentAudio: MainThemeVoiceLike,
+  successMessage: string,
+): void {
+  const currentIntroAudio = getIntroAudio();
+  clearIntroHandoffTimer();
+  activeFadeToken++;
+  introSequenceActive = true;
+  currentAudio.volume = 0;
+  currentAudio.currentTime = SOUNDTRACK_INTRO_LOOP_PREROLL_SECONDS;
+  currentIntroAudio.currentTime = 0;
+  currentIntroAudio.volume = SOUNDTRACK_VOLUME;
+
+  const requestToken = ++playRequestToken;
+  let readyVoices = 0;
+  let requestFailed = false;
+  const onReady = (): void => {
+    if (requestFailed) return;
+    readyVoices += 1;
+    if (readyVoices < 2) return;
+    if (requestToken !== playRequestToken) return;
+    if (
+      audio !== currentAudio ||
+      introAudio !== currentIntroAudio ||
+      !isMusicEnabled()
+    ) {
+      currentAudio.pause();
+      stopIntroVoice();
+      return;
+    }
+
+    introHasPlayed = true;
+    isStarted = true;
+    autoplayRetryInFlight = false;
+    disarmAutoplayRetry();
+    const fadeStartMs = SOUNDTRACK_INTRO_DURATION_MS +
+      SOUNDTRACK_INTRO_CROSSFADE_DELAY_MS;
+    introHandoffTimer = setTimeout(() => {
+      introHandoffTimer = null;
+      if (
+        !introSequenceActive ||
+        audio !== currentAudio ||
+        introAudio !== currentIntroAudio ||
+        !isMusicEnabled()
+      ) return;
+      // The intro bridge is still playing the exact same second-bar material
+      // as the loop. Align to the bridge's real media clock (the fixed delay is
+      // only a defensive fallback for test/browser clocks that report zero),
+      // then use a constant-sum linear splice. Equal-power curves are correct
+      // for unrelated tracks, but they create a +3 dB bulge when both sources
+      // contain this same correlated phrase.
+      const bridgeLoopPosition = currentIntroAudio.currentTime >
+        SOUNDTRACK_INTRO_DURATION_MS / 1000
+        ? currentIntroAudio.currentTime - SOUNDTRACK_INTRO_DURATION_MS / 1000
+        : SOUNDTRACK_INTRO_CROSSFADE_DELAY_MS / 1000;
+      currentAudio.currentTime = bridgeLoopPosition;
+      const targetVolume = getPlaybackTargetVolume();
+      linearFade(0, 1, SOUNDTRACK_INTRO_CROSSFADE_MS, (progress) => {
+        if (!introSequenceActive) return;
+        currentIntroAudio.volume = targetVolume * (1 - progress);
+        currentAudio.volume = targetVolume * progress;
+      }, () => {
+        if (!introSequenceActive || audio !== currentAudio) return;
+        introSequenceActive = false;
+        stopIntroVoice();
+        currentAudio.volume = targetVolume;
+        logger.info('🔊 Original theme intro handed off to seamless loop');
+      });
+    }, fadeStartMs);
+    logger.info(successMessage);
+  };
+  const onFailure = (error: unknown): void => {
+    if (requestFailed || requestToken !== playRequestToken) return;
+    requestFailed = true;
+    introSequenceActive = false;
+    introHasPlayed = false;
+    currentAudio.pause();
+    currentAudio.currentTime = 0;
+    currentAudio.volume = 0;
+    stopIntroVoice();
+    autoplayRetryInFlight = false;
+    armAutoplayRetry();
+    logger.warn(
+      '🔊 Soundtrack intro play failed (user gesture may be required):',
+      String(error),
+    );
+  };
+
+  currentAudio.play().then(onReady).catch(onFailure);
+  currentIntroAudio.play().then(onReady).catch(onFailure);
+}
+
+function playSampleAccurateTheme(
+  currentAudio: MainThemeVoiceLike,
+  successMessage: string,
+): void {
+  currentAudio.volume = SOUNDTRACK_VOLUME;
+  const requestToken = ++playRequestToken;
+  currentAudio.play().then(() => {
+    if (requestToken !== playRequestToken) return;
+    if (
+      audio !== currentAudio ||
+      !isMusicEnabled()
+    ) {
+      currentAudio.pause();
+      return;
+    }
+    introHasPlayed = true;
+    autoplayRetryInFlight = false;
+    markPlaybackActive(currentAudio, successMessage);
+  }).catch((error) => {
+    if (requestToken !== playRequestToken) return;
+    autoplayRetryInFlight = false;
+    armAutoplayRetry();
+    logger.warn('🔊 Sample-accurate soundtrack start failed:', error);
+  });
+}
+
+function settleGameplaySoundtrackAfterTransition(generation: number): void {
   const currentAudio = audio;
-  if (!currentAudio || currentAudio.paused || loopFadeOutActive || activeGameplayFade) return;
-  loopFadeOutActive = true;
+  const activeFade = activeGameplayFade;
+  if (
+    !currentAudio ||
+    currentAudio.paused ||
+    !activeFade ||
+    activeFade.generation !== generation ||
+    generation !== gameplayFadeGeneration ||
+    activeFade.settlingToGameplay
+  ) return;
+  activeFade.settlingToGameplay = true;
   linearFade(
     currentAudio.volume,
-    0,
-    SOUNDTRACK_LOOP_FADE_OUT_MS,
+    SOUNDTRACK_GAMEPLAY_VOLUME,
+    SOUNDTRACK_GAMEPLAY_SETTLE_MS,
     (volume) => {
-      if (audio === currentAudio) currentAudio.volume = volume;
+      if (
+        audio === currentAudio &&
+        activeGameplayFade?.generation === generation &&
+        generation === gameplayFadeGeneration
+      ) currentAudio.volume = volume;
     },
     () => {
-      if (audio === currentAudio) currentAudio.volume = 0;
+      if (
+        audio !== currentAudio ||
+        activeGameplayFade?.generation !== generation ||
+        generation !== gameplayFadeGeneration
+      ) return;
+      currentAudio.volume = SOUNDTRACK_GAMEPLAY_VOLUME;
+      activeGameplayFade = null;
+      logger.info('🔊 Soundtrack raised to 33% for gameplay');
+      enterArcadeCalmSoundtrack();
     },
   );
 }
 
-function onTimeUpdate(): void {
+function clearArcadeBarSwitch(): void {
+  if (arcadeBarSwitchTimer !== null) {
+    clearTimeout(arcadeBarSwitchTimer);
+    arcadeBarSwitchTimer = null;
+  }
+}
+
+function getArcadeLayerUrl(layer: ArcadeSoundtrackLayer): string {
+  return layer === 'active'
+    ? ARCADE_SOUNDTRACK_ACTIVE_URL
+    : ARCADE_SOUNDTRACK_CALM_URL;
+}
+
+function getArcadeLayerVolume(layer: ArcadeSoundtrackLayer): number {
+  return layer === 'active'
+    ? ARCADE_SOUNDTRACK_ACTIVE_VOLUME
+    : ARCADE_SOUNDTRACK_CALM_VOLUME;
+}
+
+function fadeArcadeVoice(
+  voice: HTMLAudioElement,
+  to: number,
+  durationMs: number,
+  generation: number,
+  onDone?: () => void,
+): void {
+  const from = voice.volume;
+  if (!Number.isFinite(durationMs) || durationMs <= 0) {
+    if (generation !== arcadeSwitchGeneration) return;
+    voice.volume = to;
+    onDone?.();
+    return;
+  }
+  const startedAt = performance.now();
+  const run = (): void => {
+    if (generation !== arcadeSwitchGeneration) return;
+    const progress = Math.min(1, (performance.now() - startedAt) / durationMs);
+    voice.volume = from + (to - from) * progress;
+    if (progress < 1) requestAnimationFrame(run);
+    else onDone?.();
+  };
+  requestAnimationFrame(run);
+}
+
+function discardArcadeVoice(voice: HTMLAudioElement): void {
+  try {
+    voice.pause();
+    voice.currentTime = 0;
+    voice.volume = 0;
+  } catch {}
+  arcadeVoices.delete(voice);
+}
+
+function discardNonCurrentArcadeVoices(): void {
+  arcadeVoices.forEach((voice) => {
+    if (voice !== arcadeAudio) discardArcadeVoice(voice);
+  });
+}
+
+function fadeOutArcadeSoundtrack(durationMs: number): void {
+  clearArcadeBarSwitch();
+  const outgoingVoices = Array.from(arcadeVoices);
+  const generation = ++arcadeSwitchGeneration;
+  arcadeAudio = null;
+  arcadeLayer = null;
+  arcadeRequestedLayer = null;
+  arcadeTargetVolume = ARCADE_SOUNDTRACK_CALM_VOLUME;
+  outgoingVoices.forEach((outgoing) => {
+    fadeArcadeVoice(outgoing, 0, durationMs, generation, () => {
+      discardArcadeVoice(outgoing);
+    });
+  });
+}
+
+function fadeThemeOutForArcade(durationMs: number): void {
   const currentAudio = audio;
-  if (!currentAudio || currentAudio.paused || loopFadeOutActive || activeGameplayFade) return;
-  if (!Number.isFinite(currentAudio.duration) || currentAudio.duration <= 0) return;
-  const remainingMs = (currentAudio.duration - currentAudio.currentTime) * 1000;
-  if (remainingMs <= SOUNDTRACK_LOOP_FADE_OUT_MS) startLoopFadeOut();
-  else if (loopFadeStartTimer === null) scheduleLoopFadeOut();
+  if (!currentAudio || currentAudio.paused) return;
+  linearFade(currentAudio.volume, 0, durationMs, (volume) => {
+    if (audio === currentAudio) currentAudio.volume = volume;
+  }, () => {
+    if (audio !== currentAudio || !gameplayDuckActive || !isArcadeHomeRunMode()) return;
+    currentAudio.volume = 0;
+    currentAudio.pause();
+  });
+}
+
+function switchArcadeLayer(
+  layer: ArcadeSoundtrackLayer,
+  durationMs: number,
+  targetVolume: number = getArcadeLayerVolume(layer),
+): void {
+  if (!isMusicEnabled() || !gameplayDuckActive || !isArcadeHomeRunMode()) return;
+  clearArcadeBarSwitch();
+  // A superseded crossfade must not keep its outgoing loop alive after the
+  // shared generation changes. Only the currently owned layer may survive.
+  discardNonCurrentArcadeVoices();
+  arcadeRequestedLayer = layer;
+  arcadeTargetVolume = targetVolume;
+  const outgoing = arcadeAudio;
+  if (outgoing && arcadeLayer === layer) {
+    const generation = ++arcadeSwitchGeneration;
+    fadeArcadeVoice(outgoing, targetVolume, durationMs, generation);
+    return;
+  }
+
+  const incoming = new Audio(getArcadeLayerUrl(layer));
+  arcadeVoices.add(incoming);
+  incoming.loop = true;
+  incoming.preload = 'auto';
+  incoming.volume = 0;
+  if (outgoing && Number.isFinite(outgoing.currentTime)) {
+    try { incoming.currentTime = outgoing.currentTime; } catch {}
+  }
+  const generation = ++arcadeSwitchGeneration;
+  incoming.play().then(() => {
+    if (
+      generation !== arcadeSwitchGeneration ||
+      !isMusicEnabled() ||
+      !gameplayDuckActive ||
+      !isArcadeHomeRunMode()
+    ) {
+      discardArcadeVoice(incoming);
+      return;
+    }
+    if (outgoing && Number.isFinite(outgoing.currentTime)) {
+      try {
+        incoming.currentTime = Number.isFinite(incoming.duration) && incoming.duration > 0
+          ? outgoing.currentTime % incoming.duration
+          : outgoing.currentTime;
+      } catch {}
+    }
+    arcadeAudio = incoming;
+    arcadeLayer = layer;
+    arcadeRequestedLayer = layer;
+    isStarted = true;
+    disarmAutoplayRetry();
+    fadeArcadeVoice(incoming, targetVolume, durationMs, generation);
+    if (outgoing) {
+      fadeArcadeVoice(outgoing, 0, durationMs, generation, () => {
+        discardArcadeVoice(outgoing);
+      });
+    } else {
+      fadeThemeOutForArcade(durationMs);
+    }
+    logger.info(`🔊 Arcade soundtrack switched to ${layer}`);
+  }).catch((error) => {
+    if (generation !== arcadeSwitchGeneration) return;
+    discardArcadeVoice(incoming);
+    armAutoplayRetry();
+    logger.warn(`🔊 Arcade ${layer} soundtrack play failed:`, error);
+  });
+}
+
+function enterArcadeCalmSoundtrack(): void {
+  if (!isArcadeHomeRunMode()) return;
+  switchArcadeLayer(
+    'calm',
+    ARCADE_SOUNDTRACK_ENTRY_CROSSFADE_MS,
+    ARCADE_SOUNDTRACK_CALM_VOLUME,
+  );
 }
 
 function armAutoplayRetry(): void {
@@ -146,11 +522,10 @@ function disarmAutoplayRetry(): void {
   document.removeEventListener('keydown', onAutoplayRetry, true);
 }
 
-function markPlaybackActive(currentAudio: HTMLAudioElement, message: string): void {
+function markPlaybackActive(currentAudio: MainThemeVoiceLike, message: string): void {
   if (audio !== currentAudio) return;
   isStarted = true;
   disarmAutoplayRetry();
-  scheduleLoopFadeOut();
   logger.info(message);
 }
 
@@ -170,12 +545,36 @@ function onAutoplayRetry(event: Event): void {
   }
   autoplayRetryInFlight = true;
   disarmAutoplayRetry();
+  if (gameplayDuckActive && isArcadeHomeRunMode() && arcadeRequestedLayer) {
+    autoplayRetryInFlight = false;
+    switchArcadeLayer(
+      arcadeRequestedLayer,
+      ARCADE_SOUNDTRACK_ENTRY_CROSSFADE_MS,
+      arcadeTargetVolume,
+    );
+    return;
+  }
   const currentAudio = getAudio();
   if (gameplayDuckActive) activeGameplayFade = null;
+  if (!introHasPlayed) {
+    if (isSampleAccurateMainThemeVoice(currentAudio)) {
+      playSampleAccurateTheme(
+        currentAudio,
+        '🔊 Original Stack to Six intro started after user gesture',
+      );
+      return;
+    }
+    playOriginalIntroIntoLoop(
+      currentAudio,
+      '🔊 Original Stack to Six intro started after user gesture',
+    );
+    return;
+  }
   currentAudio.volume = getPlaybackTargetVolume();
   const requestToken = ++playRequestToken;
   currentAudio.play().then(() => {
-    if (requestToken !== playRequestToken || audio !== currentAudio || !isMusicEnabled()) {
+    if (requestToken !== playRequestToken) return;
+    if (audio !== currentAudio || !isMusicEnabled()) {
       currentAudio.pause();
       return;
     }
@@ -190,7 +589,7 @@ function onAutoplayRetry(event: Event): void {
 }
 
 function playWithFadeIn(
-  currentAudio: HTMLAudioElement,
+  currentAudio: MainThemeVoiceLike,
   durationMs: number,
   successMessage: string,
   targetVolume: number = getPlaybackTargetVolume(),
@@ -200,9 +599,10 @@ function playWithFadeIn(
   currentAudio.volume = 0;
   const requestToken = ++playRequestToken;
   currentAudio.play().then(() => {
-    if (requestToken !== playRequestToken || audio !== currentAudio || !isMusicEnabled()) {
+    if (requestToken !== playRequestToken) return;
+    if (audio !== currentAudio || !isMusicEnabled()) {
       currentAudio.pause();
-      if (requestToken === playRequestToken) fadeInProgress = false;
+      fadeInProgress = false;
       return;
     }
     isStarted = true;
@@ -213,7 +613,6 @@ function playWithFadeIn(
       if (audio !== currentAudio) return;
       currentAudio.volume = targetVolume;
       fadeInProgress = false;
-      scheduleLoopFadeOut();
       logger.info(successMessage);
     });
   }).catch((error) => {
@@ -224,38 +623,27 @@ function playWithFadeIn(
   });
 }
 
-function onEnded(): void {
-  clearLoopFadeSchedule();
-  loopFadeOutActive = false;
-  const currentAudio = audio;
-  if (!currentAudio || pausedForVisibility || !isMusicEnabled()) return;
-  if (gameplayDuckActive) activeGameplayFade = null;
-  currentAudio.currentTime = 0;
-  playWithFadeIn(
-    currentAudio,
-    SOUNDTRACK_LOOP_FADE_IN_MS,
-    '🔊 Soundtrack loop restarted',
-  );
-}
-
-function onAudioReady(): void {
-  scheduleLoopFadeOut();
-}
-
 function onVisibilityChange(): void {
   const currentAudio = audio;
   if (document.hidden) {
-    if (!currentAudio) return;
+    if (!currentAudio && arcadeVoices.size === 0) return;
+    cancelIntroSequence(true);
     activeFadeToken++;
+    arcadeSwitchGeneration++;
     playRequestToken++;
     fadeInProgress = false;
-    loopFadeOutActive = false;
-    clearLoopFadeSchedule();
     if (gameplayDuckActive) {
       activeGameplayFade = null;
-      currentAudio.volume = SOUNDTRACK_GAMEPLAY_VOLUME;
+      if (currentAudio) currentAudio.volume = SOUNDTRACK_GAMEPLAY_VOLUME;
     }
-    currentAudio.pause();
+    currentAudio?.pause();
+    arcadeVoices.forEach((voice) => {
+      if (voice !== arcadeAudio) discardArcadeVoice(voice);
+      else {
+        voice.volume = arcadeTargetVolume;
+        voice.pause();
+      }
+    });
     pausedForVisibility = isMusicEnabled();
     logger.info('🔊 Soundtrack paused (app in background)');
     return;
@@ -263,7 +651,35 @@ function onVisibilityChange(): void {
 
   if (!pausedForVisibility) return;
   pausedForVisibility = false;
-  if (!currentAudio || !isMusicEnabled()) return;
+  if (!isMusicEnabled()) return;
+  if (gameplayDuckActive && isArcadeHomeRunMode() && arcadeAudio) {
+    const currentArcadeAudio = arcadeAudio;
+    currentArcadeAudio.volume = 0;
+    const generation = ++arcadeSwitchGeneration;
+    currentArcadeAudio.play().then(() => {
+      if (
+        generation !== arcadeSwitchGeneration ||
+        arcadeAudio !== currentArcadeAudio ||
+        !isMusicEnabled()
+      ) {
+        currentArcadeAudio.pause();
+        return;
+      }
+      fadeArcadeVoice(
+        currentArcadeAudio,
+        arcadeTargetVolume,
+        SOUNDTRACK_RESUME_FADE_IN_MS,
+        generation,
+      );
+      logger.info('🔊 Arcade soundtrack resumed (app visible)');
+    }).catch((error) => {
+      if (generation !== arcadeSwitchGeneration) return;
+      armAutoplayRetry();
+      logger.warn('🔊 Arcade soundtrack resume failed:', error);
+    });
+    return;
+  }
+  if (!currentAudio) return;
   playWithFadeIn(
     currentAudio,
     SOUNDTRACK_RESUME_FADE_IN_MS,
@@ -281,39 +697,54 @@ function setupVisibilityListener(): void {
   document.addEventListener('visibilitychange', onVisibilityChange);
 }
 
-function getAudio(): HTMLAudioElement {
+function getAudio(): MainThemeVoiceLike {
   if (!audio) {
-    audio = new Audio(SOUNDTRACK_URL);
-    audio.loop = false;
+    audio = createSampleAccurateMainThemeVoice({
+      source: SOUNDTRACK_RUNTIME_URL,
+      loopStartSeconds: SOUNDTRACK_INTRO_DURATION_MS / 1000,
+      loopEndSeconds: SOUNDTRACK_RUNTIME_DURATION_SECONDS,
+      initialVolume: SOUNDTRACK_VOLUME,
+    }) ?? new Audio(SOUNDTRACK_URL);
+    audio.loop = true;
     audio.volume = SOUNDTRACK_VOLUME;
     audio.preload = 'auto';
-    audio.addEventListener('ended', onEnded);
-    audio.addEventListener('loadedmetadata', onAudioReady);
-    audio.addEventListener('durationchange', onAudioReady);
-    audio.addEventListener('canplaythrough', onAudioReady);
-    audio.addEventListener('timeupdate', onTimeUpdate);
     setupVisibilityListener();
   }
   return audio;
 }
 
+/** Begin decoding the one-source intro/loop master before the launch cue is due. */
+export function preloadSoundtrack(): void {
+  if (!isMusicEnabled()) return;
+  getAudio();
+}
+
 /** Start the global theme. Repeated calls do not restart an active track. */
 export function startSoundtrack(): void {
   if (!isMusicEnabled()) return;
+  clearVictoryHookEnvelope();
+  fadeOutArcadeSoundtrack(0);
   gameplayDuckActive = false;
   activeGameplayFade = null;
   gameplayFadeGeneration++;
   const currentAudio = getAudio();
-  if (!currentAudio.paused) {
-    scheduleLoopFadeOut();
+  if (!currentAudio.paused) return;
+  if (!introHasPlayed) {
+    if (isSampleAccurateMainThemeVoice(currentAudio)) {
+      playSampleAccurateTheme(
+        currentAudio,
+        '🔊 Original Stack to Six intro started on sample-accurate loop transport',
+      );
+      return;
+    }
+    playOriginalIntroIntoLoop(currentAudio, '🔊 Original Stack to Six intro started');
     return;
   }
-  loopFadeOutActive = false;
-  clearLoopFadeSchedule();
   currentAudio.volume = SOUNDTRACK_VOLUME;
   const requestToken = ++playRequestToken;
   currentAudio.play().then(() => {
-    if (requestToken !== playRequestToken || audio !== currentAudio || !isMusicEnabled()) {
+    if (requestToken !== playRequestToken) return;
+    if (audio !== currentAudio || !isMusicEnabled()) {
       currentAudio.pause();
       return;
     }
@@ -327,22 +758,25 @@ export function startSoundtrack(): void {
 
 /** Stop and rewind only when the player turns Music OFF. */
 export function stopSoundtrack(): void {
+  clearVictoryHookEnvelope();
+  cancelIntroSequence(false);
   activeFadeToken++;
   playRequestToken++;
   fadeInProgress = false;
-  loopFadeOutActive = false;
   pausedForVisibility = false;
-  clearLoopFadeSchedule();
   disarmAutoplayRetry();
   autoplayRetryInFlight = false;
   gameplayDuckActive = false;
   activeGameplayFade = null;
   gameplayFadeGeneration++;
+  fadeOutArcadeSoundtrack(0);
   const currentAudio = audio;
   if (currentAudio) {
     try {
       currentAudio.pause();
-      currentAudio.currentTime = 0;
+      currentAudio.currentTime = introHasPlayed && isSampleAccurateMainThemeVoice(currentAudio)
+        ? SOUNDTRACK_INTRO_DURATION_MS / 1000
+        : 0;
       currentAudio.volume = 0;
     } catch {}
   }
@@ -355,7 +789,10 @@ export function fadeInAndResume(
   durationMs: number = SOUNDTRACK_RESUME_FADE_IN_MS,
 ): void {
   if (!isMusicEnabled()) return;
+  clearVictoryHookEnvelope();
+  cancelIntroSequence(true);
   if (fadeInProgress && !gameplayDuckActive) return;
+  fadeOutArcadeSoundtrack(durationMs);
   gameplayDuckActive = false;
   activeGameplayFade = null;
   gameplayFadeGeneration++;
@@ -363,8 +800,6 @@ export function fadeInAndResume(
   fadeInProgress = false;
   const currentAudio = getAudio();
   if (!currentAudio.paused) {
-    loopFadeOutActive = false;
-    clearLoopFadeSchedule();
     fadeInProgress = true;
     const fromVolume = currentAudio.volume;
     linearFade(fromVolume, SOUNDTRACK_VOLUME, durationMs, (volume) => {
@@ -373,13 +808,10 @@ export function fadeInAndResume(
       if (audio !== currentAudio) return;
       currentAudio.volume = SOUNDTRACK_VOLUME;
       fadeInProgress = false;
-      scheduleLoopFadeOut();
       logger.info('🔊 Soundtrack faded in and resumed');
     });
     return;
   }
-  loopFadeOutActive = false;
-  clearLoopFadeSchedule();
   playWithFadeIn(currentAudio, durationMs, '🔊 Soundtrack faded in and resumed');
 }
 
@@ -388,18 +820,22 @@ export function fadeInAndResume(
  * The caller advances this generation through its real animation phases.
  */
 export function beginGameplayTransitionFade(): number {
+  clearVictoryHookEnvelope();
+  cancelIntroSequence(true);
+  // A sample-accurate theme start may still be awaiting decode/context resume.
+  // Gameplay now owns audio, so any older completion must pause itself.
+  playRequestToken++;
   const generation = ++gameplayFadeGeneration;
-  const alreadyDucked = gameplayDuckActive;
   gameplayDuckActive = true;
   fadeInProgress = false;
-  loopFadeOutActive = false;
-  clearLoopFadeSchedule();
   disarmAutoplayRetry();
   activeFadeToken++;
   activeGameplayFade = {
     generation,
-    alreadyDucked,
     targetRatio: 1,
+    transitionSettled: false,
+    completionRequested: false,
+    settlingToGameplay: false,
   };
   return generation;
 }
@@ -419,20 +855,14 @@ export function continueGameplayTransitionFade(
     activeFade.generation !== generation ||
     generation !== gameplayFadeGeneration
   ) return;
+  if (activeFade.settlingToGameplay) return;
   const boundedRatio = Math.max(0, Math.min(1, remainingRatio));
   activeFade.targetRatio = boundedRatio;
-  if (activeFade.alreadyDucked) {
-    activeFadeToken++;
-    currentAudio.volume = SOUNDTRACK_GAMEPLAY_VOLUME;
-    activeGameplayFade = null;
-    scheduleLoopFadeOut();
-    return;
-  }
-  const targetVolume = boundedRatio <= SOUNDTRACK_GAMEPLAY_VOLUME_RATIO
-    ? SOUNDTRACK_GAMEPLAY_VOLUME
+  const targetVolume = boundedRatio <= SOUNDTRACK_TRANSITION_VOLUME_RATIO
+    ? SOUNDTRACK_TRANSITION_VOLUME
     : SOUNDTRACK_VOLUME * boundedRatio;
   const effectiveDurationMs = durationMs + (
-    boundedRatio <= SOUNDTRACK_GAMEPLAY_VOLUME_RATIO
+    boundedRatio <= SOUNDTRACK_TRANSITION_VOLUME_RATIO
       ? SOUNDTRACK_GAMEPLAY_FADE_TAIL_MS
       : 0
   );
@@ -449,16 +879,20 @@ export function continueGameplayTransitionFade(
       generation === gameplayFadeGeneration
     ) {
       currentAudio.volume = targetVolume;
-      if (boundedRatio <= SOUNDTRACK_GAMEPLAY_VOLUME_RATIO) {
-        activeGameplayFade = null;
-        scheduleLoopFadeOut();
-        logger.info('🔊 Soundtrack ducked to 20% for gameplay');
+      if (boundedRatio <= SOUNDTRACK_TRANSITION_VOLUME_RATIO) {
+        const finalFade = activeGameplayFade;
+        if (!finalFade || finalFade.generation !== generation) return;
+        finalFade.transitionSettled = true;
+        logger.info('🔊 Soundtrack held at 20% through Board Transition');
+        if (finalFade.completionRequested) {
+          settleGameplaySoundtrackAfterTransition(generation);
+        }
       }
     }
   });
 }
 
-/** Finish the matching route transition while keeping the theme playing at 20%. */
+/** Finish the matching route transition, then raise the theme to 33% for gameplay. */
 export function completeGameplayTransitionFade(generation: number): void {
   const activeFade = activeGameplayFade;
   if (
@@ -466,30 +900,246 @@ export function completeGameplayTransitionFade(generation: number): void {
     activeFade.generation !== generation ||
     generation !== gameplayFadeGeneration
   ) return;
+  activeFade.completionRequested = true;
   const currentAudio = audio;
   if (!currentAudio || currentAudio.paused) {
     activeFadeToken++;
     activeGameplayFade = null;
     if (currentAudio) currentAudio.volume = SOUNDTRACK_GAMEPLAY_VOLUME;
+    enterArcadeCalmSoundtrack();
     return;
   }
-  // The normal final phase already targets gameplay volume with the extra
-  // tail. Do not snap or cancel it when the visual transition completes.
-  if (activeFade.targetRatio <= SOUNDTRACK_GAMEPLAY_VOLUME_RATIO) return;
-  continueGameplayTransitionFade(generation, SOUNDTRACK_GAMEPLAY_VOLUME_RATIO, 0);
+  if (activeFade.settlingToGameplay) return;
+  if (activeFade.transitionSettled) {
+    settleGameplaySoundtrackAfterTransition(generation);
+    return;
+  }
+  // The normal final phase is still settling at the unchanged transition
+  // level. Let its soft tail finish before the post-transition gameplay lift.
+  if (activeFade.targetRatio <= SOUNDTRACK_TRANSITION_VOLUME_RATIO) return;
+  continueGameplayTransitionFade(generation, SOUNDTRACK_TRANSITION_VOLUME_RATIO, 0);
 }
 
-/** Fade across a complete known-duration cue, then settle at 20% after a short tail. */
+/** Hold the established 20% transition mix, then lift gameplay to 33%. */
 export function fadeOutSoundtrackForGameplay(durationMs: number): number {
   const generation = beginGameplayTransitionFade();
-  continueGameplayTransitionFade(generation, SOUNDTRACK_GAMEPLAY_VOLUME_RATIO, durationMs);
+  continueGameplayTransitionFade(generation, SOUNDTRACK_TRANSITION_VOLUME_RATIO, durationMs);
   return generation;
 }
 
+/** Reset a new Arcade round to the restrained gameplay bed. */
+export function enterArcadeGameplaySoundtrack(): void {
+  if (!isMusicEnabled() || !isArcadeHomeRunMode()) return;
+  clearVictoryHookEnvelope();
+  playRequestToken++;
+  gameplayDuckActive = true;
+  activeGameplayFade = null;
+  gameplayFadeGeneration++;
+  enterArcadeCalmSoundtrack();
+}
+
+/**
+ * Promote only the first committed Arcade Merge-6/Wild moment. Both loops are
+ * authored to the same tempo and length, so phase-matching currentTime and
+ * waiting for the next bar gives us a musical, non-destructive transition.
+ */
+export function promoteArcadeSoundtrackAfterMerge6(): void {
+  if (
+    !isMusicEnabled() ||
+    !gameplayDuckActive ||
+    !isArcadeHomeRunMode() ||
+    !arcadeAudio ||
+    arcadeLayer !== 'calm' ||
+    arcadeBarSwitchTimer !== null
+  ) return;
+  const barPosition = arcadeAudio.currentTime % ARCADE_SOUNDTRACK_BAR_SECONDS;
+  const delaySeconds = barPosition <= 0.03
+    ? 0
+    : ARCADE_SOUNDTRACK_BAR_SECONDS - barPosition;
+  arcadeBarSwitchTimer = setTimeout(() => {
+    arcadeBarSwitchTimer = null;
+    if (arcadeLayer !== 'calm') return;
+    switchArcadeLayer(
+      'active',
+      ARCADE_SOUNDTRACK_BAR_CROSSFADE_MS,
+      ARCADE_SOUNDTRACK_ACTIVE_VOLUME,
+    );
+  }, Math.round(delaySeconds * 1000));
+}
+
+/** Leave Clean/Fail sax, stars and money cues in front without cutting music. */
+export function setSoundtrackResultMix(): void {
+  clearArcadeBarSwitch();
+  if (!arcadeAudio || !isMusicEnabled() || !isArcadeHomeRunMode()) return;
+  discardNonCurrentArcadeVoices();
+  arcadeTargetVolume = ARCADE_SOUNDTRACK_RESULT_VOLUME;
+  const generation = ++arcadeSwitchGeneration;
+  fadeArcadeVoice(
+    arcadeAudio,
+    ARCADE_SOUNDTRACK_RESULT_VOLUME,
+    SOUNDTRACK_RESUME_FADE_IN_MS,
+    generation,
+  );
+}
+
+/**
+ * Keep the soundtrack timeline running silently under a result audio owner.
+ * The returned receipt restores music only when the real result voice ends;
+ * route changes cancel this hold and take ownership immediately.
+ */
+export type SoundtrackResultReleaseTarget = 'stable' | 'gameplay';
+
+export function fadeSoundtrackForResultHook(): (
+  target?: SoundtrackResultReleaseTarget,
+) => void {
+  clearVictoryHookEnvelope();
+  // Result ownership must invalidate a theme transport that is still waiting
+  // for decode/AudioContext resume, otherwise it can start at full gain later.
+  playRequestToken++;
+  if (audio?.paused && isSampleAccurateMainThemeVoice(audio)) audio.pause();
+  cancelIntroSequence(true);
+  const fadeInDurationMs = SOUNDTRACK_VICTORY_FADE_IN_MS;
+  const fadeOutDurationMs = SOUNDTRACK_VICTORY_FADE_OUT_MS;
+  // A result is no longer gameplay. Restore directly to the next stable owner
+  // level so there is no gameplay-level step followed by a second level jump.
+  victoryHookThemeRestoreVolume = SOUNDTRACK_VOLUME;
+  victoryHookArcadeRestoreVolume = ARCADE_SOUNDTRACK_CALM_VOLUME;
+  victoryHookEnvelopeActive = true;
+  victoryHookMuteActive = true;
+  const generation = ++victoryHookGeneration;
+  activeFadeToken++;
+
+  const currentAudio = audio;
+  if (currentAudio && !currentAudio.paused) {
+    linearFade(currentAudio.volume, 0, fadeOutDurationMs, (volume) => {
+      if (audio === currentAudio && victoryHookMuteActive) currentAudio.volume = volume;
+    }, () => {
+      if (audio === currentAudio && victoryHookMuteActive) currentAudio.volume = 0;
+    });
+  }
+
+  clearArcadeBarSwitch();
+  const currentArcadeAudio = arcadeAudio;
+  const fadeOutGeneration = ++arcadeSwitchGeneration;
+  arcadeTargetVolume = 0;
+  arcadeVoices.forEach((voice) => {
+    if (voice === currentArcadeAudio) {
+      fadeArcadeVoice(voice, 0, fadeOutDurationMs, fadeOutGeneration);
+    }
+    else discardArcadeVoice(voice);
+  });
+
+  let released = false;
+  let releasedTarget: SoundtrackResultReleaseTarget | null = null;
+  const restoreThemeToTarget = (
+    target: SoundtrackResultReleaseTarget,
+    message: string,
+  ): void => {
+    gameplayDuckActive = target === 'gameplay';
+    activeGameplayFade = null;
+    gameplayFadeGeneration++;
+    const themeRestoreVolume = target === 'gameplay'
+      ? SOUNDTRACK_GAMEPLAY_VOLUME
+      : victoryHookThemeRestoreVolume;
+
+    if (!currentAudio || audio !== currentAudio) {
+      victoryHookEnvelopeActive = false;
+      return;
+    }
+    if (document.hidden || pausedForVisibility) {
+      currentAudio.volume = themeRestoreVolume;
+      victoryHookEnvelopeActive = false;
+      return;
+    }
+    if (currentAudio.paused) {
+      victoryHookEnvelopeActive = false;
+      playWithFadeIn(currentAudio, fadeInDurationMs, message, themeRestoreVolume);
+      return;
+    }
+    linearFade(currentAudio.volume, themeRestoreVolume, fadeInDurationMs, (volume) => {
+      if (audio === currentAudio) currentAudio.volume = volume;
+    }, () => {
+      if (audio !== currentAudio) return;
+      currentAudio.volume = themeRestoreVolume;
+      victoryHookEnvelopeActive = false;
+      logger.info(message);
+    });
+  };
+  const releaseAfterResultAudio = (
+    target: SoundtrackResultReleaseTarget = 'stable',
+  ): void => {
+    if (generation !== victoryHookGeneration) return;
+    if (released) {
+      if (
+        target !== 'gameplay' ||
+        releasedTarget === 'gameplay' ||
+        (currentArcadeAudio && arcadeAudio === currentArcadeAudio && isArcadeHomeRunMode()) ||
+        !isMusicEnabled()
+      ) return;
+      releasedTarget = 'gameplay';
+      restoreThemeToTarget(
+        'gameplay',
+        '🔊 Soundtrack retargeted to gameplay after result CTA',
+      );
+      return;
+    }
+    if (
+      !victoryHookEnvelopeActive ||
+      !victoryHookMuteActive
+    ) return;
+    released = true;
+    releasedTarget = target;
+    victoryHookMuteActive = false;
+    if (!isMusicEnabled()) {
+      victoryHookEnvelopeActive = false;
+      return;
+    }
+
+    if (
+      currentArcadeAudio &&
+      arcadeAudio === currentArcadeAudio &&
+      gameplayDuckActive &&
+      isArcadeHomeRunMode()
+    ) {
+      arcadeTargetVolume = victoryHookArcadeRestoreVolume;
+      const restoreGeneration = ++arcadeSwitchGeneration;
+      if (document.hidden || pausedForVisibility || currentArcadeAudio.paused) {
+        currentArcadeAudio.volume = 0;
+        victoryHookEnvelopeActive = false;
+        return;
+      }
+      fadeArcadeVoice(
+        currentArcadeAudio,
+        victoryHookArcadeRestoreVolume,
+        fadeInDurationMs,
+        restoreGeneration,
+        () => {
+          if (arcadeAudio !== currentArcadeAudio) return;
+          victoryHookEnvelopeActive = false;
+          logger.info('🔊 Arcade soundtrack restored after result audio completed');
+        },
+      );
+      return;
+    }
+
+    restoreThemeToTarget(
+      target,
+      '🔊 Soundtrack restored after result audio completed',
+    );
+  };
+
+  logger.info(
+    `🔊 Result soundtrack owner started: ${fadeOutDurationMs}ms out, ` +
+    'waiting for actual result-audio completion',
+  );
+  return releaseAfterResultAudio;
+}
+
 export function resetSoundtrackForTests(): void {
+  clearVictoryHookEnvelope();
+  cancelIntroSequence(false);
   activeFadeToken++;
   playRequestToken++;
-  clearLoopFadeSchedule();
   disarmAutoplayRetry();
   autoplayRetryInFlight = false;
   if (visibilityListenerInstalled && typeof document !== 'undefined') {
@@ -497,15 +1147,23 @@ export function resetSoundtrackForTests(): void {
   }
   visibilityListenerInstalled = false;
   if (audio) {
-    audio.removeEventListener('ended', onEnded);
-    audio.removeEventListener('loadedmetadata', onAudioReady);
-    audio.removeEventListener('durationchange', onAudioReady);
-    audio.removeEventListener('canplaythrough', onAudioReady);
-    audio.removeEventListener('timeupdate', onTimeUpdate);
     try { audio.pause(); } catch {}
+    audio.dispose?.();
   }
+  stopIntroVoice();
+  clearArcadeBarSwitch();
+  arcadeSwitchGeneration++;
+  arcadeVoices.forEach(discardArcadeVoice);
+  arcadeVoices.clear();
+  arcadeAudio = null;
+  arcadeLayer = null;
+  arcadeRequestedLayer = null;
+  arcadeTargetVolume = ARCADE_SOUNDTRACK_CALM_VOLUME;
+  victoryHookThemeRestoreVolume = SOUNDTRACK_VOLUME;
+  victoryHookArcadeRestoreVolume = ARCADE_SOUNDTRACK_CALM_VOLUME;
   audio = null;
-  loopFadeOutActive = false;
+  introAudio = null;
+  introHasPlayed = false;
   pausedForVisibility = false;
   gameplayDuckActive = false;
   activeGameplayFade = null;
@@ -519,5 +1177,9 @@ export const soundtrackManager = {
   stop: stopSoundtrack,
   fadeInAndResume,
   fadeOutForGameplay: fadeOutSoundtrackForGameplay,
+  enterArcadeGameplay: enterArcadeGameplaySoundtrack,
+  promoteAfterMerge6: promoteArcadeSoundtrackAfterMerge6,
+  setResultMix: setSoundtrackResultMix,
+  fadeForResultHook: fadeSoundtrackForResultHook,
   get isStarted() { return isStarted; },
 };

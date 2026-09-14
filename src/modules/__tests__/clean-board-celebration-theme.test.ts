@@ -1,4 +1,7 @@
-import { resolveCleanBoardCelebrationTheme } from '../clean-board-celebration-theme';
+import {
+  resolveCleanBoardCelebrationTheme,
+  shouldShowArea55CleanBoardShips,
+} from '../clean-board-celebration-theme';
 import { RUN_MODE_ARCADE_HOME, RUN_MODE_JOURNEY } from '../run-mode';
 
 describe('Clean Board celebration World ownership', () => {
@@ -28,5 +31,28 @@ describe('Clean Board celebration World ownership', () => {
       boardNumber,
       runMode: RUN_MODE_JOURNEY,
     })).toBe('area55');
+  });
+
+  test('shows ship flybys only for a Journey board owned by Area 55', () => {
+    expect(shouldShowArea55CleanBoardShips({
+      boardNumber: 21,
+      runMode: RUN_MODE_JOURNEY,
+    })).toBe(true);
+    expect(shouldShowArea55CleanBoardShips({
+      boardNumber: 30,
+      runMode: RUN_MODE_JOURNEY,
+    })).toBe(true);
+    expect(shouldShowArea55CleanBoardShips({
+      boardNumber: 20,
+      runMode: RUN_MODE_JOURNEY,
+    })).toBe(false);
+    expect(shouldShowArea55CleanBoardShips({
+      boardNumber: 21,
+      runMode: RUN_MODE_ARCADE_HOME,
+    })).toBe(false);
+    expect(shouldShowArea55CleanBoardShips({
+      boardNumber: 999,
+      runMode: RUN_MODE_JOURNEY,
+    })).toBe(false);
   });
 });

@@ -58,7 +58,7 @@ describe('gameplay pickup sound', () => {
     expect(GAMEPLAY_RETURN_SOUND_SOURCE).toBe('./assets/sound/merge 6/woosh.mp3');
     expect(GAMEPLAY_RETURN_SOUND_PLAYBACK_RATE).toBe(1);
     expect(GAMEPLAY_RETURN_SOUND_START_OFFSET_SECONDS).toBe(0.045);
-    expect(GAMEPLAY_RETURN_SOUND_VOLUME).toBeCloseTo(0.51);
+    expect(GAMEPLAY_RETURN_SOUND_VOLUME).toBeCloseTo(0.24);
     expect(fs.existsSync(path.resolve(process.cwd(), 'assets/sound/merge 6/woosh.mp3'))).toBe(true);
   });
 
@@ -94,7 +94,7 @@ describe('gameplay pickup sound', () => {
     expect(pickup.playbackRate).toBe(1);
     expect(returned.playbackRate).toBe(1);
     expect(pickup.volume).toBeCloseTo(0.2592);
-    expect(returned.volume).toBeCloseTo(0.51);
+    expect(returned.volume).toBeCloseTo(0.24);
     expect(pickup.currentTime).toBe(0.045);
     expect(returned.currentTime).toBe(0.045);
     expect(pickup.play).toHaveBeenCalledTimes(2);

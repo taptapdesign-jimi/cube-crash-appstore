@@ -256,6 +256,8 @@ const ALL_ASSETS: string[] = [
   // FX assets - fx/boom folder not in repo; removed to avoid load errors
   './assets/colelctibles/common back.png',
   './assets/colelctibles/legendary back.png',
+  './assets/colelctibles/interim.png',
+  './assets/colelctibles/interim@2x.png',
 ];
 
 // CRITICAL ASSETS: All assets needed for homepage slider and first game frame
@@ -355,6 +357,8 @@ const CRITICAL_ASSETS: string[] = [
   // Collectibles placeholder images (needed for collectibles screen)
   './assets/colelctibles/common back.png',
   './assets/colelctibles/legendary back.png',
+  './assets/colelctibles/interim.png',
+  './assets/colelctibles/interim@2x.png',
   // NOTE: Collectibles card fronts are not globally preloaded; visible cards
   // and detail modals load them on demand to avoid iOS WebContent pressure.
 ];
@@ -548,6 +552,8 @@ export class AssetPreloader {
       './assets/journey assets/fence.right.png',
       './assets/colelctibles/journey-card-empty.png',
       './assets/colelctibles/common back.png',
+      './assets/colelctibles/interim.png',
+      './assets/colelctibles/interim@2x.png',
       './assets/board transition/oblak+srednji.png',
       './assets/board transition/oblak mali desno.png',
       './assets/board transition/oblak mali ljevo.png',
@@ -609,7 +615,9 @@ export class AssetPreloader {
       logger.info('🎁 Collectibles placeholders already preloaded (using browser cache)');
       const criticalImages = [
         './assets/colelctibles/common back.png',
-        './assets/colelctibles/legendary back.png'
+        './assets/colelctibles/legendary back.png',
+        './assets/colelctibles/interim.png',
+        './assets/colelctibles/interim@2x.png'
       ];
       await Promise.allSettled(criticalImages.map(src => this.verifyImageInCache(src)));
       return;
@@ -617,7 +625,9 @@ export class AssetPreloader {
     
     const collectiblesImages: string[] = [
       './assets/colelctibles/common back.png',
-      './assets/colelctibles/legendary back.png'
+      './assets/colelctibles/legendary back.png',
+      './assets/colelctibles/interim.png',
+      './assets/colelctibles/interim@2x.png'
     ];
     
     logger.info(`🎁 Preloading ${collectiblesImages.length} collectibles placeholder images...`);
@@ -659,7 +669,9 @@ export class AssetPreloader {
         ...JOURNEY_BOTTOM_DECOR_IMAGES,
         './assets/journey assets/natpis.png',
         './assets/journey assets/natpis@2x.png',
-        './assets/colelctibles/journey-card-empty.png'
+        './assets/colelctibles/journey-card-empty.png',
+        './assets/colelctibles/interim.png',
+        './assets/colelctibles/interim@2x.png'
       ];
       await Promise.allSettled(criticalImages.map(src => this.verifyImageInCache(src)));
       return;
@@ -679,6 +691,8 @@ export class AssetPreloader {
     // Journey placeholder images (used for lazy loading)
     journeyImages.push('./assets/colelctibles/journey-card-empty.png');
     journeyImages.push('./assets/colelctibles/common back.png');
+    journeyImages.push('./assets/colelctibles/interim.png');
+    journeyImages.push('./assets/colelctibles/interim@2x.png');
     
     logger.info(`🗺️ Preloading ${journeyImages.length} Journey screen images for instant load...`);
     const isMobile = MOBILE_RUNTIME_PROFILE.isMobileDevice;

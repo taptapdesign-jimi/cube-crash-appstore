@@ -7,6 +7,11 @@
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { allowConfettiSpawns, createConfettiExplosion } from './confetti-system.js';
+import {
+  startCleanBoardArea55ShipFlybys,
+  stopCleanBoardArea55ShipFlybys,
+  type CleanBoardArea55ShipFlybyController,
+} from './clean-board-area55-ship-flybys.js';
 import { statsService } from '../services/stats-service.js';
 import { boardStatsService } from '../services/board-stats-service.js';
 import { arcadeStatsService } from '../services/arcade-stats-service.js';
@@ -24,8 +29,12 @@ import { ctaMotion, exitCtaPair, getRegisteredCta, registerCta, type CtaControll
 import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.ts';
 import { ADDITIONAL_CLEAN_BOARD_WIN_MESSAGES } from './clean-board-win-messages.ts';
 import { computeCleanBoardFinalScore } from './clean-board-score-utils.ts';
-import { resolveCleanBoardCelebrationTheme } from './clean-board-celebration-theme.ts';
 import {
+  resolveCleanBoardCelebrationTheme,
+  shouldShowArea55CleanBoardShips,
+} from './clean-board-celebration-theme.ts';
+import {
+  createCleanBoardResultAudioSettlements,
   createCleanBoardStarHarpOrder,
   playCleanBoardBonusCountSound,
   playCleanBoardApplauseSound,
@@ -36,6 +45,10 @@ import {
   preloadCleanBoardSounds,
   stopCleanBoardSounds,
 } from './clean-board-sound.ts';
+import {
+  fadeSoundtrackForResultHook,
+  setSoundtrackResultMix,
+} from './soundtrack-manager.ts';
 
 const ORIGINAL_HEADLINES = [
   'Outstanding!', 'Amazing!', 'Excellent!', 'Fantastic!', 'Incredible!',
@@ -182,6 +195,7 @@ export function cleanupCleanBoardModalLifecycle() {
     _modalCleanupInProgress = true;
     clearAllModalTimeouts();
     clearAllModalAnimationFrames();
+    stopCleanBoardArea55ShipFlybys();
   } catch {}
   lifecycle.cleanup();
   stopCleanBoardSounds();
@@ -203,6 +217,7 @@ function attachNavigationCleanup(): void {
     clearAllModalTimeouts();
     clearAllModalAnimationFrames();
     stopCleanBoardSounds();
+    stopCleanBoardArea55ShipFlybys();
     try {
       const overlay = document.getElementById('cc-clean-board-overlay');
       if (overlay) {
@@ -365,10 +380,12 @@ export async function showCleanBoardModal({
     });
     
     const isArcadeHomeRun = isArcadeHomeRunMode();
+    const runMode = getRunMode();
     const celebrationTheme = resolveCleanBoardCelebrationTheme({
       boardNumber,
-      runMode: getRunMode(),
+      runMode,
     });
+    const showArea55Ships = shouldShowArea55CleanBoardShips({ boardNumber, runMode });
 
     // Get previous best score (mode-specific).
     const getBestScore = (): number => {
@@ -433,9 +450,13 @@ export async function showCleanBoardModal({
     
     const overlayId = 'cc-clean-board-overlay';
     const old = document.getElementById(overlayId);
-    if (old) old.remove();
+    if (old) {
+      stopCleanBoardArea55ShipFlybys();
+      old.remove();
+    }
 
     const el = document.createElement('div');
+    let area55ShipFlybys: CleanBoardArea55ShipFlybyController | null = null;
     el.id = overlayId;
     el.style.cssText = [
       'position:fixed',
@@ -807,8 +828,25 @@ export async function showCleanBoardModal({
     outerStack.appendChild(buttonContainer);
     el.appendChild(outerStack);
     document.body.appendChild(el);
-    playCleanBoardApplauseSound();
-    playCleanBoardSaxophoneHappySound();
+    if (showArea55Ships) {
+      area55ShipFlybys = startCleanBoardArea55ShipFlybys({ overlay: el, content: outerStack });
+    }
+    setSoundtrackResultMix();
+    const restoreSoundtrackAfterResultAudio = fadeSoundtrackForResultHook();
+    let resultReleaseTarget: 'stable' | 'gameplay' = 'stable';
+    const resultAudioSettlements = createCleanBoardResultAudioSettlements(
+      () => restoreSoundtrackAfterResultAudio(resultReleaseTarget),
+    );
+    playCleanBoardApplauseSound({
+      onEnded: resultAudioSettlements.applause,
+      onStopped: resultAudioSettlements.applause,
+      onUnavailable: resultAudioSettlements.applause,
+    });
+    playCleanBoardSaxophoneHappySound({
+      onEnded: resultAudioSettlements.saxophone,
+      onStopped: resultAudioSettlements.saxophone,
+      onUnavailable: resultAudioSettlements.saxophone,
+    });
 
     // 🔥 BOARD RECOVERY FIX: Clear pending clean board flag NOW that modal is visible
     // This prevents recovery from triggering on next app load if user hard-exits during modal/transition
@@ -1412,6 +1450,10 @@ export async function showCleanBoardModal({
 
     // 🔥 NEW: Primary button handler (Continue for interim, Play Again for regular)
     addButtonPressHandling(primaryBtn, async () => {
+      // The destination becomes the next audio owner at activation time.
+      resultReleaseTarget = 'gameplay';
+      stopCleanBoardSounds();
+      restoreSoundtrackAfterResultAudio('gameplay');
       // Haptic for primary button
       if (typeof (window as any).triggerHapticSelection === 'function') {
         (window as any).triggerHapticSelection();
@@ -1579,6 +1621,7 @@ export async function showCleanBoardModal({
         cleanupButtonListeners();
         trackTimeout(() => { 
           disposeCtas();
+          try { area55ShipFlybys?.dispose(); area55ShipFlybys = null; } catch {}
           try { el.remove(); } catch {}
           removeStyleTag();
         }, collapseDuration + 220);
@@ -1638,6 +1681,7 @@ export async function showCleanBoardModal({
       
       trackTimeout(() => { 
         disposeCtas();
+        try { area55ShipFlybys?.dispose(); area55ShipFlybys = null; } catch {}
         try { el.remove(); } catch {}
         removeStyleTag(); // Remove CSS style tag
         
@@ -1662,6 +1706,8 @@ export async function showCleanBoardModal({
     // 🔥 NEW: Exit/Back button handler
     if (secondaryBtn) {
       addButtonPressHandling(secondaryBtn, async () => {
+        // Do not carry applause/result voices into Journey or the homepage.
+        stopCleanBoardSounds();
         // Haptic for exit button
         if (typeof (window as any).triggerHapticSelection === 'function') {
           (window as any).triggerHapticSelection();
@@ -1892,6 +1938,7 @@ export async function showCleanBoardModal({
         clearAllModalTimeouts();
         clearAllModalAnimationFrames();
         disposeCtas();
+        try { area55ShipFlybys?.dispose(); area55ShipFlybys = null; } catch {}
         try { el.remove(); } catch {}
         removeStyleTag();
         stopConfettiSpawnsSafe();

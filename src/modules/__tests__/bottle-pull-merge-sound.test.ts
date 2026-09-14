@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import {
+  BOTTLE_PULL_MERGE_CUSTOM_BUS_SCALE,
   BOTTLE_PULL_MERGE_PLAYBACK_RATE,
   BOTTLE_PULL_MERGE_SOUND_BASE_VOLUMES,
   BOTTLE_PULL_MERGE_SOUND_SOURCES,
@@ -47,13 +48,16 @@ describe('Bottle pull Merge-6 sound', () => {
     jest.restoreAllMocks();
   });
 
-  test('locks both supplied bubsplat WAVs at 88% action and 52.8% effective gain', () => {
+  test('keeps both supplied bubsplat WAVs under a dedicated Bottle custom-bus trim', () => {
     expect(BOTTLE_PULL_MERGE_SOUND_SOURCES).toEqual([
       './assets/sound/Wild and special kockice/bottle/bubsplat1.wav',
       './assets/sound/Wild and special kockice/bottle/bubsplat2.wav',
     ]);
+    expect(BOTTLE_PULL_MERGE_CUSTOM_BUS_SCALE).toBe(0.72);
     expect(BOTTLE_PULL_MERGE_SOUND_BASE_VOLUMES).toEqual([0.88, 0.88]);
-    expect(BOTTLE_PULL_MERGE_SOUND_VOLUMES).toEqual([0.528, 0.528]);
+    BOTTLE_PULL_MERGE_SOUND_VOLUMES.forEach((volume) => {
+      expect(volume).toBeCloseTo(0.38016);
+    });
     expect(BOTTLE_PULL_MERGE_PLAYBACK_RATE).toBe(1);
 
     const expectedHashes = [
@@ -82,7 +86,7 @@ describe('Bottle pull Merge-6 sound', () => {
       expect(audio.play).toHaveBeenCalledTimes(1);
       expect(audio.currentTime).toBe(0);
       expect(audio.playbackRate).toBe(1);
-      expect(audio.volume).toBeCloseTo(0.528);
+      expect(audio.volume).toBeCloseTo(0.38016);
     });
 
     stopBottlePullMergeSounds();

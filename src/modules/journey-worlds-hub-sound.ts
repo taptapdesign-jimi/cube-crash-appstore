@@ -11,7 +11,7 @@ import {
 
 export const JOURNEY_WORLDS_HUB_SOUND_SOURCE =
   './assets/sound/worlds/crumbleworlds.wav';
-export const JOURNEY_WORLDS_HUB_ACTION_VOLUME = 0.58;
+export const JOURNEY_WORLDS_HUB_ACTION_VOLUME = 0.75;
 export const JOURNEY_WORLDS_HUB_VOLUME = applySoundEffectsMasterGain(
   JOURNEY_WORLDS_HUB_ACTION_VOLUME,
 );

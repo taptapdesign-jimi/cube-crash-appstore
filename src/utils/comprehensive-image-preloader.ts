@@ -282,6 +282,8 @@ const ALL_STARTUP_IMAGES: string[] = [
   './assets/colelctibles/journey-card-empty.png',
   './assets/colelctibles/common back.png',
   './assets/colelctibles/legendary back.png',
+  './assets/colelctibles/interim.png',
+  './assets/colelctibles/interim@2x.png',
   
   // Collectible card fronts are intentionally excluded from startup preload.
   // They are large PNGs and are loaded on demand by visible grid cards/modals.
@@ -614,6 +616,8 @@ export async function preloadAllStartupImages(): Promise<void> {
         './assets/journey assets/orange-ribbon@3x.png',
         './assets/colelctibles/journey-card-empty.png',
         './assets/colelctibles/common back.png',
+        './assets/colelctibles/interim.png',
+        './assets/colelctibles/interim@2x.png',
       ];
       
       // 🔥 CRITICAL: HUD and other essential images

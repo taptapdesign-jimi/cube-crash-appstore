@@ -534,7 +534,7 @@ function playJourneyDetailPlayScreenShake(target: HTMLElement | null): Promise<v
 export interface JourneyBoard {
   id: number;
   unlocked: boolean;
-  interim?: boolean; // Interim state: board is accessible but not completed (shows common back.png, cannot click for details)
+  interim?: boolean; // Interim state: board is accessible but not completed (shows interim.png, cannot click for details)
   imagePath?: string;
   imagePath2x?: string;
   cardRarity?: JourneyCardRarity;
@@ -4806,6 +4806,26 @@ class JourneyBoardsManager {
     });
   }
 
+  private fadeJourneyBoardContactShadowFirst(boardId: number): void {
+    const card = document.querySelector(
+      `.journey-board-card[data-board-id="${boardId}"]`,
+    ) as HTMLElement | null;
+    const cardWrapper = card?.closest('.journey-board-card-wrapper') as HTMLElement | null;
+    const contactShadow = cardWrapper?.querySelector(
+      ':scope > .journey-board-card-settled-contact-shadow',
+    ) as HTMLElement | null;
+    if (!contactShadow) return;
+    contactShadow.classList.add('is-journey-unit-exiting');
+  }
+
+  private restoreJourneyBoardContactShadow(card: HTMLElement): void {
+    const cardWrapper = card.closest('.journey-board-card-wrapper') as HTMLElement | null;
+    const contactShadow = cardWrapper?.querySelector(
+      ':scope > .journey-board-card-settled-contact-shadow',
+    ) as HTMLElement | null;
+    contactShadow?.classList.remove('is-journey-unit-exiting');
+  }
+
   private async runClickedJourneyBoardUnitExit(
     boardId: number,
     source: 'regular-card' | 'interim-card',
@@ -4826,6 +4846,7 @@ class JourneyBoardsManager {
       remainderOverlapMs: BOARD_AREA_CARD_REMAINDER_EXIT_OVERLAP_MS,
     });
 
+    this.fadeJourneyBoardContactShadowFirst(boardId);
     this.cleanupJourneyTapTransientFx(boardId);
     console.log('🧩 JourneyUnitExit transient-fx-cleaned', {
       boardId,
@@ -5295,6 +5316,7 @@ class JourneyBoardsManager {
       card.classList.add('journey-board-card-return-landing');
     } else {
       card.classList.remove('journey-board-card-return-landing');
+      this.restoreJourneyBoardContactShadow(card);
       if (revealSettledShadow) card.classList.add('journey-board-card-settled-shadow');
     }
     card.style.transition = restoredTransition;
@@ -5368,6 +5390,7 @@ class JourneyBoardsManager {
         return;
       }
       card.classList.remove('journey-board-card-return-landing');
+      this.restoreJourneyBoardContactShadow(card);
       card.classList.add('journey-board-card-settled-shadow');
       this.markJourneyLandingPoseTrace('settled-shadow-revealed');
       // Do not restore transition, transform-origin or will-change here. Even
@@ -10013,10 +10036,11 @@ class JourneyBoardsManager {
         handleCardTap(e);
       });
     } else if (isInterim) {
-      // Interim card - show common back.png, clicking directly continues game (no detail modal)
+      // Interim card - show its authored 1x/2x face; clicking directly continues game.
       const image = document.createElement('img');
       // 🔥 PRODUCTION READY: Set src - if already in browser cache, image displays instantly
-      image.src = './assets/colelctibles/common back.png';
+      image.src = './assets/colelctibles/interim.png';
+      image.srcset = './assets/colelctibles/interim.png 1x, ./assets/colelctibles/interim@2x.png 2x';
       image.alt = `${formatGameplayProgressLabel('journey', board.id)} (interim)`;
       image.className = 'journey-board-image cc-journey-interim-shine-face';
       // 🔥 CRITICAL: Set loading="eager" and fetchpriority="high" for instant display
@@ -10027,10 +10051,10 @@ class JourneyBoardsManager {
       // If image is already loaded from cache, trigger onload immediately
       if (image.complete && image.naturalWidth > 0) {
         // Image already loaded from cache - will display instantly
-        logger.debug(`✅ Interim card image (common back.png) already in browser cache for board ${board.id}`);
+        logger.debug(`✅ Interim card image already in browser cache for board ${board.id}`);
       } else {
         // Image not in cache yet - will load (but should be preloaded during launch screen)
-        logger.debug(`⚠️ Interim card image (common back.png) not in browser cache for board ${board.id} - loading now`);
+        logger.debug(`⚠️ Interim card image not in browser cache for board ${board.id} - loading now`);
       }
       // 🔥 iOS FIX: Prevent deep touch (long press) and image dragging
       image.draggable = false;
@@ -10039,7 +10063,11 @@ class JourneyBoardsManager {
       const shineLight = document.createElement('div');
       shineLight.className = 'journey-interim-shine-light cc-journey-interim-shine-light';
       shineLight.setAttribute('aria-hidden', 'true');
-      setJourneyInterimShineMask(shineLight, image.src);
+      const syncInterimShineMask = () => {
+        setJourneyInterimShineMask(shineLight, image.currentSrc || image.src);
+      };
+      syncInterimShineMask();
+      image.addEventListener('load', syncInterimShineMask, { once: true });
       card.appendChild(shineLight);
       
       // 🔥 iOS FIX: Prevent long press and context menu
@@ -12335,9 +12363,12 @@ class JourneyBoardsManager {
         const motionEl = document.createElement('div');
         motionEl.className = 'detail-image-motion';
         const img = document.createElement('img');
-        img.src = board.interim
-          ? './assets/colelctibles/common back.png'
-          : (boardCardAsset.path2x || boardCardAsset.path1x);
+        if (board.interim) {
+          img.src = './assets/colelctibles/interim.png';
+          img.srcset = './assets/colelctibles/interim.png 1x, ./assets/colelctibles/interim@2x.png 2x';
+        } else {
+          img.src = (boardCardAsset.path2x || boardCardAsset.path1x);
+        }
         img.alt = board.name || formatGameplayProgressLabel('journey', board.id);
         img.loading = 'eager';
         (img as any).decoding = 'async';
@@ -14385,7 +14416,7 @@ class JourneyBoardsManager {
 
   /**
    * Sync journey boards with game progress (boardNumber)
-   * Sets current board to interim (shows common back.png, cannot click)
+   * Sets current board to interim (shows interim.png, cannot click)
    * Only unlocks boards that have been completed (won)
    */
   public syncWithGameProgress(_boardNumber?: number): void {

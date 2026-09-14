@@ -22,14 +22,15 @@ export const HONEY_POST_MERGE_SOUND_SOURCES = [
 export const HONEY_FIRST_MERGE_SOUND_BASE_VOLUMES = [1] as const;
 export const HONEY_PULL_MERGE_SOUND_BASE_VOLUMES = [0.8, 0.8] as const;
 export const HONEY_POST_MERGE_SOUND_BASE_VOLUMES = [0.336] as const;
+export const HONEY_MERGE6_CUSTOM_BUS_SCALE = 0.6;
 export const HONEY_POST_MERGE_SOUND_VOLUMES = HONEY_POST_MERGE_SOUND_BASE_VOLUMES.map(
   applySoundEffectsMasterGain,
 );
 export const HONEY_PULL_MERGE_SOUND_VOLUMES = HONEY_PULL_MERGE_SOUND_BASE_VOLUMES.map(
-  applySoundEffectsMasterGain,
+  (volume) => applySoundEffectsMasterGain(volume * HONEY_MERGE6_CUSTOM_BUS_SCALE),
 );
 export const HONEY_FIRST_MERGE_SOUND_VOLUMES = HONEY_FIRST_MERGE_SOUND_BASE_VOLUMES.map(
-  applySoundEffectsMasterGain,
+  (volume) => applySoundEffectsMasterGain(volume * HONEY_MERGE6_CUSTOM_BUS_SCALE),
 );
 
 const ALL_SOURCES = [

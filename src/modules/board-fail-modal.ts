@@ -9,7 +9,16 @@ import { clearJourneyDetailReturn, prepareJourneyFailReturnTarget } from './jour
 import { applyAppPaperSurfaceToElement } from '../utils/app-paper-background.js';
 import { formatGameplayResultProgressLabel } from './gameplay-terminology.ts';
 import { exitCtaPair, getRegisteredCta, registerCta, type CtaController } from './cta-system.ts';
-import { playFailScreenCtaBounceSound, preloadFailScreenSounds, stopFailScreenSounds } from './fail-screen-sound.ts';
+import {
+  playFailScreenCtaBounceSound,
+  playFailScreenSaxophoneSound,
+  preloadFailScreenSounds,
+  stopFailScreenSounds,
+} from './fail-screen-sound.ts';
+import {
+  fadeSoundtrackForResultHook,
+  setSoundtrackResultMix,
+} from './soundtrack-manager.ts';
 // public/src/modules/board-fail-modal.ts
 // Game-over overlay when the board isn't fully cleared
 
@@ -73,6 +82,7 @@ const _failModalAnimationFrames = new Set<number>();
 
 // 🔥 BUG FIX: Track if modal is currently open to prevent duplicate calls
 let _isModalOpen = false;
+let _activeModalPromise: Promise<BoardFailModalResult> | null = null;
 
 function resetArcadeFailedRunForFreshStart(): void {
   if (!isArcadeHomeRunMode()) return;
@@ -264,20 +274,16 @@ function playFailModalExitAnimation(params: {
 }
 
 export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModalParams = {}): Promise<BoardFailModalResult> {
-  // 🔥 BUG FIX: Prevent duplicate calls - if modal is already open, return existing promise
-  if (_isModalOpen) {
-    const existingOverlay = document.getElementById(OVERLAY_ID);
-    if (existingOverlay) {
-      logger.warn('⚠️ board-fail-modal: Modal already open - ignoring duplicate show call');
-      return Promise.resolve({ action: 'menu' }); // Return default action
-    }
-    logger.warn('⚠️ board-fail-modal: Stale open flag without overlay - resetting and showing fail modal');
-    _isModalOpen = false;
+  // The overlay is created after async progression work. A second call during
+  // that gap must join the first owner instead of starting another Fail cue.
+  if (_activeModalPromise) {
+    logger.warn('⚠️ board-fail-modal: Modal already opening/open - joining active owner');
+    return _activeModalPromise;
   }
   
   _isModalOpen = true;
   
-  return new Promise(async (resolve) => {
+  const modalPromise = new Promise<BoardFailModalResult>(async (resolve) => {
     let settled = false;
     let navigationAbortHandler: (() => void) | null = null;
     const safeResolve = (action: string): void => {
@@ -540,6 +546,14 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
 
     overlay.appendChild(outerStack);
     document.body.appendChild(overlay);
+    setSoundtrackResultMix();
+    const restoreSoundtrackAfterResultAudio = fadeSoundtrackForResultHook();
+    let resultReleaseTarget: 'stable' | 'gameplay' = 'stable';
+    playFailScreenSaxophoneSound({
+      onEnded: () => restoreSoundtrackAfterResultAudio(resultReleaseTarget),
+      onStopped: () => restoreSoundtrackAfterResultAudio(resultReleaseTarget),
+      onUnavailable: () => restoreSoundtrackAfterResultAudio(resultReleaseTarget),
+    });
 
     // 🔥 MEMORY LEAK FIX: Cleanup function to remove all event listeners
     const ctaControllers: CtaController[] = [];
@@ -560,8 +574,16 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       ctaControllers.splice(0).forEach(controller => controller.dispose());
     };
 
-    const cleanupFailModalLifecycle = (): void => {
+    const cleanupFailModalLifecycle = (
+      releaseTarget: 'stable' | 'gameplay' = 'stable',
+    ): void => {
+      // A new route/game becomes the audio owner as soon as the Fail modal
+      // closes. Never carry the old sax or CTA voices into that destination.
+      resultReleaseTarget = releaseTarget;
       stopFailScreenSounds();
+      if (releaseTarget === 'gameplay') {
+        restoreSoundtrackAfterResultAudio('gameplay');
+      }
       cleanupButtonListeners();
       clearAllFailTimeouts();
       clearAllFailAnimationFrames();
@@ -605,7 +627,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         (async () => {
           try {
             // 🔥 MEMORY LEAK FIX: NOW cleanup (modal is closing)
-            cleanupFailModalLifecycle();
+            cleanupFailModalLifecycle('gameplay');
             
             // Proceed with restart.
             logger.info('🎮 Play Again clicked - calling window.CC.restart directly');
@@ -639,7 +661,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             logger.warn('⚠️ Failed to restart after board fail, using fallback restart path:', error);
             
             // 🔥 MEMORY LEAK FIX: Cleanup on fallback too
-            cleanupFailModalLifecycle();
+            cleanupFailModalLifecycle('gameplay');
             if (isArcadeHomeRunMode()) {
               resetArcadeFailedRunForFreshStart();
               (window as any).__ccForceArcadeRestartStage01 = true;
@@ -818,4 +840,10 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       safeResolve('menu'); // Default action on error
     }
   });
+  const guardedPromise = modalPromise.finally(() => {
+    if (_activeModalPromise === guardedPromise) _activeModalPromise = null;
+    _isModalOpen = false;
+  });
+  _activeModalPromise = guardedPromise;
+  return guardedPromise;
 }

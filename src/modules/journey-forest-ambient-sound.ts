@@ -13,9 +13,12 @@ export const JOURNEY_FOREST_AMBIENT_SOUND_SOURCES = [
   './assets/sound/worlds/Forest/forest nature sounds.wav',
 ] as const;
 
-export const JOURNEY_FOREST_AMBIENT_ACTION_VOLUME = 0.58;
-export const JOURNEY_FOREST_AMBIENT_VOLUME = applySoundEffectsMasterGain(
-  JOURNEY_FOREST_AMBIENT_ACTION_VOLUME,
+export const JOURNEY_FOREST_AMBIENT_ACTION_VOLUME = 0.85;
+export const JOURNEY_FOREST_AMBIENT_BOOST = 1.2;
+export const JOURNEY_FOREST_AMBIENT_VOLUME = Math.min(
+  1,
+  applySoundEffectsMasterGain(JOURNEY_FOREST_AMBIENT_ACTION_VOLUME)
+    * JOURNEY_FOREST_AMBIENT_BOOST,
 );
 export const JOURNEY_FOREST_AMBIENT_FADE_OUT_MS = 1500;
 

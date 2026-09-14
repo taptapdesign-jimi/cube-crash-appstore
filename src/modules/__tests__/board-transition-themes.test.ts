@@ -35,7 +35,7 @@ describe('Board Transition World themes', () => {
     expect(source).toContain('beginGameplayTransitionFade();');
     expect(source).toContain('continueGameplayTransitionFade(');
     expect(source).toContain('completeGameplayTransitionFade(');
-    expect(source).toContain('SOUNDTRACK_GAMEPLAY_VOLUME_RATIO');
+    expect(source).toContain('SOUNDTRACK_TRANSITION_VOLUME_RATIO');
     expect(source).toContain('effectiveExitDurationMs');
     expect(source).not.toContain('appSpatialMotion');
     expect(source).not.toContain('DeviceOrientationEvent');

@@ -14,8 +14,9 @@ export const BOTTLE_PULL_MERGE_SOUND_SOURCES = Object.freeze([
   `${BOTTLE_SOUND_BASE}bubsplat2.wav`,
 ] as const);
 export const BOTTLE_PULL_MERGE_SOUND_BASE_VOLUMES = [0.88, 0.88] as const;
+export const BOTTLE_PULL_MERGE_CUSTOM_BUS_SCALE = 0.72;
 export const BOTTLE_PULL_MERGE_SOUND_VOLUMES = BOTTLE_PULL_MERGE_SOUND_BASE_VOLUMES.map(
-  applySoundEffectsMasterGain,
+  (volume) => applySoundEffectsMasterGain(volume * BOTTLE_PULL_MERGE_CUSTOM_BUS_SCALE),
 );
 export const BOTTLE_PULL_MERGE_PLAYBACK_RATE = 1;
 

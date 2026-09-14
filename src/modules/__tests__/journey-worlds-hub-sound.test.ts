@@ -64,10 +64,10 @@ describe('Journey Worlds Hub sound', () => {
     expect(JOURNEY_WORLDS_HUB_SOUND_SOURCE).toBe(
       './assets/sound/worlds/crumbleworlds.wav',
     );
-    expect(JOURNEY_WORLDS_HUB_ACTION_VOLUME).toBe(0.58);
-    expect(JOURNEY_WORLDS_HUB_VOLUME).toBeCloseTo(0.348);
+    expect(JOURNEY_WORLDS_HUB_ACTION_VOLUME).toBe(0.75);
+    expect(JOURNEY_WORLDS_HUB_VOLUME).toBeCloseTo(0.45);
     expect(JOURNEY_WORLDS_WORLD_VOLUME_RATIO).toBe(0.3);
-    expect(JOURNEY_WORLDS_WORLD_VOLUME).toBeCloseTo(0.1044);
+    expect(JOURNEY_WORLDS_WORLD_VOLUME).toBeCloseTo(0.135);
     expect(JOURNEY_WORLDS_VOLUME_TRANSITION_MS).toBe(1000);
     expect(JOURNEY_WORLDS_WORLD_FADE_DELAY_MS).toBe(5000);
     expect(JOURNEY_WORLDS_WORLD_FADE_OUT_MS).toBe(1000);

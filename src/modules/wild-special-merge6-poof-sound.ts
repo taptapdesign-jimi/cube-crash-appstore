@@ -11,7 +11,7 @@ export const WILD_SPECIAL_MERGE6_POOF_SOUND_SOURCES = Object.freeze([
   './assets/sound/merge 6/poof1.wav',
   './assets/sound/merge 6/poof2.wav',
 ] as const);
-export const WILD_SPECIAL_MERGE6_POOF_BASE_VOLUME = 1;
+export const WILD_SPECIAL_MERGE6_POOF_BASE_VOLUME = 0.55;
 export const WILD_SPECIAL_MERGE6_POOF_VOLUME = applySoundEffectsMasterGain(
   WILD_SPECIAL_MERGE6_POOF_BASE_VOLUME,
 );

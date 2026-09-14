@@ -6,6 +6,7 @@ import {
   resetCoreTntMerge6SoundCacheForTests,
 } from '../core-tnt-merge6-sound';
 import {
+  FLOWER_MERGE6_CUSTOM_BUS_SCALE,
   FLOWER_MERGE6_BUSH0_BASE_VOLUME,
   FLOWER_MERGE6_BUSH0_SOUND_SOURCE,
   FLOWER_MERGE6_BUSH0_VOLUME,
@@ -89,14 +90,15 @@ describe('Flower merge-6 sound', () => {
       './assets/sound/Wild and special kockice/flower/spark.wav',
     ]);
     expect(FLOWER_MERGE6_SOUND_SOURCES.some((source) => source.includes('bush1'))).toBe(false);
+    expect(FLOWER_MERGE6_CUSTOM_BUS_SCALE).toBe(0.65);
     expect(FLOWER_MERGE6_BUSH0_BASE_VOLUME).toBe(0.8);
-    expect(FLOWER_MERGE6_BUSH0_VOLUME).toBeCloseTo(0.48);
+    expect(FLOWER_MERGE6_BUSH0_VOLUME).toBeCloseTo(0.312);
     expect(FLOWER_MERGE6_BUSH2_BASE_VOLUME).toBe(1);
-    expect(FLOWER_MERGE6_BUSH2_VOLUME).toBeCloseTo(0.6);
+    expect(FLOWER_MERGE6_BUSH2_VOLUME).toBeCloseTo(0.39);
     expect(FLOWER_MERGE6_BUSH3_BASE_VOLUME).toBe(0.35);
-    expect(FLOWER_MERGE6_BUSH3_VOLUME).toBeCloseTo(0.21);
+    expect(FLOWER_MERGE6_BUSH3_VOLUME).toBeCloseTo(0.1365);
     expect(FLOWER_MERGE6_BOOM_BASE_VOLUME).toBe(1);
-    expect(FLOWER_MERGE6_BOOM_VOLUME).toBeCloseTo(0.6);
+    expect(FLOWER_MERGE6_BOOM_VOLUME).toBeCloseTo(0.39);
     expect(FLOWER_MERGE6_LEAVES_BASE_VOLUME).toBe(0.8);
     expect(FLOWER_MERGE6_LEAVES_VOLUME).toBeCloseTo(0.48);
     expect(FLOWER_MERGE6_LEAVES_START_RATIO).toBe(0.9);
@@ -138,13 +140,13 @@ describe('Flower merge-6 sound', () => {
 
     expect(stack.play).toHaveBeenCalledTimes(1);
     expect(bush0.play).toHaveBeenCalledTimes(1);
-    expect(bush0.volume).toBeCloseTo(0.48);
+    expect(bush0.volume).toBeCloseTo(0.312);
     expect(bush2.play).toHaveBeenCalledTimes(1);
-    expect(bush2.volume).toBeCloseTo(0.6);
+    expect(bush2.volume).toBeCloseTo(0.39);
     expect(bush3.play).toHaveBeenCalledTimes(1);
-    expect(bush3.volume).toBeCloseTo(0.21);
+    expect(bush3.volume).toBeCloseTo(0.1365);
     expect(boom.play).toHaveBeenCalledTimes(1);
-    expect(boom.volume).toBeCloseTo(0.6);
+    expect(boom.volume).toBeCloseTo(0.39);
     expect(spark.play).not.toHaveBeenCalled();
 
     expect(playFlowerMerge6SparkSound()).toBe(true);

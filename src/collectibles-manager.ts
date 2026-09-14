@@ -227,12 +227,10 @@ function restoreJourneyReturnScrollPosition(reason: string): void {
       });
     };
 
-    apply('sync');
-    requestAnimationFrame(() => apply('raf-1'));
-    requestAnimationFrame(() => requestAnimationFrame(() => apply('raf-2')));
-    window.setTimeout(() => apply('layout-80'), 80);
-    window.setTimeout(() => apply('layout-180'), 180);
-    window.setTimeout(() => apply('layout-360'), 360);
+    // Return positioning is a pre-reveal layout operation. Once Journey is
+    // visible, the player and the live Unit own all movement; no delayed
+    // callback may pull the viewport back underneath the running card flip.
+    apply('pre-reveal');
   } catch (error) {
     logger.warn('⚠️ Failed to restore Journey return scroll position:', String(error));
   }
@@ -1073,14 +1071,23 @@ class CollectiblesManager {
           returnBoardId: getJourneyReturnBoardId(),
         });
       }
-      restoreJourneyReturnScrollPosition('early-return-before-render');
     }
 
     // 🔥 OPTIMIZATION: Check if boards are already rendered (by prepareJourneyScreen)
     // If not, render them now (non-blocking - don't await)
     if (journeyContainer) {
+      const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+      const devBoardRefreshRequired = journeyBoardsManager.consumeJourneyDevBoardRefresh();
       const journeyViewPrepared = isJourneyViewStructurallyPrepared(journeyContainer);
-      if (!journeyViewPrepared) {
+      if (devBoardRefreshRequired) {
+        // Settings Hide/Show mutates and saves Journey state while the Journey
+        // surface is hidden. Its render is intentionally blocked in Settings,
+        // so consume the one-shot marker at the real Journey presentation owner.
+        journeyBoardsManager.renderBoards();
+        journeyBoardsManager.updateCounter();
+        journeyBoardsReadyPromise = Promise.resolve();
+        logger.info('🗺️ Journey DEV Hide/Show refresh rendered before visible enter');
+      } else if (!journeyViewPrepared) {
         // Boards not yet rendered - prepare in background (deduped)
         logger.info('🗺️ Boards not yet rendered - preparing now (non-blocking)');
         journeyBoardsReadyPromise = this.prepareJourneyScreen({ requiredForVisibleEnter: true }).catch((error) => {
@@ -1121,7 +1128,9 @@ class CollectiblesManager {
         if (shouldUseV700WorldReturnEnter) {
           journeyBoardsManager.prepareJourneyV700WorldEnterFromReturn?.('collectibles-pre-reveal-world-return');
         }
-        prepareJourneyViewportScreenEnter('collectibles-pre-reveal');
+        prepareJourneyViewportScreenEnter('collectibles-pre-reveal', {
+          animateJourneyContent: !shouldUseV700WorldReturnEnter,
+        });
         emitIOSNativeDiagnostic('viewport-prepared', { shouldPlayActiveBoardAreaEnter });
         if (shouldPlayActiveBoardAreaEnter) {
           hideLastActiveJourneyBoardAreaBeforeEnter();
@@ -1163,7 +1172,9 @@ class CollectiblesManager {
           // 🔥 CRITICAL: Start animation immediately - screen is already prepared with opacity 0
           // Use RAF to ensure browser is ready to render animation on mobile
           requestAnimationFrame(() => {
-            const enterPromise = Promise.resolve(animateCollectiblesScreenEnter());
+            const enterPromise = Promise.resolve(animateCollectiblesScreenEnter({
+              animateJourneyContent: !shouldUseV700WorldReturnEnter,
+            }));
             emitIOSNativeDiagnostic('viewport-enter-started', { shouldPlayActiveBoardAreaEnter });
             let homepageHubEnterStartedFromPreparedManager = false;
             if (
@@ -1248,15 +1259,13 @@ class CollectiblesManager {
                 }
                 const restoreScrollAfterEnter = (source: string): void => {
                   restoreJourneyScrollableInteractivity(source);
-                  if (returningFromInterimBoardEarly || returningFromDetailModalEarly) {
-                    restoreJourneyReturnScrollPosition(`${source}-restore-scroll`);
-                  }
+                  // A visible return is fully player-owned. Reapplying overflow,
+                  // touch-action, transforms, or scrollTop during an active drag
+                  // interrupts WebKit momentum and makes the return card jerk.
+                  if (returningFromInterimBoardEarly || returningFromDetailModalEarly) return;
                   [180, 420, 900].forEach((delayMs) => {
                     window.setTimeout(() => {
                       restoreJourneyScrollableInteractivity(`${source}-settled-${delayMs}ms`);
-                      if (returningFromInterimBoardEarly || returningFromDetailModalEarly) {
-                        restoreJourneyReturnScrollPosition(`${source}-settled-${delayMs}ms-restore-scroll`);
-                      }
                     }, delayMs);
                   });
                 };
@@ -1328,6 +1337,19 @@ class CollectiblesManager {
                     hasJourneyBoardsContainer: !!journeyBoardsContainer,
                     containerView: journeyBoardsContainer?.dataset.journeyV700View || null,
                   });
+                  return;
+                }
+
+                if (shouldUseV700WorldReturnEnter) {
+                  // The coordinated V700 World return already restored scroll
+                  // before reveal and owns Unit idle handoff. The old 450ms path
+                  // must not re-centre/reconfigure the viewport or restart card
+                  // motion underneath the automatic return flip.
+                  delete (window as any).__ccReturningFromDetailModal;
+                  delete (window as any).__ccReturningFromInterimBoard;
+                  localStorage.removeItem('__ccReturningFromInterimBoard');
+                  localStorage.removeItem('__ccJourneyScrollTop');
+                  logger.info('⏭️ Skipped legacy post-enter work for V700 World return');
                   return;
                 }
 

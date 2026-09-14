@@ -14,7 +14,7 @@ export const CTA_ACTIVATION_SOUND_SOURCES = [
   './assets/sound/CTA/cta squishy.wav',
 ] as const;
 
-export const CTA_ACTIVATION_SOUND_BASE_VOLUMES = [0.3, 1, 1, 1] as const;
+export const CTA_ACTIVATION_SOUND_BASE_VOLUMES = [0.3, 0.5, 0.5, 0.5] as const;
 export const CTA_ACTIVATION_SOUND_VOLUMES = CTA_ACTIVATION_SOUND_BASE_VOLUMES.map(
   applySoundEffectsMasterGain,
 );

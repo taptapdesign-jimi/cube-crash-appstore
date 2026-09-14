@@ -231,7 +231,14 @@ function selectJourneyViewportExitTargets(journeyScreen: HTMLElement, reason: st
   });
 }
 
-function selectJourneyViewportEnterTargets(journeyScreen: HTMLElement): HTMLElement[] {
+function selectJourneyViewportEnterTargets(
+  journeyScreen: HTMLElement,
+  animateJourneyContent = true,
+): HTMLElement[] {
+  // A V700 World return already has one complete Unit-enter coordinator.
+  // Keep the generic viewport owner on the screen/header only so it cannot
+  // prime, interrupt, or finish the same Unit targets a second time.
+  if (!animateJourneyContent) return [];
   return selectJourneyViewportTransitionTargets(journeyScreen, {
     excludeActiveArea: isActiveJourneyBoardAreaEnterPending(),
     includeHiddenPrepared: true,
@@ -399,7 +406,10 @@ function getJourneyViewportEnterStart(target: HTMLElement): { scale: number; y: 
   };
 }
 
-export function prepareJourneyViewportScreenEnter(reason: string = 'journey-enter-prepare'): void {
+export function prepareJourneyViewportScreenEnter(
+  reason: string = 'journey-enter-prepare',
+  options: { animateJourneyContent?: boolean } = {},
+): void {
   const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
   const collectiblesHeader = journeyScreen?.querySelector('.collectibles-header') as HTMLElement | null;
   const collectiblesScrollable = journeyScreen?.querySelector('.collectibles-scrollable') as HTMLElement | null;
@@ -453,7 +463,10 @@ export function prepareJourneyViewportScreenEnter(reason: string = 'journey-ente
     } catch {}
   }
 
-  const viewportTargets = selectJourneyViewportEnterTargets(journeyScreen);
+  const viewportTargets = selectJourneyViewportEnterTargets(
+    journeyScreen,
+    options.animateJourneyContent !== false,
+  );
   viewportTargets.forEach((target) => {
     try {
       gsap.killTweensOf(target);
@@ -501,7 +514,8 @@ export function prepareJourneyViewportScreenEnter(reason: string = 'journey-ente
 function animateJourneyViewportScreenEnter(
   journeyScreen: HTMLElement,
   collectiblesHeader: HTMLElement | null,
-  collectiblesScrollable: HTMLElement | null
+  collectiblesScrollable: HTMLElement | null,
+  options: { animateJourneyContent?: boolean } = {},
 ): Promise<void> {
   const completionPromises: Promise<void>[] = [];
   const waitForTween = (
@@ -540,7 +554,7 @@ function animateJourneyViewportScreenEnter(
     }
   })();
   if (!wasPrepared) {
-    prepareJourneyViewportScreenEnter('journey-enter-late-prepare');
+    prepareJourneyViewportScreenEnter('journey-enter-late-prepare', options);
   }
 
   try {
@@ -575,7 +589,10 @@ function animateJourneyViewportScreenEnter(
     }
   }
 
-  const viewportTargets = selectJourneyViewportEnterTargets(journeyScreen);
+  const viewportTargets = selectJourneyViewportEnterTargets(
+    journeyScreen,
+    options.animateJourneyContent !== false,
+  );
   viewportTargets.forEach((target, index) => {
     try {
       const animationTarget = prepareJourneyViewportAnimationTarget(target);
@@ -720,7 +737,9 @@ export function cleanupCollectiblesAnimations(): void {
  * Animate collectibles screen ENTER with pop-in effects
  * Elements pop in: header first, then scrollable, then first 8 cards from 30% scale (remaining cards instantly visible)
  */
-export function animateCollectiblesScreenEnter(): Promise<void> {
+export function animateCollectiblesScreenEnter(
+  options: { animateJourneyContent?: boolean } = {},
+): Promise<void> {
   // Get Journey screen elements
   const journeyScreen = document.getElementById('journey-screen');
   const collectiblesHeader = journeyScreen?.querySelector('.collectibles-header') as HTMLElement;
@@ -732,7 +751,12 @@ export function animateCollectiblesScreenEnter(): Promise<void> {
   }
 
   if (journeyScreen.querySelector('.journey-cards-container')) {
-    return animateJourneyViewportScreenEnter(journeyScreen, collectiblesHeader || null, collectiblesScrollable || null);
+    return animateJourneyViewportScreenEnter(
+      journeyScreen,
+      collectiblesHeader || null,
+      collectiblesScrollable || null,
+      options,
+    );
   }
   
   // 🔥 CRITICAL: Set initial state - journey screen, header and scrollable scale from 0

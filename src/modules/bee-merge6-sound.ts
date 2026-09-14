@@ -7,7 +7,7 @@ import {
   stopDecodedGameplayVoices,
 } from './gameplay-audio-buffer-player.ts';
 import {
-  playRegularMerge6Sound,
+  playSpecialMerge6FoundationSound,
   preloadRegularMerge6Sounds,
   resetRegularMerge6SoundCacheForTests,
   stopRegularMerge6Sounds,
@@ -136,7 +136,7 @@ export function preloadBeeMerge6Sounds(): boolean {
 export function playBeeMerge6Sound(): boolean {
   if (!areBeeMerge6SoundsEnabled()) return false;
   stopBeeOwnedVoices();
-  const ordinaryMergeStarted = playRegularMerge6Sound();
+  const foundationStarted = playSpecialMerge6FoundationSound();
   const beeLayersStarted = playSources(
     BEE_MERGE6_IMMEDIATE_SOUND_SOURCES,
     (source) => {
@@ -146,7 +146,7 @@ export function playBeeMerge6Sound(): boolean {
       return BEE_MERGE6_VOLUME;
     },
   );
-  return ordinaryMergeStarted && beeLayersStarted;
+  return foundationStarted && beeLayersStarted;
 }
 
 export function playBeeMerge6FinaleSounds(): boolean {

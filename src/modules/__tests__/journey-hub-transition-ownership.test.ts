@@ -11,6 +11,10 @@ const collectiblesSource = fs.readFileSync(
   path.join(root, 'src/collectibles-manager.ts'),
   'utf8',
 );
+const collectiblesAnimationsSource = fs.readFileSync(
+  path.join(root, 'src/ui/collectibles-animations.ts'),
+  'utf8',
+);
 const uiManagerSource = fs.readFileSync(
   path.join(root, 'src/modules/ui-manager.ts'),
   'utf8',
@@ -104,6 +108,51 @@ describe('Journey Hub transition ownership', () => {
     expect(showSource).toContain('delete (window as any).__ccReturningFromDetailModal');
     expect(showSource).toContain('delete (window as any).__ccSuppressJourneyV700AutoWorldEnter');
     expect(showSource).toContain('delete (window as any).__ccJourneyActiveAreaEnterPending');
+  });
+
+  test('V700 World return gives content motion only to the World coordinator', () => {
+    const showSource = collectiblesSource.split(
+      'async showCollectibles(options?: CollectiblesShowOptions): Promise<void>',
+    )[1]?.split('async hideCollectibles(')[0] ?? '';
+
+    expect(showSource).toContain(
+      "prepareJourneyViewportScreenEnter('collectibles-pre-reveal', {\n          animateJourneyContent: !shouldUseV700WorldReturnEnter,",
+    );
+    expect(showSource).toContain(
+      'animateCollectiblesScreenEnter({\n              animateJourneyContent: !shouldUseV700WorldReturnEnter,',
+    );
+    expect(collectiblesAnimationsSource).toContain('if (!animateJourneyContent) return [];');
+    expect(collectiblesAnimationsSource).toContain(
+      "prepareJourneyViewportScreenEnter('journey-enter-late-prepare', options)",
+    );
+  });
+
+  test('V700 return scroll is positioned only before reveal and never reclaimed by legacy timers', () => {
+    const restoreSource = collectiblesSource.split(
+      'function restoreJourneyReturnScrollPosition(reason: string): void',
+    )[1]?.split('function restoreJourneyScrollableInteractivity')[0] ?? '';
+    const showSource = collectiblesSource.split(
+      'async showCollectibles(options?: CollectiblesShowOptions): Promise<void>',
+    )[1]?.split('async hideCollectibles(')[0] ?? '';
+    const restoreAfterEnterSource = showSource.split(
+      'const restoreScrollAfterEnter = (source: string): void => {',
+    )[1]?.split('};')[0] ?? '';
+    const v700LegacySkipIndex = showSource.indexOf('if (shouldUseV700WorldReturnEnter) {');
+    const legacyReturnReadIndex = showSource.indexOf(
+      'const returningFromDetailModal = (window as any).__ccReturningFromDetailModal',
+    );
+
+    expect(restoreSource).toContain("apply('pre-reveal')");
+    expect(restoreSource).not.toContain('requestAnimationFrame(');
+    expect(restoreSource).not.toContain('setTimeout(');
+    expect(showSource).not.toContain("restoreJourneyReturnScrollPosition('early-return-before-render')");
+    expect(restoreAfterEnterSource).toContain(
+      'if (returningFromInterimBoardEarly || returningFromDetailModalEarly) return;',
+    );
+    expect(restoreAfterEnterSource).not.toContain('restoreJourneyReturnScrollPosition(');
+    expect(v700LegacySkipIndex).toBeGreaterThanOrEqual(0);
+    expect(v700LegacySkipIndex).toBeLessThan(legacyReturnReadIndex);
+    expect(showSource).toContain("logger.info('⏭️ Skipped legacy post-enter work for V700 World return')");
   });
 
   test('forward navigation never invokes the Homepage recovery reset', () => {
