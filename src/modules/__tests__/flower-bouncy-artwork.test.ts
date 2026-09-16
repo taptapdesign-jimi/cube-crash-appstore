@@ -1,27 +1,32 @@
 /** @jest-environment jsdom */
 
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { Container, Sprite, Texture } from 'pixi.js';
+import { Assets, Container, Sprite, Texture, TextureSource } from 'pixi.js';
 import { STATE } from '../app-state';
 import {
   destroyFlowerBouncyArtworkRuntime,
+  FLOWER_BOUNCY_CYCLE_MS,
+  FLOWER_BOUNCY_TEXTURE_URL,
   getFlowerBouncyDisplayGeometry,
+  getFlowerBouncyPose,
   getFlowerBouncyRuntimeStats,
   isFlowerBouncyTile,
-  FLOWER_BOUNCY_CYCLE_MS,
-  FLOWER_BOUNCY_DISPLAY_SIZE,
-  FLOWER_BOUNCY_REST_ART,
-  FLOWER_BOUNCY_SVG_URL,
-  FLOWER_BOUNCY_VIEWBOX,
+  setFlowerBouncyArtworkDragging,
   startFlowerBouncyArtwork,
   stopFlowerBouncyArtwork,
 } from '../flower-bouncy-artwork';
-import {
-  setSpecialDiceIdleDragging,
-  startSpecialDiceIdleMotion,
-  stopSpecialDiceIdleMotion,
-} from '../special-dice-idle';
+
+function makeTexture(): Texture {
+  return new Texture({
+    source: new TextureSource({
+      resource: { width: 256, height: 256 } as any,
+      width: 256,
+      height: 256,
+    }),
+  });
+}
 
 function makeTile(variant = 'flower') {
   const base = new Sprite(Texture.WHITE);
@@ -37,193 +42,140 @@ function makeTile(variant = 'flower') {
       rotG,
     } as any,
     base,
+    rotG,
   };
 }
 
-describe('Flower animated SVG board artwork', () => {
+describe('Flower procedural Pixi artwork', () => {
+  let texture: Texture;
+  let callbacks: Set<(ticker: any) => void>;
+  let ticker: any;
+  let loadSpy: jest.SpiedFunction<typeof Assets.load>;
+  let getSpy: jest.SpiedFunction<typeof Assets.get>;
+
+  const flush = async () => {
+    for (let index = 0; index < 12; index += 1) await Promise.resolve();
+  };
+
   beforeEach(() => {
-    const host = document.createElement('div');
-    const canvas = document.createElement('canvas');
-    host.appendChild(canvas);
-    canvas.getBoundingClientRect = () => ({
-      x: 0,
-      y: 0,
-      left: 0,
-      top: 0,
-      right: 390,
-      bottom: 844,
-      width: 390,
-      height: 844,
-      toJSON: () => ({}),
-    });
-    document.body.appendChild(host);
-    STATE.app = {
-      canvas,
-      renderer: { screen: { width: 390, height: 844 } },
-      ticker: { add: jest.fn(), remove: jest.fn() },
-    } as any;
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-09-16T12:00:00.000Z'));
+    destroyFlowerBouncyArtworkRuntime();
+    texture = makeTexture();
+    getSpy = jest.spyOn(Assets, 'get').mockReturnValue(undefined as any);
+    loadSpy = jest.spyOn(Assets, 'load').mockResolvedValue(texture as any);
+    callbacks = new Set();
+    ticker = {
+      elapsedMS: 0,
+      add: jest.fn((callback: (value: any) => void) => callbacks.add(callback)),
+      remove: jest.fn((callback: (value: any) => void) => callbacks.delete(callback)),
+    };
+    STATE.app = { ticker } as any;
   });
 
   afterEach(() => {
     destroyFlowerBouncyArtworkRuntime();
     STATE.app = null;
-    document.body.replaceChildren();
+    loadSpy.mockRestore();
+    getSpy.mockRestore();
+    try { texture.destroy(true); } catch {}
+    jest.useRealTimers();
   });
 
-  test('maps the original 128px die canvas to the existing 128px board footprint', () => {
+  const tick = (elapsedMS: number) => {
+    ticker.elapsedMS = elapsedMS;
+    callbacks.forEach((callback) => callback(ticker));
+  };
+
+  test('uses one small source texture and preserves the accepted board geometry', () => {
     const geometry = getFlowerBouncyDisplayGeometry();
-    expect(FLOWER_BOUNCY_VIEWBOX).toEqual({ x: 0, y: 0, width: 160, height: 160 });
-    expect(FLOWER_BOUNCY_REST_ART).toEqual({ centerX: 79.33, centerY: 74.78, size: 108.36 });
-    expect(geometry.restingArtworkWidth).toBe(FLOWER_BOUNCY_DISPLAY_SIZE);
-    expect(geometry.restingArtworkHeight).toBe(FLOWER_BOUNCY_DISPLAY_SIZE);
+    expect(geometry.restingArtworkWidth).toBe(128);
+    expect(geometry.restingArtworkHeight).toBe(128);
     expect(geometry.width).toBeCloseTo(188.9996, 4);
     expect(geometry.height).toBeCloseTo(188.9996, 4);
-    expect(geometry.anchorX).toBeCloseTo(79.33 / 160, 8);
-    expect(geometry.anchorY).toBeCloseTo(74.78 / 160, 8);
+    const bytes = fs.readFileSync(path.resolve(process.cwd(), FLOWER_BOUNCY_TEXTURE_URL));
+    expect(createHash('sha256').update(bytes).digest('hex'))
+      .toBe('7476fb3784b8279a7a54f280bfde60d63bc07e21beb40512eafcad92f3164239');
+    expect(bytes.byteLength).toBeLessThan(50_000);
   });
 
-  test('uses the supplied self-contained 1.6-second Flower animation', () => {
-    const svg = fs.readFileSync(
-      path.resolve(process.cwd(), 'assets/shop/bush/flower.svg'),
-      'utf8',
-    );
-    const animateCount = svg.match(/<animate(?=\s)/g)?.length ?? 0;
-    const animateTransformCount = svg.match(/<animateTransform(?=\s)/g)?.length ?? 0;
-
-    expect(Buffer.byteLength(svg, 'utf8')).toBeLessThanOrEqual(800_000);
-    expect(svg).toContain('viewBox="0 0 160 160"');
-    expect(svg).toContain('dur="1.6s"');
-    expect(svg).toContain('repeatCount="indefinite"');
-    expect(svg).toContain('calcMode="spline"');
-    expect(svg.match(/<image(?=\s)/g)).toHaveLength(1);
-    expect(animateCount).toBe(0);
-    expect(animateTransformCount).toBe(3);
-    expect(svg).not.toMatch(/<(?:script|foreignObject|filter)\b/);
+  test('reproduces the exact authored 1.6-second SVG key poses', () => {
+    expect(FLOWER_BOUNCY_CYCLE_MS).toBe(1600);
+    expect(getFlowerBouncyPose(0)).toEqual({
+      translateY: 0,
+      scaleX: 1,
+      scaleY: 1,
+      rotationDegrees: 0,
+    });
+    expect(getFlowerBouncyPose(1600 * 0.15)).toEqual({
+      translateY: 0,
+      scaleX: 1.08,
+      scaleY: 0.87,
+      rotationDegrees: -4,
+    });
+    expect(getFlowerBouncyPose(1600 * 0.43)).toMatchObject({
+      translateY: -10,
+      rotationDegrees: -20,
+    });
+    expect(getFlowerBouncyPose(1600 * 0.69).rotationDegrees).toBe(20);
+    expect(getFlowerBouncyPose(1600)).toEqual(getFlowerBouncyPose(0));
   });
 
   test('owns only the exact Flower registry variant', () => {
     expect(isFlowerBouncyTile({ special: 'wild-tnt', _ccSpecialDiceVariant: 'flower' })).toBe(true);
     expect(isFlowerBouncyTile({ special: 'wild-tnt' })).toBe(false);
     expect(isFlowerBouncyTile({ special: 'wild-juice', _ccSpecialDiceVariant: 'robo-cube' })).toBe(false);
-    expect(isFlowerBouncyTile({ special: 'wild-tnt', _ccSpecialDiceVariant: 'beach-ball' })).toBe(false);
   });
 
-  test('keeps PNG until load, paints pollen above SVG, restores Pixi pollen for drag, and cleans up', () => {
+  test('shares one source while every Flower keeps a separate timeline', async () => {
+    const first = makeTile();
+    const second = makeTile();
+    const firstController = startFlowerBouncyArtwork(first.tile) as any;
+    const secondController = startFlowerBouncyArtwork(second.tile) as any;
+    await flush();
+
+    expect(loadSpy).toHaveBeenCalledTimes(1);
+    expect(loadSpy).toHaveBeenCalledWith(FLOWER_BOUNCY_TEXTURE_URL);
+    expect(firstController.artwork.texture.source).toBe(secondController.artwork.texture.source);
+    expect(firstController.running).toBe(true);
+    expect(secondController.running).toBe(false);
+    expect(first.base.renderable).toBe(false);
+    expect(second.base.renderable).toBe(true);
+    expect(ticker.add).toHaveBeenCalledTimes(1);
+
+    tick(secondController.phaseLease.delayMs);
+    jest.advanceTimersByTime(secondController.phaseLease.delayMs);
+    tick(100);
+    expect(secondController.running).toBe(true);
+    expect(firstController.elapsedMs).not.toBe(secondController.elapsedMs);
+
+    stopFlowerBouncyArtwork(first.tile);
+    stopFlowerBouncyArtwork(second.tile);
+    expect(first.base.renderable).toBe(true);
+    expect(second.base.renderable).toBe(true);
+    expect(ticker.remove).toHaveBeenCalledTimes(1);
+    expect(getFlowerBouncyRuntimeStats()).toMatchObject({ controllers: 0, tickerAttached: false });
+  });
+
+  test('uses the static fallback during drag and leaves Pixi pollen under its original owner', async () => {
     const { tile, base } = makeTile();
-    const pollen = {
-      destroyed: false,
-      renderable: true,
-      visible: true,
-      alpha: 0.72,
-      x: 4,
-      y: -6,
-      rotation: 0,
-      scale: { x: 1, y: 1 },
-      _ccFlowerPollenPaint: {
-        kind: 'ellipse',
-        color: 0xFFF16B,
-        fillAlpha: 0.8,
-        width: 5,
-        height: 2,
-      },
-    } as any;
+    const pollen = { renderable: true };
     tile._flowerPollenParticles = new Set([pollen]);
-    startSpecialDiceIdleMotion(tile);
-    const first = tile._ccFlowerBouncyArtwork;
-    startSpecialDiceIdleMotion(tile);
+    const controller = startFlowerBouncyArtwork(tile) as any;
+    await flush();
 
-    expect(tile._ccFlowerBouncyArtwork).toBe(first);
-    expect(base.renderable).toBe(true);
-
-    first.image.onload(new Event('load'));
+    expect(controller.canvas.renderable).toBe(true);
     expect(base.renderable).toBe(false);
-    expect(first.wrapper.style.visibility).toBe('visible');
-    expect(first.image.style.zIndex).toBe('1');
-    expect(first.pollenLayer.style.zIndex).toBe('2');
-    expect(first.pollenLayer.style.visibility).toBe('visible');
-    expect(first.pollenNodes.get(pollen)?.querySelector('ellipse')).toBeTruthy();
-    expect(pollen.renderable).toBe(false);
-    const pollenMatrix = first.pollenNodes.get(pollen)?.style.transform
-      .slice('matrix('.length, -1)
-      .split(',')
-      .map((value: string) => Number(value.trim()));
-    const geometry = getFlowerBouncyDisplayGeometry();
-    expect(pollenMatrix?.[4]).toBeCloseTo((geometry.width * geometry.anchorX) + pollen.x, 8);
-    expect(pollenMatrix?.[5]).toBeCloseTo((geometry.height * geometry.anchorY) + pollen.y, 8);
-
-    expect(setSpecialDiceIdleDragging(tile, true)).toBe(true);
-    expect(first.wrapper.style.visibility).toBe('hidden');
-    expect(base.renderable).toBe(true);
-    expect(first.pollenLayer.style.visibility).toBe('hidden');
-    expect(first.pollenNodes.size).toBe(0);
     expect(pollen.renderable).toBe(true);
 
-    expect(setSpecialDiceIdleDragging(tile, false)).toBe(true);
-    expect(tile._ccFlowerBouncyArtwork).toBe(first);
-    expect(first.wrapper.style.visibility).toBe('visible');
-    expect(base.renderable).toBe(false);
-    expect(first.pollenLayer.style.visibility).toBe('visible');
-    expect(pollen.renderable).toBe(false);
-
-    stopSpecialDiceIdleMotion(tile);
+    expect(setFlowerBouncyArtworkDragging(tile, true)).toBe(true);
+    expect(controller.canvas.renderable).toBe(false);
     expect(base.renderable).toBe(true);
     expect(pollen.renderable).toBe(true);
-    expect(tile._ccFlowerBouncyArtwork).toBeUndefined();
-    expect(getFlowerBouncyRuntimeStats()).toEqual({
-      controllers: 0,
-      ready: 0,
-      runtimeAttached: false,
-      overlayAttached: false,
-    });
-  });
 
-  test('leaves the canonical Flower PNG visible after an SVG load failure', () => {
-    const { tile, base } = makeTile();
-    const controller = startFlowerBouncyArtwork(tile);
-
-    (controller as any).image.onerror(new Event('error'));
-
-    expect(base.renderable).toBe(true);
-    expect((controller as any).ready).toBe(false);
-    expect((controller as any).wrapper.style.visibility).toBe('hidden');
-  });
-
-  test('cannot resurrect a disposed owner from a late load callback', () => {
-    const { tile, base } = makeTile();
-    const controller = startFlowerBouncyArtwork(tile);
-    const lateLoad = (controller as any).image.onload as (event: Event) => void;
-
-    stopFlowerBouncyArtwork(tile);
-    lateLoad(new Event('load'));
-
-    expect(base.renderable).toBe(true);
-    expect(tile._ccFlowerBouncyArtwork).toBeUndefined();
-    expect(getFlowerBouncyRuntimeStats().controllers).toBe(0);
-  });
-
-  test('starts concurrent Flower copies on separate clocks and cancels pending starts', () => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
-    try {
-      const first = startFlowerBouncyArtwork(makeTile().tile);
-      const second = startFlowerBouncyArtwork(makeTile().tile);
-
-      expect((first as any).phaseLease.phaseSlot).toBe(0);
-      expect((first as any).image.getAttribute('src')).toBe(FLOWER_BOUNCY_SVG_URL);
-      expect((second as any).phaseLease.phaseSlot).toBe(1);
-      expect((second as any).phaseLease.delayMs).toBe(135);
-      expect((second as any).image.getAttribute('src')).toBeNull();
-
-      jest.advanceTimersByTime(135);
-      expect((second as any).image.getAttribute('src')).toBe(
-        `${FLOWER_BOUNCY_SVG_URL}?cc-svg-phase=1`,
-      );
-      expect(FLOWER_BOUNCY_CYCLE_MS).toBe(1600);
-
-      destroyFlowerBouncyArtworkRuntime();
-      expect(getFlowerBouncyRuntimeStats().controllers).toBe(0);
-    } finally {
-      jest.useRealTimers();
-    }
+    expect(setFlowerBouncyArtworkDragging(tile, false)).toBe(true);
+    expect(controller.canvas.renderable).toBe(true);
+    expect(base.renderable).toBe(false);
+    expect(pollen.renderable).toBe(true);
   });
 });

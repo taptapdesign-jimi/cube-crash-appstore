@@ -18,6 +18,7 @@ import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Sha
 import { showWildJuiceBubblesExplosion, stopWildJuiceBubblesExplosion, forceStopWildJuiceBubblesExplosion, isWildJuiceBubblesExplosionActive, isWildJuiceBubblesExplosionRecentlyStarted, isWildJuiceFinaleAnimationActive, waitForBubblesExplosionToComplete, destroyWildJuiceBubblesExplosionCache } from './wild-juice-bubbles-explosion.ts';
 import { preloadJuiceFinalePropTextures } from './juice-finale-prop-flight.ts';
 import { preloadJuiceMerge6Sounds, stopJuiceMerge6Sounds } from './juice-finale-sound.ts';
+import { preloadBarrelBouncyArtwork } from './barrel-bouncy-artwork.ts';
 import { showMagneticText, isMagneticTextActive, waitForMagneticTextComplete, stopMagneticText, showSparkleText, stopSparkleText, isSparkleTextActive, waitForSparkleTextComplete, showNoMovesText, exitNoMovesText, clearNoMovesText } from './splash-text-overlay.ts';
 import { showTntAnimation, stopTntAnimation, onTntBoomExitComplete, onTntAnimationComplete, preloadTntFrames, isTntAnimationActive, releaseTntGameplayInputGate, TNT_SMOKE_FIRST_FRAME_START_SECONDS } from './tnt-animation.ts';
 import {
@@ -241,6 +242,7 @@ import {
   playBarrelMerge6Sound,
   playBarrelPlanksAfterAnimationStart,
   playBarrelSmokePoofSound,
+  preloadBarrelMerge6Sounds,
   stopBarrelMerge6Sounds,
 } from './barrel-merge6-sound.ts';
 import {
@@ -3492,7 +3494,24 @@ export async function boot(){
       devWarn('⚠️ Error killing specific tweens:', e);
     }
     
-    // Step 3: Clear module-level tile array to prevent stale references
+    // Step 3: Retire tile-owned animation resources before their only lookup
+    // arrays disappear. This hard-reset route does not pass through the normal
+    // board-transition destroyer, so shared Pixi controllers must be stopped
+    // here while their exact tile owners are still reachable.
+    try {
+      const staleTiles = new Set<any>([
+        ...((tiles && Array.isArray(tiles)) ? tiles : []),
+        ...((STATE.tiles && Array.isArray(STATE.tiles)) ? STATE.tiles : []),
+      ]);
+      staleTiles.forEach((tile) => {
+        try { stopSpecialDiceIdleMotion(tile); } catch {}
+      });
+      devLog('✅ Retired special-dice idle owners before hard reset');
+    } catch (e) {
+      devWarn('⚠️ Error retiring special-dice idle owners:', e);
+    }
+
+    // Step 3b: Clear module-level tile array to prevent stale references
     try {
       if (tiles) {
         tiles.length = 0; // Clear array without reassigning
@@ -6029,6 +6048,36 @@ function rebuildBoard(){
       onCommitted: () => clearPendingArcadeRoundIfCovered(entryBoardNumber),
       devLog,
     });
+    // New feature assets must not compete with the board-transition commit or
+    // the cube pop-in on iOS. Stagger their bounded warmups after entry, when
+    // Barrel/Juice cannot yet be produced by normal Wild Meter gameplay.
+    trackAppTimeout(() => {
+      if (!isGameplayEntryGenerationLatest(gameplayEntryGeneration)) return;
+      void preloadJuiceFinalePropTextures();
+    }, 1200);
+    trackAppTimeout(() => {
+      if (!isGameplayEntryGenerationLatest(gameplayEntryGeneration)) return;
+      void preloadJuiceMerge6Sounds();
+    }, 2000);
+    trackAppTimeout(() => {
+      if (!isGameplayEntryGenerationLatest(gameplayEntryGeneration)) return;
+      const warmBarrelSheet = () => {
+        if (!isGameplayEntryGenerationLatest(gameplayEntryGeneration)) return;
+        void preloadBarrelBouncyArtwork();
+      };
+      if (typeof (window as any).requestIdleCallback === 'function') {
+        // No forced timeout: a busy frame is more expensive than a temporarily
+        // static, pixel-identical fallback. The generation check prevents a
+        // queued callback from crossing into another board/transition.
+        (window as any).requestIdleCallback(warmBarrelSheet);
+      } else {
+        warmBarrelSheet();
+      }
+    }, 3000);
+    trackAppTimeout(() => {
+      if (!isGameplayEntryGenerationLatest(gameplayEntryGeneration)) return;
+      void preloadBarrelMerge6Sounds();
+    }, 4200);
     // Allocate the Wild smoke pool only after board enter settles. Small
     // tracked batches keep this warmup away from both intro and merge frames;
     // normal exit/restart cleanup cancels any batches that have not run yet.
@@ -6379,11 +6428,6 @@ async function startLevel(n): Promise<void> {
   // first reward must not begin decoding its entrance only after the meter is
   // already visibly full.
   void preloadWildSpawnDropAssets();
-  // Warm the small Juice finale props for every gameplay route. It is
-  // nonblocking and becomes a cache no-op on later board starts.
-  void preloadJuiceFinalePropTextures();
-  // Decode the Juice-only finale cues before its first Wild Meter drop.
-  void preloadJuiceMerge6Sounds();
   preloadWildSpecialLandingSound();
   preloadNoMovesSound();
   // Retire every callback/wait owned by the previous board before the new

@@ -50,29 +50,29 @@ describe('gameplay drag overlay contract', () => {
     expect(artworkLayerSource).toContain("console.info('[CC_DRAG_DEPTH]', payload);");
   });
 
-  test('portals every direct SVG wrapper through the same drag foreground owner', () => {
-    const overlapOcclusionFiles = [
+  test('portals the remaining direct SVG and keeps optimized Pixi artwork inside the drag owner', () => {
+    const fishSource = fs.readFileSync(path.join(root, 'src/modules/fish-swim-artwork.ts'), 'utf8');
+    expect(fishSource).toContain('setAnimatedSpecialArtworkDragging(controller.wrapper, true);');
+    expect(fishSource).toContain('setAnimatedSpecialArtworkPinnedForeground(controller.wrapper, true);');
+    expect(fishSource).not.toContain('setAnimatedSpecialArtworkOccluded');
+    expect(fishSource).not.toContain('doesAnimatedSpecialArtworkOverlapGameplayDrag');
+
+    const pixiSheetFiles = [
       'juice-bounce-artwork.ts',
       'wild-star-bouncy-artwork.ts',
       'robo-bouncy-artwork.ts',
       'mushroom-bouncy-artwork.ts',
-      'flower-bouncy-artwork.ts',
+      'ball-bouncy-artwork.ts',
     ];
-    for (const filename of overlapOcclusionFiles) {
+    for (const filename of pixiSheetFiles) {
       const source = fs.readFileSync(path.join(root, 'src/modules', filename), 'utf8');
-      expect(source).toContain('setAnimatedSpecialArtworkDragging(controller.wrapper, dragging);');
-      expect(source).toContain('setAnimatedSpecialArtworkOccluded(wrapper, occludedByGameplayDrag);');
-      expect(source).toContain('gameplayDragActive');
-      expect(source).toContain('doesAnimatedSpecialArtworkOverlapGameplayDrag');
-      expect(source).toContain('installAnimatedSpecialArtworkOverlapFootprint(wrapper, {');
+      expect(source).toContain('setSharedPixiSheetAnimationDragging');
+      expect(source).not.toContain('controller.wrapper');
+      expect(source).not.toContain('doesAnimatedSpecialArtworkOverlapGameplayDrag');
     }
-    const ballSource = fs.readFileSync(path.join(root, 'src/modules/ball-bouncy-artwork.ts'), 'utf8');
-    expect(ballSource).toContain('setAnimatedSpecialArtworkDragging(controller.wrapper, true);');
-    expect(ballSource).toContain(
-      'setAnimatedSpecialArtworkPinnedForeground(wrapper, true, { preserveDuringFinale: true });',
-    );
-    expect(ballSource).not.toContain('setAnimatedSpecialArtworkOccluded');
-    expect(ballSource).not.toContain('installAnimatedSpecialArtworkOverlapFootprint');
+    const flowerSource = fs.readFileSync(path.join(root, 'src/modules/flower-bouncy-artwork.ts'), 'utf8');
+    expect(flowerSource).toContain('controller.dragging = dragging;');
+    expect(flowerSource).not.toContain('controller.wrapper');
     expect(artworkLayerSource).toContain("pinnedForegroundOverlayRoot.className = 'animated-special-artwork-pinned-foreground-layer';");
     expect(artworkLayerSource).toContain(
       "finalePersistentForegroundOverlayRoot.className = 'animated-special-artwork-finale-persistent-foreground-layer';",

@@ -121,23 +121,24 @@ describe('Robo Cube special die', () => {
     })?.id).not.toBe('robo-cube');
   });
 
-  test('uses the dedicated Robo SVG idle owner with static drag fallback and bounded finale warming', () => {
+  test('uses the shared Robo Pixi sheet with static drag fallback and bounded finale warming', () => {
     expect(specialIdleSource).toContain('if (isRoboBouncyTile(tile))');
     expect(specialIdleSource).toContain('startRoboBouncyArtwork(tile, idleSources, finaleSources)');
     expect(specialIdleSource).toContain('setRoboBouncyArtworkDragging(tile, dragging)');
     expect(specialIdleSource).not.toContain('startRoboCubeIdle(tile, idleSources, finaleSources)');
     expect(artworkSource).toContain("ROBO_BOUNCY_SVG_URL = './assets/shop/robo/robo-bouncy.svg'");
+    expect(artworkSource).toContain("ROBO_BOUNCY_SHEET_URL = './assets/shop/robo/robo-pixi-sheet.webp'");
     expect(artworkSource).toContain("getSpecialDiceVariantForTile(tile)?.id === 'robo-cube'");
     expect(artworkSource).toContain('const PRELOAD_BATCH_SIZE = 3');
     expect(artworkSource).toContain('warmFinaleInBoundedBatches(controller, finalePreloadSources)');
     expect(artworkSource).toContain('idleFrameSources[1] ?? idleFrameSources[0] ?? null');
     expect(artworkSource).toContain('pinPixiImageTexture(texture)');
-    expect(artworkSource).toContain('controller.wrapper.style.visibility = \'hidden\'');
-    expect(artworkSource).toContain('controller.base.renderable = true');
+    expect(artworkSource).toContain('setSharedPixiSheetAnimationDragging(tile, ROBO_PROPERTY_KEY, dragging)');
+    expect(artworkSource).not.toContain('new Image()');
     expect(artworkSource).not.toContain('new Graphics(');
     expect(artworkSource).not.toContain('gsap.timeline');
-    expect(assetPreloaderSource).toContain("'./assets/shop/robo/robo-bouncy.svg'");
-    expect(startupPreloaderSource).toContain("'./assets/shop/robo/robo-bouncy.svg'");
+    expect(assetPreloaderSource).not.toContain("'./assets/shop/robo/robo-bouncy.svg'");
+    expect(startupPreloaderSource).not.toContain("'./assets/shop/robo/robo-bouncy.svg'");
     expect(wildSkinSource).not.toContain('Texture.from(requestedAssetPath)');
     expect(wildSkinSource).toContain('isUsablePixiImageTexture(resolvedTexture)');
     expect(wildSkinSource).toContain('reloadPixiImageTexture(requestedAssetPath)');

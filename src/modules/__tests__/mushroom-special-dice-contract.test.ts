@@ -93,11 +93,11 @@ describe('Mushroom special-die visual contract', () => {
     expect(appCoreSource).toContain('dropProfile: getSpecialDiceJuiceDropProfile(wildJuiceVariantForExplosion)');
   });
 
-  test('uses the Mushroom-only SVG bounce and pooled-lifecycle-safe smoke instead of Juice bubbles', () => {
+  test('uses the Mushroom-only shared Pixi bounce and pooled-lifecycle-safe smoke instead of Juice bubbles', () => {
     expect(idleSource).toContain("variant.idleMotion === 'mushroom-pop'");
     expect(idleSource).toContain('startMushroomBouncyArtwork(tile)');
     expect(idleSource).toContain('setMushroomBouncyArtworkDragging(tile, dragging)');
-    expect(idleSource).toContain('The authored SVG owns Mushroom bounce/squash/rotation');
+    expect(idleSource).toContain('The shared Pixi sheet reproduces the authored Mushroom bounce/squash/rotation');
     expect(idleSource).toContain("smokeContainer.label = 'mushroom-idle-smoke'");
     expect(idleSource).toContain('const smokeTimeline = trackTimeline({ paused: true })');
     expect(idleSource).toContain('const smokeTl = gsap.timeline({ repeat: -1, repeatDelay: 0.66, paused: true })');
@@ -107,6 +107,8 @@ describe('Mushroom special-die visual contract', () => {
     expect(idleSource).not.toContain('_ccMushroomSmokeTimelines');
     expect(idleSource).toContain("tile._ccMushroomSmokeContainer.destroy?.({ children: true })");
     expect(artworkSource).toContain("MUSHROOM_BOUNCY_SVG_URL = './assets/shop/mushroom/mushroom.svg'");
+    expect(artworkSource).toContain("MUSHROOM_BOUNCY_SHEET_URL = './assets/shop/mushroom/mushroom-pixi-sheet.webp'");
+    expect(artworkSource).toContain('startSharedPixiSheetAnimation({');
     expect(artworkSource).toContain("getSpecialDiceVariantForTile(tile)?.id === 'mushroom'");
     expect(artworkSource).not.toContain('gsap.timeline');
     expect(fxSource).toContain("specialVariantId === 'mushroom'");
@@ -126,7 +128,7 @@ describe('Mushroom special-die visual contract', () => {
   });
 
   test('ships the animated idle, original fallback and all five growth variants without preloading retired fragment art', () => {
-    ['mushroom.svg', 'mushroom.png', 'mushroom@2x.png'].forEach((asset) => {
+    ['mushroom.svg', 'mushroom-pixi-sheet.webp', 'mushroom.png', 'mushroom@2x.png'].forEach((asset) => {
       expect(fs.existsSync(path.resolve(process.cwd(), `assets/shop/mushroom/${asset}`))).toBe(true);
     });
     for (let variant = 1; variant <= 5; variant += 1) {
@@ -135,7 +137,8 @@ describe('Mushroom special-die visual contract', () => {
     }
     expect(assetPreloaderSource).toContain('`./assets/shop/mushroom/mushroom${index + 1}.png`');
     expect(assetPreloaderSource).not.toContain('assets/shop/mushroom/part${index + 1}@2x.png');
-    expect(startupPreloaderSource).toContain("'./assets/shop/mushroom/mushroom.svg'");
+    expect(startupPreloaderSource).not.toContain("'./assets/shop/mushroom/mushroom.svg'");
+    expect(startupPreloaderSource).not.toContain("'./assets/shop/mushroom/mushroom-pixi-sheet.webp'");
   });
 
   test('adds one pooled layered spore owner with independent long and short routes', () => {

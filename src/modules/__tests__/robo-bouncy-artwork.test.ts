@@ -2,23 +2,41 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { Container, Sprite, Texture } from 'pixi.js';
+import { Assets, Container, Sprite, Texture, TextureSource } from 'pixi.js';
 import { STATE } from '../app-state';
 import {
   destroyRoboBouncyArtworkRuntime,
   getRoboBouncyDisplayGeometry,
   getRoboBouncyRuntimeStats,
   isRoboBouncyTile,
+  ROBO_BOUNCY_CYCLE_MS,
   ROBO_BOUNCY_DISPLAY_SIZE,
+  ROBO_BOUNCY_FRAME_COUNT,
   ROBO_BOUNCY_REST_ART,
+  ROBO_BOUNCY_SHEET_URL,
   ROBO_BOUNCY_SVG_URL,
   setRoboBouncyArtworkDragging,
   startRoboBouncyArtwork,
   stopRoboBouncyArtwork,
 } from '../robo-bouncy-artwork';
 
+const DRAG_TEXTURE_URL = './assets/shop/robo/robo-cube2.png';
+
+function makeTexture(width: number, height: number): Texture {
+  return new Texture({
+    source: new TextureSource({
+      resource: { width, height } as any,
+      width,
+      height,
+    }),
+  });
+}
+
 function makeTile(variant = 'robo-cube') {
-  const base = new Sprite(Texture.WHITE);
+  const originalTexture = makeTexture(128, 128);
+  const base = new Sprite(originalTexture);
+  base.width = 128;
+  base.height = 128;
   const rotG = new Container();
   rotG.addChild(base);
   return {
@@ -31,67 +49,74 @@ function makeTile(variant = 'robo-cube') {
       rotG,
     } as any,
     base,
+    rotG,
+    originalTexture,
   };
 }
 
-describe('Robo Cube animated SVG board artwork', () => {
+describe('Robo Cube shared Pixi board artwork', () => {
+  let sheet: Texture;
+  let dragTexture: Texture;
+  let loadSpy: jest.SpiedFunction<typeof Assets.load>;
+  let getSpy: jest.SpiedFunction<typeof Assets.get>;
+  let unloadSpy: jest.SpiedFunction<typeof Assets.unload>;
+  let tickerCallbacks: Set<(ticker: any) => void>;
+  let ticker: any;
+
   beforeEach(() => {
-    const host = document.createElement('div');
-    const canvas = document.createElement('canvas');
-    host.appendChild(canvas);
-    canvas.getBoundingClientRect = () => ({
-      x: 0,
-      y: 0,
-      left: 0,
-      top: 0,
-      right: 390,
-      bottom: 844,
-      width: 390,
-      height: 844,
-      toJSON: () => ({}),
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-09-16T12:00:00.000Z'));
+    sheet = makeTexture(4077, 1032);
+    dragTexture = makeTexture(128, 128);
+    getSpy = jest.spyOn(Assets, 'get').mockReturnValue(undefined as any);
+    loadSpy = jest.spyOn(Assets, 'load').mockImplementation(async (source: any) => {
+      if (source === ROBO_BOUNCY_SHEET_URL) return sheet as any;
+      if (source === DRAG_TEXTURE_URL) return dragTexture as any;
+      return Texture.WHITE as any;
     });
-    document.body.appendChild(host);
-    STATE.app = {
-      canvas,
-      renderer: { screen: { width: 390, height: 844 } },
-      ticker: { add: jest.fn(), remove: jest.fn() },
-    } as any;
+    unloadSpy = jest.spyOn(Assets, 'unload').mockResolvedValue(undefined as any);
+    tickerCallbacks = new Set();
+    ticker = {
+      elapsedMS: 0,
+      add: jest.fn((callback: (liveTicker: any) => void) => tickerCallbacks.add(callback)),
+      remove: jest.fn((callback: (liveTicker: any) => void) => tickerCallbacks.delete(callback)),
+    };
+    STATE.app = { ticker } as any;
   });
 
   afterEach(() => {
     destroyRoboBouncyArtworkRuntime();
     STATE.app = null;
-    document.body.replaceChildren();
+    loadSpy.mockRestore();
+    getSpy.mockRestore();
+    unloadSpy.mockRestore();
+    try { sheet.destroy(true); } catch {}
+    try { dragTexture.destroy(true); } catch {}
+    jest.useRealTimers();
   });
 
-  test('maps the authored 256px resting Robo pose to the existing 128px footprint', () => {
+  const flushPromises = async () => {
+    for (let index = 0; index < 12; index += 1) await Promise.resolve();
+  };
+
+  const tick = (elapsedMS: number) => {
+    ticker.elapsedMS = elapsedMS;
+    Array.from(tickerCallbacks).forEach((callback) => callback(ticker));
+  };
+
+  test('keeps the authored source contract and maps the trimmed sheet to the 128px rest footprint', () => {
     const geometry = getRoboBouncyDisplayGeometry();
-    expect(geometry.restingArtworkWidth).toBeCloseTo(ROBO_BOUNCY_DISPLAY_SIZE, 8);
-    expect(geometry.restingArtworkHeight).toBeCloseTo(ROBO_BOUNCY_DISPLAY_SIZE, 8);
+    expect(geometry).toMatchObject({ width: 151, height: 172 });
+    expect(geometry.anchorX).toBeCloseTo(79.5 / 151, 8);
+    expect(geometry.anchorY).toBeCloseTo(104.5 / 172, 8);
+    expect(geometry.restingArtworkWidth).toBe(ROBO_BOUNCY_DISPLAY_SIZE);
+    expect(geometry.restingArtworkHeight).toBe(ROBO_BOUNCY_DISPLAY_SIZE);
     expect(ROBO_BOUNCY_REST_ART).toEqual({ centerX: 195, centerY: 239, size: 256 });
-    expect(geometry.width).toBeCloseTo(195, 8);
-    expect(geometry.height).toBeCloseTo(220, 8);
-    expect(geometry.anchorX).toBe(0.5);
-    expect(geometry.anchorY).toBeCloseTo(239 / 440, 8);
-  });
-
-  test('uses the supplied self-contained 2.4-second Robo animation without active content', () => {
-    const svg = fs.readFileSync(
-      path.resolve(process.cwd(), 'assets/shop/robo/robo-bouncy.svg'),
-      'utf8',
-    );
-    const animateCount = svg.match(/<animate(?=\s)/g)?.length ?? 0;
-    const animateTransformCount = svg.match(/<animateTransform(?=\s)/g)?.length ?? 0;
-
-    expect(Buffer.byteLength(svg, 'utf8')).toBeLessThanOrEqual(850_000);
-    expect(svg).toContain('viewBox="0 0 390 440"');
-    expect(svg).toContain('dur="2.4s"');
-    expect(svg).toContain('repeatCount="indefinite"');
-    expect(svg).toContain('calcMode="discrete"');
-    expect(svg.match(/<image(?=\s)/g)).toHaveLength(14);
-    expect(animateCount).toBe(15);
-    expect(animateTransformCount).toBe(4);
-    expect(svg).not.toMatch(/<(?:script|foreignObject|filter)\b/);
+    expect(ROBO_BOUNCY_CYCLE_MS).toBe(2400);
+    expect(ROBO_BOUNCY_FRAME_COUNT).toBe(144);
+    expect(fs.existsSync(path.resolve(process.cwd(), ROBO_BOUNCY_SHEET_URL))).toBe(true);
+    expect(fs.readFileSync(path.resolve(process.cwd(), ROBO_BOUNCY_SVG_URL), 'utf8'))
+      .toContain('dur="2.4s"');
   });
 
   test('owns only the exact Robo Cube registry variant', () => {
@@ -101,90 +126,68 @@ describe('Robo Cube animated SVG board artwork', () => {
     expect(isRoboBouncyTile({ special: 'wild' })).toBe(false);
   });
 
-  test('deduplicates ownership, keeps PNG until load, swaps to PNG during drag, and cleans up', () => {
-    const { tile, base } = makeTile();
-    const first = startRoboBouncyArtwork(tile);
-    const second = startRoboBouncyArtwork(tile);
+  test('shares one texture source, gives copies independent clocks, and cleans up', async () => {
+    const first = makeTile();
+    const second = makeTile();
+    const firstController = startRoboBouncyArtwork(first.tile) as any;
+    const secondController = startRoboBouncyArtwork(second.tile) as any;
+    await flushPromises();
 
-    expect(first).toBe(second);
-    expect(base.renderable).toBe(true);
+    expect(firstController.ready).toBe(true);
+    expect(firstController.running).toBe(true);
+    expect(secondController.ready).toBe(true);
+    expect(secondController.running).toBe(false);
+    expect(firstController.sprite.texture.source).toBe(secondController.sprite.texture.source);
+    expect(firstController.sprite).not.toBe(secondController.sprite);
+    expect(loadSpy.mock.calls.filter(([source]) => (source as any) === ROBO_BOUNCY_SHEET_URL)).toHaveLength(1);
+    expect(ticker.add).toHaveBeenCalledTimes(1);
+
+    tick(secondController.phaseLease.delayMs);
+    jest.advanceTimersByTime(secondController.phaseLease.delayMs);
+    expect(secondController.running).toBe(true);
+    tick(100);
+    expect(firstController.frameIndex).not.toBe(secondController.frameIndex);
+
+    stopRoboBouncyArtwork(first.tile);
+    stopRoboBouncyArtwork(second.tile);
+    expect(first.base.renderable).toBe(true);
+    expect(second.base.renderable).toBe(true);
+    expect(first.rotG.getChildByLabel('robo-bouncy-pixi')).toBeNull();
+    expect(ticker.remove).toHaveBeenCalledTimes(1);
     expect(getRoboBouncyRuntimeStats()).toMatchObject({
-      controllers: 1,
-      ready: 0,
-      runtimeAttached: true,
-      overlayAttached: true,
-    });
-
-    (first as any).image.onload(new Event('load'));
-    expect(base.renderable).toBe(false);
-    expect((first as any).wrapper.style.visibility).toBe('visible');
-    expect(getRoboBouncyRuntimeStats().ready).toBe(1);
-
-    expect(setRoboBouncyArtworkDragging(tile, true)).toBe(true);
-    expect((first as any).wrapper.style.visibility).toBe('hidden');
-    expect(base.renderable).toBe(true);
-
-    expect(setRoboBouncyArtworkDragging(tile, false)).toBe(true);
-    expect((first as any).wrapper.style.visibility).toBe('visible');
-    expect(base.renderable).toBe(false);
-
-    stopRoboBouncyArtwork(tile);
-    expect(base.renderable).toBe(true);
-    expect(tile._ccRoboBouncyArtwork).toBeUndefined();
-    expect(getRoboBouncyRuntimeStats()).toEqual({
       controllers: 0,
       ready: 0,
-      runtimeAttached: false,
       overlayAttached: false,
+      refs: 0,
     });
   });
 
-  test('leaves the canonical static PNG visible when the SVG cannot load', () => {
-    const { tile, base } = makeTile();
-    const controller = startRoboBouncyArtwork(tile);
+  test('uses the accepted second Robo frame during drag and resumes the same Pixi controller', async () => {
+    const { tile, base, originalTexture } = makeTile();
+    const controller = startRoboBouncyArtwork(
+      tile,
+      ['./assets/shop/robo/robo-cube1.png', DRAG_TEXTURE_URL],
+      ['./finale-1.png', './finale-2.png', './finale-3.png', './finale-4.png'],
+    ) as any;
+    await flushPromises();
 
-    (controller as any).image.onerror(new Event('error'));
+    expect(base.renderable).toBe(false);
+    expect(controller.sprite.renderable).toBe(true);
+    expect(loadSpy).toHaveBeenCalledWith('./finale-1.png');
+    expect(loadSpy).toHaveBeenCalledWith('./finale-4.png');
 
+    expect(setRoboBouncyArtworkDragging(tile, true)).toBe(true);
     expect(base.renderable).toBe(true);
-    expect((controller as any).ready).toBe(false);
-    expect((controller as any).wrapper.style.visibility).toBe('hidden');
-  });
+    expect(base.texture).toBe(dragTexture);
+    expect(controller.sprite.renderable).toBe(false);
 
-  test('cannot resurrect a disposed owner from a late SVG load callback', () => {
-    const { tile, base } = makeTile();
-    const controller = startRoboBouncyArtwork(tile);
-    const lateLoad = (controller as any).image.onload as (event: Event) => void;
-
-    stopRoboBouncyArtwork(tile);
-    lateLoad(new Event('load'));
-
-    expect(base.renderable).toBe(true);
-    expect(tile._ccRoboBouncyArtwork).toBeUndefined();
-    expect(getRoboBouncyRuntimeStats().controllers).toBe(0);
-  });
-
-  test('gives simultaneous Robo tiles separate SVG clocks and cancels their phase leases', () => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
-    try {
-      const first = startRoboBouncyArtwork(makeTile().tile);
-      const second = startRoboBouncyArtwork(makeTile().tile);
-
-      expect((first as any).phaseLease.phaseSlot).toBe(0);
-      expect((first as any).image.getAttribute('src')).toBe(ROBO_BOUNCY_SVG_URL);
-      expect((second as any).phaseLease.phaseSlot).toBe(1);
-      expect((second as any).phaseLease.delayMs).toBe(200);
-      expect((second as any).image.getAttribute('src')).toBeNull();
-
-      jest.advanceTimersByTime(200);
-      expect((second as any).image.getAttribute('src')).toBe(
-        `${ROBO_BOUNCY_SVG_URL}?cc-svg-phase=1`,
-      );
-
-      destroyRoboBouncyArtworkRuntime();
-      expect(getRoboBouncyRuntimeStats().controllers).toBe(0);
-    } finally {
-      jest.useRealTimers();
-    }
+    tick(100);
+    const elapsedDuringDrag = controller.elapsedMs;
+    expect(elapsedDuringDrag).toBeGreaterThan(0);
+    expect(setRoboBouncyArtworkDragging(tile, false)).toBe(true);
+    expect(base.texture).toBe(originalTexture);
+    expect(base.renderable).toBe(false);
+    expect(controller.sprite.renderable).toBe(true);
+    expect(controller.elapsedMs).toBe(elapsedDuringDrag);
   });
 });

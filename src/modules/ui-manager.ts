@@ -70,7 +70,6 @@ import { preloadFishMerge6Sounds } from './fish-merge6-sound.ts';
 import { preloadFishFinaleBubbles } from './fish-finale-bubbles.ts';
 import { preloadBeachBallMerge6Sounds } from './beach-ball-merge6-sound.ts';
 import { preloadCoreTntMerge6Sound } from './core-tnt-merge6-sound.ts';
-import { preloadBarrelMerge6Sounds } from './barrel-merge6-sound.ts';
 import { preloadFlowerMerge6Sounds } from './flower-merge6-sound.ts';
 import { preloadBeeMerge6Sounds } from './bee-merge6-sound.ts';
 import { preloadRoboCubeMerge6Sounds } from './robo-cube-merge6-sound.ts';
@@ -483,7 +482,6 @@ class UIManager {
     preloadFishFinaleBubbles();
     preloadBeachBallMerge6Sounds();
     preloadCoreTntMerge6Sound();
-    preloadBarrelMerge6Sounds();
     preloadFlowerMerge6Sounds();
     preloadBeeMerge6Sounds();
     preloadRoboCubeMerge6Sounds();
@@ -641,7 +639,6 @@ class UIManager {
     preloadFishFinaleBubbles();
     preloadBeachBallMerge6Sounds();
     preloadCoreTntMerge6Sound();
-    preloadBarrelMerge6Sounds();
     preloadFlowerMerge6Sounds();
     preloadBeeMerge6Sounds();
     preloadRoboCubeMerge6Sounds();
@@ -780,7 +777,6 @@ class UIManager {
       preloadFishFinaleBubbles();
       preloadBeachBallMerge6Sounds();
       preloadCoreTntMerge6Sound();
-      preloadBarrelMerge6Sounds();
       preloadFlowerMerge6Sounds();
       preloadBeeMerge6Sounds();
       preloadRoboCubeMerge6Sounds();

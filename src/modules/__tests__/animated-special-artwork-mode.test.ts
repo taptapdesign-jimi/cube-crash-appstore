@@ -5,7 +5,7 @@ import {
   releaseAnimatedSpecialArtworkMode,
 } from '../animated-special-artwork-mode';
 
-describe('animated special artwork SVG/PNG mode', () => {
+describe('animated special artwork compatibility mode', () => {
   const ownedTiles: object[] = [];
 
   afterEach(() => {
@@ -38,19 +38,19 @@ describe('animated special artwork SVG/PNG mode', () => {
     });
   });
 
-  test('splits later non-always-animated copies 50/50 between phased SVG and PNG', () => {
+  test('keeps every optimized family copy on an independently phased animation', () => {
     const first = tile();
     const svgDuplicate = tile();
     const pngDuplicate = tile();
 
     expect(acquireAnimatedSpecialArtworkMode(first, 'ball', () => 0.99)).toBe('svg');
     expect(acquireAnimatedSpecialArtworkMode(svgDuplicate, 'ball', () => 0.49)).toBe('svg');
-    expect(acquireAnimatedSpecialArtworkMode(pngDuplicate, 'ball', () => 0.50)).toBe('png');
+    expect(acquireAnimatedSpecialArtworkMode(pngDuplicate, 'ball', () => 0.99)).toBe('svg');
     expect(getAnimatedSpecialArtworkModeStats()).toEqual({
       assignments: 3,
       families: 1,
-      svg: 2,
-      png: 1,
+      svg: 3,
+      png: 0,
     });
   });
 
@@ -107,15 +107,15 @@ describe('animated special artwork SVG/PNG mode', () => {
     const duplicate = tile();
     acquireAnimatedSpecialArtworkMode(first, 'robo');
 
-    expect(acquireAnimatedSpecialArtworkMode(duplicate, 'robo', () => 0.9)).toBe('png');
-    expect(acquireAnimatedSpecialArtworkMode(duplicate, 'robo', () => 0.1)).toBe('png');
-    expect(getAnimatedSpecialArtworkMode(duplicate)).toBe('png');
+    expect(acquireAnimatedSpecialArtworkMode(duplicate, 'robo', () => 0.9)).toBe('svg');
+    expect(acquireAnimatedSpecialArtworkMode(duplicate, 'robo', () => 0.1)).toBe('svg');
+    expect(getAnimatedSpecialArtworkMode(duplicate)).toBe('svg');
 
     releaseAnimatedSpecialArtworkMode(duplicate);
     expect(getAnimatedSpecialArtworkMode(duplicate)).toBeNull();
   });
 
-  test('makes the next arriving copy SVG when only PNG copies remain', () => {
+  test('keeps replacement Juice copies animated after earlier owners leave', () => {
     const first = tile();
     const pngDuplicate = tile();
     const replacement = tile();

@@ -613,7 +613,7 @@ export function startSpecialDiceIdleMotion(tile: any): void {
       tile._ccMushroomSmokeTimeline = smokeTimeline;
     }
 
-    // The authored SVG owns Mushroom bounce/squash/rotation. Retain only the
+    // The shared Pixi sheet reproduces the authored Mushroom bounce/squash/rotation. Retain only the
     // established smoke timeline so two independent motion owners never
     // compound the tile transform.
     if (variant.idleMotion === 'mushroom-pop') return;

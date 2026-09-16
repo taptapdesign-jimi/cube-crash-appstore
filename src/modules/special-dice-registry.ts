@@ -414,7 +414,11 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
   barell: {
     id: 'barell',
     archetype: 'wild-tnt',
-    texture: './assets/shop/barell/barell.svg',
+    // Keep a cheap, opaque Pixi fallback alive until the direct animated SVG
+    // overlay reports that it is ready. Using the animated SVG here made the
+    // spawn handoff decode and rasterize the same 5.1MP sheet twice and could
+    // expose its transparent first paint under iOS load.
+    texture: './assets/shop/barell/barell-static.png',
     splashText: 'POOOF',
     splashColor: '#F48D59',
     splashColors: ['#F48D59'],

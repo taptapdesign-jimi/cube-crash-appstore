@@ -11,7 +11,7 @@ export type AnimatedSvgPhaseLease = {
 };
 
 export type AnimatedTimelinePhaseTarget = {
-  element: HTMLElement;
+  element?: HTMLElement;
   start: (phaseSlot: number) => void;
 };
 
@@ -146,6 +146,7 @@ export function acquireAnimatedTimelinePhase(
   };
 
   targets.forEach(({ element }) => {
+    if (!element) return;
     element.dataset.ccSvgPhaseGroup = groupKey;
     element.dataset.ccSvgPhaseDelayMs = String(delayMs);
     element.dataset.ccSvgPhaseSlot = String(phaseSlot);

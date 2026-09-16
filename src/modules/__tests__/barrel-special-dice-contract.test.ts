@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { SPECIAL_DICE_VARIANTS, getSpecialDiceSplashOptions } from '../special-dice-registry';
 import {
   createTntDebrisSpriteSourceOrder,
@@ -10,16 +11,28 @@ import {
 } from '../tnt-animation';
 import { getForestWildPool, pickForestWildReward, getForestWildRewardCoreType, getForestWildRewardVariantId } from '../journey-forest-wild-progression';
 import { BARREL_SOUND_SOURCES, isBarrelMerge6SoundEvent } from '../barrel-merge6-sound';
-import { BARREL_BOUNCY_CYCLE_MS, getBarrelBouncyDisplayGeometry, isBarrelBouncyTile } from '../barrel-bouncy-artwork';
+import {
+  BARREL_BOUNCY_ACTIVE_LOOPS,
+  BARREL_BOUNCY_CYCLE_MS,
+  BARREL_BOUNCY_FRAME_COUNT,
+  BARREL_BOUNCY_REST_MS,
+  BARREL_BOUNCY_SEQUENCE_MS,
+  BARREL_BOUNCY_SHEET_URL,
+  getBarrelBouncyDisplayGeometry,
+  isBarrelBouncyTile,
+} from '../barrel-bouncy-artwork';
 import { acquireAnimatedSpecialArtworkMode, releaseAnimatedSpecialArtworkMode } from '../animated-special-artwork-mode';
 
 const read = (relative: string) => fs.readFileSync(path.resolve(process.cwd(), relative), 'utf8');
+const sha256 = (relative: string) => createHash('sha256')
+  .update(fs.readFileSync(path.resolve(process.cwd(), relative)))
+  .digest('hex');
 
 describe('Barrel TNT archetype', () => {
   test('keeps TNT gameplay with its authored art, colors, POOOF, and wood debris', () => {
     const barrel = SPECIAL_DICE_VARIANTS.barell;
     expect(barrel.archetype).toBe('wild-tnt');
-    expect(barrel.texture).toBe('./assets/shop/barell/barell.svg');
+    expect(barrel.texture).toBe('./assets/shop/barell/barell-static.png');
     expect(barrel.visualAnchorY).toBeCloseTo(221 / 351);
     expect(barrel.trailColors).toEqual([0xD7C3BC, 0xE2CDC0, 0xF5BD65, 0xEAAD61]);
     expect(barrel.shardColors).toEqual([0xE9D6C6, 0xEBA95B]);
@@ -105,11 +118,32 @@ describe('Barrel TNT archetype', () => {
     expect(new Set(firstPositions).size).toBeGreaterThan(95);
   });
 
-  test('animates live SVG copies and introduces Barrel in Forest 07 and Arcade test order', () => {
+  test('animates every live copy from one shared Pixi sheet and introduces Barrel in Forest 07 and Arcade test order', () => {
     const geometry = getBarrelBouncyDisplayGeometry();
     expect(geometry.restingArtworkWidth).toBeCloseTo(115.2);
     expect(BARREL_BOUNCY_CYCLE_MS).toBeCloseTo(821.428571);
+    expect(BARREL_BOUNCY_ACTIVE_LOOPS).toBe(2);
+    expect(BARREL_BOUNCY_REST_MS).toBe(1000);
+    expect(BARREL_BOUNCY_SEQUENCE_MS).toBeCloseTo(BARREL_BOUNCY_CYCLE_MS * 2 + 1000);
+    expect(BARREL_BOUNCY_FRAME_COUNT).toBe(54);
     expect(read('assets/shop/barell/barell.svg')).toContain('dur="0.821428571s"');
+    const sheetPath = path.resolve(process.cwd(), BARREL_BOUNCY_SHEET_URL);
+    expect(fs.existsSync(sheetPath)).toBe(true);
+    expect(fs.statSync(sheetPath).size).toBeLessThan(1_000_000);
+    // Locks the reviewed row-major chronological export. The former scrambled
+    // sheet also had valid dimensions and size, so those checks alone missed it.
+    expect(sha256(BARREL_BOUNCY_SHEET_URL)).toBe(
+      '87292511d7f2b985e7d82d5fa814e8441022d0e199948d1cbe1e1d2d2eb20743',
+    );
+    expect(sha256('./assets/shop/barell/barell-static.png')).toBe(
+      'a65af5850d6dd2aee38e0b3286e8ffe0661ab192ae02dda9423ac0f0b5c51933',
+    );
+    const startupPreloader = read('src/utils/comprehensive-image-preloader.ts');
+    const journeySource = read('src/modules/journey-boards-manager.ts');
+    expect(startupPreloader.match(/\.\/assets\/shop\/barell\/barell-static\.png/g)).toHaveLength(2);
+    expect(startupPreloader).not.toContain("'./assets/shop/barell/barell-pixi-sheet.webp'");
+    expect(startupPreloader).not.toContain("'./assets/shop/barell/barell.svg'");
+    expect(journeySource).not.toContain('preloadBarrelBouncyArtwork');
     expect(SPECIAL_DICE_VARIANTS.barell.visualWidth).toBeCloseTo(160.2);
     expect(SPECIAL_DICE_VARIANTS.barell.visualHeight).toBeCloseTo(207.9);
     expect(SPECIAL_DICE_VARIANTS.barell.hitAreaSize).toBe('tile');
@@ -140,7 +174,12 @@ describe('Barrel TNT archetype', () => {
     expect(Object.values(BARREL_SOUND_SOURCES)).toHaveLength(8);
     Object.values(BARREL_SOUND_SOURCES).forEach((source) => expect(fs.existsSync(path.resolve(process.cwd(), source))).toBe(true));
     const appSource = read('src/modules/app-core.ts');
+    const uiSource = read('src/modules/ui-manager.ts');
+    const journeySource = read('src/modules/journey-boards-manager.ts');
     expect(appSource).toContain('playBarrelMerge6Sound()');
+    expect(appSource).toContain('void preloadBarrelMerge6Sounds();');
+    expect(uiSource).not.toContain('preloadBarrelMerge6Sounds');
+    expect(journeySource).not.toContain('preloadBarrelMerge6Sounds');
     expect(appSource).toContain("tntVariantForMerge.id !== 'barell'");
     expect(appSource).toMatch(/initialImpactDelayMs:[\s\S]*?tntVariantForMerge\?\.id === 'barell'\s*\? 200/);
     expect(appSource).toContain('const delayMs = boundedInitialImpactDelayMs + impactStaggerMs;');

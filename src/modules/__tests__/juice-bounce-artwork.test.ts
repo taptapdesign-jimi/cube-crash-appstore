@@ -2,92 +2,105 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { Container, Sprite, Texture } from 'pixi.js';
+import { Assets, Container, Sprite, Texture, TextureSource } from 'pixi.js';
 import { STATE } from '../app-state';
 import {
   destroyJuiceBounceArtworkRuntime,
   getJuiceBounceDisplayGeometry,
   getJuiceBounceRuntimeStats,
   isPlainJuiceBounceTile,
-  JUICE_BOUNCE_CROP,
-  JUICE_BOUNCE_DRAG_Z_INDEX,
+  JUICE_BOUNCE_ACTIVE_DURATION_MS,
+  JUICE_BOUNCE_CYCLE_MS,
   JUICE_BOUNCE_DISPLAY_SIZE,
-  JUICE_BOUNCE_REST_ART,
+  JUICE_BOUNCE_FRAME_COUNT,
+  JUICE_BOUNCE_SHEET_URL,
+  JUICE_BOUNCE_SVG_URL,
+  setJuiceBounceArtworkDragging,
+  startJuiceBounceArtwork,
+  stopJuiceBounceArtwork,
 } from '../juice-bounce-artwork';
-import {
-  setSpecialDiceIdleDragging,
-  startSpecialDiceIdleMotion,
-  stopSpecialDiceIdleMotion,
-} from '../special-dice-idle';
-import {
-  acquireGameplayDragForeground,
-  setGameplayDragBounds,
-} from '../gameplay-drag-foreground-owner';
 
-describe('Juice animated SVG board artwork', () => {
+function makeTexture(width: number, height: number): Texture {
+  return new Texture({
+    source: new TextureSource({
+      resource: { width, height } as any,
+      width,
+      height,
+    }),
+  });
+}
+
+function makeTile() {
+  const baseTexture = makeTexture(128, 128);
+  const base = new Sprite(baseTexture);
+  base.width = 128;
+  base.height = 128;
+  const rotG = new Container();
+  rotG.addChild(base);
+  return {
+    tile: { special: 'wild-juice', destroyed: false, base, rotG } as any,
+    base,
+    rotG,
+    baseTexture,
+  };
+}
+
+describe('Juice shared Pixi board artwork', () => {
+  let sheet: Texture;
+  let loadSpy: jest.SpiedFunction<typeof Assets.load>;
+  let getSpy: jest.SpiedFunction<typeof Assets.get>;
+  let unloadSpy: jest.SpiedFunction<typeof Assets.unload>;
+  let tickerCallbacks: Set<(ticker: any) => void>;
+  let ticker: any;
+
   beforeEach(() => {
-    const host = document.createElement('div');
-    const canvas = document.createElement('canvas');
-    host.appendChild(canvas);
-    canvas.getBoundingClientRect = () => ({
-      x: 0,
-      y: 0,
-      left: 0,
-      top: 0,
-      right: 390,
-      bottom: 844,
-      width: 390,
-      height: 844,
-      toJSON: () => ({}),
-    });
-    document.body.appendChild(host);
-    STATE.app = {
-      canvas,
-      renderer: { screen: { width: 390, height: 844 } },
-      ticker: { add: jest.fn(), remove: jest.fn() },
-    } as any;
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-09-16T12:00:00.000Z'));
+    sheet = makeTexture(3999, 561);
+    getSpy = jest.spyOn(Assets, 'get').mockReturnValue(undefined as any);
+    loadSpy = jest.spyOn(Assets, 'load').mockResolvedValue(sheet as any);
+    unloadSpy = jest.spyOn(Assets, 'unload').mockResolvedValue(undefined as any);
+    tickerCallbacks = new Set();
+    ticker = {
+      elapsedMS: 0,
+      add: jest.fn((callback: (liveTicker: any) => void) => tickerCallbacks.add(callback)),
+      remove: jest.fn((callback: (liveTicker: any) => void) => tickerCallbacks.delete(callback)),
+    };
+    STATE.app = { ticker } as any;
   });
 
   afterEach(() => {
     destroyJuiceBounceArtworkRuntime();
     STATE.app = null;
-    document.body.replaceChildren();
+    loadSpy.mockRestore();
+    getSpy.mockRestore();
+    unloadSpy.mockRestore();
+    try { sheet.destroy(true); } catch {}
+    jest.useRealTimers();
   });
 
-  test('maps the resting authored cup to the exact existing 128px Juice footprint', () => {
+  const flushPromises = async () => {
+    for (let index = 0; index < 12; index += 1) await Promise.resolve();
+  };
+
+  const tick = (elapsedMS: number) => {
+    ticker.elapsedMS = elapsedMS;
+    Array.from(tickerCallbacks).forEach((callback) => callback(ticker));
+  };
+
+  test('maps the trimmed 60fps sheet to the exact accepted 128px resting footprint', () => {
     const geometry = getJuiceBounceDisplayGeometry();
-    expect(geometry.restingArtworkWidth).toBeCloseTo(JUICE_BOUNCE_DISPLAY_SIZE, 8);
-    expect(geometry.restingArtworkHeight).toBeCloseTo(JUICE_BOUNCE_DISPLAY_SIZE, 8);
-    expect(geometry.anchorX).toBeGreaterThan(0);
-    expect(geometry.anchorX).toBeLessThan(1);
-    expect(geometry.anchorY).toBeGreaterThan(0);
-    expect(geometry.anchorY).toBeLessThan(1);
-  });
-
-  test('crop retains the complete resting artwork and its authored upward jump corridor', () => {
-    const restingTop = JUICE_BOUNCE_REST_ART.centerY - JUICE_BOUNCE_REST_ART.size / 2;
-    const restingBottom = JUICE_BOUNCE_REST_ART.centerY + JUICE_BOUNCE_REST_ART.size / 2;
-    const authoredJump = 93 * 0.78;
-    expect(JUICE_BOUNCE_CROP.y).toBeLessThan(restingTop - authoredJump);
-    expect(JUICE_BOUNCE_CROP.y + JUICE_BOUNCE_CROP.height).toBeGreaterThan(restingBottom);
-  });
-
-  test('uses the optimized self-contained two-second indefinite SMIL animation', () => {
-    const svg = fs.readFileSync(
-      path.resolve(process.cwd(), 'assets/shop/juice/juice-bounce.svg'),
-      'utf8',
-    );
-    const animateCount = svg.match(/<animate(?=\s)/g)?.length ?? 0;
-    const animateTransformCount = svg.match(/<animateTransform(?=\s)/g)?.length ?? 0;
-
-    expect(Buffer.byteLength(svg, 'utf8')).toBeLessThanOrEqual(250_000);
-    expect(svg).toContain('viewBox="0 0 390 800"');
-    expect(svg).toContain('dur="2s"');
-    expect(svg).toContain('repeatCount="indefinite"');
-    expect(svg).toContain('calcMode="spline"');
-    expect(animateCount).toBe(1);
-    expect(animateTransformCount).toBe(9);
-    expect(svg).not.toMatch(/<(?:script|foreignObject|filter)\b/);
+    expect(geometry).toMatchObject({ width: 129, height: 187 });
+    expect(geometry.anchorX).toBeCloseTo(67.326 / 129, 8);
+    expect(geometry.anchorY).toBeCloseTo(119.38 / 187, 8);
+    expect(geometry.restingArtworkWidth).toBe(JUICE_BOUNCE_DISPLAY_SIZE);
+    expect(geometry.restingArtworkHeight).toBe(JUICE_BOUNCE_DISPLAY_SIZE);
+    expect(JUICE_BOUNCE_CYCLE_MS).toBe(2000);
+    expect(JUICE_BOUNCE_ACTIVE_DURATION_MS).toBe(1400);
+    expect(JUICE_BOUNCE_FRAME_COUNT).toBe(84);
+    expect(fs.existsSync(path.resolve(process.cwd(), JUICE_BOUNCE_SHEET_URL))).toBe(true);
+    expect(fs.readFileSync(path.resolve(process.cwd(), JUICE_BOUNCE_SVG_URL), 'utf8'))
+      .toContain('dur="2s"');
   });
 
   test('owns only generic Juice, never another Juice-archetype registry die', () => {
@@ -97,151 +110,63 @@ describe('Juice animated SVG board artwork', () => {
     expect(isPlainJuiceBounceTile({ special: 'wild' })).toBe(false);
   });
 
-  test('deduplicates ownership, paints idle bubbles above SVG, and restores Pixi fallback on cleanup', () => {
-    const base = new Sprite(Texture.WHITE);
-    const rotG = new Container();
-    rotG.addChild(base);
-    const tile: any = { special: 'wild-juice', destroyed: false, base, rotG };
-    const pixiBubbleContainer = { destroyed: false, renderable: true };
-    tile._wildJuiceBubbleSystem = {
-      disposed: false,
-      container: pixiBubbleContainer,
-      bubbles: [{
-        destroyed: false,
-        visible: true,
-        renderable: true,
-        x: 8,
-        y: -12,
-        alpha: 0.75,
-        scale: { x: 0.8, y: 0.9 },
-        _ccIdleBubblePaint: { radius: 12, color: 0xFFE6E1 },
-      }],
-    };
+  test('uses one source for independent Juice sprites and preserves the authored rest', async () => {
+    const first = makeTile();
+    const second = makeTile();
+    const firstController = startJuiceBounceArtwork(first.tile) as any;
+    const secondController = startJuiceBounceArtwork(second.tile) as any;
+    await flushPromises();
 
-    startSpecialDiceIdleMotion(tile);
-    const first = tile._ccJuiceBounceArtwork;
-    startSpecialDiceIdleMotion(tile);
-    const second = tile._ccJuiceBounceArtwork;
-    expect(first).toBe(second);
-    expect((first as any).wrapper.style.overflow).toBe('visible');
-    expect((first as any).artworkClip.style.overflow).toBe('hidden');
-    expect((first as any).image.parentElement).toBe((first as any).artworkClip);
-    expect((first as any).bubbleLayer.parentElement).toBe((first as any).wrapper);
-    expect(getJuiceBounceRuntimeStats()).toMatchObject({
-      controllers: 1,
-      ready: 0,
-      tickerAttached: true,
-      overlayAttached: true,
-    });
-    expect(setSpecialDiceIdleDragging(tile, true)).toBe(true);
-    expect((first as any).dragging).toBe(true);
-    expect((first as any).wrapper.style.zIndex).toBe(String(JUICE_BOUNCE_DRAG_Z_INDEX));
-    (first as any).image.onload(new Event('load'));
+    expect(firstController.sprite.texture.source).toBe(secondController.sprite.texture.source);
+    expect(firstController.sprite).not.toBe(secondController.sprite);
+    expect(firstController.running).toBe(true);
+    expect(secondController.running).toBe(false);
+    expect(loadSpy).toHaveBeenCalledTimes(1);
+    expect(loadSpy).toHaveBeenCalledWith(JUICE_BOUNCE_SHEET_URL);
+
+    tick(secondController.phaseLease.delayMs);
+    jest.advanceTimersByTime(secondController.phaseLease.delayMs);
+    expect(secondController.running).toBe(true);
+    tick(100);
+    expect(firstController.frameIndex).not.toBe(secondController.frameIndex);
+
+    firstController.elapsedMs = JUICE_BOUNCE_ACTIVE_DURATION_MS - 10;
+    tick(20);
+    expect(firstController.frameIndex).toBe(0);
+    tick(100);
+    expect(firstController.frameIndex).toBe(0);
+  });
+
+  test('keeps the existing Pixi bubbles visible and animates through drag without DOM mirrors', async () => {
+    const { tile, base, rotG } = makeTile();
+    const bubbleContainer = { destroyed: false, renderable: true };
+    tile._wildJuiceBubbleSystem = { container: bubbleContainer, disposed: false, bubbles: [] };
+    const controller = startJuiceBounceArtwork(tile) as any;
+    await flushPromises();
+
     expect(base.renderable).toBe(false);
-    expect(pixiBubbleContainer.renderable).toBe(false);
-    expect((first as any).image.style.zIndex).toBe('1');
-    expect((first as any).bubbleLayer.style.zIndex).toBe('2');
-    expect((first as any).bubbleLayer.childElementCount).toBe(1);
-    expect(getJuiceBounceRuntimeStats()).toMatchObject({ controllers: 1, ready: 1 });
-    expect(setSpecialDiceIdleDragging(tile, false)).toBe(true);
-    expect((first as any).dragging).toBe(false);
+    expect(bubbleContainer.renderable).toBe(true);
+    expect(controller.sprite.renderable).toBe(true);
+    expect(document.querySelector('.juice-bounce-artwork')).toBeNull();
+    expect(document.querySelector('.juice-bounce-front-bubbles')).toBeNull();
 
-    stopSpecialDiceIdleMotion(tile);
+    const elapsedBeforeDrag = controller.elapsedMs;
+    expect(setJuiceBounceArtworkDragging(tile, true)).toBe(true);
+    tick(100);
+    expect(base.renderable).toBe(false);
+    expect(controller.sprite.renderable).toBe(true);
+    expect(controller.elapsedMs).toBeGreaterThan(elapsedBeforeDrag);
+    expect(bubbleContainer.renderable).toBe(true);
+
+    expect(setJuiceBounceArtworkDragging(tile, false)).toBe(true);
+    stopJuiceBounceArtwork(tile);
     expect(base.renderable).toBe(true);
-    expect(pixiBubbleContainer.renderable).toBe(true);
-    expect(tile._ccJuiceBounceArtwork).toBeUndefined();
-    expect(getJuiceBounceRuntimeStats()).toEqual({
+    expect(rotG.getChildByLabel('juice-bounce-pixi')).toBeNull();
+    expect(getJuiceBounceRuntimeStats()).toMatchObject({
       controllers: 0,
       ready: 0,
-      tickerAttached: false,
       overlayAttached: false,
+      refs: 0,
     });
-  });
-
-  test('keeps idle Juice live during another drag and portals only the owned Juice', () => {
-    const base = new Sprite(Texture.WHITE);
-    const rotG = new Container();
-    rotG.addChild(base);
-    const tile: any = { special: 'wild-juice', destroyed: false, base, rotG };
-    startSpecialDiceIdleMotion(tile);
-    const controller = tile._ccJuiceBounceArtwork;
-    (controller as any).image.onload(new Event('load'));
-    expect(base.renderable).toBe(false);
-
-    const releaseForeground = acquireGameplayDragForeground();
-    try {
-      expect((controller as any).wrapper.style.visibility).toBe('visible');
-      expect(base.renderable).toBe(false);
-
-      expect(setSpecialDiceIdleDragging(tile, true)).toBe(true);
-      expect((controller as any).wrapper.parentElement?.className)
-        .toBe('animated-special-artwork-drag-layer');
-      expect((controller as any).wrapper.style.visibility).toBe('visible');
-      expect(base.renderable).toBe(false);
-
-      expect(setSpecialDiceIdleDragging(tile, false)).toBe(true);
-      expect((controller as any).wrapper.parentElement?.className)
-        .toBe('animated-special-artwork-layer');
-      expect((controller as any).wrapper.style.visibility).toBe('visible');
-      expect(base.renderable).toBe(false);
-    } finally {
-      releaseForeground();
-    }
-    expect((controller as any).wrapper.style.visibility).toBe('visible');
-    expect(base.renderable).toBe(false);
-  });
-
-  test('keeps the live Juice SVG and bubbles running while another die crosses it', () => {
-    const base = new Sprite(Texture.WHITE);
-    const rotG = new Container();
-    rotG.addChild(base);
-    const tile: any = { special: 'wild-juice', destroyed: false, base, rotG };
-    const pixiBubbleContainer = { destroyed: false, renderable: true };
-    tile._wildJuiceBubbleSystem = {
-      disposed: false,
-      container: pixiBubbleContainer,
-      bubbles: [],
-    };
-    startSpecialDiceIdleMotion(tile);
-    const controller = tile._ccJuiceBounceArtwork as any;
-    controller.image.onload(new Event('load'));
-    const footprint = controller.wrapper.querySelector(
-      '[data-animated-special-artwork-overlap-footprint]',
-    ) as HTMLElement;
-    jest.spyOn(footprint, 'getBoundingClientRect').mockReturnValue({
-      x: 100,
-      y: 100,
-      left: 100,
-      top: 100,
-      right: 228,
-      bottom: 228,
-      width: 128,
-      height: 128,
-      toJSON: () => ({}),
-    });
-
-    const originalImage = controller.image;
-    const originalSrc = originalImage.getAttribute('src');
-    const releaseForeground = acquireGameplayDragForeground();
-    try {
-      setGameplayDragBounds({ x: 120, y: 120, width: 128, height: 128 });
-      expect(controller.wrapper.parentElement?.className)
-        .toBe('animated-special-artwork-occluded-layer');
-      expect(controller.wrapper.style.visibility).toBe('visible');
-      expect(controller.image).toBe(originalImage);
-      expect(controller.image.getAttribute('src')).toBe(originalSrc);
-      expect(base.renderable).toBe(false);
-      expect(pixiBubbleContainer.renderable).toBe(false);
-
-      setGameplayDragBounds({ x: 260, y: 120, width: 128, height: 128 });
-      expect(controller.wrapper.parentElement?.className)
-        .toBe('animated-special-artwork-layer');
-      expect(controller.image).toBe(originalImage);
-      expect(controller.image.getAttribute('src')).toBe(originalSrc);
-      expect(base.renderable).toBe(false);
-    } finally {
-      setGameplayDragBounds(null);
-      releaseForeground();
-    }
   });
 });

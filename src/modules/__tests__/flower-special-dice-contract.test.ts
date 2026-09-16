@@ -11,23 +11,23 @@ describe('Flower special-die visual contract', () => {
   const artworkSource = read('src/modules/flower-bouncy-artwork.ts');
   const comprehensivePreloaderSource = read('src/utils/comprehensive-image-preloader.ts');
 
-  test('routes only the exact Flower variant through the shared SVG lifecycle', () => {
+  test('routes only the exact Flower variant through one procedural Pixi texture', () => {
     expect(artworkSource).toContain("FLOWER_BOUNCY_SVG_URL = './assets/shop/bush/flower.svg'");
+    expect(artworkSource).toContain("FLOWER_BOUNCY_TEXTURE_URL = './assets/shop/bush/flower-pixi-source.png'");
     expect(artworkSource).toContain("getSpecialDiceVariantForTile(tile)?.id === 'flower'");
-    expect(artworkSource).toContain('acquireAnimatedSpecialArtworkLayer(updateFlowerBouncyArtwork)');
-    expect(artworkSource).toContain('acquireAnimatedSvgPhase(');
+    expect(artworkSource).toContain("acquireAnimatedTimelinePhase('flower-bouncy-pixi'");
     expect(artworkSource).toContain('FLOWER_BOUNCY_CYCLE_MS');
-    expect(artworkSource).toContain('controller.base.renderable = controller.baseRenderable');
-    expect(artworkSource).toContain("pollenLayer.className = 'flower-bouncy-front-pollen'");
-    expect(artworkSource).toContain("zIndex: '2'");
-    expect(artworkSource).toContain('particle.renderable = false');
-    expect(artworkSource).toContain('releaseFrontPollenSystem(controller)');
+    expect(artworkSource).toContain('const TRANSLATE_SPLINES');
+    expect(artworkSource).toContain('const SCALE_SPLINES');
+    expect(artworkSource).toContain('const ROTATION_SPLINES');
+    expect(artworkSource).not.toContain('flower-bouncy-front-pollen');
+    expect(artworkSource).not.toContain('particle.renderable = false');
     expect(specialIdleSource).toContain("from './flower-bouncy-artwork.ts'");
     expect(specialIdleSource).toContain('if (isFlowerBouncyTile(tile)) {');
     expect(specialIdleSource).toContain('startFlowerBouncyArtwork(tile)');
     expect(specialIdleSource).toContain('stopFlowerBouncyArtwork(tile)');
     expect(specialIdleSource).toContain('setFlowerBouncyArtworkDragging(tile, dragging)');
-    expect(comprehensivePreloaderSource.match(/\.\/assets\/shop\/bush\/flower\.svg/g)).toHaveLength(2);
+    expect(comprehensivePreloaderSource).not.toContain('./assets/shop/bush/flower.svg');
   });
 
   test('keeps Flower on TNT gameplay while owning a separate pollen-only idle profile', () => {

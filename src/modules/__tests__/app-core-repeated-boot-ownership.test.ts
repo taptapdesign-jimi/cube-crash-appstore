@@ -26,4 +26,17 @@ describe('app-core repeated boot ownership', () => {
     expect(stopIndex).toBeGreaterThan(-1);
     expect(destroyIndex).toBeGreaterThan(stopIndex);
   });
+
+  test('retires hard-reset special artwork before clearing both tile arrays', () => {
+    const boot = appCoreSource.split('export async function boot()')[1]
+      ?.split('// Step 4: Stop PIXI ticker', 1)[0] ?? '';
+    const stopIndex = boot.indexOf('stopSpecialDiceIdleMotion(tile)');
+    const tilesClearIndex = boot.indexOf('tiles.length = 0;');
+    const stateTilesClearIndex = boot.indexOf('STATE.tiles.length = 0;');
+
+    expect(boot).toContain('const staleTiles = new Set<any>');
+    expect(stopIndex).toBeGreaterThan(-1);
+    expect(tilesClearIndex).toBeGreaterThan(stopIndex);
+    expect(stateTilesClearIndex).toBeGreaterThan(stopIndex);
+  });
 });

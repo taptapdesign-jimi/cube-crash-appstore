@@ -92,12 +92,7 @@ async function loadMobileLaunchRouteAssets(): Promise<void> {
     './assets/nav/stats-nav.png',
     './assets/nav/settings-nav.png',
     './assets/paper-bg.png',
-    './assets/shop/juice/juice-bounce.svg',
-    './assets/shop/ball/ball-bouncy.svg',
-    './assets/shop/robo/robo-bouncy.svg',
-    './assets/shop/star/star.svg',
-    './assets/shop/mushroom/mushroom.svg',
-    './assets/shop/bush/flower.svg',
+    './assets/shop/barell/barell-static.png',
   ];
   const pending = [...new Set(routeAssets)];
   const workers = Array.from({ length: Math.min(2, pending.length) }, async () => {
@@ -202,12 +197,7 @@ const ALL_STARTUP_IMAGES: string[] = [
   './assets/wild-juice.png',
   './assets/wild-juice@2x.png',
   './assets/wild-juice@3x.png',
-  './assets/shop/juice/juice-bounce.svg',
-  './assets/shop/ball/ball-bouncy.svg',
-  './assets/shop/robo/robo-bouncy.svg',
-  './assets/shop/star/star.svg',
-  './assets/shop/mushroom/mushroom.svg',
-  './assets/shop/bush/flower.svg',
+  './assets/shop/barell/barell-static.png',
   './assets/shop/explosion pack/tnt.png',
   './assets/shop/explosion pack/tnt@2x.png',
   './assets/shop/explosion pack/tnt@3x.png',

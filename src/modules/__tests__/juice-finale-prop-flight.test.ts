@@ -154,6 +154,10 @@ describe('Juice Merge-6 cup, lid and straw flight', () => {
     expect(appCore).toContain('showJuiceProps: !variant,');
     expect(appCore).toContain('showJuiceProps: !wildJuiceVariantForExplosion,');
     expect(appCore).toContain('void preloadJuiceFinalePropTextures();');
+    const startLevelStart = appCore.indexOf('async function startLevel(n)');
+    const startLevelBarrier = appCore.indexOf("ensureCoreRenderTexturesGpuReady('startLevel')", startLevelStart);
+    expect(appCore.slice(startLevelStart, startLevelBarrier)).not.toContain('preloadJuiceFinalePropTextures');
+    expect(appCore.slice(startLevelStart, startLevelBarrier)).not.toContain('preloadJuiceMerge6Sounds');
     expect(explosion).toContain("options.showJuiceProps && usesDefaultBubbleSprites && options.direction !== 'down'");
     expect(explosion).toContain('Promise.race([preloadJuiceFinalePropTextures(), boundedWait])');
     expect(explosion).toContain('active === 0 && juicePropsComplete');
