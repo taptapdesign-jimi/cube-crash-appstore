@@ -3,11 +3,20 @@ import path from 'node:path';
 import {
   createJourneyForestBeeFlightPlans,
   getJourneyForestBeeAssetForVelocity,
+  getJourneyForestBeeMainAreaSizeScale,
   resolveJourneyForestBeeRuntimeProfile,
   startJourneyForestBeeOrbits,
 } from '../journey-forest-bee-orbits';
 
 describe('Journey Forest bee canvas flights', () => {
+  test('keeps upper Forest Main bees exactly half-size and restores normal size below it', () => {
+    expect(getJourneyForestBeeMainAreaSizeScale(190, 334)).toBe(0.5);
+    expect(getJourneyForestBeeMainAreaSizeScale(334, 334)).toBe(0.5);
+    expect(getJourneyForestBeeMainAreaSizeScale(354, 334)).toBe(0.75);
+    expect(getJourneyForestBeeMainAreaSizeScale(374, 334)).toBe(1);
+    expect(getJourneyForestBeeMainAreaSizeScale(474, 334)).toBe(1);
+  });
+
   test('maps every heading to its authored forward-facing sprite', () => {
     expect(getJourneyForestBeeAssetForVelocity(10, 0)).toBe('bee1');
     expect(getJourneyForestBeeAssetForVelocity(10, -10)).toBe('bee2');

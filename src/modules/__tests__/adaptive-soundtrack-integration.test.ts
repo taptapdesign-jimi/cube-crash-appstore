@@ -36,11 +36,9 @@ describe('Arcade adaptive soundtrack integration', () => {
     expect(cleanBoard).toContain(
       'const restoreSoundtrackAfterResultAudio = fadeSoundtrackForResultHook();',
     );
-    expect(cleanBoard).toContain('createCleanBoardResultAudioSettlements(');
-    expect(cleanBoard).toContain('onEnded: resultAudioSettlements.applause,');
-    expect(cleanBoard).toContain('onEnded: resultAudioSettlements.saxophone,');
-    expect(cleanBoard).toContain('onStopped: resultAudioSettlements.applause,');
-    expect(cleanBoard).toContain('onStopped: resultAudioSettlements.saxophone,');
+    expect(cleanBoard).toContain('playCleanBoardApplauseSound();');
+    expect(cleanBoard).toContain('onEnded: () => restoreSoundtrackAfterResultAudio(resultReleaseTarget),');
+    expect(cleanBoard).toContain('onStopped: () => restoreSoundtrackAfterResultAudio(resultReleaseTarget),');
     expect(failBoard).toContain(
       'const restoreSoundtrackAfterResultAudio = fadeSoundtrackForResultHook();',
     );

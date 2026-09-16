@@ -649,7 +649,21 @@ function onVisibilityChange(): void {
     return;
   }
 
-  if (!pausedForVisibility) return;
+  // WKWebView may restore a page without a matching hidden event. A live
+  // sample-accurate source can remain attached to an interrupted context.
+  if (currentAudio && !currentAudio.paused) {
+    const recovery = currentAudio.resumeIfInterrupted?.();
+    void recovery?.catch((error) => {
+      armAutoplayRetry();
+      logger.warn('🔊 Main theme AudioContext foreground resume failed:', error);
+    });
+  }
+  const arcadeOwnsMusic = gameplayDuckActive && isArcadeHomeRunMode() && arcadeAudio;
+  const shouldResume = pausedForVisibility || (
+    isStarted && !victoryHookMuteActive &&
+    (arcadeOwnsMusic ? arcadeAudio?.paused : currentAudio?.paused)
+  );
+  if (!shouldResume) return;
   pausedForVisibility = false;
   if (!isMusicEnabled()) return;
   if (gameplayDuckActive && isArcadeHomeRunMode() && arcadeAudio) {
@@ -695,6 +709,7 @@ function setupVisibilityListener(): void {
   ) return;
   visibilityListenerInstalled = true;
   document.addEventListener('visibilitychange', onVisibilityChange);
+  window.addEventListener('pageshow', onVisibilityChange);
 }
 
 function getAudio(): MainThemeVoiceLike {
@@ -1144,6 +1159,7 @@ export function resetSoundtrackForTests(): void {
   autoplayRetryInFlight = false;
   if (visibilityListenerInstalled && typeof document !== 'undefined') {
     document.removeEventListener('visibilitychange', onVisibilityChange);
+    window.removeEventListener('pageshow', onVisibilityChange);
   }
   visibilityListenerInstalled = false;
   if (audio) {

@@ -2,9 +2,10 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { Container, Rectangle, Sprite, Texture } from 'pixi.js';
+import { Assets, Container, Rectangle, Sprite, Texture } from 'pixi.js';
 import { STATE } from '../app-state';
 import { applyWildSkinLocalCore } from '../app-core-wild-skin';
+import { refreshValueVisual } from '../board';
 import { getAnimatedSpecialArtworkLayerStats } from '../animated-special-artwork-layer';
 import {
   destroyWildStarBouncyArtworkRuntime,
@@ -347,5 +348,64 @@ describe('Wild Star animated SVG board artwork', () => {
     expect(startWildShimmer).not.toHaveBeenCalled();
     expect(startWildStars).toHaveBeenCalledWith(tile);
     expect(tile._ccWildStarBouncyArtwork).toBeDefined();
+  });
+
+  test('late Bottle texture load keeps its idle artwork in the same cell position', async () => {
+    const { tile, base } = makeTile('wild-magnet', 'bottle');
+    base.anchor.set(0.5);
+    let resolveTexture!: (texture: Texture) => void;
+    const lateTexture = new Promise<Texture>((resolve) => { resolveTexture = resolve; });
+    applyWildSkinLocalCore(tile, {
+      Assets: { get: () => Texture.WHITE, load: () => lateTexture },
+      Texture,
+      Rectangle,
+      ASSET_WILD: './assets/wild.png',
+      ASSET_WILD_MAGNET: './assets/wild-magnet.png',
+      ASSET_WILD_JUICE: './assets/wild-juice.png',
+      ASSET_WILD_TNT: './assets/shop/explosion pack/tnt.png',
+      TILE: 128,
+      startWildShimmer: jest.fn(),
+      startWildJuiceBubbles: jest.fn(),
+      startWildStars: jest.fn(),
+      startMagnetIdleParticles: jest.fn(),
+      startTntIdleParticles: jest.fn(),
+      startTntIdleShake: jest.fn(),
+      stopTntIdleParticles: jest.fn(),
+      stopTntIdleShake: jest.fn(),
+      trackAppAnimationFrame: jest.fn(),
+      devWarn: jest.fn(),
+    });
+
+    expect(tile._ccSpecialDiceIdleTl).toBeTruthy();
+    expect(base.anchor.y).toBe(1);
+    const paintedTop = base.y - base.anchor.y * base.height;
+    resolveTexture(Texture.WHITE);
+    await lateTexture;
+    await Promise.resolve();
+
+    expect(base.anchor.y).toBe(1);
+    expect(base.y - base.anchor.y * base.height).toBeCloseTo(paintedTop, 6);
+    stopSpecialDiceIdleMotion(tile);
+    expect(base.anchor.y).toBe(0.5);
+    expect(base.y).toBe(0);
+  });
+
+  test('Bottle face repaint does not replace its live bottom pivot', () => {
+    const { tile, base } = makeTile('wild-magnet', 'bottle');
+    tile.value = 0;
+    base.anchor.set(0.5);
+    base.width = 128 * 0.96;
+    base.height = 128 * 0.96;
+    const getTexture = jest.spyOn(Assets, 'get').mockReturnValue(Texture.WHITE);
+    try {
+      startSpecialDiceIdleMotion(tile);
+      const paintedTop = base.y - base.anchor.y * base.height;
+      refreshValueVisual(tile);
+      expect(base.anchor.y).toBe(1);
+      expect(base.y - base.anchor.y * base.height).toBeCloseTo(paintedTop, 6);
+    } finally {
+      stopSpecialDiceIdleMotion(tile);
+      getTexture.mockRestore();
+    }
   });
 });

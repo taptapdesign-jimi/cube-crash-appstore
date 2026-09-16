@@ -95,9 +95,10 @@ New visual variants must map to an existing gameplay archetype unless the user e
 Forest Journey Stages use one cumulative authored reward pool and do not emit
 generic Juice or Magnet dice. Stage 01 contains Wild Star only. The first
 wild-meter reward on Stage 02/03/04/06/07 respectively guarantees Bee,
-Flower, Honey, Mushroom, and TNT as that Stage's introduction; subsequent rewards use
-only Wild Star plus the Forest rewards introduced up to that Stage. Mushroom,
-Flower, and Honey retain their registered Juice/TNT/Magnet gameplay archetypes;
+Flower, Honey, Mushroom, and Barrel as that Stage's introduction; TNT is also
+unlocked in Stage 07's later cumulative pool. Subsequent rewards use
+only Wild Star plus the Forest rewards introduced up to that Stage. Mushroom
+uses Juice gameplay, Honey uses Magnet gameplay, and Flower and Barrel use TNT gameplay;
 Bee retains Wild Star gameplay while suppressing the orbiting-star presentation,
 and every authored visual remains player-facing.
 

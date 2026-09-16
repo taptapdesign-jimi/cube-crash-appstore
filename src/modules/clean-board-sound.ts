@@ -14,10 +14,6 @@ export const CLEAN_BOARD_APPLAUSE_DURATION_MS = 10000;
 export const CLEAN_BOARD_SAXOPHONE_HAPPY_SOUND_SOURCE =
   `${CLEAN_BOARD_SOUND_BASE}happy victory sax .wav`;
 export const CLEAN_BOARD_SAXOPHONE_HAPPY_DURATION_MS = 5000;
-export const CLEAN_BOARD_RESULT_AUDIO_DURATION_MS = Math.max(
-  CLEAN_BOARD_APPLAUSE_DURATION_MS,
-  CLEAN_BOARD_SAXOPHONE_HAPPY_DURATION_MS,
-);
 export const CLEAN_BOARD_MONEY_COUNT_SOUND_SOURCE = `${CLEAN_BOARD_SOUND_BASE}money count.wav`;
 export const CLEAN_BOARD_FAST_POINTS_STACK_SOUND_SOURCE = `${CLEAN_BOARD_SOUND_BASE}fastpointsstack.wav`;
 export const CLEAN_BOARD_STAR_BOUNCE_SOUND_SOURCE = `${CLEAN_BOARD_SOUND_BASE}boinb.wav`;
@@ -84,25 +80,6 @@ export interface CleanBoardSoundLifecycle {
   onEnded?: () => void;
   onStopped?: () => void;
   onUnavailable?: () => void;
-}
-
-export function createCleanBoardResultAudioSettlements(
-  onAllSettled: () => void,
-): { applause: () => void; saxophone: () => void } {
-  let unsettledVoices = 2;
-  const createSettlement = (): (() => void) => {
-    let settled = false;
-    return () => {
-      if (settled) return;
-      settled = true;
-      unsettledVoices--;
-      if (unsettledVoices === 0) onAllSettled();
-    };
-  };
-  return {
-    applause: createSettlement(),
-    saxophone: createSettlement(),
-  };
 }
 
 function areSoundsEnabled(): boolean {

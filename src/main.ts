@@ -46,7 +46,7 @@ import {
 
 // Import new services
 import { initializeServices } from './core/service-registry.js';
-import { getBoardSaveKey, hasResumableSavedStateForBoard, migrateGlobalSaveToBoard } from './utils/board-save-utils.js';
+import { clearJourneyBoardSaveCompleted, getBoardSaveKey, hasResumableSavedStateForBoard, isJourneyBoardSaveCompleted, migrateGlobalSaveToBoard } from './utils/board-save-utils.js';
 import { killGameDomGsapTweens, killInvalidPixiGsapTweens } from './modules/pixi-gsap-cleanup.js';
 import { emitIOSNativeDiagnostic } from './utils/ios-native-diagnostic.js';
 import { areContinuousRuntimeDiagnosticsEnabled } from './utils/runtime-diagnostics-policy.js';
@@ -1495,6 +1495,11 @@ async function startNewRun(boardId: number): Promise<void> {
   appZoneManager.prepareJourneyRunOrigin({ reason: `startNewRun:${boardId}`, boardId });
   const shouldStartFirstPlayTutorial = await beginFirstPlayTutorialRun('journey');
   resetEndgameRuntimeFlags(`startNewRun:${boardId}`);
+  const replayingCompletedBoard = isJourneyBoardSaveCompleted(boardId);
+  clearJourneyBoardSaveCompleted(boardId);
+  if (replayingCompletedBoard) {
+    logger.info(`[CC_JOURNEY_TERMINAL_SAVE] board ${boardId} fresh run cleared completion tombstone`);
+  }
   
   // 🔥 BUG FIX: Clear stale detail modal flags when starting new game
   // This prevents wrong board from opening when exiting
@@ -2020,6 +2025,11 @@ async function startNewRun(boardId: number): Promise<void> {
   // 🔥 USER REQUEST: Clear saved game state for THIS specific board only (board-specific save)
   // Don't clear other boards' saves - each board has its own memory
   const saveKey = getBoardSaveKey(boardId);
+  const replayingCompletedBoard = isJourneyBoardSaveCompleted(boardId);
+  clearJourneyBoardSaveCompleted(boardId);
+  if (replayingCompletedBoard) {
+    logger.info(`[CC_JOURNEY_TERMINAL_SAVE] board ${boardId} fresh Journey run cleared completion tombstone`);
+  }
   localStorage.removeItem(saveKey);
   localStorage.removeItem('cc_board_completed');
   localStorage.removeItem('cubeCrash_gameState');

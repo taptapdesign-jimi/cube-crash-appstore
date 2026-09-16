@@ -119,6 +119,6 @@ describe('Homepage cold-launch Arcade handoff', () => {
     expect(rebuildOwner).toContain('engageArcadeEntrySurfaceGate(app?.canvas ?? null)');
     expect(rebuildOwner).toContain('releaseArcadeEntrySurfaceGateAfterPreparedFrame(app, stage)');
     expect(uiSource).toContain('await recoverFreshArcadeEntryAfterFailedLoad();');
-    expect(coreSource).toContain('export async function recoverFreshArcadeEntryAfterFailedLoad()');
+    expect(coreSource).toContain('export async function recoverFreshArcadeEntryAfterFailedLoad(');
   });
 });

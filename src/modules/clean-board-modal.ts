@@ -34,7 +34,6 @@ import {
   shouldShowArea55CleanBoardShips,
 } from './clean-board-celebration-theme.ts';
 import {
-  createCleanBoardResultAudioSettlements,
   createCleanBoardStarHarpOrder,
   playCleanBoardBonusCountSound,
   playCleanBoardApplauseSound,
@@ -834,18 +833,13 @@ export async function showCleanBoardModal({
     setSoundtrackResultMix();
     const restoreSoundtrackAfterResultAudio = fadeSoundtrackForResultHook();
     let resultReleaseTarget: 'stable' | 'gameplay' = 'stable';
-    const resultAudioSettlements = createCleanBoardResultAudioSettlements(
-      () => restoreSoundtrackAfterResultAudio(resultReleaseTarget),
-    );
-    playCleanBoardApplauseSound({
-      onEnded: resultAudioSettlements.applause,
-      onStopped: resultAudioSettlements.applause,
-      onUnavailable: resultAudioSettlements.applause,
-    });
+    // The victory sax is the result hook. Applause remains an independent
+    // Clean Board layer and may continue under the returning main theme.
+    playCleanBoardApplauseSound();
     playCleanBoardSaxophoneHappySound({
-      onEnded: resultAudioSettlements.saxophone,
-      onStopped: resultAudioSettlements.saxophone,
-      onUnavailable: resultAudioSettlements.saxophone,
+      onEnded: () => restoreSoundtrackAfterResultAudio(resultReleaseTarget),
+      onStopped: () => restoreSoundtrackAfterResultAudio(resultReleaseTarget),
+      onUnavailable: () => restoreSoundtrackAfterResultAudio(resultReleaseTarget),
     });
 
     // 🔥 BOARD RECOVERY FIX: Clear pending clean board flag NOW that modal is visible
@@ -872,6 +866,9 @@ export async function showCleanBoardModal({
         }
       } else {
         const isNewHigh = boardStatsService.updateBoardHighScore(boardNumber, finalScore);
+        // A force-quit can bypass pagehide and the service's 750ms debounce.
+        // Persist the completed Unit's result before the visible modal yields.
+        boardStatsService.flushStatsNow('clean-board-visible');
         if (isNewHigh) {
           console.log(`🏆 clean-board-modal: New board ${boardNumber} high score: ${finalScore} (saved immediately on modal show)`);
         } else {

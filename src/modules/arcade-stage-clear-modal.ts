@@ -14,6 +14,13 @@ import {
   preloadArcadeRoundDigitSounds,
   stopArcadeRoundDigitSounds,
 } from './arcade-round-digit-sound.ts';
+import {
+  fadeOutArcadeStageClearCelebrationSounds,
+  playArcadeStageClearCelebrationSounds,
+  playArcadeStageClearThumbWhooshSound,
+  preloadArcadeStageClearSounds,
+  stopArcadeStageClearSounds,
+} from './arcade-stage-clear-sound.ts';
 import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.js';
 
 const ARCADE_ENTRY_TRACE = '[CC_ARCADE_NN_ENTRY]';
@@ -43,6 +50,7 @@ let activeTimelines: gsap.core.Timeline[] = [];
 export type ArcadeStageClearResult = { action: 'continue' | 'cancel' };
 
 let activeResolve: ((result: ArcadeStageClearResult) => void) | null = null;
+let stageClearOwnerGeneration = 0;
 
 const TEXT_ENTER_BOUNCE_SCALE = 1.2;
 const TEXT_ENTER_DURATION = 0.24;
@@ -415,14 +423,21 @@ function prepareBubblyLetters(letters: HTMLElement[]): void {
   });
 }
 
-function playBubblyLetterEnter(letters: HTMLElement[], startDelay = 0): Promise<void> {
+function playBubblyLetterEnter(
+  letters: HTMLElement[],
+  startDelay = 0,
+  onFirstLetterStart?: () => void,
+): Promise<void> {
   if (!letters.length) return Promise.resolve();
   prepareBubblyLetters(letters);
   return new Promise((resolve) => {
     let completed = 0;
     letters.forEach((letterEl, index) => {
       const delay = startDelay + index * TEXT_ENTER_STAGGER;
-      const timeline = gsap.timeline({ delay });
+      const timeline = gsap.timeline({
+        delay,
+        onStart: index === 0 ? onFirstLetterStart : undefined,
+      });
       activeTimelines.push(timeline);
       timeline
         .to(letterEl, {
@@ -557,7 +572,10 @@ function playStageNumberScreenShake(overlay: HTMLElement): void {
     .to(overlay, { x: 0, y: 0, rotation: 0, duration: 0.14, ease: 'back.out(2.2)' });
 }
 
-async function playClearPhase(parts: ReturnType<typeof createOverlay>): Promise<void> {
+async function playClearPhase(
+  parts: ReturnType<typeof createOverlay>,
+  isCurrent: () => boolean = () => true,
+): Promise<void> {
   const { clearCard, title, subtitle, titleLetters, subtitleLetters, thumb, thumbShadow } = parts;
   gsap.set(clearCard, { opacity: 1, xPercent: -50, yPercent: -50, scale: 1 });
   gsap.set([title, subtitle], { opacity: 1 });
@@ -577,15 +595,22 @@ async function playClearPhase(parts: ReturnType<typeof createOverlay>): Promise<
       rotation: 0,
       duration: 0.42,
       ease: 'back.out(2.05)',
+      onStart: () => {
+        if (isCurrent()) playArcadeStageClearThumbWhooshSound();
+      },
       onComplete: () => playThumbArrivalShake(clearCard, thumb),
     }, 0.06);
 
   triggerHeavyHaptic();
-  await playBubblyLetterEnter(titleLetters, 0);
+  await playBubblyLetterEnter(titleLetters, 0, () => {
+    if (isCurrent()) playArcadeStageClearCelebrationSounds();
+  });
+  if (!isCurrent()) return;
   await Promise.all([
     playBubblyLetterEnter(subtitleLetters, 0),
     new Promise<void>((resolve) => thumbTimeline.eventCallback('onComplete', resolve)),
   ]);
+  if (!isCurrent()) return;
 
   const idle = gsap.to(thumb, {
     y: -8,
@@ -598,6 +623,7 @@ async function playClearPhase(parts: ReturnType<typeof createOverlay>): Promise<
   activeTweens.push(idle);
   await wait(500);
   try { idle.kill(); } catch {}
+  if (!isCurrent()) return;
 
   const exitTimeline = gsap.timeline();
   activeTimelines.push(exitTimeline);
@@ -608,6 +634,7 @@ async function playClearPhase(parts: ReturnType<typeof createOverlay>): Promise<
     playBubblyLetterExit([...titleLetters, ...subtitleLetters]),
     new Promise<void>((resolve) => exitTimeline.eventCallback('onComplete', resolve)),
   ]);
+  if (!isCurrent()) return;
   gsap.set(clearCard, { opacity: 0 });
 }
 
@@ -620,7 +647,12 @@ function animateBottomHudStageIndicator(nextStage: number): void {
   } catch {}
 }
 
-async function playRoundNumberPhase(parts: ReturnType<typeof createOverlay>, displayedStage: number): Promise<void> {
+async function playRoundNumberPhase(
+  parts: ReturnType<typeof createOverlay>,
+  displayedStage: number,
+  isCurrent: () => boolean = () => true,
+  onFirstDigitExit?: () => void,
+): Promise<void> {
   const { overlay, nextCard, letters, digits } = parts;
   emitNativeConsoleDiagnostic(ARCADE_ENTRY_TRACE, 'round-phase-start', {
     round: displayedStage,
@@ -712,11 +744,13 @@ async function playRoundNumberPhase(parts: ReturnType<typeof createOverlay>, dis
   });
 
   await labelEnterPromise;
+  if (!isCurrent()) return;
 
   // Give the completed Round composition one readable settled beat. Without
   // this hold, its last enter frame and first exit frame shared the same task
   // and looked like an interrupted/double transition on physical iPhone.
   await wait(ROUND_SETTLED_HOLD_DURATION * 1000);
+  if (!isCurrent()) return;
 
   await Promise.all([
     playBubblyLetterExit(letters),
@@ -726,6 +760,7 @@ async function playRoundNumberPhase(parts: ReturnType<typeof createOverlay>, dis
         const timeline = gsap.timeline({
           delay: index * ROUND_DIGIT_EXIT_STAGGER,
           onStart: () => {
+            if (index === 0 && isCurrent()) onFirstDigitExit?.();
             emitNativeConsoleDiagnostic(ARCADE_ENTRY_TRACE, 'digit-exit-start', {
               round: displayedStage,
               index,
@@ -761,35 +796,58 @@ async function playRoundNumberPhase(parts: ReturnType<typeof createOverlay>, dis
       });
     }),
   ]);
+  if (!isCurrent()) return;
   gsap.set(nextCard, { opacity: 0 });
   emitNativeConsoleDiagnostic(ARCADE_ENTRY_TRACE, 'round-phase-complete', {
     round: displayedStage,
   });
 }
 
-export async function showArcadeStageClearModal(stageNumber: number, nextStageNumber?: number): Promise<ArcadeStageClearResult> {
+export async function showArcadeStageClearModal(
+  stageNumber: number,
+  nextStageNumber?: number,
+  onNextRoundPresented?: () => void,
+): Promise<ArcadeStageClearResult> {
   cancelArcadeStageClearModal();
   ensureStyles();
+  preloadArcadeStageClearSounds();
 
   const clearedStage = Math.max(1, stageNumber | 0);
   const nextStage = Math.max(1, (nextStageNumber ?? clearedStage + 1) | 0);
   const parts = createOverlay(clearedStage, nextStage);
   activeOverlay = parts.overlay;
+  const ownerGeneration = ++stageClearOwnerGeneration;
   setSoundtrackResultMix();
 
   return new Promise((resolve) => {
     activeResolve = resolve;
+    const isCurrent = () =>
+      ownerGeneration === stageClearOwnerGeneration &&
+      activeOverlay === parts.overlay && activeResolve === resolve;
     (async () => {
+      let result: ArcadeStageClearResult = { action: 'cancel' };
       try {
         await decodeThumb(parts.thumb);
-        await playClearPhase(parts);
-        await playRoundNumberPhase(parts, nextStage);
+        if (!isCurrent()) return;
+        await playClearPhase(parts, isCurrent);
+        if (!isCurrent()) return;
+        // The next-Round receipt must precede its first visible card frame.
+        onNextRoundPresented?.();
+        if (!isCurrent()) return;
+        await playRoundNumberPhase(parts, nextStage, isCurrent, fadeOutArcadeStageClearCelebrationSounds);
+        if (!isCurrent()) return;
+        result = { action: 'continue' };
+      } catch {
+        // A receipt write or visual phase failure must not silently approve
+        // progression. The caller may explicitly choose a fallback.
       } finally {
-        cleanupArcadeStageClearModal(false);
-        const finish = activeResolve;
-        activeResolve = null;
-        if (finish) enterArcadeGameplaySoundtrack();
-        finish?.({ action: 'continue' });
+        if (isCurrent()) {
+          cleanupArcadeStageClearModal(false);
+          const finish = activeResolve;
+          activeResolve = null;
+          if (finish && result.action === 'continue') enterArcadeGameplaySoundtrack();
+          finish?.(result);
+        }
       }
     })();
   });
@@ -813,6 +871,9 @@ export async function showArcadeContinuationRoundCue(
   });
   const parts = createOverlay(resumedStage - 1, resumedStage);
   activeOverlay = parts.overlay;
+  const ownerGeneration = ++stageClearOwnerGeneration;
+  const isCurrent = () =>
+    ownerGeneration === stageClearOwnerGeneration && activeOverlay === parts.overlay;
   gsap.set(parts.clearCard, { opacity: 0 });
   const soundtrackFadeGeneration = fadeOutSoundtrackForGameplay(
     getArcadeRoundCueDurationMs(resumedStage),
@@ -820,13 +881,15 @@ export async function showArcadeContinuationRoundCue(
   onPresented?.();
 
   try {
-    await playRoundNumberPhase(parts, resumedStage);
+    await playRoundNumberPhase(parts, resumedStage, isCurrent);
   } finally {
-    emitNativeConsoleDiagnostic(ARCADE_ENTRY_TRACE, 'overlay-cleanup', {
-      round: resumedStage,
-    });
-    completeGameplayTransitionFade(soundtrackFadeGeneration);
-    cleanupArcadeStageClearModal(false);
+    if (isCurrent()) {
+      emitNativeConsoleDiagnostic(ARCADE_ENTRY_TRACE, 'overlay-cleanup', {
+        round: resumedStage,
+      });
+      completeGameplayTransitionFade(soundtrackFadeGeneration);
+      cleanupArcadeStageClearModal(false);
+    }
   }
 }
 
@@ -843,6 +906,8 @@ export function cancelArcadeStageClearModal(): void {
 }
 
 export function cleanupArcadeStageClearModal(resolveActive: boolean = true): void {
+  stageClearOwnerGeneration += 1;
+  stopArcadeStageClearSounds();
   stopArcadeRoundDigitSounds();
   activeTweens.forEach((tween) => {
     try { tween.kill(); } catch {}

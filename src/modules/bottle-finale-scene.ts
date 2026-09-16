@@ -109,6 +109,10 @@ const TRAIL_BUBBLES_PER_BOTTLE = 12;
 const TRAIL_MAX_LIFETIME_SECONDS = 0.72;
 const BOTTLE_SINK_DURATION_SECONDS = 3.2;
 const BOTTLE_START_DELAY_SECONDS = 0.3;
+// Finish the two late foreground waves shortly after all five bottles sink,
+// so individual slow bubbles cannot linger by themselves at the tail.
+const LATE_BUBBLE_POP_DEADLINE_SECONDS = BOTTLE_START_DELAY_SECONDS
+  + BOTTLE_SINK_DURATION_SECONDS + 0.25;
 export const BOTTLE_FINALE_SECOND_CUE_PATH_RATIO = 0.2;
 export const BOTTLE_FINALE_CLING_PATH_RATIO = 0.55;
 export const BOTTLE_FINALE_CLING2_PATH_RATIO = 0.75;
@@ -346,19 +350,27 @@ export function attachBottleFinaleScene(
       trailBubble.style.width = `${Math.round(trailSize)}px`;
       trailBubble.style.height = `${Math.round(trailSize)}px`;
       trailBubble.style.zIndex = String(layer.z * 10 - 1);
-      gsap.set(trailBubble, { xPercent: -50, yPercent: -50, scale: 0, opacity: 0, force3D: true });
+      // An emitter has no position until its bottle has a measurable frame.
+      // Keep it hidden if WebKit returns an empty rect at a late emission.
+      gsap.set(trailBubble, {
+        xPercent: -50, yPercent: -50, scale: 0, opacity: 0,
+        visibility: 'hidden', force3D: true,
+      });
       trailTimeline.call(() => {
         if (cleaned || !mover.isConnected || !field.isConnected) return;
         const bottleRect = image.getBoundingClientRect();
+        if (bottleRect.width <= 1 || bottleRect.height <= 1) return;
         const origin = getFieldOrigin();
         const emitterX = bottleRect.left - origin.left
           + bottleRect.width * emitterPort
           + (Math.random() - 0.5) * 6;
         const emitterY = bottleRect.top - origin.top
           + bottleRect.height * (0.72 + Math.random() * 0.18);
+        if (!Number.isFinite(emitterX) || !Number.isFinite(emitterY)) return;
         trailRise = bottleRect.height * (0.16 + Math.random() * 0.08);
         trailBubble.style.left = `${Math.round(emitterX)}px`;
         trailBubble.style.top = `${Math.round(emitterY)}px`;
+        trailBubble.style.visibility = 'visible';
         gsap.set(trailBubble, { x: 0, y: 0 });
       }, [], trailDelay);
       trailTimeline.to(trailBubble, {
@@ -413,7 +425,10 @@ export function attachBottleFinaleScene(
       : 0.68 + Math.random() * 0.28;
     const withinWaveDelay = waveSlot * (0.045 + Math.random() * 0.035);
     const delay = index === 0 ? 0 : BUBBLE_WAVE_STARTS[waveIndex] + withinWaveDelay;
-    const popAt = 0.12 + riseDuration * popRiseRatio;
+    const naturalPopAt = 0.12 + riseDuration * popRiseRatio;
+    const popAt = waveIndex >= BUBBLE_WAVE_STARTS.length - 2
+      ? Math.min(naturalPopAt, LATE_BUBBLE_POP_DEADLINE_SECONDS - delay)
+      : naturalPopAt;
     const bubbleOpacity = mainBubbleOpacities[index] ?? BUBBLE_OPACITY_MIN;
     const popOpacity = Math.min(BUBBLE_OPACITY_MAX, bubbleOpacity + 0.06);
     bubble.style.position = 'absolute';

@@ -3,6 +3,9 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import {
   BOTTLE_PULL_MERGE_CUSTOM_BUS_SCALE,
+  BOTTLE_PULL_MERGE_GLASS_CRACK_BASE_VOLUME,
+  BOTTLE_PULL_MERGE_GLASS_CRACK_SOUND_SOURCE,
+  BOTTLE_PULL_MERGE_GLASS_CRACK_VOLUME,
   BOTTLE_PULL_MERGE_PLAYBACK_RATE,
   BOTTLE_PULL_MERGE_SOUND_BASE_VOLUMES,
   BOTTLE_PULL_MERGE_SOUND_SOURCES,
@@ -78,15 +81,39 @@ describe('Bottle pull Merge-6 sound', () => {
     });
   });
 
-  test('starts both bounded voices together and rewinds them on cleanup', () => {
+  test('locks the supplied glass crack WAV at eighty-percent action gain', () => {
+    expect(BOTTLE_PULL_MERGE_GLASS_CRACK_SOUND_SOURCE).toBe(
+      './assets/sound/Wild and special kockice/bottle/glass crack.wav',
+    );
+    expect(BOTTLE_PULL_MERGE_GLASS_CRACK_BASE_VOLUME).toBe(0.8);
+    expect(BOTTLE_PULL_MERGE_GLASS_CRACK_VOLUME).toBeCloseTo(0.48);
+    const bytes = fs.readFileSync(path.resolve(
+      process.cwd(), BOTTLE_PULL_MERGE_GLASS_CRACK_SOUND_SOURCE.replace(/^\.\//, ''),
+    ));
+    const dataChunkOffset = bytes.indexOf(Buffer.from('data'));
+    expect(bytes.toString('ascii', 0, 4)).toBe('RIFF');
+    expect(bytes.toString('ascii', 8, 12)).toBe('WAVE');
+    expect(bytes.readUInt16LE(22)).toBe(2);
+    expect(bytes.readUInt32LE(24)).toBe(48_000);
+    expect(bytes.readUInt16LE(34)).toBe(16);
+    expect(dataChunkOffset).toBeGreaterThan(0);
+    expect(bytes.readUInt32LE(dataChunkOffset + 4) / (48_000 * 2 * 2)).toBeCloseTo(0.6210625, 6);
+    expect(createHash('sha256').update(bytes).digest('hex')).toBe(
+      '312892f3abda28c3fb6494292d0e45a70348e23cb02ad5a685b1de14957de770',
+    );
+  });
+
+  test('starts bubsplats and glass crack together, then rewinds all three on cleanup', () => {
     expect(preloadBottlePullMergeSounds()).toBe(true);
-    expect(MockAudio.instances).toHaveLength(2);
+    expect(MockAudio.instances).toHaveLength(3);
     expect(playBottlePullMergeSounds()).toBe(true);
     MockAudio.instances.forEach((audio) => {
       expect(audio.play).toHaveBeenCalledTimes(1);
       expect(audio.currentTime).toBe(0);
       expect(audio.playbackRate).toBe(1);
-      expect(audio.volume).toBeCloseTo(0.38016);
+      expect(audio.volume).toBeCloseTo(
+        audio.src === BOTTLE_PULL_MERGE_GLASS_CRACK_SOUND_SOURCE ? 0.48 : 0.38016,
+      );
     });
 
     stopBottlePullMergeSounds();

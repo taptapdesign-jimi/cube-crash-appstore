@@ -1,3 +1,5 @@
+import { JOURNEY_FOREST_MAIN_ASSET, JOURNEY_FOREST_MAIN_ASSET_2X } from './journey-forest-main-assets.js';
+
 export const JOURNEY_WORLD_SIZE = 10;
 export const JOURNEY_HUB_EAGER_WORLD_COUNT = 3;
 export const JOURNEY_LAYOUT_STATE_VERSION = 'forest-board-1-interim-v1';
@@ -17,6 +19,7 @@ export type JourneyWorldDefinition = Readonly<{
   name: string;
   subtitle: string;
   asset: string;
+  asset2x?: string;
   className: string;
   mainOffsetPx: number;
   hub: Readonly<{
@@ -64,7 +67,8 @@ const DEFINITIONS: JourneyWorldDefinition[] = [
     hubOrder: 1,
     name: 'Forest',
     subtitle: 'Stages 01-10',
-    asset: './assets/journey assets/forest/forest world/Forest main.png',
+    asset: JOURNEY_FOREST_MAIN_ASSET,
+    asset2x: JOURNEY_FOREST_MAIN_ASSET_2X,
     className: 'journey-v700-world-forest',
     mainOffsetPx: 0,
     hub: { side: 'left', edgePx: -2, topPx: 118, widthPx: 273, heightPx: 190, bannerSide: 'right', bannerAsset: './assets/journey assets/natpis.png', bannerAsset2x: './assets/journey assets/natpis@2x.png', cloudTheme: 'forest' },
@@ -80,7 +84,7 @@ const DEFINITIONS: JourneyWorldDefinition[] = [
     asset: './assets/journey assets/beach/Beacj world/beach-main.png',
     className: 'journey-v700-world-beach',
     mainOffsetPx: 1454,
-    hub: { side: 'left', edgePx: -6, topPx: 580, widthPx: 273, heightPx: 190, bannerSide: 'right', bannerAsset: './assets/journey assets/natpis.png', bannerAsset2x: './assets/journey assets/natpis@2x.png', cloudTheme: 'beach' },
+    hub: { side: 'left', edgePx: -6, topPx: 557, widthPx: 273, heightPx: 190, bannerSide: 'right', bannerAsset: './assets/journey assets/natpis.png', bannerAsset2x: './assets/journey assets/natpis@2x.png', cloudTheme: 'beach' },
     stages: BEACH_STAGES,
     cardTheme: 'beach', animationTheme: 'beach', transitionTheme: 'beach',
     mainAreaId: 'beach-main', mainCloudClass: 'journey-beach-main-cloud', mainArtClass: 'journey-beach-main-art',
@@ -93,7 +97,7 @@ const DEFINITIONS: JourneyWorldDefinition[] = [
     asset: './assets/journey assets/robo/robo world/robo-main.png',
     className: 'journey-v700-world-robo',
     mainOffsetPx: 3166,
-    hub: { side: 'right', edgePx: -8, topPx: 334, widthPx: 273, heightPx: 190, bannerSide: 'left', bannerAsset: './assets/journey assets/natpis.png', bannerAsset2x: './assets/journey assets/natpis@2x.png', cloudTheme: 'area55' },
+    hub: { side: 'right', edgePx: -8, topPx: 323, widthPx: 273, heightPx: 190, bannerSide: 'left', bannerAsset: './assets/journey assets/natpis.png', bannerAsset2x: './assets/journey assets/natpis@2x.png', cloudTheme: 'area55' },
     stages: AREA55_STAGES,
     cardTheme: 'area55', animationTheme: 'area55', transitionTheme: 'area55',
     mainAreaId: 'robo-main', mainCloudClass: 'journey-robo-main-cloud', mainArtClass: 'journey-robo-main-art',

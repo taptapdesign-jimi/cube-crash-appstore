@@ -7,6 +7,9 @@ import {
 
 export type JourneyCardRarity = 'common' | 'legendary';
 
+export const JOURNEY_CARD_FLIP_BACK_ASSET = './assets/colelctibles/cardflip.png';
+export const JOURNEY_CARD_FLIP_BACK_ASSET_2X = './assets/colelctibles/cardflip@22.png';
+
 export interface JourneyCardAsset {
   boardId: number;
   stageInWorld: number;

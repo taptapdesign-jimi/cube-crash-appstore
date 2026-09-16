@@ -1,4 +1,5 @@
 import {
+  getSpecialDiceFaceAnchorY,
   getSpecialDiceTexturePath,
   getSpecialDiceVisualConfig,
   usesSpecialDiceIdleBubbles,
@@ -85,6 +86,7 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
       pinPixiImageTexture(resolvedTexture);
       // Force set texture even if it's already set (prevents texture loss)
       base.texture = resolvedTexture;
+      base.anchor?.set?.(0.5, getSpecialDiceFaceAnchorY(tile, base));
       const faceSize = tile.special === 'wild-magnet' ? TILE * 0.96 : TILE;
       if (specialVisual?.visualWidth && specialVisual?.visualHeight) {
         base.width = specialVisual.visualWidth;

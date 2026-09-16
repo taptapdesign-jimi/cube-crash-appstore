@@ -6,6 +6,7 @@ import {
   getCoreWildTypeForSpecialDiceVariant,
   getSpecialDiceVariant,
   pickBeachWildSlot,
+  pickBeachWildSlotForSpawn,
   pickSpecialDiceVariantForWildSpawn,
 } from '../special-dice-registry';
 
@@ -22,18 +23,28 @@ describe('Beach World wild pool', () => {
     expect(getAllowedWildTypes(24)).toContain('wild-tnt');
   });
 
-  test('uses the four-slot Beach roll only after the Juice introduction stage', () => {
+  test('introduces Juice on Beach Cjelina 02 first drop, then uses the four-slot roll', () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/app-core.ts'), 'utf8');
     const start = source.indexOf('const isBeachJourneyBoard =');
     const end = source.indexOf('const specialDiceVariant =', start);
     const beachOwner = source.slice(start, end);
 
     expect(beachOwner).toContain('boardNumber >= 12 && boardNumber <= 20');
-    expect(beachOwner).toContain('const beachWildSlot = isBeachJourneyBoard ? pickBeachWildSlot() : undefined');
+    expect(beachOwner).toContain('pickBeachWildSlotForSpawn(boardNumber, wildSpawnCount)');
     expect(beachOwner).toContain('spawnJuice = beachWildSlot === 1 || beachWildSlot === 2');
     expect(beachOwner).toContain('spawnMagnet = false');
     expect(beachOwner).toContain('spawnTnt = false');
     expect(source).toContain('beachWildSlot,');
+  });
+
+  test('forces only Cjelina 02 first persisted Wild Meter drop to plain Juice', () => {
+    for (const roll of [0, 0.25, 0.5, 0.75, 0.999999]) {
+      expect(pickBeachWildSlotForSpawn(12, 0, roll)).toBe(1);
+    }
+    expect(pickBeachWildSlotForSpawn(12, 1, 0)).toBe(0);
+    expect(pickBeachWildSlotForSpawn(12, 2, 0.75)).toBe(3);
+    expect(pickBeachWildSlotForSpawn(11, 0, 0)).toBe(0);
+    expect(pickBeachWildSlotForSpawn(13, 0, 0.75)).toBe(3);
   });
 
   test('Beach Ball reuses TNT gameplay while remaining an explicit Beach-only variant', () => {

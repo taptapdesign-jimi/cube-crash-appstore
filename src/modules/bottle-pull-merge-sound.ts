@@ -13,16 +13,30 @@ export const BOTTLE_PULL_MERGE_SOUND_SOURCES = Object.freeze([
   `${BOTTLE_SOUND_BASE}bubsplat1.wav`,
   `${BOTTLE_SOUND_BASE}bubsplat2.wav`,
 ] as const);
+export const BOTTLE_PULL_MERGE_GLASS_CRACK_SOUND_SOURCE = `${BOTTLE_SOUND_BASE}glass crack.wav`;
+export const BOTTLE_PULL_MERGE_GLASS_CRACK_BASE_VOLUME = 0.8;
+export const BOTTLE_PULL_MERGE_GLASS_CRACK_VOLUME = applySoundEffectsMasterGain(
+  BOTTLE_PULL_MERGE_GLASS_CRACK_BASE_VOLUME,
+);
 export const BOTTLE_PULL_MERGE_SOUND_BASE_VOLUMES = [0.88, 0.88] as const;
 export const BOTTLE_PULL_MERGE_CUSTOM_BUS_SCALE = 0.72;
 export const BOTTLE_PULL_MERGE_SOUND_VOLUMES = BOTTLE_PULL_MERGE_SOUND_BASE_VOLUMES.map(
   (volume) => applySoundEffectsMasterGain(volume * BOTTLE_PULL_MERGE_CUSTOM_BUS_SCALE),
 );
 export const BOTTLE_PULL_MERGE_PLAYBACK_RATE = 1;
+const PULL_MERGE_LAYER_SOURCES = [
+  ...BOTTLE_PULL_MERGE_SOUND_SOURCES,
+  BOTTLE_PULL_MERGE_GLASS_CRACK_SOUND_SOURCE,
+] as const;
+const PULL_MERGE_LAYER_VOLUMES = [
+  ...BOTTLE_PULL_MERGE_SOUND_VOLUMES,
+  BOTTLE_PULL_MERGE_GLASS_CRACK_VOLUME,
+] as const;
 
 const VOICE_IDS = [
   'bottle-pull-merge-bubsplat1',
   'bottle-pull-merge-bubsplat2',
+  'bottle-pull-merge-glass-crack',
 ] as const;
 const mediaAudioBySource = new Map<string, HTMLAudioElement>();
 
@@ -44,34 +58,34 @@ function getMediaAudio(source: string): HTMLAudioElement | null {
 
 export function preloadBottlePullMergeSounds(): boolean {
   if (!areSoundsEnabled()) return false;
-  return preloadDecodedGameplaySounds(BOTTLE_PULL_MERGE_SOUND_SOURCES)
-    || BOTTLE_PULL_MERGE_SOUND_SOURCES.every((source) => getMediaAudio(source) !== null);
+  return preloadDecodedGameplaySounds(PULL_MERGE_LAYER_SOURCES)
+    || PULL_MERGE_LAYER_SOURCES.every((source) => getMediaAudio(source) !== null);
 }
 
 export function playBottlePullMergeSounds(): boolean {
   if (!areSoundsEnabled()) return false;
   stopBottlePullMergeSounds();
 
-  const decodedState = getDecodedGameplaySoundsState(BOTTLE_PULL_MERGE_SOUND_SOURCES);
+  const decodedState = getDecodedGameplaySoundsState(PULL_MERGE_LAYER_SOURCES);
   if (decodedState !== 'unavailable') {
-    const results = BOTTLE_PULL_MERGE_SOUND_SOURCES.map((source, index) => (
+    const results = PULL_MERGE_LAYER_SOURCES.map((source, index) => (
       playDecodedGameplaySound(source, {
         voiceId: VOICE_IDS[index],
-        volume: BOTTLE_PULL_MERGE_SOUND_VOLUMES[index],
+        volume: PULL_MERGE_LAYER_VOLUMES[index],
         playbackRate: BOTTLE_PULL_MERGE_PLAYBACK_RATE,
       }) !== 'unavailable'
     ));
     return results.every(Boolean);
   }
 
-  const results = BOTTLE_PULL_MERGE_SOUND_SOURCES.map((source, index) => {
+  const results = PULL_MERGE_LAYER_SOURCES.map((source, index) => {
     const audio = getMediaAudio(source);
     if (!audio) return false;
     try {
       audio.pause();
       audio.defaultPlaybackRate = BOTTLE_PULL_MERGE_PLAYBACK_RATE;
       audio.playbackRate = BOTTLE_PULL_MERGE_PLAYBACK_RATE;
-      audio.volume = BOTTLE_PULL_MERGE_SOUND_VOLUMES[index];
+      audio.volume = PULL_MERGE_LAYER_VOLUMES[index];
       audio.currentTime = 0;
       audio.play()?.catch((error) => logger.warn('Failed to play Bottle pull-merge layer:', error));
       return true;

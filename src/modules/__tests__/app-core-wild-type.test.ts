@@ -72,7 +72,7 @@ describe('Forest progressive Wild pool', () => {
     [3, 'wild-tnt', 'flower'],
     [4, 'wild-magnet', 'honey'],
     [6, 'wild-juice', 'mushroom'],
-    [7, 'wild-tnt', null],
+    [7, 'wild-tnt', 'barell'],
   ] as const)(
     'guarantees the newly introduced reward on Cjelina %i first drop',
     (boardNumber, wildType, specialDiceVariantId) => {
@@ -91,7 +91,8 @@ describe('Forest progressive Wild pool', () => {
     [3, 0.8, 'wild-tnt', 'flower'],
     [4, 0.9, 'wild-magnet', 'honey'],
     [7, 0.85, 'wild-tnt', null],
-    [10, 0.45, 'wild-tnt', 'flower'],
+    [10, 0.45, 'wild-magnet', 'honey'],
+    [10, 0.95, 'wild-tnt', 'barell'],
   ] as const)(
     'uses only the earned Forest pool on Cjelina %i at roll %s',
     (boardNumber, roll, wildType, specialDiceVariantId) => {

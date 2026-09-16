@@ -25,6 +25,7 @@ import {
   recordJourneyPlayAgainIncident,
 } from '../utils/journey-play-again-incident-ring.js';
 import { JOURNEY_SLIDE_INDEX } from './homepage-slide-order.js';
+import { markJourneyBoardSaveCompleted } from '../utils/board-save-utils.js';
 // public/src/modules/endgame-flow.ts
 // Orkestracija (simplified): STARS → NEXT
 // Privremeno maknuto: Clean Board i Mystery Prize.
@@ -1054,6 +1055,13 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       const clearedStage = Math.max(1, boardNumber | 0);
       const nextStage = clearedStage + 1;
       const currentScore = ctx.getScore ? (ctx.getScore() | 0) : 0;
+      const { clearPendingArcadeRound, setPendingArcadeRound } = await import('../utils/board-save-utils.js');
+      const receiptOwnerId = `arcade-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      let nextRoundReceiptWritten = false;
+      const recordNextRound = () => {
+        setPendingArcadeRound(nextStage, currentScore, receiptOwnerId);
+        nextRoundReceiptWritten = true;
+      };
 
       try {
         const { arcadeStatsService } = await import('../services/arcade-stats-service.js');
@@ -1064,8 +1072,9 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
 
       try {
         const { showArcadeStageClearModal } = await import('./arcade-stage-clear-modal.js');
-        const stageClearResult = await showArcadeStageClearModal(clearedStage, nextStage);
+        const stageClearResult = await showArcadeStageClearModal(clearedStage, nextStage, recordNextRound);
         if (stageClearResult.action !== 'continue') {
+          if (nextRoundReceiptWritten) clearPendingArcadeRound(receiptOwnerId);
           logger.info(`🎮 endgame-flow: Arcade stage ${clearedStage} continuation was cancelled; progression remains unchanged`);
           return;
         }
@@ -1078,6 +1087,10 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         localStorage.removeItem('cc_saved_game');
         localStorage.removeItem('cubeCrash_gameState');
       } catch {}
+
+      // If the cue failed before presenting Round 02, the automatic Continue
+      // still needs a durable receipt before constructing its board.
+      if (!nextRoundReceiptWritten) recordNextRound();
 
       try {
         (window as any).__ccPreserveScore = currentScore;
@@ -1149,10 +1162,20 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     const currentScore = ctx.getScore ? (ctx.getScore() | 0) : 0;
     const finalScoreForecast = journeyRewardFinalScore;
 
+    // The completed Unit must not resume its last two dice if the app is
+    // force-quit while Clean Board is visible. Commit the board-scoped guard
+    // and remove only this board's snapshot before showing the result screen.
+    try {
+      markJourneyBoardSaveCompleted(boardNumber);
+      logger.info(`[CC_JOURNEY_TERMINAL_SAVE] board ${boardNumber} completion tombstone committed before Clean Board`);
+    } catch (error) {
+      logger.warn(`⚠️ Failed to clear completed Journey board ${boardNumber} save:`, error);
+    }
+
     // Save completion data for hard-exit resume (includes score + bonus breakdown)
     try {
       localStorage.setItem('cc_board_completed', JSON.stringify({
-        completedLevel: level,
+        completedLevel: boardNumber,
         nextLevel,
         timestamp: Date.now(),
         score: currentScore,

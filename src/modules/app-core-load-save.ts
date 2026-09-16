@@ -1,9 +1,11 @@
 import { COLS, ROWS } from './constants.ts';
 import { validateAndNormalizeGameSave } from './app-core-save-schema.ts';
+import { protectCompletedJourneyBoardSave } from '../utils/board-save-utils.ts';
 
 type LoadSaveDeps = {
   boardNumber: number;
   getBoardSaveKey: (n: number) => string;
+  isArcade?: boolean;
   devLog: (...args: any[]) => void;
   devWarn: (...args: any[]) => void;
   storage?: Storage;
@@ -20,6 +22,7 @@ type LoadSaveResult = {
 export function loadSavedBoardState({
   boardNumber,
   getBoardSaveKey,
+  isArcade = false,
   devLog,
   devWarn,
   storage,
@@ -33,6 +36,10 @@ export function loadSavedBoardState({
     (typeof localStorage !== 'undefined' ? localStorage : null);
   if (!resolvedStorage) {
     devWarn(`⚠️ No localStorage available for board ${currentBoardNumber} (${saveKey})`);
+    return null;
+  }
+  if (!isArcade && protectCompletedJourneyBoardSave(currentBoardNumber, resolvedStorage)) {
+    devLog(`[CC_JOURNEY_TERMINAL_SAVE] board ${currentBoardNumber} direct load vetoed`);
     return null;
   }
   const savedGame = resolvedStorage.getItem(saveKey);

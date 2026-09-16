@@ -37,11 +37,71 @@ type PendingVoiceStart = {
 
 let audioContext: AudioContext | null = null;
 let audioContextUnavailable = false;
+let foregroundListenersInstalled = false;
+let foregroundGestureRetryArmed = false;
 const decodedBuffers = new Map<string, AudioBuffer>();
 const pendingBuffers = new Map<string, Promise<void>>();
 const failedBuffers = new Set<string>();
 const activeVoices = new Map<string, ActiveVoice>();
 const pendingVoiceStarts = new Map<string, PendingVoiceStart>();
+
+function onGameplayAudioForeground(): void {
+  if (typeof document !== 'undefined' && document.hidden) return;
+  const context = audioContext;
+  if (context && context.state !== 'running' && context.state !== 'closed') {
+    // A suspended/interrupted iOS Web Audio context cannot finish active
+    // result or ambient voices. Resume its existing sources; never replay SFX.
+    armForegroundGestureRetry();
+    void resumeAudioContext(context).then(() => {
+      if (context !== audioContext) return;
+      if (context.state === 'running') disarmForegroundGestureRetry();
+      else armForegroundGestureRetry();
+    });
+  }
+}
+
+function onForegroundAudioGesture(event: Event): void {
+  if (event.type === 'pointerdown') {
+    const pointerType = (event as PointerEvent).pointerType;
+    if (pointerType && pointerType !== 'mouse') return;
+  }
+  if (event.type === 'pointerup' && (event as PointerEvent).pointerType === 'mouse') return;
+  const context = audioContext;
+  if (!context || context.state === 'closed') {
+    disarmForegroundGestureRetry();
+    return;
+  }
+  void resumeAudioContext(context).then(() => {
+    if (context === audioContext && context.state === 'running') {
+      disarmForegroundGestureRetry();
+    }
+  });
+}
+
+function armForegroundGestureRetry(): void {
+  if (foregroundGestureRetryArmed) return;
+  foregroundGestureRetryArmed = true;
+  document.addEventListener('pointerdown', onForegroundAudioGesture, true);
+  document.addEventListener('pointerup', onForegroundAudioGesture, true);
+  document.addEventListener('touchend', onForegroundAudioGesture, true);
+  document.addEventListener('keydown', onForegroundAudioGesture, true);
+}
+
+function disarmForegroundGestureRetry(): void {
+  if (!foregroundGestureRetryArmed) return;
+  foregroundGestureRetryArmed = false;
+  document.removeEventListener('pointerdown', onForegroundAudioGesture, true);
+  document.removeEventListener('pointerup', onForegroundAudioGesture, true);
+  document.removeEventListener('touchend', onForegroundAudioGesture, true);
+  document.removeEventListener('keydown', onForegroundAudioGesture, true);
+}
+
+function installForegroundListeners(): void {
+  if (foregroundListenersInstalled || typeof window === 'undefined') return;
+  foregroundListenersInstalled = true;
+  document.addEventListener('visibilitychange', onGameplayAudioForeground);
+  window.addEventListener('pageshow', onGameplayAudioForeground);
+}
 
 function resolveSource(source: string): string {
   if (typeof document === 'undefined') return source;
@@ -61,6 +121,7 @@ function getAudioContext(): AudioContext | null {
 
   try {
     audioContext = new AudioContextConstructor({ latencyHint: 'interactive' });
+    installForegroundListeners();
     return audioContext;
   } catch (error) {
     audioContextUnavailable = true;
@@ -297,6 +358,12 @@ export function getDecodedGameplayAudioStats() {
 }
 
 export function resetDecodedGameplayAudioForTests(): void {
+  disarmForegroundGestureRetry();
+  if (foregroundListenersInstalled) {
+    document.removeEventListener('visibilitychange', onGameplayAudioForeground);
+    window.removeEventListener('pageshow', onGameplayAudioForeground);
+    foregroundListenersInstalled = false;
+  }
   stopDecodedGameplayVoices(Array.from(activeVoices.keys()));
   decodedBuffers.clear();
   pendingBuffers.clear();

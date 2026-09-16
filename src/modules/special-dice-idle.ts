@@ -58,6 +58,12 @@ import {
   stopFlowerBouncyArtwork,
 } from './flower-bouncy-artwork.ts';
 import {
+  isBarrelBouncyTile,
+  setBarrelBouncyArtworkDragging,
+  startBarrelBouncyArtwork,
+  stopBarrelBouncyArtwork,
+} from './barrel-bouncy-artwork.ts';
+import {
   acquireAnimatedSpecialArtworkMode,
   getAnimatedSpecialArtworkMode,
   releaseAnimatedSpecialArtworkMode,
@@ -208,6 +214,7 @@ export function stopSpecialDiceIdleMotion(tile: any): void {
     stopRoboBouncyArtwork(tile);
     stopMushroomBouncyArtwork(tile);
     stopFlowerBouncyArtwork(tile);
+    stopBarrelBouncyArtwork(tile);
     try { tile?._ccKantaDiceIdle?.dispose?.(); } catch {}
     if (tile) delete tile._ccKantaDiceIdle;
     try { tile?._ccRoboCubeIdle?.dispose?.(); } catch {}
@@ -280,6 +287,9 @@ export function setSpecialDiceIdleDragging(tile: any, dragging: boolean): boolea
   }
   if (tile?._ccFlowerBouncyArtwork && isFlowerBouncyTile(tile)) {
     return setFlowerBouncyArtworkDragging(tile, dragging);
+  }
+  if (tile?._ccBarrelBouncyArtwork && isBarrelBouncyTile(tile)) {
+    return setBarrelBouncyArtworkDragging(tile, dragging);
   }
   if (tile?._ccMushroomBouncyArtwork && isMushroomBouncyTile(tile)) {
     const handled = setMushroomBouncyArtworkDragging(tile, dragging);
@@ -355,6 +365,20 @@ export function startSpecialDiceIdleMotion(tile: any): void {
     const variant = getSpecialDiceVariantForTile(tile);
     if (!tile || tile.destroyed) return;
     if (tile._ccWildSpawnDropping === true) return;
+    if (isBarrelBouncyTile(tile)) {
+      stopWildStarBouncyArtwork(tile);
+      stopJuiceBounceArtwork(tile);
+      stopBallBouncyArtwork(tile);
+      stopFishSwimArtwork(tile);
+      stopRoboBouncyArtwork(tile);
+      stopMushroomBouncyArtwork(tile);
+      stopFlowerBouncyArtwork(tile);
+      if (acquireAnimatedSpecialArtworkMode(tile, 'barell') === 'svg') {
+        startBarrelBouncyArtwork(tile);
+      }
+      return;
+    }
+    stopBarrelBouncyArtwork(tile);
     if (isPlainWildStarBouncyTile(tile)) {
       stopJuiceBounceArtwork(tile);
       stopBallBouncyArtwork(tile);

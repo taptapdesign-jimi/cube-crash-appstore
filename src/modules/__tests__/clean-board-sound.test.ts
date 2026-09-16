@@ -17,7 +17,6 @@ import {
   CLEAN_BOARD_SAXOPHONE_HAPPY_DURATION_MS,
   CLEAN_BOARD_SAXOPHONE_HAPPY_SOUND_SOURCE,
   CLEAN_BOARD_SAXOPHONE_HAPPY_VOLUME,
-  CLEAN_BOARD_RESULT_AUDIO_DURATION_MS,
   CLEAN_BOARD_SOUND_VOLUME,
   CLEAN_BOARD_STAR_BOUNCE_SOUND_SOURCE,
   CLEAN_BOARD_STAR_BOUNCE_ACTION_VOLUME,
@@ -25,7 +24,6 @@ import {
   CLEAN_BOARD_STAR_HARP_ACTION_VOLUME,
   CLEAN_BOARD_STAR_HARP_SOUND_SOURCES,
   CLEAN_BOARD_STAR_HARP_VOLUME,
-  createCleanBoardResultAudioSettlements,
   createCleanBoardStarHarpOrder,
   playCleanBoardBonusCountSound,
   playCleanBoardApplauseSound,
@@ -67,7 +65,6 @@ describe('Clean Board result sounds', () => {
     expect(crypto.createHash('sha256').update(saxophoneBytes).digest('hex'))
       .toBe('c9ae7988458152f994894c5e927777dafc1d7e02e6ed7808813d251bd251abe6');
     expect(CLEAN_BOARD_SAXOPHONE_HAPPY_DURATION_MS).toBe(5000);
-    expect(CLEAN_BOARD_RESULT_AUDIO_DURATION_MS).toBe(10000);
     expect(CLEAN_BOARD_SAXOPHONE_HAPPY_ACTION_VOLUME).toBe(0.76);
     expect(CLEAN_BOARD_SAXOPHONE_HAPPY_VOLUME).toBeCloseTo(0.456);
     expect(CLEAN_BOARD_MONEY_COUNT_SOUND_SOURCE).toBe('./assets/sound/Clean board/money count.wav');
@@ -105,30 +102,18 @@ describe('Clean Board result sounds', () => {
     expect(second).not.toEqual(first);
   });
 
-  test('keeps the result owner held until applause and sax have both settled', () => {
-    const onAllSettled = jest.fn();
-    const settlements = createCleanBoardResultAudioSettlements(onAllSettled);
-
-    settlements.applause();
-    settlements.applause();
-    expect(onAllSettled).not.toHaveBeenCalled();
-
-    settlements.saxophone();
-    settlements.saxophone();
-    expect(onAllSettled).toHaveBeenCalledTimes(1);
-  });
-
   test('connects cues to the exact animation starts and only earned filled stars', () => {
     const modal = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/clean-board-modal.ts'), 'utf8');
-    expect(modal.indexOf('document.body.appendChild(el);')).toBeLessThan(modal.indexOf('playCleanBoardApplauseSound({'));
+    expect(modal.indexOf('document.body.appendChild(el);')).toBeLessThan(modal.indexOf('playCleanBoardApplauseSound();'));
     expect(modal.indexOf('document.body.appendChild(el);')).toBeLessThan(modal.indexOf('playCleanBoardSaxophoneHappySound({'));
-    expect(modal.indexOf('playCleanBoardApplauseSound({')).toBeLessThan(modal.indexOf('playCleanBoardSaxophoneHappySound({'));
+    expect(modal.indexOf('playCleanBoardApplauseSound();')).toBeLessThan(modal.indexOf('playCleanBoardSaxophoneHappySound({'));
     expect(modal).toContain('const restoreSoundtrackAfterResultAudio = fadeSoundtrackForResultHook();');
     expect(modal).toContain("resultReleaseTarget = 'gameplay';");
     expect(modal).toContain("restoreSoundtrackAfterResultAudio('gameplay');");
-    expect(modal).toContain('createCleanBoardResultAudioSettlements(');
-    expect(modal).toContain('onStopped: resultAudioSettlements.applause,');
-    expect(modal).toContain('onStopped: resultAudioSettlements.saxophone,');
+    expect(modal).toContain('playCleanBoardApplauseSound();');
+    expect(modal).toContain('onEnded: () => restoreSoundtrackAfterResultAudio(resultReleaseTarget),');
+    expect(modal).toContain('onStopped: () => restoreSoundtrackAfterResultAudio(resultReleaseTarget),');
+    expect(modal).toContain('onUnavailable: () => restoreSoundtrackAfterResultAudio(resultReleaseTarget),');
     expect(modal).toContain('updateScore(currentScore, true, true);');
     expect(modal).toContain('if (playCountSound) playCleanBoardMoneyCountSound(duration);');
     expect(modal.match(/playCleanBoardBonusCountSound\(durationSec\);/g)).toHaveLength(2);

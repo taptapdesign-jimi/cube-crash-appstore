@@ -4,6 +4,61 @@ import path from 'node:path';
 const repoRoot = path.resolve(__dirname, '../../..');
 
 describe('Arcade terminal lifecycle regression contract', () => {
+  test('fresh Round is saved before reveal and retried after the settled cube entrance', () => {
+    const source = fs.readFileSync(path.join(repoRoot, 'src/modules/app-core.ts'), 'utf8');
+    const rebuild = source.slice(source.indexOf('function rebuildBoard(){'), source.indexOf('// Board exit animation', source.indexOf('function rebuildBoard(){')));
+    const prepared = rebuild.indexOf('saveArcadeRoundAfterEntry({');
+    const reveal = rebuild.indexOf('revealPreparedGameplaySurface();', prepared);
+    const settled = rebuild.indexOf('sweetPopPromise.then(() => {');
+    const hudFinal = rebuild.indexOf('handleSweetPopInComplete({', settled);
+    const checkpoint = rebuild.indexOf('saveArcadeRoundAfterEntry({', settled);
+    expect(settled).toBeGreaterThan(-1);
+    expect(prepared).toBeGreaterThan(-1);
+    expect(prepared).toBeLessThan(reveal);
+    expect(reveal).toBeLessThan(settled);
+    expect(rebuild.slice(prepared, reveal)).toContain('freshArcadeEntry: true');
+    expect(checkpoint).toBeGreaterThan(hudFinal);
+    expect(rebuild.slice(checkpoint)).toContain('readSavedRound: getArcadeSavedRound');
+  });
+
+  test('accepted Arcade Continue receipt is consulted before loading the old saved board', () => {
+    const ui = fs.readFileSync(path.join(repoRoot, 'src/modules/ui-manager.ts'), 'utf8');
+    const endgame = fs.readFileSync(path.join(repoRoot, 'src/modules/endgame-flow.ts'), 'utf8');
+    const modal = fs.readFileSync(path.join(repoRoot, 'src/modules/arcade-stage-clear-modal.ts'), 'utf8');
+    const receipt = ui.indexOf('const pendingRound = getPendingArcadeRound();');
+    const oldLoad = ui.indexOf('const loadGameState = (window as any).loadGameState;', receipt);
+    expect(endgame).toContain('setPendingArcadeRound(nextStage, currentScore, receiptOwnerId);');
+    expect(endgame).toContain('showArcadeStageClearModal(clearedStage, nextStage, recordNextRound)');
+    expect(endgame).toContain('if (nextRoundReceiptWritten) clearPendingArcadeRound(receiptOwnerId);');
+    const receiptBeforeCard = modal.indexOf('onNextRoundPresented?.();');
+    const cardEnter = modal.indexOf('await playRoundNumberPhase(parts, nextStage, isCurrent, fadeOutArcadeStageClearCelebrationSounds);', receiptBeforeCard);
+    expect(receiptBeforeCard).toBeGreaterThan(-1);
+    expect(cardEnter).toBeGreaterThan(receiptBeforeCard);
+    expect(receipt).toBeGreaterThan(-1);
+    expect(oldLoad).toBeGreaterThan(receipt);
+    expect(ui.slice(receipt, oldLoad)).toContain('__ccStartAtLevel = pendingRound.round');
+    expect(ui.slice(receipt, oldLoad)).toContain('await bootGame();');
+  });
+
+  test('cancel during the clear hold retires the cue before receipt or newer-modal cleanup', () => {
+    const modal = fs.readFileSync(path.join(repoRoot, 'src/modules/arcade-stage-clear-modal.ts'), 'utf8');
+    const clearPhase = modal.slice(modal.indexOf('async function playClearPhase('), modal.indexOf('function animateBottomHudStageIndicator('));
+    const hold = clearPhase.indexOf('await wait(500);');
+    const guard = clearPhase.indexOf('if (!isCurrent()) return;', hold);
+    const exit = clearPhase.indexOf('const exitTimeline = gsap.timeline();', hold);
+    expect(hold).toBeGreaterThan(-1);
+    expect(guard).toBeGreaterThan(hold);
+    expect(guard).toBeLessThan(exit);
+    const show = modal.slice(modal.indexOf('export async function showArcadeStageClearModal('), modal.indexOf('export async function showArcadeContinuationRoundCue('));
+    expect(show).toContain('ownerGeneration === stageClearOwnerGeneration');
+    expect(show).toContain('if (!isCurrent()) return;\n        // The next-Round receipt');
+    expect(show).toContain('if (isCurrent()) {\n          cleanupArcadeStageClearModal(false);');
+    expect(modal).toContain('stageClearOwnerGeneration += 1;');
+    const continuation = modal.slice(modal.indexOf('export async function showArcadeContinuationRoundCue('), modal.indexOf('export function cancelArcadeStageClearModal('));
+    expect(continuation).toContain('await playRoundNumberPhase(parts, resumedStage, isCurrent);');
+    expect(continuation).toContain('if (isCurrent()) {\n      emitNativeConsoleDiagnostic');
+  });
+
   test('Magnet commit abort rolls back ownership and schedules the central endgame check', () => {
     const source = fs.readFileSync(path.join(repoRoot, 'src/modules/app-core.ts'), 'utf8');
     expect(source).toContain('const magnetMergeCommitted = await handleWildMagnetMergedPulledTiles');

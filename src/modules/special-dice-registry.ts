@@ -53,6 +53,7 @@ export type SpecialDiceVariantDefinition = {
   hideExplosionFrameIndicesAtExitStart?: number[];
   visualWidth?: number;
   visualHeight?: number;
+  visualAnchorY?: number;
   visualFit?: 'height';
   hitAreaSize?: 'tile';
   idleOrbit?: boolean;
@@ -62,6 +63,7 @@ export type SpecialDiceVariantDefinition = {
   finaleAccentSpriteSources?: string[];
   orbitParticleSources?: string[];
   burstParticleSources?: string[];
+  debrisSpriteSources?: string[];
   burstMotion?: {
     count?: number;
     speedScale?: number;
@@ -166,6 +168,10 @@ const flowerBurstSources1x = Array.from(
 const flowerBurstSources2x = Array.from(
   { length: 6 },
   (_, index) => `./assets/shop/bush/flowr${index + 1}@2x.png`,
+);
+const barrelWoodDebrisSources = Array.from(
+  { length: 6 },
+  (_, index) => `./assets/shop/barell/wood${index + 1}.png`,
 );
 const honeyBeeSources1x = Array.from(
   { length: 7 },
@@ -402,6 +408,28 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
       depthLayered: true,
     },
     hitAreaSize: 'tile',
+    idleOrbit: false,
+    inputReleaseAtRatio: 0.7,
+  },
+  barell: {
+    id: 'barell',
+    archetype: 'wild-tnt',
+    texture: './assets/shop/barell/barell.svg',
+    splashText: 'POOOF',
+    splashColor: '#F48D59',
+    splashColors: ['#F48D59'],
+    splashLetterOpacityRange: [1, 1],
+    shardColor: 0xE9D6C6,
+    shardColors: [0xE9D6C6, 0xEBA95B],
+    trailColors: [0xD7C3BC, 0xE2CDC0, 0xF5BD65, 0xEAAD61],
+    debrisSpriteSources: barrelWoodDebrisSources,
+    // The supplied SVG canvas has transparent jump space. These dimensions
+    // show its 182x194px resting barrel art at a compact 115.2px footprint.
+    visualWidth: 160.2,
+    visualHeight: 207.9,
+    visualAnchorY: 221 / 351,
+    hitAreaSize: 'tile',
+    arcadeTestOrder: 3,
     idleOrbit: false,
     inputReleaseAtRatio: 0.7,
   },
@@ -717,15 +745,27 @@ export function getSpecialDiceTexturePath(tile: any, fallback: string): string {
   return getSpecialDiceVariantForTile(tile)?.texture || fallback;
 }
 
-export function getSpecialDiceVisualConfig(tile: any): { visualWidth?: number; visualHeight?: number; visualFit?: 'height'; hitAreaSize?: 'tile' } | null {
+export function getSpecialDiceVisualConfig(tile: any): { visualWidth?: number; visualHeight?: number; visualAnchorY?: number; visualFit?: 'height'; hitAreaSize?: 'tile' } | null {
   const variant = getSpecialDiceVariantForTile(tile);
   if (!variant) return null;
   return {
     visualWidth: variant.visualWidth,
     visualHeight: variant.visualHeight,
+    visualAnchorY: variant.visualAnchorY,
     visualFit: variant.visualFit,
     hitAreaSize: variant.hitAreaSize,
   };
+}
+
+/** A live Bottle idle owns the bottom pivot and its matching Y correction. */
+export function getSpecialDiceFaceAnchorY(tile: any, base: any, defaultAnchorY = 0.5): number {
+  const variant = getSpecialDiceVariantForTile(tile);
+  if (
+    variant?.id === 'bottle'
+    && tile?._ccSpecialDiceIdleHost === base
+    && tile?._ccSpecialDiceIdleTl
+  ) return 1;
+  return variant?.visualAnchorY ?? defaultAnchorY;
 }
 
 export function getSpecialDiceSplashOptions(tileOrVariant: any): any | null {
@@ -745,6 +785,7 @@ export function getSpecialDiceSplashOptions(tileOrVariant: any): any | null {
     frameVerticalStretch: variant.explosionVerticalStretch,
     hideFrameIndicesAtExitStart: variant.hideExplosionFrameIndicesAtExitStart,
     burstSources: variant.burstParticleSources,
+    debrisSources: variant.debrisSpriteSources,
     burstMotion: variant.burstMotion,
     finaleScene: variant.finaleScene,
     inputReleaseAtRatio: getSpecialDiceInputReleaseAtRatio(variant),
@@ -933,4 +974,14 @@ export function pickBeachWildSlot(randomValue: number = Math.random()): number {
     if (roll < cumulative) return slot;
   }
   return BEACH_WILD_SLOT_WEIGHTS.length - 1;
+}
+
+/** Introduce plain Juice on Beach Cjelina 02's first persisted Wild Meter drop. */
+export function pickBeachWildSlotForSpawn(
+  boardNumber: number,
+  wildSpawnCount: number,
+  randomValue?: number,
+): number {
+  if (boardNumber === 12 && wildSpawnCount === 0) return 1;
+  return pickBeachWildSlot(randomValue);
 }

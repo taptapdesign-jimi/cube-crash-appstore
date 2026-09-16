@@ -8,6 +8,8 @@ import {
   acquireAnimatedSpecialArtworkLayer,
   doesAnimatedSpecialArtworkOverlapGameplayDrag,
   getAnimatedSpecialArtworkLayerStats,
+  getAnimatedSpecialArtworkCarrierForegroundRoot,
+  getAnimatedSpecialArtworkSpawnedDieForegroundRoot,
   installAnimatedSpecialArtworkOverlapFootprint,
   setAnimatedSpecialArtworkDragging,
   setAnimatedSpecialArtworkOccluded,
@@ -133,6 +135,40 @@ describe('animated special artwork merge-6 depth ownership', () => {
     expect(wrapper.parentElement).toBe(artworkLease.root);
     expect(wrapper.firstElementChild).toBe(image);
     expect(image.getAttribute('src')).toBe('./assets/shop/juice/juice-bounce.svg?cc-svg-phase=4');
+  });
+
+  test('keeps only the spawned die above the backpack/crate and hides both with the canvas', () => {
+    const artworkLease = acquireAnimatedSpecialArtworkLayer(jest.fn());
+    expect(artworkLease).not.toBeNull();
+    if (!artworkLease) return;
+    releases.push(artworkLease.release);
+    const carrierRoot = getAnimatedSpecialArtworkCarrierForegroundRoot();
+    const spawnedDieRoot = getAnimatedSpecialArtworkSpawnedDieForegroundRoot();
+    expect(carrierRoot).not.toBeNull();
+    expect(spawnedDieRoot).not.toBeNull();
+    if (!carrierRoot || !spawnedDieRoot) return;
+    const carrier = document.createElement('img');
+    const spawnedDie = document.createElement('img');
+    carrierRoot.appendChild(carrier);
+    spawnedDieRoot.appendChild(spawnedDie);
+    artworkLease.requestSync();
+    expect(Number(carrierRoot.style.zIndex)).toBeGreaterThan(1);
+    expect(Number(carrierRoot.style.zIndex)).toBeGreaterThan(Number(artworkLease.root.style.zIndex));
+    expect(Number(spawnedDieRoot.style.zIndex)).toBeGreaterThan(Number(carrierRoot.style.zIndex));
+
+    const canvas = STATE.app?.canvas as HTMLCanvasElement;
+    canvas.style.display = 'none';
+    artworkLease.requestSync();
+    expect(carrierRoot.style.visibility).toBe('hidden');
+    expect(spawnedDieRoot.style.visibility).toBe('hidden');
+
+    canvas.style.display = '';
+    artworkLease.requestSync();
+    expect(carrierRoot.style.visibility).toBe('visible');
+    expect(spawnedDieRoot.style.visibility).toBe('visible');
+    artworkLease.release();
+    expect(carrierRoot.isConnected).toBe(false);
+    expect(spawnedDieRoot.isConnected).toBe(false);
   });
 
   test('keeps Ball above board ghosts during a sibling finale while ordinary pinned artwork yields', () => {

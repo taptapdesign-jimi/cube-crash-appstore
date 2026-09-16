@@ -1,17 +1,27 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+  clearJourneyBoardSaveCompleted,
+  getBoardSaveKey,
+  hasResumableSavedStateForBoard,
+  isJourneyBoardSaveCompleted,
+  markJourneyBoardSaveCompleted,
+} from '../../utils/board-save-utils';
+import {
   buildJourneyCardOverlayModalViewModel,
   createJourneyCardOverlayTiltProfile,
   getJourneyCardDragFlipAngle,
+  getJourneyCardDragPresentationAngle,
   getJourneyCardFlightFlipAngle,
   getJourneyCardFlipEdgeProgress,
   getJourneyCardFlipFaceForAngle,
   getJourneyCardImpactPresentationPose,
   getJourneyCardRenderedRotateYAngle,
   getJourneyCardReturnFlipAngle,
+  getJourneyCardReturnRotorAngle,
   getJourneyCardUnwrappedAngleNear,
   resolveJourneyCardDragAxis,
+  resolveJourneyCardCtaCopy,
   shouldCommitJourneyCardReleasedDrag,
   JOURNEY_CARD_FLIP_DRAG_HANDOFF_VIEWPORT_RATIO,
   JOURNEY_CARD_FLIP_DRAG_RELEASE_VIEWPORT_RATIO,
@@ -105,6 +115,62 @@ describe('Journey two-sided card overlay prototype', () => {
       highScore: 10,
       longestCombo: 2,
     }, false).heading).toBe('Area 10');
+  });
+
+  test('uses Play whenever there is no resumable save', () => {
+    expect(resolveJourneyCardCtaCopy(false)).toEqual({
+      ctaLabel: 'Play', ctaAriaLabel: 'Play Stage',
+    });
+    expect(resolveJourneyCardCtaCopy(true)).toEqual({
+      ctaLabel: 'Continue', ctaAriaLabel: 'Continue Stage',
+    });
+    expect(buildJourneyCardOverlayModalViewModel(1, {
+      highScore: 19293,
+      longestCombo: 57,
+    }, false)).toEqual(expect.objectContaining({
+      earnedStars: 3,
+      ctaLabel: 'Play',
+    }));
+  });
+
+  test('changes Continue to Play when a completed Unit retires its two-die snapshot', () => {
+    const boardId = 5;
+    const saveKey = getBoardSaveKey(boardId);
+    localStorage.setItem(saveKey, JSON.stringify({
+      boardNumber: boardId,
+      grid: [[{ value: 2, open: true }, { value: 0, special: 'wild', open: true }]],
+    }));
+    try {
+      expect(resolveJourneyCardCtaCopy(hasResumableSavedStateForBoard(boardId)).ctaLabel).toBe('Continue');
+
+      markJourneyBoardSaveCompleted(boardId);
+      expect(isJourneyBoardSaveCompleted(boardId)).toBe(true);
+      expect(resolveJourneyCardCtaCopy(
+        hasResumableSavedStateForBoard(boardId, { clearInvalid: true }),
+      ).ctaLabel).toBe('Play');
+      expect(localStorage.getItem(saveKey)).toBeNull();
+    } finally {
+      clearJourneyBoardSaveCompleted(boardId);
+      localStorage.removeItem(saveKey);
+    }
+  });
+
+  test('applies the same save-based copy to the live card and fallback detail CTA', () => {
+    const manager = read('src/modules/journey-boards-manager.ts');
+    const overlayCall = manager.slice(
+      manager.indexOf('const controller = presentJourneyCardOverlayModal({'),
+      manager.indexOf('scrollOwner,', manager.indexOf('const controller = presentJourneyCardOverlayModal({')),
+    );
+    const fallback = manager.slice(
+      manager.indexOf('const boardHasSavedState = hasResumableSavedStateForBoard(board.id'),
+      manager.indexOf('const floatingPlayButton = document.createElement', manager.indexOf('const boardHasSavedState = hasResumableSavedStateForBoard(board.id')),
+    );
+    expect(overlayCall).toContain('hasSavedState: hasResumableSavedStateForBoard(board.id, { clearInvalid: true })');
+    expect(overlayCall).not.toContain('wasCompleted:');
+    expect(fallback).toContain('resolveJourneyCardCtaCopy(');
+    expect(fallback).not.toContain('isJourneyBoardSaveCompleted(board.id)');
+    expect(manager).toContain('const hasSavedState = hasResumableSavedStateForBoard(boardIdForPlay, { clearInvalid: true });');
+    expect(manager).toContain('await (window as any).startNewRunFromJourney(boardIdForPlay);');
   });
 
   test('shows the written World name and local Stage number above the stats', () => {
@@ -361,7 +427,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(getJourneyCardFlipEdgeProgress(-216, -360)).toBeCloseTo(0.375, 8);
   });
 
-  test('always rotates on return and preserves the visible landing face', () => {
+  test('keeps physical flips on control returns and preserves their landing face', () => {
     expect(getJourneyCardReturnFlipAngle(0, 'back')).toBe(-180);
     expect(getJourneyCardReturnFlipAngle(0.5, 'back')).toBe(-90);
     expect(getJourneyCardReturnFlipAngle(1, 'back')).toBe(0);
@@ -376,18 +442,67 @@ describe('Journey two-sided card overlay prototype', () => {
       modal.indexOf('let closeRequestProfiled'),
     );
     expect(startReturn).toContain('const returnStartingFace = stableFace;');
-    expect(startReturn).toContain('getJourneyCardReturnFlipAngle(travelProgress, returnStartingFace)');
+    expect(startReturn).toContain('getJourneyCardReturnRotorAngle(travelProgress, returnStartingFace, artworkDragWithoutFlip)');
     expect(startReturn).not.toContain("if (stableFace === 'back')");
 
     const beginClose = modal.slice(
       modal.indexOf('const beginClose = async'),
       modal.indexOf('function isInteractiveControl'),
     );
-    expect(beginClose).toContain("stage.classList.add('is-flipping', 'is-flipping-to-front');");
+    expect(beginClose).toContain("if (!artworkDragWithoutFlip) stage.classList.add('is-flipping', 'is-flipping-to-front');");
     expect(beginClose.indexOf("stage.classList.add('is-flipping', 'is-flipping-to-front');"))
-      .toBeLessThan(beginClose.indexOf("startReturn(value === 'play')"));
+      .toBeLessThan(beginClose.indexOf("startReturn(value === 'play', artworkDragWithoutFlip)"));
     expect(modal).toContain("void beginClose('dismiss');");
     expect(modal).toContain("void beginClose('play');");
+  });
+
+  test('uses X Close for paper drag and face-up descent for artwork drag', () => {
+    const modal = read('src/modules/journey-card-overlay-modal.ts');
+    const css = read('src/collectibles-screen.css');
+    const finishPointer = modal.slice(modal.indexOf('function finishPointer('), modal.indexOf('function handlePointerUp'));
+    const beginClose = modal.slice(modal.indexOf('const beginClose = async'), modal.indexOf('function isInteractiveControl'));
+    const startReturn = modal.slice(modal.indexOf('const startReturn = async'), modal.indexOf('let closeRequestProfiled'));
+    expect(finishPointer).toContain("if (stableFace === 'front' && deltaY > 0) {");
+    expect(finishPointer).toContain("void beginClose('dismiss', true);");
+    expect(finishPointer).toContain("} else {\n        void beginClose('dismiss');");
+    expect(beginClose).toContain('artworkDragWithoutFlip = false');
+    expect(beginClose).toContain('setRotorAngle(stableRotorAngle());');
+    expect(beginClose).toContain("startReturn(value === 'play', artworkDragWithoutFlip)");
+    expect(startReturn).toContain('if (artworkDragWithoutFlip) playJourneyCardManualFlipSound();');
+    expect(startReturn).toContain('else playJourneyCardReturnFlipSounds();');
+    expect(startReturn).toContain('getJourneyCardReturnRotorAngle(travelProgress, returnStartingFace, artworkDragWithoutFlip)');
+    expect(modal).not.toContain('journey-card-flip-drag-return-back-image');
+    expect(modal).not.toContain('journey-card-flip-drag-return-landing-artwork');
+    expect(css).not.toContain('is-vertical-dismissing-front');
+    expect(modal).toContain("if (event.target === stage || event.target === backdrop) void beginClose('dismiss');");
+  });
+
+  test('holds artwork facing forward during its descent while other closes still flip', () => {
+    for (const progress of [0, 0.16, 0.32, 0.5, 0.68, 0.84, 1]) {
+      expect(getJourneyCardReturnRotorAngle(progress, 'front', true)).toBe(0);
+      expect(getJourneyCardReturnRotorAngle(progress, 'front')).toBe(getJourneyCardReturnFlipAngle(progress, 'front'));
+      expect(getJourneyCardReturnRotorAngle(progress, 'back')).toBe(getJourneyCardReturnFlipAngle(progress, 'back'));
+    }
+    expect(getJourneyCardFlipFaceForAngle(getJourneyCardReturnRotorAngle(1, 'front', true))).toBe('front');
+  });
+
+  test('does not preview a Y flip during diagonal front-face downward drag', () => {
+    expect(resolveJourneyCardDragAxis(null, 100, 140)).toBe('vertical');
+    expect(resolveJourneyCardDragAxis(null, 100, -140)).toBe('vertical');
+    expect(getJourneyCardDragFlipAngle(0, 100, 390)).toBeGreaterThan(40);
+    expect(getJourneyCardDragPresentationAngle(0, 100, 140, 390, 'vertical', 'front')).toBe(0);
+    expect(getJourneyCardDragPresentationAngle(0, 100, -140, 390, 'vertical', 'front'))
+      .toBe(getJourneyCardDragFlipAngle(0, 100, 390));
+    expect(getJourneyCardDragPresentationAngle(0, 100, 140, 390, 'horizontal', 'front'))
+      .toBe(getJourneyCardDragFlipAngle(0, 100, 390));
+    expect(getJourneyCardDragPresentationAngle(-180, 100, 140, 390, 'vertical', 'back'))
+      .toBe(getJourneyCardDragFlipAngle(-180, 100, 390));
+    const modal = read('src/modules/journey-card-overlay-modal.ts');
+    const pointerMove = modal.slice(
+      modal.indexOf('function handlePointerMove('),
+      modal.indexOf('function finishPointer('),
+    );
+    expect(pointerMove).toContain('getJourneyCardDragPresentationAngle(');
   });
 
   test('scrubs to the 80-percent handoff then completes exactly one physical flip', () => {
@@ -445,7 +560,7 @@ describe('Journey two-sided card overlay prototype', () => {
     );
     expect(pointerMove).not.toContain('releasePointerCapture');
     expect(pointerMove).toContain("impactShell.style.translate = `${translateX.toFixed(2)}px 0`");
-    expect(pointerMove).toContain('getJourneyCardDragFlipAngle(dragStartAngle, deltaX, dragViewportWidth)');
+    expect(pointerMove).toContain('getJourneyCardDragPresentationAngle(');
     expect(pointerMove).toContain('? clamp01(Math.abs(deltaX) / handoffDistance)');
     expect(pointerMove).toContain('if (dragFlipCommitted) return;');
     expect(pointerMove).toContain('interruptCommittedFlipForPointerMove(event)');
@@ -543,7 +658,7 @@ describe('Journey two-sided card overlay prototype', () => {
       modal.indexOf('function finishPointer('),
       modal.indexOf('function handlePointerUp('),
     );
-    expect(pointerRelease).toContain("void beginClose('dismiss')");
+    expect(pointerRelease).toContain("void beginClose('dismiss', true)");
   });
 
   test('lets horizontal intent recover from an early vertical finger wobble', () => {
@@ -775,7 +890,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(JOURNEY_CARD_PLAY_LANDING_EXIT_DURATION_MS).toBe(400);
     expect(JOURNEY_CARD_PLAY_RETURN_DURATION_MS).toBe(1120);
     expect(modal).toContain("getJourneyCardFlightFlipAngle(progress, 'enter')");
-    expect(modal).toContain('getJourneyCardReturnFlipAngle(travelProgress, returnStartingFace)');
+    expect(modal).toContain('getJourneyCardReturnRotorAngle(travelProgress, returnStartingFace, artworkDragWithoutFlip)');
     expect(modal).toContain('options.onPlayCardReturnStart?.();');
     expect(modal).toContain('options.onPlayCardExitStart?.();');
     expect(modal).toContain('options.onPlayCardExitComplete?.();');
@@ -1083,7 +1198,7 @@ describe('Journey two-sided card overlay prototype', () => {
     const modal = read('src/modules/journey-card-overlay-modal.ts');
     const css = read('src/collectibles-screen.css');
     expect(modal).toContain("prefersReducedMotion ? -180 : getJourneyCardFlightFlipAngle(progress, 'enter')");
-    expect(modal).toContain("prefersReducedMotion\n          ? 0\n          : getJourneyCardReturnFlipAngle(travelProgress, returnStartingFace)");
+    expect(modal).toContain("prefersReducedMotion\n          ? 0\n          : getJourneyCardReturnRotorAngle(travelProgress, returnStartingFace, artworkDragWithoutFlip)");
     expect(modal).not.toContain('disposeSpatialMotion');
     expect(modal).toContain('spatialFlight?.cancel();');
     expect(modal).toContain('flipAnimation?.cancel();');

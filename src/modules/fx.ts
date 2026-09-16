@@ -2902,6 +2902,7 @@ export function wildTntMerge6ShardsTemplated(board, tile, opts = {}) {
   }
 
   const patternInfo = selectPattern('wildTnt');
+  const sizeScale = Number.isFinite(opts.sizeScale) ? Math.max(0.1, Number(opts.sizeScale)) : 1;
   if (!patternInfo) {
     console.error('❌ wildTntMerge6ShardsTemplated: No pattern selected - falling back to woodShardsAtTile');
     woodShardsAtTile(board, tile, {
@@ -2913,6 +2914,7 @@ export function wildTntMerge6ShardsTemplated(board, tile, opts = {}) {
       intensity: 1.35,
       spread: 0.7,
       size: 1.3,
+      visualSizeScale: sizeScale,
       speed: 1.0,
       vanishDelay: 0.0,
       vanishJitter: 0.02
@@ -2955,7 +2957,7 @@ export function wildTntMerge6ShardsTemplated(board, tile, opts = {}) {
   patternData.forEach((shardDef, index) => {
     const shard = pool.acquire();
     shard.alpha = shardDef.alpha || 1.0;
-    const baseSize = (6 + Math.random() * 8) * (shardDef.size || 1.0) * 2.4;
+    const baseSize = (6 + Math.random() * 8) * (shardDef.size || 1.0) * 2.4 * sizeScale;
     const width = baseSize;
     const height = width * (0.8 + Math.random() * 1.4);
     const points = [];
@@ -3243,6 +3245,9 @@ export function woodShardsAtTile(board, tile, opts = {}){
   // For pulled tiles merge 6, use opts.size directly (450) but scale it down for reasonable rendering
   // 450 / 30 = 15, which is still 10x larger than 1.5 (wild-magnet merge 6)
   const finalSizeMul = isPulledTilesMerge && opts.size ? (opts.size / 30) : sizeMul;
+  const visualSizeScale = Number.isFinite(opts.visualSizeScale)
+    ? Math.max(0.1, Number(opts.visualSizeScale))
+    : 1;
   // If sizeMul is very large (e.g., 450 for pulled tiles merge 6), scale distances accordingly
   const distanceMultiplier = finalSizeMul > 1 ? (finalSizeMul * 3) : 1.0; // Scale distances for very large shards
   // 🔥 FIX: Reduce distances by 50% for wild merge to keep shards closer to tile
@@ -3301,7 +3306,7 @@ export function woodShardsAtTile(board, tile, opts = {}){
     } else {
       base = wildMode ? (6 + Math.random() * 8) : (8 + Math.random() * 10); // 🔥 FIXED: Regular merge uses larger base (8-18 vs 6-14)
     }
-    const width = base * finalSizeMul * scaleFactor;
+    const width = base * finalSizeMul * scaleFactor * visualSizeScale;
     const height = width * (0.8 + Math.random() * 1.4); // More variation in height
 
     // Create irregular vector-like shape instead of rectangle
@@ -6136,7 +6141,14 @@ export function stopMagnetIdleParticles(tile) {
 export function startTntIdleParticles(tile) {
   if (!tile || tile.special !== 'wild-tnt') return;
 
-  if (getSpecialDiceVariantForTile(tile)?.id === 'flower') {
+  const variantId = getSpecialDiceVariantForTile(tile)?.id;
+  if (variantId === 'barell') {
+    // Barrel's authored SVG has no TNT fuse. Retire any old spark owner too.
+    stopTntIdleParticles(tile);
+    return;
+  }
+
+  if (variantId === 'flower') {
     stopTntIdleParticles(tile);
     startFlowerPollenIdle(tile);
     return;

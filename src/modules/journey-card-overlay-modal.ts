@@ -335,6 +335,16 @@ export function getJourneyCardReturnFlipAngle(
   return fullTurnAngle === 0 ? 0 : fullTurnAngle;
 }
 
+export function getJourneyCardReturnRotorAngle(
+  progress: number,
+  startingFace: 'front' | 'back',
+  artworkDragWithoutFlip = false,
+): number {
+  return artworkDragWithoutFlip && startingFace === 'front'
+    ? 0
+    : getJourneyCardReturnFlipAngle(progress, startingFace);
+}
+
 export function getJourneyCardFlipEdgeProgress(fromAngle: number, toAngle: number): number {
   const distance = toAngle - fromAngle;
   if (!Number.isFinite(distance) || Math.abs(distance) < 0.001) return 0.5;
@@ -386,6 +396,21 @@ export function getJourneyCardDragFlipAngle(
   return stableAngle + direction * JOURNEY_CARD_FLIP_DRAG_SCRUB_MAX_DEG * progress;
 }
 
+export function getJourneyCardDragPresentationAngle(
+  stableAngle: number,
+  deltaX: number,
+  deltaY: number,
+  viewportWidth: number,
+  axis: 'horizontal' | 'vertical',
+  face: 'front' | 'back',
+): number {
+  // A front-face downward dismissal previews only the spatial descent.
+  // Horizontal intent still owns the manual card turn.
+  return axis === 'vertical' && face === 'front' && deltaY > 0
+    ? 0
+    : getJourneyCardDragFlipAngle(stableAngle, deltaX, viewportWidth);
+}
+
 export function shouldCommitJourneyCardReleasedDrag(
   deltaX: number,
   viewportWidth: number,
@@ -414,14 +439,22 @@ export function buildJourneyCardOverlayModalViewModel(
       : `Forest ${stageNumber}`;
   const highScore = Math.max(0, Math.trunc(Number.isFinite(stats.highScore) ? stats.highScore : 0));
   const longestCombo = Math.max(0, Math.trunc(Number.isFinite(stats.longestCombo) ? stats.longestCombo : 0));
+  const ctaCopy = resolveJourneyCardCtaCopy(hasSavedState);
   return {
     heading,
     earnedStars: getJourneyEarnedStars(highScore, safeBoardId),
     highScore: highScore.toLocaleString(),
     longestCombo: longestCombo.toLocaleString(),
-    ctaLabel: hasSavedState ? 'Continue' : 'Play',
-    ctaAriaLabel: hasSavedState ? 'Continue Stage' : 'Play Stage',
+    ...ctaCopy,
   };
+}
+
+/** A resumable board continues; any board without a live save starts fresh. */
+export function resolveJourneyCardCtaCopy(
+  hasSavedState: boolean,
+): Pick<JourneyCardOverlayModalViewModel, 'ctaLabel' | 'ctaAriaLabel'> {
+  if (hasSavedState) return { ctaLabel: 'Continue', ctaAriaLabel: 'Continue Stage' };
+  return { ctaLabel: 'Play', ctaAriaLabel: 'Play Stage' };
 }
 
 function waitForPaints(count = 1): Promise<void> {
@@ -1608,7 +1641,10 @@ export function presentJourneyCardOverlayModal(
     try { (window as any).triggerHapticImpact?.('medium'); } catch {}
   };
 
-  const startReturn = async (play: boolean): Promise<void> => {
+  const startReturn = async (
+    play: boolean,
+    artworkDragWithoutFlip = false,
+  ): Promise<void> => {
     if (!play) options.onPerformancePhase?.('dismiss-geometry-read-start');
     const source = readFrameGeometry();
     if (!play) options.onPerformancePhase?.('dismiss-geometry-read-complete');
@@ -1632,9 +1668,10 @@ export function presentJourneyCardOverlayModal(
     const exitAtMs = landingAtMs + JOURNEY_CARD_PLAY_LANDING_PUNCH_DURATION_MS;
     let exitNotified = false;
     const returnStartingFace = stableFace;
-    setRotorAngle(getJourneyCardReturnFlipAngle(0, returnStartingFace));
+    setRotorAngle(getJourneyCardReturnRotorAngle(0, returnStartingFace, artworkDragWithoutFlip));
     if (!play) options.onPerformancePhase?.('dismiss-return-flight-start');
-    playJourneyCardReturnFlipSounds();
+    if (artworkDragWithoutFlip) playJourneyCardManualFlipSound();
+    else playJourneyCardReturnFlipSounds();
     spatialFlight = startJourneyCardSpatialFlight({
       motionElement: spatialShell,
       baseGeometry: source,
@@ -1656,7 +1693,7 @@ export function presentJourneyCardOverlayModal(
           : rawProgress;
         setRotorAngle(prefersReducedMotion
           ? 0
-          : getJourneyCardReturnFlipAngle(travelProgress, returnStartingFace));
+          : getJourneyCardReturnRotorAngle(travelProgress, returnStartingFace, artworkDragWithoutFlip));
         if (!play) {
           // Compose the release pose into the spatial return and settle it only
           // while the card is already travelling toward its Unit.
@@ -1715,7 +1752,10 @@ export function presentJourneyCardOverlayModal(
   };
 
   let closeRequestProfiled = false;
-  const beginClose = async (value: JourneyCardOverlayModalResult) => {
+  const beginClose = async (
+    value: JourneyCardOverlayModalResult,
+    artworkDragWithoutFlip = false,
+  ) => {
     if (!closeRequestProfiled) {
       closeRequestProfiled = true;
       options.onPerformancePhase?.(`${value}-requested`);
@@ -1723,13 +1763,13 @@ export function presentJourneyCardOverlayModal(
     if (closing || settled) return;
     if (entering && spatialFlight) {
       await spatialFlight.result;
-      if (!settled) void beginClose(value);
+      if (!settled) void beginClose(value, artworkDragWithoutFlip);
       return;
     }
     if (flipping && flipAnimation) {
       const activeFlip = flipAnimation;
       try { await activeFlip.finished; } catch {}
-      if (!settled) void beginClose(value);
+      if (!settled) void beginClose(value, artworkDragWithoutFlip);
       return;
     }
     if (impactAnimation || dragPreviewSettleAnimation) {
@@ -1739,7 +1779,7 @@ export function presentJourneyCardOverlayModal(
         activeImpactSettle?.finished ?? Promise.resolve(),
         activePreviewSettle?.finished ?? Promise.resolve(),
       ]);
-      if (!settled) void beginClose(value);
+      if (!settled) void beginClose(value, artworkDragWithoutFlip);
       return;
     }
     freezeIdleCoachImpact();
@@ -1778,9 +1818,9 @@ export function presentJourneyCardOverlayModal(
     impactShell.style.transform = visibleImpactTransform;
     impactShell.style.translate = visibleImpactTranslate;
     stage.classList.remove('is-flipping', 'is-flipping-to-front', 'is-flipping-to-back', 'is-dragging', 'is-face-settling');
-    // Return flight is a real physical turn too. Keep both faces paintable so
-    // WebKit's backface owner cannot transiently cull the complete flip.
-    stage.classList.add('is-flipping', 'is-flipping-to-front');
+    // The artwork drag retains its front-facing design for the entire flight.
+    // All other exits keep their physical flip and WebKit face-paint owner.
+    if (!artworkDragWithoutFlip) stage.classList.add('is-flipping', 'is-flipping-to-front');
     stage.classList.add('is-exiting', 'is-backdrop-exiting');
     const returnEdgeAtMs = value === 'play'
       ? JOURNEY_CARD_PLAY_LAUNCH_BOUNCE_DURATION_MS + JOURNEY_CARD_PLAY_TRAVEL_DURATION_MS / 2
@@ -1791,7 +1831,7 @@ export function presentJourneyCardOverlayModal(
     if (value === 'dismiss') options.onPerformancePhase?.('dismiss-return-and-cta-start');
     await Promise.all([
       ctaController?.exit() ?? Promise.resolve(),
-      startReturn(value === 'play'),
+      startReturn(value === 'play', artworkDragWithoutFlip),
     ]);
     if (value === 'dismiss') options.onPerformancePhase?.('dismiss-return-and-cta-complete');
     settle(value);
@@ -2054,7 +2094,14 @@ export function presentJourneyCardOverlayModal(
     dragFlipProgress = canCommitDirection
       ? clamp01(Math.abs(deltaX) / handoffDistance)
       : 0;
-    const dragAngle = getJourneyCardDragFlipAngle(dragStartAngle, deltaX, dragViewportWidth);
+    const dragAngle = getJourneyCardDragPresentationAngle(
+      dragStartAngle,
+      deltaX,
+      deltaY,
+      dragViewportWidth,
+      dragAxis,
+      stableFace,
+    );
     setRotorAngle(dragAngle);
     queueLegendaryDragShine(dragAngle);
     // After one completed turn, continued travel in that same direction still
@@ -2134,7 +2181,11 @@ export function presentJourneyCardOverlayModal(
       clearLegendaryDragShine();
       event.preventDefault();
       event.stopPropagation();
-      void beginClose('dismiss');
+      if (stableFace === 'front' && deltaY > 0) {
+        void beginClose('dismiss', true);
+      } else {
+        void beginClose('dismiss');
+      }
       return;
     }
     if (!allowCommit) {

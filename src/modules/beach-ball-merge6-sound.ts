@@ -7,6 +7,11 @@ import {
   stopDecodedGameplayVoices,
 } from './gameplay-audio-buffer-player.ts';
 import {
+  beginCoreTntBonusImpactSoundSequence,
+  preloadCoreTntBonusImpactSounds,
+  stopCoreTntBonusImpactSounds,
+} from './core-tnt-merge6-sound.ts';
+import {
   REGULAR_MERGE6_BOOM_BASE_VOLUME,
   REGULAR_MERGE6_BOOM_SOUND_SOURCE,
   REGULAR_MERGE6_BOOM_VOLUME,
@@ -157,11 +162,13 @@ export function preloadBeachBallMerge6Sounds(): boolean {
   const ordinaryMergeReady = preloadRegularMerge6Sounds();
   const ballLayersReady = preloadDecodedGameplaySounds(BEACH_BALL_MERGE6_SOUND_SOURCES)
     || BEACH_BALL_MERGE6_SOUND_SOURCES.every((source) => getMediaAudio(source) !== null);
-  return ordinaryMergeReady && ballLayersReady;
+  const bonusImpactsReady = preloadCoreTntBonusImpactSounds();
+  return ordinaryMergeReady && ballLayersReady && bonusImpactsReady;
 }
 
 export function playBeachBallMerge6Sound(): boolean {
   if (!areBeachBallMerge6SoundsEnabled()) return false;
+  beginCoreTntBonusImpactSoundSequence();
   const foundationStarted = playSpecialMerge6FoundationSound();
   const decodedState = getDecodedGameplaySoundsState(BEACH_BALL_MERGE6_SOUND_SOURCES);
 
@@ -235,6 +242,7 @@ export function playBeachBallMerge6Sound(): boolean {
 export function stopBeachBallMerge6Sounds(): void {
   clearBall5StartTimer();
   stopRegularMerge6Sounds();
+  stopCoreTntBonusImpactSounds();
   stopDecodedGameplayVoices(BEACH_BALL_MERGE6_VOICE_IDS);
   mediaAudioBySource.forEach((audio) => {
     try {

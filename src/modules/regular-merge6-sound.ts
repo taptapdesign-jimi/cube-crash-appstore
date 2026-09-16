@@ -158,12 +158,12 @@ function startAudio(
   });
 }
 
-function playMerge6FoundationSound(volumeScale: number): boolean {
+function playMerge6FoundationSound(volumeScale: number, boomVolumeScale = 1): boolean {
   if (!areRegularMerge6SoundsEnabled()) return false;
   const safeVolumeScale = Math.max(0, Math.min(1, volumeScale));
   const primaryVolume = REGULAR_MERGE6_SOUND_VOLUME * safeVolumeScale;
   const crashVolume = REGULAR_MERGE6_CRASH_VOLUME * safeVolumeScale;
-  const boomVolume = REGULAR_MERGE6_BOOM_VOLUME * safeVolumeScale;
+  const boomVolume = Math.min(1, REGULAR_MERGE6_BOOM_VOLUME * safeVolumeScale * Math.max(0, boomVolumeScale));
   const stackVolume = REGULAR_MERGE6_STACK_VOLUME * safeVolumeScale;
 
   const decodedState = getDecodedGameplaySoundsState(REGULAR_MERGE6_SOUND_SOURCES);
@@ -248,8 +248,8 @@ export function playRegularMerge6Sound(): boolean {
   return playMerge6FoundationSound(1);
 }
 
-export function playSpecialMerge6FoundationSound(): boolean {
-  return playMerge6FoundationSound(SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE);
+export function playSpecialMerge6FoundationSound(boomVolumeScale = 1): boolean {
+  return playMerge6FoundationSound(SPECIAL_MERGE6_FOUNDATION_VOLUME_SCALE, boomVolumeScale);
 }
 
 export function stopRegularMerge6Sounds(): void {

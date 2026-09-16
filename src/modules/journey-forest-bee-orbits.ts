@@ -21,6 +21,8 @@ const FOREST_BEE_DIRECTION_FADE_SECONDS = 0.08;
 const FOREST_BEE_DIRECTION_STABILITY_SECONDS = 0.05;
 const FOREST_BEE_ROAM_RANGE_MULTIPLIER = 0.82;
 const FOREST_BEE_VISIBILITY_MARGIN_PX = 180;
+const FOREST_MAIN_AREA_SIZE_SCALE = 0.5;
+const FOREST_MAIN_AREA_SIZE_RECOVERY_PX = 40;
 const FOREST_BEE_DEPTH_SCALES = Object.freeze([0.65, 0.7, 0.8, 0.9, 1] as const);
 const FOREST_UNIT_DUPLICATE_LANES = Object.freeze([2, 4, 5, 7] as const);
 const FOREST_BEE_ASSET_BASE = './assets/shop/honey';
@@ -39,6 +41,7 @@ interface ForestBeeGateGeometry {
   bottomY: number;
   leftPineX: number;
   rightPineX: number;
+  mainBottomY: number;
 }
 
 const FOREST_BEE_FALLBACK_GATE_GEOMETRY: ForestBeeGateGeometry = Object.freeze({
@@ -50,6 +53,7 @@ const FOREST_BEE_FALLBACK_GATE_GEOMETRY: ForestBeeGateGeometry = Object.freeze({
   bottomY: 85,
   leftPineX: 103,
   rightPineX: 287,
+  mainBottomY: 334,
 });
 
 const FOREST_BEE_ASSETS = Object.freeze(
@@ -179,6 +183,14 @@ function centered(random: () => number): number {
   return (sample(random) * 2) - 1;
 }
 
+export function getJourneyForestBeeMainAreaSizeScale(sceneY: number, mainBottomY: number): number {
+  return FOREST_MAIN_AREA_SIZE_SCALE + ((1 - FOREST_MAIN_AREA_SIZE_SCALE) * clamp(
+    (sceneY - mainBottomY) / FOREST_MAIN_AREA_SIZE_RECOVERY_PX,
+    0,
+    1,
+  ));
+}
+
 function resolveForestGateGeometry(options: StartJourneyForestBeeOrbitsOptions): ForestBeeGateGeometry {
   const main = options.root.querySelector<HTMLElement>(
     '.journey-forest-main-art:not(.journey-beach-main-art):not(.journey-robo-main-art)',
@@ -215,6 +227,7 @@ function resolveForestGateGeometry(options: StartJourneyForestBeeOrbitsOptions):
     bottomY: toSceneY(85),
     leftPineX: toSceneX(103),
     rightPineX: toSceneX(287),
+    mainBottomY: toSceneY(350),
   };
 }
 
@@ -725,8 +738,12 @@ export function startJourneyForestBeeOrbits(
       const entryScale = bee.plan.edgeRoute === 'forest-gate' && bee.plan.phase === 'entry'
         ? 0.5 + (0.5 * clamp(progress / 0.5, 0, 1))
         : 1;
-      const scaleX = bee.plan.scale * entryScale * (1 + (bounceWave * 0.045 * FOREST_BEE_BOUNCE_GAIN));
-      const scaleY = bee.plan.scale * entryScale * (1 - (bounceWave * 0.035 * FOREST_BEE_BOUNCE_GAIN));
+      // Gate entry already begins at half-size. Keep that authored start while
+      // every bee in the upper Forest Main area remains half its usual size.
+      const areaScale = getJourneyForestBeeMainAreaSizeScale(bee.sample[1], gateGeometry.mainBottomY);
+      const sizeScale = Math.min(entryScale, areaScale);
+      const scaleX = bee.plan.scale * sizeScale * (1 + (bounceWave * 0.045 * FOREST_BEE_BOUNCE_GAIN));
+      const scaleY = bee.plan.scale * sizeScale * (1 - (bounceWave * 0.035 * FOREST_BEE_BOUNCE_GAIN));
 
       if (bee.plan.edgeRoute === 'forest-gate') {
         const beeCenterX = bee.sample[0] + ((bee.plan.width * bee.plan.scale) / 2);

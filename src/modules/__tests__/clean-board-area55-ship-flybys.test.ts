@@ -56,17 +56,54 @@ describe('Clean Board Area 55 ship flybys', () => {
     expect(first.endEdge).toBe('right');
     expect(second.startEdge).toBe('left');
     expect(second.endEdge).toBe('bottom');
-    expect(first.keyframes).toHaveLength(10);
+    expect(first.keyframes).toHaveLength(28);
     expect(first.keyframes[0]).toMatchObject({ offset: 0, opacity: 0 });
     expect(first.keyframes[1]).toMatchObject({ offset: 0.16, opacity: 0.7 });
-    expect(first.keyframes[7]).toMatchObject({ offset: 0.85 });
-    expect(first.keyframes[8]).toMatchObject({ offset: 0.92, easing: 'cubic-bezier(.22,.61,.36,1)' });
-    expect(first.keyframes[9]).toMatchObject({ offset: 1, opacity: 0 });
+    expect(first.keyframes[25]).toMatchObject({ offset: 0.85 });
+    expect(first.keyframes[26]).toMatchObject({ offset: 0.92, easing: 'cubic-bezier(.22,.61,.36,1)' });
+    expect(first.keyframes[27]).toMatchObject({ offset: 1, opacity: 0 });
     expect(first.keyframes.map((frame) => frame.transform).join(' ')).toContain('scale(');
     expect(first.keyframes.map((frame) => frame.transform).join(' ')).toContain('-112.0px');
     expect(first.durationMs).toBe(CLEAN_BOARD_CONFETTI_MAX_RUNTIME_MS);
     expect(second.durationMs).toBe(CLEAN_BOARD_CONFETTI_MAX_RUNTIME_MS);
     expect(first.keyframes).not.toEqual(second.keyframes);
+  });
+
+  test('each settled interior waypoint briefly bobs, slides and rotates before flight resumes', () => {
+    const plan = createCleanBoardArea55ShipFlightPlan({
+      depth: 'front',
+      viewportWidth: 390,
+      viewportHeight: 844,
+      random: () => 0.5,
+    });
+    const offsets = plan.keyframes.map((frame) => frame.offset);
+    const parse = (frame: Keyframe) => {
+      const transform = String(frame.transform);
+      const match = transform.match(/translate3d\((-?[\d.]+)px, (-?[\d.]+)px, 0\) rotate\((-?[\d.]+)deg\)/);
+      expect(match).not.toBeNull();
+      return { x: Number(match![1]), y: Number(match![2]), rotation: Number(match![3]) };
+    };
+
+    for (const anchorOffset of [0.16, 0.29, 0.42, 0.55, 0.68, 0.79]) {
+      const anchorIndex = offsets.indexOf(anchorOffset);
+      expect(anchorIndex).toBeGreaterThan(0);
+      expect(offsets.slice(anchorIndex, anchorIndex + 4)).toEqual([
+        anchorOffset, anchorOffset + 0.008, anchorOffset + 0.018, anchorOffset + 0.03,
+      ]);
+      const anchor = parse(plan.keyframes[anchorIndex]);
+      const riseRight = parse(plan.keyframes[anchorIndex + 1]);
+      const fallLeft = parse(plan.keyframes[anchorIndex + 2]);
+      const settled = parse(plan.keyframes[anchorIndex + 3]);
+      expect(riseRight.x - anchor.x).toBeCloseTo(2, 1);
+      expect(riseRight.y - anchor.y).toBeCloseTo(-2, 1);
+      expect(riseRight.rotation - anchor.rotation).toBeCloseTo(1.6, 1);
+      expect(fallLeft.x - anchor.x).toBeCloseTo(-2, 1);
+      expect(fallLeft.y - anchor.y).toBeCloseTo(1.5, 1);
+      expect(fallLeft.rotation - anchor.rotation).toBeCloseTo(-1.4, 1);
+      expect(settled).toEqual(anchor);
+      expect(plan.keyframes[anchorIndex + 3].easing).toBe('cubic-bezier(.45,.05,.25,1)');
+    }
+    expect(offsets).toEqual([...offsets].sort((a, b) => Number(a) - Number(b)));
   });
 
   test('runs exactly one confetti-length animation for each depth layer', () => {

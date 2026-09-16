@@ -11,8 +11,15 @@ import {
   JOURNEY_WORLD_DEFINITIONS,
   JOURNEY_WORLD_SIZE,
 } from '../journey-world-definitions';
+import { JOURNEY_FOREST_MAIN_ASSET, JOURNEY_FOREST_MAIN_ASSET_2X } from '../journey-forest-main-assets';
 
 describe('Journey world definitions', () => {
+  test('uses the fixed Forest World artwork on its Journey Worlds card too', () => {
+    const forest = getJourneyWorldDefinition(1);
+    expect(forest?.asset).toBe(JOURNEY_FOREST_MAIN_ASSET);
+    expect(forest?.asset2x).toBe(JOURNEY_FOREST_MAIN_ASSET_2X);
+  });
+
   test('keeps stable gameplay ids while owning Hub presentation order as data', () => {
     expect(JOURNEY_WORLD_DEFINITIONS.map(world => world.id)).toEqual([1, 2, 3]);
     expect(JOURNEY_HUB_WORLD_DEFINITIONS.map(world => world.id)).toEqual([1, 3, 2]);

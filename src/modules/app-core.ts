@@ -16,8 +16,10 @@ import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.ts';
 import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildJuiceMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, showMultiplierTile, smokeBubblesAtTile, prewarmWildSmokeGraphicsPool, screenShake, wildImpactEffect, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildJuiceBubbles, stopWildJuiceBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, cleanupAllTntIdleEffects, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, cleanupAllFxContainers, cleanupFxContainersByTag, cleanupExistingStarAnimations, forceCleanupAllStarAnimations, animateStarsToHudIcon } from './fx.ts';
 import { showWildJuiceBubblesExplosion, stopWildJuiceBubblesExplosion, forceStopWildJuiceBubblesExplosion, isWildJuiceBubblesExplosionActive, isWildJuiceBubblesExplosionRecentlyStarted, isWildJuiceFinaleAnimationActive, waitForBubblesExplosionToComplete, destroyWildJuiceBubblesExplosionCache } from './wild-juice-bubbles-explosion.ts';
+import { preloadJuiceFinalePropTextures } from './juice-finale-prop-flight.ts';
+import { preloadJuiceMerge6Sounds, stopJuiceMerge6Sounds } from './juice-finale-sound.ts';
 import { showMagneticText, isMagneticTextActive, waitForMagneticTextComplete, stopMagneticText, showSparkleText, stopSparkleText, isSparkleTextActive, waitForSparkleTextComplete, showNoMovesText, exitNoMovesText, clearNoMovesText } from './splash-text-overlay.ts';
-import { showTntAnimation, stopTntAnimation, onTntBoomExitComplete, onTntAnimationComplete, preloadTntFrames, isTntAnimationActive, releaseTntGameplayInputGate } from './tnt-animation.ts';
+import { showTntAnimation, stopTntAnimation, onTntBoomExitComplete, onTntAnimationComplete, preloadTntFrames, isTntAnimationActive, releaseTntGameplayInputGate, TNT_SMOKE_FIRST_FRAME_START_SECONDS } from './tnt-animation.ts';
 import {
   cancelActiveLaserGunFinaleImpact,
   completeActiveLaserGunFinaleImpacts,
@@ -87,7 +89,7 @@ import { ForegroundResumeEpoch } from './foreground-resume-epoch.ts';
 import { createHudHelpers } from './app-core-hud-helpers.ts';
 import type { Tile, Board, Grid, HUD as HUDType, Stage as StageType, Drag } from '../types/game-types.js';
 import type { RuntimeGameBridge } from '../types/runtime-game-bridge.ts';
-import { getArcadeSaveKey, getBoardSaveKey } from '../utils/board-save-utils.js';
+import { clearPendingArcadeRoundIfCovered, getArcadeSaveKey, getArcadeSavedRound, getBoardSaveKey, hasArcadePersistedBoardState, protectCompletedJourneyBoardSave } from '../utils/board-save-utils.js';
 import {
   isNoMovesNavigationLocked,
   setNoMovesNavigationLocked,
@@ -235,6 +237,13 @@ import {
   stopCoreTntMerge6Sound,
 } from './core-tnt-merge6-sound.ts';
 import {
+  isBarrelMerge6SoundEvent,
+  playBarrelMerge6Sound,
+  playBarrelPlanksAfterAnimationStart,
+  playBarrelSmokePoofSound,
+  stopBarrelMerge6Sounds,
+} from './barrel-merge6-sound.ts';
+import {
   isFlowerMerge6SoundEvent,
   FLOWER_MERGE6_LEAVES_START_RATIO,
   playFlowerMerge6Sound,
@@ -304,7 +313,7 @@ import {
   prepareFinalResidualTargets,
 } from './final-residual-visual-targets.ts';
 import { bindTileWithFallbackCore } from './app-core-bind.ts';
-import { saveAfterBoardStart } from './app-core-startlevel-save.ts';
+import { saveAfterBoardStart, saveArcadeRoundAfterEntry } from './app-core-startlevel-save.ts';
 import { runStartLevelPost } from './app-core-startlevel-post.ts';
 import { maybeRebuildBoard } from './app-core-startlevel-rebuild.ts';
 import { adaptSpawnBounce, OpenCellCancelledError, openAtCellCore } from './app-core-open-cell.ts';
@@ -340,6 +349,7 @@ import {
   getSpecialDiceSplashLetterColors,
   getSpecialDiceJuiceDropProfile,
   getSpecialDiceSplashOptions,
+  getSpecialDiceFaceAnchorY,
   getSpecialDiceTexturePath,
   getSpecialDiceVisualConfig,
   getSpecialDiceVariant,
@@ -350,7 +360,7 @@ import {
   isSpecialDiceMagnetLikeTile,
   isSpecialDiceStarLikeTile,
   isSpecialDiceTntLikeTile,
-  pickBeachWildSlot,
+  pickBeachWildSlotForSpawn,
   pickSpecialDiceVariantForWildSpawn,
 } from './special-dice-registry.ts';
 import { animateWildSpawnDropFromMeter, cleanupWildSpawnDropAnimations, preloadWildSpawnDropAssets } from './wild-spawn-drop.ts';
@@ -841,6 +851,7 @@ function repairBoardTileVisuals(reason = 'unknown'): void {
         base.alpha = 1;
         const faceSize = special === 'wild-magnet' ? TILE * 0.96 : TILE;
         const specialVisual = getSpecialDiceVisualConfig(t);
+        base.anchor?.set?.(0.5, getSpecialDiceFaceAnchorY(t, base));
         if (specialVisual?.visualWidth && specialVisual?.visualHeight) {
           base.width = specialVisual.visualWidth;
           base.height = specialVisual.visualHeight;
@@ -2544,11 +2555,15 @@ function logRuntimeStats(reason: string = 'unknown'): void {
 
 function cleanupFxForBoardReset(reason: string = 'unknown') {
   devLog('🧹 cleanupFxForBoardReset:', reason);
+  // Audio must stop immediately even when a recently started Juice visual
+  // finale is retained briefly by the board-transition safety guard below.
+  try { stopJuiceMerge6Sounds(); } catch {}
   try { stopRegularMerge6Sounds(); } catch {}
   try { stopWildStarMerge6Sound(); } catch {}
   try { stopFishMerge6Sounds(); } catch {}
   try { stopBeachBallMerge6Sounds(); } catch {}
   try { stopCoreTntMerge6Sound(); } catch {}
+  try { stopBarrelMerge6Sounds(); } catch {}
   try { stopFlowerMerge6Sounds(); } catch {}
   try { stopBottleFinaleSounds(); } catch {}
   try { stopBottlePullMergeSounds(); } catch {}
@@ -5788,16 +5803,31 @@ function releaseBoardTransitionCoverAfterPreparedFrame(gameplayGeneration: numbe
   });
 }
 
-export async function recoverFreshArcadeEntryAfterFailedLoad(): Promise<void> {
+export async function recoverFreshArcadeEntryAfterFailedLoad(
+  round = 1,
+  carriedScore = 0,
+): Promise<void> {
   delete (window as any).__ccSkipRebuildBoard;
   delete (window as any).__ccArcadeContinuationCueRound;
   cancelGameplayEntryPreparation();
   cancelArcadeEntryCueOwner();
   cancelArcadeEntrySurfaceGate();
-  await startLevel(1);
+  if (round > 1) {
+    (window as any).__ccPreserveScore = carriedScore;
+    (window as any).__ccArcadeStageContinuePreserveWild = true;
+    (window as any).__ccArcadeStageWildMeterCarryover = 0.25;
+  }
+  try {
+    await startLevel(round);
+  } finally {
+    delete (window as any).__ccPreserveScore;
+    delete (window as any).__ccArcadeStageContinuePreserveWild;
+    delete (window as any).__ccArcadeStageWildMeterCarryover;
+  }
 }
 function rebuildBoard(){
   const gameplayEntryGeneration = activeGameplayEntryGeneration;
+  const entryBoardNumber = boardNumber;
   let gameplayEntrySignal: AbortSignal | null = null;
   const arcadeEntryCueRound = isArcadeHomeRunMode()
     ? Math.max(0, Math.trunc(Number((window as any).__ccArcadeContinuationCueRound) || 0))
@@ -5942,6 +5972,22 @@ function rebuildBoard(){
     (signal) => {
       gameplayEntrySignal = signal;
       if (signal.aborted) return;
+      // The freshly built Arcade board is already logically complete here.
+      // Persist it before the first visible frame so a hard exit during cube
+      // pop-in cannot restore the cleared previous Round. The old terminal
+      // handoff guard still owns the previous board, so this one checkpoint
+      // explicitly saves the new entry snapshot.
+      saveArcadeRoundAfterEntry({
+        boardNumber: entryBoardNumber,
+        isArcade: isArcadeHomeRunMode(),
+        isCurrentEntry: () =>
+          isGameplayEntryGenerationLatest(gameplayEntryGeneration) && boardNumber === entryBoardNumber,
+        saveGameState: () => saveGameState({ freshArcadeEntry: true }),
+        readSavedRound: getArcadeSavedRound,
+        isSavedStateResumable: hasArcadePersistedBoardState,
+        onCommitted: () => clearPendingArcadeRoundIfCovered(entryBoardNumber),
+        devLog,
+      });
       revealPreparedGameplaySurface();
       playJourneyForestGameplaySound({
         boardNumber,
@@ -5971,6 +6017,17 @@ function rebuildBoard(){
       devError,
       hudDropPending: _hudDropPending,
       setHudDropPending: (v) => { _hudDropPending = v; },
+    });
+    saveArcadeRoundAfterEntry({
+      boardNumber: entryBoardNumber,
+      isArcade: isArcadeHomeRunMode(),
+      isCurrentEntry: () =>
+        isGameplayEntryGenerationLatest(gameplayEntryGeneration) && boardNumber === entryBoardNumber,
+      saveGameState,
+      readSavedRound: getArcadeSavedRound,
+      isSavedStateResumable: hasArcadePersistedBoardState,
+      onCommitted: () => clearPendingArcadeRoundIfCovered(entryBoardNumber),
+      devLog,
     });
     // Allocate the Wild smoke pool only after board enter settles. Small
     // tracked batches keep this warmup away from both intro and merge frames;
@@ -6322,6 +6379,11 @@ async function startLevel(n): Promise<void> {
   // first reward must not begin decoding its entrance only after the meter is
   // already visibly full.
   void preloadWildSpawnDropAssets();
+  // Warm the small Juice finale props for every gameplay route. It is
+  // nonblocking and becomes a cache no-op on later board starts.
+  void preloadJuiceFinalePropTextures();
+  // Decode the Juice-only finale cues before its first Wild Meter drop.
+  void preloadJuiceMerge6Sounds();
   preloadWildSpecialLandingSound();
   preloadNoMovesSound();
   // Retire every callback/wait owned by the previous board before the new
@@ -6912,7 +6974,9 @@ async function spawnWildFromMeter(){
         specialDiceVariantId = null;
       }
       const isBeachJourneyBoard = !isArcadeHomeRunMode() && boardNumber >= 12 && boardNumber <= 20;
-      const beachWildSlot = isBeachJourneyBoard ? pickBeachWildSlot() : undefined;
+      const beachWildSlot = isBeachJourneyBoard
+        ? pickBeachWildSlotForSpawn(boardNumber, wildSpawnCount)
+        : undefined;
       if (isBeachJourneyBoard) {
         spawnJuice = beachWildSlot === 1 || beachWildSlot === 2;
         spawnMagnet = false;
@@ -7428,6 +7492,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 	        dropProfile: getSpecialDiceJuiceDropProfile(variant),
 	        spritePaths: getSpecialDiceExplosionSpriteSources(variant),
 	        accentSpritePaths: getSpecialDiceFinaleAccentSpriteSources(variant),
+	        showJuiceProps: !variant,
 	        inputReleaseAtRatio: getSpecialDiceInputReleaseAtRatio(variant),
 	        gameplayReleaseAtSpawnRatio: getSpecialDiceGameplayReleaseAtSpawnRatio(variant),
 	      });
@@ -8381,6 +8446,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       dstSpecialDiceVariantId: dstSpecialVariantAtMergeEntry?.id,
     })) {
       playCoreTntMerge6Sound();
+    }
+    if (isBarrelMerge6SoundEvent({
+      effectiveSum: effSum,
+      srcSpecialDiceVariantId: srcSpecialVariantAtMergeEntry?.id,
+      dstSpecialDiceVariantId: dstSpecialVariantAtMergeEntry?.id,
+    })) {
+      playBarrelMerge6Sound();
     }
     if (isFlowerMerge6SoundEvent({
       effectiveSum: effSum,
@@ -10100,7 +10172,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       : undefined;
     const tntAnimationOptionsForMerge = {
       ...(tntVisualOptionsForMerge || {}),
-      diceDebris: tntVariantForMerge == null,
+      diceDebris: tntVariantForMerge == null || tntVariantForMerge?.id === 'barell',
+      diceAvoidImageDebris: tntVariantForMerge?.id === 'barell',
+      debrisScale: tntVariantForMerge?.id === 'barell' ? 0.7 : 1,
     };
     const tntFramesReadyForMerge =
       srcSpecial === 'wild-tnt' || dstSpecial === 'wild-tnt'
@@ -10821,13 +10895,17 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 	                        ? tntVisualOptionsForMerge?.burstSources
 	                        : undefined,
 	                      bonusParticleScale: tntVariantForMerge?.id === 'flower' ? 1.4 : 1,
-	                      initialImpactDelayMs: tntVariantForMerge?.id === 'flower' ? 700 : 0,
+	                      initialImpactDelayMs: tntVariantForMerge?.id === 'flower'
+	                        ? 700
+	                        : tntVariantForMerge?.id === 'barell'
+	                          ? 200
+	                          : 0,
 	                      impactProfile: tntVariantForMerge?.id === 'beach-ball'
 	                        ? 'beach-ball'
 	                        : tntVariantForMerge?.id === 'laser-gun'
 	                          ? 'laser-gun'
 	                          : 'standard',
-	                      onImpact: tntVariantForMerge && tntVariantForMerge.id !== 'flower'
+	                      onImpact: tntVariantForMerge && tntVariantForMerge.id !== 'flower' && tntVariantForMerge.id !== 'barell' && tntVariantForMerge.id !== 'beach-ball'
 	                        ? undefined
 	                        : (impactIndex) => {
 	                            if (tntBonusSoundRunGeneration !== gameplayRunGeneration) return;
@@ -10867,10 +10945,17 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 	                  },
 	                  spriteSequenceProgressRatio: tntVariantForMerge?.id === 'flower'
 	                    ? FLOWER_MERGE6_LEAVES_START_RATIO
+	                    : tntVariantForMerge?.id === 'barell'
+	                      ? 0.5
+	                      : undefined,
+	                  spriteSequenceProgressStartSeconds: tntVariantForMerge?.id === 'barell'
+	                    ? TNT_SMOKE_FIRST_FRAME_START_SECONDS
 	                    : undefined,
 	                  onSpriteSequenceProgress: tntVariantForMerge?.id === 'flower'
 	                    ? () => playFlowerMerge6LeavesSound()
-	                    : undefined,
+	                    : tntVariantForMerge?.id === 'barell'
+	                      ? () => playBarrelSmokePoofSound()
+	                      : undefined,
 	                  onSpriteSequenceComplete: () => {
 	                    if (tntVariantForMerge?.id === 'flower') {
 	                      playFlowerMerge6SparkSound();
@@ -10878,7 +10963,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 	                    completeTntVisibleSequence('visible-sequence-complete');
 	                  }
 	                });
-                if (tntOverlay) alsoShakeTargets.push(tntOverlay);
+                if (tntOverlay) {
+                  alsoShakeTargets.push(tntOverlay);
+                  if (tntVariantForMerge?.id === 'barell') playBarrelPlanksAfterAnimationStart();
+                }
 	              } else {
 	                // A custom TNT archetype (Beach Ball) owns another visual
 	                // engine. These bounded guards prevent asset/start failures
@@ -11058,6 +11146,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   zIndex: 9993,
                   color: getSpecialDiceShardColor(wildTntVariant),
                   colors: wildTntShardColors,
+                  sizeScale: wildTntVariant?.id === 'barell' ? 0.7 : 1,
                 });
                 devLog('💥 Wild-TNT special merge 6 - using variant shard palette', {
                   variant: wildTntVariant?.id,
@@ -11151,6 +11240,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   dropProfile: getSpecialDiceJuiceDropProfile(wildJuiceVariantForExplosion),
                   spritePaths: getSpecialDiceExplosionSpriteSources(wildJuiceVariantForExplosion),
                   accentSpritePaths: getSpecialDiceFinaleAccentSpriteSources(wildJuiceVariantForExplosion),
+                  showJuiceProps: !wildJuiceVariantForExplosion,
                   inputReleaseAtRatio: getSpecialDiceInputReleaseAtRatio(wildJuiceVariantForExplosion),
                   gameplayReleaseAtSpawnRatio: getSpecialDiceGameplayReleaseAtSpawnRatio(wildJuiceVariantForExplosion),
                   onGameplayRelease: triggerTntGameplayAtVisualCommit
@@ -16002,10 +16092,11 @@ export function cleanupGame(options: { destroyRenderer?: boolean } = {}) {
   // 🔥 BUBBLES ANIMATION FIX: Always cleanup to prevent stale state (even if flag says inactive)
   // 🔥 STARS ANIMATION FIX: Cleanup stars-to-HUD animations to prevent memory leaks
   try {
-    if (typeof isWildJuiceBubblesExplosionActive === 'function' && typeof stopWildJuiceBubblesExplosion === 'function') {
+    if (typeof isWildJuiceBubblesExplosionActive === 'function' && typeof forceStopWildJuiceBubblesExplosion === 'function') {
       const wasActive = isWildJuiceBubblesExplosionActive();
-      // Always cleanup (even if flag says inactive) to handle stale containers/flags
-      stopWildJuiceBubblesExplosion();
+      // Hard exit must bypass the first-100ms guarded stop before pooled
+      // sprites are destroyed; board-transition cleanup keeps its own guard.
+      forceStopWildJuiceBubblesExplosion();
       if (wasActive) {
         devLog('✅ Wild juice explosion cleaned up in cleanupGame()');
       } else {
@@ -16238,9 +16329,17 @@ function hasUnsavableTransientGameplayState(): boolean {
   return false;
 }
 
-function saveGameState() {
+function saveGameState(options: { freshArcadeEntry?: boolean } = {}) {
   try {
     syncSharedState();
+    // Only rebuildBoard's current prepared Arcade entry may request this.
+    // A new board has no gameplay transaction to preserve; busyEnding and
+    // entrance tweens still describe the previous terminal handoff/visuals.
+    const freshArcadeEntry = options.freshArcadeEntry === true && isArcadeHomeRunMode();
+    if (!isArcadeHomeRunMode() && protectCompletedJourneyBoardSave(boardNumber)) {
+      devLog(`[CC_JOURNEY_TERMINAL_SAVE] board ${boardNumber} late save vetoed`);
+      return;
+    }
     
     // DEBUG: Log current state
     devLog('💾 saveGameState called:', {
@@ -16255,9 +16354,9 @@ function saveGameState() {
     if (!canSaveGameState({
       boardNumber,
       userMadeMove: !!(window as any)._userMadeMove,
-      gameHasEnded: !!(window as any)._gameHasEnded,
+      gameHasEnded: !freshArcadeEntry && !!(window as any)._gameHasEnded,
       gridReady: Array.isArray(grid) && grid.length > 0,
-      gameplayTransientBusy: hasUnsavableTransientGameplayState(),
+      gameplayTransientBusy: !freshArcadeEntry && hasUnsavableTransientGameplayState(),
       runMode: (window as any).__ccRunMode ?? null,
       cameFromJourney: (window as any).__ccCameFromJourney === true
         || localStorage.getItem('__ccCameFromJourney') === 'true',
@@ -16278,6 +16377,7 @@ function saveGameState() {
       grid,
       devLog,
       devWarn,
+      allowPreparedEntryHiddenTiles: freshArcadeEntry,
     });
 
     // 🔥 CRITICAL FIX: Get stars count from stars collector before saving
@@ -16323,6 +16423,7 @@ async function loadGameState(overrideBoardNumber?: number) {
     const saved = loadSavedBoardState({
       boardNumber: boardToLoad,
       getBoardSaveKey: isArcadeHomeRunMode() ? getArcadeSaveKey : getBoardSaveKey,
+      isArcade: isArcadeHomeRunMode(),
       devLog,
       devWarn
     });

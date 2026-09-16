@@ -229,7 +229,7 @@ test('archetype preserves TNT finale when generic special field is missing', () 
   expect(isSpecialDiceTntLikeTile(tnt)).toBe(true);
 });
 
-test('Forest progression introduces Bee 02, Flower 03, Honey 04, Mushroom 06 and TNT 07', () => {
+test('Forest progression introduces Bee 02, Flower 03, Honey 04, Mushroom 06 and Barrel 07', () => {
   expect(pickSpecialDiceVariantForWildSpawn({
     isArcade: false,
     journeyBoard: 1,
@@ -325,12 +325,19 @@ test('Forest progression introduces Bee 02, Flower 03, Honey 04, Mushroom 06 and
     './assets/shop/mushroom/mushroom5.png',
   ]);
 
-  // TNT is the core texture, not a collectible skin, so its variant is null.
+  // Barrel is the guaranteed first Stage 07 reward; core TNT remains in the
+  // Stage 07 cumulative pool on later rolls without a collectible skin.
   expect(pickSpecialDiceVariantForWildSpawn({
     isArcade: false,
     journeyBoard: 7,
     wildSpawnCount: 0,
     worldIntroRoll: 0,
+  })).toMatchObject({ id: 'barell', archetype: 'wild-tnt' });
+  expect(pickSpecialDiceVariantForWildSpawn({
+    isArcade: false,
+    journeyBoard: 7,
+    wildSpawnCount: 1,
+    worldIntroRoll: 0.85,
   })).toBeNull();
 });
 
@@ -364,12 +371,12 @@ test('later Forest Stages keep only earned Forest skins and never generic visual
   })).toMatchObject({ id: 'honey' });
 });
 
-test('Arcade Round 01 drops Beach Ball first and Bottle second without Cubero', () => {
-  expect([0, 1, 2].map((wildSpawnCount) => pickSpecialDiceVariantForWildSpawn({
+test('Arcade Round 01 drops Beach Ball, Bottle, then Barrel for visual testing', () => {
+  expect([0, 1, 2, 3].map((wildSpawnCount) => pickSpecialDiceVariantForWildSpawn({
     isArcade: true,
     arcadeStage: 1,
     wildSpawnCount,
-  })?.id ?? null)).toEqual(['beach-ball', 'bottle', null]);
+  })?.id ?? null)).toEqual(['beach-ball', 'bottle', 'barell', null]);
 
   expect(pickSpecialDiceVariantForWildSpawn({
     isArcade: true,

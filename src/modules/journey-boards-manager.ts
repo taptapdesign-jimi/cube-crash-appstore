@@ -29,6 +29,7 @@ import {
   JOURNEY_MAX_BOARDS,
 } from './journey-world-definitions.js';
 import { JourneyHubRuntimeScheduler } from './journey-hub-runtime-scheduler.js';
+import { JOURNEY_FOREST_MAIN_ASSET, JOURNEY_FOREST_MAIN_ASSET_2X } from './journey-forest-main-assets.js';
 import {
   canPresentJourneyCardReturnReminder,
   cancelJourneyCardOverlayReturn,
@@ -111,6 +112,7 @@ import { hideHomepageNavigation } from './navigation-control.js';
 import {
   preloadJourneyCardOverlayAssets,
   presentJourneyCardOverlayModal,
+  resolveJourneyCardCtaCopy,
   type JourneyCardOverlayModalController,
 } from './journey-card-overlay-modal.js';
 import {
@@ -163,6 +165,7 @@ import { preloadFishMerge6Sounds } from './fish-merge6-sound.ts';
 import { preloadFishFinaleBubbles } from './fish-finale-bubbles.ts';
 import { preloadBeachBallMerge6Sounds } from './beach-ball-merge6-sound.ts';
 import { preloadCoreTntMerge6Sound } from './core-tnt-merge6-sound.ts';
+import { preloadBarrelMerge6Sounds } from './barrel-merge6-sound.ts';
 import { preloadFlowerMerge6Sounds } from './flower-merge6-sound.ts';
 import { preloadBeeMerge6Sounds } from './bee-merge6-sound.ts';
 import { preloadRoboCubeMerge6Sounds } from './robo-cube-merge6-sound.ts';
@@ -3357,7 +3360,9 @@ class JourneyBoardsManager {
       if (!this.journeyMainCloudCompositeCache.has(1)) {
         addMainClouds(1, 'forest', forestMainCloudUnit);
       }
-      mainTargets.push(addImage(`${FOREST_WORLD_ASSET_BASE}/Forest main.png`, 0, -32, 390, 'journey-forest-main-art', 3, 0, 'forest-main'));
+      const forestMain = addImage(JOURNEY_FOREST_MAIN_ASSET, 0, -32, 390, 'journey-forest-main-art', 3, 0, 'forest-main');
+      forestMain.srcset = `${encodeURI(JOURNEY_FOREST_MAIN_ASSET_2X)} 2x`;
+      mainTargets.push(forestMain);
       addForestBoardGroup(1, 4, 284, 200, -10, -4, 0, 0, [4, 3, 6]);
       addForestBoardGroup(2, 190, 374, 200, -12, -6, 0, 0, [4, 5, 6]);
       addForestBoardGroup(3, 18, 484, 200, -10, -4, 0, 0, [7, 6]);
@@ -6860,6 +6865,7 @@ class JourneyBoardsManager {
       image.decoding = 'async';
       image.loading = worldIndex < JOURNEY_HUB_EAGER_WORLD_COUNT ? 'eager' : 'lazy';
       image.src = meta.asset;
+      if (meta.asset2x) image.srcset = `${encodeURI(meta.asset2x)} 2x`;
       image.setAttribute('aria-hidden', 'true');
       image.className = 'journey-v700-world-image';
       tiltShell.appendChild(image);
@@ -8535,6 +8541,13 @@ class JourneyBoardsManager {
     }
   }
 
+  private getForestMainArtForEntry(container: HTMLElement, worldId: number): HTMLImageElement | null {
+    if (worldId !== 1) return null;
+    return container.querySelector<HTMLImageElement>(
+      '.journey-forest-main-art:not(.journey-beach-main-art):not(.journey-robo-main-art)',
+    );
+  }
+
   private reconcileMountedJourneyWorldCardUnits(
     container: HTMLElement,
     worldId: number,
@@ -8681,6 +8694,7 @@ class JourneyBoardsManager {
       waitForImages?: boolean;
     } = {}
   ): void {
+    const forestMain = this.getForestMainArtForEntry(container, worldId);
     const units = this.getJourneyV700AnimationUnits(container, worldId, {
       lastBoardId: options.lastBoardId ?? this.getLastActiveJourneyBoardAreaId(),
     });
@@ -8775,7 +8789,7 @@ class JourneyBoardsManager {
         : Array.from(target.querySelectorAll<HTMLImageElement>('img'))
     ))));
     const imageReadiness = options.waitForImages === false
-      ? Promise.resolve()
+      ? (forestMain ? waitForImageReady(forestMain) : Promise.resolve())
       : Promise.all(images.map((image) => waitForImageReady(image))).then(() => undefined);
     void imageReadiness.then(async () => {
       if (
@@ -12752,8 +12766,7 @@ class JourneyBoardsManager {
         // Exit-without-a-move already clears this save, so reopening the card
         // correctly returns to Play without another UI-specific flag.
         const boardHasSavedState = hasResumableSavedStateForBoard(board.id, { clearInvalid: true });
-        const buttonText = boardHasSavedState ? 'Continue' : 'Play';
-        const ariaLabel = boardHasSavedState ? 'Continue Stage' : 'Play Stage';
+        const { ctaLabel: buttonText, ctaAriaLabel: ariaLabel } = resolveJourneyCardCtaCopy(boardHasSavedState);
         
         logger.debug(`🎮 Board ${board.id} button will show: "${buttonText}"`, { hasSavedState: boardHasSavedState });
         
@@ -12812,6 +12825,7 @@ class JourneyBoardsManager {
           preloadFishFinaleBubbles();
           preloadBeachBallMerge6Sounds();
           preloadCoreTntMerge6Sound();
+          preloadBarrelMerge6Sounds();
           preloadFlowerMerge6Sounds();
           preloadBeeMerge6Sounds();
           preloadRoboCubeMerge6Sounds();

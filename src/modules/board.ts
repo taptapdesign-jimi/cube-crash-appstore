@@ -9,6 +9,7 @@ import {
   ASSET_WILD, ASSET_WILD_MAGNET, ASSET_WILD_JUICE, ASSET_WILD_TNT,
 } from './constants.js';
 import {
+  getSpecialDiceFaceAnchorY,
   getSpecialDiceTexturePath,
   getSpecialDiceVisualConfig,
   isSpecialDiceDirectWildLikeTile,
@@ -437,6 +438,7 @@ function _setValueVisuals(t: Tile, v: number, addStack: number, immediate: boole
         (t.base as any)._ccTextureAssetPath = assetPath;
         const wildFaceSize = t.special === 'wild-magnet' ? TILE * 0.96 : TILE;
         const specialVisual = getSpecialDiceVisualConfig(t);
+        t.base.anchor?.set?.(0.5, getSpecialDiceFaceAnchorY(t, t.base));
         if (specialVisual?.visualWidth && specialVisual?.visualHeight) {
           t.base.width = specialVisual.visualWidth;
           t.base.height = specialVisual.visualHeight;

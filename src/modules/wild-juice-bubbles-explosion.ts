@@ -18,6 +18,17 @@ import { acquirePixiMobileActivityLease } from './pixi-mobile-frame-controller.t
 import { applyEffectLetterOpacity, resolveEffectLetterOpacity } from './effect-letter-opacity.ts';
 import { selectRoboExitFrameIndex } from './robo-exit-frame-selector.ts';
 import { acquireAnimatedSpecialArtworkFinaleDepth } from './animated-special-artwork-layer.ts';
+import {
+  createJuiceFinalePropFlights,
+  getJuiceFinalePropTextures,
+  JUICE_FINALE_PROP_POOL_KEY,
+  preloadJuiceFinalePropTextures,
+} from './juice-finale-prop-flight.ts';
+import {
+  playJuiceFinaleSound,
+  shouldPlayJuiceIntroBubble,
+  stopJuiceMerge6Sounds,
+} from './juice-finale-sound.ts';
 
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
@@ -67,6 +78,7 @@ let bubblyDelayedCallsRef: gsap.core.Tween[] = [];
 let bubblyFxCleanup: (() => void) | null = null;
 let releaseExplosionMobileActivity: (() => void) | null = null;
 let releaseExplosionFinaleDepth: (() => void) | null = null;
+let juicePropFlight: ReturnType<typeof createJuiceFinalePropFlights> | null = null;
 let lastRoboExitFrameIndex: number | null = null;
 const lifecycle = createScreenLifecycle('wild-juice-bubbles-explosion');
 const WILD_JUICE_HAPTIC_INITIAL_COUNT = 3;
@@ -345,6 +357,7 @@ type WildJuiceBubblesExplosionOptions = {
   dropProfile?: 'beach-ball' | 'mushroom' | 'robo';
   spritePaths?: string[] | null;
   accentSpritePaths?: string[] | null;
+  showJuiceProps?: boolean;
   inputReleaseAtRatio?: number;
   gameplayReleaseAtSpawnRatio?: number;
   onGameplayRelease?: () => void;
@@ -352,6 +365,9 @@ type WildJuiceBubblesExplosionOptions = {
 };
 
 export function showWildJuiceBubblesExplosion(options: WildJuiceBubblesExplosionOptions = {}): void {
+  // A replacement finale owns a new sound pass; stop any tail from a prior
+  // completed Juice pass before this visual run takes ownership.
+  stopJuiceMerge6Sounds();
   if (isExplosionActive || explosionContainer) {
     cleanup();
     // 🔥 CRITICAL: Wait a frame to ensure cleanup completes before starting new explosion
@@ -431,6 +447,21 @@ async function showWildJuiceBubblesExplosionInternal(
     ? options.spritePaths.filter(Boolean)
     : BUBBLE_SPRITE_PATHS;
   const usesDefaultBubbleSprites = spritePaths === BUBBLE_SPRITE_PATHS;
+  // Beach board preparation prewarms these optional textures. On a cold route,
+  // give them a bounded head start in parallel with the bubble sprite loads.
+  // A stuck optional prop cannot hold the 48+18 bubble finale open.
+  const juicePropTexturesPromise = options.showJuiceProps && usesDefaultBubbleSprites && options.direction !== 'down'
+    ? (() => {
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      const boundedWait = new Promise<void>((resolve) => {
+        timeoutId = setTimeout(resolve, 650);
+        lifecycle.trackCleanup(resolve);
+      });
+      return Promise.race([preloadJuiceFinalePropTextures(), boundedWait]).finally(() => {
+        if (timeoutId) clearTimeout(timeoutId);
+      });
+    })()
+    : null;
   const bubblePoolKey = usesDefaultBubbleSprites
     ? 'wild-juice-bubbles'
     : `wild-juice-special:${spritePaths.join('|')}`;
@@ -611,24 +642,54 @@ async function showWildJuiceBubblesExplosionInternal(
     : spawnDuration + maxBubbleDurationMs + 1800; // extra for 70% more bubbles
   if (isRoboDrop) triggerRoboFinaleHaptics();
   else triggerWildJuiceHapticBurst(spawnDuration);
+  const playsCoreJuiceMerge6Sounds = options.showJuiceProps === true
+    && usesDefaultBubbleSprites && direction === 'up';
   let active = 0;
   let spawned = 0;
+  let juicePropsComplete = juicePropTexturesPromise === null;
   let populatedFallbackPaintRequested = false;
   const perMs = totalBubbles / spawnDuration;
-  let startTime = performance.now();
-  let lastTick = startTime;
+  let startTime = 0;
+  let lastTick = 0;
   let acc = 0;
 
   const totalWithLate = totalBubbles + lateBurstCount;
   let lateBurstDone = false;
+  let introBubblePlayed = false;
   const maybeCompleteExplosion = () => {
     if (!isExplosionActive || cleanupInProgress) return;
-    if (spawned >= totalWithLate && active === 0) {
+    if (spawned >= totalWithLate && active === 0 && juicePropsComplete) {
       logger.debug('Bubbles explosion complete - auto cleanup', undefined, { spawned, totalWithLate });
       notifySequenceComplete();
-      cleanup();
+      cleanup(true);
     }
   };
+
+  void juicePropTexturesPromise?.then(() => {
+    if (runGeneration !== explosionRunGeneration || !isExplosionActive || cleanupInProgress
+      || !explosionContainer || explosionContainer.destroyed) return;
+    try {
+      juicePropFlight = createJuiceFinalePropFlights(
+        explosionContainer,
+        getJuiceFinalePropTextures(),
+        screenW,
+        screenH,
+        () => lifecycle.trackTimeout(() => {
+          if (runGeneration !== explosionRunGeneration || !isExplosionActive || cleanupInProgress) return;
+          juicePropsComplete = true;
+          maybeCompleteExplosion();
+        }, 0),
+        (prop) => {
+          if (runGeneration !== explosionRunGeneration || !isExplosionActive || cleanupInProgress) return;
+          playJuiceFinaleSound(prop);
+        },
+      );
+    } catch (error) {
+      logger.warn('Juice finale props skipped after sprite setup failure', undefined, { error });
+      juicePropsComplete = true;
+      maybeCompleteExplosion();
+    }
+  });
 
   // Safety timeout (dynamic based on spawn + max bubble duration)
   if (safetyTimeoutId) {
@@ -1023,7 +1084,7 @@ async function showWildJuiceBubblesExplosionInternal(
         try {
           for (let i = 0; i < explosionContainer.children.length; i++) {
             const child = explosionContainer.children[i];
-            if (child && !child.destroyed && (!child.visible || !child.renderable)) {
+            if (child && !(child as any)._juiceFinaleProp && !child.destroyed && (!child.visible || !child.renderable)) {
               child.visible = true;
               child.renderable = true;
             }
@@ -1065,6 +1126,15 @@ async function showWildJuiceBubblesExplosionInternal(
       const dt = Math.max(1, now - lastTick);
       lastTick = now;
       const elapsed = now - startTime;
+
+      // The intro enters 0.8s after the first visible bubble burst.
+      // This owner follows the ticker clock, so route interruptions cannot
+      // fire a detached timer after the finale has been cleaned up.
+      if (playsCoreJuiceMerge6Sounds && !introBubblePlayed
+        && shouldPlayJuiceIntroBubble(elapsed)) {
+        introBubblePlayed = true;
+        playJuiceFinaleSound('introBubble');
+      }
 
       if (
         gameplayReleaseAtSpawnRatio !== null &&
@@ -1875,6 +1945,10 @@ async function showWildJuiceBubblesExplosionInternal(
   }
 
   // Initial burst stays visible, but avoids a 20-sprite spike on mobile GPUs.
+  startTime = performance.now();
+  lastTick = startTime;
+  if (playsCoreJuiceMerge6Sounds && runGeneration === explosionRunGeneration
+    && isExplosionActive && !cleanupInProgress) playJuiceFinaleSound('bubble');
   const initialBurst = spawnBatchSize * 3;
   for (let i = 0; i < initialBurst; i++) {
     try {
@@ -2293,7 +2367,7 @@ function cleanupBubblyOverlay(): void {
 /**
  * Cleanup explosion
  */
-function cleanup(): void {
+function cleanup(preserveAudioTail = false): void {
   explosionRunGeneration += 1;
   if (cleanupInProgress) return;
   cleanupInProgress = true;
@@ -2302,6 +2376,12 @@ function cleanup(): void {
     releaseExplosionMobileActivity = null;
     setMushroomForegroundOwnership(false);
     cleanupBubblyOverlay();
+    try { juicePropFlight?.release(); } catch {}
+    juicePropFlight = null;
+    // Successful completion lets the authored 4.56s bubble / 4.0s mini4
+    // one-shots finish. Interrupt, replacement, board exit and Sounds OFF
+    // still stop every bounded voice immediately.
+    if (!preserveAudioTail) stopJuiceMerge6Sounds();
     lifecycle.cleanup();
     isExplosionActive = false;
     setWildFxDragLock('juice-bubbles', false);
@@ -2366,7 +2446,10 @@ function cleanup(): void {
             gsap.killTweensOf(bubble);
             gsap.killTweensOf(bubble.scale);
             if (bubble && bubble.parent) bubble.parent.removeChild(bubble);
-            if ((bubble as any)._mushroomPollen === true) {
+            if ((bubble as any)._juiceFinaleProp === true) {
+              const propPool = getBubbleSpritePool(() => Texture.WHITE, JUICE_FINALE_PROP_POOL_KEY);
+              propPool.release(bubble as Sprite);
+            } else if ((bubble as any)._mushroomPollen === true) {
               (bubble as any)._mushroomPollen = false;
               graphicsPool.release(bubble as any);
             } else {

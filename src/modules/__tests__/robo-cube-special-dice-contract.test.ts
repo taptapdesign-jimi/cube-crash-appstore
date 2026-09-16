@@ -322,7 +322,7 @@ describe('Robo Cube special die', () => {
     expect(juiceSource).toContain('if (!ownedExplosionContainer || ownedExplosionContainer.destroyed)');
     expect(juiceSource).toContain('bubblePool.release(robot);\n      notifySequenceComplete();');
     expect(juiceSource).toContain('ownedExplosionContainer.addChild(robot)');
-    expect(juiceSource).toContain('function cleanup(): void {\n  explosionRunGeneration += 1;');
+    expect(juiceSource).toMatch(/function cleanup\([^)]*\): void \{\s*explosionRunGeneration \+= 1;/);
     expect(juiceSource).not.toContain('explosionContainer.addChild(robot)');
   });
 });

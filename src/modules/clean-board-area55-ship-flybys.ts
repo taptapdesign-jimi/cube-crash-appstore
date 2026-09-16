@@ -4,6 +4,12 @@ const AREA55_SHIP_ASSET = './assets/journey assets/robo/ship1@2x.png';
 const SHIP_CLASS = 'cc-clean-board-area55-ship';
 const OFFSCREEN_MARGIN_PX = 112;
 const KEYFRAME_OFFSETS = [0, 0.16, 0.29, 0.42, 0.55, 0.68, 0.79, 0.85, 0.92, 1] as const;
+const WAYPOINT_HOVER_OFFSETS = [0.008, 0.018, 0.03] as const;
+const WAYPOINT_HOVER_MOTION = [
+  { x: 2, y: -2, rotation: 1.6 },
+  { x: -2, y: 1.5, rotation: -1.4 },
+  { x: 0, y: 0, rotation: 0 },
+] as const;
 
 type ShipDepth = 'behind' | 'front';
 type ViewportEdge = 'top' | 'right' | 'bottom' | 'left';
@@ -94,7 +100,7 @@ export function createCleanBoardArea55ShipFlightPlan(options: {
     durationMs: CLEAN_BOARD_CONFETTI_MAX_RUNTIME_MS,
     startEdge,
     endEdge,
-    keyframes: points.map((point, index) => {
+    keyframes: points.flatMap((point, index) => {
       const previousPoint = points[Math.max(0, index - 1)];
       const nextPoint = points[Math.min(points.length - 1, index + 1)];
       const exiting = index >= points.length - 3;
@@ -104,14 +110,36 @@ export function createCleanBoardArea55ShipFlightPlan(options: {
       const scale = exiting
         ? [1.08, 0.98, 0.86][index - (points.length - 3)]
         : sample(random, 0.9, 1.12);
-      return {
+      const rotation = getRotationDegrees(previousPoint, nextPoint, wobble);
+      const waypoint: Keyframe = {
         offset: KEYFRAME_OFFSETS[index],
         opacity: index === 0 || index === points.length - 1 ? 0 : baseOpacity,
-        transform: toTransform(point, getRotationDegrees(previousPoint, nextPoint, wobble), scale * depthScale),
+        transform: toTransform(point, rotation, scale * depthScale),
         easing: index === 0 || exiting
           ? 'cubic-bezier(.22,.61,.36,1)'
           : 'cubic-bezier(.45,.05,.25,1)',
-      } satisfies Keyframe;
+      };
+      if (index === 0 || exiting) return [waypoint];
+
+      // Settle at each interior waypoint, then trace a tiny hover before the next flight leg.
+      // These frames stay inside the original 9.8-second flight and share its single animation owner.
+      waypoint.easing = 'ease-in-out';
+      const hoverFrames = WAYPOINT_HOVER_OFFSETS.map((offset, hoverIndex) => {
+        const motion = WAYPOINT_HOVER_MOTION[hoverIndex];
+        return {
+          offset: KEYFRAME_OFFSETS[index] + offset,
+          opacity: baseOpacity,
+          transform: toTransform(
+            { x: point.x + motion.x, y: point.y + motion.y },
+            rotation + motion.rotation,
+            scale * depthScale,
+          ),
+          easing: hoverIndex === WAYPOINT_HOVER_OFFSETS.length - 1
+            ? 'cubic-bezier(.45,.05,.25,1)'
+            : 'ease-in-out',
+        } satisfies Keyframe;
+      });
+      return [waypoint, ...hoverFrames];
     }),
   };
 }

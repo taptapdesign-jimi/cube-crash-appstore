@@ -24,6 +24,7 @@ type SaveTilesDeps = {
   grid: any[][];
   devLog: (...args: any[]) => void;
   devWarn: (...args: any[]) => void;
+  allowPreparedEntryHiddenTiles?: boolean;
 };
 
 export function buildGridSnapshot({
@@ -33,6 +34,7 @@ export function buildGridSnapshot({
   grid,
   devLog,
   devWarn,
+  allowPreparedEntryHiddenTiles = false,
 }: SaveTilesDeps){
   const getSerializableVariantId = (tile: any): string | null => {
     const id = tile?._ccSpecialDiceVariant || tile?.specialDiceVariant || null;
@@ -113,7 +115,7 @@ export function buildGridSnapshot({
       }
       const isPlayable = !gridTile.locked && (tileValue > 0 || !!special);
       if (isPlayable && (
-        gridTile.visible === false ||
+        (!allowPreparedEntryHiddenTiles && gridTile.visible === false) ||
         (typeof gridTile.alpha === 'number' && gridTile.alpha <= 0.01) ||
         gridTile.eventMode === 'none' ||
         gridTile.eventMode === 'passive'

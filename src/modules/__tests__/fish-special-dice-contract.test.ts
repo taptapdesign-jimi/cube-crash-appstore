@@ -2,6 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { gsap } from 'gsap';
 import { Container, Sprite, Texture } from 'pixi.js';
 import { STATE } from '../app-state';
 import {
@@ -20,6 +21,7 @@ import {
 } from '../fish-swim-artwork';
 import {
   FISH_BUBBLES_DURATION_MS,
+  FISH_BUBBLES_END_VERTICAL_OFFSET_VIEWPORT_RATIO,
   FISH_BUBBLES_HEVC_SOURCE,
   FISH_BUBBLES_END_SCALE,
   FISH_BUBBLES_SCALE_DOWN_START_RATIO,
@@ -32,7 +34,9 @@ import {
 import {
   FISH_FINALE_SWIMMER_DURATION_SECONDS,
   FISH_FINALE_SWIMMER_SCALE,
+  FISH_FINALE_SWIMMER_SVG_URL,
   FISH_FINALE_SWIMMER_VISIBLE_SIZE,
+  FISH_FINALE_SWIM_CYCLE_MS,
   createFishFinaleSwimmerPlan,
   sampleFishFinaleSwimmerPose,
 } from '../fish-finale-swimmer';
@@ -137,11 +141,29 @@ describe('Beach Fish special-die contract', () => {
     expect(FISH_BUBBLES_DURATION_MS).toBe(2400);
     expect(FISH_BUBBLES_START_SCALE).toBe(1.7);
     expect(FISH_BUBBLES_END_SCALE).toBe(1);
-    expect(FISH_BUBBLES_SCALE_DOWN_START_RATIO).toBe(0.72);
-    expect(FISH_BUBBLES_VERTICAL_OFFSET_VIEWPORT_RATIO).toBe(0.25);
+    expect(FISH_BUBBLES_SCALE_DOWN_START_RATIO).toBe(0.98);
+    expect(FISH_BUBBLES_END_VERTICAL_OFFSET_VIEWPORT_RATIO).toBe(0.25);
+    expect(
+      FISH_BUBBLES_VERTICAL_OFFSET_VIEWPORT_RATIO
+      + 0.5 + (410 / 800 - 0.5) * FISH_BUBBLES_START_SCALE,
+    ).toBeCloseTo(0.9, 5);
     const finaleSvgPath = path.resolve(process.cwd(), FISH_BUBBLES_SVG_SOURCE.replace('./', ''));
     const hevcPath = path.resolve(process.cwd(), FISH_BUBBLES_HEVC_SOURCE.replace('./', ''));
     const finaleSvg = fs.readFileSync(finaleSvgPath, 'utf8');
+    const svgDocument = new DOMParser().parseFromString(finaleSvg, 'image/svg+xml');
+    const lastVisibleEndRatio = Math.max(...Array.from(
+      svgDocument.querySelectorAll('animate[attributeName="opacity"]'),
+    ).map((track) => {
+      const values = (track.getAttribute('values') || '').split(';').map(Number);
+      const times = (track.getAttribute('keyTimes') || '').split(';').map(Number);
+      const lastVisibleIndex = values.reduce(
+        (last, value, index) => value > 0 ? index : last,
+        -1,
+      );
+      return times[lastVisibleIndex + 1] || 0;
+    }));
+    expect(lastVisibleEndRatio).toBeCloseTo(0.9523, 4);
+    expect(FISH_BUBBLES_SCALE_DOWN_START_RATIO).toBeGreaterThan(lastVisibleEndRatio);
     expect(finaleSvg).toContain('dur="2.4s"');
     expect(finaleSvg).not.toContain('dur="3.6s"');
     expect(finaleSvg).not.toContain('repeatCount="indefinite"');
@@ -168,44 +190,69 @@ describe('Beach Fish special-die contract', () => {
     expect(document.querySelectorAll('.cc-fish-finale-swimmer')).toHaveLength(1);
     expect(swimmerField?.dataset.fishFinaleOriginX).toBe('195.00');
     expect(swimmerField?.dataset.fishFinaleOriginY).toBe('430.00');
-    expect(swimmerField?.dataset.fishFinaleVisibleSize).toBe('166.4');
+    expect(swimmerField?.dataset.fishFinaleVisibleSize).toBe('124.8');
     expect(swimmer?.dataset.fishFinaleX).toBe('195.00');
     expect(swimmer?.dataset.fishFinaleY).toBe('430.00');
     expect(swimmer?.querySelector<HTMLImageElement>('[data-fish-finale-source="svg-fallback"]')?.src)
-      .toContain('assets/shop/fish/fish.svg?cc-fish-finale-run=');
+      .toContain('assets/shop/fish/fish-merge6-fast.svg?cc-fish-finale-run=');
+    expect(Number(bubbles?.style.zIndex)).toBeGreaterThan(Number(swimmerField?.style.zIndex));
+    const bubbleTween = gsap.getTweensOf(bubbles)[0] as gsap.core.Tween;
+    const bubbleTimeline = bubbleTween.parent as gsap.core.Timeline;
+    bubbleTimeline.time(FISH_BUBBLES_DURATION_MS / 1000 * 0.99);
+    expect(Number(gsap.getProperty(bubbles, 'opacity'))).toBe(0);
+    expect(Number(gsap.getProperty(bubbles, 'scale'))).toBeLessThan(FISH_BUBBLES_START_SCALE);
+    expect(Number(gsap.getProperty(swimmerField, 'opacity'))).toBeGreaterThan(0);
   });
 
-  test('flies in one monotonic direction with no Bee-style route reversal', () => {
+  test('flies faster toward the opposite corner from all four quadrants', () => {
     const viewport = { width: 390, height: 844 };
-    expect(FISH_FINALE_SWIMMER_SCALE).toBe(1.3);
-    expect(FISH_FINALE_SWIMMER_VISIBLE_SIZE).toBe(FISH_SWIM_DISPLAY_SIZE * 1.3);
-    expect(FISH_FINALE_SWIMMER_DURATION_SECONDS).toBe(3.6);
+    expect(FISH_FINALE_SWIMMER_SCALE).toBeCloseTo(1.3 * 0.75, 8);
+    expect(FISH_FINALE_SWIMMER_VISIBLE_SIZE).toBeCloseTo(166.4 * 0.75, 8);
+    expect(FISH_FINALE_SWIMMER_DURATION_SECONDS).toBe(2.4);
 
-    const rightward = createFishFinaleSwimmerPlan({ x: 80, y: 430 }, viewport);
-    const leftward = createFishFinaleSwimmerPlan({ x: 310, y: 430 }, viewport);
-    expect(rightward.direction).toBe(1);
-    expect(leftward.direction).toBe(-1);
-    expect(rightward.origin).toEqual({ x: 80, y: 430 });
-    expect(leftward.origin).toEqual({ x: 310, y: 430 });
-    expect(rightward.end.x).toBeGreaterThan(viewport.width);
-    expect(leftward.end.x).toBeLessThan(0);
-
-    for (const plan of [rightward, leftward]) {
+    const quadrants = [
+      { origin: { x: 80, y: 180 }, horizontal: 1, vertical: 1 },
+      { origin: { x: 310, y: 180 }, horizontal: -1, vertical: 1 },
+      { origin: { x: 80, y: 650 }, horizontal: 1, vertical: -1 },
+      { origin: { x: 310, y: 650 }, horizontal: -1, vertical: -1 },
+    ] as const;
+    for (const { origin, horizontal, vertical } of quadrants) {
+      const plan = createFishFinaleSwimmerPlan(origin, viewport);
+      expect(plan.origin).toEqual(origin);
+      expect(plan.direction).toBe(horizontal);
+      expect(plan.verticalDirection).toBe(vertical);
+      expect(plan.end.x * horizontal).toBeGreaterThan(horizontal === 1 ? viewport.width : 0);
+      expect(plan.end.y * vertical).toBeGreaterThan(vertical === 1 ? viewport.height : 0);
       const poses = Array.from({ length: 25 }, (_, index) => (
         sampleFishFinaleSwimmerPose(
           FISH_FINALE_SWIMMER_DURATION_SECONDS * index / 24,
           plan,
-          viewport,
         )
       ));
       expect(poses[0]).toMatchObject({ x: plan.origin.x, y: plan.origin.y });
       for (let index = 1; index < poses.length; index += 1) {
         const deltaX = poses[index].x - poses[index - 1].x;
+        const deltaY = poses[index].y - poses[index - 1].y;
         expect(deltaX * plan.direction).toBeGreaterThanOrEqual(0);
+        expect(deltaY * plan.verticalDirection).toBeGreaterThanOrEqual(0);
       }
       expect(poses[poses.length - 1].x).toBeCloseTo(plan.end.x, 8);
+      expect(poses[poses.length - 1].y).toBeCloseTo(plan.end.y, 8);
       expect(poses[poses.length - 1].opacity).toBe(0);
     }
+  });
+
+  test('doubles only the Merge-6 Fish swim cycle while preserving board idle art', () => {
+    const source = fs.readFileSync(path.resolve(process.cwd(), FISH_SWIM_SVG_URL.replace('./', '')), 'utf8');
+    const finale = fs.readFileSync(path.resolve(process.cwd(), FISH_FINALE_SWIMMER_SVG_URL.replace('./', '')), 'utf8');
+    expect(FISH_FINALE_SWIM_CYCLE_MS).toBe(FISH_SWIM_CYCLE_MS / 2);
+    expect(source.match(/dur="1\.125s"/g)).toHaveLength(4);
+    expect(finale.match(/dur="0\.5625s"/g)).toHaveLength(4);
+    expect(
+      finale
+        .split('dur="0.5625s"').join('dur="1.125s"')
+        .split('72 frames in a 0.5625-second loop.').join('72 frames in a 1.125-second loop.'),
+    ).toBe(source);
   });
 
   test('gives every repeated Fish Merge-6 a fresh one-shot Bubbly playback owner', () => {

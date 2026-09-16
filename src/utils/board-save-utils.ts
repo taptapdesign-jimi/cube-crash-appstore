@@ -19,7 +19,128 @@ export function getBoardSaveKey(boardNumber: number): string {
   return `cc_saved_game_board_${paddedNumber}`;
 }
 
+const JOURNEY_COMPLETED_BOARD_KEY_PREFIX = 'cc_journey_completed_board_';
+
+export function getJourneyCompletedBoardKey(boardNumber: number): string {
+  return `${JOURNEY_COMPLETED_BOARD_KEY_PREFIX}${String(boardNumber).padStart(2, '0')}`;
+}
+
+/** A completed Journey board must not resume its last playable snapshot. This
+ * tombstone is board-scoped and survives the Clean Board modal and hard exit. */
+export function isJourneyBoardSaveCompleted(
+  boardNumber: number,
+  storage: Pick<Storage, 'getItem'> = localStorage,
+): boolean {
+  return storage.getItem(getJourneyCompletedBoardKey(boardNumber)) === '1';
+}
+
+/** Older builds wrote this result receipt before Clean Board but left the
+ * board snapshot until a CTA tap. Match only the exact completed board. */
+export function hasMatchingJourneyCompletionReceipt(
+  boardNumber: number,
+  storage: Pick<Storage, 'getItem'> = localStorage,
+): boolean {
+  const serialized = storage.getItem('cc_board_completed');
+  if (!serialized) return false;
+  try {
+    const receipt = JSON.parse(serialized);
+    return Number.isInteger(receipt?.completedLevel)
+      && Number.isInteger(receipt?.nextLevel)
+      && receipt.completedLevel === boardNumber
+      && receipt.nextLevel === boardNumber + 1;
+  } catch {
+    return false;
+  }
+}
+
+export function markJourneyBoardSaveCompleted(
+  boardNumber: number,
+  storage: Pick<Storage, 'setItem' | 'removeItem'> = localStorage,
+): void {
+  // Write the durable guard first: if removal is interrupted, the saved two
+  // terminal dice still cannot become a Continue route after relaunch.
+  storage.setItem(getJourneyCompletedBoardKey(boardNumber), '1');
+  storage.removeItem(getBoardSaveKey(boardNumber));
+}
+
+/** Repair a pre-upgrade Clean Board hard exit and veto any late save/load.
+ * Arcade callers must stay outside this Journey-only owner. */
+export function protectCompletedJourneyBoardSave(
+  boardNumber: number,
+  storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> = localStorage,
+): boolean {
+  if (isJourneyBoardSaveCompleted(boardNumber, storage)) {
+    storage.removeItem(getBoardSaveKey(boardNumber));
+    return true;
+  }
+  if (!hasMatchingJourneyCompletionReceipt(boardNumber, storage)) return false;
+  markJourneyBoardSaveCompleted(boardNumber, storage);
+  return true;
+}
+
+/** Called immediately before legacy global completion receipts are consumed
+ * by unrelated Home/Arcade entry routes. It repairs only exact Journey
+ * completion data and never alters Arcade progression or save state. */
+export function migrateJourneyCompletionReceiptBeforeClear(
+  storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> = localStorage,
+): number | null {
+  const serialized = storage.getItem('cc_board_completed');
+  if (!serialized) return null;
+  let receipt: any;
+  try {
+    receipt = JSON.parse(serialized);
+  } catch {
+    return null;
+  }
+  const boardNumber = receipt?.completedLevel;
+  if (!Number.isInteger(boardNumber) || boardNumber < 1) return null;
+  return protectCompletedJourneyBoardSave(boardNumber, storage) ? boardNumber : null;
+}
+
+export function clearJourneyBoardSaveCompleted(
+  boardNumber: number,
+  storage: Pick<Storage, 'removeItem'> = localStorage,
+): void {
+  storage.removeItem(getJourneyCompletedBoardKey(boardNumber));
+}
+
 export const ARCADE_SAVE_KEY = 'cc_arcade_run_state_v1';
+export const ARCADE_PENDING_ROUND_KEY = 'cc_arcade_pending_round_v1';
+
+export type PendingArcadeRound = { round: number; score: number; ownerId?: string };
+
+/** Receipt for an accepted stage continuation before its fresh board exists. */
+export function getPendingArcadeRound(): PendingArcadeRound | null {
+  try {
+    const serialized = localStorage.getItem(ARCADE_PENDING_ROUND_KEY);
+    if (!serialized) return null;
+    const receipt = JSON.parse(serialized);
+    const round = Number(receipt?.round);
+    const score = Number(receipt?.score);
+    if (!Number.isInteger(round) || round < 2 || !Number.isFinite(score) || score < 0) return null;
+    const ownerId = typeof receipt?.ownerId === 'string' ? receipt.ownerId : undefined;
+    return ownerId ? { round, score, ownerId } : { round, score };
+  } catch {
+    return null;
+  }
+}
+
+export function setPendingArcadeRound(round: number, score: number, ownerId?: string): void {
+  if (!Number.isInteger(round) || round < 2 || !Number.isFinite(score) || score < 0) {
+    throw new Error('Invalid Arcade continuation receipt');
+  }
+  localStorage.setItem(ARCADE_PENDING_ROUND_KEY, JSON.stringify({ round, score, ownerId }));
+}
+
+export function clearPendingArcadeRound(expectedOwnerId?: string): void {
+  if (expectedOwnerId && getPendingArcadeRound()?.ownerId !== expectedOwnerId) return;
+  localStorage.removeItem(ARCADE_PENDING_ROUND_KEY);
+}
+
+export function clearPendingArcadeRoundIfCovered(savedRound: number): void {
+  const pending = getPendingArcadeRound();
+  if (pending && savedRound >= pending.round) clearPendingArcadeRound(pending.ownerId);
+}
 
 export function getArcadeSaveKey(): string {
   return ARCADE_SAVE_KEY;
@@ -50,6 +171,10 @@ export function isArcadeSaveStateResumable(state: any): boolean {
 }
 
 export function hasArcadeSavedState(options: ResumableSaveOptions = {}): boolean {
+  return getPendingArcadeRound() !== null || hasArcadePersistedBoardState(options);
+}
+
+export function hasArcadePersistedBoardState(options: ResumableSaveOptions = {}): boolean {
   const storage = options.storage ?? localStorage;
   const serialized = storage.getItem(ARCADE_SAVE_KEY);
   if (!serialized) return false;
@@ -81,6 +206,7 @@ export function getArcadeSavedRound(): number | null {
 
 export function clearArcadeSaveState(): void {
   localStorage.removeItem(ARCADE_SAVE_KEY);
+  clearPendingArcadeRound();
   console.log(`🗑️ Cleared Arcade save state (${ARCADE_SAVE_KEY})`);
 }
 
@@ -125,7 +251,7 @@ export function hasSavedStateForBoard(boardNumber: number): boolean {
 
 type ResumableSaveOptions = {
   clearInvalid?: boolean;
-  storage?: Pick<Storage, 'getItem' | 'removeItem'>;
+  storage?: Pick<Storage, 'getItem' | 'removeItem'> & Partial<Pick<Storage, 'setItem'>>;
 };
 
 function isPlayableSavedTile(snapshot: any): boolean {
@@ -163,6 +289,14 @@ export function hasResumableSavedStateForBoard(
 ): boolean {
   const storage = options.storage ?? localStorage;
   const saveKey = getBoardSaveKey(boardNumber);
+  const completed = typeof storage.setItem === 'function'
+    ? protectCompletedJourneyBoardSave(boardNumber, storage as Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>)
+    : isJourneyBoardSaveCompleted(boardNumber, storage)
+      || hasMatchingJourneyCompletionReceipt(boardNumber, storage);
+  if (completed) {
+    if (options.clearInvalid) storage.removeItem(saveKey);
+    return false;
+  }
   const serialized = storage.getItem(saveKey);
   if (!serialized) return false;
   try {

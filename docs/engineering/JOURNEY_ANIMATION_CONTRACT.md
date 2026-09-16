@@ -48,13 +48,16 @@ Do not regress these rules:
 - No drag-to-open bug. Vertical dragging over a Journey world must scroll/overshoot, not open the world.
 - Preserve springy drag/overshoot on Journey Worlds and Forest/Beach/Area 55 world screens.
 - Preserve scroll interactivity after returning from card modal or board game.
-- Every accepted Journey card-modal exit (Play, Continue, X/Close, backdrop,
-  Escape, or committed vertical drag-down) owns a visible return flip before
-  its Unit landing. A stats/back-facing card keeps the canonical half-turn;
-  an artwork/front-facing card completes one full turn so it still lands on
-  artwork without a face swap. The return flight must remain marked as an
-  active physical flip for WebKit face painting; it may never degrade into a
-  translation-only descent.
+- Journey card-modal Play, Continue, X/Close, backdrop, Escape and a committed
+  drag-down from the white stats/CTA face own a visible return flip before the
+  Unit landing. A stats/back-facing card keeps the canonical half-turn; other
+  artwork/front exits keep their full turn so they land on artwork. The flip
+  flight remains marked as an active physical flip for WebKit face painting.
+  A committed drag-down from the artwork/front face is the explicit exception:
+  it travels to the same live Unit with its illustration facing forward for
+  the whole flight, with no flip or `cardflip` image. At return-flight start it
+  plays the existing single manual `flip soft.wav` whoosh, then uses the
+  established landing and cleanup owners.
 - Keep the automatic post-game return reminder attached to its exact live Unit while the World screen scrolls. Launch, outbound flip, return and landing impact must all inherit the Unit's live viewport displacement, and the reminder must scroll out of view with that Unit instead of floating above unrelated content. Scrolling never blocks or recentres the player. An accepted World X/back action atomically cancels both a visible reminder and any still-waiting reminder receipt before World-to-Hub exit paint, so no reminder layer may survive onto Journey Worlds.
 - Avoid old/new animation conflicts. Before adding a helper, search existing helpers/classes/listeners and remove or reuse stale paths.
 

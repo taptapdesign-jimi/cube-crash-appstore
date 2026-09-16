@@ -2,6 +2,14 @@ import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
+  CORE_TNT_BONUS_IMPACT_SOUND_SOURCES,
+  CORE_TNT_BONUS_IMPACT_VOLUMES,
+  CORE_TNT_BONUS_MINI2_VOLUME_SCALE,
+  CORE_TNT_BONUS_MINI5_VOLUME,
+  playCoreTntBonusImpactSound,
+  resetCoreTntMerge6SoundCacheForTests,
+} from '../core-tnt-merge6-sound';
+import {
   BEACH_BALL_MERGE6_BALL1_SOUND_SOURCE,
   BEACH_BALL_MERGE6_BALL2_SOUND_SOURCE,
   BEACH_BALL_MERGE6_BALL4_DELAY_MS,
@@ -60,11 +68,13 @@ describe('Beach Ball merge-6 sound', () => {
     MockAudio.instances = [];
     (global as any).Audio = MockAudio;
     (window as any)._settings = { gameSoundsEnabled: true };
+    resetCoreTntMerge6SoundCacheForTests();
     resetBeachBallMerge6SoundCacheForTests();
   });
 
   afterEach(() => {
     resetBeachBallMerge6SoundCacheForTests();
+    resetCoreTntMerge6SoundCacheForTests();
     (global as any).Audio = originalAudio;
     delete (window as any)._settings;
     jest.restoreAllMocks();
@@ -150,11 +160,13 @@ describe('Beach Ball merge-6 sound', () => {
     expect(appCore.indexOf('if (effSum === 6){')).toBeLessThan(
       appCore.indexOf('playBeachBallMerge6Sound();'),
     );
+    expect(appCore).toContain("tntVariantForMerge.id !== 'beach-ball'");
+    expect(appCore).toContain('playCoreTntBonusImpactSound(impactIndex);');
   });
 
   test('always plays Ball 1, Ball 2, Ball 4 and impact immediately, then Ball 5 at 100ms', () => {
     expect(preloadBeachBallMerge6Sounds()).toBe(true);
-    expect(MockAudio.instances).toHaveLength(9);
+    expect(MockAudio.instances).toHaveLength(14);
     const bySource = new Map(MockAudio.instances.map((audio) => [audio.src, audio]));
     const ball1 = bySource.get(BEACH_BALL_MERGE6_BALL1_SOUND_SOURCE)!;
     const ball2 = bySource.get(BEACH_BALL_MERGE6_BALL2_SOUND_SOURCE)!;
@@ -178,6 +190,36 @@ describe('Beach Ball merge-6 sound', () => {
     expect(ball5.play).toHaveBeenCalledTimes(1);
     expect(ball5.playbackRate).toBe(1.8);
     expect(ball5.volume).toBeCloseTo(0.4);
+  });
+
+  test('adds Flower’s shuffled mini sounds only at the four Ball cube impacts', () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0);
+    expect(preloadBeachBallMerge6Sounds()).toBe(true);
+    expect(playBeachBallMerge6Sound()).toBe(true);
+    const miniSources = new Set(CORE_TNT_BONUS_IMPACT_SOUND_SOURCES);
+    const miniLayers = MockAudio.instances.filter((audio) => miniSources.has(
+      audio.src as typeof CORE_TNT_BONUS_IMPACT_SOUND_SOURCES[number],
+    ));
+    expect(miniLayers).toHaveLength(5);
+    expect(miniLayers.every((audio) => audio.play.mock.calls.length === 0)).toBe(true);
+
+    const played: MockAudio[] = [];
+    for (let index = 0; index < 4; index += 1) {
+      expect(playCoreTntBonusImpactSound(index)).toBe(true);
+      const newlyPlayed = miniLayers.filter(
+        (audio) => audio.play.mock.calls.length > 0 && !played.includes(audio),
+      );
+      expect(newlyPlayed).toHaveLength(1);
+      const audio = newlyPlayed[0];
+      const expectedVolume = audio.src === CORE_TNT_BONUS_IMPACT_SOUND_SOURCES[4]
+        ? CORE_TNT_BONUS_MINI5_VOLUME
+        : audio.src === CORE_TNT_BONUS_IMPACT_SOUND_SOURCES[1]
+          ? CORE_TNT_BONUS_IMPACT_VOLUMES[index] * CORE_TNT_BONUS_MINI2_VOLUME_SCALE
+          : CORE_TNT_BONUS_IMPACT_VOLUMES[index];
+      expect(audio.volume).toBeCloseTo(expectedVolume);
+      played.push(audio);
+    }
+    expect(new Set(played.map((audio) => audio.src)).size).toBe(4);
   });
 
   test('obeys Sounds OFF and stops every base/custom voice plus delayed starts', () => {

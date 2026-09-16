@@ -4,18 +4,19 @@ import {
   FISH_SWIM_CYCLE_MS,
   FISH_SWIM_DISPLAY_SIZE,
   FISH_SWIM_HEVC_URL,
-  FISH_SWIM_SVG_URL,
   getFishSwimDisplayGeometry,
 } from './fish-swim-artwork.ts';
 import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.ts';
 
-export const FISH_FINALE_SWIMMER_SCALE = 1.3;
+export const FISH_FINALE_SWIMMER_SCALE = 0.975;
 export const FISH_FINALE_SWIMMER_VISIBLE_SIZE = (
   FISH_SWIM_DISPLAY_SIZE * FISH_FINALE_SWIMMER_SCALE
 );
-export const FISH_FINALE_SWIMMER_DURATION_SECONDS = 3.6;
+export const FISH_FINALE_SWIMMER_DURATION_SECONDS = 2.4;
 export const FISH_FINALE_SWIMMER_EMERGE_SECONDS = 0.22;
 export const FISH_FINALE_SWIMMER_FADE_SECONDS = 0.12;
+export const FISH_FINALE_SWIMMER_SVG_URL = './assets/shop/fish/fish-merge6-fast.svg';
+export const FISH_FINALE_SWIM_CYCLE_MS = FISH_SWIM_CYCLE_MS / 2;
 
 export type FishFinaleSwimmerOrigin = Readonly<{ x: number; y: number }>;
 export type FishFinaleSwimmerViewport = Readonly<{ width: number; height: number }>;
@@ -23,6 +24,7 @@ export type FishFinaleSwimmerPlan = Readonly<{
   origin: FishFinaleSwimmerOrigin;
   end: FishFinaleSwimmerOrigin;
   direction: -1 | 1;
+  verticalDirection: -1 | 1;
   mediaWidth: number;
   mediaHeight: number;
 }>;
@@ -42,10 +44,18 @@ const clamp = (value: number, minimum: number, maximum: number): number => (
   Math.min(maximum, Math.max(minimum, value))
 );
 
-const smoothStep = (progress: number): number => {
+const cubicTravel = (progress: number, firstControl: number, secondControl: number): number => {
   const bounded = clamp(progress, 0, 1);
-  return bounded * bounded * (3 - 2 * bounded);
+  const remaining = 1 - bounded;
+  return 3 * remaining ** 2 * bounded * firstControl
+    + 3 * remaining * bounded ** 2 * secondControl
+    + bounded ** 3;
 };
+
+const sampleFlightPoint = (progress: number, plan: FishFinaleSwimmerPlan): FishFinaleSwimmerOrigin => ({
+  x: plan.origin.x + (plan.end.x - plan.origin.x) * cubicTravel(progress, 0.20, 0.72),
+  y: plan.origin.y + (plan.end.y - plan.origin.y) * cubicTravel(progress, 0.08, 0.90),
+});
 
 const backOut = (progress: number): number => {
   const bounded = clamp(progress, 0, 1) - 1;
@@ -64,6 +74,7 @@ export function createFishFinaleSwimmerPlan(
     y: Number.isFinite(requestedOrigin?.y) ? Number(requestedOrigin?.y) : height * 0.54,
   };
   const direction: -1 | 1 = origin.x <= width * 0.5 ? 1 : -1;
+  const verticalDirection: -1 | 1 = origin.y <= height * 0.5 ? 1 : -1;
   const geometry = getFishSwimDisplayGeometry();
   const mediaWidth = geometry.width * FISH_FINALE_SWIMMER_SCALE;
   const mediaHeight = geometry.height * FISH_FINALE_SWIMMER_SCALE;
@@ -74,9 +85,12 @@ export function createFishFinaleSwimmerPlan(
       x: direction === 1
         ? width + mediaWidth * 0.5 + exitMargin
         : -mediaWidth * 0.5 - exitMargin,
-      y: origin.y - height * 0.24,
+      y: verticalDirection === 1
+        ? height + mediaHeight * 0.5 + exitMargin
+        : -mediaHeight * 0.5 - exitMargin,
     },
     direction,
+    verticalDirection,
     mediaWidth,
     mediaHeight,
   };
@@ -85,35 +99,24 @@ export function createFishFinaleSwimmerPlan(
 export function sampleFishFinaleSwimmerPose(
   elapsedSeconds: number,
   plan: FishFinaleSwimmerPlan,
-  viewport: FishFinaleSwimmerViewport,
 ): FishFinaleSwimmerPose {
   const time = clamp(elapsedSeconds, 0, FISH_FINALE_SWIMMER_DURATION_SECONDS);
   const progress = time / FISH_FINALE_SWIMMER_DURATION_SECONDS;
-  const travel = smoothStep(progress);
-  const height = Math.max(1, Number(viewport?.height) || 844);
-  const arc = -height * 0.04 * Math.sin(Math.PI * progress);
-  const x = plan.origin.x + (plan.end.x - plan.origin.x) * travel;
-  const y = plan.origin.y + (plan.end.y - plan.origin.y) * travel + arc;
+  const { x, y } = sampleFlightPoint(progress, plan);
 
   const sampleGap = 0.002;
   const previousProgress = clamp(progress - sampleGap, 0, 1);
   const nextProgress = clamp(progress + sampleGap, 0, 1);
-  const previousTravel = smoothStep(previousProgress);
-  const nextTravel = smoothStep(nextProgress);
-  const previousX = plan.origin.x + (plan.end.x - plan.origin.x) * previousTravel;
-  const nextX = plan.origin.x + (plan.end.x - plan.origin.x) * nextTravel;
-  const previousY = plan.origin.y + (plan.end.y - plan.origin.y) * previousTravel
-    - height * 0.04 * Math.sin(Math.PI * previousProgress);
-  const nextY = plan.origin.y + (plan.end.y - plan.origin.y) * nextTravel
-    - height * 0.04 * Math.sin(Math.PI * nextProgress);
-  const heading = Math.atan2(nextY - previousY, nextX - previousX) * (180 / Math.PI);
+  const previous = sampleFlightPoint(previousProgress, plan);
+  const next = sampleFlightPoint(nextProgress, plan);
+  const heading = Math.atan2(next.y - previous.y, next.x - previous.x) * (180 / Math.PI);
   const relativeHeading = plan.direction === 1
     ? heading
     : heading >= 0 ? heading - 180 : heading + 180;
 
   const emergeProgress = clamp(time / FISH_FINALE_SWIMMER_EMERGE_SECONDS, 0, 1);
   const emergeScale = 0.18 + 0.82 * backOut(emergeProgress);
-  const swimPulse = Math.sin(time * Math.PI * 2 / (FISH_SWIM_CYCLE_MS / 1000))
+  const swimPulse = Math.sin(time * Math.PI * 2 / (FISH_FINALE_SWIM_CYCLE_MS / 1000))
     * 0.035
     * Math.sin(Math.PI * progress);
   const remaining = FISH_FINALE_SWIMMER_DURATION_SECONDS - time;
@@ -135,6 +138,8 @@ function configureVideo(video: HTMLVideoElement): void {
   video.defaultMuted = true;
   video.autoplay = true;
   video.loop = true;
+  video.defaultPlaybackRate = 2;
+  video.playbackRate = 2;
   video.playsInline = true;
   video.preload = 'auto';
   video.disablePictureInPicture = true;
@@ -177,7 +182,7 @@ export function preloadFishFinaleSwimmer(): void {
     return;
   }
   const image = new Image();
-  image.src = FISH_SWIM_SVG_URL;
+  image.src = FISH_FINALE_SWIMMER_SVG_URL;
 }
 
 export function attachFishFinaleSwimmer(
@@ -198,6 +203,7 @@ export function attachFishFinaleSwimmer(
   field.className = 'cc-fish-finale-swimmer-field';
   field.dataset.fishFinaleSwimmer = 'active';
   field.dataset.fishFinaleDirection = plan.direction === 1 ? 'right' : 'left';
+  field.dataset.fishFinaleVerticalDirection = plan.verticalDirection === 1 ? 'down' : 'up';
   field.dataset.fishFinaleOriginX = plan.origin.x.toFixed(2);
   field.dataset.fishFinaleOriginY = plan.origin.y.toFixed(2);
   field.dataset.fishFinaleVisibleSize = String(FISH_FINALE_SWIMMER_VISIBLE_SIZE);
@@ -206,7 +212,7 @@ export function attachFishFinaleSwimmer(
     'inset:0',
     'overflow:visible',
     'pointer-events:none',
-    'z-index:2',
+    'z-index:1',
   ].join(';');
 
   const host = document.createElement('div');
@@ -239,7 +245,7 @@ export function attachFishFinaleSwimmer(
     image.dataset.fishFinaleSource = 'svg-fallback';
     image.setAttribute('aria-hidden', 'true');
     configureMedia(image);
-    image.src = `${FISH_SWIM_SVG_URL}?cc-fish-finale-run=${runId}`;
+    image.src = `${FISH_FINALE_SWIMMER_SVG_URL}?cc-fish-finale-run=${runId}`;
     host.appendChild(image);
   };
 
@@ -267,7 +273,7 @@ export function attachFishFinaleSwimmer(
   const clock = { seconds: 0 };
   const timeline = animationManager.trackExternalTimeline(gsap.timeline({ paused: true }));
   const paint = () => {
-    const pose = sampleFishFinaleSwimmerPose(clock.seconds, plan, viewport);
+    const pose = sampleFishFinaleSwimmerPose(clock.seconds, plan);
     host.dataset.fishFinaleX = pose.x.toFixed(2);
     host.dataset.fishFinaleY = pose.y.toFixed(2);
     host.style.opacity = pose.opacity.toFixed(4);

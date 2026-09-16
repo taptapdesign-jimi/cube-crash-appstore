@@ -112,6 +112,83 @@ describe('Bottle finale lifecycle ownership', () => {
     cleanup();
   });
 
+  test('never paints a trailing bubble at the upper-left origin without a measurable bottle', () => {
+    const overlay = document.createElement('div');
+    document.body.appendChild(overlay);
+    const cleanup = attachBottleFinaleScene(overlay);
+    const trailBubble = overlay.querySelector<HTMLImageElement>('.cc-bottle-finale-trail-bubble')!;
+    const trailTween = gsap.getTweensOf(trailBubble)[0] as gsap.core.Tween;
+    const trailClock = trailTween.parent as gsap.core.Timeline;
+
+    // JSDOM reports a zero rectangle for the hero bottle. Its scheduled
+    // opacity tween still runs, but an unpositioned emitter must stay hidden.
+    trailClock.time(0.09);
+    expect(Number(gsap.getProperty(trailBubble, 'opacity'))).toBeGreaterThan(0);
+    expect(trailBubble.style.left).toBe('');
+    expect(trailBubble.style.top).toBe('');
+    expect(trailBubble.style.visibility).toBe('hidden');
+
+    cleanup();
+  });
+
+  test('positions and reveals a trailing bubble when its bottle is measurable', () => {
+    const overlay = document.createElement('div');
+    document.body.appendChild(overlay);
+    const cleanup = attachBottleFinaleScene(overlay);
+    const hero = overlay.querySelector<HTMLImageElement>('[data-bottle-layer="botle1"]')!;
+    const rectSpy = jest.spyOn(hero, 'getBoundingClientRect').mockReturnValue({
+      left: 100, top: 100, width: 120, height: 200,
+    } as DOMRect);
+    const trailBubble = overlay.querySelector<HTMLImageElement>('.cc-bottle-finale-trail-bubble')!;
+    const trailTween = gsap.getTweensOf(trailBubble)[0] as gsap.core.Tween;
+    const trailClock = trailTween.parent as gsap.core.Timeline;
+
+    trailClock.time(0.09);
+    expect(trailBubble.style.visibility).toBe('visible');
+    expect(parseInt(trailBubble.style.left, 10)).toBeGreaterThan(100);
+    expect(parseInt(trailBubble.style.top, 10)).toBeGreaterThan(200);
+
+    rectSpy.mockRestore();
+    cleanup();
+  });
+
+  test('finishes all 40 foreground bubbles before the isolated late pair can linger', () => {
+    for (let seed = 1; seed <= 12; seed += 1) {
+      let state = seed;
+      const randomSpy = jest.spyOn(Math, 'random').mockImplementation(() => {
+        state = (state * 1664525 + 1013904223) >>> 0;
+        return state / 0x100000000;
+      });
+      const overlay = document.createElement('div');
+      document.body.appendChild(overlay);
+      const cleanup = attachBottleFinaleScene(overlay);
+      const main = Array.from(overlay.querySelectorAll<HTMLImageElement>(
+        '.cc-bottle-finale-bubble:not(.cc-bottle-finale-trail-bubble)',
+      ));
+      expect(main).toHaveLength(40);
+      const owners = main.map((bubble) => {
+        const tween = gsap.getTweensOf(bubble)[0] as gsap.core.Tween;
+        return tween.parent as gsap.core.Timeline;
+      });
+      const visibleAt = (seconds: number): number[] => main.flatMap((bubble, index) => {
+        const owner = owners[index];
+        owner.time(Math.max(0, seconds - owner.delay()));
+        return Number(gsap.getProperty(bubble, 'opacity')) > 0.02
+          && Number(gsap.getProperty(bubble, 'scale')) > 0.02 ? [index] : [];
+      });
+
+      try {
+        expect(visibleAt(2.7).length).toBeGreaterThan(0);
+        expect(visibleAt(4.0)).toHaveLength(0);
+        expect(visibleAt(4.1)).toHaveLength(0);
+      } finally {
+        cleanup();
+        randomSpy.mockRestore();
+        overlay.remove();
+      }
+    }
+  });
+
   test('crosses three bottle pairs continuously at separate points in the gravity fall', () => {
     const viewportHeight = 844;
     const plans = createBottleCrossingSinkPlans(viewportHeight);

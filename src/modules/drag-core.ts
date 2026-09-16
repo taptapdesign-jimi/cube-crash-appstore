@@ -48,6 +48,7 @@ import {
   resetWildDragTrailCadence,
 } from './wild-drag-trail-cadence.ts';
 import { isBoardFxReduced } from './board-frame-budget.ts';
+import { BARREL_FOOTPRINT_SCALE, getBarrelDragFootprint } from './barrel-drag-footprint.ts';
 import { getDragTrailPerformanceProfile } from './drag-trail-performance-profile.ts';
 import { areContinuousRuntimeDiagnosticsEnabled } from '../utils/runtime-diagnostics-policy.ts';
 import { resolveDragShadowAppearance } from './drag-shadow-pose.ts';
@@ -1157,7 +1158,7 @@ export function initDrag(cfg) {
       t.rotG.interactiveChildren = false;
     }
     if (special) {
-      const hitSize = tileSize * 1.16;
+      const hitSize = tileSize * (getSpecialDiceVariantForTile(t)?.id === 'barell' ? BARREL_FOOTPRINT_SCALE : 1.16);
       const half = hitSize / 2;
       const hitArea = new Rectangle(-half, -half, hitSize, hitSize);
       t.hitArea = hitArea;
@@ -2311,12 +2312,13 @@ export function initDrag(cfg) {
 
     if (!candidates.length) return null;
 
-    const srcR = getRect(src);
+    const isBarrelSource = getSpecialDiceVariantForTile(src)?.id === 'barell';
+    const srcR = isBarrelSource ? getCompactBarrelRect(src) : getRect(src);
     if (!srcR || srcR.w === 0 || srcR.h === 0) return null;
 
     const isDirectWild = (tile) => isDirectWildTile(tile);
     const isSourceDirectWild = isDirectWild(src);
-    const pointerDropAllowed = pointerGlobal && src.special !== 'wild-magnet' && isSourceDirectWild;
+    const pointerDropAllowed = pointerGlobal && src.special !== 'wild-magnet' && isSourceDirectWild && !isBarrelSource;
     if (pointerDropAllowed) {
       let pointerBest = null;
       let pointerBestDist = Infinity;
@@ -2429,7 +2431,7 @@ export function initDrag(cfg) {
     // wild -> regular and regular -> wild. PIXI bounds can be stale after reparent/drop
     // or during scale tweens, so use board-space centers as a stable fallback whenever
     // overlap is missing or below threshold.
-    const wildCenterFallbackAllowed = src.special !== 'wild-magnet' && isSourceDirectWild;
+    const wildCenterFallbackAllowed = src.special !== 'wild-magnet' && isSourceDirectWild && !isBarrelSource;
     if (allowCenterFallback && wildCenterFallbackAllowed && (!best || bestRatio < th)) {
       let closest = null;
       let closestDist = Infinity;
@@ -2750,6 +2752,15 @@ export function initDrag(cfg) {
         overwrite: 'auto'
       });
     }
+  }
+
+  function getCompactBarrelRect(tile: any) {
+    // SVG's jump canvas and Pixi fallback bounds exceed the visible barrel.
+    // Selection follows the resting body instead of that transparent space.
+    const center = getTileBoardPosition(tile);
+    const scaleX = Math.abs(Number(tile?.scale?.x) || 1);
+    const scaleY = Math.abs(Number(tile?.scale?.y) || 1);
+    return getBarrelDragFootprint(center, tileSize, scaleX, scaleY);
   }
 
   function getRect(d) {

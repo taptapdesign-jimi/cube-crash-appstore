@@ -82,8 +82,11 @@ export type TntAnimationVisualOptions = {
   frameVerticalStretch?: number;
   hideFrameIndicesAtExitStart?: number[];
   burstSources?: string[];
+  debrisSources?: string[];
+  debrisScale?: number;
   burstMotion?: Record<string, unknown>;
   diceDebris?: boolean;
+  diceAvoidImageDebris?: boolean;
   finaleScene?: 'bottle-ocean' | 'spaceship-abduction' | 'lasergun-crossfire';
 };
 
@@ -105,10 +108,11 @@ function resolveFrameSources(options?: TntAnimationVisualOptions): { preferred: 
 export function preloadTntFrames(options: TntAnimationVisualOptions = {}): Promise<void> {
   const { preferred, fallback } = resolveFrameSources(options);
   const burstSources = Array.isArray(options.burstSources) ? options.burstSources.filter(Boolean) : [];
+  const debrisSources = Array.isArray(options.debrisSources) ? options.debrisSources.filter(Boolean) : [];
   const diceSources = options.diceDebris === true ? [TNT_DICE_TILE_SOURCE] : [];
   const usesLaserGunScene = options.finaleScene === 'lasergun-crossfire';
   const frameCacheSources = usesLaserGunScene ? ['lasergun-dom'] : preferred;
-  const cacheKey = [...frameCacheSources, ...burstSources, ...diceSources].join('|');
+  const cacheKey = [...frameCacheSources, ...burstSources, ...debrisSources, ...diceSources].join('|');
   const existing = preloadPromises.get(cacheKey);
   if (existing) return existing;
 
@@ -137,6 +141,11 @@ export function preloadTntFrames(options: TntAnimationVisualOptions = {}): Promi
       );
     }
     await Promise.all(burstSources.map(async (source) => {
+      const cached = Assets.get(source) as Texture | undefined;
+      if (isRenderableTexture(cached)) return;
+      await Assets.load<Texture>(source);
+    }));
+    await Promise.all(debrisSources.map(async (source) => {
       const cached = Assets.get(source) as Texture | undefined;
       if (isRenderableTexture(cached)) return;
       await Assets.load<Texture>(source);
@@ -285,6 +294,95 @@ export function createTntDiceDebrisPlans(random: () => number = Math.random): Tn
     plan.angle = Math.atan2(plan.startY, plan.startX) + angleEntropy[index];
   });
   return plans;
+}
+
+function getTntDebrisFlightPoint(plan: TntDiceDebrisPlan, progress: number): { x: number; y: number } {
+  const impulse = 1 - Math.pow(1 - progress, 2.35);
+  const curveEnvelope = Math.sin(Math.PI * progress) * plan.curve;
+  return {
+    x: plan.startX + Math.cos(plan.angle) * plan.distance * impulse - Math.sin(plan.angle) * curveEnvelope,
+    y: plan.startY + Math.sin(plan.angle) * plan.distance * impulse + Math.cos(plan.angle) * curveEnvelope
+      + 28 * progress * progress,
+  };
+}
+
+function getTntDebrisVisualScale(plan: TntDiceDebrisPlan, progress: number): number {
+  const popIn = Math.min(1, progress / 0.12);
+  const fadeOut = Math.max(0, (progress - 0.78) / 0.22);
+  const liveScale = plan.startScale + (plan.peakScale - plan.startScale) * popIn;
+  return liveScale + (plan.endScale - liveScale) * fadeOut;
+}
+
+/** Random Barrel dice paths, checked against the actual live wood-shard paths. */
+export function createBarrelDiceDebrisPlans(
+  woodPlans: readonly TntDiceDebrisPlan[],
+  woodSizeScale = 0.7,
+  random: () => number = Math.random,
+): TntDiceDebrisPlan[] {
+  const dicePlans = createTntDiceDebrisPlans(random);
+  const sampleTimes = Array.from({ length: 59 }, (_, index) => 0.16 + index * 0.035);
+  const lastVisibleWoodTime = Math.max(0, ...woodPlans.map((wood) => wood.delay + wood.duration));
+  const woodSamples = sampleTimes.map((time) => woodPlans.flatMap((wood) => {
+    const progress = (time - wood.delay) / wood.duration;
+    if (progress <= 0 || progress >= 1) return [];
+    const point = getTntDebrisFlightPoint(wood, progress);
+    return [{ ...point, radius: wood.size * woodSizeScale * getTntDebrisVisualScale(wood, progress) * 0.5 }];
+  }));
+  const accepted: TntDiceDebrisPlan[] = [];
+  dicePlans.forEach((base) => {
+    let selected: TntDiceDebrisPlan | null = null;
+    let best: TntDiceDebrisPlan | null = null;
+    let bestClearance = -Infinity;
+    for (let attempt = 0; attempt < 256; attempt += 1) {
+      const bearing = random() * Math.PI * 2;
+      const radius = 55 + random() * 135;
+      const delayJitter = attempt < 128 ? 0.18 : 0.9;
+      const candidate = {
+        ...base,
+        startX: Math.cos(bearing) * radius,
+        startY: Math.sin(bearing) * radius * 0.8,
+        angle: bearing + (random() - 0.5) * 0.24,
+        delay: Math.max(0.12, base.delay + (random() - 0.5) * delayJitter),
+      };
+      const startClearance = accepted.reduce((minimum, die) => Math.min(minimum,
+        Math.hypot(candidate.startX - die.startX, candidate.startY - die.startY)
+          - (candidate.size + die.size) * 0.5 - 3,
+      ), Infinity);
+      if (startClearance < 0) continue;
+      let clearance = startClearance;
+      for (let sampleIndex = 0; sampleIndex < sampleTimes.length; sampleIndex += 1) {
+        const progress = (sampleTimes[sampleIndex] - candidate.delay) / candidate.duration;
+        if (progress <= 0 || progress >= 1) continue;
+        const point = getTntDebrisFlightPoint(candidate, progress);
+        const dieRadius = candidate.size * getTntDebrisVisualScale(candidate, progress) * 0.5;
+        for (const wood of woodSamples[sampleIndex]) {
+          clearance = Math.min(clearance,
+            Math.hypot(point.x - wood.x, point.y - wood.y) - dieRadius - wood.radius - 5,
+          );
+          if (clearance < 0) break;
+        }
+        if (clearance < 0) break;
+      }
+      if (clearance > bestClearance) { best = candidate; bestClearance = clearance; }
+      if (clearance >= 0) { selected = candidate; break; }
+    }
+    // A crowded draw still keeps its die, but enters after wood fades instead
+    // of allowing a visible collision with the authored shard paths.
+    if (!selected) {
+      const lateBearing = random() * Math.PI * 2;
+      const lateRadius = 55 + random() * 135;
+      const late = best ?? {
+        ...base,
+        startX: Math.cos(lateBearing) * lateRadius,
+        startY: Math.sin(lateBearing) * lateRadius * 0.8,
+        angle: lateBearing,
+      };
+      late.delay = Math.max(late.delay, lastVisibleWoodTime + 0.07);
+      selected = late;
+    }
+    accepted.push(selected);
+  });
+  return accepted;
 }
 
 let isActive = false;
@@ -672,13 +770,13 @@ function attachDepthLayeredTntDiceDebris(
   tileTexture: Texture,
   centerX: number,
   centerY: number,
-  random: () => number = Math.random,
+  plans: readonly TntDiceDebrisPlan[],
 ): () => void {
   const dice: Container[] = [];
   const timelines: gsap.core.Timeline[] = [];
   let disposed = false;
 
-  createTntDiceDebrisPlans(random).forEach((plan) => {
+  plans.forEach((plan) => {
     const die = new Container();
     die.label = `tnt-dice-debris-${plan.value}`;
     die.eventMode = 'none';
@@ -716,8 +814,6 @@ function attachDepthLayeredTntDiceDebris(
     dice.push(die);
 
     const flight = { progress: 0 };
-    const perpendicularX = -Math.sin(plan.angle);
-    const perpendicularY = Math.cos(plan.angle);
     const timeline = trackTimeline({ delay: plan.delay });
     timeline.to(flight, {
       progress: 1,
@@ -727,19 +823,13 @@ function attachDepthLayeredTntDiceDebris(
         if (disposed || die.destroyed) return;
         const progress = flight.progress;
         const impulse = 1 - Math.pow(1 - progress, 2.35);
-        const curveEnvelope = Math.sin(Math.PI * progress) * plan.curve;
         const fadeOut = Math.max(0, (progress - 0.78) / 0.22);
         const popIn = Math.min(1, progress / 0.12);
-        die.x = centerX + plan.startX
-          + Math.cos(plan.angle) * plan.distance * impulse
-          + perpendicularX * curveEnvelope;
-        die.y = centerY + plan.startY
-          + Math.sin(plan.angle) * plan.distance * impulse
-          + perpendicularY * curveEnvelope
-          + 28 * progress * progress;
+        const point = getTntDebrisFlightPoint(plan, progress);
+        die.x = centerX + point.x;
+        die.y = centerY + point.y;
         die.rotation = plan.startRotation + plan.rotationTravel * impulse;
-        const liveScale = plan.startScale + (plan.peakScale - plan.startScale) * popIn;
-        const scale = settledScale * (liveScale + (plan.endScale - liveScale) * fadeOut);
+        const scale = settledScale * getTntDebrisVisualScale(plan, progress);
         die.scale.set(scale);
         die.alpha = popIn * (1 - fadeOut);
       },
@@ -769,6 +859,89 @@ function attachDepthLayeredTntDiceDebris(
         die.destroy();
       } catch {}
     });
+  };
+}
+
+/** Shuffle each complete set so all six Barrel shards appear in every blast. */
+export function createTntDebrisSpriteSourceOrder(
+  sources: readonly string[],
+  count: number,
+  random: () => number = Math.random,
+): string[] {
+  if (!sources.length || count <= 0) return [];
+  const order: string[] = [];
+  while (order.length < count) {
+    const batch = [...sources];
+    for (let index = batch.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.max(0, Math.min(1 - Number.EPSILON, random())) * (index + 1));
+      [batch[index], batch[swapIndex]] = [batch[swapIndex], batch[index]];
+    }
+    order.push(...batch);
+  }
+  return order.slice(0, count);
+}
+
+/** The TNT dice lanes become independently shuffled Barrel wood shards. */
+function attachDepthLayeredTntImageDebris(
+  container: Container,
+  sources: readonly string[],
+  centerX: number,
+  centerY: number,
+  sizeScale = 1,
+  plans: readonly TntDiceDebrisPlan[] = createTntDiceDebrisPlans(),
+): () => void {
+  const sourceOrder = createTntDebrisSpriteSourceOrder(sources, plans.length);
+  const shards: Array<{ sprite: Sprite; plan: TntDiceDebrisPlan; settledScale: number }> = [];
+  let masterTimeline: gsap.core.Timeline | null = null;
+  let disposed = false;
+
+  plans.forEach((plan, index) => {
+    const texture = Assets.get(sourceOrder[index]) as Texture | undefined;
+    if (!isRenderableTexture(texture)) return;
+    const sprite = acquireFrameSprite(texture, plan.depth, centerX + plan.startX, centerY + plan.startY);
+    sprite.label = `tnt-image-debris-${index}`;
+    sprite.rotation = plan.startRotation;
+    sprite.alpha = 0;
+    const extent = Math.max(1, texture.width, texture.height);
+    const settledScale = plan.size * sizeScale / extent;
+    sprite.scale.set(settledScale * plan.startScale);
+    container.addChild(sprite);
+    shards.push({ sprite, plan, settledScale });
+  });
+  try { container.sortChildren?.(); } catch {}
+
+  const clock = { time: 0 };
+  const endTime = Math.max(0, ...plans.map((plan) => plan.delay + plan.duration));
+  masterTimeline = trackTimeline();
+  masterTimeline.to(clock, {
+    time: endTime,
+    duration: endTime,
+    ease: 'none',
+    onUpdate: () => {
+      if (disposed) return;
+      shards.forEach(({ sprite, plan, settledScale }) => {
+        if (sprite.destroyed || clock.time < plan.delay) return;
+        const progress = Math.max(0, Math.min(1, (clock.time - plan.delay) / plan.duration));
+        const impulse = 1 - Math.pow(1 - progress, 2.35);
+        const fadeOut = Math.max(0, (progress - 0.78) / 0.22);
+        const popIn = Math.min(1, progress / 0.12);
+        const point = getTntDebrisFlightPoint(plan, progress);
+        sprite.x = centerX + point.x;
+        sprite.y = centerY + point.y;
+        sprite.rotation = plan.startRotation + plan.rotationTravel * impulse;
+        sprite.scale.set(settledScale * getTntDebrisVisualScale(plan, progress));
+        sprite.alpha = popIn * (1 - fadeOut);
+      });
+    },
+  });
+
+  return () => {
+    if (disposed) return;
+    disposed = true;
+    if (masterTimeline) animationManager.killExternalTimeline(masterTimeline);
+    masterTimeline = null;
+    shards.forEach(({ sprite }) => releaseFrameSprite(sprite));
+    shards.length = 0;
   };
 }
 
@@ -897,6 +1070,7 @@ export function getTntAnimationOverlay(): HTMLElement | null {
 
 // TNT sprite sekvenca - 12 frameova, sve u centru viewporta
 const ENTER_BOUNCE_SCALE = 1.2;
+export const TNT_SMOKE_FIRST_FRAME_START_SECONDS = 0.07;
 /** Vertikalno rastezanje spriteova za 40% (manje plosnato) */
 const VERTICAL_STRETCH = 1.4;
 const ENTER_DURATION = 0.24;
@@ -915,6 +1089,17 @@ const BOOM_ENTER_EXTRA = 0.1;
 const BOOM_EXIT_EXTRA = 0.3;
 const MAX_TEXT_CONTAINER_TILT_DEG = 15;
 
+export function getTntSpriteSequenceProgressTime(
+  startSeconds: number,
+  endSeconds: number,
+  progressRatio: number,
+): number {
+  const end = Number.isFinite(endSeconds) ? Math.max(0, endSeconds) : 0;
+  const start = Number.isFinite(startSeconds) ? Math.max(0, Math.min(end, startSeconds)) : 0;
+  const ratio = Number.isFinite(progressRatio) ? Math.max(0, Math.min(1, progressRatio)) : 0;
+  return start + (end - start) * ratio;
+}
+
 /**
  * Play TNT explosion (tnt1..tnt12). Sve u centru viewporta.
  * Nema anchor na merge 6 – strukturna animacija u centru ekrana.
@@ -928,6 +1113,7 @@ export function showTntAnimation(options: {
   onSpriteSequenceComplete?: () => void;
   onSpriteSequenceProgress?: () => void;
   spriteSequenceProgressRatio?: number;
+  spriteSequenceProgressStartSeconds?: number;
   onNinthSpriteStart?: () => void;
   frameSources?: string[];
   text?: string;
@@ -941,8 +1127,11 @@ export function showTntAnimation(options: {
   frameVerticalStretch?: number;
   hideFrameIndicesAtExitStart?: number[];
   burstSources?: string[];
+  debrisSources?: string[];
+  debrisScale?: number;
   burstMotion?: Record<string, unknown>;
   diceDebris?: boolean;
+  diceAvoidImageDebris?: boolean;
   finaleScene?: 'bottle-ocean' | 'spaceship-abduction' | 'lasergun-crossfire';
 } = {}): HTMLElement | null {
   tntMemInit();
@@ -975,6 +1164,7 @@ export function showTntAnimation(options: {
     onSpriteSequenceComplete,
     onSpriteSequenceProgress,
     spriteSequenceProgressRatio,
+    spriteSequenceProgressStartSeconds,
     onNinthSpriteStart,
   } = options;
   const usesLaserGunScene = options.finaleScene === 'lasergun-crossfire';
@@ -1218,6 +1408,9 @@ export function showTntAnimation(options: {
       });
     }
   }
+  const imageDebrisPlans = options.diceAvoidImageDebris === true && options.debrisSources?.length
+    ? createTntDiceDebrisPlans()
+    : null;
   if (options.diceDebris === true && pixiFrameContainer) {
     const tileTexture = Assets.get(TNT_DICE_TILE_SOURCE) as Texture | undefined;
     if (isRenderableTexture(tileTexture)) {
@@ -1226,15 +1419,30 @@ export function showTntAnimation(options: {
         tileTexture,
         centerX,
         centerY,
+        imageDebrisPlans
+          ? createBarrelDiceDebrisPlans(imageDebrisPlans,
+              Number.isFinite(options.debrisScale) ? Math.max(0.1, Number(options.debrisScale)) : 1)
+          : createTntDiceDebrisPlans(),
       );
       foregroundBurstCleanups.push(dispose);
     }
+  }
+  if (Array.isArray(options.debrisSources) && options.debrisSources.length && pixiFrameContainer) {
+    const dispose = attachDepthLayeredTntImageDebris(
+      pixiFrameContainer,
+      options.debrisSources,
+      centerX,
+      centerY,
+      Number.isFinite(options.debrisScale) ? Math.max(0.1, Number(options.debrisScale)) : 1,
+      imageDebrisPlans ?? undefined,
+    );
+    foregroundBurstCleanups.push(dispose);
   }
 
   // Frame 6 timing helpers:
   // - enter end: used to start board blast right after sprite enter animation
   // - settle end: used for TNT internal hold/exit choreography
-  const sprite5EnterEndTime = 0.07 + 5 * 0.04 + ENTER_DURATION;
+  const sprite5EnterEndTime = TNT_SMOKE_FIRST_FRAME_START_SECONDS + 5 * 0.04 + ENTER_DURATION;
   const sprite5SettleTime = sprite5EnterEndTime + SETTLE_DURATION;
   const exitStartTime = sprite5SettleTime + HOLD_AT_FRAME_6 + SPRITE_EXTRA_DURATION - 0.2;
   const standardSpriteSequenceEndTime = exitStartTime
@@ -1263,7 +1471,7 @@ export function showTntAnimation(options: {
     const isExitOnlyFinalFrame = lastFrameOnExitOnly && i === numFrames - 1;
     const randomRotation = (Math.random() - 0.5) * 20;
     const randomSize = (1 + Math.random() * 0.52) * frameScale;
-    const enterDelay = 0.07 + i * 0.04;
+    const enterDelay = TNT_SMOKE_FIRST_FRAME_START_SECONDS + i * 0.04;
     const dEnter = ENTER_DURATION;
     const dSettle = SETTLE_DURATION;
     const settleEndTime = enterDelay + dEnter + dSettle;
@@ -1417,10 +1625,13 @@ export function showTntAnimation(options: {
     && typeof onSpriteSequenceProgress === 'function'
     && Number.isFinite(spriteSequenceProgressRatio)
   ) {
-    const boundedProgressRatio = Math.max(0, Math.min(1, Number(spriteSequenceProgressRatio)));
     timeline.call(() => {
       try { onSpriteSequenceProgress(); } catch {}
-    }, [], standardSpriteSequenceEndTime * boundedProgressRatio);
+    }, [], getTntSpriteSequenceProgressTime(
+      spriteSequenceProgressStartSeconds ?? 0,
+      standardSpriteSequenceEndTime,
+      Number(spriteSequenceProgressRatio),
+    ));
   }
   // Fire once when frame 6 enter animation is complete (no settle wait)
   let sprite6Triggered = false;

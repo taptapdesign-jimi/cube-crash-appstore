@@ -156,6 +156,49 @@ describe('decoded gameplay audio owner', () => {
     expect(sourceNode.stop).toHaveBeenCalledWith(11.5);
   });
 
+  it('resumes an existing audio context on foreground without replaying active voices', async () => {
+    const source = './assets/sound/worlds/crumbleworlds.wav';
+    preloadDecodedGameplaySounds([source]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(playDecodedGameplaySound(source, {
+      voiceId: 'journey-worlds-hub-loop',
+      volume: 0.348,
+      loop: true,
+    })).toBe('played');
+
+    const context = MockAudioContext.instances[0];
+    const activeSource = context.sources[0];
+    context.state = 'suspended';
+    context.resume.mockImplementation(async () => { context.state = 'running'; });
+    window.dispatchEvent(new Event('pageshow'));
+    await Promise.resolve();
+
+    expect(context.resume).toHaveBeenCalledTimes(1);
+    expect(context.sources).toHaveLength(1);
+    expect(activeSource.start).toHaveBeenCalledTimes(1);
+    expect(activeSource.stop).not.toHaveBeenCalled();
+    expect(getDecodedGameplayAudioStats().activeVoices).toBe(1);
+  });
+
+  it('retries an interrupted foreground context at the next eligible gesture', async () => {
+    preloadDecodedGameplaySounds(['./assets/sound/worlds/crumbleworlds.wav']);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const context = MockAudioContext.instances[0];
+    context.state = 'suspended';
+    context.resume.mockImplementationOnce(async () => {});
+    context.resume.mockImplementationOnce(async () => { context.state = 'running'; });
+
+    window.dispatchEvent(new Event('pageshow'));
+    await Promise.resolve();
+    expect(context.state).toBe('suspended');
+    document.dispatchEvent(new Event('pointerup'));
+    await Promise.resolve();
+
+    expect(context.resume).toHaveBeenCalledTimes(2);
+    expect(context.state).toBe('running');
+    expect(context.sources).toHaveLength(0);
+  });
+
   it('ramps a live looping voice without restarting or stopping its source', async () => {
     const source = './assets/sound/worlds/crumbleworlds.wav';
     preloadDecodedGameplaySounds([source]);

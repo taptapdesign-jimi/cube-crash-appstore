@@ -107,6 +107,27 @@ describe('sample-accurate main theme transport', () => {
     expect(voice!.currentTime).toBeCloseTo(2.5583125, 7);
   });
 
+  it('resumes an interrupted live transport without making another source', async () => {
+    const voice = createSampleAccurateMainThemeVoice({
+      source: './theme.wav',
+      loopStartSeconds: 2.0583125,
+      loopEndSeconds: 59.6910625,
+      initialVolume: 0.68,
+    })!;
+    await voice.play();
+    const context = MockAudioContext.instances[0];
+    const source = context.sources[0];
+    context.state = 'suspended';
+
+    await voice.resumeIfInterrupted();
+
+    expect(context.resume).toHaveBeenCalledTimes(1);
+    expect(context.sources).toHaveLength(1);
+    expect(source.start).toHaveBeenCalledTimes(1);
+    expect(source.stop).not.toHaveBeenCalled();
+    voice.dispose();
+  });
+
   it('resumes the context before creating its single source and cleans up', async () => {
     const voice = createSampleAccurateMainThemeVoice({
       source: './theme.wav',

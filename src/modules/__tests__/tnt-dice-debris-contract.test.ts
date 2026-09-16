@@ -95,7 +95,7 @@ describe('TNT depth-layered board-dice debris', () => {
     expect(leftTrail[1].duration).toBeCloseTo(leftTrail[0].duration);
   });
 
-  test('renders dice inside Pixi smoke layers only for original TNT and owns cleanup', () => {
+  test('renders dice for core TNT and Barrel inside Pixi smoke layers and owns cleanup', () => {
     const tntSource = read('src/modules/tnt-animation.ts');
     const appCoreSource = read('src/modules/app-core.ts');
 
@@ -107,7 +107,7 @@ describe('TNT depth-layered board-dice debris', () => {
     expect(tntSource).toContain('foregroundBurstCleanups.push(dispose)');
     expect(tntSource).toContain('if (die.parent) die.parent.removeChild(die)');
     expect(tntSource).toContain('child.destroy({ texture: false, textureSource: false })');
-    expect(appCoreSource).toContain('diceDebris: tntVariantForMerge == null');
+    expect(appCoreSource).toContain("diceDebris: tntVariantForMerge == null || tntVariantForMerge?.id === 'barell'");
     expect(appCoreSource).toContain('preloadTntFrames(tntAnimationOptionsForMerge)');
     expect(appCoreSource).toContain('...tntAnimationOptionsForMerge');
   });

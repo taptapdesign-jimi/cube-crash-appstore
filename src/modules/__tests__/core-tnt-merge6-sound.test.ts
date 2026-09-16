@@ -195,7 +195,7 @@ describe('core TNT merge-6 sound', () => {
     })).toBe(false);
   });
 
-  test('is called once and exposes its exact bonus-impact mix to Flower only', () => {
+  test('is called once and shares its bonus-impact mix with Flower, Barrel and Ball', () => {
     const appCore = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/app-core.ts'), 'utf8');
     expect(appCore.match(/playCoreTntMerge6Sound\(\);/g)).toHaveLength(1);
     expect(appCore).toContain('if (isCoreTntMerge6SoundEvent({');
@@ -205,6 +205,7 @@ describe('core TNT merge-6 sound', () => {
       appCore.indexOf('playCoreTntMerge6Sound();'),
     );
     expect(appCore).toContain("onImpact: tntVariantForMerge && tntVariantForMerge.id !== 'flower'");
+    expect(appCore).toContain("tntVariantForMerge.id !== 'beach-ball'");
     expect(appCore).toContain('if (tntBonusSoundRunGeneration !== gameplayRunGeneration) return;');
     expect(appCore).toContain('playCoreTntBonusImpactSound(impactIndex);');
     expect(appCore).toContain('try { onImpact?.(i); }');

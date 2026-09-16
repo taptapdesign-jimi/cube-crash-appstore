@@ -10,6 +10,7 @@ export type MainThemeVoiceLike = Pick<
 > & {
   readonly sampleAccurateIntroLoop?: boolean;
   dispose?: () => void;
+  resumeIfInterrupted?: () => Promise<void>;
 };
 
 export interface SampleAccurateMainThemeVoice extends MainThemeVoiceLike {
@@ -27,6 +28,10 @@ interface MainThemeTransportOptions {
 function resolveSource(source: string): string {
   if (typeof document === 'undefined') return source;
   return new URL(source, document.baseURI).href;
+}
+
+function isContextRunning(context: AudioContext): boolean {
+  return context.state === 'running';
 }
 
 class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
@@ -95,7 +100,7 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
     this.buffer = buffer;
     if (this.context.state !== 'running') await this.context.resume();
     if (this.isDisposed || generation !== this.playGeneration) return;
-    if (this.context.state !== 'running') {
+    if (!isContextRunning(this.context)) {
       throw new DOMException('User activation required', 'NotAllowedError');
     }
     if (!this.isPaused) return;
@@ -108,6 +113,14 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
     this.storedPosition = this.currentTime;
     this.stopSource();
     this.isPaused = true;
+  }
+
+  async resumeIfInterrupted(): Promise<void> {
+    if (this.isDisposed || this.isPaused || this.context.state === 'running') return;
+    await this.context.resume();
+    if (!isContextRunning(this.context)) {
+      throw new DOMException('Main theme context remains interrupted', 'NotAllowedError');
+    }
   }
 
   dispose(): void {

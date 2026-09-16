@@ -117,7 +117,7 @@ describe('Mushroom special-die visual contract', () => {
     expect(juiceSource).toContain("const MUSHROOM_FOREGROUND_CLASS = 'cc-mushroom-finale-foreground'");
     expect(juiceSource).toContain('if (isMushroomDrop) {');
     expect(juiceSource).toContain('setMushroomForegroundOwnership(true)');
-    const cleanupBranch = juiceSource.slice(juiceSource.indexOf('function cleanup(): void'));
+    const cleanupBranch = juiceSource.slice(juiceSource.search(/function cleanup\([^)]*\): void/));
     expect(cleanupBranch).toContain('setMushroomForegroundOwnership(false)');
     expect(styleSource).toContain('#app.cc-mushroom-finale-foreground canvas');
     expect(styleSource).toContain('z-index: 3 !important;');

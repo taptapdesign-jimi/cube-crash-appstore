@@ -202,7 +202,8 @@ describe('Flower merge-6 sound', () => {
     expect(appCore).toContain('? () => playFlowerMerge6LeavesSound()');
     expect(appCore).toContain('playFlowerMerge6SparkSound();');
     expect(appCore).toContain('stopFlowerMerge6Sounds();');
-    expect(tntAnimation).toContain('standardSpriteSequenceEndTime * boundedProgressRatio');
+    expect(tntAnimation).toContain('getTntSpriteSequenceProgressTime(');
+    expect(tntAnimation).toContain('spriteSequenceProgressStartSeconds ?? 0');
   });
 
   test('obeys Sounds OFF and rewinds every owned Flower layer', () => {

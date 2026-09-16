@@ -205,9 +205,9 @@ export function stopCoreTntBonusImpactSounds(): void {
 }
 
 /**
- * Starts one four-impact sound sequence. Flower deliberately shares this
- * exact shuffled TNT mini-impact pool and mix, while keeping its own Merge-6
- * foundation and authored Flower layers separate.
+ * Starts one four-impact sound sequence. Flower and Beach Ball share this
+ * shuffled TNT mini-impact pool and mix while keeping their own Merge-6
+ * foundations and authored layers separate.
  */
 export function beginCoreTntBonusImpactSoundSequence(): boolean {
   if (!areCoreTntMerge6SoundsEnabled()) return false;

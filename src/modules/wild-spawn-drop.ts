@@ -3,7 +3,8 @@ import { Assets, Sprite, Texture } from 'pixi.js';
 import animationManager from './animation-manager.js';
 import { ASSET_WILD, ASSET_WILD_MAGNET, ASSET_WILD_JUICE, ASSET_WILD_TNT } from './constants.js';
 import { isArcadeHomeRunMode } from './run-mode.js';
-import { getSpecialDiceVariantForTile, getSpecialDiceVisualConfig } from './special-dice-registry.ts';
+import { getSpecialDiceTexturePath, getSpecialDiceVariantForTile, getSpecialDiceVisualConfig } from './special-dice-registry.ts';
+import { createCarrierForeground, createSpawnedDieForeground } from './wild-spawn-carrier-foreground.ts';
 import {
   playArcadeCrateSounds,
   preloadArcadeCrateSounds,
@@ -137,6 +138,7 @@ function createBackpackSpawn(stage: any, point: Point, tileSize: number, baseZ: 
   let backpack: any = null;
   let frameTimeline: gsap.core.Timeline | null = null;
   let bounceTimeline: gsap.core.Timeline | null = null;
+  let carrierForeground: ReturnType<typeof createCarrierForeground> | null = null;
   const useArcadeCrate = isArcadeHomeRunMode();
   const restoreBoardIndicatorDividers = maskBoardIndicatorDividersForBackpack();
   try {
@@ -165,6 +167,7 @@ function createBackpackSpawn(stage: any, point: Point, tileSize: number, baseZ: 
     backpack.scale.set(backpackScale * 0.82, backpackScale * 0.82);
     stage.addChild(backpack);
     forceSpawnVisualAboveHud(stage, backpack, baseZ);
+    carrierForeground = createCarrierForeground(backpack, playbackSources);
 
     bounceTimeline = trackTimeline({
       onUpdate: () => forceSpawnVisualAboveHud(stage, backpack, baseZ),
@@ -185,6 +188,7 @@ function createBackpackSpawn(stage: any, point: Point, tileSize: number, baseZ: 
         if (!backpack || backpack.destroyed) return;
         forceSpawnVisualAboveHud(stage, backpack, baseZ);
         backpack.texture = Assets.get(source) || Texture.from(source);
+        carrierForeground?.setFrame(source);
       });
       const closingStartIndex = Math.ceil(playbackSources.length / 2);
       const frameDuration = index >= closingStartIndex ? BACKPACK_CLOSE_FRAME_DURATION : BACKPACK_FRAME_DURATION;
@@ -197,6 +201,7 @@ function createBackpackSpawn(stage: any, point: Point, tileSize: number, baseZ: 
       .call(() => {
         if (!backpack || backpack.destroyed) return;
         backpack.texture = Assets.get(playbackSources[playbackSources.length - 1]) || Texture.from(playbackSources[playbackSources.length - 1]);
+        carrierForeground?.setFrame(playbackSources[playbackSources.length - 1]);
       })
       .set(backpack.scale, { x: backpackScale, y: backpackScale })
       .to(backpack.scale, { x: 0, y: 0, duration: 0.24, ease: 'back.in(2.2)' })
@@ -216,6 +221,8 @@ function createBackpackSpawn(stage: any, point: Point, tileSize: number, baseZ: 
     }
     try { gsap.killTweensOf(backpack); } catch {}
     try { gsap.killTweensOf(backpack?.scale); } catch {}
+    try { carrierForeground?.release(); } catch {}
+    carrierForeground = null;
     try { restoreBoardIndicatorDividers(); } catch {}
     try {
       if (backpack?.parent) backpack.parent.removeChild(backpack);
@@ -418,6 +425,14 @@ export async function animateWildSpawnDropFromMeter({
       tileSize * stageVisualScale,
       WILD_SPAWN_CONTAINER_Z_INDEX,
     );
+    const emittedSource = getSpecialDiceTexturePath(tile, assetPath || ASSET_WILD);
+    let spawnedDieForeground: ReturnType<typeof createSpawnedDieForeground> | null = null;
+    const releaseSpawnedDieForeground = () => {
+      activeDropCleanups.delete(releaseSpawnedDieForeground);
+      try { spawnedDieForeground?.release(); } catch {}
+      spawnedDieForeground = null;
+    };
+    activeDropCleanups.add(releaseSpawnedDieForeground);
     const launch = {
       x: start.x,
       y: start.y - 14 * stageVisualScale,
@@ -442,6 +457,9 @@ export async function animateWildSpawnDropFromMeter({
       if (tile.rotG) tile.rotG.alpha = 1;
       if (tile.base) tile.base.alpha = 1;
     } catch {}
+    if (tile._ccWildSpawnDropping === true && tile.base && emittedSource) {
+      spawnedDieForeground = createSpawnedDieForeground(tile.base, emittedSource);
+    }
 
     const dx = stageTarget.x - launch.x;
     const dy = stageTarget.y - launch.y;
@@ -459,6 +477,7 @@ export async function animateWildSpawnDropFromMeter({
     let impactTimeline: gsap.core.Timeline | null = null;
     const restoreTile = () => {
       try {
+        releaseSpawnedDieForeground();
         try { spawnRevealTimeline?.kill(); } catch {}
         spawnRevealTimeline = null;
         try { travelTimeline?.kill(); } catch {}
@@ -683,6 +702,7 @@ export async function animateWildSpawnDropFromMeter({
           },
           onComplete: () => {
             repairWildIdentity(tile, assetPath);
+            releaseSpawnedDieForeground();
             try {
               if (tile.parent !== parent) {
                 try { tile.parent?.removeChild?.(tile); } catch {}

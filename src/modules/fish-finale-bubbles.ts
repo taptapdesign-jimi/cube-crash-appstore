@@ -14,8 +14,15 @@ export const FISH_BUBBLES_SVG_SOURCE = './assets/shop/fish/bubbly-fast.svg';
 export const FISH_BUBBLES_HEVC_SOURCE = './assets/shop/fish/bubbly-fast-hevc.mov';
 export const FISH_BUBBLES_START_SCALE = 1.7;
 export const FISH_BUBBLES_END_SCALE = 1;
-export const FISH_BUBBLES_SCALE_DOWN_START_RATIO = 0.72;
-export const FISH_BUBBLES_VERTICAL_OFFSET_VIEWPORT_RATIO = 0.25;
+// Keep the visible bubbles at one scale while they rise. The authored SVG's
+// last pop ring is fully transparent by 95.23% of its one-shot timeline;
+// settle the presentation scale only after that artwork has disappeared.
+export const FISH_BUBBLES_SCALE_DOWN_START_RATIO = 0.98;
+// The Bubbly source opens at y=410 in an 800px canvas. With the 1.7x opening
+// scale around its centre, this offset puts that first bubble 10% of the
+// viewport height above the bottom edge.
+export const FISH_BUBBLES_VERTICAL_OFFSET_VIEWPORT_RATIO = 0.37875;
+export const FISH_BUBBLES_END_VERTICAL_OFFSET_VIEWPORT_RATIO = 0.25;
 
 let preloadedVideo: HTMLVideoElement | null = null;
 let hevcUnavailable = false;
@@ -100,7 +107,7 @@ export function attachFishFinaleBubbles(
     'inset:0',
     'overflow:hidden',
     'pointer-events:none',
-    'z-index:1',
+    'z-index:2',
     'contain:layout style paint',
     'transform-origin:50% 50%',
     'will-change:transform',
@@ -169,11 +176,17 @@ export function attachFishFinaleBubbles(
       duration: holdDurationSeconds,
       ease: 'none',
     })
+    .set(field, { opacity: 0 }, holdDurationSeconds)
     .to(field, {
       scale: FISH_BUBBLES_END_SCALE,
       duration: totalDurationSeconds - holdDurationSeconds,
       ease: 'power2.inOut',
-    });
+    })
+    .to(field, {
+      y: viewportHeight * FISH_BUBBLES_END_VERTICAL_OFFSET_VIEWPORT_RATIO,
+      duration: totalDurationSeconds,
+      ease: 'none',
+    }, 0);
   if (video) {
     try { video.currentTime = 0; } catch {}
     markMergePerformance('fish-hevc-play-requested');

@@ -30,7 +30,16 @@ import {
   isFirstPlayTutorialForced,
 } from './first-play-tutorial.js';
 import { SETTINGS_SLIDE_INDEX } from './homepage-slide-order.js';
-import { clearArcadeSaveState, getArcadeSavedRound, hasArcadeSavedState } from '../utils/board-save-utils.js';
+import {
+  clearArcadeSaveState,
+  clearPendingArcadeRound,
+  getArcadeSaveKey,
+  getArcadeSavedRound,
+  getPendingArcadeRound,
+  hasArcadePersistedBoardState,
+  hasArcadeSavedState,
+  migrateJourneyCompletionReceiptBeforeClear,
+} from '../utils/board-save-utils.js';
 import { applyAppPaperBackground } from '../utils/app-paper-background.js';
 import { homepageEnterTransitionOwner } from './homepage-enter-transition-owner.js';
 import { appZoneManager } from './app-zone-manager.js';
@@ -61,6 +70,7 @@ import { preloadFishMerge6Sounds } from './fish-merge6-sound.ts';
 import { preloadFishFinaleBubbles } from './fish-finale-bubbles.ts';
 import { preloadBeachBallMerge6Sounds } from './beach-ball-merge6-sound.ts';
 import { preloadCoreTntMerge6Sound } from './core-tnt-merge6-sound.ts';
+import { preloadBarrelMerge6Sounds } from './barrel-merge6-sound.ts';
 import { preloadFlowerMerge6Sounds } from './flower-merge6-sound.ts';
 import { preloadBeeMerge6Sounds } from './bee-merge6-sound.ts';
 import { preloadRoboCubeMerge6Sounds } from './robo-cube-merge6-sound.ts';
@@ -473,6 +483,7 @@ class UIManager {
     preloadFishFinaleBubbles();
     preloadBeachBallMerge6Sounds();
     preloadCoreTntMerge6Sound();
+    preloadBarrelMerge6Sounds();
     preloadFlowerMerge6Sounds();
     preloadBeeMerge6Sounds();
     preloadRoboCubeMerge6Sounds();
@@ -486,6 +497,10 @@ class UIManager {
     preloadNoMovesSound();
     preloadArcadeRoundDigitSounds();
     try {
+      const migratedJourneyBoard = migrateJourneyCompletionReceiptBeforeClear();
+      if (migratedJourneyBoard !== null) {
+        logger.info(`[CC_JOURNEY_TERMINAL_SAVE] migrated board ${migratedJourneyBoard} before Home Play receipt clear`);
+      }
       localStorage.removeItem('cc_saved_game');
       localStorage.removeItem('cc_board_completed');
       localStorage.removeItem('cubeCrash_gameState');
@@ -626,6 +641,7 @@ class UIManager {
     preloadFishFinaleBubbles();
     preloadBeachBallMerge6Sounds();
     preloadCoreTntMerge6Sound();
+    preloadBarrelMerge6Sounds();
     preloadFlowerMerge6Sounds();
     preloadBeeMerge6Sounds();
     preloadRoboCubeMerge6Sounds();
@@ -677,6 +693,10 @@ class UIManager {
       console.log('✅ Game state set (gamePaused reset)');
       // Clear old global/transient saved game state for new game. Arcade run state is kept for resume.
       console.log('🧹 Clearing old transient saved game state...');
+      const migratedJourneyBoard = migrateJourneyCompletionReceiptBeforeClear();
+      if (migratedJourneyBoard !== null) {
+        logger.info(`[CC_JOURNEY_TERMINAL_SAVE] migrated board ${migratedJourneyBoard} before fresh Arcade receipt clear`);
+      }
       localStorage.removeItem('cc_saved_game');
       localStorage.removeItem('cc_board_completed');
       localStorage.removeItem('cubeCrash_gameState');
@@ -749,6 +769,10 @@ class UIManager {
       console.log('🔄 START NEW GAME WITH SAVED STATE');
       console.log('🔄 ====================================');
       logger.info('🔄 Starting new game WITH saved state...');
+      const migratedJourneyBoard = migrateJourneyCompletionReceiptBeforeClear();
+      if (migratedJourneyBoard !== null) {
+        logger.info(`[CC_JOURNEY_TERMINAL_SAVE] migrated board ${migratedJourneyBoard} before Arcade Continue receipt clear`);
+      }
       markArcadeHomeRunOrigin();
       preloadRegularMerge6Sounds();
       preloadWildStarMerge6Sound();
@@ -756,6 +780,7 @@ class UIManager {
       preloadFishFinaleBubbles();
       preloadBeachBallMerge6Sounds();
       preloadCoreTntMerge6Sound();
+      preloadBarrelMerge6Sounds();
       preloadFlowerMerge6Sounds();
       preloadBeeMerge6Sounds();
       preloadRoboCubeMerge6Sounds();
@@ -773,6 +798,42 @@ class UIManager {
         (window as any).__ccArcadeContinuationCueRound = continuationRound;
       } else {
         delete (window as any).__ccArcadeContinuationCueRound;
+      }
+
+      const pendingRound = getPendingArcadeRound();
+      const canAttemptPendingSavedBoard = pendingRound && hasArcadePersistedBoardState() &&
+        (getArcadeSavedRound() ?? 0) >= pendingRound.round;
+      if (pendingRound && !canAttemptPendingSavedBoard) {
+        // Never load the previous Round's near-terminal snapshot after an
+        // accepted Continue. Rebuild the promised Round with carried score.
+        resetArcadeEntryCueOwner();
+        delete (window as any).__ccArcadeContinuationCueRound;
+        (window as any).__ccStartAtLevel = pendingRound.round;
+        (window as any).__ccPreserveScore = pendingRound.score;
+        (window as any).__ccArcadeStageContinuePreserveWild = true;
+        (window as any).__ccArcadeStageWildMeterCarryover = 0.25;
+        (window as any).__ccTriggerHudDrop = true;
+        gameState.setState({
+          isGameActive: true,
+          isPaused: false,
+          isGameEnded: false,
+          score: pendingRound.score,
+          level: pendingRound.round,
+          combo: 0,
+        });
+        (window as any)._gamePaused = false;
+        try {
+          await bootGame();
+          await layoutGame();
+          this.showApp();
+          return;
+        } finally {
+          delete (window as any).__ccStartAtLevel;
+          delete (window as any).__ccPreserveScore;
+          delete (window as any).__ccArcadeStageContinuePreserveWild;
+          delete (window as any).__ccArcadeStageWildMeterCarryover;
+          delete (window as any).__ccTriggerHudDrop;
+        }
       }
       
       // Check if a clean-board completion was pending (hard-exit case)
@@ -891,12 +952,23 @@ class UIManager {
           console.error('❌ loadGameState function not found');
         }
         if (!loaded) {
-          console.warn('⚠️ Invalid Arcade continuation retired; rebuilding canonical fresh Round 01');
-          clearArcadeSaveState();
           delete (window as any).__ccArcadeContinuationCueRound;
           delete (window as any).__ccSkipRebuildBoard;
           cancelArcadeEntryCueOwner();
-          await recoverFreshArcadeEntryAfterFailedLoad();
+          if (pendingRound) {
+            // The saved board passed a coarse playability check but failed
+            // strict schema loading. Keep the accepted Continue receipt and
+            // rebuild its Round instead of falling back to old Round 01.
+            localStorage.removeItem(getArcadeSaveKey());
+            await recoverFreshArcadeEntryAfterFailedLoad(pendingRound.round, pendingRound.score);
+          } else {
+            console.warn('⚠️ Invalid Arcade continuation retired; rebuilding canonical fresh Round 01');
+            clearArcadeSaveState();
+            await recoverFreshArcadeEntryAfterFailedLoad();
+          }
+        } else if (pendingRound) {
+          // Only strict load success can supersede the receipt.
+          clearPendingArcadeRound(pendingRound.ownerId);
         }
         // loadGameState captures this one-shot value in its pop-in owner.
         delete (window as any).__ccArcadeContinuationCueRound;
@@ -2399,6 +2471,9 @@ class UIManager {
         void import('./core-tnt-merge6-sound.ts').then(({ stopCoreTntMerge6Sound }) => {
           stopCoreTntMerge6Sound();
         });
+        void import('./barrel-merge6-sound.ts').then(({ stopBarrelMerge6Sounds }) => {
+          stopBarrelMerge6Sounds();
+        });
         void import('./bee-merge6-sound.ts').then(({ stopBeeMerge6Sounds }) => {
           stopBeeMerge6Sounds();
         });
@@ -2420,6 +2495,9 @@ class UIManager {
         void import('./honey-merge6-sound.ts').then(({ stopHoneyMerge6Sounds }) => {
           stopHoneyMerge6Sounds();
         });
+        void import('./juice-finale-sound.ts').then(({ stopJuiceMerge6Sounds }) => {
+          stopJuiceMerge6Sounds();
+        });
         void import('./ordinary-stack-sound.ts').then(({ stopOrdinaryStackSound }) => {
           stopOrdinaryStackSound();
         });
@@ -2431,6 +2509,9 @@ class UIManager {
         });
         void import('./arcade-round-digit-sound.ts').then(({ stopArcadeRoundDigitSounds }) => {
           stopArcadeRoundDigitSounds();
+        });
+        void import('./arcade-stage-clear-sound.ts').then(({ stopArcadeStageClearSounds }) => {
+          stopArcadeStageClearSounds();
         });
         void import('./cta-activation-sound.ts').then(({ stopCtaActivationSounds }) => {
           stopCtaActivationSounds();

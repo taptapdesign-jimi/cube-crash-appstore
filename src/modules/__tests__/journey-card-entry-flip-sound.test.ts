@@ -61,7 +61,11 @@ describe('Journey card modal entry flip sound', () => {
     expect(source).toContain('preloadJourneyCardEntryFlipSounds();');
     expect(source).toContain('stopJourneyCardEntryFlipSounds();');
     const startReturn = source.split('const startReturn = async')[1]?.split('let closeRequestProfiled')[0] ?? '';
-    expect(startReturn.match(/playJourneyCardReturnFlipSounds\(\);/g)).toHaveLength(1);
+    expect(startReturn).toContain('if (artworkDragWithoutFlip) playJourneyCardManualFlipSound();');
+    expect(startReturn).toContain('else playJourneyCardReturnFlipSounds();');
+    expect(startReturn.indexOf('playJourneyCardManualFlipSound();')).toBeLessThan(
+      startReturn.indexOf('spatialFlight = startJourneyCardSpatialFlight({'),
+    );
     expect(startReturn.indexOf('playJourneyCardReturnFlipSounds();')).toBeLessThan(
       startReturn.indexOf('spatialFlight = startJourneyCardSpatialFlight({'),
     );

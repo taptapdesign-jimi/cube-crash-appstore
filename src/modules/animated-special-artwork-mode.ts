@@ -5,7 +5,8 @@ export type AnimatedSpecialArtworkFamily =
   | 'fish'
   | 'robo'
   | 'mushroom'
-  | 'flower';
+  | 'flower'
+  | 'barell';
 
 export type AnimatedSpecialArtworkMode = 'svg' | 'png';
 
@@ -20,6 +21,7 @@ const ALWAYS_PHASED_SVG_FAMILIES = new Set<AnimatedSpecialArtworkFamily>([
   'wild-star',
   'fish',
   'flower',
+  'barell',
 ]);
 
 function removeAssignment(tile: object, assignment: ArtworkAssignment): void {

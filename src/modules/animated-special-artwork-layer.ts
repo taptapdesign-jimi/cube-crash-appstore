@@ -39,6 +39,8 @@ let occludedOverlayRoot: HTMLDivElement | null = null;
 let dragOverlayRoot: HTMLDivElement | null = null;
 let pinnedForegroundOverlayRoot: HTMLDivElement | null = null;
 let finalePersistentForegroundOverlayRoot: HTMLDivElement | null = null;
+let carrierForegroundOverlayRoot: HTMLDivElement | null = null;
+let spawnedDieForegroundOverlayRoot: HTMLDivElement | null = null;
 let ticker: Ticker | null = null;
 let finaleDepthOwners = 0;
 let lastDragDepthDiagnostic = '';
@@ -104,6 +106,12 @@ function syncOverlayZIndex(
     finalePersistentForegroundOverlayRoot.style.zIndex = gameplayDragActive
       ? String(Math.max(12_002, canvasZIndex + 2))
       : String(Math.max(12, canvasZIndex + 2));
+  }
+  if (carrierForegroundOverlayRoot) {
+    carrierForegroundOverlayRoot.style.zIndex = String(Math.max(12_003, canvasZIndex + 3));
+  }
+  if (spawnedDieForegroundOverlayRoot) {
+    spawnedDieForegroundOverlayRoot.style.zIndex = String(Math.max(12_004, canvasZIndex + 4));
   }
   try {
     if ((window as any).__ccDragDepthDiagnostics === true) {
@@ -244,6 +252,50 @@ function ensureFinalePersistentForegroundOverlayRoot(): HTMLDivElement | null {
   return finalePersistentForegroundOverlayRoot;
 }
 
+export function getAnimatedSpecialArtworkCarrierForegroundRoot(): HTMLDivElement | null {
+  const root = ensureOverlayRoot();
+  const parent = root?.parentElement;
+  if (!root || !parent) return null;
+  if (!carrierForegroundOverlayRoot) {
+    carrierForegroundOverlayRoot = document.createElement('div');
+    carrierForegroundOverlayRoot.className = 'animated-special-artwork-carrier-foreground-layer';
+    carrierForegroundOverlayRoot.setAttribute('aria-hidden', 'true');
+    Object.assign(carrierForegroundOverlayRoot.style, {
+      position: 'absolute',
+      inset: '0',
+      overflow: 'visible',
+      pointerEvents: 'none',
+      zIndex: '12003',
+    });
+  }
+  if (carrierForegroundOverlayRoot.parentElement !== parent) parent.appendChild(carrierForegroundOverlayRoot);
+  const canvas = STATE.app?.canvas as HTMLCanvasElement | null | undefined;
+  if (canvas) syncOverlayZIndex(root, canvas);
+  return carrierForegroundOverlayRoot;
+}
+
+export function getAnimatedSpecialArtworkSpawnedDieForegroundRoot(): HTMLDivElement | null {
+  const root = ensureOverlayRoot();
+  const parent = root?.parentElement;
+  if (!root || !parent) return null;
+  if (!spawnedDieForegroundOverlayRoot) {
+    spawnedDieForegroundOverlayRoot = document.createElement('div');
+    spawnedDieForegroundOverlayRoot.className = 'animated-special-artwork-spawned-die-foreground-layer';
+    spawnedDieForegroundOverlayRoot.setAttribute('aria-hidden', 'true');
+    Object.assign(spawnedDieForegroundOverlayRoot.style, {
+      position: 'absolute',
+      inset: '0',
+      overflow: 'visible',
+      pointerEvents: 'none',
+      zIndex: '12004',
+    });
+  }
+  if (spawnedDieForegroundOverlayRoot.parentElement !== parent) parent.appendChild(spawnedDieForegroundOverlayRoot);
+  const canvas = STATE.app?.canvas as HTMLCanvasElement | null | undefined;
+  if (canvas) syncOverlayZIndex(root, canvas);
+  return spawnedDieForegroundOverlayRoot;
+}
+
 function detachTicker(): void {
   if (!ticker) return;
   try { ticker.remove(updateAnimatedSpecialArtworkLayer); } catch {}
@@ -284,6 +336,14 @@ function releaseRuntimeWhenUnused(): void {
     try { finalePersistentForegroundOverlayRoot.remove(); } catch {}
     finalePersistentForegroundOverlayRoot = null;
   }
+  if (carrierForegroundOverlayRoot) {
+    try { carrierForegroundOverlayRoot.remove(); } catch {}
+    carrierForegroundOverlayRoot = null;
+  }
+  if (spawnedDieForegroundOverlayRoot) {
+    try { spawnedDieForegroundOverlayRoot.remove(); } catch {}
+    spawnedDieForegroundOverlayRoot = null;
+  }
   lastDragDepthDiagnostic = '';
 }
 
@@ -297,6 +357,8 @@ function updateAnimatedSpecialArtworkLayer(): void {
     if (dragOverlayRoot) dragOverlayRoot.style.visibility = 'hidden';
     if (pinnedForegroundOverlayRoot) pinnedForegroundOverlayRoot.style.visibility = 'hidden';
     if (finalePersistentForegroundOverlayRoot) finalePersistentForegroundOverlayRoot.style.visibility = 'hidden';
+    if (carrierForegroundOverlayRoot) carrierForegroundOverlayRoot.style.visibility = 'hidden';
+    if (spawnedDieForegroundOverlayRoot) spawnedDieForegroundOverlayRoot.style.visibility = 'hidden';
     return;
   }
 
@@ -313,6 +375,8 @@ function updateAnimatedSpecialArtworkLayer(): void {
     if (dragOverlayRoot) dragOverlayRoot.style.visibility = 'hidden';
     if (pinnedForegroundOverlayRoot) pinnedForegroundOverlayRoot.style.visibility = 'hidden';
     if (finalePersistentForegroundOverlayRoot) finalePersistentForegroundOverlayRoot.style.visibility = 'hidden';
+    if (carrierForegroundOverlayRoot) carrierForegroundOverlayRoot.style.visibility = 'hidden';
+    if (spawnedDieForegroundOverlayRoot) spawnedDieForegroundOverlayRoot.style.visibility = 'hidden';
     return;
   }
   root.style.visibility = 'visible';
@@ -320,6 +384,8 @@ function updateAnimatedSpecialArtworkLayer(): void {
   if (dragOverlayRoot) dragOverlayRoot.style.visibility = 'visible';
   if (pinnedForegroundOverlayRoot) pinnedForegroundOverlayRoot.style.visibility = 'visible';
   if (finalePersistentForegroundOverlayRoot) finalePersistentForegroundOverlayRoot.style.visibility = 'visible';
+  if (carrierForegroundOverlayRoot) carrierForegroundOverlayRoot.style.visibility = 'visible';
+  if (spawnedDieForegroundOverlayRoot) spawnedDieForegroundOverlayRoot.style.visibility = 'visible';
 
   const canvasRect = canvas.getBoundingClientRect();
   const rootRect = root.getBoundingClientRect();

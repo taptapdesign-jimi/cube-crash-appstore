@@ -12,7 +12,7 @@ describe('Arcade continuation Round cue contract', () => {
       source.indexOf('export function cleanupArcadeStageClearModal'),
     );
 
-    expect(cue).toContain('await playRoundNumberPhase(parts, resumedStage)');
+    expect(cue).toContain('await playRoundNumberPhase(parts, resumedStage, isCurrent)');
     expect(cue).toContain('onPresented?.();');
     expect(cue).toContain('fadeOutSoundtrackForGameplay(');
     expect(cue).toContain('getArcadeRoundCueDurationMs(resumedStage)');

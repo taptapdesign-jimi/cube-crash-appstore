@@ -9,6 +9,7 @@ import {
   validateAndNormalizeGameSave,
 } from '../app-core-save-schema.ts';
 import { restoreTilesFromSave } from '../app-core-load-tiles.ts';
+import { finalizeBoardVisibility } from '../app-core-board-visibility.ts';
 
 function regularTile(overrides: Record<string, any> = {}) {
   return {
@@ -47,6 +48,46 @@ describe('atomic gameplay save snapshots', () => {
     expect(gridSnapshot).toEqual([[
       expect.objectContaining({ value: 2, gridX: 0, gridY: 0 }),
     ]]);
+  });
+
+  test('fresh Arcade entry snapshots hidden prepared tiles without changing their visibility', () => {
+    const first = regularTile();
+    const second = regularTile({ gridX: 1 });
+    const tiles = [first, second];
+    const grid = [[first, second]];
+    finalizeBoardVisibility({ tiles, drawBoardBG: jest.fn() });
+    expect(tiles.every((tile) => tile.visible === false)).toBe(true);
+    expect(() => buildGridSnapshot({
+      ROWS: 1, COLS: 2, tiles, grid,
+      devLog: jest.fn(), devWarn: jest.fn(),
+    })).toThrow(BoardSnapshotIntegrityError);
+    const result = buildGridSnapshot({
+      ROWS: 1, COLS: 2, tiles, grid,
+      devLog: jest.fn(), devWarn: jest.fn(),
+      allowPreparedEntryHiddenTiles: true,
+    });
+    expect(result.savedTilesCount).toBe(2);
+    expect(result.gridSnapshot[0]).toEqual([
+      expect.objectContaining({ value: 2, gridX: 0, gridY: 0 }),
+      expect.objectContaining({ value: 2, gridX: 1, gridY: 0 }),
+    ]);
+    expect(tiles.every((tile) => tile.visible === false)).toBe(true);
+  });
+
+  test('prepared entry policy still rejects nonvisual transient and passive tiles', () => {
+    const owner = regularTile({ visible: false, _pendingRemoval: true });
+    expect(() => buildGridSnapshot({
+      ROWS: 1, COLS: 1, tiles: [owner], grid: [[owner]],
+      devLog: jest.fn(), devWarn: jest.fn(),
+      allowPreparedEntryHiddenTiles: true,
+    })).toThrow(BoardSnapshotIntegrityError);
+    delete (owner as any)._pendingRemoval;
+    owner.eventMode = 'passive';
+    expect(() => buildGridSnapshot({
+      ROWS: 1, COLS: 1, tiles: [owner], grid: [[owner]],
+      devLog: jest.fn(), devWarn: jest.fn(),
+      allowPreparedEntryHiddenTiles: true,
+    })).toThrow(BoardSnapshotIntegrityError);
   });
 
   test.each([
