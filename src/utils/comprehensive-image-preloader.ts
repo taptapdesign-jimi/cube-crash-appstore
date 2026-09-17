@@ -177,7 +177,6 @@ const ALL_STARTUP_IMAGES: string[] = [
   
   // UI icons
   './assets/chevron-back.png',
-  './assets/close-button.png',
   './assets/close-icon.png',
   './assets/collectible-stats.png',
   './assets/hand-pointer.png',

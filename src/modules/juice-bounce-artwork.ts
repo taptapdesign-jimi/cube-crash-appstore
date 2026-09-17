@@ -42,6 +42,7 @@ const JUICE_SHEET_SPEC: SharedPixiSheetSpec = Object.freeze({
   activeDurationMs: JUICE_BOUNCE_ACTIVE_DURATION_MS,
   anchorX: 67.326,
   anchorY: 119.38,
+  renderAboveHud: true,
 });
 
 export type JuiceBounceController = SharedPixiSheetController;

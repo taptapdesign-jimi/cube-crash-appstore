@@ -2,7 +2,6 @@ import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
 import {
   acquireAnimatedSpecialArtworkLayer,
   createAnimatedSpecialArtworkClip,
-  installAnimatedSpecialArtworkOverlapFootprint,
   setAnimatedSpecialArtworkDragging,
   setAnimatedSpecialArtworkPinnedForeground,
   type AnimatedSpecialArtworkFrame,
@@ -43,8 +42,11 @@ type FishSwimController = {
   artworkClip: HTMLDivElement;
   image: HTMLImageElement | null;
   video: HTMLVideoElement | null;
+  mediaStarted: boolean;
+  mediaSuspended: boolean;
+  mediaGeneration: number;
   bubbleLayer: HTMLDivElement;
-  bubbleNodes: Map<any, HTMLDivElement>;
+  bubbleNodes: Map<any, SVGSVGElement>;
   bubbleSystem: any | null;
   baseRenderable: boolean;
   baseScaleX: number;
@@ -62,6 +64,7 @@ type FishIdleBubblePaint = {
 const controllers = new Map<any, FishSwimController>();
 let runtimeLease: AnimatedSpecialArtworkLayerLease | null = null;
 let fishHevcUnavailable = false;
+let layerSuspended = false;
 
 export function isFishSwimTile(tile: any): boolean {
   return !!tile && getSpecialDiceVariantForTile(tile)?.id === 'fish';
@@ -119,38 +122,44 @@ function releaseFrontBubbleSystem(controller: FishSwimController): void {
   }
   controller.bubbleSystem = null;
   clearFrontBubbleNodes(controller);
-  controller.bubbleLayer.style.visibility = 'hidden';
+  setFishStyle(controller.bubbleLayer, 'visibility', 'hidden');
 }
 
-function createFrontBubbleNode(paint: FishIdleBubblePaint): HTMLDivElement {
-  const node = document.createElement('div');
-  const diameter = paint.radius * 2;
+function createFrontBubbleNode(paint: FishIdleBubblePaint): SVGSVGElement {
+  const namespace = 'http://www.w3.org/2000/svg';
+  const node = document.createElementNS(namespace, 'svg');
+  const radius = paint.radius;
+  const diameter = radius * 2;
+  node.setAttribute('viewBox', `${-radius} ${-radius} ${diameter} ${diameter}`);
+  node.setAttribute('aria-hidden', 'true');
   Object.assign(node.style, {
     position: 'absolute',
     left: '0',
     top: '0',
     width: `${diameter}px`,
     height: `${diameter}px`,
-    borderRadius: '50%',
-    boxSizing: 'border-box',
-    background: colorToCss(paint.color, 0.6),
-    border: `1px solid ${colorToCss(paint.color, 0.4)}`,
+    overflow: 'visible',
     pointerEvents: 'none',
     transformOrigin: '50% 50%',
     willChange: 'transform, opacity',
   });
-  const highlight = document.createElement('span');
-  Object.assign(highlight.style, {
-    position: 'absolute',
-    left: '20%',
-    top: '20%',
-    width: '30%',
-    height: '30%',
-    borderRadius: '50%',
-    background: colorToCss(paint.color, 0.8),
-    pointerEvents: 'none',
-  });
-  node.appendChild(highlight);
+  // Match the Ball emitter's three Pixi draw operations exactly, including
+  // the centred stroke and highlight overlap, instead of a CSS approximation.
+  const circle = (x: number, y: number, r: number, alpha: number, stroke = false) => {
+    const shape = document.createElementNS(namespace, 'circle');
+    shape.setAttribute('cx', String(x));
+    shape.setAttribute('cy', String(y));
+    shape.setAttribute('r', String(r));
+    shape.setAttribute('fill', stroke ? 'none' : colorToCss(paint.color, alpha));
+    if (stroke) {
+      shape.setAttribute('stroke', colorToCss(paint.color, alpha));
+      shape.setAttribute('stroke-width', '1');
+    }
+    node.appendChild(shape);
+  };
+  circle(0, 0, radius, 0.6);
+  circle(-radius * 0.2, -radius * 0.2, radius * 0.3, 0.8);
+  circle(0, 0, radius, 0.4, true);
   return node;
 }
 
@@ -178,7 +187,7 @@ function syncFrontBubbles(controller: FishSwimController): void {
   // The established Ball/juice Pixi emitter remains the only motion owner;
   // only its live paint is mirrored over the direct Fish artwork.
   system.container.renderable = false;
-  controller.bubbleLayer.style.visibility = 'visible';
+  setFishStyle(controller.bubbleLayer, 'visibility', 'visible');
 
   const liveBubbles = new Set<any>();
   const anchorX = DISPLAY_WIDTH * DISPLAY_ANCHOR_X;
@@ -197,9 +206,9 @@ function syncFrontBubbles(controller: FishSwimController): void {
     const y = anchorY + (Number(bubble.y) || 0) - paint.radius;
     const scaleX = Number(bubble.scale?.x) || 0;
     const scaleY = Number(bubble.scale?.y) || 0;
-    node.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scaleX}, ${scaleY})`;
-    node.style.opacity = String(Math.max(0, Math.min(1, Number(bubble.alpha) || 0)));
-    node.style.visibility = bubble.visible === false || bubble.renderable === false ? 'hidden' : 'visible';
+    setFishStyle(node, 'transform', `translate3d(${x}px, ${y}px, 0) scale(${scaleX}, ${scaleY})`);
+    setFishStyle(node, 'opacity', String(Math.max(0, Math.min(1, Number(bubble.alpha) || 0))));
+    setFishStyle(node, 'visibility', bubble.visible === false || bubble.renderable === false ? 'hidden' : 'visible');
   });
 
   controller.bubbleNodes.forEach((node, bubble) => {
@@ -280,6 +289,34 @@ function disposeController(controller: FishSwimController): void {
   }
 }
 
+function suspendFishMedia(controller: FishSwimController): void {
+  controller.wrapper.style.display = 'none';
+  if (controller.mediaSuspended) return;
+  controller.mediaSuspended = true;
+  controller.mediaGeneration++;
+  try { controller.video?.pause(); } catch {}
+}
+
+function resumeFishMedia(controller: FishSwimController): void {
+  const video = controller.video;
+  if (!video || !controller.mediaStarted || !controller.mediaSuspended || layerSuspended) return;
+  controller.mediaSuspended = false;
+  const generation = ++controller.mediaGeneration;
+  void video.play().then(() => {
+    if (controller.disposed || controller.video !== video || generation !== controller.mediaGeneration) return;
+    controller.ready = true;
+    runtimeLease?.requestSync();
+  }).catch(() => {
+    if (controller.disposed || controller.video !== video || generation !== controller.mediaGeneration) return;
+    attachSvgFallback(controller);
+  });
+}
+
+function onLayerSuspension(suspended: boolean): void {
+  layerSuspended = suspended;
+  if (suspended) controllers.forEach(suspendFishMedia);
+}
+
 function syncController(controller: FishSwimController, frame: AnimatedSpecialArtworkFrame): void {
   const { tile, base, host, wrapper } = controller;
   const { canvasRect, rootRect, screenWidth, screenHeight, canvasOpacity } = frame;
@@ -299,26 +336,28 @@ function syncController(controller: FishSwimController, frame: AnimatedSpecialAr
 
   if (!controller.dragging) setAnimatedSpecialArtworkPinnedForeground(wrapper, true);
   if (controller.dragging) {
+    suspendFishMedia(controller);
     releaseFrontBubbleSystem(controller);
-    wrapper.style.visibility = 'hidden';
+    setFishStyle(wrapper, 'visibility', 'hidden');
     try { base.renderable = true; } catch {}
     return;
   }
 
-  const visible = controller.ready
-    && base.visible !== false
-    && isPixiBranchVisible(host)
-    && canvasRect.width > 0
-    && canvasRect.height > 0;
+  const paintable = !layerSuspended && base.visible !== false
+    && isPixiBranchVisible(host) && canvasRect.width > 0 && canvasRect.height > 0;
+  if (paintable) resumeFishMedia(controller);
+  else suspendFishMedia(controller);
+  const visible = controller.ready && paintable;
   if (!visible) {
     try { base.renderable = controller.baseRenderable; } catch {}
-    wrapper.style.visibility = 'hidden';
+    setFishStyle(wrapper, 'visibility', 'hidden');
     return;
   }
 
   const transform = host.worldTransform;
   if (!transform) {
-    wrapper.style.visibility = 'hidden';
+    suspendFishMedia(controller);
+    setFishStyle(wrapper, 'visibility', 'hidden');
     return;
   }
   const scaleX = canvasRect.width / Math.max(1, screenWidth);
@@ -335,11 +374,16 @@ function syncController(controller: FishSwimController, frame: AnimatedSpecialAr
     + (transform.ty - transform.b * anchorOffsetX - transform.d * anchorOffsetY) * scaleY;
 
   try { base.renderable = false; } catch {}
-  wrapper.style.transform = `matrix(${a}, ${b}, ${c}, ${d}, ${e}, ${f})`;
-  wrapper.style.opacity = String(getPixiBranchAlpha(base) * canvasOpacity);
-  wrapper.style.zIndex = String(Number.isFinite(tile.zIndex) ? Math.round(tile.zIndex) : 0);
+  setFishStyle(wrapper, 'transform', `matrix(${a}, ${b}, ${c}, ${d}, ${e}, ${f})`);
+  setFishStyle(wrapper, 'opacity', String(getPixiBranchAlpha(base) * canvasOpacity));
+  setFishStyle(wrapper, 'zIndex', String(Number.isFinite(tile.zIndex) ? Math.round(tile.zIndex) : 0));
   syncFrontBubbles(controller);
-  wrapper.style.visibility = 'visible';
+  setFishStyle(wrapper, 'display', '');
+  setFishStyle(wrapper, 'visibility', 'visible');
+}
+
+function setFishStyle(node: HTMLElement | SVGElement, property: 'transform' | 'opacity' | 'zIndex' | 'display' | 'visibility', value: string): void {
+  if (node.style[property] !== value) node.style[property] = value;
 }
 
 function updateFishSwimArtwork(frame: AnimatedSpecialArtworkFrame): void {
@@ -347,7 +391,7 @@ function updateFishSwimArtwork(frame: AnimatedSpecialArtworkFrame): void {
 }
 
 function ensureRuntimeLease(): AnimatedSpecialArtworkLayerLease | null {
-  if (!runtimeLease) runtimeLease = acquireAnimatedSpecialArtworkLayer(updateFishSwimArtwork);
+  if (!runtimeLease) runtimeLease = acquireAnimatedSpecialArtworkLayer(updateFishSwimArtwork, onLayerSuspension);
   return runtimeLease;
 }
 
@@ -369,12 +413,17 @@ function configureMediaElement(media: HTMLImageElement | HTMLVideoElement): void
 
 function attachSvgFallback(controller: FishSwimController): void {
   if (controller.disposed || controller.image) return;
+  controller.ready = false;
+  controller.mediaGeneration++;
+  controller.wrapper.style.display = 'none';
+  try { controller.base.renderable = controller.baseRenderable; } catch {}
   controller.phaseLease?.release();
   controller.phaseLease = null;
   if (controller.video) {
     controller.video.onloadeddata = null;
     controller.video.onerror = null;
     try { controller.video.pause(); } catch {}
+    try { controller.video.removeAttribute('src'); controller.video.load(); } catch {}
     controller.video.remove();
     controller.video = null;
   }
@@ -387,12 +436,14 @@ function attachSvgFallback(controller: FishSwimController): void {
   controller.image = image;
   controller.artworkClip.appendChild(image);
   image.onload = () => {
-    if (controller.disposed || !isFishSwimTile(controller.tile)) return;
+    if (controller.disposed || controller.image !== image || !isFishSwimTile(controller.tile)) return;
     controller.ready = true;
     runtimeLease?.requestSync();
   };
   image.onerror = () => {
+    if (controller.disposed || controller.image !== image) return;
     controller.ready = false;
+    suspendFishMedia(controller);
     try { controller.base.renderable = controller.baseRenderable; } catch {}
     controller.wrapper.style.visibility = 'hidden';
   };
@@ -422,6 +473,7 @@ function attachIosHevc(controller: FishSwimController): void {
   video.onloadeddata = () => {
     if (
       controller.disposed
+      || controller.video !== video
       || !isFishSwimTile(controller.tile)
       || controller.phaseLease
     ) return;
@@ -431,21 +483,16 @@ function attachIosHevc(controller: FishSwimController): void {
       [{
         element: video,
         start: () => {
-          if (controller.disposed || !isFishSwimTile(controller.tile)) return;
+          if (controller.disposed || controller.video !== video || !isFishSwimTile(controller.tile)) return;
           try { video.currentTime = 0; } catch {}
-          void video.play().then(() => {
-            if (controller.disposed || !isFishSwimTile(controller.tile)) return;
-            controller.ready = true;
-            runtimeLease?.requestSync();
-          }).catch(() => {
-            if (controller.disposed) return;
-            attachSvgFallback(controller);
-          });
+          controller.mediaStarted = true;
+          runtimeLease?.requestSync();
         },
       }],
     );
   };
   video.onerror = () => {
+    if (controller.disposed || controller.video !== video) return;
     fishHevcUnavailable = true;
     controller.ready = false;
     attachSvgFallback(controller);
@@ -477,12 +524,6 @@ function createController(
     visibility: 'hidden',
     willChange: 'transform',
   });
-  installAnimatedSpecialArtworkOverlapFootprint(wrapper, {
-    left: ARTWORK_LEFT,
-    top: ARTWORK_TOP,
-    width: FISH_SWIM_DISPLAY_SIZE,
-    height: FISH_SWIM_DISPLAY_SIZE,
-  });
   const artworkClip = createAnimatedSpecialArtworkClip(wrapper);
   const bubbleLayer = document.createElement('div');
   bubbleLayer.className = 'fish-swim-front-bubbles';
@@ -505,6 +546,9 @@ function createController(
     artworkClip,
     image: null,
     video: null,
+    mediaStarted: false,
+    mediaSuspended: true,
+    mediaGeneration: 0,
     bubbleLayer,
     bubbleNodes: new Map(),
     bubbleSystem: null,
@@ -557,6 +601,7 @@ export function setFishSwimArtworkDragging(tile: any, dragging: boolean): boolea
   controller.dragging = dragging;
   applyFishDragFacing(controller);
   if (dragging) {
+    suspendFishMedia(controller);
     releaseFrontBubbleSystem(controller);
     setAnimatedSpecialArtworkDragging(controller.wrapper, true);
     controller.wrapper.style.visibility = 'hidden';

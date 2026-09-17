@@ -28,6 +28,7 @@ type ForestGameplayContext = Readonly<{
 let mediaAudio: HTMLAudioElement | null = null;
 let fadeIntervalId: number | null = null;
 let fadeTimeoutId: number | null = null;
+let playbackGeneration = 0;
 let active = false;
 let fading = false;
 
@@ -63,6 +64,7 @@ function clearFadeTimers(): void {
 }
 
 function stopAndRewind(): void {
+  playbackGeneration++;
   clearFadeTimers();
   active = false;
   fading = false;
@@ -94,16 +96,22 @@ export function playJourneyForestGameplaySound(
   if (fading) stopAndRewind();
 
   clearFadeTimers();
+  const generation = ++playbackGeneration;
+  const failStart = () => {
+    if (generation === playbackGeneration) stopAndRewind();
+  };
   active = true;
   fading = false;
   const decodedState = getDecodedGameplaySoundsState([JOURNEY_FOREST_GAMEPLAY_SOUND_SOURCE]);
   if (decodedState !== 'unavailable') {
-    playDecodedGameplaySound(JOURNEY_FOREST_GAMEPLAY_SOUND_SOURCE, {
+    const result = playDecodedGameplaySound(JOURNEY_FOREST_GAMEPLAY_SOUND_SOURCE, {
       voiceId: VOICE_ID,
       volume: JOURNEY_FOREST_GAMEPLAY_VOLUME,
       loop: true,
+      onDeferredUnavailable: failStart,
     });
-    return true;
+    if (result === 'unavailable') failStart();
+    return active;
   }
 
   const audio = getMediaAudio();
@@ -118,10 +126,11 @@ export function playJourneyForestGameplaySound(
     audio.volume = JOURNEY_FOREST_GAMEPLAY_VOLUME;
     audio.play()?.catch((error) => {
       logger.warn('Failed to play Journey Forest gameplay loop:', error);
+      failStart();
     });
     return true;
   } catch (error) {
-    active = false;
+    failStart();
     logger.warn('Failed to start Journey Forest gameplay loop:', error);
     return false;
   }

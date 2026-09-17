@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { getGhostTextureAsset } from '../utils/ghost-texture-asset.js';
 // src/modules/asset-preloader.ts
 // Comprehensive asset preloader for all game assets
 
@@ -198,7 +199,6 @@ const ALL_ASSETS: string[] = [
   
   // Icons
   './assets/chevron-back.png',
-  './assets/close-button.png',
   './assets/close-icon.png',
   './assets/collectible-stats.png',
   './assets/combo-icon.png',
@@ -323,7 +323,6 @@ const CRITICAL_ASSETS: string[] = [
   './assets/small-star@3x.png',
   
   // Essential UI (first frame only)
-  './assets/close-button.png',
   './assets/close-icon.png',
   './assets/hud/help.png',
   './assets/hud/help@2x.png',
@@ -362,12 +361,9 @@ const CRITICAL_ASSETS: string[] = [
 const MOBILE_CRITICAL_ASSETS: string[] = [
   './assets/tile.png',
   './assets/tile_numbers.png',
-  typeof window !== 'undefined' && window.devicePixelRatio >= 1.5
-    ? './assets/ghost-placeholder@2x.png'
-    : './assets/ghost-placeholder.png',
+  getGhostTextureAsset(),
   './assets/wild.png',
   './assets/small-star.png',
-  './assets/close-button.png',
   './assets/close-icon.png',
   './assets/hud/help.png',
   './assets/hud/star-hud.png',

@@ -161,10 +161,12 @@ function cubicBezier(a: number, b: number, c: number, d: number, progress: numbe
   return inverse ** 3 * a + 3 * inverse ** 2 * progress * b + 3 * inverse * progress ** 2 * c + progress ** 3 * d;
 }
 
-function drawShip(context: CanvasRenderingContext2D | null, image: HTMLImageElement | null, ship: LiveShip, size: number, rotation: number, canvasTop: number): void {
+function drawShip(context: CanvasRenderingContext2D | null, image: HTMLImageElement | null, ship: LiveShip, size: number, rotation: number, canvasTop: number, frame: JourneyAmbientCanvasFrame): void {
   if (!context || !image?.complete || image.naturalWidth <= 0) return;
   context.save(); context.translate(ship.x, ship.y - canvasTop); context.rotate(rotation);
   context.drawImage(image, -size * 0.5, -size * (188 / 194) * 0.5, size, size * (188 / 194)); context.restore();
+  const radius = Math.hypot(size, size * (188 / 194)) / 2;
+  frame.markPaintedBounds?.(ship.depth, ship.x - radius, ship.y - canvasTop - radius, radius * 2, radius * 2);
 }
 
 export function startJourneyArea55ShipFlybys(options: StartJourneyArea55ShipFlybysOptions): JourneyArea55ShipFlybyController {
@@ -249,7 +251,7 @@ export function startJourneyArea55ShipFlybys(options: StartJourneyArea55ShipFlyb
       ship.rendered = ship.x + size >= 0 && ship.x - size <= frame.width && ship.y + size >= frame.viewportTop && ship.y - size <= frame.viewportBottom;
       if (!ship.rendered) return;
       visibleCount += 1;
-      drawShip(ship.depth === 'front' ? frame.front : frame.behind, image, ship, size, ship.rotation, frame.viewportTop);
+      drawShip(ship.depth === 'front' ? frame.front : frame.behind, image, ship, size, ship.rotation, frame.viewportTop, frame);
     });
     return visibleCount;
   };
@@ -259,7 +261,7 @@ export function startJourneyArea55ShipFlybys(options: StartJourneyArea55ShipFlyb
     visibilityMarginPx: profile.visibilityMarginPx, pixelRatioCap: profile.pixelRatioCap, maxFramesPerSecond: profile.maxFramesPerSecond,
     // z2 is appended after the z2 decor owner, so ships paint above craters;
     // cards retain their separate z3 stacking context above the flybys.
-    behindBefore: cloudLayer ?? background, behindZIndex: 2, frontZIndex: 2, className: 'journey-area55-ship-canvas',
+    behindBefore: cloudLayer ?? background, behindZIndex: 2, frontZIndex: 2, className: 'journey-area55-ship-canvas', trackPaintedBounds: true,
     observeVisibility: options.observeVisibility, render,
   });
   root.dataset.journeyArea55ShipRenderer = 'canvas';

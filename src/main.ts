@@ -1,4 +1,9 @@
 // @ts-nocheck
+import { trackBoardCubesCracked } from './services/board-cubes-tracking.js';
+import { createPlayTimeTracker } from './utils/play-time-tracker';
+import { captureSavedBoardLoadCaller, isSavedBoardLoadSuperseded } from './modules/saved-board-load-owner';
+import { commitPreparedGameplayEntry } from './modules/gameplay-entry-coordinator';
+import { prepareJourneyNavigationCode } from './modules/journey-navigation-code-preparation.js';
 // CUBE CRASH - MAIN ENTRY POINT
 // Clean, modular architecture
 
@@ -51,13 +56,15 @@ import { killGameDomGsapTweens, killInvalidPixiGsapTweens } from './modules/pixi
 import { emitIOSNativeDiagnostic } from './utils/ios-native-diagnostic.js';
 import { areContinuousRuntimeDiagnosticsEnabled } from './utils/runtime-diagnostics-policy.js';
 import {
-  emitRuntimeResourceSnapshot,
+  emitRuntimeMemoryPressureSnapshot,
   startRuntimeSoakSampler,
 } from './utils/runtime-soak-sampler.js';
 
 // Import utilities
 import errorHandler from './utils/error-handler.js';
 import memoryManager from './utils/memory-manager.js';
+import { releaseIdleDecodedGameplayAudio } from './modules/gameplay-audio-buffer-player.js';
+import { releaseIdleSharedPixiSheets } from './modules/shared-pixi-sheet-animation.js';
 import { logger } from './core/logger.js';
 import { ErrorBoundary } from './utils/error-boundary.js';
 import { PerformanceMonitor } from './utils/performance-monitor.js';
@@ -72,7 +79,7 @@ import { initNavigationCloseSound } from './modules/navigation-close-sound.js';
 import { showEndRunModalFromGame } from './modules/end-run-modal.js';
 import { isNoMovesNavigationLocked } from './modules/terminal-navigation-lock.ts';
 import './modules/score-bottom-sheet.js'; // Score bottom sheet for HUD clicks
-import { animateSliderExit, animateSliderEnter, cancelSliderEnterAnimation, finalizeJourneySliderExit, finalizeSliderEnterVisibility, prepareSliderEnter, primeHomepageCtaEnterTransform, resetAnimationFlags } from './utils/animations.js';
+import { animateSliderExit, animateSliderEnter, cancelSliderEnterAnimation, isHomepageExitCancelled, finalizeJourneySliderExit, finalizeSliderEnterVisibility, prepareSliderEnter, primeHomepageCtaEnterTransform, resetAnimationFlags } from './utils/animations.js';
 import { resolveExitWaits, runWithBudget } from './modules/exit-transition-waits.js';
 import { hideNativeSplash } from './utils/native-splash.js';
 import { isNativeDevServerRuntime } from './utils/native-runtime.js';
@@ -919,13 +926,17 @@ async function initializeApp(): Promise<void> {
     errorHandler.handleError = errorHandler.handleError.bind(errorHandler);
     memoryManager.init();
     (window as any).__ccHandleNativeMemoryWarning = () => {
-      emitRuntimeResourceSnapshot('native-memory-warning:before-cleanup');
-      try { memoryManager.performCleanup(); } catch {}
+      emitRuntimeMemoryPressureSnapshot('native-memory-warning:before-cleanup');
+      // Generic cleanup can remove live listeners; release only owner-verified idle caches.
+      releaseIdleDecodedGameplayAudio();
+      void releaseIdleSharedPixiSheets().then(() => {
+        emitRuntimeMemoryPressureSnapshot('native-memory-warning:idle-sheets-released');
+      }).catch((error) => logger.warn('Idle sheet pressure cleanup failed:', error));
       try {
         const app = (window as any).STATE?.app;
         app?.renderer?.textureGC?.run?.();
       } catch {}
-      emitRuntimeResourceSnapshot('native-memory-warning:after-cleanup');
+      emitRuntimeMemoryPressureSnapshot('native-memory-warning:after-cleanup');
     };
     
     // Initialize App Store compliance
@@ -937,6 +948,11 @@ async function initializeApp(): Promise<void> {
     errorBoundary.init();
     if (areContinuousRuntimeDiagnosticsEnabled()) performanceMonitorNew.init();
     startRuntimeSoakSampler();
+    // Dedicated opt-in; regular diagnostics never expose isolation controls.
+    if ((window as any).__ccThermalIsolation === true
+      || (location.hostname === 'localhost' && new URLSearchParams(location.search).get('ccThermalIsolation') === '1')) {
+      void import('./utils/thermal-isolation-panel.js').then(({ installThermalIsolationPanel }) => installThermalIsolationPanel());
+    }
     accessibilityManager.init();
     appStoreCompliance.init();
     
@@ -1018,6 +1034,11 @@ async function startAssetPreloading(): Promise<void> {
     }, 12000);
     
     const nativeDevServerRuntime = isNativeDevServerRuntime();
+    // Move cold navigation module evaluation off the first Journey tap. This
+    // never renders Journey and has its own deadline/failure recovery.
+    const journeyCodePreparation = nativeDevServerRuntime
+      ? Promise.resolve(false)
+      : prepareJourneyNavigationCode();
     
     // 🔥 CRITICAL: Ensure homepage is HIDDEN while launch screen is active
     // Homepage is created in bootstrapUI() but should stay hidden until launch screen is gone
@@ -1095,9 +1116,10 @@ async function startAssetPreloading(): Promise<void> {
       window.setTimeout(resolveSafetyTimeout, 15000);
     });
     
-    // Wait ONLY for launch screen (not preloading)
+    // Navigation code loads alongside launch assets; its bounded deadline
+    // cannot hold Homepage indefinitely if a chunk fails or stalls.
     logger.info('⏳ Waiting for launch screen to complete...');
-    await launchPromise;
+    await Promise.all([launchPromise, journeyCodePreparation]);
     
     console.log('✅ Launch screen completed - showing homepage and starting enter animation');
     logger.info('✅ Launch screen completed - showing homepage and starting enter animation');
@@ -1392,6 +1414,13 @@ async function initializeGame(): Promise<void> {
 // iOS HARD CLOSE: Save high score and time when app goes to background or closes
 // 🍎 iOS CRITICAL FIX: Store reference for proper cleanup (prevents memory leak on iOS!)
 const iosHardCloseHandler = async () => {
+  // Seal the foreground interval synchronously, before any dynamic import.
+  // A quick return to foreground must not be stopped by an older async save.
+  if (document.hidden) {
+    void (window as any).stopTimeTracking?.();
+  } else if (gameState.get('isGameActive')) {
+    (window as any).startTimeTracking?.();
+  }
   if (document.hidden) {
     // App is going to background or closing (hard close on iOS)
     console.log('📱 App hidden - saving high score and time before close');
@@ -1411,19 +1440,6 @@ const iosHardCloseHandler = async () => {
         console.log('✅ High score saved before app hidden:', currentScore);
       }
       
-      // CRITICAL: Save time played before app hidden
-      if (typeof (window as any).stopTimeTracking === 'function') {
-        console.log('⏱️ Saving time before app hidden');
-        (window as any).stopTimeTracking();
-        // Restart time tracking if game is still active
-        if (gameState.get('isGameActive')) {
-          // Game is still active, restart time tracking
-          if (typeof (window as any).startTimeTracking === 'function') {
-            (window as any).startTimeTracking();
-            console.log('⏱️ Time tracking restarted (game still active)');
-          }
-        }
-      }
     } catch (error) {
       console.error('❌ Failed to save data before app hidden:', error);
     }
@@ -1587,6 +1603,7 @@ async function startNewRun(boardId: number): Promise<void> {
   } else {
     // Continue only after the shared Homepage exit owner has completed.
     void (homepageExitPromise ?? Promise.resolve()).then(async () => {
+      if (homepageExitPromise && isHomepageExitCancelled(homepageExitPromise)) return;
       uiManager.hideHomepage();
       finalizeJourneySliderExit();
       uiManager.showApp();
@@ -1611,7 +1628,7 @@ async function startNewRun(boardId: number): Promise<void> {
         logger.error(`❌ Failed to start new run for board ${boardId}:`, String(error));
         delete (window as any).__ccStartAtLevel;
       }
-    });
+    }).catch((error) => logger.error('❌ New run Homepage exit failed:', String(error)));
   }
 }
 
@@ -1694,6 +1711,19 @@ async function startNewRun(boardId: number): Promise<void> {
           uiManager.hideHomepage();
         }
       
+      let savedLoadCallerIsCurrent = () => true;
+      const recoverSavedBoardEntry = async (boardNumber: number) => {
+        if (!savedLoadCallerIsCurrent()) return;
+        delete (window as any).__ccSkipRebuildBoard;
+        // A replacement needs a complete entry owner, including layout and
+        // visual commit. Raw rebuildBoard only registers a future commit.
+        const startLevel = (window as any).startLevel;
+        if (typeof startLevel !== 'function') throw new Error('Saved-board recovery requires startLevel');
+        const entry = startLevel(boardNumber);
+        savedLoadCallerIsCurrent = captureSavedBoardLoadCaller();
+        await entry;
+      };
+
       // 🔥 USER REQUEST: If came from Journey, start immediately (no delay)
       // Journey exit animation already completed, so we can start game right away
       if (cameFromJourney) {
@@ -1754,6 +1784,7 @@ async function startNewRun(boardId: number): Promise<void> {
           
           await bootGame();
           
+          savedLoadCallerIsCurrent = captureSavedBoardLoadCaller();
           // Show app element AFTER boot (so canvas exists)
           uiManager.showApp();
           console.log('✅ App element shown after game boot');
@@ -1775,6 +1806,7 @@ async function startNewRun(boardId: number): Promise<void> {
             await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
           } catch {}
           
+          if (!savedLoadCallerIsCurrent()) return;
           // 🔥 CRITICAL FIX: Load saved game state BEFORE layoutGame()
           // This ensures tiles are loaded before layout is calculated
           let layoutHandledByLoadState = false;
@@ -1783,24 +1815,12 @@ async function startNewRun(boardId: number): Promise<void> {
             if (typeof loadGameState === 'function') {
               logger.info(`🎮 Loading saved game state for board ${savedBoardNumber}...`);
               const loaded = await loadGameState(savedBoardNumber);
+              if (isSavedBoardLoadSuperseded(loaded, savedLoadCallerIsCurrent)) return;
               if (!loaded) {
                 logger.warn('⚠️ Saved state not loaded for board ' + savedBoardNumber + ' - rebuilding board');
                 delete (window as any).__ccSkipRebuildBoard;
-                // 🔥 CRITICAL FIX: Call rebuildBoard directly - it's now exported to window
-                const rebuildBoardFn = (window as any).rebuildBoard;
-                if (typeof rebuildBoardFn === 'function') {
-                  logger.info(`🎮 Calling rebuildBoard() for board ${savedBoardNumber}...`);
-                  rebuildBoardFn();
-                  // 🔥 CRITICAL: Wait a bit for rebuildBoard to complete before layoutGame
-                  await new Promise(resolve => setTimeout(resolve, 100));
-                } else {
-                  logger.error('❌ rebuildBoard function not found on window - calling startLevel again without skip flag');
-                  // Fallback: call startLevel again without skip flag to trigger rebuildBoard
-                  const startLevelFn = (window as any).startLevel;
-                  if (typeof startLevelFn === 'function') {
-                    startLevelFn(savedBoardNumber);
-                  }
-                }
+                await recoverSavedBoardEntry(savedBoardNumber);
+                if (!savedLoadCallerIsCurrent()) return;
               } else {
                 logger.info(`✅ Successfully loaded saved game state for board ${savedBoardNumber}`);
                 layoutHandledByLoadState = true;
@@ -1808,20 +1828,8 @@ async function startNewRun(boardId: number): Promise<void> {
             } else {
               logger.error('❌ loadGameState function not found');
               delete (window as any).__ccSkipRebuildBoard;
-              const rebuildBoardFn = (window as any).rebuildBoard;
-              if (typeof rebuildBoardFn === 'function') {
-                logger.info(`🎮 Calling rebuildBoard() for board ${savedBoardNumber} (loadGameState not found)...`);
-                rebuildBoardFn();
-                // 🔥 CRITICAL: Wait a bit for rebuildBoard to complete before layoutGame
-                await new Promise(resolve => setTimeout(resolve, 100));
-              } else {
-                logger.error('❌ rebuildBoard function not found on window - calling startLevel again without skip flag');
-                // Fallback: call startLevel again without skip flag to trigger rebuildBoard
-                const startLevelFn = (window as any).startLevel;
-                if (typeof startLevelFn === 'function') {
-                  startLevelFn(savedBoardNumber);
-                }
-              }
+              await recoverSavedBoardEntry(savedBoardNumber);
+              if (!savedLoadCallerIsCurrent()) return;
             }
           } else if (!canLoadState) {
             // No tiles/grid - startLevel() should have already called rebuildBoard()
@@ -1830,7 +1838,11 @@ async function startNewRun(boardId: number): Promise<void> {
           
           if (!layoutHandledByLoadState) {
             await layoutGame();
+            if (!savedLoadCallerIsCurrent()) return;
+            await commitPreparedGameplayEntry();
+            if (!savedLoadCallerIsCurrent()) return;
             window.setTimeout(() => {
+              if (!savedLoadCallerIsCurrent()) return;
               delete (window as any).__ccGameStartInProgress;
               delete (window as any).__ccGameStartInProgressSince;
             }, 900);
@@ -1850,6 +1862,7 @@ async function startNewRun(boardId: number): Promise<void> {
           delete (window as any).__ccPreserveScore;
           console.log(`✅ Cleared all flags after layout for board ${savedBoardNumber}`);
         } catch (error) {
+          if (!savedLoadCallerIsCurrent()) return;
           logger.error('❌ Failed to resume active run:', String(error));
           delete (window as any).__ccStartAtLevel;
           delete (window as any).__ccTriggerHudDrop;
@@ -1860,10 +1873,11 @@ async function startNewRun(boardId: number): Promise<void> {
       } else {
         // Resume only after the shared Homepage exit owner has completed.
         void (homepageExitPromise ?? Promise.resolve()).then(async () => {
+          if (homepageExitPromise && isHomepageExitCancelled(homepageExitPromise)) return;
           uiManager.hideHomepage();
           finalizeJourneySliderExit();
           uiManager.showApp();
-          
+
           try {
             const gameState = JSON.parse(savedGame);
             const savedBoardNumber = Number.isFinite(gameState.boardNumber) 
@@ -1887,6 +1901,7 @@ async function startNewRun(boardId: number): Promise<void> {
             }
             
             await bootGame();
+            savedLoadCallerIsCurrent = captureSavedBoardLoadCaller();
             
             // 🔥 CRITICAL FIX: Load saved game state BEFORE layoutGame()
             // This ensures tiles are loaded before layout is calculated
@@ -1895,25 +1910,20 @@ async function startNewRun(boardId: number): Promise<void> {
               if (typeof loadGameState === 'function') {
                 logger.info(`🎮 Loading saved game state for board ${savedBoardNumber}...`);
                 const loaded = await loadGameState(savedBoardNumber);
+                if (isSavedBoardLoadSuperseded(loaded, savedLoadCallerIsCurrent)) return;
                 if (!loaded) {
                   logger.warn('⚠️ Saved state not loaded for board ' + savedBoardNumber + ' - rebuilding board');
                   delete (window as any).__ccSkipRebuildBoard;
-                  const rebuildBoard = (window as any).rebuildBoard;
-                  if (typeof rebuildBoard === 'function') {
-                    logger.info(`🎮 Calling rebuildBoard() for board ${savedBoardNumber}...`);
-                    rebuildBoard();
-                  }
+                  await recoverSavedBoardEntry(savedBoardNumber);
+                  if (!savedLoadCallerIsCurrent()) return;
                 } else {
                   logger.info(`✅ Successfully loaded saved game state for board ${savedBoardNumber}`);
                 }
               } else {
                 logger.error('❌ loadGameState function not found');
                 delete (window as any).__ccSkipRebuildBoard;
-                const rebuildBoard = (window as any).rebuildBoard;
-                if (typeof rebuildBoard === 'function') {
-                  logger.info(`🎮 Calling rebuildBoard() for board ${savedBoardNumber} (loadGameState not found)...`);
-                  rebuildBoard();
-                }
+                await recoverSavedBoardEntry(savedBoardNumber);
+                if (!savedLoadCallerIsCurrent()) return;
               }
             } else if (!canLoadState) {
               // No tiles/grid - startLevel() should have already called rebuildBoard()
@@ -1925,32 +1935,33 @@ async function startNewRun(boardId: number): Promise<void> {
               if (typeof loadGameState === 'function') {
                 logger.info(`🎮 Loading saved game state for board ${savedBoardNumber} (no skip flag)...`);
                 const loaded = await loadGameState(savedBoardNumber);
+                if (isSavedBoardLoadSuperseded(loaded, savedLoadCallerIsCurrent)) return;
                 if (!loaded) {
                   logger.warn('⚠️ Saved state not loaded for board ' + savedBoardNumber + ' - rebuilding board');
-                  const rebuildBoard = (window as any).rebuildBoard;
-                  if (typeof rebuildBoard === 'function') {
-                    logger.info(`🎮 Calling rebuildBoard() for board ${savedBoardNumber} (loadGameState returned false)...`);
-                    rebuildBoard();
-                  }
+                  await recoverSavedBoardEntry(savedBoardNumber);
+                  if (!savedLoadCallerIsCurrent()) return;
                 }
               }
             }
             
             await layoutGame();
+            if (!savedLoadCallerIsCurrent()) return;
+            await commitPreparedGameplayEntry();
+            if (!savedLoadCallerIsCurrent()) return;
             if (shouldStartFirstPlayTutorial) {
               activateFirstPlayTutorialWhenReady();
             }
             
-            // If no tiles/grid, startLevel() will handle rebuildBoard() automatically
-            // 🔥 CRITICAL: Don't delete __ccSkipRebuildBoard here - let startLevel() handle it
-            
+            // This continuation has committed its owned entry. Release the
+            // restore gate so later player moves can save the playable board.
             delete (window as any).__ccStartAtLevel;
-            // __ccSkipRebuildBoard will be deleted by startLevel() after it's used
+            delete (window as any).__ccSkipRebuildBoard;
           } catch (error) {
+            if (!savedLoadCallerIsCurrent()) return;
             logger.error('❌ Failed to resume active run:', String(error));
             delete (window as any).__ccStartAtLevel;
           }
-        });
+        }).catch((error) => logger.error('❌ Resume Homepage exit failed:', String(error)));
       }
       
       return; // Exit early
@@ -2142,7 +2153,9 @@ async function startNewRun(boardId: number): Promise<void> {
 
     // Step 1: Play exit animation FIRST
     console.log('🎬 Step 1: Playing exit animation');
-    await animateSliderExit();
+    const homepageExitPromise = animateSliderExit();
+    await homepageExitPromise;
+    if (isHomepageExitCancelled(homepageExitPromise)) return;
 
     // Step 2: Route only after every Homepage target has completed its exit.
     console.log('🎮 Step 2: Starting game after exit animation');
@@ -2154,6 +2167,8 @@ async function startNewRun(boardId: number): Promise<void> {
     } else {
       await uiManager.startNewGame();
     }
+  } catch (error) {
+    logger.error('❌ Arcade Homepage exit or entry failed:', String(error));
   } finally {
     delete (window as any).__ccUiArcadeTransitioning;
   }
@@ -3211,55 +3226,25 @@ async function startNewRun(boardId: number): Promise<void> {
   });
 };
 
-// Track total time played using stats service
-let gameStartTime: number | null = null;
-
-// Start tracking time when game starts
+// One foreground clock shared by Arcade and Journey; compatibility hooks
+// delegate to it so repeated entry/exit notifications cannot double-count.
+const playTimeTracker = createPlayTimeTracker({
+  now: () => performance.now(),
+  saveSeconds: async (seconds) => {
+    const { statsService } = await import('./services/stats-service.js');
+    statsService.addTimePlayed(seconds);
+  },
+});
 (window as any).startTimeTracking = () => {
-  const now = Date.now();
-  console.log('⏱️ Started tracking time at:', now);
-  
-  // If we already have a start time, save the previous session first
-  if (gameStartTime !== null) {
-    console.log('⏱️ Previous session was not stopped, stopping it now...');
-    // Don't await - just update the start time
-    const elapsedTime = Math.floor((now - gameStartTime) / 1000);
-    if (elapsedTime > 0) {
-      import('./services/stats-service.js').then(({ statsService }) => {
-        statsService.addTimePlayed(elapsedTime);
-        console.log('⏱️ Previous session tracked:', elapsedTime, 'seconds');
-      });
-    }
-  }
-  
-  gameStartTime = now;
-  console.log('⏱️ Time tracking started');
+  if (!document.hidden) playTimeTracker.start();
 };
-
-// Stop tracking time and add to accumulated time
-(window as any).stopTimeTracking = async () => {
-  if (gameStartTime !== null) {
-    const now = Date.now();
-    const elapsedTime = Math.floor((now - gameStartTime) / 1000); // Convert to seconds
-    
-    if (elapsedTime > 0) {
-      try {
-        const { statsService } = await import('./services/stats-service.js');
-        statsService.addTimePlayed(elapsedTime);
-        console.log('⏱️ Time tracked and saved:', elapsedTime, 'seconds');
-      } catch (error) {
-        console.error('❌ Failed to save time played:', error);
-      }
-    } else {
-      console.log('⏱️ No time to save (elapsedTime = 0)');
-    }
-    
-    // Don't reset gameStartTime to null - keep tracking
-    // Only reset when explicitly starting a new session
-  } else {
-    console.log('⏱️ No time tracking session active');
-  }
-};
+(window as any).stopTimeTracking = () => playTimeTracker.stop().catch((error) => {
+  logger.warn('Failed to save time played:', error);
+});
+gameState.subscribe('isGameActive', (active: boolean) => {
+  if (active && !document.hidden) (window as any).startTimeTracking();
+  else void (window as any).stopTimeTracking();
+});
 
 // NEW: Stats tracking wrapper functions for global access
 // These replace old window.trackHighScore, window.trackHelpersUsed, etc.
@@ -3275,46 +3260,18 @@ let gameStartTime: number | null = null;
   }
 };
 
-// Track cubes cracked (global and per-board)
+// Public compatibility bridge: global and board stats; gameplay uses its direct owners.
 (window as any).trackCubesCracked = async (count: number = 1) => {
-  try {
-    const verboseGameplayLogs = (window as any).__ccVerboseGameplayLogs === true;
-    if (
-      (window as any).__ccFirstPlayTutorialActive === true ||
+  if ((window as any).__ccFirstPlayTutorialActive === true ||
       (window as any).__ccFirstPlayTutorialSlowWildMeter === true ||
-      (window as any).__ccSuppressTutorialStatsSave === true
-    ) {
-      if (verboseGameplayLogs) {
-        console.log('🎓 trackCubesCracked skipped during first-play tutorial');
-      }
-      return;
-    }
-    // Update global stats
+      (window as any).__ccSuppressTutorialStatsSave === true) return;
+  const state = cachedAppState || (window as any).STATE;
+  const boardNumber = state?.boardNumber || state?.level || 1;
+  const boardUpdate = trackBoardCubesCracked(boardNumber, count);
+  try {
     const { statsService } = await import('./services/stats-service.js');
     statsService.incrementCubesCracked(count);
-    
-    // 🔥 USER REQUEST: Also track cubes cracked per-board (accumulates)
-    try {
-      const { STATE } = await import('./modules/app-state.js');
-      // 🔥 CRITICAL: Get board number from STATE - ensure it's correct
-      const boardNumber = STATE?.boardNumber || STATE?.level || 1;
-      if (verboseGameplayLogs) {
-        console.log(`🧊 trackCubesCracked: boardNumber=${boardNumber}, count=${count}, STATE.boardNumber=${STATE?.boardNumber}, STATE.level=${STATE?.level}`);
-      }
-      
-      const { boardStatsService } = await import('./services/board-stats-service.js');
-      const previousTotal = boardStatsService.getBoardStats(boardNumber).cubesCracked;
-      const newTotal = boardStatsService.addBoardCubesCracked(boardNumber, count);
-      if (verboseGameplayLogs) {
-        console.log(`🧊 Board ${boardNumber} cubes cracked: ${previousTotal} + ${count} = ${newTotal} (accumulated)`);
-      }
-    } catch (error) {
-      console.warn('⚠️ Failed to track board-specific cubes cracked:', error);
-    }
-    
-    if (verboseGameplayLogs) {
-      console.log('✅ Cubes cracked tracked (global and per-board):', count);
-    }
+    await boardUpdate;
   } catch (error) {
     console.error('❌ Failed to track cubes cracked:', error);
   }

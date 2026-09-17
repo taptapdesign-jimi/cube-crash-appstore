@@ -78,8 +78,8 @@ let activeGameplayFade: {
   completionRequested: boolean;
   settlingToGameplay: boolean;
 } | null = null;
-let arcadeAudio: HTMLAudioElement | null = null;
-const arcadeVoices = new Set<HTMLAudioElement>();
+let arcadeAudio: MainThemeVoiceLike | null = null;
+const arcadeVoices = new Set<MainThemeVoiceLike>();
 let arcadeLayer: ArcadeSoundtrackLayer | null = null;
 let arcadeRequestedLayer: ArcadeSoundtrackLayer | null = null;
 let arcadeTargetVolume = ARCADE_SOUNDTRACK_CALM_VOLUME;
@@ -108,8 +108,8 @@ function getPlaybackTargetVolume(): number {
 function clearVictoryHookEnvelope(): void {
   victoryHookGeneration++;
   if (victoryHookEnvelopeActive) {
-    activeFadeToken++;
-    arcadeSwitchGeneration++;
+    cancelThemeFade();
+    cancelArcadeFades();
   }
   victoryHookEnvelopeActive = false;
   victoryHookMuteActive = false;
@@ -135,7 +135,7 @@ function cancelIntroSequence(resetLoopToStart: boolean): boolean {
   const wasActive = introSequenceActive || introHandoffTimer !== null;
   clearIntroHandoffTimer();
   if (wasActive) {
-    activeFadeToken++;
+    cancelThemeFade();
     playRequestToken++;
   }
   introSequenceActive = false;
@@ -148,6 +148,23 @@ function cancelIntroSequence(resetLoopToStart: boolean): boolean {
   return wasActive;
 }
 
+let themeFadeTimer: ReturnType<typeof setTimeout> | null = null;
+const arcadeFadeTimers = new Set<ReturnType<typeof setTimeout>>();
+
+function cancelThemeFade(): number {
+  if (themeFadeTimer !== null) clearTimeout(themeFadeTimer);
+  themeFadeTimer = null;
+  audio?.cancelVolumeRamp?.();
+  return ++activeFadeToken;
+}
+
+function cancelArcadeFades(): number {
+  arcadeFadeTimers.forEach(clearTimeout);
+  arcadeFadeTimers.clear();
+  arcadeVoices.forEach((voice) => voice.cancelVolumeRamp?.());
+  return ++arcadeSwitchGeneration;
+}
+
 function linearFade(
   from: number,
   to: number,
@@ -156,12 +173,22 @@ function linearFade(
   onDone: () => void,
 ): void {
   if (!Number.isFinite(durationMs) || durationMs <= 0) {
-    activeFadeToken++;
+    cancelThemeFade();
     onStep(to);
     onDone();
     return;
   }
-  const token = ++activeFadeToken;
+  const token = cancelThemeFade();
+  if (audio?.rampVolume) {
+    audio.rampVolume(to, durationMs);
+    themeFadeTimer = setTimeout(() => {
+      themeFadeTimer = null;
+      if (token !== activeFadeToken) return;
+      onStep(to);
+      onDone();
+    }, durationMs);
+    return;
+  }
   const start = performance.now();
   const run = (): void => {
     if (token !== activeFadeToken) return;
@@ -189,7 +216,7 @@ function playOriginalIntroIntoLoop(
 ): void {
   const currentIntroAudio = getIntroAudio();
   clearIntroHandoffTimer();
-  activeFadeToken++;
+  cancelThemeFade();
   introSequenceActive = true;
   currentAudio.volume = 0;
   currentAudio.currentTime = SOUNDTRACK_INTRO_LOOP_PREROLL_SECONDS;
@@ -358,7 +385,7 @@ function getArcadeLayerVolume(layer: ArcadeSoundtrackLayer): number {
 }
 
 function fadeArcadeVoice(
-  voice: HTMLAudioElement,
+  voice: MainThemeVoiceLike,
   to: number,
   durationMs: number,
   generation: number,
@@ -369,6 +396,18 @@ function fadeArcadeVoice(
     if (generation !== arcadeSwitchGeneration) return;
     voice.volume = to;
     onDone?.();
+    return;
+  }
+  if (voice.rampVolume) {
+    if (generation !== arcadeSwitchGeneration) return;
+    voice.rampVolume(to, durationMs);
+    const timer = setTimeout(() => {
+      arcadeFadeTimers.delete(timer);
+      if (generation !== arcadeSwitchGeneration) return;
+      voice.volume = to;
+      onDone?.();
+    }, durationMs);
+    arcadeFadeTimers.add(timer);
     return;
   }
   const startedAt = performance.now();
@@ -382,12 +421,13 @@ function fadeArcadeVoice(
   requestAnimationFrame(run);
 }
 
-function discardArcadeVoice(voice: HTMLAudioElement): void {
+function discardArcadeVoice(voice: MainThemeVoiceLike): void {
   try {
     voice.pause();
     voice.currentTime = 0;
     voice.volume = 0;
   } catch {}
+  try { voice.dispose?.(); } catch {}
   arcadeVoices.delete(voice);
 }
 
@@ -400,7 +440,7 @@ function discardNonCurrentArcadeVoices(): void {
 function fadeOutArcadeSoundtrack(durationMs: number): void {
   clearArcadeBarSwitch();
   const outgoingVoices = Array.from(arcadeVoices);
-  const generation = ++arcadeSwitchGeneration;
+  const generation = cancelArcadeFades();
   arcadeAudio = null;
   arcadeLayer = null;
   arcadeRequestedLayer = null;
@@ -438,12 +478,25 @@ function switchArcadeLayer(
   arcadeTargetVolume = targetVolume;
   const outgoing = arcadeAudio;
   if (outgoing && arcadeLayer === layer) {
-    const generation = ++arcadeSwitchGeneration;
-    fadeArcadeVoice(outgoing, targetVolume, durationMs, generation);
+    const generation = cancelArcadeFades();
+    // A retained layer can still own a paused media element or interrupted
+    // AudioContext. Retrying only its gain would permanently lose the gesture.
+    outgoing.play().then(() => {
+      if (generation !== arcadeSwitchGeneration || arcadeAudio !== outgoing || !isMusicEnabled()) return;
+      autoplayRetryInFlight = false;
+      disarmAutoplayRetry();
+      fadeArcadeVoice(outgoing, targetVolume, durationMs, generation);
+    }).catch((error) => {
+      if (generation !== arcadeSwitchGeneration || arcadeAudio !== outgoing) return;
+      autoplayRetryInFlight = false;
+      armAutoplayRetry();
+      logger.warn('🔊 Retained Arcade soundtrack resume failed:', error);
+    });
     return;
   }
 
-  const incoming = new Audio(getArcadeLayerUrl(layer));
+  const incoming = getAudio().createMediaVoice?.(getArcadeLayerUrl(layer)) ??
+    new Audio(getArcadeLayerUrl(layer));
   arcadeVoices.add(incoming);
   incoming.loop = true;
   incoming.preload = 'auto';
@@ -451,7 +504,7 @@ function switchArcadeLayer(
   if (outgoing && Number.isFinite(outgoing.currentTime)) {
     try { incoming.currentTime = outgoing.currentTime; } catch {}
   }
-  const generation = ++arcadeSwitchGeneration;
+  const generation = cancelArcadeFades();
   incoming.play().then(() => {
     if (
       generation !== arcadeSwitchGeneration ||
@@ -464,7 +517,7 @@ function switchArcadeLayer(
     }
     if (outgoing && Number.isFinite(outgoing.currentTime)) {
       try {
-        incoming.currentTime = Number.isFinite(incoming.duration) && incoming.duration > 0
+        incoming.currentTime = typeof incoming.duration === 'number' && Number.isFinite(incoming.duration) && incoming.duration > 0
           ? outgoing.currentTime % incoming.duration
           : outgoing.currentTime;
       } catch {}
@@ -484,8 +537,8 @@ function switchArcadeLayer(
     }
     logger.info(`🔊 Arcade soundtrack switched to ${layer}`);
   }).catch((error) => {
-    if (generation !== arcadeSwitchGeneration) return;
     discardArcadeVoice(incoming);
+    if (generation !== arcadeSwitchGeneration) return;
     armAutoplayRetry();
     logger.warn(`🔊 Arcade ${layer} soundtrack play failed:`, error);
   });
@@ -594,7 +647,7 @@ function playWithFadeIn(
   successMessage: string,
   targetVolume: number = getPlaybackTargetVolume(),
 ): void {
-  activeFadeToken++;
+  cancelThemeFade();
   fadeInProgress = true;
   currentAudio.volume = 0;
   const requestToken = ++playRequestToken;
@@ -628,8 +681,8 @@ function onVisibilityChange(): void {
   if (document.hidden) {
     if (!currentAudio && arcadeVoices.size === 0) return;
     cancelIntroSequence(true);
-    activeFadeToken++;
-    arcadeSwitchGeneration++;
+    cancelThemeFade();
+    cancelArcadeFades();
     playRequestToken++;
     fadeInProgress = false;
     if (gameplayDuckActive) {
@@ -658,6 +711,9 @@ function onVisibilityChange(): void {
       logger.warn('🔊 Main theme AudioContext foreground resume failed:', error);
     });
   }
+  if (arcadeAudio && !arcadeAudio.paused) {
+    void arcadeAudio.resumeIfInterrupted?.().catch(() => armAutoplayRetry());
+  }
   const arcadeOwnsMusic = gameplayDuckActive && isArcadeHomeRunMode() && arcadeAudio;
   const shouldResume = pausedForVisibility || (
     isStarted && !victoryHookMuteActive &&
@@ -669,7 +725,7 @@ function onVisibilityChange(): void {
   if (gameplayDuckActive && isArcadeHomeRunMode() && arcadeAudio) {
     const currentArcadeAudio = arcadeAudio;
     currentArcadeAudio.volume = 0;
-    const generation = ++arcadeSwitchGeneration;
+    const generation = cancelArcadeFades();
     currentArcadeAudio.play().then(() => {
       if (
         generation !== arcadeSwitchGeneration ||
@@ -775,7 +831,7 @@ export function startSoundtrack(): void {
 export function stopSoundtrack(): void {
   clearVictoryHookEnvelope();
   cancelIntroSequence(false);
-  activeFadeToken++;
+  cancelThemeFade();
   playRequestToken++;
   fadeInProgress = false;
   pausedForVisibility = false;
@@ -811,7 +867,7 @@ export function fadeInAndResume(
   gameplayDuckActive = false;
   activeGameplayFade = null;
   gameplayFadeGeneration++;
-  activeFadeToken++;
+  cancelThemeFade();
   fadeInProgress = false;
   const currentAudio = getAudio();
   if (!currentAudio.paused) {
@@ -838,13 +894,15 @@ export function beginGameplayTransitionFade(): number {
   clearVictoryHookEnvelope();
   cancelIntroSequence(true);
   // A sample-accurate theme start may still be awaiting decode/context resume.
-  // Gameplay now owns audio, so any older completion must pause itself.
+  // Cancel the transport request itself, not only its manager receipt: a late
+  // decode must not start the menu gain underneath the route transition.
+  if (audio?.paused && isSampleAccurateMainThemeVoice(audio)) audio.pause();
   playRequestToken++;
   const generation = ++gameplayFadeGeneration;
   gameplayDuckActive = true;
   fadeInProgress = false;
   disarmAutoplayRetry();
-  activeFadeToken++;
+  cancelThemeFade();
   activeGameplayFade = {
     generation,
     targetRatio: 1,
@@ -918,9 +976,17 @@ export function completeGameplayTransitionFade(generation: number): void {
   activeFade.completionRequested = true;
   const currentAudio = audio;
   if (!currentAudio || currentAudio.paused) {
-    activeFadeToken++;
+    cancelThemeFade();
     activeGameplayFade = null;
     if (currentAudio) currentAudio.volume = SOUNDTRACK_GAMEPLAY_VOLUME;
+    if (
+      currentAudio && isSampleAccurateMainThemeVoice(currentAudio) &&
+      !isArcadeHomeRunMode() && isMusicEnabled() && !document.hidden &&
+      !pausedForVisibility && !victoryHookMuteActive
+    ) {
+      playWithFadeIn(currentAudio, SOUNDTRACK_GAMEPLAY_SETTLE_MS,
+        '🔊 Cold Journey soundtrack started at gameplay level', SOUNDTRACK_GAMEPLAY_VOLUME);
+    }
     enterArcadeCalmSoundtrack();
     return;
   }
@@ -988,7 +1054,7 @@ export function setSoundtrackResultMix(): void {
   if (!arcadeAudio || !isMusicEnabled() || !isArcadeHomeRunMode()) return;
   discardNonCurrentArcadeVoices();
   arcadeTargetVolume = ARCADE_SOUNDTRACK_RESULT_VOLUME;
-  const generation = ++arcadeSwitchGeneration;
+  const generation = cancelArcadeFades();
   fadeArcadeVoice(
     arcadeAudio,
     ARCADE_SOUNDTRACK_RESULT_VOLUME,
@@ -1022,7 +1088,7 @@ export function fadeSoundtrackForResultHook(): (
   victoryHookEnvelopeActive = true;
   victoryHookMuteActive = true;
   const generation = ++victoryHookGeneration;
-  activeFadeToken++;
+  cancelThemeFade();
 
   const currentAudio = audio;
   if (currentAudio && !currentAudio.paused) {
@@ -1035,7 +1101,7 @@ export function fadeSoundtrackForResultHook(): (
 
   clearArcadeBarSwitch();
   const currentArcadeAudio = arcadeAudio;
-  const fadeOutGeneration = ++arcadeSwitchGeneration;
+  const fadeOutGeneration = cancelArcadeFades();
   arcadeTargetVolume = 0;
   arcadeVoices.forEach((voice) => {
     if (voice === currentArcadeAudio) {
@@ -1117,7 +1183,7 @@ export function fadeSoundtrackForResultHook(): (
       isArcadeHomeRunMode()
     ) {
       arcadeTargetVolume = victoryHookArcadeRestoreVolume;
-      const restoreGeneration = ++arcadeSwitchGeneration;
+      const restoreGeneration = cancelArcadeFades();
       if (document.hidden || pausedForVisibility || currentArcadeAudio.paused) {
         currentArcadeAudio.volume = 0;
         victoryHookEnvelopeActive = false;
@@ -1153,7 +1219,7 @@ export function fadeSoundtrackForResultHook(): (
 export function resetSoundtrackForTests(): void {
   clearVictoryHookEnvelope();
   cancelIntroSequence(false);
-  activeFadeToken++;
+  cancelThemeFade();
   playRequestToken++;
   disarmAutoplayRetry();
   autoplayRetryInFlight = false;
@@ -1168,7 +1234,7 @@ export function resetSoundtrackForTests(): void {
   }
   stopIntroVoice();
   clearArcadeBarSwitch();
-  arcadeSwitchGeneration++;
+  cancelArcadeFades();
   arcadeVoices.forEach(discardArcadeVoice);
   arcadeVoices.clear();
   arcadeAudio = null;
@@ -1199,3 +1265,15 @@ export const soundtrackManager = {
   fadeForResultHook: fadeSoundtrackForResultHook,
   get isStarted() { return isStarted; },
 };
+
+/** Read-only diagnostics; streaming media buffers are browser-owned and not estimated. */
+export function getSoundtrackRuntimeStats(): {
+  decodedBytes: number; activeVoices: number; retainedArcadeVoices: number;
+} {
+  return {
+    decodedBytes: audio?.decodedBytes ?? 0,
+    activeVoices: Number(!!audio && !audio.paused) + Number(!!introAudio && !introAudio.paused) +
+      Array.from(arcadeVoices).filter((voice) => !voice.paused).length,
+    retainedArcadeVoices: arcadeVoices.size,
+  };
+}

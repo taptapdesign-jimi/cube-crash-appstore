@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import ts from 'typescript';
 
 const repoRoot = path.resolve(__dirname, '../../..');
 
@@ -15,10 +16,15 @@ describe('Homepage cold-launch Arcade handoff', () => {
     expect(owner).toContain("cancelSliderEnterAnimation('homepage-to-arcade')");
     expect(owner.indexOf("cancelSliderEnterAnimation('homepage-to-arcade')"))
       .toBeLessThan(owner.indexOf('animateSliderExit();'));
-    expect(owner.indexOf('appZoneManager.markArcadeRunOrigin();'))
-      .toBeLessThan(owner.indexOf('await animateSliderExit();'));
+    const exitStart = owner.indexOf('const homepageExitPromise = animateSliderExit();');
+    const exitAwait = owner.indexOf('await homepageExitPromise;');
+    const cancellationGuard = owner.indexOf('if (isHomepageExitCancelled(homepageExitPromise)) return;');
+    expect(exitStart).toBeGreaterThan(-1);
+    expect(exitAwait).toBeGreaterThan(exitStart);
+    expect(cancellationGuard).toBeGreaterThan(exitAwait);
+    expect(owner.indexOf('appZoneManager.markArcadeRunOrigin();')).toBeLessThan(exitStart);
     expect(owner.indexOf('appZoneManager.enterArcadeBoardZone(arcadeStartReason);'))
-      .toBeGreaterThan(owner.indexOf('await animateSliderExit();'));
+      .toBeGreaterThan(cancellationGuard);
     expect(owner).toContain('await appZoneManager.hideHomepageForGame');
     expect(owner).toContain('await uiManager.startNewGameWithSavedState();');
     expect(owner).not.toContain('setTimeout(async () =>');
@@ -89,8 +95,22 @@ describe('Homepage cold-launch Arcade handoff', () => {
     expect(showAppOwner.indexOf('enforceArcadeEntrySurfaceGate'))
       .toBeLessThan(showAppOwner.indexOf("canvas.style.visibility = 'visible'"));
 
-    const bootStart = coreSource.indexOf('export async function boot()');
-    const bootFirstAsyncBoundary = coreSource.indexOf('await ', bootStart);
+    const parsedCore = ts.createSourceFile('app-core.ts', coreSource, ts.ScriptTarget.Latest, true);
+    const bootNode = parsedCore.statements.find(
+      (node): node is ts.FunctionDeclaration => ts.isFunctionDeclaration(node) && node.name?.text === 'boot',
+    );
+    expect(bootNode?.body).toBeDefined();
+    const bootStart = bootNode!.getStart(parsedCore);
+    // Nested async helpers do not suspend boot when they are declared.
+    const boundaries: number[] = [];
+    const collectBootAwaits = (node: ts.Node): void => {
+      if (ts.isFunctionLike(node)) return;
+      if (ts.isAwaitExpression(node)) boundaries.push(node.getStart(parsedCore));
+      ts.forEachChild(node, collectBootAwaits);
+    };
+    collectBootAwaits(bootNode!.body!);
+    expect(boundaries.length).toBeGreaterThan(0);
+    const bootFirstAsyncBoundary = Math.min(...boundaries);
     const bootBeforeAwait = coreSource.slice(bootStart, bootFirstAsyncBoundary);
     expect(bootBeforeAwait).toContain('const reuseApp = !!(app && !app.destroyed && app.renderer && app.canvas);');
     expect(bootBeforeAwait).toContain('if (reuseApp) {');
@@ -118,7 +138,7 @@ describe('Homepage cold-launch Arcade handoff', () => {
     const rebuildOwner = coreSource.slice(rebuildStart, rebuildEnd);
     expect(rebuildOwner).toContain('engageArcadeEntrySurfaceGate(app?.canvas ?? null)');
     expect(rebuildOwner).toContain('releaseArcadeEntrySurfaceGateAfterPreparedFrame(app, stage)');
-    expect(uiSource).toContain('await recoverFreshArcadeEntryAfterFailedLoad();');
+    expect(uiSource).toMatch(/const recovery = recoverFreshArcadeEntryAfterFailedLoad\(\);\s+savedLoadCallerIsCurrent = captureSavedBoardLoadCaller\(\);\s+await recovery;\s+if \(!savedLoadCallerIsCurrent\(\)\) return;/);
     expect(coreSource).toContain('export async function recoverFreshArcadeEntryAfterFailedLoad(');
   });
 });

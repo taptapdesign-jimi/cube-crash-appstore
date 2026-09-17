@@ -1,3 +1,4 @@
+import { createKantaExitSoundSequence, KANTA_BIBIS_FADE_SECONDS } from './kanta-merge6-sound';
 // Dedicated Kanta merge-6 collection scene.
 // One RAF owns four bottom robots, eleven stacked Kante,
 // three foreground Kanta composites and their atomic enter/exit cleanup.
@@ -413,6 +414,7 @@ export function attachKantaFinaleScene(
 ): KantaFinaleCleanup {
   if (!overlay) return (() => {}) as KantaFinaleCleanup;
 
+  const exitSounds = createKantaExitSoundSequence();
   const field = document.createElement('div');
   field.className = 'cc-kanta-finale-scene';
   field.style.cssText = [
@@ -615,6 +617,7 @@ export function attachKantaFinaleScene(
   });
 
   type CompositeRuntime = {
+    exitSoundTriggered: boolean;
     element: HTMLImageElement;
     restX: number;
     restY: number;
@@ -630,6 +633,7 @@ export function attachKantaFinaleScene(
     field.appendChild(element);
     return {
       element,
+      exitSoundTriggered: false,
       restX: spec.x,
       restY: viewportHeight * 0.5
         - spec.width * spec.sourceAspectRatio * 0.5
@@ -641,11 +645,16 @@ export function attachKantaFinaleScene(
   overlay.appendChild(field);
   void preloadKantaFinaleAssets();
 
+  let walkingSoundStarted = false;
   const paintRobot = (runtime: RobotRuntime, elapsedSeconds: number) => {
     const activeElapsed = elapsedSeconds - runtime.entryDelay;
     if (activeElapsed < 0) {
       runtime.element.style.opacity = '0';
       return;
+    }
+    if (!walkingSoundStarted) {
+      walkingSoundStarted = true;
+      exitSounds.startWalking();
     }
     const travelDuration = KANTA_FINALE_ROBOT_TRAVEL_SECONDS;
     const travel = clamp01(activeElapsed / travelDuration);
@@ -703,6 +712,7 @@ export function attachKantaFinaleScene(
     const hasPickupStarted = isPickupOwned && localPickup >= 0;
     if (hasPickupStarted && !runtime.pickupHapticTriggered) {
       runtime.pickupHapticTriggered = true;
+      exitSounds.play(`can-${cans.indexOf(runtime)}`);
       try { triggerFinaleHaptic(KANTA_FINALE_PICKUP_HAPTIC_STYLE, 'pickup'); } catch {}
     }
     const x = hasPickupStarted ? pickupSample.x : restingX;
@@ -744,6 +754,10 @@ export function attachKantaFinaleScene(
     if (localEntry < 0) return;
     const entry = sampleKantaCompositeEntry(localEntry / KANTA_FINALE_COMPOSITE_ENTRY_SECONDS);
     const localExit = elapsedSeconds - KANTA_FINALE_EXIT_START_SECONDS;
+    if (localExit >= 0 && !runtime.exitSoundTriggered) {
+      runtime.exitSoundTriggered = true;
+      exitSounds.play(`composite-${runtime.element.dataset.kantaFinaleComposite}`);
+    }
     const exit = easeInBack(localExit / KANTA_FINALE_EXIT_DURATION_SECONDS);
     const holdElapsed = Math.max(0, localEntry - KANTA_FINALE_COMPOSITE_ENTRY_SECONDS);
     const pileSway = Math.sin(holdElapsed * 2.8) * 2
@@ -773,6 +787,12 @@ export function attachKantaFinaleScene(
   const paint = (now: number) => {
     if (disposed) return;
     const elapsedSeconds = Math.max(0, (now - startedAt) / 1000);
+    const bibisFadeStart = KANTA_FINALE_SCENE_SECONDS - KANTA_BIBIS_FADE_SECONDS;
+    if (elapsedSeconds >= bibisFadeStart) {
+      const soundFadeProgress = (elapsedSeconds - bibisFadeStart) / KANTA_BIBIS_FADE_SECONDS;
+      exitSounds.fadeBibis(soundFadeProgress);
+      exitSounds.fadeWalking(soundFadeProgress);
+    }
     robots.forEach((robot) => paintRobot(robot, elapsedSeconds));
     cans.forEach((can) => paintCan(can, elapsedSeconds));
     composites.forEach((composite) => paintComposite(composite, elapsedSeconds));
@@ -793,6 +813,7 @@ export function attachKantaFinaleScene(
   const cleanup = (() => {
     if (disposed) return;
     disposed = true;
+    exitSounds.stop();
     if (animationFrameId) window.cancelAnimationFrame(animationFrameId);
     field.remove();
   }) as KantaFinaleCleanup;

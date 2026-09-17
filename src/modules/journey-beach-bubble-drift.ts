@@ -188,12 +188,15 @@ function drawBubble(
   size: number,
   opacity: number,
   canvasTop: number,
+  frame: JourneyAmbientCanvasFrame,
+  depth: JourneyAmbientCanvasDepth,
 ): void {
   if (!context || !image?.complete || image.naturalWidth <= 0 || opacity <= 0) return;
   context.save();
   context.globalAlpha = opacity;
   context.drawImage(image, x, y - canvasTop, size, size);
   context.restore();
+  frame.markPaintedBounds?.(depth, x, y - canvasTop, size, size);
 }
 
 export function startJourneyBeachBubbleDrift(
@@ -307,7 +310,7 @@ export function startJourneyBeachBubbleDrift(
       visibleCount += 1;
       drawBubble(
         bubble.depth === 'front' ? frame.front : frame.behind,
-        bubbleAssets[bubble.assetIndex], x, y, bubble.size, opacity, frame.viewportTop,
+        bubbleAssets[bubble.assetIndex], x, y, bubble.size, opacity, frame.viewportTop, frame, bubble.depth,
       );
     });
     return visibleCount;
@@ -328,6 +331,7 @@ export function startJourneyBeachBubbleDrift(
     behindZIndex: 0,
     frontZIndex: 7,
     className: 'journey-beach-bubble-canvas',
+    trackPaintedBounds: true,
     observeVisibility: options.observeVisibility,
     render,
   });

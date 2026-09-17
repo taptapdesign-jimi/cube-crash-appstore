@@ -17,28 +17,8 @@ function manualChunks(id) {
   if (normalizedId.includes('/node_modules/pixi.js/')) return 'vendor';
   if (normalizedId.includes('/node_modules/gsap/')) return 'animations';
 
-  if (!normalizedId.includes('/src/')) return undefined;
-
-  if (
-    normalizedId.includes('/src/modules/app-core') ||
-    normalizedId.includes('/src/modules/app-') ||
-    normalizedId.includes('/src/modules/drag-') ||
-    normalizedId.includes('/src/modules/hud-') ||
-    normalizedId.includes('/src/modules/tile-') ||
-    normalizedId.includes('/src/modules/fx') ||
-    normalizedId.includes('/src/modules/object-pool') ||
-    normalizedId.includes('/src/modules/dom-element-pool') ||
-    normalizedId.includes('/src/modules/endgame-') ||
-    normalizedId.includes('/src/modules/gameplay-') ||
-    normalizedId.includes('/src/modules/final-') ||
-    normalizedId.includes('/src/modules/wild-') ||
-    normalizedId.includes('/src/modules/tnt-') ||
-    normalizedId.includes('/src/modules/magnet-') ||
-    normalizedId.includes('/src/modules/merge-')
-  ) {
-    return 'game-runtime';
-  }
-
+  // Keep source modules on their actual static/dynamic dependency boundaries.
+  // Broad name-based grouping made eager UI helpers pull in the whole board.
   return undefined;
 }
 

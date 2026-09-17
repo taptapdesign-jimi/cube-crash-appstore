@@ -805,6 +805,13 @@ export function attachSpaceshipFinaleScene(
           runtime.reset();
           return;
         }
+        // A retired item must stay hidden and stop consuming geometry/paint
+        // work. Seeking backwards into its visible interval revives the same
+        // owner so replay preserves the authored path and hide boundary.
+        if (runtime.hidden) {
+          if (sceneTime >= runtime.arrivalAt + SPACESHIP_DEBRIS_HIDE_DELAY_SECONDS) return;
+          runtime.markVisible();
+        }
         fieldRect ??= resolveIntakeGeometry();
         if (!runtime.started) {
           runtime.initialize(fieldRect);

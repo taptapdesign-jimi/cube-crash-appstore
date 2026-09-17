@@ -1,3 +1,4 @@
+import { isThermalWorkSuppressed } from '../utils/thermal-isolation.js';
 import { gsap } from 'gsap';
 import {
   getJourneyV700EnterOffset,
@@ -512,7 +513,15 @@ export class JourneyWorldAnimationCoordinator {
         target: cloud,
         x: gsap.quickSetter(cloud, 'x', 'px') as (value: number) => void,
       }));
-      const visibilityTargets = Array.from(new Set(unit.targets));
+      // Main clouds use a full-map-sized positioning wrapper. Its empty box
+      // stays intersecting long after the actual artwork has left the viewport.
+      // Observe the painted cloud leaves instead, without changing the wrapper
+      // or any of the Unit's transform/lifecycle owners.
+      const visibilityTargets = Array.from(new Set(unit.targets.flatMap((target) => (
+        target.classList.contains('journey-main-cloud-unit')
+          ? Array.from(target.querySelectorAll<HTMLElement>('.journey-forest-cloud-art'))
+          : [target]
+      ))));
       const entry: JourneyWorldIdleEntry = {
         startTime,
         speed,
@@ -539,6 +548,7 @@ export class JourneyWorldAnimationCoordinator {
     if (this.idleTicker) return;
     this.idleTicker = () => {
       if (this.phase !== 'entering' && this.phase !== 'idle') return;
+      if (this.phase === 'idle' && isThermalWorkSuppressed('journey-units')) return;
       if (this.idlePaintSuspendedAt !== null && this.phase === 'idle') return;
       const now = gsap.ticker.time;
       if (

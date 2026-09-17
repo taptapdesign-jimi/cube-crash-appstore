@@ -3,19 +3,19 @@ import { CLEAN_BOARD_CONFETTI_MAX_RUNTIME_MS } from './confetti-system.js';
 const AREA55_SHIP_ASSET = './assets/journey assets/robo/ship1@2x.png';
 const SHIP_CLASS = 'cc-clean-board-area55-ship';
 const OFFSCREEN_MARGIN_PX = 112;
-const KEYFRAME_OFFSETS = [0, 0.16, 0.29, 0.42, 0.55, 0.68, 0.79, 0.85, 0.92, 1] as const;
-const WAYPOINT_HOVER_OFFSETS = [0.008, 0.018, 0.03] as const;
-const WAYPOINT_HOVER_MOTION = [
-  { x: 2, y: -2, rotation: 1.6 },
-  { x: -2, y: 1.5, rotation: -1.4 },
-  { x: 0, y: 0, rotation: 0 },
-] as const;
+const FLIGHT_SAMPLES_PER_SECOND = 30;
+const ENTER_END = 0.16;
+const EXIT_START = 0.85;
+export const CLEAN_BOARD_AREA55_SHIP_MAX_WOBBLE_PX = 60;
+const MIN_WOBBLE_PX = 30;
 
 type ShipDepth = 'behind' | 'front';
 type ViewportEdge = 'top' | 'right' | 'bottom' | 'left';
+type FlightCorridor = 'left' | 'right';
 
 export interface CleanBoardArea55ShipFlightPlan {
   durationMs: number;
+  corridor: FlightCorridor;
   startEdge: ViewportEdge;
   endEdge: ViewportEdge;
   keyframes: Keyframe[];
@@ -51,27 +51,31 @@ function sample(random: () => number, min: number, max: number): number {
   return min + clamp01(random()) * (max - min);
 }
 
-function sampleEdgePoint(edge: ViewportEdge, width: number, height: number, random: () => number): FlightPoint {
-  if (edge === 'top') return { x: sample(random, 0, width), y: -OFFSCREEN_MARGIN_PX };
+function sampleEdgePoint(
+  edge: ViewportEdge,
+  corridor: FlightCorridor,
+  width: number,
+  height: number,
+  random: () => number,
+): FlightPoint {
+  const corridorX = corridor === 'left'
+    ? sample(random, width * 0.06, width * 0.22)
+    : sample(random, width * 0.68, width * 0.82);
+  if (edge === 'top') return { x: corridorX, y: -OFFSCREEN_MARGIN_PX };
   if (edge === 'right') return { x: width + OFFSCREEN_MARGIN_PX, y: sample(random, 0, height) };
-  if (edge === 'bottom') return { x: sample(random, 0, width), y: height + OFFSCREEN_MARGIN_PX };
+  if (edge === 'bottom') return { x: corridorX, y: height + OFFSCREEN_MARGIN_PX };
   return { x: -OFFSCREEN_MARGIN_PX, y: sample(random, 0, height) };
 }
 
-function sampleInteriorPoint(width: number, height: number, random: () => number): FlightPoint {
-  return {
-    x: sample(random, width * 0.08, width * 0.92),
-    y: sample(random, height * 0.07, height * 0.93),
-  };
-}
-
-function getRotationDegrees(from: FlightPoint, to: FlightPoint, wobble: number): number {
-  const pathBank = Math.atan2(to.y - from.y, Math.max(1, Math.abs(to.x - from.x))) * 16;
-  return Math.max(-22, Math.min(22, pathBank + wobble));
+// Zero velocity and acceleration at both ends: entry/exit can join the
+// moving hover field without stopping it or introducing a corner.
+function smoothBlend(value: number): number {
+  const t = clamp01(value);
+  return t * t * t * (t * (t * 6 - 15) + 10);
 }
 
 function toTransform(point: FlightPoint, rotation: number, scale: number): string {
-  return `translate3d(${point.x.toFixed(1)}px, ${point.y.toFixed(1)}px, 0) rotate(${rotation.toFixed(1)}deg) scale(${scale.toFixed(3)})`;
+  return `translate3d(${point.x.toFixed(3)}px, ${point.y.toFixed(3)}px, 0) rotate(${rotation.toFixed(3)}deg) scale(${scale.toFixed(3)})`;
 }
 
 export function createCleanBoardArea55ShipFlightPlan(options: {
@@ -83,63 +87,75 @@ export function createCleanBoardArea55ShipFlightPlan(options: {
   const random = options.random ?? Math.random;
   const width = Math.max(1, options.viewportWidth);
   const height = Math.max(1, options.viewportHeight);
-  const edges: readonly ViewportEdge[] = ['top', 'right', 'bottom', 'left'];
+  const corridor: FlightCorridor = options.depth === 'behind' ? 'left' : 'right';
+  const edges: readonly ViewportEdge[] = corridor === 'left'
+    ? ['top', 'left', 'bottom']
+    : ['top', 'right', 'bottom'];
   const startIndex = Math.min(edges.length - 1, Math.floor(clamp01(random()) * edges.length));
   const endOffset = 1 + Math.min(edges.length - 2, Math.floor(clamp01(random()) * (edges.length - 1)));
   const startEdge = edges[startIndex];
   const endEdge = edges[(startIndex + endOffset) % edges.length];
-  const points: FlightPoint[] = [
-    sampleEdgePoint(startEdge, width, height, random),
-    ...Array.from({ length: KEYFRAME_OFFSETS.length - 2 }, () => sampleInteriorPoint(width, height, random)),
-    sampleEdgePoint(endEdge, width, height, random),
-  ];
+  const start = sampleEdgePoint(startEdge, corridor, width, height, random);
+  const end = sampleEdgePoint(endEdge, corridor, width, height, random);
+  const amplitude = sample(random, MIN_WOBBLE_PX, CLEAN_BOARD_AREA55_SHIP_MAX_WOBBLE_PX);
+  const phaseX = sample(random, 0, Math.PI * 2);
+  const phaseY = sample(random, 0, Math.PI * 2);
+  const driftX = corridor === 'left' ? sample(random, 0.55, 0.72) : sample(random, 0.82, 0.99);
+  const driftY = corridor === 'left' ? sample(random, 0.48, 0.66) : sample(random, 0.72, 0.91);
+  const hoverX = corridor === 'left' ? sample(random, 3.0, 3.7) : sample(random, 4.1, 4.9);
+  const hoverY = corridor === 'left' ? sample(random, 3.8, 4.5) : sample(random, 4.8, 5.6);
+  const direction = random() < 0.5 ? -1 : 1;
   const baseOpacity = options.depth === 'behind' ? 0.7 : 0.9;
   const depthScale = options.depth === 'behind' ? 0.92 : 1.04;
+  const tau = Math.PI * 2;
+  const samplePosition = (progress: number): FlightPoint => {
+    const t = clamp01(progress);
+    // Each depth owns a distant screen corridor plus independent frequencies.
+    // Randomness varies motion inside that corridor and can never pull the two
+    // ships back toward one shared centre line.
+    const laneCenterX = corridor === 'left' ? width * 0.16 : width * 0.70;
+    const laneCenterY = corridor === 'left' ? height * 0.34 : height * 0.58;
+    const hover = {
+      x: laneCenterX + width * 0.08 * Math.sin(direction * t * tau * driftX + phaseX)
+        + Math.min(amplitude * 0.45, width * 0.027) * Math.sin(t * tau * hoverX + phaseY),
+      y: laneCenterY + height * 0.15 * Math.sin(t * tau * driftY + phaseY)
+        + Math.min(amplitude * 0.75, height * 0.045) * Math.sin(t * tau * hoverY + phaseX),
+    };
+    const enter = smoothBlend(t / ENTER_END);
+    const leave = smoothBlend((t - EXIT_START) / (1 - EXIT_START));
+    return {
+      x: (start.x + (hover.x - start.x) * enter) * (1 - leave) + end.x * leave,
+      y: (start.y + (hover.y - start.y) * enter) * (1 - leave) + end.y * leave,
+    };
+  };
+  const durationMs = CLEAN_BOARD_CONFETTI_MAX_RUNTIME_MS;
+  const steps = Math.ceil(durationMs / 1000 * FLIGHT_SAMPLES_PER_SECOND);
 
   return {
-    durationMs: CLEAN_BOARD_CONFETTI_MAX_RUNTIME_MS,
+    durationMs,
+    corridor,
     startEdge,
     endEdge,
-    keyframes: points.flatMap((point, index) => {
-      const previousPoint = points[Math.max(0, index - 1)];
-      const nextPoint = points[Math.min(points.length - 1, index + 1)];
-      const exiting = index >= points.length - 3;
-      const wobble = index === 0 || index === points.length - 1
-        ? 0
-        : exiting ? (index % 2 === 0 ? 16 : -16) : sample(random, -11, 11);
-      const scale = exiting
-        ? [1.08, 0.98, 0.86][index - (points.length - 3)]
-        : sample(random, 0.9, 1.12);
-      const rotation = getRotationDegrees(previousPoint, nextPoint, wobble);
-      const waypoint: Keyframe = {
-        offset: KEYFRAME_OFFSETS[index],
-        opacity: index === 0 || index === points.length - 1 ? 0 : baseOpacity,
+    // Bake a smooth curve into one compositor animation, not a JS frame loop.
+    // Linear interpolation is only between nearby curve samples, never the
+    // former distant random waypoints with discontinuous velocity.
+    keyframes: Array.from({ length: steps + 1 }, (_, index) => {
+      const t = index / steps;
+      const point = samplePosition(t);
+      const dt = 0.0001;
+      const before = samplePosition(t - dt);
+      const after = samplePosition(t + dt);
+      const velocityX = (after.x - before.x) / (2 * dt * durationMs / 1000);
+      const leave = smoothBlend((t - EXIT_START) / (1 - EXIT_START));
+      const rotation = 10 * Math.tanh(velocityX / 130)
+        + 4 * Math.sin(t * tau * hoverY + phaseX);
+      const scale = (1 + 0.025 * Math.sin(t * tau * hoverX + phaseY)) * (1 - 0.14 * leave);
+      return {
+        offset: t,
+        opacity: baseOpacity * smoothBlend(t / ENTER_END) * (1 - leave),
         transform: toTransform(point, rotation, scale * depthScale),
-        easing: index === 0 || exiting
-          ? 'cubic-bezier(.22,.61,.36,1)'
-          : 'cubic-bezier(.45,.05,.25,1)',
-      };
-      if (index === 0 || exiting) return [waypoint];
-
-      // Settle at each interior waypoint, then trace a tiny hover before the next flight leg.
-      // These frames stay inside the original 9.8-second flight and share its single animation owner.
-      waypoint.easing = 'ease-in-out';
-      const hoverFrames = WAYPOINT_HOVER_OFFSETS.map((offset, hoverIndex) => {
-        const motion = WAYPOINT_HOVER_MOTION[hoverIndex];
-        return {
-          offset: KEYFRAME_OFFSETS[index] + offset,
-          opacity: baseOpacity,
-          transform: toTransform(
-            { x: point.x + motion.x, y: point.y + motion.y },
-            rotation + motion.rotation,
-            scale * depthScale,
-          ),
-          easing: hoverIndex === WAYPOINT_HOVER_OFFSETS.length - 1
-            ? 'cubic-bezier(.45,.05,.25,1)'
-            : 'ease-in-out',
-        } satisfies Keyframe;
-      });
-      return [waypoint, ...hoverFrames];
+        easing: 'linear',
+      } satisfies Keyframe;
     }),
   };
 }

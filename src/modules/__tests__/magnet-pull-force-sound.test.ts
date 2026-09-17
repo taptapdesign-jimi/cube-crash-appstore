@@ -85,7 +85,7 @@ describe('Magnet pull force sound', () => {
     expect(convergeBlock.indexOf('playMagnetPullForceSounds(')).toBeLessThan(
       convergeBlock.indexOf('await tryMergePulledTiles();'),
     );
-    expect(pullBlock).toContain('if (!preserveCommittedPullSound) stopMagnetPullForceSounds();');
+    expect(pullBlock).toContain('if (isCurrentMagnetRun() && !preserveCommittedPullSound) stopMagnetPullForceSounds();');
     expect(pullBlock).toContain('cleanupAllPullAnimations(true);');
     expect(source).toContain('playMagnetArchetypeMerge6Sound();');
   });

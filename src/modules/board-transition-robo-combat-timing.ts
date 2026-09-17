@@ -17,6 +17,23 @@ export function resolveRoboFighterFinaleDuration(availableDurationSeconds: numbe
   );
 }
 
+export function resolveRoboFighterFinaleWindow(
+  sceneStartSeconds: number,
+  sceneEndSeconds: number,
+): Readonly<{ start: number; end: number; duration: number }> {
+  const startBoundary = Math.max(0, Number.isFinite(sceneStartSeconds) ? sceneStartSeconds : 0);
+  const endBoundary = Math.max(
+    startBoundary + 0.001,
+    Number.isFinite(sceneEndSeconds) ? sceneEndSeconds : startBoundary + 0.001,
+  );
+  const duration = resolveRoboFighterFinaleDuration(endBoundary - startBoundary);
+  return Object.freeze({
+    start: Math.max(startBoundary, endBoundary - duration),
+    end: endBoundary,
+    duration,
+  });
+}
+
 export function resolveRoboArea55ExitTimeScale(exitDurationSeconds: number): number {
   const safeDurationSeconds = Math.max(0.001, exitDurationSeconds);
   const shortenedDurationSeconds = Math.max(

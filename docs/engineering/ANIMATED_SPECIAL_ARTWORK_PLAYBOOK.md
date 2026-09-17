@@ -2,6 +2,30 @@
 
 This playbook records the accepted integration pattern for animated board artwork such as `juice-bounce.svg`. It is a repeatable procedure, not permission to replace gameplay rules, special-die identities, or existing assets.
 
+
+## Mandatory performance admission
+
+Before adding or changing a visual variant, follow [SPECIAL_DICE_PERFORMANCE_CONTRACT.md](SPECIAL_DICE_PERFORMANCE_CONTRACT.md). It applies to every gameplay archetype, idle and finale; the registry admission gate runs in fast/full QA. The renderer map below supersedes all historical DOM/SVG recipes later in this document. Do not copy an obsolete renderer as a new variant template.
+
+## Current renderer map (2026-09-16; supersedes historical SVG descriptions below)
+
+The older per-family SVG descriptions and duplicate-mode rules below record the original implementations. Do not restore those paths when maintaining the optimized runtime. Source owners are authoritative:
+
+| Family | Current live board renderer | Shared resources |
+| --- | --- | --- |
+| Juice, Beach Ball, Wild Star, Robo Cube, Mushroom | Pixi frame sheets via `shared-pixi-sheet-animation.ts` | One atlas per family; one shared callback across these families; separately phased live copies |
+| Barrel | Authored Pixi frame/rest renderer in `barrel-bouncy-artwork.ts` | Resource lease in the same shared atlas cache; one family callback |
+| Flower | Procedural authored transform/spline renderer in `flower-bouncy-artwork.ts` | One 256×256 source texture; one family callback |
+| Fish | Direct media bridge in `fish-swim-artwork.ts` | iOS HEVC with SVG fallback; existing shared DOM runtime/phase ownership |
+
+Every Pixi board-idle animation whose authored corridor can leave the 128px die footprint uses the shared `ANIMATED_DICE_HUD_FOREGROUND` layer at stage z-index `10001`. `shared-pixi-sheet-animation.ts` applies this through the declarative `renderAboveHud` specification; Barrel and Flower use the same owner from their custom Pixi runtimes. The layer follows the complete source-host transform, is pointer-inert, is shared across families, and is destroyed after the last owner. New Pixi animated dice must declare and test their HUD-depth policy instead of creating a family-specific layer. Direct-media Fish retains its existing DOM foreground owner.
+
+Foreground geometry is a release blocker. Before capturing an artwork transform, call `updateLocalTransform()`; when walking from child to ancestors, compose `parent * child` (`Matrix.prepend`), then convert world coordinates into the destination layer. Do not substitute unscaled tile coordinates or copy only translation. `animated-dice-hud-foreground.test.ts` compares three non-collinear points against an untouched native Pixi hierarchy under nested scale, rotation, offsets, board motion and drag reparenting, and checks the 390px iPhone viewport and multi-owner cleanup. Every registry variant using this shared layer must declare that test in its admission record; the audit also verifies its idle owner actually opts into the shared layer. Board-contained TNT, Magnet, Spaceship and other variants retain their native parent transforms; do not move them into a foreground layer merely to pass admission. A new rendering path requires its own equivalent geometry regression and physical acceptance.
+
+Original SVGs and static fallback assets remain preserved. The generic image preloaders exclude the converted animated SVGs and Pixi atlases to avoid duplicate browser/Pixi decoding. Shared sheet resources have reference ownership, a 48 MiB soft residency budget and 30-second idle eviction; active resources are protected. This is separate from the decoded-audio budget. A late load must dispose an invalid controller even if no ticker was ever attached. Static fallbacks remain visible until a live renderer is ready. Keep authored gameplay, timing, independent phases, foreground effects and drag contracts intact.
+
+The legacy DOM guidance below still applies to remaining direct media bridges, but does not authorize adding one for an existing Pixi family. Physical FPS, heat, touch feel and rendering fidelity remain separate acceptance checks.
+
 ## Canonical reference
 
 The first proven implementation is the generic core Juice die:

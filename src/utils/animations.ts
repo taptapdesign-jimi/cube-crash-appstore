@@ -1,4 +1,5 @@
 import { gsap } from 'gsap';
+import { getHomepageHeroExitMotion } from '../modules/homepage-hero-motion';
 import { ANIMATION_DURATIONS, ANIMATION_EASING, ELEMENT_IDS, SLIDER_ANIMATION } from '../constants/animations.js';
 import { logger } from '../core/logger.js';
 import gameState from '../modules/game-state.js';
@@ -10,7 +11,7 @@ import {
   primeHomepageNavigation,
 } from '../modules/navigation-control.js';
 import { JOURNEY_SLIDE_INDEX } from '../modules/homepage-slide-order.js';
-import { JOURNEY_WORLD_CARTOON_BOUNCE_ENTER } from '../modules/journey-v700-motion.js';
+import { beginTransitionPerformance } from './transition-performance.js';
 
 // Safe element getter
 export const getElement = (id: string): HTMLElement | null => {
@@ -111,6 +112,15 @@ const cartoonishBounce = (element: HTMLElement, delay: number) => {
 };
 
 const HOME_ENTER_DIAG_PREFIX = '🏠🧪 HOME_ENTER_DIAG';
+// Geometry probes are deliberately separate from lightweight frame telemetry.
+// Suppressing console output does not suppress their style/layout reads.
+const isHomeEnterDiagnosticsEnabled = (): boolean =>
+  (window as Window & { __ccHomeEnterDiagnostics?: boolean }).__ccHomeEnterDiagnostics === true;
+const homeEnterProbeDisposers = new Set<() => void>();
+const clearHomeEnterProbes = (): void => {
+  homeEnterProbeDisposers.forEach((dispose) => dispose());
+  homeEnterProbeDisposers.clear();
+};
 
 const getHomeEnterElementLabel = (element: HTMLElement): string => {
   if (element.id) return `#${element.id}`;
@@ -121,6 +131,7 @@ const getHomeEnterElementLabel = (element: HTMLElement): string => {
 };
 
 const logHomeEnterElementState = (phase: string, element: HTMLElement | null | undefined, extra: Record<string, unknown> = {}): void => {
+  if (!isHomeEnterDiagnosticsEnabled()) return;
   if (!element) {
     console.log(HOME_ENTER_DIAG_PREFIX, phase, { exists: false, ...extra });
     return;
@@ -270,12 +281,16 @@ let isAnimatingEnter = false;
 let sliderEnterPromise: Promise<void> | null = null;
 let resolveSliderEnter: (() => void) | null = null;
 let sliderEnterFallback: ReturnType<typeof setTimeout> | null = null;
+let sliderEnterPerformance: ReturnType<typeof beginTransitionPerformance> | null = null;
 let sliderEnterNavigationGeneration: number | null = null;
 let journeySliderExitPromise: Promise<void> | null = null;
+let cancelPendingJourneySliderExit: (() => void) | null = null;
+const cancelledHomepageExitPromises = new WeakSet<Promise<void>>();
+/** Cancellation settles without rejection; route owners must skip their handoff. */
+export const isHomepageExitCancelled = (promise: Promise<void>): boolean => cancelledHomepageExitPromises.has(promise);
 let journeySliderExitAnimations: Animation[] = [];
-let journeySliderInflateAnimations: Animation[] = [];
-let journeySliderInflateElements: HTMLElement[] = [];
 let journeySliderExitFallback: ReturnType<typeof setTimeout> | null = null;
+let journeySliderExitPerformance: ReturnType<typeof beginTransitionPerformance> | null = null;
 
 // Track active animation timeouts for cleanup
 let activeTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
@@ -291,6 +306,8 @@ const HOMEPAGE_ENTER_NAV_DURATION_MS = 430;
 const HOMEPAGE_ENTER_FINALIZE_DELAY_MS = 1060;
 
 const settleSliderEnter = (reason: string): void => {
+  sliderEnterPerformance?.finish(reason);
+  sliderEnterPerformance = null;
   if (sliderEnterFallback) {
     clearTimeout(sliderEnterFallback);
     activeTimeouts.delete(sliderEnterFallback);
@@ -487,6 +504,7 @@ export const resetAnimationFlags = (): void => {
 
 /** Cancel delayed Homepage-enter work before another route owns the screen. */
 export const cancelSliderEnterAnimation = (reason = 'route-change'): void => {
+  clearHomeEnterProbes();
   activeTimeouts.forEach((timeout) => clearTimeout(timeout));
   activeTimeouts.clear();
   settleSliderEnter(`cancel:${reason}`);
@@ -497,6 +515,7 @@ export const cancelSliderEnterAnimation = (reason = 'route-change'): void => {
 
 // Cleanup function to cancel all pending animations
 export const cleanupAnimations = (): void => {
+  clearHomeEnterProbes();
   logger.info('🧹 Cleaning up all animation timeouts...');
   activeTimeouts.forEach(timeout => {
     clearTimeout(timeout);
@@ -572,41 +591,14 @@ const getJourneySliderExitTargets = (): Array<{ element: HTMLElement; delay: num
     .map((element) => ({ element, delay })));
 };
 
-const getHomepageSliderInflateTargets = (): HTMLElement[] => {
-  const activeSlide = document.querySelector<HTMLElement>('.slider-slide.active');
-  const visibleSlides = getPhysicallyVisibleHomepageSlides();
-  const exitSlides = visibleSlides.length > 0 ? visibleSlides : (activeSlide ? [activeSlide] : []);
-
-  return exitSlides
-    .map((slide) => slide.querySelector<HTMLElement>('.hero-image'))
-    .filter((element): element is HTMLElement => !!element && element.isConnected);
-};
-
-const HOMEPAGE_HERO_CARTOON_BOUNCE_ORIGIN = '50% 50%';
-const HOMEPAGE_HERO_POWER2_IN_EASING = 'cubic-bezier(0.55, 0.085, 0.68, 0.53)';
 const HOMEPAGE_PART_EXIT_DURATION_MS = 460;
-const HOMEPAGE_HERO_EXIT_DURATION_MS = 400;
-const HOMEPAGE_HERO_CARTOON_BOUNCE_STRENGTH = 0.5;
-const HOMEPAGE_HERO_CARTOON_BOUNCE_SPEEDUP = 0.4;
-const HOMEPAGE_HERO_CARTOON_BOUNCE_DURATION_MS = (
-  JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.bounceDurationSeconds
-  * 1000
-  * (1 - HOMEPAGE_HERO_CARTOON_BOUNCE_SPEEDUP)
-);
-const getHomepageHeroBounceScale = (fullScale: number): number => (
-  1 + ((fullScale - 1) * HOMEPAGE_HERO_CARTOON_BOUNCE_STRENGTH)
-);
-const HOMEPAGE_HERO_CARTOON_BOUNCE_SCALE_X = getHomepageHeroBounceScale(
-  JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.scaleX,
-);
-const HOMEPAGE_HERO_CARTOON_BOUNCE_SCALE_Y = getHomepageHeroBounceScale(
-  JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.scaleY,
-);
+// Preserve the surrounding controls' accepted timing while the hero uses
+// the selected World reference as one complete compositor animation.
+const HOMEPAGE_PART_EXIT_LEAD_MS = 150;
 
 /**
- * Canonical Homepage route exit. Only the visible large hero image performs
- * the centered inflate beat, then the established per-part exit continues
- * directly on that peak frame.
+ * Canonical Homepage route exit. The hero uses the selected Journey World's
+ * exact two-leg motion; surrounding parts retain their established timing.
  */
 export const animateJourneySliderExit = (): Promise<void> => {
   if (journeySliderExitPromise) return journeySliderExitPromise;
@@ -614,35 +606,55 @@ export const animateJourneySliderExit = (): Promise<void> => {
   isAnimatingExit = true;
   sliderState.setAnimatingExit(true);
   gameState.set('sliderLocked', true);
-  const targets = getJourneySliderExitTargets();
-  const inflateTargets = getHomepageSliderInflateTargets();
-  journeySliderInflateElements = inflateTargets;
-
-  journeySliderExitPromise = new Promise<void>((resolve) => {
-    let finished = false;
+  const exitPerformance = beginTransitionPerformance('homepage-exit');
+  journeySliderExitPerformance = exitPerformance;
+  let resolveExit!: () => void;
+  let rejectExit!: (reason: unknown) => void;
+  const exitPromise = new Promise<void>((resolve, reject) => { resolveExit = resolve; rejectExit = reject; });
+  journeySliderExitPromise = exitPromise;
+  let finished = false;
+  const cancelCtaExits: Array<() => void> = [];
+  const cancelScheduledCtas = () => {
+    cancelCtaExits.splice(0).forEach((cancel) => { try { cancel(); } catch {} });
+  };
+  cancelPendingJourneySliderExit = () => {
+    if (finished) return;
+    finished = true;
+    cancelledHomepageExitPromises.add(exitPromise);
+    cancelScheduledCtas();
+    resolveExit();
+  };
+  try {
+    const targets = exitPerformance.phase('select-targets', getJourneySliderExitTargets);
     let remaining = targets.length;
     const finish = () => {
       if (finished) return;
       finished = true;
+      exitPerformance.finish('complete');
+      if (journeySliderExitPerformance === exitPerformance) journeySliderExitPerformance = null;
       if (journeySliderExitFallback) {
         clearTimeout(journeySliderExitFallback);
         journeySliderExitFallback = null;
       }
-      resolve();
+      cancelPendingJourneySliderExit = null;
+      resolveExit();
     };
     const finishTarget = () => {
+      if (finished) return;
       remaining -= 1;
       if (remaining <= 0) finish();
     };
 
-    targets.forEach(({ element }) => {
-      gsap.killTweensOf(element);
+    // Read every painted pose before mutating any target. Alternating a style
+    // read with class/transform writes needlessly resolves styles once per part.
+    targets.forEach(({ element }) => gsap.killTweensOf(element));
+    const paintedTargets = targets.map(({ element }) => {
       const ctaController = element instanceof HTMLButtonElement ? getRegisteredCta(element) : null;
+      return { element, ctaController, paintedTransform: ctaController ? null : window.getComputedStyle(element).transform };
+    });
+    paintedTargets.forEach(({ element, ctaController, paintedTransform }) => {
       if (!ctaController) {
-        // If exit interrupts Homepage enter, freeze the exact painted transform
-        // before removing enter classes. The independent `scale` animation can
-        // then shrink that frame without snapping to the responsive base pose.
-        const paintedTransform = window.getComputedStyle(element).transform;
+        // Freeze the exact interrupted enter pose before removing its classes.
         element.style.setProperty('transition', 'none', 'important');
         element.style.setProperty('-webkit-transition', 'none', 'important');
         if (paintedTransform && paintedTransform !== 'none') {
@@ -656,83 +668,65 @@ export const animateJourneySliderExit = (): Promise<void> => {
       );
     });
 
+    // Schedule every part on one compositor clock, without finish-event handoffs.
+    const sharedStartTime = document.timeline?.currentTime;
+    const partLeadMs = targets.some(({ element }) => element.classList.contains('hero-container'))
+      ? HOMEPAGE_PART_EXIT_LEAD_MS : 0;
+    const alignStartTime = (animation: Animation) => {
+      if (typeof sharedStartTime === 'number') animation.startTime = sharedStartTime;
+    };
+    const heroMotion = getHomepageHeroExitMotion(
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true,
+    );
     const startTargetExits = () => {
       targets.forEach(({ element, delay }) => {
         const ctaController = element instanceof HTMLButtonElement ? getRegisteredCta(element) : null;
         if (ctaController) {
-          void ctaController.exit({ delay }).then(finishTarget);
+          cancelCtaExits.push(() => ctaController.prime('idle'));
+          void ctaController.exit({ delay: delay + partLeadMs / 1000 }).then(finishTarget, finishTarget);
           return;
         }
         element.style.willChange = 'scale';
-        // Keep the established per-part exit intact. The active hero image has
-        // already reached its centered Cartoon Bounce inflate peak, so this
-        // starts on that same frame with no neutral reset or dwell.
-        const animation = element.animate([
+        const isHero = element.classList.contains('hero-container');
+        if (isHero) element.style.transformOrigin = heroMotion.transformOrigin;
+        const animation = element.animate(isHero ? heroMotion.keyframes : [
           { scale: '1' },
           { scale: '0' },
         ], {
-          duration: element.classList.contains('hero-container')
-            ? HOMEPAGE_HERO_EXIT_DURATION_MS
-            : HOMEPAGE_PART_EXIT_DURATION_MS,
-          delay: delay * 1000,
-          // CSS approximation of GSAP back.in(1.25), matching the Journey
-          // contract: a small outward anticipation followed by one clean exit.
-          easing: 'cubic-bezier(0.60, -0.28, 0.735, 0.045)',
+          duration: isHero ? heroMotion.duration : HOMEPAGE_PART_EXIT_DURATION_MS,
+          delay: isHero ? 0 : partLeadMs + delay * 1000,
+          easing: isHero ? 'linear' : 'cubic-bezier(0.60, -0.28, 0.735, 0.045)',
           fill: 'forwards',
         });
+        alignStartTime(animation);
         animation.onfinish = finishTarget;
         journeySliderExitAnimations.push(animation);
       });
       if (targets.length === 0) finish();
     };
 
-    if (inflateTargets.length === 0) {
-      startTargetExits();
-    } else {
-      let remainingInflates = inflateTargets.length;
-      let exitsStarted = false;
-      const finishInflate = () => {
-        remainingInflates -= 1;
-        if (remainingInflates > 0 || exitsStarted) return;
-        exitsStarted = true;
-        startTargetExits();
-      };
+    exitPerformance.phase('schedule-motion', startTargetExits);
 
-      inflateTargets.forEach((element) => {
-        element.style.willChange = 'scale';
-        element.style.transformOrigin = HOMEPAGE_HERO_CARTOON_BOUNCE_ORIGIN;
-        const animation = element.animate([
-          { scale: '1 1' },
-          {
-            scale: `${HOMEPAGE_HERO_CARTOON_BOUNCE_SCALE_X} ${HOMEPAGE_HERO_CARTOON_BOUNCE_SCALE_Y}`,
-          },
-        ], {
-          duration: HOMEPAGE_HERO_CARTOON_BOUNCE_DURATION_MS,
-          easing: HOMEPAGE_HERO_POWER2_IN_EASING,
-          fill: 'forwards',
-        });
-        animation.onfinish = finishInflate;
-        animation.oncancel = finishInflate;
-        journeySliderInflateAnimations.push(animation);
-      });
-    }
+    if (!finished) journeySliderExitFallback = setTimeout(finish, 850);
+    logger.info('🎬 Homepage exit started with selected World bounce and one completion owner');
+  } catch (error) {
+    finished = true;
+    cancelPendingJourneySliderExit = null;
+    cancelScheduledCtas();
+    // Release partial animations and the cached promise before a later retry.
+    finalizeJourneySliderExit();
+    rejectExit(error);
+  }
 
-    journeySliderExitFallback = setTimeout(finish, 850);
-    logger.info('🎬 Homepage exit started with half-strength hero Cartoon Bounce and one completion owner');
-  });
-
-  return journeySliderExitPromise;
+  return exitPromise;
 };
 
 /** Call only after Homepage is hidden so normalization cannot flash on screen. */
 export const finalizeJourneySliderExit = (): void => {
-  journeySliderInflateAnimations.splice(0).forEach((animation) => {
-    try { animation.cancel(); } catch {}
-  });
-  journeySliderInflateElements.splice(0).forEach((element) => {
-    element.style.removeProperty('transform-origin');
-    element.style.removeProperty('will-change');
-  });
+  cancelPendingJourneySliderExit?.();
+  cancelPendingJourneySliderExit = null;
+  journeySliderExitPerformance?.finish('finalized');
+  journeySliderExitPerformance = null;
   journeySliderExitAnimations.splice(0).forEach((animation) => {
     try { animation.cancel(); } catch {}
   });
@@ -743,6 +737,7 @@ export const finalizeJourneySliderExit = (): void => {
   getJourneySliderExitTargets().forEach(({ element }) => {
     element.classList.remove('animate-exit', 'soft-cartoon-bounce');
     element.style.removeProperty('scale');
+    if (element.classList.contains('hero-container')) element.style.removeProperty('transform-origin');
     element.style.removeProperty('transition');
     element.style.removeProperty('-webkit-transition');
     element.style.removeProperty('transform');
@@ -1163,6 +1158,7 @@ export const animateSliderEnter = (): Promise<void> => {
   // Set flags immediately
   // 🔥 REFACTOR: Use sliderState module for state management
   isAnimatingEnter = true;
+  sliderEnterPerformance = beginTransitionPerformance('homepage-enter');
   sliderState.setAnimatingEnter(true);
   sliderEnterNavigationGeneration = markHomepageNavigationEntering(
     'animations:slider-enter-start',
@@ -1176,7 +1172,7 @@ export const animateSliderEnter = (): Promise<void> => {
     logger.info('🎬 Starting CARTOONISH PROCEDURAL enter animation...');
     
     // Start the actual enter animation sequence
-    startEnterAnimationSequence();
+    sliderEnterPerformance.phase('setup', startEnterAnimationSequence);
     
     // Completion is normally signalled by the final cleanup below. This is a
     // deadlock guard only, not the lifecycle authority.
@@ -1276,7 +1272,7 @@ function startEnterAnimationSequence(): void {
       document.getElementById('logo-shards-dole-desni')
     ];
 
-    console.log(HOME_ENTER_DIAG_PREFIX, 'sequence:start', {
+    if (isHomeEnterDiagnosticsEnabled()) console.log(HOME_ENTER_DIAG_PREFIX, 'sequence:start', {
       activeSlide: (activeSlide as HTMLElement).getAttribute('data-slide'),
       isAnimatingEnter,
       sliderStateAnimatingEnter: sliderState.isAnimatingEnter,
@@ -1294,7 +1290,8 @@ function startEnterAnimationSequence(): void {
     logHomeEnterElementState('sequence:text-before-reverse', slideText as HTMLElement | null);
 
     const probeHomeEnterMotion = (label: string, element: HTMLElement | null | undefined, durationMs = 1200): void => {
-      if (!element) return;
+      if (!element || !isHomeEnterDiagnosticsEnabled()) return;
+      const probeTimeouts = new Set<ReturnType<typeof setTimeout>>();
       const startedAt = performance.now();
       const samples = new Set<number>([0, 80, 160, 240, 320, 420, 540, 680, 820, 1000, 1200]);
       const logSnapshot = (phase: string, extra: Record<string, unknown> = {}) => {
@@ -1323,21 +1320,34 @@ function startEnterAnimationSequence(): void {
       };
       element.addEventListener('transitionstart', onTransitionStart);
       element.addEventListener('transitionend', onTransitionEnd);
+      const dispose = () => {
+        element.removeEventListener('transitionstart', onTransitionStart);
+        element.removeEventListener('transitionend', onTransitionEnd);
+        probeTimeouts.forEach((timeout) => {
+          clearTimeout(timeout);
+          activeTimeouts.delete(timeout);
+        });
+        probeTimeouts.clear();
+        homeEnterProbeDisposers.delete(dispose);
+      };
+      homeEnterProbeDisposers.add(dispose);
       logSnapshot('probe-start');
       samples.forEach((delayMs) => {
         const timeout = setTimeout(() => {
           activeTimeouts.delete(timeout);
+          probeTimeouts.delete(timeout);
           logSnapshot(`sample-${delayMs}`);
         }, delayMs);
         activeTimeouts.add(timeout);
+        probeTimeouts.add(timeout);
       });
       const cleanup = setTimeout(() => {
         activeTimeouts.delete(cleanup);
-        element.removeEventListener('transitionstart', onTransitionStart);
-        element.removeEventListener('transitionend', onTransitionEnd);
+        dispose();
         logSnapshot('probe-complete');
       }, durationMs + 80);
       activeTimeouts.add(cleanup);
+      probeTimeouts.add(cleanup);
     };
 
     probeHomeEnterMotion('hero', heroContainer as HTMLElement | null);
@@ -1565,7 +1575,7 @@ function startEnterAnimationSequence(): void {
     // CRITICAL: After all animations complete, ensure all elements are at final state
     const finalTimeout = setTimeout(() => {
       activeTimeouts.delete(finalTimeout);
-      console.log(HOME_ENTER_DIAG_PREFIX, 'sequence:final-cleanup-start', {
+      if (isHomeEnterDiagnosticsEnabled()) console.log(HOME_ENTER_DIAG_PREFIX, 'sequence:final-cleanup-start', {
         finalizeDelay: HOMEPAGE_ENTER_FINALIZE_DELAY_MS,
       });
       logHomeEnterElementState('sequence:final-cleanup-hero-before', activeSlide?.querySelector('.hero-container') as HTMLElement | null);

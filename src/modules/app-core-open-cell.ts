@@ -13,6 +13,7 @@ type OpenCellDeps = {
     isWildMagnet?: boolean;
     isWildJuice?: boolean;
     isWildTnt?: boolean;
+    tntFramesWarmup?: Promise<void>;
     skipBind?: boolean;
     timeScale?: number;
     forceFreshPlaceholder?: boolean;
@@ -94,6 +95,7 @@ export function openAtCellCore({
     isWildMagnet = false,
     isWildJuice = false,
     isWildTnt = false,
+    tntFramesWarmup,
     skipBind = false,
     timeScale = 1.0,
     forceFreshPlaceholder = false,
@@ -182,7 +184,16 @@ export function openAtCellCore({
 
     if (isWild || isWildMagnet || isWildJuice || isWildTnt){
       if (isWildTnt) {
-        try { preloadTntFrames(); } catch {}
+        // Registry variants already own their exact FX warmup. Starting the
+        // core TNT preload here also decoded twelve unrelated smoke frames.
+        // Failure remains retryable at the merge's existing readiness barrier.
+        try {
+          void (tntFramesWarmup ?? preloadTntFrames()).catch((error) => {
+            devWarn('TNT frame warmup failed; merge readiness will retry', error);
+          });
+        } catch (error) {
+          devWarn('TNT frame warmup failed; merge readiness will retry', error);
+        }
       }
       // 🔥 CRITICAL: Set special BEFORE setValue to ensure correct texture is applied
       holder.special = isWildTnt ? 'wild-tnt' : (isWildJuice ? 'wild-juice' : (isWildMagnet ? 'wild-magnet' : 'wild'));

@@ -109,24 +109,23 @@ class StatsService {
     }
   }
 
+  // One read on success; retry only anomalous writes. The caller retains its fallback.
+  private writeVerifiedStats(serialized: string): void {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      localStorage.setItem(STORAGE_KEY, serialized);
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored && JSON.parse(stored).highScore === this.stats.highScore) return;
+    }
+    throw new Error('High score mismatch after save retry');
+  }
+
   // Save stats to localStorage (with iOS optimizations)
   private saveStats(): void {
     try {
       const statsString = JSON.stringify(this.stats);
       logger.debug('saveStats called', undefined, { highScore: this.stats.highScore });
       try {
-        localStorage.setItem(STORAGE_KEY, statsString);
-        const verify = localStorage.getItem(STORAGE_KEY);
-        if (verify) {
-          const verifyParsed = JSON.parse(verify);
-          if (verifyParsed.highScore !== this.stats.highScore) {
-            console.error('❌ High score mismatch after save', {
-              expected: this.stats.highScore,
-              actual: verifyParsed.highScore
-            });
-            localStorage.setItem(STORAGE_KEY, statsString);
-          }
-        }
+        this.writeVerifiedStats(statsString);
       } catch (quotaError) {
         console.warn('⚠️ localStorage quota error:', quotaError);
         try {
@@ -138,7 +137,7 @@ class StatsService {
             longestCombo: this.stats.longestCombo,
             helpersUsed: this.stats.helpersUsed,
           };
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(minimalStats));
+          this.writeVerifiedStats(JSON.stringify(minimalStats));
           logger.debug('Saved minimal stats after quota error');
         } catch (minimalError) {
           console.error('❌ Failed to save even minimal stats:', minimalError);
@@ -181,19 +180,6 @@ class StatsService {
       this.lastHighScoreUpdateAt = Date.now();
       this.stats.highScore = score;
       this.saveStats();
-      // CRITICAL: Force immediate flush to localStorage to prevent data loss on iOS
-      try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (parsed.highScore !== this.stats.highScore) {
-            console.warn('⚠️ High score mismatch! Forcing save...');
-            this.saveStats();
-          }
-        }
-      } catch (error) {
-        console.error('❌ Failed to verify high score save:', error);
-      }
     }
   }
 

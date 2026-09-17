@@ -7,11 +7,10 @@ import { startWildStars } from './fx.ts';
 import { cleanupSmokeBubbles, resumeWildMeterBoil } from './hud-helpers.ts';
 import { isSpecialDiceStarLikeTile } from './special-dice-registry.ts';
 import { shouldLockFirstPlayTutorialHud } from './first-play-tutorial-hud-lock.ts';
-import { clearFirstPlayTutorialResumeBlockers } from './first-play-tutorial-dev-reset.ts';
 import { registerCta, type CtaController } from './cta-system.ts';
 
-const FORCE_NEXT_KEY = 'cc_first_play_tutorial_force_next';
-const DONE_KEY = 'cc_first_play_tutorial_done';
+import { FORCE_NEXT_KEY, DONE_KEY, isFirstPlayTutorialForced, armFirstPlayTutorial, resetFirstPlayTutorialRequest, setFirstPlayTutorialDevEnabled } from './first-play-tutorial-request.js';
+export { isFirstPlayTutorialForced, armFirstPlayTutorial, resetFirstPlayTutorialRequest, setFirstPlayTutorialDevEnabled } from './first-play-tutorial-request.js';
 const ACTIVE_ATTR = 'data-first-play-tutorial';
 const POINTER_SRC = './assets/hand-pointer.png';
 
@@ -172,34 +171,6 @@ function startTutorialBoardAssist(): void {
   try {
     (window as any).__ccFirstPlayTutorialSlowWildMeter = true;
   } catch {}
-}
-
-export function isFirstPlayTutorialForced(): boolean {
-  if (!isBrowser()) return false;
-  return localStorage.getItem(FORCE_NEXT_KEY) === 'true' || localStorage.getItem(DONE_KEY) !== 'true';
-}
-
-export function armFirstPlayTutorial(): void {
-  if (!isBrowser()) return;
-  localStorage.setItem(FORCE_NEXT_KEY, 'true');
-  localStorage.removeItem(DONE_KEY);
-  (window as any).__ccFirstPlayTutorialArmed = true;
-}
-
-export function resetFirstPlayTutorialRequest(): void {
-  if (!isBrowser()) return;
-  localStorage.removeItem(FORCE_NEXT_KEY);
-  localStorage.setItem(DONE_KEY, 'true');
-  delete (window as any).__ccFirstPlayTutorialArmed;
-}
-
-export function setFirstPlayTutorialDevEnabled(enabled: boolean): void {
-  if (enabled) {
-    clearFirstPlayTutorialResumeBlockers();
-    armFirstPlayTutorial();
-  } else {
-    resetFirstPlayTutorialRequest();
-  }
 }
 
 export function beginFirstPlayTutorialRun(source: TutorialRunSource): boolean {

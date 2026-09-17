@@ -56,11 +56,13 @@ describe('Barrel shared Pixi artwork', () => {
   let unloadSpy: jest.SpiedFunction<typeof Assets.unload>;
   let tickerCallbacks: Set<(ticker: any) => void>;
   let ticker: any;
+  let stage: Container;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2026-09-16T12:00:00.000Z'));
     resetBarrelBouncyArtworkCacheForTests();
+    await flushPromises();
     sheet = makeSheetTexture();
     getSpy = jest.spyOn(Assets, 'get').mockReturnValue(undefined as any);
     loadSpy = jest.spyOn(Assets, 'load').mockResolvedValue(sheet as any);
@@ -71,11 +73,14 @@ describe('Barrel shared Pixi artwork', () => {
       add: jest.fn((callback: (liveTicker: any) => void) => tickerCallbacks.add(callback)),
       remove: jest.fn((callback: (liveTicker: any) => void) => tickerCallbacks.delete(callback)),
     };
-    STATE.app = { ticker } as any;
+    stage = new Container();
+    stage.sortableChildren = true;
+    STATE.app = { ticker, stage } as any;
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     resetBarrelBouncyArtworkCacheForTests();
+    await flushPromises();
     STATE.app = null;
     loadSpy.mockRestore();
     getSpy.mockRestore();
@@ -124,6 +129,8 @@ describe('Barrel shared Pixi artwork', () => {
     expect(second.base.renderable).toBe(true);
     expect(firstController.sprite).not.toBe(secondController.sprite);
     expect(firstController.sprite.texture.source).toBe(secondController.sprite.texture.source);
+    expect(firstController.sprite.parent?.label).toBe('ANIMATED_DICE_HUD_FOREGROUND');
+    expect(firstController.sprite.parent?.zIndex).toBe(10_001);
     expect(ticker.add).toHaveBeenCalledTimes(1);
 
     tick(secondController.phaseLease.delayMs);
@@ -178,12 +185,70 @@ describe('Barrel shared Pixi artwork', () => {
     expect(getBarrelBouncyRuntimeStats().controllers).toBe(0);
   });
 
+  test('repeated idle preload refreshes rather than removes the grace expiry', async () => {
+    await preloadBarrelBouncyArtwork();
+    jest.advanceTimersByTime(20_000);
+    await preloadBarrelBouncyArtwork();
+    jest.advanceTimersByTime(29_999);
+    expect(getBarrelBouncyRuntimeStats().sharedFrames).toBe(54);
+    expect(loadSpy).toHaveBeenCalledTimes(1);
+    jest.advanceTimersByTime(1);
+    await flushPromises();
+    expect(getBarrelBouncyRuntimeStats().sharedFrames).toBe(0);
+    expect(unloadSpy).toHaveBeenCalledWith(BARREL_BOUNCY_SHEET_URL);
+  });
+
+  test('evicts zero-owner sheet after grace, but reacquisition keeps active sprites valid', async () => {
+    const first = makeTile();
+    startBarrelBouncyArtwork(first.tile);
+    await flushPromises();
+    stopBarrelBouncyArtwork(first.tile);
+    jest.advanceTimersByTime(29_000);
+    const second = makeTile();
+    const controller = startBarrelBouncyArtwork(second.tile) as any;
+    await flushPromises();
+    jest.advanceTimersByTime(31_000);
+    expect(controller.sprite.texture.destroyed).toBe(false);
+    expect(loadSpy).toHaveBeenCalledTimes(1);
+    expect(unloadSpy).not.toHaveBeenCalled();
+    expect(sheet.source.autoGarbageCollect).toBe(true);
+    stopBarrelBouncyArtwork(second.tile);
+    jest.advanceTimersByTime(30_000);
+    await flushPromises();
+    expect(unloadSpy).toHaveBeenCalledWith(BARREL_BOUNCY_SHEET_URL);
+    expect(getBarrelBouncyRuntimeStats().sharedFrames).toBe(0);
+    const third = makeTile();
+    const next = startBarrelBouncyArtwork(third.tile) as any;
+    await flushPromises();
+    expect(loadSpy).toHaveBeenCalledTimes(2);
+    expect(next.ready).toBe(true);
+  });
+
+  test('late load cannot remount a disposed owner or repopulate its evicted cache', async () => {
+    let resolveLoad!: (texture: Texture) => void;
+    loadSpy.mockImplementationOnce(() => new Promise((resolve) => { resolveLoad = resolve as any; }) as any);
+    const first = makeTile();
+    startBarrelBouncyArtwork(first.tile);
+    stopBarrelBouncyArtwork(first.tile);
+    jest.advanceTimersByTime(30_000);
+    await flushPromises();
+    const second = makeTile();
+    const controller = startBarrelBouncyArtwork(second.tile) as any;
+    await flushPromises();
+    resolveLoad(sheet);
+    await flushPromises();
+    expect(first.rotG.getChildByLabel('barrel-bouncy-pixi')).toBeNull();
+    expect(controller.ready).toBe(true);
+    expect(controller.sprite.texture.destroyed).toBe(false);
+    expect(getBarrelBouncyRuntimeStats().controllers).toBe(1);
+  });
+
   test('automatically retries one failed cold load without waiting for another tile event', async () => {
     loadSpy
       .mockRejectedValueOnce(new Error('cold load failed'))
       .mockRejectedValueOnce(new Error('reload failed'))
       .mockResolvedValueOnce(sheet as any);
-    const { tile, base, rotG } = makeTile();
+    const { tile, base } = makeTile();
 
     const failedController = startBarrelBouncyArtwork(tile) as any;
     await flushPromises();
@@ -197,7 +262,7 @@ describe('Barrel shared Pixi artwork', () => {
     expect(failedController.ready).toBe(true);
     expect(failedController.running).toBe(true);
     expect(base.renderable).toBe(false);
-    expect(rotG.getChildByLabel('barrel-bouncy-pixi')).toBeTruthy();
+    expect(failedController.sprite?.parent?.label).toBe('ANIMATED_DICE_HUD_FOREGROUND');
     expect(loadSpy).toHaveBeenCalledTimes(3);
   });
 });

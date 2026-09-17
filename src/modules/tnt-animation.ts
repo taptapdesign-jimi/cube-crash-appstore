@@ -2,7 +2,8 @@
 // Anchor na kockici merge 6; prati board shake; bez stanke na tnt6; slide + bounce
 
 import { gsap } from 'gsap';
-import { Assets, Container, Graphics, Sprite, type Texture } from 'pixi.js';
+import { Assets, Container, Graphics, Sprite, Texture } from 'pixi.js';
+import { TntFrameCache } from './tnt-frame-cache.ts';
 import animationManager from './animation-manager.js';
 import { logger } from '../core/logger.js';
 import { domElementPool } from './dom-element-pool.js';
@@ -90,7 +91,7 @@ export type TntAnimationVisualOptions = {
   finaleScene?: 'bottle-ocean' | 'spaceship-abduction' | 'lasergun-crossfire';
 };
 
-const preloadPromises = new Map<string, Promise<void>>();
+const frameCache = new TntFrameCache((source) => Assets.unload(source));
 
 function resolveFrameSources(options?: TntAnimationVisualOptions): { preferred: string[]; fallback: string[] } {
   const custom = Array.isArray(options?.frameSources)
@@ -105,6 +106,12 @@ function resolveFrameSources(options?: TntAnimationVisualOptions): { preferred: 
   };
 }
 
+async function settleTntFrameLoads(loads: Promise<unknown>[]): Promise<void> {
+  const results = await Promise.allSettled(loads);
+  const failure = results.find((result): result is PromiseRejectedResult => result.status === 'rejected');
+  if (failure) throw failure.reason;
+}
+
 export function preloadTntFrames(options: TntAnimationVisualOptions = {}): Promise<void> {
   const { preferred, fallback } = resolveFrameSources(options);
   const burstSources = Array.isArray(options.burstSources) ? options.burstSources.filter(Boolean) : [];
@@ -113,14 +120,11 @@ export function preloadTntFrames(options: TntAnimationVisualOptions = {}): Promi
   const usesLaserGunScene = options.finaleScene === 'lasergun-crossfire';
   const frameCacheSources = usesLaserGunScene ? ['lasergun-dom'] : preferred;
   const cacheKey = [...frameCacheSources, ...burstSources, ...debrisSources, ...diceSources].join('|');
-  const existing = preloadPromises.get(cacheKey);
-  if (existing) return existing;
-
-  const preloadPromise = (async () => {
+  return frameCache.request(cacheKey, async () => {
     if (usesLaserGunScene) {
       await preloadLaserGunFinaleAssets();
     } else {
-      await Promise.all(
+      await settleTntFrameLoads(
         preferred.map(async (_, index) => {
         const candidates = Array.from(new Set([
           preferred[index],
@@ -129,10 +133,10 @@ export function preloadTntFrames(options: TntAnimationVisualOptions = {}): Promi
 
         for (const src of candidates) {
           const cached = Assets.get(src) as Texture | undefined;
-          if (isRenderableTexture(cached)) return;
+          if (isRenderableTexture(cached)) { frameCache.remember(src); return; }
           try {
             const loaded = await Assets.load<Texture>(src);
-            if (isRenderableTexture(loaded)) return;
+            if (isRenderableTexture(loaded)) { frameCache.remember(src); return; }
           } catch {}
         }
 
@@ -140,29 +144,22 @@ export function preloadTntFrames(options: TntAnimationVisualOptions = {}): Promi
         })
       );
     }
-    await Promise.all(burstSources.map(async (source) => {
+    await settleTntFrameLoads(burstSources.map(async (source) => {
+      const cached = Assets.get(source) as Texture | undefined;
+      if (!isRenderableTexture(cached)) await Assets.load<Texture>(source);
+      frameCache.remember(source);
+    }));
+    await settleTntFrameLoads(debrisSources.map(async (source) => {
       const cached = Assets.get(source) as Texture | undefined;
       if (isRenderableTexture(cached)) return;
       await Assets.load<Texture>(source);
     }));
-    await Promise.all(debrisSources.map(async (source) => {
+    await settleTntFrameLoads(diceSources.map(async (source) => {
       const cached = Assets.get(source) as Texture | undefined;
       if (isRenderableTexture(cached)) return;
       await Assets.load<Texture>(source);
     }));
-    await Promise.all(diceSources.map(async (source) => {
-      const cached = Assets.get(source) as Texture | undefined;
-      if (isRenderableTexture(cached)) return;
-      await Assets.load<Texture>(source);
-    }));
-  })().catch((error) => {
-    // A transient local WebView/asset-cache failure must remain retryable.
-    preloadPromises.delete(cacheKey);
-    throw error;
   });
-
-  preloadPromises.set(cacheKey, preloadPromise);
-  return preloadPromise;
 }
 
 export type TntDiceDebrisPlan = {
@@ -572,6 +569,7 @@ function releaseFrameSprite(sprite: Sprite): void {
     sprite.scale.set(1, 1);
     sprite.x = 0;
     sprite.y = 0;
+    sprite.texture = Texture.EMPTY;
     if (pooledFrameSprites.length < MAX_TNT_SPRITE_POOL) {
       pooledFrameSprites.push(sprite);
     } else {
@@ -1803,4 +1801,17 @@ export function showTntAnimation(options: {
 
 export function stopTntAnimation(): void {
   cleanup();
+}
+
+/** Called only after gameplay exit has stopped the finale and its consumers. */
+export function retireTntFrameCache(): Promise<void> {
+  return frameCache.retire(
+    () => !isActive && !cleanupInProgress && activeFrameSprites.length === 0
+      && foregroundBurstCleanups.length === 0,
+    () => {
+      for (const sprite of pooledFrameSprites) {
+        if (!sprite.destroyed) sprite.texture = Texture.EMPTY;
+      }
+    },
+  );
 }

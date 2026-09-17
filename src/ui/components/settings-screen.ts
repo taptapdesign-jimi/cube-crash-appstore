@@ -2,7 +2,7 @@
 import { gsap } from 'gsap';
 import { playNavigationIconSounds, preloadNavigationIconSounds } from '../../modules/navigation-icon-sound.js';
 import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
-import { isFirstPlayTutorialForced, setFirstPlayTutorialDevEnabled } from '../../modules/first-play-tutorial.js';
+import { isFirstPlayTutorialForced, setFirstPlayTutorialDevEnabled } from '../../modules/first-play-tutorial-request.js';
 import { SPECIAL_DICE_VARIANTS, getCoreWildTypeForSpecialDiceVariant } from '../../modules/special-dice-registry.js';
 import { formatGameplayProgressLabel } from '../../modules/gameplay-terminology.ts';
 import { closePrivacyPolicyModal, showPrivacyPolicyModal } from './privacy-policy-modal.js';

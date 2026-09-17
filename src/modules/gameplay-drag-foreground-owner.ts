@@ -2,15 +2,8 @@ import { refreshAnimatedSpecialArtworkDepth } from './animated-special-artwork-l
 
 let activeOwners = 0;
 
-export type GameplayDragBounds = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
-
-export function setGameplayDragBounds(bounds: GameplayDragBounds | null): void {
-  try { (window as any).__ccGameplayDragBounds = bounds; } catch {}
+/** Preserve immediate DOM artwork pose/depth refresh without unused bounds reads. */
+export function refreshGameplayDragForeground(): void {
   try { refreshAnimatedSpecialArtworkDepth(); } catch {}
 }
 
@@ -34,9 +27,6 @@ export function acquireGameplayDragForeground(): () => void {
     if (released) return;
     released = true;
     activeOwners = Math.max(0, activeOwners - 1);
-    if (activeOwners === 0) {
-      try { (window as any).__ccGameplayDragBounds = null; } catch {}
-    }
     syncGameplayDragForeground();
   };
 }

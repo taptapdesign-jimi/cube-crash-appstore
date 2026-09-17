@@ -128,7 +128,7 @@ export function beginMergePerformanceTrace(meta: MergePerformanceMeta): number {
   if (typeof requestAnimationFrame === 'function') {
     const loop = (frameAt: number) => {
       if (activeTrace !== trace) return;
-      trace.samples.push(Math.max(0, Math.min(250, frameAt - trace.lastFrameAt)));
+      trace.samples.push(Math.max(0, frameAt - trace.lastFrameAt));
       trace.lastFrameAt = frameAt;
       trace.frameId = requestAnimationFrame(loop);
     };
@@ -137,6 +137,16 @@ export function beginMergePerformanceTrace(meta: MergePerformanceMeta): number {
   const windowMs = getMergePerformanceWindowMs(meta);
   trace.timeoutId = setTimeout(() => finishMergePerformanceTrace('settled-window-complete'), windowMs);
   return trace.id;
+}
+
+/** A continuation must not label a later merge after its own trace was retired. */
+export function captureMergePerformanceMarker(): (name: string) => void {
+  const owner = activeTrace;
+  if (!owner) return () => {};
+  return (name) => {
+    if (activeTrace !== owner) return;
+    markMergePerformance(name);
+  };
 }
 
 export function markMergePerformance(name: string): void {

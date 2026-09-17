@@ -1,4 +1,8 @@
 // @ts-nocheck
+import { installJourneyAlienBeamIdle } from './journey-alien-beam-idle';
+import { isThermalWorkSuppressed } from '../utils/thermal-isolation.js';
+import { cancelJourneyHubScrollableEnter } from '../ui/journey-hub-scrollable-enter.js';
+import { beginTransitionPerformance, type TransitionPerformance } from '../utils/transition-performance.js';
 // Journey Boards Manager
 // Manages Journey Hub worlds and their board cards.
 // 
@@ -161,18 +165,7 @@ import {
 } from './journey-new-card-presentation.js';
 import { preloadRegularMerge6Sounds } from './regular-merge6-sound.ts';
 import { preloadWildStarMerge6Sound } from './wild-star-merge6-sound.ts';
-import { preloadFishMerge6Sounds } from './fish-merge6-sound.ts';
-import { preloadFishFinaleBubbles } from './fish-finale-bubbles.ts';
-import { preloadBeachBallMerge6Sounds } from './beach-ball-merge6-sound.ts';
-import { preloadCoreTntMerge6Sound } from './core-tnt-merge6-sound.ts';
-import { preloadFlowerMerge6Sounds } from './flower-merge6-sound.ts';
-import { preloadBeeMerge6Sounds } from './bee-merge6-sound.ts';
-import { preloadRoboCubeMerge6Sounds } from './robo-cube-merge6-sound.ts';
 import { preloadWildSpecialMerge6PoofSounds } from './wild-special-merge6-poof-sound.ts';
-import { preloadBottleFinaleSounds } from './bottle-finale-sound.ts';
-import { preloadBottlePullMergeSounds } from './bottle-pull-merge-sound.ts';
-import { preloadMagnetPullForceSounds } from './magnet-pull-force-sound.ts';
-import { preloadHoneyMerge6Sounds } from './honey-merge6-sound.ts';
 import { preloadOrdinaryStackSound } from './ordinary-stack-sound.ts';
 import { preloadGameplayPickupSound } from './gameplay-pickup-sound.ts';
 import {
@@ -1010,6 +1003,7 @@ class JourneyBoardsManager {
   private journeyOverlayReturnInFlight: { boardId: number; promise: Promise<void> } | null = null;
   private journeyV700Phase: 'hidden' | 'entering' | 'idle' | 'exiting' = 'hidden';
   private journeyV700HubEnterTweens: gsap.core.Tween[] = [];
+  private journeyV700HubEnterPerformance: TransitionPerformance | null = null;
   private journeyV700HubEnterEpoch = 0;
   private journeyV700HubPresentationWaiters = new Set<(presented?: boolean) => void>();
   private journeyHubRuntime = new JourneyHubRuntimeScheduler();
@@ -1569,7 +1563,7 @@ class JourneyBoardsManager {
     );
   }
 
-  private cleanupJourneyAreaIdleAnimations(resetTransforms = true): void {
+  private cleanupJourneyAreaIdleAnimations(resetTransforms = true, preservedRoot: HTMLElement | null = null): void {
     try {
       const tickerCount = this.journeyAreaIdleTicker ? 1 : 0;
       const areaCount = this.journeyAreaIdleEntries.length;
@@ -1588,9 +1582,25 @@ class JourneyBoardsManager {
         this.journeyAreaIdlePausedForInteraction = false;
       }
 
-      const idleTargets = document.querySelectorAll(
-        '.journey-area-idle-target, .journey-board-card-wrapper[data-journey-area-id]'
-      );
+      const selector = '.journey-area-idle-target, .journey-board-card-wrapper[data-journey-area-id]';
+      const idleTargets: Element[] = [];
+      if (preservedRoot?.isConnected) {
+        // Collect sibling branches while ascending to the document root. This
+        // excludes the retained prepaint tree before querying descendants.
+        let branch: Element = preservedRoot;
+        while (branch.parentElement) {
+          const parent = branch.parentElement;
+          if (parent.matches(selector)) idleTargets.push(parent);
+          Array.from(parent.children).forEach((sibling) => {
+            if (sibling === branch) return;
+            if (sibling.matches(selector)) idleTargets.push(sibling);
+            idleTargets.push(...Array.from(sibling.querySelectorAll(selector)));
+          });
+          branch = parent;
+        }
+      } else {
+        idleTargets.push(...Array.from(document.querySelectorAll(selector)));
+      }
       idleTargets.forEach((target) => {
         const el = target as HTMLElement;
         if ((el as any).__ccJourneyToGameExitTween) return;
@@ -1793,6 +1803,8 @@ class JourneyBoardsManager {
         }
 
         if (shouldSuspendJourneyUnitIdlePaint(this.journeyWorldRuntime.getSnapshot())) return;
+        if (this.journeyWorldRuntime.getSnapshot().state === 'idle'
+          && isThermalWorkSuppressed('journey-units')) return;
 
         const now = gsap.ticker.time;
         const maxFramesPerSecond = MOBILE_RUNTIME_PROFILE.settledIdleMaxFramesPerSecond;
@@ -1984,13 +1996,17 @@ class JourneyBoardsManager {
     target.style.willChange = 'auto';
   }
 
-  private retireJourneyBoardOwnersBeforeDomReplace(container: HTMLElement): void {
+  private retireJourneyBoardOwnersBeforeDomReplace(container: HTMLElement, preservedRoot: HTMLElement | null = null): void {
     // These descendants are discarded immediately by renderBoards(). Resetting
     // transform/opacity/card styles one by one makes WebKit restyle hundreds of
     // nodes that can never paint. Stop their owners in bulk and leave visual
     // normalization to flows that actually preserve the current DOM.
-    this.cleanupJourneyAreaIdleAnimations(false);
-    const descendants = Array.from(container.querySelectorAll<HTMLElement>('*'));
+    this.cleanupJourneyAreaIdleAnimations(false, preservedRoot);
+    // Prepaint promotion retains one complete incoming subtree. Do not walk
+    // or retire its owners while disposing only the outgoing roots.
+    const descendants = Array.from(container.children)
+      .filter((root) => root !== preservedRoot)
+      .flatMap((root) => [root, ...Array.from(root.querySelectorAll('*'))]);
     if (descendants.length) {
       try { gsap.killTweensOf(descendants); } catch {}
     }
@@ -2800,6 +2816,7 @@ class JourneyBoardsManager {
         img.classList.add('journey-area-idle-target');
         img.dataset.journeyAreaId = areaId;
       }
+      img.decoding = 'async';
       img.src = src;
       img.alt = '';
       img.draggable = false;
@@ -3302,41 +3319,43 @@ class JourneyBoardsManager {
         : 0;
       const shouldRenderLevelStars = board?.unlocked === true || board?.interim === true;
 
+      // Beams decorate every Area 55 Unit, including Units without a card.
+      const beamSrc = `${ROBO_WORLD_ASSET_BASE}/alien beam.png`;
+      // The outer beam is a normal Area 55 Unit target, exactly like a
+      // Forest/Beach star or prop. Its child owns only the idle opacity pulse
+      // so CSS never competes with the shared GSAP enter/exit lifecycle.
+      const beamUnit = document.createElement('div');
+      beamUnit.className = `journey-forest-star-art journey-forest-star-board-${boardId} journey-robo-alien-beam-art journey-robo-alien-beam-board-${boardId}`;
+      beamUnit.style.position = 'absolute';
+      beamUnit.style.left = `${((unitX + craterLayout.x + 13) / FOREST_MAP_DESIGN_WIDTH) * 100}%`;
+      beamUnit.style.top = `${((islandY + craterLayout.y - 60) / FOREST_MAP_DESIGN_HEIGHT) * 100}%`;
+      beamUnit.style.width = `${(54 / FOREST_MAP_DESIGN_WIDTH) * 100}%`;
+      beamUnit.style.height = 'auto';
+      beamUnit.style.zIndex = '5';
+      beamUnit.style.pointerEvents = 'none';
+      beamUnit.style.userSelect = 'none';
+      beamUnit.style.transformOrigin = '50% 50%';
+      beamUnit.dataset.journeyAreaId = areaId;
+
+      const beamVisual = document.createElement('img');
+      beamVisual.className = 'journey-robo-alien-beam-visual';
+      beamVisual.src = beamSrc;
+      beamVisual.alt = '';
+      beamVisual.draggable = false;
+      beamVisual.setAttribute('aria-hidden', 'true');
+      beamVisual.style.display = 'block';
+      beamVisual.style.width = '100%';
+      beamVisual.style.height = 'auto';
+      beamVisual.style.pointerEvents = 'none';
+      beamVisual.style.userSelect = 'none';
+      beamVisual.style.webkitUserDrag = 'none';
+      applyBeach2xSrcSet(beamVisual, beamSrc);
+      beamUnit.appendChild(beamVisual);
+      installJourneyAlienBeamIdle(beamUnit, beamVisual);
+      decorContainer.appendChild(beamUnit);
+      targets.push(beamUnit);
+
       if (shouldRenderLevelStars) {
-        const beamSrc = `${ROBO_WORLD_ASSET_BASE}/alien beam.png`;
-        // The outer beam is a normal Area 55 Unit target, exactly like a
-        // Forest/Beach star or prop. Its child owns only the idle opacity pulse
-        // so CSS never competes with the shared GSAP enter/exit lifecycle.
-        const beamUnit = document.createElement('div');
-        beamUnit.className = `journey-forest-star-art journey-forest-star-board-${boardId} journey-robo-alien-beam-art journey-robo-alien-beam-board-${boardId}`;
-        beamUnit.style.position = 'absolute';
-        beamUnit.style.left = `${((unitX + craterLayout.x + 13) / FOREST_MAP_DESIGN_WIDTH) * 100}%`;
-        beamUnit.style.top = `${((islandY + craterLayout.y - 60) / FOREST_MAP_DESIGN_HEIGHT) * 100}%`;
-        beamUnit.style.width = `${(54 / FOREST_MAP_DESIGN_WIDTH) * 100}%`;
-        beamUnit.style.height = 'auto';
-        beamUnit.style.zIndex = '5';
-        beamUnit.style.pointerEvents = 'none';
-        beamUnit.style.userSelect = 'none';
-        beamUnit.style.transformOrigin = '50% 50%';
-        beamUnit.dataset.journeyAreaId = areaId;
-
-        const beamVisual = document.createElement('img');
-        beamVisual.className = 'journey-robo-alien-beam-visual';
-        beamVisual.src = beamSrc;
-        beamVisual.alt = '';
-        beamVisual.draggable = false;
-        beamVisual.setAttribute('aria-hidden', 'true');
-        beamVisual.style.display = 'block';
-        beamVisual.style.width = '100%';
-        beamVisual.style.height = 'auto';
-        beamVisual.style.pointerEvents = 'none';
-        beamVisual.style.userSelect = 'none';
-        beamVisual.style.webkitUserDrag = 'none';
-        applyBeach2xSrcSet(beamVisual, beamSrc);
-        beamUnit.appendChild(beamVisual);
-        decorContainer.appendChild(beamUnit);
-        targets.push(beamUnit);
-
         boardLayoutOffsets.stars.forEach((star, index) => {
           const shouldShowFilledStar = index < earnedStars;
           const starStateClass = shouldShowFilledStar ? 'journey-forest-star-filled' : 'journey-forest-star-empty';
@@ -5064,35 +5083,42 @@ class JourneyBoardsManager {
 
   private installInterimAreaHitTargets(cardsContainer: HTMLElement): void {
     try {
-      cardsContainer.querySelectorAll('.journey-interim-area-hit-target').forEach((target) => target.remove());
-
       const interimCards = cardsContainer.querySelectorAll('.journey-board-card.interim') as NodeListOf<HTMLElement>;
-      interimCards.forEach((card) => {
+      let containerRect: DOMRect | null = null;
+      // Read all geometry before removing or inserting hit targets. Multiple
+      // interim Units must not alternate DOM writes with forced layout reads.
+      const hitAreas = Array.from(interimCards).flatMap((card) => {
         const boardId = Number(card.dataset.boardId || 0);
-        if (!Number.isFinite(boardId) || boardId <= 0) return;
+        if (!Number.isFinite(boardId) || boardId <= 0) return [];
 
         const cardWrapper = card.closest('.journey-board-card-wrapper') as HTMLElement | null;
         const tapHandler = (cardWrapper as any)?._journeyInterimTapHandler;
-        if (!cardWrapper || typeof tapHandler !== 'function') return;
+        if (!cardWrapper || typeof tapHandler !== 'function') return [];
 
         const areaElements = this.getJourneyAreaElements(boardId);
-        if (!areaElements.length) return;
+        if (!areaElements.length) return [];
 
-        const containerRect = cardsContainer.getBoundingClientRect();
+        containerRect ??= cardsContainer.getBoundingClientRect();
         const rects = areaElements.map((element) => element.getBoundingClientRect());
         const left = Math.min(...rects.map((rect) => rect.left));
         const top = Math.min(...rects.map((rect) => rect.top));
         const right = Math.max(...rects.map((rect) => rect.right));
         const bottom = Math.max(...rects.map((rect) => rect.bottom));
 
+        return [{ boardId, tapHandler, left: left - containerRect.left,
+          top: top - containerRect.top, width: right - left, height: bottom - top }];
+      });
+      cardsContainer.querySelectorAll('.journey-interim-area-hit-target').forEach((target) => target.remove());
+      const fragment = document.createDocumentFragment();
+      hitAreas.forEach(({ boardId, tapHandler, left, top, width, height }) => {
         const hitTarget = document.createElement('div');
         hitTarget.className = 'journey-interim-area-hit-target';
         hitTarget.dataset.boardId = String(boardId);
         hitTarget.style.position = 'absolute';
-        hitTarget.style.left = `${left - containerRect.left}px`;
-        hitTarget.style.top = `${top - containerRect.top}px`;
-        hitTarget.style.width = `${right - left}px`;
-        hitTarget.style.height = `${bottom - top}px`;
+        hitTarget.style.left = `${left}px`;
+        hitTarget.style.top = `${top}px`;
+        hitTarget.style.width = `${width}px`;
+        hitTarget.style.height = `${height}px`;
         hitTarget.style.zIndex = '9';
         hitTarget.style.background = 'transparent';
         hitTarget.style.pointerEvents = 'auto';
@@ -5125,8 +5151,9 @@ class JourneyBoardsManager {
           tapHandler(event);
         });
 
-        cardsContainer.appendChild(hitTarget);
+        fragment.appendChild(hitTarget);
       });
+      cardsContainer.appendChild(fragment);
     } catch (error) {
       logger.warn('⚠️ Failed to install interim area hit targets:', error);
     }
@@ -6596,6 +6623,7 @@ class JourneyBoardsManager {
   }
 
   private logJourneyV700Flow(label: string, data: Record<string, unknown> = {}, container?: HTMLElement | null): void {
+    if (!areDetailedRuntimeDiagnosticsEnabled()) return;
     try {
       logger.info('🧭 JourneyV700Flow', {
         label,
@@ -6984,6 +7012,8 @@ class JourneyBoardsManager {
   }
 
   private cancelJourneyV700HubEnter(reason: string): void {
+    this.journeyV700HubEnterPerformance?.finish(reason);
+    this.journeyV700HubEnterPerformance = null;
     this.journeyV700HubEnterEpoch += 1;
     const activeTweens = this.journeyV700HubEnterTweens.splice(0);
     activeTweens.forEach((tween) => {
@@ -7044,8 +7074,9 @@ class JourneyBoardsManager {
       return;
     }
 
+    const hubEnterPerformance = beginTransitionPerformance(`journey-hub-cascade-${source}`);
     playJourneyWorldsHubSound();
-    this.journeyHubRuntime.prepareForTransition(hub, worldCards);
+    hubEnterPerformance.phase('prepare-runtime', () => this.journeyHubRuntime.prepareForTransition(hub, worldCards));
 
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
     const motion = getJourneyV700MotionProfile(reducedMotion);
@@ -7053,14 +7084,18 @@ class JourneyBoardsManager {
     const worldFinalOpacity = new Map<HTMLElement, number>(
       worldCards.map((card) => {
         const preparedOpacity = Number.parseFloat(card.dataset.journeyHubFinalOpacity || '');
-        const cssOpacity = Number.parseFloat(getComputedStyle(card).opacity);
-        const finalOpacity = Number.isFinite(preparedOpacity)
-          ? preparedOpacity
-          : card.classList.contains('is-locked') && Number.isFinite(cssOpacity) ? cssOpacity : 1;
+        // Prepared cards already carry their final opacity. Reading computed
+        // style after preparation writes needlessly flushes style on WebKit.
+        const cssOpacity = !Number.isFinite(preparedOpacity) && card.classList.contains('is-locked')
+          ? Number.parseFloat(getComputedStyle(card).opacity)
+          : 1;
+        const finalOpacity = Number.isFinite(preparedOpacity) ? preparedOpacity : Number.isFinite(cssOpacity) ? cssOpacity : 1;
         return [card, finalOpacity];
       }),
     );
     this.cancelJourneyV700HubEnter(`new-${source}-enter`);
+    this.journeyV700HubEnterPerformance = hubEnterPerformance;
+    hubEnterPerformance.mark('transforms-start');
     // A background-prepared Hub may still own idle work from an earlier lifecycle.
     // Release it before GSAP takes transform ownership so spatial translation
     // cannot appear halfway through the visible enter.
@@ -7115,6 +7150,7 @@ class JourneyBoardsManager {
         this.journeyV700View !== 'hub' ||
         !container.isConnected
       ) {
+        hubEnterPerformance.finish('stale-before-images-ready');
         this.logJourneyV700Flow('hub-visible-enter-stale-before-images-ready', {
           source,
           imageCount: hubImages.length,
@@ -7122,6 +7158,7 @@ class JourneyBoardsManager {
         return;
       }
 
+      hubEnterPerformance.mark('images-ready');
       this.logJourneyV700Flow('hub-visible-enter-images-ready', {
         source,
         imageCount: hubImages.length,
@@ -7143,6 +7180,7 @@ class JourneyBoardsManager {
       const startBannerEnter = () => {
       if (bannerEnterStarted || enterEpoch !== this.journeyV700HubEnterEpoch || !container.isConnected) return;
       bannerEnterStarted = true;
+      hubEnterPerformance.mark('first-visible-tween');
       // Start local banner reveal on the first real GSAP enter tick so it runs
       // with the Worlds, while preserving a painted tucked-behind start state.
       hub?.classList.add('journey-v700-banners-presented');
@@ -7161,6 +7199,7 @@ class JourneyBoardsManager {
       if (enterEpoch !== this.journeyV700HubEnterEpoch || !container.isConnected) return;
       remainingTargets -= 1;
       if (remainingTargets > 0) return;
+      hubEnterPerformance.mark('last-target-complete');
       this.journeyV700HubEnterTweens = [];
       if (source === 'world-return') {
         this.emitJourneyV700HubGeometryDiagnostic('before-handoff', container);
@@ -7211,6 +7250,10 @@ class JourneyBoardsManager {
       });
       markIOSJourneyRouteAudit(source === 'homepage' ? 'journey-hub-idle' : 'journey-hub-return-idle');
       this.logJourneyV700Flow('hub-visible-enter-complete', { source, owner: 'tracked-per-unit' }, container);
+      hubEnterPerformance.finish('idle-handoff-complete');
+      if (this.journeyV700HubEnterPerformance === hubEnterPerformance) {
+        this.journeyV700HubEnterPerformance = null;
+      }
       };
       if (hubCloudLayer) {
         const cloudTween = trackTween(hubCloudLayer, {
@@ -7361,6 +7404,9 @@ class JourneyBoardsManager {
           scrollable.style.overflowAnchor = 'none';
           scrollable.scrollTop = 0;
         }
+        // Outgoing Hub has reached exact hidden state; release its interrupted
+        // ancestor pose before the incoming World can become visible.
+        cancelJourneyHubScrollableEnter();
         this.setJourneyV700View('world', worldId);
         this.updateJourneyV700Nav('world', worldId);
         // Release and replace occur synchronously, so the outgoing Hub cannot
@@ -7662,13 +7708,14 @@ class JourneyBoardsManager {
 
     stage.readyPromise = (async () => {
       const startedAt = performance.now();
+      const transitionPerformance = beginTransitionPerformance('journey-hub-prepaint');
       emitIOSNativeDiagnostic('hub-prepaint-build-start', {
         worldId: this.journeyV700WorldId,
         scrollTop: prepaintScrollTop,
         viewportHeight: prepaintViewportHeight,
       });
       try {
-        this.renderJourneyV700Hub(root, { prepaint: true });
+        transitionPerformance.phase('render-hub', () => this.renderJourneyV700Hub(root, { prepaint: true }));
         const workWorldIds = new Set(getJourneyHubWorkingSet(this.journeyV700WorldId).map(world => world.id));
         const images = Array.from(root.querySelectorAll<HTMLImageElement>('img'));
         const workImages = images.filter((image) => {
@@ -7677,7 +7724,7 @@ class JourneyBoardsManager {
         });
         await Promise.all(workImages.map((image) => waitForImageReady(image)));
         if (!isCurrent()) return false;
-        void root.getBoundingClientRect();
+        transitionPerformance.phase('geometry-commit', () => { void root.getBoundingClientRect(); });
         const painted = await this.waitForTrackedFrames(3);
         if (!painted || !isCurrent()) return false;
         stage.ready = true;
@@ -7699,6 +7746,8 @@ class JourneyBoardsManager {
           this.cancelJourneyHubPrepaint('prepare-error');
         }
         return false;
+      } finally {
+        transitionPerformance.finish(stage.ready ? 'ready' : 'cancelled-or-failed');
       }
     })();
     return stage.readyPromise;
@@ -7726,7 +7775,7 @@ class JourneyBoardsManager {
     this.cancelJourneyWorldPrepaint('hub-prepaint-commit');
     this.journeyWorldRuntime.deactivate();
     this.cancelJourneyV700HubEnter('hub-prepaint-commit');
-    this.retireJourneyBoardOwnersBeforeDomReplace(container);
+    this.retireJourneyBoardOwnersBeforeDomReplace(container, stage.host);
     outgoingChildren.forEach((child) => child.remove());
 
     container.style.height = stage.root.style.height || '100%';
@@ -7737,8 +7786,9 @@ class JourneyBoardsManager {
     container.dataset.journeyV700View = 'hub';
     delete container.dataset.journeyV700WorldId;
     const preparedChildren = Array.from(stage.root.children);
-    const preparedChildCount = stage.root.querySelectorAll('*').length;
-    const preparedImageCount = stage.root.querySelectorAll('img').length;
+    const detailedCommitDiagnostic = areDetailedRuntimeDiagnosticsEnabled();
+    const preparedChildCount = detailedCommitDiagnostic ? stage.root.querySelectorAll('*').length : 0;
+    const preparedImageCount = detailedCommitDiagnostic ? stage.root.querySelectorAll('img').length : 0;
     preparedChildren.forEach((child) => container.appendChild(child));
     stage.host.remove();
 
@@ -7820,21 +7870,28 @@ class JourneyBoardsManager {
     );
     stage.readyPromise = (async () => {
       const startedAt = performance.now();
+      const transitionPerformance = beginTransitionPerformance('journey-world-prepaint');
       emitIOSNativeDiagnostic('world-prepaint-build-start', { worldId });
       try {
         // Build the composite detached, then mount it directly into the exact
         // final World subtree. A separate prewarm host would be a second
         // compositor owner and could survive a cancelled Hub drag.
+        transitionPerformance.mark('cloud-build-start');
         await this.buildJourneyMainCloudComposite(worldId);
+        transitionPerformance.mark('cloud-build-end');
         if (!isCurrent()) return false;
 
-        this.renderBoardsFixed(root, { worldId, deferRuntimeOwners: true });
-        this.applyJourneyV700WorldScope(root, worldId, { prepaint: true });
+        transitionPerformance.phase('render-world', () => this.renderBoardsFixed(root, { worldId, deferRuntimeOwners: true }));
+        transitionPerformance.phase('apply-world-scope', () => this.applyJourneyV700WorldScope(root, worldId, { prepaint: true }));
+        transitionPerformance.mark('cloud-mount-start');
         await this.prepareJourneyMainCloudComposite(root, worldId, { allowPrepaint: true });
+        transitionPerformance.mark('cloud-mount-end');
         if (!isCurrent()) return false;
 
         const images = Array.from(root.querySelectorAll<HTMLImageElement>('img'));
+        transitionPerformance.mark('image-readiness-start');
         await Promise.all(images.map((image) => waitForImageReady(image)));
+        transitionPerformance.mark('image-readiness-end');
         if (!isCurrent()) return false;
         emitIOSNativeDiagnostic('world-prepaint-images-ready', {
           worldId,
@@ -7845,7 +7902,7 @@ class JourneyBoardsManager {
         // This is the exact final World subtree, connected at its real width.
         // A geometry commit plus three physical frames lets WebKit decode,
         // raster and allocate the main Unit compositor while Hub is stable.
-        void root.getBoundingClientRect();
+        transitionPerformance.phase('geometry-commit', () => { void root.getBoundingClientRect(); });
         const paintFrameMs: number[] = [];
         let paintFrameStartedAt = performance.now();
         for (let frameIndex = 0; frameIndex < 3; frameIndex += 1) {
@@ -7876,6 +7933,8 @@ class JourneyBoardsManager {
           this.cancelJourneyWorldPrepaint('prepare-error');
         }
         return false;
+      } finally {
+        transitionPerformance.finish(stage.ready ? 'ready' : 'cancelled-or-failed');
       }
     })();
     return stage.readyPromise;
@@ -7894,7 +7953,7 @@ class JourneyBoardsManager {
     this.journeyWorldPrepaintStage = null;
     this.beginRenderLifecycle();
     this.cancelJourneyV700HubEnter('world-prepaint-commit');
-    this.retireJourneyBoardOwnersBeforeDomReplace(container);
+    this.retireJourneyBoardOwnersBeforeDomReplace(container, stage.host);
 
     Array.from(container.children).forEach((child) => {
       if (child !== stage.host) child.remove();
@@ -7909,8 +7968,9 @@ class JourneyBoardsManager {
     container.dataset.journeyV700WorldId = String(worldId);
 
     const preparedChildren = Array.from(stage.root.children);
-    const preparedChildCount = stage.root.querySelectorAll('*').length;
-    const preparedImageCount = stage.root.querySelectorAll('img').length;
+    const detailedCommitDiagnostic = areDetailedRuntimeDiagnosticsEnabled();
+    const preparedChildCount = detailedCommitDiagnostic ? stage.root.querySelectorAll('*').length : 0;
+    const preparedImageCount = detailedCommitDiagnostic ? stage.root.querySelectorAll('img').length : 0;
     preparedChildren.forEach((child) => container.appendChild(child));
     stage.host.remove();
 
@@ -8094,6 +8154,7 @@ class JourneyBoardsManager {
   }
 
 	  public playJourneyV700HubExit(reason = 'hub-exit', selectedWorldCard: HTMLElement | null = null): Promise<void> {
+    cancelJourneyHubScrollableEnter({ preservePose: true });
 	    this.cancelJourneyV700HubEnter(reason);
 	    const transitionHub = document.querySelector<HTMLElement>('#journey-boards-container .journey-v700-hub');
 	    const activeWorldIds = this.journeyHubRuntime.getActiveWorldIds();
@@ -8693,10 +8754,11 @@ class JourneyBoardsManager {
       waitForImages?: boolean;
     } = {}
   ): void {
+    const transitionPerformance = beginTransitionPerformance('journey-world-unit-enter');
     const forestMain = this.getForestMainArtForEntry(container, worldId);
-    const units = this.getJourneyV700AnimationUnits(container, worldId, {
+    const units = transitionPerformance.phase('select-units', () => this.getJourneyV700AnimationUnits(container, worldId, {
       lastBoardId: options.lastBoardId ?? this.getLastActiveJourneyBoardAreaId(),
-    });
+    }));
     const source = options.source || 'default';
     playJourneyWorldsWorldSound();
     if (worldId === 1) playJourneyForestAmbientSounds();
@@ -8728,7 +8790,10 @@ class JourneyBoardsManager {
       units: units.map((unit) => ({ id: unit.id, targets: unit.targets.length })),
     });
     markIOSJourneyRouteAudit(`journey-world-${worldId}-enter`);
-    if (!units.length) return;
+    if (!units.length) {
+      transitionPerformance.finish('no-units');
+      return;
+    }
     this.activateJourneyWorldRuntime(container, worldId);
     this.cleanupJourneyAreaIdleAnimations(false);
     const allTargets = Array.from(new Set(units.flatMap((unit) => unit.targets)));
@@ -8774,12 +8839,16 @@ class JourneyBoardsManager {
       targetCount: allTargets.length,
       reusedPreRevealPreparation: canReusePreparedTargets,
     });
-    const finishWorldEnterAudit = startIOSJourneyWorldEnterAudit({
+    const finishDetailedWorldEnterAudit = startIOSJourneyWorldEnterAudit({
       worldId,
       source: `enter:${source}`,
       unitCount: units.length,
       targetCount: allTargets.length,
     });
+    const finishWorldEnterAudit = (reason: string): void => {
+      finishDetailedWorldEnterAudit(reason);
+      transitionPerformance.finish(reason);
+    };
     markIOSJourneyTransitionAudit('enter-waiting-for-images');
 
     const images = Array.from(new Set(allTargets.flatMap((target) => (
@@ -8815,7 +8884,8 @@ class JourneyBoardsManager {
         unitCount: units.length,
       });
       markIOSJourneyTransitionAudit('enter-unit-cascade');
-      await this.journeyWorldAnimation.enter(units, reducedMotion, { targetsPrimed });
+      await transitionPerformance.phase('start-unit-cascade', () =>
+        this.journeyWorldAnimation.enter(units, reducedMotion, { targetsPrimed }));
       // An early X interrupts the enter timeline. Its promise resolves through
       // onInterrupt, but that does not grant the stale enter continuation
       // permission to restore final opacity/scale over the active exit.
@@ -8861,6 +8931,7 @@ class JourneyBoardsManager {
         this.startForestBeeOrbits(container, worldId);
         this.startBeachBubbleDrift(container, worldId);
         this.startArea55ShipFlybys(container, worldId);
+        this.scheduleJourneyCardAssetWarmup(container, worldId, motionEpoch);
       }
       this.logJourneyV700Flow('world-enter-complete', { worldId, source }, container);
       if (closeQueuedDuringEnter) {
@@ -8872,6 +8943,40 @@ class JourneyBoardsManager {
       finishWorldEnterAudit('error');
       this.logJourneyV700Flow('world-enter-error', { worldId, error: error instanceof Error ? error.message : String(error) }, container);
     });
+  }
+
+  private scheduleJourneyCardAssetWarmup(container: HTMLElement, worldId: number, motionEpoch: number): void {
+    const generation = this.renderLifecycleGeneration;
+    const isCurrent = () => !this.renderDisposed && generation === this.renderLifecycleGeneration &&
+      motionEpoch === this.journeyV700WorldMotionEpoch && this.journeyV700Phase === 'idle' &&
+      this.journeyV700View === 'world' && this.journeyV700WorldId === worldId &&
+      !this.journeyAreaIdlePausedForInteraction && this.journeyWorldRuntime.getSnapshot().state === 'idle' &&
+      container.isConnected && document.visibilityState === 'visible';
+    // Optional modal art must not compete with the World decode/entrance. Its
+    // on-demand loaders remain authoritative if the player taps immediately.
+    this.trackTimeout(() => {
+      if (!isCurrent()) return;
+      let idleId = 0;
+      let fallbackId = 0;
+      let finished = false;
+      const cancelIdle = () => {
+        if (idleId) window.cancelIdleCallback?.(idleId);
+        idleId = 0;
+      };
+      const warm = () => {
+        if (finished) return;
+        finished = true;
+        cancelIdle();
+        this.clearTrackedTimeout(fallbackId);
+        if (!isCurrent()) return;
+        void preloadJourneyCardOverlayAssets().catch(() => {});
+        void preloadJourneyCardReturnReminderAssets().catch(() => {});
+      };
+      fallbackId = this.trackTimeout(warm, 500, () => { finished = true; cancelIdle(); });
+      if (typeof window.requestIdleCallback === 'function') {
+        idleId = window.requestIdleCallback(warm, { timeout: 500 });
+      }
+    }, 120);
   }
 
   private playJourneyV700WorldExit(
@@ -9254,10 +9359,6 @@ class JourneyBoardsManager {
     options: { worldId?: number; deferRuntimeOwners?: boolean } = {},
   ): void {
     const renderStartedAt = performance.now();
-    // Decode the three fixed modal assets while the World itself is being
-    // prepared. A card tap then owns only geometry and the authored flight.
-    void preloadJourneyCardOverlayAssets();
-    void preloadJourneyCardReturnReminderAssets();
     // 🔥 APP STORE FIX: Fixed background position using viewport units
     // Background starts at a fixed position from top of viewport
     // Based on iPhone 13/14 layout: header + section header + spacing = ~50px from top (moved up 150px)
@@ -10052,6 +10153,7 @@ class JourneyBoardsManager {
       // Interim card - show its authored 1x/2x face; clicking directly continues game.
       const image = document.createElement('img');
       // 🔥 PRODUCTION READY: Set src - if already in browser cache, image displays instantly
+      image.decoding = 'async';
       image.src = './assets/colelctibles/interim.png';
       image.srcset = './assets/colelctibles/interim.png 1x, ./assets/colelctibles/interim@2x.png 2x';
       image.alt = `${formatGameplayProgressLabel('journey', board.id)} (interim)`;
@@ -10258,6 +10360,7 @@ class JourneyBoardsManager {
       if (lockedBoardImagePath) {
         // Boards 21-30 reuse existing collectible art instead of rendering as empty number-only cards.
         const image = document.createElement('img');
+        image.decoding = 'async';
         image.src = lockedBoardImagePath;
         image.alt = `${formatGameplayProgressLabel('journey', board.id)} (locked)`;
         image.className = 'journey-board-image journey-board-locked-replica-image';
@@ -12820,18 +12923,7 @@ class JourneyBoardsManager {
           this.prepareJourneyAmbientForGameEntry();
           preloadRegularMerge6Sounds();
           preloadWildStarMerge6Sound();
-          preloadFishMerge6Sounds();
-          preloadFishFinaleBubbles();
-          preloadBeachBallMerge6Sounds();
-          preloadCoreTntMerge6Sound();
-          preloadFlowerMerge6Sounds();
-          preloadBeeMerge6Sounds();
-          preloadRoboCubeMerge6Sounds();
           preloadWildSpecialMerge6PoofSounds();
-          preloadBottleFinaleSounds();
-          preloadBottlePullMergeSounds();
-          preloadMagnetPullForceSounds();
-          preloadHoneyMerge6Sounds();
           preloadOrdinaryStackSound();
           preloadGameplayPickupSound();
           delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;

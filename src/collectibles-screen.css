@@ -1880,21 +1880,8 @@
 }
 
 .journey-robo-alien-beam-art.journey-robo-alien-beam-idle-ready .journey-robo-alien-beam-visual {
-  animation: journey-robo-alien-beam-idle 1.35s ease-in-out infinite;
+  animation: var(--journey-beam-idle-name) var(--journey-beam-idle-duration) ease-in-out var(--journey-beam-idle-phase) infinite;
   will-change: opacity;
-}
-
-@keyframes journey-robo-alien-beam-idle {
-  0%,
-  100% {
-    opacity: 0.96;
-  }
-  45% {
-    opacity: 0.46;
-  }
-  68% {
-    opacity: 0.78;
-  }
 }
 
 #collectibles-detail-modal .detail-stat-entering,

@@ -47,6 +47,7 @@ const HEADLINES = [
 let activeOverlay: HTMLElement | null = null;
 let activeTweens: gsap.core.Tween[] = [];
 let activeTimelines: gsap.core.Timeline[] = [];
+let activeAsyncSettlers = new Set<() => void>();
 export type ArcadeStageClearResult = { action: 'continue' | 'cancel' };
 
 let activeResolve: ((result: ArcadeStageClearResult) => void) | null = null;
@@ -88,9 +89,28 @@ function pickHeadline(): string {
   return HEADLINES[Math.floor(Math.random() * HEADLINES.length)] || 'Woow!';
 }
 
+function waitForOwnedCompletion(start: (settle: () => void) => void): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const settle = () => {
+      if (settled) return;
+      settled = true;
+      activeAsyncSettlers.delete(settle);
+      resolve();
+    };
+    activeAsyncSettlers.add(settle);
+    try {
+      start(settle);
+    } catch (error) {
+      activeAsyncSettlers.delete(settle);
+      reject(error);
+    }
+  });
+}
+
 function wait(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    const tween = gsap.delayedCall(ms / 1000, resolve);
+  return waitForOwnedCompletion((settle) => {
+    const tween = gsap.delayedCall(ms / 1000, settle);
     activeTweens.push(tween);
   });
 }
@@ -395,9 +415,9 @@ async function decodeThumb(thumb: HTMLImageElement | null): Promise<void> {
     try { await thumb.decode(); } catch {}
     return;
   }
-  await new Promise<void>((resolve) => {
-    thumb.addEventListener('load', () => resolve(), { once: true });
-    thumb.addEventListener('error', () => resolve(), { once: true });
+  await waitForOwnedCompletion((settle) => {
+    thumb.addEventListener('load', settle, { once: true });
+    thumb.addEventListener('error', settle, { once: true });
   });
 }
 
@@ -430,7 +450,7 @@ function playBubblyLetterEnter(
 ): Promise<void> {
   if (!letters.length) return Promise.resolve();
   prepareBubblyLetters(letters);
-  return new Promise((resolve) => {
+  return waitForOwnedCompletion((resolve) => {
     let completed = 0;
     letters.forEach((letterEl, index) => {
       const delay = startDelay + index * TEXT_ENTER_STAGGER;
@@ -485,7 +505,7 @@ function playBubblyLetterEnter(
 
 function playBubblyLetterExit(letters: HTMLElement[]): Promise<void> {
   if (!letters.length) return Promise.resolve();
-  return new Promise((resolve) => {
+  return waitForOwnedCompletion((resolve) => {
     let completed = 0;
     letters.forEach((letterEl, index) => {
       const delay = index * TEXT_EXIT_STAGGER;
@@ -608,7 +628,7 @@ async function playClearPhase(
   if (!isCurrent()) return;
   await Promise.all([
     playBubblyLetterEnter(subtitleLetters, 0),
-    new Promise<void>((resolve) => thumbTimeline.eventCallback('onComplete', resolve)),
+    waitForOwnedCompletion((resolve) => thumbTimeline.eventCallback('onComplete', resolve)),
   ]);
   if (!isCurrent()) return;
 
@@ -632,7 +652,7 @@ async function playClearPhase(
     .to(thumbShadow, { opacity: 0, scaleX: 0.62, scaleY: 0.62, duration: 0.18, ease: 'power2.in' }, 0.04);
   await Promise.all([
     playBubblyLetterExit([...titleLetters, ...subtitleLetters]),
-    new Promise<void>((resolve) => exitTimeline.eventCallback('onComplete', resolve)),
+    waitForOwnedCompletion((resolve) => exitTimeline.eventCallback('onComplete', resolve)),
   ]);
   if (!isCurrent()) return;
   gsap.set(clearCard, { opacity: 0 });
@@ -679,7 +699,7 @@ async function playRoundNumberPhase(
 
   const labelEnterPromise = playBubblyLetterEnter(letters, 0);
 
-  await new Promise<void>((resolveEnter) => {
+  await waitForOwnedCompletion((resolveEnter) => {
     let completedDigits = 0;
     digits.forEach((digit, index) => {
       const timeline = gsap.timeline({
@@ -754,7 +774,7 @@ async function playRoundNumberPhase(
 
   await Promise.all([
     playBubblyLetterExit(letters),
-    new Promise<void>((resolveExit) => {
+    waitForOwnedCompletion((resolveExit) => {
       let completedDigits = 0;
       digits.forEach((digit, index) => {
         const timeline = gsap.timeline({
@@ -917,6 +937,12 @@ export function cleanupArcadeStageClearModal(resolveActive: boolean = true): voi
   });
   activeTweens = [];
   activeTimelines = [];
+
+  const pendingAsyncSettlers = Array.from(activeAsyncSettlers);
+  activeAsyncSettlers.clear();
+  pendingAsyncSettlers.forEach((settle) => {
+    try { settle(); } catch {}
+  });
 
   if (activeOverlay) {
     try { gsap.killTweensOf(activeOverlay.querySelectorAll('*')); } catch {}

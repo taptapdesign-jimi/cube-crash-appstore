@@ -26,7 +26,7 @@ describe('shared special-dice transaction contract', () => {
     expect(appCoreSource).toContain('!isInternalPulledTilesMerge');
     expect(appCoreSource).toContain('specialTransactionKind && !isInternalPulledTilesMerge');
     const boardCommitIndex = appMergeSource.indexOf('helpers?.onMagnetBoardCommit?.()');
-    const settleWaitIndex = appMergeSource.indexOf('await waitTrackedResult(1200)');
+    const settleWaitIndex = appMergeSource.indexOf('await waitForMagnet(1200)');
     const handlerAwaitIndex = appCoreSource.indexOf('await handleWildMagnetMergedPulledTiles(mergeLocation, validTiles, helpersWithMerge)');
     const finalReleaseIndex = appCoreSource.indexOf("releaseSpecialDiceTransaction(specialTransactionToken, 'wild-magnet-handler-complete-fallback')");
     const boardCommitCallbackStart = appCoreSource.indexOf('onMagnetBoardCommit: () =>');
@@ -55,9 +55,9 @@ describe('shared special-dice transaction contract', () => {
     const revisionIncrementIndex = appCoreSource.indexOf('gameplayBoardMutationRevision += 1');
     const firstGridMutationIndex = appCoreSource.indexOf('grid[src.gridY][src.gridX] = null', revisionIncrementIndex);
     const commitCaptureIndex = appMergeSource.indexOf('postCommitBoardRevision.capture()');
-    const settleWaitIndex = appMergeSource.indexOf('await waitTrackedResult(1200)', commitCaptureIndex);
+    const settleWaitIndex = appMergeSource.indexOf('await waitForMagnet(1200)', commitCaptureIndex);
     const staleCheckIndex = appMergeSource.indexOf("abortSupersededPostCommitTail('after-initial-settle')", settleWaitIndex);
-    const fallbackIndex = appMergeSource.indexOf('await openAtCell(target.c, target.r', staleCheckIndex);
+    const fallbackIndex = appMergeSource.indexOf('await openMagnetCell(target.c, target.r', staleCheckIndex);
     const fallbackGuardIndex = appMergeSource.indexOf("abortSupersededPostCommitTail('before-fallback-spawn')", staleCheckIndex);
     const resolutionIndex = appMergeSource.indexOf('resolvePostMagnetEndgameAction({', staleCheckIndex);
     const resolutionGuardIndex = appMergeSource.indexOf("abortSupersededPostCommitTail('before-post-magnet-resolution')", staleCheckIndex);

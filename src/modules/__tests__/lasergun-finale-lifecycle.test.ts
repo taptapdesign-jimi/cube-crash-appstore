@@ -568,7 +568,7 @@ describe('LaserGun finale lifecycle', () => {
     cleanup();
   });
 
-  test('rejects a late relative target drift without changing the locked aim or revealing a beam', async () => {
+  test('keeps an already-entered accepted shot visible when the live target drifts', async () => {
     const frames = installRafQueue();
     const overlay = document.createElement('div');
     document.body.appendChild(overlay);
@@ -579,13 +579,19 @@ describe('LaserGun finale lifecycle', () => {
     const liveTarget = { x: 300, y: 120 };
     const aim = overlay.querySelector('.cc-lasergun-rig[data-lasergun-target="0"] .cc-lasergun-aim') as HTMLElement;
     const transformBeforeValidation = aim.style.transform;
+    const animationsBefore = new Set(gsap.globalTimeline.getChildren(true, true, true));
     const readiness = prepareActiveLaserGunFinaleImpact(0, liveTarget);
     expect(gsap.getTweensOf(aim)).toHaveLength(0);
-    await expect(readiness).resolves.toBe(false);
+    findNewPreflight(animationsBefore).progress(1);
+    await Promise.resolve();
+    flushRafQueue(frames);
+    await expect(readiness).resolves.toBe(true);
     expect(aim.style.transform).toBe(transformBeforeValidation);
 
     const beam = overlay.querySelector('.cc-lasergun-beam[data-lasergun-target="0"]') as HTMLElement;
-    expect(Number(gsap.getProperty(beam, 'opacity'))).toBe(0);
+    expect(triggerActiveLaserGunFinaleImpact(0)).toBe(true);
+    completeBeamLaunchDelay();
+    expect(Number(gsap.getProperty(beam, 'opacity'))).toBe(1);
     expect(Math.hypot(
       liveTarget.x - targets[0].x,
       liveTarget.y - targets[0].y,

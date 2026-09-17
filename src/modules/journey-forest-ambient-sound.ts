@@ -31,6 +31,7 @@ const VOICE_IDS = [
 let mediaAudios: HTMLAudioElement[] | null = null;
 let fadeIntervalId: number | null = null;
 let fadeTimeoutId: number | null = null;
+let playbackGeneration = 0;
 let active = false;
 let fading = false;
 
@@ -62,6 +63,7 @@ function clearFadeTimers(): void {
 }
 
 function stopAndRewind(): void {
+  playbackGeneration++;
   clearFadeTimers();
   fading = false;
   active = false;
@@ -88,20 +90,28 @@ export function playJourneyForestAmbientSounds(): boolean {
   }
 
   if (active && !fading) return true;
+  if (fading) stopAndRewind();
 
   clearFadeTimers();
+  const generation = ++playbackGeneration;
+  const failStart = () => {
+    if (generation === playbackGeneration) stopAndRewind();
+  };
   fading = false;
   active = true;
   const decodedState = getDecodedGameplaySoundsState(JOURNEY_FOREST_AMBIENT_SOUND_SOURCES);
   if (decodedState !== 'unavailable') {
     JOURNEY_FOREST_AMBIENT_SOUND_SOURCES.forEach((source, index) => {
-      playDecodedGameplaySound(source, {
+      if (generation !== playbackGeneration) return;
+      const result = playDecodedGameplaySound(source, {
         voiceId: VOICE_IDS[index],
         volume: JOURNEY_FOREST_AMBIENT_VOLUME,
         loop: true,
+        onDeferredUnavailable: failStart,
       });
+      if (result === 'unavailable') failStart();
     });
-    return true;
+    return active;
   }
 
   const audios = getMediaAudios();
@@ -110,6 +120,7 @@ export function playJourneyForestAmbientSounds(): boolean {
     return false;
   }
   audios.forEach((audio) => {
+    if (generation !== playbackGeneration) return;
     try {
       audio.pause();
       audio.currentTime = 0;
@@ -117,12 +128,14 @@ export function playJourneyForestAmbientSounds(): boolean {
       audio.volume = JOURNEY_FOREST_AMBIENT_VOLUME;
       audio.play()?.catch((error) => {
         logger.warn(`Failed to play Journey Forest ambiance ${audio.src}:`, error);
+        failStart();
       });
     } catch (error) {
       logger.warn(`Failed to start Journey Forest ambiance ${audio.src}:`, error);
+      failStart();
     }
   });
-  return true;
+  return active;
 }
 
 export function fadeOutJourneyForestAmbientSounds(

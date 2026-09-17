@@ -17,11 +17,11 @@ describe('gameplay HUD exit ownership contract', () => {
     const riseEnd = source.indexOf('export function updateHUD', riseStart);
     const riseOwner = source.slice(riseStart, riseEnd);
 
-    expect(riseOwner.indexOf('HUD_ROOT._dropped = false;'))
-      .toBeLessThan(riseOwner.indexOf('trackTween(HUD_ROOT'));
-    expect(riseOwner.indexOf('HUD_ROOT._exitInProgress = true;'))
-      .toBeLessThan(riseOwner.indexOf('trackTween(HUD_ROOT'));
-    expect(riseOwner).toContain('HUD_ROOT.visible = false;');
+    expect(riseOwner.indexOf('hudRoot._dropped = false;'))
+      .toBeLessThan(riseOwner.indexOf('trackTween(hudRoot'));
+    expect(riseOwner.indexOf('hudRoot._exitInProgress = true;'))
+      .toBeLessThan(riseOwner.indexOf('trackTween(hudRoot'));
+    expect(riseOwner).toContain('hudRoot.visible = false;');
     expect(source).toContain(
       "HUD_ROOT._dropped && HUD_ROOT._exitInProgress !== true && isGameplayHudRevealAllowed()",
     );

@@ -116,14 +116,14 @@ describe('Beach Fish special-die contract', () => {
       shardColor: 0xFCA470,
       shardColors: [0xFCA470, 0xFD6B38],
       trailColors: [0xF5D8BF, 0xFDAC78, 0xFDA458, 0xFD7C41],
-      idleBubbleColors: [0x65BAC8, 0xA1DDBE],
+      idleBubbleColors: [0xFFE6E1, 0xFFF2E9, 0xFFD5D6],
       finaleScene: 'fish-bubbles',
       idleOrbit: false,
       idleMotion: 'fish-swim',
     });
     expect(getCoreWildTypeForSpecialDiceVariant(fish)).toBe('wild');
     expect(getSpecialDiceTrailColors(fish)).toEqual([0xF5D8BF, 0xFDAC78, 0xFDA458, 0xFD7C41]);
-    expect(getSpecialDiceIdleBubbleColors(fish)).toEqual([0x65BAC8, 0xA1DDBE]);
+    expect(getSpecialDiceIdleBubbleColors(fish)).toEqual([0xFFE6E1, 0xFFF2E9, 0xFFD5D6]);
     expect(usesSpecialDiceIdleBubbles({ special: 'wild', _ccSpecialDiceVariant: 'fish' })).toBe(true);
     expect(getSpecialDiceSplashLetterColors(fish)).toEqual([
       '#FD7C41', '#FD7C41', '#FD7C41', '#FCA470', '#FCA470',
@@ -329,7 +329,7 @@ describe('Beach Fish special-die contract', () => {
         visible: true,
         renderable: true,
         scale: { x: 0.7, y: 0.7 },
-        _ccIdleBubblePaint: { radius: 10, color: 0x65BAC8 },
+        _ccIdleBubblePaint: { radius: 10, color: 0xFFE6E1 },
       }],
     };
     expect(isFishSwimTile(tile)).toBe(true);
@@ -351,8 +351,17 @@ describe('Beach Fish special-die contract', () => {
     expect(pixiBubbleContainer.renderable).toBe(false);
     expect(controller.bubbleLayer.style.zIndex).toBe('2');
     expect(controller.bubbleLayer.childElementCount).toBe(1);
-    expect((controller.bubbleLayer.firstElementChild as HTMLElement)?.style.background)
-      .toBe('rgba(101, 186, 200, 0.6)');
+    const bubble = controller.bubbleLayer.firstElementChild as SVGSVGElement;
+    expect(bubble.tagName.toLowerCase()).toBe('svg');
+    expect(bubble.getAttribute('viewBox')).toBe('-10 -10 20 20');
+    const circles = bubble.querySelectorAll('circle');
+    expect(circles).toHaveLength(3);
+    expect(circles[0].getAttribute('fill')).toBe('rgba(255, 230, 225, 0.6)');
+    expect(circles[1].getAttribute('cx')).toBe('-2');
+    expect(circles[1].getAttribute('cy')).toBe('-2');
+    expect(circles[1].getAttribute('r')).toBe('3');
+    expect(circles[2].getAttribute('fill')).toBe('none');
+    expect(circles[2].getAttribute('stroke-width')).toBe('1');
     expect(getFishSwimRuntimeStats()).toMatchObject({
       controllers: 1,
       ready: 1,

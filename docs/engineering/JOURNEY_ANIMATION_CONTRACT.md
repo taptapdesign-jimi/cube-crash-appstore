@@ -49,11 +49,11 @@ Do not regress these rules:
 - Preserve springy drag/overshoot on Journey Worlds and Forest/Beach/Area 55 world screens.
 - Preserve scroll interactivity after returning from card modal or board game.
 - Journey card-modal Play, Continue, X/Close, backdrop, Escape and a committed
-  drag-down from the white stats/CTA face own a visible return flip before the
+  vertical drag (up or down) from the white stats/CTA face own a visible return flip before the
   Unit landing. A stats/back-facing card keeps the canonical half-turn; other
   artwork/front exits keep their full turn so they land on artwork. The flip
   flight remains marked as an active physical flip for WebKit face painting.
-  A committed drag-down from the artwork/front face is the explicit exception:
+  A committed vertical drag (up or down) from the artwork/front face is the explicit exception:
   it travels to the same live Unit with its illustration facing forward for
   the whole flight, with no flip or `cardflip` image. At return-flight start it
   plays the existing single manual `flip soft.wav` whoosh, then uses the
@@ -99,17 +99,24 @@ two-leg collapse timeline as the Back-to-Homepage Worlds, including the 20%
 reduced `1.144 / 1.12` inflate peak, while the selected World retains the full
 canonical `1.18 / 1.15` peak.
 
-For a Homepage slider route activation, **Cartoon Bounce Enter** means only its
-initial inflate beat and applies only to the active large `.hero-image`. It
-uses **50% of the full World bounce displacement**, inflating around a centered
-`50% 50%` pivot to `scaleX: 1.09 / scaleY: 1.075` over `0.09s` with the
-`power2.in` curve. This Homepage-only inflate is 40% shorter than the full
-World bounce's `0.15s`; it has no Y translation, then the
-pre-existing hero-container exit pulls it into its own center from that exact
-peak frame. The central hero exit uses `0.40s`, while the other Homepage parts
-retain their existing `0.46s` exit. CTA, text, logo and navigation must not inflate. Both hero-image
-and CTA-button activation converge on the same `animateSliderExit()` owner;
-never attach a second click-specific bounce or insert a neutral reset/dwell.
+For a Homepage slider route activation, the large hero uses the **selected Hub
+World activation motion** (click Forest/Beach/Area 55 to enter that World).
+This is the user's explicit final reference, superseding the tutorial-thumb
+comparison and the earlier independent inflate/hold experiments.
+
+Use `JOURNEY_WORLD_CARTOON_BOUNCE_ENTER` with
+`getJourneyV700HubWorldExitDuration`: **1 → 1.18/1.15 over180ms power2.in**, then
+**peak → 0 over336ms back.in(1.7)**, around **50% 54%**. Reduced Motion uses the
+same duration selection as the World owner. The scale path, including its
+natural anticipation, must match both World legs exactly. One compositor
+animation holds all three keyframes, with no callback handoff, extra pulse or
+invented pause. The World screen itself is unchanged.
+
+The surrounding controls retain their preceding150ms lead plus per-part
+stagger, existing460ms exit and individual curves. Image and CTA activation
+converge on the same `animateSliderExit()` owner. Cleanup happens only after
+Homepage is hidden. The scale curve is compared against actual GSAP evaluation
+of the World preset, including its duration helper.
 
 ## Standard Journey Worlds Enter
 

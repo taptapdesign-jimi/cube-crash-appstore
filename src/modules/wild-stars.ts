@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { createWildStarOrbitForeground } from './wild-star-orbit-foreground';
 import { Container, Graphics, Sprite, Texture, Assets } from 'pixi.js';
 import { gsap } from 'gsap';
 import { getSpecialDiceVariantForTile, isSpecialDiceDirectWildLikeTile } from './special-dice-registry.ts';
@@ -45,6 +46,7 @@ interface WildStarSystem {
   disposed: boolean;
   lastUpdateTime: number;
   updateIntervalMs: number;
+  foreground?: ReturnType<typeof createWildStarOrbitForeground>;
   introBounce?: boolean;
   textureSources?: string[];
 }
@@ -338,6 +340,19 @@ function tickSystem(system: WildStarSystem): void {
     return;
   }
 
+  // Pixi suspension does not suspend this independent GSAP ticker.
+  // Keep the owner but skip invisible orbit math; refresh the elapsed baseline
+  // on delivered hidden ticks (the existing clamp still covers full suspension).
+  if (typeof document !== 'undefined' && document.hidden) {
+    system.lastUpdateTime = performance.now();
+    return;
+  }
+
+  if (!system.foreground && getSpecialDiceVariantForTile(tile) === null) {
+    system.foreground = createWildStarOrbitForeground(container, host, Number(tile.base?.zIndex) || 0);
+  }
+  system.foreground?.sync();
+
   // FORCE visibility
   container.visible = true;
   container.alpha = 1.0;
@@ -474,6 +489,9 @@ export function attachWildStarHalo(tile: WildishTile | null | undefined, opts: a
     textureSources,
   };
 
+  if (getSpecialDiceVariantForTile(tile) === null) {
+    system.foreground = createWildStarOrbitForeground(container, host, Number(tile.base?.zIndex) || 0);
+  }
   systems.set(tile, system);
   (tile as any)._wildStarSystem = system;
 
@@ -570,6 +588,8 @@ export function detachWildStarHalo(tile: WildishTile | null | undefined): void {
   if (!system) return;
 
   system.disposed = true;
+  system.foreground?.release();
+  system.foreground = null;
 
   activeSystems.delete(system);
   removeSharedTickerIfIdle();

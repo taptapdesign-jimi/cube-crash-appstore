@@ -163,6 +163,14 @@ if (!sourceOnly) {
     requireCondition(controllerText.includes('isTrustedGameURL'), 'GameViewController must recognize only the trusted bundled/dev game origin');
     requireCondition(controllerText.includes('UIApplication.shared.open'), 'GameViewController must open explicit external HTTPS links outside the game WebView');
     requireCondition(controllerText.includes('performanceDiagnosticsEnabled'), 'native performance diagnostics must be explicitly gated');
+    requireCondition(controllerText.includes('func webViewWebContentProcessDidTerminate(')
+      && controllerText.includes('UserDefaults.standard.set(record, forKey: Self.webContentIncidentKey)'),
+    'native WebContent termination must preserve a bounded incident record');
+
+    const textInteractionPolicy = controllerText.indexOf('webConfiguration.preferences.isTextInteractionEnabled = false');
+    const webViewCreation = controllerText.indexOf('webView = WKWebView(');
+    requireCondition(textInteractionPolicy >= 0 && textInteractionPolicy < webViewCreation,
+      'game WebView must disable native text selection before creation to avoid editing gestures during gameplay');
     requireCondition(controllerText.includes('if Self.performanceDiagnosticsEnabled {\n            startNativeThermalTelemetry()'), 'native thermal telemetry must run only in performance diagnostics mode');
     requireCondition(controllerText.includes('window.__ccPerformanceDiagnostics = true'), 'performance diagnostics mode must enable the compact web sampler');
     requireCondition(!controllerText.includes("name: \"jsError\""), 'native shell must not install detailed JS error forwarding');

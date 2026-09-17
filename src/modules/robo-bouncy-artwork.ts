@@ -39,6 +39,7 @@ const ROBO_SHEET_SPEC: SharedPixiSheetSpec = Object.freeze({
   cycleMs: ROBO_BOUNCY_CYCLE_MS,
   anchorX: 79.5,
   anchorY: 104.5,
+  renderAboveHud: true,
 });
 
 type RoboBouncyController = SharedPixiSheetController & {

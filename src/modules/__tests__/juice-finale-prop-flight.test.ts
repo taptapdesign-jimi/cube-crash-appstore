@@ -6,6 +6,7 @@ import { Assets, Container, Texture } from 'pixi.js';
 import { clearBubbleSpritePool, getBubbleSpritePool } from '../object-pool.ts';
 import {
   createJuiceFinalePropFlightPlan,
+  createJuiceFinalePropFlightPlans,
   createJuiceFinalePropFlights,
   getJuiceFinalePropTextures,
   JUICE_FINALE_PROP_POOL_KEY,
@@ -27,20 +28,27 @@ describe('Juice Merge-6 cup, lid and straw flight', () => {
     expect(cup.depth).toBeLessThan(0);
     expect(lid.depth).toBeGreaterThan(0);
     expect(straw.depth).toBeGreaterThan(lid.depth);
-    expect(straw.delay).toBe(0);
-    expect(lid.delay).toBeGreaterThan(straw.delay);
-    expect(cup.delay).toBeGreaterThan(lid.delay);
-    expect(straw.duration).toBeLessThan(lid.duration);
-    expect(lid.duration).toBeLessThan(cup.duration);
-    expect(straw.delay + straw.duration).toBeLessThan(lid.delay + lid.duration);
-    expect(lid.delay + lid.duration).toBeLessThan(cup.delay + cup.duration);
-    expect(cup.startX + cup.size / 2).toBeLessThan(straw.startX - straw.size / 2);
     for (const plan of [cup, lid, straw]) {
       expect(plan.startY).toBeGreaterThan(844);
       expect(plan.endY).toBeLessThan(0);
       expect(plan.weaveAmplitude).toBeGreaterThan(20);
       expect(plan.rotationAmplitude).toBeGreaterThan(30 * Math.PI / 180);
       expect(plan.rotationAmplitude).toBeLessThanOrEqual(40 * Math.PI / 180);
+    }
+  });
+
+  test('lets every part take either side and either end of the launch and speed range', () => {
+    for (const prop of ['cup', 'lid', 'straw'] as const) {
+      const earlyLeft = createJuiceFinalePropFlightPlan(prop, 390, 844, () => 0);
+      const lateRight = createJuiceFinalePropFlightPlan(prop, 390, 844, () => 0.999);
+      expect(earlyLeft.startX).toBeLessThan(195);
+      expect(lateRight.startX).toBeGreaterThan(195);
+      expect(earlyLeft.delay).toBe(0);
+      expect(lateRight.delay).toBeGreaterThan(0.54);
+      expect(earlyLeft.duration).toBe(1.88);
+      expect(lateRight.duration).toBeGreaterThan(2.89);
+      expect(lateRight.delay + lateRight.duration).toBeLessThanOrEqual(3.45);
+      expect(earlyLeft.weaveDirection).not.toBe(lateRight.weaveDirection);
     }
   });
 
@@ -103,6 +111,40 @@ describe('Juice Merge-6 cup, lid and straw flight', () => {
           .map(({ x, y }) => `${Math.round(x)},${Math.round(y)}`).join('|'));
       }
       expect(routes.size).toBe(8);
+    }
+  });
+
+  test('spreads complete ensembles in space and time while shuffling every part independently', () => {
+    const sides = { cup: new Set<number>(), lid: new Set<number>(), straw: new Set<number>() };
+    const orders = { cup: new Set<number>(), lid: new Set<number>(), straw: new Set<number>() };
+    for (let run = 1; run <= 100; run += 1) {
+      let seed = Math.imul(run, 2654435761) >>> 0;
+      const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 0x100000000; };
+      const plans = createJuiceFinalePropFlightPlans(390, 844, random);
+      const byX = Object.entries(plans).sort((a, b) => a[1].startX - b[1].startX);
+      const byDelay = Object.entries(plans).sort((a, b) => a[1].delay - b[1].delay);
+      expect(byX[2][1].startX - byX[0][1].startX).toBeGreaterThan(165);
+      for (const prop of ['cup', 'lid', 'straw'] as const) {
+        const plan = plans[prop];
+        sides[prop].add(byX.findIndex(([name]) => name === prop));
+        orders[prop].add(byDelay.findIndex(([name]) => name === prop));
+        expect(plan.delay + plan.duration).toBeLessThanOrEqual(3.45);
+        for (let step = 0; step <= 100; step += 1) {
+          const pose = sampleJuiceFinalePropPose(plan, step / 100);
+          expect(pose.x).toBeGreaterThanOrEqual(plan.horizontalMargin - 0.001);
+          expect(pose.x).toBeLessThanOrEqual(390 - plan.horizontalMargin + 0.001);
+        }
+      }
+      // Compare the three simultaneous physical positions, not equal progress.
+      const poses = Object.values(plans).map((plan) => sampleJuiceFinalePropPose(plan, (1.2 - plan.delay) / plan.duration));
+      const distances = poses.flatMap((pose, i) => poses.slice(i + 1)
+        .map((other) => Math.hypot(pose.x - other.x, pose.y - other.y)));
+      expect(Math.min(...distances)).toBeGreaterThan(70);
+      expect(Math.max(...distances)).toBeGreaterThan(220);
+    }
+    for (const prop of ['cup', 'lid', 'straw'] as const) {
+      expect(sides[prop].size).toBe(3);
+      expect(orders[prop].size).toBe(3);
     }
   });
 

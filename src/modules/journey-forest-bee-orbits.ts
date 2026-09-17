@@ -3,6 +3,7 @@ import { resolveMobileRuntimeProfile } from './mobile-runtime-profile.js';
 import {
   startJourneyAmbientCanvasRuntime,
   type JourneyAmbientCanvasFrame,
+  type JourneyAmbientCanvasDepth,
   type JourneyAmbientTicker,
 } from './journey-ambient-canvas-runtime.js';
 
@@ -605,6 +606,8 @@ function drawBeeAsset(
   scaleY: number,
   opacity: number,
   canvasTop: number,
+  frame: JourneyAmbientCanvasFrame,
+  depth: JourneyAmbientCanvasDepth,
 ): void {
   if (!context || !image?.complete || image.naturalWidth <= 0 || opacity <= 0) return;
   context.save();
@@ -614,6 +617,9 @@ function drawBeeAsset(
   context.scale(scaleX, scaleY);
   context.drawImage(image, -size / 2, -size / 2, size, size);
   context.restore();
+  // Circumscribed circle covers every authored rotation and nonuniform scale.
+  const radius = Math.hypot(size * scaleX, size * scaleY) / 2;
+  frame.markPaintedBounds?.(depth, x + size / 2 - radius, y - canvasTop + size / 2 - radius, radius * 2, radius * 2);
 }
 
 /** Eighteen reusable logical bees painted by the shared two-canvas runtime. */
@@ -774,12 +780,13 @@ export function startJourneyForestBeeOrbits(
       bee.rendered = y + paintedHeight >= frame.viewportTop && y <= frame.viewportBottom;
       if (!bee.rendered) return;
       visibleCount += 1;
-      const context = bee.depth === 'front' ? frame.front : frame.behind;
+      const depth = bee.depth === 'front' ? 'front' : 'behind';
+      const context = depth === 'front' ? frame.front : frame.behind;
       const blend = clamp(bee.assetBlendSeconds / FOREST_BEE_DIRECTION_FADE_SECONDS, 0, 1);
       if (bee.previousAsset && blend < 1) {
         drawBeeAsset(
           context, assetImages.get(bee.previousAsset), x, y, size, rotation,
-          scaleX, scaleY, 1 - blend, frame.viewportTop,
+          scaleX, scaleY, 1 - blend, frame.viewportTop, frame, depth,
         );
       } else {
         bee.previousAsset = null;
@@ -787,7 +794,7 @@ export function startJourneyForestBeeOrbits(
       if (bee.currentAsset) {
         drawBeeAsset(
           context, assetImages.get(bee.currentAsset), x, y, size, rotation,
-          scaleX, scaleY, blend, frame.viewportTop,
+          scaleX, scaleY, blend, frame.viewportTop, frame, depth,
         );
       }
     });
@@ -813,6 +820,7 @@ export function startJourneyForestBeeOrbits(
     behindZIndex: 1,
     frontZIndex: 4,
     className: 'journey-forest-bee-canvas',
+    trackPaintedBounds: true,
     observeVisibility: options.observeVisibility,
     render,
   });

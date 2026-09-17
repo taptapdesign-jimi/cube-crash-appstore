@@ -1,10 +1,14 @@
-import { Assets, Rectangle, Sprite, Texture } from 'pixi.js';
+import { Sprite, type Texture } from 'pixi.js';
 import { STATE } from './app-state.ts';
 import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
 import { acquireAnimatedTimelinePhase, type AnimatedSvgPhaseLease } from './animated-svg-phase-scheduler.ts';
 import { releaseAnimatedSpecialArtworkFamily } from './animated-special-artwork-mode.ts';
-import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
-import { pinPixiImageTexture, reloadPixiImageTexture } from '../utils/pixi-image-texture-health.ts';
+import { acquireSharedPixiSheetResource, destroySharedPixiSheetFamily, getSharedPixiSheetRuntimeStats, preloadSharedPixiSheet } from './shared-pixi-sheet-animation.ts';
+import {
+  mountAnimatedDiceAboveHud,
+  releaseAnimatedDiceAboveHud,
+  syncAnimatedDiceAboveHud,
+} from './animated-dice-hud-foreground.ts';
 
 // The authored SVG remains preserved as the source-of-truth animation asset.
 // Runtime uses the pre-rendered sheet below so every live Barrel shares one
@@ -29,11 +33,23 @@ const DISPLAY_HEIGHT = BARREL_BOUNCY_VIEWBOX.height * DISPLAY_SCALE;
 const DISPLAY_ANCHOR_X = BARREL_BOUNCY_REST_ART.centerX / BARREL_BOUNCY_VIEWBOX.width;
 const DISPLAY_ANCHOR_Y = BARREL_BOUNCY_REST_ART.centerY / BARREL_BOUNCY_VIEWBOX.height;
 
+const BARREL_SHEET_SPEC = Object.freeze({
+  family: 'barrel-bouncy', sheetUrl: BARREL_BOUNCY_SHEET_URL,
+  atlasWidth: BARREL_BOUNCY_VIEWBOX.width * SHEET_COLUMNS,
+  atlasHeight: BARREL_BOUNCY_VIEWBOX.height * SHEET_ROWS,
+  cellWidth: BARREL_BOUNCY_VIEWBOX.width, cellHeight: BARREL_BOUNCY_VIEWBOX.height,
+  columns: SHEET_COLUMNS, frameCount: BARREL_BOUNCY_FRAME_COUNT,
+  cycleMs: BARREL_BOUNCY_SEQUENCE_MS,
+  anchorX: BARREL_BOUNCY_REST_ART.centerX, anchorY: BARREL_BOUNCY_REST_ART.centerY,
+});
+
 type BarrelController = {
   tile: any;
   base: any;
   host: any;
   sprite: Sprite | null;
+  frames: Texture[] | null;
+  resource: ReturnType<typeof acquireSharedPixiSheetResource>;
   originalRenderable: boolean;
   dragging: boolean;
   ready: boolean;
@@ -47,9 +63,6 @@ type BarrelController = {
 };
 
 const controllers = new Map<any, BarrelController>();
-let sharedSheetTexture: Texture | null = null;
-let sharedFrameTextures: Texture[] | null = null;
-let sharedFramesPromise: Promise<Texture[]> | null = null;
 let runtimeTicker: any = null;
 
 export function isBarrelBouncyTile(tile: any): boolean {
@@ -80,58 +93,8 @@ export function isBarrelBouncyResting(elapsedMs: number): boolean {
   return safeElapsed >= BARREL_BOUNCY_CYCLE_MS * BARREL_BOUNCY_ACTIVE_LOOPS;
 }
 
-function getTextureDimension(texture: any, axis: 'width' | 'height'): number {
-  return Number(texture?.source?.[axis] || texture?.[axis] || texture?.orig?.[axis] || 0);
-}
-
-function createFrameTextures(sheet: Texture): Texture[] {
-  const width = getTextureDimension(sheet, 'width');
-  const height = getTextureDimension(sheet, 'height');
-  const expectedWidth = BARREL_BOUNCY_VIEWBOX.width * SHEET_COLUMNS;
-  const expectedHeight = BARREL_BOUNCY_VIEWBOX.height * SHEET_ROWS;
-  if (width !== expectedWidth || height !== expectedHeight) {
-    throw new Error(`Unexpected Barrel Pixi sheet size ${width}x${height}; expected ${expectedWidth}x${expectedHeight}`);
-  }
-  pinPixiImageTexture(sheet);
-  applyGameplayTextureFiltering(sheet);
-  return Array.from({ length: BARREL_BOUNCY_FRAME_COUNT }, (_, index) => new Texture({
-    source: sheet.source,
-    frame: new Rectangle(
-      (index % SHEET_COLUMNS) * BARREL_BOUNCY_VIEWBOX.width,
-      Math.floor(index / SHEET_COLUMNS) * BARREL_BOUNCY_VIEWBOX.height,
-      BARREL_BOUNCY_VIEWBOX.width,
-      BARREL_BOUNCY_VIEWBOX.height,
-    ),
-    label: `barrel-bouncy-frame-${index + 1}`,
-  }));
-}
-
-async function loadSharedFrameTextures(): Promise<Texture[]> {
-  if (sharedFrameTextures) return sharedFrameTextures;
-  if (sharedFramesPromise) return sharedFramesPromise;
-  sharedFramesPromise = (async () => {
-    let sheet = (Assets.get(BARREL_BOUNCY_SHEET_URL) || null) as Texture | null;
-    if (!sheet || sheet.destroyed || getTextureDimension(sheet, 'width') <= 1) {
-      try {
-        sheet = await Assets.load<Texture>(BARREL_BOUNCY_SHEET_URL);
-      } catch {
-        sheet = await reloadPixiImageTexture(BARREL_BOUNCY_SHEET_URL);
-      }
-    }
-    if (!sheet || sheet.destroyed) throw new Error('Barrel Pixi sheet did not produce a live texture');
-    const frames = createFrameTextures(sheet);
-    sharedSheetTexture = sheet;
-    sharedFrameTextures = frames;
-    return frames;
-  })().catch((error) => {
-    sharedFramesPromise = null;
-    throw error;
-  });
-  return sharedFramesPromise;
-}
-
 export function preloadBarrelBouncyArtwork(): Promise<void> {
-  return loadSharedFrameTextures().then(() => undefined).catch(() => undefined);
+  return preloadSharedPixiSheet(BARREL_SHEET_SPEC);
 }
 
 function isPixiBranchVisible(displayObject: any): boolean {
@@ -159,11 +122,14 @@ function disposeController(controller: BarrelController): void {
     clearTimeout(controller.retryTimer);
     controller.retryTimer = null;
   }
+  releaseAnimatedDiceAboveHud(controller);
   if (controller.sprite) {
     try { controller.sprite.parent?.removeChild(controller.sprite); } catch {}
     try { controller.sprite.destroy({ texture: false, textureSource: false }); } catch {}
     controller.sprite = null;
   }
+  controller.frames = null;
+  controller.resource.release();
   if (controller.base && !controller.base.destroyed) controller.base.renderable = controller.originalRenderable;
   if (controllers.size === 0) detachRuntimeTicker();
 }
@@ -190,12 +156,13 @@ function updateController(controller: BarrelController, deltaMs: number): void {
   const nextFrameIndex = getBarrelBouncyFrameIndex(controller.elapsedMs);
   if (nextFrameIndex !== controller.frameIndex) {
     controller.frameIndex = nextFrameIndex;
-    sprite.texture = sharedFrameTextures?.[nextFrameIndex] || sprite.texture;
+    sprite.texture = controller.frames?.[nextFrameIndex] || sprite.texture;
   }
   controller.resting = isBarrelBouncyResting(controller.elapsedMs);
   sprite.alpha = typeof base.alpha === 'number' ? base.alpha : 1;
   sprite.tint = base.tint ?? 0xFFFFFF;
   base.renderable = false;
+  syncAnimatedDiceAboveHud(controller);
 }
 
 function updateAllControllers(ticker?: any): void {
@@ -245,6 +212,8 @@ export function startBarrelBouncyArtwork(tile: any): BarrelController | null {
     base,
     host,
     sprite: null,
+    frames: null,
+    resource: acquireSharedPixiSheetResource(BARREL_SHEET_SPEC),
     originalRenderable: base.renderable !== false,
     dragging: false,
     ready: false,
@@ -264,8 +233,13 @@ export function startBarrelBouncyArtwork(tile: any): BarrelController | null {
 
 function mountBarrelControllerSprite(controller: BarrelController, retryAttempt = 0): void {
   const { tile, base, host } = controller;
-  void loadSharedFrameTextures().then((frames) => {
-    if (controller.disposed || tile.destroyed || !isBarrelBouncyTile(tile)) return;
+  void controller.resource.load().then((frames) => {
+    if (controller.disposed) return;
+    if (tile.destroyed || base.destroyed || host.destroyed || !isBarrelBouncyTile(tile)) {
+      disposeController(controller);
+      return;
+    }
+    controller.frames = frames;
     const sprite = new Sprite(frames[0]);
     sprite.label = 'barrel-bouncy-pixi';
     sprite.eventMode = 'none';
@@ -282,6 +256,7 @@ function mountBarrelControllerSprite(controller: BarrelController, retryAttempt 
     host.sortableChildren = true;
     host.addChild(sprite);
     controller.sprite = sprite;
+    mountAnimatedDiceAboveHud(controller, sprite, host);
     controller.ready = true;
     ensureRuntimeTicker(findTileTicker(tile));
     controller.phaseLease = acquireAnimatedTimelinePhase(
@@ -333,24 +308,19 @@ export function destroyBarrelBouncyArtworkRuntime(): void {
 
 export function resetBarrelBouncyArtworkCacheForTests(): void {
   destroyBarrelBouncyArtworkRuntime();
-  sharedFrameTextures?.forEach((frame) => {
-    try { frame.source?.off?.('resize', frame.update, frame); } catch {}
-    try { frame.destroy(false); } catch {}
-  });
-  sharedFrameTextures = null;
-  sharedSheetTexture = null;
-  sharedFramesPromise = null;
+  destroySharedPixiSheetFamily(BARREL_SHEET_SPEC);
 }
 
 export function getBarrelBouncyRuntimeStats() {
   const values = Array.from(controllers.values());
+  const resource = getSharedPixiSheetRuntimeStats(BARREL_SHEET_SPEC);
   return {
     controllers: controllers.size,
     ready: values.filter((controller) => controller.ready).length,
     running: values.filter((controller) => controller.running).length,
     resting: values.filter((controller) => controller.resting).length,
-    sharedFrames: sharedFrameTextures?.length ?? 0,
-    sharedSheetReady: sharedSheetTexture !== null,
+    sharedFrames: resource.frames,
+    sharedSheetReady: resource.sourceTextures > 0,
     runtimeAttached: runtimeTicker !== null,
   };
 }

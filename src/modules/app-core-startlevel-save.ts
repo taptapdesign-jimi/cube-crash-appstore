@@ -1,5 +1,6 @@
 type StartLevelSaveDeps = {
   boardNumber: number;
+  isCurrentEntry: () => boolean;
   trackAppTimeout: (fn: () => void, ms: number) => any;
   saveGameState: () => void;
   devLog: (...args: any[]) => void;
@@ -7,6 +8,7 @@ type StartLevelSaveDeps = {
 
 export function saveAfterBoardStart({
   boardNumber,
+  isCurrentEntry,
   trackAppTimeout,
   saveGameState,
   devLog,
@@ -16,6 +18,7 @@ export function saveAfterBoardStart({
   // Board 2+: same — ensures resume works even if user never made a move
   devLog('💾 Board', boardNumber, 'started, scheduling save for resume capability');
   trackAppTimeout(() => {
+    if (!isCurrentEntry()) return;
     saveGameState();
     devLog('✅ Game state saved after board start (board', boardNumber, ')');
   }, 100);

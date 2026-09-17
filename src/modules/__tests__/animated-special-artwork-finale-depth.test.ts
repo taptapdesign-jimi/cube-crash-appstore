@@ -6,11 +6,9 @@ import { STATE } from '../app-state';
 import {
   acquireAnimatedSpecialArtworkFinaleDepth,
   acquireAnimatedSpecialArtworkLayer,
-  doesAnimatedSpecialArtworkOverlapGameplayDrag,
   getAnimatedSpecialArtworkLayerStats,
   getAnimatedSpecialArtworkCarrierForegroundRoot,
   getAnimatedSpecialArtworkSpawnedDieForegroundRoot,
-  installAnimatedSpecialArtworkOverlapFootprint,
   setAnimatedSpecialArtworkDragging,
   setAnimatedSpecialArtworkOccluded,
   setAnimatedSpecialArtworkPinnedForeground,
@@ -39,6 +37,72 @@ describe('animated special artwork merge-6 depth ownership', () => {
     }
     STATE.app = null;
     document.body.replaceChildren();
+  });
+
+  test('steady layer frames do not rewrite identical CSS and still publish visibility/depth changes', () => {
+    const lease = acquireAnimatedSpecialArtworkLayer(jest.fn())!;
+    releases.push(lease.release);
+    getAnimatedSpecialArtworkCarrierForegroundRoot();
+    getAnimatedSpecialArtworkSpawnedDieForegroundRoot();
+    lease.requestSync();
+    const observer = new MutationObserver(() => {});
+    observer.observe(lease.root.parentElement!, { attributes: true, subtree: true, attributeFilter: ['style'] });
+    try {
+      for (let i = 0; i < 60; i++) lease.requestSync();
+      expect(observer.takeRecords()).toHaveLength(0);
+      const releaseDepth = acquireAnimatedSpecialArtworkFinaleDepth();
+      releases.push(releaseDepth);
+      expect(lease.root.style.zIndex).toBe('0');
+      expect(observer.takeRecords().length).toBeGreaterThan(0);
+      const canvas = STATE.app!.canvas as HTMLCanvasElement;
+      canvas.style.display = 'none'; lease.requestSync();
+      expect(lease.root.style.display).toBe('none');
+      canvas.style.display = ''; lease.requestSync();
+      expect(lease.root.style.display).toBe('');
+      expect(lease.root.style.visibility).toBe('visible');
+    } finally { observer.disconnect(); }
+  });
+
+  test('Fish-like pinned owners share one style read per frame and keep immediate depth and reparenting', () => {
+    const wrappers = [document.createElement('div'), document.createElement('div')];
+    const owners = wrappers.map((wrapper) => jest.fn(() => {
+      setAnimatedSpecialArtworkPinnedForeground(wrapper, true);
+      // Match the real owner ordering: pin first, then update its artwork pose.
+      wrapper.style.transform = 'translateX(7px)';
+    }));
+    const leases = owners.map((owner) => acquireAnimatedSpecialArtworkLayer(owner)!);
+    leases.forEach((lease) => releases.push(lease.release));
+    leases[0].requestSync();
+    const pinnedRoot = wrappers[0].parentElement!;
+    expect(wrappers[1].parentElement).toBe(pinnedRoot);
+    expect(pinnedRoot.style.zIndex).toBe('12');
+    const computedStyle = jest.spyOn(window, 'getComputedStyle');
+    owners.forEach((owner) => owner.mockClear());
+    for (let frame = 0; frame < 10; frame++) leases[0].requestSync();
+    expect(computedStyle).toHaveBeenCalledTimes(10);
+    owners.forEach((owner) => expect(owner).toHaveBeenCalledTimes(10));
+
+    const releaseFinale = acquireAnimatedSpecialArtworkFinaleDepth();
+    releases.push(releaseFinale);
+    expect(pinnedRoot.style.zIndex).toBe('0');
+    releaseFinale();
+    expect(pinnedRoot.style.zIndex).toBe('12');
+
+    const canvas = STATE.app!.canvas as HTMLCanvasElement;
+    const nextHost = document.createElement('div');
+    document.body.append(nextHost);
+    nextHost.append(canvas);
+    canvas.style.zIndex = '50';
+    // A standalone call must immediately repair attachment and depth, without
+    // waiting for the next shared frame.
+    setAnimatedSpecialArtworkPinnedForeground(wrappers[0], true);
+    expect(pinnedRoot.parentElement).toBe(nextHost);
+    expect(pinnedRoot.style.zIndex).toBe('52');
+    expect(wrappers[1].parentElement).toBe(pinnedRoot);
+    computedStyle.mockClear();
+    leases[0].requestSync();
+    expect(computedStyle).toHaveBeenCalledTimes(1);
+    owners.forEach((owner) => expect(owner).toHaveBeenCalledTimes(11));
   });
 
   test('reference-counts overlapping finales and restores SVG dice above Pixi afterward', () => {
@@ -257,57 +321,6 @@ describe('animated special artwork merge-6 depth ownership', () => {
     expect(Number(draggedSvg.parentElement?.style.zIndex))
       .toBeGreaterThan(Number(getComputedStyle(canvas).zIndex || '1'));
     setAnimatedSpecialArtworkDragging(draggedSvg, false);
-  });
-
-  test('ignores transparent SVG stage margins and falls back only on visible-die overlap', () => {
-    const wrapper = document.createElement('div');
-    const footprint = installAnimatedSpecialArtworkOverlapFootprint(wrapper, {
-      left: 100,
-      top: 100,
-      width: 128,
-      height: 128,
-    });
-    jest.spyOn(wrapper, 'getBoundingClientRect').mockReturnValue({
-      left: 0,
-      top: 0,
-      right: 340,
-      bottom: 380,
-      width: 340,
-      height: 380,
-      x: 0,
-      y: 0,
-      toJSON: () => ({}),
-    });
-    jest.spyOn(footprint, 'getBoundingClientRect').mockReturnValue({
-      left: 100,
-      top: 100,
-      right: 228,
-      bottom: 228,
-      width: 128,
-      height: 128,
-      x: 100,
-      y: 100,
-      toJSON: () => ({}),
-    });
-
-    expect(doesAnimatedSpecialArtworkOverlapGameplayDrag(wrapper, {
-      x: 250,
-      y: 120,
-      width: 128,
-      height: 128,
-    })).toBe(false);
-    expect(doesAnimatedSpecialArtworkOverlapGameplayDrag(wrapper, {
-      x: 227,
-      y: 120,
-      width: 128,
-      height: 128,
-    })).toBe(true);
-    expect(doesAnimatedSpecialArtworkOverlapGameplayDrag(wrapper, {
-      x: 228,
-      y: 120,
-      width: 128,
-      height: 128,
-    })).toBe(false);
   });
 
   test('connects the shared depth lease to all four merge-6 finale families', () => {

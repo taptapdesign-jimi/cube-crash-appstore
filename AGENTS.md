@@ -17,6 +17,10 @@ When auditing, designing, generating, naming, mixing, or integrating sound effec
 
 For every gameplay-affecting change or cleanup of gameplay-adjacent legacy code, run `npm run qa:gameplay-lock`. Never optimize, deduplicate, rename, move, or delete assets unless the user explicitly revokes the asset-preservation order in `GAMEPLAY_KING_CONTRACT.md`.
 
+When adding or changing special-die animation, artwork, preloading, or an archetype visual variant, also follow [`docs/engineering/SPECIAL_DICE_PERFORMANCE_CONTRACT.md`](docs/engineering/SPECIAL_DICE_PERFORMANCE_CONTRACT.md). New registry variants must have a matching performance ownership record; `qa:fast` and `qa:full` block missing records. Behavioral regression tests and physical acceptance remain separate requirements.
+
+For navigation queues, background animation work, resource preparation, startup imports, or dead-code cleanup, follow [`docs/engineering/BACKGROUND_WORK_CONTRACT.md`](docs/engineering/BACKGROUND_WORK_CONTRACT.md).
+
 When the user asks to connect to the phone, observe or collect problems, reproduce a physical issue, use **KRENI/GOTOVO**, compare phone and web behavior, or test on `localhost:5174`, read and follow [`docs/engineering/LIVE_DEBUG_WORKFLOW.md`](docs/engineering/LIVE_DEBUG_WORKFLOW.md). The required order is capture through the user's explicit **GOTOVO**, fix and show it on `http://localhost:5174`, obtain explicit web approval, and only then install on `iPhone 13 blue`.
 
 The terms **standard enter**, **standard exit**, and **cjelina / Unit** always refer to that contract unless the user explicitly requests different motion.

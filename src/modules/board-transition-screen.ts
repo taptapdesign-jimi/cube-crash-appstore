@@ -3,6 +3,7 @@
 // Shows board number before starting next board (interim board flow)
 
 import { gsap } from 'gsap';
+import { sampleBoardTransitionShipHover } from './board-transition-ship-hover.js';
 import { logger } from '../core/logger.js';
 import animationManager from './animation-manager.js';
 import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
@@ -54,7 +55,7 @@ import { boardTransitionPresentationHandoff } from './board-transition-presentat
 import {
   resolveRoboArea55ExitTimeScale,
   resolveRoboAirCombatHoldSeconds,
-  resolveRoboFighterFinaleDuration,
+  resolveRoboFighterFinaleWindow,
 } from './board-transition-robo-combat-timing.js';
 import { areContinuousRuntimeDiagnosticsEnabled } from '../utils/runtime-diagnostics-policy.js';
 import {
@@ -1274,7 +1275,7 @@ function startRoboAirCombatMotion(
     transformOrigin: '50% 50%',
   });
   // The main timeline exclusively owns flight X/Y/rotation/scale. These small
-  // relative percentages add an irregular engine-hover vibration without ever
+  // relative percentages add a slow Clean Board-style buoyant hover without ever
   // pausing or overwriting that uninterrupted path.
   const combatWobbles: Array<{
     ship: HTMLImageElement;
@@ -1297,8 +1298,8 @@ function startRoboAirCombatMotion(
       ? ship.naturalHeight / ship.naturalWidth
       : 188 / 194;
     const shipHeight = Math.max(1, ship.offsetHeight || shipWidth * shipAspectRatio);
-    const hoverXPercent = 500 / shipWidth;
-    const hoverYPercent = 500 / shipHeight;
+    const hoverXPercent = 900 / shipWidth;
+    const hoverYPercent = 1200 / shipHeight;
     combatWobbles.push({
       ship,
       startDelay,
@@ -1397,10 +1398,12 @@ function startRoboAirCombatMotion(
         const segmentDuration = Math.max(0.001, next.time - current.time);
         const progress = Math.max(0, Math.min(1, (elapsed - current.time) / segmentDuration));
         const smoothProgress = progress * progress * (3 - 2 * progress);
-        const bank = Math.max(-10, Math.min(10,
-          Math.sin(elapsed * 5.2 + bankPhase) * 8
-          + Math.sin(elapsed * 8.7 + bankPhase * 0.7) * 2,
-        ));
+        const beforeTime = Math.max(0, elapsed - 0.016);
+        const afterTime = Math.min(runtime.duration, elapsed + 0.016);
+        const velocityX = (sampleSmoothFlightValue(points, afterTime, 'x')
+          - sampleSmoothFlightValue(points, beforeTime, 'x')) / Math.max(0.001, afterTime - beforeTime);
+        const bank = 7 * Math.tanh(velocityX / 240)
+          + sampleBoardTransitionShipHover(elapsed, bankPhase).bank;
         const renderedScale = current.scale + (next.scale - current.scale) * smoothProgress;
         gsap.set(ship, {
           x: sampleSmoothFlightValue(points, elapsed, 'x'),
@@ -1515,13 +1518,11 @@ function startRoboAirCombatMotion(
       const sceneElapsed = combatRuntimeClock.elapsed;
       combatWobbles.forEach((runtime) => {
         if (sceneElapsed < runtime.startDelay) return;
-        const phase = runtime.phaseOffset + (sceneElapsed - runtime.startDelay) * Math.PI * 2;
-        const xWave = Math.sin(phase * 1.37) * 0.72 + Math.sin(phase * 2.11 + 0.8) * 0.28;
-        const yWave = Math.sin(phase * 1.73 + 1.2) * 0.70 + Math.sin(phase * 2.47) * 0.30;
+        const hover = sampleBoardTransitionShipHover(sceneElapsed - runtime.startDelay, runtime.phaseOffset);
         gsap.set(runtime.ship, {
-          xPercent: runtime.baseXPercent + runtime.hoverXPercent * runtime.amplitudeMultiplier * xWave,
-          yPercent: runtime.hoverYPercent * runtime.amplitudeMultiplier * yWave,
-          skewX: Math.sin(phase * 1.19 + 0.4) * 1.5,
+          xPercent: runtime.baseXPercent + runtime.hoverXPercent * runtime.amplitudeMultiplier * hover.x,
+          yPercent: runtime.hoverYPercent * runtime.amplitudeMultiplier * hover.y,
+          skewX: hover.bank * 0.2,
         });
       });
       combatFlights.forEach((runtime) => {
@@ -1902,14 +1903,17 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
 
             // Defensive cleanup is handled centrally in endgame-flow before transition
 
-  // Main Forest bees change directional PNGs on their first flight frame. Decode
-  // those seven small textures before the overlay starts so a cold iOS cache
-  // cannot turn scheduled bees into visually blank elements.
-  if (resolvedTheme === 'forest') {
-    await preloadTransitionAssets([], true);
+  // Decode the active scene before its animation clock starts. Starting Area
+  // 55 while these PNGs were still decoding produced a large physical-device
+  // hitch and could overlap WebKit GPU-process recovery.
+  if (showScene) {
+    await preloadTransitionAssets(
+      sceneLayers,
+      resolvedTheme === 'forest',
+    );
     if (!isTransitionActive || activeGeneration !== transitionGeneration) return;
   }
-  preloadTransitionAssets(showScene ? sceneLayers : [], false).catch((error) => {
+  preloadTransitionAssets([], false).catch((error) => {
     logger.warn('⚠️ board-transition-screen: Background preload failed:', error);
   });
   import('../utils/board-asset-warmup.js')
@@ -3389,7 +3393,7 @@ function startExitAnimation(
             - circleRadius * 1.35 * arcProgress;
           const wobbleEnvelope = 0.65 + Math.sin(Math.PI * progress) * 0.35;
           const wobblePhaseNow = progress * Math.PI * 2 + wobblePhase;
-          const microWobblePhase = progress * Math.PI * 10 + wobblePhase;
+          const microWobblePhase = progress * fighterExitDuration * Math.PI * 0.94 + wobblePhase;
           const diagonalDirection = side === 'left' ? 1 : -1;
           gsap.set(fighter, {
             x: baseX
@@ -3403,7 +3407,7 @@ function startExitAnimation(
             rotation: startRotation + diagonalDirection * 30 * acceleratedProgress
               + (Math.sin(microWobblePhase * 1.31) - Math.sin(wobblePhase * 1.31))
                 * 1.6 * wobbleEnvelope,
-            scale: startScale * (1 + Math.sin(microWobblePhase * 0.83) * 0.01 * wobbleEnvelope),
+            scale: startScale * (1 + (Math.sin(microWobblePhase * 0.83) - Math.sin(wobblePhase * 0.83)) * 0.01 * wobbleEnvelope),
             force3D: true,
           });
         },
@@ -3725,10 +3729,16 @@ function startExitAnimation(
   sceneFadeStart = Math.max(sceneFadeStart, latestCloudExitEnd + 0.02);
 
   if (isRejectedPostKingRoboExitEnabled() && leftFighterExit && rightFighterExit) {
-    const fighterFinaleDuration = resolveRoboFighterFinaleDuration(
-      sceneFadeStart - sceneParallaxLead,
+    // Keep both fighters inside the viewport under their live hover owner for
+    // the complete scene exit. Their one-way offscreen flight occupies only
+    // the final window and lands exactly on the scene fade boundary.
+    const fighterFinaleWindow = resolveRoboFighterFinaleWindow(
+      sceneParallaxLead,
+      sceneFadeStart,
     );
-    const fighterFinaleEnd = sceneParallaxLead + fighterFinaleDuration;
+    const fighterFinaleDuration = fighterFinaleWindow.duration;
+    const fighterFinaleStart = fighterFinaleWindow.start;
+    const fighterFinaleEnd = fighterFinaleWindow.end;
     type FinalePose = {
       target: HTMLElement;
       points: RoboFighterFinalePoint[];
@@ -3779,7 +3789,7 @@ function startExitAnimation(
         points: [
           { progress: 0, x: startX, y: startY, scale: startScale },
           { progress: 0.38, x: xForVisualCenter(exitDirection * safeCrossingRadius), y: yForVisualCenter(sharedCrossingVisualCenterY - verticalPolarity * 34), scale: startScale * 1.01 },
-          { progress: 0.68, x: xForVisualCenter(exitDirection * (safeCrossingRadius + (Math.abs(offscreenVisualCenterX) - safeCrossingRadius) * 0.56)), y: yForVisualCenter(sharedCrossingVisualCenterY + exitYOffset * 0.45), scale: startScale * 0.98 },
+          { progress: 0.82, x: xForVisualCenter(exitDirection * safeCrossingRadius * 0.88), y: yForVisualCenter(sharedCrossingVisualCenterY + exitYOffset * 0.35), scale: startScale * 0.99 },
           { progress: 1, x: xForVisualCenter(offscreenVisualCenterX), y: yForVisualCenter(sharedCrossingVisualCenterY + exitYOffset), scale: startScale * 0.94 },
         ],
       };
@@ -3808,7 +3818,7 @@ function startExitAnimation(
         if (areContinuousRuntimeDiagnosticsEnabled()) {
           console.info('[CC_ROBO_FINALE]', {
             directions: finaleDirections,
-            start: sceneParallaxLead,
+            start: fighterFinaleStart,
             end: fighterFinaleEnd,
           });
         }
@@ -3833,7 +3843,7 @@ function startExitAnimation(
           gsap.set(pose.target, sample);
         });
       },
-    }, sceneParallaxLead);
+    }, fighterFinaleStart);
     // Never hide the fighters at the endpoint: their own motion carries their
     // complete rotated bounds beyond opposite edges. Overlay teardown remains
     // the sole removal owner after that off-screen pose has painted.

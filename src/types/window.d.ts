@@ -80,7 +80,7 @@ declare global {
 
     // app-core compatibility adapters used by save/load and recovery flows
     saveGameState?: () => void;
-    loadGameState?: (boardNumber?: number) => Promise<boolean>;
+    loadGameState?: (boardNumber?: number) => Promise<boolean | 'superseded'>;
     rebuildBoard?: () => void;
     startLevel?: (boardNumber: number) => Promise<void>;
     drawBoardBG?: (mode?: string) => void;

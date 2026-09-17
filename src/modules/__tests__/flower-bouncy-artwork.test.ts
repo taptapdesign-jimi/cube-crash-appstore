@@ -52,6 +52,7 @@ describe('Flower procedural Pixi artwork', () => {
   let ticker: any;
   let loadSpy: jest.SpiedFunction<typeof Assets.load>;
   let getSpy: jest.SpiedFunction<typeof Assets.get>;
+  let stage: Container;
 
   const flush = async () => {
     for (let index = 0; index < 12; index += 1) await Promise.resolve();
@@ -70,7 +71,9 @@ describe('Flower procedural Pixi artwork', () => {
       add: jest.fn((callback: (value: any) => void) => callbacks.add(callback)),
       remove: jest.fn((callback: (value: any) => void) => callbacks.delete(callback)),
     };
-    STATE.app = { ticker } as any;
+    stage = new Container();
+    stage.sortableChildren = true;
+    STATE.app = { ticker, stage } as any;
   });
 
   afterEach(() => {
@@ -127,6 +130,69 @@ describe('Flower procedural Pixi artwork', () => {
     expect(isFlowerBouncyTile({ special: 'wild-juice', _ccSpecialDiceVariant: 'robo-cube' })).toBe(false);
   });
 
+  test('matches the prior independent-track sampler across the authored SVG cycle and key boundaries', () => {
+    const svg = new DOMParser().parseFromString(
+      fs.readFileSync(path.resolve(process.cwd(), 'assets/shop/bush/flower.svg'), 'utf8'),
+      'image/svg+xml',
+    );
+    const coordinate = (t: number, first: number, second: number) => {
+      const inverse = 1 - t;
+      return 3 * inverse * inverse * t * first + 3 * inverse * t * t * second + t * t * t;
+    };
+    const tracks = ['translate', 'scale', 'rotate'].map((type) => {
+      const node = svg.querySelector(`animateTransform[type="${type}"]`)!;
+      return {
+        times: node.getAttribute('keyTimes')!.split(';').map(Number),
+        values: node.getAttribute('values')!.split(';').map(value => value.trim().split(/\s+/).map(Number)),
+        splines: node.getAttribute('keySplines')!.split(';').map(value => value.trim().split(/\s+/).map(Number)),
+      };
+    });
+    const sample = (track: typeof tracks[number], axis: number, progress: number) => {
+      if (progress <= track.times[0]) return track.values[0][axis];
+      let interval = 0;
+      while (interval + 1 < track.times.length && progress > track.times[interval + 1]) interval += 1;
+      const local = (progress - track.times[interval]) / (track.times[interval + 1] - track.times[interval]);
+      const spline = track.splines[interval];
+      let low = 0, high = 1;
+      for (let i = 0; i < 18; i++) {
+        const middle = (low + high) / 2;
+        if (coordinate(middle, spline[0], spline[2]) < local) low = middle;
+        else high = middle;
+      }
+      const eased = local <= 0 ? 0 : local >= 1 ? 1 : coordinate((low + high) / 2, spline[1], spline[3]);
+      return track.values[interval][axis] + (track.values[interval + 1][axis] - track.values[interval][axis]) * eased;
+    };
+    const times = [0, -10, 1600, 3200, ...Array.from({ length: 230 }, (_, i) => i * 7)];
+    tracks.forEach(track => track.times.forEach(time => {
+      times.push(time * 1600 - 0.000001, time * 1600, time * 1600 + 0.000001);
+    }));
+    times.forEach(time => {
+      const progress = (Math.max(0, time) % 1600) / 1600;
+      expect(getFlowerBouncyPose(time)).toEqual({
+        translateY: sample(tracks[0], 1, progress),
+        scaleX: sample(tracks[1], 0, progress),
+        scaleY: sample(tracks[1], 1, progress),
+        rotationDegrees: sample(tracks[2], 0, progress),
+      });
+    });
+  });
+
+  test.each(['tile', 'variant', 'base', 'host'])('releases an owner invalidated during loading: %s', async (invalidated) => {
+    let resolveLoad!: (value: Texture) => void;
+    loadSpy.mockImplementationOnce(() => new Promise((resolve) => { resolveLoad = resolve as any; }) as any);
+    const { tile, base, rotG } = makeTile();
+    const controller = startFlowerBouncyArtwork(tile) as any;
+    if (invalidated === 'tile') tile.destroyed = true;
+    if (invalidated === 'variant') tile._ccSpecialDiceVariant = null;
+    if (invalidated === 'base') base.destroy();
+    if (invalidated === 'host') rotG.destroy();
+    resolveLoad(texture);
+    await flush();
+    expect(controller.disposed).toBe(true);
+    expect(getFlowerBouncyRuntimeStats()).toMatchObject({ controllers: 0, tickerAttached: false });
+    expect(ticker.add).not.toHaveBeenCalled();
+  });
+
   test('shares one source while every Flower keeps a separate timeline', async () => {
     const first = makeTile();
     const second = makeTile();
@@ -137,6 +203,8 @@ describe('Flower procedural Pixi artwork', () => {
     expect(loadSpy).toHaveBeenCalledTimes(1);
     expect(loadSpy).toHaveBeenCalledWith(FLOWER_BOUNCY_TEXTURE_URL);
     expect(firstController.artwork.texture.source).toBe(secondController.artwork.texture.source);
+    expect(firstController.canvas.parent?.label).toBe('ANIMATED_DICE_HUD_FOREGROUND');
+    expect(firstController.canvas.parent?.zIndex).toBe(10_001);
     expect(firstController.running).toBe(true);
     expect(secondController.running).toBe(false);
     expect(first.base.renderable).toBe(false);

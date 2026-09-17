@@ -8,6 +8,7 @@ import {
 type SpawnForeground = {
   setFrame: (source: string) => void;
   release: () => void;
+  handoffToCanvas: (renderer: any, startPresentation: () => void, onComplete?: () => void) => void;
 };
 
 // The carrier and its emitted die use adjacent DOM layers above Pixi's canvas.
@@ -24,6 +25,9 @@ function createSpawnForeground(
   let displayedWidth = sprite.texture?.width || 1;
   let displayedHeight = sprite.texture?.height || 1;
   let released = false;
+  let handingOff = false;
+  let detachRenderObserver: (() => void) | null = null;
+  let handoffComplete: (() => void) | undefined;
 
   const sync = (frame: AnimatedSpecialArtworkFrame) => {
     const desiredImage = images.get(desiredSource);
@@ -31,14 +35,19 @@ function createSpawnForeground(
       const previous = images.get(displayedSource);
       if (previous) previous.style.visibility = 'hidden';
       displayedSource = desiredSource;
-      displayedWidth = sprite.texture?.width || desiredImage.naturalWidth;
-      displayedHeight = sprite.texture?.height || desiredImage.naturalHeight;
+    }
+    // Pixi can finish decoding after the DOM image. Its new texture changes
+    // local scale, so mirror dimensions must follow in that same sync. Keep
+    // the previous ready frame's geometry while a different carrier frame loads.
+    if (displayedSource && displayedSource === desiredSource) {
+      displayedWidth = sprite.texture?.width || desiredImage?.naturalWidth || 1;
+      displayedHeight = sprite.texture?.height || desiredImage?.naturalHeight || 1;
     }
     const image = images.get(displayedSource);
     if (!image || sprite.destroyed || !sprite.worldTransform || !image.parentElement
       || !frame.canvasRect.width || !frame.canvasRect.height) {
       if (image) image.style.visibility = 'hidden';
-      if (!sprite.destroyed) sprite.renderable = true;
+      if (!handingOff && !sprite.destroyed) sprite.renderable = true;
       return;
     }
     const transform = sprite.worldTransform;
@@ -58,14 +67,14 @@ function createSpawnForeground(
       visible = ancestor.visible !== false;
     }
     image.style.visibility = visible ? 'visible' : 'hidden';
-    sprite.renderable = false;
+    if (!handingOff) sprite.renderable = false;
   };
 
   const lease = acquireAnimatedSpecialArtworkLayer(sync);
   const parent = lease && getRoot();
   if (!lease || !parent) {
     lease?.release();
-    return { setFrame: () => {}, release: () => {} };
+    return { setFrame: () => {}, release: () => {}, handoffToCanvas: (_renderer, start, done) => { start(); done?.(); } };
   }
   for (const source of new Set(playbackSources)) {
     const image = new Image();
@@ -91,23 +100,70 @@ function createSpawnForeground(
   }
   lease.requestSync();
 
+  const release = () => {
+    if (released) return;
+    released = true;
+    detachRenderObserver?.();
+    detachRenderObserver = null;
+    for (const image of images.values()) {
+      image.onload = null;
+      image.onerror = null;
+      image.remove();
+    }
+    images.clear();
+    // Once handed to idle, renderability belongs to its replacement artwork.
+    if (!handingOff && !sprite.destroyed) sprite.renderable = true;
+    lease.release();
+    handoffComplete?.();
+    handoffComplete = undefined;
+  };
+
   return {
     setFrame: (source) => {
       if (released || !images.has(source)) return;
       desiredSource = source;
       lease.requestSync();
     },
-    release: () => {
-      if (released) return;
-      released = true;
-      for (const image of images.values()) {
-        image.onload = null;
-        image.onerror = null;
-        image.remove();
-      }
-      images.clear();
+    release,
+    handoffToCanvas: (renderer, startPresentation, onComplete) => {
+      if (released || handingOff) return;
+      handingOff = true;
+      handoffComplete = onComplete;
       if (!sprite.destroyed) sprite.renderable = true;
-      lease.release();
+      // Start idle only after restoring its fallback. Pending media/phase loads
+      // keep that same fallback visible; ready idle may now suppress it itself.
+      try { startPresentation(); } catch {}
+      const runners = renderer?.runners;
+      if (!runners?.prerender?.add || !runners?.postrender?.add) {
+        release();
+      } else {
+        let paintedOptions: any = null;
+        const observer = {
+          prerender: (options: any) => {
+            paintedOptions = null;
+            if (sprite.destroyed || !sprite.parent) { release(); return; }
+            if (options.target !== renderer.view?.renderTarget) return;
+            for (let ancestor = sprite; ancestor; ancestor = ancestor.parent) {
+              if (ancestor.visible === false) return;
+              if (ancestor === options.container) { paintedOptions = options; return; }
+            }
+          },
+          postrender: (options: any) => {
+            // Ignore offscreen renders and a render already underway when the
+            // transfer began. The replacement must have entered this paint.
+            if (paintedOptions === options) release();
+          },
+          destroy: release,
+        };
+        detachRenderObserver = () => {
+          runners.prerender.remove(observer);
+          runners.postrender.remove(observer);
+          runners.destroy?.remove(observer);
+        };
+        runners.prerender.add(observer);
+        runners.postrender.add(observer);
+        runners.destroy?.add(observer);
+      }
     },
   };
 }

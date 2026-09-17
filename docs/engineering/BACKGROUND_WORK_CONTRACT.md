@@ -1,0 +1,17 @@
+# Background work and resource preparation contract
+
+Applies to new or changed navigation queues, board-entry preparation, animation tickers, statistics and startup imports. Gameplay KING, the live-debug workflow and asset preservation remain authoritative.
+
+- A queued UI request owns every interval, completion timeout and fallback timeout. Success cancels fallback. Replacement/destroy cancels all of them and invalidates late callbacks. Test success, fallback, replacement and destruction using the real owner.
+- Each custom ticker/RAF checks whether its work is needed. Pixi suspension does not suspend a separate GSAP callback. Hidden-document guards must preserve resume timing and normal last-owner cleanup.
+- Prepare special-family resources from actual mode/reward eligibility plus restored live tiles. Keep universally needed foundation resources separate. Cache deduplication does not justify loading ineligible resources after cache eviction.
+- Warm assets through their display owner. DOM images use the same density/srcset choice as display; do not upload DOM-only art into Pixi. Reuse one canonical density selector across preloader and renderer. Never delete supplied assets to fix an unused preload.
+- A dynamic import does not prove deferred loading. Inspect the built entry's static dependency graph. Do not change chunk names merely to hide eager dependencies. Preserve module initialization ordering and validate cold entry and saved-state recovery after any import-boundary change.
+- A stopped elapsed-time interval is consumed synchronously before asynchronous persistence. Repeated start/stop is idempotent. Hidden time is excluded; lifecycle tracking must not introduce a polling timer.
+- A dead-code removal requires imports, callers, globals, dynamic paths and compatibility references to be checked. Update active documentation and audit baselines; keep historical evidence. Unexecuted code is not an active heat source.
+- Tests must check work counts and lifecycle outcomes, not only source text. Full QA is required for changed behavior. Actual startup latency, thermal/FPS and device presentation remain physical checks.
+- Pool cleanup retires animation targets once per ownership boundary. Batch distinct GSAP targets instead of repeatedly traversing the global timeline; new, never-animated objects need no tween retirement. Test reuse, late tweens, duplicate release and interrupted effects before removing defensive cleanup.
+- Pooled DOM elements must release references to their former card/screen as well as children and styles. Clear owner-specific properties in their owning cleanup after capturing any reference needed for bookkeeping; a generic pool must not guess unrelated owners' semantics.
+- A gameplay event has one global statistics increment owner. Compatibility bridges and per-board accounting must not increment the same global counter again. Test normal and special merge paths and retain mode/tutorial boundaries.
+- Save deduplication compares persisted gameplay content and destination key, excluding write metadata such as a new timestamp. Mark a snapshot saved only after persistence succeeds; retain immediate lifecycle flushes, retries and save-schema compatibility.
+- Diagnostics check their enabled condition before collecting board snapshots or reading layout. Removing unused drag geometry must retain foreground ownership, immediate artwork refresh and input cleanup.

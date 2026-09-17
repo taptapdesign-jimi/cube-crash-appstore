@@ -2,7 +2,10 @@
 // public/src/modules/hud-helpers.ts
 import { Container, Graphics, Text, Rectangle, Sprite, Assets, Application, Stage } from 'pixi.js';
 import { gsap } from 'gsap';
+import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.ts';
+import { arePerformanceDiagnosticsEnabled } from '../utils/runtime-diagnostics-policy.ts';
 import animationManager from './animation-manager.js';
+import { acquirePixiMobileActivityLease } from './pixi-mobile-frame-controller.ts';
 import { isTerminalEndgameInteractionLocked, pauseGame, resumeGame, restart } from './app-core.ts';
 import { HUD_H, COLS, ROWS, TILE, GAP } from './constants.js';
 import uiManager from './ui-manager.ts';
@@ -666,22 +669,29 @@ function animateBoardIndicatorEnter(duration = 0.8) {
 }
 
 export function animateBoardIndicatorExit(duration = 0.3) {
-  if (!boardIndicator || !document.body.contains(boardIndicator)) return;
-  try { gsap.killTweensOf(boardIndicator); } catch {}
-  // Use fixed 0.3s duration to match HUD exit speed, or use provided duration if it's faster
+  const indicator = boardIndicator;
+  if (!indicator || !document.body.contains(indicator)) return;
+  if (indicator._ccExitOwner) return;
+  try { gsap.killTweensOf(indicator); } catch {}
+  const owner = Symbol('indicator-exit');
+  indicator._ccExitOwner = owner;
+  const ownsExit = () => boardIndicator === indicator && indicator._ccExitOwner === owner;
+  // Keep the accepted timing. Duplicate board/HUD requests share this curve.
   const exitDuration = Math.min(0.3, duration || 0.3);
-  trackTween(boardIndicator, {
+  trackTween(indicator, {
     y: BOARD_INDICATOR_ANIM_OFFSET,
     opacity: 0,
     duration: exitDuration,
     ease: 'power2.in',
     onComplete: () => {
-      if (boardIndicator) {
-        boardIndicator.setAttribute('data-state', 'hidden');
-        // Hide element completely after animation
-        boardIndicator.style.display = 'none';
-      }
-    }
+      if (!ownsExit()) return;
+      delete indicator._ccExitOwner;
+      indicator.setAttribute('data-state', 'hidden');
+      indicator.style.display = 'none';
+    },
+    onInterrupt: () => {
+      if (indicator._ccExitOwner === owner) delete indicator._ccExitOwner;
+    },
   });
 }
 
@@ -1649,6 +1659,19 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     return; // Early return - HUD already exists and is valid
   }
   try { delete (window as any).__ccForceHudRecreateForTextures; } catch {}
+
+  const destroyGeneratedTextRasters = (root) => {
+    if (!root?.children) return;
+    [...root.children].forEach((child) => {
+      destroyGeneratedTextRasters(child);
+      if (!(child instanceof Text) || child.destroyed) return;
+      try { child.parent?.removeChild(child); } catch {}
+      // Pixi Text owns a generated canvas/GPU texture. Retaining it across a
+      // WebGL/GPU-process reset can make a freshly created HUD reuse a black
+      // raster. Image icon textures remain shared and are deliberately kept.
+      try { child.destroy({ texture: true, textureSource: true }); } catch {}
+    });
+  };
   
   // očisti stari root ako postoji i skini stari resize listener
   try { if (HUD_ROOT && HUD_ROOT._onResize) window.removeEventListener('resize', HUD_ROOT._onResize); } catch {}
@@ -1664,6 +1687,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       if (HUD_ROOT.parent) {
         try { HUD_ROOT.parent.removeChild(HUD_ROOT); } catch {}
       }
+      if (forceRecreateForTextures) destroyGeneratedTextRasters(HUD_ROOT);
       // 🔥 CRITICAL FIX: Kill GSAP animations BEFORE destroying to prevent null property errors
       try { 
         killPixiGsapSubtree(gsap, HUD_ROOT);
@@ -2967,6 +2991,7 @@ export function playHudDrop({ duration = 0.8, forceRestart = false } = {}){
     console.log('⏭️ HUD drop ignored because gameplay no longer owns visibility');
     return;
   }
+  delete HUD_ROOT._ccHudExitOwner;
   HUD_ROOT._exitInProgress = false;
   HUD_ROOT._ccHudDropScheduled = false;
   HUD_ROOT._ccHudDropActive = true;
@@ -3113,25 +3138,51 @@ export function resumeWildMeterBoil(): void {
 // Play HUD rise animation - exact reverse of playHudDrop
 export function playHudRise({ duration = 0.3 } = {}){
   const hudRoot = HUD_ROOT || (window as any).HUD_ROOT || null;
+  const exitIndicator = boardIndicator;
   if (!hudRoot) {
     // Wait 0.1s after HUD would have started, then animate board indicator
     // 🔥 FIX: Track timeout for cleanup
     trackHudTimeout(() => {
-      animateBoardIndicatorExit(0.3);
+      if (!(HUD_ROOT || (window as any).HUD_ROOT) && boardIndicator === exitIndicator) animateBoardIndicatorExit(0.3);
     }, 100);
     return;
   }
   if (!HUD_ROOT) HUD_ROOT = hudRoot;
   
-  // Safety: double-check HUD_ROOT is still valid
+  if (hudRoot._ccHudExitOwner) return;
+  const releaseExitActivity = acquirePixiMobileActivityLease('hud-exit');
+  const owner = Symbol('hud-exit');
+  hudRoot._ccHudExitOwner = owner;
+  const ownsExit = () => HUD_ROOT === hudRoot && hudRoot._ccHudExitOwner === owner;
+  const diagnosticsEnabled = arePerformanceDiagnosticsEnabled();
+  const startedAt = diagnosticsEnabled ? performance.now() : 0;
+  let previousAt = startedAt;
+  let updates = 0;
+  let worstUpdateMs = 0;
+  let setupMs = 0;
+  let reported = false;
+  const finishExit = (reason: string) => {
+    // Release on completion, interruption and setup failure, including when
+    // diagnostics are disabled. The controller release is idempotent.
+    releaseExitActivity();
+    if (!diagnosticsEnabled || reported) return;
+    reported = true;
+    emitNativeConsoleDiagnostic('[CC_HUD_EXIT]', 'complete', {
+      reason, durationMs: Math.round(performance.now() - startedAt),
+      setupMs: Math.round(setupMs), updates, worstUpdateMs: Math.round(worstUpdateMs),
+      currentOwner: ownsExit(), y: hudRoot.y, alpha: hudRoot.alpha,
+    });
+  };
+
+  // Safety: double-check hudRoot is still valid
   try {
-    const top = HUD_ROOT._dropTop ?? HUD_ROOT.y ?? 0;
+    const top = hudRoot._dropTop ?? hudRoot.y ?? 0;
 
     // Exit owns the HUD immediately, not only after the tween completes.
     // layout() otherwise sees `_dropped=true` during the rise and can restore
     // y/alpha to the visible position for one physical iOS frame.
-    HUD_ROOT._dropped = false;
-    HUD_ROOT._exitInProgress = true;
+    hudRoot._dropped = false;
+    hudRoot._exitInProgress = true;
     
     // CRITICAL: Kill all smoke bubbles and intervals before exit
     cleanupSmokeBubbles();
@@ -3140,31 +3191,49 @@ export function playHudRise({ duration = 0.3 } = {}){
     cleanupComboAnimations();
     
     // Kill any existing tweens
-    try { gsap.killTweensOf(HUD_ROOT); } catch {}
+    try { gsap.killTweensOf(hudRoot); } catch {}
     
     // Use fixed 0.3s duration for faster exit animation
     const exitDuration = 0.3;
     
+    if (diagnosticsEnabled) setupMs = performance.now() - startedAt;
     // Animate PIXI HUD rise (reverse of drop) - faster exit
-    trackTween(HUD_ROOT, {
+    trackTween(hudRoot, {
       alpha: 0,  // fade out
       y: -top * 2,  // rise above screen
       duration: exitDuration,
       ease: 'power2.in',  // faster, simpler ease for exit
       onComplete: () => { 
-        // Safety check in callback - HUD_ROOT might be destroyed during animation
-        if (HUD_ROOT) {
-          HUD_ROOT._dropped = false;
-          HUD_ROOT._exitInProgress = false;
-          HUD_ROOT.y = -top * 2;
-          HUD_ROOT.alpha = 0;
-          HUD_ROOT.visible = false;
+        // Safety check in callback - hudRoot might be destroyed during animation
+        finishExit(ownsExit() ? 'completed' : 'superseded');
+        if (ownsExit()) {
+          delete hudRoot._ccHudExitOwner;
+          hudRoot._dropped = false;
+          hudRoot._exitInProgress = false;
+          hudRoot.y = -top * 2;
+          hudRoot.alpha = 0;
+          hudRoot.visible = false;
         }
+        if (hudRoot._ccHudExitOwner === owner) delete hudRoot._ccHudExitOwner;
+      },
+      onInterrupt: () => {
+        finishExit('interrupted');
+        if (ownsExit()) {
+          delete hudRoot._ccHudExitOwner;
+          hudRoot._exitInProgress = false;
+        }
+        if (hudRoot._ccHudExitOwner === owner) delete hudRoot._ccHudExitOwner;
       },
       onUpdate: function() {
-        // Safety check during animation - if HUD_ROOT is destroyed, kill this tween
-        if (!HUD_ROOT || !HUD_ROOT.parent) {
-          console.warn('⚠️ playHudRise: HUD_ROOT destroyed during animation, killing tween');
+        if (diagnosticsEnabled) {
+          const now = performance.now();
+          worstUpdateMs = Math.max(worstUpdateMs, now - previousAt);
+          previousAt = now;
+          updates += 1;
+        }
+        // Retire only this tween; a new HUD/drop owns its own visibility.
+        if (!ownsExit() || hudRoot.destroyed || !hudRoot.parent) {
+          console.warn('⚠️ playHudRise: hudRoot destroyed during animation, killing tween');
           this.kill();
         }
       }
@@ -3175,14 +3244,16 @@ export function playHudRise({ duration = 0.3 } = {}){
     // Wait 0.1s after HUD animation starts, then animate board indicator with 0.3s duration
     // 🔥 FIX: Track timeout for cleanup
     trackHudTimeout(() => {
-      animateBoardIndicatorExit(0.3);
+      if (ownsExit() && boardIndicator === exitIndicator) animateBoardIndicatorExit(0.3);
     }, 100);
   } catch (error) {
+    finishExit('error');
+    if (ownsExit()) { delete hudRoot._ccHudExitOwner; hudRoot._exitInProgress = false; }
     console.error('❌ playHudRise failed:', error);
     // Even on error, try to animate board indicator after delay
     // 🔥 FIX: Track timeout for cleanup
     trackHudTimeout(() => {
-      animateBoardIndicatorExit(0.3);
+      if (HUD_ROOT === hudRoot && !hudRoot._dropped && !hudRoot._ccHudExitOwner && boardIndicator === exitIndicator) animateBoardIndicatorExit(0.3);
     }, 100);
   }
 }

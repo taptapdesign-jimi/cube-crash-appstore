@@ -76,12 +76,11 @@ describe('Robo Cube Merge-6 sound', () => {
   test('is wired once at committed Merge-6 routing, preload and cleanup boundaries', () => {
     const appCore = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/app-core.ts'), 'utf8');
     const uiManager = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/ui-manager.ts'), 'utf8');
-    const journey = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/journey-boards-manager.ts'), 'utf8');
     expect(appCore).toContain('isRoboCubeMerge6SoundEvent({');
     expect(appCore.match(/playRoboCubeMerge6Sounds\(\);/g)).toHaveLength(1);
     expect(appCore).toContain('stopRoboCubeMerge6Sounds();');
-    expect(uiManager).toContain('preloadRoboCubeMerge6Sounds();');
+    expect(fs.readFileSync(path.resolve(process.cwd(), 'src/modules/special-sound-warmup.ts'), 'utf8')).toContain('preloadRoboCubeMerge6Sounds();');
     expect(uiManager).toContain("import('./robo-cube-merge6-sound.ts')");
-    expect(journey).toContain('preloadRoboCubeMerge6Sounds();');
+    expect(appCore).toContain('preloadEligibleSpecialSounds({ boardNumber: entryBoard, isArcade: isArcadeHomeRunMode(), tiles });');
   });
 });

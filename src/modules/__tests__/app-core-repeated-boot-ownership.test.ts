@@ -28,7 +28,7 @@ describe('app-core repeated boot ownership', () => {
   });
 
   test('retires hard-reset special artwork before clearing both tile arrays', () => {
-    const boot = appCoreSource.split('export async function boot()')[1]
+    const boot = appCoreSource.split('export async function boot(')[1]
       ?.split('// Step 4: Stop PIXI ticker', 1)[0] ?? '';
     const stopIndex = boot.indexOf('stopSpecialDiceIdleMotion(tile)');
     const tilesClearIndex = boot.indexOf('tiles.length = 0;');

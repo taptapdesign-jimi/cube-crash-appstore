@@ -2,6 +2,7 @@ type LoadDragDeps = {
   STATE: { drag?: any };
   tiles: any[];
   waitTrackedResult: (ms: number) => Promise<'elapsed' | 'cancelled'>;
+  isCurrent?: () => boolean;
   devLog: (...args: any[]) => void;
   devWarn: (...args: any[]) => void;
   devError: (...args: any[]) => void;
@@ -11,10 +12,12 @@ export async function ensureDragReadyAndRebind({
   STATE,
   tiles,
   waitTrackedResult,
+  isCurrent = () => true,
   devLog,
   devWarn,
   devError,
 }: LoadDragDeps){
+  if (!isCurrent()) return false;
   // Ensure drag system is initialized before proceeding
   if (!STATE.drag) {
     devWarn('⚠️ loadGameState: STATE.drag not initialized, waiting for boot to complete...');
@@ -22,7 +25,7 @@ export async function ensureDragReadyAndRebind({
     let attempts = 0;
     const maxAttempts = 40; // 40 * 50ms = 2 seconds
     while (!STATE.drag && attempts < maxAttempts) {
-      if (await waitTrackedResult(50) === 'cancelled') return false;
+      if (await waitTrackedResult(50) === 'cancelled' || !isCurrent()) return false;
       attempts++;
     }
     if (!STATE.drag) {
@@ -34,7 +37,7 @@ export async function ensureDragReadyAndRebind({
   
   // Re-bind all unlocked tiles to drag system
   tiles.forEach(tile => {
-    if (tile && !tile.locked && tile.eventMode === 'static' && STATE.drag && typeof STATE.drag.bindToTile === 'function') {
+    if (isCurrent() && tile && !tile.destroyed && !tile.locked && tile.eventMode === 'static' && STATE.drag && typeof STATE.drag.bindToTile === 'function') {
       try {
         STATE.drag.bindToTile(tile);
       } catch (e) {

@@ -35,7 +35,6 @@ describe('wild spawn carrier foreground', () => {
       screenHeight: 844,
       canvasOpacity: 1,
       gameplayDragActive: false,
-      gameplayDragBounds: null,
     };
   });
 
@@ -86,6 +85,36 @@ describe('wild spawn carrier foreground', () => {
     expect(mockRelease).toHaveBeenCalledTimes(1);
   });
 
+  test('keeps the same-source flight image aligned when the cold Barrel texture replaces the TNT fallback', () => {
+    const sprite = {
+      destroyed: false, parent: { visible: true, parent: null },
+      texture: { width: 119, height: 119 },
+      worldTransform: { a: 160.2 / 119, b: 0, c: 0, d: 207.9 / 119, tx: 100, ty: 200 },
+      anchor: { x: 0.5, y: 221 / 351 }, alpha: 1, visible: true, renderable: true,
+    };
+    const source = './assets/shop/barell/barell-static.png';
+    const foreground = createSpawnedDieForeground(sprite, source);
+    const image = mockSpawnedDieRoot.querySelector('img')!;
+    Object.defineProperty(image, 'complete', { get: () => true });
+    Object.defineProperty(image, 'naturalWidth', { get: () => 270 });
+    Object.defineProperty(image, 'naturalHeight', { get: () => 351 });
+    image.onload?.(new Event('load'));
+    // Pixi's separate decode resolves after the DOM image. Skinning preserves
+    // the authored display dimensions by changing the sprite's local scale.
+    sprite.texture = { width: 270, height: 351 };
+    sprite.worldTransform.a = 160.2 / 270;
+    sprite.worldTransform.d = 207.9 / 351;
+    foreground.setFrame(source);
+    expect(parseFloat(image.style.width) * sprite.worldTransform.a).toBeCloseTo(160.2);
+    expect(parseFloat(image.style.height) * sprite.worldTransform.d).toBeCloseTo(207.9);
+    const matrix = image.style.transform.slice(7, -1).split(',').map(Number);
+    expect(matrix[4]).toBeCloseTo(100 - 160.2 * 0.5);
+    expect(matrix[5]).toBeCloseTo(200 - 207.9 * 221 / 351);
+    expect(mockSpawnedDieRoot.querySelector('img')).toBe(image);
+    expect(sprite.renderable).toBe(false);
+    foreground.release();
+  });
+
   test('ports only the emitted die above the carrier and respects its parent visibility', () => {
     const parent = { visible: false, parent: null };
     const base = {
@@ -121,4 +150,88 @@ describe('wild spawn carrier foreground', () => {
     expect(mockSpawnedDieRoot.childElementCount).toBe(0);
     expect(mockRelease).toHaveBeenCalledTimes(1);
   });
+
+  test.each([false, true])('retires only after an onscreen replacement paint (idle ready=%s)', (idleReady) => {
+    const stage = { visible: true, parent: null };
+    const sprite = {
+      destroyed: false, parent: stage, visible: true, renderable: true, alpha: 1,
+      texture: { width: 128, height: 128 }, anchor: { x: 0.5, y: 0.5 },
+      worldTransform: { a: 1, b: 0, c: 0, d: 1, tx: 100, ty: 200 },
+    };
+    const makeRunner = (method: string) => {
+      const owners = new Set<any>();
+      return { add: (owner: any) => owners.add(owner), remove: (owner: any) => owners.delete(owner),
+        emit: (options?: any) => Array.from(owners).forEach((owner) => owner[method](options)), owners };
+    };
+    const renderer = { view: { renderTarget: {} }, runners: {
+      prerender: makeRunner('prerender'), postrender: makeRunner('postrender'), destroy: makeRunner('destroy'),
+    } };
+    const foreground = createSpawnedDieForeground(sprite, 'die.png');
+    const image = mockSpawnedDieRoot.querySelector('img')!;
+    Object.defineProperty(image, 'complete', { get: () => true });
+    Object.defineProperty(image, 'naturalWidth', { get: () => 128 });
+    image.onload?.(new Event('load'));
+    const completed = jest.fn();
+    const startIdle = jest.fn(() => {
+      expect(sprite.renderable).toBe(true);
+      if (idleReady) sprite.renderable = false;
+    });
+    foreground.handoffToCanvas(renderer, startIdle, completed);
+    expect(startIdle).toHaveBeenCalledTimes(1);
+    expect(image.isConnected).toBe(true);
+    expect(sprite.renderable).toBe(!idleReady);
+    // A late image callback/overlay sync must not reclaim base renderability.
+    image.onload?.(new Event('load'));
+    expect(sprite.renderable).toBe(!idleReady);
+    // A postrender from the already running frame, or an offscreen texture
+    // render, cannot stand in for the replacement's next onscreen paint.
+    const paint = { container: stage, target: renderer.view.renderTarget };
+    renderer.runners.postrender.emit(paint);
+    const offscreen = { container: stage, target: {} };
+    renderer.runners.prerender.emit(offscreen); renderer.runners.postrender.emit(offscreen);
+    expect(image.isConnected).toBe(true);
+    renderer.runners.prerender.emit(paint);
+    expect(image.isConnected).toBe(true);
+    renderer.runners.postrender.emit(paint);
+    expect(image.isConnected).toBe(false);
+    expect(sprite.renderable).toBe(!idleReady);
+    expect(completed).toHaveBeenCalledTimes(1);
+    expect(renderer.runners.prerender.owners.size).toBe(0);
+    expect(renderer.runners.postrender.owners.size).toBe(0);
+    expect(renderer.runners.destroy.owners.size).toBe(0);
+  });
+
+  test('canceling a pending handoff removes its render observer and cannot restore over the idle owner', () => {
+    const sprite = { destroyed: false, renderable: true, texture: {}, parent: {} };
+    const runner = () => ({ add: jest.fn(), remove: jest.fn() });
+    const renderer = { runners: { prerender: runner(), postrender: runner(), destroy: runner() } };
+    const foreground = createSpawnedDieForeground(sprite, 'die.png');
+    const completed = jest.fn();
+    foreground.handoffToCanvas(renderer, () => { sprite.renderable = false; }, completed);
+    foreground.release(); foreground.release();
+    expect(mockSpawnedDieRoot.childElementCount).toBe(0);
+    expect(renderer.runners.prerender.remove).toHaveBeenCalledTimes(1);
+    expect(renderer.runners.postrender.remove).toHaveBeenCalledTimes(1);
+    expect(completed).toHaveBeenCalledTimes(1);
+    expect(sprite.renderable).toBe(false);
+  });
+
+
+  test('renderer destruction releases a handoff even when no further frame can paint', () => {
+    const observers = new Map<string, any>();
+    const runner = (name: string) => ({
+      add: (owner: any) => observers.set(name, owner),
+      remove: () => observers.delete(name),
+    });
+    const renderer = { runners: { prerender: runner('pre'), postrender: runner('post'), destroy: runner('destroy') } };
+    const sprite = { destroyed: false, renderable: true, texture: {}, parent: {} };
+    const foreground = createSpawnedDieForeground(sprite, 'die.png');
+    const done = jest.fn();
+    foreground.handoffToCanvas(renderer, () => {}, done);
+    observers.get('destroy').destroy();
+    expect(mockSpawnedDieRoot.childElementCount).toBe(0);
+    expect(observers.size).toBe(0);
+    expect(done).toHaveBeenCalledTimes(1);
+  });
+
 });

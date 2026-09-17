@@ -1,3 +1,4 @@
+import { SoundtrackAudioClockVolume } from './soundtrack-audio-clock-volume.js';
 import { logger } from '../core/logger.js';
 
 type WebkitAudioWindow = Window & typeof globalThis & {
@@ -9,6 +10,11 @@ export type MainThemeVoiceLike = Pick<
   'loop' | 'preload' | 'paused' | 'volume' | 'currentTime' | 'play' | 'pause'
 > & {
   readonly sampleAccurateIntroLoop?: boolean;
+  readonly duration?: number;
+  readonly decodedBytes?: number;
+  rampVolume?: (to: number, durationMs: number) => void;
+  cancelVolumeRamp?: () => void;
+  createMediaVoice?: (source: string) => MainThemeVoiceLike | null;
   dispose?: () => void;
   resumeIfInterrupted?: () => Promise<void>;
 };
@@ -42,41 +48,48 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
   private readonly context: AudioContext;
   private readonly gain: GainNode;
   private readonly options: MainThemeTransportOptions;
-  private readonly bufferPromise: Promise<AudioBuffer>;
+  private bufferPromise: Promise<AudioBuffer> | null = null;
   private buffer: AudioBuffer | null = null;
+  private loadFailure: { error: unknown; retryAt: number } | null = null;
   private source: AudioBufferSourceNode | null = null;
   private storedPosition = 0;
   private anchorPosition = 0;
   private anchorContextTime = 0;
   private isPaused = true;
   private isDisposed = false;
-  private currentVolume: number;
+  private readonly envelope: SoundtrackAudioClockVolume;
   private playGeneration = 0;
 
   constructor(context: AudioContext, options: MainThemeTransportOptions) {
     this.context = context;
     this.options = options;
-    this.currentVolume = options.initialVolume;
     this.gain = context.createGain();
-    this.gain.gain.setValueAtTime(this.currentVolume, context.currentTime);
+    this.envelope = new SoundtrackAudioClockVolume(context, this.gain.gain, options.initialVolume);
     this.gain.connect(context.destination);
-    this.bufferPromise = this.loadBuffer();
+    void this.ensureBuffer().catch(() => {});
+  }
+
+  get decodedBytes(): number {
+    return this.buffer ? this.buffer.length * this.buffer.numberOfChannels * 4 : 0;
   }
 
   get paused(): boolean {
     return this.isPaused;
   }
 
-  get volume(): number {
-    return this.currentVolume;
+  get volume(): number { return this.envelope.value; }
+  set volume(value: number) { if (!this.isDisposed) this.envelope.value = value; }
+  rampVolume(to: number, durationMs: number): void {
+    if (!this.isDisposed) this.envelope.fade(to, durationMs);
   }
+  cancelVolumeRamp(): void { if (!this.isDisposed) this.envelope.cancel(); }
 
-  set volume(value: number) {
-    this.currentVolume = Math.max(0, Math.min(1, value));
-    if (this.isDisposed) return;
-    const now = this.context.currentTime;
-    this.gain.gain.cancelScheduledValues(now);
-    this.gain.gain.setValueAtTime(this.currentVolume, now);
+  createMediaVoice(source: string): MainThemeVoiceLike | null {
+    try { return new SoundtrackMediaVoice(this.context, source); }
+    catch (error) {
+      logger.warn('Arcade Web Audio routing unavailable:', error);
+      return null;
+    }
   }
 
   get currentTime(): number {
@@ -95,7 +108,9 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
   async play(): Promise<void> {
     if (this.isDisposed) throw new Error('Main theme transport is disposed.');
     const generation = ++this.playGeneration;
-    const buffer = await this.bufferPromise;
+    // Request unlock in the user gesture before asynchronous fetch/decode.
+    const resume = this.context.state === 'running' ? Promise.resolve() : this.context.resume();
+    const [buffer] = await Promise.all([this.ensureBuffer(), resume]);
     if (this.isDisposed || generation !== this.playGeneration) return;
     this.buffer = buffer;
     if (this.context.state !== 'running') await this.context.resume();
@@ -127,8 +142,29 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
     if (this.isDisposed) return;
     this.pause();
     this.isDisposed = true;
+    this.buffer = null;
+    this.bufferPromise = null;
     try { this.gain.disconnect(); } catch {}
     void this.context.close().catch(() => {});
+  }
+
+  private ensureBuffer(): Promise<AudioBuffer> {
+    if (this.buffer) return Promise.resolve(this.buffer);
+    if (this.loadFailure && Date.now() < this.loadFailure.retryAt) {
+      return Promise.reject(this.loadFailure.error);
+    }
+    if (!this.bufferPromise) {
+      this.bufferPromise = this.loadBuffer().then((buffer) => {
+        this.loadFailure = null;
+        if (!this.isDisposed) this.buffer = buffer;
+        return buffer;
+      }).catch((error: unknown) => {
+        this.bufferPromise = null;
+        this.loadFailure = { error, retryAt: Date.now() + 2000 };
+        throw error;
+      });
+    }
+    return this.bufferPromise;
   }
 
   private async loadBuffer(): Promise<AudioBuffer> {
@@ -174,6 +210,66 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
     source.onended = null;
     try { source.stop(); } catch {}
     try { source.disconnect(); } catch {}
+  }
+}
+
+/** Streams Arcade beds through the main context's GainNode; never relies on iOS media volume. */
+class SoundtrackMediaVoice implements MainThemeVoiceLike {
+  private readonly media: HTMLAudioElement;
+  private readonly node: MediaElementAudioSourceNode;
+  private readonly gain: GainNode;
+  private readonly envelope: SoundtrackAudioClockVolume;
+  private generation = 0;
+  private disposed = false;
+
+  constructor(private readonly context: AudioContext, source: string) {
+    this.media = new Audio(source);
+    this.media.volume = 1;
+    this.gain = context.createGain();
+    this.envelope = new SoundtrackAudioClockVolume(context, this.gain.gain, 0);
+    try { this.node = context.createMediaElementSource(this.media); }
+    catch (error) { this.gain.disconnect(); throw error; }
+    this.node.connect(this.gain);
+    this.gain.connect(context.destination);
+  }
+  get loop(): boolean { return this.media.loop; }
+  set loop(value: boolean) { this.media.loop = value; }
+  get preload(): HTMLMediaElement['preload'] { return this.media.preload; }
+  set preload(value: HTMLMediaElement['preload']) { this.media.preload = value; }
+  get paused(): boolean { return this.media.paused; }
+  get duration(): number { return this.media.duration; }
+  get currentTime(): number { return this.media.currentTime; }
+  set currentTime(value: number) { this.media.currentTime = value; }
+  get volume(): number { return this.envelope.value; }
+  set volume(value: number) { this.envelope.value = value; }
+  rampVolume(to: number, durationMs: number): void { this.envelope.fade(to, durationMs); }
+  cancelVolumeRamp(): void { this.envelope.cancel(); }
+  async play(): Promise<void> {
+    if (this.disposed) throw new Error('Soundtrack voice is disposed.');
+    const generation = ++this.generation;
+    // Resume synchronously in the gesture stack, before waiting for media readiness.
+    const resume = this.context.state === 'running' ? Promise.resolve() : this.context.resume();
+    await Promise.all([resume, this.media.play()]);
+    if (this.disposed || generation !== this.generation) return;
+    if (!isContextRunning(this.context)) throw new DOMException('User activation required', 'NotAllowedError');
+  }
+  pause(): void { this.generation++; this.media.pause(); }
+  async resumeIfInterrupted(): Promise<void> {
+    if (this.disposed || this.paused || isContextRunning(this.context)) return;
+    await this.context.resume();
+    if (!isContextRunning(this.context)) {
+      throw new DOMException('Arcade context remains interrupted', 'NotAllowedError');
+    }
+  }
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    try { this.pause(); } catch {}
+    try { this.envelope.value = 0; } catch {}
+    try { this.node.disconnect(); } catch {}
+    try { this.gain.disconnect(); } catch {}
+    try { this.media.removeAttribute('src'); } catch {}
+    try { this.media.load(); } catch {}
   }
 }
 

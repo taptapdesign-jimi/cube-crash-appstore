@@ -36,6 +36,7 @@ const BALL_SHEET_SPEC: SharedPixiSheetSpec = Object.freeze({
   cycleMs: BALL_BOUNCY_CYCLE_MS,
   anchorX: 88.5,
   anchorY: 149.65,
+  renderAboveHud: true,
 });
 
 export function isBeachBallBouncyTile(tile: any): boolean {
@@ -67,7 +68,9 @@ export function startBallBouncyArtwork(tile: any): SharedPixiSheetController | n
     isEligible: isBeachBallBouncyTile,
     propertyKey: BALL_PROPERTY_KEY,
     animateDuringDrag: false,
-    onReady: () => keepPixiEffectsAboveArtwork(controller),
+    onReady: () => {
+      keepPixiEffectsAboveArtwork(controller);
+    },
   });
   keepPixiEffectsAboveArtwork(controller);
   return controller;

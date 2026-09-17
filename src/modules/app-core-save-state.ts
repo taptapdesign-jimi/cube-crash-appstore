@@ -51,3 +51,35 @@ export function buildSaveState({
 
   return currentState;
 }
+
+/** Remembers only successful writes; timestamps do not make unchanged gameplay dirty. */
+export function createGameSaveWriter() {
+  let previous: { key: string; content: string; serialized: string } | null = null;
+  const contentOf = (state: Record<string, unknown>) => {
+    const { timestamp: _timestamp, ...content } = state;
+    return JSON.stringify(content);
+  };
+  return {
+    reset() { previous = null; },
+    remember(key: string, serialized: string | null) {
+      previous = null;
+      if (!serialized) return;
+      try {
+        const state = JSON.parse(serialized);
+        if (state && typeof state === 'object' && !Array.isArray(state)) {
+          previous = { key, content: contentOf(state), serialized };
+        }
+      } catch { /* A malformed stored record must never suppress a repair write. */ }
+    },
+    write(key: string, state: Record<string, unknown>, storage: Pick<Storage, 'getItem' | 'setItem'>): boolean {
+      const content = contentOf(state);
+      // Verify the durable copy still exists: completion/reset can remove a save externally.
+      if (previous?.key === key && previous.content === content &&
+          storage.getItem(key) === previous.serialized) return false;
+      const serialized = JSON.stringify(state);
+      storage.setItem(key, serialized);
+      previous = { key, content, serialized };
+      return true;
+    },
+  };
+}

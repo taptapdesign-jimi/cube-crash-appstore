@@ -6,6 +6,11 @@ import {
   type AnimatedSvgPhaseLease,
 } from './animated-svg-phase-scheduler.ts';
 import { releaseAnimatedSpecialArtworkFamily } from './animated-special-artwork-mode.ts';
+import {
+  mountAnimatedDiceAboveHud,
+  releaseAnimatedDiceAboveHud,
+  syncAnimatedDiceAboveHud,
+} from './animated-dice-hud-foreground.ts';
 import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
 import { reloadPixiImageTexture } from '../utils/pixi-image-texture-health.ts';
 
@@ -116,10 +121,17 @@ function sampleSplineTrack(
 export function getFlowerBouncyPose(elapsedMs: number): FlowerPose {
   const safeElapsed = Math.max(0, Number(elapsedMs) || 0) % FLOWER_BOUNCY_CYCLE_MS;
   const progress = safeElapsed / FLOWER_BOUNCY_CYCLE_MS;
+  // Both scale axes share the same key times and spline. Invert it once,
+  // retaining the authored interpolation and independent X/Y values.
+  let scaleInterval = 0;
+  while (scaleInterval + 1 < SCALE_TIMES.length && progress > SCALE_TIMES[scaleInterval + 1]) scaleInterval += 1;
+  const scaleStart = SCALE_TIMES[scaleInterval];
+  const scaleEnd = SCALE_TIMES[scaleInterval + 1];
+  const scaleProgress = solveSplineProgress((progress - scaleStart) / (scaleEnd - scaleStart), SCALE_SPLINES[scaleInterval]);
   return {
     translateY: sampleSplineTrack(progress, TRANSLATE_TIMES, TRANSLATE_VALUES, TRANSLATE_SPLINES),
-    scaleX: sampleSplineTrack(progress, SCALE_TIMES, SCALE_X_VALUES, SCALE_SPLINES),
-    scaleY: sampleSplineTrack(progress, SCALE_TIMES, SCALE_Y_VALUES, SCALE_SPLINES),
+    scaleX: SCALE_X_VALUES[scaleInterval] + (SCALE_X_VALUES[scaleInterval + 1] - SCALE_X_VALUES[scaleInterval]) * scaleProgress,
+    scaleY: SCALE_Y_VALUES[scaleInterval] + (SCALE_Y_VALUES[scaleInterval + 1] - SCALE_Y_VALUES[scaleInterval]) * scaleProgress,
     rotationDegrees: sampleSplineTrack(progress, ROTATION_TIMES, ROTATION_VALUES, ROTATION_SPLINES),
   };
 }
@@ -208,6 +220,7 @@ function disposeController(controller: FlowerBouncyController): void {
   controller.phaseLease = null;
   if (controller.retryTimer !== null) clearTimeout(controller.retryTimer);
   controller.retryTimer = null;
+  releaseAnimatedDiceAboveHud(controller);
   if (controller.canvas) {
     try { controller.canvas.parent?.removeChild(controller.canvas); } catch {}
     try { controller.canvas.destroy({ children: true, texture: false, textureSource: false }); } catch {}
@@ -247,6 +260,7 @@ function updateController(controller: FlowerBouncyController, deltaMs: number): 
   canvas.alpha = typeof base.alpha === 'number' ? base.alpha : 1;
   artwork.tint = base.tint ?? 0xFFFFFF;
   base.renderable = false;
+  syncAnimatedDiceAboveHud(controller);
 }
 
 function updateAllControllers(ticker?: any): void {
@@ -258,7 +272,11 @@ function updateAllControllers(ticker?: any): void {
 function mountFlowerArtwork(controller: FlowerBouncyController, retry = 0): void {
   void loadSharedTexture().then((texture) => {
     const { tile, base, host } = controller;
-    if (controller.disposed || tile.destroyed || !isFlowerBouncyTile(tile)) return;
+    if (controller.disposed) return;
+    if (tile.destroyed || base.destroyed || host.destroyed || !isFlowerBouncyTile(tile)) {
+      disposeController(controller);
+      return;
+    }
     const canvas = new Container();
     canvas.label = 'flower-bouncy-pixi';
     canvas.eventMode = 'none';
@@ -291,6 +309,7 @@ function mountFlowerArtwork(controller: FlowerBouncyController, retry = 0): void
     controller.scalePivot = scalePivot;
     controller.rotationPivot = rotationPivot;
     controller.artwork = artwork;
+    mountAnimatedDiceAboveHud(controller, canvas, host);
     controller.ready = true;
     ensureTicker(findTileTicker(tile));
     controller.phaseLease = acquireAnimatedTimelinePhase('flower-bouncy-pixi', FLOWER_BOUNCY_CYCLE_MS, [{

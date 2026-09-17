@@ -1,3 +1,4 @@
+import { getGhostTextureAsset } from './ghost-texture-asset.js';
 import { Assets } from 'pixi.js';
 import { logger } from '../core/logger.js';
 import {
@@ -122,9 +123,44 @@ export function getJourneyBottomDecorAssetForBoard(boardNumber?: number): Journe
   };
 }
 
-function getJourneyBoardAssets(boardNumber?: number): string[] {
-  const decorAsset = getJourneyBottomDecorAssetForBoard(boardNumber);
-  return [decorAsset.oneX, decorAsset.twoX].filter((asset): asset is string => Boolean(asset));
+export function applyJourneyBottomDecorSource(img: HTMLImageElement, asset: JourneyBottomDecorAsset): void {
+  const oneXUrl = encodeURI(asset.oneX);
+  // Assign srcset first so high-density devices need not request the fallback.
+  img.srcset = asset.twoX ? `${oneXUrl} 1x, ${encodeURI(asset.twoX)} 2x` : `${oneXUrl} 1x`;
+  img.src = oneXUrl;
+}
+
+const pendingDecorWarmups = new Map<string, Promise<void>>();
+export function warmJourneyBottomDecor(boardNumber?: number): Promise<void> {
+  const asset = getJourneyBottomDecorAssetForBoard(boardNumber);
+  const existing = pendingDecorWarmups.get(asset.key);
+  if (existing) return existing;
+  const image = new Image();
+  image.decoding = 'async';
+  const promise = new Promise<void>((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      image.onload = null;
+      image.onerror = null;
+      pendingDecorWarmups.delete(asset.key);
+      resolve();
+    };
+    const timer = setTimeout(finish, 2600);
+    image.onload = () => {
+      if (typeof image.decode !== 'function') {
+        finish();
+        return;
+      }
+      void image.decode().then(finish).catch(finish);
+    };
+    image.onerror = finish;
+    applyJourneyBottomDecorSource(image, asset);
+  });
+  pendingDecorWarmups.set(asset.key, promise);
+  return promise;
 }
 
 function unique(values: readonly string[]): string[] {
@@ -141,23 +177,16 @@ function getCachedTexture(assetPath: string): any {
   }
 }
 
-function getGhostAssetForPixelRatio(pixelRatio: number): string {
-  if (pixelRatio >= 3) return './assets/ghost-placeholder@3x.png';
-  if (pixelRatio >= 2) return './assets/ghost-placeholder@2x.png';
-  return './assets/ghost-placeholder.png';
-}
 
 export function getBoardGameWarmupAssets(
-  mode: BoardAssetWarmupMode,
-  boardNumber?: number,
+  _mode: BoardAssetWarmupMode,
+  _boardNumber?: number,
   pixelRatio = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1,
 ): string[] {
-  const modeAssets = mode === 'journey' ? getJourneyBoardAssets(boardNumber) : [];
   return unique([
     ...CORE_BOARD_ASSETS,
-    getGhostAssetForPixelRatio(pixelRatio),
+    getGhostTextureAsset(pixelRatio),
     ...CORE_HUD_ASSETS,
-    ...modeAssets,
   ]);
 }
 
@@ -167,6 +196,7 @@ export function warmBoardGameAssets(options: BoardAssetWarmupOptions = {}): Prom
   const mode = options.mode || 'unknown';
   const reason = options.reason || 'unknown';
   const timeoutMs = Math.max(250, options.timeoutMs ?? 1800);
+  const decorWarmup = mode === 'journey' ? warmJourneyBottomDecor(options.boardNumber) : Promise.resolve();
 
   if (!activeWarmupLoadPromise) {
     activeWarmupLoadPromise = (async () => {
@@ -205,7 +235,7 @@ export function warmBoardGameAssets(options: BoardAssetWarmupOptions = {}): Prom
   const timeoutPromise = new Promise<void>((resolve) => {
     setTimeout(resolve, timeoutMs);
   });
-  return Promise.race([activeWarmupLoadPromise, timeoutPromise]);
+  return Promise.race([Promise.all([activeWarmupLoadPromise, decorWarmup]).then(() => undefined), timeoutPromise]);
 }
 
 export function warmBoardGameAssetsSoon(options: BoardAssetWarmupOptions = {}): void {

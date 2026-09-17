@@ -597,23 +597,6 @@ export function cleanupFxContainersByTag(tag: string) {
   });
 }
 
-// Lightweight helper to trigger juice fizz immediately (standalone, no confetti reuse)
-export function triggerJuiceMergeFizz(board, tile) {
-  try {
-    if (!board || !tile) return;
-    const { x, y } = centerInBoard(board, tile, 96);
-    const layer = new Container();
-    layer.x = x;
-    layer.y = y;
-    layer.zIndex = (tile?.zIndex ?? 0) + 0.002;
-    layer.sortableChildren = true;
-    autoAdd(board, layer, 1.6);
-    createMerge6Bubbles(board, layer, x, y);
-  } catch (error) {
-    console.warn('⚠️ triggerJuiceMergeFizz failed:', error);
-  }
-}
-
 // Board-local center of a tile (robust against rotG wrappers)
 export function centerInBoard(board, tile, tileSize = 96){
   if (!board || !tile) return { x:0, y:0 };
@@ -3580,156 +3563,6 @@ export function woodShardsAtTile(board, tile, opts = {}){
   }
 }
 
-/**
- * Create sparkling water bubbles for wild-juice merge 6 effect
- * Bubbles rise from bottom of tile to top, max 30% above tile, white/transparent, max 40px size
- */
-function createMerge6Bubbles(board, layer, centerX, centerY) {
-  try {
-  console.log('💧 createMerge6Bubbles (juice fizz) triggered');
-  
-  const screenH = typeof window !== 'undefined' ? window.innerHeight : 800;
-  // Longer fizz: ~2.5s total emission
-  const spawnDuration = 2400 + Math.random() * 300; // ~2.4-2.7s
-  const totalBubbles = 32 + Math.floor(Math.random() * 12); // 32-43 bubbles
-  const bubblesPerMs = totalBubbles / spawnDuration;
-  
-  // Ensure layer never blocks pointer interactions
-  layer.eventMode = 'none';
-  try { layer.interactiveChildren = false; } catch {}
-    
-    let spawned = 0;
-    let startTime = performance.now();
-    let lastTickTime = startTime;
-    let accumulator = 0;
-    
-      const makeBubble = () => {
-      if (spawned >= totalBubbles) return;
-      spawned++;
-      
-      // 🔥 OBJECT POOLING: Use pool instead of creating new Graphics
-      const bubble = graphicsPool.acquire();
-      bubble.eventMode = 'none';
-      bubble.cursor = 'default';
-      
-      // Size mix: 12-36px
-      const bubbleSize = 12 + Math.random() * 24;
-      const radius = bubbleSize / 2;
-      
-      bubble.circle(0, 0, radius);
-      bubble.fill({ color: 0xFFFFFF, alpha: 0.6 });
-      const highlightRadius = radius * 0.3;
-      bubble.circle(-radius * 0.2, -radius * 0.2, highlightRadius);
-      bubble.fill({ color: 0xFFFFFF, alpha: 0.8 });
-      bubble.circle(0, 0, radius);
-      bubble.stroke({ color: 0xFFFFFF, alpha: 0.4, width: 1 });
-      
-      // Origin: just below tile bottom (layer-local)
-      // 🔥 FIX: Use TILE constant instead of undefined tileWidth/tileHeight
-      const startX = (Math.random() - 0.5) * TILE * 0.7;
-      const startY = TILE * 0.5 + (5 + Math.random() * 10); // 5-15px below tile bottom
-      bubble.x = startX;
-      bubble.y = startY;
-      
-      // Initial state
-      bubble.scale.set(0.25 + Math.random() * 0.25);
-      bubble.alpha = 0.75 + Math.random() * 0.25;
-      layer.addChild(bubble);
-      
-      // Rise off-screen
-      const riseDistance = startY + screenH * (0.9 + Math.random() * 0.15); // 90-105% of screen height added
-      const endY = startY - riseDistance;
-      
-      // Wobble
-      const wobbleAmp = 10 + (bubbleSize / 36) * 18; // ~10-28px
-      const wobbleSpeed = 1.0 + Math.random() * 1.6; // 1.0-2.6 cycles
-      const wobblePhase = Math.random() * Math.PI * 2;
-      const wobblePhase2 = Math.random() * Math.PI * 2;
-      const wobbleSpeed2 = 0.5 + Math.random() * 0.9; // secondary drift
-      
-      // Duration: size-dependent, varied speeds, clamped 0.7-1.4s
-      const baseDur = 0.8 + (bubbleSize / 36) * 0.6;
-      const speedJitter = (Math.random() - 0.5) * 0.4; // ±0.2s jitter
-      const duration = Math.min(1.4, Math.max(0.7, baseDur + speedJitter));
-      
-      const wobbleObj = { t: wobblePhase, t2: wobblePhase2 };
-      const tl = trackTimeline({
-        onComplete: () => {
-          try {
-            if (layer && layer.children.includes(bubble)) {
-              layer.removeChild(bubble);
-            }
-            // 🔥 OBJECT POOLING: Release back to pool instead of destroying
-            graphicsPool.release(bubble);
-          } catch {}
-        }
-      });
-      
-      // Wobble motion
-      tl.to(wobbleObj, {
-        t: wobblePhase + Math.PI * 2 * wobbleSpeed,
-        t2: wobblePhase2 + Math.PI * 2 * wobbleSpeed2,
-        duration,
-        ease: 'none',
-        onUpdate: () => {
-          const offset = Math.sin(wobbleObj.t) * wobbleAmp + Math.sin(wobbleObj.t2) * (wobbleAmp * 0.35);
-          bubble.x = startX + offset;
-        }
-      }, 0);
-      
-      // Rise + fade
-      tl.to(bubble, {
-        y: endY,
-        duration,
-        ease: 'sine.out'
-      }, 0);
-      
-      tl.to(bubble.scale, {
-        x: 0.6 + Math.random() * 0.4,
-        y: 0.6 + Math.random() * 0.4,
-        duration: duration * 0.35,
-        ease: 'power2.out'
-      }, 0);
-      
-      tl.to(bubble, {
-        alpha: 0,
-        duration: duration * 0.4,
-        ease: 'power1.in'
-      }, duration * 0.6);
-    };
-    
-    const spawnTick = () => {
-      const now = performance.now();
-      const delta = now - lastTickTime;
-      lastTickTime = now;
-      const elapsed = now - startTime;
-      
-      accumulator += bubblesPerMs * delta;
-      const toSpawn = Math.min(3, Math.floor(accumulator));
-      if (toSpawn > 0) {
-        accumulator -= toSpawn;
-        for (let i = 0; i < toSpawn && spawned < totalBubbles; i++) {
-          makeBubble();
-        }
-      }
-      
-      // Stop only after all bubbles emitted (no end flush, no early exit)
-      if (spawned >= totalBubbles) {
-        gsap.ticker.remove(spawnTick);
-      }
-    };
-    
-    // Start immediately on the merge frame with three instant bubbles to avoid any perceived delay
-    makeBubble();
-    makeBubble();
-    makeBubble();
-    gsap.ticker.add(spawnTick);
-    spawnTick();
-  } catch (error) {
-    console.warn('⚠️ Failed to create merge 6 bubbles:', error);
-  }
-}
-
 // --- Merge-6 wild-juice bubble explosion (organic drift) ---
 // 🔥 REMOVED: Old explosion code moved to wild-juice-bubbles-explosion.ts module
 // Wrapper functions for backward compatibility:
@@ -5217,7 +5050,9 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
       const driftX = (Math.random()-0.5) * (size * 0.06 * distanceScale);
       const driftY = (Math.random()-0.5) * (size * 0.06 * distanceScale);
 
-      const tIn   = (0.018 + Math.random()*0.022) * durationScale;
+      const tIn   = Number.isFinite(options.fadeInDuration)
+        ? Math.max(0.018, options.fadeInDuration)
+        : (0.018 + Math.random()*0.022) * durationScale;
       const tRun  = (0.16  + Math.random()*0.12) * durationScale;
       const tHold = (0.02  + Math.random()*0.03) * durationScale;
       const tOut  = instantFadeOut ? 0 : (0.08  + Math.random()*0.06) * durationScale;
@@ -5247,7 +5082,7 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
       const targetAlpha = cloudAlphaProfile
         ? cloudAlpha * (options.trailAlpha ?? 1)
         : (options.trailAlpha ?? 0.95);
-      tl.to(puff, { alpha: targetAlpha, duration: tIn, ease: 'power2.out' }, stg)
+      tl.to(puff, { alpha: targetAlpha, duration: tIn, ease: options.fadeInEase ?? 'power2.out' }, stg)
         .to(puff, { x: dx + driftX, y: dy + driftY, duration: tRun, ease: 'sine.out' }, `>${0}`)
         .to(puff, { alpha: targetAlpha, duration: tHold, ease: 'none' }, `>${0}`)
         .to(puff, { alpha: 0, duration: tOut, ease: 'power1.in' }, `>${0}`);

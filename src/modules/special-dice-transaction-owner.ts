@@ -111,6 +111,8 @@ export class PostCommitBoardRevisionGuard {
       this.capturedWithGetter = false;
       return null;
     }
+    this.capturedWithGetter = true;
+    this.capturedRevision = null;
     try {
       const revision = this.getRevision();
       if (!Number.isFinite(revision)) return null;

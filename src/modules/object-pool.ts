@@ -47,6 +47,7 @@ class GraphicsPool {
       }
     }
     
+    const reused = !!g;
     if (!g) {
       // Pool is empty or all objects were invalid, create new Graphics object
       g = new Graphics();
@@ -54,7 +55,7 @@ class GraphicsPool {
     }
     
     // Reset properties to default state
-    this.reset(g);
+    this.reset(g, reused);
     
     return g;
   }
@@ -84,12 +85,7 @@ class GraphicsPool {
     // 🔥 CRITICAL: Kill ALL GSAP animations FIRST (before any property changes)
     // This prevents "zombie" animations and memory leaks
     try {
-      gsap.killTweensOf(g);
-      // killTweensOf accepts targets, not primitive values
-      gsap.killTweensOf(g);
-      gsap.killTweensOf(g.scale);
-      gsap.killTweensOf(g.pivot);
-      gsap.killTweensOf(g.skew);
+      this.stopAnimations(g);
     } catch (err) {
       // Ignore GSAP cleanup errors
     }
@@ -142,17 +138,25 @@ class GraphicsPool {
    * 🔥 AGGRESSIVE RESET: Based on pooling best practices to prevent "invisible particle" bugs
    * @param {Graphics} g - Graphics object to reset
    */
-  private reset(g: Graphics): void {
+  private stopAnimations(g: Graphics): void {
+    const targets = [g, g.scale, g.pivot, g.skew];
+    const tweens = gsap.getTweensOf(targets);
+    // Preserve GSAP's single-target kill semantics for dormant/uninitialized
+    // tweens while searching the global timeline only once.
+    for (const target of targets) {
+      for (const tween of tweens) tween.kill(target);
+    }
+  }
+
+  private reset(g: Graphics, stopAnimations = true): void {
     if (!g || g.destroyed) return;
 
     try {
       // 🔥 CRITICAL: Kill ALL GSAP tweens FIRST (before any property changes)
       // This prevents "zombie" animations that can interfere with new animations
-      gsap.killTweensOf(g);
-      gsap.killTweensOf(g);
-      gsap.killTweensOf(g.scale);
-      gsap.killTweensOf(g.pivot);
-      gsap.killTweensOf(g.skew);
+      // A removed listener may schedule fresh work during detachment. Keep
+      // this boundary check, using one global search for all unique targets.
+      if (stopAnimations) this.stopAnimations(g);
       
       // Clear all drawing commands (geometry)
       g.clear();
@@ -230,7 +234,7 @@ class GraphicsPool {
   clear(): void {
     for (const g of this.pool) {
       try {
-        gsap.killTweensOf(g);
+        this.stopAnimations(g);
         if (g.parent) {
           g.parent.removeChild(g);
         }
@@ -272,7 +276,12 @@ class GraphicsPool {
       this.created += 1;
       created.push(graphic);
     }
-    created.forEach((graphic) => this.release(graphic));
+    // Newly allocated, unpublished graphics cannot own animations yet.
+    created.forEach((graphic) => {
+      this.reset(graphic, false);
+      this.pool.push(graphic);
+      this.inPool.add(graphic);
+    });
     return this.pool.length;
   }
 }

@@ -6,6 +6,7 @@ type LoadBootDeps = {
   layoutBoard: () => Promise<void>;
   initializeBackgroundLayer: () => void;
   boot: () => Promise<void>;
+  isCurrent?: () => boolean;
   devLog: (...args: any[]) => void;
 };
 
@@ -17,17 +18,21 @@ export async function ensureAppReadyForLoad({
   layoutBoard,
   initializeBackgroundLayer,
   boot,
+  isCurrent = () => true,
   devLog,
 }: LoadBootDeps){
+  if (!isCurrent()) return;
   devLog('🔍 LOAD CHECK: app exists?', !!app, 'board exists?', !!board);
   devLog('🔍 LOAD CHECK: backgroundLayer exists?', !!backgroundLayer);
 
   if (!app || !board) {
     devLog('⚠️ Game not booted, booting before applying saved state');
     await boot();
+    if (!isCurrent()) return;
     devLog('✅ Boot completed, app:', !!app, 'board:', !!board);
 
     await layoutBoard();
+    if (!isCurrent()) return;
     devLog('✅ Layout completed');
 
     initializeBackgroundLayer();
@@ -50,6 +55,7 @@ export async function ensureAppReadyForLoad({
     devLog('⚠️ backgroundLayer missing or not in board, reinitializing...');
     setBackgroundLayer(null);
     await layoutBoard();
+    if (!isCurrent()) return;
     initializeBackgroundLayer();
     devLog('✅ Background layer reinitialized');
   }

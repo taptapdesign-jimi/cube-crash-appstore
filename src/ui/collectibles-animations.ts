@@ -1,3 +1,5 @@
+import { cancelJourneyHubScrollableEnter, startJourneyHubScrollableEnter } from './journey-hub-scrollable-enter.js';
+import { areDetailedRuntimeDiagnosticsEnabled } from '../utils/runtime-diagnostics-policy.js';
 import gsap from 'gsap';
 import animationManager from '../modules/animation-manager.js';
 import {
@@ -72,7 +74,7 @@ export function lockJourneyViewportTransition(reason: string = 'journey-transiti
   if (activeJourneyViewportLock?.scrollable === scrollable) {
     activeJourneyViewportLock.scrollTop = scrollable.scrollTop;
     try {
-      console.info('🧪 JourneyScrollLock refresh', {
+      if (areDetailedRuntimeDiagnosticsEnabled()) console.info('🧪 JourneyScrollLock refresh', {
         reason,
         scrollTop: scrollable.scrollTop,
         touchAction: scrollable.style.touchAction,
@@ -126,7 +128,7 @@ export function lockJourneyViewportTransition(reason: string = 'journey-transiti
   scrollable.addEventListener('scroll', keepScroll, { passive: true });
   keepScroll();
   try {
-    console.info('🧪 JourneyScrollLock locked', {
+    if (areDetailedRuntimeDiagnosticsEnabled()) console.info('🧪 JourneyScrollLock locked', {
       reason,
       scrollTop,
       scrollHeight: scrollable.scrollHeight,
@@ -141,6 +143,7 @@ export function lockJourneyViewportTransition(reason: string = 'journey-transiti
 export function unlockJourneyViewportTransition(reason: string = 'journey-transition-complete'): void {
   const lock = activeJourneyViewportLock;
   if (!lock) {
+    if (!areDetailedRuntimeDiagnosticsEnabled()) return;
     try {
       const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
       console.info('🧪 JourneyScrollLock unlock-noop', {
@@ -166,7 +169,7 @@ export function unlockJourneyViewportTransition(reason: string = 'journey-transi
   try {
     delete (window as any).__ccJourneyViewportTransitionLocked;
     (window as any).__ccJourneyViewportTransitionUnlockedReason = reason;
-    console.info('🧪 JourneyScrollLock unlocked', {
+    if (areDetailedRuntimeDiagnosticsEnabled()) console.info('🧪 JourneyScrollLock unlocked', {
       reason,
       scrollTop: lock.scrollable.scrollTop,
       scrollHeight: lock.scrollable.scrollHeight,
@@ -210,8 +213,11 @@ function isActiveJourneyAreaElement(element: HTMLElement, boardId: number | null
   return (card as HTMLElement | null)?.dataset?.boardId === String(boardId);
 }
 
-function isElementViewportVisible(element: HTMLElement, viewportMargin = 32): boolean {
-  const rect = element.getBoundingClientRect();
+function isElementViewportVisible(
+  element: HTMLElement,
+  viewportMargin = 32,
+  rect = element.getBoundingClientRect(),
+): boolean {
   if (rect.width <= 0 || rect.height <= 0) return false;
   const style = window.getComputedStyle(element);
   if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity || '1') <= 0.01) {
@@ -254,30 +260,28 @@ function selectJourneyViewportTransitionTargets(
     journeyScreen.querySelectorAll(JOURNEY_VIEWPORT_EXIT_SELECTOR)
   ) as HTMLElement[];
 
-  const uniqueTargets = Array.from(new Set(candidates))
-    .filter((element) => {
-      if (!document.body.contains(element)) return false;
-      if (opts.excludeActiveArea && isActiveJourneyAreaElement(element, activeBoardId)) return false;
-      if (opts.includeHiddenPrepared && element.dataset.ccJourneyEnterPrepared === 'true') {
-        const rect = element.getBoundingClientRect();
-        return rect.width > 0 &&
-          rect.height > 0 &&
-          rect.bottom >= -JOURNEY_VIEWPORT_EXIT_MARGIN_PX &&
-          rect.top <= window.innerHeight + JOURNEY_VIEWPORT_EXIT_MARGIN_PX &&
-          rect.right >= -JOURNEY_VIEWPORT_EXIT_MARGIN_PX &&
-          rect.left <= window.innerWidth + JOURNEY_VIEWPORT_EXIT_MARGIN_PX;
-      }
-      return isElementViewportVisible(element, JOURNEY_VIEWPORT_EXIT_MARGIN_PX);
-    })
-    .sort((a, b) => {
-      const aRect = a.getBoundingClientRect();
-      const bRect = b.getBoundingClientRect();
-      const viewportCenter = window.innerHeight * 0.5;
-      return Math.abs((aRect.top + aRect.height * 0.5) - viewportCenter) -
-        Math.abs((bRect.top + bRect.height * 0.5) - viewportCenter);
-    });
-
-  return uniqueTargets.slice(0, JOURNEY_VIEWPORT_EXIT_MAX_TARGETS);
+  // Snapshot geometry once for this selection. Sorting must not repeatedly
+  // cross the DOM/layout boundary; no animation writes occur in this pass.
+  const viewportCenter = window.innerHeight * 0.5;
+  const measuredTargets: Array<{ element: HTMLElement; distance: number }> = [];
+  for (const element of new Set(candidates)) {
+    if (!document.body.contains(element)) continue;
+    if (opts.excludeActiveArea && isActiveJourneyAreaElement(element, activeBoardId)) continue;
+    const rect = element.getBoundingClientRect();
+    const hiddenPrepared = opts.includeHiddenPrepared && element.dataset.ccJourneyEnterPrepared === 'true';
+    const visible = hiddenPrepared
+      ? rect.width > 0 && rect.height > 0 &&
+        rect.bottom >= -JOURNEY_VIEWPORT_EXIT_MARGIN_PX &&
+        rect.top <= window.innerHeight + JOURNEY_VIEWPORT_EXIT_MARGIN_PX &&
+        rect.right >= -JOURNEY_VIEWPORT_EXIT_MARGIN_PX &&
+        rect.left <= window.innerWidth + JOURNEY_VIEWPORT_EXIT_MARGIN_PX
+      : isElementViewportVisible(element, JOURNEY_VIEWPORT_EXIT_MARGIN_PX, rect);
+    if (visible) {
+      measuredTargets.push({ element, distance: Math.abs((rect.top + rect.height * 0.5) - viewportCenter) });
+    }
+  }
+  measuredTargets.sort((a, b) => a.distance - b.distance);
+  return measuredTargets.slice(0, JOURNEY_VIEWPORT_EXIT_MAX_TARGETS).map(({ element }) => element);
 }
 
 type JourneyExitTargetSnapshot = {
@@ -414,6 +418,7 @@ export function prepareJourneyViewportScreenEnter(
   const collectiblesHeader = journeyScreen?.querySelector('.collectibles-header') as HTMLElement | null;
   const collectiblesScrollable = journeyScreen?.querySelector('.collectibles-scrollable') as HTMLElement | null;
   if (!journeyScreen) return;
+  cancelJourneyHubScrollableEnter();
 
   try {
     gsap.killTweensOf(journeyScreen);
@@ -697,6 +702,7 @@ function animateJourneyViewportScreenEnter(
  * Call this when screen is destroyed or before starting new animations
  */
 export function cleanupCollectiblesAnimations(): void {
+  cancelJourneyHubScrollableEnter();
   unlockJourneyViewportTransition('collectibles-cleanup');
   try {
     delete (window as any).__ccJourneyActiveAreaEnterPending;
@@ -749,6 +755,8 @@ export function animateCollectiblesScreenEnter(
     console.error('❌ No Journey screen found to animate!');
     return Promise.resolve();
   }
+
+  cancelJourneyHubScrollableEnter();
 
   if (journeyScreen.querySelector('.journey-cards-container')) {
     return animateJourneyViewportScreenEnter(
@@ -868,7 +876,7 @@ export function animateCollectiblesScreenEnter(
     
     // Set visibility first, then animate scrollable container
     gsap.set(collectiblesScrollable, { visibility: 'visible', immediateRender: true });
-    trackTween(collectiblesScrollable, {
+    if (!startJourneyHubScrollableEnter(collectiblesScrollable)) trackTween(collectiblesScrollable, {
       scale: 1,
       y: 0,
       opacity: 1,
@@ -920,6 +928,8 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
       resolve();
       return;
     }
+
+    cancelJourneyHubScrollableEnter({ preservePose: true });
 
     lockJourneyViewportTransition(reason);
 

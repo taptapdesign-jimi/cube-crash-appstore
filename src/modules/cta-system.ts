@@ -87,6 +87,7 @@ export function registerCta(element: HTMLButtonElement, options: RegisterCtaOpti
   let pointerId: number | null = null;
   let activationSoundStarted = false;
   let pendingResolve: (() => void) | null = null;
+  let motionGeneration = 0;
 
   element.classList.add('cc-cta');
   element.dataset.ctaVariant = options.variant;
@@ -98,6 +99,8 @@ export function registerCta(element: HTMLButtonElement, options: RegisterCtaOpti
   };
 
   const killMotion = () => {
+    // Resolve interrupted callers, but retire their later async state writes.
+    motionGeneration += 1;
     gsap.killTweensOf(visual);
     settlePending();
   };
@@ -111,11 +114,11 @@ export function registerCta(element: HTMLButtonElement, options: RegisterCtaOpti
         overwrite: 'auto',
         force3D: true,
         onComplete: () => {
-          pendingResolve = null;
+          if (pendingResolve === resolve) pendingResolve = null;
           resolve();
         },
         onInterrupt: () => {
-          pendingResolve = null;
+          if (pendingResolve === resolve) pendingResolve = null;
           resolve();
         },
       });
@@ -245,8 +248,10 @@ export function registerCta(element: HTMLButtonElement, options: RegisterCtaOpti
       element.style.visibility = 'visible';
       element.style.pointerEvents = 'auto';
       element.dataset.ctaState = 'entering';
-      await animateTo({ scale: 1, y: 0, opacity: 1, delay, duration: ctaMotion.enterDuration, ease: ctaMotion.enterEase });
-      if (!disposed && !exiting) element.dataset.ctaState = 'idle';
+      const motion = animateTo({ scale: 1, y: 0, opacity: 1, delay, duration: ctaMotion.enterDuration, ease: ctaMotion.enterEase });
+      const generation = motionGeneration;
+      await motion;
+      if (!disposed && !exiting && generation === motionGeneration) element.dataset.ctaState = 'idle';
     },
     async exit({ delay = 0 } = {}) {
       if (disposed) return;
@@ -255,8 +260,10 @@ export function registerCta(element: HTMLButtonElement, options: RegisterCtaOpti
       element.disabled = true;
       element.blur();
       element.style.pointerEvents = 'none';
-      await animateTo({ scale: 0, y: 18, opacity: 0, delay, duration: ctaMotion.exitDuration, ease: ctaMotion.exitEase });
-      if (!disposed) {
+      const motion = animateTo({ scale: 0, y: 18, opacity: 0, delay, duration: ctaMotion.exitDuration, ease: ctaMotion.exitEase });
+      const generation = motionGeneration;
+      await motion;
+      if (!disposed && generation === motionGeneration) {
         element.dataset.ctaState = 'hidden';
         element.style.visibility = 'hidden';
       }

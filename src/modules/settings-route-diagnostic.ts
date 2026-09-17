@@ -1,4 +1,5 @@
 import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.js';
+import { areDetailedRuntimeDiagnosticsEnabled } from '../utils/runtime-diagnostics-policy.js';
 
 type SettingsRouteDiagnosticDetail = Record<string, unknown>;
 
@@ -30,16 +31,24 @@ export function emitSettingsRouteDiagnostic(
   const nativeConsoleHandler = (window as any).webkit?.messageHandlers?.consoleLog;
   if (!nativeConsoleHandler?.postMessage) return;
 
-  const activeSlide = document.querySelector('.slider-slide.active') as HTMLElement | null;
+  // Route markers remain available in compact captures, but resolving styles
+  // and geometry after a visibility mutation can force the layout we measure.
+  let elementSnapshot: SettingsRouteDiagnosticDetail = {};
+  if (areDetailedRuntimeDiagnosticsEnabled()) {
+    const activeSlide = document.querySelector('.slider-slide.active') as HTMLElement | null;
+    elementSnapshot = {
+      activeSlideIndex: activeSlide?.dataset.slide ?? null,
+      home: readElementState(document.getElementById('home') as HTMLElement | null),
+      sliderContainer: readElementState(document.getElementById('slider-container') as HTMLElement | null),
+      sliderWrapper: readElementState(document.getElementById('slider-wrapper') as HTMLElement | null),
+      activeSlide: readElementState(activeSlide),
+      settingsScreen: readElementState(document.getElementById('settings-screen') as HTMLElement | null),
+    };
+  }
   emitNativeConsoleDiagnostic('[CC_SETTINGS_ROUTE]', event, {
     appZone: (window as any).__ccAppZone ?? null,
     exitingToMenu: (window as any).exitingToMenu === true,
-    activeSlideIndex: activeSlide?.dataset.slide ?? null,
-    home: readElementState(document.getElementById('home') as HTMLElement | null),
-    sliderContainer: readElementState(document.getElementById('slider-container') as HTMLElement | null),
-    sliderWrapper: readElementState(document.getElementById('slider-wrapper') as HTMLElement | null),
-    activeSlide: readElementState(activeSlide),
-    settingsScreen: readElementState(document.getElementById('settings-screen') as HTMLElement | null),
+    ...elementSnapshot,
     ...detail,
   });
 }

@@ -7,6 +7,7 @@ import {
   resolveRoboArea55ExitTimeScale,
   resolveRoboAirCombatHoldSeconds,
   resolveRoboFighterFinaleDuration,
+  resolveRoboFighterFinaleWindow,
 } from '../board-transition-robo-combat-timing';
 
 describe('Robo board-transition combat timing', () => {
@@ -64,6 +65,18 @@ describe('Robo board-transition combat timing', () => {
 
     expect(wallClockFinaleSeconds).toBeCloseTo(0.080, 2);
     expect(wallClockOutboundSeconds).toBeCloseTo(0.050, 2);
+  });
+
+  test('holds fighters in the viewport until the final scene window, then exits exactly at scene end', () => {
+    const shortWindow = resolveRoboFighterFinaleWindow(0.30, 1.816);
+    expect(shortWindow.start).toBeCloseTo(1.696, 10);
+    expect(shortWindow.end).toBeCloseTo(1.816, 10);
+    expect(shortWindow.duration).toBe(ROBO_FIGHTER_FINALE_MIN_DURATION_SECONDS);
+
+    const longWindow = resolveRoboFighterFinaleWindow(0.30, 2.70);
+    expect(longWindow.start).toBeCloseTo(1.80, 10);
+    expect(longWindow.end).toBeCloseTo(2.70, 10);
+    expect(longWindow.duration).toBeCloseTo(0.90, 10);
   });
 
   test('preserves the authored minimum hold after combat already completed', () => {

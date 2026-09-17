@@ -415,10 +415,14 @@ describe('Kanta special die', () => {
       'utf8',
     );
     const watchdogStart = dragSource.indexOf('function restartDragWatchdog');
-    const watchdogEnd = dragSource.indexOf('function publishActiveDragBounds', watchdogStart);
+    const watchdogEnd = dragSource.indexOf('function cancelActiveDrag', watchdogStart);
     const cancelStart = dragSource.indexOf('function onCancel');
     const cancelEnd = dragSource.indexOf('// === STABLE HIT-TEST', cancelStart);
 
+    expect(watchdogStart).toBeGreaterThanOrEqual(0);
+    expect(watchdogEnd).toBeGreaterThan(watchdogStart);
+    expect(cancelStart).toBeGreaterThanOrEqual(0);
+    expect(cancelEnd).toBeGreaterThan(cancelStart);
     expect(dragSource.slice(watchdogStart, watchdogEnd))
       .toContain('setActiveDragArtworkDragging(t, false)');
     expect(dragSource.slice(cancelStart, cancelEnd))

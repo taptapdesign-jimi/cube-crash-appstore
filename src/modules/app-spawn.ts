@@ -458,15 +458,17 @@ export function spawnBounce(
   if (!keepFullOpacity) {
     tl.to(t, { alpha: 1, duration: fadeIn, ease: 'power1.out' }, 0);
   }
-  tl.to(t.scale, { x: max, y: max, duration: 0.16, ease: 'back.out(2.1)' }, 0)
-    .to(t.scale, { x: compress, y: compress, duration: 0.10, ease: 'power2.inOut' })
-    .to(t.scale, { x: rebound, y: rebound, duration: 0.10, ease: 'power2.out' })
-    .to(t.scale, { x: 1.00, y: 1.00, duration: 0.12, ease: 'back.out(2)' });
+  // Shared spawn feel across regular and special merge-6 replacement paths:
+  // 560ms gives the compression/rebound time to read without a hard final snap.
+  tl.to(t.scale, { x: max, y: max, duration: 0.18, ease: 'back.out(1.7)' }, 0)
+    .to(t.scale, { x: compress, y: compress, duration: 0.12, ease: 'sine.inOut' })
+    .to(t.scale, { x: rebound, y: rebound, duration: 0.12, ease: 'sine.inOut' })
+    .to(t.scale, { x: 1.00, y: 1.00, duration: 0.14, ease: 'sine.inOut' });
 
   gsap.timeline()
-    .to(trg, { rotation:  wiggle*dir,        duration: 0.10, ease: 'power2.out' })
-    .to(trg, { rotation: -wiggle*0.6*dir,    duration: 0.12, ease: 'power2.out' })
-    .to(trg, { rotation:  0,                 duration: 0.14, ease: 'power2.out' });
+    .to(trg, { rotation: wiggle * dir, duration: 0.12, ease: 'power2.out' })
+    .to(trg, { rotation: -wiggle * 0.6 * dir, duration: 0.16, ease: 'sine.inOut' })
+    .to(trg, { rotation: 0, duration: 0.20, ease: 'sine.inOut' });
 }
 
 export function sweepForUnanimatedSpawns(): void {

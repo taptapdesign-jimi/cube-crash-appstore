@@ -56,6 +56,7 @@ describe('Beach Ball shared Pixi sheet artwork', () => {
   let unloadSpy: jest.SpiedFunction<typeof Assets.unload>;
   let callbacks: Set<(ticker: any) => void>;
   let ticker: any;
+  let stage: Container;
 
   beforeEach(() => {
     jest.useFakeTimers();
@@ -70,7 +71,9 @@ describe('Beach Ball shared Pixi sheet artwork', () => {
       add: jest.fn((callback: (liveTicker: any) => void) => callbacks.add(callback)),
       remove: jest.fn((callback: (liveTicker: any) => void) => callbacks.delete(callback)),
     };
-    STATE.app = { ticker } as any;
+    stage = new Container();
+    stage.sortableChildren = true;
+    STATE.app = { ticker, stage } as any;
   });
 
   afterEach(() => {
@@ -121,6 +124,7 @@ describe('Beach Ball shared Pixi sheet artwork', () => {
   test('shares one source, gives copies independent clocks, and leaves Pixi bubbles untouched', async () => {
     const first = makeTile();
     const second = makeTile();
+    stage.addChild(first.rotG, second.rotG);
     const firstController = startBallBouncyArtwork(first.tile)!;
     const secondController = startBallBouncyArtwork(second.tile)!;
     await flush();
@@ -133,11 +137,18 @@ describe('Beach Ball shared Pixi sheet artwork', () => {
     expect(second.bubbleContainer.renderable).toBe(true);
     expect(document.querySelector('.ball-bouncy-artwork')).toBeNull();
     expect(firstController.sprite?.zIndex).toBeLessThan(first.base.zIndex);
+    expect(firstController.sprite?.parent?.label).toBe('ANIMATED_DICE_HUD_FOREGROUND');
+    expect(firstController.sprite?.parent?.zIndex).toBe(10_001);
 
     const delay = secondController.phaseLease?.delayMs ?? 0;
     tick(delay);
     jest.advanceTimersByTime(delay);
     tick(100);
+    expect(secondController.sprite?.parent).toBe(firstController.sprite?.parent);
+    first.rotG.position.set(24, 36);
+    tick(16);
+    expect(firstController.sprite?.position.x).toBeCloseTo(24, 5);
+    expect(firstController.sprite?.position.y).toBeCloseTo(36, 5);
     expect(firstController.elapsedMs).not.toBe(secondController.elapsedMs);
     expect(getBallBouncyRuntimeStats()).toMatchObject({
       controllers: 2,
@@ -173,5 +184,6 @@ describe('Beach Ball shared Pixi sheet artwork', () => {
     expect(base.renderable).toBe(true);
     expect(tile._ccBallBouncyArtwork).toBeUndefined();
     expect(ticker.remove).toHaveBeenCalledTimes(1);
+    expect(stage.children.some((child) => child.label === 'ANIMATED_DICE_HUD_FOREGROUND')).toBe(false);
   });
 });

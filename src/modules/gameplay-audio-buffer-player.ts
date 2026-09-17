@@ -1,4 +1,5 @@
 import { logger } from '../core/logger.js';
+import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.ts';
 
 export type GameplayAudioPlaybackResult = 'played' | 'pending' | 'unavailable';
 
@@ -24,6 +25,7 @@ type WebkitAudioWindow = Window & typeof globalThis & {
 };
 
 type ActiveVoice = {
+  resolvedSource: string;
   source: AudioBufferSourceNode;
   gain: GainNode;
   onStopped?: () => void;
@@ -39,11 +41,64 @@ let audioContext: AudioContext | null = null;
 let audioContextUnavailable = false;
 let foregroundListenersInstalled = false;
 let foregroundGestureRetryArmed = false;
-const decodedBuffers = new Map<string, AudioBuffer>();
+// A soft residency limit: audible and queued users always win over eviction.
+// Fits the ~51 MiB Forest World/gameplay working set without per-return churn.
+// The separately owned main theme is not included in this cache.
+const DESKTOP_DECODED_AUDIO_BUDGET_BYTES = 64 * 1024 * 1024;
+const MOBILE_DECODED_AUDIO_BUDGET_BYTES = 32 * 1024 * 1024;
+export function resolveDecodedGameplayAudioBudgetBytes(isMobileDevice: boolean): number {
+  return isMobileDevice ? MOBILE_DECODED_AUDIO_BUDGET_BYTES : DESKTOP_DECODED_AUDIO_BUDGET_BYTES;
+}
+const DECODED_AUDIO_BUDGET_BYTES = resolveDecodedGameplayAudioBudgetBytes(
+  MOBILE_RUNTIME_PROFILE.isMobileDevice,
+);
+const FAILED_LOAD_RETRY_MS = 2_000;
+type DecodedEntry = { buffer: AudioBuffer; bytes: number; lastUsed: number };
+const decodedBuffers = new Map<string, DecodedEntry>();
+let cacheGeneration = 0;
+let evictedBuffers = 0;
 const pendingBuffers = new Map<string, Promise<void>>();
-const failedBuffers = new Set<string>();
+const failedBuffers = new Map<string, number>();
 const activeVoices = new Map<string, ActiveVoice>();
 const pendingVoiceStarts = new Map<string, PendingVoiceStart>();
+
+function protectedSources(): Set<string> {
+  return new Set([
+    ...Array.from(activeVoices.values(), (voice) => voice.resolvedSource),
+    ...Array.from(pendingVoiceStarts.values(), (voice) => resolveSource(voice.source)),
+  ]);
+}
+
+function trimDecodedCache(budgetBytes = DECODED_AUDIO_BUDGET_BYTES): void {
+  let bytes = Array.from(decodedBuffers.values()).reduce((sum, entry) => sum + entry.bytes, 0);
+  if (bytes <= budgetBytes) return;
+  const protectedKeys = protectedSources();
+  const idle = Array.from(decodedBuffers.entries())
+    .filter(([source]) => !protectedKeys.has(source))
+    .sort((a, b) => a[1].lastUsed - b[1].lastUsed);
+  // Pressure, not elapsed time, retires reusable audio. Fixed idle deadlines
+  // force expensive redecodes on every World return even below the budget.
+  for (const [source, entry] of idle) {
+    if (bytes <= budgetBytes) break;
+    decodedBuffers.delete(source);
+    bytes -= entry.bytes;
+    evictedBuffers++;
+  }
+}
+
+function isLoadCoolingDown(source: string): boolean {
+  const retryAt = failedBuffers.get(source);
+  if (retryAt === undefined) return false;
+  if (Date.now() < retryAt) return true;
+  failedBuffers.delete(source);
+  return false;
+}
+
+function releaseCachedVoiceSource(source: string): void {
+  const entry = decodedBuffers.get(source);
+  if (entry) entry.lastUsed = Date.now();
+  trimDecodedCache();
+}
 
 function onGameplayAudioForeground(): void {
   if (typeof document !== 'undefined' && document.hidden) return;
@@ -142,8 +197,10 @@ function preloadSource(context: AudioContext, source: string): void {
   if (
     decodedBuffers.has(resolvedSource) ||
     pendingBuffers.has(resolvedSource) ||
-    failedBuffers.has(resolvedSource)
+    isLoadCoolingDown(resolvedSource)
   ) return;
+
+  const generation = cacheGeneration;
 
   const pending = (async () => {
     try {
@@ -151,12 +208,22 @@ function preloadSource(context: AudioContext, source: string): void {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const encodedAudio = await response.arrayBuffer();
       const decodedAudio = await context.decodeAudioData(encodedAudio);
-      decodedBuffers.set(resolvedSource, decodedAudio);
+      if (generation !== cacheGeneration) return;
+      decodedBuffers.set(resolvedSource, {
+        buffer: decodedAudio,
+        bytes: decodedAudio.length * decodedAudio.numberOfChannels * Float32Array.BYTES_PER_ELEMENT,
+        lastUsed: Date.now(),
+      });
+      failedBuffers.delete(resolvedSource);
     } catch (error) {
-      failedBuffers.add(resolvedSource);
+      if (generation !== cacheGeneration) return;
+      failedBuffers.set(resolvedSource, Date.now() + FAILED_LOAD_RETRY_MS);
       logger.warn(`Failed to predecode gameplay sound ${source}:`, error);
     } finally {
-      pendingBuffers.delete(resolvedSource);
+      if (generation === cacheGeneration) {
+        pendingBuffers.delete(resolvedSource);
+        trimDecodedCache();
+      }
     }
   })();
   pendingBuffers.set(resolvedSource, pending);
@@ -177,24 +244,32 @@ export function getDecodedGameplaySoundsState(
   if (!context) return 'unavailable';
 
   const resolvedSources = sources.map(resolveSource);
-  if (resolvedSources.some((source) => failedBuffers.has(source))) return 'unavailable';
+  if (resolvedSources.some(isLoadCoolingDown)) return 'unavailable';
   if (resolvedSources.every((source) => decodedBuffers.has(source))) return 'ready';
   sources.forEach((source) => preloadSource(context, source));
   return 'pending';
 }
 
-export function stopDecodedGameplayVoice(voiceId: string): void {
+function stopVoice(voiceId: string, trim: boolean): void {
   const pendingVoice = pendingVoiceStarts.get(voiceId);
   pendingVoiceStarts.delete(voiceId);
   pendingVoice?.options.onStopped?.();
   const voice = activeVoices.get(voiceId);
-  if (!voice) return;
+  if (!voice) {
+    if (trim) trimDecodedCache();
+    return;
+  }
   activeVoices.delete(voiceId);
   voice.source.onended = null;
   try { voice.source.stop(); } catch {}
   try { voice.source.disconnect(); } catch {}
   try { voice.gain.disconnect(); } catch {}
   voice.onStopped?.();
+  if (trim) releaseCachedVoiceSource(voice.resolvedSource);
+}
+
+export function stopDecodedGameplayVoice(voiceId: string): void {
+  stopVoice(voiceId, true);
 }
 
 export function stopDecodedGameplayVoices(voiceIds: readonly string[]): void {
@@ -202,7 +277,10 @@ export function stopDecodedGameplayVoices(voiceIds: readonly string[]): void {
 }
 
 export function fadeOutDecodedGameplayVoice(voiceId: string, durationSeconds: number): boolean {
+  const pendingVoice = pendingVoiceStarts.get(voiceId);
   pendingVoiceStarts.delete(voiceId);
+  pendingVoice?.options.onStopped?.();
+  trimDecodedCache();
   const voice = activeVoices.get(voiceId);
   const context = audioContext;
   if (!voice || !context) return false;
@@ -272,8 +350,10 @@ export function playDecodedGameplaySound(
   if (!context) return 'unavailable';
 
   const resolvedSource = resolveSource(source);
-  if (failedBuffers.has(resolvedSource)) return 'unavailable';
-  const buffer = decodedBuffers.get(resolvedSource);
+  if (isLoadCoolingDown(resolvedSource)) return 'unavailable';
+  const entry = decodedBuffers.get(resolvedSource);
+  const buffer = entry?.buffer;
+  if (entry) entry.lastUsed = Date.now();
   if (!buffer || context.state !== 'running') {
     const token = Symbol(options.voiceId);
     pendingVoiceStarts.set(options.voiceId, { source, options: { ...options }, token });
@@ -285,21 +365,24 @@ export function playDecodedGameplaySound(
       if (failedBuffers.has(resolvedSource)) {
         pendingVoiceStarts.delete(options.voiceId);
         pendingStart.options.onDeferredUnavailable?.();
+        trimDecodedCache();
         return;
       }
       if (context.state !== 'running') {
         pendingVoiceStarts.delete(options.voiceId);
         pendingStart.options.onDeferredUnavailable?.();
+        trimDecodedCache();
         return;
       }
       pendingVoiceStarts.delete(options.voiceId);
-      playDecodedGameplaySound(pendingStart.source, pendingStart.options);
+      const result = playDecodedGameplaySound(pendingStart.source, pendingStart.options);
+      if (result === 'unavailable') pendingStart.options.onDeferredUnavailable?.();
     });
     return 'pending';
   }
 
   try {
-    stopDecodedGameplayVoice(options.voiceId);
+    stopVoice(options.voiceId, false);
 
     const sourceNode = context.createBufferSource();
     const gainNode = context.createGain();
@@ -328,26 +411,45 @@ export function playDecodedGameplaySound(
 
     sourceNode.connect(gainNode);
     gainNode.connect(context.destination);
-    const voice = { source: sourceNode, gain: gainNode, onStopped: options.onStopped };
+    const voice = { resolvedSource, source: sourceNode, gain: gainNode, onStopped: options.onStopped };
     activeVoices.set(options.voiceId, voice);
     sourceNode.onended = () => {
       if (activeVoices.get(options.voiceId) === voice) activeVoices.delete(options.voiceId);
       try { sourceNode.disconnect(); } catch {}
       try { gainNode.disconnect(); } catch {}
+      releaseCachedVoiceSource(resolvedSource);
       options.onEnded?.();
     };
     sourceNode.start(startAt, startOffsetSeconds);
     if (stopAt !== null) sourceNode.stop(stopAt);
+    trimDecodedCache();
     options.onStarted?.();
     return 'played';
   } catch (error) {
+    stopVoice(options.voiceId, true);
     logger.warn(`Failed to start decoded gameplay sound ${source}:`, error);
     return 'unavailable';
   }
 }
 
+/** Release only unused decoded buffers on an explicit OS memory warning. */
+export function releaseIdleDecodedGameplayAudio(): void {
+  trimDecodedCache(0);
+}
+
 export function getDecodedGameplayAudioStats() {
+  const protectedKeys = protectedSources();
+  let decodedBytes = 0;
+  let idleBytes = 0;
+  for (const [source, entry] of decodedBuffers) {
+    decodedBytes += entry.bytes;
+    if (!protectedKeys.has(source)) idleBytes += entry.bytes;
+  }
   return {
+    decodedBytes,
+    idleBytes,
+    budgetBytes: DECODED_AUDIO_BUDGET_BYTES,
+    evictedBuffers,
     contextState: audioContext?.state ?? (audioContextUnavailable ? 'unavailable' : 'uninitialized'),
     decodedBuffers: decodedBuffers.size,
     pendingBuffers: pendingBuffers.size,
@@ -358,6 +460,7 @@ export function getDecodedGameplayAudioStats() {
 }
 
 export function resetDecodedGameplayAudioForTests(): void {
+  cacheGeneration++;
   disarmForegroundGestureRetry();
   if (foregroundListenersInstalled) {
     document.removeEventListener('visibilitychange', onGameplayAudioForeground);
@@ -369,6 +472,7 @@ export function resetDecodedGameplayAudioForTests(): void {
   pendingBuffers.clear();
   failedBuffers.clear();
   pendingVoiceStarts.clear();
+  evictedBuffers = 0;
   if (audioContext) void audioContext.close().catch(() => {});
   audioContext = null;
   audioContextUnavailable = false;

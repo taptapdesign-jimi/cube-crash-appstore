@@ -28,6 +28,8 @@ const fastSteps = [
   ['Unstaged diff hygiene', 'git', ['diff', '--check']],
   ['Staged diff hygiene', 'git', ['diff', '--cached', '--check']],
   ['Type-safety regression audit', node, ['scripts/type-safety-regression-audit.mjs']],
+  ['Startup dependency boundary', node, ['scripts/startup-dependency-audit.mjs']],
+  ['Special-dice performance admission', node, ['scripts/special-dice-performance-audit.mjs']],
   ['TypeScript', npm, ['run', 'type-check']],
   ['Dead-code TypeScript audit', npm, ['run', 'type-check:unused']],
   ...(fastLintFiles.length
@@ -45,6 +47,8 @@ const fullSteps = [
   ['Unstaged diff hygiene', 'git', ['diff', '--check']],
   ['Staged diff hygiene', 'git', ['diff', '--cached', '--check']],
   ['Type-safety regression audit', node, ['scripts/type-safety-regression-audit.mjs']],
+  ['Startup dependency boundary', node, ['scripts/startup-dependency-audit.mjs']],
+  ['Special-dice performance admission', node, ['scripts/special-dice-performance-audit.mjs']],
   ['TypeScript', npm, ['run', 'type-check']],
   ['Dead-code TypeScript audit', npm, ['run', 'type-check:unused']],
   ['Gameplay KING contract', npm, ['run', 'qa:gameplay-lock']],
@@ -54,6 +58,7 @@ const fullSteps = [
   ['Visual contracts', node, ['scripts/stack-to-six-visual-audit.mjs']],
   ['Production build (no native sync)', npm, ['run', 'build'], { env: buildEnv }],
   ['Built bundle audit', npm, ['run', 'release:bundle-audit']],
+  ['Built startup dependency boundary', node, ['scripts/startup-dependency-audit.mjs', '--built']],
   ['Native source guard', node, ['scripts/stack-to-six-native-audit.mjs', '--source-only']],
 ];
 

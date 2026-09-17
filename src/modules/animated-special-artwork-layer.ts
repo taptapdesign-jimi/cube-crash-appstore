@@ -1,6 +1,5 @@
 import { UPDATE_PRIORITY, type Ticker } from 'pixi.js';
 import { STATE } from './app-state.ts';
-import type { GameplayDragBounds } from './gameplay-drag-foreground-owner.ts';
 
 export type AnimatedSpecialArtworkFrame = {
   canvasRect: DOMRect;
@@ -9,7 +8,6 @@ export type AnimatedSpecialArtworkFrame = {
   screenHeight: number;
   canvasOpacity: number;
   gameplayDragActive: boolean;
-  gameplayDragBounds: GameplayDragBounds | null;
 };
 
 export type AnimatedSpecialArtworkLayerLease = {
@@ -20,20 +18,14 @@ export type AnimatedSpecialArtworkLayerLease = {
 
 type FrameOwner = (frame: AnimatedSpecialArtworkFrame) => void;
 
-export type AnimatedSpecialArtworkFootprint = {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-};
-
 export type AnimatedSpecialArtworkPinnedForegroundOptions = {
   preserveDuringFinale?: boolean;
 };
 
-const OVERLAP_FOOTPRINT_ATTRIBUTE = 'data-animated-special-artwork-overlap-footprint';
 
 const frameOwners = new Set<FrameOwner>();
+const suspensionOwners = new Map<FrameOwner, (suspended: boolean) => void>();
+let layerSuspended = false;
 let overlayRoot: HTMLDivElement | null = null;
 let occludedOverlayRoot: HTMLDivElement | null = null;
 let dragOverlayRoot: HTMLDivElement | null = null;
@@ -59,6 +51,10 @@ function getLiveTicker(): Ticker | null {
   return candidate && !(candidate as any).destroyed ? candidate : null;
 }
 
+function setLayerStyle(root: HTMLElement, property: 'zIndex' | 'visibility' | 'display', value: string): void {
+  if (root.style[property] !== value) root.style[property] = value;
+}
+
 function syncOverlayZIndex(
   root: HTMLDivElement,
   canvas: HTMLCanvasElement,
@@ -71,47 +67,47 @@ function syncOverlayZIndex(
   // debris and characters can cross every SVG die. The renderer is explicitly
   // transparent, so lowering this sibling preserves the dice themselves.
   const gameplayDragActive = isGameplayDragActive();
-  root.style.zIndex = finaleDepthOwners > 0 && !gameplayDragActive
+  setLayerStyle(root, 'zIndex', finaleDepthOwners > 0 && !gameplayDragActive
     ? String(Math.max(0, canvasZIndex - 1))
-    : String(Math.max(11, canvasZIndex + 1));
+    : String(Math.max(11, canvasZIndex + 1)));
   if (occludedOverlayRoot) {
     // Keep a live idle SVG immediately below the transparent Pixi canvas only
     // while a dragged die crosses it. Moving the same wrapper preserves the
     // SVG playhead; the canvas still paints the active drag above it.
-    occludedOverlayRoot.style.zIndex = String(Math.max(0, canvasZIndex - 1));
+    setLayerStyle(occludedOverlayRoot, 'zIndex', String(Math.max(0, canvasZIndex - 1)));
   }
   if (dragOverlayRoot) {
     // A real pointer owner is always the highest paint owner. Finale/input
     // locks normally prevent overlap, but a stale or interrupted finale lease
     // must never force a live dragged SVG beneath the Pixi HUD.
-    dragOverlayRoot.style.zIndex = gameplayDragActive
+    setLayerStyle(dragOverlayRoot, 'zIndex', gameplayDragActive
       ? String(Math.max(12_001, canvasZIndex + 1))
       : String(finaleDepthOwners > 0
         ? Math.max(0, canvasZIndex - 1)
-        : Math.max(11, canvasZIndex + 1));
+        : Math.max(11, canvasZIndex + 1)));
   }
   if (pinnedForegroundOverlayRoot) {
     // Ordinary pinned artwork still yields to a merge-6 finale so the Pixi
     // canvas can own its complete particle foreground.
-    pinnedForegroundOverlayRoot.style.zIndex = finaleDepthOwners > 0 && !gameplayDragActive
+    setLayerStyle(pinnedForegroundOverlayRoot, 'zIndex', finaleDepthOwners > 0 && !gameplayDragActive
       ? String(Math.max(0, canvasZIndex - 1))
       : String(gameplayDragActive
         ? Math.max(12_002, canvasZIndex + 2)
-        : Math.max(12, canvasZIndex + 2));
+        : Math.max(12, canvasZIndex + 2)));
   }
   if (finalePersistentForegroundOverlayRoot) {
     // Beach Ball is a bounded exception: its wide authored idle hop must not
     // fall below board ghosts just because a different Special owns a finale.
     // Ball's own idle wrapper is disposed before its merge-6 finale begins.
-    finalePersistentForegroundOverlayRoot.style.zIndex = gameplayDragActive
+    setLayerStyle(finalePersistentForegroundOverlayRoot, 'zIndex', gameplayDragActive
       ? String(Math.max(12_002, canvasZIndex + 2))
-      : String(Math.max(12, canvasZIndex + 2));
+      : String(Math.max(12, canvasZIndex + 2)));
   }
   if (carrierForegroundOverlayRoot) {
-    carrierForegroundOverlayRoot.style.zIndex = String(Math.max(12_003, canvasZIndex + 3));
+    setLayerStyle(carrierForegroundOverlayRoot, 'zIndex', String(Math.max(12_003, canvasZIndex + 3)));
   }
   if (spawnedDieForegroundOverlayRoot) {
-    spawnedDieForegroundOverlayRoot.style.zIndex = String(Math.max(12_004, canvasZIndex + 4));
+    setLayerStyle(spawnedDieForegroundOverlayRoot, 'zIndex', String(Math.max(12_004, canvasZIndex + 4)));
   }
   try {
     if ((window as any).__ccDragDepthDiagnostics === true) {
@@ -210,6 +206,7 @@ function ensurePinnedForegroundOverlayRoot(): HTMLDivElement | null {
   const root = ensureOverlayRoot();
   const parent = root?.parentElement;
   if (!root || !parent) return null;
+  let shouldSyncZIndex = false;
   if (!pinnedForegroundOverlayRoot) {
     pinnedForegroundOverlayRoot = document.createElement('div');
     pinnedForegroundOverlayRoot.className = 'animated-special-artwork-pinned-foreground-layer';
@@ -221,10 +218,21 @@ function ensurePinnedForegroundOverlayRoot(): HTMLDivElement | null {
       pointerEvents: 'none',
       zIndex: '12',
     });
+    shouldSyncZIndex = true;
   }
-  if (pinnedForegroundOverlayRoot.parentElement !== parent) parent.appendChild(pinnedForegroundOverlayRoot);
-  const canvas = STATE.app?.canvas as HTMLCanvasElement | null | undefined;
-  if (canvas) syncOverlayZIndex(root, canvas);
+  if (pinnedForegroundOverlayRoot.parentElement !== parent) {
+    parent.appendChild(pinnedForegroundOverlayRoot);
+    shouldSyncZIndex = true;
+  }
+  // Fish owners ask for this same root on every frame. The shared layer has
+  // already synchronized depth before invoking them; another computed-style
+  // read here would run after each preceding Fish's DOM transform writes.
+  // New/reparented roots still synchronize immediately, as do explicit
+  // finale/drag depth changes through their established refresh owners.
+  if (shouldSyncZIndex) {
+    const canvas = STATE.app?.canvas as HTMLCanvasElement | null | undefined;
+    if (canvas) syncOverlayZIndex(root, canvas);
+  }
   return pinnedForegroundOverlayRoot;
 }
 
@@ -315,6 +323,8 @@ function ensureTicker(): void {
 
 function releaseRuntimeWhenUnused(): void {
   if (frameOwners.size > 0) return;
+  document.removeEventListener('visibilitychange', updateAnimatedSpecialArtworkLayer);
+  layerSuspended = false;
   detachTicker();
   if (overlayRoot) {
     try { overlayRoot.remove(); } catch {}
@@ -347,18 +357,30 @@ function releaseRuntimeWhenUnused(): void {
   lastDragDepthDiagnostic = '';
 }
 
+function publishLayerSuspension(suspended: boolean): void {
+  if (layerSuspended === suspended) return;
+  layerSuspended = suspended;
+  suspensionOwners.forEach((owner) => { try { owner(suspended); } catch {} });
+}
+
+function setLayerRootsPaintable(paintable: boolean): void {
+  [overlayRoot, occludedOverlayRoot, dragOverlayRoot, pinnedForegroundOverlayRoot,
+    finalePersistentForegroundOverlayRoot, carrierForegroundOverlayRoot, spawnedDieForegroundOverlayRoot]
+    .forEach((root) => {
+      if (!root) return;
+      // visibility is overridable by animated descendants; display is not.
+      setLayerStyle(root, 'visibility', paintable ? 'visible' : 'hidden');
+      setLayerStyle(root, 'display', paintable ? '' : 'none');
+    });
+}
+
 function updateAnimatedSpecialArtworkLayer(): void {
   const root = ensureOverlayRoot();
   const app = STATE.app;
   const canvas = app?.canvas as HTMLCanvasElement | null | undefined;
-  if (!root || !canvas || !app?.renderer) {
-    if (root) root.style.visibility = 'hidden';
-    if (occludedOverlayRoot) occludedOverlayRoot.style.visibility = 'hidden';
-    if (dragOverlayRoot) dragOverlayRoot.style.visibility = 'hidden';
-    if (pinnedForegroundOverlayRoot) pinnedForegroundOverlayRoot.style.visibility = 'hidden';
-    if (finalePersistentForegroundOverlayRoot) finalePersistentForegroundOverlayRoot.style.visibility = 'hidden';
-    if (carrierForegroundOverlayRoot) carrierForegroundOverlayRoot.style.visibility = 'hidden';
-    if (spawnedDieForegroundOverlayRoot) spawnedDieForegroundOverlayRoot.style.visibility = 'hidden';
+  if (document.hidden || !root || !canvas || !app?.renderer) {
+    publishLayerSuspension(true);
+    setLayerRootsPaintable(false);
     return;
   }
 
@@ -370,22 +392,12 @@ function updateAnimatedSpecialArtworkLayer(): void {
     && canvasStyle.visibility !== 'hidden'
     && canvasOpacity > 0.001;
   if (!canvasPaintable) {
-    root.style.visibility = 'hidden';
-    if (occludedOverlayRoot) occludedOverlayRoot.style.visibility = 'hidden';
-    if (dragOverlayRoot) dragOverlayRoot.style.visibility = 'hidden';
-    if (pinnedForegroundOverlayRoot) pinnedForegroundOverlayRoot.style.visibility = 'hidden';
-    if (finalePersistentForegroundOverlayRoot) finalePersistentForegroundOverlayRoot.style.visibility = 'hidden';
-    if (carrierForegroundOverlayRoot) carrierForegroundOverlayRoot.style.visibility = 'hidden';
-    if (spawnedDieForegroundOverlayRoot) spawnedDieForegroundOverlayRoot.style.visibility = 'hidden';
+    publishLayerSuspension(true);
+    setLayerRootsPaintable(false);
     return;
   }
-  root.style.visibility = 'visible';
-  if (occludedOverlayRoot) occludedOverlayRoot.style.visibility = 'visible';
-  if (dragOverlayRoot) dragOverlayRoot.style.visibility = 'visible';
-  if (pinnedForegroundOverlayRoot) pinnedForegroundOverlayRoot.style.visibility = 'visible';
-  if (finalePersistentForegroundOverlayRoot) finalePersistentForegroundOverlayRoot.style.visibility = 'visible';
-  if (carrierForegroundOverlayRoot) carrierForegroundOverlayRoot.style.visibility = 'visible';
-  if (spawnedDieForegroundOverlayRoot) spawnedDieForegroundOverlayRoot.style.visibility = 'visible';
+  publishLayerSuspension(false);
+  setLayerRootsPaintable(true);
 
   const canvasRect = canvas.getBoundingClientRect();
   const rootRect = root.getBoundingClientRect();
@@ -397,53 +409,10 @@ function updateAnimatedSpecialArtworkLayer(): void {
     screenHeight: screen.height,
     canvasOpacity,
     gameplayDragActive: isGameplayDragActive(),
-    gameplayDragBounds: ((window as any).__ccGameplayDragBounds as GameplayDragBounds | null) ?? null,
   };
   Array.from(frameOwners).forEach((owner) => {
     try { owner(frame); } catch {}
   });
-}
-
-export function doesAnimatedSpecialArtworkOverlapGameplayDrag(
-  wrapper: HTMLElement,
-  dragBounds: GameplayDragBounds | null,
-): boolean {
-  if (!wrapper || !dragBounds) return false;
-  try {
-    // The wrapper preserves the complete authored SVG motion corridor and can
-    // be much larger than the visible die. Collision ownership belongs to the
-    // explicit 128px resting-art footprint, not those transparent margins.
-    const footprint = wrapper.querySelector<HTMLElement>(`[${OVERLAP_FOOTPRINT_ATTRIBUTE}]`);
-    const artworkBounds = (footprint ?? wrapper).getBoundingClientRect();
-    if (artworkBounds.width <= 0 || artworkBounds.height <= 0) return false;
-    const dragRight = dragBounds.x + dragBounds.width;
-    const dragBottom = dragBounds.y + dragBounds.height;
-    return artworkBounds.left < dragRight
-      && artworkBounds.right > dragBounds.x
-      && artworkBounds.top < dragBottom
-      && artworkBounds.bottom > dragBounds.y;
-  } catch {
-    return false;
-  }
-}
-
-export function installAnimatedSpecialArtworkOverlapFootprint(
-  wrapper: HTMLElement,
-  footprint: AnimatedSpecialArtworkFootprint,
-): HTMLDivElement {
-  const node = document.createElement('div');
-  node.setAttribute(OVERLAP_FOOTPRINT_ATTRIBUTE, 'true');
-  Object.assign(node.style, {
-    position: 'absolute',
-    left: `${footprint.left}px`,
-    top: `${footprint.top}px`,
-    width: `${footprint.width}px`,
-    height: `${footprint.height}px`,
-    pointerEvents: 'none',
-    visibility: 'hidden',
-  });
-  wrapper.appendChild(node);
-  return node;
 }
 
 /**
@@ -539,10 +508,16 @@ export function refreshAnimatedSpecialArtworkDepth(): void {
 
 export function acquireAnimatedSpecialArtworkLayer(
   owner: FrameOwner,
+  onSuspension?: (suspended: boolean) => void,
 ): AnimatedSpecialArtworkLayerLease | null {
   const root = ensureOverlayRoot();
   if (!root) return null;
+  if (frameOwners.size === 0) document.addEventListener('visibilitychange', updateAnimatedSpecialArtworkLayer);
   frameOwners.add(owner);
+  if (onSuspension) {
+    suspensionOwners.set(owner, onSuspension);
+    onSuspension(layerSuspended || document.hidden);
+  }
   ensureTicker();
   let released = false;
   return {
@@ -556,6 +531,7 @@ export function acquireAnimatedSpecialArtworkLayer(
       if (released) return;
       released = true;
       frameOwners.delete(owner);
+      suspensionOwners.delete(owner);
       releaseRuntimeWhenUnused();
     },
   };

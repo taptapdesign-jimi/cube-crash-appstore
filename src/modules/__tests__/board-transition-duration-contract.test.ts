@@ -6,6 +6,13 @@ const read = (relativePath: string): string => fs.readFileSync(
 );
 
 describe('Board Transition duration contract', () => {
+  test('decodes every active scene layer before its animation clock starts', () => {
+    const source = read('src/modules/board-transition-screen.ts');
+    const awaitedPreload = source.indexOf('await preloadTransitionAssets(\n      sceneLayers,');
+    expect(awaitedPreload).toBeGreaterThan(-1);
+    expect(awaitedPreload).toBeLessThan(source.indexOf('return new Promise((resolve, reject) => {'));
+  });
+
   test('moves the shared NN number another six percent upward from its accepted lift', () => {
     const source = read('src/modules/board-transition-screen.ts');
     expect(source).toContain("numberContainer.style.transform = 'translate3d(0, -21vh, 0)'");

@@ -199,7 +199,6 @@ export const JOURNEY_CARD_DISMISS_DRAG_COMMIT_RATIO = 0.22;
 export const JOURNEY_CARD_DISMISS_DRAG_MIN_PX = 88;
 export const JOURNEY_CARD_DISMISS_DRAG_MAX_PX = 140;
 const JOURNEY_CARD_FLIP_TAP_SLOP_PX = 7;
-const JOURNEY_CARD_FLIP_TAKEOVER_SLOP_PX = 1;
 
 export function getJourneyCardDismissDragDistance(cardHeight: number): number {
   const proportionalDistance = Math.max(1, cardHeight) * JOURNEY_CARD_DISMISS_DRAG_COMMIT_RATIO;
@@ -391,22 +390,23 @@ export function getJourneyCardDragFlipAngle(
     1,
     Math.abs(viewportWidth) * JOURNEY_CARD_FLIP_DRAG_HANDOFF_VIEWPORT_RATIO,
   );
-  const progress = clamp01(Math.abs(deltaX) / handoffDistance);
-  const direction = Math.sign(deltaX);
-  return stableAngle + direction * JOURNEY_CARD_FLIP_DRAG_SCRUB_MAX_DEG * progress;
+  // Keep the established angular gain beyond the former automatic handoff.
+  // One held contact owns a continuous scrub of at most one half-turn.
+  const degrees = Math.min(180, Math.abs(deltaX) / handoffDistance * JOURNEY_CARD_FLIP_DRAG_SCRUB_MAX_DEG);
+  return stableAngle + Math.sign(deltaX) * degrees;
 }
 
 export function getJourneyCardDragPresentationAngle(
   stableAngle: number,
   deltaX: number,
-  deltaY: number,
+  _deltaY: number,
   viewportWidth: number,
   axis: 'horizontal' | 'vertical',
   face: 'front' | 'back',
 ): number {
-  // A front-face downward dismissal previews only the spatial descent.
+  // A front-face vertical dismissal previews only spatial movement.
   // Horizontal intent still owns the manual card turn.
-  return axis === 'vertical' && face === 'front' && deltaY > 0
+  return axis === 'vertical' && face === 'front'
     ? 0
     : getJourneyCardDragFlipAngle(stableAngle, deltaX, viewportWidth);
 }
@@ -765,12 +765,6 @@ export function presentJourneyCardOverlayModal(
   let dragLatestX = 0;
   let dragLatestY = 0;
   let dragStartAngle = 0;
-  let dragFlipProgress = 0;
-  let dragFlipCommitted = false;
-  let dragFlipSoundPending = false;
-  let dragFlipCommitX = 0;
-  let dragFlipCommitY = 0;
-  let dragAllowedDirection: -1 | 0 | 1 = 0;
   let dragMoved = false;
   let dragCardHeight = 1;
   let dragCardRect: DOMRect | null = null;
@@ -781,7 +775,6 @@ export function presentJourneyCardOverlayModal(
   let dragImpactStartTranslateX = 0;
   let dragImpactStartTranslateY = 0;
   let dragImpactStartScale = 1;
-  let dragPresentationTranslateX = 0;
   let dragAxis: 'horizontal' | 'vertical' | null = null;
   let dismissDragReleaseY = 0;
   let dismissDragReleaseScale = 1;
@@ -1343,7 +1336,6 @@ export function presentJourneyCardOverlayModal(
 
   const cancelMotion = () => {
     flipGeneration += 1;
-    dragFlipSoundPending = false;
     stopSurfaceIdle();
     stopJourneyCardEntryFlipSounds();
     if (pointerTakeoverAuditRaf !== 0) {
@@ -1441,7 +1433,7 @@ export function presentJourneyCardOverlayModal(
     // An in-contact handoff must continue from the exact angle last painted by
     // the pointer. readPointerHandoffAngle() intentionally falls back to the
     // stable face when no WAAPI owner exists, which would otherwise jump a
-    // ±72deg manual scrub back to 0/-180 before auto-completing the flip.
+    // manual scrub back to 0/-180 before completing the released flip.
     const from = Number.isFinite(pointerReleaseAngle)
       ? Number(pointerReleaseAngle)
       : activePointerId !== null && stage.classList.contains('is-dragging')
@@ -1920,12 +1912,6 @@ export function presentJourneyCardOverlayModal(
     dragLatestX = event.clientX;
     dragLatestY = event.clientY;
     dragStartAngle = dragHandoffAngle;
-    dragFlipProgress = 0;
-    dragFlipCommitted = false;
-    dragFlipSoundPending = false;
-    dragFlipCommitX = event.clientX;
-    dragFlipCommitY = event.clientY;
-    dragAllowedDirection = 0;
     dragMoved = false;
     dragCardRect = frame.getBoundingClientRect();
     dragCardHeight = Math.max(1, dragCardRect.height);
@@ -1943,7 +1929,6 @@ export function presentJourneyCardOverlayModal(
     dragImpactStartTranslateX = impactHandoffPose.translateX;
     dragImpactStartTranslateY = impactHandoffPose.translateY;
     dragImpactStartScale = impactHandoffPose.scale;
-    dragPresentationTranslateX = impactHandoffPose.translateX;
     dragAxis = null;
     dismissDragReleaseY = 0;
     dismissDragReleaseScale = 1;
@@ -1990,53 +1975,11 @@ export function presentJourneyCardOverlayModal(
     handoffIdleCoachImpact();
   }
 
-  function interruptCommittedFlipForPointerMove(event: PointerEvent): boolean {
-    if (!dragFlipCommitted || !flipping || activePointerId !== event.pointerId) return false;
-    const takeoverDistance = Math.max(
-      Math.abs(event.clientX - dragFlipCommitX),
-      Math.abs(event.clientY - dragFlipCommitY),
-    );
-    if (takeoverDistance <= JOURNEY_CARD_FLIP_TAKEOVER_SLOP_PX) return false;
-    // The same held finger must be able to retake the rotor from the automatic
-    // completion. Snapshot the WebKit presentation angle before cancelling its
-    // WAAPI owner, then restart the scrub baseline at this exact pointer pose.
-    const handoffAngle = readPointerHandoffAngle();
-    const interruptedAnimation = flipAnimation;
-    flipGeneration += 1;
-    flipAnimation = null;
-    interruptedAnimation?.cancel();
-    flipping = false;
-    stage.classList.remove('is-flipping', 'is-flipping-to-front', 'is-flipping-to-back');
-    if (flipEdgeRaf !== 0) {
-      cancelAnimationFrame(flipEdgeRaf);
-      flipEdgeRaf = 0;
-    }
-    setRotorAngle(handoffAngle);
-    dragStartX = event.clientX;
-    dragStartY = event.clientY;
-    dragStartAngle = handoffAngle;
-    dragImpactStartTranslateX = dragPresentationTranslateX;
-    dragImpactStartTranslateY = dismissDragReleaseY;
-    dragImpactStartScale = dismissDragReleaseScale;
-    dragFlipProgress = 0;
-    dragFlipCommitted = false;
-    dragAllowedDirection = 0;
-    dragAxis = 'horizontal';
-    paintLegendaryDragShine(handoffAngle, true);
-    tracePointerOwnership('pointer-flip-interrupted-by-drag', {
-      pointerId: event.pointerId,
-      moveCount: pointerTraceMoveCount,
-      handoffAngle: Number(handoffAngle.toFixed(2)),
-    });
-    return true;
-  }
-
   function handlePointerMove(event: PointerEvent): void {
     if (event.pointerId !== activePointerId) return;
     pointerTraceMoveCount += 1;
     dragLatestX = event.clientX;
     dragLatestY = event.clientY;
-    if (interruptCommittedFlipForPointerMove(event)) return;
     const deltaX = event.clientX - dragStartX;
     const deltaY = event.clientY - dragStartY;
     if (pointerTraceMoveCount === 1) {
@@ -2080,20 +2023,7 @@ export function presentJourneyCardOverlayModal(
       dragHorizontalMinX,
       Math.min(dragHorizontalMaxX, dragImpactStartTranslateX + deltaX * 0.12),
     );
-    dragPresentationTranslateX = translateX;
     impactShell.style.translate = `${translateX.toFixed(2)}px 0`;
-    if (dragFlipCommitted) return;
-    const direction = Math.sign(deltaX) as -1 | 0 | 1;
-    const canCommitDirection = dragAllowedDirection === 0
-      || direction === 0
-      || direction === dragAllowedDirection;
-    const handoffDistance = Math.max(
-      1,
-      dragViewportWidth * JOURNEY_CARD_FLIP_DRAG_HANDOFF_VIEWPORT_RATIO,
-    );
-    dragFlipProgress = canCommitDirection
-      ? clamp01(Math.abs(deltaX) / handoffDistance)
-      : 0;
     const dragAngle = getJourneyCardDragPresentationAngle(
       dragStartAngle,
       deltaX,
@@ -2104,46 +2034,6 @@ export function presentJourneyCardOverlayModal(
     );
     setRotorAngle(dragAngle);
     queueLegendaryDragShine(dragAngle);
-    // After one completed turn, continued travel in that same direction still
-    // follows the finger, but cannot chain a second automatic turn. Reversing
-    // direction remains the explicit gesture that can flip back.
-    if (!canCommitDirection) return;
-    if (dragAxis === 'horizontal' && dragFlipProgress >= 1) {
-      dragFlipCommitted = true;
-      dragFlipCommitX = event.clientX;
-      dragFlipCommitY = event.clientY;
-      const committedDirection = direction || 1;
-      const committedPointerId = activePointerId;
-      const committedPointerSequence = pointerTraceSequence;
-      tracePointerOwnership('pointer-flip-commit', {
-        pointerId: event.pointerId,
-        moveCount: pointerTraceMoveCount,
-        direction: committedDirection,
-        deltaX: Number(deltaX.toFixed(2)),
-      });
-      dragFlipSoundPending = true;
-      void animateInteractiveFlip(stableFace === 'front' ? 'back' : 'front', undefined, undefined, false).then(() => {
-        if (
-          activePointerId === null
-          || activePointerId !== committedPointerId
-          || pointerTraceSequence !== committedPointerSequence
-          || closing
-          || settled
-          || flipping
-          || !dragFlipCommitted
-        ) return;
-        dragStartX = dragLatestX;
-        dragStartY = dragLatestY;
-        dragImpactStartTranslateX = dragPresentationTranslateX;
-        dragImpactStartTranslateY = dismissDragReleaseY;
-        dragImpactStartScale = dismissDragReleaseScale;
-        dragStartAngle = stableRotorAngle();
-        dragFlipProgress = 0;
-        dragFlipCommitted = false;
-        dragAllowedDirection = committedDirection === -1 ? 1 : -1;
-        dragAxis = 'horizontal';
-      });
-    }
   }
 
   function finishPointer(
@@ -2154,6 +2044,17 @@ export function presentJourneyCardOverlayModal(
     releaseY = event.clientY,
   ): void {
     if (event.pointerId !== activePointerId) return;
+    // Pointerup may carry a final position that never arrived as pointermove.
+    // Paint and classify that genuine sample before deciding the release intent.
+    if (allowCommit && (releaseX !== dragLatestX || releaseY !== dragLatestY)) {
+      handlePointerMove({
+        pointerId: event.pointerId,
+        clientX: releaseX,
+        clientY: releaseY,
+        preventDefault: () => event.preventDefault(),
+        composedPath: () => event.composedPath(),
+      } as PointerEvent);
+    }
     const deltaX = releaseX - dragStartX;
     const deltaY = releaseY - dragStartY;
     const moved = dragMoved;
@@ -2168,7 +2069,6 @@ export function presentJourneyCardOverlayModal(
       deltaY: Number(deltaY.toFixed(2)),
       hasPointerCapture: rotor.hasPointerCapture?.(event.pointerId) ?? null,
     });
-    const shouldPlayCommittedDragSound = allowCommit && dragFlipSoundPending;
     activePointerId = null;
     try { rotor.releasePointerCapture(event.pointerId); } catch {}
     stage.classList.remove('is-dragging');
@@ -2177,11 +2077,10 @@ export function presentJourneyCardOverlayModal(
       && Math.abs(deltaY) >= getJourneyCardDismissDragDistance(dragCardHeight)
       && isJourneyCardVerticalDismissGesture(deltaX, deltaY);
     if (shouldDismiss) {
-      dragFlipSoundPending = false;
       clearLegendaryDragShine();
       event.preventDefault();
       event.stopPropagation();
-      if (stableFace === 'front' && deltaY > 0) {
+      if (stableFace === 'front') {
         void beginClose('dismiss', true);
       } else {
         void beginClose('dismiss');
@@ -2189,7 +2088,6 @@ export function presentJourneyCardOverlayModal(
       return;
     }
     if (!allowCommit) {
-      dragFlipSoundPending = false;
       clearLegendaryDragShine();
       if (flipping) {
         impactShell.style.translate = 'none';
@@ -2203,22 +2101,23 @@ export function presentJourneyCardOverlayModal(
       scheduleIdleCoach();
       return;
     }
-    dragFlipSoundPending = false;
-    if (shouldPlayCommittedDragSound) playJourneyCardManualFlipSound();
     event.preventDefault();
     event.stopPropagation();
     if (!moved) {
       impactShell.style.translate = 'none';
       impactShell.style.transform = 'translate3d(0, 0, 0) scale(1)';
       const targetFace = stableFace === 'front' ? 'back' : 'front';
-      void animateInteractiveFlip(targetFace, targetFace === 'back' ? 1 : -1);
+      // A tap can catch a turn/recoil mid-air. Continue from that captured
+      // pose, using the nearest target rather than rewinding to the old face.
+      const tapDirection = Math.abs(currentAngle - stableRotorAngle()) < 0.001
+        ? targetFace === 'back' ? 1 : -1
+        : undefined;
+      void animateInteractiveFlip(targetFace, tapDirection, currentAngle);
       return;
     }
-    const releaseDirection = Math.sign(deltaX) as -1 | 0 | 1;
     const shouldCommitReleasedDrag = !flipping
-      && !dragFlipCommitted
       && dragAxis === 'horizontal'
-      && shouldCommitJourneyCardReleasedDrag(deltaX, dragViewportWidth, dragAllowedDirection);
+      && shouldCommitJourneyCardReleasedDrag(deltaX, dragViewportWidth);
     if (shouldCommitReleasedDrag) {
       clearLegendaryDragShine();
       impactShell.style.translate = 'none';
@@ -2226,19 +2125,17 @@ export function presentJourneyCardOverlayModal(
       const targetFace = stableFace === 'front' ? 'back' : 'front';
       void animateInteractiveFlip(
         targetFace,
-        releaseDirection === 0 ? undefined : releaseDirection,
+        undefined,
         currentAngle,
       );
       return;
     }
-    // Releasing any partial horizontal scrub returns to its starting face.
-    // A short release below the KING threshold returns to its starting face;
-    // crossing the live 40% handoff while held still commits immediately.
+    // A release below the intent threshold settles back to its starting face.
+    // Until release, only the pointer owns the rotor; no animation rebases it.
     const fromTranslate = impactShell.style.translate || 'none';
     const fromImpactTransform = impactShell.style.transform || 'translate3d(0, 0, 0) scale(1)';
     const previewFromAngle = currentAngle;
-    const committedFlipInFlight = allowCommit && dragFlipCommitted;
-    const previewToAngle = committedFlipInFlight ? previewFromAngle : stableRotorAngle();
+    const previewToAngle = stableRotorAngle();
     handoffSurfaceIdle();
     const animation = impactShell.animate?.([
       { translate: fromTranslate, transform: fromImpactTransform },
@@ -2298,7 +2195,11 @@ export function presentJourneyCardOverlayModal(
       previewAnimation?.finished ?? Promise.resolve(),
     ]).then(() => {
       if (impactAnimation !== animation || closing || settled) return;
-      if (flipEdgeRaf !== 0) {
+      const ownsRotorPreview = previewAnimation !== null
+        && dragPreviewSettleAnimation === previewAnimation;
+      // The impact shell may finish after a committed flip has started recoil.
+      // Only this exact preview owns the rotor pose and its paint observer.
+      if (ownsRotorPreview && flipEdgeRaf !== 0) {
         cancelAnimationFrame(flipEdgeRaf);
         flipEdgeRaf = 0;
       }
@@ -2307,17 +2208,13 @@ export function presentJourneyCardOverlayModal(
       stage.classList.remove('is-face-settling');
       impactShell.style.translate = 'none';
       impactShell.style.transform = 'translate3d(0, 0, 0) scale(1)';
-      if (!flipping) {
-        setRotorAngle(previewToAngle);
-      }
+      if (ownsRotorPreview) setRotorAngle(previewToAngle);
       previewAnimation?.cancel();
       animation.cancel();
-      if (!flipping) {
+      if (!flipping && !flipRecoilAnimation) {
         startSurfaceIdle();
         clearLegendaryDragShine();
         scheduleIdleCoach();
-      } else {
-        clearLegendaryDragShine();
       }
     });
   }

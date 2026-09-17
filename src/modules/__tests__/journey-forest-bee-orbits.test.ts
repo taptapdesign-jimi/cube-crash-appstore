@@ -296,7 +296,7 @@ describe('Journey Forest bee canvas flights', () => {
     expect(source).toContain('startJourneyAmbientCanvasRuntime({');
     expect(source).toContain("className: 'journey-forest-bee-canvas'");
     expect(source).toContain('runtime.fadeIn(360)');
-    expect(source).toContain("const context = bee.depth === 'front' ? frame.front : frame.behind");
+    expect(source).toContain("const context = depth === 'front' ? frame.front : frame.behind");
     expect(source).toContain('behindBefore: backgroundLayer');
     expect(source).toContain('behindZIndex: 1');
     expect(source).not.toContain("document.createElement('div')");

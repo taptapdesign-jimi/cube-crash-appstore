@@ -27,6 +27,8 @@ The repository retains historical `cube-crash` names in paths and code. That doe
 
 ## Mobile-first thermal and stability policy
 
+- Navigation queues, background tickers, resource preparation and startup import changes follow [`BACKGROUND_WORK_CONTRACT.md`](BACKGROUND_WORK_CONTRACT.md). Keep timer ownership explicit, use renderer-matched resource preparation and verify the built dependency graph before claiming lazy loading.
+
 - Stack to Six is a phone/tablet game. Runtime performance decisions target iPhone, iPad/iPadOS, and Android devices; desktop web behavior is a development aid, not the optimization benchmark.
 - Mobile detection and shared thermal limits belong in `src/modules/mobile-runtime-profile.ts`. Do not add isolated iPhone-only user-agent checks for settled idle cadence, ambient canvas density, or similar cross-mobile budgets.
 - Preserve authored animation quality: enter, exit, drag, merge, modal flip, and active FX may use the display refresh rate. Reduce only settled idle, off-screen, hidden, background, duplicate, or redundant work.
@@ -48,6 +50,8 @@ Read [`dev-production-modes.md`](dev-production-modes.md) before every native bu
 Use `SKIP_NATIVE_BUNDLE_SYNC=true npm run build` when validating web code without changing the native bundle. `npm run build` normally invokes `scripts/postbuild.mjs`, whose only allowed native destination is Stack to Six.
 
 ## Automated QA workflow
+
+- Special-die animation and new visual variants also follow [`SPECIAL_DICE_PERFORMANCE_CONTRACT.md`](SPECIAL_DICE_PERFORMANCE_CONTRACT.md). Both fast/full QA run registry-to-ownership admission validation; behavior tests and physical acceptance remain separate.
 
 - Repository QA instructions live in `.agents/skills/stack-to-six-qa/SKILL.md`; `AGENTS.md` requires them for validation and release work.
 - Use `npm run qa:fast` during implementation and `npm run qa:full` before handoff, commit, push, or release preparation.

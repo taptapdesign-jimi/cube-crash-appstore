@@ -230,7 +230,7 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
     shardColor: 0xFCA470,
     shardColors: [0xFCA470, 0xFD6B38],
     trailColors: [0xF5D8BF, 0xFDAC78, 0xFDA458, 0xFD7C41],
-    idleBubbleColors: [0x65BAC8, 0xA1DDBE],
+    idleBubbleColors: [0xFFE6E1, 0xFFF2E9, 0xFFD5D6],
     finaleScene: 'fish-bubbles',
     visualWidth: 128,
     visualHeight: 128,
@@ -761,9 +761,10 @@ export function getSpecialDiceVisualConfig(tile: any): { visualWidth?: number; v
   };
 }
 
-/** A live Bottle idle owns the bottom pivot and its matching Y correction. */
+/** Live artwork owners keep their bottom pivot and its matching Y correction. */
 export function getSpecialDiceFaceAnchorY(tile: any, base: any, defaultAnchorY = 0.5): number {
   const variant = getSpecialDiceVariantForTile(tile);
+  if (variant?.id === 'kanta' && tile?._ccKantaDiceIdle?.ownsBase?.(base) === true) return 1;
   if (
     variant?.id === 'bottle'
     && tile?._ccSpecialDiceIdleHost === base

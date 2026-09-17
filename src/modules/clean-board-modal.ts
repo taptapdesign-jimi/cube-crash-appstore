@@ -48,6 +48,7 @@ import {
   fadeSoundtrackForResultHook,
   setSoundtrackResultMix,
 } from './soundtrack-manager.ts';
+import { freezeCleanBoardStarRenderedScale } from './clean-board-star-transform.ts';
 
 const ORIGINAL_HEADLINES = [
   'Outstanding!', 'Amazing!', 'Excellent!', 'Fantastic!', 'Incredible!',
@@ -1310,7 +1311,7 @@ export async function showCleanBoardModal({
         starElements.forEach(({ filledImg, emptyImg }, index) => {
           emptyImg.style.opacity = '0';
           if (index >= numEarned) return;
-          filledImg.style.animation = 'none';
+          freezeCleanBoardStarRenderedScale(filledImg);
           const timeline = trackTimeline({
             delay: Math.max(0, numEarned - 1 - index) * 0.07,
             onComplete: () => {

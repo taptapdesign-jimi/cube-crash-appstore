@@ -35,7 +35,7 @@ class Logger {
     this.isProduction = process.env.NODE_ENV === 'production';
   }
 
-  private shouldLog(level: LogLevel): boolean {
+  isEnabled(level: LogLevel): boolean {
     return level >= this.config.level;
   }
 
@@ -50,7 +50,7 @@ class Logger {
   }
 
   private log(level: LogLevel, message: string, context?: string, data?: any): void {
-    if (!this.shouldLog(level)) return;
+    if (!this.isEnabled(level)) return;
 
     const entry = this.createEntry(level, message, context, data);
     

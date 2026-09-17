@@ -38,7 +38,7 @@ describe('typed runtime game bridge contract', () => {
   });
 
   test('types named save/load recovery hooks and publishes them without window casts', () => {
-    expect(windowTypes).toContain('loadGameState?: (boardNumber?: number) => Promise<boolean>');
+    expect(windowTypes).toContain("loadGameState?: (boardNumber?: number) => Promise<boolean | 'superseded'>");
     expect(windowTypes).toContain('startLevel?: (boardNumber: number) => Promise<void>');
     expect(windowTypes).toContain('stopPixiTicker?: () => boolean');
     expect(windowTypes).toContain('killAllDelayedCalls?: () => void');

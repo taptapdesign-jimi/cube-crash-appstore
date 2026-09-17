@@ -11,6 +11,7 @@ import {
 } from './journey-new-card-tilt.js';
 import { resolveJourneyCardAsset, type JourneyCardRarity } from './journey-card-assets.js';
 import { normalizeJourneyBoardId } from './journey-world-definitions.js';
+import { resolveJourneyNewCardTapAction } from './journey-new-card-input.js';
 import {
   getJourneyNewCardDisplayName,
   getJourneyNewCardRevealCopy,
@@ -575,6 +576,8 @@ export async function showJourneyNewCardScreen({
     let dragAxis: 'horizontal' | 'vertical' | null = null;
     let dragMoved = false;
     let suppressClickUntil = 0;
+    let collectRequestedDuringReveal = false;
+    let enterTimeline: gsap.core.Timeline | null = null;
     let continueCoachGeneration = 0;
     const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
     const hapticTimeouts: number[] = [];
@@ -992,6 +995,7 @@ export async function showJourneyNewCardScreen({
     finish = () => {
       if (resolved) return;
       resolved = true;
+      collectRequestedDuringReveal = false;
       stopSprite9ShineLoop();
       stopFinalCardShineLoop();
       stopContinueCoach();
@@ -1051,6 +1055,20 @@ export async function showJourneyNewCardScreen({
     const reveal = async () => {
       if (revealed || revealRunning || resolved || disposed) return;
       revealRunning = true;
+      // A tap may arrive while the screen's hero is still scaling from zero.
+      // Retire that enter owner and establish its exact rest pose before the
+      // reveal timeline takes over, otherwise the unlocked card can inherit a
+      // zero-scale hit area and become untappable.
+      enterTimeline?.kill();
+      enterTimeline = null;
+      gsap.set(hero, {
+        opacity: 1,
+        visibility: 'visible',
+        y: 0,
+        scale: 1,
+        transformOrigin: '50% 50%',
+        force3D: true,
+      });
       setCardIdleTiltState('none');
       stopSprite9ShineLoop();
       clearPendingShineWork();
@@ -1272,11 +1290,7 @@ export async function showJourneyNewCardScreen({
         });
 
         if (framePlaybackId !== revealFramePlaybackId || resolved || disposed) return;
-        revealed = true;
-        revealRunning = false;
-        hero?.removeAttribute('aria-disabled');
-        hero?.setAttribute('aria-label', `Continue after unlocking ${safeCardName}`);
-        scheduleContinueCoach();
+        completeRevealInteractionHandoff();
       } catch {
         applyRevealCopy();
         if (frameImg) {
@@ -1305,12 +1319,22 @@ export async function showJourneyNewCardScreen({
           });
           setCardIdleTiltState('unlocked');
         }
-        revealed = true;
-        revealRunning = false;
-        hero?.removeAttribute('aria-disabled');
-        hero?.setAttribute('aria-label', `Continue after unlocking ${safeCardName}`);
-        scheduleContinueCoach();
+        completeRevealInteractionHandoff();
       }
+    };
+
+    const completeRevealInteractionHandoff = () => {
+      revealed = true;
+      revealRunning = false;
+      hero?.removeAttribute('aria-disabled');
+      hero?.setAttribute('aria-label', `Continue after unlocking ${safeCardName}`);
+      if (collectRequestedDuringReveal) {
+        collectRequestedDuringReveal = false;
+        try { (window as any).triggerHapticSelection?.(); } catch {}
+        finish();
+        return;
+      }
+      scheduleContinueCoach();
     };
 
     const settleUnlockedCardAfterDrag = () => {
@@ -1422,6 +1446,11 @@ export async function showJourneyNewCardScreen({
     };
 
     const handleUnlockedPointerUp = (event: PointerEvent) => {
+      if (activeDragPointerId === null && revealRunning && !resolved && !disposed) {
+        collectRequestedDuringReveal = true;
+        event.preventDefault();
+        return;
+      }
       finishUnlockedPointer(event, true);
     };
 
@@ -1433,13 +1462,18 @@ export async function showJourneyNewCardScreen({
       event.preventDefault();
       event.stopPropagation();
       if (Date.now() < suppressClickUntil) return;
-      if (revealed && !revealRunning) {
+      const action = resolveJourneyNewCardTapAction({ revealed, revealRunning, resolved, disposed });
+      if (action === 'collect') {
         stopContinueCoach();
         try { (window as any).triggerHapticSelection?.(); } catch {}
         finish();
         return;
       }
-      reveal();
+      if (action === 'queue-collect') {
+        collectRequestedDuringReveal = true;
+        return;
+      }
+      if (action === 'reveal') reveal();
     };
     const onHeroKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -1498,7 +1532,7 @@ export async function showJourneyNewCardScreen({
     setLightMask(unlockedLegendaryHolo, safeCardPath);
     setLightFrameScale(unlockedLegendaryHolo, 0.95);
 
-    const enter = trackNewCardTimeline(gsap.timeline({
+    enterTimeline = trackNewCardTimeline(gsap.timeline({
       defaults: { overwrite: 'auto' },
       onComplete: () => {
         setCardIdleTiltState('interim');
@@ -1514,7 +1548,7 @@ export async function showJourneyNewCardScreen({
         });
       },
     }));
-    enter
+    enterTimeline
       .to(title, { opacity: 1, y: 0, scale: 1, duration: d(0.3), ease: 'back.out(1.65)' }, 0)
       .to(subtitle, { opacity: 1, y: 0, scale: 1, duration: d(0.3), ease: 'back.out(1.65)' }, d(0.04))
       .to(hero, { opacity: 1, y: 0, scale: 1, duration: d(0.65), ease: 'back.out(1.7)' }, d(0.22))

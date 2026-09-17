@@ -50,6 +50,7 @@ let noMovesLetterScales: number[] = [];
 let noMovesLetterRotations: number[] = [];
 let noMovesCloudCleanup: (() => void) | null = null;
 let noMovesExitPromise: Promise<void> | null = null;
+let cancelNoMovesExit: (() => void) | null = null;
 let noMovesExiting = false;
 
 function resolveMagneticTextWaiters(): void {
@@ -528,7 +529,16 @@ function cleanupSparkleOverlay(): void {
  * Show SPARKLE text overlay for wild-star merge 6.
  * Uses the same enter/exit style as BUBBLY with the configured letter palette.
  */
-export function showSparkleText(origin?: { x: number; y: number } | null, options: any = {}): void {
+export function showSparkleText(
+  originOrMeasure?: { x: number; y: number } | null | (() => { x: number; y: number } | null),
+  options: any = {},
+): void {
+  // Kanta is viewport-centred and never consumes a tile origin. Other scenes
+  // resolve their live snapshot before cleanup or any DOM/style mutation,
+  // retaining the same coordinate timing as an eager caller-provided point.
+  const origin = options?.finaleScene === 'kanta-center-sequence'
+    ? null
+    : typeof originOrMeasure === 'function' ? originOrMeasure() : originOrMeasure;
   try {
     cleanupSparkleOverlay();
     sparkleTextActive = true;
@@ -856,6 +866,9 @@ export function waitForSparkleTextComplete(timeoutMs = 2200): Promise<void> {
 }
 
 function cleanupNoMovesOverlay(): void {
+  const cancelExit = cancelNoMovesExit;
+  cancelNoMovesExit = null;
+  cancelExit?.();
   try {
     noMovesBounceTimelinesRef.forEach((tl) => {
       killTrackedTimeline(tl);
@@ -1128,82 +1141,93 @@ export function exitNoMovesText(): Promise<void> {
     return noMovesExitPromise;
   }
   noMovesExiting = true;
-  noMovesExitPromise = new Promise((resolve) => {
-    let resolved = false;
-    const safeResolve = () => {
-      if (resolved) return;
-      resolved = true;
-      cleanupNoMovesOverlay();
-      resolve();
-    };
+  const ownedOverlay = noMovesOverlay;
+  let resolveExit!: () => void;
+  const promise = new Promise<void>((resolve) => { resolveExit = resolve; });
+  noMovesExitPromise = promise;
+  let resolved = false;
+  let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+  let delayedExit: gsap.core.Tween | null = null;
+  const cancelExit = () => {
+    if (resolved) return;
+    resolved = true;
+    if (fallbackTimer !== null) clearTimeout(fallbackTimer);
+    fallbackTimer = null;
+    if (delayedExit) killTrackedTween(delayedExit);
+    delayedExit = null;
+    resolveExit();
+  };
+  cancelNoMovesExit = cancelExit;
+  const safeResolve = () => {
+    if (resolved) return;
+    if (noMovesOverlay === ownedOverlay) cleanupNoMovesOverlay();
+    else cancelExit();
+  };
+  // Keep the local promise: immediate cleanup clears the public owner slot.
 
-    if (!noMovesOverlay || !noMovesOverlay.isConnected) {
-      safeResolve();
-      return;
-    }
-    const container = noMovesOverlay.querySelector('.cc-no-moves-text') as HTMLElement | null;
-    if (!container || container.children.length === 0) {
-      safeResolve();
-      return;
-    }
-    const letters = ['N', 'O', ' ', 'M', 'O', 'V', 'E', 'S'];
-    noMovesBounceTimelinesRef.forEach((tl) => {
-      killTrackedTimeline(tl);
+  if (!noMovesOverlay || !noMovesOverlay.isConnected) {
+    safeResolve();
+    return promise;
+  }
+  const container = noMovesOverlay.querySelector('.cc-no-moves-text') as HTMLElement | null;
+  if (!container || container.children.length === 0) {
+    safeResolve();
+    return promise;
+  }
+  const letters = ['N', 'O', ' ', 'M', 'O', 'V', 'E', 'S'];
+  noMovesBounceTimelinesRef.forEach((tl) => {
+    killTrackedTimeline(tl);
+  });
+  noMovesBounceTimelinesRef.length = 0;
+  noMovesDelayedCallsRef.forEach((dc) => {
+    killTrackedTween(dc);
+  });
+  noMovesDelayedCallsRef.length = 0;
+  noMovesTimelinesRef.forEach((tl) => {
+    killTrackedTimeline(tl);
+  });
+  noMovesTimelinesRef.length = 0;
+
+  letters.forEach((_, index) => {
+    const el = container.children[index] as HTMLElement;
+    if (!el) return;
+    const delay = index * BOOM_EXIT_STAGGER;
+    const tl = trackTimeline({ delay });
+    noMovesTimelinesRef.push(tl);
+    const baseScale = noMovesLetterScales[index] ?? 1;
+    const baseRot = noMovesLetterRotations[index] ?? 0;
+    const exitRotation = (baseRot >= 0 ? 1 : -1) * (12 + Math.random() * 8);
+
+    el.style.willChange = 'transform, opacity';
+    tl.to(el, {
+      scale: baseScale * 1.1,
+      z: 30,
+      duration: EXIT_BOUNCE_DURATION + BOOM_EXIT_EXTRA * 0.2,
+      ease: 'power2.out'
     });
-    noMovesBounceTimelinesRef.length = 0;
-    noMovesDelayedCallsRef.forEach((dc) => {
-      killTrackedTween(dc);
-    });
-    noMovesDelayedCallsRef.length = 0;
-    noMovesTimelinesRef.forEach((tl) => {
-      killTrackedTimeline(tl);
-    });
-    noMovesTimelinesRef.length = 0;
-
-    letters.forEach((_, index) => {
-      const el = container.children[index] as HTMLElement;
-      if (!el) return;
-      const delay = index * BOOM_EXIT_STAGGER;
-      const tl = trackTimeline({ delay });
-      noMovesTimelinesRef.push(tl);
-      const baseScale = noMovesLetterScales[index] ?? 1;
-      const baseRot = noMovesLetterRotations[index] ?? 0;
-      const exitRotation = (baseRot >= 0 ? 1 : -1) * (12 + Math.random() * 8);
-
-      el.style.willChange = 'transform, opacity';
-      tl.to(el, {
-        scale: baseScale * 1.1,
-        z: 30,
-        duration: EXIT_BOUNCE_DURATION + BOOM_EXIT_EXTRA * 0.2,
-        ease: 'power2.out'
-      });
-      tl.to(el, {
-        opacity: 0,
-        scale: 0,
-        rotation: exitRotation,
-        rotationX: baseRot >= 0 ? 45 : -45,
-        rotationY: baseRot >= 0 ? 30 : -30,
-        z: -100,
-        duration: EXIT_FADE_DURATION + BOOM_EXIT_EXTRA * 0.8,
-        ease: 'power2.in'
-      });
-    });
-    const exitTotal =
-      BOOM_EXIT_STAGGER * (letters.length - 1) +
-      EXIT_BOUNCE_DURATION + BOOM_EXIT_EXTRA * 0.2 +
-      EXIT_FADE_DURATION + BOOM_EXIT_EXTRA * 0.8 +
-      0.05;
-
-    // Fallback: even if GSAP delayedCall gets killed by global cleanup, never hang fail flow.
-    const fallbackMs = Math.max(250, Math.ceil(exitTotal * 1000) + 120);
-    const fallbackTimer = setTimeout(() => {
-      safeResolve();
-    }, fallbackMs);
-
-    trackDelayedCall(exitTotal, () => {
-      try { clearTimeout(fallbackTimer); } catch {}
-      safeResolve();
+    tl.to(el, {
+      opacity: 0,
+      scale: 0,
+      rotation: exitRotation,
+      rotationX: baseRot >= 0 ? 45 : -45,
+      rotationY: baseRot >= 0 ? 30 : -30,
+      z: -100,
+      duration: EXIT_FADE_DURATION + BOOM_EXIT_EXTRA * 0.8,
+      ease: 'power2.in'
     });
   });
-  return noMovesExitPromise;
+  const exitTotal =
+    BOOM_EXIT_STAGGER * (letters.length - 1) +
+    EXIT_BOUNCE_DURATION + BOOM_EXIT_EXTRA * 0.2 +
+    EXIT_FADE_DURATION + BOOM_EXIT_EXTRA * 0.8 +
+    0.05;
+
+  // Fallback: even if GSAP delayedCall gets killed by global cleanup, never hang fail flow.
+  const fallbackMs = Math.max(250, Math.ceil(exitTotal * 1000) + 120);
+  fallbackTimer = setTimeout(() => {
+    safeResolve();
+  }, fallbackMs);
+
+  delayedExit = trackDelayedCall(exitTotal, safeResolve);
+  return promise;
 }

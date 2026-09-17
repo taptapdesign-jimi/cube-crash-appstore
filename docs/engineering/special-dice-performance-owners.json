@@ -1,0 +1,156 @@
+{
+  "fish": {
+    "archetype": "wild-star",
+    "idleOwner": "src/modules/fish-swim-artwork.ts",
+    "finaleOwner": "src/modules/fish-finale-bubbles.ts",
+    "warmupPolicy": "Use actual reward eligibility plus restored live tiles; generation-owned preparation; reuse pending/ready resources.",
+    "cleanupPolicy": "Stop through special-dice-idle and finale owner on completion, interruption, tile destruction and board exit; preserve shared live resources.",
+    "hudDepthPolicy": "dom-foreground-owner",
+    "tests": [
+      "src/modules/__tests__/fish-media-visibility.test.ts",
+      "src/modules/__tests__/fish-finale-preload.test.ts",
+      "src/modules/__tests__/special-artwork-warmup-eligibility.test.ts"
+    ]
+  },
+  "kanta": {
+    "archetype": "wild-star",
+    "idleOwner": "src/modules/kanta-dice-idle.ts",
+    "finaleOwner": "src/modules/kanta-finale-scene.ts",
+    "warmupPolicy": "Use actual reward eligibility plus restored live tiles; generation-owned preparation; reuse pending/ready resources.",
+    "cleanupPolicy": "Stop through special-dice-idle and finale owner on completion, interruption, tile destruction and board exit; preserve shared live resources.",
+    "hudDepthPolicy": "contained-board-footprint",
+    "tests": [
+      "src/modules/__tests__/kanta-finale-lifecycle.test.ts"
+    ]
+  },
+  "bee": {
+    "archetype": "wild-star",
+    "idleOwner": "src/modules/special-dice-idle.ts",
+    "finaleOwner": "src/modules/bee-finale-scene.ts",
+    "warmupPolicy": "Use actual reward eligibility plus restored live tiles; generation-owned preparation; reuse pending/ready resources.",
+    "cleanupPolicy": "Stop through special-dice-idle and finale owner on completion, interruption, tile destruction and board exit; preserve shared live resources.",
+    "hudDepthPolicy": "contained-board-footprint",
+    "tests": [
+      "src/modules/__tests__/bee-finale-lifecycle.test.ts",
+      "src/modules/__tests__/special-render-work.test.ts"
+    ]
+  },
+  "laser-gun": {
+    "archetype": "wild-tnt",
+    "idleOwner": "src/modules/special-dice-idle.ts",
+    "finaleOwner": "src/modules/lasergun-finale-scene.ts",
+    "warmupPolicy": "Use actual reward eligibility plus restored live tiles; generation-owned preparation; reuse pending/ready resources.",
+    "cleanupPolicy": "Stop through special-dice-idle and finale owner on completion, interruption, tile destruction and board exit; preserve shared live resources.",
+    "hudDepthPolicy": "contained-board-footprint",
+    "tests": [
+      "src/modules/__tests__/lasergun-finale-lifecycle.test.ts",
+      "src/modules/__tests__/lasergun-media-retirement.test.ts"
+    ]
+  },
+  "spaceship": {
+    "archetype": "wild-magnet",
+    "idleOwner": "src/modules/special-dice-idle.ts",
+    "finaleOwner": "src/modules/spaceship-finale-scene.ts",
+    "warmupPolicy": "Use actual reward eligibility plus restored live tiles; generation-owned preparation; reuse pending/ready resources.",
+    "cleanupPolicy": "Stop through special-dice-idle and finale owner on completion, interruption, tile destruction and board exit; preserve shared live resources.",
+    "hudDepthPolicy": "contained-board-footprint",
+    "tests": [
+      "src/modules/__tests__/spaceship-finale-lifecycle.test.ts",
+      "src/modules/__tests__/special-render-work.test.ts"
+    ]
+  },
+  "bottle": {
+    "archetype": "wild-magnet",
+    "idleOwner": "src/modules/special-dice-idle.ts",
+    "finaleOwner": "src/modules/bottle-finale-scene.ts",
+    "warmupPolicy": "Use actual reward eligibility plus restored live tiles; generation-owned preparation; reuse pending/ready resources.",
+    "cleanupPolicy": "Stop through special-dice-idle and finale owner on completion, interruption, tile destruction and board exit; preserve shared live resources.",
+    "hudDepthPolicy": "contained-board-footprint",
+    "tests": [
+      "src/modules/__tests__/bottle-finale-lifecycle.test.ts"
+    ]
+  },
+  "honey": {
+    "archetype": "wild-magnet",
+    "idleOwner": "src/modules/special-dice-idle.ts",
+    "finaleOwner": "src/modules/text-bolts.ts",
+    "warmupPolicy": "Use actual reward eligibility plus restored live tiles; generation-owned preparation; reuse pending/ready resources.",
+    "cleanupPolicy": "Stop through special-dice-idle and finale owner on completion, interruption, tile destruction and board exit; preserve shared live resources.",
+    "hudDepthPolicy": "contained-board-footprint",
+    "tests": [
+      "src/modules/__tests__/honey-bee-idle-orbit.test.ts",
+      "src/modules/__tests__/special-render-work.test.ts"
+    ]
+  },
+  "flower": {
+    "archetype": "wild-tnt",
+    "idleOwner": "src/modules/flower-bouncy-artwork.ts",
+    "finaleOwner": "src/modules/tnt-animation.ts",
+    "warmupPolicy": "Use actual reward eligibility plus restored live tiles; generation-owned preparation; reuse pending/ready resources.",
+    "cleanupPolicy": "Stop through special-dice-idle and finale owner on completion, interruption, tile destruction and board exit; preserve shared live resources.",
+    "hudDepthPolicy": "shared-animated-dice-hud-foreground",
+    "tests": [
+      "src/modules/__tests__/flower-bouncy-artwork.test.ts",
+      "src/modules/__tests__/animated-dice-hud-foreground.test.ts"
+    ]
+  },
+  "barell": {
+    "archetype": "wild-tnt",
+    "idleOwner": "src/modules/barrel-bouncy-artwork.ts",
+    "finaleOwner": "src/modules/tnt-animation.ts",
+    "warmupPolicy": "Use actual reward eligibility plus restored live tiles; generation-owned preparation; reuse pending/ready resources.",
+    "cleanupPolicy": "Stop through special-dice-idle and finale owner on completion, interruption, tile destruction and board exit; preserve shared live resources.",
+    "hudDepthPolicy": "shared-animated-dice-hud-foreground",
+    "tests": [
+      "src/modules/__tests__/barrel-bouncy-artwork.test.ts",
+      "src/modules/__tests__/animated-dice-hud-foreground.test.ts"
+    ]
+  },
+  "mushroom": {
+    "archetype": "wild-juice",
+    "idleOwner": "src/modules/mushroom-bouncy-artwork.ts",
+    "finaleOwner": "src/modules/wild-juice-bubbles-explosion.ts",
+    "warmupPolicy": "Use actual reward eligibility plus restored live tiles; generation-owned preparation; reuse pending/ready resources.",
+    "cleanupPolicy": "Stop through special-dice-idle and finale owner on completion, interruption, tile destruction and board exit; preserve shared live resources.",
+    "hudDepthPolicy": "shared-animated-dice-hud-foreground",
+    "tests": [
+      "src/modules/__tests__/mushroom-bouncy-artwork.test.ts",
+      "src/modules/__tests__/animated-dice-hud-foreground.test.ts"
+    ]
+  },
+  "robo-cube": {
+    "archetype": "wild-juice",
+    "idleOwner": "src/modules/robo-bouncy-artwork.ts",
+    "finaleOwner": "src/modules/wild-juice-bubbles-explosion.ts",
+    "warmupPolicy": "Use actual reward eligibility plus restored live tiles; generation-owned preparation; reuse pending/ready resources.",
+    "cleanupPolicy": "Stop through special-dice-idle and finale owner on completion, interruption, tile destruction and board exit; preserve shared live resources.",
+    "hudDepthPolicy": "shared-animated-dice-hud-foreground",
+    "tests": [
+      "src/modules/__tests__/robo-bouncy-artwork.test.ts",
+      "src/modules/__tests__/animated-dice-hud-foreground.test.ts"
+    ]
+  },
+  "cubero": {
+    "archetype": "wild-star",
+    "idleOwner": "src/modules/special-dice-idle.ts",
+    "finaleOwner": "src/modules/splash-text-overlay.ts",
+    "warmupPolicy": "Use actual reward eligibility plus restored live tiles; generation-owned preparation; reuse pending/ready resources.",
+    "cleanupPolicy": "Stop through special-dice-idle and finale owner on completion, interruption, tile destruction and board exit; preserve shared live resources.",
+    "hudDepthPolicy": "contained-board-footprint",
+    "tests": [
+      "src/modules/__tests__/final-merge-all-archetypes.test.ts"
+    ]
+  },
+  "beach-ball": {
+    "archetype": "wild-tnt",
+    "idleOwner": "src/modules/ball-bouncy-artwork.ts",
+    "finaleOwner": "src/modules/wild-juice-bubbles-explosion.ts",
+    "warmupPolicy": "Use actual reward eligibility plus restored live tiles; generation-owned preparation; reuse pending/ready resources.",
+    "cleanupPolicy": "Stop through special-dice-idle and finale owner on completion, interruption, tile destruction and board exit; preserve shared live resources.",
+    "hudDepthPolicy": "shared-animated-dice-hud-foreground",
+    "tests": [
+      "src/modules/__tests__/shared-pixi-sheet-animation.test.ts",
+      "src/modules/__tests__/animated-dice-hud-foreground.test.ts"
+    ]
+  }
+}

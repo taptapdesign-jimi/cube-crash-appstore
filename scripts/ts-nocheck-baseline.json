@@ -22,7 +22,6 @@
   "src/modules/first-play-tutorial.ts",
   "src/modules/fx-animations.ts",
   "src/modules/fx-helpers.ts",
-  "src/modules/fx-special-effects.ts",
   "src/modules/fx-visual-effects.ts",
   "src/modules/fx.ts",
   "src/modules/hud-animations.ts",

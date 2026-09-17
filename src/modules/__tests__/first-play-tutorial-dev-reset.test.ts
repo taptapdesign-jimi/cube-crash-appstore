@@ -32,12 +32,11 @@ describe('First Time Run developer reset', () => {
 
   test('runs the reset before arming the developer tutorial request', () => {
     const source = fs.readFileSync(
-      path.resolve(process.cwd(), 'src/modules/first-play-tutorial.ts'),
+      path.resolve(process.cwd(), 'src/modules/first-play-tutorial-request.ts'),
       'utf8',
     );
     const setter = source.slice(
       source.indexOf('export function setFirstPlayTutorialDevEnabled'),
-      source.indexOf('export function beginFirstPlayTutorialRun'),
     );
     expect(setter.indexOf('clearFirstPlayTutorialResumeBlockers()')).toBeGreaterThanOrEqual(0);
     expect(setter.indexOf('clearFirstPlayTutorialResumeBlockers()')).toBeLessThan(setter.indexOf('armFirstPlayTutorial()'));

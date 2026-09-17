@@ -65,6 +65,7 @@ function softenScale(target: number): number {
 }
 
 export type KantaDiceIdleController = {
+  ownsBase: (candidate: unknown) => boolean;
   setDragging: (dragging: boolean) => void;
   dispose: () => void;
 };
@@ -354,6 +355,7 @@ export function startKantaDiceIdle(
   });
 
   const controller: KantaDiceIdleController = {
+    ownsBase: (candidate) => !disposed && !base.destroyed && candidate === base,
     setDragging: (active: boolean) => {
       if (active) {
         timeline.pause();

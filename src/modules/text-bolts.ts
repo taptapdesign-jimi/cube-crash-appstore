@@ -339,7 +339,17 @@ export function attachBoltSprites(overlay: HTMLElement, opts: BoltFieldOptions =
   // Honey-only spacing owner. Authored GSAP paths remain independent while
   // this additive translate keeps 60% clear air between visible bee edges.
   const beeCollisionTick = () => {
-    const visible = beeCollisionStates.filter(({ img }) => Number(gsap.getProperty(img, 'opacity')) > 0.02);
+    // Authored GSAP pose is invariant throughout this synchronous solver tick.
+    // Snapshot it once; additive offsets remain live and retain the exact
+    // original pair/pass update order during all eight relaxation passes.
+    const visible = beeCollisionStates
+      .filter(({ img }) => Number(gsap.getProperty(img, 'opacity')) > 0.02)
+      .map((state) => ({
+        state,
+        scale: Math.max(0, Number(gsap.getProperty(state.img, 'scale')) || 0),
+        x: Number.parseFloat(state.img.style.left) + Number(gsap.getProperty(state.img, 'x')),
+        y: Number.parseFloat(state.img.style.top) + Number(gsap.getProperty(state.img, 'y')),
+      }));
 
     for (const state of beeCollisionStates) {
       state.offsetX *= 0.9;
@@ -350,16 +360,16 @@ export function attachBoltSprites(overlay: HTMLElement, opts: BoltFieldOptions =
     // a new collision with a neighbouring bee. Honey has at most 28 sprites.
     for (let pass = 0; pass < 8; pass += 1) {
       for (let i = 0; i < visible.length; i += 1) {
-        const first = visible[i];
-        const firstScale = Math.max(0, Number(gsap.getProperty(first.img, 'scale')) || 0);
-        const firstX = Number.parseFloat(first.img.style.left) + Number(gsap.getProperty(first.img, 'x')) + first.offsetX;
-        const firstY = Number.parseFloat(first.img.style.top) + Number(gsap.getProperty(first.img, 'y')) + first.offsetY;
+        const first = visible[i].state;
+        const firstScale = visible[i].scale;
+        const firstX = visible[i].x + first.offsetX;
+        const firstY = visible[i].y + first.offsetY;
 
         for (let j = i + 1; j < visible.length; j += 1) {
-          const second = visible[j];
-          const secondScale = Math.max(0, Number(gsap.getProperty(second.img, 'scale')) || 0);
-          const secondX = Number.parseFloat(second.img.style.left) + Number(gsap.getProperty(second.img, 'x')) + second.offsetX;
-          const secondY = Number.parseFloat(second.img.style.top) + Number(gsap.getProperty(second.img, 'y')) + second.offsetY;
+          const second = visible[j].state;
+          const secondScale = visible[j].scale;
+          const secondX = visible[j].x + second.offsetX;
+          const secondY = visible[j].y + second.offsetY;
           const minimumDistance = ((first.size * firstScale + second.size * secondScale) * 0.5) * 1.6;
           let deltaX = secondX - firstX;
           let deltaY = secondY - firstY;

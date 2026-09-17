@@ -54,7 +54,7 @@ This document describes all modules in the refactored CubeCrash codebase.
 - `screenShake()` - Screen shake effect
 - `magicSparklesAtTile()` - Magic sparkles
 
-### **fx-special-effects.ts** (200 linija)
+### **fx.ts**
 **Purpose:** Special effects
 **Exports:**
 - `showMultiplierTile()` - Show multiplier
@@ -231,7 +231,7 @@ import { updateHUD, setScore } from './modules/hud-core.js';
 // Effects
 import { glassCrackAtTile } from './modules/fx-visual-effects.js';
 import { screenShake } from './modules/fx-animations.js';
-import { wildImpactEffect } from './modules/fx-special-effects.js';
+import { wildImpactEffect } from './modules/fx.js';
 ```
 
 ### **Module Structure:**

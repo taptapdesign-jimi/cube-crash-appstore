@@ -1,7 +1,8 @@
 type LoadRecoveryDeps = {
+  isCurrent?: () => boolean;
   tiles: any[];
   boardNumber: number;
-  checkAndRecoverBoard: (tileInfos: any[], boardNumber: number, triggerCleanBoardFlow: any) => Promise<{ wasStuck: boolean }>;
+  checkAndRecoverBoard: (tileInfos: any[], boardNumber: number, triggerCleanBoardFlow: any, isCurrent?: () => boolean) => Promise<{ wasStuck: boolean }>;
   triggerCleanBoardFlow: any;
   checkLevelEnd?: () => void;
   trackAppTimeout: (fn: () => void, ms: number) => any;
@@ -34,6 +35,7 @@ export function resolvePostLoadRecoveryDecision(recoveryResult: { wasStuck?: boo
 }
 
 export function schedulePostLoadRecoveryCheck({
+  isCurrent = () => true,
   tiles,
   boardNumber,
   checkAndRecoverBoard,
@@ -44,6 +46,7 @@ export function schedulePostLoadRecoveryCheck({
   devWarn,
 }: LoadRecoveryDeps){
   trackAppTimeout(async () => {
+    if (!isCurrent()) return;
     try {
       const tileInfos = createPostLoadRecoveryTileInfos(tiles);
 
@@ -52,9 +55,11 @@ export function schedulePostLoadRecoveryCheck({
       const recoveryResult = await checkAndRecoverBoard(
         tileInfos,
         currentBoardNum,
-        triggerCleanBoardFlow
+        async (...args: any[]) => { if (isCurrent()) await triggerCleanBoardFlow(...args); },
+        isCurrent,
       );
 
+      if (!isCurrent()) return;
       const decision = resolvePostLoadRecoveryDecision(recoveryResult);
       if (decision.type === 'recovered_stuck') {
         devLog('🚨 BOARD RECOVERY EXECUTED:', recoveryResult);
@@ -66,6 +71,7 @@ export function schedulePostLoadRecoveryCheck({
         checkLevelEnd();
       }
     } catch (e) {
+      if (!isCurrent()) return;
       devWarn('⚠️ Board recovery check failed (non-fatal):', e);
       if (typeof checkLevelEnd === 'function') {
         try {

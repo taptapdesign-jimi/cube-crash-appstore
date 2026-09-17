@@ -114,6 +114,14 @@ Follow evidence, but check these ownership layers in order:
 - Preserve premium bounce and enter/exit behavior unless the trace proves it is the bottleneck.
 - Add a focused regression test for each lifecycle policy or decision extracted from the incident.
 
+## Instruments sample validity
+
+“Recording started” and a saved `.trace` are not evidence of CPU or power samples. The 2026-09-17 Area55 capture retained console/thermal data but exported zero CPU/power samples after a device disconnect.
+
+Before asking the user for another profiling reproduction, verify the intended Instruments configuration with a short completed capture while the device remains connected. Export `time-profile` to `cpu.xml`, `ProcessSubsystemPowerImpact` and `SystemPowerLevel` to their named XML files, then run `python3 scripts/verify-instruments-capture.py CAPTURE_DIRECTORY`. Require actual numeric samples for the quantities to be claimed. The checker only validates sample presence; inspect process identity, time coverage, units and comparable conditions separately. A failed power check does not invalidate independent console evidence, but forbids energy attribution from that trace.
+
+At the end of reproduction, stop and flush Instruments before instructing a device disconnect when practical. If thermal symptoms require ending play, end gameplay immediately; do not continue stressing the phone for instrumentation. If the device disconnects, preserve the file and verify sample counts instead of assuming data survived. Do not attribute transport failure to an app crash.
+
 ## Before/after report
 
 Report concrete changes such as:

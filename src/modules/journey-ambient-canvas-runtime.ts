@@ -1,3 +1,4 @@
+import { isThermalWorkSuppressed } from '../utils/thermal-isolation.js';
 const DEFAULT_VISIBILITY_MARGIN_PX = 180;
 const MAX_CANVAS_PIXEL_RATIO = 2;
 
@@ -15,6 +16,8 @@ export interface JourneyAmbientCanvasFrame {
   viewportBottom: number;
   width: number;
   height: number;
+  /** Canvas-local painted bounds, including rotation/scale; opt-in damage tracking. */
+  markPaintedBounds?(depth: JourneyAmbientCanvasDepth, x: number, y: number, width: number, height: number): void;
   behind: CanvasRenderingContext2D | null;
   front: CanvasRenderingContext2D | null;
 }
@@ -36,6 +39,7 @@ export interface JourneyAmbientCanvasRuntimeOptions {
   frontZIndex?: number;
   className: string;
   observeVisibility?: boolean;
+  trackPaintedBounds?: boolean;
   render(frame: JourneyAmbientCanvasFrame): number | void;
 }
 
@@ -160,6 +164,28 @@ export function startJourneyAmbientCanvasRuntime(
   let sceneVisible = true;
   let lastRenderTime = options.ticker.time - minimumFrameDeltaSeconds;
   let observer: IntersectionObserver | null = null;
+  type Damage = { left: number; top: number; right: number; bottom: number };
+  const damage: Record<JourneyAmbientCanvasDepth, Damage | null> = { behind: null, front: null };
+  const markPaintedBounds = (depth: JourneyAmbientCanvasDepth, x: number, y: number, width: number, height: number): void => {
+    // Round outward with a 2 CSS-pixel sampling margin. Keep old bitmap-local
+    // coordinates when the viewport moves: those are the pixels to erase.
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(width) || !Number.isFinite(height)) {
+      damage[depth] = { left: 0, top: 0, right: sceneWidth, bottom: canvasHeight };
+      return;
+    }
+    const left = clamp(Math.floor(x - 2), 0, sceneWidth);
+    const top = clamp(Math.floor(y - 2), 0, canvasHeight);
+    const right = clamp(Math.ceil(x + width + 2), 0, sceneWidth);
+    const bottom = clamp(Math.ceil(y + height + 2), 0, canvasHeight);
+    if (right <= left || bottom <= top) return;
+    const old = damage[depth];
+    if (old) {
+      old.left = Math.min(old.left, left);
+      old.top = Math.min(old.top, top);
+      old.right = Math.max(old.right, right);
+      old.bottom = Math.max(old.bottom, bottom);
+    } else damage[depth] = { left, top, right, bottom };
+  };
   let fadeFrame = 0;
   let fadeTimeout = 0;
 
@@ -193,12 +219,15 @@ export function startJourneyAmbientCanvasRuntime(
     frontContext?.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   };
 
+  let currentScrollTop = 0;
+
   const refreshGeometry = (): void => {
     if (disposed) return;
     if (scrollRoot) {
       const rootRect = options.root.getBoundingClientRect();
       const scrollRect = scrollRoot.getBoundingClientRect();
-      rootContentTop = rootRect.top - scrollRect.top + scrollRoot.scrollTop + layerTop;
+      currentScrollTop = scrollRoot.scrollTop;
+      rootContentTop = rootRect.top - scrollRect.top + currentScrollTop + layerTop;
     } else {
       rootContentTop = layerTop;
     }
@@ -207,7 +236,7 @@ export function startJourneyAmbientCanvasRuntime(
 
   const updateViewport = (): void => {
     viewportTop = scrollRoot
-      ? scrollRoot.scrollTop - rootContentTop
+      ? currentScrollTop - rootContentTop
       : Math.max(0, -options.root.getBoundingClientRect().top - layerTop);
     const desiredTop = viewportTop - visibilityMargin;
     canvasSceneTop = clamp(desiredTop, 0, Math.max(0, sceneHeight - canvasHeight));
@@ -216,9 +245,16 @@ export function startJourneyAmbientCanvasRuntime(
     if (frontCanvas.style.transform !== transform) frontCanvas.style.transform = transform;
   };
 
+  const clearLayer = (depth: JourneyAmbientCanvasDepth, context: CanvasRenderingContext2D | null): void => {
+    const previous = damage[depth];
+    if (!options.trackPaintedBounds) context?.clearRect(0, 0, sceneWidth, canvasHeight);
+    else if (previous) context?.clearRect(previous.left, previous.top, previous.right - previous.left, previous.bottom - previous.top);
+    damage[depth] = null;
+  };
+
   const clearCanvases = (): void => {
-    behindContext?.clearRect(0, 0, sceneWidth, canvasHeight);
-    frontContext?.clearRect(0, 0, sceneWidth, canvasHeight);
+    clearLayer('behind', behindContext);
+    clearLayer('front', frontContext);
   };
 
   const tick = (): void => {
@@ -228,7 +264,7 @@ export function startJourneyAmbientCanvasRuntime(
       controller.dispose();
       return;
     }
-    if (suspended || !sceneVisible || (typeof document !== 'undefined' && document.hidden)) {
+    if (isThermalWorkSuppressed('ambient') || suspended || !sceneVisible || (typeof document !== 'undefined' && document.hidden)) {
       lastRenderTime = now;
       return;
     }
@@ -252,6 +288,7 @@ export function startJourneyAmbientCanvasRuntime(
       height: canvasHeight,
       behind: behindContext,
       front: frontContext,
+      markPaintedBounds: options.trackPaintedBounds ? markPaintedBounds : undefined,
     });
     visibleSpriteCount = typeof renderedCount === 'number' ? renderedCount : 0;
   };
@@ -260,6 +297,11 @@ export function startJourneyAmbientCanvasRuntime(
   // absolute canvases already travel with native scrolling; moving them before
   // their bitmap is repainted exposes one stale scene slice in WKWebView. The
   // bounded ticker updates transform and pixels together before the next paint.
+  // Reading scrollTop in every idle frame forces WebKit style/layout updates.
+  // Scroll events cache position only; the ticker still moves pixels and the
+  // canvas window together, preserving the inertial-scroll paint contract.
+  const handleScroll = (): void => { if (scrollRoot) currentScrollTop = scrollRoot.scrollTop; };
+  scrollRoot?.addEventListener('scroll', handleScroll, { passive: true });
   const handleResize = (): void => refreshGeometry();
   window.addEventListener('resize', handleResize, { passive: true });
 
@@ -267,6 +309,7 @@ export function startJourneyAmbientCanvasRuntime(
     setSuspended(nextSuspended): void {
       if (disposed || suspended === nextSuspended) return;
       suspended = nextSuspended;
+      if (!suspended) handleScroll();
       lastRenderTime = options.ticker.time;
       const willChange = suspended ? 'auto' : 'transform';
       behindCanvas.style.willChange = willChange;
@@ -331,6 +374,7 @@ export function startJourneyAmbientCanvasRuntime(
       clearFadeOwnership();
       options.ticker.remove(tick);
       window.removeEventListener('resize', handleResize);
+      scrollRoot?.removeEventListener('scroll', handleScroll);
       observer?.disconnect();
       observer = null;
       behindCanvas.style.willChange = 'auto';

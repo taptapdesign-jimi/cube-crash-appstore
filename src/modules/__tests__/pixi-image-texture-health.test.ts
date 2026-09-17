@@ -95,6 +95,7 @@ describe('Pixi image texture health barrier', () => {
     const healthSource = fs.readFileSync(path.join(repoRoot, 'src/utils/pixi-image-texture-health.ts'), 'utf8');
     const appCoreSource = fs.readFileSync(path.join(repoRoot, 'src/modules/app-core.ts'), 'utf8');
     const boardSource = fs.readFileSync(path.join(repoRoot, 'src/modules/board.ts'), 'utf8');
+    const hudSource = fs.readFileSync(path.join(repoRoot, 'src/modules/hud-helpers.ts'), 'utf8');
     const layoutSource = fs.readFileSync(path.join(repoRoot, 'src/modules/app-core-startlevel-layout.ts'), 'utf8');
     const errorHandlerSource = fs.readFileSync(path.join(repoRoot, 'src/utils/error-handler.ts'), 'utf8');
 
@@ -136,6 +137,16 @@ describe('Pixi image texture health barrier', () => {
     expect(appCoreSource).toContain('resumeLease.resumeTicker');
     expect(appCoreSource).toContain('Healthy foreground texture validation completed without HUD/layout rebuild');
     expect(appCoreSource).toContain("reason === 'webglcontextrestored'");
+    expect(appCoreSource).toContain('await retireSpecialDiceRendererOwnersForRecovery(reason);');
+    expect(appCoreSource).toContain('await releaseIdleSharedPixiSheets();');
+    expect(appCoreSource).toContain('restartSpecialDiceRendererOwnersAfterRecovery(reason);');
+    expect(hudSource).toContain('if (forceRecreateForTextures) destroyGeneratedTextRasters(HUD_ROOT);');
+    expect(hudSource).toContain('child.destroy({ texture: true, textureSource: true });');
+    expect(hudSource).toContain('HUD_ROOT.destroy({ children: true, texture: false, textureSource: false });');
+    expect(appCoreSource.indexOf('await retireSpecialDiceRendererOwnersForRecovery(reason);'))
+      .toBeLessThan(appCoreSource.indexOf('const refreshedAssets = await ensureCoreRenderTexturesGpuReady(`recovery:${reason}`);'));
+    expect(appCoreSource.indexOf('await layoutBoard();'))
+      .toBeLessThan(appCoreSource.indexOf('restartSpecialDiceRendererOwnersAfterRecovery(reason);'));
     expect(appCoreSource).toContain('unavailableAssets.length > 0');
     expect(appCoreSource).toContain("const CORE_GPU_PROBE_ASSETS = [ASSET_TILE, ASSET_NUMBERS] as const;");
     expect(appCoreSource).toContain("emitNativeConsoleDiagnostic('[CC_TEXTURE_HEALTH]', 'gpu-probe'");

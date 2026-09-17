@@ -26,6 +26,7 @@ export const FISH_BUBBLES_END_VERTICAL_OFFSET_VIEWPORT_RATIO = 0.25;
 
 let preloadedVideo: HTMLVideoElement | null = null;
 let hevcUnavailable = false;
+const warmedVideos = new WeakSet<HTMLVideoElement>();
 let fishBubblesRunSequence = 0;
 
 function configureVideo(video: HTMLVideoElement): void {
@@ -82,7 +83,12 @@ export function preloadFishFinaleBubbles(): void {
   preloadFishFinaleSwimmer();
   if (MOBILE_RUNTIME_PROFILE.platform === 'ios' && !hevcUnavailable) {
     const video = getOrCreatePreloadedVideo();
-    try { video.load(); } catch { hevcUnavailable = true; }
+    if (!warmedVideos.has(video)) {
+      try {
+        video.load();
+        warmedVideos.add(video);
+      } catch { hevcUnavailable = true; }
+    }
     return;
   }
   const image = new Image();

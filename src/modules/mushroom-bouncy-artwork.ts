@@ -41,6 +41,7 @@ export const MUSHROOM_BOUNCY_SHEET_SPEC: SharedPixiSheetSpec = Object.freeze({
   cycleMs: MUSHROOM_BOUNCY_CYCLE_MS,
   anchorX: DISPLAY_ANCHOR_X,
   anchorY: DISPLAY_ANCHOR_Y,
+  renderAboveHud: true,
 });
 
 export function isMushroomBouncyTile(tile: any): boolean {

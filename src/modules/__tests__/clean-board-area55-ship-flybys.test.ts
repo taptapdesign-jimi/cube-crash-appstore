@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+  CLEAN_BOARD_AREA55_SHIP_MAX_WOBBLE_PX,
   createCleanBoardArea55ShipFlightPlan,
   startCleanBoardArea55ShipFlybys,
 } from '../clean-board-area55-ship-flybys';
@@ -38,7 +39,7 @@ describe('Clean Board Area 55 ship flybys', () => {
     jest.restoreAllMocks();
   });
 
-  test('samples gentle full-celebration paths with random wobble and an ease-out exit', () => {
+  test('samples continuously moving full-celebration paths with bounded two-axis wobble', () => {
     const first = createCleanBoardArea55ShipFlightPlan({
       depth: 'behind',
       viewportWidth: 390,
@@ -52,58 +53,98 @@ describe('Clean Board Area 55 ship flybys', () => {
       random: () => 0.99,
     });
 
+    expect(first.corridor).toBe('left');
+    expect(second.corridor).toBe('right');
     expect(first.startEdge).toBe('top');
-    expect(first.endEdge).toBe('right');
-    expect(second.startEdge).toBe('left');
-    expect(second.endEdge).toBe('bottom');
-    expect(first.keyframes).toHaveLength(28);
+    expect(first.endEdge).toBe('left');
+    expect(second.startEdge).toBe('bottom');
+    expect(second.endEdge).toBe('right');
+    expect(first.keyframes.length).toBeGreaterThan(200);
+    expect(first.keyframes.length).toBeLessThan(400);
     expect(first.keyframes[0]).toMatchObject({ offset: 0, opacity: 0 });
-    expect(first.keyframes[1]).toMatchObject({ offset: 0.16, opacity: 0.7 });
-    expect(first.keyframes[25]).toMatchObject({ offset: 0.85 });
-    expect(first.keyframes[26]).toMatchObject({ offset: 0.92, easing: 'cubic-bezier(.22,.61,.36,1)' });
-    expect(first.keyframes[27]).toMatchObject({ offset: 1, opacity: 0 });
-    expect(first.keyframes.map((frame) => frame.transform).join(' ')).toContain('scale(');
-    expect(first.keyframes.map((frame) => frame.transform).join(' ')).toContain('-112.0px');
+    expect(first.keyframes[first.keyframes.length - 1]).toMatchObject({ offset: 1, opacity: 0 });
+    expect(first.keyframes.find((frame) => Number(frame.offset) >= 0.2)).toMatchObject({ opacity: 0.7 });
+    expect(first.keyframes[0].transform).toContain('-112.000px');
+    expect(first.keyframes[first.keyframes.length - 1]?.transform).toContain('-112.000px');
     expect(first.durationMs).toBe(CLEAN_BOARD_CONFETTI_MAX_RUNTIME_MS);
     expect(second.durationMs).toBe(CLEAN_BOARD_CONFETTI_MAX_RUNTIME_MS);
     expect(first.keyframes).not.toEqual(second.keyframes);
   });
 
-  test('each settled interior waypoint briefly bobs, slides and rotates before flight resumes', () => {
-    const plan = createCleanBoardArea55ShipFlightPlan({
-      depth: 'front',
-      viewportWidth: 390,
-      viewportHeight: 844,
-      random: () => 0.5,
-    });
-    const offsets = plan.keyframes.map((frame) => frame.offset);
-    const parse = (frame: Keyframe) => {
-      const transform = String(frame.transform);
-      const match = transform.match(/translate3d\((-?[\d.]+)px, (-?[\d.]+)px, 0\) rotate\((-?[\d.]+)deg\)/);
-      expect(match).not.toBeNull();
-      return { x: Number(match![1]), y: Number(match![2]), rotation: Number(match![3]) };
+  test.each([0, 0.2, 0.5, 0.8, 0.99])('keeps the two independently sampled routes visibly far apart (seed %s)', (seed) => {
+    let behindState = Math.floor(seed * 0xffffffff) ^ 0x13579bdf;
+    let frontState = Math.floor(seed * 0xffffffff) ^ 0x2468ace0;
+    const next = (state: number): [number, number] => {
+      const value = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+      return [value, value / 0x100000000];
     };
+    const behind = createCleanBoardArea55ShipFlightPlan({
+      depth: 'behind', viewportWidth: 390, viewportHeight: 844,
+      random: () => {
+        const sampled = next(behindState);
+        behindState = sampled[0];
+        return sampled[1];
+      },
+    });
+    const front = createCleanBoardArea55ShipFlightPlan({
+      depth: 'front', viewportWidth: 390, viewportHeight: 844,
+      random: () => {
+        const sampled = next(frontState);
+        frontState = sampled[0];
+        return sampled[1];
+      },
+    });
+    const x = (frame: Keyframe): number => Number(
+      String(frame.transform).match(/translate3d\((-?[\d.]+)px/)?.[1],
+    );
+    behind.keyframes.forEach((behindFrame, index) => {
+      const t = Number(behindFrame.offset);
+      if (t < 0.16 || t > 0.85) return;
+      const visualGap = x(front.keyframes[index]) - (x(behindFrame) + 62);
+      expect(visualGap).toBeGreaterThan(48);
+    });
+    expect(behind.keyframes).not.toEqual(front.keyframes);
+  });
 
-    for (const anchorOffset of [0.16, 0.29, 0.42, 0.55, 0.68, 0.79]) {
-      const anchorIndex = offsets.indexOf(anchorOffset);
-      expect(anchorIndex).toBeGreaterThan(0);
-      expect(offsets.slice(anchorIndex, anchorIndex + 4)).toEqual([
-        anchorOffset, anchorOffset + 0.008, anchorOffset + 0.018, anchorOffset + 0.03,
-      ]);
-      const anchor = parse(plan.keyframes[anchorIndex]);
-      const riseRight = parse(plan.keyframes[anchorIndex + 1]);
-      const fallLeft = parse(plan.keyframes[anchorIndex + 2]);
-      const settled = parse(plan.keyframes[anchorIndex + 3]);
-      expect(riseRight.x - anchor.x).toBeCloseTo(2, 1);
-      expect(riseRight.y - anchor.y).toBeCloseTo(-2, 1);
-      expect(riseRight.rotation - anchor.rotation).toBeCloseTo(1.6, 1);
-      expect(fallLeft.x - anchor.x).toBeCloseTo(-2, 1);
-      expect(fallLeft.y - anchor.y).toBeCloseTo(1.5, 1);
-      expect(fallLeft.rotation - anchor.rotation).toBeCloseTo(-1.4, 1);
-      expect(settled).toEqual(anchor);
-      expect(plan.keyframes[anchorIndex + 3].easing).toBe('cubic-bezier(.45,.05,.25,1)');
+  test.each([0, 0.25, 0.5, 0.75, 0.99])('smoothly reverses and banks without waypoint impacts (seed %s)', (seed) => {
+    let state = Math.floor(seed * 0xffffffff);
+    const plan = createCleanBoardArea55ShipFlightPlan({
+      depth: 'front', viewportWidth: 390, viewportHeight: 844,
+      random: () => {
+        state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+        return state / 0x100000000;
+      },
+    });
+    const poses = plan.keyframes.map((frame) => {
+      const match = String(frame.transform).match(/translate3d\((-?[\d.]+)px, (-?[\d.]+)px, 0\) rotate\((-?[\d.]+)deg\)/)!;
+      return { x: Number(match[1]), y: Number(match[2]), rotation: Number(match[3]), t: Number(frame.offset) };
+    });
+    const dt = plan.durationMs / 1000 / (poses.length - 1);
+    const velocities = poses.slice(1).map((point, i) => ({
+      x: (point.x - poses[i].x) / dt, y: (point.y - poses[i].y) / dt, t: point.t,
+    }));
+    const interior = velocities.filter(({ t }) => t > 0.2 && t < 0.8);
+    expect(interior.some(({ x }) => x > 10)).toBe(true);
+    expect(interior.some(({ x }) => x < -10)).toBe(true);
+    expect(interior.some(({ y }) => y > 10)).toBe(true);
+    expect(interior.some(({ y }) => y < -10)).toBe(true);
+    // At 30Hz, a turn must change velocity gradually; the old 10-point
+    // polygon exceeds these bounds at its corners. Include entry/exit joins.
+    for (let i = 1; i < velocities.length; i++) {
+      const delta = Math.hypot(velocities[i].x - velocities[i - 1].x, velocities[i].y - velocities[i - 1].y);
+      expect(delta).toBeLessThan(95);
+      if (velocities[i].t > 0.2 && velocities[i].t < 0.8) expect(delta).toBeLessThan(20);
+      expect(Math.abs(poses[i].rotation - poses[i - 1].rotation)).toBeLessThan(3);
     }
-    expect(offsets).toEqual([...offsets].sort((a, b) => Number(a) - Number(b)));
+    for (const point of poses.filter(({ t }) => t > 0.16 && t < 0.85)) {
+      expect(point.x).toBeGreaterThan(0);
+      expect(point.x).toBeLessThan(390 - 74);
+      expect(point.y).toBeGreaterThan(0);
+      expect(point.y).toBeLessThan(844 - 74);
+      expect(Math.abs(point.rotation)).toBeLessThanOrEqual(14);
+    }
+    expect(plan.keyframes.every((frame) => frame.easing === 'linear')).toBe(true);
+    expect(CLEAN_BOARD_AREA55_SHIP_MAX_WOBBLE_PX).toBe(60);
   });
 
   test('runs exactly one confetti-length animation for each depth layer', () => {

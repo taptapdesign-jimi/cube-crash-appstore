@@ -52,6 +52,24 @@ describe('Arcade continuation Round cue contract', () => {
     expect(coreSource).toContain('await consumeArcadeEntryCue(arcadeContinuationCueRound)');
   });
 
+  test('cold resume boots the saved Arcade Round identity before loading its board', () => {
+    const uiSource = fs.readFileSync(path.join(repoRoot, 'src/modules/ui-manager.ts'), 'utf8');
+    const resumeStart = uiSource.indexOf('async startNewGameWithSavedState(): Promise<void>');
+    const resumeEnd = uiSource.indexOf('// Hide app element', resumeStart);
+    const resume = uiSource.slice(resumeStart, resumeEnd);
+    const readRound = resume.indexOf('const continuationRound = getArcadeSavedRound();');
+    const setBootRound = resume.indexOf('(window as any).__ccStartAtLevel = continuationRound;');
+    const skipFreshBoard = resume.indexOf('(window as any).__ccSkipRebuildBoard = true;');
+    const boot = resume.indexOf('await bootGame();', skipFreshBoard);
+    const load = resume.indexOf('loaded = await loadGameState();', boot);
+
+    expect(readRound).toBeGreaterThan(-1);
+    expect(setBootRound).toBeGreaterThan(readRound);
+    expect(skipFreshBoard).toBeGreaterThan(setBootRound);
+    expect(boot).toBeGreaterThan(skipFreshBoard);
+    expect(load).toBeGreaterThan(boot);
+  });
+
   test('fresh Arcade shows Round 01 before its first non-tutorial board entrance', () => {
     const uiSource = fs.readFileSync(path.join(repoRoot, 'src/modules/ui-manager.ts'), 'utf8');
     const coreSource = fs.readFileSync(path.join(repoRoot, 'src/modules/app-core.ts'), 'utf8');

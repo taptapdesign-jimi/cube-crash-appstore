@@ -6,6 +6,7 @@ import {
 class MockAudioParam {
   value = 0;
   cancelScheduledValues = jest.fn();
+  linearRampToValueAtTime = jest.fn();
   setValueAtTime = jest.fn((value: number) => {
     this.value = value;
   });
@@ -36,6 +37,8 @@ class MockAudioContext {
   destination = {} as AudioDestinationNode;
   sources: MockBufferSource[] = [];
   gain = new MockGainNode();
+  gains: MockGainNode[] = [];
+  mediaNodes: Array<{ connect: jest.Mock; disconnect: jest.Mock }> = [];
   resume = jest.fn(async () => {
     this.state = 'running';
   });
@@ -47,7 +50,15 @@ class MockAudioContext {
   }
 
   createGain(): GainNode {
-    return this.gain as unknown as GainNode;
+    const gain = this.gains.length === 0 ? this.gain : new MockGainNode();
+    this.gains.push(gain);
+    return gain as unknown as GainNode;
+  }
+
+  createMediaElementSource(): MediaElementAudioSourceNode {
+    const node = { connect: jest.fn(), disconnect: jest.fn() };
+    this.mediaNodes.push(node);
+    return node as unknown as MediaElementAudioSourceNode;
   }
 
   createBufferSource(): AudioBufferSourceNode {
@@ -199,4 +210,70 @@ describe('sample-accurate main theme transport', () => {
     expect(MockAudioContext.instances[0].sources).toHaveLength(1);
     expect(voice.paused).toBe(false);
   });
+  it('retries a failed cold fetch on the next play without duplicating pending loads', async () => {
+    (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('transient failure'));
+    const voice = createSampleAccurateMainThemeVoice({
+      source: './retry.wav', loopStartSeconds: 2, loopEndSeconds: 59, initialVolume: 0.68,
+    })!;
+    await expect(voice.play()).rejects.toThrow('transient failure');
+    await expect(voice.play()).rejects.toThrow('transient failure');
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const now = jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 2001);
+    await Promise.all([voice.play(), voice.play()]);
+    now.mockRestore();
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(MockAudioContext.instances[0].sources).toHaveLength(1);
+    voice.dispose();
+  });
+
+  it('ramps on the audio clock without RAF and retargets from the audible level', () => {
+    const voice = createSampleAccurateMainThemeVoice({
+      source: './fade.wav', loopStartSeconds: 2, loopEndSeconds: 59, initialVolume: 0.68,
+    })!;
+    const context = MockAudioContext.instances[0];
+    voice.rampVolume!(0, 1000);
+    expect(context.gain.gain.linearRampToValueAtTime).toHaveBeenLastCalledWith(0, 1);
+    context.currentTime = 0.5;
+    expect(voice.volume).toBeCloseTo(0.34);
+    voice.rampVolume!(0.68, 1000);
+    expect(context.gain.gain.setValueAtTime).toHaveBeenLastCalledWith(0.34, 0.5);
+    context.currentTime = 1;
+    voice.cancelVolumeRamp!();
+    context.currentTime = 2;
+    expect(voice.volume).toBeCloseTo(0.51);
+    voice.dispose();
+  });
+
+  it('streams Arcade through the existing context gain and disconnects on disposal', async () => {
+    const originalAudio = global.Audio;
+    const media = {
+      volume: 1, paused: true, currentTime: 0, duration: 180, loop: true, preload: 'auto',
+      play: jest.fn(async () => { media.paused = false; }),
+      pause: jest.fn(() => { media.paused = true; }),
+      removeAttribute: jest.fn(), load: jest.fn(),
+    };
+    global.Audio = jest.fn(() => media) as unknown as typeof Audio;
+    const theme = createSampleAccurateMainThemeVoice({
+      source: './theme.wav', loopStartSeconds: 2, loopEndSeconds: 59, initialVolume: 0.68,
+    })!;
+    try {
+      const voice = theme.createMediaVoice!('./calm.wav')!;
+      voice.volume = 0;
+      await voice.play();
+      voice.rampVolume!(0.528, 1250);
+      const context = MockAudioContext.instances[0];
+      expect(MockAudioContext.instances).toHaveLength(1);
+      expect(media.volume).toBe(1);
+      expect(context.gains[1].gain.linearRampToValueAtTime).toHaveBeenLastCalledWith(0.528, 1.25);
+      voice.dispose!();
+      expect(media.pause).toHaveBeenCalled();
+      expect(context.mediaNodes[0].disconnect).toHaveBeenCalled();
+      expect(context.gains[1].disconnect).toHaveBeenCalled();
+      expect(context.close).not.toHaveBeenCalled();
+    } finally {
+      theme.dispose();
+      global.Audio = originalAudio;
+    }
+  });
+
 });

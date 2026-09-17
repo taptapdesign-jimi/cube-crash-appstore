@@ -54,7 +54,7 @@ import { areContinuousRuntimeDiagnosticsEnabled } from '../utils/runtime-diagnos
 import { resolveDragShadowAppearance } from './drag-shadow-pose.ts';
 import {
   acquireGameplayDragForeground,
-  setGameplayDragBounds,
+  refreshGameplayDragForeground,
 } from './gameplay-drag-foreground-owner.ts';
 import {
   playGameplayPickupSound,
@@ -709,6 +709,7 @@ export function initDrag(cfg) {
   try { app?.stage?.on('pointerdown', onStagePointerDownTrace); } catch {}
 
   const onCanvasPointerTrace = (phase: 'canvas-pointer-down' | 'canvas-pointer-up') => (e: PointerEvent) => {
+    if (!import.meta.env.DEV && (window as any).__ccFastStackDiagnostics !== true) return;
     const canvas = app?.canvas as HTMLCanvasElement | undefined;
     const rect = canvas?.getBoundingClientRect?.();
     emitFastStackTrace(phase, {
@@ -1035,7 +1036,7 @@ export function initDrag(cfg) {
       delete (activeDragTile as any)._shadowDirY;
     }
     drag._lastWatchdogRefreshAt = 0;
-    setGameplayDragBounds(null);
+    refreshGameplayDragForeground();
     try { releaseGameplayDragForeground?.(); } catch {}
     releaseGameplayDragForeground = null;
   }
@@ -1080,32 +1081,6 @@ export function initDrag(cfg) {
         try { restoreZ(t); } catch {}
       }
     }, 9000);
-  }
-
-  function publishActiveDragBounds(tile: any): void {
-    if (!tile || tile.destroyed) {
-      setGameplayDragBounds(null);
-      return;
-    }
-    try {
-      const bounds = tile.getBounds?.();
-      if (!bounds) return;
-      const canvas = app?.canvas as HTMLCanvasElement | null | undefined;
-      const canvasRect = canvas?.getBoundingClientRect?.();
-      const screen = app?.renderer?.screen;
-      const scaleX = canvasRect && Number(screen?.width) > 0
-        ? canvasRect.width / Number(screen.width)
-        : 1;
-      const scaleY = canvasRect && Number(screen?.height) > 0
-        ? canvasRect.height / Number(screen.height)
-        : 1;
-      setGameplayDragBounds({
-        x: (canvasRect?.left || 0) + (Number(bounds.x) || 0) * scaleX,
-        y: (canvasRect?.top || 0) + (Number(bounds.y) || 0) * scaleY,
-        width: Math.max(1, (Number(bounds.width) || tileSize) * scaleX),
-        height: Math.max(1, (Number(bounds.height) || tileSize) * scaleY),
-      });
-    } catch {}
   }
 
   function cancelActiveDrag(_options: { resumeIdle?: boolean } = {}): void {
@@ -1418,7 +1393,7 @@ export function initDrag(cfg) {
     rememberZ(t);
     promoteTileToDragLayer(t);
     t.zIndex = DRAG_LAYER_Z_INDEX;
-    publishActiveDragBounds(t);
+    refreshGameplayDragForeground();
 
     // Temporarily set grid cell to null so ghost placeholder becomes visible
     if (cfg.getGrid) {
@@ -1632,7 +1607,7 @@ export function initDrag(cfg) {
     // Bee artwork now so crossing the viewport midpoint flips on this exact
     // pointer frame rather than waiting for a later idle-timeline sample.
     try { refreshSpecialDiceIdleDragFacing(t); } catch {}
-    publishActiveDragBounds(t);
+    refreshGameplayDragForeground();
 
     // Restore the original generated-shadow movement owner. drag.vx/vy are
     // already low-pass filtered above, so reversals settle naturally without a
@@ -1922,6 +1897,19 @@ export function initDrag(cfg) {
 
   function onUp(e) {
     if (!isActivePointerEvent(e)) return;
+
+    // Pixi's federated global point is the release position, even when the
+    // browser omitted/coalesced the final pointermove. Reuse the queued move
+    // owner once so board-local conversion, threshold and drop geometry agree.
+    const finalPoint = e?.global;
+    if (drag.t && Number.isFinite(finalPoint?.x) && Number.isFinite(finalPoint?.y)
+      && (drag._pendingMoveEvent || finalPoint.x !== drag._lastGlobal?.x || finalPoint.y !== drag._lastGlobal?.y)) {
+      drag._pendingMoveEvent = {
+        pointerId: eventPointerId(e),
+        pointerType: e?.pointerType || drag.pointerType,
+        global: { x: finalPoint.x, y: finalPoint.y },
+      };
+    }
 
     if (drag._pendingMoveEvent) {
       if (drag._moveRaf !== null) {

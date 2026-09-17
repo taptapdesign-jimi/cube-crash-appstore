@@ -278,7 +278,8 @@ describe('Journey Hub transition ownership', () => {
       'export const animateJourneySliderExit = (): Promise<void>',
     )[1]?.split('export const finalizeJourneySliderExit')[0] ?? '';
 
-    expect(journeyExitSource).toContain("easing: 'cubic-bezier(0.60, -0.28, 0.735, 0.045)'");
+    expect(journeyExitSource).toContain(": 'cubic-bezier(0.60, -0.28, 0.735, 0.045)'");
+    expect(journeyExitSource).toContain('isHero ? heroMotion.keyframes');
     expect(journeyExitSource).not.toContain('cubic-bezier(0.68, -0.6, 0.32, 1.6)');
     expect(journeyExitSource).not.toContain("classList.add('animate-exit')");
   });

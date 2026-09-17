@@ -110,9 +110,10 @@ function cleanupSmokeContainer(smokeContainer: HTMLElement | null): void {
       } catch {}
     });
 
-    domElementPool.release(smokeContainer);
-
     const sourceCard = (smokeContainer as any)._sourceCard as HTMLElement | null;
+    // The shared DOM pool outlives this card and may reuse the div elsewhere.
+    (smokeContainer as any)._sourceCard = null;
+    domElementPool.release(smokeContainer);
     if (sourceCard && (sourceCard as any)._smokeActive) {
       (sourceCard as any)._smokeActive = false;
     }

@@ -11,7 +11,7 @@ import { resetAnimationFlags } from '../utils/animations.js';
 import { getOriginalGsapTo } from './drag-core.js';
 import { isHomepageSlideVisible } from './homepage-slide-order.js';
 import { resolveHomepageSliderViewportWidth } from './homepage-slider-layout.js';
-import { isFirstPlayTutorialForced } from './first-play-tutorial.js';
+import { isFirstPlayTutorialForced } from './first-play-tutorial-request.js';
 import { homepageEnterTransitionOwner } from './homepage-enter-transition-owner.js';
 import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.js';
 import {
@@ -61,8 +61,7 @@ class SliderManager {
     divider: null
   };
   
-  // 🔥 FIX: Track active intervals for proper cleanup
-  private activeIntervals: Set<ReturnType<typeof setInterval>> = new Set();
+  private cancelQueuedSlide: (() => void) | null = null;
   
   // 🔥 FIX: Track active requestAnimationFrame IDs for proper cleanup
   private activeRAFs: Set<number> = new Set();
@@ -1022,6 +1021,7 @@ class SliderManager {
       return;
     }
 
+    this.cancelQueuedSlide?.();
     const shouldBounceHeroOnArrival = slideIndex !== this.currentSlide;
     
     // 🔥 CRITICAL FIX: Ensure isDragging is false before slide change
@@ -1036,41 +1036,19 @@ class SliderManager {
     if (sliderState.isAnimatingEnter) {
       logger.info(`⏳ Slider enter animation still running, queuing slide change to ${slideIndex}...`);
       
-      // 🔥 FIX: Track interval for proper cleanup - use constants
-      const checkInterval = setInterval(() => {
-        if (!sliderState.isAnimatingEnter) {
-          clearInterval(checkInterval);
-          this.activeIntervals.delete(checkInterval);
-          
-          setTimeout(() => {
-            if (slideIndex >= 0 && slideIndex < this.totalSlides) {
-              this.pendingHeroBounceSlide = shouldBounceHeroOnArrival ? slideIndex : null;
-              this.currentSlide = slideIndex;
-              this.suppressCurrentSlideSubscription = true;
-              try {
-                gameState.set('currentSlide', slideIndex);
-              } finally {
-                this.suppressCurrentSlideSubscription = false;
-              }
-              this.updateSlider(true);
-              logger.info(`✅ Queued slide change to ${slideIndex} completed with smooth animation`);
-            }
-          }, SLIDER_ANIMATION.ANIMATION_CHECK_INTERVAL);
-        }
-      }, SLIDER_ANIMATION.ANIMATION_CHECK_INTERVAL);
-      
-      this.activeIntervals.add(checkInterval);
-      
-      // Fallback timeout using constant - also reset stuck animation flag
-      setTimeout(() => {
-        if (this.activeIntervals.has(checkInterval)) {
-          clearInterval(checkInterval);
-          this.activeIntervals.delete(checkInterval);
-        }
-        if (sliderState.isAnimatingEnter) {
-          logger.warn(`⚠️ Enter animation flag still true after ${SLIDER_ANIMATION.FALLBACK_TIMEOUT}ms - FORCE RESETTING FLAG`);
-          sliderState.setAnimatingEnter(false); // 🔥 FIX: Reset stuck flag
-        }
+      let cancelled = false;
+      let settleTimeout: ReturnType<typeof setTimeout> | undefined;
+      const cancel = () => {
+        cancelled = true;
+        clearInterval(checkInterval);
+        clearTimeout(fallbackTimeout);
+        clearTimeout(settleTimeout);
+        if (this.cancelQueuedSlide === cancel) this.cancelQueuedSlide = null;
+      };
+      const commit = () => {
+        if (cancelled) return;
+        cancel();
+        if (gameState.get('sliderLocked') || sliderState.isAnimatingExit) return;
         if (slideIndex >= 0 && slideIndex < this.totalSlides) {
           this.pendingHeroBounceSlide = shouldBounceHeroOnArrival ? slideIndex : null;
           this.currentSlide = slideIndex;
@@ -1082,7 +1060,23 @@ class SliderManager {
           }
           this.updateSlider(true);
         }
+      };
+      const checkInterval = setInterval(() => {
+        if (!sliderState.isAnimatingEnter) {
+          clearInterval(checkInterval);
+          clearTimeout(fallbackTimeout);
+          settleTimeout = setTimeout(commit, SLIDER_ANIMATION.ANIMATION_CHECK_INTERVAL);
+        }
+      }, SLIDER_ANIMATION.ANIMATION_CHECK_INTERVAL);
+      const fallbackTimeout = setTimeout(() => {
+        if (cancelled) return;
+        if (!gameState.get('sliderLocked') && !sliderState.isAnimatingExit && sliderState.isAnimatingEnter) {
+          logger.warn(`⚠️ Enter animation flag still true after ${SLIDER_ANIMATION.FALLBACK_TIMEOUT}ms - FORCE RESETTING FLAG`);
+          sliderState.setAnimatingEnter(false);
+        }
+        commit();
       }, SLIDER_ANIMATION.FALLBACK_TIMEOUT);
+      this.cancelQueuedSlide = cancel;
       
       return;
     }
@@ -1615,9 +1609,8 @@ class SliderManager {
     (window as any).__ccIsHidingCollectibles = false;
     logger.info('✅ All animation flags cleared');
     
-    // 2. Clear any pending intervals that might be blocking
-    this.activeIntervals.forEach(interval => clearInterval(interval));
-    this.activeIntervals.clear();
+    // 2. Retire the complete pending navigation owner.
+    this.cancelQueuedSlide?.();
     
     // 3. Clear any pending RAFs
     this.activeRAFs.forEach(raf => cancelAnimationFrame(raf));
@@ -1683,12 +1676,7 @@ class SliderManager {
   destroy(): void {
     // Retire any nav tap waiting on a Homepage enter owned by this lifecycle.
     this.navIntentGeneration += 1;
-    // 🔥 FIX: Clear all active intervals first
-    this.activeIntervals.forEach(interval => {
-      clearInterval(interval);
-    });
-    this.activeIntervals.clear();
-    logger.info('🧹 Active intervals cleared');
+    this.cancelQueuedSlide?.();
     
     // 🔥 FIX: Cancel all pending requestAnimationFrame calls
     this.activeRAFs.forEach(rafId => {

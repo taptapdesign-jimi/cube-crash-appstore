@@ -18,7 +18,7 @@ describe('regular merge-6 to wild reward handoff', () => {
     expect(appMerge).toContain("import { AppSpawnCancelledError, openAtCell, spawnBounce } from './app-spawn.ts'");
     expect((appMerge.match(/instanceof AppSpawnCancelledError/g) || []).length).toBeGreaterThanOrEqual(4);
     expect(appMerge).toContain('magnetLifecycleCancelled = true;');
-    expect(appMerge).toContain('const postGuardCheckSource = magnetLifecycleCancelled');
+    expect(appMerge).toContain('const postGuardCheckSource = !isLifecycleCurrent()');
   });
 
   test('serializes reward entry behind destination ownership and never aborts deferred cleanup', () => {

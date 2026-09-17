@@ -148,3 +148,21 @@ test('endgame observation stays blocked until the special transaction releases',
   expect(owner.release(token)).toBe(true);
   expect(getSpecialDiceEndgameBlock(owner)).toBeNull();
 });
+
+
+test('failed revision capture fails closed without reusing an older snapshot', () => {
+  let revision = 12;
+  const getter = jest.fn(() => revision);
+  const guard = new PostCommitBoardRevisionGuard(getter);
+  expect(guard.capture()).toBe(12);
+  revision = Number.NaN;
+  expect(guard.capture()).toBeNull();
+  revision = 12;
+  expect(guard.isCurrent()).toBe(false);
+  getter.mockImplementationOnce(() => { throw new Error('unavailable'); });
+  expect(guard.capture()).toBeNull();
+  expect(guard.isCurrent()).toBe(false);
+  const legacy = new PostCommitBoardRevisionGuard();
+  expect(legacy.capture()).toBeNull();
+  expect(legacy.isCurrent()).toBe(true);
+});

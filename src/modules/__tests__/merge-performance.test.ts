@@ -1,4 +1,7 @@
 import {
+  beginMergePerformanceTrace,
+  captureMergePerformanceMarker,
+  finishMergePerformanceTrace,
   getMergePerformanceWindowMs,
   markMergePerformance,
   resetMergePerformanceForTests,
@@ -41,4 +44,39 @@ test('keeps the frame trace alive through the complete Fish finale', () => {
 
 test('marking a merge with no active trace is safe', () => {
   expect(() => markMergePerformance('contact')).not.toThrow();
+});
+
+describe('diagnostic ownership and long stalls', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    (window as any).__ccPerformanceDiagnostics = true;
+    jest.spyOn(console, 'info').mockImplementation(() => {});
+  });
+  afterEach(() => {
+    resetMergePerformanceForTests();
+    delete (window as any).__ccPerformanceDiagnostics;
+    jest.restoreAllMocks();
+    jest.useRealTimers();
+  });
+
+  test('reports a 354ms gap without silently clamping it to 250ms', () => {
+    let callback: FrameRequestCallback | undefined;
+    jest.spyOn(window, 'requestAnimationFrame').mockImplementation((next) => { callback = next; return 1; });
+    jest.spyOn(performance, 'now').mockReturnValue(0);
+    beginMergePerformanceTrace({ kind: 'wild-merge', sourceValue: 6, targetValue: 4 });
+    callback?.(354);
+    const summary = finishMergePerformanceTrace();
+    expect(summary?.worstFrameMs).toBe(354);
+    expect(summary?.framesOver50Ms).toBe(1);
+  });
+
+  test('a retired merge continuation cannot add a phase to the following merge', () => {
+    beginMergePerformanceTrace({ kind: 'wild-merge', sourceValue: 6, targetValue: 4 });
+    const old = captureMergePerformanceMarker();
+    old('absorb-complete');
+    expect(finishMergePerformanceTrace()?.milestones.map((x) => x.name)).toContain('absorb-complete');
+    beginMergePerformanceTrace({ kind: 'regular-stack', sourceValue: 1, targetValue: 2 });
+    old('source-removal-end');
+    expect(finishMergePerformanceTrace()?.milestones.map((x) => x.name)).not.toContain('source-removal-end');
+  });
 });

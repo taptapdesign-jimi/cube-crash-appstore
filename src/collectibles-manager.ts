@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { beginTransitionPerformance, type TransitionPerformance } from './utils/transition-performance.js';
 import { logger } from './core/logger.js';
 import {
   isJourneyViewStructurallyPrepared,
@@ -345,22 +346,25 @@ function restoreJourneyScrollableInteractivity(reason: string, unlockViewport = 
       (scrollable as any).__ccJourneyScrollProbeHandlers = { start: onProbeStart, move: onProbeMove };
     }
 
-    const computed = window.getComputedStyle(scrollable);
-    logger.info('🧪 JourneyScrollRestore', {
-      reason,
-      unlockViewport,
-      hadViewportLock: (window as any).__ccJourneyViewportTransitionLocked === true,
-      removedScreenElastic: !!screenElasticHandlers,
-      removedContentElastic: !!contentElasticHandlers,
-      inlineTouchAction: scrollable.style.touchAction,
-      computedTouchAction: computed.touchAction,
-      inlineOverflowY: scrollable.style.overflowY,
-      computedOverflowY: computed.overflowY,
-      pointerEvents: computed.pointerEvents,
-      scrollTop: scrollable.scrollTop,
-      scrollHeight: scrollable.scrollHeight,
-      clientHeight: scrollable.clientHeight,
-    });
+    // Diagnostic reads must not force layout after the functional style writes.
+    if (areDetailedRuntimeDiagnosticsEnabled()) {
+      const computed = window.getComputedStyle(scrollable);
+      logger.info('🧪 JourneyScrollRestore', {
+        reason,
+        unlockViewport,
+        hadViewportLock: (window as any).__ccJourneyViewportTransitionLocked === true,
+        removedScreenElastic: !!screenElasticHandlers,
+        removedContentElastic: !!contentElasticHandlers,
+        inlineTouchAction: scrollable.style.touchAction,
+        computedTouchAction: computed.touchAction,
+        inlineOverflowY: scrollable.style.overflowY,
+        computedOverflowY: computed.overflowY,
+        pointerEvents: computed.pointerEvents,
+        scrollTop: scrollable.scrollTop,
+        scrollHeight: scrollable.scrollHeight,
+        clientHeight: scrollable.clientHeight,
+      });
+    }
   } catch (error) {
     logger.warn('⚠️ Failed to restore Journey scroll interactivity:', String(error));
   }
@@ -553,6 +557,7 @@ class CollectiblesManager {
   private eventListenersInitialized: boolean = false;
   private journeyPreparePromise: Promise<void> | null = null;
   private journeyPrepareEpoch = 0;
+  private journeyEnterPerformance: TransitionPerformance | null = null;
 
   // 🔥 MEMORY LEAK FIX: Store event handler references for cleanup
   private boundHandlers: {
@@ -797,10 +802,13 @@ class CollectiblesManager {
     }
 
     const prepareEpoch = ++this.journeyPrepareEpoch;
+    const preparationPerformance = beginTransitionPerformance('journey-screen-prepare');
+    let preparationOutcome = 'complete';
     const preparePromise = (async () => {
     logger.info('🗺️ prepareJourneyScreen - rendering boards in background');
     const screen = document.getElementById('journey-screen');
     if (!screen) {
+      preparationOutcome = 'missing-screen';
       logger.error('❌ journey-screen element not found');
       return;
     }
@@ -814,11 +822,15 @@ class CollectiblesManager {
     const journeyContainer = document.getElementById('journey-boards-container');
     if (journeyContainer) {
       if (isJourneyViewStructurallyPrepared(journeyContainer)) {
+        preparationOutcome = 'already-prepared';
         logger.info('🗺️ Journey boards already prepared - skipping rerender');
         return;
       }
+      preparationPerformance.mark('module-await-start');
       const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+      preparationPerformance.mark('module-await-complete');
       if (prepareEpoch !== this.journeyPrepareEpoch || !preparationAllowed()) {
+        preparationOutcome = 'stale';
         logger.info('⏭️ Discarded stale or out-of-zone Journey background preparation', {
           prepareEpoch,
           runtime: readJourneyPreparationRuntimeState(),
@@ -832,7 +844,7 @@ class CollectiblesManager {
           requiredForVisibleEnter: options.requiredForVisibleEnter === true,
         });
       }
-      journeyBoardsManager.renderBoards();
+      preparationPerformance.phase('render-boards', () => journeyBoardsManager.renderBoards());
       if (detailedRenderDiagnostic) {
         emitIOSNativeDiagnostic('journey-required-render-complete', {
           requiredForVisibleEnter: options.requiredForVisibleEnter === true,
@@ -842,16 +854,22 @@ class CollectiblesManager {
           structurallyPrepared: isJourneyViewStructurallyPrepared(journeyContainer),
         });
       }
-      journeyBoardsManager.updateCounter();
+      preparationPerformance.phase('update-counter', () => journeyBoardsManager.updateCounter());
       logger.info('🗺️ Journey boards rendered in background');
 
+    } else {
+      preparationOutcome = 'missing-container';
     }
     })();
     this.journeyPreparePromise = preparePromise;
 
     try {
       await preparePromise;
+    } catch (error) {
+      preparationOutcome = 'error';
+      throw error;
     } finally {
+      preparationPerformance.finish(preparationOutcome);
       if (this.journeyPreparePromise === preparePromise) {
         this.journeyPreparePromise = null;
       }
@@ -859,6 +877,8 @@ class CollectiblesManager {
   }
 
   public cancelJourneyScreenPreparation(reason: string): void {
+    this.journeyEnterPerformance?.finish(reason);
+    this.journeyEnterPerformance = null;
     this.journeyPrepareEpoch += 1;
     this.journeyPreparePromise = null;
     logger.info('🛑 Journey background preparation invalidated', { reason });
@@ -1022,6 +1042,9 @@ class CollectiblesManager {
     // 🔥 CRITICAL: Also set will-change for better mobile performance
     (screen as HTMLElement).style.willChange = 'opacity, transform';
 
+    this.journeyEnterPerformance?.finish('superseded');
+    const journeyEnterPerformance = beginTransitionPerformance('journey-viewport-enter');
+    this.journeyEnterPerformance = journeyEnterPerformance;
     let journeyBoardsReadyPromise: Promise<void> | null = null;
 
     // 🔥 USER REQUEST: Restore scroll position ASAP when returning from interim board or detail modal
@@ -1117,20 +1140,23 @@ class CollectiblesManager {
             shouldPlayActiveBoardAreaEnter,
           });
           await journeyBoardsReadyPromise;
-          logger.info('🧭 JourneyForestAnim pre-reveal-boards-ready', {
-            journeyViewPrepared: isJourneyViewStructurallyPrepared(journeyContainer),
-          });
+          if (areDetailedRuntimeDiagnosticsEnabled()) {
+            logger.info('🧭 JourneyForestAnim pre-reveal-boards-ready', {
+              journeyViewPrepared: isJourneyViewStructurallyPrepared(journeyContainer),
+            });
+          }
         }
         const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
         journeyBoardsManagerPreparedForEnter = journeyBoardsManager;
         restoreJourneyReturnScrollPosition('pre-reveal-after-boards-ready');
-        journeyBoardsManager.prepareJourneyBoardCardTransformsForReveal?.('collectibles-pre-reveal');
+        journeyEnterPerformance.phase('prepare-card-transforms', () =>
+          journeyBoardsManager.prepareJourneyBoardCardTransformsForReveal?.('collectibles-pre-reveal'));
         if (shouldUseV700WorldReturnEnter) {
           journeyBoardsManager.prepareJourneyV700WorldEnterFromReturn?.('collectibles-pre-reveal-world-return');
         }
-        prepareJourneyViewportScreenEnter('collectibles-pre-reveal', {
+        journeyEnterPerformance.phase('prepare-viewport', () => prepareJourneyViewportScreenEnter('collectibles-pre-reveal', {
           animateJourneyContent: !shouldUseV700WorldReturnEnter,
-        });
+        }));
         emitIOSNativeDiagnostic('viewport-prepared', { shouldPlayActiveBoardAreaEnter });
         if (shouldPlayActiveBoardAreaEnter) {
           hideLastActiveJourneyBoardAreaBeforeEnter();
@@ -1172,9 +1198,13 @@ class CollectiblesManager {
           // 🔥 CRITICAL: Start animation immediately - screen is already prepared with opacity 0
           // Use RAF to ensure browser is ready to render animation on mobile
           requestAnimationFrame(() => {
-            const enterPromise = Promise.resolve(animateCollectiblesScreenEnter({
+            const enterPromise = Promise.resolve(journeyEnterPerformance.phase('start-viewport-animation', () => animateCollectiblesScreenEnter({
               animateJourneyContent: !shouldUseV700WorldReturnEnter,
-            }));
+            })));
+            void enterPromise.then(
+              () => journeyEnterPerformance.finish('viewport-complete'),
+              () => journeyEnterPerformance.finish('viewport-error'),
+            );
             emitIOSNativeDiagnostic('viewport-enter-started', { shouldPlayActiveBoardAreaEnter });
             let homepageHubEnterStartedFromPreparedManager = false;
             if (
@@ -1185,7 +1215,8 @@ class CollectiblesManager {
             ) {
               homepageHubEnterStartedFromPreparedManager = true;
               emitIOSNativeDiagnostic('hub-enter-started-from-prepared-manager');
-              journeyBoardsManagerPreparedForEnter.playJourneyV700VisibleEnterFromHomepage?.();
+              journeyEnterPerformance.phase('start-hub-animation', () =>
+                journeyBoardsManagerPreparedForEnter.playJourneyV700VisibleEnterFromHomepage?.());
             }
             if (journeyContainer) {
               import('./modules/journey-boards-manager.js').then(async ({ journeyBoardsManager }) => {
@@ -1195,9 +1226,11 @@ class CollectiblesManager {
                     shouldPlayActiveBoardAreaEnter,
                   });
                   await journeyBoardsReadyPromise;
-                  logger.info('🧭 JourneyForestAnim collectibles-boards-ready', {
-                    journeyViewPrepared: isJourneyViewStructurallyPrepared(journeyContainer),
-                  });
+                  if (areDetailedRuntimeDiagnosticsEnabled()) {
+                    logger.info('🧭 JourneyForestAnim collectibles-boards-ready', {
+                      journeyViewPrepared: isJourneyViewStructurallyPrepared(journeyContainer),
+                    });
+                  }
                 }
                 if (shouldPlayActiveBoardAreaEnter && !activeBoardAreaPreparedBeforeReveal) {
                   hideLastActiveJourneyBoardAreaBeforeEnter();
@@ -1312,6 +1345,7 @@ class CollectiblesManager {
           });
         }).catch((error) => {
           window.clearTimeout(revealFallbackTimer);
+          journeyEnterPerformance.finish('animation-import-error');
           console.error('❌ Failed to load collectibles animations:', error);
           // Fallback: just show screen normally
           releaseJourneyScreenHiddenPrime(screen as HTMLElement);

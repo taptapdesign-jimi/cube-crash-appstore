@@ -25,6 +25,7 @@ type WildSpawnDropOptions = {
   from: Point | null;
   tileSize: number;
   onImpact?: () => void;
+  onLanded?: () => void;
 };
 
 const trackTimeline = (opts?: any) => animationManager.trackExternalTimeline(gsap.timeline(opts));
@@ -365,6 +366,7 @@ export async function animateWildSpawnDropFromMeter({
   assetPath,
   tileSize,
   onImpact,
+  onLanded,
 }: WildSpawnDropOptions): Promise<void> {
   await preloadWildSpawnDropAssets();
 
@@ -702,7 +704,6 @@ export async function animateWildSpawnDropFromMeter({
           },
           onComplete: () => {
             repairWildIdentity(tile, assetPath);
-            releaseSpawnedDieForeground();
             try {
               if (tile.parent !== parent) {
                 try { tile.parent?.removeChild?.(tile); } catch {}
@@ -729,6 +730,11 @@ export async function animateWildSpawnDropFromMeter({
 	                setTileDropInputEnabled(tile, true);
 	              } catch {}
 	            }, WILD_DROP_HANDOFF_LOCK_MS);
+              if (spawnedDieForeground) {
+                spawnedDieForeground.handoffToCanvas(app?.renderer, () => onLanded?.(), releaseSpawnedDieForeground);
+              } else {
+                try { onLanded?.(); } catch {}
+              }
 	            completeTravel();
           },
           onInterrupt: () => {

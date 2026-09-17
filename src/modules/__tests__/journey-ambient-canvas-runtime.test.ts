@@ -1,3 +1,4 @@
+import { startThermalIsolation } from '../../utils/thermal-isolation';
 import { startJourneyAmbientCanvasRuntime } from '../journey-ambient-canvas-runtime';
 
 describe('Journey ambient canvas runtime', () => {
@@ -107,6 +108,66 @@ describe('Journey ambient canvas runtime', () => {
     scrollRoot.remove();
   });
 
+  test('clears only painted bounds, including old depth and old viewport coordinates', () => {
+    const contexts: Array<{ clearRect: jest.Mock; setTransform: jest.Mock }> = [];
+    const getContext = jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation((() => {
+      const context = { clearRect: jest.fn(), setTransform: jest.fn() };
+      contexts.push(context);
+      return context as unknown as CanvasRenderingContext2D;
+    }) as unknown as typeof HTMLCanvasElement.prototype.getContext);
+    const scroll = document.createElement('div');
+    Object.defineProperty(scroll, 'clientHeight', { value: 600 });
+    const root = document.createElement('div');
+    scroll.appendChild(root);
+    document.body.appendChild(scroll);
+    const callbacks = new Set<() => void>();
+    const ticker = { time: 1, add: (cb: () => void) => callbacks.add(cb), remove: (cb: () => void) => callbacks.delete(cb) };
+    let paint = true;
+    let depth: 'behind' | 'front' = 'behind';
+    const runtime = startJourneyAmbientCanvasRuntime({
+      root, scrollRoot: scroll, ticker, sceneWidthPx: 390, sceneHeightPx: 1800,
+      visibilityMarginPx: 80, className: 'damage-test', observeVisibility: false,
+      trackPaintedBounds: true,
+      render: (frame) => {
+        if (paint) {
+          frame.markPaintedBounds?.(depth, 100.4, 200.3, 20, 30);
+          frame.markPaintedBounds?.(depth, 110, 215, 25, 20);
+        }
+        return paint ? 2 : 0;
+      },
+    });
+    const tick = () => { ticker.time += 1 / 30; callbacks.forEach(cb => cb()); };
+    expect(contexts.every(c => c.clearRect.mock.calls.length === 0)).toBe(true);
+    tick();
+    expect(contexts[0].clearRect).toHaveBeenLastCalledWith(98, 198, 39, 39);
+    expect(contexts[1].clearRect).not.toHaveBeenCalled();
+    // One bounded clear per layer, never one clear per sprite.
+    expect(contexts[0].clearRect).toHaveBeenCalledTimes(1);
+    depth = 'front';
+    scroll.scrollTop = 900;
+    tick();
+    expect(contexts[0].clearRect).toHaveBeenLastCalledWith(98, 198, 39, 39);
+    paint = false;
+    tick();
+    expect(contexts[1].clearRect).toHaveBeenLastCalledWith(98, 198, 39, 39);
+    const clears = contexts.map(c => c.clearRect.mock.calls.length);
+    tick();
+    expect(contexts.map(c => c.clearRect.mock.calls.length)).toEqual(clears);
+    paint = true;
+    tick();
+    runtime.setSuspended(true);
+    tick();
+    expect(contexts.map(c => c.clearRect.mock.calls.length)).toEqual(clears);
+    runtime.setSuspended(false);
+    paint = false;
+    tick();
+    expect(contexts[1].clearRect.mock.calls.length).toBe(clears[1] + 1);
+    runtime.dispose();
+    expect(callbacks.size).toBe(0);
+    scroll.remove();
+    getContext.mockRestore();
+  });
+
   test('caps bitmap density and renders a stable elapsed-time 30 Hz cadence', () => {
     Object.defineProperties(window, {
       innerWidth: { configurable: true, value: 390 },
@@ -200,4 +261,57 @@ describe('Journey ambient canvas runtime', () => {
     runtime.dispose();
     root.remove();
   });
+});
+
+
+test('thermal isolation freezes ambient drawing and resumes without destroying surfaces', () => {
+  jest.useFakeTimers();
+  Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+  const root = document.createElement('div'); document.body.append(root);
+  const callbacks = new Set<() => void>();
+  const ticker = { time: 0, add: (f: () => void) => callbacks.add(f), remove: (f: () => void) => callbacks.delete(f) };
+  const render = jest.fn(() => 1);
+  const runtime = startJourneyAmbientCanvasRuntime({ root, ticker, className: 'thermal-test', sceneWidthPx: 390, sceneHeightPx: 844, observeVisibility: false, render });
+  const stop = startThermalIsolation({ enabled: true, group: 'ambient', fingerprint: () => 'same', suppress: () => () => {}, emit: () => {} });
+  try {
+    jest.advanceTimersByTime(30000);
+    const before = render.mock.calls.length;
+    ticker.time = 1; callbacks.forEach(f => f());
+    expect(render).toHaveBeenCalledTimes(before);
+    expect(root.querySelectorAll('canvas')).toHaveLength(2);
+    stop?.(); ticker.time = 2; callbacks.forEach(f => f());
+    expect(render).toHaveBeenCalledTimes(before + 1);
+  } finally { stop?.(); runtime.dispose(); root.remove(); jest.useRealTimers(); }
+});
+
+test('settled frames reuse scroll position; scroll, geometry refresh and resume update it without moving stale pixels', () => {
+  const scroll = document.createElement('div'); const root = document.createElement('div');
+  scroll.append(root); document.body.append(scroll);
+  let position = 0;
+  const readScroll = jest.fn(() => position);
+  Object.defineProperty(scroll, 'scrollTop', { configurable: true, get: readScroll });
+  root.getBoundingClientRect = () => ({ top: -position } as DOMRect);
+  scroll.getBoundingClientRect = () => ({ top: 0 } as DOMRect);
+  const callbacks = new Set<() => void>();
+  const ticker = { time: 0, add: (f: () => void) => { callbacks.add(f); }, remove: (f: () => void) => { callbacks.delete(f); } };
+  const render = jest.fn(() => 1);
+  const runtime = startJourneyAmbientCanvasRuntime({ root, scrollRoot: scroll, ticker, className: 'scroll-read-test', sceneWidthPx: 390, sceneHeightPx: 3000, visibilityMarginPx: 80, observeVisibility: false, render });
+  const tick = () => { ticker.time += 1 / 30; callbacks.forEach(f => f()); };
+  try {
+    readScroll.mockClear();
+    for (let i = 0; i < 60; i++) tick();
+    expect(readScroll).not.toHaveBeenCalled();
+    const canvas = root.querySelector('canvas')!;
+    position = 500; scroll.dispatchEvent(new Event('scroll'));
+    expect(readScroll).toHaveBeenCalledTimes(1);
+    expect(canvas.style.transform).toBe('translate3d(0,0px,0)');
+    tick(); expect(canvas.style.transform).toBe('translate3d(0,420px,0)');
+    expect(readScroll).toHaveBeenCalledTimes(1);
+    position = 600; runtime.refreshGeometry(); tick();
+    expect(canvas.style.transform).toBe('translate3d(0,520px,0)');
+    runtime.setSuspended(true); position = 700; runtime.setSuspended(false); tick();
+    expect(canvas.style.transform).toBe('translate3d(0,620px,0)');
+    runtime.dispose(); readScroll.mockClear(); scroll.dispatchEvent(new Event('scroll'));
+    expect(readScroll).not.toHaveBeenCalled();
+  } finally { runtime.dispose(); scroll.remove(); }
 });

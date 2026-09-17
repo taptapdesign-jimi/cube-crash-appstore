@@ -1,8 +1,12 @@
 /** @jest-environment jsdom */
 
 import { Assets, Container, Sprite, Texture, TextureSource } from 'pixi.js';
+import { startThermalIsolation } from '../../utils/thermal-isolation';
 import { STATE } from '../app-state';
 import {
+  releaseIdleSharedPixiSheets,
+  acquireSharedPixiSheetResource,
+  getSharedPixiSheetCacheStats,
   destroySharedPixiSheetFamily,
   getSharedPixiSheetRuntimeStats,
   resetSharedPixiSheetAnimationForTests,
@@ -25,6 +29,7 @@ const spec: SharedPixiSheetSpec = Object.freeze({
   anchorX: 5,
   anchorY: 5,
   evictionDelayMs: 1000,
+  renderAboveHud: true,
 });
 
 function makeSheet(): Texture {
@@ -55,6 +60,7 @@ describe('shared Pixi sheet animation runtime', () => {
   let loadSpy: jest.SpiedFunction<typeof Assets.load>;
   let getSpy: jest.SpiedFunction<typeof Assets.get>;
   let unloadSpy: jest.SpiedFunction<typeof Assets.unload>;
+  let stage: Container;
 
   const flush = async () => {
     for (let index = 0; index < 12; index += 1) await Promise.resolve();
@@ -74,7 +80,9 @@ describe('shared Pixi sheet animation runtime', () => {
       add: jest.fn((callback: (value: any) => void) => callbacks.add(callback)),
       remove: jest.fn((callback: (value: any) => void) => callbacks.delete(callback)),
     };
-    STATE.app = { ticker } as any;
+    stage = new Container();
+    stage.sortableChildren = true;
+    STATE.app = { ticker, stage } as any;
   });
 
   afterEach(() => {
@@ -95,6 +103,68 @@ describe('shared Pixi sheet animation runtime', () => {
     animateDuringDrag,
   });
 
+  test('OS pressure releases idle atlases below budget and preserves leased resources', async () => {
+    const owner = acquireSharedPixiSheetResource(spec);
+    await owner.load();
+    await releaseIdleSharedPixiSheets();
+    expect(unloadSpy).not.toHaveBeenCalled();
+    expect(getSharedPixiSheetCacheStats().activeRefs).toBe(1);
+    owner.release();
+    await releaseIdleSharedPixiSheets();
+    expect(unloadSpy).toHaveBeenCalledWith(spec.sheetUrl);
+    expect(getSharedPixiSheetCacheStats()).toMatchObject({ retainedBytes: 0, idleBytes: 0 });
+    expect(getSharedPixiSheetRuntimeStats(spec).evictionScheduled).toBe(false);
+    await releaseIdleSharedPixiSheets();
+    expect(unloadSpy).toHaveBeenCalledTimes(1);
+    const next = acquireSharedPixiSheetResource(spec);
+    await next.load();
+    expect(getSharedPixiSheetRuntimeStats(spec).frames).toBe(4);
+    next.release();
+  });
+
+  test('resource-only owners share residency, release once, and wait for unload before reacquiring', async () => {
+    const first = acquireSharedPixiSheetResource(spec);
+    const frames = await first.load();
+    expect(getSharedPixiSheetCacheStats()).toMatchObject({ activeRefs: 1, retainedBytes: 1600, idleBytes: 0 });
+    first.release();
+    first.release();
+    expect(getSharedPixiSheetCacheStats()).toMatchObject({ activeRefs: 0, idleBytes: 1600 });
+    let finishUnload!: () => void;
+    unloadSpy.mockImplementationOnce(() => new Promise<void>((resolve) => { finishUnload = resolve; }));
+    jest.advanceTimersByTime(1000);
+    expect(frames[0].destroyed).toBe(true);
+    const second = acquireSharedPixiSheetResource(spec);
+    const next = second.load();
+    await flush();
+    expect(loadSpy).toHaveBeenCalledTimes(1);
+    finishUnload();
+    await next;
+    expect(loadSpy).toHaveBeenCalledTimes(2);
+    expect(getSharedPixiSheetCacheStats()).toMatchObject({ activeRefs: 1, retainedBytes: 1600 });
+    second.release();
+    await expect(second.load()).rejects.toThrow('resource lease was released');
+  });
+
+  test.each(['tile', 'variant', 'base', 'host'])('releases an owner invalidated during loading: %s', async (invalidated) => {
+    let resolveLoad!: (value: Texture) => void;
+    loadSpy.mockImplementationOnce(() => new Promise((resolve) => { resolveLoad = resolve as any; }) as any);
+    const { tile, base, rotG } = makeTile();
+    const controller = start(tile) as any;
+    if (invalidated === 'tile') tile.destroyed = true;
+    if (invalidated === 'variant') tile.eligible = false;
+    if (invalidated === 'base') base.destroy();
+    if (invalidated === 'host') rotG.destroy();
+    resolveLoad(sheet);
+    await flush();
+    expect(controller.disposed).toBe(true);
+    expect(getSharedPixiSheetRuntimeStats(spec)).toMatchObject({ controllers: 0, tickerAttached: false });
+    expect(ticker.add).not.toHaveBeenCalled();
+    expect(getSharedPixiSheetRuntimeStats(spec)).toMatchObject({ refs: 0, evictionScheduled: true });
+    jest.advanceTimersByTime(1000);
+    await flush();
+    expect(getSharedPixiSheetRuntimeStats(spec).decodedBytes).toBe(0);
+  });
+
   test('shares one source while duplicate tiles keep separate clocks and one ticker', async () => {
     const first = makeTile();
     const second = makeTile();
@@ -104,6 +174,8 @@ describe('shared Pixi sheet animation runtime', () => {
 
     expect(loadSpy).toHaveBeenCalledTimes(1);
     expect(firstController.sprite.texture.source).toBe(secondController.sprite.texture.source);
+    expect(firstController.sprite.parent?.label).toBe('ANIMATED_DICE_HUD_FOREGROUND');
+    expect(firstController.sprite.parent?.zIndex).toBe(10_001);
     expect(firstController.running).toBe(true);
     expect(secondController.running).toBe(false);
     expect(ticker.add).toHaveBeenCalledTimes(1);
@@ -118,10 +190,31 @@ describe('shared Pixi sheet animation runtime', () => {
     stopSharedPixiSheetAnimation(first.tile, '_ccTestSheet');
     stopSharedPixiSheetAnimation(second.tile, '_ccTestSheet');
     expect(ticker.remove).toHaveBeenCalledTimes(1);
+    expect(stage.children.some((child) => child.label === 'ANIMATED_DICE_HUD_FOREGROUND')).toBe(false);
     expect(getSharedPixiSheetRuntimeStats(spec)).toMatchObject({ controllers: 0, refs: 0 });
     jest.advanceTimersByTime(1000);
     await flush();
     expect(unloadSpy).toHaveBeenCalledWith(spec.sheetUrl);
+  });
+
+  test('diagnostic suppression freezes only the sheet clock and resumes its existing owner', async () => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+    const { tile } = makeTile();
+    const controller = start(tile, false) as any;
+    await flush();
+    const stop = startThermalIsolation({ enabled: true, group: 'sheets', fingerprint: () => 'same', suppress: () => () => {}, emit: () => {} });
+    try {
+      jest.advanceTimersByTime(30000);
+      const elapsed = controller.elapsedMs;
+      ticker.elapsedMS = 100;
+      callbacks.forEach(callback => callback(ticker));
+      expect(controller.elapsedMs).toBe(elapsed);
+      expect(getSharedPixiSheetRuntimeStats(spec).controllers).toBe(1);
+      stop?.();
+      callbacks.forEach(callback => callback(ticker));
+      expect(controller.elapsedMs).toBeGreaterThan(elapsed);
+      expect(getSharedPixiSheetRuntimeStats(spec).controllers).toBe(1);
+    } finally { stop?.(); }
   });
 
   test('keeps the fallback during drag and resumes the same controller clock', async () => {

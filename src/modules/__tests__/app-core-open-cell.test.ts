@@ -1,4 +1,7 @@
 import { adaptSpawnBounce, openAtCellCore } from '../app-core-open-cell';
+import { preloadTntFrames } from '../tnt-animation';
+
+jest.mock('../tnt-animation', () => ({ preloadTntFrames: jest.fn(() => Promise.resolve()) }));
 
 function makeTile(c = 0, r = 0) {
   return {
@@ -30,6 +33,7 @@ function makeHarness(initialHolder = makeTile()) {
   const tiles = [initialHolder];
   const board = { removeChild: jest.fn() };
   const created: any[] = [];
+  const devWarn = jest.fn();
   const makeBoard = {
     createTile: jest.fn(({ c, r }: any) => {
       const tile = makeTile(c, r);
@@ -53,6 +57,7 @@ function makeHarness(initialHolder = makeTile()) {
     tiles,
     board,
     created,
+    devWarn,
     makeBoard,
     spawnBounce,
     run: (options: any = {}) => openAtCellCore({
@@ -63,7 +68,7 @@ function makeHarness(initialHolder = makeTile()) {
       board,
       tiles,
       makeBoard,
-      devWarn: jest.fn(),
+      devWarn,
       bindTileWithFallback: jest.fn(),
       applyWildSkinLocal: jest.fn(),
       startWildShimmer: jest.fn(),
@@ -78,6 +83,39 @@ function makeHarness(initialHolder = makeTile()) {
 }
 
 describe('openAtCellCore lifecycle contract', () => {
+  beforeEach(() => {
+    jest.mocked(preloadTntFrames).mockReset().mockResolvedValue(undefined);
+  });
+
+  test('retains the core TNT warmup for callers without a variant owner', async () => {
+    const harness = makeHarness();
+    await expect(harness.run({ isWildTnt: true, skipSpawnAnimation: true })).resolves.toBe(true);
+    expect(preloadTntFrames).toHaveBeenCalledTimes(1);
+    expect(preloadTntFrames).toHaveBeenCalledWith();
+    expect(harness.grid[0][0].special).toBe('wild-tnt');
+  });
+
+  test('uses the pending variant warmup without loading core TNT or delaying spawn', async () => {
+    const harness = makeHarness();
+    let complete!: () => void;
+    const tntFramesWarmup = new Promise<void>((resolve) => { complete = resolve; });
+    await expect(harness.run({ isWildTnt: true, tntFramesWarmup, skipSpawnAnimation: true })).resolves.toBe(true);
+    expect(preloadTntFrames).not.toHaveBeenCalled();
+    expect(harness.grid[0][0].special).toBe('wild-tnt');
+    complete();
+    await tntFramesWarmup;
+  });
+
+  test.each(['core', 'variant'])('handles %s warmup failure without switching assets or blocking spawn', async (owner) => {
+    const harness = makeHarness();
+    const error = new Error('decode failed');
+    const tntFramesWarmup = owner === 'variant' ? Promise.reject(error) : undefined;
+    if (owner === 'core') jest.mocked(preloadTntFrames).mockRejectedValueOnce(error);
+    await expect(harness.run({ isWildTnt: true, tntFramesWarmup, skipSpawnAnimation: true })).resolves.toBe(true);
+    expect(harness.devWarn).toHaveBeenCalledWith('TNT frame warmup failed; merge readiness will retry', error);
+    expect(preloadTntFrames).toHaveBeenCalledTimes(owner === 'core' ? 1 : 0);
+  });
+
   test('adapts the production spawn helper without losing completion ownership', () => {
     const rawSpawnBounce = jest.fn((_tile, _gsap, _options, done, _interrupted) => done?.());
     const gsapOwner = { timeline: jest.fn() };

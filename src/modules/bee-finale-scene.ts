@@ -607,6 +607,12 @@ export function attachBeeFinaleScene(
   let candidateFacing: -1 | 1 = 1;
   let candidateSince = 0;
   let priorTime = 0;
+  const setPaintStyle = (element: HTMLElement, property: 'opacity' | 'visibility' | 'transform', value: string) => {
+    // CSSOM canonicalizes opacity (1.0000 -> 1); compare canonical values to
+    // avoid a redundant write even when the authored sampler rounds decimals.
+    const cssValue = property === 'opacity' ? String(Number(value)) : value;
+    if (element.style[property] !== cssValue) element.style[property] = cssValue;
+  };
   const paint = () => {
     const pose = sampleBeeFinalePose(clock.time, origin, viewport, wobblePhase, routePlan);
     const delta = Math.max(0, clock.time - priorTime);
@@ -624,11 +630,11 @@ export function attachBeeFinaleScene(
       candidateSince = 0;
     }
     const idleBlend = getBeeFinaleIdleBlend(clock.time);
-    orbitFrames.forEach((frame, index) => { frame.style.opacity = idleBlend[index].toFixed(4); });
-    hero.dataset.phase = pose.phase;
-    hero.dataset.facing = String(facing);
-    hero.style.opacity = '1';
-    hero.style.transform = `translate3d(${pose.x.toFixed(2)}px,${pose.y.toFixed(2)}px,0) translate3d(-50%,-50%,0) rotate(${pose.rotation.toFixed(2)}deg) scale(${(pose.scale * facing).toFixed(4)},${pose.scale.toFixed(4)})`;
+    orbitFrames.forEach((frame, index) => { setPaintStyle(frame, 'opacity', idleBlend[index].toFixed(4)); });
+    if (hero.dataset.phase !== pose.phase) hero.dataset.phase = pose.phase;
+    if (hero.dataset.facing !== String(facing)) hero.dataset.facing = String(facing);
+    setPaintStyle(hero, 'opacity', '1');
+    setPaintStyle(hero, 'transform', `translate3d(${pose.x.toFixed(2)}px,${pose.y.toFixed(2)}px,0) translate3d(-50%,-50%,0) rotate(${pose.rotation.toFixed(2)}deg) scale(${(pose.scale * facing).toFixed(4)},${pose.scale.toFixed(4)})`);
     ambientBees.forEach((bee) => {
       const sample = sampleBeeFinaleAmbientPose(bee.plan, clock.time, origin, viewport);
       const candidate = getBeeFinaleHorizontalAssetForVelocity(sample.vx, bee.currentAsset);
@@ -657,27 +663,27 @@ export function attachBeeFinaleScene(
           : asset === bee.previousAsset
             ? 1 - blend
             : 0;
-        frame.style.opacity = opacity.toFixed(4);
+        setPaintStyle(frame, 'opacity', opacity.toFixed(4));
       });
       if (blend >= 1) bee.previousAsset = null;
-      bee.host.dataset.asset = bee.currentAsset;
-      bee.host.style.transform = `translate3d(${sample.x.toFixed(2)}px,${sample.y.toFixed(2)}px,0) translate3d(-50%,-50%,0) rotate(${sample.rotation.toFixed(2)}deg) scale(${sample.scaleX.toFixed(3)},${sample.scaleY.toFixed(3)})`;
+      if (bee.host.dataset.asset !== bee.currentAsset) bee.host.dataset.asset = bee.currentAsset;
+      setPaintStyle(bee.host, 'transform', `translate3d(${sample.x.toFixed(2)}px,${sample.y.toFixed(2)}px,0) translate3d(-50%,-50%,0) rotate(${sample.rotation.toFixed(2)}deg) scale(${sample.scaleX.toFixed(3)},${sample.scaleY.toFixed(3)})`);
     });
     let visibleLeafCount = 0;
     leafParticles.forEach((particle) => {
       const pose = sampleBeeLeafParticlePose(particle, clock.time);
       if (!pose.visible) {
-        particle.wrap.style.opacity = '0';
-        particle.wrap.style.visibility = 'hidden';
+        setPaintStyle(particle.wrap, 'opacity', '0');
+        setPaintStyle(particle.wrap, 'visibility', 'hidden');
         return;
       }
-      particle.wrap.style.visibility = 'visible';
+      setPaintStyle(particle.wrap, 'visibility', 'visible');
       visibleLeafCount += 1;
-      particle.wrap.style.opacity = pose.opacity.toFixed(3);
-      particle.wrap.style.transform = `translate3d(${pose.x.toFixed(2)}px,${pose.y.toFixed(2)}px,0) translate3d(-50%,-50%,0) rotate(${pose.rotation.toFixed(2)}deg) scale(${pose.scale.toFixed(3)})`;
-      particle.image.style.transform = `skewX(${pose.skewX.toFixed(2)}deg) scale(${pose.imageScaleX.toFixed(3)},${pose.imageScaleY.toFixed(3)})`;
+      setPaintStyle(particle.wrap, 'opacity', pose.opacity.toFixed(3));
+      setPaintStyle(particle.wrap, 'transform', `translate3d(${pose.x.toFixed(2)}px,${pose.y.toFixed(2)}px,0) translate3d(-50%,-50%,0) rotate(${pose.rotation.toFixed(2)}deg) scale(${pose.scale.toFixed(3)})`);
+      setPaintStyle(particle.image, 'transform', `skewX(${pose.skewX.toFixed(2)}deg) scale(${pose.imageScaleX.toFixed(3)},${pose.imageScaleY.toFixed(3)})`);
     });
-    field.dataset.visibleLeafCount = String(visibleLeafCount);
+    if (field.dataset.visibleLeafCount !== String(visibleLeafCount)) field.dataset.visibleLeafCount = String(visibleLeafCount);
   };
   paint();
   master.to(clock, { time: 4, duration: 4, ease: 'none', onUpdate: paint }, 0);

@@ -34,7 +34,7 @@ describe('saved-game resume routing contract', () => {
     expect(journeyResume).toContain('assertJourneyGameSurfaceVisible');
   });
 
-  test('Homepage resume waits for the shared exit and preserves startLevel flag ownership', () => {
+  test('Homepage resume waits for the shared exit and releases restore flags after its owned commit', () => {
     expect(homepageResume).toContain('void (homepageExitPromise ?? Promise.resolve()).then(async () =>');
     expect(homepageResume).toContain('finalizeJourneySliderExit()');
     expect(homepageResume).toContain('await bootGame();');
@@ -44,7 +44,12 @@ describe('saved-game resume routing contract', () => {
     expect(loadIndex).toBeGreaterThan(-1);
     expect(layoutIndex).toBeGreaterThan(loadIndex);
 
-    expect(homepageResume).toContain("Don't delete __ccSkipRebuildBoard here - let startLevel() handle it");
+    const commitIndex = homepageResume.indexOf('await commitPreparedGameplayEntry()');
+    const ownershipIndex = homepageResume.indexOf('if (!savedLoadCallerIsCurrent()) return;', commitIndex);
+    const releaseIndex = homepageResume.lastIndexOf('delete (window as any).__ccSkipRebuildBoard');
+    expect(commitIndex).toBeGreaterThan(layoutIndex);
+    expect(ownershipIndex).toBeGreaterThan(commitIndex);
+    expect(releaseIndex).toBeGreaterThan(ownershipIndex);
     expect(homepageResume).toContain('delete (window as any).__ccStartAtLevel');
   });
 
@@ -54,7 +59,9 @@ describe('saved-game resume routing contract', () => {
     )[1]?.split('/** Call only after Homepage is hidden')[0] ?? '';
 
     expect(exitOwner).toContain('if (journeySliderExitPromise) return journeySliderExitPromise');
-    expect(exitOwner).toContain('journeySliderExitPromise = new Promise<void>');
+    expect(exitOwner).toContain('const exitPromise = new Promise<void>');
+    expect(exitOwner).toContain('journeySliderExitPromise = exitPromise;');
+    expect(exitOwner).toContain('return exitPromise;');
     expect(exitOwner).toContain('return journeySliderExitPromise');
   });
 });

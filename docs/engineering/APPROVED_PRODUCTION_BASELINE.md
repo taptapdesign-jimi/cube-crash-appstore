@@ -1,30 +1,31 @@
 # Approved Production Baseline
 
-Updated: 2026-09-13
+Updated: 2026-09-18
 
 ## User-approved state
 
 The current Stack to Six source version explicitly approved by the user as the
 new benchmark from which future work continues is:
 
-- Git tag: `production-benchmark-v3`
+- Git tag: `production-benchmark-v4`
 - App version: `2.0.653`
-- Canonical branch at approval: `feature/forest-unit-bee-orbits-experiment`
-- Native delivery status: the matching authoritative Stack to Six `Web.bundle`
-  and signed app were installed over existing data and launched on `iPhone 13 blue`
-  on 2026-09-13 at 17:16 CEST.
+- Canonical branch at approval: `main`
+- Native delivery status: this benchmark is approved and preserved as a complete
+  source repository checkpoint. Its current local `dist` was produced with native
+  sync disabled. The authoritative Stack to Six `Web.bundle`, signed app and
+  installed `iPhone 13 blue` build were not changed for this promotion.
 
-The user explicitly approved the complete current repository and installed-app
-state after the Journey Cjelina guaranteed flip-back repair, current World and
-Forest ambience handoff, Forest gameplay and Board Transition audio, Clean Board
-celebration/counter mix, themed residual particles, and the current Honey,
-Bottle and Wild Star sound routing. The benchmark includes the complete retained
-source-asset set and its regression coverage; it is not a partial audio-only
-checkpoint.
+The user explicitly requested that the complete current repository become the
+new benchmark. It includes the full runtime, Journey, Arcade, Area55, special-die,
+audio, animation, performance, lifecycle and QA work accumulated after v3;
+all supplied sound assets; all investigation and contract documents; and all
+regression coverage present in the working tree. The detailed scope is recorded
+in `PRODUCTION_BENCHMARK_V4.md`. This is a complete repository checkpoint, not a
+partial visual, audio or performance checkpoint.
 
 ## Interpretation rule
 
-When the user says **approved version**, **approved baseline**, **perfect version**, **the version that was super**, **production benchmark**, or otherwise refers to the last version they personally accepted, treat `production-benchmark-v3` as the exact current reference unless the user explicitly approves a newer baseline.
+When the user says **approved version**, **approved baseline**, **perfect version**, **the version that was super**, **production benchmark**, or otherwise refers to the last version they personally accepted, treat `production-benchmark-v4` as the exact current source reference unless the user explicitly approves a newer baseline.
 
 Do not infer approval from a successful build, QA pass, device installation, merge, release, or positive comment about one isolated change. Only an explicit user statement that a newer complete state is approved may supersede this file.
 
@@ -33,6 +34,7 @@ Do not infer approval from a successful build, QA pass, device installation, mer
 - Never move, recreate, force-update, or delete `production-benchmark-v1`.
 - Never move, recreate, force-update, or delete `production-benchmark-v2`.
 - Never move, recreate, force-update, or delete `production-benchmark-v3`.
+- Never move, recreate, force-update, or delete `production-benchmark-v4`.
 - Preserve historical benchmark tags, including `production-benchmark-v2.0.636` and `production-benchmark-v2.0.647`; they remain immutable recovery references but no longer represent the latest user-approved complete state.
 - Experimental branches may diverge from it without changing its meaning.
 - Before promoting experimental work, compare behavior and scope against this baseline and preserve unrelated accepted behavior.
@@ -41,9 +43,12 @@ Do not infer approval from a successful build, QA pass, device installation, mer
 
 ## Current status
 
-`production-benchmark-v3` is the approved complete source and installed-app
-baseline. Its bundled Stack to Six package was installed and launched on the
-authoritative `iPhone 13 blue`; physical audio balance remains a separate
-acceptance dimension and does not alter the exact recovery checkpoint. Gyro
-remains fully removed and must not be restored. Later experiments must preserve
-this tag and be compared against it before promotion.
+`production-benchmark-v4` is the approved complete source baseline. It records
+the full repository state on `main`, including retained assets and deterministic
+coverage. It does not claim a matching native delivery: the authoritative
+Stack to Six `Web.bundle`, signed app and installed phone remain on their prior
+package until a separately authorized native build and install. Physical visual,
+audio, touch, thermal and sustained-performance acceptance remain separate from
+this exact recovery checkpoint. Gyro remains fully removed and must not be
+restored. Later experiments must preserve this tag and be compared against it
+before promotion.

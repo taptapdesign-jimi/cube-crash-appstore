@@ -1,3 +1,4 @@
+import * as themeTransport from '../main-theme-web-audio-transport';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -552,4 +553,35 @@ describe('global Stack to Six soundtrack', () => {
     expect(currentAudio.play).toHaveBeenCalledTimes(2);
     expect(soundtrackManager.isStarted).toBe(true);
   });
+  it('schedules native gain fades without frame callbacks and cancels them on Music OFF', async () => {
+    const nativeVoice = Object.assign(new MockAudio(SOUNDTRACK_RUNTIME_URL), {
+      sampleAccurateIntroLoop: true as const,
+      dispose: jest.fn(), rampVolume: jest.fn(), cancelVolumeRamp: jest.fn(),
+    });
+    const factory = jest.spyOn(themeTransport, 'createSampleAccurateMainThemeVoice')
+      .mockReturnValue(nativeVoice as unknown as themeTransport.SampleAccurateMainThemeVoice);
+    const raf = jest.spyOn(global, 'requestAnimationFrame');
+    try {
+      startSoundtrack();
+      await Promise.resolve();
+      const transition = fadeOutSoundtrackForGameplay(500);
+      completeGameplayTransitionFade(transition);
+      expect(nativeVoice.rampVolume).toHaveBeenCalledWith(
+        SOUNDTRACK_TRANSITION_VOLUME, 500 + SOUNDTRACK_GAMEPLAY_FADE_TAIL_MS,
+      );
+      expect(raf).not.toHaveBeenCalled();
+      jest.advanceTimersByTime(500 + SOUNDTRACK_GAMEPLAY_FADE_TAIL_MS);
+      expect(nativeVoice.rampVolume).toHaveBeenLastCalledWith(
+        SOUNDTRACK_GAMEPLAY_VOLUME, SOUNDTRACK_GAMEPLAY_SETTLE_MS,
+      );
+      stopSoundtrack();
+      const calls = nativeVoice.rampVolume.mock.calls.length;
+      jest.advanceTimersByTime(5000);
+      expect(nativeVoice.rampVolume).toHaveBeenCalledTimes(calls);
+      expect(nativeVoice.cancelVolumeRamp).toHaveBeenCalled();
+      expect(nativeVoice.paused).toBe(true);
+      expect(nativeVoice.volume).toBe(0);
+    } finally { raf.mockRestore(); factory.mockRestore(); }
+  });
+
 });

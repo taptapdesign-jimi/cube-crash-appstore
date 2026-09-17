@@ -198,6 +198,7 @@ export function restoreTilesFromSave({
       } else {
         devWarn('⚠️ loadGameState: STATE.drag not available, tile will not be draggable:', tile.gridX, tile.gridY);
         trackAppTimeout(() => {
+          if (tile.destroyed) return;
           if (STATE.drag && typeof STATE.drag.bindToTile === 'function') {
             STATE.drag.bindToTile(tile);
             devLog('✅ loadGameState: Tile bound to drag system after delay:', tile.gridX, tile.gridY);

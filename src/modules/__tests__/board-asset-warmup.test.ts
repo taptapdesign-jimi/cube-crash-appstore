@@ -1,6 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import {
+  applyJourneyBottomDecorSource,
+  warmJourneyBottomDecor,
   getBoardGameWarmupAssets,
   getJourneyBottomDecorAssetForBoard,
   getJourneyBottomDecorIndexForBoard,
@@ -47,19 +49,6 @@ describe('board asset warmup scope', () => {
     }
   });
 
-  test('warms only the selected Beach HUD instead of Forest bottoms and deferred FX', () => {
-    const assets = getBoardGameWarmupAssets('journey', 11);
-    const decorAssets = assets.filter((asset) => asset.includes('beach-hud') || asset.includes('/bottom'));
-
-    expect(decorAssets).toEqual([
-      './assets/journey assets/beach/beach hud/beach-hud1.png',
-      './assets/journey assets/beach/beach hud/beach-hud1@2x.png',
-    ]);
-    expect(assets.some((asset) => asset.includes('/animation/tnt'))).toBe(false);
-    expect(assets.some((asset) => asset.includes('/cubero/krpa'))).toBe(false);
-    expect(assets.some((asset) => asset.includes('/ball/ball1'))).toBe(false);
-  });
-
   test('keeps the existing randomized Forest bottom resolver outside Beach', () => {
     const decorIndex = getJourneyBottomDecorIndexForBoard(1);
     expect(getJourneyBottomDecorAssetForBoard(1)).toEqual({
@@ -69,39 +58,10 @@ describe('board asset warmup scope', () => {
     });
   });
 
-  test('uses the shared World resolver for the runtime image and encoded 2x srcset', () => {
-    const source = fs.readFileSync(path.resolve(__dirname, '../app-core.ts'), 'utf8');
-    expect(source).toContain('getJourneyBottomDecorAssetForBoard(Number(boardKey))');
-    expect(source).toContain('const oneXUrl = encodeURI(decorAsset.oneX)');
-    expect(source).toContain('img.srcset = decorAsset.twoX');
-    expect(source).toContain('? `${oneXUrl} 1x, ${encodeURI(decorAsset.twoX)} 2x`');
-    expect(source).toContain(': `${oneXUrl} 1x`');
-    expect(source).not.toContain('getJourneyGameBottomDecorUrl');
-  });
-
-  test('warms only the exact selected Beach Unit HUD resolutions', () => {
-    expect(getBoardGameWarmupAssets('journey', 13).filter((asset) => asset.includes('beach-hud'))).toEqual([
-      './assets/journey assets/beach/beach hud/beach-hud3.png',
-      './assets/journey assets/beach/beach hud/beach-hud3@3x.png',
-    ]);
-    expect(getBoardGameWarmupAssets('journey', 19).filter((asset) => asset.includes('beach-hud'))).toEqual([
-      './assets/journey assets/beach/beach hud/beach-hud9.png',
-    ]);
-    expect(getBoardGameWarmupAssets('journey', 20).filter((asset) => asset.includes('beach-hud'))).toEqual([
-      './assets/journey assets/beach/beach hud/beach-hud10.png',
-      './assets/journey assets/beach/beach hud/beach-hud10@2x.png',
-    ]);
-  });
-
-  test('warms only the exact selected Area 55 Unit HUD resolutions', () => {
-    expect(getBoardGameWarmupAssets('journey', 21).filter((asset) => asset.includes('/robo hud/'))).toEqual([
-      './assets/journey assets/robo/robo hud/area1.png',
-      './assets/journey assets/robo/robo hud/area1@2x.png',
-    ]);
-    expect(getBoardGameWarmupAssets('journey', 30).filter((asset) => asset.includes('/robo hud/'))).toEqual([
-      './assets/journey assets/robo/robo hud/area10.png',
-      './assets/journey assets/robo/robo hud/area10@2x.png',
-    ]);
+  test('never loads DOM decor into Pixi for any Journey board', () => {
+    for (let board = 1; board <= 30; board++) {
+      expect(getBoardGameWarmupAssets('journey', board).some(asset => asset.includes('journey assets'))).toBe(false);
+    }
   });
 
   test('does not add Journey decor to Arcade warmup', () => {
@@ -120,5 +80,74 @@ describe('board asset warmup scope', () => {
     expect(assets).toContain('./assets/ghost-placeholder@3x.png');
     expect(assets).not.toContain('./assets/ghost-placeholder.png');
     expect(assets).not.toContain('./assets/ghost-placeholder@2x.png');
+  });
+});
+
+
+describe('DOM decor warmup', () => {
+  test('waits for the selected Journey decor to decode before declaring it warm', async () => {
+    let finishDecode!: () => void;
+    const image = document.createElement('img');
+    Object.defineProperty(image, 'decode', {
+      configurable: true,
+      value: jest.fn(() => new Promise<void>((resolve) => { finishDecode = resolve; })),
+    });
+    const spy = jest.spyOn(window, 'Image').mockImplementation(() => image);
+    try {
+      let settled = false;
+      const warmup = warmJourneyBottomDecor(25).then(() => { settled = true; });
+      image.dispatchEvent(new Event('load'));
+      await Promise.resolve();
+      expect(settled).toBe(false);
+      finishDecode();
+      await warmup;
+      expect(image.decode).toHaveBeenCalledTimes(1);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  test('releases a stalled DOM warmup so later entry can retry', async () => {
+    jest.useFakeTimers();
+    const images: HTMLImageElement[] = [];
+    const spy = jest.spyOn(window, 'Image').mockImplementation(() => {
+      const image = document.createElement('img');
+      images.push(image);
+      return image;
+    });
+    try {
+      const first = warmJourneyBottomDecor(23);
+      jest.advanceTimersByTime(2600);
+      await first;
+      expect(images[0].onload).toBeNull();
+      const retry = warmJourneyBottomDecor(23);
+      expect(images).toHaveLength(2);
+      images[1].dispatchEvent(new Event('load'));
+      await retry;
+    } finally { spy.mockRestore(); jest.useRealTimers(); }
+  });
+
+  test('shares the exact runtime srcset and deduplicates concurrent selected artwork', async () => {
+    const images: HTMLImageElement[] = [];
+    const spy = jest.spyOn(window, 'Image').mockImplementation(() => {
+      const image = document.createElement('img');
+      images.push(image);
+      return image;
+    });
+    try {
+      const first = warmJourneyBottomDecor(24);
+      expect(warmJourneyBottomDecor(24)).toBe(first);
+      expect(images).toHaveLength(1);
+      const actual = document.createElement('img');
+      applyJourneyBottomDecorSource(actual, getJourneyBottomDecorAssetForBoard(24));
+      expect(images[0].srcset).toBe(actual.srcset);
+      expect(images[0].src).toBe(actual.src);
+      images[0].dispatchEvent(new Event('load'));
+      await first;
+      const retry = warmJourneyBottomDecor(24);
+      expect(images).toHaveLength(2);
+      images[1].dispatchEvent(new Event('error'));
+      await retry;
+    } finally { spy.mockRestore(); }
   });
 });

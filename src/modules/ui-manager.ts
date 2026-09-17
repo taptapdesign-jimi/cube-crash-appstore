@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { captureSavedBoardLoadCaller, isSavedBoardLoadSuperseded, type SavedBoardLoadResult } from './saved-board-load-owner';
 // UI Manager Module
 // Handles all UI interactions and animations
 
@@ -9,26 +10,38 @@ import {
   animateSliderExit,
   animateSliderEnter,
   animateJourneySliderExit,
+  isHomepageExitCancelled,
   cancelSliderEnterAnimation,
   finalizeJourneySliderExit,
 } from '../utils/animations.js';
 import { logger } from '../core/logger.js';
+import { beginTransitionPerformance } from '../utils/transition-performance.js';
 import { emitIOSNativeDiagnostic } from '../utils/ios-native-diagnostic.js';
 import {
   beginIOSJourneyRouteAudit,
   markIOSJourneyRouteAudit,
 } from '../utils/ios-journey-world-enter-audit.js';
-import { boot as bootGame, layoutBoard as layoutGame, recoverFreshArcadeEntryAfterFailedLoad } from './app-core.js';
+// Keep this eager UI owner off the board runtime static import path.
+let gameCoreModule: typeof import('./app-core.js') | null = null;
+let gameCoreLoad: Promise<typeof import('./app-core.js')> | null = null;
+async function bootGame(): Promise<void> {
+  gameCoreLoad ??= import('./app-core.js').catch(error => { gameCoreLoad = null; throw error; });
+  gameCoreModule = await gameCoreLoad;
+  await gameCoreModule.boot();
+}
+function layoutGame() {
+  return gameCoreModule!.layoutBoard();
+}
+function recoverFreshArcadeEntryAfterFailedLoad(...args: Parameters<typeof import('./app-core.js').recoverFreshArcadeEntryAfterFailedLoad>) {
+  // Every caller has awaited boot. Preserve synchronous transaction ownership.
+  return gameCoreModule!.recoverFreshArcadeEntryAfterFailedLoad(...args);
+}
 import memoryManager from '../utils/memory-manager.js';
 import sliderManager from './slider-manager.js';
 import { sliderState } from './slider-state.js';
 import { gsap } from 'gsap';
 import { markArcadeHomeRunOrigin } from './run-mode.js';
-import {
-  activateFirstPlayTutorialWhenReady,
-  beginFirstPlayTutorialRun,
-  isFirstPlayTutorialForced,
-} from './first-play-tutorial.js';
+import { isFirstPlayTutorialForced } from './first-play-tutorial-request.js';
 import { SETTINGS_SLIDE_INDEX } from './homepage-slide-order.js';
 import {
   clearArcadeSaveState,
@@ -66,18 +79,7 @@ import {
 } from './navigation-control.js';
 import { preloadRegularMerge6Sounds } from './regular-merge6-sound.ts';
 import { preloadWildStarMerge6Sound } from './wild-star-merge6-sound.ts';
-import { preloadFishMerge6Sounds } from './fish-merge6-sound.ts';
-import { preloadFishFinaleBubbles } from './fish-finale-bubbles.ts';
-import { preloadBeachBallMerge6Sounds } from './beach-ball-merge6-sound.ts';
-import { preloadCoreTntMerge6Sound } from './core-tnt-merge6-sound.ts';
-import { preloadFlowerMerge6Sounds } from './flower-merge6-sound.ts';
-import { preloadBeeMerge6Sounds } from './bee-merge6-sound.ts';
-import { preloadRoboCubeMerge6Sounds } from './robo-cube-merge6-sound.ts';
 import { preloadWildSpecialMerge6PoofSounds } from './wild-special-merge6-poof-sound.ts';
-import { preloadBottleFinaleSounds } from './bottle-finale-sound.ts';
-import { preloadBottlePullMergeSounds } from './bottle-pull-merge-sound.ts';
-import { preloadMagnetPullForceSounds } from './magnet-pull-force-sound.ts';
-import { preloadHoneyMerge6Sounds } from './honey-merge6-sound.ts';
 import { preloadOrdinaryStackSound } from './ordinary-stack-sound.ts';
 import { preloadGameplayPickupSound } from './gameplay-pickup-sound.ts';
 import { preloadNoMovesSound } from './no-moves-sound.ts';
@@ -188,6 +190,7 @@ class UIManager {
   private logoFadeInStarted: boolean; // 🔥 PREMIUM: Track if logo fade-in has started
   private homepageCtaControllers = new Map<HTMLButtonElement, CtaController>();
   private journeyOpenQueued = false;
+  private journeyExitFailureOwner: object | null = null;
   private queuedJourneyTutorialLaunch = false;
 
   constructor() {
@@ -478,18 +481,7 @@ class UIManager {
     markArcadeHomeRunOrigin();
     preloadRegularMerge6Sounds();
     preloadWildStarMerge6Sound();
-    preloadFishMerge6Sounds();
-    preloadFishFinaleBubbles();
-    preloadBeachBallMerge6Sounds();
-    preloadCoreTntMerge6Sound();
-    preloadFlowerMerge6Sounds();
-    preloadBeeMerge6Sounds();
-    preloadRoboCubeMerge6Sounds();
     preloadWildSpecialMerge6PoofSounds();
-    preloadBottleFinaleSounds();
-    preloadBottlePullMergeSounds();
-    preloadMagnetPullForceSounds();
-    preloadHoneyMerge6Sounds();
     preloadOrdinaryStackSound();
     preloadGameplayPickupSound();
     preloadNoMovesSound();
@@ -628,25 +620,28 @@ class UIManager {
   }
   
   // Start new game (public method) - ALWAYS starts from Board 1
+  private freshGameStartPromise: Promise<void> | null = null;
+
   async startNewGame(): Promise<void> {
+    if (this.freshGameStartPromise) return this.freshGameStartPromise;
+    const pending = this.startNewGameOwned();
+    this.freshGameStartPromise = pending;
+    try {
+      await pending;
+    } finally {
+      if (this.freshGameStartPromise === pending) this.freshGameStartPromise = null;
+    }
+  }
+
+  private async startNewGameOwned(): Promise<void> {
+    const { beginFirstPlayTutorialRun, activateFirstPlayTutorialWhenReady } = await import('./first-play-tutorial.js');
     memoryManager.start();
     const shouldStartFirstPlayTutorial = beginFirstPlayTutorialRun('arcade');
     // 🔥 USER REQUEST: Mark that we came from homepage (not Journey)
     markArcadeHomeRunOrigin();
     preloadRegularMerge6Sounds();
     preloadWildStarMerge6Sound();
-    preloadFishMerge6Sounds();
-    preloadFishFinaleBubbles();
-    preloadBeachBallMerge6Sounds();
-    preloadCoreTntMerge6Sound();
-    preloadFlowerMerge6Sounds();
-    preloadBeeMerge6Sounds();
-    preloadRoboCubeMerge6Sounds();
     preloadWildSpecialMerge6PoofSounds();
-    preloadBottleFinaleSounds();
-    preloadBottlePullMergeSounds();
-    preloadMagnetPullForceSounds();
-    preloadHoneyMerge6Sounds();
     preloadOrdinaryStackSound();
     preloadGameplayPickupSound();
     preloadArcadeRoundDigitSounds();
@@ -711,8 +706,7 @@ class UIManager {
           console.warn('⚠️ Failed to cleanup level-flow timeouts before startNewGame:', e);
         }
 
-        // Use static import instead of dynamic import for instant response
-        console.log('✅ app-core already available (static import)');
+        // The entry awaits the shared board module before using its runtime.
         
         await bootGame();
         console.log('✅ boot() complete');
@@ -761,6 +755,7 @@ class UIManager {
   
   // Start new game with saved state (for Continue button)
   async startNewGameWithSavedState(): Promise<void> {
+    let savedLoadCallerIsCurrent = () => true;
     try {
       console.log('🔄 ====================================');
       console.log('🔄 START NEW GAME WITH SAVED STATE');
@@ -773,18 +768,7 @@ class UIManager {
       markArcadeHomeRunOrigin();
       preloadRegularMerge6Sounds();
       preloadWildStarMerge6Sound();
-      preloadFishMerge6Sounds();
-      preloadFishFinaleBubbles();
-      preloadBeachBallMerge6Sounds();
-      preloadCoreTntMerge6Sound();
-      preloadFlowerMerge6Sounds();
-      preloadBeeMerge6Sounds();
-      preloadRoboCubeMerge6Sounds();
       preloadWildSpecialMerge6PoofSounds();
-      preloadBottleFinaleSounds();
-      preloadBottlePullMergeSounds();
-      preloadMagnetPullForceSounds();
-      preloadHoneyMerge6Sounds();
       preloadOrdinaryStackSound();
       preloadGameplayPickupSound();
       preloadArcadeRoundDigitSounds();
@@ -792,8 +776,14 @@ class UIManager {
       const continuationRound = getArcadeSavedRound();
       if (continuationRound !== null && continuationRound > 0) {
         (window as any).__ccArcadeContinuationCueRound = continuationRound;
+        // Saved-load boot must prepare the same board identity that is stored
+        // in the Arcade snapshot. Without this, boot defaults to Round 01 and
+        // loadGameState rejects a valid Round 02+ snapshot as an identity
+        // mismatch, removes it, and recovers a fresh Round 01.
+        (window as any).__ccStartAtLevel = continuationRound;
       } else {
         delete (window as any).__ccArcadeContinuationCueRound;
+        delete (window as any).__ccStartAtLevel;
       }
 
       const pendingRound = getPendingArcadeRound();
@@ -924,21 +914,24 @@ class UIManager {
       // Start game
       console.log('🎯 Starting game boot...');
       try {
-        // Use static import instead of dynamic import for instant response
-        console.log('✅ app-core already available (static import)');
+        // The entry awaits the shared board module before using its runtime.
         
         await bootGame();
+        savedLoadCallerIsCurrent = captureSavedBoardLoadCaller();
         console.log('✅ boot() complete');
 
         await layoutGame();
+        if (!savedLoadCallerIsCurrent()) return;
         console.log('✅ layout() complete');
         
         // Load saved game state AFTER boot/layout
+        savedLoadCallerIsCurrent = captureSavedBoardLoadCaller();
         const loadGameState = (window as any).loadGameState;
-        let loaded = false;
+        let loaded: SavedBoardLoadResult = false;
         if (typeof loadGameState === 'function') {
           console.log('🔄 Loading saved game state...');
           loaded = await loadGameState();
+          if (isSavedBoardLoadSuperseded(loaded, savedLoadCallerIsCurrent)) return;
           if (loaded) {
             console.log('✅ Saved game state loaded');
           } else {
@@ -956,11 +949,17 @@ class UIManager {
             // strict schema loading. Keep the accepted Continue receipt and
             // rebuild its Round instead of falling back to old Round 01.
             localStorage.removeItem(getArcadeSaveKey());
-            await recoverFreshArcadeEntryAfterFailedLoad(pendingRound.round, pendingRound.score);
+            const recovery = recoverFreshArcadeEntryAfterFailedLoad(pendingRound.round, pendingRound.score);
+            savedLoadCallerIsCurrent = captureSavedBoardLoadCaller();
+            await recovery;
+            if (!savedLoadCallerIsCurrent()) return;
           } else {
             console.warn('⚠️ Invalid Arcade continuation retired; rebuilding canonical fresh Round 01');
             clearArcadeSaveState();
-            await recoverFreshArcadeEntryAfterFailedLoad();
+            const recovery = recoverFreshArcadeEntryAfterFailedLoad();
+            savedLoadCallerIsCurrent = captureSavedBoardLoadCaller();
+            await recovery;
+            if (!savedLoadCallerIsCurrent()) return;
           }
         } else if (pendingRound) {
           // Only strict load success can supersede the receipt.
@@ -981,14 +980,18 @@ class UIManager {
         console.log('🔄 ====================================');
         
       } catch (error) {
+        if (!savedLoadCallerIsCurrent()) return;
         delete (window as any).__ccSkipRebuildBoard;
+        delete (window as any).__ccStartAtLevel;
         console.error('❌ Game boot failed:', error);
         logger.error('❌ Failed to start game with saved state:', error);
         throw error;
       }
       
     } catch (error) {
+      if (!savedLoadCallerIsCurrent()) return;
       delete (window as any).__ccSkipRebuildBoard;
+      delete (window as any).__ccStartAtLevel;
       delete (window as any).__ccTriggerHudDrop;
       delete (window as any).__ccArcadeContinuationCueRound;
       cancelArcadeEntryCueOwner();
@@ -1564,16 +1567,41 @@ class UIManager {
       });
       return;
     }
+    // Claim navigation before dispatching events or touching board/background
+    // owners. A duplicate (including synchronous event reentry) does no work.
+    if ((window as any).__ccUiJourneyTransitioning) {
+      logger.warn('⚠️ Journey CTA transition already running - ignoring duplicate trigger');
+      return;
+    }
+    (window as any).__ccUiJourneyTransitioning = true;
+    const failureOwner = {};
+    this.journeyExitFailureOwner = failureOwner;
+    let disabledSlider: HTMLElement | null = null;
+    let previousPointerEvents = '';
+    let previousPointerEventsPriority = '';
+    const releaseFailedExit = () => {
+      // A late rejection must not unlock a replacement transition or its DOM.
+      if (this.journeyExitFailureOwner !== failureOwner) return;
+      if (disabledSlider && document.getElementById('slider-container') === disabledSlider) {
+        disabledSlider.style.setProperty('pointer-events', previousPointerEvents, previousPointerEventsPriority);
+      }
+      (window as any).__ccIsAnimatingSliderExit = () => false;
+      (window as any).__ccUiJourneyTransitioning = false;
+      gameState.set('sliderLocked', false);
+    };
+    const setupPerformance = beginTransitionPerformance('homepage-journey-input-setup');
+    try {
+    setupPerformance.phase('lock-slider', () => gameState.set('sliderLocked', true));
     // Stability: cleanup FX before navigation
-    try { window.dispatchEvent(new Event('cc-navigation')); } catch {}
-    try { window.CC?.cleanupFxForBoardReset?.('nav:collectibles'); } catch {}
-    try { window.CC?.softResetBoardView?.('nav:collectibles'); } catch {}
+    try { setupPerformance.phase('navigation-listeners', () => window.dispatchEvent(new Event('cc-navigation'))); } catch {}
+    try { setupPerformance.phase('cleanup-board-fx', () => window.CC?.cleanupFxForBoardReset?.('nav:collectibles')); } catch {}
+    try { setupPerformance.phase('reset-board-view', () => window.CC?.softResetBoardView?.('nav:collectibles')); } catch {}
 
-    applyPaperBackground();
+    setupPerformance.phase('paper-background', () => applyPaperBackground());
     const appElement = document.getElementById('app');
     
     // 🔥 IMPORTANT: Keep slider containers transparent to avoid cropped paper texture
-    clearSliderBackgrounds();
+    setupPerformance.phase('slider-backgrounds', () => clearSliderBackgrounds());
     
     // NOW log and continue with rest of function
     logger.info('🗺️ Showing Journey screen - with exit animation');
@@ -1583,21 +1611,16 @@ class UIManager {
     (window as any).__ccIsAnimatingSliderExit = () => true;
     logger.info('🔒 Homepage Slider exit state published');
     
-    // 🔥 CRITICAL: Serialize CTA transitions to avoid double-click / overlapping animations
-    if ((window as any).__ccUiJourneyTransitioning) {
-      logger.warn('⚠️ Journey CTA transition already running - ignoring duplicate trigger');
-      return;
-    }
-    (window as any).__ccUiJourneyTransitioning = true;
-    gameState.set('sliderLocked', true);
     if (!launchFirstPlayTutorial) {
       beginIOSJourneyRouteAudit('homepage-journey-cta');
       markIOSJourneyRouteAudit('homepage-exit-plus-journey-prepare');
     }
     // Revoke any still-running Homepage return before Journey takes ownership.
     // Otherwise its delayed hero/CTA/nav finalize can reveal Homepage again.
-    homepageEnterTransitionOwner.cancel('homepage-to-journey');
-    cancelSliderEnterAnimation('homepage-to-journey');
+    setupPerformance.phase('cancel-homepage-enter', () => {
+      homepageEnterTransitionOwner.cancel('homepage-to-journey');
+      cancelSliderEnterAnimation('homepage-to-journey');
+    });
     
     // CRITICAL: Switch to the Journey slide BEFORE animation so its elements animate out
     // (CTA, text, hero). We still open the Journey screen after the animation.
@@ -1644,6 +1667,9 @@ class UIManager {
     // Slider will be properly hidden during exit animation, but this prevents flash/swipe visibility
     const sliderContainer = document.getElementById('slider-container');
     if (sliderContainer) {
+      disabledSlider = sliderContainer;
+      previousPointerEvents = sliderContainer.style.getPropertyValue('pointer-events');
+      previousPointerEventsPriority = sliderContainer.style.getPropertyPriority('pointer-events');
       sliderContainer.style.pointerEvents = 'none'; // Prevent any interactions during transition
     }
     
@@ -1654,8 +1680,11 @@ class UIManager {
       appElement.style.setProperty('background-image', 'none', 'important');
     }
     
-    // 🔥 CRITICAL: Force reflow to ensure DOM is updated before animation
-    void document.querySelector('.slider-slide.active')?.offsetHeight;
+    // The WAAPI exit owner reads the current painted poses while preparing
+    // its animations. Keep the explicit layout boundary only for legacy CSS.
+    if (typeof Element.prototype.animate !== 'function') {
+      void document.querySelector('.slider-slide.active')?.offsetHeight;
+    }
     
     const fadeDuration = 0.8;
     
@@ -1668,8 +1697,13 @@ class UIManager {
     // one Promise-based owner all Homepage exit targets.
     const homeElement = document.getElementById('home');
     homeElement?.setAttribute('data-journey-exit', 'true');
-    sliderManager.freezeHomepageHeroBounceForExit();
-    const exitCompletePromise = animateJourneySliderExit();
+    setupPerformance.phase('freeze-hero', () => sliderManager.freezeHomepageHeroBounceForExit());
+    const exitCompletePromise = setupPerformance.phase('schedule-exit', () => animateJourneySliderExit());
+    setupPerformance.finish('exit-scheduled');
+    // Cancellation releases input even if lazy preparation is still pending.
+    void exitCompletePromise.then(() => {
+      if (isHomepageExitCancelled(exitCompletePromise)) releaseFailedExit();
+    }, () => {});
 
     const journeyPreparePromise: Promise<any | null> = !launchFirstPlayTutorial
       ? (async () => {
@@ -1690,6 +1724,11 @@ class UIManager {
       : Promise.resolve(null);
     // Exit and preparation run concurrently and join at one exact handoff.
     Promise.all([exitCompletePromise, journeyPreparePromise]).then(async ([, preparedCollectiblesManager]) => {
+      if (this.journeyExitFailureOwner !== failureOwner) return;
+      if (isHomepageExitCancelled(exitCompletePromise)) {
+        releaseFailedExit();
+        return;
+      }
       if (!launchFirstPlayTutorial) {
         markIOSJourneyRouteAudit('journey-show-handoff');
       }
@@ -1735,18 +1774,24 @@ class UIManager {
           await this.showCollectiblesScreen();
         }
       } finally {
+        if (this.journeyExitFailureOwner === failureOwner) {
         // Keep the Homepage exit owner until the lazy Journey manager has hidden
         // Homepage and started its visible enter. Releasing it earlier exposes a
         // blank first open while the chunk is still loading.
         finalizeJourneySliderExit();
         (window as any).__ccIsAnimatingSliderExit = () => false;
         (window as any).__ccUiJourneyTransitioning = false;
+        }
       }
     }).catch((error) => {
       logger.error('❌ Homepage → Journey handoff failed:', error);
-      (window as any).__ccUiJourneyTransitioning = false;
-      gameState.set('sliderLocked', false);
+      releaseFailedExit();
     });
+    } catch (error) {
+      setupPerformance.finish('setup-failed');
+      logger.error('❌ Homepage → Journey setup failed:', error);
+      releaseFailedExit();
+    }
   }
 
   private queueJourneyOpenAfterHomepageEnter(launchFirstPlayTutorial: boolean): void {
@@ -2143,6 +2188,7 @@ class UIManager {
     // 🔥 OPTIMIZATION: Show Settings screen immediately after exit animation, don't wait for fade
     // Fade animation can happen in parallel - no need to block Settings screen display
     void homepageExitPromise.then(() => {
+      if (isHomepageExitCancelled(homepageExitPromise)) return;
       emitSettingsRouteDiagnostic('settings-homepage-exit-settled', {
         presentationEpoch: appZoneManager.getPresentationEpoch(),
         sliderCurrentSlide: sliderManager.getCurrentSlide(),
@@ -2241,7 +2287,7 @@ class UIManager {
       appElement.style.setProperty('background', 'transparent', 'important');
       appElement.style.setProperty('background-image', 'none', 'important');
     }
-    });
+    }).catch((error) => logger.error('❌ Settings Homepage exit failed:', error));
   }
   
   // Hide settings screen with enter animation
@@ -2472,6 +2518,9 @@ class UIManager {
         });
         void import('./bee-merge6-sound.ts').then(({ stopBeeMerge6Sounds }) => {
           stopBeeMerge6Sounds();
+        });
+        void import('./kanta-merge6-sound').then(({ stopKantaMerge6Sounds }) => {
+          stopKantaMerge6Sounds();
         });
         void import('./robo-cube-merge6-sound.ts').then(({ stopRoboCubeMerge6Sounds }) => {
           stopRoboCubeMerge6Sounds();

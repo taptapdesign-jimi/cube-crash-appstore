@@ -11,6 +11,25 @@ export function getRegularStackSmokeProfile(reducedFx: boolean) {
   };
 }
 
+/** The landing dust must develop over several frames, without additive glare. */
+export function getWildSpawnLandingSmokeProfile() {
+  return {
+    behind: true,
+    fxTag: 'wild-spawn-drop-smoke',
+    sizeScale: 1.35,
+    spawnShape: 'box',
+    ttl: 1.15,
+    blendMode: 'normal',
+    baseAlpha: 0.85,
+    trailAlpha: 0.7,
+    cloudAlphaProfile: true,
+    fadeInDuration: 0.12,
+    fadeInEase: 'sine.out',
+    durationScale: 1.35,
+    groupedOwner: true,
+  };
+}
+
 export function getRegularMerge6FxProfile(reducedFx: boolean) {
   return {
     shardDensity: reducedFx ? 0.55 : 1,

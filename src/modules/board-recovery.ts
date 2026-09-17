@@ -252,8 +252,11 @@ function shouldTriggerCleanBoardForStuckReason(reason: string): boolean {
 export async function checkAndRecoverBoard(
   tiles: TileInfo[],
   boardNumber: number,
-  triggerCleanBoardFn: (reason: string) => Promise<void>
+  triggerCleanBoardFn: (reason: string) => Promise<void>,
+  isCurrent: () => boolean = () => true,
 ): Promise<RecoveryResult> {
+  const cancelled = (): RecoveryResult => ({ wasStuck: false, reason: 'superseded', recovered: false });
+  if (!isCurrent()) return cancelled();
   logger.info('🔍 checkAndRecoverBoard: Starting recovery check', 'board-recovery', { boardNumber });
   
   // Check 1: Pending clean board flag (explicit intent)
@@ -274,11 +277,11 @@ export async function checkAndRecoverBoard(
     logger.warn('🚨 RECOVERY: Pending clean board flag detected!', 'board-recovery', pendingCheck.data);
     
     try {
-      // Clear flag BEFORE triggering (prevent infinite loop if trigger fails)
-      clearPendingCleanBoard();
-      
-      // Trigger clean board with small delay to ensure UI is ready
+      // Keep the receipt if this load is superseded during the settle delay.
       await new Promise(resolve => setTimeout(resolve, 500));
+      if (!isCurrent()) return cancelled();
+      // Clear immediately before triggering to prevent recursive recovery.
+      clearPendingCleanBoard();
       await triggerCleanBoardFn('board_recovery_pending_flag');
       
       return {
@@ -314,6 +317,7 @@ export async function checkAndRecoverBoard(
     try {
       // Trigger clean board with small delay to ensure UI is ready
       await new Promise(resolve => setTimeout(resolve, 500));
+      if (!isCurrent()) return cancelled();
       await triggerCleanBoardFn(`board_recovery_stuck_${stuckCheck.reason}`);
       
       return {

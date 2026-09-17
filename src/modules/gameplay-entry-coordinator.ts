@@ -50,6 +50,12 @@ export function isGameplayEntryPending(): boolean {
   return !!activeEntry;
 }
 
+/** Captures the current entry for async callers that do not create a new one. */
+export function captureGameplayEntryValidity(): () => boolean {
+  const captured = generation;
+  return () => captured === generation;
+}
+
 export function isGameplayEntryGenerationLatest(entryGeneration: number): boolean {
   return entryGeneration === generation;
 }

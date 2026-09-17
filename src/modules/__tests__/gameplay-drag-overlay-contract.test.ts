@@ -81,13 +81,13 @@ describe('gameplay drag overlay contract', () => {
     expect(artworkLayerSource).toContain('if (frameOwners.size > 0) updateAnimatedSpecialArtworkLayer();');
   });
 
-  test('never pauses unrelated dice animations and publishes only overlap geometry', () => {
+  test('refreshes foreground immediately without collecting unused overlap geometry', () => {
     expect(dragSource).not.toContain('pauseSpecialDiceIdleForDrag');
     expect(dragSource).not.toContain('_pausedSpecialIdleTiles');
-    expect(dragSource).toContain('publishActiveDragBounds(t);');
-    expect(dragSource).toContain('setGameplayDragBounds(null);');
-    expect(foregroundOwnerSource).toContain('__ccGameplayDragBounds = bounds');
-    expect(artworkLayerSource).toContain('doesAnimatedSpecialArtworkOverlapGameplayDrag');
+    expect(dragSource).not.toContain('publishActiveDragBounds');
+    expect(dragSource).toContain('refreshGameplayDragForeground();');
+    expect(foregroundOwnerSource).not.toContain('__ccGameplayDragBounds');
+    expect(artworkLayerSource).not.toContain('doesAnimatedSpecialArtworkOverlapGameplayDrag');
     expect(artworkLayerSource).toContain('same DOM wrapper moves below the transparent canvas');
   });
 

@@ -1,6 +1,21 @@
 # Stack to Six interaction sound inventory
 
-Updated: 2026-09-15
+Updated: 2026-09-18
+
+## Kanta merge-6 audio (2026-09-18)
+
+Owner: `kanta-merge6-sound.ts`. Files are unchanged under `assets/sound/Wild and special kockice/kanta/`. All cues obey Sounds; preloading follows eligible/restored Kanta boards. The canonical special merge-6 foundation and shared Wild/Special poofs remain separate from these Kanta-only layers.
+
+| Trigger | Source | Action gain | Effective gain |
+| --- | --- | --- | --- |
+| Committed Kanta merge-6, immediate | tup.wav | 1.00 | 0.60 |
+| Same frame | spacesound.wav | 0.80 | 0.48 |
+| Same frame | bibis.wav | 0.50 | 0.30 |
+| Same frame | kanta4.wav | 0.90 | 0.54 |
+| First Robo starts walking (once per scene) | hodanje.wav | 0.50 | 0.30 |
+| Each individual can/composite starts exit | One random kanta1.wav / kanta2.wav / kanta3.wav | 0.35 | 0.21 |
+
+Exit variants use independent overlapping voices, selected once per can. Their lower default gain keeps the eleven pickups plus three composites below the start package. `bibis` and `hodanje` both fade linearly during the final0.5s of the real scene clock and stop at scene end; interruption stops their scene-owned voices and exit voices without touching newer scene voices. Sounds OFF and hard gameplay cleanup stop all Kanta voices and pending starts. `horn.wav` remains preserved and disconnected; it is neither played nor preloaded by Kanta. Physical speaker balance remains NEEDS PHYSICAL TEST.
 
 ## Current approved integration
 

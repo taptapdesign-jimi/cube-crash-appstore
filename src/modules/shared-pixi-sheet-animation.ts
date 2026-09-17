@@ -1,8 +1,14 @@
+import { isThermalWorkSuppressed } from '../utils/thermal-isolation.js';
 import { Assets, Rectangle, Sprite, Texture } from 'pixi.js';
 import { STATE } from './app-state.ts';
 import { acquireAnimatedTimelinePhase, type AnimatedSvgPhaseLease } from './animated-svg-phase-scheduler.ts';
 import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
 import { reloadPixiImageTexture } from '../utils/pixi-image-texture-health.ts';
+import {
+  mountAnimatedDiceAboveHud,
+  releaseAnimatedDiceAboveHud,
+  syncAnimatedDiceAboveHud,
+} from './animated-dice-hud-foreground.ts';
 
 export type SharedPixiSheetSpec = Readonly<{
   family: string;
@@ -18,6 +24,7 @@ export type SharedPixiSheetSpec = Readonly<{
   anchorX: number;
   anchorY: number;
   evictionDelayMs?: number;
+  renderAboveHud?: boolean;
 }>;
 
 export type SharedPixiSheetController = {
@@ -39,6 +46,7 @@ export type SharedPixiSheetController = {
   retryTimer: ReturnType<typeof setTimeout> | null;
   phaseLease: AnimatedSvgPhaseLease | null;
   onReady?: () => void;
+  onFrame?: (controller: SharedPixiSheetController) => void;
   onDispose?: () => void;
 };
 
@@ -114,6 +122,7 @@ function createFrames(cache: FamilyCache, sheet: Texture): Texture[] {
 
 async function unloadCache(cache: FamilyCache): Promise<void> {
   if (cache.refs > 0 || cache.unloadPromise) return cache.unloadPromise ?? Promise.resolve();
+  if (!cache.frames && !cache.loadPromise && !cache.sheet) return;
   // Invalidate any slower load that was already awaiting this family. Without
   // this token, a late Assets.load resolution could repopulate an evicted cache.
   cache.generation += 1;
@@ -165,7 +174,11 @@ async function loadFrames(spec: SharedPixiSheetSpec): Promise<Texture[]> {
     clearTimeout(cache.evictionTimer);
     cache.evictionTimer = null;
   }
-  if (cache.frames) return cache.frames;
+  if (cache.frames) {
+    cache.lastUsedAt = Date.now();
+    if (cache.refs === 0) scheduleEviction(cache);
+    return cache.frames;
+  }
   if (cache.loadPromise) return cache.loadPromise;
   const pending = (async () => {
     if (cache.unloadPromise) await cache.unloadPromise;
@@ -265,6 +278,7 @@ function dispose(controller: SharedPixiSheetController): void {
   controller.phaseLease = null;
   if (controller.retryTimer !== null) clearTimeout(controller.retryTimer);
   controller.retryTimer = null;
+  if (controller.spec.renderAboveHud) releaseAnimatedDiceAboveHud(controller);
   if (controller.sprite) {
     try { controller.sprite.parent?.removeChild(controller.sprite); } catch {}
     try { controller.sprite.destroy({ texture: false, textureSource: false }); } catch {}
@@ -311,9 +325,12 @@ function updateController(controller: SharedPixiSheetController, deltaMs: number
   sprite.alpha = typeof base.alpha === 'number' ? base.alpha : 1;
   sprite.tint = base.tint ?? 0xFFFFFF;
   base.renderable = false;
+  if (spec.renderAboveHud) syncAnimatedDiceAboveHud(controller);
+  try { controller.onFrame?.(controller); } catch {}
 }
 
 function updateAll(ticker?: any): void {
+  if (isThermalWorkSuppressed('sheets')) return;
   const raw = Number(ticker?.elapsedMS);
   const deltaMs = Number.isFinite(raw) && raw >= 0 ? Math.min(100, raw) : 1000 / 60;
   Array.from(controllers).forEach((controller) => updateController(controller, deltaMs));
@@ -322,7 +339,11 @@ function updateAll(ticker?: any): void {
 function mount(controller: SharedPixiSheetController, retry = 0): void {
   void loadFrames(controller.spec).then((frames) => {
     const { tile, base, host, spec } = controller;
-    if (controller.disposed || tile.destroyed || !controller.isEligible(tile)) return;
+    if (controller.disposed) return;
+    if (tile.destroyed || base.destroyed || host.destroyed || !controller.isEligible(tile)) {
+      dispose(controller);
+      return;
+    }
     const sprite = new Sprite(frames[0]);
     sprite.label = `${spec.family}-pixi`;
     sprite.eventMode = 'none';
@@ -339,6 +360,7 @@ function mount(controller: SharedPixiSheetController, retry = 0): void {
     host.sortableChildren = true;
     host.addChild(sprite);
     controller.sprite = sprite;
+    if (spec.renderAboveHud) mountAnimatedDiceAboveHud(controller, sprite, host);
     controller.ready = true;
     ensureTicker(findTileTicker(tile));
     controller.phaseLease = acquireAnimatedTimelinePhase(spec.family, spec.cycleMs, [{
@@ -370,6 +392,7 @@ export function startSharedPixiSheetAnimation(options: {
   propertyKey: string;
   animateDuringDrag: boolean;
   onReady?: () => void;
+  onFrame?: (controller: SharedPixiSheetController) => void;
   onDispose?: () => void;
 }): SharedPixiSheetController | null {
   const { tile, spec, isEligible, propertyKey } = options;
@@ -405,6 +428,7 @@ export function startSharedPixiSheetAnimation(options: {
     retryTimer: null,
     phaseLease: null,
     onReady: options.onReady,
+    onFrame: options.onFrame,
     onDispose: options.onDispose,
   };
   acquireFamily(spec);
@@ -429,6 +453,47 @@ export function setSharedPixiSheetAnimationDragging(
   controller.dragging = dragging;
   updateController(controller, 0);
   return true;
+}
+
+// Resource-only lease for authored renderers whose timing differs from the
+// generic sheet player. All atlases share the same residency budget.
+export function acquireSharedPixiSheetResource(spec: SharedPixiSheetSpec) {
+  acquireFamily(spec);
+  let released = false;
+  return {
+    load: () => released
+      ? Promise.reject(new Error(`${spec.family} resource lease was released`))
+      : loadFrames(spec),
+    release: () => {
+      if (released) return;
+      released = true;
+      releaseFamily(spec);
+    },
+  };
+}
+
+/** Memory pressure must never destroy an atlas leased by a live renderer. */
+export function releaseIdleSharedPixiSheets(): Promise<void> {
+  const releases: Promise<void>[] = [];
+  caches.forEach((cache) => {
+    if (cache.refs > 0) return;
+    if (cache.evictionTimer !== null) clearTimeout(cache.evictionTimer);
+    cache.evictionTimer = null;
+    releases.push(unloadCache(cache));
+  });
+  return Promise.all(releases).then(() => undefined);
+}
+
+export function getSharedPixiSheetCacheStats() {
+  const values = Array.from(caches.values());
+  return {
+    retainedBytes: values.reduce((sum, cache) => sum + decodedBytes(cache), 0),
+    idleBytes: values.reduce((sum, cache) => sum + (cache.refs === 0 ? decodedBytes(cache) : 0), 0),
+    residentFamilies: values.filter((cache) => cache.frames !== null).length,
+    activeRefs: values.reduce((sum, cache) => sum + cache.refs, 0),
+    pendingLoads: values.filter((cache) => cache.loadPromise && !cache.frames).length,
+    idleBudgetBytes: SHARED_PIXI_SHEET_IDLE_BUDGET_BYTES,
+  };
 }
 
 export function preloadSharedPixiSheet(spec: SharedPixiSheetSpec): Promise<void> {

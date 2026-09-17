@@ -59,6 +59,27 @@ describe('Arcade terminal lifecycle regression contract', () => {
     expect(continuation).toContain('if (isCurrent()) {\n      emitNativeConsoleDiagnostic');
   });
 
+  test('cleanup settles every killed Stage Clear animation wait', () => {
+    const modal = fs.readFileSync(path.join(repoRoot, 'src/modules/arcade-stage-clear-modal.ts'), 'utf8');
+    const helper = modal.slice(
+      modal.indexOf('function waitForOwnedCompletion('),
+      modal.indexOf('function wait(ms: number)'),
+    );
+    const cleanup = modal.slice(modal.indexOf('export function cleanupArcadeStageClearModal('));
+
+    expect(helper).toContain('activeAsyncSettlers.add(settle);');
+    expect(helper).toContain('activeAsyncSettlers.delete(settle);');
+    expect(cleanup).toContain('const pendingAsyncSettlers = Array.from(activeAsyncSettlers);');
+    expect(cleanup).toContain('activeAsyncSettlers.clear();');
+    expect(cleanup).toContain('pendingAsyncSettlers.forEach((settle) =>');
+
+    // The only raw Promises left are the shared owned-completion helper and
+    // the public modal result. Animation/decode waits must use the helper so
+    // killing GSAP work cannot strand their async continuations.
+    expect(modal.match(/new Promise/g)).toHaveLength(2);
+    expect(modal.match(/waitForOwnedCompletion\(/g)?.length).toBeGreaterThanOrEqual(8);
+  });
+
   test('Magnet commit abort rolls back ownership and schedules the central endgame check', () => {
     const source = fs.readFileSync(path.join(repoRoot, 'src/modules/app-core.ts'), 'utf8');
     expect(source).toContain('const magnetMergeCommitted = await handleWildMagnetMergedPulledTiles');

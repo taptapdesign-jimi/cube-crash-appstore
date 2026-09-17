@@ -213,16 +213,12 @@ describe('Bottle finale sound', () => {
     expect(scene.match(/stopBottleFinaleSounds\(\);/g)?.length).toBeGreaterThanOrEqual(3);
   });
 
-  test('preloads on Arcade and Journey entry and stops on global sound-off/reset', () => {
+  test('preloads eligible Arcade and Journey boards and stops on global sound-off/reset', () => {
     const ui = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/ui-manager.ts'), 'utf8');
-    const journey = fs.readFileSync(
-      path.resolve(process.cwd(), 'src/modules/journey-boards-manager.ts'),
-      'utf8',
-    );
     const appCore = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/app-core.ts'), 'utf8');
-    expect(ui).toContain("import { preloadBottleFinaleSounds } from './bottle-finale-sound.ts';");
+    expect(fs.readFileSync(path.resolve(process.cwd(), 'src/modules/special-sound-warmup.ts'), 'utf8')).toContain('preloadBottleFinaleSounds();');
     expect(ui).toContain("import('./bottle-finale-sound.ts').then(({ stopBottleFinaleSounds }) => {");
-    expect(journey).toContain("import { preloadBottleFinaleSounds } from './bottle-finale-sound.ts';");
+    expect(appCore).toContain('preloadEligibleSpecialSounds({ boardNumber: entryBoard, isArcade: isArcadeHomeRunMode(), tiles });');
     expect(appCore).toContain('stopBottleFinaleSounds,');
     expect(appCore).toContain("} from './bottle-finale-sound.ts';");
     expect(appCore).toContain('try { stopBottleFinaleSounds(); } catch {}');

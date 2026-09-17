@@ -3,6 +3,7 @@ type LoadLayoutDeps = {
   StarsCollector: { setStarsCount?: (n: number) => void };
   HUD: { setStarsCount?: (n: number) => void };
   savedStarsCount: number;
+  isCurrent?: () => boolean;
   devLog: (...args: any[]) => void;
   devWarn: (...args: any[]) => void;
 };
@@ -12,11 +13,14 @@ export async function layoutAndRestoreStars({
   StarsCollector,
   HUD,
   savedStarsCount,
+  isCurrent = () => true,
   devLog,
   devWarn,
 }: LoadLayoutDeps){
   // Call layout to position HUD correctly (initializes stars collector)
+  if (!isCurrent()) return;
   await layoutBoard();
+  if (!isCurrent()) return;
   devLog('✅ Layout called for saved game - HUD should be positioned');
   
   // Restore stars count AFTER layoutBoard

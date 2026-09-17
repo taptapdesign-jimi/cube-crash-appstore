@@ -39,6 +39,7 @@ const WILD_STAR_SHEET_SPEC: SharedPixiSheetSpec = Object.freeze({
   cycleMs: WILD_STAR_BOUNCY_CYCLE_MS,
   anchorX: 75.5,
   anchorY: 86.39,
+  renderAboveHud: true,
 });
 
 export function isPlainWildStarBouncyTile(tile: any): boolean {

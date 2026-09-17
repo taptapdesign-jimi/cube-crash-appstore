@@ -54,10 +54,13 @@ describe('Journey card modal entry flip sound', () => {
     expect(startEntry.indexOf('playJourneyCardEntryFlipSounds();')).toBeLessThan(startEntry.indexOf('startJourneyCardSpatialFlight({'));
     expect(interactiveFlip).not.toContain('playJourneyCardEntryFlipSounds();');
     expect(interactiveFlip).toContain('flipping = true;\n    if (playSoundImmediately) playJourneyCardManualFlipSound();');
-    expect(source).toContain('dragFlipSoundPending = true;');
-    expect(source).toContain("animateInteractiveFlip(stableFace === 'front' ? 'back' : 'front', undefined, undefined, false)");
-    expect(source).toContain('const shouldPlayCommittedDragSound = allowCommit && dragFlipSoundPending;');
-    expect(source).toContain('if (shouldPlayCommittedDragSound) playJourneyCardManualFlipSound();');
+    const pointerMove = source.split('function handlePointerMove(')[1]?.split('function finishPointer(')[0] ?? '';
+    const release = source.split('function finishPointer(')[1]?.split('function handlePointerUp(')[0] ?? '';
+    expect(pointerMove).not.toContain('animateInteractiveFlip(');
+    expect(pointerMove).not.toContain('playJourneyCardManualFlipSound(');
+    expect(release).toContain('if (shouldCommitReleasedDrag) {');
+    expect(release).toContain('void animateInteractiveFlip(');
+    expect(release).not.toContain('playJourneyCardManualFlipSound(');
     expect(source).toContain('preloadJourneyCardEntryFlipSounds();');
     expect(source).toContain('stopJourneyCardEntryFlipSounds();');
     const startReturn = source.split('const startReturn = async')[1]?.split('let closeRequestProfiled')[0] ?? '';

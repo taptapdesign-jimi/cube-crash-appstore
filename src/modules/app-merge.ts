@@ -10,6 +10,7 @@ import { COLS, ROWS, TILE, GAP } from './constants.js';
 import * as HUD from './hud-helpers.ts';
 import { AppSpawnCancelledError, openAtCell, spawnBounce } from './app-spawn.ts';
 import { statsService } from '../services/stats-service.js';
+import { trackBoardCubesCracked } from '../services/board-cubes-tracking.js';
 import { arcadeStatsService } from '../services/arcade-stats-service.js';
 import { randomRegularTileValue, trackAppTimeout, trackAppAnimationFrame, waitTrackedResult } from './app-core-utils.js';
 import { fillNullCellsWithLockedPlaceholders } from './app-core-board-build.ts';
@@ -351,6 +352,34 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   let endgameGuardActive = false;
   let shouldRunPostMagnetEndgameCheck = false;
   let magnetLifecycleCancelled = false;
+  const boardAtEntry = STATE.board;
+  const gridAtEntry = STATE.grid;
+  const abortTokenAtEntry = Number((window as any).__ccEndgameFlowAbortToken || 0);
+  const ownsLifecycle = () => (typeof helpers?.isRunCurrent !== 'function' || helpers.isRunCurrent())
+    && STATE.board === boardAtEntry && STATE.grid === gridAtEntry
+    && Number((window as any).__ccEndgameFlowAbortToken || 0) === abortTokenAtEntry;
+  const isLifecycleCurrent = () => !magnetLifecycleCancelled && ownsLifecycle();
+  const assertLifecycleCurrent = () => {
+    if (!isLifecycleCurrent()) {
+      magnetLifecycleCancelled = true;
+      throw new AppSpawnCancelledError();
+    }
+  };
+  const waitForMagnet = async (ms: number): Promise<void> => {
+    assertLifecycleCurrent();
+    if (await waitTrackedResult(ms) === 'cancelled') magnetLifecycleCancelled = true;
+    assertLifecycleCurrent();
+  };
+  const openMagnetCell = async (...args: Parameters<typeof openAtCell>): Promise<void> => {
+    assertLifecycleCurrent();
+    await openAtCell(...args);
+    assertLifecycleCurrent();
+  };
+  const scheduleMagnetTimeout = (callback: () => void | Promise<void>, ms: number) =>
+    trackAppTimeout(() => { if (isLifecycleCurrent()) return callback(); }, ms);
+  const scheduleMagnetFrame = (callback: () => void) =>
+    trackAppAnimationFrame(() => { if (isLifecycleCurrent()) callback(); });
+
   let pendingPostGuardEndgameCheckSource: string | null = null;
   const postCommitBoardRevision = new PostCommitBoardRevisionGuard(
     typeof helpers?.getBoardMutationRevision === 'function'
@@ -358,7 +387,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       : undefined,
   );
   const abortSupersededPostCommitTail = (checkpoint: string): boolean => {
-    if (postCommitBoardRevision.isCurrent()) return false;
+    if (isLifecycleCurrent() && postCommitBoardRevision.isCurrent()) return false;
     // A newer player merge now owns the board. The old Magnet tail must release
     // its guard/owner in finally, but must not inspect, unlock, respawn, flag, or
     // schedule endgame work against the newer board revision.
@@ -374,6 +403,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     ? [...helpers.magnetShardColors]
     : getSpecialDiceShardColors(dst);
   const requestPostGuardEndgameCheck = (source: string): boolean => {
+    if (!isLifecycleCurrent()) return false;
     const checker = window.CC?.checkLevelEnd;
     if (typeof checker !== 'function') return false;
     if (endgameGuardActive) {
@@ -761,7 +791,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   }
   
   // Set position again after a small delay to ensure it stays (in case animations try to change it)
-  trackAppTimeout(() => {
+  scheduleMagnetTimeout(() => {
     if (dst && !dst.destroyed) {
       gsap.set(dst, { x: correctX, y: correctY });
       dst.targetX = correctX;
@@ -924,10 +954,11 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     } else {
       merge6Pos = { x: dst.x || 0, y: dst.y || 0 };
     }
-    trackAppAnimationFrame(() => {
-      trackAppTimeout(async () => {
+    scheduleMagnetFrame(() => {
+      scheduleMagnetTimeout(async () => {
         try {
           const { animateStarsToHudIcon } = await import('./fx.js');
+          assertLifecycleCurrent();
           if (typeof animateStarsToHudIcon === 'function' && STATE.board && STATE.stage) {
             const appForAnimation = STATE.app || (STATE.stage as any)?.app;
             await animateStarsToHudIcon(
@@ -944,6 +975,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
             console.warn('⚠️ animateStarsToHudIcon not available or STATE.board/stage missing (magnet pull stars)');
           }
         } catch (error) {
+          if (error instanceof AppSpawnCancelledError) return;
           console.error('❌ MAGNET PULL: Failed to animate stars to HUD:', error);
         }
       }, 200);
@@ -975,16 +1007,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     arcadeStatsService.addCubesCracked(1);
   }
   
-  // 🔥 USER REQUEST: Track cubes cracked per-board for magnet pull merge
-  try {
-    const boardNumber = STATE?.boardNumber || STATE?.level || 1;
-    if (typeof window.trackCubesCracked === 'function') {
-      window.trackCubesCracked(1);
-      console.log(`🧊 Magnet pull merge: Tracked cubes cracked for board ${boardNumber}`);
-    }
-  } catch (error) {
-    console.warn('⚠️ Failed to track board-specific cubes cracked for magnet pull:', error);
-  }
+  void trackBoardCubesCracked(STATE?.boardNumber || STATE?.level || 1, 1);
   
   console.log('✅ mergePulledTilesIntoMerge6 completed - score updated to', newScore, 'combo updated to', newCombo);
 
@@ -1462,7 +1485,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     // Shards animation takes ~1.0s (ttl), but with fastFadeOut it's effectively ~0.5-0.6s
     // Wait only 50ms to ensure shards start but spawn happens very fast (standard for all merge-6 spawns)
     console.log('⏳ Waiting for merge-6 shards animation to complete before spawning...');
-    if (await waitTrackedResult(50) === 'cancelled') return;
+    await waitForMagnet(50);
     
     // 🔥 CRITICAL FIX: Spawn OBLIGATORY tile FIRST (priority)
     // Then spawn replacement tiles with cascading delays
@@ -1479,7 +1502,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       
       // Create promise that resolves when spawn completes
       const spawnPromise = (async (): Promise<boolean> => {
-        if (await waitTrackedResult(delay) === 'cancelled') return false;
+        await waitForMagnet(delay);
         try {
           // 🔥 CRITICAL FIX v40.6: Double-check cell is still empty before spawning (race condition protection)
           // Problem: Spawning on locked tiles with value > 0 or wild tiles causes "2 tiles on same position" bug
@@ -1510,14 +1533,14 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
           }
           
           // Spawn tile normally (skipBind = false means it will try to bind immediately)
-            await openAtCell(
+            await openMagnetCell(
               c,
               r,
               forcedValue
                 ? { skipBind: false, value: forcedValue, forceFreshPlaceholder: true }
                 : { skipBind: false, forceFreshPlaceholder: true }
             );
-            if (await waitTrackedResult(50) === 'cancelled') return false;
+            await waitForMagnet(50);
               const tile = STATE.grid?.[r]?.[c];
                 const spawnSuccess = !!(tile && !tile.locked && (tile.value|0) > 0);
                 
@@ -1553,6 +1576,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     // 🔥 CRITICAL: If we still don't have enough successful spawns, try to spawn on additional cells
     // Wait a bit for initial spawns to complete, then check if we need more
     await Promise.all(spawnPromises);
+    assertLifecycleCurrent();
     
     // The destination is converted below into a fresh playable cube, so it no
     // longer needs an extra adjacent spawn to remain usable.
@@ -1577,7 +1601,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         const fallbackCell = obligatoryCell || adjacentCells[0];
         if (fallbackCell) {
           try {
-            await openAtCell(fallbackCell.c, fallbackCell.r, {
+            await openMagnetCell(fallbackCell.c, fallbackCell.r, {
               skipBind: false,
               value: 1 + Math.floor(Math.random() * 3),
               forceFreshPlaceholder: true,
@@ -1632,8 +1656,8 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         const forcedValue = additionalForcedValues.get(key) || mergeableValues[Math.floor(Math.random() * mergeableValues.length)];
         
         try {
-          await openAtCell(c, r, { skipBind: false, value: forcedValue, forceFreshPlaceholder: true });
-          trackAppTimeout(() => {
+          await openMagnetCell(c, r, { skipBind: false, value: forcedValue, forceFreshPlaceholder: true });
+          scheduleMagnetTimeout(() => {
             const tile = STATE.grid?.[r]?.[c];
             if (tile && !tile.locked && (tile.value|0) > 0) {
               successfulSpawns++;
@@ -1665,6 +1689,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       const grid = STATE.grid;
       const tiles = STATE.tiles;
       const makeBoardForFill = helpers?.makeBoard ?? (await import('./board.js'));
+      assertLifecycleCurrent();
       if (board && grid && tiles && makeBoardForFill) {
         fillNullCellsWithLockedPlaceholders({
           ROWS,
@@ -1678,6 +1703,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         try { drawBoardBG?.(); } catch {}
       }
     } catch (err) {
+      if (err instanceof AppSpawnCancelledError) throw err;
       console.warn('⚠️ fillNullCellsWithLockedPlaceholders failed:', err);
     }
   } else if (spawnCount > 0) {
@@ -1694,6 +1720,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       const grid = STATE.grid;
       const tiles = STATE.tiles;
       const makeBoardForFill = helpers?.makeBoard ?? (await import('./board.js'));
+      assertLifecycleCurrent();
       if (board && grid && tiles && makeBoardForFill) {
         fillNullCellsWithLockedPlaceholders({
           ROWS,
@@ -1707,6 +1734,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         try { drawBoardBG?.(); } catch {}
       }
     } catch (err) {
+      if (err instanceof AppSpawnCancelledError) throw err;
       console.warn('⚠️ fillNullCellsWithLockedPlaceholders failed (no spawn targets):', err);
     }
   }
@@ -1869,6 +1897,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       const grid = STATE.grid;
       const tiles = STATE.tiles;
       const makeBoardForFill = helpers?.makeBoard ?? (await import('./board.js'));
+      assertLifecycleCurrent();
       if (board && grid && tiles && makeBoardForFill) {
         fillNullCellsWithLockedPlaceholders({
           ROWS,
@@ -1882,6 +1911,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         try { drawBoardBG?.(); } catch {}
       }
     } catch (err) {
+      if (err instanceof AppSpawnCancelledError) throw err;
       console.warn('⚠️ fillNullCellsWithLockedPlaceholders (post-merge6-removal) failed:', err);
     }
   }
@@ -1916,7 +1946,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // Plus safety margin: Total safe delay: 1200ms
   // This ensures ALL spawn animations, unlocks, and bindings are complete before endgame check
   console.log('⏳ Waiting 1200ms for spawn animations to complete before endgame check...');
-  if (await waitTrackedResult(1200) === 'cancelled') return;
+  await waitForMagnet(1200);
   if (abortSupersededPostCommitTail('after-initial-settle')) return;
   
   // 🔥 CRITICAL: Check if ALL tiles can be merged together (simulate all possible merges)
@@ -1982,7 +2012,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       }))
     });
     // Wait additional 600ms (increased from 500ms) for spawn animations and bindings to complete
-    if (await waitTrackedResult(600) === 'cancelled') return;
+    await waitForMagnet(600);
     if (abortSupersededPostCommitTail('after-spawn-settle')) return;
     spawnState = computeSpawnState();
   }
@@ -1997,7 +2027,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       note: 'No tiles were spawned - this will cause incorrect endgame check!'
     });
     // Wait additional time and re-check
-    if (await waitTrackedResult(500) === 'cancelled') return;
+    await waitForMagnet(500);
     if (abortSupersededPostCommitTail('after-zero-tile-recheck-wait')) return;
     let recheckState = computeSpawnState();
     console.log('🧲 Re-check after additional wait:', {
@@ -2016,7 +2046,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         if (abortSupersededPostCommitTail('before-fallback-spawn')) return;
         const fallbackValue = 1 + Math.floor(Math.random() * 3);
         try {
-          await openAtCell(target.c, target.r, {
+          await openMagnetCell(target.c, target.r, {
             skipBind: false,
             value: fallbackValue,
             forceFreshPlaceholder: true,
@@ -2027,7 +2057,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         }
         if (abortSupersededPostCommitTail('after-fallback-spawn')) return;
       }
-      if (await waitTrackedResult(100) === 'cancelled') return;
+      await waitForMagnet(100);
       if (abortSupersededPostCommitTail('after-fallback-settle')) return;
       recheckState = computeSpawnState();
       console.log('🧲 Fallback spawn re-check:', {
@@ -2085,7 +2115,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     } else {
       retryCount++;
       console.log(`⏳ Waiting for ${lockedActiveTilesCheck.length} tiles to unlock (retry ${retryCount}/${maxRetries})...`);
-      if (await waitTrackedResult(50) === 'cancelled') return;
+      await waitForMagnet(50);
       if (abortSupersededPostCommitTail('after-unlock-poll')) return;
     }
   }
@@ -2215,7 +2245,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     }
     throw error;
   } finally {
-    if (endgameGuardActive && typeof endEndgameGuard === 'function') {
+    if (ownsLifecycle() && endgameGuardActive && typeof endEndgameGuard === 'function') {
       try {
         endEndgameGuard(endgameGuardSource);
         endgameGuardActive = false;
@@ -2223,7 +2253,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         console.warn('⚠️ Failed to end endgame guard in mergePulledTilesIntoMerge6', error);
       }
     }
-    const postGuardCheckSource = magnetLifecycleCancelled
+    const postGuardCheckSource = !isLifecycleCurrent()
       ? null
       : (pendingPostGuardEndgameCheckSource
         || (shouldRunPostMagnetEndgameCheck ? 'mergePulledTiles_postGuard_settle' : null));

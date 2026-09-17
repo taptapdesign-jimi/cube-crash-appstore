@@ -63,10 +63,10 @@ type FlightPlan = {
   rotationDirection: -1 | 1;
 };
 
-const PROFILES: Record<JuiceFinaleProp, { x: number; y: number; size: number; depth: number; delay: number; duration: number }> = {
-  cup: { x: 0.31, y: 1.11, size: 144, depth: -20, delay: 0.55, duration: 2.90 },
-  lid: { x: 0.55, y: 1.07, size: 135, depth: 20, delay: 0.26, duration: 2.34 },
-  straw: { x: 0.78, y: 1.025, size: 76, depth: 30, delay: 0, duration: 1.88 },
+const PROFILES: Record<JuiceFinaleProp, { y: number; size: number; depth: number }> = {
+  cup: { y: 1.11, size: 144, depth: -20 },
+  lid: { y: 1.07, size: 135, depth: 20 },
+  straw: { y: 1.025, size: 76, depth: 30 },
 };
 
 /** Draw a fresh, independent upward route for every part of every finale. */
@@ -79,9 +79,9 @@ export function createJuiceFinalePropFlightPlan(
   const profile = PROFILES[prop];
   const horizontalMargin = Math.min(screenW * 0.5, profile.size * 0.5 + 6);
   const keepInside = (x: number) => Math.max(horizontalMargin, Math.min(screenW - horizontalMargin, x));
-  const startX = keepInside(screenW * profile.x + (random() - 0.5) * screenW * 0.05);
-  const driftX = (random() - 0.5) * screenW * 0.06;
+  const startX = keepInside(screenW * (0.25 + random() * 0.5));
   const horizontalRoom = Math.max(0, Math.min(startX - horizontalMargin, screenW - horizontalMargin - startX));
+  const driftX = (random() - 0.5) * Math.min(screenW * 0.06, horizontalRoom * 2);
   const weaveAmplitude = Math.min(
     screenW * (0.09 + random() * 0.035),
     Math.max(0, horizontalRoom - Math.abs(driftX)),
@@ -94,8 +94,10 @@ export function createJuiceFinalePropFlightPlan(
     horizontalMargin,
     size: profile.size,
     depth: profile.depth,
-    delay: profile.delay,
-    duration: profile.duration,
+    // Independent draws let every part launch/finish first, on either side.
+    // Keep the longest possible tail within the existing 3.45s budget.
+    delay: random() * 0.55,
+    duration: 1.88 + random() * 1.02,
     riseAcceleration: 0.12 + random() * 0.16,
     driftX,
     weaveAmplitude,
@@ -111,10 +113,45 @@ export function createJuiceFinalePropFlightPlan(
   };
 }
 
+/** Spread the ensemble across the screen and stagger its vertical travel.
+ * Shuffle space and timing separately so no part owns a fixed side or order.
+ */
+export function createJuiceFinalePropFlightPlans(
+  screenW: number,
+  screenH: number,
+  random: () => number = Math.random,
+): Record<JuiceFinaleProp, FlightPlan> {
+  const shuffledSlots = () => {
+    const slots = [0, 1, 2];
+    for (let i = slots.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(random() * (i + 1));
+      [slots[i], slots[j]] = [slots[j], slots[i]];
+    }
+    return slots;
+  };
+  const lanes = shuffledSlots();
+  const launchOrder = shuffledSlots();
+  const plans = {} as Record<JuiceFinaleProp, FlightPlan>;
+  (Object.keys(JUICE_FINALE_PROP_SOURCES) as JuiceFinaleProp[]).forEach((prop, index) => {
+    const plan = createJuiceFinalePropFlightPlan(prop, screenW, screenH, random);
+    const lane = 0.05 + lanes[index] * 0.4 + random() * 0.1;
+    plan.startX = plan.horizontalMargin + Math.max(0, screenW - plan.horizontalMargin * 2) * lane;
+    const room = Math.max(0, Math.min(plan.startX - plan.horizontalMargin,
+      screenW - plan.horizontalMargin - plan.startX));
+    plan.driftX = Math.max(-room * 0.25, Math.min(room * 0.25, plan.driftX));
+    plan.weaveAmplitude = Math.min(plan.weaveAmplitude, room - Math.abs(plan.driftX));
+    const order = launchOrder[index];
+    plan.delay = order * 0.255 + random() * 0.04;
+    plan.duration = 1.88 + order * 0.46 + random() * 0.10;
+    plan.riseAcceleration = 0.12 + order * 0.06 + random() * 0.04;
+    plans[prop] = plan;
+  });
+  return plans;
+}
+
 export function sampleJuiceFinalePropPose(plan: FlightPlan, progress: number): { x: number; y: number; rotation: number } {
   const p = Math.max(0, Math.min(1, progress));
-  // Every route rises strictly upward; acceleration varies without changing
-  // the part's authored launch order or overall flight duration.
+  // Every randomized route still rises strictly upward without a pause.
   const upwardProgress = p + plan.riseAcceleration * p * (p - 1);
   // Smoothly reach full sway by 20% of flight without a speed kink at handoff.
   const swayEnvelope = Math.sin(Math.min(1, p * 5) * Math.PI / 2);
@@ -143,6 +180,7 @@ export function createJuiceFinalePropFlights(
   const owners: Array<{ sprite: Sprite; timeline?: gsap.core.Timeline }> = [];
   const available = (Object.keys(JUICE_FINALE_PROP_SOURCES) as JuiceFinaleProp[])
     .filter((prop) => textures[prop] && !(textures[prop] as Texture).destroyed);
+  const plans = createJuiceFinalePropFlightPlans(screenW, screenH);
   let completed = 0;
   let released = false;
 
@@ -160,7 +198,7 @@ export function createJuiceFinalePropFlights(
   try {
     for (const prop of available) {
       const texture = textures[prop] as Texture;
-      const plan = createJuiceFinalePropFlightPlan(prop, screenW, screenH);
+      const plan = plans[prop];
       const sprite = pool.acquire(texture);
       const owner: { sprite: Sprite; timeline?: gsap.core.Timeline } = { sprite };
       owners.push(owner);

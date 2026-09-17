@@ -1,7 +1,6 @@
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { LASERGUN_TIMING_SCALE } from './laser-gun-impact-scheduler';
-import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.ts';
 import {
   getLaserGunPlannerMuzzleX,
   LASERGUN_LEFT_MUZZLE_X_RATIO,
@@ -11,12 +10,6 @@ import {
 } from './tnt-bonus-target-selection.js';
 
 const BASE = './assets/shop/gun/';
-export const LASERGUN_ORBS_SVG_SOURCE = `${BASE}electric blue orbs.svg`;
-export const LASERGUN_ORBS_HEVC_SOURCE = `${BASE}electric-blue-orbs-hevc.mov`;
-export const LASERGUN_ORBS_DURATION_SECONDS = 3;
-export const LASERGUN_ORBS_WIDTH = 432;
-export const LASERGUN_ORBS_HEIGHT = 768;
-export const LASERGUN_ORBS_FRAMES_PER_SECOND = 60;
 const useHighResolutionAssets = typeof navigator !== 'undefined'
   && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 const source = (name: string): string => `${BASE}${name}${useHighResolutionAssets ? '@2x' : ''}.png`;
@@ -164,6 +157,7 @@ export function getLaserGunAxisMissDistance(
   return Math.abs(axisX * targetY - axisY * targetX) / axisLength;
 }
 
+
 export function getLaserGunRandomScales(
   count: number,
   random: () => number = Math.random,
@@ -305,74 +299,6 @@ export type LaserGunEntryReadiness = 'painted' | 'cancelled';
 
 let activeController: LaserGunFinaleController | null = null;
 let preloadPromise: Promise<void> | null = null;
-let preloadedOrbsVideo: HTMLVideoElement | null = null;
-let orbsHevcUnavailable = false;
-
-function configureOrbsVideo(video: HTMLVideoElement): void {
-  video.muted = true;
-  video.defaultMuted = true;
-  video.autoplay = true;
-  video.loop = false;
-  video.playsInline = true;
-  video.preload = 'auto';
-  video.disablePictureInPicture = true;
-  video.setAttribute('muted', '');
-  video.setAttribute('playsinline', '');
-  video.setAttribute('webkit-playsinline', '');
-  video.setAttribute('aria-hidden', 'true');
-  video.style.cssText = [
-    'position:absolute',
-    'inset:0',
-    'width:100%',
-    'height:100%',
-    'display:block',
-    'object-fit:contain',
-    'object-position:center',
-    'pointer-events:none',
-  ].join(';');
-}
-
-function getOrCreatePreloadedOrbsVideo(): HTMLVideoElement {
-  if (preloadedOrbsVideo) return preloadedOrbsVideo;
-  const video = document.createElement('video');
-  configureOrbsVideo(video);
-  video.src = LASERGUN_ORBS_HEVC_SOURCE;
-  preloadedOrbsVideo = video;
-  return video;
-}
-
-function preloadLaserGunOrbsAsset(): Promise<void> {
-  if (MOBILE_RUNTIME_PROFILE.platform !== 'ios' || orbsHevcUnavailable) {
-    // The animated SVG is a desktop/failure fallback. Loading and decoding its
-    // large filter graph while a Journey board is being prepared can contend
-    // with first paint, so create it only if the LaserGun finale actually runs.
-    return Promise.resolve();
-  }
-
-  const video = getOrCreatePreloadedOrbsVideo();
-  if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) return Promise.resolve();
-  return new Promise((resolve) => {
-    let settled = false;
-    const finish = (available: boolean, definitiveFailure = !available) => {
-      if (settled) return;
-      settled = true;
-      window.clearTimeout(timeoutId);
-      video.removeEventListener('loadeddata', handleLoaded);
-      video.removeEventListener('error', handleError);
-      if (definitiveFailure) orbsHevcUnavailable = true;
-      resolve();
-    };
-    const handleLoaded = () => finish(true);
-    const handleError = () => finish(false);
-    const timeoutId = window.setTimeout(() => {
-      finish(video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA, false);
-    }, 1800);
-    video.addEventListener('loadeddata', handleLoaded, { once: true });
-    video.addEventListener('error', handleError, { once: true });
-    try { video.load(); } catch { finish(false); }
-  });
-}
-
 export function preloadLaserGunFinaleAssets(): Promise<void> {
   if (preloadPromise) return preloadPromise;
   const sources = [
@@ -380,7 +306,7 @@ export function preloadLaserGunFinaleAssets(): Promise<void> {
     source('left laser'),
     source('right laser'),
   ];
-  const rasterPreload = Promise.allSettled(sources.map((assetSource) => new Promise<void>((resolve) => {
+  preloadPromise = Promise.allSettled(sources.map((assetSource) => new Promise<void>((resolve) => {
     const image = new Image();
     const finish = () => {
       if (typeof image.decode !== 'function') {
@@ -394,84 +320,7 @@ export function preloadLaserGunFinaleAssets(): Promise<void> {
     image.src = assetSource;
     if (image.complete) finish();
   }))).then(() => undefined);
-  preloadPromise = Promise.all([
-    rasterPreload,
-    preloadLaserGunOrbsAsset(),
-  ]).then(() => undefined);
   return preloadPromise;
-}
-
-function attachLaserGunOrbsLayer(overlay: HTMLElement): () => void {
-  let disposed = false;
-  let fallbackImage: HTMLImageElement | null = null;
-  let video: HTMLVideoElement | null = null;
-
-  const field = document.createElement('div');
-  field.className = 'cc-lasergun-orbs-layer';
-  field.dataset.lasergunOrbs = 'active';
-  field.style.cssText = [
-    'position:absolute',
-    'inset:0',
-    'overflow:hidden',
-    'pointer-events:none',
-    'z-index:0',
-    'contain:layout style paint',
-  ].join(';');
-
-  const showSvgFallback = () => {
-    if (disposed || fallbackImage) return;
-    if (video) {
-      try { video.pause(); } catch {}
-      video.remove();
-    }
-    fallbackImage = createImage(LASERGUN_ORBS_SVG_SOURCE, 'cc-lasergun-orbs-fallback');
-    fallbackImage.dataset.lasergunOrbsSource = 'svg-fallback';
-    fallbackImage.style.cssText += [
-      'inset:0',
-      'width:100%',
-      'height:100%',
-      'object-fit:contain',
-      'object-position:center',
-    ].join(';');
-    field.appendChild(fallbackImage);
-  };
-  const handleVideoFailure = () => {
-    orbsHevcUnavailable = true;
-    showSvgFallback();
-  };
-
-  if (MOBILE_RUNTIME_PROFILE.platform === 'ios' && !orbsHevcUnavailable) {
-    video = getOrCreatePreloadedOrbsVideo();
-    configureOrbsVideo(video);
-    video.dataset.lasergunOrbsSource = 'hevc-alpha';
-    video.addEventListener('error', handleVideoFailure, { once: true });
-    field.appendChild(video);
-  } else {
-    showSvgFallback();
-  }
-
-  overlay.insertBefore(field, overlay.firstChild);
-
-  if (video) {
-    try { video.currentTime = 0; } catch {}
-    void video.play().catch(handleVideoFailure);
-  }
-
-  return () => {
-    if (disposed) return;
-    disposed = true;
-    if (video) {
-      video.removeEventListener('error', handleVideoFailure);
-      try {
-        video.pause();
-        video.currentTime = 0;
-      } catch {}
-      video.remove();
-    }
-    fallbackImage?.remove();
-    fallbackImage = null;
-    field.remove();
-  };
 }
 
 export function setActiveLaserGunFinaleTargets(
@@ -643,7 +492,6 @@ export function attachLaserGunFinaleScene(
     right: [],
   };
 
-  const cleanupOrbsLayer = attachLaserGunOrbsLayer(overlay);
   overlay.insertBefore(field, overlay.firstChild);
   overlay.insertBefore(rightGunField, field.nextSibling);
   const ensureGunBeamPair = (side: LaserGunShooter, slot: number) => {
@@ -739,7 +587,6 @@ export function attachLaserGunFinaleScene(
       gun.side === 'left' ? -1 : 1,
     );
   };
-
   const solveGunLayoutBeforeEntry = (
     gun: ReturnType<typeof createGunRig>,
     target: LaserPoint,
@@ -762,9 +609,8 @@ export function attachLaserGunFinaleScene(
       });
     };
     const settleAim = () => {
-      // Rotating around the full rig centre moves the muzzle as well as its
-      // direction, so converge against the freshly rendered markers until the
-      // cube centre is within 0.05px of the real barrel axis.
+      // CSS mirror, parent rotation and scale do not compose like a single
+      // centre rotation. Read the actual hidden DOM markers after each update.
       for (let pass = 0; pass < 12; pass += 1) {
         gsap.set(gun.aim, { rotation: aimRotationFor(gun, target) });
         const axis = resolveMarker(gun.axis);
@@ -777,12 +623,9 @@ export function attachLaserGunFinaleScene(
       const axis = resolveMarker(gun.axis);
       const barrel = resolveMarker(gun.barrel);
       const axisLength = Math.hypot(barrel.x - axis.x, barrel.y - axis.y);
-      // jsdom has no layout engine, so retain a deterministic target-vector
-      // fallback for unit tests. Real browser geometry always uses the barrel.
-      if (axisLength <= 0.01) {
-        return Math.atan2(target.y - barrel.y, target.x - barrel.x) * 180 / Math.PI;
-      }
-      return Math.atan2(barrel.y - axis.y, barrel.x - axis.x) * 180 / Math.PI;
+      return axisLength <= 0.01
+        ? Math.atan2(target.y - barrel.y, target.x - barrel.x) * 180 / Math.PI
+        : Math.atan2(barrel.y - axis.y, barrel.x - axis.x) * 180 / Math.PI;
     };
     applyLayout();
     gsap.set(gun.aim, { rotation: 0 });
@@ -796,8 +639,7 @@ export function attachLaserGunFinaleScene(
         beamRotation: readBeamRotation(),
       };
     }
-    const layoutTravelDistance = LASERGUN_MIN_BEAM_TRAVEL_PX
-      + LASERGUN_LAYOUT_TRAVEL_MARGIN_PX;
+    const layoutTravelDistance = LASERGUN_MIN_BEAM_TRAVEL_PX + LASERGUN_LAYOUT_TRAVEL_MARGIN_PX;
     const minimumHorizontalDistance = layoutTravelDistance
       * Math.cos(LASERGUN_MAX_BEAM_ANGLE_DEGREES * Math.PI / 180);
     for (let pass = 0; pass < 6; pass += 1) {
@@ -805,8 +647,7 @@ export function attachLaserGunFinaleScene(
       const barrel = resolveMarker(gun.barrel);
       const horizontalDistance = Math.abs(target.x - barrel.x);
       if (horizontalDistance + 0.02 < minimumHorizontalDistance) {
-        const outward = gun.side === 'left' ? -1 : 1;
-        left += outward * (minimumHorizontalDistance - horizontalDistance);
+        left += (gun.side === 'left' ? -1 : 1) * (minimumHorizontalDistance - horizontalDistance);
         applyLayout();
         continue;
       }
@@ -1114,21 +955,17 @@ export function attachLaserGunFinaleScene(
       x: target.x - liveFieldRect.left,
       y: target.y - liveFieldRect.top,
     };
-    // The gun is already entering with its immutable barrel direction. A real
-    // relative target drift must disable the visual shot instead of drawing a
-    // beam at an old centre or visibly re-aiming the gun onstage. Shared shake
-    // cancels from both points and therefore remains inside this tolerance.
+    // A hidden relay gun can still follow a moved reserved cube. A gun already
+    // onstage keeps the pose and target it painted with; the accepted shot must
+    // still render instead of silently dropping its beam.
     const targetDrift = Math.hypot(
       liveLocalTarget.x - shot.localTarget.x,
       liveLocalTarget.y - shot.localTarget.y,
     );
-    if (targetDrift > LASERGUN_TARGET_LOCK_TOLERANCE_PX) {
-      // A later relay gun is still fully hidden until its own prepare step.
-      // Re-solve that hidden gun against the live reserved cube instead of
-      // retiring the complete 2 -> 3 -> 4 visual chain. A gun that has already
-      // entered remains immutable and still fails closed rather than re-aiming
-      // on stage while a beam is visible.
-      if (shot.entryStarted) return Promise.resolve(false);
+    if (targetDrift > LASERGUN_TARGET_LOCK_TOLERANCE_PX && !shot.entryStarted) {
+      // A later relay gun is still fully hidden until its own prepare step and
+      // can be solved again. Once a gun has entered, preserve its authored pose
+      // and locked target; an accepted gameplay hit must never lose its beam.
       const activeScale = gunActiveScales.get(shot.gun.rig) ?? 1;
       const viewportWidth = Math.max(
         320,
@@ -1443,7 +1280,6 @@ export function attachLaserGunFinaleScene(
     entryPaintFrameA = null;
     entryPaintFrameB = null;
     try {
-      cleanupOrbsLayer();
       gsap.killTweensOf(field);
       field.querySelectorAll('*').forEach((element) => gsap.killTweensOf(element));
       gsap.killTweensOf(rightGunField);

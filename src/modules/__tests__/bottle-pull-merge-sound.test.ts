@@ -126,7 +126,6 @@ describe('Bottle pull Merge-6 sound', () => {
   test('binds only Bottle to the committed second merge and owns preload and cleanup', () => {
     const appCore = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/app-core.ts'), 'utf8');
     const uiManager = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/ui-manager.ts'), 'utf8');
-    const journey = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/journey-boards-manager.ts'), 'utf8');
     const convergeBlock = appCore.split('if (arrivedCount === totalTiles) {')[1] ?? '';
 
     expect(convergeBlock).toContain("if (magnetVariantAtMergeEntry?.id === 'bottle') {");
@@ -135,9 +134,9 @@ describe('Bottle pull Merge-6 sound', () => {
       convergeBlock.indexOf('await tryMergePulledTiles();'),
     );
     expect(appCore).toContain('stopBottlePullMergeSounds();');
-    expect(uiManager).toContain('preloadBottlePullMergeSounds();');
+    expect(fs.readFileSync(path.resolve(process.cwd(), 'src/modules/special-sound-warmup.ts'), 'utf8')).toContain('preloadBottlePullMergeSounds();');
     expect(uiManager).toContain('stopBottlePullMergeSounds();');
-    expect(journey).toContain('preloadBottlePullMergeSounds();');
+    expect(appCore).toContain('preloadEligibleSpecialSounds({ boardNumber: entryBoard, isArcade: isArcadeHomeRunMode(), tiles });');
   });
 
   test('obeys Settings Sounds OFF', () => {
