@@ -101,6 +101,16 @@ export function decideWildType({
     };
   }
 
+  if (isArcade && boardNumber === 1 && wildSpawnCount === 0) {
+    return {
+      spawnJuice: false,
+      spawnMagnet: true,
+      spawnTnt: false,
+      wildType: 'wild-magnet',
+      specialDiceVariantId: null,
+    };
+  }
+
   // Beach keeps its established first-Stage theme cadence after the authored
   // Forest and Area 55 progression owners have handled their worlds above.
   const isJourneyWorldIntro = !isArcade && boardNumber === 11;

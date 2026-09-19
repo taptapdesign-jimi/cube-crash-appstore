@@ -21,30 +21,27 @@ import { preloadMagnetPullForceSounds } from '../magnet-pull-force-sound';
 jest.mock('../magnet-pull-force-sound', () => ({ preloadMagnetPullForceSounds: jest.fn() }));
 import { preloadHoneyMerge6Sounds } from '../honey-merge6-sound';
 jest.mock('../honey-merge6-sound', () => ({ preloadHoneyMerge6Sounds: jest.fn() }));
-const owners = {preloadKantaMerge6Sounds, preloadFishMerge6Sounds, preloadBeachBallMerge6Sounds, preloadCoreTntMerge6Sound, preloadFlowerMerge6Sounds, preloadBeeMerge6Sounds, preloadRoboCubeMerge6Sounds, preloadBottleFinaleSounds, preloadBottlePullMergeSounds, preloadMagnetPullForceSounds, preloadHoneyMerge6Sounds};
+import { preloadLaserGunMerge6Sounds } from '../laser-gun-merge6-sound';
+jest.mock('../laser-gun-merge6-sound', () => ({ preloadLaserGunMerge6Sounds: jest.fn() }));
+import { preloadSpaceshipMerge6Sounds } from '../spaceship-merge6-sound';
+jest.mock('../spaceship-merge6-sound', () => ({ preloadSpaceshipMerge6Sounds: jest.fn() }));
+import { preloadBarrelMerge6Sounds } from '../barrel-merge6-sound';
+jest.mock('../barrel-merge6-sound', () => ({ preloadBarrelMerge6Sounds: jest.fn() }));
+import { preloadJuiceMerge6Sounds } from '../juice-finale-sound';
+jest.mock('../juice-finale-sound', () => ({ preloadJuiceMerge6Sounds: jest.fn() }));
+const owners = {preloadKantaMerge6Sounds, preloadFishMerge6Sounds, preloadBeachBallMerge6Sounds, preloadCoreTntMerge6Sound, preloadFlowerMerge6Sounds, preloadBeeMerge6Sounds, preloadRoboCubeMerge6Sounds, preloadBottleFinaleSounds, preloadBottlePullMergeSounds, preloadMagnetPullForceSounds, preloadHoneyMerge6Sounds, preloadLaserGunMerge6Sounds, preloadSpaceshipMerge6Sounds, preloadBarrelMerge6Sounds, preloadJuiceMerge6Sounds};
 
 function warmed(boardNumber: number, isArcade = false, tiles: any[] = []): string[] {
   Object.values(owners).forEach(owner => jest.mocked(owner).mockClear());
   preloadEligibleSpecialSounds({ boardNumber, isArcade, tiles });
   return Object.entries(owners).filter(([, owner]) => jest.mocked(owner).mock.calls.length > 0).map(([name]) => name).sort();
 }
-test('Forest starts with common Star only and progressively warms earned sounds', () => {
+test('entry does not decode possible rewards before a special exists', () => {
   expect(warmed(1)).toEqual([]);
-  expect(warmed(2)).toEqual(['preloadBeeMerge6Sounds']);
-  expect(warmed(3)).toEqual(['preloadBeeMerge6Sounds', 'preloadFlowerMerge6Sounds']);
-  expect(warmed(4)).toEqual(['preloadBeeMerge6Sounds', 'preloadFlowerMerge6Sounds', 'preloadHoneyMerge6Sounds', 'preloadMagnetPullForceSounds']);
-  expect(warmed(7)).toContain('preloadCoreTntMerge6Sound');
-  expect(warmed(7)).not.toContain('preloadFishMerge6Sounds');
-});
-test('Area55 uses the cumulative authored pool without unrelated Forest/Beach sounds', () => {
-  expect(warmed(21)).toEqual(['preloadKantaMerge6Sounds']);
-  expect(warmed(22)).toEqual(['preloadKantaMerge6Sounds', 'preloadRoboCubeMerge6Sounds']);
-  expect(warmed(24)).toEqual(['preloadKantaMerge6Sounds', 'preloadMagnetPullForceSounds', 'preloadRoboCubeMerge6Sounds']);
-});
-test('Beach and Arcade use their actual families and shared magnet foundation', () => {
-  expect(warmed(12)).toEqual(['preloadBeachBallMerge6Sounds', 'preloadBottleFinaleSounds', 'preloadBottlePullMergeSounds', 'preloadFishMerge6Sounds', 'preloadMagnetPullForceSounds']);
-  expect(warmed(1, true)).toEqual(['preloadBeachBallMerge6Sounds', 'preloadBottleFinaleSounds', 'preloadBottlePullMergeSounds', 'preloadCoreTntMerge6Sound', 'preloadMagnetPullForceSounds']);
-  expect(warmed(2, true)).toEqual(['preloadCoreTntMerge6Sound', 'preloadMagnetPullForceSounds']);
+  expect(warmed(7)).toEqual([]);
+  expect(warmed(24)).toEqual([]);
+  expect(warmed(12)).toEqual([]);
+  expect(warmed(1, true)).toEqual([]);
 });
 test('saved live variants and core specials extend eligibility without duplicates or destroyed tiles', () => {
   const tiles = [
@@ -53,9 +50,19 @@ test('saved live variants and core specials extend eligibility without duplicate
     { special: 'wild-tnt' },
     { special: 'wild-tnt', _ccSpecialDiceVariant: 'flower', destroyed: true },
   ];
-  expect(warmed(21, false, tiles)).toEqual(['preloadCoreTntMerge6Sound', 'preloadFishMerge6Sounds', 'preloadKantaMerge6Sounds']);
+  expect(warmed(21, false, tiles)).toEqual(['preloadCoreTntMerge6Sound', 'preloadFishMerge6Sounds']);
   expect(preloadFishMerge6Sounds).toHaveBeenCalledTimes(1);
-  expect(getSpecialSoundWarmupFamilies({ boardNumber: 7, isArcade: false }).has('barell')).toBe(true);
+  expect(getSpecialSoundWarmupFamilies({ boardNumber: 7, isArcade: false }).size).toBe(0);
+});
+
+test('a committed die warms only its exact package and gameplay foundation', () => {
+  expect(warmed(1, true, [{ special: 'wild-magnet', _ccSpecialDiceVariant: 'bottle' }])).toEqual([
+    'preloadBottleFinaleSounds', 'preloadBottlePullMergeSounds', 'preloadMagnetPullForceSounds',
+  ]);
+  expect(warmed(7, false, [{ special: 'wild-tnt', _ccSpecialDiceVariant: 'barell' }])).toEqual([
+    'preloadBarrelMerge6Sounds', 'preloadCoreTntMerge6Sound',
+  ]);
+  expect(warmed(12, false, [{ special: 'wild-juice' }])).toEqual(['preloadJuiceMerge6Sounds']);
 });
 
 test('fresh and restored entry share delayed generation-owned audio/media preparation', () => {
@@ -82,12 +89,12 @@ test('fresh and restored entry share delayed generation-owned audio/media prepar
     (callback: () => void, delay: number) => { timers.push(callback); delays.push(delay); }, audio, () => false, savedTiles,
     () => ({ fish: true, juice: true, barrel: true }), media, juice, barrel, visibility);
   run();
-  expect(delays).toEqual([600, 1600, 2000, 4200]);
+  expect(delays).toEqual([600, 1600]);
   timers.splice(0).forEach(callback => callback());
   expect(audio).toHaveBeenCalledWith({ boardNumber: 24, isArcade: false, tiles: savedTiles });
   expect(media).toHaveBeenCalledTimes(1);
-  expect(juice).toHaveBeenCalledTimes(1);
-  expect(barrel).toHaveBeenCalledTimes(1);
+  expect(juice).not.toHaveBeenCalled();
+  expect(barrel).not.toHaveBeenCalled();
   run(); visibility.hidden = true;
   timers.splice(0).forEach(callback => callback());
   visibility.hidden = false;
@@ -97,6 +104,6 @@ test('fresh and restored entry share delayed generation-owned audio/media prepar
   timers.splice(0).forEach(callback => callback());
   expect(audio).toHaveBeenCalledTimes(1);
   expect(media).toHaveBeenCalledTimes(1);
-  expect(juice).toHaveBeenCalledTimes(1);
-  expect(barrel).toHaveBeenCalledTimes(1);
+  expect(juice).not.toHaveBeenCalled();
+  expect(barrel).not.toHaveBeenCalled();
 });

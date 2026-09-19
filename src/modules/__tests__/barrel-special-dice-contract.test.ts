@@ -174,10 +174,12 @@ describe('Barrel TNT archetype', () => {
     expect(Object.values(BARREL_SOUND_SOURCES)).toHaveLength(8);
     Object.values(BARREL_SOUND_SOURCES).forEach((source) => expect(fs.existsSync(path.resolve(process.cwd(), source))).toBe(true));
     const appSource = read('src/modules/app-core.ts');
+    const warmupSource = read('src/modules/special-sound-warmup.ts');
     const uiSource = read('src/modules/ui-manager.ts');
     const journeySource = read('src/modules/journey-boards-manager.ts');
     expect(appSource).toContain('playBarrelMerge6Sound()');
-    expect(appSource).toContain('void preloadBarrelMerge6Sounds();');
+    expect(appSource).toContain('tiles: [spawnedTile]');
+    expect(warmupSource).toContain("if (families.has('barell')) preloadBarrelMerge6Sounds();");
     expect(uiSource).not.toContain('preloadBarrelMerge6Sounds');
     expect(journeySource).not.toContain('preloadBarrelMerge6Sounds');
     expect(appSource).toContain("tntVariantForMerge.id !== 'barell'");

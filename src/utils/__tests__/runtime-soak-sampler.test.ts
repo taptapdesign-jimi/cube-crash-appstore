@@ -1,9 +1,13 @@
 import { getSoundtrackRuntimeStats } from '../../modules/soundtrack-manager';
 import { getSharedPixiSheetCacheStats } from '../../modules/shared-pixi-sheet-animation';
 import { getDecodedGameplayAudioStats } from '../../modules/gameplay-audio-buffer-player';
+import { getPixiMobileFrameControllerSnapshot } from '../../modules/pixi-mobile-frame-controller';
 jest.mock('../../modules/soundtrack-manager', () => ({ getSoundtrackRuntimeStats: jest.fn(() => ({})) }));
 jest.mock('../../modules/shared-pixi-sheet-animation', () => ({ getSharedPixiSheetCacheStats: jest.fn(() => ({})) }));
 jest.mock('../../modules/gameplay-audio-buffer-player', () => ({ getDecodedGameplayAudioStats: jest.fn(() => ({ activeVoices: 0 })) }));
+jest.mock('../../modules/pixi-mobile-frame-controller', () => ({
+  getPixiMobileFrameControllerSnapshot: jest.fn(() => ({ active: false, maxFPS: 30, activeUntil: 0, activityLeaseCount: 0 })),
+}));
 import { emitRuntimeMemoryPressureSnapshot, emitRuntimeResourceSnapshot, startRuntimeSoakSampler } from '../runtime-soak-sampler';
 
 describe('runtime soak sampler', () => {
@@ -11,6 +15,7 @@ describe('runtime soak sampler', () => {
     (getSoundtrackRuntimeStats as jest.Mock).mockReturnValue({});
     (getSharedPixiSheetCacheStats as jest.Mock).mockReturnValue({});
     (getDecodedGameplayAudioStats as jest.Mock).mockReturnValue({ activeVoices: 0 });
+    (getPixiMobileFrameControllerSnapshot as jest.Mock).mockReturnValue({ active: false, maxFPS: 30, activeUntil: 0, activityLeaseCount: 0 });
     jest.useFakeTimers();
     delete (window as any).__ccPerformanceDiagnostics;
     delete (window as any).__ccDetailedRuntimeDiagnostics;
@@ -77,6 +82,33 @@ describe('runtime soak sampler', () => {
     stop();
     jest.advanceTimersByTime(10_000);
     expect(postMessage).toHaveBeenCalledTimes(2);
+  });
+
+  test('adds one lightweight renderer and media snapshot every thirty seconds', () => {
+    const postMessage = jest.fn();
+    (window as any).__ccPerformanceDiagnostics = true;
+    (window as any).webkit = { messageHandlers: { consoleLog: { postMessage } } };
+    (window as any).STATE = { app: { renderer: {
+      resolution: 1.5, width: 585, height: 1266, screen: { width: 390, height: 844 },
+    } } };
+    document.body.dataset.appZone = 'gameplay';
+    document.body.innerHTML = '<canvas></canvas><video></video>';
+
+    const stop = startRuntimeSoakSampler();
+    jest.advanceTimersByTime(30_001);
+    const samples = postMessage.mock.calls.map(([body]) => JSON.parse(body.message.slice('[CC_SOAK] '.length)));
+    const light = samples.find((sample) => sample.sampleMode === 'resources-lite');
+
+    expect(light).toMatchObject({
+      route: 'gameplay',
+      renderer: { resolution: 1.5, width: 585, height: 1266, screenWidth: 390, screenHeight: 844 },
+      pixiCadence: { active: false, maxFPS: 30, activityLeaseCount: 0 },
+      media: { images: 0, canvases: 1, videos: 1, playingVideos: 0 },
+    });
+    expect(getPixiMobileFrameControllerSnapshot).toHaveBeenCalledTimes(1);
+    stop();
+    delete (window as any).STATE;
+    delete document.body.dataset.appZone;
   });
 
   test('pressure and async completion receipts retain cache evidence without DOM or animation walks', async () => {

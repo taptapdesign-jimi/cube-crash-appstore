@@ -107,9 +107,12 @@ describe('Forest progressive Wild pool', () => {
   );
 
   test('does not apply the Forest restriction to Arcade Round 01', () => {
-    expect(decideForRoll({ roll: 0.95, isArcade: true }).result).toMatchObject({
-      spawnTnt: true,
-      wildType: 'wild-tnt',
+    expect(decideForRoll({ roll: 0.95, isArcade: true }).result).toEqual({
+      spawnJuice: false,
+      spawnMagnet: true,
+      spawnTnt: false,
+      wildType: 'wild-magnet',
+      specialDiceVariantId: null,
     });
   });
 

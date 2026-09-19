@@ -2,6 +2,12 @@ import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { logger } from '../core/logger.js';
 import { areContinuousRuntimeDiagnosticsEnabled } from '../utils/runtime-diagnostics-policy.js';
+import {
+  playSpaceshipBeamStartSounds,
+  playSpaceshipExitSound,
+  playSpaceshipFinaleStartSounds,
+  stopSpaceshipFinaleSounds,
+} from './spaceship-merge6-sound.ts';
 
 const PACK = './assets/shop/spaceship';
 export const SPACESHIP_SCENE_SECONDS = 3.8;
@@ -488,6 +494,7 @@ export function attachSpaceshipFinaleScene(
   const start = () => {
     if (disposed || started) return;
     started = true;
+    playSpaceshipFinaleStartSounds();
     traceSuction('scene-start', { debrisCount: debris.length });
     const saucerExit = getSpaceshipSaucerExitPlan(options.exitRandom);
     const master = own(gsap.timeline({ paused: true }));
@@ -634,6 +641,7 @@ export function attachSpaceshipFinaleScene(
       },
     }, SPACESHIP_SAUCER_EXIT_AT_SECONDS);
     master.call(() => {
+      if (!disposed) playSpaceshipExitSound();
       if (diagnosticsEnabled) {
         traceSuction('saucer-exit-start', {
           exitLane: saucerExit.lane,
@@ -657,6 +665,9 @@ export function attachSpaceshipFinaleScene(
     }
 
     const beams = own(gsap.timeline({ paused: true }));
+    beams.call(() => {
+      if (!disposed) playSpaceshipBeamStartSounds();
+    }, undefined, 0.34);
     beams.to(leftBeam, { opacity: 1, duration: 0.20, ease: 'power2.in' }, 0.34);
     const scheduleBeamShimmer = (
       beam: HTMLImageElement,
@@ -893,6 +904,7 @@ export function attachSpaceshipFinaleScene(
         ...debris.flatMap(({ mover, image }) => [mover, image]),
       ]);
     } catch {}
+    stopSpaceshipFinaleSounds();
     field.remove();
   }) as (() => void) & { startExit?: () => void; completionDelaySeconds?: number };
   // The scene owns its authored 3.8-second lifecycle. The shared overlay may start

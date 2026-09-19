@@ -4,6 +4,7 @@ import { STATE } from './app-state.ts';
 import { acquireAnimatedTimelinePhase, type AnimatedSvgPhaseLease } from './animated-svg-phase-scheduler.ts';
 import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
 import { reloadPixiImageTexture } from '../utils/pixi-image-texture-health.ts';
+import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.ts';
 import {
   mountAnimatedDiceAboveHud,
   releaseAnimatedDiceAboveHud,
@@ -62,8 +63,8 @@ type FamilyCache = {
   generation: number;
 };
 
-const DEFAULT_EVICTION_DELAY_MS = 30_000;
-export const SHARED_PIXI_SHEET_IDLE_BUDGET_BYTES = 48 * 1024 * 1024;
+const DEFAULT_EVICTION_DELAY_MS = MOBILE_RUNTIME_PROFILE.isMobileDevice ? 8_000 : 30_000;
+export const SHARED_PIXI_SHEET_IDLE_BUDGET_BYTES = (MOBILE_RUNTIME_PROFILE.isMobileDevice ? 24 : 48) * 1024 * 1024;
 const caches = new Map<string, FamilyCache>();
 const controllers = new Set<SharedPixiSheetController>();
 let runtimeTicker: any = null;

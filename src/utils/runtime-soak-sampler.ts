@@ -2,8 +2,10 @@ import { areDetailedRuntimeDiagnosticsEnabled } from './runtime-diagnostics-poli
 import { getSoundtrackRuntimeStats } from '../modules/soundtrack-manager.js';
 import { getSharedPixiSheetCacheStats } from '../modules/shared-pixi-sheet-animation.js';
 import { getDecodedGameplayAudioStats } from '../modules/gameplay-audio-buffer-player.js';
+import { getPixiMobileFrameControllerSnapshot } from '../modules/pixi-mobile-frame-controller.js';
 
 const SAMPLE_INTERVAL_MS = 5_000;
+const LIGHT_RESOURCE_SAMPLE_EVERY = 6;
 const MAX_LONG_FRAME_RECORDS = 24;
 
 type RuntimeSamplerWindow = Window & {
@@ -52,19 +54,45 @@ function emitCompactSample(
   reason = 'interval',
   force = false,
   cacheOnly = false,
+  lightResources = false,
 ): boolean {
   const runtimeWindow = window as RuntimeSamplerWindow;
   const handler = runtimeWindow.webkit?.messageHandlers?.consoleLog;
   if ((!force && runtimeWindow.__ccPerformanceDiagnostics !== true) || !handler?.postMessage) return false;
 
   const resources = (force && !cacheOnly) || areDetailedRuntimeDiagnosticsEnabled();
+  const lightweightResources = resources || cacheOnly || lightResources;
   let resourceSnapshot: Record<string, unknown> = {};
-  if (resources || cacheOnly) {
+  if (lightweightResources) {
     resourceSnapshot = {
       soundtrack: getSoundtrackRuntimeStats(),
       gameplayAudio: getDecodedGameplayAudioStats(),
       sharedPixiSheets: getSharedPixiSheetCacheStats(),
       runtimeTextures: runtimeWindow.__ccRuntimeTextures?.size ?? null,
+    };
+  }
+  if (lightResources && !resources && !cacheOnly) {
+    const renderer = (window as any).STATE?.app?.renderer;
+    const videos = Array.from(document.querySelectorAll('video'));
+    resourceSnapshot = {
+      ...resourceSnapshot,
+      route: document.body?.dataset?.appZone ?? null,
+      renderer: renderer ? {
+        resolution: renderer.resolution ?? null,
+        width: renderer.width ?? null,
+        height: renderer.height ?? null,
+        screenWidth: renderer.screen?.width ?? null,
+        screenHeight: renderer.screen?.height ?? null,
+      } : null,
+      pixiCadence: getPixiMobileFrameControllerSnapshot(),
+      boardFrameBudget: (window as any).__ccLastBoardPerf ?? null,
+      media: {
+        images: document.images.length,
+        canvases: document.querySelectorAll('canvas').length,
+        videos: videos.length,
+        playingVideos: videos.filter(video => !video.paused && !video.ended).length,
+        readyVideos: videos.filter(video => video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA).length,
+      },
     };
   }
   if (resources) {
@@ -99,7 +127,7 @@ function emitCompactSample(
       at: Math.round(performance.now()),
       reason,
       visibility: document.visibilityState,
-      sampleMode: resources ? 'resources' : cacheOnly ? 'cache-only' : 'timing-only',
+      sampleMode: resources ? 'resources' : cacheOnly ? 'cache-only' : lightResources ? 'resources-lite' : 'timing-only',
       frameTiming: frameTiming && frameTiming.samples > 0 ? {
         samples: frameTiming.samples,
         averageMs: Math.round((frameTiming.totalMs / frameTiming.samples) * 100) / 100,
@@ -113,7 +141,7 @@ function emitCompactSample(
       ...resourceSnapshot,
     })}`,
   });
-  return resources;
+  return resources || lightResources;
 }
 
 export function emitRuntimeResourceSnapshot(reason: string): void {
@@ -146,6 +174,7 @@ export function startRuntimeSoakSampler(): () => void {
   let frameRequest = 0;
   let pendingIdleSample = 0;
   let pendingFallbackSample = 0;
+  let intervalCount = 0;
   let skipNextMeasuredDelta = false;
   const sampleFrame = (): void => {
     // RAF's supplied timestamp can precede this callback and its synchronous
@@ -180,12 +209,12 @@ export function startRuntimeSoakSampler(): () => void {
     lastFrameAt = document.visibilityState === 'visible' ? now : null;
     frameRequest = window.requestAnimationFrame(sampleFrame);
   };
-  const scheduleIdleSample = (completedWindow: FrameTimingWindow | null): void => {
+  const scheduleIdleSample = (completedWindow: FrameTimingWindow | null, lightResources: boolean): void => {
     if (pendingIdleSample || pendingFallbackSample) return;
     const emit = () => {
       pendingIdleSample = 0;
       pendingFallbackSample = 0;
-      const walkedResources = emitCompactSample(completedWindow);
+      const walkedResources = emitCompactSample(completedWindow, 'interval', false, false, lightResources);
       if (walkedResources) {
         // Only a full resource walk excludes its own expensive traversal.
         // Timing-only summaries retain all deltas, including bridge/log cost.
@@ -206,9 +235,10 @@ export function startRuntimeSoakSampler(): () => void {
   emitCompactSample(null);
   frameRequest = window.requestAnimationFrame(sampleFrame);
   const interval = window.setInterval(() => {
+    intervalCount += 1;
     const completedWindow = frameWindow;
     frameWindow = { samples: 0, totalMs: 0, worstMs: 0, over20Ms: 0, over34Ms: 0, over250Ms: 0, longFrames: [], longFrameOverflow: 0 };
-    scheduleIdleSample(completedWindow);
+    scheduleIdleSample(completedWindow, intervalCount % LIGHT_RESOURCE_SAMPLE_EVERY === 0);
   }, SAMPLE_INTERVAL_MS);
   const stop = () => {
     window.clearInterval(interval);

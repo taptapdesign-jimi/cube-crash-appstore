@@ -2,6 +2,91 @@
 
 Updated: 2026-09-18
 
+## Area 55 Board Transition audio (2026-09-18)
+
+Owner: `board-transition-area55-sound.ts`. The five scene files remain in
+`assets/sound/Board transitions/Area 55/`; `bibice.wav` remains in its supplied
+Robo folder. Scene cues use 1.00 action / 0.60 effective gain through the shared
+SFX master except `bibice.wav`, which uses 0.192 / 0.1152. The two authored beam
+sources use 0.50 / 0.30 on each visual beam launch.
+
+| Trigger | Source | Action gain | Effective gain |
+| --- | --- | --- | --- |
+| Area 55 transition becomes visible | `space.wav` | 1.00 | 0.60 |
+| Same transition-start frame | `djeca.wav` | 1.00 | 0.60 |
+| Same transition-start frame | `fly1.wav` | 1.00 | 0.60 |
+| Same transition-start frame | Robo `bibice.wav` | 0.192 | 0.1152 |
+| First background beam launches at combat 0.20s | `beams.wav` + gun `beam1.wav` | 0.50 each | 0.30 each |
+| Same first-beam frame | gun `prep.wav` | 0.15 | 0.09 |
+| Second background beam launches at combat 2.12s | `beams.wav` + gun `beam1.wav` | 0.50 each | 0.30 each |
+| Same second-beam frame | gun `prep.wav` | 0.15 | 0.09 |
+| Three seconds after the transition becomes visible | `fly2.wav` | 1.00 | 0.60 |
+
+Every beam layer has a separate voice ID and starts from the travel tween's real
+`onStart`, exactly when its blue beam becomes visible. None of the three beam
+layers belongs to the transition-start package. Every transition also receives a new
+voice namespace, so a later transition cannot cut a still-playing tail. The owner
+preloads all six sources and checks Sounds before every start, including delayed
+`fly2.wav`. Normal Board Transition completion or interruption does not stop or
+cancel this audio package; every started cue finishes naturally, cleans its own
+voice on its `ended` event, and the +3s cue keeps its independent clock. Physical
+speaker balance remains **NEEDS PHYSICAL TEST**.
+
+## Spaceship merge-6 audio (2026-09-18)
+
+Owner: `spaceship-merge6-sound.ts`. Spaceship retains the canonical
+Magnet/Special Merge-6 foundation and adds these feature-owned layers:
+
+| Trigger | Source | Action gain | Effective gain |
+| --- | --- | --- | --- |
+| Committed Spaceship merge-6, alongside the existing package | `crash.wav` | 0.80 | 0.48 |
+| Same merge frame | `crash2.wav` | 0.80 | 0.48 |
+| Same merge frame, before the finale mounts | `ulazak.wav` | 0.60 | 0.36 |
+| Spaceship finale starts | `abduction.wav` | 1.00 | 0.60 |
+| Same finale-start frame | `hi pitch beam.wav` | 0.30 | 0.18 |
+| Both alien beam images begin lighting at scene 0.34s | `sucking.wav` | 0.50 | 0.30 |
+| Same beam-light frame | `materijal.wav` | 0.80 | 0.48 |
+| Same beam-light frame (`quick beam` request mapped to supplied file) | `suck beam.wav` | 0.70 | 0.42 |
+| Suction completes and the saucer begins exit | `odlazak.wav` | 1.00 | 0.60 |
+
+Each simultaneous layer has a separate bounded voice. Scene interruption stops
+only scene/beam voices, while Sounds OFF, board reset and navigation cleanup stop
+the complete Spaceship package. Eligible and restored Spaceship boards preload
+all nine sources. Supplied WAV files remain byte-unchanged; physical speaker
+balance remains **NEEDS PHYSICAL TEST**.
+
+## LaserGun merge-6 audio (2026-09-18)
+
+Owner: `laser-gun-merge6-sound.ts`. LaserGun retains the canonical Wild/Special
+Merge-6 package and adds only the following feature-owned layers:
+
+| Trigger | Source | Action gain | Effective gain |
+| --- | --- | --- | --- |
+| Committed LaserGun merge-6, alongside the existing package | TNT `horn.wav` | 0.80 | 0.48 |
+| Same frame | gun `prep.wav` | 0.80 | 0.48 |
+| Each LaserGun begins its visible stage entry, before its beam | gun `priprema.wav` | 0.85 | 0.51 |
+| Each real beam becomes visible | gun `beam1.wav` layer | 0.595 | 0.357 |
+| Same beam/reveal frame | gun `beam2.wav` layer | 0.42 | 0.252 |
+| Each target cube atomically changes its face | One shuffled Forest 04 mini explosion | Existing per-impact mix | 0.15–0.378 |
+| Fourth/final target cube changes, alongside its mini explosion | gun `plombing.wav` | 0.80 | 0.48 |
+| Same fourth/final target explosion | Star `star1.wav` | 0.70 | 0.42 |
+
+Every shot plays both beam sources together with separate voice ownership so one
+layer cannot stop the other. Normal finale cleanup stops beams one through three,
+but both fourth-shot beam layers continue beyond the laser's viewport exit until
+their natural audio end; Sounds OFF, board reset and navigation still stop them.
+The four changed cubes reuse
+the exact Forest 04 TNT/Flower five-source pool (`mini crash1`, `mini2`–`mini5`),
+shuffle it once per LaserGun merge and consume one source at each real face-change
+boundary; one candidate remains unused. The fourth change additionally starts
+the full 5.56s `plombing.wav` tail, which is not cut by normal finale-scene
+cleanup. This places the mini explosion after the
+beam reaches the cube and exactly when the value changes. Sounds OFF, board reset,
+scene interruption and navigation cleanup stop the owned voices. Eligible Area55
+and restored LaserGun boards preload these sources. `long beam.wav` remains
+preserved and disconnected. All supplied gun files remain byte-unchanged;
+physical speaker balance remains **NEEDS PHYSICAL TEST**.
+
 ## Kanta merge-6 audio (2026-09-18)
 
 Owner: `kanta-merge6-sound.ts`. Files are unchanged under `assets/sound/Wild and special kockice/kanta/`. All cues obey Sounds; preloading follows eligible/restored Kanta boards. The canonical special merge-6 foundation and shared Wild/Special poofs remain separate from these Kanta-only layers.
@@ -12,10 +97,10 @@ Owner: `kanta-merge6-sound.ts`. Files are unchanged under `assets/sound/Wild and
 | Same frame | spacesound.wav | 0.80 | 0.48 |
 | Same frame | bibis.wav | 0.50 | 0.30 |
 | Same frame | kanta4.wav | 0.90 | 0.54 |
-| First Robo starts walking (once per scene) | hodanje.wav | 0.50 | 0.30 |
-| Each individual can/composite starts exit | One random kanta1.wav / kanta2.wav / kanta3.wav | 0.35 | 0.21 |
+| First Robo starts walking (once per scene) | hodanje.wav | 0.30 | 0.18 |
+| Each individual can/composite starts exit | One random kanta1.wav / kanta2.wav / kanta3.wav; independent 50% chance to play 20% quieter | 0.455 or 0.364 | 0.273 or 0.2184 |
 
-Exit variants use independent overlapping voices, selected once per can. Their lower default gain keeps the eleven pickups plus three composites below the start package. `bibis` and `hodanje` both fade linearly during the final0.5s of the real scene clock and stop at scene end; interruption stops their scene-owned voices and exit voices without touching newer scene voices. Sounds OFF and hard gameplay cleanup stop all Kanta voices and pending starts. `horn.wav` remains preserved and disconnected; it is neither played nor preloaded by Kanta. Physical speaker balance remains NEEDS PHYSICAL TEST.
+Exit variants use independent overlapping voices, selected once per can. Each exit separately has a 50% chance to use the 20%-quieter 0.364 action gain, independently of which of the three files is selected. `bibis` and `hodanje` both fade linearly during the final0.5s of the real scene clock and stop at scene end; interruption stops their scene-owned voices and exit voices without touching newer scene voices. Sounds OFF and hard gameplay cleanup stop all Kanta voices and pending starts. `horn.wav` remains preserved and disconnected; it is neither played nor preloaded by Kanta. Physical speaker balance remains NEEDS PHYSICAL TEST.
 
 ## Current approved integration
 

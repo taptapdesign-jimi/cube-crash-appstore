@@ -1,5 +1,10 @@
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
+import {
+  playLaserGunBeamSound,
+  playLaserGunStagePreparationSound,
+  stopLaserGunFinaleSounds,
+} from './laser-gun-merge6-sound.ts';
 import { LASERGUN_TIMING_SCALE } from './laser-gun-impact-scheduler';
 import {
   getLaserGunPlannerMuzzleX,
@@ -793,6 +798,7 @@ export function attachLaserGunFinaleScene(
   const startShotEntry = (shot: ShotState | undefined): void => {
     if (!shot || disposed || finalExitStarted || shot.entryStarted) return;
     shot.entryStarted = true;
+    playLaserGunStagePreparationSound(shot.index);
     settleGunRestFrame(shot);
     shot.gun.rig.style.visibility = 'visible';
     gsap.set(shot.gun.image, { scale: 0.88, transformOrigin: '24% 32%' });
@@ -887,6 +893,7 @@ export function attachLaserGunFinaleScene(
     });
     gsap.set(shot.beamPlan.image, { opacity: 1 });
     shot.beamVisible = true;
+    playLaserGunBeamSound(shot.index);
     startBeamTravel(shot);
     startGunExit(shot);
   };
@@ -1287,6 +1294,7 @@ export function attachLaserGunFinaleScene(
     } catch {}
     field.remove();
     rightGunField.remove();
+    stopLaserGunFinaleSounds();
   };
   controller.cleanup = cleanup;
   activeController?.cleanup();

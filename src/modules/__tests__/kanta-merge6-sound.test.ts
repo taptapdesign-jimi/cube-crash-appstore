@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 import fs from 'node:fs';
-import { createKantaExitSoundSequence, isKantaMerge6SoundEvent, KANTA_MERGE6_CUES, KANTA_EXIT_SOURCES, KANTA_WALKING_SOURCE, playKantaMerge6Sounds, preloadKantaMerge6Sounds, stopKantaMerge6Sounds } from '../kanta-merge6-sound';
+import { createKantaExitSoundSequence, isKantaMerge6SoundEvent, KANTA_MERGE6_CUES, KANTA_EXIT_BASE_GAIN, KANTA_EXIT_QUIET_GAIN, KANTA_EXIT_SOURCES, KANTA_WALKING_GAIN, KANTA_WALKING_SOURCE, playKantaMerge6Sounds, preloadKantaMerge6Sounds, stopKantaMerge6Sounds } from '../kanta-merge6-sound';
 import { playDecodedGameplaySound, preloadDecodedGameplaySounds, stopDecodedGameplayVoices, setDecodedGameplayVoiceVolume } from '../gameplay-audio-buffer-player';
 import { playSpecialMerge6FoundationSound } from '../regular-merge6-sound';
 jest.mock('../gameplay-audio-buffer-player', () => ({ playDecodedGameplaySound: jest.fn(() => 'played'), preloadDecodedGameplaySounds: jest.fn(() => true), stopDecodedGameplayVoices: jest.fn(), setDecodedGameplayVoiceVolume: jest.fn() }));
@@ -42,15 +42,21 @@ test('preloads all eight exact sources only when Sounds is enabled', () => {
   expect(playDecodedGameplaySound).not.toHaveBeenCalled();
 });
 
-test('chooses one random exit variant per can, overlaps independent voices and cancels its own sequence', () => {
-  const values = [0, 0.4, 0.99];
+test('chooses one random exit variant and independently lowers half the exits by 20 percent', () => {
+  const values = [0, 0.2, 0.4, 0.8, 0.99, 0.1];
   const random = jest.fn(() => values.shift()!);
   const scene = createKantaExitSoundSequence(random);
   for (const key of ['can-0', 'can-1', 'composite-left']) expect(scene.play(key)).toBe(true);
   expect(scene.play('can-0')).toBe(false);
-  expect(random).toHaveBeenCalledTimes(3);
+  expect(random).toHaveBeenCalledTimes(6);
   const calls = jest.mocked(playDecodedGameplaySound).mock.calls;
   expect(calls.map(([source]) => source)).toEqual(KANTA_EXIT_SOURCES);
+  expect(KANTA_EXIT_BASE_GAIN).toBe(0.455);
+  expect(KANTA_EXIT_QUIET_GAIN).toBe(0.364);
+  const volumes = calls.map(([, options]) => options.volume);
+  expect(volumes[0]).toBeCloseTo(0.2184);
+  expect(volumes[1]).toBeCloseTo(0.273);
+  expect(volumes[2]).toBeCloseTo(0.2184);
   const ids = calls.map(([, options]) => options.voiceId);
   expect(new Set(ids).size).toBe(3);
   scene.stop();
@@ -123,9 +129,9 @@ test('HTMLAudio fallback reuses prepared sources, follows bibis fade and stops o
   expect(scene.startWalking()).toBe(true);
   expect(scene.startWalking()).toBe(false);
   const walking = instances.find(audio => audio.src.endsWith('/hodanje.wav'))!;
-  expect(walking.volume).toBe(0.3);
+  expect(walking.volume).toBe(0.18);
   scene.fadeWalking(0.5);
-  expect(walking.volume).toBe(0.15);
+  expect(walking.volume).toBe(0.09);
   scene.fadeWalking(1);
   expect(walking.pause).toHaveBeenCalled();
   const bibis = instances.find(audio => audio.src.endsWith('/bibis.wav'))!;
@@ -142,16 +148,17 @@ test('HTMLAudio fallback reuses prepared sources, follows bibis fade and stops o
   exits.forEach(audio => expect(audio.pause).toHaveBeenCalled());
 });
 
-test('walking has one scene-owned voice at 50 percent and the same final fade as bibis', () => {
+test('walking has one scene-owned voice at 30 percent and keeps its own gain through the final fade', () => {
   const scene = createKantaExitSoundSequence();
   expect(scene.startWalking()).toBe(true);
   expect(scene.startWalking()).toBe(false);
   expect(playDecodedGameplaySound).toHaveBeenCalledTimes(1);
   const [source, options] = jest.mocked(playDecodedGameplaySound).mock.calls[0];
   expect(source).toBe(KANTA_WALKING_SOURCE);
-  expect(options.volume).toBe(0.3);
+  expect(KANTA_WALKING_GAIN).toBe(0.3);
+  expect(options.volume).toBe(0.18);
   scene.fadeWalking(0.5);
-  expect(setDecodedGameplayVoiceVolume).toHaveBeenLastCalledWith(options.voiceId, 0.15);
+  expect(setDecodedGameplayVoiceVolume).toHaveBeenLastCalledWith(options.voiceId, 0.09);
   scene.fadeWalking(1);
   expect(stopDecodedGameplayVoices).toHaveBeenLastCalledWith([options.voiceId]);
   scene.stop();

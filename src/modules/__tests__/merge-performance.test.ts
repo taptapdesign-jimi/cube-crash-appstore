@@ -8,6 +8,11 @@ import {
   summarizeMergeFrames,
 } from '../../utils/merge-performance';
 
+jest.mock('../../utils/runtime-diagnostics-policy', () => ({
+  areContinuousRuntimeDiagnosticsEnabled: () => (window as any).__ccContinuousRuntimeDiagnostics === true,
+  areDetailedRuntimeDiagnosticsEnabled: () => (window as any).__ccDetailedRuntimeDiagnostics === true,
+}));
+
 afterEach(() => resetMergePerformanceForTests());
 
 test('merge frame summary reports slow-frame thresholds', () => {
@@ -49,12 +54,12 @@ test('marking a merge with no active trace is safe', () => {
 describe('diagnostic ownership and long stalls', () => {
   beforeEach(() => {
     jest.useFakeTimers();
-    (window as any).__ccPerformanceDiagnostics = true;
+    (window as any).__ccDetailedRuntimeDiagnostics = true;
     jest.spyOn(console, 'info').mockImplementation(() => {});
   });
   afterEach(() => {
     resetMergePerformanceForTests();
-    delete (window as any).__ccPerformanceDiagnostics;
+    delete (window as any).__ccDetailedRuntimeDiagnostics;
     jest.restoreAllMocks();
     jest.useRealTimers();
   });
@@ -78,5 +83,15 @@ describe('diagnostic ownership and long stalls', () => {
     beginMergePerformanceTrace({ kind: 'regular-stack', sourceValue: 1, targetValue: 2 });
     old('source-removal-end');
     expect(finishMergePerformanceTrace()?.milestones.map((x) => x.name)).not.toContain('source-removal-end');
+  });
+
+  test('compact thermal capture does not start a per-merge RAF trace', () => {
+    delete (window as any).__ccDetailedRuntimeDiagnostics;
+    (window as any).__ccPerformanceDiagnostics = true;
+    const frameRequest = jest.spyOn(window, 'requestAnimationFrame');
+
+    expect(beginMergePerformanceTrace({ kind: 'regular-stack', sourceValue: 1, targetValue: 2 })).toBe(0);
+    expect(frameRequest).not.toHaveBeenCalled();
+    delete (window as any).__ccPerformanceDiagnostics;
   });
 });

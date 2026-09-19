@@ -1,7 +1,5 @@
 import { preloadKantaMerge6Sounds } from './kanta-merge6-sound';
-import { getForestWildPool, isForestJourneyBoard } from './journey-forest-wild-progression';
-import { getArea55WildPool, isArea55JourneyBoard } from './journey-area55-wild-progression';
-import { getSpecialDiceVariantForTile, SPECIAL_DICE_VARIANTS } from './special-dice-registry';
+import { getSpecialDiceVariantForTile } from './special-dice-registry';
 import { preloadFishMerge6Sounds } from './fish-merge6-sound';
 import { preloadBeachBallMerge6Sounds } from './beach-ball-merge6-sound';
 import { preloadCoreTntMerge6Sound } from './core-tnt-merge6-sound';
@@ -12,6 +10,10 @@ import { preloadBottleFinaleSounds } from './bottle-finale-sound';
 import { preloadBottlePullMergeSounds } from './bottle-pull-merge-sound';
 import { preloadMagnetPullForceSounds } from './magnet-pull-force-sound';
 import { preloadHoneyMerge6Sounds } from './honey-merge6-sound';
+import { preloadLaserGunMerge6Sounds } from './laser-gun-merge6-sound.ts';
+import { preloadSpaceshipMerge6Sounds } from './spaceship-merge6-sound.ts';
+import { preloadBarrelMerge6Sounds } from './barrel-merge6-sound.ts';
+import { preloadJuiceMerge6Sounds } from './juice-finale-sound.ts';
 
 export interface SpecialSoundWarmupContext {
   boardNumber: number;
@@ -19,25 +21,28 @@ export interface SpecialSoundWarmupContext {
   tiles?: readonly any[];
 }
 
-/** Actual reward pool plus live saved variants; no random reward selection. */
+/** Warm only specials that already exist on the board. Warming every possible
+ * World/Arcade reward overfills the mobile decoded-audio cache before any of
+ * those dice exists, forcing continuous decode/evict churn. A new special is
+ * passed here as soon as its spawn commits, before its drop animation ends. */
 export function getSpecialSoundWarmupFamilies({ boardNumber, isArcade, tiles = [] }: SpecialSoundWarmupContext): Set<string> {
-  let families: Set<string>;
-  if (!isArcade && isForestJourneyBoard(boardNumber)) families = new Set(getForestWildPool(boardNumber));
-  else if (!isArcade && isArea55JourneyBoard(boardNumber)) families = new Set(getArea55WildPool(boardNumber));
-  else if (!isArcade && boardNumber >= 12 && boardNumber <= 20) families = new Set(['fish', 'beach-ball', 'bottle', 'juice']);
-  else families = new Set(['wild-star', 'juice', 'magnet', 'tnt']);
-  if (isArcade && boardNumber === 1) {
-    Object.values(SPECIAL_DICE_VARIANTS).forEach(variant => {
-      if (Number.isFinite(variant.arcadeTestOrder)) families.add(variant.id);
-    });
-  }
+  void boardNumber;
+  void isArcade;
+  const families = new Set<string>();
   for (const tile of tiles) {
     if (!tile || tile.destroyed) continue;
     const variant = getSpecialDiceVariantForTile(tile);
-    if (variant) families.add(variant.id);
+    if (variant) {
+      families.add(variant.id);
+      if (variant.archetype === 'wild-tnt') families.add('tnt');
+      else if (variant.archetype === 'wild-magnet') families.add('magnet');
+      else if (variant.archetype === 'wild-juice') families.add('juice');
+      else if (variant.archetype === 'wild-star') families.add('wild-star');
+    }
     else if (tile.special === 'wild-tnt') families.add('tnt');
     else if (tile.special === 'wild-magnet') families.add('magnet');
     else if (tile.special === 'wild-juice') families.add('juice');
+    else if (tile.special === 'wild') families.add('wild-star');
   }
   return families;
 }
@@ -49,9 +54,13 @@ export function preloadEligibleSpecialSounds(context: SpecialSoundWarmupContext)
   if (families.has('fish')) preloadFishMerge6Sounds();
   if (families.has('beach-ball')) preloadBeachBallMerge6Sounds();
   if (families.has('tnt')) preloadCoreTntMerge6Sound();
+  if (families.has('barell')) preloadBarrelMerge6Sounds();
+  if (families.has('juice')) preloadJuiceMerge6Sounds();
   if (families.has('flower')) preloadFlowerMerge6Sounds();
   if (families.has('bee')) preloadBeeMerge6Sounds();
   if (families.has('kanta')) preloadKantaMerge6Sounds();
+  if (families.has('laser-gun')) preloadLaserGunMerge6Sounds();
+  if (families.has('spaceship')) preloadSpaceshipMerge6Sounds();
   if (families.has('robo-cube')) preloadRoboCubeMerge6Sounds();
   if (families.has('bottle')) {
     preloadBottleFinaleSounds();

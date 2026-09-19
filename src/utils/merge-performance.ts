@@ -1,7 +1,7 @@
 import { emitNativeConsoleDiagnostic } from './ios-native-diagnostic.js';
 import {
   areContinuousRuntimeDiagnosticsEnabled,
-  arePerformanceDiagnosticsEnabled,
+  areDetailedRuntimeDiagnosticsEnabled,
 } from './runtime-diagnostics-policy.js';
 
 export type MergePerformanceKind = 'regular-stack' | 'regular-merge6' | 'wild-merge';
@@ -111,7 +111,7 @@ export function finishMergePerformanceTrace(reason = 'settled'): MergePerformanc
 }
 
 export function beginMergePerformanceTrace(meta: MergePerformanceMeta): number {
-  if (!areContinuousRuntimeDiagnosticsEnabled() && !arePerformanceDiagnosticsEnabled()) return 0;
+  if (!areContinuousRuntimeDiagnosticsEnabled() && !areDetailedRuntimeDiagnosticsEnabled()) return 0;
   finishMergePerformanceTrace('superseded-by-next-merge');
   const startedAt = now();
   const trace: ActiveMergeTrace = {

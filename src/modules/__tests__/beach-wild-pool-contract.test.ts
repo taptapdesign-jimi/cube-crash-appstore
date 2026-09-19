@@ -23,7 +23,7 @@ describe('Beach World wild pool', () => {
     expect(getAllowedWildTypes(24)).toContain('wild-tnt');
   });
 
-  test('introduces Juice on Beach Cjelina 02 first drop, then uses the four-slot roll', () => {
+  test('introduces Juice on Beach Cjelina 02 first drop, then uses the five-slot roll', () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/app-core.ts'), 'utf8');
     const start = source.indexOf('const isBeachJourneyBoard =');
     const end = source.indexOf('const specialDiceVariant =', start);
@@ -55,34 +55,36 @@ describe('Beach World wild pool', () => {
     expect(getCoreWildTypeForSpecialDiceVariant(getSpecialDiceVariant('fish'))).toBe('wild');
   });
 
-  test('gives all four later-stage Beach slots an equal independent 25-percent range', () => {
-    expect(BEACH_WILD_SLOT_WEIGHTS).toEqual([0.25, 0.25, 0.25, 0.25]);
+  test('gives all five later-stage Beach slots an equal independent 20-percent range', () => {
+    expect(BEACH_WILD_SLOT_WEIGHTS).toEqual([0.2, 0.2, 0.2, 0.2, 0.2]);
     expect([
       pickBeachWildSlot(0),
-      pickBeachWildSlot(0.249999),
-      pickBeachWildSlot(0.25),
-      pickBeachWildSlot(0.499999),
-      pickBeachWildSlot(0.5),
-      pickBeachWildSlot(0.749999),
-      pickBeachWildSlot(0.75),
+      pickBeachWildSlot(0.199999),
+      pickBeachWildSlot(0.2),
+      pickBeachWildSlot(0.399999),
+      pickBeachWildSlot(0.4),
+      pickBeachWildSlot(0.599999),
+      pickBeachWildSlot(0.6),
+      pickBeachWildSlot(0.799999),
+      pickBeachWildSlot(0.8),
       pickBeachWildSlot(0.999999),
-    ]).toEqual([0, 0, 1, 1, 2, 2, 3, 3]);
+    ]).toEqual([0, 0, 1, 1, 2, 2, 3, 3, 4, 4]);
   });
 
-  test('uses the supplied four-slot roll consistently from Beach Cjelina 02 onward', () => {
+  test('uses the supplied five-slot roll consistently from Beach Cjelina 02 onward', () => {
     for (let journeyBoard = 12; journeyBoard <= 20; journeyBoard += 1) {
-      const variants = [0, 1, 2, 3].map((beachWildSlot) => pickSpecialDiceVariantForWildSpawn({
+      const variants = [0, 1, 2, 3, 4].map((beachWildSlot) => pickSpecialDiceVariantForWildSpawn({
         isArcade: false,
         wildSpawnCount: 999,
         journeyBoard,
         beachWildSlot,
       })?.id ?? null);
-      expect(variants).toEqual(['fish', null, 'beach-ball', 'bottle']);
+      expect(variants).toEqual(['fish', null, 'beach-ball', 'bottle', null]);
     }
   });
 
   test('Beach Cjelina 01 leaves its Fish introduction to the Wild decision owner', () => {
-    for (const beachWildSlot of [0, 1, 2, 3]) {
+    for (const beachWildSlot of [0, 1, 2, 3, 4]) {
       expect(pickSpecialDiceVariantForWildSpawn({
         isArcade: false,
         wildSpawnCount: 99,

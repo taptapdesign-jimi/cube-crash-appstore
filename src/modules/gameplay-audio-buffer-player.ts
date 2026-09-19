@@ -55,8 +55,11 @@ const DECODED_AUDIO_BUDGET_BYTES = resolveDecodedGameplayAudioBudgetBytes(
 const FAILED_LOAD_RETRY_MS = 2_000;
 type DecodedEntry = { buffer: AudioBuffer; bytes: number; lastUsed: number };
 const decodedBuffers = new Map<string, DecodedEntry>();
+const successfullyDecodedSources = new Set<string>();
 let cacheGeneration = 0;
 let evictedBuffers = 0;
+let evictedBytes = 0;
+let redecodedBuffers = 0;
 const pendingBuffers = new Map<string, Promise<void>>();
 const failedBuffers = new Map<string, number>();
 const activeVoices = new Map<string, ActiveVoice>();
@@ -83,6 +86,7 @@ function trimDecodedCache(budgetBytes = DECODED_AUDIO_BUDGET_BYTES): void {
     decodedBuffers.delete(source);
     bytes -= entry.bytes;
     evictedBuffers++;
+    evictedBytes += entry.bytes;
   }
 }
 
@@ -209,6 +213,8 @@ function preloadSource(context: AudioContext, source: string): void {
       const encodedAudio = await response.arrayBuffer();
       const decodedAudio = await context.decodeAudioData(encodedAudio);
       if (generation !== cacheGeneration) return;
+      if (successfullyDecodedSources.has(resolvedSource)) redecodedBuffers++;
+      successfullyDecodedSources.add(resolvedSource);
       decodedBuffers.set(resolvedSource, {
         buffer: decodedAudio,
         bytes: decodedAudio.length * decodedAudio.numberOfChannels * Float32Array.BYTES_PER_ELEMENT,
@@ -450,6 +456,8 @@ export function getDecodedGameplayAudioStats() {
     idleBytes,
     budgetBytes: DECODED_AUDIO_BUDGET_BYTES,
     evictedBuffers,
+    evictedBytes,
+    redecodedBuffers,
     contextState: audioContext?.state ?? (audioContextUnavailable ? 'unavailable' : 'uninitialized'),
     decodedBuffers: decodedBuffers.size,
     pendingBuffers: pendingBuffers.size,
@@ -469,10 +477,13 @@ export function resetDecodedGameplayAudioForTests(): void {
   }
   stopDecodedGameplayVoices(Array.from(activeVoices.keys()));
   decodedBuffers.clear();
+  successfullyDecodedSources.clear();
   pendingBuffers.clear();
   failedBuffers.clear();
   pendingVoiceStarts.clear();
   evictedBuffers = 0;
+  evictedBytes = 0;
+  redecodedBuffers = 0;
   if (audioContext) void audioContext.close().catch(() => {});
   audioContext = null;
   audioContextUnavailable = false;

@@ -20,7 +20,7 @@ import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Sha
 import { showWildJuiceBubblesExplosion, stopWildJuiceBubblesExplosion, forceStopWildJuiceBubblesExplosion, isWildJuiceBubblesExplosionActive, isWildJuiceBubblesExplosionRecentlyStarted, isWildJuiceFinaleAnimationActive, waitForBubblesExplosionToComplete, destroyWildJuiceBubblesExplosionCache } from './wild-juice-bubbles-explosion.ts';
 import { preloadFishFinaleBubbles } from './fish-finale-bubbles.ts';
 import { preloadJuiceFinalePropTextures } from './juice-finale-prop-flight.ts';
-import { preloadJuiceMerge6Sounds, stopJuiceMerge6Sounds } from './juice-finale-sound.ts';
+import { stopJuiceMerge6Sounds } from './juice-finale-sound.ts';
 import { preloadBarrelBouncyArtwork } from './barrel-bouncy-artwork.ts';
 import { showMagneticText, isMagneticTextActive, waitForMagneticTextComplete, stopMagneticText, showSparkleText, stopSparkleText, isSparkleTextActive, waitForSparkleTextComplete, showNoMovesText, exitNoMovesText, clearNoMovesText } from './splash-text-overlay.ts';
 import { showTntAnimation, stopTntAnimation, retireTntFrameCache, onTntBoomExitComplete, onTntAnimationComplete, preloadTntFrames, isTntAnimationActive, releaseTntGameplayInputGate, TNT_SMOKE_FIRST_FRAME_START_SECONDS } from './tnt-animation.ts';
@@ -220,6 +220,17 @@ import { Merge6DestinationCleanupOwner } from './merge6-destination-cleanup-owne
 import { shouldDeferEndgameForActiveDrag } from './active-drag-endgame-policy.ts';
 import { shouldDisposeGameplayDragOwner } from './gameplay-drag-cleanup-policy.ts';
 import { isKantaMerge6SoundEvent, playKantaMerge6Sounds, stopKantaMerge6Sounds } from './kanta-merge6-sound';
+import {
+  isLaserGunMerge6SoundEvent,
+  playLaserGunChangedCubeSound,
+  playLaserGunMerge6AddonSounds,
+  stopLaserGunMerge6Sounds,
+} from './laser-gun-merge6-sound.ts';
+import {
+  isSpaceshipMerge6SoundEvent,
+  playSpaceshipMerge6AddonSounds,
+  stopSpaceshipMerge6Sounds,
+} from './spaceship-merge6-sound.ts';
 import { playRegularMerge6Sound, stopRegularMerge6Sounds } from './regular-merge6-sound.ts';
 import { promoteArcadeSoundtrackAfterMerge6 } from './soundtrack-manager.ts';
 import {
@@ -248,7 +259,6 @@ import {
   playBarrelMerge6Sound,
   playBarrelPlanksAfterAnimationStart,
   playBarrelSmokePoofSound,
-  preloadBarrelMerge6Sounds,
   stopBarrelMerge6Sounds,
 } from './barrel-merge6-sound.ts';
 import {
@@ -2646,6 +2656,8 @@ function cleanupFxForBoardReset(reason: string = 'unknown') {
   try { stopBeeMerge6Sounds(); } catch {}
   try { stopRoboCubeMerge6Sounds(); } catch {}
   try { stopKantaMerge6Sounds(); } catch {}
+  try { stopLaserGunMerge6Sounds(); } catch {}
+  try { stopSpaceshipMerge6Sounds(); } catch {}
   try { stopWildSpecialMerge6PoofSounds(); } catch {}
   try { stopOrdinaryStackSound(); } catch {}
   try { stopGameplayPickupSound(); } catch {}
@@ -6268,18 +6280,6 @@ function scheduleEntrySpecialWarmups(entryGeneration: number, entryBoard: number
       preloadFishFinaleBubbles();
     }
   }, 1600);
-  trackAppTimeout(() => {
-    if (!ownsEntry()) return;
-    if (getSpecialArtworkWarmupEligibility({ boardNumber: entryBoard, isArcade: isArcadeHomeRunMode(), tiles }).juice) {
-      void preloadJuiceMerge6Sounds();
-    }
-  }, 2000);
-  trackAppTimeout(() => {
-    if (!ownsEntry()) return;
-    if (getSpecialArtworkWarmupEligibility({ boardNumber: entryBoard, isArcade: isArcadeHomeRunMode(), tiles }).barrel) {
-      void preloadBarrelMerge6Sounds();
-    }
-  }, 4200);
 }
 
 // Board exit animation - reverse of sweetPopIn
@@ -7307,6 +7307,16 @@ async function spawnWildFromMeter(){
             applySpecialDiceVariantToTile(spawnedTile, specialDiceVariant);
             applyWildSkinLocal(spawnedTile);
           } catch {}
+        }
+        if (spawnedTile && !spawnedTile.destroyed) {
+          // Warm only the committed die while its drop animation is running.
+          // Pool-wide entry warmup exceeded the mobile decode budget and
+          // repeatedly decoded sounds that could not remain resident.
+          preloadEligibleSpecialSounds({
+            boardNumber,
+            isArcade: isArcadeHomeRunMode(),
+            tiles: [spawnedTile],
+          });
         }
         consumeCharge();
         spawned = true;
@@ -8716,6 +8726,20 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       dstSpecialDiceVariantId: dstSpecialVariantAtMergeEntry?.id,
     })) {
       playKantaMerge6Sounds();
+    }
+    if (isLaserGunMerge6SoundEvent({
+      effectiveSum: effSum,
+      srcSpecialDiceVariantId: srcSpecialVariantAtMergeEntry?.id,
+      dstSpecialDiceVariantId: dstSpecialVariantAtMergeEntry?.id,
+    })) {
+      playLaserGunMerge6AddonSounds();
+    }
+    if (isSpaceshipMerge6SoundEvent({
+      effectiveSum: effSum,
+      srcSpecialDiceVariantId: srcSpecialVariantAtMergeEntry?.id,
+      dstSpecialDiceVariantId: dstSpecialVariantAtMergeEntry?.id,
+    })) {
+      playSpaceshipMerge6AddonSounds();
     }
     if (isRoboCubeMerge6SoundEvent({
       effectiveSum: effSum,
@@ -15063,6 +15087,7 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	            // One atomic face commit: no duplicate deferred RAF rebuild may
 	            // interrupt the rebound that begins on this same timestamp.
 	            makeBoard.setValueImmediate(tile, replacementValue, 0);
+	            try { playLaserGunChangedCubeSound(i); } catch {}
 	          };
 	          let impactSettled = false;
 	          let impactBreakQueued = false;

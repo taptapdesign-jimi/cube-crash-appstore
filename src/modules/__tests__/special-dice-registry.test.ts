@@ -371,12 +371,12 @@ test('later Forest Stages keep only earned Forest skins and never generic visual
   })).toMatchObject({ id: 'honey' });
 });
 
-test('Arcade Round 01 drops Beach Ball, Bottle, then Barrel for visual testing', () => {
+test('Arcade Round 01 reserves its first drop for core Magnet, then drops Bottle and Barrel', () => {
   expect([0, 1, 2, 3].map((wildSpawnCount) => pickSpecialDiceVariantForWildSpawn({
     isArcade: true,
     arcadeStage: 1,
     wildSpawnCount,
-  })?.id ?? null)).toEqual(['beach-ball', 'bottle', 'barell', null]);
+  })?.id ?? null)).toEqual([null, 'bottle', 'barell', null]);
 
   expect(pickSpecialDiceVariantForWildSpawn({
     isArcade: true,
@@ -385,18 +385,18 @@ test('Arcade Round 01 drops Beach Ball, Bottle, then Barrel for visual testing',
   })).toBeNull();
 });
 
-test('later Beach stages map one shared random slot to Fish, Juice, Beach Ball, or Bottle', () => {
+test('later Beach stages map one shared random slot to Fish, Juice, Beach Ball, Bottle, or Wild Star', () => {
   for (let journeyBoard = 12; journeyBoard <= 20; journeyBoard += 1) {
-    const variants = [0, 1, 2, 3].map((beachWildSlot) => pickSpecialDiceVariantForWildSpawn({
+    const variants = [0, 1, 2, 3, 4].map((beachWildSlot) => pickSpecialDiceVariantForWildSpawn({
       isArcade: false,
       journeyBoard,
       wildSpawnCount: 999,
       beachWildSlot,
     })?.id ?? null);
-    expect(variants).toEqual(['fish', null, 'beach-ball', 'bottle']);
+    expect(variants).toEqual(['fish', null, 'beach-ball', 'bottle', null]);
   }
 
-  for (const beachWildSlot of [0, 1, 2, 3]) {
+  for (const beachWildSlot of [0, 1, 2, 3, 4]) {
     expect(pickSpecialDiceVariantForWildSpawn({
       isArcade: false,
       journeyBoard: 11,

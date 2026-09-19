@@ -2522,6 +2522,12 @@ class UIManager {
         void import('./kanta-merge6-sound').then(({ stopKantaMerge6Sounds }) => {
           stopKantaMerge6Sounds();
         });
+        void import('./laser-gun-merge6-sound.ts').then(({ stopLaserGunMerge6Sounds }) => {
+          stopLaserGunMerge6Sounds();
+        });
+        void import('./spaceship-merge6-sound.ts').then(({ stopSpaceshipMerge6Sounds }) => {
+          stopSpaceshipMerge6Sounds();
+        });
         void import('./robo-cube-merge6-sound.ts').then(({ stopRoboCubeMerge6Sounds }) => {
           stopRoboCubeMerge6Sounds();
         });

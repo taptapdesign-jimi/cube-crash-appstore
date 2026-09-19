@@ -11,9 +11,11 @@ export const KANTA_MERGE6_CUES = Object.freeze([
   { source: `${BASE}kanta4.wav`, gain: 0.9 },
 ]);
 export const KANTA_WALKING_SOURCE = `${BASE}hodanje.wav`;
+export const KANTA_WALKING_GAIN = 0.3;
 export const KANTA_EXIT_SOURCES = [1, 2, 3].map(index => `${BASE}kanta${index}.wav`);
 // Several two-second exits overlap; keep their combined bed below the start cue.
-export const KANTA_EXIT_BASE_GAIN = 0.35;
+export const KANTA_EXIT_BASE_GAIN = 0.455;
+export const KANTA_EXIT_QUIET_GAIN = 0.364;
 const voices = new Map<string, symbol>();
 const preloadedMedia = new Map<string, HTMLAudioElement>();
 const volumes = new Map<string, number>();
@@ -111,11 +113,11 @@ export function playKantaMerge6Sounds(): boolean {
   return foundation && results.every(Boolean);
 }
 
-function fadeOwnedVoice(id: string, token: symbol | undefined, progress: number): void {
+function fadeOwnedVoice(id: string, token: symbol | undefined, gain: number, progress: number): void {
   if (!token || voices.get(id) !== token) return;
   const p = Math.max(0, Math.min(1, progress));
   if (p >= 1) { stopVoices([id]); return; }
-  const volume = applySoundEffectsMasterGain(0.5) * (1 - p);
+  const volume = applySoundEffectsMasterGain(gain) * (1 - p);
   volumes.set(id, volume);
   setDecodedGameplayVoiceVolume(id, volume);
   const audio = media.get(id);
@@ -136,25 +138,26 @@ export function createKantaExitSoundSequence(random: () => number = Math.random)
     startWalking(): boolean {
       if (disposed || walkingStarted) return false;
       walkingStarted = true;
-      const started = playCue(KANTA_WALKING_SOURCE, 0.5, walkingId);
+      const started = playCue(KANTA_WALKING_SOURCE, KANTA_WALKING_GAIN, walkingId);
       walkingToken = voices.get(walkingId);
       if (walkingToken) ownedIds.push(walkingId);
       return started;
     },
     fadeWalking(progress: number): void {
-      if (!disposed) fadeOwnedVoice(walkingId, walkingToken, progress);
+      if (!disposed) fadeOwnedVoice(walkingId, walkingToken, KANTA_WALKING_GAIN, progress);
     },
     play(key: string): boolean {
       if (disposed || fired.has(key)) return false;
       fired.add(key);
       if (!enabled()) return false;
       const source = KANTA_EXIT_SOURCES[Math.min(2, Math.max(0, Math.floor(random() * 3)))];
+      const gain = random() < 0.5 ? KANTA_EXIT_QUIET_GAIN : KANTA_EXIT_BASE_GAIN;
       const id = `kanta-exit-${sequence}-${key}`;
       ownedIds.push(id);
-      return playCue(source, KANTA_EXIT_BASE_GAIN, id);
+      return playCue(source, gain, id);
     },
     fadeBibis(progress: number): void {
-      if (!disposed) fadeOwnedVoice(BIBIS_VOICE_ID, bibisToken, progress);
+      if (!disposed) fadeOwnedVoice(BIBIS_VOICE_ID, bibisToken, 0.5, progress);
     },
     stop(): void {
       if (disposed) return;

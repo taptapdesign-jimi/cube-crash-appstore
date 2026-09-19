@@ -74,6 +74,11 @@ import {
   playBoardTransitionForestAmbientSound,
   preloadBoardTransitionForestAmbientSound,
 } from './board-transition-forest-ambient-sound.ts';
+import {
+  playBoardTransitionArea55BeamSound,
+  playBoardTransitionArea55StartSounds,
+  preloadBoardTransitionArea55Sounds,
+} from './board-transition-area55-sound.ts';
 import { fadeOutJourneyWorldsSoundForBoardTransition } from './journey-worlds-hub-sound.ts';
 
 interface BoardTransitionOptions {
@@ -1626,6 +1631,9 @@ function startRoboAirCombatMotion(
       filter: 'drop-shadow(0 0 12px rgba(104, 239, 255, 1))',
       duration: 0.6,
       ease: 'none',
+      onStart: () => {
+        playBoardTransitionArea55BeamSound(beam === beamFinal ? 2 : 1);
+      },
     }, start);
     timeline.to(beam, {
       opacity: 1,
@@ -1847,6 +1855,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     runMode,
   });
   const isForestWorldTransition = resolvedTheme === 'forest' && runMode === RUN_MODE_JOURNEY;
+  const isArea55Transition = resolvedTheme === 'area55';
   const selectedProfile = resolvedTheme === 'beach'
     ? BEACH_BOARD_TRANSITION_PROFILE
     : resolvedTheme === 'area55'
@@ -1933,6 +1942,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
   cleanup({ preserveDom: true });
   preloadBoardTransitionDigitSounds();
   if (isForestWorldTransition) preloadBoardTransitionForestAmbientSound();
+  if (isArea55Transition) preloadBoardTransitionArea55Sounds();
   startIOSJourneyPerformanceAudit(boardNumber);
   
   // 🔥 USER REQUEST: Reset paper background when transition screen closes
@@ -2575,6 +2585,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     document.body.appendChild(overlay);
     if (runMode === RUN_MODE_JOURNEY) fadeOutJourneyWorldsSoundForBoardTransition();
     if (isForestWorldTransition) playBoardTransitionForestAmbientSound();
+    if (isArea55Transition) playBoardTransitionArea55StartSounds();
     currentOverlay = overlay;
     overlay.dataset.transitionTheme = resolvedTheme;
     soundtrackFadeGeneration = beginGameplayTransitionFade();

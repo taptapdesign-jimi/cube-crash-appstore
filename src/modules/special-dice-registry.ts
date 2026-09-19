@@ -946,12 +946,13 @@ export function pickSpecialDiceVariantForWildSpawn({
       const variantId = getArea55WildRewardVariantId(area55Reward);
       return variantId ? SPECIAL_DICE_VARIANTS[variantId] || null : null;
     }
-    // Beach uses one weighted roll per spawn. Fish owns the Star slot while
-    // Ball and Bottle are explicit visual variants over their core mechanics.
+    // Beach uses one weighted roll per spawn. Fish and core Wild Star own
+    // separate Star-archetype slots while Ball and Bottle are explicit visual
+    // variants over their core mechanics.
     // Generic Magnet and TNT remain absent from the Beach fallback pool.
     if (board >= 12 && board <= 20) {
       const beachSlot = Number.isFinite(beachWildSlot)
-        ? Math.max(0, Math.min(3, Math.trunc(beachWildSlot as number)))
+        ? Math.max(0, Math.min(4, Math.trunc(beachWildSlot as number)))
         : pickBeachWildSlot();
       if (beachSlot === 0) return SPECIAL_DICE_VARIANTS.fish;
       if (beachSlot === 2) return SPECIAL_DICE_VARIANTS['beach-ball'];
@@ -961,14 +962,15 @@ export function pickSpecialDiceVariantForWildSpawn({
     return null;
   }
   if (Number.isFinite(arcadeStage) && (arcadeStage as number) > 1) return null;
+  if (arcadeStage === 1 && wildSpawnCount === 0) return null;
   const testVariants = Object.values(SPECIAL_DICE_VARIANTS)
     .filter((variant) => Number.isFinite(variant.arcadeTestOrder))
     .sort((a, b) => (a.arcadeTestOrder ?? 9999) - (b.arcadeTestOrder ?? 9999));
   return testVariants[wildSpawnCount] || null;
 }
 
-// Slots: 0 Fish (Wild Star gameplay), 1 Juice, 2 Beach Ball, 3 Bottle.
-export const BEACH_WILD_SLOT_WEIGHTS = Object.freeze([0.25, 0.25, 0.25, 0.25] as const);
+// Slots: 0 Fish, 1 Juice, 2 Beach Ball, 3 Bottle, 4 core Wild Star.
+export const BEACH_WILD_SLOT_WEIGHTS = Object.freeze([0.2, 0.2, 0.2, 0.2, 0.2] as const);
 
 export function pickBeachWildSlot(randomValue: number = Math.random()): number {
   const finiteRoll = Number.isFinite(randomValue) ? randomValue : 0;
@@ -976,7 +978,7 @@ export function pickBeachWildSlot(randomValue: number = Math.random()): number {
   let cumulative = 0;
   for (let slot = 0; slot < BEACH_WILD_SLOT_WEIGHTS.length; slot += 1) {
     cumulative += BEACH_WILD_SLOT_WEIGHTS[slot];
-    if (roll < cumulative) return slot;
+    if (roll + Number.EPSILON < cumulative) return slot;
   }
   return BEACH_WILD_SLOT_WEIGHTS.length - 1;
 }
