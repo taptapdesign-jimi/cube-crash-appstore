@@ -2681,8 +2681,15 @@ async function startNewRun(boardId: number): Promise<void> {
     // Step 5: Clean up Journey Boards Manager (event listeners, animations)
     // Direct detail-modal returns reuse the Journey detail DOM immediately. Full cleanup here can
     // remove/reset stats internals before openBoardDetailsById repopulates the modal.
-    if (shouldPreserveJourneyDetailModalDom) {
-      console.log('⏭️ Skipping collectiblesManager.cleanup() for direct Journey detail modal return');
+    if (shouldPreserveJourneyDetailModalDom || expectedJourneyFamily) {
+      // Journey already owns a prepared Hub/World tree that was suspended when
+      // gameplay started. Destroying it here turns a warm board return into a
+      // cold rebuild. More importantly, the old budgeted cleanup keeps running
+      // after its timeout and can invalidate the same tree showCollectibles is
+      // revealing, leaving only the shared paper surface visible.
+      console.log(shouldPreserveJourneyDetailModalDom
+        ? '⏭️ Preserving Journey DOM for direct detail modal return'
+        : '⏭️ Preserving suspended Journey DOM for immediate World return');
     } else if (isArcadeHomeRunMode()) {
       // Arcade does not own the suspended Journey tree. Destroying it here
       // forces the next Journey tap to rebuild/decode the complete Hub and

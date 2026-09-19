@@ -52,6 +52,8 @@ describe('Clean Board fast Journey return contract', () => {
     const collectibles = read('src/collectibles-manager.ts');
 
     expect(main).toContain("journeyEnterTiming: visualExitAlreadyComplete ? 'post-terminal-exit' : 'standard'");
+    expect(main).toContain('if (shouldPreserveJourneyDetailModalDom || expectedJourneyFamily)');
+    expect(main).toContain('Preserving suspended Journey DOM for immediate World return');
     expect(main).toContain('if (!isFastArcadeCleanExit && !expectedJourneyFamily)');
     expect(collectibles).toContain('const JOURNEY_ACTIVE_AREA_ENTER_OVERLAP_DELAY_MS = 260;');
     expect(collectibles).toContain('const JOURNEY_POST_TERMINAL_ACTIVE_AREA_ENTER_OVERLAP_DELAY_MS = 80;');
