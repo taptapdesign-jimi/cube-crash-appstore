@@ -1601,11 +1601,16 @@ class JourneyBoardsManager {
       } else {
         idleTargets.push(...Array.from(document.querySelectorAll(selector)));
       }
-      idleTargets.forEach((target) => {
+      const retiringTargets = Array.from(new Set(idleTargets)).filter((target) =>
+        !(target as any).__ccJourneyToGameExitTween &&
+        !this.isJourneyCardTapExitProtectedTarget(target as HTMLElement));
+      // One global timeline traversal per cleanup, not one per cloud/card/star.
+      // Retain the protection filters before batching, including prepaint roots.
+      if (retiringTargets.length) {
+        try { gsap.killTweensOf(retiringTargets); } catch {}
+      }
+      retiringTargets.forEach((target) => {
         const el = target as HTMLElement;
-        if ((el as any).__ccJourneyToGameExitTween) return;
-        if (this.isJourneyCardTapExitProtectedTarget(el)) return;
-        try { gsap.killTweensOf(el); } catch {}
         if (el.classList.contains('journey-robo-alien-beam-art') || el.querySelector('.journey-robo-alien-beam-art')) {
           setJourneyAlienBeamIdleReady(el, false);
           try { gsap.set(el, { clearProps: 'opacity' }); } catch {}

@@ -1,5 +1,6 @@
 import { SoundtrackAudioClockVolume } from './soundtrack-audio-clock-volume.js';
 import { logger } from '../core/logger.js';
+import { SoundtrackContextRecovery } from './soundtrack-context-recovery.js';
 
 type WebkitAudioWindow = Window & typeof globalThis & {
   webkitAudioContext?: typeof AudioContext;
@@ -12,6 +13,8 @@ export type MainThemeVoiceLike = Pick<
   readonly sampleAccurateIntroLoop?: boolean;
   readonly duration?: number;
   readonly decodedBytes?: number;
+  readonly contextState?: string;
+  readonly resumePending?: boolean;
   rampVolume?: (to: number, durationMs: number) => void;
   cancelVolumeRamp?: () => void;
   createMediaVoice?: (source: string) => MainThemeVoiceLike | null;
@@ -59,9 +62,11 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
   private isDisposed = false;
   private readonly envelope: SoundtrackAudioClockVolume;
   private playGeneration = 0;
+  private readonly recovery: SoundtrackContextRecovery;
 
   constructor(context: AudioContext, options: MainThemeTransportOptions) {
     this.context = context;
+    this.recovery = new SoundtrackContextRecovery(context);
     this.options = options;
     this.gain = context.createGain();
     this.envelope = new SoundtrackAudioClockVolume(context, this.gain.gain, options.initialVolume);
@@ -72,6 +77,9 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
   get decodedBytes(): number {
     return this.buffer ? this.buffer.length * this.buffer.numberOfChannels * 4 : 0;
   }
+
+  get contextState(): string { return this.context.state; }
+  get resumePending(): boolean { return this.recovery.pending; }
 
   get paused(): boolean {
     return this.isPaused;
@@ -109,11 +117,11 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
     if (this.isDisposed) throw new Error('Main theme transport is disposed.');
     const generation = ++this.playGeneration;
     // Request unlock in the user gesture before asynchronous fetch/decode.
-    const resume = this.context.state === 'running' ? Promise.resolve() : this.context.resume();
+    const resume = this.recovery.resume();
     const [buffer] = await Promise.all([this.ensureBuffer(), resume]);
     if (this.isDisposed || generation !== this.playGeneration) return;
     this.buffer = buffer;
-    if (this.context.state !== 'running') await this.context.resume();
+    if (this.context.state !== 'running') await this.recovery.resume();
     if (this.isDisposed || generation !== this.playGeneration) return;
     if (!isContextRunning(this.context)) {
       throw new DOMException('User activation required', 'NotAllowedError');
@@ -124,6 +132,7 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
 
   pause(): void {
     this.playGeneration++;
+    this.recovery.cancel();
     if (this.isPaused) return;
     this.storedPosition = this.currentTime;
     this.stopSource();
@@ -132,7 +141,9 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
 
   async resumeIfInterrupted(): Promise<void> {
     if (this.isDisposed || this.isPaused || this.context.state === 'running') return;
-    await this.context.resume();
+    const generation = this.playGeneration;
+    await this.recovery.resume();
+    if (this.isDisposed || generation !== this.playGeneration) return;
     if (!isContextRunning(this.context)) {
       throw new DOMException('Main theme context remains interrupted', 'NotAllowedError');
     }
@@ -221,8 +232,10 @@ class SoundtrackMediaVoice implements MainThemeVoiceLike {
   private readonly envelope: SoundtrackAudioClockVolume;
   private generation = 0;
   private disposed = false;
+  private readonly recovery: SoundtrackContextRecovery;
 
   constructor(private readonly context: AudioContext, source: string) {
+    this.recovery = new SoundtrackContextRecovery(context);
     this.media = new Audio(source);
     this.media.volume = 1;
     this.gain = context.createGain();
@@ -248,15 +261,17 @@ class SoundtrackMediaVoice implements MainThemeVoiceLike {
     if (this.disposed) throw new Error('Soundtrack voice is disposed.');
     const generation = ++this.generation;
     // Resume synchronously in the gesture stack, before waiting for media readiness.
-    const resume = this.context.state === 'running' ? Promise.resolve() : this.context.resume();
+    const resume = this.recovery.resume();
     await Promise.all([resume, this.media.play()]);
     if (this.disposed || generation !== this.generation) return;
     if (!isContextRunning(this.context)) throw new DOMException('User activation required', 'NotAllowedError');
   }
-  pause(): void { this.generation++; this.media.pause(); }
+  pause(): void { this.generation++; this.recovery.cancel(); this.media.pause(); }
   async resumeIfInterrupted(): Promise<void> {
     if (this.disposed || this.paused || isContextRunning(this.context)) return;
-    await this.context.resume();
+    const generation = this.generation;
+    await this.recovery.resume();
+    if (this.disposed || generation !== this.generation) return;
     if (!isContextRunning(this.context)) {
       throw new DOMException('Arcade context remains interrupted', 'NotAllowedError');
     }

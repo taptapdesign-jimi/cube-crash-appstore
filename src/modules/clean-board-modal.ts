@@ -6,7 +6,7 @@
 
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
-import { allowConfettiSpawns, createConfettiExplosion } from './confetti-system.js';
+import { allowConfettiSpawns, cleanupConfetti, createConfettiExplosion } from './confetti-system.js';
 import {
   startCleanBoardArea55ShipFlybys,
   stopCleanBoardArea55ShipFlybys,
@@ -196,6 +196,7 @@ export function cleanupCleanBoardModalLifecycle() {
     clearAllModalTimeouts();
     clearAllModalAnimationFrames();
     stopCleanBoardArea55ShipFlybys();
+    cleanupConfetti();
   } catch {}
   lifecycle.cleanup();
   stopCleanBoardSounds();
@@ -318,13 +319,12 @@ export async function showCleanBoardModal({
     const run = async () => {
       try {
     preloadCleanBoardSounds();
-    const stopConfettiSpawnsSafe = () => {
+    const cleanupCelebrationParticlesImmediately = () => {
       try {
-        import('./confetti-system.js').then(confettiModule => {
-          if (confettiModule && typeof confettiModule.stopConfettiSpawns === 'function') {
-            confettiModule.stopConfettiSpawns();
-          }
-        }).catch(() => {});
+        // Every Clean Board CTA owns a hard celebration boundary. Removing the
+        // shared canvas here clears Area 55 confetti, Forest leaves and Beach
+        // bubbles in the same click frame, including particles born later.
+        cleanupConfetti();
       } catch {}
     };
     // 🌟 Add CSS animations for star breathing
@@ -1448,6 +1448,7 @@ export async function showCleanBoardModal({
 
     // 🔥 NEW: Primary button handler (Continue for interim, Play Again for regular)
     addButtonPressHandling(primaryBtn, async () => {
+      cleanupCelebrationParticlesImmediately();
       // The destination becomes the next audio owner at activation time.
       resultReleaseTarget = 'gameplay';
       stopCleanBoardSounds();
@@ -1600,17 +1601,6 @@ export async function showCleanBoardModal({
         }
       } catch {}
       
-      // Star outro already has one idempotent owner started at exit tap.
-      try {
-        import('./confetti-system.js').then(confettiModule => {
-          if (confettiModule && typeof confettiModule.cleanupConfetti === 'function') {
-            confettiModule.cleanupConfetti();
-          } else if (confettiModule && typeof confettiModule.stopConfettiSpawns === 'function') {
-            confettiModule.stopConfettiSpawns();
-          }
-        }).catch(() => {});
-      } catch {}
-
       // 🧪 DEV MODE: If dev mode is enabled, show board transition screen instead of normal flow
       if (devMode) {
         console.log('🧪 DEV MODE: Showing board transition screen');
@@ -1683,17 +1673,6 @@ export async function showCleanBoardModal({
         try { el.remove(); } catch {}
         removeStyleTag(); // Remove CSS style tag
         
-        // 🔥 DEFENSIVE CLEANUP: Fully cleanup confetti to reduce transition spikes
-        try {
-          import('./confetti-system.js').then(confettiModule => {
-            if (confettiModule && typeof confettiModule.cleanupConfetti === 'function') {
-              confettiModule.cleanupConfetti();
-            } else if (confettiModule && typeof confettiModule.stopConfettiSpawns === 'function') {
-              confettiModule.stopConfettiSpawns();
-            }
-          }).catch(() => {});
-        } catch {}
-        
         // 🔥 NEW: Return action based on which button was clicked
         const action = (!isArcadeHomeRun && isFromInterimBoard) ? 'continue' : 'play-again';
         console.log(`✅ clean-board-modal: Resolving with action: ${action}`);
@@ -1704,6 +1683,7 @@ export async function showCleanBoardModal({
     // 🔥 NEW: Exit/Back button handler
     if (secondaryBtn) {
       addButtonPressHandling(secondaryBtn, async () => {
+        cleanupCelebrationParticlesImmediately();
         // Do not carry applause/result voices into Journey or the homepage.
         stopCleanBoardSounds();
         // Haptic for exit button
@@ -1734,9 +1714,6 @@ export async function showCleanBoardModal({
         
         // Stop only modal-specific animations, but NOT board animations (let exit animation play)
         const earnedStarsExitPromise = playEarnedStarsExit(numStars);
-        // Ensure confetti is fully removed right when Exit is tapped.
-        // Keeping existing confetti alive causes visible "waiting on confetti" before homepage.
-        stopConfettiSpawnsSafe();
         clearAllModalTimeouts();
         clearAllModalAnimationFrames();
         
@@ -1939,7 +1916,6 @@ export async function showCleanBoardModal({
         try { area55ShipFlybys?.dispose(); area55ShipFlybys = null; } catch {}
         try { el.remove(); } catch {}
         removeStyleTag();
-        stopConfettiSpawnsSafe();
         const exitAction = isFromInterimBoard ? 'back-to-journey' : 'exit';
         emitNativeConsoleDiagnostic('[CC_ARCADE_EXIT]', 'overlay-retired', {
           boardNumber,

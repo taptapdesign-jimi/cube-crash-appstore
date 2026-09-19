@@ -163,4 +163,50 @@ describe('native soundtrack manager + transport ownership', () => {
     await advance(5000);
     expect(getSoundtrackRuntimeStats()).toMatchObject({ activeVoices: 0, retainedArcadeVoices: 0 });
   });
+
+  it('recovers on touch after WebKit leaves foreground resume pending, and ignores its late completion', async () => {
+    startSoundtrack();
+    await flush();
+    const context = NativeContext.instances[0];
+    visibility(true);
+    context.state = 'suspended';
+    let finishOldResume!: () => void;
+    context.resume.mockImplementationOnce(() => new Promise<void>(resolve => { finishOldResume = resolve; }));
+    visibility(false);
+    await flush();
+    expect(getSoundtrackRuntimeStats()).toMatchObject({ activeVoices: 0, resumePending: true });
+    await advance(1001);
+    expect(getSoundtrackRuntimeStats().resumePending).toBe(false);
+    const touch = new Event('pointerup');
+    Object.defineProperty(touch, 'pointerType', { value: 'touch' });
+    document.dispatchEvent(touch);
+    await flush();
+    expect(context.resume).toHaveBeenCalledTimes(2);
+    expect(getSoundtrackRuntimeStats().activeVoices).toBe(1);
+    const sourceCount = context.sources.length;
+    finishOldResume();
+    await flush();
+    expect(context.sources).toHaveLength(sourceCount);
+    expect(context.sources.filter(source => source.active)).toHaveLength(1);
+  });
+
+  it('Music OFF cancels pending foreground recovery and a late native completion cannot restart it', async () => {
+    startSoundtrack();
+    await flush();
+    const context = NativeContext.instances[0];
+    visibility(true);
+    context.state = 'suspended';
+    let finishResume!: () => void;
+    context.resume.mockImplementationOnce(() => new Promise<void>(resolve => { finishResume = resolve; }));
+    visibility(false);
+    await flush();
+    stopSoundtrack();
+    expect(getSoundtrackRuntimeStats().resumePending).toBe(false);
+    context.state = 'running';
+    finishResume();
+    await advance(1500);
+    document.dispatchEvent(new Event('pointerup'));
+    await flush();
+    expect(context.sources.filter(source => source.active)).toHaveLength(0);
+  });
 });

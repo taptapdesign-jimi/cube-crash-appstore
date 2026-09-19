@@ -1152,7 +1152,8 @@ class CollectiblesManager {
         journeyEnterPerformance.phase('prepare-card-transforms', () =>
           journeyBoardsManager.prepareJourneyBoardCardTransformsForReveal?.('collectibles-pre-reveal'));
         if (shouldUseV700WorldReturnEnter) {
-          journeyBoardsManager.prepareJourneyV700WorldEnterFromReturn?.('collectibles-pre-reveal-world-return');
+          journeyEnterPerformance.phase('prepare-world-return', () =>
+            journeyBoardsManager.prepareJourneyV700WorldEnterFromReturn?.('collectibles-pre-reveal-world-return'));
         }
         journeyEnterPerformance.phase('prepare-viewport', () => prepareJourneyViewportScreenEnter('collectibles-pre-reveal', {
           animateJourneyContent: !shouldUseV700WorldReturnEnter,
@@ -1189,6 +1190,7 @@ class CollectiblesManager {
       // 🔥 CRITICAL MOBILE FIX: Use requestAnimationFrame to ensure DOM is ready on mobile
       // Then import and start animation immediately
       requestAnimationFrame(() => {
+        journeyEnterPerformance.mark('first-reveal-frame');
         import('./ui/collectibles-animations.js').then(({ animateCollectiblesScreenEnter }) => {
           window.clearTimeout(revealFallbackTimer);
           enterAnimationStarted = true;
@@ -1198,6 +1200,7 @@ class CollectiblesManager {
           // 🔥 CRITICAL: Start animation immediately - screen is already prepared with opacity 0
           // Use RAF to ensure browser is ready to render animation on mobile
           requestAnimationFrame(() => {
+            journeyEnterPerformance.mark('second-reveal-frame');
             const enterPromise = Promise.resolve(journeyEnterPerformance.phase('start-viewport-animation', () => animateCollectiblesScreenEnter({
               animateJourneyContent: !shouldUseV700WorldReturnEnter,
             })));

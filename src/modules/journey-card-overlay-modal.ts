@@ -170,14 +170,16 @@ export function preloadJourneyCardOverlayAssets(): Promise<void> {
   return journeyCardOverlayPreloadPromise;
 }
 
-export const JOURNEY_CARD_FLIP_ENTER_DURATION_MS = 520;
-export const JOURNEY_CARD_SHADOW_EARLY_REVEAL_MS = 200;
+export const JOURNEY_CARD_SPATIAL_BASE_DURATION_MS = 520;
+export const JOURNEY_CARD_MODAL_TRANSITION_SPEED = 1.4;
+export const JOURNEY_CARD_FLIP_ENTER_DURATION_MS = JOURNEY_CARD_SPATIAL_BASE_DURATION_MS / JOURNEY_CARD_MODAL_TRANSITION_SPEED;
+export const JOURNEY_CARD_SHADOW_EARLY_REVEAL_MS = 200 / JOURNEY_CARD_MODAL_TRANSITION_SPEED;
 export const JOURNEY_CARD_FLIP_DISMISS_DURATION_MS = JOURNEY_CARD_FLIP_ENTER_DURATION_MS;
-export const JOURNEY_CARD_PLAY_LAUNCH_BOUNCE_DURATION_MS = 100;
-export const JOURNEY_CARD_PLAY_TRAVEL_DURATION_MS = 500;
-export const JOURNEY_CARD_PLAY_LANDING_PUNCH_DURATION_MS = 120;
-export const JOURNEY_CARD_PLAY_LANDING_EXIT_DURATION_MS = 400;
-export const JOURNEY_CARD_PLAY_RETURN_DURATION_MS = 1120;
+export const JOURNEY_CARD_PLAY_LAUNCH_BOUNCE_DURATION_MS = 100 / JOURNEY_CARD_MODAL_TRANSITION_SPEED;
+export const JOURNEY_CARD_PLAY_TRAVEL_DURATION_MS = 500 / JOURNEY_CARD_MODAL_TRANSITION_SPEED;
+export const JOURNEY_CARD_PLAY_LANDING_PUNCH_DURATION_MS = 120 / JOURNEY_CARD_MODAL_TRANSITION_SPEED;
+export const JOURNEY_CARD_PLAY_LANDING_EXIT_DURATION_MS = 400 / JOURNEY_CARD_MODAL_TRANSITION_SPEED;
+export const JOURNEY_CARD_PLAY_RETURN_DURATION_MS = 1120 / JOURNEY_CARD_MODAL_TRANSITION_SPEED;
 export const JOURNEY_CARD_FLIP_SNAP_DURATION_MS = 200;
 export const JOURNEY_CARD_FLIP_RECOIL_DURATION_MS = 260;
 export const JOURNEY_CARD_FLIP_RECOIL_EASE = 'cubic-bezier(0.45, 0, 0.55, 1)';
@@ -198,7 +200,22 @@ export const JOURNEY_CARD_FLIP_STATS_ENTER_TIME_SCALE = 0.5;
 export const JOURNEY_CARD_DISMISS_DRAG_COMMIT_RATIO = 0.22;
 export const JOURNEY_CARD_DISMISS_DRAG_MIN_PX = 88;
 export const JOURNEY_CARD_DISMISS_DRAG_MAX_PX = 140;
+export const JOURNEY_CARD_PINCH_MAX_SCALE = 1.2;
+export const JOURNEY_CARD_PINCH_RETURN_DURATION_MS = 220;
 const JOURNEY_CARD_FLIP_TAP_SLOP_PX = 7;
+
+export function getJourneyCardPinchScale(
+  initialDistance: number,
+  currentDistance: number,
+): number {
+  if (!Number.isFinite(initialDistance) || initialDistance <= 0 || !Number.isFinite(currentDistance)) {
+    return 1;
+  }
+  return Math.min(
+    JOURNEY_CARD_PINCH_MAX_SCALE,
+    Math.max(1, currentDistance / initialDistance),
+  );
+}
 
 export function getJourneyCardDismissDragDistance(cardHeight: number): number {
   const proportionalDistance = Math.max(1, cardHeight) * JOURNEY_CARD_DISMISS_DRAG_COMMIT_RATIO;
@@ -593,6 +610,8 @@ export function presentJourneyCardOverlayModal(
   stage.setAttribute('data-card-rarity', cardRarity);
   stage.classList.toggle('is-legendary-card', cardRarity === 'legendary');
   stage.style.setProperty('--journey-card-origin-aspect', String(options.origin.aspectRatio));
+  stage.style.setProperty('--journey-card-modal-transition-duration', `${JOURNEY_CARD_FLIP_ENTER_DURATION_MS}ms`);
+  stage.style.setProperty('--journey-card-entry-shadow-duration', `${180 / JOURNEY_CARD_MODAL_TRANSITION_SPEED}ms`);
   stage.style.setProperty('--journey-card-flip-front-tilt', `${tiltProfile.cardRotationDeg}deg`);
   stage.style.setProperty('--journey-card-flip-back-tilt', `${tiltProfile.modalRotationDeg}deg`);
   stage.innerHTML = `
@@ -602,6 +621,7 @@ export function presentJourneyCardOverlayModal(
         <div class="journey-card-flip-impact-shell">
           <div class="journey-card-flip-idle-shell">
             <div class="journey-card-flip-pose-shell">
+            <div class="journey-card-flip-pinch-shell">
             <div class="journey-card-flip-rotor">
               <div class="journey-card-flip-face journey-card-flip-front" role="button" tabindex="0" aria-label="Turn card to view stats" aria-hidden="false">
                 <div class="journey-card-flip-card-host" aria-hidden="true"></div>
@@ -648,6 +668,7 @@ export function presentJourneyCardOverlayModal(
               </div>
             </div>
             </div>
+            </div>
           </div>
         </div>
       </div>
@@ -666,6 +687,7 @@ export function presentJourneyCardOverlayModal(
   const impactShell = stage.querySelector<HTMLElement>('.journey-card-flip-impact-shell');
   const idleShell = stage.querySelector<HTMLElement>('.journey-card-flip-idle-shell');
   const poseShell = stage.querySelector<HTMLElement>('.journey-card-flip-pose-shell');
+  const pinchShell = stage.querySelector<HTMLElement>('.journey-card-flip-pinch-shell');
   const rotor = stage.querySelector<HTMLElement>('.journey-card-flip-rotor');
   const front = stage.querySelector<HTMLElement>('.journey-card-flip-front');
   const back = stage.querySelector<HTMLElement>('.journey-card-flip-back');
@@ -677,7 +699,7 @@ export function presentJourneyCardOverlayModal(
   const turnControl = stage.querySelector<HTMLButtonElement>('.journey-card-flip-turn-control');
   const idleHand = stage.querySelector<HTMLImageElement>('.journey-card-flip-idle-hand');
   const idleCopy = stage.querySelector<HTMLElement>('.journey-card-flip-idle-copy');
-  if (!backdrop || !frame || !spatialShell || !impactShell || !idleShell || !poseShell || !rotor || !front || !back || !backShell || !cardHost || !commonShine || !cta || !turnControl || !idleHand || !idleCopy) {
+  if (!backdrop || !frame || !spatialShell || !impactShell || !idleShell || !poseShell || !pinchShell || !rotor || !front || !back || !backShell || !cardHost || !commonShine || !cta || !turnControl || !idleHand || !idleCopy) {
     stage.remove();
     throw new Error('Journey flip card failed to create its required owners');
   }
@@ -760,6 +782,11 @@ export function presentJourneyCardOverlayModal(
   let closeController: GameplaySheetCloseController | null = null;
   let ctaController: CtaController | null = null;
   let activePointerId: number | null = null;
+  const pointerPositions = new Map<number, { x: number; y: number }>();
+  let pinchPointerIds: [number, number] | null = null;
+  let pinchInitialDistance = 1;
+  let pinchScale = 1;
+  let pinchReturnAnimation: Animation | null = null;
   let dragStartX = 0;
   let dragStartY = 0;
   let dragLatestX = 0;
@@ -806,6 +833,8 @@ export function presentJourneyCardOverlayModal(
       idleCoachActive: idleCoachCardAnimation !== null || idleCoachHandAnimation !== null,
       impactSettleActive: impactAnimation !== null,
       previewSettleActive: dragPreviewSettleAnimation !== null,
+      pinchActive: pinchPointerIds !== null,
+      pinchScale: Number(pinchScale.toFixed(3)),
       ...detail,
     });
   };
@@ -1094,6 +1123,8 @@ export function presentJourneyCardOverlayModal(
       && !flipRecoilAnimation
       && !impactAnimation
       && !dragPreviewSettleAnimation
+      && !pinchPointerIds
+      && !pinchReturnAnimation
       && activePointerId === null
     ) {
       idleShellHandoffAnimation?.cancel();
@@ -1270,6 +1301,8 @@ export function presentJourneyCardOverlayModal(
       || flipRecoilAnimation
       || impactAnimation
       || dragPreviewSettleAnimation
+      || pinchPointerIds
+      || pinchReturnAnimation
       || activePointerId !== null
     ) return;
     const generation = idleCoachGeneration;
@@ -1361,6 +1394,17 @@ export function presentJourneyCardOverlayModal(
     impactAnimation = null;
     dragPreviewSettleAnimation?.cancel();
     dragPreviewSettleAnimation = null;
+    pinchReturnAnimation?.cancel();
+    pinchReturnAnimation = null;
+    pinchPointerIds?.forEach((pointerId) => {
+      try { rotor.releasePointerCapture(pointerId); } catch {}
+    });
+    pinchPointerIds = null;
+    pointerPositions.clear();
+    pinchInitialDistance = 1;
+    pinchScale = 1;
+    pinchShell.style.transform = 'none';
+    stage.classList.remove('is-pinching');
     stage.classList.remove('is-face-settling');
     exitNeutralAnimations.forEach((animation) => animation.cancel());
     exitNeutralAnimations = [];
@@ -1834,7 +1878,99 @@ export function presentJourneyCardOverlayModal(
     return target instanceof Element && !!target.closest('button, a, input, select, textarea');
   }
 
+  const distanceBetweenPointers = (firstId: number, secondId: number): number => {
+    const first = pointerPositions.get(firstId);
+    const second = pointerPositions.get(secondId);
+    if (!first || !second) return 0;
+    return Math.hypot(second.x - first.x, second.y - first.y);
+  };
+
+  const beginPinch = (event: PointerEvent): boolean => {
+    if (
+      event.pointerType === 'mouse'
+      || activePointerId === null
+      || pinchPointerIds !== null
+      || stableFace !== 'front'
+      || entering
+      || closing
+      || settled
+      || flipping
+      || isInteractiveControl(event.target)
+    ) return false;
+    const firstPointerId = activePointerId;
+    const firstPosition = pointerPositions.get(firstPointerId);
+    if (!firstPosition) return false;
+
+    pointerPositions.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    const initialDistance = distanceBetweenPointers(firstPointerId, event.pointerId);
+    if (initialDistance <= 0) {
+      pointerPositions.delete(event.pointerId);
+      return false;
+    }
+
+    pinchReturnAnimation?.cancel();
+    pinchReturnAnimation = null;
+    pinchPointerIds = [firstPointerId, event.pointerId];
+    pinchInitialDistance = initialDistance;
+    pinchScale = 1;
+    activePointerId = null;
+    dragMoved = true;
+    dragAxis = null;
+    impactShell.style.translate = 'none';
+    impactShell.style.transform = 'translate3d(0, 0, 0) scale(1)';
+    setRotorAngle(0);
+    pinchShell.style.transform = 'scale(1)';
+    stage.classList.remove('is-dragging', 'is-face-settling');
+    stage.classList.add('is-pinching');
+    clearLegendaryDragShine();
+    try { rotor.setPointerCapture(event.pointerId); } catch {}
+    event.preventDefault();
+    event.stopPropagation();
+    return true;
+  };
+
+  const finishPinch = (event: PointerEvent): void => {
+    const ownedPointerIds = pinchPointerIds;
+    if (!ownedPointerIds || !ownedPointerIds.includes(event.pointerId)) return;
+    ownedPointerIds.forEach((pointerId) => {
+      try { rotor.releasePointerCapture(pointerId); } catch {}
+    });
+    pointerPositions.clear();
+    pinchPointerIds = null;
+    activePointerId = null;
+    stage.classList.remove('is-pinching', 'is-dragging');
+    event.preventDefault();
+    event.stopPropagation();
+
+    const fromScale = pinchScale;
+    pinchScale = 1;
+    if (prefersReducedMotion || typeof pinchShell.animate !== 'function' || fromScale <= 1.001) {
+      pinchShell.style.transform = 'none';
+      startSurfaceIdle();
+      scheduleIdleCoach();
+      return;
+    }
+    const animation = pinchShell.animate([
+      { transform: `scale(${fromScale})` },
+      { transform: 'scale(1)' },
+    ], {
+      duration: JOURNEY_CARD_PINCH_RETURN_DURATION_MS,
+      easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      fill: 'forwards',
+    });
+    pinchReturnAnimation = animation;
+    void animation.finished.catch(() => undefined).then(() => {
+      if (pinchReturnAnimation !== animation || closing || settled) return;
+      pinchReturnAnimation = null;
+      animation.cancel();
+      pinchShell.style.transform = 'none';
+      startSurfaceIdle();
+      scheduleIdleCoach();
+    });
+  };
+
   function handlePointerDown(event: PointerEvent): void {
+    if (beginPinch(event)) return;
     const isUnsupportedMouseButton = event.pointerType === 'mouse' && event.button !== 0;
     const interactiveControl = isInteractiveControl(event.target);
     const blockedBy = isUnsupportedMouseButton ? 'mouse-button'
@@ -1854,6 +1990,12 @@ export function presentJourneyCardOverlayModal(
         isPrimary: event.isPrimary,
       });
       return;
+    }
+    if (pinchReturnAnimation) {
+      pinchReturnAnimation.cancel();
+      pinchReturnAnimation = null;
+      pinchScale = 1;
+      pinchShell.style.transform = 'none';
     }
     pointerTraceSequence += 1;
     pointerTraceMoveCount = 0;
@@ -1907,6 +2049,8 @@ export function presentJourneyCardOverlayModal(
     }
     setRotorAngle(dragHandoffAngle);
     activePointerId = event.pointerId;
+    pointerPositions.clear();
+    pointerPositions.set(event.pointerId, { x: event.clientX, y: event.clientY });
     dragStartX = event.clientX;
     dragStartY = event.clientY;
     dragLatestX = event.clientX;
@@ -1976,7 +2120,18 @@ export function presentJourneyCardOverlayModal(
   }
 
   function handlePointerMove(event: PointerEvent): void {
+    if (pinchPointerIds?.includes(event.pointerId)) {
+      pointerPositions.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      pinchScale = getJourneyCardPinchScale(
+        pinchInitialDistance,
+        distanceBetweenPointers(pinchPointerIds[0], pinchPointerIds[1]),
+      );
+      pinchShell.style.transform = `scale(${pinchScale})`;
+      event.preventDefault();
+      return;
+    }
     if (event.pointerId !== activePointerId) return;
+    pointerPositions.set(event.pointerId, { x: event.clientX, y: event.clientY });
     pointerTraceMoveCount += 1;
     dragLatestX = event.clientX;
     dragLatestY = event.clientY;
@@ -2043,6 +2198,10 @@ export function presentJourneyCardOverlayModal(
     releaseX = event.clientX,
     releaseY = event.clientY,
   ): void {
+    if (pinchPointerIds?.includes(event.pointerId)) {
+      finishPinch(event);
+      return;
+    }
     if (event.pointerId !== activePointerId) return;
     // Pointerup may carry a final position that never arrived as pointermove.
     // Paint and classify that genuine sample before deciding the release intent.
@@ -2070,6 +2229,7 @@ export function presentJourneyCardOverlayModal(
       hasPointerCapture: rotor.hasPointerCapture?.(event.pointerId) ?? null,
     });
     activePointerId = null;
+    pointerPositions.delete(event.pointerId);
     try { rotor.releasePointerCapture(event.pointerId); } catch {}
     stage.classList.remove('is-dragging');
     const shouldDismiss = allowCommit

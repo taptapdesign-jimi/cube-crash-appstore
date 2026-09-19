@@ -25,7 +25,7 @@ import {
   acquireJourneyCardOriginLease,
   computeJourneyCardSpatialPose,
 } from '../journey-card-portal-transition';
-import { JOURNEY_CARD_FLIP_ENTER_DURATION_MS } from '../journey-card-overlay-modal';
+import { JOURNEY_CARD_SPATIAL_BASE_DURATION_MS } from '../journey-card-overlay-modal';
 import {
   createJourneyInterimBounceVariant,
   JOURNEY_CARD_RETURN_LANDING_SQUASH_STRENGTH,
@@ -111,13 +111,13 @@ describe('Journey gameplay-return card reminder', () => {
   });
 
   test('uses one original-flip-speed symmetric no-dwell cycle with authored launch and landing squash', () => {
-    expect(JOURNEY_CARD_RETURN_REMINDER_CYCLE_DURATION_MS).toBe(JOURNEY_CARD_FLIP_ENTER_DURATION_MS);
+    expect(JOURNEY_CARD_RETURN_REMINDER_CYCLE_DURATION_MS).toBe(JOURNEY_CARD_SPATIAL_BASE_DURATION_MS);
     expect(JOURNEY_CARD_RETURN_REMINDER_OUT_DURATION_MS).toBe(260);
     expect(JOURNEY_CARD_RETURN_REMINDER_BACK_DURATION_MS).toBe(260);
     expect(
       JOURNEY_CARD_RETURN_REMINDER_OUT_DURATION_MS
         + JOURNEY_CARD_RETURN_REMINDER_BACK_DURATION_MS,
-    ).toBe(JOURNEY_CARD_FLIP_ENTER_DURATION_MS);
+    ).toBe(JOURNEY_CARD_SPATIAL_BASE_DURATION_MS);
     expect(getJourneyCardReturnReminderSqueezePose(0)).toEqual({ scaleX: 1, scaleY: 1 });
     expect(getJourneyCardReturnReminderSqueezePose(0.08)).toEqual({ scaleX: 1.035, scaleY: 0.965 });
     expect(getJourneyCardReturnReminderSqueezePose(0.22)).toEqual({ scaleX: 0.96, scaleY: 1.105 });

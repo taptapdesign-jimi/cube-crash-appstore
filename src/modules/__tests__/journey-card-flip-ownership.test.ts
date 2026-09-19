@@ -42,9 +42,9 @@ describe('Journey flip and pointer-release animation ownership', () => {
     pending.forEach((callback) => callback(performance.now()));
     await flush();
   };
-  const pointer = (type: string, x: number, id = 1) => {
+  const pointer = (type: string, x: number, id = 1, isPrimary = true, y = 400) => {
     const event = new Event(type, { bubbles: true, cancelable: true });
-    Object.assign(event, { pointerId: id, pointerType: 'touch', isPrimary: true, clientX: x, clientY: 400, button: 0 });
+    Object.assign(event, { pointerId: id, pointerType: 'touch', isPrimary, clientX: x, clientY: y, button: 0 });
     rotor.dispatchEvent(event);
   };
   const rotorAnimation = (duration: number) => {
@@ -164,6 +164,34 @@ describe('Journey flip and pointer-release animation ownership', () => {
     await finish(rotorAnimation(260));
     expect(modal.element.dataset.face).toBe('front');
     expect(playJourneyCardManualFlipSound).toHaveBeenCalledTimes(1);
+  });
+
+  test('two fingers zoom only the artwork face to 120 percent and release it home without flipping', async () => {
+    const flip = dragAndRelease();
+    await finish(flip);
+    await finish(rotorAnimation(260));
+    expect(modal.element.dataset.face).toBe('front');
+
+    const pinchShell = modal.element.querySelector<HTMLElement>('.journey-card-flip-pinch-shell')!;
+    const soundCount = jest.mocked(playJourneyCardManualFlipSound).mock.calls.length;
+    pointer('pointerdown', 100, 11, true);
+    pointer('pointerdown', 200, 12, false);
+    pointer('pointermove', 340, 12, false);
+
+    expect(modal.element.classList.contains('is-pinching')).toBe(true);
+    expect(pinchShell.style.transform).toBe('scale(1.2)');
+    expect(jest.mocked(playJourneyCardManualFlipSound)).toHaveBeenCalledTimes(soundCount);
+
+    pointer('pointerup', 340, 12, false);
+    expect(modal.element.classList.contains('is-pinching')).toBe(false);
+    const returnAnimation = animations.find((animation) => (
+      animation.element === pinchShell && animation.duration === 220 && animation.active
+    ));
+    expect(returnAnimation).toBeDefined();
+    await finish(returnAnimation!);
+    expect(pinchShell.style.transform).toBe('none');
+    expect(modal.element.dataset.face).toBe('front');
+    expect(jest.mocked(playJourneyCardManualFlipSound)).toHaveBeenCalledTimes(soundCount);
   });
 
   test('a new pointer owns its scrub even when the previous release promises finish', async () => {

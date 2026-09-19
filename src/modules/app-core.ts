@@ -6859,6 +6859,18 @@ function bindTileWithFallback(tile, skipBind){
   });
 }
 
+function playMerge6ReplacementBounce(tile): void {
+  SPAWN?.spawnBounce?.(tile, gsap, {
+    max: 1.08,
+    compress: 0.96,
+    rebound: 1.02,
+    startScale: 0.30,
+    wiggle: 0.035,
+    fadeIn: 0.10,
+    keepFullOpacity: true,
+  });
+}
+
 function hardFallbackSpawnAtCell(
   c: number,
   r: number,
@@ -6898,16 +6910,7 @@ function hardFallbackSpawnAtCell(
     normalizeSpawnedTileVisual(t);
     try { fixHoverAnchor?.(t); } catch {}
     try { drawBoardBG?.(); } catch {}
-    SPAWN?.spawnBounce?.(t, gsap, {
-      max: 1.08,
-      compress: 0.96,
-      rebound: 1.02,
-      startScale: 0.30,
-      wiggle: 0.035,
-      fadeIn: 0.10,
-      timeScale: 2.0,
-      keepFullOpacity: true,
-    });
+    playMerge6ReplacementBounce(t);
     return true;
   } catch (err) {
     devWarn('⚠️ hardFallbackSpawnAtCell failed', { c, r, reason, err });
@@ -12946,6 +12949,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   makeBoard?.setValue?.(fallbackLocked, emergencyValue, 0);
                   normalizeSpawnedTileVisual(fallbackLocked);
                   try { fixHoverAnchor?.(fallbackLocked); } catch {}
+                  playMerge6ReplacementBounce(fallbackLocked);
                   devWarn('🛡️ NORMAL SPAWN SAFETY: Forced unlock fallback succeeded');
                 } catch (err) {
                   devWarn('⚠️ NORMAL SPAWN SAFETY: Forced unlock fallback failed', err);
@@ -12981,6 +12985,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 for (let i = 0; i < lockedCandidates.length && opened < k; i++) {
                   const t = lockedCandidates[i];
                   try {
+                    if (opened > 0 && await waitTrackedResult(100) === 'cancelled') return opened;
                     t.locked = false;
                     try { makeBoard.syncTileZIndex?.(t, board); } catch {}
                     t.eventMode = 'static';
@@ -12991,6 +12996,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                     makeBoard?.setValue?.(t, spawnValue, 0);
                     normalizeSpawnedTileVisual(t);
                     try { fixHoverAnchor?.(t); } catch {}
+                    playMerge6ReplacementBounce(t);
                     opened++;
                   } catch (err) {
                     devWarn('⚠️ FORCE UNLOCK failed:', err);
@@ -13238,6 +13244,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                       for (let i = 0; i < lockedCandidates.length && openedForced < k; i++) {
                         const t = lockedCandidates[i];
                         try {
+                          if (openedForced > 0 && await waitTrackedResult(100) === 'cancelled') return openedForced;
                           t.locked = false;
                           try { makeBoard.syncTileZIndex?.(t, board); } catch {}
                           t.eventMode = 'static';
@@ -13248,6 +13255,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                           makeBoard?.setValue?.(t, spawnValue, 0);
                           normalizeSpawnedTileVisual(t);
                           try { fixHoverAnchor?.(t); } catch {}
+                          playMerge6ReplacementBounce(t);
                           openedForced++;
                         } catch (err) {
                           devWarn('⚠️ WILD-JUICE FORCE UNLOCK failed:', err);

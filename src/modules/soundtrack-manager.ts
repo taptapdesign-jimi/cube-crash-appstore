@@ -583,6 +583,7 @@ function markPlaybackActive(currentAudio: MainThemeVoiceLike, message: string): 
 }
 
 function onAutoplayRetry(event: Event): void {
+  if (document.hidden) return;
   // Browser user activation is granted on pointerdown for a mouse, but on
   // pointerup for touch/pen. Trying on touch pointerdown can reject and remove
   // the listener before the same gesture reaches its eligible pointerup.
@@ -685,6 +686,7 @@ function onVisibilityChange(): void {
     cancelArcadeFades();
     playRequestToken++;
     fadeInProgress = false;
+    autoplayRetryInFlight = false;
     if (gameplayDuckActive) {
       activeGameplayFade = null;
       if (currentAudio) currentAudio.volume = SOUNDTRACK_GAMEPLAY_VOLUME;
@@ -1269,11 +1271,14 @@ export const soundtrackManager = {
 /** Read-only diagnostics; streaming media buffers are browser-owned and not estimated. */
 export function getSoundtrackRuntimeStats(): {
   decodedBytes: number; activeVoices: number; retainedArcadeVoices: number;
+  contextState: string | null; resumePending: boolean;
 } {
   return {
     decodedBytes: audio?.decodedBytes ?? 0,
     activeVoices: Number(!!audio && !audio.paused) + Number(!!introAudio && !introAudio.paused) +
       Array.from(arcadeVoices).filter((voice) => !voice.paused).length,
     retainedArcadeVoices: arcadeVoices.size,
+    contextState: audio?.contextState ?? null,
+    resumePending: audio?.resumePending ?? false,
   };
 }

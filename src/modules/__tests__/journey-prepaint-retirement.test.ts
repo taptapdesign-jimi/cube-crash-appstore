@@ -74,3 +74,23 @@ test.each(['not-ready', 'wrong-world', 'detached'])('rejected %s stage cannot re
   expect(f.owner.beginRenderLifecycle).not.toHaveBeenCalled();
   expect(f.outgoing.isConnected).toBe(true);
 });
+
+
+test('idle retirement batches all ordinary owners in one timeline traversal and preserves a live exit', () => {
+  const f = fixture();
+  const targets = Array.from({ length: 80 }, () => {
+    const el = document.createElement('div');
+    el.className = 'journey-area-idle-target';
+    f.container.appendChild(el);
+    return el;
+  });
+  const protectedTarget = targets.pop()!;
+  (protectedTarget as any).__ccJourneyToGameExitTween = true;
+  const live = gsap.to(protectedTarget, { opacity: 0, duration: 10, paused: true }).progress(0.1);
+  const retired = gsap.to(targets, { opacity: 0, duration: 10, paused: true }).progress(0.1);
+  const kill = jest.spyOn(gsap, 'killTweensOf');
+  f.owner.cleanupJourneyAreaIdleAnimations(false);
+  expect(kill).toHaveBeenCalledTimes(1);
+  expect(gsap.getTweensOf(targets[0])).not.toContain(retired);
+  expect(gsap.getTweensOf(protectedTarget)).toContain(live);
+});

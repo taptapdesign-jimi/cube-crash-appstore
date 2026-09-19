@@ -56,7 +56,7 @@
   background: var(--cc-gameplay-modal-overlay-color);
   opacity: 0;
   pointer-events: auto;
-  transition: opacity 520ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity var(--journey-card-modal-transition-duration, 520ms) cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .journey-card-flip-frame {
@@ -75,6 +75,7 @@
 .journey-card-flip-impact-shell,
 .journey-card-flip-idle-shell,
 .journey-card-flip-pose-shell,
+.journey-card-flip-pinch-shell,
 .journey-card-flip-rotor {
   position: relative;
   width: 100%;
@@ -87,6 +88,11 @@
 .journey-card-flip-idle-shell {
   rotate: var(--journey-card-flip-front-tilt, -5.5deg);
   transition: rotate 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Scale only the automatic entry; interactive face changes retain their tempo. */
+.journey-card-flip-overlay.is-entering .journey-card-flip-idle-shell {
+  transition-duration: var(--journey-card-modal-transition-duration, 520ms);
 }
 
 .journey-card-flip-overlay[data-face="back"] .journey-card-flip-idle-shell {
@@ -144,6 +150,10 @@
   will-change: transform;
 }
 
+.journey-card-flip-overlay.is-pinching .journey-card-flip-pinch-shell {
+  will-change: transform;
+}
+
 .journey-card-flip-overlay.is-dragging .journey-card-flip-rotor {
   cursor: grabbing;
 }
@@ -196,23 +206,23 @@
   transition: none;
 }
 
-/* Begin restoring settled depth exactly 200ms before the 520ms spatial entry
-   completes. At this point the card is already on its back-facing settle arc,
+/* Restore depth at the same relative point of the accelerated spatial entry.
+   At this point the card is already on its back-facing settle arc,
    so the short fade reads early without paying for shadows during the costly
    scale/turn portion of the flight. */
 .journey-card-flip-overlay.is-entering.is-shadow-ready .journey-card-flip-front {
   filter: drop-shadow(0 14px 19px rgba(165, 124, 98, 0.86));
-  transition: filter 180ms linear;
+  transition: filter var(--journey-card-entry-shadow-duration, 180ms) linear;
 }
 
 .journey-card-flip-overlay.is-entering.is-shadow-ready .journey-card-flip-paper {
   box-shadow: 0 14px 36px 0 rgba(165, 124, 98, 0.86);
-  transition: box-shadow 180ms linear;
+  transition: box-shadow var(--journey-card-entry-shadow-duration, 180ms) linear;
 }
 
 .journey-card-flip-overlay.is-entering.is-shadow-ready .journey-card-flip-back-shell::before {
   opacity: 0.28;
-  transition: opacity 180ms linear;
+  transition: opacity var(--journey-card-entry-shadow-duration, 180ms) linear;
 }
 
 /* Keep the expensive shadow surfaces out of the spatial flight, then restore

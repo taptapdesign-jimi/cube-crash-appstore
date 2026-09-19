@@ -11,7 +11,7 @@ import {
   preloadJourneyCardEntryFlipSounds,
   stopJourneyCardEntryFlipSounds,
 } from './journey-card-entry-flip-sound.js';
-import { JOURNEY_CARD_FLIP_ENTER_DURATION_MS } from './journey-card-overlay-modal.js';
+import { JOURNEY_CARD_SPATIAL_BASE_DURATION_MS } from './journey-card-overlay-modal.js';
 import {
   amplifyJourneyCardReturnLandingScale,
   createJourneyInterimBounceVariant,
@@ -24,7 +24,7 @@ import {
 } from './journey-card-assets.js';
 
 export const JOURNEY_CARD_RETURN_REMINDER_TRAVEL_RATIO = 0.3;
-export const JOURNEY_CARD_RETURN_REMINDER_CYCLE_DURATION_MS = JOURNEY_CARD_FLIP_ENTER_DURATION_MS;
+export const JOURNEY_CARD_RETURN_REMINDER_CYCLE_DURATION_MS = JOURNEY_CARD_SPATIAL_BASE_DURATION_MS;
 export const JOURNEY_CARD_RETURN_REMINDER_OUT_DURATION_MS = JOURNEY_CARD_RETURN_REMINDER_CYCLE_DURATION_MS / 2;
 export const JOURNEY_CARD_RETURN_REMINDER_BACK_DURATION_MS = JOURNEY_CARD_RETURN_REMINDER_CYCLE_DURATION_MS / 2;
 export const JOURNEY_CARD_RETURN_REMINDER_LAUNCH_IMPACT_DURATION_MS = 180;

@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+
 describe('Clean Board confetti mobile runtime', () => {
   const originalGetContext = HTMLCanvasElement.prototype.getContext;
   const originalRequestAnimationFrame = global.requestAnimationFrame;
@@ -223,4 +225,53 @@ describe('Clean Board confetti mobile runtime', () => {
       });
     },
   );
+
+  test.each(['area55', 'forest', 'beach'] as const)(
+    'the actual %s Clean Board CTA hook synchronously removes the complete celebration before another frame',
+    async (theme) => {
+      HTMLCanvasElement.prototype.getContext = jest.fn(() => ({
+        setTransform: jest.fn(), clearRect: jest.fn(),
+      })) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+      let pendingFrame!: FrameRequestCallback;
+      global.requestAnimationFrame = jest.fn((callback: FrameRequestCallback) => {
+        pendingFrame = callback;
+        return 47;
+      });
+      global.cancelAnimationFrame = jest.fn();
+      const module = await import('../confetti-system');
+      module.allowConfettiSpawns();
+      module.createConfettiExplosion(document.createElement('div'), theme);
+      expect(module.getConfettiRuntimeSnapshot().particleCount).toBeGreaterThan(0);
+      const source = fs.readFileSync('src/modules/clean-board-modal.ts', 'utf8');
+      const body = source.match(/const cleanupCelebrationParticlesImmediately = \(\) => \{([\s\S]*?)\n {4}\};/)![1];
+      const exit = new Function('cleanupConfetti', body);
+      exit(module.cleanupConfetti);
+      expect(global.cancelAnimationFrame).toHaveBeenCalledWith(47);
+      expect(module.getConfettiRuntimeSnapshot()).toMatchObject({
+        canvasCount: 0, particleCount: 0, animationFrameCount: 0, spawnBlocked: true,
+      });
+      pendingFrame(performance.now() + 16);
+      module.createConfettiExplosion(document.createElement('div'), theme);
+      expect(module.getConfettiRuntimeSnapshot().canvasCount).toBe(0);
+      expect(global.requestAnimationFrame).toHaveBeenCalledTimes(1);
+      module.allowConfettiSpawns();
+      module.createConfettiExplosion(document.createElement('div'), theme);
+      expect(module.getConfettiRuntimeSnapshot().particleCount).toBeGreaterThan(0);
+    },
+  );
+
+  test('runs celebration cleanup first in Exit and Continue or Play Again CTA handlers', () => {
+    const source = fs.readFileSync('src/modules/clean-board-modal.ts', 'utf8');
+    const primaryStart = source.indexOf('addButtonPressHandling(primaryBtn, async () => {');
+    const primaryEnd = source.indexOf("}, 'primary');", primaryStart);
+    const secondaryStart = source.indexOf('addButtonPressHandling(secondaryBtn, async () => {');
+    const secondaryEnd = source.indexOf("}, 'secondary');", secondaryStart);
+    const primaryHandler = source.slice(primaryStart, primaryEnd);
+    const secondaryHandler = source.slice(secondaryStart, secondaryEnd);
+
+    expect(primaryHandler.indexOf('cleanupCelebrationParticlesImmediately();')).toBeGreaterThan(-1);
+    expect(primaryHandler.indexOf('cleanupCelebrationParticlesImmediately();')).toBeLessThan(primaryHandler.indexOf('await '));
+    expect(secondaryHandler.indexOf('cleanupCelebrationParticlesImmediately();')).toBeGreaterThan(-1);
+    expect(secondaryHandler.indexOf('cleanupCelebrationParticlesImmediately();')).toBeLessThan(secondaryHandler.indexOf('await '));
+  });
 });

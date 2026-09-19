@@ -15,6 +15,7 @@ const code = ts.transpileModule(closures.join('\n'), { compilerOptions: { target
 function fixture(face = 'front', angle = face === 'front' ? 0 : -180) {
   const scope: any = {
     activePointerId: 1, pointerTraceMoveCount: 0, dragStartX: 0, dragStartY: 0,
+    pinchPointerIds: null, pointerPositions: new Map([[1, { x: 0, y: 0 }]]),
     dragLatestX: 0, dragLatestY: 0, dragStartAngle: angle, currentAngle: angle,
     stableFace: face, dragMoved: false, dragAxis: null, dragViewportWidth: 390,
     dragViewportHeight: 844, dragCardHeight: 400, dragCardRect: null,

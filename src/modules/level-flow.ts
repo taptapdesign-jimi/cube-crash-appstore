@@ -154,15 +154,15 @@ async function openLockedBounceParallelImpl({
     });
   }
   
-  // 🔥 CRITICAL: Filter out tiles that are already spawned (have _spawned flag)
-  // This prevents reanimating tiles that were already spawned in mergePulledTilesIntoMerge6
-  locked = locked.filter((t: any) => {
-    if (!t || t.destroyed) return false; // Double-check destroyed
+  // A tile that is still locked cannot already be an active spawned tile. Some
+  // restore/reset routes can leave the visual-history marker behind, though.
+  // Treat that marker as stale so the authored staggered bounce remains the
+  // owner instead of sending these valid placeholders to the instant fallback.
+  locked.forEach((t: any) => {
     if ((t as any)._spawned === true) {
-      logger.info(`🎯 Excluding tile at (${(t as any).gridX}, ${(t as any).gridY}) from spawn (already spawned)`);
-      return false;
+      logger.info(`🎯 Clearing stale spawn marker at (${(t as any).gridX}, ${(t as any).gridY})`);
+      try { delete (t as any)._spawned; } catch { (t as any)._spawned = false; }
     }
-    return true;
   });
   
   if (!locked.length || k <= 0) {

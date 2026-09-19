@@ -116,4 +116,48 @@ describe('level-flow cancellation ownership', () => {
     expect(tile.scale.set).toHaveBeenCalledTimes(scaleCallsAfterCleanup);
     expect(jest.getTimerCount()).toBe(0);
   });
+
+  test('locked placeholders with stale spawn markers still enter one by one with bounce', async () => {
+    const makeTile = (gridX: number) => ({
+      locked: true,
+      destroyed: false,
+      scale: { x: 1, y: 1, set: jest.fn() },
+      value: 0,
+      gridX,
+      gridY: 1,
+      alpha: 1,
+      base: { alpha: 1 },
+      rotG: { alpha: 1 },
+      overlay: { alpha: 1, visible: false },
+      pips: { alpha: 1, visible: true },
+      _spawned: true,
+    } as any);
+    const tiles = [makeTile(1), makeTile(2)];
+    const spawnBounce = jest.fn();
+    const spawn = openLockedBounceParallel({
+      tiles,
+      k: 2,
+      makeBoard: {
+        setValue: (target: any, value: number) => { target.value = value; },
+      },
+      spawnBounce,
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    jest.advanceTimersByTime(49);
+    expect(spawnBounce).not.toHaveBeenCalled();
+
+    jest.advanceTimersByTime(1);
+    await Promise.resolve();
+    expect(spawnBounce).toHaveBeenCalledTimes(1);
+
+    jest.advanceTimersByTime(99);
+    expect(spawnBounce).toHaveBeenCalledTimes(1);
+
+    jest.advanceTimersByTime(1);
+    await expect(spawn).resolves.toBe(2);
+    expect(spawnBounce).toHaveBeenCalledTimes(2);
+    expect(tiles.every(tile => tile.locked === false && tile.value > 0)).toBe(true);
+  });
 });

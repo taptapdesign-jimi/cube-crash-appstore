@@ -16,6 +16,7 @@ import {
   getJourneyCardFlipEdgeProgress,
   getJourneyCardFlipFaceForAngle,
   getJourneyCardImpactPresentationPose,
+  getJourneyCardPinchScale,
   getJourneyCardRenderedRotateYAngle,
   getJourneyCardReturnFlipAngle,
   getJourneyCardReturnRotorAngle,
@@ -46,6 +47,8 @@ import {
   JOURNEY_CARD_PLAY_LAUNCH_BOUNCE_DURATION_MS,
   JOURNEY_CARD_PLAY_RETURN_DURATION_MS,
   JOURNEY_CARD_PLAY_TRAVEL_DURATION_MS,
+  JOURNEY_CARD_PINCH_MAX_SCALE,
+  JOURNEY_CARD_PINCH_RETURN_DURATION_MS,
   getJourneyCardDismissDragDistance,
   getJourneyCardLegendaryDragShineState,
   isJourneyCardVerticalDismissGesture,
@@ -131,6 +134,15 @@ describe('Journey two-sided card overlay prototype', () => {
       earnedStars: 3,
       ctaLabel: 'Play',
     }));
+  });
+
+  test('caps artwork pinch zoom at twenty percent and never shrinks below rest size', () => {
+    expect(JOURNEY_CARD_PINCH_MAX_SCALE).toBe(1.2);
+    expect(JOURNEY_CARD_PINCH_RETURN_DURATION_MS).toBe(220);
+    expect(getJourneyCardPinchScale(100, 80)).toBe(1);
+    expect(getJourneyCardPinchScale(100, 110)).toBeCloseTo(1.1);
+    expect(getJourneyCardPinchScale(100, 160)).toBe(1.2);
+    expect(getJourneyCardPinchScale(0, 160)).toBe(1);
   });
 
   test('changes Continue to Play when a completed Unit retires its two-die snapshot', () => {
@@ -736,7 +748,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain("stage.classList.add('is-visible');\n    backdrop.style.opacity = '1';");
     expect(modal).not.toContain('smoothstep((rotationProgress - 0.5) / 0.5)');
     expect(modal).toContain("stage.classList.add('is-exiting', 'is-backdrop-exiting')");
-    expect(css).toMatch(/\.journey-card-flip-backdrop \{[\s\S]*?transition: opacity 520ms/);
+    expect(css).toMatch(/\.journey-card-flip-backdrop \{[\s\S]*?transition: opacity var\(--journey-card-modal-transition-duration, 520ms\)/);
     expect(css).toMatch(/\.journey-card-flip-front \{[\s\S]*?drop-shadow\(0 14px 19px rgba\(165, 124, 98, 0\.86\)\);[\s\S]*?transition: filter var\(--journey-card-exit-neutral-duration, 520ms\) linear;/);
     expect(css).not.toContain('.journey-card-flip-overlay[data-paint-face="front"]\n  .journey-card-flip-front {');
     expect(css).toMatch(/\.journey-card-flip-overlay\.is-exiting \.journey-card-flip-front \{[\s\S]*?drop-shadow\(0 14px 19px rgba\(165, 124, 98, 0\)\);/);
@@ -769,7 +781,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(css).toContain('rotate: var(--journey-card-flip-back-tilt, 2.6deg);');
     expect(css).toContain('.journey-card-flip-overlay.is-flipping-to-back .journey-card-flip-idle-shell');
     expect(css).toContain('.journey-card-flip-overlay.is-flipping-to-front .journey-card-flip-idle-shell');
-    expect(css).not.toContain('.journey-card-flip-overlay.is-entering .journey-card-flip-idle-shell');
+    expect(css).toMatch(/\.journey-card-flip-overlay\.is-entering \.journey-card-flip-idle-shell \{\s*transition-duration: var\(--journey-card-modal-transition-duration, 520ms\);\s*\}/);
   });
 
   test('animates stats only on initial modal entry, never again during interactive flips', () => {
@@ -829,7 +841,7 @@ describe('Journey two-sided card overlay prototype', () => {
 
   test('shares flight progress with the flip and preserves Play landing choreography', () => {
     const modal = read('src/modules/journey-card-overlay-modal.ts');
-    expect(JOURNEY_CARD_FLIP_ENTER_DURATION_MS).toBe(520);
+    expect(JOURNEY_CARD_FLIP_ENTER_DURATION_MS).toBeCloseTo(520 / 1.4);
     expect(JOURNEY_CARD_FLIP_SNAP_DURATION_MS).toBe(200);
     expect(JOURNEY_CARD_FLIP_RECOIL_DURATION_MS).toBe(260);
     expect(JOURNEY_CARD_FLIP_RECOIL_EASE).toBe('cubic-bezier(0.45, 0, 0.55, 1)');
@@ -837,11 +849,11 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(JOURNEY_CARD_FLIP_RECOIL_STOPS).toEqual([
       { offset: 0.38, degrees: 12, easing: JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE },
     ]);
-    expect(JOURNEY_CARD_PLAY_LAUNCH_BOUNCE_DURATION_MS).toBe(100);
-    expect(JOURNEY_CARD_PLAY_TRAVEL_DURATION_MS).toBe(500);
-    expect(JOURNEY_CARD_PLAY_LANDING_PUNCH_DURATION_MS).toBe(120);
-    expect(JOURNEY_CARD_PLAY_LANDING_EXIT_DURATION_MS).toBe(400);
-    expect(JOURNEY_CARD_PLAY_RETURN_DURATION_MS).toBe(1120);
+    expect(JOURNEY_CARD_PLAY_LAUNCH_BOUNCE_DURATION_MS).toBeCloseTo(100 / 1.4);
+    expect(JOURNEY_CARD_PLAY_TRAVEL_DURATION_MS).toBeCloseTo(500 / 1.4);
+    expect(JOURNEY_CARD_PLAY_LANDING_PUNCH_DURATION_MS).toBeCloseTo(120 / 1.4);
+    expect(JOURNEY_CARD_PLAY_LANDING_EXIT_DURATION_MS).toBeCloseTo(400 / 1.4);
+    expect(JOURNEY_CARD_PLAY_RETURN_DURATION_MS).toBeCloseTo(1120 / 1.4);
     expect(modal).toContain("getJourneyCardFlightFlipAngle(progress, 'enter')");
     expect(modal).toContain('getJourneyCardReturnRotorAngle(travelProgress, returnStartingFace, artworkDragWithoutFlip)');
     expect(modal).toContain('options.onPlayCardReturnStart?.();');
@@ -964,8 +976,8 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain('JOURNEY_CARD_SHADOW_EARLY_REVEAL_MS = 200');
     expect(modal).toContain('progress >= shadowRevealProgress');
     expect(modal).toContain("stage.classList.add('is-shadow-ready')");
-    expect(css).toMatch(/\.journey-card-flip-overlay\.is-entering\.is-shadow-ready \.journey-card-flip-front \{[\s\S]*?transition: filter 180ms linear;/);
-    expect(css).toMatch(/\.journey-card-flip-overlay\.is-entering\.is-shadow-ready \.journey-card-flip-paper \{[\s\S]*?transition: box-shadow 180ms linear;/);
+    expect(css).toMatch(/\.journey-card-flip-overlay\.is-entering\.is-shadow-ready \.journey-card-flip-front \{[\s\S]*?transition: filter var\(--journey-card-entry-shadow-duration, 180ms\) linear;/);
+    expect(css).toMatch(/\.journey-card-flip-overlay\.is-entering\.is-shadow-ready \.journey-card-flip-paper \{[\s\S]*?transition: box-shadow var\(--journey-card-entry-shadow-duration, 180ms\) linear;/);
   });
 
   test('reveals a bottom-only settled Unit contact shadow after the landing squeeze', () => {
