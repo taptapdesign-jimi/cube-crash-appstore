@@ -9,10 +9,12 @@ Date: 2026-09-19
 - Canonical branch: `main`
 - Immutable tag: `production-benchmark-v5`
 - Previous approved complete baseline: `stable-release-v1`
-- Native state: the faster Journey modal, foreground-audio recovery and Beach
-  cleanup candidate was installed and physically accepted on `iPhone 13 blue`.
-  The final all-World Clean Board particle boundary is source/local-dist only at
-  this checkpoint and remains a separate physical verification item.
+- Native state at tag creation: the faster Journey modal, foreground-audio
+  recovery and Beach cleanup candidate was installed and physically accepted on
+  `iPhone 13 blue`; the final all-World boundary was source/local-dist only.
+- Post-checkpoint delivery: the exact tagged source was subsequently synced,
+  built, installed over the existing app and launched on `iPhone 13 blue`.
+  Visual acceptance of the final all-World cleanup remains a separate test.
 
 ## Complete change record
 
@@ -80,7 +82,7 @@ behavior and the limits of the available evidence.
 
 This tag is the immutable source recovery point requested on 2026-09-19. It
 records the complete repository state and deterministic validation listed above.
-It does not claim that the final Area 55/Forest/Beach CTA cleanup has already
-been synced, built or installed on the phone. That final behavior remains
-`NEEDS PHYSICAL TEST`; the preceding installed Beach-only package remains the
-latest native package until a later authorized delivery.
+The exact tagged source was delivered to `iPhone 13 blue` after checkpoint
+creation. Installation and launch are verified, while the final Area 55/Forest/
+Beach CTA behavior remains `NEEDS PHYSICAL TEST`; native delivery alone does not
+prove visual timing or subjective feel.

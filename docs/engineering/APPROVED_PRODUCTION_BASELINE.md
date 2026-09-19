@@ -10,11 +10,11 @@ new benchmark from which future work continues is:
 - Git tag: `production-benchmark-v5`
 - App version: `2.0.653`
 - Canonical branch at approval: `main`
-- Native delivery status: the faster Journey modal, audio recovery and Beach
-  cleanup candidate was built for the authoritative Stack to Six target,
-  installed over the existing app on `iPhone 13 blue`, and physically accepted
-  without deleting app data. The final all-World Clean Board particle cleanup is
-  source/local-dist only and remains `NEEDS PHYSICAL TEST`.
+- Native delivery status: the exact `production-benchmark-v5` source was built
+  for the authoritative Stack to Six target, synced to bundled `Web.bundle`,
+  installed over the existing app on `iPhone 13 blue`, and launched without
+  deleting app data. The final all-World Clean Board particle cleanup is now on
+  the phone and remains `NEEDS PHYSICAL TEST` for visual acceptance.
 
 The user explicitly requested that the complete current repository become the
 new online benchmark. It includes Stable Release v1 plus Journey return and
