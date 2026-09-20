@@ -16408,11 +16408,15 @@ export function cleanupGame(options: { destroyRenderer?: boolean } = {}) {
       }
     }
     
-    // 🔥 CRITICAL FIX: Release cached bubble texture to free GPU memory on hard cleanup
-    try {
-      destroyWildJuiceBubblesExplosionCache?.();
-      devLog('✅ Wild juice bubble texture cache destroyed');
-    } catch {}
+    // Keep GPU-ready effect textures across ordinary menu/Journey returns.
+    // Destroying them during a soft renderer suspension can force WebKit GPU
+    // allocation and asset decode beside the incoming Journey enter.
+    if (destroyRenderer) {
+      try {
+        destroyWildJuiceBubblesExplosionCache?.();
+        devLog('✅ Wild juice bubble texture cache destroyed');
+      } catch {}
+    }
     
     // 🔥 STARS ANIMATION FIX: Force cleanup ALL stars-to-HUD animations (including protected)
     // Use force cleanup in cleanupGame() because we're closing the game completely
@@ -16449,11 +16453,13 @@ export function cleanupGame(options: { destroyRenderer?: boolean } = {}) {
   // Keep global PIXI texture cache intact on full exit. The app is destroyed below with
   // texture:false, so clearing TextureCache here can leave Assets.cache with stale refs
   // and make the next board boot render without tile/wild textures on iOS WebKit.
-  try {
-    cleanupTexturesForBoardTransition('cleanupGame', true, true);
-    memoryManager.performCleanup?.();
-  } catch (e) {
-    devWarn('⚠️ cleanupGame memory cleanup failed:', e);
+  if (destroyRenderer) {
+    try {
+      cleanupTexturesForBoardTransition('cleanupGame', true, true);
+      memoryManager.performCleanup?.();
+    } catch (e) {
+      devWarn('⚠️ cleanupGame memory cleanup failed:', e);
+    }
   }
   
   if (grid) {
@@ -16497,8 +16503,10 @@ export function cleanupGame(options: { destroyRenderer?: boolean } = {}) {
   }
   
   // Clear global FX layer + FX state (prevents stale transforms after hard exit)
-  cleanupFxForBoardReset('cleanupGame');
-  void retireTntFrameCache().catch((error) => devWarn('TNT frame retirement failed:', error));
+  cleanupFxForBoardReset(destroyRenderer ? 'cleanupGame' : 'menu-exit-soft');
+  if (destroyRenderer) {
+    void retireTntFrameCache().catch((error) => devWarn('TNT frame retirement failed:', error));
+  }
   
   if (app && destroyRenderer) {
     devLog('🧹 Destroying PIXI app in cleanupGame()');

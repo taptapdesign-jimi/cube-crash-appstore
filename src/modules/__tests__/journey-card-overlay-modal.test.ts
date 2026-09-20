@@ -31,6 +31,9 @@ import {
   JOURNEY_CARD_LEGENDARY_IDLE_TILT_DEG,
   JOURNEY_CARD_LEGENDARY_IDLE_TILT_RATIO,
   JOURNEY_CARD_FLIP_ENTER_DURATION_MS,
+  JOURNEY_CARD_MODAL_PREVIOUS_TRANSITION_SPEED,
+  JOURNEY_CARD_MODAL_REQUESTED_SPEED_RATIO,
+  JOURNEY_CARD_MODAL_TRANSITION_SPEED,
   JOURNEY_CARD_FLIP_IDLE_COACH_DELAY_MS,
   JOURNEY_CARD_FLIP_IDLE_COACH_DURATION_MS,
   JOURNEY_CARD_FLIP_SNAP_DURATION_MS,
@@ -47,8 +50,9 @@ import {
   JOURNEY_CARD_PLAY_LAUNCH_BOUNCE_DURATION_MS,
   JOURNEY_CARD_PLAY_RETURN_DURATION_MS,
   JOURNEY_CARD_PLAY_TRAVEL_DURATION_MS,
-  JOURNEY_CARD_PINCH_MAX_SCALE,
+  JOURNEY_CARD_PINCH_OVERPULL_LIMIT,
   JOURNEY_CARD_PINCH_RETURN_DURATION_MS,
+  JOURNEY_CARD_PINCH_SOFT_LIMIT_SCALE,
   getJourneyCardDismissDragDistance,
   getJourneyCardLegendaryDragShineState,
   isJourneyCardVerticalDismissGesture,
@@ -136,12 +140,16 @@ describe('Journey two-sided card overlay prototype', () => {
     }));
   });
 
-  test('caps artwork pinch zoom at twenty percent and never shrinks below rest size', () => {
-    expect(JOURNEY_CARD_PINCH_MAX_SCALE).toBe(1.2);
-    expect(JOURNEY_CARD_PINCH_RETURN_DURATION_MS).toBe(220);
+  test('uses twenty percent as a soft pinch limit with bounded iOS-style overpull', () => {
+    expect(JOURNEY_CARD_PINCH_SOFT_LIMIT_SCALE).toBe(1.2);
+    expect(JOURNEY_CARD_PINCH_OVERPULL_LIMIT).toBe(0.24);
+    expect(JOURNEY_CARD_PINCH_RETURN_DURATION_MS).toBe(360);
     expect(getJourneyCardPinchScale(100, 80)).toBe(1);
     expect(getJourneyCardPinchScale(100, 110)).toBeCloseTo(1.1);
-    expect(getJourneyCardPinchScale(100, 160)).toBe(1.2);
+    expect(getJourneyCardPinchScale(100, 120)).toBe(1.2);
+    expect(getJourneyCardPinchScale(100, 160)).toBeGreaterThan(1.34);
+    expect(getJourneyCardPinchScale(100, 160)).toBeLessThan(1.44);
+    expect(getJourneyCardPinchScale(100, 10000)).toBeLessThan(1.44);
     expect(getJourneyCardPinchScale(0, 160)).toBe(1);
   });
 
@@ -841,7 +849,10 @@ describe('Journey two-sided card overlay prototype', () => {
 
   test('shares flight progress with the flip and preserves Play landing choreography', () => {
     const modal = read('src/modules/journey-card-overlay-modal.ts');
-    expect(JOURNEY_CARD_FLIP_ENTER_DURATION_MS).toBeCloseTo(520 / 1.4);
+    expect(JOURNEY_CARD_MODAL_PREVIOUS_TRANSITION_SPEED).toBe(1.4);
+    expect(JOURNEY_CARD_MODAL_REQUESTED_SPEED_RATIO).toBe(0.7);
+    expect(JOURNEY_CARD_MODAL_TRANSITION_SPEED).toBeCloseTo(1.4 * 0.7);
+    expect(JOURNEY_CARD_FLIP_ENTER_DURATION_MS).toBeCloseTo((520 / 1.4) / 0.7);
     expect(JOURNEY_CARD_FLIP_SNAP_DURATION_MS).toBe(200);
     expect(JOURNEY_CARD_FLIP_RECOIL_DURATION_MS).toBe(260);
     expect(JOURNEY_CARD_FLIP_RECOIL_EASE).toBe('cubic-bezier(0.45, 0, 0.55, 1)');
@@ -849,11 +860,11 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(JOURNEY_CARD_FLIP_RECOIL_STOPS).toEqual([
       { offset: 0.38, degrees: 12, easing: JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE },
     ]);
-    expect(JOURNEY_CARD_PLAY_LAUNCH_BOUNCE_DURATION_MS).toBeCloseTo(100 / 1.4);
-    expect(JOURNEY_CARD_PLAY_TRAVEL_DURATION_MS).toBeCloseTo(500 / 1.4);
-    expect(JOURNEY_CARD_PLAY_LANDING_PUNCH_DURATION_MS).toBeCloseTo(120 / 1.4);
-    expect(JOURNEY_CARD_PLAY_LANDING_EXIT_DURATION_MS).toBeCloseTo(400 / 1.4);
-    expect(JOURNEY_CARD_PLAY_RETURN_DURATION_MS).toBeCloseTo(1120 / 1.4);
+    expect(JOURNEY_CARD_PLAY_LAUNCH_BOUNCE_DURATION_MS).toBeCloseTo((100 / 1.4) / 0.7);
+    expect(JOURNEY_CARD_PLAY_TRAVEL_DURATION_MS).toBeCloseTo((500 / 1.4) / 0.7);
+    expect(JOURNEY_CARD_PLAY_LANDING_PUNCH_DURATION_MS).toBeCloseTo((120 / 1.4) / 0.7);
+    expect(JOURNEY_CARD_PLAY_LANDING_EXIT_DURATION_MS).toBeCloseTo((400 / 1.4) / 0.7);
+    expect(JOURNEY_CARD_PLAY_RETURN_DURATION_MS).toBeCloseTo((1120 / 1.4) / 0.7);
     expect(modal).toContain("getJourneyCardFlightFlipAngle(progress, 'enter')");
     expect(modal).toContain('getJourneyCardReturnRotorAngle(travelProgress, returnStartingFace, artworkDragWithoutFlip)');
     expect(modal).toContain('options.onPlayCardReturnStart?.();');

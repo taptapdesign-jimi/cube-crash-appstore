@@ -171,7 +171,12 @@ export function preloadJourneyCardOverlayAssets(): Promise<void> {
 }
 
 export const JOURNEY_CARD_SPATIAL_BASE_DURATION_MS = 520;
-export const JOURNEY_CARD_MODAL_TRANSITION_SPEED = 1.4;
+export const JOURNEY_CARD_MODAL_PREVIOUS_TRANSITION_SPEED = 1.4;
+export const JOURNEY_CARD_MODAL_REQUESTED_SPEED_RATIO = 0.7;
+export const JOURNEY_CARD_MODAL_TRANSITION_SPEED = (
+  JOURNEY_CARD_MODAL_PREVIOUS_TRANSITION_SPEED
+  * JOURNEY_CARD_MODAL_REQUESTED_SPEED_RATIO
+);
 export const JOURNEY_CARD_FLIP_ENTER_DURATION_MS = JOURNEY_CARD_SPATIAL_BASE_DURATION_MS / JOURNEY_CARD_MODAL_TRANSITION_SPEED;
 export const JOURNEY_CARD_SHADOW_EARLY_REVEAL_MS = 200 / JOURNEY_CARD_MODAL_TRANSITION_SPEED;
 export const JOURNEY_CARD_FLIP_DISMISS_DURATION_MS = JOURNEY_CARD_FLIP_ENTER_DURATION_MS;
@@ -200,8 +205,10 @@ export const JOURNEY_CARD_FLIP_STATS_ENTER_TIME_SCALE = 0.5;
 export const JOURNEY_CARD_DISMISS_DRAG_COMMIT_RATIO = 0.22;
 export const JOURNEY_CARD_DISMISS_DRAG_MIN_PX = 88;
 export const JOURNEY_CARD_DISMISS_DRAG_MAX_PX = 140;
-export const JOURNEY_CARD_PINCH_MAX_SCALE = 1.2;
-export const JOURNEY_CARD_PINCH_RETURN_DURATION_MS = 220;
+export const JOURNEY_CARD_PINCH_SOFT_LIMIT_SCALE = 1.2;
+export const JOURNEY_CARD_PINCH_OVERPULL_LIMIT = 0.24;
+export const JOURNEY_CARD_PINCH_RETURN_DURATION_MS = 360;
+const JOURNEY_CARD_PINCH_OVERPULL_RESISTANCE = 0.9;
 const JOURNEY_CARD_FLIP_TAP_SLOP_PX = 7;
 
 export function getJourneyCardPinchScale(
@@ -211,10 +218,22 @@ export function getJourneyCardPinchScale(
   if (!Number.isFinite(initialDistance) || initialDistance <= 0 || !Number.isFinite(currentDistance)) {
     return 1;
   }
-  return Math.min(
-    JOURNEY_CARD_PINCH_MAX_SCALE,
-    Math.max(1, currentDistance / initialDistance),
+  const rawScale = Math.max(1, currentDistance / initialDistance);
+  if (rawScale <= JOURNEY_CARD_PINCH_SOFT_LIMIT_SCALE) return rawScale;
+
+  // Match the bounded iOS edge-pull shape used by the Journey screen: 120%
+  // is the soft limit, then extra finger travel keeps moving with increasing
+  // resistance instead of hitting a rigid wall. The final 24% is asymptotic.
+  const overpull = rawScale - JOURNEY_CARD_PINCH_SOFT_LIMIT_SCALE;
+  const resistedOverpull = (
+    JOURNEY_CARD_PINCH_OVERPULL_LIMIT
+    * overpull
+    * JOURNEY_CARD_PINCH_OVERPULL_RESISTANCE
+  ) / (
+    JOURNEY_CARD_PINCH_OVERPULL_LIMIT
+    + overpull * JOURNEY_CARD_PINCH_OVERPULL_RESISTANCE
   );
+  return JOURNEY_CARD_PINCH_SOFT_LIMIT_SCALE + resistedOverpull;
 }
 
 export function getJourneyCardDismissDragDistance(cardHeight: number): number {
@@ -1951,11 +1970,25 @@ export function presentJourneyCardOverlayModal(
       return;
     }
     const animation = pinchShell.animate([
-      { transform: `scale(${fromScale})` },
-      { transform: 'scale(1)' },
+      {
+        transform: `scale(${fromScale})`,
+        offset: 0,
+        easing: 'cubic-bezier(0.2, 0.82, 0.32, 1)',
+      },
+      {
+        transform: 'scale(0.97)',
+        offset: 0.62,
+        easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      },
+      {
+        transform: 'scale(1.009)',
+        offset: 0.83,
+        easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      },
+      { transform: 'scale(1)', offset: 1 },
     ], {
       duration: JOURNEY_CARD_PINCH_RETURN_DURATION_MS,
-      easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      easing: 'linear',
       fill: 'forwards',
     });
     pinchReturnAnimation = animation;

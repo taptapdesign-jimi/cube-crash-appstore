@@ -88,10 +88,11 @@ test.each([false, true])('actual World enter continuation schedules warmup only 
   let done!: () => void; const entered = new Promise<void>(resolve => { done = resolve; });
   f.owner.journeyWorldAnimation = { enter: () => entered };
   f.owner.journeyWorldRuntime = { endTransition() {} };
+  f.owner.trackRAF = (callback: () => void) => { callback(); return 0; };
   f.owner.scheduleJourneyCardAssetWarmup = jest.fn();
   const owner = new Proxy(f.owner, { get: (o, k) => k in o ? o[k] : () => {} });
-  const data: any = { container: f.root, worldId: 1, motionEpoch: 2, source: 'hub-world-open', images: [], units: [], allTargets: [], reducedMotion: false, targetsPrimed: true,
-    transitionPerformance: { phase: (_: string, fn: () => unknown) => fn() }, finishWorldEnterAudit() {}, emitIOSNativeDiagnostic() {}, markIOSJourneyRouteAudit() {}, markIOSJourneyTransitionAudit() {} };
+  const data: any = { container: f.root, worldId: 1, motionEpoch: 2, source: 'hub-world-open', images: [], units: [], allTargets: [], reducedMotion: false, targetsPrimed: true, options: {},
+    transitionPerformance: { phase: (_: string, fn: () => unknown) => fn() }, finishWorldEnterAudit() {}, emitIOSNativeDiagnostic() {}, markIOSJourneyRouteAudit() {}, markIOSJourneyTransitionAudit() {}, completeJourneyReturnTransition() {} };
   const run = new Function('scope', `with(scope){${compile(`const callback = ${enterContinuation.getText(file)};`)} return callback;}`).call(owner, data);
   const pending = run(); await Promise.resolve(); expect(f.owner.scheduleJourneyCardAssetWarmup).not.toHaveBeenCalled();
   if (cancel) f.owner.journeyV700WorldMotionEpoch++;

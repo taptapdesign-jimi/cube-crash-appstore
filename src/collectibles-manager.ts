@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { getJourneyReturnRevealToken, scheduleJourneyReturnReveal } from './modules/journey-return-transition-trace.js';
 import { beginTransitionPerformance, type TransitionPerformance } from './utils/transition-performance.js';
 import { logger } from './core/logger.js';
 import {
@@ -1053,6 +1054,14 @@ class CollectiblesManager {
     // Only an actual board identity may select the active-area/world-return path.
     const shouldUseV700WorldReturnEnter =
       !!journeyContainer && journeyReturnPolicy.useWorldReturnEnter;
+    const terminalReturnToken = shouldUseV700WorldReturnEnter ? getJourneyReturnRevealToken() : null;
+    // Homepage entry owns the current presentation epoch while its zone is still
+    // home. Only a completed terminal return requires an already-routed World.
+    const isJourneyRevealCurrent = (): boolean => screen.isConnected
+      && appZoneManager.isPresentationCurrent(
+        journeyPresentationEpoch,
+        terminalReturnToken !== null ? 'journey' : undefined,
+      );
     if (shouldUseV700WorldReturnEnter) {
       (window as any).__ccSuppressJourneyV700AutoWorldEnter = true;
     }
@@ -1149,11 +1158,13 @@ class CollectiblesManager {
         const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
         journeyBoardsManagerPreparedForEnter = journeyBoardsManager;
         restoreJourneyReturnScrollPosition('pre-reveal-after-boards-ready');
-        journeyEnterPerformance.phase('prepare-card-transforms', () =>
-          journeyBoardsManager.prepareJourneyBoardCardTransformsForReveal?.('collectibles-pre-reveal'));
+        if (!shouldUseV700WorldReturnEnter) {
+          journeyEnterPerformance.phase('prepare-card-transforms', () =>
+            journeyBoardsManager.prepareJourneyBoardCardTransformsForReveal?.('collectibles-pre-reveal'));
+        }
         if (shouldUseV700WorldReturnEnter) {
           journeyEnterPerformance.phase('prepare-world-return', () =>
-            journeyBoardsManager.prepareJourneyV700WorldEnterFromReturn?.('collectibles-pre-reveal-world-return'));
+            journeyBoardsManager.prepareJourneyV700WorldEnterFromReturn?.('collectibles-pre-reveal-world-return', terminalReturnToken));
         }
         journeyEnterPerformance.phase('prepare-viewport', () => prepareJourneyViewportScreenEnter('collectibles-pre-reveal', {
           animateJourneyContent: !shouldUseV700WorldReturnEnter,
@@ -1187,22 +1198,25 @@ class CollectiblesManager {
         logger.warn('⚠️ Journey enter animation delayed - keeping screen primed hidden to prevent flash');
       }, 2400);
 
-      // 🔥 CRITICAL MOBILE FIX: Use requestAnimationFrame to ensure DOM is ready on mobile
-      // Then import and start animation immediately
-      requestAnimationFrame(() => {
+      // Cold entries retain both paint boundaries. A completed terminal exit
+      // releases its already-primed World without adding two empty frames.
+      scheduleJourneyReturnReveal(terminalReturnToken, isJourneyRevealCurrent, () => {
         journeyEnterPerformance.mark('first-reveal-frame');
         import('./ui/collectibles-animations.js').then(({ animateCollectiblesScreenEnter }) => {
           window.clearTimeout(revealFallbackTimer);
+          if (!isJourneyRevealCurrent() || (terminalReturnToken !== null
+            && getJourneyReturnRevealToken() !== terminalReturnToken)) return;
           enterAnimationStarted = true;
           console.log('🎬 Starting Journey enter animation IMMEDIATELY...');
           releaseJourneyScreenHiddenPrime(screen as HTMLElement);
           emitIOSNativeDiagnostic('screen-prime-released');
           // 🔥 CRITICAL: Start animation immediately - screen is already prepared with opacity 0
-          // Use RAF to ensure browser is ready to render animation on mobile
-          requestAnimationFrame(() => {
+          // The generation-owned terminal reveal can continue in this same task.
+          scheduleJourneyReturnReveal(terminalReturnToken, isJourneyRevealCurrent, () => {
             journeyEnterPerformance.mark('second-reveal-frame');
             const enterPromise = Promise.resolve(journeyEnterPerformance.phase('start-viewport-animation', () => animateCollectiblesScreenEnter({
               animateJourneyContent: !shouldUseV700WorldReturnEnter,
+              revealPrimedWorldImmediately: terminalReturnToken !== null,
             })));
             void enterPromise.then(
               () => journeyEnterPerformance.finish('viewport-complete'),
@@ -1239,6 +1253,8 @@ class CollectiblesManager {
                   hideLastActiveJourneyBoardAreaBeforeEnter();
                   activeJourneyBoardsManager.prepareActiveJourneyBoardAreaEnterAnimation?.();
                 }
+                if (!isJourneyRevealCurrent() || (terminalReturnToken !== null
+                  && getJourneyReturnRevealToken() !== terminalReturnToken)) return;
                 let v700WorldReturnEnterStarted = false;
                 if (shouldUseV700WorldReturnEnter) {
                   v700WorldReturnEnterStarted = true;
@@ -1248,7 +1264,8 @@ class CollectiblesManager {
                     windowView: (window as any).__ccJourneyV700View || null,
                   });
                   activeJourneyBoardsManager.playJourneyV700WorldEnterFromReturn?.(
-                    returningFromInterimBoardEarly ? 'interim-game-return' : 'journey-game-return'
+                    returningFromInterimBoardEarly ? 'interim-game-return' : 'journey-game-return',
+                    { immediateFirstUnit: terminalReturnToken !== null },
                   );
                 }
                 if (!shouldPlayActiveBoardAreaEnter) {
@@ -1349,6 +1366,8 @@ class CollectiblesManager {
         }).catch((error) => {
           window.clearTimeout(revealFallbackTimer);
           journeyEnterPerformance.finish('animation-import-error');
+          if (!isJourneyRevealCurrent() || (terminalReturnToken !== null
+            && getJourneyReturnRevealToken() !== terminalReturnToken)) return;
           console.error('❌ Failed to load collectibles animations:', error);
           // Fallback: just show screen normally
           releaseJourneyScreenHiddenPrime(screen as HTMLElement);

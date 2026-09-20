@@ -8,6 +8,9 @@ test('ordinary menu exit suspends the Pixi renderer instead of destroying its We
   expect(core).toContain('export function cleanupGame(options: { destroyRenderer?: boolean } = {})');
   expect(core).toContain('const destroyRenderer = options.destroyRenderer !== false;');
   expect(core).toContain('if (app && destroyRenderer)');
+  expect(core).toContain("cleanupFxForBoardReset(destroyRenderer ? 'cleanupGame' : 'menu-exit-soft')");
+  expect(core).toContain('if (destroyRenderer) {\n      try {\n        destroyWildJuiceBubblesExplosionCache?.();');
+  expect(core).toContain('if (destroyRenderer) {\n    void retireTntFrameCache()');
   expect(core).toContain('PIXI renderer session suspended for menu reuse');
   expect(core).toContain("app.canvas.style.visibility = 'hidden'");
   expect(core).toContain('drag = null as any');

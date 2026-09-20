@@ -520,8 +520,10 @@ function animateJourneyViewportScreenEnter(
   journeyScreen: HTMLElement,
   collectiblesHeader: HTMLElement | null,
   collectiblesScrollable: HTMLElement | null,
-  options: { animateJourneyContent?: boolean } = {},
+  options: { animateJourneyContent?: boolean; revealPrimedWorldImmediately?: boolean } = {},
 ): Promise<void> {
+  const revealPrimedWorldImmediately = options.animateJourneyContent === false
+    && options.revealPrimedWorldImmediately === true;
   const completionPromises: Promise<void>[] = [];
   const waitForTween = (
     target: gsap.TweenTarget,
@@ -567,7 +569,7 @@ function animateJourneyViewportScreenEnter(
   } catch {}
 
   gsap.set(journeyScreen, {
-    opacity: 0,
+    opacity: revealPrimedWorldImmediately ? 1 : 0,
     visibility: 'visible',
     immediateRender: true,
   });
@@ -650,7 +652,7 @@ function animateJourneyViewportScreenEnter(
 
   waitForTween(journeyScreen, {
     opacity: 1,
-    duration: 0.24,
+    duration: revealPrimedWorldImmediately ? 0 : 0.24,
     ease: 'power2.out',
     delay: 0,
     immediateRender: false,
@@ -744,7 +746,7 @@ export function cleanupCollectiblesAnimations(): void {
  * Elements pop in: header first, then scrollable, then first 8 cards from 30% scale (remaining cards instantly visible)
  */
 export function animateCollectiblesScreenEnter(
-  options: { animateJourneyContent?: boolean } = {},
+  options: { animateJourneyContent?: boolean; revealPrimedWorldImmediately?: boolean } = {},
 ): Promise<void> {
   // Get Journey screen elements
   const journeyScreen = document.getElementById('journey-screen');

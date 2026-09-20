@@ -19,6 +19,13 @@ import {
   fadeSoundtrackForResultHook,
   setSoundtrackResultMix,
 } from './soundtrack-manager.ts';
+import { FAIL_JOURNEY_EXIT_MOTION } from './journey-terminal-return-policy.ts';
+import {
+  beginJourneyReturnTransition,
+  markJourneyReturnResultExitComplete,
+  cancelJourneyReturnTransition,
+  prepareJourneyReturnBehindTerminalOverlay,
+} from './journey-return-transition-trace.ts';
 // public/src/modules/board-fail-modal.ts
 // Game-over overlay when the board isn't fully cleared
 
@@ -231,11 +238,11 @@ function playFailModalExitAnimation(params: {
             overwrite: 'auto',
             force3D: true,
           });
-        }, 160);
+        }, FAIL_JOURNEY_EXIT_MOTION.cardSettleDelayMs);
 
         // Keep this handoff compact: the previous formula left the almost-empty
         // modal sitting on screen for 1.17s before the final card collapse.
-        const collapseDelayMs = 360;
+        const collapseDelayMs = FAIL_JOURNEY_EXIT_MOTION.collapseDelayMs;
         setTimeout(() => {
           gsap.killTweensOf(card);
           gsap.to(card, {
@@ -259,7 +266,7 @@ function playFailModalExitAnimation(params: {
             target.style.willChange = '';
           });
           resolve();
-        }, collapseDelayMs + 260);
+        }, collapseDelayMs + FAIL_JOURNEY_EXIT_MOTION.completionTailMs);
       } catch (error) {
         logger.warn('⚠️ board-fail-modal: Exit animation failed, closing directly:', error);
         try {
@@ -285,6 +292,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
   
   const modalPromise = new Promise<BoardFailModalResult>(async (resolve) => {
     let settled = false;
+    let journeyReturnTransitionId: number | null = null;
     let navigationAbortHandler: (() => void) | null = null;
     const safeResolve = (action: string): void => {
       if (settled) return;
@@ -299,6 +307,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       try { cleanupFailModalLifecycle(); } catch {}
       try { document.getElementById(OVERLAY_ID)?.remove(); } catch {}
       _isModalOpen = false;
+      cancelJourneyReturnTransition(journeyReturnTransitionId, 'navigation-abort');
       safeResolve('__navigation-abort__');
     };
     window.addEventListener('cc-navigation', navigationAbortHandler, { once: true });
@@ -692,6 +701,9 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         })();
         return; // Exit early - modal closing is handled above
       } else if (action === 'menu') {
+        if (!isArcadeHomeRunMode()) {
+          journeyReturnTransitionId = beginJourneyReturnTransition('fail', boardNumber);
+        }
         // 🔥 MEMORY LEAK FIX: Cleanup (modal is closing)
         cleanupFailModalLifecycle();
         
@@ -704,9 +716,13 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         } else {
           const returnDecision = prepareJourneyFailReturnTarget(boardNumber);
           logger.info('🎯 board-fail-modal: Journey fail return target prepared', returnDecision);
+          prepareJourneyReturnBehindTerminalOverlay('fail', journeyReturnTransitionId!);
         }
         
         await runExitAnimation(action);
+        if (!isArcadeHomeRunMode()) {
+          markJourneyReturnResultExitComplete(journeyReturnTransitionId);
+        }
 
         // 🔥 BUG FIX: Cleanup board/FX after fail-modal exit to avoid cutting off the pop-out
         try { window.CC?.cleanupFxForBoardReset?.('fail-exit'); } catch {}
@@ -714,6 +730,13 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         // Keep the fail overlay alive until the destination owns the screen.
         // Resolving early lets app-core resume while no Journey or board layer is visible.
         try {
+          // This modal is now deliberately committing its own authoritative
+          // navigation. Do not let exitToMenu's cc-navigation boundary be
+          // mistaken for an external abort and cancel the prepared Journey.
+          if (navigationAbortHandler) {
+            try { window.removeEventListener('cc-navigation', navigationAbortHandler); } catch {}
+            navigationAbortHandler = null;
+          }
           await requestExitToMenu({
             reason: 'board-fail-modal-exit',
             target: isArcadeHomeRunMode() ? 'homepage' : 'auto',

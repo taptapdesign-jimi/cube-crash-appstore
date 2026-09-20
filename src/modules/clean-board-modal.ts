@@ -48,6 +48,17 @@ import {
   fadeSoundtrackForResultHook,
   setSoundtrackResultMix,
 } from './soundtrack-manager.ts';
+import {
+  CLEAN_BOARD_JOURNEY_EXIT_MOTION,
+  resolveCleanBoardJourneyExitTiming,
+} from './journey-terminal-return-policy.ts';
+import {
+  beginJourneyReturnTransition,
+  markJourneyReturnResultExitComplete,
+  cancelJourneyReturnTransition,
+  markJourneyReturnTransition,
+  prepareJourneyReturnBehindTerminalOverlay,
+} from './journey-return-transition-trace.ts';
 import { freezeCleanBoardStarRenderedScale } from './clean-board-star-transform.ts';
 
 const ORIGINAL_HEADLINES = [
@@ -286,6 +297,7 @@ export async function showCleanBoardModal({
     _modalCleanupInProgress = false;
     attachNavigationCleanup();
     let settled = false;
+    let journeyReturnTransitionId: number | null = null;
     let navigationAbortHandler: (() => void) | null = null;
     let abortStarAnimations: () => void = () => {};
     let resolveNavigationAbort!: () => void;
@@ -313,6 +325,7 @@ export async function showCleanBoardModal({
       try { abortStarAnimations(); } catch {}
       try { cleanupCleanBoardModalLifecycle(); } catch {}
       try { document.getElementById('cc-clean-board-overlay')?.remove(); } catch {}
+      cancelJourneyReturnTransition(journeyReturnTransitionId, 'navigation-abort');
       safeResolve('__navigation-abort__');
     };
     window.addEventListener('cc-navigation', navigationAbortHandler, { once: true });
@@ -1683,7 +1696,26 @@ export async function showCleanBoardModal({
     // 🔥 NEW: Exit/Back button handler
     if (secondaryBtn) {
       addButtonPressHandling(secondaryBtn, async () => {
+        if (!isArcadeHomeRun) {
+          journeyReturnTransitionId = beginJourneyReturnTransition('clean-board', boardNumber);
+        }
+        if (!isArcadeHomeRun && isFromInterimBoard) {
+          markJourneyGameOrigin({ fromInterim: true });
+          (window as any).__ccReturningFromInterimBoard = true;
+          (window as any).__ccSuppressJourneyV700AutoWorldEnter = true;
+          (window as any).__ccJourneyReturnBoardId = boardNumber;
+          (window as any).__ccLastActiveJourneyBoardAreaId = boardNumber;
+          try { localStorage.setItem('__ccReturningFromInterimBoard', 'true'); } catch {}
+          try { localStorage.setItem('__ccJourneyReturnBoardId', String(boardNumber)); } catch {}
+          try { localStorage.setItem('__ccLastActiveJourneyBoardAreaId', String(boardNumber)); } catch {}
+        }
+        if (!isArcadeHomeRun) {
+          prepareJourneyReturnBehindTerminalOverlay('clean-board', journeyReturnTransitionId!);
+        }
         cleanupCelebrationParticlesImmediately();
+        if (!isArcadeHomeRun) {
+          markJourneyReturnTransition('celebration-retired');
+        }
         // Do not carry applause/result voices into Journey or the homepage.
         stopCleanBoardSounds();
         // Haptic for exit button
@@ -1754,7 +1786,7 @@ export async function showCleanBoardModal({
         void boardCleared.offsetHeight;
         void statusSlot.offsetHeight;
         
-        const exitTrans = 'opacity 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+        const exitTrans = `opacity ${CLEAN_BOARD_JOURNEY_EXIT_MOTION.contentDurationMs}ms cubic-bezier(0.68, -0.8, 0.265, 1.8), transform ${CLEAN_BOARD_JOURNEY_EXIT_MOTION.contentDurationMs}ms cubic-bezier(0.68, -0.8, 0.265, 1.8)`;
         const exitOffsets = [-22, -18, -14, -10, -6];
         const exitScale = [0, 0.08, -0.04, 0.05, -0.02];
         const nodes = [title, scoreLabel, mainScore, statusSlot, boardCleared];
@@ -1767,7 +1799,7 @@ export async function showCleanBoardModal({
 
         trackAnimationFrame(() => {
           nodes.forEach((node, idx) => {
-            const delay = (idx + 1) * 60;
+            const delay = (idx + 1) * CLEAN_BOARD_JOURNEY_EXIT_MOTION.contentStepMs;
             trackTimeout(() => {
               const extra = exitScale[idx] ?? 0;
               node.style.opacity = '0';
@@ -1775,14 +1807,16 @@ export async function showCleanBoardModal({
             }, delay);
           });
         });
-        // 🔥 FIX: Delay card scale animation until AFTER buttons start animating
-        // This prevents buttons from moving up with card scale
+        // Stars own their un-compounded exit pose. Only after they settle may
+        // the ancestor card scale, keeping the accepted Star motion intact.
         void earnedStarsExitPromise.then(() => {
-          if (!el.isConnected) return;
-          card.style.transition = 'transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-          trackAnimationFrame(() => {
-            card.style.transform = 'scale(0.86)';
-          });
+          trackTimeout(() => {
+            if (!el.isConnected) return;
+            card.style.transition = `transform ${CLEAN_BOARD_JOURNEY_EXIT_MOTION.cardDurationMs}ms cubic-bezier(0.68, -0.8, 0.265, 1.8)`;
+            trackAnimationFrame(() => {
+              card.style.transform = 'scale(0.86)';
+            });
+          }, CLEAN_BOARD_JOURNEY_EXIT_MOTION.cardLeadMs);
         });
         
         // Board and modal exits are independent owners. Hide gameplay after its
@@ -1806,27 +1840,22 @@ export async function showCleanBoardModal({
           });
         });
         // Fade the complete paper only after every parallel visual owner has
-        // reached its endpoint. In particular, do not replace the card's
-        // 650ms transition while it is still settling from the 400ms delay.
-        const contentExitDuration = nodes.length * 60 + 580;
-        const starExitDuration = 500 + Math.max(0, numStars - 1) * 70;
-        const cardExitDuration = starExitDuration + 650;
+        // reached its endpoint. The shared terminal-return policy keeps this
+        // complete choreography inside the one-second Journey handoff budget.
         const ctaExitDuration = ctaMotion.companionExitStaggerMs + buttonExitDurationMs;
-        const collapseDuration = Math.max(
-          contentExitDuration,
-          cardExitDuration,
-          ctaExitDuration,
-        );
+        const journeyExitTiming = resolveCleanBoardJourneyExitTiming(numStars, ctaExitDuration);
+        const collapseDuration = journeyExitTiming.collapseDelayMs;
         const modalExitPromise = Promise.all([
           ctaExitPromise,
+          earnedStarsExitPromise,
           new Promise<void>((resolveModalExit) => {
             trackTimeout(() => {
-              card.style.transition = 'transform 0.30s ease, opacity 0.30s ease';
+              card.style.transition = `transform ${CLEAN_BOARD_JOURNEY_EXIT_MOTION.paperFadeMs}ms ease, opacity ${CLEAN_BOARD_JOURNEY_EXIT_MOTION.paperFadeMs}ms ease`;
               card.style.opacity = '0';
-              el.style.transition = 'opacity 0.30s ease';
+              el.style.transition = `opacity ${CLEAN_BOARD_JOURNEY_EXIT_MOTION.paperFadeMs}ms ease`;
               el.style.opacity = '0';
             }, collapseDuration);
-            trackTimeout(resolveModalExit, collapseDuration + 300);
+            trackTimeout(resolveModalExit, journeyExitTiming.completionMs);
           }),
         ]).then(() => {
           emitNativeConsoleDiagnostic('[CC_ARCADE_EXIT]', 'modal-exit-owner-complete', {
@@ -1909,6 +1938,9 @@ export async function showCleanBoardModal({
           })),
         ]);
         if (!exitCompletion.completed) return;
+        if (!isArcadeHomeRun) {
+          markJourneyReturnResultExitComplete(journeyReturnTransitionId);
+        }
         killAllGSAPTweens();
         clearAllModalTimeouts();
         clearAllModalAnimationFrames();

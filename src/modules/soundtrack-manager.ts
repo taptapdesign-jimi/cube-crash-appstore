@@ -16,6 +16,7 @@ import {
   isSampleAccurateMainThemeVoice,
   type MainThemeVoiceLike,
 } from './main-theme-web-audio-transport.js';
+import { NATIVE_AUDIO_ACTIVE_EVENT } from './soundtrack-context-recovery.js';
 
 export const SOUNDTRACK_URL =
   './assets/sound/soundtrack/theme-loop-v1/SIx-theme-seamless-loop.wav';
@@ -677,9 +678,10 @@ function playWithFadeIn(
   });
 }
 
-function onVisibilityChange(): void {
+function onVisibilityChange(event?: Event): void {
   const currentAudio = audio;
-  if (document.hidden) {
+  const nativeAudioIsActive = event?.type === NATIVE_AUDIO_ACTIVE_EVENT;
+  if (document.hidden && !nativeAudioIsActive) {
     if (!currentAudio && arcadeVoices.size === 0) return;
     cancelIntroSequence(true);
     cancelThemeFade();
@@ -768,6 +770,7 @@ function setupVisibilityListener(): void {
   visibilityListenerInstalled = true;
   document.addEventListener('visibilitychange', onVisibilityChange);
   window.addEventListener('pageshow', onVisibilityChange);
+  window.addEventListener(NATIVE_AUDIO_ACTIVE_EVENT, onVisibilityChange);
 }
 
 function getAudio(): MainThemeVoiceLike {
@@ -1228,6 +1231,7 @@ export function resetSoundtrackForTests(): void {
   if (visibilityListenerInstalled && typeof document !== 'undefined') {
     document.removeEventListener('visibilitychange', onVisibilityChange);
     window.removeEventListener('pageshow', onVisibilityChange);
+    window.removeEventListener(NATIVE_AUDIO_ACTIVE_EVENT, onVisibilityChange);
   }
   visibilityListenerInstalled = false;
   if (audio) {

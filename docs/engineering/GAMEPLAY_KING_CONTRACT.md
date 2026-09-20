@@ -115,6 +115,12 @@ reloads.
 
 ### 5.3 Clean board and final merge
 
+- Clean Board Efficiency includes a move-saving reward: retain the existing
+  completion/stack component and add `4 × baseBonus × (remainingMoves / maxMoves)²`,
+  with the move ratio clamped to 0..1. Total Efficiency is bounded to 0.30..5.00
+  times the board bonus. This user-requested scoring change (2026-09-20) rewards
+  short Wild-assisted clears independently of accumulated score, elapsed time and
+  combo. Existing Combo scoring, score caps and Arcade round carryover are unchanged.
 - Resolver output is authoritative.
 - A resolver error **MUST fail closed** to `wait`; legacy output cannot authorize clean or fail.
 - Legacy last-merge booleans may remain diagnostic but cannot override central final-merge rules.

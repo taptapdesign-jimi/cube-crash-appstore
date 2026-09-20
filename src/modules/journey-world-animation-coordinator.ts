@@ -15,6 +15,7 @@ import {
   MOBILE_RUNTIME_PROFILE,
   type MobileRuntimeProfile,
 } from './mobile-runtime-profile.js';
+import { markJourneyReturnFirstUnitStart } from './journey-return-transition-trace.js';
 
 export interface JourneyWorldAnimationUnit {
   id: string;
@@ -33,6 +34,7 @@ export function isJourneyWorldMainArtworkTarget(
 
 interface JourneyWorldEnterOptions {
   targetsPrimed?: boolean;
+  immediateFirstUnit?: boolean;
 }
 
 type JourneyWorldAnimationPhase = 'hidden' | 'entering' | 'idle' | 'exiting';
@@ -217,6 +219,14 @@ export class JourneyWorldAnimationCoordinator {
       });
       this.activeTimeline = timeline;
 
+      const enterOffsets = liveUnits.map((unit, index) => Number.isFinite(unit.enterDelayOffset)
+        ? Number(unit.enterDelayOffset)
+        : getJourneyV700EnterOffset(unit.id, index, reducedMotion));
+      // Remove only the empty lead-in after a completed result exit. Keep every
+      // Unit's duration, curve and relative cascade spacing unchanged.
+      const enterLead = options.immediateFirstUnit
+        ? -Math.min(...enterOffsets)
+        : motion.enter.baseDelay;
       liveUnits.forEach((unit, index) => {
         if (!options.targetsPrimed) {
           gsap.killTweensOf(unit.targets);
@@ -249,16 +259,19 @@ export class JourneyWorldAnimationCoordinator {
           }, enterVars);
         // drag-core's Timeline.fromTo guard drops GSAP's position argument.
         // Timeline.add is not patched, so it preserves the exact short cascade.
-        const irregularOffset = Number.isFinite(unit.enterDelayOffset)
-          ? Number(unit.enterDelayOffset)
-          : getJourneyV700EnterOffset(unit.id, index, reducedMotion);
+        const irregularOffset = enterOffsets[index];
         tween.eventCallback('onStart', () => {
+          markJourneyReturnFirstUnitStart({
+            unitId: unit.id,
+            unitIndex: index,
+            targetCount: unit.targets.length,
+          });
           markIOSJourneyTransitionAudit(`enter-unit-${unit.id}-start`);
           emitIOSNativeDiagnostic('world-unit-enter-start', {
             unitId: unit.id,
             unitIndex: index,
             targetCount: unit.targets.length,
-            scheduledAt: motion.enter.baseDelay + irregularOffset,
+            scheduledAt: enterLead + irregularOffset,
           });
         });
         tween.eventCallback('onComplete', () => {
@@ -269,7 +282,7 @@ export class JourneyWorldAnimationCoordinator {
           // do not hold the already-visible scene motion hostage.
           this.startIdle([unit], reducedMotion, index);
         });
-        timeline.add(tween, motion.enter.baseDelay + irregularOffset);
+        timeline.add(tween, enterLead + irregularOffset);
       });
     });
 

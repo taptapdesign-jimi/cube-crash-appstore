@@ -173,6 +173,12 @@ if (!sourceOnly) {
       'game WebView must disable native text selection before creation to avoid editing gestures during gameplay');
     requireCondition(controllerText.includes('if Self.performanceDiagnosticsEnabled {\n            startNativeThermalTelemetry()'), 'native thermal telemetry must run only in performance diagnostics mode');
     requireCondition(controllerText.includes('window.__ccPerformanceDiagnostics = true'), 'performance diagnostics mode must enable the compact web sampler');
+    requireCondition(controllerText.includes('import AVFAudio')
+      && controllerText.includes('AVAudioSession.sharedInstance()')
+      && controllerText.includes('UIApplication.didBecomeActiveNotification'),
+    'native shell must reactivate its audio session whenever the app becomes active');
+    requireCondition(controllerText.includes("cc:native-audio-active"),
+      'native shell must notify both Web Audio owners after native audio activation');
     requireCondition(!controllerText.includes("name: \"jsError\""), 'native shell must not install detailed JS error forwarding');
     requireCondition(!controllerText.includes("console[level] = function"), 'native shell must not override or forward the normal JS console');
     requireCondition(!/DeviceOrientation|DeviceMotion|motionPermissionResult|requestDeviceOrientationAndMotionPermission/.test(controllerText), 'native shell still contains removed device-motion integration');

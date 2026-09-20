@@ -96,6 +96,10 @@ import { appZoneManager } from './modules/app-zone-manager.js';
 import { waitForHomepageFirstPaintReady } from './utils/startup-readiness.js';
 import { MOBILE_RUNTIME_PROFILE } from './modules/mobile-runtime-profile.js';
 import { homepageEnterTransitionOwner } from './modules/homepage-enter-transition-owner.js';
+import {
+  cancelJourneyReturnTransition,
+  markJourneyReturnTransition,
+} from './modules/journey-return-transition-trace.js';
 
 type GameCoreModule = typeof import('./modules/app-core.js');
 
@@ -2846,6 +2850,12 @@ async function startNewRun(boardId: number): Promise<void> {
     const targetSlide = exitRoute.targetSlide;
     returnToDetailModal = exitRoute.returnToDetailModal;
     detailModalBoardId = exitRoute.detailModalBoardId;
+    if (exitRoute.target !== 'journey') {
+      cancelJourneyReturnTransition(
+        null,
+        `resolved-route:${exitRoute.target}`,
+      );
+    }
 
     // A board exit that returns to its Journey detail card must keep the
     // preserved world hidden until that modal is later closed. Set ownership
@@ -2921,7 +2931,12 @@ async function startNewRun(boardId: number): Promise<void> {
       }
     } else {
       console.log(`🗺️ JOURNEY PATH: targetSlide = ${targetSlide}, returning through app zone router`);
-      await appZoneManager.showJourneyShell('exitToMenu:journey');
+      // exitToMenu has already retired gameplay/result FX. Re-running the
+      // generic zone cleanup here traverses the same owners on the critical
+      // Journey reveal boundary and can steal an iOS frame.
+      await appZoneManager.showJourneyShell('exitToMenu:journey', {
+        gameplayTransientVisualsAlreadyClean: true,
+      });
       console.log('✅ Homepage shell hidden through app zone router');
     }
     
@@ -3076,6 +3091,7 @@ async function startNewRun(boardId: number): Promise<void> {
       
       // Show Journey screen immediately (no delays, no RAF hacks)
       const collectiblesManager = (window as any).collectiblesManager;
+      markJourneyReturnTransition('route-handoff-start');
       emitIOSNativeDiagnostic('main-before-show');
       if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
         // This will handle Journey screen enter animation internally
@@ -3103,6 +3119,7 @@ async function startNewRun(boardId: number): Promise<void> {
         }
       }
       emitIOSNativeDiagnostic('main-after-show-scheduled');
+      markJourneyReturnTransition('journey-enter-scheduled');
 
       let journeyPresentationReady = await waitForJourneyReturnPresentation('screen');
       if (!journeyPresentationReady) {

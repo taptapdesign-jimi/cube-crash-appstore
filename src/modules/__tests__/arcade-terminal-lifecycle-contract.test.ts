@@ -123,14 +123,14 @@ describe('Arcade terminal lifecycle regression contract', () => {
     expect(exitOwner).toContain('const ctaExitPromise = exitCtaPair(secondaryBtn, primaryBtn);');
     expect(exitOwner).toContain('const boardExitCompletePromise = boardExitPromise.catch');
     expect(exitOwner).toContain('const modalExitPromise = Promise.all([');
-    expect(exitOwner).toContain('const starExitDuration = 500 + Math.max(0, numStars - 1) * 70;');
-    expect(exitOwner).toContain('const cardExitDuration = starExitDuration + 650;');
-    expect(exitOwner).toContain('const collapseDuration = Math.max(');
+    expect(exitOwner).toContain('resolveCleanBoardJourneyExitTiming(numStars, ctaExitDuration)');
+    expect(exitOwner).toContain('const collapseDuration = journeyExitTiming.collapseDelayMs;');
+    expect(exitOwner).toContain('earnedStarsExitPromise,');
     expect(exitOwner.indexOf('const exitCompletion = await Promise.race(['))
       .toBeLessThan(exitOwner.indexOf('try { el.remove(); } catch {}'));
     expect(exitOwner).not.toContain('boardExitPromise.then(() => {\n          trackTimeout(() => {');
     expect(exitOwner).toContain('trackAnimationFrame(() => {');
-    expect(exitOwner).toContain('trackTimeout(resolveModalExit, collapseDuration + 300);');
+    expect(exitOwner).toContain('trackTimeout(resolveModalExit, journeyExitTiming.completionMs);');
     expect(exitOwner).toContain('const exitCompletion = await Promise.race([');
     expect(exitOwner).toContain('navigationAbortPromise.then(() => ({');
     expect(exitOwner).toContain('if (!exitCompletion.completed) return;');
@@ -196,5 +196,24 @@ describe('Arcade terminal lifecycle regression contract', () => {
     const bootEnd = appCore.indexOf('// -------------------- layout + HUD', bootStart);
     const bootOwner = appCore.slice(bootStart, bootEnd);
     expect(bootOwner).not.toContain('trackAppAnimationFrame(async () => {\n      await layoutBoard();');
+  });
+
+  test('Fail commits its own menu handoff before the global navigation abort boundary', () => {
+    const failModal = fs.readFileSync(
+      path.join(repoRoot, 'src/modules/board-fail-modal.ts'),
+      'utf8',
+    );
+    const menuStart = failModal.indexOf("} else if (action === 'menu') {");
+    const menuEnd = failModal.indexOf("if (action !== 'retry')", menuStart);
+    const menuOwner = failModal.slice(menuStart, menuEnd);
+    const removeAbort = menuOwner.indexOf(
+      "window.removeEventListener('cc-navigation', navigationAbortHandler)",
+    );
+    const requestExit = menuOwner.indexOf('await requestExitToMenu({');
+
+    expect(removeAbort).toBeGreaterThan(-1);
+    expect(requestExit).toBeGreaterThan(removeAbort);
+    expect(menuOwner).toContain('navigationAbortHandler = null;');
+    expect(menuOwner).toContain("prepareJourneyReturnBehindTerminalOverlay('fail', journeyReturnTransitionId!)");
   });
 });

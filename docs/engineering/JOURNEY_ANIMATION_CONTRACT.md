@@ -259,3 +259,20 @@ When the user says **replicate the standard enter/exit**, preserve all of the fo
 - tween cleanup and no duplicate lifecycle runs.
 
 Benchmarks: **v701** defines the accepted World-screen Unit behavior; **v702** defines the accepted Homepage-to-Journey-Worlds visible enter lifecycle.
+
+## Terminal result to Journey handoff (2026-09-20)
+
+Clean Board and Fail exit choreography, durations, last-element completion and
+board-exit ownership are explicitly accepted and must remain unchanged. Prepare
+the owning World while the result exits, including ordinary non-interim Journey
+returns. Only that result transaction's completed visual exit may release the
+immediate World reveal through the normal authoritative navigation route.
+
+After result completion, do not add two reveal RAF waits, the World's initial
+80ms lead-in, or an opacity fade on the entire Journey shell. The already-primed
+Units retain their exact enter duration, curve, relative cascade spacing and
+input/idle cleanup; their first Unit starts at timeline zero. Cold entry,
+Worlds-to-World, World-to-Worlds and card-modal returns keep standard timing.
+Cancelled/replaced result or navigation ownership cannot reveal a stale World.
+Physical first-painted-frame latency remains a device measurement, separate
+from JavaScript/tween-start timing.

@@ -55,14 +55,14 @@ let explosionContainer: Container | null = null;
 let spawnTick: (() => void) | null = null;
 let safetyTimeoutId: ReturnType<typeof setTimeout> | null = null;
 const BUBBLE_SPRITE_PATHS = [
-  './assets/shop/bubbles pack/bubble1.png',
-  './assets/shop/bubbles pack/bubble 2.png',
-  './assets/shop/bubbles pack/bubble 3.png',
-  './assets/shop/bubbles pack/bubble 4.png',
-  './assets/shop/bubbles pack/bubble 5.png',
-  './assets/shop/bubbles pack/bubble 6.png',
-  './assets/shop/bubbles pack/bubble 7.png',
-  './assets/shop/bubbles pack/bubble 8.png',
+  './assets/shop/juice/bubbles pack/bubble1.png',
+  './assets/shop/juice/bubbles pack/bubble 2.png',
+  './assets/shop/juice/bubbles pack/bubble 3.png',
+  './assets/shop/juice/bubbles pack/bubble 4.png',
+  './assets/shop/juice/bubbles pack/bubble 5.png',
+  './assets/shop/juice/bubbles pack/bubble 6.png',
+  './assets/shop/juice/bubbles pack/bubble 7.png',
+  './assets/shop/juice/bubbles pack/bubble 8.png',
 ];
 let explosionStartTime: number = 0; // Track when explosion started (for protection against premature cleanup)
 let stageRetryCount = 0; // Retry count for stage acquisition during transitions

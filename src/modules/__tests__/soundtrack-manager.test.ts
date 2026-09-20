@@ -442,6 +442,22 @@ describe('global Stack to Six soundtrack', () => {
     expect(currentAudio.volume).toBeCloseTo(SOUNDTRACK_VOLUME, 10);
   });
 
+  it('recovers an unexpectedly paused theme from the native app-active signal', async () => {
+    startSoundtrack();
+    await Promise.resolve();
+    const currentAudio = MockAudio.instances[0];
+    currentAudio.currentTime = 37;
+    currentAudio.pause();
+
+    window.dispatchEvent(new Event('cc:native-audio-active'));
+    await Promise.resolve();
+    jest.advanceTimersByTime(SOUNDTRACK_RESUME_FADE_IN_MS + 20);
+
+    expect(currentAudio.play).toHaveBeenCalledTimes(2);
+    expect(currentAudio.currentTime).toBe(37);
+    expect(currentAudio.volume).toBeCloseTo(SOUNDTRACK_VOLUME, 10);
+  });
+
   it('restores the Journey gameplay mix when Retry stops result audio early', async () => {
     startSoundtrack();
     await Promise.resolve();

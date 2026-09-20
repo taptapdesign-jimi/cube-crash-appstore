@@ -28,6 +28,10 @@ const worldAnimationCoordinatorSource = fs.readFileSync(
   path.join(root, 'src/modules/journey-world-animation-coordinator.ts'),
   'utf8',
 );
+const journeyReturnTraceSource = fs.readFileSync(
+  path.join(root, 'src/modules/journey-return-transition-trace.ts'),
+  'utf8',
+);
 
 describe('Journey Hub transition ownership', () => {
   test('preloads both Journey progress-banner resolutions before the first visible Hub enter', () => {
@@ -458,9 +462,49 @@ describe('Journey Hub transition ownership', () => {
 
     expect(returnEnterSource).toContain('this.playJourneyV700WorldEnter(container, worldId, {');
     expect(returnEnterSource).toContain('waitForImages: false');
+    expect(returnEnterSource).toContain('if (!hasLivePreparedPlan)');
     expect(returnEnterSource).not.toContain('worldId === 1');
     expect(returnEnterSource).not.toContain('worldId === 2');
     expect(returnEnterSource).not.toContain('worldId === 3');
+  });
+
+  test('gameplay return consumes one prepared plan and never gates its visible start on decode', () => {
+    const worldEnterSource = journeyManagerSource.split(
+      'private playJourneyV700WorldEnter(',
+    )[1]?.split('private scheduleJourneyCardAssetWarmup')[0] ?? '';
+    const prepareSource = journeyManagerSource.split(
+      'public prepareJourneyV700WorldEnterFromReturn(',
+    )[1]?.split('private playJourneyV700WorldEnter(')[0] ?? '';
+
+    expect(prepareSource).toContain('world-enter-prime-reused');
+    expect(worldEnterSource).toContain('const canReusePreparedPlan =');
+    expect(worldEnterSource).toContain('? preparedPlan.units');
+    expect(worldEnterSource).toContain('options.waitForImages === false');
+    expect(worldEnterSource).toContain('? Promise.resolve()');
+    expect(worldEnterSource).toContain('this.trackRAF(() => {');
+    expect(worldEnterSource).toContain('this.journeyWorldRuntime.endTransition()');
+    expect(worldEnterSource.indexOf('this.journeyWorldRuntime.endTransition()'))
+      .toBeLessThan(worldEnterSource.indexOf('this.startBeachBubbleDrift(container, worldId)'));
+  });
+
+  test('terminal return prepaint is generation-owned and cancellation cannot clear a newer plan', () => {
+    const prepareSource = journeyManagerSource.split(
+      'public prepareJourneyV700WorldEnterFromReturn(',
+    )[1]?.split('private playJourneyV700WorldEnter(')[0] ?? '';
+    const shellSource = appZoneSource.split('async showJourneyShell(')[1]
+      ?.split('async hideHomepageShell(')[0] ?? '';
+
+    expect(journeyReturnTraceSource).toContain('if (!isActiveTransition(transitionId)) return');
+    expect(journeyReturnTraceSource).toContain('cancelPreparedJourneyV700WorldEnter?.(');
+    expect(prepareSource).toContain('existingPlan.ownerToken === ownerToken');
+    expect(prepareSource).toContain('ownerToken,');
+    expect(journeyManagerSource).toContain(
+      'if (this.journeyV700PreparedWorldEnter?.ownerToken !== ownerToken) return',
+    );
+    expect(mainSource).toContain("`resolved-route:${exitRoute.target}`");
+    expect(shellSource).toContain('cleanupJourneyShellTransientVisuals(reason)');
+    expect(appZoneSource).toContain('cleanupJourneySmokeEffects?.()');
+    expect(appZoneSource).toContain('cleanupJourneyNewCardScreen?.()');
   });
 
   test('World enter avoids mass compositor promotion and static World layers stay unpromoted', () => {
@@ -651,7 +695,8 @@ describe('Journey Hub transition ownership', () => {
       .toBeLessThan(closeSource.indexOf('this.playJourneyV700WorldExit(container, complete)'));
     expect(worldEnterSource).toContain('const closeQueuedDuringEnter = this.journeyV700CloseQueuedDuringEnter');
     expect(worldEnterSource).toContain("emitIOSNativeDiagnostic('close-world-queued-enter-flush'");
-    expect(worldEnterSource).toContain('this.trackRAF(() => this.closeJourneyV700World())');
+    expect(worldEnterSource).toContain('this.journeyWorldRuntime.endTransition()');
+    expect(worldEnterSource).toContain('this.closeJourneyV700World()');
   });
 
   test('DOM replacement retires outgoing owners without normalizing every discarded node', () => {

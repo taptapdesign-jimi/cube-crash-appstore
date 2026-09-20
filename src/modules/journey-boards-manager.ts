@@ -89,6 +89,7 @@ import {
   JourneyWorldAnimationCoordinator,
   type JourneyWorldAnimationUnit,
 } from './journey-world-animation-coordinator.js';
+import { completeJourneyReturnTransition } from './journey-return-transition-trace.js';
 import {
   amplifyJourneyCardReturnLandingScale,
   createJourneyInterimBounceVariant,
@@ -1009,7 +1010,13 @@ class JourneyBoardsManager {
   private journeyHubRuntime = new JourneyHubRuntimeScheduler();
   private journeyWorldAnimation = new JourneyWorldAnimationCoordinator();
   private journeyV700WorldMotionEpoch = 0;
-  private journeyV700PreparedWorldEnter: { worldId: number; targets: HTMLElement[] } | null = null;
+  private journeyV700PreparedWorldEnter: {
+    worldId: number;
+    renderGeneration: number;
+    ownerToken: number | null;
+    units: JourneyWorldAnimationUnit[];
+    targets: HTMLElement[];
+  } | null = null;
   private journeyMainCloudCompositeCache = new Map<number, HTMLCanvasElement>();
   private journeyMainCloudCompositeBuilds = new Map<number, Promise<HTMLCanvasElement | null>>();
   private journeyWorldPrepaintStage: JourneyWorldPrepaintStage | null = null;
@@ -8558,7 +8565,7 @@ class JourneyBoardsManager {
   private primeJourneyV700WorldEnter(
     container: HTMLElement,
     worldId: number,
-    options: { source?: string; lastBoardId?: number | null } = {}
+    options: { source?: string; lastBoardId?: number | null; ownerToken?: number | null } = {}
   ): void {
     const units = this.getJourneyV700AnimationUnits(container, worldId, {
       lastBoardId: options.lastBoardId ?? this.getLastActiveJourneyBoardAreaId(),
@@ -8589,7 +8596,13 @@ class JourneyBoardsManager {
         force3D: false,
         overwrite: true,
       });
-      this.journeyV700PreparedWorldEnter = { worldId, targets: allTargets };
+      this.journeyV700PreparedWorldEnter = {
+        worldId,
+        renderGeneration: this.renderLifecycleGeneration,
+        ownerToken: options.ownerToken ?? null,
+        units,
+        targets: allTargets,
+      };
       emitIOSNativeDiagnostic('world-enter-primed-before-screen-reveal', {
         worldId,
         source: options.source || 'unknown',
@@ -8604,13 +8617,6 @@ class JourneyBoardsManager {
         error: error instanceof Error ? error.message : String(error),
       }, container);
     }
-  }
-
-  private getForestMainArtForEntry(container: HTMLElement, worldId: number): HTMLImageElement | null {
-    if (worldId !== 1) return null;
-    return container.querySelector<HTMLImageElement>(
-      '.journey-forest-main-art:not(.journey-beach-main-art):not(.journey-robo-main-art)',
-    );
   }
 
   private reconcileMountedJourneyWorldCardUnits(
@@ -8671,7 +8677,10 @@ class JourneyBoardsManager {
     return replacedBoardIds;
   }
 
-  public playJourneyV700WorldEnterFromReturn(source = 'journey-return'): void {
+  public playJourneyV700WorldEnterFromReturn(
+    source = 'journey-return',
+    options: { immediateFirstUnit?: boolean } = {},
+  ): void {
     const container = document.getElementById('journey-boards-container') as HTMLElement | null;
     const worldId = this.journeyV700WorldId || Number((window as any).__ccJourneyV700WorldId || localStorage.getItem(JOURNEY_V700_WORLD_STORAGE_KEY) || 0);
     const isWorldView =
@@ -8695,7 +8704,14 @@ class JourneyBoardsManager {
     this.journeyV700WorldId = worldId;
     container.dataset.journeyV700View = 'world';
     container.dataset.journeyV700WorldId = String(worldId);
-    this.reconcileMountedJourneyWorldCardUnits(container, worldId, `${source}-play-fallback`);
+    const preparedPlan = this.journeyV700PreparedWorldEnter;
+    const hasLivePreparedPlan = preparedPlan?.worldId === worldId
+      && preparedPlan.renderGeneration === this.renderLifecycleGeneration
+      && preparedPlan.targets.length > 0
+      && preparedPlan.targets.every((target) => target.isConnected);
+    if (!hasLivePreparedPlan) {
+      this.reconcileMountedJourneyWorldCardUnits(container, worldId, `${source}-play-fallback`);
+    }
     const cardsContainer = container.querySelector('.journey-cards-container') as HTMLElement | null;
     if (cardsContainer) {
       this.trackRAF(() => this.installInterimAreaHitTargets(cardsContainer));
@@ -8707,10 +8723,14 @@ class JourneyBoardsManager {
     this.playJourneyV700WorldEnter(container, worldId, {
       source,
       waitForImages: false,
+      immediateFirstUnit: options.immediateFirstUnit,
     });
   }
 
-  public prepareJourneyV700WorldEnterFromReturn(source = 'journey-return-pre-reveal'): boolean {
+  public prepareJourneyV700WorldEnterFromReturn(
+    source = 'journey-return-pre-reveal',
+    ownerToken: number | null = null,
+  ): boolean {
     const container = document.getElementById('journey-boards-container') as HTMLElement | null;
     const worldId = Number(
       this.journeyV700WorldId ||
@@ -8739,6 +8759,22 @@ class JourneyBoardsManager {
     this.journeyV700WorldId = worldId;
     container.dataset.journeyV700View = 'world';
     container.dataset.journeyV700WorldId = String(worldId);
+    const existingPlan = this.journeyV700PreparedWorldEnter;
+    const canReuseExistingPlan = existingPlan?.worldId === worldId
+      && existingPlan.renderGeneration === this.renderLifecycleGeneration
+      && existingPlan.ownerToken === ownerToken
+      && existingPlan.targets.length > 0
+      && existingPlan.targets.every((target) => target.isConnected);
+    if (canReuseExistingPlan) {
+      emitIOSNativeDiagnostic('world-enter-prime-reused', {
+        worldId,
+        source,
+        unitCount: existingPlan.units.length,
+        targetCount: existingPlan.targets.length,
+      });
+      return true;
+    }
+    this.prepareJourneyBoardCardTransformsForReveal(source);
     // Full Journey rendering is correctly blocked while gameplay owns the
     // screen. Reconcile only card Units in the preserved World DOM so a newly
     // completed interim Unit is painted as unlocked before the return enter.
@@ -8746,8 +8782,15 @@ class JourneyBoardsManager {
     this.primeJourneyV700WorldEnter(container, worldId, {
       source,
       lastBoardId: this.getLastActiveJourneyBoardAreaId(),
+      ownerToken,
     });
     return true;
+  }
+
+  public cancelPreparedJourneyV700WorldEnter(ownerToken: number, reason = 'cancelled'): void {
+    if (this.journeyV700PreparedWorldEnter?.ownerToken !== ownerToken) return;
+    this.journeyV700PreparedWorldEnter = null;
+    emitIOSNativeDiagnostic('world-enter-preparation-cancelled', { ownerToken, reason });
   }
 
   private playJourneyV700WorldEnter(
@@ -8757,13 +8800,20 @@ class JourneyBoardsManager {
       source?: string;
       lastBoardId?: number | null;
       waitForImages?: boolean;
+      immediateFirstUnit?: boolean;
     } = {}
   ): void {
     const transitionPerformance = beginTransitionPerformance('journey-world-unit-enter');
-    const forestMain = this.getForestMainArtForEntry(container, worldId);
-    const units = transitionPerformance.phase('select-units', () => this.getJourneyV700AnimationUnits(container, worldId, {
-      lastBoardId: options.lastBoardId ?? this.getLastActiveJourneyBoardAreaId(),
-    }));
+    const preparedPlan = this.journeyV700PreparedWorldEnter;
+    const canReusePreparedPlan = preparedPlan?.worldId === worldId
+      && preparedPlan.renderGeneration === this.renderLifecycleGeneration
+      && preparedPlan.targets.length > 0
+      && preparedPlan.targets.every((target) => target.isConnected);
+    const units = canReusePreparedPlan
+      ? preparedPlan.units
+      : transitionPerformance.phase('select-units', () => this.getJourneyV700AnimationUnits(container, worldId, {
+        lastBoardId: options.lastBoardId ?? this.getLastActiveJourneyBoardAreaId(),
+      }));
     const source = options.source || 'default';
     playJourneyWorldsWorldSound();
     if (worldId === 1) playJourneyForestAmbientSounds();
@@ -8802,7 +8852,7 @@ class JourneyBoardsManager {
     this.activateJourneyWorldRuntime(container, worldId);
     this.cleanupJourneyAreaIdleAnimations(false);
     const allTargets = Array.from(new Set(units.flatMap((unit) => unit.targets)));
-    const preparedWorldEnter = this.journeyV700PreparedWorldEnter;
+    const preparedWorldEnter = canReusePreparedPlan ? preparedPlan : null;
     const preparedTargetSet = preparedWorldEnter ? new Set(preparedWorldEnter.targets) : null;
     const canReusePreparedTargets = preparedWorldEnter?.worldId === worldId &&
       preparedWorldEnter.targets.length === allTargets.length &&
@@ -8862,7 +8912,7 @@ class JourneyBoardsManager {
         : Array.from(target.querySelectorAll<HTMLImageElement>('img'))
     ))));
     const imageReadiness = options.waitForImages === false
-      ? (forestMain ? waitForImageReady(forestMain) : Promise.resolve())
+      ? Promise.resolve()
       : Promise.all(images.map((image) => waitForImageReady(image))).then(() => undefined);
     void imageReadiness.then(async () => {
       if (
@@ -8890,7 +8940,10 @@ class JourneyBoardsManager {
       });
       markIOSJourneyTransitionAudit('enter-unit-cascade');
       await transitionPerformance.phase('start-unit-cascade', () =>
-        this.journeyWorldAnimation.enter(units, reducedMotion, { targetsPrimed }));
+        this.journeyWorldAnimation.enter(units, reducedMotion, {
+          targetsPrimed,
+          immediateFirstUnit: options.immediateFirstUnit,
+        }));
       // An early X interrupts the enter timeline. Its promise resolves through
       // onInterrupt, but that does not grant the stale enter continuation
       // permission to restore final opacity/scale over the active exit.
@@ -8906,7 +8959,6 @@ class JourneyBoardsManager {
       emitIOSNativeDiagnostic('world-enter-complete', { worldId, source, unitCount: units.length });
       markIOSJourneyRouteAudit(`journey-world-${worldId}-idle`);
       this.journeyV700Phase = 'idle';
-      this.journeyWorldRuntime.endTransition();
       // Keep the first Unit frame free of extra compositor promotion. The
       // authored idle owners take over only after the complete enter cascade.
       markIOSJourneyTransitionAudit('enter-unit-cascade-complete');
@@ -8932,18 +8984,39 @@ class JourneyBoardsManager {
         this.restoreOrScrollToInterimCard();
       }
       const closeQueuedDuringEnter = this.journeyV700CloseQueuedDuringEnter;
-      if (!closeQueuedDuringEnter) {
-        this.startForestBeeOrbits(container, worldId);
-        this.startBeachBubbleDrift(container, worldId);
-        this.startArea55ShipFlybys(container, worldId);
-        this.scheduleJourneyCardAssetWarmup(container, worldId, motionEpoch);
-      }
+      // Keep the GSAP completion frame limited to final Unit writes. Runtime
+      // geometry and ambient canvas allocation resume on separate following
+      // frames so WebKit never receives all three workloads in one commit.
+      this.trackRAF(() => {
+        if (
+          this.journeyV700WorldMotionEpoch !== motionEpoch
+          || this.journeyV700View !== 'world'
+          || this.journeyV700WorldId !== worldId
+          || !container.isConnected
+        ) return;
+        this.journeyWorldRuntime.endTransition();
+        completeJourneyReturnTransition({ worldId, source, unitCount: units.length });
+        if (closeQueuedDuringEnter) {
+          this.journeyV700CloseQueuedDuringEnter = false;
+          emitIOSNativeDiagnostic('close-world-queued-enter-flush', { worldId, source });
+          this.closeJourneyV700World();
+          return;
+        }
+        this.trackRAF(() => {
+          if (
+            this.journeyV700WorldMotionEpoch !== motionEpoch
+            || this.journeyV700Phase !== 'idle'
+            || this.journeyV700View !== 'world'
+            || this.journeyV700WorldId !== worldId
+            || !container.isConnected
+          ) return;
+          this.startForestBeeOrbits(container, worldId);
+          this.startBeachBubbleDrift(container, worldId);
+          this.startArea55ShipFlybys(container, worldId);
+          this.scheduleJourneyCardAssetWarmup(container, worldId, motionEpoch);
+        });
+      });
       this.logJourneyV700Flow('world-enter-complete', { worldId, source }, container);
-      if (closeQueuedDuringEnter) {
-        this.journeyV700CloseQueuedDuringEnter = false;
-        emitIOSNativeDiagnostic('close-world-queued-enter-flush', { worldId, source });
-        this.trackRAF(() => this.closeJourneyV700World());
-      }
     }).catch((error) => {
       finishWorldEnterAudit('error');
       this.logJourneyV700Flow('world-enter-error', { worldId, error: error instanceof Error ? error.message : String(error) }, container);

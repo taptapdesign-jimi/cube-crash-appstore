@@ -206,6 +206,62 @@ describe('decoded gameplay audio owner', () => {
     expect(context.sources).toHaveLength(0);
   });
 
+  it('uses the native app-active signal when WKWebView omits pageshow', async () => {
+    const originalHidden = Object.getOwnPropertyDescriptor(document, 'hidden');
+    preloadDecodedGameplaySounds(['./assets/sound/worlds/crumbleworlds.wav']);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const context = MockAudioContext.instances[0];
+    context.state = 'suspended';
+    context.resume.mockImplementation(async () => { context.state = 'running'; });
+
+    try {
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+      window.dispatchEvent(new Event('cc:native-audio-active'));
+      await Promise.resolve();
+    } finally {
+      if (originalHidden) Object.defineProperty(document, 'hidden', originalHidden);
+      else delete (document as { hidden?: boolean }).hidden;
+    }
+
+    expect(context.resume).toHaveBeenCalledTimes(1);
+    expect(context.state).toBe('running');
+  });
+
+  it('bounds a stuck foreground resume and starts a queued SFX once after touch recovery', async () => {
+    jest.useFakeTimers();
+    try {
+      const source = './assets/sound/merge 6/woosh.mp3';
+      preloadDecodedGameplaySounds([source]);
+      for (let index = 0; index < 8; index++) await Promise.resolve();
+      expect(getDecodedGameplaySoundsState([source])).toBe('ready');
+      const context = MockAudioContext.instances[0];
+      context.state = 'suspended';
+      context.resume.mockImplementationOnce(() => new Promise<void>(() => {}));
+      context.resume.mockImplementationOnce(async () => { context.state = 'running'; });
+
+      expect(playDecodedGameplaySound(source, {
+        voiceId: 'post-foreground-sfx',
+        volume: 0.4,
+      })).toBe('pending');
+      jest.advanceTimersByTime(1001);
+      for (let index = 0; index < 8; index++) await Promise.resolve();
+      expect(getDecodedGameplayAudioStats().pendingVoiceStarts).toBe(1);
+      expect(context.sources).toHaveLength(0);
+
+      const touch = new Event('pointerup');
+      Object.defineProperty(touch, 'pointerType', { value: 'touch' });
+      document.dispatchEvent(touch);
+      for (let index = 0; index < 8; index++) await Promise.resolve();
+
+      expect(context.resume).toHaveBeenCalledTimes(2);
+      expect(context.sources).toHaveLength(1);
+      expect(context.sources[0].start).toHaveBeenCalledTimes(1);
+      expect(getDecodedGameplayAudioStats().pendingVoiceStarts).toBe(0);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('ramps a live looping voice without restarting or stopping its source', async () => {
     const source = './assets/sound/worlds/crumbleworlds.wav';
     preloadDecodedGameplaySounds([source]);

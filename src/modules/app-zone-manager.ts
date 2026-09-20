@@ -52,6 +52,10 @@ export interface SetZoneOptions {
   preserveHomepageNavigation?: boolean;
 }
 
+export interface ShowJourneyShellOptions {
+  gameplayTransientVisualsAlreadyClean?: boolean;
+}
+
 export interface GameExitRoute {
   target: MenuReturnTarget;
   targetSlide: PrimaryHomepageSlideIndex;
@@ -381,7 +385,10 @@ class AppZoneManager {
     }
   }
 
-  async showJourneyShell(reason = 'show-journey'): Promise<void> {
+  async showJourneyShell(
+    reason = 'show-journey',
+    options: ShowJourneyShellOptions = {},
+  ): Promise<void> {
     this.markJourneyMenu(reason);
     const epoch = this.presentationEpoch;
     const home = document.getElementById('home') as HTMLElement | null;
@@ -392,7 +399,11 @@ class AppZoneManager {
     setVisible(sliderContainer, false);
     try {
       hideHomepageNavigation(`app-zone:${reason}`);
-      await this.cleanupTransientVisuals(reason);
+      if (options.gameplayTransientVisualsAlreadyClean === true) {
+        await this.cleanupJourneyShellTransientVisuals(reason);
+      } else {
+        await this.cleanupTransientVisuals(reason);
+      }
       if (!this.isPresentationCurrent(epoch, 'journey')) return;
       setVisible(home, false);
       setVisible(sliderContainer, false);
@@ -455,6 +466,22 @@ class AppZoneManager {
       fx.cleanupAllFxContainers?.();
       fx.cleanupAllTntIdleEffects?.(`app-zone:${reason}`);
     } catch {}
+  }
+
+  private async cleanupJourneyShellTransientVisuals(reason: string): Promise<void> {
+    const epoch = this.presentationEpoch;
+    const ownsCleanup = (): boolean => this.isPresentationCurrent(epoch, 'journey');
+    try {
+      const { cleanupJourneySmokeEffects } = await import('./journey-card-idle-bounce.js');
+      if (!ownsCleanup()) return;
+      cleanupJourneySmokeEffects?.();
+    } catch {}
+    try {
+      const { cleanupJourneyNewCardScreen } = await import('./journey-new-card-screen.js');
+      if (!ownsCleanup()) return;
+      cleanupJourneyNewCardScreen?.();
+    } catch {}
+    logger.debug('Journey shell transients retired', 'app-zone-manager', { reason });
   }
 }
 

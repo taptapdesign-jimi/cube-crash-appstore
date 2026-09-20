@@ -166,7 +166,7 @@ describe('Journey flip and pointer-release animation ownership', () => {
     expect(playJourneyCardManualFlipSound).toHaveBeenCalledTimes(1);
   });
 
-  test('two fingers zoom only the artwork face to 120 percent and release it home without flipping', async () => {
+  test('two fingers pass the 120-percent soft limit with resistance and spring home without flipping', async () => {
     const flip = dragAndRelease();
     await finish(flip);
     await finish(rotorAnimation(260));
@@ -179,15 +179,23 @@ describe('Journey flip and pointer-release animation ownership', () => {
     pointer('pointermove', 340, 12, false);
 
     expect(modal.element.classList.contains('is-pinching')).toBe(true);
-    expect(pinchShell.style.transform).toBe('scale(1.2)');
+    const stretchedScale = Number(/scale\(([^)]+)\)/.exec(pinchShell.style.transform)?.[1]);
+    expect(stretchedScale).toBeGreaterThan(1.2);
+    expect(stretchedScale).toBeLessThan(1.44);
     expect(jest.mocked(playJourneyCardManualFlipSound)).toHaveBeenCalledTimes(soundCount);
 
     pointer('pointerup', 340, 12, false);
     expect(modal.element.classList.contains('is-pinching')).toBe(false);
     const returnAnimation = animations.find((animation) => (
-      animation.element === pinchShell && animation.duration === 220 && animation.active
+      animation.element === pinchShell && animation.duration === 360 && animation.active
     ));
     expect(returnAnimation).toBeDefined();
+    expect(returnAnimation?.frames).toEqual([
+      expect.objectContaining({ transform: `scale(${stretchedScale})`, offset: 0 }),
+      expect.objectContaining({ transform: 'scale(0.97)', offset: 0.62 }),
+      expect.objectContaining({ transform: 'scale(1.009)', offset: 0.83 }),
+      expect.objectContaining({ transform: 'scale(1)', offset: 1 }),
+    ]);
     await finish(returnAnimation!);
     expect(pinchShell.style.transform).toBe('none');
     expect(modal.element.dataset.face).toBe('front');

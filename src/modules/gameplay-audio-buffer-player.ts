@@ -1,5 +1,9 @@
 import { logger } from '../core/logger.js';
 import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.ts';
+import {
+  NATIVE_AUDIO_ACTIVE_EVENT,
+  SoundtrackContextRecovery,
+} from './soundtrack-context-recovery.js';
 
 export type GameplayAudioPlaybackResult = 'played' | 'pending' | 'unavailable';
 
@@ -38,6 +42,7 @@ type PendingVoiceStart = {
 };
 
 let audioContext: AudioContext | null = null;
+let audioContextRecovery: SoundtrackContextRecovery | null = null;
 let audioContextUnavailable = false;
 let foregroundListenersInstalled = false;
 let foregroundGestureRetryArmed = false;
@@ -104,8 +109,9 @@ function releaseCachedVoiceSource(source: string): void {
   trimDecodedCache();
 }
 
-function onGameplayAudioForeground(): void {
-  if (typeof document !== 'undefined' && document.hidden) return;
+function onGameplayAudioForeground(event?: Event): void {
+  const nativeAudioIsActive = event?.type === NATIVE_AUDIO_ACTIVE_EVENT;
+  if (typeof document !== 'undefined' && document.hidden && !nativeAudioIsActive) return;
   const context = audioContext;
   if (context && context.state !== 'running' && context.state !== 'closed') {
     // A suspended/interrupted iOS Web Audio context cannot finish active
@@ -113,10 +119,27 @@ function onGameplayAudioForeground(): void {
     armForegroundGestureRetry();
     void resumeAudioContext(context).then(() => {
       if (context !== audioContext) return;
-      if (context.state === 'running') disarmForegroundGestureRetry();
+      if (context.state === 'running') {
+        disarmForegroundGestureRetry();
+        flushReadyPendingVoiceStarts(context);
+      }
       else armForegroundGestureRetry();
     });
+  } else if (context?.state === 'running') {
+    disarmForegroundGestureRetry();
+    flushReadyPendingVoiceStarts(context);
   }
+}
+
+function onGameplayAudioStateChange(): void {
+  const context = audioContext;
+  if (!context || context.state === 'closed') return;
+  if (context.state === 'running') {
+    disarmForegroundGestureRetry();
+    flushReadyPendingVoiceStarts(context);
+    return;
+  }
+  if (typeof document !== 'undefined' && !document.hidden) onGameplayAudioForeground();
 }
 
 function onForegroundAudioGesture(event: Event): void {
@@ -133,6 +156,7 @@ function onForegroundAudioGesture(event: Event): void {
   void resumeAudioContext(context).then(() => {
     if (context === audioContext && context.state === 'running') {
       disarmForegroundGestureRetry();
+      flushReadyPendingVoiceStarts(context);
     }
   });
 }
@@ -160,6 +184,7 @@ function installForegroundListeners(): void {
   foregroundListenersInstalled = true;
   document.addEventListener('visibilitychange', onGameplayAudioForeground);
   window.addEventListener('pageshow', onGameplayAudioForeground);
+  window.addEventListener(NATIVE_AUDIO_ACTIVE_EVENT, onGameplayAudioForeground);
 }
 
 function resolveSource(source: string): string {
@@ -180,6 +205,8 @@ function getAudioContext(): AudioContext | null {
 
   try {
     audioContext = new AudioContextConstructor({ latencyHint: 'interactive' });
+    audioContextRecovery = new SoundtrackContextRecovery(audioContext);
+    audioContext.addEventListener?.('statechange', onGameplayAudioStateChange);
     installForegroundListeners();
     return audioContext;
   } catch (error) {
@@ -191,9 +218,26 @@ function getAudioContext(): AudioContext | null {
 
 function resumeAudioContext(context: AudioContext): Promise<void> {
   if (context.state === 'running' || context.state === 'closed') return Promise.resolve();
-  return context.resume().catch((error) => {
+  const recovery = context === audioContext ? audioContextRecovery : null;
+  return (recovery?.resume() ?? context.resume()).catch((error) => {
     logger.warn('Failed to resume Web Audio gameplay owner:', error);
   });
+}
+
+function flushReadyPendingVoiceStarts(context: AudioContext): void {
+  if (context !== audioContext || context.state !== 'running') return;
+  for (const [voiceId, pendingStart] of Array.from(pendingVoiceStarts.entries())) {
+    const resolvedSource = resolveSource(pendingStart.source);
+    if (failedBuffers.has(resolvedSource)) {
+      pendingVoiceStarts.delete(voiceId);
+      pendingStart.options.onDeferredUnavailable?.();
+      continue;
+    }
+    if (!decodedBuffers.has(resolvedSource)) continue;
+    pendingVoiceStarts.delete(voiceId);
+    const result = playDecodedGameplaySound(pendingStart.source, pendingStart.options);
+    if (result === 'unavailable') pendingStart.options.onDeferredUnavailable?.();
+  }
 }
 
 function preloadSource(context: AudioContext, source: string): void {
@@ -375,9 +419,7 @@ export function playDecodedGameplaySound(
         return;
       }
       if (context.state !== 'running') {
-        pendingVoiceStarts.delete(options.voiceId);
-        pendingStart.options.onDeferredUnavailable?.();
-        trimDecodedCache();
+        armForegroundGestureRetry();
         return;
       }
       pendingVoiceStarts.delete(options.voiceId);
@@ -473,6 +515,7 @@ export function resetDecodedGameplayAudioForTests(): void {
   if (foregroundListenersInstalled) {
     document.removeEventListener('visibilitychange', onGameplayAudioForeground);
     window.removeEventListener('pageshow', onGameplayAudioForeground);
+    window.removeEventListener(NATIVE_AUDIO_ACTIVE_EVENT, onGameplayAudioForeground);
     foregroundListenersInstalled = false;
   }
   stopDecodedGameplayVoices(Array.from(activeVoices.keys()));
@@ -484,7 +527,12 @@ export function resetDecodedGameplayAudioForTests(): void {
   evictedBuffers = 0;
   evictedBytes = 0;
   redecodedBuffers = 0;
-  if (audioContext) void audioContext.close().catch(() => {});
+  audioContextRecovery?.cancel();
+  audioContextRecovery = null;
+  if (audioContext) {
+    audioContext.removeEventListener?.('statechange', onGameplayAudioStateChange);
+    void audioContext.close().catch(() => {});
+  }
   audioContext = null;
   audioContextUnavailable = false;
 }

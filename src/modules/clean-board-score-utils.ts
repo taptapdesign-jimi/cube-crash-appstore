@@ -12,11 +12,11 @@ type EfficiencyInput = {
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
 /**
- * Compute efficiency bonus based on moves efficiency + stack depth.
- * - movesEfficiency: movesRemaining / maxMoves
- * - stackEfficiency: (maxStackDepth - 1) / 3  (depth 1..4 => 0..1)
- * - efficiencyScore: 60% moves + 40% stack
- * - final bonus: 30%..100% of base bonus
+ * Reward a completed board independently of how many scoring merges it took.
+ * Keep the existing completion/stack reward and add up to 4x the board bonus
+ * for unused moves. The quadratic curve rewards short clears most strongly,
+ * including Wild clears without a deep stack or a long combo. No clock or
+ * accumulated score is used, so waiting cannot farm this reward.
  */
 export function computeEfficiencyBonus(input: EfficiencyInput): number {
   const bonus = Math.max(0, input.bonus | 0);
@@ -28,7 +28,8 @@ export function computeEfficiencyBonus(input: EfficiencyInput): number {
   const stackEfficiency = clamp01((maxStackDepth - 1) / 3); // depth 1..4
   const efficiencyScore = (movesEfficiency * 0.6) + (stackEfficiency * 0.4);
 
-  const efficiencyFactor = 0.30 + 0.70 * clamp01(efficiencyScore); // 30%..100%
+  const efficiencyFactor = 0.30 + 0.70 * clamp01(efficiencyScore)
+    + 4 * movesEfficiency ** 2; // 30%..500%; never reduces the previous reward
   return Math.round(bonus * efficiencyFactor);
 }
 

@@ -90,7 +90,7 @@
   transition: rotate 520ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Scale only the automatic entry; interactive face changes retain their tempo. */
+/* Time only the automatic entry; interactive face changes retain their tempo. */
 .journey-card-flip-overlay.is-entering .journey-card-flip-idle-shell {
   transition-duration: var(--journey-card-modal-transition-duration, 520ms);
 }
@@ -206,7 +206,7 @@
   transition: none;
 }
 
-/* Restore depth at the same relative point of the accelerated spatial entry.
+/* Restore depth at the same relative point of the timed spatial entry.
    At this point the card is already on its back-facing settle arc,
    so the short fade reads early without paying for shadows during the costly
    scale/turn portion of the flight. */

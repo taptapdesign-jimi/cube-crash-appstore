@@ -3,6 +3,7 @@ import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.js';
 
 /** WebKit can leave resume() pending instead of rejecting for missing activation. */
 export const SOUNDTRACK_CONTEXT_RESUME_TIMEOUT_MS = 1000;
+export const NATIVE_AUDIO_ACTIVE_EVENT = 'cc:native-audio-active';
 
 export class SoundtrackContextRecovery {
   private cancelPending: (() => void) | null = null;
