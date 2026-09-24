@@ -1,3 +1,5 @@
+import { snapshotRunComboBonus } from './run-combo-bonus.ts';
+
 type SaveStateDeps = {
   gridSnapshot: any[][];
   score: number;
@@ -35,6 +37,7 @@ export function buildSaveState({
     wildSpawnCount: Number.isFinite(wildSpawnCount) ? Math.max(0, Math.trunc(wildSpawnCount)) : 0,
     bestScore: Number.isFinite(bestScore) ? bestScore : 0,
     starsCount: Number.isFinite(starsCount) ? starsCount : 0,
+    runComboBonus: snapshotRunComboBonus(boardNumber),
     timestamp: Date.now(),
   };
 

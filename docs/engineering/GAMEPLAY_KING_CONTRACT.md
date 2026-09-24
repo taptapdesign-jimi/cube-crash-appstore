@@ -115,6 +115,14 @@ reloads.
 
 ### 5.3 Clean board and final merge
 
+- Clean Board Combo bonus (user-requested 2026-09-21) belongs to the current
+  attempt, independently of the persistent longest-combo record. Every streak
+  of length `n >= 3` earns `50*n + 25*(n-3)*(n-2)/2`; shorter streaks earn zero.
+  Incremental credit includes the final live streak and Magnet combo jumps once.
+  New attempts reset the reward; save/resume preserves earned points and starts
+  a new live streak. Legacy saves without this optional reward start at zero.
+  Reward projection and the result modal must use the same captured total.
+  Live combo timing/multipliers and Arcade round carryover remain unchanged.
 - Clean Board Efficiency includes a move-saving reward: retain the existing
   completion/stack component and add `4 × baseBonus × (remainingMoves / maxMoves)²`,
   with the move ratio clamped to 0..1. Total Efficiency is bounded to 0.30..5.00

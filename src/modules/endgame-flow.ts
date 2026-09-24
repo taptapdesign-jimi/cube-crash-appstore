@@ -1,4 +1,6 @@
 // @ts-nocheck
+import { getRunComboBonus } from './run-combo-bonus.ts';
+import { isScreenPresented } from '../utils/screen-presentation.js';
 import { logger } from '../core/logger.js';
 import { gsap } from 'gsap';
 import {
@@ -863,8 +865,8 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       if (Number((window as any).__ccEndgameFlowAbortToken || 0) !== abortTokenAtStart) return true;
       const home = document.getElementById('home');
       const journey = document.getElementById('journey-screen');
-      const homeVisible = !!home && !home.hasAttribute('hidden') && window.getComputedStyle(home).display !== 'none';
-      const journeyVisible = !!journey && !journey.hasAttribute('hidden') && window.getComputedStyle(journey).display !== 'none';
+      const homeVisible = isScreenPresented(home);
+      const journeyVisible = isScreenPresented(journey);
       return homeVisible || journeyVisible;
     } catch {
       return true;
@@ -888,11 +890,11 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     const style = window.getComputedStyle(appElement);
     return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
   })();
-  const isHomeVisible = !!homeElement && !homeElement.hasAttribute('hidden') && (() => {
+  const isHomeVisible = isScreenPresented(homeElement) && (() => {
     const style = window.getComputedStyle(homeElement);
     return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
   })();
-  const isJourneyVisible = !!journeyElement && !journeyElement.hasAttribute('hidden') && (() => {
+  const isJourneyVisible = isScreenPresented(journeyElement) && (() => {
     const style = window.getComputedStyle(journeyElement);
     return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
   })();
@@ -997,7 +999,7 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     const bonus = 500 + (effectiveBoard - 1) * 200; // Board 1: 500, Board 2: 700, Board 3: 900, Board 4: 1100
     
     // 🔥 Bonus breakdown:
-    // - Combo bonus: longestCombo × 50 (computed inside clean-board-modal)
+    // - Combo bonus: all qualifying streaks in this attempt
     // - Efficiency bonus: moves + stack depth (computed here)
     const efficiencyBonus = computeEfficiencyBonusFromState({ bonus, boardNumber });
     const arcadeStageClearMode = isArcadeHomeRunMode();
@@ -1124,17 +1126,10 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     }
 
     const rewardCurrentScore = ctx.getScore ? (ctx.getScore() | 0) : 0;
-    let rewardLongestCombo = 0;
-    try {
-      const { boardStatsService } = await import('../services/board-stats-service.js');
-      if (shouldAbortEndgameFlow()) return;
-      rewardLongestCombo = boardStatsService.getBoardStats(boardNumber).longestCombo || 0;
-    } catch (error) {
-      logger.warn('⚠️ Failed to read Journey combo for reward rarity:', error);
-    }
+    const comboBonus = getRunComboBonus(boardNumber);
     const journeyRewardFinalScore = computeCleanBoardFinalScore({
       currentScore: rewardCurrentScore,
-      comboBonus: rewardLongestCombo * 50,
+      comboBonus,
       efficiencyBonus,
       scoreCap: 999999,
     });
@@ -1216,6 +1211,7 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         }) : undefined,
         updateHUD: ctx.updateHUD,
         bonus,
+        comboBonus,
         efficiencyBonus,
         scoreCap: 999999,
         boardNumber,

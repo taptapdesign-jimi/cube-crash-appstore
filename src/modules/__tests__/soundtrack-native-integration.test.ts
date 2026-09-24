@@ -136,7 +136,8 @@ describe('native soundtrack manager + transport ownership', () => {
     expect(context.state).toBe('running');
     await advance(1300);
     expect(getSoundtrackRuntimeStats()).toMatchObject({ activeVoices: 1, retainedArcadeVoices: 1 });
-    expect(NativeMedia.instances).toHaveLength(1);
+    expect(NativeMedia.instances).toHaveLength(0);
+    expect(context.sources.filter(source => source.active)).toHaveLength(1);
   });
 
   it('arms gesture recovery if pageshow resume resolves without actually running the Arcade context', async () => {
@@ -157,8 +158,12 @@ describe('native soundtrack manager + transport ownership', () => {
     promoteArcadeSoundtrackAfterMerge6();
     await advance(1);
     await advance(2200);
+    // The bar-edge callback begins the async decode. Its audio-clock crossfade
+    // starts only after that decode has resolved.
+    await advance(2200);
     expect(getSoundtrackRuntimeStats()).toMatchObject({ activeVoices: 1, retainedArcadeVoices: 1 });
-    expect(NativeMedia.instances).toHaveLength(2);
+    expect(NativeMedia.instances).toHaveLength(0);
+    expect(NativeContext.instances[0].sources.filter(source => source.active)).toHaveLength(1);
     stopSoundtrack();
     await advance(5000);
     expect(getSoundtrackRuntimeStats()).toMatchObject({ activeVoices: 0, retainedArcadeVoices: 0 });

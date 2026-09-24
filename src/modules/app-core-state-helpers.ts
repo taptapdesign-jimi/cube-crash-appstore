@@ -1,13 +1,13 @@
 import type { Tile } from '../types/game-types.js';
 import { tileIsActive } from './endgame-checker.ts';
+import { isScreenPresented } from '../utils/screen-presentation.js';
 
 export function getReactiveActiveTiles(tiles: Tile[]): Tile[] {
   return tiles.filter(tileIsActive);
 }
 
 export function isElementVisible(el: HTMLElement | null): boolean {
-  if (!el) return false;
-  if (el.hasAttribute('hidden')) return false;
+  if (!isScreenPresented(el) || !el) return false;
   const style = window.getComputedStyle(el);
   if (style.display === 'none') return false;
   if (style.visibility === 'hidden') return false;

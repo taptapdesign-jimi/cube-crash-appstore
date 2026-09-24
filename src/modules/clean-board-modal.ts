@@ -28,6 +28,7 @@ import { getJourneyEarnedStars } from './journey-stage-balance.ts';
 import { ctaMotion, exitCtaPair, getRegisteredCta, registerCta, type CtaController } from './cta-system.ts';
 import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.ts';
 import { ADDITIONAL_CLEAN_BOARD_WIN_MESSAGES } from './clean-board-win-messages.ts';
+import { getRunComboBonus } from './run-combo-bonus.ts';
 import { computeCleanBoardFinalScore } from './clean-board-score-utils.ts';
 import {
   resolveCleanBoardCelebrationTheme,
@@ -102,7 +103,7 @@ interface ShowCleanBoardModalParams {
   animateScore?: (score: number, duration?: number) => void;
   updateHUD?: () => void;
   bonus?: number; // Legacy support - if provided, split into combo (50%) and efficiency (50%)
-  comboBonus?: number; // 🎯 NEW: Combo bonus (combo count × 50)
+  comboBonus?: number; // 🎯 NEW: Combo bonus (all qualifying streaks in this attempt)
   efficiencyBonus?: number; // 🎯 NEW: Efficiency bonus (stack + efficiency + special + clean)
   scoreCap?: number;
   boardNumber?: number;
@@ -284,7 +285,7 @@ export async function showCleanBoardModal({
   animateScore, 
   updateHUD, 
   bonus = 500, // Legacy support - if provided, split into combo (50%) and efficiency (50%)
-  comboBonus, // NEW: Combo bonus (combo count × 50)
+  comboBonus, // NEW: Combo bonus (all qualifying streaks in this attempt)
   efficiencyBonus, // NEW: Efficiency bonus (stack + efficiency + special + clean)
   scoreCap = 999999, 
   boardNumber = 1,
@@ -358,23 +359,13 @@ export async function showCleanBoardModal({
       document.head.appendChild(style);
     }
     
-    // 🎯 NEW: Calculate 2-step bonus system
-    // Get longest combo for this board
-    const boardStats = boardStatsService?.getBoardStats?.(boardNumber) || {};
-    const longestCombo = boardStats.longestCombo || 0;
-    
-    // Calculate combo bonus: longestCombo × 50
-    const calculatedComboBonus = longestCombo * 50;
-    
-    // If comboBonus/efficiencyBonus not provided, calculate them
-    // Combo: Always use calculated value (longestCombo × 50)
-    // Efficiency: Use legacy bonus if not provided explicitly
+    // Use the attempt reward, never the persistent board record.
+    const calculatedComboBonus = getRunComboBonus(boardNumber);
     const safeComboBonus = Math.max(0, (comboBonus !== undefined ? comboBonus : calculatedComboBonus) | 0);
     const safeEfficiencyBonus = Math.max(0, (efficiencyBonus !== undefined ? efficiencyBonus : (bonus || 500)) | 0);
     const totalBonus = safeComboBonus + safeEfficiencyBonus;
     
     console.log('🎯 Bonus calculation:', {
-      longestCombo,
       calculatedComboBonus,
       finalComboBonus: safeComboBonus,
       efficiencyBonus: safeEfficiencyBonus,
@@ -692,7 +683,7 @@ export async function showCleanBoardModal({
     comboValue.style.cssText = 'color:#E77449;font-weight:800;font-size:36px;line-height:1;';
 
     const comboLabel = document.createElement('div');
-    comboLabel.textContent = longestCombo > 0 ? `Combo x${longestCombo}` : 'Combo bonus';
+    comboLabel.textContent = 'Combo bonus';
     comboLabel.style.cssText = 'color:#c48a6d;font-weight:600;font-size:18px;line-height:1;letter-spacing:0.02em;';
 
     comboWrapper.appendChild(comboValue);

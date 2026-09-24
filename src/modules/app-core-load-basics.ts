@@ -1,3 +1,5 @@
+import { restoreRunComboBonus } from './run-combo-bonus.ts';
+
 type LoadBasicsDeps = {
   gameState: any;
   MOVES_MAX: number;
@@ -33,6 +35,7 @@ export function restoreBasicState({
     ? Math.max(0, Math.trunc(gameState.wildSpawnCount))
     : 0;
   
+  restoreRunComboBonus(boardNumber, gameState.runComboBonus);
   setScore(score);
   setLevel(level);
   setBoardNumber(boardNumber);

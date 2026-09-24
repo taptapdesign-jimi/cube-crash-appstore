@@ -395,6 +395,7 @@ import {
 import { resolveNoMovesCommitDecision } from './no-moves-commit-decision.ts';
 import { triggerMergeHaptics } from './app-core-merge-haptics.ts';
 import { handleMergeCombo } from './app-core-merge-combo.ts';
+import { recordRunCombo, resetRunComboBonus } from './run-combo-bonus.ts';
 import { handleLastMergeEarly } from './app-core-merge-lastmerge.ts';
 import {
   getFinalMergeTileSets,
@@ -954,9 +955,11 @@ const replayRecorder = createReplayRecorder({
 let combo = 0; // default x0
 function hudSetCombo(v){ 
   combo = hudSetComboHelper(v, COMBO_CAP, HUD.setCombo);
+  recordRunCombo(boardNumber, combo);
 }
 function hudResetCombo(){ 
   combo = 0; // 🔥 CRITICAL: Reset combo variable first
+  recordRunCombo(boardNumber, 0);
   hudResetComboHelper(HUD.resetCombo);
 }
 
@@ -6715,6 +6718,7 @@ async function startLevel(n): Promise<void> {
   }
   
   moves = MOVES_MAX;
+  resetRunComboBonus(boardNumber);
   // Track best stack depth achieved in this run (for clean board efficiency)
   try { STATE.maxStackDepth = 1; } catch {}
   // 🔥 CRITICAL: Don't reset busyEnding here - let runEndgameFlow handle it in finally block
@@ -15966,6 +15970,7 @@ async function performRestartGame(): Promise<void> {
   const currentBoard = forceArcadeStage01 ? 1 : (boardNumber || 1);
   devLog(`🔄 RESTART: Restart target board ${currentBoard}`, { forceArcadeStage01 });
   
+  resetRunComboBonus(currentBoard);
   // Reset game state WITHOUT touching HUD positioning or boardNumber
   score = 0;
   // boardNumber stays the same - don't reset to 1!
@@ -16307,6 +16312,7 @@ export function cleanupGame(options: { destroyRenderer?: boolean } = {}) {
   devLog('✅ HUD initialization flag reset');
   
   // Reset all game state
+  resetRunComboBonus(0);
   score = 0;
   boardNumber = 1;
   moves = MOVES_MAX;
@@ -16843,6 +16849,8 @@ async function loadGameState(overrideBoardNumber?: number) {
       devLog,
     });
 
+    killComboTimer();
+    hudResetCombo();
     loadBoardNumber = restored.boardNumber;
 
     applyRulesAfterLoad({

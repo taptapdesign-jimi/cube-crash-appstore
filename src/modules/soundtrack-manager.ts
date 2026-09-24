@@ -1272,13 +1272,14 @@ export const soundtrackManager = {
   get isStarted() { return isStarted; },
 };
 
-/** Read-only diagnostics; streaming media buffers are browser-owned and not estimated. */
+/** Read-only diagnostics for the shared theme and decoded Arcade loop voices. */
 export function getSoundtrackRuntimeStats(): {
   decodedBytes: number; activeVoices: number; retainedArcadeVoices: number;
   contextState: string | null; resumePending: boolean;
 } {
   return {
-    decodedBytes: audio?.decodedBytes ?? 0,
+    decodedBytes: (audio?.decodedBytes ?? 0) + Array.from(arcadeVoices)
+      .reduce((total, voice) => total + (voice.decodedBytes ?? 0), 0),
     activeVoices: Number(!!audio && !audio.paused) + Number(!!introAudio && !introAudio.paused) +
       Array.from(arcadeVoices).filter((voice) => !voice.paused).length,
     retainedArcadeVoices: arcadeVoices.size,

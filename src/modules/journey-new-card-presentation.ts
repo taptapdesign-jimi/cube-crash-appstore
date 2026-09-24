@@ -22,16 +22,16 @@ export const JOURNEY_FOREST_CARD_NAMES = [
 ] as const;
 
 export const JOURNEY_BEACH_CARD_NAMES = [
-  'Peekaboo',
-  'Cool Dice',
-  'Best Play',
-  'Hurricane',
-  'Legacy',
-  'Rumble',
-  'Shoreline',
-  'Sun Splash',
-  'Tide Turn',
-  'Castaway',
+  'Fishy',
+  'Fresh Juice',
+  'Bouncy Day',
+  'Bottle Tips',
+  'Star Below',
+  'Castle Ruins',
+  'Looky Here',
+  'The Letter',
+  'Playtime',
+  'Life Saver',
 ] as const;
 
 export const JOURNEY_AREA55_CARD_NAMES = [
@@ -47,14 +47,22 @@ export const JOURNEY_AREA55_CARD_NAMES = [
   'Take Over',
 ] as const;
 
+const JOURNEY_BEACH_LEGENDARY_CARD_NAMES = [
+  'Fishy', 'Juice Blast', 'Bouncy Day', 'Bottle Tips', 'Rough Seas',
+  'Castle Show', 'Deep Dive', 'Go Fetch', 'Playtime', 'Life Saver',
+] as const;
+
 export type JourneyNewCardRevealCopy = {
   title: string;
   subtitle: string;
 };
 
-export function getJourneyNewCardDisplayName(boardNumber: number, fallbackName: string): string {
+export function getJourneyNewCardDisplayName(
+  boardNumber: number, fallbackName: string, rarity: JourneyCardRarity = 'common',
+): string {
   const forestName = JOURNEY_FOREST_CARD_NAMES[(boardNumber | 0) - 1];
-  const beachName = JOURNEY_BEACH_CARD_NAMES[(boardNumber | 0) - 11];
+  const beachNames = rarity === 'legendary' ? JOURNEY_BEACH_LEGENDARY_CARD_NAMES : JOURNEY_BEACH_CARD_NAMES;
+  const beachName = beachNames[(boardNumber | 0) - 11];
   const area55Name = JOURNEY_AREA55_CARD_NAMES[(boardNumber | 0) - 21];
   return forestName || beachName || area55Name || String(fallbackName || '').trim();
 }

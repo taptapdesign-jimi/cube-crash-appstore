@@ -111,20 +111,41 @@ describe('Journey New Reward presentation', () => {
   test('keeps Beach card names written consistently with the other Worlds', () => {
     const manager = read('src/modules/journey-boards-manager.ts');
     expect(JOURNEY_BEACH_CARD_NAMES).toEqual([
-      'Peekaboo',
-      'Cool Dice',
-      'Best Play',
-      'Hurricane',
-      'Legacy',
-      'Rumble',
-      'Shoreline',
-      'Sun Splash',
-      'Tide Turn',
-      'Castaway',
+      'Fishy',
+      'Fresh Juice',
+      'Bouncy Day',
+      'Bottle Tips',
+      'Star Below',
+      'Castle Ruins',
+      'Looky Here',
+      'The Letter',
+      'Playtime',
+      'Life Saver',
     ]);
-    expect(getJourneyNewCardDisplayName(11, 'STAGE 01')).toBe('Peekaboo');
-    expect(getJourneyNewCardDisplayName(18, 'STAGE 08')).toBe('Sun Splash');
+    expect(getJourneyNewCardDisplayName(11, 'STAGE 01')).toBe('Fishy');
+    expect(getJourneyNewCardDisplayName(18, 'STAGE 08')).toBe('The Letter');
+    JOURNEY_BEACH_CARD_NAMES.forEach((name, index) => {
+      const displayName = getJourneyNewCardDisplayName(11 + index, 'old placeholder');
+      expect(displayName).toBe(name);
+      expect(getJourneyNewCardRevealCopy(displayName, 'common')).toEqual({
+        title: 'Common', subtitle: `Unlocked ${name}`,
+      });
+      expect(getJourneyNewCardRevealCopy(displayName, 'legendary')).toEqual({
+        title: 'Legendary!', subtitle: `Unlocked ${name}`,
+      });
+    });
     expect(manager).toContain('...JOURNEY_BEACH_CARD_NAMES');
+  });
+
+  test('Beach legendary reveal keeps the name printed on its separate artwork', () => {
+    const names = ['Fishy', 'Juice Blast', 'Bouncy Day', 'Bottle Tips', 'Rough Seas',
+      'Castle Show', 'Deep Dive', 'Go Fetch', 'Playtime', 'Life Saver'];
+    names.forEach((name, index) => {
+      expect(getJourneyNewCardDisplayName(11 + index, 'fallback', 'legendary')).toBe(name);
+    });
+    expect(read('src/modules/journey-new-card-screen.ts')).toMatch(
+      /getJourneyNewCardDisplayName\([\s\S]*?cardRarity,/,
+    );
   });
 
   test('makes both faces exactly 10% smaller and aligns both at the same lower resting position', () => {

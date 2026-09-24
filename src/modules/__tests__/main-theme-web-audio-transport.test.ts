@@ -244,15 +244,9 @@ describe('sample-accurate main theme transport', () => {
     voice.dispose();
   });
 
-  it('streams Arcade through the existing context gain and disconnects on disposal', async () => {
+  it('loops Arcade sample-accurately through the existing context and disconnects on disposal', async () => {
     const originalAudio = global.Audio;
-    const media = {
-      volume: 1, paused: true, currentTime: 0, duration: 180, loop: true, preload: 'auto',
-      play: jest.fn(async () => { media.paused = false; }),
-      pause: jest.fn(() => { media.paused = true; }),
-      removeAttribute: jest.fn(), load: jest.fn(),
-    };
-    global.Audio = jest.fn(() => media) as unknown as typeof Audio;
+    global.Audio = jest.fn(() => { throw new Error('Arcade must not use HTMLAudioElement'); }) as unknown as typeof Audio;
     const theme = createSampleAccurateMainThemeVoice({
       source: './theme.wav', loopStartSeconds: 2, loopEndSeconds: 59, initialVolume: 0.68,
     })!;
@@ -263,11 +257,14 @@ describe('sample-accurate main theme transport', () => {
       voice.rampVolume!(0.528, 1250);
       const context = MockAudioContext.instances[0];
       expect(MockAudioContext.instances).toHaveLength(1);
-      expect(media.volume).toBe(1);
+      expect(context.sources).toHaveLength(1);
+      expect(context.sources[0].loop).toBe(true);
+      expect(context.sources[0].loopStart).toBe(0);
+      expect(context.sources[0].loopEnd).toBeCloseTo(59.6910625, 7);
       expect(context.gains[1].gain.linearRampToValueAtTime).toHaveBeenLastCalledWith(0.528, 1.25);
       voice.dispose!();
-      expect(media.pause).toHaveBeenCalled();
-      expect(context.mediaNodes[0].disconnect).toHaveBeenCalled();
+      expect(context.sources[0].stop).toHaveBeenCalledTimes(1);
+      expect(context.sources[0].disconnect).toHaveBeenCalledTimes(1);
       expect(context.gains[1].disconnect).toHaveBeenCalled();
       expect(context.close).not.toHaveBeenCalled();
     } finally {

@@ -60,21 +60,33 @@ describe('Journey collectible card assets', () => {
     });
   });
 
-  test('keeps redundant placeholders only for Beach', () => {
+  test('uses dedicated Beach numbering, gold suffix and density filenames', () => {
     expect(resolveJourneyCardAsset(11, 999999)).toMatchObject({
-      rarity: 'common',
-      path1x: './assets/redundant assets/collectible cards old/11.png',
+      rarity: 'legendary',
+      path1x: './assets/colelctibles/beach/legendary/01-gold.png',
+      path2x: './assets/colelctibles/beach/legendary/01-gold@2x.png',
     });
-    expect(resolveJourneyCardAsset(11, 999999).path2x).toBeUndefined();
   });
 
-  test('every temporary Beach card resolves to an existing redundant asset', () => {
+  test('all ten Beach stages use their own common and legendary 1x/2x artwork', () => {
+    const paths = new Set<string>();
     for (let boardId = 11; boardId <= 20; boardId += 1) {
-      const asset = resolveJourneyCardAsset(boardId, 999999);
-      expect(asset.rarity).toBe('common');
-      expect(asset.path2x).toBeUndefined();
-      expect(fs.existsSync(path.resolve(process.cwd(), asset.path1x))).toBe(true);
+      for (const score of [0, 999999]) {
+        const asset = resolveJourneyCardAsset(boardId, score);
+        const rarity = score === 0 ? 'common' : 'legendary';
+        const stem = String(boardId - 10).padStart(2, '0') + (score === 0 ? '' : '-gold');
+        expect(asset.rarity).toBe(rarity);
+        expect(asset.path1x).toBe(`./assets/colelctibles/beach/${rarity}/${stem}.png`);
+        const densityFile = score === 0 && boardId === 16 ? '06@2x-1'
+          : score === 0 && boardId === 19 ? '06@2x' : `${stem}@2x`;
+        expect(asset.path2x).toBe(`./assets/colelctibles/beach/${rarity}/${densityFile}.png`);
+        for (const file of [asset.path1x, asset.path2x!]) {
+          expect(fs.existsSync(path.resolve(process.cwd(), file))).toBe(true);
+          paths.add(file);
+        }
+      }
     }
+    expect(paths.size).toBe(40);
   });
 
   test('all 40 declared Forest files exist', () => {

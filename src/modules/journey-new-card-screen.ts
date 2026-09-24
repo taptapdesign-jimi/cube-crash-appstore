@@ -542,6 +542,7 @@ export async function showJourneyNewCardScreen({
   const safeCardName = getJourneyNewCardDisplayName(
     safeBoardNumber,
     cardName || formatGameplayProgressLabel('journey', safeBoardNumber),
+    cardRarity,
   );
   const safeCardRarity = cardRarity;
   const revealCopy = getJourneyNewCardRevealCopy(safeCardName, safeCardRarity);

@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { installJourneyAlienBeamIdle } from './journey-alien-beam-idle';
+import { beginScreenPreparation } from '../utils/screen-presentation.js';
 import { isThermalWorkSuppressed } from '../utils/thermal-isolation.js';
 import { cancelJourneyHubScrollableEnter } from '../ui/journey-hub-scrollable-enter.js';
 import { beginTransitionPerformance, type TransitionPerformance } from '../utils/transition-performance.js';
@@ -163,6 +164,7 @@ import {
   JOURNEY_AREA55_CARD_NAMES,
   JOURNEY_BEACH_CARD_NAMES,
   JOURNEY_FOREST_CARD_NAMES,
+  getJourneyNewCardDisplayName,
 } from './journey-new-card-presentation.js';
 import { preloadRegularMerge6Sounds } from './regular-merge6-sound.ts';
 import { preloadWildStarMerge6Sound } from './wild-star-merge6-sound.ts';
@@ -920,6 +922,19 @@ type JourneyHubPrepaintStage = {
   ready: boolean;
 };
 
+type JourneyReturnPaintWarmLease = {
+  releasePreparation: () => void;
+  ownerToken: number | null;
+  worldId: number;
+  renderGeneration: number;
+  screen: HTMLElement;
+  previousHidden: boolean;
+  previousHiddenClass: boolean;
+  previousShowClass: boolean;
+  previousStyles: Record<string, { value: string; priority: string }>;
+  ready: boolean;
+};
+
 type JourneyLandingPoseSample = {
   elapsedMs: number;
   marker: string;
@@ -1017,6 +1032,7 @@ class JourneyBoardsManager {
     units: JourneyWorldAnimationUnit[];
     targets: HTMLElement[];
   } | null = null;
+  private journeyReturnPaintWarmLease: JourneyReturnPaintWarmLease | null = null;
   private journeyMainCloudCompositeCache = new Map<number, HTMLCanvasElement>();
   private journeyMainCloudCompositeBuilds = new Map<number, Promise<HTMLCanvasElement | null>>();
   private journeyWorldPrepaintStage: JourneyWorldPrepaintStage | null = null;
@@ -5901,6 +5917,7 @@ class JourneyBoardsManager {
     this.renderDisposed = true;
     this.renderLifecycleGeneration += 1;
     try {
+      this.releaseJourneyReturnPaintWarmLease(null, 'manager-cleanup', true);
       this.journeyCardInteractionProfiler.dispose('manager-cleanup');
       this.cancelJourneyWorldPrepaint('manager-cleanup');
       this.cancelJourneyHubPrepaint('manager-cleanup');
@@ -6151,6 +6168,7 @@ class JourneyBoardsManager {
     board.imagePath = asset.path1x;
     board.imagePath2x = asset.path2x;
     board.cardRarity = asset.rarity;
+    board.name = this.getBoardName(board.id);
     return asset;
   }
 
@@ -6164,7 +6182,11 @@ class JourneyBoardsManager {
       ...JOURNEY_BEACH_CARD_NAMES,
       ...JOURNEY_AREA55_CARD_NAMES,
     ];
-    return names[boardNumber - 1] || formatGameplayProgressLabel('journey', boardNumber);
+    return getJourneyNewCardDisplayName(
+      boardNumber,
+      names[boardNumber - 1] || formatGameplayProgressLabel('journey', boardNumber),
+      this.getBoardCardAsset(boardNumber).rarity,
+    );
   }
 
   /** Scrolls only an unfinished world screen to its active interim card. */
@@ -8709,6 +8731,11 @@ class JourneyBoardsManager {
       && preparedPlan.renderGeneration === this.renderLifecycleGeneration
       && preparedPlan.targets.length > 0
       && preparedPlan.targets.every((target) => target.isConnected);
+    this.releaseJourneyReturnPaintWarmLease(
+      preparedPlan?.ownerToken ?? null,
+      'visible-enter-promoted',
+      false,
+    );
     if (!hasLivePreparedPlan) {
       this.reconcileMountedJourneyWorldCardUnits(container, worldId, `${source}-play-fallback`);
     }
@@ -8774,6 +8801,47 @@ class JourneyBoardsManager {
       });
       return true;
     }
+    // Journey normally releases its heavy DOM before gameplay. A Fail return
+    // therefore may have no retained Units at all. Build the exact saved World
+    // now, under the still-opaque terminal overlay, instead of paying this cost
+    // after result-last-visible. The temporary .001 lease makes renderBoards
+    // legal and paintable without exposing the destination to the player.
+    if (this.getJourneyV700AnimationUnits(container, worldId).length === 0) {
+      const screen = document.getElementById('journey-screen') as HTMLElement | null;
+      if (screen) {
+        const previousHidden = screen.hidden;
+        const previousHiddenClass = screen.classList.contains('hidden');
+        const previousShowClass = screen.classList.contains('show');
+        const properties = ['display', 'visibility', 'opacity', 'pointer-events', 'z-index'];
+        const previousStyles = Object.fromEntries(properties.map((property) => [
+          property,
+          {
+            value: screen.style.getPropertyValue(property),
+            priority: screen.style.getPropertyPriority(property),
+          },
+        ]));
+        try {
+          screen.hidden = false;
+          screen.classList.remove('hidden');
+          screen.classList.add('show');
+          screen.style.setProperty('display', 'flex', 'important');
+          screen.style.setProperty('visibility', 'visible', 'important');
+          screen.style.setProperty('opacity', '0.001', 'important');
+          screen.style.setProperty('pointer-events', 'none', 'important');
+          screen.style.setProperty('z-index', '999999');
+          this.renderBoards();
+          emitIOSNativeDiagnostic('world-return-cold-render-behind-result', { worldId, source, ownerToken });
+        } finally {
+          screen.hidden = previousHidden;
+          screen.classList.toggle('hidden', previousHiddenClass);
+          screen.classList.toggle('show', previousShowClass);
+          Object.entries(previousStyles).forEach(([property, state]) => {
+            if (state.value) screen.style.setProperty(property, state.value, state.priority);
+            else screen.style.removeProperty(property);
+          });
+        }
+      }
+    }
     this.prepareJourneyBoardCardTransformsForReveal(source);
     // Full Journey rendering is correctly blocked while gameplay owns the
     // screen. Reconcile only card Units in the preserved World DOM so a newly
@@ -8784,13 +8852,147 @@ class JourneyBoardsManager {
       lastBoardId: this.getLastActiveJourneyBoardAreaId(),
       ownerToken,
     });
+    const preparedPlan = this.journeyV700PreparedWorldEnter;
+    const prepared = preparedPlan?.worldId === worldId
+      && preparedPlan.renderGeneration === this.renderLifecycleGeneration
+      && preparedPlan.ownerToken === ownerToken
+      && preparedPlan.targets.length > 0
+      && preparedPlan.targets.every((target) => target.isConnected);
+    if (!prepared) {
+      emitIOSNativeDiagnostic('world-return-prime-missing-units', { worldId, source, ownerToken });
+      return false;
+    }
+    this.startJourneyReturnPaintWarm(container, worldId, ownerToken, source);
     return true;
   }
 
   public cancelPreparedJourneyV700WorldEnter(ownerToken: number, reason = 'cancelled'): void {
     if (this.journeyV700PreparedWorldEnter?.ownerToken !== ownerToken) return;
     this.journeyV700PreparedWorldEnter = null;
+    this.releaseJourneyReturnPaintWarmLease(ownerToken, reason, true);
     emitIOSNativeDiagnostic('world-enter-preparation-cancelled', { ownerToken, reason });
+  }
+
+  private startJourneyReturnPaintWarm(
+    container: HTMLElement,
+    worldId: number,
+    ownerToken: number | null,
+    source: string,
+  ): void {
+    const preparedPlan = this.journeyV700PreparedWorldEnter;
+    const screen = document.getElementById('journey-screen') as HTMLElement | null;
+    if (!preparedPlan || !screen || !screen.isConnected) return;
+
+    this.releaseJourneyReturnPaintWarmLease(null, 'replacement', true);
+    const styleProperties = ['display', 'visibility', 'opacity', 'pointer-events', 'z-index', 'will-change'];
+    const previousStyles = Object.fromEntries(styleProperties.map((property) => [
+      property,
+      {
+        value: screen.style.getPropertyValue(property),
+        priority: screen.style.getPropertyPriority(property),
+      },
+    ]));
+    const lease: JourneyReturnPaintWarmLease = {
+      releasePreparation: beginScreenPreparation(screen),
+      ownerToken,
+      worldId,
+      renderGeneration: this.renderLifecycleGeneration,
+      screen,
+      previousHidden: screen.hidden,
+      previousHiddenClass: screen.classList.contains('hidden'),
+      previousShowClass: screen.classList.contains('show'),
+      previousStyles,
+      ready: false,
+    };
+    this.journeyReturnPaintWarmLease = lease;
+
+    // Match the accepted Hub -> World benchmark: keep the exact final World
+    // subtree connected and paintable at a visually imperceptible opacity while
+    // the opaque result overlay still owns the screen. This lets WKWebView pay
+    // image decode, layout, raster and compositor costs before the first Unit.
+    screen.hidden = false;
+    screen.removeAttribute('hidden');
+    screen.classList.remove('hidden');
+    screen.classList.add('show');
+    screen.style.setProperty('display', 'flex', 'important');
+    screen.style.setProperty('visibility', 'visible', 'important');
+    screen.style.setProperty('opacity', '0.001', 'important');
+    screen.style.setProperty('pointer-events', 'none', 'important');
+    screen.style.setProperty('z-index', '999999');
+    screen.style.setProperty('will-change', 'opacity');
+
+    const isCurrent = () => this.journeyReturnPaintWarmLease === lease
+      && this.journeyV700PreparedWorldEnter === preparedPlan
+      && lease.renderGeneration === this.renderLifecycleGeneration
+      && preparedPlan.ownerToken === ownerToken
+      && screen.isConnected
+      && container.isConnected
+      && preparedPlan.targets.every((target) => target.isConnected);
+
+    void (async () => {
+      const startedAt = performance.now();
+      try {
+        const images = Array.from(new Set(preparedPlan.targets.flatMap((target) => (
+          target instanceof HTMLImageElement
+            ? [target]
+            : Array.from(target.querySelectorAll<HTMLImageElement>('img'))
+        ))));
+        await Promise.all(images.map((image) => waitForImageReady(image)));
+        if (!isCurrent()) return;
+
+        void screen.getBoundingClientRect();
+        void container.getBoundingClientRect();
+        for (let frameIndex = 0; frameIndex < 3; frameIndex += 1) {
+          const painted = await this.waitForTrackedFrames(1);
+          if (!painted || !isCurrent()) return;
+        }
+        lease.ready = true;
+        emitIOSNativeDiagnostic('world-return-prepaint-painted', {
+          worldId,
+          source,
+          ownerToken,
+          imageCount: images.length,
+          targetCount: preparedPlan.targets.length,
+          durationMs: Math.round(performance.now() - startedAt),
+        });
+      } catch (error) {
+        if (!isCurrent()) return;
+        emitIOSNativeDiagnostic('world-return-prepaint-failed', {
+          worldId,
+          source,
+          ownerToken,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        this.releaseJourneyReturnPaintWarmLease(ownerToken, 'paint-warm-error', true);
+      }
+    })();
+  }
+
+  private releaseJourneyReturnPaintWarmLease(
+    ownerToken: number | null,
+    reason: string,
+    restore: boolean,
+  ): void {
+    const lease = this.journeyReturnPaintWarmLease;
+    if (!lease || (ownerToken !== null && lease.ownerToken !== ownerToken)) return;
+    this.journeyReturnPaintWarmLease = null;
+    lease.releasePreparation();
+    if (restore && lease.screen.isConnected) {
+      lease.screen.hidden = lease.previousHidden;
+      lease.screen.classList.toggle('hidden', lease.previousHiddenClass);
+      lease.screen.classList.toggle('show', lease.previousShowClass);
+      Object.entries(lease.previousStyles).forEach(([property, state]) => {
+        if (state.value) lease.screen.style.setProperty(property, state.value, state.priority);
+        else lease.screen.style.removeProperty(property);
+      });
+    }
+    emitIOSNativeDiagnostic('world-return-prepaint-released', {
+      worldId: lease.worldId,
+      ownerToken: lease.ownerToken,
+      reason,
+      ready: lease.ready,
+      restored: restore,
+    });
   }
 
   private playJourneyV700WorldEnter(
@@ -8846,6 +9048,8 @@ class JourneyBoardsManager {
     });
     markIOSJourneyRouteAudit(`journey-world-${worldId}-enter`);
     if (!units.length) {
+      this.journeyV700Phase = 'idle';
+      completeJourneyReturnTransition({ worldId, source, reason: 'no-units' });
       transitionPerformance.finish('no-units');
       return;
     }

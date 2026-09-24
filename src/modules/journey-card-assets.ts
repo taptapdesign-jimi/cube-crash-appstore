@@ -24,6 +24,7 @@ const AREA55_FIRST_BOARD = 21;
 const AREA55_LAST_BOARD = 30;
 const FOREST_CARD_ROOT = './assets/colelctibles/Forest';
 const AREA55_CARD_ROOT = './assets/colelctibles/Area55';
+const BEACH_CARD_ROOT = './assets/colelctibles/beach';
 const REDUNDANT_CARD_ROOT = './assets/redundant assets/collectible cards old';
 // Keep authored filenames immutable while progression reorders their Stages:
 // Weee-Beee uses authored 03, Shroomy uses authored 06 and Flying Tent uses authored 02.
@@ -57,28 +58,34 @@ export function resolveJourneyCardAsset(
 
   const isForest = world?.cardTheme === 'forest';
   const isArea55 = world?.cardTheme === 'area55';
-  if (isForest || isArea55) {
+  const isBeach = world?.cardTheme === 'beach';
+  if (isForest || isArea55 || isBeach) {
     const artStage = isForest
       ? FOREST_CARD_ART_STAGE_BY_STAGE[stageInWorld - 1] || stageInWorld
-      : AREA55_CARD_ART_STAGE_BY_STAGE[stageInWorld - 1] || stageInWorld;
+      : isArea55
+        ? AREA55_CARD_ART_STAGE_BY_STAGE[stageInWorld - 1] || stageInWorld
+        : stageInWorld;
     const paddedStage = String(artStage).padStart(2, '0');
     const rarity: JourneyCardRarity = getJourneyEarnedStars(highScore, safeBoardId) === 3
       ? 'legendary'
       : 'common';
     const filename = rarity === 'legendary' ? `${paddedStage}-gold` : paddedStage;
-    const root = isForest ? FOREST_CARD_ROOT : AREA55_CARD_ROOT;
+    const root = isForest ? FOREST_CARD_ROOT : isArea55 ? AREA55_CARD_ROOT : BEACH_CARD_ROOT;
     const base = `${root}/${rarity}/${filename}`;
     return {
       boardId: safeBoardId,
       stageInWorld,
       rarity,
       path1x: `${base}.png`,
-      path2x: `${base}@2x.png`,
+      path2x: isBeach && rarity === 'common' && stageInWorld === 6
+        ? `${root}/common/06@2x-1.png`
+        : isBeach && rarity === 'common' && stageInWorld === 9
+          ? `${root}/common/06@2x.png`
+          : `${base}@2x.png`,
     };
   }
 
-  // Beach retains its existing authored placeholders until it receives a
-  // dedicated common/legendary card pack.
+  // Preserve the fallback for future Worlds without a dedicated card pack.
   return {
     boardId: safeBoardId,
     stageInWorld,

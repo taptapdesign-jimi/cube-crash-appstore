@@ -73,13 +73,14 @@ export function scheduleJourneyReturnReveal(
 export function markJourneyReturnFirstUnitStart(detail: Record<string, unknown> = {}): void {
   if (!active || active.firstUnitStarted) return;
   active.firstUnitStarted = true;
-  const elapsedMs = Math.round(performance.now() - active.startedAt);
+  const resultToFirstUnitMs = active.resultExitCompletedAt === null
+    ? null
+    : Math.round(performance.now() - active.resultExitCompletedAt);
+  const postResultBudgetMs = 33;
   markJourneyReturnTransition('first-world-unit-start', {
-    resultToFirstUnitMs: active.resultExitCompletedAt === null
-      ? null
-      : Math.round(performance.now() - active.resultExitCompletedAt),
-    budgetMs: 1000,
-    withinBudget: elapsedMs <= 1000,
+    resultToFirstUnitMs,
+    budgetMs: postResultBudgetMs,
+    withinBudget: resultToFirstUnitMs !== null && resultToFirstUnitMs <= postResultBudgetMs,
     ...detail,
   });
 }

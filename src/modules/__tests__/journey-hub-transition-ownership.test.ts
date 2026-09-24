@@ -498,6 +498,13 @@ describe('Journey Hub transition ownership', () => {
     expect(journeyReturnTraceSource).toContain('cancelPreparedJourneyV700WorldEnter?.(');
     expect(prepareSource).toContain('existingPlan.ownerToken === ownerToken');
     expect(prepareSource).toContain('ownerToken,');
+    expect(prepareSource).toContain('this.startJourneyReturnPaintWarm(container, worldId, ownerToken, source)');
+    expect(prepareSource).toContain('this.renderBoards()');
+    expect(prepareSource).toContain('world-return-cold-render-behind-result');
+    expect(prepareSource).toContain('world-return-prime-missing-units');
+    expect(journeyManagerSource).toContain("screen.style.setProperty('opacity', '0.001', 'important')");
+    expect(journeyManagerSource).toContain('await Promise.all(images.map((image) => waitForImageReady(image)))');
+    expect(journeyManagerSource).toContain('for (let frameIndex = 0; frameIndex < 3; frameIndex += 1)');
     expect(journeyManagerSource).toContain(
       'if (this.journeyV700PreparedWorldEnter?.ownerToken !== ownerToken) return',
     );
