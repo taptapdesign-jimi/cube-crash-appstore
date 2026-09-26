@@ -47,6 +47,8 @@ describe('Area 55 alien beam animation ownership', () => {
     );
     expect(managerSource).toContain('setJourneyAlienBeamIdleReady(target, false)');
     expect(managerSource).toContain('setJourneyAlienBeamIdleReady(target, true)');
+    expect(managerSource).toContain('entry.runtimeActive\n            && !shouldSuspendJourneyUnitIdlePaint(snapshot)');
+    expect(managerSource).toContain('Match them to the same\n        // two-Unit mobile viewport budget');
   });
 
   it('clears stale cloud drift before the hidden return enter becomes visible', () => {

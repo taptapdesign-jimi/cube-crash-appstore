@@ -2,7 +2,9 @@ import {
   startSoundtrack, stopSoundtrack, resetSoundtrackForTests,
   beginGameplayTransitionFade, continueGameplayTransitionFade, completeGameplayTransitionFade,
   enterArcadeGameplaySoundtrack, promoteArcadeSoundtrackAfterMerge6,
+  fadeInAndResume,
   getSoundtrackRuntimeStats, SOUNDTRACK_GAMEPLAY_VOLUME,
+  ARCADE_SOUNDTRACK_ACTIVE_URL, ARCADE_SOUNDTRACK_CALM_URL,
 } from '../soundtrack-manager';
 
 class NativeParam {
@@ -121,6 +123,110 @@ describe('native soundtrack manager + transport ownership', () => {
     expect(getSoundtrackRuntimeStats().activeVoices).toBe(1);
     return NativeContext.instances[0];
   }
+
+  it.each(['visibility', 'native-active'] as const)('retires a hidden Arcade promotion and restores Active through %s', async (resumeOwner) => {
+    const context = await enterArcade();
+    promoteArcadeSoundtrackAfterMerge6();
+    const fetchCount = (global.fetch as jest.Mock).mock.calls.length;
+    visibility(true);
+    await advance(5000);
+    expect(global.fetch).toHaveBeenCalledTimes(fetchCount);
+    expect(context.sources.filter(source => source.active)).toHaveLength(0);
+
+    if (resumeOwner === 'native-active') {
+      window.dispatchEvent(new Event('cc:native-audio-active'));
+      expect(document.hidden).toBe(true);
+    } else visibility(false);
+    await flush();
+    expect(global.fetch).toHaveBeenLastCalledWith(
+      expect.stringContaining(ARCADE_SOUNDTRACK_ACTIVE_URL.replace(/^\.\//, '')),
+      { cache: 'force-cache' },
+    );
+    await advance(500);
+    expect(getSoundtrackRuntimeStats()).toMatchObject({ activeVoices: 1, retainedArcadeVoices: 1 });
+    expect(context.sources.filter(source => source.active)).toHaveLength(1);
+  });
+
+  it('defers a cold Arcade entry until visible without creating audio or fetching while hidden', async () => {
+    (window as any).__ccRunMode = 'arcade_home';
+    visibility(true);
+    enterArcadeGameplaySoundtrack();
+    await advance(5000);
+    expect(NativeContext.instances).toHaveLength(0);
+    expect(NativeMedia.instances).toHaveLength(0);
+    expect(global.fetch).not.toHaveBeenCalled();
+
+    visibility(false);
+    await flush();
+    expect(global.fetch).toHaveBeenLastCalledWith(
+      expect.stringContaining(ARCADE_SOUNDTRACK_CALM_URL.replace(/^\.\//, '')),
+      { cache: 'force-cache' },
+    );
+    await advance(500);
+    expect(getSoundtrackRuntimeStats()).toMatchObject({ activeVoices: 1, retainedArcadeVoices: 1 });
+  });
+
+  it('keeps a hidden new-round request silent and uses Calm on the next foreground', async () => {
+    const context = await enterArcade();
+    promoteArcadeSoundtrackAfterMerge6();
+    await advance(2200);
+    await advance(2200);
+    visibility(true);
+    const fetchCount = (global.fetch as jest.Mock).mock.calls.length;
+    const sourceCount = context.sources.length;
+    enterArcadeGameplaySoundtrack();
+    window.dispatchEvent(new Event('pageshow'));
+    await advance(5000);
+    expect(global.fetch).toHaveBeenCalledTimes(fetchCount);
+    expect(context.sources).toHaveLength(sourceCount);
+    expect(context.sources.filter(source => source.active)).toHaveLength(0);
+
+    visibility(false);
+    await flush();
+    expect(global.fetch).toHaveBeenLastCalledWith(
+      expect.stringContaining(ARCADE_SOUNDTRACK_CALM_URL.replace(/^\.\//, '')),
+      { cache: 'force-cache' },
+    );
+    await advance(500);
+    expect(getSoundtrackRuntimeStats()).toMatchObject({ activeVoices: 1, retainedArcadeVoices: 1 });
+    expect(context.sources.filter(source => source.active)).toHaveLength(1);
+  });
+
+  it.each(['visibility', 'native-active'] as const)('defers hidden async menu handoff and restores its theme through %s', async (resumeOwner) => {
+    const context = await enterArcade();
+    let completeRoute!: () => void;
+    const routeCompletion = new Promise<void>(resolve => { completeRoute = resolve; });
+    void routeCompletion.then(() => fadeInAndResume());
+    visibility(true);
+    const sourceCount = context.sources.length;
+    completeRoute();
+    await flush();
+    await advance(1000);
+    expect(context.sources).toHaveLength(sourceCount);
+    expect(context.sources.filter(source => source.active)).toHaveLength(0);
+
+    if (resumeOwner === 'native-active') {
+      window.dispatchEvent(new Event('cc:native-audio-active'));
+      expect(document.hidden).toBe(true);
+    } else visibility(false);
+    await flush();
+    await advance(500);
+    expect(context.sources).toHaveLength(sourceCount + 1);
+    expect(context.sources.filter(source => source.active)).toHaveLength(1);
+    expect(getSoundtrackRuntimeStats()).toMatchObject({ activeVoices: 1, retainedArcadeVoices: 0 });
+  });
+
+  it('retains a hidden cold menu-resume intent without allocating audio until foreground', async () => {
+    visibility(true);
+    fadeInAndResume();
+    await flush();
+    expect(NativeContext.instances).toHaveLength(0);
+    expect(global.fetch).not.toHaveBeenCalled();
+    visibility(false);
+    await flush();
+    expect(NativeContext.instances).toHaveLength(1);
+    expect(getSoundtrackRuntimeStats().activeVoices).toBe(1);
+  });
 
   it('uses the next gesture to resume an existing Arcade context after foreground rejection', async () => {
     const context = await enterArcade();

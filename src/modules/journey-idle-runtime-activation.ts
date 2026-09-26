@@ -16,6 +16,20 @@ export type JourneyIdleTransformReader = (
   axis: 'x' | 'y',
 ) => number;
 
+export function isJourneyRuntimeTargetNearViewport(
+  targetRect: Pick<DOMRect, 'top' | 'bottom' | 'left' | 'right' | 'width' | 'height'>,
+  viewportRect: Pick<DOMRect, 'top' | 'bottom' | 'left' | 'right'>,
+  marginPx = 160,
+): boolean {
+  const margin = Math.max(0, Number.isFinite(marginPx) ? marginPx : 0);
+  return targetRect.width > 1
+    && targetRect.height > 1
+    && targetRect.bottom >= viewportRect.top - margin
+    && targetRect.top <= viewportRect.bottom + margin
+    && targetRect.right >= viewportRect.left - margin
+    && targetRect.left <= viewportRect.right + margin;
+}
+
 export interface JourneyUnitIdlePaintSnapshot {
   paintSuspended: boolean;
   ambientScrollBoosted: boolean;

@@ -225,12 +225,12 @@ test('HTMLAudio fallback stays bounded, overlaps separate cues and stops on clea
   jest.mocked(playDecodedGameplaySound).mockReturnValue('unavailable');
   expect(preloadLaserGunMerge6Sounds()).toBe(true);
   expect(preloadLaserGunMerge6Sounds()).toBe(true);
-  expect(instances).toHaveLength(7);
+  expect(instances).toHaveLength(0);
   expect(playLaserGunMerge6AddonSounds()).toBe(true);
   expect(playLaserGunStagePreparationSound(0)).toBe(true);
   expect(playLaserGunBeamSound(0)).toBe(true);
   expect(playLaserGunChangedCubeSound(3)).toBe(true);
-  expect(instances).toHaveLength(14);
+  expect(instances).toHaveLength(7);
   stopLaserGunMerge6Sounds();
   instances.forEach((audio) => expect(audio.pause).toHaveBeenCalled());
 });
@@ -244,4 +244,21 @@ test('connects merge, stage entry, beam launch, changed-cube and cleanup boundar
   expect(scene.match(/playLaserGunStagePreparationSound\(shot\.index\);/g)).toHaveLength(1);
   expect(scene.match(/playLaserGunBeamSound\(shot\.index\);/g)).toHaveLength(1);
   expect(scene).toContain('stopLaserGunFinaleSounds();');
+});
+
+test('deferred unavailability allocates only the requested live cue; retired requests allocate nothing', () => {
+  const create = jest.spyOn(window, 'Audio').mockImplementation(() => ({
+    play: jest.fn(() => Promise.resolve()), pause: jest.fn(),
+  }) as unknown as HTMLAudioElement);
+  jest.mocked(preloadDecodedGameplaySounds).mockReturnValue(false);
+  jest.mocked(playDecodedGameplaySound).mockReturnValue('pending');
+  preloadLaserGunMerge6Sounds();
+  playLaserGunMerge6AddonSounds();
+  expect(create).not.toHaveBeenCalled();
+  const callbacks = jest.mocked(playDecodedGameplaySound).mock.calls.map(([, options]) => options.onDeferredUnavailable);
+  callbacks[0]?.();
+  expect(create).toHaveBeenCalledTimes(1);
+  stopLaserGunMerge6Sounds();
+  callbacks.slice(1).forEach(callback => callback?.());
+  expect(create).toHaveBeenCalledTimes(1);
 });

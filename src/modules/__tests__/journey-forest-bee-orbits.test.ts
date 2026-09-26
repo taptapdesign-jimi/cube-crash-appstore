@@ -225,7 +225,7 @@ describe('Journey Forest bee canvas flights', () => {
     expect(canvases.every((canvas) => canvas.style.height === '1004px')).toBe(true);
     expect(canvases.every((canvas) => canvas.width === 488 && canvas.height === 1255)).toBe(true);
     controller.setScrollCadenceBoosted(true);
-    expect(controller.getSnapshot()).toMatchObject({ maxFramesPerSecond: 60 });
+    expect(controller.getSnapshot()).toMatchObject({ maxFramesPerSecond: 30 });
     controller.setScrollCadenceBoosted(false);
     expect(controller.getSnapshot()).toMatchObject({ maxFramesPerSecond: 30 });
 

@@ -171,8 +171,46 @@ if (!sourceOnly) {
     const webViewCreation = controllerText.indexOf('webView = WKWebView(');
     requireCondition(textInteractionPolicy >= 0 && textInteractionPolicy < webViewCreation,
       'game WebView must disable native text selection before creation to avoid editing gestures during gameplay');
-    requireCondition(controllerText.includes('if Self.performanceDiagnosticsEnabled {\n            startNativeThermalTelemetry()'), 'native thermal telemetry must run only in performance diagnostics mode');
+    requireCondition(controllerText.includes('private static var nativeThermalTelemetryEnabled: Bool {')
+      && controllerText.includes('ProcessInfo.processInfo.arguments.contains("--cc-native-thermal-telemetry")')
+      && controllerText.includes('if Self.nativeThermalTelemetryEnabled {\n            startNativeThermalTelemetry()'),
+    'native thermal telemetry must require performance diagnostics or the explicit native-only launch flag');
+    requireCondition(controllerText.includes('if Self.performanceDiagnosticsEnabled {\n            userContentController.add(self, name: "consoleLog")\n            userContentController.addUserScript(Self.makePerformanceDiagnosticsFlagScript())'),
+    'native-only thermal telemetry must not enable the JavaScript console bridge or compact web sampler');
+    requireCondition(controllerText.includes('ProcessInfo.processInfo.arguments.contains("--cc-passive-audio-isolation")')
+      && controllerText.includes('window.__ccThermalAudioIsolationAvailable = true;')
+      && controllerText.includes('window.__ccThermalAudioSuppressedOnLaunch = true;'),
+    'passive audio isolation must require its explicit native launch flag and suppress audio before web startup');
+    requireCondition(!controllerText.includes('window.__ccPerformanceDiagnostics = true;\n          window.__ccThermalAudioIsolationAvailable = true;'),
+    'passive audio isolation must not enable the JavaScript performance sampler');
+    requireCondition(controllerText.includes('ProcessInfo.processInfo.arguments.contains("--cc-passive-special-sheets-isolation")')
+      && controllerText.includes('window.__ccThermalSpecialSheetsSuppressedOnLaunch = true;'),
+    'passive Special-sheet isolation must require its explicit native launch flag');
+    requireCondition(controllerText.includes('private static let thermalSampleFileLimit = 720')
+      && controllerText.includes('private static let thermalSampleSessionLimit = 8')
+      && controllerText.includes('CCNativeThermal')
+      && controllerText.includes('persistNativeThermalSample(json)')
+      && controllerText.includes('[CC_NATIVE_THERMAL_FILE]')
+      && controllerText.includes('"sequence": thermalSampleSequence')
+      && controllerText.includes('"appBuild": Bundle.main.object')
+      && controllerText.includes('"performanceDiagnosticsEnabled": Self.performanceDiagnosticsEnabled')
+      && controllerText.includes('"passiveAudioIsolationEnabled": Self.passiveAudioIsolationEnabled')
+      && controllerText.includes('"passiveSpecialSheetsIsolationEnabled": Self.passiveSpecialSheetsIsolationEnabled')
+      && controllerText.includes('sample limit reached'),
+    'native thermal telemetry must persist bounded on-device JSONL sessions when the console transport disconnects');
     requireCondition(controllerText.includes('window.__ccPerformanceDiagnostics = true'), 'performance diagnostics mode must enable the compact web sampler');
+    requireCondition(controllerText.includes('private lazy var impactFeedbackGenerators')
+      && controllerText.includes('private lazy var selectionFeedbackGenerator')
+      && controllerText.includes('private lazy var notificationFeedbackGenerator'),
+    'native haptic bridge must reuse feedback generators instead of allocating one per request');
+    requireCondition(controllerText.includes('--cc-thermal-haptics-isolated')
+      && controllerText.includes('hapticIsolationEnabled')
+      && controllerText.includes('hapticSuppressedRequests'),
+    'native performance diagnostics must support measured haptic isolation with cumulative counters');
+    requireCondition(!controllerText.includes('Haptic impact triggered:')
+      && !controllerText.includes('Haptic selection triggered')
+      && !controllerText.includes('Haptic notification triggered:'),
+    'native performance diagnostics must not synchronously log every haptic request');
     requireCondition(controllerText.includes('import AVFAudio')
       && controllerText.includes('AVAudioSession.sharedInstance()')
       && controllerText.includes('UIApplication.didBecomeActiveNotification'),

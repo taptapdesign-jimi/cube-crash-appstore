@@ -70,7 +70,7 @@ function createSpawnForeground(
     if (!handingOff) sprite.renderable = false;
   };
 
-  const lease = acquireAnimatedSpecialArtworkLayer(sync);
+  const lease = acquireAnimatedSpecialArtworkLayer(sync, undefined, release);
   const parent = lease && getRoot();
   if (!lease || !parent) {
     lease?.release();
@@ -100,7 +100,7 @@ function createSpawnForeground(
   }
   lease.requestSync();
 
-  const release = () => {
+  function release(): void {
     if (released) return;
     released = true;
     detachRenderObserver?.();
@@ -113,10 +113,10 @@ function createSpawnForeground(
     images.clear();
     // Once handed to idle, renderability belongs to its replacement artwork.
     if (!handingOff && !sprite.destroyed) sprite.renderable = true;
-    lease.release();
+    lease?.release();
     handoffComplete?.();
     handoffComplete = undefined;
-  };
+  }
 
   return {
     setFrame: (source) => {

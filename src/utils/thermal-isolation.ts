@@ -6,6 +6,11 @@ let stopCurrent: (() => void) | null = null;
 
 /** Called at visual owners, never at gameplay commit/cleanup boundaries. */
 export function isThermalWorkSuppressed(group: ThermalIsolationGroup): boolean {
+  if (group === 'sheets'
+    && typeof window !== 'undefined'
+    && (window as any).__ccThermalSpecialSheetsSuppressedOnLaunch === true) {
+    return true;
+  }
   if (!active) return false;
   const count = active.counts[group] ?? (active.counts[group] = { calls: 0, suppressed: 0 });
   count.calls++;

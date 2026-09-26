@@ -1,3 +1,4 @@
+import * as idleVisibility from '../special-dice-idle-visibility';
 import * as foreground from '../wild-star-orbit-foreground';
 import { STATE } from '../app-state';
 import { getAnimatedDiceHudForegroundStats, resetAnimatedDiceHudForegroundForTests } from '../animated-dice-hud-foreground';
@@ -19,6 +20,7 @@ new Function('require', 'exports', compiled)((id: string) => {
   if (id === 'pixi.js') return pixi;
   if (id === 'gsap') return { gsap };
   if (id.includes('special-dice-registry')) return registry;
+  if (id.includes('special-dice-idle-visibility')) return idleVisibility;
   if (id.includes('run-mode')) return runMode;
   if (id.includes('wild-star-orbit-foreground')) return foreground;
   throw new Error(`Unexpected dependency: ${id}`);
@@ -51,6 +53,11 @@ it('preserves halo ownership while hidden, resumes motion and removes the last t
     expect(system.container.parent.label).toBe('wild-star-orbit-foreground');
     const pose = () => system.stars.map(({ sprite, angle }: any) => [sprite.x, sprite.y, sprite.scale.x, sprite.alpha, angle]);
     const initial = pose();
+    tile.alpha = 0;
+    now += 40;
+    tick!();
+    expect(pose()).toEqual(initial);
+    tile.alpha = 1;
     hidden = true;
     now += 10000;
     tick!();

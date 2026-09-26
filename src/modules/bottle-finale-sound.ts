@@ -160,7 +160,7 @@ export function preloadBottleFinaleSounds(): boolean {
 export function playBottleFinaleSound(cue: BottleFinaleSoundCue): boolean {
   if (!areBottleFinaleSoundsEnabled()) return false;
   const config = CUE_CONFIG[cue];
-  const decodedState = getDecodedGameplaySoundsState(BOTTLE_FINALE_SOUND_SOURCES);
+  const decodedState = getDecodedGameplaySoundsState([config.source]);
   if (decodedState !== 'unavailable') {
     return playDecodedGameplaySound(config.source, {
       voiceId: config.voiceId,

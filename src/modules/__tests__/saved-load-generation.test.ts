@@ -29,6 +29,7 @@ function fixture() {
     restoreBasicState: jest.fn(() => ({ boardNumber: 1, savedStarsCount: 0 })),
     ensureDragReadyAndRebind: jest.fn(async () => true),
     layoutAndRestoreStars: jest.fn(async () => {}),
+    awaitCoreTextureRecoveryForEntry: jest.fn(async () => true),
     handleEmptyLoadState: () => ({ handled: false }), tileIsActive: () => true,
     prepareGameplayEntryCommit: jest.fn(() => Promise.resolve()),
     logger: { warn: jest.fn(), error: jest.fn() },
@@ -205,7 +206,9 @@ describe('saved board load generation boundaries', () => {
     const vars = ['loadIsCurrent', 'layoutStageOwner', 'layoutBoardOwner', 'layoutHudOwner', 'layoutRunGeneration', 'layoutEntryGeneration', 'layoutMode', 'isCurrentLayout'];
     const prefix = layout.body!.statements.filter((node) => ts.isVariableStatement(node) && vars.includes(node.declarationList.declarations[0].name.getText(source))).map((node) => node.getText(source)).join('\n');
     const matches: ts.TryStatement[] = [];
-    const needle = boundary === 'fonts' ? 'await ensureFonts()' : `await ensureCoreGameTexturesLoaded('${boundary}')`;
+    const needle = boundary === 'fonts'
+      ? 'await ensureFonts()'
+      : `await ensureCoreGameTexturesLoaded('${boundary}',`;
     const visit = (node: ts.Node) => { if (ts.isTryStatement(node) && node.getText(source).includes(needle)) matches.push(node); ts.forEachChild(node, visit); };
     visit(layout);
     const smallest = matches.sort((a, b) => a.getWidth(source) - b.getWidth(source))[0];

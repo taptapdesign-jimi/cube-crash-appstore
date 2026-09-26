@@ -94,6 +94,7 @@ describe('Magnet pull force sound', () => {
     (window as any)._settings.gameSoundsEnabled = false;
     expect(playMagnetPullForceSounds()).toBe(false);
     const uiManager = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/ui-manager.ts'), 'utf8');
-    expect(uiManager).toContain("import('./magnet-pull-force-sound.ts').then(({ stopMagnetPullForceSounds }) => {");
+    expect(uiManager).toContain('applyGameSoundsSettingToAudio(enabled)');
+    expect(fs.readFileSync('src/modules/gameplay-sound-owner-registry.ts', 'utf8')).toContain('magnet-pull-force-sound');
   });
 });

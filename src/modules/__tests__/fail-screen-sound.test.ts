@@ -134,8 +134,9 @@ describe('Fail Screen sounds', () => {
     expect(owner).toContain('if (_activeModalPromise) {');
     expect(owner).toContain('return _activeModalPromise;');
     const settingsOwner = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/ui-manager.ts'), 'utf8');
-    expect(settingsOwner).toContain("import('./fail-screen-sound.ts').then(({ stopFailScreenSounds }) => {");
-    expect(settingsOwner).toContain('stopFailScreenSounds();');
+    expect(settingsOwner).toContain('applyGameSoundsSettingToAudio(enabled)');
+    expect(fs.readFileSync('src/modules/gameplay-sound-owner-registry.ts', 'utf8')).toContain('stopFailScreenSounds');
+
     (window as any)._settings.gameSoundsEnabled = false;
     expect(preloadFailScreenSounds()).toBe(false);
     expect(playFailScreenSaxophoneSound()).toBe(false);

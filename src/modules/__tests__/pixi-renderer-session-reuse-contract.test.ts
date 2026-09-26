@@ -12,6 +12,10 @@ test('ordinary menu exit suspends the Pixi renderer instead of destroying its We
   expect(core).toContain('if (destroyRenderer) {\n      try {\n        destroyWildJuiceBubblesExplosionCache?.();');
   expect(core).toContain('if (destroyRenderer) {\n    void retireTntFrameCache()');
   expect(core).toContain('PIXI renderer session suspended for menu reuse');
+  const cleanup = core.split('export function cleanupGame(')[1] ?? '';
+  expect(cleanup.indexOf('tiles.length = 0;')).toBeLessThan(
+    cleanup.indexOf('void releaseIdleSharedPixiSheets()'),
+  );
   expect(core).toContain("app.canvas.style.visibility = 'hidden'");
   expect(core).toContain('drag = null as any');
   expect(core).toContain('if (!reuseApp) app.ticker.add(onFirstFrame);');

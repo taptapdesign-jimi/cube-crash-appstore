@@ -2,12 +2,31 @@
 
 import {
   captureJourneyIdleRuntimeSuspension,
+  isJourneyRuntimeTargetNearViewport,
   shouldSuspendJourneyUnitIdlePaint,
   updateJourneyIdleRuntimeActivation,
 } from '../journey-idle-runtime-activation';
 import { readJourneyRenderedTransformAxis } from '../journey-world-animation-coordinator';
 
 describe('Journey idle runtime activation handoff', () => {
+  test('culls zero-size and offscreen interim work while keeping the near viewport margin', () => {
+    const viewport = { top: 0, bottom: 800, left: 0, right: 390 };
+    expect(isJourneyRuntimeTargetNearViewport(
+      { top: 820, bottom: 970, left: 40, right: 150, width: 110, height: 150 },
+      viewport,
+      160,
+    )).toBe(true);
+    expect(isJourneyRuntimeTargetNearViewport(
+      { top: 1200, bottom: 1350, left: 40, right: 150, width: 110, height: 150 },
+      viewport,
+      160,
+    )).toBe(false);
+    expect(isJourneyRuntimeTargetNearViewport(
+      { top: 100, bottom: 100, left: 40, right: 40, width: 0, height: 0 },
+      viewport,
+    )).toBe(false);
+  });
+
   test('reads the painted matrix instead of a stale animation-library translation cache', () => {
     const target = document.createElement('div');
     document.body.appendChild(target);

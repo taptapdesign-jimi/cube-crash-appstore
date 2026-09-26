@@ -829,8 +829,11 @@ export function startJourneyForestBeeOrbits(
 
   const controller: JourneyForestBeeOrbitController = {
     setSuspended: (nextSuspended) => runtime.setSuspended(nextSuspended),
-    setScrollCadenceBoosted: (boosted) => {
-      runtime.setMaxFramesPerSecond(boosted ? 60 : runtimeProfile.maxFramesPerSecond);
+    // Native scrolling already moves the canvas with the page. Repainting the
+    // two viewport layers at 60 Hz during that scroll only doubles ambient
+    // work, so Forest now stays inside the shared Journey visual budget.
+    setScrollCadenceBoosted: (_boosted) => {
+      runtime.setMaxFramesPerSecond(runtimeProfile.maxFramesPerSecond);
     },
     fadeOutAndDispose: (durationMs) => runtime.fadeOut(durationMs, () => controller.dispose()),
     dispose: () => {

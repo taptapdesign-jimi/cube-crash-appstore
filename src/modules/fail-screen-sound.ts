@@ -25,6 +25,7 @@ const FAIL_SCREEN_SAXOPHONE_VOICE_ID = 'fail-screen-saxophone';
 const mediaAudioByVoiceId = new Map<string, {
   source: string;
   audio: HTMLAudioElement;
+  generation: number;
   onStopped?: () => void;
 }>();
 
@@ -52,7 +53,7 @@ function getMediaAudio(source: string, voiceId: string): HTMLAudioElement | null
   const audio = new Audio(source);
   audio.preload = 'auto';
   try { audio.load(); } catch {}
-  mediaAudioByVoiceId.set(voiceId, { source, audio });
+  mediaAudioByVoiceId.set(voiceId, { source, audio, generation: 0 });
   return audio;
 }
 
@@ -133,23 +134,26 @@ function playFailScreenSaxophoneMediaFallback(
     lifecycle.onUnavailable?.();
     return false;
   }
+  const entry = mediaAudioByVoiceId.get(FAIL_SCREEN_SAXOPHONE_VOICE_ID)!;
+  const generation = ++entry.generation;
+  const isCurrent = () => mediaAudioByVoiceId.get(FAIL_SCREEN_SAXOPHONE_VOICE_ID) === entry
+    && entry.generation === generation;
   try {
-    const entry = mediaAudioByVoiceId.get(FAIL_SCREEN_SAXOPHONE_VOICE_ID);
-    if (entry) entry.onStopped = lifecycle.onStopped;
+    entry.onStopped = lifecycle.onStopped;
     audio.pause();
     audio.volume = FAIL_SCREEN_SAXOPHONE_VOLUME;
     audio.currentTime = 0;
     audio.onended = () => {
-      const activeEntry = mediaAudioByVoiceId.get(FAIL_SCREEN_SAXOPHONE_VOICE_ID);
-      if (activeEntry?.audio === audio) activeEntry.onStopped = undefined;
+      if (!isCurrent()) return;
+      entry.onStopped = undefined;
       lifecycle.onEnded?.();
     };
     const playResult = audio.play();
     if (playResult && typeof playResult.then === 'function') {
-      void playResult.then(() => lifecycle.onStarted?.()).catch((error) => {
+      void playResult.then(() => { if (isCurrent()) lifecycle.onStarted?.(); }).catch((error) => {
+        if (!isCurrent()) return;
         audio.onended = null;
-        const activeEntry = mediaAudioByVoiceId.get(FAIL_SCREEN_SAXOPHONE_VOICE_ID);
-        if (activeEntry?.audio === audio) activeEntry.onStopped = undefined;
+        entry.onStopped = undefined;
         logger.warn('Failed to play Fail Screen saxophone:', error);
         lifecycle.onUnavailable?.();
       });
@@ -158,9 +162,9 @@ function playFailScreenSaxophoneMediaFallback(
     }
     return true;
   } catch (error) {
+    if (!isCurrent()) return false;
     audio.onended = null;
-    const activeEntry = mediaAudioByVoiceId.get(FAIL_SCREEN_SAXOPHONE_VOICE_ID);
-    if (activeEntry?.audio === audio) activeEntry.onStopped = undefined;
+    entry.onStopped = undefined;
     logger.warn('Failed to start Fail Screen saxophone:', error);
     lifecycle.onUnavailable?.();
     return false;
@@ -172,6 +176,9 @@ function stopMediaAudioVoices(voiceIds: readonly string[]): void {
     const entry = mediaAudioByVoiceId.get(voiceId);
     const audio = entry?.audio;
     if (!audio) return;
+    // pause() may reject an earlier play promise after this retained element
+    // already belongs to the next result. Retire that receipt synchronously.
+    entry.generation++;
     const onStopped = entry.onStopped;
     entry.onStopped = undefined;
     try { audio.onended = null; audio.pause(); audio.currentTime = 0; } catch {}

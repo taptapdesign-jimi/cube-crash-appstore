@@ -68,7 +68,7 @@ function playLayers(
   voiceOffset: number,
 ): boolean {
   if (!areSoundsEnabled()) return false;
-  const decodedState = getDecodedGameplaySoundsState(ALL_SOURCES);
+  const decodedState = getDecodedGameplaySoundsState(sources);
   if (decodedState !== 'unavailable') {
     const results = sources.map((source, index) => playDecodedGameplaySound(source, {
       voiceId: VOICE_IDS[voiceOffset + index],

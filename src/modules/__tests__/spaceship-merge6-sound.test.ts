@@ -168,12 +168,12 @@ test('HTMLAudio fallback is bounded, overlaps layers and stops every owned voice
   jest.mocked(playDecodedGameplaySound).mockReturnValue('unavailable');
   expect(preloadSpaceshipMerge6Sounds()).toBe(true);
   expect(preloadSpaceshipMerge6Sounds()).toBe(true);
-  expect(instances).toHaveLength(allCues.length);
+  expect(instances).toHaveLength(0);
   expect(playSpaceshipMerge6AddonSounds()).toBe(true);
   expect(playSpaceshipFinaleStartSounds()).toBe(true);
   expect(playSpaceshipBeamStartSounds()).toBe(true);
   expect(playSpaceshipExitSound()).toBe(true);
-  expect(instances).toHaveLength(allCues.length * 2);
+  expect(instances).toHaveLength(allCues.length);
   stopSpaceshipMerge6Sounds();
   instances.forEach((audio) => expect(audio.pause).toHaveBeenCalled());
 });
@@ -188,4 +188,21 @@ test('connects merge, scene start, exact beam-light and cleanup boundaries', () 
   expect(scene).toContain('if (!disposed) playSpaceshipExitSound();');
   expect(scene).toContain('}, undefined, SPACESHIP_SAUCER_EXIT_AT_SECONDS);');
   expect(scene).toContain('stopSpaceshipFinaleSounds();');
+});
+
+test('deferred unavailability allocates only the requested live cue; retired requests allocate nothing', () => {
+  const create = jest.spyOn(window, 'Audio').mockImplementation(() => ({
+    play: jest.fn(() => Promise.resolve()), pause: jest.fn(),
+  }) as unknown as HTMLAudioElement);
+  jest.mocked(preloadDecodedGameplaySounds).mockReturnValue(false);
+  jest.mocked(playDecodedGameplaySound).mockReturnValue('pending');
+  preloadSpaceshipMerge6Sounds();
+  playSpaceshipMerge6AddonSounds();
+  expect(create).not.toHaveBeenCalled();
+  const callbacks = jest.mocked(playDecodedGameplaySound).mock.calls.map(([, options]) => options.onDeferredUnavailable);
+  callbacks[0]?.();
+  expect(create).toHaveBeenCalledTimes(1);
+  stopSpaceshipMerge6Sounds();
+  callbacks.slice(1).forEach(callback => callback?.());
+  expect(create).toHaveBeenCalledTimes(1);
 });

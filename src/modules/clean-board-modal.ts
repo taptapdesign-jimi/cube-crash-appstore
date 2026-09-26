@@ -18,7 +18,7 @@ import { arcadeStatsService } from '../services/arcade-stats-service.js';
 import { pickRandom } from './clean-board-utils.js';
 import { formatScoreSimple } from './hud-utils.js';
 import { clearPendingCleanBoard } from './board-recovery.js';
-import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
+import { createResultModalLifetime, type ResultModalLifetime } from './result-modal-lifetime.js';
 import { getOriginalGsapTo, getOriginalGsapTimeline } from './drag-core.js';
 import { getRunMode, isArcadeHomeRunMode, RUN_MODE_JOURNEY } from './run-mode.js';
 import { isJourneyInterimOriginActive, markJourneyGameOrigin } from './journey-origin-state.js';
@@ -59,6 +59,8 @@ import {
   cancelJourneyReturnTransition,
   markJourneyReturnTransition,
   prepareJourneyReturnBehindTerminalOverlay,
+  measureJourneyReturnPreparationPhase,
+  finishJourneyReturnCtaSetup,
 } from './journey-return-transition-trace.ts';
 import { freezeCleanBoardStarRenderedScale } from './clean-board-star-transform.ts';
 
@@ -93,7 +95,7 @@ const trackTween = (target: any, vars: any) => {
 };
 
 
-const lifecycle = createScreenLifecycle('clean-board-modal');
+let activeCleanBoardModal: { lifetime: ResultModalLifetime; abort: () => void } | null = null;
 
 interface ShowCleanBoardModalParams {
   app?: any;
@@ -120,11 +122,6 @@ export interface CleanBoardModalResult {
 
 // 🔥 REFACTORED: Koristimo pickRandom iz clean-board-utils.ts umjesto lokalne verzije
 
-// 🔥 MEMORY LEAK FIX: Track all timeouts for cleanup
-const _modalTimeouts: Set<NodeJS.Timeout> = new Set();
-// 🔥 MEMORY LEAK FIX: Track all requestAnimationFrame callbacks for cleanup
-const _modalAnimationFrames: Set<number> = new Set();
-let _modalCleanupInProgress = false;
 const CLEAN_BOARD_COUNTER_HAPTIC_INTERVAL_MS = 65;
 
 function triggerHapticImpactSafe(kind: 'light' | 'medium' | 'heavy'): void {
@@ -166,116 +163,24 @@ function createCounterLightHapticTrigger(minIntervalMs = CLEAN_BOARD_COUNTER_HAP
   };
 }
 
-function trackTimeout(callback: () => void, delay: number): NodeJS.Timeout {
-  if (_modalCleanupInProgress) {
-    const noop = setTimeout(() => {}, 0);
-    clearTimeout(noop);
-    return noop;
+// Compatibility entry points always delegate to the current presentation owner.
+export function clearAllModalTimeouts(): void {
+  activeCleanBoardModal?.lifetime.clearTimeouts();
+}
+
+export function clearAllModalAnimationFrames(): void {
+  activeCleanBoardModal?.lifetime.clearFrames();
+}
+
+export function cleanupCleanBoardModalLifecycle(): void {
+  if (activeCleanBoardModal) {
+    activeCleanBoardModal.abort();
+    return;
   }
-  const timeout = setTimeout(() => {
-    callback();
-    _modalTimeouts.delete(timeout);
-  }, delay);
-  _modalTimeouts.add(timeout);
-  return timeout;
-}
-
-function trackAnimationFrame(callback: FrameRequestCallback): number {
-  if (_modalCleanupInProgress) return 0;
-  const rafId = requestAnimationFrame((now: number) => {
-    callback(now);
-    _modalAnimationFrames.delete(rafId);
-  });
-  _modalAnimationFrames.add(rafId);
-  return rafId;
-}
-
-export function clearAllModalTimeouts() {
-  console.log(`🧹 Clearing ${_modalTimeouts.size} pending timeouts from clean-board-modal`);
-  _modalTimeouts.forEach(timeout => clearTimeout(timeout));
-  _modalTimeouts.clear();
-}
-
-export function clearAllModalAnimationFrames() {
-  console.log(`🧹 Clearing ${_modalAnimationFrames.size} pending animation frames from clean-board-modal`);
-  _modalAnimationFrames.forEach(rafId => cancelAnimationFrame(rafId));
-  _modalAnimationFrames.clear();
-}
-
-export function cleanupCleanBoardModalLifecycle() {
-  try {
-    _modalCleanupInProgress = true;
-    clearAllModalTimeouts();
-    clearAllModalAnimationFrames();
-    stopCleanBoardArea55ShipFlybys();
-    cleanupConfetti();
-  } catch {}
-  lifecycle.cleanup();
+  stopCleanBoardArea55ShipFlybys();
+  cleanupConfetti();
   stopCleanBoardSounds();
-  _navigationCleanupAttached = false;
 }
-
-// 🔥 FIX: Add navigation/visibility cleanup to prevent memory leaks
-// When user navigates away or page becomes hidden, clean up all pending operations
-let _navigationCleanupAttached = false;
-
-function attachNavigationCleanup(): void {
-  if (_navigationCleanupAttached) return;
-  _navigationCleanupAttached = true;
-  
-  // Full cleanup: remove overlay, clear timeouts, etc. (for beforeunload, cc-navigation)
-  const fullCleanup = () => {
-    _modalCleanupInProgress = true;
-    console.log('🧹 Clean board modal: Navigation/visibility cleanup triggered');
-    clearAllModalTimeouts();
-    clearAllModalAnimationFrames();
-    stopCleanBoardSounds();
-    stopCleanBoardArea55ShipFlybys();
-    try {
-      const overlay = document.getElementById('cc-clean-board-overlay');
-      if (overlay) {
-        overlay.setAttribute('data-clean-board-exiting', 'true');
-        (overlay as HTMLElement).style.pointerEvents = 'none';
-        (overlay as HTMLElement).style.opacity = '0';
-        overlay.remove();
-        console.log('🧹 Clean board modal: Overlay removed during navigation cleanup');
-      }
-    } catch {}
-    try {
-      const styleTag = document.getElementById('clean-board-star-animations');
-      if (styleTag) {
-        styleTag.remove();
-        console.log('🧹 Clean board modal: Style tag removed during navigation cleanup');
-      }
-    } catch {}
-  };
-  
-  // On visibility hidden: only clear timeouts/animations, do NOT remove overlay
-  // User may have switched tabs briefly – when they return, modal should still be visible
-  lifecycle.trackListener(document, 'visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-      const overlay = document.getElementById('cc-clean-board-overlay');
-      if (overlay?.getAttribute('data-clean-board-exiting') === 'true') {
-        // Exit promises are driven by these tracked timers/frames. Cancelling
-        // them while iOS backgrounds the app would strand the sole exit owner
-        // and leave the next foreground session between Arcade and Homepage.
-        return;
-      }
-      clearAllModalTimeouts();
-      clearAllModalAnimationFrames();
-      // Don't remove overlay – user will see modal when they come back
-    }
-  });
-  
-  // Clean up when page is unloaded
-  lifecycle.trackListener(window, 'beforeunload', fullCleanup);
-  
-  // Clean up when navigating within app (custom event)
-  lifecycle.trackListener(window, 'cc-navigation', fullCleanup);
-}
-
-// Attach cleanup handlers on module load
-attachNavigationCleanup();
 
 export async function showCleanBoardModal({
   app, 
@@ -295,8 +200,35 @@ export async function showCleanBoardModal({
   arcadeRunReached = false
 }: ShowCleanBoardModalParams = {}): Promise<CleanBoardModalResult> {
   return new Promise((resolve) => {
-    _modalCleanupInProgress = false;
-    attachNavigationCleanup();
+    activeCleanBoardModal?.abort();
+    const lifetime = createResultModalLifetime();
+    const trackTimeout = lifetime.timeout;
+    const trackAnimationFrame = lifetime.frame;
+    // Local aliases prevent late callbacks from clearing a newer result.
+    const clearAllModalTimeouts = lifetime.clearTimeouts;
+    const clearAllModalAnimationFrames = lifetime.clearFrames;
+    const ctaControllers: CtaController[] = [];
+    const disposeCtas = () => {
+      ctaControllers.splice(0).forEach(controller => controller.dispose());
+    };
+    let retirePresentation = () => {};
+    let ownedOverlay: HTMLElement | null = null;
+    let ownedStyleTag: HTMLElement | null = null;
+    const presentation = { lifetime, abort: () => navigationAbortHandler?.() };
+    activeCleanBoardModal = presentation;
+    lifetime.onDispose(() => {
+      try { disposeCtas(); } catch {}
+      try { retirePresentation(); } catch {}
+      try { stopCleanBoardArea55ShipFlybys(); } catch {}
+      try { cleanupConfetti(); } catch {}
+      try { stopCleanBoardSounds(); } catch {}
+      if (ownedOverlay) {
+        try { gsap.killTweensOf([ownedOverlay, ...Array.from(ownedOverlay.querySelectorAll('*'))]); } catch {}
+        ownedOverlay.remove();
+      }
+      ownedStyleTag?.remove();
+      if (activeCleanBoardModal === presentation) activeCleanBoardModal = null;
+    });
     let settled = false;
     let journeyReturnTransitionId: number | null = null;
     let navigationAbortHandler: (() => void) | null = null;
@@ -311,6 +243,7 @@ export async function showCleanBoardModal({
     ) => {
       if (settled) return;
       settled = true;
+      lifetime.dispose();
       delete (window as any).__ccTerminalExitInProgress;
       if (navigationAbortHandler) {
         try { window.removeEventListener('cc-navigation', navigationAbortHandler); } catch {}
@@ -322,14 +255,21 @@ export async function showCleanBoardModal({
       // Navigation owns the destination now. Resolve the modal promise as an
       // abort so the suspended endgame flow cannot resume later when the card
       // modal closes and reveal a stale Clean Board final state.
+      if (settled) return;
       resolveNavigationAbort();
       try { abortStarAnimations(); } catch {}
-      try { cleanupCleanBoardModalLifecycle(); } catch {}
-      try { document.getElementById('cc-clean-board-overlay')?.remove(); } catch {}
       cancelJourneyReturnTransition(journeyReturnTransitionId, 'navigation-abort');
       safeResolve('__navigation-abort__');
     };
     window.addEventListener('cc-navigation', navigationAbortHandler, { once: true });
+    window.addEventListener('beforeunload', presentation.abort);
+    const onVisibility = () => lifetime.setSuspended(document.hidden);
+    document.addEventListener('visibilitychange', onVisibility);
+    lifetime.setSuspended(document.hidden);
+    lifetime.onDispose(() => {
+      window.removeEventListener('beforeunload', presentation.abort);
+      document.removeEventListener('visibilitychange', onVisibility);
+    });
     const run = async () => {
       try {
     preloadCleanBoardSounds();
@@ -345,6 +285,7 @@ export async function showCleanBoardModal({
     if (!document.getElementById('clean-board-star-animations')) {
       const style = document.createElement('style');
       style.id = 'clean-board-star-animations';
+      ownedStyleTag = style;
       style.textContent = `
         /* 🌟 Breathing animation for filled stars (inhale/exhale like lungs) - 25% stronger! */
         @keyframes starBreathing {
@@ -460,6 +401,7 @@ export async function showCleanBoardModal({
     }
 
     const el = document.createElement('div');
+    ownedOverlay = el;
     let area55ShipFlybys: CleanBoardArea55ShipFlybyController | null = null;
     el.id = overlayId;
     el.style.cssText = [
@@ -800,7 +742,6 @@ export async function showCleanBoardModal({
     const starHarpOrder = createCleanBoardStarHarpOrder();
 
     // Set button to hidden state (before animation)
-    const ctaControllers: CtaController[] = [];
     const setButtonInitialState = (button: HTMLButtonElement) => {
       button.style.visibility = 'hidden';
       button.style.pointerEvents = 'none';
@@ -925,7 +866,7 @@ export async function showCleanBoardModal({
     card.style.transform = 'scale(1)';
     
     // Wait for next frame to ensure elements are rendered
-    requestAnimationFrame(() => {
+    trackAnimationFrame(() => {
       const trans = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
       hero.style.transition = trans;
       title.style.transition = trans;
@@ -1036,7 +977,7 @@ export async function showCleanBoardModal({
         playCleanBoardBonusCountSound(durationSec);
         mainScore.style.transition = 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
         mainScore.style.transform = 'scale(1.08) translateY(0)';
-        setTimeout(() => {
+        trackTimeout(() => {
           mainScore.style.transition = 'transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1)';
           mainScore.style.transform = 'scale(1) translateY(0)';
         }, 420);
@@ -1068,7 +1009,7 @@ export async function showCleanBoardModal({
         allowConfettiSpawns();
         createConfettiExplosion(hero, celebrationTheme);
         
-        setTimeout(() => {
+        trackTimeout(() => {
           // 🌟 Hero is now stars container, animate it in
           console.log('🌟 Animating stars container (hero) to visible');
           hero.style.transition = trans;
@@ -1137,20 +1078,20 @@ export async function showCleanBoardModal({
             });
           }, 500); // 🌟 Start filling stars 500ms after hero appears
         }, 100);
-        setTimeout(() => {
+        trackTimeout(() => {
           title.style.opacity = '1';
           title.style.transform = 'scale(1) translateY(0)';
         }, 220);
-        setTimeout(() => {
+        trackTimeout(() => {
           scoreLabel.style.opacity = '1';
           scoreLabel.style.transform = 'scale(1) translateY(0)';
         }, 320);
-        setTimeout(() => {
+        trackTimeout(() => {
           mainScore.style.opacity = '1';
           mainScore.style.transform = 'scale(1) translateY(0)';
           // 🔥 ANIMATION: Start counting from 0 to currentScore when score appears
           // Add small delay to ensure element is fully visible before animation starts
-          setTimeout(() => {
+          trackTimeout(() => {
             console.log('🎯 Starting initial score animation from 0 to', currentScore);
             updateScore(currentScore, true, true);
           }, 50); // Small delay to ensure element is rendered
@@ -1164,15 +1105,15 @@ export async function showCleanBoardModal({
           efficiencyWrapper.style.display = 'none';
           efficiencyWrapper.style.visibility = 'hidden';
 
-          setTimeout(() => {
+          trackTimeout(() => {
             boardCleared.style.transition = 'opacity 0.4s ease';
             boardCleared.style.opacity = '1';
           }, 1450);
 
-          setTimeout(() => {
+          trackTimeout(() => {
             animateButtonIn(primaryBtn);
             if (secondaryBtn) {
-              setTimeout(() => {
+              trackTimeout(() => {
                 animateButtonIn(secondaryBtn);
               }, buttonStaggerMs);
             }
@@ -1181,14 +1122,14 @@ export async function showCleanBoardModal({
         }
 
         // 🎯 SEQUENCE 3: Combo Bonus pop-in
-        setTimeout(() => {
+        trackTimeout(() => {
           comboWrapper.style.transition = 'opacity 0.55s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.55s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
           comboWrapper.style.opacity = '1';
           comboWrapper.style.transform = 'scale(1) translateY(0)';
         }, 1350);
 
         // 🎯 SEQUENCE 4: Transfer Combo Bonus into score (draining to zero)
-        setTimeout(() => {
+        trackTimeout(() => {
           if (safeComboBonus <= 0) {
             comboValue.textContent = '+0';
             updateScore(scoreAfterCombo, true);
@@ -1198,13 +1139,13 @@ export async function showCleanBoardModal({
         }, 2150);
 
         // 🎯 SEQUENCE 5: Hide Combo, show Efficiency Bonus
-        setTimeout(() => {
+        trackTimeout(() => {
           // Hide combo bonus
           comboWrapper.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
           comboWrapper.style.opacity = '0';
           comboWrapper.style.transform = 'scale(0.8) translateY(-8px)';
 
-          setTimeout(() => {
+          trackTimeout(() => {
             comboWrapper.style.visibility = 'hidden';
             comboWrapper.style.display = 'none';
             
@@ -1216,7 +1157,7 @@ export async function showCleanBoardModal({
         }, 3650);
 
         // 🎯 SEQUENCE 6: Transfer Efficiency Bonus into score (draining to zero)
-        setTimeout(() => {
+        trackTimeout(() => {
           if (safeEfficiencyBonus <= 0) {
             efficiencyValue.textContent = '+0';
             updateScore(finalScore, true);
@@ -1226,12 +1167,12 @@ export async function showCleanBoardModal({
         }, 4600);
 
         // 🎯 SEQUENCE 7: Hide Efficiency, show "Board cleared" label
-        setTimeout(() => {
+        trackTimeout(() => {
           efficiencyWrapper.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
           efficiencyWrapper.style.opacity = '0';
           efficiencyWrapper.style.transform = 'scale(0.8) translateY(-8px)';
 
-          setTimeout(() => {
+          trackTimeout(() => {
             efficiencyWrapper.style.visibility = 'hidden';
             efficiencyWrapper.style.display = 'none';
             // SIMPLE transition - only opacity, NO transforms at all
@@ -1242,12 +1183,12 @@ export async function showCleanBoardModal({
 
         // 🎯 SEQUENCE 8: Button(s) pop-in (sequential bounce - Play Again first, then Exit)
         // Buttons appear AFTER "Board cleared" (6100ms + 320ms + 200ms = 6620ms)
-        setTimeout(() => {
+        trackTimeout(() => {
           // Show BOTH CTAs in all modes: primary first (Play Again/Continue), then Exit.
           // Arcade regression fix: Play Again was unintentionally hidden.
           animateButtonIn(primaryBtn);
           if (secondaryBtn) {
-            setTimeout(() => {
+            trackTimeout(() => {
               animateButtonIn(secondaryBtn);
             }, buttonStaggerMs); // 350ms delay between buttons
           }
@@ -1408,7 +1349,7 @@ export async function showCleanBoardModal({
     // 🔥 CLEANUP: Remove CSS style tag
     const removeStyleTag = () => {
       try {
-        const styleTag = document.getElementById('clean-board-star-animations');
+        const styleTag = ownedStyleTag;
         if (styleTag) {
           styleTag.remove();
           console.log('✅ CSS style tag removed!');
@@ -1446,12 +1387,17 @@ export async function showCleanBoardModal({
       buttonEventListeners.length = 0;
       console.log('✅ All button event listeners removed');
     };
-    const disposeCtas = () => {
-      ctaControllers.splice(0).forEach(controller => controller.dispose());
+    retirePresentation = () => {
+      cleanupButtonListeners();
+      cancelStarExit();
+      stopAllStarAnimations();
+      killAllGSAPTweens();
+      try { area55ShipFlybys?.dispose(); area55ShipFlybys = null; } catch {}
     };
 
     // 🔥 NEW: Primary button handler (Continue for interim, Play Again for regular)
     addButtonPressHandling(primaryBtn, async () => {
+      if (!lifetime.isActive()) return;
       cleanupCelebrationParticlesImmediately();
       // The destination becomes the next audio owner at activation time.
       resultReleaseTarget = 'gameplay';
@@ -1527,11 +1473,12 @@ export async function showCleanBoardModal({
         exitCtaPair(primaryBtn, secondaryBtn),
         earnedStarsExitPromise,
       ]);
+      if (!lifetime.isActive()) return;
 
-      requestAnimationFrame(() => {
+      trackAnimationFrame(() => {
         nodes.forEach((node, idx) => {
           const delay = (idx + 1) * 60;
-          setTimeout(() => {
+          trackTimeout(() => {
             const extra = exitScale[idx] ?? 0;
             node.style.opacity = '0';
             node.style.transform = `scale(${0.0 + extra}) translateY(${exitOffsets[idx]}px)`;
@@ -1540,9 +1487,9 @@ export async function showCleanBoardModal({
       });
       // 🔥 FIX: Delay card scale animation until AFTER buttons start animating
       // This prevents buttons from moving up with card scale
-      setTimeout(() => {
+      trackTimeout(() => {
       card.style.transition = 'transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-      requestAnimationFrame(() => {
+      trackAnimationFrame(() => {
         card.style.transform = 'scale(0.86)';
       });
       }, 400); // Delay card scale until buttons are mid-animation
@@ -1554,7 +1501,7 @@ export async function showCleanBoardModal({
       const collapseDuration = secondaryBtn 
         ? nodes.length * 60 + buttonDelay + buttonExitDuration + extraBuffer  // With Exit button: 360 + 200 + 650 + 200 = 1410ms
         : nodes.length * 60 + buttonExitDuration + extraBuffer;               // Without Exit button: 360 + 650 + 200 = 1210ms
-      setTimeout(() => {
+      trackTimeout(() => {
         card.style.transition = 'transform 0.30s ease, opacity 0.30s ease';
         card.style.opacity = '0';
         el.style.transition = 'opacity 0.30s ease';
@@ -1598,6 +1545,7 @@ export async function showCleanBoardModal({
         // Without this, user sees "Continue" + ghost placeholders on completed boards
         try {
           const { clearBoardSaveState } = await import('../utils/board-save-utils.js');
+          if (!lifetime.isActive()) return;
           clearBoardSaveState(boardNumber);
           console.log(`✅ clean-board-modal: Cleared board-specific saved state for board ${boardNumber} on Continue`);
         } catch (clearError) {
@@ -1623,10 +1571,12 @@ export async function showCleanBoardModal({
         const nextBoardNumber = (boardNumber || 1) + 1;
         try {
           const { showBoardTransitionScreen } = await import('./board-transition-screen.js');
+          if (!lifetime.isActive()) return;
           // Don't await - show immediately, resolve promise in background
           showBoardTransitionScreen({
             boardNumber: nextBoardNumber,
             onComplete: async () => {
+              if (!lifetime.isActive()) return;
               console.log('🧪 DEV MODE: Board transition complete, starting new board');
               
               // Start new board (use startNewRunFromJourney for proper initialization)
@@ -1637,6 +1587,7 @@ export async function showCleanBoardModal({
                   // Set Journey flags for proper initialization
                   markJourneyGameOrigin({ fromInterim: true });
                   await (window as any).startNewRunFromJourney(nextBoardNumber);
+                  if (!lifetime.isActive()) return;
                   console.log(`✅ DEV MODE: Started board ${nextBoardNumber} via startNewRunFromJourney`);
                 } else if (typeof (window as any).startLevel === 'function') {
                   (window as any).startLevel(nextBoardNumber);
@@ -1687,6 +1638,7 @@ export async function showCleanBoardModal({
     // 🔥 NEW: Exit/Back button handler
     if (secondaryBtn) {
       addButtonPressHandling(secondaryBtn, async () => {
+        if (!lifetime.isActive()) return;
         if (!isArcadeHomeRun) {
           journeyReturnTransitionId = beginJourneyReturnTransition('clean-board', boardNumber);
         }
@@ -1736,7 +1688,9 @@ export async function showCleanBoardModal({
         console.log('🎬 clean-board-modal: Starting board exit animation before hiding board...');
         
         // Stop only modal-specific animations, but NOT board animations (let exit animation play)
-        const earnedStarsExitPromise = playEarnedStarsExit(numStars);
+        const earnedStarsExitPromise = measureJourneyReturnPreparationPhase(
+          journeyReturnTransitionId, 'star-exit-setup', () => playEarnedStarsExit(numStars),
+        );
         clearAllModalTimeouts();
         clearAllModalAnimationFrames();
         
@@ -1744,15 +1698,18 @@ export async function showCleanBoardModal({
         // Start board exit animation (don't await yet - let it run in parallel with modal exit)
         let boardExitPromise: Promise<void> = Promise.resolve();
         let boardExitSucceeded = false;
+        finishJourneyReturnCtaSetup(journeyReturnTransitionId);
         if (arcadeRunReached && (window as any).__ccGameOverBoardExitComplete === true) {
           boardExitSucceeded = true;
           console.log('⏭️ clean-board-modal: Arcade summary board exit already completed - skipping duplicate exit');
         } else {
           try {
             const { STATE } = await import('./app-state.js');
+            if (!lifetime.isActive()) return;
             if (STATE && typeof (window as any).animateBoardExit === 'function') {
               console.log('🎬 clean-board-modal: Calling animateBoardExit() to play board exit animation...');
               boardExitPromise = Promise.resolve((window as any).animateBoardExit()).then(() => {
+                if (!lifetime.isActive()) return;
                 boardExitSucceeded = true;
               });
             } else {
@@ -1801,6 +1758,7 @@ export async function showCleanBoardModal({
         // Stars own their un-compounded exit pose. Only after they settle may
         // the ancestor card scale, keeping the accepted Star motion intact.
         void earnedStarsExitPromise.then(() => {
+          if (!lifetime.isActive()) return;
           trackTimeout(() => {
             if (!el.isConnected) return;
             card.style.transition = `transform ${CLEAN_BOARD_JOURNEY_EXIT_MOTION.cardDurationMs}ms cubic-bezier(0.68, -0.8, 0.265, 1.8)`;
@@ -1815,6 +1773,7 @@ export async function showCleanBoardModal({
         const boardExitCompletePromise = boardExitPromise.catch((error) => {
           console.error('❌ clean-board-modal: Board exit animation failed:', error);
         }).then(() => {
+          if (!lifetime.isActive()) return;
           console.log('✅ clean-board-modal: Board exit completed, hiding gameplay surface...');
           const canvas = getAppCanvasSafely(app);
           if (canvas?.style) {
@@ -1840,6 +1799,7 @@ export async function showCleanBoardModal({
           ctaExitPromise,
           earnedStarsExitPromise,
           new Promise<void>((resolveModalExit) => {
+            lifetime.onDispose(resolveModalExit);
             trackTimeout(() => {
               card.style.transition = `transform ${CLEAN_BOARD_JOURNEY_EXIT_MOTION.paperFadeMs}ms ease, opacity ${CLEAN_BOARD_JOURNEY_EXIT_MOTION.paperFadeMs}ms ease`;
               card.style.opacity = '0';
@@ -1849,6 +1809,7 @@ export async function showCleanBoardModal({
             trackTimeout(resolveModalExit, journeyExitTiming.completionMs);
           }),
         ]).then(() => {
+          if (!lifetime.isActive()) return;
           emitNativeConsoleDiagnostic('[CC_ARCADE_EXIT]', 'modal-exit-owner-complete', {
             boardNumber,
             elapsedMs: Math.round(performance.now() - exitStartedAt),
@@ -1869,6 +1830,7 @@ export async function showCleanBoardModal({
         try {
           // Clear board-specific saved state (so "Play" shows instead of "Continue")
           const { clearBoardSaveState, hasSavedStateForBoard, getBoardSaveKey } = await import('../utils/board-save-utils.js');
+          if (!lifetime.isActive()) return;
           
           // 🔍 DEBUG: Check state BEFORE clearing
           const hadSaveBefore = hasSavedStateForBoard(boardNumber);
@@ -1928,7 +1890,7 @@ export async function showCleanBoardModal({
             visualExitAlreadyComplete: false,
           })),
         ]);
-        if (!exitCompletion.completed) return;
+        if (!lifetime.isActive() || !exitCompletion.completed) return;
         if (!isArcadeHomeRun) {
           markJourneyReturnResultExitComplete(journeyReturnTransitionId);
         }

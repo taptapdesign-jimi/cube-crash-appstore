@@ -121,7 +121,8 @@ describe('gameplay pickup sound', () => {
     const appCore = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/app-core.ts'), 'utf8');
     expect(uiManager.match(/preloadGameplayPickupSound\(\);/g)).toHaveLength(3);
     expect(journeyManager.match(/preloadGameplayPickupSound\(\);/g)).toHaveLength(1);
-    expect(uiManager).toContain('stopGameplayPickupSound');
+    expect(uiManager).toContain('applyGameSoundsSettingToAudio(enabled)');
+    expect(fs.readFileSync('src/modules/gameplay-sound-owner-registry.ts', 'utf8')).toContain('stopGameplayPickupSound');
     expect(appCore).toContain('stopGameplayPickupSound();');
   });
 });

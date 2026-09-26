@@ -2,7 +2,7 @@ import { preloadKantaMerge6Sounds } from './kanta-merge6-sound';
 import { getSpecialDiceVariantForTile } from './special-dice-registry';
 import { preloadFishMerge6Sounds } from './fish-merge6-sound';
 import { preloadBeachBallMerge6Sounds } from './beach-ball-merge6-sound';
-import { preloadCoreTntMerge6Sound } from './core-tnt-merge6-sound';
+import { preloadCoreTntBonusImpactSounds, preloadCoreTntMerge6Sound } from './core-tnt-merge6-sound';
 import { preloadFlowerMerge6Sounds } from './flower-merge6-sound';
 import { preloadBeeMerge6Sounds } from './bee-merge6-sound';
 import { preloadRoboCubeMerge6Sounds } from './robo-cube-merge6-sound';
@@ -14,6 +14,7 @@ import { preloadLaserGunMerge6Sounds } from './laser-gun-merge6-sound.ts';
 import { preloadSpaceshipMerge6Sounds } from './spaceship-merge6-sound.ts';
 import { preloadBarrelMerge6Sounds } from './barrel-merge6-sound.ts';
 import { preloadJuiceMerge6Sounds } from './juice-finale-sound.ts';
+import { preloadWildStarMerge6Sound } from './wild-star-merge6-sound.ts';
 
 export interface SpecialSoundWarmupContext {
   boardNumber: number;
@@ -34,10 +35,10 @@ export function getSpecialSoundWarmupFamilies({ boardNumber, isArcade, tiles = [
     const variant = getSpecialDiceVariantForTile(tile);
     if (variant) {
       families.add(variant.id);
-      if (variant.archetype === 'wild-tnt') families.add('tnt');
-      else if (variant.archetype === 'wild-magnet') families.add('magnet');
-      else if (variant.archetype === 'wild-juice') families.add('juice');
-      else if (variant.archetype === 'wild-star') families.add('wild-star');
+      // Sharing gameplay does not mean sharing the core die's authored sound
+      // package. Variant owners preload their own foundations; TNT variants
+      // also need the shared bonus-impact subset used by their gameplay tail.
+      if (variant.archetype === 'wild-tnt') families.add('tnt-bonus');
     }
     else if (tile.special === 'wild-tnt') families.add('tnt');
     else if (tile.special === 'wild-magnet') families.add('magnet');
@@ -48,12 +49,14 @@ export function getSpecialSoundWarmupFamilies({ boardNumber, isArcade, tiles = [
 }
 
 /** Preload only; all playback, Settings gates, gains and fallbacks remain with
- * the existing sound owners. Core Star/poof and ordinary cues stay entry-ready. */
+ * the existing sound owners. Poof and ordinary cues stay entry-ready. */
 export function preloadEligibleSpecialSounds(context: SpecialSoundWarmupContext): void {
   const families = getSpecialSoundWarmupFamilies(context);
+  if (families.has('wild-star')) preloadWildStarMerge6Sound();
   if (families.has('fish')) preloadFishMerge6Sounds();
   if (families.has('beach-ball')) preloadBeachBallMerge6Sounds();
   if (families.has('tnt')) preloadCoreTntMerge6Sound();
+  if (families.has('tnt-bonus')) preloadCoreTntBonusImpactSounds();
   if (families.has('barell')) preloadBarrelMerge6Sounds();
   if (families.has('juice')) preloadJuiceMerge6Sounds();
   if (families.has('flower')) preloadFlowerMerge6Sounds();

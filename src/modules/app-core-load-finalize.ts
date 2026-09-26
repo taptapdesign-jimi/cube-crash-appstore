@@ -1,3 +1,4 @@
+import { isGameplayRendererTerminalSuspended } from './gameplay-render-suspension.ts';
 type FinalizeDeps = {
   devLog: (...args: any[]) => void;
 };
@@ -15,6 +16,7 @@ export function markUserMoveAfterLoad({ devLog }: FinalizeDeps){
 }
 
 export function resumeRuntimeAfterLoad({ app, gsap, devLog, devWarn }: ResumeDeps){
+  if (isGameplayRendererTerminalSuspended(app)) return;
   try {
     gsap.globalTimeline.resume();
     app.ticker.start();

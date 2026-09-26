@@ -19,6 +19,13 @@ visit(source);
 const errors = [];
 const depthPolicies = new Set(['shared-animated-dice-hud-foreground', 'dom-foreground-owner', 'contained-board-footprint']);
 const foregroundRegression = 'src/modules/__tests__/animated-dice-hud-foreground.test.ts';
+const sharedLifecycleRegressions = [
+  'src/modules/__tests__/special-idle-registry-cleanup.test.ts',
+  'src/modules/__tests__/special-dice-idle-visibility.test.ts',
+  'src/modules/__tests__/special-sound-warmup.test.ts',
+  'src/modules/__tests__/juice-finale-textures.test.ts',
+  'src/modules/__tests__/gameplay-render-suspension.test.ts',
+];
 if (!variants.size) errors.push('Registry contains no variants; audit cannot validate admission.');
 for (const [id, archetype] of variants) {
   const entry = manifest[id];
@@ -41,6 +48,9 @@ for (const [id, archetype] of variants) {
     }
   }
   if (!Array.isArray(entry.tests) || !entry.tests.length) errors.push(`${id}: missing regression tests`);
+  for (const test of sharedLifecycleRegressions) {
+    if (!entry.tests?.includes(test)) errors.push(`${id}: missing shared lifecycle regression ${test}`);
+  }
   for (const test of entry.tests ?? []) {
     if (!/^src\/.*\/__tests__\/.*\.test\.ts$/.test(test) || !fs.existsSync(test)) errors.push(`${id}: missing test ${test}`);
   }

@@ -55,7 +55,6 @@ declare global {
     };
     
     // Game Audio
-    gameAudio?: { [key: string]: HTMLAudioElement };
     
     // Collectibles
     collectiblesManager?: any;
@@ -119,6 +118,9 @@ declare global {
     __ccJourneyExitMode?: string;
     __ccPreserveScore?: boolean;
     __ccResumeScore?: number;
+    __ccThermalAudioIsolationAvailable?: boolean;
+    __ccThermalAudioSuppressedOnLaunch?: boolean;
+    __ccThermalSpecialSheetsSuppressedOnLaunch?: boolean;
     __ccSkipRebuildBoard?: boolean;
     __ccStartAtLevel?: number;
     __ccTriggerHudDrop?: boolean;

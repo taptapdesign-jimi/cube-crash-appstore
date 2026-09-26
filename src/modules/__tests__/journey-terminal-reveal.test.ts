@@ -8,11 +8,14 @@ import {
   getJourneyReturnRevealToken,
   markJourneyReturnResultExitComplete,
   prepareJourneyReturnBehindTerminalOverlay,
+  measureJourneyReturnPreparationPhase,
+  finishJourneyReturnCtaSetup,
   scheduleJourneyReturnReveal,
 } from '../journey-return-transition-trace';
 import { JourneyWorldAnimationCoordinator } from '../journey-world-animation-coordinator';
 import { getJourneyV700MotionProfile } from '../journey-v700-motion';
 import { journeyBoardsManager } from '../journey-boards-manager';
+import type { JourneyTerminalPreparationPerformance } from '../journey-terminal-preparation-performance';
 
 jest.mock('../journey-boards-manager', () => ({
   journeyBoardsManager: {
@@ -76,18 +79,103 @@ describe('terminal-owned Journey reveal', () => {
     await flushImports();
   });
 
+  test('a late World completion cannot clear a newer terminal return', () => {
+    const oldToken = beginJourneyReturnTransition('clean-board', 22);
+    const currentToken = beginJourneyReturnTransition('fail', 23);
+    markJourneyReturnResultExitComplete(currentToken);
+
+    completeJourneyReturnTransition({ source: 'late-old-enter' }, oldToken);
+    expect(getJourneyReturnRevealToken()).toBe(currentToken);
+
+    completeJourneyReturnTransition({ source: 'ordinary-world-enter' }, null);
+    expect(getJourneyReturnRevealToken()).toBe(currentToken);
+
+    completeJourneyReturnTransition({ source: 'current-enter' }, currentToken);
+    expect(getJourneyReturnRevealToken()).toBeNull();
+  });
+
   test('prepares ordinary Journey returns before result completion and drops replaced async preparation', async () => {
     const token = beginJourneyReturnTransition('clean-board', 22);
     prepareJourneyReturnBehindTerminalOverlay('clean-board', token);
     await flushImports();
     expect(journeyBoardsManager.prepareJourneyV700WorldEnterFromReturn)
-      .toHaveBeenCalledWith('terminal-overlay:clean-board', token);
+      .toHaveBeenCalledWith('terminal-overlay:clean-board', token, null);
     expect(getJourneyReturnRevealToken()).toBeNull();
     const stale = beginJourneyReturnTransition('fail', 23);
     prepareJourneyReturnBehindTerminalOverlay('fail', stale);
     beginJourneyReturnTransition('clean-board', 24);
     await flushImports();
     expect(journeyBoardsManager.prepareJourneyV700WorldEnterFromReturn).toHaveBeenCalledTimes(1);
+  });
+
+  test('opt-in CTA and module phases share one bounded return record', async () => {
+    jest.useFakeTimers();
+    let now = 100;
+    jest.spyOn(performance, 'now').mockImplementation(() => now);
+    const postMessage = jest.fn();
+    (window as any).webkit = { messageHandlers: { consoleLog: { postMessage } } };
+    (window as any).__ccPerformanceDiagnostics = true;
+    let preparation: JourneyTerminalPreparationPerformance | null = null;
+    jest.mocked(journeyBoardsManager.prepareJourneyV700WorldEnterFromReturn).mockImplementation((_source, _id, capture) => {
+      preparation = capture;
+      capture?.phase('prime', () => { now += 40; });
+      return true;
+    });
+    try {
+      const token = beginJourneyReturnTransition('clean-board', 25);
+      prepareJourneyReturnBehindTerminalOverlay('clean-board', token);
+      expect(measureJourneyReturnPreparationPhase(token, 'star-exit-setup', () => { now += 9; return 42; })).toBe(42);
+      finishJourneyReturnCtaSetup(token);
+      await flushImports();
+      preparation!.finish('painted');
+      const records = postMessage.mock.calls.filter(([entry]) => entry.message.startsWith('[CC_JOURNEY_RETURN_PREP]'));
+      expect(records).toHaveLength(1);
+      const record = JSON.parse(records[0][0].message.split('summary ')[1]);
+      expect(record.phases).toEqual([
+        { name: 'module-requested', atMs: 0, durationMs: 0 },
+        { name: 'star-exit-setup', atMs: 0, durationMs: 9 },
+        { name: 'cta-synchronous', atMs: 0, durationMs: 9 },
+        { name: 'module-ready', atMs: 9, durationMs: 0 },
+        { name: 'prime', atMs: 9, durationMs: 40 },
+        { name: 'prepare-synchronous', atMs: 9, durationMs: 40 },
+        { name: 'prepare-returned', atMs: 49, durationMs: 0 },
+      ]);
+      expect(jest.getTimerCount()).toBe(0);
+    } finally {
+      completeJourneyReturnTransition();
+      delete (window as any).__ccPerformanceDiagnostics;
+      delete (window as any).webkit;
+      jest.clearAllTimers(); jest.useRealTimers();
+    }
+  });
+
+  test('replacement and cancellation close only their own diagnostic captures', async () => {
+    jest.useFakeTimers();
+    const postMessage = jest.fn();
+    (window as any).webkit = { messageHandlers: { consoleLog: { postMessage } } };
+    (window as any).__ccPerformanceDiagnostics = true;
+    try {
+      const old = beginJourneyReturnTransition('clean-board', 25);
+      prepareJourneyReturnBehindTerminalOverlay('clean-board', old);
+      const current = beginJourneyReturnTransition('fail', 26);
+      cancelJourneyReturnTransition(old, 'stale');
+      expect(jest.getTimerCount()).toBe(1);
+      cancelJourneyReturnTransition(current, 'navigation');
+      await flushImports();
+      const records = postMessage.mock.calls.filter(([entry]) => entry.message.startsWith('[CC_JOURNEY_RETURN_PREP]'))
+        .map(([entry]) => JSON.parse(entry.message.split('summary ')[1]));
+      expect(records).toEqual([
+        expect.objectContaining({ transitionId: old, reason: 'replaced' }),
+        expect.objectContaining({ transitionId: current, reason: 'cancelled:navigation' }),
+      ]);
+      expect(journeyBoardsManager.prepareJourneyV700WorldEnterFromReturn).not.toHaveBeenCalled();
+      expect(jest.getTimerCount()).toBe(0);
+    } finally {
+      completeJourneyReturnTransition();
+      delete (window as any).__ccPerformanceDiagnostics;
+      delete (window as any).webkit;
+      jest.clearAllTimers(); jest.useRealTimers();
+    }
   });
 });
 
@@ -176,9 +264,9 @@ describe('Clean Board Exit preparation routing', () => {
       const prepare = jest.fn();
       const activate = new Function('isArcadeHomeRun', 'isFromInterimBoard',
         'beginJourneyReturnTransition', 'prepareJourneyReturnBehindTerminalOverlay',
-        'markJourneyGameOrigin', 'window', 'localStorage',
+        'markJourneyGameOrigin', 'window', 'localStorage', 'lifetime',
         `let journeyReturnTransitionId = null; const boardNumber = 22; ${compiled}`);
-      activate(arcade, interim, () => 5, prepare, () => {}, window, localStorage);
+      activate(arcade, interim, () => 5, prepare, () => {}, window, localStorage, { isActive: () => true });
       expect(prepare).toHaveBeenCalledTimes(calls as number);
       if (calls) expect(prepare).toHaveBeenCalledWith('clean-board', 5);
       ['__ccReturningFromInterimBoard', '__ccSuppressJourneyV700AutoWorldEnter',

@@ -90,6 +90,25 @@ describe('Flower procedural Pixi artwork', () => {
     callbacks.forEach((callback) => callback(ticker));
   };
 
+  test('retires only a throwing Flower and continues the next controller in the same frame', async () => {
+    const first = makeTile(); const second = makeTile();
+    const failed = startFlowerBouncyArtwork(first.tile)!;
+    const healthy = startFlowerBouncyArtwork(second.tile)!;
+    await flush(); jest.advanceTimersByTime(1000);
+    const canvas = failed.canvas!;
+    Object.defineProperty(first.base, 'tint', { configurable: true, get: () => { throw new Error('stale Flower sprite'); } });
+    const elapsed = healthy.elapsedMs;
+    expect(() => tick(40)).not.toThrow();
+    expect(failed.disposed).toBe(true);
+    expect(canvas.destroyed).toBe(true);
+    expect(first.base.renderable).toBe(true);
+    expect(first.tile._ccFlowerBouncyArtwork).toBeUndefined();
+    expect(healthy.elapsedMs).toBe((elapsed + 40) % FLOWER_BOUNCY_CYCLE_MS);
+    expect(callbacks.size).toBe(1);
+    stopFlowerBouncyArtwork(second.tile);
+    expect(callbacks.size).toBe(0);
+  });
+
   test('uses one small source texture and preserves the accepted board geometry', () => {
     const geometry = getFlowerBouncyDisplayGeometry();
     expect(geometry.restingArtworkWidth).toBe(128);

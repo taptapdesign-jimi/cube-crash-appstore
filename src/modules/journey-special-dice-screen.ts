@@ -139,7 +139,7 @@ function ensureStyles(): void {
       display: grid;
       place-items: center;
       overflow: visible;
-      animation: ccJourneySpecialDiceIdle 3s ease-in-out infinite;
+      animation: ccJourneySpecialDiceIdle 3s ease-in-out 1 both;
       transform-origin: 50% 50%;
       pointer-events: none;
     }
@@ -194,7 +194,10 @@ function ensureStyles(): void {
       display: block;
       filter: blur(0.56px);
       pointer-events: none;
-      animation: ccJourneySpecialDiceShimmer 1.7s linear infinite;
+      animation: none;
+    }
+    .cc-journey-special-dice-light.is-shine-active::after {
+      animation: ccJourneySpecialDiceShimmer 1.7s linear 1 both;
     }
     .cc-journey-special-dice-cta {
       width: min(68vw, 408px);
@@ -205,6 +208,9 @@ function ensureStyles(): void {
       visibility: hidden;
       flex: 0 0 auto;
       margin-top: 24px;
+    }
+    #${OVERLAY_ID} .cc-journey-special-dice-cta.cc-cta[data-cta-variant="primary"] .cc-cta__visual::after {
+      animation-iteration-count: 1;
     }
     @keyframes ccJourneySpecialDiceIdle {
       0%, 100% { transform: translateY(0px) rotate(0deg) scale(1); }
@@ -314,7 +320,7 @@ export async function showJourneySpecialDiceScreen({
     let revealed = false;
     let revealRunning = false;
     let disposed = false;
-    let shineIntervalId: number | null = null;
+    let shineTimeoutId: number | null = null;
 
     const overlay = document.createElement('div');
     overlay.id = OVERLAY_ID;
@@ -356,16 +362,26 @@ export async function showJourneySpecialDiceScreen({
       },
     }) : null;
 
-    const stopShineLoop = () => {
-      if (shineIntervalId === null) return;
-      try { window.clearInterval(shineIntervalId); } catch {}
-      shineIntervalId = null;
+    const stopShinePulse = () => {
+      if (shineTimeoutId !== null) {
+        try { window.clearTimeout(shineTimeoutId); } catch {}
+        shineTimeoutId = null;
+      }
+      light?.classList.remove('is-shine-active');
     };
 
     cleanupFns.push(() => {
       disposed = true;
-      stopShineLoop();
+      stopShinePulse();
       try { gsap.killTweensOf([overlay, title, subtitle, hero, motion, backpack, finalImg, light, shadow, cta]); } catch {}
+      try {
+        if (light) {
+          light.style.webkitMaskImage = 'none';
+          light.style.maskImage = 'none';
+        }
+        backpack?.removeAttribute('src');
+        finalImg?.removeAttribute('src');
+      } catch {}
       try { ctaController?.dispose(); } catch {}
     });
 
@@ -381,30 +397,29 @@ export async function showJourneySpecialDiceScreen({
       } catch {}
     };
 
-    const startShineLoop = () => {
-      stopShineLoop();
-      const play = () => {
-        if (!revealed || resolved || disposed || !finalImg || !light || !document.body.contains(overlay)) {
-          stopShineLoop();
-          return;
-        }
-        try {
-          setLightMask(light, finalAsset);
-          gsap.set(light, { opacity: 0.92, scale: 0.56, transformOrigin: '50% 50%', force3D: true });
-          gsap.timeline()
-            .fromTo(light, { opacity: 0.9 }, { opacity: 0.92, duration: 0.01 })
-            .fromTo(finalImg, { scale: 0.52 }, { scale: 0.56, duration: 0.14, ease: 'back.out(2)' })
-            .to(finalImg, { scale: 0.52, duration: 0.18, ease: 'sine.out' });
-        } catch {}
-      };
-      play();
-      shineIntervalId = window.setInterval(play, 3000);
+    const playShineOnce = () => {
+      stopShinePulse();
+      if ((!revealed && !revealRunning) || resolved || disposed || !finalImg || !light || !document.body.contains(overlay)) return;
+      try {
+        setLightMask(light, finalAsset);
+        gsap.set(light, { opacity: 0.92, scale: 0.56, transformOrigin: '50% 50%', force3D: true });
+        light.classList.remove('is-shine-active');
+        void light.offsetHeight;
+        light.classList.add('is-shine-active');
+        gsap.timeline()
+          .fromTo(finalImg, { scale: 0.52 }, { scale: 0.56, duration: 0.14, ease: 'back.out(2)' })
+          .to(finalImg, { scale: 0.52, duration: 0.18, ease: 'sine.out' });
+        shineTimeoutId = window.setTimeout(() => {
+          shineTimeoutId = null;
+          light.classList.remove('is-shine-active');
+        }, 1750);
+      } catch {}
     };
 
     finish = () => {
       if (resolved) return;
       resolved = true;
-      stopShineLoop();
+      stopShinePulse();
       try { hero?.removeEventListener('click', onReveal); } catch {}
       try { hero?.removeEventListener('keydown', onHeroKeyDown); } catch {}
       try { gsap.killTweensOf([overlay, title, subtitle, hero, motion, backpack, finalImg, light, shadow, cta]); } catch {}
@@ -465,7 +480,7 @@ export async function showJourneySpecialDiceScreen({
               gsap.set(light, { opacity: 0.92, scale: 0.56, transformOrigin: '50% 50%', force3D: true });
               playScreenShake(22, 0.42);
               markJourneySpecialDiceUnlocked(diceType);
-              startShineLoop();
+              playShineOnce();
             }, undefined, 0.54);
         });
 
@@ -513,7 +528,7 @@ export async function showJourneySpecialDiceScreen({
           scaleY: 0.82,
           duration: 1.14,
           ease: 'sine.inOut',
-          repeat: -1,
+          repeat: 1,
           yoyo: true,
         });
       },

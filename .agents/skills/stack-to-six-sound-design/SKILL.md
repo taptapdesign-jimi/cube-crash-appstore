@@ -5,7 +5,7 @@ description: Design, generate, audit, name, mix, or integrate sound effects for 
 
 # Stack to Six Sound Design
 
-Create sound that feels inseparable from the game's visual motion: fast, happy, cartoony, bouncy, tactile and rich, with a warm wooden toy-box core. Read [references/sound-identity.md](references/sound-identity.md) before generating or selecting sounds. Read [references/module-boundaries.md](references/module-boundaries.md) before inventory or integration work. For an external sound model or a fresh generation pass, adapt [references/generation-prompts.md](references/generation-prompts.md).
+Create sound that feels inseparable from the game's visual motion: fast, happy, cartoony, bouncy, tactile and rich, with a warm wooden toy-box core. Read [references/sound-identity.md](references/sound-identity.md) before generating or selecting sounds. Read [references/module-boundaries.md](references/module-boundaries.md) before inventory or integration work. Before runtime integration, also read [`docs/audio/AUDIO_RUNTIME_ARCHITECTURE.md`](../../../docs/audio/AUDIO_RUNTIME_ARCHITECTURE.md). For an external sound model or a fresh generation pass, adapt [references/generation-prompts.md](references/generation-prompts.md).
 
 ## Working contract
 
@@ -26,5 +26,7 @@ Create sound that feels inseparable from the game's visual motion: fast, happy, 
 4. Validate sample rate, channels, duration, peak, DC offset, silence and file presence.
 5. Audition on phone speakers at low and normal volume. Mark subjective fit and physical mix as `NEEDS PHYSICAL TEST` until heard.
 6. Integrate only approved cues through one bounded audio owner, Settings gating and cleanup.
+7. Add or update `docs/audio/audio-runtime-owners.json`, including event, transport, voice, preload, Settings, interruption, full-stop, tests and physical-acceptance ownership.
+8. Run `npm run qa:audio-runtime`, focused owner tests and `npm run qa:fast`; completed integration requires no-native-sync `qa:full` before handoff.
 
 For the current inventory, use [`docs/audio/STACK_TO_SIX_INTERACTION_SOUND_INVENTORY.md`](../../../docs/audio/STACK_TO_SIX_INTERACTION_SOUND_INVENTORY.md). The current all-wooden Gameplay v5 generator is `scripts/generate-gameplay-board-sfx-v5.mjs`; verify it with `scripts/validate-gameplay-board-sfx-v5.mjs`. Earlier generators remain versioned for comparison and recovery.

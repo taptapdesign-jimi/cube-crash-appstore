@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "archetypes": {
+    "wild-star": {
+      "coreSpecial": "wild",
+      "mergeOwner": "app-core.ts star/wild committed merge path",
+      "endgamePolicy": "Final wild plus regular completes only when it is the last playable pair; another playable tile prevents completion.",
+      "transactionPolicy": "Shared immutable special transaction serializes commit and releases before terminal modal ownership.",
+      "savePolicy": "Core and registry identity round-trip through the versioned save schema; stale variant identity is rejected.",
+      "inputPolicy": "Input gate blocks unsafe special ownership and releases ordinary input only at the declared gameplay-safe boundary.",
+      "audioPolicy": "Variant-specific cue owner uses the shared decoded engine, eligibility warmup, Settings gate and registered full stop.",
+      "tests": ["src/modules/__tests__/final-merge-all-archetypes.test.ts", "src/modules/__tests__/gameplay-resolution-engine.test.ts", "src/modules/__tests__/special-dice-transaction-contract.test.ts", "src/modules/__tests__/special-dice-transaction-owner.test.ts", "src/modules/__tests__/endgame-checker.test.ts", "src/modules/__tests__/atomic-save-load.test.ts", "src/modules/__tests__/input-gate.test.ts"]
+    },
+    "wild-juice": {
+      "coreSpecial": "wild-juice",
+      "mergeOwner": "app-core.ts Juice committed merge and spawn path",
+      "endgamePolicy": "Final Juice plus regular completes only as the last playable pair; live blockers and active transactions defer terminal resolution.",
+      "transactionPolicy": "Shared immutable special transaction owns board commit, visual-tail handoff and exact-token release.",
+      "savePolicy": "Core and registry identity round-trip through the versioned save schema; incompatible variant/core pairs fail validation.",
+      "inputPolicy": "Input unlock follows the declared Juice gameplay-safe ratio while the transaction continues to protect endgame.",
+      "audioPolicy": "Variant-specific cue owner uses the shared decoded engine, eligibility warmup, Settings gate and registered full stop.",
+      "tests": ["src/modules/__tests__/final-merge-all-archetypes.test.ts", "src/modules/__tests__/gameplay-resolution-engine.test.ts", "src/modules/__tests__/special-dice-transaction-contract.test.ts", "src/modules/__tests__/special-dice-transaction-owner.test.ts", "src/modules/__tests__/endgame-checker.test.ts", "src/modules/__tests__/atomic-save-load.test.ts", "src/modules/__tests__/input-gate.test.ts"]
+    },
+    "wild-magnet": {
+      "coreSpecial": "wild-magnet",
+      "mergeOwner": "app-core.ts and app-merge.ts Magnet pull transaction",
+      "endgamePolicy": "Playable pull candidates prevent final completion; post-pull resolution rechecks the current board revision before complete or fail.",
+      "transactionPolicy": "Immutable Magnet token survives pull/merge work, rejects stale post-commit tails and releases on every rollback or terminal handoff.",
+      "savePolicy": "Core and registry identity plus restored live tiles are validated before gameplay resumes.",
+      "inputPolicy": "Special input remains locked through gameplay resolution; stable ordinary merges may resume only after board commit.",
+      "audioPolicy": "Variant-specific cue owner uses the shared decoded engine, eligibility warmup, Settings gate and registered full stop.",
+      "tests": ["src/modules/__tests__/final-merge-all-archetypes.test.ts", "src/modules/__tests__/gameplay-resolution-engine.test.ts", "src/modules/__tests__/special-dice-transaction-contract.test.ts", "src/modules/__tests__/special-dice-transaction-owner.test.ts", "src/modules/__tests__/endgame-checker.test.ts", "src/modules/__tests__/atomic-save-load.test.ts", "src/modules/__tests__/input-gate.test.ts"]
+    },
+    "wild-tnt": {
+      "coreSpecial": "wild-tnt",
+      "mergeOwner": "app-core.ts TNT impact and bonus-target transaction",
+      "endgamePolicy": "Terminal resolution waits for exact bonus-target reservation and gameplay settlement; visual tail cannot create an early clean or fail.",
+      "transactionPolicy": "Immutable TNT token marks board commit before ordinary merges resume and remains authoritative through bonus gameplay settlement.",
+      "savePolicy": "Core and registry identity round-trip through the versioned save schema and restored variants keep TNT semantics.",
+      "inputPolicy": "Special input releases only after gameplay-safe settlement; finale duration cannot substitute for the transaction boundary.",
+      "audioPolicy": "Variant-specific cue owner uses the shared decoded engine, eligibility warmup, Settings gate and registered full stop.",
+      "tests": ["src/modules/__tests__/final-merge-all-archetypes.test.ts", "src/modules/__tests__/gameplay-resolution-engine.test.ts", "src/modules/__tests__/special-dice-transaction-contract.test.ts", "src/modules/__tests__/special-dice-transaction-owner.test.ts", "src/modules/__tests__/endgame-checker.test.ts", "src/modules/__tests__/atomic-save-load.test.ts", "src/modules/__tests__/input-gate.test.ts"]
+    }
+  }
+}

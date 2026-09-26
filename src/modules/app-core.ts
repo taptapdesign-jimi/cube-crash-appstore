@@ -1,4 +1,5 @@
 import { preloadEligibleSpecialSounds } from './special-sound-warmup';
+import { setGameplayAudioDiagnosticContextProvider, withGameplayAudioDiagnosticCaller } from './gameplay-audio-diagnostics.ts';
 import { getSpecialArtworkWarmupEligibility } from './special-artwork-warmup-eligibility';
 // public/src/modules/app.js
 // ✅ mobile-first, cache-busted celebration & prize flow
@@ -13,6 +14,7 @@ import {
 } from './constants.js';
 import { sweetPopIn, sweetPopOut } from './app-board.ts';
 import { STATE } from './app-state.ts';
+import { appZoneManager } from './app-zone-manager.ts';
 
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.ts';
@@ -20,6 +22,8 @@ import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Sha
 import { showWildJuiceBubblesExplosion, stopWildJuiceBubblesExplosion, forceStopWildJuiceBubblesExplosion, isWildJuiceBubblesExplosionActive, isWildJuiceBubblesExplosionRecentlyStarted, isWildJuiceFinaleAnimationActive, waitForBubblesExplosionToComplete, destroyWildJuiceBubblesExplosionCache } from './wild-juice-bubbles-explosion.ts';
 import { preloadFishFinaleBubbles } from './fish-finale-bubbles.ts';
 import { preloadJuiceFinalePropTextures } from './juice-finale-prop-flight.ts';
+import { preloadLiveJuiceFinaleTextures } from './juice-finale-textures.ts';
+import { isGameplayRendererTerminalSuspended, releaseGameplayRendererForEntry, suspendGameplayRendererForTerminal } from './gameplay-render-suspension.ts';
 import { stopJuiceMerge6Sounds } from './juice-finale-sound.ts';
 import { preloadBarrelBouncyArtwork } from './barrel-bouncy-artwork.ts';
 import { showMagneticText, isMagneticTextActive, waitForMagneticTextComplete, stopMagneticText, showSparkleText, stopSparkleText, isSparkleTextActive, waitForSparkleTextComplete, showNoMovesText, exitNoMovesText, clearNoMovesText } from './splash-text-overlay.ts';
@@ -726,6 +730,12 @@ let _lastSAT = -1;
 let grid: Grid = Array.isArray(STATE.grid) ? (STATE.grid as Grid) : [];
 const tiles: Tile[] = STATE.tiles as Tile[];
 let score = 0; let level = 1; let boardNumber = 1; let moves = MOVES_MAX;
+setGameplayAudioDiagnosticContextProvider(() => ({
+  route: (window as any).__ccAppZone ?? null,
+  boardNumber,
+  entryGeneration: activeGameplayEntryGeneration,
+  runGeneration: gameplayRunGeneration,
+}));
 const SCORE_CAP = 999999;
 const MAX_CHECK_LEVEL_END_SKIP_MS = 3000; // Hard stop for skip gates to avoid perma-deferral
 const TNT_POST_MUTATION_FAIL_RECHECK_MS = 1000;
@@ -1749,6 +1759,7 @@ async function triggerCleanBoardFlow(
       finalMergeCompleted: terminalFinalMergeReason,
       abortToken: cleanBoardRunAbortToken,
       isRunCurrent: ownsCleanBoardRun,
+      suspendForTerminal: () => suspendTerminalGameplay(ownsCleanBoardRun),
       hideGrid: () => {
         if (!ownsCleanBoardRun()) return;
         try {
@@ -2156,7 +2167,9 @@ function getUnusableRequiredCoreRenderTextureAssets(): string[] {
 async function ensureCoreGameTexturesLoaded(
   context: string = 'unknown',
   forceReloadAssets: readonly string[] = [],
+  isCurrent: () => boolean = () => true,
 ): Promise<string[]> {
+  if (!isCurrent()) return [];
   const requiredAssets = getRequiredCoreRenderTextureAssets();
   const forcedAssets = new Set(forceReloadAssets);
   const staleAssets = Array.from(new Set([
@@ -2170,8 +2183,10 @@ async function ensureCoreGameTexturesLoaded(
   const failedAssets = new Set<string>();
 
   for (const assetPath of requiredAssets) {
+    if (!isCurrent()) return [];
     let usable = false;
     for (let attempt = 0; attempt < 4; attempt++) {
+      if (!isCurrent()) return [];
       let tex: any = null;
       try { tex = Assets.get(assetPath); } catch {}
 
@@ -2182,6 +2197,8 @@ async function ensureCoreGameTexturesLoaded(
           devWarn('⚠️ Core texture reload attempt failed', { context, assetPath, attempt: attempt + 1, error });
         }
       }
+
+      if (!isCurrent()) return [];
 
       if (isUsableGameTexture(tex)) {
         pinPixiImageTexture(tex);
@@ -2198,6 +2215,8 @@ async function ensureCoreGameTexturesLoaded(
     }
   }
 
+  if (!isCurrent()) return [];
+
   if (failedAssets.size > 0) {
     const details = {
       context,
@@ -2212,7 +2231,7 @@ async function ensureCoreGameTexturesLoaded(
   return staleAssets;
 }
 
-function probeCoreGameTextureGpuPixels(context: string): {
+function probeCoreGameTextureGpuPixels(context: string, renderer = app?.renderer): {
   healthy: boolean;
   unavailable: boolean;
   failedAssets: string[];
@@ -2222,7 +2241,7 @@ function probeCoreGameTextureGpuPixels(context: string): {
     try { texture = Assets.get(assetPath); } catch {}
     return {
       assetPath,
-      result: probePixiImageTextureGpuPixels(app?.renderer, texture),
+      result: probePixiImageTextureGpuPixels(renderer, texture),
     };
   });
   const failedAssets = results
@@ -2237,9 +2256,15 @@ function probeCoreGameTextureGpuPixels(context: string): {
   return { healthy: failedAssets.length === 0, unavailable, failedAssets };
 }
 
-async function ensureCoreRenderTexturesGpuReady(context: string): Promise<string[]> {
-  const refreshedAssets = await ensureCoreGameTexturesLoaded(context);
-  const firstProbe = probeCoreGameTextureGpuPixels(`${context}:before-repair`);
+async function ensureCoreRenderTexturesGpuReady(
+  context: string,
+  isCurrent: () => boolean = () => true,
+  renderer = app?.renderer,
+): Promise<string[]> {
+  if (!isCurrent()) return [];
+  const refreshedAssets = await ensureCoreGameTexturesLoaded(context, [], isCurrent);
+  if (!isCurrent()) return [];
+  const firstProbe = probeCoreGameTextureGpuPixels(`${context}:before-repair`, renderer);
   if (firstProbe.healthy || firstProbe.unavailable) return refreshedAssets;
 
   hideGameplayForCoreTextureRecovery();
@@ -2252,9 +2277,11 @@ async function ensureCoreRenderTexturesGpuReady(context: string): Promise<string
   const forceRefreshedAssets = await ensureCoreGameTexturesLoaded(
     `${context}:gpu-repair`,
     requiredAssets,
+    isCurrent,
   );
+  if (!isCurrent()) return [];
   refreshLiveCoreGameSpriteTextures(`${context}:gpu-repair`);
-  const verification = probeCoreGameTextureGpuPixels(`${context}:after-repair`);
+  const verification = probeCoreGameTextureGpuPixels(`${context}:after-repair`, renderer);
   if (!verification.healthy && !verification.unavailable) {
     emitNativeConsoleDiagnostic('[CC_TEXTURE_HEALTH]', 'forced-reload-failed', {
       context,
@@ -2340,6 +2367,8 @@ try { (window as any).__ccEnsureCoreGameTexturesLoaded = ensureCoreGameTexturesL
 
 let coreTextureRecoveryPromise: Promise<void> | null = null;
 let coreTextureRecoveryOwnerGeneration = -1;
+let coreTextureRecoveryOwnerEntry = -1;
+let coreTextureRecoveryOwnerRun = -1;
 let coreTextureRecoveryGeneration = 0;
 let coreTextureContextCanvas: HTMLCanvasElement | null = null;
 let coreTextureContextLostHandler: ((event: Event) => void) | null = null;
@@ -2351,11 +2380,22 @@ let coreTextureCanvasVisibilityBeforeHide: string | null = null;
 let coreTextureNeedsFullRecovery = false;
 const coreTextureForegroundOwner = new ForegroundResumeEpoch();
 
-function hideGameplayForCoreTextureRecovery(): void {
+function isCoreTextureRecoveryAllowed(): boolean {
+  if (document.hidden || isGameplayRendererTerminalSuspended(app)) return false;
+  if (!isGameplayEntryGenerationLatest(activeGameplayEntryGeneration)) return false;
+  const zone = appZoneManager.getCurrentZone();
+  return isGameplayEntryPending() || zone === 'board-journey' || zone === 'board-arcade';
+}
+
+function hideGameplayForCoreTextureRecovery(submitHiddenFrame = true): void {
   try { if (stage) stage.visible = false; } catch {}
   try { if (board) board.visible = false; } catch {}
   try { if (hud) hud.visible = false; } catch {}
-  try { app?.renderer?.render?.(stage); } catch {}
+  try {
+    if (submitHiddenFrame && isCoreTextureRecoveryAllowed() && !(app?.renderer as any)?.context?.isLost) {
+      app?.renderer?.render?.(stage);
+    }
+  } catch {}
   try {
     const canvas = app?.canvas as HTMLCanvasElement | undefined;
     if (canvas) {
@@ -2407,6 +2447,7 @@ async function retireSpecialDiceRendererOwnersForRecovery(reason: string): Promi
 }
 
 function restartSpecialDiceRendererOwnersAfterRecovery(reason: string): void {
+  if (isGameplayRendererTerminalSuspended(app)) return;
   const liveTiles = Array.isArray(STATE?.tiles) && STATE.tiles.length ? STATE.tiles : tiles;
   let restarted = 0;
   for (const tile of liveTiles as any[]) {
@@ -2422,16 +2463,34 @@ function restartSpecialDiceRendererOwnersAfterRecovery(reason: string): void {
 }
 
 function recoverCoreRenderTextures(reason: string): Promise<void> {
-  if (coreTextureRecoveryPromise && coreTextureRecoveryOwnerGeneration === coreTextureRecoveryGeneration) {
+  coreTextureNeedsFullRecovery = true;
+  if (!isCoreTextureRecoveryAllowed()) {
+    emitNativeConsoleDiagnostic('[CC_TEXTURE_HEALTH]', 'recovery-deferred', { reason, zone: appZoneManager.getCurrentZone() });
+    return Promise.resolve();
+  }
+  if (coreTextureRecoveryPromise && coreTextureRecoveryOwnerGeneration === coreTextureRecoveryGeneration
+    && coreTextureRecoveryOwnerEntry === activeGameplayEntryGeneration
+    && coreTextureRecoveryOwnerRun === gameplayRunGeneration) {
     return coreTextureRecoveryPromise;
   }
+  const previousRecovery = coreTextureRecoveryPromise;
   const ownerGeneration = coreTextureRecoveryGeneration;
+  const ownerEntry = activeGameplayEntryGeneration;
+  const ownerRun = gameplayRunGeneration;
   const ownerApp = app;
   const ownerCanvas = coreTextureContextCanvas;
+  const ownerStage = stage;
+  const ownerBoard = board;
+  const ownerHud = hud;
   const ownsCurrentLifecycle = () => (
     ownerGeneration === coreTextureRecoveryGeneration &&
+    ownerEntry === activeGameplayEntryGeneration &&
+    ownerRun === gameplayRunGeneration &&
+    isGameplayEntryGenerationLatest(ownerEntry) &&
     ownerApp === app &&
-    ownerCanvas === coreTextureContextCanvas
+    ownerCanvas === coreTextureContextCanvas &&
+    ownerStage === stage && ownerBoard === board && ownerHud === hud &&
+    isCoreTextureRecoveryAllowed()
   );
   const visibility = coreTextureVisibilityBeforeLoss || {
     stage: stage?.visible !== false,
@@ -2441,14 +2500,16 @@ function recoverCoreRenderTextures(reason: string): Promise<void> {
   hideGameplayForCoreTextureRecovery();
 
   const recoveryPromise = (async () => {
+    if (previousRecovery) { try { await previousRecovery; } catch {} }
+    if (!ownsCurrentLifecycle()) return;
     await retireSpecialDiceRendererOwnersForRecovery(reason);
     if (!ownsCurrentLifecycle()) return;
-    const refreshedAssets = await ensureCoreRenderTexturesGpuReady(`recovery:${reason}`);
+    const refreshedAssets = await ensureCoreRenderTexturesGpuReady(`recovery:${reason}`, ownsCurrentLifecycle, ownerApp?.renderer);
     if (!ownsCurrentLifecycle()) return;
     refreshLiveCoreGameSpriteTextures(`recovery:${reason}`);
     _hudInitDone = false;
     try { (window as any).__ccForceHudRecreateForTextures = true; } catch {}
-    await layoutBoard();
+    await layoutBoard(ownsCurrentLifecycle);
     if (!ownsCurrentLifecycle()) return;
     refreshLiveCoreGameSpriteTextures(`recovery:${reason}:post-layout`);
     restartSpecialDiceRendererOwnersAfterRecovery(reason);
@@ -2461,6 +2522,7 @@ function recoverCoreRenderTextures(reason: string): Promise<void> {
       try { app?.renderer?.render?.(stage); } catch {}
       restoreCanvasAfterCoreTextureRecovery();
     }
+    coreTextureNeedsFullRecovery = false;
     devLog('✅ Core render texture recovery completed', { reason, refreshedAssets });
   })().catch((error) => {
     if (ownsCurrentLifecycle()) {
@@ -2472,10 +2534,14 @@ function recoverCoreRenderTextures(reason: string): Promise<void> {
     if (coreTextureRecoveryPromise === recoveryPromise) {
       coreTextureRecoveryPromise = null;
       coreTextureRecoveryOwnerGeneration = -1;
+      coreTextureRecoveryOwnerEntry = -1;
+      coreTextureRecoveryOwnerRun = -1;
     }
-    if (ownerGeneration === coreTextureRecoveryGeneration) coreTextureVisibilityBeforeLoss = null;
+    if (ownsCurrentLifecycle()) coreTextureVisibilityBeforeLoss = null;
   });
   coreTextureRecoveryOwnerGeneration = ownerGeneration;
+  coreTextureRecoveryOwnerEntry = ownerEntry;
+  coreTextureRecoveryOwnerRun = ownerRun;
   coreTextureRecoveryPromise = recoveryPromise;
   return recoveryPromise;
 }
@@ -2511,6 +2577,7 @@ function installCoreTextureContextRecovery(canvas: HTMLCanvasElement): void {
   coreTextureContextCanvas = canvas;
   coreTextureContextLostHandler = (event: Event) => {
     try { event.preventDefault(); } catch {}
+    coreTextureRecoveryGeneration += 1;
     const beganSuspension = coreTextureForegroundOwner.beginSuspension(app?.ticker?.started === true);
     coreTextureNeedsFullRecovery = true;
     try { app?.ticker?.stop?.(); } catch {}
@@ -2521,19 +2588,29 @@ function installCoreTextureContextRecovery(canvas: HTMLCanvasElement): void {
         hud: hud?.visible !== false,
       };
     }
-    hideGameplayForCoreTextureRecovery();
+    hideGameplayForCoreTextureRecovery(false);
     devWarn('⚠️ WebGL context lost; gameplay hidden until core textures recover');
   };
   const recoverAfterForeground = (reason: string) => {
     // A context can be restored while WKWebView is still backgrounded. Keep
     // the lease pending so the visible event performs the guarded recovery.
     if (document.hidden) return;
+    if (!isCoreTextureRecoveryAllowed()) {
+      emitNativeConsoleDiagnostic('[CC_TEXTURE_HEALTH]', 'recovery-deferred', { reason, zone: appZoneManager.getCurrentZone() });
+      return;
+    }
     const resumeLease = coreTextureForegroundOwner.consume();
     if (!resumeLease) return;
     const ownerCanvas = coreTextureContextCanvas;
+    const ownerApp = app;
+    const ownerEntry = activeGameplayEntryGeneration;
+    const ownerRun = gameplayRunGeneration;
     if (!ownerCanvas || ownerCanvas !== app?.canvas) return;
     const ownsResume = () => (
       coreTextureForegroundOwner.isCurrent(resumeLease) &&
+      ownerEntry === activeGameplayEntryGeneration && ownerRun === gameplayRunGeneration &&
+      isGameplayEntryGenerationLatest(ownerEntry) && isCoreTextureRecoveryAllowed() &&
+      ownerApp === app &&
       ownerCanvas === coreTextureContextCanvas &&
       ownerCanvas === app?.canvas
     );
@@ -2544,7 +2621,7 @@ function installCoreTextureContextRecovery(canvas: HTMLCanvasElement): void {
     const recovery = needsFullRepair
       ? recoverCoreRenderTextures(reason)
       : Promise.resolve()
-          .then(() => ensureCoreRenderTexturesGpuReady(`foreground-fast:${reason}`))
+          .then(() => ensureCoreRenderTexturesGpuReady(`foreground-fast:${reason}`, ownsResume, ownerApp?.renderer))
           .then((refreshedAssets) => {
             if (!ownsResume()) return;
             if (refreshedAssets.length > 0) return recoverCoreRenderTextures(`${reason}:gpu-repair`);
@@ -2556,7 +2633,7 @@ function installCoreTextureContextRecovery(canvas: HTMLCanvasElement): void {
       .then(() => {
         if (!ownsResume() || document.hidden) return;
         coreTextureNeedsFullRecovery = false;
-        if (resumeLease.resumeTicker && app?.ticker && !app.ticker.started) {
+        if (resumeLease.resumeTicker && !isGameplayRendererTerminalSuspended(app) && app?.ticker && !app.ticker.started) {
           app.ticker.start();
         }
       })
@@ -2590,6 +2667,37 @@ function installCoreTextureContextRecovery(canvas: HTMLCanvasElement): void {
 try {
   (window as any).__ccRecoverCoreRenderTextures = (reason = 'external') => recoverCoreRenderTextures(String(reason));
 } catch {}
+
+async function awaitCoreTextureRecoveryForEntry(isCurrent: () => boolean, signal: AbortSignal): Promise<boolean> {
+  const ownsEntry = () => !signal.aborted && isCurrent();
+  // A prior entry may still be finishing one shared asset request. Let it retire
+  // before this entry probes/reloads the same resources or commits a surface.
+  if (coreTextureRecoveryPromise) {
+    try { await coreTextureRecoveryPromise; } catch {}
+  }
+  while (ownsEntry() && coreTextureNeedsFullRecovery) {
+    if (document.hidden) {
+      await new Promise<void>((resolve) => {
+        const finish = () => {
+          if (document.hidden && !signal.aborted) return;
+          document.removeEventListener('visibilitychange', finish);
+          signal.removeEventListener('abort', finish);
+          resolve();
+        };
+        document.addEventListener('visibilitychange', finish);
+        signal.addEventListener('abort', finish, { once: true });
+        finish();
+      });
+    }
+    if (!ownsEntry() || !isCoreTextureRecoveryAllowed()) return false;
+    await recoverCoreRenderTextures('gameplay-entry');
+  }
+  if (!ownsEntry()) return false;
+  // The prepared entry now owns reveal/ticker startup, replacing any older
+  // foreground lease which remembered the suspended menu/result surface.
+  coreTextureForegroundOwner.invalidate();
+  return true;
+}
 
 function resetGlobalFxLayer(reason: string = 'unknown') {
   try {
@@ -3816,7 +3924,8 @@ export async function boot(loadOwner?: { isCurrent: () => boolean; adoptEntry: (
       throw initError;
     }
   } else {
-    // Ensure renderer is active on reuse
+    // Reuse is a new entry; its owner may release the previous result hold.
+    releaseGameplayRendererForEntry(app);
     try { app.ticker.start(); } catch {}
   }
 
@@ -4175,7 +4284,7 @@ export async function boot(loadOwner?: { isCurrent: () => boolean; adoptEntry: (
   // Core gameplay textures must be valid, not just present in Assets.cache.
   // iOS/WebKit can keep stale cache entries after app/renderer teardown; starting with
   // those references renders pips/placeholders without tile faces.
-  await ensureCoreGameTexturesLoaded('boot');
+  await ensureCoreGameTexturesLoaded('boot', [], isCurrentBoot);
   if (!isCurrentBoot()) return;
   
   // Fonts are already loaded via CSS @font-face in index.html
@@ -4858,7 +4967,7 @@ export async function layoutBoard(loadOwnerOrEvent?: (() => boolean) | Event) {
   if (Math.abs((_lastSAT||0) - SAT) > 0.5) { _hudInitDone = false; _lastSAT = SAT; }
 
   try {
-    const refreshedAssets = await ensureCoreGameTexturesLoaded('layoutBoard');
+    const refreshedAssets = await ensureCoreGameTexturesLoaded('layoutBoard', [], isCurrentLayout);
     if (!isCurrentLayout()) return;
     refreshLiveCoreGameSpriteTextures('layoutBoard');
     if (coreGhostTextureNeedsRebuild) {
@@ -4901,7 +5010,7 @@ export async function layoutBoard(loadOwnerOrEvent?: (() => boolean) | Event) {
         // 🔥 CRITICAL: Ensure HUD icons are loaded into PIXI Assets cache before initializing HUD.
         // Assets.get() alone is not enough; stale WebKit/Pixi cache entries can exist but render blank.
         try {
-          const refreshedAssets = await ensureCoreGameTexturesLoaded('layoutBoard-before-hud');
+          const refreshedAssets = await ensureCoreGameTexturesLoaded('layoutBoard-before-hud', [], isCurrentLayout);
           if (!isCurrentLayout()) return;
           if (refreshedAssets.some((assetPath) => isCoreHudTextureAsset(assetPath))) {
             try { (window as any).__ccForceHudRecreateForTextures = true; } catch {}
@@ -5958,7 +6067,7 @@ function revealPreparedGameplaySurface(): void {
     // A texture recovery that completed while entry was pending deliberately
     // left the canvas hidden. The entry commit is the sole safe reveal owner.
     try { app?.renderer?.render?.(stage); } catch {}
-    restoreCanvasAfterCoreTextureRecovery();
+    coreTextureCanvasVisibilityBeforeHide = null;
   } catch {}
 }
 
@@ -6156,12 +6265,22 @@ function rebuildBoard(){
     devLog,
   });
   
-  ensureAnimationRunning({ gsap, app });
+  ensureAnimationRunning({
+    gsap, app,
+    isCurrent: () => !coreTextureNeedsFullRecovery && stage === entryStage && isGameplayEntryGenerationLatest(gameplayEntryGeneration),
+  });
   const sweetPopPromise = prepareGameplayEntryCommit(
     gameplayEntryGeneration,
-    (signal) => {
+    async (signal) => {
       gameplayEntrySignal = signal;
       if (signal.aborted) return;
+      if (!await awaitCoreTextureRecoveryForEntry(
+        () => stage === entryStage && isGameplayEntryGenerationLatest(gameplayEntryGeneration), signal,
+      )) return;
+      ensureAnimationRunning({
+        gsap, app, signal,
+        isCurrent: () => stage === entryStage && isGameplayEntryGenerationLatest(gameplayEntryGeneration),
+      });
       // The freshly built Arcade board is already logically complete here.
       // Persist it before the first visible frame so a hard exit during cube
       // pop-in cannot restore the cleared previous Round. The old terminal
@@ -6275,7 +6394,10 @@ function scheduleEntrySpecialWarmups(entryGeneration: number, entryBoard: number
   const ownsEntry = () => !document.hidden && isCurrent() && isGameplayEntryGenerationLatest(entryGeneration) && boardNumber === entryBoard;
   trackAppTimeout(() => {
     if (!ownsEntry()) return;
-    preloadEligibleSpecialSounds({ boardNumber: entryBoard, isArcade: isArcadeHomeRunMode(), tiles });
+    withGameplayAudioDiagnosticCaller('entry-special', () => {
+      preloadEligibleSpecialSounds({ boardNumber: entryBoard, isArcade: isArcadeHomeRunMode(), tiles });
+    });
+    void preloadLiveJuiceFinaleTextures(tiles, ownsEntry);
   }, 600);
   trackAppTimeout(() => {
     if (!ownsEntry()) return;
@@ -6287,6 +6409,9 @@ function scheduleEntrySpecialWarmups(entryGeneration: number, entryBoard: number
 
 // Board exit animation - reverse of sweetPopIn
 async function animateBoardExit(){
+  const exitApp = app;
+  const exitGeneration = gameplayRunGeneration;
+  try {
   devLog('🎬🎬🎬 animateBoardExit() CALLED');
   setJourneyGameBottomDecorVisible(false);
   
@@ -6372,6 +6497,13 @@ async function animateBoardExit(){
   // 🔥 DIAGNOSTICS: Log stats after cleanup
   logBoardExitStats('after-cleanup');
   return Promise.resolve();
+  } finally {
+    // A result may request an explicit visible exit. Render that exit, then
+    // restore its hold unless a new board has taken ownership in the meantime.
+    if (exitApp === app && exitGeneration === gameplayRunGeneration && isGameplayRendererTerminalSuspended(exitApp)) {
+      try { exitApp?.ticker?.stop(); } catch {}
+    }
+  }
 }
 
 // 🔥 v112: tintLocked moved to app-core-helpers.ts
@@ -6612,6 +6744,7 @@ try {
 
 async function startLevel(n): Promise<void> {
   const startLevelGeneration = beginGameplayEntryPreparation(`startLevel:${n}`);
+  releaseGameplayRendererForEntry(app);
   // Warm the Backpack/Crate frames alongside the board texture barrier. The
   // first reward must not begin decoding its entrance only after the meter is
   // already visibly full.
@@ -6626,9 +6759,11 @@ async function startLevel(n): Promise<void> {
   activeGameplayEntryGeneration = startLevelGeneration;
   const isCurrentStartLevel = () =>
     activeGameplayEntryGeneration === startLevelGeneration &&
+    gameplayRunGeneration === startLevelRunGeneration &&
     isGameplayEntryGenerationLatest(startLevelGeneration);
   devLog('🎯 startLevel called with:', n, 'current level:', level, 'current boardNumber:', boardNumber, 'current score:', score);
   resetTransientRunGuards('startLevel');
+  const startLevelRunGeneration = gameplayRunGeneration;
   // 🔥 Enter animation active: updateGhostVisibility will only hide ghosts until pop-in completes
   (window as any).__ccEnterAnimationActive = true;
   startBoardFrameBudgetMonitor(app?.ticker);
@@ -6643,7 +6778,7 @@ async function startLevel(n): Promise<void> {
   const deferSurfaceRevealForSavedLoad = (window as any).__ccSkipRebuildBoard === true;
 
   try {
-    const refreshedAssets = await ensureCoreRenderTexturesGpuReady('startLevel');
+    const refreshedAssets = await ensureCoreRenderTexturesGpuReady('startLevel', isCurrentStartLevel, app?.renderer);
     if (!isCurrentStartLevel()) return;
     refreshLiveCoreGameSpriteTextures('startLevel');
     if (refreshedAssets.length > 0) {
@@ -7319,11 +7454,11 @@ async function spawnWildFromMeter(){
           // Warm only the committed die while its drop animation is running.
           // Pool-wide entry warmup exceeded the mobile decode budget and
           // repeatedly decoded sounds that could not remain resident.
-          preloadEligibleSpecialSounds({
-            boardNumber,
-            isArcade: isArcadeHomeRunMode(),
-            tiles: [spawnedTile],
+          withGameplayAudioDiagnosticCaller('drop-special', () => {
+            preloadEligibleSpecialSounds({ boardNumber, isArcade: isArcadeHomeRunMode(), tiles: [spawnedTile] });
           });
+          const dropEntryGeneration = activeGameplayEntryGeneration;
+          void preloadLiveJuiceFinaleTextures([spawnedTile], () => !document.hidden && !spawnedTile.destroyed && isGameplayEntryGenerationLatest(dropEntryGeneration));
         }
         consumeCharge();
         spawned = true;
@@ -9759,8 +9894,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       };
       
       if (nearestTiles.length > 0) {
-        preloadMagnetPullForceSounds();
-        preloadHoneyMerge6Sounds();
+        withGameplayAudioDiagnosticCaller('magnet-pull', () => {
+          preloadMagnetPullForceSounds();
+          if (magnetVariantAtMergeEntry?.id === 'honey') preloadHoneyMerge6Sounds();
+        });
         // Store original positions and mark tiles as magnet-affected IMMEDIATELY
         nearestTiles.forEach((tile: any) => {
           if (!tile || tile.destroyed) return;
@@ -15594,6 +15731,30 @@ function playMerge6HeroBounce(targetTile: any): void {
     });
 }
 
+// Retire tile-owned idle work only after the authored board/finale exit. Final
+// effects, HUD collection and result DOM animations keep their own lifetimes.
+function suspendTerminalGameplay(isCurrent: () => boolean): void {
+  suspendGameplayRendererForTerminal(app, isCurrent, () => {
+    try { TILE_IDLE_BOUNCE.stop(); } catch {}
+    const liveTiles = new Set([...(tiles || []), ...(STATE?.tiles || [])]);
+    for (const tile of liveTiles) {
+      if (!tile || tile.destroyed) continue;
+      for (const stop of [stopSpecialDiceIdleMotion, stopWildIdle, stopWildShimmer,
+        stopWildStars, stopWildJuiceBubbles, stopMagnetIdleParticles,
+        stopTntIdleParticles, stopTntIdleShake]) {
+        try { stop(tile); } catch {}
+      }
+    }
+    // Scenegraph visibility/alpha changes are not displayed until a render.
+    // Commit the completed hidden/exit pose before stopping the persistent canvas.
+    try {
+      if (stage && !stage.destroyed && app?.renderer) app.renderer.render(stage);
+    } catch (error) {
+      devWarn('Terminal final frame unavailable during renderer recovery:', error);
+    }
+  });
+}
+
 async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlow?: boolean } = {}){
   const terminalRunGeneration = gameplayRunGeneration;
   const terminalPresentationIsCurrent = (): boolean => (
@@ -15681,6 +15842,8 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
   try {
     if (isArcadeRunReachedSummary) {
       const { showCleanBoardModal } = await import('./clean-board-modal.js');
+      if (!terminalPresentationIsCurrent()) return;
+      suspendTerminalGameplay(terminalPresentationIsCurrent);
       result = await showCleanBoardModal({
         app,
         stage,
@@ -15696,6 +15859,8 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
       });
     } else {
       const { showBoardFailModal } = await import('./board-fail-modal.js');
+      if (!terminalPresentationIsCurrent()) return;
+      suspendTerminalGameplay(terminalPresentationIsCurrent);
       result = await showBoardFailModal({
         score: Math.max(0, score | 0),
         boardNumber: Math.max(1, boardNumber | 0)
@@ -16162,6 +16327,7 @@ export function pauseGame() {
 }
 
 export function resumeGame() {
+  if (isGameplayRendererTerminalSuspended(app)) return;
   try {
     gsap.globalTimeline.resume();
     app.ticker.start();
@@ -16397,6 +16563,12 @@ export function cleanupGame(options: { destroyRenderer?: boolean } = {}) {
     });
     tiles.length = 0;
   }
+  // A route exit has no board that can reuse a zero-reference Special atlas.
+  // Retire those GPU resources now instead of keeping the former board's
+  // decoded sheets through the incoming Journey paint and its 8s grace tail.
+  void releaseIdleSharedPixiSheets().catch((error) => {
+    devWarn('⚠️ Failed to retire idle Special sheets on board exit:', error);
+  });
   
   // 🔥 CRITICAL FIX: Cleanup wild juice explosion (GSAP ticker + PIXI containers)
   // 🔥 BUBBLES ANIMATION FIX: Always cleanup to prevent stale state (even if flag says inactive)
@@ -16972,9 +17144,11 @@ async function loadGameState(overrideBoardNumber?: number) {
     let loadedEntrySignal: AbortSignal | null = null;
     const loadedEntryCompletion = prepareGameplayEntryCommit(
       loadedEntryGeneration,
-      (signal) => {
+      async (signal) => {
         loadedEntrySignal = signal;
         if (signal.aborted || !isCurrentLoad()) return;
+        if (!await awaitCoreTextureRecoveryForEntry(isCurrentLoad, signal)) return;
+        ensureAnimationRunning({ gsap, app, signal, isCurrent: isCurrentLoad });
         revealPreparedGameplaySurface();
         playJourneyForestGameplaySound({
           boardNumber,

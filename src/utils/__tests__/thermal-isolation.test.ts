@@ -6,7 +6,11 @@ describe('stationary thermal isolation', () => {
     jest.useFakeTimers();
     Object.defineProperty(document, 'hidden', { configurable: true, value: false });
   });
-  afterEach(() => { stop?.(); stop = null; jest.useRealTimers(); });
+  afterEach(() => {
+    stop?.(); stop = null;
+    delete (window as any).__ccThermalSpecialSheetsSuppressedOnLaunch;
+    jest.useRealTimers();
+  });
   const options = () => ({
     enabled: true, group: 'ambient' as const, fingerprint: () => 'same-board',
     suppress: jest.fn(() => jest.fn()), emit: jest.fn(), onStop: jest.fn(),
@@ -16,6 +20,13 @@ describe('stationary thermal isolation', () => {
     stop = startThermalIsolation(config);
     expect(stop).toBeNull(); expect(jest.getTimerCount()).toBe(0);
     expect(isThermalWorkSuppressed('ambient')).toBe(false);
+  });
+  test('passive sheet isolation freezes only sheet owners without starting an ABBA timer', () => {
+    (window as any).__ccThermalSpecialSheetsSuppressedOnLaunch = true;
+    expect(isThermalWorkSuppressed('sheets')).toBe(true);
+    expect(isThermalWorkSuppressed('pixi-render')).toBe(false);
+    expect(isThermalWorkSuppressed('ambient')).toBe(false);
+    expect(jest.getTimerCount()).toBe(0);
   });
   test('ABBA measures the same owner, restores once and completes without leftover timers', () => {
     const config = options(); stop = startThermalIsolation(config);

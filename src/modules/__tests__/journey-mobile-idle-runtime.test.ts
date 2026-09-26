@@ -60,4 +60,28 @@ describe('Journey mobile idle runtime', () => {
       '.journey-v700-world-cloud.journey-v700-runtime-active',
     );
   });
+
+  it('pauses World-local interim and ribbon work outside the runtime viewport', () => {
+    const managerSource = fs.readFileSync(
+      path.join(root, 'src/modules/journey-boards-manager.ts'),
+      'utf8',
+    );
+    const coordinatorSource = fs.readFileSync(
+      path.join(root, 'src/modules/journey-world-animation-coordinator.ts'),
+      'utf8',
+    );
+    const cssSource = fs.readFileSync(
+      path.join(root, 'src/collectibles-screen.css'),
+      'utf8',
+    );
+
+    expect(managerSource).toContain('this.isJourneyElementNearRuntimeViewport(cardWrapper)');
+    expect(managerSource).toContain('this.interimShineController?.pause()');
+    expect(coordinatorSource).toContain('JOURNEY_WORLD_IDLE_ACTIVE_CLASS');
+    expect(coordinatorSource).toContain("rootMargin: '160px 0px'");
+    expect(cssSource).toContain(
+      '.journey-board-card-wrapper:not(.journey-world-idle-active)',
+    );
+    expect(cssSource).toMatch(/journey-board-card-wrapper:not\([\s\S]*?animation-play-state: paused;[\s\S]*?will-change: auto;/);
+  });
 });

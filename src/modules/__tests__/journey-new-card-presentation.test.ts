@@ -56,8 +56,9 @@ describe('Journey New Reward presentation', () => {
     expect(coachCopyRule).toMatch(/color: #fff;[\s\S]*?font-family: "Baloo2", system-ui, -apple-system, sans-serif;[\s\S]*?text-shadow:\s*0 3px 0 rgba\(159, 105, 82, 0\.34\),\s*0 8px 20px rgba\(104, 67, 53, 0\.22\);/);
     expect(coachCopyRule).not.toContain('opacity:');
     expect(screen).toContain('JOURNEY_NEW_CARD_CONTINUE_COACH_INITIAL_DELAY_MS = 1000');
-    expect(screen).toContain('JOURNEY_NEW_CARD_CONTINUE_COACH_REPEAT_DELAY_MS = 2000');
-    expect(screen).toContain('scheduleContinueCoach(JOURNEY_NEW_CARD_CONTINUE_COACH_REPEAT_DELAY_MS)');
+    expect(screen).toContain('JOURNEY_NEW_CARD_CONTINUE_COACH_AFTER_DRAG_DELAY_MS = 2000');
+    expect(screen).toContain('scheduleContinueCoach(JOURNEY_NEW_CARD_CONTINUE_COACH_AFTER_DRAG_DELAY_MS)');
+    expect(screen).not.toContain('scheduleContinueCoach(JOURNEY_NEW_CARD_CONTINUE_COACH_REPEAT_DELAY_MS)');
     expect(screen).toContain("hero?.setAttribute('aria-label', `Continue after unlocking ${safeCardName}`)");
     expect(screen).toContain('stopContinueCoach();');
     expect(screen).toContain('scheduleContinueCoach();');
@@ -115,15 +116,15 @@ describe('Journey New Reward presentation', () => {
       'Fresh Juice',
       'Bouncy Day',
       'Bottle Tips',
-      'Star Below',
       'Castle Ruins',
+      'Star Below',
       'Looky Here',
-      'The Letter',
       'Playtime',
+      'The Letter',
       'Life Saver',
     ]);
     expect(getJourneyNewCardDisplayName(11, 'STAGE 01')).toBe('Fishy');
-    expect(getJourneyNewCardDisplayName(18, 'STAGE 08')).toBe('The Letter');
+    expect(getJourneyNewCardDisplayName(18, 'STAGE 08')).toBe('Playtime');
     JOURNEY_BEACH_CARD_NAMES.forEach((name, index) => {
       const displayName = getJourneyNewCardDisplayName(11 + index, 'old placeholder');
       expect(displayName).toBe(name);
@@ -138,8 +139,8 @@ describe('Journey New Reward presentation', () => {
   });
 
   test('Beach legendary reveal keeps the name printed on its separate artwork', () => {
-    const names = ['Fishy', 'Juice Blast', 'Bouncy Day', 'Bottle Tips', 'Rough Seas',
-      'Castle Show', 'Deep Dive', 'Go Fetch', 'Playtime', 'Life Saver'];
+    const names = ['Fishy', 'Fresh Juice', 'Bouncy Day', 'Bottle Tips', 'Castle Ruins',
+      'Star Below', 'Looky Here', 'Playtime', 'The Letter', 'Life Saver'];
     names.forEach((name, index) => {
       expect(getJourneyNewCardDisplayName(11 + index, 'fallback', 'legendary')).toBe(name);
     });

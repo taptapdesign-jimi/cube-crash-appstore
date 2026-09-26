@@ -4,6 +4,7 @@ import { beginScreenPreparation } from '../utils/screen-presentation.js';
 import { isThermalWorkSuppressed } from '../utils/thermal-isolation.js';
 import { cancelJourneyHubScrollableEnter } from '../ui/journey-hub-scrollable-enter.js';
 import { beginTransitionPerformance, type TransitionPerformance } from '../utils/transition-performance.js';
+import type { JourneyTerminalPreparationPerformance } from './journey-terminal-preparation-performance.js';
 // Journey Boards Manager
 // Manages Journey Hub worlds and their board cards.
 // 
@@ -148,6 +149,7 @@ import {
 } from './journey-world-runtime-scheduler.js';
 import {
   captureJourneyIdleRuntimeSuspension,
+  isJourneyRuntimeTargetNearViewport,
   shouldSuspendJourneyUnitIdlePaint,
   updateJourneyIdleRuntimeActivation,
 } from './journey-idle-runtime-activation.js';
@@ -167,7 +169,6 @@ import {
   getJourneyNewCardDisplayName,
 } from './journey-new-card-presentation.js';
 import { preloadRegularMerge6Sounds } from './regular-merge6-sound.ts';
-import { preloadWildStarMerge6Sound } from './wild-star-merge6-sound.ts';
 import { preloadWildSpecialMerge6PoofSounds } from './wild-special-merge6-poof-sound.ts';
 import { preloadOrdinaryStackSound } from './ordinary-stack-sound.ts';
 import { preloadGameplayPickupSound } from './gameplay-pickup-sound.ts';
@@ -933,6 +934,7 @@ type JourneyReturnPaintWarmLease = {
   previousShowClass: boolean;
   previousStyles: Record<string, { value: string; priority: string }>;
   ready: boolean;
+  preparation?: JourneyTerminalPreparationPerformance | null;
 };
 
 type JourneyLandingPoseSample = {
@@ -1096,7 +1098,10 @@ class JourneyBoardsManager {
         });
       }
       this.journeyAreaIdleEntries.forEach((entry) => {
-        entry.targets.forEach((target) => target.style.willChange = 'auto');
+        entry.targets.forEach((target) => {
+          target.style.willChange = 'auto';
+          setJourneyAlienBeamIdleReady(target, false);
+        });
       });
     } else {
       if (this.journeyWorldRuntimeIdleSuspendedAt !== null) {
@@ -1120,7 +1125,8 @@ class JourneyBoardsManager {
       const wrapper = interimWrapper;
       const timeline = (wrapper as any)._interimBounceTimeline;
       const card = interimCard;
-      if (timeline && snapshot.paintSuspended) {
+      const runtimeActive = this.canRunJourneyInterimLocalEffects(card, wrapper, true);
+      if (timeline && !runtimeActive) {
         if ((wrapper as any).__ccJourneyRuntimePausedInterim !== true) {
           try {
             if (typeof timeline.paused !== 'function' || !timeline.paused()) {
@@ -1130,13 +1136,14 @@ class JourneyBoardsManager {
           } catch {}
         }
         card.style.willChange = 'auto';
-      } else if (timeline && (wrapper as any).__ccJourneyRuntimePausedInterim === true) {
+        try { JOURNEY_CARD_IDLE_BOUNCE?.cleanupSmokeEffects?.(card); } catch {}
+      } else if (timeline && runtimeActive && (wrapper as any).__ccJourneyRuntimePausedInterim === true) {
         delete (wrapper as any).__ccJourneyRuntimePausedInterim;
         card.style.willChange = 'transform';
         try { timeline.resume?.(); } catch {}
       }
     }
-    if (snapshot.paintSuspended) {
+    if (!interimCard || !this.canRunJourneyInterimLocalEffects(interimCard, interimWrapper, true)) {
       this.interimShineController?.pause();
     } else {
       this.interimShineController?.resume();
@@ -1155,6 +1162,42 @@ class JourneyBoardsManager {
       idleTickerCount: this.journeyAreaIdleTicker ? 1 : 0,
       ambientSuspended: snapshot.ambientSuspended,
     });
+  }
+
+  private isJourneyElementNearRuntimeViewport(target: HTMLElement): boolean {
+    if (!target.isConnected) return false;
+    const scrollRoot = target.closest('#journey-screen .collectibles-scrollable') as HTMLElement | null;
+    const viewportRect = scrollRoot?.getBoundingClientRect() ?? {
+      top: 0,
+      bottom: window.innerHeight,
+      left: 0,
+      right: window.innerWidth,
+    };
+    return isJourneyRuntimeTargetNearViewport(target.getBoundingClientRect(), viewportRect, 160);
+  }
+
+  private canRunJourneyInterimLocalEffects(
+    card: HTMLElement,
+    cardWrapper: HTMLElement | null = card.closest('.journey-board-card-wrapper') as HTMLElement | null,
+    requireActiveSession = false,
+  ): boolean {
+    if (this.renderDisposed || !card.isConnected || !cardWrapper?.isConnected) return false;
+    if (requireActiveSession && (
+      this.interimIdleEffectsCard !== card
+      || !card.classList.contains('interim-idle-effects-active')
+    )) return false;
+    const snapshot = this.journeyWorldRuntime.getSnapshot();
+    const worldPhase = this.journeyWorldAnimation.getPhase();
+    return !snapshot.paintSuspended
+      && this.journeyV700View === 'world'
+      && this.journeyV700Phase === 'idle'
+      && worldPhase === 'idle'
+      && !this.isActiveBoardAreaEnterOwned()
+      && !this.journeyToGameExitActive
+      && !(cardWrapper as any).__ccJourneyToGameExitTween
+      && !(cardWrapper as any).__ccJourneyCardTapExitActive
+      && !(card as any)._openingGame
+      && this.isJourneyElementNearRuntimeViewport(cardWrapper);
   }
 
   private activateJourneyWorldRuntime(container: HTMLElement, worldId: number): void {
@@ -1200,6 +1243,15 @@ class JourneyBoardsManager {
         && entry.runtimeActive
         && !shouldSuspendJourneyUnitIdlePaint(snapshot);
       entry.targets.forEach((target) => {
+        // Area 55 has ten independent CSS beam pulses. Match them to the same
+        // two-Unit mobile viewport budget as the coordinated transform ticker
+        // instead of animating every offscreen beam indefinitely.
+        setJourneyAlienBeamIdleReady(
+          target,
+          entry.runtimeActive
+            && !shouldSuspendJourneyUnitIdlePaint(snapshot)
+            && this.journeyV700Phase === 'idle',
+        );
         target.style.willChange = canPromote
           ? (target.classList.contains('journey-robo-alien-beam-art') ? 'transform, opacity' : 'transform')
           : 'auto';
@@ -1454,6 +1506,12 @@ class JourneyBoardsManager {
     this.renderLifecycleGeneration += 1;
     this.renderDisposed = false;
     return this.renderLifecycleGeneration;
+  }
+
+  private resumeForVisibleWorldReturn(source: string): void {
+    if (!this.renderDisposed) return;
+    const generation = this.beginRenderLifecycle();
+    emitIOSNativeDiagnostic('world-return-render-lifecycle-resumed', { source, generation });
   }
 
   private stopForestBeeOrbits(reason: string): void {
@@ -1729,13 +1787,7 @@ class JourneyBoardsManager {
       if (!target.dataset.journeyAreaId) {
         target.dataset.journeyAreaId = areaId;
       }
-      if (
-        (target.classList.contains('journey-robo-alien-beam-art') || target.querySelector('.journey-robo-alien-beam-art')) &&
-        this.journeyV700Phase === 'idle' &&
-        !this.activeBoardAreaEnterInProgress
-      ) {
-        setJourneyAlienBeamIdleReady(target, true);
-      }
+      setJourneyAlienBeamIdleReady(target, false);
       target.style.willChange = (
         MOBILE_RUNTIME_PROFILE.isMobileDevice
         || this.journeyWorldRuntime.getSnapshot().paintSuspended
@@ -5246,6 +5298,12 @@ class JourneyBoardsManager {
     card.style.willChange = 'transform';
     
     const triggerLandingSmoke = () => {
+      if (!this.canRunJourneyInterimLocalEffects(card, cardWrapper, true)) {
+        try { JOURNEY_CARD_IDLE_BOUNCE?.cleanupSmokeEffects?.(card); } catch {}
+        if (this.renderDisposed || !card.parentElement) this.stopInterimBounce(card);
+        return;
+      }
+
       if (this.renderDisposed || !card.parentElement) {
         this.stopInterimBounce(card);
         return;
@@ -5692,7 +5750,9 @@ class JourneyBoardsManager {
     const bounceTimeline = (cardWrapper as any)._interimBounceTimeline;
     if (!bounceTimeline || (bounceTimeline as any)._killed) return false;
     try {
-      if (typeof bounceTimeline.paused === 'function' && bounceTimeline.paused()) return false;
+      if (typeof bounceTimeline.paused === 'function' && bounceTimeline.paused()) {
+        return (cardWrapper as any).__ccJourneyRuntimePausedInterim === true;
+      }
       if (typeof bounceTimeline.timeScale === 'function' && bounceTimeline.timeScale() === 0) return false;
     } catch {}
 
@@ -5760,6 +5820,25 @@ class JourneyBoardsManager {
           (interimCard as any)._openingGame;
         if (transitionOwnsCard) return;
 
+        const nearViewport = this.canRunJourneyInterimLocalEffects(interimCard, cardWrapper);
+        const existingTimeline = (cardWrapper as any)._interimBounceTimeline;
+        if (!nearViewport) {
+          if (existingTimeline && (cardWrapper as any).__ccJourneyRuntimePausedInterim !== true) {
+            try { existingTimeline.pause?.(); } catch {}
+            (cardWrapper as any).__ccJourneyRuntimePausedInterim = true;
+          }
+          interimCard.style.willChange = 'auto';
+          try { JOURNEY_CARD_IDLE_BOUNCE?.cleanupSmokeEffects?.(interimCard); } catch {}
+          if (this.interimShineCard === interimCard) this.interimShineController?.pause();
+          return;
+        }
+        if (existingTimeline && (cardWrapper as any).__ccJourneyRuntimePausedInterim === true) {
+          delete (cardWrapper as any).__ccJourneyRuntimePausedInterim;
+          interimCard.style.willChange = 'transform';
+          try { existingTimeline.resume?.(); } catch {}
+          if (this.interimShineCard === interimCard) this.interimShineController?.resume();
+        }
+
         const wrapperStyle = window.getComputedStyle(cardWrapper);
         const wrapperOpacity = Number(wrapperStyle.opacity || cardWrapper.style.opacity || '1');
         const wrapperScale = Number(gsap.getProperty(cardWrapper, 'scale'));
@@ -5795,9 +5874,9 @@ class JourneyBoardsManager {
 
   /** Keep the pre-Unlock light on a nested face so card/Unit transforms stay independent. */
   private startInterimCardShine(card: HTMLElement): void {
-    const paintSuspended = this.journeyWorldRuntime.getSnapshot().paintSuspended;
+    const runtimeActive = this.canRunJourneyInterimLocalEffects(card);
     if (this.interimShineCard === card && this.interimShineController) {
-      if (paintSuspended) this.interimShineController.pause();
+      if (!runtimeActive) this.interimShineController.pause();
       else this.interimShineController.resume();
       return;
     }
@@ -5822,11 +5901,11 @@ class JourneyBoardsManager {
         && this.interimShineCard === card
         && card.isConnected
         && card.classList.contains('interim-idle-effects-active')
-        && !this.journeyWorldRuntime.getSnapshot().paintSuspended
+        && this.canRunJourneyInterimLocalEffects(card, undefined, true)
       ),
     });
     this.interimShineController.start();
-    if (paintSuspended) this.interimShineController.pause();
+    if (!runtimeActive) this.interimShineController.pause();
   }
 
   private stopInterimCardShine(): void {
@@ -7384,6 +7463,15 @@ class JourneyBoardsManager {
       delete (container as any).__ccJourneyV700Opening;
     };
     const beginWorldOpen = async () => {
+      // Stop settled Hub ambient/tilt/banner paint before attaching the
+      // connected World prepaint surface. Otherwise WebKit rasterizes two
+      // independently animated full-screen trees during the same transition.
+      const transitionHub = container.querySelector<HTMLElement>(':scope > .journey-v700-hub');
+      const transitionWorldIds = new Set(getJourneyHubWorkingSet(worldId).map(world => world.id));
+      const transitionCards = Array.from(
+        transitionHub?.querySelectorAll<HTMLElement>('.journey-v700-world-card') || [],
+      ).filter(card => transitionWorldIds.has(Number(card.dataset.worldId)));
+      this.journeyHubRuntime.prepareForTransition(transitionHub, transitionCards);
       // Prepare the exact final active-World DOM behind the stable Hub. This
       // includes decode, raster and compositor ownership. Keep that work under
       // the visible Hub exit instead of delaying the first motion after a tap.
@@ -8701,8 +8789,9 @@ class JourneyBoardsManager {
 
   public playJourneyV700WorldEnterFromReturn(
     source = 'journey-return',
-    options: { immediateFirstUnit?: boolean } = {},
+    options: { immediateFirstUnit?: boolean; ownerToken?: number | null } = {},
   ): void {
+    this.resumeForVisibleWorldReturn(source);
     const container = document.getElementById('journey-boards-container') as HTMLElement | null;
     const worldId = this.journeyV700WorldId || Number((window as any).__ccJourneyV700WorldId || localStorage.getItem(JOURNEY_V700_WORLD_STORAGE_KEY) || 0);
     const isWorldView =
@@ -8751,13 +8840,19 @@ class JourneyBoardsManager {
       source,
       waitForImages: false,
       immediateFirstUnit: options.immediateFirstUnit,
+      returnOwnerToken: options.ownerToken !== undefined
+        ? options.ownerToken
+        : preparedPlan?.ownerToken ?? null,
     });
   }
 
   public prepareJourneyV700WorldEnterFromReturn(
     source = 'journey-return-pre-reveal',
     ownerToken: number | null = null,
+    preparation: JourneyTerminalPreparationPerformance | null = null,
   ): boolean {
+    this.resumeForVisibleWorldReturn(source);
+    const phase = <T>(name: string, work: () => T): T => preparation ? preparation.phase(name, work) : work();
     const container = document.getElementById('journey-boards-container') as HTMLElement | null;
     const worldId = Number(
       this.journeyV700WorldId ||
@@ -8792,7 +8887,10 @@ class JourneyBoardsManager {
       && existingPlan.ownerToken === ownerToken
       && existingPlan.targets.length > 0
       && existingPlan.targets.every((target) => target.isConnected);
+    preparation?.detail({ worldId, reused: canReuseExistingPlan });
     if (canReuseExistingPlan) {
+      preparation?.detail({ existingUnits: existingPlan.units.length, cold: false, targetCount: existingPlan.targets.length });
+      if (this.journeyReturnPaintWarmLease?.preparation !== preparation) preparation?.finish('prepared-plan-reused');
       emitIOSNativeDiagnostic('world-enter-prime-reused', {
         worldId,
         source,
@@ -8806,7 +8904,9 @@ class JourneyBoardsManager {
     // now, under the still-opaque terminal overlay, instead of paying this cost
     // after result-last-visible. The temporary .001 lease makes renderBoards
     // legal and paintable without exposing the destination to the player.
-    if (this.getJourneyV700AnimationUnits(container, worldId).length === 0) {
+    const existingUnitCount = phase('existing-units', () => this.getJourneyV700AnimationUnits(container, worldId).length);
+    preparation?.detail({ existingUnits: existingUnitCount, cold: existingUnitCount === 0 });
+    if (existingUnitCount === 0) {
       const screen = document.getElementById('journey-screen') as HTMLElement | null;
       if (screen) {
         const previousHidden = screen.hidden;
@@ -8829,7 +8929,7 @@ class JourneyBoardsManager {
           screen.style.setProperty('opacity', '0.001', 'important');
           screen.style.setProperty('pointer-events', 'none', 'important');
           screen.style.setProperty('z-index', '999999');
-          this.renderBoards();
+          phase('cold-render', () => this.renderBoards());
           emitIOSNativeDiagnostic('world-return-cold-render-behind-result', { worldId, source, ownerToken });
         } finally {
           screen.hidden = previousHidden;
@@ -8842,16 +8942,16 @@ class JourneyBoardsManager {
         }
       }
     }
-    this.prepareJourneyBoardCardTransformsForReveal(source);
+    phase('transform-reset', () => this.prepareJourneyBoardCardTransformsForReveal(source));
     // Full Journey rendering is correctly blocked while gameplay owns the
     // screen. Reconcile only card Units in the preserved World DOM so a newly
     // completed interim Unit is painted as unlocked before the return enter.
-    this.reconcileMountedJourneyWorldCardUnits(container, worldId, source);
-    this.primeJourneyV700WorldEnter(container, worldId, {
+    phase('reconcile', () => this.reconcileMountedJourneyWorldCardUnits(container, worldId, source));
+    phase('prime', () => this.primeJourneyV700WorldEnter(container, worldId, {
       source,
       lastBoardId: this.getLastActiveJourneyBoardAreaId(),
       ownerToken,
-    });
+    }));
     const preparedPlan = this.journeyV700PreparedWorldEnter;
     const prepared = preparedPlan?.worldId === worldId
       && preparedPlan.renderGeneration === this.renderLifecycleGeneration
@@ -8862,7 +8962,8 @@ class JourneyBoardsManager {
       emitIOSNativeDiagnostic('world-return-prime-missing-units', { worldId, source, ownerToken });
       return false;
     }
-    this.startJourneyReturnPaintWarm(container, worldId, ownerToken, source);
+    preparation?.detail({ targetCount: preparedPlan.targets.length });
+    phase('warm-dispatch', () => this.startJourneyReturnPaintWarm(container, worldId, ownerToken, source, preparation));
     return true;
   }
 
@@ -8878,6 +8979,7 @@ class JourneyBoardsManager {
     worldId: number,
     ownerToken: number | null,
     source: string,
+    preparation: JourneyTerminalPreparationPerformance | null = null,
   ): void {
     const preparedPlan = this.journeyV700PreparedWorldEnter;
     const screen = document.getElementById('journey-screen') as HTMLElement | null;
@@ -8903,6 +9005,7 @@ class JourneyBoardsManager {
       previousShowClass: screen.classList.contains('show'),
       previousStyles,
       ready: false,
+      preparation,
     };
     this.journeyReturnPaintWarmLease = lease;
 
@@ -8937,16 +9040,25 @@ class JourneyBoardsManager {
             ? [target]
             : Array.from(target.querySelectorAll<HTMLImageElement>('img'))
         ))));
-        await Promise.all(images.map((image) => waitForImageReady(image)));
+        preparation?.detail({ imageCount: images.length });
+        const endImageWait = preparation?.start('image-ready');
+        const imageWork = () => Promise.all(images.map((image) => waitForImageReady(image)));
+        await (preparation ? preparation.phase('image-dispatch', imageWork) : imageWork());
+        endImageWait?.();
         if (!isCurrent()) return;
 
+        const endLayout = preparation?.start('forced-layout');
         void screen.getBoundingClientRect();
         void container.getBoundingClientRect();
+        endLayout?.();
         for (let frameIndex = 0; frameIndex < 3; frameIndex += 1) {
+          const endPaint = preparation?.start(`paint-frame-${frameIndex + 1}`);
           const painted = await this.waitForTrackedFrames(1);
+          endPaint?.();
           if (!painted || !isCurrent()) return;
         }
         lease.ready = true;
+        preparation?.finish('painted');
         emitIOSNativeDiagnostic('world-return-prepaint-painted', {
           worldId,
           source,
@@ -8956,6 +9068,7 @@ class JourneyBoardsManager {
           durationMs: Math.round(performance.now() - startedAt),
         });
       } catch (error) {
+        preparation?.finish('paint-warm-failed');
         if (!isCurrent()) return;
         emitIOSNativeDiagnostic('world-return-prepaint-failed', {
           worldId,
@@ -8976,6 +9089,7 @@ class JourneyBoardsManager {
     const lease = this.journeyReturnPaintWarmLease;
     if (!lease || (ownerToken !== null && lease.ownerToken !== ownerToken)) return;
     this.journeyReturnPaintWarmLease = null;
+    lease.preparation?.finish(`released:${reason}`);
     lease.releasePreparation();
     if (restore && lease.screen.isConnected) {
       lease.screen.hidden = lease.previousHidden;
@@ -9003,6 +9117,7 @@ class JourneyBoardsManager {
       lastBoardId?: number | null;
       waitForImages?: boolean;
       immediateFirstUnit?: boolean;
+      returnOwnerToken?: number | null;
     } = {}
   ): void {
     const transitionPerformance = beginTransitionPerformance('journey-world-unit-enter');
@@ -9049,7 +9164,10 @@ class JourneyBoardsManager {
     markIOSJourneyRouteAudit(`journey-world-${worldId}-enter`);
     if (!units.length) {
       this.journeyV700Phase = 'idle';
-      completeJourneyReturnTransition({ worldId, source, reason: 'no-units' });
+      completeJourneyReturnTransition(
+        { worldId, source, reason: 'no-units' },
+        options.returnOwnerToken ?? null,
+      );
       transitionPerformance.finish('no-units');
       return;
     }
@@ -9170,7 +9288,9 @@ class JourneyBoardsManager {
       allTargets.forEach((target) => {
         if (target.classList.contains('journey-robo-alien-beam-art') || target.querySelector('.journey-robo-alien-beam-art')) {
           target.style.removeProperty('opacity');
-          setJourneyAlienBeamIdleReady(target, true);
+          // The runtime snapshot published after endTransition selects only
+          // near-viewport beams. Keep every beam paused until that handoff.
+          setJourneyAlienBeamIdleReady(target, false);
         }
       });
       if (source.includes('game-return')) {
@@ -9199,7 +9319,10 @@ class JourneyBoardsManager {
           || !container.isConnected
         ) return;
         this.journeyWorldRuntime.endTransition();
-        completeJourneyReturnTransition({ worldId, source, unitCount: units.length });
+        completeJourneyReturnTransition(
+          { worldId, source, unitCount: units.length },
+          options.returnOwnerToken ?? null,
+        );
         if (closeQueuedDuringEnter) {
           this.journeyV700CloseQueuedDuringEnter = false;
           emitIOSNativeDiagnostic('close-world-queued-enter-flush', { worldId, source });
@@ -13204,7 +13327,6 @@ class JourneyBoardsManager {
           logger.info(`🎮 Play button clicked for board ${boardIdForPlay}`, { boardName: boardNameForPlay });
           this.prepareJourneyAmbientForGameEntry();
           preloadRegularMerge6Sounds();
-          preloadWildStarMerge6Sound();
           preloadWildSpecialMerge6PoofSounds();
           preloadOrdinaryStackSound();
           preloadGameplayPickupSound();
@@ -13831,7 +13953,7 @@ class JourneyBoardsManager {
                     // Only if modal is still active (prevents memory leak if modal closed during animation)
                     if (detailModal && !detailModal.hidden && detailModal.style.display !== 'none') {
                       if (detailMotionEl) {
-                        detailMotionEl.style.animation = 'detailImageIdle 3s ease-in-out infinite';
+                        detailMotionEl.style.animation = 'detailImageIdle 3s ease-in-out 1 both';
                         detailMotionEl.style.animationPlayState = 'running';
                       }
                       logger.info('🃏 Card image idle animation started - modal is active');
@@ -14991,6 +15113,7 @@ class JourneyBoardsManager {
       await showJourneyNewCardScreen({
         boardNumber: safeBoardNumber,
         cardImagePath: legendaryAsset.path2x || legendaryAsset.path1x,
+        cardMaskImagePath: legendaryAsset.path1x,
         cardName: board?.name || this.getBoardName(safeBoardNumber),
         cardRarity: 'legendary',
       });

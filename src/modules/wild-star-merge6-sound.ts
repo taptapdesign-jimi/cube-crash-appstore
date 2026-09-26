@@ -227,9 +227,11 @@ export function playWildStarMerge6Sound(): boolean {
   if (!areWildStarMerge6SoundsEnabled()) return false;
   const foundationStarted = playSpecialMerge6FoundationSound();
 
-  const decodedState = getDecodedGameplaySoundsState(WILD_STAR_MERGE6_SOUND_SOURCES);
+  const magicSource = selectWildStarMerge6MagicSoundSource();
+  // State checks prepare missing buffers. Only this event's selected variant
+  // and sparkle may compete with the live board's other sound packages.
+  const decodedState = getDecodedGameplaySoundsState([magicSource, WILD_STAR_MERGE6_SPARKLE_SOUND_SOURCE]);
   if (decodedState !== 'unavailable') {
-    const magicSource = selectWildStarMerge6MagicSoundSource();
     const results = [
       playDecodedGameplaySound(magicSource, {
         voiceId: WILD_STAR_MERGE6_VOICE_IDS[0],
@@ -246,7 +248,6 @@ export function playWildStarMerge6Sound(): boolean {
     return foundationStarted && results.every((result) => result !== 'unavailable');
   }
 
-  const magicSource = selectWildStarMerge6MagicSoundSource();
   const magic = getMagicAudioForSource(magicSource);
   const sparkle = getSparkleAudio();
   if (!magic || !sparkle) return false;

@@ -149,6 +149,6 @@ test('connects Area 55 start, exact beam boundary and preload without transition
   expect(owner).toContain('if (isArea55Transition) playBoardTransitionArea55StartSounds();');
   expect(owner).toContain('onStart: () => {\n        playBoardTransitionArea55BeamSound(beam === beamFinal ? 2 : 1);');
   expect(owner.match(/playBoardTransitionArea55BeamSound\(/g)).toHaveLength(1);
-  expect(owner.slice(owner.indexOf('function cleanup(')))
-    .not.toContain('stopBoardTransitionArea55Sounds();');
+  expect(owner).toContain('cleanup({ preserveDom: true, keepVisibleCover: true });');
+  expect(owner).toContain('cleanup({ abortAudio: true });');
 });

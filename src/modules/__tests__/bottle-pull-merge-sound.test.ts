@@ -135,7 +135,8 @@ describe('Bottle pull Merge-6 sound', () => {
     );
     expect(appCore).toContain('stopBottlePullMergeSounds();');
     expect(fs.readFileSync(path.resolve(process.cwd(), 'src/modules/special-sound-warmup.ts'), 'utf8')).toContain('preloadBottlePullMergeSounds();');
-    expect(uiManager).toContain('stopBottlePullMergeSounds();');
+    expect(uiManager).toContain('applyGameSoundsSettingToAudio(enabled)');
+    expect(fs.readFileSync('src/modules/gameplay-sound-owner-registry.ts', 'utf8')).toContain('stopBottlePullMergeSounds');
     expect(appCore).toContain('preloadEligibleSpecialSounds({ boardNumber: entryBoard, isArcade: isArcadeHomeRunMode(), tiles });');
   });
 

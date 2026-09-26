@@ -110,7 +110,7 @@ describe('Journey New Reward card tilt handoff', () => {
     expect(source).toContain('cc-journey-new-card-auto-tilt-shell--unlocked');
     expect(source).not.toContain('mountGameplayModalSpatialMotion');
     expect(source).not.toContain('DeviceOrientationEvent');
-    expect(source).toContain('animation: ccJourneyNewCardAutoTilt 3s ease-in-out infinite both;');
+    expect(source).toContain('animation: ccJourneyNewCardAutoTilt 3s ease-in-out 1 both;');
     expect(source).toContain('rotationZ: revealTilt.interimRestRotationDeg');
     expect(source).toContain('rotationX: revealTilt.interimExitRotateXDeg');
     expect(source).toContain('rotationY: revealTilt.interimExitRotateYDeg');
@@ -135,7 +135,7 @@ describe('Journey New Reward card tilt handoff', () => {
       path.resolve(process.cwd(), 'src/collectibles-screen.css'),
       'utf8',
     );
-    expect(source).toContain('setLightMask(unlockedLight, safeCardPath);');
+    expect(source).toContain('setLightMask(unlockedLight, safeCardMaskPath);');
     expect(source).toMatch(/surface--interim[\s\S]*light--interim/);
     expect(source).toMatch(/surface--unlocked[\s\S]*light--unlocked/);
     expect(source).toContain('cc-journey-interim-shine-light');
@@ -154,12 +154,15 @@ describe('Journey New Reward card tilt handoff', () => {
     expect(source).toContain('JOURNEY_CARD_LEGENDARY_IDLE_TILT_DEG');
     expect(source).toContain('JOURNEY_CARD_LEGENDARY_IDLE_DURATION_MS');
     expect(source).toContain('const startUnlockedIdleMotion = () => {');
-    expect(source).toContain('unlockedIdleTiltAnimation = unlockedAutoTilt.animate(');
-    expect(source).toContain('unlockedIdleHoloAnimation = unlockedLegendaryHolo.animate(shineKeyframes');
+    expect(source).toContain('const tiltAnimation = unlockedAutoTilt.animate(');
+    expect(source).toContain('const holoAnimation = unlockedLegendaryHolo.animate(shineKeyframes');
+    expect(source).toContain('iterations: 1');
+    expect(source).not.toContain('iterations: Infinity');
     expect(source).toContain("safeCardRarity !== 'legendary'");
-    expect(source).toContain("if (activeFace === 'unlocked') startUnlockedIdleMotion();");
+    expect(source).toContain("if (activeFace === 'unlocked') scheduleUnlockedIdleMotion();");
+    expect(source).toContain('JOURNEY_CARD_MOBILE_IDLE_CALM_MS');
     expect(source).toContain("if (safeCardRarity === 'legendary') return;");
-    expect(source).toContain('setLightMask(unlockedLegendaryHolo, safeCardPath);');
+    expect(source).toContain('setLightMask(unlockedLegendaryHolo, safeCardMaskPath);');
     expect(source).toContain('unlockedIdleTiltAnimation?.cancel();');
     expect(source).toContain('unlockedIdleHoloAnimation?.cancel();');
     const coach = source.slice(

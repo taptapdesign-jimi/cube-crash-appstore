@@ -28,7 +28,8 @@ describe('Journey interim card shine parity', () => {
 
     expect(newCard).toContain("from './journey-interim-card-shine.js'");
     expect(newCard).toContain('triggerJourneyInterimShinePulse({');
-    expect(newCard).toContain('JOURNEY_INTERIM_CARD_SHINE_PROFILE.cadenceMs');
+    expect(newCard).toContain('const playSprite9ShineOnce = () => {');
+    expect(newCard).not.toContain('window.setInterval(');
     expect(newCard).toContain('cc-journey-interim-shine-face');
     expect(newCard).toContain('cc-journey-interim-shine-light');
     expect(newCard).toContain('cc-journey-interim-shine-light ${JOURNEY_INTERIM_SHINE_TRIGGER_CLASS}');
@@ -55,7 +56,9 @@ describe('Journey interim card shine parity', () => {
 
     expect(world).toMatch(/startInterimCardShine\(interimCard\);/);
     expect(world).toMatch(/stopInterimCardIdleEffects\(\): void \{[\s\S]*?this\.stopInterimCardShine\(\);/);
-    expect(world).toMatch(/if \(snapshot\.paintSuspended\) \{[\s\S]*?this\.interimShineController\?\.pause\(\);[\s\S]*?resume\(\);/);
+    expect(world).toContain('this.canRunJourneyInterimLocalEffects(interimCard, interimWrapper, true)');
+    expect(world).toMatch(/shouldRun: \(\) => \([\s\S]*?this\.canRunJourneyInterimLocalEffects\(card, undefined, true\)/);
+    expect(world).toMatch(/this\.interimShineController\?\.pause\(\);[\s\S]*?this\.interimShineController\?\.resume\(\);/);
     expect(world).toMatch(/bounceTimeline[\s\S]*?\.to\(card, \{/);
     expect(css).toContain('.cc-journey-interim-shine-face.cc-journey-interim-glow-pulse');
     expect(css).toMatch(/journey-world-runtime-paint-suspended[\s\S]*?journey-interim-shine-light::after/);

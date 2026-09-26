@@ -130,7 +130,7 @@ describe('Forest Board Transition ambiance', () => {
     );
     expect(soundOwner).toContain('stopAfterSeconds: BOARD_TRANSITION_FOREST_BEES_SMALL_DURATION_SECONDS');
     expect(soundOwner).toContain('fadeOutSeconds: BOARD_TRANSITION_FOREST_BEES_SMALL_FADE_OUT_SECONDS');
-    const cleanupOwner = owner.slice(owner.indexOf('function cleanup('));
-    expect(cleanupOwner).not.toContain('stopBoardTransitionForestAmbientSound');
+    expect(owner).toContain('cleanup({ preserveDom: true, keepVisibleCover: true });');
+    expect(owner).toContain('cleanup({ abortAudio: true });');
   });
 });

@@ -80,7 +80,8 @@ describe('Robo Cube Merge-6 sound', () => {
     expect(appCore.match(/playRoboCubeMerge6Sounds\(\);/g)).toHaveLength(1);
     expect(appCore).toContain('stopRoboCubeMerge6Sounds();');
     expect(fs.readFileSync(path.resolve(process.cwd(), 'src/modules/special-sound-warmup.ts'), 'utf8')).toContain('preloadRoboCubeMerge6Sounds();');
-    expect(uiManager).toContain("import('./robo-cube-merge6-sound.ts')");
+    expect(uiManager).toContain('applyGameSoundsSettingToAudio(enabled)');
+    expect(fs.readFileSync('src/modules/gameplay-sound-owner-registry.ts', 'utf8')).toContain('robo-cube-merge6-sound');
     expect(appCore).toContain('preloadEligibleSpecialSounds({ boardNumber: entryBoard, isArcade: isArcadeHomeRunMode(), tiles });');
   });
 });

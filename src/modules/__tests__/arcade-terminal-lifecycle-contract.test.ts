@@ -133,17 +133,15 @@ describe('Arcade terminal lifecycle regression contract', () => {
     expect(exitOwner).toContain('trackTimeout(resolveModalExit, journeyExitTiming.completionMs);');
     expect(exitOwner).toContain('const exitCompletion = await Promise.race([');
     expect(exitOwner).toContain('navigationAbortPromise.then(() => ({');
-    expect(exitOwner).toContain('if (!exitCompletion.completed) return;');
+    expect(exitOwner).toContain('if (!lifetime.isActive() || !exitCompletion.completed) return;');
     expect(exitOwner).toContain('safeResolve(exitAction, {');
     expect(exitOwner).toContain('(window as any).__ccTerminalExitInProgress = true;');
     expect(modal).toContain('delete (window as any).__ccTerminalExitInProgress;');
 
-    const visibilityStart = modal.indexOf("lifecycle.trackListener(document, 'visibilitychange'");
-    const visibilityEnd = modal.indexOf("lifecycle.trackListener(window, 'beforeunload'", visibilityStart);
-    const visibilityOwner = modal.slice(visibilityStart, visibilityEnd);
-    expect(visibilityOwner).toContain("overlay?.getAttribute('data-clean-board-exiting') === 'true'");
-    expect(visibilityOwner.indexOf("overlay?.getAttribute('data-clean-board-exiting') === 'true'"))
-      .toBeLessThan(visibilityOwner.indexOf('clearAllModalTimeouts()'));
+    // Hidden callbacks pause and resume with their presentation; they are no
+    // longer destroyed halfway through the only exit/entrance owner.
+    expect(modal).toContain('const onVisibility = () => lifetime.setSuspended(document.hidden)');
+    expect(modal).toContain("document.removeEventListener('visibilitychange', onVisibility)");
 
     // All modal completion branches must detach their per-session navigation
     // listener through safeResolve; the one raw resolve belongs to that helper.
@@ -187,7 +185,7 @@ describe('Arcade terminal lifecycle regression contract', () => {
     const startLevelOwner = appCore.slice(startLevelStart, startLevelEnd);
     expect(startLevelOwner).toContain('await ensureStartLevelLayout({');
     expect(startLevelOwner.indexOf('stage.visible = false'))
-      .toBeLessThan(startLevelOwner.indexOf("await ensureCoreRenderTexturesGpuReady('startLevel')"));
+      .toBeLessThan(startLevelOwner.indexOf("await ensureCoreRenderTexturesGpuReady('startLevel',"));
     expect(layoutHelper).toContain('export async function ensureStartLevelLayout');
     expect(layoutHelper).toContain('await layoutBoard();');
     expect(stageModal).toContain('await wait(ROUND_SETTLED_HOLD_DURATION * 1000);');

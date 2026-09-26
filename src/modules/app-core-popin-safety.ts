@@ -1,3 +1,4 @@
+import { isGameplayRendererTerminalSuspended } from './gameplay-render-suspension.ts';
 type PopInSafetyDeps = {
   tiles: any[];
   gsap: { globalTimeline: { resume: () => void } };
@@ -16,6 +17,7 @@ export function schedulePopInSafetyNet({
   trackAppTimeout,
 }: PopInSafetyDeps){
   trackAppTimeout(() => {
+    if (isGameplayRendererTerminalSuspended(app)) return;
     try {
       let invisibleCount = 0;
       for (const t of tiles) {

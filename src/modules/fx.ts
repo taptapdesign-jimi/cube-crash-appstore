@@ -18,6 +18,7 @@ import { acquirePixiMobileActivityLease } from './pixi-mobile-frame-controller.t
 import { selectPattern, getColor, getParams, getActiveTemplate, getDragParticleColors, getBubbleColors } from './templates/template-manager.ts';
 import { releaseJuiceBounceFrontBubbles } from './juice-bounce-artwork.ts';
 import { releaseBallBouncyFrontBubbles } from './ball-bouncy-artwork.ts';
+import { createSpecialIdleAnimationVisibility, isSpecialDiceIdlePaintable, watchSpecialDiceIdleVisibility } from './special-dice-idle-visibility.ts';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
@@ -115,11 +116,13 @@ export function startWildJuiceBubbles(tile) {
     bubbles: [],
     activeTweens: new Set(),
     bubbleTweens: new Map(),
+    visibility: createSpecialIdleAnimationVisibility(tile),
   };
 
   const ownBubbleTween = (bubble, tween) => {
     if (!tween) return tween;
     system.activeTweens.add(tween);
+    system.visibility.track(tween);
     let owned = system.bubbleTweens.get(bubble);
     if (!owned) {
       owned = new Set();
@@ -135,6 +138,7 @@ export function startWildJuiceBubbles(tile) {
     if (owned) {
       owned.forEach((tween) => {
         system.activeTweens.delete(tween);
+        system.visibility.forget(tween);
         animationManager.killExternalTween(tween);
       });
       owned.clear();
@@ -298,9 +302,9 @@ export function startWildJuiceBubbles(tile) {
   // Spawn bubbles continuously (every 0.3-0.6 seconds)
   const spawnBubble = () => {
     if (system.disposed || !container.parent) return;
-    createBubble();
+    if (isSpecialDiceIdlePaintable(tile)) createBubble();
     const nextDelay = (0.3 + Math.random() * 0.3) * bubbleMotionScale;
-    system.spawnInterval = trackDelayedCall(nextDelay, spawnBubble);
+    system.spawnInterval = system.visibility.track(trackDelayedCall(nextDelay, spawnBubble));
   };
   
   // Start spawning bubbles immediately and then continuously
@@ -329,6 +333,7 @@ export function stopWildJuiceBubbles(tile) {
   if (!system) return;
   
   system.disposed = true;
+  system.visibility?.release();
 
   // Exact handle ownership is required for GSAP keyframes. Broad target kills
   // can miss nested PropTweens and let them write into a repooled Pixi object.
@@ -5624,8 +5629,13 @@ export function startWildIdle(tile, opts = {}){
   if (tile.special === 'wild') {
     try { stopWildIdle(tile); } catch {}
     try { startWildStars(tile); } catch {}
+  } else if (tile._ccWildIdleVisibility && tile._wildIdleTl) {
+    tile._ccWildIdleVisibility.refresh();
+    return;
   }
 
+  const visibility = createSpecialIdleAnimationVisibility(tile);
+  tile._ccWildIdleVisibility = visibility;
   const g = tile.rotG || tile;
   const baseW = Math.max(64, (tile.base?.width || tile.width || 96));
   const baseH = Math.max(64, (tile.base?.height || tile.height || 96));
@@ -5643,27 +5653,7 @@ export function startWildIdle(tile, opts = {}){
   const tl = trackTimeline({ repeat: -1, repeatDelay: Math.max(0, interval - (shiftDur + 0.20)) }); // Shorter delay
   tile._wildIdleTl = tl;
   
-  // Stop animation when app is in background to prevent Metal GPU errors
-  const checkVisibility = () => {
-    if (document.hidden) {
-      tl.pause();
-    } else {
-      tl.resume();
-    }
-  };
-  
-  document.addEventListener('visibilitychange', checkVisibility);
-  
-  // 🔥 MEMORY LEAK FIX: Store event listener reference for cleanup
-  tile._visibilityListener = checkVisibility;
-  
-  // Clean up event listener when animation is stopped
-  const originalKill = tl.kill.bind(tl);
-  tl.kill = function() {
-    document.removeEventListener('visibilitychange', checkVisibility);
-    tile._visibilityListener = null;
-    return originalKill();
-  };
+  visibility.track(tl);
 
   // 1) INSTANT BOUNCE - no hold at peak, immediate return
   const sx = g.scale?.x || 1, sy = g.scale?.y || 1;
@@ -5686,6 +5676,7 @@ export function startWildIdle(tile, opts = {}){
       const delay = 4 + Math.random() * 4; // 4-8 seconds
       // 🔥 MEMORY LEAK FIX: Store delayed call reference for cleanup
       const delayedCall = trackDelayedCall(delay, () => {
+        if (tile._ccWildIdleVisibility !== visibility) return;
         __globalDelayedCalls.delete(delayedCall);
         if (Array.isArray(tile._shimmerDelayedCalls)) {
           tile._shimmerDelayedCalls = tile._shimmerDelayedCalls.filter((call) => call !== delayedCall);
@@ -5700,7 +5691,7 @@ export function startWildIdle(tile, opts = {}){
         tile._wildShimmerSprite.y = -baseH * 0.8;
         
         // Shimmer animation - diagonal sweep
-        const shimmerTl = trackTimeline();
+        const shimmerTl = visibility.track(trackTimeline());
         shimmerTl
           // Calmer shimmer: lower peak alpha and slower sweep
           .to(shimmer, { alpha: 0.30, duration: 0.28, ease: 'power2.out' })
@@ -5722,6 +5713,7 @@ export function startWildIdle(tile, opts = {}){
         // Schedule next shimmer
         scheduleShimmer();
       });
+      visibility.track(delayedCall);
       __globalDelayedCalls.add(delayedCall);
       
       // 🔥 MEMORY LEAK FIX: Store delayed call on tile for cleanup
@@ -5738,6 +5730,8 @@ export function startWildShimmer(tile) {
   if (!tile) return;
   try { stopWildShimmer(tile); } catch {}
 
+  const visibility = createSpecialIdleAnimationVisibility(tile);
+  tile._ccShimmerVisibility = visibility;
   const g = tile.rotG || tile;
   const baseW = Math.max(64, (tile.base?.width || tile.width || 96));
   const baseH = Math.max(64, (tile.base?.height || tile.height || 96));
@@ -5751,6 +5745,7 @@ export function startWildShimmer(tile) {
       const delay = 4 + Math.random() * 4; // 4-8 seconds
       // 🔥 MEMORY LEAK FIX: Store delayed call reference for cleanup
       const delayedCall = trackDelayedCall(delay, () => {
+        if (tile._ccShimmerVisibility !== visibility) return;
         __globalDelayedCalls.delete(delayedCall);
         if (Array.isArray(tile._shimmerDelayedCalls)) {
           tile._shimmerDelayedCalls = tile._shimmerDelayedCalls.filter((call) => call !== delayedCall);
@@ -5763,7 +5758,7 @@ export function startWildShimmer(tile) {
         tile._wildShimmerSprite.y = -baseH * 0.8;
 
         // Shimmer animation - diagonal sweep
-        const shimmerTl = trackTimeline();
+        const shimmerTl = visibility.track(trackTimeline());
         shimmerTl
           .to(shimmer, { alpha: 0.30, duration: 0.28, ease: 'power2.out' })
           .to(tile._wildShimmerSprite, { 
@@ -5783,6 +5778,7 @@ export function startWildShimmer(tile) {
         // Schedule next shimmer
         scheduleShimmer();
       });
+      visibility.track(delayedCall);
       __globalDelayedCalls.add(delayedCall);
       
       // 🔥 MEMORY LEAK FIX: Store delayed call on tile for cleanup
@@ -5797,6 +5793,8 @@ export function startWildShimmer(tile) {
 // Stop wild shimmer only
 export function stopWildShimmer(tile) {
   if (!tile) return;
+  tile._ccShimmerVisibility?.release();
+  delete tile._ccShimmerVisibility;
   
   // 🔥 MEMORY LEAK FIX: Kill all shimmer delayed calls
   try {
@@ -5846,6 +5844,70 @@ export function stopWildShimmer(tile) {
  * Start magnet idle particles animation - continuous particles at 24% intensity
  * Uses same particles as drag animation but with 24% intensity (0.24)
  */
+function watchIdleParticleEmission(tile, ownerKey, intervalKey, particleKey, cadenceMs, emit) {
+  tile[ownerKey]?.release();
+  let released = false;
+  const emitIfCurrent = () => {
+    if (!released && isSpecialDiceIdlePaintable(tile)) emit();
+  };
+  const pausedTweens = new Set();
+  const hiddenParticles = new Map();
+  const visibility = watchSpecialDiceIdleVisibility(tile, (paintable) => {
+    if (tile[intervalKey]) {
+      clearAppInterval(tile[intervalKey]);
+      tile[intervalKey] = null;
+    }
+    if (!paintable) {
+      const particles = Array.from(tile[particleKey] || []);
+      for (const particle of particles) {
+        if (!particle || particle.destroyed) continue;
+        if (!hiddenParticles.has(particle)) hiddenParticles.set(particle, particle.renderable);
+        particle.renderable = false;
+        for (const tween of gsap.getTweensOf([particle, particle.scale])) {
+          if (!tween.paused()) { pausedTweens.add(tween); tween.pause(); }
+        }
+      }
+      return;
+    }
+    hiddenParticles.forEach((renderable, particle) => {
+      if (!particle.destroyed && !graphicsPool.isInPool(particle)) particle.renderable = renderable;
+    });
+    hiddenParticles.clear();
+    pausedTweens.forEach((tween) => tween.resume());
+    pausedTweens.clear();
+    tile[intervalKey] = trackAppInterval(emitIfCurrent, cadenceMs);
+  }, () => {
+    released = true;
+    if (tile[intervalKey]) clearAppInterval(tile[intervalKey]);
+    tile[intervalKey] = null;
+    // Retire only this emitter's particles/tweens if a damaged display object
+    // broke its visibility notification. Sibling emitters retain their clocks.
+    for (const particle of Array.from(tile[particleKey] || [])) {
+      try { gsap.killTweensOf([particle, particle.scale]); } catch {}
+      if (particleKey === '_flowerPollenParticles') { releaseFlowerPollenParticle(tile, particle); continue; }
+      __globalGraphicsObjects.delete(particle);
+      __tntIdleParticles.delete(particle);
+      try { if (!particle.destroyed && !graphicsPool.isInPool(particle)) graphicsPool.release(particle); } catch {}
+    }
+    if (tile[particleKey]?.clear) tile[particleKey].clear();
+    else if (Array.isArray(tile[particleKey])) tile[particleKey].length = 0;
+    pausedTweens.clear();
+    hiddenParticles.clear();
+  });
+  tile[ownerKey] = {
+    refresh: visibility.refresh,
+    release() {
+      if (released) return;
+      released = true;
+      visibility.release();
+      if (tile[intervalKey]) clearAppInterval(tile[intervalKey]);
+      tile[intervalKey] = null;
+      pausedTweens.clear();
+      hiddenParticles.clear();
+    },
+  };
+}
+
 export function startMagnetIdleParticles(tile) {
   if (!tile) return;
   
@@ -5875,6 +5937,10 @@ export function startMagnetIdleParticles(tile) {
   }
   
   // Stop existing particles animation if any
+  if (tile._ccMagnetParticleVisibility) {
+    tile._ccMagnetParticleVisibility.refresh();
+    return;
+  }
   if (tile._magnetIdleParticlesInterval) {
     clearAppInterval(tile._magnetIdleParticlesInterval);
     tile._magnetIdleParticlesInterval = null;
@@ -5891,7 +5957,7 @@ export function startMagnetIdleParticles(tile) {
   
   // Generate particles every 200ms (5 times per second) at 24% intensity (normal size, like drag smoke)
   const generateParticles = () => {
-    if (!tile || tile.destroyed) return;
+    if (!isSpecialDiceIdlePaintable(tile)) return;
     try {
       // tile.special is already 'wild-magnet' (checked at entry)
       
@@ -5911,7 +5977,7 @@ export function startMagnetIdleParticles(tile) {
   generateParticles();
   
   // Schedule continuous particles every 200ms
-  tile._magnetIdleParticlesInterval = trackAppInterval(() => {
+  watchIdleParticleEmission(tile, '_ccMagnetParticleVisibility', '_magnetIdleParticlesInterval', '_magnetIdleParticles', 350, () => {
     if (!tile || tile.destroyed) {
       if (tile._magnetIdleParticlesInterval) {
         clearAppInterval(tile._magnetIdleParticlesInterval);
@@ -5920,7 +5986,7 @@ export function startMagnetIdleParticles(tile) {
       return;
     }
     generateParticles();
-  }, 350); // Every 350ms (~3 times per second)
+  }); // Every 350ms (~3 times per second)
 }
 
 /**
@@ -5929,6 +5995,8 @@ export function startMagnetIdleParticles(tile) {
  */
 export function stopMagnetIdleParticles(tile) {
   if (!tile) return;
+  tile._ccMagnetParticleVisibility?.release();
+  delete tile._ccMagnetParticleVisibility;
   stopWildJuiceBubbles(tile);
   
   // 🔥 CRITICAL: Clear interval first to stop generating new particles
@@ -5989,6 +6057,11 @@ export function startTntIdleParticles(tile) {
     return;
   }
 
+  if (tile._ccTntParticleVisibility) {
+    tile._ccTntParticleVisibility.refresh();
+    return;
+  }
+
   if (tile._tntIdleParticlesInterval) {
     clearAppInterval(tile._tntIdleParticlesInterval);
     tile._tntIdleParticlesInterval = null;
@@ -6006,7 +6079,7 @@ export function startTntIdleParticles(tile) {
   const customPosition = { x: center.x + tileSize / 2 - tileSize * 0.10, y: center.y - tileSize / 2 }; // vrh kockice, 10% ulijevo (5% + 5%)
 
   const generateParticles = () => {
-    if (!tile || tile.destroyed) return;
+    if (!isSpecialDiceIdlePaintable(tile)) return;
     try {
       magicSparklesAtTile(board, tile, {
         intensity: 0.225, // 50% manje broja (0.45 * 0.5)
@@ -6024,7 +6097,7 @@ export function startTntIdleParticles(tile) {
 
   generateParticles();
 
-  tile._tntIdleParticlesInterval = trackAppInterval(() => {
+  watchIdleParticleEmission(tile, '_ccTntParticleVisibility', '_tntIdleParticlesInterval', '_tntIdleParticles', 200, () => {
     if (!tile || tile.destroyed) {
       if (tile._tntIdleParticlesInterval) {
         clearAppInterval(tile._tntIdleParticlesInterval);
@@ -6033,7 +6106,7 @@ export function startTntIdleParticles(tile) {
       return;
     }
     generateParticles();
-  }, 200);
+  });
 }
 
 /**
@@ -6041,6 +6114,8 @@ export function startTntIdleParticles(tile) {
  */
 export function stopTntIdleParticles(tile) {
   if (!tile) return;
+  tile._ccTntParticleVisibility?.release();
+  delete tile._ccTntParticleVisibility;
 
   stopFlowerPollenIdle(tile);
 
@@ -6106,6 +6181,8 @@ function releaseFlowerPollenParticle(tile, particle) {
 
 function stopFlowerPollenIdle(tile) {
   if (!tile) return;
+  tile._ccPollenVisibility?.release();
+  delete tile._ccPollenVisibility;
   if (tile._flowerPollenInterval) {
     clearAppInterval(tile._flowerPollenInterval);
     tile._flowerPollenInterval = null;
@@ -6126,7 +6203,7 @@ function startFlowerPollenIdle(tile) {
   const owned = new Set();
   tile._flowerPollenParticles = owned;
   const emit = () => {
-    if (!tile || tile.destroyed || tile._ccWildSpawnDropping === true) return;
+    if (!isSpecialDiceIdlePaintable(tile) || tile._ccWildSpawnDropping === true) return;
     const center = centerInBoard(board, tile, 96);
     const count = Math.random() < 0.3 ? 6 : 4;
     for (let index = 0; index < count; index++) {
@@ -6224,7 +6301,7 @@ function startFlowerPollenIdle(tile) {
   };
 
   emit();
-  tile._flowerPollenInterval = trackAppInterval(emit, 760);
+  watchIdleParticleEmission(tile, '_ccPollenVisibility', '_flowerPollenInterval', '_flowerPollenParticles', 760, emit);
 }
 
 function releaseTntIdleParticle(particle) {
@@ -6287,6 +6364,8 @@ export function startTntIdleShake(tile) {
 
   stopTntIdleShake(tile);
 
+  const visibility = createSpecialIdleAnimationVisibility(tile);
+  tile._ccTntShakeVisibility = visibility;
   const g = tile.rotG || tile;
   if (!g) return;
 
@@ -6311,7 +6390,7 @@ export function startTntIdleShake(tile) {
       ? 0.44 + Math.random() * 0.10
       : 0.9 + Math.random() * 0.25; // Core TNT remains deliberately slow.
 
-    const shakeTl = trackTimeline();
+    const shakeTl = visibility.track(trackTimeline());
     if (tile._tntShakeCurrentTl) {
       animationManager.killExternalTimeline(tile._tntShakeCurrentTl);
     }
@@ -6360,9 +6439,10 @@ export function startTntIdleShake(tile) {
 
   // Prva mrda nakon 3s, zatim u intervalima po ~3s
   const scheduleShake = () => {
-    if (!tile || tile.destroyed) return;
+    if (!tile || tile.destroyed || tile._ccTntShakeVisibility !== visibility) return;
     const delay = 3 + Math.random() * 0.4; // ~3 sekunde između mrda
     const delayedCall = trackDelayedCall(delay, () => {
+      if (tile._ccTntShakeVisibility !== visibility) return;
       __globalDelayedCalls.delete(delayedCall);
       if (Array.isArray(tile._tntShakeDelayedCalls)) {
         tile._tntShakeDelayedCalls = tile._tntShakeDelayedCalls.filter((call) => call !== delayedCall);
@@ -6371,6 +6451,7 @@ export function startTntIdleShake(tile) {
       performShake();
       scheduleShake();
     });
+    visibility.track(delayedCall);
     __globalDelayedCalls.add(delayedCall);
     if (!tile._tntShakeDelayedCalls) tile._tntShakeDelayedCalls = [];
     tile._tntShakeDelayedCalls.push(delayedCall);
@@ -6382,6 +6463,8 @@ export function startTntIdleShake(tile) {
 
 export function stopTntIdleShake(tile) {
   if (!tile) return;
+  tile._ccTntShakeVisibility?.release();
+  delete tile._ccTntShakeVisibility;
 
   if (tile._tntShakeCurrentTl) {
     animationManager.killExternalTimeline(tile._tntShakeCurrentTl);
@@ -6422,6 +6505,8 @@ export function stopTntIdleShake(tile) {
 
 export function stopWildIdle(tile){
   if (!tile) return;
+  tile._ccWildIdleVisibility?.release();
+  delete tile._ccWildIdleVisibility;
   
   // 🔥 MEMORY LEAK FIX: Remove visibility event listener
   try {

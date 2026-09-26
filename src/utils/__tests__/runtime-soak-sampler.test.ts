@@ -1,10 +1,14 @@
 import { getSoundtrackRuntimeStats } from '../../modules/soundtrack-manager';
 import { getSharedPixiSheetCacheStats } from '../../modules/shared-pixi-sheet-animation';
 import { getDecodedGameplayAudioStats } from '../../modules/gameplay-audio-buffer-player';
+import { getJourneyLongLoopAudioStats } from '../../modules/journey-long-loop-lifecycle';
 import { getPixiMobileFrameControllerSnapshot } from '../../modules/pixi-mobile-frame-controller';
+import { suspendGameplayRendererForTerminal } from '../../modules/gameplay-render-suspension';
+import { recordGameplayAudioDiagnostic, resetGameplayAudioDiagnosticsForTests } from '../../modules/gameplay-audio-diagnostics';
 jest.mock('../../modules/soundtrack-manager', () => ({ getSoundtrackRuntimeStats: jest.fn(() => ({})) }));
 jest.mock('../../modules/shared-pixi-sheet-animation', () => ({ getSharedPixiSheetCacheStats: jest.fn(() => ({})) }));
 jest.mock('../../modules/gameplay-audio-buffer-player', () => ({ getDecodedGameplayAudioStats: jest.fn(() => ({ activeVoices: 0 })) }));
+jest.mock('../../modules/journey-long-loop-lifecycle', () => ({ getJourneyLongLoopAudioStats: jest.fn(() => ({ activeOwners: 0, playingMedia: 0, owners: [] })) }));
 jest.mock('../../modules/pixi-mobile-frame-controller', () => ({
   getPixiMobileFrameControllerSnapshot: jest.fn(() => ({ active: false, maxFPS: 30, activeUntil: 0, activityLeaseCount: 0 })),
 }));
@@ -12,9 +16,11 @@ import { emitRuntimeMemoryPressureSnapshot, emitRuntimeResourceSnapshot, startRu
 
 describe('runtime soak sampler', () => {
   beforeEach(() => {
+    resetGameplayAudioDiagnosticsForTests();
     (getSoundtrackRuntimeStats as jest.Mock).mockReturnValue({});
     (getSharedPixiSheetCacheStats as jest.Mock).mockReturnValue({});
     (getDecodedGameplayAudioStats as jest.Mock).mockReturnValue({ activeVoices: 0 });
+    (getJourneyLongLoopAudioStats as jest.Mock).mockReturnValue({ activeOwners: 0, playingMedia: 0, owners: [] });
     (getPixiMobileFrameControllerSnapshot as jest.Mock).mockReturnValue({ active: false, maxFPS: 30, activeUntil: 0, activityLeaseCount: 0 });
     jest.useFakeTimers();
     delete (window as any).__ccPerformanceDiagnostics;
@@ -41,11 +47,17 @@ describe('runtime soak sampler', () => {
     expect(postMessage).not.toHaveBeenCalled();
     expect(frameRequest).not.toHaveBeenCalled();
     expect(clock).not.toHaveBeenCalled();
+    expect(getJourneyLongLoopAudioStats).not.toHaveBeenCalled();
     expect((window as any).__ccRuntimeSoakSamplerStop).toBeUndefined();
   });
 
   test('emits one forced resource snapshot for a native memory warning in a normal build', () => {
     const postMessage = jest.fn();
+    const detachedAudio = {
+      activeOwners: 2, playingMedia: 3, retainedMedia: 4, pendingMediaPlays: 0,
+      owners: [{ owner: 'worlds', playingMedia: 1 }, { owner: 'forest-world', playingMedia: 2 }, { owner: 'forest-gameplay', playingMedia: 0 }],
+    };
+    jest.mocked(getJourneyLongLoopAudioStats).mockReturnValue(detachedAudio as ReturnType<typeof getJourneyLongLoopAudioStats>);
     (window as any).webkit = { messageHandlers: { consoleLog: { postMessage } } };
 
     emitRuntimeResourceSnapshot('native-memory-warning:before-cleanup');
@@ -57,6 +69,8 @@ describe('runtime soak sampler', () => {
     const sample = JSON.parse(postMessage.mock.calls[0][0].message.slice('[CC_SOAK] '.length));
     expect(sample.sampleMode).toBe('resources');
     expect(sample).toHaveProperty('dom');
+    expect(sample.journeyLongLoopAudio).toEqual(detachedAudio);
+    expect(getJourneyLongLoopAudioStats).toHaveBeenCalledTimes(1);
     expect(getSoundtrackRuntimeStats).toHaveBeenCalled();
   });
 
@@ -92,10 +106,14 @@ describe('runtime soak sampler', () => {
       resolution: 1.5, width: 585, height: 1266, screen: { width: 390, height: 844 },
     } } };
     document.body.dataset.appZone = 'gameplay';
-    document.body.innerHTML = '<canvas></canvas><video></video>';
+    document.body.innerHTML = '<canvas></canvas><video></video><div id="journey-screen"><div id="journey-boards-container" data-journey-world-runtime-state="inactive"></div></div>';
+    const readJourneyAnimations = jest.fn(() => []);
+    Object.assign(document.getElementById('journey-screen')!, { getAnimations: readJourneyAnimations });
 
     const stop = startRuntimeSoakSampler();
-    jest.advanceTimersByTime(30_001);
+    jest.advanceTimersByTime(25_001);
+    expect(readJourneyAnimations).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(5_000);
     const samples = postMessage.mock.calls.map(([body]) => JSON.parse(body.message.slice('[CC_SOAK] '.length)));
     const light = samples.find((sample) => sample.sampleMode === 'resources-lite');
 
@@ -104,11 +122,49 @@ describe('runtime soak sampler', () => {
       renderer: { resolution: 1.5, width: 585, height: 1266, screenWidth: 390, screenHeight: 844 },
       pixiCadence: { active: false, maxFPS: 30, activityLeaseCount: 0 },
       media: { images: 0, canvases: 1, videos: 1, playingVideos: 0 },
+      journeyScreenOwners: { runtime: { state: 'inactive' }, ambient: { canvases: 0 } },
     });
+    expect(readJourneyAnimations).toHaveBeenCalledTimes(1);
     expect(getPixiMobileFrameControllerSnapshot).toHaveBeenCalledTimes(1);
     stop();
     delete (window as any).STATE;
     delete document.body.dataset.appZone;
+  });
+
+  test('keeps compact audio counts in physical-soak samples and reserves event payloads for detailed mode', () => {
+    const postMessage = jest.fn();
+    (window as any).__ccPerformanceDiagnostics = true;
+    (window as any).webkit = { messageHandlers: { consoleLog: { postMessage } } };
+    const stop = startRuntimeSoakSampler();
+    recordGameplayAudioDiagnostic({ kind: 'request', source: './ordinary.wav', result: 'miss', operation: 'play', activeVoices: 0, pendingVoices: 0, pendingLoads: 0 });
+    jest.advanceTimersByTime(25_001);
+    const first = postMessage.mock.calls.map(([body]) => JSON.parse(body.message.slice('[CC_SOAK] '.length)));
+    expect(first.every(sample => !sample.gameplayAudioEvents)).toBe(true);
+    jest.advanceTimersByTime(5_000);
+    const resource = JSON.parse(postMessage.mock.calls[postMessage.mock.calls.length - 1][0].message.slice('[CC_SOAK] '.length));
+    expect(resource.gameplayAudioEvents.drainedEventCount).toBe(1);
+    expect(resource.gameplayAudioEvents).not.toHaveProperty('events');
+    expect(resource.gameplayAudioEvents.summary).toMatchObject({ requests: 1, misses: 1 });
+    jest.advanceTimersByTime(30_000);
+    const next = JSON.parse(postMessage.mock.calls[postMessage.mock.calls.length - 1][0].message.slice('[CC_SOAK] '.length));
+    expect(next.gameplayAudioEvents.drainedEventCount).toBe(0);
+    expect(next.gameplayAudioEvents.summary.requests).toBe(1);
+    stop();
+  });
+
+  test('includes bounded audio event detail only when detailed diagnostics are explicit', () => {
+    const postMessage = jest.fn();
+    (window as any).__ccPerformanceDiagnostics = true;
+    (window as any).__ccDetailedRuntimeDiagnostics = true;
+    (window as any).webkit = { messageHandlers: { consoleLog: { postMessage } } };
+    const stop = startRuntimeSoakSampler();
+    recordGameplayAudioDiagnostic({ kind: 'request', source: './ordinary.wav', result: 'miss', operation: 'play', activeVoices: 0, pendingVoices: 0, pendingLoads: 0 });
+
+    jest.advanceTimersByTime(5_001);
+    const resource = JSON.parse(postMessage.mock.calls[postMessage.mock.calls.length - 1][0].message.slice('[CC_SOAK] '.length));
+    expect(resource.gameplayAudioEvents.drainedEventCount).toBe(1);
+    expect(resource.gameplayAudioEvents.events).toHaveLength(1);
+    stop();
   });
 
   test('pressure and async completion receipts retain cache evidence without DOM or animation walks', async () => {
@@ -286,14 +342,45 @@ describe('runtime soak sampler', () => {
       samples: 2, over250Ms: 1,
       longFrames: [{ startAtMs: 16, endAtMs: 416, durationMs: 400 }],
     } });
-    expect(Object.keys(sample).sort()).toEqual(['at', 'frameTiming', 'reason', 'sampleMode', 'visibility']);
+    expect(Object.keys(sample).sort()).toEqual(['at', 'frameTiming', 'gameplay', 'reason', 'sampleMode', 'visibility']);
     [elementRead, treeRead, canvasRead, styleRead, imageRead, animationRead, gsapRead, cleanupRead,
-      getSoundtrackRuntimeStats, getSharedPixiSheetCacheStats, getDecodedGameplayAudioStats,
+      getSoundtrackRuntimeStats, getSharedPixiSheetCacheStats, getDecodedGameplayAudioStats, getJourneyLongLoopAudioStats,
     ].forEach((read) => expect(read).not.toHaveBeenCalled());
     stop();
     delete (document as any).getAnimations;
     delete (window as any).gsap;
     delete (window as any).CC;
+  });
+
+  test('compact samples distinguish covered results from the next board without DOM walks', () => {
+    const previousState = (window as any).STATE;
+    const ticker = { started: true, maxFPS: 30, _requestId: null, stop: () => { ticker.started = false; } };
+    const app = { ticker };
+    (window as any).STATE = {
+      app, boardNumber: 12,
+      stage: { visible: true, alpha: 1, renderable: true },
+      board: { visible: false, alpha: 0, renderable: false },
+      tiles: [
+        { special: 'wild', _ccSpecialDiceVariant: 'fish', visible: false, alpha: 0 },
+        { special: 'wild', destroyed: true },
+      ],
+    };
+    const postMessage = jest.fn();
+    (window as any).__ccPerformanceDiagnostics = true;
+    (window as any).webkit = { messageHandlers: { consoleLog: { postMessage } } };
+    suspendGameplayRendererForTerminal(app, () => true, () => {});
+    const stop = startRuntimeSoakSampler();
+    const sample = JSON.parse(postMessage.mock.calls[0][0].message.slice('[CC_SOAK] '.length));
+    expect(sample.gameplay).toMatchObject({
+      boardNumber: 12, tickerStarted: false, tickerRequestScheduled: false,
+      targetFPS: 30, terminalSuspended: true,
+      stageVisible: true, stageAlpha: 1, stageRenderable: true,
+      boardVisible: false, boardAlpha: 0, boardRenderable: false,
+      tileCount: 1, visibleTileCount: 0,
+      specials: { fish: 1 }, specialIdle: { tiles: 0, owners: 0 },
+    });
+    stop();
+    (window as any).STATE = previousState;
   });
 
   test('replacing the sampler releases lifecycle listeners and pending work', () => {

@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { gsap } from 'gsap';
+import { createResultModalLifetime, type ResultModalLifetime } from './result-modal-lifetime.js';
 import { logger } from '../core/logger.js';
 import { pickRandom } from './clean-board-utils.js';
 import { clearArcadeSaveState, getBoardSaveKey } from '../utils/board-save-utils.js';
@@ -25,6 +26,8 @@ import {
   markJourneyReturnResultExitComplete,
   cancelJourneyReturnTransition,
   prepareJourneyReturnBehindTerminalOverlay,
+  measureJourneyReturnPreparationPhase,
+  finishJourneyReturnCtaSetup,
 } from './journey-return-transition-trace.ts';
 // public/src/modules/board-fail-modal.ts
 // Game-over overlay when the board isn't fully cleared
@@ -83,10 +86,6 @@ const OVERLAY_ID = 'cc-board-fail-overlay';
 
 // 🔥 REFACTORED: Koristimo pickRandom iz clean-board-utils.ts umjesto lokalne verzije
 
-// 🔥 MEMORY LEAK FIX: Track timeouts and animation frames for cleanup
-const _failModalTimeouts = new Set<ReturnType<typeof setTimeout>>();
-const _failModalAnimationFrames = new Set<number>();
-
 // 🔥 BUG FIX: Track if modal is currently open to prevent duplicate calls
 let _isModalOpen = false;
 let _activeModalPromise: Promise<BoardFailModalResult> | null = null;
@@ -113,36 +112,6 @@ function resetArcadeFailedRunForFreshStart(): void {
   logger.info('🎮 Arcade failed run reset on Exit - next Arcade start will be fresh Round 01');
 }
 
-function trackFailTimeout(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
-  const timeout = setTimeout(() => {
-    callback();
-    _failModalTimeouts.delete(timeout);
-  }, delay);
-  _failModalTimeouts.add(timeout);
-  return timeout;
-}
-
-function trackFailAnimationFrame(callback: (now: number) => void): number {
-  const rafId = requestAnimationFrame((now: number) => {
-    callback(now);
-    _failModalAnimationFrames.delete(rafId);
-  });
-  _failModalAnimationFrames.add(rafId);
-  return rafId;
-}
-
-function clearAllFailTimeouts(): void {
-  console.log(`🧹 Clearing ${_failModalTimeouts.size} pending timeouts from board-fail-modal`);
-  _failModalTimeouts.forEach(timeout => clearTimeout(timeout));
-  _failModalTimeouts.clear();
-}
-
-function clearAllFailAnimationFrames(): void {
-  console.log(`🧹 Clearing ${_failModalAnimationFrames.size} pending animation frames from board-fail-modal`);
-  _failModalAnimationFrames.forEach(rafId => cancelAnimationFrame(rafId));
-  _failModalAnimationFrames.clear();
-}
-
 function removeExisting(): void {
   try {
     const prev = document.getElementById(OVERLAY_ID);
@@ -160,15 +129,18 @@ function playFailModalExitAnimation(params: {
   continueBtn: HTMLButtonElement;
   exitBtn: HTMLButtonElement;
   clickedAction?: string;
+  lifetime: ResultModalLifetime;
 }): Promise<void> {
-  const { overlay, card, starsHero, emptyStars, title, boardStatus, continueBtn, exitBtn, clickedAction } = params;
+  const { overlay, card, starsHero, emptyStars, title, boardStatus, continueBtn, exitBtn, clickedAction, lifetime } = params;
   const nodes = [title, boardStatus];
   const primaryButton = clickedAction === 'menu' ? exitBtn : continueBtn;
   const secondaryButton = clickedAction === 'menu' ? continueBtn : exitBtn;
   const animatedTargets = [starsHero, ...emptyStars, ...nodes, continueBtn, exitBtn, card, overlay].filter(Boolean);
 
   return new Promise(resolve => {
-    requestAnimationFrame(async () => {
+    const unregister = lifetime.onDispose(resolve);
+    const finish = () => { unregister(); resolve(); };
+    lifetime.frame(async () => {
       try {
         continueBtn.disabled = true;
         exitBtn.disabled = true;
@@ -213,6 +185,7 @@ function playFailModalExitAnimation(params: {
         };
 
         await exitCtaPair(primaryButton, secondaryButton);
+        if (!lifetime.isActive()) return;
 
         popOut(starsHero, { y: -8, duration: 0.28 });
         emptyStars.forEach((star, index) => {
@@ -227,7 +200,7 @@ function playFailModalExitAnimation(params: {
           });
         });
 
-        setTimeout(() => {
+        lifetime.timeout(() => {
           card.style.removeProperty('transition');
           card.style.removeProperty('-webkit-transition');
           gsap.killTweensOf(card);
@@ -243,7 +216,7 @@ function playFailModalExitAnimation(params: {
         // Keep this handoff compact: the previous formula left the almost-empty
         // modal sitting on screen for 1.17s before the final card collapse.
         const collapseDelayMs = FAIL_JOURNEY_EXIT_MOTION.collapseDelayMs;
-        setTimeout(() => {
+        lifetime.timeout(() => {
           gsap.killTweensOf(card);
           gsap.to(card, {
             scale: 0,
@@ -261,11 +234,11 @@ function playFailModalExitAnimation(params: {
           });
         }, collapseDelayMs);
 
-        setTimeout(() => {
+        lifetime.timeout(() => {
           animatedTargets.forEach(target => {
             target.style.willChange = '';
           });
-          resolve();
+          finish();
         }, collapseDelayMs + FAIL_JOURNEY_EXIT_MOTION.completionTailMs);
       } catch (error) {
         logger.warn('⚠️ board-fail-modal: Exit animation failed, closing directly:', error);
@@ -274,7 +247,7 @@ function playFailModalExitAnimation(params: {
           card.style.opacity = '0';
           card.style.transform = 'scale(0.88)';
         } catch {}
-        setTimeout(resolve, 220);
+        lifetime.timeout(finish, 220);
       }
     });
   });
@@ -292,25 +265,57 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
   
   const modalPromise = new Promise<BoardFailModalResult>(async (resolve) => {
     let settled = false;
+    const lifetime = createResultModalLifetime();
+    const trackFailTimeout = lifetime.timeout;
+    const trackFailAnimationFrame = lifetime.frame;
+    const clearAllFailTimeouts = lifetime.clearTimeouts;
+    const clearAllFailAnimationFrames = lifetime.clearFrames;
+    const ctaControllers: CtaController[] = [];
+    const disposeCtas = (): void => {
+      ctaControllers.splice(0).forEach(controller => controller.dispose());
+    };
+    const onVisibility = () => lifetime.setSuspended(document.hidden);
+    document.addEventListener('visibilitychange', onVisibility);
+    lifetime.setSuspended(document.hidden);
+    lifetime.onDispose(() => document.removeEventListener('visibilitychange', onVisibility));
+    let overlay: HTMLElement | null = null;
+    let onKey: ((event: KeyboardEvent) => void) | null = null;
+    let cleanupFailModalLifecycle = (_releaseTarget: 'stable' | 'gameplay' = 'stable'): void => {
+      clearAllFailTimeouts();
+      clearAllFailAnimationFrames();
+      stopFailScreenSounds();
+    };
+    lifetime.onDispose(() => {
+      try { cleanupFailModalLifecycle(); } catch { try { stopFailScreenSounds(); } catch {} }
+      try { disposeCtas(); } catch {}
+      if (onKey) window.removeEventListener('keydown', onKey);
+      if (overlay) {
+        try { gsap.killTweensOf([overlay, ...Array.from(overlay.querySelectorAll('*'))]); } catch {}
+        overlay.remove();
+      }
+    });
     let journeyReturnTransitionId: number | null = null;
     let navigationAbortHandler: (() => void) | null = null;
     const safeResolve = (action: string): void => {
       if (settled) return;
       settled = true;
+      lifetime.dispose();
       if (navigationAbortHandler) {
         try { window.removeEventListener('cc-navigation', navigationAbortHandler); } catch {}
+        try { window.removeEventListener('beforeunload', navigationAbortHandler); } catch {}
         navigationAbortHandler = null;
       }
       resolve({ action });
     };
     navigationAbortHandler = () => {
-      try { cleanupFailModalLifecycle(); } catch {}
-      try { document.getElementById(OVERLAY_ID)?.remove(); } catch {}
+      if (settled) return;
+      // Settle through the same owner as success; never query a replacement overlay.
       _isModalOpen = false;
       cancelJourneyReturnTransition(journeyReturnTransitionId, 'navigation-abort');
       safeResolve('__navigation-abort__');
     };
     window.addEventListener('cc-navigation', navigationAbortHandler, { once: true });
+    window.addEventListener('beforeunload', navigationAbortHandler, { once: true });
     // 🔥 CRITICAL FIX: Wrap entire promise body in try-catch to ensure resolve is ALWAYS called
     // Without this, if an error occurs before any button action, the promise never resolves
     // and busyEnding stays stuck, blocking future fail screens
@@ -330,6 +335,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     // 🔥 JOURNEY PROGRESSION: Handle board failure
     try {
       const { journeyProgressionState } = await import('./journey-progression-state.js');
+      if (!lifetime.isActive()) return;
       // Keep lastOpenedBoardId (don't reset it) - user should be able to retry same board
       journeyProgressionState.setLastOpenedBoardId(boardNumber);
       
@@ -376,6 +382,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       // This ensures interim card persists after hard exit
       try {
         const { journeyBoardsManager } = await import('./journey-boards-manager.js');
+        if (!lifetime.isActive()) return;
         // Set board to interim if not already unlocked (user can retry)
         const board = journeyBoardsManager.getBoardById(boardNumber);
         if (board && !board.unlocked) {
@@ -416,7 +423,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     removeExisting();
     preloadFailScreenSounds();
 
-    const overlay = document.createElement('div');
+    overlay = document.createElement('div');
     overlay.id = OVERLAY_ID;
     overlay.style.cssText = [
       'position:fixed',
@@ -565,7 +572,6 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     });
 
     // 🔥 MEMORY LEAK FIX: Cleanup function to remove all event listeners
-    const ctaControllers: CtaController[] = [];
     const cleanupButtonListeners = (): void => {
       buttonEventListeners.forEach(({ button, handlers }) => {
         handlers.forEach(({ event, handler, options }) => {
@@ -579,12 +585,8 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       buttonEventListeners.length = 0;
       console.log('✅ board-fail-modal: All button event listeners removed');
     };
-    const disposeCtas = (): void => {
-      ctaControllers.splice(0).forEach(controller => controller.dispose());
-    };
-
-    const cleanupFailModalLifecycle = (
-      releaseTarget: 'stable' | 'gameplay' = 'stable',
+    cleanupFailModalLifecycle = (
+      releaseTarget: 'stable' | 'gameplay' = resultReleaseTarget,
     ): void => {
       // A new route/game becomes the audio owner as soon as the Fail modal
       // closes. Never carry the old sax or CTA voices into that destination.
@@ -609,12 +611,14 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       continueBtn,
       exitBtn,
       clickedAction,
+      lifetime,
     });
 
     // FX cleanup is handled by restartGame()/exitToMenu() to avoid duplicate cleanup races
     
     const resolveAndCleanup = async (action: string): Promise<void> => {
       // 🔥 BUG FIX: Prevent multiple calls (double-click protection)
+      if (!lifetime.isActive()) return;
       if (isResolving) {
         logger.warn('⚠️ resolveAndCleanup already in progress, ignoring duplicate call');
         return;
@@ -646,6 +650,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
               logger.info('🎮 Arcade Play Again after fail - forcing fresh Round 01 restart');
             }
             await runExitAnimation(action);
+            if (!lifetime.isActive()) return;
             
             if ((window as WindowWithCC).CC && (window as WindowWithCC).CC!.restart) {
               try {
@@ -654,8 +659,10 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
                   exitingToMenu: (window as any).exitingToMenu === true,
                 });
                 await Promise.resolve((window as WindowWithCC).CC!.restart!({ animateHudDrop: true }));
+                if (!lifetime.isActive()) return;
                 logger.info('✅ window.CC.restart called from board-fail-modal');
               } catch (error) {
+                if (!lifetime.isActive()) return;
                 logger.warn('⚠️ window.CC.restart failed:', error);
               }
             } else {
@@ -667,6 +674,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
             safeResolve(action);
           } catch (error) {
+            if (!lifetime.isActive()) return;
             logger.warn('⚠️ Failed to restart after board fail, using fallback restart path:', error);
             
             // 🔥 MEMORY LEAK FIX: Cleanup on fallback too
@@ -677,6 +685,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
               logger.info('🎮 Arcade Play Again fallback after fail - forcing fresh Round 01 restart');
             }
             await runExitAnimation(action);
+            if (!lifetime.isActive()) return;
             
             if ((window as WindowWithCC).CC && (window as WindowWithCC).CC!.restart) {
               try {
@@ -685,8 +694,10 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
                   exitingToMenu: (window as any).exitingToMenu === true,
                 });
                 await Promise.resolve((window as WindowWithCC).CC!.restart!({ animateHudDrop: true }));
+                if (!lifetime.isActive()) return;
                 logger.info('✅ window.CC.restart called from board-fail-modal (fallback)');
               } catch (err) {
+                if (!lifetime.isActive()) return;
                 logger.warn('⚠️ window.CC.restart failed:', err);
               }
             } else {
@@ -719,7 +730,12 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
           prepareJourneyReturnBehindTerminalOverlay('fail', journeyReturnTransitionId!);
         }
         
-        await runExitAnimation(action);
+        const exitAnimation = measureJourneyReturnPreparationPhase(
+          journeyReturnTransitionId, 'modal-exit-setup', () => runExitAnimation(action),
+        );
+        finishJourneyReturnCtaSetup(journeyReturnTransitionId);
+        await exitAnimation;
+        if (!lifetime.isActive()) return;
         if (!isArcadeHomeRunMode()) {
           markJourneyReturnResultExitComplete(journeyReturnTransitionId);
         }
@@ -735,6 +751,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
           // mistaken for an external abort and cancel the prepared Journey.
           if (navigationAbortHandler) {
             try { window.removeEventListener('cc-navigation', navigationAbortHandler); } catch {}
+            try { window.removeEventListener('beforeunload', navigationAbortHandler); } catch {}
             navigationAbortHandler = null;
           }
           await requestExitToMenu({
@@ -745,6 +762,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             visualExitAlreadyComplete: (window as any).__ccGameOverBoardExitComplete === true,
             allowTerminalNoMovesExit: true,
           });
+          if (!lifetime.isActive()) return;
           logger.info('✅ menu exit handoff completed from board-fail-modal');
         } catch (error) {
           logger.warn('⚠️ menu exit handoff failed:', error);
@@ -763,6 +781,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         cleanupFailModalLifecycle();
         
         await runExitAnimation(action);
+        if (!lifetime.isActive()) return;
         disposeCtas();
         try { overlay.remove(); } catch {} 
         _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
@@ -770,7 +789,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       }
     };
 
-    const onKey = (event: KeyboardEvent): void => {
+    onKey = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
         event.preventDefault();
         void resolveAndCleanup('menu');
@@ -785,6 +804,8 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         activationTiming: 'immediate',
         onActivate: () => resolveAndCleanup('retry'),
       }),
+    );
+    ctaControllers.push(
       registerCta(exitBtn, {
         variant: 'secondary',
         initialState: 'hidden',
@@ -809,7 +830,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     card.style.opacity = '1';
     card.style.transform = 'scale(1)';
 
-    requestAnimationFrame(() => {
+    trackFailAnimationFrame(() => {
       const trans = 'opacity 0.55s cubic-bezier(0.68, -0.6, 0.32, 1.4), transform 0.55s cubic-bezier(0.68, -0.6, 0.32, 1.4)';
       [starsHero, title, boardStatus].forEach(el => {
         el.style.transition = trans;
@@ -856,6 +877,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     } catch (outerError) {
       // 🔥 CRITICAL: Ensure promise ALWAYS resolves, even on catastrophic error
       // This prevents busyEnding from staying stuck and blocking future fail screens
+      if (!lifetime.isActive()) return;
       logger.error('❌ board-fail-modal: Catastrophic error in promise body - force resolving', outerError);
       _isModalOpen = false;
       clearAllFailTimeouts();  // 🔥 FIX: Correct function name (was clearAllFailModalTimeouts)
@@ -865,7 +887,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
   });
   const guardedPromise = modalPromise.finally(() => {
     if (_activeModalPromise === guardedPromise) _activeModalPromise = null;
-    _isModalOpen = false;
+    if (_activeModalPromise === null) _isModalOpen = false;
   });
   _activeModalPromise = guardedPromise;
   return guardedPromise;

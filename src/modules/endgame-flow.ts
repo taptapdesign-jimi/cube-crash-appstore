@@ -45,6 +45,7 @@ interface EndgameContext {
   isRunCurrent?: () => boolean;
   score?: number;
   hideGrid?: () => void;
+  suspendForTerminal?: () => void;
   showGrid?: () => void;
   boardNumber?: number;
   getScore?: () => number;
@@ -415,17 +416,9 @@ async function performPreNextBoardCleanup(nextLevel: number): Promise<void> {
       (window as any)._activeIntervals.clear();
     }
 
-    // The physical iPhone capture reached ~59 MiB of idle decoded gameplay
-    // audio immediately before WebKit memory warnings. Board handoff is the
-    // safe ownership boundary: active voices stay protected while old World
-    // and finale buffers are released before the next board allocates images.
-    try {
-      const { releaseIdleDecodedGameplayAudio } = await import('./gameplay-audio-buffer-player.js');
-      releaseIdleDecodedGameplayAudio();
-      console.log('✅ endgame-flow: Released idle decoded gameplay audio before transition');
-    } catch (error) {
-      console.warn('⚠️ endgame-flow: Idle gameplay audio release failed (non-fatal):', error);
-    }
+    // The audio owner bounds reusable buffers itself. A normal Continue must
+    // not turn every next-board pickup/merge into a cold decode. Explicit OS
+    // memory warnings retain their separate idle-buffer release boundary.
 
     try {
       const cleanBoardModal = await import('./clean-board-modal.js');
@@ -1025,17 +1018,19 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     // neposredno prije modala/new-card flowa.
     if (!arcadeStageClearMode) {
       try { hideGrid?.(); } catch {}
+      ctx.suspendForTerminal?.();
     }
 
     if (firstPlayTutorialCompletion) {
       await animateBoardIndicatorExitSafe(0.3, 'tutorial-complete');
       if (shouldAbortEndgameFlow()) return;
       try {
-        const { showTutorialCompleteModal, cleanupTutorialCompleteModal } = await import('./tutorial-complete-modal.js');
+        const { showTutorialCompleteModal, captureTutorialCompleteModalCleanup } = await import('./tutorial-complete-modal.js');
         if (shouldAbortEndgameFlow()) return;
-        cleanupTutorialCompleteCover = cleanupTutorialCompleteModal;
-        await showTutorialCompleteModal();
-        if (shouldAbortEndgameFlow()) return;
+        const tutorialPresentation = showTutorialCompleteModal();
+        cleanupTutorialCompleteCover = captureTutorialCompleteModalCleanup();
+        const tutorialResult = await tutorialPresentation;
+        if (shouldAbortEndgameFlow() || tutorialResult?.action !== 'continue') return;
         const { markFirstPlayTutorialDone } = await import('./first-play-tutorial.js');
         if (shouldAbortEndgameFlow()) return;
         markFirstPlayTutorialDone();

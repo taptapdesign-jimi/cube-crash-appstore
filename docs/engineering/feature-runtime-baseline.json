@@ -1,0 +1,2297 @@
+{
+  "version": 1,
+  "grandfatheredSurfaces": [
+    "src/modules/arcade-stage-clear-modal.ts",
+    "src/modules/board-fail-modal.ts",
+    "src/modules/board-transition-screen.ts",
+    "src/modules/clean-board-modal.ts",
+    "src/modules/detail-modal-stats-enter-motion.ts",
+    "src/modules/end-run-modal.ts",
+    "src/modules/fail-screen-sound.ts",
+    "src/modules/first-play-tutorial.ts",
+    "src/modules/gameplay-exit-modal-enter-sound.ts",
+    "src/modules/gameplay-modal-benchmark.ts",
+    "src/modules/gameplay-sheet-close.ts",
+    "src/modules/journey-boards-manager.ts",
+    "src/modules/journey-card-overlay-modal.ts",
+    "src/modules/journey-card-portal-transition.ts",
+    "src/modules/journey-new-card-screen.ts",
+    "src/modules/journey-special-dice-screen.ts",
+    "src/modules/launch-screen.ts",
+    "src/modules/modal-vertical-drag-dismiss.ts",
+    "src/modules/result-modal-lifetime.ts",
+    "src/modules/resume-sheet-animations.ts",
+    "src/modules/score-bottom-sheet.ts",
+    "src/modules/shared-pixi-sheet-animation.ts",
+    "src/modules/splash-text-overlay.ts",
+    "src/modules/tnt-animation.ts",
+    "src/modules/tutorial-complete-modal.ts",
+    "src/modules/wild-juice-bubbles-screen.ts",
+    "src/ui/components/collectibles-screen.ts",
+    "src/ui/components/menu-modal.ts",
+    "src/ui/components/privacy-policy-modal.ts",
+    "src/ui/components/settings-screen.ts",
+    "src/utils/journey-screen-owner-diagnostics.ts",
+    "src/utils/screen-lifecycle.ts",
+    "src/utils/screen-presentation.ts",
+    "src/utils/thermal-isolation-panel.ts"
+  ],
+  "recurringWork": [
+    {
+      "file": "src/collectibles-manager.ts",
+      "kind": "animation-frame",
+      "snippet": "await new Promise(resolve => requestAnimationFrame(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/collectibles-manager.ts",
+      "kind": "animation-frame",
+      "snippet": "requestAnimationFrame(async () => {",
+      "count": 1
+    },
+    {
+      "file": "src/collectibles-manager.ts",
+      "kind": "observer",
+      "snippet": "this.cardBackgroundObserver = new IntersectionObserver((entries) => {",
+      "count": 1
+    },
+    {
+      "file": "src/collectibles-manager.ts",
+      "kind": "timeout",
+      "snippet": "const revealFallbackTimer = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/collectibles-manager.ts",
+      "kind": "timeout",
+      "snippet": "releaseTimer = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/collectibles-manager.ts",
+      "kind": "timeout",
+      "snippet": "setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/collectibles-manager.ts",
+      "kind": "timeout",
+      "snippet": "setTimeout(async () => {",
+      "count": 1
+    },
+    {
+      "file": "src/collectibles-manager.ts",
+      "kind": "timeout",
+      "snippet": "window.setTimeout(() => {",
+      "count": 3
+    },
+    {
+      "file": "src/collectibles-screen.css",
+      "kind": "css-infinite",
+      "snippet": "animation: journey-v700-cloud-idle var(--cloud-duration, 6.4s) ease-in-out infinite;",
+      "count": 1
+    },
+    {
+      "file": "src/collectibles-screen.css",
+      "kind": "css-infinite",
+      "snippet": "animation: journey-v700-world-auto-tilt var(--journey-world-tilt-duration, 4.8s) ease-in-out infinite both;",
+      "count": 1
+    },
+    {
+      "file": "src/collectibles-screen.css",
+      "kind": "css-infinite",
+      "snippet": "animation: journey-v700-world-idle 4.4s ease-in-out infinite;",
+      "count": 1
+    },
+    {
+      "file": "src/collectibles-screen.css",
+      "kind": "css-infinite",
+      "snippet": "animation: journey-world-banner-special-idle var(--journey-world-banner-idle-duration) cubic-bezier(0.45, 0.05, 0.55, 0.95) calc(var(--journey-world-banner-reveal-delay) + 0.72s) infinite;",
+      "count": 1
+    },
+    {
+      "file": "src/collectibles-screen.css",
+      "kind": "css-infinite",
+      "snippet": "animation: journey-world-flag-ember var(--journey-world-shimmer-duration, 6.8s) ease-in-out var(--journey-world-shimmer-delay, 0s) infinite;",
+      "count": 1
+    },
+    {
+      "file": "src/collectibles-screen.css",
+      "kind": "css-infinite",
+      "snippet": "animation: journey-world-flag-shine var(--journey-world-shimmer-duration, 6.8s) ease-in-out var(--journey-world-shimmer-delay, 0s) infinite;",
+      "count": 1
+    },
+    {
+      "file": "src/collectibles-screen.css",
+      "kind": "css-infinite",
+      "snippet": "animation: var(--journey-beam-idle-name) var(--journey-beam-idle-duration) ease-in-out var(--journey-beam-idle-phase) infinite;",
+      "count": 1
+    },
+    {
+      "file": "src/independent-navigation.css",
+      "kind": "css-infinite",
+      "snippet": "animation: idleFloat 3s ease-in-out infinite; /* Gentle up-down idle animation */",
+      "count": 1
+    },
+    {
+      "file": "src/independent-navigation.css",
+      "kind": "css-infinite",
+      "snippet": "animation: navShadowPulse 3s ease-in-out infinite;",
+      "count": 1
+    },
+    {
+      "file": "src/main.ts",
+      "kind": "animation-frame",
+      "snippet": "await new Promise(resolve => requestAnimationFrame(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/main.ts",
+      "kind": "animation-frame",
+      "snippet": "await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));",
+      "count": 4
+    },
+    {
+      "file": "src/main.ts",
+      "kind": "animation-frame",
+      "snippet": "await new Promise(resolve => requestAnimationFrame(resolve));",
+      "count": 2
+    },
+    {
+      "file": "src/main.ts",
+      "kind": "animation-frame",
+      "snippet": "requestAnimationFrame(() => requestAnimationFrame(() => resolve()));",
+      "count": 2
+    },
+    {
+      "file": "src/main.ts",
+      "kind": "animation-frame",
+      "snippet": "requestAnimationFrame(resolve);",
+      "count": 1
+    },
+    {
+      "file": "src/main.ts",
+      "kind": "interval",
+      "snippet": "const checkInterval = setInterval(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/main.ts",
+      "kind": "timeout",
+      "snippet": "await new Promise(resolve => setTimeout(resolve, 120));",
+      "count": 1
+    },
+    {
+      "file": "src/main.ts",
+      "kind": "timeout",
+      "snippet": "await new Promise(resolve => setTimeout(resolve, 50));",
+      "count": 1
+    },
+    {
+      "file": "src/main.ts",
+      "kind": "timeout",
+      "snippet": "await new Promise(resolve => setTimeout(resolve, exitWaits.errorFallbackMs));",
+      "count": 1
+    },
+    {
+      "file": "src/main.ts",
+      "kind": "timeout",
+      "snippet": "await new Promise(resolve => setTimeout(resolve, exitWaits.hudExitMs));",
+      "count": 1
+    },
+    {
+      "file": "src/main.ts",
+      "kind": "timeout",
+      "snippet": "await new Promise(resolve => setTimeout(resolve, exitWaits.postExitSettleMs));",
+      "count": 1
+    },
+    {
+      "file": "src/main.ts",
+      "kind": "timeout",
+      "snippet": "await new Promise(resolve => setTimeout(resolve, exitWaits.uiHandoffMs));",
+      "count": 3
+    },
+    {
+      "file": "src/main.ts",
+      "kind": "timeout",
+      "snippet": "const forceHideTimeout = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/main.ts",
+      "kind": "timeout",
+      "snippet": "window.setTimeout(() => {",
+      "count": 2
+    },
+    {
+      "file": "src/main.ts",
+      "kind": "timeout",
+      "snippet": "window.setTimeout(resolveSafetyTimeout, 15000);",
+      "count": 1
+    },
+    {
+      "file": "src/main.ts",
+      "kind": "timeout",
+      "snippet": "window.setTimeout(runWhenOffHomepage, 3500);",
+      "count": 1
+    },
+    {
+      "file": "src/main.ts",
+      "kind": "timeout",
+      "snippet": "window.setTimeout(runWhenOffHomepage, 4500);",
+      "count": 1
+    },
+    {
+      "file": "src/main.ts",
+      "kind": "timeout",
+      "snippet": "window.setTimeout(task, 0);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/animated-svg-phase-scheduler.ts",
+      "kind": "timeout",
+      "snippet": "else timer = setTimeout(startOrReplan, delayMs);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/animated-svg-phase-scheduler.ts",
+      "kind": "timeout",
+      "snippet": "timer = setTimeout(startOrReplan, replannedDelayMs);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/animation-manager.ts",
+      "kind": "gsap-infinite",
+      "snippet": "repeat: -1,",
+      "count": 1
+    },
+    {
+      "file": "src/modules/app-board.ts",
+      "kind": "timeout",
+      "snippet": "safetyTimeout = setTimeout(() => {",
+      "count": 2
+    },
+    {
+      "file": "src/modules/app-core-glow.ts",
+      "kind": "gsap-infinite",
+      "snippet": "const tl = animationManager.trackExternalTimeline(gsap.timeline({ repeat: -1 }));",
+      "count": 1
+    },
+    {
+      "file": "src/modules/app-core-glow.ts",
+      "kind": "gsap-infinite",
+      "snippet": "repeat: -1",
+      "count": 1
+    },
+    {
+      "file": "src/modules/app-core-glow.ts",
+      "kind": "gsap-infinite",
+      "snippet": "repeat: -1,",
+      "count": 2
+    },
+    {
+      "file": "src/modules/app-core-helpers.ts",
+      "kind": "timeout",
+      "snippet": "",
+      "count": 1
+    },
+    {
+      "file": "src/modules/app-core-helpers.ts",
+      "kind": "timeout",
+      "snippet": "const timerId = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/app-core-utils.ts",
+      "kind": "animation-frame",
+      "snippet": "const rafId = requestAnimationFrame((now: number) => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/app-core-utils.ts",
+      "kind": "interval",
+      "snippet": "const interval = setInterval(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/app-core-utils.ts",
+      "kind": "timeout",
+      "snippet": "const timeout = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/app-core-utils.ts",
+      "kind": "timeout",
+      "snippet": "return new Promise(r => setTimeout(r, ms));",
+      "count": 1
+    },
+    {
+      "file": "src/modules/app-core.ts",
+      "kind": "animation-frame",
+      "snippet": "requestAnimationFrame(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/app-core.ts",
+      "kind": "gsap-infinite",
+      "snippet": "repeat: -1,",
+      "count": 1
+    },
+    {
+      "file": "src/modules/app-core.ts",
+      "kind": "pixi-application",
+      "snippet": "app = new Application();",
+      "count": 1
+    },
+    {
+      "file": "src/modules/app-core.ts",
+      "kind": "ticker-callback",
+      "snippet": "if (!reuseApp) app.ticker.add(onFirstFrame);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/app-core.ts",
+      "kind": "timeout",
+      "snippet": "__ccNavCleanupTimer = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/app-core.ts",
+      "kind": "timeout",
+      "snippet": "const timeoutId = window.setTimeout(finish, timeoutMs);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/app-core.ts",
+      "kind": "timeout",
+      "snippet": "const waitForRetry = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));",
+      "count": 1
+    },
+    {
+      "file": "src/modules/app-core.ts",
+      "kind": "timeout",
+      "snippet": "timeoutId = window.setTimeout(resolve, timeoutMs);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/app-spawn.ts",
+      "kind": "gsap-infinite",
+      "snippet": "const tl = gsap.timeline({ repeat: -1 });",
+      "count": 1
+    },
+    {
+      "file": "src/modules/app-spawn.ts",
+      "kind": "gsap-infinite",
+      "snippet": "repeat: -1",
+      "count": 1
+    },
+    {
+      "file": "src/modules/app-spawn.ts",
+      "kind": "gsap-infinite",
+      "snippet": "repeat: -1,",
+      "count": 2
+    },
+    {
+      "file": "src/modules/app-spawn.ts",
+      "kind": "timeout",
+      "snippet": ": (cb: FrameRequestCallback | (() => void)) => setTimeout(cb as () => void, 16);",
+      "count": 2
+    },
+    {
+      "file": "src/modules/app-spawn.ts",
+      "kind": "timeout",
+      "snippet": "const timeout = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/arcade-crate-sound.ts",
+      "kind": "timeout",
+      "snippet": "const timer = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/arcade-entry-surface-gate.ts",
+      "kind": "animation-frame",
+      "snippet": "window.requestAnimationFrame(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/arcade-stage-clear-modal.ts",
+      "kind": "gsap-infinite",
+      "snippet": "repeat: -1,",
+      "count": 1
+    },
+    {
+      "file": "src/modules/arcade-stage-clear-sound.ts",
+      "kind": "animation-frame",
+      "snippet": "mediaFadeFrames.set(voiceId, requestAnimationFrame(fade));",
+      "count": 2
+    },
+    {
+      "file": "src/modules/asset-preloader.ts",
+      "kind": "animation-frame",
+      "snippet": "requestAnimationFrame(() => resolve());",
+      "count": 1
+    },
+    {
+      "file": "src/modules/asset-preloader.ts",
+      "kind": "timeout",
+      "snippet": "setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/asset-preloader.ts",
+      "kind": "timeout",
+      "snippet": "setTimeout(() => resolve(), 0);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/asset-preloader.ts",
+      "kind": "timeout",
+      "snippet": "setTimeout(() => resolve(), 100);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/barrel-bouncy-artwork.ts",
+      "kind": "timeout",
+      "snippet": "controller.retryTimer = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/barrel-merge6-sound.ts",
+      "kind": "timeout",
+      "snippet": "const timer = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/barrel-merge6-sound.ts",
+      "kind": "timeout",
+      "snippet": "const timer = window.setTimeout(() => { mediaTimers.delete(timer); start(); }, cue.delayMs);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/beach-ball-merge6-sound.ts",
+      "kind": "timeout",
+      "snippet": "ball5StartTimer = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/bee-dice-idle.ts",
+      "kind": "gsap-infinite",
+      "snippet": "repeat: -1,",
+      "count": 1
+    },
+    {
+      "file": "src/modules/bee-finale-scene.ts",
+      "kind": "animation-frame",
+      "snippet": "startFrameId = window.requestAnimationFrame(startAll);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/bee-finale-scene.ts",
+      "kind": "timeout",
+      "snippet": "startFrameId = window.setTimeout(startAll, 16);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/board-frame-budget.ts",
+      "kind": "animation-frame",
+      "snippet": "rafId = requestAnimationFrame(loop);",
+      "count": 2
+    },
+    {
+      "file": "src/modules/board-recovery.ts",
+      "kind": "timeout",
+      "snippet": "await new Promise(resolve => setTimeout(resolve, 500));",
+      "count": 2
+    },
+    {
+      "file": "src/modules/board-transition-area55-sound.ts",
+      "kind": "timeout",
+      "snippet": "const timeoutId = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/board-transition-forest-ambient-sound.ts",
+      "kind": "interval",
+      "snippet": "mediaBeesFadeIntervalId = window.setInterval(applyFadeStep, MEDIA_FADE_STEP_MS);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/board-transition-forest-ambient-sound.ts",
+      "kind": "timeout",
+      "snippet": "mediaBeesFadeStartTimeoutId = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/board-transition-forest-ambient-sound.ts",
+      "kind": "timeout",
+      "snippet": "mediaBeesStopTimeoutId = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/board-transition-presentation-handoff.ts",
+      "kind": "timeout",
+      "snippet": ": (callback) => setTimeout(() => callback(Date.now()), 16) as unknown as number,",
+      "count": 1
+    },
+    {
+      "file": "src/modules/board-transition-presentation-handoff.ts",
+      "kind": "timeout",
+      "snippet": "setTimeout(resolve, 16);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/board-transition-presentation-handoff.ts",
+      "kind": "timeout",
+      "snippet": "this.deadlineId = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/board-transition-screen.ts",
+      "kind": "gsap-infinite",
+      "snippet": "const boingTimeline = gsap.timeline({ repeat: -1, repeatDelay: 0.18 + Math.random() * 0.35 });",
+      "count": 1
+    },
+    {
+      "file": "src/modules/board-transition-screen.ts",
+      "kind": "gsap-infinite",
+      "snippet": "const bounceTimeline = trackTimeline({ repeat: -1, delay: enterDelay + 0.5 });",
+      "count": 1
+    },
+    {
+      "file": "src/modules/board-transition-screen.ts",
+      "kind": "gsap-infinite",
+      "snippet": "const timeline = trackTimeline({ repeat: -1 });",
+      "count": 1
+    },
+    {
+      "file": "src/modules/board-transition-screen.ts",
+      "kind": "gsap-infinite",
+      "snippet": "const timeline = trackTimeline({ repeat: -1, yoyo: true });",
+      "count": 1
+    },
+    {
+      "file": "src/modules/board-transition-screen.ts",
+      "kind": "gsap-infinite",
+      "snippet": "repeat: -1,",
+      "count": 2
+    },
+    {
+      "file": "src/modules/board-transition-screen.ts",
+      "kind": "interval",
+      "snippet": "memSampleInterval = window.setInterval(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/board.ts",
+      "kind": "animation-frame",
+      "snippet": "requestAnimationFrame(() => {",
+      "count": 3
+    },
+    {
+      "file": "src/modules/board.ts",
+      "kind": "timeout",
+      "snippet": "const timeout = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/center-celebration.ts",
+      "kind": "timeout",
+      "snippet": "await new Promise<void>(r => setTimeout(r, holdMs));",
+      "count": 1
+    },
+    {
+      "file": "src/modules/clean-board-area55-ship-flybys.ts",
+      "kind": "observer",
+      "snippet": "observer = new MutationObserver(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/clean-board-sound.ts",
+      "kind": "animation-frame",
+      "snippet": "mediaFadeFrames.set(voiceId, requestAnimationFrame(fade));",
+      "count": 2
+    },
+    {
+      "file": "src/modules/clean-board-sound.ts",
+      "kind": "timeout",
+      "snippet": "const timeout = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/confetti-system.ts",
+      "kind": "animation-frame",
+      "snippet": "animationFrame = requestAnimationFrame(renderFrame);",
+      "count": 2
+    },
+    {
+      "file": "src/modules/core-tnt-merge6-sound.ts",
+      "kind": "timeout",
+      "snippet": "tnt3StartTimer = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/core-tnt-merge6-sound.ts",
+      "kind": "timeout",
+      "snippet": "woodSplinterStartTimer = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/drag-core.ts",
+      "kind": "animation-frame",
+      "snippet": "drag._moveRaf = requestAnimationFrame(processQueuedMove);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/drag-core.ts",
+      "kind": "timeout",
+      "snippet": "drag._watchdogTimeout = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/drag-core.ts",
+      "kind": "timeout",
+      "snippet": "setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/end-run-modal.ts",
+      "kind": "animation-frame",
+      "snippet": "const rafId = requestAnimationFrame((now: number) => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/end-run-modal.ts",
+      "kind": "timeout",
+      "snippet": "const timeout = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/end-run-modal.ts",
+      "kind": "timeout",
+      "snippet": "setTimeout(async () => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/end-run-modal.ts",
+      "kind": "timeout",
+      "snippet": "window.setTimeout(resolve, getEndRunSurfaceExitDurationMs());",
+      "count": 1
+    },
+    {
+      "file": "src/modules/end-run-utils.ts",
+      "kind": "animation-frame",
+      "snippet": "requestAnimationFrame(animate);",
+      "count": 2
+    },
+    {
+      "file": "src/modules/end-run-utils.ts",
+      "kind": "timeout",
+      "snippet": "setTimeout(() => inThrottle = false, limit);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/end-run-utils.ts",
+      "kind": "timeout",
+      "snippet": "timeout = setTimeout(() => func(...args), wait);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/endgame-animation-handoff.ts",
+      "kind": "timeout",
+      "snippet": "const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));",
+      "count": 1
+    },
+    {
+      "file": "src/modules/endgame-animation-handoff.ts",
+      "kind": "timeout",
+      "snippet": "timeoutId = setTimeout(() => resolve('timeout'), timeoutMs);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/endgame-flow.ts",
+      "kind": "animation-frame",
+      "snippet": "await new Promise(resolve => requestAnimationFrame(resolve));",
+      "count": 6
+    },
+    {
+      "file": "src/modules/endgame-flow.ts",
+      "kind": "timeout",
+      "snippet": "await new Promise(resolve => setTimeout(resolve, 100));",
+      "count": 1
+    },
+    {
+      "file": "src/modules/endgame-flow.ts",
+      "kind": "timeout",
+      "snippet": "await new Promise(resolve => setTimeout(resolve, 500));",
+      "count": 1
+    },
+    {
+      "file": "src/modules/endgame-flow.ts",
+      "kind": "timeout",
+      "snippet": "setTimeout(async () => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/endgame-hint.ts",
+      "kind": "gsap-infinite",
+      "snippet": "repeat: -1,",
+      "count": 1
+    },
+    {
+      "file": "src/modules/endgame-hint.ts",
+      "kind": "observer",
+      "snippet": "bottomSheetObserver = new MutationObserver(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/endgame-hint.ts",
+      "kind": "timeout",
+      "snippet": "idleTimer = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/endgame-hint.ts",
+      "kind": "timeout",
+      "snippet": "repeatTimer = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/endgame-hint.ts",
+      "kind": "timeout",
+      "snippet": "visibleTimer = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/exit-transition-waits.ts",
+      "kind": "timeout",
+      "snippet": "timeoutId = setTimeout(() => resolve('timeout'), Math.max(0, budgetMs));",
+      "count": 1
+    },
+    {
+      "file": "src/modules/final-merge-dice-celebration.ts",
+      "kind": "gsap-infinite",
+      "snippet": "const bounceTimeline = trackTimeline(run, { repeat: -1, yoyo: true });",
+      "count": 1
+    },
+    {
+      "file": "src/modules/first-play-tutorial.ts",
+      "kind": "animation-frame",
+      "snippet": "const frame = window.requestAnimationFrame((time) => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/first-play-tutorial.ts",
+      "kind": "gsap-infinite",
+      "snippet": "const tl = gsap.timeline({ repeat: -1, repeatDelay: 0.16 });",
+      "count": 1
+    },
+    {
+      "file": "src/modules/first-play-tutorial.ts",
+      "kind": "gsap-infinite",
+      "snippet": "repeat: -1,",
+      "count": 1
+    },
+    {
+      "file": "src/modules/first-play-tutorial.ts",
+      "kind": "interval",
+      "snippet": "hudDimTimer = window.setInterval(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/first-play-tutorial.ts",
+      "kind": "interval",
+      "snippet": "pollTimer = window.setInterval(() => {",
+      "count": 4
+    },
+    {
+      "file": "src/modules/first-play-tutorial.ts",
+      "kind": "timeout",
+      "snippet": "const timer = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/fish-merge6-sound.ts",
+      "kind": "timeout",
+      "snippet": "fish2StartTimer = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/flower-bouncy-artwork.ts",
+      "kind": "timeout",
+      "snippet": "controller.retryTimer = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/fx.ts",
+      "kind": "gsap-infinite",
+      "snippet": "const tl = trackTimeline({ repeat: -1, repeatDelay: Math.max(0, interval - (shiftDur + 0.20)) });",
+      "count": 1
+    },
+    {
+      "file": "src/modules/fx.ts",
+      "kind": "interval",
+      "snippet": "const checkTimer = setInterval(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/fx.ts",
+      "kind": "timeout",
+      "snippet": "const cleanupTimeout = setTimeout(() => {",
+      "count": 2
+    },
+    {
+      "file": "src/modules/fx.ts",
+      "kind": "timeout",
+      "snippet": "container._cleanupTimeout = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/game-over-animation-handoff.ts",
+      "kind": "timeout",
+      "snippet": "const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));",
+      "count": 1
+    },
+    {
+      "file": "src/modules/game-over-animation-handoff.ts",
+      "kind": "timeout",
+      "snippet": "timeoutId = setTimeout(() => resolve('timeout'), timeoutMs);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/game-over-board-exit-animation.ts",
+      "kind": "timeout",
+      "snippet": "return new Promise((resolve) => window.setTimeout(resolve, ms));",
+      "count": 1
+    },
+    {
+      "file": "src/modules/game-over-board-exit-animation.ts",
+      "kind": "timeout",
+      "snippet": "window.setTimeout(poll, 50);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/gameplay-entry-ticker.ts",
+      "kind": "animation-frame",
+      "snippet": "frameId = requestAnimationFrame(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/hud-helpers.ts",
+      "kind": "gsap-infinite",
+      "snippet": "__comboJitterTl = trackTimeline({ repeat: -1, repeatRefresh: true });",
+      "count": 1
+    },
+    {
+      "file": "src/modules/hud-helpers.ts",
+      "kind": "gsap-infinite",
+      "snippet": "repeat: -1",
+      "count": 1
+    },
+    {
+      "file": "src/modules/hud-helpers.ts",
+      "kind": "interval",
+      "snippet": "container._smokeInterval = setInterval(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/hud-helpers.ts",
+      "kind": "timeout",
+      "snippet": "const timeout = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/input-gate.ts",
+      "kind": "timeout",
+      "snippet": "timers[reason] = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-ambient-canvas-runtime.ts",
+      "kind": "animation-frame",
+      "snippet": "fadeFrame = requestAnimationFrame(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-ambient-canvas-runtime.ts",
+      "kind": "observer",
+      "snippet": "observer = new IntersectionObserver((entries) => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-ambient-canvas-runtime.ts",
+      "kind": "ticker-callback",
+      "snippet": "options.ticker.add(tick);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-ambient-canvas-runtime.ts",
+      "kind": "timeout",
+      "snippet": "fadeTimeout = window.setTimeout(() => {",
+      "count": 2
+    },
+    {
+      "file": "src/modules/journey-backpack-sound.ts",
+      "kind": "timeout",
+      "snippet": "const timer = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-boards-manager.ts",
+      "kind": "animation-frame",
+      "snippet": "await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));",
+      "count": 2
+    },
+    {
+      "file": "src/modules/journey-boards-manager.ts",
+      "kind": "animation-frame",
+      "snippet": "const rafId = requestAnimationFrame((time: number) => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-boards-manager.ts",
+      "kind": "animation-frame",
+      "snippet": "requestAnimationFrame(() => requestAnimationFrame(() => resolve()));",
+      "count": 2
+    },
+    {
+      "file": "src/modules/journey-boards-manager.ts",
+      "kind": "animation-frame",
+      "snippet": "swipeRafId = requestAnimationFrame(flushSwipeX);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-boards-manager.ts",
+      "kind": "gsap-infinite",
+      "snippet": "repeat: -1,",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-boards-manager.ts",
+      "kind": "observer",
+      "snippet": "this.journeyAreaIdleVisibilityObserver = new IntersectionObserver((records) => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-boards-manager.ts",
+      "kind": "ticker-callback",
+      "snippet": "gsap.ticker.add(this.journeyAreaIdleTicker);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-boards-manager.ts",
+      "kind": "timeout",
+      "snippet": "(detailModal as any).__detailStatsRestoreTimer = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-boards-manager.ts",
+      "kind": "timeout",
+      "snippet": "const timeoutId = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-boards-manager.ts",
+      "kind": "timeout",
+      "snippet": "const timer = window.setTimeout(finish, timeoutMs);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-boards-manager.ts",
+      "kind": "timeout",
+      "snippet": "longPressTimer = window.setTimeout(() => {",
+      "count": 3
+    },
+    {
+      "file": "src/modules/journey-boards-manager.ts",
+      "kind": "timeout",
+      "snippet": "releaseTimer = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-boards-manager.ts",
+      "kind": "timeout",
+      "snippet": "window.setTimeout(() => {",
+      "count": 2
+    },
+    {
+      "file": "src/modules/journey-boards-manager.ts",
+      "kind": "timeout",
+      "snippet": "window.setTimeout(cleanupFloatingPlayButton, ctaMotion.exitDuration * 1000);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-card-idle-bounce.ts",
+      "kind": "animation-frame",
+      "snippet": "requestAnimationFrame(() => {",
+      "count": 2
+    },
+    {
+      "file": "src/modules/journey-card-idle-bounce.ts",
+      "kind": "timeout",
+      "snippet": "const timeoutId = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-card-idle-bounce.ts",
+      "kind": "timeout",
+      "snippet": "state.animationTimer = setTimeout(animateRandomCard, nextDelay);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-card-idle-bounce.ts",
+      "kind": "timeout",
+      "snippet": "state.animationTimer = setTimeout(animateRandomCard, retryDelay);",
+      "count": 2
+    },
+    {
+      "file": "src/modules/journey-card-interaction-profiler.ts",
+      "kind": "animation-frame",
+      "snippet": "this.frameId = requestAnimationFrame(this.sampleFrame);",
+      "count": 2
+    },
+    {
+      "file": "src/modules/journey-card-overlay-modal.ts",
+      "kind": "animation-frame",
+      "snippet": "flipEdgeRaf = requestAnimationFrame(watchPhysicalEdge);",
+      "count": 2
+    },
+    {
+      "file": "src/modules/journey-card-overlay-modal.ts",
+      "kind": "animation-frame",
+      "snippet": "flipEdgeRaf = requestAnimationFrame(watchRecoilShine);",
+      "count": 2
+    },
+    {
+      "file": "src/modules/journey-card-overlay-modal.ts",
+      "kind": "animation-frame",
+      "snippet": "flipEdgeRaf = requestAnimationFrame(watchSettlePaintFace);",
+      "count": 2
+    },
+    {
+      "file": "src/modules/journey-card-overlay-modal.ts",
+      "kind": "animation-frame",
+      "snippet": "if (openProfilingEnabled) openProfileFrameId = requestAnimationFrame(sampleOpenProfileFrame);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-card-overlay-modal.ts",
+      "kind": "animation-frame",
+      "snippet": "legendaryShinePaintRaf = requestAnimationFrame(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-card-overlay-modal.ts",
+      "kind": "animation-frame",
+      "snippet": "openProfileFrameId = requestAnimationFrame(sampleOpenProfileFrame);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-card-overlay-modal.ts",
+      "kind": "animation-frame",
+      "snippet": "pointerTakeoverAuditRaf = requestAnimationFrame(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-card-overlay-modal.ts",
+      "kind": "animation-frame",
+      "snippet": "requestAnimationFrame(() => next(remaining - 1));",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-card-overlay-modal.ts",
+      "kind": "timeout",
+      "snippet": "backContentEnterTimer = window.setTimeout(() => {",
+      "count": 2
+    },
+    {
+      "file": "src/modules/journey-card-overlay-modal.ts",
+      "kind": "timeout",
+      "snippet": "backContentRestoreTimer = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-card-overlay-modal.ts",
+      "kind": "timeout",
+      "snippet": "const timeoutId = window.setTimeout(finish, timeoutMs);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-card-overlay-modal.ts",
+      "kind": "timeout",
+      "snippet": "idleCoachTimer = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-card-overlay-modal.ts",
+      "kind": "timeout",
+      "snippet": "surfaceIdleTimer = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-card-portal-transition.ts",
+      "kind": "animation-frame",
+      "snippet": "animationFrame = requestAnimationFrame(render);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-card-portal-transition.ts",
+      "kind": "animation-frame",
+      "snippet": "requestAnimationFrame(() => {",
+      "count": 2
+    },
+    {
+      "file": "src/modules/journey-card-return-reminder.ts",
+      "kind": "animation-frame",
+      "snippet": "impactRaf = requestAnimationFrame(render);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-card-return-reminder.ts",
+      "kind": "animation-frame",
+      "snippet": "paintRaf = requestAnimationFrame(paint);",
+      "count": 2
+    },
+    {
+      "file": "src/modules/journey-card-return-reminder.ts",
+      "kind": "animation-frame",
+      "snippet": "requestAnimationFrame(() => requestAnimationFrame(retire));",
+      "count": 2
+    },
+    {
+      "file": "src/modules/journey-card-return-reminder.ts",
+      "kind": "animation-frame",
+      "snippet": "scrollFollowRaf = requestAnimationFrame(followLiveUnit);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-forest-ambient-sound.ts",
+      "kind": "interval",
+      "snippet": "fadeIntervalId = window.setInterval(applyFadeStep, FADE_STEP_MS);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-forest-ambient-sound.ts",
+      "kind": "timeout",
+      "snippet": "fadeTimeoutId = window.setTimeout(stopAndRewind, safeDurationMs);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-forest-gameplay-sound.ts",
+      "kind": "interval",
+      "snippet": "if (mediaAudio) fadeIntervalId = window.setInterval(applyFadeStep, FADE_STEP_MS);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-forest-gameplay-sound.ts",
+      "kind": "timeout",
+      "snippet": "fadeTimeoutId = window.setTimeout(stopAndRewind, safeDurationMs);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-hub-runtime-scheduler.ts",
+      "kind": "observer",
+      "snippet": "return (callback, options) => new IntersectionObserver(callback, options);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-interim-card-shine.ts",
+      "kind": "animation-frame",
+      "snippet": "const frameId = window.requestAnimationFrame(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-interim-card-shine.ts",
+      "kind": "animation-frame",
+      "snippet": "scheduleFrame = (callback) => window.requestAnimationFrame(callback),",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-interim-card-shine.ts",
+      "kind": "timeout",
+      "snippet": "cadenceTimeoutId = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-interim-card-shine.ts",
+      "kind": "timeout",
+      "snippet": "const timeoutId = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-interim-card-shine.ts",
+      "kind": "timeout",
+      "snippet": "scheduleTimeout = (callback, delayMs) => window.setTimeout(callback, delayMs),",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-navigation-code-preparation.ts",
+      "kind": "timeout",
+      "snippet": "timer = setTimeout(() => resolve(false), JOURNEY_CODE_PREPARATION_TIMEOUT_MS);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-new-card-screen.ts",
+      "kind": "animation-frame",
+      "snippet": "const frameId = window.requestAnimationFrame(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-new-card-screen.ts",
+      "kind": "timeout",
+      "snippet": "const timeoutId = window.setTimeout(() => {",
+      "count": 2
+    },
+    {
+      "file": "src/modules/journey-new-card-screen.ts",
+      "kind": "timeout",
+      "snippet": "continueCoachTimerId = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-new-card-screen.ts",
+      "kind": "timeout",
+      "snippet": "return new Promise((resolve) => window.setTimeout(resolve, ms));",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-new-card-screen.ts",
+      "kind": "timeout",
+      "snippet": "unlockedIdleTimerId = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-return-presentation.ts",
+      "kind": "timeout",
+      "snippet": "await new Promise<void>((resolve) => window.setTimeout(resolve, pollMs));",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-return-transition-trace.ts",
+      "kind": "animation-frame",
+      "snippet": "else requestAnimationFrame(run);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-special-dice-screen.ts",
+      "kind": "timeout",
+      "snippet": "return new Promise((resolve) => window.setTimeout(resolve, ms));",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-special-dice-screen.ts",
+      "kind": "timeout",
+      "snippet": "shineTimeoutId = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-terminal-preparation-performance.ts",
+      "kind": "timeout",
+      "snippet": "timeout = window.setTimeout(() => finish('timeout'), 5000);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-world-animation-coordinator.ts",
+      "kind": "observer",
+      "snippet": "this.idleVisibilityObserver = new IntersectionObserver((records) => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-world-animation-coordinator.ts",
+      "kind": "ticker-callback",
+      "snippet": "if (needed) gsap.ticker.add(this.idleTicker);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-world-runtime-scheduler.ts",
+      "kind": "timeout",
+      "snippet": "this.idleHandoffTimer = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-world-runtime-scheduler.ts",
+      "kind": "timeout",
+      "snippet": "this.scrollSettleTimer = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-worlds-hub-sound.ts",
+      "kind": "interval",
+      "snippet": "if (mediaAudio) volumeIntervalId = window.setInterval(applyFadeStep, VOLUME_STEP_MS);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-worlds-hub-sound.ts",
+      "kind": "interval",
+      "snippet": "volumeIntervalId = window.setInterval(applyVolumeStep, VOLUME_STEP_MS);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-worlds-hub-sound.ts",
+      "kind": "timeout",
+      "snippet": "boardTransitionHandoffTimeoutId = window.setTimeout(",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-worlds-hub-sound.ts",
+      "kind": "timeout",
+      "snippet": "volumeTimeoutId = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-worlds-hub-sound.ts",
+      "kind": "timeout",
+      "snippet": "volumeTimeoutId = window.setTimeout(stopAndRewind, safeDurationMs);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-worlds-hub-sound.ts",
+      "kind": "timeout",
+      "snippet": "worldFadeDelayTimeoutId = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/juice-finale-sound.ts",
+      "kind": "interval",
+      "snippet": "if (run === bubbleMediaRun) bubbleMediaFadeTimer = window.setInterval(update, 25);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/kanta-dice-idle.ts",
+      "kind": "gsap-infinite",
+      "snippet": "repeat: -1,",
+      "count": 1
+    },
+    {
+      "file": "src/modules/kanta-finale-scene.ts",
+      "kind": "animation-frame",
+      "snippet": "animationFrameId = window.requestAnimationFrame(paint);",
+      "count": 2
+    },
+    {
+      "file": "src/modules/lasergun-finale-scene.ts",
+      "kind": "animation-frame",
+      "snippet": "entryPaintFrameA = window.requestAnimationFrame(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/lasergun-finale-scene.ts",
+      "kind": "animation-frame",
+      "snippet": "entryPaintFrameB = window.requestAnimationFrame(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/lasergun-finale-scene.ts",
+      "kind": "animation-frame",
+      "snippet": "shot.frameA = window.requestAnimationFrame(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/lasergun-finale-scene.ts",
+      "kind": "animation-frame",
+      "snippet": "shot.frameB = window.requestAnimationFrame(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/launch-screen.ts",
+      "kind": "gsap-infinite",
+      "snippet": "repeat: -1",
+      "count": 1
+    },
+    {
+      "file": "src/modules/launch-screen.ts",
+      "kind": "timeout",
+      "snippet": "const characterEnterTimer = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/launch-screen.ts",
+      "kind": "timeout",
+      "snippet": "const idleSheenTimer = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/launch-screen.ts",
+      "kind": "timeout",
+      "snippet": "const logoExitTimer = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/launch-screen.ts",
+      "kind": "timeout",
+      "snippet": "new Promise(resolve => setTimeout(resolve, 2800)),",
+      "count": 1
+    },
+    {
+      "file": "src/modules/launch-screen.ts",
+      "kind": "timeout",
+      "snippet": "timeoutId = setTimeout(() => {",
+      "count": 2
+    },
+    {
+      "file": "src/modules/level-flow.ts",
+      "kind": "timeout",
+      "snippet": "const reinforce = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/level-flow.ts",
+      "kind": "timeout",
+      "snippet": "const timeout = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/memory-manager.ts",
+      "kind": "timeout",
+      "snippet": "this.stateCleanupTimeout = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/menu-exit-handoff.ts",
+      "kind": "timeout",
+      "snippet": "const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));",
+      "count": 1
+    },
+    {
+      "file": "src/modules/menu-exit-handoff.ts",
+      "kind": "timeout",
+      "snippet": "watchdog = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/menu-exit-handoff.ts",
+      "kind": "timeout",
+      "snippet": "window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/modal-vertical-drag-dismiss.ts",
+      "kind": "timeout",
+      "snippet": "snapbackTimeout = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/navigation-control.ts",
+      "kind": "animation-frame",
+      "snippet": "reconcileFrame = requestAnimationFrame(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/navigation-control.ts",
+      "kind": "observer",
+      "snippet": "observer = new MutationObserver(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/pause-utils.ts",
+      "kind": "timeout",
+      "snippet": "setTimeout(() => inThrottle = false, limit);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/pause-utils.ts",
+      "kind": "timeout",
+      "snippet": "timeout = setTimeout(() => func(...args), wait);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/regular-merge6-sound.ts",
+      "kind": "interval",
+      "snippet": "crashFadeInterval = window.setInterval(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/regular-merge6-sound.ts",
+      "kind": "timeout",
+      "snippet": "crashFadeStartTimer = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/regular-merge6-sound.ts",
+      "kind": "timeout",
+      "snippet": "crashStopTimer = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/result-modal-lifetime.ts",
+      "kind": "animation-frame",
+      "snippet": "entry.id = requestAnimationFrame((now) => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/result-modal-lifetime.ts",
+      "kind": "timeout",
+      "snippet": "entry.id = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/resume-sheet-animations.ts",
+      "kind": "animation-frame",
+      "snippet": "const frame = requestAnimationFrame(tick);",
+      "count": 2
+    },
+    {
+      "file": "src/modules/robo-cube-idle.ts",
+      "kind": "gsap-infinite",
+      "snippet": "timeline = animationManager.trackExternalTimeline(gsap.timeline({ repeat: -1 }));",
+      "count": 1
+    },
+    {
+      "file": "src/modules/robo-cube-idle.ts",
+      "kind": "gsap-infinite",
+      "snippet": "trailTimeline = animationManager.trackExternalTimeline(gsap.timeline({ repeat: -1 }));",
+      "count": 1
+    },
+    {
+      "file": "src/modules/score-bottom-sheet.ts",
+      "kind": "animation-frame",
+      "snippet": "const rafId = requestAnimationFrame((now: number) => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/score-bottom-sheet.ts",
+      "kind": "timeout",
+      "snippet": "const timeout = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/shared-pixi-sheet-animation.ts",
+      "kind": "timeout",
+      "snippet": "cache.evictionTimer = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/shared-pixi-sheet-animation.ts",
+      "kind": "timeout",
+      "snippet": "controller.retryTimer = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/slider-manager.ts",
+      "kind": "animation-frame",
+      "snippet": "const navRafId = requestAnimationFrame(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/slider-manager.ts",
+      "kind": "animation-frame",
+      "snippet": "const rafId = requestAnimationFrame(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/slider-manager.ts",
+      "kind": "interval",
+      "snippet": "const checkInterval = setInterval(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/slider-manager.ts",
+      "kind": "timeout",
+      "snippet": "const fallbackTimeout = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/slider-manager.ts",
+      "kind": "timeout",
+      "snippet": "const timeout = window.setTimeout(",
+      "count": 1
+    },
+    {
+      "file": "src/modules/slider-manager.ts",
+      "kind": "timeout",
+      "snippet": "settleTimeout = setTimeout(commit, SLIDER_ANIMATION.ANIMATION_CHECK_INTERVAL);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/soundtrack-context-recovery.ts",
+      "kind": "timeout",
+      "snippet": "const timeout = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/soundtrack-manager.ts",
+      "kind": "animation-frame",
+      "snippet": "if (progress < 1) requestAnimationFrame(run);",
+      "count": 2
+    },
+    {
+      "file": "src/modules/soundtrack-manager.ts",
+      "kind": "animation-frame",
+      "snippet": "requestAnimationFrame(run);",
+      "count": 2
+    },
+    {
+      "file": "src/modules/soundtrack-manager.ts",
+      "kind": "timeout",
+      "snippet": "arcadeBarSwitchTimer = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/soundtrack-manager.ts",
+      "kind": "timeout",
+      "snippet": "const timer = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/soundtrack-manager.ts",
+      "kind": "timeout",
+      "snippet": "introHandoffTimer = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/soundtrack-manager.ts",
+      "kind": "timeout",
+      "snippet": "themeFadeTimer = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/spawn-helpers.ts",
+      "kind": "timeout",
+      "snippet": "const safetyTimeout = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/special-dice-idle.ts",
+      "kind": "gsap-infinite",
+      "snippet": "const smokeTl = gsap.timeline({ repeat: -1, repeatDelay: 0.66, paused: true });",
+      "count": 1
+    },
+    {
+      "file": "src/modules/special-dice-idle.ts",
+      "kind": "gsap-infinite",
+      "snippet": "repeat: -1,",
+      "count": 1
+    },
+    {
+      "file": "src/modules/splash-text-overlay.ts",
+      "kind": "gsap-infinite",
+      "snippet": "const bounceTl = trackTimeline({ repeat: -1, yoyo: true });",
+      "count": 3
+    },
+    {
+      "file": "src/modules/splash-text-overlay.ts",
+      "kind": "timeout",
+      "snippet": "fallbackTimer = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/splash-text-overlay.ts",
+      "kind": "timeout",
+      "snippet": "timeoutId = window.setTimeout(finish, timeoutMs);",
+      "count": 2
+    },
+    {
+      "file": "src/modules/stars-collector.ts",
+      "kind": "timeout",
+      "snippet": "const timeout = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/text-bolts.ts",
+      "kind": "gsap-infinite",
+      "snippet": "repeat: -1,",
+      "count": 1
+    },
+    {
+      "file": "src/modules/text-bolts.ts",
+      "kind": "ticker-callback",
+      "snippet": "if (beeFlight) gsap.ticker.add(beeCollisionTick);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/tile-idle-bounce.ts",
+      "kind": "timeout",
+      "snippet": "initialTimeout = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/tile-idle-bounce.ts",
+      "kind": "timeout",
+      "snippet": "state.animationTimer = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/tile-idle-bounce.ts",
+      "kind": "timeout",
+      "snippet": "state.animationTimer = setTimeout(animateRandomTile, 100);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/tile-idle-bounce.ts",
+      "kind": "timeout",
+      "snippet": "state.animationTimer = setTimeout(animateRandomTile, 2000);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/tile-idle-bounce.ts",
+      "kind": "timeout",
+      "snippet": "state.animationTimer = setTimeout(animateRandomTile, 500);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/tile-idle-bounce.ts",
+      "kind": "timeout",
+      "snippet": "state.animationTimer = setTimeout(animateRandomTile, 800);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/tile-idle-bounce.ts",
+      "kind": "timeout",
+      "snippet": "state.animationTimer = setTimeout(animateRandomTile, nextDelay);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/tnt-animation.ts",
+      "kind": "gsap-infinite",
+      "snippet": "const bounceTl = trackTimeline({ repeat: -1, yoyo: true });",
+      "count": 1
+    },
+    {
+      "file": "src/modules/tnt-animation.ts",
+      "kind": "gsap-infinite",
+      "snippet": "repeat: -1,",
+      "count": 2
+    },
+    {
+      "file": "src/modules/tutorial-complete-modal.ts",
+      "kind": "gsap-infinite",
+      "snippet": "repeat: -1,",
+      "count": 2
+    },
+    {
+      "file": "src/modules/ui-manager.ts",
+      "kind": "animation-frame",
+      "snippet": "await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));",
+      "count": 2
+    },
+    {
+      "file": "src/modules/ui-manager.ts",
+      "kind": "animation-frame",
+      "snippet": "requestAnimationFrame(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/ui-manager.ts",
+      "kind": "animation-frame",
+      "snippet": "requestAnimationFrame(async () => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/ui-manager.ts",
+      "kind": "timeout",
+      "snippet": "await new Promise(resolve => setTimeout(resolve, 800));",
+      "count": 1
+    },
+    {
+      "file": "src/modules/ui-manager.ts",
+      "kind": "timeout",
+      "snippet": "const enterTimeoutId = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/ui-manager.ts",
+      "kind": "timeout",
+      "snippet": "const focusTimeoutId = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/ui-manager.ts",
+      "kind": "timeout",
+      "snippet": "setTimeout(() => {",
+      "count": 2
+    },
+    {
+      "file": "src/modules/ui-manager.ts",
+      "kind": "timeout",
+      "snippet": "window.setTimeout(runExit, SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/wild-juice-bubbles-explosion.ts",
+      "kind": "gsap-infinite",
+      "snippet": "const bounceTl = trackTimeline({ repeat: -1, yoyo: true });",
+      "count": 1
+    },
+    {
+      "file": "src/modules/wild-juice-bubbles-explosion.ts",
+      "kind": "interval",
+      "snippet": "checkInterval = setInterval(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/wild-juice-bubbles-explosion.ts",
+      "kind": "ticker-callback",
+      "snippet": "gsap.ticker.add(spawnTicker);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/wild-juice-bubbles-explosion.ts",
+      "kind": "timeout",
+      "snippet": "timeoutId = setTimeout(resolve, 650);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/wild-spawn-drop.ts",
+      "kind": "timeout",
+      "snippet": "setTimeout(() => {",
+      "count": 2
+    },
+    {
+      "file": "src/modules/wild-star-merge6-sound.ts",
+      "kind": "timeout",
+      "snippet": "sparkleStartTimer = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/wild-stars.ts",
+      "kind": "ticker-callback",
+      "snippet": "gsap.ticker.add(sharedTicker);",
+      "count": 1
+    },
+    {
+      "file": "src/services/board-stats-service.ts",
+      "kind": "timeout",
+      "snippet": "this.saveTimer = globalThis.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/slider-optimized.css",
+      "kind": "css-infinite",
+      "snippet": "animation: cubesFloat 3s ease-in-out infinite;",
+      "count": 1
+    },
+    {
+      "file": "src/slider-optimized.css",
+      "kind": "css-infinite",
+      "snippet": "animation: settingsGlow 3.5s ease-in-out infinite;",
+      "count": 1
+    },
+    {
+      "file": "src/slider-optimized.css",
+      "kind": "css-infinite",
+      "snippet": "animation: shadowPulse 3s ease-in-out infinite !important;",
+      "count": 1
+    },
+    {
+      "file": "src/slider-optimized.css",
+      "kind": "css-infinite",
+      "snippet": "animation: trophyGlow 4s ease-in-out infinite;",
+      "count": 1
+    },
+    {
+      "file": "src/style.css",
+      "kind": "css-infinite",
+      "snippet": "animation: cc-gameplay-modal-idle-float 6.8s linear infinite both;",
+      "count": 1
+    },
+    {
+      "file": "src/style.css",
+      "kind": "css-infinite",
+      "snippet": "animation: cc-gameplay-modal-idle-shadow 6.8s ease-in-out infinite both;",
+      "count": 1
+    },
+    {
+      "file": "src/style.css",
+      "kind": "css-infinite",
+      "snippet": "animation: cta-shimmer 5s ease-in-out infinite;",
+      "count": 1
+    },
+    {
+      "file": "src/style.css",
+      "kind": "css-infinite",
+      "snippet": "animation: launch-studio-sheen 6s ease-in-out infinite;",
+      "count": 1
+    },
+    {
+      "file": "src/style.css",
+      "kind": "css-infinite",
+      "snippet": "animation: wild3DPulse 1s ease-in-out infinite;",
+      "count": 1
+    },
+    {
+      "file": "src/style.css",
+      "kind": "css-infinite",
+      "snippet": "animation: wild3DPulse 2s ease-in-out infinite;",
+      "count": 2
+    },
+    {
+      "file": "src/style.css",
+      "kind": "css-infinite",
+      "snippet": "animation: working-shimmer 5s linear infinite !important;",
+      "count": 3
+    },
+    {
+      "file": "src/style.css",
+      "kind": "css-infinite",
+      "snippet": "animation: working-shimmer 5s linear infinite;",
+      "count": 3
+    },
+    {
+      "file": "src/styles/buttons.css",
+      "kind": "css-infinite",
+      "snippet": "animation: button-spin 1s linear infinite;",
+      "count": 1
+    },
+    {
+      "file": "src/styles/buttons.css",
+      "kind": "css-infinite",
+      "snippet": "animation: shadow-pulse 2s ease-in-out infinite;",
+      "count": 1
+    },
+    {
+      "file": "src/styles/cta-system.css",
+      "kind": "css-infinite",
+      "snippet": "animation: cc-cta-shimmer 10s ease-in-out infinite;",
+      "count": 1
+    },
+    {
+      "file": "src/styles/main.css",
+      "kind": "css-infinite",
+      "snippet": "animation: logo-float 3s ease-in-out infinite;",
+      "count": 1
+    },
+    {
+      "file": "src/styles/slider.css",
+      "kind": "css-infinite",
+      "snippet": "animation: dot-pulse 2s ease-in-out infinite;",
+      "count": 1
+    },
+    {
+      "file": "src/styles/slider.css",
+      "kind": "css-infinite",
+      "snippet": "animation: hero-float 3s ease-in-out infinite;",
+      "count": 1
+    },
+    {
+      "file": "src/styles/slider.css",
+      "kind": "css-infinite",
+      "snippet": "animation: shadow-pulse 2s ease-in-out infinite;",
+      "count": 1
+    },
+    {
+      "file": "src/ui/app-manager.ts",
+      "kind": "animation-frame",
+      "snippet": "requestAnimationFrame(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/ui/app-manager.ts",
+      "kind": "timeout",
+      "snippet": "const hideId = window.setTimeout(() => {",
+      "count": 3
+    },
+    {
+      "file": "src/ui/components/privacy-policy-modal.ts",
+      "kind": "animation-frame",
+      "snippet": "enterFrame = window.requestAnimationFrame(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/ui/components/privacy-policy-modal.ts",
+      "kind": "timeout",
+      "snippet": "enterTimer = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/ui/components/privacy-policy-modal.ts",
+      "kind": "timeout",
+      "snippet": "exitTimer = window.setTimeout(cleanup, GAMEPLAY_MODAL_BENCHMARK.exitDurationMs);",
+      "count": 1
+    },
+    {
+      "file": "src/ui/components/settings-screen.ts",
+      "kind": "animation-frame",
+      "snippet": "await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));",
+      "count": 2
+    },
+    {
+      "file": "src/ui/components/settings-screen.ts",
+      "kind": "timeout",
+      "snippet": "window.setTimeout(() => {",
+      "count": 3
+    },
+    {
+      "file": "src/ui/components/settings-screen.ts",
+      "kind": "timeout",
+      "snippet": "window.setTimeout(runBack, SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS);",
+      "count": 1
+    },
+    {
+      "file": "src/ui/components/settings-screen.ts",
+      "kind": "timeout",
+      "snippet": "window.setTimeout(runImportBack, SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS);",
+      "count": 1
+    },
+    {
+      "file": "src/ui/components/settings-screen.ts",
+      "kind": "timeout",
+      "snippet": "window.setTimeout(runWindowBack, SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS);",
+      "count": 1
+    },
+    {
+      "file": "src/utils/accessibility.ts",
+      "kind": "timeout",
+      "snippet": "setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/utils/animations.ts",
+      "kind": "animation-frame",
+      "snippet": "requestAnimationFrame(() => {",
+      "count": 8
+    },
+    {
+      "file": "src/utils/animations.ts",
+      "kind": "timeout",
+      "snippet": "const cleanup = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/utils/animations.ts",
+      "kind": "timeout",
+      "snippet": "const enterTimeout = setTimeout(() => {",
+      "count": 2
+    },
+    {
+      "file": "src/utils/animations.ts",
+      "kind": "timeout",
+      "snippet": "const finalTimeout = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/utils/animations.ts",
+      "kind": "timeout",
+      "snippet": "const timeout = setTimeout(() => {",
+      "count": 12
+    },
+    {
+      "file": "src/utils/animations.ts",
+      "kind": "timeout",
+      "snippet": "if (!finished) journeySliderExitFallback = setTimeout(finish, 850);",
+      "count": 1
+    },
+    {
+      "file": "src/utils/animations.ts",
+      "kind": "timeout",
+      "snippet": "setTimeout(() => inThrottle = false, limit);",
+      "count": 1
+    },
+    {
+      "file": "src/utils/animations.ts",
+      "kind": "timeout",
+      "snippet": "sliderEnterFallback = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/utils/animations.ts",
+      "kind": "timeout",
+      "snippet": "timeout = setTimeout(later, wait);",
+      "count": 1
+    },
+    {
+      "file": "src/utils/board-asset-warmup.ts",
+      "kind": "timeout",
+      "snippet": "const timer = setTimeout(finish, 2600);",
+      "count": 1
+    },
+    {
+      "file": "src/utils/board-asset-warmup.ts",
+      "kind": "timeout",
+      "snippet": "setTimeout(resolve, timeoutMs);",
+      "count": 1
+    },
+    {
+      "file": "src/utils/board-asset-warmup.ts",
+      "kind": "timeout",
+      "snippet": "setTimeout(run, 0);",
+      "count": 1
+    },
+    {
+      "file": "src/utils/board-lifecycle-performance.ts",
+      "kind": "animation-frame",
+      "snippet": "frameId = requestAnimationFrame(loop);",
+      "count": 2
+    },
+    {
+      "file": "src/utils/comprehensive-image-preloader.ts",
+      "kind": "timeout",
+      "snippet": "await new Promise(resolve => setTimeout(resolve, 10));",
+      "count": 1
+    },
+    {
+      "file": "src/utils/comprehensive-image-preloader.ts",
+      "kind": "timeout",
+      "snippet": "await new Promise(resolve => setTimeout(resolve, 100 * attempt));",
+      "count": 2
+    },
+    {
+      "file": "src/utils/comprehensive-image-preloader.ts",
+      "kind": "timeout",
+      "snippet": "await new Promise(resolve => setTimeout(resolve, 50 * attempt));",
+      "count": 1
+    },
+    {
+      "file": "src/utils/comprehensive-image-preloader.ts",
+      "kind": "timeout",
+      "snippet": "setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/utils/comprehensive-image-preloader.ts",
+      "kind": "timeout",
+      "snippet": "setTimeout(() => reject(new Error('HUD icons loading timeout')), TIMEOUT_MS);",
+      "count": 1
+    },
+    {
+      "file": "src/utils/error-handler.ts",
+      "kind": "timeout",
+      "snippet": "setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/utils/ios-journey-performance-audit.ts",
+      "kind": "animation-frame",
+      "snippet": "audit.frameId = requestAnimationFrame(loop);",
+      "count": 2
+    },
+    {
+      "file": "src/utils/ios-journey-performance-audit.ts",
+      "kind": "timeout",
+      "snippet": "audit.stopTimer = setTimeout(() => finish('diagnostic-window-complete'), 30000);",
+      "count": 1
+    },
+    {
+      "file": "src/utils/ios-journey-world-enter-audit.ts",
+      "kind": "animation-frame",
+      "snippet": "audit.frameId = requestAnimationFrame(sampleFrame);",
+      "count": 2
+    },
+    {
+      "file": "src/utils/ios-journey-world-enter-audit.ts",
+      "kind": "animation-frame",
+      "snippet": "frameId = requestAnimationFrame(sampleFrame);",
+      "count": 2
+    },
+    {
+      "file": "src/utils/ios-journey-world-enter-audit.ts",
+      "kind": "timeout",
+      "snippet": "audit.stopTimer = setTimeout(() => finishIOSJourneyRouteAudit('timeout'), 60_000);",
+      "count": 1
+    },
+    {
+      "file": "src/utils/ios-journey-world-enter-audit.ts",
+      "kind": "timeout",
+      "snippet": "stopTimer = setTimeout(() => finish('timeout'), 2500);",
+      "count": 1
+    },
+    {
+      "file": "src/utils/journey-screen-owner-diagnostics.ts",
+      "kind": "gsap-infinite",
+      "snippet": "",
+      "count": 1
+    },
+    {
+      "file": "src/utils/memory-manager.ts",
+      "kind": "timeout",
+      "snippet": "this.monitorTimeoutId = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/utils/merge-performance.ts",
+      "kind": "animation-frame",
+      "snippet": "trace.frameId = requestAnimationFrame(loop);",
+      "count": 2
+    },
+    {
+      "file": "src/utils/merge-performance.ts",
+      "kind": "timeout",
+      "snippet": "trace.timeoutId = setTimeout(() => finishMergePerformanceTrace('settled-window-complete'), windowMs);",
+      "count": 1
+    },
+    {
+      "file": "src/utils/perf-monitor.ts",
+      "kind": "animation-frame",
+      "snippet": "rafId = requestAnimationFrame(loop);",
+      "count": 2
+    },
+    {
+      "file": "src/utils/runtime-soak-sampler.ts",
+      "kind": "animation-frame",
+      "snippet": "frameRequest = window.requestAnimationFrame(sampleFrame);",
+      "count": 2
+    },
+    {
+      "file": "src/utils/runtime-soak-sampler.ts",
+      "kind": "interval",
+      "snippet": "const interval = window.setInterval(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/utils/runtime-soak-sampler.ts",
+      "kind": "timeout",
+      "snippet": "pendingFallbackSample = window.setTimeout(emit, 0);",
+      "count": 1
+    },
+    {
+      "file": "src/utils/screen-lifecycle.ts",
+      "kind": "animation-frame",
+      "snippet": "const id = requestAnimationFrame((ts) => {",
+      "count": 1
+    },
+    {
+      "file": "src/utils/screen-lifecycle.ts",
+      "kind": "interval",
+      "snippet": "const i = setInterval(fn, ms);",
+      "count": 1
+    },
+    {
+      "file": "src/utils/screen-lifecycle.ts",
+      "kind": "timeout",
+      "snippet": "const t = setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/utils/startup-readiness.ts",
+      "kind": "animation-frame",
+      "snippet": "requestAnimationFrame(() => step(remaining - 1));",
+      "count": 1
+    },
+    {
+      "file": "src/utils/startup-readiness.ts",
+      "kind": "timeout",
+      "snippet": "timeoutId = window.setTimeout(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/utils/thermal-isolation.ts",
+      "kind": "interval",
+      "snippet": "guard = setInterval(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/utils/thermal-isolation.ts",
+      "kind": "timeout",
+      "snippet": "timer = setTimeout(() => {",
+      "count": 2
+    },
+    {
+      "file": "src/utils/thermal-isolation.ts",
+      "kind": "timeout",
+      "snippet": "timer = setTimeout(next, 5_000);",
+      "count": 1
+    },
+    {
+      "file": "src/utils/transition-performance.ts",
+      "kind": "animation-frame",
+      "snippet": "raf = requestAnimationFrame(tick);",
+      "count": 2
+    },
+    {
+      "file": "src/utils/transition-performance.ts",
+      "kind": "timeout",
+      "snippet": "timeout = window.setTimeout(() => finish('timeout'), 5000);",
+      "count": 1
+    }
+  ]
+}

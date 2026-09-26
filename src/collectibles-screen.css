@@ -114,7 +114,7 @@
 }
 
 .journey-card-flip-overlay.is-surface-idle .journey-card-flip-idle-shell {
-  animation: cc-gameplay-modal-idle-float 6.8s linear infinite both;
+  animation: cc-gameplay-modal-idle-float 6.8s linear 1 both;
 }
 
 .journey-card-flip-impact-shell {
@@ -1981,7 +1981,7 @@
   align-items: center;
   justify-content: center;
   will-change: transform;
-  animation: detailImageIdle 3s ease-in-out infinite;
+  animation: detailImageIdle 3s ease-in-out 1 both;
   pointer-events: none;
 }
 
@@ -2063,7 +2063,7 @@
   pointer-events: none;
   z-index: 2; /* 🔥 CRITICAL: Shimmer must be above card image (img has z-index: 1) */
   border-radius: 40px; /* Match parent border-radius to clip shimmer properly */
-  animation: card-detail-shimmer 3s linear infinite;
+  animation: card-detail-shimmer 3s linear 1 both;
   animation-delay: 0.5s;
 }
 
@@ -2495,6 +2495,18 @@
 
 .journey-v700-hub.journey-v700-tilt-ready .journey-v700-world-tilt-shell {
   animation-play-state: running;
+}
+
+/* The page/route owner pauses retained Hub CSS timelines without changing
+   their authored phase or interfering with finite GSAP enter/exit motion. */
+.journey-v700-hub.journey-v700-runtime-suspended .journey-v700-world-visual,
+.journey-v700-hub.journey-v700-runtime-suspended .journey-v700-world-cloud,
+.journey-v700-hub.journey-v700-runtime-suspended .journey-v700-world-tilt-shell,
+.journey-v700-hub.journey-v700-runtime-suspended .journey-v700-world-banner,
+.journey-v700-hub.journey-v700-runtime-suspended .journey-v700-world-banner-flag-fx::before,
+.journey-v700-hub.journey-v700-runtime-suspended .journey-v700-world-banner-flag-fx::after {
+  animation-play-state: paused !important;
+  will-change: auto !important;
 }
 
 /* Mobile thermal ownership for Journey Worlds Hub. The existing Hub/card
@@ -3267,13 +3279,20 @@
   mask-position: 145% 0;
   opacity: 0;
   will-change: opacity, -webkit-mask-position, mask-position;
-  animation: journey-card-ribbon-shimmer 3s ease-in-out infinite;
+  animation: journey-card-ribbon-shimmer 3s ease-in-out 1 both;
   pointer-events: none;
 }
 
-/* The enlarged modal ribbon gets one deliberately slower sweep. The Unit card
-   keeps its established idle loop; only the portaled modal presentation stops
-   after this single 70%-longer pass. */
+/* World Units remain mounted for scroll continuity. Their masked NEW-ribbon
+   sweep paints once, and only while the coordinated Unit visibility owner
+   keeps the wrapper near the Journey viewport. */
+.journey-board-card-wrapper:not(.journey-world-idle-active)
+  .journey-card-ribbon-shimmer {
+  animation-play-state: paused;
+  will-change: auto;
+}
+
+/* The enlarged modal ribbon gets one deliberately slower sweep. */
 .journey-card-overlay-portaled-card > .journey-card-ribbon > .journey-card-ribbon-shimmer {
   animation-duration: 5.1s;
   animation-iteration-count: 1;

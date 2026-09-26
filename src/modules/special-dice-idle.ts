@@ -2,6 +2,7 @@
 import { gsap } from 'gsap';
 import { Assets, Container, Graphics, Sprite, type Texture } from 'pixi.js';
 import animationManager from './animation-manager.js';
+import { createSpecialIdleAnimationVisibility } from './special-dice-idle-visibility.ts';
 import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
 import { startHoneyBeeIdleOrbit } from './honey-bee-idle-orbit.ts';
 import { preloadSpaceshipFinaleAssets } from './spaceship-finale-scene.ts';
@@ -205,6 +206,11 @@ function startSpaceshipEngineIdle(tile: any, host: any): ((elapsedSeconds: numbe
 }
 
 export function stopSpecialDiceIdleMotion(tile: any): void {
+  tile?._ccSpecialIdleVisibility?.release();
+  if (tile) {
+    delete tile._ccSpecialIdleVisibility;
+    delete tile._ccSpecialIdleDragging;
+  }
   releaseAnimatedSpecialArtworkMode(tile);
   try {
     stopWildStarBouncyArtwork(tile);
@@ -275,11 +281,13 @@ export function stopSpecialDiceIdleMotion(tile: any): void {
 }
 
 export function setSpecialDiceIdleDragging(tile: any, dragging: boolean): boolean {
+  if (tile) tile._ccSpecialIdleDragging = dragging;
   if (getAnimatedSpecialArtworkMode(tile) === 'png') {
     if (isMushroomBouncyTile(tile)) {
       if (tile?._ccMushroomSmokeContainer) tile._ccMushroomSmokeContainer.visible = !dragging;
       if (dragging) tile?._ccMushroomSmokeTimeline?.pause?.();
       else tile?._ccMushroomSmokeTimeline?.resume?.();
+      tile?._ccSpecialIdleVisibility?.refresh();
     }
     // PNG mode is still an intentional direct-artwork owner. Keep its stable
     // assignment through pointer acquisition instead of stopping and rerolling.
@@ -297,6 +305,7 @@ export function setSpecialDiceIdleDragging(tile: any, dragging: boolean): boolea
       if (tile._ccMushroomSmokeContainer) tile._ccMushroomSmokeContainer.visible = !dragging;
       if (dragging) tile._ccMushroomSmokeTimeline?.pause?.();
       else tile._ccMushroomSmokeTimeline?.resume?.();
+      tile._ccSpecialIdleVisibility?.refresh();
     }
     return handled;
   }
@@ -461,9 +470,7 @@ export function startSpecialDiceIdleMotion(tile: any): void {
       && tile._ccMushroomBouncyArtwork
       && tile._ccMushroomSmokeTimeline
     ) {
-      setMushroomBouncyArtworkDragging(tile, false);
-      tile._ccMushroomSmokeContainer.visible = true;
-      tile._ccMushroomSmokeTimeline.resume?.();
+      setSpecialDiceIdleDragging(tile, false);
       return;
     }
     stopWildStarBouncyArtwork(tile);
@@ -561,6 +568,7 @@ export function startSpecialDiceIdleMotion(tile: any): void {
     }
 
     if (variant.idleMotion === 'mushroom-pop') {
+      tile._ccSpecialIdleVisibility ??= createSpecialIdleAnimationVisibility(tile, () => !tile._ccSpecialIdleDragging);
       const smokeContainer = new Container();
       smokeContainer.label = 'mushroom-idle-smoke';
       smokeContainer.zIndex = -1;
@@ -609,6 +617,7 @@ export function startSpecialDiceIdleMotion(tile: any): void {
         smokeTl.paused(false);
       }
       smokeTimeline.play(0);
+      tile._ccSpecialIdleVisibility.track(smokeTimeline);
       tile._ccMushroomSmokeContainer = smokeContainer;
       tile._ccMushroomSmokeTimeline = smokeTimeline;
     }
@@ -631,6 +640,8 @@ export function startSpecialDiceIdleMotion(tile: any): void {
         }
         : undefined,
     });
+    tile._ccSpecialIdleVisibility ??= createSpecialIdleAnimationVisibility(tile);
+    tile._ccSpecialIdleVisibility.track(tl);
     if (variant.idleMotion === 'spaceship-hover') {
       const hoverTiltRadians = 15 * Math.PI / 180;
       tl.to(host, {

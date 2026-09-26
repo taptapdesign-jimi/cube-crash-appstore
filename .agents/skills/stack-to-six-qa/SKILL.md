@@ -17,6 +17,9 @@ Run repeatable safety gates and return an explicit verdict without mutating nati
 ## Select the gate
 
 - During implementation: run `npm run qa:fast`.
+- For a new screen, modal, overlay, collection, reward flow or substantial animated UI feature: run `npm run qa:feature-runtime` and verify its ownership record before `qa:fast`.
+- For new audio or a new sound source: run `npm run qa:audio-runtime` and verify its event/voice/preload/Settings/interruption/full-stop record.
+- For a new Wild/Special variant or archetype: run `npm run qa:special-dice`; new archetypes also require `npm run qa:gameplay-lock` and the endgame/save/input matrix.
 - Before handoff, commit, or push: run `npm run qa:full`.
 - Before any Stack to Six native build or install: run `npm run qa:ios` and read `docs/engineering/dev-production-modes.md`.
 - For viewport/background/clipping work: also inspect the affected screen at the iPhone 13 viewport. Static checks cannot judge animation feel or edge clipping alone.

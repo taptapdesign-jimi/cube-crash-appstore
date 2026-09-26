@@ -15,7 +15,8 @@ describe('first-play tutorial completion Arcade continuation', () => {
       source.indexOf('async function initTransitionMemoryTracking'),
     );
 
-    expect(tutorialBranch).toContain('await showTutorialCompleteModal()');
+    expect(tutorialBranch).toContain('const tutorialPresentation = showTutorialCompleteModal();');
+    expect(tutorialBranch).toContain('const tutorialResult = await tutorialPresentation;');
     expect(tutorialBranch).toContain('continueTutorialIntoArcade = true');
     expect(tutorialBranch).not.toContain('requestExitToMenu');
     expect(continuation).toContain('(window as any).__ccArcadeContinuationCueRound = 1;');

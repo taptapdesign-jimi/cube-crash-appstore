@@ -1,5 +1,6 @@
 import { UPDATE_PRIORITY, type Ticker } from 'pixi.js';
 import { STATE } from './app-state.ts';
+import { retireFailedSpecialTickerOwner } from './special-ticker-error.ts';
 
 export type AnimatedSpecialArtworkFrame = {
   canvasRect: DOMRect;
@@ -25,6 +26,7 @@ export type AnimatedSpecialArtworkPinnedForegroundOptions = {
 
 const frameOwners = new Set<FrameOwner>();
 const suspensionOwners = new Map<FrameOwner, (suspended: boolean) => void>();
+const failureOwners = new Map<FrameOwner, () => void>();
 let layerSuspended = false;
 let overlayRoot: HTMLDivElement | null = null;
 let occludedOverlayRoot: HTMLDivElement | null = null;
@@ -360,7 +362,22 @@ function releaseRuntimeWhenUnused(): void {
 function publishLayerSuspension(suspended: boolean): void {
   if (layerSuspended === suspended) return;
   layerSuspended = suspended;
-  suspensionOwners.forEach((owner) => { try { owner(suspended); } catch {} });
+  suspensionOwners.forEach((owner, frameOwner) => {
+    try { owner(suspended); }
+    catch (error) { retireFrameOwner(frameOwner, error); }
+  });
+}
+
+function retireFrameOwner(owner: FrameOwner, error: unknown): void {
+  if (!frameOwners.delete(owner)) return;
+  const cleanup = failureOwners.get(owner);
+  const suspend = suspensionOwners.get(owner);
+  failureOwners.delete(owner);
+  suspensionOwners.delete(owner);
+  retireFailedSpecialTickerOwner('artwork-layer', error, () => {
+    try { if (cleanup) cleanup(); else suspend?.(true); }
+    finally { releaseRuntimeWhenUnused(); }
+  });
 }
 
 function setLayerRootsPaintable(paintable: boolean): void {
@@ -375,6 +392,15 @@ function setLayerRootsPaintable(paintable: boolean): void {
 }
 
 function updateAnimatedSpecialArtworkLayer(): void {
+  try { syncAnimatedSpecialArtworkLayer(); }
+  catch (error) {
+    // A failed shared canvas/style read invalidates this layer's frame. Retire
+    // its leases, leaving the Pixi renderer and unrelated ticker owners alive.
+    Array.from(frameOwners).forEach(owner => retireFrameOwner(owner, error));
+  }
+}
+
+function syncAnimatedSpecialArtworkLayer(): void {
   const root = ensureOverlayRoot();
   const app = STATE.app;
   const canvas = app?.canvas as HTMLCanvasElement | null | undefined;
@@ -411,7 +437,9 @@ function updateAnimatedSpecialArtworkLayer(): void {
     gameplayDragActive: isGameplayDragActive(),
   };
   Array.from(frameOwners).forEach((owner) => {
-    try { owner(frame); } catch {}
+    if (!frameOwners.has(owner)) return;
+    try { owner(frame); }
+    catch (error) { retireFrameOwner(owner, error); }
   });
 }
 
@@ -509,21 +537,24 @@ export function refreshAnimatedSpecialArtworkDepth(): void {
 export function acquireAnimatedSpecialArtworkLayer(
   owner: FrameOwner,
   onSuspension?: (suspended: boolean) => void,
+  onFailure?: () => void,
 ): AnimatedSpecialArtworkLayerLease | null {
   const root = ensureOverlayRoot();
   if (!root) return null;
   if (frameOwners.size === 0) document.addEventListener('visibilitychange', updateAnimatedSpecialArtworkLayer);
   frameOwners.add(owner);
+  if (onFailure) failureOwners.set(owner, onFailure);
   if (onSuspension) {
     suspensionOwners.set(owner, onSuspension);
-    onSuspension(layerSuspended || document.hidden);
+    try { onSuspension(layerSuspended || document.hidden); }
+    catch (error) { retireFrameOwner(owner, error); }
   }
-  ensureTicker();
+  if (frameOwners.has(owner)) ensureTicker();
   let released = false;
   return {
     root,
     requestSync: () => {
-      if (released) return;
+      if (released || !frameOwners.has(owner)) return;
       ensureTicker();
       updateAnimatedSpecialArtworkLayer();
     },
@@ -532,6 +563,7 @@ export function acquireAnimatedSpecialArtworkLayer(
       released = true;
       frameOwners.delete(owner);
       suspensionOwners.delete(owner);
+      failureOwners.delete(owner);
       releaseRuntimeWhenUnused();
     },
   };

@@ -2,7 +2,13 @@ import { areDetailedRuntimeDiagnosticsEnabled } from './runtime-diagnostics-poli
 import { getSoundtrackRuntimeStats } from '../modules/soundtrack-manager.js';
 import { getSharedPixiSheetCacheStats } from '../modules/shared-pixi-sheet-animation.js';
 import { getDecodedGameplayAudioStats } from '../modules/gameplay-audio-buffer-player.js';
+import { getJourneyLongLoopAudioStats } from '../modules/journey-long-loop-lifecycle.ts';
+import { drainGameplayAudioDiagnostics } from '../modules/gameplay-audio-diagnostics.ts';
+import { getThermalAudioIsolationStats } from './thermal-audio-isolation.ts';
 import { getPixiMobileFrameControllerSnapshot } from '../modules/pixi-mobile-frame-controller.js';
+import { getSpecialDiceIdleVisibilityStats } from '../modules/special-dice-idle-visibility.ts';
+import { isGameplayRendererTerminalSuspended } from '../modules/gameplay-render-suspension.ts';
+import { getJourneyScreenOwnerDiagnostics } from './journey-screen-owner-diagnostics.ts';
 
 const SAMPLE_INTERVAL_MS = 5_000;
 const LIGHT_RESOURCE_SAMPLE_EVERY = 6;
@@ -67,16 +73,24 @@ function emitCompactSample(
     resourceSnapshot = {
       soundtrack: getSoundtrackRuntimeStats(),
       gameplayAudio: getDecodedGameplayAudioStats(),
+      journeyLongLoopAudio: getJourneyLongLoopAudioStats(),
+      gameplayAudioEvents: drainGameplayAudioDiagnostics({ includeEvents: resources }),
+      audioIsolation: getThermalAudioIsolationStats(),
       sharedPixiSheets: getSharedPixiSheetCacheStats(),
       runtimeTextures: runtimeWindow.__ccRuntimeTextures?.size ?? null,
     };
+  }
+  // Metadata-only Journey owner walks are diagnostic, at most every 30s in
+  // normal soak mode. Pressure/cache-only receipts retain their no-DOM path.
+  if (resources || (lightResources && !cacheOnly)) {
+    resourceSnapshot.journeyScreenOwners = getJourneyScreenOwnerDiagnostics();
   }
   if (lightResources && !resources && !cacheOnly) {
     const renderer = (window as any).STATE?.app?.renderer;
     const videos = Array.from(document.querySelectorAll('video'));
     resourceSnapshot = {
       ...resourceSnapshot,
-      route: document.body?.dataset?.appZone ?? null,
+      route: (window as any).__ccAppZone ?? document.body?.dataset?.appZone ?? null,
       renderer: renderer ? {
         resolution: renderer.resolution ?? null,
         width: renderer.width ?? null,
@@ -101,7 +115,7 @@ function emitCompactSample(
     const pixiUtils = runtimeWindow.PIXI?.utils;
     resourceSnapshot = {
       ...resourceSnapshot,
-      route: document.body?.dataset?.appZone ?? null,
+      route: (window as any).__ccAppZone ?? document.body?.dataset?.appZone ?? null,
       dom: document.getElementsByTagName('*').length,
       images: document.images.length,
       canvases: document.querySelectorAll('canvas').length,
@@ -127,6 +141,48 @@ function emitCompactSample(
       at: Math.round(performance.now()),
       reason,
       visibility: document.visibilityState,
+      // Cheap owner state accompanies each timing window so a short Fail/retry
+      // is observable without enabling expensive DOM/GSAP diagnostic walks.
+      gameplay: (() => {
+        const state = (window as any).STATE;
+        const app = state?.app;
+        const ticker = app?.ticker as ({
+          started?: boolean;
+          maxFPS?: number;
+          _requestId?: number | null;
+        } | undefined);
+        const liveTiles = Array.isArray(state?.tiles)
+          ? state.tiles.filter((tile: any) => tile && !tile.destroyed)
+          : [];
+        const specials: Record<string, number> = {};
+        for (const tile of liveTiles) {
+          if (!tile.special) continue;
+          const family = String(tile._ccSpecialDiceVariant || tile.special);
+          specials[family] = (specials[family] || 0) + 1;
+        }
+        return {
+          boardNumber: state?.boardNumber ?? null,
+          tickerStarted: ticker?.started ?? null,
+          // Pixi can remain started after one listener/render exception while
+          // its private RAF request is gone. Keep this cheap heartbeat beside
+          // the public flag so a dead render chain is visible in the trace.
+          tickerRequestScheduled: ticker ? ticker._requestId != null : null,
+          targetFPS: ticker?.maxFPS ?? null,
+          terminalSuspended: isGameplayRendererTerminalSuspended(app),
+          stageVisible: state?.stage?.visible ?? null,
+          stageAlpha: state?.stage?.alpha ?? null,
+          stageRenderable: state?.stage?.renderable ?? null,
+          boardVisible: state?.board?.visible ?? null,
+          boardAlpha: state?.board?.alpha ?? null,
+          boardRenderable: state?.board?.renderable ?? null,
+          tileCount: liveTiles.length,
+          visibleTileCount: liveTiles.filter((tile: any) =>
+            tile.visible !== false && tile.renderable !== false && Number(tile.alpha ?? 1) > 0.01,
+          ).length,
+          specials,
+          specialIdle: getSpecialDiceIdleVisibilityStats(),
+        };
+      })(),
       sampleMode: resources ? 'resources' : cacheOnly ? 'cache-only' : lightResources ? 'resources-lite' : 'timing-only',
       frameTiming: frameTiming && frameTiming.samples > 0 ? {
         samples: frameTiming.samples,

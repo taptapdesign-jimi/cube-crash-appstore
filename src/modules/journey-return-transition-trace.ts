@@ -1,4 +1,5 @@
 import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.js';
+import { beginJourneyTerminalPreparationPerformance, type JourneyTerminalPreparationPerformance } from './journey-terminal-preparation-performance.js';
 
 type JourneyReturnSource = 'clean-board' | 'fail';
 
@@ -10,6 +11,8 @@ let active: {
   startedAt: number;
   firstUnitStarted: boolean;
   resultExitCompletedAt: number | null;
+  preparation: JourneyTerminalPreparationPerformance | null;
+  finishCtaSetup: (() => void) | undefined;
 } | null = null;
 
 function isActiveTransition(transitionId: number): boolean {
@@ -17,7 +20,9 @@ function isActiveTransition(transitionId: number): boolean {
 }
 
 export function beginJourneyReturnTransition(source: JourneyReturnSource, boardId: number): number {
+  active?.preparation?.finish('replaced');
   const id = ++generation;
+  const preparation = beginJourneyTerminalPreparationPerformance(id, source, boardId);
   active = {
     id,
     source,
@@ -25,9 +30,20 @@ export function beginJourneyReturnTransition(source: JourneyReturnSource, boardI
     startedAt: performance.now(),
     firstUnitStarted: false,
     resultExitCompletedAt: null,
+    preparation,
+    finishCtaSetup: preparation?.start('cta-synchronous'),
   };
   markJourneyReturnTransition('cta-accepted');
   return id;
+}
+
+export function measureJourneyReturnPreparationPhase<T>(transitionId: number | null, name: string, work: () => T): T {
+  const capture = active?.id === transitionId ? active.preparation : null;
+  return capture ? capture.phase(name, work) : work();
+}
+
+export function finishJourneyReturnCtaSetup(transitionId: number | null): void {
+  if (active?.id === transitionId) active.finishCtaSetup?.();
 }
 
 export function markJourneyReturnTransition(
@@ -85,8 +101,16 @@ export function markJourneyReturnFirstUnitStart(detail: Record<string, unknown> 
   });
 }
 
-export function completeJourneyReturnTransition(detail: Record<string, unknown> = {}): void {
+export function completeJourneyReturnTransition(
+  detail: Record<string, unknown> = {},
+  transitionId?: number | null,
+): void {
   if (!active) return;
+  // Runtime completions must prove ownership. A normal/non-terminal World
+  // enter passes null and may not retire an active terminal return; tests and
+  // explicit teardown may omit the argument to clear the current record.
+  if (transitionId !== undefined && active.id !== transitionId) return;
+  active.preparation?.finish('enter-complete');
   markJourneyReturnTransition('enter-complete', detail);
   active = null;
 }
@@ -94,6 +118,7 @@ export function completeJourneyReturnTransition(detail: Record<string, unknown> 
 export function cancelJourneyReturnTransition(transitionId: number | null, reason: string): void {
   const ownedTransitionId = transitionId ?? active?.id ?? null;
   if (ownedTransitionId === null || !isActiveTransition(ownedTransitionId)) return;
+  active?.preparation?.finish(`cancelled:${reason}`);
   markJourneyReturnTransition('cancelled', { reason });
   active = null;
   void import('./journey-boards-manager.js').then(({ journeyBoardsManager }) => {
@@ -105,12 +130,17 @@ export function prepareJourneyReturnBehindTerminalOverlay(
   source: string,
   transitionId: number,
 ): void {
+  const preparation = active?.id === transitionId ? active.preparation : null;
+  preparation?.mark('module-requested');
   void import('./journey-boards-manager.js').then(({ journeyBoardsManager }) => {
     if (!isActiveTransition(transitionId)) return;
-    const prepared = journeyBoardsManager.prepareJourneyV700WorldEnterFromReturn?.(
+    preparation?.mark('module-ready');
+    const prepare = () => journeyBoardsManager.prepareJourneyV700WorldEnterFromReturn?.(
       `terminal-overlay:${source}`,
       transitionId,
-    ) === true;
+      preparation,
+    );
+    const prepared = (preparation ? preparation.phase('prepare-synchronous', prepare) : prepare()) === true;
     if (!isActiveTransition(transitionId)) {
       journeyBoardsManager.cancelPreparedJourneyV700WorldEnter?.(
         transitionId,
@@ -118,8 +148,11 @@ export function prepareJourneyReturnBehindTerminalOverlay(
       );
       return;
     }
+    preparation?.mark('prepare-returned');
+    if (!prepared) preparation?.finish('not-prepared');
     markJourneyReturnTransition('destination-prepared-behind-result', { prepared });
   }).catch((error) => {
+    preparation?.finish('prepare-failed');
     if (!isActiveTransition(transitionId)) return;
     markJourneyReturnTransition('destination-prepare-failed', {
       error: error instanceof Error ? error.message : String(error),

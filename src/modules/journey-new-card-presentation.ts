@@ -26,11 +26,11 @@ export const JOURNEY_BEACH_CARD_NAMES = [
   'Fresh Juice',
   'Bouncy Day',
   'Bottle Tips',
-  'Star Below',
   'Castle Ruins',
+  'Star Below',
   'Looky Here',
-  'The Letter',
   'Playtime',
+  'The Letter',
   'Life Saver',
 ] as const;
 
@@ -48,8 +48,8 @@ export const JOURNEY_AREA55_CARD_NAMES = [
 ] as const;
 
 const JOURNEY_BEACH_LEGENDARY_CARD_NAMES = [
-  'Fishy', 'Juice Blast', 'Bouncy Day', 'Bottle Tips', 'Rough Seas',
-  'Castle Show', 'Deep Dive', 'Go Fetch', 'Playtime', 'Life Saver',
+  'Fishy', 'Fresh Juice', 'Bouncy Day', 'Bottle Tips', 'Castle Ruins',
+  'Star Below', 'Looky Here', 'Playtime', 'The Letter', 'Life Saver',
 ] as const;
 
 export type JourneyNewCardRevealCopy = {

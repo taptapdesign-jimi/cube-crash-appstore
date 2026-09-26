@@ -13,6 +13,27 @@ It reads the actual registry through the TypeScript parser and rejects:
 
 The manifest is an ownership/admission index, not a performance certification. Existing entries name current owners and minimum existing regression coverage; they do not assert every behavioral scenario below already has a test. Adding a row alone is insufficient: reviewers must inspect the owner and relevant behavioral assertions. Full QA executes the tests. Physical heat/FPS cannot be certified by this metadata gate.
 
+The same command also reads `SpecialDiceArchetype` and
+`special-dice-archetype-owners.json`. Adding a gameplay archetype is blocked
+until it declares its core identity, merge owner, endgame policy, immutable
+transaction policy, save/load identity, input release policy and audio policy.
+Every archetype must retain the shared Arcade/Journey final-merge, gameplay
+resolution, transaction, endgame, atomic save/load and input-gate regressions.
+A visual variant may reuse a proven archetype; a genuinely new gameplay archetype
+must extend the real resolver and matrix rather than relying on artwork tests.
+
+Every variant must also list the shared registry cleanup, visibility, sound eligibility, finale preparation and terminal-render regression suites. Admission rejects a missing shared suite. These tests enumerate the live registry where applicable; a new variant must pass them as well as its own feature tests.
+
+## Shared ownership after the September 25 thermal repair
+
+- `special-dice-idle-visibility.ts` owns hidden-state suspension through one existing app ticker callback and one document listener. Reuse its policy and scoped animation lease. Do not replace the independent drag/pause owner or add per-tile polling. Direct artwork intentionally hides the base sprite; that alone is not a hidden tile.
+- `gameplay-render-suspension.ts` retains the terminal hold for the persistent gameplay app. App-core retires all tile idle owners and commits the final hidden/exit frame before stopping rendering. Foreground, pause return and pop-in recovery respect that hold. A new gameplay entry releases it; transparent Arcade stage cues retain their visible render owner. A deliberate board-exit animation may render, then restores the same-run hold.
+- `juice-finale-textures.ts` prepares only live variants whose actual visual finale uses its sprites. Entry/drop/finale share at most four in-flight loads, coalesce paths, preserve authored order and reject stale consumers. Pixi remains the texture cache. Do not add a parallel retained cache or prepare every future reward family.
+- Audio preparation follows the same actual carrier/variant as playback. `gameplay-audio-buffer-player.ts` owns bounded residency and OS-pressure release; routine Continue does not clear useful SFX. Mobile normally allows 32 MiB, or one explicitly looped buffer above 24 and at most 36 MiB plus 16 MiB shared effects. This is a soft cache bound protecting audible/pending voices, not a whole-process memory cap.
+- Result modal scheduling, cancellation and disposal use one per-presentation lifetime. Capture cleanup for the particular presentation across awaits. Navigation cancellation must not advance tutorial progress; presentation failure must reach its recovery path. Hidden scheduling pauses pending timers/RAFs; do not describe this as automatically suspending every running DOM animation.
+
+Behavioral coverage includes all 13 current variants' late-load cleanup, hidden idle work counts, repeated Play Again, cancelled/replaced result screens, real 30 FPS gap monitoring, bounded cold sprite loading and actual audio asset sizes at 44.1/48 kHz. Authored motion, assets, active cadence and gameplay rules remain separate protected contracts. See [repair evidence and limits](THERMAL_REPAIR_2026-09-25.md).
+
 ## Rules for implementation and review
 
 1. **One resource owner.** Reuse shared Pixi sheets/resources where compatible with the authored art. One controller per tile; repeated start/preload must be idempotent. Do not add a second application or perpetual RAF for a visual variant. Preserve independent phases and fallback until ready.

@@ -41,6 +41,7 @@ import {
   areDetailedRuntimeDiagnosticsEnabled,
 } from './utils/runtime-diagnostics-policy.js';
 import { JOURNEY_SLIDE_INDEX } from './modules/homepage-slide-order.js';
+import { JourneyVisibleEnterOwner } from './modules/journey-visible-enter-owner.js';
 // Collectibles Manager - Handles all collectibles functionality
 logger.info('🎁 Collectibles Manager module loaded');
 
@@ -559,6 +560,7 @@ class CollectiblesManager {
   private journeyPreparePromise: Promise<void> | null = null;
   private journeyPrepareEpoch = 0;
   private journeyEnterPerformance: TransitionPerformance | null = null;
+  private journeyVisibleEnterOwner = new JourneyVisibleEnterOwner();
 
   // 🔥 MEMORY LEAK FIX: Store event handler references for cleanup
   private boundHandlers: {
@@ -882,6 +884,7 @@ class CollectiblesManager {
     this.journeyEnterPerformance = null;
     this.journeyPrepareEpoch += 1;
     this.journeyPreparePromise = null;
+    this.journeyVisibleEnterOwner.retire();
     logger.info('🛑 Journey background preparation invalidated', { reason });
   }
 
@@ -896,6 +899,16 @@ class CollectiblesManager {
       ? JOURNEY_POST_TERMINAL_ACTIVE_AREA_ENTER_OVERLAP_DELAY_MS
       : JOURNEY_ACTIVE_AREA_ENTER_OVERLAP_DELAY_MS;
     const journeyPresentationEpoch = appZoneManager.getPresentationEpoch();
+    const visibleEnterLease = this.journeyVisibleEnterOwner.acquire(journeyPresentationEpoch);
+    if (visibleEnterLease.joined) {
+      emitIOSNativeDiagnostic('show-joined-visible-enter-owner', {
+        generation: visibleEnterLease.generation,
+        presentationEpoch: journeyPresentationEpoch,
+      });
+      await visibleEnterLease.promise;
+      return;
+    }
+    const isVisibleEnterOwnerCurrent = (): boolean => visibleEnterLease.isCurrent();
     primeJourneyScreenHiddenForEnter(screen as HTMLElement, 'showCollectibles-start');
     emitIOSNativeDiagnostic('show-start');
 
@@ -918,6 +931,7 @@ class CollectiblesManager {
         (screen as HTMLElement).style.visibility = 'hidden';
         (screen as HTMLElement).style.pointerEvents = 'none';
         logger.info('⏭️ Suppressed Journey enter animation during direct detail-modal return');
+        visibleEnterLease.settle();
         return;
       }
     }
@@ -1189,22 +1203,60 @@ class CollectiblesManager {
 
     try {
       let enterAnimationStarted = false;
-      const revealFallbackTimer = window.setTimeout(() => {
-        if (enterAnimationStarted) return;
-        if (journeyBoardsReadyPromise) {
-          logger.info('⏭️ Journey enter fallback delayed because boards are still preparing');
+      const recoverVisibleCommit = (reason: string): void => {
+        if (!isVisibleEnterOwnerCurrent()) return;
+        if (!isJourneyRevealCurrent()) {
+          visibleEnterLease.settle();
           return;
         }
-        logger.warn('⚠️ Journey enter animation delayed - keeping screen primed hidden to prevent flash');
+        const screenStyle = window.getComputedStyle(screen as HTMLElement);
+        if (
+          screenStyle.display !== 'none'
+          && screenStyle.visibility !== 'hidden'
+          && Number(screenStyle.opacity || '1') > 0.01
+        ) {
+          visibleEnterLease.settle();
+          return;
+        }
+        enterAnimationStarted = true;
+        logger.warn('⚠️ Journey enter missed its visible commit - applying current-route recovery', { reason });
+        releaseJourneyScreenHiddenPrime(screen as HTMLElement);
+        (screen as HTMLElement).style.display = 'flex';
+        (screen as HTMLElement).style.visibility = 'visible';
+        (screen as HTMLElement).style.opacity = '1';
+        (screen as HTMLElement).style.pointerEvents = 'auto';
+        (screen as HTMLElement).style.willChange = 'auto';
+        restoreJourneyScrollableInteractivity('journey-visible-commit-watchdog');
+        try {
+          if (shouldUseV700WorldReturnEnter) {
+            journeyBoardsManagerPreparedForEnter?.playJourneyV700WorldEnterFromReturn?.(
+              returningFromInterimBoardEarly ? 'interim-game-return-watchdog' : 'journey-game-return-watchdog',
+              { immediateFirstUnit: true, ownerToken: terminalReturnToken },
+            );
+          } else {
+            journeyBoardsManagerPreparedForEnter?.playJourneyV700VisibleEnterFromHomepage?.();
+          }
+        } catch (error) {
+          logger.warn('⚠️ Journey visible commit recovery could not start content motion:', String(error));
+        }
+        emitIOSNativeDiagnostic('visible-enter-watchdog-recovered', {
+          generation: visibleEnterLease.generation,
+          reason,
+          shouldUseV700WorldReturnEnter,
+        });
+        visibleEnterLease.settle();
+      };
+      const revealFallbackTimer = window.setTimeout(() => {
+        recoverVisibleCommit('watchdog-timeout');
       }, 2400);
 
       // Cold entries retain both paint boundaries. A completed terminal exit
       // releases its already-primed World without adding two empty frames.
       scheduleJourneyReturnReveal(terminalReturnToken, isJourneyRevealCurrent, () => {
+        if (!isVisibleEnterOwnerCurrent() || enterAnimationStarted) return;
         journeyEnterPerformance.mark('first-reveal-frame');
         import('./ui/collectibles-animations.js').then(({ animateCollectiblesScreenEnter }) => {
-          window.clearTimeout(revealFallbackTimer);
-          if (!isJourneyRevealCurrent() || (terminalReturnToken !== null
+          if (!isVisibleEnterOwnerCurrent() || !isJourneyRevealCurrent() || (terminalReturnToken !== null
             && getJourneyReturnRevealToken() !== terminalReturnToken)) return;
           enterAnimationStarted = true;
           console.log('🎬 Starting Journey enter animation IMMEDIATELY...');
@@ -1213,14 +1265,22 @@ class CollectiblesManager {
           // 🔥 CRITICAL: Start animation immediately - screen is already prepared with opacity 0
           // The generation-owned terminal reveal can continue in this same task.
           scheduleJourneyReturnReveal(terminalReturnToken, isJourneyRevealCurrent, () => {
+            if (!isVisibleEnterOwnerCurrent()) return;
             journeyEnterPerformance.mark('second-reveal-frame');
             const enterPromise = Promise.resolve(journeyEnterPerformance.phase('start-viewport-animation', () => animateCollectiblesScreenEnter({
               animateJourneyContent: !shouldUseV700WorldReturnEnter,
               revealPrimedWorldImmediately: terminalReturnToken !== null,
             })));
             void enterPromise.then(
-              () => journeyEnterPerformance.finish('viewport-complete'),
-              () => journeyEnterPerformance.finish('viewport-error'),
+              () => {
+                window.clearTimeout(revealFallbackTimer);
+                journeyEnterPerformance.finish('viewport-complete');
+                visibleEnterLease.settle();
+              },
+              () => {
+                journeyEnterPerformance.finish('viewport-error');
+                recoverVisibleCommit('viewport-error');
+              },
             );
             emitIOSNativeDiagnostic('viewport-enter-started', { shouldPlayActiveBoardAreaEnter });
             let homepageHubEnterStartedFromPreparedManager = false;
@@ -1265,7 +1325,7 @@ class CollectiblesManager {
                   });
                   activeJourneyBoardsManager.playJourneyV700WorldEnterFromReturn?.(
                     returningFromInterimBoardEarly ? 'interim-game-return' : 'journey-game-return',
-                    { immediateFirstUnit: terminalReturnToken !== null },
+                    { immediateFirstUnit: terminalReturnToken !== null, ownerToken: terminalReturnToken },
                   );
                 }
                 if (!shouldPlayActiveBoardAreaEnter) {
@@ -1330,7 +1390,8 @@ class CollectiblesManager {
                       windowView: (window as any).__ccJourneyV700View || null,
                     });
                     activeJourneyBoardsManager.playJourneyV700WorldEnterFromReturn?.(
-                      returningFromInterimBoardEarly ? 'interim-game-return' : 'journey-game-return'
+                      returningFromInterimBoardEarly ? 'interim-game-return' : 'journey-game-return',
+                      { ownerToken: terminalReturnToken },
                     );
                   }
                   if (shouldPlayActiveBoardAreaEnter) {
@@ -1343,7 +1404,8 @@ class CollectiblesManager {
                     activeJourneyBoardsManager.playJourneyV700WorldEnterFromReturn?.(
                       returningFromInterimBoardEarly
                         ? 'interim-game-return-viewport-error'
-                        : 'journey-game-fail-return-viewport-error'
+                        : 'journey-game-fail-return-viewport-error',
+                      { ownerToken: terminalReturnToken },
                     );
                   }
                   if (shouldPlayActiveBoardAreaEnter) {
@@ -1364,10 +1426,17 @@ class CollectiblesManager {
             }
           });
         }).catch((error) => {
-          window.clearTimeout(revealFallbackTimer);
           journeyEnterPerformance.finish('animation-import-error');
-          if (!isJourneyRevealCurrent() || (terminalReturnToken !== null
-            && getJourneyReturnRevealToken() !== terminalReturnToken)) return;
+          if (!isVisibleEnterOwnerCurrent()) return;
+          if (!isJourneyRevealCurrent()) {
+            visibleEnterLease.settle();
+            return;
+          }
+          if (terminalReturnToken !== null && getJourneyReturnRevealToken() !== terminalReturnToken) {
+            recoverVisibleCommit('terminal-token-retired-before-import-fallback');
+            return;
+          }
+          window.clearTimeout(revealFallbackTimer);
           console.error('❌ Failed to load collectibles animations:', error);
           // Fallback: just show screen normally
           releaseJourneyScreenHiddenPrime(screen as HTMLElement);
@@ -1375,6 +1444,7 @@ class CollectiblesManager {
           (screen as HTMLElement).style.visibility = 'visible';
           (screen as HTMLElement).style.willChange = 'auto';
           restoreJourneyScrollableInteractivity('journey-enter-import-fallback');
+          visibleEnterLease.settle();
         });
       });
 
@@ -1467,6 +1537,10 @@ class CollectiblesManager {
       // No need to refresh after animation - this would cause visible movement
     } catch (error) {
       console.error('❌ Failed to trigger collectibles enter animation:', error);
+      if (!isVisibleEnterOwnerCurrent() || !isJourneyRevealCurrent()) {
+        visibleEnterLease.settle();
+        return;
+      }
       // Fallback: just show the screen normally
       // 🔥 CRITICAL: Explicitly set all styles to ensure journey screen is visible
       releaseJourneyScreenHiddenPrime(screen as HTMLElement);
@@ -1477,10 +1551,12 @@ class CollectiblesManager {
       screen.classList.add('show');
       screen.removeAttribute('hidden');
       restoreJourneyScrollableInteractivity('showCollectibles-enter-catch-fallback');
+      visibleEnterLease.settle();
 
       // 🔥 PREMIUM FIX: Position is already set synchronously in renderBoards()
       // No need to refresh - CSS custom properties handle positioning without visible movement
     }
+    await visibleEnterLease.promise;
   }
 
   async hideCollectibles(): Promise<void> {

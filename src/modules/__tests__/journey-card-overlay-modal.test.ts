@@ -231,17 +231,28 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(css).toMatch(/\.journey-card-flip-star\.is-earned \.journey-card-flip-star-filled \{[\s\S]*?opacity: 1;/);
   });
 
-  test('alpha-masks the Common card shimmer and repeats one lifecycle-owned sweep every three seconds', () => {
+  test('alpha-masks one bounded Common-card shimmer without promoting its artwork to 2x', () => {
     const modal = read('src/modules/journey-card-overlay-modal.ts');
     const css = read('src/collectibles-screen.css');
 
-    expect(modal).toContain('const commonShineMaskPath = options.cardImagePath2x ?? options.cardImagePath1x;');
+    expect(modal).toContain('const commonShineMaskPath = options.cardImagePath1x ?? options.cardImagePath2x;');
     expect(modal).toContain("if (cardRarity === 'common' && commonShineMaskPath)");
     expect(modal).toContain('setJourneyInterimShineMask(commonShine, commonShineMaskPath);');
-    expect(modal).toContain('commonIdleShineAnimation = commonShine.animate([');
+    expect(modal).toContain('const animation = commonShine.animate([');
     expect(modal).toContain("{ backgroundPosition: '240% 50%', opacity: 0, offset: 0 }");
     expect(modal).toContain("{ backgroundPosition: '-140% 50%', opacity: 0, offset: 1 }");
     expect(modal).toContain('duration: 3000');
+    expect(modal).toContain('iterations: 1');
+    expect(modal).toContain('if (commonIdleShineAnimation !== animation) return;');
+    expect(modal).toContain('commonIdleShineAnimation = null;');
+    expect(modal).toContain("commonShine.style.removeProperty('background-position')");
+    expect(modal).toContain("commonShine.style.removeProperty('opacity')");
+    expect(modal).toContain("portaledCard && cardRarity === 'legendary' && options.cardImagePath2x");
+    expect(modal).toContain('export const JOURNEY_CARD_MOBILE_IDLE_CALM_MS = 1400;');
+    expect(modal).toContain('if (MOBILE_RUNTIME_PROFILE.isMobileDevice)');
+    expect(modal).toContain('surfaceIdleTimer = window.setTimeout(() => {');
+    expect(modal).toContain('}, JOURNEY_CARD_MOBILE_IDLE_CALM_MS);');
+    expect(modal).toContain('clearSurfaceIdleTimer();');
     expect(modal).toContain('commonIdleShineAnimation?.cancel();');
     expect(modal).toContain('clearJourneyInterimShineMask(commonShine);');
     expect(css).toMatch(/\.journey-card-flip-shine \{[\s\S]*?-webkit-mask-repeat: no-repeat;[\s\S]*?mask-size: contain;[\s\S]*?background-position: 240% 50%;[\s\S]*?transition: none;/);
@@ -277,7 +288,8 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain('class="journey-card-flip-card-host"');
     expect(modal).toContain('class="journey-card-flip-legendary-shine"');
     expect(modal).not.toContain('class="journey-card-flip-legendary-shine cc-journey-interim-shine-light"');
-    expect(modal).toContain('setJourneyInterimShineMask(legendaryShine, options.cardImagePath2x)');
+    expect(modal).toContain('const legendaryShineMaskPath = options.cardImagePath1x ?? options.cardImagePath2x');
+    expect(modal).toContain('setJourneyInterimShineMask(legendaryShine, legendaryShineMaskPath)');
     expect(modal).not.toContain('createJourneyInterimShineLoop({');
     expect(modal).not.toContain('JOURNEY_INTERIM_CARD_SHINE_PROFILE.cadenceMs');
     expect(modal).toContain('const paintLegendaryDragShine = (angle: number, allowSettling = false): void => {');
@@ -324,8 +336,9 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain('idleOpacity * (1 + leftLightCatch * 0.12)');
     expect(modal).not.toContain('legendaryIdleRotorAnimation = rotor.animate(');
     expect(modal).toContain('the card rotor\n    // stays neutral until a real tap or pointer drag explicitly owns the flip');
-    expect(modal).toContain('legendaryIdleShineAnimation = legendaryShine.animate(shineKeyframes');
-    expect(modal).toContain('iterations: Infinity');
+    expect(modal).toContain('const animation = legendaryShine.animate(shineKeyframes');
+    expect(modal).toContain('iterations: 1');
+    expect(modal).not.toContain('iterations: Infinity');
     expect(modal).toContain('cardRarity !== \'legendary\'');
     expect(modal).toContain("stableFace !== 'front'");
     expect(modal).toContain("stage.classList.contains('is-idle-coach')");
@@ -559,7 +572,10 @@ describe('Journey two-sided card overlay prototype', () => {
     );
     expect(interactiveFlip).toContain('to + direction * stop.degrees');
     expect(interactiveFlip).toContain('flipRecoilAnimation = recoil');
+    expect(interactiveFlip).toContain("if (cardRarity === 'legendary')");
     expect(interactiveFlip).toContain('requestAnimationFrame(watchRecoilShine)');
+    expect(interactiveFlip).toContain('recoil.currentTime');
+    expect(interactiveFlip).not.toContain('getComputedStyle(rotor).transform');
     expect(interactiveFlip).toContain('activePointerId === null && !prefersReducedMotion');
     expect(interactiveFlip).toContain('flipping = false');
     expect(interactiveFlip).toContain('preferredDirection?: -1 | 1');
@@ -745,7 +761,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(css).toMatch(/\.journey-card-overlay-portaled-card > \.journey-card-ribbon > \.journey-card-ribbon-image \{[\s\S]*?filter: drop-shadow\(0 5px 5\.7px #e2774a\);/);
     expect(css).toMatch(/\.journey-board-card > \.journey-card-ribbon > \.journey-card-ribbon-label \{[\s\S]*?font-weight: 700;[\s\S]*?translate3d\(calc\(-50% \+ 11px\), calc\(-50% - 10px\), 0\) rotate\(41deg\);/);
     expect(css).toMatch(/\.journey-card-overlay-portaled-card > \.journey-card-ribbon > \.journey-card-ribbon-label \{[\s\S]*?font-size: 8\.3cqw;[\s\S]*?translate3d\(calc\(-50% \+ 32px\), calc\(-50% - 33px\), 0\) rotate\(41deg\);/);
-    expect(css).toMatch(/\.journey-card-ribbon-shimmer \{[\s\S]*?filter: brightness\(1\.32\) saturate\(1\.06\);[\s\S]*?-webkit-mask-image: linear-gradient\(110deg,[\s\S]*?animation: journey-card-ribbon-shimmer 3s ease-in-out infinite;/);
+    expect(css).toMatch(/\.journey-card-ribbon-shimmer \{[\s\S]*?filter: brightness\(1\.32\) saturate\(1\.06\);[\s\S]*?-webkit-mask-image: linear-gradient\(110deg,[\s\S]*?animation: journey-card-ribbon-shimmer 3s ease-in-out 1 both;/);
     expect(modal).toContain("stage.classList.toggle(\n    'has-new-ribbon',\n    cardHost.querySelector('.journey-card-ribbon') !== null");
     expect(css).toMatch(/\.journey-card-flip-overlay\.has-new-ribbon \.journey-card-flip-shine \{[\s\S]*?display: none;/);
     expect(css).toMatch(/\.journey-card-overlay-portaled-card > \.journey-card-ribbon > \.journey-card-ribbon-shimmer \{[\s\S]*?animation-duration: 5\.1s;[\s\S]*?animation-iteration-count: 1;/);
@@ -784,7 +800,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(css).toContain('@keyframes journey-card-flip-idle-copy-lifecycle');
     expect(modal).toContain('class="journey-card-flip-idle-shell"');
     expect(modal).toContain("stage.classList.add('is-surface-idle')");
-    expect(css).toContain('animation: cc-gameplay-modal-idle-float 6.8s linear infinite both;');
+    expect(css).toContain('animation: cc-gameplay-modal-idle-float 6.8s linear 1 both;');
     expect(css).toContain('rotate: var(--journey-card-flip-front-tilt, -5.5deg);');
     expect(css).toContain('rotate: var(--journey-card-flip-back-tilt, 2.6deg);');
     expect(css).toContain('.journey-card-flip-overlay.is-flipping-to-back .journey-card-flip-idle-shell');

@@ -22,6 +22,8 @@ class MockAudio {
   preload = '';
   currentTime = 2;
   volume = 0;
+  onended: (() => void) | null = null;
+  onerror: (() => void) | null = null;
   load = jest.fn();
   pause = jest.fn();
   play = jest.fn(() => Promise.resolve());
@@ -112,6 +114,77 @@ describe('core Juice Merge-6 finale sound owner', () => {
       stopJuiceMerge6Sounds();
       jest.useRealTimers();
     }
+  });
+
+  test.each(['onended', 'onerror'] as const)('retires the bubble interval on early %s before the authored endpoint', async event => {
+    jest.useFakeTimers();
+    try {
+      playJuiceFinaleSound('bubble');
+      await Promise.resolve();
+      const audio = MockAudio.instances[0];
+      expect(jest.getTimerCount()).toBe(1);
+      audio.currentTime = 0.2;
+      audio[event]?.();
+      expect(jest.getTimerCount()).toBe(0);
+      expect(audio.onended).toBeNull();
+      expect(audio.onerror).toBeNull();
+      jest.advanceTimersByTime(60_000);
+      expect(jest.getTimerCount()).toBe(0);
+    } finally { stopJuiceMerge6Sounds(); jest.useRealTimers(); }
+  });
+
+  test('a retired ended/error receipt cannot cancel a newer bubble fade on the same media element', async () => {
+    jest.useFakeTimers();
+    try {
+      playJuiceFinaleSound('bubble');
+      await Promise.resolve();
+      const audio = MockAudio.instances[0];
+      const oldEnded = audio.onended;
+      const oldError = audio.onerror;
+      playJuiceFinaleSound('bubble');
+      await Promise.resolve();
+      expect(MockAudio.instances).toHaveLength(1);
+      expect(jest.getTimerCount()).toBe(1);
+      const currentEnded = audio.onended;
+      oldEnded?.(); oldError?.();
+      expect(jest.getTimerCount()).toBe(1);
+      expect(audio.onended).toBe(currentEnded);
+      stopJuiceMerge6Sounds();
+      expect(jest.getTimerCount()).toBe(0);
+      currentEnded?.();
+      expect(jest.getTimerCount()).toBe(0);
+    } finally { stopJuiceMerge6Sounds(); jest.useRealTimers(); }
+  });
+
+  test.each(['resolve', 'reject'] as const)('late media play %s after replacement cannot acquire or retire the newer fade', async result => {
+    jest.useFakeTimers();
+    try {
+      preloadJuiceMerge6Sounds();
+      const audio = MockAudio.instances[0];
+      let resolve!: () => void;
+      let reject!: (error: Error) => void;
+      audio.play.mockReturnValueOnce(new Promise<void>((yes, no) => { resolve = yes; reject = no; }));
+      playJuiceFinaleSound('bubble');
+      const oldEnded = audio.onended;
+      playJuiceFinaleSound('bubble');
+      await Promise.resolve();
+      expect(jest.getTimerCount()).toBe(1);
+      if (result === 'resolve') resolve();
+      else reject(new Error('old play retired'));
+      await Promise.resolve();
+      oldEnded?.();
+      expect(jest.getTimerCount()).toBe(1);
+    } finally { stopJuiceMerge6Sounds(); jest.useRealTimers(); }
+  });
+
+  test('an already-reached endpoint cannot re-arm an interval during late play success', async () => {
+    jest.useFakeTimers();
+    try {
+      playJuiceFinaleSound('bubble');
+      MockAudio.instances[0].currentTime = JUICE_BUBBLE_END_SECONDS;
+      await Promise.resolve();
+      expect(jest.getTimerCount()).toBe(0);
+    } finally { stopJuiceMerge6Sounds(); jest.useRealTimers(); }
   });
 
   test('holds intro until 0.8s after the first visible bubble burst', () => {

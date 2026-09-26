@@ -87,10 +87,14 @@ test('does not launch a pending fallback after interruption or replay an exit mu
 
 test('connects only the committed Kanta event and cleanup/settings boundaries', () => {
   const core = fs.readFileSync('src/modules/app-core.ts', 'utf8');
+  const settings = fs.readFileSync('src/modules/gameplay-sound-settings.ts', 'utf8');
+  const registry = fs.readFileSync('src/modules/gameplay-sound-owner-registry.ts', 'utf8');
   expect(core.match(/playKantaMerge6Sounds\(\);/g)).toHaveLength(1);
   expect(core).toContain('isKantaMerge6SoundEvent({');
   expect(core).toContain('stopKantaMerge6Sounds();');
-  expect(fs.readFileSync('src/modules/ui-manager.ts', 'utf8')).toContain('stopKantaMerge6Sounds();');
+  expect(fs.readFileSync('src/modules/ui-manager.ts', 'utf8')).toContain('applyGameSoundsSettingToAudio(enabled)');
+  expect(settings).toContain('stopRegisteredSfxOwners');
+  expect(registry).toContain('stopKantaMerge6Sounds');
 });
 
 test('fades only the current scene bibis from 50 percent and stops at animation end', () => {

@@ -110,8 +110,8 @@ describe('special-dice idle lifecycle', () => {
     expect(base.width).toBeCloseTo(128 * (128 / 171), 6);
     expect(base.height).toBeCloseTo(128, 6);
     expect(animationManager.getStats().activeTimelines).toBe(baseline + 1);
-    expect(tickerAdd).toHaveBeenCalledTimes(1);
-    const bubbleTick = tickerAdd.mock.calls[0][0];
+    expect(tickerAdd).toHaveBeenCalledTimes(2);
+    const bubbleTick = tickerAdd.mock.calls[1][0];
     const bubbleContainer = rotG.getChildByLabel('kanta-idle-top-bubbles') as Container;
     const backBubbleContainer = rotG.getChildByLabel('kanta-idle-back-bubbles') as Container;
     expect(bubbleContainer).toBeTruthy();
@@ -133,7 +133,7 @@ describe('special-dice idle lifecycle', () => {
     expect(base.width).toBeCloseTo(128 * (128 / 171), 6);
     expect(base.height).toBeCloseTo(128, 6);
     expect(animationManager.getStats().activeTimelines).toBe(baseline);
-    expect(tickerRemove).toHaveBeenCalledTimes(1);
+    expect(tickerRemove).toHaveBeenCalledTimes(2);
     expect(tickerRemove).toHaveBeenCalledWith(bubbleTick);
     expect(rotG.getChildByLabel('kanta-idle-top-bubbles')).toBeNull();
     expect(rotG.getChildByLabel('kanta-idle-back-bubbles')).toBeNull();
@@ -425,6 +425,8 @@ describe('special-dice idle lifecycle', () => {
   });
 
   test('Mushroom keeps one smoke master without the former GSAP pop timeline', () => {
+    const tickerAdd = jest.fn();
+    STATE.app = { ticker: { add: tickerAdd, remove: jest.fn() } } as any;
     const rotG = new Container();
     const base = new Sprite(Texture.WHITE);
     rotG.addChild(base);
@@ -440,7 +442,28 @@ describe('special-dice idle lifecycle', () => {
     expect(tile._ccMushroomSmokeTimeline).toBeTruthy();
     expect(animationManager.getStats().activeTimelines).toBe(baseline + 1);
 
+    const smokeTimeline = tile._ccMushroomSmokeTimeline;
+    const updateVisibility = () => tickerAdd.mock.calls.forEach(([tick]) => tick());
+    tile.visible = false;
+    updateVisibility();
+    expect(smokeTimeline.paused()).toBe(true);
+    setSpecialDiceIdleDragging(tile, true);
+    tile.visible = true;
+    updateVisibility();
+    expect(smokeTimeline.paused()).toBe(true);
+    setSpecialDiceIdleDragging(tile, false);
+    expect(smokeTimeline.paused()).toBe(false);
+
+    tile.visible = false;
+    updateVisibility();
+    setSpecialDiceIdleDragging(tile, false);
+    expect(smokeTimeline.paused()).toBe(true);
+    tile.visible = true;
+    updateVisibility();
+    expect(smokeTimeline.paused()).toBe(false);
+
     stopSpecialDiceIdleMotion(tile);
+    expect(tile._ccSpecialIdleDragging).toBeUndefined();
     expect(tile._ccMushroomSmokeTimeline).toBeUndefined();
     expect(animationManager.getStats().activeTimelines).toBe(baseline);
   });

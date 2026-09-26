@@ -2,7 +2,7 @@
 import { trackBoardCubesCracked } from './services/board-cubes-tracking.js';
 import { createPlayTimeTracker } from './utils/play-time-tracker';
 import { captureSavedBoardLoadCaller, isSavedBoardLoadSuperseded } from './modules/saved-board-load-owner';
-import { commitPreparedGameplayEntry } from './modules/gameplay-entry-coordinator';
+import { captureGameplayEntryValidity, commitPreparedGameplayEntry } from './modules/gameplay-entry-coordinator';
 import { prepareJourneyNavigationCode } from './modules/journey-navigation-code-preparation.js';
 // CUBE CRASH - MAIN ENTRY POINT
 // Clean, modular architecture
@@ -852,8 +852,16 @@ async function recoverJourneyStartFailure(reason: string, error: unknown): Promi
 function assertJourneyGameSurfaceVisible(reason: string): void {
   const appEl = document.getElementById('app') as HTMLElement | null;
   const canvas = document.querySelector('#app canvas') as HTMLElement | null;
-  const appVisible = !!appEl && window.getComputedStyle(appEl).display !== 'none' && window.getComputedStyle(appEl).visibility !== 'hidden';
-  const canvasVisible = !!canvas && window.getComputedStyle(canvas).display !== 'none' && window.getComputedStyle(canvas).visibility !== 'hidden';
+  const isSurfaceVisible = (element: HTMLElement | null): boolean => {
+    if (!element || element.hidden) return false;
+    const computed = window.getComputedStyle(element);
+    return computed.display !== 'none'
+      && computed.visibility !== 'hidden'
+      && computed.visibility !== 'collapse'
+      && Number.parseFloat(computed.opacity) !== 0;
+  };
+  const appVisible = isSurfaceVisible(appEl);
+  const canvasVisible = isSurfaceVisible(canvas);
 
   logger.info('🧭 JourneyGameStartDiag surface check', getJourneyGameStartSnapshot(reason));
 
@@ -867,6 +875,8 @@ function assertJourneyGameSurfaceVisible(reason: string): void {
   }
 
   if (canvas && !canvasVisible) {
+    canvas.hidden = false;
+    canvas.removeAttribute('hidden');
     canvas.style.display = 'block';
     canvas.style.visibility = 'visible';
     canvas.style.opacity = '1';
@@ -2054,6 +2064,7 @@ async function startNewRun(boardId: number): Promise<void> {
   await appZoneManager.hideHomepageForGame(`startNewRunFromJourney:${boardId}`);
   console.log(`✅ Homepage hidden`);
   
+  let journeyEntryIsCurrent: (() => boolean) | null = null;
   try {
     // Ensure no stale locked-open timers from previous board survive into fresh run.
     try {
@@ -2083,12 +2094,18 @@ async function startNewRun(boardId: number): Promise<void> {
     await bootGame();
     console.log(`✅ bootGame() completed`);
     
+    journeyEntryIsCurrent = captureGameplayEntryValidity();
     // 🔥 CRITICAL FIX: Show app element AFTER boot (so canvas exists)
     uiManager.showApp();
+    // showApp starts this same commit. Keep flags/layout with its owner until
+    // pop-in settles; cancellation must not repair or clear a successor's state.
+    await commitPreparedGameplayEntry();
+    if (!journeyEntryIsCurrent()) return;
     console.log(`✅ App element shown after boot`);
     
     console.log(`🎮 About to call layoutGame() for board ${boardId}...`);
     await layoutGame();
+    if (!journeyEntryIsCurrent()) return;
     console.log(`✅ layoutGame() completed`);
     assertJourneyGameSurfaceVisible(`startNewRunFromJourney:${boardId}:after-layout`);
     if (shouldStartFirstPlayTutorial) {
@@ -2106,6 +2123,7 @@ async function startNewRun(boardId: number): Promise<void> {
       recordJourneyPlayAgainIncident('journey-run-boot-settled', { boardId });
     }
   } catch (error) {
+      if (journeyEntryIsCurrent && !journeyEntryIsCurrent()) return;
       console.error(`❌❌❌ Failed to start new run for board ${boardId}:`, error);
       logger.error(`❌ Failed to start new run for board ${boardId}:`, String(error));
       delete (window as any).__ccStartAtLevel;

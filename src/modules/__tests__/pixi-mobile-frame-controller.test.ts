@@ -37,6 +37,11 @@ describe('Pixi mobile frame controller', () => {
     markPixiMobileActivity();
     expect(ticker.maxFPS).toBe(60);
     expect(getPixiMobileFrameControllerSnapshot().active).toBe(true);
+    expect(getPixiMobileFrameControllerSnapshot().activeUntil).toBe(clock + 800);
+
+    clock += 801;
+    callbacks.forEach((callback) => callback());
+    expect(ticker.maxFPS).toBe(30);
 
     stopPixiMobileFrameController();
     expect(ticker.maxFPS).toBe(0);

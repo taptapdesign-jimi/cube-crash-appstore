@@ -117,7 +117,8 @@ describe('Arcade stage-clear result sounds', () => {
     expect(resumedRound).not.toContain('playArcadeStageClearThumbWhooshSound();');
     expect(resumedRound).not.toContain('preloadArcadeStageClearSounds();');
     const settings = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/ui-manager.ts'), 'utf8');
-    expect(settings).toContain("import('./arcade-stage-clear-sound.ts').then(({ stopArcadeStageClearSounds })");
+    expect(settings).toContain('applyGameSoundsSettingToAudio(enabled)');
+    expect(fs.readFileSync('src/modules/gameplay-sound-owner-registry.ts', 'utf8')).toContain('stopArcadeStageClearSounds');
   });
 
   test('obeys Sounds OFF', () => {

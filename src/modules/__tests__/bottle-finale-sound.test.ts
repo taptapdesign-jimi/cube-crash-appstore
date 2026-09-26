@@ -1,3 +1,4 @@
+import * as decodedAudio from '../gameplay-audio-buffer-player';
 import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -217,10 +218,29 @@ describe('Bottle finale sound', () => {
     const ui = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/ui-manager.ts'), 'utf8');
     const appCore = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/app-core.ts'), 'utf8');
     expect(fs.readFileSync(path.resolve(process.cwd(), 'src/modules/special-sound-warmup.ts'), 'utf8')).toContain('preloadBottleFinaleSounds();');
-    expect(ui).toContain("import('./bottle-finale-sound.ts').then(({ stopBottleFinaleSounds }) => {");
+    expect(ui).toContain('applyGameSoundsSettingToAudio(enabled)');
+    expect(fs.readFileSync('src/modules/gameplay-sound-owner-registry.ts', 'utf8')).toContain('stopBottleFinaleSounds');
     expect(appCore).toContain('preloadEligibleSpecialSounds({ boardNumber: entryBoard, isArcade: isArcadeHomeRunMode(), tiles });');
     expect(appCore).toContain('stopBottleFinaleSounds,');
     expect(appCore).toContain("} from './bottle-finale-sound.ts';");
     expect(appCore).toContain('try { stopBottleFinaleSounds(); } catch {}');
   });
+});
+
+test('individual Bottle cue state checks only the selected source; explicit warmup retains the full package', () => {
+  (window as any)._settings = { gameSoundsEnabled: true };
+  const state = jest.spyOn(decodedAudio, 'getDecodedGameplaySoundsState').mockReturnValue('ready');
+  const play = jest.spyOn(decodedAudio, 'playDecodedGameplaySound').mockReturnValue('played');
+  const preload = jest.spyOn(decodedAudio, 'preloadDecodedGameplaySounds').mockReturnValue(true);
+  try {
+    expect(playBottleFinaleSound('cling')).toBe(true);
+    expect(state).toHaveBeenCalledWith([BOTTLE_FINALE_CLING_SOUND_SOURCE]);
+    expect(play).toHaveBeenCalledWith(BOTTLE_FINALE_CLING_SOUND_SOURCE, expect.any(Object));
+    expect(preload).not.toHaveBeenCalled();
+    expect(preloadBottleFinaleSounds()).toBe(true);
+    expect(preload).toHaveBeenCalledWith(BOTTLE_FINALE_SOUND_SOURCES);
+  } finally {
+    jest.restoreAllMocks();
+    delete (window as any)._settings;
+  }
 });

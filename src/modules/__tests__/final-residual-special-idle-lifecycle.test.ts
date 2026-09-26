@@ -37,7 +37,7 @@ function makeOwner() {
     _ccSpecialDiceVariant: 'kanta' };
   const timelines = animationManager.getStats().activeTimelines;
   startSpecialDiceIdleMotion(tile);
-  expect(callbacks.size).toBe(1);
+  expect(callbacks.size).toBe(2);
   return { tile, callbacks, timelines, cleanup() {
     stopSpecialDiceIdleMotion(tile);
     STATE.app = null;
@@ -65,7 +65,7 @@ describe('terminal residual special-artwork ownership', () => {
       const controller = owner.tile._ccKantaDiceIdle;
       stopFinalResidualTargetIdleFx(owner.tile);
       expect(owner.tile._ccKantaDiceIdle).toBe(controller);
-      expect(owner.callbacks.size).toBe(1);
+      expect(owner.callbacks.size).toBe(2);
       expect(owner.tile.base.renderable).toBe(false);
       // The terminal hide boundary now retires the same owner synchronously.
       hideFinalMergeResultTileVisual(owner.tile, 'test');

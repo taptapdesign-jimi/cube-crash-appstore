@@ -15,9 +15,15 @@ When validating changes, investigating regressions, preparing a commit/release, 
 
 When auditing, designing, generating, naming, mixing, or integrating sound effects, read and follow [`.agents/skills/stack-to-six-sound-design/SKILL.md`](.agents/skills/stack-to-six-sound-design/SKILL.md). Keep Gameplay, Navigation/CTA, Journey, Settings, Wild/Special and Board Transition sound families modular; do not let a generic tap or impact replace an authored feature-specific cue.
 
+Every new audio owner or sound source must also follow [`docs/audio/AUDIO_RUNTIME_ARCHITECTURE.md`](docs/audio/AUDIO_RUNTIME_ARCHITECTURE.md), add or update its record in `docs/audio/audio-runtime-owners.json`, and pass `npm run qa:audio-runtime`. `qa:fast` and `qa:full` include this blocking gate.
+
 For every gameplay-affecting change or cleanup of gameplay-adjacent legacy code, run `npm run qa:gameplay-lock`. Never optimize, deduplicate, rename, move, or delete assets unless the user explicitly revokes the asset-preservation order in `GAMEPLAY_KING_CONTRACT.md`.
 
 When adding or changing special-die animation, artwork, preloading, or an archetype visual variant, also follow [`docs/engineering/SPECIAL_DICE_PERFORMANCE_CONTRACT.md`](docs/engineering/SPECIAL_DICE_PERFORMANCE_CONTRACT.md). New registry variants must have a matching performance ownership record; `qa:fast` and `qa:full` block missing records. Behavioral regression tests and physical acceptance remain separate requirements.
+
+A new Wild/Special gameplay archetype must also have a matching record in `docs/engineering/special-dice-archetype-owners.json`. The special-dice admission gate blocks archetypes without explicit merge, transaction, endgame, save/load, input, audio and shared regression ownership.
+
+When creating a new screen, modal, overlay, collection, reward flow, animated UI feature, or substantial UI refactor, read and follow [`.agents/skills/stack-to-six-feature-architecture/SKILL.md`](.agents/skills/stack-to-six-feature-architecture/SKILL.md) and [`docs/engineering/FEATURE_ARCHITECTURE_CONTRACT.md`](docs/engineering/FEATURE_ARCHITECTURE_CONTRACT.md). Register its runtime owners and pass `npm run qa:feature-runtime`; `qa:fast` and `qa:full` include this blocking admission gate.
 
 For navigation queues, background animation work, resource preparation, startup imports, or dead-code cleanup, follow [`docs/engineering/BACKGROUND_WORK_CONTRACT.md`](docs/engineering/BACKGROUND_WORK_CONTRACT.md).
 

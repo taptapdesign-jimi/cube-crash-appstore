@@ -17,6 +17,9 @@ import {
   type MainThemeVoiceLike,
 } from './main-theme-web-audio-transport.js';
 import { NATIVE_AUDIO_ACTIVE_EVENT } from './soundtrack-context-recovery.js';
+import {
+  isThermalAudioSuppressed, recordThermalAudioIsolationBlock, subscribeThermalAudioIsolation,
+} from '../utils/thermal-audio-isolation.js';
 
 export const SOUNDTRACK_URL =
   './assets/sound/soundtrack/theme-loop-v1/SIx-theme-seamless-loop.wav';
@@ -93,6 +96,10 @@ let victoryHookThemeRestoreVolume = SOUNDTRACK_VOLUME;
 let victoryHookArcadeRestoreVolume = ARCADE_SOUNDTRACK_CALM_VOLUME;
 
 function isMusicEnabled(): boolean {
+  if (isThermalAudioSuppressed()) {
+    recordThermalAudioIsolationBlock('soundtrack-owner');
+    return false;
+  }
   try {
     const settings = (typeof window !== 'undefined' && (window as any)._settings) || {};
     return settings.musicEnabled !== false;
@@ -469,6 +476,7 @@ function switchArcadeLayer(
   layer: ArcadeSoundtrackLayer,
   durationMs: number,
   targetVolume: number = getArcadeLayerVolume(layer),
+  allowHiddenNativeActive = false,
 ): void {
   if (!isMusicEnabled() || !gameplayDuckActive || !isArcadeHomeRunMode()) return;
   clearArcadeBarSwitch();
@@ -477,13 +485,21 @@ function switchArcadeLayer(
   discardNonCurrentArcadeVoices();
   arcadeRequestedLayer = layer;
   arcadeTargetVolume = targetVolume;
+  if (document.hidden && !allowHiddenNativeActive) {
+    // Preserve the route's latest layer without fetching or starting a hidden
+    // voice. A cold entry may not have installed the visibility owner yet.
+    pausedForVisibility = true;
+    setupVisibilityListener();
+    return;
+  }
   const outgoing = arcadeAudio;
   if (outgoing && arcadeLayer === layer) {
     const generation = cancelArcadeFades();
     // A retained layer can still own a paused media element or interrupted
     // AudioContext. Retrying only its gain would permanently lose the gesture.
     outgoing.play().then(() => {
-      if (generation !== arcadeSwitchGeneration || arcadeAudio !== outgoing || !isMusicEnabled()) return;
+      if (generation !== arcadeSwitchGeneration || arcadeAudio !== outgoing) return;
+      if ((document.hidden && !allowHiddenNativeActive) || !isMusicEnabled()) { outgoing.pause(); return; }
       autoplayRetryInFlight = false;
       disarmAutoplayRetry();
       fadeArcadeVoice(outgoing, targetVolume, durationMs, generation);
@@ -509,6 +525,7 @@ function switchArcadeLayer(
   incoming.play().then(() => {
     if (
       generation !== arcadeSwitchGeneration ||
+      (document.hidden && !allowHiddenNativeActive) ||
       !isMusicEnabled() ||
       !gameplayDuckActive ||
       !isArcadeHomeRunMode()
@@ -679,10 +696,18 @@ function playWithFadeIn(
 }
 
 function onVisibilityChange(event?: Event): void {
+  if (isThermalAudioSuppressed()) return;
   const currentAudio = audio;
   const nativeAudioIsActive = event?.type === NATIVE_AUDIO_ACTIVE_EVENT;
   if (document.hidden && !nativeAudioIsActive) {
     if (!currentAudio && arcadeVoices.size === 0) return;
+    // A committed promotion must survive backgrounding as intent, never as a
+    // timer that can fetch/decode/play after all current voices were paused.
+    if (arcadeBarSwitchTimer !== null) {
+      arcadeRequestedLayer = 'active';
+      arcadeTargetVolume = ARCADE_SOUNDTRACK_ACTIVE_VOLUME;
+    }
+    clearArcadeBarSwitch();
     cancelIntroSequence(true);
     cancelThemeFade();
     cancelArcadeFades();
@@ -704,6 +729,17 @@ function onVisibilityChange(event?: Event): void {
     pausedForVisibility = isMusicEnabled();
     logger.info('🔊 Soundtrack paused (app in background)');
     return;
+  }
+
+  if (gameplayDuckActive && isArcadeHomeRunMode()) {
+    // The native bridge confirms app activation when WKWebView leaves hidden
+    // stale. Only that event may bypass the hidden start gate; timers may not.
+    if (document.hidden && !nativeAudioIsActive) return;
+    if (arcadeRequestedLayer && (!arcadeAudio || arcadeRequestedLayer !== arcadeLayer)) {
+      pausedForVisibility = false;
+      switchArcadeLayer(arcadeRequestedLayer, SOUNDTRACK_RESUME_FADE_IN_MS, arcadeTargetVolume, nativeAudioIsActive);
+      return;
+    }
   }
 
   // WKWebView may restore a page without a matching hidden event. A live
@@ -753,7 +789,12 @@ function onVisibilityChange(event?: Event): void {
     });
     return;
   }
-  if (!currentAudio) return;
+  if (!currentAudio) {
+    // A menu handoff can be deferred before its first audio allocation.
+    // This visibility/native-active receipt now owns that retained intent.
+    startSoundtrack();
+    return;
+  }
   playWithFadeIn(
     currentAudio,
     SOUNDTRACK_RESUME_FADE_IN_MS,
@@ -860,6 +901,25 @@ export function stopSoundtrack(): void {
   logger.info('🔊 Soundtrack stopped (Music OFF)');
 }
 
+// The diagnostic controls use the existing retirement owner. Clearing a
+// diagnostic suppression never acquires a route or starts playback itself.
+subscribeThermalAudioIsolation((suppressed) => {
+  if (!suppressed) return;
+  const retiring = [audio, introAudio, ...arcadeVoices];
+  stopSoundtrack();
+  retiring.forEach((voice) => {
+    if (!voice) return;
+    try { (voice as MainThemeVoiceLike).dispose?.(); } catch {}
+    // Fallback media may be detached from document; retire these exact handles.
+    const media = voice as HTMLAudioElement;
+    if (typeof media.removeAttribute === 'function' && typeof media.load === 'function') {
+      try { media.removeAttribute('src'); media.load(); } catch {}
+    }
+  });
+  audio = null;
+  introAudio = null;
+});
+
 /** Resume after Music ON, visibility recovery, or an interrupted playback. */
 export function fadeInAndResume(
   durationMs: number = SOUNDTRACK_RESUME_FADE_IN_MS,
@@ -874,6 +934,13 @@ export function fadeInAndResume(
   gameplayFadeGeneration++;
   cancelThemeFade();
   fadeInProgress = false;
+  if (document.hidden) {
+    // An asynchronous route handoff may finish after visibility already
+    // paused every voice. Keep its menu intent without reopening audio.
+    pausedForVisibility = true;
+    setupVisibilityListener();
+    return;
+  }
   const currentAudio = getAudio();
   if (!currentAudio.paused) {
     fadeInProgress = true;

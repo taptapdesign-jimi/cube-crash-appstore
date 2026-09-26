@@ -71,7 +71,7 @@ describe('Flower special-die visual contract', () => {
     expect(fxSource).toContain("ease: 'none'");
     expect(fxSource).toContain('const verticalTravel = -22 + Math.random() * 35');
     expect(fxSource).toContain('particle.alpha = peakAlpha * fadeIn * fadeOut');
-    expect(fxSource).toContain('tile._flowerPollenInterval = trackAppInterval(emit, 760)');
+    expect(fxSource).toContain("watchIdleParticleEmission(tile, '_ccPollenVisibility', '_flowerPollenInterval', '_flowerPollenParticles', 760, emit)");
   });
 
   test('keeps bush10 out of the registered Flower animation so it cannot appear during exit', () => {

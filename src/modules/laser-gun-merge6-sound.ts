@@ -47,7 +47,6 @@ const STAGE_PREPARATION_VOICE_ID_PREFIX = 'laser-gun-stage-preparation-';
 const FINAL_SHOT_INDEX = 3;
 const voices = new Map<string, symbol>();
 const media = new Map<string, HTMLAudioElement>();
-const preloadedMedia = new Map<string, HTMLAudioElement>();
 
 function enabled(): boolean {
   return typeof window !== 'undefined' && (window as any)._settings?.gameSoundsEnabled === true;
@@ -136,16 +135,8 @@ export function preloadLaserGunMerge6Sounds(): boolean {
   ];
   const impactsReady = preloadCoreTntBonusImpactSounds();
   if (preloadDecodedGameplaySounds(sources)) return impactsReady;
-  if (typeof Audio !== 'function') return false;
-  const mediaReady = sources.every((source) => {
-    if (preloadedMedia.has(source)) return true;
-    const audio = new Audio(source);
-    audio.preload = 'auto';
-    try { audio.load(); } catch {}
-    preloadedMedia.set(source, audio);
-    return true;
-  });
-  return mediaReady && impactsReady;
+  // Media playback allocates its exact cue on demand if Web Audio is unavailable.
+  return typeof Audio === 'function' && impactsReady;
 }
 
 /** Adds LaserGun-only layers beside the already-owned Special Merge-6 package. */
@@ -207,11 +198,4 @@ export function stopLaserGunFinaleSounds(): void {
 export function stopLaserGunMerge6Sounds(): void {
   stopVoices([...voices.keys()]);
   stopCoreTntBonusImpactSounds();
-  preloadedMedia.forEach((audio) => {
-    try {
-      audio.pause();
-      audio.currentTime = 0;
-    } catch {}
-  });
-  preloadedMedia.clear();
 }

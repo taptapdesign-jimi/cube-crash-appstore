@@ -1,4 +1,6 @@
 // @ts-nocheck
+import { applyGameSoundsSettingToAudio } from './gameplay-sound-settings.js';
+import { isGameplayRendererTerminalSuspended } from './gameplay-render-suspension.ts';
 import { captureSavedBoardLoadCaller, isSavedBoardLoadSuperseded, type SavedBoardLoadResult } from './saved-board-load-owner';
 // UI Manager Module
 // Handles all UI interactions and animations
@@ -78,7 +80,6 @@ import {
   primeHomepageNavigation,
 } from './navigation-control.js';
 import { preloadRegularMerge6Sounds } from './regular-merge6-sound.ts';
-import { preloadWildStarMerge6Sound } from './wild-star-merge6-sound.ts';
 import { preloadWildSpecialMerge6PoofSounds } from './wild-special-merge6-poof-sound.ts';
 import { preloadOrdinaryStackSound } from './ordinary-stack-sound.ts';
 import { preloadGameplayPickupSound } from './gameplay-pickup-sound.ts';
@@ -480,7 +481,6 @@ class UIManager {
     // IMPORTANT: Do not clear board-specific Journey saves here.
     markArcadeHomeRunOrigin();
     preloadRegularMerge6Sounds();
-    preloadWildStarMerge6Sound();
     preloadWildSpecialMerge6PoofSounds();
     preloadOrdinaryStackSound();
     preloadGameplayPickupSound();
@@ -640,7 +640,6 @@ class UIManager {
     // 🔥 USER REQUEST: Mark that we came from homepage (not Journey)
     markArcadeHomeRunOrigin();
     preloadRegularMerge6Sounds();
-    preloadWildStarMerge6Sound();
     preloadWildSpecialMerge6PoofSounds();
     preloadOrdinaryStackSound();
     preloadGameplayPickupSound();
@@ -729,6 +728,7 @@ class UIManager {
         // Show app element
         console.log('📱 Showing app element...');
         this.showApp();
+        await commitPreparedGameplayEntry();
         console.log('✅ App element shown');
         if (shouldStartFirstPlayTutorial) {
           activateFirstPlayTutorialWhenReady();
@@ -767,7 +767,6 @@ class UIManager {
       }
       markArcadeHomeRunOrigin();
       preloadRegularMerge6Sounds();
-      preloadWildStarMerge6Sound();
       preloadWildSpecialMerge6PoofSounds();
       preloadOrdinaryStackSound();
       preloadGameplayPickupSound();
@@ -812,6 +811,7 @@ class UIManager {
           await bootGame();
           await layoutGame();
           this.showApp();
+          await commitPreparedGameplayEntry();
           return;
         } finally {
           delete (window as any).__ccStartAtLevel;
@@ -871,6 +871,7 @@ class UIManager {
           
           // Show app element
           this.showApp();
+          await commitPreparedGameplayEntry();
           
           console.log('🔄 ====================================');
           console.log('🔄 NEXT BOARD STARTED (clean-board resume)');
@@ -972,6 +973,7 @@ class UIManager {
         // Show app element AFTER loading saved state
         console.log('📱 Showing app element...');
         this.showApp();
+        await commitPreparedGameplayEntry();
         delete (window as any).__ccTriggerHudDrop;
         console.log('✅ App element shown');
 
@@ -1299,7 +1301,7 @@ class UIManager {
         }
         // 🔥 CRITICAL FIX: Restart PIXI ticker when showing app (was stopped in hideApp to prevent addressModeU crash)
         const pixiApp = gameState.app || (window as any).STATE?.app || (window as any).app;
-        if (pixiApp?.ticker && !pixiApp.ticker.started) {
+        if (!isGameplayRendererTerminalSuspended(pixiApp) && pixiApp?.ticker && !pixiApp.ticker.started) {
           pixiApp.ticker.start();
           logger.info('✅ PIXI ticker restarted in showApp()');
         }
@@ -2497,101 +2499,7 @@ class UIManager {
       if (typeof (window as any).saveSettings === 'function') {
         (window as any).saveSettings((window as any)._settings);
       }
-      if (!enabled) {
-        void import('./regular-merge6-sound.ts').then(({ stopRegularMerge6Sounds }) => {
-          stopRegularMerge6Sounds();
-        });
-        void import('./wild-star-merge6-sound.ts').then(({ stopWildStarMerge6Sound }) => {
-          stopWildStarMerge6Sound();
-        });
-        void import('./fish-merge6-sound.ts').then(({ stopFishMerge6Sounds }) => {
-          stopFishMerge6Sounds();
-        });
-        void import('./beach-ball-merge6-sound.ts').then(({ stopBeachBallMerge6Sounds }) => {
-          stopBeachBallMerge6Sounds();
-        });
-        void import('./core-tnt-merge6-sound.ts').then(({ stopCoreTntMerge6Sound }) => {
-          stopCoreTntMerge6Sound();
-        });
-        void import('./barrel-merge6-sound.ts').then(({ stopBarrelMerge6Sounds }) => {
-          stopBarrelMerge6Sounds();
-        });
-        void import('./bee-merge6-sound.ts').then(({ stopBeeMerge6Sounds }) => {
-          stopBeeMerge6Sounds();
-        });
-        void import('./kanta-merge6-sound').then(({ stopKantaMerge6Sounds }) => {
-          stopKantaMerge6Sounds();
-        });
-        void import('./laser-gun-merge6-sound.ts').then(({ stopLaserGunMerge6Sounds }) => {
-          stopLaserGunMerge6Sounds();
-        });
-        void import('./spaceship-merge6-sound.ts').then(({ stopSpaceshipMerge6Sounds }) => {
-          stopSpaceshipMerge6Sounds();
-        });
-        void import('./robo-cube-merge6-sound.ts').then(({ stopRoboCubeMerge6Sounds }) => {
-          stopRoboCubeMerge6Sounds();
-        });
-        void import('./wild-special-merge6-poof-sound.ts').then(({ stopWildSpecialMerge6PoofSounds }) => {
-          stopWildSpecialMerge6PoofSounds();
-        });
-        void import('./bottle-finale-sound.ts').then(({ stopBottleFinaleSounds }) => {
-          stopBottleFinaleSounds();
-        });
-        void import('./bottle-pull-merge-sound.ts').then(({ stopBottlePullMergeSounds }) => {
-          stopBottlePullMergeSounds();
-        });
-        void import('./magnet-pull-force-sound.ts').then(({ stopMagnetPullForceSounds }) => {
-          stopMagnetPullForceSounds();
-        });
-        void import('./honey-merge6-sound.ts').then(({ stopHoneyMerge6Sounds }) => {
-          stopHoneyMerge6Sounds();
-        });
-        void import('./juice-finale-sound.ts').then(({ stopJuiceMerge6Sounds }) => {
-          stopJuiceMerge6Sounds();
-        });
-        void import('./ordinary-stack-sound.ts').then(({ stopOrdinaryStackSound }) => {
-          stopOrdinaryStackSound();
-        });
-        void import('./gameplay-pickup-sound.ts').then(({ stopGameplayPickupSound }) => {
-          stopGameplayPickupSound();
-        });
-        void import('./no-moves-sound.ts').then(({ stopNoMovesSound }) => {
-          stopNoMovesSound();
-        });
-        void import('./arcade-round-digit-sound.ts').then(({ stopArcadeRoundDigitSounds }) => {
-          stopArcadeRoundDigitSounds();
-        });
-        void import('./arcade-stage-clear-sound.ts').then(({ stopArcadeStageClearSounds }) => {
-          stopArcadeStageClearSounds();
-        });
-        void import('./cta-activation-sound.ts').then(({ stopCtaActivationSounds }) => {
-          stopCtaActivationSounds();
-        });
-        void import('./navigation-icon-sound.ts').then(({ stopNavigationIconSounds }) => {
-          stopNavigationIconSounds();
-        });
-        void import('./navigation-close-sound.ts').then(({ stopNavigationCloseSound }) => {
-          stopNavigationCloseSound();
-        });
-        void import('./gameplay-exit-modal-enter-sound.ts').then(({ stopGameplayExitModalEnterSound }) => {
-          stopGameplayExitModalEnterSound();
-        });
-        void import('./homepage-slider-swipe-sound.ts').then(({ stopHomepageSliderSwipeSound }) => {
-          stopHomepageSliderSwipeSound();
-        });
-        void import('./fail-screen-sound.ts').then(({ stopFailScreenSounds }) => {
-          stopFailScreenSounds();
-        });
-        void import('./journey-forest-ambient-sound.ts').then(({ stopJourneyForestAmbientSounds }) => {
-          stopJourneyForestAmbientSounds();
-        });
-        void import('./journey-forest-gameplay-sound.ts').then(({ stopJourneyForestGameplaySound }) => {
-          stopJourneyForestGameplaySound();
-        });
-        void import('./journey-worlds-hub-sound.ts').then(({ stopJourneyWorldsHubSound }) => {
-          stopJourneyWorldsHubSound();
-        });
-      }
+      void applyGameSoundsSettingToAudio(enabled);
     };
     
     const musicHandler = (e: Event) => {

@@ -8,6 +8,9 @@ import {
 } from './gameplay-audio-buffer-player.ts';
 import { getJourneyWorldIdForBoard } from './journey-world-definitions.ts';
 import { applySoundEffectsMasterGain } from './sound-effects-volume.ts';
+import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.ts';
+import { isThermalAudioSuppressed } from '../utils/thermal-audio-isolation.ts';
+import { createJourneyLongLoopLifecycle } from './journey-long-loop-lifecycle.ts';
 
 export const JOURNEY_FOREST_GAMEPLAY_SOUND_SOURCE =
   './assets/sound/worlds/Forest/gameplay/forest-gameplay-sound.wav';
@@ -31,9 +34,11 @@ let fadeTimeoutId: number | null = null;
 let playbackGeneration = 0;
 let active = false;
 let fading = false;
+const lifecycle = createJourneyLongLoopLifecycle('forest-gameplay', () => mediaAudio ? [mediaAudio] : []);
 
 function areSoundsEnabled(): boolean {
   return typeof window !== 'undefined'
+    && !isThermalAudioSuppressed()
     && (window as any)._settings?.gameSoundsEnabled === true;
 }
 
@@ -65,10 +70,11 @@ function clearFadeTimers(): void {
 
 function stopAndRewind(): void {
   playbackGeneration++;
+  lifecycle.deactivate();
   clearFadeTimers();
   active = false;
   fading = false;
-  stopDecodedGameplayVoice(VOICE_ID);
+  if (!MOBILE_RUNTIME_PROFILE.isMobileDevice) stopDecodedGameplayVoice(VOICE_ID);
   if (!mediaAudio) return;
   try {
     mediaAudio.pause();
@@ -81,7 +87,9 @@ export function preloadJourneyForestGameplaySound(
   context: ForestGameplayContext,
 ): boolean {
   if (!areSoundsEnabled() || !isJourneyForestGameplaySoundEligible(context)) return false;
-  return preloadDecodedGameplaySounds([JOURNEY_FOREST_GAMEPLAY_SOUND_SOURCE])
+  // Keep the long ambient bed out of the mobile short-effect PCM cache.
+  if (MOBILE_RUNTIME_PROFILE.isMobileDevice) return getMediaAudio() !== null;
+  return preloadDecodedGameplaySounds([JOURNEY_FOREST_GAMEPLAY_SOUND_SOURCE], { loop: true })
     || getMediaAudio() !== null;
 }
 
@@ -96,21 +104,36 @@ export function playJourneyForestGameplaySound(
   if (fading) stopAndRewind();
 
   clearFadeTimers();
-  const generation = ++playbackGeneration;
-  const failStart = () => {
-    if (generation === playbackGeneration) stopAndRewind();
-  };
   active = true;
   fading = false;
-  const decodedState = getDecodedGameplaySoundsState([JOURNEY_FOREST_GAMEPLAY_SOUND_SOURCE]);
+  const session = {
+    canResume: () => active && areSoundsEnabled(),
+    onRetire: stopAndRewind,
+    onSuspend: () => { if (fading) stopAndRewind(); },
+    onFailure: (error: unknown) => {
+      logger.warn('Failed to play Journey Forest gameplay loop:', String(error));
+      stopAndRewind();
+    },
+  };
+  const decodedState = MOBILE_RUNTIME_PROFILE.isMobileDevice ? 'unavailable'
+    : getDecodedGameplaySoundsState([JOURNEY_FOREST_GAMEPLAY_SOUND_SOURCE]);
   if (decodedState !== 'unavailable') {
-    const result = playDecodedGameplaySound(JOURNEY_FOREST_GAMEPLAY_SOUND_SOURCE, {
-      voiceId: VOICE_ID,
-      volume: JOURNEY_FOREST_GAMEPLAY_VOLUME,
-      loop: true,
-      onDeferredUnavailable: failStart,
+    lifecycle.activate({
+      ...session,
+      media: [],
+      pauseDecoded: () => { playbackGeneration++; stopDecodedGameplayVoice(VOICE_ID); },
+      playDecoded: () => {
+        const generation = ++playbackGeneration;
+        const failStart = () => { if (generation === playbackGeneration) stopAndRewind(); };
+        const result = playDecodedGameplaySound(JOURNEY_FOREST_GAMEPLAY_SOUND_SOURCE, {
+          voiceId: VOICE_ID,
+          volume: JOURNEY_FOREST_GAMEPLAY_VOLUME,
+          loop: true,
+          onDeferredUnavailable: failStart,
+        });
+        if (result === 'unavailable') failStart();
+      },
     });
-    if (result === 'unavailable') failStart();
     return active;
   }
 
@@ -124,13 +147,10 @@ export function playJourneyForestGameplaySound(
     audio.currentTime = 0;
     audio.loop = true;
     audio.volume = JOURNEY_FOREST_GAMEPLAY_VOLUME;
-    audio.play()?.catch((error) => {
-      logger.warn('Failed to play Journey Forest gameplay loop:', error);
-      failStart();
-    });
-    return true;
+    lifecycle.activate({ ...session, media: [audio] });
+    return active;
   } catch (error) {
-    failStart();
+    stopAndRewind();
     logger.warn('Failed to start Journey Forest gameplay loop:', error);
     return false;
   }
@@ -142,6 +162,11 @@ export function fadeOutJourneyForestGameplaySound(
   if (!active) return false;
   if (fading) return true;
 
+  if (lifecycle.isSuspended()) {
+    stopAndRewind();
+    return true;
+  }
+
   clearFadeTimers();
   fading = true;
   const safeDurationMs = Math.max(0, durationMs);
@@ -150,7 +175,7 @@ export function fadeOutJourneyForestGameplaySound(
     return true;
   }
 
-  fadeOutDecodedGameplayVoice(VOICE_ID, safeDurationMs / 1000);
+  if (!MOBILE_RUNTIME_PROFILE.isMobileDevice) fadeOutDecodedGameplayVoice(VOICE_ID, safeDurationMs / 1000);
   const startedAt = Date.now();
   const startingVolume = mediaAudio?.volume ?? JOURNEY_FOREST_GAMEPLAY_VOLUME;
   const applyFadeStep = () => {
@@ -174,5 +199,6 @@ export function stopJourneyForestGameplaySound(
 
 export function resetJourneyForestGameplaySoundForTests(): void {
   stopAndRewind();
+  lifecycle.resetDiagnostics();
   mediaAudio = null;
 }

@@ -39,6 +39,41 @@ describe('animated special artwork merge-6 depth ownership', () => {
     document.body.replaceChildren();
   });
 
+  test('retires a throwing frame owner once, cleans its lease and still invokes the next owner', () => {
+    const bad = jest.fn(() => { throw new Error('stale artwork'); });
+    const dispose = jest.fn(); const healthy = jest.fn();
+    const failedLease = acquireAnimatedSpecialArtworkLayer(bad, undefined, dispose)!;
+    const healthyLease = acquireAnimatedSpecialArtworkLayer(healthy)!;
+    releases.push(failedLease.release, healthyLease.release);
+    expect(() => failedLease.requestSync()).not.toThrow();
+    expect(dispose).toHaveBeenCalledTimes(1);
+    expect(healthy).toHaveBeenCalledTimes(1);
+    failedLease.requestSync(); healthyLease.requestSync();
+    expect(bad).toHaveBeenCalledTimes(1);
+    expect(healthy).toHaveBeenCalledTimes(2);
+    healthyLease.release();
+    expect(getAnimatedSpecialArtworkLayerStats()).toEqual({ owners: 0, tickerAttached: false, overlayAttached: false });
+  });
+
+  test('contains a suspension failure and retires a shared-frame failure without escaping the ticker', () => {
+    const dispose = jest.fn(); const healthySuspension = jest.fn();
+    const broken = acquireAnimatedSpecialArtworkLayer(jest.fn(), (hidden) => {
+      if (hidden) throw new Error('stale suspension');
+    }, dispose)!;
+    const healthy = acquireAnimatedSpecialArtworkLayer(jest.fn(), healthySuspension)!;
+    releases.push(broken.release, healthy.release);
+    const canvas = STATE.app!.canvas as HTMLCanvasElement;
+    canvas.style.display = 'none';
+    expect(() => healthy.requestSync()).not.toThrow();
+    expect(dispose).toHaveBeenCalledTimes(1);
+    expect(healthySuspension).toHaveBeenLastCalledWith(true);
+    expect(getAnimatedSpecialArtworkLayerStats().owners).toBe(1);
+    canvas.style.display = '';
+    canvas.getBoundingClientRect = () => { throw new Error('detached canvas frame'); };
+    expect(() => healthy.requestSync()).not.toThrow();
+    expect(getAnimatedSpecialArtworkLayerStats()).toEqual({ owners: 0, tickerAttached: false, overlayAttached: false });
+  });
+
   test('steady layer frames do not rewrite identical CSS and still publish visibility/depth changes', () => {
     const lease = acquireAnimatedSpecialArtworkLayer(jest.fn())!;
     releases.push(lease.release);

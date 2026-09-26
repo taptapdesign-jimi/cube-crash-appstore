@@ -7,7 +7,11 @@ interface PixiCadenceTicker {
 }
 
 const ACTIVE_FPS = 60;
-const ACTIVITY_TAIL_MS = 2400;
+// Pointer sampling must keep direct manipulation fluid, but a multi-second
+// tail makes ordinary continuous play render the complete 1.5x Pixi stage at
+// 60 FPS almost permanently. Authored long-running motion owns an explicit
+// lease; the generic interaction tail only has to cover the drop/settle paint.
+const ACTIVITY_TAIL_MS = 800;
 let ownedTicker: PixiCadenceTicker | null = null;
 let activeUntil = 0;
 let tickOwner: (() => void) | null = null;

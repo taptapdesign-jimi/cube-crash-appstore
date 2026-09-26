@@ -2,23 +2,23 @@
 import { gsap } from 'gsap';
 import { applyAppPaperSurfaceToElement } from '../utils/app-paper-background.js';
 import { registerCta } from './cta-system.ts';
+import { createResultModalLifetime } from './result-modal-lifetime.js';
 
-let cleanupFns: Array<() => void> = [];
+let activeTutorialCleanup: (() => void) | null = null;
 
 function cleanupTutorialCompleteModal(): void {
-  cleanupFns.forEach((fn) => {
-    try { fn(); } catch {}
-  });
-  cleanupFns = [];
-  const existing = document.getElementById('cc-tutorial-complete-overlay');
-  if (existing) {
-    try { gsap.killTweensOf(existing.querySelectorAll('*')); } catch {}
-    try { existing.remove(); } catch {}
-  }
-  const style = document.getElementById('cc-tutorial-complete-style');
-  if (style) {
-    try { style.remove(); } catch {}
-  }
+  const cleanup = activeTutorialCleanup;
+  activeTutorialCleanup = null;
+  cleanup?.();
+}
+
+/** Retire only the cover this caller acquired, including after Continue settles. */
+export function captureTutorialCompleteModalCleanup(): () => void {
+  const captured = activeTutorialCleanup;
+  return () => {
+    if (!captured || activeTutorialCleanup !== captured) return;
+    cleanupTutorialCompleteModal();
+  };
 }
 
 function ensureTutorialCompleteStyles(): void {
@@ -183,15 +183,51 @@ function ensureTutorialCompleteStyles(): void {
 export async function showTutorialCompleteModal(options: {
   title?: string;
   subtitle?: string;
-} = {}): Promise<{ action: 'continue' }> {
+} = {}): Promise<{ action: 'continue' | 'cancel' }> {
   cleanupTutorialCompleteModal();
   ensureTutorialCompleteStyles();
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     let resolved = false;
     let disposed = false;
+    let presentationSettled = false;
+    const lifetime = createResultModalLifetime();
+    const ownedStyle = document.getElementById('cc-tutorial-complete-style');
+    const settle = (action: 'continue' | 'cancel') => {
+      if (presentationSettled) return;
+      presentationSettled = true;
+      lifetime.dispose();
+      resolve({ action });
+    };
+    lifetime.onDispose(() => { disposed = true; settle('cancel'); });
     const overlay = document.createElement('div');
     overlay.id = 'cc-tutorial-complete-overlay';
+    const cleanupOwnedPresentation = () => {
+      lifetime.dispose();
+      overlay.remove();
+      ownedStyle?.remove();
+    };
+    activeTutorialCleanup = cleanupOwnedPresentation;
+    const failPresentation = (error: unknown) => {
+      if (presentationSettled || !lifetime.isActive() || activeTutorialCleanup !== cleanupOwnedPresentation) return;
+      // Failures must reach the caller's recovery path. Disposal alone settles
+      // as navigation cancellation and would strand the completed tutorial.
+      presentationSettled = true;
+      activeTutorialCleanup = null;
+      cleanupOwnedPresentation();
+      reject(error);
+      console.warn('Tutorial complete presentation failed:', error);
+    };
+    const onVisibility = () => lifetime.setSuspended(document.hidden);
+    const onNavigation = () => cleanupTutorialCompleteModal();
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('cc-navigation', onNavigation);
+    lifetime.setSuspended(document.hidden);
+    lifetime.onDispose(() => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('cc-navigation', onNavigation);
+    });
+    try {
     applyAppPaperSurfaceToElement(overlay);
     const titleText = options.title || 'Congrats!';
     const subtitleText = options.subtitle || 'You cleared the stage.';
@@ -218,7 +254,6 @@ export async function showTutorialCompleteModal(options: {
     const cta = overlay.querySelector('.cc-tutorial-complete-cta') as HTMLButtonElement | null;
     if (title) title.textContent = titleText;
     if (subtitle) subtitle.textContent = subtitleText;
-    const hapticTimeouts: number[] = [];
     let finish: () => void = () => {};
     const ctaController = cta ? registerCta(cta, {
       variant: 'primary',
@@ -228,11 +263,7 @@ export async function showTutorialCompleteModal(options: {
         finish();
       },
     }) : null;
-    cleanupFns.push(() => {
-      disposed = true;
-      hapticTimeouts.splice(0).forEach((timeoutId) => {
-        try { window.clearTimeout(timeoutId); } catch {}
-      });
+    lifetime.onDispose(() => {
       try { (thumb as any)?.__ccTutorialThumbIdleTween?.kill?.(); } catch {}
       try { gsap.killTweensOf([title, subtitle, hero, thumb, shadow, cta]); } catch {}
       try { ctaController?.dispose(); } catch {}
@@ -241,26 +272,27 @@ export async function showTutorialCompleteModal(options: {
     finish = () => {
       if (resolved) return;
       resolved = true;
-      cleanupFns = cleanupFns.filter((fn) => fn !== finish);
       try { gsap.killTweensOf([title, subtitle, hero, thumb, shadow, cta]); } catch {}
       if (thumb) {
         thumb.classList.remove('animate-enter', 'animate-enter-initial');
       }
       void (async () => {
         await ctaController?.exit();
+        if (!lifetime.isActive()) return;
         const tl = gsap.timeline({
           onComplete: () => {
             // Keep the opaque paper mounted as the transition cover. The caller
             // removes it only after Homepage has fully acquired the app surface,
             // preventing the old gameplay HUD from flashing between owners.
-            resolve({ action: 'continue' });
+            settle('continue');
           },
         });
+        lifetime.onDispose(() => tl.kill());
         tl.to(title, { scale: 0, opacity: 0, y: -28, duration: 0.3, ease: 'back.in(1.65)' }, 0)
           .to(subtitle, { scale: 0, opacity: 0, y: -22, duration: 0.3, ease: 'back.in(1.65)' }, 0.03)
           .to(thumb, { scale: 0, opacity: 0, y: -30, rotate: -8, duration: 0.32, ease: 'back.in(1.65)' }, 0.06)
           .to(shadow, { opacity: 0, scaleX: 0.42, scaleY: 0.54, duration: 0.32, ease: 'power2.inOut' }, 0.06);
-      })();
+      })().catch(failPresentation);
     };
 
     gsap.set(title, { opacity: 0, y: -28, scale: 0, transformOrigin: '50% 50%' });
@@ -288,15 +320,10 @@ export async function showTutorialCompleteModal(options: {
       } catch {}
     };
     const scheduleElementHaptic = (delayMs: number, style: 'light' | 'medium' = 'medium') => {
-      const timeoutId = window.setTimeout(() => {
-        const index = hapticTimeouts.indexOf(timeoutId);
-        if (index >= 0) hapticTimeouts.splice(index, 1);
-        triggerElementHaptic(style);
-      }, delayMs);
-      hapticTimeouts.push(timeoutId);
+      lifetime.timeout(() => triggerElementHaptic(style), delayMs);
     };
     const startThumbIdle = () => {
-      if (thumbIdleStarted || !thumb || resolved) return;
+      if (thumbIdleStarted || !thumb || resolved || disposed) return;
       thumbIdleStarted = true;
       try { (thumb as any).__ccTutorialThumbIdleTween?.kill?.(); } catch {}
       thumb.classList.remove('animate-enter', 'animate-enter-initial');
@@ -341,6 +368,7 @@ export async function showTutorialCompleteModal(options: {
       const enter = gsap.timeline({
         defaults: { overwrite: 'auto' },
         onComplete: () => {
+          if (disposed || resolved) return;
           gsap.to(shadow, {
             opacity: 0.72,
             scaleX: 0.86,
@@ -353,6 +381,7 @@ export async function showTutorialCompleteModal(options: {
         },
       });
 
+      lifetime.onDispose(() => enter.kill());
       enter
         .to(title, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: 'back.out(1.65)' }, 0)
         .to(subtitle, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: 'back.out(1.65)' }, 0.04)
@@ -378,31 +407,31 @@ export async function showTutorialCompleteModal(options: {
     const startEnterOnce = () => {
       if (enterStarted || disposed || resolved || !document.body.contains(overlay)) return;
       enterStarted = true;
-      startEnterAnimation();
+      lifetime.clearTimeouts();
+      try { startEnterAnimation(); } catch (error) { failPresentation(error); }
     };
-    const enterFallback = window.setTimeout(startEnterOnce, 420);
-    cleanupFns.push(() => {
-      try { window.clearTimeout(enterFallback); } catch {}
-    });
+    lifetime.timeout(startEnterOnce, 420);
     if (thumb?.complete && thumb.naturalWidth > 0) {
-      try { window.clearTimeout(enterFallback); } catch {}
-      window.requestAnimationFrame(startEnterOnce);
+      lifetime.frame(startEnterOnce);
     } else if (thumb?.decode) {
       thumb.decode()
         .then(() => {
-          try { window.clearTimeout(enterFallback); } catch {}
-          window.requestAnimationFrame(startEnterOnce);
+          if (!lifetime.isActive()) return;
+          lifetime.frame(startEnterOnce);
         })
         .catch(startEnterOnce);
     } else if (thumb) {
       thumb.addEventListener('load', startEnterOnce, { once: true });
       thumb.addEventListener('error', startEnterOnce, { once: true });
-      cleanupFns.push(() => {
+      lifetime.onDispose(() => {
         try { thumb.removeEventListener('load', startEnterOnce); } catch {}
         try { thumb.removeEventListener('error', startEnterOnce); } catch {}
       });
     } else {
       startEnterOnce();
+    }
+    } catch (error) {
+      failPresentation(error);
     }
   });
 }

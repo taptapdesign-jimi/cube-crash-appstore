@@ -103,6 +103,54 @@ describe('shared Pixi sheet animation runtime', () => {
     animateDuringDrag,
   });
 
+  test('retires one throwing sheet controller and advances its healthy sibling in the same frame', async () => {
+    const first = makeTile(); const second = makeTile();
+    const failed = start(first.tile)!; const healthy = start(second.tile)!;
+    await flush();
+    jest.advanceTimersByTime(1000);
+    const sprite = failed.sprite!;
+    failed.isEligible = () => { throw new Error('stale sheet owner'); };
+    const elapsed = healthy.elapsedMs;
+    ticker.elapsedMS = 40;
+    expect(() => callbacks.forEach(callback => callback(ticker))).not.toThrow();
+    expect(failed.disposed).toBe(true);
+    expect(sprite.destroyed).toBe(true);
+    expect(first.base.renderable).toBe(true);
+    expect(first.tile._ccTestSheet).toBeUndefined();
+    expect(healthy.elapsedMs).toBe((elapsed + 40) % spec.cycleMs);
+    expect(getSharedPixiSheetCacheStats().activeRefs).toBe(1);
+    expect(callbacks.size).toBe(1);
+    stopSharedPixiSheetAnimation(second.tile, '_ccTestSheet');
+    expect(callbacks.size).toBe(0);
+    expect(getSharedPixiSheetCacheStats().activeRefs).toBe(0);
+  });
+
+  test('freezes hidden sheet work and preserves its phase while keeping accepted drag-clock motion', async () => {
+    const { tile } = makeTile();
+    const controller = start(tile)!;
+    await flush();
+    const onFrame = jest.fn();
+    controller.onFrame = onFrame;
+    const advance = () => { ticker.elapsedMS = 40; callbacks.forEach(callback => callback(ticker)); };
+    advance();
+    const elapsed = controller.elapsedMs;
+    const texture = controller.sprite!.texture;
+    onFrame.mockClear();
+    tile.alpha = 0;
+    for (let frame = 0; frame < 20; frame++) advance();
+    expect(controller.elapsedMs).toBe(elapsed);
+    expect(controller.sprite!.texture).toBe(texture);
+    expect(onFrame).not.toHaveBeenCalled();
+    tile.alpha = 1;
+    advance();
+    expect(controller.elapsedMs).toBe(elapsed + 40);
+    setSharedPixiSheetAnimationDragging(tile, '_ccTestSheet', true);
+    advance();
+    expect(controller.elapsedMs).toBe(elapsed + 80);
+    expect(controller.sprite!.visible).toBe(false);
+    stopSharedPixiSheetAnimation(tile, '_ccTestSheet');
+  });
+
   test('OS pressure releases idle atlases below budget and preserves leased resources', async () => {
     const owner = acquireSharedPixiSheetResource(spec);
     await owner.load();

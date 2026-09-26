@@ -51,4 +51,35 @@ describe('Journey return recovery integration contract', () => {
     expect(autoRecovery).toContain('prepareJourneyWorldRecovery({');
     expect(autoRecovery).toContain("waitForJourneyReturnPresentation('screen')");
   });
+
+  test('Journey visible enter retries join one owner and its watchdog performs a real current-route recovery', () => {
+    const collectibles = read('src/collectibles-manager.ts');
+    const show = collectibles.slice(
+      collectibles.indexOf('async showCollectibles(options?: CollectiblesShowOptions): Promise<void>'),
+      collectibles.indexOf('\n  async hideCollectibles(', collectibles.indexOf('async showCollectibles')),
+    );
+
+    expect(show).toContain('const visibleEnterLease = this.journeyVisibleEnterOwner.acquire(journeyPresentationEpoch)');
+    expect(show).toContain('if (visibleEnterLease.joined)');
+    expect(show).toContain('await visibleEnterLease.promise;');
+    expect(show).toContain("logger.warn('⚠️ Journey enter missed its visible commit - applying current-route recovery'");
+    expect(show).toContain("emitIOSNativeDiagnostic('visible-enter-watchdog-recovered'");
+    expect(show).toContain("restoreJourneyScrollableInteractivity('journey-visible-commit-watchdog')");
+    expect(show).not.toContain('keeping screen primed hidden to prevent flash');
+  });
+
+  test('World return reactivates a disposed manager and completes only its terminal owner', () => {
+    const boards = read('src/modules/journey-boards-manager.ts');
+    const playStart = boards.indexOf('public playJourneyV700WorldEnterFromReturn(');
+    const prepareStart = boards.indexOf('public prepareJourneyV700WorldEnterFromReturn(');
+    const play = boards.slice(playStart, prepareStart);
+    const prepare = boards.slice(prepareStart, boards.indexOf('\n  public cancelPreparedJourneyV700WorldEnter', prepareStart));
+    const enterStart = boards.indexOf('private playJourneyV700WorldEnter(');
+    const enter = boards.slice(enterStart, boards.indexOf('\n  private ', enterStart + 10));
+
+    expect(play).toContain('this.resumeForVisibleWorldReturn(source);');
+    expect(prepare).toContain('this.resumeForVisibleWorldReturn(source);');
+    expect(enter).toContain('options.returnOwnerToken ?? null');
+    expect(enter).toContain('completeJourneyReturnTransition(');
+  });
 });

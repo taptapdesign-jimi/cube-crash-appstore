@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "features": [
+    {
+      "id": "journey-reward-presentations",
+      "surfaces": [
+        "src/modules/journey-card-overlay-modal.ts",
+        "src/modules/journey-new-card-screen.ts",
+        "src/modules/journey-special-dice-screen.ts"
+      ],
+      "entryOwner": "Each presentation has one generation/lifetime owner and rejects stale async completion.",
+      "exitOwner": "Close, navigation, replacement and interruption converge on idempotent owner cleanup.",
+      "resourcePolicy": "Visible cards may use 2x artwork; alpha masks use 1x art; Special unlock sources are released on cleanup.",
+      "animationPolicy": "Reveal, shine, tilt, shadow, coach and CTA motion are finite; mobile decorative idle starts only after the calm boundary.",
+      "audioPolicy": "Feature cues use their dedicated Journey owners and obey Settings plus interruption cleanup.",
+      "hapticPolicy": "Haptics are interaction/event driven and create no polling or idle owner.",
+      "visibilityPolicy": "Hidden, replaced and disposed presentations stop their owned work and cannot resume through stale callbacks.",
+      "tests": [
+        "src/modules/__tests__/journey-card-overlay-modal.test.ts",
+        "src/modules/__tests__/journey-new-card-presentation.test.ts",
+        "src/modules/__tests__/journey-reward-screen-thermal-contract.test.ts"
+      ],
+      "physicalAcceptance": "NEEDS PHYSICAL TEST after bundled delivery for sustained thermal behavior, FPS, touch, audio and visual feel."
+    }
+  ]
+}

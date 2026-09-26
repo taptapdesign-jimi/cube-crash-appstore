@@ -60,6 +60,7 @@ export async function runJourneyCompletionFlow({
         await showJourneyNewCardScreen({
           boardNumber,
           cardImagePath: rewardAsset.path2x || rewardAsset.path1x || boardCard?.imagePath || '',
+          cardMaskImagePath: rewardAsset.path1x || boardCard?.imagePath || '',
           cardName: boardCard?.name || formatGameplayProgressLabel('journey', boardNumber),
           cardRarity: rewardAsset.rarity,
         });

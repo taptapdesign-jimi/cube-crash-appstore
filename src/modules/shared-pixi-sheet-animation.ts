@@ -1,3 +1,5 @@
+import { isSpecialDiceIdlePaintable } from './special-dice-idle-visibility.ts';
+import { retireFailedSpecialTickerOwner } from './special-ticker-error.ts';
 import { isThermalWorkSuppressed } from '../utils/thermal-isolation.js';
 import { Assets, Rectangle, Sprite, Texture } from 'pixi.js';
 import { STATE } from './app-state.ts';
@@ -236,13 +238,6 @@ function releaseFamily(spec: SharedPixiSheetSpec): void {
   }
 }
 
-function isPixiBranchVisible(displayObject: any): boolean {
-  for (let current = displayObject; current; current = current.parent) {
-    if (current.destroyed || current.visible === false || current.renderable === false) return false;
-    if (typeof current.alpha === 'number' && current.alpha <= 0.001) return false;
-  }
-  return true;
-}
 
 function getLiveTicker(): any {
   return STATE.app?.ticker
@@ -275,19 +270,19 @@ function dispose(controller: SharedPixiSheetController): void {
   controller.disposed = true;
   controllers.delete(controller);
   if (controller.tile?.[controller.propertyKey] === controller) delete controller.tile[controller.propertyKey];
-  controller.phaseLease?.release();
+  try { controller.phaseLease?.release(); } catch {}
   controller.phaseLease = null;
   if (controller.retryTimer !== null) clearTimeout(controller.retryTimer);
   controller.retryTimer = null;
-  if (controller.spec.renderAboveHud) releaseAnimatedDiceAboveHud(controller);
+  if (controller.spec.renderAboveHud) { try { releaseAnimatedDiceAboveHud(controller); } catch {} }
   if (controller.sprite) {
     try { controller.sprite.parent?.removeChild(controller.sprite); } catch {}
     try { controller.sprite.destroy({ texture: false, textureSource: false }); } catch {}
   }
   controller.sprite = null;
-  if (controller.base && !controller.base.destroyed) controller.base.renderable = controller.originalRenderable;
+  try { if (controller.base && !controller.base.destroyed) controller.base.renderable = controller.originalRenderable; } catch {}
   try { controller.onDispose?.(); } catch {}
-  releaseFamily(controller.spec);
+  try { releaseFamily(controller.spec); } catch {}
   if (controllers.size === 0) detachTicker();
 }
 
@@ -302,9 +297,10 @@ function updateController(controller: SharedPixiSheetController, deltaMs: number
     if (sprite) sprite.renderable = false;
     return;
   }
-  controller.elapsedMs = (controller.elapsedMs + Math.max(0, deltaMs)) % spec.cycleMs;
+  const paintable = isSpecialDiceIdlePaintable(tile);
+  if (paintable) controller.elapsedMs = (controller.elapsedMs + Math.max(0, deltaMs)) % spec.cycleMs;
   const visible = base.visible !== false
-    && isPixiBranchVisible(host)
+    && paintable
     && (controller.animateDuringDrag || !controller.dragging);
   sprite.visible = visible;
   sprite.renderable = visible;
@@ -334,7 +330,10 @@ function updateAll(ticker?: any): void {
   if (isThermalWorkSuppressed('sheets')) return;
   const raw = Number(ticker?.elapsedMS);
   const deltaMs = Number.isFinite(raw) && raw >= 0 ? Math.min(100, raw) : 1000 / 60;
-  Array.from(controllers).forEach((controller) => updateController(controller, deltaMs));
+  Array.from(controllers).forEach((controller) => {
+    try { updateController(controller, deltaMs); }
+    catch (error) { retireFailedSpecialTickerOwner(controller.spec.family, error, () => dispose(controller)); }
+  });
 }
 
 function mount(controller: SharedPixiSheetController, retry = 0): void {

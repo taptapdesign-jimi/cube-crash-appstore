@@ -472,28 +472,6 @@ export class AssetPreloader {
     }
   }
 
-  async loadAudioFiles(): Promise<void> {
-    const audioFiles: string[] = [
-      './assets/sound/sfx/explode.mp3'
-    ];
-    
-    for (const audioFile of audioFiles) {
-      try {
-        const audio = new Audio();
-        audio.preload = 'auto';
-        audio.src = audioFile;
-        
-        // Store audio in global cache for later use
-        window.gameAudio = window.gameAudio || {};
-        window.gameAudio[audioFile] = audio;
-        
-        logger.info('🔊 Audio loaded:', audioFile);
-      } catch (error) {
-        logger.warn('🔊 Audio loading failed:', audioFile, error);
-      }
-    }
-  }
-
   // 🔥 CRITICAL: Preload HTML img tag images to ensure they're in browser cache
   // This prevents images from disappearing on mobile after preload screen hides
   async preloadHTMLImages(): Promise<void> {
@@ -837,12 +815,6 @@ export class AssetPreloader {
 
       await this.preloadDeferredAssets();
       if (this.shouldPausePostCriticalWork()) return;
-
-      try {
-        await this.loadAudioFiles();
-      } catch (err) {
-        logger.warn('⚠️ Audio loading failed, continuing...', err);
-      }
 
       completed = true;
       logger.info('✅ Post-critical asset preloading completed');

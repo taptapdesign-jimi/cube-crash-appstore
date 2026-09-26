@@ -1,5 +1,6 @@
 import { gsap } from 'gsap';
 import {
+  JOURNEY_WORLD_IDLE_ACTIVE_CLASS,
   JourneyWorldAnimationCoordinator,
   type JourneyWorldAnimationUnit,
 } from '../journey-world-animation-coordinator';
@@ -80,19 +81,53 @@ describe('Journey main Unit painted visibility', () => {
   });
 
   it('stops every Unit transform when all painted leaves are offscreen despite its large wrapper', () => {
+    const tick = owner.idleTicker;
     deliver([art, ...clouds], false);
     // An intersecting structural box must never count as painted content.
     deliver([wrapper], true);
     paint();
     setters.forEach((setter) => expect(setter).not.toHaveBeenCalled());
+    expect(art.classList.contains(JOURNEY_WORLD_IDLE_ACTIVE_CLASS)).toBe(false);
+    expect(wrapper.classList.contains(JOURNEY_WORLD_IDLE_ACTIVE_CLASS)).toBe(false);
+    expect(gsap.ticker.remove).toHaveBeenCalledWith(tick);
   });
 
   it('keeps the complete Unit moving when only one cloud intersects and resumes after culling', () => {
+    const initialAdds = jest.mocked(gsap.ticker.add).mock.calls.length;
     deliver([art, ...clouds], false);
     paint();
     deliver([clouds[1]], true);
     paint();
     setters.forEach((setter) => expect(setter).toHaveBeenCalledTimes(1));
+    expect(art.classList.contains(JOURNEY_WORLD_IDLE_ACTIVE_CLASS)).toBe(true);
+    expect(wrapper.classList.contains(JOURNEY_WORLD_IDLE_ACTIVE_CLASS)).toBe(true);
+    expect(jest.mocked(gsap.ticker.add).mock.calls.length).toBe(initialAdds + 1);
+    deliver([clouds[1]], true);
+    expect(jest.mocked(gsap.ticker.add).mock.calls.length).toBe(initialAdds + 1);
+  });
+
+  it('detaches the ticker while suspended and preserves culling when it resumes', () => {
+    coordinator.setIdlePaintSuspended(true);
+    expect(gsap.ticker.remove).toHaveBeenCalledWith(owner.idleTicker);
+    paint();
+    setters.forEach((setter) => expect(setter).not.toHaveBeenCalled());
+    const initialAdds = jest.mocked(gsap.ticker.add).mock.calls.length;
+    deliver([art, ...clouds], false);
+    coordinator.setIdlePaintSuspended(false);
+    expect(jest.mocked(gsap.ticker.add).mock.calls.length).toBe(initialAdds);
+    deliver([art], true);
+    expect(jest.mocked(gsap.ticker.add).mock.calls.length).toBe(initialAdds + 1);
+  });
+
+  it('ignores a queued observer callback from the prior generation even for reused DOM', () => {
+    const oldCallback = callback;
+    coordinator.stop();
+    owner.phase = 'idle';
+    owner.startIdle([{ id: 'forest-main', targets: [art, wrapper], clouds }], false);
+    oldCallback([art, ...clouds].map(target => ({ target, isIntersecting: false } as unknown as IntersectionObserverEntry)), observer);
+    paint();
+    expect(art).toHaveClass(JOURNEY_WORLD_IDLE_ACTIVE_CLASS);
+    expect(setters.get(wrapper)).toHaveBeenCalledTimes(1);
   });
 
   it('does not prematurely cull while initial cloud visibility records are still pending', () => {
@@ -111,6 +146,8 @@ describe('Journey main Unit painted visibility', () => {
     expect(observer.disconnect).toHaveBeenCalledTimes(1);
     expect(gsap.ticker.remove).toHaveBeenCalledWith(tick);
     expect(owner.idleTicker).toBeNull();
+    expect(art.classList.contains(JOURNEY_WORLD_IDLE_ACTIVE_CLASS)).toBe(false);
+    expect(wrapper.classList.contains(JOURNEY_WORLD_IDLE_ACTIVE_CLASS)).toBe(false);
     // A queued observer delivery cannot revive a disposed owner.
     deliver(clouds, true);
     expect(owner.idleTicker).toBeNull();

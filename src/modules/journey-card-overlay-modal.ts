@@ -34,6 +34,7 @@ import {
   preloadJourneyCardEntryFlipSounds,
   stopJourneyCardEntryFlipSounds,
 } from './journey-card-entry-flip-sound.js';
+import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.js';
 
 export type JourneyCardOverlayModalResult = 'dismiss' | 'play';
 
@@ -187,6 +188,7 @@ export const JOURNEY_CARD_PLAY_LANDING_EXIT_DURATION_MS = 400 / JOURNEY_CARD_MOD
 export const JOURNEY_CARD_PLAY_RETURN_DURATION_MS = 1120 / JOURNEY_CARD_MODAL_TRANSITION_SPEED;
 export const JOURNEY_CARD_FLIP_SNAP_DURATION_MS = 200;
 export const JOURNEY_CARD_FLIP_RECOIL_DURATION_MS = 260;
+export const JOURNEY_CARD_MOBILE_IDLE_CALM_MS = 1400;
 export const JOURNEY_CARD_FLIP_RECOIL_EASE = 'cubic-bezier(0.45, 0, 0.55, 1)';
 export const JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
 export const JOURNEY_CARD_FLIP_RECOIL_STOPS = Object.freeze([
@@ -728,15 +730,20 @@ export function presentJourneyCardOverlayModal(
   );
   options.origin.mountInto(cardHost);
   const portaledCard = cardHost.querySelector<HTMLElement>('.journey-card-overlay-portaled-card');
-  if (portaledCard && options.cardImagePath2x) {
+  // Only Legendary's holographic treatment needs the denser source. Common
+  // cards already arrive with their display-sized artwork; promoting that
+  // surface and its alpha mask to @2x makes every idle shine repaint a much
+  // larger texture in WKWebView without a visible benefit at this size.
+  if (portaledCard && cardRarity === 'legendary' && options.cardImagePath2x) {
     portaledCard.style.backgroundImage = `url("${options.cardImagePath2x.replace(/"/g, '\\"')}")`;
     const preloader = portaledCard.querySelector<HTMLImageElement>('.journey-board-image-preload');
     if (preloader) preloader.src = options.cardImagePath2x;
   }
-  if (cardRarity === 'legendary' && options.cardImagePath2x) {
-    setJourneyInterimShineMask(legendaryShine, options.cardImagePath2x);
+  const legendaryShineMaskPath = options.cardImagePath1x ?? options.cardImagePath2x;
+  if (cardRarity === 'legendary' && legendaryShineMaskPath) {
+    setJourneyInterimShineMask(legendaryShine, legendaryShineMaskPath);
   }
-  const commonShineMaskPath = options.cardImagePath2x ?? options.cardImagePath1x;
+  const commonShineMaskPath = options.cardImagePath1x ?? options.cardImagePath2x;
   if (cardRarity === 'common' && commonShineMaskPath) {
     setJourneyInterimShineMask(commonShine, commonShineMaskPath);
   }
@@ -1027,7 +1034,7 @@ export function presentJourneyCardOverlayModal(
       || typeof commonShine.animate !== 'function'
     ) return;
 
-    commonIdleShineAnimation = commonShine.animate([
+    const animation = commonShine.animate([
       { backgroundPosition: '240% 50%', opacity: 0, offset: 0 },
       { backgroundPosition: '240% 50%', opacity: 0, offset: 0.4 },
       { backgroundPosition: '205% 50%', opacity: 0.55, offset: 0.46 },
@@ -1037,7 +1044,17 @@ export function presentJourneyCardOverlayModal(
     ], {
       duration: 3000,
       easing: 'ease-in-out',
-      iterations: Infinity,
+      iterations: 1,
+    });
+    commonIdleShineAnimation = animation;
+    void animation.finished.catch(() => undefined).then(() => {
+      // A flip or a new front-face presentation may have replaced this owner.
+      // Never let a stale completion clear the current bounded sweep.
+      if (commonIdleShineAnimation !== animation) return;
+      commonIdleShineAnimation = null;
+      animation.cancel();
+      commonShine.style.removeProperty('background-position');
+      commonShine.style.removeProperty('opacity');
     });
   };
 
@@ -1089,14 +1106,30 @@ export function presentJourneyCardOverlayModal(
     stage.classList.add('is-legendary-idle-holo');
     // Legendary keeps its bounded holographic light sweep, but the card rotor
     // stays neutral until a real tap or pointer drag explicitly owns the flip.
-    legendaryIdleShineAnimation = legendaryShine.animate(shineKeyframes, {
+    const animation = legendaryShine.animate(shineKeyframes, {
       duration: JOURNEY_CARD_LEGENDARY_IDLE_DURATION_MS,
       easing: 'ease-in-out',
-      iterations: Infinity,
+      iterations: 1,
+    });
+    legendaryIdleShineAnimation = animation;
+    void animation.finished.catch(() => undefined).then(() => {
+      if (legendaryIdleShineAnimation !== animation) return;
+      legendaryIdleShineAnimation = null;
+      animation.cancel();
+      stage.classList.remove('is-legendary-idle-holo');
+      legendaryShine.style.removeProperty('background-position');
+      legendaryShine.style.removeProperty('opacity');
     });
   };
 
+  let surfaceIdleTimer = 0;
+  const clearSurfaceIdleTimer = (): void => {
+    if (surfaceIdleTimer === 0) return;
+    window.clearTimeout(surfaceIdleTimer);
+    surfaceIdleTimer = 0;
+  };
   const stopSurfaceIdle = () => {
+    clearSurfaceIdleTimer();
     stage.classList.remove('is-surface-idle');
     stopLegendaryIdleHolo();
     stopCommonIdleShine();
@@ -1131,8 +1164,7 @@ export function presentJourneyCardOverlayModal(
       idleShell.style.transform = 'none';
     });
   };
-  const startSurfaceIdle = () => {
-    if (
+  const canStartSurfaceIdle = (): boolean => (
       !prefersReducedMotion
       && !entering
       && !closing
@@ -1145,14 +1177,30 @@ export function presentJourneyCardOverlayModal(
       && !pinchPointerIds
       && !pinchReturnAnimation
       && activePointerId === null
-    ) {
+  );
+  const activateSurfaceIdle = (): void => {
+    if (!canStartSurfaceIdle()) return;
       idleShellHandoffAnimation?.cancel();
       idleShellHandoffAnimation = null;
       idleShell.style.removeProperty('transform');
       stage.classList.add('is-surface-idle');
       startLegendaryIdleHolo();
       startCommonIdleShine();
+  };
+  const startSurfaceIdle = () => {
+    clearSurfaceIdleTimer();
+    if (!canStartSurfaceIdle()) return;
+    // Rapid mobile flips used to restart the perpetual 3D float and masked
+    // shine in every tiny interaction gap. Wait for a genuinely settled card;
+    // the authored idle remains unchanged once that calm window has elapsed.
+    if (MOBILE_RUNTIME_PROFILE.isMobileDevice) {
+      surfaceIdleTimer = window.setTimeout(() => {
+        surfaceIdleTimer = 0;
+        activateSurfaceIdle();
+      }, JOURNEY_CARD_MOBILE_IDLE_CALM_MS);
+      return;
     }
+    activateSurfaceIdle();
   };
 
   const clearBackContentTimers = () => {
@@ -1381,7 +1429,6 @@ export function presentJourneyCardOverlayModal(
         idleCoachHandAnimation = null;
         stage.classList.remove('is-idle-coach', 'is-idle-coach-drag', 'is-idle-coach-tap');
         if (closing || settled) return;
-        scheduleIdleCoach();
       });
     }, JOURNEY_CARD_FLIP_IDLE_COACH_DELAY_MS);
   };
@@ -1585,19 +1632,43 @@ export function presentJourneyCardOverlayModal(
         { transform: `rotateY(${to}deg)` },
       ], { duration: JOURNEY_CARD_FLIP_RECOIL_DURATION_MS, easing: 'linear' });
       flipRecoilAnimation = recoil;
+      const recoilAngles = [
+        { angle: to, offset: 0 },
+        ...JOURNEY_CARD_FLIP_RECOIL_STOPS.map((stop) => ({
+          angle: to + direction * stop.degrees,
+          offset: stop.offset,
+        })),
+        { angle: to, offset: 1 },
+      ];
+      const recoilAngleAtProgress = (progress: number): number => {
+        const bounded = clamp01(progress);
+        const upperIndex = recoilAngles.findIndex((point) => point.offset >= bounded);
+        if (upperIndex <= 0) return recoilAngles[0].angle;
+        const upper = recoilAngles[upperIndex];
+        const lower = recoilAngles[upperIndex - 1];
+        const span = Math.max(0.0001, upper.offset - lower.offset);
+        const localProgress = (bounded - lower.offset) / span;
+        return lower.angle + (upper.angle - lower.angle) * localProgress;
+      };
       const watchRecoilShine = () => {
         if (closing || settled || flipRecoilAnimation !== recoil) {
           flipEdgeRaf = 0;
           return;
         }
-        const renderedTransform = window.getComputedStyle(rotor).transform || rotor.style.transform;
-        const renderedAngle = getJourneyCardRenderedRotateYAngle(renderedTransform) ?? stableRotorAngle();
+        const progress = Number(recoil.currentTime ?? 0)
+          / Math.max(1, JOURNEY_CARD_FLIP_RECOIL_DURATION_MS);
+        const renderedAngle = recoilAngleAtProgress(progress);
         setPaintFaceForAngle(renderedAngle);
         paintLegendaryDragShine(renderedAngle, true);
         flipEdgeRaf = requestAnimationFrame(watchRecoilShine);
       };
       if (flipEdgeRaf !== 0) cancelAnimationFrame(flipEdgeRaf);
-      flipEdgeRaf = requestAnimationFrame(watchRecoilShine);
+      // Common cards have no holographic recoil paint. Their stable face is
+      // already committed, so a JS RAF watcher would only force WebKit style
+      // synchronization during an otherwise compositor-owned animation.
+      if (cardRarity === 'legendary') {
+        flipEdgeRaf = requestAnimationFrame(watchRecoilShine);
+      }
       void recoil.finished.catch(() => undefined).then(() => {
         if (flipRecoilAnimation !== recoil || closing || settled) return;
         flipRecoilAnimation = null;

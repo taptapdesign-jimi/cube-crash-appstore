@@ -44,7 +44,6 @@ const FINALE_VOICE_IDS = Object.freeze([
 ]);
 const voices = new Map<string, symbol>();
 const media = new Map<string, HTMLAudioElement>();
-const preloadedMedia = new Map<string, HTMLAudioElement>();
 
 function enabled(): boolean {
   return typeof window !== 'undefined' && (window as any)._settings?.gameSoundsEnabled === true;
@@ -132,15 +131,8 @@ export function preloadSpaceshipMerge6Sounds(): boolean {
   if (!enabled()) return false;
   const sources = ALL_CUES.map(({ source }) => source);
   if (preloadDecodedGameplaySounds(sources)) return true;
-  if (typeof Audio !== 'function') return false;
-  return sources.every((source) => {
-    if (preloadedMedia.has(source)) return true;
-    const audio = new Audio(source);
-    audio.preload = 'auto';
-    try { audio.load(); } catch {}
-    preloadedMedia.set(source, audio);
-    return true;
-  });
+  // Media playback allocates its exact cue on demand if Web Audio is unavailable.
+  return typeof Audio === 'function';
 }
 
 /** Adds Spaceship-owned layers beside the existing Magnet/Special Merge-6 package. */
@@ -170,11 +162,4 @@ export function stopSpaceshipFinaleSounds(): void {
 
 export function stopSpaceshipMerge6Sounds(): void {
   stopVoices(ALL_CUES.map(({ voiceId }) => voiceId));
-  preloadedMedia.forEach((audio) => {
-    try {
-      audio.pause();
-      audio.currentTime = 0;
-    } catch {}
-  });
-  preloadedMedia.clear();
 }

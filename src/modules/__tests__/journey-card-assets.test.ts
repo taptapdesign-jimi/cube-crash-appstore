@@ -74,12 +74,11 @@ describe('Journey collectible card assets', () => {
       for (const score of [0, 999999]) {
         const asset = resolveJourneyCardAsset(boardId, score);
         const rarity = score === 0 ? 'common' : 'legendary';
-        const stem = String(boardId - 10).padStart(2, '0') + (score === 0 ? '' : '-gold');
+        const artStage = [1, 2, 3, 4, 6, 5, 7, 9, 8, 10][boardId - 11];
+        const stem = String(artStage).padStart(2, '0') + (score === 0 ? '' : '-gold');
         expect(asset.rarity).toBe(rarity);
         expect(asset.path1x).toBe(`./assets/colelctibles/beach/${rarity}/${stem}.png`);
-        const densityFile = score === 0 && boardId === 16 ? '06@2x-1'
-          : score === 0 && boardId === 19 ? '06@2x' : `${stem}@2x`;
-        expect(asset.path2x).toBe(`./assets/colelctibles/beach/${rarity}/${densityFile}.png`);
+        expect(asset.path2x).toBe(`./assets/colelctibles/beach/${rarity}/${stem}@2x.png`);
         for (const file of [asset.path1x, asset.path2x!]) {
           expect(fs.existsSync(path.resolve(process.cwd(), file))).toBe(true);
           paths.add(file);

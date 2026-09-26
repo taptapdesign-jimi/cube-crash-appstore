@@ -73,11 +73,13 @@ import {
 import {
   playBoardTransitionForestAmbientSound,
   preloadBoardTransitionForestAmbientSound,
+  stopBoardTransitionForestAmbientSound,
 } from './board-transition-forest-ambient-sound.ts';
 import {
   playBoardTransitionArea55BeamSound,
   playBoardTransitionArea55StartSounds,
   preloadBoardTransitionArea55Sounds,
+  stopBoardTransitionArea55Sounds,
 } from './board-transition-area55-sound.ts';
 import { fadeOutJourneyWorldsSoundForBoardTransition } from './journey-worlds-hub-sound.ts';
 
@@ -1939,7 +1941,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     });
   
   // Cleanup any existing overlay (preserve DOM for reuse)
-  cleanup({ preserveDom: true });
+  cleanup({ preserveDom: true, abortAudio: true });
   preloadBoardTransitionDigitSounds();
   if (isForestWorldTransition) preloadBoardTransitionForestAmbientSound();
   if (isArea55Transition) preloadBoardTransitionArea55Sounds();
@@ -1969,7 +1971,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
           logger.info('[CC_BOARD_HANDOFF] onComplete-resolve', { generation: activeGeneration, boardNumber });
         } catch (onCompleteError) {
           logger.error('[CC_BOARD_HANDOFF] onComplete-reject', { generation: activeGeneration, boardNumber, error: onCompleteError });
-          cleanup();
+          cleanup({ abortAudio: true });
           isTransitionActive = false;
           throw onCompleteError;
         }
@@ -2092,7 +2094,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     // 🔥 CRITICAL FIX: Validate digits array is not empty
     if (digits.length === 0) {
       logger.error(`❌ board-transition-screen: No digits to display for board number ${boardNumber}`);
-      cleanup();
+      cleanup({ abortAudio: true });
       isTransitionActive = false;
       finishOnce();
       return;
@@ -2178,7 +2180,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     // 🔥 CRITICAL FIX: Validate digit elements were created
     if (digitElements.length === 0) {
       logger.error(`❌ board-transition-screen: Failed to create digit elements for board number ${boardNumber}`);
-      cleanup();
+      cleanup({ abortAudio: true });
       isTransitionActive = false;
       resolve();
       onComplete();
@@ -3138,7 +3140,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
             // Check if digitEl still exists and is valid
             if (!digitEl || !digitEl.parentNode || digitEl.isConnected === false) {
               logger.warn('⚠️ board-transition-screen: Digit element destroyed before animation complete');
-              cleanup();
+              cleanup({ abortAudio: true });
               isTransitionActive = false;
               finishOnce(false);
               return;
@@ -3180,7 +3182,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
                     // 🔥 FIX: Validate elements still exist before starting exit
                     if (!overlay || !overlay.isConnected || !container || !digitElements || digitElements.length === 0) {
                       logger.warn('⚠️ board-transition-screen: Elements destroyed before exit animation');
-                      cleanup();
+                      cleanup({ abortAudio: true });
                       isTransitionActive = false;
                       finishOnce();
                       return;
@@ -3210,7 +3212,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
                   } catch (exitError) {
                     logger.error('❌ board-transition-screen: Failed to start exit animation:', exitError);
                     // Fallback: cleanup and resolve anyway
-                    cleanup();
+                    cleanup({ abortAudio: true });
                     isTransitionActive = false;
                     finishOnce();
                   }
@@ -3223,7 +3225,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
             }
           } catch (error) {
             logger.warn('⚠️ board-transition-screen: Error in digit animation onComplete:', error);
-            cleanup();
+            cleanup({ abortAudio: true });
             isTransitionActive = false;
             finishOnce(false);
           }
@@ -3243,7 +3245,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     } catch (error) {
       logger.error('❌ board-transition-screen: Error in showBoardTransitionScreen:', error);
       // Cleanup and resolve on error
-      cleanup();
+      cleanup({ abortAudio: true });
       isTransitionActive = false;
       finishOnce();
     }
@@ -3888,7 +3890,14 @@ function startExitAnimation(
  * Cleanup function - iOS App Store ready
  * Ensures all animations, timelines, and DOM elements are properly cleaned up
  */
-function cleanup(options: { preserveDom?: boolean; keepVisibleCover?: boolean } = {}): void {
+function cleanup(options: { preserveDom?: boolean; keepVisibleCover?: boolean; abortAudio?: boolean } = {}): void {
+  // Natural completion lets authored Forest/Area55 one-shots finish. Error,
+  // replacement and route abort must also retire delayed cues outside the
+  // animation lifecycle, even if a DOM cleanup is already in progress.
+  if (options.abortAudio) {
+    stopBoardTransitionForestAmbientSound();
+    stopBoardTransitionArea55Sounds();
+  }
   if (isCleaningUp) return;
   isCleaningUp = true;
   const preserveDom = options.preserveDom === true;
@@ -4162,7 +4171,7 @@ export function cleanupBoardTransitionScreen(): void {
   const interruptedSettlement = activeTransitionSettlement;
   try {
     // 🔥 APP STORE: Force cleanup - ensure everything is released
-    cleanup();
+    cleanup({ abortAudio: true });
     isTransitionActive = false;
     
     logger.info('✅ board-transition-screen: Force cleanup completed - all resources released');

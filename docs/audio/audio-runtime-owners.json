@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "owners": [
+    {
+      "id": "journey-card-entry-flip",
+      "ownerFile": "src/modules/journey-card-entry-flip-sound.ts",
+      "family": "Journey",
+      "eventOwner": "Visible Journey card spatial entry/return and committed manual flip boundaries.",
+      "transport": "Shared decoded gameplay SFX engine with bounded HTMLAudio fallback.",
+      "voicePolicy": "Three stable entry-layer IDs plus one independent manual-flip ID; replacement stops prior voices.",
+      "preloadPolicy": "Prepare only when Sounds are enabled and the Journey card presentation is eligible.",
+      "settingsPolicy": "Every preload/start checks gameSoundsEnabled; global Sounds OFF invokes the full stop.",
+      "interruptionPolicy": "Presentation cleanup, replacement, route cleanup and global Settings cleanup stop decoded and fallback voices.",
+      "stopExport": "stopJourneyCardEntryFlipSounds",
+      "globalRegistryRequired": true,
+      "sources": [
+        "./assets/sound/cjelina flip/"
+      ],
+      "tests": [
+        "src/modules/__tests__/journey-card-entry-flip-sound.test.ts",
+        "src/modules/__tests__/gameplay-sound-settings.test.ts",
+        "src/modules/__tests__/thermal-gameplay-audio-cleanup.test.ts"
+      ],
+      "physicalAcceptance": "NEEDS PHYSICAL TEST for speaker balance, timing, route continuity and sustained thermal behavior."
+    }
+  ]
+}

@@ -144,14 +144,14 @@ describe('Pixi image texture health barrier', () => {
     expect(hudSource).toContain('child.destroy({ texture: true, textureSource: true });');
     expect(hudSource).toContain('HUD_ROOT.destroy({ children: true, texture: false, textureSource: false });');
     expect(appCoreSource.indexOf('await retireSpecialDiceRendererOwnersForRecovery(reason);'))
-      .toBeLessThan(appCoreSource.indexOf('const refreshedAssets = await ensureCoreRenderTexturesGpuReady(`recovery:${reason}`);'));
-    expect(appCoreSource.indexOf('await layoutBoard();'))
+      .toBeLessThan(appCoreSource.indexOf('const refreshedAssets = await ensureCoreRenderTexturesGpuReady(`recovery:${reason}`, ownsCurrentLifecycle, ownerApp?.renderer);'));
+    expect(appCoreSource.indexOf('await layoutBoard(ownsCurrentLifecycle);'))
       .toBeLessThan(appCoreSource.indexOf('restartSpecialDiceRendererOwnersAfterRecovery(reason);'));
     expect(appCoreSource).toContain('unavailableAssets.length > 0');
     expect(appCoreSource).toContain("const CORE_GPU_PROBE_ASSETS = [ASSET_TILE, ASSET_NUMBERS] as const;");
     expect(appCoreSource).toContain("emitNativeConsoleDiagnostic('[CC_TEXTURE_HEALTH]', 'gpu-probe'");
-    expect(appCoreSource).toContain('ensureCoreRenderTexturesGpuReady(`foreground-fast:${reason}`)');
-    expect(appCoreSource).toContain("ensureCoreRenderTexturesGpuReady('startLevel')");
+    expect(appCoreSource).toContain('ensureCoreRenderTexturesGpuReady(`foreground-fast:${reason}`, ownsResume, ownerApp?.renderer)');
+    expect(appCoreSource).toContain("ensureCoreRenderTexturesGpuReady('startLevel', isCurrentStartLevel, app?.renderer)");
     expect(appCoreSource).toContain('forceReloadAssets: readonly string[] = []');
     expect(appCoreSource).not.toContain('app.destroy(true, true)');
     expect(appCoreSource).toContain('ownerGeneration === coreTextureRecoveryGeneration');

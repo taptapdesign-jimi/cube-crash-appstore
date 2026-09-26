@@ -1,3 +1,4 @@
+import { createSpecialIdleAnimationVisibility, isSpecialDiceIdlePaintable } from './special-dice-idle-visibility.ts';
 import { gsap } from 'gsap';
 import { Assets, Sprite, type Texture } from 'pixi.js';
 import animationManager from './animation-manager.js';
@@ -80,6 +81,7 @@ export function startBeeDiceIdle(tile: any, frameSources: string[]): BeeDiceIdle
   let disposed = false;
   let dragging = false;
   let paintedFrameIndex = -1;
+  const visibility = createSpecialIdleAnimationVisibility(tile);
 
   const captureSettledPose = (): boolean => {
     if (poseSettled || motionHost.destroyed) return poseSettled;
@@ -106,7 +108,7 @@ export function startBeeDiceIdle(tile: any, frameSources: string[]): BeeDiceIdle
   };
 
   const applyArtworkFacing = () => {
-    if (base.destroyed || !base.scale) return;
+    if (base.destroyed || !base.scale || !isSpecialDiceIdlePaintable(tile)) return;
     let globalCenterX = Number.NaN;
     try { globalCenterX = base.getGlobalPosition().x; } catch {}
     const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 0;
@@ -124,7 +126,7 @@ export function startBeeDiceIdle(tile: any, frameSources: string[]): BeeDiceIdle
     repeat: -1,
     paused: true,
     onUpdate: () => {
-      if (disposed || tile?.destroyed || base.destroyed || textures.length < 2) return;
+      if (disposed || !isSpecialDiceIdlePaintable(tile) || base.destroyed || textures.length < 2) return;
       const elapsedSeconds = timeline.totalTime();
       const frameIndex = getBeeIdleFrameIndex(
         elapsedSeconds,
@@ -161,6 +163,7 @@ export function startBeeDiceIdle(tile: any, frameSources: string[]): BeeDiceIdle
       applyArtworkFacing();
     },
   }));
+  visibility.track(timeline);
   timeline.to({}, { duration: BEE_IDLE_FRAME_SECONDS * frameSources.length, ease: 'none' });
 
   const controller: BeeDiceIdleController = {
@@ -175,6 +178,7 @@ export function startBeeDiceIdle(tile: any, frameSources: string[]): BeeDiceIdle
     dispose: () => {
       if (disposed) return;
       disposed = true;
+      visibility.release();
       try { animationManager.killExternalTimeline(timeline); } catch { timeline.kill(); }
       const ownsCurrentFrame = textures.includes(base.texture);
       textures = [];
@@ -201,6 +205,7 @@ export function startBeeDiceIdle(tile: any, frameSources: string[]): BeeDiceIdle
     }
     textures.forEach(pinPixiImageTexture);
     timeline.play(0);
+    visibility.refresh();
   });
 
   return controller;

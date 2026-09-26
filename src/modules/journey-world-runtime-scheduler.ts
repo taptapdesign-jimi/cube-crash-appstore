@@ -1,5 +1,6 @@
 export type JourneyWorldRuntimeState =
   | 'inactive'
+  | 'background'
   | 'transition'
   | 'modal'
   | 'scrolling'
@@ -44,12 +45,46 @@ export class JourneyWorldRuntimeScheduler {
   private scrollRoot: HTMLElement | null = null;
   private scrollSettleTimer: number | null = null;
   private idleHandoffTimer: number | null = null;
+  private backgrounded = false;
   private readonly subscribers = new Set<JourneyWorldRuntimeSubscriber>();
 
   public constructor(
     private readonly scrollSettleMs = DEFAULT_SCROLL_SETTLE_MS,
     private readonly idleHandoffMs = DEFAULT_IDLE_HANDOFF_MS,
   ) {}
+
+  private readonly onVisibility = (): void => {
+    this.backgrounded = document.hidden;
+    this.recomputeState();
+  };
+
+  private readonly onPageHide = (): void => {
+    this.backgrounded = true;
+    this.recomputeState();
+  };
+
+  // The native foreground receipt is authoritative when WKWebView has not
+  // refreshed document.hidden yet. Ordinary pageshow still obeys visibility.
+  private readonly onNativeActive = (): void => {
+    this.backgrounded = false;
+    this.recomputeState();
+  };
+
+  private bindPageLifecycle(): void {
+    this.backgrounded = document.hidden;
+    document.addEventListener('visibilitychange', this.onVisibility);
+    window.addEventListener('pagehide', this.onPageHide);
+    window.addEventListener('pageshow', this.onVisibility);
+    window.addEventListener('cc:native-audio-active', this.onNativeActive);
+  }
+
+  private unbindPageLifecycle(): void {
+    document.removeEventListener('visibilitychange', this.onVisibility);
+    window.removeEventListener('pagehide', this.onPageHide);
+    window.removeEventListener('pageshow', this.onVisibility);
+    window.removeEventListener('cc:native-audio-active', this.onNativeActive);
+    this.backgrounded = false;
+  }
 
   private readonly onScroll = (): void => {
     if (this.worldId === null) return;
@@ -79,6 +114,7 @@ export class JourneyWorldRuntimeScheduler {
     initialState: 'idle' | 'transition' = 'idle',
   ): void {
     this.unbindScrollRoot();
+    this.unbindPageLifecycle();
     this.generation += 1;
     this.worldId = Number.isFinite(worldId) && worldId > 0 ? worldId : null;
     this.transitionDepth = initialState === 'transition' ? 1 : 0;
@@ -89,6 +125,7 @@ export class JourneyWorldRuntimeScheduler {
     this.interactionAmbientReleased = false;
     this.scrollRoot = scrollRoot;
     this.scrollRoot?.addEventListener('scroll', this.onScroll, { passive: true });
+    if (this.worldId !== null) this.bindPageLifecycle();
     this.recomputeState(true);
   }
 
@@ -139,6 +176,7 @@ export class JourneyWorldRuntimeScheduler {
 
   public deactivate(): void {
     this.unbindScrollRoot();
+    this.unbindPageLifecycle();
     this.generation += 1;
     this.worldId = null;
     this.transitionDepth = 0;
@@ -164,6 +202,7 @@ export class JourneyWorldRuntimeScheduler {
       && this.settling
       && !this.interactionSettling;
     const ambientSuspended = this.state === 'inactive'
+      || this.state === 'background'
       || this.state === 'transition'
       || this.state === 'modal'
       || (this.state === 'settling' && !ambientScrollSettling && !ambientReleasedForLanding);
@@ -185,7 +224,9 @@ export class JourneyWorldRuntimeScheduler {
   private recomputeState(force = false): void {
     const nextState: JourneyWorldRuntimeState = this.worldId === null
       ? 'inactive'
-      : this.transitionDepth > 0
+      : this.backgrounded
+        ? 'background'
+        : this.transitionDepth > 0
         ? 'transition'
         : this.modalDepth > 0
           ? 'modal'

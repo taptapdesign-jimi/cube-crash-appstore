@@ -1,6 +1,9 @@
 # Stack to Six interaction sound inventory
 
-Updated: 2026-09-18
+Updated: 2026-09-25
+
+Runtime ownership, transport, global cleanup and new-cue requirements are defined
+in [Audio runtime architecture](AUDIO_RUNTIME_ARCHITECTURE.md).
 
 ## Area 55 Board Transition audio (2026-09-18)
 
@@ -27,9 +30,10 @@ Every beam layer has a separate voice ID and starts from the travel tween's real
 layers belongs to the transition-start package. Every transition also receives a new
 voice namespace, so a later transition cannot cut a still-playing tail. The owner
 preloads all six sources and checks Sounds before every start, including delayed
-`fly2.wav`. Normal Board Transition completion or interruption does not stop or
-cancel this audio package; every started cue finishes naturally, cleans its own
-voice on its `ended` event, and the +3s cue keeps its independent clock. Physical
+`fly2.wav`. Normal Board Transition completion preserves this audio package; every started
+cue finishes naturally, cleans its own voice on its `ended` event, and the +3s cue
+keeps its independent clock. Replacement, error and hard route abort cancel the
+delayed cue and stop the package through its full-stop owner. Physical
 speaker balance remains **NEEDS PHYSICAL TEST**.
 
 ## Spaceship merge-6 audio (2026-09-18)
@@ -52,7 +56,9 @@ Magnet/Special Merge-6 foundation and adds these feature-owned layers:
 Each simultaneous layer has a separate bounded voice. Scene interruption stops
 only scene/beam voices, while Sounds OFF, board reset and navigation cleanup stop
 the complete Spaceship package. Eligible and restored Spaceship boards preload
-all nine sources. Supplied WAV files remain byte-unchanged; physical speaker
+all nine sources through decoded Web Audio. If Web Audio is unavailable, media
+fallback allocates only the cue actually requested; no unused media preload pool
+is retained. Supplied WAV files remain byte-unchanged; physical speaker
 balance remains **NEEDS PHYSICAL TEST**.
 
 ## LaserGun merge-6 audio (2026-09-18)

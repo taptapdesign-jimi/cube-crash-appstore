@@ -1,3 +1,5 @@
+import { createSpecialIdleAnimationVisibility, isSpecialDiceIdlePaintable } from './special-dice-idle-visibility.ts';
+import { retireFailedSpecialTickerOwner } from './special-ticker-error.ts';
 import { gsap } from 'gsap';
 import { Assets, Container, Graphics, Sprite, type Texture, type Ticker } from 'pixi.js';
 import animationManager from './animation-manager.js';
@@ -153,6 +155,7 @@ export function startKantaDiceIdle(
   let bubbleSlotCursor = 0;
   let bubbleRuntimePaused = false;
   let disposed = false;
+  const visibility = createSpecialIdleAnimationVisibility(tile, () => !bubbleRuntimePaused);
   let variant = createJourneyInterimBounceVariant();
   const backdropSide = KANTA_IDLE_BACK_SIDE;
   let spawnGlobalX = originalX;
@@ -178,6 +181,7 @@ export function startKantaDiceIdle(
   const pivotY = base.y;
 
   const syncBackdropPose = () => {
+    if (disposed || !isSpecialDiceIdlePaintable(tile)) return;
     const scaleRatioX = neutralScaleX === 0 ? 1 : base.scale.x / neutralScaleX;
     const scaleRatioY = neutralScaleY === 0 ? 1 : base.scale.y / neutralScaleY;
     const opposingScaleRatioX = Math.max(0.8, 2 - scaleRatioX);
@@ -266,6 +270,7 @@ export function startKantaDiceIdle(
         }
       },
     }));
+    visibility.track(popInTimeline);
     state.popInTimeline = popInTimeline;
     popInTimeline
       .set(state, { revealAlpha: 1 }, delaySeconds)
@@ -300,6 +305,7 @@ export function startKantaDiceIdle(
     bubbleRuntimePaused = false;
     pendingDoubleInSeconds = 0;
     nextBubbleInSeconds = 0.25;
+    visibility.refresh();
   };
 
   const timeline = animationManager.trackExternalTimeline(gsap.timeline({
@@ -311,6 +317,7 @@ export function startKantaDiceIdle(
     },
     onUpdate: syncBackdropPose,
   }));
+  visibility.track(timeline);
   timeline.to(base.scale, {
     x: () => neutralScaleX * KANTA_IDLE_BREATH_SCALE_X,
     y: () => neutralScaleY * KANTA_IDLE_BREATH_SCALE_Y,
@@ -374,17 +381,18 @@ export function startKantaDiceIdle(
     dispose: () => {
       if (disposed) return;
       disposed = true;
-      try { animationManager.killExternalTimeline(timeline); } catch { timeline.kill(); }
       if (topBubbleTicker && topBubbleTick) {
         try { topBubbleTicker.remove(topBubbleTick); } catch {}
       }
       topBubbleTicker = null;
       topBubbleTick = null;
+      try { visibility.release(); } catch {}
+      try { animationManager.killExternalTimeline(timeline); } catch { try { timeline.kill(); } catch {} }
       topBubbleStates.length = 0;
       const ownsLoadedTexture = loadedTexture !== null && base.texture === loadedTexture;
       loadedTexture = null;
       backdropSprites.splice(0).forEach((state) => {
-        stopBackdropPopIn(state, false);
+        try { stopBackdropPopIn(state, false); } catch {}
         const { sprite } = state;
         if (sprite.destroyed) return;
         try { sprite.parent?.removeChild(sprite); } catch {}
@@ -538,7 +546,8 @@ export function startKantaDiceIdle(
     topBubbleTicker = STATE.app?.ticker as Ticker | null;
     if (topBubbleTicker) {
       topBubbleTick = (ticker: Ticker) => {
-        if (disposed || bubbleRuntimePaused || document.hidden || !container.parent) return;
+        try {
+        if (disposed || bubbleRuntimePaused || !isSpecialDiceIdlePaintable(tile) || !container.parent) return;
         const deltaSeconds = Math.max(0, Math.min(0.10, ticker.deltaMS / 1000));
         topBubbleStates.forEach((state) => updateBubble(state, deltaSeconds));
         if (pendingDoubleInSeconds > 0) {
@@ -555,6 +564,9 @@ export function startKantaDiceIdle(
           + Math.random() * (
             KANTA_IDLE_TOP_BUBBLE_EMIT_MAX_SECONDS - KANTA_IDLE_TOP_BUBBLE_EMIT_MIN_SECONDS
           );
+        } catch (error) {
+          retireFailedSpecialTickerOwner('kanta', error, controller.dispose);
+        }
       };
       topBubbleTicker.add(topBubbleTick);
     }
@@ -584,6 +596,7 @@ export function startKantaDiceIdle(
     restoreNeutralPose();
     timeline.invalidate();
     if (!bubbleRuntimePaused) timeline.restart();
+    visibility.refresh();
     applyGameplayTextureFiltering(base.texture);
   }).catch(() => {});
 

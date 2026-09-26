@@ -119,6 +119,7 @@ describe('Journey Forest gameplay sound', () => {
     expect(appCore).toContain('if (residualPopOutCompleted && handoffGeneration === gameplayRunGeneration)');
     expect(appCore).toContain('fadeOutJourneyForestGameplaySound();');
     expect(appCore).toContain('stopJourneyForestGameplaySound({ preserveActiveFade: true });');
-    expect(uiManager).toContain("import('./journey-forest-gameplay-sound.ts')");
+    expect(uiManager).toContain('applyGameSoundsSettingToAudio(enabled)');
+    expect(fs.readFileSync('src/modules/gameplay-sound-owner-registry.ts', 'utf8')).toContain('journey-forest-gameplay-sound');
   });
 });

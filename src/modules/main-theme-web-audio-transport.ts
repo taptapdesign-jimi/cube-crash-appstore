@@ -1,6 +1,40 @@
 import { SoundtrackAudioClockVolume } from './soundtrack-audio-clock-volume.js';
 import { logger } from '../core/logger.js';
 import { SoundtrackContextRecovery } from './soundtrack-context-recovery.js';
+import {
+  isThermalAudioSuppressed, isThermalAudioIsolationAvailable, recordThermalAudioIsolationBlock,
+} from '../utils/thermal-audio-isolation.js';
+
+const preparation = { pendingLoads: 0, pendingDecodes: 0, decodeStarts: 0 };
+export function getSoundtrackPreparationStats() { return { ...preparation }; }
+
+function requireAudioWork(kind: string, retired = false): void {
+  if (!retired && !isThermalAudioSuppressed()) return;
+  if (isThermalAudioSuppressed()) recordThermalAudioIsolationBlock(kind);
+  throw new DOMException('Soundtrack preparation retired', 'AbortError');
+}
+
+async function loadSoundtrackBuffer(context: AudioContext, source: string, retired: () => boolean): Promise<AudioBuffer> {
+  requireAudioWork('soundtrack-fetch', retired());
+  const measured = isThermalAudioIsolationAvailable();
+  if (measured) preparation.pendingLoads++;
+  try {
+    const response = await fetch(resolveSource(source), { cache: 'force-cache' });
+    if (!response.ok) throw new Error(`Soundtrack HTTP ${response.status}`);
+    const encoded = await response.arrayBuffer();
+    requireAudioWork('soundtrack-decode', retired());
+    if (measured) { preparation.pendingDecodes++; preparation.decodeStarts++; }
+    try {
+      const buffer = await context.decodeAudioData(encoded);
+      requireAudioWork('soundtrack-decode-completion', retired());
+      return buffer;
+    } finally {
+      if (measured) preparation.pendingDecodes--;
+    }
+  } finally {
+    if (measured) preparation.pendingLoads--;
+  }
+}
 
 type WebkitAudioWindow = Window & typeof globalThis & {
   webkitAudioContext?: typeof AudioContext;
@@ -93,6 +127,10 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
   cancelVolumeRamp(): void { if (!this.isDisposed) this.envelope.cancel(); }
 
   createMediaVoice(source: string): MainThemeVoiceLike | null {
+    if (isThermalAudioSuppressed()) {
+      recordThermalAudioIsolationBlock('soundtrack-arcade-create');
+      return null;
+    }
     try { return new SoundtrackBufferVoice(this.context, source); }
     catch (error) {
       logger.warn('Arcade Web Audio routing unavailable:', error);
@@ -114,6 +152,7 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
   }
 
   async play(): Promise<void> {
+    if (isThermalAudioSuppressed()) { recordThermalAudioIsolationBlock('soundtrack-play'); return; }
     if (this.isDisposed) throw new Error('Main theme transport is disposed.');
     const generation = ++this.playGeneration;
     // Request unlock in the user gesture before asynchronous fetch/decode.
@@ -140,6 +179,7 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
   }
 
   async resumeIfInterrupted(): Promise<void> {
+    if (isThermalAudioSuppressed()) return;
     if (this.isDisposed || this.isPaused || this.context.state === 'running') return;
     const generation = this.playGeneration;
     await this.recovery.resume();
@@ -160,6 +200,7 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
   }
 
   private ensureBuffer(): Promise<AudioBuffer> {
+    if (isThermalAudioSuppressed()) return Promise.reject(new DOMException('Diagnostic audio suppression', 'AbortError'));
     if (this.buffer) return Promise.resolve(this.buffer);
     if (this.loadFailure && Date.now() < this.loadFailure.retryAt) {
       return Promise.reject(this.loadFailure.error);
@@ -179,10 +220,7 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
   }
 
   private async loadBuffer(): Promise<AudioBuffer> {
-    const response = await fetch(resolveSource(this.options.source), { cache: 'force-cache' });
-    if (!response.ok) throw new Error(`Main theme HTTP ${response.status}`);
-    const encoded = await response.arrayBuffer();
-    return this.context.decodeAudioData(encoded);
+    return loadSoundtrackBuffer(this.context, this.options.source, () => this.isDisposed);
   }
 
   private normalizePosition(value: number): number {
@@ -196,6 +234,7 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
   }
 
   private startSource(position: number): void {
+    if (isThermalAudioSuppressed()) { recordThermalAudioIsolationBlock('soundtrack-source-start'); return; }
     const buffer = this.buffer;
     if (!buffer) return;
     this.stopSource();
@@ -277,6 +316,7 @@ class SoundtrackBufferVoice implements MainThemeVoiceLike {
   cancelVolumeRamp(): void { this.envelope.cancel(); }
 
   async play(): Promise<void> {
+    if (isThermalAudioSuppressed()) { recordThermalAudioIsolationBlock('soundtrack-arcade-play'); return; }
     if (this.disposed) throw new Error('Soundtrack voice is disposed.');
     const generation = ++this.generation;
     const resume = this.recovery.resume();
@@ -300,6 +340,7 @@ class SoundtrackBufferVoice implements MainThemeVoiceLike {
   }
 
   async resumeIfInterrupted(): Promise<void> {
+    if (isThermalAudioSuppressed()) return;
     if (this.disposed || this.isPaused || isContextRunning(this.context)) return;
     const generation = this.generation;
     await this.recovery.resume();
@@ -319,14 +360,10 @@ class SoundtrackBufferVoice implements MainThemeVoiceLike {
   }
 
   private ensureBuffer(): Promise<AudioBuffer> {
+    if (isThermalAudioSuppressed()) return Promise.reject(new DOMException('Diagnostic audio suppression', 'AbortError'));
     if (this.buffer) return Promise.resolve(this.buffer);
     if (!this.bufferPromise) {
-      this.bufferPromise = fetch(resolveSource(this.sourceUrl), { cache: 'force-cache' })
-        .then((response) => {
-          if (!response.ok) throw new Error(`Arcade soundtrack HTTP ${response.status}`);
-          return response.arrayBuffer();
-        })
-        .then((encoded) => this.context.decodeAudioData(encoded))
+      this.bufferPromise = loadSoundtrackBuffer(this.context, this.sourceUrl, () => this.disposed)
         .then((buffer) => {
           if (!this.disposed) this.buffer = buffer;
           return buffer;
@@ -347,6 +384,7 @@ class SoundtrackBufferVoice implements MainThemeVoiceLike {
   }
 
   private startSource(position: number): void {
+    if (isThermalAudioSuppressed()) { recordThermalAudioIsolationBlock('soundtrack-arcade-source-start'); return; }
     const buffer = this.buffer;
     if (!buffer) return;
     this.stopSource();
@@ -378,6 +416,10 @@ class SoundtrackBufferVoice implements MainThemeVoiceLike {
 export function createSampleAccurateMainThemeVoice(
   options: MainThemeTransportOptions,
 ): SampleAccurateMainThemeVoice | null {
+  if (isThermalAudioSuppressed()) {
+    recordThermalAudioIsolationBlock('soundtrack-context-create');
+    return null;
+  }
   if (typeof window === 'undefined') return null;
   const AudioContextConstructor = window.AudioContext ||
     (window as WebkitAudioWindow).webkitAudioContext;

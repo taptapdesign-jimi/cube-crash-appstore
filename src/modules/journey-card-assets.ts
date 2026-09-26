@@ -29,6 +29,8 @@ const REDUNDANT_CARD_ROOT = './assets/redundant assets/collectible cards old';
 // Keep authored filenames immutable while progression reorders their Stages:
 // Weee-Beee uses authored 03, Shroomy uses authored 06 and Flying Tent uses authored 02.
 const FOREST_CARD_ART_STAGE_BY_STAGE = Object.freeze([1, 3, 9, 4, 5, 6, 7, 8, 2, 10] as const);
+// Beach swaps move artwork and its density variants together without renaming files.
+const BEACH_CARD_ART_STAGE_BY_STAGE = Object.freeze([1, 2, 3, 4, 6, 5, 7, 9, 8, 10] as const);
 // Linear Area 55 swap result: authored 04 -> Stage 01, 01 -> Stage 02,
 // authored 03 remains Stage 03, and authored 02 -> Stage 04.
 const AREA55_CARD_ART_STAGE_BY_STAGE = Object.freeze([4, 1, 3, 2, 5, 6, 7, 8, 9, 10] as const);
@@ -64,7 +66,7 @@ export function resolveJourneyCardAsset(
       ? FOREST_CARD_ART_STAGE_BY_STAGE[stageInWorld - 1] || stageInWorld
       : isArea55
         ? AREA55_CARD_ART_STAGE_BY_STAGE[stageInWorld - 1] || stageInWorld
-        : stageInWorld;
+        : BEACH_CARD_ART_STAGE_BY_STAGE[stageInWorld - 1] || stageInWorld;
     const paddedStage = String(artStage).padStart(2, '0');
     const rarity: JourneyCardRarity = getJourneyEarnedStars(highScore, safeBoardId) === 3
       ? 'legendary'
@@ -77,11 +79,7 @@ export function resolveJourneyCardAsset(
       stageInWorld,
       rarity,
       path1x: `${base}.png`,
-      path2x: isBeach && rarity === 'common' && stageInWorld === 6
-        ? `${root}/common/06@2x-1.png`
-        : isBeach && rarity === 'common' && stageInWorld === 9
-          ? `${root}/common/06@2x.png`
-          : `${base}@2x.png`,
+      path2x: `${base}@2x.png`,
     };
   }
 

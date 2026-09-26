@@ -3,6 +3,7 @@ import { gsap } from 'gsap';
 import { cleanupJourneySmokeEffects, smokeBubblesAtCard } from './journey-card-idle-bounce.js';
 import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
 import { applyAppPaperSurfaceToElement } from '../utils/app-paper-background.js';
+import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.js';
 import {
   createJourneyNewCardTiltProfile,
   getJourneyNewCardDragTiltAngle,
@@ -36,11 +37,13 @@ import {
   getJourneyCardLegendaryDragShineState,
   JOURNEY_CARD_LEGENDARY_IDLE_DURATION_MS,
   JOURNEY_CARD_LEGENDARY_IDLE_TILT_DEG,
+  JOURNEY_CARD_MOBILE_IDLE_CALM_MS,
 } from './journey-card-overlay-modal.js';
 
 type JourneyNewCardScreenOptions = {
   boardNumber: number;
   cardImagePath: string;
+  cardMaskImagePath?: string;
   cardName?: string;
   cardRarity: JourneyCardRarity;
 };
@@ -49,7 +52,7 @@ let cleanupFns: Array<() => void> = [];
 let activeTimelines: gsap.core.Timeline[] = [];
 
 const JOURNEY_NEW_CARD_CONTINUE_COACH_INITIAL_DELAY_MS = 1000;
-const JOURNEY_NEW_CARD_CONTINUE_COACH_REPEAT_DELAY_MS = 2000;
+const JOURNEY_NEW_CARD_CONTINUE_COACH_AFTER_DRAG_DELAY_MS = 2000;
 const JOURNEY_NEW_CARD_CONTINUE_COACH_DURATION_MS = 2100;
 
 function renderContinueCoachLine(line: string): string {
@@ -180,7 +183,7 @@ function ensureJourneyNewCardStyles(): void {
       display: grid;
       place-items: center;
       overflow: visible;
-      animation: ccJourneyNewCardIdle 3s ease-in-out infinite;
+      animation: ccJourneyNewCardIdle 3s ease-in-out 1 both;
       transform-origin: 50% 50%;
       transform-style: preserve-3d;
       -webkit-transform-style: preserve-3d;
@@ -230,7 +233,7 @@ function ensureJourneyNewCardStyles(): void {
       transform-origin: 50% 54%;
       transform-style: preserve-3d;
       -webkit-transform-style: preserve-3d;
-      animation: ccJourneyNewCardAutoTilt 3s ease-in-out infinite both;
+      animation: ccJourneyNewCardAutoTilt 3s ease-in-out 1 both;
       animation-play-state: paused;
     }
     /* The revealed face is owned by WAAPI for both auto idle and live drag.
@@ -529,6 +532,7 @@ async function playCrumbleFrames({
 export async function showJourneyNewCardScreen({
   boardNumber,
   cardImagePath,
+  cardMaskImagePath,
   cardName,
   cardRarity,
 }: JourneyNewCardScreenOptions): Promise<{ action: 'continue' }> {
@@ -539,6 +543,8 @@ export async function showJourneyNewCardScreen({
   const safeBoardNumber = normalizeJourneyBoardId(boardNumber | 0) ?? 1;
   const fallbackAsset = resolveJourneyCardAsset(safeBoardNumber, 0);
   const safeCardPath = cardImagePath || fallbackAsset.path2x || fallbackAsset.path1x;
+  const safeCardMaskPath = cardMaskImagePath
+    || (safeCardPath.includes('@2x.') ? safeCardPath.replace('@2x.', '.') : safeCardPath);
   const safeCardName = getJourneyNewCardDisplayName(
     safeBoardNumber,
     cardName || formatGameplayProgressLabel('journey', safeBoardNumber),
@@ -551,6 +557,7 @@ export async function showJourneyNewCardScreen({
   await Promise.all([
     ...Array.from({ length: 9 }, (_, i) => preloadImage(getCrumbleFramePath(i + 1))),
     preloadImage(safeCardPath),
+    ...(safeCardMaskPath !== safeCardPath ? [preloadImage(safeCardMaskPath)] : []),
     preloadImage('./assets/hand-pointer.png'),
   ]);
 
@@ -560,13 +567,12 @@ export async function showJourneyNewCardScreen({
     let revealRunning = false;
     let disposed = false;
     let framePlaybackId = 0;
-    let sprite9ShineIntervalId: number | null = null;
-    let finalCardShineIntervalId: number | null = null;
     let continueCoachTimerId = 0;
     let continueCoachHandAnimation: Animation | null = null;
     let continueCoachCardAnimation: Animation | null = null;
     let unlockedIdleTiltAnimation: Animation | null = null;
     let unlockedIdleHoloAnimation: Animation | null = null;
+    let unlockedIdleTimerId = 0;
     let unlockedDragSettleAnimation: Animation | null = null;
     let unlockedDragHoloSettleAnimation: Animation | null = null;
     let activeDragPointerId: number | null = null;
@@ -676,6 +682,10 @@ export async function showJourneyNewCardScreen({
       );
     };
     const stopUnlockedIdleMotion = (clearTransform = true) => {
+      if (unlockedIdleTimerId !== 0) {
+        window.clearTimeout(unlockedIdleTimerId);
+        unlockedIdleTimerId = 0;
+      }
       unlockedIdleTiltAnimation?.cancel();
       unlockedIdleTiltAnimation = null;
       unlockedIdleHoloAnimation?.cancel();
@@ -699,7 +709,7 @@ export async function showJourneyNewCardScreen({
         || typeof unlockedAutoTilt.animate !== 'function'
       ) return;
       unlockedAutoTilt.style.removeProperty('transform');
-      unlockedIdleTiltAnimation = unlockedAutoTilt.animate(
+      const tiltAnimation = unlockedAutoTilt.animate(
         unlockedIdleAngles.map((angle, index) => ({
           transform: `perspective(1050px) rotateY(${angle}deg)`,
           offset: unlockedIdleOffsets[index],
@@ -707,9 +717,16 @@ export async function showJourneyNewCardScreen({
         {
           duration: JOURNEY_CARD_LEGENDARY_IDLE_DURATION_MS,
           easing: 'ease-in-out',
-          iterations: Infinity,
+          iterations: 1,
         },
       );
+      unlockedIdleTiltAnimation = tiltAnimation;
+      void tiltAnimation.finished.catch(() => undefined).then(() => {
+        if (unlockedIdleTiltAnimation !== tiltAnimation) return;
+        unlockedIdleTiltAnimation = null;
+        tiltAnimation.cancel();
+        unlockedAutoTilt.style.removeProperty('transform');
+      });
       if (
         safeCardRarity !== 'legendary'
         || !unlockedLegendaryHolo
@@ -724,15 +741,35 @@ export async function showJourneyNewCardScreen({
         };
       });
       overlay.classList.add('is-unlocked-auto-holo');
-      unlockedIdleHoloAnimation = unlockedLegendaryHolo.animate(shineKeyframes, {
+      const holoAnimation = unlockedLegendaryHolo.animate(shineKeyframes, {
         duration: JOURNEY_CARD_LEGENDARY_IDLE_DURATION_MS,
         easing: 'ease-in-out',
-        iterations: Infinity,
+        iterations: 1,
       });
+      unlockedIdleHoloAnimation = holoAnimation;
+      void holoAnimation.finished.catch(() => undefined).then(() => {
+        if (unlockedIdleHoloAnimation !== holoAnimation) return;
+        unlockedIdleHoloAnimation = null;
+        holoAnimation.cancel();
+        overlay.classList.remove('is-unlocked-auto-holo');
+        unlockedLegendaryHolo.style.removeProperty('background-position');
+        unlockedLegendaryHolo.style.removeProperty('opacity');
+      });
+    };
+    const scheduleUnlockedIdleMotion = () => {
+      stopUnlockedIdleMotion();
+      if (!MOBILE_RUNTIME_PROFILE.isMobileDevice) {
+        startUnlockedIdleMotion();
+        return;
+      }
+      unlockedIdleTimerId = window.setTimeout(() => {
+        unlockedIdleTimerId = 0;
+        startUnlockedIdleMotion();
+      }, JOURNEY_CARD_MOBILE_IDLE_CALM_MS);
     };
     const setCardIdleTiltState = (activeFace: 'interim' | 'unlocked' | 'none') => {
       if (interimAutoTilt) interimAutoTilt.style.animationPlayState = activeFace === 'interim' ? 'running' : 'paused';
-      if (activeFace === 'unlocked') startUnlockedIdleMotion();
+      if (activeFace === 'unlocked') scheduleUnlockedIdleMotion();
       else stopUnlockedIdleMotion();
     };
     let finish: () => void = () => {};
@@ -799,7 +836,6 @@ export async function showJourneyNewCardScreen({
           continueCoachHandAnimation = null;
           continueCoachCardAnimation = null;
           overlay.classList.remove('is-continue-coach');
-          scheduleContinueCoach(JOURNEY_NEW_CARD_CONTINUE_COACH_REPEAT_DELAY_MS);
         });
       }, delayMs);
     };
@@ -808,14 +844,6 @@ export async function showJourneyNewCardScreen({
       disposed = true;
       stopContinueCoach();
       stopUnlockedIdleMotion();
-      if (sprite9ShineIntervalId !== null) {
-        try { window.clearInterval(sprite9ShineIntervalId); } catch {}
-        sprite9ShineIntervalId = null;
-      }
-      if (finalCardShineIntervalId !== null) {
-        try { window.clearInterval(finalCardShineIntervalId); } catch {}
-        finalCardShineIntervalId = null;
-      }
       hapticTimeouts.splice(0).forEach((timeoutId) => {
         try { window.clearTimeout(timeoutId); } catch {}
       });
@@ -887,18 +915,6 @@ export async function showJourneyNewCardScreen({
       return frameId;
     };
 
-    const stopSprite9ShineLoop = () => {
-      if (sprite9ShineIntervalId === null) return;
-      try { window.clearInterval(sprite9ShineIntervalId); } catch {}
-      sprite9ShineIntervalId = null;
-    };
-
-    const stopFinalCardShineLoop = () => {
-      if (finalCardShineIntervalId === null) return;
-      try { window.clearInterval(finalCardShineIntervalId); } catch {}
-      finalCardShineIntervalId = null;
-    };
-
     const playRevealSmoke = () => {
       if (!hero || resolved || disposed || !document.body.contains(overlay)) return;
       try {
@@ -942,63 +958,45 @@ export async function showJourneyNewCardScreen({
       try { gsap.killTweensOf([interimSurface, unlockedSurface, interimLight, unlockedLight, frameImg, finalImg]); } catch {}
     };
 
-    const startSprite9ShineLoop = () => {
-      stopSprite9ShineLoop();
-      const play = () => {
-        if (revealed || revealRunning || resolved || disposed || !frameImg || !document.body.contains(overlay)) {
-          stopSprite9ShineLoop();
-          return;
-        }
-        triggerJourneyInterimShinePulse({
-          lightElement: interimLight,
-          faceElement: frameImg,
-          baseScale: 1.2,
-          shouldRun: () => !revealed && !revealRunning && !resolved && !disposed && !!frameImg && document.body.contains(overlay),
-          onPulse: () => triggerHaptic('light'),
-          scheduleTimeout: scheduleShineTimeout,
-          scheduleFrame: scheduleShineFrame,
-          trackTimeline: trackNewCardTimeline,
-        });
-      };
-      play();
-      sprite9ShineIntervalId = window.setInterval(play, JOURNEY_INTERIM_CARD_SHINE_PROFILE.cadenceMs);
+    const playSprite9ShineOnce = () => {
+      if (revealed || revealRunning || resolved || disposed || !frameImg || !document.body.contains(overlay)) return;
+      triggerJourneyInterimShinePulse({
+        lightElement: interimLight,
+        faceElement: frameImg,
+        baseScale: 1.2,
+        shouldRun: () => !revealed && !revealRunning && !resolved && !disposed && !!frameImg && document.body.contains(overlay),
+        onPulse: () => triggerHaptic('light'),
+        scheduleTimeout: scheduleShineTimeout,
+        scheduleFrame: scheduleShineFrame,
+        trackTimeline: trackNewCardTimeline,
+      });
     };
 
-    const startFinalCardShineLoop = () => {
-      stopFinalCardShineLoop();
+    const playFinalCardShineOnce = () => {
       if (safeCardRarity === 'legendary') return;
-      const play = () => {
-        if ((!revealed && !revealRunning) || resolved || disposed || !finalImg || !document.body.contains(overlay)) {
-          stopFinalCardShineLoop();
-          return;
-        }
-        setLightMask(unlockedLight, safeCardPath);
-        setLightFrameScale(unlockedLight, 0.95);
-        gsap.set(unlockedLight, {
-          scale: 1,
-          transformOrigin: '50% 50%',
-          force3D: true,
-        });
-        triggerJourneyInterimShinePulse({
-          lightElement: unlockedLight,
-          faceElement: finalImg,
-          baseScale: 0.95,
-          shouldRun: () => (revealed || revealRunning) && !resolved && !disposed && !!finalImg && document.body.contains(overlay),
-          scheduleTimeout: scheduleShineTimeout,
-          scheduleFrame: scheduleShineFrame,
-          trackTimeline: trackNewCardTimeline,
-        });
-      };
-      play();
-      finalCardShineIntervalId = window.setInterval(play, JOURNEY_INTERIM_CARD_SHINE_PROFILE.cadenceMs);
+      if ((!revealed && !revealRunning) || resolved || disposed || !finalImg || !document.body.contains(overlay)) return;
+      setLightMask(unlockedLight, safeCardMaskPath);
+      setLightFrameScale(unlockedLight, 0.95);
+      gsap.set(unlockedLight, {
+        scale: 1,
+        transformOrigin: '50% 50%',
+        force3D: true,
+      });
+      triggerJourneyInterimShinePulse({
+        lightElement: unlockedLight,
+        faceElement: finalImg,
+        baseScale: 0.95,
+        shouldRun: () => (revealed || revealRunning) && !resolved && !disposed && !!finalImg && document.body.contains(overlay),
+        scheduleTimeout: scheduleShineTimeout,
+        scheduleFrame: scheduleShineFrame,
+        trackTimeline: trackNewCardTimeline,
+      });
     };
 
     finish = () => {
       if (resolved) return;
       resolved = true;
       collectRequestedDuringReveal = false;
-      stopSprite9ShineLoop();
-      stopFinalCardShineLoop();
       stopContinueCoach();
       clearPendingShineWork();
       setCardIdleTiltState('none');
@@ -1071,7 +1069,6 @@ export async function showJourneyNewCardScreen({
         force3D: true,
       });
       setCardIdleTiltState('none');
-      stopSprite9ShineLoop();
       clearPendingShineWork();
       const revealFramePlaybackId = ++framePlaybackId;
       try { hero?.setAttribute('aria-disabled', 'true'); } catch {}
@@ -1194,7 +1191,7 @@ export async function showJourneyNewCardScreen({
               force3D: true,
             }, cardEnterStart)
             .call(() => {
-              setLightMask(unlockedLight, safeCardPath);
+              setLightMask(unlockedLight, safeCardMaskPath);
               setLightFrameScale(unlockedLight, 0.95);
               gsap.set(unlockedLight, {
                 opacity: 0,
@@ -1230,7 +1227,7 @@ export async function showJourneyNewCardScreen({
                 transformOrigin: '50% 50%',
                 force3D: true,
               });
-              setLightMask(unlockedLight, safeCardPath);
+              setLightMask(unlockedLight, safeCardMaskPath);
               setLightFrameScale(unlockedLight, 0.95);
               gsap.set(unlockedLight, {
                 opacity: 0.92,
@@ -1285,7 +1282,7 @@ export async function showJourneyNewCardScreen({
               triggerHaptic('light');
               scheduleShineTimeout(() => {
                 if (framePlaybackId !== revealFramePlaybackId || resolved || disposed) return;
-                startFinalCardShineLoop();
+                playFinalCardShineOnce();
               }, 1850);
             }, undefined, cardSecondShineStart);
         });
@@ -1376,8 +1373,8 @@ export async function showJourneyNewCardScreen({
         unlockedDragHoloSettleAnimation = null;
         unlockedAutoTilt.style.removeProperty('transform');
         currentDragTiltAngle = 0;
-        startUnlockedIdleMotion();
-        scheduleContinueCoach(JOURNEY_NEW_CARD_CONTINUE_COACH_REPEAT_DELAY_MS);
+        scheduleUnlockedIdleMotion();
+        scheduleContinueCoach(JOURNEY_NEW_CARD_CONTINUE_COACH_AFTER_DRAG_DELAY_MS);
       });
     };
 
@@ -1529,8 +1526,8 @@ export async function showJourneyNewCardScreen({
     gsap.set(unlockedLight, { scale: 1, opacity: 0, transformOrigin: '50% 50%' });
     setLightFrameScale(interimLight, 1);
     setLightMask(interimLight, getCrumbleFramePath(1));
-    setLightMask(unlockedLight, safeCardPath);
-    setLightMask(unlockedLegendaryHolo, safeCardPath);
+    setLightMask(unlockedLight, safeCardMaskPath);
+    setLightMask(unlockedLegendaryHolo, safeCardMaskPath);
     setLightFrameScale(unlockedLegendaryHolo, 0.95);
 
     enterTimeline = trackNewCardTimeline(gsap.timeline({
@@ -1544,7 +1541,7 @@ export async function showJourneyNewCardScreen({
           scaleY: 0.82,
           duration: d(1.42),
           ease: 'sine.inOut',
-          repeat: -1,
+          repeat: 1,
           yoyo: true,
         });
       },
@@ -1608,7 +1605,7 @@ export async function showJourneyNewCardScreen({
                 force3D: true,
               }, 0.08)
               .to(frameImg, { filter: 'brightness(1)', duration: 0.16, ease: 'sine.out' }, 0.12)
-              .call(startSprite9ShineLoop);
+              .call(playSprite9ShineOnce);
           }
         })().catch(() => {});
       }, d(0.87));

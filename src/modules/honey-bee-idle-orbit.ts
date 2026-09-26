@@ -1,3 +1,4 @@
+import { createSpecialIdleAnimationVisibility, isSpecialDiceIdlePaintable } from './special-dice-idle-visibility.ts';
 import { Assets, Container, Texture } from 'pixi.js';
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
@@ -266,6 +267,7 @@ export function startHoneyBeeIdleOrbit(tile: any): HoneyBeeIdleOrbitController |
   };
 
   let disposed = false;
+  const visibility = createSpecialIdleAnimationVisibility(tile);
   let dragging = false;
   let dragScale = 1;
   let lastElapsed = 0;
@@ -277,7 +279,7 @@ export function startHoneyBeeIdleOrbit(tile: any): HoneyBeeIdleOrbitController |
   let chaseFanStrength = 0;
   const clock = { elapsed: 0 };
   const render = (force = false) => {
-    if (disposed || tile?.destroyed || host.destroyed) return;
+    if (disposed || !isSpecialDiceIdlePaintable(tile) || host.destroyed) return;
     const idleFps = MOBILE_RUNTIME_PROFILE.settledIdleMaxFramesPerSecond;
     const isEntranceActive = clock.elapsed < 0.6;
     if (!force && !dragging && !isEntranceActive && idleFps > 0) {
@@ -431,6 +433,8 @@ export function startHoneyBeeIdleOrbit(tile: any): HoneyBeeIdleOrbitController |
     onUpdate: render,
   }));
 
+  visibility.track(tween);
+
   const setDragging = (nextDragging: boolean) => {
     const wasDragging = dragging;
     dragging = nextDragging;
@@ -455,7 +459,7 @@ export function startHoneyBeeIdleOrbit(tile: any): HoneyBeeIdleOrbitController |
     velocityX: number,
     velocityY: number,
   ) => {
-    if (!dragging) return;
+    if (!dragging || !isSpecialDiceIdlePaintable(tile)) return;
     const deltaX = offsetX - lastDragOffsetX;
     const deltaY = offsetY - lastDragOffsetY;
     lastDragOffsetX = offsetX;
@@ -489,6 +493,7 @@ export function startHoneyBeeIdleOrbit(tile: any): HoneyBeeIdleOrbitController |
   const dispose = () => {
     if (disposed) return;
     disposed = true;
+    visibility.release();
     try { animationManager.killExternalTween(tween); } catch {
       try { tween.kill(); } catch {}
     }

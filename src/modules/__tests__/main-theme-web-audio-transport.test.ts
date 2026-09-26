@@ -1,7 +1,9 @@
 import {
   createSampleAccurateMainThemeVoice,
   isSampleAccurateMainThemeVoice,
+  getSoundtrackPreparationStats,
 } from '../main-theme-web-audio-transport';
+import { setThermalAudioSuppressed, resetThermalAudioIsolationForTests } from '../../utils/thermal-audio-isolation';
 
 class MockAudioParam {
   value = 0;
@@ -86,11 +88,54 @@ describe('sample-accurate main theme transport', () => {
   });
 
   afterEach(() => {
+    resetThermalAudioIsolationForTests();
+    delete (window as any).__ccThermalIsolation;
     Object.defineProperty(window, 'AudioContext', {
       configurable: true,
       value: originalAudioContext,
     });
     global.fetch = originalFetch;
+  });
+
+  it('diagnostic isolation blocks context creation and pending encoded audio before decode', async () => {
+    (window as any).__ccThermalIsolation = true;
+    setThermalAudioSuppressed(true);
+    const options = { source: './theme-isolation.wav', loopStartSeconds: 2, loopEndSeconds: 59, initialVolume: 0.68 };
+    expect(createSampleAccurateMainThemeVoice(options)).toBeNull();
+    expect(MockAudioContext.instances).toHaveLength(0);
+    expect(global.fetch).not.toHaveBeenCalled();
+    setThermalAudioSuppressed(false);
+    let finishEncoded!: (value: ArrayBuffer) => void;
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, arrayBuffer: () => new Promise(resolve => { finishEncoded = resolve; }) });
+    const voice = createSampleAccurateMainThemeVoice(options)!;
+    const play = voice.play();
+    await Promise.resolve();
+    expect(getSoundtrackPreparationStats().pendingLoads).toBe(1);
+    setThermalAudioSuppressed(true);
+    finishEncoded(new ArrayBuffer(8));
+    await expect(play).rejects.toThrow('Soundtrack preparation retired');
+    expect(MockAudioContext.instances[0].decodeAudioData).not.toHaveBeenCalled();
+    expect(MockAudioContext.instances[0].sources).toHaveLength(0);
+    expect(getSoundtrackPreparationStats().pendingLoads).toBe(0);
+    expect(voice.createMediaVoice!('./calm.wav')).toBeNull();
+    voice.dispose();
+  });
+
+  it('reports an already running decode until it drains without a late source start', async () => {
+    (window as any).__ccThermalIsolation = true;
+    const voice = createSampleAccurateMainThemeVoice({ source: './pending.wav', loopStartSeconds: 2, loopEndSeconds: 59, initialVolume: 0.68 })!;
+    const context = MockAudioContext.instances[0];
+    let finishDecode!: (value: AudioBuffer) => void;
+    context.decodeAudioData.mockImplementation(() => new Promise(resolve => { finishDecode = resolve; }));
+    const play = voice.play();
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+    expect(getSoundtrackPreparationStats().pendingDecodes).toBe(1);
+    setThermalAudioSuppressed(true);
+    finishDecode({ duration: 59 } as AudioBuffer);
+    await expect(play).rejects.toThrow('Soundtrack preparation retired');
+    expect(getSoundtrackPreparationStats()).toMatchObject({ pendingLoads: 0, pendingDecodes: 0 });
+    expect(context.sources).toHaveLength(0);
+    voice.dispose();
   });
 
   it('uses one source with an embedded intro and exact loop region', async () => {

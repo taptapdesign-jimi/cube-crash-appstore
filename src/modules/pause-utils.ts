@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { isGameplayRendererTerminalSuspended } from './gameplay-render-suspension.ts';
 
 import { container } from '../core/dependency-injection.js';
 import { gsap } from 'gsap';
@@ -79,7 +80,7 @@ export function resumeGame(): void {
       // DI container doesn't have 'app' - use fallback
       app = (window as any).STATE?.app || null;
     }
-    if (app && app.ticker) {
+    if (app && app.ticker && !isGameplayRendererTerminalSuspended(app)) {
       app.ticker.start();
     }
   } catch (e) {
@@ -117,7 +118,7 @@ export function restartGame(): void {
   
   // Restart PIXI app
   const app = container.get('app');
-  if (app) {
+  if (app && !isGameplayRendererTerminalSuspended(app)) {
     app.ticker.start();
   }
 }

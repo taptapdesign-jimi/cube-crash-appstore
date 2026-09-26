@@ -115,7 +115,8 @@ describe('Honey Merge-6 sound routing', () => {
     const uiManager = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/ui-manager.ts'), 'utf8');
     expect(appCore).toContain('stopHoneyMerge6Sounds();');
     expect(fs.readFileSync(path.resolve(process.cwd(), 'src/modules/special-sound-warmup.ts'), 'utf8')).toContain('preloadHoneyMerge6Sounds();');
-    expect(uiManager).toContain('stopHoneyMerge6Sounds();');
+    expect(uiManager).toContain('applyGameSoundsSettingToAudio(enabled)');
+    expect(fs.readFileSync('src/modules/gameplay-sound-owner-registry.ts', 'utf8')).toContain('stopHoneyMerge6Sounds');
     expect(appCore).toContain('preloadEligibleSpecialSounds({ boardNumber: entryBoard, isArcade: isArcadeHomeRunMode(), tiles });');
   });
 });

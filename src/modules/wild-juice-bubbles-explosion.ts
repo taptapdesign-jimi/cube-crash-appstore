@@ -3,7 +3,8 @@
 // Full-screen bubbles explosion effect for wild-juice merge 6 events
 // Uses custom bubble sprites (bubble 1-8) instead of runtime Graphics - lighter on memory
 
-import { Assets, Container, Sprite, Texture } from 'pixi.js';
+import { Container, Sprite, Texture } from 'pixi.js';
+import { BUBBLE_SPRITE_PATHS, loadJuiceFinaleTextures } from './juice-finale-textures.ts';
 import { getBubbleSpritePool, clearBubbleSpritePool, graphicsPool } from './object-pool.ts';
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
@@ -54,16 +55,6 @@ let isExplosionActive = false;
 let explosionContainer: Container | null = null;
 let spawnTick: (() => void) | null = null;
 let safetyTimeoutId: ReturnType<typeof setTimeout> | null = null;
-const BUBBLE_SPRITE_PATHS = [
-  './assets/shop/juice/bubbles pack/bubble1.png',
-  './assets/shop/juice/bubbles pack/bubble 2.png',
-  './assets/shop/juice/bubbles pack/bubble 3.png',
-  './assets/shop/juice/bubbles pack/bubble 4.png',
-  './assets/shop/juice/bubbles pack/bubble 5.png',
-  './assets/shop/juice/bubbles pack/bubble 6.png',
-  './assets/shop/juice/bubbles pack/bubble 7.png',
-  './assets/shop/juice/bubbles pack/bubble 8.png',
-];
 let explosionStartTime: number = 0; // Track when explosion started (for protection against premature cleanup)
 let stageRetryCount = 0; // Retry count for stage acquisition during transitions
 let cleanupInProgress = false;
@@ -465,23 +456,10 @@ async function showWildJuiceBubblesExplosionInternal(
   const bubblePoolKey = usesDefaultBubbleSprites
     ? 'wild-juice-bubbles'
     : `wild-juice-special:${spritePaths.join('|')}`;
-  const bubbleTextures: Texture[] = [];
-  for (const path of spritePaths) {
-    try {
-      const loaded = await Assets.load(path);
-      if (runGeneration !== explosionRunGeneration) {
-        notifySequenceComplete();
-        return;
-      }
-      const texture = loaded as Texture;
-      if (!texture) {
-        throw new Error(`Loaded texture is empty for ${path}`);
-      }
-      bubbleTextures.push(texture);
-    } catch (e) {
-      // Fail-soft: keep effect alive with remaining textures.
-      console.warn(`⚠️ Bubble sprite failed to load, skipping (${path})`, e);
-    }
+  const bubbleTextures = await loadJuiceFinaleTextures(spritePaths, () => runGeneration === explosionRunGeneration);
+  if (runGeneration !== explosionRunGeneration) {
+    notifySequenceComplete();
+    return;
   }
 
   if (bubbleTextures.length === 0) {
@@ -1213,8 +1191,7 @@ async function showWildJuiceBubblesExplosionInternal(
     const accentPaths = Array.isArray(options.accentSpritePaths)
       ? options.accentSpritePaths.filter(Boolean)
       : [];
-    const accentTextures = (await Promise.allSettled(accentPaths.map((path) => Assets.load(path))))
-      .flatMap((result) => result.status === 'fulfilled' && result.value ? [result.value as Texture] : []);
+    const accentTextures = await loadJuiceFinaleTextures(accentPaths, () => runGeneration === explosionRunGeneration);
     if (runGeneration !== explosionRunGeneration) {
       notifySequenceComplete();
       return;

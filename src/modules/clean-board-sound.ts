@@ -68,8 +68,12 @@ const CLEAN_BOARD_VOICE_IDS = [
 const mediaAudioByVoiceId = new Map<string, {
   source: string;
   audio: HTMLAudioElement;
+  generation: number;
   onStopped?: () => void;
 }>();
+// Preload and playback share these elements. Extra copies are acquired only
+// when the authored counter/star/CTA voices need the same source concurrently.
+const availableMediaAudioBySource = new Map<string, HTMLAudioElement[]>();
 const mediaFadeTimeouts = new Map<string, number>();
 const mediaFadeFrames = new Map<string, number>();
 let previousHarpOrder = '';
@@ -87,15 +91,36 @@ function areSoundsEnabled(): boolean {
     && (window as any)._settings?.gameSoundsEnabled === true;
 }
 
-function getMediaAudio(source: string, voiceId: string): HTMLAudioElement | null {
-  const existing = mediaAudioByVoiceId.get(voiceId);
-  if (existing?.source === source) return existing.audio;
-  if (existing) stopMediaVoice(voiceId);
+function createMediaAudio(source: string): HTMLAudioElement | null {
   if (typeof Audio !== 'function') return null;
   const audio = new Audio(source);
   audio.preload = 'auto';
   try { audio.load(); } catch {}
-  mediaAudioByVoiceId.set(voiceId, { source, audio });
+  return audio;
+}
+
+function retainAvailableMediaAudio(source: string, audio: HTMLAudioElement): void {
+  const available = availableMediaAudioBySource.get(source) ?? [];
+  available.push(audio);
+  availableMediaAudioBySource.set(source, available);
+}
+
+function preloadMediaSource(source: string): boolean {
+  if (availableMediaAudioBySource.get(source)?.length) return true;
+  if (Array.from(mediaAudioByVoiceId.values()).some(entry => entry.source === source)) return true;
+  const audio = createMediaAudio(source);
+  if (!audio) return false;
+  retainAvailableMediaAudio(source, audio);
+  return true;
+}
+
+function getMediaAudio(source: string, voiceId: string): HTMLAudioElement | null {
+  const existing = mediaAudioByVoiceId.get(voiceId);
+  if (existing?.source === source) return existing.audio;
+  if (existing) stopMediaVoice(voiceId);
+  const audio = availableMediaAudioBySource.get(source)?.pop() ?? createMediaAudio(source);
+  if (!audio) return null;
+  mediaAudioByVoiceId.set(voiceId, { source, audio, generation: 0 });
   return audio;
 }
 
@@ -108,6 +133,8 @@ function stopMediaVoice(voiceId: string): void {
   mediaFadeFrames.delete(voiceId);
   const entry = mediaAudioByVoiceId.get(voiceId);
   if (!entry) return;
+  entry.generation++;
+  mediaAudioByVoiceId.delete(voiceId);
   const onStopped = entry.onStopped;
   entry.onStopped = undefined;
   try {
@@ -115,6 +142,7 @@ function stopMediaVoice(voiceId: string): void {
     entry.audio.pause();
     entry.audio.currentTime = 0;
   } catch {}
+  retainAvailableMediaAudio(entry.source, entry.audio);
   onStopped?.();
 }
 
@@ -123,14 +151,16 @@ function scheduleMediaFadeOut(
   voiceId: string,
   stopAfterSeconds: number,
   volume: number,
+  isCurrent: () => boolean,
 ): void {
   const fadeSeconds = Math.min(CLEAN_BOARD_COUNTER_FADE_SECONDS, stopAfterSeconds);
   const fadeStartMs = Math.max(0, (stopAfterSeconds - fadeSeconds) * 1000);
   const timeout = window.setTimeout(() => {
+    if (!isCurrent()) return;
     mediaFadeTimeouts.delete(voiceId);
     const startedAt = performance.now();
     const fade = (now: number) => {
-      if (mediaAudioByVoiceId.get(voiceId)?.audio !== audio) return;
+      if (!isCurrent()) return;
       const progress = Math.min(1, (now - startedAt) / (fadeSeconds * 1000 || 1));
       audio.volume = volume * (1 - progress);
       if (progress >= 1) {
@@ -189,35 +219,37 @@ function playCleanBoardMediaFallback(
     lifecycle.onUnavailable?.();
     return false;
   }
+  const entry = mediaAudioByVoiceId.get(voiceId)!;
+  const generation = ++entry.generation;
+  const isCurrent = () => mediaAudioByVoiceId.get(voiceId) === entry && entry.generation === generation;
   try {
-    const entry = mediaAudioByVoiceId.get(voiceId);
-    if (entry) entry.onStopped = lifecycle.onStopped;
+    entry.onStopped = lifecycle.onStopped;
     audio.pause();
     audio.volume = volume;
     audio.currentTime = 0;
     audio.onended = () => {
-      const activeEntry = mediaAudioByVoiceId.get(voiceId);
-      if (activeEntry?.audio === audio) activeEntry.onStopped = undefined;
+      if (!isCurrent()) return;
+      entry.onStopped = undefined;
       lifecycle.onEnded?.();
     };
     const playResult = audio.play();
     if (playResult && typeof playResult.then === 'function') {
-      void playResult.then(() => lifecycle.onStarted?.()).catch(error => {
+      void playResult.then(() => { if (isCurrent()) lifecycle.onStarted?.(); }).catch(error => {
+        if (!isCurrent()) return;
         audio.onended = null;
-        const activeEntry = mediaAudioByVoiceId.get(voiceId);
-        if (activeEntry?.audio === audio) activeEntry.onStopped = undefined;
+        entry.onStopped = undefined;
         logger.warn(`Failed to play Clean Board sound ${source}:`, error);
         lifecycle.onUnavailable?.();
       });
     } else {
       lifecycle.onStarted?.();
     }
-    if (stopAfterSeconds !== undefined) scheduleMediaFadeOut(audio, voiceId, stopAfterSeconds, volume);
+    if (stopAfterSeconds !== undefined) scheduleMediaFadeOut(audio, voiceId, stopAfterSeconds, volume, isCurrent);
     return true;
   } catch (error) {
+    if (!isCurrent()) return false;
     audio.onended = null;
-    const activeEntry = mediaAudioByVoiceId.get(voiceId);
-    if (activeEntry?.audio === audio) activeEntry.onStopped = undefined;
+    entry.onStopped = undefined;
     logger.warn(`Failed to start Clean Board sound ${source}:`, error);
     lifecycle.onUnavailable?.();
     return false;
@@ -247,7 +279,7 @@ export function preloadCleanBoardSounds(): boolean {
     CLEAN_BOARD_CTA_BOUNCE_SOUND_SOURCE,
   ];
   return preloadDecodedGameplaySounds(sources)
-    || sources.every((source, index) => getMediaAudio(source, `clean-board-preload-${index}`) !== null);
+    || sources.every(preloadMediaSource);
 }
 
 export function playCleanBoardApplauseSound(
@@ -339,5 +371,6 @@ export function stopCleanBoardSounds(): void {
 export function resetCleanBoardSoundsForTests(): void {
   stopCleanBoardSounds();
   mediaAudioByVoiceId.clear();
+  availableMediaAudioBySource.clear();
   previousHarpOrder = '';
 }

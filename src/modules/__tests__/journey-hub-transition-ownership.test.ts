@@ -389,7 +389,7 @@ describe('Journey Hub transition ownership', () => {
     expect(worldAnimationCoordinatorSource).toContain("readJourneyRenderedTransformAxis(target, 'x')");
     expect(worldAnimationCoordinatorSource).toContain('entry.resumeBlendStartedAt = now');
     expect(worldAnimationCoordinatorSource).toContain('IDLE_RESUME_POSE_BLEND_SECONDS');
-    expect(worldAnimationCoordinatorSource).toContain('if (this.idleTicker) return;');
+    expect(worldAnimationCoordinatorSource).toContain('this.refreshIdleTickerAttachment();');
     expect(worldAnimationCoordinatorSource).not.toContain('private idleTickers: Array<() => void> = [];');
 
     const exitSource = worldAnimationCoordinatorSource.split(
@@ -498,7 +498,7 @@ describe('Journey Hub transition ownership', () => {
     expect(journeyReturnTraceSource).toContain('cancelPreparedJourneyV700WorldEnter?.(');
     expect(prepareSource).toContain('existingPlan.ownerToken === ownerToken');
     expect(prepareSource).toContain('ownerToken,');
-    expect(prepareSource).toContain('this.startJourneyReturnPaintWarm(container, worldId, ownerToken, source)');
+    expect(prepareSource).toContain('this.startJourneyReturnPaintWarm(container, worldId, ownerToken, source, preparation)');
     expect(prepareSource).toContain('this.renderBoards()');
     expect(prepareSource).toContain('world-return-cold-render-behind-result');
     expect(prepareSource).toContain('world-return-prime-missing-units');
@@ -607,10 +607,15 @@ describe('Journey Hub transition ownership', () => {
     const prepaintStartIndex = openWorldSource.indexOf(
       'const worldPrepaintReady = this.prepareJourneyWorldPrepaint(container, worldId)',
     );
+    const outgoingIdleStopIndex = openWorldSource.indexOf(
+      'this.journeyHubRuntime.prepareForTransition(transitionHub, transitionCards)',
+    );
     const exitIndex = openWorldSource.indexOf('this.playJourneyV700HubExit(');
     const prepaintBarrierIndex = openWorldSource.indexOf(
       'const preparedWorldReady = await worldPrepaintReady',
     );
+    expect(outgoingIdleStopIndex).toBeGreaterThanOrEqual(0);
+    expect(outgoingIdleStopIndex).toBeLessThan(prepaintStartIndex);
     expect(prepaintStartIndex).toBeLessThan(exitIndex);
     expect(exitIndex).toBeLessThan(prepaintBarrierIndex);
     expect(openWorldSource).toContain('this.commitJourneyWorldPrepaint(container, worldId)');

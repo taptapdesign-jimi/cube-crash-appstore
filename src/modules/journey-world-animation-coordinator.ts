@@ -59,6 +59,7 @@ interface JourneyWorldIdleEntry {
 
 const FRAME_INTERVAL_TOLERANCE_MS = 1;
 const IDLE_RESUME_POSE_BLEND_SECONDS = 0.52;
+export const JOURNEY_WORLD_IDLE_ACTIVE_CLASS = 'journey-world-idle-active';
 
 /** Read the transform that the browser actually painted. GSAP's cached x/y can
  * be stale after a lifecycle owner restores an authored transform string
@@ -121,10 +122,13 @@ export function shouldRenderJourneySettledIdleFrame(
 }
 
 export class JourneyWorldAnimationCoordinator {
+  private generation = 0;
   private phase: JourneyWorldAnimationPhase = 'hidden';
   private activeTimeline: gsap.core.Timeline | null = null;
   private idleTicker: (() => void) | null = null;
+  private idleTickerAttached = false;
   private idleEntries: JourneyWorldIdleEntry[] = [];
+  private idlePaintSuspensionRequested = false;
   private idlePaintSuspendedAt: number | null = null;
   private lastSettledIdlePaintAt: number | null = null;
   private idleVisibilityObserver: IntersectionObserver | null = null;
@@ -139,21 +143,25 @@ export class JourneyWorldAnimationCoordinator {
 
   public stop(resetTransforms = false): void {
     this.activeTimeline?.kill();
+    this.generation++;
     this.activeTimeline = null;
     if (this.idleTicker) gsap.ticker.remove(this.idleTicker);
+    this.idleTickerAttached = false;
     this.idleTicker = null;
+    this.idleEntries.forEach((entry) => this.setIdleEntryRuntimeActive(entry, false));
     this.idleEntries = [];
-    this.idlePaintSuspendedAt = null;
+    this.idlePaintSuspendedAt = this.idlePaintSuspensionRequested ? gsap.ticker.time : null;
     this.lastSettledIdlePaintAt = null;
     this.idleVisibilityObserver?.disconnect();
     this.idleVisibilityObserver = null;
     if (resetTransforms) this.phase = 'hidden';
   }
 
-  /** Pause only settled idle paint. Enter keeps its contractually required
-   * per-Unit handoff, while modal/scroll suspension resumes from the exact
-   * previous phase without a catch-up jump. */
+  /** Pause idle paint without consuming its phase. The visible transition
+   * owner allows each completed Unit to idle during the remaining cascade;
+   * background/modal/scroll suspension resumes from the last painted pose. */
   public setIdlePaintSuspended(suspended: boolean): void {
+    this.idlePaintSuspensionRequested = suspended;
     const now = gsap.ticker.time;
     if (suspended) {
       if (this.idlePaintSuspendedAt === null) {
@@ -173,6 +181,8 @@ export class JourneyWorldAnimationCoordinator {
           entry.resumeBlendStartedAt = null;
         });
       }
+      this.idleEntries.forEach((entry) => this.setIdleEntryRuntimeActive(entry, false));
+      this.refreshIdleTickerAttachment();
       return;
     }
     if (this.idlePaintSuspendedAt === null) return;
@@ -183,6 +193,8 @@ export class JourneyWorldAnimationCoordinator {
     });
     this.idlePaintSuspendedAt = null;
     this.lastSettledIdlePaintAt = null;
+    this.idleEntries.forEach((entry) => this.refreshIdleEntryRuntimeActive(entry));
+    this.refreshIdleTickerAttachment();
   }
 
   public async enter(
@@ -191,12 +203,13 @@ export class JourneyWorldAnimationCoordinator {
     options: JourneyWorldEnterOptions = {},
   ): Promise<void> {
     const liveUnits = this.getLiveUnits(units);
+    this.stop();
+    const generation = this.generation;
     if (!liveUnits.length) {
       this.phase = 'idle';
       return;
     }
 
-    this.stop();
     this.phase = 'entering';
     const motion = getJourneyV700MotionProfile(reducedMotion);
     const liveClouds = Array.from(new Set(liveUnits.flatMap((unit) => unit.clouds)));
@@ -261,6 +274,7 @@ export class JourneyWorldAnimationCoordinator {
         // Timeline.add is not patched, so it preserves the exact short cascade.
         const irregularOffset = enterOffsets[index];
         tween.eventCallback('onStart', () => {
+          if (generation !== this.generation) return;
           markJourneyReturnFirstUnitStart({
             unitId: unit.id,
             unitIndex: index,
@@ -275,7 +289,7 @@ export class JourneyWorldAnimationCoordinator {
           });
         });
         tween.eventCallback('onComplete', () => {
-          if (this.phase !== 'entering') return;
+          if (generation !== this.generation || this.phase !== 'entering') return;
           unit.targets.forEach((target) => this.finalizeEnterTarget(target));
           // Each Unit becomes alive as soon as its own enter settles. Its idle
           // never competes with that Unit's enter transform, and later Units
@@ -286,18 +300,19 @@ export class JourneyWorldAnimationCoordinator {
       });
     });
 
-    if (this.phase !== 'entering') return;
+    if (generation !== this.generation || this.phase !== 'entering') return;
     this.phase = 'idle';
   }
 
   public async exit(units: JourneyWorldAnimationUnit[], reducedMotion: boolean): Promise<void> {
     const liveUnits = this.getLiveUnits(units);
+    this.stop();
+    const generation = this.generation;
     if (!liveUnits.length) {
       this.phase = 'hidden';
       return;
     }
 
-    this.stop();
     this.phase = 'exiting';
     const motion = getJourneyV700MotionProfile(reducedMotion);
     const stagger = getJourneyV700UnitStagger(liveUnits.length, reducedMotion);
@@ -330,6 +345,7 @@ export class JourneyWorldAnimationCoordinator {
       exitOrder.forEach((unit, index) => {
         const position = index * stagger;
         const markUnitExitStart = () => {
+          if (generation !== this.generation) return;
           markIOSJourneyTransitionAudit(`exit-unit-${unit.id}-start`);
           emitIOSNativeDiagnostic('world-unit-exit-start', {
             unitId: unit.id,
@@ -351,7 +367,7 @@ export class JourneyWorldAnimationCoordinator {
         });
         let unitExitFinalized = false;
         const finalizeUnitExit = () => {
-          if (unitExitFinalized) return;
+          if (unitExitFinalized || generation !== this.generation) return;
           unitExitFinalized = true;
           unit.targets.forEach((target) => {
             if (!target.isConnected) return;
@@ -472,7 +488,7 @@ export class JourneyWorldAnimationCoordinator {
         });
         let cardExitFinalized = false;
         const finalizeCardExit = () => {
-          if (cardExitFinalized) return;
+          if (cardExitFinalized || generation !== this.generation) return;
           cardExitFinalized = true;
           cardWrappers.forEach((wrapper) => {
             if (!document.body.contains(wrapper)) return;
@@ -505,7 +521,7 @@ export class JourneyWorldAnimationCoordinator {
       });
     });
 
-    if (this.phase === 'exiting') this.phase = 'hidden';
+    if (generation === this.generation && this.phase === 'exiting') this.phase = 'hidden';
   }
 
   private startIdle(
@@ -517,7 +533,7 @@ export class JourneyWorldAnimationCoordinator {
 
     units.forEach((unit, localUnitIndex) => {
       const unitIndex = unitIndexOffset + localUnitIndex;
-      const startTime = gsap.ticker.time;
+      const startTime = this.idlePaintSuspendedAt ?? gsap.ticker.time;
       const duration = 3.15 + ((unitIndex % 3) * 0.28);
       const speed = (Math.PI * 2) / duration;
       const phaseOffset = unitIndex * 0.47;
@@ -555,14 +571,18 @@ export class JourneyWorldAnimationCoordinator {
         visibilityResolved: false,
       };
       this.idleEntries.push(entry);
+      this.refreshIdleEntryRuntimeActive(entry);
       this.observeIdleEntry(entry);
     });
 
-    if (this.idleTicker) return;
+    if (this.idleTicker) {
+      this.refreshIdleTickerAttachment();
+      return;
+    }
     this.idleTicker = () => {
       if (this.phase !== 'entering' && this.phase !== 'idle') return;
       if (this.phase === 'idle' && isThermalWorkSuppressed('journey-units')) return;
-      if (this.idlePaintSuspendedAt !== null && this.phase === 'idle') return;
+      if (this.idlePaintSuspendedAt !== null) return;
       const now = gsap.ticker.time;
       if (
         this.phase === 'idle'
@@ -603,15 +623,28 @@ export class JourneyWorldAnimationCoordinator {
         }
       });
     };
-    gsap.ticker.add(this.idleTicker);
+    this.refreshIdleTickerAttachment();
+  }
+
+  private refreshIdleTickerAttachment(): void {
+    if (!this.idleTicker) return;
+    const needed = this.idlePaintSuspendedAt === null
+      && (this.phase === 'entering' || this.phase === 'idle')
+      && this.idleEntries.some((entry) => !entry.visibilityResolved || entry.visibleTargets.size > 0);
+    if (needed === this.idleTickerAttached) return;
+    this.idleTickerAttached = needed;
+    if (needed) gsap.ticker.add(this.idleTicker);
+    else gsap.ticker.remove(this.idleTicker);
   }
 
   private observeIdleEntry(entry: JourneyWorldIdleEntry): void {
     if (typeof window.IntersectionObserver !== 'function' || entry.visibilityTargets.length === 0) return;
     if (!this.idleVisibilityObserver) {
+      const generation = this.generation;
       const firstTarget = entry.visibilityTargets[0];
       const scrollRoot = firstTarget.closest<HTMLElement>('.collectibles-scrollable');
       this.idleVisibilityObserver = new IntersectionObserver((records) => {
+        if (generation !== this.generation) return;
         const changedEntries = new Set<JourneyWorldIdleEntry>();
         records.forEach((record) => {
           const element = record.target as HTMLElement;
@@ -627,12 +660,29 @@ export class JourneyWorldAnimationCoordinator {
         if (Array.from(changedEntries).some((idleEntry) => idleEntry.visibleTargets.size > 0)) {
           this.lastSettledIdlePaintAt = null;
         }
+        changedEntries.forEach((idleEntry) => this.refreshIdleEntryRuntimeActive(idleEntry));
+        this.refreshIdleTickerAttachment();
       }, {
         root: scrollRoot,
         rootMargin: '160px 0px',
       });
     }
     entry.visibilityTargets.forEach((target) => this.idleVisibilityObserver?.observe(target));
+  }
+
+  private refreshIdleEntryRuntimeActive(entry: JourneyWorldIdleEntry): void {
+    this.setIdleEntryRuntimeActive(
+      entry,
+      this.idlePaintSuspendedAt === null
+        && (!entry.visibilityResolved || entry.visibleTargets.size > 0),
+    );
+  }
+
+  private setIdleEntryRuntimeActive(entry: JourneyWorldIdleEntry, active: boolean): void {
+    entry.yTargets.forEach((target) => {
+      if (!target.isConnected && active) return;
+      target.classList.toggle(JOURNEY_WORLD_IDLE_ACTIVE_CLASS, active);
+    });
   }
 
   private getLiveUnits(units: JourneyWorldAnimationUnit[]): JourneyWorldAnimationUnit[] {

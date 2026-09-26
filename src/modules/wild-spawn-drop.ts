@@ -54,8 +54,8 @@ let assetsPreloadPromise: Promise<void> | null = null;
 const activeDropCleanups = new Set<() => void>();
 
 export function preloadWildSpawnDropAssets(): Promise<void> {
-  preloadArcadeCrateSounds();
-  preloadJourneyBackpackSounds();
+  if (isArcadeHomeRunMode()) preloadArcadeCrateSounds();
+  else preloadJourneyBackpackSounds();
   if (assetsPreloadPromise) return assetsPreloadPromise;
   assetsPreloadPromise = Assets.load([...BACKPACK_PLAYBACK_SOURCES, ...CRATE_IN_SOURCES])
     .then(() => undefined)

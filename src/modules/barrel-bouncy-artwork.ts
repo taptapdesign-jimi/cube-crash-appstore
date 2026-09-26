@@ -1,3 +1,5 @@
+import { isSpecialDiceIdlePaintable } from './special-dice-idle-visibility.ts';
+import { retireFailedSpecialTickerOwner } from './special-ticker-error.ts';
 import { Sprite, type Texture } from 'pixi.js';
 import { STATE } from './app-state.ts';
 import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
@@ -97,13 +99,6 @@ export function preloadBarrelBouncyArtwork(): Promise<void> {
   return preloadSharedPixiSheet(BARREL_SHEET_SPEC);
 }
 
-function isPixiBranchVisible(displayObject: any): boolean {
-  for (let current = displayObject; current; current = current.parent) {
-    if (current.destroyed || current.visible === false || current.renderable === false) return false;
-    if (typeof current.alpha === 'number' && current.alpha <= 0.001) return false;
-  }
-  return true;
-}
 
 function detachRuntimeTicker(): void {
   if (!runtimeTicker) return;
@@ -116,21 +111,21 @@ function disposeController(controller: BarrelController): void {
   controller.disposed = true;
   controllers.delete(controller.tile);
   if (controller.tile?._ccBarrelBouncyArtwork === controller) delete controller.tile._ccBarrelBouncyArtwork;
-  controller.phaseLease?.release();
+  try { controller.phaseLease?.release(); } catch {}
   controller.phaseLease = null;
   if (controller.retryTimer !== null) {
     clearTimeout(controller.retryTimer);
     controller.retryTimer = null;
   }
-  releaseAnimatedDiceAboveHud(controller);
+  try { releaseAnimatedDiceAboveHud(controller); } catch {}
   if (controller.sprite) {
     try { controller.sprite.parent?.removeChild(controller.sprite); } catch {}
     try { controller.sprite.destroy({ texture: false, textureSource: false }); } catch {}
     controller.sprite = null;
   }
   controller.frames = null;
-  controller.resource.release();
-  if (controller.base && !controller.base.destroyed) controller.base.renderable = controller.originalRenderable;
+  try { controller.resource.release(); } catch {}
+  try { if (controller.base && !controller.base.destroyed) controller.base.renderable = controller.originalRenderable; } catch {}
   if (controllers.size === 0) detachRuntimeTicker();
 }
 
@@ -145,8 +140,9 @@ function updateController(controller: BarrelController, deltaMs: number): void {
     if (sprite) sprite.renderable = false;
     return;
   }
-  controller.elapsedMs = (controller.elapsedMs + Math.max(0, deltaMs)) % BARREL_BOUNCY_SEQUENCE_MS;
-  const visible = base.visible !== false && isPixiBranchVisible(host);
+  const paintable = isSpecialDiceIdlePaintable(tile);
+  if (paintable) controller.elapsedMs = (controller.elapsedMs + Math.max(0, deltaMs)) % BARREL_BOUNCY_SEQUENCE_MS;
+  const visible = base.visible !== false && paintable;
   sprite.visible = visible;
   sprite.renderable = visible;
   if (!visible) {
@@ -168,7 +164,10 @@ function updateController(controller: BarrelController, deltaMs: number): void {
 function updateAllControllers(ticker?: any): void {
   const rawDeltaMs = Number(ticker?.elapsedMS);
   const deltaMs = Number.isFinite(rawDeltaMs) && rawDeltaMs >= 0 ? Math.min(100, rawDeltaMs) : (1000 / 60);
-  Array.from(controllers.values()).forEach((controller) => updateController(controller, deltaMs));
+  Array.from(controllers.values()).forEach((controller) => {
+    try { updateController(controller, deltaMs); }
+    catch (error) { retireFailedSpecialTickerOwner('barrel', error, () => disposeController(controller)); }
+  });
 }
 
 function getLiveTicker(): any {

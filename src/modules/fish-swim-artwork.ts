@@ -1,3 +1,5 @@
+import { isSpecialDiceIdlePaintable } from './special-dice-idle-visibility.ts';
+import { retireFailedSpecialTickerOwner } from './special-ticker-error.ts';
 import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
 import {
   acquireAnimatedSpecialArtworkLayer,
@@ -231,15 +233,6 @@ export function getFishSwimDisplayGeometry() {
   };
 }
 
-function isPixiBranchVisible(displayObject: any): boolean {
-  let current = displayObject;
-  while (current) {
-    if (current.destroyed || current.visible === false || current.renderable === false) return false;
-    if (typeof current.alpha === 'number' && current.alpha <= 0.001) return false;
-    current = current.parent;
-  }
-  return true;
-}
 
 function getPixiBranchAlpha(displayObject: any): number {
   let alpha = 1;
@@ -258,13 +251,13 @@ function disposeController(controller: FishSwimController): void {
   if (controller.tile?._ccFishSwimArtwork === controller) {
     delete controller.tile._ccFishSwimArtwork;
   }
-  controller.phaseLease?.release();
+  try { controller.phaseLease?.release(); } catch {}
   controller.phaseLease = null;
-  releaseFrontBubbleSystem(controller);
+  try { releaseFrontBubbleSystem(controller); } catch {}
   if (controller.image) {
     controller.image.onload = null;
     controller.image.onerror = null;
-    controller.image.remove();
+    try { controller.image.remove(); } catch {}
     controller.image = null;
   }
   if (controller.video) {
@@ -275,7 +268,7 @@ function disposeController(controller: FishSwimController): void {
       controller.video.removeAttribute('src');
       controller.video.load();
     } catch {}
-    controller.video.remove();
+    try { controller.video.remove(); } catch {}
     controller.video = null;
   }
   try { controller.wrapper.remove(); } catch {}
@@ -314,7 +307,10 @@ function resumeFishMedia(controller: FishSwimController): void {
 
 function onLayerSuspension(suspended: boolean): void {
   layerSuspended = suspended;
-  if (suspended) controllers.forEach(suspendFishMedia);
+  if (suspended) controllers.forEach(controller => {
+    try { suspendFishMedia(controller); }
+    catch (error) { retireFailedSpecialTickerOwner('fish', error, () => disposeController(controller)); }
+  });
 }
 
 function syncController(controller: FishSwimController, frame: AnimatedSpecialArtworkFrame): void {
@@ -344,7 +340,7 @@ function syncController(controller: FishSwimController, frame: AnimatedSpecialAr
   }
 
   const paintable = !layerSuspended && base.visible !== false
-    && isPixiBranchVisible(host) && canvasRect.width > 0 && canvasRect.height > 0;
+    && isSpecialDiceIdlePaintable(tile) && canvasRect.width > 0 && canvasRect.height > 0;
   if (paintable) resumeFishMedia(controller);
   else suspendFishMedia(controller);
   const visible = controller.ready && paintable;
@@ -387,11 +383,16 @@ function setFishStyle(node: HTMLElement | SVGElement, property: 'transform' | 'o
 }
 
 function updateFishSwimArtwork(frame: AnimatedSpecialArtworkFrame): void {
-  controllers.forEach((controller) => syncController(controller, frame));
+  controllers.forEach((controller) => {
+    try { syncController(controller, frame); }
+    catch (error) { retireFailedSpecialTickerOwner('fish', error, () => disposeController(controller)); }
+  });
 }
 
 function ensureRuntimeLease(): AnimatedSpecialArtworkLayerLease | null {
-  if (!runtimeLease) runtimeLease = acquireAnimatedSpecialArtworkLayer(updateFishSwimArtwork, onLayerSuspension);
+  if (!runtimeLease) runtimeLease = acquireAnimatedSpecialArtworkLayer(
+    updateFishSwimArtwork, onLayerSuspension, destroyFishSwimArtworkRuntime,
+  );
   return runtimeLease;
 }
 

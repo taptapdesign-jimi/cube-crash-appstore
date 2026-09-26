@@ -158,6 +158,23 @@ describe('Journey Worlds Hub sound', () => {
     expect(audio.paused).toBe(false);
     expect(audio.volume).toBeCloseTo(JOURNEY_WORLDS_WORLD_VOLUME);
     expect(audio.play).toHaveBeenCalledTimes(1);
+
+    jest.advanceTimersByTime(JOURNEY_WORLDS_WORLD_FADE_DELAY_MS + JOURNEY_WORLDS_WORLD_FADE_OUT_MS);
+    expect(audio.paused).toBe(true);
+    expect(audio.currentTime).toBe(0);
+  });
+
+  test('duplicate World enter does not extend the bounded World voice lifetime', () => {
+    expect(playJourneyWorldsWorldSound()).toBe(true);
+    const audio = MockAudio.instances[0];
+    jest.advanceTimersByTime(JOURNEY_WORLDS_WORLD_FADE_DELAY_MS - 250);
+
+    expect(playJourneyWorldsWorldSound()).toBe(true);
+    expect(audio.play).toHaveBeenCalledTimes(1);
+    jest.advanceTimersByTime(250 + JOURNEY_WORLDS_WORLD_FADE_OUT_MS);
+
+    expect(audio.paused).toBe(true);
+    expect(audio.currentTime).toBe(0);
   });
 
   test('preserves the World-level voice through Play cleanup and fades only at transition mount', () => {
@@ -208,8 +225,10 @@ describe('Journey Worlds Hub sound', () => {
       path.resolve(process.cwd(), 'src/modules/ui-manager.ts'),
       'utf8',
     );
-    expect(uiManager).toContain("import('./journey-worlds-hub-sound.ts')");
-    expect(uiManager).toContain('stopJourneyWorldsHubSound();');
+    expect(uiManager).toContain('applyGameSoundsSettingToAudio(enabled)');
+    expect(fs.readFileSync('src/modules/gameplay-sound-owner-registry.ts', 'utf8')).toContain('journey-worlds-hub-sound');
+    expect(uiManager).toContain('applyGameSoundsSettingToAudio(enabled)');
+    expect(fs.readFileSync('src/modules/gameplay-sound-owner-registry.ts', 'utf8')).toContain('stopJourneyWorldsHubSound');
 
     const boardTransition = fs.readFileSync(
       path.resolve(process.cwd(), 'src/modules/board-transition-screen.ts'),

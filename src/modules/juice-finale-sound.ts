@@ -52,6 +52,11 @@ function clearBubbleMediaFade(): void {
     clearInterval(bubbleMediaFadeTimer);
     bubbleMediaFadeTimer = null;
   }
+  const audio = mediaByVoiceId.get(CUES.bubble.voiceId);
+  if (audio) {
+    audio.onended = null;
+    audio.onerror = null;
+  }
 }
 
 function startBubbleMediaFade(audio: HTMLAudioElement, fullVolume: number, run: number): void {
@@ -71,7 +76,7 @@ function startBubbleMediaFade(audio: HTMLAudioElement, fullVolume: number, run: 
     audio.volume = fullVolume * (1 - fadeProgress);
   };
   update();
-  bubbleMediaFadeTimer = window.setInterval(update, 25);
+  if (run === bubbleMediaRun) bubbleMediaFadeTimer = window.setInterval(update, 25);
 }
 
 function soundsEnabled(): boolean {
@@ -103,22 +108,32 @@ function playMediaSound(source: string, voiceId: string, volume: number): boolea
   try {
     stopMediaVoice(voiceId);
     audio.volume = volume;
-    const playAttempt = audio.play();
     if (voiceId === CUES.bubble.voiceId) {
       const run = ++bubbleMediaRun;
+      const finish = () => {
+        if (run === bubbleMediaRun) clearBubbleMediaFade();
+      };
+      audio.onended = finish;
+      audio.onerror = finish;
+      const playAttempt = audio.play();
       if (playAttempt && typeof playAttempt.then === 'function') {
         void playAttempt.then(
           () => startBubbleMediaFade(audio, volume, run),
-          (error) => logger.warn(`Failed to play Juice finale sound ${source}:`, error),
+          (error) => {
+            finish();
+            logger.warn(`Failed to play Juice finale sound ${source}:`, error);
+          },
         );
       } else {
         startBubbleMediaFade(audio, volume, run);
       }
     } else {
+      const playAttempt = audio.play();
       playAttempt?.catch((error) => logger.warn(`Failed to play Juice finale sound ${source}:`, error));
     }
     return true;
   } catch (error) {
+    if (voiceId === CUES.bubble.voiceId) clearBubbleMediaFade();
     logger.warn(`Failed to start Juice finale sound ${source}:`, error);
     return false;
   }

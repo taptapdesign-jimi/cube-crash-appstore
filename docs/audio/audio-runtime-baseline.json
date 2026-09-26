@@ -1,0 +1,790 @@
+{
+  "version": 1,
+  "grandfatheredOwners": [
+    "src/modules/arcade-crate-sound.ts",
+    "src/modules/arcade-round-digit-sound.ts",
+    "src/modules/arcade-stage-clear-sound.ts",
+    "src/modules/asset-preloader.ts",
+    "src/modules/barrel-merge6-sound.ts",
+    "src/modules/beach-ball-merge6-sound.ts",
+    "src/modules/bee-merge6-sound.ts",
+    "src/modules/board-transition-area55-sound.ts",
+    "src/modules/board-transition-forest-ambient-sound.ts",
+    "src/modules/board-transition-screen.ts",
+    "src/modules/bottle-finale-sound.ts",
+    "src/modules/bottle-pull-merge-sound.ts",
+    "src/modules/clean-board-sound.ts",
+    "src/modules/core-tnt-merge6-sound.ts",
+    "src/modules/cta-activation-sound.ts",
+    "src/modules/fail-screen-sound.ts",
+    "src/modules/fish-finale-bubbles.ts",
+    "src/modules/fish-finale-swimmer.ts",
+    "src/modules/fish-merge6-sound.ts",
+    "src/modules/fish-swim-artwork.ts",
+    "src/modules/flower-merge6-sound.ts",
+    "src/modules/gameplay-audio-buffer-player.ts",
+    "src/modules/gameplay-audio-diagnostics.ts",
+    "src/modules/gameplay-exit-modal-enter-sound.ts",
+    "src/modules/gameplay-pickup-sound.ts",
+    "src/modules/gameplay-sound-owner-registry.ts",
+    "src/modules/gameplay-sound-settings.ts",
+    "src/modules/homepage-slider-swipe-sound.ts",
+    "src/modules/honey-merge6-sound.ts",
+    "src/modules/journey-backpack-sound.ts",
+    "src/modules/journey-card-entry-flip-sound.ts",
+    "src/modules/journey-forest-ambient-sound.ts",
+    "src/modules/journey-forest-gameplay-sound.ts",
+    "src/modules/journey-long-loop-lifecycle.ts",
+    "src/modules/journey-worlds-hub-sound.ts",
+    "src/modules/juice-finale-sound.ts",
+    "src/modules/kanta-merge6-sound.ts",
+    "src/modules/laser-gun-merge6-sound.ts",
+    "src/modules/launch-screen.ts",
+    "src/modules/magnet-pull-force-sound.ts",
+    "src/modules/main-theme-web-audio-transport.ts",
+    "src/modules/merge-utils.ts",
+    "src/modules/navigation-close-sound.ts",
+    "src/modules/navigation-icon-sound.ts",
+    "src/modules/no-moves-sound.ts",
+    "src/modules/ordinary-stack-sound.ts",
+    "src/modules/regular-merge6-sound.ts",
+    "src/modules/robo-cube-merge6-sound.ts",
+    "src/modules/sound-effects-volume.ts",
+    "src/modules/soundtrack-audio-clock-volume.ts",
+    "src/modules/soundtrack-context-recovery.ts",
+    "src/modules/soundtrack-manager.ts",
+    "src/modules/spaceship-merge6-sound.ts",
+    "src/modules/special-sound-warmup.ts",
+    "src/modules/thermal-gameplay-audio-cleanup.ts",
+    "src/modules/wild-special-landing-sound.ts",
+    "src/modules/wild-special-merge6-poof-sound.ts",
+    "src/modules/wild-star-merge6-sound.ts",
+    "src/utils/app-store-compliance.ts",
+    "src/utils/thermal-audio-isolation.ts",
+    "src/utils/thermal-isolation-panel.ts"
+  ],
+  "assetReferences": [
+    {
+      "file": "src/modules/arcade-crate-sound.ts",
+      "source": "./assets/sound/crate and backpack animaitons/crate/crate 1.wav"
+    },
+    {
+      "file": "src/modules/arcade-crate-sound.ts",
+      "source": "./assets/sound/crate and backpack animaitons/crate/crate 3.wav"
+    },
+    {
+      "file": "src/modules/arcade-crate-sound.ts",
+      "source": "./assets/sound/crate and backpack animaitons/crate/crate 4.wav"
+    },
+    {
+      "file": "src/modules/arcade-crate-sound.ts",
+      "source": "./assets/sound/crate and backpack animaitons/crate/crate2.wav"
+    },
+    {
+      "file": "src/modules/arcade-round-digit-sound.ts",
+      "source": "./assets/sound/NN tranzicije/bum bum 2.wav"
+    },
+    {
+      "file": "src/modules/arcade-round-digit-sound.ts",
+      "source": "./assets/sound/NN tranzicije/bum bum zvuk.wav"
+    },
+    {
+      "file": "src/modules/arcade-round-digit-sound.ts",
+      "source": "./assets/sound/NN tranzicije/exit.wav"
+    },
+    {
+      "file": "src/modules/arcade-stage-clear-sound.ts",
+      "source": "./assets/sound/cjelina flip/flip soft.wav"
+    },
+    {
+      "file": "src/modules/arcade-stage-clear-sound.ts",
+      "source": "./assets/sound/Clean board/applause.wav"
+    },
+    {
+      "file": "src/modules/arcade-stage-clear-sound.ts",
+      "source": "./assets/sound/Clean board/happy victory sax .wav"
+    },
+    {
+      "file": "src/modules/barrel-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/barell/"
+    },
+    {
+      "file": "src/modules/beach-ball-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/ball/ball impact.mp3"
+    },
+    {
+      "file": "src/modules/beach-ball-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/ball/ball1.wav"
+    },
+    {
+      "file": "src/modules/beach-ball-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/ball/ball2.wav"
+    },
+    {
+      "file": "src/modules/beach-ball-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/ball/ball4.wav"
+    },
+    {
+      "file": "src/modules/beach-ball-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/ball/ball5-60pct.wav"
+    },
+    {
+      "file": "src/modules/bee-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/bee/"
+    },
+    {
+      "file": "src/modules/board-transition-area55-sound.ts",
+      "source": "./assets/sound/Board transitions/Area 55/"
+    },
+    {
+      "file": "src/modules/board-transition-area55-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/gun/beam1.wav"
+    },
+    {
+      "file": "src/modules/board-transition-area55-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/gun/prep.wav"
+    },
+    {
+      "file": "src/modules/board-transition-area55-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/robo/bibice.wav"
+    },
+    {
+      "file": "src/modules/board-transition-forest-ambient-sound.ts",
+      "source": "./assets/sound/Board transitions/Forest/bees small.wav"
+    },
+    {
+      "file": "src/modules/board-transition-forest-ambient-sound.ts",
+      "source": "./assets/sound/Board transitions/Forest/Forest.wav"
+    },
+    {
+      "file": "src/modules/bottle-finale-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/bottle/bottle 2.wav"
+    },
+    {
+      "file": "src/modules/bottle-finale-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/bottle/bottle1.wav"
+    },
+    {
+      "file": "src/modules/bottle-finale-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/bottle/bublesi.wav"
+    },
+    {
+      "file": "src/modules/bottle-finale-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/bottle/cling.wav"
+    },
+    {
+      "file": "src/modules/bottle-finale-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/bottle/cling2.wav"
+    },
+    {
+      "file": "src/modules/bottle-finale-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/bottle/water waves.wav"
+    },
+    {
+      "file": "src/modules/bottle-pull-merge-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/bottle/"
+    },
+    {
+      "file": "src/modules/clean-board-sound.ts",
+      "source": "./assets/sound/Clean board/"
+    },
+    {
+      "file": "src/modules/clean-board-sound.ts",
+      "source": "./assets/sound/magnet pul lforce/pull1.wav"
+    },
+    {
+      "file": "src/modules/constants.ts",
+      "source": "./assets/sound/sfx/explode.mp3"
+    },
+    {
+      "file": "src/modules/core-tnt-merge6-sound.ts",
+      "source": "./assets/sound/mini explozije/mini2.mp3"
+    },
+    {
+      "file": "src/modules/core-tnt-merge6-sound.ts",
+      "source": "./assets/sound/mini explozije/mini3.wav"
+    },
+    {
+      "file": "src/modules/core-tnt-merge6-sound.ts",
+      "source": "./assets/sound/mini explozije/mini4.wav"
+    },
+    {
+      "file": "src/modules/core-tnt-merge6-sound.ts",
+      "source": "./assets/sound/mini explozije/mini5.wav"
+    },
+    {
+      "file": "src/modules/core-tnt-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/tnt/horn.wav"
+    },
+    {
+      "file": "src/modules/core-tnt-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/tnt/mini crash1.wav"
+    },
+    {
+      "file": "src/modules/core-tnt-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/tnt/tnt3.wav"
+    },
+    {
+      "file": "src/modules/core-tnt-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/tnt/wood break.wav"
+    },
+    {
+      "file": "src/modules/core-tnt-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/tnt/wood ssplinter.wav"
+    },
+    {
+      "file": "src/modules/cta-activation-sound.ts",
+      "source": "./assets/sound/CTA/cta squishy.wav"
+    },
+    {
+      "file": "src/modules/cta-activation-sound.ts",
+      "source": "./assets/sound/CTA/cta-splat.wav"
+    },
+    {
+      "file": "src/modules/cta-activation-sound.ts",
+      "source": "./assets/sound/CTA/deeper.wav"
+    },
+    {
+      "file": "src/modules/cta-activation-sound.ts",
+      "source": "./assets/sound/CTA/pumb.wav"
+    },
+    {
+      "file": "src/modules/fail-screen-sound.ts",
+      "source": "./assets/sound/fail board/six fail.wav"
+    },
+    {
+      "file": "src/modules/fail-screen-sound.ts",
+      "source": "./assets/sound/magnet pul lforce/pull1.wav"
+    },
+    {
+      "file": "src/modules/fish-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/fish/"
+    },
+    {
+      "file": "src/modules/flower-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/flower/"
+    },
+    {
+      "file": "src/modules/gameplay-exit-modal-enter-sound.ts",
+      "source": "./assets/sound/UI /modal/modal enter.wav"
+    },
+    {
+      "file": "src/modules/gameplay-pickup-sound.ts",
+      "source": "./assets/sound/merge 6/woosh.mp3"
+    },
+    {
+      "file": "src/modules/gameplay-pickup-sound.ts",
+      "source": "./assets/sound/merge 6/woosh.mp3"
+    },
+    {
+      "file": "src/modules/homepage-slider-swipe-sound.ts",
+      "source": "./assets/sound/UI /sliders/super swoosh.mp3"
+    },
+    {
+      "file": "src/modules/honey-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/honey/"
+    },
+    {
+      "file": "src/modules/journey-backpack-sound.ts",
+      "source": "./assets/sound/crate and backpack animaitons/backpack/backpack1.wav"
+    },
+    {
+      "file": "src/modules/journey-backpack-sound.ts",
+      "source": "./assets/sound/crate and backpack animaitons/backpack/backpack2.wav"
+    },
+    {
+      "file": "src/modules/journey-card-entry-flip-sound.ts",
+      "source": "./assets/sound/cjelina flip/"
+    },
+    {
+      "file": "src/modules/journey-forest-ambient-sound.ts",
+      "source": "./assets/sound/worlds/Forest/forest nature sounds.wav"
+    },
+    {
+      "file": "src/modules/journey-forest-ambient-sound.ts",
+      "source": "./assets/sound/worlds/Forest/soft bees ambiance.wav"
+    },
+    {
+      "file": "src/modules/journey-forest-gameplay-sound.ts",
+      "source": "./assets/sound/worlds/Forest/gameplay/forest-gameplay-sound.wav"
+    },
+    {
+      "file": "src/modules/journey-worlds-hub-sound.ts",
+      "source": "./assets/sound/worlds/crumbleworlds.wav"
+    },
+    {
+      "file": "src/modules/juice-finale-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/juice/"
+    },
+    {
+      "file": "src/modules/kanta-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/kanta/"
+    },
+    {
+      "file": "src/modules/laser-gun-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/gun/"
+    },
+    {
+      "file": "src/modules/laser-gun-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/star/star1.wav"
+    },
+    {
+      "file": "src/modules/laser-gun-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/tnt/horn.wav"
+    },
+    {
+      "file": "src/modules/magnet-pull-force-sound.ts",
+      "source": "./assets/sound/magnet pul lforce/"
+    },
+    {
+      "file": "src/modules/navigation-close-sound.ts",
+      "source": "./assets/sound/CTA/deppimpact.wav"
+    },
+    {
+      "file": "src/modules/navigation-icon-sound.ts",
+      "source": "./assets/sound/CTA/poping.wav"
+    },
+    {
+      "file": "src/modules/navigation-icon-sound.ts",
+      "source": "./assets/sound/CTA/wood click.wav"
+    },
+    {
+      "file": "src/modules/no-moves-sound.ts",
+      "source": "./assets/sound/grandpa - no moves left.mp3"
+    },
+    {
+      "file": "src/modules/ordinary-stack-sound.ts",
+      "source": "./assets/sound/merge 6/stack.mp3"
+    },
+    {
+      "file": "src/modules/ordinary-stack-sound.ts",
+      "source": "./assets/sound/merge 6/wood.wav"
+    },
+    {
+      "file": "src/modules/regular-merge6-sound.ts",
+      "source": "./assets/sound/merge 6/merge six obicna.mp3"
+    },
+    {
+      "file": "src/modules/regular-merge6-sound.ts",
+      "source": "./assets/sound/merge 6/merge6 boom.mp3"
+    },
+    {
+      "file": "src/modules/regular-merge6-sound.ts",
+      "source": "./assets/sound/merge 6/merge6 crash.mp3"
+    },
+    {
+      "file": "src/modules/regular-merge6-sound.ts",
+      "source": "./assets/sound/merge 6/stack.mp3"
+    },
+    {
+      "file": "src/modules/robo-cube-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/robo/"
+    },
+    {
+      "file": "src/modules/soundtrack-manager.ts",
+      "source": "./assets/sound/soundtrack/adaptive-music-v3/gameplay-bed-active-01.wav"
+    },
+    {
+      "file": "src/modules/soundtrack-manager.ts",
+      "source": "./assets/sound/soundtrack/adaptive-music-v3/gameplay-bed-calm-01.wav"
+    },
+    {
+      "file": "src/modules/soundtrack-manager.ts",
+      "source": "./assets/sound/soundtrack/theme-loop-v1/SIx-theme-original-intro-bridge.wav"
+    },
+    {
+      "file": "src/modules/soundtrack-manager.ts",
+      "source": "./assets/sound/soundtrack/theme-loop-v1/SIx-theme-runtime-intro-loop.wav"
+    },
+    {
+      "file": "src/modules/soundtrack-manager.ts",
+      "source": "./assets/sound/soundtrack/theme-loop-v1/SIx-theme-seamless-loop.wav"
+    },
+    {
+      "file": "src/modules/spaceship-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/spaceship/"
+    },
+    {
+      "file": "src/modules/wild-special-landing-sound.ts",
+      "source": "./assets/sound/sfx/bag drop.wav"
+    },
+    {
+      "file": "src/modules/wild-special-merge6-poof-sound.ts",
+      "source": "./assets/sound/merge 6/poof1.wav"
+    },
+    {
+      "file": "src/modules/wild-special-merge6-poof-sound.ts",
+      "source": "./assets/sound/merge 6/poof2.wav"
+    },
+    {
+      "file": "src/modules/wild-star-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/star/long_magica_happy_ac_%232-1788980185281.wav"
+    },
+    {
+      "file": "src/modules/wild-star-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/star/long_magica_happy_ac_%233-1788980189939.wav"
+    },
+    {
+      "file": "src/modules/wild-star-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/star/magicle_sparkle_for__%231-1788980027254.wav"
+    },
+    {
+      "file": "src/modules/wild-star-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/star/star1.wav"
+    },
+    {
+      "file": "src/modules/wild-star-merge6-sound.ts",
+      "source": "./assets/sound/Wild and special kockice/star/star2.wav"
+    }
+  ],
+  "rawAudioPrimitives": [
+    {
+      "file": "src/modules/arcade-crate-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/arcade-round-digit-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/arcade-stage-clear-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/arcade-stage-clear-sound.ts",
+      "kind": "audio-frame",
+      "snippet": "mediaFadeFrames.set(voiceId, requestAnimationFrame(fade));",
+      "count": 2
+    },
+    {
+      "file": "src/modules/asset-preloader.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio();",
+      "count": 1
+    },
+    {
+      "file": "src/modules/asset-preloader.ts",
+      "kind": "audio-frame",
+      "snippet": "requestAnimationFrame(() => resolve());",
+      "count": 1
+    },
+    {
+      "file": "src/modules/barrel-merge6-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/beach-ball-merge6-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/bee-merge6-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/board-transition-area55-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/board-transition-forest-ambient-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/board-transition-forest-ambient-sound.ts",
+      "kind": "audio-interval",
+      "snippet": "mediaBeesFadeIntervalId = window.setInterval(applyFadeStep, MEDIA_FADE_STEP_MS);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/board-transition-screen.ts",
+      "kind": "audio-interval",
+      "snippet": "memSampleInterval = window.setInterval(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/bottle-finale-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/bottle-pull-merge-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/clean-board-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/clean-board-sound.ts",
+      "kind": "audio-frame",
+      "snippet": "mediaFadeFrames.set(voiceId, requestAnimationFrame(fade));",
+      "count": 2
+    },
+    {
+      "file": "src/modules/core-tnt-merge6-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/cta-activation-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/fail-screen-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/fish-merge6-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/flower-merge6-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/gameplay-audio-buffer-player.ts",
+      "kind": "buffer-source",
+      "snippet": "const sourceNode = attemptedSource = context.createBufferSource();",
+      "count": 1
+    },
+    {
+      "file": "src/modules/gameplay-audio-buffer-player.ts",
+      "kind": "decode",
+      "snippet": "try { decodedAudio = await context.decodeAudioData(encodedAudio); }",
+      "count": 1
+    },
+    {
+      "file": "src/modules/gameplay-pickup-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/honey-merge6-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-backpack-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-card-entry-flip-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-forest-ambient-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-forest-ambient-sound.ts",
+      "kind": "audio-interval",
+      "snippet": "fadeIntervalId = window.setInterval(applyFadeStep, FADE_STEP_MS);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-forest-gameplay-sound.ts",
+      "kind": "audio-element",
+      "snippet": "mediaAudio = new Audio(JOURNEY_FOREST_GAMEPLAY_SOUND_SOURCE);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-forest-gameplay-sound.ts",
+      "kind": "audio-interval",
+      "snippet": "if (mediaAudio) fadeIntervalId = window.setInterval(applyFadeStep, FADE_STEP_MS);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-worlds-hub-sound.ts",
+      "kind": "audio-element",
+      "snippet": "mediaAudio = new Audio(JOURNEY_WORLDS_HUB_SOUND_SOURCE);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-worlds-hub-sound.ts",
+      "kind": "audio-interval",
+      "snippet": "if (mediaAudio) volumeIntervalId = window.setInterval(applyFadeStep, VOLUME_STEP_MS);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/journey-worlds-hub-sound.ts",
+      "kind": "audio-interval",
+      "snippet": "volumeIntervalId = window.setInterval(applyVolumeStep, VOLUME_STEP_MS);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/juice-finale-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/juice-finale-sound.ts",
+      "kind": "audio-interval",
+      "snippet": "if (run === bubbleMediaRun) bubbleMediaFadeTimer = window.setInterval(update, 25);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/kanta-merge6-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/kanta-merge6-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = preloadedMedia.get(source) ?? new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/laser-gun-merge6-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/magnet-pull-force-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/main-theme-web-audio-transport.ts",
+      "kind": "buffer-source",
+      "snippet": "const source = this.context.createBufferSource();",
+      "count": 2
+    },
+    {
+      "file": "src/modules/main-theme-web-audio-transport.ts",
+      "kind": "decode",
+      "snippet": "const buffer = await context.decodeAudioData(encoded);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/navigation-icon-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/no-moves-sound.ts",
+      "kind": "audio-element",
+      "snippet": "ownedAudio = new Audio(NO_MOVES_SOUND_SOURCE);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/ordinary-stack-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/regular-merge6-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/regular-merge6-sound.ts",
+      "kind": "audio-interval",
+      "snippet": "crashFadeInterval = window.setInterval(() => {",
+      "count": 1
+    },
+    {
+      "file": "src/modules/robo-cube-merge6-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/soundtrack-manager.ts",
+      "kind": "audio-element",
+      "snippet": "}) ?? new Audio(SOUNDTRACK_URL);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/soundtrack-manager.ts",
+      "kind": "audio-element",
+      "snippet": "introAudio = new Audio(SOUNDTRACK_INTRO_URL);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/soundtrack-manager.ts",
+      "kind": "audio-element",
+      "snippet": "new Audio(getArcadeLayerUrl(layer));",
+      "count": 1
+    },
+    {
+      "file": "src/modules/soundtrack-manager.ts",
+      "kind": "audio-frame",
+      "snippet": "if (progress < 1) requestAnimationFrame(run);",
+      "count": 2
+    },
+    {
+      "file": "src/modules/soundtrack-manager.ts",
+      "kind": "audio-frame",
+      "snippet": "requestAnimationFrame(run);",
+      "count": 2
+    },
+    {
+      "file": "src/modules/spaceship-merge6-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/wild-special-landing-sound.ts",
+      "kind": "audio-element",
+      "snippet": "ownedAudio = new Audio(WILD_SPECIAL_LANDING_SOUND_SOURCE);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/wild-special-merge6-poof-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    },
+    {
+      "file": "src/modules/wild-star-merge6-sound.ts",
+      "kind": "audio-element",
+      "snippet": "const audio = new Audio(source);",
+      "count": 1
+    }
+  ]
+}

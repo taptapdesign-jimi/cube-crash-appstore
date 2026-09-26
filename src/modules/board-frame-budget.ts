@@ -7,6 +7,8 @@ export type BoardFrameBudgetSnapshot = {
   reducedFx: boolean;
   sampleCount: number;
   sustainedLoadReduction: boolean;
+  expectedFrameMs: number;
+  framesOverBudget: number;
 };
 
 export const IOS_SUSTAINED_LOAD_REDUCTION_AFTER_MS = 180_000;
@@ -32,22 +34,30 @@ export function shouldUseSustainedLoadReduction(elapsedMs: number, isMobileRunti
 }
 
 export function shouldSampleBoardFrameBudget(maxFPS: number | undefined, isMobileRuntime: boolean): boolean {
-  if (!isMobileRuntime) return true;
-  if (!Number.isFinite(maxFPS) || Number(maxFPS) <= 0) return true;
-  return Number(maxFPS) >= 55;
+  // A configured cap is a target, not evidence that its frames were delivered.
+  return !isMobileRuntime || maxFPS === undefined || Number.isFinite(maxFPS);
+}
+
+function expectedFrameMs(maxFPS?: number): number {
+  return MOBILE_RUNTIME_PROFILE.isMobileDevice && Number.isFinite(maxFPS) && Number(maxFPS) > 0
+    ? 1000 / Math.min(60, Number(maxFPS))
+    : 1000 / 60;
 }
 
 export function evaluateBoardFrameBudget(
   samples: number[],
   currentlyReduced = false,
   sustainedLoadReduction = false,
+  targetFrameMs = 1000 / 60,
 ): BoardFrameBudgetSnapshot {
   const usable = samples.filter((value) => Number.isFinite(value) && value > 0).slice(-120);
   const averageFrameMs = usable.length ? usable.reduce((sum, value) => sum + value, 0) / usable.length : 16.67;
   const worstFrameMs = usable.length ? Math.max(...usable) : 16.67;
   const framesOver28Ms = usable.filter((value) => value > 28).length;
-  const shouldReduce = averageFrameMs > 20.5 || framesOver28Ms >= 7 || worstFrameMs > 65;
-  const canRecover = currentlyReduced && averageFrameMs < 18.2 && framesOver28Ms <= 2;
+  const idleAllowance = Math.max(0, targetFrameMs - 1000 / 60);
+  const framesOverBudget = usable.filter(value => value - idleAllowance > 28).length;
+  const shouldReduce = averageFrameMs - idleAllowance > 20.5 || framesOverBudget >= 7 || worstFrameMs - idleAllowance > 65;
+  const canRecover = currentlyReduced && averageFrameMs - idleAllowance < 18.2 && framesOverBudget <= 2;
   return {
     averageFrameMs,
     worstFrameMs,
@@ -55,6 +65,8 @@ export function evaluateBoardFrameBudget(
     reducedFx: sustainedLoadReduction || shouldReduce || (currentlyReduced && !canRecover),
     sampleCount: usable.length,
     sustainedLoadReduction,
+    expectedFrameMs: targetFrameMs,
+    framesOverBudget,
   };
 }
 
@@ -73,11 +85,21 @@ export function startBoardFrameBudgetMonitor(ticker?: FrameBudgetTicker | null):
   framesSinceEvaluation = 0;
   activeMonitorElapsedMs = 0;
 
-  const sampleFrame = (now: number) => {
+  let lastTargetFrameMs = expectedFrameMs(ticker?.maxFPS);
+  const sampleFrame = (now: number, targetFrameMs = 1000 / 60) => {
     const frameMs = Math.max(1, Math.min(250, now - lastFrameAt));
+    // Never compare a preceding 30 FPS sample window with a new 60 FPS target.
+    if (targetFrameMs !== lastTargetFrameMs) {
+      frameSamples = [];
+      framesSinceEvaluation = 0;
+      stableWindows = 0;
+      lastTargetFrameMs = targetFrameMs;
+      lastFrameAt = now;
+      return;
+    }
     frameSamples.push(frameMs);
     lastFrameAt = now;
-    activeMonitorElapsedMs += frameMs;
+    if (targetFrameMs <= 1000 / 55) activeMonitorElapsedMs += frameMs;
     if (frameSamples.length > 120) frameSamples.shift();
     framesSinceEvaluation += 1;
     if (frameSamples.length >= 60 && framesSinceEvaluation >= 15) {
@@ -86,7 +108,7 @@ export function startBoardFrameBudgetMonitor(ticker?: FrameBudgetTicker | null):
         activeMonitorElapsedMs,
         MOBILE_RUNTIME_PROFILE.isMobileDevice,
       );
-      const candidate = evaluateBoardFrameBudget(frameSamples, reducedFx, sustainedLoadReduction);
+      const candidate = evaluateBoardFrameBudget(frameSamples, reducedFx, sustainedLoadReduction, targetFrameMs);
       if (reducedFx && !candidate.reducedFx) {
         stableWindows += 1;
         if (stableWindows < 4) candidate.reducedFx = true;
@@ -106,12 +128,10 @@ export function startBoardFrameBudgetMonitor(ticker?: FrameBudgetTicker | null):
     tickerCallback = () => {
       const now = performance.now();
       if (!shouldSampleBoardFrameBudget(monitorTicker?.maxFPS, MOBILE_RUNTIME_PROFILE.isMobileDevice)) {
-        // A settled mobile board intentionally runs at 30 FPS. Do not count
-        // those expected 33 ms ticks as pressure or as sustained active play.
         lastFrameAt = now;
         return;
       }
-      sampleFrame(now);
+      sampleFrame(now, expectedFrameMs(monitorTicker?.maxFPS));
     };
     monitorTicker.add(tickerCallback);
     return;

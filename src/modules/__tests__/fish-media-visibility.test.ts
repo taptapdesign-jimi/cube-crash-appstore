@@ -32,12 +32,13 @@ describe('Fish media and shared overlay visibility ownership', () => {
     STATE.app = null;
     document.body.replaceChildren();
     jest.restoreAllMocks();
+    jest.useRealTimers();
     if (originalHidden) Object.defineProperty(document, 'hidden', originalHidden);
     else delete (document as any).hidden;
   });
   function makeTile() {
     return {
-      base: { scale: { x: 1 }, getGlobalPosition: () => ({ x: 50 }) },
+      base: { renderable: true, scale: { x: 1 }, getGlobalPosition: () => ({ x: 50 }) },
       visible: true, worldTransform: { a: 1, b: 0, c: 0, d: 1, tx: 50, ty: 50 },
       _wildJuiceBubbleSystem: {
         container: { renderable: true },
@@ -45,6 +46,29 @@ describe('Fish media and shared overlay visibility ownership', () => {
       },
     };
   }
+  it('retires only a throwing Fish, stops its media and publishes the next Fish pose', async () => {
+    jest.useFakeTimers();
+    const first = makeTile(); const second = makeTile();
+    const failed = startFishSwimArtwork(first)!;
+    const healthy = startFishSwimArtwork(second)!;
+    failed.video!.dispatchEvent(new Event('loadeddata'));
+    healthy.video!.dispatchEvent(new Event('loadeddata'));
+    await flush(); jest.advanceTimersByTime(1000); await flush(); tick();
+    const failedVideo = failed.video!;
+    const prior = healthy.wrapper.style.transform;
+    Object.defineProperty(first, 'worldTransform', { get: () => { throw new Error('stale Fish transform'); } });
+    second.worldTransform.tx += 10;
+    expect(tick).not.toThrow();
+    expect(failed.disposed).toBe(true);
+    expect(failed.wrapper.isConnected).toBe(false);
+    expect(failedVideo.hasAttribute('src')).toBe(false);
+    expect(first.base.renderable).toBe(true);
+    expect(healthy.disposed).toBe(false);
+    expect(healthy.wrapper.style.transform).not.toBe(prior);
+    expect(getAnimatedSpecialArtworkLayerStats().owners).toBe(1);
+    destroyFishSwimArtworkRuntime();
+    expect(getAnimatedSpecialArtworkLayerStats()).toEqual({ owners: 0, tickerAttached: false, overlayAttached: false });
+  });
   it('does not rewrite settled Fish styles and still publishes pose changes', async () => {
     const tile = makeTile();
     const controller = startFishSwimArtwork(tile)!;

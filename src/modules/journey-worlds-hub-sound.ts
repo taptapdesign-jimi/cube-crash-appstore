@@ -1,5 +1,8 @@
 import { logger } from '../core/logger.js';
 import { applySoundEffectsMasterGain } from './sound-effects-volume.ts';
+import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.ts';
+import { isThermalAudioSuppressed } from '../utils/thermal-audio-isolation.ts';
+import { createJourneyLongLoopLifecycle } from './journey-long-loop-lifecycle.ts';
 import {
   fadeOutDecodedGameplayVoice,
   getDecodedGameplaySoundsState,
@@ -36,9 +39,14 @@ let boardTransitionHandoffTimeoutId: number | null = null;
 let active = false;
 let activeSurface: JourneyWorldsSoundSurface = 'hub';
 let boardTransitionHandoffArmed = false;
+let worldFadeAt: number | null = null;
+let fading = false;
+let playbackGeneration = 0;
+const lifecycle = createJourneyLongLoopLifecycle('worlds', () => mediaAudio ? [mediaAudio] : []);
 
 function areSoundsEnabled(): boolean {
   return typeof window !== 'undefined'
+    && !isThermalAudioSuppressed()
     && (window as any)._settings?.gameSoundsEnabled === true;
 }
 
@@ -73,20 +81,34 @@ function clearBoardTransitionHandoff(): void {
   boardTransitionHandoffArmed = false;
 }
 
-function clearWorldFadeSchedule(): void {
+function clearWorldFadeSchedule(preserveDeadline = false): void {
   if (worldFadeDelayTimeoutId !== null) {
     window.clearTimeout(worldFadeDelayTimeoutId);
   }
   worldFadeDelayTimeoutId = null;
+  if (!preserveDeadline) worldFadeAt = null;
+}
+
+function scheduleWorldFadeOnce(): void {
+  if (worldFadeDelayTimeoutId !== null || !active || fading || activeSurface !== 'world') return;
+  worldFadeAt ??= Date.now() + JOURNEY_WORLDS_WORLD_FADE_DELAY_MS;
+  if (lifecycle.isSuspended()) return;
+  worldFadeDelayTimeoutId = window.setTimeout(() => {
+    worldFadeDelayTimeoutId = null;
+    fadeOutJourneyWorldsSound(JOURNEY_WORLDS_WORLD_FADE_OUT_MS);
+  }, Math.max(0, worldFadeAt - Date.now()));
 }
 
 function stopAndRewind(): void {
+  playbackGeneration++;
+  lifecycle.deactivate();
   clearVolumeTimers();
   clearWorldFadeSchedule();
   clearBoardTransitionHandoff();
   active = false;
+  fading = false;
   activeSurface = 'hub';
-  stopDecodedGameplayVoice(VOICE_ID);
+  if (!MOBILE_RUNTIME_PROFILE.isMobileDevice) stopDecodedGameplayVoice(VOICE_ID);
   if (!mediaAudio) return;
   try {
     mediaAudio.pause();
@@ -97,6 +119,8 @@ function stopAndRewind(): void {
 
 export function preloadJourneyWorldsHubSound(): boolean {
   if (!areSoundsEnabled()) return false;
+  // Hub/world overlap must not crowd short cues out of the mobile PCM cache.
+  if (MOBILE_RUNTIME_PROFILE.isMobileDevice) return getMediaAudio() !== null;
   return preloadDecodedGameplaySounds([JOURNEY_WORLDS_HUB_SOUND_SOURCE])
     || getMediaAudio() !== null;
 }
@@ -110,9 +134,14 @@ function transitionToSurfaceVolume(
   if (!active) return false;
 
   clearVolumeTimers();
+  fading = false;
   const targetVolume = getSurfaceVolume(surface);
   const safeDurationMs = Math.max(0, durationMs);
-  setDecodedGameplayVoiceVolume(VOICE_ID, targetVolume, safeDurationMs / 1000);
+  if (lifecycle.isSuspended()) {
+    if (mediaAudio) mediaAudio.volume = targetVolume;
+    return true;
+  }
+  if (!MOBILE_RUNTIME_PROFILE.isMobileDevice) setDecodedGameplayVoiceVolume(VOICE_ID, targetVolume, safeDurationMs / 1000);
 
   if (!mediaAudio) return true;
   const startedAt = Date.now();
@@ -150,16 +179,53 @@ function playJourneyWorldsSound(surface: JourneyWorldsSoundSurface): boolean {
 
   clearVolumeTimers();
   active = true;
+  fading = false;
   activeSurface = surface;
   const volume = getSurfaceVolume(surface);
-  const decodedState = getDecodedGameplaySoundsState([JOURNEY_WORLDS_HUB_SOUND_SOURCE]);
+  const session = {
+    canResume: () => active && areSoundsEnabled(),
+    onRetire: stopAndRewind,
+    onSuspend: () => {
+      // A departing-screen tail has no foreground ownership to regain.
+      if (fading || boardTransitionHandoffArmed) { stopAndRewind(); return; }
+      clearVolumeTimers();
+      clearWorldFadeSchedule(true);
+    },
+    beforeResume: () => {
+      // Do not restart the five-second World hold after time spent hidden.
+      // If its fade boundary passed offscreen, retire the inaudible tail.
+      if (activeSurface === 'world' && worldFadeAt !== null && Date.now() >= worldFadeAt) {
+        stopAndRewind();
+        return;
+      }
+      if (mediaAudio) mediaAudio.volume = getSurfaceVolume(activeSurface);
+      if (activeSurface === 'world') scheduleWorldFadeOnce();
+    },
+    onFailure: (error: unknown) => {
+      logger.warn('Failed to play Journey Worlds Hub loop:', String(error));
+      stopAndRewind();
+    },
+  };
+  const decodedState = MOBILE_RUNTIME_PROFILE.isMobileDevice ? 'unavailable'
+    : getDecodedGameplaySoundsState([JOURNEY_WORLDS_HUB_SOUND_SOURCE]);
   if (decodedState !== 'unavailable') {
-    playDecodedGameplaySound(JOURNEY_WORLDS_HUB_SOUND_SOURCE, {
-      voiceId: VOICE_ID,
-      volume,
-      loop: true,
+    lifecycle.activate({
+      ...session,
+      media: [],
+      pauseDecoded: () => { playbackGeneration++; stopDecodedGameplayVoice(VOICE_ID); },
+      playDecoded: () => {
+        const generation = ++playbackGeneration;
+        const failStart = () => { if (generation === playbackGeneration) stopAndRewind(); };
+        const result = playDecodedGameplaySound(JOURNEY_WORLDS_HUB_SOUND_SOURCE, {
+          voiceId: VOICE_ID,
+          volume: getSurfaceVolume(activeSurface),
+          loop: true,
+          onDeferredUnavailable: failStart,
+        });
+        if (result === 'unavailable') failStart();
+      },
     });
-    return true;
+    return active;
   }
 
   const audio = getMediaAudio();
@@ -172,23 +238,28 @@ function playJourneyWorldsSound(surface: JourneyWorldsSoundSurface): boolean {
     audio.currentTime = 0;
     audio.loop = true;
     audio.volume = volume;
-    audio.play()?.catch((error) => {
-      logger.warn('Failed to play Journey Worlds Hub loop:', error);
-    });
-    return true;
+    lifecycle.activate({ ...session, media: [audio] });
+    return active;
   } catch (error) {
-    active = false;
+    stopAndRewind();
     logger.warn('Failed to start Journey Worlds Hub loop:', error);
     return false;
   }
 }
 
 export function playJourneyWorldsHubSound(): boolean {
+  clearBoardTransitionHandoff();
   return playJourneyWorldsSound('hub');
 }
 
 export function playJourneyWorldsWorldSound(): boolean {
-  return playJourneyWorldsSound('world');
+  const started = playJourneyWorldsSound('world');
+  // Hub -> World already schedules this lifetime while reducing the live Hub
+  // voice. Direct World entry and board -> World return start at the reduced
+  // gain, so they must acquire the same bounded 5s hold + 1s fade here. Keep
+  // the first deadline when duplicate enter callbacks share one World visit.
+  if (started) scheduleWorldFadeOnce();
+  return started;
 }
 
 export function reduceJourneyWorldsSoundForWorld(
@@ -197,15 +268,13 @@ export function reduceJourneyWorldsSoundForWorld(
   clearWorldFadeSchedule();
   const transitioned = transitionToSurfaceVolume('world', durationMs);
   if (!transitioned) return false;
-  worldFadeDelayTimeoutId = window.setTimeout(() => {
-    worldFadeDelayTimeoutId = null;
-    fadeOutJourneyWorldsSound(JOURNEY_WORLDS_WORLD_FADE_OUT_MS);
-  }, JOURNEY_WORLDS_WORLD_FADE_DELAY_MS);
+  scheduleWorldFadeOnce();
   return true;
 }
 
 export function armJourneyWorldsSoundForBoardTransition(): boolean {
   if (!active) return false;
+  if (lifecycle.isSuspended()) { stopAndRewind(); return false; }
   clearBoardTransitionHandoff();
   boardTransitionHandoffArmed = true;
   boardTransitionHandoffTimeoutId = window.setTimeout(
@@ -217,16 +286,18 @@ export function armJourneyWorldsSoundForBoardTransition(): boolean {
 
 function fadeOutJourneyWorldsSound(durationMs: number): boolean {
   if (!active) return false;
+  if (lifecycle.isSuspended()) { stopAndRewind(); return true; }
 
   clearVolumeTimers();
   clearWorldFadeSchedule();
+  fading = true;
   const safeDurationMs = Math.max(0, durationMs);
   if (safeDurationMs === 0) {
     stopAndRewind();
     return true;
   }
 
-  fadeOutDecodedGameplayVoice(VOICE_ID, safeDurationMs / 1000);
+  if (!MOBILE_RUNTIME_PROFILE.isMobileDevice) fadeOutDecodedGameplayVoice(VOICE_ID, safeDurationMs / 1000);
   const startedAt = Date.now();
   const startingVolume = mediaAudio?.volume ?? JOURNEY_WORLDS_WORLD_VOLUME;
   const applyFadeStep = () => {
@@ -256,5 +327,6 @@ export function stopJourneyWorldsHubSound(
 
 export function resetJourneyWorldsHubSoundForTests(): void {
   stopAndRewind();
+  lifecycle.resetDiagnostics();
   mediaAudio = null;
 }

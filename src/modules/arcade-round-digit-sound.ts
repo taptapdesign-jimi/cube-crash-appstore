@@ -80,7 +80,7 @@ function playRoundNumberSound(
   const voiceId = voiceIds[sourceIndex];
   if (!source || !voiceId) return false;
 
-  const decodedState = getDecodedGameplaySoundsState(ARCADE_ROUND_DIGIT_SOUND_SOURCES);
+  const decodedState = getDecodedGameplaySoundsState([source]);
   if (decodedState !== 'unavailable') {
     return playDecodedGameplaySound(source, {
       voiceId,

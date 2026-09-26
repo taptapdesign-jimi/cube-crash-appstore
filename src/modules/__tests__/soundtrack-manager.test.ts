@@ -1,4 +1,5 @@
 import * as themeTransport from '../main-theme-web-audio-transport';
+import { setThermalAudioSuppressed, resetThermalAudioIsolationForTests } from '../../utils/thermal-audio-isolation';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -40,6 +41,8 @@ import {
   setSoundtrackResultMix,
   soundtrackManager,
   startSoundtrack,
+  preloadSoundtrack,
+  getSoundtrackRuntimeStats,
   stopSoundtrack,
 } from '../soundtrack-manager';
 
@@ -67,6 +70,8 @@ class MockAudio {
   pause = jest.fn(() => {
     this.paused = true;
   });
+  removeAttribute = jest.fn();
+  load = jest.fn();
 
   constructor(src: string) {
     this.src = src;
@@ -101,11 +106,44 @@ describe('global Stack to Six soundtrack', () => {
   });
 
   afterEach(() => {
+    resetThermalAudioIsolationForTests();
+    delete (window as any).__ccThermalIsolation;
     resetSoundtrackForTests();
     delete (window as any)._settings;
     delete (window as any).__ccRunMode;
     (global as any).Audio = originalAudio;
     jest.useRealTimers();
+  });
+
+  it('diagnostic suppression retires detached fallback voices and never restarts on disable', async () => {
+    (window as any).__ccThermalIsolation = true;
+    startSoundtrack();
+    await Promise.resolve();
+    const voices = [...MockAudio.instances];
+    expect(voices.length).toBeGreaterThan(0);
+    const restoreResult = fadeSoundtrackForResultHook();
+    setThermalAudioSuppressed(true);
+    expect(voices.every(voice => voice.paused)).toBe(true);
+    voices.forEach(voice => {
+      expect(voice.removeAttribute).toHaveBeenCalledWith('src');
+      expect(voice.load).toHaveBeenCalledTimes(1);
+    });
+    expect(getSoundtrackRuntimeStats().activeVoices).toBe(0);
+    preloadSoundtrack(); startSoundtrack(); fadeInAndResume(); enterArcadeGameplaySoundtrack();
+    restoreResult('gameplay');
+    window.dispatchEvent(new Event('pageshow'));
+    document.dispatchEvent(new Event('pointerup'));
+    jest.advanceTimersByTime(10000);
+    await Promise.resolve();
+    expect(MockAudio.instances).toHaveLength(voices.length);
+    expect((window as any)._settings.musicEnabled).toBe(true);
+    setThermalAudioSuppressed(false);
+    document.dispatchEvent(new Event('pointerup'));
+    await Promise.resolve();
+    expect(MockAudio.instances).toHaveLength(voices.length);
+    expect(getSoundtrackRuntimeStats().activeVoices).toBe(0);
+    startSoundtrack(); await Promise.resolve();
+    expect(MockAudio.instances.length).toBeGreaterThan(voices.length);
   });
 
   it('keeps the supplied theme for menus and declares the matching Arcade layers', () => {

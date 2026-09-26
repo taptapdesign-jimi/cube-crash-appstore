@@ -12,6 +12,10 @@ Never turn `NEEDS PHYSICAL TEST` into `PASS` without performing that test.
 
 Automated gates can verify types, lint, unit tests, production build, asset completeness, native identity, source/bundle freshness, forbidden legacy paths, and static viewport contracts.
 
+The feature-runtime admission gate also verifies that new screen-like surfaces declare entry, exit, resource, animation, audio, haptic, visibility, test and physical-acceptance ownership, and that production source introduces no new raw recurring-work primitive outside the frozen baseline. This is architectural admission, not proof of runtime temperature or frame pacing.
+
+The audio-runtime gate rejects unregistered sound owners, sound-source references and raw transport growth. The special-dice archetype gate rejects a gameplay archetype until merge, transaction, endgame, save/load, input and audio ownership plus the shared regression matrix are declared. Neither gate proves physical speaker mix, sustained heat or animation feel.
+
 Physical QA remains authoritative for animation quality, clipping at real safe areas, haptics, multi-touch, audio timing, WebView lifecycle, heat, sustained FPS, and memory behavior.
 
 ## Independent reviewer checklist

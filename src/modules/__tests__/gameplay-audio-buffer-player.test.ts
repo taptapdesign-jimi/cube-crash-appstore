@@ -8,6 +8,7 @@ import {
   preloadDecodedGameplaySounds,
   resetDecodedGameplayAudioForTests,
   setDecodedGameplayVoiceVolume,
+  stopAllDecodedGameplayVoices,
   stopDecodedGameplayVoice,
 } from '../gameplay-audio-buffer-player';
 
@@ -43,6 +44,7 @@ class MockAudioContext {
   sources: MockBufferSource[] = [];
   gains: MockGainNode[] = [];
   resume = jest.fn(() => Promise.resolve());
+  suspend = jest.fn(async () => { this.state = 'suspended' as AudioContextState; });
   close = jest.fn(() => Promise.resolve());
   decodeAudioData = jest.fn(async () => ({ duration: 2, length: 96000, numberOfChannels: 2 } as AudioBuffer));
 
@@ -66,6 +68,7 @@ class MockAudioContext {
 describe('decoded gameplay audio owner', () => {
   const originalAudioContext = window.AudioContext;
   const originalFetch = global.fetch;
+  const originalHidden = Object.getOwnPropertyDescriptor(document, 'hidden');
 
   beforeEach(() => {
     resetDecodedGameplayAudioForTests();
@@ -88,6 +91,8 @@ describe('decoded gameplay audio owner', () => {
       value: originalAudioContext,
     });
     global.fetch = originalFetch;
+    if (originalHidden) Object.defineProperty(document, 'hidden', originalHidden);
+    else delete (document as { hidden?: boolean }).hidden;
   });
 
   it('keeps a lower idle decoded-audio ceiling on mobile runtimes', () => {
@@ -191,6 +196,9 @@ describe('decoded gameplay audio owner', () => {
     preloadDecodedGameplaySounds(['./assets/sound/worlds/crumbleworlds.wav']);
     await new Promise((resolve) => setTimeout(resolve, 0));
     const context = MockAudioContext.instances[0];
+    playDecodedGameplaySound('./assets/sound/worlds/crumbleworlds.wav', {
+      voiceId: 'current-loop', volume: 0.4, loop: true,
+    });
     context.state = 'suspended';
     context.resume.mockImplementationOnce(async () => {});
     context.resume.mockImplementationOnce(async () => { context.state = 'running'; });
@@ -203,7 +211,7 @@ describe('decoded gameplay audio owner', () => {
 
     expect(context.resume).toHaveBeenCalledTimes(2);
     expect(context.state).toBe('running');
-    expect(context.sources).toHaveLength(0);
+    expect(context.sources).toHaveLength(1);
   });
 
   it('uses the native app-active signal when WKWebView omits pageshow', async () => {
@@ -211,6 +219,9 @@ describe('decoded gameplay audio owner', () => {
     preloadDecodedGameplaySounds(['./assets/sound/worlds/crumbleworlds.wav']);
     await new Promise((resolve) => setTimeout(resolve, 0));
     const context = MockAudioContext.instances[0];
+    playDecodedGameplaySound('./assets/sound/worlds/crumbleworlds.wav', {
+      voiceId: 'current-loop', volume: 0.4, loop: true,
+    });
     context.state = 'suspended';
     context.resume.mockImplementation(async () => { context.state = 'running'; });
 
@@ -225,6 +236,193 @@ describe('decoded gameplay audio owner', () => {
 
     expect(context.resume).toHaveBeenCalledTimes(1);
     expect(context.state).toBe('running');
+  });
+
+  it.each(['running', 'suspended'] as const)(
+    'retires active and decoding voices when a %s context backgrounds without purging cached buffers',
+    async (contextState) => {
+      preloadDecodedGameplaySounds(['warm.wav']);
+      await new Promise(resolve => setTimeout(resolve, 0));
+      const context = MockAudioContext.instances[0];
+      const activeStopped = jest.fn();
+      const pendingStopped = jest.fn();
+      const oldStarted = jest.fn();
+      playDecodedGameplaySound('warm.wav', { voiceId: 'loop', volume: 1, loop: true, onStopped: activeStopped });
+      let completeDecode!: (buffer: AudioBuffer) => void;
+      context.decodeAudioData.mockImplementationOnce(() => new Promise(resolve => { completeDecode = resolve; }));
+      playDecodedGameplaySound('cold.wav', { voiceId: 'cold', volume: 1, onStopped: pendingStopped, onStarted: oldStarted });
+      await new Promise(resolve => setTimeout(resolve, 0));
+      context.state = contextState;
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(activeStopped).toHaveBeenCalledTimes(1);
+      expect(pendingStopped).toHaveBeenCalledTimes(1);
+      expect(context.sources[0].stop).toHaveBeenCalledTimes(1);
+      expect(getDecodedGameplayAudioStats()).toMatchObject({ activeVoices: 0, pendingVoiceStarts: 0, decodedBuffers: 1 });
+      expect(context.suspend).toHaveBeenCalledTimes(contextState === 'running' ? 1 : 0);
+      completeDecode({ duration: 2, length: 96000, numberOfChannels: 2 } as AudioBuffer);
+      await new Promise(resolve => setTimeout(resolve, 0));
+      window.dispatchEvent(new Event('cc:native-audio-active'));
+      Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+      document.dispatchEvent(new Event('visibilitychange'));
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(oldStarted).not.toHaveBeenCalled();
+      expect(context.sources).toHaveLength(1);
+      expect(context.resume).not.toHaveBeenCalled();
+      expect(getDecodedGameplayAudioStats()).toMatchObject({ decodedBuffers: 2, activeVoices: 0, pendingVoiceStarts: 0 });
+    },
+  );
+
+  it('does not begin a late decode after fetch completes across pagehide', async () => {
+    let finishFetch!: (response: unknown) => void;
+    global.fetch = jest.fn(() => new Promise(resolve => { finishFetch = resolve; })) as jest.Mock;
+    const onStopped = jest.fn();
+    playDecodedGameplaySound('cold-fetch.wav', { voiceId: 'old', volume: 1, onStopped });
+    const context = MockAudioContext.instances[0];
+    window.dispatchEvent(new Event('pagehide'));
+    expect(onStopped).toHaveBeenCalledTimes(1);
+    finishFetch({ ok: true, arrayBuffer: async () => new ArrayBuffer(16) });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    window.dispatchEvent(new Event('pageshow'));
+    expect(context.decodeAudioData).not.toHaveBeenCalled();
+    expect(context.resume).not.toHaveBeenCalled();
+    expect(getDecodedGameplayAudioStats()).toMatchObject({ pendingBuffers: 0, pendingVoiceStarts: 0 });
+  });
+
+  it('handles new hidden requests silently without constructing audio or requesting fallback', () => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+    const onStopped = jest.fn();
+    const onDeferredUnavailable = jest.fn();
+    expect(preloadDecodedGameplaySounds(['hidden.wav'])).toBe(true);
+    expect(getDecodedGameplaySoundsState(['hidden.wav'])).toBe('ready');
+    expect(playDecodedGameplaySound('hidden.wav', { voiceId: 'hidden', volume: 1, onStopped, onDeferredUnavailable })).toBe('played');
+    expect(onStopped).toHaveBeenCalledTimes(1);
+    expect(onDeferredUnavailable).not.toHaveBeenCalled();
+    expect(MockAudioContext.instances).toHaveLength(0);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('allows only a fresh owner after native activation arrives before the visibility update', async () => {
+    preloadDecodedGameplaySounds(['warm.wav']);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const context = MockAudioContext.instances[0];
+    playDecodedGameplaySound('warm.wav', { voiceId: 'old', volume: 1 });
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    context.resume.mockImplementation(async () => { context.state = 'running'; });
+    window.dispatchEvent(new Event('cc:native-audio-active'));
+    expect(context.resume).not.toHaveBeenCalled();
+    expect(context.sources).toHaveLength(1);
+    expect(playDecodedGameplaySound('warm.wav', { voiceId: 'new', volume: 1 })).toBe('pending');
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(context.resume).toHaveBeenCalledTimes(1);
+    expect(context.sources).toHaveLength(2);
+    expect(context.sources[1].start).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not resume an ownerless context on pageshow, visibility or native activation', async () => {
+    preloadDecodedGameplaySounds(['warm.wav']);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const context = MockAudioContext.instances[0];
+    context.state = 'suspended';
+    window.dispatchEvent(new Event('pageshow'));
+    document.dispatchEvent(new Event('visibilitychange'));
+    window.dispatchEvent(new Event('cc:native-audio-active'));
+    document.dispatchEvent(new Event('pointerup'));
+    await Promise.resolve();
+    expect(context.resume).not.toHaveBeenCalled();
+  });
+
+  it('continues global retirement when an owner callback throws and cancels pending owners too', async () => {
+    preloadDecodedGameplaySounds(['warm.wav']);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const context = MockAudioContext.instances[0];
+    playDecodedGameplaySound('warm.wav', { voiceId: 'bad', volume: 1, onStopped: () => { throw new Error('stale feature callback'); } });
+    const onStopped = jest.fn();
+    playDecodedGameplaySound('cold.wav', { voiceId: 'pending', volume: 1, onStopped });
+    expect(() => stopAllDecodedGameplayVoices()).not.toThrow();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(context.sources).toHaveLength(1);
+    expect(context.sources[0].stop).toHaveBeenCalledTimes(1);
+    expect(onStopped).toHaveBeenCalledTimes(1);
+    expect(getDecodedGameplayAudioStats()).toMatchObject({ activeVoices: 0, pendingVoiceStarts: 0 });
+  });
+
+  it('settles a replaced pending voice once before its reentrant cleanup can reach the successor', async () => {
+    preloadDecodedGameplaySounds(['warm.wav']);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const context = MockAudioContext.instances[0];
+    let completeDecode!: (buffer: AudioBuffer) => void;
+    context.decodeAudioData.mockImplementationOnce(() => new Promise(resolve => { completeDecode = resolve; }));
+    const oldStopped = jest.fn(() => stopDecodedGameplayVoice('shared'));
+    const newStopped = jest.fn();
+    const oldStarted = jest.fn();
+    const newStarted = jest.fn();
+    playDecodedGameplaySound('cold.wav', { voiceId: 'shared', volume: 1, onStopped: oldStopped, onStarted: oldStarted });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(playDecodedGameplaySound('cold.wav', { voiceId: 'shared', volume: 1, onStopped: newStopped, onStarted: newStarted })).toBe('pending');
+    expect(oldStopped).toHaveBeenCalledTimes(1);
+    expect(newStopped).not.toHaveBeenCalled();
+    expect(getDecodedGameplayAudioStats().pendingVoiceStarts).toBe(1);
+    completeDecode({ duration: 2, length: 96000, numberOfChannels: 2 } as AudioBuffer);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(context.sources).toHaveLength(1);
+    expect(oldStarted).not.toHaveBeenCalled();
+    expect(newStarted).toHaveBeenCalledTimes(1);
+    stopDecodedGameplayVoice('shared');
+    stopDecodedGameplayVoice('shared');
+    expect(oldStopped).toHaveBeenCalledTimes(1);
+    expect(newStopped).toHaveBeenCalledTimes(1);
+  });
+
+  it('notifies distinct active and pending owners once when they share a replaced voice ID', async () => {
+    preloadDecodedGameplaySounds(['warm.wav']);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const context = MockAudioContext.instances[0];
+    const activeStopped = jest.fn();
+    const pendingStopped = jest.fn();
+    const nextStopped = jest.fn();
+    playDecodedGameplaySound('warm.wav', { voiceId: 'shared', volume: 1, onStopped: activeStopped });
+    let completeDecode!: (buffer: AudioBuffer) => void;
+    context.decodeAudioData.mockImplementationOnce(() => new Promise(resolve => { completeDecode = resolve; }));
+    playDecodedGameplaySound('cold.wav', { voiceId: 'shared', volume: 1, onStopped: pendingStopped });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    playDecodedGameplaySound('cold.wav', { voiceId: 'shared', volume: 1, onStopped: nextStopped });
+    expect(pendingStopped).toHaveBeenCalledTimes(1);
+    expect(activeStopped).not.toHaveBeenCalled();
+    expect(nextStopped).not.toHaveBeenCalled();
+    completeDecode({ duration: 2, length: 96000, numberOfChannels: 2 } as AudioBuffer);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(context.sources).toHaveLength(2);
+    expect(context.sources[0].stop).toHaveBeenCalledTimes(1);
+    expect(activeStopped).toHaveBeenCalledTimes(1);
+    expect(pendingStopped).toHaveBeenCalledTimes(1);
+    expect(nextStopped).not.toHaveBeenCalled();
+    stopAllDecodedGameplayVoices();
+    expect(activeStopped).toHaveBeenCalledTimes(1);
+    expect(pendingStopped).toHaveBeenCalledTimes(1);
+    expect(nextStopped).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves a newer pending request created by the replaced owner cleanup', async () => {
+    preloadDecodedGameplaySounds(['warm.wav']);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const context = MockAudioContext.instances[0];
+    let completeDecode!: (buffer: AudioBuffer) => void;
+    context.decodeAudioData.mockImplementationOnce(() => new Promise(resolve => { completeDecode = resolve; }));
+    const reentrantStarted = jest.fn();
+    const supersededStopped = jest.fn();
+    playDecodedGameplaySound('cold.wav', { voiceId: 'shared', volume: 1, onStopped: () => {
+      playDecodedGameplaySound('cold.wav', { voiceId: 'shared', volume: 0.5, onStarted: reentrantStarted });
+    } });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(playDecodedGameplaySound('cold.wav', { voiceId: 'shared', volume: 1, onStopped: supersededStopped })).toBe('played');
+    expect(supersededStopped).toHaveBeenCalledTimes(1);
+    completeDecode({ duration: 2, length: 96000, numberOfChannels: 2 } as AudioBuffer);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(reentrantStarted).toHaveBeenCalledTimes(1);
+    expect(context.sources).toHaveLength(1);
+    expect(context.gains[0].gain.setValueAtTime).toHaveBeenCalledWith(0.5, 10);
   });
 
   it('bounds a stuck foreground resume and starts a queued SFX once after touch recovery', async () => {
@@ -578,7 +776,7 @@ describe('decoded gameplay audio owner', () => {
       expect(jest.getTimerCount()).toBe(0);
     });
 
-    it('settles a queued owner when native source start fails after decoding', async () => {
+    it('reports a queued startup failure without cancelling its fallback owner', async () => {
       preloadDecodedGameplaySounds([]);
       const context = MockAudioContext.instances[0];
       const createSource = context.createBufferSource.bind(context);
@@ -588,14 +786,76 @@ describe('decoded gameplay audio owner', () => {
         return source;
       });
       const onDeferredUnavailable = jest.fn();
+      const onStopped = jest.fn();
+      const onStarted = jest.fn();
       expect(playDecodedGameplaySound('late-start.wav', {
-        voiceId: 'late-start', volume: 1, onDeferredUnavailable,
+        voiceId: 'late-start', volume: 1, onDeferredUnavailable, onStopped, onStarted,
       })).toBe('pending');
       await flush();
       expect(onDeferredUnavailable).toHaveBeenCalledTimes(1);
+      expect(onStopped).not.toHaveBeenCalled();
+      expect(onStarted).not.toHaveBeenCalled();
       expect(getDecodedGameplayAudioStats()).toMatchObject({ activeVoices: 0, pendingVoiceStarts: 0 });
       expect(context.sources[0].disconnect).toHaveBeenCalledTimes(1);
       expect(context.gains[0].disconnect).toHaveBeenCalledTimes(1);
+      stopDecodedGameplayVoice('late-start');
+      expect(onStopped).not.toHaveBeenCalled();
+    });
+
+    it('rolls back partial node construction without stopping a newer owner created during failure', async () => {
+      preloadDecodedGameplaySounds(['old.wav', 'new.wav']);
+      await flush();
+      const context = MockAudioContext.instances[0];
+      const createSource = context.createBufferSource.bind(context);
+      const nextStopped = jest.fn();
+      const failedStopped = jest.fn();
+      jest.spyOn(context, 'createBufferSource').mockImplementationOnce(() => {
+        const source = createSource();
+        (source.start as jest.Mock).mockImplementation(() => {
+          playDecodedGameplaySound('new.wav', { voiceId: 'shared', volume: 1, onStopped: nextStopped });
+          throw new Error('native start failed after successor acquired ownership');
+        });
+        return source;
+      });
+      expect(playDecodedGameplaySound('old.wav', { voiceId: 'shared', volume: 1, onStopped: failedStopped })).toBe('unavailable');
+      // The explicit reentrant replacement stops the old owner once; its
+      // subsequent failed-start catch must not stop the successor as well.
+      expect(failedStopped).toHaveBeenCalledTimes(1);
+      expect(nextStopped).not.toHaveBeenCalled();
+      expect(context.sources[1].stop).not.toHaveBeenCalled();
+      expect(getDecodedGameplayAudioStats().activeVoices).toBe(1);
+      stopDecodedGameplayVoice('shared');
+      expect(nextStopped).toHaveBeenCalledTimes(1);
+    });
+
+    it('disconnects a partially constructed source when gain allocation fails without cancellation callbacks', async () => {
+      preloadDecodedGameplaySounds(['warm.wav']);
+      await flush();
+      const context = MockAudioContext.instances[0];
+      jest.spyOn(context, 'createGain').mockImplementationOnce(() => { throw new Error('gain allocation failed'); });
+      const onStopped = jest.fn();
+      expect(playDecodedGameplaySound('warm.wav', { voiceId: 'partial', volume: 1, onStopped })).toBe('unavailable');
+      expect(context.sources[0].disconnect).toHaveBeenCalledTimes(1);
+      expect(onStopped).not.toHaveBeenCalled();
+      expect(getDecodedGameplayAudioStats()).toMatchObject({ activeVoices: 0, pendingVoiceStarts: 0 });
+    });
+
+    it('does not turn a feature start callback error into native failure or duplicate fallback', async () => {
+      preloadDecodedGameplaySounds(['warm.wav']);
+      await flush();
+      const context = MockAudioContext.instances[0];
+      const onStopped = jest.fn();
+      const onDeferredUnavailable = jest.fn();
+      expect(playDecodedGameplaySound('warm.wav', {
+        voiceId: 'started', volume: 1, onStopped, onDeferredUnavailable,
+        onStarted: () => { throw new Error('retired feature callback'); },
+      })).toBe('played');
+      expect(context.sources[0].start).toHaveBeenCalledTimes(1);
+      expect(context.sources[0].stop).not.toHaveBeenCalled();
+      expect(onStopped).not.toHaveBeenCalled();
+      expect(onDeferredUnavailable).not.toHaveBeenCalled();
+      stopDecodedGameplayVoice('started');
+      expect(onStopped).toHaveBeenCalledTimes(1);
     });
 
     it('does not let an obsolete pending decode repopulate or delete a new owner', async () => {

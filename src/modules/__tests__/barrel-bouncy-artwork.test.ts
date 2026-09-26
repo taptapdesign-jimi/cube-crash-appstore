@@ -2,6 +2,7 @@
 
 import { Assets, Container, Sprite, Texture, TextureSource } from 'pixi.js';
 import { STATE } from '../app-state';
+import { getSharedPixiSheetCacheStats } from '../shared-pixi-sheet-animation';
 import {
   BARREL_BOUNCY_ACTIVE_LOOPS,
   BARREL_BOUNCY_CYCLE_MS,
@@ -97,6 +98,26 @@ describe('Barrel shared Pixi artwork', () => {
     ticker.elapsedMS = elapsedMS;
     Array.from(tickerCallbacks).forEach((callback) => callback(ticker));
   };
+
+  test('retires only a throwing Barrel and keeps its sibling and resource lease alive', async () => {
+    const first = makeTile(); const second = makeTile();
+    const failed = startBarrelBouncyArtwork(first.tile)!;
+    const healthy = startBarrelBouncyArtwork(second.tile)!;
+    await flushPromises(); jest.advanceTimersByTime(1000);
+    const sprite = failed.sprite!;
+    Object.defineProperty(first.base, 'tint', { configurable: true, get: () => { throw new Error('stale Barrel sprite'); } });
+    const elapsed = healthy.elapsedMs;
+    expect(() => tick(40)).not.toThrow();
+    expect(failed.disposed).toBe(true);
+    expect(sprite.destroyed).toBe(true);
+    expect(first.base.renderable).toBe(true);
+    expect(first.tile._ccBarrelBouncyArtwork).toBeUndefined();
+    expect(healthy.elapsedMs).toBe((elapsed + 40) % BARREL_BOUNCY_SEQUENCE_MS);
+    expect(getSharedPixiSheetCacheStats().activeRefs).toBe(1);
+    stopBarrelBouncyArtwork(second.tile);
+    expect(tickerCallbacks.size).toBe(0);
+    expect(getSharedPixiSheetCacheStats().activeRefs).toBe(0);
+  });
 
   test('maps two active loops to all 54 frames and holds frame zero for the one-second rest', () => {
     expect(BARREL_BOUNCY_ACTIVE_LOOPS).toBe(2);

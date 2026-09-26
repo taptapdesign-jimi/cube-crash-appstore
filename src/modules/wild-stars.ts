@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { createSpecialIdleAnimationVisibility, isSpecialDiceIdlePaintable } from './special-dice-idle-visibility.ts';
 import { createWildStarOrbitForeground } from './wild-star-orbit-foreground';
 import { Container, Graphics, Sprite, Texture, Assets } from 'pixi.js';
 import { gsap } from 'gsap';
@@ -48,6 +49,7 @@ interface WildStarSystem {
   updateIntervalMs: number;
   foreground?: ReturnType<typeof createWildStarOrbitForeground>;
   introBounce?: boolean;
+  visibility?: ReturnType<typeof createSpecialIdleAnimationVisibility>;
   textureSources?: string[];
 }
 
@@ -343,7 +345,7 @@ function tickSystem(system: WildStarSystem): void {
   // Pixi suspension does not suspend this independent GSAP ticker.
   // Keep the owner but skip invisible orbit math; refresh the elapsed baseline
   // on delivered hidden ticks (the existing clamp still covers full suspension).
-  if (typeof document !== 'undefined' && document.hidden) {
+  if (!isSpecialDiceIdlePaintable(tile)) {
     system.lastUpdateTime = performance.now();
     return;
   }
@@ -395,11 +397,11 @@ function tickSystem(system: WildStarSystem): void {
       star.sprite.alpha = 1;
       gsap.killTweensOf(star.sprite.scale);
       star.sprite.scale.set(star.scaleNormalizer * star.baseScale * 0.12);
-      gsap.timeline({
+      system.visibility?.track(gsap.timeline({
         onComplete: () => {
           star.introAnimating = false;
         },
-      })
+      }))
         .to(star.sprite.scale, {
           x: star.scaleNormalizer * star.baseScale * 1.26,
           y: star.scaleNormalizer * star.baseScale * 1.26,
@@ -485,6 +487,7 @@ export function attachWildStarHalo(tile: WildishTile | null | undefined, opts: a
     disposed: false,
     lastUpdateTime: performance.now() - 1000 / 30,
     updateIntervalMs: 1000 / 30,
+    visibility: createSpecialIdleAnimationVisibility(tile),
     introBounce: opts?.introBounce === true,
     textureSources,
   };
@@ -588,6 +591,7 @@ export function detachWildStarHalo(tile: WildishTile | null | undefined): void {
   if (!system) return;
 
   system.disposed = true;
+  system.visibility?.release();
   system.foreground?.release();
   system.foreground = null;
 
