@@ -8,6 +8,7 @@ Date: 2026-09-26
 - Source version: `2.0.653`
 - Canonical branch: `main`
 - Immutable tag: `production-benchmark-v6`
+- Complete content checkpoint: `48c65f6a` (`release: establish production benchmark v6`)
 - Previous approved complete baseline: `production-benchmark-v5`
 - Native target: `/Users/user/Stack to Six/Stack to Six.xcodeproj`
 - Bundle identifier: `com.taptapdesign.stacktosix.Stack-to-Six`
@@ -21,6 +22,10 @@ the user after the Beach asset refresh and the 2026-09-25/26 thermal, audio,
 Journey, reward-screen and lifecycle investigation. Git is the authoritative
 file inventory. The sections below describe the intended behavior and the
 limits of physical evidence.
+
+The content checkpoint records 212 changed paths with 14,296 insertions and
+1,171 deletions. The following documentation-only checkpoint records that hash;
+the immutable tag points to the complete final benchmark record.
 
 ### Mobile thermal and render lifecycle
 
