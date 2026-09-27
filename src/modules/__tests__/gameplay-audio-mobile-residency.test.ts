@@ -25,6 +25,10 @@ import { preloadWildSpecialMerge6PoofSounds } from '../wild-special-merge6-poof-
 import { preloadNoMovesSound } from '../no-moves-sound';
 import { preloadWildSpecialLandingSound } from '../wild-special-landing-sound';
 import { preloadEligibleSpecialSounds } from '../special-sound-warmup';
+import { preloadCleanBoardSounds } from '../clean-board-sound';
+import { preloadJourneyBackpackSounds } from '../journey-backpack-sound';
+import { preloadJourneyCardEntryFlipSounds } from '../journey-card-entry-flip-sound';
+import { preloadCtaActivationSounds } from '../cta-activation-sound';
 import { SPECIAL_DICE_VARIANTS } from '../special-dice-registry';
 import { drainGameplayAudioDiagnostics, resetGameplayAudioDiagnosticsForTests, withGameplayAudioDiagnosticCaller } from '../gameplay-audio-diagnostics';
 import { getThermalAudioIsolationStats, resetThermalAudioIsolationForTests, setThermalAudioSuppressed } from '../../utils/thermal-audio-isolation';
@@ -298,6 +302,78 @@ describe('mobile decoded audio residency with authored audio metadata', () => {
     preloadDecodedGameplaySounds(['./medium-loop.wav'], { loop: true });
     await flush();
     expect(getDecodedGameplayAudioStats()).toMatchObject({ residentLoopBytes: 0, effectBudgetBytes: 32 * MiB, decodedBytes: 24 * MiB });
+  });
+
+  const beachFamilies = [
+    { family: 'Star', tile: { special: 'wild' } },
+    { family: 'Fish', tile: { special: 'wild', _ccSpecialDiceVariant: 'fish' } },
+    { family: 'Ball', tile: { special: 'wild-tnt', _ccSpecialDiceVariant: 'beach-ball' } },
+    { family: 'Bottle', tile: { special: 'wild-magnet', _ccSpecialDiceVariant: 'bottle' } },
+    { family: 'Juice', tile: { special: 'wild-juice' } },
+  ];
+  const prepareBeachCommonAndResult = (): void => {
+    preloadRegularMerge6Sounds();
+    preloadOrdinaryStackSound();
+    preloadGameplayPickupSound();
+    preloadWildSpecialMerge6PoofSounds();
+    preloadNoMovesSound();
+    preloadWildSpecialLandingSound();
+    preloadBoardTransitionDigitSounds();
+    preloadJourneyBackpackSounds();
+    preloadJourneyCardEntryFlipSounds();
+    preloadCtaActivationSounds();
+    preloadCleanBoardSounds();
+  };
+
+  test.each(beachFamilies.flatMap(owner => [44100, 48000].map(sampleRate => ({ ...owner, sampleRate }))))(
+    'reuses the full Beach $family family with common and Clean Board cues at $sampleRate Hz',
+    async ({ tile, sampleRate }) => {
+      AudioContextMock.sampleRate = sampleRate;
+      const prepare = (): void => {
+        prepareBeachCommonAndResult();
+        preloadEligibleSpecialSounds({ boardNumber: 12, isArcade: false, tiles: [tile] });
+      };
+      prepare();
+      await flush();
+      // Keep URL escaping for playback/state queries: authored Star filenames
+      // contain a literal #, which is only decoded when reading asset bytes.
+      const sources = (global.fetch as jest.Mock).mock.calls.map(([input]) => String(input));
+      expect(sources.length).toBeGreaterThan(20);
+      expect(new Set(sources).size).toBe(sources.length);
+      expect(getDecodedGameplayAudioStats().decodedBytes).toBeLessThan(32 * MiB);
+      for (let visit = 0; visit < 4; visit++) {
+        prepare();
+        expect(getDecodedGameplaySoundsState(sources)).toBe('ready');
+        await flush();
+      }
+      expect(AudioContextMock.instances[0].decodeAudioData).toHaveBeenCalledTimes(sources.length);
+      expect(getDecodedGameplayAudioStats()).toMatchObject({
+        decodedBuffers: sources.length, evictedBuffers: 0, redecodedBuffers: 0,
+        activeVoices: 0, pendingBuffers: 0, residentLoopBytes: 0,
+      });
+    },
+  );
+
+  test.each([44100, 48000])('bounds an accumulated five-family Beach and result working set at %s Hz', async sampleRate => {
+    AudioContextMock.sampleRate = sampleRate;
+    prepareBeachCommonAndResult();
+    await flush();
+    for (const { tile } of beachFamilies) {
+      preloadEligibleSpecialSounds({ boardNumber: 12, isArcade: false, tiles: [tile] });
+      await flush();
+    }
+    const sources = new Set<string>((global.fetch as jest.Mock).mock.calls.map(([input]) => `.${decodeURIComponent(new URL(String(input)).pathname)}`));
+    const fullSetBytes = [...sources].reduce((sum, source) => {
+      const metadata = readAudioMetadata(source);
+      return sum + Math.ceil(metadata.duration * sampleRate) * metadata.channels * 4;
+    }, 0);
+    // These legitimately requested packages exceed the fixed budget. Eviction
+    // counts alone must not be treated as proof of duplicate or wrong-family
+    // preparation, nor "fixed" by retaining every family without a bound.
+    expect(fullSetBytes).toBeGreaterThan(32 * MiB);
+    expect(getDecodedGameplayAudioStats().evictedBuffers).toBeGreaterThan(0);
+    expect(getDecodedGameplayAudioStats().decodedBytes).toBeLessThanOrEqual(32 * MiB);
+    expect(getDecodedGameplayAudioStats()).toMatchObject({ activeVoices: 0, pendingBuffers: 0, failedBuffers: 0 });
   });
 
   test('preparing a partly resident package keeps its existing members ahead of unrelated older data', async () => {

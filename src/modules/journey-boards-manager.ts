@@ -5030,32 +5030,33 @@ class JourneyBoardsManager {
     lockJourneyViewportTransition(`journey-interim-area-exit-${boardId}`);
 
     this.journeyExitPromise = (async () => {
-	      let journeyStarted = false;
-	      let linkedJourneyExitPromise: Promise<void> | null = null;
-	      let contentExitPromise: Promise<void> | null = null;
-	      let navExitPromise: Promise<void> | null = null;
-	      const startLinkedContentExit = () => {
-	        if (contentExitPromise) return;
-	        contentExitPromise = this.startJourneyWorldContentExitExcludingBoard(boardId);
-	        navExitPromise = this.playJourneyV700NavExit();
-	      };
-      const startLinkedJourneyExit = () => {
-        if (journeyStarted) return;
-        journeyStarted = true;
-        linkedJourneyExitPromise = this.startJourneyExitAnimation();
+      let contentExitPromise: Promise<void> | null = null;
+      let navExitPromise: Promise<void> | null = null;
+      const startLinkedContentExit = () => {
+        if (contentExitPromise) return;
+        contentExitPromise = this.startJourneyWorldContentExitExcludingBoard(boardId);
+        navExitPromise = this.playJourneyV700NavExit();
       };
 
       try {
         await this.runClickedJourneyBoardUnitExit(boardId, 'interim-card', startLinkedContentExit);
-	        if (contentExitPromise) {
-	          await contentExitPromise;
-	        }
-	        if (navExitPromise) {
-	          await navExitPromise;
-	        }
-	        startLinkedJourneyExit();
-        if (linkedJourneyExitPromise) {
-          await linkedJourneyExitPromise;
+        if (contentExitPromise) {
+          await contentExitPromise;
+        }
+        if (navExitPromise) {
+          await navExitPromise;
+        }
+        logger.info('🧪 JourneyInterimFX viewport-exit-after-content', {
+          boardId,
+          coordinatedWorldExit: !!contentExitPromise,
+        });
+        if (contentExitPromise) {
+          // World Units and nav have already completed the canonical V700 exit.
+          // Replaying the generic viewport cascade here adds an invisible
+          // ~1.0 s tail before Board Transition mounts.
+          this.finalizeJourneyViewportAfterCoordinatedWorldExit(boardId);
+        } else {
+          await this.startJourneyExitAnimation();
         }
         logger.info('🧪 JourneyInterimFX flow-complete', { boardId });
       } finally {
@@ -7197,12 +7198,10 @@ class JourneyBoardsManager {
     const worldFinalOpacity = new Map<HTMLElement, number>(
       worldCards.map((card) => {
         const preparedOpacity = Number.parseFloat(card.dataset.journeyHubFinalOpacity || '');
-        // Prepared cards already carry their final opacity. Reading computed
-        // style after preparation writes needlessly flushes style on WebKit.
-        const cssOpacity = !Number.isFinite(preparedOpacity) && card.classList.contains('is-locked')
-          ? Number.parseFloat(getComputedStyle(card).opacity)
-          : 1;
-        const finalOpacity = Number.isFinite(preparedOpacity) ? preparedOpacity : Number.isFinite(cssOpacity) ? cssOpacity : 1;
+        // Prepared cards carry their captured authored opacity. An unprepared
+        // card uses the canonical Hub opacity 1, including locked Worlds; avoid
+        // forcing a WebKit style flush after prepareForTransition() mutations.
+        const finalOpacity = Number.isFinite(preparedOpacity) ? preparedOpacity : 1;
         return [card, finalOpacity];
       }),
     );
@@ -9228,11 +9227,16 @@ class JourneyBoardsManager {
     };
     markIOSJourneyTransitionAudit('enter-waiting-for-images');
 
-    const images = Array.from(new Set(allTargets.flatMap((target) => (
-      target instanceof HTMLImageElement
-        ? [target]
-        : Array.from(target.querySelectorAll<HTMLImageElement>('img'))
-    ))));
+    // Terminal/gameplay returns were fully decoded by their prepaint owner.
+    // Avoid walking every Unit subtree on the visible handoff when no image wait
+    // will consume that list.
+    const images = options.waitForImages === false
+      ? []
+      : Array.from(new Set(allTargets.flatMap((target) => (
+        target instanceof HTMLImageElement
+          ? [target]
+          : Array.from(target.querySelectorAll<HTMLImageElement>('img'))
+      ))));
     const imageReadiness = options.waitForImages === false
       ? Promise.resolve()
       : Promise.all(images.map((image) => waitForImageReady(image))).then(() => undefined);

@@ -18,6 +18,7 @@ export type JourneyCompletionFlowOptions = {
 export type JourneyCompletionFlowResult = {
   isFromInterimBoard: boolean;
   cleanupNewCardHandoffCover: (() => void) | null;
+  cancelled: boolean;
 };
 
 export function isJourneyInterimCompletionEntryPoint(): boolean {
@@ -57,27 +58,34 @@ export async function runJourneyCompletionFlow({
         );
         cleanupNewCardHandoffCover = createNewCardHandoffCover?.() ?? null;
         const { showJourneyNewCardScreen } = await import('./journey-new-card-screen.js');
-        await showJourneyNewCardScreen({
+        const newCardResult = await showJourneyNewCardScreen({
           boardNumber,
           cardImagePath: rewardAsset.path2x || rewardAsset.path1x || boardCard?.imagePath || '',
           cardMaskImagePath: rewardAsset.path1x || boardCard?.imagePath || '',
           cardName: boardCard?.name || formatGameplayProgressLabel('journey', boardNumber),
           cardRarity: rewardAsset.rarity,
         });
-        logger?.info?.(`🎁 Journey new card screen completed for board ${boardNumber}`);
+        if (newCardResult.action === 'cancelled') {
+          logger?.info?.(`🎁 Journey new card screen cancelled for board ${boardNumber}`);
+          cleanupNewCardHandoffCover?.();
+          cleanupNewCardHandoffCover = null;
+          return { isFromInterimBoard, cleanupNewCardHandoffCover, cancelled: true };
+        } else {
+          logger?.info?.(`🎁 Journey new card screen completed for board ${boardNumber}`);
 
-        if ((boardNumber | 0) === 2) {
-          try {
-            const {
-              showJourneySpecialDiceScreen,
-              isJourneySpecialDiceUnlocked,
-            } = await import('./journey-special-dice-screen.js');
-            if (!isJourneySpecialDiceUnlocked('flower')) {
-              await showJourneySpecialDiceScreen({ diceType: 'flower' });
-              logger?.info?.('🎲 Journey special dice unlock screen completed for flower');
+          if ((boardNumber | 0) === 2) {
+            try {
+              const {
+                showJourneySpecialDiceScreen,
+                isJourneySpecialDiceUnlocked,
+              } = await import('./journey-special-dice-screen.js');
+              if (!isJourneySpecialDiceUnlocked('flower')) {
+                await showJourneySpecialDiceScreen({ diceType: 'flower' });
+                logger?.info?.('🎲 Journey special dice unlock screen completed for flower');
+              }
+            } catch (specialDiceError) {
+              logger?.warn?.('⚠️ Journey special dice screen failed, continuing to clean board:', specialDiceError);
             }
-          } catch (specialDiceError) {
-            logger?.warn?.('⚠️ Journey special dice screen failed, continuing to clean board:', specialDiceError);
           }
         }
       } catch (newCardError) {
@@ -102,5 +110,6 @@ export async function runJourneyCompletionFlow({
   return {
     isFromInterimBoard,
     cleanupNewCardHandoffCover,
+    cancelled: false,
   };
 }

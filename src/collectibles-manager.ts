@@ -1284,6 +1284,7 @@ class CollectiblesManager {
             );
             emitIOSNativeDiagnostic('viewport-enter-started', { shouldPlayActiveBoardAreaEnter });
             let homepageHubEnterStartedFromPreparedManager = false;
+            let v700WorldReturnEnterStarted = false;
             if (
               journeyContainer &&
               journeyBoardsManagerPreparedForEnter &&
@@ -1294,6 +1295,20 @@ class CollectiblesManager {
               emitIOSNativeDiagnostic('hub-enter-started-from-prepared-manager');
               journeyEnterPerformance.phase('start-hub-animation', () =>
                 journeyBoardsManagerPreparedForEnter.playJourneyV700VisibleEnterFromHomepage?.());
+            }
+            if (
+              journeyContainer
+              && journeyBoardsManagerPreparedForEnter
+              && shouldUseV700WorldReturnEnter
+              && typeof journeyBoardsManagerPreparedForEnter.playJourneyV700WorldEnterFromReturn === 'function'
+            ) {
+              v700WorldReturnEnterStarted = true;
+              emitIOSNativeDiagnostic('world-return-enter-started-from-prepared-manager');
+              journeyEnterPerformance.phase('start-world-return-animation', () =>
+                journeyBoardsManagerPreparedForEnter.playJourneyV700WorldEnterFromReturn?.(
+                  returningFromInterimBoardEarly ? 'interim-game-return' : 'journey-game-return',
+                  { immediateFirstUnit: terminalReturnToken !== null, ownerToken: terminalReturnToken },
+                ));
             }
             if (journeyContainer) {
               import('./modules/journey-boards-manager.js').then(async ({ journeyBoardsManager }) => {
@@ -1315,8 +1330,7 @@ class CollectiblesManager {
                 }
                 if (!isJourneyRevealCurrent() || (terminalReturnToken !== null
                   && getJourneyReturnRevealToken() !== terminalReturnToken)) return;
-                let v700WorldReturnEnterStarted = false;
-                if (shouldUseV700WorldReturnEnter) {
+                if (shouldUseV700WorldReturnEnter && !v700WorldReturnEnterStarted) {
                   v700WorldReturnEnterStarted = true;
                   logger.info('🧩 JourneyV700Flow collectibles-v700-world-return-enter-with-viewport', {
                     returningFromInterimBoardEarly,

@@ -28,7 +28,7 @@ describe('Journey interim card shine parity', () => {
 
     expect(newCard).toContain("from './journey-interim-card-shine.js'");
     expect(newCard).toContain('triggerJourneyInterimShinePulse({');
-    expect(newCard).toContain('const playSprite9ShineOnce = () => {');
+    expect(newCard).toContain('const playSprite9ShineOnce = (withHaptic = true) => {');
     expect(newCard).not.toContain('window.setInterval(');
     expect(newCard).toContain('cc-journey-interim-shine-face');
     expect(newCard).toContain('cc-journey-interim-shine-light');

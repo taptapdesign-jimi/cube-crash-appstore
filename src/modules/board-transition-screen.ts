@@ -1927,18 +1927,11 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
   preloadTransitionAssets([], false).catch((error) => {
     logger.warn('⚠️ board-transition-screen: Background preload failed:', error);
   });
-  import('../utils/board-asset-warmup.js')
-    .then(({ warmBoardGameAssets }) => {
-      void warmBoardGameAssets({
-        mode: 'journey',
-        boardNumber,
-        reason: 'board-transition-screen',
-        timeoutMs: 2200,
-      });
-    })
-    .catch((error) => {
-      logger.warn('⚠️ board-transition-screen: Board asset warmup import failed:', error);
-    });
+  // Do not start Pixi texture reload/decode work while the authored transition
+  // is visible. Gameplay boot owns the authoritative awaited warmup immediately
+  // after this screen, and the Journey detail screen may already have completed
+  // the same work while idle. A second fire-and-forget warmup here competed with
+  // the first transition frames on physical iOS.
   
   // Cleanup any existing overlay (preserve DOM for reuse)
   cleanup({ preserveDom: true, abortAudio: true });

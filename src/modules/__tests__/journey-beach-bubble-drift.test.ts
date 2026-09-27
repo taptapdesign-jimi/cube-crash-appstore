@@ -21,16 +21,16 @@ describe('Journey Beach ambient Bottle bubbles', () => {
     expect(getBeachBubbleVerticalBounds(600, 40)).toEqual({ startY: 600, endY: -54 });
   });
 
-  test('uses the thermal bubble profile on iPhone, iPad and Android while preserving desktop', () => {
+  test('uses the smooth bounded bubble profile on iPhone, iPad and Android while preserving desktop', () => {
     expect(resolveJourneyBeachBubbleRuntimeProfile('Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X)'))
-      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 30, maxBubbleCount: 10 });
+      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1, maxFramesPerSecond: 60, maxBubbleCount: 8 });
     expect(resolveJourneyBeachBubbleRuntimeProfile('Mozilla/5.0 (iPad; CPU OS 18_6 like Mac OS X)'))
-      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 30, maxBubbleCount: 10 });
+      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1, maxFramesPerSecond: 60, maxBubbleCount: 8 });
     expect(resolveJourneyBeachBubbleRuntimeProfile('Mozilla/5.0 (Linux; Android 15; Pixel 9 Pro)'))
-      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 30, maxBubbleCount: 10 });
+      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1, maxFramesPerSecond: 60, maxBubbleCount: 8 });
     expect(resolveJourneyBeachBubbleRuntimeProfile(
       'Mozilla/5.0 (Macintosh; Intel Mac OS X)', 'MacIntel', 5,
-    )).toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 30, maxBubbleCount: 10 });
+    )).toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1, maxFramesPerSecond: 60, maxBubbleCount: 8 });
     expect(resolveJourneyBeachBubbleRuntimeProfile('Mozilla/5.0 (Macintosh; Intel Mac OS X)'))
       .toEqual({ visibilityMarginPx: 180, pixelRatioCap: 2, maxFramesPerSecond: 0, maxBubbleCount: 0 });
   });
@@ -179,7 +179,7 @@ describe('Journey Beach ambient Bottle bubbles', () => {
     scrollRoot.remove();
   });
 
-  test('keeps ten bubbles and both lower-resolution canvases under the mobile MVP profile', () => {
+  test('keeps eight bubbles at 60 FPS on two 1x mobile canvases', () => {
     Object.defineProperties(window, {
       innerWidth: { configurable: true, value: 390 },
       innerHeight: { configurable: true, value: 844 },
@@ -210,18 +210,18 @@ describe('Journey Beach ambient Bottle bubbles', () => {
     });
 
     expect(controller.getSnapshot()).toMatchObject({
-      bubbleCount: 10,
+      bubbleCount: 8,
       layerCount: 2,
       tickerCount: 1,
-      pixelRatio: 1.25,
-      bitmapPixels: 488 * 950 * 2,
-      maxFramesPerSecond: 30,
+      pixelRatio: 1,
+      bitmapPixels: 390 * 760 * 2,
+      maxFramesPerSecond: 60,
       visibilityMarginPx: 80,
     });
     const canvases = Array.from(root.querySelectorAll<HTMLCanvasElement>('.journey-beach-bubble-canvas'));
     expect(canvases).toHaveLength(2);
     expect(canvases.every((canvas) => canvas.style.height === '760px')).toBe(true);
-    expect(canvases.every((canvas) => canvas.width === 488 && canvas.height === 950)).toBe(true);
+    expect(canvases.every((canvas) => canvas.width === 390 && canvas.height === 760)).toBe(true);
 
     controller.dispose();
     expect(callbacks.size).toBe(0);

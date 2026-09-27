@@ -17,7 +17,9 @@ const BUBBLE_SIZE_SCALES = Object.freeze([2, 2.5, 3, 3.5, 4] as const);
 const BUBBLE_OPACITIES = Object.freeze([0.2, 0.3, 0.4, 0.5, 0.6] as const);
 const BEACH_EMITTER_BOARD_IDS = Object.freeze([11, 13, 14, 16, 17, 19, 20] as const);
 const BUBBLE_VISIBILITY_MARGIN_PX = 180;
-const MOBILE_BEACH_BUBBLE_FPS = 30;
+const MOBILE_BEACH_BUBBLE_FPS = 60;
+const MOBILE_BEACH_BUBBLE_PIXEL_RATIO = 1;
+const MOBILE_BEACH_BUBBLE_COUNT = 8;
 const ASSET_BASE = './assets/shop/bottle/bottle animation pack';
 
 export interface StartJourneyBeachBubbleDriftOptions {
@@ -46,12 +48,15 @@ export function resolveJourneyBeachBubbleRuntimeProfile(
   if (mobileProfile.isMobileDevice) {
     return {
       visibilityMarginPx: mobileProfile.ambientVisibilityMarginPx,
-      pixelRatioCap: mobileProfile.ambientPixelRatioCap,
-      // The slow rise remains fluid at the shared 30 FPS settled-idle cadence.
-      // Painting both viewport canvases at 60 FPS saturated WKWebView after a
-      // gameplay return even though only ten logical bubbles were alive.
+      // Beach bubble travel is visibly discontinuous beside the 60 Hz World
+      // and native scroll when this canvas skips every other display frame.
+      // Keep its total mobile paint budget bounded by trading density/count
+      // for cadence: two 1x viewport canvases and eight sprites at 60 FPS are
+      // cheaper in retained bitmap memory and comparable in draw work to the
+      // former 1.25x/ten-sprite/30 FPS profile.
+      pixelRatioCap: MOBILE_BEACH_BUBBLE_PIXEL_RATIO,
       maxFramesPerSecond: MOBILE_BEACH_BUBBLE_FPS,
-      maxBubbleCount: mobileProfile.ambientSpriteBudget,
+      maxBubbleCount: Math.min(mobileProfile.ambientSpriteBudget, MOBILE_BEACH_BUBBLE_COUNT),
     };
   }
   return {

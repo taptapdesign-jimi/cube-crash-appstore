@@ -1140,6 +1140,7 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         createNewCardHandoffCover: createNewCardCleanBoardHandoffCover,
       });
       cleanupNewCardHandoffCover = journeyCompletionResult.cleanupNewCardHandoffCover;
+      if (journeyCompletionResult.cancelled) return;
     } catch (error) {
       logger.warn('⚠️ Journey completion flow failed:', error);
     }

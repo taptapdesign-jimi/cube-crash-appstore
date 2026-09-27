@@ -7,6 +7,16 @@ const managerSource = fs.readFileSync(
 );
 
 describe('Journey detail modal handoff', () => {
+  it('does not replay the legacy viewport cascade before an interim Board Transition', () => {
+    const interimExitSource = managerSource.split('private startInterimAreaThenJourneyExit(')[1]
+      ?.split('private startBoardAreaThenJourneyExit(')[0] ?? '';
+
+    expect(interimExitSource).toContain('if (contentExitPromise) {');
+    expect(interimExitSource).toContain('this.finalizeJourneyViewportAfterCoordinatedWorldExit(boardId);');
+    expect(interimExitSource).toContain('} else {\n          await this.startJourneyExitAnimation();');
+    expect(interimExitSource).not.toContain('linkedJourneyExitPromise');
+  });
+
   it('does not replay the legacy viewport cascade after coordinated World and nav exit', () => {
     const regularExitSource = managerSource.split('private startBoardAreaThenJourneyExit(')[1]
       ?.split('private installInterimAreaHitTargets(')[0] ?? '';

@@ -13,6 +13,14 @@ describe('Board Transition duration contract', () => {
     expect(awaitedPreload).toBeLessThan(source.indexOf('return new Promise((resolve, reject) => {'));
   });
 
+  test('does not reload Pixi board textures during the visible transition', () => {
+    const source = read('src/modules/board-transition-screen.ts');
+    const visibleTransition = source.split('export async function showBoardTransitionScreen')[1] ?? '';
+
+    expect(visibleTransition).not.toContain("import('../utils/board-asset-warmup.js')");
+    expect(visibleTransition).not.toContain('warmBoardGameAssets({');
+  });
+
   test('moves the shared NN number another six percent upward from its accepted lift', () => {
     const source = read('src/modules/board-transition-screen.ts');
     expect(source).toContain("numberContainer.style.transform = 'translate3d(0, -21vh, 0)'");

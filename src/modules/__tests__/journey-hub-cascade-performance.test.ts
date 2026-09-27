@@ -98,7 +98,7 @@ test.each([true, false])('prepared opacity preserves target values while avoidin
   const f = fixture(prepared ? ['1', '0.65', '0.8'] : ['', '', '0.8']);
   f.owner.playJourneyV700HubEnter('homepage'); f.ready.resolve(); await flush();
   const cards = f.tweens.filter((tween) => tween.target.classList.contains('journey-v700-world-card'));
-  expect(cards.map((tween) => tween.vars.opacity)).toEqual([1, 0.65, 0.8]);
-  expect(f.computed).toHaveBeenCalledTimes(prepared ? 0 : 1);
+  expect(cards.map((tween) => tween.vars.opacity)).toEqual(prepared ? [1, 0.65, 0.8] : [1, 1, 0.8]);
+  expect(f.computed).not.toHaveBeenCalled();
   f.owner.cancelJourneyV700HubEnter('cleanup');
 });

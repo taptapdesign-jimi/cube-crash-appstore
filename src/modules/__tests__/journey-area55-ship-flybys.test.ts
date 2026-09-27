@@ -78,11 +78,11 @@ describe('Journey Area 55 pooled ship flybys', () => {
     });
   });
 
-  test('keeps ships inside the shared 30 FPS mobile Journey budget', () => {
+  test('matches mobile display cadence while bounding density and ship count', () => {
     expect(resolveJourneyArea55ShipRuntimeProfile('Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X)'))
-      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 30, maxShipCount: 2 });
+      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1, maxFramesPerSecond: 60, maxShipCount: 2 });
     expect(resolveJourneyArea55ShipRuntimeProfile('Mozilla/5.0 (Linux; Android 15)'))
-      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 30, maxShipCount: 2 });
+      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1, maxFramesPerSecond: 60, maxShipCount: 2 });
   });
 
   test('uses the physical scroll viewport instead of applying the 24px Journey gutter twice', () => {
@@ -178,7 +178,7 @@ describe('Journey Area 55 pooled ship flybys', () => {
       renderer: 'canvas',
       asset: './assets/journey assets/robo/ship1@2x.png',
       maxRotationDegrees: 20,
-      maxFramesPerSecond: 30,
+      maxFramesPerSecond: 60,
     });
     const canvases = root.querySelectorAll('.journey-area55-ship-canvas');
     expect(canvases).toHaveLength(2);

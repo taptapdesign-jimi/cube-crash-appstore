@@ -119,11 +119,11 @@ export function resolveJourneyArea55ShipRuntimeProfile(
   const mobile = resolveMobileRuntimeProfile({ userAgent, platform, maxTouchPoints });
   return {
     visibilityMarginPx: mobile.ambientVisibilityMarginPx,
-    pixelRatioCap: mobile.ambientPixelRatioCap,
-    // Area 55 shares the same settled Journey cadence as Forest and Beach.
-    // A dedicated 60 Hz canvas kept two full-viewport surfaces repainting even
-    // while the World was otherwise idle.
-    maxFramesPerSecond: mobile.isMobileDevice ? mobile.settledIdleMaxFramesPerSecond : 0,
+    // The saucers cross the screen and visibly bank, so 30 Hz reads as skipped
+    // motion beside the 60 Hz Journey viewport. Keep their two-sprite budget,
+    // but trade backing-store density for display-matched motion on mobile.
+    pixelRatioCap: mobile.isMobileDevice ? 1 : mobile.ambientPixelRatioCap,
+    maxFramesPerSecond: mobile.isMobileDevice ? 60 : 0,
     maxShipCount: mobile.area55ShipBudget,
   };
 }

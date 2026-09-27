@@ -479,12 +479,30 @@ describe('Journey Hub transition ownership', () => {
     expect(prepareSource).toContain('world-enter-prime-reused');
     expect(worldEnterSource).toContain('const canReusePreparedPlan =');
     expect(worldEnterSource).toContain('? preparedPlan.units');
-    expect(worldEnterSource).toContain('options.waitForImages === false');
+    expect(worldEnterSource).toContain('const images = options.waitForImages === false');
+    expect(worldEnterSource).toContain('options.waitForImages === false\n      ? []');
     expect(worldEnterSource).toContain('? Promise.resolve()');
     expect(worldEnterSource).toContain('this.trackRAF(() => {');
     expect(worldEnterSource).toContain('this.journeyWorldRuntime.endTransition()');
     expect(worldEnterSource.indexOf('this.journeyWorldRuntime.endTransition()'))
       .toBeLessThan(worldEnterSource.indexOf('this.startBeachBubbleDrift(container, worldId)'));
+  });
+
+  test('terminal return starts from the already prepared manager in the visible commit task', () => {
+    const showSource = collectiblesSource.split(
+      'async showCollectibles(options?: CollectiblesShowOptions): Promise<void>',
+    )[1]?.split('async hideCollectibles(')[0] ?? '';
+    const preparedStart = showSource.indexOf(
+      "emitIOSNativeDiagnostic('world-return-enter-started-from-prepared-manager')",
+    );
+    const fallbackImport = showSource.indexOf("import('./modules/journey-boards-manager.js').then(async");
+
+    expect(preparedStart).toBeGreaterThan(showSource.indexOf("emitIOSNativeDiagnostic('viewport-enter-started'"));
+    expect(preparedStart).toBeLessThan(fallbackImport);
+    expect(showSource).toContain('let v700WorldReturnEnterStarted = false');
+    expect(showSource).toContain("typeof journeyBoardsManagerPreparedForEnter.playJourneyV700WorldEnterFromReturn === 'function'");
+    expect(showSource).toContain('if (shouldUseV700WorldReturnEnter && !v700WorldReturnEnterStarted)');
+    expect(showSource).toContain('{ immediateFirstUnit: terminalReturnToken !== null, ownerToken: terminalReturnToken }');
   });
 
   test('terminal return prepaint is generation-owned and cancellation cannot clear a newer plan', () => {
@@ -979,7 +997,8 @@ describe('Journey Hub transition ownership', () => {
     )[1]?.split('public playJourneyV700HubEnterFromHomepage')[0] ?? '';
 
     expect(hubEnterSource).toContain('const worldFinalOpacity = new Map<HTMLElement, number>');
-    expect(hubEnterSource).toContain("card.classList.contains('is-locked')");
+    expect(hubEnterSource).toContain('const finalOpacity = Number.isFinite(preparedOpacity) ? preparedOpacity : 1');
+    expect(hubEnterSource).not.toContain('getComputedStyle(card).opacity');
     expect(hubEnterSource).toContain('opacity: worldFinalOpacity.get(worldCard) ?? 1');
     expect(hubEnterSource).toContain("clearProps: 'transform,opacity,visibility,willChange'");
     expect(hubEnterSource).toContain("hub?.classList.remove('journey-v700-banners-presented')");

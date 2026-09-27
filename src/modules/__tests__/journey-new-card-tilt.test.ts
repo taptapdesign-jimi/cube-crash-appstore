@@ -110,7 +110,7 @@ describe('Journey New Reward card tilt handoff', () => {
     expect(source).toContain('cc-journey-new-card-auto-tilt-shell--unlocked');
     expect(source).not.toContain('mountGameplayModalSpatialMotion');
     expect(source).not.toContain('DeviceOrientationEvent');
-    expect(source).toContain('animation: ccJourneyNewCardAutoTilt 3s ease-in-out 1 both;');
+    expect(source).toMatch(/\.cc-journey-new-card-auto-tilt-shell \{[\s\S]*?animation: none;/);
     expect(source).toContain('rotationZ: revealTilt.interimRestRotationDeg');
     expect(source).toContain('rotationX: revealTilt.interimExitRotateXDeg');
     expect(source).toContain('rotationY: revealTilt.interimExitRotateYDeg');
@@ -124,6 +124,28 @@ describe('Journey New Reward card tilt handoff', () => {
     expect(source).toContain('const cardEnterDuration = rd(0.52);');
     expect(source).toMatch(/\.to\(interimSurface, \{[\s\S]*?scale: 0,[\s\S]*?ease: 'back\.in\(1\.65\)'/);
     expect(source).toMatch(/\.set\(unlockedSurface, \{[\s\S]*?y: JOURNEY_NEW_CARD_UNLOCKED_OFFSET_Y_PX - 18,[\s\S]*?scale: 0\.58/);
+  });
+
+  test('keeps the closed question-mark card moving in owned finite three-second cycles', () => {
+    const source = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/modules/journey-new-card-screen.ts'),
+      'utf8',
+    );
+
+    expect(source).toContain('JOURNEY_NEW_CARD_INTERIM_IDLE_DURATION_MS = 3000');
+    expect(source).toContain('const startInterimIdleMotion = () => {');
+    expect(source).toContain("{ transform: 'translateY(-8px) scale(1.02)', offset: 0.5 }");
+    expect(source).toContain("rotateX(-2.3deg) rotateY(2.6deg)");
+    expect(source).toContain('Promise.allSettled([motionAnimation.finished, tiltAnimation.finished])');
+    expect(source).toMatch(/playInterimIdleShineOnce\(\);\s*startInterimIdleMotion\(\);/);
+    expect(source).toContain('playInterimIdleShineOnce = () => {');
+    expect(source).toContain('const interimIdleShineTimelines = new Set<gsap.core.Timeline>();');
+    expect(source).toContain("onPulse: withHaptic ? () => triggerHaptic('light') : undefined");
+    expect(source).toContain("if (activeFace === 'interim') startInterimIdleMotion();");
+    expect(source).toContain("setCardIdleTiltState('none');");
+    expect(source).toContain('stopInterimIdleMotion();');
+    expect(source).not.toContain('iterations: Infinity');
+    expect(source).not.toContain('window.setInterval(');
   });
 
   test('clips every unlocked-card shimmer to the actual card alpha mask', () => {
@@ -161,6 +183,8 @@ describe('Journey New Reward card tilt handoff', () => {
     expect(source).toContain("safeCardRarity !== 'legendary'");
     expect(source).toContain("if (activeFace === 'unlocked') scheduleUnlockedIdleMotion();");
     expect(source).toContain('JOURNEY_CARD_MOBILE_IDLE_CALM_MS');
+    expect(source).toContain('JOURNEY_NEW_CARD_UNLOCKED_IDLE_REPEAT_DELAY_MS = 3000');
+    expect(source).toContain('scheduleUnlockedIdleMotion(JOURNEY_NEW_CARD_UNLOCKED_IDLE_REPEAT_DELAY_MS);');
     expect(source).toContain("if (safeCardRarity === 'legendary') return;");
     expect(source).toContain('setLightMask(unlockedLegendaryHolo, safeCardMaskPath);');
     expect(source).toContain('unlockedIdleTiltAnimation?.cancel();');

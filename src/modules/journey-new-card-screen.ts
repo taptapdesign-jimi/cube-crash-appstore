@@ -39,6 +39,7 @@ import {
   JOURNEY_CARD_LEGENDARY_IDLE_TILT_DEG,
   JOURNEY_CARD_MOBILE_IDLE_CALM_MS,
 } from './journey-card-overlay-modal.js';
+import { clearJourneyNewCardIdleShineWork } from './journey-new-card-idle-visibility.js';
 
 type JourneyNewCardScreenOptions = {
   boardNumber: number;
@@ -49,11 +50,15 @@ type JourneyNewCardScreenOptions = {
 };
 
 let cleanupFns: Array<() => void> = [];
-let activeTimelines: gsap.core.Timeline[] = [];
+const activeTimelines = new Set<gsap.core.Timeline>();
+let newCardScreenPresentationGeneration = 0;
 
 const JOURNEY_NEW_CARD_CONTINUE_COACH_INITIAL_DELAY_MS = 1000;
 const JOURNEY_NEW_CARD_CONTINUE_COACH_AFTER_DRAG_DELAY_MS = 2000;
 const JOURNEY_NEW_CARD_CONTINUE_COACH_DURATION_MS = 2100;
+const JOURNEY_NEW_CARD_CONTINUE_COACH_REPEAT_CADENCE_MS = 3000;
+const JOURNEY_NEW_CARD_UNLOCKED_IDLE_REPEAT_DELAY_MS = 3000;
+const JOURNEY_NEW_CARD_INTERIM_IDLE_DURATION_MS = 3000;
 
 function renderContinueCoachLine(line: string): string {
   return `<span class="cc-journey-new-card-coach-line">${Array.from(line).map((letter, index) => (
@@ -64,14 +69,27 @@ function renderContinueCoachLine(line: string): string {
 }
 
 function trackNewCardTimeline(timeline: gsap.core.Timeline): gsap.core.Timeline {
-  activeTimelines.push(timeline);
+  activeTimelines.add(timeline);
+  const retire = () => activeTimelines.delete(timeline);
+  const onComplete = timeline.eventCallback('onComplete');
+  const onInterrupt = timeline.eventCallback('onInterrupt');
+  timeline.eventCallback('onComplete', () => {
+    retire();
+    onComplete?.call(timeline);
+  });
+  timeline.eventCallback('onInterrupt', () => {
+    retire();
+    onInterrupt?.call(timeline);
+  });
   return timeline;
 }
 
 function cleanupJourneyNewCardScreen(): void {
-  activeTimelines.splice(0).forEach((timeline) => {
+  newCardScreenPresentationGeneration += 1;
+  Array.from(activeTimelines).forEach((timeline) => {
     try { timeline.kill(); } catch {}
   });
+  activeTimelines.clear();
   cleanupFns.forEach((fn) => {
     try { fn(); } catch {}
   });
@@ -183,7 +201,7 @@ function ensureJourneyNewCardStyles(): void {
       display: grid;
       place-items: center;
       overflow: visible;
-      animation: ccJourneyNewCardIdle 3s ease-in-out 1 both;
+      transform: translateY(0) scale(1);
       transform-origin: 50% 50%;
       transform-style: preserve-3d;
       -webkit-transform-style: preserve-3d;
@@ -233,8 +251,7 @@ function ensureJourneyNewCardStyles(): void {
       transform-origin: 50% 54%;
       transform-style: preserve-3d;
       -webkit-transform-style: preserve-3d;
-      animation: ccJourneyNewCardAutoTilt 3s ease-in-out 1 both;
-      animation-play-state: paused;
+      animation: none;
     }
     /* The revealed face is owned by WAAPI for both auto idle and live drag.
        A paused CSS animation still outranks inline transform in the cascade,
@@ -535,8 +552,9 @@ export async function showJourneyNewCardScreen({
   cardMaskImagePath,
   cardName,
   cardRarity,
-}: JourneyNewCardScreenOptions): Promise<{ action: 'continue' }> {
+}: JourneyNewCardScreenOptions): Promise<{ action: 'continue' | 'cancelled' }> {
   cleanupJourneyNewCardScreen();
+  const presentationGeneration = newCardScreenPresentationGeneration;
   try { cleanupJourneySmokeEffects(); } catch {}
   ensureJourneyNewCardStyles();
 
@@ -560,8 +578,12 @@ export async function showJourneyNewCardScreen({
     ...(safeCardMaskPath !== safeCardPath ? [preloadImage(safeCardMaskPath)] : []),
     preloadImage('./assets/hand-pointer.png'),
   ]);
+  if (presentationGeneration !== newCardScreenPresentationGeneration) {
+    return { action: 'cancelled' };
+  }
 
   return new Promise((resolve) => {
+    let promiseSettled = false;
     let resolved = false;
     let revealed = false;
     let revealRunning = false;
@@ -570,6 +592,10 @@ export async function showJourneyNewCardScreen({
     let continueCoachTimerId = 0;
     let continueCoachHandAnimation: Animation | null = null;
     let continueCoachCardAnimation: Animation | null = null;
+    let interimIdleMotionAnimation: Animation | null = null;
+    let interimIdleTiltAnimation: Animation | null = null;
+    let interimIdleGeneration = 0;
+    let playInterimIdleShineOnce: () => void = () => {};
     let unlockedIdleTiltAnimation: Animation | null = null;
     let unlockedIdleHoloAnimation: Animation | null = null;
     let unlockedIdleTimerId = 0;
@@ -590,6 +616,21 @@ export async function showJourneyNewCardScreen({
     const hapticTimeouts: number[] = [];
     const shineTimeouts: number[] = [];
     const shineAnimationFrames: number[] = [];
+    const interimIdleShineTimeouts = new Set<number>();
+    const interimIdleShineFrames = new Set<number>();
+    const interimIdleShineTimelines = new Set<gsap.core.Timeline>();
+
+    // App-zone cleanup and a replacement presentation can retire this screen
+    // after it has mounted. Always settle the awaiting completion flow so an
+    // old endgame task cannot remain retained behind a removed overlay.
+    cleanupFns.push(() => {
+      if (promiseSettled) return;
+      promiseSettled = true;
+      resolved = true;
+      disposed = true;
+      framePlaybackId += 1;
+      resolve({ action: 'cancelled' });
+    });
 
     const overlay = document.createElement('div');
     overlay.id = 'cc-journey-new-card-overlay';
@@ -663,6 +704,71 @@ export async function showJourneyNewCardScreen({
       0,
     ];
     const unlockedIdleOffsets = [0, 0.25, 0.5, 0.75, 1];
+    const stopInterimIdleMotion = () => {
+      interimIdleGeneration += 1;
+      interimIdleMotionAnimation?.cancel();
+      interimIdleMotionAnimation = null;
+      interimIdleTiltAnimation?.cancel();
+      interimIdleTiltAnimation = null;
+      motion?.style.removeProperty('transform');
+      interimAutoTilt?.style.removeProperty('transform');
+    };
+    const startInterimIdleMotion = () => {
+      stopInterimIdleMotion();
+      if (
+        prefersReducedMotion
+        || revealed
+        || revealRunning
+        || resolved
+        || disposed
+        || !motion
+        || !interimAutoTilt
+        || typeof motion.animate !== 'function'
+        || typeof interimAutoTilt.animate !== 'function'
+        || document.hidden
+        || !document.body.contains(overlay)
+      ) return;
+
+      const generation = interimIdleGeneration;
+      const motionAnimation = motion.animate([
+        { transform: 'translateY(0px) scale(1)', offset: 0 },
+        { transform: 'translateY(-8px) scale(1.02)', offset: 0.5 },
+        { transform: 'translateY(0px) scale(1)', offset: 1 },
+      ], {
+        duration: JOURNEY_NEW_CARD_INTERIM_IDLE_DURATION_MS,
+        easing: 'ease-in-out',
+        iterations: 1,
+      });
+      const tiltAnimation = interimAutoTilt.animate([
+        { transform: 'perspective(1050px) rotateX(0deg) rotateY(0deg) rotateZ(-0.45deg) translateZ(0px)', offset: 0 },
+        { transform: 'perspective(1050px) rotateX(-2.3deg) rotateY(2.6deg) rotateZ(1.35deg) translateZ(5px)', offset: 0.28 },
+        { transform: 'perspective(1050px) rotateX(1.65deg) rotateY(-2.35deg) rotateZ(-1.15deg) translateZ(3px)', offset: 0.58 },
+        { transform: 'perspective(1050px) rotateX(-0.4deg) rotateY(0.7deg) rotateZ(0.3deg) translateZ(1px)', offset: 0.78 },
+        { transform: 'perspective(1050px) rotateX(0deg) rotateY(0deg) rotateZ(-0.45deg) translateZ(0px)', offset: 1 },
+      ], {
+        duration: JOURNEY_NEW_CARD_INTERIM_IDLE_DURATION_MS,
+        easing: 'ease-in-out',
+        iterations: 1,
+      });
+      interimIdleMotionAnimation = motionAnimation;
+      interimIdleTiltAnimation = tiltAnimation;
+
+      void Promise.allSettled([motionAnimation.finished, tiltAnimation.finished]).then(() => {
+        if (
+          generation !== interimIdleGeneration
+          || interimIdleMotionAnimation !== motionAnimation
+          || interimIdleTiltAnimation !== tiltAnimation
+        ) return;
+        interimIdleMotionAnimation = null;
+        interimIdleTiltAnimation = null;
+        motionAnimation.cancel();
+        tiltAnimation.cancel();
+        motion.style.removeProperty('transform');
+        interimAutoTilt.style.removeProperty('transform');
+        playInterimIdleShineOnce();
+        startInterimIdleMotion();
+      });
+    };
     const getCurrentUnlockedIdleAngle = (): number => {
       const progress = Number(unlockedIdleTiltAnimation?.effect?.getComputedTiming().progress ?? 0);
       if (!Number.isFinite(progress)) return 0;
@@ -705,6 +811,7 @@ export async function showJourneyNewCardScreen({
         prefersReducedMotion
         || resolved
         || disposed
+        || document.hidden
         || !unlockedAutoTilt
         || typeof unlockedAutoTilt.animate !== 'function'
       ) return;
@@ -726,6 +833,7 @@ export async function showJourneyNewCardScreen({
         unlockedIdleTiltAnimation = null;
         tiltAnimation.cancel();
         unlockedAutoTilt.style.removeProperty('transform');
+        scheduleUnlockedIdleMotion(JOURNEY_NEW_CARD_UNLOCKED_IDLE_REPEAT_DELAY_MS);
       });
       if (
         safeCardRarity !== 'legendary'
@@ -756,19 +864,23 @@ export async function showJourneyNewCardScreen({
         unlockedLegendaryHolo.style.removeProperty('opacity');
       });
     };
-    const scheduleUnlockedIdleMotion = () => {
+    const scheduleUnlockedIdleMotion = (
+      delayMs = MOBILE_RUNTIME_PROFILE.isMobileDevice ? JOURNEY_CARD_MOBILE_IDLE_CALM_MS : 0,
+    ) => {
       stopUnlockedIdleMotion();
-      if (!MOBILE_RUNTIME_PROFILE.isMobileDevice) {
+      if (prefersReducedMotion || resolved || disposed || document.hidden || !document.body.contains(overlay)) return;
+      if (delayMs <= 0) {
         startUnlockedIdleMotion();
         return;
       }
       unlockedIdleTimerId = window.setTimeout(() => {
         unlockedIdleTimerId = 0;
         startUnlockedIdleMotion();
-      }, JOURNEY_CARD_MOBILE_IDLE_CALM_MS);
+      }, delayMs);
     };
     const setCardIdleTiltState = (activeFace: 'interim' | 'unlocked' | 'none') => {
-      if (interimAutoTilt) interimAutoTilt.style.animationPlayState = activeFace === 'interim' ? 'running' : 'paused';
+      if (activeFace === 'interim') startInterimIdleMotion();
+      else stopInterimIdleMotion();
       if (activeFace === 'unlocked') scheduleUnlockedIdleMotion();
       else stopUnlockedIdleMotion();
     };
@@ -791,11 +903,11 @@ export async function showJourneyNewCardScreen({
       delayMs = JOURNEY_NEW_CARD_CONTINUE_COACH_INITIAL_DELAY_MS,
     ) => {
       stopContinueCoach();
-      if (prefersReducedMotion || resolved || disposed || !revealed || revealRunning || !document.body.contains(overlay)) return;
+      if (prefersReducedMotion || resolved || disposed || document.hidden || !revealed || revealRunning || !document.body.contains(overlay)) return;
       const generation = continueCoachGeneration;
       continueCoachTimerId = window.setTimeout(() => {
         continueCoachTimerId = 0;
-        if (generation !== continueCoachGeneration || resolved || disposed || !revealed || revealRunning) return;
+        if (generation !== continueCoachGeneration || resolved || disposed || document.hidden || !revealed || revealRunning) return;
         if (
           !continueCoachHand
           || !poseShell
@@ -836,6 +948,11 @@ export async function showJourneyNewCardScreen({
           continueCoachHandAnimation = null;
           continueCoachCardAnimation = null;
           overlay.classList.remove('is-continue-coach');
+          scheduleContinueCoach(Math.max(
+            0,
+            JOURNEY_NEW_CARD_CONTINUE_COACH_REPEAT_CADENCE_MS
+              - JOURNEY_NEW_CARD_CONTINUE_COACH_DURATION_MS,
+          ));
         });
       }, delayMs);
     };
@@ -843,7 +960,9 @@ export async function showJourneyNewCardScreen({
     cleanupFns.push(() => {
       disposed = true;
       stopContinueCoach();
+      stopInterimIdleMotion();
       stopUnlockedIdleMotion();
+      clearInterimIdleShineWork();
       hapticTimeouts.splice(0).forEach((timeoutId) => {
         try { window.clearTimeout(timeoutId); } catch {}
       });
@@ -958,17 +1077,91 @@ export async function showJourneyNewCardScreen({
       try { gsap.killTweensOf([interimSurface, unlockedSurface, interimLight, unlockedLight, frameImg, finalImg]); } catch {}
     };
 
-    const playSprite9ShineOnce = () => {
+    const clearInterimIdleShineWork = () => {
+      interimIdleShineTimeouts.forEach((timeoutId) => {
+        const index = shineTimeouts.indexOf(timeoutId);
+        if (index >= 0) shineTimeouts.splice(index, 1);
+      });
+      interimIdleShineFrames.forEach((frameId) => {
+        const index = shineAnimationFrames.indexOf(frameId);
+        if (index >= 0) shineAnimationFrames.splice(index, 1);
+      });
+      clearJourneyNewCardIdleShineWork({
+        timeoutIds: interimIdleShineTimeouts,
+        frameIds: interimIdleShineFrames,
+        timelines: interimIdleShineTimelines,
+        lightElement: interimLight,
+        faceElement: frameImg,
+        lightActiveClass: JOURNEY_INTERIM_SHINE_TRIGGER_CLASS,
+        faceActiveClass: JOURNEY_INTERIM_GLOW_PULSE_CLASS,
+        restoreFaceScale: () => {
+          try { if (frameImg) gsap.set(frameImg, { scale: 1.2 }); } catch {}
+        },
+      });
+    };
+
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        stopContinueCoach();
+        stopInterimIdleMotion();
+        stopUnlockedIdleMotion();
+        clearInterimIdleShineWork();
+        return;
+      }
+      if (resolved || disposed || !document.body.contains(overlay)) return;
+      if (!revealed) startInterimIdleMotion();
+      else if (!revealRunning) {
+        scheduleUnlockedIdleMotion();
+        scheduleContinueCoach();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    cleanupFns.push(() => document.removeEventListener('visibilitychange', onVisibilityChange));
+
+    const playSprite9ShineOnce = (withHaptic = true) => {
       if (revealed || revealRunning || resolved || disposed || !frameImg || !document.body.contains(overlay)) return;
       triggerJourneyInterimShinePulse({
         lightElement: interimLight,
         faceElement: frameImg,
         baseScale: 1.2,
         shouldRun: () => !revealed && !revealRunning && !resolved && !disposed && !!frameImg && document.body.contains(overlay),
-        onPulse: () => triggerHaptic('light'),
+        onPulse: withHaptic ? () => triggerHaptic('light') : undefined,
         scheduleTimeout: scheduleShineTimeout,
         scheduleFrame: scheduleShineFrame,
         trackTimeline: trackNewCardTimeline,
+      });
+    };
+    playInterimIdleShineOnce = () => {
+      if (document.hidden) return;
+      triggerJourneyInterimShinePulse({
+        lightElement: interimLight,
+        faceElement: frameImg,
+        baseScale: 1.2,
+        shouldRun: () => !document.hidden && !revealed && !revealRunning && !resolved && !disposed
+          && !!frameImg && document.body.contains(overlay),
+        scheduleTimeout: (callback, delayMs) => {
+          const timeoutId = scheduleShineTimeout(() => {
+            interimIdleShineTimeouts.delete(timeoutId);
+            callback();
+          }, delayMs);
+          interimIdleShineTimeouts.add(timeoutId);
+          return timeoutId;
+        },
+        scheduleFrame: (callback) => {
+          const frameId = scheduleShineFrame(() => {
+            interimIdleShineFrames.delete(frameId);
+            callback();
+          });
+          interimIdleShineFrames.add(frameId);
+          return frameId;
+        },
+        trackTimeline: (timeline) => {
+          interimIdleShineTimelines.add(timeline);
+          const retire = () => interimIdleShineTimelines.delete(timeline);
+          timeline.eventCallback('onComplete', retire);
+          timeline.eventCallback('onInterrupt', retire);
+          return timeline;
+        },
       });
     };
 
@@ -998,6 +1191,7 @@ export async function showJourneyNewCardScreen({
       resolved = true;
       collectRequestedDuringReveal = false;
       stopContinueCoach();
+      clearInterimIdleShineWork();
       clearPendingShineWork();
       setCardIdleTiltState('none');
       ++framePlaybackId;
@@ -1007,6 +1201,8 @@ export async function showJourneyNewCardScreen({
       void (async () => {
         const tl = trackNewCardTimeline(gsap.timeline({
           onComplete: () => {
+            if (promiseSettled) return;
+            promiseSettled = true;
             cleanupJourneyNewCardScreen();
             resolve({ action: 'continue' });
           },
@@ -1069,6 +1265,7 @@ export async function showJourneyNewCardScreen({
         force3D: true,
       });
       setCardIdleTiltState('none');
+      clearInterimIdleShineWork();
       clearPendingShineWork();
       const revealFramePlaybackId = ++framePlaybackId;
       try { hero?.setAttribute('aria-disabled', 'true'); } catch {}

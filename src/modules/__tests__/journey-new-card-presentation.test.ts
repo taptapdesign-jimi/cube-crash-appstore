@@ -57,8 +57,9 @@ describe('Journey New Reward presentation', () => {
     expect(coachCopyRule).not.toContain('opacity:');
     expect(screen).toContain('JOURNEY_NEW_CARD_CONTINUE_COACH_INITIAL_DELAY_MS = 1000');
     expect(screen).toContain('JOURNEY_NEW_CARD_CONTINUE_COACH_AFTER_DRAG_DELAY_MS = 2000');
+    expect(screen).toContain('JOURNEY_NEW_CARD_CONTINUE_COACH_REPEAT_CADENCE_MS = 3000');
     expect(screen).toContain('scheduleContinueCoach(JOURNEY_NEW_CARD_CONTINUE_COACH_AFTER_DRAG_DELAY_MS)');
-    expect(screen).not.toContain('scheduleContinueCoach(JOURNEY_NEW_CARD_CONTINUE_COACH_REPEAT_DELAY_MS)');
+    expect(screen).toContain('JOURNEY_NEW_CARD_CONTINUE_COACH_REPEAT_CADENCE_MS\n              - JOURNEY_NEW_CARD_CONTINUE_COACH_DURATION_MS');
     expect(screen).toContain("hero?.setAttribute('aria-label', `Continue after unlocking ${safeCardName}`)");
     expect(screen).toContain('stopContinueCoach();');
     expect(screen).toContain('scheduleContinueCoach();');
