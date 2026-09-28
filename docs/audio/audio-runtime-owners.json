@@ -22,6 +22,55 @@
         "src/modules/__tests__/thermal-gameplay-audio-cleanup.test.ts"
       ],
       "physicalAcceptance": "NEEDS PHYSICAL TEST for speaker balance, timing, route continuity and sustained thermal behavior."
+    },
+    {
+      "id": "board-popin",
+      "ownerFile": "src/modules/board-popin-sound.ts",
+      "family": "Gameplay",
+      "eventOwner": "Shared sweetPopIn visible mesh/bounce entry for fresh, retry and Continue boards.",
+      "transport": "Shared decoded gameplay SFX engine; no additional media/context or fallback.",
+      "voicePolicy": "Three stable voices for one entrance: setting up boards at.5 base gain, plump and setting up2 at.7. Replacement invalidates prior active/pending layers and scoped stop token.",
+      "preloadPolicy": "Warm only the three supplied layers during fresh/load entry preparation when Sounds are enabled. Never await audio to reveal the board.",
+      "settingsPolicy": "Preload/start require gameSoundsEnabled; global registry full-stop cancels pending/active voice. ON never replays.",
+      "interruptionPolicy": "Normal animation completion, abort, watchdog, replacement and global stop retire the voice; engine owns hidden/pagehide and isolation. Audio-clock cutoff and 50ms fade bound playback to entry duration.",
+      "stopExport": "stopBoardPopInSound",
+      "globalRegistryRequired": true,
+      "sources": [
+        "./assets/sound/board etting up/setting up boards.wav",
+        "./assets/sound/board etting up/plump.wav",
+        "./assets/sound/board etting up/setting up2.wav"
+      ],
+      "tests": [
+        "src/modules/__tests__/board-popin-sound.test.ts",
+        "src/modules/__tests__/board-popin-runtime.test.ts",
+        "src/modules/__tests__/gameplay-audio-buffer-player.test.ts"
+      ],
+      "physicalAcceptance": "NEEDS PHYSICAL TEST for onset, fade and speaker balance on iPhone."
+    },
+    {
+      "id": "journey-new-card",
+      "ownerFile": "src/modules/journey-new-card-sound.ts",
+      "family": "Journey",
+      "eventOwner": "New Reward hero enter, initial crumble sprite playback and unlocked-card transition; accepted taps reuse CTA owner. Accepted reveal/collect taps layer klik plop with CTA at the same synchronous contact, including queued collect deduplication.",
+      "transport": "Shared decoded SFX engine; no new media/context/timers.",
+      "voicePolicy": "Four stable once-per-presentation voices. Happy starts at screen-entry timeline0 at.5 base gain and continues through reveal; intro/crumble at.7 and pufreveal at1. Standard SFX master applies. Cleanup/collect retires all four. One additional bounded tap voice at base gain1, retriggered only by accepted input; presentation finish preserves it through exit, screen cleanup stops it.",
+      "preloadPolicy": "Only this five-source package before reward image preparation, gated by Sounds setting; no visual wait.",
+      "settingsPolicy": "Preload/start require gameSoundsEnabled. Full-stop registry cancels pending/active voices. Unmute cannot replay past contacts, but a new reveal contact in the current visible session is allowed. Screen cleanup/replacement invalidates the session.",
+      "interruptionPolicy": "Replacement, cleanup and collect retire all reward voices. Reveal stops interim voices before puf. Shared engine owns hidden/pagehide/isolation. The tap tail survives presentation finish only; screen cleanup/replacement/full stop cancel it.",
+      "stopExport": "stopJourneyNewCardSounds",
+      "globalRegistryRequired": true,
+      "sources": [
+        "./assets/sound/card reveal/crumble.wav",
+        "./assets/sound/card reveal/interim crumble.wav",
+        "./assets/sound/card reveal/pufreveal.wav",
+        "./assets/sound/card reveal/happy sound.wav",
+        "./assets/sound/card reveal/klik plop.wav"
+      ],
+      "tests": [
+        "src/modules/__tests__/journey-new-card-sound.test.ts",
+        "src/modules/__tests__/gameplay-audio-buffer-player.test.ts"
+      ],
+      "physicalAcceptance": "NEEDS PHYSICAL TEST for reveal sync, CTA balance and audible tails."
     }
   ]
 }

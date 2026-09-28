@@ -60,6 +60,7 @@ describe('Mushroom shared Pixi sheet artwork', () => {
   let loadSpy: jest.SpiedFunction<typeof Assets.load>;
   let getSpy: jest.SpiedFunction<typeof Assets.get>;
   let unloadSpy: jest.SpiedFunction<typeof Assets.unload>;
+  let stage: Container;
 
   const flush = async () => {
     for (let index = 0; index < 12; index += 1) await Promise.resolve();
@@ -79,7 +80,8 @@ describe('Mushroom shared Pixi sheet artwork', () => {
       add: jest.fn((callback: (value: any) => void) => callbacks.add(callback)),
       remove: jest.fn((callback: (value: any) => void) => callbacks.delete(callback)),
     };
-    STATE.app = { ticker } as any;
+    stage = new Container();
+    STATE.app = { ticker, stage } as any;
   });
 
   afterEach(() => {
@@ -96,6 +98,11 @@ describe('Mushroom shared Pixi sheet artwork', () => {
   const tick = (elapsedMS: number) => {
     ticker.elapsedMS = elapsedMS;
     callbacks.forEach((callback) => callback(ticker));
+  };
+
+  const start = (tile: any) => {
+    if (!tile.rotG.parent) stage.addChild(tile.rotG);
+    return startMushroomBouncyArtwork(tile);
   };
 
   test('keeps the exact cropped geometry, two-second cadence, and generated atlas identity', () => {
@@ -132,8 +139,8 @@ describe('Mushroom shared Pixi sheet artwork', () => {
   test('shares one source, keeps independent clocks, and removes every owner', async () => {
     const first = makeTile();
     const second = makeTile();
-    const firstController = startMushroomBouncyArtwork(first.tile) as any;
-    const secondController = startMushroomBouncyArtwork(second.tile) as any;
+    const firstController = start(first.tile) as any;
+    const secondController = start(second.tile) as any;
     await flush();
 
     expect(loadSpy).toHaveBeenCalledTimes(1);
@@ -161,7 +168,8 @@ describe('Mushroom shared Pixi sheet artwork', () => {
 
   test('keeps static drag fallback and Mushroom smoke pause/resume lifecycle', async () => {
     const baseline = animationManager.getStats().activeTimelines;
-    const { tile, base } = makeTile();
+    const { tile, base, rotG } = makeTile();
+    stage.addChild(rotG);
     startSpecialDiceIdleMotion(tile);
     await flush();
     const controller = tile._ccMushroomBouncyArtwork as any;

@@ -58,6 +58,8 @@ let acceptedSelections = 0;
 let suppressedSelections = 0;
 let acceptedNotifications = 0;
 let suppressedNotifications = 0;
+let governedTarget: HapticRuntimeWindow | null = null;
+let rawImpactTransport: ((style?: string) => void) | null = null;
 
 function resetRuntimeState(): void {
   impactTimes = [];
@@ -146,6 +148,8 @@ export function installHapticRuntimeGovernor(target: HapticRuntimeWindow = windo
   const rawImpact = target.triggerHapticImpact.bind(target);
   const rawSelection = target.triggerHapticSelection?.bind(target);
   const rawNotification = target.triggerHapticNotification?.bind(target);
+  governedTarget = target;
+  rawImpactTransport = rawImpact;
 
   target.triggerHapticImpact = (requestedStyle = 'medium') => {
     const style = normalizeImpactStyle(requestedStyle);
@@ -200,8 +204,49 @@ export function installHapticRuntimeGovernor(target: HapticRuntimeWindow = windo
   updatePublicSnapshot(target);
 }
 
+/**
+ * The first physical beat of a committed Merge 6 is gameplay feedback, not
+ * decorative cadence. It bypasses burst suppression but still refuses output
+ * while WebKit is hidden. Follow-up flourish beats remain governed.
+ */
+function triggerProtectedImpact(style: HapticImpactStyle): boolean {
+  if (!isPageVisible()) return false;
+  const normalized = normalizeImpactStyle(style);
+  const target = governedTarget ?? (typeof window !== 'undefined' ? window : null);
+  const transport = rawImpactTransport ?? target?.triggerHapticImpact?.bind(target);
+  if (!transport) return false;
+  transport(normalized);
+  acceptedImpacts += 1;
+  if (target) updatePublicSnapshot(target);
+  return true;
+}
+
+export function triggerMandatoryMerge6Haptic(style: HapticImpactStyle = 'medium'): boolean {
+  return triggerProtectedImpact(style);
+}
+
+/**
+ * Clean Board's short score-transfer counters are an authored result effect.
+ * Their own 50ms clocks bound the cadence, so they bypass the gameplay burst
+ * budget while retaining hidden-page suppression and the weakest light style.
+ */
+export function triggerCleanBoardCounterHaptic(): boolean {
+  return triggerProtectedImpact('light');
+}
+
+/**
+ * Board entry already owns a short, bounded six-beat maximum schedule sampled
+ * from real tile starts. Preserve that compact tactile rhythm without letting
+ * the general gameplay burst governor turn it into sparse trailing impacts.
+ */
+export function triggerBoardPopInHaptic(): boolean {
+  return triggerProtectedImpact('light');
+}
+
 export function resetHapticRuntimeGovernorForTests(): void {
   installed = false;
+  governedTarget = null;
+  rawImpactTransport = null;
   resetRuntimeState();
   acceptedImpacts = 0;
   suppressedImpacts = 0;

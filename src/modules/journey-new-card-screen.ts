@@ -1,5 +1,7 @@
 // @ts-nocheck
 import { gsap } from 'gsap';
+import { createJourneyNewCardSoundSession, playJourneyNewCardTapSound, preloadJourneyNewCardSounds, stopJourneyNewCardSounds } from './journey-new-card-sound.ts';
+import { playCtaActivationSounds, preloadCtaActivationSounds } from './cta-activation-sound.ts';
 import { cleanupJourneySmokeEffects, smokeBubblesAtCard } from './journey-card-idle-bounce.js';
 import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
 import { applyAppPaperSurfaceToElement } from '../utils/app-paper-background.js';
@@ -85,6 +87,7 @@ function trackNewCardTimeline(timeline: gsap.core.Timeline): gsap.core.Timeline 
 }
 
 function cleanupJourneyNewCardScreen(): void {
+  stopJourneyNewCardSounds();
   newCardScreenPresentationGeneration += 1;
   Array.from(activeTimelines).forEach((timeline) => {
     try { timeline.kill(); } catch {}
@@ -555,6 +558,8 @@ export async function showJourneyNewCardScreen({
 }: JourneyNewCardScreenOptions): Promise<{ action: 'continue' | 'cancelled' }> {
   cleanupJourneyNewCardScreen();
   const presentationGeneration = newCardScreenPresentationGeneration;
+  preloadJourneyNewCardSounds();
+  preloadCtaActivationSounds();
   try { cleanupJourneySmokeEffects(); } catch {}
   ensureJourneyNewCardStyles();
 
@@ -583,6 +588,8 @@ export async function showJourneyNewCardScreen({
   }
 
   return new Promise((resolve) => {
+    const cardSound = createJourneyNewCardSoundSession();
+    cleanupFns.push(cardSound.stop);
     let promiseSettled = false;
     let resolved = false;
     let revealed = false;
@@ -1190,6 +1197,7 @@ export async function showJourneyNewCardScreen({
       if (resolved) return;
       resolved = true;
       collectRequestedDuringReveal = false;
+      cardSound.stop();
       stopContinueCoach();
       clearInterimIdleShineWork();
       clearPendingShineWork();
@@ -1353,6 +1361,7 @@ export async function showJourneyNewCardScreen({
               revealDone();
             },
           }))
+            .call(cardSound.playReveal, undefined, 0)
             .set(title, { opacity: 0, y: -16, scale: 0.72 }, 0)
             .set(subtitle, { opacity: 0, y: -12, scale: 0.78 }, 0)
             .call(applyRevealCopy, undefined, titleStart)
@@ -1615,6 +1624,11 @@ export async function showJourneyNewCardScreen({
       event.preventDefault();
     };
 
+    const playRewardCardTap = () => {
+      playCtaActivationSounds();
+      playJourneyNewCardTapSound();
+    };
+
     const finishUnlockedPointer = (event: PointerEvent, allowCollect: boolean) => {
       if (event.pointerId !== activeDragPointerId) return;
       const deltaX = event.clientX - dragStartX;
@@ -1633,6 +1647,7 @@ export async function showJourneyNewCardScreen({
       dragAxis = null;
       dragMoved = false;
       if (shouldCollect) {
+        playRewardCardTap();
         try { (window as any).triggerHapticSelection?.(); } catch {}
         finish();
         return;
@@ -1642,6 +1657,7 @@ export async function showJourneyNewCardScreen({
 
     const handleUnlockedPointerUp = (event: PointerEvent) => {
       if (activeDragPointerId === null && revealRunning && !resolved && !disposed) {
+        if (!collectRequestedDuringReveal) playRewardCardTap();
         collectRequestedDuringReveal = true;
         event.preventDefault();
         return;
@@ -1659,16 +1675,21 @@ export async function showJourneyNewCardScreen({
       if (Date.now() < suppressClickUntil) return;
       const action = resolveJourneyNewCardTapAction({ revealed, revealRunning, resolved, disposed });
       if (action === 'collect') {
+        playRewardCardTap();
         stopContinueCoach();
         try { (window as any).triggerHapticSelection?.(); } catch {}
         finish();
         return;
       }
       if (action === 'queue-collect') {
+        if (!collectRequestedDuringReveal) playRewardCardTap();
         collectRequestedDuringReveal = true;
         return;
       }
-      if (action === 'reveal') reveal();
+      if (action === 'reveal') {
+        playRewardCardTap();
+        reveal();
+      }
     };
     const onHeroKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -1744,11 +1765,15 @@ export async function showJourneyNewCardScreen({
       },
     }));
     enterTimeline
+      .call(cardSound.playHappy, undefined, 0)
+      .call(cardSound.playIntro, undefined, d(0.22))
       .to(title, { opacity: 1, y: 0, scale: 1, duration: d(0.3), ease: 'back.out(1.65)' }, 0)
       .to(subtitle, { opacity: 1, y: 0, scale: 1, duration: d(0.3), ease: 'back.out(1.65)' }, d(0.04))
       .to(hero, { opacity: 1, y: 0, scale: 1, duration: d(0.65), ease: 'back.out(1.7)' }, d(0.22))
       .to(shadow, { opacity: 1, y: JOURNEY_NEW_CARD_INTERIM_SHADOW_Y_PX, scaleX: 1, scaleY: 1, duration: d(0.32), ease: 'power2.out' }, 0)
       .add(() => {
+        if (resolved || disposed || revealed || revealRunning) return;
+        cardSound.playCrumble();
         const introFramePlaybackId = ++framePlaybackId;
         (async () => {
           await playCrumbleFrames({

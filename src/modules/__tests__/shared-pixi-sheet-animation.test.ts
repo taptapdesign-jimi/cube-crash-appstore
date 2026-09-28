@@ -3,6 +3,7 @@
 import { Assets, Container, Sprite, Texture, TextureSource } from 'pixi.js';
 import { startThermalIsolation } from '../../utils/thermal-isolation';
 import { STATE } from '../app-state';
+import { getAnimatedDiceHudForegroundStats } from '../animated-dice-hud-foreground';
 import {
   releaseIdleSharedPixiSheets,
   acquireSharedPixiSheetResource,
@@ -95,13 +96,16 @@ describe('shared Pixi sheet animation runtime', () => {
     jest.useRealTimers();
   });
 
-  const start = (tile: any, animateDuringDrag = false) => startSharedPixiSheetAnimation({
-    tile,
-    spec,
-    isEligible: (candidate) => candidate?.eligible === true,
-    propertyKey: '_ccTestSheet',
-    animateDuringDrag,
-  });
+  const start = (tile: any, animateDuringDrag = false) => {
+    if (!tile.rotG.parent) stage.addChild(tile.rotG);
+    return startSharedPixiSheetAnimation({
+      tile,
+      spec,
+      isEligible: (candidate) => candidate?.eligible === true,
+      propertyKey: '_ccTestSheet',
+      animateDuringDrag,
+    });
+  };
 
   test('retires one throwing sheet controller and advances its healthy sibling in the same frame', async () => {
     const first = makeTile(); const second = makeTile();
@@ -149,6 +153,98 @@ describe('shared Pixi sheet animation runtime', () => {
     expect(controller.elapsedMs).toBe(elapsed + 80);
     expect(controller.sprite!.visible).toBe(false);
     stopSharedPixiSheetAnimation(tile, '_ccTestSheet');
+  });
+
+  test('does not republish an identical sheet presentation before its source frame changes', async () => {
+    const { tile } = makeTile();
+    const controller = start(tile)!;
+    await flush();
+    const onFrame = jest.fn();
+    controller.onFrame = onFrame;
+    ticker.elapsedMS = 10;
+    callbacks.forEach(callback => callback(ticker));
+    expect(controller.frameIndex).toBe(0);
+    expect(onFrame).not.toHaveBeenCalled();
+    ticker.elapsedMS = 100;
+    callbacks.forEach(callback => callback(ticker));
+    expect(controller.frameIndex).toBe(1);
+    expect(onFrame).toHaveBeenCalledTimes(1);
+    stopSharedPixiSheetAnimation(tile, '_ccTestSheet');
+  });
+
+  test('keeps a held foreground frame attached to board ancestor motion without republishing its source frame', async () => {
+    const board = new Container();
+    stage.addChild(board);
+    const { tile, rotG } = makeTile();
+    board.addChild(rotG);
+    const controller = start(tile)!;
+    await flush();
+    const onFrame = jest.fn();
+    controller.onFrame = onFrame;
+    ticker.elapsedMS = 10;
+    callbacks.forEach(callback => callback(ticker));
+    onFrame.mockClear();
+
+    board.x = 40;
+    board.scale.set(1.1);
+    ticker.elapsedMS = 10;
+    callbacks.forEach(callback => callback(ticker));
+
+    expect(controller.frameIndex).toBe(0);
+    expect(controller.sprite).toMatchObject({ x: 40, scale: { x: 1.1, y: 1.1 } });
+    expect(onFrame).not.toHaveBeenCalled();
+    stopSharedPixiSheetAnimation(tile, '_ccTestSheet');
+  });
+
+  test('retires a foreground controller when its source board is detached without destruction', async () => {
+    const board = stage.addChild(new Container());
+    const { tile, base, rotG } = makeTile();
+    board.addChild(rotG);
+    const controller = start(tile)!;
+    await flush();
+    const sprite = controller.sprite!;
+
+    stage.removeChild(board);
+    ticker.elapsedMS = 16;
+    callbacks.forEach(callback => callback(ticker));
+
+    expect(controller.disposed).toBe(true);
+    expect(sprite.destroyed).toBe(true);
+    expect(base.renderable).toBe(true);
+    expect(tile._ccTestSheet).toBeUndefined();
+    expect(getSharedPixiSheetRuntimeStats(spec)).toMatchObject({ controllers: 0, tickerAttached: false });
+  });
+
+  test('keeps the fallback while detached, then portals once with the complete board scale', async () => {
+    const board = new Container();
+    board.scale.set(0.475);
+    const { tile, base, rotG } = makeTile();
+    board.addChild(rotG);
+    const controller = startSharedPixiSheetAnimation({
+      tile,
+      spec,
+      isEligible: (candidate) => candidate?.eligible === true,
+      propertyKey: '_ccTestSheet',
+      animateDuringDrag: false,
+    })!;
+    await flush();
+    jest.advanceTimersByTime(1000);
+
+    expect(controller.disposed).toBe(false);
+    expect(controller.sprite?.parent).toBe(rotG);
+    expect(controller.sprite?.renderable).toBe(false);
+    expect(base.renderable).toBe(true);
+    expect(getAnimatedDiceHudForegroundStats()).toEqual({ owners: 0, attached: false });
+
+    stage.addChild(board);
+    ticker.elapsedMS = 16;
+    callbacks.forEach(callback => callback(ticker));
+
+    expect(controller.disposed).toBe(false);
+    expect(controller.sprite?.parent?.label).toBe('ANIMATED_DICE_HUD_FOREGROUND');
+    expect(controller.sprite?.scale.x).toBeCloseTo(0.475, 5);
+    expect(controller.sprite?.renderable).toBe(true);
+    expect(base.renderable).toBe(false);
   });
 
   test('OS pressure releases idle atlases below budget and preserves leased resources', async () => {
@@ -373,6 +469,7 @@ describe('shared Pixi sheet animation runtime', () => {
 
     const first = makeTile();
     const second = makeTile();
+    stage.addChild(first.rotG, second.rotG);
     startSharedPixiSheetAnimation({
       tile: first.tile,
       spec: firstSpec,

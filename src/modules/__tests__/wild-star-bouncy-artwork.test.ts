@@ -54,6 +54,7 @@ describe('Wild Star shared Pixi sheet artwork', () => {
   let unloadSpy: jest.SpiedFunction<typeof Assets.unload>;
   let callbacks: Set<(ticker: any) => void>;
   let ticker: any;
+  let stage: Container;
 
   beforeEach(() => {
     jest.useFakeTimers();
@@ -68,7 +69,8 @@ describe('Wild Star shared Pixi sheet artwork', () => {
       add: jest.fn((callback: (liveTicker: any) => void) => callbacks.add(callback)),
       remove: jest.fn((callback: (liveTicker: any) => void) => callbacks.delete(callback)),
     };
-    STATE.app = { ticker } as any;
+    stage = new Container();
+    STATE.app = { ticker, stage } as any;
   });
 
   afterEach(() => {
@@ -89,6 +91,11 @@ describe('Wild Star shared Pixi sheet artwork', () => {
   const tick = (elapsedMS: number) => {
     ticker.elapsedMS = elapsedMS;
     Array.from(callbacks).forEach((callback) => callback(ticker));
+  };
+
+  const start = (tile: any) => {
+    if (!tile.rotG.parent) stage.addChild(tile.rotG);
+    return startWildStarBouncyArtwork(tile);
   };
 
   test('keeps the accepted rest footprint and exact two-second 60fps source animation', () => {
@@ -120,8 +127,8 @@ describe('Wild Star shared Pixi sheet artwork', () => {
   test('shares one source, phases every copy, and leaves the Pixi orbit as sole owner', async () => {
     const first = makeTile();
     const second = makeTile();
-    const firstController = startWildStarBouncyArtwork(first.tile)!;
-    const secondController = startWildStarBouncyArtwork(second.tile)!;
+    const firstController = start(first.tile)!;
+    const secondController = start(second.tile)!;
     await flush();
 
     expect(loadSpy).toHaveBeenCalledTimes(1);
@@ -152,7 +159,7 @@ describe('Wild Star shared Pixi sheet artwork', () => {
 
   test('stays animated through drag and restores the fallback on cleanup', async () => {
     const { tile, base, orbitContainer } = makeTile();
-    const controller = startWildStarBouncyArtwork(tile)!;
+    const controller = start(tile)!;
     await flush();
     tick(240);
     const elapsedBeforeDrag = controller.elapsedMs;

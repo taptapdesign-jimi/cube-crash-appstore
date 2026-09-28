@@ -1,4 +1,4 @@
-import { Container, Point, Sprite, Texture } from 'pixi.js';
+import { Container, Point, Sprite, Texture, TextureSource } from 'pixi.js';
 import { STATE } from '../app-state';
 import {
   getAnimatedDiceHudForegroundStats,
@@ -112,4 +112,69 @@ test('releasing one owner preserves the other and the last release retains share
   expect(sprites[1].destroyed).toBe(false);
   expect(Texture.WHITE.destroyed).toBe(false);
   expect(getAnimatedDiceHudForegroundStats()).toEqual({ owners: 0, attached: false });
+});
+
+test('refuses to draw a source host detached from the live stage', () => {
+  const stage = new Container();
+  STATE.app = { stage } as any;
+  const board = stage.addChild(new Container());
+  const host = board.addChild(new Container());
+  const sprite = host.addChild(new Sprite(Texture.WHITE));
+  const owner = {};
+
+  expect(mountAnimatedDiceAboveHud(owner, sprite, host)).toBe(true);
+  stage.removeChild(board);
+  expect(syncAnimatedDiceAboveHud(owner)).toBe(false);
+  expect(sprite.visible).toBe(false);
+  expect(sprite.renderable).toBe(false);
+});
+
+test('does not portal a pre-stage special die at raw size before board scale exists', () => {
+  const stage = new Container();
+  STATE.app = { stage } as any;
+  const board = new Container();
+  board.scale.set(0.475);
+  const host = board.addChild(new Container());
+  const sprite = host.addChild(new Sprite(Texture.WHITE));
+  sprite.width = 160;
+  sprite.height = 180;
+  const owner = {};
+
+  expect(mountAnimatedDiceAboveHud(owner, sprite, host)).toBe(false);
+  expect(sprite.parent).toBe(host);
+  expect(getAnimatedDiceHudForegroundStats()).toEqual({ owners: 0, attached: false });
+
+  stage.addChild(board);
+  expect(mountAnimatedDiceAboveHud(owner, sprite, host)).toBe(true);
+  expect(sprite.getBounds().width).toBeCloseTo(76, 5);
+});
+
+test('repairs the board scale when a sheet frame swap resets the foreground sprite scale', () => {
+  const stage = new Container();
+  STATE.app = { stage } as any;
+  const board = stage.addChild(new Container());
+  board.scale.set(0.475);
+  const host = board.addChild(new Container());
+  const first = new Texture({
+    source: new TextureSource({ resource: { width: 160, height: 180 } as any, width: 160, height: 180 }),
+  });
+  const next = new Texture({
+    source: new TextureSource({ resource: { width: 160, height: 180 } as any, width: 160, height: 180 }),
+  });
+  const sprite = host.addChild(new Sprite(first));
+  sprite.width = 160;
+  sprite.height = 180;
+  const owner = {};
+
+  expect(mountAnimatedDiceAboveHud(owner, sprite, host)).toBe(true);
+  expect(sprite.getBounds().width).toBeCloseTo(76, 5);
+
+  sprite.texture = next;
+  expect(sprite.getBounds().width).toBeCloseTo(160, 5);
+  expect(syncAnimatedDiceAboveHud(owner)).toBe(true);
+  expect(sprite.getBounds().width).toBeCloseTo(76, 5);
+
+  releaseAnimatedDiceAboveHud(owner);
+  first.destroy(true);
+  next.destroy(true);
 });

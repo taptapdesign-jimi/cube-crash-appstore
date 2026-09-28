@@ -93,9 +93,13 @@ export function clearAllAppTimeouts() {
 }
 
 // 🔥 MEMORY LEAK FIX: Track all requestAnimationFrame callbacks for cleanup
-const _appAnimationFrames: Set<number> = new Set();
+type AppAnimationFrameRecord = {
+  onCancel?: () => void;
+};
 
-export function trackAppAnimationFrame(callback: FrameRequestCallback): number {
+const _appAnimationFrames = new Map<number, AppAnimationFrameRecord>();
+
+export function trackAppAnimationFrame(callback: FrameRequestCallback, onCancel?: () => void): number {
   const rafId = requestAnimationFrame((now: number) => {
     try {
       callback(now);
@@ -103,14 +107,20 @@ export function trackAppAnimationFrame(callback: FrameRequestCallback): number {
       _appAnimationFrames.delete(rafId);
     }
   });
-  _appAnimationFrames.add(rafId);
+  _appAnimationFrames.set(rafId, { onCancel });
   return rafId;
 }
 
 export function clearAllAppAnimationFrames() {
   logger.debug(`🧹 Clearing ${_appAnimationFrames.size} pending requestAnimationFrame callbacks from app-core`, 'app-core');
-  _appAnimationFrames.forEach(rafId => cancelAnimationFrame(rafId));
+  const pending = Array.from(_appAnimationFrames.entries());
   _appAnimationFrames.clear();
+  pending.forEach(([rafId, record]) => {
+    try { cancelAnimationFrame(rafId); } catch {}
+    try { record.onCancel?.(); } catch (error) {
+      logger.error('❌ Tracked app animation-frame cancellation failed', 'app-core', error);
+    }
+  });
 }
 
 // 🔥 MEMORY LEAK FIX: Track all intervals for cleanup

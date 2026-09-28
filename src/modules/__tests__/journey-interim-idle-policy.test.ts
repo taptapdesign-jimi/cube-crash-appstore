@@ -31,7 +31,7 @@ describe('Journey interim idle policy', () => {
         + JOURNEY_INTERIM_IDLE_MOTION.riseDurationSeconds,
     );
     expect(JOURNEY_INTERIM_IDLE_MOTION.burnGlowInitialDelayMs).toBe(1150);
-    expect(JOURNEY_INTERIM_IDLE_MOTION.burnGlowDurationMs).toBe(1100);
+    expect(JOURNEY_INTERIM_IDLE_MOTION.burnGlowDurationMs).toBeCloseTo(846.153846, 5);
   });
 
   test('alternates between bounded stretch and squash cartoon poses', () => {

@@ -18,6 +18,7 @@ describe('mobile runtime thermal profile', () => {
     expect(resolveMobileRuntimeProfile({ userAgent: 'Android' })).toMatchObject({
       isMobileDevice: true,
       settledIdleMaxFramesPerSecond: 30,
+      staticBoardMaxFramesPerSecond: 15,
       spatialMaxFramesPerSecond: 30,
       ambientPixelRatioCap: 1.25,
       ambientVisibilityMarginPx: 80,
@@ -29,6 +30,7 @@ describe('mobile runtime thermal profile', () => {
       platform: 'desktop',
       isMobileDevice: false,
       settledIdleMaxFramesPerSecond: 0,
+      staticBoardMaxFramesPerSecond: 0,
       spatialMaxFramesPerSecond: 0,
       ambientPixelRatioCap: 2,
       ambientVisibilityMarginPx: 180,

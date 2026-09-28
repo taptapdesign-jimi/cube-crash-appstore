@@ -401,7 +401,7 @@ describe('LaserGun special die contract', () => {
     expect(appCore).toContain('planLaserGunCrossfireTargets(');
     expect(appCore).toContain('onTargetsSelected?.(laserVisualTargets)');
     expect(appCore).toContain('prepareActiveLaserGunFinaleImpact(i, getDomScreenPos(tile))');
-    expect(appCore).toContain('const visualFired = triggerActiveLaserGunFinaleImpact(');
+    expect(appCore).toContain('visualFired = triggerActiveLaserGunFinaleImpact(');
     expect(appCore).toContain('() => commitCubeImpact(true)');
     expect(appCore).toContain('// GSAP tick. This remains only the no-visual/timeout fallback.');
     expect(appCore).toContain('commitCubeImpact(visualArrived)');
@@ -411,6 +411,9 @@ describe('LaserGun special die contract', () => {
     expect(appCore).toContain('if (laserGunRunGeneration !== gameplayRunGeneration) return false;');
     expect(appCore).toContain("if (arrivalResult === 'unavailable') return false;");
     expect(appCore).toContain("arrivalResult === 'arrived'");
+    expect(appCore).toContain('if (visualArrived) commitLaserImpactHaptic();');
+    expect(appCore).toContain('if (!visualFired) commitLaserImpactHaptic();');
+    expect(appCore).toContain('// beam-tip arrivals below. Do not add a leading or decorative pulse.');
     expect(appCore).toContain('cancelActiveLaserGunFinaleImpact(i);');
     expect(appCore).toContain('laserGunVisualsEnabled = false;');
     expect(appCore).toContain('commitCubeImpact(visualArrived)');

@@ -7,6 +7,7 @@ import { acquireAnimatedTimelinePhase, type AnimatedSvgPhaseLease } from './anim
 import { releaseAnimatedSpecialArtworkFamily } from './animated-special-artwork-mode.ts';
 import { acquireSharedPixiSheetResource, destroySharedPixiSheetFamily, getSharedPixiSheetRuntimeStats, preloadSharedPixiSheet } from './shared-pixi-sheet-animation.ts';
 import {
+  isAnimatedDiceSourceOnLiveStage,
   mountAnimatedDiceAboveHud,
   releaseAnimatedDiceAboveHud,
   syncAnimatedDiceAboveHud,
@@ -58,6 +59,7 @@ type BarrelController = {
   running: boolean;
   resting: boolean;
   disposed: boolean;
+  hasReachedLiveStage: boolean;
   elapsedMs: number;
   frameIndex: number;
   phaseLease: AnimatedSvgPhaseLease | null;
@@ -131,10 +133,27 @@ function disposeController(controller: BarrelController): void {
 
 function updateController(controller: BarrelController, deltaMs: number): void {
   const { tile, base, host, sprite } = controller;
-  if (controller.disposed || tile?.destroyed || base?.destroyed || host?.destroyed || !isBarrelBouncyTile(tile)) {
+  const hostIsAttached = isAnimatedDiceSourceOnLiveStage(host);
+  if (
+    controller.disposed
+    || tile?.destroyed
+    || base?.destroyed
+    || host?.destroyed
+    || (!hostIsAttached && controller.hasReachedLiveStage)
+    || !isBarrelBouncyTile(tile)
+  ) {
     disposeController(controller);
     return;
   }
+  if (!hostIsAttached) {
+    base.renderable = controller.originalRenderable;
+    if (sprite) {
+      sprite.visible = false;
+      sprite.renderable = false;
+    }
+    return;
+  }
+  controller.hasReachedLiveStage = true;
   if (!sprite || sprite.destroyed || !controller.ready || !controller.running) {
     base.renderable = controller.originalRenderable;
     if (sprite) sprite.renderable = false;
@@ -157,8 +176,15 @@ function updateController(controller: BarrelController, deltaMs: number): void {
   controller.resting = isBarrelBouncyResting(controller.elapsedMs);
   sprite.alpha = typeof base.alpha === 'number' ? base.alpha : 1;
   sprite.tint = base.tint ?? 0xFFFFFF;
+  let foregroundSynced = syncAnimatedDiceAboveHud(controller);
+  if (!foregroundSynced) foregroundSynced = mountAnimatedDiceAboveHud(controller, sprite, host);
+  if (!foregroundSynced) {
+    base.renderable = controller.originalRenderable;
+    sprite.visible = false;
+    sprite.renderable = false;
+    return;
+  }
   base.renderable = false;
-  syncAnimatedDiceAboveHud(controller);
 }
 
 function updateAllControllers(ticker?: any): void {
@@ -219,6 +245,7 @@ export function startBarrelBouncyArtwork(tile: any): BarrelController | null {
     running: false,
     resting: true,
     disposed: false,
+    hasReachedLiveStage: isAnimatedDiceSourceOnLiveStage(host),
     elapsedMs: 0,
     frameIndex: 0,
     phaseLease: null,
@@ -255,7 +282,7 @@ function mountBarrelControllerSprite(controller: BarrelController, retryAttempt 
     host.sortableChildren = true;
     host.addChild(sprite);
     controller.sprite = sprite;
-    mountAnimatedDiceAboveHud(controller, sprite, host);
+    if (isAnimatedDiceSourceOnLiveStage(host)) mountAnimatedDiceAboveHud(controller, sprite, host);
     controller.ready = true;
     ensureRuntimeTicker(findTileTicker(tile));
     controller.phaseLease = acquireAnimatedTimelinePhase(

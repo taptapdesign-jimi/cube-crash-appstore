@@ -99,10 +99,15 @@ describe('Barrel shared Pixi artwork', () => {
     Array.from(tickerCallbacks).forEach((callback) => callback(ticker));
   };
 
+  const start = (tile: any) => {
+    if (!tile.rotG.parent) stage.addChild(tile.rotG);
+    return startBarrelBouncyArtwork(tile);
+  };
+
   test('retires only a throwing Barrel and keeps its sibling and resource lease alive', async () => {
     const first = makeTile(); const second = makeTile();
-    const failed = startBarrelBouncyArtwork(first.tile)!;
-    const healthy = startBarrelBouncyArtwork(second.tile)!;
+    const failed = start(first.tile)!;
+    const healthy = start(second.tile)!;
     await flushPromises(); jest.advanceTimersByTime(1000);
     const sprite = failed.sprite!;
     Object.defineProperty(first.base, 'tint', { configurable: true, get: () => { throw new Error('stale Barrel sprite'); } });
@@ -117,6 +122,26 @@ describe('Barrel shared Pixi artwork', () => {
     stopBarrelBouncyArtwork(second.tile);
     expect(tickerCallbacks.size).toBe(0);
     expect(getSharedPixiSheetCacheStats().activeRefs).toBe(0);
+  });
+
+  test('keeps Barrel fallback at source size until its board reaches the live stage', async () => {
+    const board = new Container();
+    board.scale.set(0.475);
+    const { tile, base, rotG } = makeTile();
+    board.addChild(rotG);
+    const controller = startBarrelBouncyArtwork(tile)!;
+    await flushPromises();
+    jest.advanceTimersByTime(1000);
+
+    expect(controller.sprite?.parent).toBe(rotG);
+    expect(controller.sprite?.renderable).toBe(false);
+    expect(base.renderable).toBe(true);
+
+    stage.addChild(board);
+    tick(16);
+    expect(controller.sprite?.parent?.label).toBe('ANIMATED_DICE_HUD_FOREGROUND');
+    expect(controller.sprite?.renderable).toBe(true);
+    expect(base.renderable).toBe(false);
   });
 
   test('maps two active loops to all 54 frames and holds frame zero for the one-second rest', () => {
@@ -136,8 +161,8 @@ describe('Barrel shared Pixi artwork', () => {
     await preloadBarrelBouncyArtwork();
     const first = makeTile();
     const second = makeTile();
-    const firstController = startBarrelBouncyArtwork(first.tile) as any;
-    const secondController = startBarrelBouncyArtwork(second.tile) as any;
+    const firstController = start(first.tile) as any;
+    const secondController = start(second.tile) as any;
     await flushPromises();
 
     expect(loadSpy).toHaveBeenCalledTimes(1);
@@ -194,7 +219,7 @@ describe('Barrel shared Pixi artwork', () => {
     let resolveLoad: ((texture: Texture) => void) | null = null;
     loadSpy.mockImplementation(() => new Promise((resolve) => { resolveLoad = resolve as any; }) as any);
     const { tile, base, rotG } = makeTile();
-    startBarrelBouncyArtwork(tile);
+    start(tile);
     expect(base.renderable).toBe(true);
 
     stopBarrelBouncyArtwork(tile);
@@ -221,12 +246,12 @@ describe('Barrel shared Pixi artwork', () => {
 
   test('evicts zero-owner sheet after grace, but reacquisition keeps active sprites valid', async () => {
     const first = makeTile();
-    startBarrelBouncyArtwork(first.tile);
+    start(first.tile);
     await flushPromises();
     stopBarrelBouncyArtwork(first.tile);
     jest.advanceTimersByTime(29_000);
     const second = makeTile();
-    const controller = startBarrelBouncyArtwork(second.tile) as any;
+    const controller = start(second.tile) as any;
     await flushPromises();
     jest.advanceTimersByTime(31_000);
     expect(controller.sprite.texture.destroyed).toBe(false);
@@ -239,7 +264,7 @@ describe('Barrel shared Pixi artwork', () => {
     expect(unloadSpy).toHaveBeenCalledWith(BARREL_BOUNCY_SHEET_URL);
     expect(getBarrelBouncyRuntimeStats().sharedFrames).toBe(0);
     const third = makeTile();
-    const next = startBarrelBouncyArtwork(third.tile) as any;
+    const next = start(third.tile) as any;
     await flushPromises();
     expect(loadSpy).toHaveBeenCalledTimes(2);
     expect(next.ready).toBe(true);
@@ -249,12 +274,12 @@ describe('Barrel shared Pixi artwork', () => {
     let resolveLoad!: (texture: Texture) => void;
     loadSpy.mockImplementationOnce(() => new Promise((resolve) => { resolveLoad = resolve as any; }) as any);
     const first = makeTile();
-    startBarrelBouncyArtwork(first.tile);
+    start(first.tile);
     stopBarrelBouncyArtwork(first.tile);
     jest.advanceTimersByTime(30_000);
     await flushPromises();
     const second = makeTile();
-    const controller = startBarrelBouncyArtwork(second.tile) as any;
+    const controller = start(second.tile) as any;
     await flushPromises();
     resolveLoad(sheet);
     await flushPromises();
@@ -271,7 +296,7 @@ describe('Barrel shared Pixi artwork', () => {
       .mockResolvedValueOnce(sheet as any);
     const { tile, base } = makeTile();
 
-    const failedController = startBarrelBouncyArtwork(tile) as any;
+    const failedController = start(tile) as any;
     await flushPromises();
     expect(failedController.disposed).toBe(false);
     expect(base.renderable).toBe(true);

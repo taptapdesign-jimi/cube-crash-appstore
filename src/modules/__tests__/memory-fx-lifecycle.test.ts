@@ -67,8 +67,9 @@ describe('memory and runtime FX lifecycle ownership', () => {
     expect(registry.has(texture)).toBe(false);
   });
 
-  test('both shimmer stop owners release the registered runtime texture', () => {
+  test('both shimmer stop owners use the shared texture lease release', () => {
     const source = fs.readFileSync(path.join(repoRoot, 'src/modules/fx.ts'), 'utf8');
+    const appCore = fs.readFileSync(path.join(repoRoot, 'src/modules/app-core.ts'), 'utf8');
     expect(source).toContain("import { destroyRuntimeTexture } from './runtime-texture-lifecycle.ts';");
     const shimmerStop = source.slice(
       source.indexOf('export function stopWildShimmer'),
@@ -78,8 +79,11 @@ describe('memory and runtime FX lifecycle ownership', () => {
       source.indexOf('export function stopWildIdle'),
     );
 
-    expect(shimmerStop).toContain('destroyRuntimeTexture(tile._wildShimmerTexture);');
-    expect(idleStop).toContain('destroyRuntimeTexture(tile._wildShimmerTexture);');
+    expect(shimmerStop).toContain('releaseTileWildShimmerTexture(tile);');
+    expect(idleStop).toContain('releaseTileWildShimmerTexture(tile);');
+    expect(shimmerStop).not.toContain('destroyRuntimeTexture(tile._wildShimmerTexture);');
+    expect(idleStop).not.toContain('destroyRuntimeTexture(tile._wildShimmerTexture);');
+    expect(appCore).toContain('destroyWildShimmerTextureCache?.();');
   });
 
   test('Juice bubble screen cache unregisters its generated runtime texture', () => {

@@ -69,6 +69,7 @@ import {
   getAnimatedSpecialArtworkMode,
   releaseAnimatedSpecialArtworkMode,
 } from './animated-special-artwork-mode.ts';
+import { acquirePixiSettledMotionLease } from './pixi-mobile-frame-controller.ts';
 
 const trackTimeline = (opts: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(opts));
 
@@ -205,7 +206,14 @@ function startSpaceshipEngineIdle(tile: any, host: any): ((elapsedSeconds: numbe
   return update;
 }
 
-export function stopSpecialDiceIdleMotion(tile: any): void {
+export function stopSpecialDiceIdleMotion(
+  tile: any,
+  options: { preserveFrameLease?: boolean } = {},
+): void {
+  if (!options.preserveFrameLease) {
+    try { tile?._ccSpecialIdleFrameLease?.(); } catch {}
+    if (tile) delete tile._ccSpecialIdleFrameLease;
+  }
   tile?._ccSpecialIdleVisibility?.release();
   if (tile) {
     delete tile._ccSpecialIdleVisibility;
@@ -374,6 +382,9 @@ export function startSpecialDiceIdleMotion(tile: any): void {
     const variant = getSpecialDiceVariantForTile(tile);
     if (!tile || tile.destroyed) return;
     if (tile._ccWildSpawnDropping === true) return;
+    if ((variant || tile.special) && !tile._ccSpecialIdleFrameLease) {
+      tile._ccSpecialIdleFrameLease = acquirePixiSettledMotionLease('special-dice-idle');
+    }
     if (isBarrelBouncyTile(tile)) {
       stopWildStarBouncyArtwork(tile);
       stopJuiceBounceArtwork(tile);
@@ -495,7 +506,7 @@ export function startSpecialDiceIdleMotion(tile: any): void {
     // and prevents a second timeline/particle field from being created.
     if (variant.idleMotion === 'spaceship-hover' && tile._ccSpecialDiceIdleTl) return;
 
-    stopSpecialDiceIdleMotion(tile);
+    stopSpecialDiceIdleMotion(tile, { preserveFrameLease: true });
 
     if (
       isMushroomBouncyTile(tile)

@@ -62,6 +62,7 @@ function fixture(arcade = false) {
     './clean-board-celebration-theme.ts': { resolveCleanBoardCelebrationTheme: () => 'beach', shouldShowArea55CleanBoardShips: () => false },
     './clean-board-sound.ts': { createCleanBoardStarHarpOrder: () => [0,1,2], playCleanBoardBonusCountSound: jest.fn(), playCleanBoardApplauseSound: jest.fn(), playCleanBoardCtaBounceSound: jest.fn(), playCleanBoardEarnedStarSound: jest.fn(), playCleanBoardMoneyCountSound: jest.fn(), playCleanBoardSaxophoneHappySound: jest.fn(), preloadCleanBoardSounds: jest.fn(), stopCleanBoardSounds: cleanStop },
     './clean-board-star-transform.ts': { freezeCleanBoardStarRenderedScale: jest.fn() },
+    '../utils/haptic-runtime-governor.ts': { triggerCleanBoardCounterHaptic: jest.fn(() => true) },
     './app-state.js': { STATE: {} },
   };
   function load<T>(name: string): T {

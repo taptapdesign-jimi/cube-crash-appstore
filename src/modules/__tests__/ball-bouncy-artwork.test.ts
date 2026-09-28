@@ -96,6 +96,11 @@ describe('Beach Ball shared Pixi sheet artwork', () => {
     Array.from(callbacks).forEach((callback) => callback(ticker));
   };
 
+  const start = (tile: any) => {
+    if (!tile.rotG.parent) stage.addChild(tile.rotG);
+    return startBallBouncyArtwork(tile);
+  };
+
   test('keeps accepted geometry and exact 1.4-second 60fps source animation', () => {
     const geometry = getBallBouncyDisplayGeometry();
     expect(geometry).toMatchObject({
@@ -125,8 +130,8 @@ describe('Beach Ball shared Pixi sheet artwork', () => {
     const first = makeTile();
     const second = makeTile();
     stage.addChild(first.rotG, second.rotG);
-    const firstController = startBallBouncyArtwork(first.tile)!;
-    const secondController = startBallBouncyArtwork(second.tile)!;
+    const firstController = start(first.tile)!;
+    const secondController = start(second.tile)!;
     await flush();
 
     expect(loadSpy).toHaveBeenCalledTimes(1);
@@ -163,7 +168,7 @@ describe('Beach Ball shared Pixi sheet artwork', () => {
 
   test('uses ball.png synchronously during drag and resumes the same clock', async () => {
     const { tile, base } = makeTile();
-    const controller = startBallBouncyArtwork(tile)!;
+    const controller = start(tile)!;
     await flush();
     tick(240);
     const elapsedBeforeDrag = controller.elapsedMs;

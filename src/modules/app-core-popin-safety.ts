@@ -1,6 +1,7 @@
 import { isGameplayRendererTerminalSuspended } from './gameplay-render-suspension.ts';
 type PopInSafetyDeps = {
   tiles: any[];
+  isCurrent: () => boolean;
   gsap: { globalTimeline: { resume: () => void } };
   app?: { ticker?: { started: boolean; start: () => void } } | null;
   updateGhostVisibility: () => void;
@@ -10,6 +11,7 @@ type PopInSafetyDeps = {
 
 export function schedulePopInSafetyNet({
   tiles,
+  isCurrent,
   gsap,
   app,
   updateGhostVisibility,
@@ -17,7 +19,10 @@ export function schedulePopInSafetyNet({
   trackAppTimeout,
 }: PopInSafetyDeps){
   trackAppTimeout(() => {
-    if (isGameplayRendererTerminalSuspended(app)) return;
+    if (!isCurrent() || isGameplayRendererTerminalSuspended(app)) return;
+    // sweetPopIn owns its bounded watchdog and final transforms while active.
+    // This fallback must not flatten an unfinished entry into one mass reveal.
+    if ((window as any).__ccEnterAnimationActive === true) return;
     try {
       let invisibleCount = 0;
       for (const t of tiles) {

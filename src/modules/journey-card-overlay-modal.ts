@@ -1764,7 +1764,6 @@ export function presentJourneyCardOverlayModal(
     scheduleIdleCoach();
     options.onCardEntrySettled?.();
     openProfileSettlePaintsRemaining = 2;
-    try { (window as any).triggerHapticImpact?.('medium'); } catch {}
   };
 
   const startReturn = async (
@@ -2567,7 +2566,7 @@ export function presentJourneyCardOverlayModal(
     variant: 'primary',
     initialState: 'hidden',
     onActivate: () => {
-      try { (window as any).triggerHapticSelection?.(); } catch {}
+      try { (window as any).triggerHapticImpact?.('medium'); } catch {}
       void beginClose('play');
     },
   });

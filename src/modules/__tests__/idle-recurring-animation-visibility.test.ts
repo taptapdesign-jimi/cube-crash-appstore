@@ -7,7 +7,7 @@ import animationManager from '../animation-manager';
 import { getSpecialDiceVariantForTile } from '../special-dice-registry';
 import { createSpecialIdleAnimationVisibility, getSpecialDiceIdleVisibilityStats } from '../special-dice-idle-visibility';
 
-const names = ['startWildIdle', 'stopWildIdle', 'startWildShimmer', 'stopWildShimmer', 'startTntIdleShake', 'stopTntIdleShake'];
+const names = ['releaseTileWildShimmerTexture', 'startWildIdle', 'stopWildIdle', 'startWildShimmer', 'stopWildShimmer', 'startTntIdleShake', 'stopTntIdleShake'];
 const parsed = ts.createSourceFile('fx.ts', fs.readFileSync('src/modules/fx.ts', 'utf8'), ts.ScriptTarget.Latest, true);
 const source = parsed.statements.filter(node => ts.isFunctionDeclaration(node) && names.includes(node.name?.text || ''))
   .map(node => node.getText(parsed).replace(/^export /, '')).join('\n');

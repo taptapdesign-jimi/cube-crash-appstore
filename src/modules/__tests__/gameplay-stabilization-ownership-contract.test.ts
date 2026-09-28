@@ -60,6 +60,15 @@ describe('gameplay stabilization ownership boundaries', () => {
     expect(appCore).not.toContain('markPixiMobileActivity(7000)');
   });
 
+  test('board exit owns active cadence through its awaited visual lifecycle', () => {
+    const source = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/app-core.ts'), 'utf8');
+    const start = source.indexOf('async function animateBoardExit()');
+    const end = source.indexOf('// 🔥 v112: tintLocked', start);
+    const exitOwner = source.slice(start, end);
+    expect(exitOwner).toContain("acquirePixiMobileActivityLease('board-exit', 100)");
+    expect(exitOwner).toContain('releaseBoardExitFrameLease?.()');
+  });
+
   test('stuck confirmation fails closed when its resolver throws', () => {
     const marker = 'Gameplay resolver failed during stuck confirmation; retrying safely';
     const markerIndex = appCore.indexOf(marker);

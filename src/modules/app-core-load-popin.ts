@@ -1,3 +1,5 @@
+import { preloadBoardPopInSound } from './board-popin-sound.ts';
+
 type LoadPopInDeps = {
   tiles: any[];
   backgroundLayer: any;
@@ -23,6 +25,7 @@ export function playLoadPopInAnimation({
   getAbortSignal,
   devLog,
 }: LoadPopInDeps): Promise<void> {
+  preloadBoardPopInSound();
   // Ensure background layer is visible from the start
   if (backgroundLayer) {
     backgroundLayer.visible = true;

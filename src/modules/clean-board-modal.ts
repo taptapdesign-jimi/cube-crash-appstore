@@ -63,6 +63,7 @@ import {
   finishJourneyReturnCtaSetup,
 } from './journey-return-transition-trace.ts';
 import { freezeCleanBoardStarRenderedScale } from './clean-board-star-transform.ts';
+import { triggerCleanBoardCounterHaptic } from '../utils/haptic-runtime-governor.ts';
 
 const ORIGINAL_HEADLINES = [
   'Outstanding!', 'Amazing!', 'Excellent!', 'Fantastic!', 'Incredible!',
@@ -122,7 +123,7 @@ export interface CleanBoardModalResult {
 
 // 🔥 REFACTORED: Koristimo pickRandom iz clean-board-utils.ts umjesto lokalne verzije
 
-const CLEAN_BOARD_COUNTER_HAPTIC_INTERVAL_MS = 220;
+const CLEAN_BOARD_COUNTER_HAPTIC_INTERVAL_MS = 50;
 
 function triggerHapticImpactSafe(kind: 'light' | 'medium' | 'heavy'): void {
   try {
@@ -159,7 +160,7 @@ function createCounterLightHapticTrigger(minIntervalMs = CLEAN_BOARD_COUNTER_HAP
     const now = Date.now();
     if (now - lastAt < minIntervalMs) return;
     lastAt = now;
-    triggerHapticImpactSafe('light');
+    triggerCleanBoardCounterHaptic();
   };
 }
 
@@ -736,9 +737,10 @@ export async function showCleanBoardModal({
     // All animations handled by CSS classes in style.css
     const buttonStaggerMs = 350; // Delay between Play Again and Exit button appearance
     let cleanBoardStarAppearHapticPlayed = false;
-    // One shared cadence owns every score phase. Separate clocks could each
-    // restart the actuator while the previous score phase was still settling.
-    const triggerScoreCounterHaptic = createCounterLightHapticTrigger();
+    // Preserve the authored tactile count for each visible score stream.
+    const triggerMainScoreCounterHaptic = createCounterLightHapticTrigger();
+    const triggerComboCounterHaptic = createCounterLightHapticTrigger();
+    const triggerEfficiencyCounterHaptic = createCounterLightHapticTrigger();
     const starHarpOrder = createCleanBoardStarHarpOrder();
 
     // Set button to hidden state (before animation)
@@ -927,7 +929,7 @@ export async function showCleanBoardModal({
             const rounded = Math.round(scoreProxy.value);
             const formatted = formatScoreSimple(rounded);
             mainScore.textContent = formatted;
-            triggerScoreCounterHaptic(rounded);
+            triggerMainScoreCounterHaptic(rounded);
           },
           onComplete: () => {
             mainScore.textContent = formatScoreSimple(targetScore);
@@ -961,7 +963,7 @@ export async function showCleanBoardModal({
           onUpdate: () => {
             const rounded = Math.round(comboProxy.value);
             comboValue.textContent = `+${formatScoreSimple(rounded)}`;
-            triggerScoreCounterHaptic(rounded);
+            triggerComboCounterHaptic(rounded);
           },
           onComplete: () => {
             comboValue.textContent = '+0';
@@ -994,7 +996,7 @@ export async function showCleanBoardModal({
           onUpdate: () => {
             const rounded = Math.round(efficiencyProxy.value);
             efficiencyValue.textContent = `+${formatScoreSimple(rounded)}`;
-            triggerScoreCounterHaptic(rounded);
+            triggerEfficiencyCounterHaptic(rounded);
           },
           onComplete: () => {
             efficiencyValue.textContent = '+0';

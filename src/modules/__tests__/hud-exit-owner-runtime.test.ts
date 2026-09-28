@@ -5,7 +5,7 @@ import ts from 'typescript';
 import { acquirePixiMobileActivityLease, startPixiMobileFrameController, stopPixiMobileFrameController, getPixiMobileFrameControllerSnapshot } from '../pixi-mobile-frame-controller';
 
 jest.mock('../mobile-runtime-profile', () => ({
-  MOBILE_RUNTIME_PROFILE: { isMobileDevice: true, settledIdleMaxFramesPerSecond: 30 },
+  MOBILE_RUNTIME_PROFILE: { isMobileDevice: true, settledIdleMaxFramesPerSecond: 30, staticBoardMaxFramesPerSecond: 15 },
 }));
 
 function fixture() {
@@ -117,7 +117,7 @@ test.each(['complete', 'interrupt', 'setup-error'])('HUD exit holds real Pixi ca
     startPixiMobileFrameController(ticker);
     clock += 6000;
     callbacks.forEach((cb) => cb());
-    expect(ticker.maxFPS).toBe(30);
+    expect(ticker.maxFPS).toBe(15);
     const f = fixture();
     f.scope.acquirePixiMobileActivityLease = acquirePixiMobileActivityLease;
     f.scope.arePerformanceDiagnosticsEnabled = () => false;
@@ -135,7 +135,7 @@ test.each(['complete', 'interrupt', 'setup-error'])('HUD exit holds real Pixi ca
     expect(getPixiMobileFrameControllerSnapshot().activityLeaseCount).toBe(0);
     clock += 181;
     callbacks.forEach((cb) => cb());
-    expect(ticker.maxFPS).toBe(30);
+    expect(ticker.maxFPS).toBe(15);
   } finally {
     stopPixiMobileFrameController();
     now.mockRestore();

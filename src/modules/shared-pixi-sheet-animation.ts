@@ -46,6 +46,8 @@ export type SharedPixiSheetController = {
   disposed: boolean;
   elapsedMs: number;
   frameIndex: number;
+  lastPresentationSignature: string;
+  hasReachedLiveStage: boolean;
   retryTimer: ReturnType<typeof setTimeout> | null;
   phaseLease: AnimatedSvgPhaseLease | null;
   onReady?: () => void;
@@ -265,6 +267,15 @@ function findTileTicker(tile: any): any {
   return tile?._ccPixiApp?.ticker || tile?.parent?._ccPixiApp?.ticker || getLiveTicker();
 }
 
+function reachesLiveStage(host: any): boolean {
+  const stage = STATE.app?.stage;
+  if (!stage || stage.destroyed || !host || host.destroyed) return false;
+  for (let current = host; current; current = current.parent) {
+    if (current === stage) return true;
+  }
+  return false;
+}
+
 function dispose(controller: SharedPixiSheetController): void {
   if (controller.disposed) return;
   controller.disposed = true;
@@ -288,13 +299,32 @@ function dispose(controller: SharedPixiSheetController): void {
 
 function updateController(controller: SharedPixiSheetController, deltaMs: number): void {
   const { tile, base, host, sprite, spec } = controller;
-  if (controller.disposed || tile?.destroyed || base?.destroyed || host?.destroyed || !controller.isEligible(tile)) {
+  const hostIsAttached = reachesLiveStage(host);
+  if (
+    controller.disposed
+    || tile?.destroyed
+    || base?.destroyed
+    || host?.destroyed
+    || (!hostIsAttached && controller.hasReachedLiveStage)
+    || !controller.isEligible(tile)
+  ) {
     dispose(controller);
     return;
   }
+  if (!hostIsAttached) {
+    if (base.renderable !== controller.originalRenderable) base.renderable = controller.originalRenderable;
+    if (sprite) {
+      sprite.visible = false;
+      sprite.renderable = false;
+    }
+    controller.lastPresentationSignature = '';
+    return;
+  }
+  controller.hasReachedLiveStage = true;
   if (!sprite || sprite.destroyed || !controller.ready || !controller.running) {
-    base.renderable = controller.originalRenderable;
-    if (sprite) sprite.renderable = false;
+    if (base.renderable !== controller.originalRenderable) base.renderable = controller.originalRenderable;
+    if (sprite && sprite.renderable !== false) sprite.renderable = false;
+    controller.lastPresentationSignature = '';
     return;
   }
   const paintable = isSpecialDiceIdlePaintable(tile);
@@ -302,10 +332,11 @@ function updateController(controller: SharedPixiSheetController, deltaMs: number
   const visible = base.visible !== false
     && paintable
     && (controller.animateDuringDrag || !controller.dragging);
-  sprite.visible = visible;
-  sprite.renderable = visible;
+  if (sprite.visible !== visible) sprite.visible = visible;
+  if (sprite.renderable !== visible) sprite.renderable = visible;
   if (!visible) {
-    base.renderable = controller.originalRenderable;
+    if (base.renderable !== controller.originalRenderable) base.renderable = controller.originalRenderable;
+    controller.lastPresentationSignature = '';
     return;
   }
   const activeDurationMs = spec.activeDurationMs ?? spec.cycleMs;
@@ -319,11 +350,43 @@ function updateController(controller: SharedPixiSheetController, deltaMs: number
     controller.frameIndex = nextFrame;
     sprite.texture = getCache(spec).frames?.[nextFrame] || sprite.texture;
   }
-  sprite.alpha = typeof base.alpha === 'number' ? base.alpha : 1;
-  sprite.tint = base.tint ?? 0xFFFFFF;
-  base.renderable = false;
-  if (spec.renderAboveHud) syncAnimatedDiceAboveHud(controller);
-  try { controller.onFrame?.(controller); } catch {}
+  const nextAlpha = typeof base.alpha === 'number' ? base.alpha : 1;
+  const nextTint = base.tint ?? 0xFFFFFF;
+  if (sprite.alpha !== nextAlpha) sprite.alpha = nextAlpha;
+  if (sprite.tint !== nextTint) sprite.tint = nextTint;
+  const signature = [
+    nextFrame,
+    nextAlpha,
+    nextTint,
+    tile.x,
+    tile.y,
+    tile.rotation,
+    tile.scale?.x,
+    tile.scale?.y,
+    host.x,
+    host.y,
+    host.rotation,
+    host.scale?.x,
+    host.scale?.y,
+  ].join('|');
+  // Foreground sprites live under the stage instead of their source host.
+  // Their complete ancestor chain (board layout, shake and scale included)
+  // can move while the sheet frame and tile-local pose remain unchanged.
+  // The foreground owner skips the final matrix write when the solved pose is
+  // identical, so keeping this sync per visible tick remains bounded.
+  if (spec.renderAboveHud) {
+    let foregroundSynced = syncAnimatedDiceAboveHud(controller);
+    if (!foregroundSynced) foregroundSynced = mountAnimatedDiceAboveHud(controller, sprite, host);
+    if (!foregroundSynced && controller.hasReachedLiveStage) {
+      dispose(controller);
+      return;
+    }
+  }
+  if (base.renderable !== false) base.renderable = false;
+  if (signature !== controller.lastPresentationSignature) {
+    controller.lastPresentationSignature = signature;
+    try { controller.onFrame?.(controller); } catch {}
+  }
 }
 
 function updateAll(ticker?: any): void {
@@ -340,7 +403,15 @@ function mount(controller: SharedPixiSheetController, retry = 0): void {
   void loadFrames(controller.spec).then((frames) => {
     const { tile, base, host, spec } = controller;
     if (controller.disposed) return;
-    if (tile.destroyed || base.destroyed || host.destroyed || !controller.isEligible(tile)) {
+    const hostIsAttached = reachesLiveStage(host);
+    if (hostIsAttached) controller.hasReachedLiveStage = true;
+    if (
+      tile.destroyed
+      || base.destroyed
+      || host.destroyed
+      || (!hostIsAttached && controller.hasReachedLiveStage)
+      || !controller.isEligible(tile)
+    ) {
       dispose(controller);
       return;
     }
@@ -360,7 +431,7 @@ function mount(controller: SharedPixiSheetController, retry = 0): void {
     host.sortableChildren = true;
     host.addChild(sprite);
     controller.sprite = sprite;
-    if (spec.renderAboveHud) mountAnimatedDiceAboveHud(controller, sprite, host);
+    if (spec.renderAboveHud && hostIsAttached) mountAnimatedDiceAboveHud(controller, sprite, host);
     controller.ready = true;
     ensureTicker(findTileTicker(tile));
     controller.phaseLease = acquireAnimatedTimelinePhase(spec.family, spec.cycleMs, [{
@@ -425,6 +496,8 @@ export function startSharedPixiSheetAnimation(options: {
     disposed: false,
     elapsedMs: 0,
     frameIndex: 0,
+    lastPresentationSignature: '',
+    hasReachedLiveStage: reachesLiveStage(host),
     retryTimer: null,
     phaseLease: null,
     onReady: options.onReady,

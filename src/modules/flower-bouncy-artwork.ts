@@ -9,6 +9,7 @@ import {
 } from './animated-svg-phase-scheduler.ts';
 import { releaseAnimatedSpecialArtworkFamily } from './animated-special-artwork-mode.ts';
 import {
+  isAnimatedDiceSourceOnLiveStage,
   mountAnimatedDiceAboveHud,
   releaseAnimatedDiceAboveHud,
   syncAnimatedDiceAboveHud,
@@ -55,6 +56,7 @@ type FlowerBouncyController = {
   ready: boolean;
   running: boolean;
   disposed: boolean;
+  hasReachedLiveStage: boolean;
   elapsedMs: number;
   phaseLease: AnimatedSvgPhaseLease | null;
   retryTimer: ReturnType<typeof setTimeout> | null;
@@ -231,10 +233,27 @@ function disposeController(controller: FlowerBouncyController): void {
 
 function updateController(controller: FlowerBouncyController, deltaMs: number): void {
   const { tile, base, host, canvas, animatedRoot, scalePivot, rotationPivot, artwork } = controller;
-  if (controller.disposed || tile?.destroyed || base?.destroyed || host?.destroyed || !isFlowerBouncyTile(tile)) {
+  const hostIsAttached = isAnimatedDiceSourceOnLiveStage(host);
+  if (
+    controller.disposed
+    || tile?.destroyed
+    || base?.destroyed
+    || host?.destroyed
+    || (!hostIsAttached && controller.hasReachedLiveStage)
+    || !isFlowerBouncyTile(tile)
+  ) {
     disposeController(controller);
     return;
   }
+  if (!hostIsAttached) {
+    base.renderable = controller.originalRenderable;
+    if (canvas) {
+      canvas.visible = false;
+      canvas.renderable = false;
+    }
+    return;
+  }
+  controller.hasReachedLiveStage = true;
   if (!canvas || !animatedRoot || !scalePivot || !rotationPivot || !artwork || !controller.ready || !controller.running) {
     base.renderable = controller.originalRenderable;
     if (canvas) canvas.renderable = false;
@@ -255,8 +274,15 @@ function updateController(controller: FlowerBouncyController, deltaMs: number): 
   rotationPivot.rotation = pose.rotationDegrees * Math.PI / 180;
   canvas.alpha = typeof base.alpha === 'number' ? base.alpha : 1;
   artwork.tint = base.tint ?? 0xFFFFFF;
+  let foregroundSynced = syncAnimatedDiceAboveHud(controller);
+  if (!foregroundSynced) foregroundSynced = mountAnimatedDiceAboveHud(controller, canvas, host);
+  if (!foregroundSynced) {
+    base.renderable = controller.originalRenderable;
+    canvas.visible = false;
+    canvas.renderable = false;
+    return;
+  }
   base.renderable = false;
-  syncAnimatedDiceAboveHud(controller);
 }
 
 function updateAllControllers(ticker?: any): void {
@@ -308,7 +334,7 @@ function mountFlowerArtwork(controller: FlowerBouncyController, retry = 0): void
     controller.scalePivot = scalePivot;
     controller.rotationPivot = rotationPivot;
     controller.artwork = artwork;
-    mountAnimatedDiceAboveHud(controller, canvas, host);
+    if (isAnimatedDiceSourceOnLiveStage(host)) mountAnimatedDiceAboveHud(controller, canvas, host);
     controller.ready = true;
     ensureTicker(findTileTicker(tile));
     controller.phaseLease = acquireAnimatedTimelinePhase('flower-bouncy-pixi', FLOWER_BOUNCY_CYCLE_MS, [{
@@ -361,6 +387,7 @@ export function startFlowerBouncyArtwork(tile: any): FlowerBouncyController | nu
     ready: false,
     running: false,
     disposed: false,
+    hasReachedLiveStage: isAnimatedDiceSourceOnLiveStage(host),
     elapsedMs: 0,
     phaseLease: null,
     retryTimer: null,

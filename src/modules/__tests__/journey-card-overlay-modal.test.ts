@@ -894,6 +894,24 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal.slice(entryStart, spatialEnterStart)).not.toContain('await ');
   });
 
+  test('puts the card-modal haptic on accepted Play or Continue instead of entry landing', () => {
+    const modal = read('src/modules/journey-card-overlay-modal.ts');
+    const entryOwner = modal.slice(
+      modal.indexOf('const startEntry = async'),
+      modal.indexOf('const startReturn = async'),
+    );
+    const ctaStart = modal.indexOf('ctaController = registerCta(cta');
+    const ctaOwner = modal.slice(
+      ctaStart,
+      modal.indexOf('primeBackContentForEnter()', ctaStart),
+    );
+
+    expect(entryOwner).not.toContain('triggerHapticImpact');
+    expect(entryOwner).not.toContain('triggerHapticSelection');
+    expect(ctaOwner).toContain("triggerHapticImpact?.('medium')");
+    expect(ctaOwner).not.toContain('triggerHapticSelection');
+  });
+
   test('does no layout/style read during pointer movement and excludes real controls', () => {
     const modal = read('src/modules/journey-card-overlay-modal.ts');
     const pointerMove = modal.slice(

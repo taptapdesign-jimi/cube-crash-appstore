@@ -38,6 +38,131 @@ let spawnedDieForegroundOverlayRoot: HTMLDivElement | null = null;
 let ticker: Ticker | null = null;
 let finaleDepthOwners = 0;
 let lastDragDepthDiagnostic = '';
+let geometryDirty = true;
+let cachedCanvas: HTMLCanvasElement | null = null;
+let cachedCanvasRect: DOMRect | null = null;
+let cachedRoot: HTMLDivElement | null = null;
+let cachedRootRect: DOMRect | null = null;
+let cachedScreenWidth = 0;
+let cachedScreenHeight = 0;
+type CanvasPresentation = Pick<CSSStyleDeclaration, 'display' | 'visibility' | 'opacity' | 'zIndex'>;
+let presentationCanvas: HTMLCanvasElement | null = null;
+let presentationParent: HTMLElement | null = null;
+const presentationAncestors: Array<{ element: HTMLElement; className: string; cssText: string; hidden: boolean }> = [];
+let presentationDirty = true;
+let cachedPresentation: CanvasPresentation | null = null;
+const activeCanvasTransitions = new Set<string>();
+const CANVAS_TRANSITION_SAFETY_MS = 2_000;
+let activeCanvasTransitionDeadline = 0;
+
+function presentationNow(): number {
+  return typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now();
+}
+
+function invalidateLayerPresentation(): void {
+  presentationDirty = true;
+  invalidateLayerGeometry();
+}
+
+function handleCanvasTransition(event: Event): void {
+  if (event.target !== presentationCanvas) return;
+  const property = (event as TransitionEvent).propertyName;
+  if (event.type === 'transitionrun' || event.type === 'transitionstart') {
+    activeCanvasTransitions.add(property);
+    activeCanvasTransitionDeadline = Math.max(
+      activeCanvasTransitionDeadline,
+      presentationNow() + CANVAS_TRANSITION_SAFETY_MS,
+    );
+  } else {
+    activeCanvasTransitions.delete(property);
+    if (activeCanvasTransitions.size === 0) activeCanvasTransitionDeadline = 0;
+  }
+  invalidateLayerPresentation();
+}
+
+function releasePresentationCache(): void {
+  if (presentationCanvas) {
+    for (const type of ['transitionrun', 'transitionstart', 'transitionend', 'transitioncancel']) {
+      presentationCanvas.removeEventListener(type, handleCanvasTransition);
+    }
+  }
+  presentationCanvas = null;
+  presentationParent = null;
+  presentationAncestors.length = 0;
+  cachedPresentation = null;
+  activeCanvasTransitions.clear();
+  activeCanvasTransitionDeadline = 0;
+  presentationDirty = true;
+}
+
+function getCanvasPresentation(canvas: HTMLCanvasElement): CanvasPresentation {
+  if (presentationCanvas !== canvas || presentationParent !== canvas.parentElement) {
+    releasePresentationCache();
+    presentationCanvas = canvas;
+    presentationParent = canvas.parentElement;
+    for (const type of ['transitionrun', 'transitionstart', 'transitionend', 'transitioncancel']) {
+      canvas.addEventListener(type, handleCanvasTransition);
+    }
+    // A Special may attach while the authored canvas fade is already running.
+    for (const animation of canvas.getAnimations?.() ?? []) {
+      const property = (animation as CSSTransition).transitionProperty;
+      if (property && (animation.playState === 'running' || animation.pending)) {
+        activeCanvasTransitions.add(property);
+        activeCanvasTransitionDeadline = Math.max(
+          activeCanvasTransitionDeadline,
+          presentationNow() + CANVAS_TRANSITION_SAFETY_MS,
+        );
+      }
+    }
+    invalidateLayerPresentation();
+  }
+  // These DOM attributes do not flush style/layout. Compare the canvas and
+  // ancestors, never artwork descendants, so per-die transforms stay cheap.
+  // Identity checks also detect reparenting without a new observer or RAF.
+  let depth = 0;
+  for (let element: HTMLElement | null = canvas; element; element = element.parentElement) {
+    const className = element.className;
+    const cssText = element.style.cssText;
+    const hidden = element.hidden;
+    const previous = presentationAncestors[depth];
+    if (!previous || previous.element !== element || previous.className !== className
+      || previous.cssText !== cssText || previous.hidden !== hidden) {
+      presentationAncestors[depth] = { element, className, cssText, hidden };
+      invalidateLayerPresentation();
+    }
+    depth += 1;
+  }
+  if (presentationAncestors.length !== depth) {
+    presentationAncestors.length = depth;
+    invalidateLayerPresentation();
+  }
+  if (presentationDirty || !cachedPresentation) {
+    const style = getComputedStyle(canvas);
+    cachedPresentation = {
+      display: style.display,
+      visibility: style.visibility,
+      opacity: style.opacity,
+      zIndex: style.zIndex,
+    };
+    presentationDirty = false;
+  }
+  return cachedPresentation;
+}
+
+function handleLayerVisibilityChange(): void {
+  invalidateLayerPresentation();
+  updateAnimatedSpecialArtworkLayer();
+}
+
+function invalidateLayerGeometry(): void {
+  geometryDirty = true;
+}
+
+function handleLayerViewportChange(): void {
+  invalidateLayerPresentation();
+}
 
 function isGameplayDragActive(): boolean {
   try {
@@ -60,7 +185,7 @@ function setLayerStyle(root: HTMLElement, property: 'zIndex' | 'visibility' | 'd
 function syncOverlayZIndex(
   root: HTMLDivElement,
   canvas: HTMLCanvasElement,
-  canvasStyle = getComputedStyle(canvas),
+  canvasStyle = getCanvasPresentation(canvas),
 ): void {
   const parsedCanvasZIndex = Number.parseFloat(canvasStyle.zIndex || '1');
   const canvasZIndex = Number.isFinite(parsedCanvasZIndex) ? parsedCanvasZIndex : 1;
@@ -170,14 +295,15 @@ function ensureOverlayRoot(): HTMLDivElement | null {
       zIndex: '11',
     });
     shouldSyncZIndex = true;
+    invalidateLayerGeometry();
   }
   if (overlayRoot.parentElement !== parent) {
     parent.appendChild(overlayRoot);
     shouldSyncZIndex = true;
+    invalidateLayerGeometry();
   }
-  // The ticker update below already performs the per-frame style read. Only
-  // synchronize here when the root is newly created/reparented so we do not
-  // double getComputedStyle() work on every animation frame.
+  // Newly created/reparented roots need immediate depth; stable roots reuse
+  // the shared canvas presentation cache.
   if (shouldSyncZIndex) syncOverlayZIndex(overlayRoot, canvas);
   return overlayRoot;
 }
@@ -325,7 +451,10 @@ function ensureTicker(): void {
 
 function releaseRuntimeWhenUnused(): void {
   if (frameOwners.size > 0) return;
-  document.removeEventListener('visibilitychange', updateAnimatedSpecialArtworkLayer);
+  document.removeEventListener('visibilitychange', handleLayerVisibilityChange);
+  window.removeEventListener('resize', handleLayerViewportChange);
+  window.removeEventListener('orientationchange', handleLayerViewportChange);
+  releasePresentationCache();
   layerSuspended = false;
   detachTicker();
   if (overlayRoot) {
@@ -357,6 +486,13 @@ function releaseRuntimeWhenUnused(): void {
     spawnedDieForegroundOverlayRoot = null;
   }
   lastDragDepthDiagnostic = '';
+  geometryDirty = true;
+  cachedCanvas = null;
+  cachedCanvasRect = null;
+  cachedRoot = null;
+  cachedRootRect = null;
+  cachedScreenWidth = 0;
+  cachedScreenHeight = 0;
 }
 
 function publishLayerSuspension(suspended: boolean): void {
@@ -410,7 +546,23 @@ function syncAnimatedSpecialArtworkLayer(): void {
     return;
   }
 
-  const canvasStyle = getComputedStyle(canvas);
+  // Only a live CSS canvas transition needs interpolated style/geometry each
+  // frame. Settled gameplay never polls computed style or layout here.
+  if (activeCanvasTransitions.size > 0 && presentationNow() >= activeCanvasTransitionDeadline) {
+    // WebKit can omit transitionend/cancel when a page is backgrounded or a
+    // canvas is detached mid-fade. Take one final sample, then return to the
+    // stable cache instead of polling computed style forever.
+    activeCanvasTransitions.clear();
+    activeCanvasTransitionDeadline = 0;
+    presentationDirty = true;
+  }
+  if (activeCanvasTransitions.size > 0) {
+    presentationDirty = true;
+    for (const property of activeCanvasTransitions) {
+      if (property !== 'opacity' && property !== 'visibility' && property !== 'z-index') invalidateLayerGeometry();
+    }
+  }
+  const canvasStyle = getCanvasPresentation(canvas);
   const parsedOpacity = Number.parseFloat(canvasStyle.opacity || '1');
   const canvasOpacity = Number.isFinite(parsedOpacity) ? parsedOpacity : 1;
   syncOverlayZIndex(root, canvas, canvasStyle);
@@ -425,14 +577,30 @@ function syncAnimatedSpecialArtworkLayer(): void {
   publishLayerSuspension(false);
   setLayerRootsPaintable(true);
 
-  const canvasRect = canvas.getBoundingClientRect();
-  const rootRect = root.getBoundingClientRect();
   const screen = app.renderer.screen;
+  const screenWidth = screen.width;
+  const screenHeight = screen.height;
+  if (
+    geometryDirty
+    || cachedCanvas !== canvas
+    || cachedRoot !== root
+    || cachedScreenWidth !== screenWidth
+    || cachedScreenHeight !== screenHeight
+  ) {
+    cachedCanvas = canvas;
+    cachedRoot = root;
+    cachedCanvasRect = canvas.getBoundingClientRect();
+    cachedRootRect = root.getBoundingClientRect();
+    cachedScreenWidth = screenWidth;
+    cachedScreenHeight = screenHeight;
+    geometryDirty = false;
+  }
+  if (!cachedCanvasRect || !cachedRootRect) return;
   const frame: AnimatedSpecialArtworkFrame = {
-    canvasRect,
-    rootRect,
-    screenWidth: screen.width,
-    screenHeight: screen.height,
+    canvasRect: cachedCanvasRect,
+    rootRect: cachedRootRect,
+    screenWidth,
+    screenHeight,
     canvasOpacity,
     gameplayDragActive: isGameplayDragActive(),
   };
@@ -541,7 +709,11 @@ export function acquireAnimatedSpecialArtworkLayer(
 ): AnimatedSpecialArtworkLayerLease | null {
   const root = ensureOverlayRoot();
   if (!root) return null;
-  if (frameOwners.size === 0) document.addEventListener('visibilitychange', updateAnimatedSpecialArtworkLayer);
+  if (frameOwners.size === 0) {
+    document.addEventListener('visibilitychange', handleLayerVisibilityChange);
+    window.addEventListener('resize', handleLayerViewportChange, { passive: true });
+    window.addEventListener('orientationchange', handleLayerViewportChange, { passive: true });
+  }
   frameOwners.add(owner);
   if (onFailure) failureOwners.set(owner, onFailure);
   if (onSuspension) {
@@ -556,6 +728,9 @@ export function acquireAnimatedSpecialArtworkLayer(
     requestSync: () => {
       if (released || !frameOwners.has(owner)) return;
       ensureTicker();
+      // Explicit owners call this after a reparent/drag/depth boundary. Refresh
+      // geometry immediately; steady ticker frames reuse the unchanged viewport.
+      invalidateLayerGeometry();
       updateAnimatedSpecialArtworkLayer();
     },
     release: () => {

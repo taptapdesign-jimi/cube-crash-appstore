@@ -4254,7 +4254,6 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
   
   const STAR_COUNT = Math.min(3, savedStarPositions.length);
   let maxStarDuration = 0;
-  let hudArrivalHapticPlayed = false;
   
   // 🔥 PERFORMANCE OPTIMIZATION: Use single shared texture for all stars (object pooling)
   // This reduces memory usage and improves frame rate
@@ -4591,12 +4590,6 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
           
           // Add score only when each star reaches the score HUD.
           try {
-            try {
-              if (!hudArrivalHapticPlayed && typeof (window as any)?.triggerHapticImpact === 'function') {
-                hudArrivalHapticPlayed = true;
-                (window as any).triggerHapticImpact('light');
-              }
-            } catch {}
             if (typeof window !== 'undefined' && window.CC && typeof window.CC.addScoreFromHudStar === 'function') {
               window.CC.addScoreFromHudStar(100);
             } else {
@@ -5483,6 +5476,9 @@ export function screenShake(app, opts = {}){
 }
 
 /* ---------- Wild idle FX: gentle wiggle + elastic bounce + shimmer ---------- */
+const MAX_WILD_SHIMMER_TEXTURE_CACHE_ENTRIES = 4;
+const wildShimmerTextureCache = new Map();
+
 function makeLinearGradientTexture(w, h, stops){
   const canvas = document.createElement('canvas');
   canvas.width = Math.max(2, Math.ceil(w));
@@ -5508,6 +5504,77 @@ function makeLinearGradientTexture(w, h, stops){
     return texture;
   } catch {
     return null;
+  }
+}
+
+function isWildShimmerTextureUsable(texture) {
+  const source = texture?.source || texture?.baseTexture;
+  return !!texture && texture.destroyed !== true && source?.destroyed !== true;
+}
+
+function pruneWildShimmerTextureCache() {
+  if (wildShimmerTextureCache.size <= MAX_WILD_SHIMMER_TEXTURE_CACHE_ENTRIES) return;
+  for (const [key, entry] of wildShimmerTextureCache) {
+    if (wildShimmerTextureCache.size <= MAX_WILD_SHIMMER_TEXTURE_CACHE_ENTRIES) break;
+    if (entry.refs > 0) continue;
+    wildShimmerTextureCache.delete(key);
+    destroyRuntimeTexture(entry.texture);
+  }
+}
+
+function acquireWildShimmerTexture(w, h, stops) {
+  const width = Math.max(2, Math.ceil(w));
+  const height = Math.max(2, Math.ceil(h));
+  const key = `${width}x${height}`;
+  let entry = wildShimmerTextureCache.get(key);
+  if (entry && !isWildShimmerTextureUsable(entry.texture)) {
+    wildShimmerTextureCache.delete(key);
+    entry = null;
+  }
+  if (!entry) {
+    const texture = makeLinearGradientTexture(width, height, stops);
+    if (!texture) return null;
+    entry = { texture, refs: 0 };
+    wildShimmerTextureCache.set(key, entry);
+  }
+  entry.refs += 1;
+  // Refresh insertion order so pruning keeps the most recently reused sizes.
+  wildShimmerTextureCache.delete(key);
+  wildShimmerTextureCache.set(key, entry);
+  pruneWildShimmerTextureCache();
+
+  let released = false;
+  return {
+    texture: entry.texture,
+    release() {
+      if (released) return;
+      released = true;
+      entry.refs = Math.max(0, entry.refs - 1);
+      pruneWildShimmerTextureCache();
+    },
+  };
+}
+
+function releaseTileWildShimmerTexture(tile) {
+  const release = tile?._wildShimmerTextureRelease;
+  tile._wildShimmerTextureRelease = null;
+  try { release?.(); } catch {}
+  tile._wildShimmerTexture = null;
+}
+
+export function getWildShimmerTextureCacheSnapshot() {
+  return [...wildShimmerTextureCache.entries()].map(([key, entry]) => ({
+    key,
+    refs: entry.refs,
+    texture: entry.texture,
+  }));
+}
+
+export function destroyWildShimmerTextureCache() {
+  for (const [key, entry] of wildShimmerTextureCache) {
+    if (entry.refs > 0) continue;
+    wildShimmerTextureCache.delete(key);
+    destroyRuntimeTexture(entry.texture);
   }
 }
 
@@ -5545,7 +5612,7 @@ export function createWildShimmer(tile) {
   tile._wildShimmerMask = mask;
   
   // Create shimmer sprite with diagonal gradient
-  const shimmerTexture = makeLinearGradientTexture(baseW * 2, baseH * 2, [
+  const shimmerTextureLease = acquireWildShimmerTexture(baseW * 2, baseH * 2, [
     { o: 0.0, c: 'rgba(255,255,255,0)' },
     { o: 0.2, c: 'rgba(255,255,255,0)' },
     { o: 0.4, c: 'rgba(255,255,255,0.6)' },
@@ -5555,6 +5622,7 @@ export function createWildShimmer(tile) {
     { o: 1.0, c: 'rgba(255,255,255,0)' }
   ]);
   
+  const shimmerTexture = shimmerTextureLease?.texture;
   if (shimmerTexture) {
     const shimmerSprite = new Sprite(shimmerTexture);
     shimmerSprite.anchor.set(0.5);
@@ -5571,6 +5639,7 @@ export function createWildShimmer(tile) {
     shimmerContainer.addChild(shimmerSprite);
     tile._wildShimmerSprite = shimmerSprite;
     tile._wildShimmerTexture = shimmerTexture;
+    tile._wildShimmerTextureRelease = shimmerTextureLease.release;
   }
   
   // Add to tile
@@ -5849,8 +5918,7 @@ export function stopWildShimmer(tile) {
   tile._wildShimmer = null;
   tile._wildShimmerSprite = null;
   tile._wildShimmerMask = null;
-  destroyRuntimeTexture(tile._wildShimmerTexture);
-  tile._wildShimmerTexture = null;
+  releaseTileWildShimmerTexture(tile);
 }
 
 /**
@@ -6575,6 +6643,5 @@ export function stopWildIdle(tile){
   tile._wildShimmerSprite = null;
   tile._wildShimmerMask = null;
   tile._wildMask = null;
-  destroyRuntimeTexture(tile._wildShimmerTexture);
-  tile._wildShimmerTexture = null;
+  releaseTileWildShimmerTexture(tile);
 }

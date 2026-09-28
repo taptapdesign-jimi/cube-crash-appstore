@@ -1,3 +1,5 @@
+import { preloadBoardPopInSound } from './board-popin-sound.ts';
+
 type PopInRunnerDeps = {
   tiles: any[];
   sweetPopIn: (tiles: any[], opts: { onHalf?: () => void; signal?: AbortSignal }) => Promise<any> | any;
@@ -19,6 +21,7 @@ export function createSweetPopInRunner({
   getAbortSignal,
   devLog,
 }: PopInRunnerDeps){
+  preloadBoardPopInSound();
   return async () => {
     if (shouldAbort?.()) return;
     devLog('🎯 Starting sweetPopIn from app.js with', tiles.length, 'tiles');

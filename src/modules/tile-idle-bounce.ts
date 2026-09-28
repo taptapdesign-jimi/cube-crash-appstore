@@ -13,6 +13,7 @@ import { smokeBubblesAtTile } from "./fx.ts";
 import { TILE } from './constants.js';
 import { createGameplayTileCartoonVariant } from './gameplay-tile-cartoon-motion.js';
 import { usesRigidSpecialDiceIdle } from './special-dice-registry.js';
+import { acquirePixiMobileActivityLease } from './pixi-mobile-frame-controller.js';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 const isVerboseGameplayLogsEnabled = () => (typeof window !== 'undefined') && (window as any).__ccVerboseGameplayLogs === true;
@@ -245,7 +246,13 @@ function animateTile(tile: Tile): void {
   
   // Store original rotation
   const originalRotation = 0;
+  const releaseFrameLease = acquirePixiMobileActivityLease('regular-tile-idle-bounce', 60);
+  (tile as any)._ccIdleBounceFrameLease = releaseFrameLease;
   const restoreIdlePose = () => {
+    if ((tile as any)._ccIdleBounceFrameLease === releaseFrameLease) {
+      delete (tile as any)._ccIdleBounceFrameLease;
+    }
+    releaseFrameLease();
     state.activeAnimations.delete(tile);
     if ((tile as any)._idleBounceTl !== tl) return;
     (tile as any)._idleBounceTl = null;
@@ -326,6 +333,10 @@ function animateTile(tile: Tile): void {
 
 function stopTileAnimation(tile: Tile): void {
   if (!tile) return;
+  try {
+    (tile as any)._ccIdleBounceFrameLease?.();
+    delete (tile as any)._ccIdleBounceFrameLease;
+  } catch {}
   
   try {
     // 🔥 CRITICAL: Kill all GSAP tweens on tile and its properties

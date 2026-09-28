@@ -478,10 +478,10 @@ describe('Board Transition World themes', () => {
       'bottom: -90px', 'width: min(237vw, 921px)',
     ]));
     expect(styleByLayer['robo-fence-static-left']).toEqual(expect.arrayContaining([
-      'left: calc(30% - 31px)', 'bottom: 323px', 'width: 150px',
+      'left: calc(30% - 31px)', 'bottom: calc(323px + 1.6287%)', 'width: 150px',
     ]));
     expect(styleByLayer['robo-fence-static-right']).toEqual(expect.arrayContaining([
-      'left: calc(70% + 31px)', 'bottom: 323px', 'width: 150px',
+      'left: calc(70% + 31px)', 'bottom: calc(323px + 1.6287%)', 'width: 150px',
     ]));
     expect(styleByLayer['robo-fighter-left']).toEqual(expect.arrayContaining([
       'left: calc(50% - 55px)', 'bottom: 470px', 'width: 90px', 'z-index: 73', 'opacity: 0',

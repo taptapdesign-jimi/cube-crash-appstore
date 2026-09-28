@@ -2,6 +2,9 @@ import {
   HAPTIC_RUNTIME_POLICY,
   installHapticRuntimeGovernor,
   resetHapticRuntimeGovernorForTests,
+  triggerBoardPopInHaptic,
+  triggerCleanBoardCounterHaptic,
+  triggerMandatoryMerge6Haptic,
 } from '../haptic-runtime-governor';
 
 describe('haptic runtime governor', () => {
@@ -76,5 +79,54 @@ describe('haptic runtime governor', () => {
     }
 
     expect(rawImpact).toHaveBeenCalledTimes(HAPTIC_RUNTIME_POLICY.maxImpactsPerBurst);
+  });
+
+  test('never suppresses the committed Merge 6 beat after the ordinary burst budget is exhausted', () => {
+    const rawImpact = jest.fn();
+    window.triggerHapticImpact = rawImpact;
+    installHapticRuntimeGovernor(window);
+
+    for (let index = 0; index < 12; index += 1) {
+      window.triggerHapticImpact?.(index % 2 === 0 ? 'light' : 'medium');
+      now += 250;
+    }
+    const governedCount = rawImpact.mock.calls.length;
+
+    expect(triggerMandatoryMerge6Haptic('heavy')).toBe(true);
+    expect(rawImpact).toHaveBeenCalledTimes(governedCount + 1);
+    expect(rawImpact).toHaveBeenLastCalledWith('heavy');
+  });
+
+  test('preserves every authored Clean Board counter beat at the weakest impact style', () => {
+    const rawImpact = jest.fn();
+    window.triggerHapticImpact = rawImpact;
+    installHapticRuntimeGovernor(window);
+
+    for (let index = 0; index < 12; index += 1) {
+      window.triggerHapticImpact?.('medium');
+      now += 250;
+    }
+    const governedCount = rawImpact.mock.calls.length;
+
+    for (let index = 0; index < 8; index += 1) {
+      expect(triggerCleanBoardCounterHaptic()).toBe(true);
+      now += 65;
+    }
+
+    expect(rawImpact).toHaveBeenCalledTimes(governedCount + 8);
+    expect(rawImpact.mock.calls.slice(-8)).toEqual(Array.from({ length: 8 }, () => ['light']));
+  });
+
+  test('preserves the bounded compact board-entry cadence without governor spacing', () => {
+    const rawImpact = jest.fn();
+    window.triggerHapticImpact = rawImpact;
+    installHapticRuntimeGovernor(window);
+
+    for (let index = 0; index < 6; index += 1) {
+      expect(triggerBoardPopInHaptic()).toBe(true);
+      now += 50;
+    }
+
+    expect(rawImpact.mock.calls).toEqual(Array.from({ length: 6 }, () => ['light']));
   });
 });

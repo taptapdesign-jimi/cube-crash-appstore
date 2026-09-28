@@ -4,6 +4,7 @@ export interface MobileRuntimeProfile {
   platform: MobileRuntimePlatform;
   isMobileDevice: boolean;
   settledIdleMaxFramesPerSecond: number;
+  staticBoardMaxFramesPerSecond: number;
   spatialMaxFramesPerSecond: number;
   ambientPixelRatioCap: number;
   ambientVisibilityMarginPx: number;
@@ -19,6 +20,7 @@ export interface MobileRuntimeEnvironment {
 }
 
 const MOBILE_SETTLED_IDLE_FPS = 30;
+const MOBILE_STATIC_BOARD_FPS = 15;
 const MOBILE_AMBIENT_PIXEL_RATIO_CAP = 1.25;
 const MOBILE_AMBIENT_VISIBILITY_MARGIN_PX = 80;
 const MOBILE_AMBIENT_SPRITE_BUDGET = 10;
@@ -64,6 +66,7 @@ export function resolveMobileRuntimeProfile(
     platform,
     isMobileDevice,
     settledIdleMaxFramesPerSecond: isMobileDevice ? MOBILE_SETTLED_IDLE_FPS : 0,
+    staticBoardMaxFramesPerSecond: isMobileDevice ? MOBILE_STATIC_BOARD_FPS : 0,
     spatialMaxFramesPerSecond: isMobileDevice ? MOBILE_SETTLED_IDLE_FPS : 0,
     ambientPixelRatioCap: isMobileDevice ? MOBILE_AMBIENT_PIXEL_RATIO_CAP : 2,
     ambientVisibilityMarginPx: isMobileDevice ? MOBILE_AMBIENT_VISIBILITY_MARGIN_PX : 180,

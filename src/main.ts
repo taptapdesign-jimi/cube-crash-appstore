@@ -2098,6 +2098,15 @@ async function startNewRun(boardId: number): Promise<void> {
     console.log(`✅ bootGame() completed`);
     
     journeyEntryIsCurrent = captureGameplayEntryValidity();
+    // startLevel prepares the first layout while the Journey surface is still
+    // hidden. Resolve the caller-owned final layout before reveal as well.
+    // Running this after the shared entry commit used to move the visible
+    // board from y=152 to y=136 after every tile had settled.
+    console.log(`🎮 Finalizing hidden layout for board ${boardId}...`);
+    await layoutGame();
+    if (!journeyEntryIsCurrent()) return;
+    console.log(`✅ Hidden final layout completed`);
+
     // 🔥 CRITICAL FIX: Show app element AFTER boot (so canvas exists)
     uiManager.showApp();
     // showApp starts this same commit. Keep flags/layout with its owner until
@@ -2105,11 +2114,6 @@ async function startNewRun(boardId: number): Promise<void> {
     await commitPreparedGameplayEntry();
     if (!journeyEntryIsCurrent()) return;
     console.log(`✅ App element shown after boot`);
-    
-    console.log(`🎮 About to call layoutGame() for board ${boardId}...`);
-    await layoutGame();
-    if (!journeyEntryIsCurrent()) return;
-    console.log(`✅ layoutGame() completed`);
     assertJourneyGameSurfaceVisible(`startNewRunFromJourney:${boardId}:after-layout`);
     if (shouldStartFirstPlayTutorial) {
       activateFirstPlayTutorialWhenReady();

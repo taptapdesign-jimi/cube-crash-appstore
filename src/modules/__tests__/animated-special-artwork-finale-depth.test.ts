@@ -19,6 +19,7 @@ describe('animated special artwork merge-6 depth ownership', () => {
   const releases: Array<() => void> = [];
 
   beforeEach(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false });
     const host = document.createElement('div');
     const canvas = document.createElement('canvas');
     canvas.style.zIndex = '1';
@@ -98,7 +99,33 @@ describe('animated special artwork merge-6 depth ownership', () => {
     } finally { observer.disconnect(); }
   });
 
-  test('Fish-like pinned owners share one style read per frame and keep immediate depth and reparenting', () => {
+  test('reuses stable viewport geometry across ticker frames and refreshes it after resize', () => {
+    let tick: (() => void) | null = null;
+    (STATE.app!.ticker.add as jest.Mock).mockImplementation((callback: () => void) => { tick = callback; });
+    const canvas = STATE.app!.canvas as HTMLCanvasElement;
+    const canvasRect = jest.fn(() => ({ left: 0, top: 0, width: 390, height: 844 } as DOMRect));
+    canvas.getBoundingClientRect = canvasRect;
+    const owner = jest.fn();
+    const lease = acquireAnimatedSpecialArtworkLayer(owner)!;
+    releases.push(lease.release);
+    const rootRect = jest.fn(() => ({ left: 0, top: 0, width: 390, height: 844 } as DOMRect));
+    lease.root.getBoundingClientRect = rootRect;
+
+    lease.requestSync();
+    expect(canvasRect).toHaveBeenCalledTimes(1);
+    expect(rootRect).toHaveBeenCalledTimes(1);
+    for (let frame = 0; frame < 20; frame += 1) tick?.();
+    expect(owner).toHaveBeenCalledTimes(21);
+    expect(canvasRect).toHaveBeenCalledTimes(1);
+    expect(rootRect).toHaveBeenCalledTimes(1);
+
+    window.dispatchEvent(new Event('resize'));
+    tick?.();
+    expect(canvasRect).toHaveBeenCalledTimes(2);
+    expect(rootRect).toHaveBeenCalledTimes(2);
+  });
+
+  test('Fish-like pinned owners reuse cached canvas style and keep immediate depth and reparenting', () => {
     const wrappers = [document.createElement('div'), document.createElement('div')];
     const owners = wrappers.map((wrapper) => jest.fn(() => {
       setAnimatedSpecialArtworkPinnedForeground(wrapper, true);
@@ -114,7 +141,7 @@ describe('animated special artwork merge-6 depth ownership', () => {
     const computedStyle = jest.spyOn(window, 'getComputedStyle');
     owners.forEach((owner) => owner.mockClear());
     for (let frame = 0; frame < 10; frame++) leases[0].requestSync();
-    expect(computedStyle).toHaveBeenCalledTimes(10);
+    expect(computedStyle).not.toHaveBeenCalled();
     owners.forEach((owner) => expect(owner).toHaveBeenCalledTimes(10));
 
     const releaseFinale = acquireAnimatedSpecialArtworkFinaleDepth();
@@ -136,8 +163,159 @@ describe('animated special artwork merge-6 depth ownership', () => {
     expect(wrappers[1].parentElement).toBe(pinnedRoot);
     computedStyle.mockClear();
     leases[0].requestSync();
-    expect(computedStyle).toHaveBeenCalledTimes(1);
+    expect(computedStyle).not.toHaveBeenCalled();
     owners.forEach((owner) => expect(owner).toHaveBeenCalledTimes(11));
+  });
+
+  test('steady ticker frames preserve changing artwork transforms without computed reads or layer writes', () => {
+    const canvas = STATE.app!.canvas as HTMLCanvasElement;
+    let tick = () => {};
+    (STATE.app!.ticker.add as jest.Mock).mockImplementation((callback: () => void) => { tick = callback; });
+    const wrapper = document.createElement('div');
+    let x = 0;
+    const lease = acquireAnimatedSpecialArtworkLayer(() => { wrapper.style.transform = `translateX(${x++}px)`; })!;
+    releases.push(lease.release);
+    lease.root.append(wrapper);
+    lease.requestSync();
+    const computed = jest.spyOn(window, 'getComputedStyle');
+    const rect = jest.spyOn(canvas, 'getBoundingClientRect');
+    const mutations = new MutationObserver(() => {});
+    mutations.observe(lease.root, { attributes: true, attributeFilter: ['style'] });
+    try {
+      for (let frame = 0; frame < 60; frame++) tick();
+      expect(computed).not.toHaveBeenCalled();
+      expect(rect).not.toHaveBeenCalled();
+      expect(mutations.takeRecords()).toHaveLength(0);
+      expect(wrapper.style.transform).toBe('translateX(60px)');
+    } finally { mutations.disconnect(); }
+  });
+
+  test('canvas/ancestor mutations invalidate style before an immediate sync and detach on final release', () => {
+    const owner = jest.fn();
+    const lease = acquireAnimatedSpecialArtworkLayer(owner)!;
+    releases.push(lease.release);
+    lease.requestSync();
+    const canvas = STATE.app!.canvas as HTMLCanvasElement;
+    const computed = jest.spyOn(window, 'getComputedStyle');
+    canvas.style.opacity = '0.4';
+    lease.requestSync();
+    expect(owner).toHaveBeenLastCalledWith(expect.objectContaining({ canvasOpacity: 0.4 }));
+    expect(computed).toHaveBeenCalledTimes(1);
+    lease.requestSync();
+    expect(computed).toHaveBeenCalledTimes(1);
+    canvas.parentElement!.style.visibility = 'hidden';
+    lease.requestSync();
+    expect(lease.root.style.display).toBe('none');
+    canvas.parentElement!.style.visibility = 'visible';
+    lease.requestSync();
+    expect(lease.root.style.display).toBe('');
+    lease.release();
+    computed.mockClear();
+    canvas.style.opacity = '1';
+    document.dispatchEvent(new Event('visibilitychange'));
+    lease.requestSync();
+    expect(computed).not.toHaveBeenCalled();
+    expect(STATE.app!.ticker.remove).toHaveBeenCalledTimes(1);
+  });
+
+  test('hidden frames skip style, layout and owners, then resume from fresh visibility and geometry', () => {
+    let tick = () => {};
+    (STATE.app!.ticker.add as jest.Mock).mockImplementation((callback: () => void) => { tick = callback; });
+    const owner = jest.fn(); const suspend = jest.fn();
+    const lease = acquireAnimatedSpecialArtworkLayer(owner, suspend)!;
+    releases.push(lease.release);
+    lease.requestSync();
+    const computed = jest.spyOn(window, 'getComputedStyle');
+    const rect = jest.spyOn(STATE.app!.canvas, 'getBoundingClientRect');
+    owner.mockClear();
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    for (let frame = 0; frame < 10; frame++) tick();
+    expect(owner).not.toHaveBeenCalled(); expect(computed).not.toHaveBeenCalled(); expect(rect).not.toHaveBeenCalled();
+    expect(suspend).toHaveBeenLastCalledWith(true);
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(owner).toHaveBeenCalledTimes(1);
+    expect(computed).toHaveBeenCalledTimes(1); expect(rect).toHaveBeenCalledTimes(1);
+    expect(suspend).toHaveBeenLastCalledWith(false);
+  });
+
+  test('ancestor class changes and reparenting invalidate the canvas cache without rebuilding artwork', () => {
+    const stylesheet = document.createElement('style');
+    stylesheet.textContent = '.artwork-test-hidden canvas { visibility: hidden; }';
+    document.body.append(stylesheet);
+    const lease = acquireAnimatedSpecialArtworkLayer(jest.fn())!;
+    releases.push(lease.release);
+    lease.requestSync();
+    const canvas = STATE.app!.canvas as HTMLCanvasElement;
+    const host = canvas.parentElement!;
+    host.classList.add('artwork-test-hidden');
+    lease.requestSync();
+    expect(lease.root.style.display).toBe('none');
+    host.classList.remove('artwork-test-hidden');
+    lease.requestSync();
+    expect(lease.root.style.display).toBe('');
+    const newAncestor = document.createElement('div');
+    newAncestor.style.visibility = 'hidden';
+    document.body.append(newAncestor);
+    newAncestor.append(host);
+    lease.requestSync();
+    expect(lease.root.style.display).toBe('none');
+    newAncestor.style.visibility = 'visible';
+    lease.requestSync();
+    expect(lease.root.style.display).toBe('');
+    expect(lease.root.parentElement).toBe(host);
+  });
+
+  test('only a live canvas transition samples interpolated style, with end/cancel restoring the steady cache', () => {
+    const canvas = STATE.app!.canvas as HTMLCanvasElement;
+    let tick = () => {};
+    (STATE.app!.ticker.add as jest.Mock).mockImplementation((callback: () => void) => { tick = callback; });
+    const owner = jest.fn();
+    const lease = acquireAnimatedSpecialArtworkLayer(owner)!;
+    releases.push(lease.release);
+    lease.requestSync();
+    let opacity = '0.2';
+    const computed = jest.spyOn(window, 'getComputedStyle').mockImplementation(() => ({ opacity, display: 'block', visibility: 'visible', zIndex: '1' }) as CSSStyleDeclaration);
+    const transition = (type: string) => {
+      const event = new Event(type);
+      Object.defineProperty(event, 'propertyName', { value: 'opacity' });
+      canvas.dispatchEvent(event);
+    };
+    transition('transitionrun'); tick();
+    expect(owner).toHaveBeenLastCalledWith(expect.objectContaining({ canvasOpacity: 0.2 }));
+    opacity = '0.6'; tick();
+    expect(owner).toHaveBeenLastCalledWith(expect.objectContaining({ canvasOpacity: 0.6 }));
+    opacity = '1'; transition('transitionend'); tick();
+    expect(owner).toHaveBeenLastCalledWith(expect.objectContaining({ canvasOpacity: 1 }));
+    expect(computed).toHaveBeenCalledTimes(3);
+    for (let frame = 0; frame < 20; frame++) tick();
+    expect(computed).toHaveBeenCalledTimes(3);
+    transition('transitionrun'); transition('transitioncancel'); tick();
+    for (let frame = 0; frame < 20; frame++) tick();
+    expect(computed).toHaveBeenCalledTimes(4);
+  });
+
+  test('retires a WebKit canvas transition that never emits end or cancel', () => {
+    let clock = 100;
+    jest.spyOn(performance, 'now').mockImplementation(() => clock);
+    const canvas = STATE.app!.canvas as HTMLCanvasElement;
+    let tick = () => {};
+    (STATE.app!.ticker.add as jest.Mock).mockImplementation((callback: () => void) => { tick = callback; });
+    const lease = acquireAnimatedSpecialArtworkLayer(jest.fn())!;
+    releases.push(lease.release);
+    lease.requestSync();
+    const computed = jest.spyOn(window, 'getComputedStyle');
+    const event = new Event('transitionrun');
+    Object.defineProperty(event, 'propertyName', { value: 'opacity' });
+    canvas.dispatchEvent(event);
+    tick();
+    expect(computed).toHaveBeenCalledTimes(1);
+    clock += 2_001;
+    tick();
+    expect(computed).toHaveBeenCalledTimes(2);
+    for (let frame = 0; frame < 20; frame += 1) tick();
+    expect(computed).toHaveBeenCalledTimes(2);
   });
 
   test('reference-counts overlapping finales and restores SVG dice above Pixi afterward', () => {

@@ -32,8 +32,10 @@ describe('gameplay drag overlay contract', () => {
     const dragCanvasZ = Number(styleSource.match(
       /body\.gameplay-drag-active #app canvas \{\s*z-index: (\d+) !important;/,
     )?.[1]);
-    const clearRuntime = dragSource.split('function clearDragRuntime() {')[1]
-      ?.split('\n  function resetTileDragShadowPose', 1)[0] ?? '';
+    const clearRuntimeStart = dragSource.indexOf('function clearDragRuntime');
+    const clearRuntime = clearRuntimeStart >= 0
+      ? dragSource.slice(clearRuntimeStart, dragSource.indexOf('\n  function resetTileDragShadowPose', clearRuntimeStart))
+      : '';
 
     expect(domHudZ).toBe(2000);
     expect(dragCanvasZ).toBeGreaterThan(domHudZ);

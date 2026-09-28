@@ -223,6 +223,12 @@ if (!sourceOnly) {
       && controllerText.includes('AVAudioSession.sharedInstance()')
       && controllerText.includes('UIApplication.didBecomeActiveNotification'),
     'native shell must reactivate its audio session whenever the app becomes active');
+    requireCondition(controllerText.includes('audioLifecycleQueue.async')
+      && controllerText.includes('audioActivationInFlight')
+      && controllerText.includes('pendingAudioActivationReason'),
+    'native audio activation must stay serialized and off the UIKit main thread');
+    requireCondition(!controllerText.includes('session.currentRoute'),
+      'native audio activation must not synchronously inspect the route during lifecycle notifications');
     requireCondition(controllerText.includes("cc:native-audio-active"),
       'native shell must notify both Web Audio owners after native audio activation');
     requireCondition(!controllerText.includes("name: \"jsError\""), 'native shell must not install detailed JS error forwarding');

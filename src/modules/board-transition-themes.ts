@@ -77,8 +77,9 @@ export const AREA55_BOARD_TRANSITION_PROFILE = Object.freeze({
     { key: 'robo-fence', src: './assets/journey assets/robo/ograda.png', alt: '', style: islandStyle('25%', 151, 'min(77vw, 299px)', 50), spatialRole: 'scene' },
     { key: 'robo-walker', src: './assets/journey assets/robo/robo1.png', alt: '', style: islandStyle('80%', 136, 'min(64vw, 251px)', 40), spatialRole: 'scene' },
     { key: 'robo-ground-rear', src: './assets/journey assets/robo/zemlja2.png', alt: '', style: islandStyle('50%', -90, 'min(237vw, 921px)', 30), spatialRole: 'terrain' },
-    { key: 'robo-fence-static-left', src: './assets/journey assets/robo/ograda.png', alt: '', style: islandStyle('calc(30% - 31px)', 323, '150px', 20), spatialRole: 'scene' },
-    { key: 'robo-fence-static-right', src: './assets/journey assets/robo/ograda.png', alt: '', style: islandStyle('calc(70% + 31px)', 323, '150px', 20), spatialRole: 'scene' },
+    // 8px lift at 844px viewport height: 8 / (844 * 0.44 + 120) * 100 = 1.6287% of the scene.
+    { key: 'robo-fence-static-left', src: './assets/journey assets/robo/ograda.png', alt: '', style: islandStyle('calc(30% - 31px)', 'calc(323px + 1.6287%)', '150px', 20), spatialRole: 'scene' },
+    { key: 'robo-fence-static-right', src: './assets/journey assets/robo/ograda.png', alt: '', style: islandStyle('calc(70% + 31px)', 'calc(323px + 1.6287%)', '150px', 20), spatialRole: 'scene' },
     { key: 'robo-fighter-left', src: './assets/journey assets/robo/ship1.png', alt: '', style: [...islandStyle('calc(50% - 55px)', 470, '90px', 73), 'opacity: 0'], spatialRole: 'scene' },
     { key: 'robo-fighter-right', src: './assets/journey assets/robo/ship1.png', alt: '', style: [...islandStyle('calc(50% + 55px)', 450, '108px', 76), 'opacity: 0'], spatialRole: 'scene' },
     { key: 'robo-beam-right', src: './assets/journey assets/robo/beam2.png', alt: '', style: [...islandStyle('calc(50% + 76px)', 430, '264.5px', 29), 'opacity: 0'], spatialRole: 'scene' },

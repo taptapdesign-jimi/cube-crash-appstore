@@ -1281,6 +1281,7 @@ let __comboJitterTl: gsap.core.Timeline | null = null;
 let __comboBumpTl: gsap.core.Timeline | null = null;
 let __shakeTl: gsap.core.Timeline | null = null;        // drives shake amplitude during bump/deflate
 let __lastComboVal: number = 0;
+let __lastHudUpdateComboVal: number | null = null;
 let __shakeMul: number = 1.0;        // global multiplier sampled by jitter
 let __scoreTweening: boolean = false;
 let __boardTweening = false;
@@ -1627,6 +1628,7 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
 }
 
 export function initHUD({ stage, app, top = 8, initialHide = false }) { 
+  __lastHudUpdateComboVal = null;
   // Store stage visibility for later restoration
   const stageWasVisible = stage?.visible ?? true;
   const forceRecreateForTextures = (window as any).__ccForceHudRecreateForTextures === true;
@@ -3287,6 +3289,12 @@ export function updateHUD({ score, board, moves, combo }) {
   }
   if (typeof combo === 'number') {
     const v = combo|0;
+    // Merge/finale paths can publish the same complete HUD state several
+    // times. Board and score were handled above; avoid repeating text metrics,
+    // icon/wobble reconciliation and width-dependent combo layout for an
+    // unchanged value in the same HUD lifetime.
+    if (v === __lastHudUpdateComboVal) return;
+    __lastHudUpdateComboVal = v;
     // 🔥 NEW HUD: Update combo number text (18px) - "x" stays constant (14px)
     if (comboText) {
       comboText.text = String(v);

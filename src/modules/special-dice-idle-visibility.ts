@@ -24,11 +24,14 @@ type VisibilityOwner = (paintable: boolean) => void;
 type TileOwners = { owners: Map<VisibilityOwner, (() => void) | undefined>; paintable: boolean };
 const tiles = new Map<any, TileOwners>();
 let ticker: any = null;
+const VISIBILITY_RECONCILE_INTERVAL_MS = 250;
+let visibilityElapsedMs = 0;
 
 function releaseRuntimeIfUnused(): void {
   if (tiles.size) return;
   try { ticker?.remove(updateIdleVisibility); } catch {}
   ticker = null;
+  visibilityElapsedMs = 0;
   document.removeEventListener('visibilitychange', updateIdleVisibility);
 }
 
@@ -44,7 +47,7 @@ function notifyVisibilityOwner(tile: any, entry: TileOwners, owner: VisibilityOw
   catch (error) { retireVisibilityOwner(tile, entry, owner, error); }
 }
 
-function updateIdleVisibility(): void {
+function reconcileIdleVisibility(): void {
   tiles.forEach((entry, tile) => {
     try {
       const paintable = isSpecialDiceIdlePaintable(tile);
@@ -58,6 +61,20 @@ function updateIdleVisibility(): void {
     }
   });
   releaseRuntimeIfUnused();
+}
+
+function updateIdleVisibility(tickerOrEvent?: any): void {
+  const rawElapsed = Number(tickerOrEvent?.elapsedMS);
+  if (Number.isFinite(rawElapsed) && rawElapsed >= 0) {
+    visibilityElapsedMs += Math.min(100, rawElapsed);
+    if (visibilityElapsedMs < VISIBILITY_RECONCILE_INTERVAL_MS) return;
+    visibilityElapsedMs %= VISIBILITY_RECONCILE_INTERVAL_MS;
+  } else {
+    // Browser visibility events and explicit test/owner refreshes reconcile
+    // immediately. Only the shared Pixi sampling path is cadence-bounded.
+    visibilityElapsedMs = 0;
+  }
+  reconcileIdleVisibility();
 }
 
 /** One check per tile on the existing app ticker; no per-owner timer or RAF. */

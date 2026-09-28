@@ -361,9 +361,11 @@ gsap.set = (target, vars) => {
   const _to = TL.to, _fromTo = TL.fromTo, _set = TL.set, _call = TL.call;
   const __alive = (t)=>{ if (!t) return false; if (Array.isArray(t)) return t.some(x=>x && !x.destroyed); return !t.destroyed; };
   const __flt   = (t)=> Array.isArray(t) ? t.filter(x=>x && !x.destroyed) : t;
-  TL.to      = function(t,v){ if (!__alive(t)) return this; try{ return _to.call(this, __flt(t), v); }catch{ return this; } };
-  TL.fromTo  = function(t,a,b){ if (!__alive(t)) return this; try{ return _fromTo.call(this, __flt(t), a, b); }catch{ return this; } };
-  TL.set     = function(t,v){ if (!__alive(t)) return this; try{ return _set.call(this, __flt(t), v); }catch{ return this; } };
+  // Forward the complete GSAP signature, including timeline positions. Dropping
+  // offsets serializes overlapping motion (45 board pops became a 28.8s chain).
+  TL.to      = function(t,...args){ if (!__alive(t)) return this; try{ return _to.call(this, __flt(t), ...args); }catch{ return this; } };
+  TL.fromTo  = function(t,...args){ if (!__alive(t)) return this; try{ return _fromTo.call(this, __flt(t), ...args); }catch{ return this; } };
+  TL.set     = function(t,...args){ if (!__alive(t)) return this; try{ return _set.call(this, __flt(t), ...args); }catch{ return this; } };
   TL.call    = function(cb, params, pos){ try{ return _call.call(this, ()=>{ try{ typeof cb==='function' && cb.apply(this, params||[]); }catch{} }, null, pos); }catch{ return this; } };
 })();
 
@@ -471,6 +473,8 @@ export function initDrag(cfg) {
     _watchdogTimeout: null as any,
     _lastWatchdogRefreshAt: 0,
     _lastMagnetFieldUpdateAt: 0,
+    _magnetFieldCandidates: [] as any[],
+    _magnetFieldTiles: new Set<any>(),
     _perfSample: null as any,
     _perfTicker: null as any,
     _pendingMoveEvent: null as any,
@@ -1004,7 +1008,89 @@ export function initDrag(cfg) {
     }
   }
 
-  function clearDragRuntime() {
+  function clearMagnetFieldTileState(tile: any, state: any) {
+    if (!tile || tile._magnetState !== state) return;
+    tile._magnetState = null;
+    tile._magnetHomeX = undefined;
+    tile._magnetHomeY = undefined;
+    tile._magnetSelected = false;
+    drag._magnetFieldTiles.delete(tile);
+  }
+
+  function resumeMagnetFieldTile(state: any) {
+    if (!state?.returning) return;
+    state.returning = false;
+    try { state.moveTween?.kill(); } catch {}
+    try { state.scaleTween?.kill(); } catch {}
+    state.moveTween = null;
+    // Force a fresh pull even when the magnet re-enters at the same
+    // destination while the previous return tween was still active. Keeping
+    // the old signature could strand the tile partway home with no owner.
+    state.destX = undefined;
+    state.destY = undefined;
+    if (state.container?.scale) {
+      state.scaleTween = trackTween(state.container.scale, {
+        x: state.originScaleX * MAGNET_SCALE_MULT,
+        y: state.originScaleY * MAGNET_SCALE_MULT,
+        duration: MAGNET_IN_DUR,
+        ease: 'back.out(2)',
+        overwrite: 'auto'
+      });
+    }
+  }
+
+  function releaseMagnetFieldTile(tile: any, { immediate = false } = {}) {
+    const state = tile?._magnetState;
+    if (!state) {
+      drag._magnetFieldTiles.delete(tile);
+      return;
+    }
+    if (state.returning && !immediate) return;
+
+    const homeX = tile._magnetHomeX ?? state.originX ?? tile.x;
+    const homeY = tile._magnetHomeY ?? state.originY ?? tile.y;
+    try { state.moveTween?.kill(); } catch {}
+    try { state.scaleTween?.kill(); } catch {}
+    state.returning = true;
+
+    if (immediate || tile.destroyed) {
+      if (!tile.destroyed) {
+        tile.x = homeX;
+        tile.y = homeY;
+        try { state.container?.scale?.set?.(state.originScaleX, state.originScaleY); } catch {}
+      }
+      clearMagnetFieldTileState(tile, state);
+      return;
+    }
+
+    state.moveTween = trackTween(tile, {
+      x: homeX,
+      y: homeY,
+      duration: MAGNET_RETURN_DUR,
+      ease: 'sine.inOut',
+      overwrite: 'auto',
+      onComplete: () => clearMagnetFieldTileState(tile, state),
+    });
+    if (state.container?.scale) {
+      state.scaleTween = trackTween(state.container.scale, {
+        x: state.originScaleX,
+        y: state.originScaleY,
+        duration: MAGNET_RETURN_DUR,
+        ease: 'sine.inOut',
+        overwrite: 'auto',
+      });
+    }
+  }
+
+  function releaseMagnetFieldTiles({ immediate = false } = {}) {
+    [...drag._magnetFieldTiles].forEach((tile: any) => {
+      releaseMagnetFieldTile(tile, { immediate });
+    });
+    drag._magnetFieldCandidates = [];
+    if (immediate) drag._magnetFieldTiles.clear();
+  }
+
+  function clearDragRuntime({ preserveMagnetField = false } = {}) {
     const activeDragTile = drag.t;
     if (drag._perfSample || drag._perfTicker) {
       finishDragPerfSample('runtime-clear');
@@ -1028,6 +1114,7 @@ export function initDrag(cfg) {
     resetWildDragTrailCadence(drag._wildTrailCadence);
     drag.pointerId = null;
     drag.pointerType = null;
+    if (!preserveMagnetField) releaseMagnetFieldTiles({ immediate: true });
     // This uses the captured artwork tile when pointerup/cancel has already
     // cleared drag.t, and is deliberately safe to repeat after a first failure.
     setActiveDragArtworkDragging(activeDragTile, false);
@@ -1367,6 +1454,13 @@ export function initDrag(cfg) {
     drag.hoverCandidate = null;
     drag.hoverCandidateFrames = 0;
     drag._lastMagnetFieldUpdateAt = 0;
+    // A fast second drag can begin while the previous field's return tween is
+    // still running. Finish that owner before replacing the candidate snapshot
+    // so no prior tile keeps a stranded transform or tween.
+    releaseMagnetFieldTiles({ immediate: true });
+    drag._magnetFieldCandidates = t.special === 'wild-magnet' && typeof getTiles === 'function'
+      ? [...getTiles()]
+      : [];
     
     // Track drag start time for wild-magnet sequential pulling
     drag._wildMagnetDragStartTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
@@ -1648,7 +1742,13 @@ export function initDrag(cfg) {
     // ažuriraj _lastGlobal za sljedeći frame
     drag._lastGlobal = e.global.clone?.() ?? { x: e.global.x, y: e.global.y };
 
-    const target = stabilizeHoverTarget(pickDropTarget(t, { allowCenterFallback: false }));
+    // Wild Magnet owns the nearby-field resolver below. Running the generic
+    // full-board drop resolver here produced a second scan whose result was
+    // discarded on every processed pointer frame. Final pointer-up still uses
+    // the canonical forced pickDropTarget path.
+    const target = t.special === 'wild-magnet'
+      ? null
+      : stabilizeHoverTarget(pickDropTarget(t, { allowCenterFallback: false }));
     
     // 🔥 NOTE: Bubbles animation is now triggered in onUp() when wild-juice is dropped on regular tile (merge 6)
     // This ensures bubbles start exactly when merge 6 happens, not when drag starts 
@@ -1660,7 +1760,7 @@ export function initDrag(cfg) {
         return;
       }
       drag._lastMagnetFieldUpdateAt = now;
-      const allTiles = typeof getTiles === 'function' ? getTiles() : [];
+      const allTiles = drag._magnetFieldCandidates;
       const magnetPosition = getTileBoardPosition(t);
       const magnetX = magnetPosition.x;
       const magnetY = magnetPosition.y;
@@ -1706,7 +1806,11 @@ export function initDrag(cfg) {
               originScaleY: container?.scale?.y ?? 1,
               moveTween: null,
               scaleTween: null,
+              returning: false,
+              destX: homeX,
+              destY: homeY,
             };
+            drag._magnetFieldTiles.add(otherTile);
             
             // Store base scale
             if (container && !container._magnetBaseScaleX) {
@@ -1729,6 +1833,7 @@ export function initDrag(cfg) {
           
           // Update position (gentle pull towards magnet)
           const state = otherTile._magnetState;
+          resumeMagnetFieldTile(state);
           const originX = state.originX;
           const originY = state.originY;
           const maxOffset = Math.max(0, tileSize * MAGNET_OFFSET_RATIO);
@@ -1747,64 +1852,44 @@ export function initDrag(cfg) {
           const destX = originX + Math.max(-maxOffset, Math.min(maxOffset, offsetX));
           const destY = originY + Math.max(-maxOffset, Math.min(maxOffset, offsetY));
           
-          try { state.moveTween?.kill(); } catch {}
           if (!otherTile.destroyed) {
             if (shouldUseTouchDragPerformanceMode()) {
               otherTile.x = otherTile.x + (destX - otherTile.x) * 0.35;
               otherTile.y = otherTile.y + (destY - otherTile.y) * 0.35;
               state.moveTween = null;
             } else {
-              state.moveTween = trackTween(otherTile, {
-                x: destX,
-                y: destY,
-                duration: MAGNET_MOVE_DUR,
-                ease: 'sine.out',
-                overwrite: 'auto'
-              });
+              const destinationChanged = Math.abs(destX - (state.destX ?? Infinity)) > 0.25
+                || Math.abs(destY - (state.destY ?? Infinity)) > 0.25;
+              if (destinationChanged) {
+                state.destX = destX;
+                state.destY = destY;
+                if (state.moveTween?.resetTo && state.moveTween?.isActive?.()) {
+                  state.moveTween.resetTo('x', destX);
+                  state.moveTween.resetTo('y', destY);
+                } else {
+                  try { state.moveTween?.kill(); } catch {}
+                  state.moveTween = trackTween(otherTile, {
+                    x: destX,
+                    y: destY,
+                    duration: MAGNET_MOVE_DUR,
+                    ease: 'sine.out',
+                    overwrite: 'auto'
+                  });
+                }
+              }
             }
           }
         } else {
           // Out of range - release magnet effect for this tile
           if (otherTile._magnetState) {
-            const state = otherTile._magnetState;
-            const homeX = otherTile._magnetHomeX ?? state.originX ?? otherTile.x;
-            const homeY = otherTile._magnetHomeY ?? state.originY ?? otherTile.y;
-            
-            try { state.moveTween?.kill(); } catch {}
-            try { state.scaleTween?.kill(); } catch {}
-            
-            if (!otherTile.destroyed) {
-              state.moveTween = trackTween(otherTile, {
-                x: homeX,
-                y: homeY,
-                duration: MAGNET_RETURN_DUR,
-                ease: 'sine.inOut',
-                overwrite: 'auto',
-                onComplete: () => {
-                  // Clean up state when returned
-                  otherTile._magnetState = null;
-                  otherTile._magnetHomeX = undefined;
-                  otherTile._magnetHomeY = undefined;
-                }
-              });
-              
-              if (state.container && state.container.scale) {
-                state.scaleTween = trackTween(state.container.scale, {
-                  x: state.originScaleX,
-                  y: state.originScaleY,
-                  duration: MAGNET_RETURN_DUR,
-                  ease: 'sine.inOut',
-                  overwrite: 'auto'
-                });
-              }
-            }
+            releaseMagnetFieldTile(otherTile);
           }
         }
         
         // Show selection animation if magnet is close (like wild tile selection)
         if (distToMagnet < selectionRange && !shouldSuppressDragDecorativeFx()) {
           // Only show selection if not already showing or if magnet just entered range
-          if (!otherTile._magnetSelected || (now - (otherTile._magnetSelectedTime || 0)) > 150) {
+          if (!otherTile._magnetSelected) {
             try {
               magicSparklesAtTile(board, otherTile, { intensity: 0.6 }); // Lighter intensity for nearby tiles
               otherTile._magnetSelected = true;
@@ -1932,7 +2017,7 @@ export function initDrag(cfg) {
     });
     drag.t = null;
     finishDragPerfSample('pointerup');
-    clearDragRuntime();
+    clearDragRuntime({ preserveMagnetField: true });
     
     // Notify idle bounce that drag has ended - start 2-second idle timer
     try {
@@ -1957,46 +2042,7 @@ export function initDrag(cfg) {
     */
     
     // 🧲 MAGNETIC REACTION: Return all tiles with magnet effect to original positions
-    if (t?.special === 'wild-magnet') {
-      const allTiles = typeof getTiles === 'function' ? getTiles() : [];
-      allTiles.forEach((otherTile: any) => {
-        if (!otherTile || otherTile.destroyed) return;
-        if (!otherTile._magnetState) return; // No magnet effect on this tile
-        
-        const state = otherTile._magnetState;
-        const homeX = otherTile._magnetHomeX ?? state.originX ?? otherTile.x;
-        const homeY = otherTile._magnetHomeY ?? state.originY ?? otherTile.y;
-        
-        try { state.moveTween?.kill(); } catch {}
-        try { state.scaleTween?.kill(); } catch {}
-        
-        if (!otherTile.destroyed) {
-          state.moveTween = trackTween(otherTile, {
-            x: homeX,
-            y: homeY,
-            duration: MAGNET_RETURN_DUR,
-            ease: 'sine.inOut',
-            overwrite: 'auto',
-            onComplete: () => {
-              // Clean up state when returned
-              otherTile._magnetState = null;
-              otherTile._magnetHomeX = undefined;
-              otherTile._magnetHomeY = undefined;
-            }
-          });
-          
-          if (state.container && state.container.scale) {
-            state.scaleTween = trackTween(state.container.scale, {
-              x: state.originScaleX,
-              y: state.originScaleY,
-              duration: MAGNET_RETURN_DUR,
-              ease: 'sine.inOut',
-              overwrite: 'auto'
-            });
-          }
-        }
-      });
-    }
+    if (t?.special === 'wild-magnet') releaseMagnetFieldTiles();
     
     // Also release main magnet target (for the primary target from pickDropTarget)
     releaseMagnet({ immediate: true });

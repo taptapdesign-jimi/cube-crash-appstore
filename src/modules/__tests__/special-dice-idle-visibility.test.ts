@@ -82,6 +82,19 @@ describe('special idle visibility ownership', () => {
     b.release(); expect(callbacks.size).toBe(0);
   });
 
+  test('samples shared settled visibility at 4Hz instead of walking every tile on every Pixi frame', () => {
+    const tile = { visible: true };
+    const owner = jest.fn();
+    const lease = watchSpecialDiceIdleVisibility(tile, owner);
+    cleanup.push(lease.release);
+    tile.visible = false;
+    const tickWithElapsed = (elapsedMS: number) => [...callbacks].forEach(fn => (fn as any)({ elapsedMS }));
+    for (let frame = 0; frame < 14; frame += 1) tickWithElapsed(1000 / 60);
+    expect(owner.mock.calls).toEqual([[true]]);
+    tickWithElapsed(20);
+    expect(owner.mock.calls).toEqual([[true], [false]]);
+  });
+
   test('preserves playheads, excludes external pauses, and respects a drag owner during resume', () => {
     const tile = { visible: true }; let dragging = false;
     const visibility = createSpecialIdleAnimationVisibility(tile, () => !dragging);

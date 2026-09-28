@@ -1,15 +1,19 @@
+import { playBoardPopInSound } from './board-popin-sound.ts';
 // src/modules/app-board.ts
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { STATE, COLS, ROWS, TILE } from './app-state.js';
 import * as makeBoard from './board.js';
-import { createBoardPopInHapticSchedule, createBoardPopInPlan } from './board-popin-scheduler.js';
+import { createBoardPopInHapticSchedule, createBoardPopInPlan, createBoardPopInMeshOffsets } from './board-popin-scheduler.js';
 import { drawBoardBG, layoutBoard as layout } from './app-core.js';
 import { randVal } from './app-core-utils.js';
 import type { Tile } from '../types/game-types.js';
 import { removeTileFully } from './tile-lifecycle-service.ts';
 import { markBoardLifecycle, startBoardLifecycleFrameWindow } from '../utils/board-lifecycle-performance.ts';
 import { settleBoardPopInTileTransform } from './board-popin-transform.ts';
+import { triggerBoardPopInHaptic } from '../utils/haptic-runtime-governor.ts';
+import { startBoardEntryPoseDiagnostic } from '../utils/board-entry-pose-diagnostic.ts';
+import { acquirePixiMobileActivityLease } from './pixi-mobile-frame-controller.ts';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
@@ -204,7 +208,23 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
   markBoardLifecycle('popin-start');
   const stopPopInFrameWindow = startBoardLifecycleFrameWindow('popin');
   const sourceTiles = [...listTiles];
-  const popInPlan = createBoardPopInPlan(sourceTiles.length);
+  const stopPoseDiagnostic = startBoardEntryPoseDiagnostic(sourceTiles);
+  const restPositions = sourceTiles.map(tile => ({ x: tile.x, y: tile.y }));
+  const meshOffsets = createBoardPopInMeshOffsets(restPositions, TILE * 0.42);
+  const restByTile = new Map(sourceTiles.map((tile, index) => [tile, restPositions[index]]));
+  const restorePosition = (tile: Tile) => {
+    const rest = restByTile.get(tile);
+    if (!rest || tile.destroyed) return;
+    tile.x = rest.x;
+    tile.y = rest.y;
+  };
+  const settleEntryTile = (tile: Tile) => {
+    settleBoardPopInTile(tile);
+    restorePosition(tile);
+  };
+  const popInPlan = createBoardPopInPlan(sourceTiles.length, Math.random, {
+    positions: restPositions,
+  });
   const list = popInPlan.map((step) => sourceTiles[step.tileIndex]);
   const shouldPlayGroupedEntryHaptics =
     (window as any).__ccEnterAnimationActive === true &&
@@ -221,6 +241,10 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
   
   // Return a promise that resolves when all tiles are done
   return new Promise(resolve => {
+    // Continue reaches this shared owner without the fresh-board preparation
+    // lease. Hold active render cadence for every route's actual pop-in.
+    const releasePopInFrames = acquirePixiMobileActivityLease('board-popin', 100);
+    let stopEntrySound = () => {};
     let completed = 0;
     let finished = false;
     let safetyTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -233,8 +257,11 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
       }
       activeTimelines.forEach(timeline => { try { timeline.kill(); } catch {} });
       activeDelayedCalls.forEach(delayed => { try { delayed.kill(); } catch {} });
-      sourceTiles.forEach(settleBoardPopInTile);
+      sourceTiles.forEach(settleEntryTile);
+      stopEntrySound();
+      releasePopInFrames();
       stopPopInFrameWindow();
+      stopPoseDiagnostic();
       markBoardLifecycle('popin-aborted');
       resolve();
     };
@@ -242,7 +269,7 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
     const forceTileFinalState = (t: any) => {
       if (!t || t.destroyed) return;
       try { gsap.killTweensOf(t.rotG); } catch {}
-      settleBoardPopInTile(t);
+      settleEntryTile(t);
     };
 
     const finishPopIn = (forced = false) => {
@@ -259,7 +286,10 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
         list.forEach(forceTileFinalState);
       }
       try { drawBoardBG(); } catch {}
+      stopEntrySound();
+      releasePopInFrames();
       stopPopInFrameWindow();
+      stopPoseDiagnostic();
       markBoardLifecycle(forced ? 'popin-forced-complete' : 'popin-complete');
       resolve();
     };
@@ -278,15 +308,28 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
     if (shouldPlayGroupedEntryHaptics) {
       createBoardPopInHapticSchedule(popInPlan).forEach((delaySeconds) => {
         const hapticCall = trackDelayedCall(delaySeconds, () => {
-          try { (window as any).triggerHapticImpact?.('light'); } catch {}
+          try { triggerBoardPopInHaptic(); } catch {}
         });
         activeDelayedCalls.push(hapticCall);
       });
     }
 
+    const entryTimeline = trackTimeline({
+      onComplete: () => {
+        const finalCall = trackDelayedCall(0.03, () => finishPopIn(false));
+        activeDelayedCalls.push(finalCall);
+      },
+    });
+    activeTimelines.push(entryTimeline);
+
     list.forEach((t, i) => {
       const tile = t as any;
       const popStep = popInPlan[i];
+      const rest = restPositions[popStep.tileIndex];
+      const offset = meshOffsets[popStep.tileIndex];
+      // Prime only tile positions; preserve board layout, cell identity and pivots.
+      tile.x = rest.x + offset.x;
+      tile.y = rest.y + offset.y;
       // Start hidden
       tile.visible = true;
       tile.scale.set(0);
@@ -304,54 +347,61 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
       const amp = popStep.amplitude;
       const d1 = popStep.growDuration;
       const d2 = popStep.compressDuration;
-      const d3 = popStep.settleDuration;
+      const d3 = popStep.reboundDuration;
+      const d4 = popStep.settleDuration;
 
-      const tileTimeline = trackTimeline({
-        delay: enterDel,
-        onComplete: () => {
+      entryTimeline.to(tile, {
+          x: rest.x,
+          y: rest.y,
+          duration: d1 + d2 + d3,
+          ease: 'back.out(1.7)',
+        }, enterDel)
+        .to(tile, {
+          alpha: tile.locked ? (tile.value > 0 ? 0 : 0.25) : 1,
+          duration: 0.08,
+          ease: 'power2.out'
+        }, enterDel)
+        .to(tile.scale, {
+          x: amp,
+          y: amp,
+          duration: d1,
+          ease: 'back.out(1.7)'
+        }, enterDel)
+        .to(tile.scale, {
+          x: 0.96,
+          y: 0.96,
+          duration: d2,
+          ease: 'sine.inOut'
+        }, enterDel + d1)
+        .to(tile.scale, {
+          x: 1.02,
+          y: 1.02,
+          duration: d3,
+          ease: 'sine.inOut'
+        }, enterDel + d1 + d2)
+        .to(tile.scale, {
+          x: 1,
+          y: 1,
+          duration: d4,
+          ease: 'sine.inOut'
+        }, enterDel + d1 + d2 + d3)
+        .call(() => {
+          restorePosition(tile);
           makeBoard.syncTileZIndex(tile, STATE.board);
           completed++;
           if (!halfFired && completed >= halfTotal) {
             halfFired = true;
             try { opts.onHalf?.(); } catch {}
           }
-          if (completed === total) {
-            const finalCall = trackDelayedCall(0.03, () => finishPopIn(false));
-            activeDelayedCalls.push(finalCall);
-          }
-        },
-      });
-      activeTimelines.push(tileTimeline);
-
-      tileTimeline.to(tile, {
-          alpha: tile.locked ? (tile.value > 0 ? 0 : 0.25) : 1,
-          duration: Math.max(0.12, d1 * 0.68),
-          ease: 'power2.out'
-        }, 0)
-        .to(tile.scale, {
-          x: amp,
-          y: amp,
-          duration: d1,
-          ease: 'back.out(2.0)'
-        }, 0)
-        .to(tile.scale, {
-          x: 0.88,
-          y: 0.88,
-          duration: d2,
-          ease: 'power2.out'
-        }, d1)
-        .to(tile.scale, {
-          x: 1.0,
-          y: 1.0,
-          duration: d3,
-          ease: 'back.out(1.5)'
-        }, d1 + d2);
+        }, [], popStep.endTime);
 
       const endAt = popStep.endTime;
       if (endAt > maxEndTime) maxEndTime = endAt;
     });
 
-    console.log('🎯 Starting legacy-overlap random pop-in', { tiles: list.length, ownerTimelines: activeTimelines.length });
+    stopEntrySound = playBoardPopInSound(maxEndTime + 0.03);
+
+    console.log('🎯 Starting spatial cartoon pop-in', { tiles: list.length, ownerTimelines: activeTimelines.length });
 
     // Fire onHalf at 50% of overall animation timeframe as well (not only by completion)
     if (typeof opts.onHalf === 'function') {
@@ -378,7 +428,9 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
       if (safetyTimeout) clearTimeout(safetyTimeout);
       activeTimelines.forEach(tl => { try { tl.kill(); } catch {} });
       activeDelayedCalls.forEach(dc => { try { dc.kill(); } catch {} });
-      sourceTiles.forEach(settleBoardPopInTile);
+      sourceTiles.forEach(settleEntryTile);
+      stopEntrySound();
+      releasePopInFrames();
     };
   });
 }

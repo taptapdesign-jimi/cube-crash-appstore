@@ -18,7 +18,7 @@ import { appZoneManager } from './app-zone-manager.ts';
 
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.ts';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildJuiceMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, showMultiplierTile, smokeBubblesAtTile, prewarmWildSmokeGraphicsPool, screenShake, wildImpactEffect, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildJuiceBubbles, stopWildJuiceBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, cleanupAllTntIdleEffects, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, cleanupAllFxContainers, cleanupFxContainersByTag, cleanupExistingStarAnimations, forceCleanupAllStarAnimations, animateStarsToHudIcon } from './fx.ts';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildJuiceMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, showMultiplierTile, smokeBubblesAtTile, prewarmWildSmokeGraphicsPool, screenShake, wildImpactEffect, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildJuiceBubbles, stopWildJuiceBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, cleanupAllTntIdleEffects, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, destroyWildShimmerTextureCache, cleanupAllFxContainers, cleanupFxContainersByTag, cleanupExistingStarAnimations, forceCleanupAllStarAnimations, animateStarsToHudIcon } from './fx.ts';
 import { TNT_MERGE_LIGHT_HAPTIC_DELAYS_MS, shouldPlayTntBonusImpactHaptic } from './special-merge-haptic-policy.ts';
 import { showWildJuiceBubblesExplosion, stopWildJuiceBubblesExplosion, forceStopWildJuiceBubblesExplosion, isWildJuiceBubblesExplosionActive, isWildJuiceBubblesExplosionRecentlyStarted, isWildJuiceFinaleAnimationActive, waitForBubblesExplosionToComplete, destroyWildJuiceBubblesExplosionCache } from './wild-juice-bubbles-explosion.ts';
 import { preloadFishFinaleBubbles } from './fish-finale-bubbles.ts';
@@ -95,6 +95,7 @@ import { logger, LogLevel } from '../core/logger.js';
 import { devLog, devWarn, devError } from './app-core-logger.ts';
 import { getRendererPerformanceProfile } from './renderer-performance-profile.ts';
 import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.ts';
+import { shouldIgnoreSettledMobileBoardResize } from './gameplay-board-layout-policy.ts';
 import { ForegroundResumeEpoch } from './foreground-resume-epoch.ts';
 import { createHudHelpers } from './app-core-hud-helpers.ts';
 import type { Tile, Board, Grid, HUD as HUDType, Stage as StageType, Drag } from '../types/game-types.js';
@@ -162,6 +163,7 @@ import { getRegularMerge6FxProfile, getRegularStackSmokeProfile, getWildSpawnLan
 import { captureMergePerformanceMarker, markMergePerformance } from '../utils/merge-performance.ts';
 import { emitIOSArcadeGameplayTrace } from '../utils/ios-arcade-gameplay-trace.ts';
 import { emitIOSSpecialTransactionTrace } from '../utils/ios-special-transaction-trace.ts';
+import { triggerMandatoryMerge6Haptic } from '../utils/haptic-runtime-governor.ts';
 import {
   claimTntBonusTiles,
   isTntBonusTileOwned,
@@ -397,7 +399,6 @@ import {
   type SpecialDiceTransactionKind,
 } from './special-dice-transaction-owner.ts';
 import { resolveNoMovesCommitDecision } from './no-moves-commit-decision.ts';
-import { triggerMergeHaptics } from './app-core-merge-haptics.ts';
 import { handleMergeCombo } from './app-core-merge-combo.ts';
 import { recordRunCombo, resetRunComboBonus } from './run-combo-bonus.ts';
 import { handleLastMergeEarly } from './app-core-merge-lastmerge.ts';
@@ -2982,6 +2983,7 @@ function cleanupTexturesForBoardTransition(reason: string = 'unknown', aggressiv
     try { stopWildJuiceBubblesScreen?.(); } catch {}
     try { destroyWildJuiceBubblesExplosionCache?.(); } catch {}
     try { destroyWildJuiceBubblesScreenCache?.(); } catch {}
+    try { destroyWildShimmerTextureCache?.(); } catch {}
 
     // Destroy registered runtime textures (generated from canvas/graphics)
     // 🔥 CRITICAL: Skip when skipCacheClear - stage/HUD may still reference these textures.
@@ -4832,6 +4834,19 @@ export async function boot(loadOwner?: { isCurrent: () => boolean; adoptEntry: (
 // -------------------- layout + HUD --------------------
 // 🔥 REFACTORED: Preimenovano za jasnoću - ovo je board layout, ne HUD layout
 export async function layoutBoard(loadOwnerOrEvent?: (() => boolean) | Event) {
+  const isResizeEvent = typeof Event !== 'undefined' && loadOwnerOrEvent instanceof Event;
+  if (shouldIgnoreSettledMobileBoardResize({
+    isResizeEvent,
+    isMobileDevice: MOBILE_RUNTIME_PROFILE.isMobileDevice,
+    isEntryPending: isGameplayEntryPending(),
+    isSurfaceVisible: stage?.visible !== false && board?.visible !== false && hud?.visible !== false,
+  })) {
+    emitNativeConsoleDiagnostic('[CC_BOARD_LAYOUT]', 'settled-mobile-resize-ignored', {
+      viewportWidth: app?.renderer?.width ?? 0,
+      viewportHeight: app?.renderer?.height ?? 0,
+    });
+    return;
+  }
   const loadIsCurrent = typeof loadOwnerOrEvent === 'function' ? loadOwnerOrEvent : () => true;
   ensureBoardLifecycleTrace('direct-board-layout');
   markBoardLifecycle('layout-start');
@@ -4977,11 +4992,11 @@ export async function layoutBoard(loadOwnerOrEvent?: (() => boolean) | Event) {
     padding: isIPad ? `${IPAD_BOARD_PADDING}px` : `${HUD_PADDING}px`
   });
   
-  board.scale.set(s, s);
-  board.x = boardX;
-  board.y = boardY;
-  
-  devLog('🎯 Board positioned at y:', board.y, 'px (available height:', availableHeight, 'px, board height:', sh, 'px)');
+  // Keep geometry local until HUD/Wild measurements below are final. Writing
+  // this provisional pose before async font/texture/HUD readiness allowed a
+  // visible board to paint here, then snap to the final Wild-meter pose later
+  // in this same layout pass on slower WKWebView frames.
+  devLog('🎯 Provisional board y calculated:', boardY, 'px (available height:', availableHeight, 'px, board height:', sh, 'px)');
   
   devLog('🎯 Board positioning (HUD below notch on mobile):', {
     isMobile,
@@ -5170,7 +5185,7 @@ export async function layoutBoard(loadOwnerOrEvent?: (() => boolean) | Event) {
     // Recompute vertical scale to ensure board fits in space between wild bottom and screen bottom
     const heightScale2 = (vh - dynamicHudBottom - BOT_PAD) / h;
     const s2 = Math.min(widthScale, heightScale2);
-    board.scale.set(s2, s2);
+    s = s2;
     const sw2 = w * s2, sh2 = h * s2;
     // recenter horizontally with the same padding
     const paddingPercent = isIPad ? (IPAD_BOARD_PADDING / vw) : (HUD_PADDING / vw);
@@ -5178,17 +5193,18 @@ export async function layoutBoard(loadOwnerOrEvent?: (() => boolean) | Event) {
     const idealLeft2 = Math.round((vw - sw2) / 2);
     const minLeft2 = paddingPixels2;
     const maxLeft2 = vw - paddingPixels2 - sw2;
-    board.x = Math.min(Math.max(idealLeft2, minLeft2), maxLeft2);
+    boardX = Math.min(Math.max(idealLeft2, minLeft2), maxLeft2);
     // CENTER BOARD VERTICALLY in the space between wild bottom and bottom of screen
     // Use percentage-based positioning for responsive centering
     const avail2 = vh - dynamicHudBottom - BOT_PAD;
     // Center at exactly 50% of available space
     const center2 = dynamicHudBottom + (avail2 - sh2) / 2;
-    board.y = Math.round(center2 - BOARD_LIFT + 6 - 2); // +6px down, -2px up
+    boardY = Math.round(center2 - BOARD_LIFT + 6 - 2); // +6px down, -2px up
     devLog('🎯 Recentered board using PIXI wild meter (centered 50%):', { dynamicHudBottom, center2, wildY, wildH, s2, hudYForLayout, avail2 });
   } catch (e) {
     devWarn('⚠️ Could not recenter using PIXI wild meter, using estimate.', e);
   }
+
     } else {
       devWarn('⚠️ HUD.initHUD is not a function');
     }
@@ -5206,6 +5222,28 @@ export async function layoutBoard(loadOwnerOrEvent?: (() => boolean) | Event) {
       throw error;
     }
   }
+
+  // One layout pass owns one atomic geometry commit. By this point all async
+  // readiness and HUD/Wild measurements are settled, so the first paint of a
+  // fresh or continued board already uses its authoritative final pose. The
+  // provisional calculation remains the safe fallback if HUD layout failed.
+  const previousBoardPose = {
+    x: board.x,
+    y: board.y,
+    scaleX: board.scale.x,
+    scaleY: board.scale.y,
+  };
+  board.scale.set(s, s);
+  board.x = boardX;
+  board.y = boardY;
+  emitNativeConsoleDiagnostic('[CC_BOARD_POSE]', 'layout-commit', {
+    resizeEvent: isResizeEvent,
+    entryPending: isGameplayEntryPending(),
+    previous: previousBoardPose,
+    next: { x: boardX, y: boardY, scaleX: s, scaleY: s },
+    viewport: { width: vw, height: vh },
+  });
+  devLog('🎯 Board geometry committed once:', { x: boardX, y: boardY, scale: s });
   
   // Start idle bounce animations for tiles with pips
   if (TILE_IDLE_BOUNCE.ENABLE) {
@@ -6234,6 +6272,8 @@ function rebuildBoard(){
     popInSafetyNetScheduled = true;
     schedulePopInSafetyNet({
       tiles,
+      isCurrent: () => !gameplayEntrySignal?.aborted &&
+        isGameplayEntryGenerationLatest(gameplayEntryGeneration),
       gsap,
       app,
       updateGhostVisibility,
@@ -6257,12 +6297,8 @@ function rebuildBoard(){
         hudDropPending: _hudDropPending,
         setHudDropPending: (v) => { _hudDropPending = v; },
       });
-      // One clear board-entry confirmation; per-tile haptics are intentionally absent.
-      try {
-        if (typeof (window as any).triggerHapticImpact === 'function') {
-          (window as any).triggerHapticImpact('medium');
-        }
-      } catch {}
+      // Tile-entry contacts own the complete tactile cadence. HUD reveal must
+      // not append a detached final impact after the cubes have appeared.
     },
     beforePopIn: arcadeEntryCueRound > 0
       ? async () => {
@@ -6453,6 +6489,7 @@ function scheduleEntrySpecialWarmups(entryGeneration: number, entryBoard: number
 async function animateBoardExit(){
   const exitApp = app;
   const exitGeneration = gameplayRunGeneration;
+  let releaseBoardExitFrameLease: (() => void) | null = null;
   try {
   devLog('🎬🎬🎬 animateBoardExit() CALLED');
   setJourneyGameBottomDecorVisible(false);
@@ -6463,6 +6500,7 @@ async function animateBoardExit(){
     devWarn('⚠️ animateBoardExit: PIXI app/stage destroyed - skipping animation');
     return Promise.resolve();
   }
+  releaseBoardExitFrameLease = acquirePixiMobileActivityLease('board-exit', 100);
   
   // 🔥 CRITICAL FIX: Ensure canvas/app is visible BEFORE playing exit animation
   // This fixes the bug where board "just disappears" without animation
@@ -6540,6 +6578,7 @@ async function animateBoardExit(){
   logBoardExitStats('after-cleanup');
   return Promise.resolve();
   } finally {
+    try { releaseBoardExitFrameLease?.(); } catch {}
     // A result may request an explicit visible exit. Render that exit, then
     // restore its hold unless a new board has taken ownership in the meantime.
     if (exitApp === app && exitGeneration === gameplayRunGeneration && isGameplayRendererTerminalSuspended(exitApp)) {
@@ -8272,8 +8311,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     
     updateHUD();
     
-    triggerMergeHaptics({ wildActive, trackAppTimeout });
-    
     // 🔥 CRITICAL: Check if this is wild-magnet merge that will pull tiles
     // If so, skip combo increment AND timer here - magnet pull will handle both with proper count
     // NOTE: hasTilesToPull will be calculated later in merge-6 block, but we need a preliminary check here
@@ -9582,9 +9619,17 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // Haptic feedback for merge 6
     if (typeof (window as any).triggerHapticImpact === 'function') {
       const isWildTntMergeHaptic = isSpecialDiceTntLikeTile(src, srcSpecial) || isSpecialDiceTntLikeTile(dst, dstSpecial);
-      if (isWildTntMergeHaptic) {
+      const isLaserGunMergeHaptic = isLaserGunMerge6SoundEvent({
+        effectiveSum: effSum,
+        srcSpecialDiceVariantId: srcSpecialVariantAtMergeEntry?.id,
+        dstSpecialDiceVariantId: dstSpecialVariantAtMergeEntry?.id,
+      });
+      if (isLaserGunMergeHaptic) {
+        // LaserGun owns exactly four physical beats at the four confirmed
+        // beam-tip arrivals below. Do not add a leading or decorative pulse.
+      } else if (isWildTntMergeHaptic) {
         // Main wild merge impact must fire immediately on merge-6.
-        (window as any).triggerHapticImpact('heavy');
+        triggerMandatoryMerge6Haptic('heavy');
 
         // One immediate main impact plus two spaced light beats. The visual,
         // audio and gameplay sequence stays complete without nine actuator
@@ -9597,13 +9642,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         });
       } else if (wildActive) {
         // Other wild merge 6 = Double HEAVY for longer feel
-        (window as any).triggerHapticImpact('heavy');
+        triggerMandatoryMerge6Haptic('heavy');
         trackAppTimeout(() => {
           (window as any).triggerHapticImpact('heavy');
         }, 150);
       } else {
         // Normal merge 6 = MEDIUM (stronger than regular merge)
-        (window as any).triggerHapticImpact('medium');
+        triggerMandatoryMerge6Haptic('medium');
       }
     }
     if (!wildActive) playMerge6HeroBounce(dst);
@@ -15135,6 +15180,15 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	    const laserGunRunGeneration = gameplayRunGeneration;
 	    let laserGunVisualsEnabled = false;
 	    toBreak.forEach((tile: Tile, i: number) => {
+	      let laserImpactHapticCommitted = false;
+	      const commitLaserImpactHaptic = () => {
+	        if (impactProfile !== 'laser-gun' || laserImpactHapticCommitted) return;
+	        laserImpactHapticCommitted = true;
+	        // One physical beat per beam. The normal visual path calls this only
+	        // after the beam tip reaches its cube; fallback paths call it at the
+	        // corresponding native cube commit so the gameplay beat is not lost.
+	        triggerMandatoryMerge6Haptic('heavy');
+	      };
 	      const impactStaggerMs = impactProfile === 'beach-ball'
 	        ? beachBallImpactDelaysMs[i] ?? i * 300
 	        : i * 200; // native timeout: mobile-safe, does not wait for GSAP ticker wake
@@ -15174,7 +15228,7 @@ function runTntBoomBonusBreak2Tiles(deps: {
 		            addWildProgress(bonusProgressPerImpact);
 		          }, Math.round((0.4 + (i - 2) * 0.1) * 1000));
 	        }
-        if (
+        if (impactProfile !== 'laser-gun' &&
           shouldPlayTntBonusImpactHaptic(i, toBreak.length)
           && typeof (window as any).triggerHapticImpact === 'function'
         ) {
@@ -15486,8 +15540,9 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	              impactCommitted = true;
 	              doBreak(arrived);
 	            };
+	            let visualFired = false;
 	            if (laserGunVisualsEnabled) {
-	              const visualFired = triggerActiveLaserGunFinaleImpact(
+	              visualFired = triggerActiveLaserGunFinaleImpact(
 	                i,
 	                () => commitCubeImpact(true),
 	              );
@@ -15505,14 +15560,17 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	                // fallback branches instead.
 	                if (arrivalResult === 'unavailable') return false;
 	                visualArrived = arrivalResult === 'arrived';
+	                if (visualArrived) commitLaserImpactHaptic();
 	                if (arrivalResult === 'elapsed') {
 	                  devWarn('LaserGun beam arrival timed out; preserving native cube impact');
+	                  commitLaserImpactHaptic();
 	                  cancelActiveLaserGunFinaleImpact(i);
 	                  laserGunVisualsEnabled = false;
 	                  completeActiveLaserGunFinaleImpacts();
 	                }
 	              }
 	            }
+	            if (!visualFired) commitLaserImpactHaptic();
 	            // Normal path already committed synchronously in the beam-launch
 	            // GSAP tick. This remains only the no-visual/timeout fallback.
 	            commitCubeImpact(visualArrived);

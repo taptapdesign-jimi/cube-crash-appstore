@@ -12,6 +12,9 @@ type ForegroundEntry = {
   sourceLocal: Matrix;
   desiredWorld: Matrix;
   inverseLayerWorld: Matrix;
+  appliedLocal: Matrix;
+  hasAppliedLocal: boolean;
+  hasReachedLiveStage: boolean;
 };
 
 const entries = new Map<ForegroundOwner, ForegroundEntry>();
@@ -20,6 +23,17 @@ let foregroundLayer: Container | null = null;
 function getLiveStage(): Container | null {
   const stage = STATE.app?.stage as Container | null | undefined;
   return stage && !stage.destroyed ? stage : null;
+}
+
+export function isAnimatedDiceSourceOnLiveStage(
+  sourceHost: Container,
+  stage = getLiveStage(),
+): boolean {
+  if (!stage || sourceHost.destroyed) return false;
+  for (let current: Container | null = sourceHost; current; current = current.parent) {
+    if (current === stage) return true;
+  }
+  return false;
 }
 
 function ensureForegroundLayer(): Container | null {
@@ -48,8 +62,13 @@ export function mountAnimatedDiceAboveHud(
   displayObject: ForegroundDisplayObject,
   sourceHost: Container,
 ): boolean {
+  if (
+    displayObject.destroyed
+    || sourceHost.destroyed
+    || !isAnimatedDiceSourceOnLiveStage(sourceHost)
+  ) return false;
   const layer = ensureForegroundLayer();
-  if (!layer || displayObject.destroyed || sourceHost.destroyed) return false;
+  if (!layer) return false;
   if (!entries.has(owner)) {
     // Width/height/position setters can leave localTransform stale until render.
     displayObject.updateLocalTransform();
@@ -59,17 +78,28 @@ export function mountAnimatedDiceAboveHud(
       sourceLocal: displayObject.localTransform.clone(),
       desiredWorld: new Matrix(),
       inverseLayerWorld: new Matrix(),
+      appliedLocal: new Matrix(),
+      hasAppliedLocal: false,
+      hasReachedLiveStage: true,
     });
   }
   if (displayObject.parent !== layer) layer.reparentChild(displayObject);
-  syncAnimatedDiceAboveHud(owner);
-  return true;
+  return syncAnimatedDiceAboveHud(owner);
 }
 
-export function syncAnimatedDiceAboveHud(owner: ForegroundOwner): void {
+export function syncAnimatedDiceAboveHud(owner: ForegroundOwner): boolean {
   const entry = entries.get(owner);
   const layer = foregroundLayer;
-  if (!entry || !layer || layer.destroyed || entry.displayObject.destroyed || entry.sourceHost.destroyed) return;
+  const stage = getLiveStage();
+  if (!entry || !layer || layer.destroyed || entry.displayObject.destroyed) return false;
+  const sourceIsAttached = isAnimatedDiceSourceOnLiveStage(entry.sourceHost, stage);
+  if (sourceIsAttached) entry.hasReachedLiveStage = true;
+  if (layer.parent !== stage || (!sourceIsAttached && entry.hasReachedLiveStage)) {
+    entry.displayObject.visible = false;
+    entry.displayObject.renderable = false;
+    entry.hasAppliedLocal = false;
+    return false;
+  }
   entry.desiredWorld.copyFrom(entry.sourceLocal);
   for (let current: Container | null = entry.sourceHost; current; current = current.parent) {
     current.updateLocalTransform();
@@ -83,7 +113,26 @@ export function syncAnimatedDiceAboveHud(owner: ForegroundOwner): void {
   }
   entry.inverseLayerWorld.invert();
   entry.desiredWorld.prepend(entry.inverseLayerWorld);
+  const applied = entry.appliedLocal;
+  entry.displayObject.updateLocalTransform();
+  const actual = entry.displayObject.localTransform;
+  if (entry.hasAppliedLocal
+    && applied.a === entry.desiredWorld.a
+    && applied.b === entry.desiredWorld.b
+    && applied.c === entry.desiredWorld.c
+    && applied.d === entry.desiredWorld.d
+    && applied.tx === entry.desiredWorld.tx
+    && applied.ty === entry.desiredWorld.ty
+    && actual.a === entry.desiredWorld.a
+    && actual.b === entry.desiredWorld.b
+    && actual.c === entry.desiredWorld.c
+    && actual.d === entry.desiredWorld.d
+    && actual.tx === entry.desiredWorld.tx
+    && actual.ty === entry.desiredWorld.ty) return true;
   entry.displayObject.setFromMatrix(entry.desiredWorld);
+  applied.copyFrom(entry.desiredWorld);
+  entry.hasAppliedLocal = true;
+  return true;
 }
 
 export function releaseAnimatedDiceAboveHud(owner: ForegroundOwner): void {

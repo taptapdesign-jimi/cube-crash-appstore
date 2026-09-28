@@ -25,6 +25,7 @@ import {
   resolveDragShadowRevealDistance,
   resolveTiltedTileVisualCenter,
 } from './drag-shadow-pose.ts';
+import { trackAppAnimationFrame } from './app-core-utils.ts';
 
 const clamp = (v: number, a: number, b: number): number => Math.max(a, Math.min(b, v));
 
@@ -75,6 +76,39 @@ export const TILE_Z_ACTIVE = 20;
 export const TILE_Z_LOCKED_ANIMATING = 80;
 export const TILE_Z_ACTIVE_ANIMATING = 120;
 
+const TILE_VISUAL_STACK = 1;
+const TILE_VISUAL_PIPS = 2;
+const pendingTileVisuals = new Map<Tile, number>();
+let pendingTileVisualFrame: number | null = null;
+
+function flushPendingTileVisuals(): void {
+  pendingTileVisualFrame = null;
+  const work = Array.from(pendingTileVisuals.entries());
+  pendingTileVisuals.clear();
+  work.forEach(([tile, flags]) => {
+    if (!tile || tile.destroyed) return;
+    if ((flags & TILE_VISUAL_STACK) !== 0) _drawStackInternal(tile);
+    if ((flags & TILE_VISUAL_PIPS) !== 0) _drawPipsInternal(tile);
+  });
+}
+
+function scheduleTileVisual(tile: Tile, flag: number): void {
+  if (!tile || tile.destroyed) return;
+  pendingTileVisuals.set(tile, (pendingTileVisuals.get(tile) ?? 0) | flag);
+  if (pendingTileVisualFrame !== null) return;
+  if (typeof requestAnimationFrame === 'function') {
+    pendingTileVisualFrame = trackAppAnimationFrame(
+      flushPendingTileVisuals,
+      () => {
+        pendingTileVisualFrame = null;
+        pendingTileVisuals.clear();
+      },
+    );
+  } else {
+    flushPendingTileVisuals();
+  }
+}
+
 export function getTileBaseZIndex(tile: Partial<Tile> | any): number {
   return tile?.locked ? TILE_Z_LOCKED : TILE_Z_ACTIVE;
 }
@@ -87,7 +121,10 @@ export function syncTileZIndex(tile: Partial<Tile> | any, board?: { sortChildren
   if (!tile || tile.destroyed) return;
   if ((tile as any)._ccWildSpawnDropping === true) return;
   tile.zIndex = animating ? getTileAnimatingZIndex(tile) : getTileBaseZIndex(tile);
-  try { board?.sortChildren?.(); } catch {}
+  // Pixi marks a sortable parent dirty when zIndex changes and resolves it
+  // once immediately before render. Calling sortChildren here made one board
+  // mutation perform multiple whole-board sorts in the same visual frame.
+  try { if (board && 'sortDirty' in board) (board as any).sortDirty = true; } catch {}
 }
 
 // random skin: 40% base, 30% alt2, 20% alt3, 10% alt4
@@ -130,18 +167,7 @@ function pickNumbersSkin(): { texture: Texture; assetPath: string } {
 }
 
 export function drawStack(tile: Tile): void {
-  // 🔥 OPTIMIZATION: Use requestAnimationFrame to prevent blocking during bubbles animation
-  // This prevents frame drops when stack is drawn during active animations
-  if (typeof window !== 'undefined' && window.requestAnimationFrame) {
-    requestAnimationFrame(() => {
-      // 🔥 FIX: Check if tile is destroyed before executing
-      if (tile && !tile.destroyed) {
-        _drawStackInternal(tile);
-      }
-    });
-  } else {
-    _drawStackInternal(tile);
-  }
+  scheduleTileVisual(tile, TILE_VISUAL_STACK);
 }
 
 /** Rebuilds stack Sprite layers synchronously while a hidden recovery frame owns reveal. */
@@ -252,18 +278,7 @@ function applyFinalMergeResultHiddenVisual(t: Tile): void {
 
 // ✅ PATCH: nikad pipsi na praznom/locked, i overlay nikad ne "probija"
 export function drawPips(t: Tile): void {
-  // 🔥 OPTIMIZATION: Use requestAnimationFrame to prevent blocking during animations
-  // This prevents frame drops when pips are drawn during bubbles/wild animations
-  if (typeof window !== 'undefined' && window.requestAnimationFrame) {
-    requestAnimationFrame(() => {
-      // 🔥 FIX: Check if tile is destroyed before executing
-      if (t && !t.destroyed) {
-        _drawPipsInternal(t);
-      }
-    });
-  } else {
-    _drawPipsInternal(t);
-  }
+  scheduleTileVisual(t, TILE_VISUAL_PIPS);
 }
 
 function _drawPipsInternal(t: Tile): void {
@@ -362,14 +377,14 @@ export function setValue(t: Tile, v: number, addStack = 0): void {
       if (!t || t.destroyed) {
         return;
       }
-      _setValueVisuals(t, v, addStack, false);
+      _setValueVisuals(t, v, addStack);
     });
   } else {
     // 🔥 CRITICAL: Check if tile still exists before setting visuals
     if (!t || t.destroyed) {
       return;
     }
-    _setValueVisuals(t, v, addStack, false);
+    _setValueVisuals(t, v, addStack);
   }
 }
 
@@ -378,7 +393,7 @@ export function setValueImmediate(t: Tile, v: number, addStack = 0): void {
   if (!t || t.destroyed) return;
   t.value = v;
   if (!t.locked) t.alpha = 1;
-  _setValueVisuals(t, v, addStack, true);
+  _setValueVisuals(t, v, addStack);
 }
 
 /**
@@ -388,10 +403,10 @@ export function setValueImmediate(t: Tile, v: number, addStack = 0): void {
  */
 export function refreshValueVisual(t: Tile, addStack = 0): void {
   if (!t || t.destroyed) return;
-  _setValueVisuals(t, t.value | 0, addStack, true);
+  _setValueVisuals(t, t.value | 0, addStack);
 }
 
-function _setValueVisuals(t: Tile, v: number, addStack: number, immediate: boolean): void {
+function _setValueVisuals(t: Tile, v: number, addStack: number): void {
   // 🔥 CRITICAL FIX: Ensure t.value is set to v BEFORE any visual operations
   // This prevents race conditions where drawPips might use stale t.value
   // (especially important when called via requestAnimationFrame)
@@ -521,13 +536,14 @@ function _setValueVisuals(t: Tile, v: number, addStack: number, immediate: boole
       }
     } catch {}
   }
-  if (immediate) _drawStackInternal(t);
-  else drawStack(t);
+  // setValue already deferred this complete presentation commit by one frame.
+  // Rebuilding stack and pips through two additional RAFs split one logical
+  // tile mutation over three frames and produced a visible late face/stack.
+  _drawStackInternal(t);
   
   // 🔥 CRITICAL: Don't draw pips for wild tiles (they should never show pips)
   if (!isWildLikeTile(t)) {
-    if (immediate) _drawPipsInternal(t);
-    else drawPips(t);
+    _drawPipsInternal(t);
   }
   applyFinalMergeResultHiddenVisual(t);
 }
@@ -693,7 +709,9 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   // Ghost will be hidden only for tiles that REMAIN locked after board setup
   // This is handled by updateGhostVisibility() called after board setup
 
-  board.sortChildren(); // Sort after adding tile
+  // `board.sortableChildren` owns one pre-render sort for the complete batch.
+  // Do not sort once for every tile created during load/spawn.
+  try { (board as any).sortDirty = true; } catch {}
   tiles.push(t);
   grid[r] = grid[r] || [];
   grid[r][c] = t;

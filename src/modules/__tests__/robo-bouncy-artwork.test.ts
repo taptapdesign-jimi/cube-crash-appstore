@@ -62,6 +62,7 @@ describe('Robo Cube shared Pixi board artwork', () => {
   let unloadSpy: jest.SpiedFunction<typeof Assets.unload>;
   let tickerCallbacks: Set<(ticker: any) => void>;
   let ticker: any;
+  let stage: Container;
 
   beforeEach(() => {
     jest.useFakeTimers();
@@ -81,7 +82,8 @@ describe('Robo Cube shared Pixi board artwork', () => {
       add: jest.fn((callback: (liveTicker: any) => void) => tickerCallbacks.add(callback)),
       remove: jest.fn((callback: (liveTicker: any) => void) => tickerCallbacks.delete(callback)),
     };
-    STATE.app = { ticker } as any;
+    stage = new Container();
+    STATE.app = { ticker, stage } as any;
   });
 
   afterEach(() => {
@@ -102,6 +104,11 @@ describe('Robo Cube shared Pixi board artwork', () => {
   const tick = (elapsedMS: number) => {
     ticker.elapsedMS = elapsedMS;
     Array.from(tickerCallbacks).forEach((callback) => callback(ticker));
+  };
+
+  const start = (tile: any, idleSources?: string[], finaleSources?: string[]) => {
+    if (!tile.rotG.parent) stage.addChild(tile.rotG);
+    return startRoboBouncyArtwork(tile, idleSources, finaleSources);
   };
 
   test('keeps the authored source contract and maps the trimmed sheet to the 128px rest footprint', () => {
@@ -129,8 +136,8 @@ describe('Robo Cube shared Pixi board artwork', () => {
   test('shares one texture source, gives copies independent clocks, and cleans up', async () => {
     const first = makeTile();
     const second = makeTile();
-    const firstController = startRoboBouncyArtwork(first.tile) as any;
-    const secondController = startRoboBouncyArtwork(second.tile) as any;
+    const firstController = start(first.tile) as any;
+    const secondController = start(second.tile) as any;
     await flushPromises();
 
     expect(firstController.ready).toBe(true);
@@ -164,7 +171,7 @@ describe('Robo Cube shared Pixi board artwork', () => {
 
   test('uses the accepted second Robo frame during drag and resumes the same Pixi controller', async () => {
     const { tile, base, originalTexture } = makeTile();
-    const controller = startRoboBouncyArtwork(
+    const controller = start(
       tile,
       ['./assets/shop/robo/robo-cube1.png', DRAG_TEXTURE_URL],
       ['./finale-1.png', './finale-2.png', './finale-3.png', './finale-4.png'],

@@ -90,10 +90,15 @@ describe('Flower procedural Pixi artwork', () => {
     callbacks.forEach((callback) => callback(ticker));
   };
 
+  const start = (tile: any) => {
+    if (!tile.rotG.parent) stage.addChild(tile.rotG);
+    return startFlowerBouncyArtwork(tile);
+  };
+
   test('retires only a throwing Flower and continues the next controller in the same frame', async () => {
     const first = makeTile(); const second = makeTile();
-    const failed = startFlowerBouncyArtwork(first.tile)!;
-    const healthy = startFlowerBouncyArtwork(second.tile)!;
+    const failed = start(first.tile)!;
+    const healthy = start(second.tile)!;
     await flush(); jest.advanceTimersByTime(1000);
     const canvas = failed.canvas!;
     Object.defineProperty(first.base, 'tint', { configurable: true, get: () => { throw new Error('stale Flower sprite'); } });
@@ -107,6 +112,26 @@ describe('Flower procedural Pixi artwork', () => {
     expect(callbacks.size).toBe(1);
     stopFlowerBouncyArtwork(second.tile);
     expect(callbacks.size).toBe(0);
+  });
+
+  test('keeps Flower fallback at source size until its board reaches the live stage', async () => {
+    const board = new Container();
+    board.scale.set(0.475);
+    const { tile, base, rotG } = makeTile();
+    board.addChild(rotG);
+    const controller = startFlowerBouncyArtwork(tile) as any;
+    await flush();
+    jest.advanceTimersByTime(1000);
+
+    expect(controller.canvas?.parent).toBe(rotG);
+    expect(controller.canvas?.renderable).toBe(false);
+    expect(base.renderable).toBe(true);
+
+    stage.addChild(board);
+    tick(16);
+    expect(controller.canvas?.parent?.label).toBe('ANIMATED_DICE_HUD_FOREGROUND');
+    expect(controller.canvas?.renderable).toBe(true);
+    expect(base.renderable).toBe(false);
   });
 
   test('uses one small source texture and preserves the accepted board geometry', () => {
@@ -200,7 +225,7 @@ describe('Flower procedural Pixi artwork', () => {
     let resolveLoad!: (value: Texture) => void;
     loadSpy.mockImplementationOnce(() => new Promise((resolve) => { resolveLoad = resolve as any; }) as any);
     const { tile, base, rotG } = makeTile();
-    const controller = startFlowerBouncyArtwork(tile) as any;
+    const controller = start(tile) as any;
     if (invalidated === 'tile') tile.destroyed = true;
     if (invalidated === 'variant') tile._ccSpecialDiceVariant = null;
     if (invalidated === 'base') base.destroy();
@@ -215,8 +240,8 @@ describe('Flower procedural Pixi artwork', () => {
   test('shares one source while every Flower keeps a separate timeline', async () => {
     const first = makeTile();
     const second = makeTile();
-    const firstController = startFlowerBouncyArtwork(first.tile) as any;
-    const secondController = startFlowerBouncyArtwork(second.tile) as any;
+    const firstController = start(first.tile) as any;
+    const secondController = start(second.tile) as any;
     await flush();
 
     expect(loadSpy).toHaveBeenCalledTimes(1);
@@ -248,7 +273,7 @@ describe('Flower procedural Pixi artwork', () => {
     const { tile, base } = makeTile();
     const pollen = { renderable: true };
     tile._flowerPollenParticles = new Set([pollen]);
-    const controller = startFlowerBouncyArtwork(tile) as any;
+    const controller = start(tile) as any;
     await flush();
 
     expect(controller.canvas.renderable).toBe(true);

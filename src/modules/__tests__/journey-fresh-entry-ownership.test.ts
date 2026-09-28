@@ -94,22 +94,24 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-test('actual fresh Journey caller waits for the shared showApp commit before layout, tutorial and flag cleanup', async () => {
+test('actual fresh Journey caller finalizes layout while hidden before reveal and entry commit', async () => {
   const h = fixture();
   h.canvas.style.opacity = '0';
   const pending = h.handler(25);
   await flush();
-  expect(h.events).toEqual(['boot-prepared', 'show', 'commit-start']);
-  expect(h.paint).toHaveBeenCalledTimes(1);
-  expect(h.scope.layoutGame).not.toHaveBeenCalled();
+  expect(h.events).toEqual(['boot-prepared', 'layout']);
+  expect(h.paint).not.toHaveBeenCalled();
+  expect(h.scope.layoutGame).toHaveBeenCalledTimes(1);
   expect(h.win.__ccStartAtLevel).toBe(25);
   expect(h.win.__ccTriggerHudDrop).toBe(true);
   expect(h.scope.activateFirstPlayTutorialWhenReady).not.toHaveBeenCalled();
 
-  h.entry.resolve(); await flush();
-  expect(h.events).toEqual(['boot-prepared', 'show', 'commit-start', 'commit-end', 'layout']);
+  h.layout.resolve(); await flush();
+  expect(h.events).toEqual(['boot-prepared', 'layout', 'show', 'commit-start']);
+  expect(h.paint).toHaveBeenCalledTimes(1);
   expect(h.win.__ccTriggerHudDrop).toBe(true);
-  h.layout.resolve(); await pending;
+  h.entry.resolve(); await pending;
+  expect(h.events).toEqual(['boot-prepared', 'layout', 'show', 'commit-start', 'commit-end']);
   expect(h.canvas.style.opacity).toBe('1');
   expect(h.scope.activateFirstPlayTutorialWhenReady).toHaveBeenCalledTimes(1);
   expect(h.win.__ccStartAtLevel).toBeUndefined();
@@ -121,6 +123,7 @@ test('actual fresh Journey caller waits for the shared showApp commit before lay
 test.each(['cancel', 'replace'] as const)('a fresh entry retired during commit (%s) cannot reveal or modify the successor', async (retirement) => {
   const h = fixture();
   const pending = h.handler(25); await flush();
+  h.layout.resolve(); await flush();
   const replacementPaint = jest.fn();
   if (retirement === 'cancel') cancelGameplayEntryPreparation();
   else {
@@ -133,7 +136,7 @@ test.each(['cancel', 'replace'] as const)('a fresh entry retired during commit (
   h.canvas.style.opacity = '0';
   await pending;
   h.entry.resolve(); await flush();
-  expect(h.scope.layoutGame).not.toHaveBeenCalled();
+  expect(h.scope.layoutGame).toHaveBeenCalledTimes(1);
   expect(h.scope.assertJourneyGameSurfaceVisible).not.toHaveBeenCalled();
   expect(h.scope.activateFirstPlayTutorialWhenReady).not.toHaveBeenCalled();
   expect(h.scope.recoverJourneyStartFailure).not.toHaveBeenCalled();
@@ -145,9 +148,8 @@ test.each(['cancel', 'replace'] as const)('a fresh entry retired during commit (
   expect(hasPreparedGameplayEntry()).toBe(retirement === 'replace');
 });
 
-test.each(['resolve', 'reject'] as const)('a stale layout %s cannot repair a new surface, clear its flags or recover over it', async (outcome) => {
+test.each(['resolve', 'reject'] as const)('a hidden layout retired before reveal (%s) cannot repair a new surface or clear its flags', async (outcome) => {
   const h = fixture();
-  h.entry.resolve();
   const pending = h.handler(25); await flush();
   expect(h.scope.layoutGame).toHaveBeenCalledTimes(1);
   const next = beginGameplayEntryPreparation('successor');
@@ -168,9 +170,8 @@ test.each(['resolve', 'reject'] as const)('a stale layout %s cannot repair a new
   expect(hasPreparedGameplayEntry()).toBe(true);
 });
 
-test('an owned layout failure retains the existing Journey recovery path', async () => {
+test('an owned hidden layout failure retains the existing Journey recovery path', async () => {
   const h = fixture();
-  h.entry.resolve();
   const pending = h.handler(25); await flush();
   const failure = new Error('current layout failed');
   h.layout.reject(failure); await pending;

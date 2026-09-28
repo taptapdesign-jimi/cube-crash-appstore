@@ -5,6 +5,8 @@ type SfxOwnerLoader = () => Promise<readonly StopSound[]>;
 // Imports stay lazy: importing this registry does not initialize cue owners.
 // Include full owner stops only; route-specific visual tails keep their own API.
 const soundOwners: readonly SfxOwnerLoader[] = [
+  () => import('./journey-new-card-sound.js').then(owner => [owner.stopJourneyNewCardSounds]),
+  () => import('./board-popin-sound.js').then(owner => [owner.stopBoardPopInSound]),
   () => import('./arcade-crate-sound.js').then(owner => [owner.stopArcadeCrateSounds]),
   () => import('./arcade-round-digit-sound.js').then(owner => [owner.stopArcadeRoundDigitSounds, owner.stopBoardTransitionDigitSounds]),
   () => import('./arcade-stage-clear-sound.js').then(owner => [owner.stopArcadeStageClearSounds]),

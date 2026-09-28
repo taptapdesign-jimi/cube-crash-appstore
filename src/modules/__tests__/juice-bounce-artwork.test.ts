@@ -52,6 +52,7 @@ describe('Juice shared Pixi board artwork', () => {
   let unloadSpy: jest.SpiedFunction<typeof Assets.unload>;
   let tickerCallbacks: Set<(ticker: any) => void>;
   let ticker: any;
+  let stage: Container;
 
   beforeEach(() => {
     jest.useFakeTimers();
@@ -66,7 +67,8 @@ describe('Juice shared Pixi board artwork', () => {
       add: jest.fn((callback: (liveTicker: any) => void) => tickerCallbacks.add(callback)),
       remove: jest.fn((callback: (liveTicker: any) => void) => tickerCallbacks.delete(callback)),
     };
-    STATE.app = { ticker } as any;
+    stage = new Container();
+    STATE.app = { ticker, stage } as any;
   });
 
   afterEach(() => {
@@ -86,6 +88,11 @@ describe('Juice shared Pixi board artwork', () => {
   const tick = (elapsedMS: number) => {
     ticker.elapsedMS = elapsedMS;
     Array.from(tickerCallbacks).forEach((callback) => callback(ticker));
+  };
+
+  const start = (tile: any) => {
+    if (!tile.rotG.parent) stage.addChild(tile.rotG);
+    return startJuiceBounceArtwork(tile);
   };
 
   test('maps the trimmed 60fps sheet to the exact accepted 128px resting footprint', () => {
@@ -113,8 +120,8 @@ describe('Juice shared Pixi board artwork', () => {
   test('uses one source for independent Juice sprites and preserves the authored rest', async () => {
     const first = makeTile();
     const second = makeTile();
-    const firstController = startJuiceBounceArtwork(first.tile) as any;
-    const secondController = startJuiceBounceArtwork(second.tile) as any;
+    const firstController = start(first.tile) as any;
+    const secondController = start(second.tile) as any;
     await flushPromises();
 
     expect(firstController.sprite.texture.source).toBe(secondController.sprite.texture.source);
@@ -141,7 +148,7 @@ describe('Juice shared Pixi board artwork', () => {
     const { tile, base, rotG } = makeTile();
     const bubbleContainer = { destroyed: false, renderable: true };
     tile._wildJuiceBubbleSystem = { container: bubbleContainer, disposed: false, bubbles: [] };
-    const controller = startJuiceBounceArtwork(tile) as any;
+    const controller = start(tile) as any;
     await flushPromises();
 
     expect(base.renderable).toBe(false);

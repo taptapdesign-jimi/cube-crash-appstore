@@ -23,11 +23,11 @@ export const JOURNEY_INTERIM_IDLE_MOTION = Object.freeze({
   reboundDurationSeconds: 0.14,
   settleDurationSeconds: 0.22,
   // Leave one bounded rest window after the motion-owned flip smoke, then run
-  // the slower face-local burn/glow away from the next transform cycle.
+  // the face-local burn/glow away from the next transform cycle.
   repeatDelaySeconds: 1.7,
   smokeStartSeconds: 0.14,
   burnGlowInitialDelayMs: 1150,
-  burnGlowDurationMs: 1100,
+  burnGlowDurationMs: 1100 / 1.3, // 30% faster burn and diagonal light sweep.
   burnGlowCadenceMs: 2490,
 });
 
