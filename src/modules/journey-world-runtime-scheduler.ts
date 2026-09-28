@@ -51,6 +51,7 @@ export class JourneyWorldRuntimeScheduler {
   public constructor(
     private readonly scrollSettleMs = DEFAULT_SCROLL_SETTLE_MS,
     private readonly idleHandoffMs = DEFAULT_IDLE_HANDOFF_MS,
+    private readonly onViewportChange: () => void = () => {},
   ) {}
 
   private readonly onVisibility = (): void => {
@@ -94,6 +95,7 @@ export class JourneyWorldRuntimeScheduler {
     this.interactionAmbientReleased = false;
     this.clearIdleHandoffTimer();
     this.recomputeState();
+    this.onViewportChange();
     this.clearScrollSettleTimer();
     this.scrollSettleTimer = window.setTimeout(() => {
       this.scrollSettleTimer = null;

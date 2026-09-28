@@ -15,7 +15,8 @@ function fixture(detailed = false) {
   const owner: any = { journeyWorldPrepaintStage: { ready: true, worldId: 1, host, root },
     journeyAreaIdleTicker: () => {}, journeyAreaIdleEntries: [{}], journeyAreaIdleEntryByVisibilityTarget: new Map(),
     journeyAreaIdleVisibilityObserver: { disconnect: jest.fn() }, beginRenderLifecycle: jest.fn(), cancelJourneyV700HubEnter: jest.fn(),
-    trackTimeout: jest.fn(), trackRAF: jest.fn(), primeJourneyV700WorldEnter: jest.fn() };
+    trackTimeout: jest.fn(), trackRAF: jest.fn(), primeJourneyV700WorldEnter: jest.fn(),
+    releaseJourneyMainCloudComposites: jest.fn() };
   const scope = { gsap, logger: { info() {}, warn() {} }, setJourneyAlienBeamIdleReady: jest.fn(), emitIOSNativeDiagnostic: jest.fn(), areDetailedRuntimeDiagnosticsEnabled: () => detailed };
   for (const name of ['isJourneyCardTapExitProtectedTarget', 'cleanupJourneyAreaIdleAnimations', 'retireJourneyBoardOwnersBeforeDomReplace', 'commitJourneyWorldPrepaint']) {
     const node = methods.get(name)!;
@@ -47,6 +48,7 @@ test('actual World commit retires outgoing GSAP owners once while preserving inc
   expect(f.owner.journeyAreaIdleEntries).toEqual([]);
   expect(f.incoming.isConnected).toBe(true); expect(f.host.isConnected).toBe(false); expect(f.outgoing.isConnected).toBe(false);
   expect(f.owner.primeJourneyV700WorldEnter).toHaveBeenCalledWith(f.container, 1, { source: 'hub-world-prepaint-commit', lastBoardId: 0 });
+  expect(f.owner.releaseJourneyMainCloudComposites).toHaveBeenCalledWith('hub-to-world-commit', new Set([1]));
   expect(f.owner.journeyWorldPrepaintStage).toBeNull();
 });
 

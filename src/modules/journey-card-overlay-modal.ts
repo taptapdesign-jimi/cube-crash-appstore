@@ -1588,7 +1588,7 @@ export function presentJourneyCardOverlayModal(
       keyframes.push({ transform: `rotateY(${to}deg)` });
       const animation = rotor.animate(keyframes, { duration, easing: 'linear' });
       flipAnimation = animation;
-      if (crossesFaceEdge) {
+      if (crossesFaceEdge && cardRarity === 'legendary') {
         let faceEdgeCommitted = false;
         const watchPhysicalEdge = () => {
           if (closing || settled || flipAnimation !== animation) {

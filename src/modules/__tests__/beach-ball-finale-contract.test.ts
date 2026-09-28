@@ -113,6 +113,14 @@ describe('Beach Ball finale regression contract', () => {
     expect(appCoreSource).toContain('const waveDelay = (waveProgress * 0.26) + (Math.random() * 0.035)');
     expect(appCoreSource).toContain("ease: 'back.out(2.9)'");
     expect(appCoreSource).toContain('if (!isWildTntMerge) playShortWildMerge6TileBlast(\'Wild-juice\')');
+
+    const blastOwnerStart = appCoreSource.indexOf('const playShortWildMerge6TileBlast = (');
+    const blastOwnerEnd = appCoreSource.indexOf('\n        if (wasWild) {', blastOwnerStart);
+    const blastOwner = appCoreSource.slice(blastOwnerStart, blastOwnerEnd);
+    expect(blastOwner.match(/board\?\.sortChildren\?\.\(\)/g)).toHaveLength(1);
+    expect(blastOwner).toContain(
+      'blastCount += 1;\n            });\n            // Every target has its temporary z-index now.',
+    );
   });
 
   test('finishes each outward wave before a longer springy Ball-only return', () => {

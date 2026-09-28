@@ -952,6 +952,9 @@ export function initDrag(cfg) {
         zIndex: particlesZ,
         forceCircleParticles: roundBubbleTrail,
         forceRectParticles: !roundBubbleTrail,
+        // Pixi sorts a sortable parent immediately before paint. Avoid a
+        // synchronous whole-board sort inside the pointer-move frame.
+        deferSort: touchMode,
       });
       if (drag._perfSample) {
         drag._perfSample.trailBursts += 1;
@@ -992,6 +995,7 @@ export function initDrag(cfg) {
         zIndex: particlesZ,
         particleCount,
         customPosition: { x: point.x, y: point.y },
+        deferSort: touchMode,
       });
       if (drag._perfSample) {
         drag._perfSample.trailBursts += 1;

@@ -2,7 +2,7 @@ import { gsap } from 'gsap';
 import { JourneyWorldAnimationCoordinator } from '../journey-world-animation-coordinator';
 import { startThermalIsolation } from '../../utils/thermal-isolation';
 
-test('Unit probe freezes settled painting only and never suppresses entering or destroys its owner', () => {
+test('Unit probe freezes settled painting and enter never starts the settled idle owner', () => {
   jest.useFakeTimers();
   Object.defineProperty(document, 'hidden', { configurable: true, value: false });
   const setter = jest.fn();
@@ -19,7 +19,7 @@ test('Unit probe freezes settled painting only and never suppresses entering or 
   try {
     jest.advanceTimersByTime(30000); setter.mockClear();
     tick(); expect(setter).not.toHaveBeenCalled();
-    owner.phase = 'entering'; tick(); expect(setter).toHaveBeenCalledTimes(1);
+    owner.phase = 'entering'; tick(); expect(setter).not.toHaveBeenCalled();
     setter.mockClear(); owner.phase = 'idle'; stop?.(); owner.lastSettledIdlePaintAt = null;
     tick(); expect(setter).toHaveBeenCalledTimes(1);
     expect(owner.idleTicker).toBe(tick);

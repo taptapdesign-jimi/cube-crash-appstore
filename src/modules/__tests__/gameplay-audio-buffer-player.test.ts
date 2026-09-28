@@ -147,6 +147,30 @@ describe('decoded gameplay audio owner', () => {
     expect(getDecodedGameplayAudioStats().activeVoices).toBe(0);
   });
 
+  it('reports retained voice provenance without stopping overdue sources', async () => {
+    const source = './diagnostic.wav';
+    preloadDecodedGameplaySounds([source]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    playDecodedGameplaySound(source, {
+      voiceId: 'diagnostic', volume: 0.4, startDelaySeconds: 1,
+      playbackRate: 2, startOffsetSeconds: 0.5,
+    });
+    const context = MockAudioContext.instances[0];
+    expect(getDecodedGameplayAudioStats()).not.toHaveProperty('voiceDetails');
+    context.currentTime = 15;
+    expect(getDecodedGameplayAudioStats(true).voiceDetails).toEqual([
+      expect.objectContaining({ voiceId: 'diagnostic', loop: false,
+        startedAtAudioSeconds: 11, expectedEndAudioSeconds: 11.75, overdueSeconds: 3.25 }),
+    ]);
+    expect(context.sources[0].stop).not.toHaveBeenCalled();
+    context.sources[0].onended?.();
+    expect(getDecodedGameplayAudioStats(true).voiceDetails).toEqual([]);
+    playDecodedGameplaySound(source, { voiceId: 'loop', volume: 0.2, loop: true });
+    expect(getDecodedGameplayAudioStats(true).voiceDetails?.[0].expectedEndAudioSeconds).toBeNull();
+    fadeOutDecodedGameplayVoice('loop', 2);
+    expect(getDecodedGameplayAudioStats(true).voiceDetails?.[0].expectedEndAudioSeconds).toBe(17);
+  });
+
   it('loops and fades a decoded ambient voice through its native gain owner', async () => {
     const source = './assets/sound/worlds/Forest/soft bees ambiance.wav';
     preloadDecodedGameplaySounds([source]);

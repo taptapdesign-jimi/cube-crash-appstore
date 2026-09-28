@@ -3,9 +3,9 @@ import { gsap } from 'gsap';
 /**
  * Canonical light profile for the hidden Journey reward card.
  *
- * The New Reward screen is the visual benchmark. Both that screen and the
- * interim card inside a Journey world consume this profile so their cadence
- * and pulse cannot drift independently again.
+ * The New Reward screen remains the complete shimmer/glow benchmark. The
+ * interim card inside a Journey World reuses only the bounded burn/glow pulse;
+ * its masked shimmer is intentionally disabled for the Journey World runtime.
  */
 export const JOURNEY_INTERIM_CARD_SHINE_PROFILE = Object.freeze({
   sweepDurationMs: 1700,
@@ -19,6 +19,7 @@ export const JOURNEY_INTERIM_CARD_SHINE_PROFILE = Object.freeze({
 
 export const JOURNEY_INTERIM_SHINE_TRIGGER_CLASS = 'cc-journey-interim-shine-trigger';
 export const JOURNEY_INTERIM_GLOW_PULSE_CLASS = 'cc-journey-interim-glow-pulse';
+export const JOURNEY_INTERIM_BURN_PULSE_CLASS = 'cc-journey-interim-burn-pulse';
 
 type JourneyInterimShineScheduler = {
   scheduleTimeout?: (callback: () => void, delayMs: number) => number;
@@ -28,10 +29,20 @@ type JourneyInterimShineScheduler = {
 export type JourneyInterimShinePulseOptions = JourneyInterimShineScheduler & {
   lightElement: HTMLElement | null;
   faceElement: HTMLElement | null;
+  burnElement?: HTMLElement | null;
+  pulseDurationMs?: number;
   baseScale?: number;
   shouldRun?: () => boolean;
   onPulse?: () => void;
   trackTimeline?: (timeline: gsap.core.Timeline) => gsap.core.Timeline;
+};
+
+export type JourneyInterimShineLoopOptions = Omit<
+  JourneyInterimShinePulseOptions,
+  'scheduleTimeout' | 'scheduleFrame' | 'trackTimeline'
+> & {
+  initialDelayMs?: number;
+  cadenceMs?: number;
 };
 
 export type JourneyInterimShineLoopController = {
@@ -112,6 +123,8 @@ export function setJourneyInterimShineMaskScale(
 export function triggerJourneyInterimShinePulse({
   lightElement,
   faceElement,
+  burnElement = null,
+  pulseDurationMs = JOURNEY_INTERIM_CARD_SHINE_PROFILE.glowPulseDurationMs,
   baseScale = 1,
   shouldRun = () => true,
   onPulse,
@@ -119,20 +132,26 @@ export function triggerJourneyInterimShinePulse({
   scheduleTimeout = (callback, delayMs) => window.setTimeout(callback, delayMs),
   scheduleFrame = (callback) => window.requestAnimationFrame(callback),
 }: JourneyInterimShinePulseOptions): void {
-  if ((!lightElement && !faceElement) || !shouldRun()) return;
+  if ((!lightElement && !faceElement && !burnElement) || !shouldRun()) return;
+  const boundedPulseDurationMs = Math.max(200, pulseDurationMs);
 
   try {
     lightElement?.classList.remove(JOURNEY_INTERIM_SHINE_TRIGGER_CLASS);
     faceElement?.classList.remove(JOURNEY_INTERIM_GLOW_PULSE_CLASS);
+    burnElement?.classList.remove(JOURNEY_INTERIM_BURN_PULSE_CLASS);
     // Restart the one-shot CSS animations reliably on mobile Safari.
     void lightElement?.offsetHeight;
     void faceElement?.offsetHeight;
+    void burnElement?.offsetHeight;
+    faceElement?.style.setProperty('--cc-journey-interim-glow-duration', `${boundedPulseDurationMs}ms`);
+    burnElement?.style.setProperty('--cc-journey-interim-glow-duration', `${boundedPulseDurationMs}ms`);
     scheduleFrame(() => {
       if (!shouldRun()) return;
       lightElement?.classList.add(JOURNEY_INTERIM_SHINE_TRIGGER_CLASS);
       scheduleTimeout(() => {
         if (!shouldRun()) return;
         faceElement?.classList.add(JOURNEY_INTERIM_GLOW_PULSE_CLASS);
+        burnElement?.classList.add(JOURNEY_INTERIM_BURN_PULSE_CLASS);
         try { onPulse?.(); } catch {}
         if (faceElement) {
           try { gsap.killTweensOf(faceElement); } catch {}
@@ -150,10 +169,22 @@ export function triggerJourneyInterimShinePulse({
             });
         }
       }, JOURNEY_INTERIM_CARD_SHINE_PROFILE.bounceDelayMs);
+      const cleanupDelayMs = Math.max(
+        lightElement ? JOURNEY_INTERIM_CARD_SHINE_PROFILE.sweepDurationMs : 0,
+        faceElement
+          ? JOURNEY_INTERIM_CARD_SHINE_PROFILE.bounceDelayMs
+            + boundedPulseDurationMs
+          : 0,
+        burnElement
+          ? JOURNEY_INTERIM_CARD_SHINE_PROFILE.bounceDelayMs
+            + boundedPulseDurationMs
+          : 0,
+      );
       scheduleTimeout(() => {
         lightElement?.classList.remove(JOURNEY_INTERIM_SHINE_TRIGGER_CLASS);
         faceElement?.classList.remove(JOURNEY_INTERIM_GLOW_PULSE_CLASS);
-      }, JOURNEY_INTERIM_CARD_SHINE_PROFILE.sweepDurationMs);
+        burnElement?.classList.remove(JOURNEY_INTERIM_BURN_PULSE_CLASS);
+      }, cleanupDelayMs);
     });
   } catch {}
 }
@@ -165,14 +196,20 @@ export function triggerJourneyInterimShinePulse({
 export function createJourneyInterimShineLoop({
   lightElement,
   faceElement,
+  burnElement = null,
+  pulseDurationMs = JOURNEY_INTERIM_CARD_SHINE_PROFILE.glowPulseDurationMs,
   baseScale = 1,
   shouldRun = () => true,
   onPulse,
-}: Omit<JourneyInterimShinePulseOptions, 'scheduleTimeout' | 'scheduleFrame' | 'trackTimeline'>): JourneyInterimShineLoopController {
+  initialDelayMs = 0,
+  cadenceMs = JOURNEY_INTERIM_CARD_SHINE_PROFILE.cadenceMs,
+}: JourneyInterimShineLoopOptions): JourneyInterimShineLoopController {
+  const boundedInitialDelayMs = Math.max(0, initialDelayMs);
+  const boundedCadenceMs = Math.max(250, cadenceMs);
   let state: 'stopped' | 'running' | 'paused' = 'stopped';
   let cadenceTimeoutId: number | null = null;
   let nextPulseAt = 0;
-  let remainingCadenceMs: number = JOURNEY_INTERIM_CARD_SHINE_PROFILE.cadenceMs;
+  let remainingCadenceMs = boundedInitialDelayMs;
   const timeoutIds = new Set<number>();
   const frameIds = new Set<number>();
   const timelines = new Set<gsap.core.Timeline>();
@@ -189,6 +226,7 @@ export function createJourneyInterimShineLoop({
     try { gsap.killTweensOf(faceElement); } catch {}
     lightElement?.classList.remove(JOURNEY_INTERIM_SHINE_TRIGGER_CLASS);
     faceElement?.classList.remove(JOURNEY_INTERIM_GLOW_PULSE_CLASS);
+    burnElement?.classList.remove(JOURNEY_INTERIM_BURN_PULSE_CLASS);
     if (restoreScale && faceElement) {
       try { gsap.set(faceElement, { scale: baseScale }); } catch {}
     }
@@ -230,6 +268,8 @@ export function createJourneyInterimShineLoop({
     triggerJourneyInterimShinePulse({
       lightElement,
       faceElement,
+      burnElement,
+      pulseDurationMs,
       baseScale,
       shouldRun: () => state === 'running' && shouldRun(),
       onPulse,
@@ -248,7 +288,7 @@ export function createJourneyInterimShineLoop({
       cadenceTimeoutId = null;
       if (state !== 'running') return;
       play();
-      scheduleNextPulse(JOURNEY_INTERIM_CARD_SHINE_PROFILE.cadenceMs);
+      scheduleNextPulse(boundedCadenceMs);
     }, boundedDelayMs);
   };
 
@@ -257,8 +297,11 @@ export function createJourneyInterimShineLoop({
     clearCadenceTimer();
     clearPulseWork(true);
     state = 'running';
-    play();
-    scheduleNextPulse(JOURNEY_INTERIM_CARD_SHINE_PROFILE.cadenceMs);
+    if (boundedInitialDelayMs > 0) scheduleNextPulse(boundedInitialDelayMs);
+    else {
+      play();
+      scheduleNextPulse(boundedCadenceMs);
+    }
   };
 
   return {
@@ -266,7 +309,7 @@ export function createJourneyInterimShineLoop({
     pause: () => {
       if (state !== 'running') return;
       remainingCadenceMs = cadenceTimeoutId === null
-        ? JOURNEY_INTERIM_CARD_SHINE_PROFILE.cadenceMs
+        ? boundedCadenceMs
         : Math.max(0, nextPulseAt - Date.now());
       state = 'paused';
       clearCadenceTimer();
@@ -282,7 +325,7 @@ export function createJourneyInterimShineLoop({
       state = 'stopped';
       clearCadenceTimer();
       clearPulseWork(true);
-      remainingCadenceMs = JOURNEY_INTERIM_CARD_SHINE_PROFILE.cadenceMs;
+      remainingCadenceMs = boundedInitialDelayMs;
     },
     isRunning: () => state === 'running',
   };

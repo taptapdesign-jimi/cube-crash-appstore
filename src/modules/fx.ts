@@ -1227,10 +1227,13 @@ export function magicSparklesAtTile(board, tile, opts = {}){
 
   // All shards in this burst share the same z-index relationship. Sorting once
   // after the batch avoids repeating an increasingly expensive stage sort for
-  // every pooled particle during drag.
-  try {
-    board.sortChildren?.();
-  } catch {}
+  // every pooled particle during drag. Touch drag can let Pixi perform this
+  // same sort in its immediately following render pass.
+  if (opts.deferSort !== true) {
+    try {
+      board.sortChildren?.();
+    } catch {}
+  }
   
   // 🔥 MEMORY LEAK FIX: Store tracked particles on tile for immediate cleanup
   if (isIdleParticles && particlesToTrack && particlesToTrack.length > 0) {
@@ -3901,7 +3904,7 @@ function acquireHudStarAnimationContainer(stage) {
     container._activeJobCount = 0;
     container._jobCleanupTimeouts = new Set();
     container._ccOwnerStage = stage;
-    container._ccReleaseMobileActivity = acquirePixiMobileActivityLease('hud-star-flight');
+    container._ccReleaseMobileActivity = acquirePixiMobileActivityLease('hud-star-flight', 60);
 
     stage.sortableChildren = true;
     stage.addChild(container);
@@ -3912,6 +3915,9 @@ function acquireHudStarAnimationContainer(stage) {
     try { clearTimeout(container._cleanupTimeout); } catch {}
     container._cleanupTimeout = null;
   }
+  if (!container._ccReleaseMobileActivity) {
+    container._ccReleaseMobileActivity = acquirePixiMobileActivityLease('hud-star-flight', 60);
+  }
 
   container._activeJobCount = Math.max(0, Number(container._activeJobCount) || 0) + 1;
   return container;
@@ -3921,6 +3927,9 @@ function releaseHudStarAnimationJob(container) {
   if (!container || container.destroyed) return;
   container._activeJobCount = Math.max(0, (Number(container._activeJobCount) || 0) - 1);
   if (container._activeJobCount > 0) return;
+  // No visible star remains. Release active cadence now; keep the empty
+  // container briefly only so an overlapping score batch can reuse it.
+  releaseHudStarContainerCadence(container);
   if (container._cleanupTimeout) {
     try { clearTimeout(container._cleanupTimeout); } catch {}
   }
@@ -4245,6 +4254,7 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
   
   const STAR_COUNT = Math.min(3, savedStarPositions.length);
   let maxStarDuration = 0;
+  let hudArrivalHapticPlayed = false;
   
   // 🔥 PERFORMANCE OPTIMIZATION: Use single shared texture for all stars (object pooling)
   // This reduces memory usage and improves frame rate
@@ -4582,7 +4592,8 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
           // Add score only when each star reaches the score HUD.
           try {
             try {
-              if (typeof (window as any)?.triggerHapticImpact === 'function') {
+              if (!hudArrivalHapticPlayed && typeof (window as any)?.triggerHapticImpact === 'function') {
+                hudArrivalHapticPlayed = true;
                 (window as any).triggerHapticImpact('light');
               }
             } catch {}
@@ -4704,13 +4715,13 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
   // 🔥 CRITICAL: Use setTimeout instead of gsap.delayedCall for cleanup
   // This ensures cleanup is NOT killed by killAllDelayedCalls() and is completely independent
   // Safety cleanup: ensure container is removed even if something goes wrong
-  // Use shorter delay for faster cleanup (0.5s buffer instead of 1.0s)
+  // A short paint allowance is sufficient after the last owned timeline.
   const cleanupTimeout = setTimeout(() => {
     animationContainer?._jobCleanupTimeouts?.delete(cleanupTimeout);
-    if (verboseLogs) console.log(`🧹 Star animation cleanup timeout fired after ${(totalDuration + 0.5).toFixed(2)}s`);
+    if (verboseLogs) console.log(`🧹 Star animation cleanup timeout fired after ${(totalDuration + 0.08).toFixed(2)}s`);
     performCleanup();
     if (verboseLogs) console.log(`✅ Star animation cleanup completed`);
-  }, (totalDuration + 0.5) * 1000); // Convert to milliseconds
+  }, (totalDuration + 0.08) * 1000); // Convert to milliseconds
   
   // Force-reset owns these timers too, while the shared container's
   // _cleanupTimeout is reserved for its short idle-destroy tail.
@@ -5245,9 +5256,11 @@ export function dragSmokeTrail(board, tile, tileSize = 96, strength = 1, opts = 
     });
   }
 
-  try {
-    board.sortChildren?.();
-  } catch {}
+  if (opts.deferSort !== true) {
+    try {
+      board.sortChildren?.();
+    } catch {}
+  }
 }
 
 // Juice-specific drag bubbles (same style as idle bubbles, with three color shades)

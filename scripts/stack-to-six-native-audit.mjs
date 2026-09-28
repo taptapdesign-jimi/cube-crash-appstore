@@ -186,6 +186,14 @@ if (!sourceOnly) {
     requireCondition(controllerText.includes('ProcessInfo.processInfo.arguments.contains("--cc-passive-special-sheets-isolation")')
       && controllerText.includes('window.__ccThermalSpecialSheetsSuppressedOnLaunch = true;'),
     'passive Special-sheet isolation must require its explicit native launch flag');
+    requireCondition(controllerText.includes('ProcessInfo.processInfo.arguments.contains("--cc-passive-pixi-cadence-isolation")')
+      && controllerText.includes('window.__ccThermalPixiActiveFpsCap = 30;')
+      && controllerText.includes('"passivePixiCadenceIsolationEnabled": Self.passivePixiCadenceIsolationEnabled'),
+    'passive Pixi-cadence isolation must require its explicit native launch flag and persist its state');
+    requireCondition(controllerText.includes('ProcessInfo.processInfo.arguments.contains("--cc-passive-pixi-resolution-isolation")')
+      && controllerText.includes('window.__ccThermalPixiResolutionCap = 1;')
+      && controllerText.includes('"passivePixiResolutionIsolationEnabled": Self.passivePixiResolutionIsolationEnabled'),
+    'passive Pixi-resolution isolation must require its explicit native launch flag and persist its state');
     requireCondition(controllerText.includes('private static let thermalSampleFileLimit = 720')
       && controllerText.includes('private static let thermalSampleSessionLimit = 8')
       && controllerText.includes('CCNativeThermal')

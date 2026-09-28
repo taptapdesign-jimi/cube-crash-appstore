@@ -955,6 +955,16 @@ describe('Journey two-sided card overlay prototype', () => {
     // this contract protects the mandatory on-demand face readiness above.
   });
 
+  test('keeps ordinary flips compositor-owned and reserves per-frame shine tracking for Legendary', () => {
+    const modal = read('src/modules/journey-card-overlay-modal.ts');
+    const flipSource = modal.split('const animateInteractiveFlip = async (')[1]
+      ?.split('const startEntry = async')[0] ?? '';
+    expect(flipSource).toContain("if (crossesFaceEdge && cardRarity === 'legendary')");
+    expect(flipSource).toContain('flipEdgeRaf = requestAnimationFrame(watchPhysicalEdge)');
+    expect(flipSource).toContain('try { await animation.finished; } catch {}');
+    expect(flipSource).toContain("setStableFace(targetFace)");
+  });
+
   test('profiles dismiss, scroll and rapid reopen as one bounded native summary', () => {
     const modal = read('src/modules/journey-card-overlay-modal.ts');
     const manager = read('src/modules/journey-boards-manager.ts');

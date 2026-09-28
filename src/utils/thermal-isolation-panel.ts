@@ -7,6 +7,24 @@ import { getThermalAudioIsolationStats, setThermalAudioSuppressed } from './ther
 import { getSoundtrackRuntimeStats } from '../modules/soundtrack-manager.js';
 import { getSoundtrackPreparationStats } from '../modules/main-theme-web-audio-transport.js';
 import { getDecodedGameplayAudioStats } from '../modules/gameplay-audio-buffer-player.js';
+import { startJourneyUnpluggedThermalTest } from './journey-unplugged-thermal-test.js';
+import { startJourneyThermalAudit } from './journey-thermal-audit.js';
+
+/** Shared diagnostic Web Animation pause, preserving already-paused owners. */
+export function holdThermalWebAnimations(infiniteOnly = true): () => void {
+  const animations = document.getAnimations().filter(animation => animation.playState === 'running'
+    && (!infiniteOnly || animation.effect?.getTiming().iterations === Infinity));
+  animations.forEach(animation => animation.pause());
+  let restored = false;
+  return () => {
+    if (restored) return;
+    restored = true;
+    animations.forEach(animation => {
+      const target = (animation.effect as KeyframeEffect | null)?.target;
+      if (animation.playState === 'paused' && target?.isConnected) animation.play();
+    });
+  };
+}
 
 /** Loaded only by the explicit thermal-isolation flag or local web query. */
 export function installThermalIsolationPanel(): void {
@@ -113,13 +131,7 @@ export function installThermalIsolationPanel(): void {
     }
     const suppress = (): (() => void) => {
       if (group === 'css-idle') {
-        const animations = document.getAnimations().filter(a => a.playState === 'running' && a.effect?.getTiming().iterations === Infinity);
-        animations.forEach(a => a.pause());
-        emit({ event: 'owners', group, count: animations.length, at: performance.now() });
-        return () => animations.forEach(a => {
-          const target = (a.effect as KeyframeEffect | null)?.target;
-          if (a.playState === 'paused' && target?.isConnected) a.play();
-        });
+        return holdThermalWebAnimations();
       }
       if (group === 'gsap-idle') {
         const visualTargets = (animation: gsap.core.Animation): Array<Element | Container> => {
@@ -172,4 +184,66 @@ export function installThermalIsolationPanel(): void {
     });
     if (!stop) { releaseRenderer?.(); running = false; select.disabled = false; }
   });
+  const journeyAudit = document.createElement('button');
+  journeyAudit.textContent = 'World audit · 5 min 15 s';
+  journeyAudit.dataset.journeyThermalAudit = 'true';
+  journeyAudit.addEventListener('click', async () => {
+    if (running) return;
+    journeyAudit.disabled = true;
+    try {
+      const { journeyBoardsManager } = await import('../modules/journey-boards-manager.js');
+      if (running) return;
+      const stopped = (reason: string) => {
+        running = false; stop = null; panel.hidden = false;
+        select.disabled = false; journeyAudit.disabled = false;
+        status.textContent = `World audit: ${reason}. Audio unchanged.`;
+      };
+      stop = startJourneyThermalAudit({
+        enabled: true, owner: journeyBoardsManager, emit, onStop: stopped,
+      });
+      if (!stop) {
+        status.textContent = 'Open a settled World with the brown card visible, then retry.';
+        return;
+      }
+      running = true; select.disabled = true;
+      // Same composition for every measured window, with no overlay repaint.
+      panel.hidden = true;
+    } catch {
+      status.textContent = 'World audit could not start.';
+    } finally {
+      if (!running) journeyAudit.disabled = false;
+    }
+  });
+  panel.append(journeyAudit);
+  const unpluggedTest = document.createElement('button');
+  unpluggedTest.textContent = 'Unplugged · static / animated · 12 min';
+  unpluggedTest.dataset.journeyUnpluggedTest = 'true';
+  unpluggedTest.addEventListener('click', async () => {
+    if (running) return;
+    unpluggedTest.disabled = true;
+    try {
+      const { journeyBoardsManager } = await import('../modules/journey-boards-manager.js');
+      if (running) return;
+      stop = startJourneyUnpluggedThermalTest({
+        enabled: true, owner: journeyBoardsManager, emit,
+        holdWebAnimations: () => holdThermalWebAnimations(false),
+        onStop: reason => {
+          running = false; stop = null; panel.hidden = false;
+          unpluggedTest.disabled = false; select.disabled = false;
+          status.textContent = `Unplugged test: ${reason}. Audio unchanged.`;
+        },
+      });
+      if (!stop) {
+        status.textContent += ' Requires fresh native telemetry, unplugged/cool phone and settled World. No video.';
+        return;
+      }
+      running = true; select.disabled = true; panel.hidden = true;
+    } catch {
+      status.textContent = 'Unplugged test could not start.';
+    } finally {
+      if (!running) unpluggedTest.disabled = false;
+    }
+  });
+  panel.append(unpluggedTest);
+
 }

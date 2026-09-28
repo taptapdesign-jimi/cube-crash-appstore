@@ -441,7 +441,7 @@ describe('Journey Hub transition ownership', () => {
       'private playJourneyV700WorldEnter(',
     )[1]?.split('private playJourneyV700WorldExit(')[0] ?? '';
 
-    expect(journeyManagerSource).toContain('new JourneyWorldRuntimeScheduler()');
+    expect(journeyManagerSource).toContain('new JourneyWorldRuntimeScheduler(');
     expect(enterSource).toContain('this.activateJourneyWorldRuntime(container, worldId)');
     expect(enterSource).toContain('this.journeyWorldRuntime.endTransition()');
     expect(pauseSource).toContain('this.journeyWorldRuntime.openModal()');
@@ -643,7 +643,8 @@ describe('Journey Hub transition ownership', () => {
     expect(touchStartSource).not.toContain('prepareJourneyWorldPrepaint');
     expect(buildSource).toContain('getJourneyMainCloudRenderSpecs(worldId)');
     expect(buildSource).toContain("document.createElement('canvas')");
-    expect(buildSource).toContain('Math.min(2, Math.max(1, window.devicePixelRatio || 1))');
+    expect(buildSource).toContain('MOBILE_RUNTIME_PROFILE.isMobileDevice ? 1.25 : 2');
+    expect(buildSource).toContain('Math.min(maximumRasterScale, Math.max(1, window.devicePixelRatio || 1))');
     expect(buildSource).toContain('context.drawImage(');
     expect(buildSource).toContain("canvas.className = 'journey-forest-cloud-art journey-main-cloud-composite'");
     expect(journeyManagerSource).not.toContain('journey-main-cloud-prewarm-stage');
@@ -667,7 +668,9 @@ describe('Journey Hub transition ownership', () => {
     expect(worldCommitSource).not.toContain('this.renderBoards()');
     expect(collectiblesCssSource).toContain('.journey-world-prepaint-root *::before');
     expect(collectiblesCssSource).toContain('animation-play-state: paused !important');
-    expect(journeyManagerSource).toContain('this.journeyMainCloudCompositeCache.clear()');
+    expect(journeyManagerSource).toContain("this.releaseJourneyMainCloudComposites('manager-cleanup')");
+    expect(journeyManagerSource).toContain("this.releaseJourneyMainCloudComposites('world-to-hub-commit')");
+    expect(journeyManagerSource).toContain("this.releaseJourneyMainCloudComposites('hub-to-world-commit', new Set([worldId]))");
     expect(journeyManagerSource).toContain("this.cancelJourneyWorldPrepaint('manager-cleanup')");
     expect(openWorldSource).toContain("this.cancelJourneyWorldPrepaint('open-aborted-before-hub-exit')");
     expect(openWorldSource).not.toContain('journeySpatialMotion');
@@ -684,7 +687,7 @@ describe('Journey Hub transition ownership', () => {
       'private async commitJourneyHubPrepaint(',
     )[1]?.split('private cancelJourneyWorldPrepaint')[0] ?? '';
 
-    expect(closeSource).toContain('const hubPrepaintReady = this.prepareJourneyHubPrepaint(container)');
+    expect(closeSource).toContain('hubPrepaintReady = this.prepareJourneyHubPrepaint(container)');
     expect(closeSource).toContain('const preparedHubReady = await hubPrepaintReady');
     expect(closeSource).toContain('await this.commitJourneyHubPrepaint(container)');
     expect(prepareSource).toContain("container.closest('#journey-screen .collectibles-scrollable')");
@@ -963,27 +966,32 @@ describe('Journey Hub transition ownership', () => {
       .toBeLessThan(geometryDiagnosticSource.indexOf('getBoundingClientRect()'));
   });
 
-  test('visible Journey surfaces become alive without a post-enter idle pause', () => {
+  test('visible Journey surfaces start idle immediately after the complete enter cascade', () => {
     const hubEnterSource = journeyManagerSource.split(
       "private playJourneyV700HubEnter(source: 'homepage' | 'world-return'): void",
     )[1]?.split('public playJourneyV700HubEnterFromHomepage')[0] ?? '';
     const visibleStartSource = hubEnterSource.split('const startBannerEnter = () => {')[1]
       ?.split('let remainingTargets')[0] ?? '';
-    const perUnitCompleteIndex = worldAnimationCoordinatorSource.indexOf(
-      "tween.eventCallback('onComplete', () => {",
+    const enterCompletionIndex = worldAnimationCoordinatorSource.indexOf(
+      "this.phase = 'idle';",
+      worldAnimationCoordinatorSource.indexOf('public async enter('),
     );
-    const perUnitIdleIndex = worldAnimationCoordinatorSource.indexOf(
-      'this.startIdle([unit], reducedMotion, index)',
+    const sharedIdleIndex = worldAnimationCoordinatorSource.indexOf(
+      'this.startIdle(liveUnits, reducedMotion, 0, enteringUnitSet)',
+      enterCompletionIndex,
     );
 
     expect(visibleStartSource).toContain(
       "worldCard.classList.add('journey-v700-idle-ready')",
     );
     expect(visibleStartSource).toContain("hub?.classList.add('journey-v700-idle-ready')");
-    expect(perUnitCompleteIndex).toBeGreaterThanOrEqual(0);
-    expect(perUnitIdleIndex).toBeGreaterThan(perUnitCompleteIndex);
+    expect(enterCompletionIndex).toBeGreaterThanOrEqual(0);
+    expect(sharedIdleIndex).toBeGreaterThan(enterCompletionIndex);
+    expect(worldAnimationCoordinatorSource).not.toContain(
+      'this.startIdle([unit], reducedMotion, index)',
+    );
     expect(worldAnimationCoordinatorSource).toContain(
-      "if (this.phase !== 'entering' && this.phase !== 'idle') return",
+      "if (this.phase !== 'idle') return",
     );
     expect(worldAnimationCoordinatorSource).toContain(
       'const ramp = Math.min(1, elapsed / 0.18)',

@@ -15,6 +15,7 @@ import {
   preloadJourneyBackpackSounds,
   stopJourneyBackpackSounds,
 } from './journey-backpack-sound.ts';
+import { acquirePixiMobileActivityLease } from './pixi-mobile-frame-controller.ts';
 
 type Point = { x: number; y: number };
 
@@ -251,6 +252,7 @@ function toParentPoint(parent: any, point: Point): Point {
 function setTileDropInputEnabled(tile: any, enabled: boolean): void {
   try {
     if (!tile || tile.destroyed) return;
+    if (enabled && tile._ccSpecialFinaleWarmupPending === true) return;
     const mode = enabled ? 'static' : 'none';
     tile.eventMode = mode;
     tile.interactive = enabled;
@@ -371,12 +373,20 @@ export async function animateWildSpawnDropFromMeter({
   await preloadWildSpawnDropAssets();
 
   return new Promise((resolve) => {
+    let releaseFrameLease = acquirePixiMobileActivityLease('wild-spawn-drop', 100);
+    const releaseDropFrames = () => {
+      activeDropCleanups.delete(releaseDropFrames);
+      releaseFrameLease();
+      releaseFrameLease = () => {};
+    };
+    activeDropCleanups.add(releaseDropFrames);
     const stage = app?.stage;
     setWildSpawnDropActive(true);
     repairWildIdentity(tile, assetPath);
     if (!stage || !tile || tile.destroyed) {
       revealTile(tile);
       setWildSpawnDropActive(false);
+      releaseDropFrames();
       resolve();
       return;
     }
@@ -391,12 +401,17 @@ export async function animateWildSpawnDropFromMeter({
       try {
         gsap.killTweensOf(tile.scale);
         tile.scale?.set?.(0.3, 0.3);
-        trackTimeline({ onComplete: () => { setWildSpawnDropActive(false); resolve(); } })
+        trackTimeline({ onComplete: () => {
+          setWildSpawnDropActive(false);
+          releaseDropFrames();
+          resolve();
+        } })
           .to(tile.scale, { x: 1.1, y: 1.1, duration: 0.18, ease: 'back.out(2.2)' })
           .to(tile.scale, { x: 0.96, y: 0.96, duration: 0.1, ease: 'power2.inOut' })
           .to(tile.scale, { x: 1, y: 1, duration: 0.18, ease: 'elastic.out(1, 0.72)' });
       } catch {
         setWildSpawnDropActive(false);
+        releaseDropFrames();
         resolve();
       }
       return;
@@ -518,6 +533,7 @@ export async function animateWildSpawnDropFromMeter({
       completed = true;
       activeDropCleanups.delete(finish);
       restoreTile();
+      releaseDropFrames();
       resolve();
     };
     const completeTravel = () => {
@@ -525,6 +541,7 @@ export async function animateWildSpawnDropFromMeter({
       completed = true;
       activeDropCleanups.delete(finish);
       setWildSpawnDropActive(false);
+      releaseDropFrames();
       resolve();
     };
     activeDropCleanups.add(finish);

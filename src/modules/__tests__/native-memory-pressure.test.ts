@@ -9,10 +9,12 @@ describe('native memory warning wiring', () => {
     const emit = jest.fn();
     const audio = jest.fn();
     const sheets = jest.fn(() => Promise.resolve());
+    const owners = jest.fn();
     const textureGC = jest.fn();
-    const handler = new Function('emitRuntimeMemoryPressureSnapshot', 'releaseIdleDecodedGameplayAudio',
-      'releaseIdleSharedPixiSheets', 'window', 'logger', body.replace('(window as any)', 'window'));
-    handler(emit, audio, sheets, { STATE: { app: { renderer: { textureGC: { run: textureGC } } } } }, { warn: jest.fn() });
+    const handler = new Function('emitRuntimeMemoryPressureSnapshot', 'notifyNativeMemoryPressureOwners',
+      'releaseIdleDecodedGameplayAudio', 'releaseIdleSharedPixiSheets', 'window', 'logger', body.replace('(window as any)', 'window'));
+    handler(emit, owners, audio, sheets, { STATE: { app: { renderer: { textureGC: { run: textureGC } } } } }, { warn: jest.fn() });
+    expect(owners).toHaveBeenCalledTimes(1);
     expect(audio).toHaveBeenCalledTimes(1);
     expect(sheets).toHaveBeenCalledTimes(1);
     expect(textureGC).toHaveBeenCalledTimes(1);

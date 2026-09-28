@@ -109,7 +109,9 @@ test('actual imported singleton constructor preserves eligible progression bytes
   const selected = manager.members.filter(node => ts.isConstructorDeclaration(node) || (ts.isMethodDeclaration(node) && ['initializeBoards', 'loadBoardsState', 'saveBoardsState', 'ensureWorldInterimCards'].includes(node.name.getText(managerFile))));
   const actual = ts.transpileModule(`class Actual { ${selected.map(node => node.getText(managerFile)).join('\n')} }`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
   const render = jest.fn();
+  const registerNativeMemoryPressureOwner = jest.fn();
   const scope = { JOURNEY_MAX_BOARDS, JOURNEY_LAYOUT_STATE_VERSION, reconcileJourneyWorldInterims,
+    registerNativeMemoryPressureOwner,
     logger: { info: jest.fn(), warn: jest.fn(), debug: jest.fn() } };
   const Type = new Function('scope', `with(scope){${actual};return Actual;}`)(scope);
   Type.prototype.getBoardCardAsset = () => ({ path1x: '', path2x: '', rarity: 'common' });
@@ -124,5 +126,6 @@ test('actual imported singleton constructor preserves eligible progression bytes
   await expect(pending).resolves.toBe(true);
   expect(JSON.stringify(localStorage)).toBe(before);
   expect(render).not.toHaveBeenCalled();
+  expect(registerNativeMemoryPressureOwner).toHaveBeenCalledTimes(1);
   listener.mockRestore();
 });

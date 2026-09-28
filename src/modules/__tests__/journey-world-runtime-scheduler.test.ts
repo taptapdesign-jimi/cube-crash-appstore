@@ -164,3 +164,16 @@ describe('Journey World runtime scheduler', () => {
     expect(scheduler.getSnapshot().state).toBe('idle');
   });
 });
+
+ test('viewport owner receives repeated scrolls and retires with the World', () => {
+  const root = document.createElement('div');
+  const refresh = jest.fn();
+  const runtime = new JourneyWorldRuntimeScheduler(180, 180, refresh);
+  runtime.activate(2, root);
+  root.dispatchEvent(new Event('scroll'));
+  root.dispatchEvent(new Event('scroll'));
+  expect(refresh).toHaveBeenCalledTimes(2);
+  runtime.dispose();
+  root.dispatchEvent(new Event('scroll'));
+  expect(refresh).toHaveBeenCalledTimes(2);
+ });

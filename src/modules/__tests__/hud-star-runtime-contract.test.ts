@@ -11,10 +11,12 @@ describe('global HUD-star runtime contract', () => {
   test('shares one protected stage container and one lifecycle cadence lease', () => {
     expect(fxSource).toContain('stage?._ccHudStarFlightContainer');
     expect(fxSource).toContain('stage._ccHudStarFlightContainer = container');
-    expect(fxSource).toContain("acquirePixiMobileActivityLease('hud-star-flight')");
+    expect(fxSource).toContain("acquirePixiMobileActivityLease('hud-star-flight', 60)");
     expect(fxSource).toContain('container._activeJobCount');
     expect(fxSource).toContain('releaseHudStarAnimationJob(animationContainer)');
     expect(fxSource).toContain('releaseHudStarContainerCadence(container)');
+    expect(fxSource).toContain('if (!container._ccReleaseMobileActivity)');
+    expect(fxSource).toContain('(totalDuration + 0.08) * 1000');
     expect(starsCollectorSource).toContain("await import('./fx.ts')");
     expect(starsCollectorSource).not.toContain('function animateStarToHUD(');
   });

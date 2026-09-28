@@ -46,6 +46,20 @@ describe('gameplay stabilization ownership boundaries', () => {
     expect(startLevelBody.indexOf('clearAllAppAnimationFrames()')).toBeLessThan(startLevelBody.indexOf('await '));
   });
 
+  test('mobile 60fps work follows entry, regular merge and terminal handoff lifecycles', () => {
+    const entryCommit = appCore.indexOf('const sweetPopPromise = prepareGameplayEntryCommit(');
+    const entryLease = appCore.indexOf("acquirePixiMobileActivityLease('board-entry', 100)", entryCommit);
+    const entryReveal = appCore.indexOf('revealPreparedGameplaySurface();', entryCommit);
+    expect(entryLease).toBeGreaterThan(entryCommit);
+    expect(entryReveal).toBeGreaterThan(entryLease);
+    expect(appCore).toContain('sweetPopPromise.then(releaseBoardEntryFrames, releaseBoardEntryFrames)');
+    expect(appCore).toContain("acquirePixiMobileActivityLease('regular-merge-handoff')");
+    expect(appCore).toContain('regularMergeFrameLeaseReleases.get(token)');
+    expect(appCore).toContain("acquirePixiMobileActivityLease('clean-board-handoff')");
+    expect(appCore).toContain('releaseCleanBoardFrames();\n        suspendTerminalGameplay(ownsCleanBoardRun);');
+    expect(appCore).not.toContain('markPixiMobileActivity(7000)');
+  });
+
   test('stuck confirmation fails closed when its resolver throws', () => {
     const marker = 'Gameplay resolver failed during stuck confirmation; retrying safely';
     const markerIndex = appCore.indexOf(marker);

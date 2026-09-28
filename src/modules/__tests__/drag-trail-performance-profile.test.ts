@@ -1,4 +1,6 @@
 import { getDragTrailPerformanceProfile } from '../drag-trail-performance-profile';
+import fs from 'node:fs';
+import path from 'node:path';
 
 describe('drag trail performance profile', () => {
   test('keeps desktop trail quality unchanged', () => {
@@ -23,5 +25,13 @@ describe('drag trail performance profile', () => {
     expect(reduced.regularSpacingPx).toBeGreaterThan(normal.regularSpacingPx);
     expect(reduced.regularParticles.fast).toBeLessThan(normal.regularParticles.fast);
     expect(reduced.wildParticles.fast).toBeLessThan(normal.wildParticles.fast);
+  });
+
+  test('defers touch trail sorting to the Pixi paint instead of blocking pointer movement', () => {
+    const root = path.resolve(__dirname, '../../..');
+    const drag = fs.readFileSync(path.join(root, 'src/modules/drag-core.ts'), 'utf8');
+    const fx = fs.readFileSync(path.join(root, 'src/modules/fx.ts'), 'utf8');
+    expect(drag.match(/deferSort: touchMode/g)).toHaveLength(2);
+    expect(fx.match(/if \(opts\.deferSort !== true\)/g)?.length).toBeGreaterThanOrEqual(2);
   });
 });

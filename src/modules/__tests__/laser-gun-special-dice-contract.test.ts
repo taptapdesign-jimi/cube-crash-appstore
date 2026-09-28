@@ -259,7 +259,8 @@ describe('LaserGun special die contract', () => {
 
     expect(coreSource).toContain('!(t.rotG as any)._ccLaserGunImpactTl');
     expect(coreSource).toContain("'laser-gun-cube-impact',");
-    expect(coreSource).toContain('Math.ceil(laserGunImpactTimelineSeconds * 1000) + 100');
+    expect(coreSource).toContain("'laser-gun-cube-impact',\n\t            100,");
+    expect(coreSource).not.toContain('laserGunImpactTimelineSeconds');
     expect(coreSource).toContain('const impactScale = tile.scale');
     expect(coreSource).toContain('(impactVisual as any)._ccLaserGunImpactTl = anticipation');
     expect(coreSource).toContain('(tile as any)._ccLaserGunImpactTl = anticipation');

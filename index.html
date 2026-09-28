@@ -266,6 +266,13 @@
       lastByKey: Object.create(null),
       minAnyGapMs: 85,
       minSameGapMs: 160,
+      minSameGapByStyleMs: {
+        light: 220,
+        medium: 180,
+        heavy: 140,
+        notification: 260,
+        selection: 180
+      },
       minByStyleMs: {
         light: 120,
         medium: 95,
@@ -288,8 +295,10 @@
             : priority === 'notification'
               ? __ccHapticState.minByStyleMs.notification
               : __ccHapticState.minAnyGapMs;
+      const minSameGapMs = __ccHapticState.minSameGapByStyleMs[priority]
+        || __ccHapticState.minSameGapMs;
       if (now - lastAnyAt < minAnyGapMs) return false;
-      if (now - lastSameAt < __ccHapticState.minSameGapMs) return false;
+      if (now - lastSameAt < minSameGapMs) return false;
       __ccHapticState.lastAnyAt = now;
       __ccHapticState.lastByKey[key] = now;
       return true;

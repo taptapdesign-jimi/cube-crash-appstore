@@ -3,6 +3,14 @@ export type RendererPerformanceProfile = {
   powerPreference: 'low-power' | 'high-performance';
 };
 
+function getDiagnosticMobileResolutionCap(): number | null {
+  if (typeof window === 'undefined') return null;
+  return (window as Window & { __ccThermalPixiResolutionCap?: unknown })
+    .__ccThermalPixiResolutionCap === 1
+    ? 1
+    : null;
+}
+
 export function getRendererPerformanceProfile(
   rawDevicePixelRatio: number,
   isMobileRuntime: boolean,
@@ -12,8 +20,12 @@ export function getRendererPerformanceProfile(
     : 1;
 
   if (isMobileRuntime) {
+    const diagnosticResolutionCap = getDiagnosticMobileResolutionCap();
     return {
-      resolution: Math.min(1.5, safeDevicePixelRatio),
+      // The physical iPhone acceptance found the 1x Pixi board sharp while it
+      // avoided native serious through the complete Forest + Beach route.
+      // DOM HUD/text and authored sprite geometry keep their exact layout.
+      resolution: Math.min(diagnosticResolutionCap ?? 1, safeDevicePixelRatio),
       powerPreference: 'low-power',
     };
   }

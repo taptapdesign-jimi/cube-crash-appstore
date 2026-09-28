@@ -40,6 +40,8 @@ type ActiveVoice = {
   resolvedSource: string;
   source: AudioBufferSourceNode;
   gain: GainNode;
+  startedAtAudioSeconds: number;
+  expectedEndAudioSeconds: number | null;
   onStopped?: () => void;
 };
 
@@ -562,6 +564,9 @@ export function fadeOutDecodedGameplayVoice(voiceId: string, durationSeconds: nu
     voice.gain.gain.setValueAtTime(currentVolume, now);
     voice.gain.gain.linearRampToValueAtTime(0, now + duration);
     voice.source.stop(now + duration);
+    voice.expectedEndAudioSeconds = voice.source.loop
+      ? now + duration
+      : Math.min(now + duration, voice.expectedEndAudioSeconds ?? Infinity);
     return true;
   } catch {
     stopDecodedGameplayVoice(voiceId);
@@ -716,7 +721,14 @@ export function playDecodedGameplaySound(
 
     sourceNode.connect(gainNode);
     gainNode.connect(context.destination);
-    const voice = attemptedVoice = { resolvedSource, source: sourceNode, gain: gainNode, onStopped: options.onStopped };
+    const naturalEnd = options.loop === true ? null
+      : startAt + Math.max(0, buffer.duration - startOffsetSeconds) / playbackRate;
+    const voice = attemptedVoice = {
+      resolvedSource, source: sourceNode, gain: gainNode, onStopped: options.onStopped,
+      startedAtAudioSeconds: startAt,
+      expectedEndAudioSeconds: stopAt === null ? naturalEnd
+        : naturalEnd === null ? stopAt : Math.min(stopAt, naturalEnd),
+    };
     activeVoices.set(options.voiceId, voice);
     sourceNode.onended = () => {
       if (activeVoices.get(options.voiceId) === voice) activeVoices.delete(options.voiceId);
@@ -755,7 +767,7 @@ export function releaseIdleDecodedGameplayAudio(): void {
   trimDecodedCache(0);
 }
 
-export function getDecodedGameplayAudioStats() {
+export function getDecodedGameplayAudioStats(includeVoiceDetails = false) {
   const protectedKeys = protectedSources();
   const reservedLoop = getReservedMobileLoop(protectedKeys);
   let decodedBytes = 0;
@@ -786,6 +798,21 @@ export function getDecodedGameplayAudioStats() {
     pendingBuffers: pendingBuffers.size,
     failedBuffers: failedBuffers.size,
     activeVoices: activeVoices.size,
+    // Opt-in provenance only: retained JS owners are not proof of audible or
+    // CPU-active sources. Use the audio clock, never wall time while suspended.
+    ...(includeVoiceDetails ? {
+      audioClockSeconds: audioContext?.currentTime ?? null,
+      voiceDetails: Array.from(activeVoices, ([voiceId, voice]) => ({
+        voiceId,
+        source: voice.resolvedSource,
+        loop: voice.source.loop,
+        gain: voice.gain.gain.value,
+        startedAtAudioSeconds: voice.startedAtAudioSeconds,
+        expectedEndAudioSeconds: voice.expectedEndAudioSeconds,
+        overdueSeconds: voice.expectedEndAudioSeconds === null ? null
+          : Math.max(0, (audioContext?.currentTime ?? 0) - voice.expectedEndAudioSeconds),
+      })),
+    } : {}),
     pendingVoiceStarts: pendingVoiceStarts.size,
   };
 }

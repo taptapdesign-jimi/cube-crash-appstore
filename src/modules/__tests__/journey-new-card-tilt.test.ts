@@ -161,7 +161,8 @@ describe('Journey New Reward card tilt handoff', () => {
     expect(source).toMatch(/surface--interim[\s\S]*light--interim/);
     expect(source).toMatch(/surface--unlocked[\s\S]*light--unlocked/);
     expect(source).toContain('cc-journey-interim-shine-light');
-    expect(css).toMatch(/\.journey-interim-shine-light \{[\s\S]*?-webkit-mask-type: alpha;[\s\S]*?mask-mode: alpha;/);
+    expect(source).toMatch(/\.cc-journey-new-card-light \{[\s\S]*?-webkit-mask-type: alpha;[\s\S]*?mask-mode: alpha;/);
+    expect(css).not.toContain('.journey-interim-shine-light {');
     expect(source).not.toContain('clearLightMask(unlockedLight);\n              setLightFrameScale(unlockedLight, 0.95);');
   });
 

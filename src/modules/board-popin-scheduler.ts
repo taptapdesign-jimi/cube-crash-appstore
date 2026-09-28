@@ -8,10 +8,10 @@ export type BoardPopInStep = {
   endTime: number;
 };
 
-/** Six compact group beats across the actual random entry wave. */
+/** Four compact group beats across the actual random entry wave. */
 export function createBoardPopInHapticSchedule(
   plan: ReadonlyArray<BoardPopInStep>,
-  requestedPulseCount = 6,
+  requestedPulseCount = 4,
 ): number[] {
   if (!plan.length) return [];
   const pulseCount = Math.min(Math.max(1, Math.floor(requestedPulseCount)), plan.length);

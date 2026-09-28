@@ -19,6 +19,7 @@ import { appZoneManager } from './app-zone-manager.ts';
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.ts';
 import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildJuiceMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, showMultiplierTile, smokeBubblesAtTile, prewarmWildSmokeGraphicsPool, screenShake, wildImpactEffect, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildJuiceBubbles, stopWildJuiceBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, cleanupAllTntIdleEffects, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, cleanupAllFxContainers, cleanupFxContainersByTag, cleanupExistingStarAnimations, forceCleanupAllStarAnimations, animateStarsToHudIcon } from './fx.ts';
+import { TNT_MERGE_LIGHT_HAPTIC_DELAYS_MS, shouldPlayTntBonusImpactHaptic } from './special-merge-haptic-policy.ts';
 import { showWildJuiceBubblesExplosion, stopWildJuiceBubblesExplosion, forceStopWildJuiceBubblesExplosion, isWildJuiceBubblesExplosionActive, isWildJuiceBubblesExplosionRecentlyStarted, isWildJuiceFinaleAnimationActive, waitForBubblesExplosionToComplete, destroyWildJuiceBubblesExplosionCache } from './wild-juice-bubbles-explosion.ts';
 import { preloadFishFinaleBubbles } from './fish-finale-bubbles.ts';
 import { preloadJuiceFinalePropTextures } from './juice-finale-prop-flight.ts';
@@ -154,7 +155,6 @@ import { createSweetPopInRunner } from './app-core-popin-runner.ts';
 import { isBoardFxReduced, startBoardFrameBudgetMonitor, stopBoardFrameBudgetMonitor } from './board-frame-budget.ts';
 import {
   acquirePixiMobileActivityLease,
-  markPixiMobileActivity,
   startPixiMobileFrameController,
   stopPixiMobileFrameController,
 } from './pixi-mobile-frame-controller.js';
@@ -988,6 +988,7 @@ const specialDiceTransactionOwner = new SpecialDiceTransactionOwner();
 let regularMergeHandoffSequence = 0;
 const regularMergeHandoffTokens = new Set<number>();
 const regularMergeHandoffFinalizers = new Map<number, () => void>();
+const regularMergeFrameLeaseReleases = new Map<number, () => void>();
 let noMovesFailFlowSequence = 0;
 let activeNoMovesFailFlowToken: number | null = null;
 let activeNoMovesInputLockToken: number | null = null;
@@ -1210,6 +1211,10 @@ function resetTransientRunGuards(reason: string = 'unknown'): void {
   wildSpawnCancelToken++;
   resetMerge6SpawnState(`transient-guards:${reason}`, { force: true });
   specialDiceTransactionOwner.reset();
+  regularMergeFrameLeaseReleases.forEach((release) => {
+    try { release(); } catch {}
+  });
+  regularMergeFrameLeaseReleases.clear();
   regularMergeHandoffTokens.clear();
   regularMergeHandoffFinalizers.clear();
   activeNoMovesFailFlowToken = null;
@@ -1580,7 +1585,6 @@ async function triggerCleanBoardFlow(
   reason: string,
   options: CleanBoardFlowOptions = {},
 ): Promise<void> {
-  markPixiMobileActivity(7000);
   logger.info('🚨🚨🚨 triggerCleanBoardFlow invoked', 'app-core', { reason });
   const cleanBoardRunAbortToken = Number((window as any).__ccEndgameFlowAbortToken || 0);
   const cleanBoardRunGeneration = gameplayRunGeneration;
@@ -1630,6 +1634,11 @@ async function triggerCleanBoardFlow(
     return;
   }
   busyEnding = true;
+  let releaseCleanBoardFrameLease = acquirePixiMobileActivityLease('clean-board-handoff');
+  const releaseCleanBoardFrames = () => {
+    releaseCleanBoardFrameLease();
+    releaseCleanBoardFrameLease = () => {};
+  };
   cancelPendingWildContinuation(`clean-board-flow:${reason}`);
 
   const terminalFinalMergeReason = shouldRunCleanBoardVisualHandoff(reason);
@@ -1641,7 +1650,10 @@ async function triggerCleanBoardFlow(
       await prepareFinalMergeVisualHandoff(reason, `trigger-clean-board:${reason}`, {
         finalMergeSnapshot: options.finalMergeSnapshot,
       });
-      if (!ownsCleanBoardRun()) return;
+      if (!ownsCleanBoardRun()) {
+        releaseCleanBoardFrames();
+        return;
+      }
       finalHandoffPrepared = true;
     } catch (handoffError) {
       devWarn('⚠️ triggerCleanBoardFlow final merge visual handoff failed:', handoffError);
@@ -1656,14 +1668,20 @@ async function triggerCleanBoardFlow(
           `trigger-clean-board:${reason}`
         );
       }
-      if (!ownsCleanBoardRun()) return;
+      if (!ownsCleanBoardRun()) {
+        releaseCleanBoardFrames();
+        return;
+      }
       finalHandoffPrepared = true;
     } catch (handoffError) {
       devWarn('⚠️ triggerCleanBoardFlow arcade final merge handoff failed:', handoffError);
     }
   }
 
-  if (!ownsCleanBoardRun()) return;
+  if (!ownsCleanBoardRun()) {
+    releaseCleanBoardFrames();
+    return;
+  }
   try { hideTerminalLockedArtifacts(`triggerCleanBoardFlow:${reason}`); } catch {}
 
   if (!finalHandoffPrepared) {
@@ -1687,7 +1705,10 @@ async function triggerCleanBoardFlow(
   } else {
     logger.debug('⏭️ triggerCleanBoardFlow: final merge handoff already settled, skipping duplicate wait', 'app-core', { reason });
   }
-  if (!ownsCleanBoardRun()) return;
+  if (!ownsCleanBoardRun()) {
+    releaseCleanBoardFrames();
+    return;
+  }
   // Keep the completed marker through the completion/modal handoff. A generic
   // board-exit callback must not resurrect and animate the already-retired
   // ghost layer. startLevel/resetTransientEndgameRuntimeState owns the reset.
@@ -1703,6 +1724,7 @@ async function triggerCleanBoardFlow(
     delete (window as any).__skipCleanBoardOnce;
     try { setFinalMergeVisualSuppression(false); } catch {}
     busyEnding = false;
+    releaseCleanBoardFrames();
     return;
   }
 
@@ -1759,7 +1781,10 @@ async function triggerCleanBoardFlow(
       finalMergeCompleted: terminalFinalMergeReason,
       abortToken: cleanBoardRunAbortToken,
       isRunCurrent: ownsCleanBoardRun,
-      suspendForTerminal: () => suspendTerminalGameplay(ownsCleanBoardRun),
+      suspendForTerminal: () => {
+        releaseCleanBoardFrames();
+        suspendTerminalGameplay(ownsCleanBoardRun);
+      },
       hideGrid: () => {
         if (!ownsCleanBoardRun()) return;
         try {
@@ -1801,6 +1826,7 @@ async function triggerCleanBoardFlow(
       logger.warn('⚠️ Failed to clear pending clean board flag:', 'app-core', e);
     }
   } finally {
+    releaseCleanBoardFrames();
     if (ownsCleanBoardRun()) {
       try { setFinalMergeVisualSuppression(false); } catch {}
       busyEnding = false;
@@ -3319,6 +3345,10 @@ function getWildSpawnAnimationBlockReason(): string | null {
 function beginRegularMergeHandoff(): number {
   const token = ++regularMergeHandoffSequence;
   regularMergeHandoffTokens.add(token);
+  regularMergeFrameLeaseReleases.set(
+    token,
+    acquirePixiMobileActivityLease('regular-merge-handoff'),
+  );
   lastEndgameBoardMutationAt = Date.now();
   // Navigation/interruption normally clears the whole token set. This bounded
   // fallback must finalize the accepted board mutation before it can release
@@ -3343,6 +3373,9 @@ function registerRegularMergeHandoffFinalizer(token: number | null, finalize: ()
 
 function releaseRegularMergeHandoff(token: number | null, reason: string): void {
   if (token === null || !regularMergeHandoffTokens.delete(token)) return;
+  const releaseFrameLease = regularMergeFrameLeaseReleases.get(token);
+  regularMergeFrameLeaseReleases.delete(token);
+  try { releaseFrameLease?.(); } catch {}
   regularMergeHandoffFinalizers.delete(token);
   lastEndgameBoardMutationAt = Date.now();
   queueWildSpawnAfterGuardRelease(`regular-merge-handoff:${reason}`);
@@ -6269,6 +6302,13 @@ function rebuildBoard(){
     gsap, app,
     isCurrent: () => !coreTextureNeedsFullRecovery && stage === entryStage && isGameplayEntryGenerationLatest(gameplayEntryGeneration),
   });
+  // Preparation can await texture recovery while the gameplay surface remains
+  // hidden. Start active cadence only for the visible commit/pop-in lifecycle.
+  let releaseBoardEntryFrameLease = () => {};
+  const releaseBoardEntryFrames = () => {
+    releaseBoardEntryFrameLease();
+    releaseBoardEntryFrameLease = () => {};
+  };
   const sweetPopPromise = prepareGameplayEntryCommit(
     gameplayEntryGeneration,
     async (signal) => {
@@ -6297,6 +6337,7 @@ function rebuildBoard(){
         onCommitted: () => clearPendingArcadeRoundIfCovered(entryBoardNumber),
         devLog,
       });
+      releaseBoardEntryFrameLease = acquirePixiMobileActivityLease('board-entry', 100);
       revealPreparedGameplaySurface();
       playJourneyForestGameplaySound({
         boardNumber,
@@ -6310,6 +6351,7 @@ function rebuildBoard(){
     },
   );
   
+  sweetPopPromise.then(releaseBoardEntryFrames, releaseBoardEntryFrames);
   sweetPopPromise.then(() => {
     if (!isGameplayEntryGenerationLatest(gameplayEntryGeneration)
       || gameplayEntrySignal?.aborted || stage !== entryStage || entryStage?.destroyed) return;
@@ -7387,6 +7429,11 @@ async function spawnWildFromMeter(){
           });
         }
       }
+      if (spawnTnt && !tntFramesWarmup) {
+        tntFramesWarmup = preloadTntFrames().catch((error) => {
+          devWarn('⚠️ Core TNT frame warmup failed; merge-time preload will retry:', error);
+        });
+      }
       let wildAssetPath = spawnTnt
         ? ASSET_WILD_TNT
         : spawnJuice
@@ -7450,6 +7497,7 @@ async function spawnWildFromMeter(){
             applyWildSkinLocal(spawnedTile);
           } catch {}
         }
+        let specialFinaleWarmup: Promise<void> | null = null;
         if (spawnedTile && !spawnedTile.destroyed) {
           // Warm only the committed die while its drop animation is running.
           // Pool-wide entry warmup exceeded the mobile decode budget and
@@ -7458,7 +7506,18 @@ async function spawnWildFromMeter(){
             preloadEligibleSpecialSounds({ boardNumber, isArcade: isArcadeHomeRunMode(), tiles: [spawnedTile] });
           });
           const dropEntryGeneration = activeGameplayEntryGeneration;
-          void preloadLiveJuiceFinaleTextures([spawnedTile], () => !document.hidden && !spawnedTile.destroyed && isGameplayEntryGenerationLatest(dropEntryGeneration));
+          const textureWarmup = preloadLiveJuiceFinaleTextures(
+            [spawnedTile],
+            () => !document.hidden && !spawnedTile.destroyed
+              && isGameplayEntryGenerationLatest(dropEntryGeneration),
+          );
+          specialFinaleWarmup = Promise.all([
+            tntFramesWarmup ?? Promise.resolve(),
+            textureWarmup,
+          ]).then(() => undefined).catch((error) => {
+            devWarn('⚠️ Special finale warmup failed; merge-time readiness will retry:', error);
+          });
+          (spawnedTile as any)._ccSpecialFinaleWarmupPending = true;
         }
         consumeCharge();
         spawned = true;
@@ -7542,8 +7601,12 @@ async function spawnWildFromMeter(){
             }
           } catch {}
         } finally {
+          if (spawnedTile && !spawnedTile.destroyed && !isSpawnCancelled() && specialFinaleWarmup) {
+            await specialFinaleWarmup;
+          }
           try {
             if (spawnedTile && !spawnedTile.destroyed) {
+              delete (spawnedTile as any)._ccSpecialFinaleWarmupPending;
               if (isSpawnCancelled()) {
                 try {
                   if (grid?.[cell.r]?.[cell.c] === spawnedTile) grid[cell.r][cell.c] = null;
@@ -9523,24 +9586,15 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // Main wild merge impact must fire immediately on merge-6.
         (window as any).triggerHapticImpact('heavy');
 
-        // Wild-TNT merge-6 pattern:
-        // immediate main impact -> delay 400ms -> 5x @150ms -> pause 2000ms -> 4x @100ms
+        // One immediate main impact plus two spaced light beats. The visual,
+        // audio and gameplay sequence stays complete without nine actuator
+        // restarts fighting the finale's frame budget.
         const triggerImpact = () => {
           try { (window as any).triggerHapticImpact?.('light'); } catch {}
         };
-        const startDelayMs = 400;
-        const wave1Count = 5;
-        const wave1IntervalMs = 150;
-        const wave2PauseMs = 500;
-        const wave2Count = 4;
-        const wave2IntervalMs = 100;
-        for (let i = 0; i < wave1Count; i++) {
-          trackAppTimeout(triggerImpact, startDelayMs + i * wave1IntervalMs);
-        }
-        const wave2StartMs = startDelayMs + (wave1Count * wave1IntervalMs) + wave2PauseMs;
-        for (let i = 0; i < wave2Count; i++) {
-          trackAppTimeout(triggerImpact, wave2StartMs + i * wave2IntervalMs);
-        }
+        TNT_MERGE_LIGHT_HAPTIC_DELAYS_MS.forEach((delayMs) => {
+          trackAppTimeout(triggerImpact, delayMs);
+        });
       } else if (wildActive) {
         // Other wild merge 6 = Double HEAVY for longer feel
         (window as any).triggerHapticImpact('heavy');
@@ -11054,7 +11108,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               markTileBoardBlastDisplacing(tile, origX, origY);
               try { gsap.killTweensOf(tile); } catch {}
               gsap.set(tile, { x: origX, y: origY, zIndex: 320 });
-              try { board?.sortChildren?.(); } catch {}
               const timeline = trackTimeline({
                 onComplete: () => {
                   if (!options.holdForExternalReturn) finishBlastTile();
@@ -11094,6 +11147,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               }
               blastCount += 1;
             });
+            // Every target has its temporary z-index now. Sorting once avoids
+            // repeatedly reordering the complete board during the same merge.
+            if (blastCount > 0) {
+              try { board?.sortChildren?.(); } catch {}
+            }
 
             devLog(`✨ ${label} merge 6 - Cubero-profile tile blast started`, {
               blastCount,
@@ -15116,7 +15174,10 @@ function runTntBoomBonusBreak2Tiles(deps: {
 		            addWildProgress(bonusProgressPerImpact);
 		          }, Math.round((0.4 + (i - 2) * 0.1) * 1000));
 	        }
-        if (typeof (window as any).triggerHapticImpact === 'function') {
+        if (
+          shouldPlayTntBonusImpactHaptic(i, toBreak.length)
+          && typeof (window as any).triggerHapticImpact === 'function'
+        ) {
           (window as any).triggerHapticImpact('heavy');
         }
 	        // Shards + smoke appear at the actual impact boundary. LaserGun emits
@@ -15244,15 +15305,9 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	            if (!tile || tile.destroyed) return;
 	            tile.scale?.set?.(1, 1);
 	          };
-	          const laserGunImpactTimelineSeconds = (
-	            LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS
-	            + LASERGUN_CUBE_CONTRACT_SECONDS
-	            + LASERGUN_CUBE_REBOUND_SECONDS
-	            + LASERGUN_CUBE_SETTLE_SECONDS
-	          );
 	          let releaseFrameLease = acquirePixiMobileActivityLease(
 	            'laser-gun-cube-impact',
-	            Math.ceil(laserGunImpactTimelineSeconds * 1000) + 100,
+	            100,
 	          );
 	          const releaseImpactFrameLease = () => {
 	            releaseFrameLease();

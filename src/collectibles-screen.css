@@ -2313,6 +2313,30 @@
   animation: ccJourneyInterimCardGlowPulse var(--cc-journey-interim-glow-duration, 500ms) ease-out;
 }
 
+/* World interim only: one finite warm burn under the face-local glow. The
+   cancellable JS owner removes this class offscreen and on World teardown. */
+.journey-board-card.interim.cc-journey-interim-burn-pulse::before {
+  content: "";
+  position: absolute;
+  top: -8%;
+  bottom: -8%;
+  left: -62%;
+  width: 72%;
+  z-index: 1;
+  border-radius: 48%;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at 50% 48%,
+    rgba(255, 255, 238, 0.98) 0%,
+    rgba(255, 235, 142, 0.86) 18%,
+    rgba(255, 184, 76, 0.56) 43%,
+    rgba(225, 104, 55, 0.20) 68%,
+    rgba(225, 104, 55, 0) 88%
+  );
+  mix-blend-mode: screen;
+  animation: ccJourneyInterimCardBurnPulse var(--cc-journey-interim-glow-duration, 500ms) ease-in-out;
+}
+
 @keyframes ccJourneyInterimCardShimmer {
   0% { transform: translateX(-160%) skewX(-12deg); opacity: 0; }
   1% { transform: translateX(-158%) skewX(-12deg); opacity: 0.125; }
@@ -2327,9 +2351,17 @@
 }
 
 @keyframes ccJourneyInterimCardGlowPulse {
-  0% { filter: brightness(1); }
-  50% { filter: brightness(1.22) saturate(1.06); }
-  100% { filter: brightness(1.04); }
+  0% { filter: brightness(1) saturate(1); }
+  56% { filter: brightness(1.312) saturate(1.156) sepia(0.065); }
+  100% { filter: brightness(1) saturate(1); }
+}
+
+@keyframes ccJourneyInterimCardBurnPulse {
+  0% { opacity: 0; transform: translate3d(0, -50%, 0) rotate(45deg) scale(0.94); }
+  18% { opacity: 0.32; }
+  52% { opacity: 0.611; }
+  82% { opacity: 0.26; }
+  100% { opacity: 0; transform: translate3d(225%, 50%, 0) rotate(45deg) scale(1.04); }
 }
 
 /* Existing unlocked Journey cards retain their separate, one-shot sweep. */
@@ -3126,11 +3158,12 @@
   background: transparent;
   border: none !important;
   outline: none !important;
-  /* 🔥 v102 approach: box-shadow for base shadow (glow animates filter separately) - GLOW WORKS */
-  box-shadow: 0 12px 13px var(--collectibles-card-shadow) !important; /* Base shadow */
+  /* The face owns burn/glow; no shadow around the moving card. */
+  box-shadow: none !important;
+  filter: none !important;
   overflow: hidden !important; /* 🔥 CRITICAL: Clip shimmer effect to card boundaries */
   position: relative; /* 🔥 CRITICAL: Required for ::after positioning */
-  transition: filter 0.3s ease-out; /* For glow pulse animation */
+  transition: none; /* Face-local glow keeps its own finite animation. */
   /* 🔥 FIX: Ensure card exactly matches wrapper dimensions */
   width: 100% !important;
   height: 100% !important;
@@ -3144,31 +3177,7 @@
   contain: layout style;
 }
 
-/* The World interim uses the same alpha-masked light owner as New Reward.
-   Its nested face/light transform is independent from the card bounce owner. */
-.journey-interim-shine-light {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  border-radius: 12px;
-  overflow: hidden;
-  pointer-events: none;
-  opacity: 0.92;
-  transform-origin: 50% 50%;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-type: alpha;
-  mask-mode: alpha;
-  -webkit-mask-position: center;
-  mask-position: center;
-  -webkit-mask-size: contain;
-  mask-size: contain;
-}
-
-#journey-boards-container.journey-world-runtime-paint-suspended .journey-interim-shine-light::after,
-#journey-boards-container.journey-world-runtime-paint-suspended .cc-journey-interim-shine-face {
-  animation-play-state: paused !important;
-}
+/* Interim pulse suspension belongs to its viewport-aware JS controller. */
 
 /* 🔥 USER REQUEST: Ensure shimmer is visible on interim cards */
 /* 🔥 USER REQUEST: Duplicate .journey-board-card.interim::after removed - styles are in definition above */

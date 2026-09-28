@@ -1,6 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { shouldRenderJourneySettledIdleFrame } from '../journey-world-animation-coordinator.js';
+import {
+  isJourneyWorldUnitNearViewport,
+  shouldRenderJourneySettledIdleFrame,
+} from '../journey-world-animation-coordinator.js';
 
 const root = path.resolve(__dirname, '../../..');
 
@@ -15,12 +18,14 @@ describe('Journey mobile idle runtime', () => {
     expect(shouldRenderJourneySettledIdleFrame(10.001, 10, 0)).toBe(true);
   });
 
-  it('keeps enter idle at full cadence and culls only resolved offscreen Units', () => {
+  it('starts settled idle after enter and culls resolved offscreen Units', () => {
     const source = fs.readFileSync(
       path.join(root, 'src/modules/journey-world-animation-coordinator.ts'),
       'utf8',
     );
     expect(source).toContain("this.phase === 'idle'");
+    expect(source).toContain('this.startIdle(liveUnits, reducedMotion, 0, enteringUnitSet)');
+    expect(source).not.toContain('this.startIdle([unit], reducedMotion, index)');
     expect(source).toContain('this.runtimeProfile.settledIdleMaxFramesPerSecond');
     expect(source).toContain('entry.visibilityResolved && entry.visibleTargets.size === 0');
     expect(source).toContain("rootMargin: '160px 0px'");
@@ -28,6 +33,50 @@ describe('Journey mobile idle runtime', () => {
     expect(source).toContain("x: gsap.quickSetter(cloud, 'x', 'px')");
     expect(source).not.toContain("y: gsap.quickSetter(cloud, 'y', 'px')");
     expect(source).not.toContain('setters.y(');
+  });
+
+  it('admits only measurable Units near the initial viewport and fails open without geometry', () => {
+    const scrollRoot = document.createElement('div');
+    const near = document.createElement('div');
+    const far = document.createElement('div');
+    const unmeasured = document.createElement('div');
+    scrollRoot.getBoundingClientRect = () => ({
+      top: 0,
+      bottom: 800,
+      left: 0,
+      right: 390,
+      width: 390,
+      height: 800,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    near.getBoundingClientRect = () => ({
+      top: 760,
+      bottom: 900,
+      left: 0,
+      right: 200,
+      width: 200,
+      height: 140,
+      x: 0,
+      y: 760,
+      toJSON: () => ({}),
+    });
+    far.getBoundingClientRect = () => ({
+      top: 1800,
+      bottom: 1940,
+      left: 0,
+      right: 200,
+      width: 200,
+      height: 140,
+      x: 0,
+      y: 1800,
+      toJSON: () => ({}),
+    });
+
+    expect(isJourneyWorldUnitNearViewport({ id: 'near', targets: [near], clouds: [] }, scrollRoot)).toBe(true);
+    expect(isJourneyWorldUnitNearViewport({ id: 'far', targets: [far], clouds: [] }, scrollRoot)).toBe(false);
+    expect(isJourneyWorldUnitNearViewport({ id: 'unknown', targets: [unmeasured], clouds: [] }, scrollRoot)).toBe(true);
   });
 
   it('keeps the legacy active-Unit resume path inside the same mobile budget', () => {
@@ -75,7 +124,8 @@ describe('Journey mobile idle runtime', () => {
       'utf8',
     );
 
-    expect(managerSource).toContain('this.isJourneyElementNearRuntimeViewport(cardWrapper)');
+    expect(managerSource).toContain('this.isJourneyElementInRuntimeViewport(cardWrapper)');
+    expect(managerSource).toContain('target.getBoundingClientRect(), viewportRect, 0');
     expect(managerSource).toContain('this.interimShineController?.pause()');
     expect(coordinatorSource).toContain('JOURNEY_WORLD_IDLE_ACTIVE_CLASS');
     expect(coordinatorSource).toContain("rootMargin: '160px 0px'");

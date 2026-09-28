@@ -122,7 +122,7 @@ export interface CleanBoardModalResult {
 
 // 🔥 REFACTORED: Koristimo pickRandom iz clean-board-utils.ts umjesto lokalne verzije
 
-const CLEAN_BOARD_COUNTER_HAPTIC_INTERVAL_MS = 65;
+const CLEAN_BOARD_COUNTER_HAPTIC_INTERVAL_MS = 220;
 
 function triggerHapticImpactSafe(kind: 'light' | 'medium' | 'heavy'): void {
   try {
@@ -736,9 +736,9 @@ export async function showCleanBoardModal({
     // All animations handled by CSS classes in style.css
     const buttonStaggerMs = 350; // Delay between Play Again and Exit button appearance
     let cleanBoardStarAppearHapticPlayed = false;
-    const triggerMainScoreCounterHaptic = createCounterLightHapticTrigger();
-    const triggerComboCounterHaptic = createCounterLightHapticTrigger();
-    const triggerEfficiencyCounterHaptic = createCounterLightHapticTrigger();
+    // One shared cadence owns every score phase. Separate clocks could each
+    // restart the actuator while the previous score phase was still settling.
+    const triggerScoreCounterHaptic = createCounterLightHapticTrigger();
     const starHarpOrder = createCleanBoardStarHarpOrder();
 
     // Set button to hidden state (before animation)
@@ -927,7 +927,7 @@ export async function showCleanBoardModal({
             const rounded = Math.round(scoreProxy.value);
             const formatted = formatScoreSimple(rounded);
             mainScore.textContent = formatted;
-            triggerMainScoreCounterHaptic(rounded);
+            triggerScoreCounterHaptic(rounded);
           },
           onComplete: () => {
             mainScore.textContent = formatScoreSimple(targetScore);
@@ -961,7 +961,7 @@ export async function showCleanBoardModal({
           onUpdate: () => {
             const rounded = Math.round(comboProxy.value);
             comboValue.textContent = `+${formatScoreSimple(rounded)}`;
-            triggerComboCounterHaptic(rounded);
+            triggerScoreCounterHaptic(rounded);
           },
           onComplete: () => {
             comboValue.textContent = '+0';
@@ -994,7 +994,7 @@ export async function showCleanBoardModal({
           onUpdate: () => {
             const rounded = Math.round(efficiencyProxy.value);
             efficiencyValue.textContent = `+${formatScoreSimple(rounded)}`;
-            triggerEfficiencyCounterHaptic(rounded);
+            triggerScoreCounterHaptic(rounded);
           },
           onComplete: () => {
             efficiencyValue.textContent = '+0';

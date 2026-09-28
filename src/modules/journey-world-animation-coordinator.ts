@@ -59,7 +59,30 @@ interface JourneyWorldIdleEntry {
 
 const FRAME_INTERVAL_TOLERANCE_MS = 1;
 const IDLE_RESUME_POSE_BLEND_SECONDS = 0.52;
+const ENTER_VIEWPORT_MARGIN_PX = 220;
 export const JOURNEY_WORLD_IDLE_ACTIVE_CLASS = 'journey-world-idle-active';
+
+export function isJourneyWorldUnitNearViewport(
+  unit: JourneyWorldAnimationUnit,
+  scrollRoot: HTMLElement | null,
+): boolean {
+  const viewportRect = scrollRoot?.getBoundingClientRect();
+  const viewportTop = viewportRect && viewportRect.height > 0 ? viewportRect.top : 0;
+  const viewportBottom = viewportRect && viewportRect.height > 0
+    ? viewportRect.bottom
+    : Math.max(1, window.innerHeight || document.documentElement.clientHeight || 1);
+  let hasMeasurableTarget = false;
+  const intersects = unit.targets.some((target) => {
+    const rect = target.getBoundingClientRect();
+    if (rect.width <= 0 && rect.height <= 0) return false;
+    hasMeasurableTarget = true;
+    return rect.bottom >= viewportTop - ENTER_VIEWPORT_MARGIN_PX
+      && rect.top <= viewportBottom + ENTER_VIEWPORT_MARGIN_PX;
+  });
+  // A detached/test DOM with no measurable geometry must keep the historical
+  // full-enter behavior. Production admission is used only with real boxes.
+  return intersects || !hasMeasurableTarget;
+}
 
 /** Read the transform that the browser actually painted. GSAP's cached x/y can
  * be stale after a lifecycle owner restores an authored transform string
@@ -213,6 +236,16 @@ export class JourneyWorldAnimationCoordinator {
     this.phase = 'entering';
     const motion = getJourneyV700MotionProfile(reducedMotion);
     const liveClouds = Array.from(new Set(liveUnits.flatMap((unit) => unit.clouds)));
+    const canUseViewportAdmission = !reducedMotion
+      && typeof window.IntersectionObserver === 'function';
+    const scrollRoot = liveUnits[0]?.targets[0]?.closest<HTMLElement>('.collectibles-scrollable') ?? null;
+    let enteringUnits = canUseViewportAdmission
+      ? liveUnits.filter((unit) => isJourneyWorldUnitNearViewport(unit, scrollRoot))
+      : liveUnits;
+    // Never turn a malformed viewport measurement into an empty visible enter.
+    if (enteringUnits.length === 0) enteringUnits = liveUnits.slice(0, 1);
+    const enteringUnitSet = new Set(enteringUnits);
+    const settledOffscreenUnits = liveUnits.filter((unit) => !enteringUnitSet.has(unit));
 
     // Idle cloud drift owns GSAP x while the World is settled. An interrupted
     // or completed exit can leave that last horizontal value inline. Reset it
@@ -221,6 +254,19 @@ export class JourneyWorldAnimationCoordinator {
     if (liveClouds.length) {
       gsap.set(liveClouds, { x: 0, overwrite: true });
     }
+    // Units outside the initial viewport cannot be seen during this cascade.
+    // Settle them before the visible frame instead of animating dozens of
+    // large transparent PNG layers offscreen. IntersectionObserver admits
+    // their idle work later when the player scrolls near them.
+    settledOffscreenUnits.forEach((unit) => {
+      gsap.killTweensOf(unit.targets);
+      unit.targets.forEach((target) => this.finalizeEnterTarget(target));
+    });
+    emitIOSNativeDiagnostic('world-enter-viewport-admission', {
+      totalUnits: liveUnits.length,
+      animatedUnits: enteringUnits.length,
+      settledOffscreenUnits: settledOffscreenUnits.length,
+    });
 
     await new Promise<void>((resolve) => {
       const timeline = gsap.timeline({
@@ -232,7 +278,7 @@ export class JourneyWorldAnimationCoordinator {
       });
       this.activeTimeline = timeline;
 
-      const enterOffsets = liveUnits.map((unit, index) => Number.isFinite(unit.enterDelayOffset)
+      const enterOffsets = enteringUnits.map((unit, index) => Number.isFinite(unit.enterDelayOffset)
         ? Number(unit.enterDelayOffset)
         : getJourneyV700EnterOffset(unit.id, index, reducedMotion));
       // Remove only the empty lead-in after a completed result exit. Keep every
@@ -240,7 +286,7 @@ export class JourneyWorldAnimationCoordinator {
       const enterLead = options.immediateFirstUnit
         ? -Math.min(...enterOffsets)
         : motion.enter.baseDelay;
-      liveUnits.forEach((unit, index) => {
+      enteringUnits.forEach((unit, index) => {
         if (!options.targetsPrimed) {
           gsap.killTweensOf(unit.targets);
           unit.targets.forEach((target) => {
@@ -291,10 +337,6 @@ export class JourneyWorldAnimationCoordinator {
         tween.eventCallback('onComplete', () => {
           if (generation !== this.generation || this.phase !== 'entering') return;
           unit.targets.forEach((target) => this.finalizeEnterTarget(target));
-          // Each Unit becomes alive as soon as its own enter settles. Its idle
-          // never competes with that Unit's enter transform, and later Units
-          // do not hold the already-visible scene motion hostage.
-          this.startIdle([unit], reducedMotion, index);
         });
         timeline.add(tween, enterLead + irregularOffset);
       });
@@ -302,6 +344,10 @@ export class JourneyWorldAnimationCoordinator {
 
     if (generation !== this.generation || this.phase !== 'entering') return;
     this.phase = 'idle';
+    // Start the shared settled motion immediately after the complete cascade.
+    // Painting earlier Units while later Units are still entering makes their
+    // large PNG transforms compete in the same iOS compositor frames.
+    this.startIdle(liveUnits, reducedMotion, 0, enteringUnitSet);
   }
 
   public async exit(units: JourneyWorldAnimationUnit[], reducedMotion: boolean): Promise<void> {
@@ -528,6 +574,7 @@ export class JourneyWorldAnimationCoordinator {
     units: JourneyWorldAnimationUnit[],
     reducedMotion: boolean,
     unitIndexOffset = 0,
+    initiallyVisibleUnits?: ReadonlySet<JourneyWorldAnimationUnit>,
   ): void {
     if (reducedMotion) return;
 
@@ -551,6 +598,8 @@ export class JourneyWorldAnimationCoordinator {
           ? Array.from(target.querySelectorAll<HTMLElement>('.journey-forest-cloud-art'))
           : [target]
       ))));
+      const initialVisibilityResolved = initiallyVisibleUnits !== undefined;
+      const initiallyVisible = !initialVisibilityResolved || initiallyVisibleUnits.has(unit);
       const entry: JourneyWorldIdleEntry = {
         startTime,
         speed,
@@ -565,10 +614,10 @@ export class JourneyWorldAnimationCoordinator {
         // Treat every target as potentially visible until its own observer
         // record arrives. Partial initial observer batches therefore cannot
         // incorrectly suppress a Unit that is already on screen.
-        visibleTargets: new Set(visibilityTargets),
+        visibleTargets: new Set(initiallyVisible ? visibilityTargets : []),
         // Until IntersectionObserver delivers its first batch, preserve the
         // previous visible behavior. This avoids a blank/snap frame on enter.
-        visibilityResolved: false,
+        visibilityResolved: initialVisibilityResolved,
       };
       this.idleEntries.push(entry);
       this.refreshIdleEntryRuntimeActive(entry);
@@ -580,19 +629,18 @@ export class JourneyWorldAnimationCoordinator {
       return;
     }
     this.idleTicker = () => {
-      if (this.phase !== 'entering' && this.phase !== 'idle') return;
-      if (this.phase === 'idle' && isThermalWorkSuppressed('journey-units')) return;
+      if (this.phase !== 'idle') return;
+      if (isThermalWorkSuppressed('journey-units')) return;
       if (this.idlePaintSuspendedAt !== null) return;
       const now = gsap.ticker.time;
       if (
-        this.phase === 'idle'
-        && !shouldRenderJourneySettledIdleFrame(
+        !shouldRenderJourneySettledIdleFrame(
           now,
           this.lastSettledIdlePaintAt,
           this.runtimeProfile.settledIdleMaxFramesPerSecond,
         )
       ) return;
-      if (this.phase === 'idle') this.lastSettledIdlePaintAt = now;
+      this.lastSettledIdlePaintAt = now;
       this.idleEntries.forEach((entry) => {
         if (entry.visibilityResolved && entry.visibleTargets.size === 0) return;
         const elapsed = now - entry.startTime;
@@ -629,7 +677,7 @@ export class JourneyWorldAnimationCoordinator {
   private refreshIdleTickerAttachment(): void {
     if (!this.idleTicker) return;
     const needed = this.idlePaintSuspendedAt === null
-      && (this.phase === 'entering' || this.phase === 'idle')
+      && this.phase === 'idle'
       && this.idleEntries.some((entry) => !entry.visibilityResolved || entry.visibleTargets.size > 0);
     if (needed === this.idleTickerAttached) return;
     this.idleTickerAttached = needed;

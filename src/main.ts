@@ -9,6 +9,7 @@ import { prepareJourneyNavigationCode } from './modules/journey-navigation-code-
 
 import './utils/console-suppress.js';
 import './utils/gsap-safe.js';
+import './utils/haptic-runtime-governor.js';
 
 import { bootstrapReady } from './ui/bootstrap-ui.js';
 import './ui/collectibles-bridge.js';
@@ -65,6 +66,7 @@ import errorHandler from './utils/error-handler.js';
 import memoryManager from './utils/memory-manager.js';
 import { releaseIdleDecodedGameplayAudio } from './modules/gameplay-audio-buffer-player.js';
 import { releaseIdleSharedPixiSheets } from './modules/shared-pixi-sheet-animation.js';
+import { notifyNativeMemoryPressureOwners } from './modules/native-memory-pressure-owner.js';
 import { logger } from './core/logger.js';
 import { ErrorBoundary } from './utils/error-boundary.js';
 import { PerformanceMonitor } from './utils/performance-monitor.js';
@@ -942,6 +944,7 @@ async function initializeApp(): Promise<void> {
     (window as any).__ccHandleNativeMemoryWarning = () => {
       emitRuntimeMemoryPressureSnapshot('native-memory-warning:before-cleanup');
       // Generic cleanup can remove live listeners; release only owner-verified idle caches.
+      notifyNativeMemoryPressureOwners();
       releaseIdleDecodedGameplayAudio();
       void releaseIdleSharedPixiSheets().then(() => {
         emitRuntimeMemoryPressureSnapshot('native-memory-warning:idle-sheets-released');

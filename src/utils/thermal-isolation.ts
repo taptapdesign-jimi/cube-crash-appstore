@@ -1,5 +1,5 @@
 /** Explicit diagnostic only. No persistence, board mutation, or production timer. */
-export type ThermalIsolationGroup = 'ambient' | 'journey-units' | 'sheets' | 'pixi-render' | 'css-idle' | 'gsap-idle';
+export type ThermalIsolationGroup = 'world-visuals' | 'ambient' | 'journey-units' | 'journey-interim' | 'sheets' | 'pixi-render' | 'css-idle' | 'gsap-idle';
 type Counts = Record<string, { calls: number; suppressed: number }>;
 let active: { group: ThermalIsolationGroup; suppressed: boolean; counts: Counts } | null = null;
 let stopCurrent: (() => void) | null = null;
@@ -14,7 +14,7 @@ export function isThermalWorkSuppressed(group: ThermalIsolationGroup): boolean {
   if (!active) return false;
   const count = active.counts[group] ?? (active.counts[group] = { calls: 0, suppressed: 0 });
   count.calls++;
-  const suppressed = active.group === group && active.suppressed;
+  const suppressed = (active.group === group || (active.group === 'world-visuals' && ['ambient', 'journey-units', 'sheets', 'pixi-render'].includes(group))) && active.suppressed;
   if (suppressed) count.suppressed++;
   return suppressed;
 }
@@ -25,12 +25,16 @@ interface IsolationOptions {
   fingerprint(): string;
   suppress(): () => void;
   emit(event: Record<string, unknown>): void;
-  onStop?(): void;
+  onStop?(reason: string): void;
+  /** Explicit long-form diagnostic; defaults preserve the existing short ABBA. */
+  timing?: { settleMs: number; measureMs: number; staticFirst: boolean };
+  invalidReason?(): string | null;
 }
 
 /** A/B/B/A: 5s settling + 20s measurement each. Any input invalidates the run. */
 export function startThermalIsolation(options: IsolationOptions): (() => void) | null {
-  if (!options.enabled || document.hidden) return null;
+  if (!options.enabled || document.hidden || options.invalidReason?.()) return null;
+  const timing = options.timing ?? { settleMs: 5_000, measureMs: 20_000, staticFirst: false };
   stopCurrent?.();
   const fingerprint = options.fingerprint();
   const run = `${Date.now()}-${options.group}`;
@@ -55,7 +59,7 @@ export function startThermalIsolation(options: IsolationOptions): (() => void) |
       for (const name of inputs) window.removeEventListener(name, onInput, true);
       document.removeEventListener('visibilitychange', onVisibility);
       emit('stop', { reason, complete: reason === 'complete' });
-      options.onStop?.();
+      options.onStop?.(reason);
     }
   };
   const onInput = () => stop('input');
@@ -66,7 +70,8 @@ export function startThermalIsolation(options: IsolationOptions): (() => void) |
     if (options.fingerprint() !== fingerprint) { stop('scene-changed'); return; }
     phase++;
     if (phase === 4) { stop('complete'); return; }
-    const suppressed = phase === 1 || phase === 2;
+    const middle = phase === 1 || phase === 2;
+    const suppressed = timing.staticFirst ? !middle : middle;
     try {
       if (!suppressed && restore) { const release = restore; restore = null; release(); }
       if (suppressed && !restore) restore = options.suppress();
@@ -80,14 +85,16 @@ export function startThermalIsolation(options: IsolationOptions): (() => void) |
       timer = setTimeout(() => {
         emit('measure-end', { suppressed, counts: active?.counts });
         next();
-      }, 20_000);
-    }, 5_000);
+      }, timing.measureMs);
+    }, timing.settleMs);
   };
   stopCurrent = () => stop('replaced');
   for (const name of inputs) window.addEventListener(name, onInput, { capture: true, passive: true });
   document.addEventListener('visibilitychange', onVisibility);
   guard = setInterval(() => {
-    if (document.hidden || options.fingerprint() !== fingerprint) stop('scene-changed');
+    const invalid = options.invalidReason?.();
+    if (invalid) stop(invalid);
+    else if (document.hidden || options.fingerprint() !== fingerprint) stop('scene-changed');
   }, 1000);
   emit('start');
   // Give the starting control time to release its pointer and the UI to settle.

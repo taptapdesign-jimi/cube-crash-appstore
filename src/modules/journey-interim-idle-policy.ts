@@ -1,3 +1,11 @@
+import type { JourneyWorldRuntimeSnapshot } from './journey-world-runtime-scheduler.js';
+
+/** Card-local motion survives native scroll, but never modal/transition ownership. */
+export function canPaintJourneyInterimDuringRuntime(snapshot: JourneyWorldRuntimeSnapshot): boolean {
+  return snapshot.state === 'idle'
+    || (!snapshot.ambientSuspended && snapshot.ambientScrollBoosted);
+}
+
 export const JOURNEY_INTERIM_IDLE_MOTION = Object.freeze({
   anticipationScaleX: 1.035,
   anticipationScaleY: 0.965,
@@ -14,7 +22,13 @@ export const JOURNEY_INTERIM_IDLE_MOTION = Object.freeze({
   landDurationSeconds: 0.13,
   reboundDurationSeconds: 0.14,
   settleDurationSeconds: 0.22,
-  repeatDelaySeconds: 0.58,
+  // Leave one bounded rest window after the motion-owned flip smoke, then run
+  // the slower face-local burn/glow away from the next transform cycle.
+  repeatDelaySeconds: 1.7,
+  smokeStartSeconds: 0.14,
+  burnGlowInitialDelayMs: 1150,
+  burnGlowDurationMs: 1100,
+  burnGlowCadenceMs: 2490,
 });
 
 export const JOURNEY_CARD_RETURN_LANDING_SQUASH_STRENGTH = 2.2;

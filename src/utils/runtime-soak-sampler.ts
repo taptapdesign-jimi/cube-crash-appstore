@@ -72,7 +72,7 @@ function emitCompactSample(
   if (lightweightResources) {
     resourceSnapshot = {
       soundtrack: getSoundtrackRuntimeStats(),
-      gameplayAudio: getDecodedGameplayAudioStats(),
+      gameplayAudio: getDecodedGameplayAudioStats(true),
       journeyLongLoopAudio: getJourneyLongLoopAudioStats(),
       gameplayAudioEvents: drainGameplayAudioDiagnostics({ includeEvents: resources }),
       audioIsolation: getThermalAudioIsolationStats(),
