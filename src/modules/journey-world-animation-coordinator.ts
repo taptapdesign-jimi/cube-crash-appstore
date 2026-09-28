@@ -16,6 +16,10 @@ import {
   type MobileRuntimeProfile,
 } from './mobile-runtime-profile.js';
 import { markJourneyReturnFirstUnitStart } from './journey-return-transition-trace.js';
+import {
+  createJourneyUnitMotionSoundSession,
+  preloadJourneyUnitMotionSounds,
+} from './journey-unit-motion-sound.js';
 
 export interface JourneyWorldAnimationUnit {
   id: string;
@@ -148,6 +152,7 @@ export class JourneyWorldAnimationCoordinator {
   private generation = 0;
   private phase: JourneyWorldAnimationPhase = 'hidden';
   private activeTimeline: gsap.core.Timeline | null = null;
+  private motionSounds: ReturnType<typeof createJourneyUnitMotionSoundSession> | null = null;
   private idleTicker: (() => void) | null = null;
   private idleTickerAttached = false;
   private idleEntries: JourneyWorldIdleEntry[] = [];
@@ -165,6 +170,8 @@ export class JourneyWorldAnimationCoordinator {
   }
 
   public stop(resetTransforms = false): void {
+    this.motionSounds?.stop();
+    this.motionSounds = null;
     this.activeTimeline?.kill();
     this.generation++;
     this.activeTimeline = null;
@@ -246,6 +253,8 @@ export class JourneyWorldAnimationCoordinator {
     if (enteringUnits.length === 0) enteringUnits = liveUnits.slice(0, 1);
     const enteringUnitSet = new Set(enteringUnits);
     const settledOffscreenUnits = liveUnits.filter((unit) => !enteringUnitSet.has(unit));
+    preloadJourneyUnitMotionSounds();
+    const motionSounds = this.motionSounds = createJourneyUnitMotionSoundSession(enteringUnits);
 
     // Idle cloud drift owns GSAP x while the World is settled. An interrupted
     // or completed exit can leave that last horizontal value inline. Reset it
@@ -271,10 +280,11 @@ export class JourneyWorldAnimationCoordinator {
     await new Promise<void>((resolve) => {
       const timeline = gsap.timeline({
         onComplete: () => {
+          motionSounds.stop();
           if (this.activeTimeline === timeline) this.activeTimeline = null;
           resolve();
         },
-        onInterrupt: resolve,
+        onInterrupt: () => { motionSounds.stop(); resolve(); },
       });
       this.activeTimeline = timeline;
 
@@ -321,6 +331,7 @@ export class JourneyWorldAnimationCoordinator {
         const irregularOffset = enterOffsets[index];
         tween.eventCallback('onStart', () => {
           if (generation !== this.generation) return;
+          motionSounds.playEnter(unit.id, motion.enter.duration);
           markJourneyReturnFirstUnitStart({
             unitId: unit.id,
             unitIndex: index,
@@ -363,6 +374,8 @@ export class JourneyWorldAnimationCoordinator {
     const motion = getJourneyV700MotionProfile(reducedMotion);
     const stagger = getJourneyV700UnitStagger(liveUnits.length, reducedMotion);
     const exitOrder = liveUnits.slice().reverse();
+    preloadJourneyUnitMotionSounds();
+    const motionSounds = this.motionSounds = createJourneyUnitMotionSoundSession(exitOrder);
 
     await new Promise<void>((resolve) => {
       const cardExitFinalizers: Array<() => void> = [];
@@ -375,12 +388,14 @@ export class JourneyWorldAnimationCoordinator {
       };
       const timeline = gsap.timeline({
         onComplete: () => {
+          motionSounds.stop();
           finalizeUnitExits();
           finalizeCardExits();
           if (this.activeTimeline === timeline) this.activeTimeline = null;
           resolve();
         },
         onInterrupt: () => {
+          motionSounds.stop();
           finalizeUnitExits();
           finalizeCardExits();
           resolve();
@@ -392,6 +407,11 @@ export class JourneyWorldAnimationCoordinator {
         const position = index * stagger;
         const markUnitExitStart = () => {
           if (generation !== this.generation) return;
+          const duration = !reducedMotion && unit.targets.some(target => isJourneyWorldMainArtworkTarget(unit.id, target))
+            ? getJourneyV700WorldMainExitDuration(JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.bounceDurationSeconds)
+              + getJourneyV700WorldMainExitDuration(JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.exitDurationSeconds)
+            : motion.exit.duration;
+          motionSounds.playExit(unit.id, duration);
           markIOSJourneyTransitionAudit(`exit-unit-${unit.id}-start`);
           emitIOSNativeDiagnostic('world-unit-exit-start', {
             unitId: unit.id,

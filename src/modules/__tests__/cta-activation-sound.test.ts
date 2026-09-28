@@ -26,9 +26,10 @@ describe('shared CTA activation sound', () => {
       './assets/sound/CTA/pumb.wav',
       './assets/sound/CTA/cta-splat.wav',
       './assets/sound/CTA/cta squishy.wav',
+      './assets/sound/card reveal/klik plop.wav',
     ]);
-    expect(CTA_ACTIVATION_SOUND_BASE_VOLUMES).toEqual([0.3, 0.5, 0.5, 0.5]);
-    expect(CTA_ACTIVATION_SOUND_VOLUMES).toEqual([0.18, 0.3, 0.3, 0.3]);
+    expect(CTA_ACTIVATION_SOUND_BASE_VOLUMES).toEqual([0.3, 0.5, 0.5, 0.5, 1]);
+    expect(CTA_ACTIVATION_SOUND_VOLUMES).toEqual([0.18, 0.3, 0.3, 0.3, 0.6]);
   });
 
   test('obeys Sounds OFF', () => {

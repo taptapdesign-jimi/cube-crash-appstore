@@ -12,9 +12,10 @@ export const CTA_ACTIVATION_SOUND_SOURCES = [
   './assets/sound/CTA/pumb.wav',
   './assets/sound/CTA/cta-splat.wav',
   './assets/sound/CTA/cta squishy.wav',
+  './assets/sound/card reveal/klik plop.wav',
 ] as const;
 
-export const CTA_ACTIVATION_SOUND_BASE_VOLUMES = [0.3, 0.5, 0.5, 0.5] as const;
+export const CTA_ACTIVATION_SOUND_BASE_VOLUMES = [0.3, 0.5, 0.5, 0.5, 1] as const;
 export const CTA_ACTIVATION_SOUND_VOLUMES = CTA_ACTIVATION_SOUND_BASE_VOLUMES.map(
   applySoundEffectsMasterGain,
 );
@@ -24,6 +25,7 @@ const CTA_ACTIVATION_VOICE_IDS = [
   'cta-activation-pumb',
   'cta-activation-splat',
   'cta-activation-squishy',
+  'cta-activation-plop',
 ] as const;
 
 let fallbackAudio: HTMLAudioElement[] | null = null;
@@ -95,4 +97,12 @@ export function stopCtaActivationSounds(): void {
 export function resetCtaActivationSoundsForTests(): void {
   stopCtaActivationSounds();
   fallbackAudio = null;
+}
+
+/** Unit card contact uses only the authored plop; full CTAs include it in their mix. */
+export function playCardTapPlopSound(): void {
+  if (!areCtaActivationSoundsEnabled()) return;
+  playDecodedGameplaySound(CTA_ACTIVATION_SOUND_SOURCES[4], {
+    voiceId: CTA_ACTIVATION_VOICE_IDS[4], volume: CTA_ACTIVATION_SOUND_VOLUMES[4],
+  });
 }

@@ -51,6 +51,7 @@ describe('Homepage slider motion contract', () => {
     expect(exitOwner).not.toContain('inflateTargets');
     expect(exitOwner).toContain('const sharedStartTime = document.timeline?.currentTime');
     expect(exitOwner).toContain('alignStartTime(animation)');
+    expect(exitOwner).toContain('playHomepageSliderExitSound(soundDurationMs / 1000)');
     expect(heroOwner).toContain("attachPair('[data-hero-cta=\"play\"]', this.handlePlayClick.bind(this))");
     expect(heroOwner).toContain("attachPair('[data-hero-cta=\"journey\"]', this.handleStatsClick.bind(this))");
     expect(heroOwner).toContain("attachPair('[data-hero-cta=\"settings\"]', this.handleSettingsClick.bind(this))");
@@ -135,6 +136,7 @@ describe('Homepage slider motion contract', () => {
 
     expect(animationsSource).toContain('export const animateSliderEnter = (): Promise<void>');
     expect(animationsSource).toContain("settleSliderEnter('complete')");
+    expect(animationsSource).toContain('() => playHomepageSliderEnterSound(0.65)');
     expect(enterHandoff).toContain('await animateSliderEnter();');
     expect(enterHandoff).not.toContain('}, 1120)');
     expect(sliderCssSource).toContain('#home .animate-enter');

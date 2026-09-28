@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { gsap } from 'gsap';
-import { createJourneyNewCardSoundSession, playJourneyNewCardTapSound, preloadJourneyNewCardSounds, stopJourneyNewCardSounds } from './journey-new-card-sound.ts';
+import { createJourneyNewCardSoundSession, preloadJourneyNewCardSounds, stopJourneyNewCardSounds } from './journey-new-card-sound.ts';
 import { playCtaActivationSounds, preloadCtaActivationSounds } from './cta-activation-sound.ts';
 import { cleanupJourneySmokeEffects, smokeBubblesAtCard } from './journey-card-idle-bounce.js';
 import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
@@ -1626,7 +1626,6 @@ export async function showJourneyNewCardScreen({
 
     const playRewardCardTap = () => {
       playCtaActivationSounds();
-      playJourneyNewCardTapSound();
     };
 
     const finishUnlockedPointer = (event: PointerEvent, allowCollect: boolean) => {

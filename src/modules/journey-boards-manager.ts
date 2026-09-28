@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { createJourneyHubExitSoundSession, preloadJourneyHubExitSounds, stopJourneyHubExitSounds } from './journey-hub-exit-sound.ts';
 import { installJourneyAlienBeamIdle } from './journey-alien-beam-idle';
 import { beginScreenPreparation } from '../utils/screen-presentation.js';
 import { isThermalWorkSuppressed } from '../utils/thermal-isolation.js';
@@ -109,7 +110,7 @@ import {
 } from './detail-modal-stats-enter-motion.js';
 import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.js';
 import { getJourneyEarnedStars } from './journey-stage-balance.js';
-import { playCtaActivationSounds, preloadCtaActivationSounds } from './cta-activation-sound.ts';
+import { playCardTapPlopSound, playCtaActivationSounds, preloadCtaActivationSounds } from './cta-activation-sound.ts';
 import {
   resolveJourneyCardAsset,
   type JourneyCardAsset,
@@ -188,6 +189,11 @@ import {
   reduceJourneyWorldsSoundForWorld,
   stopJourneyWorldsHubSound,
 } from './journey-worlds-hub-sound.ts';
+import {
+  createJourneyUnitMotionSoundSession,
+  preloadJourneyUnitMotionSounds,
+  stopJourneyUnitMotionSounds,
+} from './journey-unit-motion-sound.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 // trackTween/trackTimeline must use original GSAP functions, not gsap.to/gsap.timeline
@@ -1023,6 +1029,7 @@ class JourneyBoardsManager {
   private journeyOverlayReturnInFlight: { boardId: number; promise: Promise<void> } | null = null;
   private journeyV700Phase: 'hidden' | 'entering' | 'idle' | 'exiting' = 'hidden';
   private journeyV700HubEnterTweens: gsap.core.Tween[] = [];
+  private journeyV700HubEnterSounds: ReturnType<typeof createJourneyUnitMotionSoundSession> | null = null;
   private journeyV700HubEnterPerformance: TransitionPerformance | null = null;
   private journeyV700HubEnterEpoch = 0;
   private journeyV700HubPresentationWaiters = new Set<(presented?: boolean) => void>();
@@ -6087,6 +6094,8 @@ class JourneyBoardsManager {
       this.stopArea55ShipFlybys('manager-cleanup');
       stopJourneyForestAmbientSounds({ preserveActiveFade: true });
       stopJourneyWorldsHubSound({ preserveBoardTransitionHandoff: true });
+      stopJourneyUnitMotionSounds();
+      stopJourneyHubExitSounds();
     this.cancelJourneyV700HubEnter('cleanup');
     this.activeBoardAreaEnterInProgress = false;
     this.activeBoardAreaEnterPreparedTargets = [];
@@ -6961,7 +6970,9 @@ class JourneyBoardsManager {
     const prepaint = options.prepaint === true;
     if (!prepaint) {
       preloadCtaActivationSounds();
+      preloadJourneyHubExitSounds();
       preloadJourneyWorldsHubSound();
+      preloadJourneyUnitMotionSounds();
       this.journeyWorldRuntime.deactivate();
       this.journeyV700Phase = 'entering';
       this.setJourneyV700View('hub');
@@ -7212,6 +7223,8 @@ class JourneyBoardsManager {
   }
 
   private cancelJourneyV700HubEnter(reason: string): void {
+    this.journeyV700HubEnterSounds?.stop();
+    this.journeyV700HubEnterSounds = null;
     this.journeyV700HubEnterPerformance?.finish(reason);
     this.journeyV700HubEnterPerformance = null;
     this.journeyV700HubEnterEpoch += 1;
@@ -7292,6 +7305,9 @@ class JourneyBoardsManager {
       }),
     );
     this.cancelJourneyV700HubEnter(`new-${source}-enter`);
+    const motionSounds = this.journeyV700HubEnterSounds = createJourneyUnitMotionSoundSession(
+      worldCards.map(card => ({ id: card.dataset.worldId || '', targets: [card] })),
+    );
     this.journeyV700HubEnterPerformance = hubEnterPerformance;
     hubEnterPerformance.mark('transforms-start');
     // A background-prepared Hub may still own idle work from an earlier lifecycle.
@@ -7397,6 +7413,7 @@ class JourneyBoardsManager {
       if (enterEpoch !== this.journeyV700HubEnterEpoch || !container.isConnected) return;
       remainingTargets -= 1;
       if (remainingTargets > 0) return;
+      motionSounds.stop();
       hubEnterPerformance.mark('last-target-complete');
       this.journeyV700HubEnterTweens = [];
       if (source === 'world-return') {
@@ -7480,7 +7497,10 @@ class JourneyBoardsManager {
         ease: motion.enter.ease,
         force3D: true,
         overwrite: true,
-        onStart: startBannerEnter,
+        onStart: () => {
+          startBannerEnter();
+          motionSounds.playEnter(worldCard.dataset.worldId || '', motion.enter.duration);
+        },
         onComplete: finishVisibleEnterTarget,
       });
         this.journeyV700HubEnterTweens.push(worldTween);
@@ -8445,12 +8465,13 @@ class JourneyBoardsManager {
       JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.exitDurationSeconds,
       reducedMotion,
     );
-
+    const exitSound = createJourneyHubExitSoundSession();
     return new Promise((resolve) => {
 	      let remaining = worldCards.length + (hubCloudLayer ? 1 : 0) + navTargets.length;
 	      const finishTarget = () => {
 	        remaining -= 1;
 	        if (remaining > 0) return;
+            exitSound.stop();
 	        this.logJourneyV700Flow('hub-exit-complete', { reason }, container);
 	        resolve();
 	        // Resolving queues the caller's await continuation first. It hides the
@@ -8483,7 +8504,8 @@ class JourneyBoardsManager {
 	            ease: motion.exit.ease,
 	            force3D: true,
 	            overwrite: true,
-	            onComplete: finishTarget,
+	            onStart: exitSound.play,
+              onComplete: finishTarget,
 	            onInterrupt: finishTarget,
 	          });
 	        } catch {
@@ -8503,7 +8525,8 @@ class JourneyBoardsManager {
             ease: motion.exit.ease,
             force3D: true,
             overwrite: true,
-            onComplete: finishTarget,
+            onStart: exitSound.play,
+              onComplete: finishTarget,
             onInterrupt: finishTarget,
           });
         } catch {
@@ -8532,7 +8555,8 @@ class JourneyBoardsManager {
 	                force3D: true,
 	                transformOrigin: JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.transformOrigin,
 	              },
-	              onComplete: finishTarget,
+	              onStart: exitSound.play,
+              onComplete: finishTarget,
 	              onInterrupt: finishTarget,
 	            })
 	              .to(card, {
@@ -8577,7 +8601,8 @@ class JourneyBoardsManager {
 	                force3D: true,
 	                transformOrigin: JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.transformOrigin,
 	              },
-	              onComplete: finishTarget,
+	              onStart: exitSound.play,
+              onComplete: finishTarget,
 	              onInterrupt: finishTarget,
 	              })
 	              .to(card, {
@@ -8608,6 +8633,7 @@ class JourneyBoardsManager {
               ease: motion.exit.ease,
               force3D: true,
               overwrite: true,
+              onStart: exitSound.play,
               onComplete: finishTarget,
               onInterrupt: finishTarget,
             });
@@ -9244,6 +9270,7 @@ class JourneyBoardsManager {
         lastBoardId: options.lastBoardId ?? this.getLastActiveJourneyBoardAreaId(),
       }));
     const source = options.source || 'default';
+    preloadJourneyUnitMotionSounds();
     playJourneyWorldsWorldSound();
     if (worldId === 1) playJourneyForestAmbientSounds();
     else stopJourneyForestAmbientSounds();
@@ -10597,6 +10624,7 @@ class JourneyBoardsManager {
           return;
         }
         (cardEl as any)._openingDetail = true;
+        playCardTapPlopSound();
         this.journeyCardInteractionProfiler.begin(board.id);
         this.journeyCardInteractionProfiler.mark('card-open-normalization-start', board.id);
 
@@ -10857,6 +10885,7 @@ class JourneyBoardsManager {
           return;
         }
         (cardEl as any)._openingGame = true;
+        playCardTapPlopSound();
 
         try {
           // Haptic feedback

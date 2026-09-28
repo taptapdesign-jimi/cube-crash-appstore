@@ -464,10 +464,19 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
     let delayedCallRef: gsap.core.Tween | null = null;
     let safetyTimeout: ReturnType<typeof setTimeout> | null = null;
     let settled = false;
+    let stopExitSound: (() => void) | null = null;
+    let exitSoundStarted = false;
+    const startExitSound = () => {
+      if (settled || exitSoundStarted) return;
+      exitSoundStarted = true;
+      stopExitSound = playBoardPopInSound(maxEndTime);
+    };
 
     const finish = () => {
       if (settled) return;
       settled = true;
+      stopExitSound?.();
+      stopExitSound = null;
       if (safetyTimeout) {
         clearTimeout(safetyTimeout);
         safetyTimeout = null;
@@ -529,6 +538,7 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
 
       const timeline = trackTimeline({
         delay: exitDel,
+        onStart: startExitSound,
         onComplete: () => {
           completed++;
           // Halfway callback (50% tiles exited)
@@ -614,6 +624,8 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
     
     // Store cleanup function for external access
     (resolve as any)._cleanup = () => {
+      stopExitSound?.();
+      stopExitSound = null;
       if (safetyTimeout) clearTimeout(safetyTimeout);
       activeTimelines.forEach(tl => { try { tl.kill(); } catch {} });
       if (delayedCallRef) { try { delayedCallRef.kill(); } catch {} }

@@ -30,6 +30,7 @@ function fixture(withHero = true) {
     beginTransitionPerformance: () => ({ phase: (_n: string, fn: () => any) => fn(), finish: jest.fn() }),
     getJourneySliderExitTargets: () => [...(withHero ? [{ element: hero, delay: 0 }] : []), { element: logo, delay: 0.06 }, { element: button, delay: 0.03 }],
     getRegisteredCta: () => ({ exit, prime }), getHomepageHeroExitMotion,
+    playHomepageSliderExitSound: jest.fn(), stopHomepageSliderMotionSounds: jest.fn(),
   };
   const api = new Function('scope', `with(scope){${code};return {animateJourneySliderExit,finalizeJourneySliderExit,isHomepageExitCancelled};}`)(scope);
   return { ...api, created, hero, image, logo, exit, prime };

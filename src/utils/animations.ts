@@ -12,6 +12,12 @@ import {
 } from '../modules/navigation-control.js';
 import { JOURNEY_SLIDE_INDEX } from '../modules/homepage-slide-order.js';
 import { beginTransitionPerformance } from './transition-performance.js';
+import {
+  playHomepageSliderEnterSound,
+  playHomepageSliderExitSound,
+  preloadHomepageSliderMotionSounds,
+  stopHomepageSliderMotionSounds,
+} from '../modules/homepage-slider-motion-sound.js';
 
 // Safe element getter
 export const getElement = (id: string): HTMLElement | null => {
@@ -237,7 +243,12 @@ export const primeHomepageCtaEnterTransform = (button: Element | null | undefine
 };
 
 // Helper function for reverse bounce animation (scale 0 to 1) - NO OPACITY, SCALE ONLY
-const reverseBounce = (element: HTMLElement, delay: number, durationMs?: number) => {
+const reverseBounce = (
+  element: HTMLElement,
+  delay: number,
+  durationMs?: number,
+  onStart?: () => void,
+) => {
   // v700-style enter: let CSS own the whole bounce curve. The manual RAF
   // interpolator caused visible mid-cycle stalls when Journey cleanup/reflow
   // ran on the same frames as Homepage enter.
@@ -256,6 +267,7 @@ const reverseBounce = (element: HTMLElement, delay: number, durationMs?: number)
 
   const timeout = setTimeout(() => {
     activeTimeouts.delete(timeout);
+    onStart?.();
     element.style.removeProperty('opacity');
     element.style.removeProperty('visibility');
     element.style.removeProperty('transition');
@@ -507,6 +519,7 @@ export const cancelSliderEnterAnimation = (reason = 'route-change'): void => {
   clearHomeEnterProbes();
   activeTimeouts.forEach((timeout) => clearTimeout(timeout));
   activeTimeouts.clear();
+  stopHomepageSliderMotionSounds();
   settleSliderEnter(`cancel:${reason}`);
   sliderEnterNavigationGeneration = null;
   (window as any).__ccIsAnimatingSliderEnter = false;
@@ -521,6 +534,7 @@ export const cleanupAnimations = (): void => {
     clearTimeout(timeout);
   });
   activeTimeouts.clear();
+  stopHomepageSliderMotionSounds();
   isAnimatingExit = false;
   if (sliderEnterPromise) settleSliderEnter('cleanup');
   else isAnimatingEnter = false;
@@ -679,6 +693,9 @@ export const animateJourneySliderExit = (): Promise<void> => {
       window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true,
     );
     const startTargetExits = () => {
+      const soundDurationMs = targets.some(({ element }) => element.classList.contains('hero-container'))
+        ? heroMotion.duration : HOMEPAGE_PART_EXIT_DURATION_MS;
+      if (targets.length > 0) playHomepageSliderExitSound(soundDurationMs / 1000);
       targets.forEach(({ element, delay }) => {
         const ctaController = element instanceof HTMLButtonElement ? getRegisteredCta(element) : null;
         if (ctaController) {
@@ -734,6 +751,7 @@ export const finalizeJourneySliderExit = (): void => {
     clearTimeout(journeySliderExitFallback);
     journeySliderExitFallback = null;
   }
+  stopHomepageSliderMotionSounds();
   getJourneySliderExitTargets().forEach(({ element }) => {
     element.classList.remove('animate-exit', 'soft-cartoon-bounce');
     element.style.removeProperty('scale');
@@ -1158,6 +1176,7 @@ export const animateSliderEnter = (): Promise<void> => {
   // Set flags immediately
   // 🔥 REFACTOR: Use sliderState module for state management
   isAnimatingEnter = true;
+  preloadHomepageSliderMotionSounds();
   sliderEnterPerformance = beginTransitionPerformance('homepage-enter');
   sliderState.setAnimatingEnter(true);
   sliderEnterNavigationGeneration = markHomepageNavigationEntering(
@@ -1566,7 +1585,12 @@ function startEnterAnimationSequence(): void {
       (heroContainer as HTMLElement).style.removeProperty('opacity');
       (heroContainer as HTMLElement).style.removeProperty('visibility');
       (heroContainer as HTMLElement).style.removeProperty('display');
-      reverseBounce(heroContainer as HTMLElement, HOMEPAGE_ENTER_FIRST_VISUAL_DELAY_MS);
+      reverseBounce(
+        heroContainer as HTMLElement,
+        HOMEPAGE_ENTER_FIRST_VISUAL_DELAY_MS,
+        undefined,
+        () => playHomepageSliderEnterSound(0.65),
+      );
       logger.info('🖼️ Step 1: Hero image cartoonish bounce - FIRST (with logo)');
     } else {
       logger.warn('⚠️ Hero container not found in active slide');
@@ -1826,7 +1850,12 @@ function startEnterAnimationSequenceLegacy(): void {
   // Hero image enters first with the logo.
   const heroContainer = document.querySelector('.hero-container');
   if (heroContainer) {
-    reverseBounce(heroContainer as HTMLElement, HOMEPAGE_ENTER_FIRST_VISUAL_DELAY_MS);
+    reverseBounce(
+      heroContainer as HTMLElement,
+      HOMEPAGE_ENTER_FIRST_VISUAL_DELAY_MS,
+      undefined,
+      () => playHomepageSliderEnterSound(0.65),
+    );
     logger.info('🖼️ Step 1: Hero image cartoonish bounce - FIRST (legacy, with logo)');
   }
 

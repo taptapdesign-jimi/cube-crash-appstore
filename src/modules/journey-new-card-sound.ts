@@ -6,10 +6,8 @@ export const JOURNEY_NEW_CARD_SOUND_SOURCES = {
   crumble: './assets/sound/card reveal/interim crumble.wav',
   reveal: './assets/sound/card reveal/pufreveal.wav',
   happy: './assets/sound/card reveal/happy sound.wav',
-  tap: './assets/sound/card reveal/klik plop.wav',
 } as const;
 const VOICES = ['journey-new-card-intro', 'journey-new-card-crumble', 'journey-new-card-reveal', 'journey-new-card-happy'] as const;
-const TAP_VOICE = 'journey-new-card-tap';
 let generation = 0;
 const enabled = () => (window as any)._settings?.gameSoundsEnabled === true;
 
@@ -18,15 +16,7 @@ export function preloadJourneyNewCardSounds(): boolean {
 }
 
 export function stopJourneyNewCardSounds(): void {
-  stopDecodedGameplayVoices([...VOICES, TAP_VOICE]);
-}
-
-// Accepted interaction owner supplies deduplication (pointerup/click/queued collect).
-export function playJourneyNewCardTapSound(): void {
-  if (!enabled()) return;
-  playDecodedGameplaySound(JOURNEY_NEW_CARD_SOUND_SOURCES.tap, {
-    voiceId: TAP_VOICE, volume: applySoundEffectsMasterGain(1),
-  });
+  stopDecodedGameplayVoices(VOICES);
 }
 
 export function createJourneyNewCardSoundSession() {
@@ -51,7 +41,7 @@ export function createJourneyNewCardSoundSession() {
     stop: () => {
       if (owner !== generation) return;
       generation++;
-      // Keep the accepted collect tap audible during the exit animation.
+      // Presentation voices end here; the shared CTA owner retains its contact tail.
       stopDecodedGameplayVoices(VOICES);
     },
   };

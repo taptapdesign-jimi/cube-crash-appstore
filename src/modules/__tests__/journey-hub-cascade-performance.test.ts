@@ -32,6 +32,7 @@ function fixture(opacities = ['1', '0.65', '0.8']) {
     emitIOSNativeDiagnostic: jest.fn(), markIOSJourneyRouteAudit: jest.fn(),
     shouldIgnoreJourneyV700HubVisibleEnterRequest: () => false,
     playJourneyWorldsHubSound: jest.fn(),
+    createJourneyUnitMotionSoundSession: jest.fn(() => ({ playEnter: jest.fn(), playExit: jest.fn(), stop: jest.fn() })),
     getJourneyV700MotionProfile: () => ({ enter: { y: 20, scale: 0.8, duration: 0.5, baseDelay: 0.1, ease: 'back.out' } }),
     getJourneyV700HubEnterStagger: () => 0.07,
     readyPromise: ready.promise,
@@ -67,6 +68,19 @@ test('actual hub cascade span covers image wait, first visible tick and every ta
   expect(summaries()[0].phases.map((phase: any) => phase.name)).toEqual(['prepare-runtime', 'transforms-start', 'images-ready', 'first-visible-tween', 'last-target-complete']);
   expect(f.owner.journeyV700HubEnterPerformance).toBeNull();
   expect(f.owner.journeyHubRuntime.activate).toHaveBeenCalledTimes(1);
+});
+
+test('Hub sound follows each World onStart, not prepaint or the separate cloud tween', async () => {
+  const f = fixture(); f.owner.playJourneyV700HubEnter('homepage');
+  const sound = f.owner.journeyV700HubEnterSounds;
+  expect(sound.playEnter).not.toHaveBeenCalled();
+  f.ready.resolve(); await flush();
+  f.tweens[0].vars.onStart();
+  expect(sound.playEnter).not.toHaveBeenCalled();
+  f.tweens.slice(1).forEach(tween => tween.vars.onStart());
+  expect(sound.playEnter.mock.calls).toEqual([['1', 0.5], ['2', 0.5], ['3', 0.5]]);
+  f.tweens.forEach(tween => tween.vars.onComplete());
+  expect(sound.stop).toHaveBeenCalledTimes(1);
 });
 
 test('canceled image readiness cannot finish the newer span or create retired tweens', async () => {

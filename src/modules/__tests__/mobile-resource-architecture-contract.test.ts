@@ -93,6 +93,89 @@ describe('mobile resource architecture', () => {
     expect(nativeAudit).not.toContain("'lik-vrt.png'");
   });
 
+  test('plays Nala logo audio only for launch visuals that contain a dog', () => {
+    const launch = read('src/modules/launch-screen.ts');
+    expect(launch).toContain("selectedStudioCharacterPath.endsWith('/lik-pas-SVG.svg')");
+    expect(launch).toContain("selectedStudioCharacterPath.endsWith('/pas novine.svg')");
+    expect(launch).toContain("selectedStudioCharacterPath.endsWith('/lik-laptop.svg')");
+    expect(launch).toContain("selectedStudioCharacterPath.endsWith('/lik-speceraj.svg')");
+    expect(launch).toContain('if (selectedStudioCharacterHasDog) preloadLaunchLogoTransitionSounds();');
+    expect(launch).toContain('if (selectedStudioCharacterHasDog) playRandomLaunchLogoTransitionSound();');
+  });
+
+  test('plays guitar audio only for the guitar launch visual', () => {
+    const launch = read('src/modules/launch-screen.ts');
+    expect(launch).toContain("selectedStudioCharacterPath.endsWith('/lik-gitara.svg')");
+    expect(launch).toContain('if (selectedStudioCharacterHasGuitar) preloadLaunchGuitarTransitionSounds();');
+    expect(launch).toContain('if (selectedStudioCharacterHasGuitar) playRandomLaunchGuitarTransitionSound();');
+  });
+
+  test('plays chair audio only for the rocking-chair launch visual', () => {
+    const launch = read('src/modules/launch-screen.ts');
+    expect(launch).toContain("selectedStudioCharacterPath.endsWith('/lik-laptop.svg')");
+    expect(launch).toContain('if (selectedStudioCharacterHasChair) preloadLaunchChairTransitionSound();');
+    expect(launch).toContain('if (selectedStudioCharacterHasChair) playLaunchChairTransitionSound();');
+  });
+
+  test('layers sleepy audio only for the sleeping-armchair launch visual', () => {
+    const launch = read('src/modules/launch-screen.ts');
+    expect(launch).toContain("selectedStudioCharacterPath.endsWith('/lik-kauc.svg')");
+    expect(launch).toContain('if (selectedStudioCharacterHasSleepyChair) preloadLaunchSleepyTransitionSounds();');
+    expect(launch).toContain('if (selectedStudioCharacterHasSleepyChair) playLaunchSleepyTransitionSounds();');
+  });
+
+  test('plays football audio once only for the football launch visual', () => {
+    const launch = read('src/modules/launch-screen.ts');
+    expect(launch).toContain("selectedStudioCharacterPath.endsWith('/lik-nogomet.svg')");
+    expect(launch).toContain('if (selectedStudioCharacterHasFootball) preloadLaunchFootballTransitionSound();');
+    expect(launch).toContain('if (selectedStudioCharacterHasFootball) playLaunchFootballTransitionSound();');
+  });
+
+  test('plays dice audio once only for the board launch visual', () => {
+    const launch = read('src/modules/launch-screen.ts');
+    expect(launch).toContain("selectedStudioCharacterPath.endsWith('/lik-board.svg')");
+    expect(launch).toContain('if (selectedStudioCharacterHasBoardDice) preloadLaunchBoardDiceTransitionSound();');
+    expect(launch).toContain('if (selectedStudioCharacterHasBoardDice) playLaunchBoardDiceTransitionSound();');
+  });
+
+  test('plays camera audio once only for the photographer launch visual', () => {
+    const launch = read('src/modules/launch-screen.ts');
+    expect(launch).toContain("selectedStudioCharacterPath.endsWith('/lik slikanje.svg')");
+    expect(launch).toContain('if (selectedStudioCharacterHasCamera) preloadLaunchCameraTransitionSound();');
+    expect(launch).toContain('if (selectedStudioCharacterHasCamera) playLaunchCameraTransitionSound();');
+  });
+
+  test('plays watering audio once only for the flower launch visual', () => {
+    const launch = read('src/modules/launch-screen.ts');
+    expect(launch).toContain("selectedStudioCharacterPath.endsWith('/lik-cvijet.svg')");
+    expect(launch).toContain('if (selectedStudioCharacterHasWatering) preloadLaunchWateringTransitionSound();');
+    expect(launch).toContain('if (selectedStudioCharacterHasWatering) playLaunchWateringTransitionSound();');
+  });
+
+  test('plays gamer audio only for the controller launch visual', () => {
+    const launch = read('src/modules/launch-screen.ts');
+    expect(launch).toContain("selectedStudioCharacterPath.endsWith('/lik-game.svg')");
+    expect(launch).toContain('if (selectedStudioCharacterHasGamer) preloadLaunchGamerTransitionSound();');
+    expect(launch).toContain('if (selectedStudioCharacterHasGamer) playLaunchGamerTransitionSound();');
+  });
+
+  test('layers smile audio only on the smiling grocery, controller and dog visuals', () => {
+    const launch = read('src/modules/launch-screen.ts');
+    expect(launch).toContain("selectedStudioCharacterPath.endsWith('/lik-speceraj.svg')");
+    expect(launch).toContain("selectedStudioCharacterPath.endsWith('/lik-game.svg')");
+    expect(launch).toContain("selectedStudioCharacterPath.endsWith('/lik-pas-SVG.svg')");
+    expect(launch).toContain("selectedStudioCharacterPath.endsWith('/pas novine.svg')");
+    expect(launch).toContain('if (selectedStudioCharacterHasSmile) preloadLaunchSmileTransitionSound();');
+    expect(launch).toContain('if (selectedStudioCharacterHasSmile) playLaunchSmileTransitionSound();');
+  });
+
+  test('layers paper bag audio only on the grocery launch visual', () => {
+    const launch = read('src/modules/launch-screen.ts');
+    expect(launch).toContain("selectedStudioCharacterPath.endsWith('/lik-speceraj.svg')");
+    expect(launch).toContain('if (selectedStudioCharacterHasPaperBag) preloadLaunchPaperBagTransitionSound();');
+    expect(launch).toContain('if (selectedStudioCharacterHasPaperBag) playLaunchPaperBagTransitionSound();');
+  });
+
   test('lets all animated launch SVGs own their idle motion without a second parent wobble', () => {
     const launch = read('src/modules/launch-screen.ts');
     const gameSvg = read('assets/logo addons/lik-game.svg');

@@ -9,6 +9,31 @@ import { getOriginalGsapTo } from './drag-core.js';
 import { waitForCriticalStartupReadiness } from '../utils/startup-readiness.js';
 import { applyAppPaperBackground } from '../utils/app-paper-background.js';
 import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.js';
+import {
+  playLaunchChairTransitionSound,
+  playLaunchBoardDiceTransitionSound,
+  playLaunchCameraTransitionSound,
+  playLaunchWateringTransitionSound,
+  playLaunchGamerTransitionSound,
+  playLaunchSmileTransitionSound,
+  playLaunchPaperBagTransitionSound,
+  playLaunchFootballTransitionSound,
+  playLaunchSleepyTransitionSounds,
+  playRandomLaunchGuitarTransitionSound,
+  playRandomLaunchLogoTransitionSound,
+  preloadLaunchChairTransitionSound,
+  preloadLaunchBoardDiceTransitionSound,
+  preloadLaunchCameraTransitionSound,
+  preloadLaunchWateringTransitionSound,
+  preloadLaunchGamerTransitionSound,
+  preloadLaunchSmileTransitionSound,
+  preloadLaunchPaperBagTransitionSound,
+  preloadLaunchFootballTransitionSound,
+  preloadLaunchSleepyTransitionSounds,
+  preloadLaunchGuitarTransitionSounds,
+  preloadLaunchLogoTransitionSounds,
+  stopLaunchLogoTransitionSound,
+} from './launch-logo-transition-sound.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 const trackTween = (target: any, vars: any) => {
@@ -67,6 +92,25 @@ const selectedStudioCharacterEntry = forcedStudioCharacterEntry || STUDIO_CHARAC
   new URL('../../assets/logo addons/lik-game.svg', import.meta.url).href,
 ];
 const [selectedStudioCharacterPath, selectedStudioCharacterSvgUrl] = selectedStudioCharacterEntry;
+const selectedStudioCharacterHasDog =
+  selectedStudioCharacterPath.endsWith('/lik-pas-SVG.svg') ||
+  selectedStudioCharacterPath.endsWith('/pas novine.svg') ||
+  selectedStudioCharacterPath.endsWith('/lik-speceraj.svg');
+const selectedStudioCharacterHasGuitar = selectedStudioCharacterPath.endsWith('/lik-gitara.svg');
+const selectedStudioCharacterHasChair = selectedStudioCharacterPath.endsWith('/lik-laptop.svg');
+const selectedStudioCharacterHasSleepyChair = selectedStudioCharacterPath.endsWith('/lik-kauc.svg');
+const selectedStudioCharacterHasFootball = selectedStudioCharacterPath.endsWith('/lik-nogomet.svg');
+const selectedStudioCharacterHasBoardDice = selectedStudioCharacterPath.endsWith('/lik-board.svg');
+const selectedStudioCharacterHasCamera = selectedStudioCharacterPath.endsWith('/lik slikanje.svg');
+const selectedStudioCharacterHasWatering = selectedStudioCharacterPath.endsWith('/lik-cvijet.svg');
+const selectedStudioCharacterHasGamer = selectedStudioCharacterPath.endsWith('/lik-game.svg');
+const selectedStudioCharacterHasSmile =
+  selectedStudioCharacterPath.endsWith('/lik-speceraj.svg') ||
+  selectedStudioCharacterPath.endsWith('/lik-game.svg') ||
+  selectedStudioCharacterPath.endsWith('/lik-pas-SVG.svg') ||
+  selectedStudioCharacterPath.endsWith('/pas novine.svg') ||
+  selectedStudioCharacterPath.endsWith('/lik-laptop.svg');
+const selectedStudioCharacterHasPaperBag = selectedStudioCharacterPath.endsWith('/lik-speceraj.svg');
 const MOBILE_ANIMATION_PROXIES = [
   ['/lik-game.svg', new URL('../../assets/logo addons/optimized/lik-game-mobile.webp', import.meta.url).href, new URL('../../assets/logo addons/optimized/lik-game-mobile-hevc.mov', import.meta.url).href],
   ['/lik-gitara.svg', new URL('../../assets/logo addons/optimized/lik-gitara-mobile.webp', import.meta.url).href, new URL('../../assets/logo addons/optimized/lik-gitara-mobile-hevc.mov', import.meta.url).href],
@@ -520,6 +564,17 @@ class LaunchScreen {
     }
 
     this.isActive = true;
+    if (selectedStudioCharacterHasDog) preloadLaunchLogoTransitionSounds();
+    if (selectedStudioCharacterHasGuitar) preloadLaunchGuitarTransitionSounds();
+    if (selectedStudioCharacterHasChair) preloadLaunchChairTransitionSound();
+    if (selectedStudioCharacterHasSleepyChair) preloadLaunchSleepyTransitionSounds();
+    if (selectedStudioCharacterHasFootball) preloadLaunchFootballTransitionSound();
+    if (selectedStudioCharacterHasBoardDice) preloadLaunchBoardDiceTransitionSound();
+    if (selectedStudioCharacterHasCamera) preloadLaunchCameraTransitionSound();
+    if (selectedStudioCharacterHasWatering) preloadLaunchWateringTransitionSound();
+    if (selectedStudioCharacterHasGamer) preloadLaunchGamerTransitionSound();
+    if (selectedStudioCharacterHasSmile) preloadLaunchSmileTransitionSound();
+    if (selectedStudioCharacterHasPaperBag) preloadLaunchPaperBagTransitionSound();
     this.runAbortController?.abort();
     const runAbortController = new AbortController();
     this.runAbortController = runAbortController;
@@ -650,6 +705,17 @@ class LaunchScreen {
     }, 200);
     this.eventCleanups.push(() => window.clearTimeout(idleSheenTimer));
 
+    if (selectedStudioCharacterHasDog) playRandomLaunchLogoTransitionSound();
+    if (selectedStudioCharacterHasGuitar) playRandomLaunchGuitarTransitionSound();
+    if (selectedStudioCharacterHasChair) playLaunchChairTransitionSound();
+    if (selectedStudioCharacterHasSleepyChair) playLaunchSleepyTransitionSounds();
+    if (selectedStudioCharacterHasFootball) playLaunchFootballTransitionSound();
+    if (selectedStudioCharacterHasBoardDice) playLaunchBoardDiceTransitionSound();
+    if (selectedStudioCharacterHasCamera) playLaunchCameraTransitionSound();
+    if (selectedStudioCharacterHasWatering) playLaunchWateringTransitionSound();
+    if (selectedStudioCharacterHasGamer) playLaunchGamerTransitionSound();
+    if (selectedStudioCharacterHasSmile) playLaunchSmileTransitionSound();
+    if (selectedStudioCharacterHasPaperBag) playLaunchPaperBagTransitionSound();
     const logoEnterPromise = new Promise<void>((resolve) => {
       trackTween(studioLogoUnit, {
         opacity: 1,
@@ -852,6 +918,7 @@ class LaunchScreen {
    * Remove launch screen from DOM
    */
   remove(): void {
+    stopLaunchLogoTransitionSound();
     // 🔥 FIX: Remove all event listeners first
     this.eventCleanups.forEach(cleanup => {
       try { cleanup(); } catch {}

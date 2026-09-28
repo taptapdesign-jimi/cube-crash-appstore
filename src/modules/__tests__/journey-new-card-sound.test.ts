@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import ts from 'typescript';
-import { createJourneyNewCardSoundSession, preloadJourneyNewCardSounds, playJourneyNewCardTapSound, stopJourneyNewCardSounds, JOURNEY_NEW_CARD_SOUND_SOURCES } from '../journey-new-card-sound';
+import { createJourneyNewCardSoundSession, preloadJourneyNewCardSounds, stopJourneyNewCardSounds, JOURNEY_NEW_CARD_SOUND_SOURCES } from '../journey-new-card-sound';
 import { playDecodedGameplaySound, preloadDecodedGameplaySounds, stopDecodedGameplayVoices } from '../gameplay-audio-buffer-player';
 import { resolveJourneyNewCardTapAction } from '../journey-new-card-input';
 jest.mock('../gameplay-audio-buffer-player', () => ({
@@ -10,7 +10,7 @@ jest.mock('../gameplay-audio-buffer-player', () => ({
 describe('New Reward authored audio', () => {
   beforeEach(() => { (window as any)._settings = { gameSoundsEnabled: true }; });
   afterEach(() => { stopJourneyNewCardSounds(); delete (window as any)._settings; });
-  test('preloads exactly the five supplied sources and plays interim layers once at 70% base gain', () => {
+  test('preloads exactly the four supplied sources and plays interim layers once at 70% base gain', () => {
     preloadJourneyNewCardSounds();
     expect(preloadDecodedGameplaySounds).toHaveBeenCalledWith(Object.values(JOURNEY_NEW_CARD_SOUND_SOURCES));
     const owner = createJourneyNewCardSoundSession();
@@ -63,19 +63,6 @@ describe('New Reward authored audio', () => {
     expect(playDecodedGameplaySound).toHaveBeenCalledTimes(2);
   });
 
-  test('tap obeys Sounds and survives presentation stop until screen cleanup', () => {
-    const owner = createJourneyNewCardSoundSession();
-    playJourneyNewCardTapSound();
-    expect(playDecodedGameplaySound).toHaveBeenLastCalledWith(JOURNEY_NEW_CARD_SOUND_SOURCES.tap, { voiceId: 'journey-new-card-tap', volume: 0.6 });
-    owner.stop();
-    expect(stopDecodedGameplayVoices).toHaveBeenLastCalledWith(expect.not.arrayContaining(['journey-new-card-tap']));
-    stopJourneyNewCardSounds();
-    expect(stopDecodedGameplayVoices).toHaveBeenLastCalledWith(expect.arrayContaining(['journey-new-card-tap']));
-    (window as any)._settings.gameSoundsEnabled = false;
-    playJourneyNewCardTapSound();
-    expect(playDecodedGameplaySound).toHaveBeenCalledTimes(1);
-  });
-
   test('actual tap handlers use one CTA for reveal and one for queued collection, despite pointerup plus click', () => {
     const source = ts.createSourceFile('screen.ts', fs.readFileSync('src/modules/journey-new-card-screen.ts', 'utf8'), ts.ScriptTarget.Latest, true);
     const names = ['onReveal', 'handleUnlockedPointerUp', 'playRewardCardTap'];
@@ -91,17 +78,14 @@ describe('New Reward authored audio', () => {
       return {onReveal,handleUnlockedPointerUp, finishReveal:()=>{revealed=true;revealRunning=false;resolved=true;}};`;
     const code = ts.transpileModule(body, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
     const cta = jest.fn();
-    const plop = jest.fn();
-    const handlers = new Function('playCtaActivationSounds','playJourneyNewCardTapSound','resolveJourneyNewCardTapAction',code)(cta,plop,resolveJourneyNewCardTapAction);
+    const handlers = new Function('playCtaActivationSounds','resolveJourneyNewCardTapAction',code)(cta,resolveJourneyNewCardTapAction);
     const event = { preventDefault: jest.fn(), stopPropagation: jest.fn() };
     handlers.onReveal(event);
     expect(cta).toHaveBeenCalledTimes(1);
     handlers.handleUnlockedPointerUp(event);
     handlers.onReveal(event);
     expect(cta).toHaveBeenCalledTimes(2);
-    expect(plop).toHaveBeenCalledTimes(2);
     handlers.finishReveal(); handlers.onReveal(event);
     expect(cta).toHaveBeenCalledTimes(2);
-    expect(plop).toHaveBeenCalledTimes(2);
   });
 });

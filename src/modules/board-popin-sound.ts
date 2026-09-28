@@ -24,7 +24,7 @@ export function stopBoardPopInSound(): void {
   stopDecodedGameplayVoices(VOICE_IDS);
 }
 
-/** One bounded three-layer cue per visible entrance; a retired entrance cannot stop its successor. */
+/** Shared bounded three-layer cue for board entry/exit; retired animation cleanup cannot stop its successor. */
 export function playBoardPopInSound(durationSeconds: number): () => void {
   stopBoardPopInSound();
   const owner = generation;
