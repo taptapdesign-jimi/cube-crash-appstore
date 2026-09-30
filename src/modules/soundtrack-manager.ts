@@ -20,6 +20,8 @@ import { NATIVE_AUDIO_ACTIVE_EVENT } from './soundtrack-context-recovery.js';
 import {
   isThermalAudioSuppressed, recordThermalAudioIsolationBlock, subscribeThermalAudioIsolation,
 } from '../utils/thermal-audio-isolation.js';
+import { arePerformanceDiagnosticsEnabled } from '../utils/runtime-diagnostics-policy.js';
+import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.js';
 
 export const SOUNDTRACK_URL =
   './assets/sound/soundtrack/theme-loop-v1/SIx-theme-seamless-loop.wav';
@@ -32,6 +34,7 @@ export const SOUNDTRACK_INTRO_DURATION_MS = 2058.3125;
 export const SOUNDTRACK_RUNTIME_DURATION_SECONDS = 59.6910625;
 export const SOUNDTRACK_INTRO_CROSSFADE_MS = 320;
 export const SOUNDTRACK_INTRO_CROSSFADE_DELAY_MS = 120;
+export const SOUNDTRACK_LAUNCH_FADE_IN_MS = 2000;
 export const SOUNDTRACK_INTRO_LOOP_PREROLL_SECONDS =
   SOUNDTRACK_LOOP_DURATION_SECONDS - SOUNDTRACK_INTRO_DURATION_MS / 1000;
 export const SOUNDTRACK_RESUME_FADE_IN_MS = 420;
@@ -65,6 +68,7 @@ let introAudio: HTMLAudioElement | null = null;
 let introHandoffTimer: ReturnType<typeof setTimeout> | null = null;
 let introSequenceActive = false;
 let introHasPlayed = false;
+let pendingColdStartFadeInMs = 0;
 let pausedForVisibility = false;
 let activeFadeToken = 0;
 let fadeInProgress = false;
@@ -97,6 +101,38 @@ let victoryHookArcadeRestoreVolume = ARCADE_SOUNDTRACK_CALM_VOLUME;
 let removeContextStateListener: (() => void) | null = null;
 let contextStateRecoveryGeneration = 0;
 let nativeForegroundOverridesHidden = false;
+let nativeActivationEpoch = 0;
+let lastBackgroundReceiptAtMs = 0;
+
+function reportForegroundLifecycle(event: string, detail: Record<string, unknown> = {}): void {
+  if (!arePerformanceDiagnosticsEnabled()) return;
+  emitNativeConsoleDiagnostic('[CC_SOUNDTRACK_FG]', event, {
+    hidden: document.hidden,
+    nativeOverride: nativeForegroundOverridesHidden,
+    pausedForVisibility,
+    isStarted,
+    gameplayDuckActive,
+    victoryHookMuteActive,
+    fadeInProgress,
+    playRequestToken,
+    gameplayFadeGeneration,
+    contextState: audio?.contextState ?? null,
+    resumePending: audio?.resumePending ?? false,
+    paused: audio?.paused ?? null,
+    gain: audio?.volume ?? null,
+    sourcePresent: audio?.sourcePresent ?? null,
+    sourceGeneration: audio?.sourceGeneration ?? null,
+    arcadeContextState: arcadeAudio?.contextState ?? null,
+    arcadeResumePending: arcadeAudio?.resumePending ?? false,
+    arcadePaused: arcadeAudio?.paused ?? null,
+    arcadeGain: arcadeAudio?.volume ?? null,
+    arcadeSourcePresent: arcadeAudio?.sourcePresent ?? null,
+    arcadeSourceGeneration: arcadeAudio?.sourceGeneration ?? null,
+    arcadeLayer,
+    arcadeRequestedLayer,
+    ...detail,
+  });
+}
 
 function isMusicEnabled(): boolean {
   if (isThermalAudioSuppressed()) {
@@ -225,6 +261,7 @@ function playOriginalIntroIntoLoop(
   currentAudio: MainThemeVoiceLike,
   successMessage: string,
 ): void {
+  const coldStartFadeInMs = pendingColdStartFadeInMs;
   const currentIntroAudio = getIntroAudio();
   clearIntroHandoffTimer();
   cancelThemeFade();
@@ -232,7 +269,7 @@ function playOriginalIntroIntoLoop(
   currentAudio.volume = 0;
   currentAudio.currentTime = SOUNDTRACK_INTRO_LOOP_PREROLL_SECONDS;
   currentIntroAudio.currentTime = 0;
-  currentIntroAudio.volume = SOUNDTRACK_VOLUME;
+  currentIntroAudio.volume = coldStartFadeInMs > 0 ? 0 : SOUNDTRACK_VOLUME;
 
   const requestToken = ++playRequestToken;
   let readyVoices = 0;
@@ -253,9 +290,23 @@ function playOriginalIntroIntoLoop(
     }
 
     introHasPlayed = true;
+    pendingColdStartFadeInMs = 0;
     isStarted = true;
     autoplayRetryInFlight = false;
     disarmAutoplayRetry();
+    if (coldStartFadeInMs > 0) {
+      fadeInProgress = true;
+      linearFade(0, SOUNDTRACK_VOLUME, coldStartFadeInMs, (volume) => {
+        if (introSequenceActive && introAudio === currentIntroAudio) {
+          currentIntroAudio.volume = volume;
+        }
+      }, () => {
+        if (!introSequenceActive || introAudio !== currentIntroAudio) return;
+        currentIntroAudio.volume = SOUNDTRACK_VOLUME;
+        fadeInProgress = false;
+        logger.info('🔊 Launch theme fade-in completed');
+      });
+    }
     const fadeStartMs = SOUNDTRACK_INTRO_DURATION_MS +
       SOUNDTRACK_INTRO_CROSSFADE_DELAY_MS;
     introHandoffTimer = setTimeout(() => {
@@ -317,7 +368,8 @@ function playSampleAccurateTheme(
   currentAudio: MainThemeVoiceLike,
   successMessage: string,
 ): void {
-  currentAudio.volume = SOUNDTRACK_VOLUME;
+  const coldStartFadeInMs = pendingColdStartFadeInMs;
+  currentAudio.volume = coldStartFadeInMs > 0 ? 0 : SOUNDTRACK_VOLUME;
   const requestToken = ++playRequestToken;
   currentAudio.play().then(() => {
     if (requestToken !== playRequestToken) return;
@@ -329,8 +381,20 @@ function playSampleAccurateTheme(
       return;
     }
     introHasPlayed = true;
+    pendingColdStartFadeInMs = 0;
     autoplayRetryInFlight = false;
     markPlaybackActive(currentAudio, successMessage);
+    if (coldStartFadeInMs > 0) {
+      fadeInProgress = true;
+      linearFade(0, SOUNDTRACK_VOLUME, coldStartFadeInMs, (volume) => {
+        if (audio === currentAudio) currentAudio.volume = volume;
+      }, () => {
+        if (audio !== currentAudio) return;
+        currentAudio.volume = SOUNDTRACK_VOLUME;
+        fadeInProgress = false;
+        logger.info('🔊 Launch theme fade-in completed');
+      });
+    }
   }).catch((error) => {
     if (requestToken !== playRequestToken) return;
     autoplayRetryInFlight = false;
@@ -673,11 +737,16 @@ function playWithFadeIn(
   fadeInProgress = true;
   currentAudio.volume = 0;
   const requestToken = ++playRequestToken;
+  reportForegroundLifecycle('fade-start', { requestToken, durationMs, targetVolume });
   currentAudio.play().then(() => {
-    if (requestToken !== playRequestToken) return;
+    if (requestToken !== playRequestToken) {
+      reportForegroundLifecycle('fade-stale-resolve', { requestToken });
+      return;
+    }
     if (audio !== currentAudio || !isMusicEnabled()) {
       currentAudio.pause();
       fadeInProgress = false;
+      reportForegroundLifecycle('fade-retired-after-play', { requestToken });
       return;
     }
     isStarted = true;
@@ -688,12 +757,14 @@ function playWithFadeIn(
       if (audio !== currentAudio) return;
       currentAudio.volume = targetVolume;
       fadeInProgress = false;
+      reportForegroundLifecycle('fade-complete', { requestToken, targetVolume });
       logger.info(successMessage);
     });
   }).catch((error) => {
     if (requestToken !== playRequestToken) return;
     fadeInProgress = false;
     armAutoplayRetry();
+    reportForegroundLifecycle('fade-rejected', { requestToken, error: String(error) });
     logger.warn('🔊 Soundtrack play failed (user gesture may be required):', error);
   });
 }
@@ -701,10 +772,26 @@ function playWithFadeIn(
 function onVisibilityChange(event?: Event): void {
   if (isThermalAudioSuppressed()) return;
   const currentAudio = audio;
-  const nativeAudioIsActive = event?.type === NATIVE_AUDIO_ACTIVE_EVENT;
-  if (document.hidden && !nativeAudioIsActive) {
+  const eventType = event?.type ?? 'unknown';
+  const nativeAudioIsActive = eventType === NATIVE_AUDIO_ACTIVE_EVENT;
+  const isBackgroundReceipt = eventType === 'pagehide' ||
+    (eventType === 'visibilitychange' && document.hidden);
+  const nativeDetail = nativeAudioIsActive && event instanceof CustomEvent
+    ? event.detail as Record<string, unknown> | undefined
+    : undefined;
+  reportForegroundLifecycle('receipt', { eventType, nativeDetail });
+
+  // pageshow means a document is being presented; it is never evidence of a
+  // new hide. WKWebView may still report document.hidden=true after the
+  // authoritative native app-active receipt, so only pagehide or an actual
+  // hidden visibilitychange may retire playback.
+  if (isBackgroundReceipt) {
+    lastBackgroundReceiptAtMs = Date.now();
     nativeForegroundOverridesHidden = false;
-    if (!currentAudio && arcadeVoices.size === 0) return;
+    if (!currentAudio && arcadeVoices.size === 0) {
+      reportForegroundLifecycle('background-empty', { eventType });
+      return;
+    }
     // A committed promotion must survive backgrounding as intent, never as a
     // timer that can fetch/decode/play after all current voices were paused.
     if (arcadeBarSwitchTimer !== null) {
@@ -731,11 +818,91 @@ function onVisibilityChange(event?: Event): void {
       }
     });
     pausedForVisibility = isMusicEnabled();
+    reportForegroundLifecycle('background-retired', { eventType });
     logger.info('🔊 Soundtrack paused (app in background)');
+    return;
+  }
+
+  if (eventType === 'pageshow' && document.hidden) {
+    reportForegroundLifecycle('pageshow-stale-hidden-ignored');
+    return;
+  }
+  const contextRunningReceipt = eventType === 'soundtrack-context-running';
+  const nativeRequestAtMs = Number(
+    nativeDetail?.activationRequestedAtMs ?? nativeDetail?.activationCompletedAtMs,
+  );
+  const nativeReceiptPredatesBackground = nativeAudioIsActive &&
+    Number.isFinite(nativeRequestAtMs) &&
+    nativeRequestAtMs > 0 &&
+    nativeRequestAtMs <= lastBackgroundReceiptAtMs;
+  if (nativeReceiptPredatesBackground) {
+    reportForegroundLifecycle('native-receipt-retired-after-background', {
+      nativeRequestAtMs,
+      lastBackgroundReceiptAtMs,
+    });
+    return;
+  }
+  if (
+    document.hidden &&
+    !nativeAudioIsActive &&
+    !(contextRunningReceipt && nativeForegroundOverridesHidden)
+  ) {
+    reportForegroundLifecycle('foreground-blocked-hidden', { eventType });
     return;
   }
   if (nativeAudioIsActive && document.hidden) nativeForegroundOverridesHidden = true;
   else if (!document.hidden) nativeForegroundOverridesHidden = false;
+
+  const nativeEpochCandidate = Number(
+    nativeDetail?.activationSequence ?? nativeDetail?.activationEpoch,
+  );
+  const activationEpoch = nativeAudioIsActive
+    ? (Number.isFinite(nativeEpochCandidate) && nativeEpochCandidate > 0
+      ? Math.max(nativeActivationEpoch, nativeEpochCandidate)
+      : nativeActivationEpoch + 1)
+    : nativeActivationEpoch;
+  if (nativeAudioIsActive) nativeActivationEpoch = activationEpoch;
+
+  // visibility/pageshow can run before the authoritative native audio-session
+  // activation completes. If they already created a logically live source, the
+  // native receipt rebinds that one voice at the same position exactly once for
+  // this activation epoch; otherwise the regular paused-voice path below owns it.
+  const nativeThemeReacquireOwnsReceipt = !!(
+    nativeAudioIsActive && currentAudio && !currentAudio.paused &&
+    currentAudio.reacquireAfterNativeActivation
+  );
+  const nativeArcadeReacquireOwnsReceipt = !!(
+    nativeAudioIsActive && arcadeAudio && !arcadeAudio.paused &&
+    arcadeAudio.reacquireAfterNativeActivation
+  );
+  if (nativeThemeReacquireOwnsReceipt && currentAudio) {
+    void currentAudio.reacquireAfterNativeActivation?.(activationEpoch).then((reacquired) => {
+      reportForegroundLifecycle('native-theme-reacquire-result', {
+        activationEpoch,
+        reacquired,
+      });
+    }).catch((error) => {
+      armAutoplayRetry();
+      reportForegroundLifecycle('native-theme-reacquire-failed', {
+        activationEpoch,
+        error: String(error),
+      });
+    });
+  }
+  if (nativeArcadeReacquireOwnsReceipt && arcadeAudio) {
+    void arcadeAudio.reacquireAfterNativeActivation?.(activationEpoch).then((reacquired) => {
+      reportForegroundLifecycle('native-arcade-reacquire-result', {
+        activationEpoch,
+        reacquired,
+      });
+    }).catch((error) => {
+      armAutoplayRetry();
+      reportForegroundLifecycle('native-arcade-reacquire-failed', {
+        activationEpoch,
+        error: String(error),
+      });
+    });
+  }
 
   if (gameplayDuckActive && isArcadeHomeRunMode()) {
     // The native bridge confirms app activation when WKWebView leaves hidden
@@ -743,6 +910,7 @@ function onVisibilityChange(event?: Event): void {
     if (document.hidden && !nativeAudioIsActive) return;
     if (arcadeRequestedLayer && (!arcadeAudio || arcadeRequestedLayer !== arcadeLayer)) {
       pausedForVisibility = false;
+      reportForegroundLifecycle('arcade-layer-reacquire', { eventType });
       switchArcadeLayer(arcadeRequestedLayer, SOUNDTRACK_RESUME_FADE_IN_MS, arcadeTargetVolume, nativeAudioIsActive);
       return;
     }
@@ -750,14 +918,14 @@ function onVisibilityChange(event?: Event): void {
 
   // WKWebView may restore a page without a matching hidden event. A live
   // sample-accurate source can remain attached to an interrupted context.
-  if (currentAudio && !currentAudio.paused) {
+  if (currentAudio && !currentAudio.paused && !nativeThemeReacquireOwnsReceipt) {
     const recovery = currentAudio.resumeIfInterrupted?.();
     void recovery?.catch((error) => {
       armAutoplayRetry();
       logger.warn('🔊 Main theme AudioContext foreground resume failed:', error);
     });
   }
-  if (arcadeAudio && !arcadeAudio.paused) {
+  if (arcadeAudio && !arcadeAudio.paused && !nativeArcadeReacquireOwnsReceipt) {
     void arcadeAudio.resumeIfInterrupted?.().catch(() => armAutoplayRetry());
   }
   const arcadeOwnsMusic = gameplayDuckActive && isArcadeHomeRunMode() && arcadeAudio;
@@ -765,9 +933,15 @@ function onVisibilityChange(event?: Event): void {
     isStarted && !victoryHookMuteActive &&
     (arcadeOwnsMusic ? arcadeAudio?.paused : currentAudio?.paused)
   );
-  if (!shouldResume) return;
+  if (!shouldResume) {
+    reportForegroundLifecycle('foreground-logical-live', { eventType });
+    return;
+  }
   pausedForVisibility = false;
-  if (!isMusicEnabled()) return;
+  if (!isMusicEnabled()) {
+    reportForegroundLifecycle('foreground-music-disabled', { eventType });
+    return;
+  }
   if (gameplayDuckActive && isArcadeHomeRunMode() && arcadeAudio) {
     const currentArcadeAudio = arcadeAudio;
     currentArcadeAudio.volume = 0;
@@ -799,8 +973,10 @@ function onVisibilityChange(event?: Event): void {
     // A menu handoff can be deferred before its first audio allocation.
     // This visibility/native-active receipt now owns that retained intent.
     startSoundtrack();
+    reportForegroundLifecycle('foreground-cold-start', { eventType });
     return;
   }
+  reportForegroundLifecycle('foreground-theme-reacquire', { eventType });
   playWithFadeIn(
     currentAudio,
     SOUNDTRACK_RESUME_FADE_IN_MS,
@@ -810,7 +986,40 @@ function onVisibilityChange(event?: Event): void {
 
 function onSoundtrackContextStateChange(): void {
   const currentAudio = audio;
-  if (!currentAudio || currentAudio.contextState !== 'running') return;
+  const currentArcadeAudio = arcadeAudio;
+  reportForegroundLifecycle('context-state-change', {
+    contextState: currentAudio?.contextState ?? null,
+  });
+  if (!currentAudio) return;
+  if (currentAudio.contextState !== 'running') {
+    if (
+      !isMusicEnabled() ||
+      (document.hidden && !nativeForegroundOverridesHidden)
+    ) return;
+    const routeVoice = gameplayDuckActive && isArcadeHomeRunMode() && currentArcadeAudio
+      ? currentArcadeAudio
+      : currentAudio;
+    const generation = ++contextStateRecoveryGeneration;
+    reportForegroundLifecycle('context-interrupted-recovery-start', { generation });
+    void routeVoice.resumeIfInterrupted?.().then(() => {
+      if (
+        generation !== contextStateRecoveryGeneration ||
+        !isMusicEnabled() ||
+        (document.hidden && !nativeForegroundOverridesHidden)
+      ) return;
+      if (routeVoice.contextState === 'running') {
+        onVisibilityChange(new Event('soundtrack-context-running'));
+      }
+    }).catch((error) => {
+      if (generation !== contextStateRecoveryGeneration) return;
+      armAutoplayRetry();
+      reportForegroundLifecycle('context-interrupted-recovery-failed', {
+        generation,
+        error: String(error),
+      });
+    });
+    return;
+  }
   const generation = ++contextStateRecoveryGeneration;
   // WebKit can move an interrupted context to running after resume() already
   // timed out. Let the current manager state settle first, then reacquire only
@@ -823,10 +1032,15 @@ function onSoundtrackContextStateChange(): void {
       currentAudio.contextState !== 'running' ||
       !isMusicEnabled() ||
       (document.hidden && !nativeForegroundOverridesHidden)
-    ) return;
-    onVisibilityChange(new Event(
-      document.hidden ? NATIVE_AUDIO_ACTIVE_EVENT : 'soundtrack-context-running',
-    ));
+    ) {
+      reportForegroundLifecycle('context-running-receipt-retired', { generation });
+      return;
+    }
+    reportForegroundLifecycle('context-running-reacquire', { generation });
+    // A Web Audio state receipt is not proof that AVAudioSession completed a
+    // new activation. Keep it separate so it cannot consume a native epoch or
+    // force a redundant source rebind.
+    onVisibilityChange(new Event('soundtrack-context-running'));
   });
 }
 
@@ -838,6 +1052,7 @@ function setupVisibilityListener(): void {
   ) return;
   visibilityListenerInstalled = true;
   document.addEventListener('visibilitychange', onVisibilityChange);
+  window.addEventListener('pagehide', onVisibilityChange);
   window.addEventListener('pageshow', onVisibilityChange);
   window.addEventListener(NATIVE_AUDIO_ACTIVE_EVENT, onVisibilityChange);
 }
@@ -865,6 +1080,13 @@ function getAudio(): MainThemeVoiceLike {
 export function preloadSoundtrack(): void {
   if (!isMusicEnabled()) return;
   getAudio();
+}
+
+/** Start the first launch intro at zero gain and reveal it behind logo SFX. */
+export function startLaunchSoundtrack(): void {
+  if (!isMusicEnabled()) return;
+  if (!introHasPlayed) pendingColdStartFadeInMs = SOUNDTRACK_LAUNCH_FADE_IN_MS;
+  startSoundtrack();
 }
 
 /** Start the global theme. Repeated calls do not restart an active track. */
@@ -911,6 +1133,7 @@ export function stopSoundtrack(): void {
   cancelThemeFade();
   playRequestToken++;
   fadeInProgress = false;
+  pendingColdStartFadeInMs = 0;
   pausedForVisibility = false;
   disarmAutoplayRetry();
   autoplayRetryInFlight = false;
@@ -956,6 +1179,7 @@ export function fadeInAndResume(
   durationMs: number = SOUNDTRACK_RESUME_FADE_IN_MS,
 ): void {
   if (!isMusicEnabled()) return;
+  pendingColdStartFadeInMs = 0;
   clearVictoryHookEnvelope();
   cancelIntroSequence(true);
   if (fadeInProgress && !gameplayDuckActive) return;
@@ -1362,6 +1586,7 @@ export function resetSoundtrackForTests(): void {
   autoplayRetryInFlight = false;
   if (visibilityListenerInstalled && typeof document !== 'undefined') {
     document.removeEventListener('visibilitychange', onVisibilityChange);
+    window.removeEventListener('pagehide', onVisibilityChange);
     window.removeEventListener('pageshow', onVisibilityChange);
     window.removeEventListener(NATIVE_AUDIO_ACTIVE_EVENT, onVisibilityChange);
   }
@@ -1370,6 +1595,8 @@ export function resetSoundtrackForTests(): void {
   removeContextStateListener = null;
   contextStateRecoveryGeneration++;
   nativeForegroundOverridesHidden = false;
+  nativeActivationEpoch = 0;
+  lastBackgroundReceiptAtMs = 0;
   if (audio) {
     try { audio.pause(); } catch {}
     audio.dispose?.();
@@ -1388,6 +1615,7 @@ export function resetSoundtrackForTests(): void {
   audio = null;
   introAudio = null;
   introHasPlayed = false;
+  pendingColdStartFadeInMs = 0;
   pausedForVisibility = false;
   gameplayDuckActive = false;
   activeGameplayFade = null;
@@ -1398,6 +1626,7 @@ export function resetSoundtrackForTests(): void {
 
 export const soundtrackManager = {
   start: startSoundtrack,
+  startLaunch: startLaunchSoundtrack,
   stop: stopSoundtrack,
   fadeInAndResume,
   fadeOutForGameplay: fadeOutSoundtrackForGameplay,
@@ -1413,14 +1642,22 @@ export const soundtrackManager = {
 export function getSoundtrackRuntimeStats(): {
   decodedBytes: number; activeVoices: number; retainedArcadeVoices: number;
   contextState: string | null; resumePending: boolean;
+  sourcePresent: boolean | null; sourceGeneration: number | null; gain: number | null;
 } {
+  const voiceIsActive = (voice: MainThemeVoiceLike | null): boolean => !!voice &&
+    !voice.paused &&
+    (voice.contextState === undefined || voice.contextState === 'running') &&
+    voice.sourcePresent !== false;
   return {
     decodedBytes: (audio?.decodedBytes ?? 0) + Array.from(arcadeVoices)
       .reduce((total, voice) => total + (voice.decodedBytes ?? 0), 0),
-    activeVoices: Number(!!audio && !audio.paused) + Number(!!introAudio && !introAudio.paused) +
-      Array.from(arcadeVoices).filter((voice) => !voice.paused).length,
+    activeVoices: Number(voiceIsActive(audio)) + Number(!!introAudio && !introAudio.paused) +
+      Array.from(arcadeVoices).filter(voiceIsActive).length,
     retainedArcadeVoices: arcadeVoices.size,
     contextState: audio?.contextState ?? null,
     resumePending: audio?.resumePending ?? false,
+    sourcePresent: audio?.sourcePresent ?? null,
+    sourceGeneration: audio?.sourceGeneration ?? null,
+    gain: audio?.volume ?? null,
   };
 }

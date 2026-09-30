@@ -19,12 +19,19 @@ import {
   LASERGUN_EXIT_DELAY_SECONDS,
   LASERGUN_EXIT_TRAVEL_SECONDS,
   LASERGUN_FIRE_FRAME_STEP_SECONDS,
+  LASERGUN_NO_TARGET_BUILDUP_START_SECONDS,
+  LASERGUN_NO_TARGET_EXIT_START_SECONDS,
+  LASERGUN_NO_TARGET_FRAME3_HOLD_SECONDS,
+  LASERGUN_NO_TARGET_FRAME_STEP_SECONDS,
+  LASERGUN_NO_TARGET_TOTAL_SECONDS,
   LASERGUN_FRAME6_PAINT_LEAD_SECONDS,
   LASERGUN_FRAME_SOURCES,
   LASERGUN_LEFT_BEAM_GEOMETRY,
   LASERGUN_MAX_TARGETS,
   LASERGUN_PREFIRE_SETTLE_SECONDS,
   LASERGUN_TARGET_LOCK_TOLERANCE_PX,
+  getLaserGunNoTargetSide,
+  playActiveLaserGunNoTarget,
   prepareActiveLaserGunFinaleImpact,
   setActiveLaserGunFinaleTargets,
   triggerActiveLaserGunFinaleImpact,
@@ -158,6 +165,72 @@ describe('LaserGun finale lifecycle', () => {
     expect(overlay.querySelector('.cc-lasergun-finale-scene')).toBeNull();
     expect(overlay.querySelector('.cc-lasergun-right-gun-layer')).toBeNull();
     expect(animationManager.getStats().activeTimelines).toBe(baseline);
+  });
+
+  test('plays one presentation-only no-target fake-out without a beam or gameplay target', () => {
+    const overlay = document.createElement('div');
+    document.body.appendChild(overlay);
+    const onSequenceComplete = jest.fn();
+    const cleanup = attachLaserGunFinaleScene(overlay, {
+      random: () => 0.5,
+      onSequenceComplete,
+    });
+
+    expect(getLaserGunNoTargetSide(80, 390)).toBe('right');
+    expect(getLaserGunNoTargetSide(310, 390)).toBe('left');
+    expect(playActiveLaserGunNoTarget({ x: 80, y: 240 })).toBe(true);
+    expect(playActiveLaserGunNoTarget({ x: 80, y: 240 })).toBe(false);
+
+    const gun = overlay.querySelector(
+      '.cc-lasergun-rig[data-lasergun-no-target="true"]',
+    ) as HTMLElement;
+    const frame = gun.querySelector('.cc-lasergun-frame') as HTMLImageElement;
+    expect(gun).not.toBeNull();
+    expect(gun.classList.contains('cc-lasergun-rig-right')).toBe(true);
+    expect(overlay.querySelectorAll('.cc-lasergun-rig')).toHaveLength(1);
+    expect(overlay.querySelectorAll('.cc-lasergun-beam')).toHaveLength(0);
+    expect(frame.dataset.lasergunFrame).toBe('1');
+
+    const fakeOut = gsap.globalTimeline.getChildren(true, true, true)
+      .find((animation) => (
+        animation instanceof gsap.core.Timeline
+        && Math.abs(animation.duration() - LASERGUN_NO_TARGET_TOTAL_SECONDS) < 0.001
+      )) as gsap.core.Timeline | undefined;
+    expect(fakeOut).toBeDefined();
+    expect(LASERGUN_NO_TARGET_TOTAL_SECONDS).toBeCloseTo(0.72, 6);
+
+    fakeOut!.time(LASERGUN_NO_TARGET_BUILDUP_START_SECONDS + 0.001, false);
+    expect(frame.dataset.lasergunFrame).toBe('2');
+    fakeOut!.time(
+      LASERGUN_NO_TARGET_BUILDUP_START_SECONDS
+        + LASERGUN_NO_TARGET_FRAME_STEP_SECONDS
+        + 0.001,
+      false,
+    );
+    expect(frame.dataset.lasergunFrame).toBe('3');
+    fakeOut!.time(
+      LASERGUN_NO_TARGET_EXIT_START_SECONDS
+        - LASERGUN_NO_TARGET_FRAME_STEP_SECONDS
+        - 0.001,
+      false,
+    );
+    expect(frame.dataset.lasergunFrame).toBe('3');
+    fakeOut!.time(
+      LASERGUN_NO_TARGET_BUILDUP_START_SECONDS
+        + LASERGUN_NO_TARGET_FRAME_STEP_SECONDS
+        + LASERGUN_NO_TARGET_FRAME3_HOLD_SECONDS
+        + 0.001,
+      false,
+    );
+    expect(frame.dataset.lasergunFrame).toBe('2');
+    fakeOut!.time(LASERGUN_NO_TARGET_EXIT_START_SECONDS + 0.001, false);
+    expect(frame.dataset.lasergunFrame).toBe('1');
+    expect(overlay.querySelectorAll('.cc-lasergun-beam')).toHaveLength(0);
+
+    fakeOut!.progress(1, false);
+    expect(gun.style.visibility).toBe('hidden');
+    expect(onSequenceComplete).toHaveBeenCalledTimes(1);
+    cleanup();
   });
 
   test('dynamically supports four readable shots from one edge without spare owners', () => {

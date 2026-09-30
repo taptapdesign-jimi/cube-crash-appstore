@@ -1,9 +1,18 @@
 import {
   LASERGUN_MAX_GUNS_PER_SIDE,
+  getEligibleTntBonusTargets,
   getLaserGunPlannerMuzzleX,
   planLaserGunCrossfireTargets,
   selectSpatiallySeparatedTntTargets,
+  shouldUseLaserGunNoTargetPresentation,
 } from '../tnt-bonus-target-selection';
+
+type BonusCandidate = {
+  id: string;
+  value: number;
+  special?: string;
+  destroyed?: boolean;
+};
 
 describe('TNT bonus target selection', () => {
   const candidates = [
@@ -31,6 +40,53 @@ describe('TNT bonus target selection', () => {
 
     expect(selected).toHaveLength(2);
     expect(new Set(selected)).toEqual(new Set(candidates.slice(0, 2)));
+  });
+
+  it('finds no legitimate target when LaserGun merges with a regular beside only Spaceship', () => {
+    const laserGun: BonusCandidate = { id: 'laser', value: 0, special: 'wild-tnt' };
+    const mergedRegular: BonusCandidate = { id: 'merge', value: 4 };
+    const spaceship: BonusCandidate = { id: 'spaceship', value: 0, special: 'wild-magnet' };
+    const isWildLike = (tile: BonusCandidate) => tile.special?.startsWith('wild') === true;
+
+    const eligible = getEligibleTntBonusTargets(
+      [laserGun, mergedRegular, spaceship],
+      [laserGun, mergedRegular],
+      isWildLike,
+    );
+
+    expect(eligible).toEqual([]);
+    expect(shouldUseLaserGunNoTargetPresentation({
+      isLaserGun: true,
+      isFinalMerge: false,
+      eligibleTargetCount: eligible.length,
+    })).toBe(true);
+  });
+
+  it('keeps normal ZAP targets when at least one ordinary cube remains', () => {
+    const laserGun: BonusCandidate = { id: 'laser', value: 0, special: 'wild-tnt' };
+    const mergedRegular: BonusCandidate = { id: 'merge', value: 4 };
+    const spaceship: BonusCandidate = { id: 'spaceship', value: 0, special: 'wild-magnet' };
+    const ordinary: BonusCandidate = { id: 'ordinary', value: 3 };
+    const destroyedOrdinary: BonusCandidate = { id: 'destroyed', value: 2, destroyed: true };
+    const isWildLike = (tile: BonusCandidate) => tile.special?.startsWith('wild') === true;
+
+    const eligible = getEligibleTntBonusTargets(
+      [laserGun, mergedRegular, spaceship, ordinary, destroyedOrdinary],
+      [laserGun, mergedRegular],
+      isWildLike,
+    );
+
+    expect(eligible).toEqual([ordinary]);
+    expect(shouldUseLaserGunNoTargetPresentation({
+      isLaserGun: true,
+      isFinalMerge: false,
+      eligibleTargetCount: eligible.length,
+    })).toBe(false);
+    expect(shouldUseLaserGunNoTargetPresentation({
+      isLaserGun: false,
+      isFinalMerge: true,
+      eligibleTargetCount: 0,
+    })).toBe(false);
   });
 
   it('chooses the farthest muzzle band for one target and randomizes only a centered tie', () => {

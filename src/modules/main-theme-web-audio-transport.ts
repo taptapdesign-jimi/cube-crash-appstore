@@ -4,9 +4,16 @@ import { SoundtrackContextRecovery } from './soundtrack-context-recovery.js';
 import {
   isThermalAudioSuppressed, isThermalAudioIsolationAvailable, recordThermalAudioIsolationBlock,
 } from '../utils/thermal-audio-isolation.js';
+import { arePerformanceDiagnosticsEnabled } from '../utils/runtime-diagnostics-policy.js';
+import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.js';
 
 const preparation = { pendingLoads: 0, pendingDecodes: 0, decodeStarts: 0 };
 export function getSoundtrackPreparationStats() { return { ...preparation }; }
+
+function reportTransportLifecycle(event: string, detail: Record<string, unknown>): void {
+  if (!arePerformanceDiagnosticsEnabled()) return;
+  emitNativeConsoleDiagnostic('[CC_SOUNDTRACK_FG]', event, detail);
+}
 
 function requireAudioWork(kind: string, retired = false): void {
   if (!retired && !isThermalAudioSuppressed()) return;
@@ -49,12 +56,15 @@ export type MainThemeVoiceLike = Pick<
   readonly decodedBytes?: number;
   readonly contextState?: string;
   readonly resumePending?: boolean;
+  readonly sourcePresent?: boolean;
+  readonly sourceGeneration?: number;
   rampVolume?: (to: number, durationMs: number) => void;
   cancelVolumeRamp?: () => void;
   subscribeContextStateChange?: (listener: () => void) => () => void;
   createMediaVoice?: (source: string) => MainThemeVoiceLike | null;
   dispose?: () => void;
   resumeIfInterrupted?: () => Promise<void>;
+  reacquireAfterNativeActivation?: (activationEpoch: number) => Promise<boolean>;
 };
 
 export interface SampleAccurateMainThemeVoice extends MainThemeVoiceLike {
@@ -97,6 +107,9 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
   private isDisposed = false;
   private readonly envelope: SoundtrackAudioClockVolume;
   private playGeneration = 0;
+  private sourceSequence = 0;
+  private lastNativeActivationEpoch = 0;
+  private pendingNativeActivationEpoch = 0;
   private readonly recovery: SoundtrackContextRecovery;
   private readonly contextStateListeners = new Set<() => void>();
   private readonly onContextStateChange = (): void => {
@@ -122,6 +135,8 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
 
   get contextState(): string { return this.context.state; }
   get resumePending(): boolean { return this.recovery.pending; }
+  get sourcePresent(): boolean { return this.source !== null; }
+  get sourceGeneration(): number { return this.sourceSequence; }
 
   get paused(): boolean {
     return this.isPaused;
@@ -202,6 +217,48 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
     }
   }
 
+  async reacquireAfterNativeActivation(activationEpoch: number): Promise<boolean> {
+    if (
+      this.isDisposed ||
+      activationEpoch <= this.lastNativeActivationEpoch ||
+      activationEpoch <= this.pendingNativeActivationEpoch
+    ) return false;
+    if (this.isPaused) return false;
+    this.pendingNativeActivationEpoch = activationEpoch;
+    const generation = ++this.playGeneration;
+    const position = this.currentTime;
+    reportTransportLifecycle('theme-native-reacquire-start', {
+      activationEpoch,
+      generation,
+      contextState: this.context.state,
+      sourceGeneration: this.sourceSequence,
+      position,
+    });
+    try {
+      await this.recovery.resume();
+      if (this.isDisposed || generation !== this.playGeneration || this.isPaused) return false;
+      if (!isContextRunning(this.context)) {
+        throw new DOMException(
+          'Main theme context remains interrupted after native activation',
+          'NotAllowedError',
+        );
+      }
+      this.startSource(position);
+      this.lastNativeActivationEpoch = activationEpoch;
+      reportTransportLifecycle('theme-native-reacquire-complete', {
+        activationEpoch,
+        generation,
+        sourceGeneration: this.sourceSequence,
+        position,
+      });
+      return true;
+    } finally {
+      if (this.pendingNativeActivationEpoch === activationEpoch) {
+        this.pendingNativeActivationEpoch = 0;
+      }
+    }
+  }
+
   dispose(): void {
     if (this.isDisposed) return;
     this.pause();
@@ -265,7 +322,15 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
     this.anchorContextTime = startAt;
     this.storedPosition = position;
     this.isPaused = false;
+    this.sourceSequence++;
     source.start(startAt, position);
+    reportTransportLifecycle('theme-source-start', {
+      contextState: this.context.state,
+      playGeneration: this.playGeneration,
+      sourceGeneration: this.sourceSequence,
+      position,
+      gain: this.volume,
+    });
   }
 
   private stopSource(): void {
@@ -275,6 +340,12 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
     source.onended = null;
     try { source.stop(); } catch {}
     try { source.disconnect(); } catch {}
+    reportTransportLifecycle('theme-source-stop', {
+      contextState: this.context.state,
+      playGeneration: this.playGeneration,
+      sourceGeneration: this.sourceSequence,
+      position: this.storedPosition,
+    });
   }
 }
 
@@ -294,6 +365,9 @@ class SoundtrackBufferVoice implements MainThemeVoiceLike {
   private anchorContextTime = 0;
   private isPaused = true;
   private generation = 0;
+  private sourceSequence = 0;
+  private lastNativeActivationEpoch = 0;
+  private pendingNativeActivationEpoch = 0;
   private disposed = false;
 
   constructor(
@@ -314,6 +388,8 @@ class SoundtrackBufferVoice implements MainThemeVoiceLike {
   }
   get contextState(): string { return this.context.state; }
   get resumePending(): boolean { return this.recovery.pending; }
+  get sourcePresent(): boolean { return this.sourceNode !== null; }
+  get sourceGeneration(): number { return this.sourceSequence; }
   get currentTime(): number {
     if (this.isPaused) return this.storedPosition;
     return this.normalizePosition(
@@ -362,6 +438,47 @@ class SoundtrackBufferVoice implements MainThemeVoiceLike {
     if (this.disposed || generation !== this.generation) return;
     if (!isContextRunning(this.context)) {
       throw new DOMException('Arcade context remains interrupted', 'NotAllowedError');
+    }
+  }
+  async reacquireAfterNativeActivation(activationEpoch: number): Promise<boolean> {
+    if (
+      this.disposed ||
+      activationEpoch <= this.lastNativeActivationEpoch ||
+      activationEpoch <= this.pendingNativeActivationEpoch
+    ) return false;
+    if (this.isPaused) return false;
+    this.pendingNativeActivationEpoch = activationEpoch;
+    const generation = ++this.generation;
+    const position = this.currentTime;
+    reportTransportLifecycle('arcade-native-reacquire-start', {
+      activationEpoch,
+      generation,
+      contextState: this.context.state,
+      sourceGeneration: this.sourceSequence,
+      position,
+    });
+    try {
+      await this.recovery.resume();
+      if (this.disposed || generation !== this.generation || this.isPaused) return false;
+      if (!isContextRunning(this.context)) {
+        throw new DOMException(
+          'Arcade context remains interrupted after native activation',
+          'NotAllowedError',
+        );
+      }
+      this.startSource(position);
+      this.lastNativeActivationEpoch = activationEpoch;
+      reportTransportLifecycle('arcade-native-reacquire-complete', {
+        activationEpoch,
+        generation,
+        sourceGeneration: this.sourceSequence,
+        position,
+      });
+      return true;
+    } finally {
+      if (this.pendingNativeActivationEpoch === activationEpoch) {
+        this.pendingNativeActivationEpoch = 0;
+      }
     }
   }
   dispose(): void {
@@ -415,7 +532,15 @@ class SoundtrackBufferVoice implements MainThemeVoiceLike {
     this.anchorContextTime = startAt;
     this.storedPosition = this.anchorPosition;
     this.isPaused = false;
+    this.sourceSequence++;
     source.start(startAt, this.anchorPosition);
+    reportTransportLifecycle('arcade-source-start', {
+      contextState: this.context.state,
+      playGeneration: this.generation,
+      sourceGeneration: this.sourceSequence,
+      position: this.anchorPosition,
+      gain: this.volume,
+    });
   }
 
   private stopSource(): void {
@@ -425,6 +550,12 @@ class SoundtrackBufferVoice implements MainThemeVoiceLike {
     source.onended = null;
     try { source.stop(); } catch {}
     try { source.disconnect(); } catch {}
+    reportTransportLifecycle('arcade-source-stop', {
+      contextState: this.context.state,
+      playGeneration: this.generation,
+      sourceGeneration: this.sourceSequence,
+      position: this.storedPosition,
+    });
   }
 }
 

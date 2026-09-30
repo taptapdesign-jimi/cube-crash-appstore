@@ -57,8 +57,10 @@ import {
 import {
   beginJourneyReturnTransition,
   markJourneyReturnResultExitComplete,
+  cancelJourneyReturnPrewarm,
   cancelJourneyReturnTransition,
   markJourneyReturnTransition,
+  prewarmJourneyReturnBeforeTerminalExit,
   prepareJourneyReturnBehindTerminalOverlay,
   measureJourneyReturnPreparationPhase,
   finishJourneyReturnCtaSetup,
@@ -219,6 +221,7 @@ export async function showCleanBoardModal({
     const presentation = { lifetime, abort: () => navigationAbortHandler?.() };
     activeCleanBoardModal = presentation;
     lifetime.onDispose(() => {
+      cancelJourneyReturnPrewarm('clean-board-modal-disposed');
       try { disposeCtas(); } catch {}
       try { retirePresentation(); } catch {}
       try { stopCleanBoardArea55ShipFlybys(); } catch {}
@@ -754,7 +757,33 @@ export async function showCleanBoardModal({
     const animateButtonIn = (button: HTMLButtonElement) => {
       const controller = getRegisteredCta(button);
       if (controller) playCleanBoardCtaBounceSound(button === primaryBtn ? 0 : 1);
-      void controller?.enter();
+      const enterPromise = controller?.enter() ?? Promise.resolve();
+      if (button === secondaryBtn && !isArcadeHomeRun) {
+        // Keep the authored entrance fully visible, but do not expose an Exit
+        // hit target until the expensive cold Journey DOM has been built. This
+        // moves that work out of the trusted activation task, where it used to
+        // freeze the pressed CTA and star/modal/board exit owners.
+        button.disabled = true;
+        button.setAttribute('aria-disabled', 'true');
+        button.setAttribute('aria-busy', 'true');
+        button.dataset.ctaPrewarmPending = 'true';
+        void enterPromise.then(async () => {
+          if (!lifetime.isActive() || el.dataset.cleanBoardExiting === 'true') return;
+          await prewarmJourneyReturnBeforeTerminalExit('clean-board', boardNumber);
+        }).catch(() => {
+          // The prewarm API is fail-open, but keep the CTA recoverable if a
+          // future implementation ever rejects unexpectedly.
+        }).finally(() => {
+          if (!lifetime.isActive() || el.dataset.cleanBoardExiting === 'true') return;
+          if (controller) controller.setDisabled(false);
+          else {
+            button.disabled = false;
+            button.setAttribute('aria-disabled', 'false');
+          }
+          button.removeAttribute('aria-busy');
+          delete button.dataset.ctaPrewarmPending;
+        });
+      }
       // CTA appearing on screen should feel confirmatory.
       triggerHapticImpactSafe('medium');
     };
@@ -1401,6 +1430,7 @@ export async function showCleanBoardModal({
     // 🔥 NEW: Primary button handler (Continue for interim, Play Again for regular)
     addButtonPressHandling(primaryBtn, async () => {
       if (!lifetime.isActive()) return;
+      cancelJourneyReturnPrewarm('clean-board-primary-activated');
       cleanupCelebrationParticlesImmediately();
       // The destination becomes the next audio owner at activation time.
       resultReleaseTarget = 'gameplay';
@@ -1656,9 +1686,6 @@ export async function showCleanBoardModal({
           try { localStorage.setItem('__ccJourneyReturnBoardId', String(boardNumber)); } catch {}
           try { localStorage.setItem('__ccLastActiveJourneyBoardAreaId', String(boardNumber)); } catch {}
         }
-        if (!isArcadeHomeRun) {
-          prepareJourneyReturnBehindTerminalOverlay('clean-board', journeyReturnTransitionId!);
-        }
         cleanupCelebrationParticlesImmediately();
         if (!isArcadeHomeRun) {
           markJourneyReturnTransition('celebration-retired');
@@ -1690,6 +1717,11 @@ export async function showCleanBoardModal({
         // 🔥 CRITICAL FIX: Play board exit animation FIRST before hiding board
         // This ensures user sees the original board exit animation (tiles + HUD) as requested
         console.log('🎬 clean-board-modal: Starting board exit animation before hiding board...');
+
+        // The activated CTA is the first visible owner to release. Starting it
+        // before any other exit setup guarantees that it cannot remain pressed
+        // behind synchronous Star or destination preparation work.
+        const ctaExitPromise = exitCtaPair(secondaryBtn, primaryBtn);
         
         // Stop only modal-specific animations, but NOT board animations (let exit animation play)
         const earnedStarsExitPromise = measureJourneyReturnPreparationPhase(
@@ -1702,15 +1734,12 @@ export async function showCleanBoardModal({
         // Start board exit animation (don't await yet - let it run in parallel with modal exit)
         let boardExitPromise: Promise<void> = Promise.resolve();
         let boardExitSucceeded = false;
-        finishJourneyReturnCtaSetup(journeyReturnTransitionId);
         if (arcadeRunReached && (window as any).__ccGameOverBoardExitComplete === true) {
           boardExitSucceeded = true;
           console.log('⏭️ clean-board-modal: Arcade summary board exit already completed - skipping duplicate exit');
         } else {
           try {
-            const { STATE } = await import('./app-state.js');
-            if (!lifetime.isActive()) return;
-            if (STATE && typeof (window as any).animateBoardExit === 'function') {
+            if (typeof (window as any).animateBoardExit === 'function') {
               console.log('🎬 clean-board-modal: Calling animateBoardExit() to play board exit animation...');
               boardExitPromise = Promise.resolve((window as any).animateBoardExit()).then(() => {
                 if (!lifetime.isActive()) return;
@@ -1747,8 +1776,6 @@ export async function showCleanBoardModal({
         // exit for each earned Star.
         hero.style.transition = 'none';
 
-        const ctaExitPromise = exitCtaPair(secondaryBtn, primaryBtn);
-
         trackAnimationFrame(() => {
           nodes.forEach((node, idx) => {
             const delay = (idx + 1) * CLEAN_BOARD_JOURNEY_EXIT_MOTION.contentStepMs;
@@ -1758,7 +1785,18 @@ export async function showCleanBoardModal({
               node.style.transform = `scale(${0.0 + extra}) translateY(${exitOffsets[idx]}px)`;
             }, delay);
           });
+          // Two frame boundaries guarantee that the synchronous Exit state
+          // above has been painted before token-owned Journey preparation can
+          // perform any main-thread work. The cold render was already paid by
+          // the settled-result prewarm, so this path only adopts/primes it.
+          if (!isArcadeHomeRun) {
+            trackAnimationFrame(() => {
+              if (!lifetime.isActive() || el.dataset.cleanBoardExiting !== 'true') return;
+              prepareJourneyReturnBehindTerminalOverlay('clean-board', journeyReturnTransitionId!);
+            });
+          }
         });
+        finishJourneyReturnCtaSetup(journeyReturnTransitionId);
         // Stars own their un-compounded exit pose. Only after they settle may
         // the ancestor card scale, keeping the accepted Star motion intact.
         void earnedStarsExitPromise.then(() => {

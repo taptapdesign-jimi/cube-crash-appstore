@@ -587,14 +587,6 @@ class LaunchScreen {
     // This runs while the paper launch surface is displayed.
     const priorityPaperLoad = this.preloadPriorityPaperBg();
 
-    // Start the one global theme with the studio intro; it continues through gameplay.
-    try {
-      const { startSoundtrack } = await import('./soundtrack-manager.js');
-      startSoundtrack();
-    } catch (e) {
-      logger.warn('🔊 Soundtrack start failed:', e);
-    }
-
     const { container, studioPresentsContainer, studioLogoUnit, studioLogo, studioLogoSheen, studioCharacter } = this.elements;
 
     // 🔥 CRITICAL: Log all elements to debug
@@ -697,6 +689,16 @@ class LaunchScreen {
       reason: 'studio-intro-preloader',
       timeoutMs: 3500,
     });
+
+    // Acquire the theme on the actual visible logo/SFX boundary. Its launch-only
+    // gain envelope keeps the character performance clear, without delaying or
+    // changing any character cue.
+    try {
+      const { startLaunchSoundtrack } = await import('./soundtrack-manager.js');
+      startLaunchSoundtrack();
+    } catch (e) {
+      logger.warn('🔊 Launch soundtrack start failed:', e);
+    }
 
     studioPresentsContainer.style.setProperty('opacity', '1');
     const idleSheenTimer = window.setTimeout(() => {

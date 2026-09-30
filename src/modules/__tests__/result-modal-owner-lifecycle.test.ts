@@ -47,7 +47,17 @@ function fixture(arcade = false) {
       setSoundtrackResultMix: jest.fn(),
     },
     './journey-terminal-return-policy.ts': terminalMotion,
-    './journey-return-transition-trace.ts': { beginJourneyReturnTransition: () => 1, markJourneyReturnResultExitComplete: jest.fn(), cancelJourneyReturnTransition: jest.fn(), prepareJourneyReturnBehindTerminalOverlay: jest.fn(), markJourneyReturnTransition: jest.fn(), measureJourneyReturnPreparationPhase: <T>(_id: number, _name: string, work: () => T) => work(), finishJourneyReturnCtaSetup: jest.fn() },
+    './journey-return-transition-trace.ts': {
+      beginJourneyReturnTransition: jest.fn(() => 1),
+      markJourneyReturnResultExitComplete: jest.fn(),
+      cancelJourneyReturnPrewarm: jest.fn(),
+      cancelJourneyReturnTransition: jest.fn(),
+      prewarmJourneyReturnBeforeTerminalExit: jest.fn(() => Promise.resolve(true)),
+      prepareJourneyReturnBehindTerminalOverlay: jest.fn(),
+      markJourneyReturnTransition: jest.fn(),
+      measureJourneyReturnPreparationPhase: <T>(_id: number, _name: string, work: () => T) => work(),
+      finishJourneyReturnCtaSetup: jest.fn(),
+    },
     './journey-progression-state.js': { journeyProgressionState: progression },
     './journey-boards-manager.js': { journeyBoardsManager: manager },
     './confetti-system.js': { allowConfettiSpawns: jest.fn(), cleanupConfetti: jest.fn(), createConfettiExplosion: jest.fn() },
@@ -222,6 +232,53 @@ test.each([false, true])('Clean Board normal Play Again retires CTA listeners (A
   expect(f.mocks['./soundtrack-manager.ts'].acquireGameplaySoundtrackAfterPlayAgain)
     .toHaveBeenCalledTimes(1);
   expect(f.pointerCount()).toBe(0);
+});
+
+test('slow cold Journey preparation cannot hold a pressed Exit or precede visible exit owners', async () => {
+  const f = fixture();
+  let finishPrewarm!: (prepared: boolean) => void;
+  f.mocks['./journey-return-transition-trace.ts'].prewarmJourneyReturnBeforeTerminalExit
+    .mockImplementationOnce(() => new Promise(resolve => { finishPrewarm = resolve; }));
+  window.animateBoardExit = jest.fn(() => Promise.resolve());
+
+  const result = f.clean.showCleanBoardModal({ boardNumber: 11, getScore: () => 10, forcedStars: 1 });
+  await finishMotion();
+  const exit = [...document.querySelectorAll<HTMLButtonElement>('button')]
+    .find(button => button.textContent === 'Exit')!;
+
+  expect(f.mocks['./journey-return-transition-trace.ts'].prewarmJourneyReturnBeforeTerminalExit)
+    .toHaveBeenCalledWith('clean-board', 11);
+  expect(exit.dataset.ctaState).toBe('idle');
+  expect(exit.disabled).toBe(true);
+  expect(exit.getAttribute('aria-busy')).toBe('true');
+  expect(exit.dataset.ctaPrewarmPending).toBe('true');
+  click('Exit');
+  expect(f.mocks['./journey-return-transition-trace.ts'].beginJourneyReturnTransition).not.toHaveBeenCalled();
+  expect(window.animateBoardExit).not.toHaveBeenCalled();
+
+  finishPrewarm(true);
+  await flush();
+  expect(exit.disabled).toBe(false);
+  expect(exit.hasAttribute('aria-busy')).toBe(false);
+  expect(exit.dataset.ctaPrewarmPending).toBeUndefined();
+
+  click('Exit');
+  expect(exit.dataset.ctaState).toBe('exiting');
+  expect(window.animateBoardExit).toHaveBeenCalledTimes(1);
+  expect(f.mocks['./journey-return-transition-trace.ts'].prepareJourneyReturnBehindTerminalOverlay)
+    .not.toHaveBeenCalled();
+
+  jest.advanceTimersByTime(16);
+  await flush();
+  expect(f.mocks['./journey-return-transition-trace.ts'].prepareJourneyReturnBehindTerminalOverlay)
+    .not.toHaveBeenCalled();
+  jest.advanceTimersByTime(16);
+  await flush();
+  expect(f.mocks['./journey-return-transition-trace.ts'].prepareJourneyReturnBehindTerminalOverlay)
+    .toHaveBeenCalledWith('clean-board', 1);
+
+  await finishMotion();
+  await expect(result).resolves.toEqual({ action: 'exit', visualExitAlreadyComplete: true });
 });
 
 test('late old board-exit completion cannot hide a replacement gameplay surface', async () => {

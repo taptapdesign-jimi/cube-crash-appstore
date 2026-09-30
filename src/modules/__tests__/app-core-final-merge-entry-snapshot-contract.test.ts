@@ -43,6 +43,50 @@ describe('merge-entry finality snapshot contract', () => {
     expect(bonus).toBeGreaterThan(guard);
   });
 
+  test('routes final LaserGun through the presentation-only no-target owner', () => {
+    const guard = appCoreSource.indexOf('if (finalMergeOwnsTntResolution) {');
+    const guardEnd = appCoreSource.indexOf('runTntBoomBonusBreak2Tiles({', guard);
+    const finalGuardSource = appCoreSource.slice(guard, guardEnd);
+    const fakeOut = finalGuardSource.indexOf('playActiveLaserGunNoTarget(');
+    const boardCommit = finalGuardSource.indexOf("commitTntBoardForOrdinaryStacks('final-merge-no-bonus')");
+
+    expect(finalGuardSource).toContain("tntVariantForMerge?.id === 'laser-gun'");
+    expect(finalGuardSource).toContain('getTntTileDomScreenPos(board, dst)');
+    expect(finalGuardSource).toContain('if (!fakeOutStarted) completeActiveLaserGunFinaleImpacts();');
+    expect(finalGuardSource).not.toContain('planLaserGunCrossfireTargets(');
+    expect(finalGuardSource).not.toContain('setActiveLaserGunFinaleTargets(');
+    expect(fakeOut).toBeGreaterThanOrEqual(0);
+    expect(boardCommit).toBeGreaterThan(fakeOut);
+  });
+
+  test('uses ZAPED OUT for final LaserGun or any LaserGun with zero eligible regular targets', () => {
+    const targetDecisionStart = appCoreSource.indexOf('const laserGunTargetsAtMergeEntry =');
+    const optionsStart = appCoreSource.indexOf('const tntAnimationOptionsForMerge = {');
+    const optionsEnd = appCoreSource.indexOf('const tntFramesReadyForMerge =', optionsStart);
+    const targetDecisionSource = appCoreSource.slice(targetDecisionStart, optionsStart);
+    const animationOptionsSource = appCoreSource.slice(optionsStart, optionsEnd);
+
+    expect(targetDecisionSource).toContain('getEligibleTntBonusTargets(');
+    expect(targetDecisionSource).toContain('[src, dst]');
+    expect(targetDecisionSource).toContain('shouldUseLaserGunNoTargetPresentation({');
+    expect(targetDecisionSource).toContain('isFinalMerge: isFinalMergeByResolver');
+    expect(targetDecisionSource).toContain('eligibleTargetCount: laserGunTargetsAtMergeEntry.length');
+    expect(animationOptionsSource).toContain('usesLaserGunNoTargetPresentation');
+    expect(animationOptionsSource).toContain('text: LASERGUN_NO_TARGET_TEXT');
+    expect(animationOptionsSource).toContain('laserGunNoTarget: true');
+  });
+
+  test('routes a non-final zero-target LaserGun merge through the same fake-out owner', () => {
+    const handoffStart = appCoreSource.indexOf("onTargetsSelected: tntVariantForMerge?.id === 'laser-gun'");
+    const handoffEnd = appCoreSource.indexOf('onBoardCommitted:', handoffStart);
+    const handoffSource = appCoreSource.slice(handoffStart, handoffEnd);
+
+    expect(handoffSource).toContain('targets.length === 0 && usesLaserGunNoTargetPresentation');
+    expect(handoffSource).toContain('playActiveLaserGunNoTarget(');
+    expect(handoffSource).toContain("return fakeOutStarted ? 'painted' : 'cancelled';");
+    expect(handoffSource).toContain('return setActiveLaserGunFinaleTargets(targets);');
+  });
+
   test('fallback final guard releases merge and special owners before clean-board handoff', () => {
     const helperStart = appCoreSource.indexOf('const triggerFinalMergeCleanBoardFromMergeGuard = async');
     const helperEnd = appCoreSource.indexOf('const maybeForceCleanBoardFromSingleMerge6', helperStart);

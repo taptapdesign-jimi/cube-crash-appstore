@@ -7,6 +7,7 @@ const FLIGHT_SAMPLES_PER_SECOND = 30;
 const ENTER_END = 0.16;
 const EXIT_START = 0.85;
 export const CLEAN_BOARD_AREA55_SHIP_MAX_WOBBLE_PX = 60;
+export const CLEAN_BOARD_AREA55_SHIP_MAX_BANK_DEGREES = 30;
 const MIN_WOBBLE_PX = 30;
 
 type ShipDepth = 'behind' | 'front';
@@ -100,6 +101,7 @@ export function createCleanBoardArea55ShipFlightPlan(options: {
   const amplitude = sample(random, MIN_WOBBLE_PX, CLEAN_BOARD_AREA55_SHIP_MAX_WOBBLE_PX);
   const phaseX = sample(random, 0, Math.PI * 2);
   const phaseY = sample(random, 0, Math.PI * 2);
+  const bankFrequency = sample(random, 0.8, 1.2);
   const driftX = corridor === 'left' ? sample(random, 0.55, 0.72) : sample(random, 0.82, 0.99);
   const driftY = corridor === 'left' ? sample(random, 0.48, 0.66) : sample(random, 0.72, 0.91);
   const hoverX = corridor === 'left' ? sample(random, 3.0, 3.7) : sample(random, 4.1, 4.9);
@@ -146,13 +148,22 @@ export function createCleanBoardArea55ShipFlightPlan(options: {
       const before = samplePosition(t - dt);
       const after = samplePosition(t + dt);
       const velocityX = (after.x - before.x) / (2 * dt * durationMs / 1000);
-      const leave = smoothBlend((t - EXIT_START) / (1 - EXIT_START));
-      const rotation = 10 * Math.tanh(velocityX / 130)
-        + 4 * Math.sin(t * tau * hoverY + phaseX);
-      const scale = (1 + 0.025 * Math.sin(t * tau * hoverX + phaseY)) * (1 - 0.14 * leave);
+      // Bank clearly into each direction change while staying inside the
+      // authored 30-degree ceiling. The ship keeps its size and opacity all
+      // the way through the offscreen exit; removal happens only after the
+      // compositor animation has carried the complete sprite out of view.
+      const rotation = Math.max(
+        -CLEAN_BOARD_AREA55_SHIP_MAX_BANK_DEGREES,
+        Math.min(
+          CLEAN_BOARD_AREA55_SHIP_MAX_BANK_DEGREES,
+          6 * Math.tanh(velocityX / 110)
+            + 24 * Math.sin(t * tau * bankFrequency + phaseX),
+        ),
+      );
+      const scale = 1 + 0.025 * Math.sin(t * tau * hoverX + phaseY);
       return {
         offset: t,
-        opacity: baseOpacity * smoothBlend(t / ENTER_END) * (1 - leave),
+        opacity: baseOpacity,
         transform: toTransform(point, rotation, scale * depthScale),
         easing: 'linear',
       } satisfies Keyframe;
@@ -172,7 +183,8 @@ function createShip(depth: ShipDepth): HTMLImageElement {
   ship.style.cssText = [
     'position:fixed', 'top:0', 'left:0', `width:${depth === 'behind' ? 62 : 74}px`,
     'display:block', 'pointer-events:none', 'user-select:none', '-webkit-user-drag:none',
-    'opacity:0', 'will-change:transform,opacity', depth === 'behind' ? 'z-index:0' : 'z-index:2',
+    `opacity:${depth === 'behind' ? 0.7 : 0.9}`, 'will-change:transform',
+    depth === 'behind' ? 'z-index:0' : 'z-index:2',
   ].join(';');
   return ship;
 }

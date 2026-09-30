@@ -6,19 +6,85 @@ export const ANIMATED_DICE_HUD_FOREGROUND_LABEL = 'ANIMATED_DICE_HUD_FOREGROUND'
 
 type ForegroundOwner = object;
 type ForegroundDisplayObject = Container | Sprite;
+type TransformSnapshot = { node: Container; matrix: Matrix };
 type ForegroundEntry = {
   displayObject: ForegroundDisplayObject;
   sourceHost: Container;
   sourceLocal: Matrix;
   desiredWorld: Matrix;
-  inverseLayerWorld: Matrix;
-  appliedLocal: Matrix;
+  appliedDesired: Matrix;
+  appliedActual: Matrix;
+  sourceChain: TransformSnapshot[];
+  layerRevisionSeen: number;
   hasAppliedLocal: boolean;
   hasReachedLiveStage: boolean;
 };
 
 const entries = new Map<ForegroundOwner, ForegroundEntry>();
 let foregroundLayer: Container | null = null;
+const layerChain: TransformSnapshot[] = [];
+const inverseLayerWorld = new Matrix();
+let layerTransformRevision = 0;
+let cachedLayer: Container | null = null;
+let cachedStage: Container | null = null;
+
+function matricesEqual(first: Matrix, second: Matrix): boolean {
+  return first.a === second.a
+    && first.b === second.b
+    && first.c === second.c
+    && first.d === second.d
+    && first.tx === second.tx
+    && first.ty === second.ty;
+}
+
+function sampleTransformChain(
+  start: Container,
+  snapshots: TransformSnapshot[],
+  stage: Container | null,
+): { changed: boolean; reachesStage: boolean } {
+  let changed = false;
+  let reachesStage = false;
+  let index = 0;
+  for (let current: Container | null = start; current; current = current.parent) {
+    if (current === stage) reachesStage = true;
+    current.updateLocalTransform();
+    const local = current.localTransform;
+    const previous = snapshots[index];
+    if (!previous || previous.node !== current) {
+      snapshots[index] = { node: current, matrix: local.clone() };
+      changed = true;
+    } else if (!matricesEqual(previous.matrix, local)) {
+      previous.matrix.copyFrom(local);
+      changed = true;
+    }
+    index++;
+  }
+  if (snapshots.length !== index) {
+    snapshots.length = index;
+    changed = true;
+  }
+  return { changed, reachesStage };
+}
+
+function updateLayerInverse(layer: Container, stage: Container): number {
+  const sample = sampleTransformChain(layer, layerChain, stage);
+  if (cachedLayer === layer && cachedStage === stage && !sample.changed) return layerTransformRevision;
+  cachedLayer = layer;
+  cachedStage = stage;
+  inverseLayerWorld.identity();
+  layerChain.forEach(({ matrix }) => inverseLayerWorld.prepend(matrix));
+  inverseLayerWorld.invert();
+  layerTransformRevision++;
+  return layerTransformRevision;
+}
+
+function resetLayerTransformCache(): void {
+  layerChain.length = 0;
+  inverseLayerWorld.identity();
+  cachedLayer = null;
+  cachedStage = null;
+  layerTransformRevision++;
+}
 
 function getLiveStage(): Container | null {
   const stage = STATE.app?.stage as Container | null | undefined;
@@ -77,8 +143,10 @@ export function mountAnimatedDiceAboveHud(
       sourceHost,
       sourceLocal: displayObject.localTransform.clone(),
       desiredWorld: new Matrix(),
-      inverseLayerWorld: new Matrix(),
-      appliedLocal: new Matrix(),
+      appliedDesired: new Matrix(),
+      appliedActual: new Matrix(),
+      sourceChain: [],
+      layerRevisionSeen: -1,
       hasAppliedLocal: false,
       hasReachedLiveStage: true,
     });
@@ -92,7 +160,8 @@ export function syncAnimatedDiceAboveHud(owner: ForegroundOwner): boolean {
   const layer = foregroundLayer;
   const stage = getLiveStage();
   if (!entry || !layer || layer.destroyed || entry.displayObject.destroyed) return false;
-  const sourceIsAttached = isAnimatedDiceSourceOnLiveStage(entry.sourceHost, stage);
+  const sourceSample = sampleTransformChain(entry.sourceHost, entry.sourceChain, stage);
+  const sourceIsAttached = sourceSample.reachesStage;
   if (sourceIsAttached) entry.hasReachedLiveStage = true;
   if (layer.parent !== stage || (!sourceIsAttached && entry.hasReachedLiveStage)) {
     entry.displayObject.visible = false;
@@ -100,37 +169,36 @@ export function syncAnimatedDiceAboveHud(owner: ForegroundOwner): boolean {
     entry.hasAppliedLocal = false;
     return false;
   }
-  entry.desiredWorld.copyFrom(entry.sourceLocal);
-  for (let current: Container | null = entry.sourceHost; current; current = current.parent) {
-    current.updateLocalTransform();
-    // Walking from child to root: parent * child, never child * parent.
-    entry.desiredWorld.prepend(current.localTransform);
-  }
-  entry.inverseLayerWorld.identity();
-  for (let current: Container | null = layer; current; current = current.parent) {
-    current.updateLocalTransform();
-    entry.inverseLayerWorld.prepend(current.localTransform);
-  }
-  entry.inverseLayerWorld.invert();
-  entry.desiredWorld.prepend(entry.inverseLayerWorld);
-  const applied = entry.appliedLocal;
+  const layerRevision = updateLayerInverse(layer, stage!);
+  const appliedDesired = entry.appliedDesired;
+  const appliedActual = entry.appliedActual;
   entry.displayObject.updateLocalTransform();
   const actual = entry.displayObject.localTransform;
   if (entry.hasAppliedLocal
-    && applied.a === entry.desiredWorld.a
-    && applied.b === entry.desiredWorld.b
-    && applied.c === entry.desiredWorld.c
-    && applied.d === entry.desiredWorld.d
-    && applied.tx === entry.desiredWorld.tx
-    && applied.ty === entry.desiredWorld.ty
-    && actual.a === entry.desiredWorld.a
-    && actual.b === entry.desiredWorld.b
-    && actual.c === entry.desiredWorld.c
-    && actual.d === entry.desiredWorld.d
-    && actual.tx === entry.desiredWorld.tx
-    && actual.ty === entry.desiredWorld.ty) return true;
+    && !sourceSample.changed
+    && entry.layerRevisionSeen === layerRevision
+    && matricesEqual(actual, appliedActual)) return true;
+  entry.desiredWorld.copyFrom(entry.sourceLocal);
+  entry.sourceChain.forEach(({ matrix }) => {
+    // Walking from child to root: parent * child, never child * parent.
+    entry.desiredWorld.prepend(matrix);
+  });
+  entry.desiredWorld.prepend(inverseLayerWorld);
+  if (entry.hasAppliedLocal
+    && matricesEqual(appliedDesired, entry.desiredWorld)
+    && matricesEqual(actual, appliedActual)) {
+    entry.layerRevisionSeen = layerRevision;
+    return true;
+  }
   entry.displayObject.setFromMatrix(entry.desiredWorld);
-  applied.copyFrom(entry.desiredWorld);
+  appliedDesired.copyFrom(entry.desiredWorld);
+  // Pixi decomposes and recomposes the supplied matrix into position/scale/
+  // skew. Preserve that exact round-tripped local matrix for the clean-frame
+  // guard; comparing it with the pre-decomposition desired coefficients can
+  // differ by a few floating-point bits and defeat the cache forever.
+  entry.displayObject.updateLocalTransform();
+  appliedActual.copyFrom(entry.displayObject.localTransform);
+  entry.layerRevisionSeen = layerRevision;
   entry.hasAppliedLocal = true;
   return true;
 }
@@ -140,6 +208,7 @@ export function releaseAnimatedDiceAboveHud(owner: ForegroundOwner): void {
   if (entries.size > 0 || !foregroundLayer) return;
   try { foregroundLayer.destroy({ children: false }); } catch {}
   foregroundLayer = null;
+  resetLayerTransformCache();
 }
 
 export function getAnimatedDiceHudForegroundStats() {
@@ -150,4 +219,5 @@ export function resetAnimatedDiceHudForegroundForTests(): void {
   entries.clear();
   try { foregroundLayer?.destroy({ children: false }); } catch {}
   foregroundLayer = null;
+  resetLayerTransformCache();
 }

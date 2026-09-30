@@ -43,10 +43,12 @@ describe('Arcade terminal lifecycle regression contract', () => {
   test('cancel during the clear hold retires the cue before receipt or newer-modal cleanup', () => {
     const modal = fs.readFileSync(path.join(repoRoot, 'src/modules/arcade-stage-clear-modal.ts'), 'utf8');
     const clearPhase = modal.slice(modal.indexOf('async function playClearPhase('), modal.indexOf('function animateBottomHudStageIndicator('));
-    const hold = clearPhase.indexOf('await wait(500);');
+    const hold = clearPhase.indexOf('await wait(CLEAR_CARD_HOLD_MS);');
     const guard = clearPhase.indexOf('if (!isCurrent()) return;', hold);
     const exit = clearPhase.indexOf('const exitTimeline = gsap.timeline();', hold);
     expect(hold).toBeGreaterThan(-1);
+    expect(modal).toContain('const ARCADE_STAGE_CLEAR_ROUND_START_DELAY_MS = 1000;');
+    expect(modal).toContain('const CLEAR_CARD_HOLD_MS = CLEAR_CARD_BASE_HOLD_MS\n  + ARCADE_STAGE_CLEAR_ROUND_START_DELAY_MS;');
     expect(guard).toBeGreaterThan(hold);
     expect(guard).toBeLessThan(exit);
     const show = modal.slice(modal.indexOf('export async function showArcadeStageClearModal('), modal.indexOf('export async function showArcadeContinuationRoundCue('));

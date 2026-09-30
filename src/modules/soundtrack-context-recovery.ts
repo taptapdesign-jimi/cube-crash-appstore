@@ -22,7 +22,7 @@ export class SoundtrackContextRecovery {
     const startedAt = performance.now();
     const report = (event: string): void => {
       if (arePerformanceDiagnosticsEnabled()) {
-        emitNativeConsoleDiagnostic('[CC_RESUME_RETURN]', event, {
+        emitNativeConsoleDiagnostic('[CC_SOUNDTRACK_FG]', event, {
           contextState: this.context.state,
           hidden: document.hidden,
           elapsedMs: Math.round(performance.now() - startedAt),

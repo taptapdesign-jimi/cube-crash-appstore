@@ -6,12 +6,10 @@ import {
   resolveBoardTransitionTheme,
 } from '../board-transition-themes';
 import {
-  BEACH_CURTAIN_LAYER_KEYS,
   BEACH_FLOAT_HORIZONTAL_CROSSING_SECONDS,
   BEACH_FLOAT_HORIZONTAL_TRAVEL_SCALE,
   BEACH_FLOAT_LEFT_EDGE_RATIO,
   BEACH_FLOAT_RIGHT_EDGE_RATIO,
-  BEACH_PALM_GLOBAL_VERTICAL_OFFSET_PX,
   createBeachTransitionVariation,
   createBeachTransitionVariationSequence,
   sampleBeachFloatHorizontalProgress,
@@ -162,10 +160,6 @@ describe('Board Transition World themes', () => {
     };
     expect(countDirectionChanges('x')).toBeGreaterThanOrEqual(4);
     expect(countDirectionChanges('y')).toBeGreaterThanOrEqual(4);
-  });
-
-  test('lowers the complete Beach palm curtain by 32px', () => {
-    expect(BEACH_PALM_GLOBAL_VERTICAL_OFFSET_PX).toBe(-32);
   });
 
   test.each([[1, 'forest'], [10, 'forest'], [11, 'beach'], [20, 'beach'], [21, 'area55'], [30, 'area55']])(
@@ -340,22 +334,22 @@ describe('Board Transition World themes', () => {
     expect(source).toContain('() => startSimpleForestNNBees(overlay, digitElements),\n          undefined,\n          0,');
   });
 
-  test('Beach composes the requested sea, floating, shore, and five-palm curtain roles', () => {
+  test('Beach composes sea, floating, and shore roles without palm layers', () => {
     const roles = BEACH_BOARD_TRANSITION_PROFILE.layers.map((layer) => layer.motionRole);
     expect(roles.filter((role) => role === 'sea')).toHaveLength(3);
     expect(roles.filter((role) => role === 'float')).toHaveLength(2);
     expect(roles.filter((role) => role === 'shore')).toHaveLength(3);
-    expect(roles.filter((role) => role === 'curtain')).toHaveLength(5);
     expect(BEACH_BOARD_TRANSITION_PROFILE.layers.map((layer) => layer.key)).toEqual([
       'beach-sea-1', 'beach-bottle', 'beach-sea-2', 'beach-ball',
       'beach-sea-3', 'beach-shore-1', 'beach-castle', 'beach-shore-2',
-      'beach-palm-1', 'beach-palm-2', 'beach-palm-3', 'beach-palm-4', 'beach-palm-center',
     ]);
     expect(BEACH_BOARD_TRANSITION_PROFILE.enterOrder).toEqual([
-      'beach-palm-1', 'beach-palm-2', 'beach-palm-3', 'beach-palm-4', 'beach-palm-center',
       'beach-shore-1', 'beach-castle', 'beach-shore-2',
       'beach-sea-1', 'beach-bottle', 'beach-sea-2', 'beach-ball', 'beach-sea-3',
     ]);
+    expect(BEACH_BOARD_TRANSITION_PROFILE.layers.every((layer) => (
+      !layer.key.includes('palm') && !layer.src.includes('/palm ')
+    ))).toBe(true);
 
     const byKey = new Map(BEACH_BOARD_TRANSITION_PROFILE.layers.map((layer) => [layer.key, layer]));
     expect(byKey.get('beach-sea-1')?.style).toContain('width: 695px');
@@ -380,19 +374,6 @@ describe('Board Transition World themes', () => {
     expect(byKey.get('beach-castle')?.style).toContain('width: min(78.2vw, 305px)');
     expect(byKey.get('beach-shore-2')?.style).toContain('left: 63%');
     expect(byKey.get('beach-shore-2')?.style).toContain('transform-origin: center bottom');
-    expect(byKey.get('beach-palm-1')?.style).toContain('width: min(143vw, 557px)');
-    expect(byKey.get('beach-palm-1')?.style).toContain('left: calc(-18% + 60px)');
-    expect(byKey.get('beach-palm-1')?.style).toContain('top: calc(30% - 420px)');
-    expect(byKey.get('beach-palm-2')?.style).toContain('top: calc(60% - 455px)');
-    expect(byKey.get('beach-palm-2')?.style).toContain('left: 16%');
-    expect(byKey.get('beach-palm-3')?.style).toContain('top: calc(44% - 310px)');
-    expect(byKey.get('beach-palm-3')?.style).toContain('left: 72%');
-    expect(byKey.get('beach-palm-4')?.style).toContain('top: calc(76% - 435px)');
-    expect(byKey.get('beach-palm-4')?.style).toContain('left: calc(114% - 80px)');
-    expect(byKey.get('beach-palm-center')?.src).toBe('./assets/journey assets/beach/palm 2.png');
-    expect(byKey.get('beach-palm-center')?.style).toContain('left: calc(50% - 20px)');
-    expect(byKey.get('beach-palm-center')?.style).toContain('top: calc(100% - 400px)');
-    expect(byKey.get('beach-palm-center')?.style).toContain('z-index: 68');
     expect(byKey.get('beach-shore-1')?.style).toContain('bottom: 22px');
     expect(byKey.get('beach-shore-1')?.style).toContain('left: calc(34% - 40%)');
     expect(byKey.get('beach-castle')?.style).toContain('bottom: 134px');
@@ -826,39 +807,14 @@ describe('Board Transition World themes', () => {
     expect(source).toContain('crossingVariation.rightBankPhase');
   });
 
-  test('creates one bounded per-run layout with balanced palm exits and opposite ball/castle sides', () => {
+  test('creates opposite ball/castle sides without carrying removed palm layout state', () => {
     const leftVariation = createBeachTransitionVariation(() => 0.1);
     const rightVariation = createBeachTransitionVariation(() => 0.9);
 
-    expect(Object.keys(leftVariation.palms)).toEqual(BEACH_CURTAIN_LAYER_KEYS);
-    expect(new Set(Object.values(leftVariation.palms).map((placement) => placement.leftPercent)).size).toBe(5);
-    Object.values(leftVariation.palms).forEach((placement) => {
-      expect(placement.leftPercent).toBeGreaterThanOrEqual(-7);
-      expect(placement.leftPercent).toBeLessThanOrEqual(103);
-      expect(placement.bottomPx).toBeGreaterThanOrEqual(-150);
-      expect(placement.bottomPx).toBeLessThanOrEqual(-75);
-      expect(placement.upwardLiftVh).toBeGreaterThanOrEqual(8);
-      expect(placement.upwardLiftVh).toBeLessThanOrEqual(18);
-    });
-    const leftPalmPlacements = Object.values(leftVariation.palms).filter((placement) => placement.exitDirection === -1);
-    expect(leftPalmPlacements.map((placement) => placement.restRotationDeg).sort()).toEqual([10, 15]);
-    expect(leftPalmPlacements.every((placement) => placement.bottomPx >= -138)).toBe(true);
-    expect(Object.values(leftVariation.palms).map((placement) => placement.exitDirection).sort()).toEqual([-1, -1, 0, 1, 1]);
-    expect(Object.values(rightVariation.palms).map((placement) => placement.exitDirection).sort()).toEqual([-1, -1, 0, 1, 1]);
-    expect(leftVariation.floatsSwapped).toBe(true);
-    expect(leftVariation.castleStartsLeft).toBe(true);
-    expect(rightVariation.floatsSwapped).toBe(false);
-    expect(rightVariation.castleStartsLeft).toBe(false);
-    expect(rightVariation.palms).not.toEqual(leftVariation.palms);
-  });
-
-  test('applies the approved per-art Beach palm offsets without changing palm 1', () => {
-    const variation = createBeachTransitionVariation(() => 0.5);
-    expect(variation.palms['beach-palm-1']).toMatchObject({ horizontalOffsetPx: 0, verticalOffsetPx: 0 });
-    expect(variation.palms['beach-palm-2']).toMatchObject({ horizontalOffsetPx: 0, verticalOffsetPx: -16 });
-    expect(variation.palms['beach-palm-3']).toMatchObject({ horizontalOffsetPx: 16, verticalOffsetPx: 20 });
-    expect(variation.palms['beach-palm-4']).toMatchObject({ horizontalOffsetPx: 0, verticalOffsetPx: 10 });
-    expect(variation.palms['beach-palm-center']).toMatchObject({ horizontalOffsetPx: 16, verticalOffsetPx: 0 });
+    expect(leftVariation).toEqual({ floatsSwapped: true, castleStartsLeft: true });
+    expect(rightVariation).toEqual({ floatsSwapped: false, castleStartsLeft: false });
+    expect(Object.keys(leftVariation)).not.toContain('palms');
+    expect(Object.keys(rightVariation)).not.toContain('palms');
   });
 
   test('starts float sides randomly, then alternates them exactly 50/50 across Beach entries', () => {
@@ -908,63 +864,28 @@ describe('Board Transition World themes', () => {
     expect(source).not.toContain("if (resolvedTheme === 'beach' && i === 2) continue");
     expect(source).toContain("const cloudLayerOwner = resolvedTheme === 'beach'");
     expect(source).toContain('? cloudContainer');
-    expect(source).toContain("1: Object.freeze({ restScale: 1, restRotation: 12, enterStartYRatio: 0.54 })");
-    expect(source).toContain('window.innerWidth * 0.9 + sceneImg.offsetWidth * 0.55');
-    expect(source).toContain('const curtainExitDownDistance = Math.max(180, window.innerHeight * 0.3)');
-    expect(source).toContain('x: exitDirection * curtainExitDistance');
-    expect(source).toContain('y: curtainExitDownDistance');
     expect(source).toContain('opacity: 1');
     expect(source).toContain("const isRoboStaticFence = isRoboScene && (");
     expect(source).toContain('isRoboStaticFence ? roboStaticFenceScaleXSign : 1');
-    expect(source).toContain('scale: isHill ? hillBaseScale * 0.68 : isBeachCurtain ? beachPalmRestScale : isBeachFrontShore ? 0.7 : isRoboScene ? roboInitialScale : 0');
-    expect(source).toContain('duration: 0.42');
-    expect(source).toContain("ease: 'power3.out'");
-    expect(source).toContain('const BEACH_CURTAIN_PALM_EXIT_SECONDS = 0.62');
-    expect(source).toContain('const BEACH_CURTAIN_PALM_EXIT_STAGGER_SECONDS = 0.1');
-    expect(source).toContain('duration: BEACH_CURTAIN_PALM_EXIT_SECONDS');
-    expect(source).toContain('duration: (beachPalmNumber - 1) * BEACH_CURTAIN_PALM_EXIT_STAGGER_SECONDS');
-    expect(source).toContain('opacity: isBeachCurtain || isBeachFrontShore || isRoboFront ? 1 : 0');
+    expect(source).toContain('scale: isHill ? hillBaseScale * 0.68 : isBeachFrontShore ? 0.7 : isRoboScene ? roboInitialScale : 0');
+    expect(source).toContain('opacity: isBeachFrontShore || isRoboFront ? 1 : 0');
     expect(source).toContain("ease: 'back.in(1.35)'");
     expect(source).toContain('scale: 0');
-    expect(source).toContain('export const BEACH_CURTAIN_PALM_DWELL_SECONDS = 0.4');
-    expect(source).toContain('const BEACH_CURTAIN_PALM_STILL_SECONDS = 0.1');
-    expect(source).toContain('const beachPalmFloatY = beachPalmNumber % 2 === 0 ? -4 : -6');
-    expect(source).toContain('duration: BEACH_CURTAIN_PALM_FLOAT_LEG_SECONDS');
-    expect(source.match(/duration: BEACH_CURTAIN_PALM_FLOAT_LEG_SECONDS/g)).toHaveLength(2);
     expect(source).toContain('const beachVariation: BeachTransitionVariation | null');
     expect(source).toContain('const createNextBeachTransitionVariation = createBeachTransitionVariationSequence()');
     expect(source).toContain('? createNextBeachTransitionVariation()');
-    expect(source).toContain('palmPlacement.horizontalOffsetPx === 0');
-    expect(source).toContain('`calc(${palmPlacement.leftPercent}% + ${palmPlacement.horizontalOffsetPx}px)`');
-    expect(source).toContain("sceneImg.style.top = 'auto'");
-    expect(source).toContain('palmPlacement.bottomPx + palmPlacement.verticalOffsetPx');
     expect(source).toContain("sceneImg.dataset.floatDirection = startsRight ? 'left' : 'right'");
     expect(source).toContain("sceneImg.style.left = beachVariation.castleStartsLeft");
     expect(source).toContain("? 'calc(32% - 30px)'");
     expect(source).toContain(": 'calc(68% + 30px)'");
     expect(source).toContain("beachVariation?.castleStartsLeft && layer.key === 'beach-shore-1'");
     expect(source).toContain("sceneImg.style.left = 'calc(34% - 40% + 180px)'");
-    expect(source).toContain('const exitDirection = palmPlacement?.exitDirection');
-    expect(source).toContain('const beachPalmRestRotation = palmPlacement?.restRotationDeg ?? beachPalmMotion.restRotation');
-    expect(source).toContain("2: Object.freeze({ restScale: 0.8, restRotation: -12, enterStartYRatio: 0.43");
-    expect(source).toContain("4: Object.freeze({ restScale: 0.8, restRotation: -12, enterStartYRatio: 0.39");
-    expect(source).toContain("5: Object.freeze({ restScale: 0.8, restRotation: 12, enterStartYRatio: 0.47");
     expect(source).toContain("const isBeachFrontShore = resolvedTheme === 'beach' && layerKey === 'beach-shore-2'");
-    expect(source).toContain('opacity: isBeachCurtain || isBeachFrontShore || isRoboFront ? 1 : 0');
     expect(source).toContain('isBeachFrontShore ? 0.7 : isRoboScene ? roboInitialScale : 0');
-    expect(source).not.toContain('scale: beachPalmRestScale * 1.28');
-    expect(source).not.toContain("}, '<-0.10');");
-    expect(source).not.toContain('exitDownY');
-    expect(source).not.toContain('beachPalmRestRotation * 0.4');
-    expect(source).not.toContain('sceneEnterTimeline.to({}, { duration: 0.03 })');
-    expect(source).not.toContain('x: -exitDirection * 9');
-    expect(source).not.toContain('y: -9 - beachPalmNumber');
-    expect(source).not.toContain('beachPalmRestRotation - exitDirection');
-    expect(source).not.toContain('beachPalmRestRotation + exitDirection');
-    expect(source).not.toContain('scaleX: beachPalmRestScale * 1.025');
-    expect(source).not.toContain('scaleY: beachPalmRestScale * 0.985');
-    expect(source).toContain("const isBeachCenterPalm = layerKey === 'beach-palm-center'");
-    expect(source).toContain('const beachPalmMotion = BEACH_CURTAIN_PALM_MOTION[beachPalmNumber]');
+    expect(source).not.toContain('beach-palm-');
+    expect(source).not.toContain('BEACH_CURTAIN_PALM');
+    expect(source).not.toContain('isBeachCurtain');
+    expect(source).not.toContain('palmPlacement');
     expect(source).toContain('const rotationLimit = isBottle');
     expect(source).toContain('x: horizontalDirection * horizontalTravelPx * horizontalProgress');
     expect(source).toContain('y: -waveHeightPx * riseWave');
@@ -977,7 +898,11 @@ describe('Board Transition World themes', () => {
     expect(BEACH_FLOAT_RIGHT_EDGE_RATIO).toBe(0.94);
     expect(BEACH_FLOAT_HORIZONTAL_TRAVEL_SCALE).toBe(0.75);
     expect(source).toContain('export const BEACH_BOTTLE_WOBBLE_DEGREES = 50.4');
-    expect(source).toContain('export const BEACH_BALL_WOBBLE_DEGREES = 117.6');
+    expect(source).toContain('export const BEACH_BALL_BOUNCE_PX = 30');
+    expect(source).toContain('export const BEACH_BALL_WOBBLE_DEGREES = 82.32');
+    expect(source).toContain('export const BEACH_BALL_EXIT_ROTATION_DEGREES = 12.6');
+    expect(source).toContain('`+=${BEACH_BALL_EXIT_ROTATION_DEGREES}`');
+    expect(source).toContain('`-=${BEACH_BALL_EXIT_ROTATION_DEGREES}`');
     expect(source).toContain("ease: 'sine.out'");
     expect(source).not.toContain('xPercent: isBottle ? () => gsap.utils.random(-4, 4) : 0');
     expect(source).toContain('seaIndex === 2 ? -38 * 1.25');
@@ -1008,7 +933,6 @@ describe('Board Transition World themes', () => {
     expect(source).toContain("sceneImg.style.visibility !== 'hidden'");
     expect(source).toContain('if (isBeachSceneExit) stopBeachAmbientMotion(sceneImg)');
     expect(source).toContain("const isBeachBallExit = isBeachSceneExit && layerKey === 'beach-ball'");
-    expect(source).toContain("? orderIndex % 2 === 0 ? '+=18' : '-=18'");
     expect(source).toContain('beachAmbientTimelines.clear()');
     expect(source).toContain('beachShoreAmbientTimeline = null');
     expect(source).toContain("stopIOSJourneyPerformanceAudit(preserveDom ? 'transition-cleanup-preserved' : 'transition-cleanup')");

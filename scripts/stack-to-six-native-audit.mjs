@@ -231,6 +231,17 @@ if (!sourceOnly) {
       'native audio activation must not synchronously inspect the route during lifecycle notifications');
     requireCondition(controllerText.includes("cc:native-audio-active"),
       'native shell must notify both Web Audio owners after native audio activation');
+    requireCondition(controllerText.includes('audioActivationSequence')
+      && controllerText.includes('audioForegroundEpoch')
+      && controllerText.includes('activationSequence:')
+      && controllerText.includes('activationRequestedAtMs:')
+      && controllerText.includes('activationCompletedAtMs:')
+      && controllerText.includes('pendingAudioActivationRequestedAtMs')
+      && controllerText.includes('pendingForegroundEpoch > activationForegroundEpoch')
+      && controllerText.includes('pendingConfigure || (activationError != nil && configureCategory)')
+      && controllerText.includes('shouldRunPending')
+      && controllerText.includes('guard appState == .active else'),
+    'native audio activation receipts must be sequenced, timestamped, foreground-aware, retry category setup, coalesce same-cycle requests, and be suppressed after background');
     requireCondition(!controllerText.includes("name: \"jsError\""), 'native shell must not install detailed JS error forwarding');
     requireCondition(!controllerText.includes("console[level] = function"), 'native shell must not override or forward the normal JS console');
     requireCondition(!/DeviceOrientation|DeviceMotion|motionPermissionResult|requestDeviceOrientationAndMotionPermission/.test(controllerText), 'native shell still contains removed device-motion integration');

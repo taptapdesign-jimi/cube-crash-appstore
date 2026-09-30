@@ -66,7 +66,7 @@ describe('LaserGun special die contract', () => {
       splashColor: '#F3A654',
       splashColors: ['#F3A654', '#EE9343'],
       splashSplitIndex: 6,
-      shardColors: [0xFED49A, 0xBEAA85],
+      shardColors: [0xFED49A, 0x97E9FD],
       trailColors: [0xFEDFAD, 0xFDC37E, 0xE5CCA4, 0x97E9FD],
       finaleScene: 'lasergun-crossfire',
       visualWidth: 184.32,
@@ -78,7 +78,7 @@ describe('LaserGun special die contract', () => {
     expect(laserGun?.texture).toMatch(/assets\/shop\/gun\/right gun(?:@2x)?\.png$/);
     expect(getCoreWildTypeForSpecialDiceVariant(laserGun)).toBe('wild-tnt');
     expect(getSpecialDiceTrailColors(laserGun)).toEqual([0xFEDFAD, 0xFDC37E, 0xE5CCA4, 0x97E9FD]);
-    expect(getSpecialDiceShardColors(laserGun)).toEqual([0xFED49A, 0xBEAA85]);
+    expect(getSpecialDiceShardColors(laserGun)).toEqual([0xFED49A, 0x97E9FD]);
     expect(getSpecialDiceSplashOptions(laserGun)).toMatchObject({
       text: 'ZAP - ZAP',
       color: '#F3A654',
@@ -411,12 +411,17 @@ describe('LaserGun special die contract', () => {
     expect(appCore).toContain("if (preparation === 'visual-unavailable')");
     expect(appCore).toContain('if (schedulerFinished) completeActiveLaserGunFinaleImpacts()');
     expect(appCore).toContain('await waitForActiveLaserGunFinaleBeamLaunch(');
+    expect(appCore).toContain('playActiveLaserGunNoTarget(');
+    expect(appCore).toContain('getTntTileDomScreenPos(board, dst)');
+    expect(appCore).toContain('text: LASERGUN_NO_TARGET_TEXT');
+    expect(appCore).toContain('laserGunNoTarget: true');
+    expect(appCore).toContain('targets.length === 0 && usesLaserGunNoTargetPresentation');
     expect(tnt).toContain('if (!usesLaserGunScene) finishTntAnimation();');
     expect(tnt).toContain('finishTntAnimation();\n      },');
-    expect(tnt).toContain('// finalized only by its real scene completion after beam four and exit.');
+    expect(tnt).toContain('// finalized only by its real scene completion after its owned exit.');
     expect(appCore).not.toContain('LASERGUN_IMPACT_DELAYS_MS');
     expect(appCore).toContain('(pos.x / screenW) * rect.width');
-    expect(appCore).toContain("? (targets) => setActiveLaserGunFinaleTargets(targets)");
+    expect(appCore).toContain('return setActiveLaserGunFinaleTargets(targets);');
     expect(appCore).toContain("if (tntVariantForMerge?.id === 'laser-gun') return;");
     expect(tnt).toContain("options.finaleScene === 'lasergun-crossfire'");
     expect(tnt).toContain("const frameCacheSources = usesLaserGunScene ? ['lasergun-dom'] : preferred");
@@ -445,6 +450,12 @@ describe('LaserGun special die contract', () => {
     expect(scene).toContain('LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS\n        + (frameIndex + 1) * LASERGUN_FIRE_FRAME_STEP_SECONDS');
     expect(scene).toContain('shot.beamLaunchDelay = playGunFiringFlow(shot);');
     expect(scene).toContain('LASERGUN_FRAME_SOURCES.slice(0, 5).reverse()');
+    expect(scene).toContain('playNoTarget: (mergePoint) => {');
+    expect(scene).toContain("gun.rig.dataset.lasergunNoTarget = 'true'");
+    expect(scene).toContain('LASERGUN_NO_TARGET_TOTAL_SECONDS');
+    expect(scene).toContain("LASERGUN_NO_TARGET_TEXT = 'ZAPED OUT'");
+    expect(tnt).toContain('usesLaserGunNoTarget');
+    expect(tnt).toContain('every ZAPED OUT letter is painted');
     expect(scene).not.toContain('preflight.to(shot.gun.aim');
     expect(scene).not.toContain('rotation: entryRotation');
     expect(scene).not.toContain('scale: placement.scale * 0.82');
@@ -453,6 +464,15 @@ describe('LaserGun special die contract', () => {
     expect(scene).toContain('const liveFieldRect = field.getBoundingClientRect()');
     expect(scene).toContain('LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS = 0.3');
     expect(scene).toContain('if (LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS > 0)');
+    const noTargetSource = scene.slice(
+      scene.indexOf('playNoTarget: (mergePoint) => {'),
+      scene.indexOf('\n    prepareImpact,', scene.indexOf('playNoTarget: (mergePoint) => {')),
+    );
+    expect(noTargetSource).not.toContain('ensureGunBeamPair(');
+    expect(noTargetSource).not.toContain('createBeamPlan(');
+    expect(noTargetSource).not.toContain('playLaserGunBeamSound(');
+    expect(noTargetSource).not.toContain('playLaserGunStagePreparationSound(');
+    expect(noTargetSource).not.toContain('triggerHaptic');
     expect(scene).toContain('revealRequestedBeam(shot);');
     expect(scene).toContain('settleImpactArrival(shot, true);');
     expect(scene).toContain('undefined, LASERGUN_BEAM_TRAVEL_SECONDS');

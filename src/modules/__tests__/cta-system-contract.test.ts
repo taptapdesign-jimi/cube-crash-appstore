@@ -177,7 +177,7 @@ describe('shared CTA system contract', () => {
     expect(journeyBoardsSource).not.toContain("floatingPlayButton.addEventListener('click'");
     expect(cssSource).toContain('#board-detail-play-button.cc-cta');
     expect(cssSource).toContain('overflow: visible !important');
-    expect(cssSource).toContain('.cc-cta:disabled:not([data-cta-state="exiting"]):not([data-cta-state="hidden"])');
+    expect(cssSource).toContain('.cc-cta:disabled:not([data-cta-state="exiting"]):not([data-cta-state="hidden"]):not([data-cta-prewarm-pending="true"])');
     expect(cssSource).toContain('.cc-cta[data-cta-state="exiting"] .cc-cta__visual');
     expect(cssSource).toContain('animation: cc-cta-shimmer 10s ease-in-out infinite');
     expect(cssSource).toContain(

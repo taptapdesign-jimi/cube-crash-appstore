@@ -22,7 +22,6 @@ import {
   BEACH_FLOAT_LEFT_EDGE_RATIO,
   BEACH_FLOAT_RIGHT_EDGE_RATIO,
   BEACH_FLOAT_HORIZONTAL_TRAVEL_SCALE,
-  BEACH_PALM_GLOBAL_VERTICAL_OFFSET_PX,
   createBeachTransitionVariationSequence,
   sampleBeachFloatHorizontalProgress,
   type BeachTransitionVariation,
@@ -957,9 +956,10 @@ export const BEACH_FLOAT_MOTION_CYCLE_SECONDS = 12;
 export const BEACH_FLOAT_BOUNCE_CYCLE_SECONDS = 1;
 export const BEACH_FLOAT_WOBBLE_CYCLE_SECONDS = 1.5;
 export const BEACH_BOTTLE_BOUNCE_PX = 18;
-export const BEACH_BALL_BOUNCE_PX = 22;
+export const BEACH_BALL_BOUNCE_PX = 30;
 export const BEACH_BOTTLE_WOBBLE_DEGREES = 50.4;
-export const BEACH_BALL_WOBBLE_DEGREES = 117.6;
+export const BEACH_BALL_WOBBLE_DEGREES = 82.32;
+export const BEACH_BALL_EXIT_ROTATION_DEGREES = 12.6;
 
 function startBeachAmbientMotion(sceneImg: HTMLElement, layerKey: string, motionRole: string): void {
   const ownAmbientTimeline = (timeline: gsap.core.Timeline): void => {
@@ -1729,21 +1729,6 @@ const BOARD_TRANSITION_REGULAR_SCENE_EXIT_SECONDS = 0.28;
 export const BOARD_TRANSITION_CLOUD_EXIT_ANTICIPATION_SECONDS = 0.07;
 export const BOARD_TRANSITION_CLOUD_EXIT_REBOUND_SECONDS = 0.065;
 export const BOARD_TRANSITION_CLOUD_EXIT_COLLAPSE_SECONDS = 0.46;
-export const BEACH_CURTAIN_PALM_DWELL_SECONDS = 0.4;
-const BEACH_CURTAIN_PALM_STILL_SECONDS = 0.1;
-const BEACH_CURTAIN_PALM_EXIT_SECONDS = 0.62;
-const BEACH_CURTAIN_PALM_EXIT_STAGGER_SECONDS = 0.1;
-const BEACH_CURTAIN_PALM_FLOAT_LEG_SECONDS = (
-  BEACH_CURTAIN_PALM_DWELL_SECONDS - BEACH_CURTAIN_PALM_STILL_SECONDS
-) / 2;
-
-const BEACH_CURTAIN_PALM_MOTION = Object.freeze({
-  1: Object.freeze({ restScale: 1, restRotation: 12, enterStartYRatio: 0.54 }),
-  2: Object.freeze({ restScale: 0.8, restRotation: -12, enterStartYRatio: 0.43 }),
-  3: Object.freeze({ restScale: 1, restRotation: 12, enterStartYRatio: 0.5 }),
-  4: Object.freeze({ restScale: 0.8, restRotation: -12, enterStartYRatio: 0.39 }),
-  5: Object.freeze({ restScale: 0.8, restRotation: 12, enterStartYRatio: 0.47 }),
-});
 const BEACH_CLOUD_SPAWN_SLOTS = Object.freeze([
   Object.freeze({ left: 4, top: 2 }),
   Object.freeze({ left: 52, top: 7 }),
@@ -2513,14 +2498,6 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
             'backface-visibility: hidden',
             ...sceneLayerStyle
           ].join(';');
-          const palmPlacement = beachVariation?.palms[layer.key as keyof BeachTransitionVariation['palms']];
-          if (palmPlacement) {
-            sceneImg.style.left = palmPlacement.horizontalOffsetPx === 0
-              ? `${palmPlacement.leftPercent}%`
-              : `calc(${palmPlacement.leftPercent}% + ${palmPlacement.horizontalOffsetPx}px)`;
-            sceneImg.style.top = 'auto';
-            sceneImg.style.bottom = `calc(${palmPlacement.bottomPx + palmPlacement.verticalOffsetPx + BEACH_PALM_GLOBAL_VERTICAL_OFFSET_PX}px + ${palmPlacement.upwardLiftVh}vh)`;
-          }
           if (beachVariation && (layer.key === 'beach-bottle' || layer.key === 'beach-ball')) {
             const isBottle = layer.key === 'beach-bottle';
             const startsRight = beachVariation.floatsSwapped ? !isBottle : isBottle;
@@ -2734,7 +2711,6 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
           : proceduralSceneEnterStart;
         const direction = index % 2 === 0 ? -1 : 1;
         const motionRole = sceneImg.dataset.motionRole || '';
-        const isBeachCurtain = resolvedTheme === 'beach' && motionRole === 'curtain';
         const isRoboScene = resolvedTheme === 'area55';
         const isRoboFront = isRoboScene && layerKey === 'robo-front';
         const isRoboGroundFront = isRoboScene && layerKey === 'robo-ground-front';
@@ -2743,19 +2719,6 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
           layerKey === 'robo-fence-static-left' || layerKey === 'robo-fence-static-right'
         );
         const roboStaticFenceScaleXSign = layerKey === 'robo-fence-static-right' ? -1 : 1;
-        const palmPlacement = isBeachCurtain
-          ? beachVariation?.palms[layerKey as keyof BeachTransitionVariation['palms']]
-          : undefined;
-        const isBeachCenterPalm = layerKey === 'beach-palm-center';
-        const beachPalmNumber = isBeachCurtain
-          ? isBeachCenterPalm ? 5 : Math.max(1, Number(layerKey.match(/(\d+)$/)?.[1]) || 1)
-          : 0;
-        const beachPalmMotion = BEACH_CURTAIN_PALM_MOTION[beachPalmNumber] ?? BEACH_CURTAIN_PALM_MOTION[1];
-        const beachPalmRestScale = beachPalmMotion.restScale;
-        const beachPalmRestRotation = palmPlacement?.restRotationDeg ?? beachPalmMotion.restRotation;
-        const beachPalmEnterStartY = Math.round(
-          Math.min(window.innerHeight || 760, 760) * beachPalmMotion.enterStartYRatio,
-        );
         const isHill = isTransitionHillLayer(layerKey);
         const isBeachFrontShore = resolvedTheme === 'beach' && layerKey === 'beach-shore-2';
         const hillParallaxX = getTransitionHillParallaxX(layerKey);
@@ -2770,15 +2733,15 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
           ? roboFrontTravelDirection === -1 ? -1 : 1
           : isRoboWalker && roboWalkerTravelDirection === 1 ? -1 : 1;
         gsap.set(sceneImg, {
-          opacity: isBeachCurtain || isBeachFrontShore || isRoboFront ? 1 : 0,
+          opacity: isBeachFrontShore || isRoboFront ? 1 : 0,
           xPercent: -50,
           yPercent: 0,
           x: isHill ? hillBaseX - hillParallaxX * 0.18 : isRoboFront ? roboFrontStartX : 0,
-          y: isHill ? hillStartYOffset : isBeachCurtain ? beachPalmEnterStartY : isBeachFrontShore ? 0 : isRoboScene && isRoboFront ? 0 : isRoboGroundFront ? 4.2 : 14,
-          scale: isHill ? hillBaseScale * 0.68 : isBeachCurtain ? beachPalmRestScale : isBeachFrontShore ? 0.7 : isRoboScene ? roboInitialScale : 0,
-          scaleX: isHill ? hillBaseScale * 0.68 : isBeachCurtain ? beachPalmRestScale : isBeachFrontShore ? 0.7 : isRoboScene ? roboInitialScale * roboCharacterScaleXSign : 0,
-          scaleY: isHill ? hillBaseScale * 0.68 : isBeachCurtain ? beachPalmRestScale : isBeachFrontShore ? 0.7 : isRoboScene ? roboInitialScale : 0,
-          rotation: isHill ? 0 : isBeachCurtain ? beachPalmRestRotation : isRoboFront ? 0 : direction * 8,
+          y: isHill ? hillStartYOffset : isBeachFrontShore ? 0 : isRoboScene && isRoboFront ? 0 : isRoboGroundFront ? 4.2 : 14,
+          scale: isHill ? hillBaseScale * 0.68 : isBeachFrontShore ? 0.7 : isRoboScene ? roboInitialScale : 0,
+          scaleX: isHill ? hillBaseScale * 0.68 : isBeachFrontShore ? 0.7 : isRoboScene ? roboInitialScale * roboCharacterScaleXSign : 0,
+          scaleY: isHill ? hillBaseScale * 0.68 : isBeachFrontShore ? 0.7 : isRoboScene ? roboInitialScale : 0,
+          rotation: isHill ? 0 : isRoboFront ? 0 : direction * 8,
           rotationX: 0,
           rotationY: 0,
           transformOrigin: 'center bottom',
@@ -2787,49 +2750,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
 
         const sceneEnterTimeline = trackTimeline();
         contentTimelines.push(sceneEnterTimeline);
-        if (isBeachCurtain) {
-          const exitDirection = palmPlacement?.exitDirection ?? (beachPalmNumber <= 2 ? -1 : beachPalmNumber === 5 ? 0 : 1);
-          const curtainExitDistance = Math.max(
-            320,
-            window.innerWidth * 0.9 + sceneImg.offsetWidth * 0.55,
-          );
-          const curtainExitDownDistance = Math.max(180, window.innerHeight * 0.3);
-          sceneEnterTimeline.to(sceneImg, {
-            y: 0,
-            duration: 0.42,
-            ease: 'power3.out',
-          });
-          // Land cleanly before any idle motion. One gentle up/down breath then
-          // fills the doubled 0.40s dwell without adding a repeating owner.
-          const beachPalmFloatY = beachPalmNumber % 2 === 0 ? -4 : -6;
-          sceneEnterTimeline.to({}, { duration: BEACH_CURTAIN_PALM_STILL_SECONDS });
-          sceneEnterTimeline.to(sceneImg, {
-            y: beachPalmFloatY,
-            duration: BEACH_CURTAIN_PALM_FLOAT_LEG_SECONDS,
-            ease: 'sine.inOut',
-          });
-          sceneEnterTimeline.to(sceneImg, {
-            y: 0,
-            duration: BEACH_CURTAIN_PALM_FLOAT_LEG_SECONDS,
-            ease: 'sine.inOut',
-          });
-          sceneEnterTimeline.to({}, {
-            duration: (beachPalmNumber - 1) * BEACH_CURTAIN_PALM_EXIT_STAGGER_SECONDS,
-          });
-          sceneEnterTimeline.to(sceneImg, {
-            x: exitDirection * curtainExitDistance,
-            y: curtainExitDownDistance,
-            rotation: beachPalmRestRotation,
-            scale: 0,
-            opacity: 1,
-            duration: BEACH_CURTAIN_PALM_EXIT_SECONDS,
-            ease: 'back.in(1.35)',
-            onComplete: () => {
-              sceneImg.style.visibility = 'hidden';
-              sceneImg.style.willChange = 'auto';
-            },
-          });
-        } else if (isRoboScene) {
+        if (isRoboScene) {
           if (isRoboFront) {
             const roboFrontEndX = roboFrontTravelDirection * Math.max(640, window.innerWidth * 1.65);
             sceneEnterTimeline
@@ -2993,10 +2914,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
             }
           });
         }
-        enterTimeline.add(
-          sceneEnterTimeline,
-          isBeachCurtain ? 0.02 + (beachPalmNumber - 1) * 0.045 : sceneEnterStart,
-        );
+        enterTimeline.add(sceneEnterTimeline, sceneEnterStart);
       });
       if (resolvedTheme === 'forest') {
         enterTimeline.call(
@@ -3713,7 +3631,9 @@ function startExitAnimation(
           ...(isBeachFloatExit ? {} : { x: 0 }),
           y: isAggressiveDownPine ? 112 : 24,
           rotation: isBeachBallExit
-            ? orderIndex % 2 === 0 ? '+=18' : '-=18'
+            ? orderIndex % 2 === 0
+              ? `+=${BEACH_BALL_EXIT_ROTATION_DEGREES}`
+              : `-=${BEACH_BALL_EXIT_ROTATION_DEGREES}`
             : orderIndex % 2 === 0 ? 12 : -12,
           duration: BOARD_TRANSITION_REGULAR_SCENE_EXIT_SECONDS,
           ease: isBeachSceneExit || isRoboSceneExit ? 'back.in(1.35)' : 'power2.in',

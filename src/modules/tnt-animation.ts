@@ -89,6 +89,7 @@ export type TntAnimationVisualOptions = {
   diceDebris?: boolean;
   diceAvoidImageDebris?: boolean;
   finaleScene?: 'bottle-ocean' | 'spaceship-abduction' | 'lasergun-crossfire';
+  laserGunNoTarget?: boolean;
 };
 
 const frameCache = new TntFrameCache((source) => Assets.unload(source));
@@ -1119,6 +1120,7 @@ export function showTntAnimation(options: {
   colors?: string[];
   splitIndex?: number;
   letterOpacityRange?: readonly [number, number];
+  laserGunNoTarget?: boolean;
   lastFrameOnExitOnly?: boolean;
   frameScale?: number;
   frameHorizontalScale?: number;
@@ -1166,6 +1168,7 @@ export function showTntAnimation(options: {
     onNinthSpriteStart,
   } = options;
   const usesLaserGunScene = options.finaleScene === 'lasergun-crossfire';
+  const usesLaserGunNoTarget = usesLaserGunScene && options.laserGunNoTarget === true;
   const { preferred: activeFrames, fallback: activeFallbackFrames } = resolveFrameSources(options);
   const numFrames = activeFrames.length;
   const lastFrameOnExitOnly = options.lastFrameOnExitOnly === true && numFrames > 1;
@@ -1355,8 +1358,8 @@ export function showTntAnimation(options: {
       },
       onSequenceComplete: () => {
         try { onSpriteSequenceComplete?.(); } catch {}
-        // LaserGun owns a sequential four-shot clock. Its fourth delayed beam
-        // can legitimately outlive the generic TNT 4.2s master duration.
+        // LaserGun owns its complete visible clock. Either the last real beam
+        // or the no-target fake-out decides when its scene may retire.
         finishTntAnimation();
       },
     });
@@ -1367,7 +1370,7 @@ export function showTntAnimation(options: {
   timeline = trackTimeline({
     onComplete: () => {
       // Standard TNT/Flower retain the accepted fixed lifetime. LaserGun is
-      // finalized only by its real scene completion after beam four and exit.
+      // finalized only by its real scene completion after its owned exit.
       if (!usesLaserGunScene) finishTntAnimation();
     },
     onKill: () => {
@@ -1721,7 +1724,20 @@ export function showTntAnimation(options: {
 
   let boomEnterComplete = 0;
   boomLetters.forEach((letterEl, index) => {
-    const delay = BOOM_ENTER_DELAY + index * BOOM_ENTER_STAGGER;
+    // The 720ms no-target gun owns a deliberately compact title entrance so
+    // every ZAPED OUT letter is painted before that gun returns offscreen.
+    const delay = usesLaserGunNoTarget
+      ? 0.04 + index * 0.025
+      : BOOM_ENTER_DELAY + index * BOOM_ENTER_STAGGER;
+    const enterDuration = usesLaserGunNoTarget
+      ? 0.16
+      : ENTER_DURATION + BOOM_ENTER_EXTRA * 0.6;
+    const settleDuration = usesLaserGunNoTarget
+      ? 0.06
+      : SETTLE_DURATION + BOOM_ENTER_EXTRA * 0.2;
+    const finalSettleDuration = usesLaserGunNoTarget
+      ? 0.06
+      : FINAL_SETTLE_DURATION + BOOM_ENTER_EXTRA * 0.2;
     const baseRotation = gsap.getProperty(letterEl, 'rotation') as number;
     const randomRotation = typeof baseRotation === 'number' ? baseRotation : 0;
     const baseScale = boomLetterScales[index] ?? 1;
@@ -1755,7 +1771,7 @@ export function showTntAnimation(options: {
       x: 0,
       y: 0,
       transformOrigin: 'center center',
-      duration: ENTER_DURATION + BOOM_ENTER_EXTRA * 0.6,
+      duration: enterDuration,
       ease: 'back.out(2.0)'
     });
     letterTl.to(letterEl, {
@@ -1767,7 +1783,7 @@ export function showTntAnimation(options: {
       x: 0,
       y: 0,
       transformOrigin: 'center center',
-      duration: SETTLE_DURATION + BOOM_ENTER_EXTRA * 0.2,
+      duration: settleDuration,
       ease: 'power2.out'
     });
     letterTl.to(letterEl, {
@@ -1780,13 +1796,13 @@ export function showTntAnimation(options: {
       x: 0,
       y: 0,
       transformOrigin: 'center center',
-      duration: FINAL_SETTLE_DURATION + BOOM_ENTER_EXTRA * 0.2,
+      duration: finalSettleDuration,
       ease: 'back.out(1.5)',
       onComplete: () => {
         // start springy bounce after enter completes for this letter
         try { boomBounceTimelines[index]?.play(0); } catch {}
         boomEnterComplete += 1;
-        if (boomEnterComplete === boomLetters.length) {
+        if (boomEnterComplete === boomLetters.length && !usesLaserGunNoTarget) {
           startBoomExit();
         }
       }

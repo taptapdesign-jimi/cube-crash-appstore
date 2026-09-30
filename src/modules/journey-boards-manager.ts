@@ -8988,6 +8988,7 @@ class JourneyBoardsManager {
     source = 'journey-return-pre-reveal',
     ownerToken: number | null = null,
     preparation: JourneyTerminalPreparationPerformance | null = null,
+    options: { warmPaint?: boolean } = {},
   ): boolean {
     this.resumeForVisibleWorldReturn(source);
     const phase = <T>(name: string, work: () => T): T => preparation ? preparation.phase(name, work) : work();
@@ -9101,7 +9102,9 @@ class JourneyBoardsManager {
       return false;
     }
     preparation?.detail({ targetCount: preparedPlan.targets.length });
-    phase('warm-dispatch', () => this.startJourneyReturnPaintWarm(container, worldId, ownerToken, source, preparation));
+    if (options.warmPaint !== false) {
+      phase('warm-dispatch', () => this.startJourneyReturnPaintWarm(container, worldId, ownerToken, source, preparation));
+    }
     return true;
   }
 

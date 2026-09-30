@@ -36,9 +36,10 @@ describe('Beach transition ambient ownership', () => {
     expect(floatSource).toContain('sampleBeachFloatHorizontalProgress(elapsedSeconds)');
     expect(floatSource).toContain('BEACH_FLOAT_RIGHT_EDGE_RATIO - BEACH_FLOAT_LEFT_EDGE_RATIO');
     expect(source).toContain('export const BEACH_BOTTLE_BOUNCE_PX = 18');
-    expect(source).toContain('export const BEACH_BALL_BOUNCE_PX = 22');
+    expect(source).toContain('export const BEACH_BALL_BOUNCE_PX = 30');
     expect(source).toContain('export const BEACH_BOTTLE_WOBBLE_DEGREES = 50.4');
-    expect(source).toContain('export const BEACH_BALL_WOBBLE_DEGREES = 117.6');
+    expect(source).toContain('export const BEACH_BALL_WOBBLE_DEGREES = 82.32');
+    expect(source).toContain('export const BEACH_BALL_EXIT_ROTATION_DEGREES = 12.6');
     expect(floatSource.match(/onUpdate:/g)).toHaveLength(1);
     expect(floatSource.match(/gsap\.set\(sceneImg/g)).toHaveLength(2);
 
@@ -57,6 +58,8 @@ describe('Beach transition ambient ownership', () => {
 
     expect(exitSource).toContain("const isBeachFloatExit = isBeachSceneExit && sceneImg.dataset.motionRole === 'float'");
     expect(exitSource).toContain('...(isBeachFloatExit ? {} : { x: 0 })');
+    expect(exitSource).toContain('`+=${BEACH_BALL_EXIT_ROTATION_DEGREES}`');
+    expect(exitSource).toContain('`-=${BEACH_BALL_EXIT_ROTATION_DEGREES}`');
   });
 
   test('stops only the requested element owner and retains the shared shore owner', () => {

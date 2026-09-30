@@ -258,4 +258,36 @@ describe('Arcade stage-clear runtime ownership', () => {
     expect(soundtrackMocks.enterArcadeGameplaySoundtrack).toHaveBeenCalledTimes(1);
     expect(document.getElementById('cc-arcade-stage-clear-overlay')).toBeNull();
   });
+
+  test('keeps the win card visible for one additional second before Round NN starts', async () => {
+    const onRoundPresented = jest.fn();
+    const resultPromise = showArcadeStageClearModal(1, 2, onRoundPresented);
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // Selected "Congrats" title: 580ms enter, followed by the 760ms
+    // "Round 01 complete" enter. The extended visible hold begins here.
+    jest.advanceTimersByTime(580);
+    await Promise.resolve();
+    await Promise.resolve();
+    jest.advanceTimersByTime(760);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    jest.advanceTimersByTime(1499);
+    await Promise.resolve();
+    expect(onRoundPresented).not.toHaveBeenCalled();
+    expect(document.querySelector('.cc-arcade-stage-card')).not.toBeNull();
+
+    // Finishing the hold starts the existing clear-card exit; Round NN still
+    // waits for that complete visual owner rather than appearing in parallel.
+    jest.advanceTimersByTime(1);
+    await Promise.resolve();
+    expect(onRoundPresented).not.toHaveBeenCalled();
+
+    const result = await flushUntilSettled(resultPromise);
+    expect(result).toEqual({ action: 'continue' });
+    expect(onRoundPresented).toHaveBeenCalledTimes(1);
+  });
 });

@@ -467,6 +467,7 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
 
   return new Promise(resolve => {
     let completed = 0;
+    let animatedTiles = 0;
     let halfDelayedCall: gsap.core.Tween | null = null;
     let exitSoundDelayedCall: gsap.core.Tween | null = null;
     let safetyTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -492,6 +493,12 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
       if (exitSoundDelayedCall) { try { exitSoundDelayedCall.kill(); } catch {} exitSoundDelayedCall = null; }
       resolve();
     };
+
+    // One tracked scheduler root owns the complete board exit. Each tile keeps
+    // its local timeline so per-tile callback/update ordering remains exactly
+    // as before; adding those children to one paused master removes N global
+    // animation-manager roots without changing their authored motion.
+    let exitTimeline: gsap.core.Timeline | null = null;
 
     list.forEach((t, i) => {
       const tile = t as any;
@@ -540,9 +547,13 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
       const d3 = Math.max(0.08, d3b * durMul * durationScale); // settle (reverse becomes first)
       const d2 = Math.max(0.08, d2b * durMul * durationScale); // compress
       const d1 = Math.max(0.10, d1b * durMul * durationScale); // blow (reverse becomes last)
+      animatedTiles++;
 
-      const timeline = trackTimeline({
-        delay: exitDel,
+      if (!exitTimeline) {
+        exitTimeline = trackTimeline({ paused: true });
+        activeTimelines.push(exitTimeline);
+      }
+      const tileTimeline = gsap.timeline({
         onComplete: () => {
           completed++;
           // Halfway callback (50% tiles exited)
@@ -553,16 +564,13 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
             } catch {}
           }
 
-          if (completed === total) {
-            finish();
-          }
-        }
+          if (completed === total) finish();
+        },
       });
-
-      // Track timeline for cleanup
-      activeTimelines.push(timeline);
-
-      timeline
+      // Claim the empty child immediately so even a synchronous tween/plugin
+      // construction failure cannot leave an unowned GSAP root behind.
+      exitTimeline.add(tileTimeline, exitDel);
+      tileTimeline
         // REVERSE sequence: 1.0 → 0.88 → 1.15 → 0.0
         .to(tile.scale, {
           x: 0.88,
@@ -599,11 +607,13 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
       if (endAt > maxEndTime) maxEndTime = endAt;
     });
 
+    exitTimeline?.play(0);
+
     console.log('🎯 Starting board exit pop-out — random order like entry');
 
     // Let the visual exit establish itself first, then start the shared exit mix
     // at exactly 40% of the complete computed pop-out window.
-    if (!settled && activeTimelines.length > 0) {
+    if (!settled && animatedTiles > 0) {
       exitSoundDelayedCall = trackDelayedCall(maxEndTime * 0.4, startExitSound);
     }
 

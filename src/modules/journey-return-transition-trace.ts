@@ -4,6 +4,13 @@ import { beginJourneyTerminalPreparationPerformance, type JourneyTerminalPrepara
 type JourneyReturnSource = 'clean-board' | 'fail';
 
 let generation = 0;
+let prewarmGeneration = 0;
+let activePrewarm: {
+  id: number;
+  ownerToken: number;
+  source: JourneyReturnSource;
+  boardId: number;
+} | null = null;
 let active: {
   id: number;
   source: JourneyReturnSource;
@@ -11,6 +18,7 @@ let active: {
   startedAt: number;
   firstUnitStarted: boolean;
   resultExitCompletedAt: number | null;
+  prewarmOwnerToken: number | null;
   preparation: JourneyTerminalPreparationPerformance | null;
   finishCtaSetup: (() => void) | undefined;
 } | null = null;
@@ -20,6 +28,12 @@ function isActiveTransition(transitionId: number): boolean {
 }
 
 export function beginJourneyReturnTransition(source: JourneyReturnSource, boardId: number): number {
+  // A settled-result prewarm may already have built the expensive World DOM.
+  // Retire only its async request ownership here; the prepared DOM/plan is
+  // deliberately left in place so the accepted transition can adopt it.
+  const prewarmOwnerToken = activePrewarm?.ownerToken ?? null;
+  prewarmGeneration += 1;
+  activePrewarm = null;
   active?.preparation?.finish('replaced');
   const id = ++generation;
   const preparation = beginJourneyTerminalPreparationPerformance(id, source, boardId);
@@ -30,11 +44,59 @@ export function beginJourneyReturnTransition(source: JourneyReturnSource, boardI
     startedAt: performance.now(),
     firstUnitStarted: false,
     resultExitCompletedAt: null,
+    prewarmOwnerToken,
     preparation,
     finishCtaSetup: preparation?.start('cta-synchronous'),
   };
   markJourneyReturnTransition('cta-accepted');
   return id;
+}
+
+/**
+ * Build the cold Journey destination while the result is settled and before
+ * Exit can be activated. This deliberately skips the paint-warm lease: the
+ * accepted transition acquires that lease later with its own generation token.
+ */
+export async function prewarmJourneyReturnBeforeTerminalExit(
+  source: JourneyReturnSource,
+  boardId: number,
+): Promise<boolean> {
+  const id = ++prewarmGeneration;
+  const ownerToken = -id;
+  activePrewarm = {
+    id,
+    ownerToken,
+    source,
+    boardId: Number.isFinite(boardId) ? boardId : 0,
+  };
+  try {
+    const { journeyBoardsManager } = await import('./journey-boards-manager.js');
+    if (activePrewarm?.id !== id) return false;
+    const prepared = journeyBoardsManager.prepareJourneyV700WorldEnterFromReturn?.(
+      `terminal-settled:${source}`,
+      ownerToken,
+      null,
+      { warmPaint: false },
+    ) === true;
+    if (!prepared && activePrewarm?.id === id) activePrewarm = null;
+    return prepared;
+  } catch {
+    if (activePrewarm?.id === id) activePrewarm = null;
+    return false;
+  }
+}
+
+export function cancelJourneyReturnPrewarm(reason: string): void {
+  const ownerToken = activePrewarm?.ownerToken ?? null;
+  const cancellationGeneration = ++prewarmGeneration;
+  activePrewarm = null;
+  if (ownerToken === null) return;
+  void import('./journey-boards-manager.js').then(({ journeyBoardsManager }) => {
+    // A replacement modal may have started a newer prewarm while this import
+    // was pending. Never let old cleanup cancel that newer prepared plan.
+    if (prewarmGeneration !== cancellationGeneration || activePrewarm !== null) return;
+    journeyBoardsManager.cancelPreparedJourneyV700WorldEnter?.(ownerToken, reason);
+  }).catch(() => {});
 }
 
 export function measureJourneyReturnPreparationPhase<T>(transitionId: number | null, name: string, work: () => T): T {
@@ -118,11 +180,15 @@ export function completeJourneyReturnTransition(
 export function cancelJourneyReturnTransition(transitionId: number | null, reason: string): void {
   const ownedTransitionId = transitionId ?? active?.id ?? null;
   if (ownedTransitionId === null || !isActiveTransition(ownedTransitionId)) return;
+  const prewarmOwnerToken = active?.prewarmOwnerToken ?? null;
   active?.preparation?.finish(`cancelled:${reason}`);
   markJourneyReturnTransition('cancelled', { reason });
   active = null;
   void import('./journey-boards-manager.js').then(({ journeyBoardsManager }) => {
     journeyBoardsManager.cancelPreparedJourneyV700WorldEnter?.(ownedTransitionId, reason);
+    if (prewarmOwnerToken !== null) {
+      journeyBoardsManager.cancelPreparedJourneyV700WorldEnter?.(prewarmOwnerToken, reason);
+    }
   }).catch(() => {});
 }
 

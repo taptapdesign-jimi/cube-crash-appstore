@@ -187,9 +187,12 @@ test('starts sleepy2 first and layers sleepy1 at its exact 50-percent point', ()
   expect(jest.mocked(playDecodedGameplaySound).mock.calls.map(([source]) => source)).toEqual(
     LAUNCH_SLEEPY_TRANSITION_SOUND_SOURCES,
   );
+  expect(jest.mocked(playDecodedGameplaySound).mock.calls[0][1]).toMatchObject({
+    volume: 0.336,
+  });
   expect(jest.mocked(playDecodedGameplaySound).mock.calls[0][1]).not.toHaveProperty('startDelaySeconds');
   expect(jest.mocked(playDecodedGameplaySound).mock.calls[1][1]).toMatchObject({
-    volume: 0.42,
+    volume: 0.336,
     startDelaySeconds: 1.44,
   });
 });

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+  CLEAN_BOARD_AREA55_SHIP_MAX_BANK_DEGREES,
   CLEAN_BOARD_AREA55_SHIP_MAX_WOBBLE_PX,
   createCleanBoardArea55ShipFlightPlan,
   startCleanBoardArea55ShipFlybys,
@@ -61,9 +62,10 @@ describe('Clean Board Area 55 ship flybys', () => {
     expect(second.endEdge).toBe('right');
     expect(first.keyframes.length).toBeGreaterThan(200);
     expect(first.keyframes.length).toBeLessThan(400);
-    expect(first.keyframes[0]).toMatchObject({ offset: 0, opacity: 0 });
-    expect(first.keyframes[first.keyframes.length - 1]).toMatchObject({ offset: 1, opacity: 0 });
-    expect(first.keyframes.find((frame) => Number(frame.offset) >= 0.2)).toMatchObject({ opacity: 0.7 });
+    expect(first.keyframes[0]).toMatchObject({ offset: 0, opacity: 0.7 });
+    expect(first.keyframes[first.keyframes.length - 1]).toMatchObject({ offset: 1, opacity: 0.7 });
+    expect(first.keyframes.every((frame) => frame.opacity === 0.7)).toBe(true);
+    expect(second.keyframes.every((frame) => frame.opacity === 0.9)).toBe(true);
     expect(first.keyframes[0].transform).toContain('-112.000px');
     expect(first.keyframes[first.keyframes.length - 1]?.transform).toContain('-112.000px');
     expect(first.durationMs).toBe(CLEAN_BOARD_CONFETTI_MAX_RUNTIME_MS);
@@ -136,15 +138,18 @@ describe('Clean Board Area 55 ship flybys', () => {
       if (velocities[i].t > 0.2 && velocities[i].t < 0.8) expect(delta).toBeLessThan(20);
       expect(Math.abs(poses[i].rotation - poses[i - 1].rotation)).toBeLessThan(3);
     }
-    for (const point of poses.filter(({ t }) => t > 0.16 && t < 0.85)) {
+    const visiblePoses = poses.filter(({ t }) => t > 0.16 && t < 0.85);
+    for (const point of visiblePoses) {
       expect(point.x).toBeGreaterThan(0);
       expect(point.x).toBeLessThan(390 - 74);
       expect(point.y).toBeGreaterThan(0);
       expect(point.y).toBeLessThan(844 - 74);
-      expect(Math.abs(point.rotation)).toBeLessThanOrEqual(14);
+      expect(Math.abs(point.rotation)).toBeLessThanOrEqual(CLEAN_BOARD_AREA55_SHIP_MAX_BANK_DEGREES);
     }
+    expect(Math.max(...visiblePoses.map(({ rotation }) => Math.abs(rotation)))).toBeGreaterThan(14);
     expect(plan.keyframes.every((frame) => frame.easing === 'linear')).toBe(true);
     expect(CLEAN_BOARD_AREA55_SHIP_MAX_WOBBLE_PX).toBe(60);
+    expect(CLEAN_BOARD_AREA55_SHIP_MAX_BANK_DEGREES).toBe(30);
   });
 
   test('runs exactly one confetti-length animation for each depth layer', () => {
@@ -175,6 +180,10 @@ describe('Clean Board Area 55 ship flybys', () => {
     expect(content.style.zIndex).toBe('1');
     expect(ships[0].style.zIndex).toBe('0');
     expect(ships[1].style.zIndex).toBe('2');
+    expect(ships[0].style.opacity).toBe('0.7');
+    expect(ships[1].style.opacity).toBe('0.9');
+    expect(ships[0].style.willChange).toBe('transform');
+    expect(ships[1].style.willChange).toBe('transform');
 
     expect(animations).toHaveLength(2);
     animations[0].onfinish?.();

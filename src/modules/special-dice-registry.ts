@@ -292,7 +292,7 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
     splashColors: ['#F3A654', '#EE9343'],
     splashSplitIndex: 6,
     shardColor: 0xFED49A,
-    shardColors: [0xFED49A, 0xBEAA85],
+    shardColors: [0xFED49A, 0x97E9FD],
     trailColors: [0xFEDFAD, 0xFDC37E, 0xE5CCA4, 0x97E9FD],
     explosionSpriteSources: useHighResolutionSpecialDiceFx
       ? laserGunFinaleSources2x

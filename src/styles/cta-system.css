@@ -142,7 +142,7 @@ button.cc-cta[data-cta-variant="secondary"]::after {
   box-shadow: 0 0 0 4px rgba(173,134,117,.2), 0 8px 0 #d8c7bb, 0 13px 22px rgba(112,85,73,.12);
 }
 
-.cc-cta:disabled:not([data-cta-state="exiting"]):not([data-cta-state="hidden"]) .cc-cta__visual {
+.cc-cta:disabled:not([data-cta-state="exiting"]):not([data-cta-state="hidden"]):not([data-cta-prewarm-pending="true"]) .cc-cta__visual {
   filter: saturate(.72) brightness(.98);
 }
 

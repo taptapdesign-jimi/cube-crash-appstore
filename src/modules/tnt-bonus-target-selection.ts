@@ -3,6 +3,11 @@ type GridPosition = {
   gridY?: number;
 };
 
+type TntBonusTargetCandidate = {
+  destroyed?: boolean;
+  value?: number;
+};
+
 export type LaserGunShooter = 'left' | 'right';
 
 export type LaserGunCrossfirePlan<T> = {
@@ -16,6 +21,35 @@ export const LASERGUN_MUZZLE_EDGE_INSET_MIN_PX = 72;
 export const LASERGUN_MUZZLE_EDGE_INSET_MAX_PX = 84;
 export const LASERGUN_PLANNER_NEAR_TIE_RATIO = 0.01;
 export const LASERGUN_MAX_GUNS_PER_SIDE = 4;
+
+/**
+ * One shared eligibility rule for both the merge-entry presentation decision
+ * and the later committed TNT/Laser target reservation. Wild/Special dice are
+ * never bonus targets, and excluded merge participants cannot be invented as
+ * a fallback target.
+ */
+export function getEligibleTntBonusTargets<T extends TntBonusTargetCandidate>(
+  tiles: readonly T[],
+  excludedTiles: readonly T[],
+  isWildLike: (tile: T) => boolean,
+): T[] {
+  const excluded = new Set(excludedTiles);
+  return tiles.filter((tile) => {
+    if (!tile || tile.destroyed === true || excluded.has(tile)) return false;
+    if (isWildLike(tile)) return false;
+    const value = Number(tile.value) | 0;
+    return value > 0 && value <= 6;
+  });
+}
+
+export function shouldUseLaserGunNoTargetPresentation(options: {
+  isLaserGun: boolean;
+  isFinalMerge: boolean;
+  eligibleTargetCount: number;
+}): boolean {
+  if (!options.isLaserGun) return false;
+  return options.isFinalMerge || options.eligibleTargetCount < 1;
+}
 
 type LaserGunPlannerCandidate<T> = {
   plan: LaserGunCrossfirePlan<T>[];

@@ -56,6 +56,32 @@ type FishSwimController = {
   ready: boolean;
   disposed: boolean;
   phaseLease: AnimatedSvgPhaseLease | null;
+  presentationValid: boolean;
+  presentation: {
+    canvasLeft: number;
+    canvasTop: number;
+    canvasWidth: number;
+    canvasHeight: number;
+    rootLeft: number;
+    rootTop: number;
+    screenWidth: number;
+    screenHeight: number;
+    canvasOpacity: number;
+    a: number;
+    b: number;
+    c: number;
+    d: number;
+    tx: number;
+    ty: number;
+    anchorOffsetX: number;
+    anchorOffsetY: number;
+    branchAlpha: number;
+    zIndex: number;
+    parentElement: HTMLElement | null;
+    transformStyle: string;
+    opacityStyle: string;
+    zIndexStyle: string;
+  };
 };
 
 type FishIdleBubblePaint = {
@@ -284,6 +310,7 @@ function disposeController(controller: FishSwimController): void {
 
 function suspendFishMedia(controller: FishSwimController): void {
   controller.wrapper.style.display = 'none';
+  controller.presentationValid = false;
   if (controller.mediaSuspended) return;
   controller.mediaSuspended = true;
   controller.mediaGeneration++;
@@ -332,6 +359,7 @@ function syncController(controller: FishSwimController, frame: AnimatedSpecialAr
 
   if (!controller.dragging) setAnimatedSpecialArtworkPinnedForeground(wrapper, true);
   if (controller.dragging) {
+    controller.presentationValid = false;
     suspendFishMedia(controller);
     releaseFrontBubbleSystem(controller);
     setFishStyle(wrapper, 'visibility', 'hidden');
@@ -345,6 +373,7 @@ function syncController(controller: FishSwimController, frame: AnimatedSpecialAr
   else suspendFishMedia(controller);
   const visible = controller.ready && paintable;
   if (!visible) {
+    controller.presentationValid = false;
     try { base.renderable = controller.baseRenderable; } catch {}
     setFishStyle(wrapper, 'visibility', 'hidden');
     return;
@@ -352,6 +381,7 @@ function syncController(controller: FishSwimController, frame: AnimatedSpecialAr
 
   const transform = host.worldTransform;
   if (!transform) {
+    controller.presentationValid = false;
     suspendFishMedia(controller);
     setFishStyle(wrapper, 'visibility', 'hidden');
     return;
@@ -368,11 +398,70 @@ function syncController(controller: FishSwimController, frame: AnimatedSpecialAr
     + (transform.tx - transform.a * anchorOffsetX - transform.c * anchorOffsetY) * scaleX;
   const f = canvasRect.top - rootRect.top
     + (transform.ty - transform.b * anchorOffsetX - transform.d * anchorOffsetY) * scaleY;
+  const branchAlpha = getPixiBranchAlpha(base);
+  const zIndex = Number.isFinite(tile.zIndex) ? Math.round(tile.zIndex) : 0;
+  const previous = controller.presentation;
+  const presentationChanged = !controller.presentationValid
+    || previous.canvasLeft !== canvasRect.left
+    || previous.canvasTop !== canvasRect.top
+    || previous.canvasWidth !== canvasRect.width
+    || previous.canvasHeight !== canvasRect.height
+    || previous.rootLeft !== rootRect.left
+    || previous.rootTop !== rootRect.top
+    || previous.screenWidth !== screenWidth
+    || previous.screenHeight !== screenHeight
+    || previous.canvasOpacity !== canvasOpacity
+    || previous.a !== transform.a
+    || previous.b !== transform.b
+    || previous.c !== transform.c
+    || previous.d !== transform.d
+    || previous.tx !== transform.tx
+    || previous.ty !== transform.ty
+    || previous.anchorOffsetX !== anchorOffsetX
+    || previous.anchorOffsetY !== anchorOffsetY
+    || previous.branchAlpha !== branchAlpha
+    || previous.zIndex !== zIndex
+    || previous.parentElement !== wrapper.parentElement;
 
   try { base.renderable = false; } catch {}
-  setFishStyle(wrapper, 'transform', `matrix(${a}, ${b}, ${c}, ${d}, ${e}, ${f})`);
-  setFishStyle(wrapper, 'opacity', String(getPixiBranchAlpha(base) * canvasOpacity));
-  setFishStyle(wrapper, 'zIndex', String(Number.isFinite(tile.zIndex) ? Math.round(tile.zIndex) : 0));
+  if (presentationChanged) {
+    previous.canvasLeft = canvasRect.left;
+    previous.canvasTop = canvasRect.top;
+    previous.canvasWidth = canvasRect.width;
+    previous.canvasHeight = canvasRect.height;
+    previous.rootLeft = rootRect.left;
+    previous.rootTop = rootRect.top;
+    previous.screenWidth = screenWidth;
+    previous.screenHeight = screenHeight;
+    previous.canvasOpacity = canvasOpacity;
+    previous.a = transform.a;
+    previous.b = transform.b;
+    previous.c = transform.c;
+    previous.d = transform.d;
+    previous.tx = transform.tx;
+    previous.ty = transform.ty;
+    previous.anchorOffsetX = anchorOffsetX;
+    previous.anchorOffsetY = anchorOffsetY;
+    previous.branchAlpha = branchAlpha;
+    previous.zIndex = zIndex;
+    previous.parentElement = wrapper.parentElement;
+    previous.transformStyle = `matrix(${a}, ${b}, ${c}, ${d}, ${e}, ${f})`;
+    previous.opacityStyle = String(branchAlpha * canvasOpacity);
+    previous.zIndexStyle = String(zIndex);
+    controller.presentationValid = true;
+  }
+  // Keep external style repair lossless without recreating transform/opacity
+  // strings on settled frames. This protects resume/reparent owners that may
+  // temporarily overwrite inline presentation between shared ticker ticks.
+  if (wrapper.style.transform !== previous.transformStyle) {
+    setFishStyle(wrapper, 'transform', previous.transformStyle);
+  }
+  if (wrapper.style.opacity !== previous.opacityStyle) {
+    setFishStyle(wrapper, 'opacity', previous.opacityStyle);
+  }
+  if (wrapper.style.zIndex !== previous.zIndexStyle) {
+    setFishStyle(wrapper, 'zIndex', previous.zIndexStyle);
+  }
   syncFrontBubbles(controller);
   setFishStyle(wrapper, 'display', '');
   setFishStyle(wrapper, 'visibility', 'visible');
@@ -559,6 +648,32 @@ function createController(
     ready: false,
     disposed: false,
     phaseLease: null,
+    presentationValid: false,
+    presentation: {
+      canvasLeft: 0,
+      canvasTop: 0,
+      canvasWidth: 0,
+      canvasHeight: 0,
+      rootLeft: 0,
+      rootTop: 0,
+      screenWidth: 0,
+      screenHeight: 0,
+      canvasOpacity: 0,
+      a: 0,
+      b: 0,
+      c: 0,
+      d: 0,
+      tx: 0,
+      ty: 0,
+      anchorOffsetX: 0,
+      anchorOffsetY: 0,
+      branchAlpha: 0,
+      zIndex: 0,
+      parentElement: null,
+      transformStyle: '',
+      opacityStyle: '',
+      zIndexStyle: '',
+    },
   };
   if (MOBILE_RUNTIME_PROFILE.platform === 'ios' && !fishHevcUnavailable) {
     attachIosHevc(controller);

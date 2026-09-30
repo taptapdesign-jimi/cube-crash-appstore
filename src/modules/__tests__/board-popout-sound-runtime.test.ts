@@ -8,12 +8,42 @@ const code = ts.transpileModule(node.getText(source).replace('export function', 
 }).outputText;
 function fixture() {
   const callbacks: Array<{ onComplete: () => void }> = [];
+  const tweens: Array<{ target: any; vars: any; position: number }> = [];
   const delayed: Array<{ delay: number; run: () => void; kill: jest.Mock }> = [];
+  let trackedTimelineCount = 0;
   const stop = jest.fn();
   const play = jest.fn((_duration: number, _phase?: 'enter' | 'exit') => stop);
-  const trackTimeline = (options: any) => {
-    callbacks.push(options);
-    const timeline = { to: () => timeline, kill: jest.fn() };
+  const makeChildTimeline = (options: any = {}) => {
+    const localTweens: Array<{ target: any; vars: any; position: number }> = [];
+    const child = {
+      to: (target: any, vars: any, position: number) => {
+        localTweens.push({ target, vars, position });
+        if (child._masterOffset !== null) {
+          tweens.push({ target, vars, position: child._masterOffset + position });
+        }
+        return child;
+      },
+      kill: jest.fn(),
+      _options: options,
+      _tweens: localTweens,
+      _masterOffset: null as number | null,
+    };
+    return child;
+  };
+  const trackTimeline = (_options: any) => {
+    trackedTimelineCount++;
+    const timeline = {
+      add: (child: ReturnType<typeof makeChildTimeline>, offset: number) => {
+        child._masterOffset = offset;
+        child._tweens.forEach(({ target, vars, position }) => {
+          tweens.push({ target, vars, position: offset + position });
+        });
+        callbacks.push({ onComplete: child._options.onComplete });
+        return timeline;
+      },
+      play: jest.fn(() => timeline),
+      kill: jest.fn(),
+    };
     return timeline;
   };
   const trackDelayedCall = (delay: number, run: () => void) => {
@@ -21,8 +51,9 @@ function fixture() {
     delayed.push(call);
     return call;
   };
-  const run = new Function('trackTimeline', 'trackDelayedCall', 'playBoardPopInSound', `${code}; return sweetPopOut;`)(trackTimeline, trackDelayedCall, play);
-  return { run, callbacks, delayed, play, stop };
+  const fakeGsap = { timeline: makeChildTimeline };
+  const run = new Function('gsap', 'trackTimeline', 'trackDelayedCall', 'playBoardPopInSound', `${code}; return sweetPopOut;`)(fakeGsap, trackTimeline, trackDelayedCall, play);
+  return { run, callbacks, tweens, delayed, play, stop, get trackedTimelineCount() { return trackedTimelineCount; } };
 }
 const tile = () => ({ scale: { x: 1, y: 1 }, alpha: 1, value: 2, parent: {} });
 describe('board exit audio contact and retirement', () => {
@@ -56,5 +87,23 @@ describe('board exit audio contact and retirement', () => {
   });
   test('invalid targets remain silent', async () => {
     const f = fixture(); await f.run([null]); expect(f.play).not.toHaveBeenCalled();
+  });
+  test('uses one master timeline while preserving each tile phase order', async () => {
+    const f = fixture();
+    const done = f.run([tile(), tile(), tile()]);
+    expect(f.trackedTimelineCount).toBe(1);
+    expect(f.tweens).toHaveLength(12);
+    for (let index = 0; index < 3; index += 1) {
+      const phase = f.tweens.slice(index * 4, index * 4 + 4);
+      expect(phase[0].position).toBeGreaterThanOrEqual(0);
+      expect(phase[1].position).toBeGreaterThan(phase[0].position);
+      expect(phase[2].position).toBe(phase[1].position);
+      expect(phase[3].position).toBeGreaterThan(phase[2].position);
+      expect(phase.map(({ vars }) => vars.ease)).toEqual([
+        'back.in(1.5)', 'power2.in', 'power2.in', 'back.in(2)',
+      ]);
+    }
+    f.callbacks.forEach(callback => callback.onComplete());
+    await done;
   });
 });

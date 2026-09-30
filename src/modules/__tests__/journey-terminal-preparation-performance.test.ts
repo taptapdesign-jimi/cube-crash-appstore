@@ -68,7 +68,15 @@ describe('terminal Journey preparation phase diagnostics', () => {
     }
     jest.spyOn(screen, 'getBoundingClientRect').mockImplementation(() => { now += 7; return {} as DOMRect; });
     jest.spyOn(container, 'getBoundingClientRect').mockImplementation(() => { now += 11; return {} as DOMRect; });
-    return { owner, screen, finishImages, prepare: (capture: JourneyTerminalPreparationPerformance | null) => owner.prepareJourneyV700WorldEnterFromReturn('terminal-overlay:clean-board', 7, capture) };
+    return {
+      owner,
+      screen,
+      finishImages,
+      prepare: (
+        capture: JourneyTerminalPreparationPerformance | null,
+        options: { warmPaint?: boolean } = {},
+      ) => owner.prepareJourneyV700WorldEnterFromReturn('terminal-overlay:clean-board', 7, capture, options),
+    };
   }
 
   test('disabled diagnostics preserve real preparation without adding timers or logs', async () => {
@@ -120,6 +128,14 @@ describe('terminal Journey preparation phase diagnostics', () => {
     expect(postMessage).toHaveBeenCalledTimes(1);
     expect(postMessage.mock.calls[0][0].message).toBe(emitted);
     expect(jest.getTimerCount()).toBe(0);
+  });
+
+  test('settled-result cold prewarm builds and primes without a paint-warm lease', () => {
+    const f = managerFixture(true);
+    expect(f.prepare(null, { warmPaint: false })).toBe(true);
+    expect(f.owner.renderBoards).toHaveBeenCalledTimes(1);
+    expect(f.owner.journeyReturnPaintWarmLease).toBeNull();
+    expect(f.owner.waitForTrackedFrames).not.toHaveBeenCalled();
   });
 
   test('bounded capture expires once; measured exceptions preserve original behavior', () => {

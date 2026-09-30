@@ -7,6 +7,8 @@ import {
   completeJourneyReturnTransition,
   getJourneyReturnRevealToken,
   markJourneyReturnResultExitComplete,
+  cancelJourneyReturnPrewarm,
+  prewarmJourneyReturnBeforeTerminalExit,
   prepareJourneyReturnBehindTerminalOverlay,
   measureJourneyReturnPreparationPhase,
   finishJourneyReturnCtaSetup,
@@ -106,6 +108,41 @@ describe('terminal-owned Journey reveal', () => {
     beginJourneyReturnTransition('clean-board', 24);
     await flushImports();
     expect(journeyBoardsManager.prepareJourneyV700WorldEnterFromReturn).toHaveBeenCalledTimes(1);
+  });
+
+  test('settled-result prewarm builds cold World DOM without acquiring the visible paint lease', async () => {
+    jest.mocked(journeyBoardsManager.prepareJourneyV700WorldEnterFromReturn).mockReturnValueOnce(true);
+    await expect(prewarmJourneyReturnBeforeTerminalExit('clean-board', 22)).resolves.toBe(true);
+    expect(journeyBoardsManager.prepareJourneyV700WorldEnterFromReturn).toHaveBeenCalledWith(
+      'terminal-settled:clean-board',
+      expect.any(Number),
+      null,
+      { warmPaint: false },
+    );
+    const prepareCalls = jest.mocked(journeyBoardsManager.prepareJourneyV700WorldEnterFromReturn).mock.calls;
+    const prewarmOwnerToken = prepareCalls[prepareCalls.length - 1]?.[1] as number;
+    expect(prewarmOwnerToken).toBeLessThan(0);
+
+    cancelJourneyReturnPrewarm('test-cleanup');
+    await flushImports();
+    expect(journeyBoardsManager.cancelPreparedJourneyV700WorldEnter)
+      .toHaveBeenCalledWith(prewarmOwnerToken, 'test-cleanup');
+  });
+
+  test('accepted transition abort retires both its token and its adopted prewarm plan', async () => {
+    jest.mocked(journeyBoardsManager.prepareJourneyV700WorldEnterFromReturn).mockReturnValueOnce(true);
+    await prewarmJourneyReturnBeforeTerminalExit('clean-board', 22);
+    const prepareCalls = jest.mocked(journeyBoardsManager.prepareJourneyV700WorldEnterFromReturn).mock.calls;
+    const prewarmOwnerToken = prepareCalls[prepareCalls.length - 1]?.[1] as number;
+    const transitionToken = beginJourneyReturnTransition('clean-board', 22);
+
+    cancelJourneyReturnTransition(transitionToken, 'test-abort-before-adoption');
+    await flushImports();
+
+    expect(journeyBoardsManager.cancelPreparedJourneyV700WorldEnter)
+      .toHaveBeenCalledWith(transitionToken, 'test-abort-before-adoption');
+    expect(journeyBoardsManager.cancelPreparedJourneyV700WorldEnter)
+      .toHaveBeenCalledWith(prewarmOwnerToken, 'test-abort-before-adoption');
   });
 
   test('opt-in CTA and module phases share one bounded return record', async () => {
@@ -252,28 +289,32 @@ describe('primed terminal World shell', () => {
 });
 
 describe('Clean Board Exit preparation routing', () => {
-  test.each([[false, false, 1], [false, true, 1], [true, false, 0]])(
-    'prepares accepted Journey Exit once: arcade=%s interim=%s',
-    (arcade, interim, calls) => {
-      const source = fs.readFileSync('src/modules/clean-board-modal.ts', 'utf8');
-      const prefix = source.split('addButtonPressHandling(secondaryBtn, async () => {')[1]
-        .split('cleanupCelebrationParticlesImmediately();')[0];
-      const compiled = ts.transpileModule(prefix, {
-        compilerOptions: { target: ts.ScriptTarget.ES2022 },
-      }).outputText;
-      const prepare = jest.fn();
-      const activate = new Function('isArcadeHomeRun', 'isFromInterimBoard',
-        'beginJourneyReturnTransition', 'prepareJourneyReturnBehindTerminalOverlay',
-        'markJourneyGameOrigin', 'window', 'localStorage', 'lifetime',
-        `let journeyReturnTransitionId = null; const boardNumber = 22; ${compiled}`);
-      activate(arcade, interim, () => 5, prepare, () => {}, window, localStorage, { isActive: () => true });
-      expect(prepare).toHaveBeenCalledTimes(calls as number);
-      if (calls) expect(prepare).toHaveBeenCalledWith('clean-board', 5);
-      ['__ccReturningFromInterimBoard', '__ccSuppressJourneyV700AutoWorldEnter',
-        '__ccJourneyReturnBoardId', '__ccLastActiveJourneyBoardAreaId'].forEach((key) => {
-        Reflect.deleteProperty(window, key);
-        localStorage.removeItem(key);
-      });
-    },
-  );
+  test('arms CTA, board and modal exits synchronously before deferred Journey preparation', () => {
+    const source = fs.readFileSync('src/modules/clean-board-modal.ts', 'utf8');
+    const handler = source.split('addButtonPressHandling(secondaryBtn, async () => {')[1]
+      .split('// 🔥 EXIT FIX: Clear board save state')[0];
+    const ctaIndex = handler.indexOf('const ctaExitPromise = exitCtaPair(secondaryBtn, primaryBtn);');
+    const boardIndex = handler.indexOf('(window as any).animateBoardExit()');
+    const modalFrameIndex = handler.indexOf('trackAnimationFrame(() => {', boardIndex);
+    const prepareIndex = handler.indexOf("prepareJourneyReturnBehindTerminalOverlay('clean-board'");
+
+    expect(ctaIndex).toBeGreaterThan(-1);
+    expect(boardIndex).toBeGreaterThan(ctaIndex);
+    expect(modalFrameIndex).toBeGreaterThan(boardIndex);
+    expect(prepareIndex).toBeGreaterThan(modalFrameIndex);
+    const executablePrefix = handler.slice(0, prepareIndex).replace(/\/\/.*$/gm, '');
+    expect(executablePrefix).not.toMatch(/\bawait\s+/);
+    expect(handler.slice(modalFrameIndex, prepareIndex).match(/trackAnimationFrame\(\(\) => \{/g))
+      .toHaveLength(2);
+  });
+
+  test('prewarms only the non-Arcade secondary CTA after its authored entrance', () => {
+    const source = fs.readFileSync('src/modules/clean-board-modal.ts', 'utf8');
+    const animateSource = source.split('const animateButtonIn = (button: HTMLButtonElement) => {')[1]
+      .split('const buttonExitDurationMs')[0];
+    expect(animateSource).toContain('button === secondaryBtn && !isArcadeHomeRun');
+    expect(animateSource.indexOf('await prewarmJourneyReturnBeforeTerminalExit'))
+      .toBeGreaterThan(animateSource.indexOf('void enterPromise.then'));
+    expect(animateSource).toContain("prewarmJourneyReturnBeforeTerminalExit('clean-board', boardNumber)");
+  });
 });

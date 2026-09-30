@@ -1,4 +1,4 @@
-import { Container, Point, Sprite, Texture, TextureSource } from 'pixi.js';
+import { Container, Matrix, Point, Sprite, Texture, TextureSource } from 'pixi.js';
 import { STATE } from '../app-state';
 import {
   getAnimatedDiceHudForegroundStats,
@@ -177,4 +177,51 @@ test('repairs the board scale when a sheet frame swap resets the foreground spri
   releaseAnimatedDiceAboveHud(owner);
   first.destroy(true);
   next.destroy(true);
+});
+
+test('reuses clean source and shared-layer transforms without recomposing or rewriting the sprite', () => {
+  const stage = new Container();
+  STATE.app = { stage } as any;
+  const board = stage.addChild(new Container());
+  board.position.set(24, 136);
+  board.scale.set(0.475);
+  const host = board.addChild(new Container());
+  host.position.set(200, 320);
+  const sprite = host.addChild(new Sprite(Texture.WHITE));
+  const owner = {};
+
+  expect(mountAnimatedDiceAboveHud(owner, sprite, host)).toBe(true);
+  const prepend = jest.spyOn(Matrix.prototype, 'prepend');
+  const invert = jest.spyOn(Matrix.prototype, 'invert');
+  const setFromMatrix = jest.spyOn(sprite, 'setFromMatrix');
+
+  for (let tick = 0; tick < 100; tick += 1) {
+    expect(syncAnimatedDiceAboveHud(owner)).toBe(true);
+  }
+  expect(prepend).not.toHaveBeenCalled();
+  expect(invert).not.toHaveBeenCalled();
+  expect(setFromMatrix).not.toHaveBeenCalled();
+
+  board.x += 12;
+  expect(syncAnimatedDiceAboveHud(owner)).toBe(true);
+  expect(prepend).toHaveBeenCalled();
+  expect(setFromMatrix).toHaveBeenCalledTimes(1);
+});
+
+test('reuses Pixi actual matrix after rotated non-uniform decompose round-trip', () => {
+  const stage = new Container();
+  STATE.app = { stage } as any;
+  const board = stage.addChild(new Container());
+  board.setFromMatrix(new Matrix(0.62, 0.17, -0.23, 0.71, 24, 136));
+  const host = board.addChild(new Container());
+  host.position.set(200, 320);
+  const sprite = host.addChild(new Sprite(Texture.WHITE));
+  const owner = {};
+
+  expect(mountAnimatedDiceAboveHud(owner, sprite, host)).toBe(true);
+  const setFromMatrix = jest.spyOn(sprite, 'setFromMatrix');
+  for (let tick = 0; tick < 100; tick += 1) {
+    expect(syncAnimatedDiceAboveHud(owner)).toBe(true);
+  }
+  expect(setFromMatrix).not.toHaveBeenCalled();
 });

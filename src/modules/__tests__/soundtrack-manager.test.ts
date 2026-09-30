@@ -19,6 +19,7 @@ import {
   SOUNDTRACK_INTRO_CROSSFADE_MS,
   SOUNDTRACK_INTRO_CROSSFADE_DELAY_MS,
   SOUNDTRACK_INTRO_DURATION_MS,
+  SOUNDTRACK_LAUNCH_FADE_IN_MS,
   SOUNDTRACK_INTRO_LOOP_PREROLL_SECONDS,
   SOUNDTRACK_INTRO_URL,
   SOUNDTRACK_LOOP_DURATION_SECONDS,
@@ -40,6 +41,7 @@ import {
   resetSoundtrackForTests,
   setSoundtrackResultMix,
   soundtrackManager,
+  startLaunchSoundtrack,
   startSoundtrack,
   preloadSoundtrack,
   getSoundtrackRuntimeStats,
@@ -205,6 +207,7 @@ describe('global Stack to Six soundtrack', () => {
     expect(SOUNDTRACK_INTRO_DURATION_MS).toBeCloseTo(2058.3125, 6);
     expect(SOUNDTRACK_INTRO_CROSSFADE_MS).toBe(320);
     expect(SOUNDTRACK_INTRO_CROSSFADE_DELAY_MS).toBe(120);
+    expect(SOUNDTRACK_LAUNCH_FADE_IN_MS).toBe(2000);
     expect(SOUNDTRACK_INTRO_LOOP_PREROLL_SECONDS).toBeCloseTo(55.5744375, 6);
     expect(ARCADE_SOUNDTRACK_CALM_URL).toBe(
       './assets/sound/soundtrack/adaptive-music-v3/gameplay-bed-calm-01.wav',
@@ -276,6 +279,49 @@ describe('global Stack to Six soundtrack', () => {
     expect(MockAudio.instances).toHaveLength(2);
     expect(currentAudio?.play).toHaveBeenCalledTimes(1);
     expect(currentIntroAudio?.play).toHaveBeenCalledTimes(1);
+  });
+
+  it('fades the cold launch theme in for two seconds on the audio clock', async () => {
+    const nativeVoice = Object.assign(new MockAudio(SOUNDTRACK_RUNTIME_URL), {
+      sampleAccurateIntroLoop: true as const,
+      dispose: jest.fn(), rampVolume: jest.fn(), cancelVolumeRamp: jest.fn(),
+    });
+    const factory = jest.spyOn(themeTransport, 'createSampleAccurateMainThemeVoice')
+      .mockReturnValue(nativeVoice as unknown as themeTransport.SampleAccurateMainThemeVoice);
+    try {
+      startLaunchSoundtrack();
+      expect(nativeVoice.volume).toBe(0);
+      await Promise.resolve();
+      expect(nativeVoice.rampVolume).toHaveBeenCalledTimes(1);
+      expect(nativeVoice.rampVolume).toHaveBeenCalledWith(
+        SOUNDTRACK_VOLUME,
+        SOUNDTRACK_LAUNCH_FADE_IN_MS,
+      );
+      expect(nativeVoice.play).toHaveBeenCalledTimes(1);
+
+      startLaunchSoundtrack();
+      expect(nativeVoice.play).toHaveBeenCalledTimes(1);
+      expect(nativeVoice.rampVolume).toHaveBeenCalledTimes(1);
+    } finally {
+      factory.mockRestore();
+    }
+  });
+
+  it('starts the launch fade at the visible logo boundary, not during media readiness', () => {
+    const launchSource = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/modules/launch-screen.ts'),
+      'utf8',
+    );
+    const readinessIndex = launchSource.indexOf('launchImagesCompleted');
+    const launchStartIndex = launchSource.indexOf('startLaunchSoundtrack();');
+    const revealIndex = launchSource.indexOf(
+      "studioPresentsContainer.style.setProperty('opacity', '1')",
+    );
+
+    expect(launchSource).not.toContain('startSoundtrack();');
+    expect(readinessIndex).toBeGreaterThan(-1);
+    expect(launchStartIndex).toBeGreaterThan(readinessIndex);
+    expect(revealIndex).toBeGreaterThan(launchStartIndex);
   });
 
   it('crossfades Arcade from Calm to phase-matched Active, then lowers the result bed', async () => {
@@ -608,6 +654,38 @@ describe('global Stack to Six soundtrack', () => {
     expect(currentAudio.play).toHaveBeenCalledTimes(2);
     expect(soundtrackManager.isStarted).toBe(true);
   });
+
+  it('preserves the launch fade when autoplay defers playback to touch release', async () => {
+    const nativeVoice = Object.assign(new MockAudio(SOUNDTRACK_RUNTIME_URL), {
+      sampleAccurateIntroLoop: true as const,
+      dispose: jest.fn(), rampVolume: jest.fn(), cancelVolumeRamp: jest.fn(),
+    });
+    const factory = jest.spyOn(themeTransport, 'createSampleAccurateMainThemeVoice')
+      .mockReturnValue(nativeVoice as unknown as themeTransport.SampleAccurateMainThemeVoice);
+    try {
+      MockAudio.rejectNextPlay = true;
+      startLaunchSoundtrack();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(nativeVoice.play).toHaveBeenCalledTimes(1);
+      expect(nativeVoice.rampVolume).not.toHaveBeenCalled();
+
+      const pointerUp = new Event('pointerup', { bubbles: true });
+      Object.defineProperty(pointerUp, 'pointerType', { value: 'touch' });
+      document.dispatchEvent(pointerUp);
+      await Promise.resolve();
+
+      expect(nativeVoice.play).toHaveBeenCalledTimes(2);
+      expect(nativeVoice.rampVolume).toHaveBeenCalledWith(
+        SOUNDTRACK_VOLUME,
+        SOUNDTRACK_LAUNCH_FADE_IN_MS,
+      );
+      expect(soundtrackManager.isStarted).toBe(true);
+    } finally {
+      factory.mockRestore();
+    }
+  });
+
   it('schedules native gain fades without frame callbacks and cancels them on Music OFF', async () => {
     const nativeVoice = Object.assign(new MockAudio(SOUNDTRACK_RUNTIME_URL), {
       sampleAccurateIntroLoop: true as const,

@@ -42,6 +42,7 @@ export const LAUNCH_SLEEPY_TRANSITION_SOUND_SOURCES = [
 const VOICE_ID = 'launch-logo-transition-character';
 const SLEEPY_VOICE_IDS = ['launch-logo-sleepy-2', 'launch-logo-sleepy-1'] as const;
 const SLEEPY_MIDPOINT_SECONDS = 1.44;
+const SLEEPY_ACTION_GAIN = 0.56;
 
 export function preloadLaunchLogoTransitionSounds(): boolean {
   return (window as any)._settings?.gameSoundsEnabled === true
@@ -184,12 +185,12 @@ export function playLaunchSleepyTransitionSounds(): boolean {
   retireSleepySequence();
   const firstResult = playDecodedGameplaySound(LAUNCH_SLEEPY_TRANSITION_SOUND_SOURCES[0], {
     voiceId: SLEEPY_VOICE_IDS[0],
-    volume: applySoundEffectsMasterGain(0.7),
+    volume: applySoundEffectsMasterGain(SLEEPY_ACTION_GAIN),
   });
   if (firstResult === 'unavailable') return false;
   playDecodedGameplaySound(LAUNCH_SLEEPY_TRANSITION_SOUND_SOURCES[1], {
     voiceId: SLEEPY_VOICE_IDS[1],
-    volume: applySoundEffectsMasterGain(0.7),
+    volume: applySoundEffectsMasterGain(SLEEPY_ACTION_GAIN),
     startDelaySeconds: SLEEPY_MIDPOINT_SECONDS,
   });
   return true;

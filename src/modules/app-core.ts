@@ -32,6 +32,8 @@ import { showTntAnimation, stopTntAnimation, retireTntFrameCache, onTntBoomExitC
 import {
   cancelActiveLaserGunFinaleImpact,
   completeActiveLaserGunFinaleImpacts,
+  LASERGUN_NO_TARGET_TEXT,
+  playActiveLaserGunNoTarget,
   prepareActiveLaserGunFinaleImpact,
   setActiveLaserGunFinaleTargets,
   triggerActiveLaserGunFinaleImpact,
@@ -165,8 +167,10 @@ import {
   releaseTntBonusTiles,
 } from './tnt-bonus-tile-ownership.ts';
 import {
+  getEligibleTntBonusTargets,
   planLaserGunCrossfireTargets,
   selectSpatiallySeparatedTntTargets,
+  shouldUseLaserGunNoTargetPresentation,
   type LaserGunShooter,
 } from './tnt-bonus-target-selection.ts';
 import { ensureBoardLifecycleTrace, markBoardLifecycle } from '../utils/board-lifecycle-performance.ts';
@@ -10766,8 +10770,26 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           ...getSpecialDiceSplashOptions(tntVariantForMerge),
         }
       : undefined;
+    const laserGunTargetsAtMergeEntry = tntVariantForMerge?.id === 'laser-gun'
+      ? getEligibleTntBonusTargets(
+          STATE?.tiles || [],
+          [src, dst],
+          isWildLikeTile,
+        )
+      : [];
+    const usesLaserGunNoTargetPresentation = shouldUseLaserGunNoTargetPresentation({
+      isLaserGun: tntVariantForMerge?.id === 'laser-gun',
+      isFinalMerge: isFinalMergeByResolver,
+      eligibleTargetCount: laserGunTargetsAtMergeEntry.length,
+    });
     const tntAnimationOptionsForMerge = {
       ...(tntVisualOptionsForMerge || {}),
+      ...(usesLaserGunNoTargetPresentation
+        ? {
+            text: LASERGUN_NO_TARGET_TEXT,
+            laserGunNoTarget: true,
+          }
+        : {}),
       diceDebris: tntVariantForMerge == null || tntVariantForMerge?.id === 'barell',
       diceAvoidImageDebris: tntVariantForMerge?.id === 'barell',
       debrisScale: tntVariantForMerge?.id === 'barell' ? 0.7 : 1,
@@ -11487,6 +11509,12 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 	                      (src as any)?._isLastMerge === true;
 	                    if (finalMergeOwnsTntResolution) {
 	                      devLog('🔥 TNT bonus break skipped: immutable final-merge snapshot owns resolution');
+	                      if (tntVariantForMerge?.id === 'laser-gun') {
+	                        const fakeOutStarted = playActiveLaserGunNoTarget(
+	                          getTntTileDomScreenPos(board, dst),
+	                        );
+	                        if (!fakeOutStarted) completeActiveLaserGunFinaleImpacts();
+	                      }
 	                      commitTntBoardForOrdinaryStacks('final-merge-no-bonus');
 	                      tntBonusGameplayComplete = true;
 	                      releaseTntTransactionWhenSettled('final-merge-no-bonus');
@@ -11525,7 +11553,16 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 	                          },
 	                      skipFx: false,
 	                      onTargetsSelected: tntVariantForMerge?.id === 'laser-gun'
-	                        ? (targets) => setActiveLaserGunFinaleTargets(targets)
+	                        ? (targets) => {
+	                            if (targets.length === 0 && usesLaserGunNoTargetPresentation) {
+	                              const fakeOutStarted = playActiveLaserGunNoTarget(
+	                                getTntTileDomScreenPos(board, dst),
+	                              );
+	                              if (!fakeOutStarted) completeActiveLaserGunFinaleImpacts();
+	                              return fakeOutStarted ? 'painted' : 'cancelled';
+	                            }
+	                            return setActiveLaserGunFinaleTargets(targets);
+	                          }
 	                        : undefined,
 	                      onBoardCommitted: () => {
 	                        commitTntBoardForOrdinaryStacks('bonus-targets-reserved');
@@ -15067,6 +15104,33 @@ function updateEndgameHintState(): void {
 // 🔥 v112: sleep moved to app-core-utils.ts
 // Imported: sleep
 
+function getTntTileDomScreenPos(board: any, tile: Tile): { x: number; y: number } {
+  const local = centerInBoard(board, tile, TILE);
+  let screenPosition = local;
+  try {
+    if (board && typeof board.toGlobal === 'function') {
+      const global = board.toGlobal({ x: local.x, y: local.y });
+      if (global && Number.isFinite(global.x) && Number.isFinite(global.y)) {
+        screenPosition = global;
+      }
+    }
+  } catch {}
+  try {
+    const canvas = (app as any)?.canvas || (app as any)?.view || (app as any)?.renderer?.canvas;
+    const rect = canvas?.getBoundingClientRect?.();
+    const rendererScreen = (app as any)?.renderer?.screen;
+    const screenWidth = Number(rendererScreen?.width) || Number((app as any)?.renderer?.width) || rect?.width;
+    const screenHeight = Number(rendererScreen?.height) || Number((app as any)?.renderer?.height) || rect?.height;
+    if (rect && screenWidth > 0 && screenHeight > 0) {
+      return {
+        x: rect.left + (screenPosition.x / screenWidth) * rect.width,
+        y: rect.top + (screenPosition.y / screenHeight) * rect.height,
+      };
+    }
+  } catch {}
+  return screenPosition;
+}
+
 /** Kad krenu kockice u return (BOOM exit): razbi 4 random obične kockice (delay 0.5s nakon return start), merge 6 efekat + smoke, wild meter, spawn 4 nove. Samo obične, nikad wild. */
 function runTntBoomBonusBreak2Tiles(deps: {
   board: any;
@@ -15115,24 +15179,10 @@ function runTntBoomBonusBreak2Tiles(deps: {
         }
       } catch {}
       return local;
-    };
-    const getDomScreenPos = (tileForCenter: any) => {
-      const pos = getScreenPos(tileForCenter);
-      try {
-        const canvas = (app as any)?.canvas || (app as any)?.view || (app as any)?.renderer?.canvas;
-        const rect = canvas?.getBoundingClientRect?.();
-        const screen = (app as any)?.renderer?.screen;
-        const screenW = Number(screen?.width) || Number((app as any)?.renderer?.width) || rect?.width;
-        const screenH = Number(screen?.height) || Number((app as any)?.renderer?.height) || rect?.height;
-        if (rect && screenW > 0 && screenH > 0) {
-          return {
-            x: rect.left + (pos.x / screenW) * rect.width,
-            y: rect.top + (pos.y / screenH) * rect.height,
-          };
-        }
-      } catch {}
-      return pos;
-    };
+	    };
+	    const getDomScreenPos = (tileForCenter: Tile) => (
+	      getTntTileDomScreenPos(board, tileForCenter)
+	    );
     const bonusParticleTextures = Array.isArray(bonusParticleSources) && bonusParticleSources.length
       ? bonusParticleSources.map((source) => Texture.from(source))
       : [Texture.from('./assets/small-star.png')];
@@ -15154,13 +15204,7 @@ function runTntBoomBonusBreak2Tiles(deps: {
       return;
     }
     const allTiles = STATE?.tiles || [];
-    const candidates = allTiles.filter((t: Tile) => {
-      if (!t || t.destroyed || t === dst) return false;
-      const isWild = isWildLikeTile(t);
-      if (isWild) return false;
-      const v = (t.value | 0);
-      return v > 0 && v <= 6;
-    });
+    const candidates = getEligibleTntBonusTargets(allTiles, [dst], isWildLikeTile);
     const count = Math.min(4, candidates.length);
     if (count < 1) {
       devLog('🔥 TNT boom bonus: no regular tiles to break');

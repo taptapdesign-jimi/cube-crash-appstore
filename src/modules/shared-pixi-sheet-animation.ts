@@ -71,6 +71,7 @@ const DEFAULT_EVICTION_DELAY_MS = MOBILE_RUNTIME_PROFILE.isMobileDevice ? 8_000 
 export const SHARED_PIXI_SHEET_IDLE_BUDGET_BYTES = (MOBILE_RUNTIME_PROFILE.isMobileDevice ? 24 : 48) * 1024 * 1024;
 const caches = new Map<string, FamilyCache>();
 const controllers = new Set<SharedPixiSheetController>();
+const NO_FRAME_PUBLISHER_SIGNATURE = '__cc-no-frame-publisher__';
 let runtimeTicker: any = null;
 
 function getTextureDimension(texture: any, axis: 'width' | 'height'): number {
@@ -354,21 +355,6 @@ function updateController(controller: SharedPixiSheetController, deltaMs: number
   const nextTint = base.tint ?? 0xFFFFFF;
   if (sprite.alpha !== nextAlpha) sprite.alpha = nextAlpha;
   if (sprite.tint !== nextTint) sprite.tint = nextTint;
-  const signature = [
-    nextFrame,
-    nextAlpha,
-    nextTint,
-    tile.x,
-    tile.y,
-    tile.rotation,
-    tile.scale?.x,
-    tile.scale?.y,
-    host.x,
-    host.y,
-    host.rotation,
-    host.scale?.x,
-    host.scale?.y,
-  ].join('|');
   // Foreground sprites live under the stage instead of their source host.
   // Their complete ancestor chain (board layout, shake and scale included)
   // can move while the sheet frame and tile-local pose remain unchanged.
@@ -383,9 +369,36 @@ function updateController(controller: SharedPixiSheetController, deltaMs: number
     }
   }
   if (base.renderable !== false) base.renderable = false;
-  if (signature !== controller.lastPresentationSignature) {
-    controller.lastPresentationSignature = signature;
-    try { controller.onFrame?.(controller); } catch {}
+  // Most shared sheets have no per-frame publication owner. Avoid allocating
+  // an array and signature string on every settled Pixi tick for those tiles;
+  // foreground transform following above remains unchanged.
+  if (controller.onFrame) {
+    const signature = [
+      nextFrame,
+      nextAlpha,
+      nextTint,
+      tile.x,
+      tile.y,
+      tile.rotation,
+      tile.scale?.x,
+      tile.scale?.y,
+      host.x,
+      host.y,
+      host.rotation,
+      host.scale?.x,
+      host.scale?.y,
+    ].join('|');
+    if (controller.lastPresentationSignature === NO_FRAME_PUBLISHER_SIGNATURE) {
+      // A publisher attached after this controller had already settled. Match
+      // the previous always-sampled behavior by seeding its current pose
+      // without emitting a synthetic frame-change callback.
+      controller.lastPresentationSignature = signature;
+    } else if (signature !== controller.lastPresentationSignature) {
+      controller.lastPresentationSignature = signature;
+      try { controller.onFrame(controller); } catch {}
+    }
+  } else {
+    controller.lastPresentationSignature = NO_FRAME_PUBLISHER_SIGNATURE;
   }
 }
 

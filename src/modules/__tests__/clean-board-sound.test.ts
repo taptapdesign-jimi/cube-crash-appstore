@@ -127,7 +127,7 @@ describe('Clean Board result sounds', () => {
     expect(secondaryCtaOwner).toContain('stopCleanBoardSounds();');
     const ctaBounceOwner = modal.split('const animateButtonIn =')[1]?.split('const buttonExitDurationMs')[0] ?? '';
     expect(ctaBounceOwner.indexOf('playCleanBoardCtaBounceSound(button === primaryBtn ? 0 : 1);')).toBeLessThan(
-      ctaBounceOwner.indexOf('void controller?.enter();'),
+      ctaBounceOwner.indexOf('const enterPromise = controller?.enter()'),
     );
     const owner = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/clean-board-sound.ts'), 'utf8');
     expect(owner).toContain('stopAfterSeconds,');

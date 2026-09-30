@@ -42,8 +42,102 @@ let state: IdleBounceState = {
   activeAnimations: new Set()
 };
 
-// 🔥 FIX: Track initial timeout separately
-let initialTimeout: ReturnType<typeof setTimeout> | null = null;
+let visibilityListenerInstalled = false;
+let scheduledWakeDueAt = 0;
+let parkedWakeDelayMs: number | null = null;
+let hiddenStartedAt = 0;
+
+function clearIdleSchedule(): void {
+  if (state.animationTimer) {
+    clearTimeout(state.animationTimer);
+    state.animationTimer = null;
+  }
+  scheduledWakeDueAt = 0;
+}
+
+function scheduleIdleWake(delayMs: number): void {
+  clearIdleSchedule();
+  if (!state.isActive) return;
+  const boundedDelay = Math.max(0, delayMs);
+  if (typeof document !== 'undefined' && document.hidden) {
+    if (hiddenStartedAt <= 0) hiddenStartedAt = Date.now();
+    parkedWakeDelayMs = boundedDelay;
+    return;
+  }
+  parkedWakeDelayMs = null;
+  scheduledWakeDueAt = Date.now() + boundedDelay;
+  state.animationTimer = setTimeout(() => {
+    state.animationTimer = null;
+    scheduledWakeDueAt = 0;
+    animateRandomTile();
+  }, boundedDelay);
+}
+
+function scheduleInitialIdleBounce(): void {
+  scheduleIdleWake(IDLE_WAIT_TIME);
+}
+
+function parkIdleSchedule(): void {
+  if (!state.isActive) return;
+  if (hiddenStartedAt > 0) return;
+  // Hidden time is not gameplay idle time. Park every recurring wakeup until
+  // the same live owner becomes visible again.
+  hiddenStartedAt = Date.now();
+  parkedWakeDelayMs = scheduledWakeDueAt > 0
+    ? Math.max(0, scheduledWakeDueAt - hiddenStartedAt)
+    : parkedWakeDelayMs;
+  clearIdleSchedule();
+}
+
+function resumeIdleSchedule(): void {
+  if (!state.isActive || (typeof document !== 'undefined' && document.hidden)) return;
+  if (hiddenStartedAt <= 0 && parkedWakeDelayMs === null) return;
+  const visibleAt = Date.now();
+  if (hiddenStartedAt > 0) {
+    // Hidden wall-clock time must not count as gameplay idle time. If a board
+    // interaction was reported while hidden, resume from a fresh visible idle
+    // origin; otherwise preserve the exact pre-background idle phase.
+    if (state.lastInteractionTime <= hiddenStartedAt) {
+      state.lastInteractionTime += visibleAt - hiddenStartedAt;
+    } else {
+      state.lastInteractionTime = visibleAt;
+    }
+  }
+  hiddenStartedAt = 0;
+  const resumeDelay = parkedWakeDelayMs ?? IDLE_WAIT_TIME;
+  parkedWakeDelayMs = null;
+  scheduleIdleWake(resumeDelay);
+}
+
+function handleIdleVisibilityChange(): void {
+  if (document.hidden) parkIdleSchedule();
+  else resumeIdleSchedule();
+}
+
+function handleIdlePageHide(): void {
+  // WKWebView can publish pagehide without a matching visibilitychange.
+  parkIdleSchedule();
+}
+
+function handleIdlePageShow(): void {
+  resumeIdleSchedule();
+}
+
+function installIdleVisibilityListener(): void {
+  if (visibilityListenerInstalled || typeof document === 'undefined') return;
+  visibilityListenerInstalled = true;
+  document.addEventListener('visibilitychange', handleIdleVisibilityChange);
+  window.addEventListener('pagehide', handleIdlePageHide);
+  window.addEventListener('pageshow', handleIdlePageShow);
+}
+
+function removeIdleVisibilityListener(): void {
+  if (!visibilityListenerInstalled || typeof document === 'undefined') return;
+  visibilityListenerInstalled = false;
+  document.removeEventListener('visibilitychange', handleIdleVisibilityChange);
+  window.removeEventListener('pagehide', handleIdlePageHide);
+  window.removeEventListener('pageshow', handleIdlePageShow);
+}
 
 function isWildTile(tile: Tile | null | undefined): boolean {
   if (!tile) return false;
@@ -96,12 +190,8 @@ export function startTileIdleBounce(tiles: Tile[], board: any): void {
   state.isActive = true;
   state.lastInteractionTime = Date.now();
   state.activeAnimations = new Set();
-  
-  // 🔥 FIX: Track initial timeout for cleanup
-  initialTimeout = setTimeout(() => {
-    initialTimeout = null;
-    animateRandomTile();
-  }, IDLE_WAIT_TIME);
+  installIdleVisibilityListener();
+  scheduleInitialIdleBounce();
   
   if (isVerboseGameplayLogsEnabled()) {
     console.log('✅ Tile idle bounce started:', state.tiles.length, 'tiles');
@@ -110,17 +200,10 @@ export function startTileIdleBounce(tiles: Tile[], board: any): void {
 
 export function stopTileIdleBounce(): void {
   state.isActive = false;
-  
-  // 🔥 FIX: Clear initial timeout as well
-  if (initialTimeout) {
-    clearTimeout(initialTimeout);
-    initialTimeout = null;
-  }
-  
-  if (state.animationTimer) {
-    clearTimeout(state.animationTimer);
-    state.animationTimer = null;
-  }
+  clearIdleSchedule();
+  parkedWakeDelayMs = null;
+  hiddenStartedAt = 0;
+  removeIdleVisibilityListener();
   
   state.activeAnimations.forEach(tile => {
     stopTileAnimation(tile);
@@ -151,33 +234,31 @@ export function notifyBoardInteraction(): void {
   });
   state.activeAnimations.clear();
   
-  if (state.animationTimer) {
-    clearTimeout(state.animationTimer);
-    state.animationTimer = null;
-  }
+  clearIdleSchedule();
   
   // CRITICAL: Restart the loop after resetting the timer
   // This ensures animations will resume after IDLE_WAIT_TIME
-  if (state.isActive) {
-    state.animationTimer = setTimeout(() => {
-      animateRandomTile();
-    }, IDLE_WAIT_TIME);
-  }
+  if (state.isActive) scheduleIdleWake(IDLE_WAIT_TIME);
 }
 
 function animateRandomTile(): void {
   if (!state.isActive) return;
 
-  if (typeof window !== 'undefined' && (window as any).__ccGameplayDragActive === true) {
-    state.lastInteractionTime = Date.now();
-    state.animationTimer = setTimeout(animateRandomTile, 500);
+  // Visibility ownership normally clears the timer before this callback can
+  // run. Keep this race guard first so no drag retry can repopulate hidden
+  // scheduling after visibilitychange.
+  if (typeof document !== 'undefined' && document.hidden) {
+    state.animationTimer = null;
+    if (hiddenStartedAt <= 0) hiddenStartedAt = Date.now();
+    // The due callback already reached its logical deadline. Preserve that
+    // exact phase so foreground resume can run it immediately.
+    parkedWakeDelayMs = 0;
     return;
   }
 
-  // 🔥 MEMORY LEAK FIX: Don't run when tab is hidden - prevents 700MB+ leak over 1h idle
-  // User left game open, tab in background → tile bounce kept creating smoke particles
-  if (typeof document !== 'undefined' && document.hidden) {
-    state.animationTimer = setTimeout(animateRandomTile, 2000); // Recheck in 2s
+  if (typeof window !== 'undefined' && (window as any).__ccGameplayDragActive === true) {
+    state.lastInteractionTime = Date.now();
+    scheduleIdleWake(500);
     return;
   }
 
@@ -189,7 +270,7 @@ function animateRandomTile(): void {
 
   const idleTime = Date.now() - state.lastInteractionTime;
   if (idleTime < IDLE_WAIT_TIME) {
-    state.animationTimer = setTimeout(animateRandomTile, 100);
+    scheduleIdleWake(100);
     return;
   }
   
@@ -205,7 +286,7 @@ function animateRandomTile(): void {
   );
   
   if (availableTiles.length === 0) {
-    state.animationTimer = setTimeout(animateRandomTile, 800);
+    scheduleIdleWake(800);
     return;
   }
   
@@ -216,7 +297,7 @@ function animateRandomTile(): void {
   }
   
   const nextDelay = ANIMATION_INTERVAL + (Math.random() * 2 - 1) * RANDOM_INTERVAL;
-  state.animationTimer = setTimeout(animateRandomTile, nextDelay);
+  scheduleIdleWake(nextDelay);
 }
 
 function animateTile(tile: Tile): void {
@@ -325,7 +406,8 @@ function animateTile(tile: Tile): void {
         durationScale: 0.84,
         blendMode: 'add',
         spawnShape: 'box',
-        fxTag: 'tile-idle-smoke'
+        fxTag: 'tile-idle-smoke',
+        groupedOwner: true,
       });
     }
   }, null, variant.anticipation.durationSeconds + variant.peak.durationSeconds);

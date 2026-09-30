@@ -3,23 +3,37 @@ import {
   beginGameplayTransitionFade, continueGameplayTransitionFade, completeGameplayTransitionFade,
   enterArcadeGameplaySoundtrack, promoteArcadeSoundtrackAfterMerge6,
   acquireGameplaySoundtrackAfterPlayAgain,
-  fadeInAndResume,
+  fadeInAndResume, SOUNDTRACK_VOLUME, ARCADE_SOUNDTRACK_CALM_VOLUME,
   getSoundtrackRuntimeStats, SOUNDTRACK_GAMEPLAY_VOLUME,
   ARCADE_SOUNDTRACK_ACTIVE_URL, ARCADE_SOUNDTRACK_CALM_URL,
 } from '../soundtrack-manager';
 
 class NativeParam {
-  setValueAtTime = jest.fn();
+  value = 0;
+  setValueAtTime = jest.fn((value: number) => { this.value = value; });
   cancelScheduledValues = jest.fn();
-  linearRampToValueAtTime = jest.fn();
+  linearRampToValueAtTime = jest.fn((value: number) => { this.value = value; });
 }
+type NativeGain = { gain: NativeParam; connect: jest.Mock; disconnect: jest.Mock };
+type NativeSource = {
+  active: boolean;
+  stale: boolean;
+  startEpoch: number | null;
+  output: NativeGain | null;
+  connect: jest.Mock;
+  disconnect: jest.Mock;
+  start: jest.Mock;
+  stop: jest.Mock;
+};
 class NativeContext {
   static instances: NativeContext[] = [];
   state = 'running';
   currentTime = 0;
   destination = {};
-  gains: Array<{ gain: NativeParam; connect: jest.Mock; disconnect: jest.Mock }> = [];
-  sources: Array<{ active: boolean; connect: jest.Mock; disconnect: jest.Mock; start: jest.Mock; stop: jest.Mock }> = [];
+  nativeSessionActive = true;
+  nativeActivationEpoch = 0;
+  gains: NativeGain[] = [];
+  sources: NativeSource[] = [];
   constructor() { NativeContext.instances.push(this); }
   createGain() {
     const gain = { gain: new NativeParam(), connect: jest.fn(), disconnect: jest.fn() };
@@ -27,9 +41,18 @@ class NativeContext {
     return gain;
   }
   createBufferSource() {
-    const source = {
-      active: false, connect: jest.fn(), disconnect: jest.fn(),
-      start: jest.fn(() => { source.active = true; }),
+    const source: NativeSource = {
+      active: false,
+      stale: false,
+      startEpoch: null,
+      output: null,
+      connect: jest.fn((target: NativeGain) => { source.output = target; }),
+      disconnect: jest.fn(),
+      start: jest.fn(() => {
+        source.active = true;
+        source.startEpoch = this.nativeActivationEpoch;
+        source.stale = !this.nativeSessionActive;
+      }),
       stop: jest.fn(() => { source.active = false; }),
     };
     this.sources.push(source);
@@ -47,6 +70,23 @@ class NativeContext {
     if (type === 'statechange') this.stateListeners.delete(listener);
   });
   emitStateChange() { this.stateListeners.forEach(listener => listener()); }
+  deactivateNativeSession() {
+    this.nativeSessionActive = false;
+    this.sources.filter(source => source.active).forEach(source => { source.stale = true; });
+  }
+  activateNativeSession(epoch: number) {
+    this.nativeSessionActive = true;
+    this.nativeActivationEpoch = epoch;
+  }
+  get audibleSources(): NativeSource[] {
+    return this.sources.filter(source => (
+      source.active &&
+      !source.stale &&
+      this.nativeSessionActive &&
+      this.state === 'running' &&
+      (source.output?.gain.value ?? 0) > 0
+    ));
+  }
 }
 class NativeMedia {
   static instances: NativeMedia[] = [];
@@ -72,13 +112,36 @@ describe('native soundtrack manager + transport ownership', () => {
   const originalHidden = Object.getOwnPropertyDescriptor(document, 'hidden');
   const flush = async () => { for (let i = 0; i < 16; i++) await Promise.resolve(); };
   const advance = async (ms: number) => {
-    NativeContext.instances.forEach((context) => { context.currentTime += ms / 1000; });
+    NativeContext.instances.forEach((context) => {
+      if (context.state === 'running') context.currentTime += ms / 1000;
+    });
     jest.advanceTimersByTime(ms);
     await flush();
   };
   const visibility = (hidden: boolean) => {
     Object.defineProperty(document, 'hidden', { configurable: true, value: hidden });
     document.dispatchEvent(new Event('visibilitychange'));
+  };
+  const setHiddenWithoutVisibilityEvent = (hidden: boolean) => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: hidden });
+  };
+  const deliverNativeReceipt = async (
+    context: NativeContext,
+    activationSequence: number,
+    activationCompletedAtMs = Date.now() + 1,
+  ) => {
+    if (activationSequence > context.nativeActivationEpoch) {
+      context.activateNativeSession(activationSequence);
+    }
+    window.dispatchEvent(new CustomEvent('cc:native-audio-active', {
+      detail: { reason: 'app-active', activationSequence, activationCompletedAtMs },
+    }));
+    await flush();
+  };
+  const backgroundForPhotos = (context: NativeContext) => {
+    visibility(true);
+    context.deactivateNativeSession();
+    context.state = 'interrupted';
   };
   beforeEach(() => {
     jest.useFakeTimers();
@@ -308,6 +371,226 @@ describe('native soundtrack manager + transport ownership', () => {
     await flush();
     expect(context.sources).toHaveLength(sourceCount);
     expect(context.sources.filter(source => source.active)).toHaveLength(1);
+  });
+
+  it('does not let stale-hidden pageshow retire a native-active foreground recovery', async () => {
+    startSoundtrack();
+    await flush();
+    const context = NativeContext.instances[0];
+    visibility(true);
+    context.state = 'interrupted';
+
+    window.dispatchEvent(new CustomEvent('cc:native-audio-active', {
+      detail: { reason: 'app-active', activationEpoch: 1 },
+    }));
+    await flush();
+    expect(context.sources.filter(source => source.active)).toHaveLength(1);
+
+    // WKWebView may keep document.hidden stale for the pageshow that follows
+    // the authoritative native app-active receipt. pageshow is not a hide.
+    window.dispatchEvent(new Event('pageshow'));
+    await flush();
+    expect(document.hidden).toBe(true);
+    expect(context.sources.filter(source => source.active)).toHaveLength(1);
+
+    visibility(false);
+    await advance(500);
+    expect(getSoundtrackRuntimeStats().activeVoices).toBe(1);
+  });
+
+  it('retires on pagehide without visibilitychange and reacquires on pageshow', async () => {
+    startSoundtrack();
+    await flush();
+    const context = NativeContext.instances[0];
+    expect(context.sources.filter(source => source.active)).toHaveLength(1);
+
+    setHiddenWithoutVisibilityEvent(true);
+    window.dispatchEvent(new Event('pagehide'));
+    await flush();
+    expect(context.sources.filter(source => source.active)).toHaveLength(0);
+    expect(getSoundtrackRuntimeStats().activeVoices).toBe(0);
+
+    context.state = 'interrupted';
+    setHiddenWithoutVisibilityEvent(false);
+    window.dispatchEvent(new Event('pageshow'));
+    await flush();
+    await advance(500);
+    expect(context.sources.filter(source => source.active)).toHaveLength(1);
+    expect(getSoundtrackRuntimeStats().activeVoices).toBe(1);
+  });
+
+  it('rebinds a visible-first theme source exactly once after native audio activation', async () => {
+    startSoundtrack();
+    await flush();
+    const context = NativeContext.instances[0];
+    backgroundForPhotos(context);
+
+    // Web visibility can return before AVAudioSession.setActive(true) finishes.
+    // That first source is logically live but may be physically inaudible.
+    visibility(false);
+    await flush();
+    const sourceCountBeforeNativeReceipt = context.sources.length;
+    const staleSource = context.sources.find(source => source.active)!;
+    const staleStartCall = staleSource.start.mock.calls[staleSource.start.mock.calls.length - 1];
+    const staleStartOffset = staleStartCall[1] as number;
+    const staleGain = staleSource.output?.gain.value;
+    expect(context.sources.filter(source => source.active)).toHaveLength(1);
+    expect(context.audibleSources).toHaveLength(0);
+
+    const nativeReceipt = new CustomEvent('cc:native-audio-active', {
+      detail: { reason: 'app-active', activationSequence: 7 },
+    });
+    context.activateNativeSession(7);
+    window.dispatchEvent(nativeReceipt);
+    await flush();
+    expect(context.sources).toHaveLength(sourceCountBeforeNativeReceipt + 1);
+    expect(context.sources.filter(source => source.active)).toHaveLength(1);
+    expect(context.audibleSources).toHaveLength(1);
+    expect(context.audibleSources[0].startEpoch).toBe(7);
+    const reboundStartCalls = context.audibleSources[0].start.mock.calls;
+    expect(reboundStartCalls[reboundStartCalls.length - 1][1]).toBeCloseTo(staleStartOffset, 6);
+    expect(context.audibleSources[0].output?.gain.value).toBe(staleGain);
+    expect(staleGain).toBe(SOUNDTRACK_VOLUME);
+    expect(getSoundtrackRuntimeStats()).toMatchObject({
+      activeVoices: 1,
+      contextState: 'running',
+      sourcePresent: true,
+    });
+
+    // A duplicate delivery for the same native activation epoch is idempotent.
+    const sourceCountAfterNativeReceipt = context.sources.length;
+    window.dispatchEvent(nativeReceipt);
+    await flush();
+    expect(context.sources).toHaveLength(sourceCountAfterNativeReceipt);
+    expect(context.sources.filter(source => source.active)).toHaveLength(1);
+  });
+
+  it('rebinds a visible-first Arcade source after native audio activation', async () => {
+    const context = await enterArcade();
+    backgroundForPhotos(context);
+    visibility(false);
+    await flush();
+    const sourceCountBeforeNativeReceipt = context.sources.length;
+    const staleSource = context.sources.find(source => source.active)!;
+    const staleStartCall = staleSource.start.mock.calls[staleSource.start.mock.calls.length - 1];
+    const staleStartOffset = staleStartCall[1] as number;
+    const staleGain = staleSource.output?.gain.value;
+    expect(context.sources.filter(source => source.active)).toHaveLength(1);
+    expect(context.audibleSources).toHaveLength(0);
+
+    await deliverNativeReceipt(context, 11);
+    expect(context.sources).toHaveLength(sourceCountBeforeNativeReceipt + 1);
+    expect(context.sources.filter(source => source.active)).toHaveLength(1);
+    expect(context.audibleSources).toHaveLength(1);
+    expect(context.audibleSources[0].startEpoch).toBe(11);
+    const reboundStartCalls = context.audibleSources[0].start.mock.calls;
+    expect(reboundStartCalls[reboundStartCalls.length - 1][1]).toBeCloseTo(staleStartOffset, 6);
+    expect(context.audibleSources[0].output?.gain.value).toBe(staleGain);
+    expect(staleGain).toBe(ARCADE_SOUNDTRACK_CALM_VOLUME);
+    expect(getSoundtrackRuntimeStats()).toMatchObject({
+      activeVoices: 1,
+      retainedArcadeVoices: 1,
+      contextState: 'running',
+    });
+  });
+
+  it('ignores a stale native receipt delivered after pagehide until a newer activation arrives', async () => {
+    startSoundtrack();
+    await flush();
+    const context = NativeContext.instances[0];
+    await deliverNativeReceipt(context, 20);
+    expect(context.audibleSources).toHaveLength(1);
+
+    setHiddenWithoutVisibilityEvent(true);
+    window.dispatchEvent(new Event('pagehide'));
+    context.deactivateNativeSession();
+    context.state = 'interrupted';
+    await flush();
+    expect(context.sources.filter(source => source.active)).toHaveLength(0);
+
+    // This receipt belonged to the foreground that pagehide already retired.
+    await deliverNativeReceipt(context, 20, Date.now() - 1);
+    expect(document.hidden).toBe(true);
+    expect(context.sources.filter(source => source.active)).toHaveLength(0);
+    expect(context.audibleSources).toHaveLength(0);
+
+    await deliverNativeReceipt(context, 21);
+    expect(context.sources.filter(source => source.active)).toHaveLength(1);
+    expect(context.audibleSources).toHaveLength(1);
+    expect(context.audibleSources[0].startEpoch).toBe(21);
+  });
+
+  it('retries a failed native reacquire when the same activation epoch is redelivered', async () => {
+    startSoundtrack();
+    await flush();
+    const context = NativeContext.instances[0];
+    context.state = 'interrupted';
+    context.deactivateNativeSession();
+    context.resume.mockRejectedValueOnce(new DOMException('activation race', 'NotAllowedError'));
+    context.activateNativeSession(30);
+
+    await deliverNativeReceipt(context, 30);
+    expect(context.audibleSources).toHaveLength(0);
+    const sourceCountAfterFailure = context.sources.length;
+
+    await deliverNativeReceipt(context, 30);
+    expect(context.resume).toHaveBeenCalledTimes(2);
+    expect(context.sources).toHaveLength(sourceCountAfterFailure + 1);
+    expect(context.audibleSources).toHaveLength(1);
+    expect(context.audibleSources[0].startEpoch).toBe(30);
+  });
+
+  it('recovers a visible live source when its context changes to interrupted', async () => {
+    startSoundtrack();
+    await flush();
+    const context = NativeContext.instances[0];
+    expect(context.audibleSources).toHaveLength(1);
+    const resumeCount = context.resume.mock.calls.length;
+
+    context.state = 'interrupted';
+    context.emitStateChange();
+    await flush();
+
+    expect(context.resume).toHaveBeenCalledTimes(resumeCount + 1);
+    expect(context.state).toBe('running');
+    expect(getSoundtrackRuntimeStats().activeVoices).toBe(1);
+    expect(context.audibleSources).toHaveLength(1);
+  });
+
+  it('keeps one audible theme source through two visible-first Photos cycles', async () => {
+    startSoundtrack();
+    await flush();
+    const context = NativeContext.instances[0];
+
+    for (const activationSequence of [40, 41]) {
+      backgroundForPhotos(context);
+      visibility(false);
+      await flush();
+      expect(context.sources.filter(source => source.active)).toHaveLength(1);
+      expect(context.audibleSources).toHaveLength(0);
+
+      await deliverNativeReceipt(context, activationSequence);
+      expect(context.sources.filter(source => source.active)).toHaveLength(1);
+      expect(context.audibleSources).toHaveLength(1);
+      expect(context.audibleSources[0].startEpoch).toBe(activationSequence);
+    }
+  });
+
+  it('keeps one audible Arcade source through two visible-first Photos cycles', async () => {
+    const context = await enterArcade();
+
+    for (const activationSequence of [50, 51]) {
+      backgroundForPhotos(context);
+      visibility(false);
+      await flush();
+      expect(context.sources.filter(source => source.active)).toHaveLength(1);
+      expect(context.audibleSources).toHaveLength(0);
+
+      await deliverNativeReceipt(context, activationSequence);
+      expect(context.sources.filter(source => source.active)).toHaveLength(1);
+      expect(context.audibleSources).toHaveLength(1);
+      expect(context.audibleSources[0].startEpoch).toBe(activationSequence);
+    }
   });
 
   it('reacquires the current Arcade voice when a timed-out context becomes running late', async () => {

@@ -172,6 +172,35 @@ describe('shared Pixi sheet animation runtime', () => {
     stopSharedPixiSheetAnimation(tile, '_ccTestSheet');
   });
 
+  test('does not read or allocate presentation signatures for controllers without an onFrame owner', async () => {
+    const localSpec = { ...spec, family: 'no-publisher-sheet', sheetUrl: './no-publisher.webp', renderAboveHud: false };
+    const { tile, rotG } = makeTile();
+    stage.addChild(rotG);
+    let tileXReads = 0;
+    Object.defineProperty(tile, 'x', {
+      configurable: true,
+      get: () => { tileXReads += 1; return 0; },
+    });
+    const controller = startSharedPixiSheetAnimation({
+      tile,
+      spec: localSpec,
+      isEligible: (candidate) => candidate?.eligible === true,
+      propertyKey: '_ccNoPublisherSheet',
+      animateDuringDrag: false,
+    })!;
+    await flush();
+    tileXReads = 0;
+
+    ticker.elapsedMS = 40;
+    callbacks.forEach(callback => callback(ticker));
+    expect(tileXReads).toBe(0);
+
+    controller.onFrame = jest.fn();
+    callbacks.forEach(callback => callback(ticker));
+    expect(tileXReads).toBeGreaterThan(0);
+    stopSharedPixiSheetAnimation(tile, '_ccNoPublisherSheet');
+  });
+
   test('keeps a held foreground frame attached to board ancestor motion without republishing its source frame', async () => {
     const board = new Container();
     stage.addChild(board);

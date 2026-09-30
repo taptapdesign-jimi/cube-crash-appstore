@@ -89,6 +89,27 @@ describe('Fish media and shared overlay visibility ownership', () => {
     } finally { observer.disconnect(); }
   });
 
+  it('repairs externally overwritten settled presentation without rebuilding strings', async () => {
+    const controller = startFishSwimArtwork(makeTile())!;
+    controller.video!.dispatchEvent(new Event('loadeddata'));
+    await flush();
+    tick();
+    const expected = {
+      transform: controller.wrapper.style.transform,
+      opacity: controller.wrapper.style.opacity,
+      zIndex: controller.wrapper.style.zIndex,
+    };
+
+    controller.wrapper.style.transform = 'none';
+    controller.wrapper.style.opacity = '0.25';
+    controller.wrapper.style.zIndex = '999';
+    tick();
+
+    expect(controller.wrapper.style.transform).toBe(expected.transform);
+    expect(controller.wrapper.style.opacity).toBe(expected.opacity);
+    expect(controller.wrapper.style.zIndex).toBe(expected.zIndex);
+  });
+
   it('pauses hidden media and suppresses visible bubble descendants, retaining playhead on every resume', async () => {
     const tile = makeTile();
     const controller = startFishSwimArtwork(tile)!;

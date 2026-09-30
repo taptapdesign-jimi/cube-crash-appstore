@@ -61,6 +61,10 @@ const TEXT_ENTER_STAGGER = 0.02;
 const TEXT_EXIT_STAGGER = 0.012;
 const TEXT_EXIT_BOUNCE_DURATION = 0.13;
 const TEXT_EXIT_FADE_DURATION = 0.17;
+const CLEAR_CARD_BASE_HOLD_MS = 500;
+const ARCADE_STAGE_CLEAR_ROUND_START_DELAY_MS = 1000;
+const CLEAR_CARD_HOLD_MS = CLEAR_CARD_BASE_HOLD_MS
+  + ARCADE_STAGE_CLEAR_ROUND_START_DELAY_MS;
 const ROUND_DIGIT_ENTER_STAGGER = 0.3;
 const ROUND_DIGIT_ENTER_DURATION = 0.4 + 0.15 + 0.2;
 const ROUND_SETTLED_HOLD_DURATION = 0.3;
@@ -650,7 +654,11 @@ async function playClearPhase(
     ease: 'sine.inOut',
   });
   activeTweens.push(idle);
-  await wait(500);
+  // Keep the winning composition visible while the authored 5s victory sax
+  // reaches its final accent. The extra second moves the existing 240ms NN
+  // exit fade from 3.65-3.81s to 4.65-4.81s after cue start, so it finishes
+  // across the source's natural 4.89-5.00s tail instead of cutting the beat.
+  await wait(CLEAR_CARD_HOLD_MS);
   try { idle.kill(); } catch {}
   if (!isCurrent()) return;
 

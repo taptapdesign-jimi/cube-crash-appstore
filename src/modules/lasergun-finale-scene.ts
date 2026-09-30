@@ -97,6 +97,24 @@ export const LASERGUN_EXIT_DELAY_SECONDS = (
   + LASERGUN_POST_CONTACT_GUN_HOLD_SECONDS
 );
 export const LASERGUN_EXIT_TRAVEL_SECONDS = 0.42 * LASERGUN_GUN_TIME_SCALE;
+// A LaserGun merge with no legitimate regular bonus target uses this
+// presentation-only fake-out. It overlaps the short frame build with entry,
+// pauses on frame 3, returns to frame 1 and exits in 720ms without a beam.
+export const LASERGUN_NO_TARGET_ENTRY_SECONDS = 0.30;
+export const LASERGUN_NO_TARGET_TEXT = 'ZAPED OUT';
+export const LASERGUN_NO_TARGET_BUILDUP_START_SECONDS = 0.19;
+export const LASERGUN_NO_TARGET_FRAME_STEP_SECONDS = 0.055;
+export const LASERGUN_NO_TARGET_FRAME3_HOLD_SECONDS = 0.095;
+export const LASERGUN_NO_TARGET_EXIT_SECONDS = 0.325;
+export const LASERGUN_NO_TARGET_EXIT_START_SECONDS = (
+  LASERGUN_NO_TARGET_BUILDUP_START_SECONDS
+  + LASERGUN_NO_TARGET_FRAME_STEP_SECONDS
+  + LASERGUN_NO_TARGET_FRAME3_HOLD_SECONDS
+  + LASERGUN_NO_TARGET_FRAME_STEP_SECONDS
+);
+export const LASERGUN_NO_TARGET_TOTAL_SECONDS = (
+  LASERGUN_NO_TARGET_EXIT_START_SECONDS + LASERGUN_NO_TARGET_EXIT_SECONDS
+);
 
 export const LASERGUN_LEFT_BEAM_GEOMETRY = {
   width: 439,
@@ -220,6 +238,15 @@ export function getLaserGunStageCenterX(
   return getLaserGunMuzzleX(side, width) - rigWidth * offsetRatio;
 }
 
+export function getLaserGunNoTargetSide(
+  mergeX: number,
+  viewportWidth: number,
+): LaserGunShooter {
+  const width = Math.max(320, viewportWidth);
+  const boundedMergeX = Number.isFinite(mergeX) ? mergeX : width * 0.5;
+  return boundedMergeX <= width * 0.5 ? 'right' : 'left';
+}
+
 export function getLaserGunOffscreenTravel(
   side: LaserGunShooter,
   scale: number,
@@ -291,6 +318,7 @@ export function getLaserBeamPlacement(
 
 type LaserGunFinaleController = {
   setTargets: (targets: LaserGunFinaleTarget[]) => Promise<LaserGunEntryReadiness>;
+  playNoTarget: (mergePoint: LaserPoint) => boolean;
   prepareImpact: (index: number, target: LaserPoint) => Promise<boolean>;
   triggerImpact: (index: number) => boolean;
   waitForImpactArrival: (index: number) => Promise<boolean>;
@@ -332,6 +360,10 @@ export function setActiveLaserGunFinaleTargets(
   targets: LaserGunFinaleTarget[],
 ): Promise<LaserGunEntryReadiness> {
   return activeController?.setTargets(targets) ?? Promise.resolve('cancelled');
+}
+
+export function playActiveLaserGunNoTarget(mergePoint: LaserPoint): boolean {
+  return activeController?.playNoTarget(mergePoint) ?? false;
 }
 
 export function prepareActiveLaserGunFinaleImpact(
@@ -499,7 +531,7 @@ export function attachLaserGunFinaleScene(
 
   overlay.insertBefore(field, overlay.firstChild);
   overlay.insertBefore(rightGunField, field.nextSibling);
-  const ensureGunBeamPair = (side: LaserGunShooter, slot: number) => {
+  const ensureGun = (side: LaserGunShooter, slot: number) => {
     let gun = gunPools[side][slot];
     if (!gun) {
       gun = createGunRig(
@@ -520,12 +552,20 @@ export function attachLaserGunFinaleScene(
       });
       gunPools[side][slot] = gun;
     }
+    return gun;
+  };
+  const ensureBeamPlan = (side: LaserGunShooter, slot: number) => {
     let beamPlan = beamPools[side][slot];
     if (!beamPlan) {
       beamPlan = createBeamPlan(side, slot);
       gsap.set(beamPlan.image, { opacity: 0 });
       beamPools[side][slot] = beamPlan;
     }
+    return beamPlan;
+  };
+  const ensureGunBeamPair = (side: LaserGunShooter, slot: number) => {
+    const gun = ensureGun(side, slot);
+    const beamPlan = ensureBeamPlan(side, slot);
     return { gun, beamPlan };
   };
   let sequenceCompleted = false;
@@ -1215,6 +1255,122 @@ export function attachLaserGunFinaleScene(
       });
       scheduleSceneStartPaintBarrier();
       return entryReadiness;
+    },
+    playNoTarget: (mergePoint) => {
+      if (
+        disposed
+        || targetsApplied
+        || !Number.isFinite(mergePoint?.x)
+        || !Number.isFinite(mergePoint?.y)
+      ) return false;
+      targetsApplied = true;
+      finalExitStarted = true;
+      settleEntryReadiness('painted');
+
+      const liveFieldRect = field.getBoundingClientRect();
+      const viewportWidth = Math.max(
+        320,
+        liveFieldRect.width || initialFieldRect.width || window.innerWidth || 0,
+      );
+      const viewportHeight = Math.max(
+        320,
+        liveFieldRect.height || initialFieldRect.height || window.innerHeight || 0,
+      );
+      const localMergePoint = {
+        x: mergePoint.x - liveFieldRect.left,
+        y: mergePoint.y - liveFieldRect.top,
+      };
+      // A merge on the left receives a right-side gun and vice versa. A true
+      // centre tie resolves to the right without using planner randomness.
+      const side = getLaserGunNoTargetSide(localMergePoint.x, viewportWidth);
+      const activeScale = getLaserGunRandomScales(1, random)[0] ?? 1;
+      const gun = ensureGun(side, 0);
+      const onstageX = getLaserGunStageCenterX(side, activeScale, viewportWidth);
+      const edgeMargin = Math.min(viewportHeight * 0.24, 132);
+      const onstageY = Math.max(edgeMargin, Math.min(viewportHeight - edgeMargin, localMergePoint.y));
+      const offscreenX = `${getLaserGunOffscreenTravel(
+        side,
+        activeScale,
+        viewportWidth,
+        onstageX,
+      )}px`;
+
+      gun.rig.dataset.lasergunNoTarget = 'true';
+      gun.rig.style.left = `${onstageX}px`;
+      gun.rig.style.top = `${onstageY}px`;
+      gun.rig.style.visibility = 'visible';
+      gun.image.dataset.lasergunFrame = '1';
+      gun.image.src = LASERGUN_FRAME_SOURCES[0];
+      gsap.set(gun.aim, { rotation: 0 });
+      gsap.set(gun.image, { scale: 0.88, transformOrigin: '24% 32%' });
+      gsap.set(gun.rig, {
+        xPercent: -50,
+        yPercent: -50,
+        x: offscreenX,
+        y: 0,
+        rotation: side === 'left' ? 0 : -8,
+        opacity: 0,
+        scale: 0.65,
+        force3D: true,
+      });
+
+      const setNoTargetFrame = (frameIndex: 0 | 1 | 2): void => {
+        if (disposed) return;
+        gun.image.dataset.lasergunFrame = String(frameIndex + 1);
+        gun.image.src = LASERGUN_FRAME_SOURCES[frameIndex];
+      };
+      const fakeOut = own(gsap.timeline({
+        paused: true,
+        onComplete: () => {
+          if (disposed) return;
+          setNoTargetFrame(0);
+          gun.rig.style.visibility = 'hidden';
+          finishSequence();
+        },
+      }));
+      fakeOut.to(gun.rig, {
+        x: 0,
+        opacity: 1,
+        scale: activeScale,
+        duration: LASERGUN_NO_TARGET_ENTRY_SECONDS,
+        ease: 'back.out(2.35)',
+      }, 0);
+      fakeOut.to(gun.image, {
+        scale: 1,
+        duration: 0.24,
+        ease: 'elastic.out(1.05, 0.30)',
+      }, 0.06);
+      fakeOut.call(
+        () => setNoTargetFrame(1),
+        undefined,
+        LASERGUN_NO_TARGET_BUILDUP_START_SECONDS,
+      );
+      fakeOut.call(
+        () => setNoTargetFrame(2),
+        undefined,
+        LASERGUN_NO_TARGET_BUILDUP_START_SECONDS
+          + LASERGUN_NO_TARGET_FRAME_STEP_SECONDS,
+      );
+      fakeOut.call(
+        () => setNoTargetFrame(1),
+        undefined,
+        LASERGUN_NO_TARGET_BUILDUP_START_SECONDS
+          + LASERGUN_NO_TARGET_FRAME_STEP_SECONDS
+          + LASERGUN_NO_TARGET_FRAME3_HOLD_SECONDS,
+      );
+      fakeOut.call(
+        () => setNoTargetFrame(0),
+        undefined,
+        LASERGUN_NO_TARGET_EXIT_START_SECONDS,
+      );
+      fakeOut.to(gun.rig, {
+        x: offscreenX,
+        opacity: 0,
+        duration: LASERGUN_NO_TARGET_EXIT_SECONDS,
+        ease: 'power2.in',
+      }, LASERGUN_NO_TARGET_EXIT_START_SECONDS);
+      fakeOut.play(0);
+      return true;
     },
     prepareImpact,
     triggerImpact: (index) => {
