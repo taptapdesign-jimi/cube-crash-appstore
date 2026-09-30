@@ -51,6 +51,7 @@ export type MainThemeVoiceLike = Pick<
   readonly resumePending?: boolean;
   rampVolume?: (to: number, durationMs: number) => void;
   cancelVolumeRamp?: () => void;
+  subscribeContextStateChange?: (listener: () => void) => () => void;
   createMediaVoice?: (source: string) => MainThemeVoiceLike | null;
   dispose?: () => void;
   resumeIfInterrupted?: () => Promise<void>;
@@ -97,6 +98,12 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
   private readonly envelope: SoundtrackAudioClockVolume;
   private playGeneration = 0;
   private readonly recovery: SoundtrackContextRecovery;
+  private readonly contextStateListeners = new Set<() => void>();
+  private readonly onContextStateChange = (): void => {
+    this.contextStateListeners.forEach((listener) => {
+      try { listener(); } catch {}
+    });
+  };
 
   constructor(context: AudioContext, options: MainThemeTransportOptions) {
     this.context = context;
@@ -105,6 +112,7 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
     this.gain = context.createGain();
     this.envelope = new SoundtrackAudioClockVolume(context, this.gain.gain, options.initialVolume);
     this.gain.connect(context.destination);
+    this.context.addEventListener?.('statechange', this.onContextStateChange);
     void this.ensureBuffer().catch(() => {});
   }
 
@@ -125,6 +133,11 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
     if (!this.isDisposed) this.envelope.fade(to, durationMs);
   }
   cancelVolumeRamp(): void { if (!this.isDisposed) this.envelope.cancel(); }
+
+  subscribeContextStateChange(listener: () => void): () => void {
+    this.contextStateListeners.add(listener);
+    return () => { this.contextStateListeners.delete(listener); };
+  }
 
   createMediaVoice(source: string): MainThemeVoiceLike | null {
     if (isThermalAudioSuppressed()) {
@@ -193,6 +206,8 @@ class MainThemeWebAudioTransport implements SampleAccurateMainThemeVoice {
     if (this.isDisposed) return;
     this.pause();
     this.isDisposed = true;
+    this.context.removeEventListener?.('statechange', this.onContextStateChange);
+    this.contextStateListeners.clear();
     this.buffer = null;
     this.bufferPromise = null;
     try { this.gain.disconnect(); } catch {}

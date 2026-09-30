@@ -422,6 +422,24 @@ const MAX_ACTIVE_STARS = 30; // Only cleanup if we exceed this (very high thresh
 
 // 🔥 FIX: Track all FX containers (smoke, particles, shards) for immediate cleanup on exit
 const __globalFxContainers = new Set();
+const __fxActivityContainers = new Set<any>();
+
+function releaseFxContainerActivity(container: any): void {
+  const release = container?._ccReleaseMobileActivity;
+  if (typeof release !== 'function') return;
+  container._ccReleaseMobileActivity = null;
+  __fxActivityContainers.delete(container);
+  try { release(); } catch {}
+}
+
+function attachFxContainerActivity(container: any, label: string | null | undefined): void {
+  if (!container || !label || container._ccReleaseMobileActivity) return;
+  container._ccReleaseMobileActivity = acquirePixiMobileActivityLease(label, 100);
+  __fxActivityContainers.add(container);
+  try {
+    container.once?.('destroyed', () => releaseFxContainerActivity(container));
+  } catch {}
+}
 
 function autoAdd(parent, child, ttlSec = 0.8, options = {}){
   const before = options?.before ?? null;
@@ -438,6 +456,7 @@ function autoAdd(parent, child, ttlSec = 0.8, options = {}){
   
   // 🔥 FIX: Track container for immediate cleanup on exit
   __globalFxContainers.add(child);
+  attachFxContainerActivity(child, options?.activityLeaseLabel);
   
   if (ttlSec > 0){
     // 🔥 MEMORY LEAK FIX: Store delayed call reference and auto-cleanup
@@ -483,6 +502,7 @@ function autoAdd(parent, child, ttlSec = 0.8, options = {}){
         
         // 🔥 FIX: Remove from FX container tracker
         __globalFxContainers.delete(child);
+        releaseFxContainerActivity(child);
         
         parent.removeChild(child); 
         child.destroy?.({ children: true }); 
@@ -500,6 +520,7 @@ function autoAdd(parent, child, ttlSec = 0.8, options = {}){
         }
         // 🔥 FIX: Also remove from FX container tracker
         __globalFxContainers.delete(child);
+        releaseFxContainerActivity(child);
       };
       try {
         child.once?.('destroyed', cleanup);
@@ -523,6 +544,9 @@ export function killAllDelayedCalls() {
     } catch {}
   });
   __globalDelayedCalls.clear();
+  // A special shard layer may use its own template pool instead of autoAdd.
+  // Retire cadence independently when lifecycle cleanup kills its TTL owner.
+  [...__fxActivityContainers].forEach(releaseFxContainerActivity);
 }
 
 // 🔥 MEMORY LEAK FIX: Global cleanup function to destroy all Graphics objects
@@ -543,6 +567,7 @@ export function destroyAllGraphicsObjects() {
 
 function cleanupFxContainer(container: any) {
   try {
+    releaseFxContainerActivity(container);
     gsap.killTweensOf(container);
     if (container.children) {
       // 🔥 MEMORY LEAK FIX: Release pooled Graphics before killing (same as autoAdd)
@@ -582,6 +607,7 @@ export function cleanupAllFxContainers() {
   console.log(`🧹 Cleaning up ${__globalFxContainers.size} FX containers immediately`);
   __globalFxContainers.forEach(container => cleanupFxContainer(container));
   __globalFxContainers.clear();
+  [...__fxActivityContainers].forEach(releaseFxContainerActivity);
   console.log('✅ All FX containers cleaned up');
 }
 
@@ -1715,6 +1741,7 @@ export function regularMerge6ShardsTemplated(board, tile, opts = {}) {
   
   // Create layer
   const layer = new Container();
+  attachFxContainerActivity(layer, opts.activityLeaseLabel);
   layer.x = x;
   layer.y = y;
   layer.visible = true;
@@ -1911,6 +1938,9 @@ export function regularMerge6ShardsTemplated(board, tile, opts = {}) {
       console.log(`✅ regularMerge6ShardsTemplated: Released ${releasedCount}/${shardsInLayer.length} shards to pool`);
     }
     
+    // The cadence lease is owned by this exact visible layer, not by the
+    // surrounding merge coroutine. Manual and TTL cleanup converge here.
+    releaseFxContainerActivity(layer);
     // Destroy layer
     try {
       layer.destroy({ children: false });
@@ -2000,6 +2030,7 @@ export function wildMagnetMerge6ShardsTemplated(board, tile, opts = {}) {
   
   // Create layer
   const layer = new Container();
+  attachFxContainerActivity(layer, opts.activityLeaseLabel ?? 'special-merge6-shards');
   layer.x = x;
   layer.y = y;
   layer.visible = true;
@@ -2176,6 +2207,7 @@ export function wildMagnetMerge6ShardsTemplated(board, tile, opts = {}) {
     
     // Destroy layer
     try {
+      releaseFxContainerActivity(layer);
       layer.destroy({ children: false });
     } catch (e) {
       console.warn('⚠️ Error destroying layer:', e);
@@ -2248,6 +2280,7 @@ export function wildMerge6ShardsTemplated(board, tile, opts = {}) {
   
   // Create layer
   const layer = new Container();
+  attachFxContainerActivity(layer, opts.activityLeaseLabel ?? 'special-merge6-shards');
   layer.x = x;
   layer.y = y;
   layer.visible = true;
@@ -2402,6 +2435,7 @@ export function wildMerge6ShardsTemplated(board, tile, opts = {}) {
     
     // Destroy layer
     try {
+      releaseFxContainerActivity(layer);
       layer.destroy({ children: false });
     } catch (e) {
       console.warn('⚠️ Error destroying layer:', e);
@@ -2488,6 +2522,7 @@ export function wildStarMerge6ShardsTemplated(board, tile, opts = {}) {
   
   // Create layer
   const layer = new Container();
+  attachFxContainerActivity(layer, opts.activityLeaseLabel ?? 'special-merge6-shards');
   layer.x = x;
   layer.y = y;
   layer.visible = true;
@@ -2660,6 +2695,7 @@ export function wildStarMerge6ShardsTemplated(board, tile, opts = {}) {
     
     // Destroy layer
     try {
+      releaseFxContainerActivity(layer);
       layer.destroy({ children: false });
     } catch (e) {
       console.warn('⚠️ Error destroying layer:', e);
@@ -2730,6 +2766,7 @@ export function wildJuiceMerge6ShardsTemplated(board, tile, opts = {}) {
   
   // Create layer
   const layer = new Container();
+  attachFxContainerActivity(layer, opts.activityLeaseLabel ?? 'special-merge6-shards');
   layer.x = x;
   layer.y = y;
   layer.visible = true;
@@ -2874,6 +2911,7 @@ export function wildJuiceMerge6ShardsTemplated(board, tile, opts = {}) {
     
     // Destroy layer
     try {
+      releaseFxContainerActivity(layer);
       layer.destroy({ children: false });
     } catch (e) {
       console.warn('⚠️ Error destroying layer:', e);
@@ -2931,6 +2969,7 @@ export function wildTntMerge6ShardsTemplated(board, tile, opts = {}) {
   }
 
   const layer = new Container();
+  attachFxContainerActivity(layer, opts.activityLeaseLabel ?? 'special-merge6-shards');
   layer.x = x;
   layer.y = y;
   layer.visible = true;
@@ -3003,6 +3042,7 @@ export function wildTntMerge6ShardsTemplated(board, tile, opts = {}) {
         pool.release(shard);
       } catch (e) {}
     });
+    releaseFxContainerActivity(layer);
     try { layer.destroy({ children: false }); } catch (e) {}
   });
 }
@@ -3147,7 +3187,10 @@ export function woodShardsAtTile(board, tile, opts = {}){
   // Extend layer lifetime for wild-juice so bubble animation can finish (spawnDuration ~2.7s)
   const ttlBase = opts.ttl ?? (wildMode ? 0.9 : 1.6);
   const ttl = isWildJuiceMerge ? Math.max(ttlBase, 3.6) : ttlBase;
-  autoAdd(board, layer, ttl, behind ? { before: tile } : undefined);
+  autoAdd(board, layer, ttl, {
+    before: behind ? tile : null,
+    activityLeaseLabel: opts.activityLeaseLabel,
+  });
   
   // 🔥 CRITICAL: Verify layer was added to board
   if (!layer.parent) {
@@ -4919,7 +4962,10 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
   if (options.fxTag) {
     layer._fxTag = options.fxTag;
   }
-  autoAdd(board, layer, ttl, behind ? { before: tile } : undefined);
+  autoAdd(board, layer, ttl, {
+    before: behind ? tile : null,
+    activityLeaseLabel: options.activityLeaseLabel,
+  });
 
   // Rapid-merge throttling: reduce particle load if previous FX fired recently.
   const hotFactor = getFxHotFactor();

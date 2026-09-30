@@ -20,8 +20,9 @@ describe('special merge haptic policy', () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/app-core.ts'), 'utf8');
     expect(source).not.toContain('triggerMergeHaptics({ wildActive, trackAppTimeout })');
     expect(source).toContain('if (isLaserGunMergeHaptic) {');
-    expect(source).toContain('if (visualArrived) commitLaserImpactHaptic();');
-    expect(source).toContain('if (!visualFired) commitLaserImpactHaptic();');
+    expect(source).toContain("if (arrivalResult === 'arrived') {");
+    expect(source).toContain('if (doBreak(true)) commitLaserImpactHaptic();');
+    expect(source).toContain('if (doBreak(false)) commitLaserImpactHaptic();');
     expect(source).not.toContain("if (impactProfile === 'laser-gun') {\n          // Every Zap Zap beam changes one cube");
   });
 });

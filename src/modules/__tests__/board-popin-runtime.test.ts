@@ -44,7 +44,7 @@ function fixture() {
   };
   const run = new Function(...Object.keys(scope), `${compiled}; return sweetPopIn;`)(...Object.values(scope));
   const tiles = Array.from({ length: 45 }, (_, i) => ({
-    x: i % 5, y: Math.floor(i / 5), value: 2, locked: false, visible: false, alpha: 0,
+    x: i % 5, y: Math.floor(i / 5), rotation: 0, value: 2, locked: false, visible: false, alpha: 0,
     scale: { x: 1, y: 1, set(n: number) { this.x = this.y = n; } },
   }));
   return { run, tiles, timelines, delayed, markers, acquireFrames, releaseFrames, playSound, stopSound };
@@ -99,20 +99,19 @@ describe('real board entrance timeline', () => {
     expect(tile.scale.x).toBe(1);
   });
 
-  test('starts as an expanded mesh and travels while bouncing without moving the board', async () => {
+  test('starts from one bounded spatial variation and travels while bouncing without moving the board', async () => {
     const f = fixture();
     const controller = new AbortController();
     const done = f.run(f.tiles, { signal: controller.signal });
-    expect(f.tiles[0].x).toBeLessThan(0);
-    expect(f.tiles[0].y).toBeLessThan(0);
-    expect(f.tiles[44].x).toBeGreaterThan(4);
-    expect(f.tiles[44].y).toBeGreaterThan(8);
+    expect(f.tiles.some((t, i) => t.x !== i % 5 || t.y !== Math.floor(i / 5) || t.rotation !== 0)).toBe(true);
+    expect(f.tiles.every((t, i) => Math.hypot(t.x - i % 5, t.y - Math.floor(i / 5)) <= 58)).toBe(true);
     const start = f.tiles.map(t => ({ x: t.x, y: t.y }));
     f.timelines[0].time(0.2, false);
     expect(f.tiles.some((t, i) => t.x !== start[i].x && t.scale.x > 0)).toBe(true);
     controller.abort();
     await done;
     expect(f.tiles.every((t, i) => t.x === i % 5 && t.y === Math.floor(i / 5))).toBe(true);
+    expect(f.tiles.every(t => t.rotation === 0)).toBe(true);
   });
 
   test('overlaps individual pops, includes compression and rebound, and completes without watchdog', async () => {

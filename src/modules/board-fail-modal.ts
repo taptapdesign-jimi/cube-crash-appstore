@@ -17,6 +17,7 @@ import {
   stopFailScreenSounds,
 } from './fail-screen-sound.ts';
 import {
+  acquireGameplaySoundtrackAfterPlayAgain,
   fadeSoundtrackForResultHook,
   setSoundtrackResultMix,
 } from './soundtrack-manager.ts';
@@ -641,6 +642,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
           try {
             // 🔥 MEMORY LEAK FIX: NOW cleanup (modal is closing)
             cleanupFailModalLifecycle('gameplay');
+            acquireGameplaySoundtrackAfterPlayAgain();
             
             // Proceed with restart.
             logger.info('🎮 Play Again clicked - calling window.CC.restart directly');
@@ -679,6 +681,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             
             // 🔥 MEMORY LEAK FIX: Cleanup on fallback too
             cleanupFailModalLifecycle('gameplay');
+            acquireGameplaySoundtrackAfterPlayAgain();
             if (isArcadeHomeRunMode()) {
               resetArcadeFailedRunForFreshStart();
               (window as any).__ccForceArcadeRestartStage01 = true;

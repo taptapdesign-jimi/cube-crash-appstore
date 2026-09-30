@@ -15,7 +15,7 @@ describe('board setup cue lifecycle', () => {
   });
   afterEach(() => { stopBoardPopInSound(); delete (window as any)._settings; });
 
-  test('warms the three supplied layers and bounds their requested mix to one animation', () => {
+  test('warms all supplied layers and adds cubes only to the bounded enter mix', () => {
     preloadBoardPopInSound();
     expect(preloadDecodedGameplaySounds).toHaveBeenCalledWith(BOARD_POPIN_SOUND_LAYERS.map(layer => layer.source));
     const stop = playBoardPopInSound(0.97);
@@ -28,7 +28,10 @@ describe('board setup cue lifecycle', () => {
     expect(playDecodedGameplaySound).toHaveBeenCalledWith('./assets/sound/board etting up/setting up2.wav', {
       voiceId: 'board-popin-setting-up2', volume: 0.42, stopAfterSeconds: 0.97, fadeOutSeconds: 0.05,
     });
-    expect(playDecodedGameplaySound).toHaveBeenCalledTimes(3);
+    expect(playDecodedGameplaySound).toHaveBeenCalledWith('./assets/sound/board etting up/cubes.wav', {
+      voiceId: 'board-popin-cubes', volume: 0.24, stopAfterSeconds: 0.97, fadeOutSeconds: 0.05,
+    });
+    expect(playDecodedGameplaySound).toHaveBeenCalledTimes(4);
     (stopDecodedGameplayVoices as jest.Mock).mockClear();
     stop(); stop();
     expect(stopDecodedGameplayVoices).toHaveBeenCalledTimes(1);
@@ -43,7 +46,15 @@ describe('board setup cue lifecycle', () => {
     expect(stopDecodedGameplayVoices).not.toHaveBeenCalled();
     newStop();
     expect(stopDecodedGameplayVoices).toHaveBeenCalledTimes(1);
-    expect(playDecodedGameplaySound).toHaveBeenCalledTimes(6);
+    expect(playDecodedGameplaySound).toHaveBeenCalledTimes(8);
+  });
+
+  test('keeps cubes out of the board exit mix', () => {
+    playBoardPopInSound(0.8, 'exit');
+    expect(playDecodedGameplaySound).toHaveBeenCalledTimes(3);
+    expect(playDecodedGameplaySound).not.toHaveBeenCalledWith(
+      './assets/sound/board etting up/cubes.wav', expect.anything(),
+    );
   });
 
   test('Sounds OFF blocks preparation/start, and ON cannot revive an old entry', () => {

@@ -2,6 +2,7 @@ import {
   startSoundtrack, stopSoundtrack, resetSoundtrackForTests,
   beginGameplayTransitionFade, continueGameplayTransitionFade, completeGameplayTransitionFade,
   enterArcadeGameplaySoundtrack, promoteArcadeSoundtrackAfterMerge6,
+  acquireGameplaySoundtrackAfterPlayAgain,
   fadeInAndResume,
   getSoundtrackRuntimeStats, SOUNDTRACK_GAMEPLAY_VOLUME,
   ARCADE_SOUNDTRACK_ACTIVE_URL, ARCADE_SOUNDTRACK_CALM_URL,
@@ -38,6 +39,14 @@ class NativeContext {
   decodeAudioData = jest.fn(async () => ({ duration: 59.6910625, length: 2865171, numberOfChannels: 2 }));
   resume = jest.fn(async () => { this.state = 'running'; });
   close = jest.fn(async () => { this.state = 'closed'; });
+  private stateListeners = new Set<() => void>();
+  addEventListener = jest.fn((type: string, listener: () => void) => {
+    if (type === 'statechange') this.stateListeners.add(listener);
+  });
+  removeEventListener = jest.fn((type: string, listener: () => void) => {
+    if (type === 'statechange') this.stateListeners.delete(listener);
+  });
+  emitStateChange() { this.stateListeners.forEach(listener => listener()); }
 }
 class NativeMedia {
   static instances: NativeMedia[] = [];
@@ -299,6 +308,65 @@ describe('native soundtrack manager + transport ownership', () => {
     await flush();
     expect(context.sources).toHaveLength(sourceCount);
     expect(context.sources.filter(source => source.active)).toHaveLength(1);
+  });
+
+  it('reacquires the current Arcade voice when a timed-out context becomes running late', async () => {
+    const context = await enterArcade();
+    visibility(true);
+    context.state = 'interrupted';
+    context.resume.mockImplementationOnce(() => new Promise<void>(() => {}));
+    visibility(false);
+    await flush();
+    await advance(1001);
+    expect(getSoundtrackRuntimeStats()).toMatchObject({
+      activeVoices: 0,
+      retainedArcadeVoices: 1,
+      contextState: 'interrupted',
+    });
+
+    context.state = 'running';
+    context.emitStateChange();
+    await flush();
+    expect(getSoundtrackRuntimeStats()).toMatchObject({
+      activeVoices: 1,
+      retainedArcadeVoices: 1,
+      contextState: 'running',
+    });
+    expect(context.sources.filter(source => source.active)).toHaveLength(1);
+  });
+
+  it('Play Again reacquires one Arcade gameplay voice without waiting for a Round cue', async () => {
+    const context = await enterArcade();
+    const activeBefore = context.sources.filter(source => source.active);
+    expect(activeBefore).toHaveLength(1);
+
+    acquireGameplaySoundtrackAfterPlayAgain();
+    await flush();
+
+    expect(getSoundtrackRuntimeStats()).toMatchObject({
+      activeVoices: 1,
+      retainedArcadeVoices: 1,
+    });
+    expect(context.sources.filter(source => source.active)).toHaveLength(1);
+  });
+
+  it('Journey Play Again resumes an interrupted context even when its retained voice is not paused', async () => {
+    startSoundtrack();
+    await flush();
+    const context = NativeContext.instances[0];
+    expect(context.sources.filter(source => source.active)).toHaveLength(1);
+    context.state = 'interrupted';
+
+    acquireGameplaySoundtrackAfterPlayAgain();
+    await flush();
+
+    expect(context.resume).toHaveBeenCalledTimes(1);
+    expect(context.state).toBe('running');
+    expect(context.sources.filter(source => source.active)).toHaveLength(1);
+    expect(context.gains[0].gain.setValueAtTime).toHaveBeenCalledWith(
+      SOUNDTRACK_GAMEPLAY_VOLUME,
+      context.currentTime,
+    );
   });
 
   it('Music OFF cancels pending foreground recovery and a late native completion cannot restart it', async () => {

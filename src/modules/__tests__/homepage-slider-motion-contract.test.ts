@@ -115,6 +115,17 @@ describe('Homepage slider motion contract', () => {
     expect(enterOwner.match(/set\(['"]currentSlide['"]/g) ?? []).toHaveLength(0);
   });
 
+  test('hidden route sync atomically resets stale nav icon poses through the visual owner', () => {
+    const hiddenSync = sliderManagerSource.split(
+      'syncHiddenSlideState(slideIndex: number): void',
+    )[1]?.split('/**\n   * 🔥 NEW API: Ensure slider is ready')[0] ?? '';
+
+    expect(hiddenSync).toContain('this.setNavButtonVisualState(');
+    expect(hiddenSync).toContain('Number(button.dataset.slide) === slideIndex');
+    expect(hiddenSync).toContain('false,\n        false,');
+    expect(hiddenSync).not.toContain("button.classList.toggle('active'");
+  });
+
   test('rapid nav taps wait for the complete Homepage enter lease before changing slide', () => {
     const navOwner = sliderManagerSource.split(
       '// Independent navigation buttons',

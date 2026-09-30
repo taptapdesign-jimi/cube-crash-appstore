@@ -346,6 +346,11 @@ function tickSystem(system: WildStarSystem): void {
   // Keep the owner but skip invisible orbit math; refresh the elapsed baseline
   // on delivered hidden ticks (the existing clamp still covers full suspension).
   if (!isSpecialDiceIdlePaintable(tile)) {
+    // Pure Wild Star orbits live in the shared HUD foreground instead of under
+    // the tile. Sync once while the tile is becoming unpaintable so the
+    // foreground wrapper inherits the tile's hidden state during board exit;
+    // otherwise it can freeze on its last visible frame until cleanupGame.
+    system.foreground?.sync();
     system.lastUpdateTime = performance.now();
     return;
   }

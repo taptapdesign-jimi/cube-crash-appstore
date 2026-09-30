@@ -3,7 +3,7 @@
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { Assets, Container, Sprite, Texture, TextureSource } from 'pixi.js';
+import { Assets, Container, Graphics, Matrix, Sprite, Texture, TextureSource } from 'pixi.js';
 import { STATE } from '../app-state';
 import {
   destroyFlowerBouncyArtworkRuntime,
@@ -44,6 +44,34 @@ function makeTile(variant = 'flower') {
     base,
     rotG,
   };
+}
+
+function worldMatrix(displayObject: any): Matrix {
+  const chain: any[] = [];
+  for (let current = displayObject; current; current = current.parent) chain.push(current);
+  const result = new Matrix();
+  for (let index = chain.length - 1; index >= 0; index -= 1) {
+    chain[index].updateLocalTransform();
+    result.append(chain[index].localTransform);
+  }
+  return result;
+}
+
+function makePollen() {
+  const pollen = new Graphics() as any;
+  pollen.ellipse(0, 0, 5, 2).fill({ color: 0xFFF16B, alpha: 0.8 });
+  pollen._ccFlowerPollenPaint = {
+    kind: 'ellipse',
+    color: 0xFFF16B,
+    fillAlpha: 0.8,
+    width: 5,
+    height: 2,
+  };
+  pollen.position.set(31, -14);
+  pollen.scale.set(0.9, 1.1);
+  pollen.rotation = 0.25;
+  pollen.alpha = 0.72;
+  return pollen;
 }
 
 describe('Flower procedural Pixi artwork', () => {
@@ -269,25 +297,95 @@ describe('Flower procedural Pixi artwork', () => {
     expect(getFlowerBouncyRuntimeStats()).toMatchObject({ controllers: 0, tickerAttached: false });
   });
 
-  test('uses the static fallback during drag and leaves Pixi pollen under its original owner', async () => {
-    const { tile, base } = makeTile();
-    const pollen = { renderable: true };
+  test('mirrors Pixi pollen above the foreground Flower and restores it for drag and stop', async () => {
+    const board = new Container();
+    board.position.set(46, 72);
+    board.scale.set(0.72);
+    stage.addChild(board);
+    const { tile, base, rotG } = makeTile();
+    rotG.position.set(84, 116);
+    board.addChild(rotG);
+    const pollen = makePollen();
+    board.addChild(pollen);
     tile._flowerPollenParticles = new Set([pollen]);
     const controller = start(tile) as any;
     await flush();
 
     expect(controller.canvas.renderable).toBe(true);
     expect(base.renderable).toBe(false);
-    expect(pollen.renderable).toBe(true);
+    expect(controller.animatedRoot.zIndex).toBe(1);
+    expect(controller.pollenLayer.zIndex).toBe(2);
+    expect(controller.pollenLayer.parent).toBe(controller.canvas);
+    expect(controller.pollenNodes.size).toBe(1);
+    expect(pollen.renderable).toBe(false);
+    const mirror = controller.pollenNodes.get(pollen);
+    expect(mirror?.parent).toBe(controller.pollenLayer);
+    const originalWorld = worldMatrix(pollen);
+    const mirrorWorld = worldMatrix(mirror);
+    expect(mirrorWorld.a).toBeCloseTo(originalWorld.a, 6);
+    expect(mirrorWorld.b).toBeCloseTo(originalWorld.b, 6);
+    expect(mirrorWorld.c).toBeCloseTo(originalWorld.c, 6);
+    expect(mirrorWorld.d).toBeCloseTo(originalWorld.d, 6);
+    expect(mirrorWorld.tx).toBeCloseTo(originalWorld.tx, 6);
+    expect(mirrorWorld.ty).toBeCloseTo(originalWorld.ty, 6);
+    expect(mirror.alpha).toBeCloseTo(0.72);
 
     expect(setFlowerBouncyArtworkDragging(tile, true)).toBe(true);
     expect(controller.canvas.renderable).toBe(false);
     expect(base.renderable).toBe(true);
+    expect(controller.pollenNodes.size).toBe(0);
     expect(pollen.renderable).toBe(true);
 
     expect(setFlowerBouncyArtworkDragging(tile, false)).toBe(true);
     expect(controller.canvas.renderable).toBe(true);
     expect(base.renderable).toBe(false);
+    expect(controller.pollenNodes.size).toBe(1);
+    expect(pollen.renderable).toBe(false);
+
+    stopFlowerBouncyArtwork(tile);
     expect(pollen.renderable).toBe(true);
+    expect(pollen._ccFlowerFrontPollenOwner).toBeUndefined();
+    expect(controller.pollenNodes.size).toBe(0);
+  });
+
+  test('leaves original pollen untouched when the foreground mount is unavailable', async () => {
+    const board = new Container();
+    const { tile, base, rotG } = makeTile();
+    board.addChild(rotG);
+    const pollen = makePollen();
+    board.addChild(pollen);
+    tile._flowerPollenParticles = new Set([pollen]);
+
+    const controller = startFlowerBouncyArtwork(tile) as any;
+    await flush();
+    jest.advanceTimersByTime(1000);
+
+    expect(controller.canvas?.parent).toBe(rotG);
+    expect(controller.canvas?.renderable).toBe(false);
+    expect(controller.pollenNodes.size).toBe(0);
+    expect(base.renderable).toBe(true);
+    expect(pollen.renderable).toBe(true);
+    expect(pollen._ccFlowerFrontPollenOwner).toBeUndefined();
+  });
+
+  test('restores mirrored pollen when a live Flower host detaches from the stage', async () => {
+    const board = new Container();
+    stage.addChild(board);
+    const { tile, rotG } = makeTile();
+    board.addChild(rotG);
+    const pollen = makePollen();
+    board.addChild(pollen);
+    tile._flowerPollenParticles = new Set([pollen]);
+    const controller = startFlowerBouncyArtwork(tile) as any;
+    await flush();
+
+    expect(pollen.renderable).toBe(false);
+    board.removeFromParent();
+    tick(16);
+
+    expect(controller.disposed).toBe(true);
+    expect(pollen.renderable).toBe(true);
+    expect(pollen._ccFlowerFrontPollenOwner).toBeUndefined();
+    expect(getFlowerBouncyRuntimeStats()).toMatchObject({ controllers: 0, tickerAttached: false });
   });
 });

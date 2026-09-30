@@ -4,6 +4,7 @@ import path from 'node:path';
 const root = path.resolve(__dirname, '../../..');
 const appCoreSource = fs.readFileSync(path.join(root, 'src/modules/app-core.ts'), 'utf8');
 const idleSource = fs.readFileSync(path.join(root, 'src/modules/tile-idle-bounce.ts'), 'utf8');
+const repairPolicySource = fs.readFileSync(path.join(root, 'src/modules/tile-visual-repair-policy.ts'), 'utf8');
 
 describe('regular tile transform cleanup', () => {
   test('stack contact restores neutral scale on completion and interruption', () => {
@@ -48,8 +49,10 @@ describe('regular tile transform cleanup', () => {
 
     expect(owner).toContain('Math.abs(sx - 1) > 0.005');
     expect(owner).toContain('Math.abs(sy - 1) > 0.005');
-    expect(owner).toContain('t._idleBounceTl != null');
-    expect(owner).toContain('t._mergeImpactTl != null');
+    expect(owner).toContain('hasOwnedOuterTileTransform(t, drag?.t)');
+    expect(repairPolicySource).toContain('tile._idleBounceTl != null');
+    expect(repairPolicySource).toContain('tile._mergeImpactTl != null');
+    expect(repairPolicySource).toContain('tile._ccTntBonusOwned === true');
     expect(owner).toContain('if (isRegularPlayableTile && !hasOuterTransformOwner && hasStaleOuterPose)');
     expect(owner).toContain('t._ccDragBaseScaleX = 1;');
     expect(owner).toContain('t._ccDragBaseScaleY = 1;');

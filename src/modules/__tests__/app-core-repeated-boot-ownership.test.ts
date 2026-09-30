@@ -3,6 +3,7 @@ import path from 'node:path';
 
 const root = path.resolve(__dirname, '../../..');
 const appCoreSource = fs.readFileSync(path.join(root, 'src/modules/app-core.ts'), 'utf8');
+const tileLifecycleSource = fs.readFileSync(path.join(root, 'src/modules/tile-lifecycle-service.ts'), 'utf8');
 
 describe('app-core repeated boot ownership', () => {
   test('reuses one stable viewport style element', () => {
@@ -21,8 +22,13 @@ describe('app-core repeated boot ownership', () => {
   });
 
   test('stops special-dice idle ownership before destroying old tiles', () => {
-    const stopIndex = appCoreSource.indexOf('stopSpecialDiceIdleMotion(t)');
-    const destroyIndex = appCoreSource.indexOf("t.destroy({ children: true, texture: false, textureSource: false }");
+    const destroyStart = appCoreSource.indexOf('function destroyOldBoardForTransition');
+    const destroyEnd = appCoreSource.indexOf('function cleanupTexturesForBoardTransition', destroyStart);
+    const destroyOwner = appCoreSource.slice(destroyStart, destroyEnd);
+    const stopIndex = destroyOwner.indexOf('stopTileRuntimeFx(t, {');
+    const destroyIndex = destroyOwner.indexOf("t.destroy({ children: true, texture: false, textureSource: false }");
+
+    expect(tileLifecycleSource).toContain('stopSpecialDiceIdleMotion(tile)');
     expect(stopIndex).toBeGreaterThan(-1);
     expect(destroyIndex).toBeGreaterThan(stopIndex);
   });

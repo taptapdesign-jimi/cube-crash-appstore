@@ -37,7 +37,6 @@ import {
   triggerActiveLaserGunFinaleImpact,
   waitForActiveLaserGunFinaleBeamLaunch,
   waitForActiveLaserGunFinaleImpactArrival,
-  LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS,
 } from './lasergun-finale-scene.ts';
 import type { LaserGunEntryReadiness } from './lasergun-finale-scene.ts';
 import {
@@ -46,16 +45,11 @@ import {
   LASERGUN_SHOT_INTERVAL_MS,
   runLaserGunSequentialImpactScheduler,
 } from './laser-gun-impact-scheduler.ts';
+import { commitLaserGunTileImpact } from './laser-gun-tile-impact.ts';
 import {
-  getLaserGunCubeAnticipationFrames,
-  LASERGUN_CUBE_ANTICIPATION_SCALE,
-      LASERGUN_CUBE_CONTRACT_SCALE,
-      LASERGUN_CUBE_CONTRACT_SECONDS,
-      LASERGUN_CUBE_INFLATE_SECONDS,
-      LASERGUN_CUBE_REBOUND_SCALE,
-      LASERGUN_CUBE_REBOUND_SECONDS,
-      LASERGUN_CUBE_SETTLE_SECONDS,
-} from './laser-gun-cube-anticipation.ts';
+  hasOwnedOuterTileTransform,
+  repairUnownedCollapsedTileScale,
+} from './tile-visual-repair-policy.ts';
 import { stopWildJuiceBubblesScreen, destroyWildJuiceBubblesScreenCache } from './wild-juice-bubbles-screen.ts';
 import * as StarsCollector from './stars-collector.ts';
 import { runEndgameFlow } from './endgame-flow.js';
@@ -340,7 +334,7 @@ import { bindTileWithFallbackCore } from './app-core-bind.ts';
 import { saveAfterBoardStart, saveArcadeRoundAfterEntry } from './app-core-startlevel-save.ts';
 import { runStartLevelPost } from './app-core-startlevel-post.ts';
 import { maybeRebuildBoard } from './app-core-startlevel-rebuild.ts';
-import { adaptSpawnBounce, OpenCellCancelledError, openAtCellCore } from './app-core-open-cell.ts';
+import { OpenCellCancelledError, openAtCellCore } from './app-core-open-cell.ts';
 import { getRandomEmptyCell } from './app-core-random-empty.ts';
 import { hasLastMergeTile } from './app-core-wild-preload.ts';
 import { resolveWildSpawnPermission, WILD_SPAWN_BOARD_SETTLE_MS } from './wild-spawn-permission.ts';
@@ -354,7 +348,7 @@ import {
 } from './wild-spawn-continuation.ts';
 import { consumeWildCharge } from './app-core-wild-meter.ts';
 import { decideWildType } from './app-core-wild-type.ts';
-import { detachTileFromGrid, isLockedEmptyPlaceholder, normalizePlayableTileAfterMutation, normalizeSpawnedTileVisual, removeTileFully } from './tile-lifecycle-service.ts';
+import { detachTileFromGrid, isLockedEmptyPlaceholder, normalizePlayableTileAfterMutation, normalizeSpawnedTileVisual, removeTileFully, stopTileRuntimeFx } from './tile-lifecycle-service.ts';
 import {
   applySpecialDiceVariantToTile,
   isSpecialDiceResolutionOwned,
@@ -388,6 +382,7 @@ import {
   pickSpecialDiceVariantForWildSpawn,
 } from './special-dice-registry.ts';
 import { animateWildSpawnDropFromMeter, cleanupWildSpawnDropAnimations, preloadWildSpawnDropAssets } from './wild-spawn-drop.ts';
+import { queueArcadeStageOneNextSpecialVisualWarmup } from './arcade-stage-one-special-visual-warmup.ts';
 import { startSpecialDiceIdleMotion } from './special-dice-idle.ts';
 import { releaseIdleSharedPixiSheets } from './shared-pixi-sheet-animation.ts';
 import { clearInputGateLocks, setInputGateLock } from './input-gate.ts';
@@ -752,16 +747,12 @@ function repairBoardTileVisuals(reason = 'unknown'): void {
       if (t._ccWildSpawnDropping === true) return;
       const sx = Number.isFinite(t.scale?.x) ? t.scale.x : 1;
       const sy = Number.isFinite(t.scale?.y) ? t.scale.y : 1;
-      if (Math.min(sx, sy) < 0.86) {
-        try { gsap?.killTweensOf?.(t.scale); } catch {}
-        try {
-          if (t.scale?.set) t.scale.set(1, 1);
-          else if (t.scale) {
-            t.scale.x = 1;
-            t.scale.y = 1;
-          }
-        } catch {}
-        try { t._isBeingSpawned = false; } catch {}
+      const hasOuterTransformOwner = hasOwnedOuterTileTransform(t, drag?.t);
+      if (repairUnownedCollapsedTileScale({
+        tile: t,
+        activeDragTile: drag?.t,
+        killScaleTweens: (scale) => gsap?.killTweensOf?.(scale),
+      })) {
         repaired++;
       }
       const value = (t.value | 0);
@@ -776,18 +767,6 @@ function repairBoardTileVisuals(reason = 'unknown'): void {
       // post-Juice repair and later become the next animation's baseline.
       // Repair any unowned residue, while leaving drag/spawn/merge owners alone.
       const isRegularPlayableTile = !special && t.isWild !== true && t.isWildFace !== true;
-      const hasOuterTransformOwner = (
-        t === drag?.t ||
-        t._idleBounceTl != null ||
-        t._mergeImpactTl != null ||
-        t._ccPickupScaleTimeline != null ||
-        t._ccSnapBackTimeline != null ||
-        t._isBeingSpawned === true ||
-        t._pendingRemoval === true ||
-        t._beingRemoved === true ||
-        t._cleanupQueued === true ||
-        t._skipIdleScaleReset === true
-      );
       const hasStaleOuterPose = (
         Math.abs(sx - 1) > 0.005 ||
         Math.abs(sy - 1) > 0.005 ||
@@ -990,6 +969,7 @@ let regularMergeHandoffSequence = 0;
 const regularMergeHandoffTokens = new Set<number>();
 const regularMergeHandoffFinalizers = new Map<number, () => void>();
 const regularMergeFrameLeaseReleases = new Map<number, () => void>();
+let releaseMerge6ResolutionFrameLease: (() => void) | null = null;
 let noMovesFailFlowSequence = 0;
 let activeNoMovesFailFlowToken: number | null = null;
 let activeNoMovesInputLockToken: number | null = null;
@@ -997,6 +977,20 @@ let wildSpawnRetryTimer = null;  // Retry timer when no cells are free
 let wildSpawnCancelToken = 0;
 let wildMagnetPullInProgress = false; // Prevent overlapping wild-magnet pull animations
 let busyEnding = false;
+
+function beginMerge6ResolutionFrames(): void {
+  try { releaseMerge6ResolutionFrameLease?.(); } catch {}
+  releaseMerge6ResolutionFrameLease = acquirePixiMobileActivityLease(
+    'merge6-resolution',
+    100,
+  );
+}
+
+function endMerge6ResolutionFrames(): void {
+  const release = releaseMerge6ResolutionFrameLease;
+  releaseMerge6ResolutionFrameLease = null;
+  try { release?.(); } catch {}
+}
 
 /**
  * HUD/menu controls must yield as soon as a terminal merge owns the board,
@@ -1082,6 +1076,7 @@ function resetMerge6SpawnState(
   merge6SpawnInProgress = false;
   activeMerge6SpawnOwnerToken = null;
   clearMerge6SpawnResetTimer();
+  endMerge6ResolutionFrames();
   if (options.releaseSpecialTransaction !== false) {
     releaseSpecialDiceTransaction(
       options.specialTransactionToken ?? null,
@@ -1167,6 +1162,7 @@ function releaseSpecialDiceTransaction(token: number | null, reason: string): bo
   const active = specialDiceTransactionOwner.snapshot();
   emitIOSSpecialTransactionTrace('release-request', { token, reason, active });
   if (!active) {
+    endMerge6ResolutionFrames();
     setInputGateLock('special-transaction', false);
     emitIOSSpecialTransactionTrace('release-no-active-owner', { token, reason });
     return false;
@@ -1183,6 +1179,7 @@ function releaseSpecialDiceTransaction(token: number | null, reason: string): bo
   }
   const released = specialDiceTransactionOwner.release(token);
   if (released) {
+    endMerge6ResolutionFrames();
     setInputGateLock('special-transaction', false);
     devLog('🛡️ Special transaction released', { ...active, reason });
     emitIOSSpecialTransactionTrace('released', { token, reason, kind: active.kind });
@@ -1222,6 +1219,7 @@ function resetTransientRunGuards(reason: string = 'unknown'): void {
   activeNoMovesInputLockToken = null;
   setNoMovesNavigationLocked(false);
   try { setInputGateLock('special-transaction', false); } catch {}
+  try { (window as any).__ccActiveMagnetPullCleanup?.(); } catch {}
   wildMagnetPullInProgress = false;
   try { (window as any).__ccWildMagnetPullInProgress = false; } catch {}
   try { clearInputGateLocks(); } catch {}
@@ -1586,6 +1584,9 @@ async function triggerCleanBoardFlow(
   reason: string,
   options: CleanBoardFlowOptions = {},
 ): Promise<void> {
+  // Any merge-6 visual owner ends before the terminal Clean Board owner takes
+  // over. This also seals early-return branches that hand off before spawning.
+  endMerge6ResolutionFrames();
   logger.info('🚨🚨🚨 triggerCleanBoardFlow invoked', 'app-core', { reason });
   const cleanBoardRunAbortToken = Number((window as any).__ccEndgameFlowAbortToken || 0);
   const cleanBoardRunGeneration = gameplayRunGeneration;
@@ -2932,14 +2933,15 @@ function destroyOldBoardForTransition(reason: string = 'unknown'): void {
     }
     const count = tileList.length;
     tileList.forEach((t: any) => {
-      try { stopSpecialDiceIdleMotion(t); } catch {}
-      try { stopWildIdle?.(t); } catch {}
-      try { stopWildShimmer?.(t); } catch {}
-      try { stopWildStars?.(t); } catch {}
-      try { stopWildJuiceBubbles?.(t); } catch {}
-      try { stopMagnetIdleParticles?.(t); } catch {}
-      try { stopTntIdleParticles?.(t); } catch {}
-      try { stopTntIdleShake?.(t); } catch {}
+      stopTileRuntimeFx(t, {
+        stopWildIdle,
+        stopWildShimmer,
+        stopWildStars,
+        stopWildJuiceBubbles,
+        stopMagnetIdleParticles,
+        stopTntIdleParticles,
+        stopTntIdleShake,
+      });
       try {
         gsap.killTweensOf(t);
         gsap.killTweensOf(t?.scale);
@@ -6476,6 +6478,13 @@ function scheduleEntrySpecialWarmups(entryGeneration: number, entryBoard: number
       preloadEligibleSpecialSounds({ boardNumber: entryBoard, isArcade: isArcadeHomeRunMode(), tiles });
     });
     void preloadLiveJuiceFinaleTextures(tiles, ownsEntry);
+    if (isArcadeHomeRunMode()) {
+      queueArcadeStageOneNextSpecialVisualWarmup({
+        arcadeStage: entryBoard,
+        wildSpawnCount,
+        isCurrent: ownsEntry,
+      });
+    }
   }, 600);
   trackAppTimeout(() => {
     if (!ownsEntry()) return;
@@ -7080,7 +7089,7 @@ function bindTileWithFallback(tile, skipBind){
 }
 
 function playMerge6ReplacementBounce(tile): void {
-  SPAWN?.spawnBounce?.(tile, gsap, {
+  playSpawnBounceWithFrames(tile, null, {
     max: 1.08,
     compress: 0.96,
     rebound: 1.02,
@@ -7089,6 +7098,37 @@ function playMerge6ReplacementBounce(tile): void {
     fadeIn: 0.10,
     keepFullOpacity: true,
   });
+}
+
+function playSpawnBounceWithFrames(
+  tile: any,
+  onComplete: (() => void) | null = null,
+  options: any = {},
+  onInterrupt: (() => void) | null = null,
+): ReturnType<typeof SPAWN.spawnBounce> | void {
+  let releaseFrames = acquirePixiMobileActivityLease('spawn-bounce', 100);
+  const release = () => {
+    releaseFrames();
+    releaseFrames = () => {};
+  };
+  try {
+    return SPAWN.spawnBounce(
+      tile,
+      gsap,
+      options,
+      () => {
+        release();
+        onComplete?.();
+      },
+      () => {
+        release();
+        onInterrupt?.();
+      },
+    );
+  } catch (error) {
+    release();
+    throw error;
+  }
 }
 
 function hardFallbackSpawnAtCell(
@@ -7167,7 +7207,7 @@ function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false, isWild
     startWildStars,
     startTntIdleParticles,
     startTntIdleShake,
-    spawnBounce: adaptSpawnBounce(SPAWN.spawnBounce, gsap),
+    spawnBounce: playSpawnBounceWithFrames,
     gsap,
   });
 }
@@ -7692,6 +7732,19 @@ async function spawnWildFromMeter(){
           firstWildSpawned = true;
         }
         wildSpawnCount += 1;
+        if (isArcadeHomeRunMode()) {
+          const warmupEntryGeneration = activeGameplayEntryGeneration;
+          const warmupStage = boardNumber;
+          trackAppTimeout(() => {
+            queueArcadeStageOneNextSpecialVisualWarmup({
+              arcadeStage: warmupStage,
+              wildSpawnCount,
+              isCurrent: () => !document.hidden
+                && isGameplayEntryGenerationLatest(warmupEntryGeneration)
+                && boardNumber === warmupStage,
+            });
+          }, 240);
+        }
         if (wildType === lastWildDropType) {
           wildDropTypeStreak += 1;
         } else {
@@ -8894,6 +8947,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 
   // ---- 6 (računaj combo i ovdje – nastavlja x6, x7, x8…)
   if (effSum === 6){
+    // Merge-6 smoke, shards and special finales must never inherit the 15 FPS
+    // static-board cadence. The lease ends at the owned spawn/transaction
+    // boundary; each replacement bounce then owns its own short visual lease.
+    beginMerge6ResolutionFrames();
     promoteArcadeSoundtrackAfterMerge6();
     if (isWildSpecialMerge6PoofEvent({
       effectiveSum: effSum,
@@ -10050,6 +10107,14 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           
           devLog('🧲 Marked tile as magnet-affected:', tile.value, 'special:', tile.special, 'in tiles:', tiles.includes(tile), 'in STATE.tiles:', STATE.tiles.includes(tile));
         });
+        let releasePullFrameLease = acquirePixiMobileActivityLease(
+          magnetVariantAtMergeEntry?.id === 'honey' ? 'honey-pull' : 'magnet-pull',
+          100,
+        );
+        const releasePullFrames = () => {
+          releasePullFrameLease();
+          releasePullFrameLease = () => {};
+        };
         
         // Track how many tiles have arrived
         let arrivedCount = 0;
@@ -10064,6 +10129,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // 🔥 CRITICAL: Cleanup ALL timelines and pulled tiles (MEMORY LEAK FIX)
         // Use const binding to avoid block-function scoping quirks (keeps reference for timeouts)
         cleanupAllPullAnimations = (preserveCommittedPullSound = false) => {
+          releasePullFrames();
           devLog('[CC_MAGNET_PULL_SOUND] cleanup', {
             preserveCommittedPullSound,
             mergeStarted,
@@ -11839,6 +11905,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           const regularMerge6Fx = getRegularMerge6FxProfile(reducedMergeFx);
           regularMerge6ShardsTemplated(board, { x: mergePos.x, y: mergePos.y, gridX: dstGridX, gridY: dstGridY, zIndex: dstZIndex } as any, {
             zIndex: dstZIndex,
+            activityLeaseLabel: 'regular-merge6-shards',
             density: regularMerge6Fx.shardDensity,
             visualScale: regularMerge6Fx.shardVisualScale,
             distanceScale: regularMerge6Fx.shardDistanceScale,
@@ -11848,6 +11915,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           
           // Smoke bubbles (50% of wild: 2.6 * 0.5 = 1.3)
           smokeBubblesAtTile(board, dst, TILE * 1.0, 1.3, {
+            activityLeaseLabel: 'regular-merge6-smoke',
             spawnShape: regularMerge6Fx.smokeSpawnShape,
             sizeBoostChance: 0.2,
             sizeBoostScale: 1.3,
@@ -11880,6 +11948,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             const smokeStrength = isMainWildMagnetMerge ? 0.6 : 3.0;  // 80% reduction for wild-magnet
             markOwnedMergePhase('wild-smoke-main-start');
             smokeBubblesAtTile(board, dst, TILE * 1.3, smokeStrength, {
+              activityLeaseLabel: 'special-merge6-smoke',
               sizeScale: 0.8 + Math.random() * 0.25,  // Compact size: 0.8-1.05x
               countScale: 0.75 + Math.random() * 0.3, // Rich but contained: 0.75-1.05x
               distanceScale: 0.55,
@@ -12915,7 +12984,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               drawBoardBG,
               TILE,
               fixHoverAnchor,
-              spawnBounce: (t, done, o) => SPAWN.spawnBounce(t, gsap, o, done),
+              spawnBounce: playSpawnBounceWithFrames,
               wildMergeTarget,
               excludeCells: wildSpawnExcludeCells,
               // Same as regular merge-6: if merge cell still has a locked placeholder, open it first (exclude wins if dst excluded)
@@ -12937,16 +13006,16 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 if ((t as any)._ccWildSpawnDropping === true) continue;
                 const sx = Number.isFinite((t as any).scale?.x) ? (t as any).scale.x : 1;
                 const sy = Number.isFinite((t as any).scale?.y) ? (t as any).scale.y : 1;
-                if (t.visible !== false && Math.min(sx, sy) < 0.86) {
-                  try { gsap?.killTweensOf?.((t as any).scale); } catch {}
-                  try {
-                    if ((t as any).scale?.set) (t as any).scale.set(1, 1);
-                    else if ((t as any).scale) {
-                      (t as any).scale.x = 1;
-                      (t as any).scale.y = 1;
-                    }
-                  } catch {}
-                  try { (t as any)._isBeingSpawned = false; } catch {}
+                if (
+                  t.visible !== false &&
+                  !hasOwnedOuterTileTransform(t, drag?.t) &&
+                  Math.min(sx, sy) < 0.86
+                ) {
+                  repairUnownedCollapsedTileScale({
+                    tile: t,
+                    activeDragTile: drag?.t,
+                    killScaleTweens: (scale) => gsap?.killTweensOf?.(scale),
+                  });
                   try { makeBoard?.syncTileZIndex?.(t, board); } catch {}
                   try { fixHoverAnchor?.(t); } catch {}
                   if (!t.locked && (t.value | 0) > 0 && drag && typeof drag.bindToTile === 'function') {
@@ -13168,7 +13237,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   drawBoardBG,
                   TILE,
                   fixHoverAnchor,
-                  spawnBounce: (t, done, o) => SPAWN.spawnBounce(t, gsap, o, done),
+                  spawnBounce: playSpawnBounceWithFrames,
                   wildMergeTarget,
                   excludeCells: pulledCellsSet,
                   preferCells: preferMergeCellSet,
@@ -13257,7 +13326,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 drawBoardBG,
                 TILE,
                 fixHoverAnchor,
-                spawnBounce: (t, done, o) => SPAWN.spawnBounce(t, gsap, o, done),
+                spawnBounce: playSpawnBounceWithFrames,
                 wildMergeTarget,
                 excludeCells: pulledCellsSet,
                 preferCells: preferMergeCellSet,
@@ -13292,7 +13361,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                       drawBoardBG,
                       TILE,
                       fixHoverAnchor,
-                      spawnBounce: (t, done, o) => SPAWN.spawnBounce(t, gsap, o, done),
+                      spawnBounce: playSpawnBounceWithFrames,
                       wildMergeTarget,
                       excludeCells: pulledCellsSet,
                       preferCells: preferMergeCellSet,
@@ -13373,7 +13442,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   drawBoardBG,
                   TILE,
                   fixHoverAnchor,
-                  spawnBounce: (t, done, o) => SPAWN.spawnBounce(t, gsap, o, done),
+                  spawnBounce: playSpawnBounceWithFrames,
                   wildMergeTarget,
                   excludeCells: excludeWildMerge,
                 } as any);
@@ -13400,7 +13469,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                     drawBoardBG,
                     TILE,
                     fixHoverAnchor,
-                    spawnBounce: (t, done, o) => SPAWN.spawnBounce(t, gsap, o, done),
+                    spawnBounce: playSpawnBounceWithFrames,
                     wildMergeTarget,
                     excludeCells: excludeWildMerge,
                   } as any);
@@ -13454,7 +13523,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                         drawBoardBG,
                         TILE,
                         fixHoverAnchor,
-                        spawnBounce: (t, done, o) => SPAWN.spawnBounce(t, gsap, o, done),
+                        spawnBounce: playSpawnBounceWithFrames,
                         wildMergeTarget,
                         excludeCells: excludeWildMerge,
                       } as any);
@@ -13853,7 +13922,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               drawBoardBG,
               TILE,
               fixHoverAnchor,
-              spawnBounce: (t, done, o) => SPAWN.spawnBounce(t, gsap, o, done),
+              spawnBounce: playSpawnBounceWithFrames,
               wildMergeTarget,
               excludeCells: pulledCellsSet,
               preferCells: new Set<string>([`${gx},${gy}`]),
@@ -15137,20 +15206,12 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	    notifyBoardCommitted();
 	    const pool = regularValuePool();
 	    const used: number[] = [];
-	    const laserGunPoseRestorers = new Set<() => void>();
 	    let completedBreaks = 0;
 	    let completed = false;
 	    const markBreakComplete = () => {
 	      completedBreaks += 1;
 	      if (completedBreaks < count || completed) return;
 	      completed = true;
-	      // Final transaction barrier: no shot, including shot four, may leave
-	      // its same-tile rebound pose on the playable board.
-	      if (impactProfile === 'laser-gun') {
-	        laserGunPoseRestorers.forEach((restore) => {
-	          try { restore(); } catch {}
-	        });
-	      }
 	      releaseTntBonusTiles(ownedBonusTiles);
 	      tntBonusGuardUntil = Math.max(tntBonusGuardUntil, Date.now() + 450);
 	      trackAppTimeout(() => {
@@ -15193,47 +15254,37 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	        ? beachBallImpactDelaysMs[i] ?? i * 300
 	        : i * 200; // native timeout: mobile-safe, does not wait for GSAP ticker wake
 	      const delayMs = boundedInitialImpactDelayMs + impactStaggerMs;
-	      const doBreak = (laserGunVisualArrived = false) => {
+	      const doBreak = (laserGunVisualArrived = false): boolean => {
 	        if (!tile || tile.destroyed || !board || !STATE?.tiles) {
 	          releaseTntBonusTile(tile);
 	          markBreakComplete();
-	          return;
+	          return false;
 	        }
-        if (impactProfile === 'laser-gun' && laserGunVisualArrived) {
-          if (i >= 2) {
-            // Hits 3 and 4 add a short, bounded screen punctuation at the same
-            // canonical impact boundary. It never schedules another hit or
-            // owns gameplay state, and the fourth hit is intentionally firmer.
-            screenShake(app, {
-              strength: i === 2 ? 9 : 12,
-              duration: i === 2 ? 0.18 : 0.22,
-              steps: i === 2 ? 10 : 12,
-              ease: 'power2.out',
-              yScale: 0.72,
-              alsoShake: Array.from(document.querySelectorAll<HTMLElement>(
-                '.cc-lasergun-finale-scene, .cc-lasergun-right-gun-layer',
-              )),
-            });
-          }
-        }
 	        const c = tile.gridX ?? 0;
 	        const r = tile.gridY ?? 0;
-	        try { onImpact?.(i); } catch (e) { devWarn('TNT bonus impact sound:', e); }
-	        // Preserve the stagger and award exactly 5% per completed impact:
-	        // four explosions together add 20% to the preload meter.
-		        if (i < 2) {
-		          addWildProgress(bonusProgressPerImpact);
-		        } else {
-		          trackAppTimeout(() => {
-		            addWildProgress(bonusProgressPerImpact);
-		          }, Math.round((0.4 + (i - 2) * 0.1) * 1000));
+	        if (!STATE.tiles.includes(tile) || grid?.[r]?.[c] !== tile) {
+	          releaseTntBonusTile(tile);
+	          markBreakComplete();
+	          return false;
 	        }
-        if (impactProfile !== 'laser-gun' &&
-          shouldPlayTntBonusImpactHaptic(i, toBreak.length)
-          && typeof (window as any).triggerHapticImpact === 'function'
-        ) {
-          (window as any).triggerHapticImpact('heavy');
-        }
+	        const commitImpactReward = () => {
+	          try { onImpact?.(i); } catch (e) { devWarn('TNT bonus impact sound:', e); }
+	          // Preserve the stagger and award exactly 5% per completed impact:
+	          // four explosions together add 20% to the preload meter.
+	          if (i < 2) {
+	            addWildProgress(bonusProgressPerImpact);
+	          } else {
+	            trackAppTimeout(() => {
+	              addWildProgress(bonusProgressPerImpact);
+	            }, Math.round((0.4 + (i - 2) * 0.1) * 1000));
+	          }
+	          if (impactProfile !== 'laser-gun' &&
+	            shouldPlayTntBonusImpactHaptic(i, toBreak.length)
+	            && typeof (window as any).triggerHapticImpact === 'function'
+	          ) {
+	            (window as any).triggerHapticImpact('heavy');
+	          }
+	        };
 	        // Shards + smoke appear at the actual impact boundary. LaserGun emits
 	        // them at beam-tip contact while its spring scale remains visible.
 	        const emitImpactFx = () => {
@@ -15258,6 +15309,21 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	              groupedOwner: impactProfile === 'beach-ball',
 	            });
 	          } catch (e) { devWarn('TNT transition smoke:', e); }
+	        };
+	        const emitLaserImpactPunctuation = () => {
+	          if (impactProfile !== 'laser-gun' || !laserGunVisualArrived || i < 2) return;
+	          // Hits 3 and 4 punctuate the same canonical beam-tip boundary as
+	          // shards/smoke. No impact writer fires while the beam is in flight.
+	          screenShake(app, {
+	            strength: i === 2 ? 9 : 12,
+	            duration: i === 2 ? 0.18 : 0.22,
+	            steps: i === 2 ? 10 : 12,
+	            ease: 'power2.out',
+	            yScale: 0.72,
+	            alsoShake: Array.from(document.querySelectorAll<HTMLElement>(
+	              '.cc-lasergun-finale-scene, .cc-lasergun-right-gun-layer',
+	            )),
+	          });
 	        };
 	        const oldValue = (tile.value | 0);
 	        const basePos = getScreenPos(tile);
@@ -15285,7 +15351,10 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	            devWarn('⚠️ TNT bonus star animation failed:', e);
 	          }
 	        };
-	        if (impactProfile !== 'laser-gun') emitImpactFx();
+	        if (impactProfile !== 'laser-gun') {
+	          commitImpactReward();
+	          emitImpactFx();
+	        }
         if (impactProfile === 'beach-ball') {
           const impactVisual = (tile as any).rotG || tile;
           const scale = impactVisual?.scale;
@@ -15336,175 +15405,55 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	        if (impactProfile === 'beach-ball') {
 	          trackAppTimeout(replaceTile, 120);
 	        } else if (impactProfile === 'laser-gun') {
-	          const impactVisual = (tile as any).rotG || tile;
-	          // rotG has a top-edge pivot for tilt. The outer tile has its origin
-	          // at the canonical cube centre and contains the complete face tree.
-	          const impactScale = tile.scale;
-	          // Keep one display object throughout the hit. Removing it and using
-	          // openAtCell here would add a second spawn bounce after this spring.
+	          // Beam arrival is the single transition boundary: the DOM beam has
+	          // already retired. Preserve the exact tile object while its value
+	          // changes so drag/snapback and grid/list identity cannot diverge.
 	          const replacementValue = selectReplacementValue();
-	          let laserValueSwapped = false;
-	          const swapLaserValueInPlace = () => {
-	            if (laserValueSwapped || !tile || tile.destroyed) return;
-	            laserValueSwapped = true;
-	            tile.stackDepth = 1;
-	            // One atomic face commit: no duplicate deferred RAF rebuild may
-	            // interrupt the rebound that begins on this same timestamp.
-	            makeBoard.setValueImmediate(tile, replacementValue, 0);
-	            try { playLaserGunChangedCubeSound(i); } catch {}
-	          };
-	          let impactSettled = false;
-	          let impactBreakQueued = false;
-	          let restoreImpactPose = () => {
-	            if (!tile || tile.destroyed) return;
-	            tile.scale?.set?.(1, 1);
-	          };
-	          let releaseFrameLease = acquirePixiMobileActivityLease(
-	            'laser-gun-cube-impact',
-	            100,
-	          );
-	          const releaseImpactFrameLease = () => {
-	            releaseFrameLease();
-	            releaseFrameLease = () => {};
-	          };
-	          const commitImpactBreak = () => {
-	            if (impactSettled) return;
-	            impactSettled = true;
-	            // Completion, interruption and the safety timeout all converge on
-	            // one canonical pose. A stalled fourth shot can never remain large.
-	            try {
-	              animationManager.killExternalTimeline((tile as any)?._ccLaserGunImpactTl);
-	            } catch {}
-	            restoreImpactPose();
-	            releaseImpactFrameLease();
-	            if (!tile || tile.destroyed || !board || !STATE?.tiles) {
-	              releaseTntBonusTile(tile);
-	              markBreakComplete();
-	              return;
-	            }
-	            // The LaserGun replacement is already committed on the same tile;
-	            // only release reservation/lifecycle ownership at the end.
-	            swapLaserValueInPlace();
-	            releaseTntBonusTile(tile);
-	            lastTntBonusChangeAt = Date.now();
-	            tntBonusGuardUntil = Math.max(tntBonusGuardUntil, Date.now() + 1200);
-	            markBreakComplete();
-	          };
-	          const queueImpactBreakAfterPaint = () => {
-	            if (impactBreakQueued || impactSettled) return;
-	            impactBreakQueued = true;
-	            // Keep the GSAP peak alive across a complete subsequent paint
-	            // opportunity before removing the Pixi display object.
-	            trackAppAnimationFrame(() => {
-	              trackAppAnimationFrame(commitImpactBreak);
-	            });
-	          };
-	          if (impactVisual && impactScale) {
-	            const baseX = Number(impactVisual.x) || 0;
-	            const baseRotation = Number(impactVisual.rotation) || 0;
-	            restoreImpactPose = () => {
-	              if (!tile || tile.destroyed) return;
-	              try { impactScale.set?.(1, 1); } catch {}
-	              try { impactVisual.x = baseX; } catch {}
-	              try { impactVisual.rotation = baseRotation; } catch {}
-	            };
-	            laserGunPoseRestorers.add(restoreImpactPose);
-	            try {
-	              animationManager.killExternalTimeline((tile as any)._ccLaserGunImpactTl);
-	              animationManager.killExternalTimeline((tile as any)._idleBounceTl);
-	              gsap.killTweensOf(impactVisual);
-	              gsap.killTweensOf(impactScale);
-	            } catch {}
-	            // Settle any interrupted idle/merge pose before LaserGun acquires
-	            // the complete centred cube scale.
-	            impactScale.set?.(1, 1);
-	            let anticipation!: gsap.core.Timeline;
-	            const clearImpactOwner = () => {
-	              if ((tile as any)._ccLaserGunImpactTl === anticipation) {
-	                (tile as any)._ccLaserGunImpactTl = null;
-	              }
-	              if ((impactVisual as any)._ccLaserGunImpactTl === anticipation) {
-	                (impactVisual as any)._ccLaserGunImpactTl = null;
-	              }
-	            };
-	            anticipation = trackTimeline({
-	              onComplete: () => {
-	                // Restore in the timeline's own completion tick, before any
-	                // scene/scheduler cleanup can cross the final paint boundary.
-	                restoreImpactPose();
-	                clearImpactOwner();
-	                releaseImpactFrameLease();
-	                queueImpactBreakAfterPaint();
+	          return commitLaserGunTileImpact({
+	            tile,
+	            grid,
+	            tiles: STATE.tiles,
+	            column: c,
+	            row: r,
+	            replacementValue,
+	            setValueImmediate: (target, value, depth) => {
+	              makeBoard.setValueImmediate(target, value, depth);
+	            },
+	            startBounce: (target, onComplete, onInterrupt) => playSpawnBounceWithFrames(
+	              target,
+	              onComplete,
+	              {
+	                max: 1.08,
+	                compress: 0.96,
+	                rebound: 1.02,
+	                startScale: 0.30,
+	                wiggle: 0.035,
+	                keepFullOpacity: true,
 	              },
-	              onInterrupt: () => {
-	                clearImpactOwner();
-	                restoreImpactPose();
-	                releaseImpactFrameLease();
-	              },
-	            });
-	            (tile as any)._ccLaserGunImpactTl = anticipation;
-	            (impactVisual as any)._ccLaserGunImpactTl = anticipation;
-	            getLaserGunCubeAnticipationFrames().forEach((frame) => {
-	              anticipation.to(impactVisual, {
-	                x: baseX + frame.offsetX,
-	                rotation: baseRotation + frame.rotation,
-	                duration: frame.durationSeconds,
-	                ease: 'power1.inOut',
-	              }, frame.startAtSeconds);
-	            });
-	            anticipation.to(impactScale, {
-	              x: LASERGUN_CUBE_ANTICIPATION_SCALE,
-	              y: LASERGUN_CUBE_ANTICIPATION_SCALE,
-	              duration: LASERGUN_CUBE_INFLATE_SECONDS,
-	              ease: 'back.out(2.1)',
-	            }, 0);
-	            anticipation.call(() => {
-	              // Beam launch keeps smoke, shards and the bonus star together;
-	              // only the cube's scale lead begins 300ms earlier.
+	              onInterrupt,
+	            ),
+	            releaseOwnership: releaseTntBonusTile,
+	            onValueCommitted: () => {
+	              commitImpactReward();
+	              emitLaserImpactPunctuation();
 	              emitImpactFx();
 	              emitBonusStar();
-	            }, [], LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS);
-	            anticipation.to(impactScale, {
-	              x: LASERGUN_CUBE_CONTRACT_SCALE,
-	              y: LASERGUN_CUBE_CONTRACT_SCALE,
-	              duration: LASERGUN_CUBE_CONTRACT_SECONDS,
-	              // Linear into and out of the reversal removes the perceptual
-	              // zero-velocity hold between compression and first rebound.
-	              ease: 'none',
-	            }, LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS);
-	            const settleStart = LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS + LASERGUN_CUBE_CONTRACT_SECONDS;
-	            // Swap at 0.70 and continue immediately through the one requested
-	            // rebound. There is no neutral pose or second bounce sequence.
-	            anticipation.call(swapLaserValueInPlace, [], settleStart);
-	            const reboundStart = settleStart + LASERGUN_CUBE_REBOUND_SECONDS;
-	            anticipation.to(impactVisual, {
-	              x: baseX,
-	              rotation: baseRotation,
-	              duration: LASERGUN_CUBE_REBOUND_SECONDS
-	                + LASERGUN_CUBE_SETTLE_SECONDS,
-	              ease: 'power2.out',
-	            }, settleStart);
-	            anticipation.to(impactScale, {
-	              x: LASERGUN_CUBE_REBOUND_SCALE,
-	              y: LASERGUN_CUBE_REBOUND_SCALE,
-	              duration: LASERGUN_CUBE_REBOUND_SECONDS,
-	              ease: 'none',
-	            }, settleStart);
-	            anticipation.to(impactScale, {
-	              x: 1,
-	              y: 1,
-	              duration: LASERGUN_CUBE_SETTLE_SECONDS,
-	              ease: 'sine.out',
-	            }, reboundStart);
-	          } else {
-	            queueImpactBreakAfterPaint();
-	          }
-	          // Safety only: normal removal is owned by the completed and painted
-	          // GSAP timeline, so wall-clock time cannot race the peak frame.
-	          trackAppTimeout(commitImpactBreak, 900);
+	              try { playLaserGunChangedCubeSound(i); } catch {}
+	            },
+	            onSettled: (committed) => {
+	              if (committed) {
+	                lastTntBonusChangeAt = Date.now();
+	                tntBonusGuardUntil = Math.max(tntBonusGuardUntil, Date.now() + 1200);
+	              }
+	              markBreakComplete();
+	            },
+	            isCurrent: () => laserGunRunGeneration === gameplayRunGeneration,
+	            scheduleSafety: trackAppTimeout,
+	          });
 	        } else {
 	          replaceTile();
 	        }
+	        return true;
 	      };
 	      if (impactProfile === 'laser-gun') {
 	        laserGunImpactPlans.push({
@@ -15533,19 +15482,9 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	          },
 	          commit: async () => {
 	            if (laserGunRunGeneration !== gameplayRunGeneration) return false;
-	            let visualArrived = false;
-	            let impactCommitted = false;
-	            const commitCubeImpact = (arrived: boolean) => {
-	              if (impactCommitted || laserGunRunGeneration !== gameplayRunGeneration) return;
-	              impactCommitted = true;
-	              doBreak(arrived);
-	            };
 	            let visualFired = false;
 	            if (laserGunVisualsEnabled) {
-	              visualFired = triggerActiveLaserGunFinaleImpact(
-	                i,
-	                () => commitCubeImpact(true),
-	              );
+	              visualFired = triggerActiveLaserGunFinaleImpact(i);
 	              if (visualFired) {
 	                const arrivalResult = await Promise.race([
 	                  waitForActiveLaserGunFinaleImpactArrival(i)
@@ -15559,28 +15498,30 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	                // ordinary visual failures use the entry/trigger/timeout
 	                // fallback branches instead.
 	                if (arrivalResult === 'unavailable') return false;
-	                visualArrived = arrivalResult === 'arrived';
-	                if (visualArrived) commitLaserImpactHaptic();
+	                if (arrivalResult === 'arrived') {
+	                  // Scene retirement and this commit share the exact beam-tip
+	                  // contact boundary; the new cube can never appear below it.
+	                  if (doBreak(true)) commitLaserImpactHaptic();
+	                  return true;
+	                }
 	                if (arrivalResult === 'elapsed') {
 	                  devWarn('LaserGun beam arrival timed out; preserving native cube impact');
-	                  commitLaserImpactHaptic();
 	                  cancelActiveLaserGunFinaleImpact(i);
 	                  laserGunVisualsEnabled = false;
 	                  completeActiveLaserGunFinaleImpacts();
 	                }
 	              }
 	            }
-	            if (!visualFired) commitLaserImpactHaptic();
-	            // Normal path already committed synchronously in the beam-launch
-	            // GSAP tick. This remains only the no-visual/timeout fallback.
-	            commitCubeImpact(visualArrived);
+	            // No-visual and timeout fallbacks preserve the gameplay mutation,
+	            // while the normal path above commits only after real contact.
+	            if (doBreak(false)) commitLaserImpactHaptic();
 	            return true;
 	          },
 	        });
 	      } else if (delayMs <= 0) {
 	        doBreak();
 	      } else {
-	        trackAppTimeout(doBreak, delayMs);
+	        trackAppTimeout(() => { doBreak(); }, delayMs);
 	      }
 	    });
 	    if (impactProfile === 'laser-gun') {

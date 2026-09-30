@@ -1,4 +1,5 @@
 import type { Tile } from '../types/game-types.js';
+import { stopTileRuntimeFx } from './tile-lifecycle-service.ts';
 
 type CleanupDeps = {
   tiles: Tile[];
@@ -25,18 +26,18 @@ export function cleanupTilesForRebuild(deps: CleanupDeps) {
     stopMagnetIdleParticles,
     stopTntIdleParticles,
     stopTntIdleShake,
-    stopSpecialDiceIdleMotion,
   } = deps;
 
   tiles.forEach(t => {
-    try { stopSpecialDiceIdleMotion?.(t); } catch {}
-    try { stopWildIdle?.(t); } catch {}
-    try { stopWildShimmer?.(t); } catch {}
-    try { stopWildStars?.(t); } catch {}
-    try { stopWildJuiceBubbles?.(t); } catch {}
-    try { stopMagnetIdleParticles?.(t); } catch {}
-    try { stopTntIdleParticles?.(t); } catch {}
-    try { stopTntIdleShake?.(t); } catch {}
+    stopTileRuntimeFx(t, {
+      stopWildIdle,
+      stopWildShimmer,
+      stopWildStars,
+      stopWildJuiceBubbles,
+      stopMagnetIdleParticles,
+      stopTntIdleParticles,
+      stopTntIdleShake,
+    });
 
     try {
       gsap.killTweensOf(t);

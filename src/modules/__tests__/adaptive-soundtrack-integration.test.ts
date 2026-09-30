@@ -99,6 +99,8 @@ describe('Arcade adaptive soundtrack integration', () => {
     expect(failBoard).toContain('onStopped: () => restoreSoundtrackAfterResultAudio(resultReleaseTarget),');
     expect(cleanBoard).toContain("resultReleaseTarget = 'gameplay';");
     expect(failBoard).toContain("cleanupFailModalLifecycle('gameplay');");
+    expect(cleanBoard).toContain('acquireGameplaySoundtrackAfterPlayAgain();');
+    expect(failBoard.match(/acquireGameplaySoundtrackAfterPlayAgain\(\);/g)).toHaveLength(2);
     expect(cleanBoard).toContain("restoreSoundtrackAfterResultAudio('gameplay');");
     expect(failBoard).toContain("restoreSoundtrackAfterResultAudio('gameplay');");
     expect(stageClear).toContain('setSoundtrackResultMix();');

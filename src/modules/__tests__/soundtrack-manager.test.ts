@@ -212,11 +212,11 @@ describe('global Stack to Six soundtrack', () => {
     expect(ARCADE_SOUNDTRACK_ACTIVE_URL).toBe(
       './assets/sound/soundtrack/adaptive-music-v3/gameplay-bed-active-01.wav',
     );
-    expect(SOUNDTRACK_VOLUME).toBe(0.68);
+    expect(SOUNDTRACK_VOLUME).toBe(0.578);
     expect(SOUNDTRACK_TRANSITION_VOLUME_RATIO).toBe(0.20);
-    expect(SOUNDTRACK_TRANSITION_VOLUME).toBeCloseTo(0.136, 10);
+    expect(SOUNDTRACK_TRANSITION_VOLUME).toBeCloseTo(0.1156, 10);
     expect(SOUNDTRACK_GAMEPLAY_VOLUME_RATIO).toBe(0.33);
-    expect(SOUNDTRACK_GAMEPLAY_VOLUME).toBeCloseTo(0.2244, 10);
+    expect(SOUNDTRACK_GAMEPLAY_VOLUME).toBeCloseTo(0.19074, 10);
     expect(SOUNDTRACK_GAMEPLAY_FADE_TAIL_MS).toBe(320);
     expect(SOUNDTRACK_GAMEPLAY_SETTLE_MS).toBe(320);
     expect(SOUNDTRACK_RESUME_FADE_IN_MS).toBe(420);
@@ -224,6 +224,7 @@ describe('global Stack to Six soundtrack', () => {
     expect(SOUNDTRACK_VICTORY_FADE_IN_MS).toBe(1000);
     expect(ARCADE_SOUNDTRACK_CALM_VOLUME).toBe(0.528);
     expect(ARCADE_SOUNDTRACK_ACTIVE_VOLUME).toBe(0.594);
+    expect(ARCADE_SOUNDTRACK_RESULT_VOLUME).toBe(0.10);
     expect(ARCADE_SOUNDTRACK_BAR_SECONDS).toBeCloseTo(2.0583, 3);
     expect(ARCADE_SOUNDTRACK_BAR_CROSSFADE_MS).toBe(2058);
     expect(source).not.toContain('stacktosix-soundtrack.mp3');

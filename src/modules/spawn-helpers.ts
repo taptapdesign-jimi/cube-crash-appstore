@@ -42,13 +42,19 @@ interface OpenEmptiesParams {
   fixHoverAnchor?: (t: Tile) => void;
 }
 
+export type SpawnBounceHandle = {
+  scaleTimeline: gsap.core.Timeline;
+  rotationTimeline: gsap.core.Timeline;
+  kill: () => void;
+};
+
 export function spawnBounce(
   t: any,
   gsap: typeof gsap,
   opts: SpawnBounceOptions = {},
   done?: () => void,
   interrupted?: () => void,
-): void {
+): SpawnBounceHandle {
   const {
     startScale = 0.30,
     max = 1.08,
@@ -138,10 +144,19 @@ export function spawnBounce(
     .to(t.scale, { x: rebound, y: rebound, duration: 0.12, ease: 'sine.inOut' })
     .to(t.scale, { x: 1.00, y: 1.00, duration: 0.14, ease: 'sine.inOut' });
 
-  trackTimeline()
+  const rotationTimeline = trackTimeline()
     .to(trg, { rotation: wiggle * dir, duration: 0.12, ease: 'power2.out' })
     .to(trg, { rotation: -wiggle * 0.6 * dir, duration: 0.16, ease: 'sine.inOut' })
     .to(trg, { rotation: 0, duration: 0.20, ease: 'sine.inOut' });
+
+  return {
+    scaleTimeline: tl,
+    rotationTimeline,
+    kill: () => {
+      try { animationManager.killExternalTimeline(tl); } catch {}
+      try { animationManager.killExternalTimeline(rotationTimeline); } catch {}
+    },
+  };
 }
 
 export function sweepForUnanimatedSpawns(tiles: Tile[], gsap: typeof gsap): void {

@@ -164,7 +164,7 @@ export function playLaunchSmileTransitionSound(): string | null {
   stopDecodedGameplayVoices([SMILE_VOICE_ID]);
   const result = playDecodedGameplaySound(LAUNCH_SMILE_TRANSITION_SOUND_SOURCE, {
     voiceId: SMILE_VOICE_ID,
-    volume: applySoundEffectsMasterGain(0.7),
+    volume: applySoundEffectsMasterGain(0.84),
   });
   return result === 'unavailable' ? null : LAUNCH_SMILE_TRANSITION_SOUND_SOURCE;
 }

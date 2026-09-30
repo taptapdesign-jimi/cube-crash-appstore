@@ -46,6 +46,7 @@ import {
   stopCleanBoardSounds,
 } from './clean-board-sound.ts';
 import {
+  acquireGameplaySoundtrackAfterPlayAgain,
   fadeSoundtrackForResultHook,
   setSoundtrackResultMix,
 } from './soundtrack-manager.ts';
@@ -1405,6 +1406,7 @@ export async function showCleanBoardModal({
       resultReleaseTarget = 'gameplay';
       stopCleanBoardSounds();
       restoreSoundtrackAfterResultAudio('gameplay');
+      acquireGameplaySoundtrackAfterPlayAgain();
       // Haptic for primary button
       if (typeof (window as any).triggerHapticSelection === 'function') {
         (window as any).triggerHapticSelection();

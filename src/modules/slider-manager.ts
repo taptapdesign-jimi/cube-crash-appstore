@@ -1451,7 +1451,15 @@ class SliderManager {
       slide.classList.toggle('active', Number(slide.dataset.slide) === slideIndex);
     });
     document.querySelectorAll<HTMLElement>('.independent-nav-button').forEach((button) => {
-      button.classList.toggle('active', Number(button.dataset.slide) === slideIndex);
+      // Hidden route handoffs must retire the previous icon's inline GSAP pose,
+      // not only swap its class. Otherwise Arcade's cube can stay raised after
+      // Journey has already become the logical Homepage slide.
+      this.setNavButtonVisualState(
+        button,
+        Number(button.dataset.slide) === slideIndex,
+        false,
+        false,
+      );
     });
     logger.info(`✅ Hidden slider state synchronized to slide ${slideIndex}`);
   }

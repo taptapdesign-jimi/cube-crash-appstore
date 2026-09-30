@@ -41,7 +41,11 @@ function fixture(arcade = false) {
     '../utils/app-paper-background.js': { applyAppPaperSurfaceToElement: jest.fn() },
     './gameplay-terminology.ts': { formatGameplayResultProgressLabel: () => 'Beach 1' },
     './fail-screen-sound.ts': { playFailScreenCtaBounceSound: jest.fn(), playFailScreenSaxophoneSound: jest.fn(), preloadFailScreenSounds: jest.fn(), stopFailScreenSounds: failStop },
-    './soundtrack-manager.ts': { fadeSoundtrackForResultHook: () => jest.fn(), setSoundtrackResultMix: jest.fn() },
+    './soundtrack-manager.ts': {
+      acquireGameplaySoundtrackAfterPlayAgain: jest.fn(),
+      fadeSoundtrackForResultHook: () => jest.fn(),
+      setSoundtrackResultMix: jest.fn(),
+    },
     './journey-terminal-return-policy.ts': terminalMotion,
     './journey-return-transition-trace.ts': { beginJourneyReturnTransition: () => 1, markJourneyReturnResultExitComplete: jest.fn(), cancelJourneyReturnTransition: jest.fn(), prepareJourneyReturnBehindTerminalOverlay: jest.fn(), markJourneyReturnTransition: jest.fn(), measureJourneyReturnPreparationPhase: <T>(_id: number, _name: string, work: () => T) => work(), finishJourneyReturnCtaSetup: jest.fn() },
     './journey-progression-state.js': { journeyProgressionState: progression },
@@ -180,6 +184,8 @@ test.each([false, true])('normal Fail Play Again preserves restart and retires l
   click('Play Again'); await finishMotion();
   await expect(result).resolves.toEqual({ action: 'retry' });
   expect(window.CC.restart).toHaveBeenCalledTimes(1);
+  expect(f.mocks['./soundtrack-manager.ts'].acquireGameplaySoundtrackAfterPlayAgain)
+    .toHaveBeenCalledTimes(1);
   expect(f.pointerCount()).toBe(0); expect(f.count('keydown')).toBe(0);
 });
 
@@ -213,6 +219,8 @@ test.each([false, true])('Clean Board normal Play Again retires CTA listeners (A
   const result = f.clean.showCleanBoardModal({ boardNumber: 11, getScore: () => 10, forcedStars: 1 });
   await finishMotion(); click('Play Again'); await finishMotion();
   await expect(result).resolves.toEqual({ action: 'play-again' });
+  expect(f.mocks['./soundtrack-manager.ts'].acquireGameplaySoundtrackAfterPlayAgain)
+    .toHaveBeenCalledTimes(1);
   expect(f.pointerCount()).toBe(0);
 });
 

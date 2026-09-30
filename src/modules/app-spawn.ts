@@ -11,6 +11,8 @@ import { resetTileToNormalState } from './tile-state-utils.ts';
 import { randomRegularTileValue } from './app-core-utils.js';
 import { isWildLikeTile } from './final-merge-rules.ts';
 import { removeTileFully } from './tile-lifecycle-service.ts';
+import animationManager from './animation-manager.js';
+import { acquirePixiMobileActivityLease } from './pixi-mobile-frame-controller.ts';
 // drawBoardBG function is now in app.js
 
 // Types
@@ -416,6 +418,11 @@ export function spawnBounce(
   }
   t.scale!.set(startScale, startScale);
   const dir = Math.random() < 0.5 ? 1 : -1;
+  let releaseFrameLease = acquirePixiMobileActivityLease('spawn-bounce', 100);
+  const releaseFrames = () => {
+    releaseFrameLease();
+    releaseFrameLease = () => {};
+  };
   const finish = () => {
     try {
       if (t.scale?.set) t.scale.set(1, 1);
@@ -436,11 +443,17 @@ export function spawnBounce(
       if ((t as any).pips) (t as any).pips.alpha = 1;
     }
     t._spawned = true;
+    releaseFrames();
     if (typeof done === 'function') done();
   };
-  const tl = gsap.timeline({
+  const tl = animationManager.trackExternalTimeline(gsap.timeline({
     onComplete: finish,
-    onInterrupt: () => interrupted?.(),
+    onInterrupt: () => {
+      try { t.scale?.set?.(1, 1); } catch {}
+      try { trg.rotation = 0; } catch {}
+      releaseFrames();
+      interrupted?.();
+    },
     onUpdate: keepFullOpacity
       ? () => {
           t.alpha = 1;
@@ -454,7 +467,7 @@ export function spawnBounce(
           if ((t as any).pips) (t as any).pips.alpha = 1;
         }
       : undefined
-  });
+  }));
   if (!keepFullOpacity) {
     tl.to(t, { alpha: 1, duration: fadeIn, ease: 'power1.out' }, 0);
   }
@@ -463,12 +476,10 @@ export function spawnBounce(
   tl.to(t.scale, { x: max, y: max, duration: 0.18, ease: 'back.out(1.7)' }, 0)
     .to(t.scale, { x: compress, y: compress, duration: 0.12, ease: 'sine.inOut' })
     .to(t.scale, { x: rebound, y: rebound, duration: 0.12, ease: 'sine.inOut' })
-    .to(t.scale, { x: 1.00, y: 1.00, duration: 0.14, ease: 'sine.inOut' });
-
-  gsap.timeline()
-    .to(trg, { rotation: wiggle * dir, duration: 0.12, ease: 'power2.out' })
-    .to(trg, { rotation: -wiggle * 0.6 * dir, duration: 0.16, ease: 'sine.inOut' })
-    .to(trg, { rotation: 0, duration: 0.20, ease: 'sine.inOut' });
+    .to(t.scale, { x: 1.00, y: 1.00, duration: 0.14, ease: 'sine.inOut' })
+    .to(trg, { rotation: wiggle * dir, duration: 0.12, ease: 'power2.out' }, 0)
+    .to(trg, { rotation: -wiggle * 0.6 * dir, duration: 0.16, ease: 'sine.inOut' }, 0.12)
+    .to(trg, { rotation: 0, duration: 0.20, ease: 'sine.inOut' }, 0.28);
 }
 
 export function sweepForUnanimatedSpawns(): void {

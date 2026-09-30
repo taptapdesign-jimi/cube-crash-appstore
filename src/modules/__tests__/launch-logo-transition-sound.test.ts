@@ -166,7 +166,7 @@ test('plays the smile layer once through its own overlapping voice', () => {
   expect(playLaunchSmileTransitionSound()).toBe(LAUNCH_SMILE_TRANSITION_SOUND_SOURCE);
   expect(playDecodedGameplaySound).toHaveBeenCalledWith(
     LAUNCH_SMILE_TRANSITION_SOUND_SOURCE,
-    expect.objectContaining({ voiceId: 'launch-logo-smile', volume: 0.42 }),
+    expect.objectContaining({ voiceId: 'launch-logo-smile', volume: 0.504 }),
   );
 });
 

@@ -158,6 +158,7 @@ function acquireHudBottomSheetTapLock(source: string, duration = HUD_BOTTOM_SHEE
 
 function openScoreStatsBottomSheetFromHud(bounceTarget: any, sourceLabel = 'HUD'): void {
   if (!acquireHudBottomSheetTapLock(`${sourceLabel}:score`)) return;
+  playNavigationCloseSound();
 
   let isScoreSheetOpen = false;
   try {
@@ -2719,6 +2720,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       if ((helpButton as any)._stageClearDevTriggerActive) return;
       (helpButton as any)._stageClearDevTriggerActive = true;
       try {
+        playNavigationCloseSound();
         playHudCloseSoftCartoonBounce(helpButton);
         const stateStage = Number((window as any)?.STATE?.boardNumber);
         const clearedStage = Number.isFinite(stateStage) && stateStage > 0 ? stateStage : 1;
@@ -2788,6 +2790,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       e.stopPropagation();
       e.stopImmediatePropagation();
       if (!acquireHudBottomSheetTapLock('score-hit-area')) return;
+      playNavigationCloseSound();
       
       console.log('📊 SCORE RED AREA CLICKED - Opening score stats bottom sheet');
       
@@ -2892,6 +2895,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
 	      e.stopPropagation();
 	      e.stopImmediatePropagation();
 	      if (!acquireHudBottomSheetTapLock('combo-hit-area')) return;
+	      playNavigationCloseSound();
 
 	      console.log('🔥 COMBO AREA CLICKED - Opening combo bottom sheet');
 

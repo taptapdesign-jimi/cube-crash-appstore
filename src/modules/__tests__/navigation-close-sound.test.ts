@@ -24,10 +24,13 @@ describe('Back and X close navigation sound', () => {
     expect(source).toContain("document.addEventListener('pointerdown', onPointerDown, true)");
   });
 
-  test('connects the same close cue to every live Pixi gameplay HUD X path', () => {
+  test('connects the same close cue to HUD X, trophy, combo and book paths', () => {
     const hudSource = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/hud-helpers.ts'), 'utf8');
     expect(hudSource).toContain("from './navigation-close-sound.ts'");
-    expect(hudSource.match(/playNavigationCloseSound\(\);/g)).toHaveLength(3);
+    expect(hudSource.match(/playNavigationCloseSound\(\);/g)).toHaveLength(7);
+    expect(hudSource).toContain("acquireHudBottomSheetTapLock('score-hit-area')");
+    expect(hudSource).toContain("acquireHudBottomSheetTapLock('combo-hit-area')");
+    expect(hudSource).toContain("openScoreStatsBottomSheetFromHud(helpButton, 'Help HUD icon')");
   });
 
   test('obeys Sounds OFF when invoked directly by the Pixi HUD', () => {

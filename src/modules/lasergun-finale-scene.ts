@@ -86,15 +86,15 @@ export const LASERGUN_FIRE_FRAME_STEP_SECONDS = (
 // otherwise composite the beam before an IMG src swap scheduled at the exact
 // same GSAP timestamp, producing a one-frame flash of the prior bitmap.
 export const LASERGUN_FRAME6_PAINT_LEAD_SECONDS = 1 / 60;
-// Keep the completed beam painted across the cube reaction before fading.
-export const LASERGUN_BEAM_FADE_DELAY_SECONDS = 0.24;
-export const LASERGUN_BEAM_FADE_SECONDS = 0.07;
+// Keep the accepted gun pose/exit cadence independent from beam visibility.
+// The beam itself retires atomically when its tip reaches the cube so it cannot
+// cover the replacement tile's canonical bounce-in.
+export const LASERGUN_POST_CONTACT_GUN_HOLD_SECONDS = 0.31;
 // The gun may return through PNG frames 6 -> 1 immediately, but it cannot begin
-// spatial exit until the beam has completed its full travel and fade.
+// spatial exit until the accepted post-contact hold has elapsed.
 export const LASERGUN_EXIT_DELAY_SECONDS = (
   LASERGUN_BEAM_TRAVEL_SECONDS
-  + LASERGUN_BEAM_FADE_DELAY_SECONDS
-  + LASERGUN_BEAM_FADE_SECONDS
+  + LASERGUN_POST_CONTACT_GUN_HOLD_SECONDS
 );
 export const LASERGUN_EXIT_TRAVEL_SECONDS = 0.42 * LASERGUN_GUN_TIME_SCALE;
 
@@ -292,7 +292,7 @@ export function getLaserBeamPlacement(
 type LaserGunFinaleController = {
   setTargets: (targets: LaserGunFinaleTarget[]) => Promise<LaserGunEntryReadiness>;
   prepareImpact: (index: number, target: LaserPoint) => Promise<boolean>;
-  triggerImpact: (index: number, onLaunch?: () => void) => boolean;
+  triggerImpact: (index: number) => boolean;
   waitForImpactArrival: (index: number) => Promise<boolean>;
   waitForBeamLaunch: (index: number) => Promise<boolean>;
   cancelImpact: (index: number) => void;
@@ -341,8 +341,8 @@ export function prepareActiveLaserGunFinaleImpact(
   return activeController?.prepareImpact(index, target) ?? Promise.resolve(false);
 }
 
-export function triggerActiveLaserGunFinaleImpact(index: number, onLaunch?: () => void): boolean {
-  return activeController?.triggerImpact(index, onLaunch) ?? false;
+export function triggerActiveLaserGunFinaleImpact(index: number): boolean {
+  return activeController?.triggerImpact(index) ?? false;
 }
 
 export function waitForActiveLaserGunFinaleImpactArrival(index: number): Promise<boolean> {
@@ -701,7 +701,6 @@ export function attachLaserGunFinaleScene(
     resolveEntryReadiness: ((ready: boolean) => void) | null;
     impactArrivalReadiness: Promise<boolean>;
     resolveImpactArrivalReadiness: ((arrived: boolean) => void) | null;
-    onBeamLaunch: (() => void) | null;
     beamLaunchReadiness: Promise<boolean>;
     resolveBeamLaunchReadiness: ((launched: boolean) => void) | null;
     beamFinalScaleX: number;
@@ -740,7 +739,6 @@ export function attachLaserGunFinaleScene(
   };
 
   const settleImpactArrival = (shot: ShotState, arrived: boolean): void => {
-    if (!arrived) shot.onBeamLaunch = null;
     shot.resolveImpactArrivalReadiness?.(arrived);
     shot.resolveImpactArrivalReadiness = null;
   };
@@ -866,13 +864,12 @@ export function attachLaserGunFinaleScene(
         settleImpactArrival(shot, false);
         return;
       }
+      // The visual beam owns only the flight. Retire it in the same GSAP tick
+      // that resolves contact, before app-core replaces and bounces the cube.
+      gsap.set(shot.beamPlan.image, { opacity: 0 });
+      shot.beamVisible = false;
       settleImpactArrival(shot, true);
     }, undefined, LASERGUN_BEAM_TRAVEL_SECONDS);
-    impactTimeline.to(shot.beamPlan.image, {
-      opacity: 0,
-      duration: LASERGUN_BEAM_FADE_SECONDS,
-      ease: 'sine.in',
-    }, LASERGUN_BEAM_TRAVEL_SECONDS + LASERGUN_BEAM_FADE_DELAY_SECONDS);
     impactTimeline.play(0);
   };
 
@@ -1207,7 +1204,6 @@ export function attachLaserGunFinaleScene(
           resolveEntryReadiness: resolveShotEntry,
           impactArrivalReadiness,
           resolveImpactArrivalReadiness: resolveImpactArrival,
-          onBeamLaunch: null,
           beamLaunchReadiness,
           resolveBeamLaunchReadiness: resolveBeamLaunch,
           beamFinalScaleX: 1,
@@ -1221,17 +1217,11 @@ export function attachLaserGunFinaleScene(
       return entryReadiness;
     },
     prepareImpact,
-    triggerImpact: (index, onLaunch) => {
+    triggerImpact: (index) => {
       if (disposed || finalExitStarted || !activeGunsPainted || triggeredImpacts.has(index)) return false;
       const shot = shotStates[index];
       if (!shot || !shot.poseReady || !hasLockedGunAngles(shot)) return false;
       triggeredImpacts.add(index);
-      shot.onBeamLaunch = onLaunch || null;
-      // Start the cube scale lead now; beam reveal follows after the exact
-      // requested lead without changing the beam's own travel timing.
-      const startCubeReaction = shot.onBeamLaunch;
-      shot.onBeamLaunch = null;
-      try { startCubeReaction?.(); } catch {}
       shot.impactPending = true;
       if (LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS > 0) {
         shot.beamLaunchDelay = playGunFiringFlow(shot);

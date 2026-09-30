@@ -35,7 +35,7 @@ export const SOUNDTRACK_INTRO_CROSSFADE_DELAY_MS = 120;
 export const SOUNDTRACK_INTRO_LOOP_PREROLL_SECONDS =
   SOUNDTRACK_LOOP_DURATION_SECONDS - SOUNDTRACK_INTRO_DURATION_MS / 1000;
 export const SOUNDTRACK_RESUME_FADE_IN_MS = 420;
-export const SOUNDTRACK_VOLUME = 0.68;
+export const SOUNDTRACK_VOLUME = 0.578;
 export const SOUNDTRACK_TRANSITION_VOLUME_RATIO = 0.20;
 export const SOUNDTRACK_TRANSITION_VOLUME = SOUNDTRACK_VOLUME * SOUNDTRACK_TRANSITION_VOLUME_RATIO;
 export const SOUNDTRACK_GAMEPLAY_VOLUME_RATIO = 0.33;
@@ -94,6 +94,9 @@ let victoryHookMuteActive = false;
 let victoryHookGeneration = 0;
 let victoryHookThemeRestoreVolume = SOUNDTRACK_VOLUME;
 let victoryHookArcadeRestoreVolume = ARCADE_SOUNDTRACK_CALM_VOLUME;
+let removeContextStateListener: (() => void) | null = null;
+let contextStateRecoveryGeneration = 0;
+let nativeForegroundOverridesHidden = false;
 
 function isMusicEnabled(): boolean {
   if (isThermalAudioSuppressed()) {
@@ -700,6 +703,7 @@ function onVisibilityChange(event?: Event): void {
   const currentAudio = audio;
   const nativeAudioIsActive = event?.type === NATIVE_AUDIO_ACTIVE_EVENT;
   if (document.hidden && !nativeAudioIsActive) {
+    nativeForegroundOverridesHidden = false;
     if (!currentAudio && arcadeVoices.size === 0) return;
     // A committed promotion must survive backgrounding as intent, never as a
     // timer that can fetch/decode/play after all current voices were paused.
@@ -730,6 +734,8 @@ function onVisibilityChange(event?: Event): void {
     logger.info('🔊 Soundtrack paused (app in background)');
     return;
   }
+  if (nativeAudioIsActive && document.hidden) nativeForegroundOverridesHidden = true;
+  else if (!document.hidden) nativeForegroundOverridesHidden = false;
 
   if (gameplayDuckActive && isArcadeHomeRunMode()) {
     // The native bridge confirms app activation when WKWebView leaves hidden
@@ -802,6 +808,28 @@ function onVisibilityChange(event?: Event): void {
   );
 }
 
+function onSoundtrackContextStateChange(): void {
+  const currentAudio = audio;
+  if (!currentAudio || currentAudio.contextState !== 'running') return;
+  const generation = ++contextStateRecoveryGeneration;
+  // WebKit can move an interrupted context to running after resume() already
+  // timed out. Let the current manager state settle first, then reacquire only
+  // the still-owned route voice. Without this receipt a second app lifecycle
+  // cycle was the next event capable of restarting the paused source.
+  void Promise.resolve().then(() => {
+    if (
+      generation !== contextStateRecoveryGeneration ||
+      audio !== currentAudio ||
+      currentAudio.contextState !== 'running' ||
+      !isMusicEnabled() ||
+      (document.hidden && !nativeForegroundOverridesHidden)
+    ) return;
+    onVisibilityChange(new Event(
+      document.hidden ? NATIVE_AUDIO_ACTIVE_EVENT : 'soundtrack-context-running',
+    ));
+  });
+}
+
 function setupVisibilityListener(): void {
   if (
     visibilityListenerInstalled ||
@@ -825,6 +853,9 @@ function getAudio(): MainThemeVoiceLike {
     audio.loop = true;
     audio.volume = SOUNDTRACK_VOLUME;
     audio.preload = 'auto';
+    removeContextStateListener = audio.subscribeContextStateChange?.(
+      onSoundtrackContextStateChange,
+    ) ?? null;
     setupVisibilityListener();
   }
   return audio;
@@ -1091,6 +1122,40 @@ export function enterArcadeGameplaySoundtrack(): void {
   enterArcadeCalmSoundtrack();
 }
 
+/** Play Again owns an audible gameplay bed even if its visual Round cue stalls. */
+export function acquireGameplaySoundtrackAfterPlayAgain(): void {
+  if (!isMusicEnabled()) return;
+  clearVictoryHookEnvelope();
+  cancelIntroSequence(true);
+  playRequestToken++;
+  gameplayDuckActive = true;
+  activeGameplayFade = null;
+  gameplayFadeGeneration++;
+  fadeInProgress = false;
+
+  if (isArcadeHomeRunMode()) {
+    switchArcadeLayer('calm', 0, ARCADE_SOUNDTRACK_CALM_VOLUME);
+    return;
+  }
+
+  fadeOutArcadeSoundtrack(0);
+  if (document.hidden && !nativeForegroundOverridesHidden) {
+    pausedForVisibility = true;
+    setupVisibilityListener();
+    return;
+  }
+  const currentAudio = getAudio();
+  currentAudio.volume = SOUNDTRACK_GAMEPLAY_VOLUME;
+  if (currentAudio.paused || currentAudio.contextState !== 'running') {
+    playWithFadeIn(
+      currentAudio,
+      0,
+      '🔊 Journey soundtrack reacquired by Play Again',
+      SOUNDTRACK_GAMEPLAY_VOLUME,
+    );
+  }
+}
+
 /**
  * Promote only the first committed Arcade Merge-6/Wild moment. Both loops are
  * authored to the same tempo and length, so phase-matching currentTime and
@@ -1301,6 +1366,10 @@ export function resetSoundtrackForTests(): void {
     window.removeEventListener(NATIVE_AUDIO_ACTIVE_EVENT, onVisibilityChange);
   }
   visibilityListenerInstalled = false;
+  removeContextStateListener?.();
+  removeContextStateListener = null;
+  contextStateRecoveryGeneration++;
+  nativeForegroundOverridesHidden = false;
   if (audio) {
     try { audio.pause(); } catch {}
     audio.dispose?.();
@@ -1333,6 +1402,7 @@ export const soundtrackManager = {
   fadeInAndResume,
   fadeOutForGameplay: fadeOutSoundtrackForGameplay,
   enterArcadeGameplay: enterArcadeGameplaySoundtrack,
+  acquireGameplayAfterPlayAgain: acquireGameplaySoundtrackAfterPlayAgain,
   promoteAfterMerge6: promoteArcadeSoundtrackAfterMerge6,
   setResultMix: setSoundtrackResultMix,
   fadeForResultHook: fadeSoundtrackForResultHook,

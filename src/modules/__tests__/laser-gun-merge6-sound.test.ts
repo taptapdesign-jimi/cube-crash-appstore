@@ -235,11 +235,12 @@ test('HTMLAudio fallback stays bounded, overlaps separate cues and stops on clea
   instances.forEach((audio) => expect(audio.pause).toHaveBeenCalled());
 });
 
-test('connects merge, stage entry, beam launch, changed-cube and cleanup boundaries', () => {
+test('connects merge, stage entry, beam launch, same-tile change and cleanup boundaries', () => {
   const appCore = fs.readFileSync('src/modules/app-core.ts', 'utf8');
   const scene = fs.readFileSync('src/modules/lasergun-finale-scene.ts', 'utf8');
   expect(appCore.match(/playLaserGunMerge6AddonSounds\(\);/g)).toHaveLength(1);
-  expect(appCore).toContain('makeBoard.setValueImmediate(tile, replacementValue, 0);');
+  expect(appCore).toContain('commitLaserGunTileImpact({');
+  expect(appCore).toContain('makeBoard.setValueImmediate(target, value, depth);');
   expect(appCore).toContain('playLaserGunChangedCubeSound(i);');
   expect(scene.match(/playLaserGunStagePreparationSound\(shot\.index\);/g)).toHaveLength(1);
   expect(scene.match(/playLaserGunBeamSound\(shot\.index\);/g)).toHaveLength(1);

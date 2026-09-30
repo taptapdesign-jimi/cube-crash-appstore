@@ -4,7 +4,7 @@ import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { STATE, COLS, ROWS, TILE } from './app-state.js';
 import * as makeBoard from './board.js';
-import { createBoardPopInHapticSchedule, createBoardPopInPlan, createBoardPopInMeshOffsets } from './board-popin-scheduler.js';
+import { createBoardPopInHapticSchedule, createBoardPopInPlan } from './board-popin-scheduler.js';
 import { drawBoardBG, layoutBoard as layout } from './app-core.js';
 import { randVal } from './app-core-utils.js';
 import type { Tile } from '../types/game-types.js';
@@ -210,13 +210,13 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
   const sourceTiles = [...listTiles];
   const stopPoseDiagnostic = startBoardEntryPoseDiagnostic(sourceTiles);
   const restPositions = sourceTiles.map(tile => ({ x: tile.x, y: tile.y }));
-  const meshOffsets = createBoardPopInMeshOffsets(restPositions, TILE * 0.42);
-  const restByTile = new Map(sourceTiles.map((tile, index) => [tile, restPositions[index]]));
+  const restByTile = new Map(sourceTiles.map((tile, index) => [tile, { ...restPositions[index], rotation: tile.rotation || 0 }]));
   const restorePosition = (tile: Tile) => {
     const rest = restByTile.get(tile);
     if (!rest || tile.destroyed) return;
     tile.x = rest.x;
     tile.y = rest.y;
+    tile.rotation = rest.rotation;
   };
   const settleEntryTile = (tile: Tile) => {
     settleBoardPopInTile(tile);
@@ -224,6 +224,7 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
   };
   const popInPlan = createBoardPopInPlan(sourceTiles.length, Math.random, {
     positions: restPositions,
+    maxOffset: TILE * 0.42,
   });
   const list = popInPlan.map((step) => sourceTiles[step.tileIndex]);
   const shouldPlayGroupedEntryHaptics =
@@ -326,10 +327,10 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
       const tile = t as any;
       const popStep = popInPlan[i];
       const rest = restPositions[popStep.tileIndex];
-      const offset = meshOffsets[popStep.tileIndex];
       // Prime only tile positions; preserve board layout, cell identity and pivots.
-      tile.x = rest.x + offset.x;
-      tile.y = rest.y + offset.y;
+      tile.x = rest.x + popStep.startOffsetX;
+      tile.y = rest.y + popStep.startOffsetY;
+      tile.rotation = (restByTile.get(t)?.rotation || 0) + popStep.startRotation;
       // Start hidden
       tile.visible = true;
       tile.scale.set(0);
@@ -353,6 +354,7 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
       entryTimeline.to(tile, {
           x: rest.x,
           y: rest.y,
+          rotation: restByTile.get(t)?.rotation || 0,
           duration: d1 + d2 + d3,
           ease: 'back.out(1.7)',
         }, enterDel)
@@ -401,7 +403,11 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
 
     stopEntrySound = playBoardPopInSound(maxEndTime + 0.03);
 
-    console.log('🎯 Starting spatial cartoon pop-in', { tiles: list.length, ownerTimelines: activeTimelines.length });
+    console.log('🎯 Starting spatial cartoon pop-in', {
+      tiles: list.length,
+      preset: popInPlan[0]?.preset,
+      ownerTimelines: activeTimelines.length,
+    });
 
     // Fire onHalf at 50% of overall animation timeframe as well (not only by completion)
     if (typeof opts.onHalf === 'function') {
@@ -461,7 +467,8 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
 
   return new Promise(resolve => {
     let completed = 0;
-    let delayedCallRef: gsap.core.Tween | null = null;
+    let halfDelayedCall: gsap.core.Tween | null = null;
+    let exitSoundDelayedCall: gsap.core.Tween | null = null;
     let safetyTimeout: ReturnType<typeof setTimeout> | null = null;
     let settled = false;
     let stopExitSound: (() => void) | null = null;
@@ -469,7 +476,7 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
     const startExitSound = () => {
       if (settled || exitSoundStarted) return;
       exitSoundStarted = true;
-      stopExitSound = playBoardPopInSound(maxEndTime);
+      stopExitSound = playBoardPopInSound(maxEndTime * 0.6, 'exit');
     };
 
     const finish = () => {
@@ -481,10 +488,8 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
         clearTimeout(safetyTimeout);
         safetyTimeout = null;
       }
-      if (delayedCallRef) {
-        try { delayedCallRef.kill(); } catch {}
-        delayedCallRef = null;
-      }
+      if (halfDelayedCall) { try { halfDelayedCall.kill(); } catch {} halfDelayedCall = null; }
+      if (exitSoundDelayedCall) { try { exitSoundDelayedCall.kill(); } catch {} exitSoundDelayedCall = null; }
       resolve();
     };
 
@@ -538,7 +543,6 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
 
       const timeline = trackTimeline({
         delay: exitDel,
-        onStart: startExitSound,
         onComplete: () => {
           completed++;
           // Halfway callback (50% tiles exited)
@@ -597,10 +601,16 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
 
     console.log('🎯 Starting board exit pop-out — random order like entry');
 
+    // Let the visual exit establish itself first, then start the shared exit mix
+    // at exactly 40% of the complete computed pop-out window.
+    if (!settled && activeTimelines.length > 0) {
+      exitSoundDelayedCall = trackDelayedCall(maxEndTime * 0.4, startExitSound);
+    }
+
     // Fire onHalf at 50% of overall animation timeframe
     if (typeof opts.onHalf === 'function') {
       const fireAt = Math.max(0.01, maxEndTime * 0.5);
-      delayedCallRef = trackDelayedCall(fireAt, () => {
+      halfDelayedCall = trackDelayedCall(fireAt, () => {
         if (!halfFired) {
           halfFired = true;
           try {
@@ -614,7 +624,8 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
     safetyTimeout = setTimeout(() => {
       console.warn('⚠️ sweetPopOut: Safety timeout - killing all timelines and resolving');
       activeTimelines.forEach(tl => { try { tl.kill(); } catch {} });
-      if (delayedCallRef) { try { delayedCallRef.kill(); } catch {} }
+      if (halfDelayedCall) { try { halfDelayedCall.kill(); } catch {} }
+      if (exitSoundDelayedCall) { try { exitSoundDelayedCall.kill(); } catch {} }
       finish();
     }, 5000); // 5 second safety
     if (settled && safetyTimeout) {
@@ -628,7 +639,8 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
       stopExitSound = null;
       if (safetyTimeout) clearTimeout(safetyTimeout);
       activeTimelines.forEach(tl => { try { tl.kill(); } catch {} });
-      if (delayedCallRef) { try { delayedCallRef.kill(); } catch {} }
+      if (halfDelayedCall) { try { halfDelayedCall.kill(); } catch {} }
+      if (exitSoundDelayedCall) { try { exitSoundDelayedCall.kill(); } catch {} }
     };
   });
 }

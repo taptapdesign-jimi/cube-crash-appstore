@@ -604,22 +604,31 @@ async function playClearPhase(
   prepareBubblyLetters(titleLetters);
   prepareBubblyLetters(subtitleLetters);
 
-  const thumbTimeline = gsap.timeline();
-  activeTimelines.push(thumbTimeline);
-  thumbTimeline
-    .to(thumbShadow, { opacity: 1, scaleX: 1, scaleY: 1, duration: 0.24, ease: 'power2.out' }, 0.08)
-    .to(thumb, {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      rotation: 0,
-      duration: 0.42,
-      ease: 'back.out(2.05)',
-      onStart: () => {
-        if (isCurrent()) playArcadeStageClearThumbWhooshSound();
+  // Arm completion before the timeline starts. The title can take longer than
+  // the thumb, so attaching an eventCallback only after the title resolves can
+  // wait forever for an onComplete event that already fired.
+  const thumbArrivalPromise = waitForOwnedCompletion((resolveThumbArrival) => {
+    const thumbTimeline = gsap.timeline({
+      onComplete: () => {
+        playThumbArrivalShake(clearCard, thumb);
+        resolveThumbArrival();
       },
-      onComplete: () => playThumbArrivalShake(clearCard, thumb),
-    }, 0.06);
+    });
+    activeTimelines.push(thumbTimeline);
+    thumbTimeline
+      .to(thumbShadow, { opacity: 1, scaleX: 1, scaleY: 1, duration: 0.24, ease: 'power2.out' }, 0.08)
+      .to(thumb, {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        rotation: 0,
+        duration: 0.42,
+        ease: 'back.out(2.05)',
+        onStart: () => {
+          if (isCurrent()) playArcadeStageClearThumbWhooshSound();
+        },
+      }, 0.06);
+  });
 
   triggerHeavyHaptic();
   await playBubblyLetterEnter(titleLetters, 0, () => {
@@ -628,7 +637,7 @@ async function playClearPhase(
   if (!isCurrent()) return;
   await Promise.all([
     playBubblyLetterEnter(subtitleLetters, 0),
-    waitForOwnedCompletion((resolve) => thumbTimeline.eventCallback('onComplete', resolve)),
+    thumbArrivalPromise,
   ]);
   if (!isCurrent()) return;
 

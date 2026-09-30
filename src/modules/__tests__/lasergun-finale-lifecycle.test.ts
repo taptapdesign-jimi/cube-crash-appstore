@@ -9,8 +9,6 @@ import {
   completeActiveLaserGunFinaleImpacts,
   LASERGUN_BEAM_BRIGHTNESS_SCALE,
   LASERGUN_BEAM_COUNT,
-  LASERGUN_BEAM_FADE_SECONDS,
-  LASERGUN_BEAM_FADE_DELAY_SECONDS,
   LASERGUN_BEAM_GLOW_ALPHA,
   LASERGUN_BEAM_GLOW_BLUR_PX,
   LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS,
@@ -359,7 +357,7 @@ describe('LaserGun finale lifecycle', () => {
     cleanup();
   });
 
-  test('starts cube inflation 300ms before the callback that launches beam travel', async () => {
+  test('keeps the beam hidden through firing lead and retires it at exact contact', async () => {
     const frames = installRafQueue();
     const overlay = document.createElement('div');
     document.body.appendChild(overlay);
@@ -374,9 +372,7 @@ describe('LaserGun finale lifecycle', () => {
     const finalScaleX = Number(gsap.getProperty(scaleLayer, 'scaleX'));
     const animationsBeforeCommit = new Set(gsap.globalTimeline.getChildren(true, true, true));
 
-    let synchronousArrivals = 0;
-    expect(triggerActiveLaserGunFinaleImpact(0, () => { synchronousArrivals++; })).toBe(true);
-    expect(synchronousArrivals).toBe(1);
+    expect(triggerActiveLaserGunFinaleImpact(0)).toBe(true);
     const arrival = waitForActiveLaserGunFinaleImpactArrival(0);
     const beamLaunch = waitForActiveLaserGunFinaleBeamLaunch(0);
     expect(Number(gsap.getProperty(scaleLayer, 'scaleX'))).toBeCloseTo(finalScaleX, 6);
@@ -391,11 +387,7 @@ describe('LaserGun finale lifecycle', () => {
         !animationsBeforeCommit.has(animation)
         && animation instanceof gsap.core.Timeline
         && Math.abs(
-          animation.duration() - (
-            LASERGUN_BEAM_TRAVEL_SECONDS
-            + LASERGUN_BEAM_FADE_DELAY_SECONDS
-            + LASERGUN_BEAM_FADE_SECONDS
-          ),
+          animation.duration() - LASERGUN_BEAM_TRAVEL_SECONDS,
         ) < 0.001
       )) as gsap.core.Timeline | undefined;
     expect(beamTimeline).toBeDefined();
@@ -410,16 +402,14 @@ describe('LaserGun finale lifecycle', () => {
     expect(LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS).toBe(0.3);
 
     beamTimeline!.time(LASERGUN_BEAM_TRAVEL_SECONDS * 0.5, false);
-    expect(synchronousArrivals).toBe(1);
     expect(Number(gsap.getProperty(scaleLayer, 'scaleX'))).toBeLessThan(finalScaleX);
 
     beamTimeline!.time(LASERGUN_BEAM_TRAVEL_SECONDS + 0.001, false);
-    expect(synchronousArrivals).toBe(1);
-    // Cube callback already fired at trigger; arrival remains scheduler-only.
+    // Contact resolution remains scheduler-owned until its promise settles.
     expect(arrivalSettled).toBe(false);
     await expect(arrival).resolves.toBe(true);
     expect(Number(gsap.getProperty(scaleLayer, 'scaleX'))).toBeCloseTo(finalScaleX, 6);
-    expect(beam.style.opacity).toBe('1');
+    expect(beam.style.opacity).toBe('0');
 
     beamTimeline!.progress(1, false);
     expect(Number(gsap.getProperty(beam, 'opacity'))).toBeCloseTo(0, 6);
@@ -464,6 +454,7 @@ describe('LaserGun finale lifecycle', () => {
       const beam = overlay.querySelector(
         `.cc-lasergun-beam[data-lasergun-target="${index}"]`,
       ) as HTMLElement;
+      const beamScaleLayer = beam.closest('.cc-lasergun-beam-scale') as HTMLElement;
       const gun = overlay.querySelector(
         `.cc-lasergun-rig[data-lasergun-target="${index}"]`,
       ) as HTMLElement;
@@ -516,6 +507,11 @@ describe('LaserGun finale lifecycle', () => {
       expect(gsap.getTweensOf(gun).some((tween) => (
         Math.abs(tween.duration() - LASERGUN_EXIT_TRAVEL_SECONDS) < 0.001
       ))).toBe(true);
+      const beamTravelTween = gsap.getTweensOf(beamScaleLayer)
+        .find((tween) => Math.abs(tween.duration() - LASERGUN_BEAM_TRAVEL_SECONDS) < 0.001)!;
+      const beamTimeline = beamTravelTween.parent as gsap.core.Timeline;
+      beamTimeline.time(LASERGUN_BEAM_TRAVEL_SECONDS + 0.0001, false);
+      expect(beam.style.opacity).toBe('0');
       const exitTravelTween = gsap.getTweensOf(gun)
         .find((tween) => Math.abs(tween.duration() - LASERGUN_EXIT_TRAVEL_SECONDS) < 0.001)!;
       const exitTimeline = exitTravelTween.parent as gsap.core.Timeline;
@@ -530,7 +526,7 @@ describe('LaserGun finale lifecycle', () => {
       expect(Number(gsap.getProperty(frame, 'scaleY'))).toBeCloseTo(firedImageScaleY, 6);
       expect(Number(gsap.getProperty(frame, 'rotation'))).toBeCloseTo(firedImageRotation, 6);
       expect(frame.src).toContain(LASERGUN_FRAME_SOURCES[0].replace('./', '/'));
-      expect(beam.style.opacity).toBe('1');
+      expect(beam.style.opacity).toBe('0');
       expect(Number(gsap.getProperty(gun, 'opacity'))).toBe(1);
 
       exitTimeline.time(
@@ -559,9 +555,7 @@ describe('LaserGun finale lifecycle', () => {
 
     completeActiveLaserGunFinaleImpacts();
     const lastBeam = overlay.querySelector('.cc-lasergun-beam[data-lasergun-target="3"]') as HTMLElement;
-    const fadeTween = gsap.getTweensOf(lastBeam)
-      .find((tween) => Math.abs(tween.duration() - LASERGUN_BEAM_FADE_SECONDS) < 0.001);
-    expect(fadeTween).toBeDefined();
+    expect(gsap.getTweensOf(lastBeam)).toHaveLength(0);
     expect(Array.from(overlay.querySelectorAll('.cc-lasergun-rig')).every(
       (candidate) => (candidate as HTMLElement).style.visibility === 'hidden',
     )).toBe(true);

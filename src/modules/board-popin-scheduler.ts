@@ -1,4 +1,5 @@
 export type BoardPopInStep = {
+  preset: BoardPopInPreset;
   tileIndex: number;
   enterDelay: number;
   amplitude: number;
@@ -7,7 +8,12 @@ export type BoardPopInStep = {
   reboundDuration: number;
   settleDuration: number;
   endTime: number;
+  startOffsetX: number;
+  startOffsetY: number;
+  startRotation: number;
 };
+
+export type BoardPopInPreset = 'inward' | 'outward' | 'diagonal' | 'burst';
 
 /** Up to six compact group beats contained inside the actual random entry wave. */
 export function createBoardPopInHapticSchedule(
@@ -44,7 +50,15 @@ export function createBoardPopInHapticSchedule(
 type PopInPlanOptions = {
   maxEntryWave?: number;
   positions?: ReadonlyArray<{ x: number; y: number }>;
+  preset?: BoardPopInPreset;
+  maxOffset?: number;
 };
+
+const POP_IN_PRESETS: readonly BoardPopInPreset[] = ['inward', 'outward', 'diagonal', 'burst'];
+
+function clampUnit(value: number): number {
+  return Math.max(0, Math.min(0.999999, Number.isFinite(value) ? value : 0));
+}
 
 export function createBoardPopInPlan(
   tileCount: number,
@@ -53,31 +67,30 @@ export function createBoardPopInPlan(
 ): BoardPopInStep[] {
   const count = Math.max(0, Math.floor(Number(tileCount) || 0));
   const order = Array.from({ length: count }, (_, index) => index);
-  for (let i = order.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1));
-    [order[i], order[j]] = [order[j], order[i]];
-  }
+  const preset = options.preset ?? POP_IN_PRESETS[Math.floor(clampUnit(random()) * POP_IN_PRESETS.length)];
+  const selectedCorner = Math.floor(clampUnit(random()) * 4);
 
-  // Spatial order is computed once, never per frame. Prefer a location far
-  // from BOTH preceding entries so a short overlap cannot form a local clump.
   const positions = options.positions;
   if (positions?.length === count && positions.every(p => Number.isFinite(p.x) && Number.isFinite(p.y))) {
-    const width = Math.max(1, Math.max(...positions.map(p => p.x)) - Math.min(...positions.map(p => p.x)));
-    const height = Math.max(1, Math.max(...positions.map(p => p.y)) - Math.min(...positions.map(p => p.y)));
-    for (let i = 1; i < order.length; i++) {
-      let best = i;
-      let bestDistance = -1;
-      for (let j = i; j < order.length; j++) {
-        const candidate = positions[order[j]];
-        let distance = Infinity;
-        for (let k = Math.max(0, i - 2); k < i; k++) {
-          const previous = positions[order[k]];
-          distance = Math.min(distance,
-            ((candidate.x - previous.x) / width) ** 2 + ((candidate.y - previous.y) / height) ** 2);
-        }
-        if (distance > bestDistance) { bestDistance = distance; best = j; }
-      }
-      [order[i], order[best]] = [order[best], order[i]];
+    const minX = Math.min(...positions.map(p => p.x));
+    const maxX = Math.max(...positions.map(p => p.x));
+    const minY = Math.min(...positions.map(p => p.y));
+    const maxY = Math.max(...positions.map(p => p.y));
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    const cornerX = selectedCorner % 2 === 0 ? minX : maxX;
+    const cornerY = selectedCorner < 2 ? minY : maxY;
+    const score = (index: number) => {
+      const point = positions[index];
+      if (preset === 'diagonal') return Math.abs(point.x - cornerX) + Math.abs(point.y - cornerY);
+      const distance = Math.hypot(point.x - centerX, point.y - centerY);
+      return preset === 'inward' ? -distance : distance;
+    };
+    order.sort((a, b) => score(a) - score(b) || a - b);
+  } else {
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(clampUnit(random()) * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
     }
   }
 
@@ -87,6 +100,13 @@ export function createBoardPopInPlan(
   const lastDelay = Math.max(firstDelay, Math.min(options.maxEntryWave ?? 0.38, 0.38));
   const stagger = count > 1 ? Math.min(0.018, (lastDelay - firstDelay) / (count - 1)) : 0;
 
+  const maxOffset = Math.max(0, options.maxOffset ?? 40);
+  const centerX = positions?.length ? (Math.min(...positions.map(p => p.x)) + Math.max(...positions.map(p => p.x))) / 2 : 0;
+  const centerY = positions?.length ? (Math.min(...positions.map(p => p.y)) + Math.max(...positions.map(p => p.y))) / 2 : 0;
+  const maxRadius = positions?.length
+    ? Math.max(1, ...positions.map(p => Math.hypot(p.x - centerX, p.y - centerY)))
+    : 1;
+
   return order.map((tileIndex, index) => {
     const enterDelay = firstDelay + index * stagger;
     // Match the accepted spawnBounce scale rhythm in app-spawn/spawn-helpers.
@@ -95,7 +115,23 @@ export function createBoardPopInPlan(
     const compressDuration = 0.12;
     const reboundDuration = 0.12;
     const settleDuration = 0.14;
+    const point = positions?.[tileIndex];
+    const radialX = point ? (point.x - centerX) / maxRadius : 0;
+    const radialY = point ? (point.y - centerY) / maxRadius : 0;
+    const direction = preset === 'inward' ? 1 : preset === 'outward' || preset === 'burst' ? -1 : 0;
+    const diagonalSignX = selectedCorner % 2 === 0 ? -1 : 1;
+    const diagonalSignY = selectedCorner < 2 ? -1 : 1;
+    const offsetScale = preset === 'burst' ? 0.72 : preset === 'outward' ? 0.58 : 1;
+    const startOffsetX = preset === 'diagonal'
+      ? diagonalSignX * maxOffset * 0.52
+      : radialX * maxOffset * direction * offsetScale;
+    const startOffsetY = preset === 'diagonal'
+      ? diagonalSignY * maxOffset * 0.52
+      : radialY * maxOffset * direction * offsetScale;
+    const rotationLimit = preset === 'burst' ? 8 : 6;
+    const startRotation = ((clampUnit(random()) * 2) - 1) * rotationLimit * (Math.PI / 180);
     return {
+      preset,
       tileIndex,
       enterDelay,
       amplitude,
@@ -104,6 +140,9 @@ export function createBoardPopInPlan(
       reboundDuration,
       settleDuration,
       endTime: enterDelay + growDuration + compressDuration + reboundDuration + settleDuration,
+      startOffsetX,
+      startOffsetY,
+      startRotation,
     };
   });
 }

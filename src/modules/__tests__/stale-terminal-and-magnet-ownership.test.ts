@@ -39,6 +39,7 @@ describe('production terminal and Magnet async ownership', () => {
       boardNumber: 1,
       hud: {},
       acquirePixiMobileActivityLease: () => noop,
+      endMerge6ResolutionFrames: noop,
       logger: { info: noop, debug: noop, warn: noop },
       getScreenVisibility: () => ({
         appVisible: true,

@@ -7,10 +7,10 @@
       "family": "Navigation/CTA",
       "eventOwner": "Initial studio logo enter uses a visual-specific family: Nala for all three dog visuals lik-pas-SVG, pas novine and lik-speceraj; smile overlays the smiling lik-speceraj, lik-game, rocking-chair lik-laptop and both dog visuals; paperbag overlays lik-speceraj only; guitar1/2 serves lik-gitara; chair serves rocking lik-laptop; sleepy2 plus midpoint sleepy1 serves sleeping lik-kauc; one updated nogomet cue serves lik-nogomet; one kokcice cue serves dice-throwing lik-board; one camera cue serves lik slikanje; one watering cue serves lik-cvijet; and simultaneous gamer plus gemer2 layers serve controller-playing lik-game.",
       "transport": "Shared decoded gameplay SFX engine with one bounded 1.44-second audio-clock delayed start for sleepy layering; no additional AudioContext, timer or media fallback.",
-      "voicePolicy": "One shared character voice at .7 base gain (.42 effective), plus two bounded sleepy voices. Sleeping armchair starts sleepy2, then overlays sleepy1 at the exact 1.44-second midpoint. Other families retain their authored selection/sequence.",
+      "voicePolicy": "One shared character voice at .7 base gain (.42 effective), plus a dedicated smile voice at .84 base gain (.504 effective) and two bounded sleepy voices. Sleeping armchair starts sleepy2, then overlays sleepy1 at the exact 1.44-second midpoint. Other families retain their authored selection/sequence.",
       "preloadPolicy": "Prepare only the source family matching the accepted random launch visual while Sounds are enabled; unrelated launch cues are not loaded.",
       "settingsPolicy": "Preload/start require gameSoundsEnabled; global Sounds OFF invokes the full stop.",
-      "interruptionPolicy": "Replacement or full stop stops the shared character voice and both immediate and audio-clock-scheduled sleepy voices after launch removal, hidden/pagehide or Sounds OFF.",
+      "interruptionPolicy": "Replacement or full stop retires the shared character, gamer, smile, paperbag and both immediate and audio-clock-scheduled sleepy voices after launch removal, hidden/pagehide or Sounds OFF.",
       "stopExport": "stopLaunchLogoTransitionSound",
       "globalRegistryRequired": true,
       "sources": [
@@ -35,7 +35,7 @@
         "src/modules/__tests__/launch-logo-transition-sound.test.ts",
         "src/modules/__tests__/thermal-gameplay-audio-cleanup.test.ts"
       ],
-      "physicalAcceptance": "NEEDS PHYSICAL TEST for logo-enter sync, random variety and 70-percent speaker balance."
+      "physicalAcceptance": "NEEDS PHYSICAL TEST for logo-enter sync, random variety, the 84-percent smile balance and the unchanged companion cues."
     },
     {
       "id": "homepage-slider-motion",
@@ -86,10 +86,10 @@
       "id": "board-popin",
       "ownerFile": "src/modules/board-popin-sound.ts",
       "family": "Gameplay",
-      "eventOwner": "Shared sweetPopIn visible mesh/bounce entry for fresh, retry and Continue boards. Also sweetPopOut: first visible tile timeline onStart triggers the same mix once for the whole board exit, never per tile.",
+      "eventOwner": "Shared sweetPopIn visible mesh/bounce entry for fresh, retry and Continue boards. Also sweetPopOut: one lifecycle-tracked call at 40 percent of the computed whole-board exit window triggers the shared three-layer exit mix once, never per tile.",
       "transport": "Shared decoded gameplay SFX engine; no additional media/context or fallback.",
-      "voicePolicy": "Three stable voices for one entrance: setting up boards at.5 base gain, plump and setting up2 at.7. Replacement invalidates prior active/pending layers and scoped stop token.",
-      "preloadPolicy": "Warm only the three supplied layers during fresh/load entry preparation when Sounds are enabled. Never await audio to reveal the board.",
+      "voicePolicy": "Three stable shared entry/exit voices: setting up boards at.5 base gain, plump and setting up2 at.7. Enter adds one stable cubes voice at.4 base gain; exit never plays cubes. Replacement invalidates prior active/pending layers and scoped stop token.",
+      "preloadPolicy": "Warm the four supplied entry layers during fresh/load entry preparation when Sounds are enabled. Never await audio to reveal the board.",
       "settingsPolicy": "Preload/start require gameSoundsEnabled; global registry full-stop cancels pending/active voice. ON never replays.",
       "interruptionPolicy": "Normal animation completion, abort, watchdog, replacement and global stop retire the voice; engine owns hidden/pagehide and isolation. Audio-clock cutoff and 50ms fade bound playback to entry duration. Exit completion/watchdog/external cleanup retires the scoped voice; shared generation protects successor entry/exit. No sound for invalid-only exits.",
       "stopExport": "stopBoardPopInSound",
@@ -97,7 +97,8 @@
       "sources": [
         "./assets/sound/board etting up/setting up boards.wav",
         "./assets/sound/board etting up/plump.wav",
-        "./assets/sound/board etting up/setting up2.wav"
+        "./assets/sound/board etting up/setting up2.wav",
+        "./assets/sound/board etting up/cubes.wav"
       ],
       "tests": [
         "src/modules/__tests__/board-popin-sound.test.ts",

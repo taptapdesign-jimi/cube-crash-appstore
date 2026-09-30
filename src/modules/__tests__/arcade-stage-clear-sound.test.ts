@@ -105,7 +105,7 @@ describe('Arcade stage-clear result sounds', () => {
       modal.indexOf('export async function showArcadeContinuationRoundCue('),
       modal.indexOf('export function cancelArcadeStageClearModal('),
     );
-    expect(clear).toContain('onStart: () => {\n        if (isCurrent()) playArcadeStageClearThumbWhooshSound();');
+    expect(clear).toMatch(/onStart:\s*\(\) => \{\s*if \(isCurrent\(\)\) playArcadeStageClearThumbWhooshSound\(\);/);
     expect(clear).toContain('playBubblyLetterEnter(titleLetters, 0, () => {\n    if (isCurrent()) playArcadeStageClearCelebrationSounds();');
     expect(modal).toContain('if (index === 0 && isCurrent()) onFirstDigitExit?.();');
     expect(modal).toContain('playRoundNumberPhase(parts, nextStage, isCurrent, fadeOutArcadeStageClearCelebrationSounds)');

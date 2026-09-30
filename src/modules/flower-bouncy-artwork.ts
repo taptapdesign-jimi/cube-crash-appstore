@@ -1,6 +1,6 @@
 import { isSpecialDiceIdlePaintable } from './special-dice-idle-visibility.ts';
 import { retireFailedSpecialTickerOwner } from './special-ticker-error.ts';
-import { Assets, Container, Sprite, type Texture } from 'pixi.js';
+import { Assets, Container, Graphics, Matrix, Sprite, type Texture } from 'pixi.js';
 import { STATE } from './app-state.ts';
 import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
 import {
@@ -42,6 +42,27 @@ type FlowerPose = {
   rotationDegrees: number;
 };
 
+type FlowerPollenPaint =
+  | {
+      kind: 'ellipse';
+      color: number;
+      fillAlpha: number;
+      width: number;
+      height: number;
+    }
+  | {
+      kind: 'polygon';
+      color: number;
+      fillAlpha: number;
+      points: number[];
+    }
+  | {
+      kind: 'double-ellipse';
+      color: number;
+      fillAlpha: number;
+      radius: number;
+    };
+
 type FlowerBouncyController = {
   tile: any;
   base: any;
@@ -51,6 +72,8 @@ type FlowerBouncyController = {
   scalePivot: Container | null;
   rotationPivot: Container | null;
   artwork: Sprite | null;
+  pollenLayer: Container | null;
+  pollenNodes: Map<any, Graphics>;
   originalRenderable: boolean;
   dragging: boolean;
   ready: boolean;
@@ -87,6 +110,135 @@ const controllers = new Map<any, FlowerBouncyController>();
 let sharedTexture: Texture | null = null;
 let sharedTexturePromise: Promise<Texture> | null = null;
 let runtimeTicker: any = null;
+const worldMatrixChain: any[] = [];
+const canvasWorldMatrix = new Matrix();
+const inverseCanvasWorldMatrix = new Matrix();
+const particleWorldMatrix = new Matrix();
+const relativePollenMatrix = new Matrix();
+
+function writeDisplayWorldMatrix(displayObject: any, output: Matrix): boolean {
+  if (!displayObject || displayObject.destroyed) return false;
+  worldMatrixChain.length = 0;
+  for (let current = displayObject; current; current = current.parent) worldMatrixChain.push(current);
+  output.identity();
+  for (let index = worldMatrixChain.length - 1; index >= 0; index -= 1) {
+    const current = worldMatrixChain[index];
+    try { current.updateLocalTransform?.(); } catch { return false; }
+    const local = current.localTransform;
+    if (!local) return false;
+    output.append(local);
+  }
+  return true;
+}
+
+function createFrontPollenNode(paint: FlowerPollenPaint): Graphics {
+  const node = new Graphics();
+  node.label = 'flower-bouncy-front-pollen-pixi';
+  node.eventMode = 'none';
+  if (paint.kind === 'ellipse') {
+    node.ellipse(0, 0, paint.width, paint.height).fill({
+      color: paint.color,
+      alpha: paint.fillAlpha,
+    });
+  } else if (paint.kind === 'polygon') {
+    node.poly(paint.points).fill({ color: paint.color, alpha: paint.fillAlpha });
+  } else {
+    node
+      .ellipse(-paint.radius * 0.3, 0, paint.radius * 0.72, paint.radius * 0.42)
+      .ellipse(paint.radius * 0.5, paint.radius * 0.12, paint.radius * 0.4, paint.radius * 0.25)
+      .fill({ color: paint.color, alpha: paint.fillAlpha });
+  }
+  return node;
+}
+
+function releaseFrontPollenParticle(controller: FlowerBouncyController, particle: any): void {
+  const node = controller.pollenNodes.get(particle);
+  if (node) {
+    controller.pollenNodes.delete(particle);
+    try { node.parent?.removeChild(node); } catch {}
+    try { node.destroy(); } catch {}
+  }
+  if (particle?._ccFlowerFrontPollenOwner !== controller) return;
+  try {
+    if (!particle.destroyed) {
+      particle.renderable = particle._ccFlowerFrontPollenRenderableBefore !== false;
+    }
+  } catch {}
+  delete particle._ccFlowerFrontPollenOwner;
+  delete particle._ccFlowerFrontPollenRenderableBefore;
+}
+
+function releaseFrontPollenSystem(controller: FlowerBouncyController): void {
+  Array.from(controller.pollenNodes.keys()).forEach((particle) => {
+    releaseFrontPollenParticle(controller, particle);
+  });
+  if (controller.pollenLayer) {
+    controller.pollenLayer.visible = false;
+    controller.pollenLayer.renderable = false;
+  }
+}
+
+function syncFrontPollen(controller: FlowerBouncyController): void {
+  const { canvas, pollenLayer } = controller;
+  const owned = controller.tile?._flowerPollenParticles;
+  if (!canvas || !pollenLayer || !(owned instanceof Set)) {
+    releaseFrontPollenSystem(controller);
+    return;
+  }
+  if (!writeDisplayWorldMatrix(canvas, canvasWorldMatrix)) {
+    releaseFrontPollenSystem(controller);
+    return;
+  }
+  const determinant = canvasWorldMatrix.a * canvasWorldMatrix.d
+    - canvasWorldMatrix.b * canvasWorldMatrix.c;
+  if (!Number.isFinite(determinant) || Math.abs(determinant) < 0.000001) {
+    releaseFrontPollenSystem(controller);
+    return;
+  }
+  inverseCanvasWorldMatrix.copyFrom(canvasWorldMatrix).invert();
+
+  controller.pollenNodes.forEach((_node, particle) => {
+    if (
+      !owned.has(particle)
+      || !particle
+      || particle.destroyed
+      || !particle._ccFlowerPollenPaint
+      || particle._ccFlowerFrontPollenOwner !== controller
+    ) releaseFrontPollenParticle(controller, particle);
+  });
+  let visibleCount = 0;
+  owned.forEach((particle: any) => {
+    const paint = particle?._ccFlowerPollenPaint as FlowerPollenPaint | undefined;
+    if (!particle || particle.destroyed || !paint) return;
+    const currentOwner = particle._ccFlowerFrontPollenOwner;
+    if (currentOwner && currentOwner !== controller) return;
+    if (!writeDisplayWorldMatrix(particle, particleWorldMatrix)) {
+      releaseFrontPollenParticle(controller, particle);
+      return;
+    }
+    relativePollenMatrix.copyFrom(inverseCanvasWorldMatrix).append(particleWorldMatrix);
+
+    let node = controller.pollenNodes.get(particle);
+    if (!node || node.destroyed) {
+      node = createFrontPollenNode(paint);
+      controller.pollenNodes.set(particle, node);
+      pollenLayer.addChild(node);
+    }
+    if (!currentOwner) {
+      particle._ccFlowerFrontPollenOwner = controller;
+      particle._ccFlowerFrontPollenRenderableBefore = particle.renderable !== false;
+    }
+    particle.renderable = false;
+    node.setFromMatrix(relativePollenMatrix);
+    node.alpha = Math.max(0, Math.min(1, Number(particle.alpha) || 0));
+    node.visible = particle.visible !== false
+      && particle._ccFlowerFrontPollenRenderableBefore !== false;
+    node.renderable = node.visible;
+    visibleCount += 1;
+  });
+  pollenLayer.visible = visibleCount > 0;
+  pollenLayer.renderable = pollenLayer.visible;
+}
 
 function cubicCoordinate(t: number, first: number, second: number): number {
   const inverse = 1 - t;
@@ -217,6 +369,7 @@ function disposeController(controller: FlowerBouncyController): void {
   controller.phaseLease = null;
   if (controller.retryTimer !== null) clearTimeout(controller.retryTimer);
   controller.retryTimer = null;
+  releaseFrontPollenSystem(controller);
   try { releaseAnimatedDiceAboveHud(controller); } catch {}
   if (controller.canvas) {
     try { controller.canvas.parent?.removeChild(controller.canvas); } catch {}
@@ -227,6 +380,7 @@ function disposeController(controller: FlowerBouncyController): void {
   controller.scalePivot = null;
   controller.rotationPivot = null;
   controller.artwork = null;
+  controller.pollenLayer = null;
   try { if (controller.base && !controller.base.destroyed) controller.base.renderable = controller.originalRenderable; } catch {}
   if (controllers.size === 0) detachTicker();
 }
@@ -246,6 +400,7 @@ function updateController(controller: FlowerBouncyController, deltaMs: number): 
     return;
   }
   if (!hostIsAttached) {
+    releaseFrontPollenSystem(controller);
     base.renderable = controller.originalRenderable;
     if (canvas) {
       canvas.visible = false;
@@ -255,6 +410,7 @@ function updateController(controller: FlowerBouncyController, deltaMs: number): 
   }
   controller.hasReachedLiveStage = true;
   if (!canvas || !animatedRoot || !scalePivot || !rotationPivot || !artwork || !controller.ready || !controller.running) {
+    releaseFrontPollenSystem(controller);
     base.renderable = controller.originalRenderable;
     if (canvas) canvas.renderable = false;
     return;
@@ -265,6 +421,11 @@ function updateController(controller: FlowerBouncyController, deltaMs: number): 
   canvas.visible = visible;
   canvas.renderable = visible;
   if (!visible) {
+    if (controller.dragging) releaseFrontPollenSystem(controller);
+    else if (controller.pollenLayer) {
+      controller.pollenLayer.visible = false;
+      controller.pollenLayer.renderable = false;
+    }
     base.renderable = controller.originalRenderable;
     return;
   }
@@ -277,12 +438,14 @@ function updateController(controller: FlowerBouncyController, deltaMs: number): 
   let foregroundSynced = syncAnimatedDiceAboveHud(controller);
   if (!foregroundSynced) foregroundSynced = mountAnimatedDiceAboveHud(controller, canvas, host);
   if (!foregroundSynced) {
+    releaseFrontPollenSystem(controller);
     base.renderable = controller.originalRenderable;
     canvas.visible = false;
     canvas.renderable = false;
     return;
   }
   base.renderable = false;
+  syncFrontPollen(controller);
 }
 
 function updateAllControllers(ticker?: any): void {
@@ -310,6 +473,7 @@ function mountFlowerArtwork(controller: FlowerBouncyController, retry = 0): void
     canvas.zIndex = (Number(base.zIndex) || 0) + 0.01;
 
     const animatedRoot = new Container();
+    animatedRoot.zIndex = 1;
     const scalePivot = new Container();
     scalePivot.position.set(80, 117);
     const rotationPivot = new Container();
@@ -323,7 +487,15 @@ function mountFlowerArtwork(controller: FlowerBouncyController, retry = 0): void
     rotationPivot.addChild(artwork);
     scalePivot.addChild(rotationPivot);
     animatedRoot.addChild(scalePivot);
+    const pollenLayer = new Container();
+    pollenLayer.label = 'flower-bouncy-front-pollen-pixi';
+    pollenLayer.eventMode = 'none';
+    pollenLayer.zIndex = 2;
+    pollenLayer.visible = false;
+    pollenLayer.renderable = false;
+    canvas.sortableChildren = true;
     canvas.addChild(animatedRoot);
+    canvas.addChild(pollenLayer);
     canvas.visible = false;
     canvas.renderable = false;
     host.sortableChildren = true;
@@ -334,6 +506,7 @@ function mountFlowerArtwork(controller: FlowerBouncyController, retry = 0): void
     controller.scalePivot = scalePivot;
     controller.rotationPivot = rotationPivot;
     controller.artwork = artwork;
+    controller.pollenLayer = pollenLayer;
     if (isAnimatedDiceSourceOnLiveStage(host)) mountAnimatedDiceAboveHud(controller, canvas, host);
     controller.ready = true;
     ensureTicker(findTileTicker(tile));
@@ -382,6 +555,8 @@ export function startFlowerBouncyArtwork(tile: any): FlowerBouncyController | nu
     scalePivot: null,
     rotationPivot: null,
     artwork: null,
+    pollenLayer: null,
+    pollenNodes: new Map(),
     originalRenderable: base.renderable !== false,
     dragging: false,
     ready: false,

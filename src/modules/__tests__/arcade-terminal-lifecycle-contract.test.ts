@@ -80,6 +80,24 @@ describe('Arcade terminal lifecycle regression contract', () => {
     expect(modal.match(/waitForOwnedCompletion\(/g)?.length).toBeGreaterThanOrEqual(8);
   });
 
+  test('thumb completion is armed before its timeline can finish and cannot strand Round 02', () => {
+    const modal = fs.readFileSync(path.join(repoRoot, 'src/modules/arcade-stage-clear-modal.ts'), 'utf8');
+    const clearPhase = modal.slice(
+      modal.indexOf('async function playClearPhase('),
+      modal.indexOf('function animateBottomHudStageIndicator('),
+    );
+    const receipt = clearPhase.indexOf('const thumbArrivalPromise = waitForOwnedCompletion(');
+    const timeline = clearPhase.indexOf('const thumbTimeline = gsap.timeline({', receipt);
+    const titleWait = clearPhase.indexOf('await playBubblyLetterEnter(titleLetters', timeline);
+    const joinedWait = clearPhase.indexOf('thumbArrivalPromise,', titleWait);
+
+    expect(receipt).toBeGreaterThan(-1);
+    expect(timeline).toBeGreaterThan(receipt);
+    expect(titleWait).toBeGreaterThan(timeline);
+    expect(joinedWait).toBeGreaterThan(titleWait);
+    expect(clearPhase).not.toContain("thumbTimeline.eventCallback('onComplete'");
+  });
+
   test('Magnet commit abort rolls back ownership and schedules the central endgame check', () => {
     const source = fs.readFileSync(path.join(repoRoot, 'src/modules/app-core.ts'), 'utf8');
     expect(source).toContain('const magnetMergeCommitted = await handleWildMagnetMergedPulledTiles');

@@ -57,6 +57,9 @@ it('preserves halo ownership while hidden, resumes motion and removes the last t
     now += 40;
     tick!();
     expect(pose()).toEqual(initial);
+    expect(system.container.parent.alpha).toBe(0);
+    expect(system.container.parent.visible).toBe(false);
+    expect(getAnimatedDiceHudForegroundStats().owners).toBe(1);
     tile.alpha = 1;
     hidden = true;
     now += 10000;

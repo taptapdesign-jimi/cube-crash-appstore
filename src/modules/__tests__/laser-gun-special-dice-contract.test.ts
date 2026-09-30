@@ -20,8 +20,6 @@ import {
   getLaserGunStageCenterX,
   LASERGUN_BEAM_COUNT,
   LASERGUN_BEAM_BRIGHTNESS_SCALE,
-  LASERGUN_BEAM_FADE_DELAY_SECONDS,
-  LASERGUN_BEAM_FADE_SECONDS,
   LASERGUN_BEAM_GLOW_ALPHA,
   LASERGUN_BEAM_GLOW_BLUR_PX,
   LASERGUN_BEAM_LAUNCH_SCALE,
@@ -41,6 +39,7 @@ import {
   LASERGUN_MIN_BEAM_TRAVEL_PX,
   LASERGUN_LAYOUT_TRAVEL_MARGIN_PX,
   LASERGUN_MUZZLE_EDGE_INSET_RATIO,
+  LASERGUN_POST_CONTACT_GUN_HOLD_SECONDS,
   LASERGUN_RIG_MAX_WIDTH_PX,
   LASERGUN_LEFT_BEAM_GEOMETRY,
   LASERGUN_UPPER_GUN_TRANSFORM,
@@ -161,7 +160,7 @@ describe('LaserGun special die contract', () => {
     expect(LASERGUN_MAX_TARGETS).toBe(4);
     expect(LASERGUN_BEAM_COUNT).toBe(4);
     expect(LASERGUN_BEAM_TRAVEL_SECONDS).toBe(0.095);
-    expect(LASERGUN_BEAM_FADE_DELAY_SECONDS).toBe(0.24);
+    expect(LASERGUN_POST_CONTACT_GUN_HOLD_SECONDS).toBe(0.31);
     expect(LASERGUN_BEAM_LAUNCH_SCALE).toBe(0.06);
     expect(LASERGUN_TARGET_REACH_SCALE).toBe(1);
     expect(LASERGUN_BUILDUP_START_SECONDS).toBeGreaterThan(0);
@@ -176,8 +175,7 @@ describe('LaserGun special die contract', () => {
     expect(LASERGUN_GUN_TIME_SCALE).toBeCloseTo(LASERGUN_TIMING_SCALE / 0.70, 6);
     expect(LASERGUN_EXIT_DELAY_SECONDS).toBe(
       LASERGUN_BEAM_TRAVEL_SECONDS
-        + LASERGUN_BEAM_FADE_DELAY_SECONDS
-        + LASERGUN_BEAM_FADE_SECONDS,
+        + LASERGUN_POST_CONTACT_GUN_HOLD_SECONDS,
     );
     expect(LASERGUN_EXIT_DELAY_SECONDS).toBeGreaterThan(2 / 60);
     expect(LASERGUN_FIRST_SHOT_LEAD_MS).toBe(621);
@@ -254,45 +252,25 @@ describe('LaserGun special die contract', () => {
     expect(sceneSource).toContain('Two RAF boundaries guarantee one gun-only paint');
   });
 
-  test('keeps the intentional cube inflation under one owner until impact', () => {
+  test('retires the beam at contact and gives the same tile one canonical spawn bounce', () => {
     const coreSource = read('src/modules/app-core.ts');
+    const sceneSource = read('src/modules/lasergun-finale-scene.ts');
 
-    expect(coreSource).toContain('!(t.rotG as any)._ccLaserGunImpactTl');
-    expect(coreSource).toContain("'laser-gun-cube-impact',");
-    expect(coreSource).toContain("'laser-gun-cube-impact',\n\t            100,");
-    expect(coreSource).not.toContain('laserGunImpactTimelineSeconds');
-    expect(coreSource).toContain('const impactScale = tile.scale');
-    expect(coreSource).toContain('(impactVisual as any)._ccLaserGunImpactTl = anticipation');
-    expect(coreSource).toContain('(tile as any)._ccLaserGunImpactTl = anticipation');
-    expect(coreSource).toContain('impactScale.set?.(1, 1)');
-    expect(coreSource).toContain('x: LASERGUN_CUBE_ANTICIPATION_SCALE');
-    expect(coreSource).toContain('y: LASERGUN_CUBE_ANTICIPATION_SCALE');
-    expect(coreSource).toContain('x: LASERGUN_CUBE_CONTRACT_SCALE');
-    expect(coreSource).toContain('y: LASERGUN_CUBE_CONTRACT_SCALE');
-    expect(coreSource).toContain('x: LASERGUN_CUBE_REBOUND_SCALE');
-    expect(coreSource).not.toContain('LASERGUN_CUBE_SECOND_CONTRACT_SCALE');
-    expect(coreSource).not.toContain('LASERGUN_CUBE_SECOND_REBOUND_SCALE');
-    expect(coreSource).toContain('duration: LASERGUN_CUBE_SETTLE_SECONDS');
-    expect(coreSource).not.toContain('baseScaleX * LASERGUN_CUBE_ANTICIPATION_SCALE');
-    expect(coreSource).toContain('trackAppAnimationFrame(commitImpactBreak)');
-    expect(coreSource).toContain('trackAppTimeout(commitImpactBreak, 900)');
-    expect(coreSource).toContain('// one canonical pose. A stalled fourth shot can never remain large.');
-    expect(coreSource).toContain('restoreImpactPose();');
-    expect(coreSource).toContain('impactScale.set?.(1, 1)');
-    expect(coreSource).toContain('impactVisual.rotation = baseRotation');
-    expect(coreSource).toContain('laserGunPoseRestorers.add(restoreImpactPose)');
-    expect(coreSource).toContain('// its same-tile rebound pose on the playable board.');
-    expect(coreSource).toContain('// scene/scheduler cleanup can cross the final paint boundary.');
-    expect(coreSource).toContain('const swapLaserValueInPlace = () => {');
-    expect(coreSource).toContain('makeBoard.setValueImmediate(tile, replacementValue, 0)');
-    expect(coreSource).not.toContain('makeBoard.refreshValueVisual?.(tile, 0)');
-    expect(coreSource).toContain('anticipation.call(swapLaserValueInPlace, [], settleStart)');
-    expect(coreSource).toContain('// only the cube\'s scale lead begins 300ms earlier.');
-    expect(coreSource).toContain('emitBonusStar();\n\t            }, [], LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS);');
-    expect(coreSource).toContain('rotation: baseRotation');
-    expect(coreSource).not.toContain(
-      'Math.round(LASERGUN_CUBE_ANTICIPATION_SECONDS * 1000)',
-    );
+    expect(sceneSource).toContain('gsap.set(shot.beamPlan.image, { opacity: 0 });');
+    expect(sceneSource).toContain('shot.beamVisible = false;\n      settleImpactArrival(shot, true);');
+    expect(sceneSource).not.toContain('LASERGUN_BEAM_FADE_DELAY_SECONDS');
+    expect(coreSource).toContain('visualFired = triggerActiveLaserGunFinaleImpact(i);');
+    expect(coreSource).toContain("if (arrivalResult === 'arrived') {");
+    expect(coreSource).toContain('if (doBreak(true)) commitLaserImpactHaptic();');
+    expect(coreSource).toContain('emitLaserImpactPunctuation();');
+    expect(coreSource).toContain('emitImpactFx();');
+    expect(coreSource).toContain('emitBonusStar();');
+    expect(coreSource).toContain('playLaserGunChangedCubeSound(i);');
+    expect(coreSource).toContain('commitLaserGunTileImpact({');
+    expect(coreSource).toContain('makeBoard.setValueImmediate(target, value, depth);');
+    expect(coreSource).toContain('tiles: STATE.tiles,');
+    expect(coreSource).not.toContain('(tile as any)._ccLaserGunImpactTl = anticipation');
+    expect(coreSource).not.toContain('swapLaserValueInPlace');
   });
 
   test('rotates normal and mirrored gun bodies so their live barrel axis faces the target', () => {
@@ -402,28 +380,25 @@ describe('LaserGun special die contract', () => {
     expect(appCore).toContain('onTargetsSelected?.(laserVisualTargets)');
     expect(appCore).toContain('prepareActiveLaserGunFinaleImpact(i, getDomScreenPos(tile))');
     expect(appCore).toContain('visualFired = triggerActiveLaserGunFinaleImpact(');
-    expect(appCore).toContain('() => commitCubeImpact(true)');
-    expect(appCore).toContain('// GSAP tick. This remains only the no-visual/timeout fallback.');
-    expect(appCore).toContain('commitCubeImpact(visualArrived)');
+    expect(appCore).not.toContain('() => commitCubeImpact(true)');
     expect(appCore).toContain('waitForActiveLaserGunFinaleImpactArrival(i)');
     expect(appCore).toContain('waitTrackedResult(LASERGUN_ARRIVAL_TIMEOUT_MS)');
     expect(appCore).toContain("if (arrivalResult === 'cancelled') return false;");
     expect(appCore).toContain('if (laserGunRunGeneration !== gameplayRunGeneration) return false;');
     expect(appCore).toContain("if (arrivalResult === 'unavailable') return false;");
-    expect(appCore).toContain("arrivalResult === 'arrived'");
-    expect(appCore).toContain('if (visualArrived) commitLaserImpactHaptic();');
-    expect(appCore).toContain('if (!visualFired) commitLaserImpactHaptic();');
+    expect(appCore).toContain("if (arrivalResult === 'arrived') {");
+    expect(appCore).toContain('if (doBreak(true)) commitLaserImpactHaptic();');
+    expect(appCore).toContain('if (doBreak(false)) commitLaserImpactHaptic();');
     expect(appCore).toContain('// beam-tip arrivals below. Do not add a leading or decorative pulse.');
     expect(appCore).toContain('cancelActiveLaserGunFinaleImpact(i);');
     expect(appCore).toContain('laserGunVisualsEnabled = false;');
-    expect(appCore).toContain('commitCubeImpact(visualArrived)');
-    expect(appCore).toContain('getLaserGunCubeAnticipationFrames().forEach((frame) => {');
-    expect(appCore).toContain('x: LASERGUN_CUBE_ANTICIPATION_SCALE');
-    expect(appCore).toContain("ease: 'back.out(2.1)'");
-    expect(appCore).toContain('trackAppTimeout(commitImpactBreak, 900)');
-    expect(appCore).toContain('if (impactProfile !== \'laser-gun\') emitImpactFx();');
-    expect(appCore).toContain('const replacementValue = selectReplacementValue();');
-    expect(appCore).toContain('// rebound. There is no neutral pose or second bounce sequence.');
+    expect(appCore).not.toContain('getLaserGunCubeAnticipationFrames().forEach((frame) => {');
+    expect(appCore).not.toContain('swapLaserValueInPlace');
+    expect(appCore).toContain("if (impactProfile !== 'laser-gun') {\n\t          commitImpactReward();\n\t          emitImpactFx();");
+    expect(appCore).toContain('commitLaserGunTileImpact({');
+    expect(appCore).toContain('return commitLaserGunTileImpact({');
+    expect(appCore).toContain('onValueCommitted: () => {\n\t              commitImpactReward();');
+    expect(appCore).toContain('Preserve the exact tile object');
     expect(appCore).toContain('regularMerge6ShardsTemplated(board, tile, {');
     expect(appCore).not.toContain("if (impactProfile !== 'laser-gun') {\n\t            try {\n\t              regularMerge6ShardsTemplated");
     expect(appCore).toContain('strength: i === 2 ? 9 : 12');
@@ -496,5 +471,16 @@ describe('LaserGun special die contract', () => {
     expect(idle).toContain('g.y = resetY');
     expect(appCore).toContain('wildSpawnCount,');
     expect(appCore).toContain('firstWildSpawned = v > 0');
+  });
+
+  test('retires Laser impact ownership through both production board rebuild paths', () => {
+    const appCore = read('src/modules/app-core.ts');
+    const rebuildCleanup = read('src/modules/app-core-tile-cleanup.ts');
+    const destroyStart = appCore.indexOf('function destroyOldBoardForTransition');
+    const destroyEnd = appCore.indexOf('function cleanupTexturesForBoardTransition', destroyStart);
+
+    expect(destroyStart).toBeGreaterThanOrEqual(0);
+    expect(appCore.slice(destroyStart, destroyEnd)).toContain('stopTileRuntimeFx(t, {');
+    expect(rebuildCleanup).toContain('stopTileRuntimeFx(t, {');
   });
 });

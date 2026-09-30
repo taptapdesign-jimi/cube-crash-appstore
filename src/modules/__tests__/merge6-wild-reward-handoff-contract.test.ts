@@ -14,7 +14,8 @@ describe('regular merge-6 to wild reward handoff', () => {
     expect(appSpawn).toContain('export class AppSpawnCancelledError');
     expect(appSpawn).toContain('forceFreshPlaceholder = false');
     expect(appSpawn).toContain('removeTileFully(holder');
-    expect(appSpawn).toContain('onInterrupt: () => interrupted?.()');
+    expect(appSpawn).toContain('onInterrupt: () => {');
+    expect(appSpawn).toContain('interrupted?.();');
     expect(appMerge).toContain("import { AppSpawnCancelledError, openAtCell, spawnBounce } from './app-spawn.ts'");
     expect((appMerge.match(/instanceof AppSpawnCancelledError/g) || []).length).toBeGreaterThanOrEqual(4);
     expect(appMerge).toContain('magnetLifecycleCancelled = true;');

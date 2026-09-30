@@ -20,8 +20,10 @@ describe('Flower special-die visual contract', () => {
     expect(artworkSource).toContain('const TRANSLATE_SPLINES');
     expect(artworkSource).toContain('const SCALE_SPLINES');
     expect(artworkSource).toContain('const ROTATION_SPLINES');
-    expect(artworkSource).not.toContain('flower-bouncy-front-pollen');
-    expect(artworkSource).not.toContain('particle.renderable = false');
+    expect(artworkSource).toContain("node.label = 'flower-bouncy-front-pollen-pixi'");
+    expect(artworkSource).toContain('particle.renderable = false');
+    expect(artworkSource).toContain('relativePollenMatrix.copyFrom(inverseCanvasWorldMatrix).append(particleWorldMatrix)');
+    expect(artworkSource).toContain('releaseFrontPollenSystem(controller)');
     expect(specialIdleSource).toContain("from './flower-bouncy-artwork.ts'");
     expect(specialIdleSource).toContain('if (isFlowerBouncyTile(tile)) {');
     expect(specialIdleSource).toContain('startFlowerBouncyArtwork(tile)');
