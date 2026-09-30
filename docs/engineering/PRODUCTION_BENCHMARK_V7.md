@@ -8,7 +8,7 @@ Date: 2026-09-30
 - Source version: `2.0.653`
 - Canonical branch: `main`
 - Immutable tag: `production-benchmark-v7`
-- Complete content checkpoint: `CONTENT_COMMIT_PLACEHOLDER`
+- Complete content checkpoint: `c3fba03a` (`release: establish production benchmark v7`)
 - Previous approved complete baseline: `production-benchmark-v6`
 - Native target: `/Users/user/Stack to Six/Stack to Six.xcodeproj`
 - Bundle identifier: `com.taptapdesign.stacktosix.Stack-to-Six`
