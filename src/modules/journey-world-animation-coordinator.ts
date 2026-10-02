@@ -38,6 +38,7 @@ export function isJourneyWorldMainArtworkTarget(
 
 interface JourneyWorldEnterOptions {
   targetsPrimed?: boolean;
+  cloudsPrimed?: boolean;
   immediateFirstUnit?: boolean;
 }
 
@@ -260,7 +261,7 @@ export class JourneyWorldAnimationCoordinator {
     // or completed exit can leave that last horizontal value inline. Reset it
     // while the return enter is still at opacity 0, so the first idle frame
     // continues from x=0 instead of visibly snapping there after enter.
-    if (liveClouds.length) {
+    if (liveClouds.length && !options.cloudsPrimed) {
       gsap.set(liveClouds, { x: 0, overwrite: true });
     }
     // Units outside the initial viewport cannot be seen during this cascade.

@@ -114,6 +114,22 @@ describe('Journey interim card shine parity', () => {
     expect(world).toContain("resumeInterimCardIdleEffects('active-area-enter-error');");
   });
 
+  test('starts the shared interim idle owner only after every World commits runtime idle', () => {
+    const world = read('src/modules/journey-boards-manager.ts');
+    const enterOwner = world.slice(
+      world.indexOf('private playJourneyV700WorldEnter('),
+      world.indexOf('private playJourneyV700WorldExit('),
+    );
+    const runtimeIdle = enterOwner.indexOf('this.journeyWorldRuntime.endTransition();');
+    const interimResume = enterOwner.indexOf(
+      'this.resumeInterimCardIdleEffects(`world-enter-runtime-idle:${source}`);',
+    );
+
+    expect(runtimeIdle).toBeGreaterThan(-1);
+    expect(interimResume).toBeGreaterThan(runtimeIdle);
+    expect(enterOwner.slice(0, runtimeIdle)).not.toContain('resumeInterimCardIdleEffects(source)');
+  });
+
   test('preserves the remaining cadence across pause/resume without an immediate restart', () => {
     jest.useFakeTimers();
     const raf = jest.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => (

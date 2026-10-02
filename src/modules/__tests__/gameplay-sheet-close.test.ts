@@ -1,6 +1,12 @@
-import { mountGameplaySheetClose } from '../gameplay-sheet-close';
 import fs from 'node:fs';
 import path from 'node:path';
+
+const mockPlayNavIconCartoonBounce = jest.fn();
+jest.mock('../../utils/nav-icon-bounce.js', () => ({
+  playNavIconCartoonBounce: mockPlayNavIconCartoonBounce,
+}));
+
+import { mountGameplaySheetClose } from '../gameplay-sheet-close';
 
 const root = path.resolve(__dirname, '../../..');
 
@@ -17,15 +23,13 @@ describe('shared gameplay sheet close', () => {
     expect(button?.querySelector('img')?.getAttribute('src')).toBe('./assets/close-icon.png');
 
     button?.dispatchEvent(new Event('pointerdown', { bubbles: true }));
-    expect(button?.classList.contains('is-comic-bouncing')).toBe(true);
-    button?.dispatchEvent(new Event('animationend'));
-    expect(button?.classList.contains('is-comic-bouncing')).toBe(false);
+    expect(mockPlayNavIconCartoonBounce).toHaveBeenCalledWith(button);
 
-    button?.click();
+    button?.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
     button?.click();
     expect(dismiss).toHaveBeenCalledTimes(1);
     expect(button?.disabled).toBe(true);
-    expect(button?.classList.contains('is-comic-bouncing')).toBe(true);
+    expect(mockPlayNavIconCartoonBounce).toHaveBeenCalledTimes(1);
 
     controller.dispose();
     expect(host.querySelector('.gameplay-sheet-close')).toBeNull();
@@ -62,8 +66,7 @@ describe('shared gameplay sheet close', () => {
     expect(appCss).toContain('.cc-gameplay-modal-idle-shell > .gameplay-sheet-close::after,');
     expect(appCss).toContain('.cc-gameplay-modal-pose-shell > .gameplay-sheet-close::after {');
     expect(appCss).toContain('filter: drop-shadow(0 4px 6px rgba(185, 145, 119, 0.12))');
-    expect(appCss).toContain('@keyframes gameplay-sheet-close-comic-bounce');
-    expect(appCss).toContain('transform: translateZ(0) scale(1.18)');
-    expect(appCss).toContain('transform: translateZ(0) scale(0.93)');
+    expect(appCss).not.toContain('@keyframes gameplay-sheet-close-comic-bounce');
+    expect(appCss).not.toContain('.gameplay-sheet-close.is-comic-bouncing');
   });
 });

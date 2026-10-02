@@ -10,8 +10,9 @@ describe('wild smoke frame budget', () => {
     expect(core).toContain('wild-smoke-alt-created');
     expect(core).toContain('wild-smoke-main-created');
     expect(fx).toContain('const COUNT     = Math.min(requestedCount, maxParticles)');
-    expect(core.match(/deferFutureBursts: true/g)).toHaveLength(2);
-    expect(core.match(/groupedOwner: true/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(core.match(/deferFutureBursts: true/g)).toHaveLength(3);
+    expect(core.match(/groupedOwner: true/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(core).toContain("activityLeaseLabel: 'laser-gun-merge6-smoke'");
     expect(fx).toContain('trackDelayedCall(burstIndex * BURST_GAP, () => buildBurst(burstIndex))');
     expect(fx).toContain('buildBurst(0)');
   });

@@ -2,7 +2,7 @@ import { arePerformanceDiagnosticsEnabled } from './runtime-diagnostics-policy.j
 import { emitNativeConsoleDiagnostic } from './ios-native-diagnostic.js';
 
 export interface TransitionPerformance {
-  phase<T>(name: string, work: () => T): T;
+  phase<T>(name: string, work: () => T, aggregate?: boolean): T;
   mark(name: string): void;
   finish(reason?: string): void;
 }
@@ -18,6 +18,7 @@ export function beginTransitionPerformance(name: string): TransitionPerformance 
   if (!arePerformanceDiagnosticsEnabled()) return disabled;
   const startedAt = performance.now();
   const phases: Array<{ name: string; atMs: number; durationMs: number }> = [];
+  const phaseTotals = new Map<string, { name: string; atMs: number; durationMs: number; samples: number; worstMs: number }>();
   const stalls: Array<{ atMs: number; durationMs: number }> = [];
   let previous = startedAt;
   let frames = 0;
@@ -36,6 +37,9 @@ export function beginTransitionPerformance(name: string): TransitionPerformance 
       startedAt: Math.round(startedAt),
       durationMs: Math.round(performance.now() - startedAt),
       reason, frames, worstMs: Math.round(worstMs), over34Ms, stalls, phases,
+      ...(phaseTotals.size ? { phaseTotals: Array.from(phaseTotals.values()).map(phase => ({
+        ...phase, durationMs: Math.round(phase.durationMs), worstMs: Math.round(phase.worstMs),
+      })) } : {}),
     });
   };
   const onVisibility = (): void => {
@@ -66,11 +70,20 @@ export function beginTransitionPerformance(name: string): TransitionPerformance 
         phases.push({ name: phaseName, atMs: Math.round(performance.now() - startedAt), durationMs: 0 });
       }
     },
-    phase: (phaseName, work) => {
+    phase: (phaseName, work, aggregate = false) => {
       const at = performance.now();
       try { return work(); }
       finally {
-        if (!ended && phases.length < 32) {
+        if (!ended && aggregate && (phaseTotals.has(phaseName) || phaseTotals.size < 16)) {
+          const durationMs = performance.now() - at;
+          const total = phaseTotals.get(phaseName) ?? {
+            name: phaseName, atMs: Math.round(at - startedAt), durationMs: 0, samples: 0, worstMs: 0,
+          };
+          total.durationMs += durationMs;
+          total.samples += 1;
+          total.worstMs = Math.max(total.worstMs, durationMs);
+          phaseTotals.set(phaseName, total);
+        } else if (!ended && !aggregate && phases.length < 32) {
           phases.push({ name: phaseName, atMs: Math.round(at - startedAt), durationMs: Math.round(performance.now() - at) });
         }
       }

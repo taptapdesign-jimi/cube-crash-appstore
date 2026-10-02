@@ -12,7 +12,9 @@ function fixture(detailed = false) {
   const root = document.getElementById('prepared')!;
   const incoming = document.getElementById('incoming')!;
   const outgoing = document.getElementById('outgoing')!;
-  const owner: any = { journeyWorldPrepaintStage: { ready: true, worldId: 1, host, root },
+  const preparedEnter = { worldId: 1, renderGeneration: 1, ownerToken: null, targets: [incoming], units: [{ id: 'unit', targets: [incoming] }] };
+  const owner: any = { journeyWorldPrepaintStage: { ready: true, worldId: 1, host, root, preparedEnter },
+    renderLifecycleGeneration: 2,
     journeyAreaIdleTicker: () => {}, journeyAreaIdleEntries: [{}], journeyAreaIdleEntryByVisibilityTarget: new Map(),
     journeyAreaIdleVisibilityObserver: { disconnect: jest.fn() }, beginRenderLifecycle: jest.fn(), cancelJourneyV700HubEnter: jest.fn(),
     trackTimeout: jest.fn(), trackRAF: jest.fn(), primeJourneyV700WorldEnter: jest.fn(),
@@ -47,7 +49,10 @@ test('actual World commit retires outgoing GSAP owners once while preserving inc
   expect(f.owner.journeyAreaIdleVisibilityObserver).toBeNull();
   expect(f.owner.journeyAreaIdleEntries).toEqual([]);
   expect(f.incoming.isConnected).toBe(true); expect(f.host.isConnected).toBe(false); expect(f.outgoing.isConnected).toBe(false);
-  expect(f.owner.primeJourneyV700WorldEnter).toHaveBeenCalledWith(f.container, 1, { source: 'hub-world-prepaint-commit', lastBoardId: 0 });
+  expect(f.owner.primeJourneyV700WorldEnter).not.toHaveBeenCalled();
+  expect(f.owner.journeyV700PreparedWorldEnter).toMatchObject({
+    worldId: 1, renderGeneration: 2, targets: [f.incoming],
+  });
   expect(f.owner.releaseJourneyMainCloudComposites).toHaveBeenCalledWith('hub-to-world-commit', new Set([1]));
   expect(f.owner.journeyWorldPrepaintStage).toBeNull();
 });
@@ -66,9 +71,10 @@ test('explicit detailed commit retains incoming subtree counts', () => {
   expect(f.scope.emitIOSNativeDiagnostic).toHaveBeenCalledWith('world-prepaint-committed', expect.objectContaining({ childCount: 4, imageCount: 1 }));
 });
 
-test.each(['not-ready', 'wrong-world', 'detached'])('rejected %s stage cannot retire live owners', (reason) => {
+test.each(['not-ready', 'missing-plan', 'wrong-world', 'detached'])('rejected %s stage cannot retire live owners', (reason) => {
   const f = fixture();
   if (reason === 'not-ready') f.owner.journeyWorldPrepaintStage.ready = false;
+  if (reason === 'missing-plan') delete f.owner.journeyWorldPrepaintStage.preparedEnter;
   if (reason === 'wrong-world') f.owner.journeyWorldPrepaintStage.worldId = 2;
   if (reason === 'detached') f.host.remove();
   expect(f.owner.commitJourneyWorldPrepaint(f.container, 1)).toBe(false);

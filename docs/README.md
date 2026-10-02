@@ -1,5 +1,12 @@
 # Cube Crash documentation
 
+## Latest approved benchmark — FLUIDNOST
+
+[Production Benchmark v9 — Fluidnost](engineering/PRODUCTION_BENCHMARK_V9.md)
+(`production-benchmark-v9`, 2026-10-03) is the current user-approved recovery
+reference. Physical control + rapid stress evidence and remaining limits are
+recorded there. Older benchmark tags remain immutable.
+
 Project docs live under `docs/` in four categories plus planning notes.
 
 ## Guides — start here

@@ -48,6 +48,23 @@ describe('Journey World coordinator replacement ownership', () => {
     expect(first.targets[0]).not.toHaveClass('journey-world-idle-active');
   });
 
+  test.each([true, false])('cloud reset is consumed once when prepared=%s', async cloudsPrimed => {
+    const cloud = document.createElement('div');
+    first.targets[0].append(cloud);
+    first.clouds = [cloud];
+    gsap.set(cloud, { x: cloudsPrimed ? 0 : 12 });
+    const set = jest.spyOn(gsap, 'set');
+    const entered = coordinator.enter([first], false, { targetsPrimed: true, cloudsPrimed });
+    timeline().pause();
+    const cloudResets = set.mock.calls.filter(([targets, vars]) =>
+      Array.isArray(targets) && targets.includes(cloud) && vars.x === 0);
+    expect(cloudResets).toHaveLength(cloudsPrimed ? 0 : 1);
+    expect(gsap.getProperty(cloud, 'x')).toBe(0);
+    coordinator.stop(true);
+    await entered;
+    set.mockRestore();
+  });
+
   test.each(['enter', 'exit'] as const)('an empty %s still retires the prior Unit ticker', async (operation) => {
     const entered = coordinator.enter([first], false);
     timeline().pause().progress(1);

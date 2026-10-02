@@ -6,7 +6,12 @@
 
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
-import { allowConfettiSpawns, cleanupConfetti, createConfettiExplosion } from './confetti-system.js';
+import {
+  allowConfettiSpawns,
+  cleanupConfetti,
+  createConfettiExplosion,
+  stopConfettiSpawns,
+} from './confetti-system.js';
 import {
   startCleanBoardArea55ShipFlybys,
   stopCleanBoardArea55ShipFlybys,
@@ -62,6 +67,8 @@ import {
   markJourneyReturnTransition,
   prewarmJourneyReturnBeforeTerminalExit,
   prepareJourneyReturnBehindTerminalOverlay,
+  transferJourneyReturnStaticCover,
+  warmJourneyReturnBehindSettledTerminal,
   measureJourneyReturnPreparationPhase,
   finishJourneyReturnCtaSetup,
 } from './journey-return-transition-trace.ts';
@@ -127,6 +134,12 @@ export interface CleanBoardModalResult {
 // 🔥 REFACTORED: Koristimo pickRandom iz clean-board-utils.ts umjesto lokalne verzije
 
 const CLEAN_BOARD_COUNTER_HAPTIC_INTERVAL_MS = 50;
+// Admit optional Journey construction only after both visible counters finish.
+// The previous 2400ms admission overlapped the combo coin count and caused the
+// exact 1-2 frame hitch reported on physical iPhone. Exit appears at 6970ms,
+// leaving the bounded 22-turn builder useful preparation time without stealing
+// the counter's frames.
+const JOURNEY_RETURN_PREWARM_AFTER_COUNTERS_MS = 6150;
 
 function triggerHapticImpactSafe(kind: 'light' | 'medium' | 'heavy'): void {
   try {
@@ -278,12 +291,13 @@ export async function showCleanBoardModal({
     const run = async () => {
       try {
     preloadCleanBoardSounds();
-    const cleanupCelebrationParticlesImmediately = () => {
+    const beginCelebrationParticleExit = () => {
       try {
-        // Every Clean Board CTA owns a hard celebration boundary. Removing the
-        // shared canvas here clears Area 55 confetti, Forest leaves and Beach
-        // bubbles in the same click frame, including particles born later.
-        cleanupConfetti();
+        // Stop only unborn waves/bursts at CTA acceptance. Already-visible
+        // Area 55 confetti, Forest leaves and Beach bubbles keep advancing on
+        // their shared RAF while the CTA/content owners exit. The modal
+        // lifetime performs the final hard cleanup after its visual handoff.
+        stopConfettiSpawns();
       } catch {}
     };
     // 🌟 Add CSS animations for star breathing
@@ -758,32 +772,7 @@ export async function showCleanBoardModal({
       const controller = getRegisteredCta(button);
       if (controller) playCleanBoardCtaBounceSound(button === primaryBtn ? 0 : 1);
       const enterPromise = controller?.enter() ?? Promise.resolve();
-      if (button === secondaryBtn && !isArcadeHomeRun) {
-        // Keep the authored entrance fully visible, but do not expose an Exit
-        // hit target until the expensive cold Journey DOM has been built. This
-        // moves that work out of the trusted activation task, where it used to
-        // freeze the pressed CTA and star/modal/board exit owners.
-        button.disabled = true;
-        button.setAttribute('aria-disabled', 'true');
-        button.setAttribute('aria-busy', 'true');
-        button.dataset.ctaPrewarmPending = 'true';
-        void enterPromise.then(async () => {
-          if (!lifetime.isActive() || el.dataset.cleanBoardExiting === 'true') return;
-          await prewarmJourneyReturnBeforeTerminalExit('clean-board', boardNumber);
-        }).catch(() => {
-          // The prewarm API is fail-open, but keep the CTA recoverable if a
-          // future implementation ever rejects unexpectedly.
-        }).finally(() => {
-          if (!lifetime.isActive() || el.dataset.cleanBoardExiting === 'true') return;
-          if (controller) controller.setDisabled(false);
-          else {
-            button.disabled = false;
-            button.setAttribute('aria-disabled', 'false');
-          }
-          button.removeAttribute('aria-busy');
-          delete button.dataset.ctaPrewarmPending;
-        });
-      }
+      void enterPromise.catch(() => {});
       // CTA appearing on screen should feel confirmatory.
       triggerHapticImpactSafe('medium');
     };
@@ -1153,6 +1142,19 @@ export async function showCleanBoardModal({
           return;
         }
 
+        // Journey owns this preparation, while the result lifetime owns its
+        // admission and cancellation. Two owned paint boundaries let the last
+        // efficiency-counter frame commit before any detached World work.
+        trackTimeout(() => {
+          if (!lifetime.isActive() || el.dataset.cleanBoardExiting === 'true') return;
+          trackAnimationFrame(() => {
+            trackAnimationFrame(() => {
+              if (!lifetime.isActive() || el.dataset.cleanBoardExiting === 'true') return;
+              void prewarmJourneyReturnBeforeTerminalExit('clean-board', boardNumber).catch(() => {});
+            });
+          });
+        }, JOURNEY_RETURN_PREWARM_AFTER_COUNTERS_MS);
+
         // 🎯 SEQUENCE 3: Combo Bonus pop-in
         trackTimeout(() => {
           comboWrapper.style.transition = 'opacity 0.55s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.55s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
@@ -1431,7 +1433,7 @@ export async function showCleanBoardModal({
     addButtonPressHandling(primaryBtn, async () => {
       if (!lifetime.isActive()) return;
       cancelJourneyReturnPrewarm('clean-board-primary-activated');
-      cleanupCelebrationParticlesImmediately();
+      beginCelebrationParticleExit();
       // The destination becomes the next audio owner at activation time.
       resultReleaseTarget = 'gameplay';
       stopCleanBoardSounds();
@@ -1686,9 +1688,9 @@ export async function showCleanBoardModal({
           try { localStorage.setItem('__ccJourneyReturnBoardId', String(boardNumber)); } catch {}
           try { localStorage.setItem('__ccLastActiveJourneyBoardAreaId', String(boardNumber)); } catch {}
         }
-        cleanupCelebrationParticlesImmediately();
+        beginCelebrationParticleExit();
         if (!isArcadeHomeRun) {
-          markJourneyReturnTransition('celebration-retired');
+          markJourneyReturnTransition('celebration-spawns-stopped-live-particles-continuing');
         }
         // Do not carry applause/result voices into Journey or the homepage.
         stopCleanBoardSounds();
@@ -1831,12 +1833,14 @@ export async function showCleanBoardModal({
             elapsedMs: Math.round(performance.now() - exitStartedAt),
           });
         });
-        // Fade the complete paper only after every parallel visual owner has
-        // reached its endpoint. The shared terminal-return policy keeps this
-        // complete choreography inside the one-second Journey handoff budget.
+        // Collapse the card only after every parallel visual owner has reached
+        // its endpoint. Keep the opaque paper alive as a short static paint
+        // cover; the exact prepared Journey subtree will raster behind it once
+        // all moving result pixels have stopped.
         const ctaExitDuration = ctaMotion.companionExitStaggerMs + buttonExitDurationMs;
         const journeyExitTiming = resolveCleanBoardJourneyExitTiming(numStars, ctaExitDuration);
         const collapseDuration = journeyExitTiming.collapseDelayMs;
+        let settledCoverWarmPromise: Promise<boolean> = Promise.resolve(false);
         const modalExitPromise = Promise.all([
           ctaExitPromise,
           earnedStarsExitPromise,
@@ -1845,8 +1849,17 @@ export async function showCleanBoardModal({
             trackTimeout(() => {
               card.style.transition = `transform ${CLEAN_BOARD_JOURNEY_EXIT_MOTION.paperFadeMs}ms ease, opacity ${CLEAN_BOARD_JOURNEY_EXIT_MOTION.paperFadeMs}ms ease`;
               card.style.opacity = '0';
-              el.style.transition = `opacity ${CLEAN_BOARD_JOURNEY_EXIT_MOTION.paperFadeMs}ms ease`;
-              el.style.opacity = '0';
+              if (!isArcadeHomeRun) {
+                // All authored result/board motion has settled. Retire the last
+                // free-running celebration pixels before the static paper cover
+                // begins the exact connected Journey paint.
+                try { cleanupConfetti(); } catch {}
+                try { area55ShipFlybys?.dispose(); area55ShipFlybys = null; } catch {}
+                settledCoverWarmPromise = warmJourneyReturnBehindSettledTerminal(
+                  'clean-board',
+                  journeyReturnTransitionId!,
+                );
+              }
             }, collapseDuration);
             trackTimeout(resolveModalExit, journeyExitTiming.completionMs);
           }),
@@ -1934,14 +1947,42 @@ export async function showCleanBoardModal({
         ]);
         if (!lifetime.isActive() || !exitCompletion.completed) return;
         if (!isArcadeHomeRun) {
-          markJourneyReturnResultExitComplete(journeyReturnTransitionId);
+          // No live confetti/ships may visibly freeze while WebKit pays the
+          // connected Journey raster cost. From here to paper fade the screen
+          // is intentionally static and fully opaque.
+          await settledCoverWarmPromise;
+          if (!lifetime.isActive()) return;
         }
         killAllGSAPTweens();
         clearAllModalTimeouts();
         clearAllModalAnimationFrames();
         disposeCtas();
         try { area55ShipFlybys?.dispose(); area55ShipFlybys = null; } catch {}
-        try { el.remove(); } catch {}
+        const coverTransferred = !isArcadeHomeRun
+          && journeyReturnTransitionId !== null
+          && typeof transferJourneyReturnStaticCover === 'function'
+          && transferJourneyReturnStaticCover(
+            journeyReturnTransitionId,
+            el,
+            CLEAN_BOARD_JOURNEY_EXIT_MOTION.paperFadeMs,
+          );
+        if (coverTransferred) {
+          // The transition coordinator now owns this exact paper surface.
+          // Drop the retired modal subtree so routing retains only one cheap
+          // full-screen layer while Journey commits underneath it.
+          el.replaceChildren();
+          ownedOverlay = null;
+        } else {
+          el.style.transition = `opacity ${CLEAN_BOARD_JOURNEY_EXIT_MOTION.paperFadeMs}ms ease`;
+          el.style.opacity = '0';
+          await new Promise<void>((resolvePaperFade) => {
+            lifetime.onDispose(resolvePaperFade);
+            trackTimeout(resolvePaperFade, CLEAN_BOARD_JOURNEY_EXIT_MOTION.paperFadeMs);
+          });
+          if (!lifetime.isActive()) return;
+          if (!isArcadeHomeRun) markJourneyReturnResultExitComplete(journeyReturnTransitionId);
+          try { el.remove(); } catch {}
+        }
         removeStyleTag();
         const exitAction = isFromInterimBoard ? 'back-to-journey' : 'exit';
         emitNativeConsoleDiagnostic('[CC_ARCADE_EXIT]', 'overlay-retired', {
@@ -1949,6 +1990,7 @@ export async function showCleanBoardModal({
           elapsedMs: Math.round(performance.now() - exitStartedAt),
           exitAction,
           overlayConnected: el.isConnected,
+          coverTransferred,
         });
         console.log(`✅ clean-board-modal: Resolving with action: ${exitAction} (board + complete modal exit settled)`);
         safeResolve(exitAction, {

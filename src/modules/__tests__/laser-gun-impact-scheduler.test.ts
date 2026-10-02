@@ -17,8 +17,12 @@ describe('LaserGun sequential impact scheduler', () => {
     let clock = 0;
     const events: string[] = [];
     const commits: number[] = [];
+    const preparations: number[] = [];
     const plans = Array.from({ length: 4 }, (_, index) => ({
-      prepare: async () => { events.push(`prepare-${index + 1}`); },
+      prepare: async () => {
+        events.push(`prepare-${index + 1}`);
+        preparations.push(clock);
+      },
       commit: () => {
         events.push(`commit-${index + 1}`);
         commits.push(clock);
@@ -43,6 +47,10 @@ describe('LaserGun sequential impact scheduler', () => {
       LASERGUN_FIRST_SHOT_LEAD_MS + LASERGUN_SHOT_INTERVAL_MS * 2,
       LASERGUN_FIRST_SHOT_LEAD_MS + LASERGUN_SHOT_INTERVAL_MS * 3,
     ]);
+    expect(preparations[0]).toBe(0);
+    expect(preparations.slice(1)).toEqual(commits.slice(1).map(
+      (commitAt) => commitAt - LASERGUN_PREFLIGHT_LEAD_MS,
+    ));
     expect(commits[3]).toBe(
       Math.round(540 * LASERGUN_TIMING_SCALE)
       + 125 * 3

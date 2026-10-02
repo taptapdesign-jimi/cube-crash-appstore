@@ -21,6 +21,7 @@ import {
 } from './fx.ts';
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
 import {
+  acquireSpecialDiceIdleSuspension,
   keepsSpecialDiceIdleRunningDuringDrag,
   refreshSpecialDiceIdleDragFacing,
   setSpecialDiceIdleDragging,
@@ -484,6 +485,7 @@ export function initDrag(cfg) {
   const DRAG_LAYER_Z_INDEX = 12000;
   const activeDragLayer: any = dragLayer || (board && (board.parent || board)) || board;
   let releaseGameplayDragForeground: (() => void) | null = null;
+  let releaseSpecialDiceIdleSuspension: (() => void) | null = null;
   let activeDragArtworkTile: any = null;
 
   function setActiveDragArtworkDragging(tile: any, dragging: boolean): boolean {
@@ -1126,6 +1128,8 @@ export function initDrag(cfg) {
       delete (activeDragTile as any)._shadowDirX;
       delete (activeDragTile as any)._shadowDirY;
     }
+    try { releaseSpecialDiceIdleSuspension?.(); } catch {}
+    releaseSpecialDiceIdleSuspension = null;
     drag._lastWatchdogRefreshAt = 0;
     refreshGameplayDragForeground();
     try { releaseGameplayDragForeground?.(); } catch {}
@@ -1473,6 +1477,8 @@ export function initDrag(cfg) {
     try {
       if (!setActiveDragArtworkDragging(t, true)) stopSpecialDiceIdleMotion(t);
     } catch {}
+    try { releaseSpecialDiceIdleSuspension?.(); } catch {}
+    releaseSpecialDiceIdleSuspension = acquireSpecialDiceIdleSuspension('drag');
     if (t.rotG && !keepsIdleRunningDuringDrag) gsap.killTweensOf(t.rotG);
     // Remember board baseline and enable wobble only for juice wild
     drag._boardBaseX = board?.x ?? 0;

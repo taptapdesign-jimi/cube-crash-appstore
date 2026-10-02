@@ -52,10 +52,14 @@ describe('Journey reward screen thermal ownership', () => {
     expect(screen).toContain('stopContinueCoach();');
     expect(screen).toContain('stopInterimIdleMotion();');
     expect(screen).toContain('stopUnlockedIdleMotion();');
+    expect(screen).toContain('prepareJourneyNewCardAssets');
+    expect(screen).toContain('concurrency: 2');
+    expect(screen).not.toContain('await Promise.all([\n    ...Array.from({ length: 9 }');
   });
 
   test('Special Dice unlock has one-shot hero, mask shine, shadow, and CTA motion', () => {
     const screen = read('src/modules/journey-special-dice-screen.ts');
+    const flow = read('src/modules/journey-completion-flow.ts');
 
     expect(screen).toContain('animation: ccJourneySpecialDiceIdle 3s ease-in-out 1 both;');
     expect(screen).toContain('animation: ccJourneySpecialDiceShimmer 1.7s linear 1 both;');
@@ -65,6 +69,14 @@ describe('Journey reward screen thermal ownership', () => {
     expect(screen).not.toContain('animation: ccJourneySpecialDiceShimmer 1.7s linear infinite;');
     expect(screen).not.toContain('repeat: -1');
     expect(screen).not.toContain('window.setInterval(');
+    expect(screen).toContain('prepareJourneySpecialDiceAssets');
+    expect(screen).toContain('specialDicePresentationGeneration');
+    expect(screen).toContain('let promiseSettled = false;');
+    expect(screen).toContain("resolve({ action: 'cancelled' });");
+    expect(screen).toContain("return { action: 'cancelled' };");
+    expect(flow).toContain("if (specialDiceResult.action === 'cancelled')");
+    expect(screen).toContain('concurrency: 2');
+    expect(screen).not.toContain('await Promise.all([\n    ...Array.from({ length: 20 }');
   });
 
   test('collection card idle, Legendary mask, coach, and NEW ribbon are bounded', () => {

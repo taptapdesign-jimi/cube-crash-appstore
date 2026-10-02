@@ -949,6 +949,7 @@ describe('Journey two-sided card overlay prototype', () => {
 
   test('prepaints both exact modal faces before hiding the live Journey card and starting flight', () => {
     const modal = read('src/modules/journey-card-overlay-modal.ts');
+    const manager = read('src/modules/journey-boards-manager.ts');
     const portal = read('src/modules/journey-card-portal-transition.ts');
     const css = read('src/collectibles-screen.css');
     const prepareSource = modal.split('const prepareAndStartEntry = async () => {')[1]
@@ -968,7 +969,16 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(flightIndex).toBeGreaterThan(activateIndex);
     expect(revealIndex).toBeGreaterThan(flightIndex);
     expect(portal).toContain('transformOriginPrimed?: boolean');
-    expect(modal).toContain('export function preloadJourneyCardOverlayAssets()');
+    expect(modal).toContain('export function preloadJourneyCardOverlayAssets(');
+    expect(modal).toContain('export function preloadJourneyCardOverlayEntryAssets(');
+    expect(modal).toContain('timeoutOwner?.schedule(finish, JOURNEY_CARD_ENTRY_ASSET_TIMEOUT_MS, finish)');
+    expect(modal).not.toContain('window.setTimeout(finish, JOURNEY_CARD_ENTRY_ASSET_TIMEOUT_MS)');
+    const managerOpen = manager.split('private async openJourneyCardOverlayExperiment(')[1]
+      ?.split('private async startJourneyBoardFromOverlay(')[0] ?? '';
+    expect(managerOpen.indexOf('await preloadJourneyCardOverlayEntryAssets('))
+      .toBeLessThan(managerOpen.indexOf("this.pauseJourneyWorldForCardOverlay('direct-card-open', cardElement)"));
+    expect(managerOpen).toContain('releaseTransitionAudio = suspendSpeculativeGameplayAudioLoads()');
+    expect(managerOpen).toContain("markOpenProfile('entry-assets-ready')");
     // Optional preloading is verified by the idle-owner behavioral suite;
     // this contract protects the mandatory on-demand face readiness above.
   });

@@ -1069,8 +1069,10 @@ class UIManager {
   // Hide homepage
   hideHomepage(): void {
     const cleanupZone = (window as any).__ccAppZone;
+    const cleanupEpoch = appZoneManager.getPresentationEpoch();
     const cleanupStillOwned = (): boolean =>
-      (window as any).__ccAppZone === cleanupZone && !homepageEnterTransitionOwner.isActive();
+      appZoneManager.isPresentationCurrent(cleanupEpoch)
+      && (window as any).__ccAppZone === cleanupZone && !homepageEnterTransitionOwner.isActive();
 
     // 🔥 MEMORY LEAK FIX: Cleanup all animations before hiding homepage
     (async () => {
@@ -1092,26 +1094,19 @@ class UIManager {
         const gsap = (window as any).gsap;
         if (gsap && this.elements.home) {
           // Kill animations on all homepage elements
-          const homepageElements = this.elements.home.querySelectorAll('*');
-          homepageElements.forEach((el: Element) => {
-            try {
-              gsap.killTweensOf(el);
-            } catch {}
-          });
-          
-          // Kill animations on slider elements
+          const targets = new Set<Element>(this.elements.home.querySelectorAll('*'));
           const sliderWrapper = document.getElementById('slider-wrapper');
           const sliderContainer = document.getElementById('slider-container');
-          if (sliderWrapper) gsap.killTweensOf(sliderWrapper);
-          if (sliderContainer) gsap.killTweensOf(sliderContainer);
-          
-          // Kill animations on navigation elements
+          if (sliderWrapper) targets.add(sliderWrapper);
+          if (sliderContainer) targets.add(sliderContainer);
           const navButtons = document.querySelectorAll('.independent-nav-button');
           navButtons.forEach(btn => {
-            gsap.killTweensOf(btn);
+            targets.add(btn);
             const img = btn.querySelector('img');
-            if (img) gsap.killTweensOf(img);
+            if (img) targets.add(img);
           });
+          // One ownership boundary, one global tween-registry traversal.
+          if (targets.size) gsap.killTweensOf([...targets]);
           
           logger.info('🧹 Homepage GSAP animations killed');
         }
@@ -1707,8 +1702,14 @@ class UIManager {
       if (isHomepageExitCancelled(exitCompletePromise)) releaseFailedExit();
     }, () => {});
 
+    // The Homepage exit is the only moving foreground owner. Build Journey
+    // after that motion has reached its fill-forwards end pose, so a cold Hub
+    // render/import cannot steal a 70-100 ms frame from the visible Slider.
+    // Homepage remains the static paper cover until showCollectibles claims
+    // the prepared destination below.
     const journeyPreparePromise: Promise<any | null> = !launchFirstPlayTutorial
-      ? (async () => {
+      ? exitCompletePromise.then(async () => {
+          if (isHomepageExitCancelled(exitCompletePromise)) return null;
           let preparedCollectiblesManager = (window as any).collectiblesManager;
           if (
             !preparedCollectiblesManager ||
@@ -1719,12 +1720,14 @@ class UIManager {
           }
           await preparedCollectiblesManager.prepareJourneyScreen();
           return preparedCollectiblesManager;
-        })().catch((error: Error) => {
+        }).catch((error: Error) => {
           logger.warn('⚠️ Failed to prepare Journey screen:', error);
           return null;
         })
       : Promise.resolve(null);
-    // Exit and preparation run concurrently and join at one exact handoff.
+    // The static Homepage cover, preparation and reveal join at one exact
+    // handoff. This intentionally trades a short still frame for no visible
+    // animation hitch on cold devices.
     Promise.all([exitCompletePromise, journeyPreparePromise]).then(async ([, preparedCollectiblesManager]) => {
       if (this.journeyExitFailureOwner !== failureOwner) return;
       if (isHomepageExitCancelled(exitCompletePromise)) {

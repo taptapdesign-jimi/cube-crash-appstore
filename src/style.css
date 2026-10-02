@@ -2455,31 +2455,6 @@ body.journey-board-game-active #hud-board-indicator {
   -webkit-user-drag: none;
 }
 
-.simple-bottom-sheet .gameplay-sheet-close.is-comic-bouncing,
-.cc-gameplay-modal-flip-shell > .gameplay-sheet-close.is-comic-bouncing,
-.cc-gameplay-modal-idle-shell > .gameplay-sheet-close.is-comic-bouncing,
-.cc-gameplay-modal-pose-shell > .gameplay-sheet-close.is-comic-bouncing {
-  animation: gameplay-sheet-close-comic-bounce 380ms both;
-}
-
-@keyframes gameplay-sheet-close-comic-bounce {
-  0% {
-    transform: translateZ(0) scale(1);
-    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-  32% {
-    transform: translateZ(0) scale(1.18);
-    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  55% {
-    transform: translateZ(0) scale(0.93);
-    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-  100% {
-    transform: translateZ(0) scale(1);
-  }
-}
-
 .simple-bottom-sheet .gameplay-sheet-close:focus-visible,
 .cc-gameplay-modal-flip-shell > .gameplay-sheet-close:focus-visible,
 .cc-gameplay-modal-idle-shell > .gameplay-sheet-close:focus-visible,
@@ -2493,15 +2468,6 @@ body.journey-board-game-active #hud-board-indicator {
 .cc-gameplay-modal-idle-shell > .gameplay-sheet-close:disabled,
 .cc-gameplay-modal-pose-shell > .gameplay-sheet-close:disabled {
   pointer-events: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .simple-bottom-sheet .gameplay-sheet-close.is-comic-bouncing,
-  .cc-gameplay-modal-flip-shell > .gameplay-sheet-close.is-comic-bouncing,
-  .cc-gameplay-modal-idle-shell > .gameplay-sheet-close.is-comic-bouncing,
-  .cc-gameplay-modal-pose-shell > .gameplay-sheet-close.is-comic-bouncing {
-    animation: none !important;
-  }
 }
 
 .simple-bottom-sheet:not(.score-bottom-sheet)::before,
@@ -4376,6 +4342,12 @@ body:has(:root) .tile.wild-3d-glow {
   width: 26px;
   height: 26px;
   object-fit: contain;
+}
+
+.settings-back-button.tap-scale:active,
+.settings-dev-open-button.tap-scale:active {
+  transform: none;
+  transition: none;
 }
 
 .settings-title {

@@ -80,7 +80,13 @@ export async function runJourneyCompletionFlow({
                 isJourneySpecialDiceUnlocked,
               } = await import('./journey-special-dice-screen.js');
               if (!isJourneySpecialDiceUnlocked('flower')) {
-                await showJourneySpecialDiceScreen({ diceType: 'flower' });
+                const specialDiceResult = await showJourneySpecialDiceScreen({ diceType: 'flower' });
+                if (specialDiceResult.action === 'cancelled') {
+                  logger?.info?.('🎲 Journey special dice unlock screen cancelled for flower');
+                  cleanupNewCardHandoffCover?.();
+                  cleanupNewCardHandoffCover = null;
+                  return { isFromInterimBoard, cleanupNewCardHandoffCover, cancelled: true };
+                }
                 logger?.info?.('🎲 Journey special dice unlock screen completed for flower');
               }
             } catch (specialDiceError) {

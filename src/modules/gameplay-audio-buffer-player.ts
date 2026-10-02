@@ -12,6 +12,10 @@ import {
   NATIVE_AUDIO_ACTIVE_EVENT,
   SoundtrackContextRecovery,
 } from './soundtrack-context-recovery.js';
+import {
+  GameplayAudioLoadScheduler,
+  type GameplayAudioLoadPriority,
+} from './gameplay-load-scheduler.ts';
 
 export type GameplayAudioPlaybackResult = 'played' | 'pending' | 'unavailable';
 
@@ -60,11 +64,15 @@ let audioLifecycleHidden = false;
 let nativeForegroundOverridesHidden = false;
 let playbackGeneration = 0;
 // Audible and queued users always win over eviction. The separately owned
-// soundtrack is not included. Mobile normally retains at most 32 MiB, but a
+// soundtrack is not included. Mobile normally retains at most 28 MiB, but a
 // single authored long loop gets its own bounded slot plus 16 MiB for effects:
 // Forest resamples to 32.22 MiB at 48 kHz and otherwise evicts every idle SFX.
 const DESKTOP_DECODED_AUDIO_BUDGET_BYTES = 64 * 1024 * 1024;
-const MOBILE_DECODED_AUDIO_BUDGET_BYTES = 32 * 1024 * 1024;
+const MOBILE_DECODED_AUDIO_BUDGET_BYTES = 28 * 1024 * 1024;
+// A native memory warning means the nominal working set is already too large
+// for this concrete session. Keep later refills below the warning threshold
+// instead of repeating a 0 -> 28 MiB decode/evict cycle on every board retry.
+const MOBILE_MEMORY_PRESSURE_AUDIO_BUDGET_BYTES = 16 * 1024 * 1024;
 const MOBILE_LONG_LOOP_LIMIT_BYTES = 36 * 1024 * 1024;
 const MOBILE_LONG_LOOP_THRESHOLD_BYTES = 24 * 1024 * 1024;
 // The largest authored Special package (Barrel, 12.22 MiB at 48 kHz) and
@@ -77,17 +85,45 @@ export function resolveDecodedGameplayAudioBudgetBytes(isMobileDevice: boolean):
 const DECODED_AUDIO_BUDGET_BYTES = resolveDecodedGameplayAudioBudgetBytes(
   MOBILE_RUNTIME_PROFILE.isMobileDevice,
 );
+let decodedAudioBudgetBytes = DECODED_AUDIO_BUDGET_BYTES;
 const FAILED_LOAD_RETRY_MS = 2_000;
-type DecodedEntry = { buffer: AudioBuffer; bytes: number; lastUsed: number; lastUseAtMs?: number | null };
+type DecodedEntry = {
+  buffer: AudioBuffer;
+  bytes: number;
+  lastUsed: number;
+  lastUseAtMs?: number | null;
+  /** Real audible starts, not speculative preload requests. */
+  audibleUses: number;
+};
 const decodedBuffers = new Map<string, DecodedEntry>();
 const loopSources = new Set<string>();
-const successfullyDecodedSources = new Set<string>();
+// Metadata survives eviction; it owns no AudioBuffer. Knowing the decoded
+// cost prevents optional warmups from repeatedly decoding an unretainable cue.
+type DecodedSourceHistory = {
+  bytes: number;
+  audibleUses: number;
+  evictions: number;
+};
+const successfullyDecodedSources = new Map<string, DecodedSourceHistory>();
+const AUDIO_SOURCE_HISTORY_LIMIT = 256;
+let skippedSpeculativeLoads = 0;
 let cacheGeneration = 0;
 let cacheAccessSequence = 0;
 let evictedBuffers = 0;
 let evictedBytes = 0;
 let redecodedBuffers = 0;
+let memoryPressureWarningCount = 0;
 const pendingBuffers = new Map<string, Promise<void>>();
+const gameplayAudioLoadScheduler = new GameplayAudioLoadScheduler(
+  MOBILE_RUNTIME_PROFILE.isMobileDevice ? 2 : 8,
+);
+
+/** Pause optional audio fetch/decode while a foreground animation owns the
+ * main thread. Direct audible playback stays admitted by the scheduler. */
+export function suspendSpeculativeGameplayAudioLoads(): () => void {
+  return gameplayAudioLoadScheduler.suspendSpeculative();
+}
+
 const failedBuffers = new Map<string, number>();
 const activeVoices = new Map<string, ActiveVoice>();
 const pendingVoiceStarts = new Map<string, PendingVoiceStart>();
@@ -100,8 +136,11 @@ subscribeThermalAudioIsolation((enabled) => {
   const isolationGeneration = ++isolationCleanupGeneration;
   if (!enabled) return; // The live route/gesture owns any later restart.
   cacheGeneration++;
+  gameplayAudioLoadScheduler.cancelQueued();
   stopDecodedGameplayVoices([...new Set([...activeVoices.keys(), ...pendingVoiceStarts.keys()])]);
-  releaseIdleDecodedGameplayAudio();
+  // Diagnostic isolation is an explicit full teardown, not an OS pressure
+  // adaptation. It must leave no decoded working set behind.
+  trimDecodedCache(0);
   pendingBuffers.clear();
   failedBuffers.clear();
   loopSources.clear();
@@ -156,6 +195,8 @@ function getReservedMobileLoop(protectedKeys: Set<string>): [string, DecodedEntr
 
 function evictDecodedEntry(source: string, entry: DecodedEntry, reason: GameplayAudioDiagnosticDetail['reason']): void {
   decodedBuffers.delete(source);
+  const history = successfullyDecodedSources.get(source);
+  if (history) history.evictions += 1;
   evictedBuffers++;
   evictedBytes += entry.bytes;
   if (gameplayAudioDiagnosticNow() !== null) recordGameplayAudioDiagnostic({
@@ -181,7 +222,7 @@ function retireOtherIdleLongLoops(nextLoopSource: string): void {
   }
 }
 
-function trimDecodedCache(budgetBytes = DECODED_AUDIO_BUDGET_BYTES): void {
+function trimDecodedCache(budgetBytes = decodedAudioBudgetBytes): void {
   const protectedKeys = protectedSources();
   // OS pressure deliberately bypasses the reusable long-loop slot as well.
   const reservedLoop = budgetBytes > 0 ? getReservedMobileLoop(protectedKeys) : undefined;
@@ -191,7 +232,19 @@ function trimDecodedCache(budgetBytes = DECODED_AUDIO_BUDGET_BYTES): void {
   if (bytes <= effectBudget) return;
   const idle = Array.from(decodedBuffers.entries())
     .filter(([source]) => source !== reservedLoop?.[0] && !protectedKeys.has(source))
-    .sort((a, b) => a[1].lastUsed - b[1].lastUsed);
+    .sort((a, b) => {
+      // A single near-budget transient must not flush a reusable family and
+      // then be evicted itself. Prefer rejecting that whale before ordinary
+      // LRU ordering; authored long ambience has its separate bounded slot.
+      const aNearBudget = Number(a[1].bytes >= effectBudget * 0.75);
+      const bNearBudget = Number(b[1].bytes >= effectBudget * 0.75);
+      return bNearBudget - aNearBudget
+        // Route preloads must not continuously evict small cues that actually
+        // played many times (stack, pickup, CTA/nav). This reuse-aware tier
+        // stays bounded by the same byte budget; LRU remains the tie-breaker.
+        || Math.min(a[1].audibleUses, 2) - Math.min(b[1].audibleUses, 2)
+        || a[1].lastUsed - b[1].lastUsed;
+    });
   // Pressure, not elapsed time, retires reusable audio. Fixed idle deadlines
   // force expensive redecodes on every World return even below the budget.
   for (const [source, entry] of idle) {
@@ -233,6 +286,7 @@ function retireGameplayAudioForBackground(): void {
   audioLifecycleHidden = true;
   nativeForegroundOverridesHidden = false;
   playbackGeneration++;
+  gameplayAudioLoadScheduler.cancelQueued();
   disarmForegroundGestureRetry();
   audioContextRecovery?.cancel();
   // Keep the decoded cache reusable. Background retires playback ownership,
@@ -404,22 +458,61 @@ function preloadSource(
   const existing = decodedBuffers.get(resolvedSource);
   const result = existing ? 'hit' : pendingBuffers.has(resolvedSource) ? 'pending'
     : isLoadCoolingDown(resolvedSource) ? 'cooldown' : 'miss';
-  // A current package can be partly resident. Refresh hits before its missing
-  // members finish, so older unrelated families yield to this preparation.
   if (existing) touchEntry(existing);
   if (request && operation !== 'play') recordGameplayAudioDiagnostic({
     kind: 'request', source: resolvedSource, operation, result,
     bytes: existing?.bytes, lastUseSequence: existing?.lastUsed,
     lastUseAtMs: existing?.lastUseAtMs ?? null, ...diagnosticCounts(),
   }, request);
+  if (result === 'pending') {
+    gameplayAudioLoadScheduler.promote(
+      resolvedSource,
+      operation as GameplayAudioLoadPriority,
+    );
+    return;
+  }
   if (result !== 'miss') return;
+
+  const canAdmitSpeculativeReload = (): boolean => {
+    if (operation !== 'preload' || protectedSources().has(resolvedSource)) return true;
+    const known = successfullyDecodedSources.get(resolvedSource);
+    if (!known) return true; // Learn an authored source's actual resampled size once.
+    // A source evicted before it ever played was speculative waste. Do not
+    // repeat that decode on every route warmup. Audible playback always
+    // bypasses this policy.
+    if (known.evictions > 0 && known.audibleUses === 0) return false;
+    const protectedKeys = protectedSources();
+    const reservedLoop = getReservedMobileLoop(protectedKeys);
+    if (MOBILE_RUNTIME_PROFILE.isMobileDevice && loopSources.has(resolvedSource)
+      && known.bytes > MOBILE_LONG_LOOP_THRESHOLD_BYTES && known.bytes <= MOBILE_LONG_LOOP_LIMIT_BYTES) return true;
+    const budget = reservedLoop ? MOBILE_EFFECTS_WITH_LONG_LOOP_BUDGET_BYTES : decodedAudioBudgetBytes;
+    // Only unseen optional buffers may yield to another optional request.
+    // Audible history and active/pending voices take precedence over warming.
+    const retainedBytes = Array.from(decodedBuffers.entries()).reduce((sum, [key, entry]) => (
+      sum + (key !== reservedLoop?.[0]
+        && (entry.audibleUses > 0 || protectedKeys.has(key)) ? entry.bytes : 0)
+    ), 0);
+    return known.bytes < budget * 0.75 && retainedBytes + known.bytes <= budget;
+  };
+  if (!canAdmitSpeculativeReload()) {
+    skippedSpeculativeLoads += 1;
+    return;
+  }
 
   const generation = cacheGeneration;
   const admittedPlaybackGeneration = playbackGeneration;
-  const job = request || isThermalAudioIsolationAvailable() ? Symbol('audio-load') : null;
-  if (job) diagnosticLoadJobs.add(job);
-
-  const pending = (async () => {
+  const pending = gameplayAudioLoadScheduler.enqueue(
+    resolvedSource,
+    operation as GameplayAudioLoadPriority,
+    async () => {
+    // Queued packages can outlive a visual transition or a cache refill.
+    // Recheck admission at execution; audible promotion protects its source.
+    if (!canAdmitSpeculativeReload()) {
+      skippedSpeculativeLoads += 1;
+      return;
+    }
+    const job = request || isThermalAudioIsolationAvailable() ? Symbol('audio-load') : null;
+    if (job) diagnosticLoadJobs.add(job);
     let decodeStartedAt: number | null = null;
     try {
       const response = await fetch(resolvedSource, { cache: 'force-cache' });
@@ -442,6 +535,7 @@ function preloadSource(
         buffer: decodedAudio,
         bytes: decodedAudio.length * decodedAudio.numberOfChannels * Float32Array.BYTES_PER_ELEMENT,
         lastUsed: discarded ? cacheAccessSequence : ++cacheAccessSequence,
+        audibleUses: successfullyDecodedSources.get(resolvedSource)?.audibleUses ?? 0,
       };
       const completedAt = request ? gameplayAudioDiagnosticNow() : null;
       if (completedAt !== null) entry.lastUseAtMs = completedAt;
@@ -451,8 +545,17 @@ function preloadSource(
         ...diagnosticCounts(),
       }, request);
       if (discarded) return;
-      if (successfullyDecodedSources.has(resolvedSource)) redecodedBuffers++;
-      successfullyDecodedSources.add(resolvedSource);
+      const previousHistory = successfullyDecodedSources.get(resolvedSource);
+      if (previousHistory) redecodedBuffers++;
+      successfullyDecodedSources.delete(resolvedSource);
+      successfullyDecodedSources.set(resolvedSource, {
+        bytes: entry.bytes,
+        audibleUses: entry.audibleUses,
+        evictions: previousHistory?.evictions ?? 0,
+      });
+      if (successfullyDecodedSources.size > AUDIO_SOURCE_HISTORY_LIMIT) {
+        successfullyDecodedSources.delete(successfullyDecodedSources.keys().next().value!);
+      }
       decodedBuffers.set(resolvedSource, entry);
       failedBuffers.delete(resolvedSource);
     } catch (error) {
@@ -462,12 +565,13 @@ function preloadSource(
       logger.warn(`Failed to predecode gameplay sound ${source}:`, error);
     } finally {
       if (job) diagnosticLoadJobs.delete(job);
-      if (generation === cacheGeneration) {
-        pendingBuffers.delete(resolvedSource);
-        trimDecodedCache();
-      }
     }
-  })();
+  }).finally(() => {
+    if (generation === cacheGeneration) {
+      pendingBuffers.delete(resolvedSource);
+      trimDecodedCache();
+    }
+  });
   pendingBuffers.set(resolvedSource, pending);
 }
 
@@ -503,8 +607,8 @@ export function getDecodedGameplaySoundsState(
   const resolvedSources = sources.map(resolveSource);
   if (resolvedSources.some(isLoadCoolingDown)) return 'unavailable';
   const ready = resolvedSources.every((source) => decodedBuffers.has(source));
-  const request = captureGameplayAudioDiagnosticRequest('state:unscoped');
-  sources.forEach((source) => preloadSource(context, source, request, 'state'));
+  // A capability/readiness probe must not warm every sibling in a family.
+  // Explicit preload owns preparation; play owns loading the selected cue.
   return ready ? 'ready' : 'pending';
 }
 
@@ -738,6 +842,13 @@ export function playDecodedGameplaySound(
       options.onEnded?.();
     };
     sourceNode.start(startAt, startOffsetSeconds);
+    if (entry) {
+      entry.audibleUses += 1;
+      const history = successfullyDecodedSources.get(resolvedSource);
+      if (history) {
+        history.audibleUses = entry.audibleUses;
+      }
+    }
     if (stopAt !== null) sourceNode.stop(stopAt);
     trimDecodedCache();
     try { options.onStarted?.(); }
@@ -762,9 +873,25 @@ export function playDecodedGameplaySound(
   }
 }
 
-/** Release only unused decoded buffers on an explicit OS memory warning. */
+/**
+ * Adapt decoded residency on an explicit OS memory warning.
+ *
+ * The first warning keeps the hottest idle portion of the new 16 MiB working
+ * set. Flushing 28 MiB to zero made the same route immediately decode it all
+ * again, increasing CPU work and producing a repeat eviction loop. A repeated
+ * warning proves that the retained working set was still too expensive for the
+ * concrete session, so only then do we release every idle entry. Active and
+ * pending voices remain protected at both levels.
+ */
 export function releaseIdleDecodedGameplayAudio(): void {
-  trimDecodedCache(0);
+  memoryPressureWarningCount += 1;
+  if (MOBILE_RUNTIME_PROFILE.isMobileDevice) {
+    decodedAudioBudgetBytes = Math.min(
+      decodedAudioBudgetBytes,
+      MOBILE_MEMORY_PRESSURE_AUDIO_BUDGET_BYTES,
+    );
+  }
+  trimDecodedCache(memoryPressureWarningCount > 1 ? 0 : decodedAudioBudgetBytes);
 }
 
 export function getDecodedGameplayAudioStats(includeVoiceDetails = false) {
@@ -783,16 +910,25 @@ export function getDecodedGameplayAudioStats(includeVoiceDetails = false) {
     isolationPendingDecodes: diagnosticDecodeJobs.size,
     decodedBytes,
     idleBytes,
-    budgetBytes: DECODED_AUDIO_BUDGET_BYTES,
+    budgetBytes: decodedAudioBudgetBytes,
     residentLoopBytes: reservedLoop?.[1].bytes ?? 0,
-    effectBudgetBytes: reservedLoop ? MOBILE_EFFECTS_WITH_LONG_LOOP_BUDGET_BYTES : DECODED_AUDIO_BUDGET_BYTES,
+    effectBudgetBytes: reservedLoop ? MOBILE_EFFECTS_WITH_LONG_LOOP_BUDGET_BYTES : decodedAudioBudgetBytes,
     residencyBudgetBytes: reservedLoop
       ? reservedLoop[1].bytes + MOBILE_EFFECTS_WITH_LONG_LOOP_BUDGET_BYTES
-      : DECODED_AUDIO_BUDGET_BYTES,
+      : decodedAudioBudgetBytes,
+    memoryPressureAdapted: decodedAudioBudgetBytes < DECODED_AUDIO_BUDGET_BYTES,
+    memoryPressureWarningCount,
+    memoryPressureMode: memoryPressureWarningCount > 1
+      ? 'aggressive-idle-release'
+      : memoryPressureWarningCount === 1
+        ? 'stable-working-set'
+        : 'normal',
+    loadScheduler: gameplayAudioLoadScheduler.snapshot(),
     sampleRate: audioContext?.sampleRate ?? null,
     evictedBuffers,
     evictedBytes,
     redecodedBuffers,
+    skippedSpeculativeLoads,
     contextState: audioContext?.state ?? (audioContextUnavailable ? 'unavailable' : 'uninitialized'),
     decodedBuffers: decodedBuffers.size,
     pendingBuffers: pendingBuffers.size,
@@ -819,6 +955,7 @@ export function getDecodedGameplayAudioStats(includeVoiceDetails = false) {
 
 export function resetDecodedGameplayAudioForTests(): void {
   cacheGeneration++;
+  gameplayAudioLoadScheduler.reset();
   cacheAccessSequence = 0;
   disarmForegroundGestureRetry();
   if (foregroundListenersInstalled) {
@@ -838,6 +975,9 @@ export function resetDecodedGameplayAudioForTests(): void {
   evictedBuffers = 0;
   evictedBytes = 0;
   redecodedBuffers = 0;
+  memoryPressureWarningCount = 0;
+  skippedSpeculativeLoads = 0;
+  decodedAudioBudgetBytes = DECODED_AUDIO_BUDGET_BYTES;
   audioContextRecovery?.cancel();
   audioContextRecovery = null;
   if (audioContext) {

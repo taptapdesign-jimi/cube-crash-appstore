@@ -96,7 +96,7 @@ describe('decoded gameplay audio owner', () => {
   });
 
   it('keeps a lower idle decoded-audio ceiling on mobile runtimes', () => {
-    expect(resolveDecodedGameplayAudioBudgetBytes(true)).toBe(32 * 1024 * 1024);
+    expect(resolveDecodedGameplayAudioBudgetBytes(true)).toBe(28 * 1024 * 1024);
     expect(resolveDecodedGameplayAudioBudgetBytes(false)).toBe(64 * 1024 * 1024);
   });
 
@@ -627,7 +627,7 @@ describe('decoded gameplay audio owner', () => {
   });
   describe('bounded buffer residency and retry', () => {
     async function flush(): Promise<void> {
-      for (let i = 0; i < 12; i++) await Promise.resolve();
+      for (let i = 0; i < 80; i++) await Promise.resolve();
     }
     const bufferMiB = (mib: number): AudioBuffer => ({
       duration: 2, numberOfChannels: 2, length: mib * 1024 * 1024 / 8,
@@ -652,23 +652,112 @@ describe('decoded gameplay audio owner', () => {
       expect(getDecodedGameplaySoundsState(['b.wav', 'c.wav'])).toBe('ready');
       expect(getDecodedGameplaySoundsState(['a.wav'])).toBe('pending');
       await flush();
-      expect(global.fetch).toHaveBeenCalledTimes(4);
+      expect(global.fetch).toHaveBeenCalledTimes(3);
     });
 
-    it('releases sub-budget idle buffers on OS pressure without interrupting live audio', async () => {
+    it('keeps an audibly reused cue ahead of newer speculative buffers under pressure', async () => {
+      preloadDecodedGameplaySounds([]);
+      const context = MockAudioContext.instances[0];
+      context.decodeAudioData.mockResolvedValue(bufferMiB(24));
+
+      preloadDecodedGameplaySounds(['hot.wav']);
+      await flush();
+      expect(playDecodedGameplaySound('hot.wav', { voiceId: 'hot', volume: 1 })).toBe('played');
+      stopDecodedGameplayVoice('hot');
+      preloadDecodedGameplaySounds(['speculative-a.wav']);
+      await flush();
+      preloadDecodedGameplaySounds(['speculative-b.wav']);
+      await flush();
+
+      expect(getDecodedGameplaySoundsState(['hot.wav', 'speculative-b.wav'])).toBe('ready');
+      expect(getDecodedGameplaySoundsState(['speculative-a.wav'])).toBe('pending');
+      await flush();
+      expect(global.fetch).toHaveBeenCalledTimes(3);
+    });
+
+    it('keeps a bounded hot working set on first OS pressure and flushes idle only after a repeated warning', async () => {
       preloadDecodedGameplaySounds(['idle.wav', 'live.wav']);
       await flush();
       expect(playDecodedGameplaySound('live.wav', { voiceId: 'live', volume: 1, loop: true })).toBe('played');
       releaseIdleDecodedGameplayAudio();
-      expect(getDecodedGameplayAudioStats()).toMatchObject({ decodedBuffers: 1, idleBytes: 0, activeVoices: 1 });
+      expect(getDecodedGameplayAudioStats()).toMatchObject({
+        decodedBuffers: 2,
+        activeVoices: 1,
+        memoryPressureWarningCount: 1,
+        memoryPressureMode: 'stable-working-set',
+      });
       expect(MockAudioContext.instances[0].sources[0].stop).not.toHaveBeenCalled();
       stopDecodedGameplayVoice('live');
       releaseIdleDecodedGameplayAudio();
-      releaseIdleDecodedGameplayAudio();
-      expect(getDecodedGameplayAudioStats().decodedBytes).toBe(0);
+      expect(getDecodedGameplayAudioStats()).toMatchObject({
+        decodedBytes: 0,
+        memoryPressureWarningCount: 2,
+        memoryPressureMode: 'aggressive-idle-release',
+      });
       preloadDecodedGameplaySounds(['idle.wav']);
       await flush();
-      expect(playDecodedGameplaySound('idle.wav', { voiceId: 'again', volume: 1 })).toBe('played');
+      expect(playDecodedGameplaySound('idle.wav', { voiceId: 'again', volume: 1 })).toBe('pending');
+      await flush();
+      expect(getDecodedGameplayAudioStats().activeVoices).toBe(1);
+    });
+
+    it('does not speculatively re-decode an unused evicted cue', async () => {
+      preloadDecodedGameplaySounds([]);
+      const context = MockAudioContext.instances[0];
+      context.decodeAudioData.mockResolvedValue(bufferMiB(24));
+
+      for (const source of ['unused.wav', 'fill-a.wav', 'fill-b.wav']) {
+        preloadDecodedGameplaySounds([source]);
+        await flush();
+      }
+      const decodesBefore = context.decodeAudioData.mock.calls.length;
+      preloadDecodedGameplaySounds(['unused.wav']);
+      await flush();
+
+      expect(context.decodeAudioData).toHaveBeenCalledTimes(decodesBefore);
+      expect(getDecodedGameplayAudioStats().skippedSpeculativeLoads).toBeGreaterThan(0);
+      expect(playDecodedGameplaySound('unused.wav', { voiceId: 'selected', volume: 1 })).toBe('pending');
+      await flush();
+      expect(context.decodeAudioData).toHaveBeenCalledTimes(decodesBefore + 1);
+      expect(getDecodedGameplayAudioStats().activeVoices).toBe(1);
+    });
+
+    it('does not repeatedly decode a known unretainable preload, but audible playback still wins', async () => {
+      preloadDecodedGameplaySounds([]);
+      const context = MockAudioContext.instances[0];
+      context.decodeAudioData.mockResolvedValue(bufferMiB(50));
+      preloadDecodedGameplaySounds(['large.wav']);
+      await flush();
+      context.decodeAudioData.mockResolvedValue(bufferMiB(20));
+      playDecodedGameplaySound('hot.wav', { voiceId: 'hot', volume: 1 });
+      await flush();
+      stopDecodedGameplayVoice('hot');
+      expect(getDecodedGameplaySoundsState(['large.wav'])).toBe('pending');
+      const count = context.decodeAudioData.mock.calls.length;
+      for (let i = 0; i < 7; i++) {
+        preloadDecodedGameplaySounds(['large.wav']);
+        await flush();
+      }
+      expect(context.decodeAudioData).toHaveBeenCalledTimes(count);
+      expect(getDecodedGameplayAudioStats().skippedSpeculativeLoads).toBe(7);
+      context.decodeAudioData.mockResolvedValue(bufferMiB(50));
+      expect(playDecodedGameplaySound('large.wav', { voiceId: 'requested', volume: 1 })).toBe('pending');
+      await flush();
+      expect(context.decodeAudioData).toHaveBeenCalledTimes(count + 1);
+      expect(getDecodedGameplayAudioStats().activeVoices).toBe(1);
+    });
+
+    it('a family readiness probe creates no sibling fetches or decodes', async () => {
+      expect(getDecodedGameplaySoundsState(['one.wav', 'two.wav', 'three.wav'])).toBe('pending');
+      await flush();
+      expect(global.fetch).not.toHaveBeenCalled();
+      playDecodedGameplaySound('two.wav', { voiceId: 'selected', volume: 1 });
+      await flush();
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(getDecodedGameplaySoundsState(['two.wav'])).toBe('ready');
+      expect(getDecodedGameplaySoundsState(['one.wav', 'three.wav'])).toBe('pending');
+      await flush();
+      expect(global.fetch).toHaveBeenCalledTimes(1);
     });
 
     it('starts every requested layer when a cold readiness group exceeds the budget', async () => {
@@ -773,7 +862,7 @@ describe('decoded gameplay audio owner', () => {
       expect(getDecodedGameplayAudioStats()).toMatchObject({ failedBuffers: 0, activeVoices: 2, pendingVoiceStarts: 0 });
     });
 
-    it('recovers a decode failure through the readiness API without autonomous retry work', async () => {
+    it('readiness stays observational and an explicit preload retries a cooled-down failure', async () => {
       preloadDecodedGameplaySounds([]);
       const context = MockAudioContext.instances[0];
       context.decodeAudioData.mockRejectedValueOnce(new Error('decoder interrupted'));
@@ -783,6 +872,8 @@ describe('decoded gameplay audio owner', () => {
       jest.advanceTimersByTime(60_000);
       expect(global.fetch).toHaveBeenCalledTimes(1);
       expect(getDecodedGameplaySoundsState(['decode.wav'])).toBe('pending');
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      preloadDecodedGameplaySounds(['decode.wav']);
       await flush();
       expect(getDecodedGameplaySoundsState(['decode.wav'])).toBe('ready');
       expect(global.fetch).toHaveBeenCalledTimes(2);

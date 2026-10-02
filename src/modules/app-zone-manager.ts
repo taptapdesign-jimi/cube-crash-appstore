@@ -357,7 +357,7 @@ class AppZoneManager {
       if (!this.isPresentationCurrent(epoch, 'home')) return;
       try {
         const { assetPreloader } = await import('./asset-preloader.js');
-        await assetPreloader.preloadHTMLImages?.();
+        await assetPreloader.preloadHomepageReturnImages?.();
       } catch {}
       if (!this.isPresentationCurrent(epoch, 'home')) return;
       const home = document.getElementById('home') as HTMLElement | null;

@@ -404,6 +404,10 @@ describe('LaserGun special die contract', () => {
     expect(appCore).toContain('strength: i === 2 ? 9 : 12');
     expect(appCore).toContain("'.cc-lasergun-finale-scene, .cc-lasergun-right-gun-layer'");
     expect(appCore).toContain('runLaserGunSequentialImpactScheduler(');
+    expect(appCore).toContain("const mustAwaitTntFramesBeforeVisual = tntVariantForMerge?.id !== 'laser-gun'");
+    expect(appCore).toContain("if (tntVariantForMerge?.id !== 'laser-gun') startTntBoardBlast()");
+    expect(appCore).toContain("activityLeaseLabel: 'laser-gun-merge6-smoke'");
+    expect(appCore).toContain("if (wildTntVariant?.id === 'laser-gun') {");
     expect(appCore).toContain("laserGunVisualsEnabled = entryGate === 'painted'");
     expect(appCore).toContain('waitTrackedResult(1500)');
     expect(appCore).toContain('waitTrackedResult(900)');

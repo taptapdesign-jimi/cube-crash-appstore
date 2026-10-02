@@ -143,8 +143,15 @@ const JOURNEY_CARD_OVERLAY_ASSETS = [
   './assets/hand-pointer.png',
 ] as const;
 let journeyCardOverlayPreloadPromise: Promise<void> | null = null;
+const journeyCardEntryImagePreloads = new Map<string, Promise<void>>();
+const JOURNEY_CARD_ENTRY_ASSET_TIMEOUT_MS = 800;
 
-export function preloadJourneyCardOverlayAssets(): Promise<void> {
+export type JourneyCardAssetTimeoutOwner = {
+  schedule(callback: () => void, delayMs: number, onCancel: () => void): number;
+  clear(timeoutId: number): void;
+};
+
+export function preloadJourneyCardOverlayAssets(timeoutOwner?: JourneyCardAssetTimeoutOwner): Promise<void> {
   preloadJourneyCardEntryFlipSounds();
   if (journeyCardOverlayPreloadPromise) return journeyCardOverlayPreloadPromise;
   if (typeof Image === 'undefined') return Promise.resolve();
@@ -152,13 +159,16 @@ export function preloadJourneyCardOverlayAssets(): Promise<void> {
     JOURNEY_CARD_OVERLAY_ASSETS.map((src) => new Promise<void>((resolve) => {
       const image = new Image();
       let settled = false;
+      let timeoutId = 0;
       const finish = () => {
         if (settled) return;
         settled = true;
+        timeoutOwner?.clear(timeoutId);
         image.onload = null;
         image.onerror = null;
         resolve();
       };
+      timeoutId = timeoutOwner?.schedule(finish, JOURNEY_CARD_ENTRY_ASSET_TIMEOUT_MS, finish) ?? 0;
       image.onload = () => {
         if (typeof image.decode === 'function') void image.decode().catch(() => undefined).then(finish);
         else finish();
@@ -169,6 +179,42 @@ export function preloadJourneyCardOverlayAssets(): Promise<void> {
     })),
   ).then(() => undefined);
   return journeyCardOverlayPreloadPromise;
+}
+
+/** Resolve and decode the exact front/back modal art before the visible flip
+ * takes ownership. This keeps image decode and texture preparation out of the
+ * first animated frame while retaining the existing authored motion. */
+export function preloadJourneyCardOverlayEntryAssets(
+  cardImagePath2x: string,
+  timeoutOwner?: JourneyCardAssetTimeoutOwner,
+): Promise<void> {
+  if (!cardImagePath2x || typeof Image === 'undefined') return preloadJourneyCardOverlayAssets(timeoutOwner);
+  let exactCard = journeyCardEntryImagePreloads.get(cardImagePath2x);
+  if (!exactCard) {
+    exactCard = new Promise<void>((resolve) => {
+      const image = new Image();
+      let settled = false;
+      let timeoutId = 0;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        timeoutOwner?.clear(timeoutId);
+        image.onload = null;
+        image.onerror = null;
+        resolve();
+      };
+      timeoutId = timeoutOwner?.schedule(finish, JOURNEY_CARD_ENTRY_ASSET_TIMEOUT_MS, finish) ?? 0;
+      image.onload = () => {
+        if (typeof image.decode === 'function') void image.decode().catch(() => undefined).then(finish);
+        else finish();
+      };
+      image.onerror = finish;
+      image.src = cardImagePath2x;
+      if (image.complete) image.onload?.(new Event('load'));
+    });
+    journeyCardEntryImagePreloads.set(cardImagePath2x, exactCard);
+  }
+  return Promise.all([preloadJourneyCardOverlayAssets(timeoutOwner), exactCard]).then(() => undefined);
 }
 
 export const JOURNEY_CARD_SPATIAL_BASE_DURATION_MS = 520;

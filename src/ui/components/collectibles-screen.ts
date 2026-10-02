@@ -1,5 +1,6 @@
 // Journey Screen Component
 import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
+import { playNavIconCartoonBounce } from '../../utils/nav-icon-bounce.js';
 
 export interface CollectiblesScreenConfig {
   onBack?: () => void;
@@ -54,6 +55,32 @@ export function createCollectiblesScreen(config: CollectiblesScreenConfig = {}):
                     className: 'collectibles-title',
                     id: 'collectibles-title',
                     text: 'Journey',
+                  },
+                  {
+                    tag: 'button',
+                    id: 'journey-hub-backpack',
+                    className: 'journey-hub-backpack-button',
+                    attributes: {
+                      type: 'button',
+                      'aria-label': 'Backpack',
+                      hidden: 'true',
+                    },
+                    children: [
+                      {
+                        tag: 'img',
+                        className: 'journey-hub-backpack-icon',
+                        attributes: {
+                          src: './assets/nav/stats-nav.png',
+                          srcset: './assets/nav/stats-nav@2x.png 2x, ./assets/nav/stats-nav@3x.png 3x',
+                          alt: '',
+                          draggable: 'false',
+                          'aria-hidden': 'true',
+                        },
+                      },
+                    ],
+                    eventListeners: {
+                      click: (event) => playNavIconCartoonBounce(event.currentTarget as HTMLElement | null),
+                    },
                   },
                 ],
               },

@@ -8,6 +8,7 @@ import { logger } from '../core/logger.js';
 import { shouldPausePostCriticalPreload } from './post-critical-preload-policy.js';
 import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.js';
 import { isAssetAliasRegistered, markAssetAliasRegistered } from '../utils/asset-registry.js';
+import { preloadImagesBounded } from '../utils/bounded-image-preloader.js';
 
 function isAliasAlreadyInPixiResolver(alias: string): boolean {
   try {
@@ -40,6 +41,13 @@ const JOURNEY_BOTTOM_DECOR_IMAGES = Array.from({ length: 12 }, (_, index) => {
     `./assets/journey assets/bottom${bottomIndex}@2x.png`,
   ];
 }).flat();
+
+function resolveHomepageDensityAsset(basePath: string): string {
+  const dpr = typeof window === 'undefined' ? 1 : Number(window.devicePixelRatio || 1);
+  if (dpr >= 2.5) return basePath.replace(/\.png$/i, '@3x.png');
+  if (dpr >= 1.5) return basePath.replace(/\.png$/i, '@2x.png');
+  return basePath;
+}
 
 // Window interface is now defined in src/types/window.d.ts
 
@@ -393,6 +401,7 @@ export class AssetPreloader {
   private preloadPromise: Promise<void> | null = null;
   private criticalPreloadPromise: Promise<void> | null = null;
   private postCriticalPreloadPromise: Promise<void> | null = null;
+  private homepageReturnPreloadPromise: Promise<void> | null = null;
 
   constructor() {
     this.loadedCount = 0;
@@ -403,6 +412,7 @@ export class AssetPreloader {
     this.preloadPromise = null;
     this.criticalPreloadPromise = null;
     this.postCriticalPreloadPromise = null;
+    this.homepageReturnPreloadPromise = null;
   }
 
   setProgressCallback(callback: ProgressCallback): void {
@@ -470,6 +480,24 @@ export class AssetPreloader {
       await Promise.allSettled(loadPromises);
       await this.yieldToMainThread();
     }
+  }
+
+  /**
+   * The Homepage handoff owns only the three currently-selectable hero images.
+   * It must never wait for Journey scenery, reward frames or transition art.
+   */
+  async preloadHomepageReturnImages(): Promise<void> {
+    if (this.homepageReturnPreloadPromise) return this.homepageReturnPreloadPromise;
+    const homepageImages = [
+      './assets/crash-cubes-homepage.png',
+      './assets/journey.png',
+      './assets/settings-slider.png',
+    ].map(resolveHomepageDensityAsset);
+    this.homepageReturnPreloadPromise = preloadImagesBounded(homepageImages, {
+      concurrency: 2,
+      decode: true,
+    }).then(() => undefined);
+    return this.homepageReturnPreloadPromise;
   }
 
   // 🔥 CRITICAL: Preload HTML img tag images to ensure they're in browser cache

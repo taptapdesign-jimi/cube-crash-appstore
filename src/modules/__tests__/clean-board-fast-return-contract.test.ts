@@ -75,4 +75,11 @@ describe('Clean Board fast Journey return contract', () => {
     expect(boardFail.slice(boardFailStart, boardFailEnd))
       .toContain('visualExitAlreadyComplete: (window as any).__ccGameOverBoardExitComplete === true');
   });
+
+  test('admits optional Journey preparation only after visible coin counters', () => {
+    const source = read('src/modules/clean-board-modal.ts');
+    expect(source).toContain('JOURNEY_RETURN_PREWARM_AFTER_COUNTERS_MS = 6150');
+    expect(source).not.toContain('JOURNEY_RETURN_PREWARM_DURING_COUNT_MS');
+    expect(source).toContain('trackAnimationFrame(() => {\n            trackAnimationFrame(() => {');
+  });
 });

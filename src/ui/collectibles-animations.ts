@@ -412,7 +412,7 @@ function getJourneyViewportEnterStart(target: HTMLElement): { scale: number; y: 
 
 export function prepareJourneyViewportScreenEnter(
   reason: string = 'journey-enter-prepare',
-  options: { animateJourneyContent?: boolean } = {},
+  options: { animateJourneyContent?: boolean; preserveScreenState?: boolean } = {},
 ): void {
   const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
   const collectiblesHeader = journeyScreen?.querySelector('.collectibles-header') as HTMLElement | null;
@@ -420,22 +420,24 @@ export function prepareJourneyViewportScreenEnter(
   if (!journeyScreen) return;
   cancelJourneyHubScrollableEnter();
 
-  try {
-    gsap.killTweensOf(journeyScreen);
-    journeyScreen.hidden = false;
-    journeyScreen.removeAttribute('hidden');
-    journeyScreen.classList.remove('hidden');
-    journeyScreen.classList.add('show');
-    journeyScreen.style.display = 'flex';
-    journeyScreen.style.zIndex = '999999';
-    gsap.set(journeyScreen, {
-      opacity: 0,
-      visibility: 'hidden',
-      immediateRender: true,
-    });
-    journeyScreen.style.pointerEvents = 'none';
-    journeyScreen.style.willChange = 'opacity';
-  } catch {}
+  if (options.preserveScreenState !== true) {
+    try {
+      gsap.killTweensOf(journeyScreen);
+      journeyScreen.hidden = false;
+      journeyScreen.removeAttribute('hidden');
+      journeyScreen.classList.remove('hidden');
+      journeyScreen.classList.add('show');
+      journeyScreen.style.display = 'flex';
+      journeyScreen.style.zIndex = '999999';
+      gsap.set(journeyScreen, {
+        opacity: 0,
+        visibility: 'hidden',
+        immediateRender: true,
+      });
+      journeyScreen.style.pointerEvents = 'none';
+      journeyScreen.style.willChange = 'opacity';
+    } catch {}
+  }
 
   if (collectiblesHeader) {
     try {
@@ -516,6 +518,41 @@ export function prepareJourneyViewportScreenEnter(
   } catch {}
 }
 
+/**
+ * Publish the already-prepared Journey shell beneath an opaque terminal cover.
+ * This deliberately does not touch Unit transforms: the World coordinator owns
+ * their one authored enter after the cover releases the reveal token.
+ */
+export function commitPreparedJourneyViewportBehindTerminalCover(): boolean {
+  const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
+  const collectiblesScrollable = journeyScreen?.querySelector('.collectibles-scrollable') as HTMLElement | null;
+  if (!journeyScreen) return false;
+  try {
+    gsap.killTweensOf(journeyScreen);
+    journeyScreen.hidden = false;
+    journeyScreen.removeAttribute('hidden');
+    journeyScreen.classList.remove('hidden');
+    journeyScreen.classList.add('show');
+    journeyScreen.style.setProperty('display', 'flex', 'important');
+    journeyScreen.style.setProperty('visibility', 'visible', 'important');
+    journeyScreen.style.setProperty('opacity', '1', 'important');
+    journeyScreen.style.setProperty('pointer-events', 'none', 'important');
+    journeyScreen.style.setProperty('z-index', '999999');
+    journeyScreen.style.setProperty('will-change', 'auto');
+    delete journeyScreen.dataset.ccJourneyPrimedHidden;
+    if (collectiblesScrollable) {
+      collectiblesScrollable.style.visibility = 'visible';
+      collectiblesScrollable.style.opacity = '1';
+      collectiblesScrollable.style.pointerEvents = 'none';
+    }
+    journeyScreen.dataset.ccJourneyTerminalCoverCommitted = 'true';
+    void journeyScreen.getBoundingClientRect();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function animateJourneyViewportScreenEnter(
   journeyScreen: HTMLElement,
   collectiblesHeader: HTMLElement | null,
@@ -525,6 +562,12 @@ function animateJourneyViewportScreenEnter(
   const revealPrimedWorldImmediately = options.animateJourneyContent === false
     && options.revealPrimedWorldImmediately === true;
   const completionPromises: Promise<void>[] = [];
+  if (journeyScreen.dataset.ccJourneyTerminalCoverCommitted === 'true') {
+    delete journeyScreen.dataset.ccJourneyTerminalCoverCommitted;
+    journeyScreen.style.removeProperty('opacity');
+    journeyScreen.style.removeProperty('visibility');
+    journeyScreen.style.removeProperty('pointer-events');
+  }
   const waitForTween = (
     target: gsap.TweenTarget,
     vars: gsap.TweenVars,

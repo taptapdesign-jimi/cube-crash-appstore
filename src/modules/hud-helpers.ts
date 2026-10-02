@@ -18,6 +18,11 @@ import { isGameplayHudRevealAllowed } from './gameplay-hud-visibility-policy.ts'
 import { isUsablePixiImageTexture, reloadPixiImageTexture } from '../utils/pixi-image-texture-health.js';
 import { playNavigationCloseSound } from './navigation-close-sound.ts';
 import {
+  NAV_ICON_TAP_BOUNCE,
+  navIconTapBounceEase,
+  playNavIconCartoonBounce,
+} from '../utils/nav-icon-bounce.js';
+import {
   clampWildMeterRatio,
   getWildMeterDrainGeometry,
   getWildMeterRefillWidth,
@@ -100,22 +105,22 @@ function playPixiSoftCartoonBounce(target: any): void {
     visualTarget._softBounceActive = true;
 
     tl.to(visualTarget.scale, {
-      x: baseScaleX * 1.18,
-      y: baseScaleY * 1.18,
-      duration: 0.12,
-      ease: 'back.out(2.2)'
+      x: baseScaleX * NAV_ICON_TAP_BOUNCE.squeezeScale,
+      y: baseScaleY * NAV_ICON_TAP_BOUNCE.squeezeScale,
+      duration: NAV_ICON_TAP_BOUNCE.squeezeDurationSeconds,
+      ease: navIconTapBounceEase
     });
     tl.to(visualTarget.scale, {
-      x: baseScaleX * 0.93,
-      y: baseScaleY * 0.93,
-      duration: 0.09,
-      ease: 'power2.out'
+      x: baseScaleX * NAV_ICON_TAP_BOUNCE.popScale,
+      y: baseScaleY * NAV_ICON_TAP_BOUNCE.popScale,
+      duration: NAV_ICON_TAP_BOUNCE.popDurationSeconds,
+      ease: navIconTapBounceEase
     });
     tl.to(visualTarget.scale, {
       x: baseScaleX,
       y: baseScaleY,
-      duration: 0.17,
-      ease: 'back.out(1.9)'
+      duration: NAV_ICON_TAP_BOUNCE.settleDurationSeconds,
+      ease: navIconTapBounceEase
     });
   } catch (err) {
     console.warn('⚠️ Error animating PIXI soft cartoon bounce:', err);
@@ -532,14 +537,7 @@ function ensureHUDCloseButton(parent = null) {
     applyCloseButtonStyles(button, useFixedPosition);
     
     button.addEventListener('click', () => handleHUDClose());
-    button.addEventListener('pointerdown', () => {
-      button.style.transform = 'scale(0.92)';
-    });
-    const resetScale = () => {
-      button.style.transform = 'scale(1)';
-    };
-    button.addEventListener('pointerup', resetScale);
-    button.addEventListener('pointerleave', resetScale);
+    button.addEventListener('pointerdown', () => playNavIconCartoonBounce(button));
     
     const icon = document.createElement('img');
     icon.src = './assets/close-icon.png';

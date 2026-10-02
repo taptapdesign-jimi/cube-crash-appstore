@@ -54,6 +54,7 @@ function fixture(arcade = false) {
       cancelJourneyReturnTransition: jest.fn(),
       prewarmJourneyReturnBeforeTerminalExit: jest.fn(() => Promise.resolve(true)),
       prepareJourneyReturnBehindTerminalOverlay: jest.fn(),
+      warmJourneyReturnBehindSettledTerminal: jest.fn(() => Promise.resolve(true)),
       markJourneyReturnTransition: jest.fn(),
       measureJourneyReturnPreparationPhase: <T>(_id: number, _name: string, work: () => T) => work(),
       finishJourneyReturnCtaSetup: jest.fn(),
@@ -234,7 +235,7 @@ test.each([false, true])('Clean Board normal Play Again retires CTA listeners (A
   expect(f.pointerCount()).toBe(0);
 });
 
-test('slow cold Journey preparation cannot hold a pressed Exit or precede visible exit owners', async () => {
+test('slow cold Journey preparation never disables or holds the first visible Exit tap', async () => {
   const f = fixture();
   let finishPrewarm!: (prepared: boolean) => void;
   f.mocks['./journey-return-transition-trace.ts'].prewarmJourneyReturnBeforeTerminalExit
@@ -249,22 +250,17 @@ test('slow cold Journey preparation cannot hold a pressed Exit or precede visibl
   expect(f.mocks['./journey-return-transition-trace.ts'].prewarmJourneyReturnBeforeTerminalExit)
     .toHaveBeenCalledWith('clean-board', 11);
   expect(exit.dataset.ctaState).toBe('idle');
-  expect(exit.disabled).toBe(true);
-  expect(exit.getAttribute('aria-busy')).toBe('true');
-  expect(exit.dataset.ctaPrewarmPending).toBe('true');
-  click('Exit');
-  expect(f.mocks['./journey-return-transition-trace.ts'].beginJourneyReturnTransition).not.toHaveBeenCalled();
-  expect(window.animateBoardExit).not.toHaveBeenCalled();
-
-  finishPrewarm(true);
-  await flush();
   expect(exit.disabled).toBe(false);
   expect(exit.hasAttribute('aria-busy')).toBe(false);
   expect(exit.dataset.ctaPrewarmPending).toBeUndefined();
-
   click('Exit');
   expect(exit.dataset.ctaState).toBe('exiting');
+  expect(f.mocks['./journey-return-transition-trace.ts'].beginJourneyReturnTransition)
+    .toHaveBeenCalledTimes(1);
   expect(window.animateBoardExit).toHaveBeenCalledTimes(1);
+
+  finishPrewarm(true);
+  await flush();
   expect(f.mocks['./journey-return-transition-trace.ts'].prepareJourneyReturnBehindTerminalOverlay)
     .not.toHaveBeenCalled();
 
@@ -276,6 +272,48 @@ test('slow cold Journey preparation cannot hold a pressed Exit or precede visibl
   await flush();
   expect(f.mocks['./journey-return-transition-trace.ts'].prepareJourneyReturnBehindTerminalOverlay)
     .toHaveBeenCalledWith('clean-board', 1);
+
+  await finishMotion();
+  await expect(result).resolves.toEqual({ action: 'exit', visualExitAlreadyComplete: true });
+});
+
+test.each([
+  ['forest', 1, false],
+  ['beach', 11, false],
+  ['area55', 21, true],
+])('%s starts the same Journey prewarm after coin counting without holding Exit', async (theme, boardNumber, ships) => {
+  const f = fixture();
+  f.mocks['./clean-board-celebration-theme.ts'].resolveCleanBoardCelebrationTheme = () => theme;
+  f.mocks['./clean-board-celebration-theme.ts'].shouldShowArea55CleanBoardShips = () => ships;
+  window.animateBoardExit = jest.fn(() => Promise.resolve());
+
+  const result = f.clean.showCleanBoardModal({ boardNumber, getScore: () => 10, forcedStars: 1 });
+  await flush();
+  jest.advanceTimersByTime(16);
+  await flush();
+  jest.advanceTimersByTime(6149);
+  await flush();
+  expect(f.mocks['./journey-return-transition-trace.ts'].prewarmJourneyReturnBeforeTerminalExit)
+    .not.toHaveBeenCalled();
+  jest.advanceTimersByTime(1);
+  await flush();
+  jest.advanceTimersByTime(32);
+  await flush();
+  expect(f.mocks['./journey-return-transition-trace.ts'].prewarmJourneyReturnBeforeTerminalExit)
+    .toHaveBeenCalledTimes(1);
+  expect(f.mocks['./journey-return-transition-trace.ts'].prewarmJourneyReturnBeforeTerminalExit)
+    .toHaveBeenCalledWith('clean-board', boardNumber);
+  await finishMotion();
+
+  const exit = [...document.querySelectorAll<HTMLButtonElement>('button')]
+    .find(button => button.textContent === 'Exit')!;
+  expect(exit.disabled).toBe(false);
+  expect(exit.dataset.ctaState).toBe('idle');
+
+  click('Exit');
+  expect(f.mocks['./journey-return-transition-trace.ts'].beginJourneyReturnTransition)
+    .toHaveBeenCalledTimes(1);
+  expect(window.animateBoardExit).toHaveBeenCalledTimes(1);
 
   await finishMotion();
   await expect(result).resolves.toEqual({ action: 'exit', visualExitAlreadyComplete: true });

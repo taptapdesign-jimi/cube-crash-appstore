@@ -18,7 +18,12 @@ function fixture() {
     journeyAreaIdlePausedForInteraction: false, journeyWorldRuntime: { getSnapshot: () => ({ state: 'idle' }) },
     journeyV700CloseQueuedDuringEnter: false, journeyV700Phase: 'idle', journeyV700View: 'world', journeyV700WorldId: 1,
     _activeTimeouts: new Set(), _activeTimeoutCancellationHandlers: new Map() };
-  for (const name of ['trackTimeout', 'clearTrackedTimeout', 'scheduleJourneyCardAssetWarmup']) {
+  for (const name of [
+    'trackTimeout',
+    'clearTrackedTimeout',
+    'getJourneyCardAssetTimeoutOwner',
+    'scheduleJourneyCardAssetWarmup',
+  ]) {
     const node = methods.get(name)!;
     const fn = compile(`function run(${node.parameters.map(p => p.getText(file)).join(',')}) ${node.body!.getText(file)}`);
     owner[name] = new Function('scope', `with(scope){${fn};return run;}`)(scope).bind(owner);
@@ -91,7 +96,7 @@ test.each([false, true])('actual World enter continuation schedules warmup only 
   f.owner.trackRAF = (callback: () => void) => { callback(); return 0; };
   f.owner.scheduleJourneyCardAssetWarmup = jest.fn();
   const owner = new Proxy(f.owner, { get: (o, k) => k in o ? o[k] : () => {} });
-  const data: any = { container: f.root, worldId: 1, motionEpoch: 2, source: 'hub-world-open', images: [], units: [], allTargets: [], reducedMotion: false, targetsPrimed: true, options: {},
+  const data: any = { container: f.root, worldId: 1, motionEpoch: 2, source: 'hub-world-open', images: [], units: [], allTargets: [], reducedMotion: false, targetsPrimed: true, canReusePreparedTargets: true, preparedPlan: { cloudsPrimed: true }, options: {},
     transitionPerformance: { phase: (_: string, fn: () => unknown) => fn() }, finishWorldEnterAudit() {}, emitIOSNativeDiagnostic() {}, markIOSJourneyRouteAudit() {}, markIOSJourneyTransitionAudit() {}, completeJourneyReturnTransition() {} };
   const run = new Function('scope', `with(scope){${compile(`const callback = ${enterContinuation.getText(file)};`)} return callback;}`).call(owner, data);
   const pending = run(); await Promise.resolve(); expect(f.owner.scheduleJourneyCardAssetWarmup).not.toHaveBeenCalled();

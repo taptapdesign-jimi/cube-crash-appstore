@@ -45,7 +45,8 @@ describe('Journey New Reward mounted cancellation', () => {
       cardName: 'Fishy',
       cardRarity: 'common',
     });
-    for (let pass = 0; pass < 8; pass += 1) await Promise.resolve();
+    // The reward owner intentionally decodes at most two images at a time.
+    for (let pass = 0; pass < 64; pass += 1) await Promise.resolve();
 
     expect(document.getElementById('cc-journey-new-card-overlay')).not.toBeNull();
     cleanupJourneyNewCardScreen();

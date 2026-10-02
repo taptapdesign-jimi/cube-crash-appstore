@@ -1,5 +1,12 @@
 {
   "version": 1,
+  "sharedTransportPolicy": {
+    "ownerFile": "src/modules/gameplay-audio-buffer-player.ts",
+    "preparation": "Readiness probes never fetch/decode. Explicit optional preload uses a bounded 256-source metadata history and rechecks admission when queued work starts. Known unretainable buffers and never-audible evicted cues are deferred until audible playback requests them.",
+    "residency": "Existing 28MiB mobile and 16MiB pressure ceilings remain reuse-aware across routes and are deliberately independent of app-zone presentation epochs after the failed 2026-10-02 physical A/B. The first warning trims to the hottest bounded working set and a repeated warning releases all idle entries. Active/pending voices remain protected. Audible history counts successful native starts and evictions, survives eviction, and contains no AudioBuffer.",
+    "tests": ["src/modules/__tests__/gameplay-audio-buffer-player.test.ts", "src/modules/__tests__/gameplay-audio-mobile-residency.test.ts", "src/modules/__tests__/gameplay-audio-load-scheduler.test.ts"],
+    "physicalAcceptance": "NEEDS PHYSICAL TEST for onset, decode churn and thermal contribution."
+  },
   "owners": [
     {
       "id": "launch-logo-transition",

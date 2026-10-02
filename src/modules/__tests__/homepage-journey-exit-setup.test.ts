@@ -151,12 +151,12 @@ test('input setup diagnostic closes on synchronous failure and does not capture 
 });
 
 
-test('cancelled exit never reveals Journey after delayed preparation resolves', async () => {
+test('cancelled exit never starts delayed preparation or reveals Journey', async () => {
   const f = fixture();
-  let prepare!: () => void;
+  const prepareJourneyScreen = jest.fn(() => Promise.resolve());
   const showCollectibles = jest.fn();
   (window as any).collectiblesManager = {
-    prepareJourneyScreen: () => new Promise<void>((resolve) => { prepare = resolve; }),
+    prepareJourneyScreen,
     showCollectibles,
   };
   f.scope.animateJourneySliderExit.mockImplementationOnce(() => Promise.resolve());
@@ -165,8 +165,8 @@ test('cancelled exit never reveals Journey after delayed preparation resolves', 
   await Promise.resolve();
   expect((window as any).__ccUiJourneyTransitioning).toBe(false);
   expect(document.getElementById('slider-container')!.style.pointerEvents).toBe('');
-  prepare();
   for (let i = 0; i < 8; i++) await Promise.resolve();
+  expect(prepareJourneyScreen).not.toHaveBeenCalled();
   expect(showCollectibles).not.toHaveBeenCalled();
   expect((window as any).__ccUiJourneyTransitioning).toBe(false);
   expect(document.getElementById('slider-container')!.style.pointerEvents).toBe('');

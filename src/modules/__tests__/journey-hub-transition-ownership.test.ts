@@ -131,6 +131,24 @@ describe('Journey Hub transition ownership', () => {
     );
   });
 
+  test('visible entry primes one screen once and terminal cover consumes the prepared surface', () => {
+    const showSource = collectiblesSource.split(
+      'async showCollectibles(options?: CollectiblesShowOptions): Promise<void>',
+    )[1]?.split('async hideCollectibles(')[0] ?? '';
+    const primeCalls = showSource.match(/primeJourneyScreenHiddenForEnter\(/g) ?? [];
+    const promoteIndex = showSource.indexOf('promotePreparedJourneyV700WorldBehindTerminalCover?.(');
+    const commitIndex = showSource.indexOf('commitPreparedJourneyViewportBehindTerminalCover()');
+    const readyIndex = showSource.indexOf('markJourneyReturnDestinationVisibleReady(terminalReturnToken)');
+
+    expect(primeCalls).toHaveLength(1);
+    expect(showSource).toContain('preserveScreenState: true');
+    expect(promoteIndex).toBeGreaterThanOrEqual(0);
+    expect(commitIndex).toBeGreaterThan(promoteIndex);
+    expect(readyIndex).toBeGreaterThan(commitIndex);
+    expect(collectiblesAnimationsSource).toContain('if (options.preserveScreenState !== true)');
+    expect(journeyReturnTraceSource).toContain('active.revealCallbacks.add(run)');
+  });
+
   test('V700 return scroll is positioned only before reveal and never reclaimed by legacy timers', () => {
     const restoreSource = collectiblesSource.split(
       'function restoreJourneyReturnScrollPosition(reason: string): void',
@@ -180,7 +198,7 @@ describe('Journey Hub transition ownership', () => {
     expect(handoffSource).not.toContain('new Promise<void>(resolve => setTimeout(resolve, 900))');
   });
 
-  test('cold-route audit starts at CTA acceptance before concurrent exit and preparation', () => {
+  test('cold-route audit starts at CTA acceptance before exit, then preparation waits behind its static cover', () => {
     const handoffSource = uiManagerSource.split(
       'private showCollectiblesScreenWithAnimation(launchFirstPlayTutorial = false): void',
     )[1]?.split('async hideCollectiblesScreenWithAnimation')[0] ?? '';
@@ -191,6 +209,8 @@ describe('Journey Hub transition ownership', () => {
     expect(auditStartIndex).toBeGreaterThanOrEqual(0);
     expect(auditStartIndex).toBeLessThan(exitIndex);
     expect(auditStartIndex).toBeLessThan(prepareIndex);
+    expect(handoffSource).toContain('? exitCompletePromise.then(async () => {');
+    expect(handoffSource).toContain('if (isHomepageExitCancelled(exitCompletePromise)) return null;');
     expect(handoffSource).toContain("markIOSJourneyRouteAudit('homepage-exit-plus-journey-prepare')");
     expect(handoffSource).toContain("markIOSJourneyRouteAudit('journey-show-handoff')");
 
@@ -581,15 +601,19 @@ describe('Journey Hub transition ownership', () => {
     )[1]?.split('private setupIdleInteractionListeners')[0] ?? '';
 
     expect(renderAssetsSource).toContain('activeWorldId: number');
-    expect(renderAssetsSource).toContain('activeWorldId === 1 ? createMainCloudUnit');
-    expect(renderAssetsSource).toContain('activeWorldId === 2 ? createMainCloudUnit');
-    expect(renderAssetsSource).toContain('activeWorldId === 3 ? createMainCloudUnit');
-    expect(renderAssetsSource).toContain('if (activeWorldId === 1 && forestMainCloudUnit)');
-    expect(renderAssetsSource).toContain('if (activeWorldId === 2 && beachMainCloudUnit)');
-    expect(renderAssetsSource).toContain('if (activeWorldId === 3 && roboMainCloudUnit)');
+    expect(renderAssetsSource).toContain("includeMain && activeWorldId === 1 ? createMainCloudUnit");
+    expect(renderAssetsSource).toContain("includeMain && activeWorldId === 2 ? createMainCloudUnit");
+    expect(renderAssetsSource).toContain("includeMain && activeWorldId === 3 ? createMainCloudUnit");
+    expect(renderAssetsSource).toContain('if (activeWorldId === 1)');
+    expect(renderAssetsSource).toContain('if (activeWorldId === 2)');
+    expect(renderAssetsSource).toContain('if (activeWorldId === 3)');
+    expect(renderAssetsSource).toContain('if (forestMainCloudUnit)');
+    expect(renderAssetsSource).toContain('if (beachMainCloudUnit)');
+    expect(renderAssetsSource).toContain('if (roboMainCloudUnit)');
     expect(fixedRenderSource).toContain('const activeWorldId = options.worldId || this.journeyV700WorldId || 1');
     expect(fixedRenderSource).toContain('const activeWorldRange = this.getJourneyWorldRange(activeWorldId)');
-    expect(fixedRenderSource).toContain('this.renderForestMapAssets(bgContainer, decorContainer, activeWorldId)');
+    expect(fixedRenderSource).toContain('this.renderForestMapAssets(bgContainer, decorContainer, activeWorldId, {');
+    expect(fixedRenderSource).toContain('boardIds: options.boardIds');
     expect(fixedRenderSource).toContain('board.id < activeWorldRange.start');
     expect(fixedRenderSource).toContain('board.id > activeWorldRange.end');
     expect(fixedRenderSource.indexOf('board.id < activeWorldRange.start'))
@@ -621,7 +645,8 @@ describe('Journey Hub transition ownership', () => {
     expect(openWorldSource).toContain(
       'const worldPrepaintReady = this.prepareJourneyWorldPrepaint(container, worldId)',
     );
-    expect(openWorldSource).toContain('const preparedWorldReady = await worldPrepaintReady');
+    expect(openWorldSource).toContain('let preparedWorldReady = await worldPrepaintReady');
+    expect(openWorldSource).not.toContain('this.renderBoards()');
     const prepaintStartIndex = openWorldSource.indexOf(
       'const worldPrepaintReady = this.prepareJourneyWorldPrepaint(container, worldId)',
     );
@@ -630,7 +655,7 @@ describe('Journey Hub transition ownership', () => {
     );
     const exitIndex = openWorldSource.indexOf('this.playJourneyV700HubExit(');
     const prepaintBarrierIndex = openWorldSource.indexOf(
-      'const preparedWorldReady = await worldPrepaintReady',
+      'let preparedWorldReady = await worldPrepaintReady',
     );
     expect(outgoingIdleStopIndex).toBeGreaterThanOrEqual(0);
     expect(outgoingIdleStopIndex).toBeLessThan(prepaintStartIndex);
@@ -655,7 +680,7 @@ describe('Journey Hub transition ownership', () => {
     expect(worldPrepaintSource).toContain("host.style.contain = 'strict'");
     expect(worldPrepaintSource).toContain('if (current?.worldId === worldId && current.host.isConnected)');
     expect(worldPrepaintSource).toContain('this.journeyWorldPrepaintEpoch === epoch');
-    expect(worldPrepaintSource).toContain('this.renderBoardsFixed(root, { worldId, deferRuntimeOwners: true })');
+    expect(worldPrepaintSource).toContain('await this.renderJourneyWorldIncrementally(detachedRoot, worldId, isCurrent)');
     expect(worldPrepaintSource).toContain('await Promise.all(images.map((image) => waitForImageReady(image)))');
     expect(worldPrepaintSource).toContain('for (let frameIndex = 0; frameIndex < 3; frameIndex += 1)');
     expect(worldPrepaintSource).toContain('await this.waitForTrackedFrames(1)');
@@ -680,6 +705,9 @@ describe('Journey Hub transition ownership', () => {
     const closeSource = journeyManagerSource.split(
       'private closeJourneyV700World(): void',
     )[1]?.split('private markJourneyDevBoardRefresh')[0] ?? '';
+    const worldExitSource = journeyManagerSource.split(
+      'private playJourneyV700WorldExit(',
+    )[1]?.split('private applyJourneyV700WorldHeights')[0] ?? '';
     const prepareSource = journeyManagerSource.split(
       'private prepareJourneyHubPrepaint(',
     )[1]?.split('private async commitJourneyHubPrepaint')[0] ?? '';
@@ -709,9 +737,34 @@ describe('Journey Hub transition ownership', () => {
     expect(commitSource).toContain('transparentStageBacking: true');
     expect(closeSource).toContain('const outgoingZeroPresented = await this.waitForTrackedFrames(1)');
     expect(closeSource).toContain('outgoingZeroPresented,');
+    expect(worldExitSource).toContain("this.logJourneyV700Flow('world-exit-watchdog'");
+    expect(worldExitSource).toContain("completeOnce('watchdog')");
+    expect(worldExitSource).toContain('this.journeyWorldAnimation.stop(true)');
     expect(worldAnimationCoordinatorSource).toContain('const finalizeUnitExit = () => {');
     expect(worldAnimationCoordinatorSource).toContain("visibility: 'hidden'");
     expect(worldAnimationCoordinatorSource).toContain('onComplete: finalizeUnitExit');
+  });
+
+  test('retires optional hidden prepaints after native memory pressure', () => {
+    const constructorSource = journeyManagerSource.split('constructor() {')[1]
+      ?.split('// 🏆 LIVE UPDATE')[0] ?? '';
+    const hubPrepareSource = journeyManagerSource.split(
+      'private prepareJourneyHubPrepaint(',
+    )[1]?.split('private async commitJourneyHubPrepaint')[0] ?? '';
+    const worldPrepareSource = journeyManagerSource.split(
+      'private prepareJourneyWorldPrepaint(',
+    )[1]?.split('private commitJourneyWorldPrepaint')[0] ?? '';
+
+    expect(constructorSource).not.toContain('journeyMemoryPressureActive');
+    expect(constructorSource).toContain("this.cancelJourneyHubPrepaint('native-memory-warning')");
+    expect(constructorSource).toContain("this.cancelJourneyWorldPrepaint('native-memory-warning')");
+    expect(constructorSource).toContain("this.cancelOptionalJourneyTerminalReturnPreparation('native-memory-warning')");
+    expect(hubPrepareSource).not.toContain('journeyMemoryPressureActive');
+    expect(worldPrepareSource).not.toContain('if (this.journeyMemoryPressureActive)');
+    const terminalPrepareSource = journeyManagerSource.split(
+      'public prepareJourneyV700WorldEnterFromReturnIncrementally(',
+    )[1]?.split('/** Transfer a fully prepared terminal-return surface')[0] ?? '';
+    expect(terminalPrepareSource).not.toContain('if (this.journeyMemoryPressureActive)');
   });
 
   test('an early World close queues one clean exit instead of overlapping the enter cascade', () => {
@@ -848,7 +901,7 @@ describe('Journey Hub transition ownership', () => {
     );
     const exitIndex = openWorldSource.indexOf('this.playJourneyV700HubExit(');
     const prepaintBarrierIndex = openWorldSource.indexOf(
-      'const preparedWorldReady = await worldPrepaintReady',
+      'let preparedWorldReady = await worldPrepaintReady',
     );
     expect(prepaintStartIndex).toBeGreaterThanOrEqual(0);
     expect(exitIndex).toBeGreaterThan(prepaintStartIndex);

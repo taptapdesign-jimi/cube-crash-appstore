@@ -86,4 +86,17 @@ describe('opt-in transition performance capture', () => {
     expect(frames.size).toBe(0);
   });
 
+  test('per-target phase totals are bounded without displacing the final geometry milestone', () => {
+    const capture = beginTransitionPerformance('prime');
+    for (let index = 0; index < 200; index++) {
+      capture.phase('read-transform', () => { now += 2; }, true);
+    }
+    capture.mark('geometry-commit');
+    capture.finish();
+    const summary = JSON.parse(postMessage.mock.calls[0][0].message.split('prime ')[1]);
+    expect(summary.phaseTotals).toEqual([
+      { name: 'read-transform', atMs: 0, durationMs: 400, samples: 200, worstMs: 2 },
+    ]);
+    expect(summary.phases).toEqual([{ name: 'geometry-commit', atMs: 400, durationMs: 0 }]);
+  });
 });

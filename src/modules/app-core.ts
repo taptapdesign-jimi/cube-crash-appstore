@@ -66,7 +66,10 @@ import { statsService } from '../services/stats-service.js';
 import { trackBoardCubesCracked } from '../services/board-cubes-tracking.js';
 import { arcadeStatsService } from '../services/arcade-stats-service.js';
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
-import { stopSpecialDiceIdleMotion } from './special-dice-idle.ts';
+import {
+  acquireSpecialDiceIdleSuspension,
+  stopSpecialDiceIdleMotion,
+} from './special-dice-idle.ts';
 import { isArcadeHomeRunMode, markArcadeHomeRunOrigin, setRunMode, RUN_MODE_JOURNEY } from './run-mode.js';
 import { isJourneyOriginActive } from './journey-origin-state.js';
 import { waitForFinalMergeHandoff } from './final-merge-handoff.ts';
@@ -973,7 +976,9 @@ let regularMergeHandoffSequence = 0;
 const regularMergeHandoffTokens = new Set<number>();
 const regularMergeHandoffFinalizers = new Map<number, () => void>();
 const regularMergeFrameLeaseReleases = new Map<number, () => void>();
+const regularMergeIdleSuspensionReleases = new Map<number, () => void>();
 let releaseMerge6ResolutionFrameLease: (() => void) | null = null;
+let releaseMerge6IdleSuspension: (() => void) | null = null;
 let noMovesFailFlowSequence = 0;
 let activeNoMovesFailFlowToken: number | null = null;
 let activeNoMovesInputLockToken: number | null = null;
@@ -984,16 +989,21 @@ let busyEnding = false;
 
 function beginMerge6ResolutionFrames(): void {
   try { releaseMerge6ResolutionFrameLease?.(); } catch {}
+  try { releaseMerge6IdleSuspension?.(); } catch {}
   releaseMerge6ResolutionFrameLease = acquirePixiMobileActivityLease(
     'merge6-resolution',
     100,
   );
+  releaseMerge6IdleSuspension = acquireSpecialDiceIdleSuspension('merge6-resolution');
 }
 
 function endMerge6ResolutionFrames(): void {
   const release = releaseMerge6ResolutionFrameLease;
   releaseMerge6ResolutionFrameLease = null;
   try { release?.(); } catch {}
+  const releaseIdle = releaseMerge6IdleSuspension;
+  releaseMerge6IdleSuspension = null;
+  try { releaseIdle?.(); } catch {}
 }
 
 /**
@@ -1216,7 +1226,11 @@ function resetTransientRunGuards(reason: string = 'unknown'): void {
   regularMergeFrameLeaseReleases.forEach((release) => {
     try { release(); } catch {}
   });
+  regularMergeIdleSuspensionReleases.forEach((release) => {
+    try { release(); } catch {}
+  });
   regularMergeFrameLeaseReleases.clear();
+  regularMergeIdleSuspensionReleases.clear();
   regularMergeHandoffTokens.clear();
   regularMergeHandoffFinalizers.clear();
   activeNoMovesFailFlowToken = null;
@@ -3357,6 +3371,10 @@ function beginRegularMergeHandoff(): number {
     token,
     acquirePixiMobileActivityLease('regular-merge-handoff'),
   );
+  regularMergeIdleSuspensionReleases.set(
+    token,
+    acquireSpecialDiceIdleSuspension('regular-merge-handoff'),
+  );
   lastEndgameBoardMutationAt = Date.now();
   // Navigation/interruption normally clears the whole token set. This bounded
   // fallback must finalize the accepted board mutation before it can release
@@ -3384,6 +3402,9 @@ function releaseRegularMergeHandoff(token: number | null, reason: string): void 
   const releaseFrameLease = regularMergeFrameLeaseReleases.get(token);
   regularMergeFrameLeaseReleases.delete(token);
   try { releaseFrameLease?.(); } catch {}
+  const releaseIdleSuspension = regularMergeIdleSuspensionReleases.get(token);
+  regularMergeIdleSuspensionReleases.delete(token);
+  try { releaseIdleSuspension?.(); } catch {}
   regularMergeHandoffFinalizers.delete(token);
   lastEndgameBoardMutationAt = Date.now();
   queueWildSpawnAfterGuardRelease(`regular-merge-handoff:${reason}`);
@@ -10818,7 +10839,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           releaseSpecialDiceTransaction(specialTransactionToken, 'merge6-destination-destroyed');
           return;
         }
-        if (tntFramesReadyForMerge) {
+        // LaserGun uses local DOM images and owns a safe on-demand fallback.
+        // Keep warming them, but never hold the visible Merge-6 start behind a
+        // cold decode; the first gun must begin with the merge itself.
+        const mustAwaitTntFramesBeforeVisual = tntVariantForMerge?.id !== 'laser-gun';
+        if (tntFramesReadyForMerge && mustAwaitTntFramesBeforeVisual) {
           markOwnedMergePhase('frame-readiness-start');
           const tntFramesReady = await tntFramesReadyForMerge;
           markOwnedMergePhase('frame-readiness-end');
@@ -11467,8 +11492,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   try { onDone?.(); } catch {}
                 }
 	              };
-	              // Start tile separation immediately on TNT merge-6.
-	              startTntBoardBlast();
+		              // LaserGun must acquire stable targets and start its first gun
+		              // immediately. Other TNT archetypes retain the established
+		              // board blast and return choreography.
+		              if (tntVariantForMerge?.id !== 'laser-gun') startTntBoardBlast();
 	              const tntBonusSoundRunGeneration = gameplayRunGeneration;
 	              let tntBonusTriggered = false;
 	              let tntBonusGameplayComplete = false;
@@ -11797,6 +11824,21 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   colors: wildTntShardColors,
                   sizeScale: wildTntVariant?.id === 'barell' ? 0.7 : 1,
                 });
+                if (wildTntVariant?.id === 'laser-gun') {
+                  // Restore the missing Merge-6 smoke at the same immediate
+                  // impact boundary as LaserGun's authored cyan/gold shards.
+                  smokeBubblesAtTile(board, dst, TILE * 1.0, 1.3, {
+                    activityLeaseLabel: 'laser-gun-merge6-smoke',
+                    sizeScale: 1.15,
+                    countScale: 0.55,
+                    distanceScale: 0.65,
+                    trailAlpha: 0.92,
+                    spawnShape: 'box',
+                    maxParticles: 36,
+                    groupedOwner: true,
+                    deferFutureBursts: true,
+                  });
+                }
                 devLog('💥 Wild-TNT special merge 6 - using variant shard palette', {
                   variant: wildTntVariant?.id,
                   colors: wildTntShardColors,

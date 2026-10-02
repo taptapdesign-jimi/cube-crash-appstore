@@ -134,7 +134,9 @@ class AudioContextMock {
 }
 
 async function flush(): Promise<void> {
-  for (let index = 0; index < 20; index++) await Promise.resolve();
+  // Mobile audio preparation is intentionally two-wide; drain even the
+  // largest authored package without relying on unbounded parallel decoding.
+  for (let index = 0; index < 240; index++) await Promise.resolve();
 }
 
 // Exercise the general decoded-cache long-loop policy directly. Production
@@ -201,9 +203,10 @@ describe('mobile decoded audio residency with authored audio metadata', () => {
     delete (window as any)._settings;
   });
 
-  test.each(playbackCases)('$name redecodes only the selected cues after pressure and reuses them on repeat', async ({ prepare, play, stop, expected }) => {
+  test.each(playbackCases)('$name redecodes only the selected cues after repeated pressure and reuses them on repeat', async ({ prepare, play, stop, expected }) => {
     expect(prepare()).toBe(true);
     await flush();
+    releaseIdleDecodedGameplayAudio();
     releaseIdleDecodedGameplayAudio();
     expect(getDecodedGameplayAudioStats().decodedBuffers).toBe(0);
     const context = AudioContextMock.instances[0];
@@ -301,7 +304,7 @@ describe('mobile decoded audio residency with authored audio metadata', () => {
     AudioContextMock.syntheticBytes.set('./medium-loop.wav', 24 * MiB);
     preloadDecodedGameplaySounds(['./medium-loop.wav'], { loop: true });
     await flush();
-    expect(getDecodedGameplayAudioStats()).toMatchObject({ residentLoopBytes: 0, effectBudgetBytes: 32 * MiB, decodedBytes: 24 * MiB });
+    expect(getDecodedGameplayAudioStats()).toMatchObject({ residentLoopBytes: 0, effectBudgetBytes: 28 * MiB, decodedBytes: 24 * MiB });
   });
 
   const beachFamilies = [
@@ -340,7 +343,7 @@ describe('mobile decoded audio residency with authored audio metadata', () => {
       const sources = (global.fetch as jest.Mock).mock.calls.map(([input]) => String(input));
       expect(sources.length).toBeGreaterThan(20);
       expect(new Set(sources).size).toBe(sources.length);
-      expect(getDecodedGameplayAudioStats().decodedBytes).toBeLessThan(32 * MiB);
+      expect(getDecodedGameplayAudioStats().decodedBytes).toBeLessThan(28 * MiB);
       for (let visit = 0; visit < 4; visit++) {
         prepare();
         expect(getDecodedGameplaySoundsState(sources)).toBe('ready');
@@ -372,7 +375,7 @@ describe('mobile decoded audio residency with authored audio metadata', () => {
     // preparation, nor "fixed" by retaining every family without a bound.
     expect(fullSetBytes).toBeGreaterThan(32 * MiB);
     expect(getDecodedGameplayAudioStats().evictedBuffers).toBeGreaterThan(0);
-    expect(getDecodedGameplayAudioStats().decodedBytes).toBeLessThanOrEqual(32 * MiB);
+    expect(getDecodedGameplayAudioStats().decodedBytes).toBeLessThanOrEqual(28 * MiB);
     expect(getDecodedGameplayAudioStats()).toMatchObject({ activeVoices: 0, pendingBuffers: 0, failedBuffers: 0 });
   });
 
@@ -392,12 +395,41 @@ describe('mobile decoded audio residency with authored audio metadata', () => {
     await flush();
     preloadDecodedGameplaySounds([ORDINARY_STACK_SOUND_SOURCE]);
     releaseIdleDecodedGameplayAudio();
+    releaseIdleDecodedGameplayAudio();
     const trace = drainGameplayAudioDiagnostics({ includeEvents: true })!;
     expect(trace.summary).toMatchObject({ requests: 2, misses: 1, hits: 1, decodes: 1, evictions: 1 });
     expect(trace.events.find(event => event.kind === 'decode-complete')).toMatchObject({
       source: expect.stringContaining('/wood.wav'), bytes: expect.any(Number), decodeMs: expect.any(Number), request: { caller: 'entry-special' },
     });
     expect(trace.events.find(event => event.kind === 'evict')).toMatchObject({ reason: 'os-pressure', lastUseSequence: expect.any(Number), lastUseAtMs: expect.any(Number) });
+  });
+
+  test('keeps later mobile refills below 16 MiB after a native memory warning', async () => {
+    for (const source of ['./pressure-a.wav', './pressure-b.wav', './pressure-c.wav']) {
+      AudioContextMock.syntheticBytes.set(source, 9 * MiB);
+    }
+    preloadDecodedGameplaySounds(['./pressure-a.wav']);
+    preloadDecodedGameplaySounds(['./pressure-b.wav']);
+    preloadDecodedGameplaySounds(['./pressure-c.wav']);
+    await flush();
+    expect(getDecodedGameplayAudioStats()).toMatchObject({
+      budgetBytes: 28 * MiB,
+      memoryPressureAdapted: false,
+    });
+
+    releaseIdleDecodedGameplayAudio();
+    preloadDecodedGameplaySounds(['./pressure-a.wav']);
+    preloadDecodedGameplaySounds(['./pressure-b.wav']);
+    preloadDecodedGameplaySounds(['./pressure-c.wav']);
+    await flush();
+
+    const adapted = getDecodedGameplayAudioStats();
+    expect(adapted).toMatchObject({
+      budgetBytes: 16 * MiB,
+      memoryPressureAdapted: true,
+      pendingBuffers: 0,
+    });
+    expect(adapted.decodedBytes).toBeLessThanOrEqual(16 * MiB);
   });
 
   test('diagnostic isolation gates before context, fetch and fallback; disabling waits for an ordinary request', async () => {
@@ -480,7 +512,7 @@ describe('mobile decoded audio residency with authored audio metadata', () => {
     await flush();
     preloadDecodedGameplaySounds(['./effect-b.wav']);
     await flush();
-    expect(getDecodedGameplayAudioStats()).toMatchObject({ budgetBytes: 32 * MiB, residentLoopBytes: 33 * MiB, decodedBytes: 42 * MiB, decodedBuffers: 2 });
+    expect(getDecodedGameplayAudioStats()).toMatchObject({ budgetBytes: 28 * MiB, residentLoopBytes: 33 * MiB, decodedBytes: 42 * MiB, decodedBuffers: 2 });
     playDecodedGameplaySound('./loop-b.wav', { voiceId: 'next-loop', volume: 1, loop: true });
     await flush();
     expect(getDecodedGameplayAudioStats()).toMatchObject({ residentLoopBytes: 34 * MiB, decodedBytes: 43 * MiB, decodedBuffers: 2 });
@@ -493,10 +525,10 @@ describe('mobile decoded audio residency with authored audio metadata', () => {
     preloadDecodedGameplaySounds(['./too-large.wav'], { loop: true });
     preloadDecodedGameplaySounds(['./large-effect.wav']);
     await flush();
-    expect(getDecodedGameplayAudioStats()).toMatchObject({ decodedBytes: 0, budgetBytes: 32 * MiB, residentLoopBytes: 0 });
+    expect(getDecodedGameplayAudioStats()).toMatchObject({ decodedBytes: 0, budgetBytes: 28 * MiB, residentLoopBytes: 0 });
   });
 
-  test('keeps an outgoing loop fade alive, then returns to 32 MiB when another ambient surface owns playback', async () => {
+  test('keeps an outgoing loop fade alive, then returns to 28 MiB when another ambient surface owns playback', async () => {
     const forest = { boardNumber: 3, isArcade: false };
     playDecodedForestFixture(forest);
     await flush();
@@ -505,8 +537,8 @@ describe('mobile decoded audio residency with authored audio metadata', () => {
     expect(AudioContextMock.instances[0].sources[0].stop).not.toHaveBeenCalled();
     expect(getDecodedGameplayAudioStats().activeVoices).toBe(2);
     stopDecodedForestFixture();
-    expect(getDecodedGameplayAudioStats()).toMatchObject({ activeVoices: 1, residentLoopBytes: 0, effectBudgetBytes: 32 * MiB });
-    expect(getDecodedGameplayAudioStats().decodedBytes).toBeLessThan(32 * MiB);
+    expect(getDecodedGameplayAudioStats()).toMatchObject({ activeVoices: 1, residentLoopBytes: 0, effectBudgetBytes: 28 * MiB });
+    expect(getDecodedGameplayAudioStats().decodedBytes).toBeLessThan(28 * MiB);
   });
 
   test('late superseded loop preparation cannot repopulate the reserved slot on another surface', async () => {
@@ -526,16 +558,27 @@ describe('mobile decoded audio residency with authored audio metadata', () => {
     expect(getDecodedGameplayAudioStats()).toMatchObject({ decodedBuffers: 1, activeVoices: 1, residentLoopBytes: 0 });
   });
 
-  test('OS pressure still evicts idle effects and the stopped long loop without stopping an active voice', async () => {
+  test('first OS pressure retains the bounded hot set; repeated pressure flushes idle without stopping an active voice', async () => {
     playDecodedForestFixture({ boardNumber: 3, isArcade: false });
     preloadDecodedGameplaySounds([ORDINARY_STACK_SOUND_SOURCE]);
     await flush();
     releaseIdleDecodedGameplayAudio();
-    expect(getDecodedGameplayAudioStats()).toMatchObject({ decodedBuffers: 1, activeVoices: 1 });
+    expect(getDecodedGameplayAudioStats()).toMatchObject({
+      activeVoices: 1,
+      memoryPressureWarningCount: 1,
+      memoryPressureMode: 'stable-working-set',
+    });
     expect(AudioContextMock.instances[0].sources[0].stop).not.toHaveBeenCalled();
     stopDecodedForestFixture();
     releaseIdleDecodedGameplayAudio();
-    expect(getDecodedGameplayAudioStats()).toMatchObject({ decodedBuffers: 0, decodedBytes: 0, activeVoices: 0, residentLoopBytes: 0 });
+    expect(getDecodedGameplayAudioStats()).toMatchObject({
+      decodedBuffers: 0,
+      decodedBytes: 0,
+      activeVoices: 0,
+      residentLoopBytes: 0,
+      memoryPressureWarningCount: 2,
+      memoryPressureMode: 'aggressive-idle-release',
+    });
   });
 
   test('normal next-board Continue preserves reusable audio while the native pressure boundary remains wired', () => {

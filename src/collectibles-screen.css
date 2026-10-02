@@ -1286,6 +1286,44 @@
   /* NO transform - let it stay at default */
 }
 
+/* Journey Worlds Hub backpack: keep the former heart control's right-edge
+   placement and tap motion, with the requested 40px icon. The World screens
+   hide it through the Journey navigation owner instead of a second nav. */
+.journey-hub-backpack-button {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  grid-column: 3;
+  justify-self: end;
+  margin-right: var(--pad-right, 24px);
+  padding: 4px 0;
+  border-radius: 8px;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  transform-origin: center center;
+}
+
+.journey-hub-backpack-button[hidden] {
+  display: none !important;
+}
+
+.journey-hub-backpack-icon {
+  display: block;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  object-fit: contain;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
 .collectibles-title {
   font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 32px;
@@ -1607,6 +1645,11 @@
   width: 24px;
   height: 24px;
   object-fit: contain;
+}
+
+#collectibles-detail-modal .detail-close-button.tap-scale:active {
+  transform: none;
+  transition: none;
 }
 
 #collectibles-detail-modal .detail-close-button.detail-close-enter-cartoon-bounce img {

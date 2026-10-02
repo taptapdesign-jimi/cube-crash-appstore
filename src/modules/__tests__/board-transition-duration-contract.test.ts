@@ -8,9 +8,12 @@ const read = (relativePath: string): string => fs.readFileSync(
 describe('Board Transition duration contract', () => {
   test('decodes every active scene layer before its animation clock starts', () => {
     const source = read('src/modules/board-transition-screen.ts');
-    const awaitedPreload = source.indexOf('await preloadTransitionAssets(\n      sceneLayers,');
+    const showStart = source.indexOf('export async function showBoardTransitionScreen');
+    const awaitedPreload = source.indexOf('await prepareBoardTransitionAssets({', showStart);
     expect(awaitedPreload).toBeGreaterThan(-1);
-    expect(awaitedPreload).toBeLessThan(source.indexOf('return new Promise((resolve, reject) => {'));
+    expect(awaitedPreload).toBeLessThan(source.indexOf('return new Promise((resolve, reject) => {', showStart));
+    expect(source).toContain('preloadImagesBounded(missingUrls');
+    expect(source).toContain('concurrency: 2');
   });
 
   test('does not reload Pixi board textures during the visible transition', () => {

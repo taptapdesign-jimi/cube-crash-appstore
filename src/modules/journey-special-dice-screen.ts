@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { gsap } from 'gsap';
 import { registerCta } from './cta-system.ts';
+import { preloadImagesBounded } from '../utils/bounded-image-preloader.js';
 
 type SpecialDiceType = 'juice' | 'flower';
 
@@ -18,6 +19,7 @@ function getSpecialDiceUnlockKey(diceType: SpecialDiceType): string {
 }
 
 let cleanupFns: Array<() => void> = [];
+let specialDicePresentationGeneration = 0;
 
 export function isJourneySpecialDiceUnlocked(diceType: SpecialDiceType): boolean {
   try {
@@ -34,6 +36,7 @@ export function markJourneySpecialDiceUnlocked(diceType: SpecialDiceType): void 
 }
 
 function cleanupJourneySpecialDiceScreen(): void {
+  specialDicePresentationGeneration += 1;
   cleanupFns.forEach((fn) => {
     try { fn(); } catch {}
   });
@@ -248,17 +251,25 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-function preloadImage(src: string): Promise<void> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve();
-    img.onerror = () => resolve();
-    img.src = src;
-  });
-}
-
 function getBackpackFramePath(frame: number): string {
   return `./assets/animations/backpack/backpack-${frame}.png`;
+}
+
+export function prepareJourneySpecialDiceAssets(options: {
+  diceType: SpecialDiceType;
+  isCurrent?: () => boolean;
+}): Promise<boolean> {
+  const finalAsset = options.diceType === 'flower'
+    ? './assets/shop/bush/flower.png'
+    : './assets/wild-juice.png';
+  return preloadImagesBounded([
+    ...Array.from({ length: 20 }, (_, i) => getBackpackFramePath(i + 1)),
+    finalAsset,
+  ], {
+    concurrency: 2,
+    decode: true,
+    isCurrent: options.isCurrent,
+  });
 }
 
 function setLightMask(lightEl: HTMLElement | null, src: string): void {
@@ -301,8 +312,9 @@ async function playBackpackFrames(img: HTMLImageElement | null, light: HTMLEleme
 
 export async function showJourneySpecialDiceScreen({
   diceType,
-}: JourneySpecialDiceScreenOptions): Promise<{ action: 'continue' }> {
+}: JourneySpecialDiceScreenOptions): Promise<{ action: 'continue' | 'cancelled' }> {
   cleanupJourneySpecialDiceScreen();
+  const presentationGeneration = specialDicePresentationGeneration;
   ensureStyles();
 
   const finalAsset = diceType === 'flower'
@@ -310,17 +322,32 @@ export async function showJourneySpecialDiceScreen({
     : './assets/wild-juice.png';
   const diceLabel = diceType === 'flower' ? 'Flower' : 'Juice';
 
-  await Promise.all([
-    ...Array.from({ length: 20 }, (_, i) => preloadImage(getBackpackFramePath(i + 1))),
-    preloadImage(finalAsset),
-  ]);
+  await prepareJourneySpecialDiceAssets({
+    diceType,
+    isCurrent: () => presentationGeneration === specialDicePresentationGeneration,
+  });
+  if (presentationGeneration !== specialDicePresentationGeneration) {
+    return { action: 'cancelled' };
+  }
 
   return new Promise((resolve) => {
+    let promiseSettled = false;
     let resolved = false;
     let revealed = false;
     let revealRunning = false;
     let disposed = false;
     let shineTimeoutId: number | null = null;
+
+    // A route replacement can remove this screen while the completion flow is
+    // awaiting it. Settle that old flow explicitly so it cannot continue into
+    // Clean Board or mutate progression behind the successor presentation.
+    cleanupFns.push(() => {
+      if (promiseSettled) return;
+      promiseSettled = true;
+      resolved = true;
+      disposed = true;
+      resolve({ action: 'cancelled' });
+    });
 
     const overlay = document.createElement('div');
     overlay.id = OVERLAY_ID;
@@ -427,6 +454,8 @@ export async function showJourneySpecialDiceScreen({
         await ctaController?.exit();
         gsap.timeline({
           onComplete: () => {
+            if (promiseSettled) return;
+            promiseSettled = true;
             cleanupJourneySpecialDiceScreen();
             resolve({ action: 'continue' });
           },

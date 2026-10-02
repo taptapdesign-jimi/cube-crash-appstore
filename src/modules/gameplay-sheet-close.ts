@@ -1,3 +1,5 @@
+import { playNavIconCartoonBounce } from '../utils/nav-icon-bounce.js';
+
 export interface GameplaySheetCloseController {
   element: HTMLButtonElement;
   dispose: () => void;
@@ -33,24 +35,16 @@ export function mountGameplaySheetClose(
   const stopSheetDrag = (event: Event) => {
     event.stopPropagation();
   };
-  const playComicBounce = () => {
-    button.classList.remove('is-comic-bouncing');
-    void button.offsetWidth;
-    button.classList.add('is-comic-bouncing');
-  };
   const handlePointerDown = (event: PointerEvent) => {
     stopSheetDrag(event);
-    if (!activated) playComicBounce();
-  };
-  const clearComicBounce = () => {
-    button.classList.remove('is-comic-bouncing');
+    if (!activated) playNavIconCartoonBounce(button);
   };
   const activate = (event: MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
     if (activated) return;
     activated = true;
-    if (!button.classList.contains('is-comic-bouncing')) playComicBounce();
+    if (event.detail === 0) playNavIconCartoonBounce(button);
     button.disabled = true;
     button.setAttribute('aria-disabled', 'true');
     onDismiss();
@@ -60,7 +54,6 @@ export function mountGameplaySheetClose(
   button.addEventListener('mousedown', stopSheetDrag);
   button.addEventListener('touchstart', stopSheetDrag, { passive: true });
   button.addEventListener('click', activate);
-  button.addEventListener('animationend', clearComicBounce);
   host.appendChild(button);
 
   return {
@@ -70,7 +63,6 @@ export function mountGameplaySheetClose(
       button.removeEventListener('mousedown', stopSheetDrag);
       button.removeEventListener('touchstart', stopSheetDrag);
       button.removeEventListener('click', activate);
-      button.removeEventListener('animationend', clearComicBounce);
       button.remove();
     },
   };

@@ -1,6 +1,6 @@
 # Audio runtime architecture
 
-Updated: 2026-09-25
+Updated: 2026-10-02
 
 This is the runtime ownership contract. Authored sources, gains and contact-frame
 ordering remain in [the sound inventory](STACK_TO_SIX_INTERACTION_SOUND_INVENTORY.md)
@@ -18,14 +18,49 @@ and their feature modules. Gameplay KING and the asset-preservation order apply.
 owns native gain envelopes. Do not add another context, global player or generic
 media cache to implement a feature cue.
 
-The SFX cache normally retains up to32 MiB on mobile and64 MiB on desktop. Active
+The SFX cache normally retains up to 28 MiB on mobile and 64 MiB on desktop. Active
 and pending sources are protected, so the budget is not a hard total-process
 memory cap. The compatibility long-loop slot accepts one loop above24 MiB and
 at most36 MiB plus16 MiB of effects; mobile Journey loops no longer use that slot.
 The separate soundtrack, media decoder memory, in-flight decode allocations and
 native allocations are outside this accounting. Idle buffers under budget are
-intentional reuse. Stop does not imply cache eviction; OS pressure releases idle
-entries. Never flush the cache routinely on Continue or Play Again.
+intentional reuse. Stop does not imply cache eviction. The first OS pressure
+warning permanently lowers the mobile SFX refill ceiling to 16 MiB and trims to
+that bounded hottest working set instead of flushing to zero and immediately
+re-decoding the same route. A repeated warning escalates to releasing every idle
+entry; active and pending voices remain protected. A single
+near-budget transient yields before it can flush a smaller reusable cue family.
+Mobile fetch plus decode preparation is limited to two concurrent jobs; a real
+play request and readiness check overtake speculative preload in that shared queue.
+Desktop permits eight jobs. The scheduler owns no timer, listener or AudioContext.
+Foreground Journey return and card-entry owners may nest an explicit speculative
+load suspension around their visible transition. While suspended, queued
+`preload` and `state` jobs remain dormant, but an audible `play` job is still
+eligible; the final lifecycle owner releases the lease on completion, replacement
+or abort. Already-running browser decodes are not falsely treated as cancellable.
+Within the same bounded byte ceiling, eviction prefers never-played speculative
+buffers before cues with proven audible reuse, then falls back to LRU. This
+keeps common stack, pickup and CTA/navigation cues from being repeatedly
+decoded merely because a newer one-off route package was prepared.
+The cache is deliberately not coupled to `app-zone-manager` presentations.
+A physical iPhone A/B on 2026-10-02 showed that assigning a new residency epoch
+to every zone commit did not reduce real multi-route churn and coincided with
+severe Journey frame degradation. Eviction therefore remains bounded and
+reuse-aware across routes instead of re-prioritizing the complete decoded set on
+every navigation commit. Repeated preload of a source that was evicted before
+ever becoming audible is rejected, while a real play request always bypasses
+that speculative rule and may replace idle data.
+Never flush the cache routinely on Continue or Play Again.
+
+Readiness queries are observational: `getDecodedGameplaySoundsState` may report
+`pending` for an absent but loadable buffer, but never fetches or decodes a family.
+Explicit preload owns warming; playback owns loading the exact selected cue.
+A bounded 256-source metadata history retains decoded sizes and successful-start
+counts without AudioBuffers. Optional repeated preloads of a known buffer are
+admitted only when it can fit without displacing audibly reused/protected cues;
+admission is rechecked when the queued job runs. Actual playback bypasses this
+optional admission rule. Diagnostics expose `skippedSpeculativeLoads` beside
+redecode/eviction totals. The history does not increase the decoded-byte ceiling.
 
 ## Ownership boundaries
 

@@ -10,6 +10,8 @@ describe('mobile Homepage thermal ownership', () => {
   const sliderCss = read('src/slider-optimized.css');
   const navigationCss = read('src/independent-navigation.css');
   const journeyCss = read('src/collectibles-screen.css');
+  const zoneManager = read('src/modules/app-zone-manager.ts');
+  const preloader = read('src/modules/asset-preloader.ts');
 
   test('publishes canonical iOS/iPadOS/Android hooks while desktop skips mobile work', () => {
     expect(optimizerSource).toContain('MOBILE_RUNTIME_PROFILE');
@@ -83,5 +85,23 @@ describe('mobile Homepage thermal ownership', () => {
     expect(mobileHubContract).toContain('will-change: auto;');
     expect(mobileHubContract).toContain('will-change: transform;');
     expect(mobileHubContract).not.toContain('!important');
+  });
+
+  test('Homepage return waits only for its memoized responsive hero set', () => {
+    const homepageOwner = zoneManager.slice(
+      zoneManager.indexOf('async showHomepageShell'),
+      zoneManager.indexOf('async showJourneyShell'),
+    );
+    const homepagePreload = preloader.slice(
+      preloader.indexOf('async preloadHomepageReturnImages'),
+      preloader.indexOf('// 🔥 CRITICAL: Preload HTML'),
+    );
+
+    expect(homepageOwner).toContain('preloadHomepageReturnImages');
+    expect(homepageOwner).not.toContain('preloadHTMLImages');
+    expect(homepagePreload).toContain('this.homepageReturnPreloadPromise');
+    expect(homepagePreload).toContain('concurrency: 2');
+    expect(homepagePreload).not.toContain('JOURNEY_BOTTOM_DECOR_IMAGES');
+    expect(homepagePreload).not.toContain('backpack-');
   });
 });

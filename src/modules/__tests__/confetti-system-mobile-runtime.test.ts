@@ -227,40 +227,47 @@ describe('Clean Board confetti mobile runtime', () => {
   );
 
   test.each(['area55', 'forest', 'beach'] as const)(
-    'the actual %s Clean Board CTA hook synchronously removes the complete celebration before another frame',
+    'the actual %s Clean Board CTA hook keeps live particles moving while blocking unborn waves',
     async (theme) => {
-      HTMLCanvasElement.prototype.getContext = jest.fn(() => ({
-        setTransform: jest.fn(), clearRect: jest.fn(),
-      })) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+      const context = {
+        setTransform: jest.fn(), clearRect: jest.fn(), save: jest.fn(),
+        translate: jest.fn(), rotate: jest.fn(), scale: jest.fn(), transform: jest.fn(),
+        restore: jest.fn(), beginPath: jest.fn(), roundRect: jest.fn(), fill: jest.fn(),
+        fillRect: jest.fn(), drawImage: jest.fn(), globalAlpha: 1, fillStyle: '',
+      } as unknown as CanvasRenderingContext2D;
+      HTMLCanvasElement.prototype.getContext = jest.fn(() => context) as unknown as typeof HTMLCanvasElement.prototype.getContext;
       let pendingFrame!: FrameRequestCallback;
       global.requestAnimationFrame = jest.fn((callback: FrameRequestCallback) => {
         pendingFrame = callback;
         return 47;
       });
       global.cancelAnimationFrame = jest.fn();
+      jest.spyOn(Math, 'random').mockReturnValue(0);
       const module = await import('../confetti-system');
       module.allowConfettiSpawns();
       module.createConfettiExplosion(document.createElement('div'), theme);
       expect(module.getConfettiRuntimeSnapshot().particleCount).toBeGreaterThan(0);
       const source = fs.readFileSync('src/modules/clean-board-modal.ts', 'utf8');
-      const body = source.match(/const cleanupCelebrationParticlesImmediately = \(\) => \{([\s\S]*?)\n {4}\};/)![1];
-      const exit = new Function('cleanupConfetti', body);
-      exit(module.cleanupConfetti);
-      expect(global.cancelAnimationFrame).toHaveBeenCalledWith(47);
+      const body = source.match(/const beginCelebrationParticleExit = \(\) => \{([\s\S]*?)\n {4}\};/)![1];
+      const exit = new Function('stopConfettiSpawns', body);
+      exit(module.stopConfettiSpawns);
+      expect(global.cancelAnimationFrame).not.toHaveBeenCalled();
       expect(module.getConfettiRuntimeSnapshot()).toMatchObject({
-        canvasCount: 0, particleCount: 0, animationFrameCount: 0, spawnBlocked: true,
+        canvasCount: 1, animationFrameCount: 1, spawnBlocked: true,
       });
       pendingFrame(performance.now() + 16);
+      expect(context.clearRect).toHaveBeenCalledTimes(1);
+      expect(global.requestAnimationFrame).toHaveBeenCalledTimes(2);
       module.createConfettiExplosion(document.createElement('div'), theme);
-      expect(module.getConfettiRuntimeSnapshot().canvasCount).toBe(0);
-      expect(global.requestAnimationFrame).toHaveBeenCalledTimes(1);
+      expect(module.getConfettiRuntimeSnapshot().canvasCount).toBe(1);
+      expect(global.requestAnimationFrame).toHaveBeenCalledTimes(2);
       module.allowConfettiSpawns();
       module.createConfettiExplosion(document.createElement('div'), theme);
       expect(module.getConfettiRuntimeSnapshot().particleCount).toBeGreaterThan(0);
     },
   );
 
-  test('runs celebration cleanup first in Exit and Continue or Play Again CTA handlers', () => {
+  test('starts the moving celebration exit before awaiting either Clean Board CTA handler', () => {
     const source = fs.readFileSync('src/modules/clean-board-modal.ts', 'utf8');
     const primaryStart = source.indexOf('addButtonPressHandling(primaryBtn, async () => {');
     const primaryEnd = source.indexOf("}, 'primary');", primaryStart);
@@ -269,9 +276,9 @@ describe('Clean Board confetti mobile runtime', () => {
     const primaryHandler = source.slice(primaryStart, primaryEnd);
     const secondaryHandler = source.slice(secondaryStart, secondaryEnd);
 
-    expect(primaryHandler.indexOf('cleanupCelebrationParticlesImmediately();')).toBeGreaterThan(-1);
-    expect(primaryHandler.indexOf('cleanupCelebrationParticlesImmediately();')).toBeLessThan(primaryHandler.indexOf('await '));
-    expect(secondaryHandler.indexOf('cleanupCelebrationParticlesImmediately();')).toBeGreaterThan(-1);
-    expect(secondaryHandler.indexOf('cleanupCelebrationParticlesImmediately();')).toBeLessThan(secondaryHandler.indexOf('await '));
+    expect(primaryHandler.indexOf('beginCelebrationParticleExit();')).toBeGreaterThan(-1);
+    expect(primaryHandler.indexOf('beginCelebrationParticleExit();')).toBeLessThan(primaryHandler.indexOf('await '));
+    expect(secondaryHandler.indexOf('beginCelebrationParticleExit();')).toBeGreaterThan(-1);
+    expect(secondaryHandler.indexOf('beginCelebrationParticleExit();')).toBeLessThan(secondaryHandler.indexOf('await '));
   });
 });

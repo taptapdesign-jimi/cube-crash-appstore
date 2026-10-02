@@ -7,6 +7,7 @@ import { SPECIAL_DICE_VARIANTS, getCoreWildTypeForSpecialDiceVariant } from '../
 import { formatGameplayProgressLabel } from '../../modules/gameplay-terminology.ts';
 import { closePrivacyPolicyModal, showPrivacyPolicyModal } from './privacy-policy-modal.js';
 import { normalizeJourneyBoardId } from '../../modules/journey-world-definitions.js';
+import { playNavIconCartoonBounce } from '../../utils/nav-icon-bounce.js';
 
 export interface SettingsScreenConfig {
   onBack?: () => void;
@@ -58,7 +59,7 @@ function getLastMergeWildChoices(): LastMergeWildChoice[] {
   return [...CORE_LAST_MERGE_WILD_CHOICES, ...variantChoices];
 }
 
-function playSoftCartoonBounce(target: HTMLElement | null): void {
+function playSettingsToggleBounce(target: HTMLElement | null): void {
   if (!target) return;
 
   const switchEl = (target.closest('.settings-toggle-switch') || target) as HTMLElement;
@@ -857,7 +858,7 @@ export function renderSettingsScreen(
     if (devOpenButton && SETTINGS_DEVELOPER_TOOLS_ENABLED) {
       e.preventDefault();
       e.stopPropagation();
-      playSoftCartoonBounce((devOpenButton.querySelector('img') as HTMLElement | null) || (devOpenButton as HTMLElement));
+      playNavIconCartoonBounce(devOpenButton);
       setSettingsView('developer');
       return;
     }
@@ -868,13 +869,13 @@ export function renderSettingsScreen(
       (e as any).stopImmediatePropagation?.();
 
       if (element.dataset.settingsView === 'developer') {
-        playSoftCartoonBounce((backBtn.querySelector('img') as HTMLElement | null) || (backBtn as HTMLElement));
+        playNavIconCartoonBounce(backBtn);
         setSettingsView('main');
         return;
       }
       
       console.log('🔙 Settings back button clicked via event delegation');
-      playSoftCartoonBounce((backBtn.querySelector('img') as HTMLElement | null) || (backBtn as HTMLElement));
+      playNavIconCartoonBounce(backBtn);
 
       if ((backBtn as HTMLElement).getAttribute('data-settings-back-exit-pending') === 'true') {
         return;
@@ -979,7 +980,7 @@ export function renderSettingsScreen(
     if (toggleTarget === lastToggleBounceTarget && now - lastToggleBounceAt < 140) return;
     lastToggleBounceTarget = toggleTarget;
     lastToggleBounceAt = now;
-    playSoftCartoonBounce(toggleTarget);
+    playSettingsToggleBounce(toggleTarget);
   };
   element.addEventListener('pointerdown', toggleBounceHandler, true);
   element.addEventListener('touchstart', toggleBounceHandler, { capture: true, passive: true });

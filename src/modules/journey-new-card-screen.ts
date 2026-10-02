@@ -42,6 +42,7 @@ import {
   JOURNEY_CARD_MOBILE_IDLE_CALM_MS,
 } from './journey-card-overlay-modal.js';
 import { clearJourneyNewCardIdleShineWork } from './journey-new-card-idle-visibility.js';
+import { preloadImagesBounded } from '../utils/bounded-image-preloader.js';
 
 type JourneyNewCardScreenOptions = {
   boardNumber: number;
@@ -450,19 +451,22 @@ function getCrumbleFramePath(frame: number): string {
   return `./assets/animations/sand/zguzvano${frame}.png`;
 }
 
-function preloadImage(src: string): Promise<void> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = async () => {
-      try {
-        if (typeof img.decode === 'function') {
-          await img.decode();
-        }
-      } catch {}
-      resolve();
-    };
-    img.onerror = () => resolve();
-    img.src = src;
+export function prepareJourneyNewCardAssets(options: {
+  cardImagePath: string;
+  cardMaskImagePath?: string;
+  isCurrent?: () => boolean;
+}): Promise<boolean> {
+  return preloadImagesBounded([
+    ...Array.from({ length: 9 }, (_, i) => getCrumbleFramePath(i + 1)),
+    options.cardImagePath,
+    ...(options.cardMaskImagePath && options.cardMaskImagePath !== options.cardImagePath
+      ? [options.cardMaskImagePath]
+      : []),
+    './assets/hand-pointer.png',
+  ], {
+    concurrency: 2,
+    decode: true,
+    isCurrent: options.isCurrent,
   });
 }
 
@@ -577,12 +581,11 @@ export async function showJourneyNewCardScreen({
   const revealCopy = getJourneyNewCardRevealCopy(safeCardName, safeCardRarity);
   const revealTilt = createJourneyNewCardTiltProfile();
 
-  await Promise.all([
-    ...Array.from({ length: 9 }, (_, i) => preloadImage(getCrumbleFramePath(i + 1))),
-    preloadImage(safeCardPath),
-    ...(safeCardMaskPath !== safeCardPath ? [preloadImage(safeCardMaskPath)] : []),
-    preloadImage('./assets/hand-pointer.png'),
-  ]);
+  await prepareJourneyNewCardAssets({
+    cardImagePath: safeCardPath,
+    cardMaskImagePath: safeCardMaskPath,
+    isCurrent: () => presentationGeneration === newCardScreenPresentationGeneration,
+  });
   if (presentationGeneration !== newCardScreenPresentationGeneration) {
     return { action: 'cancelled' };
   }

@@ -1,5 +1,11 @@
 // @ts-nocheck
-import { getJourneyReturnRevealToken, scheduleJourneyReturnReveal } from './modules/journey-return-transition-trace.js';
+import {
+  getJourneyReturnTransitionToken,
+  isJourneyReturnStaticCoverActive,
+  markJourneyReturnDestinationVisibleReady,
+  scheduleJourneyReturnReveal,
+  waitForJourneyReturnDestination,
+} from './modules/journey-return-transition-trace.js';
 import { beginTransitionPerformance, type TransitionPerformance } from './utils/transition-performance.js';
 import { logger } from './core/logger.js';
 import {
@@ -11,6 +17,7 @@ import {
 import { gsap } from 'gsap';
 import {
   animateJourneyViewportScreenExit,
+  commitPreparedJourneyViewportBehindTerminalCover,
   cleanupCollectiblesAnimations,
   prepareJourneyViewportScreenEnter,
   unlockJourneyViewportTransition,
@@ -42,6 +49,7 @@ import {
 } from './utils/runtime-diagnostics-policy.js';
 import { JOURNEY_SLIDE_INDEX } from './modules/homepage-slide-order.js';
 import { JourneyVisibleEnterOwner } from './modules/journey-visible-enter-owner.js';
+import { JourneyPostEnterOwner } from './modules/journey-post-enter-owner.js';
 // Collectibles Manager - Handles all collectibles functionality
 logger.info('🎁 Collectibles Manager module loaded');
 
@@ -561,6 +569,7 @@ class CollectiblesManager {
   private journeyPrepareEpoch = 0;
   private journeyEnterPerformance: TransitionPerformance | null = null;
   private journeyVisibleEnterOwner = new JourneyVisibleEnterOwner();
+  private journeyPostEnterOwner = new JourneyPostEnterOwner();
 
   // 🔥 MEMORY LEAK FIX: Store event handler references for cleanup
   private boundHandlers: {
@@ -885,6 +894,7 @@ class CollectiblesManager {
     this.journeyPrepareEpoch += 1;
     this.journeyPreparePromise = null;
     this.journeyVisibleEnterOwner.retire();
+    this.journeyPostEnterOwner.retire();
     logger.info('🛑 Journey background preparation invalidated', { reason });
   }
 
@@ -900,6 +910,7 @@ class CollectiblesManager {
       : JOURNEY_ACTIVE_AREA_ENTER_OVERLAP_DELAY_MS;
     const journeyPresentationEpoch = appZoneManager.getPresentationEpoch();
     const visibleEnterLease = this.journeyVisibleEnterOwner.acquire(journeyPresentationEpoch);
+    const postEnterLease = this.journeyPostEnterOwner.acquire(journeyPresentationEpoch);
     if (visibleEnterLease.joined) {
       emitIOSNativeDiagnostic('show-joined-visible-enter-owner', {
         generation: visibleEnterLease.generation,
@@ -909,7 +920,11 @@ class CollectiblesManager {
       return;
     }
     const isVisibleEnterOwnerCurrent = (): boolean => visibleEnterLease.isCurrent();
-    primeJourneyScreenHiddenForEnter(screen as HTMLElement, 'showCollectibles-start');
+    const pendingTerminalReturnToken = getJourneyReturnTransitionToken();
+    const hasTransferredTerminalCover = isJourneyReturnStaticCoverActive(pendingTerminalReturnToken);
+    if (!hasTransferredTerminalCover) {
+      primeJourneyScreenHiddenForEnter(screen as HTMLElement, 'showCollectibles-start');
+    }
     emitIOSNativeDiagnostic('show-start');
 
     const suppressDirectDetailReturn =
@@ -1043,19 +1058,9 @@ class CollectiblesManager {
       backBtn.setAttribute('data-listener-attached', 'true');
     }
 
-    // Keep Journey hidden while DOM/render/scroll prep runs. This prevents a
-    // one-frame final-state flash before enter animation start values are applied.
-    primeJourneyScreenHiddenForEnter(screen as HTMLElement, 'showCollectibles-before-render-prep');
-    screen.removeAttribute('hidden');
-    screen.classList.remove('hidden');
-
-    // 🔥 CRITICAL MOBILE FIX: Set opacity 0 and visibility hidden IMMEDIATELY to prevent flash
-    // This must be done BEFORE display:flex to prevent any visible frame
-    // Use inline styles that GSAP will override - this ensures screen is invisible until animation starts
-    (screen as HTMLElement).style.setProperty('opacity', '0', 'important');
-    (screen as HTMLElement).style.setProperty('visibility', 'hidden', 'important');
-    // 🔥 CRITICAL: Also set will-change for better mobile performance
-    (screen as HTMLElement).style.willChange = 'opacity, transform';
+    // The entry owner primes a normal route exactly once at acquisition. A
+    // transferred terminal cover keeps the already-painted screen untouched.
+    // Viewport preparation below owns only header/content start values.
 
     this.journeyEnterPerformance?.finish('superseded');
     const journeyEnterPerformance = beginTransitionPerformance('journey-viewport-enter');
@@ -1068,7 +1073,7 @@ class CollectiblesManager {
     // Only an actual board identity may select the active-area/world-return path.
     const shouldUseV700WorldReturnEnter =
       !!journeyContainer && journeyReturnPolicy.useWorldReturnEnter;
-    const terminalReturnToken = shouldUseV700WorldReturnEnter ? getJourneyReturnRevealToken() : null;
+    const terminalReturnToken = shouldUseV700WorldReturnEnter ? pendingTerminalReturnToken : null;
     // Homepage entry owns the current presentation epoch while its zone is still
     // home. Only a completed terminal return requires an already-routed World.
     const isJourneyRevealCurrent = (): boolean => screen.isConnected
@@ -1123,6 +1128,18 @@ class CollectiblesManager {
     // If not, render them now (non-blocking - don't await)
     if (journeyContainer) {
       const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+      if (terminalReturnToken !== null) {
+        const ready = await waitForJourneyReturnDestination(terminalReturnToken);
+        if (!isJourneyRevealCurrent() || getJourneyReturnTransitionToken() !== terminalReturnToken) return;
+        if (!ready) {
+          // A cancelled pressure preparation can be retried through the same
+          // bounded owner. Do not let structural recovery render synchronously.
+          const recovered = await journeyBoardsManager.prepareJourneyV700WorldEnterFromReturnIncrementally(
+            'collectibles-terminal-recovery', terminalReturnToken,
+          );
+          if (!recovered || !isJourneyRevealCurrent() || getJourneyReturnTransitionToken() !== terminalReturnToken) return;
+        }
+      }
       const devBoardRefreshRequired = journeyBoardsManager.consumeJourneyDevBoardRefresh();
       const journeyViewPrepared = isJourneyViewStructurallyPrepared(journeyContainer);
       if (devBoardRefreshRequired) {
@@ -1146,7 +1163,8 @@ class CollectiblesManager {
 
       // 🔥 CRITICAL FIX: Ensure scroll is enabled when journey screen is shown
       // This fixes broken scroll when returning from game
-      setTimeout(() => {
+      postEnterLease.schedule(() => {
+        if (!appZoneManager.isPresentationCurrent(journeyPresentationEpoch, 'journey')) return;
         restoreJourneyScrollableInteractivity('showCollectibles-scroll-enable-timeout', false);
       }, 100);
     }
@@ -1176,12 +1194,13 @@ class CollectiblesManager {
           journeyEnterPerformance.phase('prepare-card-transforms', () =>
             journeyBoardsManager.prepareJourneyBoardCardTransformsForReveal?.('collectibles-pre-reveal'));
         }
-        if (shouldUseV700WorldReturnEnter) {
+        if (shouldUseV700WorldReturnEnter && terminalReturnToken === null) {
           journeyEnterPerformance.phase('prepare-world-return', () =>
             journeyBoardsManager.prepareJourneyV700WorldEnterFromReturn?.('collectibles-pre-reveal-world-return', terminalReturnToken));
         }
         journeyEnterPerformance.phase('prepare-viewport', () => prepareJourneyViewportScreenEnter('collectibles-pre-reveal', {
           animateJourneyContent: !shouldUseV700WorldReturnEnter,
+          preserveScreenState: true,
         }));
         emitIOSNativeDiagnostic('viewport-prepared', { shouldPlayActiveBoardAreaEnter });
         if (shouldPlayActiveBoardAreaEnter) {
@@ -1198,7 +1217,14 @@ class CollectiblesManager {
     // 🎬 CRITICAL: Trigger Journey screen enter animation (pop-in) using GSAP
     // Screen is now visible with opacity 0, ready for animation
     // 🔥 CRITICAL: Set display FIRST, then animate immediately (no delays)
-    primeJourneyScreenHiddenForEnter(screen as HTMLElement, 'showCollectibles-before-enter-start');
+    if (hasTransferredTerminalCover) {
+      journeyBoardsManagerPreparedForEnter?.promotePreparedJourneyV700WorldBehindTerminalCover?.(
+        terminalReturnToken,
+      );
+      const committed = commitPreparedJourneyViewportBehindTerminalCover();
+      emitIOSNativeDiagnostic('terminal-destination-visible-commit', { committed });
+      markJourneyReturnDestinationVisibleReady(terminalReturnToken);
+    }
     // Opacity and visibility are already set to 0/hidden above - GSAP will animate them
 
     try {
@@ -1257,10 +1283,12 @@ class CollectiblesManager {
         journeyEnterPerformance.mark('first-reveal-frame');
         import('./ui/collectibles-animations.js').then(({ animateCollectiblesScreenEnter }) => {
           if (!isVisibleEnterOwnerCurrent() || !isJourneyRevealCurrent() || (terminalReturnToken !== null
-            && getJourneyReturnRevealToken() !== terminalReturnToken)) return;
+            && getJourneyReturnTransitionToken() !== terminalReturnToken)) return;
           enterAnimationStarted = true;
           console.log('🎬 Starting Journey enter animation IMMEDIATELY...');
-          releaseJourneyScreenHiddenPrime(screen as HTMLElement);
+          if (!hasTransferredTerminalCover) {
+            releaseJourneyScreenHiddenPrime(screen as HTMLElement);
+          }
           emitIOSNativeDiagnostic('screen-prime-released');
           // 🔥 CRITICAL: Start animation immediately - screen is already prepared with opacity 0
           // The generation-owned terminal reveal can continue in this same task.
@@ -1329,7 +1357,7 @@ class CollectiblesManager {
                   activeJourneyBoardsManager.prepareActiveJourneyBoardAreaEnterAnimation?.();
                 }
                 if (!isJourneyRevealCurrent() || (terminalReturnToken !== null
-                  && getJourneyReturnRevealToken() !== terminalReturnToken)) return;
+                  && getJourneyReturnTransitionToken() !== terminalReturnToken)) return;
                 if (shouldUseV700WorldReturnEnter && !v700WorldReturnEnterStarted) {
                   v700WorldReturnEnterStarted = true;
                   logger.info('🧩 JourneyV700Flow collectibles-v700-world-return-enter-with-viewport', {
@@ -1380,7 +1408,8 @@ class CollectiblesManager {
                     returningFromInterimBoardEarly,
                     returningFromDetailModalEarly,
                   });
-                  window.setTimeout(() => {
+                  postEnterLease.schedule(() => {
+                    if (!appZoneManager.isPresentationCurrent(journeyPresentationEpoch, 'journey')) return;
                     startActiveAreaEnter('viewport-enter-overlap');
                   }, activeAreaEnterOverlapDelayMs);
                 }
@@ -1391,7 +1420,8 @@ class CollectiblesManager {
                   // interrupts WebKit momentum and makes the return card jerk.
                   if (returningFromInterimBoardEarly || returningFromDetailModalEarly) return;
                   [180, 420, 900].forEach((delayMs) => {
-                    window.setTimeout(() => {
+                    postEnterLease.schedule(() => {
+                      if (!appZoneManager.isPresentationCurrent(journeyPresentationEpoch, 'journey')) return;
                       restoreJourneyScrollableInteractivity(`${source}-settled-${delayMs}ms`);
                     }, delayMs);
                   });
@@ -1446,7 +1476,7 @@ class CollectiblesManager {
             visibleEnterLease.settle();
             return;
           }
-          if (terminalReturnToken !== null && getJourneyReturnRevealToken() !== terminalReturnToken) {
+          if (terminalReturnToken !== null && getJourneyReturnTransitionToken() !== terminalReturnToken) {
             recoverVisibleCommit('terminal-token-retired-before-import-fallback');
             return;
           }
@@ -1466,7 +1496,8 @@ class CollectiblesManager {
           // Enter animation takes ~0.7s (header 0.5s + delay 0.1s + cards 0.4s)
           // 🔥 USER REQUEST: Reduced wait time by 50% for faster auto-scroll (450ms vs 900ms)
           if (journeyContainer) {
-            setTimeout(async () => {
+            postEnterLease.schedule(async () => {
+              if (!appZoneManager.isPresentationCurrent(journeyPresentationEpoch, 'journey')) return;
               try {
                 const journeyBoardsContainer = document.getElementById('journey-boards-container') as HTMLElement | null;
                 const isJourneyV700Hub =
@@ -1513,6 +1544,8 @@ class CollectiblesManager {
                 } else {
                   // Only auto-scroll when entering from homepage slider
                   const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+                  if (!postEnterLease.isCurrent()
+                    || !appZoneManager.isPresentationCurrent(journeyPresentationEpoch, 'journey')) return;
                   if (journeyBoardsManager && typeof (journeyBoardsManager as any).restoreOrScrollToInterimCard === 'function') {
                     console.log('🗺️ Starting scroll to interim card after enter animation...');
                     (journeyBoardsManager as any).restoreOrScrollToInterimCard();
@@ -1521,6 +1554,8 @@ class CollectiblesManager {
 
                 try {
                   const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+                  if (!postEnterLease.isCurrent()
+                    || !appZoneManager.isPresentationCurrent(journeyPresentationEpoch, 'journey')) return;
                   if (journeyBoardsManager && typeof (journeyBoardsManager as any).resumeInterimCardIdleEffects === 'function') {
                     (journeyBoardsManager as any).resumeInterimCardIdleEffects(
                       returningFromDetailModal || returningFromInterimBoard
@@ -1535,6 +1570,8 @@ class CollectiblesManager {
                 // 🔥 CRITICAL: Start idle bounce animations AFTER enter animation completes
                 // This prevents jerky/laggy behavior on mobile when cards try to animate during enter animation
                 const { JOURNEY_CARD_IDLE_BOUNCE } = await import('./modules/journey-card-idle-bounce.js');
+                if (!postEnterLease.isCurrent()
+                  || !appZoneManager.isPresentationCurrent(journeyPresentationEpoch, 'journey')) return;
                 const cardsContainer = document.querySelector('.journey-cards-container') as HTMLElement;
                 if (JOURNEY_CARD_IDLE_BOUNCE && JOURNEY_CARD_IDLE_BOUNCE.ENABLE && cardsContainer) {
                   console.log('🎬 Starting journey card idle bounce AFTER enter animation...');

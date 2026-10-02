@@ -63,14 +63,14 @@ describe('Journey Forest bee canvas flights', () => {
 
   test('uses the thermal Forest profile on iPhone, iPad and Android while preserving desktop', () => {
     expect(resolveJourneyForestBeeRuntimeProfile('Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X)'))
-      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 30, maxBeeCount: 10 });
+      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 30, maxBeeCount: 5 });
     expect(resolveJourneyForestBeeRuntimeProfile('Mozilla/5.0 (iPad; CPU OS 18_6 like Mac OS X)'))
-      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 30, maxBeeCount: 10 });
+      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 30, maxBeeCount: 5 });
     expect(resolveJourneyForestBeeRuntimeProfile('Mozilla/5.0 (Linux; Android 15; Pixel 9 Pro)'))
-      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 30, maxBeeCount: 10 });
+      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 30, maxBeeCount: 5 });
     expect(resolveJourneyForestBeeRuntimeProfile(
       'Mozilla/5.0 (Macintosh; Intel Mac OS X)', 'MacIntel', 5,
-    )).toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 30, maxBeeCount: 10 });
+    )).toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 30, maxBeeCount: 5 });
     expect(resolveJourneyForestBeeRuntimeProfile('Mozilla/5.0 (Macintosh; Intel Mac OS X)'))
       .toEqual({ visibilityMarginPx: 180, pixelRatioCap: 2, maxFramesPerSecond: 0, maxBeeCount: 0 });
   });
@@ -186,7 +186,7 @@ describe('Journey Forest bee canvas flights', () => {
     root.remove();
   });
 
-  test('keeps one bee per Unit through lower-resolution canvases under the mobile MVP profile', () => {
+  test('caps mobile at five bees through lower-resolution canvases', () => {
     Object.defineProperties(window, {
       innerWidth: { configurable: true, value: 390 },
       innerHeight: { configurable: true, value: 844 },
@@ -212,7 +212,7 @@ describe('Journey Forest bee canvas flights', () => {
     });
 
     expect(controller.getSnapshot()).toMatchObject({
-      beeCount: 10,
+      beeCount: 5,
       canvasCount: 2,
       tickerCount: 1,
       pixelRatio: 1.25,

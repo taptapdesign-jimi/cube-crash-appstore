@@ -46,8 +46,13 @@ export async function runLaserGunSequentialImpactScheduler(
 ): Promise<LaserGunSchedulerResult> {
   let earliestImpactAt = now() + Math.max(0, firstShotLeadMs);
 
-  for (const plan of plans) {
-    const preflightDelay = Math.max(0, earliestImpactAt - now() - LASERGUN_PREFLIGHT_LEAD_MS);
+  for (const [index, plan] of plans.entries()) {
+    // Start the first gun as soon as LaserGun Merge-6 hands over its targets.
+    // Its accepted shot boundary remains unchanged; only the previously empty
+    // preflight wait is removed. Later relay guns retain their scheduled lead.
+    const preflightDelay = index === 0
+      ? 0
+      : Math.max(0, earliestImpactAt - now() - LASERGUN_PREFLIGHT_LEAD_MS);
     if (preflightDelay > 0 && await wait(preflightDelay) === 'cancelled') return 'cancelled';
 
     if (await plan.prepare() === false) return 'cancelled';

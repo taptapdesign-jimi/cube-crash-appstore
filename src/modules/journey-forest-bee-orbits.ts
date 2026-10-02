@@ -22,6 +22,7 @@ const FOREST_BEE_DIRECTION_FADE_SECONDS = 0.08;
 const FOREST_BEE_DIRECTION_STABILITY_SECONDS = 0.05;
 const FOREST_BEE_ROAM_RANGE_MULTIPLIER = 0.82;
 const FOREST_BEE_VISIBILITY_MARGIN_PX = 180;
+const MOBILE_FOREST_BEE_COUNT = 5;
 const FOREST_MAIN_AREA_SIZE_SCALE = 0.5;
 const FOREST_MAIN_AREA_SIZE_RECOVERY_PX = 40;
 const FOREST_BEE_DEPTH_SCALES = Object.freeze([0.65, 0.7, 0.8, 0.9, 1] as const);
@@ -120,7 +121,7 @@ export function resolveJourneyForestBeeRuntimeProfile(
       visibilityMarginPx: mobileProfile.ambientVisibilityMarginPx,
       pixelRatioCap: Math.min(mobileProfile.ambientPixelRatioCap, 1.35),
       maxFramesPerSecond: mobileProfile.settledIdleMaxFramesPerSecond,
-      maxBeeCount: mobileProfile.ambientSpriteBudget,
+      maxBeeCount: Math.min(mobileProfile.ambientSpriteBudget, MOBILE_FOREST_BEE_COUNT),
     };
   }
   return {
@@ -622,7 +623,7 @@ function drawBeeAsset(
   frame.markPaintedBounds?.(depth, x + size / 2 - radius, y - canvasTop + size / 2 - radius, radius * 2, radius * 2);
 }
 
-/** Eighteen reusable logical bees painted by the shared two-canvas runtime. */
+/** Eighteen-plan desktop pool, with the mobile subset painted by the shared two-canvas runtime. */
 export function startJourneyForestBeeOrbits(
   options: StartJourneyForestBeeOrbitsOptions,
 ): JourneyForestBeeOrbitController {
@@ -645,15 +646,23 @@ export function startJourneyForestBeeOrbits(
     return gateGeometry;
   };
   const allPlans = createJourneyForestBeeFlightPlans(random);
-  // The mobile MVP keeps one roaming bee for every Unit before spending any
-  // budget on duplicates. This preserves world readability at lower cost.
+  // Mobile keeps a bounded sample of the one-per-Unit bees distributed from
+  // the first through the last Unit. This preserves full-World readability
+  // without concentrating the reduced budget in only the upper Units.
+  const uniqueUnitPlans = allPlans
+    .filter((plan) => plan.unitIndex >= 0)
+    .filter((plan, index, unitPlans) => (
+      unitPlans.findIndex((candidate) => candidate.unitIndex === plan.unitIndex) === index
+    ));
+  const mobilePlanCount = Math.min(runtimeProfile.maxBeeCount, uniqueUnitPlans.length);
   const plans = runtimeProfile.maxBeeCount > 0
-    ? allPlans
-      .filter((plan) => plan.unitIndex >= 0)
-      .filter((plan, index, unitPlans) => (
-        unitPlans.findIndex((candidate) => candidate.unitIndex === plan.unitIndex) === index
-      ))
-      .slice(0, runtimeProfile.maxBeeCount)
+    ? Array.from({ length: mobilePlanCount }, (_, index) => {
+      if (mobilePlanCount === 1) return uniqueUnitPlans[0];
+      const distributedIndex = Math.round(
+        (index * (uniqueUnitPlans.length - 1)) / (mobilePlanCount - 1),
+      );
+      return uniqueUnitPlans[distributedIndex];
+    })
     : allPlans;
   options.root.dataset.forestBeeGateGeometry = gateGeometry.source;
   options.root.dataset.forestBeeGateCenter = `${gateGeometry.centerX.toFixed(2)},${((gateGeometry.topY + gateGeometry.bottomY) / 2).toFixed(2)}`;

@@ -19,6 +19,7 @@ import {
   JOURNEY_SLIDE_INDEX,
 } from './homepage-slide-order.js';
 import { playHomepageSliderSwipeSound, preloadHomepageSliderSwipeSound } from './homepage-slider-swipe-sound.ts';
+import { playNavIconCartoonBounce } from '../utils/nav-icon-bounce.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 const trackTween = (target: any, vars: any) => {
@@ -152,46 +153,8 @@ class SliderManager {
   }
 
   private playNavButtonBounce(navButton: HTMLElement): void {
-    const navVisual = (navButton.querySelector('.nav-icon-visual') || navButton.querySelector('img')) as HTMLElement | null;
-    if (!navVisual) return;
-
-    gsap.killTweensOf(navVisual, 'scaleX,scaleY');
-    gsap.set(navVisual, {
-      scaleX: 1,
-      scaleY: 1,
-      transformOrigin: '50% 70%',
-      willChange: 'transform',
-      force3D: true
-    });
-
-    const timeline = trackTimeline(gsap.timeline({
-      defaults: { force3D: true },
-      onComplete: () => {
-        gsap.set(navVisual, { willChange: 'auto' });
-      }
-    }));
-
-    timeline
-      .to(navVisual, {
-        scaleX: 1.16,
-        scaleY: 1.16,
-        duration: 0.15,
-        ease: 'back.out(2.2)'
-      })
-      .to(navVisual, {
-        scaleX: 0.92,
-        scaleY: 0.92,
-        duration: 0.09,
-        ease: 'power2.out'
-      })
-      .to(navVisual, {
-        scaleX: 1,
-        scaleY: 1,
-        duration: 0.3,
-        ease: 'back.out(1.9)'
-      });
-
-    this.navButtonAnimations.push(timeline);
+    const timeline = playNavIconCartoonBounce(navButton);
+    if (timeline) this.navButtonAnimations.push(trackTimeline(timeline));
   }
 
   private resetHeroBounceState(exceptHero?: HTMLElement | null): void {

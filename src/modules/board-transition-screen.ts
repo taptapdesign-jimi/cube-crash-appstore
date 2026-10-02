@@ -81,6 +81,7 @@ import {
   stopBoardTransitionArea55Sounds,
 } from './board-transition-area55-sound.ts';
 import { fadeOutJourneyWorldsSoundForBoardTransition } from './journey-worlds-hub-sound.ts';
+import { preloadImagesBounded } from '../utils/bounded-image-preloader.js';
 
 interface BoardTransitionOptions {
   boardNumber: number;
@@ -315,7 +316,6 @@ const TRANSITION_SCENE_ENTER_ORDER = [
   'mountain'
 ];
 const preloadedTransitionAssetUrls = new Set<string>();
-let assetsPreloadPromise: Promise<void> | null = null;
 let memSampleInterval: number | null = null;
 let memSamplePeak = 0;
 let memSampleStart = 0;
@@ -1755,38 +1755,51 @@ function ensureCloudStyles(): void {
 async function preloadTransitionAssets(
   sceneLayers: readonly BoardTransitionThemeLayer[],
   includeForestBees = false,
-): Promise<void> {
+  isCurrent: () => boolean = () => true,
+): Promise<boolean> {
   const urls = [
     ...TRANSITION_CLOUD_IMAGES,
     ...sceneLayers.map((layer) => layer.src),
     ...(includeForestBees ? FOREST_TRANSITION_BEE_ASSETS : []),
   ];
   const missingUrls = urls.filter((src) => !preloadedTransitionAssetUrls.has(src));
-  if (missingUrls.length === 0) return;
-  if (assetsPreloadPromise) {
-    await assetsPreloadPromise;
-    return preloadTransitionAssets(sceneLayers, includeForestBees);
-  }
-  assetsPreloadPromise = (async () => {
-    try {
-      logger.info('🧩 board-transition-screen: Preloading transition assets...');
-      await Promise.all(missingUrls.map((src) => new Promise<void>((resolve) => {
-        const img = new Image();
-        img.src = src;
-        if (typeof img.decode === 'function') {
-          img.decode().then(() => resolve()).catch(() => resolve());
-        } else {
-          img.onload = () => resolve();
-          img.onerror = () => resolve();
-        }
-      })));
-      missingUrls.forEach((src) => preloadedTransitionAssetUrls.add(src));
-      logger.info('✅ board-transition-screen: Transition assets preloaded');
-    } finally {
-      assetsPreloadPromise = null;
-    }
-  })();
-  return assetsPreloadPromise;
+  if (missingUrls.length === 0) return isCurrent();
+  logger.info('🧩 board-transition-screen: Preloading transition assets with bounded decode...');
+  const ready = await preloadImagesBounded(missingUrls, {
+    concurrency: 2,
+    decode: true,
+    isCurrent,
+  });
+  if (!ready) return false;
+  missingUrls.forEach((src) => preloadedTransitionAssetUrls.add(src));
+  logger.info('✅ board-transition-screen: Transition assets preloaded');
+  return true;
+}
+
+export async function prepareBoardTransitionAssets(options: {
+  boardNumber: number;
+  hideForest?: boolean;
+  theme?: BoardTransitionThemeId;
+  isCurrent?: () => boolean;
+}): Promise<boolean> {
+  const isCurrent = options.isCurrent ?? (() => true);
+  const resolvedTheme = resolveBoardTransitionTheme({
+    boardNumber: options.boardNumber,
+    explicitTheme: options.theme,
+    hideForest: options.hideForest,
+    runMode: getRunMode(),
+  });
+  if (resolvedTheme === 'none') return isCurrent();
+  const profile = resolvedTheme === 'beach'
+    ? BEACH_BOARD_TRANSITION_PROFILE
+    : resolvedTheme === 'area55'
+      ? AREA55_BOARD_TRANSITION_PROFILE
+      : null;
+  return preloadTransitionAssets(
+    profile?.layers ?? TRANSITION_SCENE_LAYERS,
+    resolvedTheme === 'forest',
+    isCurrent,
+  );
 }
 
 function startMemSampling(): void {
@@ -1903,10 +1916,12 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
   // 55 while these PNGs were still decoding produced a large physical-device
   // hitch and could overlap WebKit GPU-process recovery.
   if (showScene) {
-    await preloadTransitionAssets(
-      sceneLayers,
-      resolvedTheme === 'forest',
-    );
+    await prepareBoardTransitionAssets({
+      boardNumber,
+      hideForest,
+      theme,
+      isCurrent: () => isTransitionActive && activeGeneration === transitionGeneration,
+    });
     if (!isTransitionActive || activeGeneration !== transitionGeneration) return;
   }
   preloadTransitionAssets([], false).catch((error) => {

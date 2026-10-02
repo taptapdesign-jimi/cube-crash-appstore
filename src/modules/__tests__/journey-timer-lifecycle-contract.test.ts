@@ -15,6 +15,18 @@ function between(start: string, end: string): string {
 }
 
 describe('Journey render timer lifecycle', () => {
+  test('collectibles delayed post-enter mutations belong to a replaceable owner', () => {
+    const collectibles = fs.readFileSync(
+      path.join(process.cwd(), 'src/collectibles-manager.ts'),
+      'utf8',
+    );
+    expect(collectibles).toContain('private journeyPostEnterOwner = new JourneyPostEnterOwner();');
+    expect(collectibles).toContain('const postEnterLease = this.journeyPostEnterOwner.acquire(journeyPresentationEpoch);');
+    expect(collectibles).toContain('this.journeyPostEnterOwner.retire();');
+    expect(collectibles).toContain('postEnterLease.schedule(async () => {');
+    expect(collectibles).toContain("appZoneManager.isPresentationCurrent(journeyPresentationEpoch, 'journey')");
+  });
+
   test('tracked timeout and RAF callbacks belong to the render generation that created them', () => {
     const ownership = between(
       'private trackRAF(callback: FrameRequestCallback, onCancel?: () => void)',
