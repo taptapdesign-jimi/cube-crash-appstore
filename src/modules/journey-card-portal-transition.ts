@@ -12,7 +12,7 @@ export interface JourneyCardOriginLease {
   readonly anchor: HTMLElement;
   readonly origin: JourneyCardGeometry;
   readonly aspectRatio: number;
-  mountInto(host: HTMLElement): void;
+  mountInto(host: HTMLElement, options?: { reusePortalVisual?: boolean }): void;
   activatePortal(): void;
   prepareSettledLanding(): void;
   captureLandingGeometry(): void;
@@ -20,6 +20,99 @@ export interface JourneyCardOriginLease {
   restoreNow(options?: { preserveLandingSuppression?: boolean }): boolean;
   discard(): void;
   readonly isMounted: boolean;
+}
+
+let reusablePortalVisualGeneration = 0;
+
+function bindReusablePortalVisual(host: HTMLElement, card: HTMLElement): {
+  visual: HTMLElement;
+  generation: number;
+} {
+  let visual = host.querySelector<HTMLElement>(
+    ':scope > .journey-card-overlay-portaled-card[data-reusable-portal="true"]',
+  );
+  if (!visual) {
+    visual = document.createElement('div');
+    visual.dataset.reusablePortal = 'true';
+    const image = document.createElement('img');
+    image.className = 'journey-board-image journey-board-image-preload';
+    image.loading = 'eager';
+    image.decoding = 'async';
+    image.draggable = false;
+    image.setAttribute('draggable', 'false');
+    image.setAttribute('aria-hidden', 'true');
+    image.style.position = 'absolute';
+    image.style.left = '0';
+    image.style.top = '0';
+    image.style.width = '1px';
+    image.style.height = '1px';
+    image.style.opacity = '0';
+    image.style.pointerEvents = 'none';
+    image.style.visibility = 'hidden';
+    const ribbon = document.createElement('div');
+    ribbon.className = 'journey-card-ribbon';
+    ribbon.setAttribute('role', 'img');
+    ribbon.setAttribute('aria-label', 'New');
+    const ribbonImage = document.createElement('img');
+    ribbonImage.className = 'journey-card-ribbon-image';
+    ribbonImage.alt = '';
+    ribbonImage.draggable = false;
+    ribbonImage.setAttribute('draggable', 'false');
+    const ribbonShimmer = document.createElement('img');
+    ribbonShimmer.className = 'journey-card-ribbon-shimmer';
+    ribbonShimmer.alt = '';
+    ribbonShimmer.draggable = false;
+    ribbonShimmer.setAttribute('draggable', 'false');
+    ribbonShimmer.setAttribute('aria-hidden', 'true');
+    const ribbonLabel = document.createElement('span');
+    ribbonLabel.className = 'journey-card-ribbon-label';
+    ribbonLabel.textContent = 'New';
+    ribbonLabel.setAttribute('aria-hidden', 'true');
+    ribbon.append(ribbonImage, ribbonShimmer, ribbonLabel);
+    visual.append(image, ribbon);
+    host.appendChild(visual);
+  }
+
+  const generation = ++reusablePortalVisualGeneration;
+  visual.dataset.reusablePortalGeneration = String(generation);
+  visual.className = Array.from(card.classList)
+    .filter((className) => (
+      className !== 'journey-board-card-return-placeholder'
+      && className !== 'journey-board-card-return-landing'
+      && className !== 'idle-shimmer-trigger'
+    ))
+    .join(' ');
+  visual.classList.add('journey-card-overlay-portaled-card');
+  visual.dataset.reusablePortal = 'true';
+  visual.removeAttribute('id');
+  visual.removeAttribute('data-board-id');
+  const cardStyle = card.getAttribute('style');
+  if (cardStyle === null) visual.removeAttribute('style');
+  else visual.setAttribute('style', cardStyle);
+  visual.hidden = false;
+  visual.setAttribute('aria-hidden', 'true');
+  visual.style.pointerEvents = 'none';
+  visual.style.touchAction = 'none';
+
+  const sourceImage = card.querySelector<HTMLImageElement>('.journey-board-image-preload');
+  const image = visual.querySelector<HTMLImageElement>(':scope > .journey-board-image-preload');
+  if (image) {
+    image.src = sourceImage?.currentSrc || sourceImage?.src || '';
+    image.alt = sourceImage?.alt || '';
+    image.fetchPriority = sourceImage?.fetchPriority || 'auto';
+  }
+  const sourceRibbon = card.querySelector<HTMLElement>(':scope > .journey-card-ribbon');
+  const ribbon = visual.querySelector<HTMLElement>(':scope > .journey-card-ribbon');
+  if (ribbon) {
+    ribbon.hidden = !sourceRibbon;
+    const sourceImages = sourceRibbon?.querySelectorAll<HTMLImageElement>('img');
+    const targetImages = ribbon.querySelectorAll<HTMLImageElement>('img');
+    targetImages.forEach((target, index) => {
+      target.src = sourceImages?.[index]?.currentSrc || sourceImages?.[index]?.src || '';
+    });
+  }
+  if (!visual.isConnected) host.appendChild(visual);
+  return { visual, generation };
 }
 
 export interface JourneyCardSpatialPose {
@@ -151,6 +244,7 @@ export function acquireJourneyCardOriginLease(
   let landingGeometry = origin;
   let landingAnchorRect = anchorOriginRect;
   let portalVisual: HTMLElement | null = null;
+  let retainedPortalGeneration: number | null = null;
 
   const restoreAttributes = (
     settledPresentation = false,
@@ -190,7 +284,7 @@ export function acquireJourneyCardOriginLease(
     get isMounted() {
       return mounted && !settled && portalVisual?.isConnected === true;
     },
-    mountInto(host: HTMLElement) {
+    mountInto(host: HTMLElement, options = {}) {
       if (settled || mounted) return;
       mounted = true;
       // A rapid reopen can lease the card while the previous landing commit is
@@ -206,7 +300,13 @@ export function acquireJourneyCardOriginLease(
       // Keep the live card resident in its Journey Unit. Reparenting this
       // promoted/clipped layer through the modal forces WKWebView to rebuild
       // its compositor backing and can expose a one-frame blank on return.
-      portalVisual = card.cloneNode(true) as HTMLElement;
+      if (options.reusePortalVisual === true) {
+        const retained = bindReusablePortalVisual(host, card);
+        portalVisual = retained.visual;
+        retainedPortalGeneration = retained.generation;
+      } else {
+        portalVisual = card.cloneNode(true) as HTMLElement;
+      }
       portalVisual.removeAttribute('id');
       portalVisual.removeAttribute('data-board-id');
       portalVisual.classList.remove(
@@ -217,7 +317,7 @@ export function acquireJourneyCardOriginLease(
       portalVisual.setAttribute('aria-hidden', 'true');
       portalVisual.style.pointerEvents = 'none';
       portalVisual.style.touchAction = 'none';
-      host.appendChild(portalVisual);
+      if (!portalVisual.isConnected) host.appendChild(portalVisual);
     },
     activatePortal() {
       if (settled || !mounted || !portalVisual?.isConnected) return;
@@ -284,7 +384,11 @@ export function acquireJourneyCardOriginLease(
         );
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            portalVisual?.remove();
+            if (retainedPortalGeneration !== null) {
+              if (portalVisual?.dataset.reusablePortalGeneration === String(retainedPortalGeneration)) {
+                portalVisual.hidden = true;
+              }
+            } else portalVisual?.remove();
             portalVisual = null;
           });
         });
@@ -294,7 +398,13 @@ export function acquireJourneyCardOriginLease(
           useSettledRestorePresentation,
           options.preserveLandingSuppression === true,
         );
-        try { portalVisual?.remove(); } catch {}
+        try {
+          if (retainedPortalGeneration !== null) {
+            if (portalVisual?.dataset.reusablePortalGeneration === String(retainedPortalGeneration)) {
+              portalVisual.hidden = true;
+            }
+          } else portalVisual?.remove();
+        } catch {}
         portalVisual = null;
         return false;
       }
@@ -303,7 +413,13 @@ export function acquireJourneyCardOriginLease(
       if (settled) return;
       settled = true;
       mounted = false;
-      try { portalVisual?.remove(); } catch {}
+      try {
+        if (retainedPortalGeneration !== null) {
+          if (portalVisual?.dataset.reusablePortalGeneration === String(retainedPortalGeneration)) {
+            portalVisual.hidden = true;
+          }
+        } else portalVisual?.remove();
+      } catch {}
       portalVisual = null;
       try { card.remove(); } catch {}
     },

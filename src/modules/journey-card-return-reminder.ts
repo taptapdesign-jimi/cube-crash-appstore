@@ -408,7 +408,25 @@ export function presentJourneyCardReturnReminder(options: {
   // Keep the body-level geometry contract, but share Journey's stacking
   // context so its fixed header (1000002) can paint above this portal
   // (1000000) while the card continues following the scrolled live Unit.
-  const stageHost = options.origin.anchor.closest<HTMLElement>('#journey-screen') ?? document.body;
+  const worldHost = options.origin.anchor.closest<HTMLElement>('#journey-boards-container');
+  const nativeScrollHost = worldHost?.closest('.collectibles-scrollable') ? worldHost : null;
+  const nativeHostOrigin = nativeScrollHost?.getBoundingClientRect();
+  const stageHost = nativeScrollHost
+    ?? options.origin.anchor.closest<HTMLElement>('#journey-screen') ?? document.body;
+  if (nativeHostOrigin) {
+    // Mount the non-clipping viewport-coordinate plane in the SAME content as
+    // the Unit. WebKit can now scroll both on its compositor even between JS
+    // frames; a fixed sibling plus RAF compensation always trails that scroll.
+    // Keep flight coordinates viewport-relative at mount, without changing
+    // the authored apex, duration or the stable landing target.
+    stage.classList.add('is-native-scroll-anchored');
+    stage.style.position = 'absolute';
+    stage.style.inset = 'auto';
+    stage.style.left = `${-nativeHostOrigin.left}px`;
+    stage.style.top = `${-nativeHostOrigin.top}px`;
+    stage.style.width = `${window.innerWidth}px`;
+    stage.style.height = `${window.innerHeight}px`;
+  }
   stageHost.appendChild(stage);
   options.origin.mountInto(frontHost);
   if (!options.origin.isMounted) {
@@ -438,6 +456,17 @@ export function presentJourneyCardReturnReminder(options: {
       return;
     }
     const offset = getJourneyCardReturnReminderViewportOffset(scrollReference, liveTarget);
+    if (nativeScrollHost && nativeHostOrigin) {
+      if (!nativeScrollHost.isConnected) {
+        cleanup('target-lost', false);
+        return;
+      }
+      const hostRect = nativeScrollHost.getBoundingClientRect();
+      // Native scrolling already moved the entire flight plane. Compensate
+      // only remaining Unit-local motion, never apply scroll displacement twice.
+      offset.x -= hostRect.left - nativeHostOrigin.left;
+      offset.y -= hostRect.top - nativeHostOrigin.top;
+    }
     scrollAnchor.style.transform = `translate3d(${offset.x}px, ${offset.y}px, 0)`;
     scrollFollowRaf = requestAnimationFrame(followLiveUnit);
   };

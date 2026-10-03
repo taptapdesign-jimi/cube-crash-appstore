@@ -4,10 +4,19 @@ import {
   type JourneyCardOverlayModalController,
 } from '../journey-card-overlay-modal';
 import type { JourneyCardOriginLease } from '../journey-card-portal-transition';
+import {
+  deferUntilForegroundResourceIdle,
+  getForegroundResourceCoordinatorSnapshot,
+  resetForegroundResourceCoordinator,
+} from '../foreground-resource-coordinator';
 
 jest.mock('../journey-card-portal-transition', () => ({ captureJourneyCardGeometry: () => null }));
-jest.mock('../../utils/runtime-diagnostics-policy', () => ({ areContinuousRuntimeDiagnosticsEnabled: () => false }));
+jest.mock('../../utils/runtime-diagnostics-policy', () => ({
+  areContinuousRuntimeDiagnosticsEnabled: () => false,
+  areDetailedRuntimeDiagnosticsEnabled: () => false,
+}));
 jest.mock('../journey-card-entry-flip-sound', () => ({
+  acquireJourneyCardEntryFlipAudioResidency: () => () => {},
   preloadJourneyCardEntryFlipSounds() {}, playJourneyCardManualFlipSound: jest.fn(),
   playJourneyCardEntryFlipSounds() {}, playJourneyCardReturnFlipSounds() {}, stopJourneyCardEntryFlipSounds() {},
 }));
@@ -60,9 +69,29 @@ describe('Journey flip and pointer-release animation ownership', () => {
     pointer('pointerup', 256);
     return rotorAnimation(200);
   };
+  const createOrigin = (boardId: number): JourneyCardOriginLease => {
+    const card = document.createElement('div');
+    card.dataset.ownerBoardId = String(boardId);
+    return {
+      boardId,
+      card,
+      anchor: card,
+      origin: { centerX: 195, centerY: 422, width: 320, height: 440, rotationDeg: 0 },
+      aspectRatio: 320 / 440,
+      isMounted: true,
+      mountInto: (host) => { host.appendChild(card); },
+      activatePortal() {},
+      prepareSettledLanding() {},
+      captureLandingGeometry() {},
+      readLiveGeometry: () => null,
+      restoreNow: () => true,
+      discard() {},
+    };
+  };
 
   beforeEach(async () => {
     jest.useFakeTimers();
+    resetForegroundResourceCoordinator();
     jest.mocked(playJourneyCardManualFlipSound).mockClear();
     animations = [];
     rafs = new Map();
@@ -100,14 +129,7 @@ describe('Journey flip and pointer-release animation ownership', () => {
       }
       return style;
     });
-    const card = document.createElement('div');
-    const origin: JourneyCardOriginLease = {
-      boardId: 1, card, anchor: card, origin: { centerX: 195, centerY: 422, width: 320, height: 440, rotationDeg: 0 },
-      aspectRatio: 320 / 440, isMounted: true,
-      mountInto: (host) => { host.appendChild(card); }, activatePortal() {}, prepareSettledLanding() {},
-      captureLandingGeometry() {}, readLiveGeometry: () => null, restoreNow: () => true, discard() {},
-    };
-    modal = presentJourneyCardOverlayModal({ boardId: 1, origin, hasSavedState: false });
+    modal = presentJourneyCardOverlayModal({ boardId: 1, origin: createOrigin(1), hasSavedState: false });
     rotor = modal.element.querySelector<HTMLElement>('.journey-card-flip-rotor')!;
     rotor.getBoundingClientRect = () => new DOMRect(35, 200, 320, 440);
     for (let i = 0; i < 5; i += 1) await paint();
@@ -119,6 +141,7 @@ describe('Journey flip and pointer-release animation ownership', () => {
     modal?.dispose();
     await flush();
     document.body.innerHTML = '';
+    resetForegroundResourceCoordinator();
     if (originalAnimate) Object.defineProperty(HTMLElement.prototype, 'animate', originalAnimate);
     else Reflect.deleteProperty(HTMLElement.prototype, 'animate');
     jest.restoreAllMocks();
@@ -153,6 +176,8 @@ describe('Journey flip and pointer-release animation ownership', () => {
     pointer('pointermove', 277.67);
     pointer('pointermove', 290);
     pointer('pointermove', 304.33);
+    expect(rafs.size).toBe(1);
+    await paint();
     expect(rotor.style.transform).toBe(`rotateY(${-180 + 204.33 / 390 * 180}deg)`);
     expect(animations.filter((animation) => animation.element === rotor && animation.active)).toHaveLength(0);
     expect(playJourneyCardManualFlipSound).not.toHaveBeenCalled();
@@ -166,6 +191,82 @@ describe('Journey flip and pointer-release animation ownership', () => {
     expect(playJourneyCardManualFlipSound).toHaveBeenCalledTimes(1);
   });
 
+  test('a settled tap reuses cached state without synchronous style or geometry reads', () => {
+    const frame = modal.element.querySelector<HTMLElement>('.journey-card-flip-frame')!;
+    const idleShell = modal.element.querySelector<HTMLElement>('.journey-card-flip-idle-shell')!;
+    const geometryRead = jest.spyOn(frame, 'getBoundingClientRect');
+    const styleRead = jest.mocked(window.getComputedStyle);
+    const idleEnded = new Event('animationend');
+    Object.assign(idleEnded, { animationName: 'cc-gameplay-modal-idle-float' });
+    idleShell.dispatchEvent(idleEnded);
+    styleRead.mockClear();
+
+    pointer('pointerdown', 195);
+    pointer('pointerup', 195);
+
+    expect(styleRead).not.toHaveBeenCalled();
+    expect(geometryRead).not.toHaveBeenCalled();
+    expect(rotorAnimation(200)).toBeDefined();
+  });
+
+  test('blocks deferred resource work for the full active flip and resumes after recoil settles', async () => {
+    const deferredWork = jest.fn();
+
+    pointer('pointerdown', 195);
+    pointer('pointerup', 195);
+    const flip = rotorAnimation(200);
+    deferUntilForegroundResourceIdle('journey-card-test-deferred-work', deferredWork);
+
+    expect(getForegroundResourceCoordinatorSnapshot()).toMatchObject({
+      criticalDepth: 1,
+      criticalOwners: ['journey-card'],
+      deferredTaskCount: 1,
+    });
+    expect(deferredWork).not.toHaveBeenCalled();
+
+    await finish(flip);
+    const recoil = rotorAnimation(260);
+    expect(getForegroundResourceCoordinatorSnapshot().criticalDepth).toBe(1);
+    expect(deferredWork).not.toHaveBeenCalled();
+
+    await finish(recoil);
+    expect(getForegroundResourceCoordinatorSnapshot().criticalDepth).toBe(0);
+    expect(deferredWork).not.toHaveBeenCalled();
+    await paint();
+    expect(deferredWork).toHaveBeenCalledTimes(1);
+  });
+
+  test('reuses one mounted shell and stale open callbacks cannot mutate its successor', async () => {
+    const firstShell = modal.element;
+    const intermediate = presentJourneyCardOverlayModal({
+      boardId: 2,
+      origin: createOrigin(2),
+      hasSavedState: false,
+    });
+    const successor = presentJourneyCardOverlayModal({
+      boardId: 3,
+      origin: createOrigin(3),
+      hasSavedState: true,
+    });
+    modal = successor;
+    rotor = successor.element.querySelector<HTMLElement>('.journey-card-flip-rotor')!;
+    rotor.getBoundingClientRect = () => new DOMRect(35, 200, 320, 440);
+
+    expect(intermediate.element).toBe(firstShell);
+    expect(successor.element).toBe(firstShell);
+    expect(document.querySelectorAll('#journey-card-overlay-modal')).toHaveLength(1);
+
+    for (let index = 0; index < 6; index += 1) await paint();
+
+    expect(successor.element.dataset.boardId).toBe('3');
+    expect(successor.element.querySelector('#journey-card-flip-title')?.textContent).toBe('Forest 03');
+    expect(successor.element.querySelector('.journey-card-flip-cta')?.getAttribute('aria-label'))
+      .toBe('Continue Stage');
+    expect(successor.element.querySelector('[data-owner-board-id="3"]')).not.toBeNull();
+    expect(successor.element.querySelector('[data-owner-board-id="2"]')).toBeNull();
+    expect(successor.element.classList.contains('is-entering')).toBe(false);
+  });
+
   test('two fingers pass the 120-percent soft limit with resistance and spring home without flipping', async () => {
     const flip = dragAndRelease();
     await finish(flip);
@@ -177,6 +278,7 @@ describe('Journey flip and pointer-release animation ownership', () => {
     pointer('pointerdown', 100, 11, true);
     pointer('pointerdown', 200, 12, false);
     pointer('pointermove', 340, 12, false);
+    await paint();
 
     expect(modal.element.classList.contains('is-pinching')).toBe(true);
     const stretchedScale = Number(/scale\(([^)]+)\)/.exec(pinchShell.style.transform)?.[1]);
@@ -209,6 +311,7 @@ describe('Journey flip and pointer-release animation ownership', () => {
     const oldPreview = rotorAnimation(180);
     pointer('pointerdown', 200, 2);
     pointer('pointermove', 215, 2);
+    await paint();
     const ownedTransform = rotor.style.transform;
     await finish(oldPreview);
     expect(rotor.style.transform).toBe(ownedTransform);

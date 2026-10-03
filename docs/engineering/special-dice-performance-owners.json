@@ -2,12 +2,14 @@
   "fish": {
     "archetype": "wild-star",
     "idleOwner": "src/modules/fish-swim-artwork.ts",
+    "idleAdmissionPolicy": "All live copies retain authored idle outside the one-Special mobile budget; existing interaction suspension, visibility and terminal cleanup remain authoritative.",
     "finaleOwner": "src/modules/fish-finale-bubbles.ts",
     "warmupPolicy": "Use actual reward eligibility plus restored live tiles; generation-owned preparation; reuse pending/ready resources.",
     "cleanupPolicy": "Stop through special-dice-idle and finale owner on completion, interruption, tile destruction and board exit; preserve shared live resources.",
     "hudDepthPolicy": "dom-foreground-owner",
     "tests": [
       "src/modules/__tests__/fish-media-visibility.test.ts",
+      "src/modules/__tests__/special-dice-idle-budget.test.ts",
       "src/modules/__tests__/fish-finale-preload.test.ts",
       "src/modules/__tests__/special-artwork-warmup-eligibility.test.ts",
       "src/modules/__tests__/special-idle-registry-cleanup.test.ts",
@@ -20,12 +22,14 @@
   "kanta": {
     "archetype": "wild-star",
     "idleOwner": "src/modules/kanta-dice-idle.ts",
+    "idleAdmissionPolicy": "All live copies retain authored idle outside the one-Special mobile budget; existing interaction suspension, visibility and terminal cleanup remain authoritative.",
     "finaleOwner": "src/modules/kanta-finale-scene.ts",
     "warmupPolicy": "Use actual reward eligibility plus restored live tiles; generation-owned preparation; reuse pending/ready resources.",
     "cleanupPolicy": "Stop through special-dice-idle and finale owner on completion, interruption, tile destruction and board exit; preserve shared live resources.",
     "hudDepthPolicy": "contained-board-footprint",
     "tests": [
       "src/modules/__tests__/kanta-finale-lifecycle.test.ts",
+      "src/modules/__tests__/special-dice-idle-budget.test.ts",
       "src/modules/__tests__/special-idle-registry-cleanup.test.ts",
       "src/modules/__tests__/special-dice-idle-visibility.test.ts",
       "src/modules/__tests__/special-sound-warmup.test.ts",
@@ -35,6 +39,7 @@
   },
   "bee": {
     "archetype": "wild-star",
+    "idleAdmissionPolicy": "All live copies retain authored idle outside the one-Special mobile budget; existing interaction suspension, visibility and terminal cleanup remain authoritative.",
     "idleOwner": "src/modules/special-dice-idle.ts",
     "finaleOwner": "src/modules/bee-finale-scene.ts",
     "warmupPolicy": "Use actual reward eligibility plus restored live tiles; generation-owned preparation; reuse pending/ready resources.",
@@ -42,6 +47,7 @@
     "hudDepthPolicy": "contained-board-footprint",
     "tests": [
       "src/modules/__tests__/bee-finale-lifecycle.test.ts",
+      "src/modules/__tests__/special-dice-idle-budget.test.ts",
       "src/modules/__tests__/special-render-work.test.ts",
       "src/modules/__tests__/special-idle-registry-cleanup.test.ts",
       "src/modules/__tests__/special-dice-idle-visibility.test.ts",
@@ -101,6 +107,7 @@
     ]
   },
   "honey": {
+    "idleAdmissionPolicy": "All live copies retain authored idle outside the one-Special mobile budget; existing interaction suspension, visibility and terminal cleanup remain authoritative.",
     "archetype": "wild-magnet",
     "idleOwner": "src/modules/special-dice-idle.ts",
     "finaleOwner": "src/modules/text-bolts.ts",
@@ -109,6 +116,7 @@
     "hudDepthPolicy": "contained-board-footprint",
     "tests": [
       "src/modules/__tests__/honey-bee-idle-orbit.test.ts",
+      "src/modules/__tests__/special-dice-idle-budget.test.ts",
       "src/modules/__tests__/special-render-work.test.ts",
       "src/modules/__tests__/special-idle-registry-cleanup.test.ts",
       "src/modules/__tests__/special-dice-idle-visibility.test.ts",

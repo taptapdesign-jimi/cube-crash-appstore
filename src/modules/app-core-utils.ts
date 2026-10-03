@@ -50,6 +50,18 @@ export function trackAppTimeout(callback: () => void | Promise<void>, delay: num
   return scheduleAppTimeout(callback, delay);
 }
 
+/** Cancels one timeout while keeping the shared lifecycle registry accurate. */
+export function clearTrackedAppTimeout(timeout: NodeJS.Timeout | null | undefined): void {
+  if (!timeout) return;
+  const record = _appTimeouts.get(timeout);
+  if (!record) return;
+  _appTimeouts.delete(timeout);
+  try { clearTimeout(timeout); } catch {}
+  try { record.onCancel?.(); } catch (error) {
+    reportTrackedCallbackError('timeout', error);
+  }
+}
+
 export type TrackedWaitResult = 'elapsed' | 'cancelled';
 
 /**
@@ -109,6 +121,16 @@ export function trackAppAnimationFrame(callback: FrameRequestCallback, onCancel?
   });
   _appAnimationFrames.set(rafId, { onCancel });
   return rafId;
+}
+
+export function cancelTrackedAppAnimationFrame(rafId: number): void {
+  const record = _appAnimationFrames.get(rafId);
+  if (!record) return;
+  _appAnimationFrames.delete(rafId);
+  try { cancelAnimationFrame(rafId); } catch {}
+  try { record.onCancel?.(); } catch (error) {
+    logger.error('❌ Tracked app animation-frame cancellation failed', 'app-core', error);
+  }
 }
 
 export function clearAllAppAnimationFrames() {

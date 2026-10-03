@@ -9,6 +9,7 @@ import {
   KANTA_IDLE_FRONT_OFFSET_X_PX,
 } from '../kanta-dice-idle';
 import { startBeeDiceIdle } from '../bee-dice-idle';
+import { visualAssetBroker } from '../../utils/visual-asset-broker';
 import {
   keepsSpecialDiceIdleRunningDuringDrag,
   setSpecialDiceIdleDragging,
@@ -16,13 +17,19 @@ import {
   stopSpecialDiceIdleMotion,
 } from '../special-dice-idle';
 
+const flushPromises = async () => {
+  for (let index = 0; index < 12; index += 1) await Promise.resolve();
+};
+
 describe('special-dice idle lifecycle', () => {
   beforeEach(() => {
     animationManager.killAll();
+    visualAssetBroker.resetForTests();
     STATE.app = null;
   });
   afterEach(() => {
     animationManager.killAll();
+    visualAssetBroker.resetForTests();
     STATE.app = null;
   });
 
@@ -174,8 +181,7 @@ describe('special-dice idle lifecycle', () => {
 
     try {
       startSpecialDiceIdleMotion(tile);
-      await Promise.resolve();
-      await Promise.resolve();
+      await flushPromises();
 
       // Freeze at the neutral authored pose before measuring the asynchronous
       // rear texture mount.
@@ -222,8 +228,7 @@ describe('special-dice idle lifecycle', () => {
 
     try {
       startSpecialDiceIdleMotion(tile);
-      await Promise.resolve();
-      await Promise.resolve();
+      await flushPromises();
 
       const controller = tile._ccKantaDiceIdle;
       controller.setDragging(true);
@@ -288,8 +293,7 @@ describe('special-dice idle lifecycle', () => {
     try {
       startSpecialDiceIdleMotion(tile);
       resolveTexture(kantaTexture);
-      await Promise.resolve();
-      await Promise.resolve();
+      await flushPromises();
 
       expect(setSpecialDiceIdleDragging(tile, true)).toBe(true);
       expect(base.width).toBeCloseTo(128 * (128 / 171), 6);

@@ -43,13 +43,18 @@ describe('regular merge-6 to wild reward handoff', () => {
   test('a converted Magnet survivor cannot route a later Juice merge into Magnet pull cleanup', () => {
     const appCore = fs.readFileSync(path.join(repoRoot, 'src/modules/app-core.ts'), 'utf8');
     const appMerge = fs.readFileSync(path.join(repoRoot, 'src/modules/app-merge.ts'), 'utf8');
+    const survivorCommit = fs.readFileSync(path.join(repoRoot, 'src/modules/magnet-survivor-commit.ts'), 'utf8');
 
     const conversionStart = appMerge.indexOf('Respawn complete — converting magnet merge-6 cell');
-    const conversionEnd = appMerge.indexOf('clearSpecialDiceIdentity(dst);', conversionStart);
+    const conversionEnd = appMerge.indexOf("console.log('🧲 Converted magnet merge-6", conversionStart);
     const conversion = appMerge.slice(conversionStart, conversionEnd);
-    expect(conversion).toContain('resetTileToNormalState(dst);');
-    expect(appMerge.indexOf('resetTileToNormalState(dst);', conversionStart)).toBeLessThan(
-      conversionEnd,
+    expect(conversion).toContain('const survivorReceipt = commitMagnetSurvivor({');
+    expect(conversion).toContain('stopSpecialIdle: stopSpecialDiceIdleMotion,');
+    expect(conversion).toContain('resetToNormal: resetTileToNormalState,');
+    expect(conversion).toContain('setValueImmediate:');
+    expect(conversion).toContain('bindToTile:');
+    expect(survivorCommit.indexOf('stopSpecialIdle(tile);')).toBeLessThan(
+      survivorCommit.indexOf('resetToNormal(tile);'),
     );
 
     const completionStart = appCore.indexOf('trackTween(src, {', appCore.indexOf('const tntFramesReadyForMerge'));
@@ -80,6 +85,7 @@ describe('regular merge-6 to wild reward handoff', () => {
     ['core magnet', 'wild-magnet'],
     ['bottle', 'wild-magnet'],
     ['honey', 'wild-magnet'],
+    ['spaceship', 'wild-magnet'],
   ])('removes Magnet transaction identity before a recycled survivor becomes %s', (_name, special) => {
     const tile: any = {
       special,

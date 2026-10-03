@@ -17,7 +17,7 @@ export type InputGateLockReason =
 type InputGateLockScope = 'all' | 'wild-only';
 
 type InputGateLock = {
-  expiresAt: number;
+  expiresAt: number | null;
   scope: InputGateLockScope;
 };
 
@@ -115,7 +115,7 @@ function syncLegacyWildLocks(locks: Record<string, InputGateLock>): void {
   if (!w) return;
   const legacyLocks: Record<string, number> = {};
   Object.entries(locks).forEach(([reason, lock]) => {
-    if (lock.scope === 'wild-only') legacyLocks[reason] = lock.expiresAt;
+    if (lock.scope === 'wild-only') legacyLocks[reason] = lock.expiresAt ?? Number.MAX_SAFE_INTEGER;
   });
   w[LEGACY_WILD_LOCKS_KEY] = legacyLocks;
   w[LEGACY_WILD_BLOCKED_KEY] = Object.keys(legacyLocks).length > 0;
@@ -126,7 +126,7 @@ function pruneExpiredLocks(): Record<string, InputGateLock> {
   const now = nowMs();
   Object.keys(locks).forEach((reason) => {
     const lock = locks[reason];
-    if (!lock || !Number.isFinite(lock.expiresAt) || lock.expiresAt <= now) {
+    if (!lock || (lock.expiresAt !== null && (!Number.isFinite(lock.expiresAt) || lock.expiresAt <= now))) {
       delete locks[reason];
     }
   });
@@ -145,14 +145,14 @@ function clearUnlockTimer(reason: InputGateLockReason): void {
 export function setInputGateLock(
   reason: InputGateLockReason,
   active: boolean,
-  options: { ttlMs?: number; scope?: InputGateLockScope } = {},
+  options: { ttlMs?: number; scope?: InputGateLockScope; persistent?: boolean } = {},
 ): void {
   const locks = getLocks();
   clearUnlockTimer(reason);
   if (active) {
     const ttlMs = Math.max(250, options.ttlMs ?? DEFAULT_TTL_MS);
     locks[reason] = {
-      expiresAt: nowMs() + ttlMs,
+      expiresAt: options.persistent === true ? null : nowMs() + ttlMs,
       scope: options.scope ?? 'all',
     };
   } else {

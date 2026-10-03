@@ -27,6 +27,12 @@ export function createScreenLifecycle(name: string) {
     return t;
   };
 
+  const cancelTimeout = (timeout: NodeJS.Timeout | null | undefined) => {
+    if (timeout == null) return;
+    try { clearTimeout(timeout); } catch {}
+    timeouts.delete(timeout);
+  };
+
   const trackInterval = (fn: () => void, ms: number) => {
     const i = setInterval(fn, ms);
     intervals.add(i);
@@ -78,5 +84,13 @@ export function createScreenLifecycle(name: string) {
     cleanups.length = 0;
   };
 
-  return { trackTimeout, trackInterval, trackRaf, trackListener, trackCleanup, cleanup };
+  return {
+    trackTimeout,
+    cancelTimeout,
+    trackInterval,
+    trackRaf,
+    trackListener,
+    trackCleanup,
+    cleanup,
+  };
 }

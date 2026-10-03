@@ -119,10 +119,14 @@ describe('Journey New Reward card tilt handoff', () => {
     expect(source).toContain('rotationX: revealTilt.unlockedExitRotateXDeg');
     expect(source).toContain('.to(unlockedSurface, {');
     expect(source).not.toMatch(/\.to\(hero, \{[^}]*rotate:\s*0/s);
-    expect(source).toContain('const coverExitDuration = rd(0.32);');
-    expect(source).toContain('const cardEnterStart = 0;');
-    expect(source).toContain('const cardEnterDuration = rd(0.52);');
-    expect(source).toMatch(/\.to\(interimSurface, \{[\s\S]*?scale: 0,[\s\S]*?ease: 'back\.in\(1\.65\)'/);
+    expect(source).toContain('JOURNEY_WORLD_CARTOON_BOUNCE_ENTER');
+    expect(source).toContain('JOURNEY_NEW_CARD_TRANSITION_SPEED_SCALE = 0.8');
+    expect(source).toContain('const coverExitDuration = transitionTotalDuration;');
+    expect(source).toContain('const cardEnterStart = coverExitDuration;');
+    expect(source).toContain('JOURNEY_NEW_CARD_UNLOCKED_ENTER_DURATION_SECONDS = 0.28');
+    expect(source).toMatch(/\.to\(interimSurface, \{[\s\S]*?JOURNEY_WORLD_CARTOON_BOUNCE_ENTER\.scaleX[\s\S]*?JOURNEY_WORLD_CARTOON_BOUNCE_ENTER\.bounceEase/);
+    expect(source).toMatch(/\.to\(interimSurface, \{[\s\S]*?scaleX: 0,[\s\S]*?JOURNEY_WORLD_CARTOON_BOUNCE_ENTER\.exitEase/);
+    expect(source).toContain("ease: prefersReducedMotion ? 'power1.out' : 'back.out(2.1)'");
     expect(source).toMatch(/\.set\(unlockedSurface, \{[\s\S]*?y: JOURNEY_NEW_CARD_UNLOCKED_OFFSET_Y_PX - 18,[\s\S]*?scale: 0\.58/);
   });
 

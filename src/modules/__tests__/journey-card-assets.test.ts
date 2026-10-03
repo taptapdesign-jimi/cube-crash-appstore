@@ -132,7 +132,7 @@ describe('Journey collectible card assets', () => {
     }
   });
 
-  test('keeps 1x on the World and promotes only reward/detail surfaces to 2x', () => {
+  test('keeps 1x on the World and entry flight while reward/full detail surfaces use 2x', () => {
     const manager = fs.readFileSync(
       path.resolve(process.cwd(), 'src/modules/journey-boards-manager.ts'),
       'utf8',
@@ -164,7 +164,8 @@ describe('Journey collectible card assets', () => {
     expect(completion).toContain('cardImagePath: rewardAsset.path2x || rewardAsset.path1x');
     expect(completion).toContain('Math.max(savedHighScore, rewardScore || 0)');
     expect(endgame).toContain('rewardScore: journeyRewardFinalScore');
-    expect(overlay).toContain('portaledCard.style.backgroundImage');
+    expect(overlay).not.toContain('portaledCard.style.backgroundImage');
+    expect(overlay).toContain('const commonShineMaskPath = options.cardImagePath1x ?? options.cardImagePath2x;');
     expect(preloader).toContain('imagesToPreload.push(asset.path2x || asset.path1x)');
     expect(preloader).not.toContain("imagesToPreload.push(`./assets/colelctibles/common/${id}.png`)");
   });

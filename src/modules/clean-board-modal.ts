@@ -5,6 +5,7 @@
 // Keep CSS-based pop-in like homepage slide 1
 
 import { gsap } from 'gsap';
+import { beginTransitionPerformance } from '../utils/transition-performance.js';
 import animationManager from './animation-manager.js';
 import {
   allowConfettiSpawns,
@@ -40,6 +41,7 @@ import {
   shouldShowArea55CleanBoardShips,
 } from './clean-board-celebration-theme.ts';
 import {
+  acquireCleanBoardShortAudioResidency,
   createCleanBoardStarHarpOrder,
   playCleanBoardBonusCountSound,
   playCleanBoardApplauseSound,
@@ -219,6 +221,10 @@ export async function showCleanBoardModal({
   return new Promise((resolve) => {
     activeCleanBoardModal?.abort();
     const lifetime = createResultModalLifetime();
+    const openingPerformance = beginTransitionPerformance('clean-board-opening');
+    const releaseCleanBoardAudioResidency = acquireCleanBoardShortAudioResidency();
+    lifetime.onDispose(() => openingPerformance.finish('disposed'));
+    lifetime.onDispose(releaseCleanBoardAudioResidency);
     const trackTimeout = lifetime.timeout;
     const trackAnimationFrame = lifetime.frame;
     // Local aliases prevent late callbacks from clearing a newer result.
@@ -793,64 +799,82 @@ export async function showCleanBoardModal({
     outerStack.appendChild(card);
     outerStack.appendChild(buttonContainer);
     el.appendChild(outerStack);
-    document.body.appendChild(el);
-    if (showArea55Ships) {
-      area55ShipFlybys = startCleanBoardArea55ShipFlybys({ overlay: el, content: outerStack });
-    }
-    setSoundtrackResultMix();
-    const restoreSoundtrackAfterResultAudio = fadeSoundtrackForResultHook();
     let resultReleaseTarget: 'stable' | 'gameplay' = 'stable';
-    // The victory sax is the result hook. Applause remains an independent
-    // Clean Board layer and may continue under the returning main theme.
-    playCleanBoardApplauseSound();
-    playCleanBoardSaxophoneHappySound({
-      onEnded: () => restoreSoundtrackAfterResultAudio(resultReleaseTarget),
-      onStopped: () => restoreSoundtrackAfterResultAudio(resultReleaseTarget),
-      onUnavailable: () => restoreSoundtrackAfterResultAudio(resultReleaseTarget),
-    });
-
-    // 🔥 BOARD RECOVERY FIX: Clear pending clean board flag NOW that modal is visible
-    // This prevents recovery from triggering on next app load if user hard-exits during modal/transition
-    // The flag's purpose is to recover from force-quit during LAST MERGE ANIMATION - once modal shows,
-    // we've successfully passed that point, so flag is no longer needed
-    try {
-      clearPendingCleanBoard();
-      console.log('✅ clean-board-modal: Cleared pending clean board flag (modal is now visible)');
-    } catch (e) {
-      console.warn('⚠️ clean-board-modal: Failed to clear pending clean board flag:', e);
-    }
-
-    // 🔥 HARD EXIT FIX: Update board high score IMMEDIATELY when modal appears
-    // This ensures the score (with bonuses) is saved even if user hard-exits before clicking CTA
-    // Previously, high score was only updated when user clicked Continue/Exit/Play Again
-    try {
-      if (isArcadeHomeRun) {
-        const isNewArcadeHigh = arcadeStatsService.updateHighScore(finalScore);
-        if (isNewArcadeHigh) {
-          console.log(`🏆 clean-board-modal: New ARCADE high score: ${finalScore} (saved immediately on modal show)`);
-        } else {
-          console.log(`✅ clean-board-modal: ARCADE high score checked: ${finalScore} (not a new high)`);
+    let restoreSoundtrackAfterResultAudio: (target?: 'stable' | 'gameplay') => void = () => {};
+    let postPaintRuntimeStarted = false;
+    const startPostPaintResultRuntime = () => {
+      if (postPaintRuntimeStarted || !lifetime.isActive() || !el.isConnected) return;
+      postPaintRuntimeStarted = true;
+      const runtimePerformance = beginTransitionPerformance('clean-board-post-paint-runtime');
+      try {
+        if (showArea55Ships) {
+          area55ShipFlybys = runtimePerformance.phase('ship-setup', () => (
+            startCleanBoardArea55ShipFlybys({ overlay: el, content: outerStack })
+          ));
         }
-      } else {
-        const isNewHigh = boardStatsService.updateBoardHighScore(boardNumber, finalScore);
-        // A force-quit can bypass pagehide and the service's 750ms debounce.
-        // Persist the completed Unit's result before the visible modal yields.
-        boardStatsService.flushStatsNow('clean-board-visible');
-        if (isNewHigh) {
-          console.log(`🏆 clean-board-modal: New board ${boardNumber} high score: ${finalScore} (saved immediately on modal show)`);
-        } else {
-          console.log(`✅ clean-board-modal: Board ${boardNumber} high score checked: ${finalScore} (not a new high)`);
-        }
-        
-        // Also update global high score immediately
-        statsService.updateHighScore(finalScore);
-        console.log(`✅ clean-board-modal: Global high score updated to ${finalScore} (on modal show)`);
+
+        runtimePerformance.phase('result-audio-start', () => {
+          setSoundtrackResultMix();
+          restoreSoundtrackAfterResultAudio = fadeSoundtrackForResultHook();
+          // The victory sax is the result hook. Applause remains an independent
+          // Clean Board layer and may continue under the returning main theme.
+          playCleanBoardApplauseSound();
+          playCleanBoardSaxophoneHappySound({
+            onEnded: () => restoreSoundtrackAfterResultAudio(resultReleaseTarget),
+            onStopped: () => restoreSoundtrackAfterResultAudio(resultReleaseTarget),
+            onUnavailable: () => restoreSoundtrackAfterResultAudio(resultReleaseTarget),
+          });
+        });
+
+        runtimePerformance.phase('result-persist', () => {
+          // The completed-board guard and score still commit at modal opening;
+          // this owned post-paint task only prevents storage from blocking the
+          // first visible frame.
+          try {
+            clearPendingCleanBoard();
+            console.log('✅ clean-board-modal: Cleared pending clean board flag (modal is now visible)');
+          } catch (e) {
+            console.warn('⚠️ clean-board-modal: Failed to clear pending clean board flag:', e);
+          }
+
+          try {
+            if (isArcadeHomeRun) {
+              const isNewArcadeHigh = arcadeStatsService.updateHighScore(finalScore);
+              if (isNewArcadeHigh) {
+                console.log(`🏆 clean-board-modal: New ARCADE high score: ${finalScore} (saved immediately on modal show)`);
+              } else {
+                console.log(`✅ clean-board-modal: ARCADE high score checked: ${finalScore} (not a new high)`);
+              }
+            } else {
+              const isNewHigh = boardStatsService.updateBoardHighScore(boardNumber, finalScore);
+              boardStatsService.flushStatsNow('clean-board-visible');
+              if (isNewHigh) {
+                console.log(`🏆 clean-board-modal: New board ${boardNumber} high score: ${finalScore} (saved immediately on modal show)`);
+              } else {
+                console.log(`✅ clean-board-modal: Board ${boardNumber} high score checked: ${finalScore} (not a new high)`);
+              }
+              statsService.updateHighScore(finalScore);
+              console.log(`✅ clean-board-modal: Global high score updated to ${finalScore} (on modal show)`);
+            }
+          } catch (e) {
+            console.warn('⚠️ clean-board-modal: Failed to update high score on modal show:', e);
+          }
+        });
+
+        runtimePerformance.phase('celebration-start', () => {
+          allowConfettiSpawns();
+          createConfettiExplosion(hero, celebrationTheme);
+        });
+        runtimePerformance.finish('complete');
+      } catch (error) {
+        runtimePerformance.finish('failed');
+        console.error('❌ Clean board modal post-paint setup error:', error);
+        safeResolve('continue');
       }
-    } catch (e) {
-      console.warn('⚠️ clean-board-modal: Failed to update high score on modal show:', e);
-    }
+    };
 
-    // Score bookkeeping (already calculated above for high score check)
+    document.body.appendChild(el);
+    openingPerformance.mark('dom-mounted');
 
     // 🔥 ANIMATION: Start with 0, will animate to currentScore
     mainScore.textContent = '0';
@@ -887,7 +911,13 @@ export async function showCleanBoardModal({
     card.style.transform = 'scale(1)';
     
     // Wait for next frame to ensure elements are rendered
+    openingPerformance.mark('initial-poses-ready');
     trackAnimationFrame(() => {
+      openingPerformance.finish('first-animation-frame');
+      // Let WebKit commit the mounted result and its initial poses before ship
+      // keyframe creation, media start, storage flush and canvas allocation.
+      // The lifetime owns this task, so navigation/replacement cannot revive it.
+      trackTimeout(startPostPaintResultRuntime, 0);
       const trans = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
       hero.style.transition = trans;
       title.style.transition = trans;
@@ -921,12 +951,10 @@ export async function showCleanBoardModal({
           return;
         }
         
-        // Kill any existing animation on scoreProxy object
-        let scoreProxy = { value: currentDisplayed };
-        gsap.killTweensOf(scoreProxy);
-        
-        // Reset proxy to current value
-        scoreProxy.value = currentDisplayed;
+        // This proxy is new and cannot own a tween yet. Do not traverse the
+        // global timeline on every counter start; modal cleanup below owns
+        // the actual tween handles, including interrupted counters.
+        const scoreProxy = { value: currentDisplayed };
         
         // Calculate duration: minimum 0.8s, maximum 1.5s, based on difference
         const diff = Math.abs(targetScore - currentDisplayed);
@@ -1026,10 +1054,8 @@ export async function showCleanBoardModal({
 
       {
         // SEQUENCE 1: Initial elements pop-in WITH CONFETTI EXPLOSION
-        // Start confetti 400ms earlier (immediately, no delay)
-        allowConfettiSpawns();
-        createConfettiExplosion(hero, celebrationTheme);
-        
+        // Post-paint runtime starts the authored celebration before this
+        // sequence's first visible hero motion at 100ms.
         trackTimeout(() => {
           // 🌟 Hero is now stars container, animate it in
           console.log('🌟 Animating stars container (hero) to visible');

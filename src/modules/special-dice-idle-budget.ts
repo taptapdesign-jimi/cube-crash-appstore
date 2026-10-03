@@ -11,12 +11,19 @@ type Candidate<T extends object> = {
   sequence: number;
   active: boolean;
   paused: boolean;
+  continuous: boolean;
 };
+
+/** User-authored living characters keep their idle alongside the budgeted FX. */
+export function hasContinuousSpecialDiceIdle(variantId: string | undefined): boolean {
+  return variantId === 'kanta' || variantId === 'honey' || variantId === 'bee' || variantId === 'fish';
+}
 
 /**
  * Bounds continuous Special-die work without adding another ticker or timer.
- * The newest live Special is the visual priority; older candidates retain only
- * registration and a static pose so they can be promoted if the winner leaves.
+ * Explicit continuous characters remain admitted; the newest other Special
+ * owns the budgeted slot. Older budgeted candidates retain registration and a
+ * static pose for promotion. Every admitted owner shares suspension/cleanup.
  */
 export class SpecialDiceIdleBudget<T extends object> {
   private readonly candidates = new Map<T, Candidate<T>>();
@@ -25,11 +32,12 @@ export class SpecialDiceIdleBudget<T extends object> {
 
   constructor(private readonly maxActive: number) {}
 
-  request(key: T, owner: SpecialDiceIdleBudgetOwner): void {
+  request(key: T, owner: SpecialDiceIdleBudgetOwner, continuous = false): void {
     const existing = this.candidates.get(key);
     if (existing) {
       existing.owner = owner;
       existing.sequence = ++this.sequence;
+      existing.continuous = continuous;
     } else {
       this.candidates.set(key, {
         key,
@@ -37,6 +45,7 @@ export class SpecialDiceIdleBudget<T extends object> {
         sequence: ++this.sequence,
         active: false,
         paused: false,
+        continuous,
       });
     }
     this.reconcile();
@@ -101,12 +110,13 @@ export class SpecialDiceIdleBudget<T extends object> {
     const suspended = this.suspensions.size > 0;
     const winners = new Set(
       [...this.candidates.values()]
+        .filter(candidate => !candidate.continuous)
         .sort((left, right) => right.sequence - left.sequence)
         .slice(0, Number.isFinite(this.maxActive) ? Math.max(0, this.maxActive) : undefined),
     );
 
     for (const candidate of this.candidates.values()) {
-      if (!winners.has(candidate)) {
+      if (!candidate.continuous && !winners.has(candidate)) {
         this.deactivate(candidate);
         continue;
       }

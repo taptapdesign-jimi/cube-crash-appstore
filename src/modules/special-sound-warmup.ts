@@ -22,10 +22,24 @@ export interface SpecialSoundWarmupContext {
   tiles?: readonly any[];
 }
 
-/** Warm only specials that already exist on the board. Warming every possible
- * World/Arcade reward overfills the mobile decoded-audio cache before any of
- * those dice exists, forcing continuous decode/evict churn. A new special is
- * passed here as soon as its spawn commits, before its drop animation ends. */
+export interface SpecialSoundWorkingSetPlan {
+  readonly generation: number;
+  /** Snapshot only. Reading the plan never fetches or decodes audio. */
+  getFamilies: () => ReadonlySet<string>;
+  /** Refreshes the live-board inventory without warming every possible finale. */
+  refresh: (context: SpecialSoundWarmupContext) => boolean;
+  /** Prepares exactly one committed die's authored transaction package. */
+  prepareCommittedTransaction: (tile: any) => boolean;
+  /** Invalidates every later callback owned by this board generation. */
+  release: () => void;
+}
+
+let workingSetGeneration = 0;
+let activeWorkingSetGeneration = 0;
+
+/** Inventory only specials that already exist on the board. Projecting possible
+ * World/Arcade rewards (or decoding every live family) overfills the mobile
+ * decoded-audio cache and forces continuous decode/evict churn. */
 export function getSpecialSoundWarmupFamilies({ boardNumber, isArcade, tiles = [] }: SpecialSoundWarmupContext): Set<string> {
   void boardNumber;
   void isArcade;
@@ -48,10 +62,7 @@ export function getSpecialSoundWarmupFamilies({ boardNumber, isArcade, tiles = [
   return families;
 }
 
-/** Preload only; all playback, Settings gates, gains and fallbacks remain with
- * the existing sound owners. Poof and ordinary cues stay entry-ready. */
-export function preloadEligibleSpecialSounds(context: SpecialSoundWarmupContext): void {
-  const families = getSpecialSoundWarmupFamilies(context);
+function preloadSpecialSoundFamilies(families: ReadonlySet<string>): void {
   if (families.has('wild-star')) preloadWildStarMerge6Sound();
   if (families.has('fish')) preloadFishMerge6Sounds();
   if (families.has('beach-ball')) preloadBeachBallMerge6Sounds();
@@ -71,4 +82,77 @@ export function preloadEligibleSpecialSounds(context: SpecialSoundWarmupContext)
   }
   if (['magnet', 'honey', 'bottle', 'spaceship'].some(family => families.has(family))) preloadMagnetPullForceSounds();
   if (families.has('honey')) preloadHoneyMerge6Sounds();
+}
+
+/**
+ * Board entry and Special spawn are inventory boundaries, not finale playback
+ * boundaries. Historically this API decoded every complete finale belonging to
+ * every live die. Cumulative Worlds can legitimately contain five families, so
+ * that policy made the families evict and re-decode one another inside the fixed
+ * mobile cache. Keep this compatibility entry point observational: callers may
+ * discover the live families, but no decoded finale working set is allocated.
+ *
+ * Exact transaction preparation belongs to `SpecialSoundWorkingSetPlan` below.
+ */
+export function preloadEligibleSpecialSounds(context: SpecialSoundWarmupContext): void {
+  getSpecialSoundWarmupFamilies(context);
+}
+
+/**
+ * Owns one board generation's bounded Special-audio plan. Only the exact die
+ * whose gameplay transaction has committed may request its authored package.
+ * A replacement board invalidates the preceding plan synchronously, so a stale
+ * merge callback cannot start another family's preparation.
+ *
+ * This owner deliberately does not stop audible voices. Feature sound modules
+ * still own playback, tails and hard cleanup; the plan owns preparation only.
+ */
+export function acquireSpecialSoundWorkingSetPlan(
+  initialContext: SpecialSoundWarmupContext,
+): SpecialSoundWorkingSetPlan {
+  const generation = ++workingSetGeneration;
+  activeWorkingSetGeneration = generation;
+  let released = false;
+  let families = getSpecialSoundWarmupFamilies(initialContext);
+  const preparedFamilies = new Set<string>();
+  const isCurrent = (): boolean => !released && activeWorkingSetGeneration === generation;
+
+  return {
+    generation,
+    getFamilies: () => new Set(families),
+    refresh: (context) => {
+      if (!isCurrent()) return false;
+      families = getSpecialSoundWarmupFamilies(context);
+      return true;
+    },
+    prepareCommittedTransaction: (tile) => {
+      if (!isCurrent() || !tile || tile.destroyed) return false;
+      const committedFamilies = getSpecialSoundWarmupFamilies({
+        boardNumber: initialContext.boardNumber,
+        isArcade: initialContext.isArcade,
+        tiles: [tile],
+      });
+      if (committedFamilies.size === 0) return false;
+      committedFamilies.forEach((family) => families.add(family));
+      const unpreparedFamilies = new Set(
+        [...committedFamilies].filter((family) => !preparedFamilies.has(family)),
+      );
+      if (unpreparedFamilies.size === 0) return true;
+      unpreparedFamilies.forEach((family) => preparedFamilies.add(family));
+      preloadSpecialSoundFamilies(unpreparedFamilies);
+      return true;
+    },
+    release: () => {
+      if (released) return;
+      released = true;
+      if (activeWorkingSetGeneration === generation) activeWorkingSetGeneration = 0;
+      families.clear();
+      preparedFamilies.clear();
+    },
+  };
+}
+
+export function resetSpecialSoundWorkingSetForTests(): void {
+  workingSetGeneration = 0;
+  activeWorkingSetGeneration = 0;
 }

@@ -11,6 +11,25 @@ const flush = async () => {
   await Promise.resolve();
 };
 
+function speculativeSlices() {
+  let sequence = 0;
+  const pending = new Map<number, () => void>();
+  return {
+    schedule: (run: () => void) => {
+      const id = ++sequence;
+      pending.set(id, run);
+      return () => { pending.delete(id); };
+    },
+    runNext: () => {
+      const entry = pending.entries().next().value as [number, () => void] | undefined;
+      if (!entry) throw new Error('Expected a pending speculative slice.');
+      pending.delete(entry[0]);
+      entry[1]();
+    },
+    pendingCount: () => pending.size,
+  };
+}
+
 describe('GameplayAudioLoadScheduler', () => {
   test('never exceeds the mobile two-job fetch and decode ceiling', async () => {
     const scheduler = new GameplayAudioLoadScheduler(2);
@@ -73,7 +92,8 @@ describe('GameplayAudioLoadScheduler', () => {
   });
 
   test('suspends optional work during a visual transition but still admits play', async () => {
-    const scheduler = new GameplayAudioLoadScheduler(1);
+    const slices = speculativeSlices();
+    const scheduler = new GameplayAudioLoadScheduler(1, () => false, slices.schedule);
     const release = scheduler.suspendSpeculative();
     const preloadGate = deferred(); const stateGate = deferred(); const playGate = deferred();
     const order: string[] = [];
@@ -87,8 +107,13 @@ describe('GameplayAudioLoadScheduler', () => {
     expect(order).toEqual(['play']);
 
     release();
+    expect(order).toEqual(['play']);
+    expect(slices.pendingCount()).toBe(1);
+    slices.runNext();
     expect(order).toEqual(['play', 'state']);
     stateGate.resolve(); await flush();
+    expect(order).toEqual(['play', 'state']);
+    slices.runNext();
     preloadGate.resolve();
     await Promise.all([preload, state, play]);
     expect(order).toEqual(['play', 'state', 'preload']);
@@ -96,7 +121,8 @@ describe('GameplayAudioLoadScheduler', () => {
   });
 
   test('nested transition suspensions resume only after the last owner releases', async () => {
-    const scheduler = new GameplayAudioLoadScheduler(1);
+    const slices = speculativeSlices();
+    const scheduler = new GameplayAudioLoadScheduler(1, () => false, slices.schedule);
     const releaseA = scheduler.suspendSpeculative();
     const releaseB = scheduler.suspendSpeculative();
     const task = jest.fn(async () => {});
@@ -107,7 +133,118 @@ describe('GameplayAudioLoadScheduler', () => {
     releaseA();
     expect(task).not.toHaveBeenCalled();
     releaseB();
+    expect(task).not.toHaveBeenCalled();
+    slices.runNext();
     await queued;
     expect(task).toHaveBeenCalledTimes(1);
+  });
+
+  test('external critical presentation blocks speculative work but never audible play', async () => {
+    let critical = true;
+    const slices = speculativeSlices();
+    const scheduler = new GameplayAudioLoadScheduler(1, () => critical, slices.schedule);
+    const preloadTask = jest.fn(async () => {});
+    const playGate = deferred();
+    const playTask = jest.fn(async () => { await playGate.promise; });
+    const preload = scheduler.enqueue('preload', 'preload', preloadTask);
+    const play = scheduler.enqueue('play', 'play', playTask);
+
+    expect(preloadTask).not.toHaveBeenCalled();
+    expect(playTask).toHaveBeenCalledTimes(1);
+    playGate.resolve();
+    await play;
+    await flush();
+    expect(preloadTask).not.toHaveBeenCalled();
+
+    critical = false;
+    scheduler.resume();
+    expect(preloadTask).not.toHaveBeenCalled();
+    slices.runNext();
+    await preload;
+    expect(preloadTask).toHaveBeenCalledTimes(1);
+  });
+
+  test('starts at most one deferred speculative job in each post-critical slice', async () => {
+    const slices = speculativeSlices();
+    const scheduler = new GameplayAudioLoadScheduler(2, () => false, slices.schedule);
+    const release = scheduler.suspendSpeculative();
+    const gates = [deferred(), deferred(), deferred()];
+    const starts: string[] = [];
+    const jobs = gates.map((gate, index) => scheduler.enqueue(`spec-${index}`, 'preload', async () => {
+      starts.push(`spec-${index}`);
+      await gate.promise;
+    }));
+
+    expect(starts).toEqual([]);
+    release();
+    expect(starts).toEqual([]);
+    expect(slices.pendingCount()).toBe(1);
+
+    slices.runNext();
+    expect(starts).toEqual(['spec-0']);
+    expect(slices.pendingCount()).toBe(1);
+
+    slices.runNext();
+    expect(starts).toEqual(['spec-0', 'spec-1']);
+    expect(slices.pendingCount()).toBe(0);
+
+    gates[0].resolve(); await flush();
+    expect(starts).toEqual(['spec-0', 'spec-1']);
+    expect(slices.pendingCount()).toBe(1);
+    slices.runNext();
+    expect(starts).toEqual(['spec-0', 'spec-1', 'spec-2']);
+
+    gates.slice(1).forEach((gate) => gate.resolve());
+    await Promise.all(jobs);
+    expect(scheduler.snapshot()).toMatchObject({ active: 0, queued: 0, peakActive: 2 });
+  });
+
+  test('direct play bypasses the paced speculative slice and overtakes its backlog', async () => {
+    const slices = speculativeSlices();
+    const scheduler = new GameplayAudioLoadScheduler(2, () => false, slices.schedule);
+    const release = scheduler.suspendSpeculative();
+    const preloadGate = deferred(); const playGate = deferred();
+    const order: string[] = [];
+    const preload = scheduler.enqueue('preload', 'preload', async () => {
+      order.push('preload'); await preloadGate.promise;
+    });
+
+    release();
+    expect(order).toEqual([]);
+    const play = scheduler.enqueue('play', 'play', async () => {
+      order.push('play'); await playGate.promise;
+    });
+    expect(order).toEqual(['play']);
+
+    slices.runNext();
+    expect(order).toEqual(['play', 'preload']);
+    playGate.resolve(); preloadGate.resolve();
+    await Promise.all([preload, play]);
+  });
+
+  test('cancel and reset remove queued work and the pending speculative slice', async () => {
+    const slices = speculativeSlices();
+    const scheduler = new GameplayAudioLoadScheduler(2, () => false, slices.schedule);
+    const release = scheduler.suspendSpeculative();
+    const task = jest.fn(async () => {});
+    const queued = scheduler.enqueue('preload', 'preload', task);
+
+    release();
+    expect(slices.pendingCount()).toBe(1);
+    scheduler.cancelQueued();
+    await queued;
+    expect(task).not.toHaveBeenCalled();
+    expect(slices.pendingCount()).toBe(0);
+    expect(scheduler.snapshot()).toMatchObject({ active: 0, queued: 0 });
+
+    const releaseAgain = scheduler.suspendSpeculative();
+    const queuedAgain = scheduler.enqueue('again', 'state', task);
+    releaseAgain();
+    expect(slices.pendingCount()).toBe(1);
+    scheduler.reset();
+    await queuedAgain;
+    expect(task).not.toHaveBeenCalled();
+    expect(slices.pendingCount()).toBe(0);
+    expect(scheduler.snapshot()).toMatchObject({ active: 0, queued: 0, speculativeSuspended: false });
   });
 });

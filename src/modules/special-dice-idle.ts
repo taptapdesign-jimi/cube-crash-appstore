@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { gsap } from 'gsap';
-import { Assets, Container, Graphics, Sprite, type Texture } from 'pixi.js';
+import { Container, Graphics, Sprite, type Texture } from 'pixi.js';
 import animationManager from './animation-manager.js';
 import { createSpecialIdleAnimationVisibility } from './special-dice-idle-visibility.ts';
 import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
@@ -71,7 +71,11 @@ import {
 } from './animated-special-artwork-mode.ts';
 import { acquirePixiSettledMotionLease } from './pixi-mobile-frame-controller.ts';
 import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.ts';
-import { SpecialDiceIdleBudget } from './special-dice-idle-budget.ts';
+import { SpecialDiceIdleBudget, hasContinuousSpecialDiceIdle } from './special-dice-idle-budget.ts';
+import {
+  acquireVisualAssetTexture,
+  isVisualAssetTextureHandleCurrent,
+} from '../utils/visual-asset-broker.ts';
 
 const trackTimeline = (opts: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(opts));
 
@@ -140,12 +144,14 @@ function startSpaceshipSpriteIdle(tile: any, frameSources: string[]): SpaceshipS
     },
   };
 
-  void Promise.allSettled(frameSources.map((source) => Assets.load(source)))
+  void Promise.allSettled(frameSources.map((source) => acquireVisualAssetTexture(source)))
     .then((results) => {
       if (disposed || tile?.destroyed || tile?._ccSpaceshipSpriteIdle !== controller) return;
       textures = results
-        .filter((result): result is PromiseFulfilledResult<Texture> => result.status === 'fulfilled')
+        .filter((result) => result.status === 'fulfilled')
         .map((result) => result.value)
+        .filter(isVisualAssetTextureHandleCurrent)
+        .map((handle) => handle.texture)
         .filter(isUsablePixiImageTexture);
       if (textures.length < 2) {
         textures = [];
@@ -806,7 +812,7 @@ export function startSpecialDiceIdleMotion(tile: any): void {
     stop: () => stopSpecialDiceIdleMotionInternal(tile),
     pause: () => setSpecialDiceIdleBudgetPaused(tile, true),
     resume: () => setSpecialDiceIdleBudgetPaused(tile, false),
-  });
+  }, hasContinuousSpecialDiceIdle(getSpecialDiceVariantForTile(tile)?.id));
 }
 
 export function stopSpecialDiceIdleMotion(
@@ -819,7 +825,7 @@ export function stopSpecialDiceIdleMotion(
   if (tile) delete tile._ccSpecialIdleBudgetPaused;
 }
 
-/** Pauses the single mobile Special idle owner for foreground interaction. */
+/** Pauses admitted mobile Special idle owners for foreground interaction. */
 export function acquireSpecialDiceIdleSuspension(reason: string): () => void {
   if (!MOBILE_RUNTIME_PROFILE.isMobileDevice) return () => {};
   return specialDiceIdleBudget.suspend(reason);

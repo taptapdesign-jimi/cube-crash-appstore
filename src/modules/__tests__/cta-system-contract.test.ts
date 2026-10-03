@@ -155,7 +155,7 @@ describe('shared CTA system contract', () => {
   });
 
   test('reveals the New Reward card before enabling its idle tap-to-continue coach', () => {
-    const revealStart = newRewardSource.indexOf('const cardEnterStart = 0;');
+    const revealStart = newRewardSource.indexOf('const cardEnterStart = coverExitDuration;');
     const finalCardEnter = newRewardSource.indexOf('.to(unlockedSurface, {', revealStart);
     const cardImpact = newRewardSource.indexOf('}, undefined, cardImpactStart)', finalCardEnter);
     const revealSettled = newRewardSource.indexOf('revealed = true;', cardImpact);

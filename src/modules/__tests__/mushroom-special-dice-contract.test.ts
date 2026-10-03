@@ -197,11 +197,13 @@ describe('Mushroom special-die visual contract', () => {
     expect(criticalAssets).toContain("'./assets/shop/mushroom/mushroom.png'");
     expect(loadTilesSource).toContain('const savedSpecialDiceVariant = getCompatibleSpecialDiceVariant');
     expect(loadTilesSource).toContain('applySpecialDiceVariantToTile(tile, savedSpecialDiceVariant)');
-    expect(wildSkinSource).toContain('void Assets.load(requestedAssetPath).then');
-    expect(wildSkinSource).toContain("if (getSpecialDiceTexturePath(tile, '') !== requestedAssetPath) return");
-    expect(wildSkinSource).toContain('const resolvedTexture = loadedTexture || Assets.get(requestedAssetPath)');
-    expect(wildSkinSource).toContain('if (!applyResolvedTexture(resolvedTexture))');
-    expect(wildSkinSource).toContain('reloadPixiImageTexture(requestedAssetPath)');
+    expect(wildSkinSource).toContain('return await acquireSpecialTexture(requestedAssetPath)');
+    expect(wildSkinSource).toContain('if (getCurrentSpecialTexturePath() !== requestedAssetPath) return');
+    expect(wildSkinSource).toContain('if (!isCurrentTextureHandle(handle)) return');
+    expect(wildSkinSource).toContain('if (!applyResolvedTexture(handle.texture))');
+    expect(wildSkinSource).toContain('await reloadSpecialTexture(requestedAssetPath)');
+    expect(wildSkinSource).not.toContain('Assets.get(requestedAssetPath)');
+    expect(wildSkinSource).not.toContain('Assets.load(requestedAssetPath)');
     expect(wildSkinSource).not.toContain('Texture.from(requestedAssetPath)');
   });
 });

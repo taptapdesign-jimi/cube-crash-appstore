@@ -73,7 +73,7 @@ describe('Robo Cube Merge-6 sound', () => {
     expect(playRoboCubeMerge6Sounds()).toBe(false);
   });
 
-  test('is wired once at committed Merge-6 routing, preload and cleanup boundaries', () => {
+  test('is wired once at committed Merge-6 routing, transaction preparation and cleanup boundaries', () => {
     const appCore = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/app-core.ts'), 'utf8');
     const uiManager = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/ui-manager.ts'), 'utf8');
     expect(appCore).toContain('isRoboCubeMerge6SoundEvent({');
@@ -82,6 +82,7 @@ describe('Robo Cube Merge-6 sound', () => {
     expect(fs.readFileSync(path.resolve(process.cwd(), 'src/modules/special-sound-warmup.ts'), 'utf8')).toContain('preloadRoboCubeMerge6Sounds();');
     expect(uiManager).toContain('applyGameSoundsSettingToAudio(enabled)');
     expect(fs.readFileSync('src/modules/gameplay-sound-owner-registry.ts', 'utf8')).toContain('robo-cube-merge6-sound');
-    expect(appCore).toContain('preloadEligibleSpecialSounds({ boardNumber: entryBoard, isArcade: isArcadeHomeRunMode(), tiles });');
+    expect(appCore).toContain("withGameplayAudioDiagnosticCaller('committed-special-transaction'");
+    expect(appCore).toContain('specialSoundWorkingSetPlan?.prepareCommittedTransaction(committedSpecialTile);');
   });
 });

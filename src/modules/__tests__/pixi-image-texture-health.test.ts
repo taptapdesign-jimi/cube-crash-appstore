@@ -115,7 +115,7 @@ describe('Pixi image texture health barrier', () => {
     expect(appCoreSource).toContain('coreTextureCanvasVisibilityBeforeHide = null;');
     expect(appCoreSource).toContain('error instanceof CoreRenderTextureBarrierError ||');
     expect(appCoreSource).toContain('layoutCoreRepairWasNeeded ||');
-    expect(appCoreSource).toContain('coreTextureRecoveryPromise !== null');
+    expect(appCoreSource).toContain('gameplayRendererSupervisor.isRecoveryRequired()');
     expect(appCoreSource).toContain('stage === layoutStageOwner');
     expect(appCoreSource).toContain("typeof tile?.base?._ccTextureAssetPath === 'string'");
     expect(appCoreSource).toContain('return (tile?.value | 0) > 0 ? ASSET_NUMBERS : ASSET_TILE;');
@@ -127,36 +127,32 @@ describe('Pixi image texture health barrier', () => {
     expect(appCoreSource).toContain("canvas.addEventListener('webglcontextrestored'");
     expect(appCoreSource).toContain("document.addEventListener('visibilitychange', coreTextureVisibilityHandler");
     expect(appCoreSource).toContain("window.addEventListener('pageshow', coreTexturePageShowHandler");
-    expect(appCoreSource).toContain("recoverAfterForeground('visibility-foreground')");
-    expect(appCoreSource).toContain("recoverAfterForeground('pageshow')");
-    expect(appCoreSource).toContain('const coreTextureForegroundOwner = new ForegroundResumeEpoch();');
+    expect(appCoreSource).toContain("recoverAfterForeground('visibility-foreground', 'foreground')");
+    expect(appCoreSource).toContain("recoverAfterForeground('pageshow', 'foreground')");
+    expect(appCoreSource).toContain('const gameplayRendererSupervisor = new GameplayRendererSupervisor({');
     expect(appCoreSource).toContain('if (document.hidden) return;');
-    expect(appCoreSource).toContain('coreTextureNeedsFullRecovery = true;');
-    expect(appCoreSource).toContain('const resumeLease = coreTextureForegroundOwner.consume();');
-    expect(appCoreSource).toContain('coreTextureForegroundOwner.isCurrent(resumeLease)');
-    expect(appCoreSource).toContain('resumeLease.resumeTicker');
-    expect(appCoreSource).toContain('Healthy foreground texture validation completed without HUD/layout rebuild');
-    expect(appCoreSource).toContain("reason === 'webglcontextrestored'");
-    expect(appCoreSource).toContain('await retireSpecialDiceRendererOwnersForRecovery(reason);');
+    expect(appCoreSource).toContain("gameplayRendererSupervisor.invalidateRendererGeneration('webglcontextlost')");
+    expect(appCoreSource).toContain('gameplayRendererSupervisor.joinRecovery(reason, trigger, { force })');
+    expect(appCoreSource).toContain('coreTextureResumeTickerAfterRecovery');
+    expect(appCoreSource).toContain('await retireSpecialDiceRendererOwnersForRecovery(`generation:${rendererGeneration}`);');
     expect(appCoreSource).toContain('await releaseIdleSharedPixiSheets();');
-    expect(appCoreSource).toContain('restartSpecialDiceRendererOwnersAfterRecovery(reason);');
+    expect(appCoreSource).toContain('restartSpecialDiceRendererOwnersAfterRecovery(`generation:${rendererGeneration}`);');
     expect(hudSource).toContain('if (forceRecreateForTextures) destroyGeneratedTextRasters(HUD_ROOT);');
     expect(hudSource).toContain('child.destroy({ texture: true, textureSource: true });');
     expect(hudSource).toContain('HUD_ROOT.destroy({ children: true, texture: false, textureSource: false });');
-    expect(appCoreSource.indexOf('await retireSpecialDiceRendererOwnersForRecovery(reason);'))
-      .toBeLessThan(appCoreSource.indexOf('const refreshedAssets = await ensureCoreRenderTexturesGpuReady(`recovery:${reason}`, ownsCurrentLifecycle, ownerApp?.renderer);'));
-    expect(appCoreSource.indexOf('await layoutBoard(ownsCurrentLifecycle);'))
-      .toBeLessThan(appCoreSource.indexOf('restartSpecialDiceRendererOwnersAfterRecovery(reason);'));
-    expect(appCoreSource).toContain('unavailableAssets.length > 0');
+    expect(appCoreSource.indexOf('await retireSpecialDiceRendererOwnersForRecovery(`generation:${rendererGeneration}`);'))
+      .toBeLessThan(appCoreSource.indexOf('await ensureCoreRenderTexturesGpuReady(\n      `renderer-session:${rendererGeneration}`'));
+    expect(appCoreSource.indexOf('await layoutBoard(isCurrent);'))
+      .toBeLessThan(appCoreSource.indexOf('restartSpecialDiceRendererOwnersAfterRecovery(`generation:${rendererGeneration}`);'));
+    expect(appCoreSource).toContain('getUnusableRequiredCoreRenderTextureAssets().length > 0');
     expect(appCoreSource).toContain("const CORE_GPU_PROBE_ASSETS = [ASSET_TILE, ASSET_NUMBERS] as const;");
     expect(appCoreSource).toContain("emitNativeConsoleDiagnostic('[CC_TEXTURE_HEALTH]', 'gpu-probe'");
-    expect(appCoreSource).toContain('ensureCoreRenderTexturesGpuReady(`foreground-fast:${reason}`, ownsResume, ownerApp?.renderer)');
+    expect(appCoreSource).toContain('gameplayRendererSupervisor.joinRecovery(reason, trigger, { force })');
     expect(appCoreSource).toContain("ensureCoreRenderTexturesGpuReady('startLevel', isCurrentStartLevel, app?.renderer)");
     expect(appCoreSource).toContain('forceReloadAssets: readonly string[] = []');
     expect(appCoreSource).not.toContain('app.destroy(true, true)');
-    expect(appCoreSource).toContain('ownerGeneration === coreTextureRecoveryGeneration');
-    expect(appCoreSource).toContain('ownerApp === app');
-    expect(appCoreSource).toContain('ownerCanvas === coreTextureContextCanvas');
+    expect(appCoreSource).toContain('activeApp !== app || stage !== activeApp.stage');
+    expect(appCoreSource).toContain('ownerCanvas === ownerApp.canvas');
     expect(appCoreSource).toContain('if (coreGhostTextureNeedsRebuild) {');
     expect(appCoreSource).toContain('makeBoard.refreshStackVisual(tile)');
     expect(boardSource).toContain('export function refreshStackVisual(tile: Tile): void');

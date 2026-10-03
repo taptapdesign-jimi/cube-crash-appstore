@@ -66,6 +66,13 @@ interface CheckLevelEndParams {
   onCleanBoard?: () => void;
 }
 
+export interface LockedTileSpawnAssignment {
+  c: number;
+  r: number;
+  value: number;
+  spawnCommit?: () => boolean;
+}
+
 interface OpenLockedBounceParallelParams {
   tiles?: Tile[];
   k?: number;
@@ -79,6 +86,9 @@ interface OpenLockedBounceParallelParams {
   wildMergeTarget?: number | null;
   excludeCells?: Set<string>; // 🔥 CRITICAL: Set of cell keys (format: "c,r") to exclude from spawning
   preferCells?: Set<string>; // 🔥 CRITICAL: For regular merge 6 – prioritize opening placeholder at merge location (format: "c,r")
+  spawnCommit?: () => boolean;
+  /** Immutable transaction-owned cells, values and per-spawn capabilities. */
+  spawnAssignments?: readonly LockedTileSpawnAssignment[];
 }
 
 export class LevelFlowCancelledError extends Error {
@@ -132,6 +142,8 @@ async function openLockedBounceParallelImpl({
   wildMergeTarget = null,
   excludeCells = new Set<string>(),
   preferCells = new Set<string>(),
+  spawnCommit,
+  spawnAssignments,
 }: OpenLockedBounceParallelParams = {}, generationAtStart = levelFlowGeneration): Promise<number> {
   if (generationAtStart !== levelFlowGeneration) throw new LevelFlowCancelledError();
   // 🔥 CRITICAL: Filter out destroyed tiles FIRST before any other checks
@@ -165,15 +177,28 @@ async function openLockedBounceParallelImpl({
     }
   });
   
-  if (!locked.length || k <= 0) {
-    logger.debug(`🎯 openLockedBounceParallel: early return - locked=${locked.length} k=${k}`, 'level-flow');
+  const requestedSpawnCount = Array.isArray(spawnAssignments) ? spawnAssignments.length : k;
+  if (!locked.length || requestedSpawnCount <= 0) {
+    logger.debug(`🎯 openLockedBounceParallel: early return - locked=${locked.length} k=${requestedSpawnCount}`, 'level-flow');
     return 0;
   }
 
   // 🔥 CRITICAL: For regular merge 6 – prioritize placeholder at merge location so it never stays locked
   // Partition into preferred (at merge cell) and rest, pick preferred first, then fill from shuffled rest
   let picks: any[];
-  if (preferCells.size > 0) {
+  const assignmentByTile = new Map<any, LockedTileSpawnAssignment>();
+  if (Array.isArray(spawnAssignments)) {
+    const lockedByCell = new Map(
+      locked.map((tile: any) => [`${tile.gridX | 0},${tile.gridY | 0}`, tile]),
+    );
+    picks = [];
+    spawnAssignments.forEach((assignment) => {
+      const tile = lockedByCell.get(`${assignment.c | 0},${assignment.r | 0}`);
+      if (!tile || assignmentByTile.has(tile)) return;
+      picks.push(tile);
+      assignmentByTile.set(tile, assignment);
+    });
+  } else if (preferCells.size > 0) {
     const preferred = locked.filter((t: any) => typeof t.gridX === 'number' && typeof t.gridY === 'number' && preferCells.has(`${t.gridX},${t.gridY}`));
     const rest = locked.filter((t: any) => !preferred.includes(t));
     for (let i = rest.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [rest[i], rest[j]] = [rest[j], rest[i]]; }
@@ -185,7 +210,7 @@ async function openLockedBounceParallelImpl({
     picks = locked.slice(0, Math.min(k, locked.length));
   }
 
-  logger.debug(`🎯 openLockedBounceParallel: locked=${locked.length} picks=${picks.length} k=${k}`, 'level-flow');
+  logger.debug(`🎯 openLockedBounceParallel: locked=${locked.length} picks=${picks.length} k=${requestedSpawnCount}`, 'level-flow');
   // 🔥 CRITICAL FIX: Procedural spawn with cascading animations – 100ms between tiles
   // spawnBounce animation takes ~0.24s (with timeScale 2.0), delay 100ms between tiles for visible one-by-one
   // Sequential spawning (shifted by +50ms): 1st at 50ms, 2nd at 150ms, 3rd at 250ms, 4th at 350ms
@@ -197,6 +222,7 @@ async function openLockedBounceParallelImpl({
   let successfulSpawns = 0;
   for (let index = 0; index < picks.length; index++) {
     const t = picks[index];
+    const spawnAssignment = assignmentByTile.get(t);
     const delay = 50 + index * 100; // 50ms, 150ms, 250ms, 350ms...
     const spawnPromise = new Promise<void>((resolve, reject) => {
       let resolved = false;
@@ -285,6 +311,15 @@ async function openLockedBounceParallelImpl({
           return;
         }
 
+        // Commit at the final synchronous boundary before unlocking, rebinding
+        // or assigning a value. A terminal merge revokes this delayed work.
+        const commitSpawn = spawnAssignment?.spawnCommit ?? spawnCommit;
+        if (commitSpawn && !commitSpawn()) {
+          logger.warn('openLockedBounceParallel: spawn rejected by board-mutation epoch owner');
+          safeResolve();
+          return;
+        }
+
         t.locked = false;
         makeBoard?.syncTileZIndex?.(t, (t as any)?.parent);
         t.eventMode = 'static';
@@ -295,7 +330,9 @@ async function openLockedBounceParallelImpl({
         resetTileToNormalState(t);
 
         // Smart spawning: if this is after wild merge, avoid the target number
-        const spawnValue = randomRegularTileValue(wildMergeTarget || undefined);
+        const spawnValue = spawnAssignment
+          ? (spawnAssignment.value | 0)
+          : randomRegularTileValue(wildMergeTarget || undefined);
         if (wildMergeTarget) logger.info('🎯 Smart spawn: avoiding', wildMergeTarget, 'spawning', spawnValue);
 
         // 🔥 CRITICAL: Check tile again before setValue (it might have been destroyed during resetTileToNormalState)

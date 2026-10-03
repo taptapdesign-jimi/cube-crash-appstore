@@ -25,6 +25,24 @@ export type JourneyClearedCelebrationInput = {
 export type FinalMergeTileSets = {
   activeTilesBeforeMerge: any[];
   finalMergeBlockersBefore: any[];
+  authoritativeGridStatus: 'not-provided' | 'valid' | 'invalid';
+  authoritativeGridIssues: FinalMergeGridIssue[];
+};
+
+export type FinalMergeGridIssue =
+  | 'invalid-grid-shape'
+  | 'duplicate-grid-owner'
+  | 'coordinate-mismatch'
+  | 'destroyed-grid-owner'
+  | 'grid-owner-missing-from-tiles'
+  | 'merge-source-ownership-invalid'
+  | 'merge-destination-ownership-invalid';
+
+type FinalMergeTileSetInput = {
+  tiles: any[];
+  grid?: readonly (readonly any[])[] | null;
+  src: any;
+  dst: any;
 };
 
 function uniqueTileRefs(tileList: any[]): any[] {
@@ -150,17 +168,100 @@ export function getPlayableMagnetPullCandidates({
 
 export function getFinalMergeTileSets({
   tiles,
+  grid,
   src,
   dst,
-}: {
-  tiles: any[];
-  src: any;
-  dst: any;
-}): FinalMergeTileSets {
-  const safeTiles = uniqueTileRefs(Array.isArray(tiles) ? tiles.filter(Boolean) : []);
+}: FinalMergeTileSetInput): FinalMergeTileSets {
+  // When the live grid is available it is the canonical board model. `tiles`
+  // also owns presentation/lifecycle history, so an interrupted cleanup can
+  // temporarily leave an active-looking orphan there after its cell has moved
+  // on. Such a visual residue must not turn a true final pair into a spawn.
+  const authoritativeGridIssues: FinalMergeGridIssue[] = [];
+  const addGridIssue = (issue: FinalMergeGridIssue): void => {
+    if (!authoritativeGridIssues.includes(issue)) authoritativeGridIssues.push(issue);
+  };
+  let gridOwnedTiles: any[] | null = null;
+  if (Array.isArray(grid)) {
+    gridOwnedTiles = [];
+    const firstRowWidth = Array.isArray(grid[0]) ? grid[0].length : -1;
+    if (grid.length < 1 || firstRowWidth < 1) addGridIssue('invalid-grid-shape');
+    const seenGridOwners = new Set<any>();
+    grid.forEach((row, rowIndex) => {
+      if (!Array.isArray(row) || row.length !== firstRowWidth) {
+        addGridIssue('invalid-grid-shape');
+        return;
+      }
+      row.forEach((tile, columnIndex) => {
+        if (!tile) return;
+        gridOwnedTiles!.push(tile);
+        if (seenGridOwners.has(tile)) addGridIssue('duplicate-grid-owner');
+        seenGridOwners.add(tile);
+        if (tile.destroyed === true) addGridIssue('destroyed-grid-owner');
+        if (Array.isArray(tiles) && !tiles.includes(tile)) addGridIssue('grid-owner-missing-from-tiles');
+        const tileRow = Number(tile.gridY);
+        const tileColumn = Number(tile.gridX);
+        if (
+          Number.isInteger(tileRow)
+          && Number.isInteger(tileColumn)
+          && (tileRow !== rowIndex || tileColumn !== columnIndex)
+        ) {
+          addGridIssue('coordinate-mismatch');
+        }
+      });
+    });
+  }
+  if (gridOwnedTiles) {
+    // Drag owns one deliberate exception to strict grid residency: pickup clears
+    // the source cell before the accepted drop calls merge(). Reconstruct that
+    // exact participant only when its registry identity is still live, its own
+    // cell is empty, and the destination still owns its canonical cell. Never
+    // resurrect an arbitrary presentation-history orphan into board finality.
+    const sourceRow = Number(src?.gridY);
+    const sourceColumn = Number(src?.gridX);
+    const destinationRow = Number(dst?.gridY);
+    const destinationColumn = Number(dst?.gridX);
+    const sourceCellIsDetached = Number.isInteger(sourceRow)
+      && Number.isInteger(sourceColumn)
+      && grid?.[sourceRow]?.[sourceColumn] == null;
+    const destinationOwnsCell = Number.isInteger(destinationRow)
+      && Number.isInteger(destinationColumn)
+      && grid?.[destinationRow]?.[destinationColumn] === dst;
+    const sourceOwnsCell = Number.isInteger(sourceRow)
+      && Number.isInteger(sourceColumn)
+      && grid?.[sourceRow]?.[sourceColumn] === src;
+    const sourceIsLive = Array.isArray(tiles) && tiles.includes(src) && src?.destroyed !== true;
+    const destinationIsLive = Array.isArray(tiles) && tiles.includes(dst) && dst?.destroyed !== true;
+    if (!destinationOwnsCell || !destinationIsLive) {
+      addGridIssue('merge-destination-ownership-invalid');
+    }
+    if (!sourceOwnsCell && !(sourceIsLive && sourceCellIsDetached && destinationOwnsCell)) {
+      addGridIssue('merge-source-ownership-invalid');
+    }
+    if (
+      !gridOwnedTiles.includes(src)
+      && Array.isArray(tiles)
+      && sourceIsLive
+      && sourceCellIsDetached
+      && destinationOwnsCell
+    ) {
+      gridOwnedTiles.push(src);
+    }
+  }
+  const authoritativeGridStatus = gridOwnedTiles === null
+    ? 'not-provided' as const
+    : authoritativeGridIssues.length === 0
+      ? 'valid' as const
+      : 'invalid' as const;
+  const safeTiles = uniqueTileRefs(
+    authoritativeGridStatus === 'invalid'
+      ? []
+      : gridOwnedTiles ?? (Array.isArray(tiles) ? tiles.filter(Boolean) : []),
+  );
   return {
     activeTilesBeforeMerge: safeTiles.filter(tileCountsAsFinalMergeActive),
     finalMergeBlockersBefore: safeTiles.filter((tile: any) => tileBlocksFinalMerge(tile, src, dst)),
+    authoritativeGridStatus,
+    authoritativeGridIssues,
   };
 }
 

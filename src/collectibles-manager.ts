@@ -825,15 +825,15 @@ class CollectiblesManager {
       return;
     }
 
-    // 🔥 PRODUCTION READY: Don't wait for preloading - render boards immediately
-    // Images will load from Cache API or browser cache as needed (non-blocking)
-    // This ensures Journey screen appears instantly, images load in background
+    // Construct once under the settled Homepage cover, then join displayed Hub
+    // image readiness before reveal. Visible enter shares that same node lease.
     logger.info('🗺️ Rendering Journey boards immediately (images will load from cache as needed)');
 
     // Render boards in background
     const journeyContainer = document.getElementById('journey-boards-container');
     if (journeyContainer) {
-      if (isJourneyViewStructurallyPrepared(journeyContainer)) {
+      const viewPrepared = isJourneyViewStructurallyPrepared(journeyContainer);
+      if (viewPrepared && journeyContainer.dataset.journeyV700View !== 'hub') {
         preparationOutcome = 'already-prepared';
         logger.info('🗺️ Journey boards already prepared - skipping rerender');
         return;
@@ -856,7 +856,9 @@ class CollectiblesManager {
           requiredForVisibleEnter: options.requiredForVisibleEnter === true,
         });
       }
-      preparationPerformance.phase('render-boards', () => journeyBoardsManager.renderBoards());
+      if (!viewPrepared) {
+        preparationPerformance.phase('render-boards', () => journeyBoardsManager.renderBoards());
+      }
       if (detailedRenderDiagnostic) {
         emitIOSNativeDiagnostic('journey-required-render-complete', {
           requiredForVisibleEnter: options.requiredForVisibleEnter === true,
@@ -866,7 +868,26 @@ class CollectiblesManager {
           structurallyPrepared: isJourneyViewStructurallyPrepared(journeyContainer),
         });
       }
-      preparationPerformance.phase('update-counter', () => journeyBoardsManager.updateCounter());
+      if (!viewPrepared) {
+        preparationPerformance.phase('update-counter', () => journeyBoardsManager.updateCounter());
+      }
+      preparationPerformance.mark('hub-images-start');
+      await journeyBoardsManager.prepareJourneyHubImagesForReveal(journeyContainer);
+      preparationPerformance.mark('hub-images-ready');
+      if (prepareEpoch !== this.journeyPrepareEpoch || !preparationAllowed()) {
+        preparationOutcome = 'stale';
+        return;
+      }
+      if (options.requiredForVisibleEnter === true && journeyContainer.dataset.journeyV700View === 'hub') {
+        preparationPerformance.mark('hub-paint-start');
+        const painted = await journeyBoardsManager.warmJourneyV700HubForHomepageReveal(journeyContainer);
+        preparationPerformance.mark('hub-paint-ready');
+        if (!painted || prepareEpoch !== this.journeyPrepareEpoch || !preparationAllowed()) {
+          preparationOutcome = painted ? 'stale' : 'hub-paint-fallback';
+          if (!painted) logger.warn('⚠️ Journey Hub prepaint fell back to visible entry');
+          return;
+        }
+      }
       logger.info('🗺️ Journey boards rendered in background');
 
     } else {
@@ -1165,6 +1186,7 @@ class CollectiblesManager {
       // This fixes broken scroll when returning from game
       postEnterLease.schedule(() => {
         if (!appZoneManager.isPresentationCurrent(journeyPresentationEpoch, 'journey')) return;
+        if (journeyContainer.dataset.journeyV700View === 'hub') return;
         restoreJourneyScrollableInteractivity('showCollectibles-scroll-enable-timeout', false);
       }, 100);
     }
@@ -1299,20 +1321,33 @@ class CollectiblesManager {
               animateJourneyContent: !shouldUseV700WorldReturnEnter,
               revealPrimedWorldImmediately: terminalReturnToken !== null,
             })));
-            void enterPromise.then(
-              () => {
-                window.clearTimeout(revealFallbackTimer);
-                journeyEnterPerformance.finish('viewport-complete');
-                visibleEnterLease.settle();
-              },
-              () => {
-                journeyEnterPerformance.finish('viewport-error');
-                recoverVisibleCommit('viewport-error');
-              },
-            );
             emitIOSNativeDiagnostic('viewport-enter-started', { shouldPlayActiveBoardAreaEnter });
             let homepageHubEnterStartedFromPreparedManager = false;
             let v700WorldReturnEnterStarted = false;
+            const shouldWaitForHomepageHubEnter = Boolean(
+              journeyContainer
+              && !shouldPlayActiveBoardAreaEnter
+              && !shouldUseV700WorldReturnEnter,
+            );
+            let settleRouteContentEnter = (): void => {};
+            let routeContentEnterPromise: Promise<void> = Promise.resolve();
+            if (shouldWaitForHomepageHubEnter) {
+              routeContentEnterPromise = new Promise<void>((resolve) => {
+                let settled = false;
+                settleRouteContentEnter = () => {
+                  if (settled) return;
+                  settled = true;
+                  resolve();
+                };
+              });
+            }
+            const joinHomepageHubEnterCompletion = (manager: any): void => {
+              if (!shouldWaitForHomepageHubEnter) return;
+              void Promise.resolve(manager.waitForJourneyV700HubEnterCompletion?.()).then(
+                settleRouteContentEnter,
+                settleRouteContentEnter,
+              );
+            };
             if (
               journeyContainer &&
               journeyBoardsManagerPreparedForEnter &&
@@ -1323,6 +1358,7 @@ class CollectiblesManager {
               emitIOSNativeDiagnostic('hub-enter-started-from-prepared-manager');
               journeyEnterPerformance.phase('start-hub-animation', () =>
                 journeyBoardsManagerPreparedForEnter.playJourneyV700VisibleEnterFromHomepage?.());
+              joinHomepageHubEnterCompletion(journeyBoardsManagerPreparedForEnter);
             }
             if (
               journeyContainer
@@ -1338,6 +1374,21 @@ class CollectiblesManager {
                   { immediateFirstUnit: terminalReturnToken !== null, ownerToken: terminalReturnToken },
                 ));
             }
+            const visibleEnterCompletion = Promise.all([
+              enterPromise,
+              routeContentEnterPromise,
+            ]).then(() => undefined);
+            void visibleEnterCompletion.then(
+              () => {
+                window.clearTimeout(revealFallbackTimer);
+                journeyEnterPerformance.finish('visible-enter-complete');
+                visibleEnterLease.settle();
+              },
+              () => {
+                journeyEnterPerformance.finish('visible-enter-error');
+                recoverVisibleCommit('visible-enter-error');
+              },
+            );
             if (journeyContainer) {
               import('./modules/journey-boards-manager.js').then(async ({ journeyBoardsManager }) => {
                 const activeJourneyBoardsManager = journeyBoardsManagerPreparedForEnter || journeyBoardsManager;
@@ -1357,7 +1408,10 @@ class CollectiblesManager {
                   activeJourneyBoardsManager.prepareActiveJourneyBoardAreaEnterAnimation?.();
                 }
                 if (!isJourneyRevealCurrent() || (terminalReturnToken !== null
-                  && getJourneyReturnTransitionToken() !== terminalReturnToken)) return;
+                  && getJourneyReturnTransitionToken() !== terminalReturnToken)) {
+                  settleRouteContentEnter();
+                  return;
+                }
                 if (shouldUseV700WorldReturnEnter && !v700WorldReturnEnterStarted) {
                   v700WorldReturnEnterStarted = true;
                   logger.info('🧩 JourneyV700Flow collectibles-v700-world-return-enter-with-viewport', {
@@ -1374,6 +1428,7 @@ class CollectiblesManager {
                   if (!shouldUseV700WorldReturnEnter && !homepageHubEnterStartedFromPreparedManager) {
                     emitIOSNativeDiagnostic('hub-enter-started-from-import-fallback');
                     activeJourneyBoardsManager.playJourneyV700VisibleEnterFromHomepage?.();
+                    joinHomepageHubEnterCompletion(activeJourneyBoardsManager);
                   }
                 }
                 let activeAreaEnterStarted = false;
@@ -1415,6 +1470,7 @@ class CollectiblesManager {
                 }
                 const restoreScrollAfterEnter = (source: string): void => {
                   restoreJourneyScrollableInteractivity(source);
+                  if (journeyContainer.dataset.journeyV700View === 'hub') return;
                   // A visible return is fully player-owned. Reapplying overflow,
                   // touch-action, transforms, or scrollTop during an active drag
                   // interrupts WebKit momentum and makes the return card jerk.
@@ -1426,7 +1482,7 @@ class CollectiblesManager {
                     }, delayMs);
                   });
                 };
-                enterPromise.then(() => {
+                visibleEnterCompletion.then(() => {
                   if (shouldUseV700WorldReturnEnter && !v700WorldReturnEnterStarted) {
                     logger.info('🧩 JourneyV700Flow collectibles-v700-world-return-enter-visible', {
                       returningFromInterimBoardEarly,
@@ -1458,7 +1514,8 @@ class CollectiblesManager {
                   restoreScrollAfterEnter('journey-enter-error');
                 });
               }).catch((error) => {
-                enterPromise.finally(() => {
+                settleRouteContentEnter();
+                visibleEnterCompletion.finally(() => {
                   restoreJourneyScrollableInteractivity('journey-manager-import-error');
                 });
                 logger.warn('⚠️ Failed to start Journey forest scene enter animation:', String(error));
@@ -1794,11 +1851,13 @@ class CollectiblesManager {
         console.log('🎮 Interim card pathway: Skipping exit animation (already played)');
       }
 
-      // 🔥 FIX: Clean up journey board elements before hiding screen
+      // Going home/reset retires the Journey surface. Entering gameplay keeps
+      // the exact mounted Hub/World tree but must suspend every runtime owner.
       const journeyContainer = document.getElementById('journey-boards-container');
       if (journeyContainer) {
         const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
-        journeyBoardsManager.cleanup();
+        if (isBackButton) journeyBoardsManager.cleanup();
+        else journeyBoardsManager.suspendForGameplay();
       }
 
       cleanupCollectiblesAnimations();

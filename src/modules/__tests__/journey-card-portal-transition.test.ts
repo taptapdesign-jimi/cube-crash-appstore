@@ -128,6 +128,91 @@ describe('Journey exact-card portal transition', () => {
     expect(lease.aspectRatio).not.toBeCloseTo(125 / 120, 3);
   });
 
+  test('rebinds one reusable modal face without cloning the live World card tree', () => {
+    document.body.innerHTML = `
+      <div class="journey-board-card-wrapper">
+        <div class="journey-board-card unlocked has-new-ribbon" data-board-id="2" style="background-image:url(card-2.png)">
+          <img class="journey-board-image journey-board-image-preload" src="card-2.png" alt="Card 2">
+          <div class="journey-card-ribbon"><img class="journey-card-ribbon-image" src="ribbon.png"><img class="journey-card-ribbon-shimmer" src="ribbon.png"><span class="journey-card-ribbon-label">New</span></div>
+        </div>
+      </div>
+      <div class="portal-host"></div>
+    `;
+    const card = document.querySelector<HTMLElement>('.journey-board-card')!;
+    const host = document.querySelector<HTMLElement>('.portal-host')!;
+    Object.defineProperties(card, {
+      offsetWidth: { configurable: true, value: 100 },
+      offsetHeight: { configurable: true, value: 150 },
+    });
+    card.getBoundingClientRect = () => ({
+      x: 20, y: 40, left: 20, top: 40, right: 120, bottom: 190,
+      width: 100, height: 150, toJSON: () => ({}),
+    });
+    const cloneSpy = jest.spyOn(card, 'cloneNode');
+    const first = acquireJourneyCardOriginLease(2, card)!;
+    first.mountInto(host, { reusePortalVisual: true });
+    const reusable = host.firstElementChild as HTMLElement;
+    expect(cloneSpy).not.toHaveBeenCalled();
+    expect(reusable.dataset.reusablePortal).toBe('true');
+    expect(reusable.querySelector('.journey-card-ribbon')).not.toHaveAttribute('hidden');
+
+    jest.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0);
+      return 1;
+    });
+    first.restoreNow();
+    expect(reusable).toHaveAttribute('hidden');
+
+    card.classList.remove('has-new-ribbon');
+    card.querySelector('.journey-card-ribbon')?.remove();
+    const second = acquireJourneyCardOriginLease(2, card)!;
+    second.mountInto(host, { reusePortalVisual: true });
+    expect(host.firstElementChild).toBe(reusable);
+    expect(reusable).not.toHaveAttribute('hidden');
+    expect(reusable.querySelector('.journey-card-ribbon')).toHaveAttribute('hidden');
+    expect(cloneSpy).not.toHaveBeenCalled();
+  });
+
+  test('a retired reusable portal callback cannot hide its rebound successor', () => {
+    document.body.innerHTML = `
+      <div class="journey-board-card-wrapper">
+        <div class="journey-board-card unlocked" data-board-id="2" style="background-image:url(card-2.png)">
+          <img class="journey-board-image journey-board-image-preload" src="card-2.png" alt="Card 2">
+        </div>
+      </div>
+      <div class="portal-host"></div>
+    `;
+    const card = document.querySelector<HTMLElement>('.journey-board-card')!;
+    const host = document.querySelector<HTMLElement>('.portal-host')!;
+    Object.defineProperties(card, {
+      offsetWidth: { configurable: true, value: 100 },
+      offsetHeight: { configurable: true, value: 150 },
+    });
+    card.getBoundingClientRect = () => ({
+      x: 20, y: 40, left: 20, top: 40, right: 120, bottom: 190,
+      width: 100, height: 150, toJSON: () => ({}),
+    });
+    const frames: FrameRequestCallback[] = [];
+    jest.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    const first = acquireJourneyCardOriginLease(2, card)!;
+    first.mountInto(host, { reusePortalVisual: true });
+    const reusable = host.firstElementChild as HTMLElement;
+    first.restoreNow();
+
+    const successor = acquireJourneyCardOriginLease(2, card)!;
+    successor.mountInto(host, { reusePortalVisual: true });
+    const successorGeneration = reusable.dataset.reusablePortalGeneration;
+    frames.shift()?.(0);
+    frames.shift()?.(16);
+
+    expect(reusable.dataset.reusablePortalGeneration).toBe(successorGeneration);
+    expect(reusable).not.toHaveAttribute('hidden');
+    expect(reusable.isConnected).toBe(true);
+  });
+
   test('lands on the card visual offset instead of the wrapper center', () => {
     document.body.innerHTML = `
       <div class="journey-board-card-wrapper">

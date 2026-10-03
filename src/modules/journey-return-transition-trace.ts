@@ -2,6 +2,7 @@ import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.js';
 import { beginJourneyTerminalPreparationPerformance, type JourneyTerminalPreparationPerformance } from './journey-terminal-preparation-performance.js';
 import { suspendSpeculativeGameplayAudioLoads } from './gameplay-audio-buffer-player.js';
 import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
+import { acquireForegroundResourceCriticalLease } from './foreground-resource-coordinator.ts';
 
 type JourneyReturnSource = 'clean-board' | 'fail';
 
@@ -25,6 +26,7 @@ let active: {
   preparation: JourneyTerminalPreparationPerformance | null;
   finishCtaSetup: (() => void) | undefined;
   releaseSpeculativeAudio: () => void;
+  releaseForegroundResources: () => void;
   destinationReady: Promise<boolean> | null;
   destinationPrepared: boolean | null;
   destinationVisibleReady: boolean;
@@ -64,6 +66,7 @@ export function beginJourneyReturnTransition(source: JourneyReturnSource, boardI
     preparation,
     finishCtaSetup: preparation?.start('cta-synchronous'),
     releaseSpeculativeAudio: suspendSpeculativeGameplayAudioLoads(),
+    releaseForegroundResources: acquireForegroundResourceCriticalLease('result-transition'),
     destinationReady: null,
     destinationPrepared: null,
     destinationVisibleReady: false,
@@ -343,6 +346,7 @@ export function completeJourneyReturnTransition(
   active.preparation?.finish('enter-complete');
   markJourneyReturnTransition('enter-complete', detail);
   active.releaseSpeculativeAudio();
+  active.releaseForegroundResources();
   active.lifecycle.cleanup();
   active.staticCover?.remove();
   active.resolveDestinationVisibleReady(false);
@@ -357,6 +361,7 @@ export function cancelJourneyReturnTransition(transitionId: number | null, reaso
   active?.preparation?.finish(`cancelled:${reason}`);
   markJourneyReturnTransition('cancelled', { reason });
   active?.releaseSpeculativeAudio();
+  active?.releaseForegroundResources();
   active?.lifecycle.cleanup();
   active?.staticCover?.remove();
   active?.resolveDestinationVisibleReady(false);

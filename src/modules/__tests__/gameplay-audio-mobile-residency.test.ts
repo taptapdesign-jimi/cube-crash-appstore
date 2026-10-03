@@ -1,9 +1,11 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
+  acquireDecodedGameplayAudioPackage,
   getDecodedGameplayAudioStats,
   getDecodedGameplaySoundsState,
   playDecodedGameplaySound,
+  preloadDecodedGameplayAudioPackage,
   preloadDecodedGameplaySounds,
   releaseIdleDecodedGameplayAudio,
   resetDecodedGameplayAudioForTests,
@@ -24,8 +26,20 @@ import { preloadGameplayPickupSound } from '../gameplay-pickup-sound';
 import { preloadWildSpecialMerge6PoofSounds } from '../wild-special-merge6-poof-sound';
 import { preloadNoMovesSound } from '../no-moves-sound';
 import { preloadWildSpecialLandingSound } from '../wild-special-landing-sound';
-import { preloadEligibleSpecialSounds } from '../special-sound-warmup';
-import { preloadCleanBoardSounds } from '../clean-board-sound';
+import {
+  acquireSpecialSoundWorkingSetPlan,
+  resetSpecialSoundWorkingSetForTests,
+} from '../special-sound-warmup';
+import {
+  CLEAN_BOARD_APPLAUSE_SOUND_SOURCE,
+  CLEAN_BOARD_CTA_BOUNCE_SOUND_SOURCE,
+  CLEAN_BOARD_FAST_POINTS_STACK_SOUND_SOURCE,
+  CLEAN_BOARD_MONEY_COUNT_SOUND_SOURCE,
+  CLEAN_BOARD_SAXOPHONE_HAPPY_SOUND_SOURCE,
+  CLEAN_BOARD_STAR_BOUNCE_SOUND_SOURCE,
+  CLEAN_BOARD_STAR_HARP_SOUND_SOURCES,
+  preloadCleanBoardSounds,
+} from '../clean-board-sound';
 import { preloadJourneyBackpackSounds } from '../journey-backpack-sound';
 import { preloadJourneyCardEntryFlipSounds } from '../journey-card-entry-flip-sound';
 import { preloadCtaActivationSounds } from '../cta-activation-sound';
@@ -181,6 +195,7 @@ describe('mobile decoded audio residency with authored audio metadata', () => {
     resetGameplayAudioDiagnosticsForTests();
     delete (window as any).__ccPerformanceDiagnostics;
     delete (window as any).__ccThermalIsolation;
+    resetSpecialSoundWorkingSetForTests();
     resetDecodedGameplayAudioForTests();
     AudioContextMock.instances = [];
     AudioContextMock.sampleRate = 48000;
@@ -252,6 +267,29 @@ describe('mobile decoded audio residency with authored audio metadata', () => {
     expect(AudioContextMock.instances).toHaveLength(1);
     expect(AudioContextMock.instances[0].decodeAudioData).toHaveBeenCalledTimes(2);
     expect(getDecodedGameplayAudioStats()).toMatchObject({ evictedBuffers: 0, redecodedBuffers: 0, activeVoices: 0 });
+  });
+
+  test('keeps long Clean Board result layers out of the mobile decoded cache', async () => {
+    expect(preloadCleanBoardSounds()).toBe(true);
+    await flush();
+
+    const fetched = (global.fetch as jest.Mock).mock.calls.map(([input]) =>
+      `.${decodeURIComponent(new URL(String(input)).pathname)}`
+    );
+    expect(fetched).toEqual(expect.arrayContaining([
+      CLEAN_BOARD_MONEY_COUNT_SOUND_SOURCE,
+      CLEAN_BOARD_FAST_POINTS_STACK_SOUND_SOURCE,
+      CLEAN_BOARD_STAR_BOUNCE_SOUND_SOURCE,
+      ...CLEAN_BOARD_STAR_HARP_SOUND_SOURCES,
+      CLEAN_BOARD_CTA_BOUNCE_SOUND_SOURCE,
+    ]));
+    expect(fetched).not.toContain(CLEAN_BOARD_APPLAUSE_SOUND_SOURCE);
+    expect(fetched).not.toContain(CLEAN_BOARD_SAXOPHONE_HAPPY_SOUND_SOURCE);
+    expect(getDecodedGameplayAudioStats()).toMatchObject({
+      decodedBuffers: 7,
+      evictedBuffers: 0,
+      redecodedBuffers: 0,
+    });
   });
 
   test.each([
@@ -334,7 +372,8 @@ describe('mobile decoded audio residency with authored audio metadata', () => {
       AudioContextMock.sampleRate = sampleRate;
       const prepare = (): void => {
         prepareBeachCommonAndResult();
-        preloadEligibleSpecialSounds({ boardNumber: 12, isArcade: false, tiles: [tile] });
+        const plan = acquireSpecialSoundWorkingSetPlan({ boardNumber: 12, isArcade: false, tiles: [tile] });
+        plan.prepareCommittedTransaction(tile);
       };
       prepare();
       await flush();
@@ -357,26 +396,34 @@ describe('mobile decoded audio residency with authored audio metadata', () => {
     },
   );
 
-  test.each([44100, 48000])('bounds an accumulated five-family Beach and result working set at %s Hz', async sampleRate => {
+  test.each([44100, 48000])('cumulative Area 55 entry inventory plateaus without decoding five finale families at %s Hz', async sampleRate => {
     AudioContextMock.sampleRate = sampleRate;
     prepareBeachCommonAndResult();
     await flush();
-    for (const { tile } of beachFamilies) {
-      preloadEligibleSpecialSounds({ boardNumber: 12, isArcade: false, tiles: [tile] });
+    const before = getDecodedGameplayAudioStats();
+    const fetchesBefore = (global.fetch as jest.Mock).mock.calls.length;
+    const area55Tiles = [
+      { special: 'wild' },
+      { special: 'wild', _ccSpecialDiceVariant: 'robo-cube' },
+      { special: 'wild-tnt', _ccSpecialDiceVariant: 'laser-gun' },
+      { special: 'wild-magnet', _ccSpecialDiceVariant: 'spaceship' },
+      { special: 'wild', _ccSpecialDiceVariant: 'kanta' },
+    ];
+    const plan = acquireSpecialSoundWorkingSetPlan({ boardNumber: 28, isArcade: false, tiles: area55Tiles });
+    for (let visit = 0; visit < 5; visit++) {
+      expect(plan.refresh({ boardNumber: 28, isArcade: false, tiles: area55Tiles })).toBe(true);
       await flush();
     }
-    const sources = new Set<string>((global.fetch as jest.Mock).mock.calls.map(([input]) => `.${decodeURIComponent(new URL(String(input)).pathname)}`));
-    const fullSetBytes = [...sources].reduce((sum, source) => {
-      const metadata = readAudioMetadata(source);
-      return sum + Math.ceil(metadata.duration * sampleRate) * metadata.channels * 4;
-    }, 0);
-    // These legitimately requested packages exceed the fixed budget. Eviction
-    // counts alone must not be treated as proof of duplicate or wrong-family
-    // preparation, nor "fixed" by retaining every family without a bound.
-    expect(fullSetBytes).toBeGreaterThan(32 * MiB);
-    expect(getDecodedGameplayAudioStats().evictedBuffers).toBeGreaterThan(0);
-    expect(getDecodedGameplayAudioStats().decodedBytes).toBeLessThanOrEqual(28 * MiB);
-    expect(getDecodedGameplayAudioStats()).toMatchObject({ activeVoices: 0, pendingBuffers: 0, failedBuffers: 0 });
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(fetchesBefore);
+    expect(getDecodedGameplayAudioStats()).toMatchObject({
+      decodedBytes: before.decodedBytes,
+      decodedBuffers: before.decodedBuffers,
+      evictedBuffers: before.evictedBuffers,
+      redecodedBuffers: before.redecodedBuffers,
+      activeVoices: 0,
+      pendingBuffers: 0,
+      failedBuffers: 0,
+    });
   });
 
   test('preparing a partly resident package keeps its existing members ahead of unrelated older data', async () => {
@@ -387,6 +434,125 @@ describe('mobile decoded audio residency with authored audio metadata', () => {
     expect(getDecodedGameplaySoundsState(['./a.wav', './b.wav'])).toBe('ready');
     expect(AudioContextMock.instances[0].decodeAudioData).toHaveBeenCalledTimes(3);
     expect(getDecodedGameplayAudioStats()).toMatchObject({ decodedBytes: 12 * MiB, redecodedBuffers: 0, evictedBuffers: 1 });
+  });
+
+  test('a known live family atomically replaces a stale once-audible set instead of decode-evict thrashing', async () => {
+    AudioContextMock.syntheticBytes.set('./family-a.wav', 6 * MiB);
+    AudioContextMock.syntheticBytes.set('./family-b.wav', 6 * MiB);
+    AudioContextMock.syntheticBytes.set('./stale-audible.wav', 20 * MiB);
+
+    preloadDecodedGameplaySounds(['./family-a.wav', './family-b.wav']);
+    await flush();
+    preloadDecodedGameplaySounds(['./stale-audible.wav']);
+    await flush();
+    expect(playDecodedGameplaySound('./stale-audible.wav', { voiceId: 'stale', volume: 1 })).toBe('played');
+    stopDecodedGameplayVoice('stale');
+    expect(getDecodedGameplaySoundsState(['./family-a.wav', './family-b.wav'])).toBe('pending');
+
+    preloadDecodedGameplaySounds(['./family-a.wav', './family-b.wav']);
+    await flush();
+
+    expect(getDecodedGameplaySoundsState(['./family-a.wav', './family-b.wav'])).toBe('ready');
+    expect(getDecodedGameplaySoundsState(['./stale-audible.wav'])).toBe('pending');
+    expect(getDecodedGameplayAudioStats()).toMatchObject({
+      decodedBytes: 12 * MiB,
+      redecodedBuffers: 1,
+      activePackageLeases: 0,
+      pendingPackages: 0,
+      rejectedSpeculativePackages: 0,
+    });
+  });
+
+  test('rejects an entire declared package before fetch when it would displace the audible hot set', async () => {
+    AudioContextMock.syntheticBytes.set('./hot-core.wav', 10 * MiB);
+    AudioContextMock.syntheticBytes.set('./package-a.wav', 10 * MiB);
+    AudioContextMock.syntheticBytes.set('./package-b.wav', 10 * MiB);
+    preloadDecodedGameplaySounds(['./hot-core.wav']);
+    await flush();
+    expect(playDecodedGameplaySound('./hot-core.wav', { voiceId: 'hot-core', volume: 1 })).toBe('played');
+    stopDecodedGameplayVoice('hot-core');
+    (global.fetch as jest.Mock).mockClear();
+
+    expect(preloadDecodedGameplayAudioPackage({
+      id: 'oversized-route',
+      sources: ['./package-a.wav', './package-b.wav'],
+      maxDecodedBytes: 20 * MiB,
+    })).toBe(true);
+    await flush();
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(getDecodedGameplayAudioStats()).toMatchObject({
+      decodedBuffers: 1,
+      activePackageLeases: 0,
+      pendingPackages: 0,
+      rejectedSpeculativePackages: 1,
+    });
+
+    expect(playDecodedGameplaySound('./package-a.wav', { voiceId: 'selected-package-cue', volume: 1 }))
+      .toBe('pending');
+    await flush();
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(getDecodedGameplayAudioStats().activeVoices).toBe(1);
+  });
+
+  test('an admitted package lease protects the complete set and releases idempotently', async () => {
+    AudioContextMock.syntheticBytes.set('./route-a.wav', 6 * MiB);
+    AudioContextMock.syntheticBytes.set('./route-b.wav', 6 * MiB);
+    AudioContextMock.syntheticBytes.set('./unrelated-whale.wav', 24 * MiB);
+    const lease = acquireDecodedGameplayAudioPackage('route-owner', {
+      id: 'route-package',
+      sources: ['./route-a.wav', './route-b.wav'],
+      maxDecodedBytes: 12 * MiB,
+    });
+
+    expect(lease.admitted).toBe(true);
+    await flush();
+    expect(getDecodedGameplaySoundsState(['./route-a.wav', './route-b.wav'])).toBe('ready');
+    expect(getDecodedGameplayAudioStats()).toMatchObject({
+      activePackageLeases: 1,
+      pendingPackages: 0,
+      reservedPackageBytes: 12 * MiB,
+    });
+
+    preloadDecodedGameplaySounds(['./unrelated-whale.wav']);
+    await flush();
+    expect(getDecodedGameplaySoundsState(['./route-a.wav', './route-b.wav'])).toBe('ready');
+    expect(getDecodedGameplaySoundsState(['./unrelated-whale.wav'])).toBe('pending');
+
+    lease.release();
+    lease.release();
+    expect(getDecodedGameplayAudioStats()).toMatchObject({
+      activePackageLeases: 0,
+      reservedPackageBytes: 0,
+    });
+  });
+
+  test('owner release prevents a queued package load from committing after route cleanup', async () => {
+    let finishFetch!: () => void;
+    (global.fetch as jest.Mock).mockImplementationOnce((input) => new Promise(resolve => {
+      finishFetch = () => resolve({
+        ok: true,
+        arrayBuffer: async () => ({ source: `.${decodeURIComponent(new URL(String(input)).pathname)}` }),
+      });
+    }));
+    const lease = acquireDecodedGameplayAudioPackage('departing-route', {
+      id: 'departing-package',
+      sources: ['./departing.wav'],
+      maxDecodedBytes: 2 * MiB,
+    });
+    expect(lease.admitted).toBe(true);
+    await Promise.resolve();
+    lease.release();
+    finishFetch();
+    await flush();
+
+    expect(getDecodedGameplaySoundsState(['./departing.wav'])).toBe('pending');
+    expect(getDecodedGameplayAudioStats()).toMatchObject({
+      activePackageLeases: 0,
+      pendingPackages: 0,
+      pendingBuffers: 0,
+      decodedBuffers: 0,
+    });
   });
 
   test('opt-in real cache events identify source, scoped caller, decode bytes/time and pressure eviction', async () => {
@@ -487,8 +653,13 @@ describe('mobile decoded audio residency with authored audio metadata', () => {
   test('all authored families share one effects budget and cannot stop the active Forest loop under pressure', async () => {
     playDecodedForestFixture({ boardNumber: 3, isArcade: false });
     await flush();
-    for (const [id, variant] of Object.entries(SPECIAL_DICE_VARIANTS)) {
-      preloadEligibleSpecialSounds({ boardNumber: 12, isArcade: false, tiles: [{ special: variant.archetype, _ccSpecialDiceVariant: id }] });
+    const tiles = Object.entries(SPECIAL_DICE_VARIANTS).map(([id, variant]) => ({
+      special: variant.archetype,
+      _ccSpecialDiceVariant: id,
+    }));
+    const plan = acquireSpecialSoundWorkingSetPlan({ boardNumber: 12, isArcade: false, tiles });
+    for (const tile of tiles) {
+      plan.prepareCommittedTransaction(tile);
       await flush();
       const stats = getDecodedGameplayAudioStats();
       expect(stats.activeVoices).toBe(1);

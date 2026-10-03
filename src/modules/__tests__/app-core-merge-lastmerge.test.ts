@@ -1,4 +1,5 @@
 import { handleLastMergeEarly, resolveLastMergeEarlyState } from '../app-core-merge-lastmerge';
+import { resolveWildEndgameSpawnMult } from '../wild-endgame-spawn-mult-decision';
 
 function createDeps(overrides: Partial<Parameters<typeof handleLastMergeEarly>[0]> = {}) {
   const calls = {
@@ -143,6 +144,107 @@ describe('app-core-merge-lastmerge', () => {
 
     expect(result.isActuallyLastMerge).toBe(true);
     expect(result.finalMergeSnapshot.isFinalWildLastTwo).toBe(true);
+  });
+
+  it('reproduces and closes Laser final Merge-6 spawning two dice from an active-looking orphan', () => {
+    const laser = {
+      value: 0,
+      special: 'wild-tnt',
+      _ccSpecialDiceVariant: 'laser-gun',
+      _ccSpecialDiceArchetype: 'wild-tnt',
+      stackDepth: 1,
+      visible: true,
+      alpha: 1,
+      gridX: 0,
+      gridY: 0,
+    };
+    const regular = {
+      value: 5,
+      stackDepth: 1,
+      visible: true,
+      alpha: 1,
+      gridX: 1,
+      gridY: 0,
+    };
+    const staleOrphan = {
+      value: 4,
+      stackDepth: 1,
+      visible: true,
+      alpha: 1,
+      locked: false,
+      destroyed: false,
+      gridX: 2,
+      gridY: 0,
+    };
+    const tiles = [laser, regular, staleOrphan];
+    // drag-core clears the picked-up source cell before it hands the accepted
+    // merge to app-core. This detached-source shape is the production boundary
+    // that previously made the final Laser + 5 look like a non-final merge.
+    const grid = [[null, regular, null]];
+
+    // This is the exact old failure decision: the presentation-history list
+    // invents a third blocker, then Laser's ordinary two-die multiplier is
+    // allowed to continue instead of handing the final pair to New Reward.
+    const rawListDecision = resolveLastMergeEarlyState({
+      tiles,
+      src: laser,
+      dst: regular,
+      effSum: 6,
+      isWildMagnetMerge: false,
+      mode: 'journey',
+    });
+    const legacySpawnCount = resolveWildEndgameSpawnMult({
+      spawnMult: laser.stackDepth + regular.stackDepth,
+      isWildMerge: true,
+      lockedEmptyPlaceholderCount: 2,
+      isLastMerge: rawListDecision.isActuallyLastMerge,
+    }).spawnMult;
+    expect(rawListDecision.isActuallyLastMerge).toBe(false);
+    expect(legacySpawnCount).toBe(2);
+
+    const authoritativeDecision = resolveLastMergeEarlyState({
+      tiles,
+      grid,
+      src: laser,
+      dst: regular,
+      effSum: 6,
+      isWildMagnetMerge: false,
+      mode: 'journey',
+    });
+    expect(authoritativeDecision.activeTilesBeforeWildProgress).toHaveLength(2);
+    expect(authoritativeDecision.activeTilesBeforeWildProgress).toEqual(
+      expect.arrayContaining([laser, regular]),
+    );
+    expect(authoritativeDecision.isActuallyLastMerge).toBe(true);
+    expect(authoritativeDecision.decision).toEqual({
+      type: 'complete',
+      target: 'journey-board',
+      reason: 'final_wild_merge6',
+    });
+  });
+
+  it('waits instead of completing or spawning from an invalid authoritative grid snapshot', () => {
+    const laser = { value: 0, special: 'wild-tnt', gridX: 0, gridY: 0, visible: true };
+    const regular = { value: 5, gridX: 1, gridY: 0, visible: true };
+    const duplicate = { value: 4, gridX: 2, gridY: 0, visible: true };
+
+    const result = resolveLastMergeEarlyState({
+      tiles: [laser, regular, duplicate],
+      grid: [[null, regular, duplicate], [null, null, duplicate]],
+      src: laser,
+      dst: regular,
+      effSum: 6,
+      isWildMagnetMerge: false,
+      mode: 'journey',
+    });
+
+    expect(result.authoritativeGridStatus).toBe('invalid');
+    expect(result.authoritativeGridIssues).toContain('duplicate-grid-owner');
+    expect(result.isActuallyLastMerge).toBe(false);
+    expect(result.decision).toEqual({
+      type: 'wait',
+      reason: 'invalid_authoritative_grid_snapshot',
+    });
   });
 
   it('marks final regular merge-6 and prevents wild meter fill', () => {

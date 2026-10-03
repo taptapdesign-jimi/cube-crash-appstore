@@ -257,14 +257,26 @@ describe('Bottle special-die visual contract', () => {
 
   test('keeps exact Magnet replacement density while canonically normalizing the reused survivor', () => {
     const mergeSource = read('src/modules/app-merge.ts');
+    const survivorSource = read('src/modules/magnet-survivor-commit.ts');
     const resolutionSource = read('src/modules/magnet-post-spawn-resolution.ts');
     expect(mergeSource).toContain('Magnet continuation: exact replacements + converted survivor.');
-    expect(mergeSource.indexOf('stopSpecialDiceIdleMotion(dst)')).toBeLessThan(
-      mergeSource.indexOf('collapseTileToSingleStackVisual(dst)'),
+    expect(mergeSource).toContain('const survivorReceipt = commitMagnetSurvivor({');
+    expect(mergeSource).toContain('stopSpecialIdle: stopSpecialDiceIdleMotion,');
+    expect(mergeSource).toContain('collapseStack: collapseTileToSingleStackVisual,');
+    expect(mergeSource).toContain('setValueImmediate: (tile, value) => boardHelpers.setValueImmediate(tile, value, 0),');
+    expect(mergeSource).toContain('spawnBounce(tile, onComplete, {');
+    expect(survivorSource.indexOf('stopSpecialIdle(tile)')).toBeLessThan(
+      survivorSource.indexOf('resetToNormal(tile)'),
     );
-    expect(mergeSource).toContain('collapseTileToSingleStackVisual(dst)');
-    expect(mergeSource).toContain('boardHelpers.setValue(dst, freshVal, 0)');
+    expect(survivorSource.indexOf('resetToNormal(tile)')).toBeLessThan(
+      survivorSource.indexOf('collapseStack(tile)'),
+    );
+    expect(survivorSource.indexOf('setValueImmediate(tile, value)')).toBeLessThan(
+      survivorSource.indexOf('bindToTile(tile)'),
+    );
+    expect(survivorSource.indexOf('bindToTile(tile)')).toBeLessThan(
+      survivorSource.indexOf('settleVisualTail(tile)'),
+    );
     expect(resolutionSource).toContain('const obligatorySpawnCount = 0');
-    expect(mergeSource).toContain('spawnBounce(dst, () =>');
   });
 });

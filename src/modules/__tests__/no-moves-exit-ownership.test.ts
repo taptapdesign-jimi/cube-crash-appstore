@@ -105,10 +105,15 @@ test('the retired fail-flow timeout cannot clear a newer NO MOVES candidate', as
     waitTrackedResult: () => ++waits === 1 ? Promise.resolve('elapsed') : new Promise<string>((resolve) => { finishTimeout = resolve; }),
     exitNoMovesText: () => Promise.resolve(), clearNoMovesText,
     setInputGateLock() {}, showFinalScreen() {}, window: {},
+    boardMutationEpochOwner: {
+      beginMutation: () => ({ id: 1 }),
+      commitComplete: () => ({ accepted: true }),
+    },
   };
   const api = new Function(...Object.keys(deps), ts.transpileModule(`
     let activeNoMovesFailFlowToken = null, busyEnding = false, noMovesFailFlowSequence = 0;
     let activeNoMovesInputLockToken = null, failScreenFlowInProgress = false;
+    let currentBoardMutationEpoch = null;
     ${source.slice(start, end)}
     return {runNoMovesFailFlow, replace() { activeNoMovesFailFlowToken = 42; }};
   `, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText)(...Object.values(deps));

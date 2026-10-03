@@ -1,7 +1,7 @@
 import { createSpecialIdleAnimationVisibility, isSpecialDiceIdlePaintable } from './special-dice-idle-visibility.ts';
 import { retireFailedSpecialTickerOwner } from './special-ticker-error.ts';
 import { gsap } from 'gsap';
-import { Assets, Container, Graphics, Sprite, type Texture, type Ticker } from 'pixi.js';
+import { Container, Graphics, Sprite, type Texture, type Ticker } from 'pixi.js';
 import animationManager from './animation-manager.js';
 import { graphicsPool } from './object-pool.js';
 import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.js';
@@ -11,6 +11,10 @@ import {
   JOURNEY_INTERIM_IDLE_MOTION,
 } from './journey-interim-idle-policy.js';
 import { isUsablePixiImageTexture, pinPixiImageTexture } from '../utils/pixi-image-texture-health.js';
+import {
+  acquireVisualAssetTexture,
+  isVisualAssetTextureHandleCurrent,
+} from '../utils/visual-asset-broker.js';
 
 export const KANTA_IDLE_FRAME_SOURCE = './assets/shop/kanta/04.png';
 export const KANTA_IDLE_BACK_LEFT_SOURCE = './assets/shop/kanta/02.png';
@@ -573,11 +577,13 @@ export function startKantaDiceIdle(
     syncBackdropPose();
   }
 
-  void Assets.load<Texture>(frameSource).then((texture) => {
+  void acquireVisualAssetTexture(frameSource).then((handle) => {
+    const { texture } = handle;
     if (
       disposed
       || tile?.destroyed
       || tile?._ccKantaDiceIdle !== controller
+      || !isVisualAssetTextureHandleCurrent(handle)
       || !isUsablePixiImageTexture(texture)
     ) return;
     loadedTexture = texture;
@@ -589,6 +595,8 @@ export function startKantaDiceIdle(
     // attached and invalidate every function-based tween endpoint.
     timeline.pause();
     base.texture = texture;
+    (base as any)._ccTextureAssetPath = handle.assetPath;
+    (base as any)._ccVisualAssetRendererGeneration = handle.rendererGeneration;
     base.width = displayedWidth;
     base.height = displayedHeight;
     neutralScaleX = base.scale.x;
@@ -600,46 +608,49 @@ export function startKantaDiceIdle(
     applyGameplayTextureFiltering(base.texture);
   }).catch(() => {});
 
-  void Promise.all(backdropSources.map((source) => Assets.load<Texture>(source))).then((textures) => {
-    if (
-      disposed
-      || tile?.destroyed
-      || tile?._ccKantaDiceIdle !== controller
-      || base.destroyed
-      || !base.parent
-      || textures.some((texture) => !isUsablePixiImageTexture(texture))
-    ) return;
-    const parent = base.parent;
-    const baseIndex = parent.getChildIndex(base);
-    textures.forEach((texture, index) => {
-      pinPixiImageTexture(texture);
-      applyGameplayTextureFiltering(texture);
-      const sprite = new Sprite(texture);
-      sprite.label = 'kanta-idle-back';
-      sprite.eventMode = 'none';
-      sprite.zIndex = (base.zIndex || 0) - 2;
-      sprite.anchor.set(0.5, 1);
-      sprite.width = displayedWidth * KANTA_IDLE_BACK_SCALE;
-      sprite.height = displayedHeight * KANTA_IDLE_BACK_SCALE;
-      const offsetX = backdropSide * displayedWidth * KANTA_IDLE_BACK_HORIZONTAL_OFFSET_RATIO;
-      const state: KantaBackdropSpriteState = {
-        sprite,
-        neutralScaleX: sprite.scale.x,
-        neutralScaleY: sprite.scale.y,
-        offsetX,
-        revealScale: KANTA_IDLE_BACK_POP_IN_START_SCALE,
-        revealAlpha: 0,
-        popInTimeline: null,
-      };
-      backdropSprites.push(state);
-      parent.addChildAt(sprite, Math.min(baseIndex + index, parent.children.length));
-      if (!bubbleRuntimePaused) {
-        playBackdropPopIn(state, KANTA_IDLE_BACK_POP_IN_DELAY_SECONDS);
-      }
-    });
-    parent.sortChildren();
-    syncBackdropPose();
-  }).catch(() => {});
+  void Promise.all(backdropSources.map((source) => acquireVisualAssetTexture(source)))
+    .then((handles) => {
+      const textures = handles.map(({ texture }) => texture);
+      if (
+        disposed
+        || tile?.destroyed
+        || tile?._ccKantaDiceIdle !== controller
+        || base.destroyed
+        || !base.parent
+        || handles.some((handle) => !isVisualAssetTextureHandleCurrent(handle))
+        || textures.some((texture) => !isUsablePixiImageTexture(texture))
+      ) return;
+      const parent = base.parent;
+      const baseIndex = parent.getChildIndex(base);
+      textures.forEach((texture, index) => {
+        pinPixiImageTexture(texture);
+        applyGameplayTextureFiltering(texture);
+        const sprite = new Sprite(texture);
+        sprite.label = 'kanta-idle-back';
+        sprite.eventMode = 'none';
+        sprite.zIndex = (base.zIndex || 0) - 2;
+        sprite.anchor.set(0.5, 1);
+        sprite.width = displayedWidth * KANTA_IDLE_BACK_SCALE;
+        sprite.height = displayedHeight * KANTA_IDLE_BACK_SCALE;
+        const offsetX = backdropSide * displayedWidth * KANTA_IDLE_BACK_HORIZONTAL_OFFSET_RATIO;
+        const state: KantaBackdropSpriteState = {
+          sprite,
+          neutralScaleX: sprite.scale.x,
+          neutralScaleY: sprite.scale.y,
+          offsetX,
+          revealScale: KANTA_IDLE_BACK_POP_IN_START_SCALE,
+          revealAlpha: 0,
+          popInTimeline: null,
+        };
+        backdropSprites.push(state);
+        parent.addChildAt(sprite, Math.min(baseIndex + index, parent.children.length));
+        if (!bubbleRuntimePaused) {
+          playBackdropPopIn(state, KANTA_IDLE_BACK_POP_IN_DELAY_SECONDS);
+        }
+      });
+      parent.sortChildren();
+      syncBackdropPose();
+    }).catch(() => {});
 
   return controller;
 }

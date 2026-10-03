@@ -182,6 +182,55 @@ test('duplicate runtime tile refs do not block final wild merge', () => {
   });
 });
 
+test('authoritative grid reconstructs only the accepted drag-detached source', () => {
+  const src = makeTile({ value: 0, special: 'wild-tnt', gridX: 0, gridY: 0 });
+  const dst = makeTile({ value: 5, gridX: 1, gridY: 0 });
+  const staleOrphan = makeTile({ value: 4, gridX: 2, gridY: 0 });
+  const tileSets = getFinalMergeTileSets({
+    tiles: [src, dst, staleOrphan],
+    grid: [[null, dst, null]],
+    src,
+    dst,
+  });
+
+  expect(tileSets.activeTilesBeforeMerge).toHaveLength(2);
+  expect(tileSets.activeTilesBeforeMerge).toEqual(expect.arrayContaining([src, dst]));
+  expect(tileSets.activeTilesBeforeMerge).not.toContain(staleOrphan);
+  expect(getFinalMergeSnapshot({
+    activeTilesBeforeMerge: tileSets.activeTilesBeforeMerge,
+    finalMergeBlockersBefore: tileSets.finalMergeBlockersBefore,
+    src,
+    dst,
+    effSum: 6,
+  }).isFinalMerge).toBe(true);
+});
+
+test('authoritative grid never resurrects a detached source that is stale or whose destination lost ownership', () => {
+  const src = makeTile({ value: 0, special: 'wild-tnt', gridX: 0, gridY: 0 });
+  const dst = makeTile({ value: 5, gridX: 1, gridY: 0 });
+  const replacement = makeTile({ value: 4, gridX: 1, gridY: 0 });
+
+  expect(getFinalMergeTileSets({
+    tiles: [dst],
+    grid: [[null, dst]],
+    src,
+    dst,
+  })).toMatchObject({
+    authoritativeGridStatus: 'invalid',
+    authoritativeGridIssues: ['merge-source-ownership-invalid'],
+    activeTilesBeforeMerge: [],
+  });
+  expect(getFinalMergeTileSets({
+    tiles: [src, dst, replacement],
+    grid: [[null, replacement]],
+    src,
+    dst,
+  })).toMatchObject({
+    authoritativeGridStatus: 'invalid',
+    activeTilesBeforeMerge: [],
+  });
+});
+
 test('future wild-prefixed special dice are treated as wild-like', () => {
   const src = makeTile({ value: 0, special: 'wild-cubero' });
   const dst = makeTile({ value: 5 });
@@ -313,7 +362,52 @@ test('final merge tile-set helper returns active tiles and blockers from one sou
   })).toEqual({
     activeTilesBeforeMerge: [src, dst],
     finalMergeBlockersBefore: [],
+    authoritativeGridStatus: 'not-provided',
+    authoritativeGridIssues: [],
   });
+});
+
+test('duplicate authoritative grid ownership is rejected instead of deduplicated into a false final pair', () => {
+  const src = makeTile({ value: 0, special: 'wild-tnt', gridX: 0, gridY: 0 });
+  const dst = makeTile({ value: 5, gridX: 1, gridY: 0 });
+  const duplicate = makeTile({ value: 4, gridX: 2, gridY: 0 });
+  const tileSets = getFinalMergeTileSets({
+    tiles: [src, dst, duplicate],
+    grid: [
+      [null, dst, duplicate],
+      [null, null, duplicate],
+    ],
+    src,
+    dst,
+  });
+
+  expect(tileSets.authoritativeGridStatus).toBe('invalid');
+  expect(tileSets.authoritativeGridIssues).toContain('duplicate-grid-owner');
+  expect(tileSets.activeTilesBeforeMerge).toEqual([]);
+  expect(getFinalMergeSnapshot({
+    activeTilesBeforeMerge: tileSets.activeTilesBeforeMerge,
+    src,
+    dst,
+    effSum: 6,
+  }).isFinalMerge).toBe(false);
+});
+
+test('malformed authoritative grid shape and ownership are rejected fail-closed', () => {
+  const src = makeTile({ value: 0, special: 'wild-tnt', gridX: 0, gridY: 0 });
+  const dst = makeTile({ value: 5, gridX: 1, gridY: 0 });
+  const tileSets = getFinalMergeTileSets({
+    tiles: [src, dst],
+    grid: [[null, dst], [null]] as any,
+    src,
+    dst,
+  });
+
+  expect(tileSets).toMatchObject({
+    authoritativeGridStatus: 'invalid',
+    activeTilesBeforeMerge: [],
+    finalMergeBlockersBefore: [],
+  });
+  expect(tileSets.authoritativeGridIssues).toContain('invalid-grid-shape');
 });
 
 test('magnet candidates reject a cleanup-owned regular merge-6 destination', () => {

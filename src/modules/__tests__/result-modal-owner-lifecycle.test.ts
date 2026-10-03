@@ -27,6 +27,11 @@ function fixture(arcade = false) {
   const stats = { updateHighScore: jest.fn(), updateBoardHighScore: jest.fn(), flushStatsNow: jest.fn(), getStats: () => ({ highScore: 0 }), wasHighScoreJustUpdated: () => false, getBoardStats: () => ({ highScore: 0 }) };
   const animationManager = { trackExternalTween: tween => tween, trackExternalTimeline: timeline => timeline, killExternalTimeline: timeline => timeline.kill() };
   const mocks = {
+    '../utils/transition-performance.js': { beginTransitionPerformance: jest.fn(() => ({
+      phase: <T>(_name: string, work: () => T) => work(),
+      mark: jest.fn(),
+      finish: jest.fn(),
+    })) },
     './cta-system.ts': {} as typeof import('../cta-system'),
     gsap: { gsap },
     './result-modal-lifetime.js': { createResultModalLifetime },
@@ -75,7 +80,7 @@ function fixture(arcade = false) {
     './run-combo-bonus.ts': { getRunComboBonus: () => 0 },
     './clean-board-score-utils.ts': { computeCleanBoardFinalScore: ({currentScore,comboBonus,efficiencyBonus}) => currentScore + comboBonus + efficiencyBonus },
     './clean-board-celebration-theme.ts': { resolveCleanBoardCelebrationTheme: () => 'beach', shouldShowArea55CleanBoardShips: () => false },
-    './clean-board-sound.ts': { createCleanBoardStarHarpOrder: () => [0,1,2], playCleanBoardBonusCountSound: jest.fn(), playCleanBoardApplauseSound: jest.fn(), playCleanBoardCtaBounceSound: jest.fn(), playCleanBoardEarnedStarSound: jest.fn(), playCleanBoardMoneyCountSound: jest.fn(), playCleanBoardSaxophoneHappySound: jest.fn(), preloadCleanBoardSounds: jest.fn(), stopCleanBoardSounds: cleanStop },
+    './clean-board-sound.ts': { acquireCleanBoardShortAudioResidency: () => jest.fn(), createCleanBoardStarHarpOrder: () => [0,1,2], playCleanBoardBonusCountSound: jest.fn(), playCleanBoardApplauseSound: jest.fn(), playCleanBoardCtaBounceSound: jest.fn(), playCleanBoardEarnedStarSound: jest.fn(), playCleanBoardMoneyCountSound: jest.fn(), playCleanBoardSaxophoneHappySound: jest.fn(), preloadCleanBoardSounds: jest.fn(), stopCleanBoardSounds: cleanStop },
     './clean-board-star-transform.ts': { freezeCleanBoardStarRenderedScale: jest.fn() },
     '../utils/haptic-runtime-governor.ts': { triggerCleanBoardCounterHaptic: jest.fn(() => true) },
     './app-state.js': { STATE: {} },
@@ -225,6 +230,38 @@ test.each([false, true])('Clean Board replacement and abort retire mounted CTAs 
   expect(document.getElementById('clean-board-star-animations')).toBeNull();
 });
 
+test('Clean Board opening measurement separates setup from the first frame and is retired on abort', async () => {
+  const f = fixture();
+  const result = f.clean.showCleanBoardModal({ boardNumber: 11, forcedStars: 1 });
+  const begin = f.mocks['../utils/transition-performance.js'].beginTransitionPerformance;
+  expect(begin).toHaveBeenCalledWith('clean-board-opening');
+  const measurement = begin.mock.results[0].value;
+  expect(measurement.mark.mock.calls.map(([name]) => name)).toEqual([
+    'dom-mounted', 'initial-poses-ready',
+  ]);
+  expect(measurement.finish).not.toHaveBeenCalled();
+  jest.advanceTimersByTime(16);
+  expect(measurement.finish).toHaveBeenCalledWith('first-animation-frame');
+  jest.advanceTimersByTime(1);
+  expect(begin).toHaveBeenCalledWith('clean-board-post-paint-runtime');
+  abort();
+  await expect(result).resolves.toEqual({ action: '__navigation-abort__' });
+  expect(measurement.finish).toHaveBeenCalledWith('disposed');
+});
+
+test('Clean Board counters do not sweep the global timeline for a newly allocated score proxy', async () => {
+  const f = fixture();
+  const kill = jest.spyOn(gsap, 'killTweensOf');
+  const result = f.clean.showCleanBoardModal({ boardNumber: 11, getScore: () => 100, comboBonus: 50, efficiencyBonus: 100, forcedStars: 1 });
+  await finishMotion();
+  const proxySweeps = kill.mock.calls.filter(([target]) => target && !Array.isArray(target)
+    && typeof target === 'object' && 'value' in target);
+  expect(proxySweeps).toHaveLength(0);
+  abort();
+  await expect(result).resolves.toEqual({ action: '__navigation-abort__' });
+  kill.mockRestore();
+});
+
 test.each([false, true])('Clean Board normal Play Again retires CTA listeners (Arcade=%s)', async arcade => {
   const f = fixture(arcade);
   const result = f.clean.showCleanBoardModal({ boardNumber: 11, getScore: () => 10, forcedStars: 1 });
@@ -341,7 +378,10 @@ test('late old board-exit completion cannot hide a replacement gameplay surface'
 test('a partially mounted Clean Board error removes its owned DOM and can reopen', async () => {
   const f = fixture();
   f.mocks['./soundtrack-manager.ts'].setSoundtrackResultMix.mockImplementationOnce(() => { throw new Error('test setup failure'); });
-  await expect(f.clean.showCleanBoardModal({ boardNumber: 11, forcedStars: 1 })).resolves.toEqual({ action: 'continue' });
+  const failed = f.clean.showCleanBoardModal({ boardNumber: 11, forcedStars: 1 });
+  jest.advanceTimersByTime(16);
+  jest.advanceTimersByTime(1);
+  await expect(failed).resolves.toEqual({ action: 'continue' });
   expect(document.getElementById('cc-clean-board-overlay')).toBeNull(); expect(f.pointerCount()).toBe(0);
   const next = f.clean.showCleanBoardModal({ boardNumber: 12, forcedStars: 1 });
   expect(f.pointerCount()).toBe(4); abort(); await next;

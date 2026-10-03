@@ -5,6 +5,10 @@ import { startThermalIsolation } from '../../utils/thermal-isolation';
 import { STATE } from '../app-state';
 import { getAnimatedDiceHudForegroundStats } from '../animated-dice-hud-foreground';
 import {
+  acquireForegroundResourceCriticalLease,
+  resetForegroundResourceCoordinator,
+} from '../foreground-resource-coordinator';
+import {
   releaseIdleSharedPixiSheets,
   acquireSharedPixiSheetResource,
   getSharedPixiSheetCacheStats,
@@ -71,6 +75,7 @@ describe('shared Pixi sheet animation runtime', () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2026-09-16T12:00:00.000Z'));
     resetSharedPixiSheetAnimationForTests();
+    resetForegroundResourceCoordinator();
     sheet = makeSheet();
     getSpy = jest.spyOn(Assets, 'get').mockReturnValue(undefined as any);
     loadSpy = jest.spyOn(Assets, 'load').mockResolvedValue(sheet as any);
@@ -88,6 +93,7 @@ describe('shared Pixi sheet animation runtime', () => {
 
   afterEach(() => {
     resetSharedPixiSheetAnimationForTests();
+    resetForegroundResourceCoordinator();
     STATE.app = null;
     loadSpy.mockRestore();
     getSpy.mockRestore();
@@ -316,6 +322,24 @@ describe('shared Pixi sheet animation runtime', () => {
     expect(getSharedPixiSheetCacheStats()).toMatchObject({ activeRefs: 1, retainedBytes: 1600 });
     second.release();
     await expect(second.load()).rejects.toThrow('resource lease was released');
+  });
+
+  test('idle deadline marks an atlas evictable but defers GPU unload during a critical presentation', async () => {
+    const owner = acquireSharedPixiSheetResource(spec);
+    await owner.load();
+    const releaseCritical = acquireForegroundResourceCriticalLease('journey-card');
+    owner.release();
+
+    jest.advanceTimersByTime(1000);
+    await flush();
+    expect(unloadSpy).not.toHaveBeenCalled();
+    expect(getSharedPixiSheetRuntimeStats(spec).frames).toBe(4);
+
+    releaseCritical();
+    jest.runOnlyPendingTimers();
+    await flush();
+    expect(unloadSpy).toHaveBeenCalledWith(spec.sheetUrl);
+    expect(getSharedPixiSheetRuntimeStats(spec).frames).toBe(0);
   });
 
   test.each(['tile', 'variant', 'base', 'host'])('releases an owner invalidated during loading: %s', async (invalidated) => {

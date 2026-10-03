@@ -85,8 +85,15 @@ describe('Arcade adaptive soundtrack integration', () => {
     const stageClear = read('src/modules/arcade-stage-clear-modal.ts');
 
     expect(merge6Branch.indexOf('promoteArcadeSoundtrackAfterMerge6()')).toBeGreaterThanOrEqual(0);
+    const cleanBoardPostPaint = cleanBoard.slice(
+      cleanBoard.indexOf('const startPostPaintResultRuntime = () => {'),
+      cleanBoard.indexOf('document.body.appendChild(el);'),
+    );
     expect(cleanBoard).toContain(
-      'const restoreSoundtrackAfterResultAudio = fadeSoundtrackForResultHook();',
+      "let restoreSoundtrackAfterResultAudio: (target?: 'stable' | 'gameplay') => void = () => {};",
+    );
+    expect(cleanBoardPostPaint).toContain(
+      'restoreSoundtrackAfterResultAudio = fadeSoundtrackForResultHook();',
     );
     expect(cleanBoard).toContain('playCleanBoardApplauseSound();');
     expect(cleanBoard).toContain('onEnded: () => restoreSoundtrackAfterResultAudio(resultReleaseTarget),');

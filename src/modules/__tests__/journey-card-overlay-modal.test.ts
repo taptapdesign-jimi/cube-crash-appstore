@@ -197,13 +197,14 @@ describe('Journey two-sided card overlay prototype', () => {
     const modal = read('src/modules/journey-card-overlay-modal.ts');
     const css = read('src/collectibles-screen.css');
 
-    expect(modal).toContain('<h2 id="journey-card-flip-title" class="cc-gameplay-modal-title">${viewModel.heading}</h2>');
+    expect(modal).toContain('<h2 id="journey-card-flip-title" class="cc-gameplay-modal-title"></h2>');
+    expect(modal).toContain('title.textContent = viewModel.heading;');
     expect(modal).not.toContain('journey-card-flip-title-label');
     expect(modal).not.toContain('journey-card-flip-title-number');
     expect(css).toMatch(/\.journey-card-flip-title-section > h2 \{[\s\S]*?color: #ad8675;[\s\S]*?text-transform: none;/);
     expect(css).toMatch(/\.journey-card-flip-stat strong \{[\s\S]*?color: #e8744a;/);
-    expect(modal).toContain('<strong>${viewModel.highScore}</strong><span>High score</span>');
-    expect(modal).toContain('<strong>${viewModel.longestCombo}</strong><span>Longest combo</span>');
+    expect(modal).toContain('statValues[0].textContent = viewModel.highScore;');
+    expect(modal).toContain('statValues[1].textContent = viewModel.longestCombo;');
     expect(css).toMatch(/\.journey-card-flip-stat span \{[\s\S]*?color: #ad8775;[\s\S]*?text-transform: none;/);
     expect(css).not.toContain('.journey-card-flip-cta.cc-cta .cc-cta__visual');
   });
@@ -213,7 +214,8 @@ describe('Journey two-sided card overlay prototype', () => {
     const css = read('src/collectibles-screen.css');
 
     expect(modal).toContain('earnedStars: getJourneyEarnedStars(highScore, safeBoardId)');
-    expect(modal).toContain('aria-label="${viewModel.earnedStars} of 3 stars earned"');
+    expect(modal).toContain("stars.setAttribute('aria-label', `${viewModel.earnedStars} of 3 stars earned`);");
+    expect(modal).toContain("element.classList.toggle('is-earned', index < viewModel.earnedStars)");
     expect(modal).toContain('src="./assets/modals/star-empty.png"');
     expect(modal).toContain('src="./assets/modals/star.png"');
     expect(modal).toContain("'./assets/modals/star-empty.png',");
@@ -247,7 +249,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain('commonIdleShineAnimation = null;');
     expect(modal).toContain("commonShine.style.removeProperty('background-position')");
     expect(modal).toContain("commonShine.style.removeProperty('opacity')");
-    expect(modal).toContain("portaledCard && cardRarity === 'legendary' && options.cardImagePath2x");
+    expect(modal).not.toContain("portaledCard && cardRarity === 'legendary' && options.cardImagePath2x");
     expect(modal).toContain('export const JOURNEY_CARD_MOBILE_IDLE_CALM_MS = 1400;');
     expect(modal).toContain('if (MOBILE_RUNTIME_PROFILE.isMobileDevice)');
     expect(modal).toContain('surfaceIdleTimer = window.setTimeout(() => {');
@@ -351,11 +353,23 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(css).not.toContain('journey-card-flip-idle-shimmer');
   });
 
-  test('hands the currently rendered Legendary idle angle directly to pointer drag', () => {
+  test('samples rendered handoff state only when an animation owner is active', () => {
     const modal = read('src/modules/journey-card-overlay-modal.ts');
     const pointerDown = modal.slice(
       modal.indexOf('function handlePointerDown('),
       modal.indexOf('function handleAnyPointerInteraction('),
+    );
+    const angleHandoff = modal.slice(
+      modal.indexOf('const hasActiveRotorInterruption'),
+      modal.indexOf('const stopLegendaryIdleHolo'),
+    );
+    const impactHandoff = modal.slice(
+      modal.indexOf('const readImpactHandoffPose'),
+      modal.indexOf('const stopLegendaryIdleHolo'),
+    );
+    const idleHandoff = modal.slice(
+      modal.indexOf('const handoffSurfaceIdle'),
+      modal.indexOf('const canStartSurfaceIdle'),
     );
 
     expect(getJourneyCardRenderedRotateYAngle('rotateY(-21.6deg)')).toBe(-21.6);
@@ -378,7 +392,21 @@ describe('Journey two-sided card overlay prototype', () => {
     )).toEqual({ translateX: 0, translateY: -18, scale: 0.95 });
     expect(getJourneyCardImpactPresentationPose('matrix(1, 0, 0, 1, -34, 0)', 'none'))
       .toEqual({ translateX: -34, translateY: 0, scale: 1 });
-    expect(pointerDown).toContain('const impactHandoffPose = getJourneyCardImpactPresentationPose(');
+    expect(pointerDown).toContain('const impactHandoffPose = readImpactHandoffPose();');
+    expect(angleHandoff).toContain('if (!hasActiveRotorInterruption()) return stableRotorAngle();');
+    expect(angleHandoff).toContain('window.getComputedStyle(rotor)');
+    expect(impactHandoff).toContain('if (!hasActiveImpactInterruption) {');
+    expect(impactHandoff).toContain('impactShell.style.transform');
+    expect(impactHandoff).toContain('window.getComputedStyle(impactShell)');
+    expect(idleHandoff).toContain('surfaceIdlePresentationActive');
+    expect(idleHandoff).toContain('idleShellHandoffAnimation !== null');
+    expect(idleHandoff).toContain('? window.getComputedStyle(idleShell)');
+    expect(modal).toContain("event.animationName !== 'cc-gameplay-modal-idle-float'");
+    expect(modal).toContain("idleShell.addEventListener('animationend', handleSurfaceIdleAnimationEnd)");
+    expect(modal).toContain("idleShell.removeEventListener('animationend', handleSurfaceIdleAnimationEnd)");
+    expect(pointerDown).not.toContain('getComputedStyle');
+    expect(pointerDown).not.toContain('getAnimations');
+    expect(pointerDown).not.toContain('getBoundingClientRect');
     expect(pointerDown.indexOf('const dragHandoffAngle = readPointerHandoffAngle();'))
       .toBeLessThan(pointerDown.indexOf("handoffSurfaceIdle('freeze-for-pointer');"));
     expect(pointerDown.indexOf("handoffSurfaceIdle('freeze-for-pointer');"))
@@ -423,9 +451,13 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(cleanup).toContain("window.removeEventListener('pointercancel', handleWindowPointerCancel)");
   });
 
-  test('emits a bounded native pointer-owner trace without logging every move frame', () => {
+  test('buffers detailed pointer diagnostics and emits one bounded summary per gesture', () => {
     const modal = read('src/modules/journey-card-overlay-modal.ts');
-    expect(modal).toContain("emitNativeConsoleDiagnostic('[CC_JOURNEY_CARD_POINTER]', event");
+    expect(modal).toContain('const pointerTracingEnabled = areDetailedRuntimeDiagnosticsEnabled();');
+    expect(modal).toContain('if (!pointerTracingEnabled || pointerTraceEvents.length >= 10) return;');
+    expect(modal).toContain('pointerTraceEvents.push({');
+    expect(modal).toContain("emitNativeConsoleDiagnostic('[CC_JOURNEY_CARD_POINTER]', 'summary'");
+    expect(modal).toContain('events: pointerTraceEvents.splice(0)');
     expect(modal).toContain("tracePointerOwnership('pointerdown-rejected'");
     expect(modal).toContain("tracePointerOwnership('pointerdown-owned'");
     expect(modal).toContain("tracePointerOwnership('pointermove-first'");
@@ -435,6 +467,8 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain("source: 'rotor-up' | 'rotor-cancel' | 'lost-capture' | 'window-up' | 'window-cancel'");
     expect(modal).toContain('moveCount: pointerTraceMoveCount');
     expect(modal).not.toContain("tracePointerOwnership('pointermove-every-frame'");
+    expect(modal).not.toContain('rotorAnimationCount:');
+    expect(modal).not.toContain('idleShellAnimationCount:');
   });
 
   test('keeps enter and return as exact reverse turns with a centered physical edge', () => {
@@ -531,7 +565,7 @@ describe('Journey two-sided card overlay prototype', () => {
       .toBe(getJourneyCardDragFlipAngle(-180, 100, 390));
     const modal = read('src/modules/journey-card-overlay-modal.ts');
     const pointerMove = modal.slice(
-      modal.indexOf('function handlePointerMove('),
+      modal.indexOf('const paintPointerSample ='),
       modal.indexOf('function finishPointer('),
     );
     expect(pointerMove).toContain('getJourneyCardDragPresentationAngle(');
@@ -566,7 +600,8 @@ describe('Journey two-sided card overlay prototype', () => {
       "handoffSurfaceIdle(activePointerId !== null ? 'freeze-for-pointer' : 'settle');",
     );
     expect(interactiveFlip).toContain('const generation = ++flipGeneration;');
-    expect(interactiveFlip).toContain('if (generation !== flipGeneration || closing || settled) return;');
+    expect(interactiveFlip).toContain('if (generation !== flipGeneration || closing || !isCurrentShellOwner()) {');
+    expect(interactiveFlip).toContain('finishFlipCriticalWindow();');
     expect(interactiveFlip).toContain(
       '...JOURNEY_CARD_FLIP_RECOIL_STOPS.map((stop): Keyframe => ({',
     );
@@ -591,7 +626,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(getJourneyCardFlipFaceForAngle(-271)).toBe('front');
     expect(getJourneyCardFlipFaceForAngle(Number.NaN)).toBe('front');
     const pointerMove = modal.slice(
-      modal.indexOf('function handlePointerMove('),
+      modal.indexOf('const paintPointerSample ='),
       modal.indexOf('function finishPointer('),
     );
     expect(pointerMove).not.toContain('releasePointerCapture');
@@ -624,7 +659,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(pointerRelease).toContain('Number(previewAnimation.currentTime ?? 0) / settleDuration');
     expect(pointerRelease).toContain('const settleAngle = previewFromAngle + (previewToAngle - previewFromAngle) * progress;');
     expect(pointerRelease).toContain('setPaintFaceForAngle(settleAngle);');
-    expect(pointerRelease).toContain("if (flipping) {\n        impactShell.style.translate = 'none';\n        impactShell.style.transform = 'translate3d(0, 0, 0) scale(1)';\n        return;");
+    expect(pointerRelease).toContain("if (flipping) {\n        impactShell.style.translate = 'none';\n        impactShell.style.transform = 'translate3d(0, 0, 0) scale(1)';\n        finishGestureCriticalWindow();\n        return;");
   });
 
   test('uses a dominant up-or-down gesture to run the canonical dismiss', () => {
@@ -643,7 +678,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain("dragAxis !== 'horizontal'");
     expect(modal).toContain("void beginClose('dismiss')");
     const pointerMove = modal.slice(
-      modal.indexOf('function handlePointerMove('),
+      modal.indexOf('const paintPointerSample ='),
       modal.indexOf('function finishPointer('),
     );
     expect(pointerMove).toContain('getIosResistedModalVerticalDelta');
@@ -665,7 +700,7 @@ describe('Journey two-sided card overlay prototype', () => {
 
     const modal = read('src/modules/journey-card-overlay-modal.ts');
     const pointerMove = modal.slice(
-      modal.indexOf('function handlePointerMove('),
+      modal.indexOf('const paintPointerSample ='),
       modal.indexOf('function finishPointer('),
     );
     expect(pointerMove).toContain('dragAxis = resolveJourneyCardDragAxis(dragAxis, deltaX, deltaY);');
@@ -762,7 +797,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(css).toMatch(/\.journey-board-card > \.journey-card-ribbon > \.journey-card-ribbon-label \{[\s\S]*?font-weight: 700;[\s\S]*?translate3d\(calc\(-50% \+ 11px\), calc\(-50% - 10px\), 0\) rotate\(41deg\);/);
     expect(css).toMatch(/\.journey-card-overlay-portaled-card > \.journey-card-ribbon > \.journey-card-ribbon-label \{[\s\S]*?font-size: 8\.3cqw;[\s\S]*?translate3d\(calc\(-50% \+ 32px\), calc\(-50% - 33px\), 0\) rotate\(41deg\);/);
     expect(css).toMatch(/\.journey-card-ribbon-shimmer \{[\s\S]*?filter: brightness\(1\.32\) saturate\(1\.06\);[\s\S]*?-webkit-mask-image: linear-gradient\(110deg,[\s\S]*?animation: journey-card-ribbon-shimmer 3s ease-in-out 1 both;/);
-    expect(modal).toContain("stage.classList.toggle(\n    'has-new-ribbon',\n    cardHost.querySelector('.journey-card-ribbon') !== null");
+    expect(modal).toContain("stage.classList.toggle(\n    'has-new-ribbon',\n    cardHost.querySelector('.journey-card-ribbon:not([hidden])') !== null");
     expect(css).toMatch(/\.journey-card-flip-overlay\.has-new-ribbon \.journey-card-flip-shine \{[\s\S]*?display: none;/);
     expect(css).toMatch(/\.journey-card-overlay-portaled-card > \.journey-card-ribbon > \.journey-card-ribbon-shimmer \{[\s\S]*?animation-duration: 5\.1s;[\s\S]*?animation-iteration-count: 1;/);
     expect(css).toMatch(/\.journey-board-card\.has-new-ribbon::after \{[\s\S]*?animation: none !important;[\s\S]*?opacity: 0 !important;/);
@@ -835,7 +870,7 @@ describe('Journey two-sided card overlay prototype', () => {
 
     expect(modal.match(/class="journey-card-flip-rotor"/g)).toHaveLength(1);
     expect(modal.match(/journey-card-flip-face journey-card-flip-(?:front|back)/g)).toHaveLength(2);
-    expect(modal).toContain('options.origin.mountInto(cardHost);');
+    expect(modal).toContain('options.origin.mountInto(cardHost, { reusePortalVisual: true });');
     expect(modal).toContain('captureJourneyCardGeometry(frame, frame)');
     expect(modal).not.toContain('journey-card-overlay-depth-shell');
     expect(modal).not.toContain('beginDepthSwap');
@@ -850,7 +885,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(css).toMatch(/\[data-paint-face="front"\] \.journey-card-flip-back,[\s\S]*?\[data-paint-face="back"\] \.journey-card-flip-front \{[\s\S]*?visibility: hidden;/);
     expect(css).toMatch(/\.journey-card-flip-card-host > \.journey-card-overlay-portaled-card \{[\s\S]*?border-radius: var\(--journey-card-flip-radius\);[\s\S]*?clip-path: inset\(0 round var\(--journey-card-flip-radius\)\);/);
     expect(modal).toContain('rotor.style.transform = `rotateY(${angle}deg)`;');
-    expect(modal).toContain('const deltaX = event.clientX - dragStartX;');
+    expect(modal).toContain('const deltaX = sample.clientX - dragStartX;');
     expect(modal).toContain('Math.min(4, dragCardRect.left - horizontalSafeInset)');
     expect(modal).toContain('Math.min(4, dragViewportWidth - horizontalSafeInset - dragCardRect.right)');
     expect(modal).toContain('Math.min(dragHorizontalMaxX, dragImpactStartTranslateX + deltaX * 0.12)');
@@ -858,7 +893,10 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).not.toContain('if (Math.abs(deltaX) >= commitDistance) {');
     expect(modal).not.toContain('dragFlipZone');
     expect(modal).toContain('rotor.releasePointerCapture(event.pointerId)');
-    expect(modal).toContain('const deltaY = event.clientY - dragStartY;');
+    expect(modal).toContain('const deltaY = sample.clientY - dragStartY;');
+    expect(modal).toContain('pendingPointerPaint = sample;');
+    expect(modal).toContain('if (pointerPaintRaf !== 0) return;');
+    expect(modal).toContain('const nextSample = pendingPointerPaint;');
     expect(modal).not.toContain('mountJourneyCardFlipSpatialMotion');
     expect(modal).not.toContain('DeviceOrientationEvent');
   });
@@ -928,6 +966,26 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain("window.removeEventListener('pagehide', handleRouteChange)");
   });
 
+  test('reuses entry geometry for pointerdown and refreshes the cache outside interaction', () => {
+    const modal = read('src/modules/journey-card-overlay-modal.ts');
+    const pointerDown = modal.slice(
+      modal.indexOf('function handlePointerDown('),
+      modal.indexOf('function handleAnyPointerInteraction('),
+    );
+    const geometryOwner = modal.slice(
+      modal.indexOf('const cacheDragGeometry'),
+      modal.indexOf('const restoreEnvironment'),
+    );
+
+    expect(geometryOwner).toContain('if (geometry) cacheDragGeometry(geometry);');
+    expect(pointerDown).toContain('dragCardRect = cachedDragCardRect');
+    expect(pointerDown).toContain('?? createFallbackDragGeometry(dragViewportWidth, dragViewportHeight);');
+    expect(pointerDown).not.toContain('frame.getBoundingClientRect()');
+    expect(pointerDown).not.toContain('captureJourneyCardGeometry');
+    expect(modal).toContain("window.addEventListener('resize', refreshCachedDragGeometry)");
+    expect(modal).toContain("window.removeEventListener('resize', refreshCachedDragGeometry)");
+  });
+
   test('profiles modal-open phases with one bounded RAF owner and one native summary', () => {
     const modal = read('src/modules/journey-card-overlay-modal.ts');
     const manager = read('src/modules/journey-boards-manager.ts');
@@ -947,7 +1005,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(manager).toContain('openProfileManagerMarks,');
   });
 
-  test('prepaints both exact modal faces before hiding the live Journey card and starting flight', () => {
+  test('starts the portaled card flight after one geometry paint without blocking on image decode', () => {
     const modal = read('src/modules/journey-card-overlay-modal.ts');
     const manager = read('src/modules/journey-boards-manager.ts');
     const portal = read('src/modules/journey-card-portal-transition.ts');
@@ -960,8 +1018,9 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(prepareSource).toContain('primeJourneyCardSpatialFlight(');
     expect(prepareSource).toContain('left: destination.centerX - destination.width / 2');
     expect(prepareSource).toContain('waitForModalImageReady(image)');
-    expect(prepareSource).toContain("markOpenProfile('prepaint-front-face')");
-    expect(prepareSource).toContain("markOpenProfile('prepaint-back-face')");
+    expect(prepareSource).not.toContain('await Promise.all(');
+    expect(prepareSource).not.toContain("markOpenProfile('prepaint-front-face')");
+    expect(prepareSource).not.toContain("markOpenProfile('prepaint-back-face')");
     const activateIndex = prepareSource.indexOf('options.origin.activatePortal()');
     const flightIndex = prepareSource.indexOf('const entryPromise = startEntry(destination)');
     const revealIndex = prepareSource.indexOf("stage.classList.remove('is-prepainting')");
@@ -975,12 +1034,10 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).not.toContain('window.setTimeout(finish, JOURNEY_CARD_ENTRY_ASSET_TIMEOUT_MS)');
     const managerOpen = manager.split('private async openJourneyCardOverlayExperiment(')[1]
       ?.split('private async startJourneyBoardFromOverlay(')[0] ?? '';
-    expect(managerOpen.indexOf('await preloadJourneyCardOverlayEntryAssets('))
+    expect(managerOpen.indexOf('void preloadJourneyCardOverlayEntryAssets('))
       .toBeLessThan(managerOpen.indexOf("this.pauseJourneyWorldForCardOverlay('direct-card-open', cardElement)"));
     expect(managerOpen).toContain('releaseTransitionAudio = suspendSpeculativeGameplayAudioLoads()');
-    expect(managerOpen).toContain("markOpenProfile('entry-assets-ready')");
-    // Optional preloading is verified by the idle-owner behavioral suite;
-    // this contract protects the mandatory on-demand face readiness above.
+    expect(managerOpen).toContain("markOpenProfile('entry-assets-requested')");
   });
 
   test('keeps ordinary flips compositor-owned and reserves per-frame shine tracking for Legendary', () => {

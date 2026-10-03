@@ -3,6 +3,7 @@ import {
   clearAllAppIntervals,
   clearAllAppListeners,
   clearAllAppTimeouts,
+  clearTrackedAppTimeout,
   getAppCleanupStats,
   randomRegularTileValue,
   randVal,
@@ -136,6 +137,18 @@ describe('app-core-utils tracked timeouts', () => {
     jest.advanceTimersByTime(10);
     await Promise.resolve();
 
+    expect(getAppCleanupStats().timeouts).toBe(0);
+  });
+
+  test('one bounded owner can cancel its timeout without leaving a registry entry', () => {
+    const callback = jest.fn();
+    const timeout = trackAppTimeout(callback, 100);
+
+    expect(getAppCleanupStats().timeouts).toBe(1);
+    clearTrackedAppTimeout(timeout);
+    jest.advanceTimersByTime(100);
+
+    expect(callback).not.toHaveBeenCalled();
     expect(getAppCleanupStats().timeouts).toBe(0);
   });
 });

@@ -141,7 +141,8 @@ describe('Robo Cube special die', () => {
     expect(startupPreloaderSource).not.toContain("'./assets/shop/robo/robo-bouncy.svg'");
     expect(wildSkinSource).not.toContain('Texture.from(requestedAssetPath)');
     expect(wildSkinSource).toContain('isUsablePixiImageTexture(resolvedTexture)');
-    expect(wildSkinSource).toContain('reloadPixiImageTexture(requestedAssetPath)');
+    expect(wildSkinSource).toContain('await reloadSpecialTexture(requestedAssetPath)');
+    expect(wildSkinSource).toContain('if (!isCurrentTextureHandle(handle)) return');
     expect(fxSource).toContain("specialVariantId === 'mushroom' || specialVariantId === 'robo-cube'");
   });
 

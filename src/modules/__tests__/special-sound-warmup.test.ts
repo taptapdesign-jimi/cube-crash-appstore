@@ -1,6 +1,11 @@
 import { preloadKantaMerge6Sounds } from '../kanta-merge6-sound';
 jest.mock('../kanta-merge6-sound', () => ({ preloadKantaMerge6Sounds: jest.fn() }));
-import { getSpecialSoundWarmupFamilies, preloadEligibleSpecialSounds } from '../special-sound-warmup';
+import {
+  acquireSpecialSoundWorkingSetPlan,
+  getSpecialSoundWarmupFamilies,
+  preloadEligibleSpecialSounds,
+  resetSpecialSoundWorkingSetForTests,
+} from '../special-sound-warmup';
 import { preloadFishMerge6Sounds } from '../fish-merge6-sound';
 jest.mock('../fish-merge6-sound', () => ({ preloadFishMerge6Sounds: jest.fn() }));
 import { preloadBeachBallMerge6Sounds } from '../beach-ball-merge6-sound';
@@ -39,6 +44,15 @@ function warmed(boardNumber: number, isArcade = false, tiles: any[] = []): strin
   preloadEligibleSpecialSounds({ boardNumber, isArcade, tiles });
   return Object.entries(owners).filter(([, owner]) => jest.mocked(owner).mock.calls.length > 0).map(([name]) => name).sort();
 }
+
+function prepared(boardNumber: number, isArcade = false, tile: any): string[] {
+  Object.values(owners).forEach(owner => jest.mocked(owner).mockClear());
+  const plan = acquireSpecialSoundWorkingSetPlan({ boardNumber, isArcade, tiles: [tile] });
+  plan.prepareCommittedTransaction(tile);
+  return Object.entries(owners).filter(([, owner]) => jest.mocked(owner).mock.calls.length > 0).map(([name]) => name).sort();
+}
+
+afterEach(() => resetSpecialSoundWorkingSetForTests());
 test('entry does not decode possible rewards before a special exists', () => {
   expect(warmed(1)).toEqual([]);
   expect(warmed(7)).toEqual([]);
@@ -47,10 +61,13 @@ test('entry does not decode possible rewards before a special exists', () => {
   expect(warmed(1, true)).toEqual([]);
 });
 
-test.each([false, true])('a committed or restored core Star warms its package once in Arcade=%s', isArcade => {
-  expect(warmed(7, isArcade, [{ special: 'wild' }, { special: 'wild' }])).toEqual(['preloadWildStarMerge6Sound']);
+test.each([false, true])('a committed core Star transaction warms its package once in Arcade=%s', isArcade => {
+  const tile = { special: 'wild' };
+  const plan = acquireSpecialSoundWorkingSetPlan({ boardNumber: 7, isArcade, tiles: [tile, tile] });
+  expect(plan.prepareCommittedTransaction(tile)).toBe(true);
+  expect(plan.prepareCommittedTransaction(tile)).toBe(true);
   expect(preloadWildStarMerge6Sound).toHaveBeenCalledTimes(1);
-  expect(warmed(7, isArcade, [{ special: 'wild', destroyed: true }])).toEqual([]);
+  expect(plan.prepareCommittedTransaction({ special: 'wild', destroyed: true })).toBe(false);
 });
 
 test('entry keeps ordinary cues ready and leaves Star preparation with the committed-special owner', () => {
@@ -62,7 +79,64 @@ test('entry keeps ordinary cues ready and leaves Star preparation with the commi
     expect(source).toContain('preloadWildSpecialMerge6PoofSounds();');
   }
   const appCore: string = fs.readFileSync('src/modules/app-core.ts', 'utf8');
-  expect(appCore).toContain('preloadEligibleSpecialSounds({ boardNumber, isArcade: isArcadeHomeRunMode(), tiles: [spawnedTile] });');
+  expect(appCore).toContain("withGameplayAudioDiagnosticCaller('drop-special', refreshSpecialSoundWorkingSetPlan);");
+  expect(appCore).toContain("withGameplayAudioDiagnosticCaller('committed-special-transaction'");
+});
+
+test('app integration replaces, refreshes, prepares and releases the plan at committed lifecycle boundaries', () => {
+  const fs = require('node:fs');
+  const source: string = fs.readFileSync('src/modules/app-core.ts', 'utf8');
+
+  const startLevel = source.slice(
+    source.indexOf('async function startLevel(n)'),
+    source.indexOf('// --- local Wild skin fallback'),
+  );
+  const entryGeneration = startLevel.indexOf('beginGameplayEntryPreparation(`startLevel:${n}`)');
+  const previousPlanRelease = startLevel.indexOf('specialSoundWorkingSetPlan?.release();', entryGeneration);
+  const firstAsyncBoundary = startLevel.indexOf("await ensureCoreRenderTexturesGpuReady('startLevel'");
+  expect(entryGeneration).toBeGreaterThanOrEqual(0);
+  expect(previousPlanRelease).toBeGreaterThan(entryGeneration);
+  expect(firstAsyncBoundary).toBeGreaterThan(previousPlanRelease);
+  expect(startLevel.indexOf('maybeRebuildBoard({')).toBeGreaterThanOrEqual(0);
+  expect(startLevel.indexOf('replaceSpecialSoundWorkingSetPlan();')).toBeGreaterThan(
+    startLevel.indexOf('maybeRebuildBoard({'),
+  );
+
+  const savedLoad = source.slice(
+    source.indexOf('async function loadGameState('),
+    source.indexOf('// 🔥 CRITICAL: Function to stop PIXI ticker'),
+  );
+  const rulesCommitted = savedLoad.indexOf('applyRulesAfterLoad({');
+  const currentLoadGuard = savedLoad.indexOf("if (!isCurrentLoad()) return 'superseded' as const;", rulesCommitted);
+  const restoredRefresh = savedLoad.indexOf('refreshSpecialSoundWorkingSetPlan();', rulesCommitted);
+  expect(rulesCommitted).toBeGreaterThanOrEqual(0);
+  expect(currentLoadGuard).toBeGreaterThan(rulesCommitted);
+  expect(restoredRefresh).toBeGreaterThan(currentLoadGuard);
+
+  const spawn = source.slice(
+    source.indexOf('const ok = await openAtCell(cell.c, cell.r, {'),
+    source.indexOf('consumeCharge();', source.indexOf('const ok = await openAtCell(cell.c, cell.r, {')),
+  );
+  expect(spawn.indexOf('applySpecialDiceVariantToTile(spawnedTile, specialDiceVariant);')).toBeGreaterThanOrEqual(0);
+  expect(spawn.indexOf("withGameplayAudioDiagnosticCaller('drop-special', refreshSpecialSoundWorkingSetPlan);")).toBeGreaterThan(
+    spawn.indexOf('applySpecialDiceVariantToTile(spawnedTile, specialDiceVariant);'),
+  );
+
+  const transaction = source.slice(
+    source.indexOf('specialTransactionToken = beginSpecialDiceTransaction'),
+    source.indexOf('if (srcIsMagnetLike) markSpecialDiceResolutionOwned(src);'),
+  );
+  expect(transaction.indexOf('if (specialTransactionToken === null)')).toBeGreaterThanOrEqual(0);
+  expect(transaction.indexOf('specialSoundWorkingSetPlan?.prepareCommittedTransaction(committedSpecialTile);')).toBeGreaterThan(
+    transaction.indexOf('if (specialTransactionToken === null)'),
+  );
+
+  const cleanup = source.slice(
+    source.indexOf('export function cleanupGame('),
+    source.indexOf('// 🔥 CRITICAL FIX: Stop PIXI ticker FIRST', source.indexOf('export function cleanupGame(')),
+  );
+  expect(cleanup).toContain('specialSoundWorkingSetPlan?.release();');
+  expect(cleanup).toContain('specialSoundWorkingSetPlan = null;');
 });
 test('saved live variants and core specials extend eligibility without duplicates or destroyed tiles', () => {
   const tiles = [
@@ -71,19 +145,21 @@ test('saved live variants and core specials extend eligibility without duplicate
     { special: 'wild-tnt' },
     { special: 'wild-tnt', _ccSpecialDiceVariant: 'flower', destroyed: true },
   ];
-  expect(warmed(21, false, tiles)).toEqual(['preloadCoreTntMerge6Sound', 'preloadFishMerge6Sounds']);
-  expect(preloadFishMerge6Sounds).toHaveBeenCalledTimes(1);
+  expect(warmed(21, false, tiles)).toEqual([]);
+  expect(getSpecialSoundWarmupFamilies({ boardNumber: 21, isArcade: false, tiles })).toEqual(
+    new Set(['fish', 'tnt']),
+  );
   expect(getSpecialSoundWarmupFamilies({ boardNumber: 7, isArcade: false }).size).toBe(0);
 });
 
-test('a committed die warms only its exact package and gameplay foundation', () => {
-  expect(warmed(1, true, [{ special: 'wild-magnet', _ccSpecialDiceVariant: 'bottle' }])).toEqual([
+test('a committed transaction warms only its exact package and gameplay foundation', () => {
+  expect(prepared(1, true, { special: 'wild-magnet', _ccSpecialDiceVariant: 'bottle' })).toEqual([
     'preloadBottleFinaleSounds', 'preloadBottlePullMergeSounds', 'preloadMagnetPullForceSounds',
   ]);
-  expect(warmed(7, false, [{ special: 'wild-tnt', _ccSpecialDiceVariant: 'barell' }])).toEqual([
+  expect(prepared(7, false, { special: 'wild-tnt', _ccSpecialDiceVariant: 'barell' })).toEqual([
     'preloadBarrelMerge6Sounds', 'preloadCoreTntBonusImpactSounds',
   ]);
-  expect(warmed(12, false, [{ special: 'wild-juice' }])).toEqual(['preloadJuiceMerge6Sounds']);
+  expect(prepared(12, false, { special: 'wild-juice' })).toEqual(['preloadJuiceMerge6Sounds']);
 });
 
 const variantOwners: Record<string, string[]> = {
@@ -106,8 +182,46 @@ test('every registered authored variant has a reviewed sound-preparation owner',
   expect(Object.keys(variantOwners).sort()).toEqual(Object.keys(SPECIAL_DICE_VARIANTS).sort());
 });
 
-test.each(Object.entries(variantOwners))('%s warms its authored sounds and only the gameplay tails it actually plays', (id, expected) => {
-  expect(warmed(12, false, [{ special: SPECIAL_DICE_VARIANTS[id].archetype, _ccSpecialDiceVariant: id }])).toEqual(expected);
+test.each(Object.entries(variantOwners))('%s transaction warms its authored sounds and only the gameplay tails it actually plays', (id, expected) => {
+  expect(prepared(12, false, { special: SPECIAL_DICE_VARIANTS[id].archetype, _ccSpecialDiceVariant: id })).toEqual(expected);
+});
+
+test('cumulative Area 55 entry and spawn refresh never decode five complete finale families', () => {
+  const tiles = [
+    { special: 'wild' },
+    { special: 'wild', _ccSpecialDiceVariant: 'robo-cube' },
+    { special: 'wild-tnt', _ccSpecialDiceVariant: 'laser-gun' },
+    { special: 'wild-magnet', _ccSpecialDiceVariant: 'spaceship' },
+    { special: 'wild', _ccSpecialDiceVariant: 'kanta' },
+  ];
+  const plan = acquireSpecialSoundWorkingSetPlan({ boardNumber: 28, isArcade: false, tiles });
+  expect([...plan.getFamilies()].sort()).toEqual([
+    'kanta', 'laser-gun', 'robo-cube', 'spaceship', 'tnt-bonus', 'wild-star',
+  ]);
+  expect(plan.refresh({ boardNumber: 28, isArcade: false, tiles })).toBe(true);
+  expect(plan.refresh({ boardNumber: 28, isArcade: false, tiles: [...tiles, tiles[4]] })).toBe(true);
+  expect(Object.values(owners).every(owner => jest.mocked(owner).mock.calls.length === 0)).toBe(true);
+
+  expect(plan.prepareCommittedTransaction(tiles[2])).toBe(true);
+  expect(plan.prepareCommittedTransaction(tiles[2])).toBe(true);
+  expect(preloadLaserGunMerge6Sounds).toHaveBeenCalledTimes(1);
+  expect(preloadCoreTntBonusImpactSounds).toHaveBeenCalledTimes(1);
+  expect(preloadRoboCubeMerge6Sounds).not.toHaveBeenCalled();
+  expect(preloadSpaceshipMerge6Sounds).not.toHaveBeenCalled();
+  expect(preloadKantaMerge6Sounds).not.toHaveBeenCalled();
+  expect(preloadWildStarMerge6Sound).not.toHaveBeenCalled();
+});
+
+test('replacement and release invalidate stale board audio plans', () => {
+  const laser = { special: 'wild-tnt', _ccSpecialDiceVariant: 'laser-gun' };
+  const first = acquireSpecialSoundWorkingSetPlan({ boardNumber: 22, isArcade: false, tiles: [laser] });
+  const second = acquireSpecialSoundWorkingSetPlan({ boardNumber: 23, isArcade: false, tiles: [] });
+  expect(first.prepareCommittedTransaction(laser)).toBe(false);
+  expect(first.refresh({ boardNumber: 22, isArcade: false, tiles: [laser] })).toBe(false);
+  second.release();
+  second.release();
+  expect(second.prepareCommittedTransaction(laser)).toBe(false);
+  expect(preloadLaserGunMerge6Sounds).not.toHaveBeenCalled();
 });
 
 test.each([undefined, 'bottle', 'spaceship', 'honey'])('the actual Magnet pull caller only warms Honey for captured variant %s', (id) => {
@@ -142,7 +256,7 @@ test('fresh and restored entry share delayed generation-owned audio/media prepar
   const visibility = { hidden: false };
   const savedTiles = [{ special: 'wild', _ccSpecialDiceVariant: 'fish' }];
   const schedule = new Function('entryGeneration', 'entryBoard', 'isCurrent', 'isGameplayEntryGenerationLatest',
-    'boardNumber', 'trackAppTimeout', 'preloadEligibleSpecialSounds', 'isArcadeHomeRunMode', 'tiles',
+    'boardNumber', 'trackAppTimeout', 'refreshSpecialSoundWorkingSetPlan', 'isArcadeHomeRunMode', 'tiles',
     'getSpecialArtworkWarmupEligibility', 'preloadFishFinaleBubbles', 'preloadJuiceMerge6Sounds', 'preloadBarrelMerge6Sounds', 'preloadLiveJuiceFinaleTextures', 'document', 'withGameplayAudioDiagnosticCaller', body);
   const run = () => schedule(7, 24, () => current, () => latest, 24,
     (callback: () => void, delay: number) => { timers.push(callback); delays.push(delay); }, audio, () => false, savedTiles,
@@ -150,7 +264,7 @@ test('fresh and restored entry share delayed generation-owned audio/media prepar
   run();
   expect(delays).toEqual([600, 1600]);
   timers.splice(0).forEach(callback => callback());
-  expect(audio).toHaveBeenCalledWith({ boardNumber: 24, isArcade: false, tiles: savedTiles });
+  expect(audio).toHaveBeenCalledWith();
   expect(media).toHaveBeenCalledTimes(1);
   expect(juiceTextures).toHaveBeenCalledWith(savedTiles, expect.any(Function));
   expect(juice).not.toHaveBeenCalled();

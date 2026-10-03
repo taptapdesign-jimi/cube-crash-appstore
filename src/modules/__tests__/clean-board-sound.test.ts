@@ -104,10 +104,13 @@ describe('Clean Board result sounds', () => {
 
   test('connects cues to the exact animation starts and only earned filled stars', () => {
     const modal = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/clean-board-modal.ts'), 'utf8');
-    expect(modal.indexOf('document.body.appendChild(el);')).toBeLessThan(modal.indexOf('playCleanBoardApplauseSound();'));
-    expect(modal.indexOf('document.body.appendChild(el);')).toBeLessThan(modal.indexOf('playCleanBoardSaxophoneHappySound({'));
-    expect(modal.indexOf('playCleanBoardApplauseSound();')).toBeLessThan(modal.indexOf('playCleanBoardSaxophoneHappySound({'));
-    expect(modal).toContain('const restoreSoundtrackAfterResultAudio = fadeSoundtrackForResultHook();');
+    const postPaintRuntime = modal.split('const startPostPaintResultRuntime = () => {')[1]
+      ?.split('document.body.appendChild(el);')[0] ?? '';
+    expect(modal).toContain('trackTimeout(startPostPaintResultRuntime, 0);');
+    expect(postPaintRuntime.indexOf('playCleanBoardApplauseSound();')).toBeLessThan(
+      postPaintRuntime.indexOf('playCleanBoardSaxophoneHappySound({'),
+    );
+    expect(postPaintRuntime).toContain('restoreSoundtrackAfterResultAudio = fadeSoundtrackForResultHook();');
     expect(modal).toContain("resultReleaseTarget = 'gameplay';");
     expect(modal).toContain("restoreSoundtrackAfterResultAudio('gameplay');");
     expect(modal).toContain('playCleanBoardApplauseSound();');

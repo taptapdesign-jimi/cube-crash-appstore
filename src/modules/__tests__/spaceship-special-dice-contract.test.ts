@@ -192,7 +192,8 @@ describe('Spaceship special die', () => {
     expect(SPACESHIP_IDLE_FRAME_SECONDS).toBe(0.18);
     expect([0, 0.179, 0.18, 0.36, 0.54, 0.72].map((sample) => getSpaceshipIdleFrameIndex(sample, 4)))
       .toEqual([0, 0, 1, 2, 3, 0]);
-    expect(spriteOwner).toContain('Promise.allSettled(frameSources.map((source) => Assets.load(source)))');
+    expect(spriteOwner).toContain('Promise.allSettled(frameSources.map((source) => acquireVisualAssetTexture(source)))');
+    expect(spriteOwner).toContain('.filter(isVisualAssetTextureHandleCurrent)');
     expect(spriteOwner).toContain('base.texture = texture');
     expect(spriteOwner).toContain('base.width = paintedWidth');
     expect(spriteOwner).toContain('base.height = paintedHeight');

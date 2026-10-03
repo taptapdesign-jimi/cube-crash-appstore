@@ -178,7 +178,7 @@ describe('Barrel TNT archetype', () => {
     const uiSource = read('src/modules/ui-manager.ts');
     const journeySource = read('src/modules/journey-boards-manager.ts');
     expect(appSource).toContain('playBarrelMerge6Sound()');
-    expect(appSource).toContain('tiles: [spawnedTile]');
+    expect(appSource).toContain('specialSoundWorkingSetPlan?.prepareCommittedTransaction(committedSpecialTile);');
     expect(warmupSource).toContain("if (families.has('barell')) preloadBarrelMerge6Sounds();");
     expect(uiSource).not.toContain('preloadBarrelMerge6Sounds');
     expect(journeySource).not.toContain('preloadBarrelMerge6Sounds');

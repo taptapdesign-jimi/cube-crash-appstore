@@ -116,8 +116,11 @@ describe('terminal Journey preparation phase diagnostics', () => {
     expect(durations).toMatchObject({ 'transform-reset': 3, reconcile: 4, prime: 5, 'image-dispatch': 2, 'warm-dispatch': 2, 'image-ready': 202, 'forced-layout': 18, 'paint-frame-1': 16, 'paint-frame-2': 16, 'paint-frame-3': 16 });
     expect(durations['cold-render']).toBe(cold ? 40 : undefined);
     expect(f.owner.renderBoards).toHaveBeenCalledTimes(cold ? 1 : 0);
+    const target = document.getElementById('unit')!;
+    expect(target.style.opacity).toBe('0.001');
     expect(jest.getTimerCount()).toBe(0);
     f.owner.releaseJourneyReturnPaintWarmLease(7, 'visible-enter-promoted', false);
+    expect(target.style.opacity).toBe('0.001');
     capture.finish('duplicate');
     expect(postMessage).toHaveBeenCalledTimes(1);
   });
@@ -126,9 +129,12 @@ describe('terminal Journey preparation phase diagnostics', () => {
     const capture = beginJourneyTerminalPreparationPerformance(7, 'clean-board', 25)!;
     const f = managerFixture(true);
     f.prepare(capture);
+    const target = document.getElementById('unit')!;
+    expect(target.style.opacity).toBe('0.001');
     f.owner.releaseJourneyReturnPaintWarmLease(7, 'cancelled', true);
     expect(summary().reason).toBe('released:cancelled');
     expect(f.screen.hidden).toBe(true);
+    expect(target.style.opacity).toBe('');
     const emitted = postMessage.mock.calls[0][0].message;
     f.finishImages(); await flush();
     expect(f.owner.waitForTrackedFrames).not.toHaveBeenCalled();
@@ -223,6 +229,9 @@ describe('terminal Journey preparation phase diagnostics', () => {
     expect(turnSource).toContain('this.trackTimeout(');
     expect(turnSource).toContain('() => finish(false)');
     expect(prepareSource).toContain('const stageRoot = document.createElement');
+    expect(prepareSource).toContain('if (canReuseRetainedSurface)');
+    expect(prepareSource).toContain('this.reconcileMountedJourneyWorldCardUnits(container, worldId');
+    expect(prepareSource).toContain('reusedRetainedSurface: true');
     expect(prepareSource).toContain('await this.renderJourneyWorldIncrementally(');
     expect(renderSource).toContain('await this.waitForJourneyPreparationTurn(isCurrent)');
     expect(renderSource).toContain('boardIds: new Set(boardId === null ? [] : [boardId])');
@@ -236,6 +245,124 @@ describe('terminal Journey preparation phase diagnostics', () => {
     expect(primeSource).toContain('waitForTurn: () => this.waitForJourneyPreparationTurn(isCurrent)');
     expect(cancelSource).toContain('this.journeyTerminalReturnBuild.cancelled = true');
     expect(cancelSource).toContain('this.journeyTerminalReturnBuild = null');
+  });
+
+  test('warm gameplay return primes the retained World and replacement cannot publish a stale plan', async () => {
+    document.body.innerHTML = `
+      <section id="journey-screen" hidden class="hidden">
+        <div id="journey-boards-container" data-journey-v700-view="world" data-journey-v700-world-id="1">
+          <div id="world-main" data-journey-area-id="forest-main"></div>
+          <div class="journey-cards-container">
+            ${Array.from({ length: 10 }, (_, index) => (
+              `<div id="unit-${index + 1}" data-journey-area-id="board-${index + 1}"></div>`
+            )).join('')}
+          </div>
+        </div>
+      </section>`;
+    const container = document.getElementById('journey-boards-container') as HTMLElement;
+    const main = document.getElementById('world-main');
+    const unchangedUnit = document.getElementById('unit-3');
+    const replacedUnit = document.getElementById('unit-4');
+    let releaseFirstPrime!: () => void;
+    const firstPrimeGate = new Promise<void>((resolve) => { releaseFirstPrime = resolve; });
+    const renderJourneyWorldIncrementally = jest.fn(async () => true);
+    const owner: any = {
+      journeyTerminalReturnBuild: null,
+      journeyV700PreparedWorldEnter: null,
+      journeyGameplaySuspension: { surface: container },
+      renderDisposed: true,
+      renderLifecycleGeneration: 4,
+      journeyV700WorldId: 1,
+      journeyV700View: 'world',
+      container: null,
+      resumeForVisibleWorldReturn: jest.fn(function (this: any) {
+        if (!this.renderDisposed) return;
+        this.journeyGameplaySuspension = null;
+        this.renderDisposed = false;
+        this.renderLifecycleGeneration += 1;
+      }),
+      getJourneyWorldRange: () => ({ start: 1, end: 10 }),
+      getJourneyV700AnimationUnits: () => Array.from(
+        container.querySelectorAll<HTMLElement>('[data-journey-area-id]'),
+      ).map((target) => ({ id: target.id, targets: [target], clouds: [] })),
+      reconcileMountedJourneyWorldCardUnits: jest.fn((_container: HTMLElement, _worldId: number, reason: string) => {
+        if (!reason.includes('first')) return [];
+        const current = document.getElementById('unit-4');
+        if (!current || current !== replacedUnit) return [];
+        const replacement = current.cloneNode(false) as HTMLElement;
+        replacement.id = 'unit-4-reconciled';
+        current.replaceWith(replacement);
+        return [4];
+      }),
+      primeJourneyV700WorldEnterIncrementally: jest.fn(async (
+        _container: HTMLElement,
+        worldId: number,
+        ownerToken: number,
+      ) => {
+        if (ownerToken === -1) await firstPrimeGate;
+        const targets = Array.from(container.querySelectorAll<HTMLElement>('[data-journey-area-id]'));
+        return {
+          worldId,
+          renderGeneration: owner.renderLifecycleGeneration,
+          ownerToken,
+          units: targets.map((target) => ({ id: target.id, targets: [target], clouds: [] })),
+          targets,
+          cloudsPrimed: true,
+        };
+      }),
+      renderJourneyWorldIncrementally,
+      updateJourneyV700Nav: jest.fn(),
+      installJourneyScreenElasticOverscroll: jest.fn(),
+      installInterimAreaHitTargets: jest.fn(),
+      trackRAF: jest.fn(),
+      setupIdleInteractionListeners: jest.fn(),
+      retireJourneyBoardOwnersBeforeDomReplace: jest.fn(),
+      logJourneyV700Flow: jest.fn(),
+    };
+    const bind = (name: string) => {
+      const method = methods.get(name)!;
+      const code = ts.transpileModule(
+        `function run(${method.parameters.map(parameter => parameter.getText(parsed)).join(',')}) ${method.body!.getText(parsed)}`,
+        { compilerOptions: { target: ts.ScriptTarget.ES2022 } },
+      ).outputText;
+      return new Function('emitIOSNativeDiagnostic', `${code}; return run;`)(jest.fn()).bind(owner);
+    };
+    owner.isJourneyTerminalReturnBuildCurrent = bind('isJourneyTerminalReturnBuildCurrent');
+    owner.prepareJourneyV700WorldEnterFromReturnIncrementally = bind(
+      'prepareJourneyV700WorldEnterFromReturnIncrementally',
+    );
+    owner.playJourneyV700WorldEnterFromReturn = bind('playJourneyV700WorldEnterFromReturn');
+    owner.cancelPreparedJourneyV700WorldEnter = bind('cancelPreparedJourneyV700WorldEnter');
+    owner.releaseJourneyReturnPaintWarmLease = jest.fn();
+    owner.playJourneyV700WorldEnter = jest.fn();
+    owner.suspendForGameplay = jest.fn(function (this: any) { this.renderDisposed = true; });
+
+    const first = owner.prepareJourneyV700WorldEnterFromReturnIncrementally('first-return', -1);
+    const replacement = owner.prepareJourneyV700WorldEnterFromReturnIncrementally('replacement-return', -2);
+    await expect(replacement).resolves.toBe(true);
+    releaseFirstPrime();
+    await expect(first).resolves.toBe(false);
+
+    expect(renderJourneyWorldIncrementally).not.toHaveBeenCalled();
+    expect(document.getElementById('world-main')).toBe(main);
+    expect(document.getElementById('unit-3')).toBe(unchangedUnit);
+    expect(document.getElementById('unit-4')).toBeNull();
+    expect(document.getElementById('unit-4-reconciled')).not.toBe(replacedUnit);
+    expect(owner.journeyV700PreparedWorldEnter).toMatchObject({
+      ownerToken: -2,
+      reusedRetainedSurface: true,
+    });
+    expect(owner.trackRAF).not.toHaveBeenCalled();
+    owner.playJourneyV700WorldEnterFromReturn('game-return-test', { ownerToken: -2 });
+    owner.trackRAF.mock.calls.forEach(([callback]: [() => void]) => callback());
+    expect(owner.installInterimAreaHitTargets).toHaveBeenCalledTimes(1);
+    expect(owner.setupIdleInteractionListeners).toHaveBeenCalledTimes(1);
+
+    owner.cancelPreparedJourneyV700WorldEnter(-1, 'stale-owner');
+    expect(owner.journeyV700PreparedWorldEnter.ownerToken).toBe(-2);
+    owner.cancelPreparedJourneyV700WorldEnter(-2, 'replacement-cancelled');
+    expect(owner.journeyV700PreparedWorldEnter).toBeNull();
+    expect(owner.suspendForGameplay).toHaveBeenCalledTimes(1);
   });
 
   test.each([

@@ -12,6 +12,7 @@ const js = ts.transpileModule(`class WorldExitProbe { ${method} }`, {
 }).outputText;
 
 const finishAudit = jest.fn();
+const finishPerformance = jest.fn();
 const gsap = {
   killTweensOf: jest.fn(),
   set: jest.fn((targets: HTMLElement[], properties: Record<string, unknown>) => {
@@ -25,8 +26,12 @@ const gsap = {
 const Probe = new Function(
   'markIOSJourneyRouteAudit', 'startIOSJourneyWorldEnterAudit',
   'markIOSJourneyTransitionAudit', 'setJourneyAlienBeamIdleReady', 'gsap',
+  'beginTransitionPerformance',
   `${js}; return WorldExitProbe;`,
-)(jest.fn(), () => finishAudit, jest.fn(), jest.fn(), gsap);
+)(jest.fn(), () => finishAudit, jest.fn(), jest.fn(), gsap, () => ({
+  phase: <T>(_name: string, work: () => T) => work(),
+  finish: finishPerformance,
+}));
 
 describe('Journey World exit watchdog', () => {
   beforeEach(() => {
@@ -80,6 +85,7 @@ describe('Journey World exit watchdog', () => {
       overwrite: true,
     }));
     expect(finishAudit).toHaveBeenCalledWith('watchdog');
+    expect(finishPerformance).toHaveBeenCalledWith('watchdog');
     expect(complete).toHaveBeenCalledTimes(1);
   });
 });

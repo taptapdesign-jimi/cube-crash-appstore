@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import ts from 'typescript';
 import gsap from 'gsap';
+import { JourneyStageController } from '../journey-stage-controller';
 const file = ts.createSourceFile('journey.ts', fs.readFileSync('src/modules/journey-boards-manager.ts', 'utf8'), ts.ScriptTarget.Latest, true);
 const methods = new Map<string, ts.MethodDeclaration>();
 function visit(node: ts.Node) { if (ts.isMethodDeclaration(node)) methods.set(node.name.getText(file), node); ts.forEachChild(node, visit); }
@@ -14,6 +15,7 @@ function fixture(detailed = false) {
   const outgoing = document.getElementById('outgoing')!;
   const preparedEnter = { worldId: 1, renderGeneration: 1, ownerToken: null, targets: [incoming], units: [{ id: 'unit', targets: [incoming] }] };
   const owner: any = { journeyWorldPrepaintStage: { ready: true, worldId: 1, host, root, preparedEnter },
+    journeyStageController: new JourneyStageController(), journeyHubRuntime: { deactivate: jest.fn() },
     renderLifecycleGeneration: 2,
     journeyAreaIdleTicker: () => {}, journeyAreaIdleEntries: [{}], journeyAreaIdleEntryByVisibilityTarget: new Map(),
     journeyAreaIdleVisibilityObserver: { disconnect: jest.fn() }, beginRenderLifecycle: jest.fn(), cancelJourneyV700HubEnter: jest.fn(),
@@ -55,6 +57,8 @@ test('actual World commit retires outgoing GSAP owners once while preserving inc
   });
   expect(f.owner.releaseJourneyMainCloudComposites).toHaveBeenCalledWith('hub-to-world-commit', new Set([1]));
   expect(f.owner.journeyWorldPrepaintStage).toBeNull();
+  expect(f.owner.journeyHubRuntime.deactivate).toHaveBeenCalledTimes(1);
+  expect(f.owner.journeyStageController.hasRetained({ view: 'hub' })).toBe(true);
 });
 
 test('ordinary full replacement still retires every child owner', () => {

@@ -1,9 +1,10 @@
 import { logger } from '../core/logger.js';
 import { applySoundEffectsMasterGain } from './sound-effects-volume.ts';
 import {
+  acquireDecodedGameplayAudioPackage,
   getDecodedGameplaySoundsState,
   playDecodedGameplaySound,
-  preloadDecodedGameplaySounds,
+  preloadDecodedGameplayAudioPackage,
   stopDecodedGameplayVoices,
 } from './gameplay-audio-buffer-player.ts';
 
@@ -27,6 +28,15 @@ const VOICE_IDS = [
   'journey-card-entry-flip-soft',
 ] as const;
 const MANUAL_FLIP_VOICE_ID = 'journey-card-manual-flip-soft';
+const JOURNEY_CARD_AUDIO_PACKAGE = {
+  id: 'journey-ui-card-flip',
+  sources: [
+    ...JOURNEY_CARD_ENTRY_FLIP_SOUND_SOURCES,
+    JOURNEY_CARD_MANUAL_FLIP_SOUND_SOURCE,
+  ],
+  // 0.71 MiB at the target 48 kHz; keep a conservative complete-package cap.
+  maxDecodedBytes: 1 * 1024 * 1024,
+} as const;
 const mediaAudioBySource = new Map<string, HTMLAudioElement>();
 
 function areSoundsEnabled(): boolean {
@@ -47,12 +57,16 @@ function getMediaAudio(source: string): HTMLAudioElement | null {
 
 export function preloadJourneyCardEntryFlipSounds(): boolean {
   if (!areSoundsEnabled()) return false;
-  const sources = [
-    ...JOURNEY_CARD_ENTRY_FLIP_SOUND_SOURCES,
-    JOURNEY_CARD_MANUAL_FLIP_SOUND_SOURCE,
-  ];
-  return preloadDecodedGameplaySounds(sources)
-    || sources.every(source => getMediaAudio(source) !== null);
+  return preloadDecodedGameplayAudioPackage(JOURNEY_CARD_AUDIO_PACKAGE)
+    || JOURNEY_CARD_AUDIO_PACKAGE.sources.every(source => getMediaAudio(source) !== null);
+}
+
+export function acquireJourneyCardEntryFlipAudioResidency(): () => void {
+  if (!areSoundsEnabled()) return () => {};
+  return acquireDecodedGameplayAudioPackage(
+    'journey-card-overlay',
+    JOURNEY_CARD_AUDIO_PACKAGE,
+  ).release;
 }
 
 export function playJourneyCardManualFlipSound(): boolean {

@@ -171,6 +171,53 @@ describe('decoded gameplay audio owner', () => {
     expect(getDecodedGameplayAudioStats(true).voiceDetails?.[0].expectedEndAudioSeconds).toBe(17);
   });
 
+  it('retires a completed one-shot when WebKit reports running but its audio clock is frozen', async () => {
+    const source = './frozen-clock.wav';
+    preloadDecodedGameplaySounds([source]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const context = MockAudioContext.instances[0];
+    const onEnded = jest.fn();
+    jest.useFakeTimers();
+    try {
+      expect(playDecodedGameplaySound(source, {
+        voiceId: 'frozen-clock-one-shot', volume: 0.4, onEnded,
+      })).toBe('played');
+      expect(getDecodedGameplayAudioStats()).toMatchObject({ activeVoices: 1, idleBytes: 0 });
+
+      jest.advanceTimersByTime(2249);
+      expect(getDecodedGameplayAudioStats().activeVoices).toBe(1);
+      // currentTime deliberately remains 10: this is the physical WKWebView
+      // failure from the retained trace, where native onended never arrived.
+      jest.advanceTimersByTime(1);
+      expect(context.currentTime).toBe(10);
+      expect(context.sources[0].stop).toHaveBeenCalledTimes(1);
+      expect(context.sources[0].disconnect).toHaveBeenCalledTimes(1);
+      expect(getDecodedGameplayAudioStats()).toMatchObject({ activeVoices: 0, idleBytes: 768000 });
+      expect(onEnded).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('cancels the wall-clock completion guard when native onended arrives', async () => {
+    const source = './native-ended.wav';
+    preloadDecodedGameplaySounds([source]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const context = MockAudioContext.instances[0];
+    const onEnded = jest.fn();
+    jest.useFakeTimers();
+    try {
+      playDecodedGameplaySound(source, { voiceId: 'native-ended', volume: 0.4, onEnded });
+      context.sources[0].onended?.();
+      jest.advanceTimersByTime(5000);
+      expect(context.sources[0].stop).not.toHaveBeenCalled();
+      expect(onEnded).toHaveBeenCalledTimes(1);
+      expect(getDecodedGameplayAudioStats().activeVoices).toBe(0);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('loops and fades a decoded ambient voice through its native gain owner', async () => {
     const source = './assets/sound/worlds/Forest/soft bees ambiance.wav';
     preloadDecodedGameplaySounds([source]);
@@ -778,7 +825,7 @@ describe('decoded gameplay audio owner', () => {
       expect(getDecodedGameplayAudioStats()).toMatchObject({ decodedBytes: 48 * 1024 * 1024, activeVoices: 2 });
     });
 
-    it('keeps an oversized active loop and releases it only after its final voice stops', async () => {
+    it('keeps an oversized active loop but does not let a completed sibling pin its buffer', async () => {
       preloadDecodedGameplaySounds([]);
       const context = MockAudioContext.instances[0];
       context.decodeAudioData.mockResolvedValue(bufferMiB(80));
@@ -786,10 +833,10 @@ describe('decoded gameplay audio owner', () => {
       await flush();
       expect(playDecodedGameplaySound('loop.wav', { voiceId: 'second', volume: 0.4 })).toBe('played');
       jest.advanceTimersByTime(60_000);
-      stopDecodedGameplayVoice('first');
       expect(getDecodedGameplayAudioStats()).toMatchObject({ decodedBuffers: 1, idleBytes: 0, activeVoices: 1 });
-      expect(context.sources[1].stop).not.toHaveBeenCalled();
-      stopDecodedGameplayVoice('second');
+      expect(context.sources[1].stop).toHaveBeenCalledTimes(1);
+      expect(context.sources[0].stop).not.toHaveBeenCalled();
+      stopDecodedGameplayVoice('first');
       expect(getDecodedGameplayAudioStats()).toMatchObject({ decodedBuffers: 0, decodedBytes: 0 });
     });
 

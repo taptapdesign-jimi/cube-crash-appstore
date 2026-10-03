@@ -22,11 +22,23 @@ import {
   resetCleanBoardSoundsForTests,
   stopCleanBoardSounds,
 } from '../clean-board-sound';
-import { preloadDecodedGameplaySounds } from '../gameplay-audio-buffer-player';
+import {
+  getDecodedGameplaySoundsState,
+  playDecodedGameplaySound,
+  preloadDecodedGameplayAudioPackage,
+  preloadDecodedGameplaySounds,
+} from '../gameplay-audio-buffer-player';
+import { MOBILE_RUNTIME_PROFILE } from '../mobile-runtime-profile';
+
+jest.mock('../mobile-runtime-profile', () => ({
+  MOBILE_RUNTIME_PROFILE: { isMobileDevice: true },
+}));
 
 jest.mock('../gameplay-audio-buffer-player', () => ({
-  getDecodedGameplaySoundsState: () => 'unavailable',
+  acquireDecodedGameplayAudioPackage: jest.fn(() => ({ admitted: true, release: jest.fn() })),
+  getDecodedGameplaySoundsState: jest.fn(() => 'unavailable'),
   playDecodedGameplaySound: jest.fn(),
+  preloadDecodedGameplayAudioPackage: jest.fn(),
   preloadDecodedGameplaySounds: jest.fn(),
   stopDecodedGameplayVoices: jest.fn(),
 }));
@@ -53,10 +65,14 @@ describe('Clean Board actual HTML fallback allocation', () => {
 
   beforeEach(() => {
     jest.useFakeTimers();
+    jest.clearAllMocks();
     global.Audio = CountingMedia as unknown as typeof Audio;
     CountingMedia.instances = [];
+    MOBILE_RUNTIME_PROFILE.isMobileDevice = true;
     (window as any)._settings = { gameSoundsEnabled: true };
+    jest.mocked(preloadDecodedGameplayAudioPackage).mockReturnValue(false);
     jest.mocked(preloadDecodedGameplaySounds).mockReturnValue(false);
+    jest.mocked(getDecodedGameplaySoundsState).mockReturnValue('unavailable');
   });
 
   afterEach(() => {
@@ -151,14 +167,69 @@ describe('Clean Board actual HTML fallback allocation', () => {
     expect(fastPoints.volume).toBe(CLEAN_BOARD_FAST_POINTS_STACK_VOLUME);
   });
 
-  test('decoded preparation and Sounds OFF allocate no HTML fallback elements', () => {
-    jest.mocked(preloadDecodedGameplaySounds).mockReturnValue(true);
+  test('mobile decoded preparation allocates media only for long results and Sounds OFF adds nothing', () => {
+    jest.mocked(preloadDecodedGameplayAudioPackage).mockReturnValue(true);
     expect(preloadCleanBoardSounds()).toBe(true);
-    expect(CountingMedia.instances).toHaveLength(0);
+    expect(CountingMedia.instances).toHaveLength(2);
+    expect(CountingMedia.instances.map(audio => audio.src)).toEqual([
+      CLEAN_BOARD_APPLAUSE_SOUND_SOURCE,
+      CLEAN_BOARD_SAXOPHONE_HAPPY_SOUND_SOURCE,
+    ]);
+    expect(preloadDecodedGameplayAudioPackage).toHaveBeenLastCalledWith(expect.objectContaining({
+      id: 'result-clean-board-short',
+      sources: [
+        CLEAN_BOARD_MONEY_COUNT_SOUND_SOURCE,
+        CLEAN_BOARD_FAST_POINTS_STACK_SOUND_SOURCE,
+        CLEAN_BOARD_STAR_BOUNCE_SOUND_SOURCE,
+        './assets/sound/Clean board/harp1.wav',
+        './assets/sound/Clean board/harp2.wav',
+        './assets/sound/Clean board/harp3.wav',
+        CLEAN_BOARD_CTA_BOUNCE_SOUND_SOURCE,
+      ],
+    }));
 
     (window as any)._settings.gameSoundsEnabled = false;
     expect(preloadCleanBoardSounds()).toBe(false);
     expect(playCleanBoardApplauseSound()).toBe(false);
+    expect(CountingMedia.instances).toHaveLength(2);
+  });
+
+  test('mobile applause and sax never enter decoded playback while short cues stay decoded', () => {
+    jest.mocked(preloadDecodedGameplayAudioPackage).mockReturnValue(true);
+    jest.mocked(getDecodedGameplaySoundsState).mockReturnValue('ready');
+    jest.mocked(playDecodedGameplaySound).mockReturnValue('played');
+    expect(preloadCleanBoardSounds()).toBe(true);
+
+    expect(playCleanBoardApplauseSound()).toBe(true);
+    expect(playCleanBoardSaxophoneHappySound()).toBe(true);
+    expect(playDecodedGameplaySound).not.toHaveBeenCalled();
+
+    expect(playCleanBoardMoneyCountSound(2)).toBe(true);
+    expect(playCleanBoardEarnedStarSound(0, createCleanBoardStarHarpOrder(() => 0)[0])).toBe(true);
+    expect(playDecodedGameplaySound).toHaveBeenCalledTimes(4);
+    expect(jest.mocked(playDecodedGameplaySound).mock.calls.map(([source]) => source)).toEqual([
+      CLEAN_BOARD_MONEY_COUNT_SOUND_SOURCE,
+      CLEAN_BOARD_FAST_POINTS_STACK_SOUND_SOURCE,
+      CLEAN_BOARD_STAR_BOUNCE_SOUND_SOURCE,
+      './assets/sound/Clean board/harp2.wav',
+    ]);
+  });
+
+  test('desktop retains the decoded-first transport for the complete Clean Board family', () => {
+    MOBILE_RUNTIME_PROFILE.isMobileDevice = false;
+    jest.mocked(preloadDecodedGameplaySounds).mockReturnValue(true);
+    jest.mocked(getDecodedGameplaySoundsState).mockReturnValue('ready');
+    jest.mocked(playDecodedGameplaySound).mockReturnValue('played');
+
+    expect(preloadCleanBoardSounds()).toBe(true);
     expect(CountingMedia.instances).toHaveLength(0);
+    expect(jest.mocked(preloadDecodedGameplaySounds).mock.calls[0][0]).toEqual(expect.arrayContaining([
+      CLEAN_BOARD_APPLAUSE_SOUND_SOURCE,
+      CLEAN_BOARD_SAXOPHONE_HAPPY_SOUND_SOURCE,
+      CLEAN_BOARD_MONEY_COUNT_SOUND_SOURCE,
+    ]));
+    expect(playCleanBoardApplauseSound()).toBe(true);
+    expect(playCleanBoardSaxophoneHappySound()).toBe(true);
+    expect(playDecodedGameplaySound).toHaveBeenCalledTimes(2);
   });
 });

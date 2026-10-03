@@ -315,6 +315,15 @@
   contain: strict;
 }
 
+/* The native plane moves with content, not with the viewport. Its original
+   viewport bounds must NOT become a second moving clip (especially when a
+   Unit enters across the fold during a swipe). The real scrollport remains
+   the clipping owner. Keep layout/size isolation and the perspective origin. */
+.journey-card-return-reminder.is-native-scroll-anchored {
+  overflow: visible;
+  contain: size layout style;
+}
+
 .journey-card-return-reminder.is-prepainting {
   opacity: 0.001;
   visibility: visible;
@@ -2622,11 +2631,11 @@
   will-change: transform;
 }
 
-.cc-mobile-runtime .journey-v700-hub.journey-v700-banners-presented
+.cc-mobile-runtime .journey-v700-hub.journey-v700-banners-idle-ready
   .journey-v700-world-card.journey-v700-runtime-active .journey-v700-world-banner,
-.cc-mobile-runtime .journey-v700-hub.journey-v700-banners-presented
+.cc-mobile-runtime .journey-v700-hub.journey-v700-banners-idle-ready
   .journey-v700-world-card.journey-v700-runtime-active .journey-v700-world-banner-flag-fx::before,
-.cc-mobile-runtime .journey-v700-hub.journey-v700-banners-presented
+.cc-mobile-runtime .journey-v700-hub.journey-v700-banners-idle-ready
   .journey-v700-world-card.journey-v700-runtime-active .journey-v700-world-banner-flag-fx::after {
   animation-play-state: running;
 }
@@ -2637,11 +2646,11 @@
   .journey-v700-world-cloud:not(.journey-v700-runtime-active),
 .cc-mobile-runtime .journey-v700-hub.journey-v700-tilt-ready
   .journey-v700-world-card:not(.journey-v700-runtime-active) .journey-v700-world-tilt-shell,
-.cc-mobile-runtime .journey-v700-hub.journey-v700-banners-presented
+.cc-mobile-runtime .journey-v700-hub.journey-v700-banners-idle-ready
   .journey-v700-world-card:not(.journey-v700-runtime-active) .journey-v700-world-banner,
-.cc-mobile-runtime .journey-v700-hub.journey-v700-banners-presented
+.cc-mobile-runtime .journey-v700-hub.journey-v700-banners-idle-ready
   .journey-v700-world-card:not(.journey-v700-runtime-active) .journey-v700-world-banner-flag-fx::before,
-.cc-mobile-runtime .journey-v700-hub.journey-v700-banners-presented
+.cc-mobile-runtime .journey-v700-hub.journey-v700-banners-idle-ready
   .journey-v700-world-card:not(.journey-v700-runtime-active) .journey-v700-world-banner-flag-fx::after {
   animation-play-state: paused;
   will-change: auto;
@@ -2714,6 +2723,9 @@
 
 .journey-v700-hub.journey-v700-banners-presented .journey-v700-world-banner {
   translate: 0 0;
+}
+
+.journey-v700-hub.journey-v700-banners-idle-ready .journey-v700-world-banner {
   animation-play-state: running;
 }
 

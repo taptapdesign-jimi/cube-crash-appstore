@@ -811,6 +811,26 @@ export function animateCollectiblesScreenEnter(
       options,
     );
   }
+
+  const isJourneyV700Hub = journeyScreen.querySelector('.journey-v700-hub') !== null;
+  const completionPromises: Promise<void>[] = [];
+  const trackCompletionTween = (target: gsap.TweenTarget, vars: gsap.TweenVars): void => {
+    completionPromises.push(new Promise((resolve) => {
+      const originalOnComplete = vars.onComplete;
+      const originalOnInterrupt = vars.onInterrupt;
+      trackTween(target, {
+        ...vars,
+        onComplete: function (...args: any[]) {
+          if (typeof originalOnComplete === 'function') originalOnComplete.apply(this, args);
+          resolve();
+        },
+        onInterrupt: function (...args: any[]) {
+          if (typeof originalOnInterrupt === 'function') originalOnInterrupt.apply(this, args);
+          resolve();
+        },
+      });
+    }));
+  };
   
   // 🔥 CRITICAL: Set initial state - journey screen, header and scrollable scale from 0
 
@@ -862,7 +882,7 @@ export function animateCollectiblesScreenEnter(
   // Use explicit values instead of autoAlpha for better mobile compatibility
   // Set visibility: visible immediately, then animate opacity
   gsap.set(journeyScreen, { visibility: 'visible', immediateRender: true });
-  trackTween(journeyScreen, {
+  trackCompletionTween(journeyScreen, {
     opacity: 1,
     duration: 0.3,
     ease: 'power2.out',
@@ -884,7 +904,7 @@ export function animateCollectiblesScreenEnter(
       transformOrigin: '50% 0%',
       immediateRender: true,
     });
-    trackTween(collectiblesHeader, {
+    trackCompletionTween(collectiblesHeader, {
       scale: 1,
       y: 0,
       opacity: 1,
@@ -919,28 +939,44 @@ export function animateCollectiblesScreenEnter(
       bgContainer.style.display = 'block';
     }
     
-    // Set visibility first, then animate scrollable container
-    gsap.set(collectiblesScrollable, { visibility: 'visible', immediateRender: true });
-    if (!startJourneyHubScrollableEnter(collectiblesScrollable)) trackTween(collectiblesScrollable, {
-      scale: 1,
-      y: 0,
-      opacity: 1,
-      duration: 0.54,
-      ease: 'back.out(1.75)',
-      delay: 0.1,
-      force3D: true,
-      immediateRender: false,
-      onComplete: () => {
-        if (collectiblesScrollable) {
-          try {
-            gsap.set(collectiblesScrollable, { clearProps: 'transform' });
-          } catch {}
+    // Hub Worlds already own the complete authored Unit cascade. Keep their
+    // common scroll ancestor neutral so WebKit never composites a second
+    // full-surface transform over the card GSAP owners.
+    if (isJourneyV700Hub) {
+      cancelJourneyHubScrollableEnter();
+      gsap.killTweensOf(collectiblesScrollable);
+      gsap.set(collectiblesScrollable, {
+        scale: 1,
+        y: 0,
+        opacity: 1,
+        visibility: 'visible',
+        clearProps: 'transform',
+        immediateRender: true,
+      });
+    } else {
+      // Set visibility first, then animate the legacy non-Hub surface.
+      gsap.set(collectiblesScrollable, { visibility: 'visible', immediateRender: true });
+      if (!startJourneyHubScrollableEnter(collectiblesScrollable)) trackCompletionTween(collectiblesScrollable, {
+        scale: 1,
+        y: 0,
+        opacity: 1,
+        duration: 0.54,
+        ease: 'back.out(1.75)',
+        delay: 0.1,
+        force3D: true,
+        immediateRender: false,
+        onComplete: () => {
+          if (collectiblesScrollable) {
+            try {
+              gsap.set(collectiblesScrollable, { clearProps: 'transform' });
+            } catch {}
+          }
         }
-      }
-    });
+      });
+    }
   }
   
-  return Promise.resolve();
+  return Promise.all(completionPromises).then(() => undefined);
 }
 
 /**

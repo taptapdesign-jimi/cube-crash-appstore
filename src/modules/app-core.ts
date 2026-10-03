@@ -1,4 +1,7 @@
-import { preloadEligibleSpecialSounds } from './special-sound-warmup';
+import {
+  acquireSpecialSoundWorkingSetPlan,
+  type SpecialSoundWorkingSetPlan,
+} from './special-sound-warmup';
 import { setGameplayAudioDiagnosticContextProvider, withGameplayAudioDiagnosticCaller } from './gameplay-audio-diagnostics.ts';
 import { getSpecialArtworkWarmupEligibility } from './special-artwork-warmup-eligibility';
 // public/src/modules/app.js
@@ -95,7 +98,10 @@ import { devLog, devWarn, devError } from './app-core-logger.ts';
 import { getRendererPerformanceProfile } from './renderer-performance-profile.ts';
 import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.ts';
 import { shouldIgnoreSettledMobileBoardResize } from './gameplay-board-layout-policy.ts';
-import { ForegroundResumeEpoch } from './foreground-resume-epoch.ts';
+import {
+  GameplayRendererSupervisor,
+  type GameplayRendererRecoveryTrigger,
+} from './gameplay-renderer-supervisor.ts';
 import { createHudHelpers } from './app-core-hud-helpers.ts';
 import type { Tile, Board, Grid, HUD as HUDType, Stage as StageType, Drag } from '../types/game-types.js';
 import type { RuntimeGameBridge } from '../types/runtime-game-bridge.ts';
@@ -118,6 +124,7 @@ import {
   randomRegularTileValue,
   isFirstPlayTutorialRunActive,
   trackAppTimeout,
+  clearTrackedAppTimeout,
   waitTracked,
   waitTrackedResult,
   clearAllAppTimeouts,
@@ -137,6 +144,14 @@ import {
   probePixiImageTextureGpuPixels,
   reloadPixiImageTexture,
 } from '../utils/pixi-image-texture-health.ts';
+import {
+  getVisualAssetRendererGeneration,
+  invalidateVisualAssetRendererGeneration,
+} from '../utils/visual-asset-broker.ts';
+import {
+  hideGameplayRendererRecoveryFallback,
+  showGameplayRendererRecoveryFallback,
+} from './gameplay-renderer-recovery-fallback.ts';
 import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.ts';
 import { applyAppPaperBackground } from '../utils/app-paper-background.js';
 import { getReactiveActiveTiles, getScreenVisibility } from './app-core-state-helpers.ts';
@@ -208,6 +223,7 @@ import {
   isGameplayEntryPending,
   prepareGameplayEntryCommit,
 } from './gameplay-entry-coordinator.ts';
+import { acquireForegroundResourceCriticalLease } from './foreground-resource-coordinator.ts';
 import { boardTransitionPresentationHandoff } from './board-transition-presentation-handoff.ts';
 import { applyWildSkinLocalCore } from './app-core-wild-skin.ts';
 import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
@@ -341,7 +357,15 @@ import { bindTileWithFallbackCore } from './app-core-bind.ts';
 import { saveAfterBoardStart, saveArcadeRoundAfterEntry } from './app-core-startlevel-save.ts';
 import { runStartLevelPost } from './app-core-startlevel-post.ts';
 import { maybeRebuildBoard } from './app-core-startlevel-rebuild.ts';
-import { OpenCellCancelledError, openAtCellCore } from './app-core-open-cell.ts';
+import { OpenCellCancelledError, openAtCellCore, type OpenCellSpawnCommit } from './app-core-open-cell.ts';
+import {
+  BoardMutationEpochOwner,
+  type BoardMutationEpoch,
+} from './board-mutation-epoch-owner.ts';
+import {
+  GameplayTransactionOwner,
+  type CommittedGameplayTransaction,
+} from './gameplay-transaction-owner.ts';
 import { getRandomEmptyCell } from './app-core-random-empty.ts';
 import { hasLastMergeTile } from './app-core-wild-preload.ts';
 import { resolveWildSpawnPermission, WILD_SPAWN_BOARD_SETTLE_MS } from './wild-spawn-permission.ts';
@@ -401,6 +425,18 @@ import {
   type SpecialDiceTransactionKind,
 } from './special-dice-transaction-owner.ts';
 import { resolveNoMovesCommitDecision } from './no-moves-commit-decision.ts';
+import {
+  guardSettledSpecialRenderHealth,
+  SettledSpecialRenderRecoveryOwner,
+} from './special-dice-render-health.ts';
+import {
+  getGameplayDieRenderParityFingerprint,
+  inspectGameplayDieRenderParity,
+} from './gameplay-die-render-parity.ts';
+import {
+  SettledBoardWatchdog,
+  type SettledBoardWatchdogObservation,
+} from './settled-board-watchdog.ts';
 import { handleMergeCombo } from './app-core-merge-combo.ts';
 import { recordRunCombo, resetRunComboBonus } from './run-combo-bonus.ts';
 import { handleLastMergeEarly } from './app-core-merge-lastmerge.ts';
@@ -557,10 +593,72 @@ let comboIdleTimer: ComboTimer = null;
 let checkLevelEndTimer: DelayedCall = null;
 let gameplayRunGeneration = 0;
 const finalResidualHandoffOwner = new FinalResidualHandoffOwner();
+const settledSpecialRenderRecoveryOwner = new SettledSpecialRenderRecoveryOwner(2);
+const boardMutationEpochOwner = new BoardMutationEpochOwner();
+let currentBoardMutationEpoch: BoardMutationEpoch | null = null;
 let gameplayBoardMutationRevision = 0;
+const ENDGAME_FAIL_MUTATION_COOLDOWN_MS = 700; // Production-safe: require board to settle before fail path
+let latestSettledBoardWatchdogObservation: SettledBoardWatchdogObservation = {
+  boardRevision: 0,
+  fingerprint: 'uninitialized',
+  settled: false,
+  logicalMoveAvailable: false,
+  visibleInteractiveMoveAvailable: false,
+  parityIssues: [],
+};
+const settledBoardWatchdog = new SettledBoardWatchdog({
+  deadlineMs: ENDGAME_FAIL_MUTATION_COOLDOWN_MS,
+  scheduler: {
+    schedule(delayMs, callback) {
+      const delayedCall = trackDelayedCall(delayMs / 1000, callback);
+      return () => {
+        try { delayedCall.kill(); } catch {}
+      };
+    },
+  },
+  readCurrent: () => latestSettledBoardWatchdogObservation,
+  onNoMoves: () => scheduleCheckLevelEnd(0, 'settled-watchdog-no-moves'),
+  onInvariant: (incident) => {
+    const freshObservation = readSettledBoardWatchdogObservation(
+      incident.observation.logicalMoveAvailable,
+    );
+    latestSettledBoardWatchdogObservation = freshObservation;
+    if (freshObservation.visibleInteractiveMoveAvailable) {
+      settledBoardWatchdog.observe(freshObservation);
+      return;
+    }
+    devWarn('🛡️ Settled board has a logical move without a visible interactive regular die', {
+      boardRevision: freshObservation.boardRevision,
+      issues: freshObservation.parityIssues.map((issue) => ({
+        dieId: issue.dieId,
+        reason: issue.reason,
+        gridX: issue.tile?.gridX,
+        gridY: issue.tile?.gridY,
+      })),
+    });
+    const needsTextureRecovery = freshObservation.parityIssues.some((issue) =>
+      issue.reason === 'unusable-visual-texture'
+      || issue.reason === 'stale-renderer-generation');
+    if (needsTextureRecovery) {
+      void recoverCoreRenderTextures('settled-board-watchdog', 'settled-board', true)
+        .then(() => scheduleCheckLevelEnd(0.1, 'settled-watchdog-recovery-complete'))
+        .catch((error) => devWarn('⚠️ Settled-board renderer recovery remains blocked', error));
+      return;
+    }
+    // Attachment, visibility and hit-target drift are not GPU failures. Repair
+    // those owners locally; a full texture recovery would hide a healthy board
+    // and could incorrectly escalate to the blocking fallback.
+    repairBoardTileVisuals('settled-board-watchdog-local-repair');
+    freshObservation.parityIssues.forEach((issue) => {
+      try { bindTileWithFallback(issue.tile, false); } catch {}
+    });
+    void layoutBoard().finally(() => {
+      scheduleCheckLevelEnd(0.1, 'settled-watchdog-local-repair-complete');
+    });
+  },
+});
 let checkLevelEndRetryCount = 0; // 🔥 v38: Track reschedule attempts
 const MAX_CHECK_LEVEL_END_RETRIES = 10; // 🔥 v38: Prevent infinite reschedule loops
-const ENDGAME_FAIL_MUTATION_COOLDOWN_MS = 700; // Production-safe: require board to settle before fail path
 const ENDGAME_GUARD_MAX_TTL_MS = 5000; // Hard cap to avoid stuck guard in case of missed cleanup
 let lastEndgameBoardSignature = '';
 let lastEndgameBoardMutationAt = 0;
@@ -733,6 +831,26 @@ let _lastSAT = -1;
 let grid: Grid = Array.isArray(STATE.grid) ? (STATE.grid as Grid) : [];
 const tiles: Tile[] = STATE.tiles as Tile[];
 let score = 0; let level = 1; let boardNumber = 1; let moves = MOVES_MAX;
+let specialSoundWorkingSetPlan: SpecialSoundWorkingSetPlan | null = null;
+
+function replaceSpecialSoundWorkingSetPlan(): void {
+  specialSoundWorkingSetPlan?.release();
+  specialSoundWorkingSetPlan = acquireSpecialSoundWorkingSetPlan({
+    boardNumber,
+    isArcade: isArcadeHomeRunMode(),
+    tiles,
+  });
+}
+
+function refreshSpecialSoundWorkingSetPlan(): void {
+  if (!specialSoundWorkingSetPlan?.refresh({
+    boardNumber,
+    isArcade: isArcadeHomeRunMode(),
+    tiles,
+  })) {
+    replaceSpecialSoundWorkingSetPlan();
+  }
+}
 setGameplayAudioDiagnosticContextProvider(() => ({
   route: (window as any).__ccAppZone ?? null,
   boardNumber,
@@ -841,6 +959,19 @@ function repairBoardTileVisuals(reason = 'unknown'): void {
         repaired++;
       } else if (base && t.base !== base) {
         t.base = base;
+      }
+
+      if (isWildLike) {
+        if (base && !base.destroyed) {
+          base.visible = true;
+          base.alpha = 1;
+        }
+        // Special faces are generation-owned by VisualAssetBroker. Keep the
+        // safe holder painted until applyWildSkinLocal receives a current
+        // handle; never overwrite it from Pixi's possibly stale raw cache.
+        applyWildSkinLocal(t);
+        repaired++;
+        return;
       }
 
       if (base && !base.destroyed) {
@@ -1205,6 +1336,18 @@ function releaseSpecialDiceTransaction(token: number | null, reason: string): bo
 function resetTransientRunGuards(reason: string = 'unknown'): void {
   devLog('🧹 Resetting transient run guards:', reason);
   gameplayRunGeneration += 1;
+  settledSpecialRenderRecoveryOwner.reset();
+  settledBoardWatchdog.noteActivity();
+  latestSettledBoardWatchdogObservation = {
+    boardRevision: gameplayBoardMutationRevision,
+    fingerprint: `reset:${gameplayRunGeneration}`,
+    settled: false,
+    logicalMoveAvailable: false,
+    visibleInteractiveMoveAvailable: false,
+    parityIssues: [],
+  };
+  boardMutationEpochOwner.invalidate();
+  currentBoardMutationEpoch = null;
   cancelCheckLevelEndTimer();
   try { FLOW.cleanupLevelFlowTimeouts(); } catch {}
   try {
@@ -1416,6 +1559,7 @@ type FinalMergeVisualStarters = {
 
 type CleanBoardFlowOptions = {
   finalMergeSnapshot?: Pick<FinalMergeSnapshot, 'isFinalRegularMerge6'> | null;
+  boardMutationEpoch?: BoardMutationEpoch;
 };
 
 async function waitForFinalHudExitState(
@@ -1652,6 +1796,22 @@ async function triggerCleanBoardFlow(
   if (busyEnding) {
     logger.debug('⏳ triggerCleanBoardFlow skipped - busyEnding already true', 'app-core');
     return;
+  }
+  const cleanBoardMutationEpoch = options.boardMutationEpoch ?? boardMutationEpochOwner.beginMutation();
+  currentBoardMutationEpoch = cleanBoardMutationEpoch;
+  {
+    const terminalDecision = boardMutationEpochOwner.commitComplete(cleanBoardMutationEpoch);
+    const rejectedTerminalDecision = terminalDecision.accepted === false ? terminalDecision : null;
+    const alreadyCommittedByThisEpoch = rejectedTerminalDecision?.reason === 'terminal-committed'
+      && boardMutationEpochOwner.getOutcome(cleanBoardMutationEpoch) === 'complete';
+    if (rejectedTerminalDecision && !alreadyCommittedByThisEpoch) {
+      devWarn('🛡️ Clean Board rejected by board-mutation epoch owner', {
+        reason,
+        rejection: rejectedTerminalDecision.reason,
+        outcome: rejectedTerminalDecision.outcome,
+      });
+      return;
+    }
   }
   busyEnding = true;
   let releaseCleanBoardFrameLease = acquirePixiMobileActivityLease('clean-board-handoff');
@@ -2086,6 +2246,17 @@ async function runNoMovesFailFlow({
     return;
   }
 
+  // This is the atomic terminal boundary. Advancing the epoch first revokes
+  // every delayed merge/wild/fallback spawn before the Fail surface can own
+  // the run; a cancelled candidate never reaches this point.
+  const noMovesTerminalEpoch = boardMutationEpochOwner.beginMutation();
+  currentBoardMutationEpoch = noMovesTerminalEpoch;
+  const noMovesTerminalCommit = boardMutationEpochOwner.commitComplete(noMovesTerminalEpoch);
+  if (!noMovesTerminalCommit.accepted) {
+    cancelNoMovesFailFlow(flowToken, reason, 'board-mutation-terminal-rejected');
+    return;
+  }
+
   activeNoMovesFailFlowToken = null;
   emitIOSSpecialTransactionTrace('no-moves-committed', {
     token: flowToken,
@@ -2326,7 +2497,7 @@ async function ensureCoreRenderTexturesGpuReady(
     isCurrent,
   );
   if (!isCurrent()) return [];
-  refreshLiveCoreGameSpriteTextures(`${context}:gpu-repair`);
+  await refreshLiveCoreGameSpriteTextures(`${context}:gpu-repair`);
   const verification = probeCoreGameTextureGpuPixels(`${context}:after-repair`, renderer);
   if (!verification.healthy && !verification.unavailable) {
     emitNativeConsoleDiagnostic('[CC_TEXTURE_HEALTH]', 'forced-reload-failed', {
@@ -2361,12 +2532,56 @@ function getTileBaseTextureAssetPath(tile: any): string {
   return (tile?.value | 0) > 0 ? ASSET_NUMBERS : ASSET_TILE;
 }
 
-function refreshLiveCoreGameSpriteTextures(reason: string = 'unknown'): void {
+const SETTLED_INTERACTION_BLOCKING_PARITY_REASONS = new Set([
+  'destroyed-logical-die',
+  'detached-die',
+  'hidden-die',
+  'missing-visual-carrier',
+  'detached-visual-carrier',
+  'hidden-visual-carrier',
+  'transparent-visual-carrier',
+  'non-renderable-visual-carrier',
+  'unusable-visual-texture',
+  'stale-renderer-generation',
+  'invalid-visual-bounds',
+  'disabled-hit-target',
+  'missing-hit-area',
+  'invalid-hit-area',
+]);
+
+function readSettledBoardWatchdogObservation(
+  logicalMoveAvailable: boolean,
+): SettledBoardWatchdogObservation {
+  const settledLogicalDice = tiles.filter((tile: any) => tileIsActive(tile));
+  const parity = inspectGameplayDieRenderParity({
+    boardRevision: currentBoardMutationEpoch?.boardRevision ?? gameplayBoardMutationRevision,
+    rendererGeneration: 0,
+    board,
+    logicalDice: settledLogicalDice,
+    getExpectedAssetPath: getTileBaseTextureAssetPath,
+  });
+  const blockingIssues = parity.issues.filter((issue) =>
+    !issue.tile?.special
+    && !getSpecialDiceVariantForTile(issue.tile)
+    && SETTLED_INTERACTION_BLOCKING_PARITY_REASONS.has(issue.reason));
+  return {
+    boardRevision: parity.boardRevision,
+    fingerprint: getGameplayDieRenderParityFingerprint(parity),
+    settled: true,
+    logicalMoveAvailable,
+    visibleInteractiveMoveAvailable: logicalMoveAvailable && blockingIssues.length === 0,
+    parityIssues: blockingIssues,
+  };
+}
+
+async function refreshLiveCoreGameSpriteTextures(reason: string = 'unknown'): Promise<void> {
   try {
     const liveTiles = Array.isArray(STATE?.tiles) && STATE.tiles.length ? STATE.tiles : tiles;
     let rebound = 0;
+    const specialRebinds: Promise<boolean>[] = [];
     for (const tile of liveTiles as any[]) {
       if (!tile || tile.destroyed) continue;
+      const isSpecialTile = !!tile.special || !!getSpecialDiceVariantForTile(tile);
       const host = tile.rotG && !tile.rotG.destroyed ? tile.rotG : tile;
       let base = tile.base && !tile.base.destroyed ? tile.base : null;
       if (!base && host?.children) {
@@ -2374,9 +2589,11 @@ function refreshLiveCoreGameSpriteTextures(reason: string = 'unknown'): void {
       }
       let tileTextureRebound = false;
       if (!base && host?.addChildAt) {
-        const assetPath = getTileBaseTextureAssetPath(tile);
-        base = new Sprite(Assets.get(assetPath) || Texture.from(assetPath));
-        (base as any)._ccTextureAssetPath = assetPath;
+        // A missing Special gets only the stable core holder synchronously.
+        // Its authored face may paint only from a current broker handle below.
+        const holderAssetPath = isSpecialTile ? ASSET_TILE : getTileBaseTextureAssetPath(tile);
+        base = new Sprite(Assets.get(holderAssetPath) || Texture.from(holderAssetPath));
+        (base as any)._ccTextureAssetPath = holderAssetPath;
         base.anchor?.set?.(0.5);
         host.addChildAt(base, 0);
         tile.base = base;
@@ -2385,24 +2602,35 @@ function refreshLiveCoreGameSpriteTextures(reason: string = 'unknown'): void {
       }
       if (!base || base.destroyed) continue;
 
+      if (isSpecialTile) {
+        base.visible = true;
+        base.alpha = Number.isFinite(base.alpha) && base.alpha > 0 ? base.alpha : 1;
+        specialRebinds.push(applyWildSkinLocal(tile));
+        continue;
+      }
+
       const assetPath = getTileBaseTextureAssetPath(tile);
       let tex: any = null;
       try { tex = Assets.get(assetPath); } catch {}
       if (!isUsableGameTexture(tex)) continue;
       if (base.texture !== tex || !isUsableGameTexture(base.texture)) {
         base.texture = tex;
-        (base as any)._ccTextureAssetPath = assetPath;
-        base.visible = true;
-        base.alpha = Number.isFinite(base.alpha) && base.alpha > 0 ? base.alpha : 1;
         rebound++;
         tileTextureRebound = true;
       }
+      (base as any)._ccTextureAssetPath = assetPath;
+      (base as any)._ccVisualAssetRendererGeneration = getVisualAssetRendererGeneration();
+      base.visible = true;
+      base.alpha = Number.isFinite(base.alpha) && base.alpha > 0 ? base.alpha : 1;
       if (tileTextureRebound && (tile.stackDepth || 0) > 1) {
         try { makeBoard.refreshStackVisual(tile); } catch {}
       }
     }
     if (rebound > 0) {
       devWarn('⚠️ Rebound live tile textures after cache refresh', { reason, rebound });
+    }
+    if (specialRebinds.length > 0) {
+      await Promise.all(specialRebinds);
     }
   } catch (error) {
     devWarn('⚠️ Failed to refresh live core game sprite textures', { reason, error });
@@ -2411,20 +2639,18 @@ function refreshLiveCoreGameSpriteTextures(reason: string = 'unknown'): void {
 
 try { (window as any).__ccEnsureCoreGameTexturesLoaded = ensureCoreGameTexturesLoaded; } catch {}
 
-let coreTextureRecoveryPromise: Promise<void> | null = null;
-let coreTextureRecoveryOwnerGeneration = -1;
-let coreTextureRecoveryOwnerEntry = -1;
-let coreTextureRecoveryOwnerRun = -1;
-let coreTextureRecoveryGeneration = 0;
 let coreTextureContextCanvas: HTMLCanvasElement | null = null;
 let coreTextureContextLostHandler: ((event: Event) => void) | null = null;
 let coreTextureContextRestoredHandler: (() => void) | null = null;
 let coreTextureVisibilityHandler: (() => void) | null = null;
 let coreTexturePageShowHandler: (() => void) | null = null;
-let coreTextureVisibilityBeforeLoss: { stage: boolean; board: boolean; hud: boolean } | null = null;
 let coreTextureCanvasVisibilityBeforeHide: string | null = null;
-let coreTextureNeedsFullRecovery = false;
-const coreTextureForegroundOwner = new ForegroundResumeEpoch();
+let releaseCoreTextureResourceLease: (() => void) | null = null;
+let coreTextureResumeTickerAfterRecovery = false;
+let rendererRecreationPreviousSurface: {
+  renderer: any;
+  canvas: HTMLCanvasElement;
+} | null = null;
 
 function isCoreTextureRecoveryAllowed(): boolean {
   if (document.hidden || isGameplayRendererTerminalSuspended(app)) return false;
@@ -2463,15 +2689,181 @@ function restoreCanvasAfterCoreTextureRecovery(): void {
   coreTextureCanvasVisibilityBeforeHide = null;
 }
 
-function restoreHealthyForegroundSurface(): void {
+function isGameplayRendererRecoveryStructureHealthy(
+  ownerApp: any,
+  ownerCanvas: HTMLCanvasElement | null,
+  ownerStage: any,
+  ownerBoard: any,
+  ownerHud: any,
+): boolean {
+  const renderer = ownerApp?.renderer;
+  return Boolean(
+    ownerApp && !ownerApp.destroyed &&
+    renderer && !renderer.destroyed && renderer.context?.isLost !== true &&
+    ownerCanvas && ownerCanvas === ownerApp.canvas && ownerCanvas.isConnected &&
+    ownerStage && !ownerStage.destroyed && ownerApp.stage === ownerStage &&
+    ownerBoard && !ownerBoard.destroyed && ownerBoard.parent === ownerStage &&
+    ownerHud && !ownerHud.destroyed && ownerHud.parent === ownerStage
+  );
+}
+
+function normalizeRecoveredGameplaySurfaceVisibility(
+  ownerStage: any,
+  ownerBoard: any,
+  ownerHud: any,
+): void {
   if (isGameplayEntryPending()) return;
-  const visibility = coreTextureVisibilityBeforeLoss;
-  if (stage && visibility) stage.visible = visibility.stage;
-  if (board && visibility) board.visible = visibility.board;
-  if (hud && visibility) hud.visible = visibility.hud;
-  try { app?.renderer?.render?.(stage); } catch {}
-  restoreCanvasAfterCoreTextureRecovery();
-  coreTextureVisibilityBeforeLoss = null;
+  [ownerStage, ownerBoard, ownerHud].forEach((container) => {
+    container.visible = true;
+    container.alpha = 1;
+    container.renderable = true;
+  });
+}
+
+function releaseRendererRecoveryLease(): void {
+  try { releaseCoreTextureResourceLease?.(); } catch {}
+  releaseCoreTextureResourceLease = null;
+}
+
+function acquireRendererRecoveryLease(): void {
+  if (!releaseCoreTextureResourceLease) {
+    releaseCoreTextureResourceLease = acquireForegroundResourceCriticalLease('renderer-recovery');
+  }
+}
+
+function runGameplayRendererRecoveryBounded<T>(
+  label: string,
+  deadlineMs: number,
+  work: () => Promise<T>,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const timeout = trackAppTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error(`Gameplay renderer session timed out during ${label}`));
+    }, deadlineMs);
+    void work().then((value) => {
+      if (settled) return;
+      settled = true;
+      clearTrackedAppTimeout(timeout);
+      resolve(value);
+    }, (error) => {
+      if (settled) return;
+      settled = true;
+      clearTrackedAppTimeout(timeout);
+      reject(error);
+    });
+  });
+}
+
+function getLiveGameplayRendererParity(rendererGeneration: number) {
+  const liveTiles = (Array.isArray(STATE?.tiles) && STATE.tiles.length ? STATE.tiles : tiles)
+    .filter((tile: any) => tileIsActive(tile));
+  const parity = inspectGameplayDieRenderParity({
+    boardRevision: currentBoardMutationEpoch?.boardRevision ?? gameplayBoardMutationRevision,
+    rendererGeneration,
+    board,
+    logicalDice: liveTiles,
+    getExpectedAssetPath: getTileBaseTextureAssetPath,
+  });
+  if (!isGameplayEntryPending()) return parity;
+  const intentionalEntryIssues = new Set([
+    'hidden-die',
+    'hidden-visual-carrier',
+    'transparent-visual-carrier',
+    'non-renderable-visual-carrier',
+    'disabled-hit-target',
+    'missing-hit-area',
+    'invalid-hit-area',
+  ]);
+  const issues = parity.issues.filter((issue) => !intentionalEntryIssues.has(issue.reason));
+  return { ...parity, healthy: issues.length === 0, issues };
+}
+
+function hasPaintedBoardPixels(output: any): boolean {
+  const pixels: ArrayLike<number> | undefined = output?.pixels ?? output;
+  if (!pixels || typeof pixels.length !== 'number' || pixels.length < 4) return false;
+  // Sampling is enough to reject the observed all-transparent GPU surface and
+  // bounds the validation cost on an iPhone-sized board.
+  const step = Math.max(4, Math.floor(pixels.length / 4096 / 4) * 4);
+  for (let index = 3; index < pixels.length; index += step) {
+    if (Number(pixels[index]) > 8) return true;
+  }
+  return false;
+}
+
+function disposePreviousRendererSurface(): void {
+  const previous = rendererRecreationPreviousSurface;
+  rendererRecreationPreviousSurface = null;
+  if (!previous) return;
+  try { previous.canvas.remove(); } catch {}
+  try { previous.renderer?.destroy?.({ removeView: false }); } catch {}
+}
+
+/**
+ * Sole constructor boundary for a temporary Pixi shell. The recovery owner
+ * immediately detaches its renderer and never lets this shell own gameplay
+ * stage, ticker, model, or cleanup.
+ */
+function createUninitializedPixiApplication(): Application {
+  return Reflect.construct(Application, []) as Application;
+}
+
+async function recreateGameplayRendererSurface(
+  rendererGeneration: number,
+  reason: string,
+  isCurrent: () => boolean,
+): Promise<{ rendererGeneration: number }> {
+  if (!app || !stage || !isCurrent()) return { rendererGeneration };
+  const activeApp = app;
+  const previousRenderer = activeApp.renderer as any;
+  const previousCanvas = activeApp.canvas as HTMLCanvasElement;
+  const replacement = createUninitializedPixiApplication();
+  const rendererProfile = getRendererPerformanceProfile(
+    window.devicePixelRatio || 1,
+    MOBILE_RUNTIME_PROFILE.isMobileDevice,
+  );
+  await replacement.init({
+    resizeTo: window,
+    backgroundAlpha: 0,
+    antialias: false,
+    resolution: rendererProfile.resolution,
+    powerPreference: rendererProfile.powerPreference,
+    autoStart: false,
+  });
+  if (!isCurrent() || activeApp !== app || stage !== activeApp.stage) {
+    replacement.destroy(true, { children: true, texture: false, textureSource: false } as any);
+    return { rendererGeneration };
+  }
+
+  const nextRenderer = replacement.renderer as any;
+  const nextCanvas = replacement.canvas as HTMLCanvasElement;
+  try { replacement.ticker.stop(); } catch {}
+  nextCanvas.style.cssText = previousCanvas.style.cssText;
+  nextCanvas.style.visibility = 'hidden';
+  nextCanvas.style.opacity = '0';
+  nextCanvas.style.pointerEvents = 'none';
+  nextCanvas.style.touchAction = 'none';
+  previousCanvas.parentNode?.insertBefore(nextCanvas, previousCanvas.nextSibling);
+
+  detachCoreTextureContextListeners();
+  disposePreviousRendererSurface();
+  (activeApp as any).renderer = nextRenderer;
+  // The replacement Application is only a renderer factory. The long-lived
+  // Application identity, ticker, stage and every gameplay closure remain the
+  // same; prevent the temporary shell from ever owning their teardown.
+  (replacement as any).renderer = null;
+  (replacement as any).stage = null;
+  rendererRecreationPreviousSurface = { renderer: previousRenderer, canvas: previousCanvas };
+  installCoreTextureContextRecovery(nextCanvas);
+  installRuntimeTextureHooks();
+  stopBoardFrameBudgetMonitor();
+  stopPixiMobileFrameController();
+  startBoardFrameBudgetMonitor(activeApp.ticker);
+  startPixiMobileFrameController(activeApp.ticker);
+  invalidateVisualAssetRendererGeneration(`renderer-recreated:${reason}`);
+  return { rendererGeneration: rendererGeneration + 1 };
 }
 
 async function retireSpecialDiceRendererOwnersForRecovery(reason: string): Promise<void> {
@@ -2508,92 +2900,202 @@ function restartSpecialDiceRendererOwnersAfterRecovery(reason: string): void {
   emitNativeConsoleDiagnostic('[CC_TEXTURE_HEALTH]', 'special-idle-restarted', { reason, restarted });
 }
 
-function recoverCoreRenderTextures(reason: string): Promise<void> {
-  coreTextureNeedsFullRecovery = true;
-  if (!isCoreTextureRecoveryAllowed()) {
-    emitNativeConsoleDiagnostic('[CC_TEXTURE_HEALTH]', 'recovery-deferred', { reason, zone: appZoneManager.getCurrentZone() });
-    return Promise.resolve();
-  }
-  if (coreTextureRecoveryPromise && coreTextureRecoveryOwnerGeneration === coreTextureRecoveryGeneration
-    && coreTextureRecoveryOwnerEntry === activeGameplayEntryGeneration
-    && coreTextureRecoveryOwnerRun === gameplayRunGeneration) {
-    return coreTextureRecoveryPromise;
-  }
-  const previousRecovery = coreTextureRecoveryPromise;
-  const ownerGeneration = coreTextureRecoveryGeneration;
-  const ownerEntry = activeGameplayEntryGeneration;
-  const ownerRun = gameplayRunGeneration;
-  const ownerApp = app;
-  const ownerCanvas = coreTextureContextCanvas;
-  const ownerStage = stage;
-  const ownerBoard = board;
-  const ownerHud = hud;
-  const ownsCurrentLifecycle = () => (
-    ownerGeneration === coreTextureRecoveryGeneration &&
-    ownerEntry === activeGameplayEntryGeneration &&
-    ownerRun === gameplayRunGeneration &&
-    isGameplayEntryGenerationLatest(ownerEntry) &&
-    ownerApp === app &&
-    ownerCanvas === coreTextureContextCanvas &&
-    ownerStage === stage && ownerBoard === board && ownerHud === hud &&
-    isCoreTextureRecoveryAllowed()
-  );
-  const visibility = coreTextureVisibilityBeforeLoss || {
-    stage: stage?.visible !== false,
-    board: board?.visible !== false,
-    hud: hud?.visible !== false,
-  };
-  hideGameplayForCoreTextureRecovery();
-
-  const recoveryPromise = (async () => {
-    if (previousRecovery) { try { await previousRecovery; } catch {} }
-    if (!ownsCurrentLifecycle()) return;
-    await retireSpecialDiceRendererOwnersForRecovery(reason);
-    if (!ownsCurrentLifecycle()) return;
-    const refreshedAssets = await ensureCoreRenderTexturesGpuReady(`recovery:${reason}`, ownsCurrentLifecycle, ownerApp?.renderer);
-    if (!ownsCurrentLifecycle()) return;
-    refreshLiveCoreGameSpriteTextures(`recovery:${reason}`);
+const gameplayRendererSupervisor = new GameplayRendererSupervisor({
+  deadlineMs: 7000,
+  maxRecreationAttempts: 1,
+  runBounded: runGameplayRendererRecoveryBounded,
+  setInputLocked: (locked) => setInputGateLock(
+    'renderer-recovery',
+    locked,
+    locked ? { persistent: true, scope: 'all' } : undefined,
+  ),
+  quiesce: (reason) => {
+    acquireRendererRecoveryLease();
+    if (app?.ticker?.started) coreTextureResumeTickerAfterRecovery = true;
+    try { app?.ticker?.stop?.(); } catch {}
+    hideGameplayForCoreTextureRecovery(false);
+    emitNativeConsoleDiagnostic('[CC_RENDERER_SESSION]', 'quiesced', { reason });
+  },
+  rehydrate: async (rendererGeneration, isCurrent) => {
+    if (!isCoreTextureRecoveryAllowed() || !isCurrent()) return;
+    await retireSpecialDiceRendererOwnersForRecovery(`generation:${rendererGeneration}`);
+    if (!isCurrent()) return;
+    await ensureCoreRenderTexturesGpuReady(
+      `renderer-session:${rendererGeneration}`,
+      isCurrent,
+      app?.renderer,
+    );
+    if (!isCurrent()) return;
+    await refreshLiveCoreGameSpriteTextures(`renderer-session:${rendererGeneration}`);
     _hudInitDone = false;
     try { (window as any).__ccForceHudRecreateForTextures = true; } catch {}
-    await layoutBoard(ownsCurrentLifecycle);
-    if (!ownsCurrentLifecycle()) return;
-    refreshLiveCoreGameSpriteTextures(`recovery:${reason}:post-layout`);
-    restartSpecialDiceRendererOwnersAfterRecovery(reason);
+    await layoutBoard(isCurrent);
+    if (!isCurrent()) return;
+    await refreshLiveCoreGameSpriteTextures(`renderer-session:${rendererGeneration}:post-layout`);
+    restartSpecialDiceRendererOwnersAfterRecovery(`generation:${rendererGeneration}`);
+  },
+  validate: async () => {
+    const issues: unknown[] = [];
+    if (!isGameplayRendererRecoveryStructureHealthy(app, coreTextureContextCanvas, stage, board, hud)) {
+      issues.push('detached-or-destroyed-renderer-surface');
+    }
+    const parity = getLiveGameplayRendererParity(getVisualAssetRendererGeneration());
+    issues.push(...parity.issues);
+    return { healthy: issues.length === 0, issues };
+  },
+  validatePaintedVisibility: async (rendererGeneration, isCurrent) => {
+    const issues: unknown[] = [];
+    if (!isCurrent() || !app?.renderer || !stage || !board || !hud) {
+      return { healthy: false, issues: ['stale-painted-validation-owner'] };
+    }
+    const visibility = {
+      stage: stage.visible,
+      board: board.visible,
+      hud: hud.visible,
+    };
+    const liveTiles = (Array.isArray(STATE?.tiles) && STATE.tiles.length ? STATE.tiles : tiles)
+      .filter((tile: any) => tileIsActive(tile));
+    const presentation = liveTiles.map((tile: any) => ({
+      tile,
+      tileVisible: tile.visible,
+      tileAlpha: tile.alpha,
+      tileRenderable: tile.renderable,
+      scaleX: tile.scale?.x,
+      scaleY: tile.scale?.y,
+      carrier: tile.base,
+      carrierVisible: tile.base?.visible,
+      carrierAlpha: tile.base?.alpha,
+      carrierRenderable: tile.base?.renderable,
+    }));
+    try {
+      [stage, board, hud].forEach((container) => {
+        container.visible = true;
+        container.alpha = 1;
+        container.renderable = true;
+      });
+      if (isGameplayEntryPending()) {
+        presentation.forEach(({ tile, carrier }) => {
+          tile.visible = true;
+          tile.alpha = 1;
+          tile.renderable = true;
+          if (tile.scale && (!Number.isFinite(tile.scale.x) || Math.abs(tile.scale.x) < 0.01)) tile.scale.x = 1;
+          if (tile.scale && (!Number.isFinite(tile.scale.y) || Math.abs(tile.scale.y) < 0.01)) tile.scale.y = 1;
+          if (carrier) {
+            carrier.visible = true;
+            carrier.alpha = 1;
+            carrier.renderable = true;
+          }
+        });
+      }
+      app.renderer.render(stage);
+      const gpuProbe = probeCoreGameTextureGpuPixels(
+        `renderer-session:${rendererGeneration}:painted`,
+        app.renderer,
+      );
+      if (!gpuProbe.healthy && !gpuProbe.unavailable) {
+        issues.push(...gpuProbe.failedAssets.map((assetPath) => `blank-gpu-texture:${assetPath}`));
+      }
+      if (liveTiles.length > 0) {
+        try {
+          const extracted = await (app.renderer as any).extract?.pixels?.({ target: board, resolution: 0.25 });
+          if (!hasPaintedBoardPixels(extracted)) issues.push('board-frame-has-no-painted-pixels');
+        } catch (error) {
+          issues.push({ reason: 'board-frame-extraction-failed', error });
+        }
+      }
+    } finally {
+      if (isGameplayEntryPending()) {
+        stage.visible = visibility.stage;
+        board.visible = visibility.board;
+        hud.visible = visibility.hud;
+        presentation.forEach((snapshot) => {
+          snapshot.tile.visible = snapshot.tileVisible;
+          snapshot.tile.alpha = snapshot.tileAlpha;
+          snapshot.tile.renderable = snapshot.tileRenderable;
+          if (snapshot.tile.scale) {
+            snapshot.tile.scale.x = snapshot.scaleX;
+            snapshot.tile.scale.y = snapshot.scaleY;
+          }
+          if (snapshot.carrier) {
+            snapshot.carrier.visible = snapshot.carrierVisible;
+            snapshot.carrier.alpha = snapshot.carrierAlpha;
+            snapshot.carrier.renderable = snapshot.carrierRenderable;
+          }
+        });
+      }
+    }
+    return { healthy: issues.length === 0, issues };
+  },
+  recreate: recreateGameplayRendererSurface,
+  reveal: () => {
+    normalizeRecoveredGameplaySurfaceVisibility(stage, board, hud);
     try { app?.renderer?.render?.(stage); } catch {}
+    restoreCanvasAfterCoreTextureRecovery();
+    try {
+      if (app?.canvas) {
+        app.canvas.style.pointerEvents = '';
+        app.canvas.style.opacity = '1';
+      }
+    } catch {}
+    disposePreviousRendererSurface();
+    if (coreTextureResumeTickerAfterRecovery && !document.hidden
+      && !isGameplayRendererTerminalSuspended(app) && app?.ticker && !app.ticker.started) {
+      try { app.ticker.start(); } catch {}
+    }
+    coreTextureResumeTickerAfterRecovery = false;
+    releaseRendererRecoveryLease();
+  },
+  presentFallback: (request) => {
+    showGameplayRendererRecoveryFallback({
+      reason: request.reason,
+      onRetry: async () => {
+        settledSpecialRenderRecoveryOwner.reset();
+        const result = await request.retry();
+        if (result.state === 'healthy') scheduleCheckLevelEnd(0.1, 'renderer-visible-fallback-recovered');
+        return result.state === 'healthy';
+      },
+      onReturnToMenu: async () => {
+        const menuExit = await import('./menu-exit-handoff.js');
+        await menuExit.requestExitToMenu({
+          reason: 'renderer-recovery-fallback',
+          target: 'auto',
+          skipBoardExit: true,
+          allowTerminalNoMovesExit: true,
+        });
+        if (!menuExit.isAnyMenuScreenVisible()) return false;
+        settledSpecialRenderRecoveryOwner.reset();
+        setInputGateLock('renderer-recovery', false);
+        releaseRendererRecoveryLease();
+        return true;
+      },
+    });
+  },
+  clearFallback: hideGameplayRendererRecoveryFallback,
+  onDiagnostic: (diagnostic) => emitNativeConsoleDiagnostic(
+    '[CC_RENDERER_SESSION]', diagnostic.event, diagnostic,
+  ),
+});
 
-    if (!isGameplayEntryPending()) {
-      if (stage) stage.visible = visibility.stage;
-      if (board) board.visible = visibility.board;
-      if (hud) hud.visible = visibility.hud;
-      try { app?.renderer?.render?.(stage); } catch {}
-      restoreCanvasAfterCoreTextureRecovery();
-    }
-    coreTextureNeedsFullRecovery = false;
-    devLog('✅ Core render texture recovery completed', { reason, refreshedAssets });
-  })().catch((error) => {
-    if (ownsCurrentLifecycle()) {
-      hideGameplayForCoreTextureRecovery();
-      devError('❌ Core render texture recovery failed; refusing to reveal a partial board', { reason, error });
-    }
-    throw error;
-  }).finally(() => {
-    if (coreTextureRecoveryPromise === recoveryPromise) {
-      coreTextureRecoveryPromise = null;
-      coreTextureRecoveryOwnerGeneration = -1;
-      coreTextureRecoveryOwnerEntry = -1;
-      coreTextureRecoveryOwnerRun = -1;
-    }
-    if (ownsCurrentLifecycle()) coreTextureVisibilityBeforeLoss = null;
-  });
-  coreTextureRecoveryOwnerGeneration = ownerGeneration;
-  coreTextureRecoveryOwnerEntry = ownerEntry;
-  coreTextureRecoveryOwnerRun = ownerRun;
-  coreTextureRecoveryPromise = recoveryPromise;
-  return recoveryPromise;
+async function recoverCoreRenderTextures(
+  reason: string,
+  trigger: GameplayRendererRecoveryTrigger = 'manual',
+  force = false,
+): Promise<void> {
+  if (!isCoreTextureRecoveryAllowed()) {
+    emitNativeConsoleDiagnostic('[CC_RENDERER_SESSION]', 'recovery-deferred', {
+      reason,
+      trigger,
+      zone: appZoneManager.getCurrentZone(),
+    });
+    return;
+  }
+  const result = await gameplayRendererSupervisor.joinRecovery(reason, trigger, { force });
+  if (result.state === 'visible-failed') {
+    throw result.error instanceof Error ? result.error : new Error(`Gameplay renderer recovery failed: ${reason}`);
+  }
 }
 
-function detachCoreTextureContextRecovery(): void {
-  coreTextureRecoveryGeneration += 1;
+function detachCoreTextureContextListeners(): void {
   if (coreTextureContextCanvas && coreTextureContextLostHandler) {
     try { coreTextureContextCanvas.removeEventListener('webglcontextlost', coreTextureContextLostHandler); } catch {}
   }
@@ -2611,103 +3113,60 @@ function detachCoreTextureContextRecovery(): void {
   coreTextureContextRestoredHandler = null;
   coreTextureVisibilityHandler = null;
   coreTexturePageShowHandler = null;
-  coreTextureVisibilityBeforeLoss = null;
-  coreTextureCanvasVisibilityBeforeHide = null;
-  coreTextureNeedsFullRecovery = false;
-  coreTextureForegroundOwner.invalidate();
 }
 
 function installCoreTextureContextRecovery(canvas: HTMLCanvasElement): void {
   if (coreTextureContextCanvas === canvas) return;
-  detachCoreTextureContextRecovery();
+  detachCoreTextureContextListeners();
   coreTextureContextCanvas = canvas;
   coreTextureContextLostHandler = (event: Event) => {
     try { event.preventDefault(); } catch {}
-    coreTextureRecoveryGeneration += 1;
-    const beganSuspension = coreTextureForegroundOwner.beginSuspension(app?.ticker?.started === true);
-    coreTextureNeedsFullRecovery = true;
-    try { app?.ticker?.stop?.(); } catch {}
-    if (beganSuspension) {
-      coreTextureVisibilityBeforeLoss = {
-        stage: stage?.visible !== false,
-        board: board?.visible !== false,
-        hud: hud?.visible !== false,
-      };
-    }
-    hideGameplayForCoreTextureRecovery(false);
+    if (gameplayRendererSupervisor.isRecoveryRequired()) return;
+    invalidateVisualAssetRendererGeneration('webglcontextlost');
+    gameplayRendererSupervisor.invalidateRendererGeneration('webglcontextlost');
     devWarn('⚠️ WebGL context lost; gameplay hidden until core textures recover');
   };
-  const recoverAfterForeground = (reason: string) => {
-    // A context can be restored while WKWebView is still backgrounded. Keep
-    // the lease pending so the visible event performs the guarded recovery.
+  const recoverAfterForeground = (reason: string, trigger: GameplayRendererRecoveryTrigger) => {
     if (document.hidden) return;
     if (!isCoreTextureRecoveryAllowed()) {
-      emitNativeConsoleDiagnostic('[CC_TEXTURE_HEALTH]', 'recovery-deferred', { reason, zone: appZoneManager.getCurrentZone() });
+      emitNativeConsoleDiagnostic('[CC_RENDERER_SESSION]', 'recovery-deferred', { reason, trigger, zone: appZoneManager.getCurrentZone() });
       return;
     }
-    const resumeLease = coreTextureForegroundOwner.consume();
-    if (!resumeLease) return;
-    const ownerCanvas = coreTextureContextCanvas;
-    const ownerApp = app;
-    const ownerEntry = activeGameplayEntryGeneration;
-    const ownerRun = gameplayRunGeneration;
-    if (!ownerCanvas || ownerCanvas !== app?.canvas) return;
-    const ownsResume = () => (
-      coreTextureForegroundOwner.isCurrent(resumeLease) &&
-      ownerEntry === activeGameplayEntryGeneration && ownerRun === gameplayRunGeneration &&
-      isGameplayEntryGenerationLatest(ownerEntry) && isCoreTextureRecoveryAllowed() &&
-      ownerApp === app &&
-      ownerCanvas === coreTextureContextCanvas &&
-      ownerCanvas === app?.canvas
-    );
-    const unavailableAssets = getUnusableRequiredCoreRenderTextureAssets();
-    const needsFullRepair = coreTextureNeedsFullRecovery
-      || reason === 'webglcontextrestored'
-      || unavailableAssets.length > 0;
-    const recovery = needsFullRepair
-      ? recoverCoreRenderTextures(reason)
-      : Promise.resolve()
-          .then(() => ensureCoreRenderTexturesGpuReady(`foreground-fast:${reason}`, ownsResume, ownerApp?.renderer))
-          .then((refreshedAssets) => {
-            if (!ownsResume()) return;
-            if (refreshedAssets.length > 0) return recoverCoreRenderTextures(`${reason}:gpu-repair`);
-            refreshLiveCoreGameSpriteTextures(`foreground-fast:${reason}`);
-            restoreHealthyForegroundSurface();
-            devLog('✅ Healthy foreground texture validation completed without HUD/layout rebuild', { reason });
-          });
-    void recovery
+    const force = trigger === 'foreground' && getUnusableRequiredCoreRenderTextureAssets().length > 0;
+    void recoverCoreRenderTextures(reason, trigger, force)
       .then(() => {
-        if (!ownsResume() || document.hidden) return;
-        coreTextureNeedsFullRecovery = false;
-        if (resumeLease.resumeTicker && !isGameplayRendererTerminalSuspended(app) && app?.ticker && !app.ticker.started) {
-          app.ticker.start();
+        if (coreTextureResumeTickerAfterRecovery && !document.hidden
+          && !isGameplayRendererTerminalSuspended(app) && app?.ticker && !app.ticker.started) {
+          try { app.ticker.start(); } catch {}
         }
+        coreTextureResumeTickerAfterRecovery = false;
       })
-      .catch((error) => {
-        if (!ownsResume()) return;
-        devError('❌ Foreground texture recovery failed; gameplay remains hidden', { reason, error });
-      });
+      .catch((error) => devError('❌ Foreground texture recovery failed; gameplay remains hidden', { reason, error }));
   };
-  coreTextureContextRestoredHandler = () => recoverAfterForeground('webglcontextrestored');
+  coreTextureContextRestoredHandler = () => recoverAfterForeground('webglcontextrestored', 'context-restored');
   coreTextureVisibilityHandler = () => {
     if (document.hidden) {
-      if (!coreTextureForegroundOwner.beginSuspension(app?.ticker?.started === true)) return;
-      coreTextureVisibilityBeforeLoss = {
-        stage: stage?.visible !== false,
-        board: board?.visible !== false,
-        hud: hud?.visible !== false,
-      };
+      coreTextureResumeTickerAfterRecovery = app?.ticker?.started === true;
       try { app?.ticker?.stop?.(); } catch {}
-      hideGameplayForCoreTextureRecovery();
       return;
     }
-    recoverAfterForeground('visibility-foreground');
+    recoverAfterForeground('visibility-foreground', 'foreground');
   };
-  coreTexturePageShowHandler = () => recoverAfterForeground('pageshow');
+  coreTexturePageShowHandler = () => recoverAfterForeground('pageshow', 'foreground');
   canvas.addEventListener('webglcontextlost', coreTextureContextLostHandler, false);
   canvas.addEventListener('webglcontextrestored', coreTextureContextRestoredHandler, false);
   document.addEventListener('visibilitychange', coreTextureVisibilityHandler, false);
   window.addEventListener('pageshow', coreTexturePageShowHandler, false);
+}
+
+function detachCoreTextureContextRecovery(): void {
+  detachCoreTextureContextListeners();
+  gameplayRendererSupervisor.retireLifecycle('renderer-context-detached');
+  coreTextureCanvasVisibilityBeforeHide = null;
+  coreTextureResumeTickerAfterRecovery = false;
+  disposePreviousRendererSurface();
+  hideGameplayRendererRecoveryFallback();
+  releaseRendererRecoveryLease();
 }
 
 try {
@@ -2716,12 +3175,7 @@ try {
 
 async function awaitCoreTextureRecoveryForEntry(isCurrent: () => boolean, signal: AbortSignal): Promise<boolean> {
   const ownsEntry = () => !signal.aborted && isCurrent();
-  // A prior entry may still be finishing one shared asset request. Let it retire
-  // before this entry probes/reloads the same resources or commits a surface.
-  if (coreTextureRecoveryPromise) {
-    try { await coreTextureRecoveryPromise; } catch {}
-  }
-  while (ownsEntry() && coreTextureNeedsFullRecovery) {
+  while (ownsEntry() && gameplayRendererSupervisor.isRecoveryRequired()) {
     if (document.hidden) {
       await new Promise<void>((resolve) => {
         const finish = () => {
@@ -2736,12 +3190,13 @@ async function awaitCoreTextureRecoveryForEntry(isCurrent: () => boolean, signal
       });
     }
     if (!ownsEntry() || !isCoreTextureRecoveryAllowed()) return false;
-    await recoverCoreRenderTextures('gameplay-entry');
+    await recoverCoreRenderTextures('gameplay-entry', 'gameplay-entry');
   }
   if (!ownsEntry()) return false;
-  // The prepared entry now owns reveal/ticker startup, replacing any older
-  // foreground lease which remembered the suspended menu/result surface.
-  coreTextureForegroundOwner.invalidate();
+  // Every prepared entry joins the canonical session owner. Healthy
+  // generations return an immediate receipt and do no GPU/layout work.
+  await recoverCoreRenderTextures('gameplay-entry', 'gameplay-entry');
+  if (!ownsEntry()) return false;
   return true;
 }
 
@@ -5243,7 +5698,7 @@ export async function layoutBoard(loadOwnerOrEvent?: (() => boolean) | Event) {
     if (
       error instanceof CoreRenderTextureBarrierError ||
       layoutCoreRepairWasNeeded ||
-      coreTextureRecoveryPromise !== null
+      gameplayRendererSupervisor.isRecoveryRequired()
     ) {
       hideGameplayForCoreTextureRecovery();
       throw error;
@@ -5283,7 +5738,7 @@ export async function layoutBoard(loadOwnerOrEvent?: (() => boolean) | Event) {
   }
   if (
     layoutCoreRepairWasNeeded &&
-    !coreTextureRecoveryPromise &&
+    !gameplayRendererSupervisor.isRecoveryRequired() &&
     !isGameplayEntryPending() &&
     stage === layoutStageOwner &&
     board === layoutBoardOwner &&
@@ -6363,7 +6818,8 @@ function rebuildBoard(){
   
   ensureAnimationRunning({
     gsap, app,
-    isCurrent: () => !coreTextureNeedsFullRecovery && stage === entryStage && isGameplayEntryGenerationLatest(gameplayEntryGeneration),
+    isCurrent: () => !gameplayRendererSupervisor.isRecoveryRequired()
+      && stage === entryStage && isGameplayEntryGenerationLatest(gameplayEntryGeneration),
   });
   // Preparation can await texture recovery while the gameplay surface remains
   // hidden. Start active cadence only for the visible commit/pop-in lifecycle.
@@ -6500,7 +6956,7 @@ function scheduleEntrySpecialWarmups(entryGeneration: number, entryBoard: number
   trackAppTimeout(() => {
     if (!ownsEntry()) return;
     withGameplayAudioDiagnosticCaller('entry-special', () => {
-      preloadEligibleSpecialSounds({ boardNumber: entryBoard, isArcade: isArcadeHomeRunMode(), tiles });
+      refreshSpecialSoundWorkingSetPlan();
     });
     void preloadLiveJuiceFinaleTextures(tiles, ownsEntry);
     if (isArcadeHomeRunMode()) {
@@ -6524,6 +6980,7 @@ async function animateBoardExit(){
   const exitApp = app;
   const exitGeneration = gameplayRunGeneration;
   let releaseBoardExitFrameLease: (() => void) | null = null;
+  let releaseBoardExitResources: (() => void) | null = acquireForegroundResourceCriticalLease('gameplay-exit');
   try {
   devLog('🎬🎬🎬 animateBoardExit() CALLED');
   setJourneyGameBottomDecorVisible(false);
@@ -6613,6 +7070,8 @@ async function animateBoardExit(){
   return Promise.resolve();
   } finally {
     try { releaseBoardExitFrameLease?.(); } catch {}
+    try { releaseBoardExitResources?.(); } catch {}
+    releaseBoardExitResources = null;
     // A result may request an explicit visible exit. Render that exit, then
     // restore its hold unless a new board has taken ownership in the meantime.
     if (exitApp === app && exitGeneration === gameplayRunGeneration && isGameplayRendererTerminalSuspended(exitApp)) {
@@ -6859,6 +7318,8 @@ try {
 
 async function startLevel(n): Promise<void> {
   const startLevelGeneration = beginGameplayEntryPreparation(`startLevel:${n}`);
+  specialSoundWorkingSetPlan?.release();
+  specialSoundWorkingSetPlan = null;
   releaseGameplayRendererForEntry(app);
   // Warm the Backpack/Crate frames alongside the board texture barrier. The
   // first reward must not begin decoding its entrance only after the meter is
@@ -7016,6 +7477,10 @@ async function startLevel(n): Promise<void> {
     logger,
     getSkipRebuildFlag: () => !!(window as any).__ccSkipRebuildBoard,
   });
+  // Inventory ownership begins with the committed board generation. This is a
+  // zero-decode operation; exact finale audio is admitted only after a Special
+  // merge transaction has successfully claimed gameplay ownership.
+  replaceSpecialSoundWorkingSetPlan();
   
   if (!deferSurfaceRevealForSavedLoad) {
     saveAfterBoardStart({
@@ -7081,7 +7546,7 @@ async function startLevel(n): Promise<void> {
 
 // --- local Wild skin fallback
 function applyWildSkinLocal(tile){
-  applyWildSkinLocalCore(tile, {
+  return applyWildSkinLocalCore(tile, {
     Assets,
     Texture,
     Rectangle,
@@ -7164,14 +7629,20 @@ function hardFallbackSpawnAtCell(
     wildMergeTarget = null,
     clearExisting = true,
     reason = 'unknown',
+    spawnCommit,
   }: {
     value?: number | null;
     wildMergeTarget?: number | null;
     clearExisting?: boolean;
     reason?: string;
+    spawnCommit?: () => boolean;
   } = {}
 ): boolean {
   try {
+    if (spawnCommit && !spawnCommit()) {
+      devWarn('🛡️ hardFallbackSpawnAtCell rejected by board-mutation epoch owner', { c, r, reason });
+      return false;
+    }
     if (clearExisting && grid?.[r]?.[c]) {
       const existing = grid[r][c];
       if (existing && !existing.destroyed && tiles.includes(existing)) removeTile(existing);
@@ -7204,7 +7675,7 @@ function hardFallbackSpawnAtCell(
 }
 
 // --- spawn exactly at grid cell ---
-function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false, isWildJuice=false, isWildTnt=false, tntFramesWarmup, skipBind=false, timeScale=1.0, forceFreshPlaceholder=false, skipSpawnAnimation=false }: {
+function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false, isWildJuice=false, isWildTnt=false, tntFramesWarmup, skipBind=false, timeScale=1.0, forceFreshPlaceholder=false, skipSpawnAnimation=false, spawnCommit }: {
   value?: number | null;
   isWild?: boolean;
   isWildMagnet?: boolean;
@@ -7215,11 +7686,12 @@ function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false, isWild
   timeScale?: number;
   forceFreshPlaceholder?: boolean;
   skipSpawnAnimation?: boolean;
+  spawnCommit?: OpenCellSpawnCommit;
 } = {}){
   return openAtCellCore({
     c,
     r,
-    options: { value, isWild, isWildMagnet, isWildJuice, isWildTnt, tntFramesWarmup, skipBind, timeScale, forceFreshPlaceholder, skipSpawnAnimation },
+    options: { value, isWild, isWildMagnet, isWildJuice, isWildTnt, tntFramesWarmup, skipBind, timeScale, forceFreshPlaceholder, skipSpawnAnimation, spawnCommit },
     grid,
     board,
     tiles,
@@ -7259,11 +7731,17 @@ async function ensureRepairSpawnAtCell(
   let spawned = false;
 
   try {
+    if (!currentBoardMutationEpoch) {
+      currentBoardMutationEpoch = boardMutationEpochOwner.beginMutation();
+    }
+    const permit = boardMutationEpochOwner.issueSpawnPermit(currentBoardMutationEpoch);
+    if (!permit) return false;
     spawned = !!(await openAtCell(c, r, {
       value,
       skipBind: false,
       timeScale,
       forceFreshPlaceholder,
+      spawnCommit: { owner: boardMutationEpochOwner, permit },
     }));
   } catch (err) {
     if (err instanceof OpenCellCancelledError) throw err;
@@ -7276,6 +7754,11 @@ async function ensureRepairSpawnAtCell(
       wildMergeTarget,
       clearExisting: clearExistingOnFallback,
       reason,
+      spawnCommit: () => {
+        if (!currentBoardMutationEpoch) return false;
+        const permit = boardMutationEpochOwner.issueSpawnPermit(currentBoardMutationEpoch);
+        return permit ? boardMutationEpochOwner.commitSpawn(permit).accepted : false;
+      },
     });
   }
 
@@ -7286,7 +7769,11 @@ function randomEmptyCell(excludeCells?: { r: number; c: number }[]){
   return getRandomEmptyCell({ ROWS, COLS, grid, excludeCells });
 }
 
-function spawnLockedTilesWithPop(count: number, excludeCells?: Array<{ c: number; r: number }>): void {
+function spawnLockedTilesWithPop(
+  count: number,
+  excludeCells?: Array<{ c: number; r: number }>,
+  spawnCommit?: () => boolean,
+): void {
   if (!count || count <= 0) return;
   if (!grid || !board || !makeBoard?.createTile) return;
 
@@ -7315,6 +7802,7 @@ function spawnLockedTilesWithPop(count: number, excludeCells?: Array<{ c: number
   toCreate.forEach(({ c, r }, index) => {
     try {
       if (grid?.[r]?.[c]) return; // Cell filled meanwhile
+      if (spawnCommit && !spawnCommit()) return;
       const t = makeBoard.createTile({ board, grid, tiles, c, r, val: 0, locked: true });
       if (!t) return;
       try { resetTileToNormalState?.(t); } catch {}
@@ -7560,13 +8048,22 @@ async function spawnWildFromMeter(){
         } catch {}
       }
       
-      const ok = await openAtCell(cell.c, cell.r, { 
+      if (!currentBoardMutationEpoch) {
+        currentBoardMutationEpoch = boardMutationEpochOwner.beginMutation();
+      }
+      const wildSpawnPermit = boardMutationEpochOwner.issueSpawnPermit(currentBoardMutationEpoch);
+      if (!wildSpawnPermit) {
+        devWarn('🛡️ Wild-meter spawn rejected by board-mutation epoch owner');
+        return false;
+      }
+      const ok = await openAtCell(cell.c, cell.r, {
         isWild: true, 
         isWildMagnet: spawnMagnet,
         isWildJuice: spawnJuice,
         isWildTnt: spawnTnt,
         tntFramesWarmup,
-        skipSpawnAnimation: true
+        skipSpawnAnimation: true,
+        spawnCommit: { owner: boardMutationEpochOwner, permit: wildSpawnPermit },
       });
       
       if (ok) {
@@ -7606,9 +8103,7 @@ async function spawnWildFromMeter(){
           // Warm only the committed die while its drop animation is running.
           // Pool-wide entry warmup exceeded the mobile decode budget and
           // repeatedly decoded sounds that could not remain resident.
-          withGameplayAudioDiagnosticCaller('drop-special', () => {
-            preloadEligibleSpecialSounds({ boardNumber, isArcade: isArcadeHomeRunMode(), tiles: [spawnedTile] });
-          });
+          withGameplayAudioDiagnosticCaller('drop-special', refreshSpecialSoundWorkingSetPlan);
           const dropEntryGeneration = activeGameplayEntryGeneration;
           const textureWarmup = preloadLiveJuiceFinaleTextures(
             [spawnedTile],
@@ -8004,6 +8499,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       helpers.snapBack?.(src);
       return;
     }
+    const committedSpecialTile = (getSpecialDiceVariantForTile(src) || src?.special) ? src : dst;
+    withGameplayAudioDiagnosticCaller('committed-special-transaction', () => {
+      specialSoundWorkingSetPlan?.prepareCommittedTransaction(committedSpecialTile);
+    });
   }
   if (srcIsMagnetLike) markSpecialDiceResolutionOwned(src);
   if (dstIsMagnetLike) markSpecialDiceResolutionOwned(dst);
@@ -8263,6 +8762,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
   (dst as any)._isWildMagnetMerge = isWildMagnetMergeAtEntry;
   const lastMergeResult = handleLastMergeEarly({
     tiles,
+    grid,
     src,
     dst,
     effSum,
@@ -8277,10 +8777,197 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     isWildMagnetMerge: isWildMagnetMergeAtEntry,
     mode: isArcadeHomeRunMode() ? 'arcade' : 'journey',
   });
+  if (lastMergeResult.authoritativeGridStatus === 'invalid') {
+    // A corrupt ownership snapshot must choose neither completion nor spawn.
+    // Restore only an unambiguous drag source; otherwise retire the stale
+    // source without overwriting whichever tile currently owns its cell.
+    devWarn('🛡️ MERGE BLOCKED: invalid authoritative grid snapshot', {
+      issues: lastMergeResult.authoritativeGridIssues,
+      src: { x: src?.gridX, y: src?.gridY },
+      dst: { x: dst?.gridX, y: dst?.gridY },
+    });
+    releaseSpecialDiceTransaction(specialTransactionToken, 'invalid-authoritative-grid-snapshot');
+    try { releaseSpecialDiceResolution(src); } catch {}
+    try { releaseSpecialDiceResolution(dst); } catch {}
+    try { delete (dst as any)._isWildMagnetMerge; } catch {}
+    try { delete (dst as any)._wildMergeTarget; } catch {}
+    const sourceRow = Number(src?.gridY);
+    const sourceColumn = Number(src?.gridX);
+    const sourceCell = Number.isInteger(sourceRow) && Number.isInteger(sourceColumn)
+      ? grid?.[sourceRow]?.[sourceColumn]
+      : undefined;
+    const sourceGridRefs = Array.isArray(grid)
+      ? grid.reduce((count, row) => count + (
+          Array.isArray(row) ? row.filter((tile) => tile === src).length : 0
+        ), 0)
+      : 0;
+    const canRestoreSource = (sourceCell == null && sourceGridRefs === 0)
+      || (sourceCell === src && sourceGridRefs === 1);
+    if (canRestoreSource) {
+      helpers.snapBack?.(src);
+    } else {
+      try { if (src && !src.destroyed) removeTile(src); } catch {}
+    }
+    scheduleOwnedMergeRecoveryCheck(0.12, 'invalid-authoritative-grid-snapshot');
+    return;
+  }
   (dst as any)._ccActiveTilesAtMergeEntry = lastMergeResult.activeTilesBeforeWildProgress.slice();
   (dst as any)._ccFinalMergeSnapshotAtMergeEntry = {
     ...lastMergeResult.finalMergeSnapshot,
   };
+  // Every delayed spawn created by this accepted merge is identity-bound to
+  // this epoch. A terminal decision seals the same epoch synchronously, so a
+  // timer/animation that resumes later cannot repopulate a completed board.
+  let committedMergeTransaction: CommittedGameplayTransaction | null = null;
+  let mergeGameplayTransactionOwner: GameplayTransactionOwner | null = null;
+  let mergeBoardMutationEpoch: BoardMutationEpoch;
+  const mergeEntryDecision = lastMergeResult.decision;
+  if (
+    effSum === 6
+    && lastMergeResult.isActuallyLastMerge
+    && mergeEntryDecision.type === 'complete'
+  ) {
+    const entryTiles = lastMergeResult.activeTilesBeforeWildProgress;
+    const dieIdByTile = new Map<any, string>();
+    entryTiles.forEach((tile: any, index: number) => {
+      const existingId = typeof tile?._ccGameplayDieId === 'string'
+        ? tile._ccGameplayDieId
+        : '';
+      const id = existingId || [
+        'die',
+        gameplayBoardMutationRevision,
+        tile?.gridX ?? 'x',
+        tile?.gridY ?? 'y',
+        index,
+      ].join(':');
+      if (tile && !existingId) tile._ccGameplayDieId = id;
+      dieIdByTile.set(tile, id);
+    });
+    const preBoard = {
+      dice: entryTiles.map((tile: any) => ({
+        id: dieIdByTile.get(tile)!,
+        c: tile?.gridX | 0,
+        r: tile?.gridY | 0,
+        value: tile?.value | 0,
+        stackDepth: Math.max(1, tile?.stackDepth | 0),
+        special: typeof tile?.special === 'string' ? tile.special : null,
+        locked: tile?.locked === true,
+      })),
+    };
+    const sourceDieId = dieIdByTile.get(src);
+    const destinationDieId = dieIdByTile.get(dst);
+    if (!sourceDieId || !destinationDieId) {
+      devWarn('🛡️ Terminal merge transaction rejected: source/destination absent from entry snapshot');
+      return;
+    }
+    mergeGameplayTransactionOwner = new GameplayTransactionOwner(
+      gameplayBoardMutationRevision,
+      boardMutationEpochOwner,
+    );
+    const prepared = mergeGameplayTransactionOwner.prepare({
+      expectedRevision: gameplayBoardMutationRevision,
+      preBoard,
+      calculate: () => ({
+        nextBoard: {
+          dice: [{
+            id: destinationDieId,
+            c: dst?.gridX | 0,
+            r: dst?.gridY | 0,
+            value: effSum,
+            stackDepth: Math.max(1, ((src?.stackDepth | 0) || 1) + ((dst?.stackDepth | 0) || 1)),
+            special: null,
+            locked: false,
+          }],
+        },
+        decision: mergeEntryDecision,
+        merge: {
+          sourceDieId,
+          destinationDieId,
+          resultDieId: destinationDieId,
+          resultValue: effSum,
+        },
+        spawns: [],
+        scoreDelta: effSum,
+        wildMeterDelta: 0,
+      }),
+    });
+    if (!prepared.accepted) {
+      devWarn('🛡️ Terminal merge transaction preparation rejected', prepared);
+      return;
+    }
+    const committed = mergeGameplayTransactionOwner.commit(prepared.transaction);
+    if (!committed.accepted) {
+      devWarn('🛡️ Terminal merge transaction commit rejected', committed);
+      return;
+    }
+    committedMergeTransaction = committed.transaction;
+    mergeBoardMutationEpoch = committed.transaction.epoch;
+  } else {
+    mergeBoardMutationEpoch = boardMutationEpochOwner.beginMutation({
+      transactionId: `legacy-merge:${gameplayBoardMutationRevision + 1}`,
+      boardRevision: gameplayBoardMutationRevision + 1,
+    });
+  }
+  currentBoardMutationEpoch = mergeBoardMutationEpoch;
+  gameplayBoardMutationRevision = mergeBoardMutationEpoch.boardRevision;
+  const isMergePresentationCapabilityCurrent = (): boolean => {
+    if (!committedMergeTransaction || !mergeGameplayTransactionOwner) return true;
+    return mergeGameplayTransactionOwner.isCapabilityCurrent(
+      committedMergeTransaction.capabilities.presentation,
+    ) && boardMutationEpochOwner.getOutcome(committedMergeTransaction.epoch) === 'complete';
+  };
+  const createMergeOpenCellSpawnCommit = (): OpenCellSpawnCommit | null => {
+    const permit = boardMutationEpochOwner.issueSpawnPermit(mergeBoardMutationEpoch);
+    return permit ? { owner: boardMutationEpochOwner, permit } : null;
+  };
+  const commitMergeSpawnAtBoundary = (): boolean => {
+    const permit = boardMutationEpochOwner.issueSpawnPermit(mergeBoardMutationEpoch);
+    if (!permit) return false;
+    return boardMutationEpochOwner.commitSpawn(permit).accepted;
+  };
+  const sealMergeBoardComplete = (reason: string): boolean => {
+    const decision = boardMutationEpochOwner.commitComplete(mergeBoardMutationEpoch);
+    const rejectedDecision = decision.accepted === false ? decision : null;
+    const accepted = decision.accepted || (
+      rejectedDecision?.reason === 'terminal-committed'
+      && boardMutationEpochOwner.getOutcome(mergeBoardMutationEpoch) === 'complete'
+    );
+    if (!accepted) {
+      devWarn('🛡️ Terminal merge rejected by board-mutation epoch owner', {
+        reason,
+        rejection: rejectedDecision?.reason,
+        outcome: decision.outcome,
+      });
+    }
+    return accepted;
+  };
+  const openAtCellForMerge = (
+    c: number,
+    r: number,
+    options: Parameters<typeof openAtCell>[2] = {},
+  ): ReturnType<typeof openAtCell> => {
+    const spawnCommit = createMergeOpenCellSpawnCommit();
+    if (!spawnCommit) return Promise.resolve(false);
+    return openAtCell(c, r, { ...options, spawnCommit });
+  };
+  const openLockedBounceForMerge = (
+    params: Parameters<typeof FLOW.openLockedBounceParallel>[0],
+  ): ReturnType<typeof FLOW.openLockedBounceParallel> => FLOW.openLockedBounceParallel({
+    ...params,
+    spawnCommit: commitMergeSpawnAtBoundary,
+  });
+  const hardFallbackSpawnAtCellForMerge = (
+    c: number,
+    r: number,
+    options: Parameters<typeof hardFallbackSpawnAtCell>[2] = {},
+  ): boolean => hardFallbackSpawnAtCell(c, r, {
+    ...options,
+    spawnCommit: commitMergeSpawnAtBoundary,
+  });
+  const spawnLockedTilesWithPopForMerge = (
+    count: number,
+    excludeCells?: Array<{ c: number; r: number }>,
+  ): void => spawnLockedTilesWithPop(count, excludeCells, commitMergeSpawnAtBoundary);
   emitIOSArcadeGameplayTrace('last-merge-early', {
     boardNumber,
     effSum,
@@ -8292,7 +8979,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
   });
 
   mergeBoardMutationStarted = true;
-  gameplayBoardMutationRevision += 1;
+  settledBoardWatchdog.noteActivity();
   grid[src.gridY][src.gridX] = null;
   dst.eventMode = 'none';
 
@@ -10245,6 +10932,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   startLevel: startLevel,
                   makeBoard,
                   drawBoardBG,
+                  openAtCell: openAtCellForMerge,
+                  commitSpawnMutation: commitMergeSpawnAtBoundary,
+                  sealBoardComplete: (reason: string) => sealMergeBoardComplete(reason),
                 };
                 await handleWildMagnetMergedPulledTiles(dst, [], helpersWithMerge);
                 if (!isCurrentMagnetRun()) return;
@@ -10302,8 +10992,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   merge: merge, // Add merge function from app-core.ts to helpers
                   startLevel: startLevel, // Add startLevel function to helpers for clean board flow
                   makeBoard, // For fillNullCellsWithLockedPlaceholders (avoids TDZ in app-merge)
-                  spawnLockedTilesWithPop: (count: number, exclude?: Array<{ c: number; r: number }>) => spawnLockedTilesWithPop(count, exclude),
-                  openLockedBounceParallel: FLOW.openLockedBounceParallel,
+                  spawnLockedTilesWithPop: (count: number, exclude?: Array<{ c: number; r: number }>) => spawnLockedTilesWithPopForMerge(count, exclude),
+                  openLockedBounceParallel: openLockedBounceForMerge,
+                  openAtCell: openAtCellForMerge,
+                  commitSpawnMutation: commitMergeSpawnAtBoundary,
+                  sealBoardComplete: (reason: string) => sealMergeBoardComplete(reason),
                   gsap,
                   drawBoardBG,
                   TILE,
@@ -11044,6 +11737,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               // 🔥 FIX: Use triggerCleanBoardFlow (same entry as other clean board paths) so modal shows consistently
               await triggerCleanBoardFlow('clean_board_from_last_merge_edge_case', {
                 finalMergeSnapshot,
+                boardMutationEpoch: mergeBoardMutationEpoch,
               });
               return;
             }
@@ -11547,13 +12241,18 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 	                      releaseTntTransactionWhenSettled('final-merge-no-bonus');
 	                      return;
 	                    }
-	                    runTntBoomBonusBreak2Tiles({
+		                    runTntBoomBonusBreak2Tiles({
 	                      board,
 	                      dst,
 	                      addWildProgress,
-	                      removeTile,
-	                      openAtCell,
-	                      regularMerge6ShardsTemplated,
+		                      removeTile,
+		                      openAtCell: openAtCellForMerge,
+		                      isBoardMutationCurrent: () => {
+		                        const outcome = boardMutationEpochOwner.getOutcome(mergeBoardMutationEpoch);
+		                        return outcome !== null && outcome !== 'complete';
+		                      },
+		                      commitBoardMutation: commitMergeSpawnAtBoundary,
+		                      regularMerge6ShardsTemplated,
 	                      smokeBubblesAtTile,
 	                      TILE,
 	                      devLog,
@@ -12154,6 +12853,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             // Note: triggerCleanBoardFlow will set busyEnding internally, so we don't need to set it here
             await triggerCleanBoardFlow('clean_board_from_last_merge_checkEndGame', {
               finalMergeSnapshot,
+              boardMutationEpoch: mergeBoardMutationEpoch,
             });
             return; // Exit early - don't continue with normal merge 6 flow
             }
@@ -12591,6 +13291,14 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // This applies to ALL merge types: normal, wild juice, wild star, wild magnet
         if (isLastMergeFlagSet && !willPulledTilesMerge) {
           cancelPendingWildContinuation('final_merge_source_of_truth');
+          if (!sealMergeBoardComplete('final-merge-source-of-truth')) {
+            scheduleOwnedMergeRecoveryCheck(0.12, 'final-merge-epoch-rejected');
+            return;
+          }
+          if (!isMergePresentationCapabilityCurrent()) {
+            scheduleOwnedMergeRecoveryCheck(0.12, 'final-merge-presentation-capability-stale');
+            return;
+          }
           // Keep ghost placeholders visible until the final residual pop-out animates them away.
           setFinalMergeVisualSuppression(true, { preserveGhosts: true });
 
@@ -12624,6 +13332,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               }
             );
           }
+          if (!isMergePresentationCapabilityCurrent()) return;
           
           // 🔥 CRITICAL: Use triggerCleanBoardFlow (same entry as moves depleted / checkLevelEnd) so modal shows consistently
           devLog('🚨🚨🚨 SOURCE OF TRUTH: Final merge-6 - triggering clean board flow via triggerCleanBoardFlow (NO spawn)');
@@ -12639,7 +13348,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             specialTransactionToken,
             `final-merge-clean-handoff:${finalMergeFx || 'regular'}`,
           );
-          await triggerCleanBoardFlow(finalCleanReason, { finalMergeSnapshot });
+          await triggerCleanBoardFlow(finalCleanReason, {
+            finalMergeSnapshot,
+            boardMutationEpoch: mergeBoardMutationEpoch,
+          });
           
           return; // Exit early - don't spawn new tiles (SOURCE OF TRUTH: Final merge-6 = NO spawn)
         }
@@ -12914,6 +13626,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           // final result must release every gameplay owner before handing the
           // board to the modal/score flow; otherwise Success can coexist with a
           // stale spawn owner or special input lock.
+          if (!sealMergeBoardComplete(`final-merge-guard:${guardReason}`)) {
+            throw new Error(`Unable to seal board mutation epoch for final guard: ${guardReason}`);
+          }
           if (regularMerge6CleanupToken !== null && dst) {
             merge6DestinationCleanupOwner.release(dst, regularMerge6CleanupToken);
             regularMerge6CleanupToken = null;
@@ -12959,7 +13674,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               }
             );
           }
-          await triggerCleanBoardFlow(finalReason, { finalMergeSnapshot });
+          await triggerCleanBoardFlow(finalReason, {
+            finalMergeSnapshot,
+            boardMutationEpoch: mergeBoardMutationEpoch,
+          });
         };
 
         // Fallback safety: if last-merge flag was missed, but board effectively has only merge-6 left,
@@ -13054,7 +13772,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             ? new Set([...pulledCellsSet, `${gx},${gy}`])
             : pulledCellsSet;
           try {
-            await FLOW.openLockedBounceParallel({
+            await openLockedBounceForMerge({
               tiles: Array.isArray(STATE.tiles) ? STATE.tiles : tiles,
               k: wildExtraActiveCount,
               drag,
@@ -13199,19 +13917,22 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               }
             };
             const hardSpawnAtCell = () => {
-              return hardFallbackSpawnAtCell(spawnC, spawnR, {
+              return hardFallbackSpawnAtCellForMerge(spawnC, spawnR, {
                 wildMergeTarget,
                 clearExisting: false,
                 reason: 'endgame-spawn-hard-fallback',
               });
             };
             const runSpawn = () => {
+              const spawnCommit = createMergeOpenCellSpawnCommit();
+              if (!spawnCommit) return Promise.resolve(false);
               forceClearSpawnCell();
               return openAtCell(spawnC, spawnR, {
                 value: (wildMergeTarget ? randomRegularTileValue(wildMergeTarget) : null),
                 skipBind: false,
                 timeScale: 2.0,
                 forceFreshPlaceholder: true,
+                spawnCommit,
               });
             };
           const doEndgameSpawns = async () => {
@@ -13219,7 +13940,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             if (await maybeForceCleanBoardFromSingleMerge6('endgame_before_spawn')) return;
             let firstResult = await runSpawn();
             if (!firstResult) {
-              forceClearSpawnCell();
               firstResult = await runSpawn();
             }
             if (!firstResult) {
@@ -13255,7 +13975,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 const extraCell = randomEmptyCell(extraExclude);
                 if (extraCell) {
                   extraExclude.push({ r: extraCell.r, c: extraCell.c });
-                  await openAtCell(extraCell.c, extraCell.r, {
+                  await openAtCellForMerge(extraCell.c, extraCell.r, {
                     value: wildMergeTarget ? randomRegularTileValue(wildMergeTarget) : null,
                     skipBind: false,
                     timeScale: 2.0,
@@ -13307,7 +14027,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   activeNow,
                   regularSpawnCount
                 });
-                const emergencyOpened = await FLOW.openLockedBounceParallel({
+                const emergencyOpened = await openLockedBounceForMerge({
                   tiles: tilesForSpawn,
                   k: 1,
                   drag,
@@ -13331,6 +14051,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 const fallbackLocked = lockedForEmergency[0];
                 if (!fallbackLocked) return;
                 try {
+                  if (!commitMergeSpawnAtBoundary()) return;
                   fallbackLocked.locked = false;
                   try { makeBoard.syncTileZIndex?.(fallbackLocked, board); } catch {}
                   fallbackLocked.eventMode = 'static';
@@ -13378,6 +14099,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   const t = lockedCandidates[i];
                   try {
                     if (opened > 0 && await waitTrackedResult(100) === 'cancelled') return opened;
+                    if (!commitMergeSpawnAtBoundary()) return opened;
                     t.locked = false;
                     try { makeBoard.syncTileZIndex?.(t, board); } catch {}
                     t.eventMode = 'static';
@@ -13396,7 +14118,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 }
                 return opened;
               };
-              let opened = await FLOW.openLockedBounceParallel({
+              let opened = await openLockedBounceForMerge({
                 tiles: tilesForSpawn,
                 k: remainingSpawnCount,
                 drag,
@@ -13423,7 +14145,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   const cell = randomEmptyCell(excludeCells);
                   if (cell) {
                     excludeCells.push({ r: cell.r, c: cell.c });
-                    await openAtCell(cell.c, cell.r, {
+                    await openAtCellForMerge(cell.c, cell.r, {
                       value: wildMergeTarget ? randomRegularTileValue(wildMergeTarget) : null,
                       skipBind: false,
                       timeScale: 2.0,
@@ -13431,7 +14153,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                     });
                   } else {
                     devLog('🎯 NORMAL SPAWN: No empty cell found, opening 1 locked tile as fallback');
-                    await FLOW.openLockedBounceParallel({
+                    await openLockedBounceForMerge({
                       tiles: tilesForSpawn,
                       k: 1,
                       drag,
@@ -13491,7 +14213,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 devWarn('⚠️ WILD SPAWN: merge cell prep failed', err);
               }
               try {
-                const ok = await openAtCell(gx, gy, {
+                const ok = await openAtCellForMerge(gx, gy, {
                   value: pickSpawnValueWild(),
                   skipBind: false,
                   timeScale: 2.0,
@@ -13512,7 +14234,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 mergeCellWild = await refillWildMergeCellFresh();
                 const kLocked = Math.max(0, (spawnMult | 0) - mergeCellWild);
                 devLog('🚀 NORMAL SPAWN (wild): mergeCellFresh=', mergeCellWild, 'kLocked=', kLocked, 'spawnMult=', spawnMult, 'locked pool:', tilesForSpawn.filter((t: any) => t && !t.destroyed && t.locked).length);
-                const openedCount = await FLOW.openLockedBounceParallel({
+                const openedCount = await openLockedBounceForMerge({
                   tiles: tilesForSpawn,
                   k: kLocked,
                   drag,
@@ -13539,7 +14261,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                     opened,
                     remainderSpawned
                   });
-                  const emergencyOpened = await FLOW.openLockedBounceParallel({
+                  const emergencyOpened = await openLockedBounceForMerge({
                     tiles: Array.isArray(STATE.tiles) ? STATE.tiles : tiles,
                     k: 1,
                     drag,
@@ -13556,6 +14278,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   const fallbackLocked = getLockedSpawnCandidates(Array.isArray(STATE.tiles) ? STATE.tiles : tiles)[0];
                   if (!fallbackLocked) return;
                   try {
+                    if (!commitMergeSpawnAtBoundary()) return;
                     fallbackLocked.locked = false;
                     try { makeBoard.syncTileZIndex?.(fallbackLocked, board); } catch {}
                     fallbackLocked.eventMode = 'static';
@@ -13582,7 +14305,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                     let cell = randomEmptyCell(excludeCells);
                     if (cell) {
                       excludeCells.push({ r: cell.r, c: cell.c });
-                      remainderPromises.push(openAtCell(cell.c, cell.r, {
+                      remainderPromises.push(openAtCellForMerge(cell.c, cell.r, {
                         value: wildMergeTarget ? randomRegularTileValue(wildMergeTarget) : null,
                         skipBind: false,
                         timeScale: 2.0
@@ -13593,7 +14316,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                       }));
                     } else {
                       logger.warn('🚀 NORMAL SPAWN: No empty cell, opening 1 locked tile as fallback', 'app-core');
-                      const extraOpened = await FLOW.openLockedBounceParallel({
+                      const extraOpened = await openLockedBounceForMerge({
                         tiles: Array.isArray(STATE.tiles) ? STATE.tiles : tiles,
                         k: 1,
                         drag,
@@ -13637,6 +14360,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                         const t = lockedCandidates[i];
                         try {
                           if (openedForced > 0 && await waitTrackedResult(100) === 'cancelled') return openedForced;
+                          if (!commitMergeSpawnAtBoundary()) return openedForced;
                           t.locked = false;
                           try { makeBoard.syncTileZIndex?.(t, board); } catch {}
                           t.eventMode = 'static';
@@ -13660,7 +14384,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                     while (missing > 0) {
                       const cell = randomEmptyCell([{ r: gy, c: gx }]);
                       if (!cell) break;
-                      const ok = await openAtCell(cell.c, cell.r, {
+                      const ok = await openAtCellForMerge(cell.c, cell.r, {
                         value: wildMergeTarget ? randomRegularTileValue(wildMergeTarget) : null,
                         skipBind: false,
                         timeScale: 2.0
@@ -13708,7 +14432,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           }
           devLog('🔒 Wild merge bonus: spawning locked tiles', wildMergeLockedBonusCount);
           // 🔥 ENDGAME: Exclude dst cell to prevent clash – we spawn 1 active tile there via openAtCell
-          spawnLockedTilesWithPop(wildMergeLockedBonusCount, shouldSpawnAtDst ? [{ c: gx, r: gy }] : undefined);
+          spawnLockedTilesWithPopForMerge(wildMergeLockedBonusCount, shouldSpawnAtDst ? [{ c: gx, r: gy }] : undefined);
           wildMergeLockedSpawnCount += 1;
         }
 
@@ -13992,7 +14716,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               needed
             });
             const tilesForSpawn = Array.isArray(STATE.tiles) ? STATE.tiles : tiles;
-            const opened = await FLOW.openLockedBounceParallel({
+            const opened = await openLockedBounceForMerge({
               tiles: tilesForSpawn,
               k: needed,
               drag,
@@ -14015,7 +14739,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 const cell = randomEmptyCell(excludeCells);
                 if (!cell) break;
                 excludeCells.push({ r: cell.r, c: cell.c });
-                await openAtCell(cell.c, cell.r, {
+                await openAtCellForMerge(cell.c, cell.r, {
                   value: wildMergeTarget ? randomRegularTileValue(wildMergeTarget) : null,
                   skipBind: false,
                   timeScale: 2.0
@@ -14243,11 +14967,17 @@ async function tryTutorialFinalChanceSpawn(reason: string): Promise<boolean> {
   });
 
   try {
+    if (!currentBoardMutationEpoch) {
+      currentBoardMutationEpoch = boardMutationEpochOwner.beginMutation();
+    }
+    const permit = boardMutationEpochOwner.issueSpawnPermit(currentBoardMutationEpoch);
+    if (!permit) return false;
     const ok = await openAtCell(cell.c, cell.r, {
       value: neededValue,
       skipBind: false,
       timeScale: 2.0,
       forceFreshPlaceholder: true,
+      spawnCommit: { owner: boardMutationEpochOwner, permit },
     });
     if (!ok) {
       tutorialFinalChanceSpawnCount = Math.max(0, tutorialFinalChanceSpawnCount - 1);
@@ -14603,6 +15333,7 @@ function checkLevelEnd(){
     // 🔥 CRITICAL: Use forceRefresh because delay might have caused cache staleness
     const checkLevelEndResult = checkEndGame(checkLevelEndContext, true);
     let resolverDecisionForLevelEnd: GameplayResolutionDecision | null = null;
+    let logicalSpecialsForRenderParity: any[] = [];
     let levelEndDecision = normalizeLevelEndDecision({
       legacyResult: checkLevelEndResult,
       resolverDecision: null,
@@ -14625,6 +15356,7 @@ function checkLevelEnd(){
       const resolverSnapshot = resolvedLevelEnd.snapshot;
       const resolverDecision = resolvedLevelEnd.resolverDecision;
       resolverDecisionForLevelEnd = resolvedLevelEnd.resolverDecision;
+      logicalSpecialsForRenderParity = resolvedLevelEnd.snapshot.wildTiles;
       levelEndDecision = resolvedLevelEnd.levelEndDecision;
       const legacyDecisionType = getLegacyComparableDecisionType(checkLevelEndResult);
       const resolverComparableType = getResolverComparableDecisionType(resolverDecision);
@@ -14651,6 +15383,66 @@ function checkLevelEnd(){
       // cannot authorize a terminal decision from a second state authority.
       devWarn('⚠️ Gameplay resolver failed at checkLevelEnd; deferring terminal decision', resolverError);
       levelEndDecision = { type: 'wait', reason: 'resolver-error', source: 'resolver' };
+    }
+    const visualAssetRendererGeneration = getVisualAssetRendererGeneration();
+    const specialRenderGate = guardSettledSpecialRenderHealth({
+      decision: resolverDecisionForLevelEnd,
+      moveEnablingSpecials: logicalSpecialsForRenderParity,
+      currentRendererGeneration: visualAssetRendererGeneration,
+      getExpectedAssetPath: getTileBaseTextureAssetPath,
+    });
+    const specialRenderRecoveryClaim = settledSpecialRenderRecoveryOwner.claim(
+      specialRenderGate,
+      visualAssetRendererGeneration,
+    );
+    if (specialRenderGate.type === 'wait') {
+      devWarn('🛡️ Settled endgame paused for Special render recovery', {
+        resolverDecision: resolverDecisionForLevelEnd,
+        recovery: specialRenderRecoveryClaim,
+        issues: specialRenderGate.issues.map((issue) => ({
+          reason: issue.reason,
+          special: issue.tile?.special || null,
+          variant: issue.tile?._ccSpecialDiceVariant || issue.tile?.specialDiceVariant || null,
+          gridX: issue.tile?.gridX,
+          gridY: issue.tile?.gridY,
+          expectedAssetPath: issue.expectedAssetPath,
+          actualAssetPath: issue.actualAssetPath,
+          expectedRendererGeneration: issue.expectedRendererGeneration,
+          actualRendererGeneration: issue.actualRendererGeneration,
+        })),
+      });
+      if (specialRenderRecoveryClaim.action === 'fallback') {
+        void recoverCoreRenderTextures(
+          'settled-special-render-parity-budget-exhausted',
+          'settled-board',
+          true,
+        ).catch((error) => {
+          devWarn('⚠️ Special render parity recovery exhausted its bounded session', error);
+        });
+        return;
+      }
+      void recoverCoreRenderTextures('settled-special-render-parity', 'settled-board', true)
+        .then(() => {
+          if (!isCurrentCheck()) return;
+          scheduleCheckLevelEnd(0.1, 'special-render-recovery-complete');
+        })
+        .catch((error) => {
+          // The renderer recovery owner retains the input lock and presents its
+          // explicit retry/menu fallback. Never fall through to Fail/continue.
+          devWarn('⚠️ Special render parity recovery remains blocked', error);
+        });
+      return;
+    }
+    const watchdogEligible = levelEndDecision.type === 'continue'
+      || levelEndDecision.type === 'stuck';
+    if (watchdogEligible) {
+      const logicalMoveAvailable = levelEndDecision.type === 'continue';
+      latestSettledBoardWatchdogObservation = readSettledBoardWatchdogObservation(
+        logicalMoveAvailable,
+      );
+      settledBoardWatchdog.observe(latestSettledBoardWatchdogObservation);
+    } else {
+      settledBoardWatchdog.noteActivity();
     }
     if (levelEndDecision.type !== 'continue' || checkLevelEndResult.type !== 'continue') {
       emitIOSArcadeGameplayTrace('level-end-decision', {
@@ -15180,6 +15972,8 @@ function runTntBoomBonusBreak2Tiles(deps: {
   addWildProgress: (n: number) => void;
   removeTile: (t: Tile) => void;
   openAtCell: (c: number, r: number, opts?: any) => Promise<unknown>;
+  isBoardMutationCurrent: () => boolean;
+  commitBoardMutation: () => boolean;
   regularMerge6ShardsTemplated: (board: any, tile: any, opts?: any) => void;
   smokeBubblesAtTile: (board: any, tile: any, tileSize?: number, strength?: number, opts?: any) => void;
   TILE: number;
@@ -15197,7 +15991,7 @@ function runTntBoomBonusBreak2Tiles(deps: {
   onBoardCommitted?: () => void;
   onComplete?: () => void;
 }) {
-  const { board, dst, addWildProgress, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn, bonusParticleSources, bonusParticleScale = 1, initialImpactDelayMs = 0, impactProfile = 'standard', onImpact, skipFx, onTargetsSelected, onBoardCommitted, onComplete } = deps;
+  const { board, dst, addWildProgress, removeTile, openAtCell, isBoardMutationCurrent, commitBoardMutation, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn, bonusParticleSources, bonusParticleScale = 1, initialImpactDelayMs = 0, impactProfile = 'standard', onImpact, skipFx, onTargetsSelected, onBoardCommitted, onComplete } = deps;
   const boundedInitialImpactDelayMs = Math.max(0, Math.round(initialImpactDelayMs));
   // The activating merge already awards one full BIG increment. Each of the
   // four TNT/Ball bonus impacts contributes a small, explicit 5% reward.
@@ -15466,13 +16260,21 @@ function runTntBoomBonusBreak2Tiles(deps: {
           used.push(val);
           return val;
         };
-        const replaceTile = () => {
-          if (!tile || tile.destroyed || !board || !STATE?.tiles) {
-            releaseTntBonusTile(tile);
-            markBreakComplete();
-            return;
-          }
-          releaseTntBonusTile(tile);
+	        const replaceTile = () => {
+	          if (!tile || tile.destroyed || !board || !STATE?.tiles) {
+	            releaseTntBonusTile(tile);
+	            markBreakComplete();
+	            return;
+	          }
+	          // Removal and replacement are one epoch-owned mutation. Reject a
+	          // delayed TNT callback before it can clear a terminal/current cell;
+	          // openAtCell carries the same epoch to its final spawn boundary.
+	          if (!isBoardMutationCurrent()) {
+	            releaseTntBonusTile(tile);
+	            markBreakComplete();
+	            return;
+	          }
+	          releaseTntBonusTile(tile);
           removeTile(tile);
         // Non-Laser profiles keep their existing replacement-boundary star.
         // Laser emits it at impact start alongside smoke/shards and scaling.
@@ -15495,7 +16297,7 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	          // already retired. Preserve the exact tile object while its value
 	          // changes so drag/snapback and grid/list identity cannot diverge.
 	          const replacementValue = selectReplacementValue();
-	          return commitLaserGunTileImpact({
+		          return commitLaserGunTileImpact({
 	            tile,
 	            grid,
 	            tiles: STATE.tiles,
@@ -15533,8 +16335,9 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	              }
 	              markBreakComplete();
 	            },
-	            isCurrent: () => laserGunRunGeneration === gameplayRunGeneration,
-	            scheduleSafety: trackAppTimeout,
+		            isCurrent: () => laserGunRunGeneration === gameplayRunGeneration,
+		            commitMutation: commitBoardMutation,
+		            scheduleSafety: trackAppTimeout,
 	          });
 	        } else {
 	          replaceTile();
@@ -16532,6 +17335,8 @@ export function cleanupGame(options: { destroyRenderer?: boolean } = {}) {
   // Preserve the historic hard-teardown default for explicit shutdown/fatal
   // callers. Ordinary route exit must opt into the soft renderer session.
   const destroyRenderer = options.destroyRenderer !== false;
+  specialSoundWorkingSetPlan?.release();
+  specialSoundWorkingSetPlan = null;
   devLog('🧹 Cleaning up game state');
   // Release drag/canvas/SVG ownership while the renderer and live tile parents
   // still exist; end-of-cleanup is too late for a reliable restore.
@@ -17172,6 +17977,8 @@ async function loadGameState(overrideBoardNumber?: number) {
       drawBoardBG,
       devLog,
     });
+    if (!isCurrentLoad()) return 'superseded' as const;
+    refreshSpecialSoundWorkingSetPlan();
 
     // Hide ghosts before any await so no frame paints with placeholders during load pop-in path
     try { hideGhostPlaceholders(); } catch {}

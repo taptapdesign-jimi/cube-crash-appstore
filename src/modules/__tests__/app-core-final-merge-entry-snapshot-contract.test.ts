@@ -19,6 +19,24 @@ describe('merge-entry finality snapshot contract', () => {
     expect(finalityCapture).toBeLessThan(sourceDetach);
     expect(finalityCapture).toBeLessThan(stackOnlyBranch);
     expect(mergeSource.match(/const lastMergeResult = handleLastMergeEarly\(\{/g)).toHaveLength(1);
+    expect(mergeSource.slice(finalityCapture, sourceDetach)).toContain('grid,');
+  });
+
+  test('invalid authoritative ownership exits before mutation epochs or source detachment', () => {
+    const mergeStart = appCoreSource.indexOf('function merge(src: Tile, dst: Tile');
+    const mergeSource = appCoreSource.slice(mergeStart);
+    const invalidGuard = mergeSource.indexOf("lastMergeResult.authoritativeGridStatus === 'invalid'");
+    const mutationEpoch = mergeSource.indexOf('let committedMergeTransaction: CommittedGameplayTransaction');
+    const sourceDetach = mergeSource.indexOf('grid[src.gridY][src.gridX] = null;');
+    const guardSource = mergeSource.slice(invalidGuard, mutationEpoch);
+
+    expect(invalidGuard).toBeGreaterThanOrEqual(0);
+    expect(invalidGuard).toBeLessThan(mutationEpoch);
+    expect(invalidGuard).toBeLessThan(sourceDetach);
+    expect(guardSource).toContain("releaseSpecialDiceTransaction(specialTransactionToken, 'invalid-authoritative-grid-snapshot')");
+    expect(guardSource).toContain('helpers.snapBack?.(src);');
+    expect(guardSource).toContain('scheduleOwnedMergeRecoveryCheck');
+    expect(guardSource).toContain('return;');
   });
 
   test('publishes one immutable snapshot consumed by delayed merge-6 resolution', () => {
@@ -31,6 +49,45 @@ describe('merge-entry finality snapshot contract', () => {
     expect(merge6Read).toBeGreaterThan(snapshotWrite);
   });
 
+  test('commits final merge from one immutable transaction before mutating the live board', () => {
+    const mergeStart = appCoreSource.indexOf('function merge(src: Tile, dst: Tile');
+    const mergeSource = appCoreSource.slice(mergeStart);
+    const prepare = mergeSource.indexOf('mergeGameplayTransactionOwner.prepare({');
+    const commit = mergeSource.indexOf('mergeGameplayTransactionOwner.commit(prepared.transaction)');
+    const revisionCommit = mergeSource.indexOf('gameplayBoardMutationRevision = mergeBoardMutationEpoch.boardRevision;');
+    const sourceDetach = mergeSource.indexOf('grid[src.gridY][src.gridX] = null;');
+
+    expect(prepare).toBeGreaterThanOrEqual(0);
+    expect(commit).toBeGreaterThan(prepare);
+    expect(revisionCommit).toBeGreaterThan(commit);
+    expect(sourceDetach).toBeGreaterThan(revisionCommit);
+    expect(mergeSource).toContain('decision: mergeEntryDecision,');
+    expect(mergeSource).toContain('spawns: [],');
+    expect(mergeSource).toContain('committedMergeTransaction.capabilities.presentation');
+  });
+
+  test('seals terminal completion before its visual await and gates every delayed spawn family', () => {
+    const mergeStart = appCoreSource.indexOf('function merge(src: Tile, dst: Tile');
+    const mergeEnd = appCoreSource.indexOf('async function checkMovesDepleted()', mergeStart);
+    const mergeSource = appCoreSource.slice(mergeStart, mergeEnd);
+    const finalBranch = mergeSource.indexOf('if (isLastMergeFlagSet && !willPulledTilesMerge) {');
+    const terminalSeal = mergeSource.indexOf("sealMergeBoardComplete('final-merge-source-of-truth')", finalBranch);
+    const visualAwait = mergeSource.indexOf('await prepareArcadeStageClearFinalMergeHandoff(', finalBranch);
+    const presentationChecks = mergeSource.slice(finalBranch).match(/isMergePresentationCapabilityCurrent\(\)/g);
+
+    expect(terminalSeal).toBeGreaterThan(finalBranch);
+    expect(visualAwait).toBeGreaterThan(terminalSeal);
+    expect(presentationChecks).toHaveLength(2);
+    expect(mergeSource).not.toContain('await FLOW.openLockedBounceParallel({');
+    expect(mergeSource).not.toMatch(/await openAtCell\(/);
+    expect(mergeSource).toContain('openLockedBounceForMerge({');
+    expect(mergeSource).toContain('openAtCellForMerge(');
+    expect(mergeSource).toContain('hardFallbackSpawnAtCellForMerge(');
+    expect(mergeSource).toContain('spawnLockedTilesWithPopForMerge(');
+    expect(mergeSource).toContain('if (!commitMergeSpawnAtBoundary()) return opened;');
+    expect(mergeSource).toContain('if (!commitMergeSpawnAtBoundary()) return openedForced;');
+  });
+
   test('blocks the delayed TNT gameplay bonus when entry snapshot is final', () => {
     expect(appCoreSource).toContain('const finalMergeOwnsTntResolution =');
     expect(appCoreSource).toContain('capturedWasFinalMerge ||');
@@ -39,8 +96,36 @@ describe('merge-entry finality snapshot contract', () => {
 
     const guard = appCoreSource.indexOf('if (finalMergeOwnsTntResolution) {');
     const bonus = appCoreSource.indexOf('runTntBoomBonusBreak2Tiles({', guard);
+    const bonusCallEnd = appCoreSource.indexOf('});', bonus);
+    const bonusCall = appCoreSource.slice(bonus, bonusCallEnd);
     expect(guard).toBeGreaterThanOrEqual(0);
     expect(bonus).toBeGreaterThan(guard);
+    expect(bonusCall).toContain('openAtCell: openAtCellForMerge,');
+    expect(bonusCall).toContain('isBoardMutationCurrent: () => {');
+    expect(bonusCall).toContain('commitBoardMutation: commitMergeSpawnAtBoundary,');
+  });
+
+  test('gates the delayed same-tile Laser mutation with the merge epoch', () => {
+    const impact = appCoreSource.indexOf('return commitLaserGunTileImpact({');
+    const impactEnd = appCoreSource.indexOf('});', impact);
+    const impactCall = appCoreSource.slice(impact, impactEnd);
+
+    expect(impact).toBeGreaterThanOrEqual(0);
+    expect(impactCall).toContain('isCurrent: () => laserGunRunGeneration === gameplayRunGeneration');
+    expect(impactCall).toContain('commitMutation: commitBoardMutation');
+  });
+
+  test('rejects a stale TNT replacement before removing its reserved tile', () => {
+    const helperStart = appCoreSource.indexOf('function runTntBoomBonusBreak2Tiles(');
+    const replaceStart = appCoreSource.indexOf('const replaceTile = () => {', helperStart);
+    const remove = appCoreSource.indexOf('removeTile(tile);', replaceStart);
+    const currentGuard = appCoreSource.indexOf('if (!isBoardMutationCurrent()) {', replaceStart);
+    const guardedOpen = appCoreSource.indexOf('openAtCell(c, r, { value: val, skipBind: false })', replaceStart);
+
+    expect(helperStart).toBeGreaterThanOrEqual(0);
+    expect(currentGuard).toBeGreaterThan(replaceStart);
+    expect(currentGuard).toBeLessThan(remove);
+    expect(guardedOpen).toBeGreaterThan(remove);
   });
 
   test('routes final LaserGun through the presentation-only no-target owner', () => {
@@ -95,7 +180,7 @@ describe('merge-entry finality snapshot contract', () => {
     const spawnReset = helperSource.indexOf('resetMerge6SpawnState(`final-merge-guard:${guardReason}`');
     const specialRelease = helperSource.indexOf('releaseSpecialDiceTransaction(');
     const visualHandoff = helperSource.indexOf('prepareFinalMergeVisualHandoff(');
-    const cleanBoard = helperSource.indexOf('triggerCleanBoardFlow(finalReason, { finalMergeSnapshot })');
+    const cleanBoard = helperSource.indexOf('triggerCleanBoardFlow(finalReason, {');
 
     expect(helperStart).toBeGreaterThanOrEqual(0);
     expect(cleanupRelease).toBeGreaterThanOrEqual(0);
@@ -107,5 +192,6 @@ describe('merge-entry finality snapshot contract', () => {
     expect(helperSource).toContain('releaseSpecialDiceResolution(src)');
     expect(helperSource).toContain('releaseSpecialDiceResolution(dst)');
     expect(helperSource).toContain('finalMergeSnapshot,');
+    expect(helperSource).toContain('boardMutationEpoch: mergeBoardMutationEpoch,');
   });
 });

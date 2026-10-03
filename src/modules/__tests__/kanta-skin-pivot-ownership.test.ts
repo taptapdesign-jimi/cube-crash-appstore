@@ -29,6 +29,14 @@ function fixture() {
     startWildShimmer: noOp, startWildJuiceBubbles: noOp, startWildStars: noOp, startMagnetIdleParticles: noOp,
     startTntIdleParticles: noOp, startTntIdleShake: noOp, stopTntIdleParticles: noOp, stopTntIdleShake: noOp,
     trackAppAnimationFrame: noOp, devWarn: noOp,
+    acquireVisualAssetTexture: () => skinLoad.promise.then((loadedTexture) => ({
+      assetPath: KANTA_IDLE_FRAME_SOURCE,
+      rendererGeneration: 0,
+      texture: loadedTexture,
+    })),
+    getVisualAssetRendererGeneration: () => 0,
+    isVisualAssetTextureHandleCurrent: () => true,
+    reloadPixiImageTexture: () => skinLoad.promise,
   };
   return { tile, base, texture, idleLoad, skinLoad, deps };
 }

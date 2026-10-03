@@ -59,17 +59,25 @@ describe('Journey Hub transition ownership', () => {
     const preparedEnterIndex = showSource.indexOf(
       'journeyBoardsManagerPreparedForEnter.playJourneyV700VisibleEnterFromHomepage?.()',
     );
+    const completionJoinIndex = showSource.indexOf(
+      'joinHomepageHubEnterCompletion(journeyBoardsManagerPreparedForEnter)',
+    );
     const fallbackImportIndex = showSource.indexOf("import('./modules/journey-boards-manager.js').then(async");
 
     expect(releaseIndex).toBeGreaterThanOrEqual(0);
     expect(preparedEnterIndex).toBeGreaterThan(releaseIndex);
+    expect(completionJoinIndex).toBeGreaterThan(preparedEnterIndex);
     expect(preparedEnterIndex).toBeLessThan(fallbackImportIndex);
+    expect(showSource).toContain('const visibleEnterCompletion = Promise.all([');
+    expect(showSource).toContain("journeyEnterPerformance.finish('visible-enter-complete')");
+    expect(showSource).toContain("if (journeyContainer.dataset.journeyV700View === 'hub') return;");
     expect(showSource).toContain('homepageHubEnterStartedFromPreparedManager = true');
     expect(showSource).toContain(
       "if (!shouldUseV700WorldReturnEnter && !homepageHubEnterStartedFromPreparedManager)",
     );
     expect(showSource).toContain("emitIOSNativeDiagnostic('hub-enter-started-from-prepared-manager')");
     expect(showSource).toContain("emitIOSNativeDiagnostic('hub-enter-started-from-import-fallback')");
+    expect(showSource).toContain('joinHomepageHubEnterCompletion(activeJourneyBoardsManager)');
   });
 
   test('a stale interim flag without a concrete board target cannot suppress the Hub enter', () => {
@@ -198,7 +206,7 @@ describe('Journey Hub transition ownership', () => {
     expect(handoffSource).not.toContain('new Promise<void>(resolve => setTimeout(resolve, 900))');
   });
 
-  test('cold-route audit starts at CTA acceptance before exit, then preparation waits behind its static cover', () => {
+  test('cold-route audit starts at CTA acceptance and preparation overlaps the visible exit', () => {
     const handoffSource = uiManagerSource.split(
       'private showCollectiblesScreenWithAnimation(launchFirstPlayTutorial = false): void',
     )[1]?.split('async hideCollectiblesScreenWithAnimation')[0] ?? '';
@@ -209,7 +217,8 @@ describe('Journey Hub transition ownership', () => {
     expect(auditStartIndex).toBeGreaterThanOrEqual(0);
     expect(auditStartIndex).toBeLessThan(exitIndex);
     expect(auditStartIndex).toBeLessThan(prepareIndex);
-    expect(handoffSource).toContain('? exitCompletePromise.then(async () => {');
+    expect(handoffSource).toContain('? (async () => {');
+    expect(handoffSource).not.toContain('? exitCompletePromise.then(async () => {');
     expect(handoffSource).toContain('if (isHomepageExitCancelled(exitCompletePromise)) return null;');
     expect(handoffSource).toContain("markIOSJourneyRouteAudit('homepage-exit-plus-journey-prepare')");
     expect(handoffSource).toContain("markIOSJourneyRouteAudit('journey-show-handoff')");
@@ -320,7 +329,8 @@ describe('Journey Hub transition ownership', () => {
     expect(worldScopeSource).toContain("source: 'hub-world-open-render-prime'");
     expect(worldScopeSource).not.toContain("source: 'hub-world-open',\n        waitForImages: false");
     expect(openWorldSource).toContain("emitIOSNativeDiagnostic('world-enter-visible-frame-start'");
-    expect(openWorldSource).toContain("source: 'hub-world-open',\n            lastBoardId: 0");
+    expect(openWorldSource).toContain("source: 'hub-world-open'");
+    expect(openWorldSource).toContain('lastBoardId: 0');
     expect(openWorldSource.indexOf('this.trackRAF(() => {')).toBeLessThan(
       openWorldSource.indexOf("emitIOSNativeDiagnostic('world-enter-visible-frame-start'"),
     );
@@ -637,18 +647,18 @@ describe('Journey Hub transition ownership', () => {
     )[1]?.split('private cancelJourneyWorldPrepaint')[0] ?? '';
     const worldPrepaintSource = journeyManagerSource.split(
       'private prepareJourneyWorldPrepaint(',
-    )[1]?.split('private commitJourneyWorldPrepaint')[0] ?? '';
+    )[1]?.split('private commitRetainedJourneyWorld')[0] ?? '';
     const worldCommitSource = journeyManagerSource.split(
       'private commitJourneyWorldPrepaint(',
     )[1]?.split('private applyJourneyV700WorldScope')[0] ?? '';
 
-    expect(openWorldSource).toContain(
-      'const worldPrepaintReady = this.prepareJourneyWorldPrepaint(container, worldId)',
-    );
+    expect(openWorldSource).toContain('const worldPrepaintReady = hasRetainedWorld');
+    expect(openWorldSource).toContain('? Promise.resolve(true)');
+    expect(openWorldSource).toContain('return this.prepareJourneyWorldPrepaint(container, worldId)');
     expect(openWorldSource).toContain('let preparedWorldReady = await worldPrepaintReady');
     expect(openWorldSource).not.toContain('this.renderBoards()');
     const prepaintStartIndex = openWorldSource.indexOf(
-      'const worldPrepaintReady = this.prepareJourneyWorldPrepaint(container, worldId)',
+      'const worldPrepaintReady = hasRetainedWorld',
     );
     const outgoingIdleStopIndex = openWorldSource.indexOf(
       'this.journeyHubRuntime.prepareForTransition(transitionHub, transitionCards)',
@@ -661,7 +671,9 @@ describe('Journey Hub transition ownership', () => {
     expect(outgoingIdleStopIndex).toBeLessThan(prepaintStartIndex);
     expect(prepaintStartIndex).toBeLessThan(exitIndex);
     expect(exitIndex).toBeLessThan(prepaintBarrierIndex);
-    expect(openWorldSource).toContain('this.commitJourneyWorldPrepaint(container, worldId)');
+    expect(openWorldSource).toContain(
+      'this.commitJourneyWorldPrepaint(container, worldId, stageTransitionToken)',
+    );
     expect(openWorldSource).toContain("this.cancelJourneyWorldPrepaint('commit-fallback')");
     const touchStartSource = journeyManagerSource.split('const onWorldCardTouchStart =')[1]
       ?.split('const onWorldCardTouchMove =')[0] ?? '';
@@ -678,11 +690,13 @@ describe('Journey Hub transition ownership', () => {
     expect(prepareSource).toContain("source: canvas.dataset.journeyCompositePrewarmed === 'true' ? 'prewarmed' : 'cache'");
     expect(worldPrepaintSource).toContain("host.style.opacity = '0.001'");
     expect(worldPrepaintSource).toContain("host.style.contain = 'strict'");
-    expect(worldPrepaintSource).toContain('if (current?.worldId === worldId && current.host.isConnected)');
+    expect(worldPrepaintSource).toContain('if (current?.worldId === worldId)');
     expect(worldPrepaintSource).toContain('this.journeyWorldPrepaintEpoch === epoch');
     expect(worldPrepaintSource).toContain('await this.renderJourneyWorldIncrementally(detachedRoot, worldId, isCurrent)');
     expect(worldPrepaintSource).toContain('await Promise.all(images.map((image) => waitForImageReady(image)))');
-    expect(worldPrepaintSource).toContain('for (let frameIndex = 0; frameIndex < 3; frameIndex += 1)');
+    expect(worldPrepaintSource.indexOf('await this.primeJourneyV700WorldEnterIncrementally('))
+      .toBeLessThan(worldPrepaintSource.indexOf('container.insertBefore(host, hub || container.firstChild)'));
+    expect(worldPrepaintSource).toContain('for (let frameIndex = 0; frameIndex < 1; frameIndex += 1)');
     expect(worldPrepaintSource).toContain('await this.waitForTrackedFrames(1)');
     expect(worldPrepaintSource).toContain('paintFrameMs');
     expect(worldPrepaintSource).toContain("emitIOSNativeDiagnostic('world-prepaint-painted'");
@@ -694,7 +708,9 @@ describe('Journey Hub transition ownership', () => {
     expect(collectiblesCssSource).toContain('.journey-world-prepaint-root *::before');
     expect(collectiblesCssSource).toContain('animation-play-state: paused !important');
     expect(journeyManagerSource).toContain("this.releaseJourneyMainCloudComposites('manager-cleanup')");
-    expect(journeyManagerSource).toContain("this.releaseJourneyMainCloudComposites('world-to-hub-commit')");
+    expect(journeyManagerSource).toContain(
+      "this.releaseJourneyMainCloudComposites('world-to-hub-commit', new Set([closingWorldId]))",
+    );
     expect(journeyManagerSource).toContain("this.releaseJourneyMainCloudComposites('hub-to-world-commit', new Set([worldId]))");
     expect(journeyManagerSource).toContain("this.cancelJourneyWorldPrepaint('manager-cleanup')");
     expect(openWorldSource).toContain("this.cancelJourneyWorldPrepaint('open-aborted-before-hub-exit')");
@@ -710,29 +726,43 @@ describe('Journey Hub transition ownership', () => {
     )[1]?.split('private applyJourneyV700WorldHeights')[0] ?? '';
     const prepareSource = journeyManagerSource.split(
       'private prepareJourneyHubPrepaint(',
-    )[1]?.split('private async commitJourneyHubPrepaint')[0] ?? '';
+    )[1]?.split('private refreshJourneyV700HubProgress')[0] ?? '';
     const commitSource = journeyManagerSource.split(
       'private async commitJourneyHubPrepaint(',
     )[1]?.split('private cancelJourneyWorldPrepaint')[0] ?? '';
 
-    expect(closeSource).toContain('hubPrepaintReady = this.prepareJourneyHubPrepaint(container)');
-    expect(closeSource).toContain('const preparedHubReady = await hubPrepaintReady');
-    expect(closeSource).toContain('await this.commitJourneyHubPrepaint(container)');
+    expect(closeSource).toContain('hubPrepaintReady = hasRetainedHub');
+    expect(closeSource).toContain(': this.prepareJourneyHubPrepaint(container)');
+    expect(closeSource).toContain('let preparedHubReady = await hubPrepaintReady');
+    expect(closeSource).toContain(
+      'await this.commitJourneyHubPrepaint(container, stageTransitionToken, closingWorldId)',
+    );
     expect(prepareSource).toContain("container.closest('#journey-screen .collectibles-scrollable')");
     expect(prepareSource).toContain("host.style.top = `${prepaintScrollTop}px`");
     expect(prepareSource).toContain("host.style.opacity = '0.001'");
     expect(prepareSource).not.toContain('applyAppPaperSurfaceToElement(host)');
     expect(prepareSource).toContain('only paper owner throughout World -> Hub');
     expect(prepareSource).toContain('this.renderJourneyV700Hub(root, { prepaint: true })');
-    expect(prepareSource).toContain('await Promise.all(workImages.map((image) => waitForImageReady(image)))');
+    expect(prepareSource).toContain('await this.prepareJourneyHubImagesForReveal(root, this.journeyV700WorldId)');
     expect(prepareSource).toContain('getJourneyHubWorkingSet(this.journeyV700WorldId)');
-    expect(prepareSource).toContain('await this.waitForTrackedFrames(3)');
+    expect(prepareSource.indexOf('this.renderJourneyV700Hub(root, { prepaint: true })'))
+      .toBeLessThan(prepareSource.indexOf('container.insertBefore(host, container.firstChild)'));
+    expect(prepareSource.indexOf('await this.prepareJourneyHubImagesForReveal(root, this.journeyV700WorldId)'))
+      .toBeLessThan(prepareSource.indexOf('container.insertBefore(host, container.firstChild)'));
+    expect(prepareSource).toContain('await this.waitForTrackedFrames(1)');
     const hideIndex = commitSource.indexOf("child.style.visibility = 'hidden'");
     const barrierIndex = commitSource.indexOf('await this.waitForTrackedFrames(1)');
     const retireIndex = commitSource.indexOf('outgoingChildren.forEach((child) => child.remove())');
     expect(hideIndex).toBeGreaterThanOrEqual(0);
     expect(barrierIndex).toBeGreaterThan(hideIndex);
     expect(retireIndex).toBeGreaterThan(barrierIndex);
+    expect(commitSource).toContain('const stillOwnsCommit = presented &&');
+    expect(commitSource).toContain(
+      '(!transitionToken || this.journeyStageController.isCurrent(transitionToken))',
+    );
+    expect(commitSource.indexOf('const stillOwnsCommit = presented &&')).toBeGreaterThan(barrierIndex);
+    expect(commitSource).toContain('if (!stillOwnsCommit) {');
+    expect(commitSource).toContain('child.style.visibility = visibility');
     expect(commitSource).toContain("this.playJourneyV700HubEnter('world-return')");
     expect(commitSource).toContain('transparentStageBacking: true');
     expect(closeSource).toContain('const outgoingZeroPresented = await this.waitForTrackedFrames(1)');
@@ -759,6 +789,8 @@ describe('Journey Hub transition ownership', () => {
     expect(constructorSource).toContain("this.cancelJourneyHubPrepaint('native-memory-warning')");
     expect(constructorSource).toContain("this.cancelJourneyWorldPrepaint('native-memory-warning')");
     expect(constructorSource).toContain("this.cancelOptionalJourneyTerminalReturnPreparation('native-memory-warning')");
+    expect(constructorSource).toContain('this.journeyStageController.clearRetainedWorld()');
+    expect(constructorSource).not.toContain('this.journeyStageController.clearRetained();');
     expect(hubPrepareSource).not.toContain('journeyMemoryPressureActive');
     expect(worldPrepareSource).not.toContain('if (this.journeyMemoryPressureActive)');
     const terminalPrepareSource = journeyManagerSource.split(
@@ -830,7 +862,7 @@ describe('Journey Hub transition ownership', () => {
     const exitIndex = openWorldSource.indexOf('this.playJourneyV700HubExit(');
     expect(pinIndex).toBeGreaterThanOrEqual(0);
     expect(pinIndex).toBeLessThan(exitIndex);
-    expect(openWorldSource).toContain('releaseHubViewportPin();\n        const committedPrepaint =');
+    expect(openWorldSource).toContain('releaseHubViewportPin();\n        const committedRetained =');
     expect(openWorldSource).toContain('releaseHubViewportPin();\n        finishOpeningOwnership();');
 
     const pinSource = journeyManagerSource.split(
@@ -897,7 +929,7 @@ describe('Journey Hub transition ownership', () => {
     )[1]?.split('private getJourneyV700WorldTargetGroups')[0] ?? '';
 
     const prepaintStartIndex = openWorldSource.indexOf(
-      'const worldPrepaintReady = this.prepareJourneyWorldPrepaint(container, worldId)',
+      'const worldPrepaintReady = hasRetainedWorld',
     );
     const exitIndex = openWorldSource.indexOf('this.playJourneyV700HubExit(');
     const prepaintBarrierIndex = openWorldSource.indexOf(
@@ -971,7 +1003,7 @@ describe('Journey Hub transition ownership', () => {
       "private playJourneyV700HubEnter(source: 'homepage' | 'world-return'): void",
     )[1]?.split('public playJourneyV700HubEnterFromHomepage')[0] ?? '';
     const imageBarrierIndex = hubEnterSource.indexOf(
-      "const hubImages = Array.from(hub?.querySelectorAll<HTMLImageElement>('img') ?? []).filter",
+      'const hubImagesReady = this.prepareJourneyHubImagesForReveal(container)',
     );
     const imageReadyIndex = hubEnterSource.indexOf('void hubImagesReady.then(() => {');
     const cloudTweenIndex = hubEnterSource.indexOf('const cloudTween = trackTween(hubCloudLayer');
@@ -993,8 +1025,11 @@ describe('Journey Hub transition ownership', () => {
 
     expect(hubEnterSource).toContain('getJourneyHubWorkingSet(');
     expect(hubEnterSource).toContain('allWorldCards.filter(card => entryWorldIds.has(');
-    expect(hubEnterSource).toContain('const enteringWorldIds = new Set(');
-    expect(hubEnterSource).toContain('return !worldId || enteringWorldIds.has(worldId)');
+    const readinessSource = journeyManagerSource.split('public prepareJourneyHubImagesForReveal(')[1]
+      ?.split('private playJourneyV700HubEnter')[0] ?? '';
+    expect(readinessSource).toContain('getJourneyHubWorkingSet(');
+    expect(readinessSource).toContain('!owner || ids.has(Number(owner.dataset.worldId))');
+    expect(hubEnterSource).toContain('this.prepareJourneyHubImagesForReveal(container)');
     expect(hubEnterSource).toContain(
       'this.journeyHubRuntime.prepareForTransition(hub, worldCards)',
     );
@@ -1019,12 +1054,14 @@ describe('Journey Hub transition ownership', () => {
       .toBeLessThan(geometryDiagnosticSource.indexOf('getBoundingClientRect()'));
   });
 
-  test('visible Journey surfaces start idle immediately after the complete enter cascade', () => {
+  test('visible Journey surfaces admit idle only after the complete enter cascade', () => {
     const hubEnterSource = journeyManagerSource.split(
       "private playJourneyV700HubEnter(source: 'homepage' | 'world-return'): void",
     )[1]?.split('public playJourneyV700HubEnterFromHomepage')[0] ?? '';
     const visibleStartSource = hubEnterSource.split('const startBannerEnter = () => {')[1]
       ?.split('let remainingTargets')[0] ?? '';
+    const completedEnterSource = hubEnterSource.split('const finishVisibleEnterTarget = () => {')[1]
+      ?.split("emitIOSNativeDiagnostic('hub-visible-enter-complete'")[0] ?? '';
     const enterCompletionIndex = worldAnimationCoordinatorSource.indexOf(
       "this.phase = 'idle';",
       worldAnimationCoordinatorSource.indexOf('public async enter('),
@@ -1034,10 +1071,15 @@ describe('Journey Hub transition ownership', () => {
       enterCompletionIndex,
     );
 
-    expect(visibleStartSource).toContain(
+    expect(visibleStartSource).not.toContain(
       "worldCard.classList.add('journey-v700-idle-ready')",
     );
-    expect(visibleStartSource).toContain("hub?.classList.add('journey-v700-idle-ready')");
+    expect(visibleStartSource).not.toContain("hub?.classList.add('journey-v700-idle-ready')");
+    expect(completedEnterSource).toContain(
+      "worldCard.classList.add('journey-v700-idle-ready')",
+    );
+    expect(completedEnterSource).toContain("hub?.classList.add('journey-v700-idle-ready')");
+    expect(completedEnterSource).toContain("hub?.classList.add('journey-v700-banners-idle-ready')");
     expect(enterCompletionIndex).toBeGreaterThanOrEqual(0);
     expect(sharedIdleIndex).toBeGreaterThan(enterCompletionIndex);
     expect(worldAnimationCoordinatorSource).not.toContain(

@@ -7,6 +7,7 @@ export const NATIVE_AUDIO_ACTIVE_EVENT = 'cc:native-audio-active';
 
 export class SoundtrackContextRecovery {
   private cancelPending: (() => void) | null = null;
+  private pendingResume: Promise<void> | null = null;
 
   constructor(private readonly context: AudioContext) {}
 
@@ -17,8 +18,11 @@ export class SoundtrackContextRecovery {
   }
 
   resume(): Promise<void> {
-    this.cancel();
     if (this.context.state === 'running') return Promise.resolve();
+    // A single gesture can fan out to many cue owners. WebKit does real work
+    // for every context.resume() call even while the first promise is still
+    // pending, so all callers must join the same native recovery attempt.
+    if (this.pendingResume) return this.pendingResume;
     const startedAt = performance.now();
     const report = (event: string): void => {
       if (arePerformanceDiagnosticsEnabled()) {
@@ -30,13 +34,14 @@ export class SoundtrackContextRecovery {
       }
     };
     report('soundtrack-resume-start');
-    return new Promise<void>((resolve, reject) => {
+    const pending = new Promise<void>((resolve, reject) => {
       let settled = false;
       const finish = (error?: unknown): void => {
         if (settled) return;
         settled = true;
         clearTimeout(timeout);
         this.cancelPending = null;
+        this.pendingResume = null;
         if (error) reject(error);
         else resolve();
       };
@@ -55,5 +60,8 @@ export class SoundtrackContextRecovery {
       }, finish); }
       catch (error) { finish(error); }
     });
+    // A synchronous native throw may already have settled the executor.
+    if (this.cancelPending !== null) this.pendingResume = pending;
+    return pending;
   }
 }

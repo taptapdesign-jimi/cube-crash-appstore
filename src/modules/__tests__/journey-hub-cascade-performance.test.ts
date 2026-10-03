@@ -11,9 +11,15 @@ jest.mock('../../utils/ios-native-diagnostic', () => ({ emitNativeConsoleDiagnos
 const file = ts.createSourceFile('journey.ts', fs.readFileSync(path.join(__dirname, '../journey-boards-manager.ts'), 'utf8'), ts.ScriptTarget.Latest, true);
 const methods = new Map<string, string>();
 const visit = (node: ts.Node) => {
-  if (ts.isMethodDeclaration(node) && ['playJourneyV700HubEnter', 'cancelJourneyV700HubEnter'].includes(node.name.getText(file))) {
-    const param = node.parameters[0].name.getText(file);
-    methods.set(node.name.getText(file), ts.transpileModule(`function run(${param}) ${node.body!.getText(file)}`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText);
+  if (ts.isMethodDeclaration(node) && [
+    'playJourneyV700HubEnter',
+    'cancelJourneyV700HubEnter',
+    'beginJourneyV700HubEnterCompletion',
+    'settleJourneyV700HubEnterCompletion',
+    'waitForJourneyV700HubEnterCompletion',
+  ].includes(node.name.getText(file))) {
+    const params = node.parameters.map(parameter => parameter.name.getText(file)).join(', ');
+    methods.set(node.name.getText(file), ts.transpileModule(`function run(${params}) ${node.body!.getText(file)}`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText);
   }
   ts.forEachChild(node, visit);
 };
@@ -42,8 +48,10 @@ function fixture(opacities = ['1', '0.65', '0.8']) {
   };
   const owner: Record<string, any> = {
     journeyV700HubEnterPerformance: null, journeyV700HubEnterEpoch: 0, journeyV700HubEnterTweens: [],
+    journeyV700HubEnterCompletion: null,
     journeyV700HubPresentationWaiters: new Set(), journeyV700Phase: 'prepared', journeyV700View: 'hub',
     journeyHubRuntime: { prepareForTransition: jest.fn(), activate: jest.fn() },
+    prepareJourneyHubImagesForReveal: jest.fn(() => scope.readyPromise),
     logJourneyV700Flow: jest.fn(), emitJourneyV700HubGeometryDiagnostic: jest.fn(), trackRAF: jest.fn(),
   };
   for (const [name, body] of methods) owner[name] = new Function('scope', `with(scope){${body};return run;}`)(scope).bind(owner);
@@ -55,14 +63,24 @@ afterEach(() => { jest.clearAllTimers(); jest.useRealTimers(); document.body.inn
 
 test('actual hub cascade span covers image wait, first visible tick and every target through idle handoff', async () => {
   const f = fixture(); f.owner.playJourneyV700HubEnter('homepage');
+  let completed = false;
+  void f.owner.waitForJourneyV700HubEnterCompletion().then(() => { completed = true; });
   jest.advanceTimersByTime(120);
-  expect(summaries()).toEqual([]); expect(f.tweens).toHaveLength(0);
+  expect(summaries()).toEqual([]); expect(f.tweens).toHaveLength(0); expect(completed).toBe(false);
   f.ready.resolve(); await flush(); expect(f.tweens).toHaveLength(4);
   f.tweens[0].vars.onStart(); jest.advanceTimersByTime(100);
+  const hub = document.querySelector('.journey-v700-hub')!;
+  expect(hub.classList.contains('journey-v700-banners-presented')).toBe(true);
+  expect(hub.classList.contains('journey-v700-idle-ready')).toBe(false);
+  expect(hub.classList.contains('journey-v700-banners-idle-ready')).toBe(false);
   expect(summaries()).toEqual([]);
   f.tweens.slice(0, -1).forEach((tween) => tween.vars.onComplete());
   expect(summaries()).toEqual([]);
   f.tweens[f.tweens.length - 1].vars.onComplete();
+  await flush();
+  expect(completed).toBe(true);
+  expect(hub.classList.contains('journey-v700-idle-ready')).toBe(true);
+  expect(hub.classList.contains('journey-v700-banners-idle-ready')).toBe(true);
   expect(summaries()).toHaveLength(1);
   expect(summaries()[0]).toMatchObject({ name: 'journey-hub-cascade-homepage', reason: 'idle-handoff-complete', durationMs: 220 });
   expect(summaries()[0].phases.map((phase: any) => phase.name)).toEqual(['prepare-runtime', 'transforms-start', 'images-ready', 'first-visible-tween', 'last-target-complete']);
@@ -85,7 +103,11 @@ test('Hub sound follows each World onStart, not prepaint or the separate cloud t
 
 test('canceled image readiness cannot finish the newer span or create retired tweens', async () => {
   const f = fixture(); f.owner.playJourneyV700HubEnter('homepage');
+  let canceledCompleted = false;
+  void f.owner.waitForJourneyV700HubEnterCompletion().then(() => { canceledCompleted = true; });
   f.owner.cancelJourneyV700HubEnter('route-change');
+  await flush();
+  expect(canceledCompleted).toBe(true);
   const next = deferred(); f.scope.readyPromise = next.promise;
   f.owner.playJourneyV700HubEnter('world-return');
   const nextSpan = f.owner.journeyV700HubEnterPerformance;

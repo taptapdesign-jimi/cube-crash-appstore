@@ -70,8 +70,8 @@ export const JOURNEY_WORLD_IDLE_ACTIVE_CLASS = 'journey-world-idle-active';
 export function isJourneyWorldUnitNearViewport(
   unit: JourneyWorldAnimationUnit,
   scrollRoot: HTMLElement | null,
+  viewportRect = scrollRoot?.getBoundingClientRect(),
 ): boolean {
-  const viewportRect = scrollRoot?.getBoundingClientRect();
   const viewportTop = viewportRect && viewportRect.height > 0 ? viewportRect.top : 0;
   const viewportBottom = viewportRect && viewportRect.height > 0
     ? viewportRect.bottom
@@ -247,8 +247,11 @@ export class JourneyWorldAnimationCoordinator {
     const canUseViewportAdmission = !reducedMotion
       && typeof window.IntersectionObserver === 'function';
     const scrollRoot = liveUnits[0]?.targets[0]?.closest<HTMLElement>('.collectibles-scrollable') ?? null;
+    // One synchronous admission pass shares one viewport snapshot. No writes
+    // occur between these reads, and no geometry is retained across frames.
+    const viewportRect = canUseViewportAdmission ? scrollRoot?.getBoundingClientRect() : undefined;
     let enteringUnits = canUseViewportAdmission
-      ? liveUnits.filter((unit) => isJourneyWorldUnitNearViewport(unit, scrollRoot))
+      ? liveUnits.filter((unit) => isJourneyWorldUnitNearViewport(unit, null, viewportRect))
       : liveUnits;
     // Never turn a malformed viewport measurement into an empty visible enter.
     if (enteringUnits.length === 0) enteringUnits = liveUnits.slice(0, 1);
@@ -268,8 +271,12 @@ export class JourneyWorldAnimationCoordinator {
     // Settle them before the visible frame instead of animating dozens of
     // large transparent PNG layers offscreen. IntersectionObserver admits
     // their idle work later when the player scrolls near them.
+    const offscreenTargets = settledOffscreenUnits.flatMap((unit) => unit.targets);
+    if (offscreenTargets.length) gsap.killTweensOf(offscreenTargets);
+    if (!options.targetsPrimed) {
+      gsap.killTweensOf(enteringUnits.flatMap((unit) => unit.targets));
+    }
     settledOffscreenUnits.forEach((unit) => {
-      gsap.killTweensOf(unit.targets);
       unit.targets.forEach((target) => this.finalizeEnterTarget(target));
     });
     emitIOSNativeDiagnostic('world-enter-viewport-admission', {
@@ -299,7 +306,6 @@ export class JourneyWorldAnimationCoordinator {
         : motion.enter.baseDelay;
       enteringUnits.forEach((unit, index) => {
         if (!options.targetsPrimed) {
-          gsap.killTweensOf(unit.targets);
           unit.targets.forEach((target) => {
             target.style.visibility = 'visible';
             target.style.pointerEvents = 'none';
@@ -375,6 +381,16 @@ export class JourneyWorldAnimationCoordinator {
     const motion = getJourneyV700MotionProfile(reducedMotion);
     const stagger = getJourneyV700UnitStagger(liveUnits.length, reducedMotion);
     const exitOrder = liveUnits.slice().reverse();
+    const cardVisuals = new Map(exitOrder.map(unit => [unit, unit.targets.flatMap(target => {
+      if (!target.classList.contains('journey-board-card-wrapper')) return [];
+      const card = target.querySelector<HTMLElement>('.journey-board-card');
+      return card ? [card] : [];
+    })]));
+    // Retire the outgoing targets once, before creating any replacement tween.
+    // Per-Unit killTweensOf repeatedly traversed the growing global timeline.
+    gsap.killTweensOf(Array.from(new Set(exitOrder.flatMap(unit => [
+      ...unit.targets, ...(cardVisuals.get(unit) ?? []),
+    ]))));
     preloadJourneyUnitMotionSounds();
     const motionSounds = this.motionSounds = createJourneyUnitMotionSoundSession(exitOrder);
 
@@ -428,10 +444,7 @@ export class JourneyWorldAnimationCoordinator {
         const mainArtworkTargets = reducedMotion
           ? []
           : unit.targets.filter((target) => isJourneyWorldMainArtworkTarget(unit.id, target));
-        const cardVisualTargets = cardWrappers.flatMap((wrapper) => {
-          const card = wrapper.querySelector<HTMLElement>('.journey-board-card');
-          return card ? [card] : [];
-        });
+        const cardVisualTargets = cardVisuals.get(unit) ?? [];
         let unitExitFinalized = false;
         const finalizeUnitExit = () => {
           if (unitExitFinalized || generation !== this.generation) return;
@@ -447,8 +460,6 @@ export class JourneyWorldAnimationCoordinator {
           });
         };
         unitExitFinalizers.push(finalizeUnitExit);
-
-        gsap.killTweensOf([...unit.targets, ...cardVisualTargets]);
 
         if (mainArtworkTargets.length) {
           const companionTargets = unit.targets.filter((target) => !mainArtworkTargets.includes(target));

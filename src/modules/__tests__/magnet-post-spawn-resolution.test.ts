@@ -1,6 +1,7 @@
 import {
   createMagnetRespawnPlan,
   createMagnetRespawnDelays,
+  getAuthoritativeMagnetBoardTiles,
   isPlayablePostMagnetTile,
   resolvePostMagnetEndgameAction,
   resolvePreMagnetRespawnDecision,
@@ -208,4 +209,55 @@ test('pre-magnet respawn still respawns when another playable tile remains after
     hasTilesToRespawn: true,
     shouldDelegateToCentralEndgame: false,
   });
+});
+
+test('board 28 Spaceship terminal pull ignores active-looking Robo orphan and never plans replacement spawn', () => {
+  const dst = tile({ value: 6, gridX: 0, gridY: 0 });
+  const staleRobo = tile({
+    value: 6,
+    special: 'wild-juice',
+    _ccSpecialDiceVariant: 'robo-cube',
+    gridX: 1,
+    gridY: 0,
+  });
+  const retiredPulledTiles = Array.from({ length: 7 }, (_, index) => tile({
+    value: (index % 5) + 1,
+    destroyed: true,
+    gridX: index % 5,
+    gridY: 1 + Math.floor(index / 5),
+  }));
+  // Physical progression: presentation registry still reports nine objects and
+  // one Robo special, while the post-Spaceship grid has only its merge-6 dst.
+  const presentationTiles = [dst, staleRobo, ...retiredPulledTiles];
+  const grid = [[dst, null], [null, null]];
+
+  const legacyDecision = resolvePreMagnetRespawnDecision({
+    activeTilesAfterRemoval: presentationTiles.filter(isPlayablePostMagnetTile),
+    dst,
+    pulledCellCount: 4,
+  });
+  expect(legacyDecision).toMatchObject({
+    onlyDstRemains: false,
+    hasTilesToRespawn: true,
+    shouldDelegateToCentralEndgame: false,
+  });
+
+  const authoritativeTiles = getAuthoritativeMagnetBoardTiles({
+    grid,
+    tiles: presentationTiles,
+  });
+  expect(authoritativeTiles).toEqual([dst]);
+  const fixedDecision = resolvePreMagnetRespawnDecision({
+    activeTilesAfterRemoval: authoritativeTiles.filter(isPlayablePostMagnetTile),
+    dst,
+    pulledCellCount: 4,
+  });
+  expect(fixedDecision).toEqual({
+    isLastMergeFlagSet: false,
+    onlyDstRemains: true,
+    hasTilesToRespawn: false,
+    shouldClearLastMergeFlag: false,
+    shouldDelegateToCentralEndgame: true,
+  });
+  expect(createMagnetRespawnPlan(4, fixedDecision.hasTilesToRespawn).spawnCount).toBe(0);
 });

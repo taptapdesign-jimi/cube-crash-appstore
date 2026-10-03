@@ -52,8 +52,10 @@ describe('shared special-dice transaction contract', () => {
   });
 
   test('abandons stale Magnet post-commit work when an ordinary merge changes the board revision', () => {
-    const revisionIncrementIndex = appCoreSource.indexOf('gameplayBoardMutationRevision += 1');
-    const firstGridMutationIndex = appCoreSource.indexOf('grid[src.gridY][src.gridX] = null', revisionIncrementIndex);
+    const revisionCommitIndex = appCoreSource.indexOf(
+      'gameplayBoardMutationRevision = mergeBoardMutationEpoch.boardRevision;',
+    );
+    const firstGridMutationIndex = appCoreSource.indexOf('grid[src.gridY][src.gridX] = null', revisionCommitIndex);
     const commitCaptureIndex = appMergeSource.indexOf('postCommitBoardRevision.capture()');
     const settleWaitIndex = appMergeSource.indexOf('await waitForMagnet(1200)', commitCaptureIndex);
     const staleCheckIndex = appMergeSource.indexOf("abortSupersededPostCommitTail('after-initial-settle')", settleWaitIndex);
@@ -62,8 +64,8 @@ describe('shared special-dice transaction contract', () => {
     const resolutionIndex = appMergeSource.indexOf('resolvePostMagnetEndgameAction({', staleCheckIndex);
     const resolutionGuardIndex = appMergeSource.indexOf("abortSupersededPostCommitTail('before-post-magnet-resolution')", staleCheckIndex);
 
-    expect(revisionIncrementIndex).toBeGreaterThan(0);
-    expect(firstGridMutationIndex).toBeGreaterThan(revisionIncrementIndex);
+    expect(revisionCommitIndex).toBeGreaterThan(0);
+    expect(firstGridMutationIndex).toBeGreaterThan(revisionCommitIndex);
     expect(appCoreSource).toContain('getBoardMutationRevision: () => gameplayBoardMutationRevision');
     expect(commitCaptureIndex).toBeGreaterThan(0);
     expect(staleCheckIndex).toBeGreaterThan(settleWaitIndex);
@@ -142,7 +144,7 @@ describe('shared special-dice transaction contract', () => {
     const finalBranch = appCoreSource.indexOf('if (isLastMergeFlagSet && !willPulledTilesMerge)');
     const finalRelease = appCoreSource.indexOf('`final-merge-clean-handoff:${finalMergeFx || \'regular\'}`', finalBranch);
     const cleanFlow = appCoreSource.indexOf(
-      'await triggerCleanBoardFlow(finalCleanReason, { finalMergeSnapshot })',
+      'await triggerCleanBoardFlow(finalCleanReason, {',
       finalBranch,
     );
 

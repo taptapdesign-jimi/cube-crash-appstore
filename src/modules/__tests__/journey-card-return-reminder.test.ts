@@ -40,7 +40,7 @@ describe('Journey gameplay-return card reminder', () => {
     jest.restoreAllMocks();
   });
 
-  test('connects the stage before validating its live-card portal', () => {
+  test.each([false, true])('connects the stage and follows its Unit (native scroll=%s)', nativeScroll => {
     document.body.innerHTML = `
       <section id="journey-screen">
         <header class="collectibles-header"></header>
@@ -51,6 +51,18 @@ describe('Journey gameplay-return card reminder', () => {
     `;
     const wrapper = document.querySelector<HTMLElement>('.journey-board-card-wrapper')!;
     const card = document.querySelector<HTMLElement>('.journey-board-card')!;
+    let hostTop = 20;
+    let worldHost: HTMLElement | null = null;
+    if (nativeScroll) {
+      const scrollRoot = document.createElement('div');
+      scrollRoot.className = 'collectibles-scrollable';
+      worldHost = document.createElement('div');
+      worldHost.id = 'journey-boards-container';
+      wrapper.before(scrollRoot);
+      scrollRoot.append(worldHost);
+      worldHost.append(wrapper);
+      worldHost.getBoundingClientRect = () => ({ left: 0, top: hostTop, width: 390, height: 3000 } as DOMRect);
+    }
     let wrapperTop = 40;
     wrapper.getBoundingClientRect = () => ({
       x: 20, y: wrapperTop, left: 20, top: wrapperTop, right: 120, bottom: wrapperTop + 150,
@@ -75,15 +87,25 @@ describe('Journey gameplay-return card reminder', () => {
     const controller = presentJourneyCardReturnReminder({ boardId: 4, origin });
 
     expect(controller.element.isConnected).toBe(true);
-    expect(controller.element.parentElement).toBe(document.getElementById('journey-screen'));
+    expect(controller.element.parentElement).toBe(worldHost ?? document.getElementById('journey-screen'));
+    if (nativeScroll) {
+      expect(controller.element.style.position).toBe('absolute');
+      expect(controller.element.style.top).toBe('-20px');
+    }
     expect(controller.element.querySelector('.journey-card-overlay-portaled-card')).not.toBeNull();
     const scrollAnchor = controller.element.querySelector<HTMLElement>(
       '.journey-card-return-reminder-scroll-anchor',
     )!;
     expect(scrollAnchor.style.transform).toBe('translate3d(0px, 0px, 0)');
     wrapperTop = -180;
+    hostTop -= 220;
     queuedFrames.shift()?.(16);
-    expect(scrollAnchor.style.transform).toBe('translate3d(0px, -220px, 0)');
+    expect(scrollAnchor.style.transform).toBe(nativeScroll ? 'translate3d(0px, 0px, 0)' : 'translate3d(0px, -220px, 0)');
+    // A real Unit-local idle displacement still follows once, independently
+    // of native scrolling in either direction.
+    wrapperTop += 7;
+    queuedFrames.shift()?.(24);
+    expect(scrollAnchor.style.transform).toBe(nativeScroll ? 'translate3d(0px, 7px, 0)' : 'translate3d(0px, -213px, 0)');
     wrapper.remove();
     queuedFrames.shift()?.(32);
     expect(controller.element.isConnected).toBe(false);
@@ -262,6 +284,16 @@ describe('Journey gameplay-return card reminder', () => {
     expect(reminderZIndex).toBe(1000000);
     expect(headerZIndex).toBe(1000002);
     expect(headerZIndex).toBeGreaterThan(reminderZIndex);
+  });
+
+  test('native scrollport alone clips the reminder, never its moving initial viewport', () => {
+    const css = read('src/collectibles-screen.css');
+    const nativeRule = css.match(/\.journey-card-return-reminder\.is-native-scroll-anchored\s*\{([^}]+)\}/)?.[1];
+    expect(nativeRule).toContain('overflow: visible;');
+    expect(nativeRule).toContain('contain: size layout style;');
+    expect(nativeRule).not.toMatch(/contain:\s*(strict|content|paint)/);
+    // The fixed fallback still clips at the actual viewport.
+    expect(css).toMatch(/\.journey-card-return-reminder \{[^}]*overflow: hidden;[^}]*contain: strict;/);
   });
 
   test('uses the supplied cardflip artwork for the complete back face', () => {

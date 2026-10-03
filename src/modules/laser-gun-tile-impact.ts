@@ -19,6 +19,8 @@ export type LaserGunTileImpactOptions = {
   onValueCommitted?: () => void;
   onSettled: (committed: boolean) => void;
   isCurrent?: () => boolean;
+  /** Transaction/epoch capability consumed at the final board-write boundary. */
+  commitMutation: () => boolean;
   scheduleSafety: (callback: () => void, delayMs: number) => unknown;
   safetyDelayMs?: number;
 };
@@ -42,6 +44,7 @@ export function commitLaserGunTileImpact({
   onValueCommitted,
   onSettled,
   isCurrent = () => true,
+  commitMutation,
   scheduleSafety,
   safetyDelayMs = 900,
 }: LaserGunTileImpactOptions): boolean {
@@ -82,6 +85,12 @@ export function commitLaserGunTileImpact({
     settle(false);
     return false;
   }
+  let mutationAccepted = false;
+  try { mutationAccepted = commitMutation(); } catch {}
+  if (!mutationAccepted) {
+    settle(false);
+    return false;
+  }
 
   let valueCommitted = false;
   try {
@@ -102,10 +111,20 @@ export function commitLaserGunTileImpact({
     if (!settled) scheduleSafety(() => settle(true, true), safetyDelayMs);
     return true;
   } catch {
-    // Once setValueImmediate returned, the same tile already owns its new
-    // value. A presentation failure cannot truthfully turn that commit into a
-    // rejected mutation or invite a duplicate fallback hit.
-    settle(valueCommitted, true);
-    return valueCommitted;
+    // The epoch capability was already consumed, so this impact must remain the
+    // one accepted mutation even if the renderer-facing setter throws. Commit
+    // the minimal logical value directly and settle as accepted: reporting a
+    // rejection here could invite a duplicate fallback hit, while reopening
+    // terminal completion would violate spawn XOR complete.
+    if (!valueCommitted) {
+      try {
+        tile.stackDepth = 1;
+        tile.value = replacementValue;
+        valueCommitted = true;
+        onValueCommitted?.();
+      } catch {}
+    }
+    settle(true, true);
+    return true;
   }
 }

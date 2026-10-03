@@ -3,6 +3,7 @@ import { resolveMergeFinality } from './gameplay-resolution-engine.ts';
 
 type LastMergeDeps = {
   tiles: any[];
+  grid?: readonly (readonly any[])[] | null;
   src: any;
   dst: any;
   effSum: number;
@@ -20,6 +21,7 @@ type LastMergeDeps = {
 
 type LastMergeEarlyInput = {
   tiles: any[];
+  grid?: readonly (readonly any[])[] | null;
   src: any;
   dst: any;
   effSum: number;
@@ -40,17 +42,22 @@ type LastMergeEarlyState = {
   srcSpecialForCheck: any;
   dstSpecialForCheck: any;
   finalMergeSnapshot: ReturnType<typeof resolveMergeFinality>['finalMerge'];
+  decision: ReturnType<typeof resolveMergeFinality>['decision'];
+  authoritativeGridStatus: ReturnType<typeof getFinalMergeTileSets>['authoritativeGridStatus'];
+  authoritativeGridIssues: ReturnType<typeof getFinalMergeTileSets>['authoritativeGridIssues'];
 };
 
 export function resolveLastMergeEarlyState({
   tiles,
+  grid,
   src,
   dst,
   effSum,
   isWildMagnetMerge,
   mode = 'unknown',
 }: LastMergeEarlyInput): LastMergeEarlyState {
-  const activeTilesBeforeWildProgress = getFinalMergeTileSets({ tiles, src, dst }).activeTilesBeforeMerge;
+  const finalMergeTileSets = getFinalMergeTileSets({ tiles, grid, src, dst });
+  const activeTilesBeforeWildProgress = finalMergeTileSets.activeTilesBeforeMerge;
   // 🔥 CRITICAL: Use visible tiles count (not stackDepth sum) for "last 2 tiles" detection
   const visibleTilesCountBeforeWildProgress = activeTilesBeforeWildProgress.length;
   const activeTilesCountBeforeWildProgress = activeTilesBeforeWildProgress.reduce((sum, t) => {
@@ -80,7 +87,7 @@ export function resolveLastMergeEarlyState({
   const cannotPullDueToEndGame = isWildMagnetMerge && visibleTilesCountBeforeWildProgress === 2;
   const hasTilesToPullValue = (dst as any)?._hasTilesToPull;
   const willPullTiles = !cannotPullDueToEndGame && isWildMagnetMerge && effSum === 6 && hasTilesToPullValue === true;
-  const finalMergeResult = resolveMergeFinality({
+  const resolvedFinalMerge = resolveMergeFinality({
     mode,
     finalMergeInput: {
       activeTilesBeforeMerge: activeTilesBeforeWildProgress,
@@ -92,6 +99,13 @@ export function resolveLastMergeEarlyState({
     },
     willPulledTilesMerge: false,
   });
+  const finalMergeResult = finalMergeTileSets.authoritativeGridStatus === 'invalid'
+    ? {
+        ...resolvedFinalMerge,
+        isFinalMerge: false,
+        decision: { type: 'wait' as const, reason: 'invalid_authoritative_grid_snapshot' },
+      }
+    : resolvedFinalMerge;
   const finalMergeSnapshot = finalMergeResult.finalMerge;
   const isWildLastTwoForCheck = finalMergeSnapshot.isFinalWildLastTwo;
   const isRegularLastTwoMerge6 = finalMergeSnapshot.isFinalRegularMerge6;
@@ -110,11 +124,15 @@ export function resolveLastMergeEarlyState({
     srcSpecialForCheck,
     dstSpecialForCheck,
     finalMergeSnapshot,
+    decision: finalMergeResult.decision,
+    authoritativeGridStatus: finalMergeTileSets.authoritativeGridStatus,
+    authoritativeGridIssues: finalMergeTileSets.authoritativeGridIssues,
   };
 }
 
 export function handleLastMergeEarly({
   tiles,
+  grid,
   src,
   dst,
   effSum,
@@ -130,6 +148,7 @@ export function handleLastMergeEarly({
 }: LastMergeDeps){
   const state = resolveLastMergeEarlyState({
     tiles,
+    grid,
     src,
     dst,
     effSum,

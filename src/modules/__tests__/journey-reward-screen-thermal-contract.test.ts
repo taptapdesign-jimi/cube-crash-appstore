@@ -40,7 +40,9 @@ describe('Journey reward screen thermal ownership', () => {
     expect(screen).toContain('if (promiseSettled) return;');
     expect(screen).toContain('const presentationGeneration = newCardScreenPresentationGeneration;');
     expect(screen).toContain('presentationGeneration !== newCardScreenPresentationGeneration');
-    expect(screen).toContain("return { action: 'cancelled' };");
+    expect(screen).toContain('const assetPreparation = prepareJourneyNewCardAssets({');
+    expect(screen).not.toContain('await prepareJourneyNewCardAssets({');
+    expect(screen).toContain('const assetsReady = await assetPreparation;');
     expect(flow).toContain("if (newCardResult.action === 'cancelled')");
     expect(screen).toContain("document.addEventListener('visibilitychange', onVisibilityChange);");
     expect(screen).toContain("document.removeEventListener('visibilitychange', onVisibilityChange)");

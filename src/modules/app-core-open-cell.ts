@@ -3,6 +3,15 @@ import { randomRegularTileValue } from './app-core-utils.js';
 import { isWildLikeTile } from './final-merge-rules.ts';
 import { resetTileToNormalState } from './tile-state-utils.ts';
 import { removeTileFully } from './tile-lifecycle-service.ts';
+import type {
+  BoardMutationEpochOwner,
+  BoardSpawnPermit,
+} from './board-mutation-epoch-owner.ts';
+
+export type OpenCellSpawnCommit = Readonly<{
+  owner: Pick<BoardMutationEpochOwner, 'commitSpawn'>;
+  permit: BoardSpawnPermit;
+}>;
 
 type OpenCellDeps = {
   c: number;
@@ -18,6 +27,7 @@ type OpenCellDeps = {
     timeScale?: number;
     forceFreshPlaceholder?: boolean;
     skipSpawnAnimation?: boolean;
+    spawnCommit?: OpenCellSpawnCommit;
   };
   grid: any[][];
   board: any;
@@ -100,6 +110,7 @@ export function openAtCellCore({
     timeScale = 1.0,
     forceFreshPlaceholder = false,
     skipSpawnAnimation = false,
+    spawnCommit,
   } = options || {};
   return new Promise((resolve, reject) => {
     let settled = false;
@@ -156,6 +167,23 @@ export function openAtCellCore({
       const isWildTile = isWildLikeTile(holder);
       const hasValue = (holder.value | 0) > 0;
       if (hasValue || isWildTile || !holder.locked) {
+        settleResolve(false);
+        return;
+      }
+    }
+
+    // This is the last synchronous boundary before openAtCell mutates grid,
+    // tile, input or display ownership. Legacy callers intentionally retain
+    // their existing behavior until app-core supplies a transaction permit.
+    if (spawnCommit) {
+      const spawnDecision = spawnCommit.owner.commitSpawn(spawnCommit.permit);
+      if (spawnDecision.accepted === false) {
+        devWarn('⚠️ openAtCell: Spawn permit rejected before board mutation', {
+          c,
+          r,
+          reason: spawnDecision.reason,
+          outcome: spawnDecision.outcome,
+        });
         settleResolve(false);
         return;
       }

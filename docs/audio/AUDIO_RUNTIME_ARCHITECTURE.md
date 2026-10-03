@@ -14,7 +14,10 @@ and their feature modules. Gameplay KING and the asset-preservation order apply.
 | Soundtrack Web Audio | `soundtrack-manager.ts` + `main-theme-web-audio-transport.ts` | Separate context for the main theme and Arcade Calm/Active voices; sample-accurate loops, audio-clock fades, route/result mix and foreground recovery. |
 | Detached HTMLAudio | Feature `*-sound.ts` owners | SFX fallback when Web Audio is unavailable; mobile Journey Worlds, Forest World and Forest gameplay loops intentionally use this transport. Soundtrack has its own media fallback. |
 
-`SoundtrackContextRecovery` deduplicates resume attempts. `soundtrack-audio-clock-volume.ts`
+`SoundtrackContextRecovery` deduplicates all concurrent callers onto one native
+`AudioContext.resume()` attempt. This includes a gesture fan-out from many SFX
+owners; callers never cancel and restart the in-flight WebKit recovery.
+`soundtrack-audio-clock-volume.ts`
 owns native gain envelopes. Do not add another context, global player or generic
 media cache to implement a feature cue.
 
@@ -42,6 +45,13 @@ Within the same bounded byte ceiling, eviction prefers never-played speculative
 buffers before cues with proven audible reuse, then falls back to LRU. This
 keeps common stack, pickup and CTA/navigation cues from being repeatedly
 decoded merely because a newer one-off route package was prepared.
+When every member of a multi-cue family has known decoded metadata, a new live
+family is admitted atomically and may replace a stale idle working set. Its
+already-resident and newly decoded members receive one coherent preparation
+tier, below repeatedly audible common cues but above once-audible stale cues.
+This prevents a Special package from decoding one member while evicting another
+member of that same package. The mobile ceiling remains 28 MiB; active/pending
+playback, explicit route/result leases and other admitted packages still win.
 The cache is deliberately not coupled to `app-zone-manager` presentations.
 A physical iPhone A/B on 2026-10-02 showed that assigning a new residency epoch
 to every zone commit did not reduce real multi-route churn and coincided with
@@ -52,15 +62,28 @@ ever becoming audible is rejected, while a real play request always bypasses
 that speculative rule and may replace idle data.
 Never flush the cache routinely on Continue or Play Again.
 
+Decoded one-shots normally retire through native `AudioBufferSourceNode.onended`.
+WKWebView can exceptionally report a context as `running` while its audio clock
+remains frozen; a retained physical trace held 41 already-expired one-shot records
+at `currentTime=0`, which protected their buffers and drove repeated eviction and
+decode cycles. Every non-loop source therefore has one bounded wall-clock cleanup
+guard at its authored natural/explicit stop duration plus a 250ms cleanup grace.
+Native scheduling, cue gain and cue timing do not change. Native `onended`, explicit
+stop, replacement and background cleanup cancel the guard. A suspended context is
+not polled; its overdue records are retired once the existing foreground/state-change
+owner reports `running` again. Indefinite loop voices never receive this guard.
+
 Readiness queries are observational: `getDecodedGameplaySoundsState` may report
 `pending` for an absent but loadable buffer, but never fetches or decodes a family.
 Explicit preload owns warming; playback owns loading the exact selected cue.
 A bounded 256-source metadata history retains decoded sizes and successful-start
-counts without AudioBuffers. Optional repeated preloads of a known buffer are
-admitted only when it can fit without displacing audibly reused/protected cues;
-admission is rechecked when the queued job runs. Actual playback bypasses this
-optional admission rule. Diagnostics expose `skippedSpeculativeLoads` beside
-redecode/eviction totals. The history does not increase the decoded-byte ceiling.
+counts without AudioBuffers. Optional repeated single-buffer preloads are
+admitted only when they can fit without displacing audibly reused/protected cues.
+A known multi-cue family may instead replace idle former-family data as one atomic
+working set; admission is rechecked when the queued job runs. Actual playback
+bypasses this optional admission rule. Diagnostics expose
+`skippedSpeculativeLoads` beside redecode/eviction totals. The history does not
+increase the decoded-byte ceiling.
 
 ## Ownership boundaries
 

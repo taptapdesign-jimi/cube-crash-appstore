@@ -26,5 +26,6 @@ describe('mobile Special idle budget integration', () => {
     const source = read('src/modules/special-dice-idle.ts');
     expect(source).toContain('tile._ccWildSpawnDropping === true');
     expect(source).toContain('MOBILE_RUNTIME_PROFILE.isMobileDevice ? 1');
+    expect(source).toContain('hasContinuousSpecialDiceIdle(getSpecialDiceVariantForTile(tile)?.id)');
   });
 });

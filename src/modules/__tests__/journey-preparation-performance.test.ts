@@ -20,7 +20,12 @@ function fixture() {
   let reject!: (reason: Error) => void;
   const loading = new Promise((yes, no) => { resolve = yes; reject = no; });
   const trace = { mark: jest.fn(), phase: jest.fn((_name, work) => work()), finish: jest.fn() };
-  const manager = { renderBoards: jest.fn(), updateCounter: jest.fn() };
+  const manager = {
+    renderBoards: jest.fn(),
+    updateCounter: jest.fn(),
+    prepareJourneyHubImagesForReveal: jest.fn(() => Promise.resolve()),
+    warmJourneyV700HubForHomepageReveal: jest.fn(() => Promise.resolve(true)),
+  };
   const scope = {
     beginTransitionPerformance: jest.fn(() => trace), loadModule: jest.fn(() => loading),
     readJourneyPreparationRuntimeState: () => ({}), isJourneyBackgroundPreparationAllowed: () => true,
@@ -40,7 +45,7 @@ test('actual preparation separates module wait from synchronous work and shares 
   expect(f.manager.renderBoards).not.toHaveBeenCalled();
   expect(f.scope.beginTransitionPerformance).toHaveBeenCalledTimes(1);
   f.resolve(); await Promise.all([first, duplicate]);
-  expect(f.trace.mark.mock.calls).toEqual([['module-await-start'], ['module-await-complete']]);
+  expect(f.trace.mark.mock.calls).toEqual([['module-await-start'], ['module-await-complete'], ['hub-images-start'], ['hub-images-ready']]);
   expect(f.trace.phase.mock.calls.map(([name]) => name)).toEqual(['render-boards', 'update-counter']);
   expect(f.manager.renderBoards).toHaveBeenCalledTimes(1);
   expect(f.manager.updateCounter).toHaveBeenCalledTimes(1);
@@ -75,4 +80,31 @@ test('already prepared view closes without importing or rendering', async () => 
   await f.run();
   expect(f.scope.loadModule).not.toHaveBeenCalled();
   expect(f.trace.finish).toHaveBeenCalledWith('already-prepared');
+});
+
+test('prepared Hub still joins image readiness without rerendering and rejects stale completion', async () => {
+  const f = fixture();
+  document.getElementById('journey-boards-container')!.dataset.journeyV700View = 'hub';
+  f.scope.isJourneyViewStructurallyPrepared.mockReturnValue(true);
+  let finish!: () => void;
+  f.manager.prepareJourneyHubImagesForReveal.mockReturnValue(new Promise<void>(resolve => { finish = resolve; }));
+  const pending = f.run(); f.resolve();
+  await Promise.resolve(); await Promise.resolve();
+  expect(f.manager.renderBoards).not.toHaveBeenCalled();
+  expect(f.trace.finish).not.toHaveBeenCalled();
+  f.owner.journeyPrepareEpoch++;
+  finish(); await pending;
+  expect(f.trace.finish).toHaveBeenCalledWith('stale');
+});
+
+test('required visible Hub preparation pays connected paint before the Homepage handoff', async () => {
+  const f = fixture();
+  const container = document.getElementById('journey-boards-container')!;
+  container.dataset.journeyV700View = 'hub';
+  const pending = f.run({ requiredForVisibleEnter: true });
+  f.resolve();
+  await pending;
+  expect(f.manager.warmJourneyV700HubForHomepageReveal).toHaveBeenCalledWith(container);
+  expect(f.trace.mark.mock.calls.slice(-2)).toEqual([['hub-paint-start'], ['hub-paint-ready']]);
+  expect(f.trace.finish).toHaveBeenCalledWith('complete');
 });

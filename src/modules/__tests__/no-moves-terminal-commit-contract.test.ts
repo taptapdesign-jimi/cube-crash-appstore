@@ -25,13 +25,15 @@ describe('NO MOVES terminal commit ownership', () => {
     const finalCommitRecheck = flow.indexOf('const finalCommitBlockReason = getNoMovesCommitBlockReason(initialSignature)');
     const terminalLock = flow.indexOf("setInputGateLock('terminal-no-moves', true");
     const postLockRecheck = flow.indexOf('const postLockBlockReason = getNoMovesCommitBlockReason(initialSignature)');
+    const mutationEpochCommit = flow.indexOf('boardMutationEpochOwner.commitComplete(noMovesTerminalEpoch)');
     const finalScreen = flow.indexOf('showFinalScreen({ confirmedFailFlow: true })');
 
     expect(confirmationWait).toBeGreaterThanOrEqual(0);
     expect(finalCommitRecheck).toBeGreaterThan(confirmationWait);
     expect(terminalLock).toBeGreaterThan(finalCommitRecheck);
     expect(postLockRecheck).toBeGreaterThan(terminalLock);
-    expect(finalScreen).toBeGreaterThan(postLockRecheck);
+    expect(mutationEpochCommit).toBeGreaterThan(postLockRecheck);
+    expect(finalScreen).toBeGreaterThan(mutationEpochCommit);
     expect(flow.slice(0, confirmationWait)).not.toContain("setInputGateLock('terminal-no-moves', true");
     expect(source).toContain('resolveNoMovesCommitDecision({');
     expect(source).toContain("setInputGateLock('terminal-no-moves', false)");

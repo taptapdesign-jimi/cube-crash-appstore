@@ -12,6 +12,10 @@ import {
   releaseAnimatedDiceAboveHud,
   syncAnimatedDiceAboveHud,
 } from './animated-dice-hud-foreground.ts';
+import {
+  cancelDeferredForegroundResourceTask,
+  deferUntilForegroundResourceIdle,
+} from './foreground-resource-coordinator.ts';
 
 export type SharedPixiSheetSpec = Readonly<{
   family: string;
@@ -167,15 +171,21 @@ function enforceIdleBudget(protectedFamily?: string): void {
 }
 
 function scheduleEviction(cache: FamilyCache): void {
+  const deferredKey = `pixi-sheet-evict:${cache.spec.family}`;
+  cancelDeferredForegroundResourceTask(deferredKey);
   if (cache.evictionTimer !== null) clearTimeout(cache.evictionTimer);
   cache.evictionTimer = setTimeout(() => {
     cache.evictionTimer = null;
-    if (cache.refs === 0) void unloadCache(cache);
+    if (cache.refs !== 0) return;
+    deferUntilForegroundResourceIdle(deferredKey, () => {
+      if (cache.refs === 0) void unloadCache(cache);
+    });
   }, cache.spec.evictionDelayMs ?? DEFAULT_EVICTION_DELAY_MS);
 }
 
 async function loadFrames(spec: SharedPixiSheetSpec): Promise<Texture[]> {
   const cache = getCache(spec);
+  cancelDeferredForegroundResourceTask(`pixi-sheet-evict:${spec.family}`);
   if (cache.evictionTimer !== null) {
     clearTimeout(cache.evictionTimer);
     cache.evictionTimer = null;
@@ -220,6 +230,7 @@ async function loadFrames(spec: SharedPixiSheetSpec): Promise<Texture[]> {
 
 function acquireFamily(spec: SharedPixiSheetSpec): void {
   const cache = getCache(spec);
+  cancelDeferredForegroundResourceTask(`pixi-sheet-evict:${spec.family}`);
   cache.refs += 1;
   cache.lastUsedAt = Date.now();
   if (cache.evictionTimer !== null) {

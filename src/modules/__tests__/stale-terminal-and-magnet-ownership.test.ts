@@ -26,6 +26,12 @@ describe('production terminal and Magnet async ownership', () => {
       failScreenFlowInProgress: false,
       gameplayRunGeneration: 1,
       activeGameplayEntryGeneration: 1,
+      currentBoardMutationEpoch: null,
+      boardMutationEpochOwner: {
+        beginMutation: () => ({ generation: 1 }),
+        commitComplete: () => ({ accepted: true, outcome: 'complete' }),
+        getOutcome: () => 'complete',
+      },
       firstWildSpawned: true,
       wildSpawnCount: 4,
       lastWildDropType: 'star',

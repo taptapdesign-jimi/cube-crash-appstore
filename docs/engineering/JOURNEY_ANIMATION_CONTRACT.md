@@ -73,6 +73,7 @@ Navigation rules:
 - Forest/Beach/Area 55 screen nav, Journey Worlds nav, and card-modal nav should use the same cartoon tap feeling.
 - Nav/header exit starts immediately with the relevant content exit. Do not leave header/nav visible while content waits to begin exit.
 - Card modal X/header exit should begin immediately on X tap, not after the card/stat content has mostly finished exiting.
+- An accepted Unit-card tap starts its portaled flight after the first owned geometry paint. Exact 2x artwork, modal chrome decode, and front/back prepaint must never gate the first visible motion; the already-painted 1x World card is the entry carrier.
 
 For Forest, Beach and Area 55 X-to-Journey-Worlds exits, the active World's
 large top main artwork exits first with the complete canonical Cartoon Bounce:
@@ -92,8 +93,19 @@ the stable `50% 54%` pivot. At that exact peak, without a settle, rebound,
 neutral frame or dwell, it continues into a `0.28s` `back.in(1.7)` exit to
 scale zero. The name refers to the complete continuous `0.43s` motion.
 
-Destination prepaint runs concurrently beneath this effect and must never delay
-its first visible frame. Preserve the existing input guard, interruption
+On a cold destination, prepaint runs concurrently beneath this effect and must
+never delay its first visible frame. A warm Hub/World destination reuses its
+retained nodes instead of rebuilding and repeating the cold image/prepaint
+pipeline. The manager owns quiescence before detachment, reactivation after
+attachment, and the existing hidden enter pose; the stage controller owns only
+bounded node retention and generation-checked transfer. Retain one Hub and one
+World, evict stale World content on replacement or pressure, and release both on
+full cleanup. DOM identity reuse is not a guarantee of browser GPU residency.
+Native memory pressure evicts the retained full World first but preserves the
+bounded three-Unit Hub while Journey still owns the route. This prevents the
+next World X from constructing and rasterizing a second Hub during the authored
+World exit; full cleanup still releases both surfaces.
+Preserve the existing input guard, interruption
 completion and opacity-through-collapse. The non-selected Worlds use the same
 two-leg collapse timeline as the Back-to-Homepage Worlds, including the 20%
 reduced `1.144 / 1.12` inflate peak, while the selected World retains the full
@@ -153,7 +165,7 @@ baseDelay = 0.08;
 stagger = 0.09;
 ```
 
-Lifecycle requirement: background preparation may render the Hub, but it must not consume the visible enter animation. Immediately before the Journey viewport begins its real visible enter, prime all three World Units into the hidden start state. Start the World cascade in that same visible-enter lifecycle. The outer World cards own the standard enter transform while their nested World/cloud visuals own idle, so nested idle starts on the first real visible enter tick and remains alive throughout the cascade without transform contention. For an individual Forest/Beach/Area 55 screen, animate only complete Units inside or near the initial scroll viewport; settle farther offscreen Units before the visible frame and admit their idle only when the shared viewport observer sees them. The initially visible Units join the shared idle owner immediately after the complete visible cascade so settled transforms never compete with later enter transforms. Idle uses a short seamless ramp and must not introduce a separate delayed timer.
+Lifecycle requirement: background preparation may render the Hub, but it must not consume the visible enter animation. Immediately before the Journey viewport begins its real visible enter, prime all three World Units into the hidden start state. Start the World cascade in that same visible-enter lifecycle. The common scroll ancestor stays at its neutral transform; the outer World cards are the only owners of the standard enter transform. Banner reveal may start on the first real World tween, but nested World/cloud and banner idle animation is admitted atomically only after every World/cloud enter target settles. The single visible-enter completion boundary then unlocks scrolling and input. For an individual Forest/Beach/Area 55 screen, animate only complete Units inside or near the initial scroll viewport; settle farther offscreen Units before the visible frame and admit their idle only when the shared viewport observer sees them. The initially visible Units join the shared idle owner immediately after the complete visible cascade so settled transforms never compete with later enter transforms. Idle uses a short seamless ramp and must not introduce a separate delayed timer.
 
 ## Standard Journey Worlds Exit
 

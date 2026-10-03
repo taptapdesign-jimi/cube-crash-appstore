@@ -58,6 +58,7 @@ import {
 import { applyAppPaperBackground } from '../utils/app-paper-background.js';
 import { homepageEnterTransitionOwner } from './homepage-enter-transition-owner.js';
 import { appZoneManager } from './app-zone-manager.js';
+import { journeyRouteTransitionCoordinator } from './journey-route-transition-coordinator.js';
 import { emitSettingsRouteDiagnostic } from './settings-route-diagnostic.js';
 import {
   cancelArcadeEntryCueOwner,
@@ -1571,6 +1572,13 @@ class UIManager {
       return;
     }
     (window as any).__ccUiJourneyTransitioning = true;
+    const journeyRouteToken = !launchFirstPlayTutorial
+      ? journeyRouteTransitionCoordinator.begin(
+          { view: 'home' },
+          { view: 'hub' },
+          'homepage-to-hub',
+        )
+      : null;
     const failureOwner = {};
     this.journeyExitFailureOwner = failureOwner;
     let disabledSlider: HTMLElement | null = null;
@@ -1585,6 +1593,9 @@ class UIManager {
       (window as any).__ccIsAnimatingSliderExit = () => false;
       (window as any).__ccUiJourneyTransitioning = false;
       gameState.set('sliderLocked', false);
+      if (journeyRouteToken) {
+        journeyRouteTransitionCoordinator.interrupt(journeyRouteToken, 'homepage-to-hub-failed');
+      }
     };
     const setupPerformance = beginTransitionPerformance('homepage-journey-input-setup');
     try {
@@ -1702,13 +1713,11 @@ class UIManager {
       if (isHomepageExitCancelled(exitCompletePromise)) releaseFailedExit();
     }, () => {});
 
-    // The Homepage exit is the only moving foreground owner. Build Journey
-    // after that motion has reached its fill-forwards end pose, so a cold Hub
-    // render/import cannot steal a 70-100 ms frame from the visible Slider.
-    // Homepage remains the static paper cover until showCollectibles claims
-    // the prepared destination below.
+    // The tap has already scheduled the Homepage exit. Begin destination work
+    // concurrently after that first scheduling boundary so a cold route cannot
+    // append a static paper-only pause after the authored exit.
     const journeyPreparePromise: Promise<any | null> = !launchFirstPlayTutorial
-      ? exitCompletePromise.then(async () => {
+      ? (async () => {
           if (isHomepageExitCancelled(exitCompletePromise)) return null;
           let preparedCollectiblesManager = (window as any).collectiblesManager;
           if (
@@ -1720,14 +1729,13 @@ class UIManager {
           }
           await preparedCollectiblesManager.prepareJourneyScreen();
           return preparedCollectiblesManager;
-        }).catch((error: Error) => {
+        })().catch((error: Error) => {
           logger.warn('⚠️ Failed to prepare Journey screen:', error);
           return null;
         })
       : Promise.resolve(null);
-    // The static Homepage cover, preparation and reveal join at one exact
-    // handoff. This intentionally trades a short still frame for no visible
-    // animation hitch on cold devices.
+    // Exit and preparation join at one handoff. Preparation has the full exit
+    // duration to complete; it no longer starts only after motion has stopped.
     Promise.all([exitCompletePromise, journeyPreparePromise]).then(async ([, preparedCollectiblesManager]) => {
       if (this.journeyExitFailureOwner !== failureOwner) return;
       if (isHomepageExitCancelled(exitCompletePromise)) {
@@ -1786,6 +1794,9 @@ class UIManager {
         finalizeJourneySliderExit();
         (window as any).__ccIsAnimatingSliderExit = () => false;
         (window as any).__ccUiJourneyTransitioning = false;
+        if (journeyRouteToken) {
+          journeyRouteTransitionCoordinator.complete(journeyRouteToken, 'hub-visible-enter-started');
+        }
         }
       }
     }).catch((error) => {

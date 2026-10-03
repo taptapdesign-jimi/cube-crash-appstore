@@ -22,19 +22,24 @@ describe('Clean Board immediate hard-exit stats', () => {
     expect(restarted.getBoardStats(1).highScore).toBe(19293);
   });
 
-  test('flushes the Journey result at visible Clean Board before score presentation begins', () => {
+  test('flushes the Journey result in the first owned post-paint task before score presentation begins', () => {
     const source = fs.readFileSync(path.join(repoRoot, 'src/modules/clean-board-modal.ts'), 'utf8');
-    const mount = source.slice(
-      source.indexOf('// 🔥 HARD EXIT FIX: Update board high score IMMEDIATELY'),
-      source.indexOf('// Score bookkeeping', source.indexOf('// 🔥 HARD EXIT FIX:')),
+    const postPaintRuntime = source.slice(
+      source.indexOf('const startPostPaintResultRuntime = () => {'),
+      source.indexOf('document.body.appendChild(el);'),
     );
 
-    expect(mount).toContain('if (isArcadeHomeRun) {');
-    expect(mount).toContain('boardStatsService.updateBoardHighScore(boardNumber, finalScore);');
-    expect(mount).toContain("boardStatsService.flushStatsNow('clean-board-visible');");
-    expect(mount.indexOf('boardStatsService.updateBoardHighScore(boardNumber, finalScore);'))
-      .toBeLessThan(mount.indexOf("boardStatsService.flushStatsNow('clean-board-visible');"));
-    expect(mount.indexOf("boardStatsService.flushStatsNow('clean-board-visible');"))
-      .toBeLessThan(mount.indexOf('statsService.updateHighScore(finalScore);'));
+    expect(postPaintRuntime).toContain("runtimePerformance.phase('result-persist', () => {");
+    expect(postPaintRuntime).toContain('if (isArcadeHomeRun) {');
+    expect(postPaintRuntime).toContain('boardStatsService.updateBoardHighScore(boardNumber, finalScore);');
+    expect(postPaintRuntime).toContain("boardStatsService.flushStatsNow('clean-board-visible');");
+    expect(postPaintRuntime.indexOf('boardStatsService.updateBoardHighScore(boardNumber, finalScore);'))
+      .toBeLessThan(postPaintRuntime.indexOf("boardStatsService.flushStatsNow('clean-board-visible');"));
+    expect(postPaintRuntime.indexOf("boardStatsService.flushStatsNow('clean-board-visible');"))
+      .toBeLessThan(postPaintRuntime.indexOf('statsService.updateHighScore(finalScore);'));
+    expect(source.indexOf('document.body.appendChild(el);'))
+      .toBeLessThan(source.indexOf('trackTimeout(startPostPaintResultRuntime, 0);'));
+    expect(source.indexOf('trackTimeout(startPostPaintResultRuntime, 0);'))
+      .toBeLessThan(source.indexOf('trackTimeout(() => {', source.indexOf('// SEQUENCE 1:')));
   });
 });

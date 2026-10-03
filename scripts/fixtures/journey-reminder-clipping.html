@@ -1,0 +1,47 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>RUNNING</title>
+<link rel="stylesheet" href="/src/collectibles-screen.css">
+<style>
+  body { margin: 0; }
+  #journey-screen { display:block !important; position:fixed; inset:0 auto auto 0; width:390px; height:844px; opacity:1; visibility:visible; }
+  #journey-screen .collectibles-scrollable { position:absolute; inset:40px 0 0; height:auto; padding:0; overflow:auto; }
+  #journey-boards-container { height:3000px; }
+  .journey-card-return-reminder-motion { background:lime url('/assets/colelctibles/cardflip.png') center / 100% 100%; pointer-events:auto; }
+</style>
+<section id="journey-screen"><div class="collectibles-scrollable"><div id="journey-boards-container"></div></div></section>
+<pre id="result"></pre>
+<script>
+window.addEventListener('load', () => {
+  const pane=document.querySelector('.collectibles-scrollable');
+  const world=document.querySelector('#journey-boards-container');
+  const stage=document.createElement('div');
+  stage.className='journey-card-return-reminder is-visible is-native-scroll-anchored';
+  Object.assign(stage.style,{position:'absolute',inset:'auto',left:'0px',top:'-40px',width:'390px',height:'844px'});
+  stage.innerHTML='<div class="journey-card-return-reminder-scroll-anchor"><div class="journey-card-return-reminder-motion" style="left:80px;top:800px;width:90px;height:150px"></div></div>';
+  world.append(stage);
+  const motion=stage.querySelector('.journey-card-return-reminder-motion');
+  const anchor=stage.firstElementChild;
+  const results=[];
+  // A card crosses the original fold during enter, then immediate user scroll
+  // exposes its lower half. Hit testing checks painted clipping, not just rects.
+  for(const [scroll,unitY] of [[250,0],[330,-25],[180,20],[250,0]]) {
+    pane.scrollTop=scroll;
+    anchor.style.transform=`translate3d(0,${unitY}px,0)`;
+    const r=motion.getBoundingClientRect();
+    const visible=[r.top+5,r.top+r.height/2,r.bottom-5].every(y=>document.elementFromPoint(r.left+10,y)===motion);
+    results.push({scroll,unitY,top:r.top,bottom:r.bottom,visible});
+  }
+  pane.scrollTop=900;
+  const clippedAtViewport=document.elementFromPoint(90,20)!==motion;
+  stage.remove();
+  const pass=results.every(r=>r.visible)&&clippedAtViewport&&!document.querySelector('.journey-card-return-reminder');
+  document.getElementById('result').textContent=JSON.stringify({pass,results,clippedAtViewport});
+  document.title=pass?'PASS':'FAIL';
+  if (new URLSearchParams(location.search).has('visual')) {
+    world.append(stage);
+    pane.scrollTop=250;
+    anchor.style.transform='translate3d(0,0,0)';
+  }
+});
+</script>

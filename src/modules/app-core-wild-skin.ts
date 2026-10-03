@@ -13,6 +13,12 @@ import {
   pinPixiImageTexture,
   reloadPixiImageTexture,
 } from '../utils/pixi-image-texture-health.ts';
+import {
+  acquireVisualAssetTexture,
+  getVisualAssetRendererGeneration,
+  isVisualAssetTextureHandleCurrent,
+  type VisualAssetTextureHandle,
+} from '../utils/visual-asset-broker.ts';
 
 type WildSkinDeps = {
   Assets: { get: (key: string) => any; load?: (key: string) => Promise<any> };
@@ -33,11 +39,14 @@ type WildSkinDeps = {
   stopTntIdleShake: (tile: any) => void;
   trackAppAnimationFrame: (fn: () => void) => any;
   devWarn: (...args: any[]) => void;
+  acquireVisualAssetTexture?: (assetPath: string) => Promise<VisualAssetTextureHandle>;
+  getVisualAssetRendererGeneration?: () => number;
+  isVisualAssetTextureHandleCurrent?: (handle: VisualAssetTextureHandle) => boolean;
+  reloadPixiImageTexture?: (assetPath: string) => Promise<any>;
 };
 
-export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
+export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps): Promise<boolean> {
   const {
-    Assets,
     Texture,
     Rectangle,
     ASSET_WILD,
@@ -56,24 +65,32 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
     trackAppAnimationFrame,
     devWarn,
   } = deps;
+  const acquireSpecialTexture = deps.acquireVisualAssetTexture ?? acquireVisualAssetTexture;
+  const getRendererGeneration = deps.getVisualAssetRendererGeneration
+    ?? getVisualAssetRendererGeneration;
+  const isCurrentTextureHandle = deps.isVisualAssetTextureHandleCurrent
+    ?? isVisualAssetTextureHandleCurrent;
+  const reloadSpecialTexture = deps.reloadPixiImageTexture ?? reloadPixiImageTexture;
   try {
     if (isWildLikeSpecial(tile.special)) {
       tile._ccWildSpecial = tile.special;
     }
     // 🔥 CRITICAL: Use appropriate texture based on special type
     // Wild-juice / wild-tnt use their own textures
-    let assetPath = ASSET_WILD;
-    if (tile.special === 'wild-magnet') {
-      assetPath = ASSET_WILD_MAGNET;
-    } else if (tile.special === 'wild-juice') {
-      assetPath = ASSET_WILD_JUICE;
-    } else if (tile.special === 'wild-tnt') {
-      assetPath = ASSET_WILD_TNT;
-    }
-    assetPath = getSpecialDiceTexturePath(tile, assetPath);
-    const requestedAssetPath = assetPath;
+    const getCurrentSpecialTexturePath = (): string => {
+      let coreAssetPath = ASSET_WILD;
+      if (tile.special === 'wild-magnet') {
+        coreAssetPath = ASSET_WILD_MAGNET;
+      } else if (tile.special === 'wild-juice') {
+        coreAssetPath = ASSET_WILD_JUICE;
+      } else if (tile.special === 'wild-tnt') {
+        coreAssetPath = ASSET_WILD_TNT;
+      }
+      return getSpecialDiceTexturePath(tile, coreAssetPath);
+    };
+    const requestedAssetPath = getCurrentSpecialTexturePath();
 
-    if (!tile) return;
+    if (!tile) return Promise.resolve(false);
     const host = tile.rotG || tile;
     let base = tile.base;
     if (!base){
@@ -81,6 +98,16 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
       if (base) tile.base = base;
     }
     const specialVisual = getSpecialDiceVisualConfig(tile);
+    const applySpecialHitArea = () => {
+      if (specialVisual?.hitAreaSize !== 'tile') return;
+      const half = TILE / 2;
+      const hitArea = new Rectangle(-half, -half, TILE, TILE);
+      tile.hitArea = hitArea;
+      if (host) host.hitArea = hitArea;
+    };
+    // Input geometry belongs to the logical variant, not texture readiness.
+    // Preserve it synchronously while the current safe face remains painted.
+    applySpecialHitArea();
     const applyResolvedTexture = (resolvedTexture: any): boolean => {
       if (!base || tile.destroyed || !isUsablePixiImageTexture(resolvedTexture)) return false;
       pinPixiImageTexture(resolvedTexture);
@@ -103,12 +130,6 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
         base.width = faceSize;
         base.height = faceSize;
       }
-      if (specialVisual?.hitAreaSize === 'tile') {
-        const half = TILE / 2;
-        const hitArea = new Rectangle(-half, -half, TILE, TILE);
-        tile.hitArea = hitArea;
-        if (host) host.hitArea = hitArea;
-      }
       try {
         base.eventMode = 'none';
         base.cursor = 'default';
@@ -120,30 +141,57 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
       return true;
     };
 
-    // Never attach Texture.from(path)'s unresolved placeholder to a live Pixi
-    // sprite. Pixi 8 may invalidate that placeholder's source after a failed or
-    // superseded load, and the batch renderer then crashes while reading uid or
-    // alphaMode. Keep the tile's current safe texture until a decoded source is
-    // available.
-    applyResolvedTexture(Assets.get(requestedAssetPath));
-    if (specialVisual && typeof Assets.load === 'function') {
-      void Assets.load(requestedAssetPath).then((loadedTexture: any) => {
-        if (tile.destroyed) return;
-        if (getSpecialDiceTexturePath(tile, '') !== requestedAssetPath) return;
-        const resolvedTexture = loadedTexture || Assets.get(requestedAssetPath);
-        if (!applyResolvedTexture(resolvedTexture)) {
-          void reloadPixiImageTexture(requestedAssetPath).then((reloadedTexture) => {
-            if (tile.destroyed) return;
-            if (getSpecialDiceTexturePath(tile, '') !== requestedAssetPath) return;
-            applyResolvedTexture(reloadedTexture);
-          }).catch((error: unknown) => {
-            devWarn('⚠️ Special dice texture source recovery failed', { requestedAssetPath, error });
+    // Never attach Texture.from(path), a raw Pixi cache hit, or a handle from a
+    // retired renderer generation to a live die. Keep the tile's current safe
+    // texture until the broker returns a generation-owned decoded source.
+    const requestedRendererGeneration = getRendererGeneration();
+    const acquireCurrentSpecialTexture = async (): Promise<VisualAssetTextureHandle | null> => {
+      try {
+        return await acquireSpecialTexture(requestedAssetPath);
+      } catch (error) {
+        // A context change owns its own fresh request. An older continuation
+        // must never purge or repaint the newer generation's cache entry.
+        if (
+          tile.destroyed
+          || getCurrentSpecialTexturePath() !== requestedAssetPath
+          || getRendererGeneration() !== requestedRendererGeneration
+        ) return null;
+        try {
+          // Preserve the previous one-shot decode recovery, but route the
+          // resulting texture through the broker again before it may paint.
+          await reloadSpecialTexture(requestedAssetPath);
+          if (
+            tile.destroyed
+            || getCurrentSpecialTexturePath() !== requestedAssetPath
+            || getRendererGeneration() !== requestedRendererGeneration
+          ) return null;
+          return await acquireSpecialTexture(requestedAssetPath);
+        } catch (recoveryError) {
+          devWarn('⚠️ Special dice texture source recovery failed', {
+            requestedAssetPath,
+            error: recoveryError,
+            initialError: error,
           });
+          return null;
         }
-      }).catch((error: unknown) => {
-        devWarn('⚠️ Special dice texture decode retry failed', { requestedAssetPath, error });
-      });
-    }
+      }
+    };
+
+    const textureReady = acquireCurrentSpecialTexture().then((handle) => {
+      if (!handle || tile.destroyed) return false;
+      if (getCurrentSpecialTexturePath() !== requestedAssetPath) return false;
+      if (!isCurrentTextureHandle(handle)) return false;
+      if (!applyResolvedTexture(handle.texture)) {
+        devWarn('⚠️ Special dice texture handle was not paintable', { requestedAssetPath });
+        return false;
+      }
+      base._ccTextureAssetPath = handle.assetPath;
+      base._ccVisualAssetRendererGeneration = handle.rendererGeneration;
+      return true;
+    }).catch((error: unknown) => {
+      devWarn('⚠️ Special dice texture decode retry failed', { requestedAssetPath, error });
+      return false;
+    });
     
     // 🔥 CRITICAL: Hide pips and num for wild tiles
     if (tile.num) tile.num.visible = false;
@@ -188,7 +236,7 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
     }
   
     try {
-      if ((tile as any)._ccDeferWildIdleFx === true) return;
+      if ((tile as any)._ccDeferWildIdleFx === true) return textureReady;
       // The authored Star SVG owns its own masked gloss. Keep the legacy Pixi
       // shimmer for every other special, but do not run a hidden duplicate on
       // the exact generic Wild Star.
@@ -222,5 +270,8 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
       }
       startSpecialDiceIdleMotion(tile);
     } catch {}
-  } catch {}
+    return textureReady;
+  } catch {
+    return Promise.resolve(false);
+  }
 }

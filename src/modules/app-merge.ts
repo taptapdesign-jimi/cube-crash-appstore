@@ -19,18 +19,17 @@ import { isArcadeHomeRunMode } from './run-mode.js';
 import { getTransientSpawnState, resetTileToNormalState } from './tile-state-utils.ts';
 import { isPlayableMagnetPullCandidate, isWildLikeTile } from './final-merge-rules.ts';
 import {
-  clearSpecialDiceIdentity,
   getSpecialDiceShardColors,
   isSpecialDiceDirectWildLikeTile,
   isSpecialDiceStarLikeTile,
-  releaseSpecialDiceResolution,
 } from './special-dice-registry.ts';
 import { collapseTileToSingleStackVisual, removeTileFully } from './tile-lifecycle-service.ts';
 import { FINAL_MERGE_REASONS } from './final-merge-reasons.ts';
 import { emitIOSSpecialTransactionTrace } from '../utils/ios-special-transaction-trace.ts';
-import { createMagnetRespawnDelays, createMagnetRespawnPlan, isPlayablePostMagnetTile, resolvePostMagnetEndgameAction, resolvePreMagnetRespawnDecision } from './magnet-post-spawn-resolution.ts';
+import { createMagnetRespawnDelays, createMagnetRespawnPlan, getAuthoritativeMagnetBoardTiles, isPlayablePostMagnetTile, resolvePostMagnetEndgameAction, resolvePreMagnetRespawnDecision } from './magnet-post-spawn-resolution.ts';
 import { stopSpecialDiceIdleMotion } from './special-dice-idle.ts';
 import { PostCommitBoardRevisionGuard } from './special-dice-transaction-owner.ts';
+import { commitMagnetSurvivor } from './magnet-survivor-commit.ts';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
@@ -372,7 +371,10 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   };
   const openMagnetCell = async (...args: Parameters<typeof openAtCell>): Promise<void> => {
     assertLifecycleCurrent();
-    await openAtCell(...args);
+    const ownedOpenAtCell = typeof helpers?.openAtCell === 'function'
+      ? helpers.openAtCell
+      : openAtCell;
+    await ownedOpenAtCell(...args);
     assertLifecycleCurrent();
   };
   const scheduleMagnetTimeout = (callback: () => void | Promise<void>, ms: number) =>
@@ -1022,7 +1024,11 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // EDGE CASE: If magnet pulled the last 4 tiles from the board, don't spawn new tiles - trigger clean board flow
   // 🔥 CRITICAL: Use tileIsActive instead of !t.locked to properly count wild tiles and locked tiles with value > 0
   // 🔥 CRITICAL: Count merge 6 tile (dst) as active tile - it should remain on board after magnet pull merge!
-  const activeTilesAfterPulledMerge = STATE.tiles.filter(tileIsActive);
+  const authoritativeTilesAfterPull = getAuthoritativeMagnetBoardTiles({
+    grid: STATE.grid,
+    tiles: STATE.tiles,
+  });
+  const activeTilesAfterPulledMerge = authoritativeTilesAfterPull.filter(tileIsActive);
   // 🔥 CRITICAL FIX: Include dst (merge 6) in count if it's still active and not destroyed
   // This ensures we count merge 6 tile that should remain on board
   const dstIsActive = dst && !dst.destroyed && (dst.value === 6) && !activeTilesAfterPulledMerge.includes(dst);
@@ -1140,7 +1146,10 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   };
   
   const isLastMergeFlagSetRaw = (dst as any)?._isLastMerge === true;
-  const activeAfterRemoval = STATE.tiles.filter(tileIsActive);
+  const activeAfterRemoval = getAuthoritativeMagnetBoardTiles({
+    grid: STATE.grid,
+    tiles: STATE.tiles,
+  }).filter(tileIsActive);
   const preRespawnDecision = resolvePreMagnetRespawnDecision({
     isLastMergeFlagSetRaw,
     activeTilesAfterRemoval: activeAfterRemoval,
@@ -1217,6 +1226,10 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   if (isLastMergeFlagSet && !hasTilesToRespawn) {
     console.log('🚨🚨🚨 SOURCE OF TRUTH: Final merge-6 detected (_isLastMerge flag set) - NO spawns, triggering CLEAN BOARD');
     console.log('🎯 This is the final merge (magnet + 1 tile = 2 tiles total) - should trigger clean board, NOT spawn tiles');
+    if (typeof helpers?.sealBoardComplete === 'function'
+      && helpers.sealBoardComplete('magnet-final-merge6') !== true) {
+      throw new AppSpawnCancelledError();
+    }
 
     // Keep the merge-6 tile visible. The centralized final handoff owns SWOOP wait,
     // residual tile/ghost pop-out, HUD/bottom exit, and cleanup.
@@ -1779,114 +1792,63 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         const c = dst.gridX | 0;
         const r = dst.gridY | 0;
         try {
-          stopSpecialDiceIdleMotion(dst);
-        } catch {}
-        try {
           stopMagnetIdleParticles(dst);
         } catch {}
-        try {
-          if (STATE.grid?.[r]?.[c] !== dst) STATE.grid[r][c] = dst;
-        } catch {}
-        collapseTileToSingleStackVisual(dst);
-
-        // The survivor reuses the former special container. Normalize every
-        // transform owner synchronously before revealing it so Bottle's anchor
-        // and Magnet impact tweens cannot displace the regular face from its
-        // shadow/grid centre.
-        try {
-          gsap.killTweensOf(dst);
-          gsap.killTweensOf(dst.scale);
-          gsap.killTweensOf(dst.rotG);
-          gsap.killTweensOf(dst.rotG?.scale);
-          gsap.killTweensOf(dst.base);
-          gsap.killTweensOf(dst.base?.scale);
-        } catch {}
-        const canonicalX = c * (TILE + GAP) + TILE / 2;
-        const canonicalY = r * (TILE + GAP) + TILE / 2;
-        dst.x = canonicalX;
-        dst.y = canonicalY;
-        dst.targetX = canonicalX;
-        dst.targetY = canonicalY;
-        dst.rotation = 0;
-        dst.scale?.set?.(1, 1);
-        if (dst.rotG) {
-          dst.rotG.position?.set?.(
-            Number.isFinite(dst.rotG.pivot?.x) ? dst.rotG.pivot.x : 0,
-            Number.isFinite(dst.rotG.pivot?.y) ? dst.rotG.pivot.y : -TILE / 2,
-          );
-          dst.rotG.rotation = 0;
-          dst.rotG.scale?.set?.(1, 1);
-        }
-        if (dst.base) {
-          dst.base.anchor?.set?.(0.5, 0.5);
-          dst.base.position?.set?.(0, 0);
-          dst.base.rotation = 0;
-          dst.base.scale?.set?.(1, 1);
-          dst.base.width = TILE;
-          dst.base.height = TILE;
-        }
-        if (dst.shadow) {
-          dst.shadow.rotation = 0;
-          dst.shadow.scale?.set?.(1, 1);
-        }
-
         const wildTarget = Number.isFinite((dst as any)._wildMergeTarget)
           ? (dst as any)._wildMergeTarget
           : undefined;
         const freshVal = randomRegularTileValue(wildTarget);
-
-        delete (dst as any)._magnetMerge6Hidden;
-        resetTileToNormalState(dst);
-        clearSpecialDiceIdentity(dst);
-
-        try { dst.refreshShadow?.(); } catch {}
-
-        dst.locked = false;
-        dst.visible = true;
-        dst.alpha = 1;
-        dst.eventMode = 'static';
-        dst.cursor = 'pointer';
         const boardHelpers = helpers?.makeBoard ?? makeBoard;
-        boardHelpers.syncTileZIndex(dst, STATE.board);
-        try {
-          boardHelpers.setValue(dst, freshVal, 0);
-        } catch {
-          dst.value = freshVal;
-        }
-        releaseSpecialDiceResolution(dst);
-        if (dst.overlay) {
-          dst.overlay.visible = false;
-          dst.overlay.alpha = 1;
-        }
-        if (dst.pips) {
-          dst.pips.visible = true;
-          dst.pips.alpha = 1;
-        }
-        if (dst.num) dst.num.alpha = 1;
-        if (dst.rotG) dst.rotG.alpha = 1;
-        if (dst.base) dst.base.alpha = 1;
-        try { fixHoverAnchor?.(dst); } catch {}
-
         const drag = STATE.drag as any;
-        // Match the other Magnet results: the converted survivor enters through
-        // the standard tile pop-in instead of appearing at full size instantly.
-        // Input is rebound only after the visual owner completes.
-        spawnBounce(dst, () => {
-          if (!dst || dst.destroyed) return;
-          try { drag?.bindToTile?.(dst); } catch {}
-        }, {
-          max: 1.08,
-          compress: 0.96,
-          rebound: 1.02,
-          startScale: 0.30,
-          wiggle: 0.035,
-          keepFullOpacity: true,
+        const survivorReceipt = commitMagnetSurvivor({
+          tile: dst,
+          value: freshVal,
+          grid: STATE.grid,
+          board: STATE.board,
+          tileSize: TILE,
+          gap: GAP,
+          commitMutation: typeof helpers?.commitSpawnMutation === 'function'
+            ? helpers.commitSpawnMutation
+            : undefined,
+          stopSpecialIdle: stopSpecialDiceIdleMotion,
+          resetToNormal: resetTileToNormalState,
+          collapseStack: collapseTileToSingleStackVisual,
+          killTweens: (target) => gsap.killTweensOf(target),
+          setValueImmediate: (tile, value) => boardHelpers.setValueImmediate(tile, value, 0),
+          syncZIndex: (tile, ownerBoard) => boardHelpers.syncTileZIndex(tile, ownerBoard),
+          bindToTile: (tile) => {
+            if (typeof drag?.bindToTile !== 'function') {
+              throw new Error('Magnet survivor drag owner unavailable');
+            }
+            drag.bindToTile(tile);
+          },
+          refreshShadow: (tile) => tile.refreshShadow?.(),
+          fixHoverAnchor: (tile) => fixHoverAnchor?.(tile),
+          startVisualTail: (tile, onComplete, onInterrupt) => {
+            // Preserve the existing authored Magnet replacement bounce. Model,
+            // face and input already committed while hidden, so interruption is
+            // now only a visual-tail settlement rather than an input failure.
+            spawnBounce(tile, onComplete, {
+              max: 1.08,
+              compress: 0.96,
+              rebound: 1.02,
+              startScale: 0.30,
+              wiggle: 0.035,
+              keepFullOpacity: true,
+            }, onInterrupt);
+          },
+          removeOnFailure: removeTile,
         });
+        if (!survivorReceipt.committed) {
+          console.warn('⚠️ Magnet survivor atomic commit rejected:', survivorReceipt.reason, survivorReceipt.error);
+          throw new AppSpawnCancelledError();
+        }
         console.log('🧲 Converted magnet merge-6 to fresh cube', freshVal, 'at', c, r);
       }
     }
   } catch (err) {
     console.warn('⚠️ Magnet merge-6 → fresh cube conversion failed:', err);
+    throw err;
   }
   
   // 🔥 USER FIX: After removing merge 6, fill any null cells with locked placeholders (like wild juice/star)
@@ -1970,7 +1932,10 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     });
     const { lockedActiveTiles, tilesStillSpawning } = spawnState;
 
-    const activeTilesAfterSpawn = STATE.tiles.filter(tileIsActive);
+    const activeTilesAfterSpawn = getAuthoritativeMagnetBoardTiles({
+      grid: STATE.grid,
+      tiles: STATE.tiles,
+    }).filter(tileIsActive);
     return {
       lockedActiveTiles,
       tilesStillSpawning,
@@ -2127,7 +2092,10 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   if (abortSupersededPostCommitTail('before-post-magnet-resolution')) return;
   const { makeBoard } = helpers;
   const postMagnetResolution = resolvePostMagnetEndgameAction({
-    tiles: STATE.tiles,
+    tiles: getAuthoritativeMagnetBoardTiles({
+      grid: STATE.grid,
+      tiles: STATE.tiles,
+    }),
     anyMergePossible: makeBoard?.anyMergePossible,
     isLastMergeFlagSet,
     spawnCount,
@@ -2241,7 +2209,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   } catch (error) {
     if (error instanceof AppSpawnCancelledError) {
       magnetLifecycleCancelled = true;
-      return;
+      throw error;
     }
     throw error;
   } finally {

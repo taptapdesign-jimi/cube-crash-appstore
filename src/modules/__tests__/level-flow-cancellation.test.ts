@@ -160,4 +160,73 @@ describe('level-flow cancellation ownership', () => {
     expect(spawnBounce).toHaveBeenCalledTimes(2);
     expect(tiles.every(tile => tile.locked === false && tile.value > 0)).toBe(true);
   });
+
+  test('a terminal epoch can reject a delayed locked-tile spawn at the final mutation boundary', async () => {
+    const tile = {
+      locked: true,
+      destroyed: false,
+      scale: { x: 1, y: 1 },
+      value: 0,
+      gridX: 1,
+      gridY: 1,
+    } as any;
+    const spawnCommit = jest.fn(() => false);
+    const setValue = jest.fn();
+
+    const spawn = openLockedBounceParallel({
+      tiles: [tile],
+      k: 1,
+      makeBoard: { setValue },
+      spawnCommit,
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    jest.advanceTimersByTime(50);
+
+    await expect(spawn).resolves.toBe(0);
+    expect(spawnCommit).toHaveBeenCalledTimes(1);
+    expect(tile.locked).toBe(true);
+    expect(tile.value).toBe(0);
+    expect(setValue).not.toHaveBeenCalled();
+  });
+
+  test('an immutable transaction supplies exact locked cells, values and per-spawn commits', async () => {
+    const makeTile = (gridX: number) => ({
+      locked: true,
+      destroyed: false,
+      scale: { x: 1, y: 1, set: jest.fn() },
+      value: 0,
+      gridX,
+      gridY: 2,
+      alpha: 1,
+      base: { alpha: 1 },
+      rotG: { alpha: 1 },
+      overlay: { alpha: 1, visible: false },
+      pips: { alpha: 1, visible: true },
+    } as any);
+    const first = makeTile(1);
+    const second = makeTile(2);
+    const firstCommit = jest.fn(() => true);
+    const secondCommit = jest.fn(() => true);
+
+    const spawn = openLockedBounceParallel({
+      tiles: [first, second],
+      makeBoard: {
+        setValue: (target: any, value: number) => { target.value = value; },
+      },
+      spawnAssignments: [
+        { c: 2, r: 2, value: 5, spawnCommit: secondCommit },
+        { c: 1, r: 2, value: 3, spawnCommit: firstCommit },
+      ],
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    jest.advanceTimersByTime(150);
+
+    await expect(spawn).resolves.toBe(2);
+    expect(second.value).toBe(5);
+    expect(first.value).toBe(3);
+    expect(secondCommit).toHaveBeenCalledTimes(1);
+    expect(firstCommit).toHaveBeenCalledTimes(1);
+  });
 });

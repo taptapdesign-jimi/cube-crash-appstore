@@ -1,3 +1,5 @@
+import { acquireForegroundResourceCriticalLease } from './foreground-resource-coordinator.ts';
+
 type GameplayEntryCommit = (signal: AbortSignal) => Promise<void> | void;
 
 type PendingEntry = {
@@ -8,6 +10,7 @@ type PendingEntry = {
   resolve: () => void;
   committing: boolean;
   controller: AbortController;
+  releaseForegroundResources: () => void;
 };
 
 let generation = 0;
@@ -24,12 +27,14 @@ function createPendingEntry(reason: string): PendingEntry {
     resolve,
     committing: false,
     controller: new AbortController(),
+    releaseForegroundResources: acquireForegroundResourceCriticalLease('gameplay-entry'),
   };
 }
 
 /** Starts one entry transaction and harmlessly retires any stale predecessor. */
 export function beginGameplayEntryPreparation(reason: string): number {
   activeEntry?.controller.abort();
+  activeEntry?.releaseForegroundResources();
   activeEntry?.resolve();
   activeEntry = createPendingEntry(reason);
   return activeEntry.generation;
@@ -83,6 +88,7 @@ export function commitPreparedGameplayEntry(): Promise<void> {
     })
     .finally(() => {
       if (activeEntry?.generation === entry.generation) activeEntry = null;
+      entry.releaseForegroundResources();
       entry.resolve();
     });
   return entry.promise;
@@ -93,5 +99,6 @@ export function cancelGameplayEntryPreparation(): void {
   activeEntry = null;
   generation += 1;
   entry?.controller.abort();
+  entry?.releaseForegroundResources();
   entry?.resolve();
 }

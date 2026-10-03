@@ -1,5 +1,6 @@
 import { adaptSpawnBounce, openAtCellCore } from '../app-core-open-cell';
 import { preloadTntFrames } from '../tnt-animation';
+import { BoardMutationEpochOwner } from '../board-mutation-epoch-owner';
 
 jest.mock('../tnt-animation', () => ({ preloadTntFrames: jest.fn(() => Promise.resolve()) }));
 
@@ -172,5 +173,37 @@ describe('openAtCellCore lifecycle contract', () => {
     interrupt?.();
 
     await cancelled;
+  });
+
+  test('a terminal commit blocks a delayed spawn before any board mutation', async () => {
+    const harness = makeHarness();
+    const owner = new BoardMutationEpochOwner();
+    const epoch = owner.beginMutation();
+    const permit = owner.issueSpawnPermit(epoch)!;
+    expect(owner.commitComplete(epoch)).toEqual({ accepted: true, outcome: 'complete' });
+
+    await expect(harness.run({ spawnCommit: { owner, permit } })).resolves.toBe(false);
+
+    expect(harness.makeBoard.setValue).not.toHaveBeenCalled();
+    expect(harness.makeBoard.createTile).not.toHaveBeenCalled();
+    expect(harness.spawnBounce).not.toHaveBeenCalled();
+    expect(harness.grid[0][0].value).toBe(0);
+    expect(harness.grid[0][0].locked).toBe(true);
+  });
+
+  test('an accepted permit is consumed exactly once at the board-mutation boundary', async () => {
+    const harness = makeHarness();
+    const owner = new BoardMutationEpochOwner();
+    const epoch = owner.beginMutation();
+    const permit = owner.issueSpawnPermit(epoch)!;
+
+    await expect(harness.run({ spawnCommit: { owner, permit } })).resolves.toBe(true);
+    expect(owner.getOutcome(epoch)).toBe('spawn');
+
+    harness.grid[0][0].value = 0;
+    harness.grid[0][0].locked = true;
+    await expect(harness.run({ spawnCommit: { owner, permit } })).resolves.toBe(false);
+    expect(harness.makeBoard.setValue).toHaveBeenCalledTimes(1);
+    expect(harness.spawnBounce).toHaveBeenCalledTimes(1);
   });
 });

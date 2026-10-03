@@ -249,7 +249,8 @@ describe('Clean Board Area 55 ship flybys', () => {
       'utf8',
     );
     expect(source).toContain('stopCleanBoardArea55ShipFlybys();');
-    expect(source).toContain('area55ShipFlybys = startCleanBoardArea55ShipFlybys');
+    expect(source).toContain("area55ShipFlybys = runtimePerformance.phase('ship-setup', () => (");
+    expect(source).toContain('trackTimeout(startPostPaintResultRuntime, 0);');
     expect(source).toContain('area55ShipFlybys?.dispose();');
     expect(source).toContain('try { el.remove(); } catch {}');
   });

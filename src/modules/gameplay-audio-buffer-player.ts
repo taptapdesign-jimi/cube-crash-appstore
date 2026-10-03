@@ -16,6 +16,11 @@ import {
   GameplayAudioLoadScheduler,
   type GameplayAudioLoadPriority,
 } from './gameplay-load-scheduler.ts';
+import {
+  isForegroundResourceCritical,
+  subscribeForegroundResourceIdle,
+} from './foreground-resource-coordinator.ts';
+import { createScreenLifecycle } from '../utils/screen-lifecycle.ts';
 
 export type GameplayAudioPlaybackResult = 'played' | 'pending' | 'unavailable';
 
@@ -36,6 +41,23 @@ export interface GameplayAudioPlaybackOptions {
   onDeferredUnavailable?: () => void;
 }
 
+export interface DecodedGameplayAudioPackageSpec {
+  id: string;
+  sources: readonly string[];
+  /** Conservative decoded PCM ceiling for the complete package. */
+  maxDecodedBytes: number;
+  loop?: boolean;
+  /** Internal cache policy for a newly live multi-cue family. It may replace
+   * an idle former working set, but never active/pending playback or another
+   * admitted package. Explicit route/result leases retain the stricter default. */
+  replaceIdleWorkingSet?: boolean;
+}
+
+export interface DecodedGameplayAudioPackageLease {
+  admitted: boolean;
+  release: () => void;
+}
+
 type WebkitAudioWindow = Window & typeof globalThis & {
   webkitAudioContext?: typeof AudioContext;
 };
@@ -46,6 +68,9 @@ type ActiveVoice = {
   gain: GainNode;
   startedAtAudioSeconds: number;
   expectedEndAudioSeconds: number | null;
+  completionDeadlineWallMs: number | null;
+  completionWatchdog: ReturnType<typeof setTimeout> | null;
+  onEnded?: () => void;
   onStopped?: () => void;
 };
 
@@ -94,6 +119,9 @@ type DecodedEntry = {
   lastUseAtMs?: number | null;
   /** Real audible starts, not speculative preload requests. */
   audibleUses: number;
+  /** Prepared as one coherent multi-cue owner package. This is cache priority,
+   * not an audible use; equal-priority packages still fall back to LRU. */
+  preparedFamily: boolean;
 };
 const decodedBuffers = new Map<string, DecodedEntry>();
 const loopSources = new Set<string>();
@@ -114,9 +142,23 @@ let evictedBytes = 0;
 let redecodedBuffers = 0;
 let memoryPressureWarningCount = 0;
 const pendingBuffers = new Map<string, Promise<void>>();
+type DecodedAudioPackageReservation = {
+  token: symbol;
+  ownerId: string;
+  packageKey: string;
+  packageId: string;
+  resolvedSources: ReadonlySet<string>;
+  maxDecodedBytes: number;
+};
+const decodedAudioPackageReservations = new Map<symbol, DecodedAudioPackageReservation>();
+const decodedAudioPackageLeaseByOwner = new Map<string, symbol>();
+const pendingDecodedAudioPackages = new Map<string, Promise<void>>();
+let rejectedSpeculativePackages = 0;
 const gameplayAudioLoadScheduler = new GameplayAudioLoadScheduler(
   MOBILE_RUNTIME_PROFILE.isMobileDevice ? 2 : 8,
+  isForegroundResourceCritical,
 );
+subscribeForegroundResourceIdle(() => gameplayAudioLoadScheduler.resume());
 
 /** Pause optional audio fetch/decode while a foreground animation owns the
  * main thread. Direct audible playback stays admitted by the scheduler. */
@@ -126,6 +168,12 @@ export function suspendSpeculativeGameplayAudioLoads(): () => void {
 
 const failedBuffers = new Map<string, number>();
 const activeVoices = new Map<string, ActiveVoice>();
+const voiceCompletionLifecycle = createScreenLifecycle('gameplay-audio-voice-completion');
+// WebKit can report a SFX context as `running` while its audio clock remains
+// frozen. In that state AudioBufferSourceNode.onended never arrives, so every
+// one-shot remains cache-protected forever. This is a cleanup grace only; the
+// authored native start/stop schedule is unchanged.
+const VOICE_COMPLETION_WATCHDOG_GRACE_MS = 250;
 const pendingVoiceStarts = new Map<string, PendingVoiceStart>();
 const diagnosticLoadJobs = new Set<symbol>();
 const diagnosticDecodeJobs = new Set<symbol>();
@@ -137,6 +185,7 @@ subscribeThermalAudioIsolation((enabled) => {
   if (!enabled) return; // The live route/gesture owns any later restart.
   cacheGeneration++;
   gameplayAudioLoadScheduler.cancelQueued();
+  clearDecodedAudioPackageReservations();
   stopDecodedGameplayVoices([...new Set([...activeVoices.keys(), ...pendingVoiceStarts.keys()])]);
   // Diagnostic isolation is an explicit full teardown, not an OS pressure
   // adaptation. It must leave no decoded working set behind.
@@ -171,11 +220,34 @@ function touchEntry(entry: DecodedEntry): void {
   if (at !== null) entry.lastUseAtMs = at;
 }
 
-function protectedSources(): Set<string> {
+function playbackProtectedSources(): Set<string> {
   return new Set([
     ...Array.from(activeVoices.values(), (voice) => voice.resolvedSource),
     ...Array.from(pendingVoiceStarts.values(), (voice) => resolveSource(voice.source)),
   ]);
+}
+
+function protectedSources(): Set<string> {
+  const protectedKeys = playbackProtectedSources();
+  decodedAudioPackageReservations.forEach((reservation) => {
+    reservation.resolvedSources.forEach((source) => protectedKeys.add(source));
+  });
+  return protectedKeys;
+}
+
+function makeDecodedAudioPackageKey(packageId: string, resolvedSources: readonly string[]): string {
+  return `${packageId}\u0000${[...new Set(resolvedSources)].sort().join('\u0000')}`;
+}
+
+function reservedDecodedAudioPackageBytes(): number {
+  const bytesByPackage = new Map<string, number>();
+  decodedAudioPackageReservations.forEach((reservation) => {
+    bytesByPackage.set(
+      reservation.packageKey,
+      Math.max(bytesByPackage.get(reservation.packageKey) ?? 0, reservation.maxDecodedBytes),
+    );
+  });
+  return Array.from(bytesByPackage.values()).reduce((sum, bytes) => sum + bytes, 0);
 }
 
 function isReservableMobileLoop(source: string, entry: DecodedEntry): boolean {
@@ -191,6 +263,130 @@ function getReservedMobileLoop(protectedKeys: Set<string>): [string, DecodedEntr
     .filter(([source, entry]) => isReservableMobileLoop(source, entry))
     .sort((a, b) => Number(protectedKeys.has(b[0])) - Number(protectedKeys.has(a[0]))
       || b[1].lastUsed - a[1].lastUsed)[0];
+}
+
+function decodedEffectsBudgetBytes(): number {
+  return getReservedMobileLoop(protectedSources())
+    ? MOBILE_EFFECTS_WITH_LONG_LOOP_BUDGET_BYTES
+    : decodedAudioBudgetBytes;
+}
+
+function canReserveDecodedAudioPackage(
+  packageKey: string,
+  resolvedSources: ReadonlySet<string>,
+  maxDecodedBytes: number,
+  replaceIdleWorkingSet: boolean,
+): boolean {
+  const effectBudget = decodedEffectsBudgetBytes();
+  if (!Number.isFinite(maxDecodedBytes) || maxDecodedBytes <= 0 || maxDecodedBytes > effectBudget) return false;
+
+  const existingPackageKeys = new Set<string>();
+  let existingPackageMaxBytes = 0;
+  const otherReservedSources = new Set<string>();
+  decodedAudioPackageReservations.forEach((reservation) => {
+    existingPackageKeys.add(reservation.packageKey);
+    if (reservation.packageKey === packageKey) {
+      existingPackageMaxBytes = Math.max(existingPackageMaxBytes, reservation.maxDecodedBytes);
+    }
+    if (reservation.packageKey !== packageKey) {
+      reservation.resolvedSources.forEach((source) => otherReservedSources.add(source));
+    }
+  });
+  const packageAlreadyReserved = existingPackageKeys.has(packageKey);
+  const reservedBytes = reservedDecodedAudioPackageBytes();
+  const playbackProtected = playbackProtectedSources();
+  const hotBytesOutsidePackages = Array.from(decodedBuffers.entries()).reduce((sum, [source, entry]) => (
+    sum + (!resolvedSources.has(source)
+      && !otherReservedSources.has(source)
+      && (playbackProtected.has(source)
+        || (!replaceIdleWorkingSet && entry.audibleUses > 0)) ? entry.bytes : 0)
+  ), 0);
+  return reservedBytes
+    + (packageAlreadyReserved ? Math.max(0, maxDecodedBytes - existingPackageMaxBytes) : maxDecodedBytes)
+    + hotBytesOutsidePackages <= effectBudget;
+}
+
+function retireDecodedAudioPackageReservationsOverDeclaredSize(source: string): void {
+  const exceeded = Array.from(decodedAudioPackageReservations.values()).filter((reservation) => {
+    if (!reservation.resolvedSources.has(source)) return false;
+    const decodedBytes = Array.from(reservation.resolvedSources).reduce(
+      (sum, packageSource) => sum + (decodedBuffers.get(packageSource)?.bytes ?? 0),
+      0,
+    );
+    return decodedBytes > reservation.maxDecodedBytes;
+  });
+  exceeded.forEach((reservation) => {
+    decodedAudioPackageReservations.delete(reservation.token);
+    if (decodedAudioPackageLeaseByOwner.get(reservation.ownerId) === reservation.token) {
+      decodedAudioPackageLeaseByOwner.delete(reservation.ownerId);
+    }
+    rejectedSpeculativePackages += 1;
+  });
+}
+
+function releaseDecodedAudioPackageReservation(token: symbol): void {
+  const reservation = decodedAudioPackageReservations.get(token);
+  if (!reservation) return;
+  decodedAudioPackageReservations.delete(token);
+  if (decodedAudioPackageLeaseByOwner.get(reservation.ownerId) === token) {
+    decodedAudioPackageLeaseByOwner.delete(reservation.ownerId);
+  }
+  trimDecodedCache();
+}
+
+function clearDecodedAudioPackageReservations(): void {
+  decodedAudioPackageReservations.clear();
+  decodedAudioPackageLeaseByOwner.clear();
+  pendingDecodedAudioPackages.clear();
+}
+
+function reserveDecodedAudioPackage(
+  ownerId: string,
+  spec: DecodedGameplayAudioPackageSpec,
+): { reservation: DecodedAudioPackageReservation; release: () => void } | null {
+  const resolvedSources = [...new Set(spec.sources.map(resolveSource))];
+  if (!spec.id.trim() || !ownerId.trim() || resolvedSources.length === 0) return null;
+  const packageKey = makeDecodedAudioPackageKey(spec.id, resolvedSources);
+  const priorToken = decodedAudioPackageLeaseByOwner.get(ownerId);
+  const priorReservation = priorToken ? decodedAudioPackageReservations.get(priorToken) : undefined;
+  if (priorToken) {
+    decodedAudioPackageReservations.delete(priorToken);
+    decodedAudioPackageLeaseByOwner.delete(ownerId);
+  }
+  if (!canReserveDecodedAudioPackage(
+    packageKey,
+    new Set(resolvedSources),
+    spec.maxDecodedBytes,
+    spec.replaceIdleWorkingSet === true,
+  )) {
+    if (priorToken && priorReservation) {
+      decodedAudioPackageReservations.set(priorToken, priorReservation);
+      decodedAudioPackageLeaseByOwner.set(ownerId, priorToken);
+    }
+    rejectedSpeculativePackages += 1;
+    return null;
+  }
+
+  const token = Symbol(`${ownerId}:${spec.id}`);
+  const reservation: DecodedAudioPackageReservation = {
+    token,
+    ownerId,
+    packageKey,
+    packageId: spec.id,
+    resolvedSources: new Set(resolvedSources),
+    maxDecodedBytes: spec.maxDecodedBytes,
+  };
+  decodedAudioPackageReservations.set(token, reservation);
+  decodedAudioPackageLeaseByOwner.set(ownerId, token);
+  let released = false;
+  return {
+    reservation,
+    release: () => {
+      if (released) return;
+      released = true;
+      releaseDecodedAudioPackageReservation(token);
+    },
+  };
 }
 
 function evictDecodedEntry(source: string, entry: DecodedEntry, reason: GameplayAudioDiagnosticDetail['reason']): void {
@@ -242,7 +438,8 @@ function trimDecodedCache(budgetBytes = decodedAudioBudgetBytes): void {
         // Route preloads must not continuously evict small cues that actually
         // played many times (stack, pickup, CTA/nav). This reuse-aware tier
         // stays bounded by the same byte budget; LRU remains the tie-breaker.
-        || Math.min(a[1].audibleUses, 2) - Math.min(b[1].audibleUses, 2)
+        || (a[1].audibleUses >= 2 ? 3 : a[1].preparedFamily ? 2 : a[1].audibleUses > 0 ? 1 : 0)
+          - (b[1].audibleUses >= 2 ? 3 : b[1].preparedFamily ? 2 : b[1].audibleUses > 0 ? 1 : 0)
         || a[1].lastUsed - b[1].lastUsed;
     });
   // Pressure, not elapsed time, retires reusable audio. Fixed idle deadlines
@@ -282,11 +479,60 @@ function notifyVoiceStopped(onStopped?: () => void): void {
   catch (error) { logger.warn('Gameplay sound cleanup callback failed:', error); }
 }
 
+function clearVoiceCompletionWatchdog(voice: ActiveVoice): void {
+  voiceCompletionLifecycle.cancelTimeout(voice.completionWatchdog);
+  voice.completionWatchdog = null;
+  voice.completionDeadlineWallMs = null;
+}
+
+function completeActiveVoice(voiceId: string, voice: ActiveVoice, forceStop: boolean): void {
+  if (activeVoices.get(voiceId) !== voice) return;
+  activeVoices.delete(voiceId);
+  clearVoiceCompletionWatchdog(voice);
+  voice.source.onended = null;
+  if (forceStop) {
+    try { voice.source.stop(); } catch {}
+  }
+  try { voice.source.disconnect(); } catch {}
+  try { voice.gain.disconnect(); } catch {}
+  releaseCachedVoiceSource(voice.resolvedSource);
+  try { voice.onEnded?.(); }
+  catch (error) { logger.warn('Gameplay sound completion callback failed:', error); }
+}
+
+function armVoiceCompletionWatchdog(
+  voiceId: string,
+  voice: ActiveVoice,
+  secondsUntilExpectedEnd: number,
+): void {
+  if (voice.source.loop && voice.expectedEndAudioSeconds === null) return;
+  if (voice.completionWatchdog !== null) clearVoiceCompletionWatchdog(voice);
+  const delayMs = Math.max(0, secondsUntilExpectedEnd * 1000)
+    + VOICE_COMPLETION_WATCHDOG_GRACE_MS;
+  voice.completionDeadlineWallMs = Date.now() + delayMs;
+  voice.completionWatchdog = voiceCompletionLifecycle.trackTimeout(() => {
+    voice.completionWatchdog = null;
+    // Background owns an immediate full stop. A visible interrupted context
+    // is checked once when it becomes running again; no polling loop is added.
+    if (audioContext?.state === 'running') completeActiveVoice(voiceId, voice, true);
+  }, delayMs);
+}
+
+function completeWallClockOverdueVoices(): void {
+  const now = Date.now();
+  for (const [voiceId, voice] of activeVoices) {
+    if (voice.completionDeadlineWallMs !== null && voice.completionDeadlineWallMs <= now) {
+      completeActiveVoice(voiceId, voice, true);
+    }
+  }
+}
+
 function retireGameplayAudioForBackground(): void {
   audioLifecycleHidden = true;
   nativeForegroundOverridesHidden = false;
   playbackGeneration++;
   gameplayAudioLoadScheduler.cancelQueued();
+  clearDecodedAudioPackageReservations();
   disarmForegroundGestureRetry();
   audioContextRecovery?.cancel();
   // Keep the decoded cache reusable. Background retires playback ownership,
@@ -321,12 +567,14 @@ function onGameplayAudioForeground(event?: Event): void {
         || !isGameplayAudioForeground() || !hasGameplayAudioOwners()) return;
       if (context.state === 'running') {
         disarmForegroundGestureRetry();
+        completeWallClockOverdueVoices();
         flushReadyPendingVoiceStarts(context);
       }
       else armForegroundGestureRetry();
     });
   } else if (context?.state === 'running') {
     disarmForegroundGestureRetry();
+    completeWallClockOverdueVoices();
     flushReadyPendingVoiceStarts(context);
   }
 }
@@ -337,6 +585,7 @@ function onGameplayAudioStateChange(): void {
     || !hasGameplayAudioOwners()) return;
   if (context.state === 'running') {
     disarmForegroundGestureRetry();
+    completeWallClockOverdueVoices();
     flushReadyPendingVoiceStarts(context);
     return;
   }
@@ -363,6 +612,7 @@ function onForegroundAudioGesture(event: Event): void {
     if (context === audioContext && context.state === 'running'
       && admittedPlaybackGeneration === playbackGeneration && isGameplayAudioForeground()) {
       disarmForegroundGestureRetry();
+      completeWallClockOverdueVoices();
       flushReadyPendingVoiceStarts(context);
     }
   });
@@ -453,6 +703,8 @@ function preloadSource(
   source: string,
   request: GameplayAudioDiagnosticRequest | null = null,
   operation: GameplayAudioDiagnosticDetail['operation'] = 'preload',
+  isResidencyOwnerCurrent: (() => boolean) | null = null,
+  preparedFamily = false,
 ): void {
   const resolvedSource = resolveSource(source);
   const existing = decodedBuffers.get(resolvedSource);
@@ -505,6 +757,8 @@ function preloadSource(
     resolvedSource,
     operation as GameplayAudioLoadPriority,
     async () => {
+    if (isResidencyOwnerCurrent && !isResidencyOwnerCurrent()
+      && !playbackProtectedSources().has(resolvedSource)) return;
     // Queued packages can outlive a visual transition or a cache refill.
     // Recheck admission at execution; audible promotion protects its source.
     if (!canAdmitSpeculativeReload()) {
@@ -517,11 +771,15 @@ function preloadSource(
     try {
       const response = await fetch(resolvedSource, { cache: 'force-cache' });
       if (generation !== cacheGeneration || isThermalAudioSuppressed()
-        || admittedPlaybackGeneration !== playbackGeneration || !isGameplayAudioForeground()) return;
+        || admittedPlaybackGeneration !== playbackGeneration || !isGameplayAudioForeground()
+        || (isResidencyOwnerCurrent && !isResidencyOwnerCurrent()
+          && !playbackProtectedSources().has(resolvedSource))) return;
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const encodedAudio = await response.arrayBuffer();
       if (generation !== cacheGeneration || isThermalAudioSuppressed()
-        || admittedPlaybackGeneration !== playbackGeneration || !isGameplayAudioForeground()) return;
+        || admittedPlaybackGeneration !== playbackGeneration || !isGameplayAudioForeground()
+        || (isResidencyOwnerCurrent && !isResidencyOwnerCurrent()
+          && !playbackProtectedSources().has(resolvedSource))) return;
       decodeStartedAt = request ? gameplayAudioDiagnosticNow() : null;
       if (request) recordGameplayAudioDiagnostic({
         kind: 'decode-start', source: resolvedSource, encodedBytes: encodedAudio.byteLength, ...diagnosticCounts(),
@@ -536,6 +794,7 @@ function preloadSource(
         bytes: decodedAudio.length * decodedAudio.numberOfChannels * Float32Array.BYTES_PER_ELEMENT,
         lastUsed: discarded ? cacheAccessSequence : ++cacheAccessSequence,
         audibleUses: successfullyDecodedSources.get(resolvedSource)?.audibleUses ?? 0,
+        preparedFamily,
       };
       const completedAt = request ? gameplayAudioDiagnosticNow() : null;
       if (completedAt !== null) entry.lastUseAtMs = completedAt;
@@ -544,7 +803,8 @@ function preloadSource(
         decodeMs: completedAt !== null && decodeStartedAt !== null ? Math.max(0, completedAt - decodeStartedAt) : undefined,
         ...diagnosticCounts(),
       }, request);
-      if (discarded) return;
+      if (discarded || (isResidencyOwnerCurrent && !isResidencyOwnerCurrent()
+        && !playbackProtectedSources().has(resolvedSource))) return;
       const previousHistory = successfullyDecodedSources.get(resolvedSource);
       if (previousHistory) redecodedBuffers++;
       successfullyDecodedSources.delete(resolvedSource);
@@ -557,6 +817,7 @@ function preloadSource(
         successfullyDecodedSources.delete(successfullyDecodedSources.keys().next().value!);
       }
       decodedBuffers.set(resolvedSource, entry);
+      retireDecodedAudioPackageReservationsOverDeclaredSize(resolvedSource);
       failedBuffers.delete(resolvedSource);
     } catch (error) {
       if (generation !== cacheGeneration || admittedPlaybackGeneration !== playbackGeneration) return;
@@ -586,11 +847,104 @@ export function preloadDecodedGameplaySounds(
   }
   const context = getAudioContext();
   if (!context) return false;
+  const resolvedSources = [...new Set(sources.map(resolveSource))];
+  if (resolvedSources.length > 1
+    && resolvedSources.some((source) => !decodedBuffers.has(source))) {
+    const knownBytes = resolvedSources.map((source) => (
+      decodedBuffers.get(source)?.bytes ?? successfullyDecodedSources.get(source)?.bytes
+    ));
+    if (knownBytes.every((bytes): bytes is number => bytes !== undefined)) {
+      return preloadDecodedGameplayAudioPackage({
+        id: `known-family:${resolvedSources.slice().sort().join('|')}`,
+        sources,
+        maxDecodedBytes: knownBytes.reduce((sum, bytes) => sum + bytes, 0),
+        loop: options.loop,
+        replaceIdleWorkingSet: MOBILE_RUNTIME_PROFILE.isMobileDevice,
+      });
+    }
+  }
   if (options.loop) sources.forEach((source) => loopSources.add(resolveSource(source)));
   resumeAudioContext(context);
   const request = captureGameplayAudioDiagnosticRequest('preload:unscoped');
   sources.forEach((source) => preloadSource(context, source, request));
   return true;
+}
+
+function startDecodedGameplayAudioPackagePreparation(
+  context: AudioContext,
+  reservation: DecodedAudioPackageReservation,
+  spec: DecodedGameplayAudioPackageSpec,
+): void {
+  if (spec.loop) reservation.resolvedSources.forEach((source) => loopSources.add(source));
+  resumeAudioContext(context);
+  const request = captureGameplayAudioDiagnosticRequest(`preload:package:${spec.id}`);
+  const isCurrent = () => decodedAudioPackageReservations.get(reservation.token) === reservation;
+  reservation.resolvedSources.forEach((source) => {
+    const existing = decodedBuffers.get(source);
+    if (existing) {
+      existing.preparedFamily = true;
+      touchEntry(existing);
+    }
+    preloadSource(context, source, request, 'preload', isCurrent, true);
+  });
+}
+
+/**
+ * Atomically admits a declared speculative package before any member starts.
+ * A declined package is intentionally reported as handled: real playback still
+ * owns exact-source loading and must not allocate a detached fallback merely
+ * because optional preparation yielded to the active working set.
+ */
+export function preloadDecodedGameplayAudioPackage(
+  spec: DecodedGameplayAudioPackageSpec,
+): boolean {
+  if (!isGameplayAudioForeground()) return true;
+  if (isThermalAudioSuppressed()) {
+    recordThermalAudioIsolationBlock('sfx-preload');
+    return true;
+  }
+  const context = getAudioContext();
+  if (!context) return false;
+  const resolvedSources = [...new Set(spec.sources.map(resolveSource))];
+  const packageKey = makeDecodedAudioPackageKey(spec.id, resolvedSources);
+  if (pendingDecodedAudioPackages.has(packageKey)) return true;
+
+  const reserved = reserveDecodedAudioPackage(`prepare:${packageKey}`, spec);
+  if (!reserved) return true;
+  startDecodedGameplayAudioPackagePreparation(context, reserved.reservation, spec);
+  const pending = resolvedSources
+    .map((source) => pendingBuffers.get(source))
+    .filter((promise): promise is Promise<void> => promise !== undefined);
+  let completion!: Promise<void>;
+  completion = Promise.allSettled(pending)
+    .then(() => undefined)
+    .finally(() => {
+      if (pendingDecodedAudioPackages.get(packageKey) === completion) {
+        pendingDecodedAudioPackages.delete(packageKey);
+      }
+      reserved.release();
+    });
+  pendingDecodedAudioPackages.set(packageKey, completion);
+  return true;
+}
+
+/** Pins one admitted route package until its exact lifecycle owner releases. */
+export function acquireDecodedGameplayAudioPackage(
+  ownerId: string,
+  spec: DecodedGameplayAudioPackageSpec,
+): DecodedGameplayAudioPackageLease {
+  const unavailable = { admitted: false, release: () => {} };
+  if (!isGameplayAudioForeground()) return unavailable;
+  if (isThermalAudioSuppressed()) {
+    recordThermalAudioIsolationBlock('sfx-preload');
+    return unavailable;
+  }
+  const context = getAudioContext();
+  if (!context) return unavailable;
+  const reserved = reserveDecodedAudioPackage(ownerId, spec);
+  if (!reserved) return unavailable;
+  startDecodedGameplayAudioPackagePreparation(context, reserved.reservation, spec);
+  return { admitted: true, release: reserved.release };
 }
 
 export function getDecodedGameplaySoundsState(
@@ -623,6 +977,7 @@ function stopVoice(voiceId: string, trim: boolean): void {
     return;
   }
   voice.source.onended = null;
+  clearVoiceCompletionWatchdog(voice);
   try { voice.source.stop(); } catch {}
   try { voice.source.disconnect(); } catch {}
   try { voice.gain.disconnect(); } catch {}
@@ -641,6 +996,7 @@ export function stopDecodedGameplayVoices(voiceIds: readonly string[]): void {
 
 /** Settings and global SFX teardown retire queued and audible owners together. */
 export function stopAllDecodedGameplayVoices(): void {
+  clearDecodedAudioPackageReservations();
   const voiceIds = new Set([...activeVoices.keys(), ...pendingVoiceStarts.keys()]);
   voiceIds.forEach((voiceId) => stopVoice(voiceId, false));
   trimDecodedCache();
@@ -671,6 +1027,11 @@ export function fadeOutDecodedGameplayVoice(voiceId: string, durationSeconds: nu
     voice.expectedEndAudioSeconds = voice.source.loop
       ? now + duration
       : Math.min(now + duration, voice.expectedEndAudioSeconds ?? Infinity);
+    armVoiceCompletionWatchdog(
+      voiceId,
+      voice,
+      Math.max(0, voice.expectedEndAudioSeconds - now),
+    );
     return true;
   } catch {
     stopDecodedGameplayVoice(voiceId);
@@ -832,16 +1193,22 @@ export function playDecodedGameplaySound(
       startedAtAudioSeconds: startAt,
       expectedEndAudioSeconds: stopAt === null ? naturalEnd
         : naturalEnd === null ? stopAt : Math.min(stopAt, naturalEnd),
+      completionDeadlineWallMs: null,
+      completionWatchdog: null,
+      onEnded: options.onEnded,
     };
     activeVoices.set(options.voiceId, voice);
     sourceNode.onended = () => {
-      if (activeVoices.get(options.voiceId) === voice) activeVoices.delete(options.voiceId);
-      try { sourceNode.disconnect(); } catch {}
-      try { gainNode.disconnect(); } catch {}
-      releaseCachedVoiceSource(resolvedSource);
-      options.onEnded?.();
+      completeActiveVoice(options.voiceId, voice, false);
     };
     sourceNode.start(startAt, startOffsetSeconds);
+    if (voice.expectedEndAudioSeconds !== null) {
+      armVoiceCompletionWatchdog(
+        options.voiceId,
+        voice,
+        Math.max(0, voice.expectedEndAudioSeconds - now),
+      );
+    }
     if (entry) {
       entry.audibleUses += 1;
       const history = successfullyDecodedSources.get(resolvedSource);
@@ -860,6 +1227,7 @@ export function playDecodedGameplaySound(
     // token before its synchronous/deferred HTML fallback can take ownership.
     if (attemptedVoice && activeVoices.get(options.voiceId) === attemptedVoice) {
       activeVoices.delete(options.voiceId);
+      clearVoiceCompletionWatchdog(attemptedVoice);
     }
     if (attemptedSource) {
       attemptedSource.onended = null;
@@ -885,6 +1253,7 @@ export function playDecodedGameplaySound(
  */
 export function releaseIdleDecodedGameplayAudio(): void {
   memoryPressureWarningCount += 1;
+  clearDecodedAudioPackageReservations();
   if (MOBILE_RUNTIME_PROFILE.isMobileDevice) {
     decodedAudioBudgetBytes = Math.min(
       decodedAudioBudgetBytes,
@@ -929,6 +1298,10 @@ export function getDecodedGameplayAudioStats(includeVoiceDetails = false) {
     evictedBytes,
     redecodedBuffers,
     skippedSpeculativeLoads,
+    activePackageLeases: decodedAudioPackageReservations.size,
+    pendingPackages: pendingDecodedAudioPackages.size,
+    reservedPackageBytes: reservedDecodedAudioPackageBytes(),
+    rejectedSpeculativePackages,
     contextState: audioContext?.state ?? (audioContextUnavailable ? 'unavailable' : 'uninitialized'),
     decodedBuffers: decodedBuffers.size,
     pendingBuffers: pendingBuffers.size,
@@ -966,8 +1339,10 @@ export function resetDecodedGameplayAudioForTests(): void {
     foregroundListenersInstalled = false;
   }
   stopDecodedGameplayVoices(Array.from(activeVoices.keys()));
+  voiceCompletionLifecycle.cleanup();
   decodedBuffers.clear();
   loopSources.clear();
+  clearDecodedAudioPackageReservations();
   successfullyDecodedSources.clear();
   pendingBuffers.clear();
   failedBuffers.clear();
@@ -977,6 +1352,7 @@ export function resetDecodedGameplayAudioForTests(): void {
   redecodedBuffers = 0;
   memoryPressureWarningCount = 0;
   skippedSpeculativeLoads = 0;
+  rejectedSpeculativePackages = 0;
   decodedAudioBudgetBytes = DECODED_AUDIO_BUDGET_BYTES;
   audioContextRecovery?.cancel();
   audioContextRecovery = null;

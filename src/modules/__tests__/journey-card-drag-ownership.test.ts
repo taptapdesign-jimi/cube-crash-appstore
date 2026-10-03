@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import ts from 'typescript';
 import { getJourneyCardDragPresentationAngle, resolveJourneyCardDragAxis, shouldCommitJourneyCardReleasedDrag } from '../journey-card-overlay-modal';
+import { getIosResistedModalVerticalDelta } from '../modal-vertical-drag-dismiss';
 
 // Execute the production input closures, retaining their real shared state.
 // Only DOM/animation sinks are replaced; movement and release decisions are real.
@@ -8,13 +9,18 @@ const source = ts.createSourceFile('modal.ts', fs.readFileSync('src/modules/jour
 const closures: string[] = [];
 function visit(node: ts.Node) {
   if (ts.isFunctionDeclaration(node) && ['handlePointerMove', 'finishPointer'].includes(node.name?.text ?? '')) closures.push(node.getText(source));
+  if (ts.isVariableStatement(node) && node.declarationList.declarations.some((declaration) => (
+    ['paintPointerSample', 'flushPointerPaint', 'queuePointerPaint'].includes(declaration.name.getText(source))
+  ))) closures.push(node.getText(source));
   ts.forEachChild(node, visit);
 }
 visit(source);
 const code = ts.transpileModule(closures.join('\n'), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
 function fixture(face = 'front', angle = face === 'front' ? 0 : -180) {
+  let nextFrameId = 0;
+  const frames = new Map<number, FrameRequestCallback>();
   const scope: any = {
-    activePointerId: 1, pointerTraceMoveCount: 0, dragStartX: 0, dragStartY: 0,
+    activePointerId: 1, pointerTraceMoveCount: 0, pointerTracingEnabled: false, dragStartX: 0, dragStartY: 0,
     pinchPointerIds: null, pointerPositions: new Map([[1, { x: 0, y: 0 }]]),
     dragLatestX: 0, dragLatestY: 0, dragStartAngle: angle, currentAngle: angle,
     stableFace: face, dragMoved: false, dragAxis: null, dragViewportWidth: 390,
@@ -27,12 +33,20 @@ function fixture(face = 'front', angle = face === 'front' ? 0 : -180) {
     impactShell: { style: {} }, rotor: { releasePointerCapture: jest.fn(), hasPointerCapture: () => true },
     stage: { classList: { remove: jest.fn(), add: jest.fn() } },
     getJourneyCardDragPresentationAngle, resolveJourneyCardDragAxis, shouldCommitJourneyCardReleasedDrag,
+    getIosResistedModalVerticalDelta,
     clamp01: (n: number) => Math.min(1, Math.max(0, n)),
     getJourneyCardDismissDragDistance: () => 88,
     isJourneyCardVerticalDismissGesture: (x: number, y: number) => Math.abs(y) > Math.abs(x),
     stableRotorAngle: () => face === 'front' ? 0 : -180,
     animateInteractiveFlip: jest.fn(), beginClose: jest.fn(),
     setRotorAngle: (n: number) => { scope.currentAngle = n; },
+    pointerPaintRaf: 0, pendingPointerPaint: null,
+    trackAppAnimationFrame: (callback: FrameRequestCallback) => {
+      const id = ++nextFrameId;
+      frames.set(id, callback);
+      return id;
+    },
+    cancelTrackedAppAnimationFrame: (id: number) => { frames.delete(id); },
   };
   const proxy = new Proxy(scope, { has: () => true, get: (obj, key) => {
     if (key === Symbol.unscopables) return undefined;
@@ -42,14 +56,19 @@ function fixture(face = 'front', angle = face === 'front' ? 0 : -180) {
   } });
   const handlers = new Function('scope', `with(scope){${code}; return {handlePointerMove, finishPointer};}`)(proxy);
   const event = (x: number, y = 0, id = 1) => ({ pointerId: id, clientX: x, clientY: y, preventDefault: jest.fn(), stopPropagation: jest.fn(), composedPath: () => [] });
-  return { scope, move: (x: number, y = 0, id = 1) => handlers.handlePointerMove(event(x, y, id)),
+  const frame = () => {
+    const pending = [...frames.values()];
+    frames.clear();
+    pending.forEach((callback) => callback(performance.now()));
+  };
+  return { scope, frame, move: (x: number, y = 0, id = 1) => handlers.handlePointerMove(event(x, y, id)),
     up: (x: number, y = 0, id = 1, commit = true) => handlers.finishPointer(event(x, y, id), commit, commit ? 'rotor-up' : 'rotor-cancel') };
 }
 
 test('physical long swipe retains its origin through the next move and commits once on release', () => {
   const h = fixture();
-  h.move(177.67); const first = h.scope.currentAngle;
-  h.move(190); h.move(204.33);
+  h.move(177.67); h.frame(); const first = h.scope.currentAngle;
+  h.move(190); h.move(204.33); h.frame();
   expect(h.scope.currentAngle).toBeGreaterThan(first);
   expect(h.scope.dragStartX).toBe(0);
   expect(h.scope.animateInteractiveFlip).not.toHaveBeenCalled();
@@ -60,7 +79,7 @@ test('physical long swipe retains its origin through the next move and commits o
 });
 
 test('held reversal follows the original baseline; a deliberate backtrack settles without a flip', () => {
-  const h = fixture(); h.move(180); h.move(90);
+  const h = fixture(); h.move(180); h.move(90); h.frame();
   expect(h.scope.currentAngle).toBeCloseTo(90 / 390 * 180);
   h.move(10); h.up(10);
   expect(h.scope.animateInteractiveFlip).not.toHaveBeenCalled();
@@ -103,7 +122,7 @@ test('tap and vertical artwork dismiss keep their dedicated paths', () => {
 
 test.each([-1, 1])('vertical artwork dismiss uses the same unflipped return in direction %i', (direction) => {
   const h = fixture();
-  h.move(45, 140 * direction);
+  h.move(45, 140 * direction); h.frame();
   expect(h.scope.currentAngle).toBe(0);
   expect(Math.sign(h.scope.dismissDragReleaseY)).toBe(direction);
   h.up(45, 140 * direction);

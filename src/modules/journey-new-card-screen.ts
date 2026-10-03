@@ -43,6 +43,7 @@ import {
 } from './journey-card-overlay-modal.js';
 import { clearJourneyNewCardIdleShineWork } from './journey-new-card-idle-visibility.js';
 import { preloadImagesBounded } from '../utils/bounded-image-preloader.js';
+import { JOURNEY_WORLD_CARTOON_BOUNCE_ENTER } from './journey-v700-motion.js';
 
 type JourneyNewCardScreenOptions = {
   boardNumber: number;
@@ -62,6 +63,9 @@ const JOURNEY_NEW_CARD_CONTINUE_COACH_DURATION_MS = 2100;
 const JOURNEY_NEW_CARD_CONTINUE_COACH_REPEAT_CADENCE_MS = 3000;
 const JOURNEY_NEW_CARD_UNLOCKED_IDLE_REPEAT_DELAY_MS = 3000;
 const JOURNEY_NEW_CARD_INTERIM_IDLE_DURATION_MS = 3000;
+const JOURNEY_NEW_CARD_TRANSITION_SPEED_SCALE = 0.8;
+const JOURNEY_NEW_CARD_UNLOCKED_ENTER_DURATION_SECONDS = 0.28;
+const JOURNEY_NEW_CARD_REDUCED_TRANSITION_DURATION_SECONDS = 0.16;
 
 function renderContinueCoachLine(line: string): string {
   return `<span class="cc-journey-new-card-coach-line">${Array.from(line).map((letter, index) => (
@@ -581,14 +585,14 @@ export async function showJourneyNewCardScreen({
   const revealCopy = getJourneyNewCardRevealCopy(safeCardName, safeCardRarity);
   const revealTilt = createJourneyNewCardTiltProfile();
 
-  await prepareJourneyNewCardAssets({
+  // Mount the New Reward surface immediately. The bounded decoder continues
+  // underneath its opaque paper surface, so terminal handoff never waits on
+  // the complete image package before the first visible reward frame.
+  const assetPreparation = prepareJourneyNewCardAssets({
     cardImagePath: safeCardPath,
     cardMaskImagePath: safeCardMaskPath,
     isCurrent: () => presentationGeneration === newCardScreenPresentationGeneration,
   });
-  if (presentationGeneration !== newCardScreenPresentationGeneration) {
-    return { action: 'cancelled' };
-  }
 
   return new Promise((resolve) => {
     const cardSound = createJourneyNewCardSoundSession();
@@ -623,6 +627,13 @@ export async function showJourneyNewCardScreen({
     let enterTimeline: gsap.core.Timeline | null = null;
     let continueCoachGeneration = 0;
     const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    const transitionInflateDuration = prefersReducedMotion
+      ? 0
+      : JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.bounceDurationSeconds * JOURNEY_NEW_CARD_TRANSITION_SPEED_SCALE;
+    const transitionCollapseDuration = prefersReducedMotion
+      ? JOURNEY_NEW_CARD_REDUCED_TRANSITION_DURATION_SECONDS
+      : JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.exitDurationSeconds * JOURNEY_NEW_CARD_TRANSITION_SPEED_SCALE;
+    const transitionTotalDuration = transitionInflateDuration + transitionCollapseDuration;
     const hapticTimeouts: number[] = [];
     const shineTimeouts: number[] = [];
     const shineAnimationFrames: number[] = [];
@@ -1219,42 +1230,51 @@ export async function showJourneyNewCardScreen({
           },
         }));
         tl.to(hero, {
-          scale: 0,
-          y: -30,
-          duration: 0.24,
-          ease: 'back.in(1.65)',
+          scaleX: prefersReducedMotion ? 1 : JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.scaleX,
+          scaleY: prefersReducedMotion ? 1 : JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.scaleY,
+          duration: transitionInflateDuration,
+          ease: JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.bounceEase,
+          transformOrigin: JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.transformOrigin,
           force3D: true,
         }, 0)
+        .to(hero, {
+          scaleX: 0,
+          scaleY: 0,
+          duration: transitionCollapseDuration,
+          ease: prefersReducedMotion ? 'power1.in' : JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.exitEase,
+          transformOrigin: JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.transformOrigin,
+          force3D: true,
+        }, transitionInflateDuration)
         .to(unlockedSurface, {
           rotationZ: revealTilt.unlockedExitRotationDeg,
           rotationX: revealTilt.unlockedExitRotateXDeg,
           rotationY: revealTilt.unlockedExitRotateYDeg,
           z: -188,
-          duration: 0.24,
-          ease: 'back.in(1.65)',
+          duration: transitionTotalDuration,
+          ease: 'power2.in',
           force3D: true,
         }, 0)
-        .set(hero, { visibility: 'hidden', opacity: 0 })
-        // 3. Text exits one after another, no idle gap.
+        // Text leaves during the card collapse, never as a second waiting phase.
         .to(title, {
           scale: 0,
           opacity: 0,
           y: -34,
-          duration: 0.18,
+          duration: 0.12,
           ease: 'back.in(1.55)',
           force3D: true,
-        })
+        }, 0)
         .set(title, { visibility: 'hidden' })
         .to(subtitle, {
           scale: 0,
           opacity: 0,
           y: -28,
-          duration: 0.18,
+          duration: 0.12,
           ease: 'back.in(1.55)',
           force3D: true,
-        })
+        }, 0.04)
         .set(subtitle, { visibility: 'hidden' })
-          .to(overlay, { opacity: 0, duration: 0.1, ease: 'power2.inOut' });
+        .set(hero, { visibility: 'hidden', opacity: 0 }, transitionTotalDuration)
+        .to(overlay, { opacity: 0, duration: 0.08, ease: 'power2.inOut' }, transitionTotalDuration);
       })();
     };
 
@@ -1328,9 +1348,15 @@ export async function showJourneyNewCardScreen({
         });
 
         await new Promise<void>((revealDone) => {
-          const coverExitDuration = rd(0.32);
-          const cardEnterStart = 0;
-          const cardEnterDuration = rd(0.52);
+          const coverInflateDuration = transitionInflateDuration;
+          const coverCollapseDuration = transitionCollapseDuration;
+          const coverExitDuration = transitionTotalDuration;
+          // The closed card fully exits first; the unlocked face then owns a
+          // separate, faster bouncy enter with no overlap or neutral dwell.
+          const cardEnterStart = coverExitDuration;
+          const cardEnterDuration = prefersReducedMotion
+            ? JOURNEY_NEW_CARD_REDUCED_TRANSITION_DURATION_SECONDS
+            : JOURNEY_NEW_CARD_UNLOCKED_ENTER_DURATION_SECONDS;
           const cardImpactStart = cardEnterStart + cardEnterDuration;
           const cardSecondShineStart = cardImpactStart + rd(0.24);
           const titleStart = cardEnterStart;
@@ -1369,17 +1395,30 @@ export async function showJourneyNewCardScreen({
             .set(subtitle, { opacity: 0, y: -12, scale: 0.78 }, 0)
             .call(applyRevealCopy, undefined, titleStart)
             .to(interimSurface, {
-              scale: 0,
-              y: JOURNEY_NEW_CARD_INTERIM_OFFSET_Y_PX - 30,
+              scaleX: prefersReducedMotion
+                ? JOURNEY_NEW_CARD_INTERIM_SCALE
+                : JOURNEY_NEW_CARD_INTERIM_SCALE * JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.scaleX,
+              scaleY: prefersReducedMotion
+                ? JOURNEY_NEW_CARD_INTERIM_SCALE
+                : JOURNEY_NEW_CARD_INTERIM_SCALE * JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.scaleY,
+              duration: coverInflateDuration,
+              ease: JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.bounceEase,
+              transformOrigin: JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.transformOrigin,
+              force3D: true,
+            }, 0)
+            .to(interimSurface, {
+              scaleX: 0,
+              scaleY: 0,
+              y: JOURNEY_NEW_CARD_INTERIM_OFFSET_Y_PX,
               rotationZ: revealTilt.interimExitRotationDeg,
               rotationX: revealTilt.interimExitRotateXDeg,
               rotationY: revealTilt.interimExitRotateYDeg,
               z: -188,
-              duration: coverExitDuration,
-              ease: 'back.in(1.65)',
-              transformOrigin: '50% 50%',
+              duration: coverCollapseDuration,
+              ease: prefersReducedMotion ? 'power1.in' : JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.exitEase,
+              transformOrigin: JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.transformOrigin,
               force3D: true,
-            }, 0)
+            }, coverInflateDuration)
             .set(interimLight, { opacity: 0 }, 0)
             .call(() => triggerHaptic('light'), undefined, rd(0.22))
             .set(interimSurface, {
@@ -1419,7 +1458,7 @@ export async function showJourneyNewCardScreen({
               rotationY: revealTilt.unlockedRestRotateYDeg,
               z: 0,
               duration: cardEnterDuration,
-              ease: 'back.out(1.85)',
+              ease: prefersReducedMotion ? 'power1.out' : 'back.out(2.1)',
               force3D: true,
             }, cardEnterStart)
             .to(shadow, { opacity: 0.82, y: JOURNEY_NEW_CARD_UNLOCKED_SHADOW_Y_PX, scaleX: 1.16, scaleY: 1.08, duration: rd(0.24), ease: 'power2.out' }, cardEnterStart)
@@ -1778,6 +1817,8 @@ export async function showJourneyNewCardScreen({
         cardSound.playCrumble();
         const introFramePlaybackId = ++framePlaybackId;
         (async () => {
+          const assetsReady = await assetPreparation;
+          if (!assetsReady || presentationGeneration !== newCardScreenPresentationGeneration) return;
           await playCrumbleFrames({
             baseImg: frameImg,
             lightEl: interimLight,

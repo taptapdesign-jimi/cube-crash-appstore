@@ -64,7 +64,7 @@ test('cleanup retires animation and leaves no transform; unavailable or throwing
 });
 
 
-test('actual Hub entry starts at zero opacity and its compositor owner settles visible', () => {
+test('actual Hub entry keeps the common scroll ancestor neutral and resolves its finite shell owner', async () => {
   const source = ts.createSourceFile('animations.ts', fs.readFileSync('src/ui/collectibles-animations.ts', 'utf8'), ts.ScriptTarget.Latest, true);
   const method = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'animateCollectiblesScreenEnter')!;
   const code = ts.transpileModule(method.getText(source).replace(/^export /, ''), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
@@ -72,16 +72,21 @@ test('actual Hub entry starts at zero opacity and its compositor owner settles v
   const element = document.querySelector('.collectibles-scrollable') as HTMLElement;
   const animation: any = { cancel: jest.fn(), onfinish: null, oncancel: null };
   element.animate = jest.fn(() => animation);
-  const trackTween = jest.fn();
+  const tracked: Array<{ target: HTMLElement; vars: gsap.TweenVars }> = [];
+  const trackTween = jest.fn((target: HTMLElement, vars: gsap.TweenVars) => {
+    tracked.push({ target, vars });
+    return { eventCallback: jest.fn(() => null) };
+  });
   const scope = { gsap, trackTween, startJourneyHubScrollableEnter, cancelJourneyHubScrollableEnter };
   const run = new Function('scope', `with(scope){${code};return animateCollectiblesScreenEnter;}`)(scope);
-  run();
-  expect(element.style.opacity).toBe('0');
-  expect(element.animate).toHaveBeenCalledWith([
-    { transform: 'translate3d(0, 18px, 0) scale(0.78)', opacity: 0 },
-    { transform: 'translate3d(0, 0px, 0) scale(1)', opacity: 1 },
-  ], expect.objectContaining({ duration: 540, delay: 100 }));
+  let completed = false;
+  const completion = run().then(() => { completed = true; });
+  expect(element.animate).not.toHaveBeenCalled();
+  expect(element.style.opacity).toBe('1');
+  expect(element.style.transform).toBe('');
   expect(trackTween.mock.calls.some(([target]) => target === element)).toBe(false);
-  animation.onfinish();
-  expect(element.style.opacity).toBe('1'); expect(element.style.transform).toBe('');
+  expect(completed).toBe(false);
+  tracked.forEach(({ vars }) => vars.onComplete?.());
+  await completion;
+  expect(completed).toBe(true);
 });

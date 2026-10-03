@@ -21,6 +21,7 @@ function fixture(waapi = true) {
     phase: jest.fn((_name: string, work: () => unknown) => work()),
     finish: jest.fn(),
   };
+  let routeToken = 0;
   const scope = {
     beginTransitionPerformance: jest.fn(() => setupPerformance),
     homepageEnterTransitionOwner: { isActive: () => false, cancel: jest.fn() },
@@ -29,6 +30,11 @@ function fixture(waapi = true) {
     beginIOSJourneyRouteAudit: jest.fn(), markIOSJourneyRouteAudit: jest.fn(), cancelSliderEnterAnimation: jest.fn(),
     JOURNEY_SLIDE_INDEX: 0, sliderManager: { freezeHomepageHeroBounceForExit: jest.fn() },
     isHomepageExitCancelled: jest.fn(() => false),
+    journeyRouteTransitionCoordinator: {
+      begin: jest.fn(() => ++routeToken),
+      interrupt: jest.fn(),
+      complete: jest.fn(),
+    },
     animateJourneySliderExit: jest.fn(() => new Promise(() => {})), finalizeJourneySliderExit: jest.fn(),
   };
   const owner = { queueJourneyOpenAfterHomepageEnter: jest.fn() };

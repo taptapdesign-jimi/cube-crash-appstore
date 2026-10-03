@@ -164,4 +164,21 @@ describe('Journey New Reward presentation', () => {
     expect(screen).not.toContain('cardRarity?: JourneyCardRarity;');
     expect(read('src/modules/journey-completion-flow.ts')).toContain('cardRarity: rewardAsset.rarity');
   });
+
+  test('uses the Hub cartoon bounce in strict interim-exit then fast unlocked-enter order', () => {
+    const screen = read('src/modules/journey-new-card-screen.ts');
+    const reveal = screen.slice(
+      screen.indexOf('const coverInflateDuration = transitionInflateDuration;'),
+      screen.indexOf('if (framePlaybackId !== revealFramePlaybackId || resolved || disposed) return;', screen.indexOf('const coverInflateDuration = transitionInflateDuration;')),
+    );
+    const interimInflate = reveal.indexOf('JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.scaleX');
+    const interimCollapse = reveal.indexOf('scaleX: 0', interimInflate);
+    const unlockedEnter = reveal.indexOf('.to(unlockedSurface, {', interimCollapse);
+    expect(interimInflate).toBeGreaterThan(-1);
+    expect(interimCollapse).toBeGreaterThan(interimInflate);
+    expect(unlockedEnter).toBeGreaterThan(interimCollapse);
+    expect(reveal).toContain('const cardEnterStart = coverExitDuration;');
+    expect(reveal).toContain('JOURNEY_NEW_CARD_UNLOCKED_ENTER_DURATION_SECONDS');
+    expect(reveal).toContain("back.out(2.1)");
+  });
 });

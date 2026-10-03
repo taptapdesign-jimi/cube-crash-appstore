@@ -1,11 +1,14 @@
 import { logger } from '../core/logger.js';
 import { applySoundEffectsMasterGain } from './sound-effects-volume.ts';
 import {
+  acquireDecodedGameplayAudioPackage,
   getDecodedGameplaySoundsState,
   playDecodedGameplaySound,
+  preloadDecodedGameplayAudioPackage,
   preloadDecodedGameplaySounds,
   stopDecodedGameplayVoices,
 } from './gameplay-audio-buffer-player.ts';
+import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.ts';
 
 const CLEAN_BOARD_SOUND_BASE = './assets/sound/Clean board/';
 
@@ -65,6 +68,23 @@ const CLEAN_BOARD_VOICE_IDS = [
   'clean-board-fast-points-main-count',
   'clean-board-fast-points-bonus-count',
 ] as const;
+const CLEAN_BOARD_LONG_RESULT_SOUND_SOURCES = [
+  CLEAN_BOARD_APPLAUSE_SOUND_SOURCE,
+  CLEAN_BOARD_SAXOPHONE_HAPPY_SOUND_SOURCE,
+] as const;
+const CLEAN_BOARD_SHORT_SOUND_SOURCES = [
+  CLEAN_BOARD_MONEY_COUNT_SOUND_SOURCE,
+  CLEAN_BOARD_FAST_POINTS_STACK_SOUND_SOURCE,
+  CLEAN_BOARD_STAR_BOUNCE_SOUND_SOURCE,
+  ...CLEAN_BOARD_STAR_HARP_SOUND_SOURCES,
+  CLEAN_BOARD_CTA_BOUNCE_SOUND_SOURCE,
+] as const;
+const CLEAN_BOARD_SHORT_AUDIO_PACKAGE = {
+  id: 'result-clean-board-short',
+  sources: CLEAN_BOARD_SHORT_SOUND_SOURCES,
+  // 3.40 MiB at the target 48 kHz; long applause/sax remain streamed media.
+  maxDecodedBytes: 4 * 1024 * 1024,
+} as const;
 const mediaAudioByVoiceId = new Map<string, {
   source: string;
   audio: HTMLAudioElement;
@@ -181,6 +201,7 @@ function playCleanBoardSound(
   stopAfterSeconds?: number,
   volume = CLEAN_BOARD_SOUND_VOLUME,
   lifecycle: CleanBoardSoundLifecycle = {},
+  useMobileMediaTransport = false,
 ): boolean {
   if (!areSoundsEnabled()) {
     lifecycle.onUnavailable?.();
@@ -188,6 +209,9 @@ function playCleanBoardSound(
   }
   stopDecodedGameplayVoices([voiceId]);
   stopMediaVoice(voiceId);
+  if (useMobileMediaTransport && MOBILE_RUNTIME_PROFILE.isMobileDevice) {
+    return playCleanBoardMediaFallback(source, voiceId, stopAfterSeconds, volume, lifecycle);
+  }
   const decodedState = getDecodedGameplaySoundsState([source]);
   if (decodedState !== 'unavailable') {
     const decodedResult = playDecodedGameplaySound(source, {
@@ -269,17 +293,28 @@ export function createCleanBoardStarHarpOrder(random: () => number = Math.random
 
 export function preloadCleanBoardSounds(): boolean {
   if (!areSoundsEnabled()) return false;
+  if (MOBILE_RUNTIME_PROFILE.isMobileDevice) {
+    const longResultPrepared = CLEAN_BOARD_LONG_RESULT_SOUND_SOURCES.every(preloadMediaSource);
+    const shortDecodedPrepared = preloadDecodedGameplayAudioPackage(CLEAN_BOARD_SHORT_AUDIO_PACKAGE);
+    const shortPrepared = shortDecodedPrepared
+      || CLEAN_BOARD_SHORT_SOUND_SOURCES.every(preloadMediaSource);
+    return longResultPrepared && shortPrepared;
+  }
+
   const sources = [
-    CLEAN_BOARD_APPLAUSE_SOUND_SOURCE,
-    CLEAN_BOARD_SAXOPHONE_HAPPY_SOUND_SOURCE,
-    CLEAN_BOARD_MONEY_COUNT_SOUND_SOURCE,
-    CLEAN_BOARD_FAST_POINTS_STACK_SOUND_SOURCE,
-    CLEAN_BOARD_STAR_BOUNCE_SOUND_SOURCE,
-    ...CLEAN_BOARD_STAR_HARP_SOUND_SOURCES,
-    CLEAN_BOARD_CTA_BOUNCE_SOUND_SOURCE,
+    ...CLEAN_BOARD_LONG_RESULT_SOUND_SOURCES,
+    ...CLEAN_BOARD_SHORT_SOUND_SOURCES,
   ];
   return preloadDecodedGameplaySounds(sources)
     || sources.every(preloadMediaSource);
+}
+
+export function acquireCleanBoardShortAudioResidency(): () => void {
+  if (!areSoundsEnabled() || !MOBILE_RUNTIME_PROFILE.isMobileDevice) return () => {};
+  return acquireDecodedGameplayAudioPackage(
+    'clean-board-result',
+    CLEAN_BOARD_SHORT_AUDIO_PACKAGE,
+  ).release;
 }
 
 export function playCleanBoardApplauseSound(
@@ -291,6 +326,7 @@ export function playCleanBoardApplauseSound(
     undefined,
     CLEAN_BOARD_APPLAUSE_VOLUME,
     lifecycle,
+    true,
   );
 }
 
@@ -303,6 +339,7 @@ export function playCleanBoardSaxophoneHappySound(
     undefined,
     CLEAN_BOARD_SAXOPHONE_HAPPY_VOLUME,
     lifecycle,
+    true,
   );
 }
 

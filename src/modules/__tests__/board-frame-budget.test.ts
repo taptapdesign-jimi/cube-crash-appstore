@@ -8,6 +8,8 @@ import {
 } from '../board-frame-budget';
 
 describe('board frame budget', () => {
+  afterEach(() => { stopBoardFrameBudgetMonitor(); jest.restoreAllMocks(); });
+
   test('keeps full effects during stable 60fps gameplay', () => {
     expect(evaluateBoardFrameBudget(Array(90).fill(16.7)).reducedFx).toBe(false);
   });
@@ -16,6 +18,17 @@ describe('board frame budget', () => {
     const result = evaluateBoardFrameBudget([...Array(70).fill(18), ...Array(20).fill(35)]);
     expect(result.reducedFx).toBe(true);
     expect(result.framesOver28Ms).toBe(20);
+  });
+
+  test('reports an isolated transition stall without degrading otherwise stable board effects', () => {
+    const result = evaluateBoardFrameBudget([
+      ...Array(119).fill(16.7),
+      250,
+    ]);
+
+    expect(result.worstFrameMs).toBe(250);
+    expect(result.framesOverBudget).toBe(1);
+    expect(result.reducedFx).toBe(false);
   });
 
   test('allows recovery when an already reduced board becomes stable', () => {
@@ -61,6 +74,37 @@ describe('board frame budget', () => {
     expect(ticker.remove).toHaveBeenCalledTimes(1);
     expect(callbacks.size).toBe(0);
     rafSpy.mockRestore();
+  });
+
+  test('starts a fresh adaptive budget for each board without adding another ticker owner', () => {
+    let time = 0;
+    jest.spyOn(performance, 'now').mockImplementation(() => time);
+    const callbacks = new Set<(ticker?: unknown) => void>();
+    const ticker = {
+      maxFPS: 60,
+      add: jest.fn((callback: (ticker?: unknown) => void) => callbacks.add(callback)),
+      remove: jest.fn((callback: (ticker?: unknown) => void) => callbacks.delete(callback)),
+    };
+    const frames = (count: number, gap: number) => {
+      for (let index = 0; index < count; index += 1) {
+        time += gap;
+        callbacks.forEach(callback => callback());
+      }
+    };
+
+    startBoardFrameBudgetMonitor(ticker);
+    frames(90, 100);
+    expect((window as any).__ccLastBoardPerf.reducedFx).toBe(true);
+
+    startBoardFrameBudgetMonitor(ticker);
+
+    expect(ticker.add).toHaveBeenCalledTimes(1);
+    expect(callbacks.size).toBe(1);
+    expect((window as any).__ccLastBoardPerf).toMatchObject({
+      reducedFx: false,
+      sampleCount: 0,
+      sustainedLoadReduction: false,
+    });
   });
 });
 

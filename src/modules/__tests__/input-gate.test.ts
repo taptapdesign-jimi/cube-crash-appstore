@@ -38,6 +38,23 @@ describe('input gate', () => {
     expect(canStartTileDrag({ tile: { value: 6 }, isWildTile: true }).allowed).toBe(false);
   });
 
+  test('persistent renderer recovery lock cannot expire before recovery releases it', () => {
+    jest.useFakeTimers();
+    try {
+      setInputGateLock('renderer-recovery', true, { persistent: true, scope: 'all' });
+      jest.advanceTimersByTime(120_000);
+      expect(canStartTileDrag({ tile: { value: 2 }, isWildTile: false })).toMatchObject({
+        allowed: false,
+        reasons: ['renderer-recovery'],
+      });
+
+      setInputGateLock('renderer-recovery', false);
+      expect(canStartTileDrag({ tile: { value: 2 }, isWildTile: false }).allowed).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test('legacy tnt flag is normalized through the gate decision', () => {
     (window as any).__ccTntAnimationActive = true;
     (window as any).__ccTntDragBlocked = true;

@@ -34,6 +34,25 @@ export type PreMagnetRespawnDecision = {
   shouldDelegateToCentralEndgame: boolean;
 };
 
+/**
+ * Magnet/Spaceship visuals and interrupted cleanup can leave presentation-only
+ * objects in STATE.tiles after their grid cells have already moved on. Every
+ * post-pull spawn/endgame decision must observe the grid identity owners, not
+ * that lifecycle history. Callers without a grid retain their legacy fallback.
+ */
+export function getAuthoritativeMagnetBoardTiles({
+  grid,
+  tiles,
+}: {
+  grid?: readonly (readonly any[])[] | null;
+  tiles?: readonly any[] | null;
+}): any[] {
+  const source = Array.isArray(grid)
+    ? grid.flatMap((row) => Array.isArray(row) ? row.filter(Boolean) : [])
+    : Array.isArray(tiles) ? tiles.filter(Boolean) : [];
+  return source.filter((tile, index) => source.indexOf(tile) === index);
+}
+
 export function createMagnetRespawnPlan(pulledCellCount: number, hasTilesToRespawn: boolean): MagnetRespawnPlan {
   const replacementSpawnCount = hasTilesToRespawn ? Math.max(0, pulledCellCount | 0) : 0;
   // Magnet replaces exactly what it pulled. The surviving merge-6 destination

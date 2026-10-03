@@ -28,6 +28,7 @@ import {
 } from '../utils/journey-play-again-incident-ring.js';
 import { JOURNEY_SLIDE_INDEX } from './homepage-slide-order.js';
 import { markJourneyBoardSaveCompleted } from '../utils/board-save-utils.js';
+import { beginTransitionPerformance } from '../utils/transition-performance.js';
 // public/src/modules/endgame-flow.ts
 // Orkestracija (simplified): STARS → NEXT
 // Privremeno maknuto: Clean Board i Mystery Prize.
@@ -1186,15 +1187,22 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     
     // 🔥 CRITICAL FIX: Hide board indicator IMMEDIATELY when clean board modal appears
     // This prevents persistent "BOARD 07" element from showing during clean board modal and transition
+    const resultHandoffPerformance = beginTransitionPerformance('clean-board-upstream-handoff');
+    resultHandoffPerformance.mark('indicator-exit-requested');
     await animateBoardIndicatorExitSafe(0.3, 'before-clean-board-modal');
+    resultHandoffPerformance.mark('indicator-exit-complete');
     if (shouldAbortEndgameFlow()) {
+      resultHandoffPerformance.finish('aborted-before-modal');
       console.warn('⚠️ endgame-flow: aborted before Clean Board modal');
       return;
     }
     
     let modalResult: CleanBoardModalResult | undefined;
     try {
+      resultHandoffPerformance.mark('modal-import-requested');
       const { showCleanBoardModal } = await import('./clean-board-modal.js');
+      resultHandoffPerformance.mark('modal-import-ready');
+      resultHandoffPerformance.finish('modal-ready');
       if (shouldAbortEndgameFlow()) return;
       modalResult = await showCleanBoardModal({
         app, stage,
@@ -1214,6 +1222,7 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         isFromInterimBoardOverride: !arcadeStageClearMode && isJourneyInterimOriginActive(),
       });
     } finally {
+      resultHandoffPerformance.finish('modal-handoff-retired');
       if (cleanupNewCardHandoffCover) {
         cleanupNewCardHandoffCover();
         cleanupNewCardHandoffCover = null;

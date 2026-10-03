@@ -62,6 +62,8 @@ describe('Journey card modal entry flip sound', () => {
     expect(release).toContain('void animateInteractiveFlip(');
     expect(release).not.toContain('playJourneyCardManualFlipSound(');
     expect(source).toContain('preloadJourneyCardEntryFlipSounds();');
+    expect(source).toContain('acquireJourneyCardEntryFlipAudioResidency();');
+    expect(source).toContain('releaseCardAudioResidency();');
     expect(source).toContain('stopJourneyCardEntryFlipSounds();');
     const startReturn = source.split('const startReturn = async')[1]?.split('let closeRequestProfiled')[0] ?? '';
     expect(startReturn).toContain('if (artworkDragWithoutFlip) playJourneyCardManualFlipSound();');

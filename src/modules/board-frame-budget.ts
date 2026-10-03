@@ -29,6 +29,16 @@ let reducedFx = false;
 let framesSinceEvaluation = 0;
 let activeMonitorElapsedMs = 0;
 
+function resetSamplingSession(ticker?: FrameBudgetTicker | null): void {
+  lastFrameAt = performance.now();
+  frameSamples = [];
+  stableWindows = 0;
+  framesSinceEvaluation = 0;
+  activeMonitorElapsedMs = 0;
+  reducedFx = false;
+  publish(evaluateBoardFrameBudget([], false, false, expectedFrameMs(ticker?.maxFPS)));
+}
+
 export function shouldUseSustainedLoadReduction(elapsedMs: number, isMobileRuntime: boolean): boolean {
   return isMobileRuntime && Number.isFinite(elapsedMs) && elapsedMs >= IOS_SUSTAINED_LOAD_REDUCTION_AFTER_MS;
 }
@@ -56,7 +66,12 @@ export function evaluateBoardFrameBudget(
   const framesOver28Ms = usable.filter((value) => value > 28).length;
   const idleAllowance = Math.max(0, targetFrameMs - 1000 / 60);
   const framesOverBudget = usable.filter(value => value - idleAllowance > 28).length;
-  const shouldReduce = averageFrameMs - idleAllowance > 20.5 || framesOverBudget >= 7 || worstFrameMs - idleAllowance > 65;
+  // A single navigation, decode or result-mount frame is not sustained board
+  // pressure. The physical trace held a ~17ms average with only 3-5 slow
+  // frames, yet one 94-250ms boundary frame reduced gameplay FX for the rest
+  // of the hysteresis window. Keep the worst frame observable, but admit the
+  // reduced profile only from accumulated misses or a degraded average.
+  const shouldReduce = averageFrameMs - idleAllowance > 20.5 || framesOverBudget >= 7;
   const canRecover = currentlyReduced && averageFrameMs - idleAllowance < 18.2 && framesOverBudget <= 2;
   return {
     averageFrameMs,
@@ -78,12 +93,15 @@ function publish(snapshot: BoardFrameBudgetSnapshot): void {
 }
 
 export function startBoardFrameBudgetMonitor(ticker?: FrameBudgetTicker | null): void {
-  if (rafId !== null || tickerCallback !== null) return;
-  lastFrameAt = performance.now();
-  frameSamples = [];
-  stableWindows = 0;
-  framesSinceEvaluation = 0;
-  activeMonitorElapsedMs = 0;
+  // startLevel calls this for every new board while the persistent Pixi app
+  // keeps the same ticker. A previous board's stalls/reduced-FX hysteresis are
+  // not evidence about the new board, so begin a fresh measurement session
+  // without installing a second callback.
+  if (rafId !== null || tickerCallback !== null) {
+    resetSamplingSession(monitorTicker ?? ticker);
+    return;
+  }
+  resetSamplingSession(ticker);
 
   let lastTargetFrameMs = expectedFrameMs(ticker?.maxFPS);
   const sampleFrame = (now: number, targetFrameMs = 1000 / 60) => {
