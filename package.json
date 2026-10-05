@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host --force",
+    "dev:jimi": "vite --config vite.jimi.config.js --open /jimi-2026.html",
+    "build:jimi": "vite build --config vite.jimi.config.js",
     "build": "vite build",
     "postbuild": "node scripts/postbuild.mjs",
     "build:check": "tsc --noEmit",

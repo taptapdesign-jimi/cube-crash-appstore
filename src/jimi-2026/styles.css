@@ -1,0 +1,47 @@
+:root { color: #493126; font-family: system-ui, sans-serif; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; }
+button { font: inherit; color: inherit; border: 0; cursor: pointer; touch-action: manipulation; }
+button:disabled { cursor: default; }
+[hidden] { display: none !important; }
+#jimi-root { position: relative; height: 100%; max-width: 430px; margin: auto; overflow: hidden; }
+#jimi-status { position: fixed; bottom: 0; left: 0; right: 0; padding: 5px 12px max(5px, env(safe-area-inset-bottom)); background: #f3eee8ee; font-size: 11px; text-align: center; pointer-events: none; z-index: 10; }
+#jimi-retry { position: fixed; top: 45%; left: 50%; transform: translateX(-50%); z-index: 20; padding: 16px; border-radius: 16px; background: #fff7e9; }
+.jimi-scene { position: absolute; inset: 0; isolation: isolate; }
+.jimi-scene-header { position: absolute; top: max(14px, env(safe-area-inset-top)); left: 12px; right: 12px; z-index: 5; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.jimi-scene-title { font-size: 24px; margin: 0; }
+.jimi-back-button { border-radius: 20px; background: #fff7e9; padding: 10px 14px; }
+.jimi-scroll { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; padding-bottom: 64px; overscroll-behavior-y: contain; }
+.jimi-map { width: 390px; position: relative; margin: 0 auto; }
+.jimi-art { display: block; height: auto; }
+.jimi-hub-world, .jimi-board-card { padding: 0; background: transparent; overflow: visible; }
+.jimi-hub-flag { width: 100%; height: 100%; }
+.jimi-hub-count { position: absolute; inset: 0; display: grid; place-content: center; font-weight: 900; font-size: 23px; }
+.jimi-card-image, .jimi-card-back-image { width: 100%; height: 100%; object-fit: contain; display: block; }
+.jimi-stage-number { display: grid; height: 100%; place-content: center; font-size: 38px; font-weight: 900; opacity: .55; }
+.jimi-home { display: flex; flex-direction: column; align-items: center; padding: max(45px, env(safe-area-inset-top)) 20px 64px; }
+.jimi-home-logo { position: relative; width: 200px; height: 120px; flex: none; }
+.jimi-logo-image { width: 100%; position: relative; z-index: 1; }
+.jimi-logo-shard { position: absolute; width: 42px; }
+.jimi-logo-shard-top-left { left: -18px; top: -12px; }
+.jimi-logo-shard-top-right { right: -20px; top: -8px; }
+.jimi-logo-shard-bottom-left { left: -18px; bottom: 0; }
+.jimi-logo-shard-bottom-right { right: -18px; bottom: 0; transform: scaleX(-1); }
+.jimi-home-slides { flex: 1; min-height: 0; width: 100%; }
+.jimi-home-slide { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.jimi-home-hero { background: none; padding: 0; width: 100%; min-height: 0; flex: 1; max-height: 330px; }
+.jimi-hero-image { width: 100%; height: 100%; object-fit: contain; }
+.jimi-home-tagline { margin: 8px 0 18px; }
+.jimi-primary-button { background: #fff7e9; border: 3px solid #65452f; border-radius: 22px; padding: 13px 32px; font-size: 22px; font-weight: 800; }
+.jimi-home-tabs { display: flex; gap: 14px; margin-top: 28px; }
+.jimi-home-tab { padding: 10px; background: transparent; border-bottom: 3px solid transparent; }
+.jimi-home-tab[aria-pressed=true] { border-color: #65452f; }
+.jimi-preview-button { font-size: 11px; padding: 6px; background: #fff7e9; border-radius: 8px; }
+.jimi-card { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 28px; }
+.jimi-card-stage { width: 250px; height: 370px; perspective: 1000px; }
+.jimi-card-rotor { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; }
+.jimi-card-front, .jimi-card-back { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; background: transparent; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.jimi-card-back { transform: rotateY(180deg); }
+.jimi-card-name { position: absolute; top: 30%; left: 10%; right: 10%; }
+.jimi-card-stars { position: absolute; top: 55%; left: 0; right: 0; }
+.jimi-card-preview-label { margin: 0; font-size: 13px; }
