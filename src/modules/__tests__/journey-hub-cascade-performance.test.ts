@@ -49,6 +49,7 @@ function fixture(opacities = ['1', '0.65', '0.8']) {
   const owner: Record<string, any> = {
     journeyV700HubEnterPerformance: null, journeyV700HubEnterEpoch: 0, journeyV700HubEnterTweens: [],
     journeyV700HubEnterCompletion: null,
+    journeyResidentPendingOpen: null,
     journeyV700HubPresentationWaiters: new Set(), journeyV700Phase: 'prepared', journeyV700View: 'hub',
     journeyHubRuntime: { prepareForTransition: jest.fn(), activate: jest.fn() },
     prepareJourneyHubImagesForReveal: jest.fn(() => scope.readyPromise),

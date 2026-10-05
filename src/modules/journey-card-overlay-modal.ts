@@ -396,6 +396,46 @@ export function getJourneyCardImpactPresentationPose(transform: string, translat
   };
 }
 
+type JourneyCardImpactPose = ReturnType<typeof getJourneyCardImpactPresentationPose>;
+
+function getAnimationProgress(animation: Animation, durationMs: number): number {
+  const computedProgress = animation.effect?.getComputedTiming().progress;
+  if (typeof computedProgress === 'number' && Number.isFinite(computedProgress)) {
+    return clamp01(computedProgress);
+  }
+  return clamp01(Number(animation.currentTime ?? 0) / Math.max(1, durationMs));
+}
+
+function interpolateImpactPose(
+  from: JourneyCardImpactPose,
+  to: JourneyCardImpactPose,
+  progress: number,
+): JourneyCardImpactPose {
+  const t = clamp01(progress);
+  return {
+    translateX: from.translateX + (to.translateX - from.translateX) * t,
+    translateY: from.translateY + (to.translateY - from.translateY) * t,
+    scale: from.scale + (to.scale - from.scale) * t,
+  };
+}
+
+function interpolatePoseStops(
+  stops: ReadonlyArray<{ offset: number; pose: JourneyCardImpactPose }>,
+  progress: number,
+): JourneyCardImpactPose {
+  const t = clamp01(progress);
+  const upperIndex = stops.findIndex((stop) => stop.offset >= t);
+  if (upperIndex <= 0) return stops[0].pose;
+  const upper = stops[upperIndex];
+  const lower = stops[upperIndex - 1];
+  const span = Math.max(0.0001, upper.offset - lower.offset);
+  return interpolateImpactPose(lower.pose, upper.pose, (t - lower.offset) / span);
+}
+
+function formatImpactTransform(pose: JourneyCardImpactPose): string {
+  return `translate3d(0, ${pose.translateY.toFixed(3)}px, 0) scale(${pose.scale.toFixed(5)})`;
+}
+
 function smoothstep(value: number): number {
   const t = clamp01(value);
   return t * t * (3 - 2 * t);
@@ -897,7 +937,10 @@ export function presentJourneyCardOverlayModal(
   let impactAnimation: Animation | null = null;
   let dragPreviewSettleAnimation: Animation | null = null;
   let idleShellHandoffAnimation: Animation | null = null;
+  let idleShellHandoffPoseSampler: (() => string) | null = null;
   let idleCoachImpactHandoffAnimation: Animation | null = null;
+  let rotorHandoffPoseSampler: (() => number) | null = null;
+  let impactHandoffPoseSampler: (() => JourneyCardImpactPose) | null = null;
   let exitNeutralAnimations: Animation[] = [];
   let idleCoachTimer = 0;
   let idleCoachCardAnimation: Animation | null = null;
@@ -1102,10 +1145,9 @@ export function presentJourneyCardOverlayModal(
   };
 
   const neutralizeExitMotionOwners = (durationMs: number) => {
-    const idleTransform = window.getComputedStyle(idleShell).transform || 'none';
-    const poseStyle = window.getComputedStyle(poseShell);
-    const poseTranslate = poseStyle.translate || 'none';
-    const poseTransform = poseStyle.transform || 'none';
+    const idleTransform = idleShellHandoffPoseSampler?.() ?? sampleSurfaceIdleTransform();
+    const poseTranslate = poseShell.style.translate || 'none';
+    const poseTransform = poseShell.style.transform || 'none';
     const safeDurationMs = Math.max(1, Math.round(durationMs));
     stage.style.setProperty('--journey-card-exit-neutral-duration', `${safeDurationMs}ms`);
     stopSurfaceIdle();
@@ -1162,14 +1204,13 @@ export function presentJourneyCardOverlayModal(
 
   const readPointerHandoffAngle = (): number => {
     if (!hasActiveRotorInterruption()) return stableRotorAngle();
-    const renderedTransform = window.getComputedStyle(rotor).transform || rotor.style.transform;
-    const renderedAngle = getJourneyCardRenderedRotateYAngle(renderedTransform);
-    return renderedAngle === null
-      ? stableRotorAngle()
-      : getJourneyCardUnwrappedAngleNear(renderedAngle, currentAngle);
+    const sampledAngle = rotorHandoffPoseSampler?.();
+    return typeof sampledAngle === 'number' && Number.isFinite(sampledAngle)
+      ? sampledAngle
+      : currentAngle;
   };
 
-  const readImpactHandoffPose = (): ReturnType<typeof getJourneyCardImpactPresentationPose> => {
+  const readImpactHandoffPose = (): JourneyCardImpactPose => {
     const hasActiveImpactInterruption = idleCoachCardAnimation !== null
       || idleCoachImpactHandoffAnimation !== null
       || impactAnimation !== null;
@@ -1179,10 +1220,9 @@ export function presentJourneyCardOverlayModal(
         impactShell.style.translate,
       );
     }
-    const renderedStyle = window.getComputedStyle(impactShell);
-    return getJourneyCardImpactPresentationPose(
-      renderedStyle.transform || impactShell.style.transform,
-      renderedStyle.translate || impactShell.style.translate,
+    return impactHandoffPoseSampler?.() ?? getJourneyCardImpactPresentationPose(
+      impactShell.style.transform,
+      impactShell.style.translate,
     );
   };
 
@@ -1311,9 +1351,29 @@ export function presentJourneyCardOverlayModal(
 
   let surfaceIdleTimer = 0;
   let surfaceIdlePresentationActive = false;
+  let surfaceIdleStartedAt = 0;
+  const sampleSurfaceIdleTransform = (): string => {
+    if (!surfaceIdlePresentationActive || surfaceIdleStartedAt <= 0) {
+      return idleShell.style.transform || 'none';
+    }
+    const progress = clamp01((performance.now() - surfaceIdleStartedAt) / 6800);
+    const pose = interpolatePoseStops([
+      { offset: 0, pose: { translateX: 0, translateY: 0, scale: 1 } },
+      { offset: 0.18, pose: { translateX: 0, translateY: -3, scale: 1.003 } },
+      { offset: 0.38, pose: { translateX: 0, translateY: 0, scale: 1 } },
+      { offset: 0.58, pose: { translateX: 0, translateY: -3.75, scale: 1.004 } },
+      { offset: 0.76, pose: { translateX: 0, translateY: 0, scale: 1 } },
+      { offset: 0.84, pose: { translateX: 0, translateY: -4, scale: 1.015 } },
+      { offset: 0.89, pose: { translateX: 0, translateY: 1, scale: 0.995 } },
+      { offset: 0.94, pose: { translateX: 0, translateY: -1, scale: 1.006 } },
+      { offset: 1, pose: { translateX: 0, translateY: 0, scale: 1 } },
+    ], progress);
+    return formatImpactTransform(pose);
+  };
   function handleSurfaceIdleAnimationEnd(event: AnimationEvent): void {
     if (event.target !== idleShell || event.animationName !== 'cc-gameplay-modal-idle-float') return;
     surfaceIdlePresentationActive = false;
+    surfaceIdleStartedAt = 0;
   }
   const clearSurfaceIdleTimer = (): void => {
     if (surfaceIdleTimer === 0) return;
@@ -1323,6 +1383,7 @@ export function presentJourneyCardOverlayModal(
   const stopSurfaceIdle = () => {
     clearSurfaceIdleTimer();
     surfaceIdlePresentationActive = false;
+    surfaceIdleStartedAt = 0;
     stage.classList.remove('is-surface-idle');
     stopLegendaryIdleHolo();
     stopCommonIdleShine();
@@ -1331,11 +1392,12 @@ export function presentJourneyCardOverlayModal(
     const hasActiveIdleInterruption = surfaceIdlePresentationActive
       || idleShellHandoffAnimation !== null;
     const renderedTransform = hasActiveIdleInterruption
-      ? window.getComputedStyle(idleShell).transform || idleShell.style.transform || 'none'
+      ? idleShellHandoffPoseSampler?.() ?? sampleSurfaceIdleTransform()
       : idleShell.style.transform || 'none';
     stopSurfaceIdle();
     idleShellHandoffAnimation?.cancel();
     idleShellHandoffAnimation = null;
+    idleShellHandoffPoseSampler = null;
     idleShell.style.transform = renderedTransform;
     // A live finger is the sole presentation owner. Continuing the former
     // 160ms idle-shell handoff under that finger makes the card appear to
@@ -1354,9 +1416,16 @@ export function presentJourneyCardOverlayModal(
       fill: 'forwards',
     });
     idleShellHandoffAnimation = animation;
+    const fromPose = getJourneyCardImpactPresentationPose(renderedTransform, 'none');
+    idleShellHandoffPoseSampler = () => formatImpactTransform(interpolateImpactPose(
+      fromPose,
+      { translateX: 0, translateY: 0, scale: 1 },
+      getAnimationProgress(animation, 160),
+    ));
     void animation.finished.catch(() => undefined).then(() => {
       if (idleShellHandoffAnimation !== animation) return;
       idleShellHandoffAnimation = null;
+      idleShellHandoffPoseSampler = null;
       animation.cancel();
       idleShell.style.transform = 'none';
     });
@@ -1379,8 +1448,10 @@ export function presentJourneyCardOverlayModal(
     if (!canStartSurfaceIdle()) return;
       idleShellHandoffAnimation?.cancel();
       idleShellHandoffAnimation = null;
+      idleShellHandoffPoseSampler = null;
       idleShell.style.removeProperty('transform');
       surfaceIdlePresentationActive = true;
+      surfaceIdleStartedAt = performance.now();
       stage.classList.add('is-surface-idle');
       startLegendaryIdleHolo();
       startCommonIdleShine();
@@ -1504,6 +1575,7 @@ export function presentJourneyCardOverlayModal(
     }
     idleCoachCardAnimation?.cancel();
     idleCoachCardAnimation = null;
+    impactHandoffPoseSampler = null;
     idleCoachHandAnimation?.cancel();
     idleCoachHandAnimation = null;
     stage.classList.remove('is-idle-coach', 'is-idle-coach-drag', 'is-idle-coach-tap');
@@ -1516,9 +1588,11 @@ export function presentJourneyCardOverlayModal(
       stopIdleCoach();
       return null;
     }
-    const renderedStyle = window.getComputedStyle(impactShell);
-    const renderedTransform = renderedStyle.transform || impactShell.style.transform || 'none';
-    const renderedTranslate = renderedStyle.translate || impactShell.style.translate || 'none';
+    const renderedPose = readImpactHandoffPose();
+    const renderedTransform = formatImpactTransform(renderedPose);
+    const renderedTranslate = renderedPose.translateX === 0
+      ? 'none'
+      : `${renderedPose.translateX.toFixed(3)}px 0`;
     stopIdleCoach();
     idleCoachImpactHandoffAnimation?.cancel();
     idleCoachImpactHandoffAnimation = null;
@@ -1545,9 +1619,19 @@ export function presentJourneyCardOverlayModal(
       fill: 'forwards',
     });
     idleCoachImpactHandoffAnimation = animation;
+    const handoffStartPose = getJourneyCardImpactPresentationPose(
+      renderedTransform,
+      renderedTranslate,
+    );
+    impactHandoffPoseSampler = () => interpolateImpactPose(
+      handoffStartPose,
+      { translateX: 0, translateY: 0, scale: 1 },
+      getAnimationProgress(animation, 160),
+    );
     void animation.finished.catch(() => undefined).then(() => {
       if (idleCoachImpactHandoffAnimation !== animation) return;
       idleCoachImpactHandoffAnimation = null;
+      impactHandoffPoseSampler = null;
       animation.cancel();
       impactShell.style.transform = 'translate3d(0, 0, 0) scale(1)';
       impactShell.style.translate = 'none';
@@ -1615,6 +1699,24 @@ export function presentJourneyCardOverlayModal(
           easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
         });
       idleCoachCardAnimation = cardAnimation;
+      const coachPoseStops = coachMode === 'drag' ? [
+        { offset: 0, pose: { translateX: 0, translateY: 0, scale: 1 } },
+        { offset: 0.28, pose: { translateX: -34, translateY: 0, scale: 1 } },
+        { offset: 0.68, pose: { translateX: 38, translateY: 0, scale: 1 } },
+        { offset: 1, pose: { translateX: 0, translateY: 0, scale: 1 } },
+      ] : [
+        { offset: 0, pose: { translateX: 0, translateY: 0, scale: 1 } },
+        { offset: 0.34, pose: { translateX: 0, translateY: 0, scale: 1 } },
+        { offset: 0.43, pose: { translateX: 0, translateY: 0, scale: 0.965 } },
+        { offset: 0.57, pose: { translateX: 0, translateY: 0, scale: 1.06 } },
+        { offset: 0.7, pose: { translateX: 0, translateY: 0, scale: 0.988 } },
+        { offset: 0.82, pose: { translateX: 0, translateY: 0, scale: 1 } },
+        { offset: 1, pose: { translateX: 0, translateY: 0, scale: 1 } },
+      ];
+      impactHandoffPoseSampler = () => interpolatePoseStops(
+        coachPoseStops,
+        getAnimationProgress(cardAnimation, JOURNEY_CARD_FLIP_IDLE_COACH_DURATION_MS),
+      );
       idleCoachHandAnimation = handAnimation;
       const coachAnimations = [cardAnimation, handAnimation];
       void Promise.allSettled(coachAnimations.map((animation) => animation.finished)).then(() => {
@@ -1624,6 +1726,7 @@ export function presentJourneyCardOverlayModal(
           || idleCoachHandAnimation !== handAnimation
         ) return;
         idleCoachCardAnimation = null;
+        impactHandoffPoseSampler = null;
         idleCoachHandAnimation = null;
         stage.classList.remove('is-idle-coach', 'is-idle-coach-drag', 'is-idle-coach-tap');
         if (closing || settled) return;
@@ -1654,11 +1757,13 @@ export function presentJourneyCardOverlayModal(
     flipAnimation = null;
     flipRecoilAnimation?.cancel();
     flipRecoilAnimation = null;
+    rotorHandoffPoseSampler = null;
     idleShellHandoffAnimation?.cancel();
     idleShellHandoffAnimation = null;
     idleShell.style.removeProperty('transform');
     idleCoachImpactHandoffAnimation?.cancel();
     idleCoachImpactHandoffAnimation = null;
+    impactHandoffPoseSampler = null;
     impactAnimation?.cancel();
     impactAnimation = null;
     dragPreviewSettleAnimation?.cancel();
@@ -1859,6 +1964,9 @@ export function presentJourneyCardOverlayModal(
       keyframes.push({ transform: `rotateY(${to}deg)` });
       const animation = rotor.animate(keyframes, { duration, easing: 'linear' });
       flipAnimation = animation;
+      rotorHandoffPoseSampler = () => (
+        from + (to - from) * getAnimationProgress(animation, duration)
+      );
       if (crossesFaceEdge && cardRarity === 'legendary') {
         let faceEdgeCommitted = false;
         const watchPhysicalEdge = () => {
@@ -1883,7 +1991,10 @@ export function presentJourneyCardOverlayModal(
         flipEdgeRaf = requestAnimationFrame(watchPhysicalEdge);
       }
       try { await animation.finished; } catch {}
-      if (flipAnimation === animation) flipAnimation = null;
+      if (flipAnimation === animation) {
+        flipAnimation = null;
+        rotorHandoffPoseSampler = null;
+      }
     }
     if (generation !== flipGeneration || closing || !isCurrentShellOwner()) {
       finishFlipCriticalWindow();
@@ -1924,6 +2035,9 @@ export function presentJourneyCardOverlayModal(
         const localProgress = (bounded - lower.offset) / span;
         return lower.angle + (upper.angle - lower.angle) * localProgress;
       };
+      rotorHandoffPoseSampler = () => recoilAngleAtProgress(
+        getAnimationProgress(recoil, JOURNEY_CARD_FLIP_RECOIL_DURATION_MS),
+      );
       const watchRecoilShine = () => {
         if (closing || settled || flipRecoilAnimation !== recoil) {
           flipEdgeRaf = 0;
@@ -1949,6 +2063,7 @@ export function presentJourneyCardOverlayModal(
           return;
         }
         flipRecoilAnimation = null;
+        rotorHandoffPoseSampler = null;
         if (flipEdgeRaf !== 0) {
           cancelAnimationFrame(flipEdgeRaf);
           flipEdgeRaf = 0;
@@ -2215,18 +2330,18 @@ export function presentJourneyCardOverlayModal(
     flipAnimation = null;
     flipRecoilAnimation?.cancel();
     flipRecoilAnimation = null;
+    rotorHandoffPoseSampler = null;
     finishCriticalWindow(releaseFlipCriticalWindow, () => {
       releaseFlipCriticalWindow = null;
     });
     setRotorAngle(stableRotorAngle());
     if (value === 'dismiss') options.onPerformancePhase?.('dismiss-style-snapshot-start');
-    const visibleRotorTransform = window.getComputedStyle(rotor).transform || rotor.style.transform;
-    const visibleImpactTransform = window.getComputedStyle(impactShell).transform || impactShell.style.transform;
-    const visibleImpactTranslate = window.getComputedStyle(impactShell).translate || impactShell.style.translate;
-    const visibleImpactPose = getJourneyCardImpactPresentationPose(
-      visibleImpactTransform,
-      visibleImpactTranslate,
-    );
+    const visibleRotorTransform = rotor.style.transform || `rotateY(${stableRotorAngle()}deg)`;
+    const visibleImpactPose = readImpactHandoffPose();
+    const visibleImpactTransform = formatImpactTransform(visibleImpactPose);
+    const visibleImpactTranslate = visibleImpactPose.translateX === 0
+      ? 'none'
+      : `${visibleImpactPose.translateX.toFixed(3)}px 0`;
     exitImpactReleaseX = visibleImpactPose.translateX;
     dismissDragReleaseY = visibleImpactPose.translateY;
     dismissDragReleaseScale = visibleImpactPose.scale;
@@ -2464,10 +2579,12 @@ export function presentJourneyCardOverlayModal(
     }
     flipRecoilAnimation?.cancel();
     flipRecoilAnimation = null;
+    rotorHandoffPoseSampler = null;
     const interruptedImpactAnimation = impactAnimation;
     const interruptedPreviewAnimation = dragPreviewSettleAnimation;
     impactAnimation = null;
     dragPreviewSettleAnimation = null;
+    impactHandoffPoseSampler = null;
     interruptedImpactAnimation?.cancel();
     interruptedPreviewAnimation?.cancel();
     stage.classList.remove('is-face-settling');
@@ -2794,6 +2911,17 @@ export function presentJourneyCardOverlayModal(
       fill: 'forwards',
     }) ?? null;
     impactAnimation = animation;
+    const impactFromPose = getJourneyCardImpactPresentationPose(
+      fromImpactTransform,
+      fromTranslate,
+    );
+    if (animation) {
+      impactHandoffPoseSampler = () => interpolateImpactPose(
+        impactFromPose,
+        { translateX: 0, translateY: 0, scale: 1 },
+        getAnimationProgress(animation, prefersReducedMotion ? 1 : 180),
+      );
+    }
     dragPreviewSettleAnimation = !flipping && Math.abs(previewFromAngle - previewToAngle) > 0.001
       ? rotor.animate?.([
         { transform: `rotateY(${previewFromAngle}deg)` },
@@ -2804,6 +2932,14 @@ export function presentJourneyCardOverlayModal(
         fill: 'forwards',
       }) ?? null
       : null;
+    if (dragPreviewSettleAnimation) {
+      const previewOwner = dragPreviewSettleAnimation;
+      rotorHandoffPoseSampler = () => (
+        previewFromAngle
+        + (previewToAngle - previewFromAngle)
+          * getAnimationProgress(previewOwner, prefersReducedMotion ? 1 : 180)
+      );
+    }
     if (dragPreviewSettleAnimation) stage.classList.add('is-face-settling');
     if (!animation) {
       clearLegendaryDragShine();
@@ -2856,7 +2992,9 @@ export function presentJourneyCardOverlayModal(
         flipEdgeRaf = 0;
       }
       impactAnimation = null;
+      impactHandoffPoseSampler = null;
       if (dragPreviewSettleAnimation === previewAnimation) dragPreviewSettleAnimation = null;
+      if (ownsRotorPreview) rotorHandoffPoseSampler = null;
       stage.classList.remove('is-face-settling');
       impactShell.style.translate = 'none';
       impactShell.style.transform = 'translate3d(0, 0, 0) scale(1)';

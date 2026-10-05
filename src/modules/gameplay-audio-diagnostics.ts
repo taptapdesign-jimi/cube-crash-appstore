@@ -18,7 +18,7 @@ export interface GameplayAudioDiagnosticDetail {
   operation?: 'preload' | 'state' | 'play';
   result?: 'hit' | 'miss' | 'pending' | 'cooldown';
   voiceId?: string;
-  reason?: 'budget' | 'os-pressure' | 'loop-replaced';
+  reason?: 'budget' | 'os-pressure' | 'loop-replaced' | 'transition-idle-release';
   bytes?: number;
   encodedBytes?: number;
   /** Wall time awaiting decodeAudioData, not CPU execution time. */
@@ -56,7 +56,12 @@ type SourceActivity = {
   evictedBytes: number;
 };
 const sourceActivitySinceDrain = new Map<string, SourceActivity>();
-const evictionsByReasonSinceDrain = { budget: 0, 'os-pressure': 0, 'loop-replaced': 0 };
+const evictionsByReasonSinceDrain = {
+  budget: 0,
+  'os-pressure': 0,
+  'loop-replaced': 0,
+  'transition-idle-release': 0,
+};
 
 function getSourceActivity(source: string): SourceActivity {
   const key = source.slice(0, 512);
@@ -173,6 +178,7 @@ export function drainGameplayAudioDiagnostics(options: { includeEvents?: boolean
   evictionsByReasonSinceDrain.budget = 0;
   evictionsByReasonSinceDrain['os-pressure'] = 0;
   evictionsByReasonSinceDrain['loop-replaced'] = 0;
+  evictionsByReasonSinceDrain['transition-idle-release'] = 0;
   return {
     capacity: CAPACITY,
     overwritten,
@@ -194,6 +200,7 @@ export function resetGameplayAudioDiagnosticsForTests(): void {
   evictionsByReasonSinceDrain.budget = 0;
   evictionsByReasonSinceDrain['os-pressure'] = 0;
   evictionsByReasonSinceDrain['loop-replaced'] = 0;
+  evictionsByReasonSinceDrain['transition-idle-release'] = 0;
   callerScope = null;
   contextProvider = null;
 }

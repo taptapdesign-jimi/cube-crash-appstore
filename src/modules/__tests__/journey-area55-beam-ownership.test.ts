@@ -55,7 +55,7 @@ describe('Area 55 alien beam animation ownership', () => {
     const enterSource = coordinatorSource.split('public async enter(')[1]
       ?.split('public async exit(')[0] ?? '';
     const resetIndex = enterSource.indexOf('gsap.set(liveClouds, { x: 0, overwrite: true })');
-    const timelineIndex = enterSource.indexOf('const timeline = gsap.timeline({');
+    const timelineIndex = enterSource.indexOf('timeline = gsap.timeline({');
 
     expect(enterSource).toContain('const liveClouds = Array.from(new Set(liveUnits.flatMap((unit) => unit.clouds)))');
     expect(resetIndex).toBeGreaterThanOrEqual(0);

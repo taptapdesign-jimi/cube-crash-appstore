@@ -27,11 +27,74 @@ describe('Journey route transition production wiring', () => {
     expect(open).toContain('journeyRouteTransitionCoordinator.begin(');
     expect(open).toContain('journeyRouteTransitionCoordinator.complete(');
     expect(open).toContain('journeyRouteTransitionCoordinator.interrupt(');
+    expect(open).toContain('journeyRouteTransitionCoordinator.holdPresentationLeasesUntil(');
+    expect(open).toContain('journeyRouteTransitionCoordinator.claimTimeline(');
     expect(close).toContain('journeyRouteTransitionCoordinator.begin(');
     expect(close).toContain('journeyRouteTransitionCoordinator.complete(');
     expect(close).toContain('journeyRouteTransitionCoordinator.interrupt(');
+    expect(close).toContain('journeyRouteTransitionCoordinator.holdPresentationLeasesUntil(');
+    expect(close).toContain('journeyRouteTransitionCoordinator.claimTimeline(');
     expect(open).not.toContain("acquireForegroundResourceCriticalLease('journey-transition')");
     expect(close).not.toContain("acquireForegroundResourceCriticalLease('journey-transition')");
+  });
+
+  test('accepted Hub taps start exit before preparing only their destination', () => {
+    const source = read('src/modules/journey-boards-manager.ts');
+    const open = source.split('private openJourneyV700World(')[1]
+      ?.split('private releaseJourneyMainCloudComposites(')[0] ?? '';
+    const residentPreparation = source.split('private prepareJourneyResidentWorldsUnderCover(')[1]
+      ?.split('private prepareJourneyWorldPrepaint(')[0] ?? '';
+
+    expect(open).toContain('const destinationReady = hasRetainedWorld');
+    expect(open.indexOf('this.prepareJourneyWorldPrepaint('))
+      .toBeGreaterThan(open.indexOf('this.playJourneyV700HubExit('));
+    expect(open).not.toContain('renderJourneyWorldIncrementally(');
+    expect(open).not.toContain('waitForImageReady(');
+    expect(open).not.toContain('getBoundingClientRect(');
+    expect(open).not.toContain('waitForJourneyResidentWorld');
+    expect(open).not.toContain('playJourneyResidentTapFeedback');
+    expect(open).not.toContain('await worldPrepaintReady');
+    expect(open.indexOf('this.journeyHubRuntime.prepareForTransition(')).toBeGreaterThanOrEqual(0);
+    expect(open.indexOf('this.playJourneyV700HubExit('))
+      .toBeGreaterThan(open.indexOf('this.journeyHubRuntime.prepareForTransition('));
+
+    expect(residentPreparation).toBe('');
+  });
+
+  test('World return re-primes the detached resident plan before a later Hub tap', () => {
+    const source = read('src/modules/journey-boards-manager.ts');
+    const toHub = source.split('private commitRetainedJourneyHub(')[1]
+      ?.split('private async commitJourneyHubPrepaint(')[0] ?? '';
+    const toWorld = source.split('private commitRetainedJourneyWorld(')[1]
+      ?.split('private commitJourneyWorldPrepaint(')[0] ?? '';
+
+    expect(toHub).toContain("source: 'world-to-hub-resident-reprime'");
+    expect(toHub.indexOf('this.primeJourneyV700WorldEnter(container, closingWorldId,'))
+      .toBeLessThan(toHub.indexOf('this.beginRenderLifecycle();'));
+    expect(toHub).toContain('this.journeyResidentPreparedEnters.set(closingWorldId,');
+    expect(toWorld).toContain('const residentPreparedEnter = this.journeyResidentPreparedEnters.get(worldId);');
+    expect(toWorld).toContain('reusedResidentPreparedEnter: !!this.journeyV700PreparedWorldEnter');
+  });
+
+  test('full Journey cleanup releases route protection and the persistent core audio set', () => {
+    const source = read('src/modules/journey-boards-manager.ts');
+    const cleanup = source.split('public cleanup(): void {')[1]
+      ?.split('private ', 1)[0] ?? '';
+
+    expect(cleanup).toContain("journeyRouteTransitionCoordinator.interruptCurrent('manager-cleanup')");
+    expect(cleanup).toContain('releaseJourneyCoreAudioWorkingSet();');
+
+    const suspend = source.split('public suspendForGameplay(): void {')[1]
+      ?.split('public cleanup(): void {')[0] ?? '';
+    expect(suspend).toContain('releaseJourneyCoreAudioWorkingSet();');
+  });
+
+  test('Journey presentation protection blocks competing resource work without waking hidden Pixi', () => {
+    const coordinator = read('src/modules/journey-route-transition-coordinator.ts');
+
+    expect(coordinator.match(/acquireForegroundResourceCriticalLease\('journey-transition'\)/g))
+      .toHaveLength(2);
+    expect(coordinator).not.toContain('acquirePixiMobileActivityLease');
   });
 
   test('Hub to World completes only after visible enter starts and interrupts a cancelled enter frame', () => {
@@ -45,6 +108,8 @@ describe('Journey route transition production wiring', () => {
     expect(open).toContain('visibleEnterStarted = true;');
     expect(open.indexOf('this.playJourneyV700WorldEnter(container, worldId,'))
       .toBeLessThan(open.indexOf('visibleEnterStarted = true;'));
+    expect(open.indexOf('journeyRouteTransitionCoordinator.holdPresentationLeasesUntil('))
+      .toBeLessThan(open.indexOf('visibleEnterStarted = true;'));
     expect(open.indexOf('this.playJourneyV700NavEnter();'))
       .toBeLessThan(open.indexOf('visibleEnterStarted = true;'));
   });
@@ -54,24 +119,25 @@ describe('Journey route transition production wiring', () => {
     const prepaint = source.split('private prepareJourneyWorldPrepaint(')[1]
       ?.split('private commitRetainedJourneyWorld(')[0] ?? '';
 
-    expect(prepaint.indexOf('await this.renderJourneyWorldIncrementally(detachedRoot, worldId, isCurrent)'))
-      .toBeLessThan(prepaint.indexOf('container.insertBefore(host, hub || container.firstChild)'));
-    expect(prepaint.indexOf('await this.primeJourneyV700WorldEnterIncrementally('))
-      .toBeLessThan(prepaint.indexOf('container.insertBefore(host, hub || container.firstChild)'));
-    expect(prepaint).toContain('for (let frameIndex = 0; frameIndex < 1; frameIndex += 1)');
+    expect(prepaint).toContain('await this.renderJourneyWorldIncrementally(detachedRoot, worldId, isCurrent)');
+    expect(prepaint).toContain('await this.primeJourneyV700WorldEnterIncrementally(');
+    expect(prepaint).not.toContain('container.insertBefore');
+    expect(prepaint).not.toContain('waitForTrackedFrames');
+    expect(prepaint).toContain("host.style.opacity = '1'");
+    expect(prepaint).not.toContain('getBoundingClientRect');
   });
 
-  test('cold Hub construction also stays detached until one bounded compositor commit', () => {
+  test('cold Hub fallback stays detached until the atomic commit', () => {
     const source = read('src/modules/journey-boards-manager.ts');
     const prepaint = source.split('private prepareJourneyHubPrepaint(')[1]
       ?.split('private refreshJourneyV700HubProgress(')[0] ?? '';
-    const connectIndex = prepaint.indexOf('container.insertBefore(host, container.firstChild)');
-
     expect(prepaint.indexOf('this.renderJourneyV700Hub(root, { prepaint: true })'))
-      .toBeLessThan(connectIndex);
+      .toBeGreaterThanOrEqual(0);
     expect(prepaint.indexOf('await this.prepareJourneyHubImagesForReveal(root, this.journeyV700WorldId)'))
-      .toBeLessThan(connectIndex);
-    expect(prepaint).toContain('const painted = await this.waitForTrackedFrames(1)');
-    expect(prepaint).not.toContain('await this.waitForTrackedFrames(3)');
+      .toBeGreaterThanOrEqual(0);
+    expect(prepaint).not.toContain('container.insertBefore(host, container.firstChild)');
+    expect(prepaint).not.toContain('waitForTrackedFrames');
+    expect(prepaint).toContain("host.style.opacity = '1'");
+    expect(prepaint).not.toContain('getBoundingClientRect');
   });
 });

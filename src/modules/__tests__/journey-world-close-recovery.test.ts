@@ -26,8 +26,10 @@ const Probe = new Function(
 )(noop, () => null, noop, noop, () => noop, () => false, noop, noop, () => false,
   acquireForegroundResourceCriticalLease, {
     begin: jest.fn(() => ({})),
+    claimTimeline: jest.fn(() => true),
     complete: jest.fn(() => true),
     interrupt: jest.fn(() => true),
+    holdPresentationLeasesUntil: jest.fn(() => true),
   });
 
 function fixture(worldId: number) {
@@ -46,9 +48,11 @@ function fixture(worldId: number) {
     waitForTrackedFrames: jest.fn(async () => true),
     commitJourneyHubPrepaint: jest.fn(async () => false),
     commitRetainedJourneyHub: jest.fn(() => false),
+    waitForJourneyV700HubEnterCompletion: jest.fn(() => Promise.resolve()),
     cancelJourneyHubPrepaint: jest.fn(),
     setJourneyV700View: jest.fn((view) => { owner.journeyV700View = view; }),
     updateJourneyV700Nav: jest.fn(), renderBoards: jest.fn(), playJourneyV700NavEnter: jest.fn(),
+    playJourneyV700WorldEnter: jest.fn(() => Promise.resolve()),
     trackTimeout: jest.fn(),
   });
   return { owner, container, complete: () => complete() };
@@ -61,13 +65,14 @@ describe('World X failure ownership', () => {
     document.body.innerHTML = '';
     expect(snapshot.criticalDepth).toBe(0);
   });
-  test.each([1, 2, 3])('World %i releases X and renders Hub on synchronous preparation failure', (world) => {
+  test.each([1, 2, 3])('World %i releases X and restores World on synchronous preparation failure', (world) => {
     const { owner, container } = fixture(world);
     owner.prepareJourneyHubPrepaint.mockImplementation(() => { throw new Error('prepare'); });
     expect(() => owner.closeJourneyV700World()).not.toThrow();
     expect(container.__ccJourneyV700Closing).toBe(false);
-    expect(owner.journeyV700View).toBe('hub');
-    expect(owner.renderBoards).toHaveBeenCalledTimes(1);
+    expect(owner.journeyV700View).toBe('world');
+    expect(owner.playJourneyV700WorldEnter).toHaveBeenCalledTimes(1);
+    expect(owner.renderBoards).not.toHaveBeenCalled();
   });
   test.each(['prepareJourneyHubPrepaint', 'playJourneyV700NavExit', 'waitForTrackedFrames'])('handles rejected %s without leaving a closing lock', async (boundary) => {
     const { owner, container, complete } = fixture(1);
@@ -75,7 +80,8 @@ describe('World X failure ownership', () => {
     owner.closeJourneyV700World();
     await complete();
     expect(container.__ccJourneyV700Closing).toBe(false);
-    expect(owner.renderBoards).toHaveBeenCalledTimes(1);
+    expect(owner.playJourneyV700WorldEnter).toHaveBeenCalledTimes(1);
+    expect(owner.renderBoards).not.toHaveBeenCalled();
     expect(owner.commitJourneyHubPrepaint).not.toHaveBeenCalled();
   });
   test('a retired World cannot commit over its replacement', async () => {
@@ -93,7 +99,8 @@ describe('World X failure ownership', () => {
     await complete();
     await complete();
     expect(owner.commitJourneyHubPrepaint).toHaveBeenCalledTimes(1);
-    expect(owner.renderBoards).toHaveBeenCalledTimes(1);
+    expect(owner.playJourneyV700WorldEnter).toHaveBeenCalledTimes(1);
+    expect(owner.renderBoards).not.toHaveBeenCalled();
     expect(container.__ccJourneyV700Closing).toBe(false);
   });
   test('a rerender of the same World invalidates its earlier close', async () => {

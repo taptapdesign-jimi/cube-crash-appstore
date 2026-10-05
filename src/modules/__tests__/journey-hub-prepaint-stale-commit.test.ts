@@ -7,115 +7,97 @@ import { JourneyStageController } from '../journey-stage-controller';
 
 const sourcePath = path.resolve(__dirname, '../journey-boards-manager.ts');
 const sourceText = fs.readFileSync(sourcePath, 'utf8');
-const sourceFile = ts.createSourceFile(
-  'journey-boards-manager.ts',
-  sourceText,
-  ts.ScriptTarget.Latest,
-  true,
-);
+const sourceFile = ts.createSourceFile('journey-boards-manager.ts', sourceText, ts.ScriptTarget.Latest, true);
 let commitMethod: ts.MethodDeclaration | null = null;
 const visit = (node: ts.Node): void => {
-  if (ts.isMethodDeclaration(node) && node.name.getText(sourceFile) === 'commitJourneyHubPrepaint') {
-    commitMethod = node;
-  }
+  if (ts.isMethodDeclaration(node) && node.name.getText(sourceFile) === 'commitJourneyHubPrepaint') commitMethod = node;
   ts.forEachChild(node, visit);
 };
 visit(sourceFile);
-
 const method = commitMethod!;
 const compiledMethod = ts.transpileModule(
   `async function run(${method.parameters.map((parameter) => parameter.getText(sourceFile)).join(',')}) ${method.body!.getText(sourceFile)}`,
   { compilerOptions: { target: ts.ScriptTarget.ES2022 } },
 ).outputText;
-const runCommit = new Function(
-  'scope',
-  `with(scope){${compiledMethod};return run;}`,
-)({
-  getJourneyHubWorkingSet: () => [{ id: 1 }],
-  emitIOSNativeDiagnostic: jest.fn(),
+const diagnostic = jest.fn();
+const runCommit = new Function('scope', `with(scope){${compiledMethod};return run;}`)({
+  getJourneyHubWorkingSet: () => [{ id: 1 }, { id: 2 }, { id: 3 }],
+  emitIOSNativeDiagnostic: diagnostic,
   areDetailedRuntimeDiagnosticsEnabled: () => false,
 });
 
-test('a replaced transition during the covered frame cannot promote Hub or retain outgoing World', async () => {
-  document.body.innerHTML = `
-    <div id="journey-boards-container" data-journey-v700-view="world" data-journey-v700-world-id="1">
-      <div id="outgoing" style="visibility:visible;pointer-events:auto"></div>
-      <div id="stage"><div id="prepared"><div class="journey-v700-hub"></div></div></div>
-    </div>
-  `;
+function fixture() {
+  document.body.innerHTML = '<div id="journey-boards-container" data-journey-v700-view="world" data-journey-v700-world-id="1"><div id="outgoing"></div></div>';
   const container = document.getElementById('journey-boards-container') as HTMLElement;
   const outgoing = document.getElementById('outgoing') as HTMLElement;
-  const host = document.getElementById('stage') as HTMLElement;
-  const root = document.getElementById('prepared') as HTMLElement;
+  const host = document.createElement('div');
+  const root = document.createElement('div');
+  root.style.height = '100%';
+  root.style.minHeight = '100%';
+  root.style.overflow = 'visible';
+  const hub = document.createElement('section');
+  hub.className = 'journey-v700-hub';
+  root.appendChild(hub);
+  host.appendChild(root);
   const controller = new JourneyStageController();
   const token = controller.beginTransition({ view: 'world', worldId: 1 }, { view: 'hub' });
-  let resolveFrame!: (painted: boolean) => void;
-  const owner: any = {
-    journeyHubPrepaintStage: {
-      ready: true,
-      host,
-      root,
-    },
-    journeyStageController: controller,
-    journeyV700WorldId: 1,
-    journeyV700View: 'world',
-    renderLifecycleGeneration: 4,
-    renderDisposed: false,
-    primeJourneyV700HubForHiddenHandoff: jest.fn(),
-    waitForTrackedFrames: jest.fn(() => new Promise<boolean>((resolve) => { resolveFrame = resolve; })),
-    beginRenderLifecycle: jest.fn(),
-  };
-
-  const pending = runCommit.call(owner, container, token, 1);
-  expect(outgoing.style.visibility).toBe('hidden');
-  expect(outgoing.style.pointerEvents).toBe('none');
-
-  controller.beginTransition({ view: 'world', worldId: 1 }, { view: 'hub' });
-  resolveFrame(true);
-
-  await expect(pending).resolves.toBe(false);
-  expect(outgoing.style.visibility).toBe('visible');
-  expect(outgoing.style.pointerEvents).toBe('auto');
-  expect(outgoing.isConnected).toBe(true);
-  expect(host.isConnected).toBe(true);
-  expect(controller.getRetainedDescriptors()).toEqual([]);
-  expect(owner.beginRenderLifecycle).not.toHaveBeenCalled();
-});
-
-test('a stale completion cannot restore styles over a newer render generation', async () => {
-  document.body.innerHTML = `
-    <div id="journey-boards-container" data-journey-v700-view="world" data-journey-v700-world-id="1">
-      <div id="outgoing" style="visibility:visible;pointer-events:auto"></div>
-      <div id="stage"><div id="prepared"><div class="journey-v700-hub"></div></div></div>
-    </div>
-  `;
-  const container = document.getElementById('journey-boards-container') as HTMLElement;
-  const outgoing = document.getElementById('outgoing') as HTMLElement;
-  const host = document.getElementById('stage') as HTMLElement;
-  const root = document.getElementById('prepared') as HTMLElement;
-  const controller = new JourneyStageController();
-  const token = controller.beginTransition({ view: 'world', worldId: 1 }, { view: 'hub' });
-  let resolveFrame!: (painted: boolean) => void;
   const owner: any = {
     journeyHubPrepaintStage: { ready: true, host, root },
     journeyStageController: controller,
     journeyV700WorldId: 1,
     journeyV700View: 'world',
+    journeyV700Phase: 'exiting',
     renderLifecycleGeneration: 4,
     renderDisposed: false,
     primeJourneyV700HubForHiddenHandoff: jest.fn(),
-    waitForTrackedFrames: jest.fn(() => new Promise<boolean>((resolve) => { resolveFrame = resolve; })),
     beginRenderLifecycle: jest.fn(),
+    cancelJourneyWorldPrepaint: jest.fn(),
+    journeyWorldRuntime: { deactivate: jest.fn() },
+    cancelJourneyV700HubEnter: jest.fn(),
+    retireJourneyBoardOwnersBeforeDomReplace: jest.fn(),
+    releaseJourneyMainCloudComposites: jest.fn(),
+    setJourneyV700View: jest.fn((view: string) => { owner.journeyV700View = view; }),
+    updateJourneyV700Nav: jest.fn(),
+    resetJourneyV700HubScrollToTop: jest.fn(),
+    installJourneyScreenElasticOverscroll: jest.fn(),
+    playJourneyV700HubEnter: jest.fn(),
   };
+  return { container, outgoing, host, hub, controller, token, owner };
+}
 
-  const pending = runCommit.call(owner, container, token, 1);
-  owner.renderLifecycleGeneration = 5;
-  outgoing.style.visibility = 'collapse';
-  outgoing.style.pointerEvents = 'all';
-  resolveFrame(true);
+afterEach(() => {
+  diagnostic.mockClear();
+  document.body.innerHTML = '';
+});
 
-  await expect(pending).resolves.toBe(false);
-  expect(outgoing.style.visibility).toBe('collapse');
-  expect(outgoing.style.pointerEvents).toBe('all');
-  expect(owner.beginRenderLifecycle).not.toHaveBeenCalled();
+test('pressure-cleared Hub commits the detached prepared Hub atomically without forced geometry', async () => {
+  const f = fixture();
+  expect(f.controller.hasRetained({ view: 'hub' })).toBe(false);
+  expect(f.host.isConnected).toBe(false);
+
+  await expect(runCommit.call(f.owner, f.container, f.token, 1)).resolves.toBe(true);
+
+  expect(f.container.firstElementChild).toBe(f.hub);
+  expect(f.outgoing.isConnected).toBe(false);
+  expect(f.controller.hasRetained({ view: 'world', worldId: 1 })).toBe(true);
+  expect(f.owner.beginRenderLifecycle).toHaveBeenCalledTimes(1);
+  expect(f.owner.playJourneyV700HubEnter).toHaveBeenCalledWith('world-return');
+  const commitSource = sourceText.slice(
+    sourceText.indexOf('private async commitJourneyHubPrepaint('),
+    sourceText.indexOf('private cancelJourneyWorldPrepaint('),
+  );
+  expect(commitSource).not.toMatch(/offsetHeight|getBoundingClientRect|waitForTrackedFrames/);
+});
+
+test('a replaced transition cannot promote the detached Hub over the current World', async () => {
+  const f = fixture();
+  f.controller.beginTransition({ view: 'world', worldId: 1 }, { view: 'hub' });
+
+  await expect(runCommit.call(f.owner, f.container, f.token, 1)).resolves.toBe(false);
+
+  expect(f.container.firstElementChild).toBe(f.outgoing);
+  expect(f.outgoing.isConnected).toBe(true);
+  expect(f.host.isConnected).toBe(false);
+  expect(f.controller.getRetainedDescriptors()).toEqual([]);
+  expect(f.owner.beginRenderLifecycle).not.toHaveBeenCalled();
 });

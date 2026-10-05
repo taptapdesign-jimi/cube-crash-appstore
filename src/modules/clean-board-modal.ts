@@ -70,7 +70,6 @@ import {
   prewarmJourneyReturnBeforeTerminalExit,
   prepareJourneyReturnBehindTerminalOverlay,
   transferJourneyReturnStaticCover,
-  warmJourneyReturnBehindSettledTerminal,
   measureJourneyReturnPreparationPhase,
   finishJourneyReturnCtaSetup,
 } from './journey-return-transition-trace.ts';
@@ -1866,7 +1865,6 @@ export async function showCleanBoardModal({
         const ctaExitDuration = ctaMotion.companionExitStaggerMs + buttonExitDurationMs;
         const journeyExitTiming = resolveCleanBoardJourneyExitTiming(numStars, ctaExitDuration);
         const collapseDuration = journeyExitTiming.collapseDelayMs;
-        let settledCoverWarmPromise: Promise<boolean> = Promise.resolve(false);
         const modalExitPromise = Promise.all([
           ctaExitPromise,
           earnedStarsExitPromise,
@@ -1876,15 +1874,10 @@ export async function showCleanBoardModal({
               card.style.transition = `transform ${CLEAN_BOARD_JOURNEY_EXIT_MOTION.paperFadeMs}ms ease, opacity ${CLEAN_BOARD_JOURNEY_EXIT_MOTION.paperFadeMs}ms ease`;
               card.style.opacity = '0';
               if (!isArcadeHomeRun) {
-                // All authored result/board motion has settled. Retire the last
-                // free-running celebration pixels before the static paper cover
-                // begins the exact connected Journey paint.
+                // The authored celebration has settled. The retained World
+                // stays hidden until the route transfers this paper cover.
                 try { cleanupConfetti(); } catch {}
                 try { area55ShipFlybys?.dispose(); area55ShipFlybys = null; } catch {}
-                settledCoverWarmPromise = warmJourneyReturnBehindSettledTerminal(
-                  'clean-board',
-                  journeyReturnTransitionId!,
-                );
               }
             }, collapseDuration);
             trackTimeout(resolveModalExit, journeyExitTiming.completionMs);
@@ -1972,13 +1965,6 @@ export async function showCleanBoardModal({
           })),
         ]);
         if (!lifetime.isActive() || !exitCompletion.completed) return;
-        if (!isArcadeHomeRun) {
-          // No live confetti/ships may visibly freeze while WebKit pays the
-          // connected Journey raster cost. From here to paper fade the screen
-          // is intentionally static and fully opaque.
-          await settledCoverWarmPromise;
-          if (!lifetime.isActive()) return;
-        }
         killAllGSAPTweens();
         clearAllModalTimeouts();
         clearAllModalAnimationFrames();

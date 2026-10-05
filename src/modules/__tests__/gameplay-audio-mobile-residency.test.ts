@@ -1,16 +1,25 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
+  acquireCriticalGameplayAudioWindow,
   acquireDecodedGameplayAudioPackage,
+  acquireDecodedGameplayAudioWorkingSet,
   getDecodedGameplayAudioStats,
   getDecodedGameplaySoundsState,
   playDecodedGameplaySound,
   preloadDecodedGameplayAudioPackage,
   preloadDecodedGameplaySounds,
   releaseIdleDecodedGameplayAudio,
+  releaseUnprotectedIdleDecodedGameplayAudio,
   resetDecodedGameplayAudioForTests,
   stopDecodedGameplayVoice,
 } from '../gameplay-audio-buffer-player';
+import {
+  JOURNEY_CRITICAL_AUDIO_WORKING_SET_SOURCES,
+  acquireJourneyCriticalAudioWorkingSet,
+  releaseJourneyCoreAudioWorkingSet,
+  resetJourneyCriticalAudioWorkingSetForTests,
+} from '../journey-audio-working-set';
 import {
   JOURNEY_FOREST_GAMEPLAY_SOUND_SOURCE,
 } from '../journey-forest-gameplay-sound';
@@ -195,6 +204,7 @@ describe('mobile decoded audio residency with authored audio metadata', () => {
     resetGameplayAudioDiagnosticsForTests();
     delete (window as any).__ccPerformanceDiagnostics;
     delete (window as any).__ccThermalIsolation;
+    resetJourneyCriticalAudioWorkingSetForTests();
     resetSpecialSoundWorkingSetForTests();
     resetDecodedGameplayAudioForTests();
     AudioContextMock.instances = [];
@@ -212,6 +222,7 @@ describe('mobile decoded audio residency with authored audio metadata', () => {
     resetThermalAudioIsolationForTests();
     delete (window as any).__ccPerformanceDiagnostics;
     delete (window as any).__ccThermalIsolation;
+    resetJourneyCriticalAudioWorkingSetForTests();
     resetDecodedGameplayAudioForTests();
     Object.defineProperty(window, 'AudioContext', { configurable: true, value: originalContext });
     global.fetch = originalFetch;
@@ -527,6 +538,305 @@ describe('mobile decoded audio residency with authored audio metadata', () => {
     });
   });
 
+  test('route handoff releases Special residency before Journey owns its package while preserving voices and the retained loop', async () => {
+    AudioContextMock.syntheticBytes.set('./retained-loop.wav', 25 * MiB);
+    AudioContextMock.syntheticBytes.set('./current-special.wav', 2 * MiB);
+    AudioContextMock.syntheticBytes.set('./stale-idle.wav', 1 * MiB);
+    preloadDecodedGameplaySounds(['./retained-loop.wav'], { loop: true });
+    await flush();
+    preloadCtaActivationSounds();
+    const specialLease = acquireDecodedGameplayAudioWorkingSet('test-current-special', 4 * MiB);
+    specialLease.capturePreparation(() => preloadDecodedGameplaySounds(['./current-special.wav']));
+    preloadDecodedGameplaySounds(['./stale-idle.wav']);
+    preloadOrdinaryStackSound();
+    await flush();
+    expect(playDecodedGameplaySound(ORDINARY_STACK_SOUND_SOURCE, {
+      voiceId: 'active-during-journey-transition',
+      volume: 0.4,
+    })).toBe('played');
+
+    // The route owner performs this release through
+    // releaseActiveSpecialAudioResidency before Journey package admission.
+    specialLease.release();
+    const releaseJourney = acquireJourneyCriticalAudioWorkingSet();
+
+    expect(getDecodedGameplaySoundsState(['./current-special.wav'])).toBe('ready');
+    expect(getDecodedGameplaySoundsState(['./stale-idle.wav'])).toBe('ready');
+    expect(getDecodedGameplaySoundsState(['./retained-loop.wav'])).toBe('ready');
+    expect(getDecodedGameplaySoundsState([JOURNEY_CRITICAL_AUDIO_WORKING_SET_SOURCES[0]])).toBe('ready');
+    expect(getDecodedGameplayAudioStats()).toMatchObject({
+      activePackageLeases: 1,
+      activeWorkingSetLeases: 0,
+      criticalIdleReleaseDepth: 1,
+      activeVoices: 1,
+      residentLoopBytes: 25 * MiB,
+    });
+
+    releaseJourney();
+    releaseJourney();
+    stopDecodedGameplayVoice('active-during-journey-transition');
+    await flush();
+    expect(getDecodedGameplayAudioStats()).toMatchObject({
+      activePackageLeases: 1,
+      activeWorkingSetLeases: 0,
+      criticalIdleReleaseDepth: 0,
+      activeVoices: 0,
+    });
+    expect(getDecodedGameplaySoundsState([JOURNEY_CRITICAL_AUDIO_WORKING_SET_SOURCES[0]]))
+      .toBe('ready');
+    releaseJourneyCoreAudioWorkingSet();
+    expect(getDecodedGameplayAudioStats().activePackageLeases).toBe(0);
+  });
+
+  test('one pressure-budget ledger rejects overlapping Journey and Special reservations', () => {
+    releaseIdleDecodedGameplayAudio();
+    const releaseJourney = acquireJourneyCriticalAudioWorkingSet();
+    const specialLease = acquireDecodedGameplayAudioWorkingSet(
+      'active-special-family',
+      16 * MiB,
+    );
+
+    expect(getDecodedGameplayAudioStats()).toMatchObject({
+      budgetBytes: 16 * MiB,
+      activePackageLeases: 1,
+      activeWorkingSetLeases: 0,
+      rejectedWorkingSets: 1,
+    });
+    expect(specialLease.admitted).toBe(false);
+
+    releaseJourney();
+    releaseJourneyCoreAudioWorkingSet();
+  });
+
+  test('critical sweep compacts only enough for declared headroom and preserves reuse tiers', async () => {
+    for (const source of ['./cold-old.wav', './hot-reused.wav', './cold-new.wav']) {
+      AudioContextMock.syntheticBytes.set(source, 9 * MiB);
+      preloadDecodedGameplaySounds([source]);
+      await flush();
+    }
+    for (let repeat = 0; repeat < 2; repeat++) {
+      expect(playDecodedGameplaySound('./hot-reused.wav', {
+        voiceId: 'hot-reused',
+        volume: 0.4,
+      })).toBe('played');
+      stopDecodedGameplayVoice('hot-reused');
+    }
+    expect(getDecodedGameplayAudioStats()).toMatchObject({
+      decodedBytes: 27 * MiB,
+      evictedBuffers: 0,
+    });
+
+    releaseUnprotectedIdleDecodedGameplayAudio([], 4 * MiB);
+
+    expect(getDecodedGameplaySoundsState(['./cold-old.wav'])).toBe('pending');
+    expect(getDecodedGameplaySoundsState(['./hot-reused.wav'])).toBe('ready');
+    expect(getDecodedGameplaySoundsState(['./cold-new.wav'])).toBe('ready');
+    expect(getDecodedGameplayAudioStats()).toMatchObject({
+      decodedBytes: 18 * MiB,
+      evictedBuffers: 1,
+    });
+    releaseUnprotectedIdleDecodedGameplayAudio([], 4 * MiB);
+    expect(getDecodedGameplayAudioStats()).toMatchObject({
+      decodedBytes: 18 * MiB,
+      evictedBuffers: 1,
+    });
+  });
+
+  test('defers ordinary cache trim through nested critical windows and runs it once after the final release', async () => {
+    for (const source of ['./critical-a.wav', './critical-b.wav', './critical-c.wav', './critical-d.wav']) {
+      AudioContextMock.syntheticBytes.set(source, 9 * MiB);
+    }
+    for (const source of ['./critical-a.wav', './critical-b.wav', './critical-c.wav']) {
+      preloadDecodedGameplaySounds([source]);
+      await flush();
+    }
+    const releaseOuter = acquireCriticalGameplayAudioWindow();
+    const releaseInner = acquireCriticalGameplayAudioWindow();
+
+    expect(playDecodedGameplaySound('./critical-d.wav', {
+      voiceId: 'critical-budget-overflow',
+      volume: 0.4,
+    })).toBe('pending');
+    await flush();
+    stopDecodedGameplayVoice('critical-budget-overflow');
+    expect(getDecodedGameplayAudioStats()).toMatchObject({
+      decodedBytes: 36 * MiB,
+      evictedBuffers: 0,
+      criticalIdleReleaseDepth: 2,
+      deferredOrdinaryTrimPending: true,
+      deferredOrdinaryTrimRuns: 0,
+    });
+
+    releaseInner();
+    expect(getDecodedGameplayAudioStats()).toMatchObject({
+      decodedBytes: 36 * MiB,
+      evictedBuffers: 0,
+      criticalIdleReleaseDepth: 1,
+      deferredOrdinaryTrimPending: true,
+      deferredOrdinaryTrimRuns: 0,
+    });
+
+    releaseOuter();
+    releaseOuter();
+    expect(getDecodedGameplayAudioStats()).toMatchObject({
+      decodedBytes: 27 * MiB,
+      evictedBuffers: 1,
+      criticalIdleReleaseDepth: 0,
+      deferredOrdinaryTrimPending: false,
+      deferredOrdinaryTrimRuns: 1,
+    });
+  });
+
+  test('keeps OS-pressure and isolation teardown trims immediate inside a critical window', async () => {
+    for (const source of ['./immediate-a.wav', './immediate-b.wav', './immediate-c.wav']) {
+      AudioContextMock.syntheticBytes.set(source, 9 * MiB);
+      preloadDecodedGameplaySounds([source]);
+      await flush();
+    }
+    const releasePressureWindow = acquireCriticalGameplayAudioWindow();
+    releaseIdleDecodedGameplayAudio();
+    expect(getDecodedGameplayAudioStats()).toMatchObject({
+      decodedBytes: 9 * MiB,
+      evictedBuffers: 2,
+      criticalIdleReleaseDepth: 1,
+      deferredOrdinaryTrimPending: false,
+      deferredOrdinaryTrimRuns: 0,
+    });
+    releasePressureWindow();
+
+    const releaseIsolationWindow = acquireCriticalGameplayAudioWindow();
+    (window as any).__ccThermalIsolation = true;
+    expect(setThermalAudioSuppressed(true)).toBe(true);
+    expect(getDecodedGameplayAudioStats()).toMatchObject({
+      decodedBytes: 0,
+      evictedBuffers: 3,
+      criticalIdleReleaseDepth: 1,
+      deferredOrdinaryTrimPending: false,
+      deferredOrdinaryTrimRuns: 0,
+    });
+    releaseIsolationWindow();
+    await flush();
+  });
+
+  test('quarantines an already-running unrelated speculative decode that completes inside a critical window', async () => {
+    (window as any).__ccPerformanceDiagnostics = true;
+    AudioContextMock.syntheticBytes.set('./late-speculative.wav', 1 * MiB);
+    preloadDecodedGameplaySounds([]);
+    let finishFetch!: () => void;
+    (global.fetch as jest.Mock).mockImplementationOnce((input) => new Promise(resolve => {
+      finishFetch = () => resolve({
+        ok: true,
+        arrayBuffer: async () => ({ source: `.${decodeURIComponent(new URL(String(input)).pathname)}` }),
+      });
+    }));
+    preloadDecodedGameplaySounds(['./late-speculative.wav']);
+    await Promise.resolve();
+    expect(finishFetch).toBeDefined();
+
+    const releaseCritical = acquireCriticalGameplayAudioWindow();
+    releaseUnprotectedIdleDecodedGameplayAudio();
+    finishFetch();
+    await flush();
+
+    expect(getDecodedGameplaySoundsState(['./late-speculative.wav'])).toBe('pending');
+    expect(getDecodedGameplayAudioStats()).toMatchObject({
+      decodedBuffers: 0,
+      pendingBuffers: 0,
+      criticalIdleReleaseDepth: 1,
+    });
+    expect(drainGameplayAudioDiagnostics({ includeEvents: true })!.events)
+      .toContainEqual(expect.objectContaining({
+        kind: 'decode-complete',
+        source: expect.stringContaining('/late-speculative.wav'),
+        discarded: true,
+      }));
+    releaseCritical();
+    releaseCritical();
+    expect(getDecodedGameplayAudioStats().criticalIdleReleaseDepth).toBe(0);
+  });
+
+  test('discards a stalled captured Laser decode after the active Special working set is replaced by Spaceship', async () => {
+    (window as any).__ccPerformanceDiagnostics = true;
+    AudioContextMock.syntheticBytes.set('./spaceship-current.wav', 1 * MiB);
+    preloadDecodedGameplaySounds([]);
+    const context = AudioContextMock.instances[0];
+    let finishLaserDecode!: () => void;
+    context.decodeAudioData.mockImplementationOnce(() => new Promise(resolve => {
+      finishLaserDecode = () => resolve({
+        length: MiB / 8,
+        numberOfChannels: 2,
+        duration: MiB / 8 / context.sampleRate,
+      });
+    }));
+
+    const laserLease = acquireDecodedGameplayAudioWorkingSet('active-special-family', 16 * MiB);
+    laserLease.capturePreparation(() => {
+      preloadDecodedGameplaySounds(['./laser-stalled.wav']);
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(finishLaserDecode).toBeDefined();
+
+    const spaceshipLease = acquireDecodedGameplayAudioWorkingSet('active-special-family', 16 * MiB);
+    spaceshipLease.capturePreparation(() => {
+      preloadDecodedGameplaySounds(['./spaceship-current.wav']);
+    });
+    await flush();
+    expect(getDecodedGameplaySoundsState(['./spaceship-current.wav'])).toBe('ready');
+
+    finishLaserDecode();
+    await flush();
+
+    expect(getDecodedGameplaySoundsState(['./laser-stalled.wav'])).toBe('pending');
+    expect(getDecodedGameplaySoundsState(['./spaceship-current.wav'])).toBe('ready');
+    expect(getDecodedGameplayAudioStats()).toMatchObject({
+      activeWorkingSetLeases: 1,
+      workingSetSources: 1,
+    });
+    expect(drainGameplayAudioDiagnostics({ includeEvents: true })!.events)
+      .toContainEqual(expect.objectContaining({
+        kind: 'decode-complete',
+        source: expect.stringContaining('/laser-stalled.wav'),
+        discarded: true,
+      }));
+
+    laserLease.release();
+    expect(getDecodedGameplaySoundsState(['./spaceship-current.wav'])).toBe('ready');
+    spaceshipLease.release();
+  });
+
+  test.each(['background', 'memory-warning'] as const)(
+    'same committed Special family reacquires its retired working set after %s',
+    async (retirement) => {
+      const star = { special: 'wild' };
+      const plan = acquireSpecialSoundWorkingSetPlan({
+        boardNumber: 7,
+        isArcade: false,
+        tiles: [star],
+      });
+      expect(plan.prepareCommittedTransaction(star)).toBe(true);
+      await flush();
+      expect(getDecodedGameplayAudioStats().activeWorkingSetLeases).toBe(1);
+
+      if (retirement === 'background') {
+        window.dispatchEvent(new Event('pagehide'));
+        window.dispatchEvent(new Event('pageshow'));
+      } else {
+        releaseIdleDecodedGameplayAudio();
+      }
+      expect(getDecodedGameplayAudioStats().activeWorkingSetLeases).toBe(0);
+
+      expect(plan.prepareCommittedTransaction(star)).toBe(true);
+      await flush();
+      expect(getDecodedGameplayAudioStats()).toMatchObject({
+        activeWorkingSetLeases: 1,
+        workingSetSources: expect.any(Number),
+      });
+      expect(getDecodedGameplayAudioStats().workingSetSources).toBeGreaterThan(0);
+      plan.release();
+    },
+  );
+
   test('owner release prevents a queued package load from committing after route cleanup', async () => {
     let finishFetch!: () => void;
     (global.fetch as jest.Mock).mockImplementationOnce((input) => new Promise(resolve => {
@@ -624,11 +934,12 @@ describe('mobile decoded audio residency with authored audio metadata', () => {
     preloadDecodedGameplaySounds(['./late.wav']);
     const context = AudioContextMock.instances[0];
     setThermalAudioSuppressed(true);
+    expect(getDecodedGameplayAudioStats().isolationCleanupPending).toBe(1);
     expect(context.sources[0].stop).toHaveBeenCalled();
     expect(context.close).toHaveBeenCalledTimes(1);
     finishFetch(); await flush();
     expect(context.decodeAudioData).toHaveBeenCalledTimes(1);
-    expect(getDecodedGameplayAudioStats()).toMatchObject({ decodedBuffers: 0, activeVoices: 0, pendingVoiceStarts: 0, isolationPendingLoads: 0, isolationPendingDecodes: 0 });
+    expect(getDecodedGameplayAudioStats()).toMatchObject({ decodedBuffers: 0, activeVoices: 0, pendingVoiceStarts: 0, isolationCleanupPending: 0, isolationPendingLoads: 0, isolationPendingDecodes: 0 });
   });
 
   test('an already started decoder is reported draining and its late result cannot repopulate or play', async () => {

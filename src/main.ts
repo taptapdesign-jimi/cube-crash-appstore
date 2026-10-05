@@ -99,8 +99,12 @@ import { waitForHomepageFirstPaintReady } from './utils/startup-readiness.js';
 import { MOBILE_RUNTIME_PROFILE } from './modules/mobile-runtime-profile.js';
 import { homepageEnterTransitionOwner } from './modules/homepage-enter-transition-owner.js';
 import {
+  beginJourneyReturnTransition,
   cancelJourneyReturnTransition,
+  getJourneyReturnTransitionToken,
+  markJourneyReturnResultExitComplete,
   markJourneyReturnTransition,
+  prepareJourneyReturnBehindTerminalOverlay,
 } from './modules/journey-return-transition-trace.js';
 
 type GameCoreModule = typeof import('./modules/app-core.js');
@@ -2264,6 +2268,7 @@ async function startNewRun(boardId: number): Promise<void> {
     console.log(`🧹 exitToMenu: Killing all GSAP tweens (${label})...`);
     try {
       killGameDomGsapTweens(gsap);
+      const targets = new Set<object>();
       
       // Kill PIXI object tweens with null checks
       if (STATE && STATE.tiles && STATE.tiles.length > 0) {
@@ -2271,11 +2276,11 @@ async function startNewRun(boardId: number): Promise<void> {
           try {
             if (tile && !tile.destroyed) {
               if (tile.scale && !tile.scale.destroyed) {
-                gsap.killTweensOf(tile.scale);
+                targets.add(tile.scale);
               }
-              gsap.killTweensOf(tile);
+              targets.add(tile);
               if (tile.hover && !tile.hover.destroyed) {
-                gsap.killTweensOf(tile.hover);
+                targets.add(tile.hover);
               }
             }
           } catch {}
@@ -2283,12 +2288,13 @@ async function startNewRun(boardId: number): Promise<void> {
       }
       if (STATE) {
         try {
-          if (STATE.hud && !STATE.hud.destroyed) gsap.killTweensOf(STATE.hud);
-          if (STATE.board && !STATE.board.destroyed) gsap.killTweensOf(STATE.board);
-          if (STATE.stage && !STATE.stage.destroyed) gsap.killTweensOf(STATE.stage);
-          if (STATE.backgroundLayer && !STATE.backgroundLayer.destroyed) gsap.killTweensOf(STATE.backgroundLayer);
+          if (STATE.hud && !STATE.hud.destroyed) targets.add(STATE.hud);
+          if (STATE.board && !STATE.board.destroyed) targets.add(STATE.board);
+          if (STATE.stage && !STATE.stage.destroyed) targets.add(STATE.stage);
+          if (STATE.backgroundLayer && !STATE.backgroundLayer.destroyed) targets.add(STATE.backgroundLayer);
         } catch {}
       }
+      if (targets.size) gsap.killTweensOf([...targets]);
       
       killInvalidPixiGsapTweens(gsap);
       console.log(`✅ exitToMenu: GSAP tweens cleared (${label})`);
@@ -2305,20 +2311,25 @@ async function startNewRun(boardId: number): Promise<void> {
       try { if (dragState) dragState.t = null; } catch {}
 
       const tiles = Array.isArray((STATE as any)?.tiles) ? (STATE as any).tiles : [];
+      const targets = new Set<object>();
+      tiles.forEach((tile: any) => {
+        if (!tile || tile.destroyed) return;
+        targets.add(tile);
+        if (tile.shadow) targets.add(tile.shadow);
+        if (tile.scale) targets.add(tile.scale);
+      });
+      if (targets.size) gsap.killTweensOf([...targets]);
       tiles.forEach((tile: any) => {
         try {
           if (!tile || tile.destroyed) return;
           if (tile.shadow) {
-            gsap.killTweensOf(tile.shadow);
             tile.shadow.alpha = 0;
             tile.shadow.visible = false;
           }
           if (tile.scale) {
-            gsap.killTweensOf(tile.scale);
             tile.scale.x = 1;
             tile.scale.y = 1;
           }
-          gsap.killTweensOf(tile);
           tile.rotation = 0;
           tile._zBeforeDrag = undefined;
         } catch {}
@@ -2542,6 +2553,15 @@ async function startNewRun(boardId: number): Promise<void> {
     const expectedJourneyFamily =
       options.expectedMenuDestination === 'journey'
       || options.expectedMenuDestination === 'detail-modal';
+    // Manual Exit joins the same prepared World return as Clean Board/Fail.
+    // Prepare while the board exit is moving, not after gameplay is gone.
+    const manualJourneyReturnToken = options.expectedMenuDestination === 'journey'
+      && getJourneyReturnTransitionToken() === null
+      ? beginJourneyReturnTransition('exit-game', STATE?.boardNumber || 0)
+      : null;
+    if (manualJourneyReturnToken !== null) {
+      prepareJourneyReturnBehindTerminalOverlay('exit-game', manualJourneyReturnToken);
+    }
     const exitWaits = resolveExitWaits({
       skipBoardExit: shouldSkipBoardExit,
       visualExitAlreadyComplete,
@@ -2640,7 +2660,9 @@ async function startNewRun(boardId: number): Promise<void> {
           console.log('✅ Board exit animations completed');
           
           // 🔥 CRITICAL FIX: Wait for animations to fully render before cleanup
-          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          if (!expectedJourneyFamily) {
+            await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          }
           console.log('✅ Exit animations fully rendered - ready for cleanup');
         }
       } catch (error) {
@@ -2653,8 +2675,12 @@ async function startNewRun(boardId: number): Promise<void> {
     
     // 🔥 CRITICAL FIX: Wait for exit animation to fully complete before cleanup
     // Add small delay to ensure animations are fully rendered
-    await new Promise(resolve => setTimeout(resolve, exitWaits.postExitSettleMs));
+    if (manualJourneyReturnToken !== null) markJourneyReturnResultExitComplete(manualJourneyReturnToken);
+    if (!expectedJourneyFamily) {
+      await new Promise(resolve => setTimeout(resolve, exitWaits.postExitSettleMs));
+    }
     console.log('✅ Exit animation fully completed - starting cleanup');
+    markJourneyReturnTransition('post-exit-cleanup-start');
 
     // Step 2: Clean scoped game tweens immediately after animations complete
     killAllGsapTweensForExit('post-exit');
@@ -2706,6 +2732,7 @@ async function startNewRun(boardId: number): Promise<void> {
     } catch (error) {
       console.warn('⚠️ Failed to run cleanupGame:', error);
     }
+    markJourneyReturnTransition('game-resources-retired');
     
     // Step 5: Clean up Journey Boards Manager (event listeners, animations)
     // Direct detail-modal returns reuse the Journey detail DOM immediately. Full cleanup here can
@@ -2872,6 +2899,7 @@ async function startNewRun(boardId: number): Promise<void> {
       requestedTarget: options.target,
       requestedHomepageSlide: options.homepageSlideIndex,
     });
+    markJourneyReturnTransition('exit-route-resolved');
     const targetSlide = exitRoute.targetSlide;
     returnToDetailModal = exitRoute.returnToDetailModal;
     detailModalBoardId = exitRoute.detailModalBoardId;
@@ -2962,6 +2990,7 @@ async function startNewRun(boardId: number): Promise<void> {
       await appZoneManager.showJourneyShell('exitToMenu:journey', {
         gameplayTransientVisualsAlreadyClean: true,
       });
+      markJourneyReturnTransition('journey-shell-prepared');
       console.log('✅ Homepage shell hidden through app zone router');
     }
     

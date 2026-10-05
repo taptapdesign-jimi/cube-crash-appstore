@@ -69,7 +69,9 @@ test('registry covers every media SFX/timer owner and references callable full-s
     const mediaOwner = /\bnew\s+(?:window\.)?Audio\s*\(|createElement\(\s*['"]audio['"]/.test(source);
     const timerSoundOwner = /-sound\.ts$/.test(filename) && /\b(?:setTimeout|setInterval|requestAnimationFrame)\s*\(/.test(source);
     const decodedCueOwner = /-sound\.ts$/.test(filename) && /\bplayDecodedGameplaySound\s*\(/.test(source);
-    return mediaOwner || timerSoundOwner || decodedCueOwner;
+    const decodedResidencyOwner = /-audio-working-set\.ts$/.test(filename)
+      && /\bstopJourneyCriticalAudioWorkingSets\s*\(/.test(source);
+    return mediaOwner || timerSoundOwner || decodedCueOwner || decodedResidencyOwner;
   });
   expect(owners.map(owner => path.resolve(moduleDirectory, owner.name.replace(/\.js$/, '.ts'))).sort()).toEqual(candidates.sort());
   expect(new Set(owners.map(owner => owner.name)).size).toBe(owners.length);

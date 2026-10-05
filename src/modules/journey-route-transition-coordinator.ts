@@ -1,5 +1,6 @@
 import { appZoneManager, type AppZone } from './app-zone-manager.js';
 import { acquireForegroundResourceCriticalLease } from './foreground-resource-coordinator.js';
+import { acquireJourneyCriticalAudioWorkingSet } from './journey-audio-working-set.js';
 import { emitIOSNativeDiagnostic } from '../utils/ios-native-diagnostic.js';
 
 export type JourneyRouteSurface =
@@ -27,6 +28,12 @@ export interface JourneyRouteOwnedTimeline {
 
 export interface JourneyRouteTransitionDependencies {
   acquireCriticalLease: () => () => void;
+  acquireAudioWorkingSet?: () => () => void;
+  acquirePresentationLease?: (
+    from: JourneyRouteSurface,
+    to: JourneyRouteSurface,
+    reason: string,
+  ) => () => void;
   publishAppZone: (zone: AppZone, reason: string) => void;
   emitDiagnostic?: (event: string, detail: Record<string, unknown>) => void;
 }
@@ -36,6 +43,9 @@ type ActiveJourneyRouteTransition = {
   timeline: JourneyRouteOwnedTimeline | null;
   cleanups: Set<() => void>;
   releaseCriticalLease: () => void;
+  releaseAudioWorkingSet: () => void;
+  releasePresentationLease: () => void;
+  presentationLeasesHeld: boolean;
   resolveCompletion: (result: JourneyRouteTransitionResult) => void;
   settled: boolean;
 };
@@ -52,6 +62,11 @@ export type JourneyRouteTransitionSnapshot = Readonly<{
 
 const defaultDependencies: JourneyRouteTransitionDependencies = {
   acquireCriticalLease: () => acquireForegroundResourceCriticalLease('journey-transition'),
+  acquireAudioWorkingSet: () => acquireJourneyCriticalAudioWorkingSet(),
+  // GSAP/DOM motion already follows display cadence. Hold a second foreground
+  // resource boundary through the complete incoming presentation so optional
+  // decode/GPU work cannot steal its JS RAF frames. Do not wake hidden Pixi.
+  acquirePresentationLease: () => acquireForegroundResourceCriticalLease('journey-transition'),
   // Publish Journey ownership as soon as a route token exists. Homepage motion
   // may remain visible while its transition runs, so preserve its navigation;
   // the route coordinator, not the app-zone side effect, retires that motion.
@@ -108,11 +123,26 @@ export class JourneyRouteTransitionCoordinator {
       reason,
       completion,
     });
+    const presentationRelease = this.dependencies.acquirePresentationLease?.(from, to, reason) ?? (() => {});
+    const audioWorkingSetRelease = this.dependencies.acquireAudioWorkingSet?.() ?? (() => {});
+    let presentationReleased = false;
+    let audioWorkingSetReleased = false;
     const active: ActiveJourneyRouteTransition = {
       token,
       timeline: null,
       cleanups: new Set(),
       releaseCriticalLease: this.dependencies.acquireCriticalLease(),
+      releaseAudioWorkingSet: () => {
+        if (audioWorkingSetReleased) return;
+        audioWorkingSetReleased = true;
+        audioWorkingSetRelease();
+      },
+      releasePresentationLease: () => {
+        if (presentationReleased) return;
+        presentationReleased = true;
+        presentationRelease();
+      },
+      presentationLeasesHeld: false,
       resolveCompletion,
       settled: false,
     };
@@ -126,6 +156,33 @@ export class JourneyRouteTransitionCoordinator {
     this.dependencies.publishAppZone(destinationZone, `journey-route:${reason}`);
     this.emit('begin', active);
     return token;
+  }
+
+  /**
+   * Transfer the route's display-cadence protection and decoded-audio working
+   * set to the actual incoming visual lifecycle. Route completion still
+   * resolves at the existing visible-start boundary; these leases end only
+   * after the complete cascade settles. Interruption releases both immediately.
+   */
+  public holdPresentationLeasesUntil(
+    token: JourneyRouteTransitionToken,
+    presentationCompletion: Promise<unknown>,
+  ): boolean {
+    const active = this.active;
+    if (!active || !this.isCurrent(token) || active.presentationLeasesHeld) return false;
+    active.presentationLeasesHeld = true;
+    void presentationCompletion.then(
+      () => {
+        active.releaseAudioWorkingSet();
+        active.releasePresentationLease();
+      },
+      () => {
+        active.releaseAudioWorkingSet();
+        active.releasePresentationLease();
+      },
+    );
+    this.emit('presentation-leases-held', active);
+    return true;
   }
 
   public isCurrent(token: JourneyRouteTransitionToken): boolean {
@@ -231,6 +288,10 @@ export class JourneyRouteTransitionCoordinator {
       try { cleanup(); } catch {}
     });
     active.releaseCriticalLease();
+    if (status === 'interrupted' || !active.presentationLeasesHeld) {
+      active.releaseAudioWorkingSet();
+      active.releasePresentationLease();
+    }
     if (status === 'interrupted' && rollbackZone) {
       const sourceZone: AppZone = active.token.from.view === 'home' ? 'home' : 'journey';
       this.dependencies.publishAppZone(sourceZone, `journey-route-rollback:${reason}`);

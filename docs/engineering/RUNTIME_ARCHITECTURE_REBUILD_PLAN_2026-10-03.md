@@ -6,6 +6,45 @@ installed `00b2a8...` candidate failed physical acceptance and is rejected.
 Browser feel, forced-loss behavior, cooled iPhone acceptance, native bundle
 sync and install remain pending; deterministic gates do not certify fluidity.
 
+## 2026-10-04 physical rejection and revised replacement boundary
+
+The installed `4816f8...` candidate is also rejected. The lossless run at
+`logs/journey-final-physical-20261004-124841/` proves that the current work is
+still an incremental prepaint architecture, not the resident-surface design
+specified below:
+
+- Home -> Hub reached 106-110ms scoped worst frames; the warm repeat still
+  missed at 43-45ms.
+- Hub -> World continued to build/prepare after accepted taps for 263-416ms.
+- Gameplay return painted 96 images for 1096ms and started the first Unit 69ms
+  after the result's last visible frame.
+- Beach board 16 exposed a Special/finality ownership defect: after Bottle
+  disappeared the visible tile count jumped `3 -> 7 -> 8`; the user observed a
+  fake ordinary six. Beach Ball activity coincided with 73/56ms frames.
+- The returned Beach card was structurally present but visually missing. The
+  narrow last-active-card reset is revoked: every Unit layer must normalize
+  from canonical state before activation.
+- The user revoked latest-only mobile Special idle admission. Every active
+  SVG/Special die must keep its authored animation. Work is bounded through one
+  shared scheduler/ticker and route/transaction suspension, never by silently
+  freezing older visible content.
+
+The decisive replacement is therefore mandatory, not optional backlog:
+
+1. one immutable all-archetype Special merge transaction owns finality,
+   consumed tiles, survivor disposition, cleanup and exact continuation spawns;
+2. one `JourneySceneRegistry` retains stable Hub, Forest, Beach and Area 55
+   identities and prepares them only during settled idle;
+3. one production `JourneyTransitionDirector` owns the actual timeline, token,
+   surface activation, leases, interruption and settlement;
+4. gameplay return is `park -> keyed model patch -> normalize changed Units ->
+   activate`, never full-World reconcile/prime;
+5. one route-state audio residency plan fits inside the pressure budget and
+   permits zero decode/eviction during visible motion.
+
+No new connected `opacity: 0.001` prepaint, full-tree forced layout, watchdog
+fallback or last-only visual suppression may be accepted as this repair.
+
 Evidence source:
 `logs/quality-blocker-new-mobile-20261003-1151/REPORT.md`.
 

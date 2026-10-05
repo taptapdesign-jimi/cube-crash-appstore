@@ -71,7 +71,7 @@ import {
 } from './animated-special-artwork-mode.ts';
 import { acquirePixiSettledMotionLease } from './pixi-mobile-frame-controller.ts';
 import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.ts';
-import { SpecialDiceIdleBudget, hasContinuousSpecialDiceIdle } from './special-dice-idle-budget.ts';
+import { SpecialDiceIdleRegistry } from './special-dice-idle-registry.ts';
 import {
   acquireVisualAssetTexture,
   isVisualAssetTextureHandleCurrent,
@@ -81,9 +81,9 @@ const trackTimeline = (opts: any = {}) => animationManager.trackExternalTimeline
 
 const SPACESHIP_ENGINE_PARTICLE_COUNT = 9;
 export const SPACESHIP_IDLE_FRAME_SECONDS = 0.18;
-const specialDiceIdleBudget = new SpecialDiceIdleBudget<any>(
-  MOBILE_RUNTIME_PROFILE.isMobileDevice ? 1 : Number.POSITIVE_INFINITY,
-);
+const specialDiceIdleRegistry = new SpecialDiceIdleRegistry<any>({
+  acquireSettledCadence: () => acquirePixiSettledMotionLease('special-dice-idle-registry'),
+});
 
 type SpaceshipSpriteIdleController = {
   update: (elapsedSeconds: number) => void;
@@ -219,12 +219,7 @@ function startSpaceshipEngineIdle(tile: any, host: any): ((elapsedSeconds: numbe
 
 function stopSpecialDiceIdleMotionInternal(
   tile: any,
-  options: { preserveFrameLease?: boolean } = {},
 ): void {
-  if (!options.preserveFrameLease) {
-    try { tile?._ccSpecialIdleFrameLease?.(); } catch {}
-    if (tile) delete tile._ccSpecialIdleFrameLease;
-  }
   tile?._ccSpecialIdleVisibility?.release();
   if (tile) {
     delete tile._ccSpecialIdleVisibility;
@@ -393,9 +388,6 @@ function startSpecialDiceIdleMotionInternal(tile: any): void {
     const variant = getSpecialDiceVariantForTile(tile);
     if (!tile || tile.destroyed) return;
     if (tile._ccWildSpawnDropping === true) return;
-    if ((variant || tile.special) && !tile._ccSpecialIdleFrameLease) {
-      tile._ccSpecialIdleFrameLease = acquirePixiSettledMotionLease('special-dice-idle');
-    }
     if (isBarrelBouncyTile(tile)) {
       stopWildStarBouncyArtwork(tile);
       stopJuiceBounceArtwork(tile);
@@ -517,7 +509,7 @@ function startSpecialDiceIdleMotionInternal(tile: any): void {
     // and prevents a second timeline/particle field from being created.
     if (variant.idleMotion === 'spaceship-hover' && tile._ccSpecialDiceIdleTl) return;
 
-    stopSpecialDiceIdleMotionInternal(tile, { preserveFrameLease: true });
+    stopSpecialDiceIdleMotionInternal(tile);
 
     if (
       isMushroomBouncyTile(tile)
@@ -592,7 +584,7 @@ function startSpecialDiceIdleMotionInternal(tile: any): void {
     if (variant.idleMotion === 'mushroom-pop') {
       tile._ccSpecialIdleVisibility ??= createSpecialIdleAnimationVisibility(
         tile,
-        () => !tile._ccSpecialIdleDragging && !tile._ccSpecialIdleBudgetPaused,
+        () => !tile._ccSpecialIdleDragging && !tile._ccSpecialIdleRegistryPaused,
       );
       const smokeContainer = new Container();
       smokeContainer.label = 'mushroom-idle-smoke';
@@ -667,7 +659,7 @@ function startSpecialDiceIdleMotionInternal(tile: any): void {
     });
     tile._ccSpecialIdleVisibility ??= createSpecialIdleAnimationVisibility(
       tile,
-      () => !tile._ccSpecialIdleDragging && !tile._ccSpecialIdleBudgetPaused,
+      () => !tile._ccSpecialIdleDragging && !tile._ccSpecialIdleRegistryPaused,
     );
     tile._ccSpecialIdleVisibility.track(tl);
     if (variant.idleMotion === 'spaceship-hover') {
@@ -775,15 +767,9 @@ function startSpecialDiceIdleMotionInternal(tile: any): void {
   } catch {}
 }
 
-function setSpecialDiceIdleBudgetPaused(tile: any, paused: boolean): void {
+function setSpecialDiceIdleRegistryPaused(tile: any, paused: boolean): void {
   if (!tile || tile.destroyed) return;
-  tile._ccSpecialIdleBudgetPaused = paused;
-  if (paused) {
-    try { tile._ccSpecialIdleFrameLease?.(); } catch {}
-    delete tile._ccSpecialIdleFrameLease;
-  } else if ((getSpecialDiceVariantForTile(tile) || tile.special) && !tile._ccSpecialIdleFrameLease) {
-    tile._ccSpecialIdleFrameLease = acquirePixiSettledMotionLease('special-dice-idle');
-  }
+  tile._ccSpecialIdleRegistryPaused = paused;
 
   const shouldPause = paused || tile._ccSpecialIdleDragging === true;
   try { tile._ccSpecialDiceIdleTl?.[shouldPause ? 'pause' : 'resume']?.(); } catch {}
@@ -807,34 +793,33 @@ function setSpecialDiceIdleBudgetPaused(tile: any, paused: boolean): void {
 export function startSpecialDiceIdleMotion(tile: any): void {
   if (!tile || tile.destroyed || tile._ccWildSpawnDropping === true
     || (!getSpecialDiceVariantForTile(tile) && !tile.special)) return;
-  specialDiceIdleBudget.request(tile, {
+  specialDiceIdleRegistry.register(tile, {
     start: () => startSpecialDiceIdleMotionInternal(tile),
     stop: () => stopSpecialDiceIdleMotionInternal(tile),
-    pause: () => setSpecialDiceIdleBudgetPaused(tile, true),
-    resume: () => setSpecialDiceIdleBudgetPaused(tile, false),
-  }, hasContinuousSpecialDiceIdle(getSpecialDiceVariantForTile(tile)?.id));
+    pause: () => setSpecialDiceIdleRegistryPaused(tile, true),
+    resume: () => setSpecialDiceIdleRegistryPaused(tile, false),
+  });
 }
 
 export function stopSpecialDiceIdleMotion(
   tile: any,
-  options: { preserveFrameLease?: boolean } = {},
 ): void {
-  const registered = !!tile && specialDiceIdleBudget.has(tile);
-  if (registered) specialDiceIdleBudget.retire(tile);
-  else stopSpecialDiceIdleMotionInternal(tile, options);
-  if (tile) delete tile._ccSpecialIdleBudgetPaused;
+  const registered = !!tile && specialDiceIdleRegistry.has(tile);
+  if (registered) specialDiceIdleRegistry.retire(tile);
+  else stopSpecialDiceIdleMotionInternal(tile);
+  if (tile) delete tile._ccSpecialIdleRegistryPaused;
 }
 
 /** Pauses admitted mobile Special idle owners for foreground interaction. */
 export function acquireSpecialDiceIdleSuspension(reason: string): () => void {
   if (!MOBILE_RUNTIME_PROFILE.isMobileDevice) return () => {};
-  return specialDiceIdleBudget.suspend(reason);
+  return specialDiceIdleRegistry.suspend(reason);
 }
 
-export function getSpecialDiceIdleBudgetStats() {
-  return specialDiceIdleBudget.snapshot();
+export function getSpecialDiceIdleRegistryStats() {
+  return specialDiceIdleRegistry.snapshot();
 }
 
-export function resetSpecialDiceIdleBudgetForTests(): void {
-  specialDiceIdleBudget.reset();
+export function resetSpecialDiceIdleRegistryForTests(): void {
+  specialDiceIdleRegistry.reset();
 }

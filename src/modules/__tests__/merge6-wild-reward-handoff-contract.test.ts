@@ -223,6 +223,6 @@ describe('regular merge-6 to wild reward handoff', () => {
     expect(source).toContain('merge6SpawnOwnerToken = ++merge6SpawnOwnerSequence;');
     expect(source).toContain('activeMerge6SpawnOwnerToken === resetOwnerToken');
     expect(source).toContain('onInterrupt: () => {');
-    expect(source).toContain("releaseSpecialDiceTransaction(specialTransactionToken, 'merge6-absorb-interrupted')");
+    expect(source).toContain("releaseSpecialDiceTransaction(specialTransactionToken, 'merge6-absorb-interrupted', { mode: 'abort-recovery' })");
   });
 });

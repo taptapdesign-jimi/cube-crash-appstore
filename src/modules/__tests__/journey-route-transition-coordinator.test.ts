@@ -6,30 +6,48 @@ import {
 } from '../journey-route-transition-coordinator';
 
 const createFixture = () => {
-  const releases: jest.Mock[] = [];
+  const criticalReleases: jest.Mock[] = [];
+  const audioReleases: jest.Mock[] = [];
+  const presentationReleases: jest.Mock[] = [];
   const acquireCriticalLease = jest.fn(() => {
     const release = jest.fn();
-    releases.push(release);
+    criticalReleases.push(release);
+    return release;
+  });
+  const acquirePresentationLease = jest.fn(() => {
+    const release = jest.fn();
+    presentationReleases.push(release);
+    return release;
+  });
+  const acquireAudioWorkingSet = jest.fn(() => {
+    const release = jest.fn();
+    audioReleases.push(release);
     return release;
   });
   const publishAppZone = jest.fn();
   const emitDiagnostic = jest.fn();
   const dependencies: JourneyRouteTransitionDependencies = {
     acquireCriticalLease,
+    acquireAudioWorkingSet,
+    acquirePresentationLease,
     publishAppZone,
     emitDiagnostic,
   };
   return {
     coordinator: new JourneyRouteTransitionCoordinator(dependencies),
     acquireCriticalLease,
+    acquireAudioWorkingSet,
+    acquirePresentationLease,
     publishAppZone,
     emitDiagnostic,
-    releases,
+    criticalReleases,
+    audioReleases,
+    presentationReleases,
   };
 };
 
 describe('JourneyRouteTransitionCoordinator', () => {
-  test('publishes Journey ownership and owns exactly one lease and timeline', async () => {
+  test('publishes Journey ownership and owns one resource, audio and presentation lease plus timeline', async () => {
     const fixture = createFixture();
     const token = fixture.coordinator.begin(
       { view: 'home' },
@@ -53,7 +71,9 @@ describe('JourneyRouteTransitionCoordinator', () => {
       reason: 'hub-visible',
     });
     expect(timeline.kill).not.toHaveBeenCalled();
-    expect(fixture.releases[0]).toHaveBeenCalledTimes(1);
+    expect(fixture.criticalReleases[0]).toHaveBeenCalledTimes(1);
+    expect(fixture.audioReleases[0]).toHaveBeenCalledTimes(1);
+    expect(fixture.presentationReleases[0]).toHaveBeenCalledTimes(1);
     expect(fixture.coordinator.getSnapshot()).toMatchObject({ active: false });
   });
 
@@ -73,7 +93,9 @@ describe('JourneyRouteTransitionCoordinator', () => {
     });
     expect(firstTimeline.kill).toHaveBeenCalledTimes(1);
     expect(cleanup).toHaveBeenCalledTimes(1);
-    expect(fixture.releases[0]).toHaveBeenCalledTimes(1);
+    expect(fixture.criticalReleases[0]).toHaveBeenCalledTimes(1);
+    expect(fixture.audioReleases[0]).toHaveBeenCalledTimes(1);
+    expect(fixture.presentationReleases[0]).toHaveBeenCalledTimes(1);
     expect(fixture.acquireCriticalLease).toHaveBeenCalledTimes(2);
     expect(fixture.publishAppZone).toHaveBeenCalledTimes(2);
     expect(fixture.publishAppZone).not.toHaveBeenCalledWith(
@@ -141,8 +163,60 @@ describe('JourneyRouteTransitionCoordinator', () => {
     });
     expect(timeline.kill).toHaveBeenCalledTimes(1);
     expect(cleanup).toHaveBeenCalledTimes(1);
-    expect(fixture.releases[0]).toHaveBeenCalledTimes(1);
+    expect(fixture.criticalReleases[0]).toHaveBeenCalledTimes(1);
+    expect(fixture.audioReleases[0]).toHaveBeenCalledTimes(1);
+    expect(fixture.presentationReleases[0]).toHaveBeenCalledTimes(1);
     expect(() => fixture.coordinator.begin({ view: 'home' }, { view: 'hub' }, 'late'))
       .toThrow('disposed');
+  });
+
+  test('keeps presentation resources and audio through the complete incoming cascade while route completion keeps its visible-start semantics', async () => {
+    const fixture = createFixture();
+    const token = fixture.coordinator.begin(
+      { view: 'hub' },
+      { view: 'world', worldId: 1 },
+      'forest',
+    );
+    let finishPresentation!: () => void;
+    const presentationCompletion = new Promise<void>((resolve) => {
+      finishPresentation = resolve;
+    });
+
+    expect(fixture.coordinator.holdPresentationLeasesUntil(token, presentationCompletion)).toBe(true);
+    expect(fixture.coordinator.complete(token, 'world-visible-enter-started')).toBe(true);
+    await expect(token.completion).resolves.toMatchObject({ status: 'completed' });
+    expect(fixture.criticalReleases[0]).toHaveBeenCalledTimes(1);
+    expect(fixture.audioReleases[0]).not.toHaveBeenCalled();
+    expect(fixture.presentationReleases[0]).not.toHaveBeenCalled();
+
+    finishPresentation();
+    await presentationCompletion;
+    await Promise.resolve();
+    expect(fixture.audioReleases[0]).toHaveBeenCalledTimes(1);
+    expect(fixture.presentationReleases[0]).toHaveBeenCalledTimes(1);
+  });
+
+  test('interrupt releases handed-off presentation leases immediately and late completion is idempotent', async () => {
+    const fixture = createFixture();
+    const token = fixture.coordinator.begin(
+      { view: 'world', worldId: 3 },
+      { view: 'hub' },
+      'close',
+    );
+    let finishPresentation!: () => void;
+    const presentationCompletion = new Promise<void>((resolve) => {
+      finishPresentation = resolve;
+    });
+
+    expect(fixture.coordinator.holdPresentationLeasesUntil(token, presentationCompletion)).toBe(true);
+    expect(fixture.coordinator.interrupt(token, 'replaced')).toBe(true);
+    expect(fixture.audioReleases[0]).toHaveBeenCalledTimes(1);
+    expect(fixture.presentationReleases[0]).toHaveBeenCalledTimes(1);
+
+    finishPresentation();
+    await presentationCompletion;
+    await Promise.resolve();
+    expect(fixture.audioReleases[0]).toHaveBeenCalledTimes(1);
+    expect(fixture.presentationReleases[0]).toHaveBeenCalledTimes(1);
   });
 });

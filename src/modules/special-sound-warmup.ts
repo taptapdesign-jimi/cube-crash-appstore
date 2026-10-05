@@ -15,6 +15,7 @@ import { preloadSpaceshipMerge6Sounds } from './spaceship-merge6-sound.ts';
 import { preloadBarrelMerge6Sounds } from './barrel-merge6-sound.ts';
 import { preloadJuiceMerge6Sounds } from './juice-finale-sound.ts';
 import { preloadWildStarMerge6Sound } from './wild-star-merge6-sound.ts';
+import { acquireDecodedGameplayAudioWorkingSet } from './gameplay-audio-buffer-player.ts';
 
 export interface SpecialSoundWarmupContext {
   boardNumber: number;
@@ -36,6 +37,16 @@ export interface SpecialSoundWorkingSetPlan {
 
 let workingSetGeneration = 0;
 let activeWorkingSetGeneration = 0;
+let activeSpecialResidencyRelease: (() => void) | null = null;
+export const SPECIAL_AUDIO_ACTIVE_WORKING_SET_MAX_BYTES = 16 * 1024 * 1024;
+
+/** Transfer decoded-cache ownership away from gameplay without invalidating
+ * the board plan itself. Gameplay -> Journey calls this before admitting the
+ * Journey package, so the two route working sets can never overlap. */
+export function releaseActiveSpecialAudioResidency(): void {
+  activeSpecialResidencyRelease?.();
+  activeSpecialResidencyRelease = null;
+}
 
 /** Inventory only specials that already exist on the board. Projecting possible
  * World/Arcade rewards (or decoding every live family) overfills the mobile
@@ -110,11 +121,15 @@ export function preloadEligibleSpecialSounds(context: SpecialSoundWarmupContext)
 export function acquireSpecialSoundWorkingSetPlan(
   initialContext: SpecialSoundWarmupContext,
 ): SpecialSoundWorkingSetPlan {
+  activeSpecialResidencyRelease?.();
+  activeSpecialResidencyRelease = null;
   const generation = ++workingSetGeneration;
   activeWorkingSetGeneration = generation;
   let released = false;
   let families = getSpecialSoundWarmupFamilies(initialContext);
-  const preparedFamilies = new Set<string>();
+  let residentFamilyKey = '';
+  let releaseResidency: (() => void) | null = null;
+  let isResidencyCurrent: (() => boolean) | null = null;
   const isCurrent = (): boolean => !released && activeWorkingSetGeneration === generation;
 
   return {
@@ -134,25 +149,38 @@ export function acquireSpecialSoundWorkingSetPlan(
       });
       if (committedFamilies.size === 0) return false;
       committedFamilies.forEach((family) => families.add(family));
-      const unpreparedFamilies = new Set(
-        [...committedFamilies].filter((family) => !preparedFamilies.has(family)),
+      const nextFamilyKey = [...committedFamilies].sort().join('|');
+      if (nextFamilyKey === residentFamilyKey && isResidencyCurrent?.()) return true;
+      releaseResidency?.();
+      const residency = acquireDecodedGameplayAudioWorkingSet(
+        'active-special-family',
+        SPECIAL_AUDIO_ACTIVE_WORKING_SET_MAX_BYTES,
       );
-      if (unpreparedFamilies.size === 0) return true;
-      unpreparedFamilies.forEach((family) => preparedFamilies.add(family));
-      preloadSpecialSoundFamilies(unpreparedFamilies);
+      releaseResidency = residency.release;
+      isResidencyCurrent = residency.isCurrent;
+      activeSpecialResidencyRelease = residency.release;
+      residentFamilyKey = residency.admitted ? nextFamilyKey : '';
+      residency.capturePreparation(() => preloadSpecialSoundFamilies(committedFamilies));
       return true;
     },
     release: () => {
       if (released) return;
       released = true;
       if (activeWorkingSetGeneration === generation) activeWorkingSetGeneration = 0;
+      releaseResidency?.();
+      if (activeSpecialResidencyRelease === releaseResidency) {
+        activeSpecialResidencyRelease = null;
+      }
+      releaseResidency = null;
+      isResidencyCurrent = null;
+      residentFamilyKey = '';
       families.clear();
-      preparedFamilies.clear();
     },
   };
 }
 
 export function resetSpecialSoundWorkingSetForTests(): void {
+  releaseActiveSpecialAudioResidency();
   workingSetGeneration = 0;
   activeWorkingSetGeneration = 0;
 }

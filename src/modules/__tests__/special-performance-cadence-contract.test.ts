@@ -15,8 +15,10 @@ describe('special performance cadence ownership', () => {
     expect(beginLease).toBeGreaterThan(merge6Start);
     expect(beginLease).toBeLessThan(smokeAndShards);
     expect(appCore).toContain("acquirePixiMobileActivityLease(\n    'merge6-resolution',\n    100,");
-    expect(appCore).toContain('endMerge6ResolutionFrames();\n  if (options.releaseSpecialTransaction !== false)');
-    expect(appCore).toContain('if (released) {\n    endMerge6ResolutionFrames();');
+    expect(appCore).toContain('endMerge6ResolutionFrames();\n  let specialReleaseAccepted = true;');
+    expect(appCore).toContain('if (options.releaseSpecialTransaction !== false && requestedSpecialToken !== null)');
+    expect(appCore).toContain('return specialReleaseAccepted;');
+    expect(appCore).toContain('if (released) {\n    specialMergeReceiptRecoveryPending = false;\n    endMerge6ResolutionFrames();');
     expect(appCore).toContain("activityLeaseLabel: 'regular-merge6-shards'");
     expect(appCore).toContain("activityLeaseLabel: 'regular-merge6-smoke'");
     expect(fx).toContain('attachFxContainerActivity(layer, opts.activityLeaseLabel);');

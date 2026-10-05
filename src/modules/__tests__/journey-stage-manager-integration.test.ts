@@ -42,6 +42,11 @@ describe('Journey manager persistent-stage integration', () => {
       const hub = container.querySelector<HTMLElement>(':scope > .journey-v700-hub')!;
       const hubButton = hub.querySelector<HTMLButtonElement>('.journey-v700-world-card[data-world-id="1"]')!;
 
+      // This fixture exercises the post-reveal handler identity. Production
+      // enables Hub buttons only after the complete resident set is ready.
+      hubButton.disabled = false;
+      hubButton.removeAttribute('aria-disabled');
+
       // Prove this is the manager's live closure before retaining the same node.
       hubButton.click();
       expect(openWorld).toHaveBeenCalledTimes(1);

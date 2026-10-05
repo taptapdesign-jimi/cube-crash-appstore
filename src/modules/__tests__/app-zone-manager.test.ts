@@ -1,5 +1,6 @@
 import { appZoneManager } from '../app-zone-manager';
 import { getRunMode, RUN_MODE_ARCADE_HOME, RUN_MODE_JOURNEY } from '../run-mode';
+import { isJourneyViewportParked, parkJourneyViewportForGameplay, releaseJourneyViewportParking } from '../journey-viewport-parking';
 import {
   cleanupNavigationControl,
   commitHomepageNavigation,
@@ -32,6 +33,7 @@ import { ARCADE_SLIDE_INDEX, JOURNEY_SLIDE_INDEX } from '../homepage-slide-order
 
 describe('app-zone-manager', () => {
   beforeEach(() => {
+    releaseJourneyViewportParking();
     jest.clearAllMocks();
     cleanupNavigationControl();
     document.body.innerHTML = '';
@@ -48,8 +50,51 @@ describe('app-zone-manager', () => {
   });
 
   afterEach(() => {
+    releaseJourneyViewportParking();
     cleanupNavigationControl();
     document.body.innerHTML = '';
+  });
+
+  function parkedFixture() {
+    const screen = document.createElement('section');
+    screen.id = 'journey-screen';
+    const surface = document.createElement('div');
+    surface.dataset.journeyV700View = 'world';
+    surface.dataset.journeyV700WorldId = '3';
+    screen.append(surface);
+    document.body.append(screen);
+    expect(parkJourneyViewportForGameplay(screen, surface)).toBe(true);
+    return screen;
+  }
+
+  it('removes the gameplay cover before a runtime z-index 1 Homepage is shown', () => {
+    const screen = parkedFixture();
+    const home = document.createElement('main');
+    home.id = 'home';
+    home.style.zIndex = '1';
+    document.body.append(home);
+    appZoneManager.setZone('home', 'parking-test');
+    expect(isJourneyViewportParked(screen)).toBe(false);
+    expect(screen.style.opacity).toBe('0');
+    expect(document.querySelector('.journey-viewport-parking-cover')).toBeNull();
+  });
+
+  it('keeps the gameplay cover until Journey consumes it and preserves the released resident layer', () => {
+    const screen = parkedFixture();
+    appZoneManager.setZone('journey', 'parking-test');
+    expect(isJourneyViewportParked(screen)).toBe(true);
+    releaseJourneyViewportParking(screen, true);
+    appZoneManager.setZone('journey', 'parking-test-after-release');
+    expect(screen.getAttribute('data-journey-viewport-resident')).toBe('true');
+    appZoneManager.setZone('home', 'parking-test-home');
+    expect(screen.hasAttribute('data-journey-viewport-resident')).toBe(false);
+  });
+
+  it.each(['home', 'board-arcade', 'loader'] as const)('retires gameplay parking on %s', zone => {
+    const screen = parkedFixture();
+    appZoneManager.setZone(zone, 'parking-test');
+    expect(isJourneyViewportParked(screen)).toBe(false);
+    expect(screen.hasAttribute('data-journey-viewport-resident')).toBe(false);
   });
 
   it('prepares arcade as a clean home-origin board zone', () => {

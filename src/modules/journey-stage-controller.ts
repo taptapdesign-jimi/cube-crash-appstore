@@ -1,3 +1,4 @@
+
 export type JourneyStageSurfaceDescriptor =
   | { view: 'hub' }
   | { view: 'world'; worldId: number };
@@ -79,14 +80,15 @@ const applyContainerState = (
 };
 
 /**
- * Owns the two bounded Journey route surfaces that can be reused safely:
- * one Hub and one World. Retained nodes are disconnected from document, so
+ * Owns the bounded Journey route surfaces that can be reused safely: one Hub
+ * and one recently visited World. Retained nodes are disconnected from document, so
  * selectors, CSS animation and layout cannot compete with the visible route.
  * Runtime owners must be retired by the caller before a surface is retained.
  */
 export class JourneyStageController {
+  private static readonly MAX_RETAINED_WORLDS = 1;
   private retainedHub: JourneyStageSurface | null = null;
-  private retainedWorld: JourneyStageSurface | null = null;
+  private retainedWorlds = new Map<number, JourneyStageSurface>();
   private transitionGeneration = 0;
   private activeTransition: JourneyStageTransitionToken | null = null;
 
@@ -112,13 +114,11 @@ export class JourneyStageController {
   }
 
   public releaseRetainedWorldExcept(worldId: number): JourneyStageSurfaceDescriptor | null {
-    const retained = this.retainedWorld;
-    if (!retained || retained.descriptor.view !== 'world' || retained.descriptor.worldId === worldId) {
-      return null;
-    }
-    const released = cloneDescriptor(retained.descriptor);
-    this.retainedWorld = null;
-    this.disposeSurface(retained);
+    const obsolete = Array.from(this.retainedWorlds.entries()).find(([id]) => id !== worldId);
+    if (!obsolete) return null;
+    this.retainedWorlds.delete(obsolete[0]);
+    const released = cloneDescriptor(obsolete[1].descriptor);
+    this.disposeSurface(obsolete[1]);
     return released;
   }
 
@@ -185,13 +185,13 @@ export class JourneyStageController {
 
   /** Release only inactive surfaces without invalidating an in-flight route. */
   public clearRetained(): JourneyStageSurfaceDescriptor[] {
-    const released = [this.retainedHub, this.retainedWorld]
+    const released = [this.retainedHub, ...this.retainedWorlds.values()]
       .filter((surface): surface is JourneyStageSurface => surface !== null)
       .map((surface) => cloneDescriptor(surface.descriptor));
     this.disposeSurface(this.retainedHub);
-    this.disposeSurface(this.retainedWorld);
+    this.retainedWorlds.forEach((surface) => this.disposeSurface(surface));
     this.retainedHub = null;
-    this.retainedWorld = null;
+    this.retainedWorlds.clear();
     return released;
   }
 
@@ -205,11 +205,26 @@ export class JourneyStageController {
    * from forcing a new connected Hub raster during the next active exit.
    */
   public clearRetainedWorld(): JourneyStageSurfaceDescriptor | null {
-    const retained = this.retainedWorld;
+    const retained = this.retainedWorlds.values().next().value as JourneyStageSurface | undefined;
     if (!retained) return null;
     const released = cloneDescriptor(retained.descriptor);
-    this.retainedWorld = null;
+    if (retained.descriptor.view === 'world') this.retainedWorlds.delete(retained.descriptor.worldId);
     this.disposeSurface(retained);
+    return released;
+  }
+
+  /** Memory pressure releases every expensive World while preserving Hub. */
+  public clearRetainedWorlds(): JourneyStageSurfaceDescriptor[] {
+    const protectedWorldId = this.activeTransition?.toKey.startsWith('world:')
+      ? Number(this.activeTransition.toKey.slice('world:'.length))
+      : null;
+    const released: JourneyStageSurfaceDescriptor[] = [];
+    this.retainedWorlds.forEach((surface, worldId) => {
+      if (worldId === protectedWorldId) return;
+      released.push(cloneDescriptor(surface.descriptor));
+      this.retainedWorlds.delete(worldId);
+      this.disposeSurface(surface);
+    });
     return released;
   }
 
@@ -222,7 +237,7 @@ export class JourneyStageController {
   }
 
   public getRetainedDescriptors(): JourneyStageSurfaceDescriptor[] {
-    return [this.retainedHub, this.retainedWorld]
+    return [this.retainedHub, ...this.retainedWorlds.values()]
       .filter((surface): surface is JourneyStageSurface => surface !== null)
       .map((surface) => cloneDescriptor(surface.descriptor));
   }
@@ -233,7 +248,10 @@ export class JourneyStageController {
 
   private getSurfaceByKey(key: string): JourneyStageSurface | null {
     if (this.retainedHub && surfaceKey(this.retainedHub.descriptor) === key) return this.retainedHub;
-    if (this.retainedWorld && surfaceKey(this.retainedWorld.descriptor) === key) return this.retainedWorld;
+    if (key.startsWith('world:')) {
+      const worldId = Number(key.slice('world:'.length));
+      return this.retainedWorlds.get(worldId) ?? null;
+    }
     return null;
   }
 
@@ -242,14 +260,13 @@ export class JourneyStageController {
       this.retainedHub = null;
       return;
     }
-    if (this.retainedWorld?.descriptor.view === 'world' &&
-      this.retainedWorld.descriptor.worldId === descriptor.worldId) {
-      this.retainedWorld = null;
-    }
+    this.retainedWorlds.delete(descriptor.worldId);
   }
 
   private storeSurface(surface: JourneyStageSurface): JourneyStageSurfaceDescriptor | null {
-    const previous = surface.descriptor.view === 'hub' ? this.retainedHub : this.retainedWorld;
+    const previous = surface.descriptor.view === 'hub'
+      ? this.retainedHub
+      : this.retainedWorlds.get(surface.descriptor.worldId) ?? null;
     if (previous && previous.nodes.length === surface.nodes.length &&
       previous.nodes.every((node, index) => node === surface.nodes[index])) {
       previous.descriptor = surface.descriptor;
@@ -257,8 +274,18 @@ export class JourneyStageController {
       return null;
     }
     if (surface.descriptor.view === 'hub') this.retainedHub = surface;
-    else this.retainedWorld = surface;
+    else this.retainedWorlds.set(surface.descriptor.worldId, surface);
 
+    if (surface.descriptor.view === 'world' && this.retainedWorlds.size > JourneyStageController.MAX_RETAINED_WORLDS) {
+      const insertedWorldId = surface.descriptor.worldId;
+      const oldest = Array.from(this.retainedWorlds.entries()).find(([worldId]) => worldId !== insertedWorldId);
+      if (oldest) {
+        this.retainedWorlds.delete(oldest[0]);
+        const evicted = cloneDescriptor(oldest[1].descriptor);
+        this.disposeSurface(oldest[1], new Set(surface.nodes));
+        return evicted;
+      }
+    }
     if (!previous || previous === surface) return null;
     const evicted = cloneDescriptor(previous.descriptor);
     this.disposeSurface(previous, new Set(surface.nodes));

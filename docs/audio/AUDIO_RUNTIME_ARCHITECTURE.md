@@ -62,6 +62,30 @@ ever becoming audible is rejected, while a real play request always bypasses
 that speculative rule and may replace idle data.
 Never flush the cache routinely on Continue or Play Again.
 
+Critical Hub/World Journey transitions use one explicit 4 MiB package lease for
+the fifteen short Navigation/CTA, backpack, card-flip and Unit/Hub-motion cues.
+At acquisition the engine trims only enough unrelated idle data to guarantee the
+declared 4 MiB headroom under the existing effect budget; a cache already below
+that target keeps its reusable cues. Active and pending voices and the retained
+large-loop slot remain protected.
+Speculative jobs are suspended for the visible transition. If an unrelated
+speculative decode was already inside the browser, its late completion is
+discarded rather than repopulating the swept cache or forcing a protected package
+eviction. The transition release ends that quarantine, while the Journey core
+package remains leased only across Hub/World transitions. Journey-to-game commit
+releases it before a Special family can reserve decoded memory. Gameplay-to-
+Journey releases Special residency before the Journey package is acquired.
+Package and working-set ceilings share one admission ledger, so the 4 MiB Journey
+package and a 16 MiB Special reservation cannot overlap inside the pressure-
+adapted 16 MiB budget. Re-entering an already-current Journey package performs no
+sweep, lease replacement, eviction or decode. Explicit Journey leave, global
+Sounds OFF and hard teardown also release it. The exact committed Special
+transaction owns one bounded captured working set at a time; capture observes the
+real feature preload calls, including shared foundations. A queued or already-
+decoding member is tied to that exact token, so replacement discards a stale
+family completion instead of letting it re-enter the cache. Replacement or board
+cleanup releases the working set idempotently.
+
 Decoded one-shots normally retire through native `AudioBufferSourceNode.onended`.
 WKWebView can exceptionally report a context as `running` while its audio clock
 remains frozen; a retained physical trace held 41 already-expired one-shot records
@@ -99,7 +123,7 @@ increase the decoded-byte ceiling.
 | Normal visual completion | Explicitly permitted authored one-shot tails may finish. Forest/Area55 Board Transition completion preserves tails; replacement, error and hard abort stop the package and delayed cues. Never substitute global cleanup for an intentional visual-tail boundary. |
 
 `gameplay-sound-owner-registry.ts` is the **only global SFX full-stop list**. Its
-39 lazy module loaders reference40 full-stop functions, including both Arcade
+46 lazy module loaders reference47 full-stop functions, including both Arcade
 and Board Transition digit owners and decoded-only UI cues. Imports are serial;
 caller generation/predicate is checked before import and before every stop.
 One failed import/stop does not prevent remaining families from being attempted.

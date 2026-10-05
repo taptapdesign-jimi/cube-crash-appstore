@@ -8,6 +8,7 @@ const soundOwners: readonly SfxOwnerLoader[] = [
   () => import('./launch-logo-transition-sound.js').then(owner => [owner.stopLaunchLogoTransitionSound]),
   () => import('./homepage-slider-motion-sound.js').then(owner => [owner.stopHomepageSliderMotionSounds]),
   () => import('./journey-hub-exit-sound.js').then(owner => [owner.stopJourneyHubExitSounds]),
+  () => import('./journey-audio-working-set.js').then(owner => [owner.stopJourneyCriticalAudioWorkingSets]),
   () => import('./journey-unit-motion-sound.js').then(owner => [owner.stopJourneyUnitMotionSounds]),
   () => import('./journey-new-card-sound.js').then(owner => [owner.stopJourneyNewCardSounds]),
   () => import('./board-popin-sound.js').then(owner => [owner.stopBoardPopInSound]),

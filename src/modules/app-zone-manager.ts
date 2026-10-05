@@ -21,6 +21,7 @@ import {
 import { homepageEnterTransitionOwner } from './homepage-enter-transition-owner.js';
 import { emitSettingsRouteDiagnostic } from './settings-route-diagnostic.js';
 import { normalizeJourneyBoardId } from './journey-world-definitions.js';
+import { releaseJourneyViewportParking } from './journey-viewport-parking.js';
 import {
   ARCADE_SLIDE_INDEX,
   JOURNEY_SLIDE_INDEX,
@@ -143,6 +144,10 @@ class AppZoneManager {
     const previousZone = this.currentZone;
     this.presentationEpoch += 1;
     this.currentZone = zone;
+    const journeyScreen = document.getElementById('journey-screen');
+    if (journeyScreen && (zone === 'loader' || zone === 'board-arcade' || zone === 'home')) {
+      releaseJourneyViewportParking(journeyScreen);
+    }
     try { (window as any).__ccAppZone = zone; } catch {}
     if (zone !== 'home' && options.preserveHomepageNavigation !== true) {
       homepageEnterTransitionOwner.cancel(`app-zone:${zone}:${reason}`);

@@ -159,6 +159,8 @@ test('normalizeSpawnedTileVisual restores stable visible tile state after spawn 
     alpha: 0.2,
     _isBeingSpawned: true,
     _ccHideFinalMergeResultVisual: true,
+    _ccSpecialMerge6PendingCleanup: true,
+    renderable: false,
     rotG: { alpha: 0.4 },
     base: { alpha: 0.5, visible: false },
     overlay: { alpha: 0.9, visible: true },
@@ -175,6 +177,8 @@ test('normalizeSpawnedTileVisual restores stable visible tile state after spawn 
   expect(tile._ccDragBaseScaleY).toBe(1);
   expect(tile._isBeingSpawned).toBe(false);
   expect(tile._ccHideFinalMergeResultVisual).toBeUndefined();
+  expect(tile._ccSpecialMerge6PendingCleanup).toBeUndefined();
+  expect(tile.renderable).toBe(true);
   expect(tile.alpha).toBe(1);
   expect(tile.rotG.alpha).toBe(1);
   expect(tile.base.alpha).toBe(1);

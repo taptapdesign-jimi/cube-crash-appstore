@@ -353,7 +353,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(css).not.toContain('journey-card-flip-idle-shimmer');
   });
 
-  test('samples rendered handoff state only when an animation owner is active', () => {
+  test('samples cached owner poses without forcing style or layout during pointerdown', () => {
     const modal = read('src/modules/journey-card-overlay-modal.ts');
     const pointerDown = modal.slice(
       modal.indexOf('function handlePointerDown('),
@@ -394,19 +394,23 @@ describe('Journey two-sided card overlay prototype', () => {
       .toEqual({ translateX: -34, translateY: 0, scale: 1 });
     expect(pointerDown).toContain('const impactHandoffPose = readImpactHandoffPose();');
     expect(angleHandoff).toContain('if (!hasActiveRotorInterruption()) return stableRotorAngle();');
-    expect(angleHandoff).toContain('window.getComputedStyle(rotor)');
+    expect(angleHandoff).toContain('rotorHandoffPoseSampler?.()');
+    expect(angleHandoff).not.toContain('getComputedStyle');
     expect(impactHandoff).toContain('if (!hasActiveImpactInterruption) {');
     expect(impactHandoff).toContain('impactShell.style.transform');
-    expect(impactHandoff).toContain('window.getComputedStyle(impactShell)');
+    expect(impactHandoff).toContain('impactHandoffPoseSampler?.()');
+    expect(impactHandoff).not.toContain('getComputedStyle');
     expect(idleHandoff).toContain('surfaceIdlePresentationActive');
     expect(idleHandoff).toContain('idleShellHandoffAnimation !== null');
-    expect(idleHandoff).toContain('? window.getComputedStyle(idleShell)');
+    expect(idleHandoff).toContain('idleShellHandoffPoseSampler?.() ?? sampleSurfaceIdleTransform()');
+    expect(idleHandoff).not.toContain('getComputedStyle');
     expect(modal).toContain("event.animationName !== 'cc-gameplay-modal-idle-float'");
     expect(modal).toContain("idleShell.addEventListener('animationend', handleSurfaceIdleAnimationEnd)");
     expect(modal).toContain("idleShell.removeEventListener('animationend', handleSurfaceIdleAnimationEnd)");
     expect(pointerDown).not.toContain('getComputedStyle');
     expect(pointerDown).not.toContain('getAnimations');
     expect(pointerDown).not.toContain('getBoundingClientRect');
+    expect(modal).not.toContain('window.getComputedStyle');
     expect(pointerDown.indexOf('const dragHandoffAngle = readPointerHandoffAngle();'))
       .toBeLessThan(pointerDown.indexOf("handoffSurfaceIdle('freeze-for-pointer');"));
     expect(pointerDown.indexOf("handoffSurfaceIdle('freeze-for-pointer');"))
@@ -753,7 +757,9 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain('const handoffIdleCoachImpact = (): void => {');
     expect(modal).toContain('const hasPresentedCoachPose = idleCoachCardAnimation !== null');
     expect(modal).toContain('if (!hasPresentedCoachPose) {');
-    expect(modal).toContain('const renderedStyle = window.getComputedStyle(impactShell);');
+    expect(modal).toContain('const renderedPose = readImpactHandoffPose();');
+    expect(modal).toContain('impactHandoffPoseSampler = () => interpolatePoseStops(');
+    expect(modal).not.toContain('window.getComputedStyle');
     expect(modal).toContain('handoffIdleCoachImpact();\n    event.preventDefault();');
     expect(modal).toContain('if (event.composedPath().includes(rotor)) return;\n    handoffIdleCoachImpact();');
     const closeFlow = modal.slice(

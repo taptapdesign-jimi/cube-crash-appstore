@@ -419,9 +419,12 @@ import { releaseIdleSharedPixiSheets } from './shared-pixi-sheet-animation.ts';
 import { clearInputGateLocks, setInputGateLock } from './input-gate.ts';
 import {
   canRunOrdinaryMergeDuringVisualTail,
+  createSpecialMergeTransactionReceipt,
   getSpecialDiceEndgameBlock,
+  isSpecialMergeTransactionReceiptCurrent,
   isStableOrdinarySubSixStack,
   SpecialDiceTransactionOwner,
+  type SpecialMergeTransactionReceipt,
   type SpecialDiceTransactionKind,
 } from './special-dice-transaction-owner.ts';
 import { resolveNoMovesCommitDecision } from './no-moves-commit-decision.ts';
@@ -490,7 +493,7 @@ import {
   isArcadeEntrySurfaceGateActive,
   releaseArcadeEntrySurfaceGateAfterPreparedFrame,
 } from './arcade-entry-surface-gate.js';
-import { killInvalidPixiGsapTweens, killPixiGsapSubtree } from './pixi-gsap-cleanup.ts';
+import { killInvalidPixiGsapTweens, killPixiGsapSubtrees } from './pixi-gsap-cleanup.ts';
 import {
   fixHoverAnchor,
   ensureFonts,
@@ -1103,6 +1106,7 @@ let activeMerge6SpawnOwnerToken: number | null = null;
 let merge6SpawnResetTimer: gsap.core.Tween | null = null;
 const merge6DestinationCleanupOwner = new Merge6DestinationCleanupOwner();
 const specialDiceTransactionOwner = new SpecialDiceTransactionOwner();
+let specialMergeReceiptRecoveryPending = false;
 let regularMergeHandoffSequence = 0;
 const regularMergeHandoffTokens = new Set<number>();
 const regularMergeHandoffFinalizers = new Map<number, () => void>();
@@ -1202,6 +1206,7 @@ function resetMerge6SpawnState(
     releaseSpecialTransaction?: boolean;
     specialTransactionToken?: number | null;
     merge6SpawnOwnerToken?: number | null;
+    specialTransactionAbortRecovery?: boolean;
     force?: boolean;
   } = {},
 ): boolean {
@@ -1222,16 +1227,19 @@ function resetMerge6SpawnState(
   activeMerge6SpawnOwnerToken = null;
   clearMerge6SpawnResetTimer();
   endMerge6ResolutionFrames();
-  if (options.releaseSpecialTransaction !== false) {
-    releaseSpecialDiceTransaction(
-      options.specialTransactionToken ?? null,
+  let specialReleaseAccepted = true;
+  const requestedSpecialToken = options.specialTransactionToken ?? null;
+  if (options.releaseSpecialTransaction !== false && requestedSpecialToken !== null) {
+    specialReleaseAccepted = releaseSpecialDiceTransaction(
+      requestedSpecialToken,
       `merge6-spawn-reset:${_reason}`,
+      { mode: options.specialTransactionAbortRecovery === true ? 'abort-recovery' : 'settled' },
     );
   }
   if (wasInProgress) {
     queueWildSpawnAfterGuardRelease(`merge6-spawn-reset:${_reason}`);
   }
-  return true;
+  return specialReleaseAccepted;
 }
 
 function beginSpecialDiceTransaction(kind: SpecialDiceTransactionKind): number | null {
@@ -1303,10 +1311,18 @@ function canOrdinaryStackDuringMerge6Handoff(src: any, dst: any): boolean {
   });
 }
 
-function releaseSpecialDiceTransaction(token: number | null, reason: string): boolean {
+function releaseSpecialDiceTransaction(
+  token: number | null,
+  reason: string,
+  options: { mode?: 'settled' | 'abort-recovery' } = {},
+): boolean {
   const active = specialDiceTransactionOwner.snapshot();
   emitIOSSpecialTransactionTrace('release-request', { token, reason, active });
   if (!active) {
+    if (specialMergeReceiptRecoveryPending) {
+      emitIOSSpecialTransactionTrace('release-no-owner-recovery-pending', { token, reason });
+      return false;
+    }
     endMerge6ResolutionFrames();
     setInputGateLock('special-transaction', false);
     emitIOSSpecialTransactionTrace('release-no-active-owner', { token, reason });
@@ -1322,8 +1338,74 @@ function releaseSpecialDiceTransaction(token: number | null, reason: string): bo
     emitIOSSpecialTransactionTrace('release-stale-token', { token, reason, active });
     return false;
   }
-  const released = specialDiceTransactionOwner.release(token);
+  const collectSpecialMergeAuditDice = () => collectBoardGameplayTiles()
+    .filter((tile: any) => tile && !tile.destroyed)
+    .map((tile: any) => ({
+      id: tile._ccGameplayDieId,
+      value: tile.value,
+      special: tile.special,
+      cleanupOwned: merge6DestinationCleanupOwner.hasClaim(tile),
+    }));
+  if (active.mergeReceipt) {
+    const isAbortRecovery = options.mode === 'abort-recovery';
+    const accounting = {
+      committedCount: active.primarySpawn.committedCount,
+      committedCells: active.primarySpawn.committedCells,
+      requireSettled: !isAbortRecovery,
+    };
+    if (isAbortRecovery) {
+      const consumedIds = new Set(active.mergeReceipt.consumedDieIds);
+      const residue = collectBoardGameplayTiles().filter((tile: any) =>
+        tile &&
+        !tile.destroyed &&
+        typeof tile._ccGameplayDieId === 'string' &&
+        consumedIds.has(tile._ccGameplayDieId),
+      );
+      residue.forEach((tile: any) => {
+        // Abort recovery is the only path allowed to repair. It retires only
+        // exact receipt identities; normal settlement never mutates the board.
+        try { detachTileFromGrid(tile, grid); } catch {}
+        try { merge6DestinationCleanupOwner.forget(tile); } catch {}
+        try {
+          tile.visible = false;
+          tile.renderable = false;
+          tile.alpha = 0;
+          tile.eventMode = 'none';
+        } catch {}
+        try { removeTile(tile); } catch {}
+      });
+      emitIOSSpecialTransactionTrace('merge-receipt-abort-recovery', {
+        token,
+        reason,
+        repairedDieIds: residue.map((tile: any) => tile?._ccGameplayDieId).filter(Boolean),
+      });
+    }
+    const releaseAttempt = specialDiceTransactionOwner.releaseAfterPostconditionAudit(
+      token,
+      collectSpecialMergeAuditDice(),
+      accounting,
+    );
+    if (!releaseAttempt.released) {
+      devWarn('🛡️ Special merge receipt blocked transaction release', {
+        reason,
+        receipt: active.mergeReceipt,
+        primarySpawn: active.primarySpawn,
+        issues: releaseAttempt.audit.issues,
+      });
+      emitIOSSpecialTransactionTrace('merge-receipt-release-blocked', {
+        reason,
+        token,
+        mode: isAbortRecovery ? 'abort-recovery' : 'settled',
+        issues: releaseAttempt.audit.issues,
+      });
+      return false;
+    }
+  }
+  const released = active.mergeReceipt
+    ? true
+    : specialDiceTransactionOwner.release(token);
   if (released) {
+    specialMergeReceiptRecoveryPending = false;
     endMerge6ResolutionFrames();
     setInputGateLock('special-transaction', false);
     devLog('🛡️ Special transaction released', { ...active, reason });
@@ -1364,8 +1446,12 @@ function resetTransientRunGuards(reason: string = 'unknown'): void {
   } catch {}
   wildSpawnInProgress = false;
   wildSpawnCancelToken++;
-  resetMerge6SpawnState(`transient-guards:${reason}`, { force: true });
+  resetMerge6SpawnState(`transient-guards:${reason}`, {
+    force: true,
+    specialTransactionAbortRecovery: true,
+  });
   specialDiceTransactionOwner.reset();
+  specialMergeReceiptRecoveryPending = false;
   regularMergeFrameLeaseReleases.forEach((release) => {
     try { release(); } catch {}
   });
@@ -3680,33 +3766,25 @@ function killAllGsapTweensCommon(tilesList: any[] | null, label: string, _opts: 
     gsap.killTweensOf('[data-wild-loader]');
     gsap.killTweensOf('.wild-loader');
     
-    const list = tilesList || [];
-    if (list.length > 0) {
-      list.forEach(tile => {
-        try {
-          if (tile && !tile.destroyed) {
-            killPixiGsapSubtree(gsap, tile);
-            if (tile.hover && !tile.hover.destroyed) {
-              gsap.killTweensOf(tile.hover);
-            }
-          }
-        } catch {}
-      });
-    }
+    const liveTiles = (tilesList || []).filter(tile => tile && !tile.destroyed);
+    const extraTargets: any[] = liveTiles
+      .map(tile => tile.hover)
+      .filter(hover => hover && !hover.destroyed);
     
     // Kill HUD/board/stage tweens
     if (HUD && !HUD.isHUDDestroyed?.()) {
-      try { gsap.killTweensOf(HUD); } catch {}
+      extraTargets.push(HUD);
     }
     if (board && !board.destroyed) {
-      try { gsap.killTweensOf(board); } catch {}
+      extraTargets.push(board);
     }
     if (app && app.stage && !app.stage.destroyed) {
-      try { gsap.killTweensOf(app.stage); } catch {}
+      extraTargets.push(app.stage);
     }
     if (backgroundLayer && !backgroundLayer.destroyed) {
-      try { gsap.killTweensOf(backgroundLayer); } catch {}
+      extraTargets.push(backgroundLayer);
     }
+    killPixiGsapSubtrees(gsap, liveTiles, extraTargets);
     
     killInvalidPixiGsapTweens(gsap);
     
@@ -6273,6 +6351,29 @@ function hideFinalMergeResultTileVisual(target: any, reason: string = 'final-mer
   devLog('🙈 Final merge result tile visual hidden', { reason });
 }
 
+function hideSpecialMerge6DestinationVisual(target: any, reason: string): void {
+  if (!target || target.destroyed) return;
+  const hideOwnedDestination = () => {
+    if (!target || target.destroyed) return;
+    try {
+      target._ccSpecialMerge6PendingCleanup = true;
+      target.renderable = false;
+      target.alpha = 0;
+      target.eventMode = 'none';
+      target.interactive = false;
+      target.interactiveChildren = false;
+      target.cursor = 'default';
+    } catch {}
+  };
+  // setValue/drawStack schedule their own render refresh. Reassert the
+  // transaction-owned hidden state after those writes so the internal value-6
+  // can never flash as a player-facing die while Special FX continues.
+  hideOwnedDestination();
+  try { trackAppAnimationFrame(hideOwnedDestination); } catch {}
+  try { trackAppAnimationFrame(() => trackAppAnimationFrame(hideOwnedDestination)); } catch {}
+  devLog('🙈 Special merge-6 destination hidden until atomic cleanup', { reason });
+}
+
 function normalizeFinalMerge6ResidueVisuals(reason: string = 'final-merge'): void {
   try {
     const orphanFinalResidueTargets = collectOrphanFinalBoardTileResidualTargets({
@@ -8344,6 +8445,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     dst: dst ? { gridX: dst.gridX, gridY: dst.gridY, value: dst.value, special: dst.special } : null,
   });
   let specialTransactionToken: number | null = null;
+  let specialMergeTransactionReceipt: SpecialMergeTransactionReceipt | null = null;
   let regularMergeHandoffToken: number | null = null;
   let regularMerge6CleanupToken: number | null = null;
   let merge6SpawnOwnerToken: number | null = null;
@@ -8910,6 +9012,54 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
   }
   currentBoardMutationEpoch = mergeBoardMutationEpoch;
   gameplayBoardMutationRevision = mergeBoardMutationEpoch.boardRevision;
+  if (specialTransactionKind && specialTransactionToken !== null && effSum === 6) {
+    const sourceDieId = typeof (src as any)?._ccGameplayDieId === 'string'
+      ? (src as any)._ccGameplayDieId
+      : `special-src:${specialTransactionToken}:${src?.gridX ?? 'x'}:${src?.gridY ?? 'y'}`;
+    const destinationDieId = typeof (dst as any)?._ccGameplayDieId === 'string'
+      ? (dst as any)._ccGameplayDieId
+      : `special-dst:${specialTransactionToken}:${dst?.gridX ?? 'x'}:${dst?.gridY ?? 'y'}`;
+    (src as any)._ccGameplayDieId = sourceDieId;
+    (dst as any)._ccGameplayDieId = destinationDieId;
+    specialMergeTransactionReceipt = createSpecialMergeTransactionReceipt({
+      token: specialTransactionToken,
+      kind: specialTransactionKind,
+      runGeneration: mergeRunGenerationAtEntry,
+      acceptedBoardRevision: Math.max(0, mergeBoardMutationEpoch.boardRevision - 1),
+      sourceDieId,
+      destinationDieId,
+      sourceCell: { c: src?.gridX | 0, r: src?.gridY | 0 },
+      destinationCell: { c: dst?.gridX | 0, r: dst?.gridY | 0 },
+      destinationDisposition: lastMergeResult.isActuallyLastMerge
+        ? 'consume-final'
+        : 'consume-after-continuation',
+      expectedPrimarySpawnCount:
+        lastMergeResult.isActuallyLastMerge || lastMergeResult.willPullTiles ? 0 : 1,
+      finalMerge: lastMergeResult.isActuallyLastMerge,
+    });
+    if (!specialDiceTransactionOwner.attachMergeReceipt(
+      specialTransactionToken,
+      specialMergeTransactionReceipt,
+    )) {
+      throw new Error('Unable to attach immutable Special merge transaction receipt');
+    }
+    specialMergeReceiptRecoveryPending = true;
+    emitIOSSpecialTransactionTrace('merge-receipt-attached', specialMergeTransactionReceipt);
+  }
+  const isSpecialMergeReceiptCurrent = (): boolean => !specialMergeTransactionReceipt || (
+    specialDiceTransactionOwner.owns(specialTransactionToken) &&
+    isSpecialMergeTransactionReceiptCurrent(specialMergeTransactionReceipt, {
+      token: specialTransactionToken,
+      runGeneration: gameplayRunGeneration,
+      boardRevision: gameplayBoardMutationRevision,
+    })
+  );
+  const settleSpecialMergeTransaction = (
+    reason: string,
+  ): boolean => {
+    if (!specialMergeTransactionReceipt) return true;
+    return releaseSpecialDiceTransaction(specialTransactionToken, reason, { mode: 'settled' });
+  };
   const isMergePresentationCapabilityCurrent = (): boolean => {
     if (!committedMergeTransaction || !mergeGameplayTransactionOwner) return true;
     return mergeGameplayTransactionOwner.isCapabilityCurrent(
@@ -8917,10 +9067,12 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     ) && boardMutationEpochOwner.getOutcome(committedMergeTransaction.epoch) === 'complete';
   };
   const createMergeOpenCellSpawnCommit = (): OpenCellSpawnCommit | null => {
+    if (specialMergeTransactionReceipt?.finalMerge === true) return null;
     const permit = boardMutationEpochOwner.issueSpawnPermit(mergeBoardMutationEpoch);
     return permit ? { owner: boardMutationEpochOwner, permit } : null;
   };
   const commitMergeSpawnAtBoundary = (): boolean => {
+    if (specialMergeTransactionReceipt?.finalMerge === true) return false;
     const permit = boardMutationEpochOwner.issueSpawnPermit(mergeBoardMutationEpoch);
     if (!permit) return false;
     return boardMutationEpochOwner.commitSpawn(permit).accepted;
@@ -8945,10 +9097,61 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     c: number,
     r: number,
     options: Parameters<typeof openAtCell>[2] = {},
+    ownedSpawnCommit?: OpenCellSpawnCommit,
   ): ReturnType<typeof openAtCell> => {
-    const spawnCommit = createMergeOpenCellSpawnCommit();
+    const spawnCommit = ownedSpawnCommit ?? createMergeOpenCellSpawnCommit();
     if (!spawnCommit) return Promise.resolve(false);
     return openAtCell(c, r, { ...options, spawnCommit });
+  };
+  const openPrimarySpecialMergeCell = async (
+    c: number,
+    r: number,
+    options: Parameters<typeof openAtCell>[2] = {},
+    beforeSpawn?: () => void,
+  ): Promise<boolean> => {
+    if (!specialMergeTransactionReceipt) {
+      beforeSpawn?.();
+      return !!(await openAtCellForMerge(c, r, options));
+    }
+    const specialPermit = specialDiceTransactionOwner.reservePrimarySpawn(
+      specialTransactionToken,
+      { c, r },
+    );
+    if (!specialPermit) {
+      devWarn('🛡️ Special primary spawn rejected by immutable receipt', {
+        c,
+        r,
+        receipt: specialMergeTransactionReceipt,
+        accounting: specialDiceTransactionOwner.snapshot()?.primarySpawn,
+      });
+      return false;
+    }
+    const epochPermit = boardMutationEpochOwner.issueSpawnPermit(mergeBoardMutationEpoch);
+    if (!epochPermit) {
+      specialDiceTransactionOwner.cancelPrimarySpawn(specialPermit);
+      return false;
+    }
+    try {
+      beforeSpawn?.();
+      const spawned = !!(await openAtCellForMerge(c, r, options, {
+        owner: boardMutationEpochOwner,
+        permit: epochPermit,
+      }));
+      if (!spawned) {
+        specialDiceTransactionOwner.cancelPrimarySpawn(specialPermit);
+        return false;
+      }
+      if (!specialDiceTransactionOwner.commitPrimarySpawn(specialPermit)) {
+        throw new Error('Special primary spawn committed without receipt ownership');
+      }
+      // Spawn and destination cleanup are independent async branches. Whichever
+      // completes second performs the same strict settlement attempt.
+      settleSpecialMergeTransaction('primary-spawn-committed');
+      return true;
+    } catch (error) {
+      specialDiceTransactionOwner.cancelPrimarySpawn(specialPermit);
+      throw error;
+    }
   };
   const openLockedBounceForMerge = (
     params: Parameters<typeof FLOW.openLockedBounceParallel>[0],
@@ -8964,6 +9167,34 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     ...options,
     spawnCommit: commitMergeSpawnAtBoundary,
   });
+  const hardFallbackPrimarySpecialMergeCell = (
+    c: number,
+    r: number,
+    options: Parameters<typeof hardFallbackSpawnAtCell>[2] = {},
+  ): boolean => {
+    if (!specialMergeTransactionReceipt) {
+      return hardFallbackSpawnAtCellForMerge(c, r, options);
+    }
+    const specialPermit = specialDiceTransactionOwner.reservePrimarySpawn(
+      specialTransactionToken,
+      { c, r },
+    );
+    if (!specialPermit) return false;
+    const spawned = hardFallbackSpawnAtCell(c, r, {
+      ...options,
+      spawnCommit: commitMergeSpawnAtBoundary,
+    });
+    if (!spawned) {
+      specialDiceTransactionOwner.cancelPrimarySpawn(specialPermit);
+      return false;
+    }
+    if (!specialDiceTransactionOwner.commitPrimarySpawn(specialPermit)) {
+      devWarn('🛡️ Hard fallback primary spawn lost Special receipt ownership', { c, r });
+      return false;
+    }
+    settleSpecialMergeTransaction('hard-fallback-primary-spawn-committed');
+    return true;
+  };
   const spawnLockedTilesWithPopForMerge = (
     count: number,
     excludeCells?: Array<{ c: number; r: number }>,
@@ -10151,12 +10382,16 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           dstSpecial: dstSpecialMerge6,
         }));
       }
+      // Every Special merge-6 owns the temporary destination, including final
+      // merges. It is an internal transaction carrier only: never a playable
+      // plain six and never cleanup-by-convention after an async visual tail.
+      if (wildActive || !isFinalMergeByResolver) {
+        regularMerge6CleanupToken = merge6DestinationCleanupOwner.claim(dst);
+      }
       if (!isFinalMergeByResolver) {
         (dst as any)._ccNonFinalMerge6 = true;
         (dst as any)._ccNonFinalMerge6At = Date.now();
-        if (!wildActive) {
-          regularMerge6CleanupToken = merge6DestinationCleanupOwner.claim(dst);
-          if (regularMerge6CleanupToken !== null) {
+        if (!wildActive && regularMerge6CleanupToken !== null) {
             const watchdogToken = regularMerge6CleanupToken;
             trackAppTimeout(() => {
               if (!merge6DestinationCleanupOwner.owns(dst, watchdogToken)) return;
@@ -10178,7 +10413,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               try { detachTileFromGrid(dst, grid); } catch {}
               try { removeTile(dst); } catch {}
             }, 1200);
-          }
         }
         (window as any).__ccNonFinalMerge6GuardUntil = Math.max(
           Number((window as any).__ccNonFinalMerge6GuardUntil || 0),
@@ -10478,6 +10712,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     makeBoard.drawStack(dst);
     if (isFinalMergeVisualResult) {
       hideFinalMergeResultTileVisual(dst, 'merge6-block-after-setValue');
+    } else if (wildActive) {
+      hideSpecialMerge6DestinationVisual(dst, 'special-merge6-transaction-carrier');
     }
     dst.zIndex = 10000;
 
@@ -11072,6 +11308,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   releaseSpecialDiceTransaction(
                     specialTransactionToken,
                     'wild-magnet-commit-validation-abort',
+                    { mode: 'abort-recovery' },
                   );
                   scheduleCheckLevelEnd(0.18, 'wild-magnet-commit-validation-abort');
                   return;
@@ -11117,6 +11354,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 releaseSpecialDiceTransaction(
                   specialTransactionToken,
                   'wild-magnet-not-enough-valid-tiles',
+                  { mode: 'abort-recovery' },
                 );
               }
             } catch (err) {
@@ -11146,6 +11384,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               releaseSpecialDiceTransaction(
                 specialTransactionToken,
                 'wild-magnet-merge-error-rollback',
+                { mode: 'abort-recovery' },
               );
             }
           }
@@ -11405,6 +11644,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             releaseSpecialDiceTransaction(
               specialTransactionToken,
               'wild-magnet-multiplier-callback-error-rollback',
+              { mode: 'abort-recovery' },
             );
           }
         };
@@ -11437,6 +11677,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             releaseSpecialDiceTransaction(
               specialTransactionToken,
               'wild-magnet-timeout-fallback-rollback',
+              { mode: 'abort-recovery' },
             );
             devLog('✅ Wild-magnet pull animation guard reset (timeout fallback with cleanup)');
             scheduleCheckLevelEnd(0.12, 'wild-magnet-timeout-fallback-cleanup');
@@ -11523,13 +11764,33 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       x: dst.x, y: dst.y, duration: 0.08, ease: 'power2.out',
       onComplete: async () => {
         merge6AbsorbSettled = true;
+        if (!isSpecialMergeReceiptCurrent()) {
+          devWarn('🛡️ Cancelling stale Special merge-6 absorb callback', {
+            receipt: specialMergeTransactionReceipt,
+            boardRevision: gameplayBoardMutationRevision,
+            runGeneration: gameplayRunGeneration,
+          });
+          if (
+            regularMerge6CleanupToken !== null &&
+            merge6DestinationCleanupOwner.owns(dst, regularMerge6CleanupToken)
+          ) {
+            merge6DestinationCleanupOwner.release(dst, regularMerge6CleanupToken);
+            try { detachTileFromGrid(dst, grid); } catch {}
+            try { if (dst && !dst.destroyed) removeTile(dst); } catch {}
+            regularMerge6CleanupToken = null;
+          }
+          try { if (src && !src.destroyed) removeTile(src); } catch {}
+          releaseSpecialDiceTransaction(specialTransactionToken, 'stale-special-merge6-absorb', { mode: 'abort-recovery' });
+          scheduleOwnedMergeRecoveryCheck(0.12, 'stale-special-merge6-absorb');
+          return;
+        }
         markOwnedMergePhase('absorb-complete');
         try {
         // 🔥 CRITICAL: If dst was destroyed (e.g. by parallel mergePulledTilesIntoMerge6/checkLevelEnd),
         // bail early to prevent "Cannot read properties of null (reading 'x')" - destroyed Pixi objects throw on property access
         if (!dst || dst.destroyed) {
           try { removeTile(src); } catch {}
-          releaseSpecialDiceTransaction(specialTransactionToken, 'merge6-destination-destroyed');
+          releaseSpecialDiceTransaction(specialTransactionToken, 'merge6-destination-destroyed', { mode: 'abort-recovery' });
           return;
         }
         // LaserGun uses local DOM images and owns a safe on-demand fallback.
@@ -11542,7 +11803,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           markOwnedMergePhase('frame-readiness-end');
           if (dst.destroyed || mergeRunGenerationAtEntry !== gameplayRunGeneration
             || mergeGameplayGenerationAtEntry !== activeGameplayEntryGeneration) {
-            releaseSpecialDiceTransaction(specialTransactionToken, 'tnt-preload-owner-retired');
+            releaseSpecialDiceTransaction(specialTransactionToken, 'tnt-preload-owner-retired', { mode: 'abort-recovery' });
             return;
           }
           if (!tntFramesReady) {
@@ -11817,7 +12078,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         if (busyEnding) {
           devLog('⏳ Last merge check skipped - busyEnding is true');
           try { if (dst && !dst.destroyed) removeTile(dst); } catch {}
-          releaseSpecialDiceTransaction(specialTransactionToken, 'merge6-terminal-owner-active');
+          releaseSpecialDiceTransaction(specialTransactionToken, 'merge6-terminal-owner-active', { mode: 'abort-recovery' });
           scheduleOwnedMergeRecoveryCheck(0.12, 'merge6-terminal-owner-active');
           return;
         }
@@ -11837,7 +12098,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // 🔥 CRITICAL FIX: Add null/destroyed check - accessing dst.x on destroyed Pixi object throws
         if (!dst || dst.destroyed) {
           devWarn('⚠️ dst is null or destroyed in merge-6 animation setup - cannot proceed with shards animation');
-          releaseSpecialDiceTransaction(specialTransactionToken, 'merge6-animation-destination-destroyed');
+          releaseSpecialDiceTransaction(specialTransactionToken, 'merge6-animation-destination-destroyed', { mode: 'abort-recovery' });
           return;
         }
         let dstGridX = 0, dstGridY = 0, dstZIndex = 0;
@@ -11847,7 +12108,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           dstZIndex = dst.zIndex ?? 0;
         } catch (_) {
           devWarn('⚠️ dst properties inaccessible (destroyed) - skipping merge-6 animation setup');
-          releaseSpecialDiceTransaction(specialTransactionToken, 'merge6-animation-destination-inaccessible');
+          releaseSpecialDiceTransaction(specialTransactionToken, 'merge6-animation-destination-inaccessible', { mode: 'abort-recovery' });
           return;
         }
         
@@ -13344,10 +13605,23 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           // and no gameplay mutation remains. Release the exact token before
           // the modal/score flow so Play Again never has to force-reset a
           // lingering Star/Juice/Magnet/TNT owner.
-          releaseSpecialDiceTransaction(
+          if (regularMerge6CleanupToken !== null && dst) {
+            merge6DestinationCleanupOwner.release(dst, regularMerge6CleanupToken);
+            regularMerge6CleanupToken = null;
+          }
+          if (dst && !dst.destroyed) {
+            try { detachTileFromGrid(dst, grid); } catch {}
+            try { removeTile(dst); } catch {}
+          }
+          try { if (src && !src.destroyed) removeTile(src); } catch {}
+          const releasedSpecialOwner = releaseSpecialDiceTransaction(
             specialTransactionToken,
             `final-merge-clean-handoff:${finalMergeFx || 'regular'}`,
           );
+          if (specialTransactionToken !== null && !releasedSpecialOwner) {
+            scheduleOwnedMergeRecoveryCheck(0.12, 'final-merge-clean-handoff-release-blocked');
+            return;
+          }
           await triggerCleanBoardFlow(finalCleanReason, {
             finalMergeSnapshot,
             boardMutationEpoch: mergeBoardMutationEpoch,
@@ -13396,7 +13670,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           try {
             if (dst && !dst.destroyed) removeTile(dst);
           } catch {}
-          releaseSpecialDiceTransaction(specialTransactionToken, 'merge6-invalid-spawn-mult');
+          releaseSpecialDiceTransaction(specialTransactionToken, 'merge6-invalid-spawn-mult', { mode: 'abort-recovery' });
           scheduleOwnedMergeRecoveryCheck(0.12, 'merge6-invalid-spawn-mult');
           return;
         }
@@ -13419,7 +13693,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           try {
             if (dst && !dst.destroyed) removeTile(dst);
           } catch {}
-          releaseSpecialDiceTransaction(specialTransactionToken, 'merge6-late-spawn-owner-conflict');
+          releaseSpecialDiceTransaction(specialTransactionToken, 'merge6-late-spawn-owner-conflict', { mode: 'abort-recovery' });
           scheduleOwnedMergeRecoveryCheck(0.12, 'merge6-late-spawn-owner-conflict');
           return;
         } else {
@@ -13633,6 +13907,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             merge6DestinationCleanupOwner.release(dst, regularMerge6CleanupToken);
             regularMerge6CleanupToken = null;
           }
+          if (dst && !dst.destroyed) {
+            try { detachTileFromGrid(dst, grid); } catch {}
+            try { removeTile(dst); } catch {}
+          }
+          try { if (src && !src.destroyed) removeTile(src); } catch {}
           if (merge6SpawnOwnerToken !== null) {
             const releasedSpawnOwner = resetMerge6SpawnState(`final-merge-guard:${guardReason}`, {
               specialTransactionToken,
@@ -13643,10 +13922,14 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             }
             merge6SpawnOwnerToken = null;
           } else {
-            releaseSpecialDiceTransaction(
+            const releasedSpecialOwner = releaseSpecialDiceTransaction(
               specialTransactionToken,
               `final-merge-guard:${guardReason}`,
             );
+            if (specialTransactionToken !== null && !releasedSpecialOwner) {
+              scheduleOwnedMergeRecoveryCheck(0.12, `final-merge-guard-release-blocked:${guardReason}`);
+              throw new Error(`Unable to settle Special merge receipt for final guard: ${guardReason}`);
+            }
           }
           try { releaseSpecialDiceResolution(src); } catch {}
           try { releaseSpecialDiceResolution(dst); } catch {}
@@ -13917,23 +14200,19 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               }
             };
             const hardSpawnAtCell = () => {
-              return hardFallbackSpawnAtCellForMerge(spawnC, spawnR, {
+              return hardFallbackPrimarySpecialMergeCell(spawnC, spawnR, {
                 wildMergeTarget,
                 clearExisting: false,
                 reason: 'endgame-spawn-hard-fallback',
               });
             };
             const runSpawn = () => {
-              const spawnCommit = createMergeOpenCellSpawnCommit();
-              if (!spawnCommit) return Promise.resolve(false);
-              forceClearSpawnCell();
-              return openAtCell(spawnC, spawnR, {
+              return openPrimarySpecialMergeCell(spawnC, spawnR, {
                 value: (wildMergeTarget ? randomRegularTileValue(wildMergeTarget) : null),
                 skipBind: false,
                 timeScale: 2.0,
                 forceFreshPlaceholder: true,
-                spawnCommit,
-              });
+              }, forceClearSpawnCell);
             };
           const doEndgameSpawns = async () => {
             if (await maybeForceCleanBoardFromPreSpawnFinalMerge('endgame_before_spawn')) return;
@@ -14192,32 +14471,18 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 
             const refillWildMergeCellFresh = async (): Promise<number> => {
               try {
-                const at = tilesForSpawn.find((t: any) =>
-                  t && !t.destroyed && (t.gridX | 0) === (gx | 0) && (t.gridY | 0) === (gy | 0)
-                );
-                if (at) {
-                  const spec = (at as any).special;
-                  const isActive = !at.locked && (
-                    (at.value | 0) > 0 ||
-                    isWildLikeSpecial(spec)
-                  );
-                  if (isActive) return 1;
-                  try {
-                    if (grid?.[gy]?.[gx] === at) grid[gy][gx] = null;
-                    if (!at.destroyed && tilesForSpawn.includes(at)) removeTile(at);
-                  } catch (err) {
-                    devWarn('⚠️ WILD SPAWN: Failed to remove merge-6 placeholder', err);
-                  }
-                }
-              } catch (err) {
-                devWarn('⚠️ WILD SPAWN: merge cell prep failed', err);
-              }
-              try {
-                const ok = await openAtCellForMerge(gx, gy, {
+                const ok = await openPrimarySpecialMergeCell(gx, gy, {
                   value: pickSpawnValueWild(),
                   skipBind: false,
                   timeScale: 2.0,
                   forceFreshPlaceholder: true,
+                }, () => {
+                  const at = tilesForSpawn.find((t: any) =>
+                    t && !t.destroyed && (t.gridX | 0) === (gx | 0) && (t.gridY | 0) === (gy | 0)
+                  );
+                  if (!at) return;
+                  if (grid?.[gy]?.[gx] === at) grid[gy][gx] = null;
+                  if (!at.destroyed && tilesForSpawn.includes(at)) removeTile(at);
                 });
                 return ok ? 1 : 0;
               } catch (err) {
@@ -14527,8 +14792,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           dst.visible = false;
           dst.alpha = 0;
           dst.eventMode = 'none';
+          if (regularMerge6CleanupToken !== null) {
+            merge6DestinationCleanupOwner.release(dst, regularMerge6CleanupToken);
+            regularMerge6CleanupToken = null;
+          }
           
           removeTile(dst); // Remove from tiles array
+          settleSpecialMergeTransaction('magnet-without-pull-cleanup');
           clearMergeCellPlaceholderArtifact();
           devLog('✅ Merge 6 tile removed successfully (magnet merge without pull)');
           restoreSpecialMergeGhostAtMergeCell('magnet merge without pull');
@@ -14553,7 +14823,12 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 dst.visible = false;
                 dst.alpha = 0;
                 dst.eventMode = 'none';
+                if (regularMerge6CleanupToken !== null) {
+                  merge6DestinationCleanupOwner.release(dst, regularMerge6CleanupToken);
+                  regularMerge6CleanupToken = null;
+                }
                 removeTile(dst);
+                settleSpecialMergeTransaction('delayed-merge-cell-cleanup');
                 devLog('✅ Dst tile removed after end game spawn');
               }
             }, 100); // Delay to allow spawn to happen first
@@ -14580,11 +14855,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             
             if (regularMerge6CleanupToken !== null) {
               merge6DestinationCleanupOwner.release(dst, regularMerge6CleanupToken);
+              regularMerge6CleanupToken = null;
             }
             dst.visible = false;
             dst.alpha = 0;
             dst.eventMode = 'none';
             removeTile(dst);
+            settleSpecialMergeTransaction('post-spawn-destination-cleanup');
             devLog('✅ Dst tile removed successfully');
             restoreSpecialMergeGhostAtMergeCell(isWildTntMerge6 ? 'wild-tnt merge' : 'special merge');
           }
@@ -14607,7 +14884,12 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             dst.visible = false;
             dst.alpha = 0;
             dst.eventMode = 'none';
+            if (regularMerge6CleanupToken !== null) {
+              merge6DestinationCleanupOwner.release(dst, regularMerge6CleanupToken);
+              regularMerge6CleanupToken = null;
+            }
             removeTile(dst);
+            settleSpecialMergeTransaction('magnet-pull-cleanup');
             clearMergeCellPlaceholderArtifact();
             devLog('✅ Magnet pull merge dst removed successfully');
             restoreSpecialMergeGhostAtMergeCell('magnet pull merge');
@@ -14630,7 +14912,12 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           dst.visible = false;
           dst.alpha = 0;
           dst.eventMode = 'none';
+          if (regularMerge6CleanupToken !== null) {
+            merge6DestinationCleanupOwner.release(dst, regularMerge6CleanupToken);
+            regularMerge6CleanupToken = null;
+          }
           removeTile(dst);
+          settleSpecialMergeTransaction('magnet-failsafe-cleanup');
           clearMergeCellPlaceholderArtifact();
           devWarn('🧲 FAILSAFE: Forced removal of lingering magnet merge-6 tile to prevent stuck value 6');
           restoreSpecialMergeGhostAtMergeCell('magnet merge failsafe');
@@ -14768,9 +15055,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             resetMerge6SpawnState('async-completion-error', {
               specialTransactionToken,
               merge6SpawnOwnerToken,
+              specialTransactionAbortRecovery: true,
             });
           } else {
-            releaseSpecialDiceTransaction(specialTransactionToken, 'merge6-async-completion-error');
+            releaseSpecialDiceTransaction(specialTransactionToken, 'merge6-async-completion-error', { mode: 'abort-recovery' });
           }
           scheduleOwnedMergeRecoveryCheck(0.12, 'merge6-async-completion-error');
         }
@@ -14793,7 +15081,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         }
         try { releaseSpecialDiceResolution(src); } catch {}
         try { releaseSpecialDiceResolution(dst); } catch {}
-        releaseSpecialDiceTransaction(specialTransactionToken, 'merge6-absorb-interrupted');
+        releaseSpecialDiceTransaction(specialTransactionToken, 'merge6-absorb-interrupted', { mode: 'abort-recovery' });
       },
     });
     return;
@@ -14808,9 +15096,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     resetMerge6SpawnState('merge-sync-error', {
       specialTransactionToken,
       merge6SpawnOwnerToken,
+      specialTransactionAbortRecovery: true,
     });
   } else {
-    releaseSpecialDiceTransaction(specialTransactionToken, 'merge-sync-error');
+    releaseSpecialDiceTransaction(specialTransactionToken, 'merge-sync-error', { mode: 'abort-recovery' });
   }
   releaseRegularMergeHandoff(regularMergeHandoffToken, 'merge-sync-error');
   if (regularMerge6CleanupToken !== null && dst) {

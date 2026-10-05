@@ -217,3 +217,37 @@ export function getJourneyV700EnterOffset(unitId: string, index: number, reduced
   const normalized = (hash >>> 0) / 4294967295;
   return 0.035 + (normalized * 0.185);
 }
+
+/** Keep the authored short, irregular order without collapsing adjacent board
+ * IDs into one paint frame. Resolve the whole World before viewport admission:
+ * scrolling and a terminal return must not reshuffle a Unit's start position.
+ * Explicit offsets (notably the returning card at .24s) remain authoritative,
+ * but reserve their ordinary slot so the other Units do not move around them.
+ */
+export function getJourneyV700EnterOffsets(
+  units: readonly { id: string; enterDelayOffset?: number }[],
+  reducedMotion: boolean,
+): number[] {
+  const authored = units.map((unit, index) => getJourneyV700EnterOffset(unit.id, index, reducedMotion));
+  const offsets = units.map((unit, index) => Number.isFinite(unit.enterDelayOffset)
+    ? Number(unit.enterDelayOffset)
+    : authored[index]);
+  if (reducedMotion) return offsets;
+
+  const ordered = authored.map((offset, index) => ({ offset, index }))
+    .filter(({ offset }) => offset > 0)
+    .sort((left, right) => left.offset - right.offset || left.index - right.index);
+  const hasPaintCollision = ordered.some((entry, index) => index > 0
+    && entry.offset - ordered[index - 1].offset < 1 / 60);
+  if (!hasPaintCollision) return offsets;
+
+  // Ten board Units fit at >20ms intervals in the existing .035–.22s range.
+  // No new timer, lead-in, animation duration or intra-Unit stagger is added.
+  const spacing = 0.185 / (ordered.length - 1);
+  ordered.forEach(({ index }, rank) => {
+    if (!Number.isFinite(units[index].enterDelayOffset)) {
+      offsets[index] = 0.035 + rank * spacing;
+    }
+  });
+  return offsets;
+}

@@ -191,9 +191,8 @@ class UIManager {
   private isInitialized: boolean;
   private logoFadeInStarted: boolean; // 🔥 PREMIUM: Track if logo fade-in has started
   private homepageCtaControllers = new Map<HTMLButtonElement, CtaController>();
-  private journeyOpenQueued = false;
+  private journeyHomeReturnOwner: object | null = null;
   private journeyExitFailureOwner: object | null = null;
-  private queuedJourneyTutorialLaunch = false;
 
   constructor() {
     this.elements = {} as UIManagerElements;
@@ -1551,20 +1550,10 @@ class UIManager {
   
   // Show Journey screen with exit animation
   private showCollectiblesScreenWithAnimation(launchFirstPlayTutorial = false): void {
-    // A rapid tap can land on the newly revealed Homepage Journey CTA while
-    // Journey -> Homepage is still inside its owned enter. Cancelling that
-    // owner here used to re-render Journey mid-handoff and strand spatial
-    // motion in its held state. The settled Homepage is the only valid source
-    // for a new Journey route.
-    if ((window as any).__ccIsHidingCollectibles || homepageEnterTransitionOwner.isActive()) {
-      this.queueJourneyOpenAfterHomepageEnter(launchFirstPlayTutorial);
-      logger.info('⏳ Journey CTA queued until Homepage return settles');
-      emitIOSNativeDiagnostic('journey-open-queued-homepage-return-active', {
-        hidingCollectibles: (window as any).__ccIsHidingCollectibles === true,
-        homepageEnterActive: homepageEnterTransitionOwner.isActive(),
-      });
-      return;
-    }
+    // A painted Homepage can transfer its enter pose directly to exit. Retire
+    // the outer return continuation too: cancelling only its animation leaves
+    // late Journey cleanup free to destroy the newly requested destination.
+    if ((window as any).__ccIsHidingCollectibles && !homepageEnterTransitionOwner.isActive()) return;
     // Claim navigation before dispatching events or touching board/background
     // owners. A duplicate (including synchronous event reentry) does no work.
     if ((window as any).__ccUiJourneyTransitioning) {
@@ -1572,6 +1561,8 @@ class UIManager {
       return;
     }
     (window as any).__ccUiJourneyTransitioning = true;
+    this.journeyHomeReturnOwner = null;
+    (window as any).__ccIsHidingCollectibles = false;
     const journeyRouteToken = !launchFirstPlayTutorial
       ? journeyRouteTransitionCoordinator.begin(
           { view: 'home' },
@@ -1727,7 +1718,7 @@ class UIManager {
             const { ensureCollectiblesManager } = await import('../collectibles-manager.js');
             preparedCollectiblesManager = await ensureCollectiblesManager();
           }
-          await preparedCollectiblesManager.prepareJourneyScreen();
+          await preparedCollectiblesManager.prepareJourneyScreen({ requiredForVisibleEnter: true });
           return preparedCollectiblesManager;
         })().catch((error: Error) => {
           logger.warn('⚠️ Failed to prepare Journey screen:', error);
@@ -1810,44 +1801,6 @@ class UIManager {
     }
   }
 
-  private queueJourneyOpenAfterHomepageEnter(launchFirstPlayTutorial: boolean): void {
-    this.queuedJourneyTutorialLaunch ||= launchFirstPlayTutorial;
-    if (this.journeyOpenQueued) return;
-    this.journeyOpenQueued = true;
-
-    void (async () => {
-      try {
-        // A replacement Homepage enter cancels the old lease and immediately
-        // installs another one. Re-read until the single owner is truly idle.
-        while (homepageEnterTransitionOwner.isActive()) {
-          const settled = homepageEnterTransitionOwner.getCurrentSettled();
-          if (!settled) break;
-          await settled;
-        }
-
-        // The Journey -> Homepage wrapper clears its route guard immediately
-        // after the shared enter settles. Yield a bounded number of frames so
-        // the original tap is never discarded but cannot outlive navigation.
-        for (let frame = 0; frame < 8 && (window as any).__ccIsHidingCollectibles; frame += 1) {
-          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-        }
-        if ((window as any).__ccIsHidingCollectibles) {
-          logger.warn('⚠️ Queued Journey CTA cancelled because Homepage route never settled');
-          return;
-        }
-
-        const launchTutorial = this.queuedJourneyTutorialLaunch;
-        this.queuedJourneyTutorialLaunch = false;
-        this.journeyOpenQueued = false;
-        this.showCollectiblesScreenWithAnimation(launchTutorial);
-      } catch (error) {
-        logger.warn('⚠️ Queued Journey CTA failed:', error);
-      } finally {
-        this.queuedJourneyTutorialLaunch = false;
-        this.journeyOpenQueued = false;
-      }
-    })();
-  }
   
   // Hide Journey screen with enter animation
   async hideCollectiblesScreenWithAnimation(): Promise<void> {
@@ -1859,6 +1812,8 @@ class UIManager {
       return;
     }
     (window as any).__ccIsHidingCollectibles = true;
+    const returnOwner = this.journeyHomeReturnOwner = {};
+    const ownsReturn = () => this.journeyHomeReturnOwner === returnOwner;
     
     logger.info('🗺️ Hiding Journey screen - with exit animation');
     
@@ -2007,6 +1962,7 @@ class UIManager {
       logger.info('✅ Waited for estimated exit animation duration');
     }
     
+    if (!ownsReturn()) return;
     // 🔥 CRITICAL: Ensure Journey screen is completely hidden before showing homepage
     const journeyScreen = document.getElementById('journey-screen');
     if (journeyScreen) {
@@ -2021,6 +1977,7 @@ class UIManager {
     // 🔥 FAIL-SAFE: Ensure Journey animations are fully cleaned after hide
     try {
       const { journeyBoardsManager } = await import('../modules/journey-boards-manager.js');
+      if (!ownsReturn()) return;
       if (journeyBoardsManager && typeof journeyBoardsManager.cleanup === 'function') {
         journeyBoardsManager.cleanup();
         logger.info('✅ Journey boards manager cleanup called after hide');
@@ -2095,7 +2052,7 @@ class UIManager {
     
     // 🔥 FIX: Reset guard after animation completes (iOS optimization)
     setTimeout(() => {
-      (window as any).__ccIsHidingCollectibles = false;
+      if (ownsReturn()) (window as any).__ccIsHidingCollectibles = false;
     }, 2000);
   }
   

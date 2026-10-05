@@ -27,7 +27,6 @@ import {
   markJourneyReturnResultExitComplete,
   cancelJourneyReturnTransition,
   prepareJourneyReturnBehindTerminalOverlay,
-  warmJourneyReturnBehindSettledTerminal,
   measureJourneyReturnPreparationPhase,
   finishJourneyReturnCtaSetup,
 } from './journey-return-transition-trace.ts';
@@ -741,8 +740,6 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         await exitAnimation;
         if (!lifetime.isActive()) return;
         if (!isArcadeHomeRunMode()) {
-          await warmJourneyReturnBehindSettledTerminal('fail', journeyReturnTransitionId!);
-          if (!lifetime.isActive()) return;
           markJourneyReturnResultExitComplete(journeyReturnTransitionId);
         }
 

@@ -87,7 +87,9 @@ describe('Journey World-local Stage progression', () => {
     expect(playStart).toBeGreaterThan(-1);
     expect(playSource).toContain('this.reconcileMountedJourneyWorldCardUnits(');
     expect(playSource).toContain('if (!hasLivePreparedPlan)');
-    expect(playSource).toContain('this.trackRAF(() => this.installInterimAreaHitTargets(cardsContainer));');
+    expect(playSource).not.toContain('this.trackRAF(() => this.installInterimAreaHitTargets(cardsContainer));');
+    expect(playSource).toContain('this.canReuseJourneyInterimHitTargets(cardsContainer)');
+    expect(playSource).toContain('enterCompletion.then');
   });
 
   test('restores an interim completion to New before rendering its Unit and return modal', () => {

@@ -3,7 +3,7 @@
   "sharedTransportPolicy": {
     "ownerFile": "src/modules/gameplay-audio-buffer-player.ts",
     "preparation": "Readiness probes never fetch/decode. Explicit optional preload uses a bounded 256-source metadata history and rechecks admission when queued work starts. Declared route/result packages reserve their complete conservative decoded ceiling before any member starts; a package that would displace active leases or audibly proven hot cues is skipped as one unit, while exact audible play still bypasses speculative admission. Once all members have known decoded sizes, a repeated multi-cue family preload is admitted atomically and may replace stale idle family data without displacing active/pending playback or another admitted package. Known unretainable buffers and never-audible evicted single cues are deferred until audible playback requests them.",
-    "residency": "Existing 28MiB mobile and 16MiB pressure ceilings remain reuse-aware across routes and are deliberately independent of app-zone presentation epochs after the failed 2026-10-02 physical A/B. Generation-safe package leases protect only the active card/result owner and release on replacement, abort, background, Settings cleanup, pressure or explicit lifecycle disposal. A coherently prepared family gives both already-resident and newly decoded members one bounded cache-priority tier below repeatedly audible common cues and above once-audible stale cues, preventing sibling decode/evict thrash without increasing the ceiling. The first warning trims to the hottest bounded working set and a repeated warning releases all idle entries. Active/pending voices remain protected. Audible history counts successful native starts and evictions, survives eviction, and contains no AudioBuffer. Native onended owns ordinary one-shot retirement; one bounded authored-duration plus 250ms wall cleanup guard releases a non-loop record if a running WKWebView context has a frozen audio clock and never emits onended. Explicit stop, replacement, native completion and background cleanup cancel that guard; loops are excluded. Concurrent recovery callers share one native AudioContext.resume attempt instead of canceling and restarting it.",
+    "residency": "Existing 28MiB mobile and 16MiB pressure ceilings remain reuse-aware across routes and are deliberately independent of app-zone presentation epochs after the failed 2026-10-02 physical A/B. Generation-safe package leases protect the active card/result owner and the persistent 4MiB critical Journey Navigation/CTA package. Journey transitions trim only enough unprotected idle data to guarantee that declared headroom, preserve reusable cues when already below target, preserve active/pending voices, the current captured 16MiB Special family and one retained long loop, suspend new speculative jobs, and discard an already-running unrelated speculative decode if it completes inside the visible window. Transition release ends quarantine without dropping the Journey core package; explicit Journey leave, background hard teardown, Settings cleanup or pressure releases it. Captured Special jobs carry their exact working-set token through fetch/decode, so a stale old-family completion is discarded after replacement. A coherently prepared family gives both already-resident and newly decoded members one bounded cache-priority tier below repeatedly audible common cues and above once-audible stale cues, preventing sibling decode/evict thrash without increasing the ceiling. The first warning trims to the hottest bounded working set and a repeated warning releases all idle entries. Active/pending voices remain protected. Audible history counts successful native starts and evictions, survives eviction, and contains no AudioBuffer. Native onended owns ordinary one-shot retirement; one bounded authored-duration plus 250ms wall cleanup guard releases a non-loop record if a running WKWebView context has a frozen audio clock and never emits onended. Explicit stop, replacement, native completion and background cleanup cancel that guard; loops are excluded. Concurrent recovery callers share one native AudioContext.resume attempt instead of canceling and restarting it.",
     "tests": ["src/modules/__tests__/gameplay-audio-buffer-player.test.ts", "src/modules/__tests__/gameplay-audio-mobile-residency.test.ts", "src/modules/__tests__/gameplay-audio-load-scheduler.test.ts", "src/modules/__tests__/soundtrack-context-recovery.test.ts"],
     "physicalAcceptance": "NEEDS PHYSICAL TEST for onset, decode churn and thermal contribution."
   },
@@ -66,6 +66,42 @@
         "src/modules/__tests__/thermal-gameplay-audio-cleanup.test.ts"
       ],
       "physicalAcceptance": "NEEDS PHYSICAL TEST for main-image enter and immediate exit contact sync on all three Homepage slides."
+    },
+    {
+      "id": "journey-critical-audio-working-set",
+      "ownerFile": "src/modules/journey-audio-working-set.ts",
+      "family": "Navigation/CTA and Journey",
+      "eventOwner": "The visible Journey route owns one bounded decoded core package across Hub/World transitions; Journey-to-game releases it at gameplay commit and gameplay-to-Journey releases active Special residency before reacquiring it. Each visible transition separately owns critical-load suspension until completion, replacement or abort.",
+      "transport": "Shared decoded gameplay SFX engine only; no new AudioContext, media element, timer or recurring work.",
+      "voicePolicy": "Residency only. Existing feature owners retain every authored voice ID, cue selection, gain, trigger, fallback and stop boundary.",
+      "preloadPolicy": "Protect fifteen exact short Navigation/CTA, backpack, card-flip and Unit/Hub-motion sources under a conservative 4 MiB ceiling. Missing sources stay queued during the critical window. Before acquisition, compact only enough unprotected idle data to guarantee the declared 4 MiB headroom under the current effect budget; keep reusable cues when already below target.",
+      "settingsPolicy": "Acquisition requires gameSoundsEnabled. Global Sounds OFF releases every active critical transition, its speculative-load suspension and the route-scoped Journey core package; Sounds ON never replays or prepares an old transition.",
+      "interruptionPolicy": "Transition release is idempotent and ends only the speculative-load quarantine. The Journey core package remains resident across Hub/World transitions but is released before gameplay Special residency; return releases Special residency before Journey acquisition. Reacquiring a current Journey package is a no-op. One global reservation ledger prevents package plus working-set overcommit under the current budget. Active/pending voices and one retained long loop survive the headroom sweep; in-flight unrelated speculative decode completions are discarded during the critical window.",
+      "stopExport": "stopJourneyCriticalAudioWorkingSets",
+      "globalRegistryRequired": true,
+      "sources": [
+        "./assets/sound/CTA/deeper.wav",
+        "./assets/sound/CTA/pumb.wav",
+        "./assets/sound/CTA/cta-splat.wav",
+        "./assets/sound/CTA/cta squishy.wav",
+        "./assets/sound/card reveal/klik plop.wav",
+        "./assets/sound/CTA/deppimpact.wav",
+        "./assets/sound/CTA/poping.wav",
+        "./assets/sound/CTA/wood click.wav",
+        "./assets/sound/crate and backpack animaitons/backpack/backpack1.wav",
+        "./assets/sound/crate and backpack animaitons/backpack/backpack2.wav",
+        "./assets/sound/cjelina flip/menu flip.wav",
+        "./assets/sound/cjelina flip/flip.wav",
+        "./assets/sound/cjelina flip/flip soft.wav",
+        "./assets/sound/Board transitions/elements down1.wav",
+        "./assets/sound/Board transitions/elemens down2.wav"
+      ],
+      "tests": [
+        "src/modules/__tests__/journey-audio-working-set.test.ts",
+        "src/modules/__tests__/gameplay-audio-mobile-residency.test.ts",
+        "src/modules/__tests__/special-sound-warmup.test.ts"
+      ],
+      "physicalAcceptance": "NEEDS PHYSICAL TEST for decode-churn reduction, Hub/World transition frames, speaker continuity and sustained thermal behavior on iPhone 13 blue."
     },
     {
       "id": "journey-card-entry-flip",

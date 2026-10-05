@@ -25,11 +25,11 @@ function fixture(worldId: number) {
   const container = document.getElementById('journey-boards-container')!;
   const owner: any = {
     renderLifecycleGeneration: 1,
-    journeyV700PreparedWorldEnter: { targets: [document.getElementById('unit')], ownerToken: 7 },
-    journeyReturnPaintWarmLease: null,
-    waitForTrackedFrames: async () => true,
+    journeyV700WorldId: worldId, journeyV700View: 'world',
+    journeyV700PreparedWorldEnter: { worldId, renderGeneration: 1, targets: [document.getElementById('unit')], units: [{}], ownerToken: 7 },
+    resumeForVisibleWorldReturn: jest.fn(),
   };
-  for (const name of ['startJourneyReturnPaintWarm', 'releaseJourneyReturnPaintWarmLease']) {
+  for (const name of ['prepareJourneyV700WorldEnterFromReturn', 'cancelPreparedJourneyV700WorldEnter']) {
     const method = methods.get(name)!;
     const code = ts.transpileModule(`function run(${method.parameters.map(p => p.getText(managerSource)).join(',')}) ${method.body!.getText(managerSource)}`,
       { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
@@ -40,7 +40,7 @@ function fixture(worldId: number) {
   runtime.__ccEndgameFlowAbortToken = 0;
   runtime.exitingToMenu = false;
   const guard = makeGuard(window, document, isScreenPresented, 0) as () => boolean;
-  return { screen, container, owner, guard, runtime, warm: () => owner.startJourneyReturnPaintWarm(container, worldId, 7, 'terminal-overlay') };
+  return { screen, container, owner, guard, runtime, warm: () => owner.prepareJourneyV700WorldEnterFromReturn('terminal-overlay', 7) };
 }
 
 afterEach(() => {
@@ -53,13 +53,13 @@ test.each([1, 2, 3])('World %s preparation cannot abort Clean Board or block sha
   const f = fixture(worldId);
   f.warm();
   for (let i = 0; i < 10; i++) await Promise.resolve();
-  expect(f.owner.journeyReturnPaintWarmLease.ready).toBe(true);
-  expect(f.screen.hidden).toBe(false);
-  expect(getComputedStyle(f.screen).display).toBe('flex');
-  expect(f.screen.style.opacity).toBe('0.001');
+  expect(f.owner.journeyV700PreparedWorldEnter.ownerToken).toBe(7);
+  expect(f.screen.hidden).toBe(true);
+  expect(getComputedStyle(f.screen).display).toBe('none');
+  expect(f.screen.style.opacity).toBe('0');
   expect(f.guard()).toBe(false);
   expect(getScreenVisibility()).toEqual({ appVisible: true, homeVisible: false, journeyVisible: false });
-  f.owner.releaseJourneyReturnPaintWarmLease(7, 'visible-enter-promoted', false);
+  f.screen.hidden = false; f.screen.classList.remove('hidden'); f.screen.style.display = 'flex';
   f.screen.style.opacity = '1';
   expect(f.guard()).toBe(true);
   expect(getScreenVisibility().journeyVisible).toBe(true);
@@ -71,23 +71,22 @@ test.each(['home', 'token', 'exit'])('real %s navigation still aborts during pre
   if (reason === 'token') f.runtime.__ccEndgameFlowAbortToken = 1;
   if (reason === 'exit') f.runtime.exitingToMenu = true;
   expect(f.guard()).toBe(true);
-  f.owner.releaseJourneyReturnPaintWarmLease(7, 'cancelled', true);
+  f.owner.cancelPreparedJourneyV700WorldEnter(7, 'cancelled');
   expect(f.screen.hidden).toBe(true);
   expect(f.screen.style.display).toBe('none');
   expect(f.screen.style.opacity).toBe('0');
 });
 
-test('replacement, wrong-token cleanup and late image completion cannot retire newer preparation', async () => {
+test('wrong-token cleanup cannot retire newer preparation or expose its screen', async () => {
   const f = fixture(2); f.warm();
   f.owner.journeyV700PreparedWorldEnter = { targets: [document.getElementById('unit')], ownerToken: 8 };
-  f.owner.startJourneyReturnPaintWarm(f.container, 2, 8, 'replacement');
-  f.owner.releaseJourneyReturnPaintWarmLease(7, 'stale-cancel', true);
+  f.owner.cancelPreparedJourneyV700WorldEnter(7, 'stale-cancel');
   for (let i = 0; i < 10; i++) await Promise.resolve();
-  expect(f.owner.journeyReturnPaintWarmLease.ownerToken).toBe(8);
+  expect(f.owner.journeyV700PreparedWorldEnter.ownerToken).toBe(8);
   expect(f.guard()).toBe(false);
-  f.owner.releaseJourneyReturnPaintWarmLease(8, 'manager-cleanup', true);
+  f.owner.cancelPreparedJourneyV700WorldEnter(8, 'manager-cleanup');
   expect(f.screen.hidden).toBe(true);
-  f.screen.hidden = false; f.screen.style.display = 'flex';
+  f.screen.hidden = false; f.screen.classList.remove('hidden'); f.screen.style.display = 'flex';
   expect(f.guard()).toBe(true);
 });
 

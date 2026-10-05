@@ -4,7 +4,7 @@ import { suspendSpeculativeGameplayAudioLoads } from './gameplay-audio-buffer-pl
 import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
 import { acquireForegroundResourceCriticalLease } from './foreground-resource-coordinator.ts';
 
-type JourneyReturnSource = 'clean-board' | 'fail';
+type JourneyReturnSource = 'clean-board' | 'fail' | 'exit-game';
 
 let generation = 0;
 let prewarmGeneration = 0;
@@ -254,43 +254,6 @@ export async function waitForJourneyReturnDestination(transitionId: number): Pro
   return isActiveTransition(transitionId) && ready === true;
 }
 
-/**
- * The moving result has finished, but its opaque paper still owns the screen.
- * Use that static cover to pay the exact destination's connected paint cost;
- * if preparation is late or stale, return immediately and keep the canonical
- * recovery path rather than extending a blank cover indefinitely.
- */
-export async function warmJourneyReturnBehindSettledTerminal(
-  source: JourneyReturnSource,
-  transitionId: number,
-): Promise<boolean> {
-  if (!isActiveTransition(transitionId)) return false;
-  // Do not lengthen a terminal cover waiting for construction. Clean Board's
-  // settled-result owner normally finished this well before CTA; Fail may not
-  // have, and then its canonical post-exit recovery remains authoritative.
-  if (active?.destinationPrepared !== true) return false;
-  try {
-    const { journeyBoardsManager } = await import('./journey-boards-manager.js');
-    if (!isActiveTransition(transitionId)) return false;
-    active?.preparation?.mark('settled-cover-paint-requested');
-    const painted = await journeyBoardsManager.warmPreparedJourneyV700WorldEnterBehindSettledTerminal?.(
-      transitionId,
-      `terminal-settled-cover:${source}`,
-      active?.preparation ?? null,
-    ) === true;
-    if (isActiveTransition(transitionId)) {
-      markJourneyReturnTransition('destination-painted-behind-settled-result', { painted });
-    }
-    return isActiveTransition(transitionId) && painted;
-  } catch (error) {
-    if (isActiveTransition(transitionId)) {
-      markJourneyReturnTransition('destination-settled-paint-failed', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-    return false;
-  }
-}
 
 export function getJourneyReturnRevealToken(): number | null {
   return active?.resultExitCompletedAt != null ? active.id : null;

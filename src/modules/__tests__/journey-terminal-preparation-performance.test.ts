@@ -36,7 +36,6 @@ describe('terminal Journey preparation phase diagnostics', () => {
     delete (window as any).__ccPerformanceDiagnostics;
   });
   const summary = (index = 0) => JSON.parse(postMessage.mock.calls[index][0].message.split('summary ')[1]);
-  const flush = async () => { for (let i = 0; i < 15; i++) await Promise.resolve(); };
 
   function managerFixture(cold: boolean) {
     document.body.innerHTML = '<section id="journey-screen" hidden class="hidden"><div id="journey-boards-container"></div></section>';
@@ -66,9 +65,10 @@ describe('terminal Journey preparation phase diagnostics', () => {
       waitForTrackedFrames: jest.fn(async () => { now += 16; return true; }),
       resumeForVisibleWorldReturn: jest.fn(),
     };
-    for (const name of ['prepareJourneyV700WorldEnterFromReturn', 'startJourneyReturnPaintWarm', 'releaseJourneyReturnPaintWarmLease']) {
+    for (const name of ['prepareJourneyV700WorldEnterFromReturn', 'adoptPreparedJourneyV700WorldEnter', 'waitForPreparedJourneyV700WorldEnter', 'cancelPreparedJourneyV700WorldEnter']) {
       const method = methods.get(name)!;
-      const code = ts.transpileModule(`function run(${method.parameters.map(parameter => parameter.getText(parsed)).join(',')}) ${method.body!.getText(parsed)}`,
+      const asyncPrefix = method.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.AsyncKeyword) ? 'async ' : '';
+      const code = ts.transpileModule(`${asyncPrefix}function run(${method.parameters.map(parameter => parameter.getText(parsed)).join(',')}) ${method.body!.getText(parsed)}`,
         { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
       owner[name] = new Function('beginScreenPreparation', 'emitIOSNativeDiagnostic', 'waitForImageReady',
         `${code}; return run;`)(beginScreenPreparation, jest.fn(), () => { now += 2; return imagesReady; }).bind(owner);
@@ -86,79 +86,47 @@ describe('terminal Journey preparation phase diagnostics', () => {
     };
   }
 
-  test('disabled diagnostics preserve real preparation without adding timers or logs', async () => {
-    (window as any).__ccPerformanceDiagnostics = false;
-    const capture = beginJourneyTerminalPreparationPerformance(7, 'clean-board', 25);
-    expect(capture).toBeNull();
-    expect(jest.getTimerCount()).toBe(0);
-    const f = managerFixture(true);
-    expect(f.prepare(capture)).toBe(true);
-    f.finishImages(); await flush();
-    expect(f.owner.journeyReturnPaintWarmLease.ready).toBe(true);
-    expect(f.owner.waitForTrackedFrames).toHaveBeenCalledTimes(3);
-    expect(jest.getTimerCount()).toBe(0);
-    expect(postMessage).not.toHaveBeenCalled();
-    f.owner.releaseJourneyReturnPaintWarmLease(7, 'test', true);
-  });
-
-  test.each([true, false])('actual owner separates synchronous setup from image wait/layout/paint (cold=%s)', async cold => {
+  test.each([true, false])('prepares hidden World without image or paint barriers (cold=%s)', async cold => {
     const capture = beginJourneyTerminalPreparationPerformance(7, 'clean-board', 25)!;
     const f = managerFixture(cold);
+    const before = f.screen.firstElementChild?.firstElementChild;
     expect(f.prepare(capture)).toBe(true);
-    capture.mark('prepare-returned');
-    expect(postMessage).not.toHaveBeenCalled();
-    now += 200;
-    f.finishImages(); await flush();
-    expect(postMessage).toHaveBeenCalledTimes(1);
-    const record = summary();
-    expect(record).toMatchObject({ transitionId: 7, boardId: 25, worldId: 3, cold, existingUnits: cold ? 0 : 1, imageCount: 1, targetCount: 1, reason: 'painted' });
-    const durations = Object.fromEntries(record.phases.map((phase: { name: string; durationMs: number }) => [phase.name, phase.durationMs]));
-    expect(durations).toMatchObject({ 'transform-reset': 3, reconcile: 4, prime: 5, 'image-dispatch': 2, 'warm-dispatch': 2, 'image-ready': 202, 'forced-layout': 18, 'paint-frame-1': 16, 'paint-frame-2': 16, 'paint-frame-3': 16 });
-    expect(durations['cold-render']).toBe(cold ? 40 : undefined);
     expect(f.owner.renderBoards).toHaveBeenCalledTimes(cold ? 1 : 0);
-    const target = document.getElementById('unit')!;
-    expect(target.style.opacity).toBe('0.001');
-    expect(jest.getTimerCount()).toBe(0);
-    f.owner.releaseJourneyReturnPaintWarmLease(7, 'visible-enter-promoted', false);
-    expect(target.style.opacity).toBe('0.001');
-    capture.finish('duplicate');
-    expect(postMessage).toHaveBeenCalledTimes(1);
-  });
-
-  test('release during image wait reports once and late completion cannot append or paint', async () => {
-    const capture = beginJourneyTerminalPreparationPerformance(7, 'clean-board', 25)!;
-    const f = managerFixture(true);
-    f.prepare(capture);
-    const target = document.getElementById('unit')!;
-    expect(target.style.opacity).toBe('0.001');
-    f.owner.releaseJourneyReturnPaintWarmLease(7, 'cancelled', true);
-    expect(summary().reason).toBe('released:cancelled');
     expect(f.screen.hidden).toBe(true);
-    expect(target.style.opacity).toBe('');
-    const emitted = postMessage.mock.calls[0][0].message;
-    f.finishImages(); await flush();
+    expect(f.screen.className).toBe('hidden');
+    expect(f.screen.getAttribute('style')).toBeNull();
+    if (!cold) expect(f.screen.firstElementChild?.firstElementChild).toBe(before);
     expect(f.owner.waitForTrackedFrames).not.toHaveBeenCalled();
-    expect(postMessage).toHaveBeenCalledTimes(1);
-    expect(postMessage.mock.calls[0][0].message).toBe(emitted);
+    expect(f.screen.getBoundingClientRect).not.toHaveBeenCalled();
+    expect(await f.owner.waitForPreparedJourneyV700WorldEnter(7)).toBe(true);
+    expect(summary()).toMatchObject({ transitionId: 7, worldId: 3, cold, reason: 'prepared' });
+    const names = summary().phases.map((phase: { name: string }) => phase.name);
+    expect(names).not.toContain('image-dispatch');
+    expect(names).not.toContain('paint-frame-1');
     expect(jest.getTimerCount()).toBe(0);
   });
 
-  test('settled-result cold prewarm builds and primes without a paint-warm lease', () => {
-    const f = managerFixture(true);
-    const presentationBefore = {
-      hidden: f.screen.hidden,
-      className: f.screen.className,
-      style: f.screen.getAttribute('style'),
-    };
-    expect(f.prepare(null, { warmPaint: false })).toBe(true);
-    expect(f.owner.renderBoards).toHaveBeenCalledTimes(1);
-    expect(f.owner.journeyReturnPaintWarmLease).toBeNull();
-    expect(f.owner.waitForTrackedFrames).not.toHaveBeenCalled();
-    expect({
-      hidden: f.screen.hidden,
-      className: f.screen.className,
-      style: f.screen.getAttribute('style'),
-    }).toEqual(presentationBefore);
+  test('reuses and adopts prepared identities; an old token cannot clear its successor', async () => {
+    const f = managerFixture(false);
+    expect(f.prepare(null)).toBe(true);
+    const targets = f.owner.journeyV700PreparedWorldEnter.targets;
+    expect(f.prepare(null)).toBe(true);
+    expect(f.owner.reconcileMountedJourneyWorldCardUnits).toHaveBeenCalledTimes(1);
+    expect(f.owner.adoptPreparedJourneyV700WorldEnter(7, 8)).toBe(true);
+    f.owner.cancelPreparedJourneyV700WorldEnter(7, 'stale');
+    expect(f.owner.journeyV700PreparedWorldEnter.targets).toBe(targets);
+    expect(await f.owner.waitForPreparedJourneyV700WorldEnter(7)).toBe(false);
+    expect(await f.owner.waitForPreparedJourneyV700WorldEnter(8)).toBe(true);
+    targets[0].remove();
+    expect(await f.owner.waitForPreparedJourneyV700WorldEnter(8)).toBe(false);
+  });
+
+  test('disabled diagnostics add no timers or native records', () => {
+    (window as any).__ccPerformanceDiagnostics = false;
+    const f = managerFixture(false);
+    expect(f.prepare(beginJourneyTerminalPreparationPerformance(7, 'clean-board', 25))).toBe(true);
+    expect(jest.getTimerCount()).toBe(0);
+    expect(postMessage).not.toHaveBeenCalled();
   });
 
   test('reveal transform preparation batches all GSAP retirement and one RAF per World', () => {
@@ -294,6 +262,8 @@ describe('terminal Journey preparation phase diagnostics', () => {
         current.replaceWith(replacement);
         return [4];
       }),
+      getLastActiveJourneyBoardAreaId: () => 0,
+      restoreJourneyRetainedReturnCardVisuals: jest.fn(() => true),
       primeJourneyV700WorldEnterIncrementally: jest.fn(async (
         _container: HTMLElement,
         worldId: number,
@@ -314,6 +284,7 @@ describe('terminal Journey preparation phase diagnostics', () => {
       updateJourneyV700Nav: jest.fn(),
       installJourneyScreenElasticOverscroll: jest.fn(),
       installInterimAreaHitTargets: jest.fn(),
+      canReuseJourneyInterimHitTargets: jest.fn(() => false),
       trackRAF: jest.fn(),
       setupIdleInteractionListeners: jest.fn(),
       retireJourneyBoardOwnersBeforeDomReplace: jest.fn(),
@@ -325,7 +296,9 @@ describe('terminal Journey preparation phase diagnostics', () => {
         `function run(${method.parameters.map(parameter => parameter.getText(parsed)).join(',')}) ${method.body!.getText(parsed)}`,
         { compilerOptions: { target: ts.ScriptTarget.ES2022 } },
       ).outputText;
-      return new Function('emitIOSNativeDiagnostic', `${code}; return run;`)(jest.fn()).bind(owner);
+      return new Function('emitIOSNativeDiagnostic', 'beginTransitionPerformance', `${code}; return run;`)(
+        jest.fn(), () => ({ phase: (_name: string, work: () => unknown) => work(), finish: jest.fn() }),
+      ).bind(owner);
     };
     owner.isJourneyTerminalReturnBuildCurrent = bind('isJourneyTerminalReturnBuildCurrent');
     owner.prepareJourneyV700WorldEnterFromReturnIncrementally = bind(
@@ -334,7 +307,7 @@ describe('terminal Journey preparation phase diagnostics', () => {
     owner.playJourneyV700WorldEnterFromReturn = bind('playJourneyV700WorldEnterFromReturn');
     owner.cancelPreparedJourneyV700WorldEnter = bind('cancelPreparedJourneyV700WorldEnter');
     owner.releaseJourneyReturnPaintWarmLease = jest.fn();
-    owner.playJourneyV700WorldEnter = jest.fn();
+    owner.playJourneyV700WorldEnter = jest.fn(async () => { owner.journeyV700Phase = 'idle'; });
     owner.suspendForGameplay = jest.fn(function (this: any) { this.renderDisposed = true; });
 
     const first = owner.prepareJourneyV700WorldEnterFromReturnIncrementally('first-return', -1);
@@ -355,6 +328,8 @@ describe('terminal Journey preparation phase diagnostics', () => {
     expect(owner.trackRAF).not.toHaveBeenCalled();
     owner.playJourneyV700WorldEnterFromReturn('game-return-test', { ownerToken: -2 });
     owner.trackRAF.mock.calls.forEach(([callback]: [() => void]) => callback());
+    expect(owner.installInterimAreaHitTargets).not.toHaveBeenCalled();
+    await Promise.resolve();
     expect(owner.installInterimAreaHitTargets).toHaveBeenCalledTimes(1);
     expect(owner.setupIdleInteractionListeners).toHaveBeenCalledTimes(1);
 
@@ -363,6 +338,167 @@ describe('terminal Journey preparation phase diagnostics', () => {
     owner.cancelPreparedJourneyV700WorldEnter(-2, 'replacement-cancelled');
     expect(owner.journeyV700PreparedWorldEnter).toBeNull();
     expect(owner.suspendForGameplay).toHaveBeenCalledTimes(1);
+  });
+
+  test('incremental retained Beach return normalizes all ten cards before Unit priming', async () => {
+    document.body.innerHTML = `
+      <section id="journey-screen" hidden class="hidden">
+        <div id="journey-boards-container" data-journey-v700-view="world" data-journey-v700-world-id="2">
+          <div id="beach-main" data-journey-area-id="beach-main"></div>
+          <div class="journey-cards-container">
+            ${Array.from({ length: 10 }, (_, index) => {
+              const boardId = index + 11;
+              return `<div class="journey-board-card-wrapper" data-board-id="${boardId}" data-journey-area-id="board-${boardId}" style="pointer-events:none;transition:none;will-change:transform">
+                <div class="journey-board-card unlocked journey-card-tapping" data-board-id="${boardId}" style="transform:scale(0);opacity:0;visibility:hidden;pointer-events:none;transition:none!important;will-change:transform">
+                  <img data-card-art="${boardId}" src="forest-${boardId}.png"><svg data-card-svg="${boardId}"><path d="M0 0"></path></svg>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+      </section>`;
+    const container = document.getElementById('journey-boards-container') as HTMLElement;
+    const cards = Array.from(container.querySelectorAll<HTMLElement>('.journey-board-card'));
+    const wrappers = Array.from(container.querySelectorAll<HTMLElement>('.journey-board-card-wrapper'));
+    const imageNodes = cards.map((card) => card.querySelector('img'));
+    const svgNodes = cards.map((card) => card.querySelector('svg'));
+    wrappers.forEach((wrapper, index) => {
+      (wrapper as any).__ccJourneyCardTapExitActive = index % 2 === 0;
+      (wrapper as any).__ccJourneyToGameExitTween = index % 2 === 1;
+    });
+    const callOrder: string[] = [];
+    const owner: any = {
+      journeyTerminalReturnBuild: null,
+      journeyV700PreparedWorldEnter: null,
+      journeyGameplaySuspension: { surface: container },
+      renderDisposed: false,
+      renderLifecycleGeneration: 9,
+      journeyV700WorldId: 2,
+      journeyV700View: 'world',
+      container: null,
+      resumeForVisibleWorldReturn: jest.fn(),
+      getJourneyWorldRange: () => ({ start: 11, end: 20 }),
+      getJourneyV700AnimationUnits: () => Array.from(
+        container.querySelectorAll<HTMLElement>('[data-journey-area-id]'),
+      ).map((target) => ({ id: target.dataset.journeyAreaId, targets: [target], clouds: [] })),
+      reconcileMountedJourneyWorldCardUnits: jest.fn(() => {
+        callOrder.push('reconcile');
+        return [];
+      }),
+      getLastActiveJourneyBoardAreaId: jest.fn(() => 1),
+      isJourneyV700TargetOwnedByRoot: (root: HTMLElement, target: HTMLElement) => root.contains(target),
+      isJourneyCardTapExitProtectedTarget: () => false,
+      getJourneyBoardCardVisualTarget: (wrapper: HTMLElement) => (
+        wrapper.querySelector<HTMLElement>('.journey-board-card') || wrapper
+      ),
+      primeJourneyV700WorldEnterIncrementally: jest.fn(async (
+        _container: HTMLElement,
+        worldId: number,
+        ownerToken: number,
+      ) => {
+        callOrder.push('prime-units');
+        const targets = Array.from(container.querySelectorAll<HTMLElement>('[data-journey-area-id]'));
+        return {
+          worldId,
+          renderGeneration: owner.renderLifecycleGeneration,
+          ownerToken,
+          units: targets.map((target) => ({ id: target.dataset.journeyAreaId, targets: [target], clouds: [] })),
+          targets,
+          cloudsPrimed: true,
+        };
+      }),
+      renderJourneyWorldIncrementally: jest.fn(async () => true),
+      updateJourneyV700Nav: jest.fn(),
+      installJourneyScreenElasticOverscroll: jest.fn(),
+      installInterimAreaHitTargets: jest.fn(),
+      trackRAF: jest.fn(),
+      setupIdleInteractionListeners: jest.fn(),
+      retireJourneyBoardOwnersBeforeDomReplace: jest.fn(),
+      logJourneyV700Flow: jest.fn(),
+    };
+    const bind = (name: string) => {
+      const method = methods.get(name)!;
+      const code = ts.transpileModule(
+        `function run(${method.parameters.map(parameter => parameter.getText(parsed)).join(',')}) ${method.body!.getText(parsed)}`,
+        { compilerOptions: { target: ts.ScriptTarget.ES2022 } },
+      ).outputText;
+      return new Function('emitIOSNativeDiagnostic', `${code}; return run;`)(jest.fn()).bind(owner);
+    };
+    owner.isJourneyTerminalReturnBuildCurrent = bind('isJourneyTerminalReturnBuildCurrent');
+    const restoreMethod = methods.get('restoreJourneyBoardCardVisualTarget')!;
+    const restoreCode = ts.transpileModule(
+      `function run(${restoreMethod.parameters.map(parameter => parameter.getText(parsed)).join(',')}) ${restoreMethod.body!.getText(parsed)}`,
+      { compilerOptions: { target: ts.ScriptTarget.ES2022 } },
+    ).outputText;
+    const restoreJourneyBoardCardVisualTarget = new Function(
+      'gsap',
+      'restoreJourneyBoardCardBaseTransform',
+      `${restoreCode}; return run;`,
+    )(
+      {
+        killTweensOf: jest.fn(),
+        set: jest.fn((target: HTMLElement, vars: { clearProps?: string }) => {
+          vars.clearProps?.split(',').forEach((property) => target.style.removeProperty(property));
+        }),
+      },
+      jest.fn(),
+    ).bind(owner);
+    owner.restoreJourneyBoardCardVisualTarget = jest.fn((wrapper: HTMLElement) => {
+      restoreJourneyBoardCardVisualTarget(wrapper);
+    });
+    owner.restoreJourneyRetainedReturnCardVisuals = jest.fn((...args: unknown[]) => {
+      callOrder.push('normalize-all-cards');
+      return bind('restoreJourneyRetainedReturnCardVisuals')(...args);
+    });
+    owner.prepareJourneyV700WorldEnterFromReturnIncrementally = bind(
+      'prepareJourneyV700WorldEnterFromReturnIncrementally',
+    );
+
+    await expect(owner.prepareJourneyV700WorldEnterFromReturnIncrementally(
+      'terminal-settled:clean-board',
+      -7,
+    )).resolves.toBe(true);
+
+    expect(owner.restoreJourneyBoardCardVisualTarget).toHaveBeenCalledTimes(10);
+    expect(owner.getLastActiveJourneyBoardAreaId).not.toHaveBeenCalled();
+    cards.forEach((card, index) => {
+      const wrapper = wrappers[index];
+      expect(container.querySelector(`.journey-board-card-wrapper[data-board-id="${index + 11}"]`)).toBe(wrapper);
+      expect(card.style.transform).toBe('');
+      expect(card.style.opacity).toBe('');
+      expect(card.style.visibility).toBe('');
+      expect(card.style.pointerEvents).toBe('');
+      expect(card.style.transition).toBe('');
+      expect(card.style.willChange).toBe('');
+      expect(card.classList.contains('journey-card-tapping')).toBe(false);
+      expect(wrapper.style.pointerEvents).toBe('');
+      expect(wrapper.style.transition).toBe('');
+      expect(wrapper.style.willChange).toBe('');
+      expect((wrapper as any).__ccJourneyCardTapExitActive).toBeUndefined();
+      expect((wrapper as any).__ccJourneyToGameExitTween).toBeUndefined();
+      expect(card.querySelector('img')).toBe(imageNodes[index]);
+      expect(card.querySelector('svg')).toBe(svgNodes[index]);
+    });
+    expect(callOrder).toEqual(['reconcile', 'normalize-all-cards', 'prime-units']);
+    expect(owner.journeyV700PreparedWorldEnter).toMatchObject({
+      ownerToken: -7,
+      worldId: 2,
+      reusedRetainedSurface: true,
+    });
+
+    const normalizeSource = methods.get('restoreJourneyRetainedReturnCardVisuals')!.getText(parsed);
+    expect(normalizeSource).not.toMatch(/getComputedStyle|getBoundingClientRect|offset(?:Width|Height)|client(?:Width|Height)/);
+
+    const staleCard = cards[0];
+    const staleWrapper = wrappers[0];
+    staleCard.style.opacity = '0';
+    staleWrapper.style.pointerEvents = 'none';
+    (staleWrapper as any).__ccJourneyCardTapExitActive = true;
+    const guardedNormalize = bind('restoreJourneyRetainedReturnCardVisuals');
+    expect(guardedNormalize(container, 2, () => false)).toBe(false);
+    expect(staleCard.style.opacity).toBe('0');
+    expect(staleWrapper.style.pointerEvents).toBe('none');
+    expect((staleWrapper as any).__ccJourneyCardTapExitActive).toBe(true);
   });
 
   test.each([
@@ -404,7 +540,9 @@ describe('terminal Journey preparation phase diagnostics', () => {
         `function run(${method.parameters.map(parameter => parameter.getText(parsed)).join(',')}) ${method.body!.getText(parsed)}`,
         { compilerOptions: { target: ts.ScriptTarget.ES2022 } },
       ).outputText;
-      owner[name] = new Function(`${code}; return run;`)().bind(owner);
+      owner[name] = new Function('getJourneySceneUnit', `${code}; return run;`)(
+        require('../journey-unit-scene').getJourneySceneUnit,
+      ).bind(owner);
     }
 
     const units = owner.getJourneyV700AnimationUnits(root, worldId);
@@ -474,8 +612,144 @@ describe('terminal Journey preparation phase diagnostics', () => {
     await expect(run(document.createElement('div'), 3, 7, 'test', () => current, durations)).resolves.toBeNull();
     expect(set).toHaveBeenCalledTimes(6);
     expect(durations).toEqual([6, 6, 6]); // 4ms budget plus one indivisible 3ms operation.
-    expect(owner.waitForJourneyPreparationTurn).toHaveBeenCalledTimes(4);
+    expect(owner.waitForJourneyPreparationTurn).toHaveBeenCalledTimes(3);
     expect(owner.journeyV700PreparedWorldEnter).toBeUndefined();
+  });
+
+  function deferredPoseFixture(parked = true, retained = true) {
+    document.body.innerHTML = '<section id="journey-screen"><div id="journey-boards-container" data-journey-v700-view="world" data-journey-v700-world-id="2"><div id="unit"><i id="cloud"></i></div></div></section>';
+    const screen = document.getElementById('journey-screen')!;
+    const container = document.getElementById('journey-boards-container')!;
+    const target = document.getElementById('unit')!;
+    const cloud = document.getElementById('cloud')!;
+    const isParked = jest.fn(() => parked);
+    const set = jest.fn((targets: HTMLElement | HTMLElement[], vars: { opacity?: number }) => {
+      for (const element of Array.isArray(targets) ? targets : [targets]) {
+        if (vars.opacity !== undefined) element.style.opacity = String(vars.opacity);
+      }
+    });
+    const owner: any = {
+      container,
+      renderDisposed: false,
+      renderLifecycleGeneration: 3,
+      journeyTerminalReturnBuild: { ownerToken: 7, reusedRetainedSurface: retained },
+      getLastActiveJourneyBoardAreaId: () => 11,
+      getJourneyV700AnimationUnits: () => [{ id: 'board-11', targets: [target], clouds: [cloud] }],
+      cleanupJourneyAreaIdleAnimations: jest.fn(),
+      waitForJourneyPreparationTurn: jest.fn(async () => true),
+      logJourneyV700Flow: jest.fn(),
+    };
+    const bind = (name: string, asyncMethod = false) => {
+      const method = methods.get(name)!;
+      const code = ts.transpileModule(`${asyncMethod ? 'async ' : ''}function run(${method.parameters.map(p => p.getText(parsed)).join(',')}) ${method.body!.getText(parsed)}`,
+        { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+      return new Function('gsap', 'getJourneyV700MotionProfile', 'setJourneyAlienBeamIdleReady', 'restoreJourneyAreaTransformOrigin', 'prepareJourneyWorldTransforms', 'isJourneyViewportParked',
+        `${code}; return run;`)({ set }, () => ({ enter: { y: 30, scale: 0.65 } }), jest.fn(), jest.fn(), prepareJourneyWorldTransforms, isParked).bind(owner);
+    };
+    const prime = bind('primeJourneyV700WorldEnterIncrementally', true);
+    const commit = bind('commitPreparedJourneyWorldEnterPose');
+    const prepare = async () => {
+      const plan = await prime(container, 2, 7, 'deferred-test', () => true, []);
+      owner.journeyV700PreparedWorldEnter = plan;
+      return plan;
+    };
+    return { screen, container, target, cloud, owner, set, isParked, prepare, commit };
+  }
+
+  test('retained parked artwork stays settled until the exact covered handoff commits cached enter poses once', async () => {
+    const f = deferredPoseFixture();
+    const plan = await f.prepare();
+    expect(plan.enterPoseDeferred).toBe(true);
+    expect(f.target.style.opacity).toBe('1');
+    expect(f.set).toHaveBeenCalledWith(f.target, expect.objectContaining({ y: 0, scale: 1 }));
+    expect(f.set).toHaveBeenCalledWith(f.cloud, { x: 0, force3D: false, overwrite: true });
+    f.set.mockClear();
+    const query = jest.spyOn(f.container, 'querySelectorAll').mockImplementation(() => { throw new Error('no discovery at handoff'); });
+    const rect = jest.spyOn(f.target, 'getBoundingClientRect').mockImplementation(() => { throw new Error('no geometry at handoff'); });
+    expect(f.commit(7)).toBe(true);
+    expect(f.set).toHaveBeenCalledWith(plan.targets, expect.objectContaining({ y: 30, scale: 0.65, opacity: 0 }));
+    expect(f.target.style.opacity).toBe('0');
+    expect(plan.enterPoseDeferred).toBe(false);
+    expect(plan.deferredEnterPose).toBeUndefined();
+    expect(f.commit(7)).toBe(true);
+    expect(f.set).toHaveBeenCalledTimes(1);
+    expect(query).not.toHaveBeenCalled();
+    expect(rect).not.toHaveBeenCalled();
+    expect(f.owner.waitForJourneyPreparationTurn).not.toHaveBeenCalled();
+  });
+
+  test.each([[false, true], [true, false]])('unparked or nonretained preparation keeps the existing hidden enter pose (%s/%s)', async (parked, retained) => {
+    const f = deferredPoseFixture(parked, retained);
+    const plan = await f.prepare();
+    expect(plan.enterPoseDeferred).toBe(false);
+    expect(f.target.style.opacity).toBe('0');
+    expect(f.set).toHaveBeenCalledWith(f.target, expect.objectContaining({ y: 30, scale: 0.65 }));
+    f.set.mockClear();
+    expect(f.commit(7)).toBe(true);
+    expect(f.set).not.toHaveBeenCalled();
+  });
+
+  test.each(['token', 'generation', 'disposed', 'container', 'target', 'lease', 'world'])('rejects stale deferred-pose ownership: %s', async (stale) => {
+    const f = deferredPoseFixture();
+    const plan = await f.prepare();
+    f.set.mockClear();
+    if (stale === 'generation') f.owner.renderLifecycleGeneration++;
+    if (stale === 'disposed') f.owner.renderDisposed = true;
+    if (stale === 'container') f.owner.container = document.createElement('div');
+    if (stale === 'target') document.body.append(f.target);
+    if (stale === 'lease') f.isParked.mockReturnValue(false);
+    if (stale === 'world') f.container.dataset.journeyV700WorldId = '3';
+    expect(f.commit(stale === 'token' ? 8 : 7)).toBe(false);
+    expect(f.set).not.toHaveBeenCalled();
+    expect(plan.enterPoseDeferred).toBe(true);
+  });
+
+  test('a failed enter-pose write cannot claim the retained targets are primed', async () => {
+    const f = deferredPoseFixture();
+    const plan = await f.prepare();
+    f.set.mockImplementation(() => { throw new Error('pose failure'); });
+    expect(f.commit(7)).toBe(false);
+    expect(plan.enterPoseDeferred).toBe(true);
+    expect(plan.deferredEnterPose).toBeDefined();
+  });
+
+  test.each([true, false, 'throws'])('current deferred-pose failure invalidates only its own plan and uses canonical recovery (%s)', (result) => {
+    const method = methods.get('recoverPreparedJourneyWorldEnterPose')!;
+    const code = ts.transpileModule(`function run(ownerToken) ${method.body!.getText(parsed)}`,
+      { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+    const recover = new Function('getJourneyReturnTransitionToken', `${code}; return run;`)(() => 7);
+    const oldBuild = { ownerToken: 7, cancelled: false };
+    const replacement = { ownerToken: 7, enterPoseDeferred: false };
+    const owner: any = {
+      journeyV700PreparedWorldEnter: { ownerToken: 7, enterPoseDeferred: true },
+      journeyTerminalReturnBuild: oldBuild,
+      prepareJourneyV700WorldEnterFromReturn: jest.fn(() => {
+        expect(owner.journeyV700PreparedWorldEnter).toBeNull();
+        expect(owner.journeyTerminalReturnBuild).toBeNull();
+        expect(oldBuild.cancelled).toBe(true);
+        if (result === 'throws') throw new Error('recovery failed');
+        if (result) owner.journeyV700PreparedWorldEnter = replacement;
+        return result;
+      }),
+    };
+    expect(recover.call(owner, 7)).toBe(result === true);
+    expect(owner.prepareJourneyV700WorldEnterFromReturn).toHaveBeenCalledWith('deferred-pose-recovery', 7);
+    expect(owner.journeyV700PreparedWorldEnter).toBe(result === true ? replacement : null);
+  });
+
+  test.each(['route', 'plan', 'build'])('stale deferred recovery cannot mutate another %s owner', (stale) => {
+    const method = methods.get('recoverPreparedJourneyWorldEnterPose')!;
+    const code = ts.transpileModule(`function run(ownerToken) ${method.body!.getText(parsed)}`,
+      { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+    const recover = new Function('getJourneyReturnTransitionToken', `${code}; return run;`)(() => stale === 'route' ? 8 : 7);
+    const plan = { ownerToken: stale === 'plan' ? 8 : 7, enterPoseDeferred: true };
+    const build = { ownerToken: stale === 'build' ? 8 : 7, cancelled: false };
+    const owner = { journeyV700PreparedWorldEnter: plan, journeyTerminalReturnBuild: build, prepareJourneyV700WorldEnterFromReturn: jest.fn() };
+    expect(recover.call(owner, 7)).toBe(false);
+    expect(owner.journeyV700PreparedWorldEnter).toBe(plan);
+    expect(owner.journeyTerminalReturnBuild).toBe(build);
+    expect(build.cancelled).toBe(false);
+    expect(owner.prepareJourneyV700WorldEnterFromReturn).not.toHaveBeenCalled();
   });
 
   test('pressure retires optional ownership but preserves accepted return construction', () => {
@@ -496,6 +770,26 @@ describe('terminal Journey preparation phase diagnostics', () => {
     run.call(owner, 'second-memory-warning');
     expect(owner.journeyTerminalReturnBuild).toBe(required);
     expect(required.cancelled).toBe(false);
+  });
+
+  test.each([false, true])('pressure preserves the parked World when optional preparation is ready=%s', ready => {
+    document.body.innerHTML = '<section id="journey-screen" hidden><div id="journey-boards-container"><i></i></div></section>';
+    const container = document.getElementById('journey-boards-container')!;
+    const child = container.firstElementChild;
+    const method = methods.get('cancelOptionalJourneyTerminalReturnPreparation')!;
+    const code = ts.transpileModule(`function run(reason) ${method.body!.getText(parsed)}`,
+      { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+    const run = new Function('emitIOSNativeDiagnostic', `${code}; return run;`)(jest.fn());
+    const owner: any = {
+      journeyTerminalReturnBuild: { ownerToken: -7, worldId: 3, reusedRetainedSurface: true },
+      journeyV700PreparedWorldEnter: ready ? { ownerToken: -7, worldId: 3, reusedRetainedSurface: true } : null,
+      suspendForGameplay: jest.fn(),
+    };
+    run.call(owner, 'memory-warning');
+    expect(container.firstElementChild).toBe(child);
+    expect(owner.journeyV700PreparedWorldEnter).toBeNull();
+    expect(owner.journeyTerminalReturnBuild).toBeNull();
+    expect(owner.suspendForGameplay).toHaveBeenCalledTimes(1);
   });
 
   test('bounded capture expires once; measured exceptions preserve original behavior', () => {

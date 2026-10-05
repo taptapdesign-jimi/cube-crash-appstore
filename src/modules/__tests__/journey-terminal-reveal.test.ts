@@ -16,7 +16,6 @@ import {
   finishJourneyReturnCtaSetup,
   scheduleJourneyReturnReveal,
   transferJourneyReturnStaticCover,
-  warmJourneyReturnBehindSettledTerminal,
   waitForJourneyReturnDestination,
 } from '../journey-return-transition-trace';
 import { JourneyWorldAnimationCoordinator } from '../journey-world-animation-coordinator';
@@ -30,7 +29,6 @@ jest.mock('../journey-boards-manager', () => ({
     adoptPreparedJourneyV700WorldEnter: jest.fn(),
     waitForPreparedJourneyV700WorldEnter: jest.fn(),
     cancelPreparedJourneyV700WorldEnter: jest.fn(),
-    warmPreparedJourneyV700WorldEnterBehindSettledTerminal: jest.fn(),
   },
 }));
 
@@ -41,14 +39,13 @@ describe('terminal-owned Journey reveal', () => {
     jest.mocked(journeyBoardsManager.prepareJourneyV700WorldEnterFromReturnIncrementally).mockResolvedValue(true);
     jest.mocked(journeyBoardsManager.adoptPreparedJourneyV700WorldEnter).mockReturnValue(false);
     jest.mocked(journeyBoardsManager.waitForPreparedJourneyV700WorldEnter).mockResolvedValue(true);
-    jest.mocked(journeyBoardsManager.warmPreparedJourneyV700WorldEnterBehindSettledTerminal).mockResolvedValue(true);
   });
 
   afterEach(() => {
     completeJourneyReturnTransition();
   });
 
-  test.each(['clean-board', 'fail'] as const)('%s releases both reveal boundaries only after its visual exit completes', (source) => {
+  test.each(['clean-board', 'fail', 'exit-game'] as const)('%s releases both reveal boundaries only after its visual exit completes', (source) => {
     const raf = jest.spyOn(window, 'requestAnimationFrame').mockReturnValue(1);
     const token = beginJourneyReturnTransition(source, 22);
     expect(getJourneyReturnRevealToken()).toBeNull();
@@ -130,6 +127,38 @@ describe('terminal-owned Journey reveal', () => {
     scheduleJourneyReturnReveal(null, () => true, paint);
     frame(32);
     expect(paint).toHaveBeenCalledTimes(1);
+  });
+
+  test('cold reveal preserves its paint boundary and rechecks ownership', () => {
+    const frames: FrameRequestCallback[] = [];
+    jest.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+      frames.push(callback);
+      return frames.length;
+    });
+    const paint = jest.fn();
+    scheduleJourneyReturnReveal(null, () => true, () => {
+      scheduleJourneyReturnReveal(null, () => true, paint);
+    });
+    expect(paint).not.toHaveBeenCalled();
+    frames[0](16);
+    expect(paint).not.toHaveBeenCalled();
+    frames[1](32);
+    expect(paint).toHaveBeenCalledTimes(1);
+    expect(frames).toHaveLength(2);
+    scheduleJourneyReturnReveal(null, () => false, paint);
+    frames[2](48);
+    expect(paint).toHaveBeenCalledTimes(1);
+  });
+
+  test('same-turn commit still cannot bypass the terminal exit owner', async () => {
+    const token = beginJourneyReturnTransition('fail', 11);
+    const paint = jest.fn();
+    scheduleJourneyReturnReveal(token, () => true, paint);
+    expect(paint).not.toHaveBeenCalled();
+    markJourneyReturnResultExitComplete(token);
+    expect(paint).toHaveBeenCalledTimes(1);
+    cancelJourneyReturnTransition(token, 'test-complete');
+    await flushImports();
   });
 
   test('a replaced or cancelled result cannot release a newer return', async () => {
@@ -309,7 +338,7 @@ describe('terminal-owned Journey reveal', () => {
     expect(journeyBoardsManager.prepareJourneyV700WorldEnterFromReturn).not.toHaveBeenCalled();
   });
 
-  test('settled opaque terminal cover owns the final connected paint before result release', async () => {
+  test('prepared return needs no second paint pass before result release', async () => {
     await prewarmJourneyReturnBeforeTerminalExit('clean-board', 22);
     const prewarmCalls = jest.mocked(journeyBoardsManager.prepareJourneyV700WorldEnterFromReturnIncrementally).mock.calls;
     const prewarmOwnerToken = prewarmCalls[prewarmCalls.length - 1]?.[1] as number;
@@ -320,14 +349,41 @@ describe('terminal-owned Journey reveal', () => {
     await flushImports();
     await expect(waitForJourneyReturnDestination(token)).resolves.toBe(true);
 
-    await expect(warmJourneyReturnBehindSettledTerminal('clean-board', token)).resolves.toBe(true);
     expect(journeyBoardsManager.adoptPreparedJourneyV700WorldEnter)
       .toHaveBeenCalledWith(prewarmOwnerToken, token, null);
-    expect(journeyBoardsManager.warmPreparedJourneyV700WorldEnterBehindSettledTerminal)
-      .toHaveBeenCalledWith(token, 'terminal-settled-cover:clean-board', null);
     expect(getJourneyReturnRevealToken()).toBeNull();
     markJourneyReturnResultExitComplete(token);
     expect(getJourneyReturnRevealToken()).toBe(token);
+  });
+
+  test('tutorial Hub completion retires its token before the next manual game exit', async () => {
+    const tutorial = beginJourneyReturnTransition('exit-game', 1);
+    markJourneyReturnResultExitComplete(tutorial);
+    completeJourneyReturnTransition({ destination: 'hub' }, tutorial);
+    expect(getJourneyReturnTransitionToken()).toBeNull();
+    const next = beginJourneyReturnTransition('exit-game', 11);
+    prepareJourneyReturnBehindTerminalOverlay('exit-game', next);
+    await flushImports();
+    await expect(waitForJourneyReturnDestination(next)).resolves.toBe(true);
+    expect(journeyBoardsManager.prepareJourneyV700WorldEnterFromReturnIncrementally)
+      .toHaveBeenLastCalledWith('terminal-overlay:exit-game', next);
+    completeJourneyReturnTransition({ destination: 'hub' }, tutorial);
+    expect(getJourneyReturnTransitionToken()).toBe(next);
+    const source = fs.readFileSync('src/collectibles-manager.ts', 'utf8');
+    const complete = source.split("journeyEnterPerformance.finish('visible-enter-complete');")[1]
+      .split('visibleEnterLease.settle();')[0];
+    expect(complete).toContain('!shouldUseV700WorldReturnEnter && pendingTerminalReturnToken !== null');
+    expect(complete).toContain("completeJourneyReturnTransition({ destination: 'hub' }, pendingTerminalReturnToken)");
+  });
+
+  test('parking releases under the terminal cover before publishing a committed destination', () => {
+    const source = fs.readFileSync('src/collectibles-manager.ts', 'utf8');
+    const release = source.indexOf('releaseJourneyViewportParking(screen as HTMLElement, true)');
+    const commit = source.indexOf('const committed = commitPreparedJourneyViewportBehindTerminalCover()');
+    const receipt = source.indexOf('if (committed) markJourneyReturnDestinationVisibleReady(terminalReturnToken)');
+    expect(release).toBeGreaterThan(0);
+    expect(commit).toBeGreaterThan(release);
+    expect(receipt).toBeGreaterThan(commit);
   });
 
   test('late destination preparation never extends a settled terminal cover', async () => {
@@ -338,10 +394,10 @@ describe('terminal-owned Journey reveal', () => {
     prepareJourneyReturnBehindTerminalOverlay('fail', token);
     await flushImports();
 
-    await expect(warmJourneyReturnBehindSettledTerminal('fail', token)).resolves.toBe(false);
-    expect(journeyBoardsManager.warmPreparedJourneyV700WorldEnterBehindSettledTerminal).not.toHaveBeenCalled();
+    markJourneyReturnResultExitComplete(token);
+    expect(getJourneyReturnRevealToken()).toBe(token);
     finish(true);
-    await flushImports();
+    await expect(waitForJourneyReturnDestination(token)).resolves.toBe(true);
   });
 
   test('replacement and cancellation close only their own diagnostic captures', async () => {
@@ -407,8 +463,8 @@ describe('real Journey Unit timeline after terminal exit', () => {
 
 // Execute the real viewport owner with only its tween scheduler injected.
 // This verifies shell visibility independently of the Unit's zero-opacity prime.
-describe('primed terminal World shell', () => {
-  test.each([false, true])('immediate reveal %s leaves Unit start state untouched', async (immediate) => {
+describe('primed Journey shell', () => {
+  test.each([false, true])('content animation %s preserves the primed-return shell policy and Unit start state', async (animateContent) => {
     const source = ts.createSourceFile('collectibles-animations.ts',
       fs.readFileSync('src/ui/collectibles-animations.ts', 'utf8'), ts.ScriptTarget.Latest, true);
     const owner = source.statements.find((node) => ts.isFunctionDeclaration(node)
@@ -431,14 +487,15 @@ describe('primed terminal World shell', () => {
     screen.append(unit);
     document.body.append(screen);
     const pending = animate(screen, null, null, {
-      animateJourneyContent: false,
-      revealPrimedWorldImmediately: immediate,
+      animateJourneyContent: animateContent,
+      revealPrimedWorldImmediately: !animateContent,
     });
-    expect(screen.style.opacity).toBe(immediate ? '1' : '0');
+    expect(screen.style.opacity).toBe(animateContent ? '0' : '1');
     expect(screen.style.pointerEvents).toBe('none');
     expect(unit.style.opacity).toBe('0');
     expect(unit.style.transform).toBe('scale(0.65)');
-    expect(tweens[0].duration).toBe(immediate ? 0 : 0.24);
+    expect(tweens).toHaveLength(1);
+    expect(tweens[0].duration).toBe(animateContent ? 0.24 : 0);
     tweens.forEach((vars) => vars.onComplete?.());
     await pending;
     expect(screen.style.pointerEvents).toBe('');
@@ -490,19 +547,12 @@ describe('Clean Board Exit preparation routing', () => {
     expect(handler).toContain("prepareJourneyReturnBehindTerminalOverlay('clean-board'");
   });
 
-  test('moves final Journey paint behind a static opaque paper cover before reveal', () => {
-    const source = fs.readFileSync('src/modules/clean-board-modal.ts', 'utf8');
-    const handler = source.split('addButtonPressHandling(secondaryBtn, async () => {')[1]
-      .split('// 🔥 EXIT FIX: Clear board save state')[0]
-      + source.split('// Retire the overlay only after both independent owners have completed.')[1]
-        .split("console.log(`✅ clean-board-modal: Resolving")[0];
-    const warmIndex = handler.indexOf('warmJourneyReturnBehindSettledTerminal(');
-    const paperFadeIndex = handler.indexOf("el.style.opacity = '0';", warmIndex);
-    const releaseIndex = handler.indexOf('markJourneyReturnResultExitComplete(', paperFadeIndex);
-
-    expect(warmIndex).toBeGreaterThan(-1);
-    expect(paperFadeIndex).toBeGreaterThan(warmIndex);
-    expect(releaseIndex).toBeGreaterThan(paperFadeIndex);
-    expect(handler.slice(0, warmIndex)).not.toContain("el.style.opacity = '0';");
+  test('terminal exits do not schedule a second connected full-alpha paint pass', () => {
+    for (const file of ['clean-board-modal', 'board-fail-modal']) {
+      const source = fs.readFileSync('src/modules/' + file + '.ts', 'utf8');
+      expect(source).not.toContain('warmJourneyReturnBehindSettledTerminal');
+      expect(source).toContain('markJourneyReturnResultExitComplete(');
+    }
+    expect(fs.readFileSync('src/modules/clean-board-modal.ts', 'utf8')).toContain('transferJourneyReturnStaticCover(');
   });
 });

@@ -1135,6 +1135,53 @@
   display: none !important;
 }
 
+/* One retained viewport layer, not a second renderer. A suspended World or warm
+   Hub is paintable only below its opaque, lifecycle-owned route cover. No timers,
+   interaction or idle effects are admitted by these presentation rules. */
+#journey-screen[data-journey-viewport-resident="true"] {
+  transform: translateZ(0) !important;
+  isolation: isolate;
+}
+
+#journey-screen[data-journey-viewport-parked="true"] {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+}
+
+#journey-screen[data-journey-viewport-parked="true"] #journey-boards-container {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+#journey-screen[data-journey-viewport-parked="true"] .collectibles-scrollable {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+#journey-screen[data-journey-viewport-parked="true"] .journey-board-card {
+  visibility: visible !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+#journey-screen[data-journey-viewport-parked="true"] * {
+  pointer-events: none !important;
+}
+
+/* A paintable parked tree is static, including decorative pseudo-elements. */
+#journey-screen[data-journey-viewport-parked="true"],
+#journey-screen[data-journey-viewport-parked="true"]::before,
+#journey-screen[data-journey-viewport-parked="true"]::after,
+#journey-screen[data-journey-viewport-parked="true"] *,
+#journey-screen[data-journey-viewport-parked="true"] *::before,
+#journey-screen[data-journey-viewport-parked="true"] *::after {
+  animation-play-state: paused !important;
+}
+
 /* Layout shell with safe-area handling */
 .collectibles-shell {
   --safe-left: env(safe-area-inset-left, 0px);

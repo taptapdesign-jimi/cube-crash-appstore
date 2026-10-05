@@ -77,9 +77,19 @@ test('compact drain retains bounded per-source decode and eviction attribution, 
     source: './hot.wav', requests: 1, misses: 1, decodes: 1,
     decodedBytes: 4096, decodeWallMs: 7, evictions: 1, evictedBytes: 4096,
   });
-  expect(compact.evictionsByReason).toEqual({ budget: 1, 'os-pressure': 0, 'loop-replaced': 0 });
+  expect(compact.evictionsByReason).toEqual({
+    budget: 1,
+    'os-pressure': 0,
+    'loop-replaced': 0,
+    'transition-idle-release': 0,
+  });
   expect(drainGameplayAudioDiagnostics()).toMatchObject({
     hotSources: [],
-    evictionsByReason: { budget: 0, 'os-pressure': 0, 'loop-replaced': 0 },
+    evictionsByReason: {
+      budget: 0,
+      'os-pressure': 0,
+      'loop-replaced': 0,
+      'transition-idle-release': 0,
+    },
   });
 });

@@ -6,11 +6,6 @@ type GsapLike = {
   };
 };
 
-function killTarget(gsap: GsapLike, target: any): void {
-  if (!target) return;
-  try { gsap.killTweensOf?.(target); } catch {}
-}
-
 function isInvalidPixiTarget(target: any): boolean {
   if (!target || typeof target !== 'object') return false;
   if (target.destroyed === true) return true;
@@ -22,26 +17,40 @@ function isInvalidPixiTarget(target: any): boolean {
   return false;
 }
 
-export function killPixiGsapSubtree(gsap: GsapLike, root: any): void {
-  if (!root) return;
-
-  const visit = (node: any): void => {
-    if (!node) return;
-
-    killTarget(gsap, node);
-    killTarget(gsap, node.position);
-    killTarget(gsap, node.scale);
-    killTarget(gsap, node.pivot);
-    killTarget(gsap, node.skew);
-    killTarget(gsap, node.anchor);
-    killTarget(gsap, node.alpha);
-    killTarget(gsap, node.rotation);
-
-    const children = Array.isArray(node.children) ? [...node.children] : [];
-    children.forEach(visit);
+/** Retire an exact owner set with one GSAP timeline traversal, not one per point. */
+export function killPixiGsapSubtrees(
+  gsap: GsapLike,
+  roots: readonly any[],
+  extraTargets: readonly any[] = [],
+): void {
+  const targets = new Set<object>();
+  const visited = new Set<object>();
+  const add = (target: any): void => {
+    if (target && (typeof target === 'object' || typeof target === 'function')) targets.add(target);
   };
+  const pending = [...roots];
+  while (pending.length) {
+    const node = pending.pop();
+    if (!node || typeof node !== 'object' || visited.has(node)) continue;
+    visited.add(node);
+    add(node);
+    for (const key of ['position', 'scale', 'pivot', 'skew', 'anchor', 'alpha', 'rotation']) {
+      // A destroyed Pixi getter must not prevent retirement of the other owners.
+      try { add(node[key]); } catch {}
+    }
+    try {
+      if (Array.isArray(node.children)) pending.push(...node.children);
+    } catch {}
+  }
+  extraTargets.forEach(add);
+  if (targets.size) {
+    try { gsap.killTweensOf?.([...targets]); } catch {}
+  }
+}
 
-  visit(root);
+/** Existing single-surface owners retain their exact cleanup boundary. */
+export function killPixiGsapSubtree(gsap: GsapLike, root: any): void {
+  killPixiGsapSubtrees(gsap, [root]);
 }
 
 export function killInvalidPixiGsapTweens(gsap: GsapLike): void {

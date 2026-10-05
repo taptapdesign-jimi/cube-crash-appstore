@@ -24,7 +24,7 @@ function fixture(waapi = true) {
   let routeToken = 0;
   const scope = {
     beginTransitionPerformance: jest.fn(() => setupPerformance),
-    homepageEnterTransitionOwner: { isActive: () => false, cancel: jest.fn() },
+    homepageEnterTransitionOwner: { isActive: jest.fn(() => false), cancel: jest.fn() },
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() }, emitIOSNativeDiagnostic: jest.fn(),
     applyPaperBackground: jest.fn(), clearSliderBackgrounds: jest.fn(), gameState: { set: jest.fn() },
     beginIOSJourneyRouteAudit: jest.fn(), markIOSJourneyRouteAudit: jest.fn(), cancelSliderEnterAnimation: jest.fn(),
@@ -43,6 +43,7 @@ function fixture(waapi = true) {
 }
 afterEach(() => {
   delete (window as any).__ccUiJourneyTransitioning; delete (window as any).__ccIsAnimatingSliderExit;
+  delete (window as any).__ccIsHidingCollectibles;
   delete (window as any).CC; delete (window as any).collectiblesManager;
   delete (Element.prototype as any).animate; document.body.innerHTML = '';
 });
@@ -54,6 +55,16 @@ test('duplicate Journey requests do not repeat navigation or board teardown', ()
   expect(f.softReset).toHaveBeenCalledTimes(1); expect(f.scope.applyPaperBackground).toHaveBeenCalledTimes(1);
   expect(f.scope.animateJourneySliderExit).toHaveBeenCalledTimes(1);
   window.removeEventListener('cc-navigation', navigation);
+});
+
+test('CTA interrupts an active Homepage enter and schedules its exit in the same task', () => {
+  const f = fixture();
+  f.scope.homepageEnterTransitionOwner.isActive.mockReturnValue(true);
+  (window as any).__ccIsHidingCollectibles = true;
+  f.run();
+  expect(f.scope.homepageEnterTransitionOwner.cancel).toHaveBeenCalledWith('homepage-to-journey');
+  expect(f.scope.animateJourneySliderExit).toHaveBeenCalledTimes(1);
+  expect((window as any).__ccIsHidingCollectibles).toBe(false);
 });
 
 test('navigation-event reentry sees an already claimed Journey exit owner', () => {

@@ -74,6 +74,12 @@ Navigation rules:
 - Nav/header exit starts immediately with the relevant content exit. Do not leave header/nav visible while content waits to begin exit.
 - Card modal X/header exit should begin immediately on X tap, not after the card/stat content has mostly finished exiting.
 - An accepted Unit-card tap starts its portaled flight after the first owned geometry paint. Exact 2x artwork, modal chrome decode, and front/back prepaint must never gate the first visible motion; the already-painted 1x World card is the entry carrier.
+- Card-modal pointerdown and ordinary Common-card flip handoff are write-only: they
+  sample the active WAAPI owner's cached pose and must not call computed-style,
+  geometry or layout APIs. Ordinary flips remain compositor-owned without a
+  per-frame JavaScript observer. Legendary may retain its bounded RAF shine/face
+  observer because that authored holographic layer depends on the live angle;
+  its RAF must stop on completion, interruption and cleanup.
 
 For Forest, Beach and Area 55 X-to-Journey-Worlds exits, the active World's
 large top main artwork exits first with the complete canonical Cartoon Bounce:
@@ -93,18 +99,19 @@ the stable `50% 54%` pivot. At that exact peak, without a settle, rebound,
 neutral frame or dwell, it continues into a `0.28s` `back.in(1.7)` exit to
 scale zero. The name refers to the complete continuous `0.43s` motion.
 
-On a cold destination, prepaint runs concurrently beneath this effect and must
-never delay its first visible frame. A warm Hub/World destination reuses its
-retained nodes instead of rebuilding and repeating the cold image/prepaint
-pipeline. The manager owns quiescence before detachment, reactivation after
-attachment, and the existing hidden enter pose; the stage controller owns only
-bounded node retention and generation-checked transfer. Retain one Hub and one
-World, evict stale World content on replacement or pressure, and release both on
-full cleanup. DOM identity reuse is not a guarantee of browser GPU residency.
-Native memory pressure evicts the retained full World first but preserves the
-bounded three-Unit Hub while Journey still owns the route. This prevents the
-next World X from constructing and rasterizing a second Hub during the authored
-World exit; full cleanup still releases both surfaces.
+The accepted tap schedules the authored exit synchronously. The route then
+reuses the most recent World or prepares only its selected cold destination in
+bounded, cancellable turns concurrent with outgoing motion. A cold destination
+remains detached until the atomic post-exit commit; preparation never exposes a
+full-alpha screen. Homepage admission depends on the Hub's own images, not on
+building Forest, Beach and Area 55. The stage retains one Hub and at most one
+World; a different cold destination releases the previous inactive World first.
+The manager owns quiescence, hidden enter poses and reactivation; the stage owns
+generation-checked node transfer. Memory pressure releases optional resources,
+not the accepted destination or the World parked by gameplay, and never leaves
+Hub buttons permanently disabled. Full cleanup releases every retained surface.
+DOM identity reuse is not a guarantee of browser GPU residency. Cold readiness
+and first-painted-frame latency must still be measured on the phone.
 Preserve the existing input guard, interruption
 completion and opacity-through-collapse. The non-selected Worlds use the same
 two-leg collapse timeline as the Back-to-Homepage Worlds, including the 20%
@@ -166,6 +173,25 @@ stagger = 0.09;
 ```
 
 Lifecycle requirement: background preparation may render the Hub, but it must not consume the visible enter animation. Immediately before the Journey viewport begins its real visible enter, prime all three World Units into the hidden start state. Start the World cascade in that same visible-enter lifecycle. The common scroll ancestor stays at its neutral transform; the outer World cards are the only owners of the standard enter transform. Banner reveal may start on the first real World tween, but nested World/cloud and banner idle animation is admitted atomically only after every World/cloud enter target settles. The single visible-enter completion boundary then unlocks scrolling and input. For an individual Forest/Beach/Area 55 screen, animate only complete Units inside or near the initial scroll viewport; settle farther offscreen Units before the visible frame and admit their idle only when the shared viewport observer sees them. The initially visible Units join the shared idle owner immediately after the complete visible cascade so settled transforms never compete with later enter transforms. Idle uses a short seamless ramp and must not introduce a separate delayed timer.
+
+Hub/World preparation must not perform per-target computed-style or GSAP transform
+hydration after the accepted navigation tap. Newly built or retained Units receive
+their known hidden start poses through one bounded write-only preparation owner;
+authored rotation and percentage translation remain intact. A separate foreground
+presentation lease stays active through the complete incoming Hub/World cascade,
+not merely until its first visible tween, so optional decode, eviction, prepaint and
+hidden-renderer work cannot compete with the display-cadence GSAP frames. This
+lease must never wake a hidden Pixi ticker and must release on completion,
+replacement, interruption and manager cleanup.
+
+Individual World enter resolves its short Unit cascade over the full World
+before viewport filtering. Raw sequential board-ID hashes can differ by less
+than a millisecond (Area 55 21–30), accidentally starting all visible Units in
+one paint frame. Collision normalization preserves their deterministic order
+inside the existing 35–220ms offset window, keeps main artwork at zero and
+retains explicit returning-card offsets. Cold and terminal entry use the same
+resolved slots; terminal entry removes only the first lead-in. The 560ms bounce,
+easing, Unit grouping and Hub's separate 80/90ms schedule remain unchanged.
 
 ## Standard Journey Worlds Exit
 
@@ -288,3 +314,10 @@ Worlds-to-World, World-to-Worlds and card-modal returns keep standard timing.
 Cancelled/replaced result or navigation ownership cannot reveal a stale World.
 Physical first-painted-frame latency remains a device measurement, separate
 from JavaScript/tween-start timing.
+
+Fail, Clean Board and manual Exit Game use the same token-owned return readiness.
+Gameplay parks its World; return reconciles changed card Units and prepares the
+authored hidden pose once. Adopting a ready return does not traverse/decode all
+World images again or require three full-alpha paint frames. Preparation cannot
+write root visibility. Manual Exit Game retains board-exit completion ownership
+but does not add the generic non-Journey two-frame/settle delay.

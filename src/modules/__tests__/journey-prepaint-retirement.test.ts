@@ -75,16 +75,25 @@ test('explicit detailed commit retains incoming subtree counts', () => {
   expect(f.scope.emitIOSNativeDiagnostic).toHaveBeenCalledWith('world-prepaint-committed', expect.objectContaining({ childCount: 4, imageCount: 1 }));
 });
 
-test.each(['not-ready', 'missing-plan', 'wrong-world', 'detached'])('rejected %s stage cannot retire live owners', (reason) => {
+test.each(['not-ready', 'missing-plan', 'wrong-world', 'empty'])('rejected %s stage cannot retire live owners', (reason) => {
   const f = fixture();
   if (reason === 'not-ready') f.owner.journeyWorldPrepaintStage.ready = false;
   if (reason === 'missing-plan') delete f.owner.journeyWorldPrepaintStage.preparedEnter;
   if (reason === 'wrong-world') f.owner.journeyWorldPrepaintStage.worldId = 2;
-  if (reason === 'detached') f.host.remove();
+  if (reason === 'empty') f.root.replaceChildren();
   expect(f.owner.commitJourneyWorldPrepaint(f.container, 1)).toBe(false);
   expect(f.owner.cleanupJourneyAreaIdleAnimations).not.toHaveBeenCalled();
   expect(f.owner.beginRenderLifecycle).not.toHaveBeenCalled();
   expect(f.outgoing.isConnected).toBe(true);
+});
+
+test('a detached ready destination commits once without any connected prepaint', () => {
+  const f = fixture();
+  f.host.remove();
+  expect(f.incoming.isConnected).toBe(false);
+  expect(f.owner.commitJourneyWorldPrepaint(f.container, 1)).toBe(true);
+  expect(f.incoming.isConnected).toBe(true);
+  expect(f.owner.commitJourneyWorldPrepaint(f.container, 1)).toBe(false);
 });
 
 

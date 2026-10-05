@@ -2,6 +2,7 @@ import {
   getJourneyElasticPull,
   getJourneyHubEntryScrollTop,
   getJourneyV700EnterOffset,
+  getJourneyV700EnterOffsets,
   getJourneyV700HubBackExitOrder,
   getJourneyV700HubEnterStagger,
   getJourneyV700HubWorldExitDuration,
@@ -130,6 +131,39 @@ describe('Journey V700 motion contract', () => {
     expect(Math.max(...offsets)).toBeLessThanOrEqual(0.22);
     expect(new Set(offsets.slice(1).map((offset) => offset.toFixed(4))).size).toBeGreaterThan(7);
     expect(getJourneyV700EnterOffset('board-4', 4, false)).toBe(offsets[4]);
+  });
+
+  it.each([1, 11, 21])('separates sequential World %s Unit paints inside the existing bounded cascade', (firstBoard) => {
+    const units = [{ id: 'world-main' }, ...Array.from({ length: 10 }, (_, index) => ({ id: `board-${firstBoard + index}` }))];
+    const offsets = getJourneyV700EnterOffsets(units, false);
+    const sorted = offsets.slice(1).sort((a, b) => a - b);
+    expect(offsets[0]).toBe(0);
+    expect(sorted[0]).toBeCloseTo(0.035);
+    expect(sorted[sorted.length - 1]).toBeCloseTo(0.22);
+    sorted.slice(1).forEach((offset, index) => expect(offset - sorted[index]).toBeGreaterThan(1 / 60));
+    expect(getJourneyV700EnterOffsets(units, false)).toEqual(offsets);
+    const rawOrder = units.slice(1).map((unit, index) => ({ index: index + 1, offset: getJourneyV700EnterOffset(unit.id, index + 1, false) }))
+      .sort((a, b) => a.offset - b.offset).map(({ index }) => index);
+    expect(offsets.map((offset, index) => ({ offset, index })).slice(1)
+      .sort((a, b) => a.offset - b.offset).map(({ index }) => index)).toEqual(rawOrder);
+  });
+
+  it('keeps explicit return-card timing without shifting the other World slots', () => {
+    const units = [{ id: 'robo-main' }, ...Array.from({ length: 10 }, (_, index) => ({ id: `board-${21 + index}` }))];
+    const ordinary = getJourneyV700EnterOffsets(units, false);
+    const returning = getJourneyV700EnterOffsets(units.map((unit, index) => index === 4
+      ? { ...unit, enterDelayOffset: 0.24 } : unit), false);
+    expect(returning[4]).toBe(0.24);
+    returning.forEach((offset, index) => { if (index !== 4) expect(offset).toBe(ordinary[index]); });
+  });
+
+  it('preserves reduced motion and already-separated authored or explicit timings', () => {
+    const units = [{ id: 'forest-main' }, { id: 'board-1' }, { id: 'board-2' }];
+    expect(getJourneyV700EnterOffsets(units, false)).toEqual(units.map((unit, index) => getJourneyV700EnterOffset(unit.id, index, false)));
+    expect(getJourneyV700EnterOffsets(units, true)).toEqual([0, 0.006, 0.012]);
+    expect(getJourneyV700EnterOffsets([], false)).toEqual([]);
+    expect(getJourneyV700EnterOffsets([{ id: 'board-21' }], false)).toEqual([0]);
+    expect(getJourneyV700EnterOffsets([{ id: 'robo-main', enterDelayOffset: 0.02 }, { id: 'board-22', enterDelayOffset: 0.12 }], false)).toEqual([0.02, 0.12]);
   });
 
   it('restores an interim wrapper before idle when exit residue left it hidden', () => {

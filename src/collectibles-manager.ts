@@ -1,5 +1,6 @@
 // @ts-nocheck
 import {
+  completeJourneyReturnTransition,
   getJourneyReturnTransitionToken,
   isJourneyReturnStaticCoverActive,
   markJourneyReturnDestinationVisibleReady,
@@ -50,6 +51,7 @@ import {
 import { JOURNEY_SLIDE_INDEX } from './modules/homepage-slide-order.js';
 import { JourneyVisibleEnterOwner } from './modules/journey-visible-enter-owner.js';
 import { JourneyPostEnterOwner } from './modules/journey-post-enter-owner.js';
+import { isJourneyViewportParked, releaseJourneyViewportParking } from './modules/journey-viewport-parking.js';
 // Collectibles Manager - Handles all collectibles functionality
 logger.info('🎁 Collectibles Manager module loaded');
 
@@ -67,16 +69,19 @@ function primeJourneyScreenHiddenForEnter(screen: HTMLElement, reason: string): 
     screen.classList.add('show');
     screen.style.display = 'flex';
     screen.style.zIndex = '999999';
-    screen.style.setProperty('opacity', '0', 'important');
-    screen.style.setProperty('visibility', 'hidden', 'important');
+    if (!isJourneyViewportParked(screen)) {
+      screen.style.setProperty('opacity', '0', 'important');
+      screen.style.setProperty('visibility', 'hidden', 'important');
+      screen.style.willChange = 'opacity';
+    }
     screen.style.pointerEvents = 'none';
-    screen.style.willChange = 'opacity';
     screen.dataset.ccJourneyPrimedHidden = reason;
   } catch {}
 }
 
 function releaseJourneyScreenHiddenPrime(screen: HTMLElement): void {
   try {
+    releaseJourneyViewportParking(screen, true);
     screen.style.setProperty('opacity', '0');
     screen.style.setProperty('visibility', 'visible');
     screen.style.pointerEvents = 'none';
@@ -878,16 +883,10 @@ class CollectiblesManager {
         preparationOutcome = 'stale';
         return;
       }
-      if (options.requiredForVisibleEnter === true && journeyContainer.dataset.journeyV700View === 'hub') {
-        preparationPerformance.mark('hub-paint-start');
-        const painted = await journeyBoardsManager.warmJourneyV700HubForHomepageReveal(journeyContainer);
-        preparationPerformance.mark('hub-paint-ready');
-        if (!painted || prepareEpoch !== this.journeyPrepareEpoch || !preparationAllowed()) {
-          preparationOutcome = painted ? 'stale' : 'hub-paint-fallback';
-          if (!painted) logger.warn('⚠️ Journey Hub prepaint fell back to visible entry');
-          return;
-        }
-      }
+      // Hub preparation never exposes or paint-parks the Journey screen.
+      // Homepage is transparent and its runtime stacking level is below the
+      // gameplay parking cover. Only the three Hub Units prepare here;
+      // World construction belongs to the selected destination.
       logger.info('🗺️ Journey boards rendered in background');
 
     } else {
@@ -1187,6 +1186,10 @@ class CollectiblesManager {
       postEnterLease.schedule(() => {
         if (!appZoneManager.isPresentationCurrent(journeyPresentationEpoch, 'journey')) return;
         if (journeyContainer.dataset.journeyV700View === 'hub') return;
+        // The V700 World manager already installed the current scroll/input
+        // owner before enter. Legacy recovery here would remove its handlers
+        // and rewrite overflow/transforms in the middle of the cascade.
+        if (journeyContainer.dataset.journeyV700View === 'world') return;
         restoreJourneyScrollableInteractivity('showCollectibles-scroll-enable-timeout', false);
       }, 100);
     }
@@ -1211,7 +1214,9 @@ class CollectiblesManager {
         }
         const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
         journeyBoardsManagerPreparedForEnter = journeyBoardsManager;
-        restoreJourneyReturnScrollPosition('pre-reveal-after-boards-ready');
+        journeyBoardsManager.resumeHubForVisibleEnter();
+        journeyEnterPerformance.phase('restore-return-scroll', () =>
+          restoreJourneyReturnScrollPosition('pre-reveal-after-boards-ready'));
         if (!shouldUseV700WorldReturnEnter) {
           journeyEnterPerformance.phase('prepare-card-transforms', () =>
             journeyBoardsManager.prepareJourneyBoardCardTransformsForReveal?.('collectibles-pre-reveal'));
@@ -1236,16 +1241,51 @@ class CollectiblesManager {
       }
     }
 
+    // A paintable parked World keeps its settled backing through preparation.
+    // Commit cached start poses only at this final covered handoff, never after
+    // the terminal cover has received a destination-visible-ready receipt.
+    if (!isVisibleEnterOwnerCurrent() || !isJourneyRevealCurrent()
+      || (shouldUseV700WorldReturnEnter && terminalReturnToken !== getJourneyReturnTransitionToken())) {
+      visibleEnterLease.settle();
+      return;
+    }
+    let worldEnterPoseReady = true;
+    const recoverWorldEnterPose = (): boolean => {
+      try {
+        return journeyBoardsManagerPreparedForEnter?.recoverPreparedJourneyWorldEnterPose?.(terminalReturnToken) === true;
+      } catch (error) {
+        logger.warn('⚠️ Journey deferred pose recovery failed:', String(error));
+        return false;
+      }
+    };
+    if (shouldUseV700WorldReturnEnter) {
+      try {
+        worldEnterPoseReady = journeyBoardsManagerPreparedForEnter?.commitPreparedJourneyWorldEnterPose?.(terminalReturnToken) !== false;
+      } catch (error) {
+        worldEnterPoseReady = false;
+        logger.warn('⚠️ Journey deferred pose commit failed:', String(error));
+      }
+      if (!worldEnterPoseReady) {
+        worldEnterPoseReady = recoverWorldEnterPose();
+        emitIOSNativeDiagnostic('world-return-deferred-pose-recovery', { terminalReturnToken, ready: worldEnterPoseReady });
+        // A failed current plan is not a stale presentation. Keep the existing
+        // reveal/watchdog owners alive; their fallback can reconcile the World.
+      }
+    }
+
     // 🎬 CRITICAL: Trigger Journey screen enter animation (pop-in) using GSAP
     // Screen is now visible with opacity 0, ready for animation
     // 🔥 CRITICAL: Set display FIRST, then animate immediately (no delays)
-    if (hasTransferredTerminalCover) {
-      journeyBoardsManagerPreparedForEnter?.promotePreparedJourneyV700WorldBehindTerminalCover?.(
+    if (hasTransferredTerminalCover && worldEnterPoseReady) {
+      worldEnterPoseReady = journeyBoardsManagerPreparedForEnter?.promotePreparedJourneyV700WorldBehindTerminalCover?.(
         terminalReturnToken,
-      );
-      const committed = commitPreparedJourneyViewportBehindTerminalCover();
-      emitIOSNativeDiagnostic('terminal-destination-visible-commit', { committed });
-      markJourneyReturnDestinationVisibleReady(terminalReturnToken);
+      ) === true;
+      if (worldEnterPoseReady) {
+        releaseJourneyViewportParking(screen as HTMLElement, true);
+        const committed = commitPreparedJourneyViewportBehindTerminalCover();
+        emitIOSNativeDiagnostic('terminal-destination-visible-commit', { committed });
+        if (committed) markJourneyReturnDestinationVisibleReady(terminalReturnToken);
+      }
     }
     // Opacity and visibility are already set to 0/hidden above - GSAP will animate them
 
@@ -1253,13 +1293,17 @@ class CollectiblesManager {
       let enterAnimationStarted = false;
       const recoverVisibleCommit = (reason: string): void => {
         if (!isVisibleEnterOwnerCurrent()) return;
-        if (!isJourneyRevealCurrent()) {
+        if (!isJourneyRevealCurrent()
+          || (shouldUseV700WorldReturnEnter && terminalReturnToken !== getJourneyReturnTransitionToken())) {
           visibleEnterLease.settle();
           return;
         }
         const screenStyle = window.getComputedStyle(screen as HTMLElement);
         if (
-          screenStyle.display !== 'none'
+          worldEnterPoseReady
+          && !isJourneyViewportParked(screen as HTMLElement)
+          && !isJourneyReturnStaticCoverActive(terminalReturnToken)
+          && screenStyle.display !== 'none'
           && screenStyle.visibility !== 'hidden'
           && Number(screenStyle.opacity || '1') > 0.01
         ) {
@@ -1268,6 +1312,7 @@ class CollectiblesManager {
         }
         enterAnimationStarted = true;
         logger.warn('⚠️ Journey enter missed its visible commit - applying current-route recovery', { reason });
+        if (!worldEnterPoseReady) worldEnterPoseReady = recoverWorldEnterPose();
         releaseJourneyScreenHiddenPrime(screen as HTMLElement);
         (screen as HTMLElement).style.display = 'flex';
         (screen as HTMLElement).style.visibility = 'visible';
@@ -1292,6 +1337,9 @@ class CollectiblesManager {
           reason,
           shouldUseV700WorldReturnEnter,
         });
+        if (!shouldUseV700WorldReturnEnter && pendingTerminalReturnToken !== null) {
+          completeJourneyReturnTransition({ destination: 'hub', recovery: true }, pendingTerminalReturnToken);
+        }
         visibleEnterLease.settle();
       };
       const revealFallbackTimer = window.setTimeout(() => {
@@ -1308,15 +1356,16 @@ class CollectiblesManager {
             && getJourneyReturnTransitionToken() !== terminalReturnToken)) return;
           enterAnimationStarted = true;
           console.log('🎬 Starting Journey enter animation IMMEDIATELY...');
-          if (!hasTransferredTerminalCover) {
-            releaseJourneyScreenHiddenPrime(screen as HTMLElement);
-          }
-          emitIOSNativeDiagnostic('screen-prime-released');
-          // 🔥 CRITICAL: Start animation immediately - screen is already prepared with opacity 0
-          // The generation-owned terminal reveal can continue in this same task.
+          // Retain the covered paintable viewport through the final scheduled
+          // boundary. Release and visible animation must share one task.
           scheduleJourneyReturnReveal(terminalReturnToken, isJourneyRevealCurrent, () => {
-            if (!isVisibleEnterOwnerCurrent()) return;
+            if (!isVisibleEnterOwnerCurrent() || !isJourneyRevealCurrent() || (terminalReturnToken !== null
+              && getJourneyReturnTransitionToken() !== terminalReturnToken)) return;
             journeyEnterPerformance.mark('second-reveal-frame');
+            if (!hasTransferredTerminalCover || !worldEnterPoseReady) {
+              releaseJourneyScreenHiddenPrime(screen as HTMLElement);
+            }
+            emitIOSNativeDiagnostic('screen-prime-released');
             const enterPromise = Promise.resolve(journeyEnterPerformance.phase('start-viewport-animation', () => animateCollectiblesScreenEnter({
               animateJourneyContent: !shouldUseV700WorldReturnEnter,
               revealPrimedWorldImmediately: terminalReturnToken !== null,
@@ -1382,6 +1431,12 @@ class CollectiblesManager {
               () => {
                 window.clearTimeout(revealFallbackTimer);
                 journeyEnterPerformance.finish('visible-enter-complete');
+                // A fresh tutorial can return to the Hub rather than a World.
+                // Its return token still owns this cascade and must not survive
+                // to suppress preparation for a later manual game exit.
+                if (!shouldUseV700WorldReturnEnter && pendingTerminalReturnToken !== null) {
+                  completeJourneyReturnTransition({ destination: 'hub' }, pendingTerminalReturnToken);
+                }
                 visibleEnterLease.settle();
               },
               () => {
@@ -1748,51 +1803,11 @@ class CollectiblesManager {
           screen.setAttribute('hidden', 'true');
           logger.info('✅ Journey screen hidden before fast homepage handoff');
 
-          const finishJourneyBackCleanup = async () => {
-            console.log('🛑 Stopping remaining Journey animations after fast homepage handoff...');
-
-            try {
-              const { JOURNEY_CARD_IDLE_BOUNCE } = await import('./modules/journey-card-idle-bounce.js');
-              if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.stop === 'function') {
-                JOURNEY_CARD_IDLE_BOUNCE.stop();
-                console.log('✅ Journey card idle bounce stopped');
-              }
-            } catch (error) {
-              console.warn('⚠️ Failed to stop journey card idle bounce:', error);
-            }
-
-            try {
-              const journeyContainer = document.getElementById('journey-boards-container');
-              if (journeyContainer) {
-                const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
-                if (journeyBoardsManager && typeof journeyBoardsManager.stopInterimCardIdleEffects === 'function') {
-                  journeyBoardsManager.stopInterimCardIdleEffects();
-                  console.log('✅ Glow pulse and interim bounce stopped');
-                }
-                journeyBoardsManager.cleanup();
-              }
-            } catch (error) {
-              console.warn('⚠️ Failed to cleanup Journey boards after fast handoff:', error);
-            }
-
-            try {
-              const journeyScreen = document.getElementById('journey-screen');
-              if (journeyScreen) {
-                const cards = journeyScreen.querySelectorAll('.journey-board-card, .journey-board-card-wrapper');
-                if (cards.length > 0) {
-                  const { gsap } = await import('gsap');
-                  gsap.killTweensOf(cards);
-                  console.log(`✅ Killed GSAP animations on ${cards.length} journey cards`);
-                }
-              }
-            } catch (error) {
-              console.warn('⚠️ Failed to kill GSAP animations:', error);
-            }
-
-            cleanupCollectiblesAnimations();
-          };
-
-          void finishJourneyBackCleanup();
+          // Retire once before Homepage starts. The manager may retain the warm
+          // Hub DOM remains retained but hidden, with no Homepage paint cover.
+          const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+          journeyBoardsManager.suspendForHomepage();
+          cleanupCollectiblesAnimations();
 
           console.log('🏠 Step 2: Fast showing Journey homepage slide after Journey exit animation');
           markIOSJourneyRouteAudit('homepage-return-enter');
@@ -1856,7 +1871,7 @@ class CollectiblesManager {
       const journeyContainer = document.getElementById('journey-boards-container');
       if (journeyContainer) {
         const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
-        if (isBackButton) journeyBoardsManager.cleanup();
+        if (isBackButton) journeyBoardsManager.suspendForHomepage();
         else journeyBoardsManager.suspendForGameplay();
       }
 

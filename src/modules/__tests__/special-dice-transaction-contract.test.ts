@@ -19,6 +19,45 @@ describe('shared special-dice transaction contract', () => {
     expect(firstGridMutationIndex).toBeGreaterThan(claimIndex);
     expect(appCoreSource).toContain('if (active.token !== token)');
     expect(appCoreSource).not.toContain('releaseActiveSpecialDiceTransaction');
+    expect(appCoreSource).toContain('createSpecialMergeTransactionReceipt({');
+    expect(appCoreSource).toContain('specialDiceTransactionOwner.attachMergeReceipt(');
+  });
+
+  test('never exposes a Special merge-6 carrier as an unowned playable six', () => {
+    const finality = appCoreSource.indexOf('const isFinalMergeByResolver =');
+    const universalClaim = appCoreSource.indexOf(
+      'if (wildActive || !isFinalMergeByResolver) {',
+      finality,
+    );
+    const setValue = appCoreSource.indexOf('makeBoard.setValue(dst, 6, 0)', universalClaim);
+    const hideCarrier = appCoreSource.indexOf(
+      "hideSpecialMerge6DestinationVisual(dst, 'special-merge6-transaction-carrier')",
+      setValue,
+    );
+
+    expect(universalClaim).toBeGreaterThan(finality);
+    expect(appCoreSource.slice(universalClaim, setValue)).toContain(
+      'regularMerge6CleanupToken = merge6DestinationCleanupOwner.claim(dst)',
+    );
+    expect(hideCarrier).toBeGreaterThan(setValue);
+    expect(appCoreSource).toContain('specialDiceTransactionOwner.reservePrimarySpawn(');
+    expect(appCoreSource).toContain('specialDiceTransactionOwner.commitPrimarySpawn(specialPermit)');
+    expect(appCoreSource).toContain('specialDiceTransactionOwner.cancelPrimarySpawn(specialPermit)');
+    expect(appCoreSource).toContain('if (specialMergeTransactionReceipt?.finalMerge === true) return null;');
+    expect(appCoreSource).toContain('if (specialMergeTransactionReceipt?.finalMerge === true) return false;');
+    expect(appCoreSource).toContain('return openPrimarySpecialMergeCell(spawnC, spawnR, {');
+    expect(appCoreSource).toContain('const ok = await openPrimarySpecialMergeCell(gx, gy, {');
+    expect(appCoreSource).toContain("releaseSpecialDiceTransaction(specialTransactionToken, 'stale-special-merge6-absorb', { mode: 'abort-recovery' })");
+    expect(appCoreSource).toContain("settleSpecialMergeTransaction('post-spawn-destination-cleanup')");
+    expect(appCoreSource).toContain("settleSpecialMergeTransaction('primary-spawn-committed')");
+    expect(appCoreSource).toContain("settleSpecialMergeTransaction('hard-fallback-primary-spawn-committed')");
+    expect(appCoreSource).toContain("options: { mode?: 'settled' | 'abort-recovery' } = {}")
+    expect(appCoreSource).toContain("const isAbortRecovery = options.mode === 'abort-recovery'")
+    expect(appCoreSource).toContain("return releaseSpecialDiceTransaction(specialTransactionToken, reason, { mode: 'settled' })")
+    expect(appCoreSource).toContain('if (specialMergeReceiptRecoveryPending) {');
+    expect(appCoreSource).toContain('specialReleaseAccepted = releaseSpecialDiceTransaction(');
+    expect(appCoreSource).toContain('return specialReleaseAccepted;');
+    expect(appCoreSource).toContain('if (specialTransactionToken !== null && !releasedSpecialOwner)');
   });
 
   test('serializes external drops while preserving Magnet-owned internal merges', () => {

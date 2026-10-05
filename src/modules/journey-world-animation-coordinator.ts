@@ -1,7 +1,7 @@
 import { isThermalWorkSuppressed } from '../utils/thermal-isolation.js';
 import { gsap } from 'gsap';
 import {
-  getJourneyV700EnterOffset,
+  getJourneyV700EnterOffsets,
   getJourneyV700MotionProfile,
   getJourneyV700UnitStagger,
   getJourneyV700WorldMainExitDuration,
@@ -153,6 +153,7 @@ export class JourneyWorldAnimationCoordinator {
   private generation = 0;
   private phase: JourneyWorldAnimationPhase = 'hidden';
   private activeTimeline: gsap.core.Timeline | null = null;
+  private settleActiveAnimation: (() => void) | null = null;
   private motionSounds: ReturnType<typeof createJourneyUnitMotionSoundSession> | null = null;
   private idleTicker: (() => void) | null = null;
   private idleTickerAttached = false;
@@ -173,9 +174,19 @@ export class JourneyWorldAnimationCoordinator {
   public stop(resetTransforms = false): void {
     this.motionSounds?.stop();
     this.motionSounds = null;
-    this.activeTimeline?.kill();
-    this.generation++;
+    const activeTimeline = this.activeTimeline;
+    const settleActiveAnimation = this.settleActiveAnimation;
     this.activeTimeline = null;
+    this.settleActiveAnimation = null;
+    try {
+      activeTimeline?.kill();
+    } finally {
+      // GSAP normally dispatches onInterrupt from kill(), but a foreground
+      // lifecycle/ticker disruption can retire the timeline without delivering
+      // that callback. The coordinator, not GSAP, owns Promise settlement.
+      settleActiveAnimation?.();
+    }
+    this.generation++;
     if (this.idleTicker) gsap.ticker.remove(this.idleTicker);
     this.idleTickerAttached = false;
     this.idleTicker = null;
@@ -186,6 +197,18 @@ export class JourneyWorldAnimationCoordinator {
     this.idleVisibilityObserver?.disconnect();
     this.idleVisibilityObserver = null;
     if (resetTransforms) this.phase = 'hidden';
+  }
+
+  /** Keep final poses paintable beneath a caller-owned opaque cover. The
+   * caller suspends route/input ownership and restores nested card base poses;
+   * parking never acquires enter, sound, or settled-idle ownership. */
+  public park(units: JourneyWorldAnimationUnit[]): void {
+    this.stop(true);
+    const liveUnits = this.getLiveUnits(units);
+    const clouds = Array.from(new Set(liveUnits.flatMap(unit => unit.clouds)));
+    if (clouds.length) gsap.set(clouds, { x: 0, overwrite: true });
+    const targets = new Set(liveUnits.flatMap(unit => unit.targets));
+    targets.forEach(target => this.finalizeEnterTarget(target));
   }
 
   /** Pause idle paint without consuming its phase. The visible transition
@@ -256,6 +279,8 @@ export class JourneyWorldAnimationCoordinator {
     // Never turn a malformed viewport measurement into an empty visible enter.
     if (enteringUnits.length === 0) enteringUnits = liveUnits.slice(0, 1);
     const enteringUnitSet = new Set(enteringUnits);
+    const worldEnterOffsets = getJourneyV700EnterOffsets(liveUnits, reducedMotion);
+    const enterOffsets = enteringUnits.map((unit) => worldEnterOffsets[liveUnits.indexOf(unit)]);
     const settledOffscreenUnits = liveUnits.filter((unit) => !enteringUnitSet.has(unit));
     preloadJourneyUnitMotionSounds();
     const motionSounds = this.motionSounds = createJourneyUnitMotionSoundSession(enteringUnits);
@@ -286,19 +311,23 @@ export class JourneyWorldAnimationCoordinator {
     });
 
     await new Promise<void>((resolve) => {
-      const timeline = gsap.timeline({
-        onComplete: () => {
-          motionSounds.stop();
-          if (this.activeTimeline === timeline) this.activeTimeline = null;
-          resolve();
-        },
-        onInterrupt: () => { motionSounds.stop(); resolve(); },
+      let settled = false;
+      let timeline!: gsap.core.Timeline;
+      const settleEnter = () => {
+        if (settled) return;
+        settled = true;
+        motionSounds.stop();
+        if (this.activeTimeline === timeline) this.activeTimeline = null;
+        if (this.settleActiveAnimation === settleEnter) this.settleActiveAnimation = null;
+        resolve();
+      };
+      timeline = gsap.timeline({
+        onComplete: settleEnter,
+        onInterrupt: settleEnter,
       });
       this.activeTimeline = timeline;
+      this.settleActiveAnimation = settleEnter;
 
-      const enterOffsets = enteringUnits.map((unit, index) => Number.isFinite(unit.enterDelayOffset)
-        ? Number(unit.enterDelayOffset)
-        : getJourneyV700EnterOffset(unit.id, index, reducedMotion));
       // Remove only the empty lead-in after a completed result exit. Keep every
       // Unit's duration, curve and relative cascade spacing unchanged.
       const enterLead = options.immediateFirstUnit
@@ -322,7 +351,7 @@ export class JourneyWorldAnimationCoordinator {
           // all of them into compositor layers before their first visible frame
           // produced a measured 77-150ms cold iOS hitch. Let GSAP keep this
           // short enter in 2D; settled idle motion can then own only live Units.
-          force3D: false,
+          force3D: unit.targets.length === 1 && unit.targets[0].classList.contains('journey-scene-unit'),
           overwrite: true,
         };
         const tween = options.targetsPrimed
@@ -382,9 +411,8 @@ export class JourneyWorldAnimationCoordinator {
     const stagger = getJourneyV700UnitStagger(liveUnits.length, reducedMotion);
     const exitOrder = liveUnits.slice().reverse();
     const cardVisuals = new Map(exitOrder.map(unit => [unit, unit.targets.flatMap(target => {
-      if (!target.classList.contains('journey-board-card-wrapper')) return [];
-      const card = target.querySelector<HTMLElement>('.journey-board-card');
-      return card ? [card] : [];
+      if (!target.matches('.journey-board-card-wrapper, .journey-scene-unit')) return [];
+      return Array.from(target.querySelectorAll<HTMLElement>('.journey-board-card'));
     })]));
     // Retire the outgoing targets once, before creating any replacement tween.
     // Per-Unit killTweensOf repeatedly traversed the growing global timeline.
@@ -403,22 +431,24 @@ export class JourneyWorldAnimationCoordinator {
       const finalizeUnitExits = () => {
         unitExitFinalizers.forEach((finalize) => finalize());
       };
-      const timeline = gsap.timeline({
-        onComplete: () => {
-          motionSounds.stop();
-          finalizeUnitExits();
-          finalizeCardExits();
-          if (this.activeTimeline === timeline) this.activeTimeline = null;
-          resolve();
-        },
-        onInterrupt: () => {
-          motionSounds.stop();
-          finalizeUnitExits();
-          finalizeCardExits();
-          resolve();
-        },
+      let settled = false;
+      let timeline!: gsap.core.Timeline;
+      const settleExit = () => {
+        if (settled) return;
+        settled = true;
+        motionSounds.stop();
+        finalizeUnitExits();
+        finalizeCardExits();
+        if (this.activeTimeline === timeline) this.activeTimeline = null;
+        if (this.settleActiveAnimation === settleExit) this.settleActiveAnimation = null;
+        resolve();
+      };
+      timeline = gsap.timeline({
+        onComplete: settleExit,
+        onInterrupt: settleExit,
       });
       this.activeTimeline = timeline;
+      this.settleActiveAnimation = settleExit;
 
       exitOrder.forEach((unit, index) => {
         const position = index * stagger;
@@ -437,9 +467,10 @@ export class JourneyWorldAnimationCoordinator {
             scheduledAt: position,
           });
         };
-        const cardWrappers = unit.targets.filter((target) => (
-          target.classList.contains('journey-board-card-wrapper')
-        ));
+        const cardWrappers = unit.targets.flatMap((target) => target.classList.contains('journey-scene-unit')
+          ? Array.from(target.querySelectorAll<HTMLElement>('.journey-board-card-wrapper'))
+          : target.classList.contains('journey-board-card-wrapper') ? [target] : []);
+        const independentCardWrappers = cardWrappers.filter(target => unit.targets.includes(target));
         const structuralTargets = unit.targets.filter((target) => !cardWrappers.includes(target));
         const mainArtworkTargets = reducedMotion
           ? []
@@ -471,7 +502,7 @@ export class JourneyWorldAnimationCoordinator {
           });
           const mainArtworkExit = gsap.timeline({
             onComplete: companionTargets.length ? undefined : finalizeUnitExit,
-            onInterrupt: finalizeUnitExit,
+            onInterrupt: settleExit,
           })
             .to(mainArtworkTargets, {
               scaleX: JOURNEY_WORLD_CARTOON_BOUNCE_ENTER.scaleX,
@@ -507,7 +538,7 @@ export class JourneyWorldAnimationCoordinator {
               force3D: false,
               overwrite: true,
               onComplete: finalizeUnitExit,
-              onInterrupt: finalizeUnitExit,
+              onInterrupt: settleExit,
             }), position);
           }
           return;
@@ -524,7 +555,7 @@ export class JourneyWorldAnimationCoordinator {
             overwrite: true,
             onStart: markUnitExitStart,
             onComplete: finalizeUnitExit,
-            onInterrupt: finalizeUnitExit,
+            onInterrupt: settleExit,
           });
           timeline.add(tween, position);
           return;
@@ -546,17 +577,18 @@ export class JourneyWorldAnimationCoordinator {
             overwrite: true,
             onStart: markUnitExitStart,
             onComplete: finalizeUnitExit,
-            onInterrupt: finalizeUnitExit,
+            onInterrupt: settleExit,
           }), position);
         }
 
-        timeline.add(gsap.to(cardWrappers, {
+        if (independentCardWrappers.length) timeline.add(gsap.to(independentCardWrappers, {
           y: motion.exit.y,
           duration: JOURNEY_V700_UNIT_CARD_EXIT_DURATION,
           ease: motion.exit.ease,
           force3D: false,
           overwrite: true,
           onStart: structuralTargets.length ? undefined : markUnitExitStart,
+          onInterrupt: settleExit,
         }), position);
         cardVisualTargets.forEach((card) => {
           card.classList.add('journey-card-tapping');
@@ -568,7 +600,7 @@ export class JourneyWorldAnimationCoordinator {
         const finalizeCardExit = () => {
           if (cardExitFinalized || generation !== this.generation) return;
           cardExitFinalized = true;
-          cardWrappers.forEach((wrapper) => {
+          independentCardWrappers.forEach((wrapper) => {
             if (!document.body.contains(wrapper)) return;
             gsap.set(wrapper, { opacity: 0, visibility: 'hidden', overwrite: true });
           });
@@ -594,7 +626,7 @@ export class JourneyWorldAnimationCoordinator {
           force3D: false,
           overwrite: true,
           onComplete: finalizeCardExit,
-          onInterrupt: finalizeCardExit,
+          onInterrupt: settleExit,
         }), position);
       });
     });
@@ -794,7 +826,7 @@ export class JourneyWorldAnimationCoordinator {
 
     target.style.visibility = 'visible';
     target.style.opacity = '1';
-    target.style.pointerEvents = '';
+    target.style.pointerEvents = target.classList.contains('journey-scene-unit') ? 'none' : '';
     target.style.willChange = 'auto';
   }
 }

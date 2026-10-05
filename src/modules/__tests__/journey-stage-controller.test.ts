@@ -81,21 +81,16 @@ describe('JourneyStageController', () => {
     expect(worldA.isConnected).toBe(false);
   });
 
-  test('retaining World B evicts World A and keeps the cache bounded', () => {
+  test('retains only the most recent World and releases it before another cold destination', () => {
     const controller = new JourneyStageController();
-    const detachedOwner = document.createElement('div');
-    const worldA = createSurfaceNode('world-a');
-    const worldB = createSurfaceNode('world-b');
-
-    expect(controller.retainNodes({ view: 'world', worldId: 1 }, [worldA], detachedOwner)).toBeNull();
-    expect(controller.retainNodes({ view: 'world', worldId: 2 }, [worldB], detachedOwner)).toEqual({
-      view: 'world',
-      worldId: 1,
-    });
-    expect(controller.hasRetained({ view: 'world', worldId: 1 })).toBe(false);
-    expect(controller.hasRetained({ view: 'world', worldId: 2 })).toBe(true);
+    const owner = document.createElement('div');
+    expect(controller.retainNodes({ view: 'world', worldId: 1 }, [createSurfaceNode('a')], owner)).toBeNull();
+    expect(controller.retainNodes({ view: 'world', worldId: 2 }, [createSurfaceNode('b')], owner))
+      .toEqual({ view: 'world', worldId: 1 });
     expect(controller.getRetainedDescriptors()).toEqual([{ view: 'world', worldId: 2 }]);
-    expect(worldA.isConnected).toBe(false);
+    expect(controller.releaseRetainedWorldExcept(2)).toBeNull();
+    expect(controller.releaseRetainedWorldExcept(3)).toEqual({ view: 'world', worldId: 2 });
+    expect(controller.getRetainedDescriptors()).toEqual([]);
   });
 
   test('re-retaining the same node identity never disposes the shared node', () => {
@@ -197,6 +192,43 @@ describe('JourneyStageController', () => {
 
     expect(controller.clearRetainedWorld()).toBeNull();
     expect(controller.hasRetained({ view: 'hub' })).toBe(true);
+    controller.dispose();
+  });
+
+  test('memory pressure releases every resident World while preserving Hub', () => {
+    const controller = new JourneyStageController();
+    const owner = document.createElement('div');
+    const hub = createSurfaceNode('hub');
+    controller.retainNodes({ view: 'hub' }, [hub], owner);
+    [1, 2, 3].forEach((worldId) => {
+      controller.retainNodes(
+        { view: 'world', worldId },
+        [createSurfaceNode(`world-${worldId}`)],
+        owner,
+      );
+    });
+
+    expect(controller.clearRetainedWorlds()).toEqual([
+      { view: 'world', worldId: 3 },
+    ]);
+    expect(controller.getRetainedDescriptors()).toEqual([{ view: 'hub' }]);
+    controller.dispose();
+  });
+
+  test('memory pressure preserves the accepted resident destination until its transition commits', () => {
+    const controller = new JourneyStageController();
+    const owner = document.createElement('div');
+    [1, 3, 2].forEach((worldId) => {
+      controller.retainNodes(
+        { view: 'world', worldId },
+        [createSurfaceNode(`world-${worldId}`)],
+        owner,
+      );
+    });
+    controller.beginTransition({ view: 'hub' }, { view: 'world', worldId: 2 });
+
+    expect(controller.clearRetainedWorlds()).toEqual([]);
+    expect(controller.getRetainedDescriptors()).toEqual([{ view: 'world', worldId: 2 }]);
     controller.dispose();
   });
 });

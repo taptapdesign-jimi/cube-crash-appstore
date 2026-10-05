@@ -175,6 +175,8 @@ export function normalizeSpawnedTileVisual(tile: any): void {
   // identity: the outer tile can remain interactive and measurable while its
   // actual base texture stays invisible.
   try { delete tile._ccHideFinalMergeResultVisual; } catch {}
+  try { delete tile._ccSpecialMerge6PendingCleanup; } catch {}
+  try { tile.renderable = true; } catch {}
 
   try {
     if (tile.scale?.set) tile.scale.set(1, 1);

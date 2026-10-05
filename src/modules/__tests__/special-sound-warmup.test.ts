@@ -1,5 +1,14 @@
 import { preloadKantaMerge6Sounds } from '../kanta-merge6-sound';
 jest.mock('../kanta-merge6-sound', () => ({ preloadKantaMerge6Sounds: jest.fn() }));
+import { acquireDecodedGameplayAudioWorkingSet } from '../gameplay-audio-buffer-player';
+jest.mock('../gameplay-audio-buffer-player', () => ({
+  acquireDecodedGameplayAudioWorkingSet: jest.fn(() => ({
+    admitted: true,
+    isCurrent: () => true,
+    capturePreparation: (prepare: () => unknown) => prepare(),
+    release: jest.fn(),
+  })),
+}));
 import {
   acquireSpecialSoundWorkingSetPlan,
   getSpecialSoundWarmupFamilies,
@@ -52,6 +61,14 @@ function prepared(boardNumber: number, isArcade = false, tile: any): string[] {
   return Object.entries(owners).filter(([, owner]) => jest.mocked(owner).mock.calls.length > 0).map(([name]) => name).sort();
 }
 
+beforeEach(() => {
+  jest.mocked(acquireDecodedGameplayAudioWorkingSet).mockReset().mockImplementation(() => ({
+    admitted: true,
+    isCurrent: () => true,
+    capturePreparation: (prepare) => prepare(),
+    release: jest.fn(),
+  }));
+});
 afterEach(() => resetSpecialSoundWorkingSetForTests());
 test('entry does not decode possible rewards before a special exists', () => {
   expect(warmed(1)).toEqual([]);
@@ -68,6 +85,67 @@ test.each([false, true])('a committed core Star transaction warms its package on
   expect(plan.prepareCommittedTransaction(tile)).toBe(true);
   expect(preloadWildStarMerge6Sound).toHaveBeenCalledTimes(1);
   expect(plan.prepareCommittedTransaction({ special: 'wild', destroyed: true })).toBe(false);
+  expect(acquireDecodedGameplayAudioWorkingSet).toHaveBeenCalledTimes(1);
+  expect(acquireDecodedGameplayAudioWorkingSet).toHaveBeenCalledWith(
+    'active-special-family',
+    16 * 1024 * 1024,
+  );
+});
+
+test('replacement Special family releases the prior captured residency before preparing the successor', () => {
+  const releases: jest.Mock[] = [];
+  jest.mocked(acquireDecodedGameplayAudioWorkingSet).mockImplementation(() => {
+    const release = jest.fn();
+    releases.push(release);
+    return {
+      admitted: true,
+      isCurrent: () => true,
+      capturePreparation: (prepare) => prepare(),
+      release,
+    };
+  });
+  const star = { special: 'wild' };
+  const fish = { special: 'wild', _ccSpecialDiceVariant: 'fish' };
+  const plan = acquireSpecialSoundWorkingSetPlan({ boardNumber: 12, isArcade: false, tiles: [star, fish] });
+  expect(plan.prepareCommittedTransaction(star)).toBe(true);
+  expect(plan.prepareCommittedTransaction(fish)).toBe(true);
+  expect(releases[0]).toHaveBeenCalledTimes(1);
+  expect(preloadWildStarMerge6Sound).toHaveBeenCalledTimes(1);
+  expect(preloadFishMerge6Sounds).toHaveBeenCalledTimes(1);
+  plan.release();
+  plan.release();
+  expect(releases[1]).toHaveBeenCalledTimes(1);
+});
+
+test('same-family preparation reacquires after its engine lease is retired', () => {
+  let firstCurrent = true;
+  const firstRelease = jest.fn(() => { firstCurrent = false; });
+  const secondRelease = jest.fn();
+  jest.mocked(acquireDecodedGameplayAudioWorkingSet)
+    .mockReturnValueOnce({
+      admitted: true,
+      isCurrent: () => firstCurrent,
+      capturePreparation: (prepare) => prepare(),
+      release: firstRelease,
+    })
+    .mockReturnValueOnce({
+      admitted: true,
+      isCurrent: () => true,
+      capturePreparation: (prepare) => prepare(),
+      release: secondRelease,
+    });
+  const star = { special: 'wild' };
+  const plan = acquireSpecialSoundWorkingSetPlan({ boardNumber: 7, isArcade: false, tiles: [star] });
+
+  expect(plan.prepareCommittedTransaction(star)).toBe(true);
+  firstCurrent = false; // Background/pressure clears the engine reservation.
+  expect(plan.prepareCommittedTransaction(star)).toBe(true);
+
+  expect(acquireDecodedGameplayAudioWorkingSet).toHaveBeenCalledTimes(2);
+  expect(firstRelease).toHaveBeenCalledTimes(1);
+  expect(preloadWildStarMerge6Sound).toHaveBeenCalledTimes(2);
+  plan.release();
+  expect(secondRelease).toHaveBeenCalledTimes(1);
 });
 
 test('entry keeps ordinary cues ready and leaves Star preparation with the committed-special owner', () => {
