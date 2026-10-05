@@ -3,6 +3,14 @@ import { getJourneyV700MotionProfile } from '../modules/journey-v700-motion.js';
 import type { SceneHandle, SceneTransitionContext } from './scene-director.js';
 
 const leases = new WeakMap<HTMLElement, { cancel: () => void }>();
+type NumericPose = { scale: number; x: number; y: number; opacity: number };
+
+export interface ScenePresentationOptions {
+  /** Sample a fresh viewport policy once per motion, never per animation tick.
+   * Omitted policy animates every presented Unit. Nonadmitted Units remain
+   * mounted at their authored static pose; a presented header is always admitted. */
+  getAdmittedUnitIds?: (motion: 'enter' | 'exit') => ReadonlySet<string>;
+}
 
 function clearPose(unit: HTMLElement): void {
   unit.style.removeProperty('transform');
@@ -20,7 +28,7 @@ function isPresentedUnit(unit: HTMLElement, root: HTMLElement): boolean {
 
 /** A fresh finite-motion lease over retained DOM. Unit wrappers have no authored
  * transforms; nested artwork/flip rotors retain their own independent poses. */
-export function createScenePresentation(root: HTMLElement, host: HTMLElement): SceneHandle {
+export function createScenePresentation(root: HTMLElement, host: HTMLElement, options: ScenePresentationOptions = {}): SceneHandle {
   leases.get(root)?.cancel();
   const units = Array.from(root.querySelectorAll<HTMLElement>('[data-jimi-unit]'));
   let timeline: gsap.core.Timeline | undefined;
@@ -44,12 +52,42 @@ export function createScenePresentation(root: HTMLElement, host: HTMLElement): S
   const move = (enter: boolean, context: SceneTransitionContext): Promise<void> => {
     if (!ownsRoot() || context.signal.aborted || !context.isCurrent()) return Promise.resolve();
     settle();
-    const targets = units.filter(unit => isPresentedUnit(unit, root));
+    const admittedIds = options.getAdmittedUnitIds?.(enter ? 'enter' : 'exit');
+    const targets = units.filter(unit => isPresentedUnit(unit, root)
+      && (!admittedIds || unit.dataset.jimiUnit === 'header' || admittedIds.has(unit.dataset.jimiUnit ?? '')));
     if (!targets.length) return Promise.resolve();
     const profile = getJourneyV700MotionProfile(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     const epoch = motionEpoch;
+    // GSAP receives only these plain numeric objects, never a DOM target. The
+    // presentation lease alone writes styles, so CSSPlugin cannot hydrate Unit
+    // transforms or read layout while constructing the transition.
+    const poses: NumericPose[] = targets.map(() => ({
+      scale: enter ? profile.enter.scale : 1,
+      x: 0,
+      y: enter ? profile.enter.y : 0,
+      opacity: enter ? 0 : 1,
+    }));
+    const lastTransforms: Array<string | undefined> = targets.map(() => undefined);
+    const lastOpacities: Array<string | undefined> = targets.map(() => undefined);
+    const writePoses = () => {
+      for (let index = 0; index < targets.length; index++) {
+        const pose = poses[index];
+        const transform = `translate3d(${pose.x}px, ${pose.y}px, 0px) scale(${pose.scale})`;
+        const opacity = String(Math.max(0, Math.min(1, pose.opacity)));
+        if (lastTransforms[index] !== transform) {
+          targets[index].style.transform = transform;
+          lastTransforms[index] = transform;
+        }
+        if (lastOpacities[index] !== opacity) {
+          targets[index].style.opacity = opacity;
+          lastOpacities[index] = opacity;
+        }
+      }
+    };
     return new Promise<void>((resolve, reject) => {
+      let completed = false;
       const done = (error?: unknown) => {
+        completed = true;
         context.signal.removeEventListener('abort', abort);
         finish = undefined;
         if (error === undefined) resolve();
@@ -59,23 +97,35 @@ export function createScenePresentation(root: HTMLElement, host: HTMLElement): S
       finish = done;
       context.signal.addEventListener('abort', abort, { once: true });
       try {
-        timeline = gsap.timeline({ onComplete: () => {
-          if (epoch !== motionEpoch) return;
+        // Prime delayed Units in the same task as reveal, before the first tick.
+        writePoses();
+        const update = () => {
+          if (completed || epoch !== motionEpoch) return;
           if (!ownsRoot() || context.signal.aborted || !context.isCurrent()) { settle(); return; }
-          if (enter) targets.forEach(clearPose);
-          // Exit remains collapsed until the director hides it; rollback calls settle.
-          done();
-        } });
+          try { writePoses(); } catch (error) { settle(error); }
+        };
+        timeline = gsap.timeline({
+          onUpdate: update,
+          onComplete: () => {
+            if (completed || epoch !== motionEpoch) return;
+            if (!ownsRoot() || context.signal.aborted || !context.isCurrent()) { settle(); return; }
+            try {
+              writePoses();
+              if (enter) targets.forEach(clearPose);
+              // Exit stays collapsed until director hide; rollback calls settle.
+              done();
+            } catch (error) { settle(error); }
+          },
+        });
         if (enter) {
-          timeline.fromTo(targets,
+          timeline.fromTo(poses,
             { scale: profile.enter.scale, x: 0, y: profile.enter.y, opacity: 0 },
             { scale: 1, x: 0, y: 0, opacity: 1, duration: profile.enter.duration,
               ease: profile.enter.ease, stagger: { amount: profile.cascadeWindow } });
         } else {
-          // Explicit identity also resets GSAP's cached pose after direct cleanup.
-          timeline.fromTo(targets, { scale: 1, x: 0, y: 0, opacity: 1 },
+          timeline.fromTo(poses, { scale: 1, x: 0, y: 0, opacity: 1 },
             { scale: profile.exit.anticipationScale, duration: profile.exit.anticipationDuration, ease: 'power2.in' })
-            .to(targets, { scale: 0, duration: profile.exit.duration,
+            .to(poses, { scale: 0, duration: profile.exit.duration,
               ease: profile.exit.ease, stagger: { amount: profile.cascadeWindow } });
         }
       } catch (error) { settle(error); }

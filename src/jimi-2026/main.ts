@@ -3,10 +3,15 @@ import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
 import { applyAppPaperBackground } from '../utils/app-paper-background.js';
 import { resolveJourneyCardAsset } from '../modules/journey-card-assets.js';
 import { createSceneDirector } from './scene-director.js';
+import type { SceneTransitionContext } from './scene-director.js';
 import { createScenePresentation } from './scene-presentation.js';
 import { prepareSceneImages } from './scene-resources.js';
-import { measureTransition } from './transition-measurement.js';
-import { buildHomeScene, buildHubScene, buildBeachScene, buildCardScene, buildCardPreviewScene } from './scene-builders.js';
+import { createSceneDiagnostics } from './scene-diagnostics.js';
+import type { SceneDiagnostics } from './scene-diagnostics.js';
+import { createSceneInputDiagnostics } from './scene-input-diagnostics.js';
+import { buildBeachSceneIncrementally } from './scene-assembly.js';
+import { getBeachVisibleUnitIds } from './scene-viewport.js';
+import { buildHomeScene, buildHubScene, buildCardScene, buildCardPreviewScene } from './scene-builders.js';
 import type { JimiProgressSnapshot } from './scene-catalog.js';
 
 type Route = 'home' | 'hub' | 'beach' | 'card' | 'art-preview';
@@ -14,10 +19,19 @@ const host = document.getElementById('jimi-root')!;
 const status = document.getElementById('jimi-status')!;
 const retry = document.getElementById('jimi-retry');
 const lifecycle = createScreenLifecycle('jimi-2026');
+const diagnosticsEnabled = document.documentElement.dataset.jimiMetrics === 'true';
+const inputDiagnosticsEnabled = document.documentElement.dataset.jimiInputMetrics === 'true';
+let diagnostics = createSceneDiagnostics('inactive', false);
+// Input snapshots read layout and send native IPC. Keep them independently
+// opt-in so scroll investigations do not contaminate ordinary route timings.
+lifecycle.trackCleanup(createSceneInputDiagnostics(host, inputDiagnosticsEnabled));
 // Deliberately no second save reader/writer. The gameplay migration will inject
 // a canonical immutable snapshot. Unknown progress is visibly unknown, not 0.
 const progress: JimiProgressSnapshot = Object.freeze({});
 const cache = new Map<Route, HTMLElement>();
+// WebKit may reset overflow scroll when a retained scene is hidden/detached.
+// Weak keys share the existing bounded DOM lifetime; this is not persistence.
+const retainedScrollTops = new WeakMap<HTMLElement, number>();
 let selectedBoard = 11;
 let flip: Animation | undefined;
 let flipped = false;
@@ -25,14 +39,21 @@ let disposed = false;
 let failedRoute: Route = 'home';
 
 function announce(message: string): void { status.textContent = message; }
-function getScene(route: Route): HTMLElement {
+function captureVisibleSceneScroll(root: HTMLElement): void {
+  if (!root.isConnected || root.hidden) return;
+  const scroll = root.querySelector<HTMLElement>('.jimi-scroll');
+  if (scroll) retainedScrollTops.set(root, scroll.scrollTop);
+}
+async function getScene(route: Route, context: SceneTransitionContext, trace: SceneDiagnostics): Promise<HTMLElement> {
   const retained = cache.get(route);
   if (retained) return retained;
   let root: HTMLElement;
   if (route === 'home') root = buildHomeScene();
   else if (route === 'hub') root = buildHubScene(progress);
   else if (route === 'beach') {
-    root = buildBeachScene(progress);
+    root = await buildBeachSceneIncrementally(progress, context,
+      (index, work) => trace.phase(`build.unit${index}`, work));
+    if (context.signal.aborted || !context.isCurrent()) throw new DOMException('Scene assembly cancelled', 'AbortError');
     const preview = document.createElement('button');
     preview.type = 'button';
     preview.className = 'jimi-preview-button';
@@ -49,17 +70,55 @@ function getScene(route: Route): HTMLElement {
 
 const director = createSceneDirector<Route>({
   async prepare(route, context) {
-    const root = getScene(route);
+    const trace = diagnostics;
+    trace.mark(cache.has(route) ? 'prepare.retained' : 'prepare.cold');
+    trace.mark('build.start');
+    const root = await trace.phase('build', () => getScene(route, context, trace));
+    trace.mark('build.end');
+    trace.mark('images.start');
     await prepareSceneImages(root, context);
+    trace.mark('images.end');
     if (!context.isCurrent()) throw new DOMException('Scene preparation cancelled', 'AbortError');
-    const handle = createScenePresentation(root, host);
+    const scroll = root.querySelector<HTMLElement>('.jimi-scroll');
+    const handle = trace.phase('presentation.create', () => createScenePresentation(root, host,
+      route === 'beach' ? {
+        // One fresh snapshot per motion, after return-scroll restoration on
+        // enter. Offscreen Units stay intact; only their animation is omitted.
+        getAdmittedUnitIds: () => getBeachVisibleUnitIds(scroll?.scrollTop ?? NaN, window.innerHeight),
+      } : undefined));
     const cancelMotion = handle.cancelMotion;
     const dispose = handle.dispose;
     return {
       ...handle,
+      setVisible(visible) {
+        diagnostics.phase(`${route}.visible.${visible}`, () => {
+          const wasVisible = root.isConnected && !root.hidden;
+          if (!visible) captureVisibleSceneScroll(root);
+          handle.setVisible(visible);
+          if (visible && !wasVisible && root.isConnected && !root.hidden) {
+            const position = retainedScrollTops.get(root);
+            const scroll = root.querySelector<HTMLElement>('.jimi-scroll');
+            if (position !== undefined && scroll) scroll.scrollTop = position;
+          }
+        });
+      },
+      setInputEnabled(enabled) { diagnostics.phase(`${route}.input.${enabled}`, () => handle.setInputEnabled(enabled)); },
+      enter(context) {
+        const operationTrace = diagnostics;
+        operationTrace.mark(`${route}.enter.start`);
+        return Promise.resolve(operationTrace.phase(`${route}.enter.setup`, () => handle.enter(context)))
+          .finally(() => operationTrace.mark(`${route}.enter.end`));
+      },
+      exit(context) {
+        const operationTrace = diagnostics;
+        operationTrace.mark(`${route}.exit.start`);
+        return Promise.resolve(operationTrace.phase(`${route}.exit.setup`, () => handle.exit(context)))
+          .finally(() => operationTrace.mark(`${route}.exit.end`));
+      },
       cancelMotion() { flip?.cancel(); flip = undefined; cancelMotion(); },
       dispose() {
-        dispose();
+        captureVisibleSceneScroll(root);
+        diagnostics.phase(`${route}.dispose`, dispose);
         // Bounded Home + Hub + one World. Detail is never an accumulating cache.
         if (route === 'card' || route === 'art-preview') {
           cache.delete(route);
@@ -71,9 +130,11 @@ const director = createSceneDirector<Route>({
 });
 
 async function navigate(route: Route): Promise<void> {
-  const finishMeasurement = measureTransition(route, document.documentElement.dataset.jimiMetrics === 'true');
+  diagnostics.finish('replaced');
+  const trace = diagnostics = createSceneDiagnostics(route, diagnosticsEnabled);
+  trace.mark(host.classList.contains('jimi-diagnostic-no-art') ? 'art.hidden' : 'art.visible');
   const result = await director.navigate(route);
-  finishMeasurement(result.status);
+  trace.finish(result.status);
   if (result.status === 'failed') {
     failedRoute = route;
     if (retry) retry.hidden = false;
@@ -85,6 +146,22 @@ async function navigate(route: Route): Promise<void> {
 }
 
 if (retry) lifecycle.trackListener(retry, 'click', () => { if (!document.hidden) void navigate(failedRoute); });
+
+// Diagnostic-only one-variable A/B: identical DOM, decode and motion, only image
+// painting changes. Always starts with authored art visible; never touches assets.
+if (diagnosticsEnabled) {
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'jimi-diagnostic-toggle';
+  toggle.textContent = 'Diagnostic art: ON';
+  document.body.append(toggle);
+  lifecycle.trackListener(toggle, 'click', () => {
+    if (director.getState().phase !== 'idle') return;
+    const hidden = host.classList.toggle('jimi-diagnostic-no-art');
+    toggle.textContent = `Diagnostic art: ${hidden ? 'OFF' : 'ON'}`;
+  });
+  lifecycle.trackCleanup(() => toggle.remove());
+}
 
 lifecycle.trackListener(host, 'click', (event: Event) => {
   if (document.hidden || director.getState().phase !== 'idle') return;

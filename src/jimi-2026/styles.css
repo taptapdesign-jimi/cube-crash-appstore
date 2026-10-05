@@ -7,11 +7,14 @@ button:disabled { cursor: default; }
 #jimi-root { position: relative; height: 100%; max-width: 430px; margin: auto; overflow: hidden; }
 #jimi-status { position: fixed; bottom: 0; left: 0; right: 0; padding: 5px 12px max(5px, env(safe-area-inset-bottom)); background: #f3eee8ee; font-size: 11px; text-align: center; pointer-events: none; z-index: 10; }
 #jimi-retry { position: fixed; top: 45%; left: 50%; transform: translateX(-50%); z-index: 20; padding: 16px; border-radius: 16px; background: #fff7e9; }
+.jimi-diagnostic-toggle { position: fixed; top: calc(env(safe-area-inset-top) + 64px); right: 8px; z-index: 20; background: #fff7e9; border: 1px solid #65452f; border-radius: 8px; padding: 5px; font-size: 10px; }
+#jimi-root.jimi-diagnostic-no-art img { visibility: hidden !important; }
 .jimi-scene { position: absolute; inset: 0; isolation: isolate; }
 .jimi-scene-header { position: absolute; top: max(14px, env(safe-area-inset-top)); left: 12px; right: 12px; z-index: 5; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .jimi-scene-title { font-size: 24px; margin: 0; }
 .jimi-back-button { border-radius: 20px; background: #fff7e9; padding: 10px 14px; }
-.jimi-scroll { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; padding-bottom: 64px; overscroll-behavior-y: contain; }
+/* Keep map-card z-indices local: scrolled cards must never cover the header. */
+.jimi-scroll { position: absolute; inset: 0; isolation: isolate; overflow-y: auto; overflow-x: hidden; padding-bottom: 64px; overscroll-behavior-y: contain; }
 .jimi-map { width: 390px; position: relative; margin: 0 auto; }
 .jimi-art { display: block; height: auto; }
 .jimi-hub-world, .jimi-board-card { padding: 0; background: transparent; overflow: visible; }

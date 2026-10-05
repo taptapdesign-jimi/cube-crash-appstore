@@ -73,12 +73,26 @@ export function buildHubScene(progress:JimiProgressSnapshot):HTMLElement {
   return root;
 }
 
-export function buildBeachScene(progress:JimiProgressSnapshot):HTMLElement {
+export interface BeachSceneAssembly {
+  readonly root: HTMLElement;
+  /** Appends at most one complete authored Unit; true means assembly is done. */
+  appendNext(): boolean;
+}
+
+/** One construction path shared by immediate fixtures and scheduled cold entry. */
+export function createBeachSceneAssembly(progress:JimiProgressSnapshot):BeachSceneAssembly {
   const root=scene('beach','Beach','hub'); root.dataset.worldId='2'; const content=map(root,1900);
-  const main=element('div','jimi-beach-main'); main.dataset.jimiUnit='beach-main'; place(main,JIMI_BEACH_MAIN.x,JIMI_BEACH_MAIN.y,390,390);
-  for(const cloud of JIMI_BEACH_MAIN.clouds) main.append(art(cloud,'jimi-cloud',0));
-  main.append(art({...JIMI_BEACH_MAIN,x:0,y:0},'jimi-beach-main-image',2)); content.append(main);
-  for(const spec of JIMI_BEACH_UNITS) {
+  let index=-1;
+  const appendNext=():boolean=>{
+    if(index<0) {
+      const main=element('div','jimi-beach-main'); main.dataset.jimiUnit='beach-main'; place(main,JIMI_BEACH_MAIN.x,JIMI_BEACH_MAIN.y,390,390);
+      for(const cloud of JIMI_BEACH_MAIN.clouds) main.append(art(cloud,'jimi-cloud',0));
+      main.append(art({...JIMI_BEACH_MAIN,x:0,y:0},'jimi-beach-main-image',2)); content.append(main);
+      index=0;
+      return false;
+    }
+    if(index>=JIMI_BEACH_UNITS.length) return true;
+    const spec=JIMI_BEACH_UNITS[index];
     const state=progress[spec.boardId]; const completed=state?.unlocked===true; const interim=!completed&&state?.interim===true;
     const unit=element('div','jimi-beach-unit'); unit.dataset.jimiUnit=`board-${spec.boardId}`; unit.dataset.boardId=String(spec.boardId); place(unit,spec.x,spec.y,spec.width,200);
     for(const cloud of spec.clouds) unit.append(art(cloud,'jimi-cloud',0)); unit.append(art(spec.island,'jimi-island',1),art(spec.prop,'jimi-prop',3));
@@ -90,8 +104,16 @@ export function buildBeachScene(progress:JimiProgressSnapshot):HTMLElement {
     else if(interim) card.append(image(JIMI_INTERIM_ASSET,'jimi-card-image','Play',JIMI_INTERIM_ASSET.replace('.png','@2x.png')));
     else { card.disabled=true; card.append(element('span','jimi-stage-number',String(spec.stage).padStart(2,'0'))); }
     unit.append(card); content.append(unit);
-  }
-  return root;
+    index++;
+    return index===JIMI_BEACH_UNITS.length;
+  };
+  return {root,appendNext};
+}
+
+export function buildBeachScene(progress:JimiProgressSnapshot):HTMLElement {
+  const assembly=createBeachSceneAssembly(progress);
+  while(!assembly.appendNext()) { /* Same authored Units, without scheduling. */ }
+  return assembly.root;
 }
 
 function buildKnownCardScene(boardId:number,card:JimiCardArt,stars:number|null,preview:boolean):HTMLElement {
