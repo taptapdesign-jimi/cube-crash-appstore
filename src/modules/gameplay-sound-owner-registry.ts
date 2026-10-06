@@ -54,6 +54,7 @@ const soundOwners: readonly SfxOwnerLoader[] = [
   // Adapter last: its underlying cue owners have already been imported/stopped
   // serially above; it adds no cold all-family import burst to Sounds OFF.
   () => import('./native-home-hub-feedback.js').then(owner => [owner.stopNativeHomeHubFeedback]),
+  () => import('./native-world-feedback.js').then(owner => [owner.stopNativeWorldFeedback]),
 ];
 
 export async function stopRegisteredSfxOwners(isCurrent: () => boolean): Promise<void> {

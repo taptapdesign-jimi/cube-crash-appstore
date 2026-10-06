@@ -31,6 +31,20 @@ export function emitSettingsRouteDiagnostic(
   const nativeConsoleHandler = (window as any).webkit?.messageHandlers?.consoleLog;
   if (!nativeConsoleHandler?.postMessage) return;
 
+  // Provenance without computed-style/layout reads: capture the root gate and
+  // authored child writes exactly at the owning handoff. No observer/ticker.
+  const captureInlinePose = ['settings-enter-primed', 'settings-enter-revealed',
+    'settings-focus-before', 'settings-focus-after'].includes(event);
+  const root = captureInlinePose ? document.getElementById('settings-screen') : null;
+  const settingsInlinePose = root ? {
+    hidden: root.hidden,
+    display: root.style.display,
+    opacity: root.style.opacity,
+    children: Array.from(root.querySelectorAll<HTMLElement>(
+      '.settings-header, .settings-toggle-container, .settings-divider, .settings-footer',
+    )).map(element => ({ className: element.className, transform: element.style.transform, opacity: element.style.opacity })),
+  } : null;
+
   // Route markers remain available in compact captures, but resolving styles
   // and geometry after a visibility mutation can force the layout we measure.
   let elementSnapshot: SettingsRouteDiagnosticDetail = {};
@@ -48,6 +62,7 @@ export function emitSettingsRouteDiagnostic(
   emitNativeConsoleDiagnostic('[CC_SETTINGS_ROUTE]', event, {
     appZone: (window as any).__ccAppZone ?? null,
     exitingToMenu: (window as any).exitingToMenu === true,
+    ...(captureInlinePose ? { settingsInlinePose } : {}),
     ...elementSnapshot,
     ...detail,
   });

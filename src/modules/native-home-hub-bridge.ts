@@ -1,3 +1,4 @@
+import type { NativeWorldSnapshot } from './native-world-runtime.js';
 /** Transport only. The full web runtime remains the sole route, progression and
  * save owner. A navigation Promise resolving is NOT a destination-ready receipt. */
 export type NativeHomeHubDestination =
@@ -17,7 +18,10 @@ export type NativeHomeHubEvent =
   | { kind: 'snapshot'; snapshot: NativeHomeHubSnapshot }
   | { kind: 'present'; route: 'home' | 'hub'; snapshot: NativeHomeHubSnapshot }
   | { kind: 'enter-hub'; epoch: number; snapshot: NativeHomeHubSnapshot }
-  | { kind: 'ready'; requestId: number; destination: NativeHomeHubDestination }
+  | { kind: 'ready'; requestId: number; destination: NativeHomeHubDestination; worldSnapshot?: NativeWorldSnapshot }
+  | { kind: 'enter-world'; worldSnapshot: NativeWorldSnapshot }
+  | { kind: 'prepare-world-return'; terminalToken:number; worldSnapshot:NativeWorldSnapshot }
+  | { kind: 'gameplay-presentation-ready'; launchToken:string; routeGeneration:number; stateRevision:number }
   | { kind: 'error'; requestId?: number; code: 'invalid-request' | 'stale-request' | 'busy' | 'unsupported' | 'cancelled' | 'disposed' | 'not-ready' | 'navigation-failed' | 'snapshot-failed' };
 
 export interface NativeHomeHubCapabilities {
@@ -30,7 +34,7 @@ export interface NativeHomeHubCapabilities {
     requestId: number;
     signal: AbortSignal;
     isCurrent(): boolean;
-  }): Promise<{ ready: true; destination: NativeHomeHubDestination }>;
+  }): Promise<{ ready: true; destination: NativeHomeHubDestination; worldSnapshot?: NativeWorldSnapshot }>;
 }
 
 export interface NativeHomeHubBridge {
@@ -137,7 +141,7 @@ export function installNativeHomeHubBridge(
         active = operation;
         const isCurrent = () => !disposed && active === operation && !operation.controller.signal.aborted;
         // Owned rejection handler consumes late failure even after cancellation.
-        const work = new Promise<{ ready: true; destination: NativeHomeHubDestination }>(accept => {
+        const work = new Promise<{ ready: true; destination: NativeHomeHubDestination; worldSnapshot?: NativeWorldSnapshot }>(accept => {
           accept(capabilities.navigate(target, { requestId: id, signal: operation.controller.signal, isCurrent }));
         });
         void work.then(receipt => {
@@ -145,7 +149,7 @@ export function installNativeHomeHubBridge(
           const actual = destination(receipt?.destination);
           active = undefined;
           resolve(receipt?.ready === true && actual && sameDestination(target, actual)
-            ? emit({ kind: 'ready', requestId: id, destination: target }) : error('not-ready', id));
+            ? emit({ kind: 'ready', requestId: id, destination: target, ...(receipt.worldSnapshot ? {worldSnapshot:receipt.worldSnapshot} : {}) }) : error('not-ready', id));
         }, () => {
           if (!isCurrent()) return;
           active = undefined;

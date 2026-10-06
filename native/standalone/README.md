@@ -9,7 +9,11 @@ fully native game or an approved stable replacement for production benchmark v9.
 - UIKit Home/Hub and native soundtrack are enabled by this exact bundle identity,
   including ordinary launches from the phone icon. No Simulator launch flags needed.
 - Swift presentation/audio implementations are shared directly from `../jimi-2026`.
-- Gameplay, Worlds, Settings and progression remain in the complete web runtime.
+- Gameplay, Settings and progression remain in the complete web runtime.
+- User authorized all three Native Debug iPhone Worlds on2026-10-06. Forest,
+  Beach and Area55 use shared UIKit presentation on ordinary icon launches.
+  QA Simulator retains `--jimi-native-forest` and `--jimi-native-worlds` opt-ins.
+  Release Worlds remain disabled. Physical performance acceptance is separate.
 - Existing `com.taptapdesign.stacktosix.Stack-to-Six` installation is separate.
   Never uninstall it or copy/reset its save as part of this experiment.
 

@@ -21,7 +21,11 @@ The repository retains historical `cube-crash` names in paths and code. That doe
   project `native/standalone/Stack to Six.xcodeproj` in this repository, scheme
   `Stack to Six`, bundle ID `com.taptapdesign.stacktosix.native`. This explicit
   exception must never replace the original bundle. UIKit Home/Hub and native
-  soundtrack are enabled by exact bundle identity; gameplay/Worlds remain web.
+  soundtrack are enabled by exact bundle identity; gameplay remains web.
+  User authorized all three Native Debug iPhone Worlds on2026-10-06: Forest,
+  Beach and Area55 render through shared UIKit on ordinary icon launches.
+  QA Simulator retains `--jimi-native-forest` / `--jimi-native-worlds` opt-ins;
+  Release Worlds remain OFF. Physical performance/visual acceptance is separate.
   Prepare only its ignored Web.bundle from complete `dist`, never by changing
   the original native sync destination. See `native/standalone/README.md`.
   The original app's requested label is **Stack to Six PWA** (still a WKWebView

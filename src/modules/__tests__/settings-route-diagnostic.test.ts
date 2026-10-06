@@ -49,3 +49,13 @@ test('missing native bridge returns before all diagnostic DOM reads even when de
   spies.forEach((spy) => expect(spy).not.toHaveBeenCalled());
   expect(postMessage).not.toHaveBeenCalled();
 });
+
+test.each(['settings-enter-primed', 'settings-enter-revealed', 'settings-focus-before', 'settings-focus-after'])('phase %s captures inline writes without style or layout resolution', (event) => {
+  document.getElementById('settings-screen')!.innerHTML = '<div class="settings-header" style="opacity:0;transform:scale(0)"></div>';
+  const spies = reads();
+  emitSettingsRouteDiagnostic(event, { presentationEpoch: 4 });
+  expect(spies[2]).not.toHaveBeenCalled();
+  expect(spies[3]).not.toHaveBeenCalled();
+  const data = JSON.parse(postMessage.mock.calls[0][0].message.split(`${event} `)[1]);
+  expect(data.settingsInlinePose.children).toEqual([{ className: 'settings-header', opacity: '0', transform: 'scale(0)' }]);
+});

@@ -10,7 +10,7 @@ const method = owner.members.find(node => ts.isMethodDeclaration(node) && node.n
 const code = ts.transpileModule(`return class { ${method.getText(source)} }`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
 
 function fixture() {
-  const zone = { getCurrentZone: jest.fn(() => 'home') };
+  const zone = { getCurrentZone: jest.fn(() => 'home'), getPresentationEpoch: jest.fn(() => 1), isPresentationCurrent: jest.fn(() => true) };
   const state = { get: jest.fn(() => false) };
   const Delegate = new Function('appZoneManager', 'gameState', code)(zone, state);
   const delegate = new Delegate();
@@ -37,4 +37,27 @@ test.each(['uninitialized', 'wrong-zone', 'locked', 'hidden', 'missing-settings'
   expect(await f.delegate.activateNativeHomepageAction('settings')).toBe(false);
   expect(f.delegate.handlePlayClick).not.toHaveBeenCalled();
   expect(f.delegate.handleSettingsClick).not.toHaveBeenCalled();
+});
+
+test.each(['arcade', 'settings'] as const)('native completed exit hides the %s web copy before canonical dispatch', async action => {
+  const f = fixture();
+  const handler = action === 'arcade' ? f.delegate.handlePlayClick : f.delegate.handleSettingsClick;
+  handler.mockImplementation(() => expect(f.delegate.elements.home.style.visibility).toBe('hidden'));
+  expect(await f.delegate.activateNativeHomepageAction(action, true)).toBe(true);
+  expect(handler).toHaveBeenCalledWith(undefined, true);
+});
+
+test('tutorial cannot inherit the native exit bypass', async () => {
+  const f = fixture();
+  await f.delegate.activateNativeHomepageAction('journey', true);
+  expect(f.delegate.elements.home.style.visibility).toBe('');
+  expect(f.delegate.handleStatsClick).toHaveBeenCalledWith();
+});
+
+test.each([true, false])('failed activation restores visibility only for its current source: %s', async current => {
+  const f = fixture();
+  f.zone.isPresentationCurrent.mockReturnValue(current);
+  f.delegate.handlePlayClick.mockRejectedValue(new Error('unavailable'));
+  await expect(f.delegate.activateNativeHomepageAction('arcade', true)).rejects.toThrow('unavailable');
+  expect(f.delegate.elements.home.style.visibility).toBe(current ? '' : 'hidden');
 });

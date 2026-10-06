@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+  createNativeArea55ShipProjection,
   advanceJourneyArea55ShipRotation,
   advanceJourneyArea55ShipScale,
   clampJourneyArea55ShipRotation,
@@ -215,7 +216,8 @@ describe('Journey Area 55 pooled ship flybys', () => {
     expect(flybySource).not.toContain('TRAIL_COLOR');
     expect(flybySource).toContain('const eased = progress * progress * (3 - 2 * progress)');
     expect(flybySource).toContain('const MIN_SCALE_HOLD_SECONDS = 3');
-    expect(flybySource).toContain('advanceJourneyArea55ShipRotation(ship.rotation, targetRotation, frame.deltaSeconds)');
+    expect(flybySource).toContain('advanceJourneyArea55ShipRotation(ship.rotation, targetRotation, deltaSeconds)');
+    expect(flybySource).toContain('sampleJourneyArea55Ship(ship,rawProgress,frame.deltaSeconds,random)');
     expect(flybySource).not.toContain('Math.atan2(velocityY, velocityX)');
     expect(flybySource).not.toContain('progress * Math.PI * 6');
     expect(flybySource).toContain('ship.startX = ship.direction === 1 ? -overshoot : layerWidth + overshoot');
@@ -228,4 +230,16 @@ describe('Journey Area 55 pooled ship flybys', () => {
     expect(source).toContain('this.startArea55ShipFlybys(container, worldId)');
     expect(source).toContain('[this.forestBeeOrbits, this.beachBubbleDrift, this.area55ShipFlybys]');
   });
+});
+
+
+test('native Area55 projection preserves bounded mobile ships, bank/size and retargets the real scroll viewport without DOM or tickers',()=>{
+  const src=jest.spyOn(HTMLImageElement.prototype,'src','set');
+  const projection=createNativeArea55ShipProjection(()=>0.5),first=projection.next({top:0,bottom:844});
+  expect(first).toHaveLength(2);
+  for(const plan of first){expect(plan.duration).toBe(11);expect(plan.frames).toHaveLength(331);expect(plan.frames.every(f=>f.width>=50 && f.width<=75 && Math.abs(f.rotation)<=20 && f.depth==='front')).toBe(true);}
+  const next=projection.next({top:0,bottom:844},[0]);expect(next).toHaveLength(1);expect(next[0].id).toBe(0);
+  expect({...next[0].frames[0],time:11}).toEqual(first[0].frames[330]);
+  const deep=projection.next({top:900,bottom:1744},[1]);expect(deep[0].frames.some(f=>f.opacity===1 && f.y>=900 && f.y<=1744)).toBe(true);
+  expect(src).not.toHaveBeenCalled();src.mockRestore();
 });

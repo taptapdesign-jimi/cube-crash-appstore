@@ -104,3 +104,29 @@ test.each(['home', 'journey-screen', 'app', 'settings-screen'])('%s preparation 
   screen.remove();
   expect(isScreenPresented(screen)).toBe(false);
 });
+
+test('covered parked Journey cannot block Clean Board even when resident CSS forces visible paint',()=>{
+  const f=fixture(1);
+  f.screen.hidden=false;
+  f.screen.setAttribute('data-journey-viewport-resident','true');
+  f.screen.setAttribute('data-journey-viewport-parked','true');
+  f.screen.style.cssText='display:none;visibility:hidden;opacity:0';
+  const originalComputedStyle=window.getComputedStyle.bind(window);
+  // JSDOM does not reproduce browser !important-vs-inline cascading here.
+  // Project the actual live UIKit WebView's computed parked CSS result while
+  // retaining real elements and the production visibility/endgame owners.
+  const computed=jest.spyOn(window,'getComputedStyle').mockImplementation((element,pseudo)=>
+    element===f.screen ? {display:'flex',visibility:'visible',opacity:'1'} as CSSStyleDeclaration
+      : originalComputedStyle(element,pseudo));
+  expect(getComputedStyle(f.screen).display).toBe('flex');
+  expect(isScreenPresented(f.screen)).toBe(false);
+  expect(getScreenVisibility()).toEqual({appVisible:true,homeVisible:false,journeyVisible:false});
+  expect(f.guard()).toBe(false);
+  // Lease release returns route admission to the normal shared owner; a
+  // resident marker alone must never suppress an actually presented World.
+  f.screen.removeAttribute('data-journey-viewport-parked');
+  expect(isScreenPresented(f.screen)).toBe(true);
+  expect(getScreenVisibility().journeyVisible).toBe(true);
+  expect(f.guard()).toBe(true);
+  computed.mockRestore();
+});

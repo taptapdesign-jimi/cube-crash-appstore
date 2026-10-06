@@ -316,11 +316,26 @@ export function resetJourneyCardIdleBounce(): void {
   console.log('🔄 Journey card idle bounce state reset');
 }
 
+/** Shared persistence boundary for web and native card presentation. */
+export function markJourneyBoardViewed(boardId: string): void {
+  try {
+    const viewedBoardsJson = localStorage.getItem('journey_viewed_boards');
+    const viewedBoards: Set<string> = viewedBoardsJson ? new Set(JSON.parse(viewedBoardsJson)) : new Set();
+    viewedBoards.add(boardId);
+    localStorage.setItem('journey_viewed_boards', JSON.stringify(Array.from(viewedBoards)));
+    console.log('✅ Board ID saved to localStorage:', boardId);
+  } catch (e) {
+    console.warn('⚠️ Error saving viewed board to localStorage:', e);
+  }
+}
+
+
 /**
  * 🔥 USER REQUEST: Mark a card as viewed (details modal was opened)
  * This will stop animations for this card forever
  * @param card - The card element that was viewed
  */
+
 export function markCardAsViewed(card: HTMLElement | null): void {
   if (!card) return;
   
@@ -355,17 +370,7 @@ export function markCardAsViewed(card: HTMLElement | null): void {
   
   // 🔥 USER REQUEST: Save board ID to localStorage for persistence across game sessions
   const boardId = card.getAttribute('data-board-id');
-  if (boardId) {
-    try {
-      const viewedBoardsJson = localStorage.getItem('journey_viewed_boards');
-      const viewedBoards: Set<string> = viewedBoardsJson ? new Set(JSON.parse(viewedBoardsJson)) : new Set();
-      viewedBoards.add(boardId);
-      localStorage.setItem('journey_viewed_boards', JSON.stringify(Array.from(viewedBoards)));
-      console.log('✅ Board ID saved to localStorage:', boardId);
-    } catch (e) {
-      console.warn('⚠️ Error saving viewed board to localStorage:', e);
-    }
-  }
+  if (boardId) markJourneyBoardViewed(boardId);
   
   console.log('✅ Card marked as viewed - animations stopped forever:', card);
 }

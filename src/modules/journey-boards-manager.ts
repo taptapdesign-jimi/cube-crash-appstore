@@ -1,6 +1,8 @@
 // @ts-nocheck
+import type { NativeWorldSnapshot, NativeWorldPart, NativeWorldAmbientPlan, NativeWorldAmbientViewport } from './native-world-runtime.js';
+import { JOURNEY_CARD_FLIP_BACK_ASSET } from './journey-card-assets.js';
 import { createJourneyHubExitSoundSession, preloadJourneyHubExitSounds, stopJourneyHubExitSounds } from './journey-hub-exit-sound.ts';
-import { installJourneyAlienBeamIdle } from './journey-alien-beam-idle';
+import { createJourneyAlienBeamIdleSequence, installJourneyAlienBeamIdle } from './journey-alien-beam-idle';
 import { isThermalWorkSuppressed } from '../utils/thermal-isolation.js';
 import { cancelJourneyHubScrollableEnter } from '../ui/journey-hub-scrollable-enter.js';
 import { beginTransitionPerformance, type TransitionPerformance } from '../utils/transition-performance.js';
@@ -19,7 +21,7 @@ import { appZoneManager } from './app-zone-manager.js';
 // - Cards can be positioned individually anywhere you want
 
 import { logger } from '../core/logger.js';
-import { JOURNEY_CARD_IDLE_BOUNCE, smokeBubblesAtCard } from './journey-card-idle-bounce.js';
+import { JOURNEY_CARD_IDLE_BOUNCE, smokeBubblesAtCard, markJourneyBoardViewed } from './journey-card-idle-bounce.js';
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { clearArcadeSaveState, getBoardSaveKey, hasResumableSavedStateForBoard } from '../utils/board-save-utils.js';
@@ -144,13 +146,16 @@ import {
 } from './journey-card-return-reminder.js';
 import {
   startJourneyForestBeeOrbits,
+  createNativeForestBeeProjection,
   type JourneyForestBeeOrbitController,
 } from './journey-forest-bee-orbits.js';
 import {
+  createNativeBeachBubbleProjection,
   startJourneyBeachBubbleDrift,
   type JourneyBeachBubbleDriftController,
 } from './journey-beach-bubble-drift.js';
 import {
+  createNativeArea55ShipProjection,
   startJourneyArea55ShipFlybys,
   type JourneyArea55ShipFlybyController,
 } from './journey-area55-ship-flybys.js';
@@ -3044,7 +3049,7 @@ class JourneyBoardsManager {
     bgContainer: HTMLElement,
     decorContainer: HTMLElement,
     activeWorldId: number,
-    options: { includeMain?: boolean; boardIds?: ReadonlySet<number> } = {},
+    options: { includeMain?: boolean; boardIds?: ReadonlySet<number>; specificationOnly?: boolean } = {},
   ): { mainTargets: HTMLElement[]; cloudTargets: HTMLElement[]; boardTargets: Map<number, HTMLElement[]> } {
     const mainTargets: HTMLElement[] = [];
     const cloudTargets: HTMLElement[] = [];
@@ -3101,7 +3106,8 @@ class JourneyBoardsManager {
         img.dataset.journeyAreaId = areaId;
       }
       img.decoding = 'async';
-      img.src = src;
+      if (options.specificationOnly) img.dataset.nativeAsset = src;
+      else img.src = src;
       img.alt = '';
       img.draggable = false;
       img.setAttribute('aria-hidden', 'true');
@@ -3121,7 +3127,7 @@ class JourneyBoardsManager {
     };
     const applyBeach2xSrcSet = (img: HTMLImageElement, src: string) => {
       const src2x = src.replace(/\.png$/, '@2x.png');
-      img.srcset = `${encodeURI(src2x)} 2x`;
+      if (!options.specificationOnly) img.srcset = `${encodeURI(src2x)} 2x`;
     };
     const createMainCloudUnit = (areaId: 'forest-main' | 'beach-main' | 'robo-main', originY: number) => {
       const unit = document.createElement('div');
@@ -3626,7 +3632,8 @@ class JourneyBoardsManager {
 
       const beamVisual = document.createElement('img');
       beamVisual.className = 'journey-robo-alien-beam-visual';
-      beamVisual.src = beamSrc;
+      if (options.specificationOnly) beamUnit.dataset.nativeAsset = beamSrc;
+      else beamVisual.src = beamSrc;
       beamVisual.alt = '';
       beamVisual.draggable = false;
       beamVisual.setAttribute('aria-hidden', 'true');
@@ -3638,7 +3645,7 @@ class JourneyBoardsManager {
       beamVisual.style.webkitUserDrag = 'none';
       applyBeach2xSrcSet(beamVisual, beamSrc);
       beamUnit.appendChild(beamVisual);
-      installJourneyAlienBeamIdle(beamUnit, beamVisual);
+      if (!options.specificationOnly) installJourneyAlienBeamIdle(beamUnit, beamVisual);
       decorContainer.appendChild(beamUnit);
       targets.push(beamUnit);
 
@@ -3663,11 +3670,11 @@ class JourneyBoardsManager {
 
     if (activeWorldId === 1) {
       if (forestMainCloudUnit) {
-        if (!this.journeyMainCloudCompositeCache.has(1)) {
+        if (options.specificationOnly || !this.journeyMainCloudCompositeCache.has(1)) {
           addMainClouds(1, 'forest', forestMainCloudUnit);
         }
         const forestMain = addImage(JOURNEY_FOREST_MAIN_ASSET, 0, -32, 390, 'journey-forest-main-art', 3, 0, 'forest-main');
-        forestMain.srcset = `${encodeURI(JOURNEY_FOREST_MAIN_ASSET_2X)} 2x`;
+        if (!options.specificationOnly) forestMain.srcset = `${encodeURI(JOURNEY_FOREST_MAIN_ASSET_2X)} 2x`;
         mainTargets.push(forestMain);
       }
       addForestBoardGroup(1, 4, 284, 200, -10, -4, 0, 0, [4, 3, 6]);
@@ -3683,7 +3690,7 @@ class JourneyBoardsManager {
     }
     if (activeWorldId === 2) {
       if (beachMainCloudUnit) {
-        if (!this.journeyMainCloudCompositeCache.has(2)) {
+        if (options.specificationOnly || !this.journeyMainCloudCompositeCache.has(2)) {
           addMainClouds(2, 'beach', beachMainCloudUnit);
         }
         const beachMainSrc = `${BEACH_WORLD_ASSET_BASE}/beach-main.png`;
@@ -3704,7 +3711,7 @@ class JourneyBoardsManager {
     }
     if (activeWorldId === 3) {
       if (roboMainCloudUnit) {
-        if (!this.journeyMainCloudCompositeCache.has(3)) {
+        if (options.specificationOnly || !this.journeyMainCloudCompositeCache.has(3)) {
           addMainClouds(3, 'robo', roboMainCloudUnit);
         }
         const roboMainSrc = `${ROBO_WORLD_ASSET_BASE}/robo-main.png`;
@@ -7047,6 +7054,7 @@ class JourneyBoardsManager {
   }
 
   public renderBoards(): void {
+    if (this.nativeForestPresentation) return;
     this.cancelNativeWorldPreparation();
     const container = document.getElementById('journey-boards-container');
     const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
@@ -7948,6 +7956,186 @@ class JourneyBoardsManager {
     }
 
     this.playJourneyV700HubEnterFromHomepage();
+  }
+
+  // Compatibility bridge names remain stable; this lease owns one selected World.
+  private nativeForestPresentation = false;
+  private nativePresentationWorldID: 1 | 2 | 3 = 1;
+  private nativeWorldBeamSequences = new Map<number, ReturnType<typeof createJourneyAlienBeamIdleSequence>>();
+  private nativeForestBeeProjection: ReturnType<typeof createNativeForestBeeProjection> | null = null;
+  private nativeForestBeeSessionID = 0;
+  private nativeForestBeePlans: ReturnType<ReturnType<typeof createNativeForestBeeProjection>['next']> | undefined;
+  private nativeWorldAmbientProjection: ReturnType<typeof createNativeBeachBubbleProjection> | ReturnType<typeof createNativeArea55ShipProjection> | null = null;
+  private nativeWorldAmbientPlans: NativeWorldAmbientPlan[] | undefined;
+  private nativeWorldAmbientSessionID = 0;
+  private nativeForestSnapshotCache: { key: string; snapshot: NativeWorldSnapshot } | null = null;
+
+  public hasNativeForestPresentation(): boolean { return this.nativeForestPresentation; }
+  public markNativeForestCardOpened(boardID: number): void {
+    const board = this.boards.find(board=>board.id === boardID && Math.ceil(board.id / 10) === this.nativePresentationWorldID);
+    if (!this.nativeForestPresentation || !board?.unlocked || board.interim) return;
+    markJourneyBoardViewed(String(boardID));
+    this.markBoardAsViewed(boardID);
+    clearJourneyInterimOrigin();
+    this.rememberLastActiveJourneyWorld(boardID);
+  }
+  public completeNativeForestPresentation(): void {
+    if (!this.nativeForestPresentation) return;
+    const token = getJourneyReturnTransitionToken();
+    if (token !== null) completeJourneyReturnTransition({destination:'native-forest'}, token);
+  }
+
+  /** Logical route only. Native owns images, scroll, cards and motion. */
+  public prepareNativeForest(worldID: 1 | 2 | 3 = 1): boolean {
+    const enabled = worldID === 1 ? (window as any).__jimiNativeForestEnabled : (window as any).__jimiNativeWorldsEnabled;
+    if (![1, 2, 3].includes(worldID) || enabled !== true || document.hidden
+      || appZoneManager.getCurrentZone() !== 'journey') return false;
+    this.suspendForHomepage();
+    if (this.nativePresentationWorldID !== worldID) this.retireNativeForest();
+    this.nativePresentationWorldID = worldID;
+    this.nativeForestPresentation = true;
+    this.setJourneyV700View('world', worldID);
+    this.journeyV700Phase = 'hidden';
+    this.loadBoardsState();
+    const container = document.getElementById('journey-boards-container');
+    if (container) { container.dataset.journeyV700View = 'world'; container.dataset.journeyV700WorldId = String(worldID); }
+    return true;
+  }
+
+  public retireNativeForest(): void { this.nativeWorldAmbientProjection = null; this.nativeWorldAmbientPlans = undefined; this.nativeWorldBeamSequences?.clear(); this.nativeForestBeeProjection = null; this.nativeForestBeePlans = undefined; this.nativeForestSnapshotCache = null; this.nativeForestPresentation = false; cancelJourneyCardOverlayReturn(); }
+
+  public readNextNativeForestBeePlans(ids?:number[]) {
+    if (this.nativePresentationWorldID !== 1 || !this.nativeForestPresentation || document.hidden || appZoneManager.getCurrentZone() !== 'journey') return null;
+    return this.nativeForestBeeProjection?.next(11,ids) ?? null;
+  }
+
+  public readNextNativeWorldAmbientPlans(viewport: NativeWorldAmbientViewport, ids: number[]) {
+    if (!this.nativeForestPresentation || this.nativePresentationWorldID === 1 || document.hidden || appZoneManager.getCurrentZone() !== 'journey') return null;
+    return this.nativeWorldAmbientProjection?.next(viewport,ids) ?? null;
+  }
+
+  public readNativeForestSnapshot(requestID: string, routeGeneration: number, stateRevision: number): NativeWorldSnapshot {
+    const worldID = this.nativePresentationWorldID ?? 1;
+    const definition = getJourneyWorldDefinition(worldID)!;
+    const firstBoardID = (worldID - 1) * 10 + 1;
+    const inWorld = (board: JourneyBoard) => board.id >= firstBoardID && board.id <= worldID * 10;
+    let viewedBoards: Set<string> = new Set();
+    try { viewedBoards = new Set(JSON.parse(localStorage.getItem('journey_viewed_boards') || '[]')); } catch {}
+    const returnBoardID = getJourneyCardOverlayReturnBoardId();
+    const scrollable = document.querySelector<HTMLElement>('#journey-screen .collectibles-scrollable');
+    const cardParentPadding = scrollable
+      ? parseFloat(getComputedStyle(scrollable).paddingLeft) || 24 : 24;
+    const key = JSON.stringify([worldID,window.innerWidth, window.innerHeight,cardParentPadding,returnBoardID,Array.from(viewedBoards),
+      this.boards.filter(inWorld).map(board=>[board.id,board.unlocked,board.interim,
+        boardStatsService.getBoardStats(board.id),hasResumableSavedStateForBoard(board.id)])]);
+    if (this.nativeForestSnapshotCache?.key === key) {
+      return {...this.nativeForestSnapshotCache.snapshot,requestID,routeGeneration,stateRevision,
+        ...(returnBoardID === null ? {returnBoardID:undefined} : {returnBoardID})};
+    }
+    // Reuse the authored specification producer in detached nodes. These nodes
+    // never enter the live renderer, decode barriers, idle or animation owners.
+    const bg = document.createElement('div');
+    const decor = document.createElement('div');
+    const art = this.renderForestMapAssets(bg, decor, worldID, {specificationOnly:true});
+    const scale = (window.innerWidth || 390) / 390;
+    const scopeOffset = worldID === 1 ? JOURNEY_V700_FOREST_SCOPE_EXTRA_DOWN_PX : -JOURNEY_V700_BEACH_AREA55_SCOPE_LIFT_PX;
+    const artTop = getJourneyWorldContentTopPx() / scale + scopeOffset;
+    const cardTop = getJourneyWorldCardStackTopPx() / scale + scopeOffset / scale;
+    const beamIdle = (image: HTMLElement) => {
+      const boardID = Number(image.dataset.journeyAreaId?.replace('board-', ''));
+      const sequences = this.nativeWorldBeamSequences ??= new Map();
+      if (!sequences.has(boardID)) sequences.set(boardID, createJourneyAlienBeamIdleSequence());
+      return sequences.get(boardID)!;
+    };
+    const part = (image: HTMLElement): NativeWorldPart => ({
+      asset: image.dataset.nativeAsset || image.getAttribute('src') || '', x: parseFloat(image.style.left) * 3.9,
+      y: parseFloat(image.style.top) * 7.6 + artTop - (image.parentElement?.classList.contains('journey-main-cloud-unit') ? 0 : definition.mainOffsetPx), width: parseFloat(image.style.width) * 3.9,
+      rotation: Number(image.style.transform.match(/rotate\(([-\d.]+)/)?.[1] || 0),
+      opacity: Number(image.style.opacity || 1), zIndex: Number(image.style.zIndex || 0),
+      ...(image.classList.contains('journey-robo-alien-beam-art') ? {beamIdle:beamIdle(image)} : {}),
+      role: image.classList.contains('journey-robo-alien-beam-art') ? 'beam'
+        : image.classList.contains('journey-forest-cloud-art') ? 'cloud'
+        : image.classList.contains('journey-forest-star-art') ? 'star'
+        : image.classList.contains('journey-forest-stump-art') ? 'stump' : 'island',
+    });
+    const units = this.boards.filter(inWorld).map(board => {
+      const layout = definition.stages[board.id - firstBoardID];
+      const stats = boardStatsService.getBoardStats(board.id);
+      const asset = this.getBoardCardAsset(board.id);
+      const offset = getJourneyBoardCardPositionOffsetPx(board.id);
+      const frame = { x: layout.xPx + (cardParentPadding + offset.x + getJourneyBoardUnitHorizontalOffsetPx(board.id) - (board.id === 2 ? 80 : 0)) / scale, y: layout.topPx + cardTop + offset.y / scale, width: layout.widthPx / scale, height: layout.heightPx / scale };
+      const parts = (art.boardTargets.get(board.id) || []).map(part).map(p => ({ ...p, x: p.x - frame.x, y: p.y - frame.y }));
+      const interim = board.interim === true;
+      const allowed = board.unlocked || interim;
+      const action = interim || hasResumableSavedStateForBoard(board.id) ? 'continue' : 'play';
+      const cardArt = interim ? './assets/colelctibles/interim.png' : asset.path1x;
+      if (allowed) parts.push({asset:cardArt,x:0,y:0,width:frame.width,height:frame.height,rotation:layout.rotationDeg,opacity:1,role:'card',zIndex:8});
+      return {id:`board-${board.id}`,boardID:board.id,frame,
+        islandArt:parts.find(p=>p.role==='island')?.asset || '', stumpArt:parts.find(p=>p.role==='stump')?.asset,
+        cardArt:allowed ? cardArt : undefined, cardArt2x:allowed ? (interim ? './assets/colelctibles/interim@2x.png' : asset.path2x) : undefined,
+        newRibbonArt:'./assets/journey assets/orange-ribbon.png',locked:!allowed,interim,completed:board.unlocked && !interim,
+        stars:board.unlocked && !interim ? getJourneyEarnedLevelStars(stats.highScore,board.id) : 0,
+        number:String(board.id - firstBoardID + 1).padStart(2,'0'),
+        cardRotationDeg:layout.rotationDeg,cardRarity:asset.rarity,viewed:viewedBoards.has(String(board.id)),newRibbon:board.unlocked && !interim && !viewedBoards.has(String(board.id)) && board.id !== 1,
+        lockedNumberOffset:LOCKED_BOARD_NUMBER_OFFSETS[board.id] || {x:0,y:32,rotation:0},
+        ...(returnBoardID === board.id ? {enterDelayOffset:window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true ? 0.075 : 0.24} : {}),
+        allowedActions:allowed ? [interim ? action : 'openCard', action] : [],
+        stats:[{label:'High Score',value:stats.highScore.toLocaleString()},{label:'Longest Combo',value:stats.longestCombo.toLocaleString()}],parts};
+    });
+    const mainParts = [...art.cloudTargets,...art.mainTargets].map(part);
+    if (worldID === 1 && !this.nativeForestBeeProjection && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches !== true) {
+      const main = mainParts.find(p=>p.asset === JOURNEY_FOREST_MAIN_ASSET)!;
+      this.nativeForestBeeProjection = createNativeForestBeeProjection(getJourneyWorldContentTopPx()/scale,
+        {x:main.x,y:main.y,width:main.width,height:main.width*350/390});
+      this.nativeForestBeeSessionID += 1;
+      this.nativeForestBeePlans = this.nativeForestBeeProjection.next();
+    }
+    // Original Forest islands are square; cloud extents use the preserved
+    // source bitmap dimensions. Scroll owns the complete Unit, not just its card.
+    const cloudAspectRatios = [224/290,197/290,494/679,202/232,310/349,384/561];
+    const artworkBottom = Math.max(...units.flatMap(unit => [
+      unit.frame.y + unit.frame.height,
+      ...unit.parts.filter(p => p.role === 'island' || p.role === 'cloud').map(p => {
+        const cloudIndex = JOURNEY_V700_WORLD_CLOUD_ASSETS.indexOf(p.asset);
+        const height = p.width * (p.role === 'cloud' && cloudIndex >= 0 ? cloudAspectRatios[cloudIndex] : 1);
+        return unit.frame.y + p.y + height;
+      }),
+    ]));
+    if (worldID !== 1 && !this.nativeWorldAmbientProjection && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches !== true) {
+      if (worldID === 2) {
+        const emitterIDs = new Set([11,13,14,16,17,19,20]);
+        const emitters = units.filter(unit=>emitterIDs.has(unit.boardID)).map(unit=>{
+          const island = unit.parts.find(part=>part.role === 'island')!;
+          return {boardId:unit.boardID,x:unit.frame.x+island.x+island.width/2,y:unit.frame.y+island.y+island.width/2};
+        });
+        this.nativeWorldAmbientProjection = createNativeBeachBubbleProjection(emitters,Math.max(FOREST_MAP_DESIGN_HEIGHT*scale+JOURNEY_V700_WORLD_BOTTOM_ROOM_PX,window.innerHeight*1.45));
+      } else this.nativeWorldAmbientProjection = createNativeArea55ShipProjection();
+      this.nativeWorldAmbientSessionID = (this.nativeWorldAmbientSessionID ?? 0) + 1;
+      this.nativeWorldAmbientPlans = this.nativeWorldAmbientProjection.next({top:0,bottom:window.innerHeight/scale});
+    }
+    const snapshot: NativeWorldSnapshot = {version:1,requestID,routeGeneration,stateRevision,worldID,title:definition.name,
+      contentHeight:Math.max(artworkBottom + 40 / scale,window.innerHeight / scale),mainArt:definition.asset,
+      mainFrame:{x:0,y:artTop-(worldID === 1 ? 32 : 0),width:390,height:worldID === 1 ? 300 : 350},mainParts,units,
+      viewport:{width:window.innerWidth,height:window.innerHeight},cardBackArt:JOURNEY_CARD_FLIP_BACK_ASSET,
+      ambientPlans:this.nativeWorldAmbientPlans,
+      ambientSessionID:this.nativeWorldAmbientProjection ? this.nativeWorldAmbientSessionID : undefined,
+      beePlans:this.nativeForestBeePlans,
+      beeSessionID:this.nativeForestBeeProjection ? this.nativeForestBeeSessionID : undefined,
+      ...(returnBoardID === null ? {} : {returnBoardID})};
+    this.nativeForestSnapshotCache = {key,snapshot};
+    return snapshot;
+  }
+
+  /** Reuse both canonical entry paths, supplying native's completed exit receipt. */
+  public async launchNativeForestBoard(boardID: number, action: 'play' | 'continue', onPresentationReady?: () => Promise<boolean>): Promise<boolean> {
+    if (!this.nativeForestPresentation || document.hidden || appZoneManager.getCurrentZone() !== 'journey') return false;
+    const board = this.boards.find(board=>board.id === boardID && Math.ceil(board.id / 10) === this.nativePresentationWorldID);
+    if (!board || (!board.unlocked && !board.interim)) return false;
+    const expected = board.interim || hasResumableSavedStateForBoard(boardID) ? 'continue' : 'play';
+    if (action !== expected) return false;
+    if (board.interim) await this.continueFromInterimBoard(board, Promise.resolve(), onPresentationReady);
+    else await this.startJourneyBoardFromOverlay(board, Promise.resolve(), onPresentationReady);
+    return appZoneManager.getCurrentZone() === 'board-journey';
   }
 
   private isNativeWorldPreparationCurrent(receipt: NonNullable<JourneyBoardsManager['nativeWorldPreparation']>): boolean {
@@ -10277,6 +10465,7 @@ class JourneyBoardsManager {
     source = 'journey-return-incremental-prewarm',
     ownerToken: number,
   ): Promise<boolean> {
+    if (this.nativeForestPresentation) return Promise.resolve(true);
     const currentBuild = this.journeyTerminalReturnBuild;
     if (currentBuild?.ownerToken === ownerToken && this.isJourneyTerminalReturnBuildCurrent(currentBuild)) {
       return currentBuild.readyPromise;
@@ -12719,6 +12908,7 @@ class JourneyBoardsManager {
   private async startJourneyBoardFromOverlay(
     board: JourneyBoard,
     earlyJourneyExitPromise: Promise<void> | null = null,
+    onPresentationReady?: () => Promise<boolean>,
   ): Promise<void> {
     const boardId = board.id;
     this.prepareJourneyAmbientForGameEntry();
@@ -12763,6 +12953,8 @@ class JourneyBoardsManager {
     });
 
     let didStart = false;
+    let presentationAccepted = !onPresentationReady;
+    const presentationReady = onPresentationReady ? async () => (presentationAccepted = await onPresentationReady()) : undefined;
     const startBoard = async () => {
       if (didStart) return;
       if (hasSavedState) {
@@ -12787,9 +12979,11 @@ class JourneyBoardsManager {
 
     try {
       const { showBoardTransitionScreen } = await import('./board-transition-screen.js');
-      await showBoardTransitionScreen({ boardNumber: boardId, onComplete: startBoard });
+      await showBoardTransitionScreen({ boardNumber: boardId, onComplete: startBoard, onPresentationReady:presentationReady });
+      if (!presentationAccepted) throw new Error('Native transition presentation cancelled');
       await startBoard();
     } catch (error) {
+      if (!presentationAccepted) throw error;
       logger.warn('⚠️ Journey overlay board transition failed; starting board directly:', error);
       await startBoard();
     }
@@ -12861,6 +13055,7 @@ class JourneyBoardsManager {
   }
 
   public playJourneyOverlayReturnCard(boardId: number): Promise<void> {
+    if (this.nativeForestPresentation) { completeJourneyCardOverlayReturn(boardId); return Promise.resolve(); }
     const active = this.journeyOverlayReturnInFlight;
     if (active) {
       if (active.boardId === boardId) return active.promise;
@@ -13503,7 +13698,8 @@ class JourneyBoardsManager {
    */
   private async continueFromInterimBoard(
     board: JourneyBoard,
-    journeyExitPromise?: Promise<void>
+    journeyExitPromise?: Promise<void>,
+    onPresentationReady?: () => Promise<boolean>
   ): Promise<void> {
     logger.info(`🔄 Continue from interim board ${board.id} - starting cleanup and game`);
     this.prepareJourneyAmbientForGameEntry();
@@ -13675,6 +13871,8 @@ class JourneyBoardsManager {
       // This will load saved game state and continue from where user left off
       // HUD drop animation is already handled in continueGameWithSavedState() for Journey pathway
       let didContinue = false;
+      let presentationAccepted = !onPresentationReady;
+      const presentationReady = onPresentationReady ? async () => (presentationAccepted = await onPresentationReady()) : undefined;
       try {
         // Stability: cleanup FX before transition
         try { window.dispatchEvent(new Event('cc-navigation')); } catch {}
@@ -13683,6 +13881,7 @@ class JourneyBoardsManager {
         const { showBoardTransitionScreen } = await import('./board-transition-screen.js');
         await showBoardTransitionScreen({
           boardNumber: board.id,
+          onPresentationReady:presentationReady,
           onComplete: async () => {
             if (typeof (window as any).continueGameWithSavedState === 'function') {
               if (didContinue) {
@@ -13699,6 +13898,7 @@ class JourneyBoardsManager {
             }
           }
         });
+        if (!presentationAccepted) throw new Error('Native transition presentation cancelled');
         // Fallback: if transition resolves without calling onComplete, continue anyway
         if (!didContinue && typeof (window as any).continueGameWithSavedState === 'function') {
           didContinue = true;
@@ -13707,6 +13907,7 @@ class JourneyBoardsManager {
           await (window as any).continueGameWithSavedState();
         }
       } catch (transitionError) {
+        if (!presentationAccepted) throw transitionError;
         logger.warn('⚠️ Failed to show board transition screen for interim board, continuing directly:', transitionError);
         if (!didContinue && typeof (window as any).continueGameWithSavedState === 'function') {
           didContinue = true;

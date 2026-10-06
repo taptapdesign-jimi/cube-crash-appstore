@@ -73,7 +73,7 @@ test('registry covers every media SFX/timer owner and references callable full-s
       && /\bstopJourneyCriticalAudioWorkingSets\s*\(/.test(source);
     // This semantic lease has no transport of its own, but Sounds OFF must
     // retire it so later native callbacks cannot restart its delegated cues.
-    const nativeSemanticLease = path.basename(filename) === 'native-home-hub-feedback.ts';
+    const nativeSemanticLease = ['native-home-hub-feedback.ts', 'native-world-feedback.ts'].includes(path.basename(filename));
     return mediaOwner || timerSoundOwner || decodedCueOwner || decodedResidencyOwner || nativeSemanticLease;
   });
   expect(owners.map(owner => path.resolve(moduleDirectory, owner.name.replace(/\.js$/, '.ts'))).sort()).toEqual(candidates.sort());

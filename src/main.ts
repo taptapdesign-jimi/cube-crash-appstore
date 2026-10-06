@@ -2158,7 +2158,7 @@ async function startNewRun(boardId: number): Promise<void> {
 };
 
 // New sequence handler: bottom sheet close → exit anim → game start
-(window as any).triggerGameStartSequence = async (options: { resumeArcade?: boolean } = {}) => {
+(window as any).triggerGameStartSequence = async (options: { resumeArcade?: boolean; nativeExitComplete?: boolean } = {}) => {
   if ((window as any).__ccUiArcadeTransitioning === true) {
     logger.warn('⚠️ Arcade Homepage transition already owns this gesture; ignoring duplicate trigger');
     return;
@@ -2194,7 +2194,7 @@ async function startNewRun(boardId: number): Promise<void> {
 
     // Step 1: Play exit animation FIRST
     console.log('🎬 Step 1: Playing exit animation');
-    const homepageExitPromise = animateSliderExit();
+    const homepageExitPromise = options.nativeExitComplete ? Promise.resolve() : animateSliderExit();
     await homepageExitPromise;
     if (isHomepageExitCancelled(homepageExitPromise)) return;
 

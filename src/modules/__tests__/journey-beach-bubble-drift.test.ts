@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   createBeachBubbleRiseDuration,
+  createNativeBeachBubbleProjection,
   getBeachBubbleOpacity,
   getBeachBubbleSizeScale,
   getBeachBubbleVerticalBounds,
@@ -240,4 +241,18 @@ describe('Journey Beach ambient Bottle bubbles', () => {
     expect(source).toContain("this.stopBeachBubbleDrift('manager-cleanup')");
     expect(source).toContain('ambientOwner.setSuspended(snapshot.ambientSuspended)');
   });
+});
+
+
+test('native Beach finite projection preserves authored emitters, mobile budget and exact chunk continuity without a web renderer',()=>{
+  const src=jest.spyOn(HTMLImageElement.prototype,'src','set');
+  const emitters=[11,13,14,16,17,19,20].map((boardId,index)=>({boardId,x:112,y:600+index*124}));
+  const projection=createNativeBeachBubbleProjection(emitters,1440,()=>0.5),first=projection.next({top:0,bottom:844});
+  expect(first).toHaveLength(8);
+  for(const plan of first){expect(plan.duration).toBe(11);expect(plan.frames).toHaveLength(331);expect(plan.frames[0].time).toBe(0);expect(plan.frames[330].time).toBe(11);expect(plan.frames.every(f=>f.opacity>=0 && f.opacity<=0.6 && f.width>0 && f.width<=128)).toBe(true);}
+  expect(first.slice(0,7).every(plan=>plan.frames[0].depth==='behind')).toBe(true);
+  expect(first[0].frames[0].y+first[0].frames[0].height/2).toBe(600);
+  const next=projection.next({top:0,bottom:844},[0]);expect(next).toHaveLength(1);expect(next[0].id).toBe(0);
+  expect({...next[0].frames[0],time:11}).toEqual(first[0].frames[330]);
+  expect(src).not.toHaveBeenCalled();src.mockRestore();
 });

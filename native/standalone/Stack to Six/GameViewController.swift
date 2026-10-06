@@ -236,6 +236,36 @@ class GameViewController: UIViewController, WKUIDelegate, WKNavigationDelegate, 
     private static var jimiHomeHubEnabled: Bool {
         Bundle.main.bundleIdentifier == "com.taptapdesign.stacktosix.native"
     }
+    private static var jimiNativeForestEnabled: Bool {
+        // User authorized the separate Native iPhone preview on 2026-10-06.
+        // Simulator keeps its isolated A/B opt-in; release remains gated.
+        #if DEBUG
+        #if targetEnvironment(simulator)
+        return jimiHomeHubEnabled
+            && ProcessInfo.processInfo.arguments.contains("--jimi-native-forest")
+            && ProcessInfo.processInfo.environment["SIMULATOR_UDID"] == "1018BE2D-491B-465F-8F75-3E5BEB38C22A"
+        #else
+        return jimiHomeHubEnabled
+        #endif
+        #else
+        return false
+        #endif
+    }
+
+    private static var jimiNativeWorldsEnabled: Bool {
+        // User authorized all three Native Debug Worlds on iPhone on 2026-10-06.
+        #if DEBUG
+        #if targetEnvironment(simulator)
+        return jimiHomeHubEnabled
+            && ProcessInfo.processInfo.arguments.contains("--jimi-native-worlds")
+            && ProcessInfo.processInfo.environment["SIMULATOR_UDID"] == "1018BE2D-491B-465F-8F75-3E5BEB38C22A"
+        #else
+        return jimiHomeHubEnabled
+        #endif
+        #else
+        return false
+        #endif
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -757,6 +787,12 @@ class GameViewController: UIViewController, WKUIDelegate, WKNavigationDelegate, 
         if Self.jimiHomeHubEnabled {
             userContentController.add(self, name: "jimiHomeHub")
             userContentController.addUserScript(WKUserScript(source: "window.__jimiNativeHomeHubEnabled = true;", injectionTime: .atDocumentStart, forMainFrameOnly: true))
+            if Self.jimiNativeWorldsEnabled {
+                userContentController.addUserScript(WKUserScript(source: "window.__jimiNativeWorldsEnabled = true;", injectionTime: .atDocumentStart, forMainFrameOnly: true))
+            }
+            if Self.jimiNativeForestEnabled {
+                userContentController.addUserScript(WKUserScript(source: "window.__jimiNativeForestEnabled = true;", injectionTime: .atDocumentStart, forMainFrameOnly: true))
+            }
         }
 
         userContentController.add(self, name: "hapticImpact")

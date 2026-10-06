@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   createJourneyForestBeeFlightPlans,
+  createNativeForestBeeProjection,
+  sampleJourneyForestBeeFlight,
   getJourneyForestBeeAssetForVelocity,
   getJourneyForestBeeMainAreaSizeScale,
   resolveJourneyForestBeeRuntimeProfile,
@@ -9,6 +11,32 @@ import {
 } from '../journey-forest-bee-orbits';
 
 describe('Journey Forest bee canvas flights', () => {
+  test('native finite projection reuses canonical mobile spline and preserves renewal contact without hidden renderer work',()=>{
+    const image=jest.spyOn(HTMLImageElement.prototype,'src','set');
+    const projection=createNativeForestBeeProjection(138,{x:0,y:122,width:390,height:350},()=>.5);
+    const first=projection.next(),canonical=createJourneyForestBeeFlightPlans(()=>.5),sample=new Float32Array(4);
+    expect(first.map(plan=>plan.id)).toEqual([0,2,5,7,9]);
+    for(const plan of first) {
+      const source=canonical.find(p=>p.unitIndex===plan.id)!;
+      sampleJourneyForestBeeFlight(source,source.elapsedSeconds/source.durationSeconds,sample);
+      expect(plan.frames[0].x).toBe(sample[0]);expect(plan.frames[0].y).toBe(138+sample[1]);
+      expect(plan.frames).toHaveLength(331);
+    }
+    const second=projection.next();
+    second.forEach((plan,index)=>{
+      expect(plan.frames[0]).toEqual({...first[index].frames[first[index].frames.length-1],time:0});
+    });
+    const third=projection.next(),fourth=projection.next(),fifth=projection.next();
+    expect([...third,...fourth,...fifth].some(plan=>plan.frames.some(frame=>frame.depth==='behind'))).toBe(true);
+    expect(image).not.toHaveBeenCalled();image.mockRestore();
+  });
+  test('renewing one visible bee never advances a paused offscreen sibling',()=>{
+    const projection=createNativeForestBeeProjection(138,{x:0,y:122,width:390,height:350},()=>.5);
+    const initial=projection.next();projection.next(11,[0]);projection.next(11,[0]);
+    const hidden=projection.next(11,[9]);
+    expect(hidden).toHaveLength(1);
+    expect(hidden[0].frames[0]).toEqual({...initial[4].frames[330],time:0});
+  });
   test('keeps upper Forest Main bees exactly half-size and restores normal size below it', () => {
     expect(getJourneyForestBeeMainAreaSizeScale(190, 334)).toBe(0.5);
     expect(getJourneyForestBeeMainAreaSizeScale(334, 334)).toBe(0.5);

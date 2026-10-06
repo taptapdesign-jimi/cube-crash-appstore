@@ -51,6 +51,7 @@ import {
   type BoardTransitionSettlement,
 } from './board-transition-lifecycle.js';
 import { boardTransitionPresentationHandoff } from './board-transition-presentation-handoff.js';
+import { releaseNativeBoardTransitionPresentation } from './board-transition-native-presentation.js';
 import {
   resolveRoboArea55ExitTimeScale,
   resolveRoboAirCombatHoldSeconds,
@@ -89,6 +90,7 @@ interface BoardTransitionOptions {
   hideForest?: boolean;
   displayText?: string;
   theme?: BoardTransitionThemeId;
+  onPresentationReady?: () => Promise<boolean>;
 }
 
 let isTransitionActive = false;
@@ -2089,7 +2091,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       logger.error(`❌ board-transition-screen: No digits to display for board number ${boardNumber}`);
       cleanup({ abortAudio: true });
       isTransitionActive = false;
-      finishOnce();
+      finishOnce(!options.onPresentationReady);
       return;
     }
 
@@ -2175,8 +2177,8 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       logger.error(`❌ board-transition-screen: Failed to create digit elements for board number ${boardNumber}`);
       cleanup({ abortAudio: true });
       isTransitionActive = false;
-      resolve();
-      onComplete();
+      if(options.onPresentationReady)finishOnce(false);
+      else { resolve(); onComplete(); }
       return;
     }
 
@@ -2361,11 +2363,12 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       });
 
       const bounceTimeline = trackTimeline({ repeat: -1, delay: enterDelay + 0.5 });
+      if(options.onPresentationReady)bounceTimeline.pause();
       bounceTimeline.to(cloudImg, { y: `+=${bounceAmount}px`, duration: bounceSpeed / 2, ease: 'sine.out' });
       bounceTimeline.to(cloudImg, { y: `-=${bounceAmount}px`, duration: bounceSpeed / 2, ease: 'sine.in' });
       cloudTimelines.push(bounceTimeline);
 
-      const enterTl = trackTimeline({ delay: enterDelay });
+      const enterTl = trackTimeline({ delay: enterDelay, paused:!!options.onPresentationReady });
       // Phase 1: visible one-by-one pop-in at spawn point (no horizontal movement yet)
       enterTl.to(cloudImg, {
         opacity: 1,
@@ -2381,7 +2384,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       }, '>0');
       cloudTimelines.push(enterTl);
 
-      const driftTimeline = trackTimeline({ delay: enterDelay + driftStartDelay + 0.18 });
+      const driftTimeline = trackTimeline({ delay: enterDelay + driftStartDelay + 0.18, paused:!!options.onPresentationReady });
       driftTimeline.to(cloudWrapper, { x: driftDistancePx, duration: windDuration, ease: 'none' });
       cloudTimelines.push(driftTimeline);
 
@@ -2570,12 +2573,8 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     container.appendChild(numberContainer);
     overlay.appendChild(container);
     document.body.appendChild(overlay);
-    if (runMode === RUN_MODE_JOURNEY) fadeOutJourneyWorldsSoundForBoardTransition();
-    if (isForestWorldTransition) playBoardTransitionForestAmbientSound();
-    if (isArea55Transition) playBoardTransitionArea55StartSounds();
     currentOverlay = overlay;
     overlay.dataset.transitionTheme = resolvedTheme;
-    soundtrackFadeGeneration = beginGameplayTransitionFade();
     const digitEnterBaseDelay = resolvedTheme === 'area55'
       ? ROBO_AREA55_NUMBER_ENTER_START_SECONDS
       : BOARD_TRANSITION_NUMBER_ENTER_START_SECONDS;
@@ -2584,11 +2583,14 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       + Math.max(0, digitElements.length - 1) * BOARD_TRANSITION_DIGIT_ENTER_STAGGER_SECONDS
       + BOARD_TRANSITION_DIGIT_ENTER_DURATION_SECONDS
     );
-    continueGameplayTransitionFade(
-      soundtrackFadeGeneration,
-      BOARD_TRANSITION_SOUNDTRACK_AFTER_ENTER_RATIO,
-      transitionEnterDurationMs,
-    );
+    const startAuthoredAudio = () => {
+      if (runMode === RUN_MODE_JOURNEY) fadeOutJourneyWorldsSoundForBoardTransition();
+      if (isForestWorldTransition) playBoardTransitionForestAmbientSound();
+      if (isArea55Transition) playBoardTransitionArea55StartSounds();
+      soundtrackFadeGeneration = beginGameplayTransitionFade();
+      continueGameplayTransitionFade(soundtrackFadeGeneration,BOARD_TRANSITION_SOUNDTRACK_AFTER_ENTER_RATIO,transitionEnterDurationMs);
+    };
+    if(!options.onPresentationReady)startAuthoredAudio();
     if (showScene) {
       // Let the overlay and its first authored pose commit before idle starts
       // writing transforms. This keeps sensor setup out of the mount frame.
@@ -2626,6 +2628,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
 
     // ENTER ANIMATION - exit will start after last digit completes
     enterTimeline = trackTimeline({
+      paused: !!options.onPresentationReady,
       onStart: () => {
         logger.info('✅ board-transition-screen: Enter timeline started');
       },
@@ -3162,7 +3165,15 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     
     // 🔥 CRITICAL FIX: Ensure timeline starts playing
     // GSAP timelines start automatically, but let's ensure it's playing
-    if (enterTimeline && enterTimeline.paused()) {
+    if (options.onPresentationReady) {
+      const preparedTimeline = enterTimeline;
+      void releaseNativeBoardTransitionPresentation({
+        ready:options.onPresentationReady,
+        isCurrent:()=>isTransitionActive && activeGeneration===transitionGeneration && currentOverlay===overlay && overlay.isConnected,
+        start:()=>{ startAuthoredAudio(); cloudTimelines.forEach(timeline=>timeline.play()); preparedTimeline?.play(); },
+        cancel:()=>{ cleanup({abortAudio:true}); isTransitionActive=false; finishOnce(false); },
+      });
+    } else if (enterTimeline && enterTimeline.paused()) {
       enterTimeline.play();
     }
     
@@ -3173,7 +3184,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       // Cleanup and resolve on error
       cleanup({ abortAudio: true });
       isTransitionActive = false;
-      finishOnce();
+      finishOnce(!options.onPresentationReady);
     }
   });
 }

@@ -1,3 +1,4 @@
+import type { NativeWorldAmbientPlan, NativeWorldAmbientViewport } from './native-world-runtime.js';
 import { gsap } from 'gsap';
 import { resolveMobileRuntimeProfile } from './mobile-runtime-profile.js';
 import { startJourneyAmbientCanvasRuntime, type JourneyAmbientCanvasDepth, type JourneyAmbientCanvasFrame, type JourneyAmbientTicker } from './journey-ambient-canvas-runtime.js';
@@ -168,6 +169,75 @@ function drawShip(context: CanvasRenderingContext2D | null, image: HTMLImageElem
   frame.markPaintedBounds?.(ship.depth, ship.x - radius, ship.y - canvasTop - radius, radius * 2, radius * 2);
 }
 
+function resetJourneyArea55ShipFlight(ship:LiveShip,index:number,frame:Pick<JourneyAmbientCanvasFrame,'viewportTop'|'viewportBottom'>,layerWidth:number,random:()=>number):void {
+    ship.direction = sample(random) < 0.5 ? -1 : 1;
+    const overshoot = MAX_SHIP_SIZE_PX * 0.72;
+    ship.startX = ship.direction === 1 ? -overshoot : layerWidth + overshoot;
+    ship.endX = ship.direction === 1 ? layerWidth + overshoot : -overshoot;
+    const visibleHeight = Math.max(1, frame.viewportBottom - frame.viewportTop);
+    const laneTop = frame.viewportTop + visibleHeight * (ship.lane === 'upper' ? 0.12 : 0.62);
+    const laneSpan = visibleHeight * 0.22;
+    ship.startY = laneTop + sample(random) * laneSpan; ship.endY = laneTop + sample(random) * laneSpan;
+    ship.control1X = layerWidth * (ship.direction === 1 ? 0.22 : 0.78);
+    ship.control2X = layerWidth * (ship.direction === 1 ? 0.78 : 0.22);
+    ship.control1Y = laneTop + sample(random) * laneSpan; ship.control2Y = laneTop + sample(random) * laneSpan;
+    ship.durationSeconds = 4.2 + sample(random) * 2.8; ship.baseSize = 55 + sample(random) * 14.5;
+    ship.wobbleAmplitude = 12 + sample(random) * 24; ship.scaleWave = sample(random);
+    ship.scaleFromWave = ship.scaleWave; ship.scaleTargetWave = ship.scaleWave;
+    ship.scaleHoldSeconds = MIN_SCALE_HOLD_SECONDS + sample(random) * SCALE_HOLD_VARIANCE_SECONDS;
+    ship.scaleTransitionSeconds = SCALE_CHANGE_DURATION_SECONDS;
+    ship.wobblePhase = sample(random) * Math.PI * 2; ship.elapsedSeconds = -((index * 0.38) + sample(random) * 0.35);
+    ship.x = ship.startX; ship.y = ship.startY; ship.rotation = 0; ship.rendered = false; ship.planned = true;
+}
+
+function sampleJourneyArea55Ship(ship:LiveShip,rawProgress:number,deltaSeconds:number,random:()=>number):number {
+      const progress = clamp01(rawProgress);
+      const eased = progress * progress * (3 - 2 * progress);
+      const pathX = cubicBezier(ship.startX, ship.control1X, ship.control2X, ship.endX, eased);
+      const pathY = cubicBezier(ship.startY, ship.control1Y, ship.control2Y, ship.endY, eased);
+      const wave = Math.sin(progress * Math.PI * 4 + ship.wobblePhase);
+      const nextX = pathX + Math.cos(progress * Math.PI * 3 + ship.wobblePhase) * ship.wobbleAmplitude * 0.35;
+      const nextY = pathY + wave * ship.wobbleAmplitude;
+      const velocityX = nextX - ship.x; const velocityY = nextY - ship.y; ship.x = nextX; ship.y = nextY;
+      advanceJourneyArea55ShipScale(ship, deltaSeconds, random);
+      const size = getJourneyArea55ShipSize(ship.baseSize, ship.scaleWave);
+      const targetRotation = resolveJourneyArea55ShipTargetRotation(
+        velocityX,
+        velocityY,
+        progress,
+        ship.wobblePhase,
+      );
+      ship.rotation = advanceJourneyArea55ShipRotation(ship.rotation, targetRotation, deltaSeconds);
+      return size;
+}
+
+/** Finite projection at 30Hz, retaining the original 60Hz scale/bank simulation. */
+export function createNativeArea55ShipProjection(random:()=>number = Math.random) {
+  const ships:LiveShip[] = Array.from({length:2},(_,index)=>({depth:'front',lane:index%2===0?'upper':'lower',direction:index%2===0?1:-1,elapsedSeconds:0,delaySeconds:index*0.42,durationSeconds:5,startX:0,startY:0,endX:0,endY:0,control1X:0,control1Y:0,control2X:0,control2Y:0,baseSize:MIN_SHIP_SIZE_PX,scaleWave:sample(random),scaleFromWave:0.5,scaleTargetWave:0.5,scaleHoldSeconds:MIN_SCALE_HOLD_SECONDS+sample(random)*SCALE_HOLD_VARIANCE_SECONDS,scaleTransitionSeconds:SCALE_CHANGE_DURATION_SECONDS,wobblePhase:sample(random)*Math.PI*2,wobbleAmplitude:0,x:0,y:0,rotation:0,rendered:false,planned:false}));
+  return {next(viewport:NativeWorldAmbientViewport,ids?:number[]):NativeWorldAmbientPlan[] {
+    const frame={viewportTop:viewport.top,viewportBottom:viewport.bottom};
+    return ships.flatMap((ship,id)=>{
+      if(ids && !ids.includes(id))return [];
+      const frames:NativeWorldAmbientPlan['frames'] = [];
+      let size=getJourneyArea55ShipSize(ship.baseSize,ship.scaleWave);
+      const advance=(dt:number)=>{
+        if(!ship.planned || ship.y<frame.viewportTop-MAX_SHIP_SIZE_PX || ship.y>frame.viewportBottom+MAX_SHIP_SIZE_PX)resetJourneyArea55ShipFlight(ship,id,frame,DESIGN_WIDTH,random);
+        ship.elapsedSeconds+=dt;
+        if(ship.elapsedSeconds<ship.delaySeconds)return false;
+        const progress=(ship.elapsedSeconds-ship.delaySeconds)/ship.durationSeconds;
+        if(progress>=1){resetJourneyArea55ShipFlight(ship,id,frame,DESIGN_WIDTH,random);return false;}
+        size=sampleJourneyArea55Ship(ship,progress,dt,random);return true;
+      };
+      for(let step=0;step<=330;step++){
+        if(step>0)advance(1/60);
+        const visible=advance(step>0?1/60:0);
+        frames.push({time:step/30,x:ship.x-size/2,y:ship.y-size*(188/194)/2,width:size,height:size*(188/194),rotation:ship.rotation*180/Math.PI,opacity:visible?1:0,asset:SHIP_ASSET,depth:'front'});
+      }
+      return [{id,worldID:3,duration:11,frames}];
+    });
+  }};
+}
+
 export function startJourneyArea55ShipFlybys(options: StartJourneyArea55ShipFlybysOptions): JourneyArea55ShipFlybyController {
   const { root } = options;
   const random = options.random ?? Math.random;
@@ -202,24 +272,7 @@ export function startJourneyArea55ShipFlybys(options: StartJourneyArea55ShipFlyb
   }));
 
   const resetFlight = (ship: LiveShip, index: number, frame: JourneyAmbientCanvasFrame): void => {
-    ship.direction = sample(random) < 0.5 ? -1 : 1;
-    const overshoot = MAX_SHIP_SIZE_PX * 0.72;
-    ship.startX = ship.direction === 1 ? -overshoot : layerWidth + overshoot;
-    ship.endX = ship.direction === 1 ? layerWidth + overshoot : -overshoot;
-    const visibleHeight = Math.max(1, frame.viewportBottom - frame.viewportTop);
-    const laneTop = frame.viewportTop + visibleHeight * (ship.lane === 'upper' ? 0.12 : 0.62);
-    const laneSpan = visibleHeight * 0.22;
-    ship.startY = laneTop + sample(random) * laneSpan; ship.endY = laneTop + sample(random) * laneSpan;
-    ship.control1X = layerWidth * (ship.direction === 1 ? 0.22 : 0.78);
-    ship.control2X = layerWidth * (ship.direction === 1 ? 0.78 : 0.22);
-    ship.control1Y = laneTop + sample(random) * laneSpan; ship.control2Y = laneTop + sample(random) * laneSpan;
-    ship.durationSeconds = 4.2 + sample(random) * 2.8; ship.baseSize = 55 + sample(random) * 14.5;
-    ship.wobbleAmplitude = 12 + sample(random) * 24; ship.scaleWave = sample(random);
-    ship.scaleFromWave = ship.scaleWave; ship.scaleTargetWave = ship.scaleWave;
-    ship.scaleHoldSeconds = MIN_SCALE_HOLD_SECONDS + sample(random) * SCALE_HOLD_VARIANCE_SECONDS;
-    ship.scaleTransitionSeconds = SCALE_CHANGE_DURATION_SECONDS;
-    ship.wobblePhase = sample(random) * Math.PI * 2; ship.elapsedSeconds = -((index * 0.38) + sample(random) * 0.35);
-    ship.x = ship.startX; ship.y = ship.startY; ship.rotation = 0; ship.rendered = false; ship.planned = true;
+    resetJourneyArea55ShipFlight(ship,index,frame,layerWidth,random);
   };
 
   const render = (frame: JourneyAmbientCanvasFrame): number => {
@@ -230,23 +283,7 @@ export function startJourneyArea55ShipFlybys(options: StartJourneyArea55ShipFlyb
       if (ship.elapsedSeconds < ship.delaySeconds) return;
       const rawProgress = (ship.elapsedSeconds - ship.delaySeconds) / ship.durationSeconds;
       if (rawProgress >= 1) { resetFlight(ship, index, frame); return; }
-      const progress = clamp01(rawProgress);
-      const eased = progress * progress * (3 - 2 * progress);
-      const pathX = cubicBezier(ship.startX, ship.control1X, ship.control2X, ship.endX, eased);
-      const pathY = cubicBezier(ship.startY, ship.control1Y, ship.control2Y, ship.endY, eased);
-      const wave = Math.sin(progress * Math.PI * 4 + ship.wobblePhase);
-      const nextX = pathX + Math.cos(progress * Math.PI * 3 + ship.wobblePhase) * ship.wobbleAmplitude * 0.35;
-      const nextY = pathY + wave * ship.wobbleAmplitude;
-      const velocityX = nextX - ship.x; const velocityY = nextY - ship.y; ship.x = nextX; ship.y = nextY;
-      advanceJourneyArea55ShipScale(ship, frame.deltaSeconds, random);
-      const size = getJourneyArea55ShipSize(ship.baseSize, ship.scaleWave);
-      const targetRotation = resolveJourneyArea55ShipTargetRotation(
-        velocityX,
-        velocityY,
-        progress,
-        ship.wobblePhase,
-      );
-      ship.rotation = advanceJourneyArea55ShipRotation(ship.rotation, targetRotation, frame.deltaSeconds);
+      const size = sampleJourneyArea55Ship(ship,rawProgress,frame.deltaSeconds,random);
       ship.rendered = ship.x + size >= 0 && ship.x - size <= frame.width && ship.y + size >= frame.viewportTop && ship.y - size <= frame.viewportBottom;
       if (!ship.rendered) return;
       visibleCount += 1;

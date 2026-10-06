@@ -5,7 +5,7 @@ import WebKit
 /// web runtime. One owner for route visibility, animations and input admission.
 @MainActor
 final class JimiHomeHubController: UIViewController {
-    enum Route { case home, hub }
+    enum Route { case home, hub, world }
     // Observation only. A temporary QA host may attach a bounded route probe;
     // the controller has no dependency on the scripts/qa instrumentation.
     enum DiagnosticEvent {
@@ -28,6 +28,7 @@ final class JimiHomeHubController: UIViewController {
     private var hasBootstrapped = false
     private var journeyRequiresTutorial = false
     private var transitioning = false
+    private var incomingHubEnter = false
     private var generation = 0
     private var requestID = 0
     private var feedbackID = 0
@@ -35,6 +36,26 @@ final class JimiHomeHubController: UIViewController {
     private var expectedRequest: Int?
     private var activatingWorldRequest: Int?
     private var worldRequest: Int?
+    private var nativeWorldSnapshot: [String: Any]?
+    private var nativeWorldResourcesReady = false
+    private var nativeWorldIncoming = false
+    private lazy var nativeWorld = JimiNativeWorldHost(web: web, artwork: assets)
+    private struct DeferredWorldPresentation {
+        let identity = UUID()
+        let snapshot: [String: Any]
+    }
+    private var deferredWorldPresentation: DeferredWorldPresentation?
+    private struct PreparedWorldReturn {
+        let identity = UUID()
+        let terminalToken:Int
+        let model:JimiNativeWorldSnapshot
+        let snapshot:[String:Any]
+        var ready = false
+    }
+    private var preparedWorldReturn:PreparedWorldReturn?
+    private var returnPreparationForegroundEpoch = 0
+    private var returnPreparationResumeToken:Int?
+
     private struct DeferredHubPresentation {
         let identity = UUID()
         let epoch: Int
@@ -78,6 +99,20 @@ final class JimiHomeHubController: UIViewController {
         policy.frame = CGRect(x: 8, y: 1, width: 1, height: 1)
         view.addSubview(policy)
         view.isHidden = true
+        nativeWorld.onBack = { [weak self] in self?.navigate(["kind": "hub"]) }
+        nativeWorld.onBusy = { [weak self] busy in
+            guard let self, self.route == .world, self.expectedRequest == nil, self.worldRequest == nil else { return }
+            self.transitioning = busy; self.status.accessibilityValue = busy ? "transitioning" : "ready"
+        }
+        nativeWorld.onGameplayCommitted = { [weak self] in
+            guard let self else { return }
+            self.active = false; self.transitioning = false
+            self.nativeWorld.hide(); self.view.isHidden = true; self.web.accessibilityElementsHidden = false
+        }
+        nativeWorld.onError = { [weak self] message in
+            self?.status.text = message; self?.status.accessibilityValue = "error"
+        }
+        nativeWorld.onLaunchRejected = { [weak self] in self?.recoverRejectedNativeLaunch() }
         home.onSlideSelected = { [weak self] index in self?.selectSlide(index) }
         home.onPanBegan = { [weak self] in
             guard let self, self.active, !self.transitioning, self.route == .home else { return false }
@@ -93,8 +128,12 @@ final class JimiHomeHubController: UIViewController {
             self.navigate(destination)
         }
         hub.onBack = { [weak self] in
-            guard let self, self.active, !self.transitioning else { return }
-            self.feedback("back"); self.navigate(["kind": "home"])
+            guard let self, self.active, self.route == .hub,
+                  !self.transitioning || self.incomingHubEnter else { return }
+            let interruptedExit = self.incomingHubEnter ? self.retargetHubExit() : nil
+            self.incomingHubEnter = false
+            self.transitioning = false
+            self.feedback("back"); self.navigate(["kind": "home"], exitTracks: interruptedExit)
         }
         hub.onWorld = { [weak self] id in
             guard let self, self.active, !self.transitioning else { return }
@@ -106,15 +145,24 @@ final class JimiHomeHubController: UIViewController {
             self.animate([(self.hub.backpackButton, JimiV9Motion.navigationTapBounce)]) {}
         }
         observers.append(NotificationCenter.default.addObserver(forName: UIApplication.willResignActiveNotification,
-            object: nil, queue: .main) { [weak self] _ in self?.suspend() })
+            object: nil, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.suspend() } })
         observers.append(NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification,
-            object: nil, queue: .main) { [weak self] _ in self?.resume() })
+            object: nil, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.resume() } })
+        observers.append(NotificationCenter.default.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.nativeWorld.worldView?.memoryWarning() } })
     }
 
     func receive(_ event: [String: Any]) {
         guard !disposed else { return }
         loadViewIfNeeded()
         let kind = event["kind"] as? String
+        if kind == "gameplay-presentation-ready" {
+            guard let token = event["launchToken"] as? String,
+                  let routeGeneration = event["routeGeneration"] as? Int,
+                  let stateRevision = event["stateRevision"] as? Int else { return }
+            nativeWorld.acceptTransitionPresentation(token: token, routeGeneration: routeGeneration, stateRevision: stateRevision)
+            return
+        }
         if kind == "snapshot", let snapshot = event["snapshot"] as? [String: Any] {
             update(snapshot)
             if !hasBootstrapped && expectedRequest == nil {
@@ -147,14 +195,36 @@ final class JimiHomeHubController: UIViewController {
             // Validate foreground deliveries too: queued native messages can
             // outlive the web epoch that originally published them.
             if UIApplication.shared.applicationState == .active { resumeDeferredHubPresentation() }
+        } else if kind == "prepare-world-return",let token = event["terminalToken"] as? Int,token > 0,let snapshot = event["worldSnapshot"] as? [String:Any],let model = JimiNativeWorldSnapshot(snapshot) {
+            guard expectedRequest == nil,!transitioning else {return}
+            preparedWorldReturn = PreparedWorldReturn(terminalToken:token,model:model,snapshot:snapshot)
+            returnPreparationResumeToken = token
+            if UIApplication.shared.applicationState == .active {prepareHiddenWorldReturn()}
+        } else if kind == "enter-world", let snapshot = event["worldSnapshot"] as? [String: Any] {
+            guard expectedRequest == nil, !transitioning else { return }
+            deferredWorldPresentation = DeferredWorldPresentation(snapshot: snapshot)
+            if UIApplication.shared.applicationState == .active { resumeDeferredWorldPresentation() }
         } else if kind == "ready", event["requestId"] as? Int == expectedRequest {
             if let id = expectedRequest { onDiagnosticEvent?(.bridgeReady(requestID: id)) }
             destinationReady = event["destination"] as? [String: Any]
+            nativeWorldSnapshot = event["worldSnapshot"] as? [String: Any]
+            if let snapshot = nativeWorldSnapshot, let id = expectedRequest {
+                guard nativeWorld.prepare(snapshot, in: view) else {
+                    recoverWorld(id, message: "Forest artwork unavailable"); return
+                }
+                nativeWorld.worldView?.prepare { [weak self] in
+                    guard let self, !self.disposed, self.expectedRequest == id else { return }
+                    guard self.nativeWorld.worldView?.preparationHasMissingResources == false else {
+                        self.recoverWorld(id, message: "Forest artwork unavailable"); return
+                    }
+                    self.nativeWorldResourcesReady = true; self.commitIfReady()
+                }
+            }
             let destinationKind = destinationReady?["kind"] as? String
             if !motionDone, !outgoingFeedbackSent, destinationKind == "home" || destinationKind == "hub" {
                 outgoingFeedbackSent = true
                 if route == .home { feedback("home-exit", extra: ["durationSeconds": 0.70]) }
-                else { feedback("hub-exit") }
+                else if route == .hub { feedback("hub-exit") }
             }
             commitIfReady()
         } else if kind == "error", let id = event["requestId"] as? Int,
@@ -169,6 +239,7 @@ final class JimiHomeHubController: UIViewController {
         hub.updateProgress(snapshot["worlds"] as? [[String: Any]] ?? [], activeWorldId: snapshot["activeWorldId"] as? Int)
     }
     private func adopt(_ next: Route, snapshot: [String: Any], animateHubEnter: Bool = false) {
+        invalidatePreparedWorldReturn()
         onDiagnosticEvent?(.cancel(reason: "canonical-source-adopted"))
         home.cancelPan()
         CATransaction.begin(); CATransaction.setDisableActions(true)
@@ -178,6 +249,8 @@ final class JimiHomeHubController: UIViewController {
         // transaction. Neither a reset source nor an unprimed destination may
         // become an independently committed frame.
         home.isHidden = true; hub.isHidden = true
+        nativeWorld.hide()
+        nativeWorldIncoming = false
         cancelMotion(); route = next; active = true; transitioning = animateHubEnter
         let enterOwner: Int?
         if animateHubEnter {
@@ -189,7 +262,9 @@ final class JimiHomeHubController: UIViewController {
         home.isHidden = next != .home; hub.isHidden = next != .hub
         view.isHidden = false; web.accessibilityElementsHidden = true
         status.text = nil; status.accessibilityValue = animateHubEnter ? "transitioning" : "ready"
-        home.isUserInteractionEnabled = !animateHubEnter; hub.isUserInteractionEnabled = !animateHubEnter
+        home.isUserInteractionEnabled = !animateHubEnter; hub.isUserInteractionEnabled = true
+        incomingHubEnter = animateHubEnter && next == .hub
+        hub.setContentInteractionEnabled(!incomingHubEnter)
         if next == .hub {
             hub.resetScroll()
             if animateHubEnter { hub.resetIdlePose() }
@@ -203,6 +278,7 @@ final class JimiHomeHubController: UIViewController {
             animate(hubTracks(enter: true)) { [weak self] in
                 guard let self else { return }
                 self.transitioning = false
+                self.incomingHubEnter = false; self.hub.setContentInteractionEnabled(true)
                 self.home.isUserInteractionEnabled = true; self.hub.isUserInteractionEnabled = true
                 self.status.accessibilityValue = "ready"
                 self.hub.startIdle()
@@ -272,19 +348,30 @@ final class JimiHomeHubController: UIViewController {
         return tracks
     }
 
-    private func navigate(_ destination: [String: Any]) {
+    private func navigate(_ destination: [String: Any], exitTracks: [(UIView, JimiV9Motion.Track)]? = nil) {
+        invalidatePreparedWorldReturn()
         guard active, !transitioning else { return }
         deferredHubPresentation = nil
+        deferredWorldPresentation = nil
         let requestOwner = requestID + 1
-        let sourceLabel = route == .home ? "home" : "hub"
+        let sourceLabel = route == .home ? "home" : route == .hub ? "hub" : "world"
         let destinationLabel = destination["kind"] as? String ?? "unknown"
         let actionLabel = destination["action"] as? String
             ?? (destination["worldId"] as? Int).map { "world-\($0)" }
+        let nativeHomeExit = destinationLabel == "web-home"
+            && (actionLabel == "arcade" || actionLabel == "settings")
         onDiagnosticEvent?(.start(requestID: requestOwner,
             label: sourceLabel + "->" + destinationLabel + (actionLabel.map { ":" + $0 } ?? "")))
-        home.cancelPan()
+        home.cancelPan(preservingCTAFeedback: true)
         transitioning = true; motionDone = false; destinationReady = nil
+        nativeWorldSnapshot = nil
+        nativeWorldResourcesReady = false
+        nativeWorldIncoming = false
         outgoingFeedbackSent = false
+        if nativeHomeExit {
+            outgoingFeedbackSent = true
+            feedback("home-exit", extra: ["durationSeconds": 0.70])
+        }
         hub.stopIdle(); home.isUserInteractionEnabled = false; hub.isUserInteractionEnabled = false
         status.accessibilityValue = "transitioning"
         requestID += 1; expectedRequest = requestID
@@ -303,12 +390,15 @@ final class JimiHomeHubController: UIViewController {
             if error != nil { self.recover("Bridge unavailable") }
         }
         let isWebSource = (destination["kind"] as? String)?.hasPrefix("web-") == true
-        if isWebSource {
+        if isWebSource && !nativeHomeExit {
             // Existing web route will own its original exit; don't play it twice.
             motionDone = true; commitIfReady()
+        } else if route == .world {
+            onDiagnosticEvent?(.motionStart(requestID: requestOwner))
+            nativeWorld.exit { [weak self] in self?.motionDone = true; self?.commitIfReady() }
         } else {
             onDiagnosticEvent?(.motionStart(requestID: requestOwner))
-            animate(route == .home ? homeTracks(enter: false) : hubTracks(enter: false, selectedWorldID: selectedWorldID)) { [weak self] in
+            animate(exitTracks ?? (route == .home ? homeTracks(enter: false) : hubTracks(enter: false, selectedWorldID: selectedWorldID))) { [weak self] in
                 self?.motionDone = true; self?.commitIfReady()
             }
         }
@@ -321,6 +411,7 @@ final class JimiHomeHubController: UIViewController {
 
     private func commitIfReady() {
         guard motionDone, let destination = destinationReady, let id = expectedRequest else { return }
+        if nativeWorldSnapshot != nil && !nativeWorldResourcesReady { return }
         timeout?.cancel(); timeout = nil; expectedRequest = nil; destinationReady = nil
         CATransaction.begin(); CATransaction.setDisableActions(true)
         defer { CATransaction.commit() }
@@ -331,6 +422,11 @@ final class JimiHomeHubController: UIViewController {
         cancelMotion()
         let kind = destination["kind"] as? String
         if kind == "world" {
+            if let snapshot = nativeWorldSnapshot {
+                nativeWorldSnapshot = nil
+                commitNativeWorld(snapshot, requestID: id)
+                return
+            }
             // Ready means the exact World is prepared in its hidden enter pose,
             // not already animated. Native exit and preparation meet only here.
             activatingWorldRequest = id
@@ -355,7 +451,33 @@ final class JimiHomeHubController: UIViewController {
             }
             return
         }
+        nativeWorld.hide()
         if kind == "web-home" || kind == "web-hub" {
+            let action = destination["action"] as? String
+            let nativeExitComplete = kind == "web-home" && (action == "arcade" || action == "settings")
+            if nativeExitComplete {
+                // Keep the paper cover until the canonical destination has
+                // accepted the action and retired its hidden Home source.
+                // Never expose a second, settled web copy for another exit.
+                let handoff = generation
+                let item = DispatchWorkItem { [weak self] in
+                    guard let self, !self.disposed, self.generation == handoff else { return }
+                    self.recover("Home action activation timed out")
+                }
+                timeout = item; DispatchQueue.main.asyncAfter(deadline: .now()+8, execute: item)
+                web.callAsyncJavaScript("return await window.__jimiNativeHomeHubRuntime.activateSource(id, true)",
+                    arguments: ["id": id], in: nil, in: .page) { [weak self] result in
+                    guard let self, !self.disposed, self.generation == handoff else { return }
+                    guard case .success(let value) = result, value as? Bool == true else {
+                        self.recover("Home action activation failed"); return
+                    }
+                    self.timeout?.cancel(); self.timeout = nil
+                    self.active = false; self.transitioning = false
+                    self.view.isHidden = true; self.web.accessibilityElementsHidden = false
+                    self.onDiagnosticEvent?(.finish(requestID: id, outcome: "native-exit-web-action-accepted"))
+                }
+                return
+            }
             active = false; transitioning = false; view.isHidden = true; web.accessibilityElementsHidden = false
             // Only the native-to-canonical-source handoff is observed here.
             // The eventual web destination is outside this route's measurement.
@@ -375,15 +497,178 @@ final class JimiHomeHubController: UIViewController {
         home.isHidden = route != .home; hub.isHidden = route != .hub
         if route == .hub { hub.resetScroll(); hub.resetIdlePose() }
         let incoming = route == .home ? homeTracks(enter: true) : hubTracks(enter: true)
+        incomingHubEnter = route == .hub
+        hub.isUserInteractionEnabled = incomingHubEnter
+        hub.setContentInteractionEnabled(!incomingHubEnter)
         if route == .home { feedback("home-enter", extra: ["durationSeconds": 0.745], renew: true) }
         else { feedback("hub-ambience", renew: true) }
         onDiagnosticEvent?(.motionStart(requestID: id))
         animate(incoming) { [weak self] in
             guard let self else { return }
             self.transitioning = false; self.home.isUserInteractionEnabled = true; self.hub.isUserInteractionEnabled = true
+            self.incomingHubEnter = false; self.hub.setContentInteractionEnabled(true)
             self.status.accessibilityValue = "ready"
             if self.route == .hub { self.hub.startIdle() }
             self.onDiagnosticEvent?(.finish(requestID: id, outcome: "native-input-ready"))
+        }
+    }
+
+    private func commitNativeWorld(_ snapshot: [String: Any], requestID id: Int) {
+        guard nativeWorldResourcesReady, nativeWorld.worldView?.snapshot.requestID == String(id) else {
+            recoverWorld(id, message: "Forest presentation unavailable"); return
+        }
+        view.bringSubviewToFront(status); view.bringSubviewToFront(policy)
+        // Keep the native paper cover until web accepts this exact logical
+        // World receipt. Resource preparation cannot reveal a destination.
+        activatingWorldRequest = id
+        let handoff = generation
+        let item = DispatchWorkItem { [weak self] in
+            guard let self, self.activatingWorldRequest == id, self.generation == handoff else { return }
+            self.recoverWorld(id, message: "Forest activation timed out")
+        }
+        timeout = item; DispatchQueue.main.asyncAfter(deadline: .now()+8, execute: item)
+        web.callAsyncJavaScript("return await window.__jimiNativeHomeHubRuntime.activateWorld(id)",
+            arguments: ["id": id], in: nil, in: .page) { [weak self] result in
+            guard let self, !self.disposed, self.activatingWorldRequest == id, self.generation == handoff else { return }
+            guard case .success(let value) = result, value as? Bool == true,
+                  UIApplication.shared.applicationState == .active else {
+                self.recoverWorld(id, message: "Forest activation failed"); return
+            }
+            self.timeout?.cancel(); self.timeout = nil
+            self.activatingWorldRequest = nil; self.worldRequest = nil
+            self.route = .world; self.active = true; self.view.isHidden = false
+            self.nativeWorldIncoming = true
+            self.web.accessibilityElementsHidden = true
+            self.onDiagnosticEvent?(.motionStart(requestID: id))
+            self.nativeWorld.enter(terminal: false) { [weak self] in
+                guard let self, self.generation == handoff, self.route == .world else { return }
+                self.commitNativeWorldInput(owner: handoff, requestID: id)
+            }
+        }
+    }
+
+
+    private func invalidatePreparedWorldReturn(preserveResumeToken:Bool = false) {
+        returnPreparationForegroundEpoch += 1;preparedWorldReturn = nil
+        nativeWorld.worldView?.cancelHiddenReturnPose()
+        if !preserveResumeToken {returnPreparationResumeToken = nil}
+    }
+    private func prepareHiddenWorldReturn() {
+        guard !disposed,UIApplication.shared.applicationState == .active,let pending = preparedWorldReturn else {return}
+        let owner = generation,foreground = returnPreparationForegroundEpoch,model = pending.model
+        let arguments:[String:Any] = ["terminalToken":pending.terminalToken,"generation":model.generation,"revision":model.revision,"worldID":model.worldID]
+        web.callAsyncJavaScript("return window.__jimiNativeHomeHubRuntime.isNativeWorldReturnPreparationCurrent(terminalToken,generation,revision,worldID)",arguments:arguments,in:nil,in:.page) { [weak self] result in
+            guard let self,!self.disposed,self.generation == owner,self.returnPreparationForegroundEpoch == foreground,self.preparedWorldReturn?.identity == pending.identity,UIApplication.shared.applicationState == .active else {return}
+            guard case .success(let accepted) = result,accepted as? Bool == true else {self.invalidatePreparedWorldReturn();return}
+            self.nativeWorld.hide()
+            guard self.nativeWorld.prepare(model,rawSnapshot:pending.snapshot,in:self.view),let world = self.nativeWorld.worldView else {self.invalidatePreparedWorldReturn();return}
+            world.prepare { [weak self,weak world] in
+                guard let self,let world,!self.disposed,self.generation == owner,self.returnPreparationForegroundEpoch == foreground,self.preparedWorldReturn?.identity == pending.identity,self.nativeWorld.worldView === world,UIApplication.shared.applicationState == .active else {return}
+                guard !world.preparationHasMissingResources,world.snapshot.generation == model.generation,world.snapshot.revision == model.revision,world.snapshot.worldID == model.worldID else {self.invalidatePreparedWorldReturn();return}
+                guard world.primeHiddenReturnPose() else {self.invalidatePreparedWorldReturn();return}
+                self.preparedWorldReturn?.ready = true
+                self.web.callAsyncJavaScript("return window.__jimiNativeHomeHubRuntime.ackNativeWorldReturnPrepared(terminalToken,generation,revision,worldID)",arguments:arguments,in:nil,in:.page) { [weak self] acknowledgement in
+                    guard let self,!self.disposed,self.generation == owner,self.returnPreparationForegroundEpoch == foreground,self.preparedWorldReturn?.identity == pending.identity,UIApplication.shared.applicationState == .active else {return}
+                    guard case .success(let accepted) = acknowledgement,accepted as? Bool == true else {self.invalidatePreparedWorldReturn();return}
+                }
+            }
+        }
+    }
+    private func resumeDeferredWorldPresentation() {
+        guard UIApplication.shared.applicationState == .active, let pending = deferredWorldPresentation,
+              let model = JimiNativeWorldSnapshot(pending.snapshot) else { return }
+        let owner = generation
+        web.callAsyncJavaScript("return window.__jimiNativeHomeHubRuntime.isNativeWorldPresentationCurrent(generation, revision)",
+            arguments: ["generation": model.generation, "revision": model.revision], in: nil, in: .page) { [weak self] result in
+            guard let self, !self.disposed, self.generation == owner,
+                  self.deferredWorldPresentation?.identity == pending.identity,
+                  UIApplication.shared.applicationState == .active else { return }
+            self.deferredWorldPresentation = nil
+            guard self.expectedRequest == nil, !self.transitioning else { return }
+            guard case .success(let value) = result, value as? Bool == true else {
+                self.releaseStaleNativeWorldCoverage(); return
+            }
+            let prepared = self.preparedWorldReturn
+            let reusePrepared = prepared?.ready == true && prepared?.model.generation == model.generation && prepared?.model.revision == model.revision && prepared?.model.worldID == model.worldID && self.nativeWorld.worldView?.snapshot.generation == model.generation && self.nativeWorld.worldView?.snapshot.revision == model.revision && self.nativeWorld.worldView?.preparationHasMissingResources == false
+            if !reusePrepared, !self.nativeWorld.prepare(model, rawSnapshot: pending.snapshot, in: self.view) {
+                self.releaseStaleNativeWorldCoverage(); return
+            }
+            self.invalidatePreparedWorldReturn()
+            let finishPreparation:()->Void = { [weak self] in
+                guard let self, !self.disposed, self.generation == owner else { return }
+                guard self.nativeWorld.worldView?.preparationHasMissingResources == false else {
+                    if let id = Int(model.requestID) { self.worldRequest = id; self.recoverWorld(id, message: "Forest artwork unavailable") }
+                    return
+                }
+                guard UIApplication.shared.applicationState == .active else {
+                    self.deferredWorldPresentation = pending; return
+                }
+                // Decode completion cannot inherit an obsolete terminal route.
+                self.web.callAsyncJavaScript("return window.__jimiNativeHomeHubRuntime.isNativeWorldPresentationCurrent(generation, revision)",
+                    arguments: ["generation": model.generation, "revision": model.revision], in: nil, in: .page) { [weak self] current in
+                    guard let self, !self.disposed, self.generation == owner,
+                          UIApplication.shared.applicationState == .active else { return }
+                    guard case .success(let accepted) = current, accepted as? Bool == true else {
+                        self.releaseStaleNativeWorldCoverage(); return
+                    }
+                    CATransaction.begin(); CATransaction.setDisableActions(true)
+                    self.home.isHidden = true; self.hub.isHidden = true; self.hub.stopIdle()
+                    self.view.bringSubviewToFront(self.status); self.view.bringSubviewToFront(self.policy)
+                    self.route = .world; self.active = true; self.transitioning = true
+                    self.nativeWorldIncoming = true
+                    self.view.isHidden = false; self.web.accessibilityElementsHidden = true
+                    self.nativeWorld.enter(terminal: true) { [weak self] in
+                        guard let self, self.generation == owner, self.route == .world else { return }
+                        self.commitNativeWorldInput(owner: owner)
+                    }
+                    CATransaction.commit()
+                }
+            }
+            if reusePrepared {finishPreparation()} else {self.nativeWorld.worldView?.prepare(completion:finishPreparation)}
+        }
+    }
+
+    private func releaseStaleNativeWorldCoverage() {
+        invalidatePreparedWorldReturn()
+        nativeWorld.hide(); active = false; transitioning = false; nativeWorldIncoming = false
+        view.isHidden = true; web.accessibilityElementsHidden = false
+    }
+
+    private func recoverRejectedNativeLaunch() {
+        let owner = generation
+        web.callAsyncJavaScript("return window.__jimiNativeHomeHubRuntime.recoverNativeWorldLaunch()",
+            arguments: [:], in: nil, in: .page) { [weak self] result in
+            guard let self, !self.disposed, self.generation == owner else { return }
+            if case .success(let value) = result, let snapshot = value as? [String: Any] {
+                self.transitioning = false
+                self.deferredWorldPresentation = DeferredWorldPresentation(snapshot: snapshot)
+                self.resumeDeferredWorldPresentation()
+            } else {
+                // A foreign canonical route already owns this web epoch.
+                self.nativeWorld.hide(); self.active = false; self.transitioning = false
+                self.view.isHidden = true; self.web.accessibilityElementsHidden = false
+            }
+        }
+    }
+
+    private func commitNativeWorldInput(owner: Int, requestID id: Int? = nil) {
+        guard let snapshot = nativeWorld.worldView?.snapshot else { return }
+        web.callAsyncJavaScript("return window.__jimiNativeHomeHubRuntime.commitNativeWorldPresentation(generation, revision)",
+            arguments: ["generation": snapshot.generation, "revision": snapshot.revision], in: nil, in: .page) { [weak self] result in
+            guard let self, !self.disposed, self.generation == owner, self.route == .world else { return }
+            guard case .success(let accepted) = result, accepted as? Bool == true else {
+                self.releaseStaleNativeWorldCoverage()
+                return
+            }
+            self.transitioning = false; self.status.text = nil; self.status.accessibilityValue = "ready"
+            self.nativeWorldIncoming = false
+            self.nativeWorld.worldView?.finishPresentationAdmission()
+            #if DEBUG && targetEnvironment(simulator)
+            if let geometry = self.nativeWorld.worldView?.unitGeometrySnapshot(boardID: 1) {
+                NSLog("[CC_NATIVE_FOREST_GEOMETRY] %@", String(describing: geometry))
+            }
+            #endif
+            if let id { self.onDiagnosticEvent?(.finish(requestID: id, outcome: "native-forest-input-ready")) }
         }
     }
 
@@ -509,7 +794,30 @@ final class JimiHomeHubController: UIViewController {
         }
     }
 
+    private func retargetHubExit() -> [(UIView, JimiV9Motion.Track)] {
+        hubTracks(enter: false).map { target, track in
+            guard !track.tweens.isEmpty else { return (target, track) }
+            let layer = target.layer
+            let painted = layer.presentation() ?? layer
+            let t = painted.transform
+            let dx = (track.anchorX - layer.anchorPoint.x) * layer.bounds.width
+            let dy = (track.anchorY - layer.anchorPoint.y) * layer.bounds.height
+            let alpha = min(1, max(0, Double(painted.opacity) / max(0.001, Double(baseOpacity[ObjectIdentifier(layer)] ?? 1))))
+            let pose = JimiV9Motion.Pose(scaleX: t.m11, scaleY: t.m22,
+                x: t.m41 + dx * (t.m11 - 1), y: t.m42 + dy * (t.m22 - 1), opacity: alpha)
+            func capped(_ value: JimiV9Motion.Pose) -> JimiV9Motion.Pose {
+                var result = value; result.opacity = min(value.opacity, alpha); return result
+            }
+            let tweens = track.tweens.enumerated().map { index, tween in
+                JimiV9Motion.Tween(begin: tween.begin, duration: tween.duration,
+                    from: index == 0 ? pose : capped(tween.from), to: capped(tween.to), ease: tween.ease)
+            }
+            return (target, JimiV9Motion.Track(tweens: tweens, anchorX: track.anchorX, anchorY: track.anchorY))
+        }
+    }
+
     private func cancelMotion() {
+        incomingHubEnter = false
         generation += 1
         CATransaction.begin(); CATransaction.setDisableActions(true)
         for layer in animatedLayers { layer.removeAnimation(forKey: "native-route"); layer.removeAnimation(forKey: "native-slide-selection"); layer.transform = CATransform3DIdentity; layer.opacity = baseOpacity[ObjectIdentifier(layer)] ?? 1; restoreAnchor(layer) }
@@ -522,6 +830,7 @@ final class JimiHomeHubController: UIViewController {
         layer.anchorPoint = anchor
     }
     private func recover(_ message: String) {
+        invalidatePreparedWorldReturn()
         if let id = worldRequest {
             recoverWorld(id, message: message)
             return
@@ -538,16 +847,18 @@ final class JimiHomeHubController: UIViewController {
             if route == .hub { hub.resetIdlePose() }
         }
         home.isUserInteractionEnabled = true; hub.isUserInteractionEnabled = true
+        hub.setContentInteractionEnabled(true)
         status.text = message; status.accessibilityValue = "error"
         web.evaluateJavaScript("window.__jimiNativeHomeHubRuntime?.suspendFeedback()", completionHandler: nil)
         web.evaluateJavaScript("(window.__jimiNativeHomeHubRuntime ?? window.__jimiNativeHomeHub)?.cancel()", completionHandler: nil)
     }
 
     private func recoverWorld(_ id: Int, message: String) {
+        invalidatePreparedWorldReturn()
         onDiagnosticEvent?(.cancel(reason: "world-recovery: " + message))
         timeout?.cancel(); timeout = nil
         expectedRequest = nil; activatingWorldRequest = nil; destinationReady = nil
-        cancelMotion(); hub.stopIdle()
+        cancelMotion(); hub.stopIdle(); nativeWorld.hide()
         let owner = generation
         // A failed activation may have lost its web app-zone epoch. Only the
         // runtime can authorize reclaiming this exact request's native cover.
@@ -596,11 +907,20 @@ final class JimiHomeHubController: UIViewController {
         }
     }
 
-    private func suspend() {
+    func suspend() {
+        invalidatePreparedWorldReturn(preserveResumeToken:true)
         onDiagnosticEvent?(.cancel(reason: "background"))
-        guard active else { return }
-        home.cancelPan()
         web.evaluateJavaScript("window.__jimiNativeHomeHubRuntime?.suspendFeedback()", completionHandler: nil)
+        guard active else { return }
+        if route == .world {
+            if nativeWorldIncoming, let snapshot = nativeWorld.snapshotValue {
+                cancelMotion(); nativeWorld.hide(); nativeWorldIncoming = false
+                transitioning = false
+                deferredWorldPresentation = DeferredWorldPresentation(snapshot: snapshot)
+            } else { nativeWorld.suspend() }
+            return
+        }
+        home.cancelPan()
         if let kind = destinationReady?["kind"] as? String, kind == "home" || kind == "hub" {
             route = kind == "home" ? .home : .hub
             home.isHidden = route != .home; hub.isHidden = route != .hub
@@ -624,12 +944,37 @@ final class JimiHomeHubController: UIViewController {
         }
         cancelMotion(); hub.stopIdle()
     }
-    private func resume() {
+    func resume() {
+        if let token = returnPreparationResumeToken {
+            returnPreparationResumeToken = nil
+            web.evaluateJavaScript("window.__jimiNativeHomeHubRuntime?.prepareNativeWorldReturn(\(token))",completionHandler:nil)
+        }
+        if deferredWorldPresentation != nil { resumeDeferredWorldPresentation(); return }
         if deferredHubPresentation != nil {
             resumeDeferredHubPresentation()
             return
         }
         guard active else { return }
+        if route == .world {
+            if nativeWorld.requiresPresentationRecovery { recoverRejectedNativeLaunch(); return }
+            guard let model = nativeWorld.worldView?.snapshot else { return }
+            let owner = generation
+            web.callAsyncJavaScript("return window.__jimiNativeHomeHubRuntime.isNativeWorldPresentationCurrent(generation, revision)",
+                arguments: ["generation": model.generation, "revision": model.revision], in: nil, in: .page) { [weak self] result in
+                guard let self, !self.disposed, self.active, self.route == .world, self.generation == owner,
+                      UIApplication.shared.applicationState == .active,
+                      let identity = self.nativeWorld.worldView?.snapshot,
+                      identity.generation == model.generation, identity.revision == model.revision else { return }
+                guard case .success(let value) = result, value as? Bool == true else {
+                    self.nativeWorld.hide(); self.active = false; self.transitioning = false
+                    self.view.isHidden = true; self.web.accessibilityElementsHidden = false
+                    return
+                }
+                self.web.evaluateJavaScript("window.__jimiNativeHomeHubRuntime?.resumeFeedback()", completionHandler: nil)
+                self.nativeWorld.resume()
+            }
+            return
+        }
         // Foregrounding is not an acknowledgement of a failed bridge request.
         if status.accessibilityValue == "ready" || status.accessibilityValue == "error" {
             web.evaluateJavaScript("window.__jimiNativeHomeHubRuntime?.resumeFeedback()", completionHandler: nil)
@@ -637,12 +982,14 @@ final class JimiHomeHubController: UIViewController {
         }
     }
     func dispose() {
+        invalidatePreparedWorldReturn()
         guard !disposed else { return }
         onDiagnosticEvent?(.cancel(reason: "disposed"))
         onDiagnosticEvent = nil
         home?.cancelPan()
         disposed = true; expectedRequest = nil; activatingWorldRequest = nil; worldRequest = nil; destinationReady = nil
         deferredHubPresentation = nil
+        deferredWorldPresentation = nil; nativeWorldSnapshot = nil; nativeWorld.dispose()
         timeout?.cancel(); timeout = nil; cancelMotion(); hub?.stopIdle()
         observers.forEach(NotificationCenter.default.removeObserver); observers.removeAll()
         active = false; view.isHidden = true; web.accessibilityElementsHidden = false

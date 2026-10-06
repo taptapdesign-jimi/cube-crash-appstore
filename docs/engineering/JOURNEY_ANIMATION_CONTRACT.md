@@ -69,6 +69,14 @@ Journey hub layout notes:
 
 Navigation rules:
 
+- Native Journey Hub Back remains actionable during the Hub incoming enter
+  (2026-10-06 user request). It interrupts that incoming owner, samples the
+  painted pose and begins the standard Hub exit without resetting to identity.
+  Delayed invisible Units remain invisible, and the retired enter completion
+  cannot reveal or unlock the Hub. Worlds/scroll keep their normal enter gate;
+  duplicate Back during outgoing motion stays blocked. Individual web World X
+  retains its v10 policy: accept one request during enter and flush it when that
+  World's enter completes.
 - Every Journey X/back/nav tap should call `playNavIconCartoonBounce(...)` from `src/utils/nav-icon-bounce.ts`.
 - Forest/Beach/Area 55 screen nav, Journey Worlds nav, and card-modal nav should use the same cartoon tap feeling.
 - Nav/header exit starts immediately with the relevant content exit. Do not leave header/nav visible while content waits to begin exit.

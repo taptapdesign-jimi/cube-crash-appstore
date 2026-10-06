@@ -1,3 +1,4 @@
+import type { NativeWorldAmbientPlan, NativeWorldAmbientViewport } from './native-world-runtime.js';
 import { gsap } from 'gsap';
 import { resolveMobileRuntimeProfile } from './mobile-runtime-profile.js';
 import {
@@ -204,6 +205,67 @@ function drawBubble(
   frame.markPaintedBounds?.(depth, x, y - canvasTop, size, size);
 }
 
+function resetJourneyBeachBubble(bubble: LiveBubble, index: number, initial: boolean,
+  emitters: BeachBubbleEmitter[], sceneHeight: number, layerWidth: number, pxPerDesignUnit: number, random: () => number): void {
+    const guaranteedEmitterBirth = initial && index < emitters.length;
+    bubble.depth = guaranteedEmitterBirth || sample(random) < (2 / 3) ? 'behind' : 'front';
+    const emitter = emitters[index % emitters.length];
+    bubble.emitterBoardId = emitter.boardId;
+    const authoredSize = 10 + sample(random) * 22;
+    bubble.size = authoredSize * getBeachBubbleSizeScale(index) * pxPerDesignUnit;
+    bubble.startX = emitter.x - bubble.size * 0.5;
+    bubble.startY = emitter.y - bubble.size * 0.5;
+    bubble.endX = Math.min(layerWidth - bubble.size, Math.max(0,
+      bubble.startX + (-72 + sample(random) * 154) * pxPerDesignUnit));
+    bubble.waveAmplitude = (16 + sample(random) * 38) * pxPerDesignUnit;
+    bubble.waveCycles = 1.6 + sample(random) * 2;
+    bubble.phase = sample(random) * Math.PI * 2;
+    bubble.opacity = getBeachBubbleOpacity(index);
+    bubble.durationSeconds = createBeachBubbleRiseDuration(sceneHeight, sample(random));
+    bubble.delaySeconds = initial
+      ? (index < emitters.length
+        ? 0
+        : ((index - emitters.length + 1) / (BUBBLE_COUNT - emitters.length + 1)) * bubble.durationSeconds)
+      : 0.45 + sample(random) * 1.8;
+    bubble.elapsedSeconds = 0;
+    bubble.assetIndex = Math.floor(sample(random) * 6) % 6;
+    bubble.rendered = false;
+}
+
+function sampleJourneyBeachBubble(bubble: LiveBubble, progress: number) {
+      const eased = Math.sin(progress * Math.PI * 0.5);
+      const { startY, endY } = getBeachBubbleVerticalBounds(bubble.startY, bubble.size);
+      const x = bubble.startX
+        + (bubble.endX - bubble.startX) * eased
+        + (Math.sin(progress * Math.PI * 2 * bubble.waveCycles + bubble.phase)
+          - Math.sin(bubble.phase)) * bubble.waveAmplitude;
+      const y = startY + (endY - startY) * eased;
+      const opacity = bubble.opacity * Math.max(0, Math.min(1, (1 - progress) * 8));
+      return {x,y,opacity};
+}
+
+/** Finite compositor projection of the same authored reset/sampler. No DOM, images or ticker. */
+export function createNativeBeachBubbleProjection(emitters: BeachBubbleEmitter[],sceneHeight: number,random:()=>number = Math.random) {
+  const bubbles: LiveBubble[] = Array.from({length:MOBILE_BEACH_BUBBLE_COUNT},(_,index)=>{
+    const bubble:LiveBubble = {depth:'behind',durationSeconds:1,delaySeconds:0,elapsedSeconds:0,emitterBoardId:11,startX:0,startY:0,endX:0,size:1,opacity:0,waveAmplitude:0,waveCycles:1,phase:0,assetIndex:0,rendered:false};
+    resetJourneyBeachBubble(bubble,index,true,emitters,sceneHeight,DESIGN_WIDTH,1,random);return bubble;
+  });
+  return { next(_viewport:NativeWorldAmbientViewport,ids?:number[]):NativeWorldAmbientPlan[] {
+    return bubbles.flatMap((bubble,id)=>{
+      if(ids && !ids.includes(id))return [];
+      const frames:NativeWorldAmbientPlan['frames'] = [];
+      for(let frame=0;frame<=330;frame++) {
+        if(frame>0)bubble.elapsedSeconds+=1/30;
+        let progress=(bubble.elapsedSeconds-bubble.delaySeconds)/bubble.durationSeconds;
+        if(progress>=1){resetJourneyBeachBubble(bubble,id,false,emitters,sceneHeight,DESIGN_WIDTH,1,random);progress=0;}
+        const pose=sampleJourneyBeachBubble(bubble,Math.max(0,progress));
+        frames.push({time:frame/30,x:pose.x,y:pose.y,width:bubble.size,height:bubble.size,rotation:0,opacity:bubble.elapsedSeconds<bubble.delaySeconds?0:pose.opacity,asset:`${ASSET_BASE}/bubble${bubble.assetIndex+1}.png`,depth:bubble.depth});
+      }
+      return [{id,worldID:2,duration:11,frames}];
+    });
+  }};
+}
+
 export function startJourneyBeachBubbleDrift(
   options: StartJourneyBeachBubbleDriftOptions,
 ): JourneyBeachBubbleDriftController {
@@ -250,29 +312,7 @@ export function startJourneyBeachBubbleDrift(
   };
 
   const resetBubble = (bubble: LiveBubble, index: number, initial = false): void => {
-    const guaranteedEmitterBirth = initial && index < emitters.length;
-    bubble.depth = guaranteedEmitterBirth || sample(random) < (2 / 3) ? 'behind' : 'front';
-    const emitter = emitters[index % emitters.length];
-    bubble.emitterBoardId = emitter.boardId;
-    const authoredSize = 10 + sample(random) * 22;
-    bubble.size = authoredSize * getBeachBubbleSizeScale(index) * pxPerDesignUnit;
-    bubble.startX = emitter.x - bubble.size * 0.5;
-    bubble.startY = emitter.y - bubble.size * 0.5;
-    bubble.endX = Math.min(layerWidth - bubble.size, Math.max(0,
-      bubble.startX + (-72 + sample(random) * 154) * pxPerDesignUnit));
-    bubble.waveAmplitude = (16 + sample(random) * 38) * pxPerDesignUnit;
-    bubble.waveCycles = 1.6 + sample(random) * 2;
-    bubble.phase = sample(random) * Math.PI * 2;
-    bubble.opacity = getBeachBubbleOpacity(index);
-    bubble.durationSeconds = createBeachBubbleRiseDuration(sceneHeight, sample(random));
-    bubble.delaySeconds = initial
-      ? (index < emitters.length
-        ? 0
-        : ((index - emitters.length + 1) / (BUBBLE_COUNT - emitters.length + 1)) * bubble.durationSeconds)
-      : 0.45 + sample(random) * 1.8;
-    bubble.elapsedSeconds = 0;
-    bubble.assetIndex = Math.floor(sample(random) * 6) % 6;
-    bubble.rendered = false;
+    resetJourneyBeachBubble(bubble,index,initial,emitters,sceneHeight,layerWidth,pxPerDesignUnit,random);
   };
 
   const bubbleCount = runtimeProfile.maxBubbleCount > 0
@@ -302,14 +342,7 @@ export function startJourneyBeachBubbleDrift(
         resetBubble(bubble, index);
         return;
       }
-      const eased = Math.sin(progress * Math.PI * 0.5);
-      const { startY, endY } = getBeachBubbleVerticalBounds(bubble.startY, bubble.size);
-      const x = bubble.startX
-        + (bubble.endX - bubble.startX) * eased
-        + (Math.sin(progress * Math.PI * 2 * bubble.waveCycles + bubble.phase)
-          - Math.sin(bubble.phase)) * bubble.waveAmplitude;
-      const y = startY + (endY - startY) * eased;
-      const opacity = bubble.opacity * Math.max(0, Math.min(1, (1 - progress) * 8));
+      const {x,y,opacity} = sampleJourneyBeachBubble(bubble,progress);
       bubble.rendered = y + bubble.size >= frame.viewportTop && y <= frame.viewportBottom;
       if (!bubble.rendered) return;
       visibleCount += 1;

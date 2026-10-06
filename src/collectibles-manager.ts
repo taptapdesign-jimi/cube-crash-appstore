@@ -941,6 +941,27 @@ class CollectiblesManager {
     }
     const isVisibleEnterOwnerCurrent = (): boolean => visibleEnterLease.isCurrent();
     const pendingTerminalReturnToken = getJourneyReturnTransitionToken();
+    const nativeWorld = (window as any).__jimiNativeHomeHubRuntime;
+    if (((window as any).__jimiNativeForestEnabled === true || (window as any).__jimiNativeWorldsEnabled === true) && typeof nativeWorld?.returnNativeForest === 'function') {
+      const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+      if (journeyBoardsManager.hasNativeForestPresentation()) {
+        // The result owner controls this boundary; preparation never reveals.
+        screen.style.opacity = '0';
+        screen.style.visibility = 'hidden';
+        screen.style.pointerEvents = 'none';
+        screen.inert = true;
+        if(pendingTerminalReturnToken !== null)nativeWorld.prepareNativeWorldReturn?.(pendingTerminalReturnToken);
+        scheduleJourneyReturnReveal(pendingTerminalReturnToken, () => visibleEnterLease.isCurrent(), () => {
+          void nativeWorld.returnNativeForest().then((accepted: boolean) => {
+            if (!visibleEnterLease.isCurrent()) return;
+            visibleEnterLease.settle();
+            postEnterLease.settle();
+            if (!accepted) { journeyBoardsManager.retireNativeForest(); void this.showCollectibles(options); }
+          });
+        });
+        return;
+      }
+    }
     const hasTransferredTerminalCover = isJourneyReturnStaticCoverActive(pendingTerminalReturnToken);
     if (!hasTransferredTerminalCover) {
       primeJourneyScreenHiddenForEnter(screen as HTMLElement, 'showCollectibles-start');

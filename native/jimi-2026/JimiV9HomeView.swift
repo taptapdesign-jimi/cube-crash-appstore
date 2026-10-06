@@ -97,7 +97,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         logoImage.contentMode = .scaleAspectFit
         logoView.addSubview(logoImage)
         logoView.isUserInteractionEnabled = false
-        bottomShadow.contentMode = .scaleAspectFit
+        bottomShadow.contentMode = .scaleAspectFill
         bottomShadow.alpha = 0.55
         addSubview(bottomShadow)
         addSubview(navView)
@@ -153,8 +153,12 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             nav.accessibilityIdentifier = "native.home.slide.\(index)"
             nav.addTarget(self, action: #selector(selectTab(_:)), for: .touchUpInside)
             let shadow = UIView()
-            shadow.backgroundColor = UIColor(red: 238/255, green: 218/255, blue: 202/255, alpha: 0.8)
-            shadow.layer.cornerRadius = 7.5
+            // v10 active-icon shadow: a blurred ellipse, not a rounded pill.
+            shadow.backgroundColor = .clear
+            shadow.layer.shadowColor = UIColor(red: 238/255, green: 218/255, blue: 202/255, alpha: 1).cgColor
+            shadow.layer.shadowOpacity = 0.8
+            shadow.layer.shadowRadius = 3
+            shadow.layer.shadowOffset = .zero
             shadow.isUserInteractionEnabled = false
             let image = UIImageView(image: assets.image("assets/nav/\(icons[index]).png"))
             image.contentMode = .scaleAspectFit
@@ -226,7 +230,10 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         viewport.frame = bounds
         sliderTrack.bounds = CGRect(x: 0, y: 0, width: width*3, height: height)
         sliderTrack.center = CGPoint(x: draggedPositionX ?? (width*1.5 - CGFloat(selectedSlide)*width), y: height/2)
-        let heroTop = topInset + innerInset + 153
+        // v10 mobile: the 336px image overflows its 280px shell by 28px
+        // and relative top:5% adds 14px, leaving a net -14px displacement.
+        // Its CTA has the same net correction (-34 text + 12px margin).
+        let heroTop = topInset + innerInset + 139
         for i in panels.indices {
             panels[i].frame = CGRect(x: CGFloat(i)*width, y: 0, width: width, height: height)
             heroes[i].bounds = CGRect(x: 0, y: 0, width: 336, height: 336)
@@ -246,8 +253,8 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             ctas[i].center = CGPoint(x: 113, y: 32)
             ctas[i].layer.shadowPath = UIBezierPath(roundedRect: ctas[i].bounds, cornerRadius: 32).cgPath
         }
-        bottomShadow.bounds = CGRect(x: 0, y: 0, width: width, height: 49)
-        bottomShadow.center = CGPoint(x: width/2, y: height - 81 - 24.5)
+        bottomShadow.bounds = CGRect(x: 0, y: 0, width: width * 1.2 - 96, height: 49)
+        bottomShadow.center = CGPoint(x: 40 - width * 0.1 + bottomShadow.bounds.width/2, y: height - 81 - 24.5)
         navView.bounds = CGRect(x: 0, y: 0, width: width, height: 120)
         navView.center = CGPoint(x: width/2, y: height - 60)
         let rowWidth = (width - 32) * 0.935
@@ -261,6 +268,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             navButtons[i].center = CGPoint(x: x + size/2, y: 92 - size/2)
             navImages[i].frame = CGRect(x: 0, y: i == selectedSlide ? -12 : 0, width: size, height: size)
             navShadows[i].frame = CGRect(x: (size-60)/2, y: size-19, width: 60, height: 15)
+            navShadows[i].layer.shadowPath = UIBezierPath(ovalIn: navShadows[i].bounds).cgPath
             navShadows[i].isHidden = i != selectedSlide
             x += size + gap
         }
@@ -271,10 +279,11 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         guard button === ctas[selectedSlide] else { onActivate?(selectedSlide); return }
         ctaActivationPending = true
         animateCTA(button.tag, pressed: false) { [weak self] in
-            guard let self, !self.dragging, !self.isHidden, self.isUserInteractionEnabled else { return }
-            self.ctaActivationPending = false
-            self.onActivate?(self.selectedSlide)
+            self?.ctaActivationPending = false
         }
+        // Release feedback and route motion have separate shells. Start the
+        // route now, rather than using the 260ms rebound as an input queue.
+        onActivate?(selectedSlide)
     }
 
     @objc private func pressCTA(_ button: UIButton) {
@@ -337,8 +346,8 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     }
 
     /// Route/background owner cancels without requesting another selection.
-    func cancelPan() {
-        resetCTAFeedback()
+    func cancelPan(preservingCTAFeedback: Bool = false) {
+        if !preservingCTAFeedback { resetCTAFeedback() }
         dragging = false
         draggedPositionX = nil
         panGesture.isEnabled = false

@@ -2,8 +2,34 @@
   "version": 1,
   "features": [
     {
+      "id": "native-forest-presentation",
+      "surfaces": [
+        "src/modules/native-world-runtime.ts",
+        "src/modules/native-home-hub-runtime.ts",
+        "src/modules/native-home-hub-bridge.ts"
+      ],
+      "entryOwner": "Existing Home/Hub route controller commits the selected Forest/Beach/Area55 UIKit surface after a versioned web-authoritative snapshot, bounded visible resource preparation and exact activation receipt. NativeWorldReceiptOwner stays entering until actual native cascade completion is acknowledged. Standalone QA Simulator remains opt-in. User authorized separate Native Debug iPhone preview on2026-10-06; exact .native identity enables all three Worlds on physical Debug launches after explicit installation approval. Release remains OFF.",
+      "exitOwner": "JimiNativeWorldHost validates semantic card and gameplay admission with monotonic action IDs, route generation and state revision. Native visual exit completes before the one-use launch token invokes canonical regular/interim Journey game entry. Fail, Clean Board and Exit Game retain their existing completed-exit receipt, schedule the native World reveal and finish the canonical return only after UIKit admission. Replacement/background/disposal invalidate owned callbacks; a dispatched canonical launch cannot be canceled by resurrecting native presentation. Original WebKit board-transition entry is constructed paused; an exact token/generation/revision presentation-ready receipt transfers opaque coverage before native ACK admits its authored timeline. Final canonical gameplay completion remains authoritative and cannot release coverage twice. Terminal retained return uses prepare-world-return and an exact terminal-token/World/generation/revision/Journey-epoch readiness ACK after hidden resources and frozen enter pose are ready. This releases the canonical result cover readiness wait without bypassing authored result exit, cover fade, actual native cascade completion or input admission. Background retires both preparation leases even while gameplay owns visibility; foreground recreates the lease.",
+      "resourcePolicy": "Original unmodified bundled art. JimiNativeWorldResources prepares visible/near-visible Units on a serial background decoder, counts decoded RGBA and releases unleased/offscreen resources. One active Forest is parked through gameplay with scroll preserved; hidden web World rendering is suspended. No second progression/save/resolver or all-three-World startup decode. Native Swift owners are in native/jimi-2026/JimiNativeWorld*.swift; UIKit tests in native/standalone/Stack to SixTests/JimiNativeWorldTests.swift. Native card coach and finite foil effects are owned by JimiNativeWorldCardEffects.swift. Interim burn uses 31 precomputed screen-blended textures plus one face-glow image, at most 2x view density, on a serial background preparation queue. Its thread-safe lease cancels between frames; stop/park drops all cached textures. No unsupported iOS CALayer compositing filter or per-frame image processing. Forest bees reuse the canonical pure planner/sampler as five retained mobile trajectories in finite 11-second, 30Hz projections. Exact active route/revision and foreground/no-modal admission gate renewal; retirement drops the projection session. Original bee1..7 assets, depth and directional crossfades are rendered by native visible-only compositor ownership, with no web ticker, DOM renderer, image decode or hidden frame work. User requested extension to Beach/Area55 on2026-10-06: same renderer and one selected World lease; ten canonical global board IDs per World, no Forest bees outside Forest. Area55 beam opacity uses a validated bounded canonical sequence on a child compositor layer, suspended with the existing visible idle owner. Beach bubbles and Area55 ships share the original pure reset/sampling helpers with web. Finite11second/30Hz native projections retain eight bubbles or two ships and renew only through current generation/revision/foreground/no-modal receipts. No web ambient renderer/ticker is mounted. JimiNativeWorldAmbient owns at most two compositor layers per sprite, original leased art, viewport admission, pause/late-renewal and double-cleanup. World2/3 terrain/cloud/decor/card depth planes share identical Unit enter/exit and idle tracks, preserving front ships above terrain but below cards; hidden return preparation includes every plane. Native terminal readiness/cleanup fixtures are in native/standalone/Stack to SixTests/JimiNativeWorldReturnPreparationTests.swift and JimiNativeWorldReturnPoseTests.swift; physical-backface X/landing coverage in JimiNativeWorldTests.swift and actual regular X/drag/game routes in native/standalone/Stack to SixUITests/JimiNativeForestUITests.swift. NEW uses the original ribbon asset with its top at card y=0. NativeHost retains only accepted pre-open visual NEW state through the large physical front; canonical viewed/save ownership remains web. Close removes the ribbon at reverse-flight start. No shimmer is added. Actual Host-to-modal UIKit coverage is in native/standalone/Stack to SixTests/JimiNativeWorldRibbonTests.swift. Terminal return reminder is a temporary depth9 sibling in the same scrolling World content, above all Unit/card planes without promoting terrain. Source/apex geometry use that shared coordinate space; existing cleanup restores the source and removes the sibling on completion/park/background. Small/portal NEW original artwork aligns top and right edges to the physical face.",
+      "animationPolicy": "Complete Unit wrappers own finite enter/exit and visible-only idle; card/cloud effects own separate child layers. Physical front/back card carrier owns flight, flip, close interruption and live Unit landing. Original modal assets, stars, stats and authored feedback are retained. Only actual native completion admits input; reduced motion, replacement, background and cleanup retire motion symmetrically. Regular card geometry and signed manual tap directions follow journey-fluidity-v10 (8e4364e8): one 1050px camera, preserve-3d shells, distinct front/back tilts and normalized settled faces. Card Play/Continue uses the existing Homepage JimiV9PlainButton palette, depth, text shadow and finite press/release owner; card flight and signed flip remain independent. Frozen return prime layers have speed zero, no feedback delegate and no model-geometry mutation; receipt invalidation, enter, park and cleanup remove them. Card Close/drag return disables the X while retaining it on the physical backface for natural occlusion, following v10.",
+      "audioPolicy": "Native semantic motion/contact receipts delegate through native-world-feedback.ts to the existing Journey Unit, Forest ambience, card flip, CTA and navigation sound owners. Shared Settings and sole global full-stop registry remain authoritative. No new transport, source or sound migration; release precedes canonical gameplay successor ownership. Forest ambience is admitted only for worldID1; Beach/Area55 retain the canonical World cue and shared authored contacts.",
+      "hapticPolicy": "Existing light authored interaction haptics, Settings-gated through the semantic feedback adapter. No timer or frame-driven haptics.",
+      "visibilityPolicy": "Prepared native artwork stays hidden behind existing native coverage. Terminal snapshot delivery revalidates exact web generation/revision after preparation and on foreground before reveal. Parked surfaces have no input, finite completion, reminder or idle work. Stale requests and foreign web epochs cannot reclaim coverage.",
+      "tests": [
+        "src/modules/__tests__/native-world-runtime.test.ts",
+        "src/modules/__tests__/native-world-feedback.test.ts",
+        "src/modules/__tests__/native-home-hub-runtime.test.ts",
+        "src/modules/__tests__/native-forest-manager.test.ts",
+        "src/modules/__tests__/board-transition-native-presentation.test.ts"
+      ],
+      "physicalAcceptance": "Forest Debug preview previously installed. Beach/Area55 source and isolated Simulator extension explicitly requested2026-10-06; User explicitly authorized all three Native Debug Worlds phone installation; physical Debug enables by exact .native identity, QA Simulator remains opt-in and Release remains OFF. NEEDS PHYSICAL TEST for all frame pacing, memory, thermal, touch and sound/feel. Original PWA untouched."
+    },
+    {
       "id": "jimi-native-home-hub",
-      "surfaces": ["src/modules/native-home-hub-bridge.ts", "src/modules/native-home-hub-runtime.ts"],
+      "surfaces": [
+        "src/modules/native-home-hub-bridge.ts",
+        "src/modules/native-home-hub-runtime.ts"
+      ],
       "entryOwner": "Explicit isolated-Simulator native flag installs typed bridge only after full web bootstrap. Swift JimiHomeHubController owns native Home/Hub input and visibility; canonical web adapter supplies real progress and explicit native logical-ready or web-source-ready receipts. Direct World readiness uses the canonical manager's selected detached preparation and hidden enter pose; activateWorld resolves only after actual World enter. Snapshots alone do not authorize initial reveal.",
       "exitOwner": "Request ID, abort signal and presentation epoch guard preparation, activation and recovery. Native Hub exit runs concurrently with selected World preparation; no hidden web Hub enter/exit replay. Canonical World exit/stage retention commits a hidden inert Hub, settles its token, then requests one native Hub enter instead of web Hub/nav enter. Failed exact-epoch admission restores canonical web Hub without generic re-adoption. Arcade/Settings/tutorial retain canonical Home source actions. Recovery requires exact runtime recoverWorld authorization. Background and disposal cancel only owned work.",
       "resourcePolicy": "Original v9 assets and fonts, no edits or derived raster replacements. Native scene-lifetime image cache for Home and Hub only. Existing full web gameplay/save/progression owners retained; no second renderer for the board or save writer. Feature is opt-in and not installed on a physical phone.",
@@ -11,12 +37,29 @@
       "audioPolicy": "Opt-in native semantic feedback delegates to existing CTA/nav/swipe/Home-motion/Hub-loop/Hub-exit owners with monotonic event IDs and request/epoch admission. Native lease stops on cancellation/background; source handoff relinquishes before canonical web preparation. No new transport/assets. Outgoing cue timing, first-play tab CTA cue and geometry-based Hub Unit-enter parity remain explicit acceptance gaps.",
       "hapticPolicy": "Existing native haptic bridge and authored event semantics retained; no tick-driven haptics. Integration parity remains an acceptance requirement.",
       "visibilityPolicy": "Native overlay cannot disappear on data snapshot or early app-zone assignment. World readiness is prepared hidden, then actual enter completes before input-ready. Native Hub enter messages revalidate exact epoch; background messages defer without idle/motion and revalidate on foreground. Already committed native incoming motion settles on background without an invented failure. Hidden surfaces lose input/accessibility/idle ownership. Late callbacks cannot reveal a stale route.",
-      "tests": ["src/modules/__tests__/native-home-hub-bridge.test.ts", "src/modules/__tests__/native-home-hub-runtime.test.ts", "src/modules/__tests__/native-home-hub-animation-contract.test.ts", "src/modules/__tests__/native-direct-world-contract.test.ts", "src/modules/__tests__/journey-native-world-entry.test.ts", "src/modules/__tests__/journey-world-close-recovery.test.ts"],
+      "tests": [
+        "src/modules/__tests__/native-home-hub-bridge.test.ts",
+        "src/modules/__tests__/native-home-hub-runtime.test.ts",
+        "src/modules/__tests__/native-home-hub-animation-contract.test.ts",
+        "src/modules/__tests__/native-direct-world-contract.test.ts",
+        "src/modules/__tests__/journey-native-world-entry.test.ts",
+        "src/modules/__tests__/journey-world-close-recovery.test.ts"
+      ],
       "physicalAcceptance": "Implementation candidate, not accepted. Must preserve v9 Home/Hub original art, routes, real progression, scroll, audio/haptic feel; prove repeated Simulator touches/background/returns and compare actual transition starts. Physical iPhone remains untouched until explicit authorization."
     },
     {
       "id": "jimi-2026-isolated-presentation",
-      "surfaces": ["src/jimi-2026/main.ts", "src/jimi-2026/scene-director.ts", "src/jimi-2026/scene-presentation.ts", "src/jimi-2026/scene-builders.ts", "src/jimi-2026/scene-assembly.ts", "src/jimi-2026/scene-viewport.ts", "src/jimi-2026/scene-resources.ts", "src/jimi-2026/scene-diagnostics.ts", "src/jimi-2026/scene-input-diagnostics.ts"],
+      "surfaces": [
+        "src/jimi-2026/main.ts",
+        "src/jimi-2026/scene-director.ts",
+        "src/jimi-2026/scene-presentation.ts",
+        "src/jimi-2026/scene-builders.ts",
+        "src/jimi-2026/scene-assembly.ts",
+        "src/jimi-2026/scene-viewport.ts",
+        "src/jimi-2026/scene-resources.ts",
+        "src/jimi-2026/scene-diagnostics.ts",
+        "src/jimi-2026/scene-input-diagnostics.ts"
+      ],
       "entryOwner": "Standalone jimi-2026.html only. SceneDirector owns one active transition and one latest request. Canonical production entry remains unchanged. Main owns one retained Home, Hub and Beach DOM plus temporary detail.",
       "exitOwner": "Director retires handles after incoming commit; failures restore outgoing. Epoch and AbortSignal prevent stale completion. Nonpersisted pagehide disposes; visibility and persisted pagehide cancel finite work, pageshow resumes committed state or bootstraps Home.",
       "resourcePolicy": "Original assets unchanged. Cold selected Hub (three complete Worlds) and Beach (main plus ten board Units) use one shared lifecycle-owned cancellable assembly scheduler, one complete Unit per task; a partial/stale assembly is never cached. Cold scene image readiness is bounded and cancellable; completed roots skip warm traversal. Retained DOM is not a GPU-residency guarantee. No Pixi, game manager, save writes or native synchronization from the separate build.",
@@ -24,12 +67,25 @@
       "audioPolicy": "Isolated acceptance slice is explicitly silent; existing game audio unchanged. Canonical feature-specific cues must be integrated before production replacement.",
       "hapticPolicy": "No haptic source in the isolated slice; accepted production haptics unchanged and migration remains required.",
       "visibilityPolicy": "One root visibility/input owner, hidden inert preparation, old root hidden before incoming reveal. Main snapshots scroll before visible hide/detach and restores it after reattachment before enter; repeated already-visible rollback preserves current scroll. Beach motion admits conservative viewport/overflow envelopes once per enter/exit; offscreen artwork stays mounted and static, never culled or hidden. Header remains admitted. Input gated through incoming completion. Background and BFCache suspend finite motion.",
-      "tests": ["src/jimi-2026/__tests__/scene-director.test.ts", "src/jimi-2026/__tests__/scene-builders.test.ts", "src/jimi-2026/__tests__/scene-assembly.test.ts", "src/jimi-2026/__tests__/scene-viewport.test.ts", "src/jimi-2026/__tests__/scene-presentation.test.ts", "src/jimi-2026/__tests__/scene-resources.test.ts", "src/jimi-2026/__tests__/main.test.ts", "src/jimi-2026/__tests__/scene-diagnostics.test.ts", "src/jimi-2026/__tests__/scene-input-diagnostics.test.ts", "src/jimi-2026/__tests__/scene-stacking.test.ts"],
+      "tests": [
+        "src/jimi-2026/__tests__/scene-director.test.ts",
+        "src/jimi-2026/__tests__/scene-builders.test.ts",
+        "src/jimi-2026/__tests__/scene-assembly.test.ts",
+        "src/jimi-2026/__tests__/scene-viewport.test.ts",
+        "src/jimi-2026/__tests__/scene-presentation.test.ts",
+        "src/jimi-2026/__tests__/scene-resources.test.ts",
+        "src/jimi-2026/__tests__/main.test.ts",
+        "src/jimi-2026/__tests__/scene-diagnostics.test.ts",
+        "src/jimi-2026/__tests__/scene-input-diagnostics.test.ts",
+        "src/jimi-2026/__tests__/scene-stacking.test.ts"
+      ],
       "physicalAcceptance": "INCOMPLETE prototype, not fluidity acceptance or finished migration. First slice Home/Hub/Beach/card preview only; no canonical save/game integration or Forest/Area55 activation yet. Simulator measurements and visual parity required; phone installation prohibited until user acceptance. The existing three-fives no-Fail incident remains unresolved."
     },
     {
       "id": "journey-painted-viewport-parking",
-      "surfaces": ["src/modules/journey-viewport-parking.ts"],
+      "surfaces": [
+        "src/modules/journey-viewport-parking.ts"
+      ],
       "entryOwner": "JourneyBoardsManager parks existing Worlds 1/2/3 for gameplay only. Hub/Homepage paint parking is rejected: the body-level gameplay cover obscures the runtime z-index 1 Homepage. Cold Hub preparation never installs a cover; warm Hub retains hidden DOM only. For admitted Worlds an opaque sibling cover is installed before paintable styles or clearing inline important hiding; existing suspension retires animation, FX, audio and input before settling a static pose.",
       "exitOwner": "The exact Collectibles visible-enter owner keeps the covered viewport through both scheduled reveal boundaries and releases its cover in the same task as starting visible animation; terminal destinations retain their validated cover-commit path. Full manager cleanup and Home/Arcade/loader routes retire parking unconditionally. Replacement hides the previous owner before releasing its cover.",
       "resourcePolicy": "One existing World DOM subtree, one small cover element, no copied assets, derived bitmaps, timers, observers or new renderer. A stable viewport transform layer survives the covered return; permanent retirement removes its marker. No additional Beach main-image promotion hint. GPU paint residency remains an experimental measurement target, not a guarantee of backing or smoothness.",
@@ -37,12 +93,22 @@
       "audioPolicy": "No new audio. Existing gameplay suspension retires Journey sessions.",
       "hapticPolicy": "No new haptics; existing accepted interactions unchanged.",
       "visibilityPolicy": "Parked World is inert and aria-hidden, below an opaque viewport cover and gameplay surface. Homepage must never retain this cover. The cover is committed before paintable styles and removed only after destination is hidden-primed. Matching element ownership prevents stale release; visual pixels, not accessibility element existence alone, must prove Homepage visibility.",
-      "tests": ["src/modules/__tests__/journey-viewport-parking.test.ts", "src/modules/__tests__/app-zone-manager.test.ts", "src/modules/__tests__/journey-gameplay-residency.test.ts", "src/modules/__tests__/journey-world-coordinator-lifecycle.test.ts", "src/modules/__tests__/journey-hub-homepage-prepaint.test.ts", "src/modules/__tests__/journey-hub-transition-ownership.test.ts", "src/modules/__tests__/journey-deferred-pose-reveal.test.ts"],
+      "tests": [
+        "src/modules/__tests__/journey-viewport-parking.test.ts",
+        "src/modules/__tests__/app-zone-manager.test.ts",
+        "src/modules/__tests__/journey-gameplay-residency.test.ts",
+        "src/modules/__tests__/journey-world-coordinator-lifecycle.test.ts",
+        "src/modules/__tests__/journey-hub-homepage-prepaint.test.ts",
+        "src/modules/__tests__/journey-hub-transition-ownership.test.ts",
+        "src/modules/__tests__/journey-deferred-pose-reveal.test.ts"
+      ],
       "physicalAcceptance": "Experimental and unaccepted. Must prove restored Homepage pixels through repeated Hub/Home returns, no uncovered flash, no hidden input/idle, preserved scroll/card/save and repeated Simulator worst-frame improvement across all three World returns. No physical installation authorized."
     },
     {
       "id": "journey-unit-scene",
-      "surfaces": ["src/modules/journey-unit-scene.ts"],
+      "surfaces": [
+        "src/modules/journey-unit-scene.ts"
+      ],
       "entryOwner": "JourneyBoardsManager compiles a detached, scoped Beach destination after image readiness and before the existing enter-prime owner. Validation is all-or-nothing; other Worlds retain their current renderer pending the acceptance slice.",
       "exitOwner": "The existing JourneyWorldAnimationCoordinator and selected-area transition owner animate one structural root, never both root and descendants. Existing stage retirement releases the complete subtree.",
       "resourcePolicy": "Reparents existing images/cards without copying assets, creating textures, reading live geometry or adding caches. Layout is compiled once from authored coordinates and loaded image dimensions. Retained gameplay return keeps these exact roots; card progression reconciliation preserves local placement.",
@@ -50,12 +116,18 @@
       "audioPolicy": "Existing Journey Unit cues and sessions unchanged.",
       "hapticPolicy": "Existing card and navigation interaction owners unchanged.",
       "visibilityPolicy": "Compilation is detached only. Existing stage token, hidden-surface suspension and coordinator interruption own presentation and cleanup. Scene roots remain noninteractive; existing cards and interim hit owners receive input.",
-      "tests": ["src/modules/__tests__/journey-unit-scene.test.ts", "src/modules/__tests__/journey-world-coordinator-lifecycle.test.ts"],
+      "tests": [
+        "src/modules/__tests__/journey-unit-scene.test.ts",
+        "src/modules/__tests__/journey-world-coordinator-lifecycle.test.ts"
+      ],
       "physicalAcceptance": "Experimental Beach acceptance slice, NOT accepted as fluid. Requires Simulator composition/depth, card interaction and repeated game/result return plus worst-frame comparison before expansion. Physical phone remains prohibited pending user acceptance."
     },
     {
       "id": "journey-bounded-route-residency",
-      "surfaces": ["src/modules/journey-stage-controller.ts", "src/modules/journey-boards-manager.ts"],
+      "surfaces": [
+        "src/modules/journey-stage-controller.ts",
+        "src/modules/journey-boards-manager.ts"
+      ],
       "entryOwner": "JourneyBoardsManager schedules canonical Hub exit synchronously and prepares only the selected destination. Homepage reveal joins Hub image readiness, never three full Worlds. JourneyStageController owns generation-checked stable-node transfer; JourneyRouteTransitionCoordinator owns the foreground presentation lease through incoming completion.",
       "exitOwner": "Authored exits settle before atomic transfer. The manager retires outgoing runtime/input owners. Full cleanup releases all retained surfaces. Pressure evicts optional inactive Worlds but protects the accepted destination and never disables Hub admission.",
       "resourcePolicy": "One Hub plus at most one retained World. A different cold destination first releases the previous inactive World. Construction, image readiness and enter priming stay detached until atomic commit; no full-alpha connected preparation or paint-frame barrier. Gameplay parks the live World. Homepage parks an existing Hub through the same idempotent suspension owner before Home enters; the next Hub entry resumes its lifecycle and refreshes canonical progression without replacing its nodes. An unexpected World on the Home exit still receives full cleanup. No new assets or caches; DOM retention does not imply GPU residency.",
@@ -63,12 +135,24 @@
       "audioPolicy": "Existing navigation and Journey cue owners unchanged; no new sound source or transport.",
       "hapticPolicy": "Existing accepted interaction and animation callbacks unchanged.",
       "visibilityPolicy": "Preparation never writes screen-root visibility. Gameplay suspension keeps its World inert and hidden. Return restores that same World using token and generation checks. Memory pressure can cancel optional plans, not delete a parked World. Stale events and cleanup cannot acquire a replacement route.",
-      "tests": ["src/modules/__tests__/journey-stage-controller.test.ts", "src/modules/__tests__/journey-stage-manager-integration.test.ts", "src/modules/__tests__/journey-hub-prepaint-stale-commit.test.ts", "src/modules/__tests__/journey-hub-transition-ownership.test.ts", "src/modules/__tests__/journey-route-transition-production-wiring.test.ts", "src/modules/__tests__/journey-hub-homepage-prepaint.test.ts", "src/modules/__tests__/journey-world-close-recovery.test.ts", "src/modules/__tests__/journey-gameplay-residency.test.ts", "src/modules/__tests__/journey-terminal-preparation-performance.test.ts"],
+      "tests": [
+        "src/modules/__tests__/journey-stage-controller.test.ts",
+        "src/modules/__tests__/journey-stage-manager-integration.test.ts",
+        "src/modules/__tests__/journey-hub-prepaint-stale-commit.test.ts",
+        "src/modules/__tests__/journey-hub-transition-ownership.test.ts",
+        "src/modules/__tests__/journey-route-transition-production-wiring.test.ts",
+        "src/modules/__tests__/journey-hub-homepage-prepaint.test.ts",
+        "src/modules/__tests__/journey-world-close-recovery.test.ts",
+        "src/modules/__tests__/journey-gameplay-residency.test.ts",
+        "src/modules/__tests__/journey-terminal-preparation-performance.test.ts"
+      ],
       "physicalAcceptance": "NEEDS PHYSICAL TEST: repeated Hub/World/card/game/result routes, immediate scroll and interrupted return, cold versus warm worst-frame comparison, bounded memory and sustained thermal behavior on iPhone 13 blue. Source identity/work-count tests do not establish mobile smoothness."
     },
     {
       "id": "journey-return-reminder-scroll",
-      "surfaces": ["src/modules/journey-card-return-reminder.ts"],
+      "surfaces": [
+        "src/modules/journey-card-return-reminder.ts"
+      ],
       "entryOwner": "Existing gameplay-return receipt and origin lease admit one automatic reminder; stage mounts before validating the portal clone.",
       "exitOwner": "Existing idempotent reminder cleanup handles completion, replacement, World X, navigation, pagehide and lost anchor, restores the resident card and cancels flight/impact/follow frames.",
       "resourcePolicy": "Existing card clone and authored back-face preloader; no new assets, caches or decoded resources.",
@@ -76,12 +160,28 @@
       "audioPolicy": "Existing entry-flip sounds retain their trigger and cleanup owner.",
       "hapticPolicy": "Existing authored impact callbacks unchanged.",
       "visibilityPolicy": "Origin loss and pagehide retire the presentation; navigation cannot leave a stale portal. Scroll input remains owned by the player.",
-      "tests": ["src/modules/__tests__/journey-card-return-reminder.test.ts"],
+      "tests": [
+        "src/modules/__tests__/journey-card-return-reminder.test.ts"
+      ],
       "physicalAcceptance": "NEEDS PHYSICAL TEST: native iPhone momentum scroll during automatic gameplay-return flip and edge clipping. Browser painted hit-test fixture scripts/fixtures/journey-reminder-clipping.html proves initial-fold clipping removal but not iOS frame pacing."
     },
     {
       "id": "journey-navigation-preparation",
-      "surfaces": ["src/modules/journey-boards-manager.ts", "src/modules/journey-world-transform-preparation.ts", "src/modules/journey-world-animation-coordinator.ts", "src/modules/journey-return-transition-trace.ts", "src/collectibles-manager.ts", "src/ui/collectibles-animations.ts", "src/ui/journey-hub-scrollable-enter.ts", "src/modules/journey-post-enter-owner.ts", "src/modules/app-zone-manager.ts", "src/modules/asset-preloader.ts", "src/modules/board-transition-screen.ts", "src/utils/bounded-image-preloader.ts", "src/modules/ui-manager.ts"],
+      "surfaces": [
+        "src/modules/journey-boards-manager.ts",
+        "src/modules/journey-world-transform-preparation.ts",
+        "src/modules/journey-world-animation-coordinator.ts",
+        "src/modules/journey-return-transition-trace.ts",
+        "src/collectibles-manager.ts",
+        "src/ui/collectibles-animations.ts",
+        "src/ui/journey-hub-scrollable-enter.ts",
+        "src/modules/journey-post-enter-owner.ts",
+        "src/modules/app-zone-manager.ts",
+        "src/modules/asset-preloader.ts",
+        "src/modules/board-transition-screen.ts",
+        "src/utils/bounded-image-preloader.ts",
+        "src/modules/ui-manager.ts"
+      ],
       "entryOwner": "AppZoneManager presentation epoch owns route validity. Hub activation and Fail/Clean Board/manual Exit Game return tokens own one required destination promise. Collectibles joins readiness before commit; no terminal connected-paint lease. Homepage CTA cancels an active enter immediately, invalidating the old return cleanup.",
       "exitOwner": "Authored exit owners remain authoritative. Replacement cancels old tokens; tracked waits and outer Homepage cleanup check exact ownership. Clean Board transfers its existing static paper after result/board exit; the return coordinator releases it only when the prepared Journey destination is committed. No additional three-frame paint pass.",
       "resourcePolicy": "Homepage return awaits only its memoized responsive hero set. Required Homepage-to-Hub preparation runs concurrently with outgoing motion; preparation never changes root presentation or performs full-alpha prepaint. One destination World is rendered detached, one main or board Unit per owned turn, and Clean Board admits that optional work only after visible counters settle. Shared finite transform preparation applies known hidden poses without per-target computed-style snapshots or GSAP transform hydration after an accepted tap and yields only when actual writes exceed the measured 4ms budget. It uses the existing stage-owned cancellable presentation turns, retains no cache or timer and checks ownership after every yield. A second foreground-resource lease stays active through the complete incoming Hub/World cascade so optional decode, eviction, prepaint and hidden-renderer work remains suspended; it never wakes hidden Pixi. Board transition and reward images share one globally bounded two-job decoder; stale owners stop admitting queued work. Pressure retires optional preparation without permanently disabling future required construction.",
@@ -89,7 +189,18 @@
       "audioPolicy": "Existing feature cue owners, sources, gains and triggers remain authoritative. One persistent 4MiB Journey core package protects fifteen short Navigation/CTA, backpack, flip and Hub/Unit-motion cues while Journey is retained; each critical route nests a speculative-load quarantine and headroom-only idle compaction through the complete incoming cascade. Journey cleanup, Sounds OFF and global hard cleanup release the core package. The currently committed Special owns one captured bounded working set and stale decode completion from its replaced family is discarded.",
       "hapticPolicy": "Existing interaction and authored animation events own haptics.",
       "visibilityPolicy": "Render generation, cancellation token and presentation epoch reject obsolete completion. Covered Homepage-to-Hub preparation joins displayed-image readiness before reveal. A WeakMap keyed by image node and source/density shares pending/completed readiness with visible enter and Hub prepaint; source replacement invalidates it, failed/unfinished images remain retryable and retired nodes are not retained. A dedicated post-enter owner retires delayed scroll, active-area and idle callbacks on replacement or exit. World/Hub runtime schedulers and manager teardown own hidden/background suspension.",
-      "tests": ["src/modules/__tests__/journey-world-transform-preparation.test.ts", "src/modules/__tests__/journey-world-coordinator-lifecycle.test.ts", "src/modules/__tests__/journey-terminal-preparation-performance.test.ts", "src/modules/__tests__/journey-terminal-reveal.test.ts", "src/modules/__tests__/journey-hub-transition-ownership.test.ts", "src/modules/__tests__/journey-hub-cascade-performance.test.ts", "src/modules/__tests__/journey-hub-scrollable-enter.test.ts", "src/modules/__tests__/journey-post-enter-owner.test.ts", "src/modules/__tests__/navigation-resource-preparation-contract.test.ts", "src/utils/__tests__/bounded-image-preloader.test.ts"],
+      "tests": [
+        "src/modules/__tests__/journey-world-transform-preparation.test.ts",
+        "src/modules/__tests__/journey-world-coordinator-lifecycle.test.ts",
+        "src/modules/__tests__/journey-terminal-preparation-performance.test.ts",
+        "src/modules/__tests__/journey-terminal-reveal.test.ts",
+        "src/modules/__tests__/journey-hub-transition-ownership.test.ts",
+        "src/modules/__tests__/journey-hub-cascade-performance.test.ts",
+        "src/modules/__tests__/journey-hub-scrollable-enter.test.ts",
+        "src/modules/__tests__/journey-post-enter-owner.test.ts",
+        "src/modules/__tests__/navigation-resource-preparation-contract.test.ts",
+        "src/utils/__tests__/bounded-image-preloader.test.ts"
+      ],
       "physicalAcceptance": "NEEDS PHYSICAL TEST: all six surfaces, pressure before and during preparation, rapid return, worst frame, first visible frame, resource growth and sustained thermal behavior. A 4ms slice target cannot preempt one indivisible browser operation."
     },
     {

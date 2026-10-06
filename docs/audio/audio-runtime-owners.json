@@ -19,7 +19,9 @@
         "./assets/sound/soundtrack/adaptive-music-v3/gameplay-bed-calm-01.wav",
         "./assets/sound/soundtrack/adaptive-music-v3/gameplay-bed-active-01.wav"
       ],
-      "tests": ["src/modules/__tests__/native-soundtrack-transport.test.ts"],
+      "tests": [
+        "src/modules/__tests__/native-soundtrack-transport.test.ts"
+      ],
       "physicalAcceptance": "Experimental Simulator-only opt-in. NEEDS PHYSICAL TEST for exact loop seam, layer phase, fades, recovery, native allocations, decode CPU and thermal benefit. Journey ambient loops and SFX remain unchanged."
     }
   ],
@@ -27,7 +29,12 @@
     "ownerFile": "src/modules/gameplay-audio-buffer-player.ts",
     "preparation": "Readiness probes never fetch/decode. Explicit optional preload uses a bounded 256-source metadata history and rechecks admission when queued work starts. Declared route/result packages reserve their complete conservative decoded ceiling before any member starts; a package that would displace active leases or audibly proven hot cues is skipped as one unit, while exact audible play still bypasses speculative admission. Once all members have known decoded sizes, a repeated multi-cue family preload is admitted atomically and may replace stale idle family data without displacing active/pending playback or another admitted package. Known unretainable buffers and never-audible evicted single cues are deferred until audible playback requests them.",
     "residency": "Existing 28MiB mobile and 16MiB pressure ceilings remain reuse-aware across routes and are deliberately independent of app-zone presentation epochs after the failed 2026-10-02 physical A/B. Generation-safe package leases protect the active card/result owner and the persistent 4MiB critical Journey Navigation/CTA package. Journey transitions trim only enough unprotected idle data to guarantee that declared headroom, preserve reusable cues when already below target, preserve active/pending voices, the current captured 16MiB Special family and one retained long loop, suspend new speculative jobs, and discard an already-running unrelated speculative decode if it completes inside the visible window. Transition release ends quarantine without dropping the Journey core package; explicit Journey leave, background hard teardown, Settings cleanup or pressure releases it. Captured Special jobs carry their exact working-set token through fetch/decode, so a stale old-family completion is discarded after replacement. A coherently prepared family gives both already-resident and newly decoded members one bounded cache-priority tier below repeatedly audible common cues and above once-audible stale cues, preventing sibling decode/evict thrash without increasing the ceiling. The first warning trims to the hottest bounded working set and a repeated warning releases all idle entries. Active/pending voices remain protected. Audible history counts successful native starts and evictions, survives eviction, and contains no AudioBuffer. Native onended owns ordinary one-shot retirement; one bounded authored-duration plus 250ms wall cleanup guard releases a non-loop record if a running WKWebView context has a frozen audio clock and never emits onended. Explicit stop, replacement, native completion and background cleanup cancel that guard; loops are excluded. Concurrent recovery callers share one native AudioContext.resume attempt instead of canceling and restarting it.",
-    "tests": ["src/modules/__tests__/gameplay-audio-buffer-player.test.ts", "src/modules/__tests__/gameplay-audio-mobile-residency.test.ts", "src/modules/__tests__/gameplay-audio-load-scheduler.test.ts", "src/modules/__tests__/soundtrack-context-recovery.test.ts"],
+    "tests": [
+      "src/modules/__tests__/gameplay-audio-buffer-player.test.ts",
+      "src/modules/__tests__/gameplay-audio-mobile-residency.test.ts",
+      "src/modules/__tests__/gameplay-audio-load-scheduler.test.ts",
+      "src/modules/__tests__/soundtrack-context-recovery.test.ts"
+    ],
     "physicalAcceptance": "NEEDS PHYSICAL TEST for onset, decode churn and thermal contribution."
   },
   "owners": [
@@ -57,8 +64,44 @@
         "./assets/sound/Board transitions/elemens down2.wav",
         "./assets/sound/worlds/crumbleworlds.wav"
       ],
-      "tests": ["src/modules/__tests__/native-home-hub-feedback.test.ts"],
+      "tests": [
+        "src/modules/__tests__/native-home-hub-feedback.test.ts"
+      ],
       "physicalAcceptance": "NEEDS PHYSICAL TEST: adapter requires explicit native contact-frame wiring; native Hub Unit-enter cue is intentionally not implemented. Verify Sounds/Haptics OFF, timing, fallback handoff and background behavior."
+    },
+    {
+      "id": "native-world-feedback",
+      "ownerFile": "src/modules/native-world-feedback.ts",
+      "family": "Journey native semantic presentation adapter",
+      "eventOwner": "Committed native Forest/Beach/Area55 visible Unit enter/exit duration, ambience, accepted card tap, entry/manual/return flip, CTA and Back. Native receipts carry route generation/state revision and monotonic contact ID; no hidden DOM geometry. Forest ambient family is admitted only for worldID1; every World keeps the original World cue.",
+      "transport": "Delegates original Journey, Navigation/CTA cue owners only; no new sources, contexts, media players or schedulers.",
+      "voicePolicy": "Original family voice IDs/gains; one bounded motion session admits first visible native Unit per direction. Nine fixed semantic contact high-water marks. releaseToWeb retires adapter without stopping successor canonical gameplay voices.",
+      "preloadPolicy": "No implicit warming; real audible cue owns exact-family readiness. Native UIKit resource preparation does not decode web images/audio.",
+      "settingsPolicy": "Sounds gate checked at each contact; Haptics independently gated. OFF consumes receipts and sole global registry stop terminates lease; ON never replays old contacts.",
+      "interruptionPolicy": "Route replacement, bridge cancel, native background and disposal stop active owned cue families. Original Unit session owns tracked hidden/pagehide cleanup. Native gameplay commit releases before canonical web entry.",
+      "stopExport": "stopNativeWorldFeedback",
+      "globalRegistryRequired": true,
+      "sources": [
+        "./assets/sound/CTA/deeper.wav",
+        "./assets/sound/CTA/pumb.wav",
+        "./assets/sound/CTA/cta-splat.wav",
+        "./assets/sound/CTA/cta squishy.wav",
+        "./assets/sound/card reveal/klik plop.wav",
+        "./assets/sound/CTA/poping.wav",
+        "./assets/sound/CTA/wood click.wav",
+        "./assets/sound/CTA/deppimpact.wav",
+        "./assets/sound/UI /sliders/super swoosh.mp3",
+        "./assets/sound/Board transitions/elements down1.wav",
+        "./assets/sound/Board transitions/elemens down2.wav",
+        "./assets/sound/worlds/crumbleworlds.wav",
+        "./assets/sound/cjelina flip/"
+      ],
+      "tests": [
+        "src/modules/__tests__/native-world-feedback.test.ts",
+        "src/modules/__tests__/native-home-hub-runtime.test.ts",
+        "src/modules/__tests__/journey-unit-motion-sound.test.ts"
+      ],
+      "physicalAcceptance": "NEEDS PHYSICAL TEST for original Forest ambience, flip/contact sync, Sounds/Haptics OFF and original speaker gains."
     },
     {
       "id": "launch-logo-transition",

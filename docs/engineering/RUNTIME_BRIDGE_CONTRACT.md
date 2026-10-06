@@ -9,6 +9,44 @@ This is the typed migration inventory for browser-global compatibility hooks. Th
 
 The canonical gameplay behavior remains in `GAMEPLAY_KING_CONTRACT.md`.
 
+## Opt-in native Forest presentation adapter
+
+`__jimiNativeHomeHubRuntime` extends the existing native Home/Hub transport with
+read-only Forest snapshots, generation/revision-validated semantic card requests,
+one-use gameplay admission tokens, actual UIKit enter-completion receipts and
+authored feedback delegation. It calls the existing Journey regular/interim entry
+and terminal-return owners; it does not write a second save/progression model.
+`__jimiNativeForestEnabled` is injected for the separate `.native` app in the
+isolated QA Simulator with `--jimi-native-forest`, and for the user-authorized
+Native Debug iPhone preview (2026-10-06) by exact bundle identity. Ordinary
+Simulator and release launches remain OFF pending acceptance. Physical preview
+installation is separate from measured performance/user acceptance. No
+`window.CC` gameplay decision method is added or removed by this presentation work.
+
+Canonical Forest entry emits `gameplay-presentation-ready` with its exact
+`launchToken`, `routeGeneration` and `stateRevision` after preparing the original
+WebKit board transition. UIKit synchronously retires its opaque cover, then calls
+`ackNativeWorldTransitionPresentation(token)`; only the accepted current receipt
+admits the paused authored enter timeline. Gameplay still starts through the
+original transition completion. Background, retirement and disposal cancel a
+pending ACK; stale or duplicate receipts cannot hide a successor native screen.
+
+Terminal return uses a separate two-phase receipt. While the retained World is
+parked, `prepareNativeWorldReturn(terminalToken)` publishes
+`prepare-world-return` with the canonical read-only snapshot. UIKit validates
+the terminal token, World, generation, revision and current Journey epoch with
+`isNativeWorldReturnPreparationCurrent`, reconciles changed artwork while hidden,
+decodes the incoming viewport and primes a frozen enter pose. Only then does
+`ackNativeWorldReturnPrepared` re-read canonical state and release the existing
+result-cover readiness wait. The original result exit and 140ms cover fade still
+complete before `enter-world`; the prepared model is reused there. Readiness does
+not grant input: the existing actual native enter-completion receipt does.
+Background, route replacement and disposal invalidate pending preparation on
+both sides. Foreground recreates the lease; stale or duplicate ACKs do not reveal
+a screen. The original 1600ms timeout remains recovery for unavailable resources,
+not the successful native return path. This protocol applies to the opt-in shared
+native World renderer; gameplay, progression and save remain canonical web owners.
+
 ## Typed implementation boundary
 
 - `src/types/runtime-game-bridge.ts` is the compile-time capability contract for `window.CC`.

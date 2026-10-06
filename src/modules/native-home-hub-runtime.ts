@@ -1,7 +1,11 @@
+import type { NativeWorldFeedback, NativeWorldFeedbackEvent } from './native-world-feedback.js';
+import type { NativeForestBeePlan } from './journey-forest-bee-orbits.js';
+import { NativeWorldReceiptOwner, type NativeWorldActionReceipt, type NativeWorldSnapshot, type NativeWorldAmbientPlan, type NativeWorldAmbientViewport } from './native-world-runtime.js';
 import { installNativeHomeHubBridge, type NativeHomeHubBridge, type NativeHomeHubBridgeHost, type NativeHomeHubDestination, type NativeHomeHubSnapshot } from './native-home-hub-bridge.js';
 import { ARCADE_SLIDE_INDEX, JOURNEY_SLIDE_INDEX, SETTINGS_SLIDE_INDEX, isHomepageSlideVisible } from './homepage-slide-order.js';
 import { getJourneyWorldIdForBoard } from './journey-world-definitions.js';
 import type { NativeHomeHubFeedback } from './native-home-hub-feedback.js';
+import { getJourneyReturnTransitionToken, markJourneyReturnDestinationVisibleReady } from './journey-return-transition-trace.js';
 
 type WorldId = 1 | 2 | 3;
 type Source = Extract<NativeHomeHubDestination, { kind: 'web-home' | 'web-hub' }>;
@@ -12,13 +16,28 @@ export type NativeHomeHubFeedbackEvent =
   | { id: number; kind: 'home-enter' | 'home-exit'; durationSeconds: number };
 export interface NativeHomeHubRuntime extends NativeHomeHubBridge {
   /** Called by Swift only AFTER removing native coverage of the ready source. */
-  activateSource(requestId: number): Promise<boolean>;
+  activateSource(requestId: number, nativeExitComplete?: boolean): Promise<boolean>;
   activateWorld(requestId: number): Promise<boolean>;
+  requestNativeWorldAction(value: unknown): Promise<NativeWorldActionReceipt>;
+  commitNativeWorldLaunch(token: string): Promise<boolean>;
+  ackNativeWorldTransitionPresentation(token:string): boolean;
+  isNativeWorldPresentationCurrent(generation: number, revision: number): boolean;
+  returnNativeForest(): Promise<boolean>;
+  prepareNativeWorldReturn(terminalToken:number): boolean;
+  isNativeWorldReturnPreparationCurrent(terminalToken:number,generation:number,revision:number,worldID:number): boolean;
+  ackNativeWorldReturnPrepared(terminalToken:number,generation:number,revision:number,worldID:number): boolean;
+  commitNativeWorldPresentation(generation: number, revision: number): boolean;
+  hasNativeWorldPresentationReady(): boolean;
+  recoverNativeWorldLaunch(): NativeWorldSnapshot | null;
+  nativeWorldFeedback(value: unknown): boolean;
+  requestNativeWorldAmbientPlans(generation:number,revision:number,viewport:NativeWorldAmbientViewport,ids:number[]): NativeWorldAmbientPlan[] | null;
+  requestNativeForestBeePlans(generation:number,revision:number,ids?:number[]): NativeForestBeePlan[] | null;
   /** Atomic permission for Swift to restore its Hub after a World failure. */
   recoverWorld(requestId: number): boolean;
   canPresentHubFromWorld(worldId: WorldId): boolean;
   presentHubFromWorld(worldId: WorldId, epoch: number): Promise<boolean>;
   isNativeHubPresentationCurrent(epoch: number): boolean;
+  isHomePresentationCurrent(index: number): boolean;
   selectSlide(index: number): boolean;
   /** Called only by canonical completed Home/Hub presentation owners. */
   present(route: 'home' | 'hub'): Promise<void>;
@@ -29,6 +48,8 @@ export interface NativeHomeHubRuntime extends NativeHomeHubBridge {
 }
 export interface NativeHomeHubRuntimeHost extends NativeHomeHubBridgeHost {
   __jimiNativeHomeHubEnabled?: boolean;
+  __jimiNativeForestEnabled?: boolean;
+  __jimiNativeWorldsEnabled?: boolean;
   __jimiNativeHomeHubRuntime?: NativeHomeHubRuntime;
   document: Document;
   getComputedStyle(element: Element): CSSStyleDeclaration;
@@ -50,7 +71,7 @@ export interface NativeHomeHubRuntimeOwners {
     showHomepageQuietly(): void;
     hideHomepage(): Promise<void> | void;
     showCollectiblesScreen(): Promise<void>;
-    activateNativeHomepageAction(action: 'arcade' | 'settings' | 'journey'): Promise<boolean>;
+    activateNativeHomepageAction(action: 'arcade' | 'settings' | 'journey', nativeExitComplete?: boolean): Promise<boolean>;
   };
   journey: {
     getBoardById(id: number): { unlocked: boolean; interim?: boolean } | undefined;
@@ -62,31 +83,41 @@ export interface NativeHomeHubRuntimeOwners {
     prepareNativeWorld?: (worldId: WorldId, signal: AbortSignal) => Promise<boolean>;
     activatePreparedNativeWorld?: (worldId: WorldId) => Promise<boolean>;
     cancelNativeWorldPreparation?: () => void;
+    prepareNativeForest?: (worldID?: WorldId) => boolean;
+    retireNativeForest?: () => void;
+    hasNativeForestPresentation?: () => boolean;
+    completeNativeForestPresentation?: () => void;
+    markNativeForestCardOpened?: (boardID: number) => void;
+    readNativeForestSnapshot?: (requestID: string, generation: number, revision: number) => NativeWorldSnapshot;
+    readNextNativeWorldAmbientPlans?: (viewport:NativeWorldAmbientViewport,ids:number[]) => NativeWorldAmbientPlan[] | null;
+    readNextNativeForestBeePlans?: (ids?:number[]) => NativeForestBeePlan[] | null;
+    launchNativeForestBoard?: (boardID: number, action: 'play'|'continue', onPresentationReady?:()=>Promise<boolean>) => Promise<boolean>;
   };
   finalizeHome(reason: string): void;
   cancelHomeEnter(reason: string): void;
   hideHomeNavigation(reason: string): void;
   isFirstPlayTutorialForced(): boolean;
   createFeedback(enabled: boolean): NativeHomeHubFeedback;
+  createWorldFeedback?: () => NativeWorldFeedback;
 }
 
 const installations = new WeakMap<NativeHomeHubRuntimeHost, Promise<NativeHomeHubRuntime | null>>();
 const runtimes = new WeakMap<NativeHomeHubRuntimeHost, NativeHomeHubRuntime>();
 const defaultHost = () => window as unknown as NativeHomeHubRuntimeHost;
 async function loadCanonicalOwners(): Promise<NativeHomeHubRuntimeOwners> {
-  const [zone, slider, ui, journey, animations, homeOwner, homeNavigation, tutorial, feedback] = await Promise.all([
+  const [zone, slider, ui, journey, animations, homeOwner, homeNavigation, tutorial, feedback, worldFeedback] = await Promise.all([
     import('./app-zone-manager.js'), import('./slider-manager.js'), import('./ui-manager.js'),
     import('./journey-boards-manager.js'), import('../utils/animations.js'),
     import('./homepage-enter-transition-owner.js'), import('./navigation-control.js'),
     import('./first-play-tutorial-request.js'),
-    import('./native-home-hub-feedback.js'),
+    import('./native-home-hub-feedback.js'), import('./native-world-feedback.js'),
   ]);
   return { appZone: zone.appZoneManager, slider: slider.default, ui: ui.default,
     journey: journey.journeyBoardsManager, finalizeHome: animations.finalizeSliderEnterVisibility,
     cancelHomeEnter(reason) { homeOwner.homepageEnterTransitionOwner.cancel(reason); animations.cancelSliderEnterAnimation(reason); },
     hideHomeNavigation: homeNavigation.hideHomepageNavigation,
     isFirstPlayTutorialForced: tutorial.isFirstPlayTutorialForced,
-    createFeedback: feedback.createNativeHomeHubFeedback };
+    createFeedback: feedback.createNativeHomeHubFeedback, createWorldFeedback: worldFeedback.createNativeWorldFeedback };
 }
 
 /** Explicit native opt-in only. The standard web boot neither imports singleton
@@ -104,6 +135,25 @@ export function installNativeHomeHubRuntime(
       return null;
     }
     let disposed = false;
+    const forest = new NativeWorldReceiptOwner();
+    let forestRequestID = '';
+    let forestEpoch = -1;
+    let forestCardID: number | undefined;
+    let pendingTransitionPresentation: {token:string;generation:number;revision:number;epoch:number;resolve:(accepted:boolean)=>void} | undefined;
+    let pendingReturnPreparation: {token:number;generation:number;revision:number;worldID:WorldId;epoch:number;acknowledged:boolean} | undefined;
+    const cancelTransitionPresentation = () => { const pending=pendingTransitionPresentation;pendingTransitionPresentation=undefined;pending?.resolve(false); };
+    let worldFeedback: NativeWorldFeedback | undefined;
+    let lastWorldFeedbackID = 0;
+    let nativeWorldID: WorldId = 1;
+    const forestEnabled = (worldID: WorldId = nativeWorldID) => (worldID === 1 ? host.__jimiNativeForestEnabled === true : host.__jimiNativeWorldsEnabled === true) && typeof owners.journey.prepareNativeForest === 'function';
+    const readForest = (): NativeWorldSnapshot => {
+      const snapshot = owners.journey.readNativeForestSnapshot!(forestRequestID, 0, 0);
+      // Return-cascade timing expires at visual completion; it is not save or
+      // action state and must not stale the first action on the settled World.
+      forest.reconcile(snapshot.units.map(({enterDelayOffset: _enterDelayOffset, ...unit}) => unit));
+      return {...snapshot, ...forest.identity()};
+    };
+    const retireForest = () => { pendingReturnPreparation=undefined; cancelTransitionPresentation(); worldFeedback?.stop(); worldFeedback = undefined; forestCardID = undefined; forest.retire(); owners.journey.retireNativeForest?.(); };
     let nativeOwned = true;
     let suppressedRequestId: number | null = null;
     let pendingPresentation: { route: 'home' | 'hub'; epoch: number } | undefined;
@@ -197,6 +247,7 @@ export function installNativeHomeHubRuntime(
         return nativeOwned && !host.document.hidden
         && (!owners.isFirstPlayTutorialForced() || (target.kind !== 'hub' && target.kind !== 'web-hub' && target.kind !== 'world'))
         && (target.kind === 'home' || target.kind === 'hub' || target.kind === 'web-home'
+          || (target.kind === 'world' && forestEnabled(target.worldId))
           || (target.kind === 'world' && typeof owners.journey.prepareNativeWorld === 'function'
             && typeof owners.journey.activatePreparedNativeWorld === 'function'
             && typeof owners.journey.cancelNativeWorldPreparation === 'function')
@@ -204,6 +255,7 @@ export function installNativeHomeHubRuntime(
       },
       async navigate(target, context) {
         retireWorld();
+        if (forest.retained()) retireForest();
         worldRecovery = undefined;
         pendingPresentation = undefined;
         pendingSource = undefined;
@@ -239,6 +291,26 @@ export function installNativeHomeHubRuntime(
             await quiesce('hub', epoch, context.isCurrent);
             owned(epoch, 'journey');
             admitFeedback('hub', epoch, true);
+            // The retained native Hub may predate a completed gameplay run.
+            // Refresh its read-only projection before the ready receipt reveals it.
+            bridge.snapshot();
+          } else if (target.kind === 'world' && forestEnabled(target.worldId)) {
+            const shell = owners.appZone.showJourneyShell('native-forest-logical');
+            const epoch = owners.appZone.getPresentationEpoch();
+            await shell;
+            owned(epoch, 'journey');
+            await owners.ui.hideHomepage();
+            owned(epoch, 'journey');
+            nativeWorldID = target.worldId;
+            if (!owners.journey.prepareNativeForest!(nativeWorldID)) throw new Error('Native Forest unavailable');
+            forest.prepare(nativeWorldID);
+            forestRequestID = String(context.requestId);
+            forestEpoch = owners.appZone.getPresentationEpoch();
+            worldFeedback = owners.createWorldFeedback?.();
+            stopFeedback();
+            nativeOwned = true;
+            feedbackPendingRequestId = null;
+            return {ready:true, destination:target,worldSnapshot:readForest()};
           } else if (target.kind === 'world') {
             const shell = owners.appZone.showJourneyShell('native-direct-world');
             const shellEpoch = owners.appZone.getPresentationEpoch();
@@ -328,13 +400,22 @@ export function installNativeHomeHubRuntime(
           default: return false;
         }
       },
-      suspendFeedback() { stopFeedback(); },
+      suspendFeedback() { pendingReturnPreparation=undefined; cancelTransitionPresentation(); stopFeedback(); worldFeedback?.stop(); worldFeedback = undefined; },
       resumeFeedback(): boolean {
+        if (forest.presentationCurrent(forest.identity().routeGeneration,forest.identity().stateRevision) && !disposed && !host.document.hidden && owners.appZone.isPresentationCurrent(forestEpoch,'journey')) {
+          worldFeedback ??= owners.createWorldFeedback?.(); return true;
+        }
         if (!ownsFeedbackAdmission()) return false;
         if (!feedback) feedback = owners.createFeedback(true);
         return true; // No automatic playback/replay on resume.
       },
       async activateWorld(requestId: number): Promise<boolean> {
+        if (forestEnabled() && forest.retained() && forestRequestID === String(requestId)) {
+          if (disposed || host.document.hidden || !owners.appZone.isPresentationCurrent(forestEpoch, 'journey')) return false;
+          const accepted = forest.activate();
+          if (accepted && suppressedRequestId === requestId) suppressedRequestId = null;
+          return accepted;
+        }
         const receipt = pendingWorld;
         if (disposed || !receipt || receipt.id !== requestId || receipt.phase !== 'ready') return false;
         if (receipt.signal.aborted || host.document.hidden || !owners.appZone.isPresentationCurrent(receipt.epoch, 'journey')) {
@@ -355,8 +436,164 @@ export function installNativeHomeHubRuntime(
         if (suppressedRequestId === receipt.id) suppressedRequestId = null;
         return accepted;
       },
+      async requestNativeWorldAction(value: unknown): Promise<NativeWorldActionReceipt> {
+        if (disposed || !forestEnabled() || !forest.retained()) return {accepted:false,code:'unavailable'};
+        const snapshot = readForest();
+        const request = forest.admit(value, !host.document.hidden && owners.appZone.isPresentationCurrent(forestEpoch, 'journey'));
+        if (!request) return {accepted:false,code:'stale-request',snapshot};
+        if (request.action === 'back') { forestCardID = undefined; forest.cancelLaunch(); return {accepted:true}; }
+        if (request.action === 'close') {
+          if (forestCardID !== request.boardID) return {accepted:false,code:'wrong-card',snapshot};
+          forestCardID = undefined; forest.cancelLaunch(); return {accepted:true,snapshot};
+        }
+        const unit = snapshot.units.find(unit=>unit.boardID === request.boardID);
+        if (!unit || !unit.allowedActions.includes(request.action)) return {accepted:false,code:'unsupported',snapshot};
+        if (request.action === 'openCard') {
+          if (forestCardID !== undefined) return {accepted:false,code:'card-already-open',snapshot};
+          forestCardID = request.boardID;
+          owners.journey.markNativeForestCardOpened?.(request.boardID!);
+        } else if (!unit.interim && forestCardID !== request.boardID) return {accepted:false,code:'wrong-card',snapshot};
+        return {accepted:true,snapshot:request.action === 'openCard' ? readForest() : snapshot,...(request.action === 'play' || request.action === 'continue'
+          ? {launchToken:forest.prepareLaunch(request)} : {})};
+      },
+      async commitNativeWorldLaunch(token: string): Promise<boolean> {
+        if (disposed || host.document.hidden || !owners.appZone.isPresentationCurrent(forestEpoch, 'journey') || !forestEnabled()) return false;
+        readForest(); // changed progression/save invalidates the exact admission
+        const launch = forest.consumeLaunch(token);
+        if (!launch) return false;
+        const launchGeneration = forest.identity().routeGeneration;
+        const launchRevision = forest.identity().stateRevision;
+        const restoreRejectedLaunch = () => {
+          if (disposed || host.document.hidden || !owners.appZone.isPresentationCurrent(forestEpoch,'journey')
+            || forest.identity().routeGeneration !== launchGeneration || !forest.returnReady()) return;
+          nativeOwned = true;
+          worldFeedback = owners.createWorldFeedback?.();
+        };
+        nativeOwned = false;
+        stopFeedback();
+        worldFeedback?.releaseToWeb(); worldFeedback = undefined;
+        try {
+          const accepted = await owners.journey.launchNativeForestBoard!(launch.boardID,launch.action,()=>new Promise<boolean>(resolve=>{
+            if(disposed || host.document.hidden || forest.identity().routeGeneration!==launchGeneration
+              || !owners.appZone.isPresentationCurrent(forestEpoch,'journey')) { resolve(false); return; }
+            cancelTransitionPresentation();
+            pendingTransitionPresentation={token,generation:launchGeneration,revision:launchRevision,epoch:forestEpoch,resolve};
+            try { host.webkit?.messageHandlers?.jimiHomeHub?.postMessage({kind:'gameplay-presentation-ready',launchToken:token,routeGeneration:launchGeneration,stateRevision:launchRevision}); }
+            catch { cancelTransitionPresentation(); }
+            if(!host.webkit?.messageHandlers?.jimiHomeHub)cancelTransitionPresentation();
+          }));
+          if (accepted && forest.identity().routeGeneration === launchGeneration) forestCardID = undefined;
+          if (!accepted) restoreRejectedLaunch();
+          return accepted;
+        } catch { restoreRejectedLaunch(); return false; }
+        finally { if(pendingTransitionPresentation?.token===token)cancelTransitionPresentation(); }
+      },
+      ackNativeWorldTransitionPresentation(token:string): boolean {
+        const pending=pendingTransitionPresentation;
+        if(!pending || pending.token!==token)return false;
+        const accepted=!disposed && !host.document.hidden && forest.identity().routeGeneration===pending.generation
+          && forest.identity().stateRevision===pending.revision && owners.appZone.isPresentationCurrent(pending.epoch,'journey');
+        pendingTransitionPresentation=undefined;pending.resolve(accepted);return accepted;
+      },
+      isNativeWorldPresentationCurrent(generation: number, revision: number): boolean {
+        return !disposed && !host.document.hidden && forest.presentationCurrent(generation,revision)
+          && owners.appZone.isPresentationCurrent(forestEpoch, 'journey');
+      },
+      nativeWorldFeedback(value: unknown): boolean {
+        if (!value || typeof value !== 'object') return false;
+        const event = value as NativeWorldFeedbackEvent;
+        if (!Number.isSafeInteger(event.id) || event.id <= lastWorldFeedbackID || event.id <= 0
+          || !['world-enter','world-exit','ambience','card-tap','card-entry-flip','card-manual-flip','card-return-flip','cta','back'].includes(event.kind)
+          || event.worldID !== nativeWorldID || (event.boardID !== undefined && (!Number.isInteger(event.boardID) || event.boardID < (nativeWorldID - 1) * 10 + 1 || event.boardID > nativeWorldID * 10))) return false;
+        if ((event.kind === 'world-enter' || event.kind === 'world-exit')
+          && (typeof event.durationSeconds !== 'number' || !Number.isFinite(event.durationSeconds) || event.durationSeconds <= 0 || event.durationSeconds > 10)) return false;
+        lastWorldFeedbackID = event.id;
+        if (disposed || host.document.hidden || !forest.presentationCurrent(event.routeGeneration,event.stateRevision)
+          || !owners.appZone.isPresentationCurrent(forestEpoch,'journey') || !worldFeedback) return false;
+        return worldFeedback.play(event);
+      },
+      recoverNativeWorldLaunch(): NativeWorldSnapshot | null {
+        const identity = forest.identity();
+        if (disposed || host.document.hidden || !owners.appZone.isPresentationCurrent(forestEpoch,'journey')
+          || !forest.presentationCurrent(identity.routeGeneration,identity.stateRevision)) return null;
+        if (!forest.recoverPresentation()) return null;
+        forest.cancelLaunch();
+        forestCardID = undefined;
+        return readForest();
+      },
+      requestNativeWorldAmbientPlans(generation:number,revision:number,viewport:NativeWorldAmbientViewport,ids:number[]): NativeWorldAmbientPlan[] | null {
+        if (nativeWorldID === 1 || disposed || host.document.hidden || forestCardID !== undefined
+          || !forest.current(generation,revision) || !owners.appZone.isPresentationCurrent(forestEpoch,'journey')) return null;
+        const count = nativeWorldID === 2 ? 8 : 2;
+        if (!viewport || !Number.isFinite(viewport.top) || !Number.isFinite(viewport.bottom) || viewport.top < -1000 || viewport.bottom <= viewport.top || viewport.bottom > 10000
+          || viewport.bottom-viewport.top > 2000 || !Array.isArray(ids) || ids.length === 0 || ids.length > count || new Set(ids).size !== ids.length
+          || ids.some(id=>!Number.isInteger(id) || id<0 || id>=count)) return null;
+        return owners.journey.readNextNativeWorldAmbientPlans?.(viewport,ids) ?? null;
+      },
+      requestNativeForestBeePlans(generation:number,revision:number,ids?:number[]): NativeForestBeePlan[] | null {
+        if(nativeWorldID !== 1 || disposed || host.document.hidden || forestCardID !== undefined
+          || !forest.current(generation,revision) || !owners.appZone.isPresentationCurrent(forestEpoch,'journey')) return null;
+        if(ids && (!Array.isArray(ids) || ids.length===0 || ids.length>5 || new Set(ids).size!==ids.length || ids.some(id=>![0,2,5,7,9].includes(id))))return null;
+        return owners.journey.readNextNativeForestBeePlans?.(ids) ?? null;
+      },
+      commitNativeWorldPresentation(generation: number, revision: number): boolean {
+        const accepted = !disposed && !host.document.hidden && owners.appZone.isPresentationCurrent(forestEpoch,'journey')
+          && forest.commit(generation,revision);
+        if (accepted) owners.journey.completeNativeForestPresentation?.();
+        return accepted;
+      },
+      hasNativeWorldPresentationReady(): boolean {
+        return !disposed && !host.document.hidden && forest.ready() && owners.appZone.isPresentationCurrent(forestEpoch,'journey');
+      },
+      prepareNativeWorldReturn(terminalToken:number): boolean {
+        if(disposed || host.document.hidden || !forestEnabled() || !forest.parked()
+          || !Number.isSafeInteger(terminalToken) || getJourneyReturnTransitionToken()!==terminalToken
+          || owners.appZone.getCurrentZone()!=='journey')return false;
+        const epoch=owners.appZone.getPresentationEpoch(),snapshot=readForest();
+        if(snapshot.worldID!==nativeWorldID)return false;
+        if(pendingReturnPreparation?.token===terminalToken && pendingReturnPreparation.epoch===epoch
+          && pendingReturnPreparation.generation===snapshot.routeGeneration && pendingReturnPreparation.revision===snapshot.stateRevision)return true;
+        pendingReturnPreparation={token:terminalToken,epoch,worldID:nativeWorldID,generation:snapshot.routeGeneration,revision:snapshot.stateRevision,acknowledged:false};
+        try { host.webkit!.messageHandlers!.jimiHomeHub!.postMessage({kind:'prepare-world-return',terminalToken,worldSnapshot:snapshot});return true; }
+        catch { pendingReturnPreparation=undefined;return false; }
+      },
+      isNativeWorldReturnPreparationCurrent(terminalToken:number,generation:number,revision:number,worldID:number): boolean {
+        const pending=pendingReturnPreparation,identity=forest.identity();
+        return !!pending && !disposed && !host.document.hidden && forest.parked()
+          && pending.token===terminalToken && getJourneyReturnTransitionToken()===terminalToken
+          && pending.worldID===worldID && nativeWorldID===worldID && pending.generation===generation && pending.revision===revision
+          && identity.routeGeneration===generation && identity.stateRevision===revision
+          && owners.appZone.isPresentationCurrent(pending.epoch,'journey');
+      },
+      ackNativeWorldReturnPrepared(terminalToken:number,generation:number,revision:number,worldID:number): boolean {
+        if(disposed || !forest.retained())return false;
+        readForest(); // A changed canonical state invalidates prepared resources.
+        if(!runtime.isNativeWorldReturnPreparationCurrent(terminalToken,generation,revision,worldID)
+          || pendingReturnPreparation!.acknowledged)return false;
+        pendingReturnPreparation!.acknowledged=true;
+        markJourneyReturnDestinationVisibleReady(terminalToken);return true;
+      },
+      async returnNativeForest(): Promise<boolean> {
+        if (disposed || host.document.hidden || !forestEnabled() || !forest.retained()
+          || owners.appZone.getCurrentZone() !== 'journey') return false;
+        if (!forest.returnReady()) {
+          const identity = forest.identity();
+          return owners.appZone.isPresentationCurrent(forestEpoch,'journey')
+            && forest.presentationCurrent(identity.routeGeneration,identity.stateRevision);
+        }
+        forestEpoch = owners.appZone.getPresentationEpoch();
+        pendingReturnPreparation=undefined;
+        worldFeedback = owners.createWorldFeedback?.();
+        const snapshot = readForest();
+        try {
+          host.webkit!.messageHandlers!.jimiHomeHub!.postMessage({kind:'enter-world',worldSnapshot:snapshot});
+          nativeOwned = true;
+          return true;
+        } catch { retireForest(); return false; }
+      },
       recoverWorld(requestId: number): boolean {
         if (disposed) return false;
+        if (forest.retained() && forestRequestID === String(requestId) && owners.appZone.isPresentationCurrent(forestEpoch,'journey')) { retireForest(); suppressedRequestId = null; nativeOwned = true; return true; }
         if (pendingWorld?.id === requestId) retireWorld(pendingWorld, true);
         const recovery = worldRecovery;
         if (!recovery || recovery.id !== requestId || !nativeOwned
@@ -382,6 +619,11 @@ export function installNativeHomeHubRuntime(
         return !disposed && nativeOwned && !host.document.hidden && !pendingWorld && !pendingSource
           && !pendingPresentation && suppressedRequestId === null
           && owners.appZone.isPresentationCurrent(epoch, 'journey');
+      },
+      isHomePresentationCurrent(index: number): boolean {
+        return ownsFeedbackAdmission() && feedbackAdmission?.zone === 'home'
+          && owners.appZone.getCurrentZone() === 'home'
+          && owners.slider.getCurrentSlide() === index;
       },
       async presentHubFromWorld(worldId: WorldId, epoch: number): Promise<boolean> {
         if (![1, 2, 3].includes(worldId) || disposed || nativeOwned || host.document.hidden
@@ -409,7 +651,7 @@ export function installNativeHomeHubRuntime(
         } catch { return false; /* The same canonical caller owns fallback. */ }
         finally { if (pendingPresentation === receipt) pendingPresentation = undefined; }
       },
-      async activateSource(requestId: number): Promise<boolean> {
+      async activateSource(requestId: number, nativeExitComplete = false): Promise<boolean> {
         const pending = pendingSource;
         if (disposed || !pending || pending.id !== requestId || pending.signal.aborted || host.document.hidden) return false;
         const zone = pending.source.kind === 'web-home' ? 'home' : 'journey';
@@ -422,7 +664,9 @@ export function installNativeHomeHubRuntime(
         let accepted = false;
         try {
           accepted = pending.source.kind === 'web-home'
-            ? await owners.ui.activateNativeHomepageAction(pending.source.action)
+            ? await (nativeExitComplete && pending.source.action !== 'journey'
+              ? owners.ui.activateNativeHomepageAction(pending.source.action, true)
+              : owners.ui.activateNativeHomepageAction(pending.source.action))
             : owners.journey.activateNativeHubWorld?.(pending.source.worldId) === true;
         } catch { /* Recover only this still-visible canonical source below. */ }
         if (!accepted && !disposed && owners.appZone.isPresentationCurrent(pending.epoch, zone)) {
@@ -455,10 +699,11 @@ export function installNativeHomeHubRuntime(
         } catch { /* Interrupted/failed cleanup or unavailable native transport: never adopt stale source. */ }
         finally { if (pendingPresentation === receipt) pendingPresentation = undefined; }
       },
-      cancel() { retireWorld(pendingWorld, true); stopFeedback(); pendingPresentation = undefined; pendingSource = undefined; suppressedRequestId = null; feedbackPendingRequestId = null; cancel(); },
+      cancel() { retireForest(); retireWorld(pendingWorld, true); stopFeedback(); pendingPresentation = undefined; pendingSource = undefined; suppressedRequestId = null; feedbackPendingRequestId = null; cancel(); },
       dispose() {
         if (disposed) return;
         disposed = true;
+        retireForest();
         retireWorld();
         stopFeedback();
         feedbackAdmission = undefined;

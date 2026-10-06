@@ -33,6 +33,20 @@ describe('menu exit handoff', () => {
     setNoMovesNavigationLocked(false);
   });
 
+  it('accepts the current native Home receipt without replaying a parked web Homepage', () => {
+    document.getElementById('home')!.hidden = true;
+    (window as any).__jimiNativeHomeHubRuntime = {
+      isHomePresentationCurrent: (slide: number) => slide === ARCADE_SLIDE_INDEX,
+    };
+    try {
+      expect(isAnyMenuScreenVisible()).toBe(true);
+      (window as any).__jimiNativeHomeHubRuntime.isHomePresentationCurrent = () => false;
+      expect(isAnyMenuScreenVisible()).toBe(false);
+    } finally {
+      delete (window as any).__jimiNativeHomeHubRuntime;
+    }
+  });
+
   afterEach(() => {
     jest.useRealTimers();
     document.body.innerHTML = '';

@@ -60,4 +60,23 @@ final class JimiHomeHeroGeometryTests: XCTestCase {
     func testDefaultPivotRetainsExistingHomeGeometry() {
         verifyRelayout(pivot: 0.5, scale: 1)
     }
+
+    func testCTAStartsRouteSynchronouslyAndRejectsRepeatedActivation() {
+        let view = home()
+        view.selectSlide(0, animated: false)
+        let cta = view.ctaView
+        var activations = 0
+        view.onActivate = { _ in
+            activations += 1
+            view.cancelPan(preservingCTAFeedback: true)
+        }
+        cta.sendActions(for: .touchDown)
+        cta.sendActions(for: .touchUpInside)
+        XCTAssertEqual(activations, 1, "Route must start before the rebound finishes")
+        cta.sendActions(for: .touchUpInside)
+        XCTAssertEqual(activations, 1)
+        view.cancelPan()
+        cta.sendActions(for: .touchUpInside)
+        XCTAssertEqual(activations, 2, "Cancellation must release the activation lock")
+    }
 }

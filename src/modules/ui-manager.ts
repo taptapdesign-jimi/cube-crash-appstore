@@ -470,18 +470,31 @@ class UIManager {
   
   /** Native Home has already handed its settled source back to the web. Reuse
    * the exact authored CTA decision, sounds, tutorial and saved-run routing. */
-  public async activateNativeHomepageAction(action: 'arcade' | 'settings' | 'journey'): Promise<boolean> {
+  public async activateNativeHomepageAction(action: 'arcade' | 'settings' | 'journey', nativeExitComplete = false): Promise<boolean> {
     if (!this.isInitialized || appZoneManager.getCurrentZone() !== 'home'
       || gameState.get('sliderLocked') || !this.elements.home || this.elements.home.hidden) return false;
-    if (action === 'arcade') await this.handlePlayClick();
-    else if (action === 'journey') this.handleStatsClick();
-    else if (action === 'settings' && this.elements.settingsScreen) this.handleSettingsClick();
-    else return false;
+    if (action === 'settings' && !this.elements.settingsScreen) return false;
+    // Only the request-owned native Home exit may suppress the equivalent web
+    // exit. Tutorial Journey keeps its existing canonical source path.
+    const skipExit = nativeExitComplete && action !== 'journey';
+    const sourceEpoch = appZoneManager.getPresentationEpoch();
+    const previousVisibility = this.elements.home.style.visibility;
+    if (skipExit) this.elements.home.style.visibility = 'hidden';
+    try {
+      if (action === 'arcade') await this.handlePlayClick(undefined, skipExit);
+      else if (action === 'journey') this.handleStatsClick();
+      else this.handleSettingsClick(undefined, skipExit);
+    } catch (error) {
+      if (skipExit && appZoneManager.isPresentationCurrent(sourceEpoch, 'home')) {
+        this.elements.home.style.visibility = previousVisibility;
+      }
+      throw error;
+    }
     return true; // Action accepted, not destination-ready.
   }
 
   // Handle play button click
-  private async handlePlayClick(event?: Event): Promise<void> {
+  private async handlePlayClick(event?: Event, nativeExitComplete = false): Promise<void> {
     event?.preventDefault();
     logger.info('🎮 Play button clicked');
     
@@ -516,7 +529,7 @@ class UIManager {
     // actually completed.
     const shouldResumeArcade = !isFirstPlayTutorialForced() && hasArcadeSavedState({ clearInvalid: true });
     if ((window as any).triggerGameStartSequence) {
-      (window as any).triggerGameStartSequence({ resumeArcade: shouldResumeArcade });
+      (window as any).triggerGameStartSequence({ resumeArcade: shouldResumeArcade, nativeExitComplete });
     } else {
       if (shouldResumeArcade) {
         this.startNewGameWithSavedState();
@@ -618,7 +631,7 @@ class UIManager {
   }
   
   // Handle settings button click
-  private handleSettingsClick(event?: Event): void {
+  private handleSettingsClick(event?: Event, nativeExitComplete = false): void {
     event?.preventDefault();
     logger.info('⚙️ Settings button clicked');
     
@@ -628,7 +641,7 @@ class UIManager {
     }
     
     // Show settings screen with animation
-    this.showSettingsScreenWithAnimation();
+    this.showSettingsScreenWithAnimation(nativeExitComplete);
   }
   
   // Start new game (public method) - ALWAYS starts from Board 1
@@ -2086,7 +2099,10 @@ class UIManager {
   }
   
   // Show settings screen
-  private showSettingsScreenWithAnimation(): void {
+  private showSettingsScreenWithAnimation(nativeExitComplete = false): void {
+    // Image and CTA share this owner. A repeated request must not reset the
+    // already-painted Settings enter to its hidden pose.
+    if (appZoneManager.getCurrentZone() === 'settings') return;
     this.cancelSettingsEnterTimeouts();
     emitSettingsRouteDiagnostic('settings-enter-start', {
       presentationEpoch: appZoneManager.getPresentationEpoch(),
@@ -2106,6 +2122,7 @@ class UIManager {
     appZoneManager.setZone('settings', 'settings-enter', {
       preserveHomepageNavigation: true,
     });
+    const settingsEpoch = appZoneManager.getPresentationEpoch();
     try { (window as any).collectiblesManager?.cancelJourneyScreenPreparation?.('settings-enter'); } catch {}
     // Stability: cleanup FX before navigation
     try { window.dispatchEvent(new Event('cc-navigation')); } catch {}
@@ -2167,7 +2184,7 @@ class UIManager {
     }
     
     console.log('🎬 Step 1: Playing exit animation for Settings slide (gradient preserved with !important)');
-    const homepageExitPromise = animateSliderExit();
+    const homepageExitPromise = nativeExitComplete ? Promise.resolve() : animateSliderExit();
     
     // Step 2: Wait for exit animation to complete, then show Settings screen IMMEDIATELY (optimized)
     // Exit animation: 770ms
@@ -2175,6 +2192,7 @@ class UIManager {
     // Fade animation can happen in parallel - no need to block Settings screen display
     void homepageExitPromise.then(() => {
       if (isHomepageExitCancelled(homepageExitPromise)) return;
+      if (!appZoneManager.isPresentationCurrent(settingsEpoch, 'settings')) return;
       emitSettingsRouteDiagnostic('settings-homepage-exit-settled', {
         presentationEpoch: appZoneManager.getPresentationEpoch(),
         sliderCurrentSlide: sliderManager.getCurrentSlide(),
@@ -2241,17 +2259,13 @@ class UIManager {
       // 🎬 CRITICAL: Trigger settings screen enter animation (pop-in) using GSAP
       // 🔥 OPTIMIZATION: Use static import (already imported at top) to avoid 15s delay
       try {
-          // Small delay to ensure DOM is ready, then make screen visible and start animation
-          const enterTimeoutId = window.setTimeout(() => {
-            this.settingsEnterTimeouts.delete(enterTimeoutId);
-            if (appZoneManager.getCurrentZone() !== 'settings' || settingsScreen.hidden) return;
-            // Make screen visible so GSAP can animate individual elements
-            settingsScreen.style.opacity = '1';
-          console.log('🎬 Calling animateSettingsScreenEnter()...');
-          // Use statically imported function - no dynamic import delay!
-            animateSettingsScreenEnter();
-          }, 50);
-          this.settingsEnterTimeouts.add(enterTimeoutId);
+        // Prime every child while the root is still invisible. Mount, prime,
+        // start and reveal are one task, including native source handoff.
+        // A delayed reset after reveal can replay a settled Settings frame.
+        animateSettingsScreenEnter();
+        emitSettingsRouteDiagnostic('settings-enter-primed', { presentationEpoch: settingsEpoch, nativeExitComplete });
+        settingsScreen.style.opacity = '1';
+        emitSettingsRouteDiagnostic('settings-enter-revealed', { presentationEpoch: settingsEpoch, nativeExitComplete });
       } catch (error) {
         console.error('❌ Failed to trigger settings enter animation:', error);
         // Fallback: just show the screen normally
@@ -2261,9 +2275,11 @@ class UIManager {
       // Focus immediately
       const focusTimeoutId = window.setTimeout(() => {
         this.settingsEnterTimeouts.delete(focusTimeoutId);
-        if (appZoneManager.getCurrentZone() !== 'settings' || settingsScreen.hidden) return;
+        if (!appZoneManager.isPresentationCurrent(settingsEpoch, 'settings') || settingsScreen.hidden) return;
         const focusTarget = settingsScreen.querySelector('.settings-back-button') as HTMLElement | null;
+        emitSettingsRouteDiagnostic('settings-focus-before', { presentationEpoch: settingsEpoch });
         focusTarget?.focus();
+        emitSettingsRouteDiagnostic('settings-focus-after', { presentationEpoch: settingsEpoch });
       }, 100);
       this.settingsEnterTimeouts.add(focusTimeoutId);
       

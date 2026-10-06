@@ -155,6 +155,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         }
     }
     func resetScroll() { scrollView.setContentOffset(.zero, animated: false) }
+    func setContentInteractionEnabled(_ enabled: Bool) { scrollView.isUserInteractionEnabled = enabled }
     override func layoutSubviews() {
         super.layoutSubviews()
         let width = bounds.width, top = safeAreaInsets.top
@@ -171,7 +172,11 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             let x: CGFloat = id == 3 ? width+8-buttonWidth : (id == 1 ? -2 : -6)
             let rect = CGRect(x: x, y: top+y, width: buttonWidth, height: buttonHeight)
             unit.bounds = CGRect(origin: .zero, size: rect.size)
-            unit.center = CGPoint(x: rect.midX, y: rect.midY)
+            // Route exit uses a54% vertical pivot. Relayout must preserve the
+            // same untransformed rectangle, not recenter that shifted anchor
+            // (which jumps every World upward before/during its collapse).
+            unit.layer.position = CGPoint(x: rect.minX + rect.width * unit.layer.anchorPoint.x,
+                                          y: rect.minY + rect.height * unit.layer.anchorPoint.y)
             floats[id]?.bounds = CGRect(x: 0, y: 0, width: visualSize, height: visualSize)
             floats[id]?.center = CGPoint(x: buttonWidth/2, y: buttonHeight*0.48)
             tilts[id]?.bounds = CGRect(x: 0, y: 0, width: visualSize, height: visualSize)

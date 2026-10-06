@@ -1,3 +1,4 @@
+import { beginJourneyReturnTransition, cancelJourneyReturnTransition, completeJourneyReturnTransition, getJourneyReturnTransitionToken, markJourneyReturnResultExitComplete, scheduleJourneyReturnReveal, transferJourneyReturnStaticCover } from '../journey-return-transition-trace';
 import { installNativeHomeHubRuntime, notifyNativeHomeHubPresentation, type NativeHomeHubRuntimeHost, type NativeHomeHubRuntimeOwners } from '../native-home-hub-runtime';
 
 function deferred<T>() {
@@ -46,6 +47,74 @@ function fixture() {
 }
 afterEach(() => { document.body.replaceChildren(); });
 
+async function parkedNativeReturnFixture(worldID:1|2|3=1) {
+  const f=fixture();f.host.__jimiNativeForestEnabled=true;f.host.__jimiNativeWorldsEnabled=true;
+  const boardID=(worldID-1)*10+1;
+  const unit={id:`board-${boardID}`,boardID,frame:{x:0,y:0,width:90,height:133},islandArt:'original.png',locked:false,interim:true,completed:false,stars:0,number:'01',allowedActions:['continue'],stats:[{label:'High score',value:'100'}],parts:[]};
+  f.owners.journey.prepareNativeForest=jest.fn(()=>true);
+  f.owners.journey.readNativeForestSnapshot=jest.fn((requestID,routeGeneration,stateRevision)=>({version:1,requestID,routeGeneration,stateRevision,worldID,title:'World',contentHeight:1500,mainArt:'main.png',mainFrame:{x:0,y:0,width:390,height:300},mainParts:[],units:[unit],viewport:{width:390,height:844},cardBackArt:'back.png'}));
+  f.owners.journey.launchNativeForestBoard=jest.fn(async()=>true);
+  const runtime=(await installNativeHomeHubRuntime(f.host,f.load))!;
+  const ready=await runtime.request({id:1,destination:{kind:'world',worldId:worldID}});if(ready.kind!=='ready')throw new Error('missing ready');
+  await runtime.activateWorld(1);const identity=ready.worldSnapshot!;runtime.commitNativeWorldPresentation(identity.routeGeneration,identity.stateRevision);
+  const admission=await runtime.requestNativeWorldAction({id:1,worldID,action:'continue',boardID,routeGeneration:identity.routeGeneration,stateRevision:identity.stateRevision});
+  await runtime.commitNativeWorldLaunch(admission.launchToken!);
+  f.owners.appZone.markJourneyMenu('terminal-return');
+  const token=beginJourneyReturnTransition('clean-board',boardID);
+  return {...f,runtime,identity,token,unit};
+}
+
+test.each([1,2,3] as const)('actual terminal cover for native World%i releases only after prepared ACK, without recovery timeout',async(worldID)=>{
+  jest.useFakeTimers();const f=await parkedNativeReturnFixture(worldID);
+  const cover=document.createElement('div');document.body.appendChild(cover);
+  expect(transferJourneyReturnStaticCover(f.token,cover,140)).toBe(true);
+  const reveal=jest.fn(()=>{void f.runtime.returnNativeForest();});
+  scheduleJourneyReturnReveal(f.token,()=>true,reveal);
+  expect(f.runtime.prepareNativeWorldReturn(f.token)).toBe(true);
+  expect(f.runtime.prepareNativeWorldReturn(f.token)).toBe(true);
+  const events=f.postMessage.mock.calls.map(([event])=>event);
+  expect(events.filter(event=>event.kind==='prepare-world-return')).toHaveLength(1);
+  expect(reveal).not.toHaveBeenCalled();expect(cover.isConnected).toBe(true);
+  const prepared=events.find(event=>event.kind==='prepare-world-return')!.worldSnapshot;
+  expect(prepared.worldID).toBe(worldID);
+  expect(f.runtime.ackNativeWorldReturnPrepared(f.token,prepared.routeGeneration,prepared.stateRevision,worldID)).toBe(true);
+  expect(f.runtime.ackNativeWorldReturnPrepared(f.token,prepared.routeGeneration,prepared.stateRevision,worldID)).toBe(false);
+  expect(reveal).not.toHaveBeenCalled();await Promise.resolve();
+  jest.advanceTimersByTime(200);await Promise.resolve();
+  expect(cover.isConnected).toBe(false);expect(reveal).toHaveBeenCalledTimes(1);
+  expect(f.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({kind:'enter-world',worldSnapshot:expect.objectContaining({worldID})}));
+  expect(f.runtime.hasNativeWorldPresentationReady()).toBe(false);
+  f.runtime.dispose();cancelJourneyReturnTransition(null,'test');jest.useRealTimers();
+});
+
+test.each(['stats','background','epoch','replacement','dispose'] as const)('native return preparation rejects %s callbacks without releasing real cover',async(mode)=>{
+  const f=await parkedNativeReturnFixture();expect(f.runtime.prepareNativeWorldReturn(f.token)).toBe(true);
+  const event=f.postMessage.mock.calls.map(([event])=>event).find(event=>event.kind==='prepare-world-return')!,snapshot=event.worldSnapshot;
+  expect(f.runtime.ackNativeWorldReturnPrepared(f.token,snapshot.routeGeneration,snapshot.stateRevision,2)).toBe(false);
+  if(mode==='stats')f.unit.stats[0].value='200';
+  else if(mode==='background'){Object.defineProperty(document,'hidden',{configurable:true,value:true});f.runtime.suspendFeedback();}
+  else if(mode==='epoch')f.owners.appZone.markJourneyMenu('replace-epoch');
+  else if(mode==='replacement')beginJourneyReturnTransition('clean-board',2);
+  else f.runtime.dispose();
+  expect(f.runtime.ackNativeWorldReturnPrepared(f.token,snapshot.routeGeneration,snapshot.stateRevision,1)).toBe(false);
+  expect(f.runtime.hasNativeWorldPresentationReady()).toBe(false);
+  f.runtime.dispose();cancelJourneyReturnTransition(null,'test');
+});
+
+test('native Home readiness survives parked DOM but rejects another slide, epoch and disposal', async () => {
+  const f = fixture();
+  const runtime = (await installNativeHomeHubRuntime(f.host, f.load))!;
+  expect(runtime.isHomePresentationCurrent(0)).toBe(false);
+  await runtime.present('home');
+  document.getElementById('home')!.hidden = true;
+  expect(runtime.isHomePresentationCurrent(0)).toBe(true);
+  expect(runtime.isHomePresentationCurrent(1)).toBe(false);
+  f.owners.appZone.markHomeMenu('replacement');
+  expect(runtime.isHomePresentationCurrent(0)).toBe(false);
+  runtime.dispose();
+  expect(runtime.isHomePresentationCurrent(0)).toBe(false);
+});
+
 test('disabled or absent native receiver imports no canonical owners and installs nothing', async () => {
   const f = fixture();
   f.host.__jimiNativeHomeHubEnabled = false;
@@ -55,6 +124,19 @@ test('disabled or absent native receiver imports no canonical owners and install
   expect(await installNativeHomeHubRuntime(f.host, f.load)).toBeNull();
   expect(f.load).not.toHaveBeenCalled();
   expect(f.host.__jimiNativeHomeHub).toBeUndefined();
+});
+
+test.each(['arcade', 'settings'] as const)('completed native %s exit transfers once through its exact source receipt', async action => {
+  const f = fixture();
+  const runtime = (await installNativeHomeHubRuntime(f.host, f.load))!;
+  await runtime.request({ id: 1, destination: { kind: 'web-home', action } });
+  expect(await runtime.activateSource(2, true)).toBe(false);
+  expect(f.owners.ui.activateNativeHomepageAction).not.toHaveBeenCalled();
+  expect(await runtime.activateSource(1, true)).toBe(true);
+  expect(f.owners.ui.activateNativeHomepageAction).toHaveBeenCalledWith(action, true);
+  expect(await runtime.activateSource(1, true)).toBe(false);
+  expect(f.owners.ui.activateNativeHomepageAction).toHaveBeenCalledTimes(1);
+  runtime.dispose();
 });
 
 test('deduplicates installation and projects only canonical complete/interim counts', async () => {
@@ -279,7 +361,7 @@ test('first-play Journey uses canonical policy and CTA source; native Hub cannot
   expect(await runtime.request({ id: 2, destination: { kind: 'web-hub', worldId: 1 } })).toMatchObject({ code: 'unsupported' });
   expect(await runtime.request({ id: 3, destination: { kind: 'web-home', action: 'journey' } })).toMatchObject({ kind: 'ready', destination: { kind: 'web-home', action: 'journey' } });
   expect(f.owners.slider.getCurrentSlide()).toBe(0);
-  expect(await runtime.activateSource(3)).toBe(true);
+  expect(await runtime.activateSource(3, true)).toBe(true);
   expect(f.owners.ui.activateNativeHomepageAction).toHaveBeenCalledWith('journey');
   runtime.dispose();
 });
@@ -392,5 +474,220 @@ test('cancelled quiesce cannot allocate a feedback lease after newer native admi
   expect(f.feedbacks).toHaveLength(1);
   expect(current.stop).not.toHaveBeenCalled();
   expect(runtime.nativeFeedback({ id: 1, kind: 'hub-ambience' })).toBe(true);
+  runtime.dispose();
+});
+
+test.each([1,2,3] as const)('opted native World %i uses logical owner and validates launch before canonical entry and result return', async(worldID)=>{
+  const boardID=(worldID-1)*10+1;
+  const f=fixture(); f.host.__jimiNativeForestEnabled=true;f.host.__jimiNativeWorldsEnabled=true;
+  const unit={id:`board-${boardID}`,boardID,frame:{x:0,y:0,width:90,height:133},islandArt:'original.png',locked:false,interim:true,completed:false,stars:0,number:'01',allowedActions:['continue'],stats:[],parts:[]};
+  f.owners.journey.prepareNativeForest=jest.fn(()=>true);
+  f.owners.journey.retireNativeForest=jest.fn();
+  f.owners.journey.readNativeForestSnapshot=jest.fn((requestID,routeGeneration,stateRevision)=>({version:1,requestID,routeGeneration,stateRevision,worldID,title:'Forest',contentHeight:1500,mainArt:'main.png',mainFrame:{x:0,y:0,width:390,height:300},mainParts:[],units:[unit],viewport:{width:390,height:844},cardBackArt:'back.png'}));
+  f.owners.journey.launchNativeForestBoard=jest.fn(async()=>true);
+  f.owners.journey.prepareNativeWorld=jest.fn(async()=>true);
+  f.owners.journey.activatePreparedNativeWorld=jest.fn(async()=>true);
+  const runtime=(await installNativeHomeHubRuntime(f.host,f.load))!;
+  const ready=await runtime.request({id:1,destination:{kind:'world',worldId:worldID}});
+  expect(ready.kind).toBe('ready');
+  if(ready.kind!=='ready') throw new Error('missing ready');
+  expect(ready.worldSnapshot?.worldID).toBe(worldID);
+  expect(f.owners.journey.prepareNativeWorld).not.toHaveBeenCalled();
+  expect(await runtime.activateWorld(1)).toBe(true);
+  const identity=ready.worldSnapshot!;
+  expect(runtime.hasNativeWorldPresentationReady()).toBe(false);
+  expect(runtime.commitNativeWorldPresentation(identity.routeGeneration,identity.stateRevision)).toBe(true);
+  f.owners.journey.readNextNativeForestBeePlans=jest.fn(()=>[]);
+  expect(runtime.requestNativeForestBeePlans(identity.routeGeneration+1,identity.stateRevision)).toBeNull();
+  expect(runtime.requestNativeForestBeePlans(identity.routeGeneration,identity.stateRevision)).toEqual(worldID===1?[]:null);
+  expect(f.owners.journey.readNextNativeForestBeePlans).toHaveBeenCalledTimes(worldID===1?1:0);
+  f.owners.journey.readNextNativeWorldAmbientPlans=jest.fn(()=>[]);
+  const viewport={top:0,bottom:844};
+  expect(runtime.requestNativeWorldAmbientPlans(identity.routeGeneration,identity.stateRevision,viewport,[0])).toEqual(worldID===1?null:[]);
+  expect(runtime.requestNativeWorldAmbientPlans(identity.routeGeneration,identity.stateRevision,{top:0,bottom:Infinity},[0])).toBeNull();
+  expect(runtime.requestNativeWorldAmbientPlans(identity.routeGeneration,identity.stateRevision,viewport,[0,0])).toBeNull();
+  expect(runtime.requestNativeWorldAmbientPlans(identity.routeGeneration,identity.stateRevision,viewport,[8])).toBeNull();
+  Object.defineProperty(f.host.document,'hidden',{configurable:true,value:true});
+  expect(runtime.requestNativeForestBeePlans(identity.routeGeneration,identity.stateRevision)).toBeNull();
+  Object.defineProperty(f.host.document,'hidden',{configurable:true,value:false});
+  expect(runtime.requestNativeWorldAmbientPlans(identity.routeGeneration+1,identity.stateRevision,viewport,[0])).toBeNull();
+  const request={id:1,worldID,action:'continue',boardID,routeGeneration:identity.routeGeneration,stateRevision:identity.stateRevision};
+  const admitted=await runtime.requestNativeWorldAction(request);
+  expect(admitted.accepted).toBe(true);
+  expect(f.owners.journey.launchNativeForestBoard).not.toHaveBeenCalled();
+  expect((await runtime.requestNativeWorldAction(request)).accepted).toBe(false);
+  expect(await runtime.commitNativeWorldLaunch(admitted.launchToken!)).toBe(true);
+  expect(runtime.requestNativeWorldAmbientPlans(identity.routeGeneration,identity.stateRevision,viewport,[0])).toBeNull();
+  expect(runtime.requestNativeForestBeePlans(identity.routeGeneration,identity.stateRevision)).toBeNull();
+  expect(f.owners.journey.readNextNativeForestBeePlans).toHaveBeenCalledTimes(worldID===1?1:0);
+  expect(f.owners.journey.launchNativeForestBoard).toHaveBeenCalledTimes(1);
+  expect(await runtime.commitNativeWorldLaunch(admitted.launchToken!)).toBe(false);
+  expect(await runtime.returnNativeForest()).toBe(true);
+  expect(f.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({kind:'enter-world'}));
+  runtime.dispose(); runtime.dispose();
+  expect(runtime.isNativeWorldPresentationCurrent(identity.routeGeneration,identity.stateRevision)).toBe(false);
+});
+
+test.each(['ack','background','dispose','stale'] as const)('native transition presentation %s controls original entry before launch completion',async(mode)=>{
+  const f=fixture();f.host.__jimiNativeForestEnabled=true;
+  const unit={id:'board-1',boardID:1,frame:{x:0,y:0,width:90,height:133},islandArt:'original.png',locked:false,interim:true,completed:false,stars:0,number:'01',allowedActions:['continue'],stats:[],parts:[]};
+  f.owners.journey.prepareNativeForest=jest.fn(()=>true);
+  f.owners.journey.readNativeForestSnapshot=jest.fn((requestID,routeGeneration,stateRevision)=>({version:1,requestID,routeGeneration,stateRevision,worldID:1,title:'Forest',contentHeight:1500,mainArt:'main.png',mainFrame:{x:0,y:0,width:390,height:300},mainParts:[],units:[unit],viewport:{width:390,height:844},cardBackArt:'back.png'}));
+  const startGame=jest.fn();
+  f.owners.journey.launchNativeForestBoard=jest.fn(async(_id,_action,ready)=>{
+    if(!await ready!())return false;startGame();return true;
+  });
+  const runtime=(await installNativeHomeHubRuntime(f.host,f.load))!;
+  const ready=await runtime.request({id:1,destination:{kind:'world',worldId:1}});if(ready.kind!=='ready')throw new Error('missing ready');
+  await runtime.activateWorld(1);const identity=ready.worldSnapshot!;
+  runtime.commitNativeWorldPresentation(identity.routeGeneration,identity.stateRevision);
+  const admission=await runtime.requestNativeWorldAction({id:1,worldID:1,action:'continue',boardID:1,routeGeneration:identity.routeGeneration,stateRevision:identity.stateRevision});
+  let settled=false;const commit=runtime.commitNativeWorldLaunch(admission.launchToken!).then(result=>{settled=true;return result;});
+  await Promise.resolve();
+  expect(f.postMessage).toHaveBeenLastCalledWith({kind:'gameplay-presentation-ready',launchToken:admission.launchToken,routeGeneration:identity.routeGeneration,stateRevision:identity.stateRevision});
+  expect(settled).toBe(false);expect(startGame).not.toHaveBeenCalled();
+  expect(runtime.ackNativeWorldTransitionPresentation('foreign-token')).toBe(false);
+  if(mode==='background') {Object.defineProperty(document,'hidden',{configurable:true,value:true});runtime.suspendFeedback();}
+  else if(mode==='dispose')runtime.dispose();
+  else if(mode==='stale') {f.owners.appZone.markHomeMenu('stale-test');expect(runtime.ackNativeWorldTransitionPresentation(admission.launchToken!)).toBe(false);}
+  else expect(runtime.ackNativeWorldTransitionPresentation(admission.launchToken!)).toBe(true);
+  expect(await commit).toBe(mode==='ack');expect(startGame).toHaveBeenCalledTimes(mode==='ack'?1:0);
+  expect(runtime.ackNativeWorldTransitionPresentation(admission.launchToken!)).toBe(false);
+  runtime.dispose();
+});
+
+test('accepted native Back omits unchanged payload and clears admission while stale Back refreshes canonical state',async()=>{
+  const f=fixture();f.host.__jimiNativeForestEnabled=true;
+  const unit={id:'board-1',boardID:1,frame:{x:0,y:0,width:90,height:133},islandArt:'original.png',locked:false,interim:false,completed:true,stars:1,number:'01',allowedActions:['openCard','play'],stats:[{label:'High Score',value:'700'}],parts:[]};
+  f.owners.journey.prepareNativeForest=jest.fn(()=>true);
+  f.owners.journey.readNativeForestSnapshot=jest.fn((requestID,routeGeneration,stateRevision)=>({version:1,requestID,routeGeneration,stateRevision,worldID:1,title:'Forest',contentHeight:1500,mainArt:'main.png',mainFrame:{x:0,y:0,width:390,height:300},mainParts:[],units:[unit],viewport:{width:390,height:844},cardBackArt:'back.png'}));
+  f.owners.journey.launchNativeForestBoard=jest.fn(async()=>true);
+  const runtime=(await installNativeHomeHubRuntime(f.host,f.load))!;
+  const ready=await runtime.request({id:1,destination:{kind:'world',worldId:1}});if(ready.kind!=='ready')throw new Error('missing ready');
+  await runtime.activateWorld(1);const identity=ready.worldSnapshot!;
+  runtime.commitNativeWorldPresentation(identity.routeGeneration,identity.stateRevision);
+  const action=(id:number,name:string)=>({id,worldID:1,action:name,boardID:1,routeGeneration:identity.routeGeneration,stateRevision:identity.stateRevision});
+  await runtime.requestNativeWorldAction(action(1,'openCard'));
+  const launch=await runtime.requestNativeWorldAction(action(2,'play'));
+  expect(launch.launchToken).toBeDefined();
+  expect(await runtime.requestNativeWorldAction(action(3,'back'))).toEqual({accepted:true});
+  expect(await runtime.commitNativeWorldLaunch(launch.launchToken!)).toBe(false);
+  expect((await runtime.requestNativeWorldAction(action(4,'openCard'))).accepted).toBe(true);
+  unit.stats[0].value='900';
+  const stale=await runtime.requestNativeWorldAction(action(5,'back'));
+  expect(stale).toMatchObject({accepted:false,code:'stale-request'});
+  expect(stale.snapshot!.units[0].stats[0].value).toBe('900');
+  expect(stale.snapshot!.stateRevision).toBeGreaterThan(identity.stateRevision);
+  expect(f.owners.journey.launchNativeForestBoard).not.toHaveBeenCalled();
+  runtime.dispose();
+});
+
+test('native regular card, launch cancellation, foreign epoch recovery and feedback receipts fail closed', async()=>{
+  const f=fixture();f.host.__jimiNativeForestEnabled=true;
+  const unit={id:'board-1',boardID:1,frame:{x:0,y:0,width:90,height:133},islandArt:'original.png',locked:false,interim:false,completed:true,stars:3,number:'01',allowedActions:['openCard','play'],stats:[],parts:[]};
+  f.owners.journey.prepareNativeForest=jest.fn(()=>true);f.owners.journey.retireNativeForest=jest.fn();
+  f.owners.journey.readNativeForestSnapshot=jest.fn((requestID,routeGeneration,stateRevision)=>({version:1,requestID,routeGeneration,stateRevision,worldID:1,title:'Forest',contentHeight:1500,mainArt:'main.png',mainFrame:{x:0,y:0,width:390,height:300},mainParts:[],units:[unit],viewport:{width:390,height:844},cardBackArt:'back.png'}));
+  f.owners.journey.launchNativeForestBoard=jest.fn(async()=>true);
+  const play=jest.fn(()=>true),stop=jest.fn();f.owners.createWorldFeedback=jest.fn(()=>({play,stop,releaseToWeb:jest.fn()}));
+  const runtime=(await installNativeHomeHubRuntime(f.host,f.load))!;
+  const ready=await runtime.request({id:1,destination:{kind:'world',worldId:1}});if(ready.kind!=='ready')throw new Error('missing ready');
+  const identity=ready.worldSnapshot!;await runtime.activateWorld(1);
+  const action=(id:number,name:string)=>({id,worldID:1,action:name,boardID:1,routeGeneration:identity.routeGeneration,stateRevision:identity.stateRevision});
+  expect((await runtime.requestNativeWorldAction(action(1,'openCard'))).accepted).toBe(false);
+  runtime.commitNativeWorldPresentation(identity.routeGeneration,identity.stateRevision);
+  expect((await runtime.requestNativeWorldAction(action(2,'play'))).accepted).toBe(false);
+  expect((await runtime.requestNativeWorldAction(action(3,'openCard'))).accepted).toBe(true);
+  expect((await runtime.requestNativeWorldAction(action(4,'openCard'))).accepted).toBe(false);
+  const launch=await runtime.requestNativeWorldAction(action(5,'play'));expect(launch.launchToken).toBeDefined();
+  expect((await runtime.requestNativeWorldAction(action(6,'close'))).accepted).toBe(true);
+  expect(await runtime.commitNativeWorldLaunch(launch.launchToken!)).toBe(false);
+  const cue={id:1,worldID:1,kind:'card-manual-flip',boardID:1,routeGeneration:identity.routeGeneration,stateRevision:identity.stateRevision};
+  expect(runtime.nativeWorldFeedback(cue)).toBe(true);expect(runtime.nativeWorldFeedback(cue)).toBe(false);
+  Object.defineProperty(document,'hidden',{configurable:true,value:true});expect(runtime.nativeWorldFeedback({...cue,id:2})).toBe(false);
+  Object.defineProperty(document,'hidden',{configurable:true,value:false});expect(runtime.nativeWorldFeedback({...cue,id:2})).toBe(false);
+  const lateLaunch=deferred<boolean>();f.owners.journey.launchNativeForestBoard=jest.fn(()=>lateLaunch.promise);
+  expect((await runtime.requestNativeWorldAction(action(7,'openCard'))).accepted).toBe(true);
+  const lateAdmission=await runtime.requestNativeWorldAction(action(8,'play'));
+  const inFlight=runtime.commitNativeWorldLaunch(lateAdmission.launchToken!);
+  f.owners.appZone.markJourneyMenu('foreign-current-journey');lateLaunch.resolve(false);
+  expect(await inFlight).toBe(false);expect(f.owners.createWorldFeedback).toHaveBeenCalledTimes(1);
+  expect(runtime.recoverWorld(1)).toBe(false);expect(runtime.recoverNativeWorldLaunch()).toBeNull();
+  expect(runtime.nativeWorldFeedback({...cue,id:3})).toBe(false);expect(play).toHaveBeenCalledTimes(1);runtime.dispose();
+});
+
+test('cancelled native regular Play recovery retires modal admission and unconsumed launch', async()=>{
+  const f=fixture();f.host.__jimiNativeForestEnabled=true;
+  const unit={id:'board-1',boardID:1,frame:{x:0,y:0,width:90,height:133},islandArt:'original.png',locked:false,interim:false,completed:true,stars:3,number:'01',allowedActions:['openCard','play'],stats:[],parts:[]};
+  f.owners.journey.prepareNativeForest=()=>true;
+  f.owners.journey.readNativeForestSnapshot=(requestID,routeGeneration,stateRevision)=>({version:1,requestID,routeGeneration,stateRevision,worldID:1,title:'Forest',contentHeight:1500,mainArt:'main.png',mainFrame:{x:0,y:0,width:390,height:300},mainParts:[],units:[unit],viewport:{width:390,height:844},cardBackArt:'back.png'});
+  f.owners.journey.launchNativeForestBoard=jest.fn(async()=>true);
+  const runtime=(await installNativeHomeHubRuntime(f.host,f.load))!;
+  const ready=await runtime.request({id:1,destination:{kind:'world',worldId:1}});if(ready.kind!=='ready')throw new Error('missing ready');
+  const identity=ready.worldSnapshot!;await runtime.activateWorld(1);
+  runtime.commitNativeWorldPresentation(identity.routeGeneration,identity.stateRevision);
+  const action=(id:number,name:string)=>({id,worldID:1,action:name,boardID:1,routeGeneration:identity.routeGeneration,stateRevision:identity.stateRevision});
+  expect((await runtime.requestNativeWorldAction(action(1,'openCard'))).accepted).toBe(true);
+  const launch=await runtime.requestNativeWorldAction(action(2,'play'));expect(launch.launchToken).toBeDefined();
+  const recovered=runtime.recoverNativeWorldLaunch();expect(recovered).not.toBeNull();
+  expect(runtime.hasNativeWorldPresentationReady()).toBe(false);
+  runtime.commitNativeWorldPresentation(recovered!.routeGeneration,recovered!.stateRevision);
+  expect((await runtime.requestNativeWorldAction(action(3,'openCard'))).accepted).toBe(true);
+  expect(await runtime.commitNativeWorldLaunch(launch.launchToken!)).toBe(false);
+  expect(f.owners.journey.launchNativeForestBoard).not.toHaveBeenCalled();
+  runtime.dispose();
+});
+
+test.each(([1,2,3] as const).flatMap(worldID=>(['fail','clean-board','exit-game'] as const).map(source=>({worldID,source}))))('native $worldID $source return waits for canonical visual exit and actual native enter receipt', async({worldID,source})=>{
+  const boardID=(worldID-1)*10+1;
+  const f=fixture();f.host.__jimiNativeForestEnabled=true;f.host.__jimiNativeWorldsEnabled=true;
+  const unit={enterDelayOffset:undefined as number|undefined,id:`board-${boardID}`,boardID,frame:{x:0,y:0,width:90,height:133},islandArt:'original.png',locked:false,interim:true,completed:false,stars:0,number:'01',allowedActions:['continue'],stats:[],parts:[]};
+  f.owners.journey.prepareNativeForest=()=>true;f.owners.journey.retireNativeForest=jest.fn();
+  f.owners.journey.readNativeForestSnapshot=(requestID,routeGeneration,stateRevision)=>({version:1,requestID,routeGeneration,stateRevision,worldID,title:'Forest',contentHeight:1500,mainArt:'main.png',mainFrame:{x:0,y:0,width:390,height:300},mainParts:[],units:[unit],viewport:{width:390,height:844},cardBackArt:'back.png'});
+  f.owners.journey.launchNativeForestBoard=jest.fn(async()=>true);
+  f.owners.journey.completeNativeForestPresentation=()=>{const token=getJourneyReturnTransitionToken();if(token!==null)completeJourneyReturnTransition({destination:'native-forest'},token);};
+  const runtime=(await installNativeHomeHubRuntime(f.host,f.load))!;
+  const ready=await runtime.request({id:1,destination:{kind:'world',worldId:worldID}});if(ready.kind!=='ready')throw new Error('missing ready');
+  const identity=ready.worldSnapshot!;await runtime.activateWorld(1);runtime.commitNativeWorldPresentation(identity.routeGeneration,identity.stateRevision);
+  const admitted=await runtime.requestNativeWorldAction({id:1,worldID,action:'continue',boardID,routeGeneration:identity.routeGeneration,stateRevision:identity.stateRevision});
+  await runtime.commitNativeWorldLaunch(admitted.launchToken!);
+  unit.enterDelayOffset=0.24;
+  const token=beginJourneyReturnTransition(source,boardID);
+  const reveal=jest.fn(()=>{void runtime.returnNativeForest();});
+  scheduleJourneyReturnReveal(token,()=>true,reveal);
+  expect(reveal).not.toHaveBeenCalled();
+  expect(f.postMessage.mock.calls.some(([event])=>event.kind==='enter-world')).toBe(false);
+  markJourneyReturnResultExitComplete(token);await Promise.resolve();
+  expect(reveal).toHaveBeenCalledTimes(1);
+  expect(f.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({kind:'enter-world'}));
+  expect(getJourneyReturnTransitionToken()).toBe(token);
+  expect(runtime.hasNativeWorldPresentationReady()).toBe(false);
+  expect(runtime.commitNativeWorldPresentation(identity.routeGeneration,identity.stateRevision+99)).toBe(false);
+  expect(getJourneyReturnTransitionToken()).toBe(token);
+  expect(runtime.commitNativeWorldPresentation(identity.routeGeneration,identity.stateRevision)).toBe(true);
+  expect(getJourneyReturnTransitionToken()).toBeNull();
+  expect(runtime.commitNativeWorldPresentation(identity.routeGeneration,identity.stateRevision)).toBe(false);
+  unit.enterDelayOffset=undefined;
+  const back={id:2,worldID,action:'back',routeGeneration:identity.routeGeneration,stateRevision:identity.stateRevision};
+  expect((await runtime.requestNativeWorldAction(back)).accepted).toBe(true);
+  unit.allowedActions=[];
+  expect(await runtime.requestNativeWorldAction({...back,id:3})).toMatchObject({accepted:false,code:'stale-request'});
+  runtime.dispose();
+});
+
+test('retained Hub refreshes canonical completion projection before ready reveals the destination',async()=>{
+  const f=fixture();
+  const states=Array.from({length:30},(_,index)=>({unlocked:false,interim:index===0}));
+  f.owners.journey.getBoardById=jest.fn(id=>states[id-1]);
+  const runtime=(await installNativeHomeHubRuntime(f.host,f.load))!;
+  runtime.snapshot();
+  expect(f.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({kind:'snapshot',snapshot:expect.objectContaining({worlds:expect.arrayContaining([expect.objectContaining({worldId:1,completed:0})])})}));
+  // Canonical progression owner has completed the run and exposed the next
+  // interim. The adapter reads that owner rather than modifying its state.
+  states[0].unlocked=true;states[0].interim=false;states[1].interim=true;
+  f.postMessage.mockClear();
+  expect(await runtime.request({id:1,destination:{kind:'hub'}})).toMatchObject({kind:'ready',destination:{kind:'hub'}});
+  expect(f.postMessage.mock.calls.map(([event])=>event.kind)).toEqual(['snapshot','ready']);
+  expect(f.postMessage.mock.calls[0][0]).toMatchObject({snapshot:{worlds:expect.arrayContaining([expect.objectContaining({worldId:1,completed:1,hasInterimCard:true})])}});
+  expect(states[0]).toEqual({unlocked:true,interim:false});
   runtime.dispose();
 });

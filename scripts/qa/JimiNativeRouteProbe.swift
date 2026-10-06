@@ -26,6 +26,7 @@ final class JimiNativeRouteProbe {
     private var requestID: Int?
     private var label = ""
     private var startedAt = 0.0
+    private var startedUnixTime = 0.0
     private var previousCallback: Double?
     private var firstCallbackLatency: Double?
     private var bridgeReadyAt: Double?
@@ -52,6 +53,7 @@ final class JimiNativeRouteProbe {
         worstIntervalEndAt = nil
         worstInterval = 0
         startedAt = CACurrentMediaTime()
+        startedUnixTime = Date().timeIntervalSince1970
         let displayLink = CADisplayLink(target: target, selector: #selector(Target.tick(_:)))
         // Do not request a different frame rate: observe the route's normal
         // callback scheduling, not a probe-selected refresh-rate policy.
@@ -122,10 +124,13 @@ final class JimiNativeRouteProbe {
             "measurement": "CADisplayLink callback cadence, not displayed FPS",
             "environment": "isolated iOS Simulator; XCUITest and native observer overhead may contribute",
             "durationMs": duration,
+            "startedUnixTime": startedUnixTime,
+            "endedUnixTime": Date().timeIntervalSince1970,
             "firstCallbackLatencyMs": value(firstCallbackLatency),
             "bridgeReadyMs": value(bridgeReadyAt),
             "motionStartMs": value(motionStartedAt),
             "callbackIntervalCount": intervals.count,
+            "callbackIntervalsMs": intervals,
             "worstCallbackIntervalMs": value(sorted.last),
             "p95CallbackIntervalMs": value(sorted.isEmpty ? nil : sorted[percentileIndex]),
             "worstIntervalEndMs": value(worstIntervalEndAt),
@@ -137,7 +142,9 @@ final class JimiNativeRouteProbe {
         intervals.removeAll(keepingCapacity: true)
         guard let data = try? JSONSerialization.data(withJSONObject: row, options: [.sortedKeys]),
               let text = String(data: data, encoding: .utf8) else { return }
-        print("[JIMI_NATIVE_ROUTE] " + text)
+        // Write each complete row immediately; redirected printf may buffer
+        // the final cohort until process termination and lose its evidence.
+        FileHandle.standardOutput.write(Data(("[JIMI_NATIVE_ROUTE] " + text + "\n").utf8))
     }
 }
 #endif

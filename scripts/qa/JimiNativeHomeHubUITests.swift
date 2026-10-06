@@ -160,6 +160,20 @@ final class JimiNativeHomeHubUITests: XCTestCase {
         return back
     }
 
+    func testSettingsNativeExitAndReturn() {
+        for pass in 0..<3 {
+            selectSlide(2)
+            app.buttons["native.home.cta"].tap()
+            quiet(3)
+            let back = requireCanonicalWebScreen(backLabel: "Go back to home", title: "Settings")
+            capture("settings-single-native-exit-\(pass)")
+            back.tap()
+            quiet(3)
+            requireHome(slide: 2)
+        }
+        selectSlide(0)
+    }
+
     func testOriginalHomeSlidesHubReturnAndLifecycle() throws {
         XCTAssertEqual(app.frame.width, 390, accuracy: 1)
         XCTAssertEqual(app.frame.height, 844, accuracy: 1)

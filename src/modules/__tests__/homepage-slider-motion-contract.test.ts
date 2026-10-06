@@ -65,21 +65,21 @@ describe('Homepage slider motion contract', () => {
       '(window as any).triggerGameStartSequence = async',
     )[1]?.split('// Export exitToMenu function')[0] ?? '';
     const settingsOwner = uiManagerSource.split(
-      'private showSettingsScreenWithAnimation(): void',
+      'private showSettingsScreenWithAnimation(nativeExitComplete = false): void',
     )[1]?.split('private hideSettingsScreenWithAnimation')[0] ?? '';
 
-    expect(arcadeOwner).toContain('const homepageExitPromise = animateSliderExit();');
+    expect(arcadeOwner).toContain('const homepageExitPromise = options.nativeExitComplete ? Promise.resolve() : animateSliderExit();');
     expect(arcadeOwner).toContain('await homepageExitPromise;');
     expect(arcadeOwner).toContain('if (isHomepageExitCancelled(homepageExitPromise)) return;');
     expect(arcadeOwner).not.toContain('setTimeout(resolve, 770)');
-    expect(settingsOwner).toContain('const homepageExitPromise = animateSliderExit();');
+    expect(settingsOwner).toContain('const homepageExitPromise = nativeExitComplete ? Promise.resolve() : animateSliderExit();');
     expect(settingsOwner).toContain('void homepageExitPromise.then(() =>');
     expect(settingsOwner).not.toContain('}, 770)');
   });
 
   test('Settings owns its app zone and one asynchronous return lifecycle', () => {
     const settingsEnter = uiManagerSource.split(
-      'private showSettingsScreenWithAnimation(): void',
+      'private showSettingsScreenWithAnimation(nativeExitComplete = false): void',
     )[1]?.split('private hideSettingsScreenWithAnimation')[0] ?? '';
     const settingsExit = uiManagerSource.split(
       'private hideSettingsScreenWithAnimation(): Promise<void>',
@@ -93,7 +93,7 @@ describe('Homepage slider motion contract', () => {
     expect(settingsEnter.indexOf("homepageEnterTransitionOwner.cancel('homepage-to-settings')"))
       .toBeLessThan(settingsEnter.indexOf("appZoneManager.setZone('settings', 'settings-enter'"));
     expect(settingsEnter.indexOf('sliderManager.syncHiddenSlideState(SETTINGS_SLIDE_INDEX)'))
-      .toBeLessThan(settingsEnter.indexOf('const homepageExitPromise = animateSliderExit();'));
+      .toBeLessThan(settingsEnter.indexOf('const homepageExitPromise = nativeExitComplete ? Promise.resolve() : animateSliderExit();'));
     expect(settingsEnter).toContain("cancelJourneyScreenPreparation?.('settings-enter')");
     expect(settingsExit).toContain('if (this.settingsExitPromise) return this.settingsExitPromise');
     expect(settingsExit).toContain('await animateSettingsScreenExit()');

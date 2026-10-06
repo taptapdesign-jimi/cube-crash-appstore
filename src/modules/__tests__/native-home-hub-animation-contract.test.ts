@@ -11,11 +11,14 @@ const home = fs.readFileSync('native/jimi-2026/JimiV9HomeView.swift', 'utf8');
 const hub = fs.readFileSync('native/jimi-2026/JimiV9HubView.swift', 'utf8');
 
 function method(name: string): string {
-  const marker = `private func ${name}(`;
-  const start = controller.indexOf(marker);
-  if (start < 0) throw new Error(`Missing Swift method ${name}`);
-  const next = controller.indexOf('\n    private func ', start + marker.length);
-  return controller.slice(start, next < 0 ? undefined : next).replace(/\/\/[^\n]*/g, '');
+  // Lifecycle entry points are internal so UIKit fixtures exercise their owner
+  // directly without posting application-wide notifications to the test host.
+  const marker = new RegExp(`\\n {4}(?:private )?func ${name}\\(`).exec(controller)?.[0];
+  const start = marker === undefined ? -1 : controller.indexOf(marker);
+  if (start < 0 || marker === undefined) throw new Error(`Missing Swift method ${name}`);
+  const bodyStart = start + marker.length;
+  const next = /\n {4}(?:private )?func /.exec(controller.slice(bodyStart));
+  return controller.slice(start, next ? bodyStart + next.index : undefined).replace(/\/\/[^\n]*/g, '');
 }
 
 function ordered(source: string, ...tokens: string[]): void {
@@ -29,6 +32,20 @@ function ordered(source: string, ...tokens: string[]): void {
 }
 
 describe('native Home/Hub outgoing-pose source contracts', () => {
+  test('CTA activation does not wait for release feedback and route cancellation preserves its separate shell', () => {
+    const activation = home.slice(home.indexOf('@objc private func activate('), home.indexOf('@objc private func pressCTA('));
+    expect(activation).toContain('onActivate?(selectedSlide)');
+    expect(activation).not.toContain('self.onActivate');
+    expect(method('navigate')).toContain('home.cancelPan(preservingCTAFeedback: true)');
+    expect(home).toContain('if !preservingCTAFeedback { resetCTAFeedback() }');
+  });
+  test('Settings and Arcade exit natively before retiring the cover; tutorial still uses its canonical source', () => {
+    expect(method('navigate')).toContain('if isWebSource && !nativeHomeExit');
+    expect(method('navigate')).toContain('(actionLabel == "arcade" || actionLabel == "settings")');
+    const body = method('commitIfReady');
+    const transfer = body.slice(body.indexOf('if nativeExitComplete {'), body.indexOf('return\n            }', body.indexOf('if nativeExitComplete {')));
+    ordered(transfer, 'activateSource(id, true)', 'guard case .success(let value)', 'self.view.isHidden = true');
+  });
   test('Hub flags keep their art, progress and flutter without shimmer layers or idle effects', () => {
     const hub = fs.readFileSync('native/jimi-2026/JimiV9HubView.swift', 'utf8');
     expect(hub).toContain('assets/journey assets/natpis.png');
@@ -163,5 +180,36 @@ describe('native Home/Hub outgoing-pose source contracts', () => {
       expect(layout).toContain(target === 'heroes[i]' ? `${target}.layer.position =` : `${target}.center =`);
       expect(layout).not.toContain(`${target}.frame =`);
     }
+  });
+
+  test('settled native Forest foreground validates exact current web receipt before resuming', () => {
+    const body = method('resume');
+    const world = body.slice(body.indexOf('if route == .world'),body.indexOf('if status.accessibilityValue'));
+    ordered(world,'isNativeWorldPresentationCurrent(generation, revision)','identity.generation == model.generation','guard case .success(let value)','self.nativeWorld.resume()');
+    expect(world).toContain('"generation": model.generation, "revision": model.revision');
+    expect(world).toContain('self.generation == owner');
+    expect(world).toContain('UIApplication.shared.applicationState == .active');
+    expect(world).toContain('self.nativeWorld.hide(); self.active = false');
+    expect(world).toContain('self.view.isHidden = true; self.web.accessibilityElementsHidden = false');
+    expect(world).not.toContain('cancel()');
+  });
+
+  test('deferred native Forest releases held paper coverage when either exact validation or preparation is denied', () => {
+    const body = method('resumeDeferredWorldPresentation');
+    expect(body.match(/isNativeWorldPresentationCurrent\(generation, revision\)/g)).toHaveLength(2);
+    expect(body.match(/self\.releaseStaleNativeWorldCoverage\(\)/g)).toHaveLength(3);
+    ordered(body,'JimiNativeWorldSnapshot(pending.snapshot)','isNativeWorldPresentationCurrent(generation, revision)','self.expectedRequest == nil, !self.transitioning','guard case .success(let value)','self.releaseStaleNativeWorldCoverage()','self.nativeWorld.prepare(model, rawSnapshot: pending.snapshot');
+    const second = body.slice(body.indexOf('current in'));
+    ordered(second,'UIApplication.shared.applicationState == .active','guard case .success(let accepted)','self.releaseStaleNativeWorldCoverage()','self.view.isHidden = false');
+    const release = method('releaseStaleNativeWorldCoverage');
+    expect(release).toContain('nativeWorld.hide(); active = false');
+    expect(release).toContain('view.isHidden = true; web.accessibilityElementsHidden = false');
+    expect(release).not.toContain('evaluateJavaScript');
+  });
+
+  test('denied native Forest input admission relinquishes coverage before any input is enabled', () => {
+    const body = method('commitNativeWorldInput');
+    ordered(body,'self.generation == owner','guard case .success(let accepted)','self.releaseStaleNativeWorldCoverage()','self.nativeWorld.worldView?.finishPresentationAdmission()');
+    expect(body).toContain('"generation": snapshot.generation, "revision": snapshot.revision');
   });
 });

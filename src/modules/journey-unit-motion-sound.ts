@@ -29,13 +29,13 @@ export function stopJourneyUnitMotionSounds(): void {
 
 /** Enter uses elements down1 only; exit uses elemens down2 only. */
 export function createJourneyUnitMotionSoundSession(
-  units: readonly { id: string; targets: readonly HTMLElement[] }[],
+  units: readonly ({ id: string; targets: readonly HTMLElement[] } | { id: string; nativeVisible: boolean })[],
 ) {
   stopJourneyUnitMotionSounds();
   const lifecycle = createScreenLifecycle('journey-unit-motion-sound');
   const startedDirections = new Set<'enter' | 'exit'>();
   // Snapshot visibility before animation writes; no layout reads on tween ticks.
-  const visible = new Set(units.filter(unit => unit.targets.some(target => {
+  const visible = new Set(units.filter(unit => 'nativeVisible' in unit ? unit.nativeVisible : unit.targets.some(target => {
     if (!target.isConnected) return false;
     const rect = target.getBoundingClientRect();
     return rect.width > 0 && rect.height > 0 && rect.bottom > 0

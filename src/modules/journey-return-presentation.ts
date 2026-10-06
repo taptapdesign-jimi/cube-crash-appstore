@@ -65,6 +65,8 @@ export function isJourneyDetailModalPresentationReady(
 export function isJourneyScreenPresentationReady(
   root: ParentNode = document,
 ): boolean {
+  if (root === document && (window as any).__jimiNativeForestEnabled === true
+    && (window as any).__jimiNativeHomeHubRuntime?.hasNativeWorldPresentationReady?.() === true) return true;
   if (!isHomepageFamilyNonPaintable(root)) return false;
   const screen = root.querySelector<HTMLElement>('#journey-screen');
   if (!isVisiblyPainted(screen)) return false;

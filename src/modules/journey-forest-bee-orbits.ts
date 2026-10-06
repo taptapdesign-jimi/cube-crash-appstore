@@ -519,7 +519,7 @@ export function getJourneyForestBeeAssetForVelocity(
 }
 
 /** Writes x, y, velocityX and velocityY into a reusable four-number sample. */
-function sampleJourneyForestBeeFlight(
+export function sampleJourneyForestBeeFlight(
   plan: JourneyForestBeeFlightPlan,
   progress: number,
   output: Float32Array,
@@ -560,6 +560,76 @@ function sampleJourneyForestBeeFlight(
     : 1;
   output[0] += Math.cos(bounceAngle * 0.7) * 6 * bounceStrength;
   output[1] += Math.sin(bounceAngle) * 14 * bounceStrength;
+}
+
+export interface NativeForestBeeFrame {
+  time: number; x: number; y: number; width: number; scaleX: number; scaleY: number;
+  rotation: number; asset: string; previousAsset?: string; blend: number;
+  depth: 'front' | 'behind';
+}
+export interface NativeForestBeePlan { id: number; duration: number; frames: NativeForestBeeFrame[] }
+
+/** Pure retained projection of the canonical mobile flights; no renderer or ticker. */
+export function createNativeForestBeeProjection(contentTop: number, mainRect: {x:number;y:number;width:number;height:number}, random:()=>number = Math.random) {
+  const all = createJourneyForestBeeFlightPlans(random).filter(plan=>plan.unitIndex>=0)
+    .filter((plan,index,plans)=>plans.findIndex(candidate=>candidate.unitIndex===plan.unitIndex)===index);
+  const bees = Array.from({length:5},(_,index)=>({
+    plan:all[Math.round(index*(all.length-1)/4)],sample:new Float32Array(4),
+    currentAsset:(index%2===0?'bee1':'bee3') as ForestBeeAsset,previousAsset:null as ForestBeeAsset|null,
+    assetBlendSeconds:FOREST_BEE_DIRECTION_FADE_SECONDS,pendingAsset:null as ForestBeeAsset|null,pendingAssetSeconds:0,
+    depth:'front' as ForestBeeDepth,
+  }));
+  const gate:ForestBeeGateGeometry = {
+    source:'dom',passageLeftX:mainRect.x+160.92/390*mainRect.width,
+    passageRightX:mainRect.x+205.08/390*mainRect.width,centerX:mainRect.x+183/390*mainRect.width,
+    topY:mainRect.y-contentTop+60/350*mainRect.height,bottomY:mainRect.y-contentTop+85/350*mainRect.height,
+    leftPineX:mainRect.x+103/390*mainRect.width,rightPineX:mainRect.x+287/390*mainRect.width,
+    mainBottomY:mainRect.y-contentTop+mainRect.height,
+  };
+  const advance = (bee:typeof bees[number], index:number) => {
+    const plan=bee.plan,endX=readPlanPoint(plan.points,7,0),endY=readPlanPoint(plan.points,7,1);
+    if(plan.phase==='roam') {
+      if(plan.onScreenSeconds>=FOREST_BEE_MIN_ONSCREEN_SECONDS)resetExitPlan(plan,random,gate);
+      else plan.elapsedSeconds=Math.max(0,plan.elapsedSeconds-plan.durationSeconds);
+    } else if(plan.phase==='exit') resetEntryPlan(plan,random,gate,0,endX,endY);
+    else {
+      const priorX=readPlanPoint(plan.points,6,0),priorY=readPlanPoint(plan.points,6,1);
+      plan.onScreenSeconds=0;bee.depth='front';
+      resetRoamPlan(plan,index,random,endX,endY,0,{tangentX:endX-priorX,tangentY:endY-priorY,bouncePhase:plan.bouncePhase});
+    }
+  };
+  return { next(duration=11,ids?:number[]):NativeForestBeePlan[] {
+    const count=Math.round(duration*30),dt=duration/count;
+    return bees.flatMap((bee,index)=>{
+      if(ids && !ids.includes(bee.plan.unitIndex))return [];
+      const frames:NativeForestBeeFrame[]=[];
+      for(let frame=0;frame<=count;frame++) {
+        if(frame>0) {
+          bee.plan.elapsedSeconds+=dt;if(bee.plan.phase==='roam')bee.plan.onScreenSeconds+=dt;
+          if(bee.plan.elapsedSeconds>=bee.plan.durationSeconds)advance(bee,index);
+        }
+        const p=bee.plan.elapsedSeconds/bee.plan.durationSeconds;
+        sampleJourneyForestBeeFlight(bee.plan,p,bee.sample);
+        const candidate=getJourneyForestBeeAssetForVelocity(bee.sample[2],bee.sample[3],bee.currentAsset);
+        updateBeeAssetCandidate(bee as LiveBee,candidate,frame>0?dt:0);
+        bee.assetBlendSeconds=Math.min(FOREST_BEE_DIRECTION_FADE_SECONDS,bee.assetBlendSeconds+(frame>0?dt:0));
+        const wave=Math.sin(p*TAU*6+bee.plan.bouncePhase);
+        const entry=bee.plan.phase==='entry'?.5+.5*clamp(p/.5,0,1):1;
+        const area=getJourneyForestBeeMainAreaSizeScale(bee.sample[1],gate.mainBottomY),size=Math.min(entry,area);
+        const center=bee.sample[0]+bee.plan.width*bee.plan.scale/2;
+        if(bee.plan.phase==='entry' && (bee.plan.gateSide===-1?center>=gate.passageLeftX:center<=gate.passageRightX))bee.depth='front';
+        if(bee.plan.phase==='exit' && p>=.3 && (bee.plan.gateSide===-1?center<=gate.passageRightX:center>=gate.passageLeftX))bee.depth='behind-forest-main';
+        frames.push({time:frame*dt,x:bee.sample[0],y:contentTop+bee.sample[1],width:bee.plan.width,
+          scaleX:bee.plan.scale*size*(1+wave*.045*FOREST_BEE_BOUNCE_GAIN),
+          scaleY:bee.plan.scale*size*(1-wave*.035*FOREST_BEE_BOUNCE_GAIN),
+          rotation:Math.sin(p*TAU*7+bee.plan.bouncePhase)*7,
+          asset:`${FOREST_BEE_ASSET_BASE}/${bee.currentAsset}.png`,
+          ...(bee.previousAsset?{previousAsset:`${FOREST_BEE_ASSET_BASE}/${bee.previousAsset}.png`}:{}),
+          blend:clamp(bee.assetBlendSeconds/FOREST_BEE_DIRECTION_FADE_SECONDS,0,1),depth:bee.depth==='front'?'front':'behind'});
+      }
+      return [{id:bee.plan.unitIndex,duration,frames}];
+    });
+  }};
 }
 
 function setBeeDepth(bee: LiveBee, depth: ForestBeeDepth): void {

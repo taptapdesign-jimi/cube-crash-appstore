@@ -49,6 +49,9 @@ export function isAnyMenuScreenVisible(): boolean {
 }
 
 function isHomepageMenuReady(targetSlideIndex: PrimaryHomepageSlideIndex = ARCADE_SLIDE_INDEX): boolean {
+  // The native owner deliberately parks the DOM surface. Its current epoch
+  // receipt, not a hidden web rectangle, proves this destination is presented.
+  if ((window as any).__jimiNativeHomeHubRuntime?.isHomePresentationCurrent?.(targetSlideIndex) === true) return true;
   const home = document.getElementById('home') as HTMLElement | null;
   const container = document.getElementById('slider-container') as HTMLElement | null;
   const activeSlide = document.querySelector('.slider-slide.active') as HTMLElement | null;

@@ -16,7 +16,7 @@ describe('Homepage cold-launch Arcade handoff', () => {
     expect(owner).toContain("cancelSliderEnterAnimation('homepage-to-arcade')");
     expect(owner.indexOf("cancelSliderEnterAnimation('homepage-to-arcade')"))
       .toBeLessThan(owner.indexOf('animateSliderExit();'));
-    const exitStart = owner.indexOf('const homepageExitPromise = animateSliderExit();');
+    const exitStart = owner.indexOf('const homepageExitPromise = options.nativeExitComplete ? Promise.resolve() : animateSliderExit();');
     const exitAwait = owner.indexOf('await homepageExitPromise;');
     const cancellationGuard = owner.indexOf('if (isHomepageExitCancelled(homepageExitPromise)) return;');
     expect(exitStart).toBeGreaterThan(-1);
