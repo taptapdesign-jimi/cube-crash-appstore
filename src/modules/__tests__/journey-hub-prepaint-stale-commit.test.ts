@@ -9,8 +9,10 @@ const sourcePath = path.resolve(__dirname, '../journey-boards-manager.ts');
 const sourceText = fs.readFileSync(sourcePath, 'utf8');
 const sourceFile = ts.createSourceFile('journey-boards-manager.ts', sourceText, ts.ScriptTarget.Latest, true);
 let commitMethod: ts.MethodDeclaration | null = null;
+let retainedMethod: ts.MethodDeclaration | null = null;
 const visit = (node: ts.Node): void => {
   if (ts.isMethodDeclaration(node) && node.name.getText(sourceFile) === 'commitJourneyHubPrepaint') commitMethod = node;
+  if (ts.isMethodDeclaration(node) && node.name.getText(sourceFile) === 'commitRetainedJourneyHub') retainedMethod = node;
   ts.forEachChild(node, visit);
 };
 visit(sourceFile);
@@ -100,4 +102,39 @@ test('a replaced transition cannot promote the detached Hub over the current Wor
   expect(f.host.isConnected).toBe(false);
   expect(f.controller.getRetainedDescriptors()).toEqual([]);
   expect(f.owner.beginRenderLifecycle).not.toHaveBeenCalled();
+});
+
+test('explicit native presentation preserves the real World stage and hidden Hub but never starts web Hub enter', async () => {
+  const f = fixture();
+  await expect(runCommit.call(f.owner, f.container, f.token, 1, { nativePresentation: true })).resolves.toBe(true);
+  expect(f.container.firstElementChild).toBe(f.hub);
+  expect(f.owner.primeJourneyV700HubForHiddenHandoff).toHaveBeenCalledTimes(1);
+  expect(f.owner.playJourneyV700HubEnter).not.toHaveBeenCalled();
+  expect(f.owner.journeyV700Phase).toBe('hidden');
+  expect(f.controller.hasRetained({ view: 'world', worldId: 1 })).toBe(true);
+});
+
+test('retained native Hub handoff preserves World nodes and next-enter plan without starting web motion', () => {
+  const f = fixture();
+  const method = retainedMethod!;
+  const compiled = ts.transpileModule(`function run(${method.parameters.map(parameter => parameter.getText(sourceFile)).join(',')}) ${method.body!.getText(sourceFile)}`,
+    { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+  const run = new Function('scope', `with(scope){${compiled};return run;}`)({
+    getJourneyHubWorkingSet: () => [{ id: 1 }, { id: 2 }, { id: 3 }], emitIOSNativeDiagnostic: diagnostic,
+  });
+  const hubOwner = document.createElement('div');
+  hubOwner.dataset.journeyV700View = 'hub';
+  f.controller.retainNodes({ view: 'hub' }, [f.hub], hubOwner);
+  const prepared = { worldId: 1, targets: [f.outgoing], renderGeneration: 4 };
+  Object.assign(f.owner, {
+    journeyResidentPreparedEnters: new Map(),
+    primeJourneyV700WorldEnter: jest.fn(() => { f.owner.journeyV700PreparedWorldEnter = prepared; }),
+    cancelJourneyHubPrepaint: jest.fn(), refreshJourneyV700HubProgress: jest.fn(),
+  });
+  expect(run.call(f.owner, f.container, 1, f.token, { nativePresentation: true })).toBe(true);
+  expect(f.container.firstElementChild).toBe(f.hub);
+  expect(f.controller.hasRetained({ view: 'world', worldId: 1 })).toBe(true);
+  expect(f.owner.journeyResidentPreparedEnters.get(1).targets[0]).toBe(f.outgoing);
+  expect(f.owner.primeJourneyV700HubForHiddenHandoff).toHaveBeenCalledWith(f.container, [1, 2, 3]);
+  expect(f.owner.playJourneyV700HubEnter).not.toHaveBeenCalled();
 });

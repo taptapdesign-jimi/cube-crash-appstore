@@ -17,6 +17,7 @@ describe('Journey main Unit painted visibility', () => {
     phase: string;
     idleTicker: (() => void) | null;
     lastSettledIdlePaintAt: number | null;
+    idleEntries: Array<{ startTime: number }>;
     startIdle(units: JourneyWorldAnimationUnit[], reduced: boolean): void;
   };
   let setters: Map<HTMLElement, jest.Mock>;
@@ -78,6 +79,24 @@ describe('Journey main Unit painted visibility', () => {
     expect(setters.get(wrapper)).toHaveBeenCalledTimes(1);
     expect(wrapper.style.height).toBe('100%');
     expect(clouds.every((cloud) => cloud.parentElement === wrapper)).toBe(true);
+  });
+
+  it('starts at the settled pose and gently admits the same wave without another ticker', () => {
+    const initialAdds = jest.mocked(gsap.ticker.add).mock.calls.length;
+    const sample = (elapsed: number) => {
+      owner.idleEntries[0].startTime = gsap.ticker.time - elapsed;
+      paint();
+      return setters.get(clouds[1])!.mock.lastCall![0] as number;
+    };
+    expect(sample(0)).toBeCloseTo(0, 10);
+    // A phase-offset cloud is the worst startup case: it already has a large
+    // desired displacement even though enter ended at zero.
+    expect(Math.abs(sample(1 / 30))).toBeLessThan(0.03);
+    expect(Math.abs(sample(0.18))).toBeLessThan(2.5);
+    for (const elapsed of [0.52, 0.8, 1.5]) {
+      expect(sample(elapsed)).toBeCloseTo(Math.sin(elapsed * (2 * Math.PI / 3.15) * 0.62 + 1) * 10, 8);
+    }
+    expect(jest.mocked(gsap.ticker.add).mock.calls.length).toBe(initialAdds);
   });
 
   it('stops every Unit transform when all painted leaves are offscreen despite its large wrapper', () => {

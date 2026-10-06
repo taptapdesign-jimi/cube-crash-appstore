@@ -51,6 +51,9 @@ const soundOwners: readonly SfxOwnerLoader[] = [
   () => import('./wild-special-landing-sound.js').then(owner => [owner.stopWildSpecialLandingSound]),
   () => import('./wild-special-merge6-poof-sound.js').then(owner => [owner.stopWildSpecialMerge6PoofSounds]),
   () => import('./wild-star-merge6-sound.js').then(owner => [owner.stopWildStarMerge6Sound]),
+  // Adapter last: its underlying cue owners have already been imported/stopped
+  // serially above; it adds no cold all-family import burst to Sounds OFF.
+  () => import('./native-home-hub-feedback.js').then(owner => [owner.stopNativeHomeHubFeedback]),
 ];
 
 export async function stopRegisteredSfxOwners(isCurrent: () => boolean): Promise<void> {

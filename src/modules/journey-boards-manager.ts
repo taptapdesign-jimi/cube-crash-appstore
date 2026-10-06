@@ -8,6 +8,7 @@ import type { JourneyTerminalPreparationPerformance } from './journey-terminal-p
 import { prepareJourneyWorldTransforms } from './journey-world-transform-preparation.js';
 import { compileJourneyUnitScene, getJourneySceneUnit, preserveJourneySceneCardPlacement } from './journey-unit-scene.js';
 import { isJourneyViewportParked, parkJourneyViewportForGameplay, releaseJourneyViewportParking } from './journey-viewport-parking.js';
+import { appZoneManager } from './app-zone-manager.js';
 // Journey Boards Manager
 // Manages Journey Hub worlds and their board cards.
 // 
@@ -59,6 +60,7 @@ import {
 } from './journey-card-base-transform.js';
 import {
   animateJourneyViewportScreenExit,
+  prepareJourneyViewportScreenEnter,
   lockJourneyViewportTransition,
   unlockJourneyViewportTransition,
 } from '../ui/collectibles-animations.js';
@@ -636,6 +638,7 @@ const JOURNEY_BOARD_UNIT_HORIZONTAL_OFFSETS_PX: Readonly<Record<number, number>>
 });
 /** Card-only fine tuning; never moves the rest of the Journey Unit. */
 const JOURNEY_BOARD_CARD_POSITION_OFFSETS_PX: Readonly<Record<number, Readonly<{ x: number; y: number }>>> = Object.freeze({
+  1: Object.freeze({ x: -12, y: 0 }),
   21: Object.freeze({ x: 0, y: 6 }),
   23: Object.freeze({ x: -4, y: 0 }),
   24: Object.freeze({ x: 6, y: 6 }),
@@ -1085,6 +1088,13 @@ class JourneyBoardsManager {
   private journeyMainCloudCompositeBuilds = new Map<number, Promise<HTMLCanvasElement | null>>();
   private journeyWorldPrepaintStage: JourneyWorldPrepaintStage | null = null;
   private journeyWorldPrepaintEpoch = 0;
+  private nativeWorldPreparation: {
+    worldId: 1 | 2 | 3; screen: HTMLElement; container: HTMLElement;
+    signal: AbortSignal; abort: () => void; generation: number; epoch: number;
+    stageToken: JourneyStageTransitionToken;
+    routeToken: ReturnType<typeof journeyRouteTransitionCoordinator.begin>;
+    ready: boolean; activating: boolean; priorInert: boolean;
+  } | null = null;
   private journeyResidentPreparedEnters = new Map<number, JourneyPreparedWorldEnter>();
   private journeyHubPrepaintStage: JourneyHubPrepaintStage | null = null;
   private journeyHubPrepaintEpoch = 0;
@@ -6296,6 +6306,7 @@ class JourneyBoardsManager {
    */
   public suspendForGameplay(): void {
     if (this.cleanupInProgress) return;
+    this.cancelNativeWorldPreparation();
 
     const surface = document.getElementById('journey-boards-container') as HTMLElement | null;
     const screen = document.getElementById('journey-screen');
@@ -6431,6 +6442,7 @@ class JourneyBoardsManager {
    */
   public cleanup(): void {
     if (this.cleanupInProgress) return;
+    this.cancelNativeWorldPreparation();
     this.cleanupInProgress = true;
     releaseJourneyViewportParking(document.getElementById('journey-screen') ?? undefined);
     journeyRouteTransitionCoordinator.interruptCurrent('manager-cleanup');
@@ -7035,6 +7047,7 @@ class JourneyBoardsManager {
   }
 
   public renderBoards(): void {
+    this.cancelNativeWorldPreparation();
     const container = document.getElementById('journey-boards-container');
     const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
     const transitionOverlay = document.getElementById('cc-board-transition-overlay') as HTMLElement | null;
@@ -7430,7 +7443,7 @@ class JourneyBoardsManager {
       tiltShell.className = 'journey-v700-world-tilt-shell';
       // Each World owns a distinct duration band plus a random session phase.
       // Different periods prevent the three shadows/turns from periodically
-      // falling back into the same synchronized shimmer beat.
+      // falling back into the same synchronized tilt beat.
       const tiltDurationSeconds = 4.55 + ((worldId - 1) * 0.72) + (Math.random() * 0.38);
       const tiltPhaseSeconds = -(Math.random() * tiltDurationSeconds);
       tiltShell.style.setProperty('--journey-world-tilt-duration', `${tiltDurationSeconds.toFixed(3)}s`);
@@ -7450,18 +7463,6 @@ class JourneyBoardsManager {
       bannerImage.srcset = `${encodeURI(meta.hub.bannerAsset2x)} 2x`;
       bannerImage.className = 'journey-v700-world-banner-image';
       banner.appendChild(bannerImage);
-
-      const bannerFlagFx = document.createElement('span');
-      bannerFlagFx.className = 'journey-v700-world-banner-flag-fx';
-      bannerFlagFx.setAttribute('aria-hidden', 'true');
-      // The visible masked shimmer belongs to this flag layer, not the outer
-      // tilt shell. Give every World a distinct period and random negative
-      // phase so their light sweeps never launch or repeat together.
-      const shimmerDurationSeconds = 5.9 + ((worldId - 1) * 0.83) + (Math.random() * 0.44);
-      const shimmerPhaseSeconds = -(Math.random() * shimmerDurationSeconds);
-      bannerFlagFx.style.setProperty('--journey-world-shimmer-duration', `${shimmerDurationSeconds.toFixed(3)}s`);
-      bannerFlagFx.style.setProperty('--journey-world-shimmer-delay', `${shimmerPhaseSeconds.toFixed(3)}s`);
-      banner.appendChild(bannerFlagFx);
 
       const bannerCount = document.createElement('span');
       bannerCount.className = 'journey-v700-world-banner-count';
@@ -7883,6 +7884,7 @@ class JourneyBoardsManager {
       }
       this.settleJourneyV700HubEnterCompletion(enterEpoch);
       // Resident construction is admitted only beneath an explicit opaque
+      (window as any).__jimiNativeHomeHubRuntime?.present('hub');
       // Homepage/result cover. A visible settled Hub never competes with a
       // connected preparation tree.
       };
@@ -7946,6 +7948,214 @@ class JourneyBoardsManager {
     }
 
     this.playJourneyV700HubEnterFromHomepage();
+  }
+
+  private isNativeWorldPreparationCurrent(receipt: NonNullable<JourneyBoardsManager['nativeWorldPreparation']>): boolean {
+    return this.nativeWorldPreparation === receipt && !receipt.signal.aborted && !document.hidden
+      && !this.renderDisposed && receipt.generation === this.renderLifecycleGeneration
+      && appZoneManager.isPresentationCurrent(receipt.epoch, 'journey')
+      && receipt.screen.isConnected && receipt.container.isConnected
+      && document.getElementById('journey-screen') === receipt.screen
+      && document.getElementById('journey-boards-container') === receipt.container
+      && receipt.screen.contains(receipt.container)
+      && (!receipt.ready || (receipt.container.dataset.journeyV700View === 'world'
+        && receipt.container.dataset.journeyV700WorldId === String(receipt.worldId)));
+  }
+
+  /** Native-only entry: caller has claimed the Journey shell and settled Home
+   * cleanup. Build only the selected canonical World, without a web Hub route.
+   * Readiness means decoded DOM + hidden authored poses, never raster residency. */
+  public async prepareNativeWorld(worldId: 1 | 2 | 3, signal: AbortSignal): Promise<boolean> {
+    if (![1, 2, 3].includes(worldId) || signal.aborted || document.hidden
+      || appZoneManager.getCurrentZone() !== 'journey') return false;
+    const screen = document.getElementById('journey-screen');
+    const container = document.getElementById('journey-boards-container');
+    if (!screen || !container || !screen.contains(container)
+      || !screen.querySelector('.collectibles-header') || !screen.querySelector('.collectibles-scrollable')) return false;
+    this.cancelNativeWorldPreparation();
+    releaseJourneyViewportParking(screen);
+    this.beginRenderLifecycle();
+    this.container = container;
+    this.cancelJourneyV700HubEnter('native-world-prepare');
+    this.journeyHubRuntime.deactivate();
+    this.journeyWorldRuntime.deactivate();
+    cancelJourneyHubScrollableEnter();
+    this.journeyV700View = 'hub'; // Detached prepaint admission only; do not persist a fictitious Hub visit.
+    this.journeyV700WorldId = null;
+    this.journeyV700Phase = 'hidden';
+    const stageToken = this.journeyStageController.beginTransition({ view: 'hub' }, { view: 'world', worldId });
+    const routeToken = journeyRouteTransitionCoordinator.begin({ view: 'hub' }, { view: 'world', worldId }, 'native-hub-to-world');
+    const receipt = { worldId, screen, container, signal, abort: () => {},
+      generation: this.renderLifecycleGeneration, epoch: appZoneManager.getPresentationEpoch(),
+      stageToken, routeToken, ready: false, activating: false, priorInert: screen.inert === true };
+    this.nativeWorldPreparation = receipt;
+    receipt.abort = () => { if (this.nativeWorldPreparation === receipt) this.cancelNativeWorldPreparation(); };
+    signal.addEventListener('abort', receipt.abort, { once: true });
+    journeyRouteTransitionCoordinator.claimTimeline(routeToken, { kill: receipt.abort });
+    // Establish opacity/visibility before any restored surface can be shown.
+    screen.style.setProperty('opacity', '0', 'important');
+    screen.style.setProperty('visibility', 'hidden', 'important');
+    screen.inert = true;
+    screen.setAttribute('aria-hidden', 'true');
+    prepareJourneyViewportScreenEnter('native-world-prepare', { animateJourneyContent: false });
+    try {
+      const hasOutgoingHub = container.dataset.journeyV700View === 'hub'
+        && !!container.querySelector(':scope > .journey-v700-hub');
+      const retained = hasOutgoingHub && this.journeyStageController.hasRetained({ view: 'world', worldId });
+      const prepared = retained || await this.prepareJourneyWorldPrepaint(container, worldId);
+      if (!prepared || !this.isNativeWorldPreparationCurrent(receipt)) {
+        if (this.nativeWorldPreparation === receipt) this.cancelNativeWorldPreparation();
+        return false;
+      }
+      const committed = retained
+        ? this.commitRetainedJourneyWorld(container, worldId, stageToken)
+        : this.commitJourneyWorldPrepaint(container, worldId, stageToken, { retainOutgoingHub: hasOutgoingHub });
+      receipt.generation = this.renderLifecycleGeneration;
+      if (!committed || !this.isNativeWorldPreparationCurrent(receipt)) {
+        if (this.nativeWorldPreparation === receipt) this.cancelNativeWorldPreparation();
+        return false;
+      }
+      this.journeyV700View = 'world';
+      this.journeyV700WorldId = worldId;
+      if (retained) {
+        this.journeyV700PreparedWorldEnter = await this.primeJourneyV700WorldEnterIncrementally(
+          container, worldId, null, 'native-retained-world', () => this.isNativeWorldPreparationCurrent(receipt), [], 0,
+        );
+      }
+      if (!this.journeyV700PreparedWorldEnter || !this.isNativeWorldPreparationCurrent(receipt)) {
+        if (this.nativeWorldPreparation === receipt) this.cancelNativeWorldPreparation();
+        return false;
+      }
+      this.updateJourneyV700Nav('world', worldId);
+      this.installJourneyScreenElasticOverscroll(container);
+      const scrollable = screen.querySelector<HTMLElement>('.collectibles-scrollable')!;
+      scrollable.scrollTop = 0;
+      container.hidden = false;
+      container.inert = false;
+      container.setAttribute('aria-hidden', 'false');
+      container.style.visibility = 'visible';
+      container.style.pointerEvents = 'auto';
+      container.classList.remove('journey-gameplay-suspended');
+      receipt.ready = true;
+      emitIOSNativeDiagnostic('native-world-prepared', { worldId, retained });
+      return true;
+    } catch (error) {
+      if (this.nativeWorldPreparation === receipt) this.cancelNativeWorldPreparation();
+      logger.warn('Native World preparation failed', error);
+      return false;
+    }
+  }
+
+  /** Native coverage is already removed. Reveal and start the canonical World
+   * in this task; settle input once the same enter owner reaches its idle pose. */
+  public async activatePreparedNativeWorld(worldId: 1 | 2 | 3): Promise<boolean> {
+    const receipt = this.nativeWorldPreparation;
+    if (!receipt || !receipt.ready || receipt.activating || receipt.worldId !== worldId
+      || !this.isNativeWorldPreparationCurrent(receipt)) return false;
+    receipt.activating = true;
+    const { screen, container } = receipt;
+    try {
+      // Same semantic handoff as the web Hub route; native feedback releases
+      // its lease without stopping the shared Hub loop before this owner takes it.
+      reduceJourneyWorldsSoundForWorld();
+      if (worldId === 1) preloadJourneyForestAmbientSounds();
+      this.setJourneyV700View('world', worldId);
+      delete (window as any).__ccSuppressJourneyV700AutoWorldEnter;
+      delete (window as any).__ccReturningFromDetailModal;
+      delete (window as any).__ccReturningFromInterimBoard;
+      localStorage.removeItem('__ccReturningFromInterimBoard');
+      screen.hidden = false;
+      screen.classList.remove('hidden');
+      screen.classList.add('show');
+      screen.style.setProperty('display', 'flex', 'important');
+      screen.style.setProperty('opacity', '1', 'important');
+      screen.style.setProperty('visibility', 'visible', 'important');
+      screen.style.setProperty('pointer-events', 'none', 'important');
+      screen.setAttribute('aria-hidden', 'false');
+      const entered = this.playJourneyV700WorldEnter(container, worldId, {
+        source: 'native-hub-world-open', lastBoardId: 0, waitForImages: false,
+      });
+      this.playJourneyV700NavEnter();
+      journeyRouteTransitionCoordinator.holdPresentationLeasesUntil(receipt.routeToken, entered);
+      await entered;
+      if (!this.isNativeWorldPreparationCurrent(receipt) || this.journeyV700Phase !== 'idle') {
+        if (this.nativeWorldPreparation === receipt) this.cancelNativeWorldPreparation();
+        return false;
+      }
+      receipt.signal.removeEventListener('abort', receipt.abort);
+      this.nativeWorldPreparation = null;
+      screen.inert = false; // This is the newly admitted interactive World, not the old hidden-surface policy.
+      screen.style.setProperty('pointer-events', 'auto');
+      screen.style.removeProperty('will-change');
+      screen.querySelectorAll<HTMLElement>('.collectibles-header, .collectibles-scrollable')
+        .forEach(target => { target.style.pointerEvents = 'auto'; target.style.removeProperty('will-change'); });
+      if ((window as any).__ccJourneyViewportEnterPreparedReason === 'native-world-prepare') {
+        delete (window as any).__ccJourneyViewportEnterPrepared;
+        delete (window as any).__ccJourneyViewportEnterPreparedReason;
+      }
+      journeyRouteTransitionCoordinator.complete(receipt.routeToken, 'native-world-enter-complete');
+      emitIOSNativeDiagnostic('native-world-activated', { worldId });
+      return true;
+    } catch (error) {
+      if (this.nativeWorldPreparation === receipt) this.cancelNativeWorldPreparation();
+      logger.warn('Native World activation failed', error);
+      return false;
+    }
+  }
+
+  public cancelNativeWorldPreparation(): void {
+    const receipt = this.nativeWorldPreparation;
+    if (!receipt) return;
+    this.nativeWorldPreparation = null;
+    receipt.signal.removeEventListener('abort', receipt.abort);
+    this.journeyStageController.cancelTransition(receipt.stageToken);
+    journeyRouteTransitionCoordinator.interrupt(receipt.routeToken, 'native-world-cancelled', { rollbackZone: false });
+    // Foreign route/render owners may already reuse the same screen. Retire
+    // only this receipt; never hide or stop their newer presentation.
+    if (receipt.generation !== this.renderLifecycleGeneration
+      || !appZoneManager.isPresentationCurrent(receipt.epoch, 'journey')
+      || document.getElementById('journey-screen') !== receipt.screen
+      || document.getElementById('journey-boards-container') !== receipt.container) return;
+    receipt.screen.hidden = true;
+    receipt.screen.style.setProperty('opacity', '0', 'important');
+    receipt.screen.style.setProperty('visibility', 'hidden', 'important');
+    receipt.screen.inert = receipt.priorInert;
+    receipt.screen.setAttribute('aria-hidden', 'true');
+    this.cancelJourneyWorldPrepaint('native-world-cancelled');
+    this.cancelAllRAFs();
+    this.cancelAllTimeouts();
+    this.journeyWorldAnimation.stop(true);
+    this.journeyWorldRuntime.deactivate();
+    stopJourneyForestAmbientSounds();
+    stopJourneyWorldsHubSound();
+    stopJourneyUnitMotionSounds();
+    this.cleanupJourneyAreaIdleAnimations();
+    this.cleanupJourneyScreenElasticOverscroll();
+    this.retireJourneyBoardOwnersBeforeDomReplace(receipt.container);
+    receipt.container.replaceChildren();
+    try { gsap.killTweensOf(this.getJourneyV700NavTargets()); } catch {}
+    this.journeyV700PreparedWorldEnter = null;
+    if ((window as any).__ccJourneyViewportEnterPreparedReason === 'native-world-prepare') {
+      delete (window as any).__ccJourneyViewportEnterPrepared;
+      delete (window as any).__ccJourneyViewportEnterPreparedReason;
+    }
+    this.journeyV700Phase = 'hidden';
+    this.renderDisposed = true;
+    this.renderLifecycleGeneration += 1;
+  }
+
+  /** Native Hub hands input back to the canonical, already-visible web Hub.
+   * This delegates the existing World decision/transition, never recreates it. */
+  public activateNativeHubWorld(worldId: 1 | 2 | 3): boolean {
+    const container = document.getElementById('journey-boards-container');
+    const screen = document.getElementById('journey-screen');
+    if (!screen || screen.hidden || screen.classList.contains('hidden') ||
+        !container || container.dataset.journeyV700View !== 'hub' ||
+        this.journeyV700WorldOpenInProgress || this.renderDisposed) return false;
+    const source = container.querySelector<HTMLElement>(`.journey-v700-world-card[data-world-id="${worldId}"]`);
+    if (!source) return false;
+    this.openJourneyV700World(worldId, source);
+    return true;
   }
 
   private openJourneyV700World(worldId: number, source?: HTMLElement): void {
@@ -8516,6 +8726,7 @@ class JourneyBoardsManager {
     container: HTMLElement,
     closingWorldId: number,
     transitionToken: JourneyStageTransitionToken,
+    options: { nativePresentation?: boolean } = {},
   ): boolean {
     if (!this.journeyStageController.isCurrent(transitionToken) ||
       !this.journeyStageController.hasRetained({ view: 'hub' })) return false;
@@ -8555,13 +8766,16 @@ class JourneyBoardsManager {
       new Set([closingWorldId]),
     );
     this.refreshJourneyV700HubProgress(container);
+    if (options.nativePresentation) {
+      this.primeJourneyV700HubForHiddenHandoff(container, getJourneyHubWorkingSet(closingWorldId).map(world => world.id));
+    }
     this.setJourneyV700View('hub');
     this.updateJourneyV700Nav('hub');
     delete (container as any).__ccJourneyV700ReturningFromWorld;
     this.journeyV700Phase = 'hidden';
     this.resetJourneyV700HubScrollToTop('return-from-world-retained');
     this.installJourneyScreenElasticOverscroll(container);
-    this.playJourneyV700HubEnter('world-return');
+    if (!options.nativePresentation) this.playJourneyV700HubEnter('world-return');
     emitIOSNativeDiagnostic('journey-stage-retained-hub-committed', {
       closingWorldId,
       evicted: swap.evicted,
@@ -8573,6 +8787,7 @@ class JourneyBoardsManager {
     container: HTMLElement,
     transitionToken?: JourneyStageTransitionToken,
     closingWorldId = this.journeyV700WorldId || 1,
+    options: { nativePresentation?: boolean } = {},
   ): Promise<boolean> {
     const stage = this.journeyHubPrepaintStage;
     if (!stage || !stage.ready || stage.root.children.length === 0 ||
@@ -8622,7 +8837,7 @@ class JourneyBoardsManager {
     this.journeyV700Phase = 'hidden';
     this.resetJourneyV700HubScrollToTop('return-from-world-prepaint');
     this.installJourneyScreenElasticOverscroll(container);
-    this.playJourneyV700HubEnter('world-return');
+    if (!options.nativePresentation) this.playJourneyV700HubEnter('world-return');
     if (transitionToken) this.journeyStageController.completeTransition(transitionToken);
     emitIOSNativeDiagnostic('hub-prepaint-committed', {
       childCount: preparedChildCount,
@@ -8822,6 +9037,7 @@ class JourneyBoardsManager {
     container: HTMLElement,
     worldId: number,
     transitionToken?: JourneyStageTransitionToken,
+    options: { retainOutgoingHub?: boolean } = {},
   ): boolean {
     const stage = this.journeyWorldPrepaintStage;
     if (
@@ -8843,7 +9059,9 @@ class JourneyBoardsManager {
     const outgoingHubChildren = Array.from(container.children).filter(
       (child): child is HTMLElement => child !== stage.host && child instanceof HTMLElement,
     );
-    this.journeyStageController.retainNodes({ view: 'hub' }, outgoingHubChildren, container);
+    if (options.retainOutgoingHub !== false) {
+      this.journeyStageController.retainNodes({ view: 'hub' }, outgoingHubChildren, container);
+    }
 
     container.style.height = stage.root.style.height;
     container.style.minHeight = stage.root.style.minHeight;
@@ -9527,11 +9745,16 @@ class JourneyBoardsManager {
       const mountedCard = cardsContainer.querySelector<HTMLElement>(
         `.journey-board-card[data-board-id="${board.id}"]`,
       );
-      const mountedWrapper = mountedCard?.closest('.journey-board-card-wrapper') as HTMLElement | null;
-      if (!mountedCard || !mountedWrapper) return [];
+      const mountedWrapper = mountedCard?.closest('.journey-board-card-wrapper') as HTMLElement | null
+        || cardsContainer.querySelector<HTMLElement>(`.journey-board-card-wrapper[data-board-id="${board.id}"]`);
+      if (!mountedWrapper) return [];
 
       const expectedPresentation = getJourneyWorldCardPresentation(board);
-      const mountedPresentation = mountedCard.classList.contains('unlocked')
+      // A completed modal Play discards its original card but leaves the Unit
+      // anchor resident. Rebuild that one missing card before return priming,
+      // not after the island's enter/idle handoff. v9's cold render did this
+      // implicitly; retained DOM must reconcile absence as well as state.
+      const mountedPresentation = !mountedCard ? 'missing' : mountedCard.classList.contains('unlocked')
         ? 'unlocked'
         : mountedCard.classList.contains('interim')
           ? 'interim'
@@ -9621,7 +9844,10 @@ class JourneyBoardsManager {
     entries.forEach(({ wrapper, card }) => {
       delete (wrapper as any).__ccJourneyCardTapExitActive;
       delete (wrapper as any).__ccJourneyToGameExitTween;
-      card.classList.remove('journey-card-tapping');
+      // The gameplay receipt may hide the parked card, but the returning Unit
+      // must include it. Preserve that receipt; only the later reminder's live
+      // origin lease hides the card again when its flight actually begins.
+      card.classList.remove('journey-card-tapping', 'journey-board-card-return-placeholder');
       wrapper.style.pointerEvents = '';
       wrapper.style.transition = '';
       wrapper.style.willChange = '';
@@ -10943,6 +11169,12 @@ class JourneyBoardsManager {
     }
     (container as any).__ccJourneyV700Closing = true;
     const closingWorldId = this.journeyV700WorldId || 1;
+    const nativeHubOwner = (window as any).__jimiNativeHomeHubRuntime;
+    let nativeHubPresentation = false;
+    try {
+      nativeHubPresentation = typeof nativeHubOwner?.presentHubFromWorld === 'function'
+        && nativeHubOwner.canPresentHubFromWorld?.(closingWorldId) === true;
+    } catch { /* A missing native receiver leaves the ordinary web route intact. */ }
     const stageTransitionToken = this.journeyStageController.beginTransition(
       { view: 'world', worldId: closingWorldId },
       { view: 'hub' },
@@ -10953,6 +11185,7 @@ class JourneyBoardsManager {
       { view: 'hub' },
       `world-${closingWorldId}-to-hub`,
     );
+    const nativeHubEpoch = nativeHubPresentation ? appZoneManager.getPresentationEpoch() : null;
     journeyRouteTransitionCoordinator.claimTimeline(routeTransitionToken, {
       kill: () => {
         this.journeyWorldAnimation.stop(true);
@@ -10965,7 +11198,8 @@ class JourneyBoardsManager {
       if (routeTransitionSettled) return;
       routeTransitionSettled = true;
       if (routeDestinationCommitted) {
-        journeyRouteTransitionCoordinator.complete(routeTransitionToken, 'hub-visible-enter-started');
+        journeyRouteTransitionCoordinator.complete(routeTransitionToken,
+          nativeHubPresentation ? 'native-hub-presentation-ready' : 'hub-visible-enter-started');
       } else {
         journeyRouteTransitionCoordinator.interrupt(routeTransitionToken, 'world-to-hub-cancelled');
       }
@@ -11081,9 +11315,9 @@ class JourneyBoardsManager {
           const hubRenderStartedAt = performance.now();
           (container as any).__ccJourneyV700ReturningFromWorld = true;
           const committedRetained = hasRetainedHub && preparedHubReady &&
-            this.commitRetainedJourneyHub(container, closingWorldId, stageTransitionToken);
+            this.commitRetainedJourneyHub(container, closingWorldId, stageTransitionToken, { nativePresentation: nativeHubPresentation });
           const committedPrepaint = !committedRetained && preparedHubReady &&
-            await this.commitJourneyHubPrepaint(container, stageTransitionToken, closingWorldId);
+            await this.commitJourneyHubPrepaint(container, stageTransitionToken, closingWorldId, { nativePresentation: nativeHubPresentation });
           const committedDestination = committedRetained || committedPrepaint;
           if (!committedDestination) {
             if (!ownsClosingWorld()) return;
@@ -11091,13 +11325,23 @@ class JourneyBoardsManager {
             throw new Error('journey-hub-destination-commit-failed');
           }
           routeDestinationCommitted = true;
+          // The committed Hub is deliberately still at its hidden enter pose.
+          // Do not expose invisible web hit targets while native quiescence/IPC
+          // is pending. Native admission keeps this gate; only canonical World
+          // activation or the exact-current web fallback releases it.
+          if (nativeHubPresentation) {
+            const screen = document.getElementById('journey-screen');
+            if (screen?.contains(container)) screen.inert = true;
+          }
           // Both retained and cold commit paths synchronously start the Hub
           // enter owner. Keep active cadence through its complete cascade;
           // route completion below intentionally remains at visible start.
-          journeyRouteTransitionCoordinator.holdPresentationLeasesUntil(
-            routeTransitionToken,
-            this.waitForJourneyV700HubEnterCompletion(),
-          );
+          if (!nativeHubPresentation) {
+            journeyRouteTransitionCoordinator.holdPresentationLeasesUntil(
+              routeTransitionToken,
+              this.waitForJourneyV700HubEnterCompletion(),
+            );
+          }
           const hubRenderDurationMs = performance.now() - hubRenderStartedAt;
           markIOSJourneyTransitionAudit('hub-render-complete');
           if (areDetailedRuntimeDiagnosticsEnabled()) {
@@ -11113,7 +11357,28 @@ class JourneyBoardsManager {
             });
           }
           finishHubRenderAudit('complete');
-          this.trackTimeout(() => this.playJourneyV700NavEnter(), 120);
+          if (nativeHubPresentation) {
+            const screen = document.getElementById('journey-screen');
+            const hub = container.querySelector('.journey-v700-hub');
+            const stillOwnsHub = () => !document.hidden && !!screen && !!hub
+              && appZoneManager.isPresentationCurrent(nativeHubEpoch!, 'journey')
+              && document.getElementById('journey-screen') === screen
+              && document.getElementById('journey-boards-container') === container
+              && container.isConnected && screen.contains(container)
+              && container.querySelector('.journey-v700-hub') === hub
+              && this.journeyV700View === 'hub' && container.dataset.journeyV700View === 'hub';
+            // Native quiescence suspends this manager. Settle the old route
+            // first so suspension cannot interrupt it and roll back the epoch.
+            releaseClosing();
+            let presented = false;
+            if (stillOwnsHub()) {
+              try { presented = await nativeHubOwner.presentHubFromWorld(closingWorldId, nativeHubEpoch); }
+              catch { /* Restore the exact committed Hub only while still current. */ }
+            }
+            if (!presented && stillOwnsHub()) this.restoreCommittedHubAfterNativeReturn(container, screen!);
+          } else {
+            this.trackTimeout(() => this.playJourneyV700NavEnter(), 120);
+          }
           this.logJourneyV700Flow('close-world-rendered-hub', {}, document.getElementById('journey-boards-container') as HTMLElement | null);
         } catch (error) {
           finishHubRenderAudit('error');
@@ -11133,6 +11398,36 @@ class JourneyBoardsManager {
       this.logJourneyV700Flow('close-world-exit-error-fallback', { error: error instanceof Error ? error.message : String(error) }, container);
       complete();
     }
+  }
+
+  /** The explicit native receiver can fail after suspending the web surface.
+   * Recover that same committed Hub, never rebuild or cover a foreign route. */
+  private restoreCommittedHubAfterNativeReturn(container: HTMLElement, screen: HTMLElement): void {
+    this.resumeHubForVisibleEnter();
+    prepareJourneyViewportScreenEnter('native-hub-return-fallback', { animateJourneyContent: false });
+    container.hidden = false;
+    container.inert = false;
+    container.setAttribute('aria-hidden', 'false');
+    container.classList.remove('journey-gameplay-suspended');
+    container.style.visibility = 'visible';
+    container.style.pointerEvents = 'auto';
+    screen.hidden = false;
+    screen.inert = false;
+    screen.setAttribute('aria-hidden', 'false');
+    screen.style.setProperty('display', 'flex', 'important');
+    screen.style.setProperty('opacity', '1', 'important');
+    screen.style.setProperty('visibility', 'visible', 'important');
+    screen.style.setProperty('pointer-events', 'auto');
+    screen.style.removeProperty('will-change');
+    screen.querySelectorAll<HTMLElement>('.collectibles-header, .collectibles-scrollable')
+      .forEach(target => { target.style.pointerEvents = 'auto'; target.style.removeProperty('will-change'); });
+    if ((window as any).__ccJourneyViewportEnterPreparedReason === 'native-hub-return-fallback') {
+      delete (window as any).__ccJourneyViewportEnterPrepared;
+      delete (window as any).__ccJourneyViewportEnterPreparedReason;
+    }
+    this.installJourneyScreenElasticOverscroll(container);
+    this.playJourneyV700HubEnter('world-return');
+    this.playJourneyV700NavEnter();
   }
 
   private markJourneyDevBoardRefresh(reason: string): void {
@@ -13246,9 +13541,9 @@ class JourneyBoardsManager {
 
       // The direct interim-card path bypasses the regular card modal, so it
       // must arm the same exact-card return receipt itself. Do this only after
-      // the visible Journey exit has completed: the receipt's placeholder
-      // class intentionally hides the live card until the return reminder
-      // leases it, and arming earlier would cut off the authored Unit exit.
+      // the visible Journey exit has completed: arming earlier would hide the
+      // live card before its authored exit. Return preparation releases that
+      // placeholder before Unit enter, without consuming the reminder receipt.
       const reminderBoardId = markJourneyCardOverlayReturn(board.id);
       emitIOSNativeDiagnostic('journey-card-return-receipt-armed', {
         boardId: board.id,

@@ -72,6 +72,7 @@ function createRuntimeFixture() {
     activeBoardAreaEnterInProgress: true,
     activeBoardAreaEnterPreparedTargets: [unit],
     journeyV700Phase: 'idle',
+    cancelNativeWorldPreparation: jest.fn(),
     releaseJourneyReturnPaintWarmLease: jest.fn(),
     journeyCardInteractionProfiler: { dispose: jest.fn() },
     cancelJourneyWorldPrepaint: jest.fn(() => { runtime.worldPrepaint = false; }),
@@ -225,6 +226,9 @@ test('gameplay suspension retires every recurring Journey runtime owner without 
 
   suspend.call(fixture.owner);
 
+  expect(fixture.owner.cancelNativeWorldPreparation).toHaveBeenCalledTimes(1);
+  expect(fixture.owner.cancelNativeWorldPreparation.mock.invocationCallOrder[0])
+    .toBeLessThan(fixture.owner.cancelJourneyWorldPrepaint.mock.invocationCallOrder[0]);
   expect(fixture.runtime).toEqual({
     hub: false,
     world: false,

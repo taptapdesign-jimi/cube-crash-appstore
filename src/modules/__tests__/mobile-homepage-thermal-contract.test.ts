@@ -78,7 +78,8 @@ describe('mobile Homepage thermal ownership', () => {
     );
     expect(mobileHubContract).toContain('.journey-v700-hub.journey-v700-tilt-ready');
     expect(mobileHubContract).toContain('.journey-v700-hub.journey-v700-banners-idle-ready');
-    expect(mobileHubContract).toContain('.journey-v700-world-banner-flag-fx::before');
+    expect(mobileHubContract).toContain('.journey-v700-world-banner');
+    expect(mobileHubContract).not.toContain('journey-v700-world-banner-flag-fx');
     expect(mobileHubContract).toContain('#journey-screen[hidden]');
     expect(mobileHubContract).toContain('animation-play-state: paused;');
     expect(mobileHubContract).toContain('animation-play-state: running;');

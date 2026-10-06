@@ -53,9 +53,27 @@ export function buildHomeScene():HTMLElement {
   tabs.dataset.jimiUnit='navigation'; root.append(slides,tabs); return root;
 }
 
-export function buildHubScene(progress:JimiProgressSnapshot):HTMLElement {
+export interface SceneAssembly {
+  readonly root: HTMLElement;
+  /** Appends at most one complete authored Unit; true means assembly is done. */
+  appendNext(): boolean;
+}
+
+/** Preserved type name for callers of the original Beach-only assembly API. */
+export type BeachSceneAssembly = SceneAssembly;
+
+function drainAssembly(assembly:SceneAssembly):HTMLElement {
+  while(!assembly.appendNext()) { /* Same authored Units, without scheduling. */ }
+  return assembly.root;
+}
+
+/** Hub artwork only: does not assemble or preload any World screen. */
+export function createHubSceneAssembly(progress:JimiProgressSnapshot):SceneAssembly {
   const root=scene('hub','Worlds','home'); const content=map(root,820);
-  for(const world of JIMI_HUB_WORLDS) {
+  let index=0;
+  const appendNext=():boolean=>{
+    if(index>=JIMI_HUB_WORLDS.length) return true;
+    const world=JIMI_HUB_WORLDS[index];
     const x=world.hub.side==='left'?world.hub.edgePx:390-world.hub.edgePx-world.hub.widthPx;
     const unit=button('open-world','','jimi-hub-world'); unit.dataset.jimiUnit=`world-${world.id}`; unit.dataset.worldId=String(world.id);
     unit.setAttribute('aria-label',world.name); place(unit,x,world.hub.topPx,world.hub.widthPx,world.hub.heightPx);
@@ -69,14 +87,14 @@ export function buildHubScene(progress:JimiProgressSnapshot):HTMLElement {
     const mainArt=art({src:world.asset,src2x:world.asset2x,x:0,y:0,width:world.hub.widthPx},'jimi-hub-image',2);
     mainArt.style.height=`${world.hub.heightPx}px`; mainArt.style.objectFit='contain';
     unit.append(banner,mainArt); content.append(unit);
-  }
-  return root;
+    index++;
+    return index===JIMI_HUB_WORLDS.length;
+  };
+  return {root,appendNext};
 }
 
-export interface BeachSceneAssembly {
-  readonly root: HTMLElement;
-  /** Appends at most one complete authored Unit; true means assembly is done. */
-  appendNext(): boolean;
+export function buildHubScene(progress:JimiProgressSnapshot):HTMLElement {
+  return drainAssembly(createHubSceneAssembly(progress));
 }
 
 /** One construction path shared by immediate fixtures and scheduled cold entry. */
@@ -111,9 +129,7 @@ export function createBeachSceneAssembly(progress:JimiProgressSnapshot):BeachSce
 }
 
 export function buildBeachScene(progress:JimiProgressSnapshot):HTMLElement {
-  const assembly=createBeachSceneAssembly(progress);
-  while(!assembly.appendNext()) { /* Same authored Units, without scheduling. */ }
-  return assembly.root;
+  return drainAssembly(createBeachSceneAssembly(progress));
 }
 
 function buildKnownCardScene(boardId:number,card:JimiCardArt,stars:number|null,preview:boolean):HTMLElement {

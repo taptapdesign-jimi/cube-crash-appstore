@@ -3,7 +3,7 @@ import type { SceneHandle, SceneTransitionContext } from '../scene-director';
 jest.mock('../styles.css', () => ({}));
 jest.mock('../scene-resources', () => ({ prepareSceneImages: jest.fn() }));
 jest.mock('../scene-presentation', () => ({ createScenePresentation: jest.fn() }));
-jest.mock('../scene-assembly', () => ({ buildBeachSceneIncrementally: jest.fn() }));
+jest.mock('../scene-assembly', () => ({ buildBeachSceneIncrementally: jest.fn(), buildHubSceneIncrementally: jest.fn() }));
 // Historical observer is intentionally absent; catch accidental reintroduction.
 jest.mock('../transition-measurement', () => ({ measureTransition: jest.fn() }), { virtual: true });
 jest.mock('../../utils/app-paper-background', () => ({ applyAppPaperBackground: jest.fn() }));
@@ -24,6 +24,7 @@ describe('Jimi standalone entry lifecycle and route wiring', () => {
   let prepareImages: jest.Mock;
   let present: jest.Mock;
   let assembleBeach: jest.Mock;
+  let assembleHub: jest.Mock;
   let nextEnter: Promise<void> | undefined;
   let scrollAtEnter: Array<number | null>;
   let handles: Array<{ root: HTMLElement; handle: jest.Mocked<SceneHandle> }>;
@@ -63,6 +64,8 @@ describe('Jimi standalone entry lifecycle and route wiring', () => {
     prepareImages = require('../scene-resources').prepareSceneImages;
     prepareImages.mockResolvedValue(undefined);
     assembleBeach = require('../scene-assembly').buildBeachSceneIncrementally;
+    assembleHub = require('../scene-assembly').buildHubSceneIncrementally;
+    assembleHub.mockImplementation((progress: unknown) => Promise.resolve(require('../scene-builders').buildHubScene(progress)));
     // Timer/Unit scheduling is tested by scene-assembly.test.ts. Entry tests
     // exercise routing with an immediate completed assembly unless deferred below.
     assembleBeach.mockImplementation((progress: unknown) => Promise.resolve(require('../scene-builders').buildBeachScene(progress)));
@@ -221,6 +224,52 @@ describe('Jimi standalone entry lifecycle and route wiring', () => {
     expect(beach.inert).toBe(false);
     for (const previous of handles.slice(0, -1)) expect(previous.handle.dispose).toHaveBeenCalledTimes(1);
     expect(handles[handles.length - 1].handle.dispose).not.toHaveBeenCalled();
+  });
+
+  it('starts Home exit without waiting for cold Hub assembly and never rebuilds a committed warm Hub', async () => {
+    await boot();
+    const home = visibleScene()!;
+    const outgoing = handles[0].handle;
+    const pending = deferred();
+    const hub: HTMLElement = require('../scene-builders').buildHubScene({});
+    assembleHub.mockReturnValueOnce(pending.promise.then(() => hub));
+    await click('[data-jimi-action="open-hub"]');
+    expect(outgoing.exit).toHaveBeenCalledTimes(1);
+    expect(home.inert).toBe(true);
+    expect(visibleScene()).toBe(home);
+    expect(hub.isConnected).toBe(false);
+    expect(prepareImages.mock.calls.some(([root]) => root === hub)).toBe(false);
+    pending.resolve();
+    await flush();
+    expect(visibleScene()).toBe(hub);
+    await click('[data-jimi-action="home"]');
+    await click('[data-jimi-action="open-hub"]');
+    expect(visibleScene()).toBe(hub);
+    expect(assembleHub).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects late cold Hub publication after background cancellation and permits a fresh retry', async () => {
+    await boot();
+    const home = visibleScene()!;
+    const pending = deferred();
+    const lateHub: HTMLElement = require('../scene-builders').buildHubScene({});
+    assembleHub.mockReturnValueOnce(pending.promise.then(() => lateHub));
+    await click('[data-jimi-action="open-hub"]');
+    const context = assembleHub.mock.calls[0][1] as SceneTransitionContext;
+    setHidden(true);
+    await flush();
+    expect(context.signal.aborted).toBe(true);
+    expect(visibleScene()).toBe(home);
+    pending.resolve();
+    await flush();
+    expect(lateHub.isConnected).toBe(false);
+    expect(prepareImages.mock.calls.some(([root]) => root === lateHub)).toBe(false);
+    setHidden(false);
+    await flush();
+    await click('[data-jimi-action="open-hub"]');
+    expect(visibleScene()?.dataset.jimiScene).toBe('hub');
+    expect(visibleScene()).not.toBe(lateHub);
+    expect(assembleHub).toHaveBeenCalledTimes(2);
   });
 
   it.each(['background', 'persisted-pagehide'])('cancels cold Beach on %s, restores Hub and ignores late assembly/cache publication', async boundary => {

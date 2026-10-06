@@ -39,15 +39,8 @@
   border: none;
   background: none;
   
-  /* Improve touch feedback */
-  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
-  transition: opacity 0.1s ease;
-}
-
-.ios-device button:active,
-.ios-device .button:active,
-.ios-device .cta-button:active {
-  opacity: 0.7;
+  /* Authored CTA/nav owners supply feedback, not a dark tap overlay/fade. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* iOS scroll optimizations */

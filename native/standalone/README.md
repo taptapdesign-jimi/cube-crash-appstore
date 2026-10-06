@@ -1,0 +1,35 @@
+# Stack to Six Native — separate development app
+
+User-authorized on 2026-10-06. This is a hybrid development candidate, not a
+fully native game or an approved stable replacement for production benchmark v9.
+
+- Display name: **Stack to Six Native**.
+- Bundle ID: `com.taptapdesign.stacktosix.native` (separate sandbox/save).
+- Project: `native/standalone/Stack to Six.xcodeproj`; scheme `Stack to Six`.
+- UIKit Home/Hub and native soundtrack are enabled by this exact bundle identity,
+  including ordinary launches from the phone icon. No Simulator launch flags needed.
+- Swift presentation/audio implementations are shared directly from `../jimi-2026`.
+- Gameplay, Worlds, Settings and progression remain in the complete web runtime.
+- Existing `com.taptapdesign.stacktosix.Stack-to-Six` installation is separate.
+  Never uninstall it or copy/reset its save as part of this experiment.
+
+## Reproducible preparation
+
+Run `SKIP_NATIVE_BUNDLE_SYNC=true npm run qa:full` from the repo root. It builds
+the complete normal web payload without updating the original native project.
+Copy `dist` to `native/standalone/Stack to Six/Web.bundle` with `ditto`; this
+generated bundle is ignored by Git. Build this project only. Verify final plist
+identity, signing, complete assets and entry hash before installing exclusively
+on the user-authorized iPhone 13 blue. Do not use the original bundle sync command.
+
+## Recovery and acceptance
+
+`pre-native-main-2026-10-06` preserves prior main; `pre-native-ui-2026-10-06`
+preserves the last committed Jimi source before UIKit work (not a stable baseline).
+`production-benchmark-v9` remains the accepted complete baseline, unchanged.
+Git recovery restores code, not device save migrations. This separate app begins
+with its own save/tutorial; the original app retains its own progress.
+
+Open findings: Simulator audio inaudible even with an independent native player;
+Settings apparent duplicate entry and Homepage vertical handoff jump. Physical
+audio, sustained fluidity and complete terminal flows are not accepted yet.

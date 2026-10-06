@@ -1,5 +1,28 @@
 {
   "version": 1,
+  "transportOwners": [
+    {
+      "id": "native-file-soundtrack",
+      "ownerFile": "src/modules/native-soundtrack-transport.ts",
+      "lifecycleOwnerFile": "src/modules/soundtrack-manager.ts",
+      "family": "Soundtrack transport",
+      "eventOwner": "Existing soundtrack-manager Music route, intro, Arcade layer and result owners; no new cue decisions.",
+      "transport": "Exclusive opt-in WK reply bridge to JimiNativeMusic AVAudioEngine file segments; web backend selected only when native capability absent.",
+      "voicePolicy": "One theme plus bounded Arcade overlap; native ceiling four voices. Two file segments queued per loop, no whole-track web PCM. Independent generation tokens cancel stale play/resume.",
+      "preloadPolicy": "No web fetch/decode or native allocation before actual play; native accepts exactly the three registered soundtrack files.",
+      "settingsPolicy": "Music setting and thermal isolation remain controlled by soundtrack-manager, separate from Sounds OFF.",
+      "interruptionPolicy": "Native inactive/interruption pauses voices and finite fades; only current JS music owner resumes. Canonical voice disposal releases native file/player; no automatic web fallback after native play failure.",
+      "stopExport": "disposeNativeSoundtrackVoices",
+      "globalRegistryRequired": false,
+      "sources": [
+        "./assets/sound/soundtrack/theme-loop-v1/SIx-theme-runtime-intro-loop.wav",
+        "./assets/sound/soundtrack/adaptive-music-v3/gameplay-bed-calm-01.wav",
+        "./assets/sound/soundtrack/adaptive-music-v3/gameplay-bed-active-01.wav"
+      ],
+      "tests": ["src/modules/__tests__/native-soundtrack-transport.test.ts"],
+      "physicalAcceptance": "Experimental Simulator-only opt-in. NEEDS PHYSICAL TEST for exact loop seam, layer phase, fades, recovery, native allocations, decode CPU and thermal benefit. Journey ambient loops and SFX remain unchanged."
+    }
+  ],
   "sharedTransportPolicy": {
     "ownerFile": "src/modules/gameplay-audio-buffer-player.ts",
     "preparation": "Readiness probes never fetch/decode. Explicit optional preload uses a bounded 256-source metadata history and rechecks admission when queued work starts. Declared route/result packages reserve their complete conservative decoded ceiling before any member starts; a package that would displace active leases or audibly proven hot cues is skipped as one unit, while exact audible play still bypasses speculative admission. Once all members have known decoded sizes, a repeated multi-cue family preload is admitted atomically and may replace stale idle family data without displacing active/pending playback or another admitted package. Known unretainable buffers and never-audible evicted single cues are deferred until audible playback requests them.",
@@ -8,6 +31,35 @@
     "physicalAcceptance": "NEEDS PHYSICAL TEST for onset, decode churn and thermal contribution."
   },
   "owners": [
+    {
+      "id": "native-home-hub-feedback",
+      "ownerFile": "src/modules/native-home-hub-feedback.ts",
+      "family": "Navigation/CTA/Homepage/Journey semantic adapter",
+      "eventOwner": "Explicitly opted-in native presentation commits CTA, tab, swipe, Back, finite Home motion, Hub ambience and Hub exit receipts. Web Home source emits the missing CTA-wrapper cue only; canonical Home handler retains haptic. Web Hub source retains its canonical World CTA cue. Hub Unit enter remains deferred because its current owner requires real visible DOM geometry.",
+      "transport": "Existing feature cue owners only; no new AudioContext, media, decoded voice, asset, timer, listener, preload or automatic replay.",
+      "voicePolicy": "One native lease delegates unchanged existing family gains/voice IDs. Eight fixed event high-water marks deduplicate callbacks. releaseToWeb relinquishes before canonical web starts the same families; stale native stop cannot retire newer web voices.",
+      "preloadPolicy": "None in this adapter. Existing audible cue requests retain renderer-independent exact-family readiness and playback behavior.",
+      "settingsPolicy": "Every start requires gameSoundsEnabled; governed haptic independently honors hapticsEnabled. OFF consumes old receipts and global full stop ends the lease; ON does not restart it. Disabled factory performs no playback or cleanup.",
+      "interruptionPolicy": "Native route/background cancellation calls terminal stop; replacement stops only the former active native lease. dispose is idempotent. Before web source preparation/action, releaseToWeb relinquishes shared voices without stopping the successor owner. No callback scheduler is owned here.",
+      "stopExport": "stopNativeHomeHubFeedback",
+      "globalRegistryRequired": true,
+      "sources": [
+        "./assets/sound/CTA/deeper.wav",
+        "./assets/sound/CTA/pumb.wav",
+        "./assets/sound/CTA/cta-splat.wav",
+        "./assets/sound/CTA/cta squishy.wav",
+        "./assets/sound/card reveal/klik plop.wav",
+        "./assets/sound/CTA/poping.wav",
+        "./assets/sound/CTA/wood click.wav",
+        "./assets/sound/CTA/deppimpact.wav",
+        "./assets/sound/UI /sliders/super swoosh.mp3",
+        "./assets/sound/Board transitions/elements down1.wav",
+        "./assets/sound/Board transitions/elemens down2.wav",
+        "./assets/sound/worlds/crumbleworlds.wav"
+      ],
+      "tests": ["src/modules/__tests__/native-home-hub-feedback.test.ts"],
+      "physicalAcceptance": "NEEDS PHYSICAL TEST: adapter requires explicit native contact-frame wiring; native Hub Unit-enter cue is intentionally not implemented. Verify Sounds/Haptics OFF, timing, fallback handoff and background behavior."
+    },
     {
       "id": "launch-logo-transition",
       "ownerFile": "src/modules/launch-logo-transition-sound.ts",

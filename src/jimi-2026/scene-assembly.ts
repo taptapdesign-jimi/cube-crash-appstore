@@ -1,25 +1,28 @@
 import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
-import { createBeachSceneAssembly } from './scene-builders.js';
+import { createBeachSceneAssembly, createHubSceneAssembly, type SceneAssembly } from './scene-builders.js';
 import type { JimiProgressSnapshot } from './scene-catalog.js';
 import type { SceneTransitionContext } from './scene-director.js';
 
-const cancelled = () => new DOMException('Beach assembly cancelled', 'AbortError');
-export type MeasureBeachAssemblyChunk = (index: number, work: () => boolean) => boolean;
+export type MeasureSceneAssemblyChunk = (index: number, work: () => boolean) => boolean;
+/** Compatibility for the original Beach-only instrumentation signature. */
+export type MeasureBeachAssemblyChunk = MeasureSceneAssemblyChunk;
 
-/** Cold, selected Beach only. Returns complete detached DOM; the caller alone
+/** Cold, selected scene only. Returns complete detached DOM; the caller alone
  * publishes it to the retained cache and prepares its images before reveal.
  * One task per complete Unit avoids one long synchronous build. A task yield
  * is not a promise that the browser paints between every two chunks.
  */
-export function buildBeachSceneIncrementally(
-  progress: JimiProgressSnapshot,
+function assembleScene(
+  name: 'hub' | 'beach',
+  createAssembly: () => SceneAssembly,
   context: SceneTransitionContext,
-  measureChunk?: MeasureBeachAssemblyChunk,
+  measureChunk?: MeasureSceneAssemblyChunk,
 ): Promise<HTMLElement> {
+  const cancelled = () => new DOMException(`${name} assembly cancelled`, 'AbortError');
   return new Promise((resolve, reject) => {
     if (context.signal.aborted || !context.isCurrent()) { reject(cancelled()); return; }
-    const assembly = createBeachSceneAssembly(progress);
-    const life = createScreenLifecycle('jimi-beach-assembly');
+    const assembly = createAssembly();
+    const life = createScreenLifecycle(`jimi-${name}-assembly`);
     let settled = false;
     let index = 0;
     const finish = (error?: unknown) => {
@@ -39,8 +42,8 @@ export function buildBeachSceneIncrementally(
         if (settled) return;
         try {
           if (context.signal.aborted || !context.isCurrent()) { abort(); return; }
-          // Optional caller-owned synchronous instrumentation: index0 is main,
-          // indices1–10 are board Units. No internal logging or extra clock.
+          // Optional caller-owned instrumentation of the next authored Unit.
+          // No internal logging, extra completion task or independent clock.
           const complete = measureChunk ? measureChunk(index, assembly.appendNext) : assembly.appendNext();
           index++;
           if (context.signal.aborted || !context.isCurrent()) { abort(); return; }
@@ -50,7 +53,25 @@ export function buildBeachSceneIncrementally(
       }, 0);
     };
     life.trackListener(context.signal, 'abort', abort, { once: true });
-    // Even the main Unit is yielded, allowing outgoing motion to begin first.
+    // Even the first Unit is yielded, allowing outgoing motion to begin first.
     schedule();
   });
+}
+
+/** Three Hub artwork Units, in canonical Forest / Area55 / Beach order. */
+export function buildHubSceneIncrementally(
+  progress: JimiProgressSnapshot,
+  context: SceneTransitionContext,
+  measureChunk?: MeasureSceneAssemblyChunk,
+): Promise<HTMLElement> {
+  return assembleScene('hub', () => createHubSceneAssembly(progress), context, measureChunk);
+}
+
+/** Beach main artwork followed by its ten board Units. */
+export function buildBeachSceneIncrementally(
+  progress: JimiProgressSnapshot,
+  context: SceneTransitionContext,
+  measureChunk?: MeasureBeachAssemblyChunk,
+): Promise<HTMLElement> {
+  return assembleScene('beach', () => createBeachSceneAssembly(progress), context, measureChunk);
 }

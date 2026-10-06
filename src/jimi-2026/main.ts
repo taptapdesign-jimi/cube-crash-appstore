@@ -9,9 +9,9 @@ import { prepareSceneImages } from './scene-resources.js';
 import { createSceneDiagnostics } from './scene-diagnostics.js';
 import type { SceneDiagnostics } from './scene-diagnostics.js';
 import { createSceneInputDiagnostics } from './scene-input-diagnostics.js';
-import { buildBeachSceneIncrementally } from './scene-assembly.js';
+import { buildBeachSceneIncrementally, buildHubSceneIncrementally } from './scene-assembly.js';
 import { getBeachVisibleUnitIds } from './scene-viewport.js';
-import { buildHomeScene, buildHubScene, buildCardScene, buildCardPreviewScene } from './scene-builders.js';
+import { buildHomeScene, buildCardScene, buildCardPreviewScene } from './scene-builders.js';
 import type { JimiProgressSnapshot } from './scene-catalog.js';
 
 type Route = 'home' | 'hub' | 'beach' | 'card' | 'art-preview';
@@ -49,17 +49,19 @@ async function getScene(route: Route, context: SceneTransitionContext, trace: Sc
   if (retained) return retained;
   let root: HTMLElement;
   if (route === 'home') root = buildHomeScene();
-  else if (route === 'hub') root = buildHubScene(progress);
-  else if (route === 'beach') {
-    root = await buildBeachSceneIncrementally(progress, context,
+  else if (route === 'hub' || route === 'beach') {
+    const assemble = route === 'hub' ? buildHubSceneIncrementally : buildBeachSceneIncrementally;
+    root = await assemble(progress, context,
       (index, work) => trace.phase(`build.unit${index}`, work));
     if (context.signal.aborted || !context.isCurrent()) throw new DOMException('Scene assembly cancelled', 'AbortError');
-    const preview = document.createElement('button');
-    preview.type = 'button';
-    preview.className = 'jimi-preview-button';
-    preview.dataset.jimiAction = 'art-preview';
-    preview.textContent = 'Artwork preview (not an unlock)';
-    root.querySelector('.jimi-scene-header')!.append(preview);
+    if (route === 'beach') {
+      const preview = document.createElement('button');
+      preview.type = 'button';
+      preview.className = 'jimi-preview-button';
+      preview.dataset.jimiAction = 'art-preview';
+      preview.textContent = 'Artwork preview (not an unlock)';
+      root.querySelector('.jimi-scene-header')!.append(preview);
+    }
   } else if (route === 'art-preview') {
     const art = resolveJourneyCardAsset(11, 0);
     root = buildCardPreviewScene(11, { src: art.path1x, src2x: art.path2x, name: 'Beach · Stage 01', rarity: art.rarity });

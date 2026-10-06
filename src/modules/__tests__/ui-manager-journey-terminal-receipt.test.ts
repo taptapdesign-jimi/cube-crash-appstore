@@ -5,7 +5,7 @@ const source = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/ui-manag
 
 test('Home Play and Arcade starts protect an older Journey completion before clearing its receipt', () => {
   const boundaries = [
-    'private async handlePlayClick(event: Event)',
+    'private async handlePlayClick(event?: Event)',
     'async startNewGame(): Promise<void>',
     'async startNewGameWithSavedState(): Promise<void>',
   ];

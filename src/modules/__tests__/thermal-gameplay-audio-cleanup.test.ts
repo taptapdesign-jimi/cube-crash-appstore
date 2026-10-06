@@ -71,7 +71,10 @@ test('registry covers every media SFX/timer owner and references callable full-s
     const decodedCueOwner = /-sound\.ts$/.test(filename) && /\bplayDecodedGameplaySound\s*\(/.test(source);
     const decodedResidencyOwner = /-audio-working-set\.ts$/.test(filename)
       && /\bstopJourneyCriticalAudioWorkingSets\s*\(/.test(source);
-    return mediaOwner || timerSoundOwner || decodedCueOwner || decodedResidencyOwner;
+    // This semantic lease has no transport of its own, but Sounds OFF must
+    // retire it so later native callbacks cannot restart its delegated cues.
+    const nativeSemanticLease = path.basename(filename) === 'native-home-hub-feedback.ts';
+    return mediaOwner || timerSoundOwner || decodedCueOwner || decodedResidencyOwner || nativeSemanticLease;
   });
   expect(owners.map(owner => path.resolve(moduleDirectory, owner.name.replace(/\.js$/, '.ts'))).sort()).toEqual(candidates.sort());
   expect(new Set(owners.map(owner => owner.name)).size).toBe(owners.length);
@@ -108,6 +111,7 @@ test('enabled cleanup calls only the registered existing stops, including both d
   f.stops().forEach(stop => expect(stop).toHaveBeenCalledTimes(1));
   expect(f.modules.get('./arcade-round-digit-sound.js')?.stopArcadeRoundDigitSounds).toHaveBeenCalledTimes(1);
   expect(f.modules.get('./arcade-round-digit-sound.js')?.stopBoardTransitionDigitSounds).toHaveBeenCalledTimes(1);
+  expect(f.modules.get('./native-home-hub-feedback.js')?.stopNativeHomeHubFeedback).toHaveBeenCalledTimes(1);
 });
 
 test.each(['unmute', 'replace'])('pending module completion after %s cannot stop newer audio or load further owners', async reason => {

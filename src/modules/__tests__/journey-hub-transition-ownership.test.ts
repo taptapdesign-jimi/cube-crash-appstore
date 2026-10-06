@@ -729,7 +729,7 @@ describe('Journey Hub transition ownership', () => {
     expect(closeSource).toContain(': this.prepareJourneyHubPrepaint(container)');
     expect(closeSource).toContain('let preparedHubReady = await hubPrepaintReady');
     expect(closeSource).toContain(
-      'await this.commitJourneyHubPrepaint(container, stageTransitionToken, closingWorldId)',
+      'await this.commitJourneyHubPrepaint(container, stageTransitionToken, closingWorldId, { nativePresentation: nativeHubPresentation })',
     );
     expect(prepareSource).toContain("container.closest('#journey-screen .collectibles-scrollable')");
     expect(prepareSource).toContain("host.style.top = `${prepaintScrollTop}px`");
@@ -748,7 +748,7 @@ describe('Journey Hub transition ownership', () => {
       '(transitionToken && !this.journeyStageController.isCurrent(transitionToken))',
     );
     expect(commitSource).not.toMatch(/offsetHeight|getBoundingClientRect|waitForTrackedFrames/);
-    expect(commitSource).toContain("this.playJourneyV700HubEnter('world-return')");
+    expect(commitSource).toContain("if (!options.nativePresentation) this.playJourneyV700HubEnter('world-return')");
     expect(commitSource).toContain('atomicDetachedCommit: true');
     expect(closeSource).toContain('const outgoingZeroPresented = await this.waitForTrackedFrames(1)');
     expect(closeSource).toContain('outgoingZeroPresented,');
@@ -1035,7 +1035,7 @@ describe('Journey Hub transition ownership', () => {
       .toBeLessThan(geometryDiagnosticSource.indexOf('getBoundingClientRect()'));
   });
 
-  test('visible Journey surfaces admit idle only after the complete enter cascade', () => {
+  test('only main artwork admits early idle; remaining Journey surfaces wait for the complete cascade', () => {
     const hubEnterSource = journeyManagerSource.split(
       "private playJourneyV700HubEnter(source: 'homepage' | 'world-return'): void",
     )[1]?.split('public playJourneyV700HubEnterFromHomepage')[0] ?? '';
@@ -1048,7 +1048,7 @@ describe('Journey Hub transition ownership', () => {
       worldAnimationCoordinatorSource.indexOf('public async enter('),
     );
     const sharedIdleIndex = worldAnimationCoordinatorSource.indexOf(
-      'this.startIdle(liveUnits, reducedMotion, 0, enteringUnitSet)',
+      'this.startIdle([remaining], reducedMotion, index,',
       enterCompletionIndex,
     );
 
@@ -1067,10 +1067,10 @@ describe('Journey Hub transition ownership', () => {
       'this.startIdle([unit], reducedMotion, index)',
     );
     expect(worldAnimationCoordinatorSource).toContain(
-      "if (this.phase !== 'idle') return",
+      "if (this.phase !== 'idle' && this.phase !== 'entering') return",
     );
     expect(worldAnimationCoordinatorSource).toContain(
-      'const ramp = Math.min(1, elapsed / 0.18)',
+      'const IDLE_ENTER_RAMP_SECONDS = 0.52',
     );
     expect(worldAnimationCoordinatorSource).not.toContain('elapsed / 0.8');
   });
@@ -1117,7 +1117,10 @@ describe('Journey Hub transition ownership', () => {
     expect(hubRenderSource).not.toContain('if (locked) return');
     expect(hubRenderSource).toContain('this.openJourneyV700World(worldId, button)');
     expect(hubRenderSource).toContain('bannerCount.textContent = `${unlockedCount}/${worldBoards.length}`');
-    expect(hubRenderSource).toContain("bannerFlagFx.className = 'journey-v700-world-banner-flag-fx'");
+    expect(hubRenderSource).not.toContain('bannerFlagFx');
+    expect(hubRenderSource).not.toContain('--journey-world-shimmer-');
+    expect(hubRenderSource).toContain('banner.appendChild(bannerImage)');
+    expect(hubRenderSource).toContain('banner.appendChild(bannerCount)');
     expect(hubRenderSource).not.toContain('visual.appendChild(banner)');
     expect(hubRenderSource).not.toContain('visual.appendChild(image)');
     expect(hubRenderSource).not.toContain('dreamGhost');
@@ -1155,8 +1158,9 @@ describe('Journey Hub transition ownership', () => {
     expect(collectiblesCssSource).toContain('--journey-world-banner-rotation: -15deg;');
     expect(collectiblesCssSource).toContain('--journey-world-banner-rotation: 8deg;');
     expect(collectiblesCssSource).toContain('--journey-world-banner-rotation: -6deg;');
-    expect(collectiblesCssSource).toContain('animation: journey-world-flag-ember var(--journey-world-shimmer-duration, 6.8s)');
-    expect(collectiblesCssSource).toContain('animation: journey-world-flag-shine var(--journey-world-shimmer-duration, 6.8s)');
+    expect(collectiblesCssSource).not.toContain('journey-world-flag-ember');
+    expect(collectiblesCssSource).not.toContain('journey-world-flag-shine');
+    expect(collectiblesCssSource).not.toContain('--journey-world-shimmer-');
     expect(collectiblesCssSource).toContain(
       'transition: translate 0.72s cubic-bezier(0.2, 0.88, 0.32, 1.08);',
     );
@@ -1174,11 +1178,9 @@ describe('Journey Hub transition ownership', () => {
     expect(collectiblesCssSource).toContain('--journey-world-banner-idle-duration: 7.9s;');
     expect(collectiblesCssSource).toContain('rotate(calc(var(--journey-world-banner-rotation) + 2.5deg))');
     expect(collectiblesCssSource).toContain('rotate(calc(var(--journey-world-banner-rotation) - 2.1deg))');
-    expect(collectiblesCssSource).toContain('background: rgba(255, 255, 255, 0.68);');
     expect(collectiblesCssSource).toContain('@media (prefers-reduced-motion: reduce)');
-    expect(collectiblesCssSource).not.toContain(
-      '.journey-v700-world-banner-flag-fx::before {\n  background: radial-gradient',
-    );
+    expect(collectiblesCssSource).not.toContain('.journey-v700-world-banner-flag-fx');
+    expect(collectiblesCssSource).toContain('.journey-board-card.unlocked.idle-shimmer-trigger::after');
   });
 
   test('World signs start face-local auto tilt only after enter and pause it before exit', () => {
@@ -1199,10 +1201,10 @@ describe('Journey Hub transition ownership', () => {
     expect(journeyManagerSource).toContain("--journey-world-tilt-duration");
     expect(journeyManagerSource).toContain('const tiltPhaseSeconds = -(Math.random() * tiltDurationSeconds)');
     expect(journeyManagerSource).toContain("Math.random() < 0.5 ? 'normal' : 'reverse'");
-    expect(journeyManagerSource).toContain("--journey-world-shimmer-duration");
-    expect(journeyManagerSource).toContain('const shimmerPhaseSeconds = -(Math.random() * shimmerDurationSeconds)');
-    expect(collectiblesCssSource).toContain('var(--journey-world-shimmer-duration, 6.8s)');
-    expect(collectiblesCssSource).toContain('var(--journey-world-shimmer-delay, 0s)');
+    expect(journeyManagerSource).not.toContain('--journey-world-shimmer-duration');
+    expect(journeyManagerSource).not.toContain('shimmerPhaseSeconds');
+    expect(collectiblesCssSource).not.toContain('--journey-world-shimmer-duration');
+    expect(collectiblesCssSource).not.toContain('--journey-world-shimmer-delay');
     expect(collectiblesCssSource).toContain('perspective(720px)');
     expect(collectiblesCssSource).toContain('rotateY(7.2deg)');
     expect(collectiblesCssSource).toContain('rotateY(-6.4deg)');

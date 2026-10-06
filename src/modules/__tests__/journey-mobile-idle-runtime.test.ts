@@ -24,7 +24,8 @@ describe('Journey mobile idle runtime', () => {
       'utf8',
     );
     expect(source).toContain("this.phase === 'idle'");
-    expect(source).toContain('this.startIdle(liveUnits, reducedMotion, 0, enteringUnitSet)');
+    expect(source).toContain('this.startIdle([remaining], reducedMotion, index,');
+    expect(source).toContain('this.startIdle([main], false, liveUnits.indexOf(unit), new Set([main]))');
     expect(source).not.toContain('this.startIdle([unit], reducedMotion, index)');
     expect(source).toContain('this.runtimeProfile.settledIdleMaxFramesPerSecond');
     expect(source).toContain('entry.visibilityResolved && entry.visibleTargets.size === 0');

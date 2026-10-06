@@ -17,6 +17,16 @@ The repository retains historical `cube-crash` names in paths and code. That doe
 
 ## Native mode and device
 
+- User-authorized separate **Stack to Six Native** development app (2026-10-06):
+  project `native/standalone/Stack to Six.xcodeproj` in this repository, scheme
+  `Stack to Six`, bundle ID `com.taptapdesign.stacktosix.native`. This explicit
+  exception must never replace the original bundle. UIKit Home/Hub and native
+  soundtrack are enabled by exact bundle identity; gameplay/Worlds remain web.
+  Prepare only its ignored Web.bundle from complete `dist`, never by changing
+  the original native sync destination. See `native/standalone/README.md`.
+  The original app's requested label is **Stack to Six PWA** (still a WKWebView
+  shell, not technically a PWA); its bundle ID and separate save remain unchanged.
+
 - Physical-device checks normally use the bundled `Web.bundle` mode with `useDevServer = false` in `/Users/user/Stack to Six/Stack to Six/GameViewController.swift`.
 - Do not switch to LAN/Vite loading unless the user explicitly requests that experiment. The prior LAN workflow produced white-screen and routing failures.
 - The only normal physical test/install target is `iPhone 13 blue`. Never fall back to another iPhone or iPad unless the user explicitly names that device and asks to change targets.

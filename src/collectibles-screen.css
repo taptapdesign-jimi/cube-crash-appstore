@@ -2633,9 +2633,7 @@
 .journey-v700-hub.journey-v700-runtime-suspended .journey-v700-world-visual,
 .journey-v700-hub.journey-v700-runtime-suspended .journey-v700-world-cloud,
 .journey-v700-hub.journey-v700-runtime-suspended .journey-v700-world-tilt-shell,
-.journey-v700-hub.journey-v700-runtime-suspended .journey-v700-world-banner,
-.journey-v700-hub.journey-v700-runtime-suspended .journey-v700-world-banner-flag-fx::before,
-.journey-v700-hub.journey-v700-runtime-suspended .journey-v700-world-banner-flag-fx::after {
+.journey-v700-hub.journey-v700-runtime-suspended .journey-v700-world-banner {
   animation-play-state: paused !important;
   will-change: auto !important;
 }
@@ -2647,9 +2645,7 @@
 .cc-mobile-runtime .journey-v700-world-visual,
 .cc-mobile-runtime .journey-v700-world-cloud,
 .cc-mobile-runtime .journey-v700-world-tilt-shell,
-.cc-mobile-runtime .journey-v700-world-banner,
-.cc-mobile-runtime .journey-v700-world-banner-flag-fx::before,
-.cc-mobile-runtime .journey-v700-world-banner-flag-fx::after {
+.cc-mobile-runtime .journey-v700-world-banner {
   animation-play-state: paused;
 }
 
@@ -2679,11 +2675,7 @@
 }
 
 .cc-mobile-runtime .journey-v700-hub.journey-v700-banners-idle-ready
-  .journey-v700-world-card.journey-v700-runtime-active .journey-v700-world-banner,
-.cc-mobile-runtime .journey-v700-hub.journey-v700-banners-idle-ready
-  .journey-v700-world-card.journey-v700-runtime-active .journey-v700-world-banner-flag-fx::before,
-.cc-mobile-runtime .journey-v700-hub.journey-v700-banners-idle-ready
-  .journey-v700-world-card.journey-v700-runtime-active .journey-v700-world-banner-flag-fx::after {
+  .journey-v700-world-card.journey-v700-runtime-active .journey-v700-world-banner {
   animation-play-state: running;
 }
 
@@ -2694,11 +2686,7 @@
 .cc-mobile-runtime .journey-v700-hub.journey-v700-tilt-ready
   .journey-v700-world-card:not(.journey-v700-runtime-active) .journey-v700-world-tilt-shell,
 .cc-mobile-runtime .journey-v700-hub.journey-v700-banners-idle-ready
-  .journey-v700-world-card:not(.journey-v700-runtime-active) .journey-v700-world-banner,
-.cc-mobile-runtime .journey-v700-hub.journey-v700-banners-idle-ready
-  .journey-v700-world-card:not(.journey-v700-runtime-active) .journey-v700-world-banner-flag-fx::before,
-.cc-mobile-runtime .journey-v700-hub.journey-v700-banners-idle-ready
-  .journey-v700-world-card:not(.journey-v700-runtime-active) .journey-v700-world-banner-flag-fx::after {
+  .journey-v700-world-card:not(.journey-v700-runtime-active) .journey-v700-world-banner {
   animation-play-state: paused;
   will-change: auto;
 }
@@ -2706,9 +2694,7 @@
 .cc-mobile-runtime #journey-screen[hidden] .journey-v700-world-visual,
 .cc-mobile-runtime #journey-screen[hidden] .journey-v700-world-cloud,
 .cc-mobile-runtime #journey-screen[hidden] .journey-v700-world-tilt-shell,
-.cc-mobile-runtime #journey-screen[hidden] .journey-v700-world-banner,
-.cc-mobile-runtime #journey-screen[hidden] .journey-v700-world-banner-flag-fx::before,
-.cc-mobile-runtime #journey-screen[hidden] .journey-v700-world-banner-flag-fx::after {
+.cc-mobile-runtime #journey-screen[hidden] .journey-v700-world-banner {
   animation-play-state: paused;
   will-change: auto;
 }
@@ -2819,88 +2805,6 @@
   transform: scaleX(-1);
 }
 
-.journey-v700-world-banner-flag-fx {
-  position: absolute;
-  top: 20%;
-  bottom: 2%;
-  width: 48%;
-  overflow: hidden;
-  clip-path: polygon(2% 0, 98% 0, 94% 100%, 50% 92%, 6% 100%);
-  pointer-events: none;
-  z-index: 2;
-}
-
-.journey-v700-world-banner-right .journey-v700-world-banner-flag-fx {
-  right: 0;
-}
-
-.journey-v700-world-banner-left .journey-v700-world-banner-flag-fx {
-  left: 0;
-}
-
-.journey-v700-world-banner-flag-fx::before,
-.journey-v700-world-banner-flag-fx::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.journey-v700-world-banner-flag-fx::before {
-  background:
-    linear-gradient(180deg, rgba(205, 105, 57, 0) 42%, rgba(205, 105, 57, 0.13) 78%, rgba(152, 70, 39, 0.22) 100%),
-    linear-gradient(102deg, rgba(255, 247, 216, 0) 28%, rgba(255, 247, 216, 0.2) 48%, rgba(255, 247, 216, 0) 68%);
-  mix-blend-mode: soft-light;
-  opacity: 0;
-  transform: translateZ(0);
-  animation: journey-world-flag-ember var(--journey-world-shimmer-duration, 6.8s) ease-in-out var(--journey-world-shimmer-delay, 0s) infinite;
-}
-
-.journey-v700-world-banner-flag-fx::after {
-  background: rgba(255, 255, 255, 0.68);
-  opacity: 0;
-  transform: translateZ(0);
-  -webkit-mask-image: linear-gradient(110deg, transparent 36%, #000 47%, #000 53%, transparent 64%);
-  mask-image: linear-gradient(110deg, transparent 36%, #000 47%, #000 53%, transparent 64%);
-  -webkit-mask-size: 260% 100%;
-  mask-size: 260% 100%;
-  -webkit-mask-position: 145% 0;
-  mask-position: 145% 0;
-  animation: journey-world-flag-shine var(--journey-world-shimmer-duration, 6.8s) ease-in-out var(--journey-world-shimmer-delay, 0s) infinite;
-}
-
-@keyframes journey-world-flag-ember {
-  0%, 8%, 28%, 44%, 69%, 100% { opacity: 0; }
-  14%, 52% { opacity: 0.32; }
-  22%, 62% { opacity: 0.12; }
-}
-
-@keyframes journey-world-flag-shine {
-  0%, 6% {
-    opacity: 0;
-    -webkit-mask-position: 145% 0;
-    mask-position: 145% 0;
-  }
-  10%, 22% { opacity: 0.46; }
-  30% {
-    opacity: 0;
-    -webkit-mask-position: -145% 0;
-    mask-position: -145% 0;
-  }
-  31%, 49% {
-    opacity: 0;
-    -webkit-mask-position: 145% 0;
-    mask-position: 145% 0;
-  }
-  53%, 65% { opacity: 0.4; }
-  73% {
-    opacity: 0;
-    -webkit-mask-position: -145% 0;
-    mask-position: -145% 0;
-  }
-  74%, 100% { opacity: 0; }
-}
-
 @keyframes journey-world-banner-special-idle {
   0% {
     transform: translate3d(0, 0, 0) rotate(var(--journey-world-banner-rotation));
@@ -2934,9 +2838,7 @@
     transform: none !important;
   }
 
-  .journey-v700-world-banner,
-  .journey-v700-world-banner-flag-fx::before,
-  .journey-v700-world-banner-flag-fx::after {
+  .journey-v700-world-banner {
     animation: none;
   }
 
@@ -2944,11 +2846,6 @@
     translate: 0 0;
     transition: none;
     transform: rotate(var(--journey-world-banner-rotation));
-  }
-
-  .journey-v700-world-banner-flag-fx::before,
-  .journey-v700-world-banner-flag-fx::after {
-    opacity: 0;
   }
 
 }
@@ -4067,7 +3964,7 @@
   pointer-events: auto !important;
   /* 🔥 iPad FIX: Enable touch events */
   touch-action: manipulation !important;
-  -webkit-tap-highlight-color: rgba(232, 115, 74, 0.3) !important;
+  -webkit-tap-highlight-color: transparent !important;
   -webkit-touch-callout: none !important;
   user-select: none !important;
 }

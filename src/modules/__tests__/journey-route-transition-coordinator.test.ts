@@ -47,6 +47,19 @@ const createFixture = () => {
 };
 
 describe('JourneyRouteTransitionCoordinator', () => {
+  test('explicit external-route cancellation retires all leases without republishing the source zone', async () => {
+    const f = createFixture();
+    const token = f.coordinator.begin({ view: 'hub' }, { view: 'world', worldId: 2 }, 'native-world');
+    const timeline = { kill: jest.fn() };
+    f.coordinator.claimTimeline(token, timeline);
+    expect(f.coordinator.interrupt(token, 'foreign-route', { rollbackZone: false })).toBe(true);
+    expect(f.publishAppZone).toHaveBeenCalledTimes(1);
+    expect(timeline.kill).toHaveBeenCalledTimes(1);
+    expect(f.criticalReleases[0]).toHaveBeenCalledTimes(1);
+    expect(f.audioReleases[0]).toHaveBeenCalledTimes(1);
+    expect(f.presentationReleases[0]).toHaveBeenCalledTimes(1);
+    await expect(token.completion).resolves.toMatchObject({ status: 'interrupted', reason: 'foreign-route' });
+  });
   test('publishes Journey ownership and owns one resource, audio and presentation lease plus timeline', async () => {
     const fixture = createFixture();
     const token = fixture.coordinator.begin(

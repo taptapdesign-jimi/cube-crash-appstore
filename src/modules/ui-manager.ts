@@ -468,9 +468,21 @@ class UIManager {
     // Having dual subscriptions caused desynchronization issues
   }
   
+  /** Native Home has already handed its settled source back to the web. Reuse
+   * the exact authored CTA decision, sounds, tutorial and saved-run routing. */
+  public async activateNativeHomepageAction(action: 'arcade' | 'settings' | 'journey'): Promise<boolean> {
+    if (!this.isInitialized || appZoneManager.getCurrentZone() !== 'home'
+      || gameState.get('sliderLocked') || !this.elements.home || this.elements.home.hidden) return false;
+    if (action === 'arcade') await this.handlePlayClick();
+    else if (action === 'journey') this.handleStatsClick();
+    else if (action === 'settings' && this.elements.settingsScreen) this.handleSettingsClick();
+    else return false;
+    return true; // Action accepted, not destination-ready.
+  }
+
   // Handle play button click
-  private async handlePlayClick(event: Event): Promise<void> {
-    event.preventDefault();
+  private async handlePlayClick(event?: Event): Promise<void> {
+    event?.preventDefault();
     logger.info('🎮 Play button clicked');
     
     // Light haptic for Play button (same as other slider CTA buttons)
@@ -571,8 +583,8 @@ class UIManager {
   }
   
   // Handle stats button click
-  private handleStatsClick(event: Event): void {
-    event.preventDefault();
+  private handleStatsClick(event?: Event): void {
+    event?.preventDefault();
     logger.info('🗺️ Journey button clicked (opens Journey screen)');
     
     // The bottom Journey nav icon already emitted its own haptic before it
@@ -606,8 +618,8 @@ class UIManager {
   }
   
   // Handle settings button click
-  private handleSettingsClick(event: Event): void {
-    event.preventDefault();
+  private handleSettingsClick(event?: Event): void {
+    event?.preventDefault();
     logger.info('⚙️ Settings button clicked');
     
     // Light haptic for Settings button
@@ -1067,7 +1079,7 @@ class UIManager {
   }
   
   // Hide homepage
-  hideHomepage(): void {
+  hideHomepage(): Promise<void> {
     const cleanupZone = (window as any).__ccAppZone;
     const cleanupEpoch = appZoneManager.getPresentationEpoch();
     const cleanupStillOwned = (): boolean =>
@@ -1075,7 +1087,7 @@ class UIManager {
       && (window as any).__ccAppZone === cleanupZone && !homepageEnterTransitionOwner.isActive();
 
     // 🔥 MEMORY LEAK FIX: Cleanup all animations before hiding homepage
-    (async () => {
+    const cleanup = (async () => {
       // 1. Cleanup animation timeouts
       try {
         const { cleanupAnimations } = await import('../utils/animations.js');
@@ -1211,6 +1223,7 @@ class UIManager {
       this.elements.home.setAttribute('hidden', 'true');
       logger.info('✅ Homepage hidden (no opacity fade)');
     }
+    return cleanup;
   }
   
   // Show app element

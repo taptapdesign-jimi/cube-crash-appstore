@@ -174,6 +174,12 @@ stagger = 0.09;
 
 Lifecycle requirement: background preparation may render the Hub, but it must not consume the visible enter animation. Immediately before the Journey viewport begins its real visible enter, prime all three World Units into the hidden start state. Start the World cascade in that same visible-enter lifecycle. The common scroll ancestor stays at its neutral transform; the outer World cards are the only owners of the standard enter transform. Banner reveal may start on the first real World tween, but nested World/cloud and banner idle animation is admitted atomically only after every World/cloud enter target settles. The single visible-enter completion boundary then unlocks scrolling and input. For an individual Forest/Beach/Area 55 screen, animate only complete Units inside or near the initial scroll viewport; settle farther offscreen Units before the visible frame and admit their idle only when the shared viewport observer sees them. The initially visible Units join the shared idle owner immediately after the complete visible cascade so settled transforms never compete with later enter transforms. Idle uses a short seamless ramp and must not introduce a separate delayed timer.
 
+**Main-art exception (2026-10-05, explicit user request):** inside an individual
+World, only the largest main artwork starts gentle upward idle immediately after
+its own enter completes. It uses the same coordinator ticker and 520ms onset
+envelope, and is not restarted at cascade completion. Main clouds, cards and
+all other Units retain full-cascade admission and their existing motion.
+
 Hub/World preparation must not perform per-target computed-style or GSAP transform
 hydration after the accepted navigation tap. Newly built or retained Units receive
 their known hidden start poses through one bounded write-only preparation owner;

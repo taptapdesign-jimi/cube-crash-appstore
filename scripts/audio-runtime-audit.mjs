@@ -107,7 +107,8 @@ try {
   const ids = new Set();
 
   if (!Array.isArray(manifest.owners)) errors.push('audio runtime owners must contain an owners array');
-  for (const record of manifest.owners ?? []) {
+  const transports = manifest.transportOwners ?? [];
+  for (const record of [...(manifest.owners ?? []), ...transports]) {
     if (typeof record.id !== 'string' || !record.id.trim()) errors.push('audio owner has no id');
     else if (ids.has(record.id)) errors.push(`${record.id}: duplicate audio owner id`);
     else ids.add(record.id);
@@ -130,7 +131,17 @@ try {
     for (const test of record.tests ?? []) {
       if (typeof test !== 'string' || !test.startsWith('src/') || !fs.existsSync(path.join(root, test))) errors.push(`${record.id}: missing test ${String(test)}`);
     }
-    if (record.globalRegistryRequired !== true) errors.push(`${record.id}: globalRegistryRequired must be true for a feature SFX owner`);
+    if (transports.includes(record)) {
+      // Music transports inherit Music OFF and disposal from their existing
+      // soundtrack owner. Registering them in Sounds OFF would mute music.
+      if (record.globalRegistryRequired !== false || record.lifecycleOwnerFile !== 'src/modules/soundtrack-manager.ts') {
+        errors.push(`${record.id}: soundtrack transport must retain the canonical music lifecycle owner`);
+      }
+      const lifecycleSource = fs.readFileSync(path.join(root, 'src/modules/soundtrack-manager.ts'), 'utf8');
+      if (!lifecycleSource.includes('voice.dispose') && !lifecycleSource.includes('voice as MainThemeVoiceLike).dispose')) {
+        errors.push(`${record.id}: canonical soundtrack disposal is missing`);
+      }
+    } else if (record.globalRegistryRequired !== true) errors.push(`${record.id}: globalRegistryRequired must be true for a feature SFX owner`);
     if (record.globalRegistryRequired === true && typeof record.ownerFile === 'string' && typeof record.stopExport === 'string') {
       const moduleRef = `./${path.basename(record.ownerFile).replace(/\.ts$/, '.js')}`;
       if (!registrySource.includes(moduleRef) || !registrySource.includes(`owner.${record.stopExport}`)) errors.push(`${record.id}: owner full stop is missing from gameplay-sound-owner-registry`);

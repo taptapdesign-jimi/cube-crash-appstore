@@ -233,10 +233,10 @@ export class JourneyRouteTransitionCoordinator {
     return true;
   }
 
-  public interrupt(token: JourneyRouteTransitionToken, reason = 'interrupted'): boolean {
+  public interrupt(token: JourneyRouteTransitionToken, reason = 'interrupted', options: { rollbackZone?: boolean } = {}): boolean {
     const active = this.active;
     if (!active || !this.isCurrent(token)) return false;
-    this.settle(active, 'interrupted', reason, true);
+    this.settle(active, 'interrupted', reason, true, options.rollbackZone !== false);
     return true;
   }
 

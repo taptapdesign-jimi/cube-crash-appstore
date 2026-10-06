@@ -2,7 +2,7 @@ import { gsap } from 'gsap';
 import { JourneyWorldAnimationCoordinator } from '../journey-world-animation-coordinator';
 import { startThermalIsolation } from '../../utils/thermal-isolation';
 
-test('Unit probe freezes settled painting and enter never starts the settled idle owner', () => {
+test('Unit probe freezes both settled and early-main idle painting', () => {
   jest.useFakeTimers();
   Object.defineProperty(document, 'hidden', { configurable: true, value: false });
   const setter = jest.fn();
@@ -10,10 +10,10 @@ test('Unit probe freezes settled painting and enter never starts the settled idl
   const coordinator = new JourneyWorldAnimationCoordinator();
   const owner = coordinator as unknown as {
     phase: string; idleTicker: () => void; lastSettledIdlePaintAt: number | null;
-    startIdle(units: Array<{ targets: HTMLElement[]; clouds: HTMLElement[] }>, reduced: boolean): void;
+    startIdle(units: Array<{ id: string; targets: HTMLElement[]; clouds: HTMLElement[] }>, reduced: boolean): void;
   };
   const target = document.createElement('div'); document.body.append(target);
-  owner.phase = 'idle'; owner.startIdle([{ targets: [target], clouds: [] }], false);
+  owner.phase = 'idle'; owner.startIdle([{ id: 'forest-main', targets: [target], clouds: [] }], false);
   const tick = owner.idleTicker;
   const stop = startThermalIsolation({ enabled: true, group: 'journey-units', fingerprint: () => 'same', suppress: () => () => {}, emit: () => {} });
   try {

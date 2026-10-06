@@ -1,5 +1,21 @@
 # Stack to Six Web/App Sync Workflow
 
+## Explicit separate Native app exception (2026-10-06)
+
+The user authorized `native/standalone/Stack to Six.xcodeproj`, scheme `Stack to Six`,
+bundle `com.taptapdesign.stacktosix.native`, display name **Stack to Six Native**,
+for side-by-side installation on iPhone 13 blue. Build from the complete normal
+web payload using `SKIP_NATIVE_BUNDLE_SYNC=true`; copy only into that project's
+ignored Web.bundle. Verify the `.native` identity before installation. Do not
+reuse the original bundle ID or import/reset its save. See its README for scope.
+
+The original app's **Stack to Six PWA** label was applied to a copy of its last
+recorded installed archive without changing its Web.bundle or runtime dylib,
+then re-signed and installed over the same original bundle ID, without uninstall.
+The official source project is unchanged; future original-app builds must
+explicitly preserve the requested label. PWA is a user-facing distinction here;
+the original remains a bundled WKWebView shell, not technically a PWA.
+
 This project uses `/Users/user/cube-crash` as the web source and `/Users/user/Stack to Six/Stack to Six.xcodeproj` as the only active native iPhone shell.
 
 Do not use the legacy `/Users/user/Kockice Crash/Kockice Crash.xcodeproj` workflow unless the user explicitly asks for it.

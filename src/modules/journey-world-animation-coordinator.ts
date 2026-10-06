@@ -63,6 +63,7 @@ interface JourneyWorldIdleEntry {
 }
 
 const FRAME_INTERVAL_TOLERANCE_MS = 1;
+const IDLE_ENTER_RAMP_SECONDS = 0.52;
 const IDLE_RESUME_POSE_BLEND_SECONDS = 0.52;
 const ENTER_VIEWPORT_MARGIN_PX = 220;
 export const JOURNEY_WORLD_IDLE_ACTIVE_CLASS = 'journey-world-idle-active';
@@ -279,6 +280,7 @@ export class JourneyWorldAnimationCoordinator {
     // Never turn a malformed viewport measurement into an empty visible enter.
     if (enteringUnits.length === 0) enteringUnits = liveUnits.slice(0, 1);
     const enteringUnitSet = new Set(enteringUnits);
+    const earlyMainTargets = new Set<HTMLElement>();
     const worldEnterOffsets = getJourneyV700EnterOffsets(liveUnits, reducedMotion);
     const enterOffsets = enteringUnits.map((unit) => worldEnterOffsets[liveUnits.indexOf(unit)]);
     const settledOffscreenUnits = liveUnits.filter((unit) => !enteringUnitSet.has(unit));
@@ -384,6 +386,14 @@ export class JourneyWorldAnimationCoordinator {
         tween.eventCallback('onComplete', () => {
           if (generation !== this.generation || this.phase !== 'entering') return;
           unit.targets.forEach((target) => this.finalizeEnterTarget(target));
+          if (!reducedMotion) {
+            const targets = unit.targets.filter((target) => isJourneyWorldMainArtworkTarget(unit.id, target));
+            if (targets.length) {
+              targets.forEach((target) => earlyMainTargets.add(target));
+              const main = { ...unit, targets, clouds: [] };
+              this.startIdle([main], false, liveUnits.indexOf(unit), new Set([main]));
+            }
+          }
         });
         timeline.add(tween, enterLead + irregularOffset);
       });
@@ -391,10 +401,13 @@ export class JourneyWorldAnimationCoordinator {
 
     if (generation !== this.generation || this.phase !== 'entering') return;
     this.phase = 'idle';
-    // Start the shared settled motion immediately after the complete cascade.
-    // Painting earlier Units while later Units are still entering makes their
-    // large PNG transforms compete in the same iOS compositor frames.
-    this.startIdle(liveUnits, reducedMotion, 0, enteringUnitSet);
+    // Only main artwork starts after its own enter. Everything else retains
+    // complete-cascade admission; never restart the already moving main image.
+    liveUnits.forEach((unit, index) => {
+      const remaining = { ...unit, targets: unit.targets.filter((target) => !earlyMainTargets.has(target)) };
+      this.startIdle([remaining], reducedMotion, index,
+        new Set(enteringUnitSet.has(unit) ? [remaining] : []));
+    });
   }
 
   public async exit(units: JourneyWorldAnimationUnit[], reducedMotion: boolean): Promise<void> {
@@ -647,7 +660,9 @@ export class JourneyWorldAnimationCoordinator {
       const startTime = this.idlePaintSuspendedAt ?? gsap.ticker.time;
       const duration = 3.15 + ((unitIndex % 3) * 0.28);
       const speed = (Math.PI * 2) / duration;
-      const phaseOffset = unitIndex * 0.47;
+      const mainArtworkOnly = unit.targets.length > 0
+        && unit.targets.every((target) => isJourneyWorldMainArtworkTarget(unit.id, target));
+      const phaseOffset = mainArtworkOnly ? Math.PI : unitIndex * 0.47;
       const ySetters = unit.targets.map((target) => gsap.quickSetter(target, 'y', 'px') as (value: number) => void);
       const cloudSetters = unit.clouds.map((cloud) => ({
         target: cloud,
@@ -693,7 +708,7 @@ export class JourneyWorldAnimationCoordinator {
       return;
     }
     this.idleTicker = () => {
-      if (this.phase !== 'idle') return;
+      if (this.phase !== 'idle' && this.phase !== 'entering') return;
       if (isThermalWorkSuppressed('journey-units')) return;
       if (this.idlePaintSuspendedAt !== null) return;
       const now = gsap.ticker.time;
@@ -708,8 +723,11 @@ export class JourneyWorldAnimationCoordinator {
       this.idleEntries.forEach((entry) => {
         if (entry.visibilityResolved && entry.visibleTargets.size === 0) return;
         const elapsed = now - entry.startTime;
-        const ramp = Math.min(1, elapsed / 0.18);
-        const easedRamp = ramp * ramp * (3 - (2 * ramp));
+        const ramp = Math.min(1, Math.max(0, elapsed / IDLE_ENTER_RAMP_SECONDS));
+        // Leave the settled enter pose with zero velocity and acceleration.
+        // This envelope shares the existing ticker; it neither delays admission
+        // nor changes the settled wave, phase or paint-rate budget.
+        const easedRamp = ramp * ramp * ramp * (ramp * ((6 * ramp) - 15) + 10);
         const y = Math.sin((elapsed * entry.speed) + entry.phaseOffset) * 7 * easedRamp;
         const resumeProgress = entry.resumeBlendStartedAt === null
           ? 1
@@ -741,7 +759,7 @@ export class JourneyWorldAnimationCoordinator {
   private refreshIdleTickerAttachment(): void {
     if (!this.idleTicker) return;
     const needed = this.idlePaintSuspendedAt === null
-      && this.phase === 'idle'
+      && (this.phase === 'idle' || this.phase === 'entering')
       && this.idleEntries.some((entry) => !entry.visibilityResolved || entry.visibleTargets.size > 0);
     if (needed === this.idleTickerAttached) return;
     this.idleTickerAttached = needed;

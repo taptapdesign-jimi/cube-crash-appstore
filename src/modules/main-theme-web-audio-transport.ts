@@ -6,6 +6,7 @@ import {
 } from '../utils/thermal-audio-isolation.js';
 import { arePerformanceDiagnosticsEnabled } from '../utils/runtime-diagnostics-policy.js';
 import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.js';
+import { createNativeSoundtrackVoice } from './native-soundtrack-transport.js';
 
 const preparation = { pendingLoads: 0, pendingDecodes: 0, decodeStarts: 0 };
 export function getSoundtrackPreparationStats() { return { ...preparation }; }
@@ -72,7 +73,7 @@ export interface SampleAccurateMainThemeVoice extends MainThemeVoiceLike {
   dispose(): void;
 }
 
-interface MainThemeTransportOptions {
+export interface MainThemeTransportOptions {
   source: string;
   loopStartSeconds: number;
   loopEndSeconds: number;
@@ -567,6 +568,8 @@ export function createSampleAccurateMainThemeVoice(
     return null;
   }
   if (typeof window === 'undefined') return null;
+  const nativeVoice = createNativeSoundtrackVoice(options);
+  if (nativeVoice) return nativeVoice;
   const AudioContextConstructor = window.AudioContext ||
     (window as WebkitAudioWindow).webkitAudioContext;
   if (!AudioContextConstructor) return null;

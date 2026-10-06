@@ -8,6 +8,26 @@ and their feature modules. Gameplay KING and the asset-preservation order apply.
 
 ## Transports
 
+### Experimental native soundtrack (2026-10-05)
+
+Only the isolated QA Simulator can expose `jimiMusic`, with explicit
+`--jimi-native-music` alongside native Home/Hub. `native-soundtrack-transport.ts`
+implements the existing soundtrack voice interface before any Web Audio context
+is allocated. No capability means the unchanged web backend. A native playback
+failure rejects; it never starts a second web voice behind an uncertain native
+one. The soundtrack manager still owns Music, route, intro/loop points, Arcade
+mix and result envelopes. This is not SFX and must not be stopped by Sounds OFF.
+
+`native/jimi-2026/JimiNativeMusic.swift` owns one AVAudioEngine, at most four file
+players and two queued file segments per loop. Only the three existing theme and
+Arcade sources are admitted. Native background/interruption pauses all players;
+only the current web music owner may request resume. Each gain fade has one
+finite timer canceled on replacement/pause/dispose; there is no settled timer.
+Per-voice disposal releases node/file resources. Swift file-player memory is NOT
+included in web decodedBytes=0. Journey ambience and all SFX are still unchanged.
+This prototype has not proved native memory, loop-seam, phase, interruption or
+thermal acceptance and must not be represented as a churn/overheating fix.
+
 | Transport | Runtime owner | Responsibility |
 | --- | --- | --- |
 | Decoded SFX Web Audio | `gameplay-audio-buffer-player.ts` | One lazy AudioContext, shared decoded-buffer cache, bounded/namespaced voice IDs, pending decode/start receipts, gain/rate/delay/stop automation, context recovery and voice cleanup. |

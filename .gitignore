@@ -10,6 +10,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-*
+native/standalone/Stack to Six/Web.bundle/
+native/standalone/**/xcuserdata/
 coverage
 public
 *.local

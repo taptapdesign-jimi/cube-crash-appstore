@@ -16,24 +16,30 @@ const js = ts.transpileModule(`class CloseProbe { ${method} }`, {
   compilerOptions: { target: ts.ScriptTarget.ES2020 },
 }).outputText;
 const noop = () => {};
+let presentationEpoch = 1;
+let currentZone = 'journey';
+const routeCoordinator = {
+  begin: jest.fn(() => ({})), claimTimeline: jest.fn(() => true),
+  complete: jest.fn(() => true), interrupt: jest.fn(() => true),
+  holdPresentationLeasesUntil: jest.fn(() => true),
+};
 const Probe = new Function(
   'stopJourneyForestAmbientSounds', 'getJourneyCardOverlayReturnBoardId',
   'cancelJourneyCardOverlayReturn', 'emitIOSNativeDiagnostic',
   'startIOSJourneyWorldEnterAudit', 'areContinuousRuntimeDiagnosticsEnabled',
   'markIOSJourneyTransitionAudit', 'markIOSJourneyRouteAudit', 'areDetailedRuntimeDiagnosticsEnabled',
-  'acquireForegroundResourceCriticalLease', 'journeyRouteTransitionCoordinator',
+  'acquireForegroundResourceCriticalLease', 'journeyRouteTransitionCoordinator', 'appZoneManager', 'prepareJourneyViewportScreenEnter',
   `${js}; return CloseProbe;`,
 )(noop, () => null, noop, noop, () => noop, () => false, noop, noop, () => false,
-  acquireForegroundResourceCriticalLease, {
-    begin: jest.fn(() => ({})),
-    claimTimeline: jest.fn(() => true),
-    complete: jest.fn(() => true),
-    interrupt: jest.fn(() => true),
-    holdPresentationLeasesUntil: jest.fn(() => true),
-  });
+  acquireForegroundResourceCriticalLease, routeCoordinator, {
+    getPresentationEpoch: () => presentationEpoch,
+    isPresentationCurrent: (epoch, zone) => epoch === presentationEpoch && zone === currentZone,
+  }, noop);
 
 function fixture(worldId: number) {
-  document.body.innerHTML = '<div id="journey-boards-container"></div>';
+  document.body.innerHTML = '<section id="journey-screen"><header class="collectibles-header"></header><div class="collectibles-scrollable"><div id="journey-boards-container"></div></div></section>';
+  Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+  presentationEpoch = 1; currentZone = 'journey';
   const container = document.getElementById('journey-boards-container') as HTMLElement & { __ccJourneyV700Closing?: boolean };
   const owner = new Probe();
   let complete: () => Promise<void> = async () => {};
@@ -54,6 +60,8 @@ function fixture(worldId: number) {
     updateJourneyV700Nav: jest.fn(), renderBoards: jest.fn(), playJourneyV700NavEnter: jest.fn(),
     playJourneyV700WorldEnter: jest.fn(() => Promise.resolve()),
     trackTimeout: jest.fn(),
+    resumeHubForVisibleEnter: jest.fn(() => { owner.renderDisposed = false; }),
+    installJourneyScreenElasticOverscroll: jest.fn(), playJourneyV700HubEnter: jest.fn(),
   });
   return { owner, container, complete: () => complete() };
 }
@@ -63,6 +71,8 @@ describe('World X failure ownership', () => {
     const snapshot = getForegroundResourceCoordinatorSnapshot();
     resetForegroundResourceCoordinator();
     document.body.innerHTML = '';
+    delete (window as any).__jimiNativeHomeHubRuntime;
+    jest.clearAllMocks();
     expect(snapshot.criticalDepth).toBe(0);
   });
   test.each([1, 2, 3])('World %i releases X and restores World on synchronous preparation failure', (world) => {
@@ -137,5 +147,82 @@ describe('World X failure ownership', () => {
     expect(owner.commitJourneyHubPrepaint).toHaveBeenCalledTimes(1);
     expect(owner.renderBoards).not.toHaveBeenCalled();
     expect(container.__ccJourneyV700Closing).toBe(false);
+  });
+
+  test.each([1, 2, 3])('native World %i return completes old token before presentation and never plays web Hub/nav enter', async worldId => {
+    const f = fixture(worldId);
+    f.owner.commitJourneyHubPrepaint.mockImplementation(async (_container, _token, _world, options) => {
+      expect(options).toEqual({ nativePresentation: true });
+      f.owner.journeyV700View = 'hub'; f.container.dataset.journeyV700View = 'hub';
+      f.container.innerHTML = '<div class="journey-v700-hub"></div>'; return true;
+    });
+    const present = jest.fn(async (id, epoch) => {
+      expect(id).toBe(worldId); expect(epoch).toBe(presentationEpoch);
+      expect(routeCoordinator.complete).toHaveBeenCalledTimes(1);
+      expect(f.container.__ccJourneyV700Closing).toBe(false);
+      return true;
+    });
+    (window as any).__jimiNativeHomeHubRuntime = { canPresentHubFromWorld: () => true, presentHubFromWorld: present };
+    f.owner.closeJourneyV700World(); await f.complete(); await f.complete();
+    expect(present).toHaveBeenCalledTimes(1);
+    expect(f.owner.playJourneyV700HubEnter).not.toHaveBeenCalled();
+    expect(f.owner.playJourneyV700NavEnter).not.toHaveBeenCalled();
+    expect(f.owner.trackTimeout).not.toHaveBeenCalled();
+    expect(routeCoordinator.interrupt).not.toHaveBeenCalled();
+  });
+
+  test('native handoff gates hidden Hub input throughout a deferred receiver and retains the gate after admission', async () => {
+    const f = fixture(2); const screen = document.getElementById('journey-screen')!;
+    let finish!: (value: boolean) => void;
+    const pending = new Promise<boolean>(resolve => { finish = resolve; });
+    f.owner.commitJourneyHubPrepaint.mockImplementation(async () => {
+      f.owner.journeyV700View = 'hub'; f.container.dataset.journeyV700View = 'hub';
+      f.container.innerHTML = '<div class="journey-v700-hub"><button>World</button></div>'; return true;
+    });
+    let received!: () => void;
+    const receipt = new Promise<void>(resolve => { received = resolve; });
+    (window as any).__jimiNativeHomeHubRuntime = {
+      canPresentHubFromWorld: () => true,
+      presentHubFromWorld: () => { expect(screen.inert).toBe(true); received(); return pending; },
+    };
+    f.owner.closeJourneyV700World(); const closing = f.complete();
+    await receipt;
+    expect(screen.inert).toBe(true);
+    expect(f.owner.playJourneyV700HubEnter).not.toHaveBeenCalled();
+    finish(true); await closing;
+    expect(screen.inert).toBe(true);
+    expect(f.owner.playJourneyV700NavEnter).not.toHaveBeenCalled();
+  });
+
+  test.each(['false-after-suspend', 'reject', 'foreign', 'background', 'root-replaced'] as const)('native presentation %s falls back only for the exact current Hub', async mode => {
+    const f = fixture(2); const screen = document.getElementById('journey-screen')!;
+    f.owner.commitJourneyHubPrepaint.mockImplementation(async () => {
+      f.owner.journeyV700View = 'hub'; f.container.dataset.journeyV700View = 'hub';
+      f.container.innerHTML = '<div class="journey-v700-hub"></div>'; return true;
+    });
+    (window as any).__jimiNativeHomeHubRuntime = {
+      canPresentHubFromWorld: () => true,
+      presentHubFromWorld: async () => {
+        f.owner.renderDisposed = true; f.owner.renderLifecycleGeneration++;
+        f.container.hidden = true; f.container.inert = true; screen.inert = true;
+        screen.style.opacity = '0';
+        if (mode === 'reject') throw new Error('native receiver');
+        if (mode === 'foreign') { presentationEpoch++; currentZone = 'settings'; }
+        if (mode === 'background') Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+        if (mode === 'root-replaced') f.container.querySelector('.journey-v700-hub')!.replaceWith(document.createElement('div'));
+        return false;
+      },
+    };
+    f.owner.closeJourneyV700World(); await f.complete();
+    const recover = mode === 'false-after-suspend' || mode === 'reject';
+    expect(f.owner.playJourneyV700HubEnter).toHaveBeenCalledTimes(recover ? 1 : 0);
+    expect(f.owner.playJourneyV700NavEnter).toHaveBeenCalledTimes(recover ? 1 : 0);
+    expect(f.owner.trackTimeout).not.toHaveBeenCalled();
+    expect(f.container.__ccJourneyV700Closing).toBe(false);
+    if (recover) {
+      expect(screen.style.opacity).toBe('1'); expect(screen.inert).toBe(false);
+      expect(f.container.hidden).toBe(false); expect(f.container.inert).toBe(false);
+      expect(f.owner.resumeHubForVisibleEnter).toHaveBeenCalledTimes(1);
+    }
   });
 });

@@ -472,6 +472,7 @@ async function playHomepageSliderEnterHandoff(
     }
     homepageFinalized = true;
     lease.complete();
+    (window as any).__jimiNativeHomeHubRuntime?.present('home');
   }
   await lease.settled;
   } catch (error) {
@@ -500,6 +501,7 @@ async function playHomepageSliderEnterHandoff(
       }
       homepageFinalized = true;
       lease.complete();
+      (window as any).__jimiNativeHomeHubRuntime?.present('home');
     }
   }
 }
@@ -1472,7 +1474,13 @@ const iosHardCloseHandler = async () => {
 document.addEventListener('visibilitychange', iosHardCloseHandler);
 
 // Start the app
-initializeApp().catch((error: Error) => {
+initializeApp().then(async () => {
+  if ((window as any).__jimiNativeHomeHubEnabled === true) {
+    const { installNativeHomeHubRuntime } = await import('./modules/native-home-hub-runtime.js');
+    const nativeHomeHub = await installNativeHomeHubRuntime();
+    nativeHomeHub?.snapshot();
+  }
+}).catch((error: Error) => {
   logger.error('❌ Critical error during app startup:', String(error));
 });
 
