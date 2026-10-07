@@ -62,7 +62,8 @@ Use `SKIP_NATIVE_BUNDLE_SYNC=true` for transitional web QA/builds.
 - [x] Save current source on main as the native-benchmark-v1 checkpoint commit.
   The annotated tag resolves its immutable commit after this document is committed.
 - [x] Verify tag/commit and clean worktree after checkpoint creation.
-  Remote publication is a separate step; this is a local Git save.
+  Main and annotated tag published atomically to origin and verified online
+  at `7119c759651ce97fc2cecd8589ae49fa5d10f6c8` on 2026-10-07.
 - [x] Document Native/PWA identities, current hybrid dependencies and final goal.
 
 ### 1. Inventory and parity fixtures
