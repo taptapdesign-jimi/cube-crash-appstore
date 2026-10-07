@@ -9,6 +9,7 @@ import UIKit
 import WebKit
 import UniformTypeIdentifiers
 import AVFAudio
+import StackToSixNativeState
 final class LocalFileSchemeHandler: NSObject, WKURLSchemeHandler {
     private var activeTasks = Set<ObjectIdentifier>()
     private let activeTasksLock = NSLock()
@@ -233,6 +234,16 @@ class GameViewController: UIViewController, WKUIDelegate, WKNavigationDelegate, 
     
     private var jimiHomeHub: JimiHomeHubController?
     private var jimiMusic: JimiNativeMusic?
+    private var nativeBootstrap: NativeBootstrap?
+    private static var nativeGameplayEnabled: Bool {
+        #if DEBUG && targetEnvironment(simulator)
+        return Bundle.main.bundleIdentifier == "com.taptapdesign.stacktosix.native"
+            && ProcessInfo.processInfo.arguments.contains("--native-gameplay")
+            && ProcessInfo.processInfo.environment["SIMULATOR_UDID"] == "1018BE2D-491B-465F-8F75-3E5BEB38C22A"
+        #else
+        return false
+        #endif
+    }
     private static var jimiHomeHubEnabled: Bool {
         Bundle.main.bundleIdentifier == "com.taptapdesign.stacktosix.native"
     }
@@ -269,6 +280,33 @@ class GameViewController: UIViewController, WKUIDelegate, WKNavigationDelegate, 
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        if Self.nativeGameplayEnabled {
+            replaceSpriteKitRootViewIfNeeded()
+            installLaunchPaperBackground()
+            do {
+                guard let root = Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle") else {
+                    throw NSError(domain:"StackToSixNative",code:1,userInfo:[NSLocalizedDescriptionKey:"Native artwork is missing"])
+                }
+                var qaStore:NativeSaveStore?
+                #if DEBUG && targetEnvironment(simulator)
+                // Explicit isolated UI-QA profile. Never replaces/migrates the
+                // normal Native profile and is unreachable on physical builds.
+                if ProcessInfo.processInfo.arguments.contains("--native-qa-fresh-profile") {
+                    let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-ui-qa-\(UUID().uuidString)")
+                    let store=NativeSaveStore(directory:directory)
+                    try store.save(NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false)))
+                    qaStore=store
+                }
+                #endif
+                let bootstrap = try NativeBootstrap(root:root,store:qaStore)
+                nativeBootstrap = bootstrap; bootstrap.start(in:self)
+            } catch {
+                let label = UILabel(frame:view.bounds.insetBy(dx:24,dy:80))
+                label.numberOfLines = 0;label.textAlignment = .center;label.textColor = .systemRed
+                label.text = error.localizedDescription;view.addSubview(label)
+            }
+            return
+        }
         if let previous = UserDefaults.standard.string(forKey: Self.webContentIncidentKey) {
             print("[CC_WEB_CONTENT_INCIDENT] previous \(previous)")
         }

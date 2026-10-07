@@ -14,7 +14,7 @@ final class JimiNativeWorldReturnPoseTests: XCTestCase {
             "units":[["id":"board-1","boardID":1,"frame":["x":20,"y":420,"width":160,"height":200],
                 "locked":false,"interim":false,"stars":0,"allowedActions":["openCard","play"],
                 "parts":[["asset":"assets/close-icon.png","role":"card","x":20,"y":0,"width":90,"height":120,"rotation":0,"opacity":1,"zIndex":2]]]]]
-        let art = JimiV9Artwork(resourceRoot:Bundle.main.bundleURL.appendingPathComponent("Web.bundle"))
+        let art = JimiV9Artwork(resourceRoot:NativeTestResources.root)
         let world = try XCTUnwrap(JimiNativeWorldView(snapshot:snapshot,assets:art))
         world.frame = CGRect(x:0,y:0,width:390,height:844);world.layoutIfNeeded()
         defer {world.cleanup()}

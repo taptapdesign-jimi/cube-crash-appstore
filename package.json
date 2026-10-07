@@ -43,7 +43,8 @@
     "app-store:preflight": "npm run qa:full && npm run qa:ios",
     "analyze": "npm run build && npx vite-bundle-analyzer dist",
     "audit": "npm audit && npm run type-check && npm run lint",
-    "soak:check": "node soak-log-check.mjs"
+    "soak:check": "node soak-log-check.mjs",
+    "qa:native:admission": "node scripts/native-gameplay-admission.mjs"
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.1",

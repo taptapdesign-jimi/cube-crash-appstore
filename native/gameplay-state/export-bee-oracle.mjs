@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+import vm from 'node:vm';
+import ts from 'typescript';
+let seed=7;const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
+const context={Math,console,Float32Array};vm.createContext(context);
+const source=fs.readFileSync('src/modules/journey-forest-bee-orbits.ts','utf8').replace(/^import[\s\S]*?from [^;]+;\n/gm,'').replace(/\bexport /g,'');
+vm.runInContext(ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.None}}).outputText,context);
+const owner=context.createNativeForestBeeProjection(138,{x:0,y:154,width:390,height:350},random);
+const cycles=[];
+for(let cycle=0;cycle<8;cycle++)cycles.push(owner.next().map(plan=>({...plan,frames:[0,1,30,90,150,240,330].map(index=>plan.frames[index])})));
+fs.writeFileSync('native/gameplay-state/Tests/StackToSixNativeStateTests/Resources/NativeBeeOracle.json',JSON.stringify({version:1,seed:7,contentTop:138,main:{x:0,y:154,width:390,height:350},cycles}));
+console.log('Exported canonical TS Forest bee oracle across88s: roam/gate-exit/entry/continuity.');

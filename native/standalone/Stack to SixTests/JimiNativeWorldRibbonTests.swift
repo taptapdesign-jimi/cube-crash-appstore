@@ -26,7 +26,7 @@ final class JimiNativeWorldRibbonTests:XCTestCase {
         throw XCTSkip("Simulator only")
         #endif
         guard ProcessInfo.processInfo.environment["SIMULATOR_UDID"] == "1018BE2D-491B-465F-8F75-3E5BEB38C22A",UIApplication.shared.applicationState == .active else {throw XCTSkip("Active isolated QA Simulator only")}
-        let root = Bundle.main.bundleURL.appendingPathComponent("Web.bundle"),spy = RibbonActionSpy()
+        let root = NativeTestResources.root,spy = RibbonActionSpy()
         let host = JimiNativeWorldHost(web:WKWebView(frame:.zero),artwork:JimiV9Artwork(resourceRoot:root),transport:spy)
         let container = UIView(frame:CGRect(x:0,y:0,width:390,height:844));defer {host.dispose()}
         XCTAssertTrue(host.prepare(snapshot(new:true,revision:1),in:container))

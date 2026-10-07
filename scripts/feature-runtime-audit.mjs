@@ -123,7 +123,7 @@ try {
     if (!Array.isArray(record.surfaces) || !record.surfaces.length) errors.push(`${record.id}: missing surfaces`);
     if (!Array.isArray(record.tests) || !record.tests.length) errors.push(`${record.id}: missing tests`);
     for (const file of [...(record.surfaces ?? []), ...(record.tests ?? [])]) {
-      if (typeof file !== 'string' || !file.startsWith('src/') || !fs.existsSync(path.join(root, file))) {
+      if (typeof file !== 'string' || !(file.startsWith('src/') || file.startsWith('native/')) || file.split('/').includes('..') || !fs.existsSync(path.join(root, file))) {
         errors.push(`${record.id}: missing source/test file ${String(file)}`);
       }
     }

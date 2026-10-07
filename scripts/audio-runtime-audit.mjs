@@ -148,6 +148,25 @@ try {
     }
   }
 
+  // Native route owners have Swift full-stop methods and their own lifecycle tests.
+  // They must not be registered in the preserved web Sounds-OFF registry.
+  for (const record of manifest.nativeOwners ?? []) {
+    for (const key of ['id','ownerFile','family','eventOwner','transport','voicePolicy','preloadPolicy','settingsPolicy','interruptionPolicy','stopExport','physicalAcceptance']) textField(record,key,errors);
+    if (ids.has(record.id)) errors.push(`${record.id}: duplicate native audio id`);
+    ids.add(record.id);
+    if (record.globalRegistryRequired !== false) errors.push(`${record.id}: native owner cannot enter web stop registry`);
+    const file = record.ownerFile;
+    if (typeof file !== 'string' || !file.startsWith('native/') || file.split('/').includes('..') || !fs.existsSync(path.join(root,file))) errors.push(`${record.id}: missing native owner`);
+    else {
+      const source = fs.readFileSync(path.join(root,file),'utf8');
+      if (!source.includes(`func ${record.stopExport}(`)) errors.push(`${record.id}: missing Swift full stop`);
+    }
+    if (!Array.isArray(record.tests) || !record.tests.length) errors.push(`${record.id}: missing native tests`);
+    for (const test of record.tests ?? []) if (typeof test !== 'string' || !test.startsWith('native/') || test.split('/').includes('..') || !fs.existsSync(path.join(root,test))) errors.push(`${record.id}: missing native test ${test}`);
+    if (!Array.isArray(record.sources) || !record.sources.length) errors.push(`${record.id}: missing native sources`);
+    for (const source of record.sources ?? []) if (typeof source !== 'string' || !source.startsWith('./assets/sound/') || source.split('/').includes('..') || !fs.existsSync(path.join(root,source.slice(2)))) errors.push(`${record.id}: missing native sound source ${source}`);
+  }
+
   const grandfatheredOwners = new Set(baseline.grandfatheredOwners ?? []);
   for (const owner of state.grandfatheredOwners) {
     if (!grandfatheredOwners.has(owner) && !registeredOwners.has(owner)) errors.push(`${owner}: new audio owner lacks an audio ownership record`);

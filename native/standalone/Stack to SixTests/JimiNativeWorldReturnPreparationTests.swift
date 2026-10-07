@@ -5,7 +5,7 @@ import WebKit
 
 @MainActor
 final class JimiNativeWorldReturnPreparationTests:XCTestCase {
-    private var root:URL {Bundle.main.bundleURL.appendingPathComponent("Web.bundle")}
+    private var root:URL {NativeTestResources.root}
     private func snapshot(asset:String = "assets/close-icon.png")->[String:Any] {
         ["version":1,"worldID":1,"requestID":"7","routeGeneration":2,"stateRevision":1,"title":"Forest","contentHeight":1500,
          "mainFrame":["x":0,"y":100,"width":390,"height":300],"mainParts":[],

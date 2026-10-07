@@ -71,3 +71,13 @@ Record in the PR/handoff:
 - Separate web visual, bundled artifact and physical acceptance status.
 
 No asset conversion, timing reduction, emitter reduction or gameplay rule change follows automatically from this contract. Such changes need the user's corresponding authorization. Preserve authored fun and motion while removing unnecessary work.
+
+## Native migration admission
+
+The separate Swift/SpriteKit candidate records all thirteen preserved variant
+identities in `native-special-dice-performance-owners.json`. Each record names
+its active presentation, preload/resource retirement boundary and native test
+paths. `npm run qa:native:admission` validates this index. A record explicitly
+marked in progress is an admission/ownership declaration, not visual parity or
+physical performance acceptance. The source web registry and original authored
+asset files remain immutable during this migration.

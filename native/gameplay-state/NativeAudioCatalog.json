@@ -1,0 +1,2960 @@
+{
+  "source": "canonical TS cue owner execution; captured original decoded/media transport only",
+  "catalog": {
+    "pickup": [
+      {
+        "source": "assets/sound/merge 6/woosh.mp3",
+        "voice": "gameplay-pickup",
+        "gain": 0.2592,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "return": [
+      {
+        "source": "assets/sound/merge 6/woosh.mp3",
+        "voice": "gameplay-return",
+        "gain": 0.24,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "stack": [
+      {
+        "source": "assets/sound/merge 6/wood.wav",
+        "voice": "ordinary-stack-wood",
+        "gain": 0.2304,
+        "rate": 1.5,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/stack.mp3",
+        "voice": "ordinary-stack-original",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "regular6": [
+      {
+        "source": "assets/sound/merge 6/merge six obicna.mp3",
+        "voice": "regular-merge6-primary",
+        "gain": 0.3,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 crash.mp3",
+        "voice": "regular-merge6-crash",
+        "gain": 0.1632,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": 0.892,
+        "fadeOut": 0.12
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 boom.mp3",
+        "voice": "regular-merge6-boom",
+        "gain": 0.36,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/stack.mp3",
+        "voice": "regular-merge6-stack",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "foundation": [
+      {
+        "source": "assets/sound/merge 6/merge six obicna.mp3",
+        "voice": "regular-merge6-primary",
+        "gain": 0.195,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 crash.mp3",
+        "voice": "regular-merge6-crash",
+        "gain": 0.10608000000000001,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": 0.892,
+        "fadeOut": 0.12
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 boom.mp3",
+        "voice": "regular-merge6-boom",
+        "gain": 0.23399999999999999,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/stack.mp3",
+        "voice": "regular-merge6-stack",
+        "gain": 0.312,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "star": [
+      {
+        "source": "assets/sound/merge 6/merge six obicna.mp3",
+        "voice": "regular-merge6-primary",
+        "gain": 0.195,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 crash.mp3",
+        "voice": "regular-merge6-crash",
+        "gain": 0.10608000000000001,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": 0.892,
+        "fadeOut": 0.12
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 boom.mp3",
+        "voice": "regular-merge6-boom",
+        "gain": 0.23399999999999999,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/stack.mp3",
+        "voice": "regular-merge6-stack",
+        "gain": 0.312,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/star/long_magica_happy_ac_#3-1788980189939.wav",
+        "voice": "wild-star-merge6-magic",
+        "gain": 0.39999999999999997,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/star/magicle_sparkle_for__#1-1788980027254.wav",
+        "voice": "wild-star-merge6-sparkle",
+        "gain": 0.306,
+        "rate": 1,
+        "delay": 0.2,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "fish": [
+      {
+        "source": "assets/sound/merge 6/merge six obicna.mp3",
+        "voice": "regular-merge6-primary",
+        "gain": 0.195,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 crash.mp3",
+        "voice": "regular-merge6-crash",
+        "gain": 0.10608000000000001,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": 0.892,
+        "fadeOut": 0.12
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 boom.mp3",
+        "voice": "regular-merge6-boom",
+        "gain": 0.23399999999999999,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/stack.mp3",
+        "voice": "regular-merge6-stack",
+        "gain": 0.312,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/fish/fish0.wav",
+        "voice": "fish-merge6-fish0",
+        "gain": 0.24,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/fish/fish1.wav",
+        "voice": "fish-merge6-fish1",
+        "gain": 0.39999999999999997,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/fish/plomp.wav",
+        "voice": "fish-merge6-plomp",
+        "gain": 0.39999999999999997,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/fish/fish speaks.wav",
+        "voice": "fish-merge6-speaks",
+        "gain": 0.24,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/fish/fish2.wav",
+        "voice": "fish-merge6-fish2",
+        "gain": 0.39999999999999997,
+        "rate": 1,
+        "delay": 1.8,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "ball": [
+      {
+        "source": "assets/sound/merge 6/merge six obicna.mp3",
+        "voice": "regular-merge6-primary",
+        "gain": 0.195,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 crash.mp3",
+        "voice": "regular-merge6-crash",
+        "gain": 0.10608000000000001,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": 0.892,
+        "fadeOut": 0.12
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 boom.mp3",
+        "voice": "regular-merge6-boom",
+        "gain": 0.23399999999999999,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/stack.mp3",
+        "voice": "regular-merge6-stack",
+        "gain": 0.312,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/ball/ball impact.mp3",
+        "voice": "beach-ball-merge6-impact",
+        "gain": 0.3,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/ball/ball1.wav",
+        "voice": "beach-ball-merge6-ball1",
+        "gain": 0.39999999999999997,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/ball/ball2.wav",
+        "voice": "beach-ball-merge6-ball2",
+        "gain": 0.39999999999999997,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/ball/ball4.wav",
+        "voice": "beach-ball-merge6-ball4",
+        "gain": 0.39999999999999997,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/ball/ball5-60pct.wav",
+        "voice": "beach-ball-merge6-ball5",
+        "gain": 0.39999999999999997,
+        "rate": 1.8,
+        "delay": 0.1,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tnt": [
+      {
+        "source": "assets/sound/merge 6/merge six obicna.mp3",
+        "voice": "regular-merge6-primary",
+        "gain": 0.195,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 crash.mp3",
+        "voice": "regular-merge6-crash",
+        "gain": 0.10608000000000001,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": 0.892,
+        "fadeOut": 0.12
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 boom.mp3",
+        "voice": "regular-merge6-boom",
+        "gain": 0.23399999999999999,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/stack.mp3",
+        "voice": "regular-merge6-stack",
+        "gain": 0.312,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/tnt/tnt3.wav",
+        "voice": "core-tnt-merge6-tnt3",
+        "gain": 0.2184,
+        "rate": 1,
+        "delay": 0.5,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/tnt/horn.wav",
+        "voice": "core-tnt-merge6-horn",
+        "gain": 0.312,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/tnt/wood break.wav",
+        "voice": "core-tnt-merge6-wood-break",
+        "gain": 0.35100000000000003,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/tnt/wood ssplinter.wav",
+        "voice": "core-tnt-merge6-wood-splinter",
+        "gain": 0.35100000000000003,
+        "rate": 1,
+        "delay": 0.1,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "barrel": [
+      {
+        "source": "assets/sound/merge 6/merge six obicna.mp3",
+        "voice": "regular-merge6-primary",
+        "gain": 0.195,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 crash.mp3",
+        "voice": "regular-merge6-crash",
+        "gain": 0.10608000000000001,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": 0.892,
+        "fadeOut": 0.12
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 boom.mp3",
+        "voice": "regular-merge6-boom",
+        "gain": 0.30419999999999997,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/stack.mp3",
+        "voice": "regular-merge6-stack",
+        "gain": 0.312,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/barell/tnt3.wav",
+        "voice": "barrel-merge6-tnt3",
+        "gain": 0.2184,
+        "rate": 1,
+        "delay": 0.5,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/barell/horn.wav",
+        "voice": "barrel-merge6-horn",
+        "gain": 0.312,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/barell/wood break.wav",
+        "voice": "barrel-merge6-wood-break",
+        "gain": 0.35100000000000003,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/barell/wood ssplinter.wav",
+        "voice": "barrel-merge6-wood-splinter",
+        "gain": 0.35100000000000003,
+        "rate": 1,
+        "delay": 0.1,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/barell/puf1.wav",
+        "voice": "barrel-merge6-puf1",
+        "gain": 0.33,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/barell/puf2.wav",
+        "voice": "barrel-merge6-puf2",
+        "gain": 0.21,
+        "rate": 1,
+        "delay": 0.1,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "flower": [
+      {
+        "source": "assets/sound/merge 6/merge six obicna.mp3",
+        "voice": "regular-merge6-primary",
+        "gain": 0.195,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 crash.mp3",
+        "voice": "regular-merge6-crash",
+        "gain": 0.10608000000000001,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": 0.892,
+        "fadeOut": 0.12
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 boom.mp3",
+        "voice": "regular-merge6-boom",
+        "gain": 0.23399999999999999,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/stack.mp3",
+        "voice": "regular-merge6-stack",
+        "gain": 0.312,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/flower/bush0.wav",
+        "voice": "flower-merge6-bush0",
+        "gain": 0.312,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/flower/bush2.wav",
+        "voice": "flower-merge6-bush2",
+        "gain": 0.39,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/flower/bush3.wav",
+        "voice": "flower-merge6-bush3",
+        "gain": 0.13649999999999998,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/flower/boom.wav",
+        "voice": "flower-merge6-boom",
+        "gain": 0.39,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "bee": [
+      {
+        "source": "assets/sound/merge 6/merge six obicna.mp3",
+        "voice": "regular-merge6-primary",
+        "gain": 0.195,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 crash.mp3",
+        "voice": "regular-merge6-crash",
+        "gain": 0.10608000000000001,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": 0.892,
+        "fadeOut": 0.12
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 boom.mp3",
+        "voice": "regular-merge6-boom",
+        "gain": 0.23399999999999999,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/stack.mp3",
+        "voice": "regular-merge6-stack",
+        "gain": 0.312,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/bee/bee start.wav",
+        "voice": "bee-merge6-0",
+        "gain": 0.44999999999999996,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/bee/BEE.wav",
+        "voice": "bee-merge6-1",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/bee/brushing.wav",
+        "voice": "bee-merge6-2",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "kanta": [
+      {
+        "source": "assets/sound/merge 6/merge six obicna.mp3",
+        "voice": "regular-merge6-primary",
+        "gain": 0.195,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 crash.mp3",
+        "voice": "regular-merge6-crash",
+        "gain": 0.10608000000000001,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": 0.892,
+        "fadeOut": 0.12
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 boom.mp3",
+        "voice": "regular-merge6-boom",
+        "gain": 0.23399999999999999,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/stack.mp3",
+        "voice": "regular-merge6-stack",
+        "gain": 0.312,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/kanta/tup.wav",
+        "voice": "kanta-merge6-tup",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/kanta/spacesound.wav",
+        "voice": "kanta-merge6-spacesound",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/kanta/bibis.wav",
+        "voice": "kanta-merge6-bibis",
+        "gain": 0.3,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/kanta/kanta4.wav",
+        "voice": "kanta-merge6-kanta4",
+        "gain": 0.54,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "laser": [
+      {
+        "source": "assets/sound/Wild and special kockice/tnt/horn.wav",
+        "voice": "laser-gun-merge6-horn",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/gun/prep.wav",
+        "voice": "laser-gun-merge6-prep",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "spaceship": [
+      {
+        "source": "assets/sound/Wild and special kockice/spaceship/crash.wav",
+        "voice": "spaceship-merge6-crash",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/spaceship/crash2.wav",
+        "voice": "spaceship-merge6-crash2",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/spaceship/ulazak.wav",
+        "voice": "spaceship-merge6-entry",
+        "gain": 0.36,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "robo": [
+      {
+        "source": "assets/sound/Wild and special kockice/robo/bibiribi.wav",
+        "voice": "robo-cube-merge6-bibiribi",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/robo/robo1.wav",
+        "voice": "robo-cube-merge6-robo1",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/robo/outro zing.wav",
+        "voice": "robo-cube-merge6-outro-zing",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "magnet": [
+      {
+        "source": "assets/sound/merge 6/merge six obicna.mp3",
+        "voice": "regular-merge6-primary",
+        "gain": 0.195,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 crash.mp3",
+        "voice": "regular-merge6-crash",
+        "gain": 0.10608000000000001,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": 0.892,
+        "fadeOut": 0.12
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 boom.mp3",
+        "voice": "regular-merge6-boom",
+        "gain": 0.23399999999999999,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/stack.mp3",
+        "voice": "regular-merge6-stack",
+        "gain": 0.312,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "honey": [
+      {
+        "source": "assets/sound/Wild and special kockice/honey/honeysplat.wav",
+        "voice": "honey-first-merge-honeysplat",
+        "gain": 0.36,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "poof": [
+      {
+        "source": "assets/sound/merge 6/poof1.wav",
+        "voice": "wild-special-merge6-poof1",
+        "gain": 0.33,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/poof2.wav",
+        "voice": "wild-special-merge6-poof2",
+        "gain": 0.33,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "landing": [
+      {
+        "source": "assets/sound/sfx/bag drop.wav",
+        "voice": "wild-special-landing",
+        "gain": 0.3,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "cta": [
+      {
+        "source": "assets/sound/CTA/deeper.wav",
+        "voice": "cta-activation-deeper",
+        "gain": 0.18,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/CTA/pumb.wav",
+        "voice": "cta-activation-pumb",
+        "gain": 0.3,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/CTA/cta-splat.wav",
+        "voice": "cta-activation-splat",
+        "gain": 0.3,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/CTA/cta squishy.wav",
+        "voice": "cta-activation-squishy",
+        "gain": 0.3,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/card reveal/klik plop.wav",
+        "voice": "cta-activation-plop",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "cardTap": [
+      {
+        "source": "assets/sound/card reveal/klik plop.wav",
+        "voice": "cta-activation-plop",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tab": [
+      {
+        "source": "assets/sound/CTA/poping.wav",
+        "voice": "navigation-icon-poping",
+        "gain": 0.3,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/CTA/wood click.wav",
+        "voice": "navigation-icon-wood-click",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "back": [
+      {
+        "source": "assets/sound/CTA/deppimpact.wav",
+        "voice": "navigation-back-close-deep-impact",
+        "gain": 0.36,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "swipe": [
+      {
+        "source": "assets/sound/UI /sliders/super swoosh.mp3",
+        "voice": "homepage-slider-super-swoosh",
+        "gain": 0.3,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "noMoves": [
+      {
+        "source": "assets/sound/grandpa - no moves left.mp3",
+        "voice": "no-moves-grandpa",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "exitModal": [
+      {
+        "source": "assets/sound/UI /modal/modal enter.wav",
+        "voice": "gameplay-exit-modal-enter",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "backpack": [
+      {
+        "source": "assets/sound/crate and backpack animaitons/backpack/backpack1.wav",
+        "voice": "journey-backpack-1",
+        "gain": 0.576,
+        "rate": 1.4,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/crate and backpack animaitons/backpack/backpack2.wav",
+        "voice": "journey-backpack-2",
+        "gain": 0.18,
+        "rate": 2.1,
+        "delay": 0.2,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "crate": [
+      {
+        "source": "assets/sound/crate and backpack animaitons/crate/crate 1.wav",
+        "voice": "arcade-crate-1",
+        "gain": 0.25536,
+        "rate": 1.4,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/crate and backpack animaitons/crate/crate2.wav",
+        "voice": "arcade-crate-2",
+        "gain": 0.19152,
+        "rate": 1.4,
+        "delay": 0.3,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/crate and backpack animaitons/crate/crate 3.wav",
+        "voice": "arcade-crate-3",
+        "gain": 0.12768,
+        "rate": 1.4,
+        "delay": 0.6,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/crate and backpack animaitons/crate/crate 4.wav",
+        "voice": "arcade-crate-4",
+        "gain": 0.22344,
+        "rate": 1.4,
+        "delay": 0.8,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "flip": [
+      {
+        "source": "assets/sound/cjelina flip/menu flip.wav",
+        "voice": "journey-card-entry-menu-flip",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/cjelina flip/flip.wav",
+        "voice": "journey-card-entry-flip",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/cjelina flip/flip soft.wav",
+        "voice": "journey-card-entry-flip-soft",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "manualFlip": [
+      {
+        "source": "assets/sound/cjelina flip/flip soft.wav",
+        "voice": "journey-card-manual-flip-soft",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "returnFlip": [
+      {
+        "source": "assets/sound/cjelina flip/menu flip.wav",
+        "voice": "journey-card-entry-menu-flip",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/cjelina flip/flip.wav",
+        "voice": "journey-card-entry-flip",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/cjelina flip/flip soft.wav",
+        "voice": "journey-card-entry-flip-soft",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "beeFinale": [
+      {
+        "source": "assets/sound/Wild and special kockice/bee/happy bee.wav",
+        "voice": "bee-merge6-3",
+        "gain": 0.12,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "flowerLeaves": [
+      {
+        "source": "assets/sound/Wild and special kockice/flower/leaves.wav",
+        "voice": "flower-merge6-leaves",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "flowerSpark": [
+      {
+        "source": "assets/sound/Wild and special kockice/flower/spark.wav",
+        "voice": "flower-merge6-spark",
+        "gain": 0.36,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "barrelSmoke": [
+      {
+        "source": "assets/sound/Wild and special kockice/barell/poof.wav",
+        "voice": "barrel-merge6-smoke-poof",
+        "gain": 0.21,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "honeyPull": [
+      {
+        "source": "assets/sound/Wild and special kockice/honey/hapr.wav",
+        "voice": "honey-pull-merge-harp",
+        "gain": 0.288,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/honey/supersplat.wav",
+        "voice": "honey-pull-merge-supersplat",
+        "gain": 0.288,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "honeyPost": [
+      {
+        "source": "assets/sound/Wild and special kockice/honey/BEES3s.wav",
+        "voice": "honey-post-merge-bees3s",
+        "gain": 0.2016,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "bottlePull": [
+      {
+        "source": "assets/sound/Wild and special kockice/bottle/bubsplat1.wav",
+        "voice": "bottle-pull-merge-bubsplat1",
+        "gain": 0.38015999999999994,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/bottle/bubsplat2.wav",
+        "voice": "bottle-pull-merge-bubsplat2",
+        "gain": 0.38015999999999994,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/bottle/glass crack.wav",
+        "voice": "bottle-pull-merge-glass-crack",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "magnetPull": [
+      {
+        "source": "assets/sound/merge 6/merge six obicna.mp3",
+        "voice": "regular-merge6-primary",
+        "gain": 0.195,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 crash.mp3",
+        "voice": "regular-merge6-crash",
+        "gain": 0.10608000000000001,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": 0.892,
+        "fadeOut": 0.12
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 boom.mp3",
+        "voice": "regular-merge6-boom",
+        "gain": 0.23399999999999999,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/stack.mp3",
+        "voice": "regular-merge6-stack",
+        "gain": 0.312,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/magnet pul lforce/boiing.wav",
+        "voice": "magnet-pull-force-boiing",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "honeyForce": [
+      {
+        "source": "assets/sound/merge 6/merge six obicna.mp3",
+        "voice": "regular-merge6-primary",
+        "gain": 0.195,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 crash.mp3",
+        "voice": "regular-merge6-crash",
+        "gain": 0.10608000000000001,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": 0.892,
+        "fadeOut": 0.12
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 boom.mp3",
+        "voice": "regular-merge6-boom",
+        "gain": 0.23399999999999999,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/stack.mp3",
+        "voice": "regular-merge6-stack",
+        "gain": 0.312,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/magnet pul lforce/boiing.wav",
+        "voice": "magnet-pull-force-boiing",
+        "gain": 0.36,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "bottleForce": [
+      {
+        "source": "assets/sound/merge 6/merge six obicna.mp3",
+        "voice": "regular-merge6-primary",
+        "gain": 0.195,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 crash.mp3",
+        "voice": "regular-merge6-crash",
+        "gain": 0.10608000000000001,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": 0.892,
+        "fadeOut": 0.12
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 boom.mp3",
+        "voice": "regular-merge6-boom",
+        "gain": 0.23399999999999999,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/stack.mp3",
+        "voice": "regular-merge6-stack",
+        "gain": 0.312,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/magnet pul lforce/boiing.wav",
+        "voice": "magnet-pull-force-boiing",
+        "gain": 0.24,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "spaceshipStart": [
+      {
+        "source": "assets/sound/Wild and special kockice/spaceship/abduction.wav",
+        "voice": "spaceship-finale-abduction",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/spaceship/hi pitch beam.wav",
+        "voice": "spaceship-finale-hi-pitch-beam",
+        "gain": 0.18,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "spaceshipBeam": [
+      {
+        "source": "assets/sound/Wild and special kockice/spaceship/sucking.wav",
+        "voice": "spaceship-beam-sucking",
+        "gain": 0.3,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/spaceship/materijal.wav",
+        "voice": "spaceship-beam-material",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/spaceship/suck beam.wav",
+        "voice": "spaceship-beam-quick",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "spaceshipExit": [
+      {
+        "source": "assets/sound/Wild and special kockice/spaceship/odlazak.wav",
+        "voice": "spaceship-finale-exit",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "cleanApplause": [
+      {
+        "source": "assets/sound/Clean board/applause.wav",
+        "voice": "clean-board-crowd",
+        "gain": 0.36,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "cleanSax": [
+      {
+        "source": "assets/sound/Clean board/happy victory sax .wav",
+        "voice": "clean-board-saxophone-happy",
+        "gain": 0.45599999999999996,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "cleanCount": [
+      {
+        "source": "assets/sound/Clean board/money count.wav",
+        "voice": "clean-board-money-count",
+        "gain": 0.57,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": 2,
+        "fadeOut": 0.12
+      },
+      {
+        "source": "assets/sound/Clean board/fastpointsstack.wav",
+        "voice": "clean-board-fast-points-main-count",
+        "gain": 0.36,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": 2,
+        "fadeOut": 0.12
+      }
+    ],
+    "cleanBonus": [
+      {
+        "source": "assets/sound/Clean board/money count.wav",
+        "voice": "clean-board-bonus-count",
+        "gain": 0.57,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": 2,
+        "fadeOut": 0.12
+      },
+      {
+        "source": "assets/sound/Clean board/fastpointsstack.wav",
+        "voice": "clean-board-fast-points-bonus-count",
+        "gain": 0.36,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": 2,
+        "fadeOut": 0.12
+      }
+    ],
+    "failSax": [
+      {
+        "source": "assets/sound/fail board/six fail.wav",
+        "voice": "fail-screen-saxophone",
+        "gain": 0.54,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeVictory": [
+      {
+        "source": "assets/sound/Clean board/happy victory sax .wav",
+        "voice": "arcade-stage-clear-victory",
+        "gain": 0.45599999999999996,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Clean board/applause.wav",
+        "voice": "arcade-stage-clear-applause",
+        "gain": 0.36,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeThumb": [
+      {
+        "source": "assets/sound/cjelina flip/flip soft.wav",
+        "voice": "arcade-stage-clear-thumb-whoosh",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "boardEnter": [
+      {
+        "source": "assets/sound/board etting up/setting up boards.wav",
+        "voice": "board-popin-setting-up",
+        "gain": 0.3,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": 0.6,
+        "fadeOut": 0.05
+      },
+      {
+        "source": "assets/sound/board etting up/plump.wav",
+        "voice": "board-popin-plump",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": 0.6,
+        "fadeOut": 0.05
+      },
+      {
+        "source": "assets/sound/board etting up/setting up2.wav",
+        "voice": "board-popin-setting-up2",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": 0.6,
+        "fadeOut": 0.05
+      },
+      {
+        "source": "assets/sound/board etting up/cubes.wav",
+        "voice": "board-popin-cubes",
+        "gain": 0.24,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": 0.6,
+        "fadeOut": 0.05
+      }
+    ],
+    "boardExit": [
+      {
+        "source": "assets/sound/board etting up/setting up boards.wav",
+        "voice": "board-popin-setting-up",
+        "gain": 0.3,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": 0.6,
+        "fadeOut": 0.05
+      },
+      {
+        "source": "assets/sound/board etting up/plump.wav",
+        "voice": "board-popin-plump",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": 0.6,
+        "fadeOut": 0.05
+      },
+      {
+        "source": "assets/sound/board etting up/setting up2.wav",
+        "voice": "board-popin-setting-up2",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": 0.6,
+        "fadeOut": 0.05
+      }
+    ],
+    "area55Start": [
+      {
+        "source": "assets/sound/Board transitions/Area 55/space.wav",
+        "voice": "board-transition-area55-space-1",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Board transitions/Area 55/djeca.wav",
+        "voice": "board-transition-area55-djeca-1",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Board transitions/Area 55/fly1.wav",
+        "voice": "board-transition-area55-fly1-1",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/robo/bibice.wav",
+        "voice": "board-transition-area55-bibice-1",
+        "gain": 0.1152,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Board transitions/Area 55/fly2.wav",
+        "voice": "board-transition-area55-fly2-1",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 3,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "juice-bubble": [
+      {
+        "source": "assets/sound/Wild and special kockice/juice/bubble.wav",
+        "voice": "juice-finale-bubble",
+        "gain": 0.33,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": 3.56,
+        "fadeOut": 0.5
+      }
+    ],
+    "juice-introBubble": [
+      {
+        "source": "assets/sound/Wild and special kockice/juice/introbubble.wav",
+        "voice": "juice-finale-intro-bubble",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "juice-straw": [
+      {
+        "source": "assets/sound/Wild and special kockice/juice/mini2.mp3",
+        "voice": "juice-finale-straw",
+        "gain": 0.39,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "juice-lid": [
+      {
+        "source": "assets/sound/Wild and special kockice/juice/mini3.wav",
+        "voice": "juice-finale-lid",
+        "gain": 0.39,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "juice-cup": [
+      {
+        "source": "assets/sound/Wild and special kockice/juice/mini4.wav",
+        "voice": "juice-finale-cup",
+        "gain": 0.3,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "bottle-water-waves": [
+      {
+        "source": "assets/sound/Wild and special kockice/bottle/water waves.wav",
+        "voice": "bottle-finale-water-waves",
+        "gain": 0.24,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "bottle-bottle1": [
+      {
+        "source": "assets/sound/Wild and special kockice/bottle/bottle1.wav",
+        "voice": "bottle-finale-bottle1",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "bottle-bottle2": [
+      {
+        "source": "assets/sound/Wild and special kockice/bottle/bottle 2.wav",
+        "voice": "bottle-finale-bottle2",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "bottle-cling": [
+      {
+        "source": "assets/sound/Wild and special kockice/bottle/cling.wav",
+        "voice": "bottle-finale-cling",
+        "gain": 0.2268,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "bottle-cling2": [
+      {
+        "source": "assets/sound/Wild and special kockice/bottle/cling2.wav",
+        "voice": "bottle-finale-cling2",
+        "gain": 0.2268,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "bottle-bublesi": [
+      {
+        "source": "assets/sound/Wild and special kockice/bottle/bublesi.wav",
+        "voice": "bottle-finale-bublesi",
+        "gain": 0.384,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "cleanStar0": [
+      {
+        "source": "assets/sound/Clean board/boinb.wav",
+        "voice": "clean-board-star-bounce-1",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Clean board/harp1.wav",
+        "voice": "clean-board-star-harp-1",
+        "gain": 0.24,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tntImpact0": [
+      {
+        "source": "assets/sound/mini explozije/mini3.wav",
+        "voice": "core-tnt-bonus-impact-0",
+        "gain": 0.288,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "laserImpact0": [
+      {
+        "source": "assets/sound/mini explozije/mini3.wav",
+        "voice": "core-tnt-bonus-impact-0",
+        "gain": 0.288,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "cleanStar1": [
+      {
+        "source": "assets/sound/Clean board/boinb.wav",
+        "voice": "clean-board-star-bounce-2",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Clean board/harp2.wav",
+        "voice": "clean-board-star-harp-2",
+        "gain": 0.24,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tntImpact1": [
+      {
+        "source": "assets/sound/Wild and special kockice/tnt/mini crash1.wav",
+        "voice": "core-tnt-bonus-impact-1",
+        "gain": 0.336,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "laserImpact1": [
+      {
+        "source": "assets/sound/Wild and special kockice/tnt/mini crash1.wav",
+        "voice": "core-tnt-bonus-impact-1",
+        "gain": 0.336,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "cleanStar2": [
+      {
+        "source": "assets/sound/Clean board/boinb.wav",
+        "voice": "clean-board-star-bounce-3",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Clean board/harp3.wav",
+        "voice": "clean-board-star-harp-3",
+        "gain": 0.24,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tntImpact2": [
+      {
+        "source": "assets/sound/mini explozije/mini4.wav",
+        "voice": "core-tnt-bonus-impact-2",
+        "gain": 0.378,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "laserImpact2": [
+      {
+        "source": "assets/sound/mini explozije/mini4.wav",
+        "voice": "core-tnt-bonus-impact-2",
+        "gain": 0.378,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tntImpact3": [
+      {
+        "source": "assets/sound/mini explozije/mini5.wav",
+        "voice": "core-tnt-bonus-impact-3",
+        "gain": 0.15,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "laserImpact3": [
+      {
+        "source": "assets/sound/mini explozije/mini5.wav",
+        "voice": "core-tnt-bonus-impact-3",
+        "gain": 0.15,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/gun/plombing.wav",
+        "voice": "laser-gun-final-changed-cube-plombing",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/star/star1.wav",
+        "voice": "laser-gun-final-changed-cube-star1",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "cleanCTA0": [
+      {
+        "source": "assets/sound/magnet pul lforce/pull1.wav",
+        "voice": "clean-board-cta-bounce-primary",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "failCTA0": [
+      {
+        "source": "assets/sound/magnet pul lforce/pull1.wav",
+        "voice": "fail-screen-cta-bounce-primary",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "digit0": [
+      {
+        "source": "assets/sound/NN tranzicije/bum bum zvuk.wav",
+        "voice": "arcade-round-first-digit",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "cleanCTA1": [
+      {
+        "source": "assets/sound/magnet pul lforce/pull1.wav",
+        "voice": "clean-board-cta-bounce-secondary",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "failCTA1": [
+      {
+        "source": "assets/sound/magnet pul lforce/pull1.wav",
+        "voice": "fail-screen-cta-bounce-secondary",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "digit1": [
+      {
+        "source": "assets/sound/NN tranzicije/bum bum 2.wav",
+        "voice": "arcade-round-second-digit",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "star0": [
+      {
+        "source": "assets/sound/merge 6/merge six obicna.mp3",
+        "voice": "regular-merge6-primary",
+        "gain": 0.195,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 crash.mp3",
+        "voice": "regular-merge6-crash",
+        "gain": 0.10608000000000001,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": 0.892,
+        "fadeOut": 0.12
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 boom.mp3",
+        "voice": "regular-merge6-boom",
+        "gain": 0.23399999999999999,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/stack.mp3",
+        "voice": "regular-merge6-stack",
+        "gain": 0.312,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/star/long_magica_happy_ac_#2-1788980185281.wav",
+        "voice": "wild-star-merge6-magic",
+        "gain": 0.39999999999999997,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/star/magicle_sparkle_for__#1-1788980027254.wav",
+        "voice": "wild-star-merge6-sparkle",
+        "gain": 0.306,
+        "rate": 1,
+        "delay": 0.2,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "star1": [
+      {
+        "source": "assets/sound/merge 6/merge six obicna.mp3",
+        "voice": "regular-merge6-primary",
+        "gain": 0.195,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 crash.mp3",
+        "voice": "regular-merge6-crash",
+        "gain": 0.10608000000000001,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": 0.892,
+        "fadeOut": 0.12
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 boom.mp3",
+        "voice": "regular-merge6-boom",
+        "gain": 0.23399999999999999,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/stack.mp3",
+        "voice": "regular-merge6-stack",
+        "gain": 0.312,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/star/long_magica_happy_ac_#3-1788980189939.wav",
+        "voice": "wild-star-merge6-magic",
+        "gain": 0.39999999999999997,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/star/magicle_sparkle_for__#1-1788980027254.wav",
+        "voice": "wild-star-merge6-sparkle",
+        "gain": 0.306,
+        "rate": 1,
+        "delay": 0.2,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "star2": [
+      {
+        "source": "assets/sound/merge 6/merge six obicna.mp3",
+        "voice": "regular-merge6-primary",
+        "gain": 0.195,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 crash.mp3",
+        "voice": "regular-merge6-crash",
+        "gain": 0.10608000000000001,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": 0.892,
+        "fadeOut": 0.12
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 boom.mp3",
+        "voice": "regular-merge6-boom",
+        "gain": 0.23399999999999999,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/stack.mp3",
+        "voice": "regular-merge6-stack",
+        "gain": 0.312,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/star/star1.wav",
+        "voice": "wild-star-merge6-magic",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/star/magicle_sparkle_for__#1-1788980027254.wav",
+        "voice": "wild-star-merge6-sparkle",
+        "gain": 0.306,
+        "rate": 1,
+        "delay": 0.2,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "star3": [
+      {
+        "source": "assets/sound/merge 6/merge six obicna.mp3",
+        "voice": "regular-merge6-primary",
+        "gain": 0.195,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 crash.mp3",
+        "voice": "regular-merge6-crash",
+        "gain": 0.10608000000000001,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": 0.892,
+        "fadeOut": 0.12
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 boom.mp3",
+        "voice": "regular-merge6-boom",
+        "gain": 0.23399999999999999,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/stack.mp3",
+        "voice": "regular-merge6-stack",
+        "gain": 0.312,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/star/star2.wav",
+        "voice": "wild-star-merge6-magic",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/star/magicle_sparkle_for__#1-1788980027254.wav",
+        "voice": "wild-star-merge6-sparkle",
+        "gain": 0.306,
+        "rate": 1,
+        "delay": 0.2,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "kantaExit0": [
+      {
+        "source": "assets/sound/Wild and special kockice/kanta/kanta1.wav",
+        "voice": "kanta-exit-1-exit",
+        "gain": 0.21839999999999998,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "kantaExit1": [
+      {
+        "source": "assets/sound/Wild and special kockice/kanta/kanta2.wav",
+        "voice": "kanta-exit-2-exit",
+        "gain": 0.21839999999999998,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "kantaExit2": [
+      {
+        "source": "assets/sound/Wild and special kockice/kanta/kanta3.wav",
+        "voice": "kanta-exit-3-exit",
+        "gain": 0.273,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "kantaWalking": [
+      {
+        "source": "assets/sound/Wild and special kockice/kanta/hodanje.wav",
+        "voice": "kanta-walking-4",
+        "gain": 0.18,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "newCardIntro": [
+      {
+        "source": "assets/sound/card reveal/crumble.wav",
+        "voice": "journey-new-card-intro",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "newCardCrumble": [
+      {
+        "source": "assets/sound/card reveal/interim crumble.wav",
+        "voice": "journey-new-card-crumble",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "newCardReveal": [
+      {
+        "source": "assets/sound/card reveal/pufreveal.wav",
+        "voice": "journey-new-card-reveal",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "newCardHappy": [
+      {
+        "source": "assets/sound/card reveal/happy sound.wav",
+        "voice": "journey-new-card-happy",
+        "gain": 0.3,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "homeEnter": [
+      {
+        "source": "assets/sound/Board transitions/elements down1.wav",
+        "voice": "homepage-slider-enter-elements-down1",
+        "gain": 0.3,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": 0.65,
+        "fadeOut": 0.05
+      }
+    ],
+    "homeExit": [
+      {
+        "source": "assets/sound/Board transitions/elemens down2.wav",
+        "voice": "homepage-slider-exit-elements-down2",
+        "gain": 0.3,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": 0.65,
+        "fadeOut": 0.05
+      }
+    ],
+    "hubExit": [
+      {
+        "source": "assets/sound/Board transitions/elemens down2.wav",
+        "voice": "journey-hub-exit-0",
+        "gain": 0.3,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": 2,
+        "fadeOut": 0.05
+      }
+    ],
+    "forestTransition": [
+      {
+        "source": "assets/sound/Board transitions/Forest/Forest.wav",
+        "voice": "board-transition-forest-ambient",
+        "gain": 0.72,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Board transitions/Forest/bees small.wav",
+        "voice": "board-transition-forest-bees-small",
+        "gain": 0.144,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": 4,
+        "fadeOut": 1
+      }
+    ],
+    "laserPreparation": [
+      {
+        "source": "assets/sound/Wild and special kockice/gun/priprema.wav",
+        "voice": "laser-gun-stage-preparation-0",
+        "gain": 0.51,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "laserBeam": [
+      {
+        "source": "assets/sound/Wild and special kockice/gun/beam1.wav",
+        "voice": "laser-gun-beam-0-beam1",
+        "gain": 0.357,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/gun/beam2.wav",
+        "voice": "laser-gun-beam-0-beam2",
+        "gain": 0.252,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "transitionDigit0": [
+      {
+        "source": "assets/sound/NN tranzicije/bum bum zvuk.wav",
+        "voice": "board-transition-first-digit",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "transitionDigit1": [
+      {
+        "source": "assets/sound/NN tranzicije/bum bum 2.wav",
+        "voice": "board-transition-second-digit",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "transitionDigitExit": [
+      {
+        "source": "assets/sound/NN tranzicije/exit.wav",
+        "voice": "board-transition-exit",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "transitionBeam1": [
+      {
+        "source": "assets/sound/Board transitions/Area 55/beams.wav",
+        "voice": "board-transition-area55-beam-1-1-area55",
+        "gain": 0.3,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/gun/beam1.wav",
+        "voice": "board-transition-area55-beam-1-1-gun-beam1",
+        "gain": 0.3,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/gun/prep.wav",
+        "voice": "board-transition-area55-beam-1-1-gun-prep",
+        "gain": 0.09,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "transitionBeam2": [
+      {
+        "source": "assets/sound/Board transitions/Area 55/beams.wav",
+        "voice": "board-transition-area55-beam-2-1-area55",
+        "gain": 0.3,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/gun/beam1.wav",
+        "voice": "board-transition-area55-beam-2-1-gun-beam1",
+        "gain": 0.3,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/gun/prep.wav",
+        "voice": "board-transition-area55-beam-2-1-gun-prep",
+        "gain": 0.09,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tntImpact-0-1": [
+      {
+        "source": "assets/sound/mini explozije/mini2.mp3",
+        "voice": "core-tnt-bonus-impact-0",
+        "gain": 0.144,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tntImpact-1-2": [
+      {
+        "source": "assets/sound/mini explozije/mini3.wav",
+        "voice": "core-tnt-bonus-impact-1",
+        "gain": 0.336,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tntImpact-2-3": [
+      {
+        "source": "assets/sound/mini explozije/mini4.wav",
+        "voice": "core-tnt-bonus-impact-2",
+        "gain": 0.378,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tntImpact-3-4": [
+      {
+        "source": "assets/sound/mini explozije/mini5.wav",
+        "voice": "core-tnt-bonus-impact-3",
+        "gain": 0.15,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tntImpact-0-2": [
+      {
+        "source": "assets/sound/mini explozije/mini3.wav",
+        "voice": "core-tnt-bonus-impact-0",
+        "gain": 0.288,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tntImpact-1-1": [
+      {
+        "source": "assets/sound/mini explozije/mini2.mp3",
+        "voice": "core-tnt-bonus-impact-1",
+        "gain": 0.168,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tntImpact-1-3": [
+      {
+        "source": "assets/sound/mini explozije/mini4.wav",
+        "voice": "core-tnt-bonus-impact-1",
+        "gain": 0.336,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tntImpact-2-1": [
+      {
+        "source": "assets/sound/mini explozije/mini2.mp3",
+        "voice": "core-tnt-bonus-impact-2",
+        "gain": 0.189,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tntImpact-0-3": [
+      {
+        "source": "assets/sound/mini explozije/mini4.wav",
+        "voice": "core-tnt-bonus-impact-0",
+        "gain": 0.288,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tntImpact-2-2": [
+      {
+        "source": "assets/sound/mini explozije/mini3.wav",
+        "voice": "core-tnt-bonus-impact-2",
+        "gain": 0.378,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tntImpact-2-4": [
+      {
+        "source": "assets/sound/mini explozije/mini5.wav",
+        "voice": "core-tnt-bonus-impact-2",
+        "gain": 0.15,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tntImpact-3-1": [
+      {
+        "source": "assets/sound/mini explozije/mini2.mp3",
+        "voice": "core-tnt-bonus-impact-3",
+        "gain": 0.168,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tntImpact-1-4": [
+      {
+        "source": "assets/sound/mini explozije/mini5.wav",
+        "voice": "core-tnt-bonus-impact-1",
+        "gain": 0.15,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tntImpact-0-4": [
+      {
+        "source": "assets/sound/mini explozije/mini5.wav",
+        "voice": "core-tnt-bonus-impact-0",
+        "gain": 0.15,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tntImpact-3-2": [
+      {
+        "source": "assets/sound/mini explozije/mini3.wav",
+        "voice": "core-tnt-bonus-impact-3",
+        "gain": 0.336,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tntImpact-3-3": [
+      {
+        "source": "assets/sound/mini explozije/mini4.wav",
+        "voice": "core-tnt-bonus-impact-3",
+        "gain": 0.336,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tntImpact-3-0": [
+      {
+        "source": "assets/sound/Wild and special kockice/tnt/mini crash1.wav",
+        "voice": "core-tnt-bonus-impact-3",
+        "gain": 0.336,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tntImpact-2-0": [
+      {
+        "source": "assets/sound/Wild and special kockice/tnt/mini crash1.wav",
+        "voice": "core-tnt-bonus-impact-2",
+        "gain": 0.378,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tntImpact-1-0": [
+      {
+        "source": "assets/sound/Wild and special kockice/tnt/mini crash1.wav",
+        "voice": "core-tnt-bonus-impact-1",
+        "gain": 0.336,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "tntImpact-0-0": [
+      {
+        "source": "assets/sound/Wild and special kockice/tnt/mini crash1.wav",
+        "voice": "core-tnt-bonus-impact-0",
+        "gain": 0.288,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "cleanStar-0-0": [
+      {
+        "source": "assets/sound/Clean board/boinb.wav",
+        "voice": "clean-board-star-bounce-1",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Clean board/harp1.wav",
+        "voice": "clean-board-star-harp-1",
+        "gain": 0.24,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "cleanStar-0-1": [
+      {
+        "source": "assets/sound/Clean board/boinb.wav",
+        "voice": "clean-board-star-bounce-1",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Clean board/harp2.wav",
+        "voice": "clean-board-star-harp-1",
+        "gain": 0.24,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "cleanStar-0-2": [
+      {
+        "source": "assets/sound/Clean board/boinb.wav",
+        "voice": "clean-board-star-bounce-1",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Clean board/harp3.wav",
+        "voice": "clean-board-star-harp-1",
+        "gain": 0.24,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "cleanStar-1-0": [
+      {
+        "source": "assets/sound/Clean board/boinb.wav",
+        "voice": "clean-board-star-bounce-2",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Clean board/harp1.wav",
+        "voice": "clean-board-star-harp-2",
+        "gain": 0.24,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "cleanStar-1-1": [
+      {
+        "source": "assets/sound/Clean board/boinb.wav",
+        "voice": "clean-board-star-bounce-2",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Clean board/harp2.wav",
+        "voice": "clean-board-star-harp-2",
+        "gain": 0.24,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "cleanStar-1-2": [
+      {
+        "source": "assets/sound/Clean board/boinb.wav",
+        "voice": "clean-board-star-bounce-2",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Clean board/harp3.wav",
+        "voice": "clean-board-star-harp-2",
+        "gain": 0.24,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "cleanStar-2-0": [
+      {
+        "source": "assets/sound/Clean board/boinb.wav",
+        "voice": "clean-board-star-bounce-3",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Clean board/harp1.wav",
+        "voice": "clean-board-star-harp-3",
+        "gain": 0.24,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "cleanStar-2-1": [
+      {
+        "source": "assets/sound/Clean board/boinb.wav",
+        "voice": "clean-board-star-bounce-3",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Clean board/harp2.wav",
+        "voice": "clean-board-star-harp-3",
+        "gain": 0.24,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "cleanStar-2-2": [
+      {
+        "source": "assets/sound/Clean board/boinb.wav",
+        "voice": "clean-board-star-bounce-3",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Clean board/harp3.wav",
+        "voice": "clean-board-star-harp-3",
+        "gain": 0.24,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "kantaExit-0-0": [
+      {
+        "source": "assets/sound/Wild and special kockice/kanta/kanta1.wav",
+        "voice": "kanta-exit-5-exit",
+        "gain": 0.21839999999999998,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "kantaExit-0-1": [
+      {
+        "source": "assets/sound/Wild and special kockice/kanta/kanta1.wav",
+        "voice": "kanta-exit-6-exit",
+        "gain": 0.273,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "kantaExit-1-0": [
+      {
+        "source": "assets/sound/Wild and special kockice/kanta/kanta2.wav",
+        "voice": "kanta-exit-7-exit",
+        "gain": 0.21839999999999998,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "kantaExit-1-1": [
+      {
+        "source": "assets/sound/Wild and special kockice/kanta/kanta2.wav",
+        "voice": "kanta-exit-8-exit",
+        "gain": 0.273,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "kantaExit-2-0": [
+      {
+        "source": "assets/sound/Wild and special kockice/kanta/kanta3.wav",
+        "voice": "kanta-exit-9-exit",
+        "gain": 0.21839999999999998,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "kantaExit-2-1": [
+      {
+        "source": "assets/sound/Wild and special kockice/kanta/kanta3.wav",
+        "voice": "kanta-exit-10-exit",
+        "gain": 0.273,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ]
+  }
+}

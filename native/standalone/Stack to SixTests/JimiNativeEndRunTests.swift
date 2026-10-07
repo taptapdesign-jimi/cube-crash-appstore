@@ -31,7 +31,7 @@ final class JimiNativeEndRunTests: XCTestCase {
 
     func testEveryNativeEndRunCTAUsesV10WidthCenterAndVerticalStack() throws {
         for width in [CGFloat(320),390,430] {
-            let assets = JimiV9Artwork(resourceRoot:Bundle.main.bundleURL.appendingPathComponent("Web.bundle"))
+            let assets = JimiV9Artwork(resourceRoot:NativeTestResources.root)
             let modal = JimiNativeEndRunModal(id:1,model:try XCTUnwrap(JimiNativeEndRunModel(dto)),assets:assets)
             modal.loadViewIfNeeded();modal.view.frame = CGRect(x:0,y:0,width:width,height:844);modal.viewDidLayoutSubviews()
             for (i,button) in modal.buttons.enumerated() {
@@ -82,7 +82,7 @@ final class JimiNativeEndRunTests: XCTestCase {
         XCTAssertEqual(model.restartLabel,"New Game");XCTAssertTrue(model.subtitle.contains("Round 01"))
     }
     func testFiniteEnterInputAndCleanupWithStableCollapsedLayout() async throws {
-        let assets = JimiV9Artwork(resourceRoot:Bundle.main.bundleURL.appendingPathComponent("Web.bundle"))
+        let assets = JimiV9Artwork(resourceRoot:NativeTestResources.root)
         let modal = JimiNativeEndRunModal(id:7,model:try XCTUnwrap(JimiNativeEndRunModel(dto)),assets:assets)
         let window = UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));let presenter = UIViewController();window.rootViewController = presenter
         let ready = expectation(description:"Actual CA enter completion")

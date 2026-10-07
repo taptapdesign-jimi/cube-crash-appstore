@@ -5,7 +5,7 @@ import WebKit
 /// File-backed soundtrack transport. JS retains route/Settings ownership.
 @MainActor
 final class JimiNativeMusic: NSObject, WKScriptMessageHandlerWithReply {
-    private final class Voice {
+    @MainActor private final class Voice {
         let node = AVAudioPlayerNode()
         let file: AVAudioFile
         var position = 0.0
@@ -16,6 +16,7 @@ final class JimiNativeMusic: NSObject, WKScriptMessageHandlerWithReply {
         var playing = false
         var generation = 0
         var fade: Timer?
+        var fadeCompletion:((Bool)->Void)?
         init(file: AVAudioFile) { self.file = file }
         var duration: Double { Double(file.length) / file.processingFormat.sampleRate }
         var currentTime: Double {
@@ -87,6 +88,14 @@ final class JimiNativeMusic: NSObject, WKScriptMessageHandlerWithReply {
               id.hasPrefix("soundtrack-"), id.count < 64, let op = body["op"] as? String else {
             replyHandler(nil, "Invalid native music request"); return
         }
+        perform(id: id, op: op, body: body, replyHandler: replyHandler)
+    }
+
+    /// Direct native route owner entry. No WKWebView or script is required.
+    func perform(id: String, op: String, body: [String: Any], replyHandler: @escaping (Any?, String?) -> Void) {
+        guard id.hasPrefix("soundtrack-"), id.count < 64 else {
+            replyHandler(nil, "Invalid native music voice"); return
+        }
         do {
             if op == "play", voices[id] == nil {
                 guard voices.count < 4, let source = body["source"] as? String else { throw failure("Voice limit") }
@@ -112,7 +121,16 @@ final class JimiNativeMusic: NSObject, WKScriptMessageHandlerWithReply {
                 voice.node.volume = Float(min(1, max(0, number(body, "volume"))))
                 if !voice.playing { try start(voice, at: voice.position) }
             case "seek": try start(voice, at: number(body, "position"))
-            case "volume": fade(voice, to: Float(min(1, max(0, number(body, "volume")))), duration: number(body, "duration"))
+            case "state": break // Read-only phase receipt for Swift soundtrack scheduling.
+            case "volume":
+                if body["replyOnFadeFinished"] as? Bool == true {
+                    fade(voice,to:Float(min(1,max(0,number(body,"volume")))),duration:number(body,"duration")){[weak voice] completed in
+                        guard let voice else{replyHandler(nil,"Native fade retired");return}
+                        replyHandler(["position":voice.currentTime,"duration":voice.duration],completed ? nil:"Native fade cancelled")
+                    }
+                    return
+                }
+                fade(voice,to:Float(min(1,max(0,number(body,"volume")))),duration:number(body,"duration"))
             case "dispose":
                 pause(voice); engine.detach(voice.node); voices[id] = nil
             default: throw failure("Unknown native music operation")
@@ -126,7 +144,7 @@ final class JimiNativeMusic: NSObject, WKScriptMessageHandlerWithReply {
                 NSLog("[JIMI_NATIVE_MUSIC] op=%@ id=%@ voices=%d playing=%d position=%.3f duration=%.3f", op, id,
                       voices.count, voices.values.filter { $0.playing }.count, voice.currentTime, voice.duration)
             }
-            replyHandler(["position": voice.currentTime, "duration": voice.duration], nil)
+            replyHandler(["position": voice.currentTime, "duration": voice.duration,"playing":voice.playing,"gain":Double(voice.node.volume)], nil)
         } catch {
             NSLog("[JIMI_NATIVE_MUSIC] failure op=%@ reason=%@", op, error.localizedDescription)
             replyHandler(nil, error.localizedDescription)
@@ -154,23 +172,31 @@ final class JimiNativeMusic: NSObject, WKScriptMessageHandlerWithReply {
         let start = AVAudioFramePosition((seconds * rate).rounded())
         let end = AVAudioFramePosition((voice.loopEnd * rate).rounded())
         guard end > start, end - start <= Int64(UInt32.max) else { return }
+        let receipt=SegmentReceipt(owner:self,voice:voice,generation:generation)
         voice.node.scheduleSegment(voice.file, startingFrame: start, frameCount: AVAudioFrameCount(end - start), at: nil,
-                                   completionCallbackType: .dataConsumed) { [weak self, weak voice] _ in
-            DispatchQueue.main.async { [weak self, weak voice] in
-                guard let self, let voice, voice.generation == generation, voice.playing, voice.looping else { return }
-                self.schedule(voice, from: voice.loopStart, generation: generation)
-            }
+                                   completionCallbackType: .dataConsumed) { _ in
+            DispatchQueue.main.async {[receipt] in receipt.consumed()}
         }
+    }
+    @MainActor private final class SegmentReceipt {
+        private weak var owner:JimiNativeMusic?
+        private weak var voice:Voice?
+        private let generation:Int
+        init(owner:JimiNativeMusic,voice:Voice,generation:Int){self.owner=owner;self.voice=voice;self.generation=generation}
+        func consumed(){guard let owner,let voice,voice.generation==generation,voice.playing,voice.looping else{return};owner.schedule(voice,from:voice.loopStart,generation:generation)}
     }
     private func pause(_ voice: Voice) {
         voice.position = voice.currentTime
         voice.playing = false; voice.generation += 1
         voice.fade?.invalidate(); voice.fade = nil
+        let completion=voice.fadeCompletion;voice.fadeCompletion=nil;completion?(false)
         voice.node.stop()
     }
-    private func fade(_ voice: Voice, to target: Float, duration: Double) {
+    private func fade(_ voice: Voice, to target: Float, duration: Double,completion:((Bool)->Void)?=nil) {
         voice.fade?.invalidate(); voice.fade = nil
-        guard duration > 0, voice.playing else { voice.node.volume = target; return }
+        let previous=voice.fadeCompletion;voice.fadeCompletion=nil;previous?(false)
+        guard duration > 0, voice.playing else {voice.node.volume=target;completion?(true);return}
+        voice.fadeCompletion=completion
         let began = CACurrentMediaTime(), initial = voice.node.volume
         // One finite envelope per voice, no timer outside an actual fade.
         let timer = Timer(timeInterval: 1 / 60, repeats: true) { [weak voice] timer in
@@ -178,7 +204,7 @@ final class JimiNativeMusic: NSObject, WKScriptMessageHandlerWithReply {
                 guard let voice else { timer.invalidate(); return }
                 let t = Float(min(1, (CACurrentMediaTime() - began) / duration))
                 voice.node.volume = initial + (target - initial) * t
-                if t >= 1 { timer.invalidate(); voice.fade = nil }
+                if t >= 1 {timer.invalidate();voice.fade=nil;let completion=voice.fadeCompletion;voice.fadeCompletion=nil;completion?(true)}
             }
         }
         voice.fade = timer
@@ -197,8 +223,12 @@ final class JimiNativeMusic: NSObject, WKScriptMessageHandlerWithReply {
         engine.stop()
     }
     private func number(_ body: [String: Any], _ key: String) -> Double {
-        guard let value = body[key] as? Double, value.isFinite else { return 0 }
-        return value
+        // Direct Swift callers may supply integral seconds. Preserve the same
+        // numeric domain as the bridged JS NSNumber rather than treating Int1
+        // as a zero-duration fade with an immediate completion receipt.
+        guard let value=body[key] as? NSNumber,
+              CFGetTypeID(value) != CFBooleanGetTypeID(),value.doubleValue.isFinite else{return 0}
+        return value.doubleValue
     }
     private func failure(_ message: String) -> NSError { NSError(domain: "JimiNativeMusic", code: 1, userInfo: [NSLocalizedDescriptionKey: message]) }
 }

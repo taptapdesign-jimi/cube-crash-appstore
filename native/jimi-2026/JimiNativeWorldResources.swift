@@ -75,5 +75,8 @@ final class JimiNativeWorldResources {
             decodedBytes -= entries[key]?.bytes ?? 0; entries.removeValue(forKey: key)
         }
     }
+    /// Reject adoption from queued decode work while retaining the already
+    /// painted incoming World's original decoded art and owner leases.
+    func cancelPendingPreparation(){generation += 1}
     func cleanup() { generation += 1; ownerGenerations.removeAll(); leases.removeAll(); entries.removeAll(); missingAssets.removeAll(); decodedBytes = 0 }
 }

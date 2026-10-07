@@ -22,7 +22,7 @@ final class JimiHomePlacementAndBackTests: XCTestCase {
     }
 
     func testAllThreeHomeRectsMatchV10MobileOffsets() {
-        let root = Bundle.main.bundleURL.appendingPathComponent("Web.bundle")
+        let root = NativeTestResources.root
         let home = JimiV9HomeView(frame: CGRect(x: 0, y: 0, width: 390, height: 844), assets: JimiV9Artwork(resourceRoot: root))
         // v10 CSS evaluated at390×844: image233, CTA599.99 with47px
         // top safe area. Removing its two47px insets and retaining Home's
@@ -38,7 +38,7 @@ final class JimiHomePlacementAndBackTests: XCTestCase {
 
     func testBackInterruptsHubEnterOnceAndCannotBeResurrectedByOldCompletion() async throws {
         let web = RouteTestWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
-        let controller = JimiHomeHubController(web: web, resourceRoot: Bundle.main.bundleURL.appendingPathComponent("Web.bundle"))
+        let controller = JimiHomeHubController(web: web, resourceRoot: NativeTestResources.root)
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
         window.rootViewController = controller; window.makeKeyAndVisible()
         defer { controller.dispose(); window.isHidden = true }
@@ -88,7 +88,7 @@ final class JimiHomePlacementAndBackTests: XCTestCase {
     }
     func testBackSupersedesOutgoingWorldPreparationAndIgnoresOldReady() async throws {
         let web = RouteTestWebView(frame:CGRect(x:0,y:0,width:390,height:844))
-        let controller = JimiHomeHubController(web:web,resourceRoot:Bundle.main.bundleURL.appendingPathComponent("Web.bundle"))
+        let controller = JimiHomeHubController(web:web,resourceRoot:NativeTestResources.root)
         let window = UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         window.rootViewController = controller; window.makeKeyAndVisible()
         defer {controller.dispose();window.isHidden = true}

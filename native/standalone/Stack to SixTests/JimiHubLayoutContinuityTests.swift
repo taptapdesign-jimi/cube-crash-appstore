@@ -17,7 +17,7 @@ final class JimiHubLayoutContinuityTests: XCTestCase {
         // Short viewport gives a legal31px scroll range. On an unattached
         // 844px view with zero safe insets UIKit correctly clamps it to zero.
         let hub = JimiV9HubView(frame: CGRect(x: 0, y: 0, width: 390, height: 700),
-                                assets: JimiV9Artwork(resourceRoot: Bundle.main.bundleURL.appendingPathComponent("Web.bundle")))
+                                assets: JimiV9Artwork(resourceRoot: NativeTestResources.root))
         hub.layoutSubviews()
         hub.scrollView.contentOffset = CGPoint(x: 0, y: 31)
         let offset = hub.scrollView.contentOffset

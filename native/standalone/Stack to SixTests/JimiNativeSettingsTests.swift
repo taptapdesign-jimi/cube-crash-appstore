@@ -19,7 +19,7 @@ final class JimiNativeSettingsTests: XCTestCase {
         #endif
         guard ProcessInfo.processInfo.environment["SIMULATOR_UDID"] == "1018BE2D-491B-465F-8F75-3E5BEB38C22A" else { throw XCTSkip("Isolated QA Simulator only") }
     }
-    private var root: URL { Bundle.main.bundleURL.appendingPathComponent("Web.bundle") }
+    private var root: URL { NativeTestResources.root }
     private var preferences: [String: Any] { ["presentationEpoch": 10, "gameSoundsEnabled": false, "musicEnabled": true, "hapticsEnabled": true, "developerToolsAvailable": true] }
 
     func testUIKitTogglesProjectCanonicalValuesAndSendEpochOwnedCommands() {

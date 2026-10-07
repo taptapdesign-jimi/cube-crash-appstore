@@ -77,7 +77,8 @@ Use `SKIP_NATIVE_BUNDLE_SYNC=true` for transitional web QA/builds.
 Acceptance: a traceable implementation checklist, no missing registered variant.
 
 ### 2. Pure Swift gameplay core
-- [ ] Implement board/tile model, stable IDs, grid classification and run modes.
+- [x] Implement board/tile model, stable IDs, grid classification and run modes.
+  NativeBoardState/NativeTile; linked portable core69tests PASS. Captured ordinary main/absorb/postcheck phases are connected; the next isolated79-test delayed-assignment draft is not linked proof.
 - [ ] Port ordinary legality, stack/merge, final resolver and fail-closed errors.
 - [ ] Port spawn, moves, scoring/combo, rewards and deterministic RNG ownership.
 - [ ] Port transactions, exact-tile locks, endgame guards and generation cleanup.
@@ -109,11 +110,14 @@ expanding. Visual similarity alone is insufficient.
 Acceptance: every registry entry accounted for and shared KING matrix passes in Swift.
 
 ### 5. Native persistence, progression and integration
-- [ ] Port native-owned settings, versioned save/load and coherent recovery.
+- [x] Port native-owned settings, versioned save/load and coherent recovery.
+  Native state23tests PASS; atomic writes/dedup/compatibility/recovery and transient-save admission are independently exercised.
 - [ ] Port Journey reward pools/unlocks/wildSpawnCount and Arcade progression;
   preserve mode separation and current internal board identifiers.
-- [ ] Define and test migration of the separate Native app's existing hybrid save
+- [x] Define and test migration of the separate Native app's existing hybrid save
   into its native format; never read/copy/reset the PWA app sandbox.
+  One-time blank-origin NativeHybridExport; actual Simulator transport test PASS.
+  No physical migration acceptance yet.
 - [ ] Complete native HUD, tutorials, rewards, result/NO MOVES, board transition,
   modal actions and all remaining player-facing surfaces.
 - [ ] Replace JS route/preferences/music orchestration with native owners while
@@ -136,8 +140,43 @@ work with WKWebView gameplay disabled.
 Acceptance: Native app launches and completes all flows without web runtime,
 with explicit physical acceptance. A successful build is not final closure.
 
+## Current implementation proof (2026-10-07)
+
+Linked pure core69 tests and native state23 tests PASS. Independent executed
+TypeScript fixtures include308rule/score decisions,15,200reward choices and220
+Laser shot/order/RNG cases. The complete dedicated Simulator run passed272/272
+tests in `/tmp/stack-native100-ordinary-return-full-qa2.xcresult`: actual Board27,
+ordinary80ms absorb/conditional100ms postcheck, all13 typed finale dispatches,
+fresh/resumed/completed Journey transition admission, next-board continuation,
+NewReward→FlowerUnlock→CleanBoard, both tutorial routes and native prepared
+Fail→World return. Result9 and destination5 checks cover opaque readiness,
+same-instance adoption and stale/background callbacks. Actual Music4 checks
+preserve the existing native fade-end/cancellation receipt after numeric input
+was corrected. Source full19gates/530suites4010tests andKING330PASS are separate
+evidence; latest checkpoint gates and Honey/shared-phase focused proof are
+recorded in CURRENT_HANDOFF.
+
+Forest/Beach/Area55 full scene carriers, authored digits/clouds/bees/combat,
+music phases, result confetti/Area55 flybys and all authored Special finales
+are connected. Three original-art transition screenshots and the connected
+result/confetti/ships were visually reviewed. This does not close remaining
+delayed ordinary spawn assignments, source shared idle/impact FX, Fish media,
+HUD/decor parity, cold resources, default shipping activation or physical
+acceptance. The current HUD audit specifically found source Arcade-only bottom
+Round pill, top orange/beige Wild meter and no displayed Moves counter; the
+prototype native placement/extra counter still require correction.
+
+Native-only QA boot uses the separate native bundle identity and original
+NativeAssets.bundle without Web.bundle. The default physical/Release entry is
+still the preserved hybrid entry until all parity and release gates close.
+Current source is implementation work, not a shipped100%native benchmark.
+
 ## Execution boundary
 
-This task records the roadmap and starting checkpoint only. Gameplay migration
-begins in a subsequent implementation task; no phone build/install or PWA
-operation is part of this planning/checkpoint action.
+The roadmap/checkpoint task is complete. On 2026-10-07 the user explicitly
+started the full migration and requested all available agents. Implementation
+is active across pure Swift rules, SpriteKit UI, Swift persistence/content and
+native app integration. See NATIVE_GAMEPLAY_RUNTIME_OWNERS.md and the parity
+matrix. Simulator proof precedes default activation and physical delivery;
+unresolved parity items cannot be marked complete merely because code compiles.
+No PWA operations are authorized by Native migration.

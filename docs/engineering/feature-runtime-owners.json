@@ -343,6 +343,182 @@
         "src/modules/__tests__/end-run-bottom-sheet-flip-contract.test.ts"
       ],
       "physicalAcceptance": "NEEDS PHYSICAL TEST. Separate Native candidate only. Exit/result migration incomplete until actual routes and terminal acceptance."
+    },
+    {
+      "id": "native-swift-gameplay-migration",
+      "surfaces": [
+        "native/gameplay-app/NativeAppController.swift",
+        "native/gameplay-app/NativeRouteMotion.swift",
+        "native/gameplay-ui/NativeBoardGeometry.swift",
+        "native/gameplay-ui/NativeDiceArtwork.swift",
+        "native/gameplay-ui/NativeBoardMotion.swift",
+        "native/gameplay-app/NativeBootstrap.swift",
+        "native/gameplay-app/NativeEndRunOwner.swift",
+        "native/gameplay-app/NativeResultOwner.swift",
+        "native/gameplay-ui/NativeBoardScene.swift",
+        "native/gameplay-ui/NativeGameplayViewController.swift",
+        "native/gameplay-app/NativeBoardEntryHaptics.swift",
+        "native/gameplay-collection/NativeHubBackpackFeedback.swift",
+        "native/gameplay-ambient/NativeJourneyAmbientOwner.swift"
+      ],
+      "entryOwner": "NativeAppController with injected Swift settings/progression/session services. Separate QA native-gameplay entry only until complete KING, variant, save and physical parity is proved. Current default benchmark remains recoverable.",
+      "exitOwner": "Generation-owned finite route motion and World prepareGameplayExit; retired completion cannot reveal a newer route. Session state is flushed before child disposal; native core owns board transactions and endgame.",
+      "resourcePolicy": "Original asset bytes copied into separate NativeAssets.bundle by scripts/prepare-native-artwork.mjs with full inventory/hash verification; no web entry copied. Scene textures and bounded frame atlas decoding are owned by the native board surface.",
+      "animationPolicy": "Existing JimiV9Motion sampled Home/Hub recipes and UIKit Settings/World/card owners retained. SpriteKit owns board gestures and finite effects. Full Special finale, SVG/video and transition parity remain open implementation tasks.",
+      "audioPolicy": "NativeGameplayAudioOwner selects original authored cues and NativeSoundtrackRouteOwner uses direct native file-backed transport. Actual presentation contacts must emit captured receipts; complete Special/result cue timing and physical mix acceptance remain open.",
+      "hapticPolicy": "Only committed native gameplay/contact events may emit haptics and must respect native settings. All authored events remain parity work.",
+      "visibilityPolicy": "Hidden new World preparation, one visible route and one gameplay child; generation checks reject stale prepares/completions. Background suspends World/Home/Hub motion and flushes current native save. Background gesture/transaction fixtures required before release.",
+      "tests": [
+        "native/standalone/Stack to SixTests/NativeAppCoordinatorTests.swift",
+        "native/standalone/Stack to SixTests/NativeSoundtrackRouteTests.swift",
+        "native/standalone/Stack to SixTests/NativeBoardTests.swift",
+        "native/standalone/Stack to SixTests/NativeResultOwnerTests.swift",
+        "native/standalone/Stack to SixTests/NativeHybridExportTests.swift",
+        "native/standalone/Stack to SixTests/NativeBootstrapTests.swift",
+        "native/gameplay-collection-tests/NativeHubBackpackFeedbackTests.swift",
+        "native/gameplay-ambient-tests/NativeJourneyAmbientTests.swift"
+      ],
+      "physicalAcceptance": "NEEDS PHYSICAL TEST. Work in progress; not a complete 100% native parity or approved replacement. No phone delivery from initial source migration work."
+    },
+    {
+      "entryOwner": "NativeBootstrap admits one Swift-owned presentation from the exact native session generation. Gameplay/progression remains in the pure Swift core and NativeSaveStore; no web route or second resolver.",
+      "exitOwner": "One owner captures semantic action once, rejects stale generations, and retires visual resources before continuation. Explicit disposal cancels callbacks and owned clocks.",
+      "resourcePolicy": "Original preserved artwork and fonts only. Selected bounded preparation lease; release on replacement/disposal. No source asset conversion, rename or removal.",
+      "animationPolicy": "UIKit/CoreAnimation or one bounded native display clock samples the source motion. Visible authored idle has explicit foreground/visibility/disposal ownership. Complete pixel and physical motion acceptance remains pending.",
+      "audioPolicy": "Semantic visible contacts delegate to NativeGameplayAudioOwner with monotonic receipts and captured session generation; source-specific original sound groups and native Settings are authoritative.",
+      "hapticPolicy": "Native settings-gated captured contact/beat events only; retired owners cannot pulse.",
+      "visibilityPolicy": "One visible presentation lease. Background freezes retained presentation time and input; replacement invalidates callbacks. Hidden/disposed surfaces own no tick or preparation renewal.",
+      "physicalAcceptance": "NEEDS PHYSICAL TEST. Candidate Swift source; Simulator tests do not establish pixel, frame pacing, audio, haptic or thermal acceptance.",
+      "id": "native-journey-reward",
+      "surfaces": [
+        "native/gameplay-reward/NativeJourneyRewardController.swift",
+        "native/gameplay-reward/NativeRewardPresentation.swift",
+        "native/gameplay-reward/NativeRewardSmoke.swift"
+      ],
+      "tests": [
+        "native/gameplay-reward-tests/NativeJourneyRewardTests.swift"
+      ]
+    },
+    {
+      "entryOwner": "NativeBootstrap admits one Swift-owned presentation from the exact native session generation. Gameplay/progression remains in the pure Swift core and NativeSaveStore; no web route or second resolver.",
+      "exitOwner": "One owner captures semantic action once, rejects stale generations, and retires visual resources before continuation. Explicit disposal cancels callbacks and owned clocks.",
+      "resourcePolicy": "Original preserved artwork and fonts only. Selected bounded preparation lease; release on replacement/disposal. No source asset conversion, rename or removal.",
+      "animationPolicy": "UIKit/CoreAnimation or one bounded native display clock samples the source motion. Visible authored idle has explicit foreground/visibility/disposal ownership. Complete pixel and physical motion acceptance remains pending.",
+      "audioPolicy": "Semantic visible contacts delegate to NativeGameplayAudioOwner with monotonic receipts and captured session generation; source-specific original sound groups and native Settings are authoritative.",
+      "hapticPolicy": "Native settings-gated captured contact/beat events only; retired owners cannot pulse.",
+      "visibilityPolicy": "One visible presentation lease. Background freezes retained presentation time and input; replacement invalidates callbacks. Hidden/disposed surfaces own no tick or preparation renewal.",
+      "physicalAcceptance": "NEEDS PHYSICAL TEST. Candidate Swift source; Simulator tests do not establish pixel, frame pacing, audio, haptic or thermal acceptance.",
+      "id": "native-special-dice-unlock",
+      "surfaces": [
+        "native/gameplay-unlock/NativeSpecialDiceUnlockController.swift",
+        "native/gameplay-unlock/NativeSpecialDiceUnlockPresentation.swift"
+      ],
+      "tests": [
+        "native/gameplay-unlock-tests/NativeSpecialDiceUnlockTests.swift"
+      ]
+    },
+    {
+      "entryOwner": "NativeBootstrap admits one Swift-owned presentation from the exact native session generation. Gameplay/progression remains in the pure Swift core and NativeSaveStore; no web route or second resolver.",
+      "exitOwner": "One owner captures semantic action once, rejects stale generations, and retires visual resources before continuation. Explicit disposal cancels callbacks and owned clocks.",
+      "resourcePolicy": "Original preserved artwork and fonts only. Selected bounded preparation lease; release on replacement/disposal. No source asset conversion, rename or removal.",
+      "animationPolicy": "UIKit/CoreAnimation or one bounded native display clock samples the source motion. Visible authored idle has explicit foreground/visibility/disposal ownership. Complete pixel and physical motion acceptance remains pending.",
+      "audioPolicy": "Semantic visible contacts delegate to NativeGameplayAudioOwner with monotonic receipts and captured session generation; source-specific original sound groups and native Settings are authoritative.",
+      "hapticPolicy": "Native settings-gated captured contact/beat events only; retired owners cannot pulse.",
+      "visibilityPolicy": "One visible presentation lease. Background freezes retained presentation time and input; replacement invalidates callbacks. Hidden/disposed surfaces own no tick or preparation renewal.",
+      "physicalAcceptance": "NEEDS PHYSICAL TEST. Candidate Swift source; Simulator tests do not establish pixel, frame pacing, audio, haptic or thermal acceptance.",
+      "id": "native-first-play-tutorial",
+      "surfaces": [
+        "native/gameplay-app/NativeTutorialOwner.swift",
+        "native/gameplay-app/NativeTutorialOverlay.swift"
+      ],
+      "tests": [
+        "native/standalone/Stack to SixTests/NativeBoardTests.swift",
+        "native/standalone/Stack to SixTests/NativeBootstrapTests.swift"
+      ]
+    },
+    {
+      "entryOwner": "NativeBootstrap admits one Swift-owned presentation from the exact native session generation. Gameplay/progression remains in the pure Swift core and NativeSaveStore; no web route or second resolver.",
+      "exitOwner": "One owner captures semantic action once, rejects stale generations, and retires visual resources before continuation. Explicit disposal cancels callbacks and owned clocks.",
+      "resourcePolicy": "Original preserved artwork and fonts only. Selected bounded preparation lease; release on replacement/disposal. No source asset conversion, rename or removal.",
+      "animationPolicy": "UIKit/CoreAnimation or one bounded native display clock samples the source motion. Visible authored idle has explicit foreground/visibility/disposal ownership. Complete pixel and physical motion acceptance remains pending.",
+      "audioPolicy": "Semantic visible contacts delegate to NativeGameplayAudioOwner with monotonic receipts and captured session generation; source-specific original sound groups and native Settings are authoritative.",
+      "hapticPolicy": "Native settings-gated captured contact/beat events only; retired owners cannot pulse.",
+      "visibilityPolicy": "One visible presentation lease. Background freezes retained presentation time and input; replacement invalidates callbacks. Hidden/disposed surfaces own no tick or preparation renewal.",
+      "physicalAcceptance": "NEEDS PHYSICAL TEST. Candidate Swift source; Simulator tests do not establish pixel, frame pacing, audio, haptic or thermal acceptance.",
+      "id": "native-tutorial-complete",
+      "surfaces": [
+        "native/gameplay-tutorial-complete/NativeTutorialCompleteController.swift"
+      ],
+      "tests": [
+        "native/gameplay-tutorial-complete-tests/NativeTutorialCompleteTests.swift"
+      ]
+    },
+    {
+      "entryOwner": "NativeBootstrap admits one Swift-owned presentation from the exact native session generation. Gameplay/progression remains in the pure Swift core and NativeSaveStore; no web route or second resolver.",
+      "exitOwner": "One owner captures semantic action once, rejects stale generations, and retires visual resources before continuation. Explicit disposal cancels callbacks and owned clocks.",
+      "resourcePolicy": "Original preserved artwork and fonts only. Selected bounded preparation lease; release on replacement/disposal. No source asset conversion, rename or removal.",
+      "animationPolicy": "UIKit/CoreAnimation or one bounded native display clock samples the source motion. Visible authored idle has explicit foreground/visibility/disposal ownership. Complete pixel and physical motion acceptance remains pending.",
+      "audioPolicy": "Semantic visible contacts delegate to NativeGameplayAudioOwner with monotonic receipts and captured session generation; source-specific original sound groups and native Settings are authoritative.",
+      "hapticPolicy": "Native settings-gated captured contact/beat events only; retired owners cannot pulse.",
+      "visibilityPolicy": "One visible presentation lease. Background freezes retained presentation time and input; replacement invalidates callbacks. Hidden/disposed surfaces own no tick or preparation renewal.",
+      "physicalAcceptance": "NEEDS PHYSICAL TEST. Candidate Swift source; Simulator tests do not establish pixel, frame pacing, audio, haptic or thermal acceptance.",
+      "id": "native-score-combo-modal",
+      "surfaces": [
+        "native/gameplay-app/NativeScoreOwner.swift",
+        "native/gameplay-app/NativeScoreModal.swift"
+      ],
+      "tests": [
+        "native/standalone/Stack to SixTests/NativeScoreModalTests.swift"
+      ]
+    },
+    {
+      "id": "native-authored-results",
+      "surfaces": [
+        "native/gameplay-results/NativeResultConfettiCanvas.swift",
+        "native/gameplay-results/NativeResultPresentationPlan.swift",
+        "native/gameplay-results/NativeResultExitPlan.swift",
+        "native/gameplay-results/NativeResultArea55Flybys.swift"
+      ],
+      "entryOwner": "NativeResultController samples read-only source plans after NativeResultOwner claims the session generation; NativeSaveStore commits the result once before CTA admission. Arcade owns a separate source Round cue.",
+      "exitOwner": "One result action disables both CTAs and samples component exits. Journey Exit asks NativeAppController to reconcile and prepare the exact parked World under opaque coverage, then consumes that same instance. Clean retains a static paper until independent exits/readiness and its140ms release; Fail gates its source200ms collapse fade on readiness. Background invalidates preparation and foreground requests a fresh captured lease; disposal rejects late callbacks. New connected return tests await the current Simulator snapshot.",
+      "resourcePolicy": "Only the selected celebration theme prepares its bounded original image set; parent disposal drops the canvas resources. Original assets are preserved without conversions or changes.",
+      "animationPolicy": "Parent NativeResultController owns the single foreground display clock; read-only geometry/particle plans own no timer, save or navigation. UIKit bounds/center layout preserves zero-scale poses; title motion uses the source CSS line box with a padded glyph carrier. Source Area55 flybys retain opposite depths, captured plans and6.7s retirement; selected confetti retires by9.8s.",
+      "audioPolicy": "Source result/count/bonus/star/CTA moments delegate captured receipts to NativeGameplayAudioOwner; sax completion uses native file-end receipts.",
+      "hapticPolicy": "Only admitted CTA and source semantic contacts delegate to settings-gated NativeBootstrap haptics; disposed owners cannot pulse.",
+      "visibilityPolicy": "Background freezes result time and celebration and retires pending destination receipts. Preparation starts after two painted exit frames; readiness cannot publish route/input. The exact prepared World stays parked until result cover release. Non-Journey and direct replay preparation remains a separate parity requirement.",
+      "physicalAcceptance": "NEEDS PHYSICAL TEST. Source fixture/Simulator proof does not certify fonts, particle pixels, animation feel, audio mix or thermal behavior.",
+      "tests": [
+        "native/gameplay-result-tests/NativeAuthoredResultPresentationTests.swift",
+        "native/standalone/Stack to SixTests/NativeResultOwnerTests.swift",
+        "native/gameplay-result-tests/NativeResultArea55FlybysTests.swift",
+        "native/standalone/Stack to SixTests/NativeAppCoordinatorTests.swift",
+        "native/standalone/Stack to SixTests/NativeBootstrapTests.swift"
+      ]
+    },
+    {
+      "id": "native-themed-board-transitions",
+      "surfaces": [
+        "native/gameplay-transitions/NativeThemedBoardTransitionController.swift",
+        "native/gameplay-transitions/NativeTransitionScenePlan.swift",
+        "native/gameplay-transitions/NativeForestTransitionBees.swift",
+        "native/gameplay-transitions/NativeTransitionRoboCombatPlan.swift"
+      ],
+      "entryOwner": "NativeBootstrap mounts one generation-owned carrier for every non-tutorial World CTA, including saved/completed boards, or after an atomic Continue save. NativeJourneyTransitionAdmission preserves direct retry/replay skips. The core remains the only board/progression owner; one coordinator variation sequence preserves Beach alternation and opposing Robo entry directions.",
+      "exitOwner": "Controller emits one captured scene-exit receipt and retains opaque paper. Root releases only the prepared matching board entry, then explicitly releases the cover. Route replacement/disposal aborts captured audio and selected resources without releasing a newer board.",
+      "resourcePolicy": "One required selected-theme image/font lease and a separate original-paper lease. NativeAssets is byte-preserved; no whole-future-theme warmup or reduced substitute on asset failure. Stale preparations cannot mount scene layers.",
+      "animationPolicy": "One foreground controller display clock samples source digits, clouds, scenery, Forest NN bees and Area55 fighter/beam plans. No independent scene timer. Clock retires at source scene-end while the opaque paper remains until root handoff. Original source/GSAP numeric oracle evidence and UIKit runtime acceptance are recorded separately.",
+      "audioPolicy": "Typed digit/start/beam cues delegate captured generation and monotonic receipts to NativeGameplayAudioOwner. NativeSoundtrackRouteOwner owns the original shared-theme gain phases and real native fade-completion receipt; natural tails and abort cleanup remain distinct.",
+      "hapticPolicy": "Four source digit-enter/exit light receipts are settings-gated by NativeBootstrap. Background/disposed/stale owners cannot emit another contact.",
+      "visibilityPolicy": "Cold preparation mounts an immediate opaque paper fallback, and the native gameplay entry lease holds rendering/input until the scene completes. Background freezes retained time; replacement/disposal retire preparation, clock, observers and captured cleanup.",
+      "physicalAcceptance": "NEEDS PHYSICAL TEST. Exact source plans and Simulator routes do not establish real compositor/3D pixels, cold-frame latency, haptic/audio mix or thermal performance.",
+      "tests": [
+        "native/gameplay-transition-tests/NativeThemedBoardTransitionLifecycleTests.swift",
+        "native/gameplay-transition-tests/NativeTransitionScenePlanTests.swift",
+        "native/gameplay-transition-tests/NativeTransitionRoboCombatTests.swift",
+        "native/gameplay-transition-tests/NativeBoardTransitionAudioTests.swift",
+        "native/standalone/Stack to SixTests/NativeForestTransitionBeeTests.swift",
+        "native/standalone/Stack to SixTests/NativeBootstrapTests.swift"
+      ]
     }
   ]
 }

@@ -166,11 +166,12 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
     /// Root calls this during outgoing Hub motion; it never reveals the surface.
     func prepare(completion:@escaping () -> Void) {
         layoutIfNeeded(); let epoch = resourceEpoch
+        preparationHasMissingResources = !resources.missingAssets.isEmpty
         let viewport = CGRect(origin:scrollView.contentOffset,size:scrollView.bounds.size).insetBy(dx:0,dy:-220*scale)
         var remaining = 1
         func finish() { remaining -= 1; if remaining == 0 { completion() } }
         remaining += 1
-        if let ambient {remaining += 1;ambient.prepareVisible(viewport:viewport,scale:scale) { [weak self] accepted in if let self {self.preparationHasMissingResources = self.preparationHasMissingResources || !accepted};finish() }}
+        if let ambient {remaining += 1;ambient.prepareVisible(viewport:viewport,scale:scale) { [weak self] accepted in if let self,self.resourceEpoch==epoch {self.preparationHasMissingResources = self.preparationHasMissingResources || !accepted};finish() }}
         bees?.prepareVisible(viewport:viewport,scale:scale) { [weak self] accepted in if let self {self.preparationHasMissingResources = self.preparationHasMissingResources || !accepted};finish() }
         for (owner,target,parts) in [(0,main,snapshot.mainParts)] + snapshot.units.compactMap({ unit -> (Int,UIView,[JimiNativeWorldSnapshot.Part])? in
             guard let target = units[unit.boardID],viewport.intersects(target.frame) else {return nil}; return (unit.boardID,target,unit.parts)
@@ -186,6 +187,9 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         }
         finish()
     }
+    /// Cancellation retires only in-flight preparation receipts, never warm
+    /// decoded artwork, geometry or the existing ambient/bee owners.
+    func cancelPendingPreparation(){resourceEpoch += 1;preparing.removeAll();resources.cancelPendingPreparation()}
     private func updateResources() {
         let viewport = CGRect(origin: scrollView.contentOffset, size: scrollView.bounds.size).insetBy(dx: 0, dy: -180*scale)
         if (!loaded.contains(0) || dirtyUnits.contains(0)) && viewport.intersects(main.frame) { scheduleParts(snapshot.mainParts,target:main,owner:0) }

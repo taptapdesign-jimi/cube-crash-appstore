@@ -33,3 +33,10 @@ debug-*.html
 debug-*.js
 *-TEMP.*
 index-test-TEMP.*
+
+# Generated native artwork payload / portable Swift build cache
+native/standalone/Stack to Six/NativeAssets.bundle/
+native/gameplay-core/.build/
+native/gameplay-core/.swiftpm/
+native/gameplay-state/.build/
+native/gameplay-state/.swiftpm/
