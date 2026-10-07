@@ -33,6 +33,13 @@ operate the legacy Kockice Crash target. No branch or historical tag is rewritte
 Existing TypeScript, tests and assets stay preserved as migration references.
 Use `SKIP_NATIVE_BUNDLE_SYNC=true` for transitional web QA/builds.
 
+On2026-10-08 the user explicitly requested a physical preview of the current
+Native work. `NATIVE_GAMEPLAY_PHONE_PREVIEW` is an opt-in Debug-only build
+condition for the exact `.native` target. It opens the existing Swift bootstrap
+on ordinary icon launches, retains Native-only save migration, and never resets
+a profile. Simulator opt-ins remain unchanged. This physical preview does not
+close unfinished parity, Release admission or final shipping retirement.
+
 ## Implementation rules
 
 **Required visual baseline:** The user explicitly reaffirmed on2026-10-07 and2026-10-08 that

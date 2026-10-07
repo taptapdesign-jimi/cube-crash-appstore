@@ -51,6 +51,12 @@ The repository retains historical `cube-crash` names in paths and code. That doe
   Beach and Area55 render through shared UIKit on ordinary icon launches.
   QA Simulator retains `--jimi-native-forest` / `--jimi-native-worlds` opt-ins;
   Release Worlds remain OFF. Physical performance/visual acceptance is separate.
+  User explicitly requested a current Swift gameplay phone preview on2026-10-08.
+  Build the exact separate Native target with Debug plus the opt-in
+  `NATIVE_GAMEPLAY_PHONE_PREVIEW` compilation condition to open NativeBootstrap
+  on ordinary icon launches. Keep its existing Native save and canonical
+  Native-only migration; no QA fresh profile or PWA save access. This preview
+  is incomplete parity, not Release admission. Simulator gating is unchanged.
   Prepare only its ignored Web.bundle from complete `dist`, never by changing
   the original native sync destination. See `native/standalone/README.md`.
   The original app's requested label is **Stack to Six PWA** (still a WKWebView

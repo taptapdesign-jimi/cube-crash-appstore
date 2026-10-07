@@ -28,6 +28,21 @@ is still hybrid; production-benchmark-v9 remains the preserved PWA reference.
 
 ## Reproducible preparation
 
+### Swift gameplay phone preview (user-authorized2026-10-08)
+
+Build this separate target with Debug and
+`SWIFT_ACTIVE_COMPILATION_CONDITIONS='DEBUG NATIVE_GAMEPLAY_PHONE_PREVIEW'`
+to show the current Swift/UIKit/SpriteKit gameplay on iPhone13blue, including
+ordinary icon relaunches. Preserve the app's existing Native sandbox; its
+canonical atomic store imports only that sandbox's prior hybrid profile once.
+Never use the QA fresh-profile flag on the phone. The exact `.native` identity
+and Debug condition are mandatory; Release and ordinary Debug builds retain
+their existing activation policy. This is a preview of incomplete parity.
+Ship all original bytes in `NativeAssets.bundle`; the preview may exclude
+`Web.bundle` because its gameplay does not boot web game code. The isolated
+blank legacy-profile exporter remains available for one-time save migration.
+No private `/tmp` SVG/Wild/cadence draft belongs to this preview.
+
 Run `SKIP_NATIVE_BUNDLE_SYNC=true npm run qa:full` from the repo root. It builds
 the complete normal web payload without updating the original native project.
 Copy `dist` to `native/standalone/Stack to Six/Web.bundle` with `ditto`; this

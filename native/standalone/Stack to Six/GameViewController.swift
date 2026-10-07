@@ -236,10 +236,20 @@ class GameViewController: UIViewController, WKUIDelegate, WKNavigationDelegate, 
     private var jimiMusic: JimiNativeMusic?
     private var nativeBootstrap: NativeBootstrap?
     private static var nativeGameplayEnabled: Bool {
-        #if DEBUG && targetEnvironment(simulator)
-        return Bundle.main.bundleIdentifier == "com.taptapdesign.stacktosix.native"
-            && ProcessInfo.processInfo.arguments.contains("--native-gameplay")
+        #if DEBUG
+        guard Bundle.main.bundleIdentifier == "com.taptapdesign.stacktosix.native" else { return false }
+        #if targetEnvironment(simulator)
+        return ProcessInfo.processInfo.arguments.contains("--native-gameplay")
             && ProcessInfo.processInfo.environment["SIMULATOR_UDID"] == "1018BE2D-491B-465F-8F75-3E5BEB38C22A"
+        #elseif NATIVE_GAMEPLAY_PHONE_PREVIEW
+        // Explicit user-authorized physical preview,2026-10-08. This build
+        // opens Swift gameplay on normal icon launches; it is not Release
+        // admission or a fresh/reset QA profile. Existing Native saves use
+        // the canonical one-time migration owner before gameplay admission.
+        return true
+        #else
+        return false
+        #endif
         #else
         return false
         #endif
