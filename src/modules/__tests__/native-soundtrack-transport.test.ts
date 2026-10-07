@@ -73,6 +73,28 @@ describe('exclusive native soundtrack transport', () => {
     arcade.rampVolume!(0.3, 500);
     expect(postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ op: 'volume', volume: 0.3, duration: 0.5 }));
   });
+  test('activation resumes the current owned voice at native position with current gain', async () => {
+    const voice = createNativeSoundtrackVoice(options)!;
+    await voice.play();
+    voice.volume = 0.578;
+    postMessage.mockResolvedValueOnce({ position: 7, duration: 12 });
+    await expect(voice.reacquireAfterNativeActivation!(1)).resolves.toBe(true);
+    expect(postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ op: 'resume', volume: 0.578 }));
+    expect(voice.currentTime).toBeCloseTo(7, 1);
+    expect(postMessage.mock.calls.filter(call => call[0].op === 'play')).toHaveLength(1);
+  });
+  test('activation never revives Music OFF or a disposed voice', async () => {
+    const voice = createNativeSoundtrackVoice(options)!;
+    await voice.play();
+    voice.pause();
+    postMessage.mockClear();
+    await expect(voice.reacquireAfterNativeActivation!(1)).resolves.toBe(false);
+    expect(postMessage).not.toHaveBeenCalled();
+    voice.dispose();
+    postMessage.mockClear();
+    await expect(voice.reacquireAfterNativeActivation!(1)).resolves.toBe(false);
+    expect(postMessage).not.toHaveBeenCalled();
+  });
   test('absence of native capability leaves web selection untouched', () => {
     Reflect.deleteProperty(window, 'webkit');
     expect(createNativeSoundtrackVoice(options)).toBeNull();

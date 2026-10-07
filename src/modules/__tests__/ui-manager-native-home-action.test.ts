@@ -12,10 +12,10 @@ const code = ts.transpileModule(`return class { ${method.getText(source)} }`, { 
 function fixture() {
   const zone = { getCurrentZone: jest.fn(() => 'home'), getPresentationEpoch: jest.fn(() => 1), isPresentationCurrent: jest.fn(() => true) };
   const state = { get: jest.fn(() => false) };
-  const Delegate = new Function('appZoneManager', 'gameState', code)(zone, state);
+  const Delegate = new Function('appZoneManager', 'gameState', 'emitSettingsRouteDiagnostic', code)(zone, state, jest.fn());
   const delegate = new Delegate();
   Object.assign(delegate, { isInitialized: true, elements: { home: document.createElement('section'), settingsScreen: document.createElement('section') },
-    handlePlayClick: jest.fn(async () => {}), handleSettingsClick: jest.fn(), handleStatsClick: jest.fn() });
+    handlePlayClick: jest.fn(async () => {}), handleSettingsClick: jest.fn(async () => true), handleStatsClick: jest.fn() });
   return { delegate, zone, state };
 }
 
@@ -42,7 +42,11 @@ test.each(['uninitialized', 'wrong-zone', 'locked', 'hidden', 'missing-settings'
 test.each(['arcade', 'settings'] as const)('native completed exit hides the %s web copy before canonical dispatch', async action => {
   const f = fixture();
   const handler = action === 'arcade' ? f.delegate.handlePlayClick : f.delegate.handleSettingsClick;
-  handler.mockImplementation(() => expect(f.delegate.elements.home.style.visibility).toBe('hidden'));
+  handler.mockImplementation(() => {
+    expect(f.delegate.elements.home.style.visibility).toBe('hidden');
+    if (action === 'settings') expect(f.delegate.elements.home.style.opacity).toBe('0');
+    return true;
+  });
   expect(await f.delegate.activateNativeHomepageAction(action, true)).toBe(true);
   expect(handler).toHaveBeenCalledWith(undefined, true);
 });
@@ -60,4 +64,33 @@ test.each([true, false])('failed activation restores visibility only for its cur
   f.delegate.handlePlayClick.mockRejectedValue(new Error('unavailable'));
   await expect(f.delegate.activateNativeHomepageAction('arcade', true)).rejects.toThrow('unavailable');
   expect(f.delegate.elements.home.style.visibility).toBe(current ? '' : 'hidden');
+});
+
+
+test('Settings ACK waits for canonical destination readiness', async () => {
+  const f = fixture();
+  let ready!: (value: boolean) => void;
+  f.delegate.handleSettingsClick.mockReturnValue(new Promise<boolean>(resolve => { ready = resolve; }));
+  let acknowledged = false;
+  const pending = f.delegate.activateNativeHomepageAction('settings', true).then((value: boolean) => { acknowledged = true; return value; });
+  await Promise.resolve();
+  expect(acknowledged).toBe(false);
+  ready(false);
+  expect(await pending).toBe(false);
+});
+
+
+test('native Arcade delegate accepts a retired web Home and uses the original game start handler', async () => {
+  const nativeMethod = owner.members.find(node => ts.isMethodDeclaration(node) && node.name.getText(source) === 'activateNativeArcadeGameplay')!;
+  const nativeCode = ts.transpileModule(`return class { ${nativeMethod.getText(source)} }`, {compilerOptions: {target: ts.ScriptTarget.ES2022}}).outputText;
+  const zone = {getCurrentZone: () => 'home'};
+  const state = {get: () => false};
+  const Delegate = new Function('appZoneManager', 'gameState', nativeCode)(zone, state);
+  const delegate = new Delegate();
+  delegate.isInitialized = true;
+  delegate.elements = {home: document.createElement('section')};
+  delegate.elements.home.hidden = true;
+  delegate.handlePlayClick = jest.fn(async () => {});
+  expect(await delegate.activateNativeArcadeGameplay()).toBe(true);
+  expect(delegate.handlePlayClick).toHaveBeenCalledWith(undefined, true);
 });

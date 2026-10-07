@@ -1,3 +1,4 @@
+import { createSpecialMergeTransactionReceipt, SpecialDiceTransactionOwner } from '../special-dice-transaction-owner';
 import { commitMagnetSurvivor } from '../magnet-survivor-commit';
 import { resetTileToNormalState } from '../tile-state-utils';
 
@@ -16,6 +17,7 @@ function spaceshipTile() {
     gridY: 1,
     value: 6,
     special: 'wild-magnet',
+    _ccGameplayDieId: 'consumed-magnet',
     isWild: true,
     isWildFace: true,
     _ccSpecialDiceVariant: 'spaceship',
@@ -77,6 +79,7 @@ test('commits a Spaceship destination as one canonical bound regular survivor be
   const bindToTile = jest.fn((target: any) => {
     order.push('bind');
     expect(target.visible).toBe(false);
+    expect(target._ccGameplayDieId).toBeUndefined();
     expect(target.base._ccTextureAssetPath).toBe('./assets/numbers.png');
     target.hitArea = { x: -64, y: -64, width: 128, height: 128 };
     target.eventMode = 'static';
@@ -196,4 +199,33 @@ test('removes the exact destination and returns a failed receipt when canonical 
   expect(removeOnFailure).toHaveBeenCalledTimes(1);
   expect(grid[1][2]).toBeNull();
   expect(tile.destroyed).toBe(true);
+});
+
+
+test('real Magnet survivor conversion releases the immutable consumed-die receipt', () => {
+  const { tile } = spaceshipTile();
+  const owner = new SpecialDiceTransactionOwner();
+  const token = owner.claim('magnet')!;
+  owner.attachMergeReceipt(token, createSpecialMergeTransactionReceipt({
+    token, kind: 'magnet', runGeneration: 1, acceptedBoardRevision: 0,
+    sourceDieId: 'consumed-source', destinationDieId: tile._ccGameplayDieId,
+    sourceCell: { c: 1, r: 1 }, destinationCell: { c: 2, r: 1 },
+    destinationDisposition: 'consume-after-continuation', expectedPrimarySpawnCount: 0,
+    finalMerge: false,
+  }));
+  const grid = [[], [null, null, tile]];
+  expect(owner.releaseAfterPostconditionAudit(token, [{ id: tile._ccGameplayDieId, value: 6 }],
+    { committedCount: 0, committedCells: [], requireSettled: true }).released).toBe(false);
+  const result = commitMagnetSurvivor({
+    tile, value: 3, grid, board: {}, tileSize: 128, gap: 12,
+    stopSpecialIdle: () => {}, resetToNormal: resetTileToNormalState,
+    collapseStack: () => {}, setValueImmediate: (target, value) => { target.value = value; },
+    syncZIndex: () => {}, bindToTile: () => {}, removeOnFailure: jest.fn(),
+  });
+  expect(result.committed).toBe(true);
+  const release = owner.releaseAfterPostconditionAudit(token,
+    [{ id: tile._ccGameplayDieId, value: tile.value }],
+    { committedCount: 0, committedCells: [], requireSettled: true });
+  expect(release).toMatchObject({ released: true, audit: { ok: true, issues: [] } });
+  expect(owner.isActive()).toBe(false);
 });

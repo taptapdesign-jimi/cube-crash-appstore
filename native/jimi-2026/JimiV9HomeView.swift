@@ -20,8 +20,8 @@ private final class JimiV9OverflowView: UIView {
     }
 }
 
-/// Settled v9 Homepage presentation. No route, persistence, audio, idle timer or
-/// animator lives here: the controller owns every transition and input lease.
+/// Settled Homepage presentation plus owned artwork compositor idle. No route,
+/// persistence, audio or timer lives here; controller grants visible motion/input leases.
 @MainActor
 final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     var onSlideSelected: ((Int) -> Void)?
@@ -41,7 +41,9 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     private let bottomShadow: UIImageView
     private var panels: [UIView] = []
     private var heroes: [UIButton] = []
-    private var heroImages: [UIImageView] = []
+    private(set) var heroImages: [UIImageView] = []
+    static let heroArtworkScale: CGFloat = 1.05
+    private var idleSlide: Int?
     private var ctas: [UIButton] = []
     private var ctaContainers: [UIView] = []
     private var ctaPressShells: [UIView] = []
@@ -183,6 +185,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     /// concern. Call inside the controller's owned animation transaction.
     func selectSlide(_ index: Int, animated: Bool) {
         guard titles.indices.contains(index) else { return }
+        if index != selectedSlide { stopHeroIdle() }
         resetCTAFeedback()
         draggedPositionX = nil
         selectedSlide = index
@@ -244,7 +247,9 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             heroes[i].layer.position = CGPoint(
                 x: width/2 + (heroes[i].layer.anchorPoint.x - 0.5) * 336,
                 y: heroTop + heroes[i].layer.anchorPoint.y * 336)
-            heroImages[i].frame = heroes[i].bounds
+            let artSize = 336 * Self.heroArtworkScale
+            heroImages[i].bounds = CGRect(x:0,y:0,width:artSize,height:artSize)
+            heroImages[i].center = CGPoint(x:168,y:168)
             ctaContainers[i].bounds = CGRect(x: 0, y: 0, width: width, height: 104)
             ctaContainers[i].center = CGPoint(x: width/2, y: heroTop + 360)
             ctas[i].bounds = CGRect(x: 0, y: 0, width: 226, height: 64)
@@ -273,6 +278,47 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             x += size + gap
         }
     }
+
+    /// journey-fluidity-v10 slider-optimized.css: only active artwork advances.
+    /// Inner artwork owns idle; route/selection motion remains on the hero button.
+    func startHeroIdle() {
+        guard !isHidden, UIApplication.shared.applicationState == .active, !UIAccessibility.isReduceMotionEnabled else {stopHeroIdle();return}
+        let layer = heroImages[selectedSlide].layer
+        if idleSlide == selectedSlide, layer.animation(forKey:"native-hero-idle") != nil {
+            guard layer.speed == 0 else{return}
+            let offset = layer.timeOffset;layer.speed = 1;layer.timeOffset = 0;layer.beginTime = 0
+            layer.beginTime = layer.convertTime(CACurrentMediaTime(),from:nil)-offset;return
+        }
+        stopHeroIdle()
+        let duration = [4.0,3.0,3.5][selectedSlide]
+        let y = [-6.0,-8.0,-7.0][selectedSlide]
+        let rotation = [-1.0,1.0,2.0][selectedSlide]
+        let scale = [1.05,1.02,1.03][selectedSlide]
+        var peak = CATransform3DMakeTranslation(0,y,0)
+        peak = CATransform3DRotate(peak,rotation * .pi/180,0,0,1)
+        peak = CATransform3DScale(peak,scale,scale,1)
+        let animation = CAKeyframeAnimation(keyPath:"transform")
+        animation.values = [CATransform3DIdentity,peak,CATransform3DIdentity].map{NSValue(caTransform3D:$0)}
+        animation.keyTimes = [0,0.5,1];animation.duration = duration;animation.repeatCount = .infinity
+        animation.timingFunctions = Array(repeating:CAMediaTimingFunction(controlPoints:0.42,0,0.58,1),count:2)
+        layer.add(animation,forKey:"native-hero-idle");idleSlide = selectedSlide
+    }
+    func pauseHeroIdle() {
+        guard let i = idleSlide else{return};let layer = heroImages[i].layer
+        guard layer.speed != 0 else{return}
+        let time = layer.convertTime(CACurrentMediaTime(),from:nil);layer.speed = 0;layer.timeOffset = time
+    }
+    func stopHeroIdle(preservePaintedPose:Bool = false) {
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        for image in heroImages {
+            let layer = image.layer
+            let painted = preservePaintedPose ? layer.presentation()?.transform ?? layer.transform : CATransform3DIdentity
+            layer.removeAnimation(forKey:"native-hero-idle");layer.speed = 1;layer.timeOffset = 0;layer.beginTime = 0;layer.transform = painted
+        }
+        idleSlide = nil;CATransaction.commit()
+    }
+    override var isHidden: Bool {didSet {if isHidden {stopHeroIdle()}}}
+    override func didMoveToWindow() {super.didMoveToWindow();if window == nil {stopHeroIdle()}}
 
     @objc private func activate(_ button: UIButton) {
         guard !dragging, !ctaActivationPending, button.tag == selectedSlide else { return }

@@ -13,6 +13,7 @@ private final class JimiV9HubScrollView: UIScrollView {
 final class JimiV9HubView: UIView, UIScrollViewDelegate {
     let scrollView: UIScrollView = JimiV9HubScrollView()
     let header = UIView()
+    private let navigationTarget = UIButton(type:.custom)
     let backButton = JimiV9PlainButton(type: .custom)
     let backpackButton = JimiV9PlainButton(type: .custom)
     private let content = UIView()
@@ -48,11 +49,22 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     var bannerRevealTargets: [(worldID: Int, view: UIView)] {
         worldIDs.compactMap { id in bannerRevealShells[id].map { (id, $0) } }
     }
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        guard !isHidden, isUserInteractionEnabled, alpha > 0.01 else { return nil }
+        // Header CA motion changes its model geometry; the navigation target stays
+        // at its authored position while content remains gated independently.
+        if navigationTarget.frame.contains(point), backButton.isEnabled { return navigationTarget }
+        return super.hitTest(point,with:event)
+    }
+
     func bannerWidth(for worldID: Int) -> CGFloat { banners[worldID]?.bounds.width ?? 0 }
 
     init(frame: CGRect, assets: JimiV9Artwork) {
         shadow = UIImageView(image: assets.image("assets/divider-shadow.png"))
         super.init(frame: frame)
+        navigationTarget.isAccessibilityElement = false
+        navigationTarget.addTarget(self,action:#selector(back),for:.touchUpInside)
+        addSubview(navigationTarget)
         accessibilityIdentifier = "native.hub"
         scrollView.contentInsetAdjustmentBehavior = .never
         scrollView.alwaysBounceVertical = true
@@ -214,6 +226,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         header.layer.position = CGPoint(x: width * header.layer.anchorPoint.x,
                                         y: header.bounds.height * header.layer.anchorPoint.y)
         backButton.frame = CGRect(x: 24, y: headerTop + 4, width: 44, height: 44)
+        navigationTarget.frame = backButton.frame
         backpackButton.frame = CGRect(x: width-64, y: headerTop + 4, width: 40, height: 48)
         title.frame = CGRect(x: 72, y: headerTop + 14, width: width-144, height: 32)
         divider.frame = CGRect(x: 24, y: header.bounds.height-2, width: width-48, height: 2)

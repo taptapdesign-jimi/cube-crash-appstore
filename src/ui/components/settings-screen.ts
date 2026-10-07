@@ -821,6 +821,7 @@ export function renderSettingsScreen(
     const backButton = element.querySelector('#settings-back-btn') as HTMLButtonElement | null;
 
     element.dataset.settingsView = developerView ? 'developer' : 'main';
+    if (!developerView) void (window as any).__jimiNativeHomeHubRuntime?.returnNativeSettingsFromDeveloperTools?.();
     element.classList.toggle('settings-developer-view-active', developerView);
     if (mainPanel) {
       mainPanel.hidden = developerView;

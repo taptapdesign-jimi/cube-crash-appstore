@@ -2,6 +2,18 @@
 
 This file is the stable, authoritative onboarding map for new Codex chats. Verify mutable facts from disk or the connected device; do not rely on old conversation memory when it conflicts with this file.
 
+## Native-first main decision (2026-10-07)
+
+The user designates `main` as the **Stack to Six Native** development project,
+with a **100% native** destination. The active development target is the separate
+`native/standalone/Stack to Six.xcodeproj` / `com.taptapdesign.stacktosix.native`.
+Follow [NATIVE_100_PERCENT_PLAN.md](NATIVE_100_PERCENT_PLAN.md).
+`native-benchmark-v1` preserves the starting source; it is currently hybrid,
+not a completed native gameplay benchmark. PWA identities below are preserved
+historical/product references, not the default build/sync target for Native work.
+`production-benchmark-v9` remains the approved PWA recovery reference. Never
+mix saves, install targets or bundle sync destinations between those products.
+
 ## Product identity and repositories
 
 - Product/app name: **Stack to Six**.
@@ -22,6 +34,11 @@ The repository retains historical `cube-crash` names in paths and code. That doe
   `Stack to Six`, bundle ID `com.taptapdesign.stacktosix.native`. This explicit
   exception must never replace the original bundle. UIKit Home/Hub and native
   soundtrack are enabled by exact bundle identity; gameplay remains web.
+  User requested native Settings and Arcade Home on2026-10-06. Main Settings
+  presentation, v10 pill/knob switches, Back and centered textured Privacy modal use UIKit/CoreAnimation, with
+  canonical `_settings`/`saveSettings` and existing audio/haptic owners. Internal
+  DEV tools retain their separate web diagnostic flow. Arcade Home already uses
+  UIKit; its direct gameplay activation now avoids any web Home presentation.
   User authorized all three Native Debug iPhone Worlds on2026-10-06: Forest,
   Beach and Area55 render through shared UIKit on ordinary icon launches.
   QA Simulator retains `--jimi-native-forest` / `--jimi-native-worlds` opt-ins;

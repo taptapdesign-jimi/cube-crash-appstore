@@ -42,6 +42,74 @@ final class JimiNativeWorldTests: XCTestCase {
     }
     private func settle(_ seconds: Double = 1.3) async throws { try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000)) }
 
+    func testPhysicalBackTargetDuringEnterAndPreemptedCardReceipt() async throws {
+        for worldID in 1...3 {
+            var data = fixture(); data["worldID"] = worldID
+            let firstBoard = (worldID-1)*10+1
+            data["units"] = (data["units"] as! [[String:Any]]).map { value in
+                var unit = value;let board = (value["boardID"] as! Int)+(worldID-1)*10
+                unit["boardID"] = board;unit["id"] = "board-\(board)";return unit
+            }
+            let spy = ForestActionWebSpy()
+            let host = JimiNativeWorldHost(web:WKWebView(frame:.zero),artwork:art,transport:spy)
+            let controller = UIViewController(),window = UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+            window.rootViewController = controller;window.makeKeyAndVisible()
+            defer {host.dispose();window.isHidden = true}
+            XCTAssertTrue(host.prepare(data,in:controller.view))
+            let world = try XCTUnwrap(host.worldView)
+            var oldEnterFinished = false,back = 0
+            host.enter(terminal:false) {oldEnterFinished = true}
+            world.layoutIfNeeded()
+            try await settle(0.12)
+            XCTAssertFalse(world.isReadyForInput)
+            let point = CGPoint(x:world.backButton.frame.midX,y:world.backButton.frame.midY)
+            let hit = try XCTUnwrap(world.hitTest(point,with:nil) as? UIButton)
+            XCTAssertTrue(hit.point(inside:world.convert(point,to:hit),with:nil))
+            host.onBack = {back += 1;host.exit {}}
+            hit.sendActions(for:.touchUpInside);hit.sendActions(for:.touchUpInside)
+            XCTAssertEqual(spy.replies.count,1,"First X dispatches during enter, duplicates are inert")
+            spy.replies[0](.success(["accepted":true]))
+            let group = try XCTUnwrap(world.header.layer.animation(forKey:"world.exit") as? CAAnimationGroup)
+            XCTAssertNotNil(group.animations)
+            hit.sendActions(for:.touchUpInside);XCTAssertEqual(spy.replies.count,1)
+            try await settle()
+            XCTAssertEqual(back,1);XCTAssertFalse(oldEnterFinished,"Retired enter cannot grant admission")
+
+            XCTAssertTrue(host.prepare(data,in:controller.view))
+            host.enter(terminal:false) {};try await settle();world.finishPresentationAdmission()
+            world.onRequest?("openCard",firstBoard)
+            XCTAssertEqual(spy.replies.count,2)
+            let nextHit = try XCTUnwrap(world.hitTest(point,with:nil) as? UIButton)
+            nextHit.sendActions(for:.touchUpInside)
+            XCTAssertEqual(spy.replies.count,3,"Back preempts pending presentation work")
+            spy.replies[1](.success(["accepted":true,"snapshot":data]))
+            XCTAssertFalse(world.hasActiveCard,"Retired openCard receipt cannot mount a modal")
+            spy.replies[2](.success(["accepted":true]))
+            XCTAssertEqual(back,2)
+        }
+    }
+
+    func testBackRevalidatesViewedRevisionOnceAndRejectedTapCanRetry() async throws {
+        let spy = ForestActionWebSpy()
+        let host = JimiNativeWorldHost(web:WKWebView(frame:.zero),artwork:art,transport:spy)
+        let container = UIView(frame:CGRect(x:0,y:0,width:390,height:844))
+        defer {host.dispose()}
+        XCTAssertTrue(host.prepare(fixture(),in:container))
+        host.enter(terminal:false) {};try await settle()
+        let world = try XCTUnwrap(host.worldView);world.finishPresentationAdmission()
+        var backs = 0;host.onBack = {backs += 1}
+        world.backButton.sendActions(for:.touchUpInside)
+        spy.replies[0](.success(["accepted":false,"code":"stale-request","snapshot":fixture(2)]))
+        XCTAssertEqual(spy.replies.count,2)
+        let retry = try XCTUnwrap(spy.arguments[1]["action"] as? [String:Any])
+        XCTAssertEqual(retry["stateRevision"] as? Int,2)
+        world.backButton.sendActions(for:.touchUpInside);XCTAssertEqual(spy.replies.count,2)
+        spy.replies[1](.success(["accepted":false,"code":"stale-request","snapshot":fixture(3)]))
+        XCTAssertEqual(spy.replies.count,2,"Stale revision retry is bounded")
+        world.backButton.sendActions(for:.touchUpInside);XCTAssertEqual(spy.replies.count,3)
+        spy.replies[2](.success(["accepted":true]));XCTAssertEqual(backs,1)
+    }
+
     func testWorldPrimesHiddenRequiresAdmissionAndBlocksLockedCard() async throws {
         let world = try XCTUnwrap(JimiNativeWorldView(snapshot:fixture(),assets:art))
         world.frame = CGRect(x:0,y:0,width:390,height:844); world.layoutIfNeeded()
@@ -209,6 +277,8 @@ final class JimiNativeWorldTests: XCTestCase {
         spy.replies[0](.success(["accepted":true,"snapshot":fixture(),"launchToken":"canonical-token"]))
         try await settle(2)
         XCTAssertEqual(spy.replies.count,2,"Actual native exit must finish before canonical launch dispatch")
+        world.backButton.sendActions(for:.touchUpInside)
+        XCTAssertEqual(spy.replies.count,2,"Back cannot preempt an already dispatched canonical game")
         var committed = 0;host.onGameplayCommitted = {committed += 1}
         host.suspend();XCTAssertFalse(host.requiresPresentationRecovery,"Dispatched gameplay cannot be canceled by background")
         spy.replies[1](.success(true))
@@ -732,6 +802,9 @@ final class JimiNativeWorldTests: XCTestCase {
             }
             value["units"] = projected
             let world = try XCTUnwrap(JimiNativeWorldView(snapshot:value,assets:art))
+            let window = UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),controller = UIViewController()
+            window.rootViewController = controller;window.makeKeyAndVisible();controller.view.addSubview(world)
+            defer {world.cleanup();window.isHidden = true}
             world.frame = CGRect(x:0,y:0,width:390,height:844);world.layoutIfNeeded()
             let ready = expectation(description:"Terminal return source decoded")
             world.prepare {ready.fulfill()};await fulfillment(of:[ready],timeout:5)
@@ -742,13 +815,33 @@ final class JimiNativeWorldTests: XCTestCase {
             let unit = try XCTUnwrap(source.superview)
             let effect = try XCTUnwrap(descendant(world,"native.world.return-reminder"))
             let content = try XCTUnwrap(unit.superview)
-            XCTAssertTrue(effect.superview === content,"Travelling face cannot stay behind an adjacent Unit parent")
-            for sibling in content.subviews where sibling !== effect {XCTAssertGreaterThan(effect.layer.zPosition,sibling.layer.zPosition)}
+            let carrier = try XCTUnwrap(effect.superview)
+            XCTAssertTrue(carrier.superview === content,"Travelling face cannot stay behind an adjacent Unit parent")
+            for sibling in content.subviews where sibling !== carrier {XCTAssertGreaterThan(carrier.layer.zPosition,sibling.layer.zPosition)}
             let sourceRect = CGRect(x:source.center.x-source.bounds.width/2,y:source.center.y-source.bounds.height/2,width:source.bounds.width,height:source.bounds.height)
-            requireRect(effect.frame,unit.convert(sourceRect,to:content))
+            requireRect(carrier.frame,unit.convert(sourceRect,to:content))
+            world.finishPresentationAdmission()
+            let unitWave = try XCTUnwrap(unit.layer.animation(forKey:"world.idle.y"))
+            let carrierWave = try XCTUnwrap(carrier.layer.animation(forKey:"world.idle.y"))
+            XCTAssertEqual(unitWave.beginTime,carrierWave.beginTime)
+            XCTAssertEqual(unitWave.duration,carrierWave.duration)
+            let onset = try XCTUnwrap(unit.layer.animation(forKey:"world.idle.y.onset"))
+            XCTAssertEqual(onset.beginTime,carrier.layer.animation(forKey:"world.idle.y.onset")?.beginTime)
+            // Repeated admission/scroll updates must preserve the Unit clock.
+            world.finishPresentationAdmission()
+            XCTAssertEqual(unitWave.beginTime,unit.layer.animation(forKey:"world.idle.y")?.beginTime)
             XCTAssertTrue(source.isHidden);XCTAssertNotNil(effect.layer.animation(forKey:"world.reminder"))
+            if worldID == 1 {
+                let completed = expectation(description:"Reminder finishes without restarting Unit idle")
+                DispatchQueue.main.asyncAfter(deadline:.now()+1.7) {completed.fulfill()}
+                await fulfillment(of:[completed],timeout:3)
+                XCTAssertNil(descendant(world,"native.world.return-reminder"))
+                XCTAssertFalse(source.isHidden)
+                XCTAssertNil(carrier.superview)
+                XCTAssertEqual(unitWave.beginTime,unit.layer.animation(forKey:"world.idle.y")?.beginTime)
+            }
             world.park()
-            XCTAssertNil(effect.superview);XCTAssertNil(effect.layer.animationKeys());XCTAssertFalse(source.isHidden)
+            XCTAssertNil(effect.superview);XCTAssertNil(effect.layer.animationKeys());XCTAssertNil(carrier.superview);XCTAssertNil(carrier.layer.animationKeys());XCTAssertFalse(source.isHidden)
             XCTAssertNil(descendant(world,"native.world.return-reminder"))
             world.cleanup();world.cleanup()
         }

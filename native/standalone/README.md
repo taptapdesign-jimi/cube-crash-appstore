@@ -1,7 +1,10 @@
 # Stack to Six Native — separate development app
 
-User-authorized on 2026-10-06. This is a hybrid development candidate, not a
-fully native game or an approved stable replacement for production benchmark v9.
+User-authorized on 2026-10-06; designated the main development project on
+2026-10-07. Goal: **100% native**, including gameplay, rules and persistence.
+See [the migration plan](../../docs/engineering/NATIVE_100_PERCENT_PLAN.md).
+`native-benchmark-v1` preserves the starting source. This starting implementation
+is still hybrid; production-benchmark-v9 remains the preserved PWA reference.
 
 - Display name: **Stack to Six Native**.
 - Bundle ID: `com.taptapdesign.stacktosix.native` (separate sandbox/save).
@@ -9,7 +12,13 @@ fully native game or an approved stable replacement for production benchmark v9.
 - UIKit Home/Hub and native soundtrack are enabled by this exact bundle identity,
   including ordinary launches from the phone icon. No Simulator launch flags needed.
 - Swift presentation/audio implementations are shared directly from `../jimi-2026`.
-- Gameplay, Settings and progression remain in the complete web runtime.
+- Gameplay and progression remain in the complete web runtime.
+- Main Settings, its three switches, authored enter/exit, Back and Privacy Policy
+  modal now use UIKit/CoreAnimation, including v10 pill/knob toggles and the centered textured Privacy card. Existing `_settings`/`saveSettings` and
+  soundtrack/SFX/haptic owners remain authoritative. Internal DEV tools are an
+  explicit web diagnostic escape; Back to main restores native Settings.
+- Arcade Home hero, CTA, tabs and swipe use UIKit. Play now delegates directly
+  to canonical gameplay after native exit, without preparing a web Home copy.
 - User authorized all three Native Debug iPhone Worlds on2026-10-06. Forest,
   Beach and Area55 use shared UIKit presentation on ordinary icon launches.
   QA Simulator retains `--jimi-native-forest` and `--jimi-native-worlds` opt-ins.

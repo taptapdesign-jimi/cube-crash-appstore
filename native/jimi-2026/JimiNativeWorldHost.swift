@@ -146,9 +146,14 @@ final class JimiNativeWorldHost {
         web.evaluateJavaScript("window.__jimiNativeHomeHubRuntime?.nativeWorldFeedback(\(json))", completionHandler: nil)
     }
 
-    private func request(_ action: String, boardID: Int?) {
-        guard !disposed, !pending, UIApplication.shared.applicationState == .active,
+    private func request(_ action: String, boardID: Int?, retryStaleBack: Bool = true) {
+        guard !disposed, UIApplication.shared.applicationState == .active,
               let worldView, !worldView.isHidden else { return }
+        // Back preempts presentation work, never an already dispatched game.
+        if action == "back" {
+            guard !committingLaunch else { worldView.rejectBackRequest(); return }
+            if pending { invalidateAction() }
+        } else if pending { return }
         let state = worldView.snapshot
         let presentationHasNewRibbon = action == "openCard" && state.units.first(where:{$0.boardID == boardID})?.newRibbon == true
         actionID += 1; generation += 1; let owner = generation
@@ -163,10 +168,19 @@ final class JimiNativeWorldHost {
             self.timeout?.cancel(); self.timeout = nil
             guard UIApplication.shared.applicationState == .active else { self.invalidateAction(); return }
             guard case .success(let value) = result, let receipt = value as? [String: Any] else {
+                if action == "back" { worldView.rejectBackRequest() }
                 self.finishAction(); self.onError?("World action unavailable"); return
             }
             if let snapshot = receipt["snapshot"] as? [String: Any] { self.snapshotValue = snapshot; worldView.reconcile(snapshot) }
             guard receipt["accepted"] as? Bool == true else {
+                // Opening a card may have advanced viewed-state just before Back.
+                // Retry only that same retained route, once, using its fresh revision.
+                if action == "back", retryStaleBack, receipt["code"] as? String == "stale-request",
+                   worldView.snapshot.generation == state.generation,
+                   worldView.snapshot.worldID == state.worldID, worldView.snapshot.revision != state.revision {
+                    self.finishAction(); self.request("back",boardID:nil,retryStaleBack:false); return
+                }
+                if action == "back" { worldView.rejectBackRequest() }
                 NSLog("[CC_NATIVE_FOREST_ACTION] rejected action=%@ code=%@ generation=%d revision=%d", action, receipt["code"] as? String ?? "unknown", state.generation, state.revision)
                 self.finishAction(); self.onError?("World action unavailable"); return
             }
@@ -253,6 +267,7 @@ final class JimiNativeWorldHost {
                 if let receipt = self.launchPresentation { self.acknowledgeTransitionPresentation(receipt.token) }
                 return
             }
+            self.worldView?.rejectBackRequest()
             self.invalidateAction()
             self.onError?("World action timed out")
         }

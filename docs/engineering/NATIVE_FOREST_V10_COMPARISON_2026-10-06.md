@@ -14,6 +14,7 @@ These are separate controls. No baseline/save reset or physical installation.
 | Forest bees | Missing native owner found; canonical web planner projects finite original-asset trajectories for native rendering. |
 | Idle onset | Correct 180ms smoothstep and main phase zero, replacing native 520ms quintic/opposite phase. |
 | New ribbon | Original center 45%/55%, (+11,-10), 41deg. Font13cqw resolves to11.7px against90px card; original tracking and tiny text shadow restored. User-requested override: ribbon top y=0 on small and large fronts; retain accepted pre-open visual NEW through opening, remove at return-flip start. Canonical viewed/save timing stays unchanged; shimmer removed. |
+| Enlarged card Play/Continue width | v10 overlay uses `cc-cta--standard-width`: 226px below 768px viewport, 250px otherwise. Native previously filled card minus 48px (278px at iPhone13); now uses the same fixed responsive width, centered. Height/style/position/motion unchanged. |
 | Homepage navigation shadow | Original ellipse 60x15, color #EEDACA at80%, blur3px; wide original asset uses120vw−96px and40px−10vw left, cover. |
 
 QA benchmark is isolated in a copied project under `/tmp`. Production has no

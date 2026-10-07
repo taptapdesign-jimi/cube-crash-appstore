@@ -2,6 +2,15 @@
 
 Updated: 2026-10-03
 
+## Native development boundary (2026-10-07)
+
+`main` now develops Stack to Six Native toward 100% native gameplay/UI.
+`native-benchmark-v1` is its starting source recovery checkpoint; see
+[NATIVE_100_PERCENT_PLAN.md](NATIVE_100_PERCENT_PLAN.md). It does not claim
+complete native or physical acceptance. The approved production baseline below
+remains the immutable **PWA** recovery reference and is not overwritten by
+Native checkpoint promotion.
+
 ## Latest benchmark — FLUIDNOST
 
 **Production Benchmark v9 — Fluidnost** is the latest user-approved recovery

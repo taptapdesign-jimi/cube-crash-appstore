@@ -59,7 +59,15 @@ export function emitSettingsRouteDiagnostic(
       settingsScreen: readElementState(document.getElementById('settings-screen') as HTMLElement | null),
     };
   }
+  const captureSource = event.startsWith('native-source-') || event.startsWith('settings-enter-')
+    || event === 'settings-screen-mounted';
+  const sourceInlinePose = captureSource ? ['home', 'slider-container', 'slider-wrapper', 'settings-screen'].map(id => {
+    const element = document.getElementById(id);
+    return { id, hidden: element?.hidden ?? null, display: element?.style.display ?? null,
+      visibility: element?.style.visibility ?? null, opacity: element?.style.opacity ?? null };
+  }) : undefined;
   emitNativeConsoleDiagnostic('[CC_SETTINGS_ROUTE]', event, {
+    ...(captureSource ? { sourceInlinePose } : {}),
     appZone: (window as any).__ccAppZone ?? null,
     exitingToMenu: (window as any).exitingToMenu === true,
     ...(captureInlinePose ? { settingsInlinePose } : {}),

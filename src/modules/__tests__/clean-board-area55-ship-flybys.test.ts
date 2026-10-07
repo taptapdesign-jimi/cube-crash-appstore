@@ -1,12 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+  CLEAN_BOARD_AREA55_SHIP_RUNTIME_MS,
   CLEAN_BOARD_AREA55_SHIP_MAX_BANK_DEGREES,
   CLEAN_BOARD_AREA55_SHIP_MAX_WOBBLE_PX,
   createCleanBoardArea55ShipFlightPlan,
   startCleanBoardArea55ShipFlybys,
 } from '../clean-board-area55-ship-flybys';
-import { CLEAN_BOARD_CONFETTI_MAX_RUNTIME_MS } from '../confetti-system';
 
 interface FakeAnimation {
   onfinish: (() => void) | null;
@@ -40,7 +40,7 @@ describe('Clean Board Area 55 ship flybys', () => {
     jest.restoreAllMocks();
   });
 
-  test('samples continuously moving full-celebration paths with bounded two-axis wobble', () => {
+  test('samples continuously moving paths that exit before the second CTA with bounded two-axis wobble', () => {
     const first = createCleanBoardArea55ShipFlightPlan({
       depth: 'behind',
       viewportWidth: 390,
@@ -68,8 +68,9 @@ describe('Clean Board Area 55 ship flybys', () => {
     expect(second.keyframes.every((frame) => frame.opacity === 0.9)).toBe(true);
     expect(first.keyframes[0].transform).toContain('-112.000px');
     expect(first.keyframes[first.keyframes.length - 1]?.transform).toContain('-112.000px');
-    expect(first.durationMs).toBe(CLEAN_BOARD_CONFETTI_MAX_RUNTIME_MS);
-    expect(second.durationMs).toBe(CLEAN_BOARD_CONFETTI_MAX_RUNTIME_MS);
+    expect(first.durationMs).toBe(CLEAN_BOARD_AREA55_SHIP_RUNTIME_MS);
+    expect(first.durationMs).toBeLessThan(6620 + 350);
+    expect(second.durationMs).toBe(CLEAN_BOARD_AREA55_SHIP_RUNTIME_MS);
     expect(first.keyframes).not.toEqual(second.keyframes);
   });
 
@@ -101,7 +102,7 @@ describe('Clean Board Area 55 ship flybys', () => {
     );
     behind.keyframes.forEach((behindFrame, index) => {
       const t = Number(behindFrame.offset);
-      if (t < 0.16 || t > 0.85) return;
+      if (t < 0.16 || t > 0.76) return;
       const visualGap = x(front.keyframes[index]) - (x(behindFrame) + 62);
       expect(visualGap).toBeGreaterThan(48);
     });
@@ -135,10 +136,10 @@ describe('Clean Board Area 55 ship flybys', () => {
     for (let i = 1; i < velocities.length; i++) {
       const delta = Math.hypot(velocities[i].x - velocities[i - 1].x, velocities[i].y - velocities[i - 1].y);
       expect(delta).toBeLessThan(95);
-      if (velocities[i].t > 0.2 && velocities[i].t < 0.8) expect(delta).toBeLessThan(20);
+      if (velocities[i].t > 0.2 && velocities[i].t < 0.74) expect(delta).toBeLessThan(20);
       expect(Math.abs(poses[i].rotation - poses[i - 1].rotation)).toBeLessThan(3);
     }
-    const visiblePoses = poses.filter(({ t }) => t > 0.16 && t < 0.85);
+    const visiblePoses = poses.filter(({ t }) => t > 0.16 && t < 0.76);
     for (const point of visiblePoses) {
       expect(point.x).toBeGreaterThan(0);
       expect(point.x).toBeLessThan(390 - 74);
@@ -152,7 +153,7 @@ describe('Clean Board Area 55 ship flybys', () => {
     expect(CLEAN_BOARD_AREA55_SHIP_MAX_BANK_DEGREES).toBe(30);
   });
 
-  test('runs exactly one confetti-length animation for each depth layer', () => {
+  test('runs exactly one finite animation for each depth layer', () => {
     const overlay = document.createElement('div');
     const content = document.createElement('div');
     overlay.appendChild(content);

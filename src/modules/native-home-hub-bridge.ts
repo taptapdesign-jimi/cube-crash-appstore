@@ -1,3 +1,4 @@
+import type { SettingsPreferencesSnapshot } from './settings-preferences.js';
 import type { NativeWorldSnapshot } from './native-world-runtime.js';
 /** Transport only. The full web runtime remains the sole route, progression and
  * save owner. A navigation Promise resolving is NOT a destination-ready receipt. */
@@ -7,7 +8,13 @@ export type NativeHomeHubDestination =
   | { kind: 'web-home'; action: 'arcade' | 'settings' | 'journey' }
   | { kind: 'home' | 'hub' | 'arcade' | 'settings' };
 
+export interface NativeSettingsSnapshot extends SettingsPreferencesSnapshot {
+  presentationEpoch: number;
+  developerToolsAvailable: boolean;
+}
+
 export interface NativeHomeHubSnapshot {
+  settings?: NativeSettingsSnapshot;
   homeSlide: number;
   activeWorldId?: 1 | 2 | 3 | null;
   journeyRequiresTutorial?: boolean;
@@ -16,7 +23,7 @@ export interface NativeHomeHubSnapshot {
 
 export type NativeHomeHubEvent =
   | { kind: 'snapshot'; snapshot: NativeHomeHubSnapshot }
-  | { kind: 'present'; route: 'home' | 'hub'; snapshot: NativeHomeHubSnapshot }
+  | { kind: 'present'; route: 'home' | 'hub' | 'settings'; snapshot: NativeHomeHubSnapshot }
   | { kind: 'enter-hub'; epoch: number; snapshot: NativeHomeHubSnapshot }
   | { kind: 'ready'; requestId: number; destination: NativeHomeHubDestination; worldSnapshot?: NativeWorldSnapshot }
   | { kind: 'enter-world'; worldSnapshot: NativeWorldSnapshot }
@@ -90,7 +97,11 @@ function copySnapshot(value: NativeHomeHubSnapshot): NativeHomeHubSnapshot {
   });
   if (value.activeWorldId !== undefined && value.activeWorldId !== null && ![1, 2, 3].includes(value.activeWorldId)) throw new Error('Invalid active World');
   if (value.journeyRequiresTutorial !== undefined && typeof value.journeyRequiresTutorial !== 'boolean') throw new Error('Invalid tutorial policy');
+  const settings = value.settings;
+  if (settings && (!Number.isSafeInteger(settings.presentationEpoch) || settings.presentationEpoch < 0
+    || ['gameSoundsEnabled', 'musicEnabled', 'hapticsEnabled', 'developerToolsAvailable'].some(key => typeof settings[key as keyof NativeSettingsSnapshot] !== 'boolean'))) throw new Error('Invalid Settings snapshot');
   return { homeSlide: value.homeSlide, worlds,
+    ...(settings ? { settings: { ...settings } } : {}),
     ...(value.journeyRequiresTutorial === undefined ? {} : { journeyRequiresTutorial: value.journeyRequiresTutorial }),
     ...(value.activeWorldId === undefined ? {} : { activeWorldId: value.activeWorldId }) };
 }

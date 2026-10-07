@@ -92,8 +92,8 @@ enum JimiNativeWorldEffects {
     }
 }
 
-/// Finite return reminder is a child of the live Unit. Native scroll translates
-/// all its layers without a follow timer, viewport read or detached overlay.
+/// Finite return reminder rides the live Unit wave on a depth9 scrolling carrier.
+/// Child flight/flip layers need no follow timer or per-frame viewport reads.
 @MainActor
 final class JimiNativeWorldReminder: UIView {
     private let rotor = CATransformLayer()

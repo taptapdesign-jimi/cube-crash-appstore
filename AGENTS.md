@@ -1,6 +1,19 @@
 # Cube Crash Agent Instructions
 
-This repository is the web/game source for the product **Stack to Six**. Before changing, debugging, building, installing, or discussing the app, read and follow:
+This repository is the **Stack to Six Native** development project on `main`
+(user decision 2026-10-07), targeting **100% native** gameplay and UI. Read
+[`docs/engineering/NATIVE_100_PERCENT_PLAN.md`](docs/engineering/NATIVE_100_PERCENT_PLAN.md)
+for the migration sequence and Native/PWA separation. The current checkpoint is
+still hybrid: web gameplay is a temporary migration dependency.
+
+For Native work the active target is `native/standalone/Stack to Six.xcodeproj`,
+bundle `com.taptapdesign.stacktosix.native`. Do not sync/build/install the
+preserved PWA target `/Users/user/Stack to Six` as a side effect. Use
+`SKIP_NATIVE_BUNDLE_SYNC=true` for transitional web builds/QA. Existing PWA
+baseline tags and saves remain preserved; `native-benchmark-v1` identifies the
+Native starting checkpoint, not complete native gameplay acceptance.
+
+This repository also preserves the web/game source for the product **Stack to Six**. Before changing, debugging, building, installing, or discussing the app, read and follow:
 
 - [`docs/engineering/PROJECT_CONTEXT.md`](docs/engineering/PROJECT_CONTEXT.md) for authoritative project identity, ownership, and safety rules.
 - [`docs/engineering/CURRENT_HANDOFF.md`](docs/engineering/CURRENT_HANDOFF.md) for the current branch, uncommitted work, latest installed build, and immediate continuation state.

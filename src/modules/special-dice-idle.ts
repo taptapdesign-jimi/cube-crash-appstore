@@ -778,15 +778,18 @@ function setSpecialDiceIdleRegistryPaused(tile: any, paused: boolean): void {
   try { tile._ccKantaDiceIdle?.setDragging?.(shouldPause); } catch {}
   try { tile._ccBeeDiceIdle?.setDragging?.(shouldPause); } catch {}
   try { tile._ccHoneyBeeIdleOrbit?.setDragging?.(shouldPause); } catch {}
+  // Direct artwork drag adapters change the visible skin and facing. Only
+  // the actual pointer-owned tile may enter that presentation state.
+  const artworkDragging = tile._ccSpecialIdleDragging === true;
   try {
-    if (isFlowerBouncyTile(tile)) setFlowerBouncyArtworkDragging(tile, shouldPause);
-    if (isBarrelBouncyTile(tile)) setBarrelBouncyArtworkDragging(tile, shouldPause);
-    if (isMushroomBouncyTile(tile)) setMushroomBouncyArtworkDragging(tile, shouldPause);
-    if (isRoboBouncyTile(tile)) setRoboBouncyArtworkDragging(tile, shouldPause);
-    if (isPlainWildStarBouncyTile(tile)) setWildStarBouncyArtworkDragging(tile, shouldPause);
-    if (isBeachBallBouncyTile(tile)) setBallBouncyArtworkDragging(tile, shouldPause);
-    if (isFishSwimTile(tile)) setFishSwimArtworkDragging(tile, shouldPause);
-    if (isPlainJuiceBounceTile(tile)) setJuiceBounceArtworkDragging(tile, shouldPause);
+    if (isFlowerBouncyTile(tile)) setFlowerBouncyArtworkDragging(tile, artworkDragging);
+    if (isBarrelBouncyTile(tile)) setBarrelBouncyArtworkDragging(tile, artworkDragging);
+    if (isMushroomBouncyTile(tile)) setMushroomBouncyArtworkDragging(tile, artworkDragging);
+    if (isRoboBouncyTile(tile)) setRoboBouncyArtworkDragging(tile, artworkDragging);
+    if (isPlainWildStarBouncyTile(tile)) setWildStarBouncyArtworkDragging(tile, artworkDragging);
+    if (isBeachBallBouncyTile(tile)) setBallBouncyArtworkDragging(tile, artworkDragging);
+    if (isFishSwimTile(tile)) setFishSwimArtworkDragging(tile, artworkDragging);
+    if (isPlainJuiceBounceTile(tile)) setJuiceBounceArtworkDragging(tile, artworkDragging);
   } catch {}
 }
 

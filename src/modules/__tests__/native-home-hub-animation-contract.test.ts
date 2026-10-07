@@ -41,8 +41,11 @@ describe('native Home/Hub outgoing-pose source contracts', () => {
   });
   test('Settings and Arcade exit natively before retiring the cover; tutorial still uses its canonical source', () => {
     expect(method('navigate')).toContain('if isWebSource && !nativeHomeExit');
-    expect(method('navigate')).toContain('(actionLabel == "arcade" || actionLabel == "settings")');
+    expect(method('navigate')).toContain('(destinationLabel == "settings" || destinationLabel == "arcade")');
+    expect(controller).toContain('["kind": index == 1 ? "arcade" : "settings"]');
     const body = method('commitIfReady');
+    const arcade = body.slice(body.indexOf('if kind == "arcade" {'), body.indexOf('if kind == "web-home" || kind == "web-hub"'));
+    ordered(arcade, 'activateNativeArcade(id)', 'guard case .success(let accepted)', 'self.view.isHidden = true');
     const transfer = body.slice(body.indexOf('if nativeExitComplete {'), body.indexOf('return\n            }', body.indexOf('if nativeExitComplete {')));
     ordered(transfer, 'activateSource(id, true)', 'guard case .success(let value)', 'self.view.isHidden = true');
   });
@@ -138,10 +141,10 @@ describe('native Home/Hub outgoing-pose source contracts', () => {
 
   test('destination motion is installed synchronously inside the coverage transaction, not after another scheduled turn', () => {
     const body = method('commitIfReady');
-    const native = body.slice(body.indexOf('route = kind == "hub" ? .hub : .home'));
+    const native = body.slice(body.indexOf('route = kind == "settings" ? .settings : kind == "hub" ? .hub : .home'));
     ordered(native,
       'home.isHidden = route != .home; hub.isHidden = route != .hub',
-      'let incoming = route == .home ? homeTracks(enter: true) : hubTracks(enter: true)',
+      'let incoming = route == .settings ? settings.tracks(enter: true) : route == .home ? homeTracks(enter: true) : hubTracks(enter: true)',
       'animate(incoming)',
     );
     expect(native).not.toMatch(/DispatchQueue|asyncAfter|CATransaction\.flush/);

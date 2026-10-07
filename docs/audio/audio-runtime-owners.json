@@ -10,8 +10,8 @@
       "transport": "Exclusive opt-in WK reply bridge to JimiNativeMusic AVAudioEngine file segments; web backend selected only when native capability absent.",
       "voicePolicy": "One theme plus bounded Arcade overlap; native ceiling four voices. Two file segments queued per loop, no whole-track web PCM. Independent generation tokens cancel stale play/resume.",
       "preloadPolicy": "No web fetch/decode or native allocation before actual play; native accepts exactly the three registered soundtrack files.",
-      "settingsPolicy": "Music setting and thermal isolation remain controlled by soundtrack-manager, separate from Sounds OFF.",
-      "interruptionPolicy": "Native inactive/interruption pauses voices and finite fades; only current JS music owner resumes. Canonical voice disposal releases native file/player; no automatic web fallback after native play failure.",
+      "settingsPolicy": "Music setting and thermal isolation remain controlled by soundtrack-manager, separate from Sounds OFF. UIKit Settings adapter settings-preferences.ts delegates Music to this same canonical soundtrack manager and persisted _settings/saveSettings owner; no additional native voice/store. Delayed toggle imports revalidate the current Music value.",
+      "interruptionPolicy": "Native soundtrack uses mixable ambient session to coexist with WK Journey/SFX while retaining silent-switch/lock-screen behavior. Native inactive/interruption-began pauses voices and finite fades; interruption-ended does not suspend again, and only current JS music owner resumes after native activation. Canonical voice disposal releases native file/player; no automatic web fallback after native play failure.",
       "stopExport": "disposeNativeSoundtrackVoices",
       "globalRegistryRequired": false,
       "sources": [
@@ -20,9 +20,10 @@
         "./assets/sound/soundtrack/adaptive-music-v3/gameplay-bed-active-01.wav"
       ],
       "tests": [
-        "src/modules/__tests__/native-soundtrack-transport.test.ts"
+        "src/modules/__tests__/native-soundtrack-transport.test.ts",
+        "src/modules/__tests__/settings-preferences.test.ts"
       ],
-      "physicalAcceptance": "Experimental Simulator-only opt-in. NEEDS PHYSICAL TEST for exact loop seam, layer phase, fades, recovery, native allocations, decode CPU and thermal benefit. Journey ambient loops and SFX remain unchanged."
+      "physicalAcceptance": "Separate Native app enabled by bundle identity. Native lifecycle policy regression: native/standalone/Stack to SixTests/JimiNativeMusicLifecycleTests.swift. NEEDS PHYSICAL TEST for exact loop seam, layer phase, fades, recovery, native allocations, decode CPU and thermal benefit. Journey ambient loops and SFX remain unchanged."
     }
   ],
   "sharedTransportPolicy": {
@@ -318,7 +319,7 @@
       "id": "cta-activation",
       "ownerFile": "src/modules/cta-activation-sound.ts",
       "family": "Navigation/CTA",
-      "eventOwner": "Accepted shared CTAs include plop; regular/interim Unit card taps play only plop. Reward uses CTA once, no duplicate local layer.",
+      "eventOwner": "Accepted shared CTAs include plop; regular/interim Unit card taps play only plop. Reward uses CTA once, no duplicate local layer. Native End Run accepted Restart/Exit delegate the same existing activation function once; canonical NO MOVES rejection is silent.",
       "transport": "Shared decoded SFX engine; CTA retains existing bounded HTML fallback.",
       "voicePolicy": "Five stable voices at base gains .3/.5/.5/.5/1. Shared master applies. Unit contact uses only fifth voice.",
       "preloadPolicy": "Existing CTA preload warms all5 sources under Sounds gate.",

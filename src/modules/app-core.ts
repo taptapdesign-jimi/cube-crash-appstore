@@ -11259,6 +11259,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                     emitIOSSpecialTransactionTrace('magnet-board-commit-callback', {
                       token: specialTransactionToken,
                     });
+                    // The consumed destination has become a new regular die.
+                    // Retire the exact merge-6 cleanup claim before ordinary play.
+                    if (regularMerge6CleanupToken !== null && dst && !dst.destroyed
+                      && !isWildLikeTile(dst) && (dst.value | 0) < 6) {
+                      merge6DestinationCleanupOwner.release(dst, regularMerge6CleanupToken);
+                      regularMerge6CleanupToken = null;
+                    }
                     setWildMagnetPullInProgress(false, 'board-commit');
                     markSpecialDiceTransactionBoardCommitted(
                       specialTransactionToken,

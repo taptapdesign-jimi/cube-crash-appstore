@@ -93,3 +93,40 @@ test.each([2,3] as const)('selected World %i rejects foreign board/world receipt
   owner.retire();owner.prepare(1);owner.reconcile([1]);owner.activate();const next=owner.identity();owner.commit(next.routeGeneration,next.stateRevision);
   expect(owner.admit({...request(7),...old},true)).toBeNull();
 });
+
+
+test.each([1, 2, 3] as const)('World %i Back is admitted during enter while card/gameplay input stays gated', worldID => {
+  const owner = new NativeWorldReceiptOwner();
+  owner.prepare(worldID); owner.reconcile([worldID]);
+  const identity = owner.identity();
+  const back = { id: 1, worldID, action: 'back', ...identity };
+  expect(owner.admit(back, true)).toBeNull(); // prepared, still hidden
+  owner.activate();
+  expect(owner.admit({ ...back, id: 2 }, false)).toBeNull();
+  expect(owner.admit({ ...back, id: 3, stateRevision: identity.stateRevision + 1 }, true)).toBeNull();
+  expect(owner.admit({ ...back, id: 4, worldID: worldID === 1 ? 2 : 1 }, true)).toBeNull();
+  for (const [index, kind] of ['openCard', 'play', 'continue', 'close'].entries()) {
+    expect(owner.admit({ ...back, id: 5 + index, action: kind, boardID: (worldID - 1) * 10 + 1 }, true)).toBeNull();
+  }
+  const accepted = { ...back, id: 9 };
+  expect(owner.admit(accepted, true)).toEqual(accepted);
+  expect(owner.admit(accepted, true)).toBeNull();
+  expect(owner.ready()).toBe(false);
+  owner.retire();
+  expect(owner.commit(identity.routeGeneration, identity.stateRevision)).toBe(false);
+  expect(owner.admit({ ...back, id: 10 }, true)).toBeNull();
+});
+
+
+test.each([1, 2, 3] as const)('World %i Back also interrupts the post-game return enter', worldID => {
+  const owner = new NativeWorldReceiptOwner(); owner.prepare(worldID); owner.reconcile([worldID]); owner.activate();
+  const identity = owner.identity(); owner.commit(identity.routeGeneration, identity.stateRevision);
+  const play = { id: 1, worldID, action: 'play', boardID: (worldID - 1) * 10 + 1, ...identity };
+  const launch = owner.prepareLaunch(owner.admit(play, true)!);
+  expect(owner.consumeLaunch(launch)).not.toBeNull();
+  const back = { id: 2, worldID, action: 'back', ...identity };
+  expect(owner.admit(back, true)).toBeNull(); // parked beneath gameplay
+  expect(owner.returnReady()).toBe(true);
+  expect(owner.admit({ ...back, id: 3 }, true)).not.toBeNull();
+  expect(owner.ready()).toBe(false);
+});

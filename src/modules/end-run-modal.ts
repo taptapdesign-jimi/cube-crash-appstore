@@ -1,3 +1,5 @@
+import { playCtaActivationSounds, preloadCtaActivationSounds } from './cta-activation-sound.ts';
+import { canPresentNativeEndRun, presentNativeEndRun, type NativeEndRunAction, type NativeEndRunModel } from './native-end-run-presentation.js';
 // Simple End Run Modal
 import { safePauseGame, safeResumeGame, safeUnlockSlider } from '../utils/animations.js';
 import { setModalVisible, isModalVisible } from './end-run-utils.js';
@@ -44,6 +46,9 @@ function getEndRunSurfaceExitDurationMs(): number {
     : END_RUN_SHEET_EXIT_DURATION_MS;
 }
 
+let nativeEndRun: ReturnType<typeof presentNativeEndRun> = null;
+let nativeEndRunModel: NativeEndRunModel | null = null;
+let nativeEndRunActions: Partial<Record<NativeEndRunAction, () => unknown>> = {};
 let modal: HTMLElement | null = null;
 let endRunTransitionInProgress = false;
 let endRunLifecycleId = 0;
@@ -75,6 +80,7 @@ async function exitEndRunCtas(clicked?: HTMLButtonElement | null): Promise<void>
 }
 
 function hideModalWithCtas(clicked: HTMLButtonElement): void {
+  if (nativeEndRun?.isCurrent()) { hideModal(null, true); return; }
   void runGameplayModalParallelExit(
     () => exitEndRunCtas(clicked),
     () => hideModal(null, true),
@@ -199,6 +205,7 @@ function getEndRunSheetElements(): HTMLElement[] {
 }
 
 function hideAndRemoveEndRunSheetElements(reason: string): void {
+  nativeEndRun?.dispose(); nativeEndRun = null; nativeEndRunActions = {}; nativeEndRunModel = null;
   cleanupEndRunDragMotion();
   disposeEndRunClose();
   disposeEndRunCtas();
@@ -316,6 +323,7 @@ function getEndRunSheetElement(): HTMLElement | null {
 
 function isEndRunSheetActuallyVisible(sheet: HTMLElement | null = getEndRunSheetElement()): boolean {
   if (!sheet || !sheet.isConnected) return false;
+  if (sheet === modal && nativeEndRun?.ready && nativeEndRun.isCurrent()) return true;
 
   const style = window.getComputedStyle(sheet);
   if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity || '1') <= 0.01) {
@@ -415,8 +423,12 @@ function createModal(): HTMLElement {
     </div>
   `;
 
+  nativeEndRunModel = { title: titleText, subtitle: subtitleText.replace(/<br>/g, "\n"), restartLabel: isArcadeRun ? "New Game" : "Restart", exitLabel: exitBtnLabel };
+  const useNative = canPresentNativeEndRun();
+  if (useNative) preloadCtaActivationSounds();
+  nativeEndRunActions.close = () => hideModal();
   const endRunCloseHost = modal.querySelector('.cc-gameplay-modal-pose-shell') as HTMLElement | null;
-  if (endRunCloseHost) {
+  if (endRunCloseHost && !useNative) {
     endRunCloseController = mountGameplaySheetClose(endRunCloseHost, () => {
       console.log('✕ End Run modal close control activated');
       hideModal();
@@ -438,12 +450,14 @@ function createModal(): HTMLElement {
       }
       
       // Step 1: Start CTA group and modal surface exit together.
+      const nativeExitComplete = nativeEndRun?.exitComplete;
       hideModalWithCtas(restartBtn);
       
       // Step 2: Wait for the active surface animation to complete, then restart.
       // 🔥 CRITICAL: Use setTimeout directly (NOT trackEndRunTimeout) because this action
       // MUST execute even after modal cleanup - cleanupAllEndRunResources would cancel it!
       setTimeout(async () => {
+        if (nativeExitComplete && !await nativeExitComplete) return;
         if (shouldBlockEndRunActionForNoMoves('restart-handoff')) return;
         console.log('🎯 Modal hidden, calling restart');
         try {
@@ -470,7 +484,8 @@ function createModal(): HTMLElement {
         }
       }, getEndRunSurfaceExitDurationMs());
     };
-    endRunCtaControllers.push(registerCta(restartBtn, {
+    nativeEndRunActions.restart = restartClickHandler;
+    if (!useNative) endRunCtaControllers.push(registerCta(restartBtn, {
       variant: 'primary',
       initialState: 'hidden',
       activationTiming: 'immediate',
@@ -500,6 +515,7 @@ function createModal(): HTMLElement {
 
       // CTA group and modal surface start together. Begin the completion clock
       // in the same turn so async route resolution cannot add a blank gap.
+      const nativeExitComplete = nativeEndRun?.exitComplete;
       hideModalWithCtas(exitBtn);
       const modalExitComplete = new Promise<void>((resolve) => {
         window.setTimeout(resolve, getEndRunSurfaceExitDurationMs());
@@ -514,6 +530,7 @@ function createModal(): HTMLElement {
       
       // Wait for the already-running modal animation before handing off.
       await modalExitComplete;
+      if (nativeExitComplete && !await nativeExitComplete) { exitActionInProgress = false; return; }
       if (shouldBlockEndRunActionForNoMoves('exit-handoff')) {
         exitActionInProgress = false;
         return;
@@ -583,7 +600,8 @@ function createModal(): HTMLElement {
         exitActionInProgress = false;
       }
     };
-    endRunCtaControllers.push(registerCta(exitBtn, {
+    nativeEndRunActions.exit = exitClickHandler;
+    if (!useNative) endRunCtaControllers.push(registerCta(exitBtn, {
       variant: 'secondary',
       initialState: 'hidden',
       activationTiming: 'immediate',
@@ -593,7 +611,7 @@ function createModal(): HTMLElement {
 
   // The active centered modal uses the shared physical gameplay-overlay drag
   // owner. The retired bottom-sheet fallback keeps its legacy drag path.
-  if (END_RUN_CENTERED_MODAL_TEST_ENABLED) {
+  if (!useNative && END_RUN_CENTERED_MODAL_TEST_ENABLED) {
     const motionElement = modal.querySelector<HTMLElement>('.end-run-modal-bounce-shell');
     if (motionElement) {
       disposeEndRunDragMotion = installGameplayOverlayModalDragMotion(modal, {
@@ -603,12 +621,12 @@ function createModal(): HTMLElement {
         maxTouchTiltDeg: 3.64,
       });
     }
-  } else {
+  } else if (!useNative) {
     addDragFunctionality(modal);
   }
   
   // Add outside click functionality
-  addOutsideClickFunctionality(modal);
+  if (!useNative) addOutsideClickFunctionality(modal);
   
   document.body.appendChild(modal);
   return modal;
@@ -792,6 +810,21 @@ export function showEndRunModal(): void {
       console.warn('⚠️ Error setting modal visibility state:', err);
     }
 
+    const startWebEnter = () => {
+      if (openLifecycleId !== endRunLifecycleId || el !== modal || (el as any)._closing) return;
+      if (canPresentNativeEndRun()) {
+        // Rejected native admission restores the original authored web renderer.
+        const restartBtn = el.querySelector<HTMLButtonElement>('[data-end-run-action="restart"]');
+        const exitBtn = el.querySelector<HTMLButtonElement>('[data-end-run-action="exit"]');
+        for (const [button, action, variant] of [[restartBtn,'restart','primary'],[exitBtn,'exit','secondary']] as const) {
+          if (button) endRunCtaControllers.push(registerCta(button, { variant, initialState:'hidden',activationTiming:'immediate',onActivate:() => { nativeEndRunActions[action]?.(); } }));
+        }
+        const host = el.querySelector<HTMLElement>('.cc-gameplay-modal-pose-shell');
+        if (host) endRunCloseController = mountGameplaySheetClose(host, () => hideModal(), 'Close '+nativeEndRunModel?.title);
+        const motion = el.querySelector<HTMLElement>('.end-run-modal-bounce-shell');
+        if (motion) disposeEndRunDragMotion = installGameplayOverlayModalDragMotion(el,{motionElement:motion,onDismiss:()=>hideModal(),maxDragTiltDeg:1.15,maxTouchTiltDeg:3.64});
+        addOutsideClickFunctionality(el);
+      }
     scheduleEndRunOpenVisibilityGuard(openLifecycleId, el);
 
     // Import and run animation - same as resume modal
@@ -852,6 +885,23 @@ export function showEndRunModal(): void {
         el.classList.add('visible');
       });
     });
+    };
+    if (nativeEndRunModel && canPresentNativeEndRun()) {
+      nativeEndRun = presentNativeEndRun(nativeEndRunModel, {
+        isCurrent: () => el === modal && !(el as any)._closing,
+        onReady: () => { if (el === modal && !(el as any)._closing) endRunTransitionInProgress = false; },
+        onFallback: () => { nativeEndRun = null; startWebEnter(); },
+        onAction: (action) => {
+          if (action !== 'close' && shouldBlockEndRunActionForNoMoves('native-'+action)) return false;
+          const activate = nativeEndRunActions[action];
+          if (!activate) return false;
+          if (action !== 'close') playCtaActivationSounds();
+          activate(); return true;
+        },
+      });
+      if (nativeEndRun) return;
+    }
+    startWebEnter();
   } catch (error) {
     console.error('❌ Failed to open End Run modal - recovering gameplay:', error);
     if (openLifecycleId === endRunLifecycleId) {
@@ -1143,6 +1193,8 @@ export function hideModal(
   ctasAlreadyExited = false,
 ): void {
   let modalEl = modal;
+  const nativeExitComplete = nativeEndRun?.exitComplete;
+  nativeEndRun?.close();
   if (!ctasAlreadyExited) void exitEndRunCtas(clickedCta);
   
   // 🔥 CRITICAL: If modal reference is null, try to find it in DOM
@@ -1253,7 +1305,8 @@ export function hideModal(
   console.log('🔓 HUD unfrozen - ALL events enabled');
   
   // WAIT for animation to complete before final cleanup
-  trackEndRunTimeout(() => {
+  trackEndRunTimeout(async () => {
+    if (nativeExitComplete && !await nativeExitComplete) return;
     if (closeLifecycleId !== endRunLifecycleId || modalEl !== modal) {
       console.log('📊 Skipping stale end-run close timeout');
       return;

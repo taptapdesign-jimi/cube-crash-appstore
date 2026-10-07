@@ -5,7 +5,9 @@ const SHIP_CLASS = 'cc-clean-board-area55-ship';
 const OFFSCREEN_MARGIN_PX = 112;
 const FLIGHT_SAMPLES_PER_SECOND = 30;
 const ENTER_END = 0.16;
-const EXIT_START = 0.85;
+const EXIT_START = 0.76;
+// Second Journey CTA enters at 6970ms; finish the authored offscreen path first.
+export const CLEAN_BOARD_AREA55_SHIP_RUNTIME_MS = 6700;
 export const CLEAN_BOARD_AREA55_SHIP_MAX_WOBBLE_PX = 60;
 export const CLEAN_BOARD_AREA55_SHIP_MAX_BANK_DEGREES = 30;
 const MIN_WOBBLE_PX = 30;
@@ -112,16 +114,17 @@ export function createCleanBoardArea55ShipFlightPlan(options: {
   const tau = Math.PI * 2;
   const samplePosition = (progress: number): FlightPoint => {
     const t = clamp01(progress);
+    const motionT = t * CLEAN_BOARD_AREA55_SHIP_RUNTIME_MS / CLEAN_BOARD_CONFETTI_MAX_RUNTIME_MS;
     // Each depth owns a distant screen corridor plus independent frequencies.
     // Randomness varies motion inside that corridor and can never pull the two
     // ships back toward one shared centre line.
     const laneCenterX = corridor === 'left' ? width * 0.16 : width * 0.70;
     const laneCenterY = corridor === 'left' ? height * 0.34 : height * 0.58;
     const hover = {
-      x: laneCenterX + width * 0.08 * Math.sin(direction * t * tau * driftX + phaseX)
-        + Math.min(amplitude * 0.45, width * 0.027) * Math.sin(t * tau * hoverX + phaseY),
-      y: laneCenterY + height * 0.15 * Math.sin(t * tau * driftY + phaseY)
-        + Math.min(amplitude * 0.75, height * 0.045) * Math.sin(t * tau * hoverY + phaseX),
+      x: laneCenterX + width * 0.08 * Math.sin(direction * motionT * tau * driftX + phaseX)
+        + Math.min(amplitude * 0.45, width * 0.027) * Math.sin(motionT * tau * hoverX + phaseY),
+      y: laneCenterY + height * 0.15 * Math.sin(motionT * tau * driftY + phaseY)
+        + Math.min(amplitude * 0.75, height * 0.045) * Math.sin(motionT * tau * hoverY + phaseX),
     };
     const enter = smoothBlend(t / ENTER_END);
     const leave = smoothBlend((t - EXIT_START) / (1 - EXIT_START));
@@ -130,7 +133,7 @@ export function createCleanBoardArea55ShipFlightPlan(options: {
       y: (start.y + (hover.y - start.y) * enter) * (1 - leave) + end.y * leave,
     };
   };
-  const durationMs = CLEAN_BOARD_CONFETTI_MAX_RUNTIME_MS;
+  const durationMs = CLEAN_BOARD_AREA55_SHIP_RUNTIME_MS;
   const steps = Math.ceil(durationMs / 1000 * FLIGHT_SAMPLES_PER_SECOND);
 
   return {
@@ -143,6 +146,7 @@ export function createCleanBoardArea55ShipFlightPlan(options: {
     // former distant random waypoints with discontinuous velocity.
     keyframes: Array.from({ length: steps + 1 }, (_, index) => {
       const t = index / steps;
+      const motionT = t * durationMs / CLEAN_BOARD_CONFETTI_MAX_RUNTIME_MS;
       const point = samplePosition(t);
       const dt = 0.0001;
       const before = samplePosition(t - dt);
@@ -157,10 +161,10 @@ export function createCleanBoardArea55ShipFlightPlan(options: {
         Math.min(
           CLEAN_BOARD_AREA55_SHIP_MAX_BANK_DEGREES,
           6 * Math.tanh(velocityX / 110)
-            + 24 * Math.sin(t * tau * bankFrequency + phaseX),
+            + 24 * Math.sin(motionT * tau * bankFrequency + phaseX),
         ),
       );
-      const scale = 1 + 0.025 * Math.sin(t * tau * hoverX + phaseY);
+      const scale = 1 + 0.025 * Math.sin(motionT * tau * hoverX + phaseY);
       return {
         offset: t,
         opacity: baseOpacity,

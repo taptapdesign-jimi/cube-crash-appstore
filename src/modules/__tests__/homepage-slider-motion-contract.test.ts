@@ -65,7 +65,7 @@ describe('Homepage slider motion contract', () => {
       '(window as any).triggerGameStartSequence = async',
     )[1]?.split('// Export exitToMenu function')[0] ?? '';
     const settingsOwner = uiManagerSource.split(
-      'private showSettingsScreenWithAnimation(nativeExitComplete = false): void',
+      'private showSettingsScreenWithAnimation(nativeExitComplete = false): Promise<boolean>',
     )[1]?.split('private hideSettingsScreenWithAnimation')[0] ?? '';
 
     expect(arcadeOwner).toContain('const homepageExitPromise = options.nativeExitComplete ? Promise.resolve() : animateSliderExit();');
@@ -73,13 +73,13 @@ describe('Homepage slider motion contract', () => {
     expect(arcadeOwner).toContain('if (isHomepageExitCancelled(homepageExitPromise)) return;');
     expect(arcadeOwner).not.toContain('setTimeout(resolve, 770)');
     expect(settingsOwner).toContain('const homepageExitPromise = nativeExitComplete ? Promise.resolve() : animateSliderExit();');
-    expect(settingsOwner).toContain('void homepageExitPromise.then(() =>');
+    expect(settingsOwner).toContain('return homepageExitPromise.then(async () =>');
     expect(settingsOwner).not.toContain('}, 770)');
   });
 
   test('Settings owns its app zone and one asynchronous return lifecycle', () => {
     const settingsEnter = uiManagerSource.split(
-      'private showSettingsScreenWithAnimation(nativeExitComplete = false): void',
+      'private showSettingsScreenWithAnimation(nativeExitComplete = false): Promise<boolean>',
     )[1]?.split('private hideSettingsScreenWithAnimation')[0] ?? '';
     const settingsExit = uiManagerSource.split(
       'private hideSettingsScreenWithAnimation(): Promise<void>',

@@ -2,7 +2,7 @@ import AVFoundation
 import UIKit
 import WebKit
 
-/// Simulator opt-in file-backed soundtrack transport. JS retains route/Settings ownership.
+/// File-backed soundtrack transport. JS retains route/Settings ownership.
 @MainActor
 final class JimiNativeMusic: NSObject, WKScriptMessageHandlerWithReply {
     private final class Voice {
@@ -24,6 +24,7 @@ final class JimiNativeMusic: NSObject, WKScriptMessageHandlerWithReply {
             return looping && value >= loopEnd ? loopStart + (value - loopEnd).truncatingRemainder(dividingBy: loopEnd - loopStart) : value
         }
     }
+    private let diagnosticsEnabled = ProcessInfo.processInfo.arguments.contains("--cc-performance-diagnostics")
     private let engine = AVAudioEngine()
     private let root: URL
     private var voices: [String: Voice] = [:]
@@ -38,10 +39,46 @@ final class JimiNativeMusic: NSObject, WKScriptMessageHandlerWithReply {
         super.init()
         for name in [UIApplication.willResignActiveNotification, AVAudioSession.interruptionNotification,
                      AVAudioSession.mediaServicesWereResetNotification] {
-            observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.suspend() }
+            observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] notification in
+                MainActor.assumeIsolated {
+                    self?.traceState("notification-before:\(notification.name.rawValue):\(String(describing: notification.userInfo))")
+                    if Self.shouldSuspend(for: notification) { self?.suspend() }
+                    self?.traceState("notification-after:\(notification.name.rawValue)")
+                }
             })
         }
+        for name in [Notification.Name.AVAudioEngineConfigurationChange, AVAudioSession.routeChangeNotification] {
+            observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] notification in
+                MainActor.assumeIsolated { self?.traceState("configuration:\(notification.name.rawValue):\(String(describing: notification.userInfo))") }
+            })
+        }
+    }
+    // WKWebView sound/ambience has its own audio session. A nonmixable
+    // native session lets those cues interrupt the app's persistent theme.
+    // Ambient retains the silent-switch/lock-screen policy while allowing both.
+    static let sessionCategory: AVAudioSession.Category = .ambient
+
+    static func shouldSuspend(for notification: Notification) -> Bool {
+        if notification.name == AVAudioSession.interruptionNotification {
+            guard let raw = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt else { return false }
+            // Ended is recovery owned by GameViewController + the current JS
+            // owner. Suspending here can undo the activation/resume receipt.
+            return AVAudioSession.InterruptionType(rawValue: raw) == .began
+        }
+        return notification.name == UIApplication.willResignActiveNotification ||
+            notification.name == AVAudioSession.mediaServicesWereResetNotification
+    }
+
+    func traceState(_ reason: String) {
+        guard diagnosticsEnabled else { return }
+        let session = AVAudioSession.sharedInstance()
+        let rows = voices.keys.sorted().map { id -> String in
+            guard let voice = voices[id] else { return id }
+            return "\(id){logical=\(voice.playing),node=\(voice.node.isPlaying),gain=\(voice.node.volume),position=\(voice.currentTime),generation=\(voice.generation)}"
+        }.joined(separator: ";")
+        NSLog("[JIMI_NATIVE_MUSIC_STATE] reason=%@ engine=%d appState=%d sampleRate=%.0f category=%@ voices=%@",
+              reason, engine.isRunning ? 1 : 0, UIApplication.shared.applicationState.rawValue,
+              session.sampleRate, session.category.rawValue, rows)
     }
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage,
                                replyHandler: @escaping (Any?, String?) -> Void) {
@@ -81,6 +118,10 @@ final class JimiNativeMusic: NSObject, WKScriptMessageHandlerWithReply {
             default: throw failure("Unknown native music operation")
             }
             if !voices.values.contains(where: { $0.playing }) { engine.pause() }
+            if op != "volume" { traceState("command:\(op)") }
+            else if diagnosticsEnabled && (!engine.isRunning || !voice.node.isPlaying || voice.node.volume <= 0) {
+                traceState("volume-command-health")
+            }
             if op != "volume" {
                 NSLog("[JIMI_NATIVE_MUSIC] op=%@ id=%@ voices=%d playing=%d position=%.3f duration=%.3f", op, id,
                       voices.count, voices.values.filter { $0.playing }.count, voice.currentTime, voice.duration)

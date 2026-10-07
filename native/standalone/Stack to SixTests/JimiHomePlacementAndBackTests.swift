@@ -65,7 +65,10 @@ final class JimiHomePlacementAndBackTests: XCTestCase {
         let anchorDelta = (0.54 - unit.anchorPoint.y) * unit.bounds.height
         XCTAssertGreaterThan(paintedAlpha, 0, "Exercise an already painted World, not a hidden delayed one")
         XCTAssertLessThan(paintedAlpha, 1, "Test must tap during incoming motion")
-        controller.hub.backButton.sendActions(for: .touchUpInside)
+        let point = CGPoint(x:controller.hub.backButton.frame.midX,y:controller.hub.backButton.frame.midY)
+        let hit = try XCTUnwrap(controller.hub.hitTest(point,with:nil) as? UIButton)
+        XCTAssertTrue(hit.point(inside:controller.hub.convert(point,to:hit),with:nil),"Physical tracking uses a stable 44pt target")
+        hit.sendActions(for:.touchUpInside)
         XCTAssertEqual(starts, ["home->hub", "hub->home"])
         let group = try XCTUnwrap(unit.animation(forKey: "native-route") as? CAAnimationGroup)
         let alpha = try XCTUnwrap(group.animations?.first { $0 is CAKeyframeAnimation && ($0 as? CAKeyframeAnimation)?.keyPath == "opacity" } as? CAKeyframeAnimation)
@@ -83,4 +86,28 @@ final class JimiHomePlacementAndBackTests: XCTestCase {
         XCTAssertFalse(controller.home.isHidden)
         XCTAssertTrue(controller.home.isUserInteractionEnabled)
     }
+    func testBackSupersedesOutgoingWorldPreparationAndIgnoresOldReady() async throws {
+        let web = RouteTestWebView(frame:CGRect(x:0,y:0,width:390,height:844))
+        let controller = JimiHomeHubController(web:web,resourceRoot:Bundle.main.bundleURL.appendingPathComponent("Web.bundle"))
+        let window = UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController = controller; window.makeKeyAndVisible()
+        defer {controller.dispose();window.isHidden = true}
+        var starts:[String] = []
+        controller.onDiagnosticEvent = {if case .start(_,let label) = $0 {starts.append(label)}}
+        controller.receive(["kind":"present","route":"hub","snapshot":["homeSlide":0]])
+        controller.hub.worldUnits[0].sendActions(for:.touchUpInside)
+        try await Task.sleep(nanoseconds:120_000_000)
+        XCTAssertTrue(controller.hub.isUserInteractionEnabled)
+        let point = CGPoint(x:controller.hub.backButton.frame.midX,y:controller.hub.backButton.frame.midY)
+        let hit = try XCTUnwrap(controller.hub.hitTest(point,with:nil) as? UIButton)
+        XCTAssertTrue(hit.point(inside:controller.hub.convert(point,to:hit),with:nil))
+        hit.sendActions(for:.touchUpInside);hit.sendActions(for:.touchUpInside)
+        XCTAssertEqual(starts,["hub->world:world-1","hub->home"])
+        controller.receive(["kind":"ready","requestId":1,"destination":["kind":"world","worldId":1]])
+        controller.receive(["kind":"ready","requestId":2,"destination":["kind":"home"]])
+        try await Task.sleep(nanoseconds:1_700_000_000)
+        XCTAssertTrue(controller.hub.isHidden);XCTAssertFalse(controller.home.isHidden)
+        XCTAssertTrue(controller.home.isUserInteractionEnabled)
+    }
+
 }

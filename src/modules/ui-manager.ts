@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { prepareSettingsSourcePaint } from './settings-source-paint.js';
 import { applyGameSoundsSettingToAudio } from './gameplay-sound-settings.js';
 import { isGameplayRendererTerminalSuspended } from './gameplay-render-suspension.ts';
 import { captureSavedBoardLoadCaller, isSavedBoardLoadSuperseded, type SavedBoardLoadResult } from './saved-board-load-owner';
@@ -382,9 +383,12 @@ class UIManager {
   private unsubscribeFunctions: (() => void)[] = [];
   private boundEventHandlers: Map<HTMLElement, Array<{ event: string; handler: EventListener }>> = new Map();
   private settingsEnterTimeouts = new Set<number>();
+  private cancelSettingsSourcePaint: (() => void) | null = null;
   private settingsExitPromise: Promise<void> | null = null;
 
   private cancelSettingsEnterTimeouts(): void {
+    this.cancelSettingsSourcePaint?.();
+    this.cancelSettingsSourcePaint = null;
     this.settingsEnterTimeouts.forEach((timeoutId) => window.clearTimeout(timeoutId));
     this.settingsEnterTimeouts.clear();
   }
@@ -479,18 +483,32 @@ class UIManager {
     const skipExit = nativeExitComplete && action !== 'journey';
     const sourceEpoch = appZoneManager.getPresentationEpoch();
     const previousVisibility = this.elements.home.style.visibility;
+    const previousOpacity = this.elements.home.style.opacity;
+    if (action === 'settings') emitSettingsRouteDiagnostic('native-source-before-dispatch', { nativeExitComplete });
     if (skipExit) this.elements.home.style.visibility = 'hidden';
+    // Opacity gates the whole subtree, including children with explicit visible.
+    if (skipExit && action === 'settings') this.elements.home.style.opacity = '0';
+    if (action === 'settings') emitSettingsRouteDiagnostic('native-source-gated', { nativeExitComplete });
     try {
       if (action === 'arcade') await this.handlePlayClick(undefined, skipExit);
       else if (action === 'journey') this.handleStatsClick();
-      else this.handleSettingsClick(undefined, skipExit);
+      else if (!(await this.handleSettingsClick(undefined, skipExit))) return false;
     } catch (error) {
       if (skipExit && appZoneManager.isPresentationCurrent(sourceEpoch, 'home')) {
         this.elements.home.style.visibility = previousVisibility;
+        this.elements.home.style.opacity = previousOpacity;
       }
       throw error;
     }
-    return true; // Action accepted, not destination-ready.
+    if (action === 'settings') emitSettingsRouteDiagnostic('native-source-action-accepted', { nativeExitComplete });
+    return true; // Settings acknowledges its prepared source; Arcade keeps its existing admission.
+  }
+
+  /** UIKit already owns the Arcade Home exit; no web Home reveal is needed. */
+  public async activateNativeArcadeGameplay(): Promise<boolean> {
+    if (!this.isInitialized || appZoneManager.getCurrentZone() !== 'home' || gameState.get('sliderLocked')) return false;
+    await this.handlePlayClick(undefined, true);
+    return true;
   }
 
   // Handle play button click
@@ -631,7 +649,7 @@ class UIManager {
   }
   
   // Handle settings button click
-  private handleSettingsClick(event?: Event, nativeExitComplete = false): void {
+  private handleSettingsClick(event?: Event, nativeExitComplete = false): Promise<boolean> {
     event?.preventDefault();
     logger.info('⚙️ Settings button clicked');
     
@@ -641,7 +659,7 @@ class UIManager {
     }
     
     // Show settings screen with animation
-    this.showSettingsScreenWithAnimation(nativeExitComplete);
+    return this.showSettingsScreenWithAnimation(nativeExitComplete);
   }
   
   // Start new game (public method) - ALWAYS starts from Board 1
@@ -2098,11 +2116,38 @@ class UIManager {
     }
   }
   
+  /** Native Settings owns presentation; the web tree stays retired. */
+  public async prepareNativeSettingsScreen(): Promise<void> {
+    this.cancelSettingsEnterTimeouts();
+    cleanupSettingsAnimations();
+    homepageEnterTransitionOwner.cancel('native-settings');
+    cancelSliderEnterAnimation('native-settings');
+    appZoneManager.setZone('settings', 'native-settings', { preserveHomepageNavigation: true });
+    sliderManager.syncHiddenSlideState(SETTINGS_SLIDE_INDEX);
+    gameState.set('sliderLocked', false);
+    try { window.dispatchEvent(new Event('cc-navigation')); } catch {}
+    try { window.CC?.cleanupFxForBoardReset?.('nav:settings'); } catch {}
+    this.elements.settingsScreen?.setAttribute('hidden', 'true');
+    if (this.elements.settingsScreen) this.elements.settingsScreen.style.display = 'none';
+    this.setNavigationVisibility(false);
+    applyPaperBackground();
+    await this.hideHomepage();
+  }
+
+  /** Explicit debug-only escape; the ordinary Settings route stays UIKit. */
+  public async openNativeSettingsDeveloperTools(): Promise<boolean> {
+    appZoneManager.markHomeMenu('native-settings-developer-tools');
+    this.showHomepageQuietly();
+    if (!(await this.showSettingsScreenWithAnimation(true))) return false;
+    document.getElementById('settings-dev-open-btn')?.click();
+    return true;
+  }
+
   // Show settings screen
-  private showSettingsScreenWithAnimation(nativeExitComplete = false): void {
+  private showSettingsScreenWithAnimation(nativeExitComplete = false): Promise<boolean> {
     // Image and CTA share this owner. A repeated request must not reset the
     // already-painted Settings enter to its hidden pose.
-    if (appZoneManager.getCurrentZone() === 'settings') return;
+    if (appZoneManager.getCurrentZone() === 'settings') return Promise.resolve(false);
     this.cancelSettingsEnterTimeouts();
     emitSettingsRouteDiagnostic('settings-enter-start', {
       presentationEpoch: appZoneManager.getPresentationEpoch(),
@@ -2190,9 +2235,9 @@ class UIManager {
     // Exit animation: 770ms
     // 🔥 OPTIMIZATION: Show Settings screen immediately after exit animation, don't wait for fade
     // Fade animation can happen in parallel - no need to block Settings screen display
-    void homepageExitPromise.then(() => {
-      if (isHomepageExitCancelled(homepageExitPromise)) return;
-      if (!appZoneManager.isPresentationCurrent(settingsEpoch, 'settings')) return;
+    return homepageExitPromise.then(async () => {
+      if (isHomepageExitCancelled(homepageExitPromise)) return false;
+      if (!appZoneManager.isPresentationCurrent(settingsEpoch, 'settings')) return false;
       emitSettingsRouteDiagnostic('settings-homepage-exit-settled', {
         presentationEpoch: appZoneManager.getPresentationEpoch(),
         sliderCurrentSlide: sliderManager.getCurrentSlide(),
@@ -2201,10 +2246,12 @@ class UIManager {
       console.log('⚙️ Step 2: Exit animation complete, showing Settings screen IMMEDIATELY');
         
         const settingsScreen = this.elements.settingsScreen;
-        if (!settingsScreen) return;
+        if (!settingsScreen) return false;
         
       // Show settings screen IMMEDIATELY after exit animation (don't wait for fade)
         this.hideHomepage();
+        // The display/hidden gate now owns retirement; reset the reusable root.
+        if (nativeExitComplete && this.elements.home?.hidden) this.elements.home.style.opacity = '1';
         finalizeJourneySliderExit();
         this.setNavigationVisibility(false);
       
@@ -2231,6 +2278,7 @@ class UIManager {
           if (!target) return;
           const settingsEl = document.getElementById('settings-screen');
           if (!settingsEl || settingsEl.hasAttribute('hidden') || settingsEl.style.display === 'none') return;
+          if (settingsEl.dataset.settingsView === 'developer' && (window as any).__jimiNativeHomeHubRuntime?.isNativeSettingsDeveloperToolsActive?.()) return;
           const backBtnEl = target.closest('#settings-back-btn, .settings-back-button');
           if (!backBtnEl) return;
           e.preventDefault();
@@ -2256,6 +2304,17 @@ class UIManager {
       // This ensures toggles work even if screen was recreated or elements were not available during init
       this.setupSettingsToggles();
       
+      if (nativeExitComplete) {
+        // Retire the retained Home IOSurface behind the native paper cover.
+        // No authored Settings motion runs until this finite paint gate settles.
+        const paint = prepareSettingsSourcePaint(() => appZoneManager.isPresentationCurrent(settingsEpoch, 'settings'));
+        this.cancelSettingsSourcePaint = paint.cancel;
+        const prepared = await paint.ready;
+        if (this.cancelSettingsSourcePaint === paint.cancel) this.cancelSettingsSourcePaint = null;
+        if (!prepared || !appZoneManager.isPresentationCurrent(settingsEpoch, 'settings')) return false;
+        emitSettingsRouteDiagnostic('settings-source-paint-prepared', { presentationEpoch: settingsEpoch });
+      }
+
       // 🎬 CRITICAL: Trigger settings screen enter animation (pop-in) using GSAP
       // 🔥 OPTIMIZATION: Use static import (already imported at top) to avoid 15s delay
       try {
@@ -2289,7 +2348,11 @@ class UIManager {
       appElement.style.setProperty('background', 'transparent', 'important');
       appElement.style.setProperty('background-image', 'none', 'important');
     }
-    }).catch((error) => logger.error('❌ Settings Homepage exit failed:', error));
+      return true;
+    }).catch((error) => {
+      logger.error('❌ Settings Homepage exit failed:', error);
+      return false;
+    });
   }
   
   // Hide settings screen with enter animation
@@ -2378,6 +2441,8 @@ class UIManager {
   
   // Handle settings back button click
   private handleSettingsBackClick(event: Event): void {
+    if (document.getElementById('settings-screen')?.dataset.settingsView === 'developer'
+      && (window as any).__jimiNativeHomeHubRuntime?.isNativeSettingsDeveloperToolsActive?.()) return;
     event.preventDefault();
     event.stopPropagation();
     (event as any).stopImmediatePropagation?.();

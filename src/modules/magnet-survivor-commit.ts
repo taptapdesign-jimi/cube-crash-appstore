@@ -157,6 +157,9 @@ export function commitMagnetSurvivor({
     // synchronously committed.
     stopSpecialIdle(tile);
     resetToNormal(tile);
+    // The container survives, but the consumed gameplay die does not. The
+    // immutable merge receipt must observe this replacement as a new die.
+    delete tile._ccGameplayDieId;
     collapseStack(tile);
 
     const c = tile.gridX | 0;

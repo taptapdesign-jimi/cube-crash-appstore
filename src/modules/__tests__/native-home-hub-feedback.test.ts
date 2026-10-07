@@ -40,7 +40,7 @@ test('factory performs no playback/preload; disabled adapter neither plays nor s
   expect(live.pressCTA(3, 'native-only')).toBe(true);
 });
 
-test.each(['native-only', 'web-home-source', 'web-hub-source'] as const)('CTA policy %s preserves cue/haptic ownership without duplicate web feedback', policy => {
+test.each(['native-only', 'web-home-source', 'web-hub-source', 'canonical-gameplay'] as const)('CTA policy %s preserves cue/haptic ownership without duplicate web feedback', policy => {
   const adapter = createNativeHomeHubFeedback(true);
   expect(adapter.pressCTA(1, policy)).toBe(true);
   expect(adapter.pressCTA(1, policy)).toBe(false);

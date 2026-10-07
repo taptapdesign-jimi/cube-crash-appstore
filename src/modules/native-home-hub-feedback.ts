@@ -6,7 +6,7 @@ import { playHomepageSliderEnterSound, playHomepageSliderExitSound, stopHomepage
 import { playJourneyWorldsHubSound, stopJourneyWorldsHubSound } from './journey-worlds-hub-sound.js';
 import { createJourneyHubExitSoundSession } from './journey-hub-exit-sound.js';
 
-export type NativeCtaFeedbackPolicy = 'native-only' | 'web-home-source' | 'web-hub-source';
+export type NativeCtaFeedbackPolicy = 'native-only' | 'web-home-source' | 'web-hub-source' | 'canonical-gameplay';
 export interface NativeHomeHubFeedback {
   pressCTA(id: number, policy: NativeCtaFeedbackPolicy): boolean;
   pressTab(id: number, policy: 'native-only' | 'web-home-source'): boolean;
@@ -70,7 +70,7 @@ export function createNativeHomeHubFeedback(enabled: boolean): NativeHomeHubFeed
   };
   const feedback: NativeHomeHubFeedback = {
     pressCTA(id, policy) {
-      if (!['native-only', 'web-home-source', 'web-hub-source'].includes(policy) || !admit('cta', id)) return false;
+      if (!['native-only', 'web-home-source', 'web-hub-source', 'canonical-gameplay'].includes(policy) || !admit('cta', id)) return false;
       // Manager.openJourneyV700World owns its CTA cue. UIManager Home handlers
       // own light haptic but their ordinary DOM CTA wrapper owns the sound.
       if (policy !== 'web-hub-source') sound('cta', playCtaActivationSounds, stopCtaActivationSounds);

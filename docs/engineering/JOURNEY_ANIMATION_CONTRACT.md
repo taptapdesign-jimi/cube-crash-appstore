@@ -58,6 +58,7 @@ Do not regress these rules:
   the whole flight, with no flip or `cardflip` image. At return-flight start it
   plays the existing single manual `flip soft.wav` whoosh, then uses the
   established landing and cleanup owners.
+- Automatic native post-game return flip leaves visible Unit/cloud/ambient motion running. Its depth9 carrier inherits the exact source Unit compositor wave clock; completion must not stop/restart the World idle owner. Modal card presentation keeps its existing pause policy.
 - Keep the automatic post-game return reminder attached to its exact live Unit while the World screen scrolls. Launch, outbound flip, return and landing impact must all inherit the Unit's live viewport displacement, and the reminder must scroll out of view with that Unit instead of floating above unrelated content. Scrolling never blocks or recentres the player. An accepted World X/back action atomically cancels both a visible reminder and any still-waiting reminder receipt before World-to-Hub exit paint, so no reminder layer may survive onto Journey Worlds.
 - Avoid old/new animation conflicts. Before adding a helper, search existing helpers/classes/listeners and remove or reuse stale paths.
 
@@ -69,12 +70,19 @@ Journey hub layout notes:
 
 Navigation rules:
 
-- Native Journey Hub Back remains actionable during the Hub incoming enter
-  (2026-10-06 user request). It interrupts that incoming owner, samples the
-  painted pose and begins the standard Hub exit without resetting to identity.
-  Delayed invisible Units remain invisible, and the retired enter completion
-  cannot reveal or unlock the Hub. Worlds/scroll keep their normal enter gate;
-  duplicate Back during outgoing motion stays blocked. Individual web World X
+- Native Journey Hub Back and Forest/Beach/Area 55 X accept the first tap
+  during incoming motion or inner presentation work (2026-10-07 user request).
+  Stable 44pt navigation hit targets remain independent of animated headers and
+  gated content. Hub Back also supersedes an outgoing World preparation: cancel
+  its canonical request before starting Home, invalidate native receipts, and
+  retarget from the painted pose. World X preempts incoming/card presentation
+  work, cancels the return reminder, and exits from the painted pose. Retired
+  callbacks cannot reveal a destination or unlock input; duplicates of the
+  accepted return are inert. Already dispatched canonical gameplay is protected.
+  Back receipt validation accepts the exact current `entering` or `active`
+  World identity; it must not require the completed input-admission receipt.
+  Hidden, parked, foreign, stale and replayed requests remain rejected.
+  Body/card/scroll admission keeps its existing gate. Individual web World X
   retains its v10 policy: accept one request during enter and flush it when that
   World's enter completes.
 - Every Journey X/back/nav tap should call `playNavIconCartoonBounce(...)` from `src/utils/nav-icon-bounce.ts`.

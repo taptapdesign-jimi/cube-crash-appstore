@@ -59,3 +59,16 @@ test.each(['settings-enter-primed', 'settings-enter-revealed', 'settings-focus-b
   const data = JSON.parse(postMessage.mock.calls[0][0].message.split(`${event} `)[1]);
   expect(data.settingsInlinePose.children).toEqual([{ className: 'settings-header', opacity: '0', transform: 'scale(0)' }]);
 });
+
+ test('native source provenance records an explicitly visible child below hidden Home without resolving layout', () => {
+  document.getElementById('home')!.style.visibility = 'hidden';
+  document.getElementById('slider-container')!.style.visibility = 'visible';
+  const spies = reads();
+  emitSettingsRouteDiagnostic('native-source-gated', { nativeExitComplete: true });
+  expect(spies[2]).not.toHaveBeenCalled();expect(spies[3]).not.toHaveBeenCalled();
+  const data = JSON.parse(postMessage.mock.calls[0][0].message.split('native-source-gated ')[1]);
+  expect(data.sourceInlinePose).toEqual(expect.arrayContaining([
+    expect.objectContaining({id:'home',visibility:'hidden'}),
+    expect.objectContaining({id:'slider-container',visibility:'visible'}),
+  ]));
+});

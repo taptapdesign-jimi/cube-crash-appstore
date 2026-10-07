@@ -389,6 +389,7 @@ class GameViewController: UIViewController, WKUIDelegate, WKNavigationDelegate, 
             let json = String(data: data, encoding: .utf8)
         else { return }
         print("[CC_NATIVE_THERMAL] \(json)")
+        jimiMusic?.traceState("existing-telemetry:\(reason)")
         persistNativeThermalSample(json)
         if ProcessInfo.processInfo.arguments.contains("--cc-thermal-isolation") {
             webView?.evaluateJavaScript("window.__ccNativeThermalSample = \(json)") { _, _ in }
@@ -605,6 +606,7 @@ class GameViewController: UIViewController, WKUIDelegate, WKNavigationDelegate, 
             print("[CC_SOUNDTRACK_FG] native-request sequence=\(activationSequence) foregroundEpoch=\(activationForegroundEpoch) reason=\(reason) appState=\(UIApplication.shared.applicationState.rawValue)")
         }
 
+        let category: AVAudioSession.Category = jimiMusic == nil ? .soloAmbient : JimiNativeMusic.sessionCategory
         audioLifecycleQueue.async { [weak self] in
             guard let self else { return }
             let session = AVAudioSession.sharedInstance()
@@ -612,7 +614,7 @@ class GameViewController: UIViewController, WKUIDelegate, WKNavigationDelegate, 
             var activationError: Error?
             do {
                 if configureCategory {
-                    try session.setCategory(.soloAmbient, mode: .default, options: [])
+                    try session.setCategory(category, mode: .default, options: [])
                 }
                 try session.setActive(true)
             } catch {
@@ -786,7 +788,7 @@ class GameViewController: UIViewController, WKUIDelegate, WKNavigationDelegate, 
         }
         if Self.jimiHomeHubEnabled {
             userContentController.add(self, name: "jimiHomeHub")
-            userContentController.addUserScript(WKUserScript(source: "window.__jimiNativeHomeHubEnabled = true;", injectionTime: .atDocumentStart, forMainFrameOnly: true))
+            userContentController.addUserScript(WKUserScript(source: "window.__jimiNativeHomeHubEnabled = true; window.__jimiNativeEndRunEnabled = true;", injectionTime: .atDocumentStart, forMainFrameOnly: true))
             if Self.jimiNativeWorldsEnabled {
                 userContentController.addUserScript(WKUserScript(source: "window.__jimiNativeWorldsEnabled = true;", injectionTime: .atDocumentStart, forMainFrameOnly: true))
             }

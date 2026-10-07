@@ -127,7 +127,9 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         title.frame = CGRect(x:24,y:80,width:size.width-48,height:32)
         stats.frame = CGRect(x:24,y:116,width:size.width-48,height:242)
         for row in stats.arrangedSubviews {row.subviews.first(where:{$0.tag == 701})?.frame = CGRect(x:0,y:8,width:size.width-48,height:2)}
-        cta.frame = CGRect(x:24,y:size.height-120,width:size.width-48,height:64)
+        // v10 .cc-cta--standard-width: 226px below 768px, otherwise 250px.
+        let ctaWidth:CGFloat = bounds.width < 768 ? 226 : 250
+        cta.frame = CGRect(x:(size.width-ctaWidth)/2,y:size.height-120,width:ctaWidth,height:64)
         cta.layer.shadowPath = UIBezierPath(roundedRect:cta.bounds,cornerRadius:32).cgPath
         if let newRibbon {JimiNativeWorldRibbon.layout(newRibbon,cardSize:front.bounds.size,scale:1,portal:true,compact:bounds.width<=768)}
         effects?.layout()

@@ -1,7 +1,7 @@
 import type { NativeWorldFeedback, NativeWorldFeedbackEvent } from './native-world-feedback.js';
 import type { NativeForestBeePlan } from './journey-forest-bee-orbits.js';
 import { NativeWorldReceiptOwner, type NativeWorldActionReceipt, type NativeWorldSnapshot, type NativeWorldAmbientPlan, type NativeWorldAmbientViewport } from './native-world-runtime.js';
-import { installNativeHomeHubBridge, type NativeHomeHubBridge, type NativeHomeHubBridgeHost, type NativeHomeHubDestination, type NativeHomeHubSnapshot } from './native-home-hub-bridge.js';
+import { installNativeHomeHubBridge, type NativeHomeHubBridge, type NativeHomeHubBridgeHost, type NativeHomeHubDestination, type NativeHomeHubSnapshot, type NativeSettingsSnapshot } from './native-home-hub-bridge.js';
 import { ARCADE_SLIDE_INDEX, JOURNEY_SLIDE_INDEX, SETTINGS_SLIDE_INDEX, isHomepageSlideVisible } from './homepage-slide-order.js';
 import { getJourneyWorldIdForBoard } from './journey-world-definitions.js';
 import type { NativeHomeHubFeedback } from './native-home-hub-feedback.js';
@@ -10,11 +10,17 @@ import { getJourneyReturnTransitionToken, markJourneyReturnDestinationVisibleRea
 type WorldId = 1 | 2 | 3;
 type Source = Extract<NativeHomeHubDestination, { kind: 'web-home' | 'web-hub' }>;
 export type NativeHomeHubFeedbackEvent =
-  | { id: number; kind: 'cta'; policy: 'native-only' | 'web-home-source' | 'web-hub-source' }
+  | { id: number; kind: 'cta'; policy: 'native-only' | 'web-home-source' | 'web-hub-source' | 'canonical-gameplay' }
   | { id: number; kind: 'tab'; policy: 'native-only' | 'web-home-source' }
   | { id: number; kind: 'swipe' | 'back' | 'hub-ambience' | 'hub-exit' }
   | { id: number; kind: 'home-enter' | 'home-exit'; durationSeconds: number };
 export interface NativeHomeHubRuntime extends NativeHomeHubBridge {
+  activateNativeArcade(requestId: number): Promise<boolean>;
+  setNativeSetting(key: unknown, enabled: unknown, epoch: unknown): NativeSettingsSnapshot | null;
+  isNativeSettingsPresentationCurrent(epoch: number): boolean;
+  openNativeSettingsDeveloperTools(epoch: number): Promise<boolean>;
+  returnNativeSettingsFromDeveloperTools(): Promise<boolean>;
+  isNativeSettingsDeveloperToolsActive(): boolean;
   /** Called by Swift only AFTER removing native coverage of the ready source. */
   activateSource(requestId: number, nativeExitComplete?: boolean): Promise<boolean>;
   activateWorld(requestId: number): Promise<boolean>;
@@ -60,7 +66,7 @@ export interface NativeHomeHubRuntimeOwners {
   appZone: {
     getCurrentZone(): string;
     getPresentationEpoch(): number;
-    isPresentationCurrent(epoch: number, zone?: 'home' | 'journey'): boolean;
+    isPresentationCurrent(epoch: number, zone?: 'home' | 'journey' | 'settings'): boolean;
     markHomeMenu(reason: string): void;
     markJourneyMenu(reason: string): void;
     showHomepageShell(reason: string, slide: 0 | 1): Promise<void>;
@@ -71,6 +77,7 @@ export interface NativeHomeHubRuntimeOwners {
     showHomepageQuietly(): void;
     hideHomepage(): Promise<void> | void;
     showCollectiblesScreen(): Promise<void>;
+    activateNativeArcadeGameplay?(): Promise<boolean>;
     activateNativeHomepageAction(action: 'arcade' | 'settings' | 'journey', nativeExitComplete?: boolean): Promise<boolean>;
   };
   journey: {
@@ -93,6 +100,12 @@ export interface NativeHomeHubRuntimeOwners {
     readNextNativeForestBeePlans?: (ids?:number[]) => NativeForestBeePlan[] | null;
     launchNativeForestBoard?: (boardID: number, action: 'play'|'continue', onPresentationReady?:()=>Promise<boolean>) => Promise<boolean>;
   };
+  settings?: {
+    read(): { gameSoundsEnabled: boolean; musicEnabled: boolean; hapticsEnabled: boolean };
+    apply(key: 'gameSoundsEnabled' | 'musicEnabled' | 'hapticsEnabled', enabled: boolean): boolean;
+    enter(): Promise<void>;
+    openDeveloperTools(): Promise<boolean>;
+  };
   finalizeHome(reason: string): void;
   cancelHomeEnter(reason: string): void;
   hideHomeNavigation(reason: string): void;
@@ -105,14 +118,15 @@ const installations = new WeakMap<NativeHomeHubRuntimeHost, Promise<NativeHomeHu
 const runtimes = new WeakMap<NativeHomeHubRuntimeHost, NativeHomeHubRuntime>();
 const defaultHost = () => window as unknown as NativeHomeHubRuntimeHost;
 async function loadCanonicalOwners(): Promise<NativeHomeHubRuntimeOwners> {
-  const [zone, slider, ui, journey, animations, homeOwner, homeNavigation, tutorial, feedback, worldFeedback] = await Promise.all([
+  const [zone, slider, ui, journey, animations, homeOwner, homeNavigation, tutorial, feedback, worldFeedback, preferences] = await Promise.all([
     import('./app-zone-manager.js'), import('./slider-manager.js'), import('./ui-manager.js'),
     import('./journey-boards-manager.js'), import('../utils/animations.js'),
     import('./homepage-enter-transition-owner.js'), import('./navigation-control.js'),
     import('./first-play-tutorial-request.js'),
-    import('./native-home-hub-feedback.js'), import('./native-world-feedback.js'),
+    import('./native-home-hub-feedback.js'), import('./native-world-feedback.js'), import('./settings-preferences.js'),
   ]);
-  return { appZone: zone.appZoneManager, slider: slider.default, ui: ui.default,
+  return { settings: { read: preferences.readSettingsPreferences, apply: preferences.applySettingsPreference,
+      enter: () => ui.default.prepareNativeSettingsScreen(), openDeveloperTools: () => ui.default.openNativeSettingsDeveloperTools() }, appZone: zone.appZoneManager, slider: slider.default, ui: ui.default,
     journey: journey.journeyBoardsManager, finalizeHome: animations.finalizeSliderEnterVisibility,
     cancelHomeEnter(reason) { homeOwner.homepageEnterTransitionOwner.cancel(reason); animations.cancelSliderEnterAnimation(reason); },
     hideHomeNavigation: homeNavigation.hideHomepageNavigation,
@@ -135,6 +149,9 @@ export function installNativeHomeHubRuntime(
       return null;
     }
     let disposed = false;
+    let settingsEpoch: number | null = null;
+    let settingsDeveloperEscape = false;
+    let pendingArcade: { id: number; epoch: number; signal: AbortSignal } | undefined;
     const forest = new NativeWorldReceiptOwner();
     let forestRequestID = '';
     let forestEpoch = -1;
@@ -162,13 +179,13 @@ export function installNativeHomeHubRuntime(
     let worldRecovery: { id: number; epoch: number } | undefined;
     let webHubFallbackEpoch: number | undefined;
     let feedback: NativeHomeHubFeedback | undefined;
-    let feedbackAdmission: { zone: 'home' | 'journey'; epoch: number } | undefined;
+    let feedbackAdmission: { zone: 'home' | 'journey' | 'settings'; epoch: number } | undefined;
     let feedbackPendingRequestId: number | null = null;
     let lastFeedbackId = 0;
     const stopFeedback = () => { feedback?.stop(); feedback = undefined; };
-    const admitFeedback = (route: 'home' | 'hub', epoch: number, retainNativeLease = false) => {
+    const admitFeedback = (route: 'home' | 'hub' | 'settings', epoch: number, retainNativeLease = false) => {
       if (!retainNativeLease) stopFeedback();
-      feedbackAdmission = { zone: route === 'home' ? 'home' : 'journey', epoch };
+      feedbackAdmission = { zone: route === 'settings' ? 'settings' : route === 'home' ? 'home' : 'journey', epoch };
       feedback ??= owners.createFeedback(true);
     };
     const ownsFeedbackAdmission = () => !disposed && nativeOwned && !host.document.hidden
@@ -211,6 +228,7 @@ export function installNativeHomeHubRuntime(
       const highestUnlocked = allBoards.reduce((highest, board) => board.state?.unlocked || board.state?.interim ? Math.max(highest, board.id) : highest, 1);
       const activeWorld = allBoards.every(board => !!board.state) ? getJourneyWorldIdForBoard(highestUnlocked) : null;
       return { homeSlide: owners.slider.getCurrentSlide(),
+        ...(owners.settings ? { settings: { ...owners.settings.read(), presentationEpoch: owners.appZone.getPresentationEpoch(), developerToolsAvailable: !!host.document.getElementById('settings-dev-open-btn') && !host.document.getElementById('settings-dev-open-btn')!.hidden } } : {}),
         journeyRequiresTutorial: owners.isFirstPlayTutorialForced(),
         activeWorldId: activeWorld === 1 || activeWorld === 2 || activeWorld === 3 ? activeWorld : null,
         worlds: ([1, 3, 2] as const).map(worldId => {
@@ -247,6 +265,8 @@ export function installNativeHomeHubRuntime(
         return nativeOwned && !host.document.hidden
         && (!owners.isFirstPlayTutorialForced() || (target.kind !== 'hub' && target.kind !== 'web-hub' && target.kind !== 'world'))
         && (target.kind === 'home' || target.kind === 'hub' || target.kind === 'web-home'
+          || (target.kind === 'settings' && !!owners.settings)
+          || (target.kind === 'arcade' && typeof owners.ui.activateNativeArcadeGameplay === 'function')
           || (target.kind === 'world' && forestEnabled(target.worldId))
           || (target.kind === 'world' && typeof owners.journey.prepareNativeWorld === 'function'
             && typeof owners.journey.activatePreparedNativeWorld === 'function'
@@ -259,6 +279,7 @@ export function installNativeHomeHubRuntime(
         worldRecovery = undefined;
         pendingPresentation = undefined;
         pendingSource = undefined;
+        pendingArcade = undefined;
         suppressedRequestId = context.requestId;
         feedbackPendingRequestId = context.requestId;
         feedbackAdmission = undefined;
@@ -272,14 +293,31 @@ export function installNativeHomeHubRuntime(
         const assertCurrent = () => {
           if (disposed || context.signal.aborted || !context.isCurrent() || host.document.hidden) throw new DOMException('Native handoff cancelled', 'AbortError');
         };
-        const owned = (epoch: number, zone: 'home' | 'journey') => {
+        const owned = (epoch: number, zone: 'home' | 'journey' | 'settings') => {
           assertCurrent();
           if (!owners.appZone.isPresentationCurrent(epoch, zone)) throw new Error('Canonical route replaced');
         };
         let worldReceipt: typeof pendingWorld;
         try {
           assertCurrent();
-          if (target.kind === 'home') {
+          settingsEpoch = null; settingsDeveloperEscape = false;
+          if (target.kind === 'settings' && owners.settings) {
+            owners.cancelHomeEnter('native-settings');
+            owners.journey.suspendForHomepage();
+            const preparing = owners.settings.enter();
+            const epoch = owners.appZone.getPresentationEpoch();
+            await preparing;
+            owned(epoch, 'settings');
+            settingsEpoch = epoch;
+            admitFeedback('settings', epoch, true);
+            if (bridge.snapshot().kind !== 'snapshot') throw new Error('Settings snapshot unavailable');
+          } else if (target.kind === 'arcade') {
+            owners.appZone.markHomeMenu('native-arcade-logical');
+            const epoch = owners.appZone.getPresentationEpoch();
+            await quiesce('home', epoch, context.isCurrent);
+            owned(epoch, 'home');
+            pendingArcade = { id: context.requestId, epoch, signal: context.signal };
+          } else if (target.kind === 'home') {
             owners.appZone.markHomeMenu('native-home-logical');
             const epoch = owners.appZone.getPresentationEpoch();
             await quiesce('home', epoch, context.isCurrent);
@@ -360,6 +398,7 @@ export function installNativeHomeHubRuntime(
           if (feedbackPendingRequestId === context.requestId) feedbackPendingRequestId = null;
           return { ready: true, destination: target };
         } catch (error) {
+          if (target.kind === 'settings') settingsEpoch = null;
           if (worldReceipt) retireWorld(worldReceipt, true);
           if (suppressedRequestId === context.requestId) suppressedRequestId = null;
           if (feedbackPendingRequestId === context.requestId) {
@@ -378,7 +417,7 @@ export function installNativeHomeHubRuntime(
         const event = value as Record<string, unknown>;
         if (!Number.isSafeInteger(event.id) || (event.id as number) <= lastFeedbackId || (event.id as number) <= 0) return false;
         if (event.kind === 'cta') {
-          if (!['native-only', 'web-home-source', 'web-hub-source'].includes(event.policy as string)) return false;
+          if (!['native-only', 'web-home-source', 'web-hub-source', 'canonical-gameplay'].includes(event.policy as string)) return false;
         } else if (event.kind === 'tab') {
           if (!['native-only', 'web-home-source'].includes(event.policy as string)) return false;
         } else if (event.kind === 'home-enter' || event.kind === 'home-exit') {
@@ -390,7 +429,7 @@ export function installNativeHomeHubRuntime(
         if (!feedback || !ownsFeedbackAdmission()) return false;
         const id = event.id as number;
         switch (event.kind) {
-          case 'cta': return feedback.pressCTA(id, event.policy as 'native-only' | 'web-home-source' | 'web-hub-source');
+          case 'cta': return feedback.pressCTA(id, event.policy as 'native-only' | 'web-home-source' | 'web-hub-source' | 'canonical-gameplay');
           case 'tab': return feedback.pressTab(id, event.policy as 'native-only' | 'web-home-source');
           case 'swipe': return feedback.pressSwipe(id);
           case 'back': return feedback.pressBack(id);
@@ -651,6 +690,54 @@ export function installNativeHomeHubRuntime(
         } catch { return false; /* The same canonical caller owns fallback. */ }
         finally { if (pendingPresentation === receipt) pendingPresentation = undefined; }
       },
+      async activateNativeArcade(requestId: number): Promise<boolean> {
+        const pending = pendingArcade;
+        if (disposed || !pending || pending.id !== requestId || pending.signal.aborted || host.document.hidden
+          || !owners.appZone.isPresentationCurrent(pending.epoch, 'home')) return false;
+        pendingArcade = undefined;
+        if (suppressedRequestId === requestId) suppressedRequestId = null;
+        feedback?.releaseToWeb(); feedback = undefined; feedbackAdmission = undefined;
+        nativeOwned = false;
+        try {
+          const accepted = await owners.ui.activateNativeArcadeGameplay!();
+          if (!accepted && owners.appZone.isPresentationCurrent(pending.epoch, 'home')) nativeOwned = true;
+          return accepted;
+        } catch {
+          if (owners.appZone.isPresentationCurrent(pending.epoch, 'home')) nativeOwned = true;
+          return false;
+        }
+      },
+      isNativeSettingsPresentationCurrent(epoch: number): boolean {
+        return !disposed && nativeOwned && settingsEpoch === epoch && !!owners.settings
+          && !host.document.hidden && owners.appZone.isPresentationCurrent(epoch, 'settings');
+      },
+      setNativeSetting(key: unknown, enabled: unknown, epoch: unknown): NativeSettingsSnapshot | null {
+        if (typeof epoch !== 'number' || !runtime.isNativeSettingsPresentationCurrent(epoch)
+          || typeof enabled !== 'boolean' || (key !== 'gameSoundsEnabled' && key !== 'musicEnabled' && key !== 'hapticsEnabled')) return null;
+        if (!owners.settings!.apply(key, enabled)) return null;
+        return readSnapshot().settings ?? null;
+      },
+      async openNativeSettingsDeveloperTools(epoch: number): Promise<boolean> {
+        if (!runtime.isNativeSettingsPresentationCurrent(epoch) || !readSnapshot().settings?.developerToolsAvailable) return false;
+        settingsEpoch = null;
+        const accepted = await owners.settings!.openDeveloperTools();
+        if (disposed || !accepted || owners.appZone.getCurrentZone() !== 'settings') return false;
+        nativeOwned = false; settingsDeveloperEscape = true;
+        return true;
+      },
+      isNativeSettingsDeveloperToolsActive(): boolean { return !disposed && settingsDeveloperEscape && owners.appZone.getCurrentZone() === 'settings'; },
+      async returnNativeSettingsFromDeveloperTools(): Promise<boolean> {
+        if (disposed || !settingsDeveloperEscape || !owners.settings || host.document.hidden || owners.appZone.getCurrentZone() !== 'settings') return false;
+        settingsDeveloperEscape = false;
+        const preparing = owners.settings.enter();
+        const epoch = owners.appZone.getPresentationEpoch();
+        await preparing;
+        if (disposed || host.document.hidden || !owners.appZone.isPresentationCurrent(epoch, 'settings')) return false;
+        settingsEpoch = epoch; nativeOwned = true;
+        admitFeedback('settings', epoch);
+        host.webkit?.messageHandlers?.jimiHomeHub?.postMessage({kind: 'present', route: 'settings', snapshot: readSnapshot()});
+        return true;
+      },
       async activateSource(requestId: number, nativeExitComplete = false): Promise<boolean> {
         const pending = pendingSource;
         if (disposed || !pending || pending.id !== requestId || pending.signal.aborted || host.document.hidden) return false;
@@ -699,10 +786,11 @@ export function installNativeHomeHubRuntime(
         } catch { /* Interrupted/failed cleanup or unavailable native transport: never adopt stale source. */ }
         finally { if (pendingPresentation === receipt) pendingPresentation = undefined; }
       },
-      cancel() { retireForest(); retireWorld(pendingWorld, true); stopFeedback(); pendingPresentation = undefined; pendingSource = undefined; suppressedRequestId = null; feedbackPendingRequestId = null; cancel(); },
+      cancel() { pendingArcade = undefined; settingsEpoch = null; settingsDeveloperEscape = false; retireForest(); retireWorld(pendingWorld, true); stopFeedback(); pendingPresentation = undefined; pendingSource = undefined; suppressedRequestId = null; feedbackPendingRequestId = null; cancel(); },
       dispose() {
         if (disposed) return;
         disposed = true;
+        pendingArcade = undefined; settingsEpoch = null; settingsDeveloperEscape = false;
         retireForest();
         retireWorld();
         stopFeedback();

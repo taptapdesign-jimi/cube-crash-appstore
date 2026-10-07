@@ -43,7 +43,7 @@ function fixture() {
     }),
   };
   const load = jest.fn(async () => owners);
-  return { host, owners, load, postMessage, feedbacks };
+  return { host, owners, load, postMessage, feedbacks, changeZone: (next: string) => { zone = next; epoch++; } };
 }
 afterEach(() => { document.body.replaceChildren(); });
 
@@ -689,5 +689,151 @@ test('retained Hub refreshes canonical completion projection before ready reveal
   expect(f.postMessage.mock.calls.map(([event])=>event.kind)).toEqual(['snapshot','ready']);
   expect(f.postMessage.mock.calls[0][0]).toMatchObject({snapshot:{worlds:expect.arrayContaining([expect.objectContaining({worldId:1,completed:1,hasInterimCard:true})])}});
   expect(states[0]).toEqual({unlocked:true,interim:false});
+  runtime.dispose();
+});
+
+
+test('native Settings prepares its canonical epoch without web source activation', async () => {
+  const f = fixture();
+  const preferences = {gameSoundsEnabled: true, musicEnabled: false, hapticsEnabled: true};
+  f.owners.settings = { read: () => preferences, apply: jest.fn(() => true),
+    enter: jest.fn(async () => { f.changeZone('settings'); }), openDeveloperTools: jest.fn(async () => true) };
+  const runtime = (await installNativeHomeHubRuntime(f.host, f.load))!;
+  expect((await runtime.request({id: 1, destination: {kind: 'settings'}})).kind).toBe('ready');
+  expect(f.owners.ui.activateNativeHomepageAction).not.toHaveBeenCalled();
+  expect(f.owners.appZone.showHomepageShell).not.toHaveBeenCalled();
+  const epoch = f.owners.appZone.getPresentationEpoch();
+  expect(runtime.isNativeSettingsPresentationCurrent(epoch)).toBe(true);
+  expect(runtime.setNativeSetting('musicEnabled', true, epoch)?.presentationEpoch).toBe(epoch);
+  expect(f.owners.settings.apply).toHaveBeenCalledWith('musicEnabled', true);
+  f.changeZone('home');
+  expect(runtime.setNativeSetting('musicEnabled', false, epoch)).toBeNull();
+  expect(f.owners.settings.apply).toHaveBeenCalledTimes(1);
+});
+
+test.each(['cancel', 'replacement', 'background', 'dispose'])('native Settings %s rejects late preparation and every stale write', async reason => {
+  const f = fixture();
+  let resolve!: () => void;
+  f.owners.settings = { read: () => ({gameSoundsEnabled: false, musicEnabled: true, hapticsEnabled: true}),
+    apply: jest.fn(() => true), openDeveloperTools: jest.fn(async () => true),
+    enter: jest.fn(() => { f.changeZone('settings'); return new Promise<void>(done => { resolve = done; }); }) };
+  const runtime = (await installNativeHomeHubRuntime(f.host, f.load))!;
+  const pending = runtime.request({id: 1, destination: {kind: 'settings'}});
+  await Promise.resolve();
+  const epoch = f.owners.appZone.getPresentationEpoch();
+  if (reason === 'cancel') runtime.cancel();
+  if (reason === 'dispose') runtime.dispose();
+  if (reason === 'replacement') f.changeZone('home');
+  if (reason === 'background') Object.defineProperty(f.host.document, 'hidden', { configurable: true, value: true });
+  resolve();
+  expect((await pending).kind).toBe('error');
+  expect(runtime.setNativeSetting('gameSoundsEnabled', true, epoch)).toBeNull();
+  expect(f.owners.settings.apply).not.toHaveBeenCalled();
+  Object.defineProperty(f.host.document, 'hidden', { configurable: true, value: false });
+});
+
+test('native Settings rejects malformed and foreign-epoch toggle commands', async () => {
+  const f = fixture();
+  f.owners.settings = { read: () => ({gameSoundsEnabled: false, musicEnabled: true, hapticsEnabled: true}),
+    apply: jest.fn(() => true), openDeveloperTools: jest.fn(async () => true), enter: jest.fn(async () => { f.changeZone('settings'); }) };
+  const runtime = (await installNativeHomeHubRuntime(f.host, f.load))!;
+  await runtime.request({id: 1, destination: {kind: 'settings'}});
+  const epoch = f.owners.appZone.getPresentationEpoch();
+  expect(runtime.setNativeSetting('otherSaveKey', true, epoch)).toBeNull();
+  expect(runtime.setNativeSetting('musicEnabled', 'true', epoch)).toBeNull();
+  expect(runtime.setNativeSetting('musicEnabled', true, epoch+1)).toBeNull();
+  expect(f.owners.settings.apply).not.toHaveBeenCalled();
+});
+
+
+test('native Arcade launches once after native exit without preparing any web Homepage', async () => {
+  const f = fixture();
+  f.owners.ui.activateNativeArcadeGameplay = jest.fn(async () => true);
+  const runtime = (await installNativeHomeHubRuntime(f.host, f.load))!;
+  expect((await runtime.request({id: 1, destination: {kind: 'arcade'}})).kind).toBe('ready');
+  expect(f.owners.appZone.showHomepageShell).not.toHaveBeenCalled();
+  expect(f.owners.ui.activateNativeArcadeGameplay).not.toHaveBeenCalled();
+  expect(f.owners.ui.activateNativeHomepageAction).not.toHaveBeenCalled();
+  expect(await runtime.activateNativeArcade(2)).toBe(false);
+  expect(await runtime.activateNativeArcade(1)).toBe(true);
+  expect(await runtime.activateNativeArcade(1)).toBe(false);
+  expect(f.owners.ui.activateNativeArcadeGameplay).toHaveBeenCalledTimes(1);
+});
+
+test.each(['cancel', 'replacement', 'background', 'dispose'])('native Arcade %s cannot launch a retired gameplay request', async reason => {
+  const f = fixture();
+  f.owners.ui.activateNativeArcadeGameplay = jest.fn(async () => true);
+  const runtime = (await installNativeHomeHubRuntime(f.host, f.load))!;
+  await runtime.request({id: 1, destination: {kind: 'arcade'}});
+  if (reason === 'cancel') runtime.cancel();
+  if (reason === 'dispose') runtime.dispose();
+  if (reason === 'replacement') f.changeZone('settings');
+  if (reason === 'background') Object.defineProperty(f.host.document, 'hidden', {configurable: true, value: true});
+  expect(await runtime.activateNativeArcade(1)).toBe(false);
+  expect(f.owners.ui.activateNativeArcadeGameplay).not.toHaveBeenCalled();
+  Object.defineProperty(f.host.document, 'hidden', {configurable: true, value: false});
+});
+
+test('explicit DEV escape returns to native Settings and cannot be resurrected after cancellation', async () => {
+  const f = fixture();
+  const button = document.createElement('button'); button.id = 'settings-dev-open-btn'; document.body.appendChild(button);
+  f.owners.settings = {read: () => ({gameSoundsEnabled:false,musicEnabled:true,hapticsEnabled:true}), apply: jest.fn(() => true),
+    enter: jest.fn(async () => { f.changeZone('settings'); }), openDeveloperTools: jest.fn(async () => { f.changeZone('settings'); return true; })};
+  const runtime = (await installNativeHomeHubRuntime(f.host,f.load))!;
+  await runtime.request({id:1,destination:{kind:'settings'}});
+  const epoch = f.owners.appZone.getPresentationEpoch();
+  expect(await runtime.openNativeSettingsDeveloperTools(epoch)).toBe(true);
+  expect(runtime.isNativeSettingsDeveloperToolsActive()).toBe(true);
+  expect(runtime.setNativeSetting('musicEnabled',false,epoch)).toBeNull();
+  expect(await runtime.returnNativeSettingsFromDeveloperTools()).toBe(true);
+  expect(f.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({kind:'present',route:'settings'}));
+  expect(runtime.isNativeSettingsPresentationCurrent(f.owners.appZone.getPresentationEpoch())).toBe(true);
+  await runtime.openNativeSettingsDeveloperTools(f.owners.appZone.getPresentationEpoch());
+  runtime.cancel();
+  expect(await runtime.returnNativeSettingsFromDeveloperTools()).toBe(false);
+  runtime.dispose();
+});
+
+test('Settings retains the outgoing Home cue lease and admits exactly one authored Back event', async () => {
+  const f = fixture();
+  f.owners.settings = {read: () => ({gameSoundsEnabled:true,musicEnabled:true,hapticsEnabled:true}),apply:jest.fn(()=>true),
+    enter:jest.fn(async()=>{f.changeZone('settings');}),openDeveloperTools:jest.fn(async()=>true)};
+  const runtime = (await installNativeHomeHubRuntime(f.host,f.load))!;
+  await runtime.request({id:1,destination:{kind:'home'}});
+  const lease = f.feedbacks[0];
+  expect(runtime.nativeFeedback({id:1,kind:'home-exit',durationSeconds:0.7})).toBe(true);
+  await runtime.request({id:2,destination:{kind:'settings'}});
+  expect(lease.stop).not.toHaveBeenCalled();
+  expect(runtime.nativeFeedback({id:2,kind:'back'})).toBe(true);
+  expect(runtime.nativeFeedback({id:2,kind:'back'})).toBe(false);
+  expect(lease.pressBack).toHaveBeenCalledTimes(1);
+  runtime.dispose();
+});
+
+
+test.each([1, 2, 3] as const)('World %i native X returns to Hub before incoming presentation commit', async worldID => {
+  const f = fixture();
+  f.host.__jimiNativeForestEnabled = true; f.host.__jimiNativeWorldsEnabled = true;
+  f.owners.journey.prepareNativeForest = jest.fn(() => true);
+  f.owners.journey.retireNativeForest = jest.fn();
+  f.owners.journey.readNativeForestSnapshot = jest.fn((requestID, routeGeneration, stateRevision) => ({
+    version: 1, requestID, routeGeneration, stateRevision, worldID, title: 'World', contentHeight: 1500,
+    mainArt: 'main.png', mainFrame: { x: 0, y: 0, width: 390, height: 300 }, mainParts: [], units: [],
+    viewport: { width: 390, height: 844 }, cardBackArt: 'back.png',
+  }));
+  const runtime = (await installNativeHomeHubRuntime(f.host, f.load))!;
+  const ready = await runtime.request({ id: 1, destination: { kind: 'world', worldId: worldID } });
+  if (ready.kind !== 'ready') throw new Error('missing ready');
+  expect(await runtime.activateWorld(1)).toBe(true);
+  const identity = ready.worldSnapshot!;
+  expect(runtime.hasNativeWorldPresentationReady()).toBe(false);
+  const back = { id: 1, worldID, action: 'back', routeGeneration: identity.routeGeneration, stateRevision: identity.stateRevision };
+  expect(await runtime.requestNativeWorldAction(back)).toEqual({ accepted: true });
+  expect((await runtime.requestNativeWorldAction(back)).accepted).toBe(false);
+  const hub = await runtime.request({ id: 2, destination: { kind: 'hub' } });
+  expect(hub.kind).toBe('ready');
+  expect(f.owners.journey.retireNativeForest).toHaveBeenCalled();
+  expect(runtime.commitNativeWorldPresentation(identity.routeGeneration, identity.stateRevision)).toBe(false);
+  expect(runtime.hasNativeWorldPresentationReady()).toBe(false);
   runtime.dispose();
 });

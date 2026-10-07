@@ -165,7 +165,11 @@ export class NativeWorldReceiptOwner {
     this.lastID = request.id;
     if (
       !visible ||
-      !this.current(request.routeGeneration, request.stateRevision) ||
+      // Native navigation remains available while the Units enter.
+      // Card/gameplay actions still require the completed presentation receipt.
+      !(request.action === 'back'
+        ? this.presentationCurrent(request.routeGeneration, request.stateRevision)
+        : this.current(request.routeGeneration, request.stateRevision)) ||
       request.worldID !== this.worldID ||
       !['openCard', 'close', 'play', 'continue', 'back'].includes(
         request.action,
