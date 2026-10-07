@@ -814,7 +814,13 @@ extension NativeGameplayEngine {
         return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
     }
     public func releaseOrdinarySixHandoff(receiptID:String,generation:UInt64)->NativeMoveResult {
-        guard generation==state.generation,let plan=pendingOrdinarySix,plan.id==receiptID,plan.generation==generation,ordinarySixGameplayCommitted,pendingOrdinarySpawns.isEmpty,!ordinarySpawnPreparationPending,pendingOrdinaryAssignments.isEmpty,pendingOrdinaryPrimaryArrival==nil,pendingOrdinaryDestinationCleanup==nil else{return rejected("stale_ordinary_six_handoff")}
+        guard generation==state.generation,let plan=pendingOrdinarySix,plan.id==receiptID,plan.generation==generation,ordinarySixGameplayCommitted,pendingOrdinarySpawns.isEmpty,!ordinarySpawnPreparationPending,pendingOrdinaryAssignments.isEmpty,pendingOrdinaryPrimaryArrival==nil else{return rejected("stale_ordinary_six_handoff")}
+        if pendingOrdinaryDestinationCleanup != nil {
+            guard !state.tiles.contains(where:{$0.id==plan.destination.id && $0.merge6CleanupOwned}) else{return rejected("stale_ordinary_six_handoff")}
+            // A primary force-clear already retired this exact old identity. Source
+            // hasClaim ignores destroyed dice; its later decorative cleanup is a no-op.
+            pendingOrdinaryDestinationCleanup=nil
+        }
         pendingOrdinarySix=nil;ordinarySixGameplayCommitted=false
         var events:[NativeGameplayEvent]=[];let resolution=settleDeferredFinalMerge(events:&events)
         return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolution)
@@ -876,7 +882,14 @@ extension NativeGameplayEngine {
     public func prepareOrdinarySpawns(receiptID:String,generation:UInt64)->NativeMoveResult {
         guard generation==state.generation,let plan=pendingOrdinarySix,plan.id==receiptID,ordinarySixGameplayCommitted,ordinarySpawnPreparationPending else{return rejected("stale_ordinary_spawn_preparation")}
         ordinarySpawnPreparationPending=false
-        guard state.revision==plan.revision,state.terminal==nil else{return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())}
+        guard state.revision==plan.revision,state.terminal==nil else{
+            // Ordinary primary beforeSpawn owns retirement even when its old spawn permit is stale.
+            if state.terminal==nil,state.tiles.contains(where:{$0.id==plan.destination.id && $0.merge6CleanupOwned}) {
+                pendingOrdinaryAssignments=[ordinaryAssignment(plan:plan,cell:plan.destination.cell,tileID:nil,kind:.endgamePrimary,delay:0)]
+                return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.ordinaryAssignmentsPrepared,tileIDs:pendingOrdinaryAssignments.map(\.id),reason:plan.id)],resolution:resolve())
+            }
+            return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
+        }
         ordinaryAssignmentsSequence=0;ordinaryRequestedOpenings=0;ordinarySuccessfulOpenings=0;ordinaryForcedPass=false;ordinaryForcedCandidates=[]
         let locked=state.tiles.filter{$0.locked}
         if locked.isEmpty {
@@ -903,9 +916,14 @@ extension NativeGameplayEngine {
               let first=pendingOrdinaryAssignments.first,first.id==assignmentID,first.generation==generation else{return rejected("stale_or_out_of_order_ordinary_assignment")}
         pendingOrdinaryAssignments.removeFirst()
         var events:[NativeGameplayEvent]=[]
+        // Source primary beforeSpawn retires its captured old destination before epoch permit issuance.
+        if first.kind == .endgamePrimary,let holder=state.tile(at:first.cell),holder.id==plan.destination.id,holder.merge6CleanupOwned {
+            state.tiles.removeAll{$0.id==holder.id}
+            events.append(NativeGameplayEvent(.removed,tileIDs:[holder.id]))
+        }
         guard state.terminal==nil,state.revision==plan.revision else {
             ordinaryRefillRemaining=0
-            return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
+            return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
         }
         if first.kind == .locked || first.kind == .forcedLocked {
             if let index=state.tiles.firstIndex(where:{$0.id==first.tileID && $0.locked}) {
@@ -920,11 +938,6 @@ extension NativeGameplayEngine {
             }
             if pendingOrdinaryAssignments.isEmpty {finishOrdinaryLockedBatch(plan:plan,events:&events)}
         } else {
-            // Endgame forceClearSpawnCell removes this exact protected destination before openAtCell.
-            if first.kind == .endgamePrimary,let holder=state.tile(at:first.cell),holder.id==plan.destination.id,holder.merge6CleanupOwned {
-                state.tiles.removeAll{$0.id==holder.id}
-                events.append(NativeGameplayEvent(.removed,tileIDs:[holder.id]))
-            }
             // openAtCellCore refuses a valued/current active holder before drawing a face.
             if let holder=state.tile(at:first.cell),holder.value>0 || holder.isWild || !holder.locked {
                 ordinaryRefillRemaining=0

@@ -49,7 +49,7 @@ final class NativeRegularSixSpritePresentation:SKNode {
         let ring=SKShapeNode(circleOfRadius:radius);ring.fillColor = .clear;ring.strokeColor=UIColor(red:250/255,green:237/255,blue:224/255,alpha:0.9);ring.lineWidth=1.4
         let glow=SKShapeNode(circleOfRadius:radius*1.08);glow.fillColor = .clear;glow.strokeColor=UIColor(red:250/255,green:237/255,blue:224/255,alpha:0.2);glow.lineWidth=3
         multiplierLayer.addChild(glow);multiplierLayer.addChild(ring)
-        let text=SKLabelNode();text.attributedText=NSAttributedString(string:"×\(combinedDepth)",attributes:[.font:font,.foregroundColor:UIColor.white,.strokeColor:UIColor(red:143/255,green:105/255,blue:89/255,alpha:1),.strokeWidth:-100*2/33])
+        let text=SKLabelNode();text.attributedText=NSAttributedString(string:"×\(combinedDepth)",attributes:[.font:font,.foregroundColor:UIColor.white,.strokeColor:UIColor(red:143/255,green:105/255,blue:89/255,alpha:1),.strokeWidth:-100.0*2/33])
         text.horizontalAlignmentMode = .center;text.verticalAlignmentMode = .center;multiplierLayer.addChild(text)
         paint(seconds:0)
     }

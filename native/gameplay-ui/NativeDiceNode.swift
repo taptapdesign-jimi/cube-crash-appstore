@@ -24,6 +24,8 @@ final class NativeDiceNode: SKNode {
     private var mushroomSmoke:NativeMushroomDiceSmoke?
     private var spaceshipEngine:NativeSpaceshipDiceIdle?
     private var honeyIdle:NativeHoneyDiceIdle?
+    private var fishMediaReady=false
+    private var idleFizz:NativeIdleBubbleField?
     private let spaceshipRoot=SKNode()
     private let textures: NativeBoardTextures
     private var definition: NativeDiceArtwork
@@ -65,7 +67,7 @@ final class NativeDiceNode: SKNode {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     var hasAnimatedArtwork: Bool {
-        !disposed && ((!frames.isEmpty && definition.idleSheet != nil) || variant == "bee" || variant == "flower" || variant == "cubero" || variant == "bottle" || variant == "spaceship" || honeyIdle?.hasActiveMotion==true || mushroomSmoke != nil || kantaIdle?.assetReady == true)
+        !disposed && ((!frames.isEmpty && definition.idleSheet != nil) || variant == "bee" || variant == "flower" || variant == "cubero" || variant == "bottle" || variant == "spaceship" || variant == "fish" && artworkPhaseID != nil && !artworkRunning || honeyIdle?.hasActiveMotion==true || idleFizz?.isRunning==true || mushroomSmoke != nil || kantaIdle?.assetReady == true)
     }
     var hasPresentationActions: Bool { hasActions() || visual.hasActions() || shadow.hasActions() }
     var resourcePaths: Set<String> {
@@ -86,8 +88,9 @@ final class NativeDiceNode: SKNode {
         self.kind = kind; self.variant = variant
         if identityChanged {
             if let id=artworkPhaseID {textures.releaseIdlePhase(id)}
+            fishMediaReady=false
             artworkPhaseID=nil;artworkRunning=false;artworkElapsed=0
-            kantaIdle?.dispose(); kantaIdle = nil;mushroomSmoke?.dispose();mushroomSmoke=nil;spaceshipEngine?.dispose();spaceshipEngine=nil;honeyIdle?.dispose();honeyIdle=nil
+            kantaIdle?.dispose(); kantaIdle = nil;mushroomSmoke?.dispose();mushroomSmoke=nil;spaceshipEngine?.dispose();spaceshipEngine=nil;honeyIdle?.dispose();honeyIdle=nil;idleFizz?.dispose();idleFizz=nil
             let hash = tileID.utf8.reduce(UInt64(5381)) { ($0 &* 33) &+ UInt64($1) }
             definition = NativeDiceArtwork.definition(kind: kind, variant: variant, regularSkin: Int(hash % 4))
             elapsed = 0; cuberoElapsed = 0; bottleElapsed=0;spaceshipElapsed=0;spaceshipRoot.position = .zero;spaceshipRoot.zRotation=0;face.position = .zero; face.zRotation = 0; frames = []; paintedFrame = -1
@@ -96,11 +99,15 @@ final class NativeDiceNode: SKNode {
     }
 
     private func rebuild() {
+        if idleFizz==nil,let family=NativeIdleBubbleMotion.family(kind:kind,variant:variant) {
+            let field=NativeIdleBubbleField(family:family);idleFizz=field;visual.addChild(field)
+        }
         face.texture = textures.texture(value == 0 && !isSpecial ? "assets/tile.png" : definition.path)
         face.size = definition.size; face.anchorPoint = definition.anchor
         let faceHost=variant == "spaceship" ? spaceshipRoot:visual
         if face.parent !== faceHost {face.removeFromParent();faceHost.addChild(face)}
         face.isHidden = false; artwork.isHidden = true
+        paintFishVisibility()
         flowerCanvas.isHidden = true
         if variant == "spaceship",spaceshipEngine==nil {
             let engine=NativeSpaceshipDiceIdle();spaceshipEngine=engine;spaceshipRoot.addChild(engine);engine.zPosition = -2
@@ -179,6 +186,7 @@ final class NativeDiceNode: SKNode {
     func setDragging(_ active: Bool) {
         guard !disposed else { return }
         dragging = active
+        if active {idleFizz?.stopForPointer()}
         if variant == "cubero" {cuberoElapsed = 0;face.position = .zero;face.zRotation = 0}
         kantaIdle?.setDragging(active);mushroomSmoke?.setDragging(active);honeyIdle?.setDragging(active)
         visual.removeAction(forKey: "stack"); visual.removeAction(forKey: "lift")
@@ -188,6 +196,7 @@ final class NativeDiceNode: SKNode {
         paintArtwork()
         paintFlower()
         if variant == "bottle" {bottleElapsed=0;paintBottle()}
+        paintFishVisibility()
     }
 
     func updateShadow(direction: CGPoint) {
@@ -196,11 +205,17 @@ final class NativeDiceNode: SKNode {
         shadow.position = CGPoint(x: direction.x / distance * 12, y: direction.y / distance * 12 - 10)
     }
 
+    func resumeIdleAfterLanding() {
+        guard !disposed,!dragging else {return}
+        idleFizz?.restartAfterLanding();onResourceReady?()
+    }
+
     func updateIdleDrag(offset:CGPoint,velocity:CGPoint) {honeyIdle?.updateDrag(offset:offset,velocity:velocity)}
 
-    func tick(_ delta: TimeInterval, suspended: Bool, viewportCenter: CGFloat) {
+    func tick(_ delta: TimeInterval, suspended: Bool, viewportCenter: CGFloat, fizzDelta:TimeInterval?=nil) {
         guard !disposed, !isHidden, alpha > 0, !suspended else { return }
         elapsed += delta
+        idleFizz?.tick(fizzDelta ?? delta)
         if let id=artworkPhaseID {
             if !artworkRunning {if textures.advanceIdlePhase(id) {artworkRunning=true;artworkElapsed=0}}
             else {artworkElapsed+=delta}
@@ -236,6 +251,32 @@ final class NativeDiceNode: SKNode {
         else if variant == "mushroom" {mushroomSmoke?.tick(delta);paintArtwork()}
         else if variant == "flower" { paintFlower() }
         else { paintArtwork() }
+    }
+
+    func prepareFishMediaPhase() {
+        guard !disposed,variant == "fish" else {return}
+        admitArtworkPhase(group:"fish-swim-composition",cycle:1.125);onResourceReady?()
+    }
+    func setFishMediaReady(_ ready:Bool) {
+        guard !disposed,variant == "fish" else {return}
+        fishMediaReady=ready;paintFishVisibility();onResourceReady?()
+    }
+    private func paintFishVisibility() {
+        guard variant == "fish" else {return}
+        face.isHidden=fishMediaReady && !dragging
+        idleFizz?.isHidden=fishMediaReady && !dragging
+        if !dragging {face.xScale=1}
+    }
+    func fishFrame(in scene:SKScene,visible:Bool)->NativeFishIdleFrame? {
+        guard !disposed,variant == "fish" else {return nil}
+        let center=visual.convert(CGPoint.zero,to:scene)
+        if dragging {face.xScale=center.x>scene.size.width/2 ? -1:1}
+        let horizontal=visual.convert(CGPoint(x:1,y:0),to:scene),vertical=visual.convert(CGPoint(x:0,y:-1),to:scene)
+        var branchAlpha:CGFloat=face.alpha
+        var ancestor:SKNode?=visual
+        var branchVisible=visible
+        while let node=ancestor {branchAlpha*=node.alpha;branchVisible=branchVisible && !node.isHidden && node.alpha>0.001;ancestor=node.parent}
+        return NativeFishIdleFrame.project(center:center,horizontalUnit:horizontal,verticalUnit:vertical,sceneHeight:scene.size.height,alpha:branchAlpha,dragging:dragging,phaseStarted:artworkRunning,visible:branchVisible,bubbles:idleFizz?.fishBubbleSnapshots ?? [],depth:zPosition,paintOrder:parent?.children.firstIndex(where:{$0 === self}) ?? 0)
     }
 
     private func admitArtworkPhase(group:String,cycle:TimeInterval) {
@@ -314,7 +355,7 @@ final class NativeDiceNode: SKNode {
         disposed = true; artworkGeneration += 1
         if let id=artworkPhaseID {textures.releaseIdlePhase(id)}
         artworkPhaseID=nil
-        kantaIdle?.dispose(); kantaIdle = nil;mushroomSmoke?.dispose();mushroomSmoke=nil;spaceshipEngine?.dispose();spaceshipEngine=nil;honeyIdle?.dispose();honeyIdle=nil
+        kantaIdle?.dispose(); kantaIdle = nil;mushroomSmoke?.dispose();mushroomSmoke=nil;spaceshipEngine?.dispose();spaceshipEngine=nil;honeyIdle?.dispose();honeyIdle=nil;idleFizz?.dispose();idleFizz=nil
         removeAllActions(); visual.removeAllActions(); shadow.removeAllActions()
         frames.removeAll(); onResourceReady = nil
         removeAllChildren(); removeFromParent()

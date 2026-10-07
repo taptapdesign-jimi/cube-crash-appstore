@@ -44,6 +44,9 @@ enum NativeBoardMotion {
     static func rejectedLanding() -> SKAction {
         .sequence([
             scale(from: CGPoint(x: 1,y: 1),to: CGPoint(x: 1.035,y: 0.965),duration: 0.13,ease: .power2In),
+            // Original GSAP appends recovery after the simultaneous0.18s
+            // position tween, leaving0.05s after the0.13s squash.
+            .wait(forDuration:0.05),
             scale(from: CGPoint(x: 1.035,y: 0.965),to: CGPoint(x: 1,y: 1),duration: 0.105,ease: .backOut(2.5))
         ])
     }

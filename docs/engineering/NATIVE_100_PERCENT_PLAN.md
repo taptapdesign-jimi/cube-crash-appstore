@@ -86,7 +86,7 @@ Acceptance: a traceable implementation checklist, no missing registered variant.
 
 ### 2. Pure Swift gameplay core
 - [x] Implement board/tile model, stable IDs, grid classification and run modes.
-  NativeBoardState/NativeTile; linked portable core85tests PASS. Captured ordinary main/absorb/postcheck, delayed locked assignment and primary/cleanup phases are connected; Wild command-lifecycle completion remains open.
+  NativeBoardState/NativeTile; linked portable core89tests PASS. Captured ordinary main/absorb/postcheck, delayed locked assignment and primary/cleanup phases are connected; Wild command-lifecycle completion remains open.
 - [ ] Port ordinary legality, stack/merge, final resolver and fail-closed errors.
 - [ ] Port spawn, moves, scoring/combo, rewards and deterministic RNG ownership.
 - [ ] Port transactions, exact-tile locks, endgame guards and generation cleanup.
@@ -173,7 +173,7 @@ HUD/decor parity, cold resources, default shipping activation or physical
 acceptance. Native now implements the source Arcade-only bottom Round pill, top orange/beige
 Wild meter and removes the prototype Moves counter.35 independent source layout
 samples and actual Chrome3/Paper2 checks PASS. Remaining HUD motion/close geometry,
-meter decorations, final Wild-measured board pose and Journey bottom decor stay open.
+meter decorations and final Wild-measured board pose stay open. Selected original Journey bottom decor is connected with source finite entry/exit and readiness/epoch/lifecycle ownership; actual footer9/integration6 PASS.
 
 Native-only QA boot uses the separate native bundle identity and original
 NativeAssets.bundle without Web.bundle. The default physical/Release entry is

@@ -35,6 +35,7 @@ final class NativeBootstrap {
     private var arcadeEntryCue:NativeArcadeRoundPresentation?
     private var boardTransition:NativeThemedBoardTransitionController?
     private let transitionVariation=NativeThemedTransitionVariationOwner()
+    private let journeyBottomDecorCatalog=NativeJourneyBottomDecorCatalog()
     private let errorLabel = UILabel()
     private var disposed = false
 
@@ -174,6 +175,11 @@ final class NativeBootstrap {
             guard engine.startTutorial().accepted else {throw NativeSaveError.invalidState(["tutorial-canonical-cells-unavailable"])}
         }
         let gameplay = NativeGameplayViewController(engine: engine, resourceRoot: root)
+        gameplay.journeyDecorCatalog=journeyBottomDecorCatalog
+        gameplay.onBoardArtworkFailure = { [weak self,weak gameplay] in
+            guard let self,let gameplay,self.gameplay === gameplay,!self.disposed else{return}
+            self.showError("The stage artwork could not be prepared. Your progress is saved.")
+        }
         self.gameplay = gameplay; returnAction = exit; attemptCommitted = false
         if mode == .arcade,!resumed,!needsTutorial {
             gameplay.beforeInitialBoardEntry = { [weak self,weak gameplay] release in
@@ -297,9 +303,14 @@ final class NativeBootstrap {
         carrier.onSceneExit = { [weak self,weak carrier,weak gameplay] receipt in
             guard let self,let carrier,let gameplay,!self.disposed,self.boardTransition === carrier,
                   self.gameplay === gameplay,receipt==generation,gameplay.engine.state.generation==generation else{return}
-            release()
-            guard self.boardTransition === carrier,gameplay.engine.state.generation==generation else{return}
-            self.boardTransition=nil;carrier.willMove(toParent:nil);carrier.releaseCover(generation:generation)
+            gameplay.prepareBoardEntryArtwork { [weak self,weak carrier,weak gameplay] ready in
+                guard let self,let carrier,let gameplay,!self.disposed,self.boardTransition === carrier,
+                      self.gameplay === gameplay,gameplay.engine.state.generation==generation else{return}
+                guard ready else{self.showError("The stage artwork could not be prepared. Your progress is saved.");return}
+                release()
+                guard self.boardTransition === carrier,gameplay.engine.state.generation==generation else{return}
+                self.boardTransition=nil;carrier.willMove(toParent:nil);carrier.releaseCover(generation:generation)
+            }
         }
         gameplay.addChild(carrier);carrier.view.frame=gameplay.view.bounds;carrier.view.autoresizingMask=[.flexibleWidth,.flexibleHeight]
         gameplay.view.addSubview(carrier.view);carrier.didMove(toParent:gameplay);carrier.start()

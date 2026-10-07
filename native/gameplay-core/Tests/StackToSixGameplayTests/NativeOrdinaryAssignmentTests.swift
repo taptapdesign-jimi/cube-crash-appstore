@@ -58,6 +58,31 @@ final class NativeOrdinaryAssignmentTests:XCTestCase {
         XCTAssertFalse(e.finishOrdinaryPrimarySpawn(receiptID:p.id,generation:p.generation,assignmentID:slot.id).accepted)
         XCTAssertTrue(e.releaseOrdinarySixHandoff(receiptID:p.id,generation:p.generation).accepted)
     }
+    func testPrimaryPickupInterruptionRetiresOldCleanupGateBeforeIndependent100msCallback()throws {
+        let tiles=[NativeTile(id:"a",cell:.init(column:0,row:0),value:1),NativeTile(id:"b",cell:.init(column:1,row:0),value:5),NativeTile(id:"c",cell:.init(column:2,row:0),value:5),NativeTile(id:"d",cell:.init(column:3,row:0),value:1)]
+        let e=NativeGameplayEngine(state:NativeBoardState(tiles:tiles,board:10),recordedRandomChoices:Array(repeating:0,count:100));e.stagedOrdinaryMoves=true;e.stagedOrdinaryAssignments=true
+        XCTAssertTrue(e.beginDrag(tileID:"a"));XCTAssertTrue(e.drop(target:.init(column:1,row:0)).accepted)
+        let old=try XCTUnwrap(e.pendingOrdinarySix)
+        XCTAssertTrue(e.commitOrdinarySix(receiptID:old.id,generation:old.generation).accepted)
+        XCTAssertTrue(e.prepareOrdinarySpawns(receiptID:old.id,generation:old.generation).accepted)
+        let slot=try XCTUnwrap(e.pendingOrdinaryAssignments.first)
+        XCTAssertTrue(e.commitOrdinaryAssignment(receiptID:old.id,generation:old.generation,assignmentID:slot.id).accepted)
+        let fresh=try XCTUnwrap(e.state.tile(at:old.destination.cell));XCTAssertEqual(fresh.value,1)
+        XCTAssertNotNil(e.pendingOrdinaryDestinationCleanup)
+        XCTAssertTrue(e.beginDrag(tileID:fresh.id))
+        XCTAssertTrue(e.finishOrdinaryPrimarySpawn(receiptID:old.id,generation:old.generation,assignmentID:slot.id,interrupted:true).accepted)
+        XCTAssertTrue(e.releaseOrdinarySixHandoff(receiptID:old.id,generation:old.generation).accepted)
+        XCTAssertNil(e.pendingOrdinaryDestinationCleanup)
+        XCTAssertTrue(e.drop(target:.init(column:2,row:0),now:0.14).accepted)
+        let newer=try XCTUnwrap(e.pendingOrdinarySix);XCTAssertNotEqual(newer.id,old.id)
+        let protected=e.state
+        XCTAssertFalse(e.commitOrdinaryDestinationCleanup(receiptID:old.id,generation:old.generation).accepted)
+        XCTAssertEqual(e.state,protected);XCTAssertEqual(e.pendingOrdinarySix,newer)
+        XCTAssertTrue(e.commitOrdinarySix(receiptID:newer.id,generation:newer.generation).accepted)
+        let committed=e.state
+        XCTAssertFalse(e.commitOrdinaryDestinationCleanup(receiptID:old.id,generation:old.generation).accepted)
+        XCTAssertEqual(e.state,committed);XCTAssertEqual(e.pendingOrdinaryDestinationCleanup?.id,newer.id)
+    }
     func testEndgameCleanup100msCannotRemoveFreshCellAndOldEpochStillRetiresOnlyOwnedDestination()throws {
         for interleaved in [false,true] {
             let e=make(0),p=try XCTUnwrap(e.pendingOrdinarySix)
@@ -156,4 +181,19 @@ final class NativeOrdinaryAssignmentTests:XCTestCase {
             XCTAssertFalse(e.commitOrdinaryAssignment(receiptID:p.id,generation:p.generation,assignmentID:"stale").accepted);XCTAssertEqual(e.state,fresh)
         }
     }
+    func testStaleEndgamePrimaryRetiresOnlyCapturedDestinationBeforePermitRejection()throws {
+        let e=make(0),p=try XCTUnwrap(e.pendingOrdinarySix)
+        XCTAssertTrue(e.commitOrdinarySix(receiptID:p.id,generation:p.generation).accepted)
+        XCTAssertTrue(e.beginDrag(tileID:"c"));XCTAssertTrue(e.drop(target:.init(column:3,row:0),now:0.1).accepted)
+        let live=e.state.tiles.filter{$0.id != p.destination.id},moves=e.state.moves,score=e.state.score,rng=e.state.rngState
+        XCTAssertTrue(e.prepareOrdinarySpawns(receiptID:p.id,generation:p.generation).accepted)
+        let slot=try XCTUnwrap(e.pendingOrdinaryAssignments.first)
+        let result=e.commitOrdinaryAssignment(receiptID:p.id,generation:p.generation,assignmentID:slot.id)
+        XCTAssertTrue(result.accepted);XCTAssertEqual(result.events.first{$0.kind == .removed}?.tileIDs,[p.destination.id])
+        XCTAssertFalse(result.events.contains{$0.kind == .spawned});XCTAssertNil(e.state.tile(at:p.destination.cell))
+        XCTAssertEqual(e.state.tiles,live);XCTAssertEqual(e.state.moves,moves);XCTAssertEqual(e.state.score,score);XCTAssertEqual(e.state.rngState,rng)
+        XCTAssertTrue(e.releaseOrdinarySixHandoff(receiptID:p.id,generation:p.generation).accepted)
+        let settled=e.state;XCTAssertFalse(e.commitOrdinaryDestinationCleanup(receiptID:p.id,generation:p.generation).accepted);XCTAssertEqual(e.state,settled)
+    }
+
 }

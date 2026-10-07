@@ -29,6 +29,8 @@ final class NativeBoardScene: SKScene {
     var onRenderingDemand: ((Bool) -> Void)?
     var onBoardEntry: ((TimeInterval, [TimeInterval]) -> Void)?
     private let textures: NativeBoardTextures
+    private let closeStageFont:UIFont
+    private var closeButton:NativeHUDCloseNode?
     private let fontName: String
     private let finaleFontName: String
     private var nodesByID: [String: NativeDiceNode] = [:]
@@ -79,6 +81,8 @@ final class NativeBoardScene: SKScene {
         let id:String,generation:UInt64,receipt:UInt64
         var committed=false,consuming=false
     }
+    var onFishIdleFrames:(([String:NativeFishIdleFrame],UInt64,Bool)->Void)?
+    var onJourneyBottomDecorShake:((CGPoint,UInt64)->Void)?
     var reducedBoardEffects=false
     var onPresentationFailure:((String)->Void)?
     private var regularSixPresentations:[String:NativeRegularSixSpritePresentation]=[:]
@@ -94,6 +98,7 @@ final class NativeBoardScene: SKScene {
     private var specialPresentationVariant: String?
     private var candidateSignature: String?
     private(set) var navigationLocked = false
+    var isBoardEntryComplete:Bool {!disposed && !entryInProgress && inputAdmitted}
     private var preparedEntryGeneration:UInt64?
     private var inputAdmitted = false
     private var entryInProgress = false
@@ -114,6 +119,7 @@ final class NativeBoardScene: SKScene {
         // Reject an unavailable choreography before RNG/reservation/mutation.
         textures = NativeBoardTextures(root: resourceRoot)
         let fonts = JimiV9Artwork(resourceRoot: resourceRoot)
+        closeStageFont=fonts.font(size:16)
         fontName = fonts.font(size: 24).fontName
         finaleFontName = fonts.font(size: 24,weight: "ExtraBold").fontName
         roundIndicator = NativeRoundIndicator(font: fonts.font(size: 18,weight: "SemiBold"))
@@ -203,8 +209,8 @@ final class NativeBoardScene: SKScene {
         }
         comboX.text = "x"; comboX.fontSize = 14; comboNumber.fontSize = 18
         noMoves.fontSize = 42; noMoves.zPosition = 20000; noMoves.isHidden = true
-        let close = SKSpriteNode(texture: textures.texture("assets/close-button.png"))
-        close.name = "native-game-close"; close.size = CGSize(width: 44, height: 44); hud.addChild(close)
+        let close=NativeHUDCloseNode(texture:textures.texture("assets/close-icon.png"),stageFont:closeStageFont)
+        closeButton=close;hud.addChild(close)
         let help = SKSpriteNode(texture: textures.texture("assets/hud/help.png"))
         help.name = "native-game-help"; help.size = CGSize(width: 44, height: 44); hud.addChild(help)
         scoreArt.texture = textures.texture("assets/hud/score-hud.png")
@@ -222,7 +228,7 @@ final class NativeBoardScene: SKScene {
     private func layoutHUD() {
         let chrome = NativeGameplayChromePlan.make(viewport:size,safeTop:safeInsets.top)
         let top = chrome.valueRowY
-        hud.childNode(withName: "native-game-close")?.position = CGPoint(x: 46, y: top)
+        closeButton?.layout(valueRowY:top)
         let shift = (size.width*0.05).rounded()
         let spacing: CGFloat = size.width >= 768 ? 110 : 92
         let scoreX = size.width-24-62-spacing-shift
@@ -318,6 +324,7 @@ final class NativeBoardScene: SKScene {
             animateBoardEntry(tiles: live,geometry: geometry)
         } else if !entryInProgress { inputAdmitted = state.terminal == nil && pendingTerminal == nil;roundIndicator.enter(animated:false) }
         if preparedEntryGeneration == state.generation {inputAdmitted=false;navigationLocked=true}
+        publishFishIdleFrames(force:true)
     }
 
     private func presentationAlpha(_ tile: NativeTile,state: NativeBoardState) -> CGFloat {
@@ -389,9 +396,13 @@ final class NativeBoardScene: SKScene {
         onRenderingDemand?(true)
         let point = touch.location(in: self)
         let canvasPoint=canvasRoot.convert(point,from:self)
-        if let button = nodes(at: point).first(where: { $0.name == "native-game-close" || $0.name == "native-game-help" }) {
-            guard inputAdmitted,!navigationLocked,engine.state.tutorial?.shouldLockHUD != true else { return }
-            if button.name == "native-game-close" { onExitRequest?() } else { onHelpRequest?() }
+        if closeButton?.hitRect.contains(canvasPoint)==true {
+            guard inputAdmitted,!navigationLocked,engine.state.tutorial?.shouldLockHUD != true else{return}
+            onExitRequest?();return
+        }
+        if nodes(at:point).contains(where:{$0.name == "native-game-help"}) {
+            guard inputAdmitted,!navigationLocked,engine.state.tutorial?.shouldLockHUD != true else {return}
+            onHelpRequest?()
             return
         }
         if scoreHitRect.contains(canvasPoint) || comboHitRect.contains(canvasPoint) {
@@ -416,6 +427,7 @@ final class NativeBoardScene: SKScene {
         finishOrdinarySpawnVisual(tile.id)
         node.removeAllActions(); node.visual.removeAllActions(); node.zPosition = 18000
         node.setDragging(true)
+        publishFishIdleFrames(force:true)
         onPointerState?(true)
         onGameplayEvent?(NativeGameplayEvent(.dragBegan, tileIDs: [tile.id], archetype: tile.gameplayArchetype))
         return true
@@ -470,6 +482,7 @@ final class NativeBoardScene: SKScene {
         let sourcePosition = source?.position
         let sourceVisual = source?.detachedArtworkCarrier()
         activeTouch = nil; draggedID = nil; source?.setDragging(false)
+        publishFishIdleFrames(force:true)
         onPointerState?(false)
         clearHover()
         let result = engine.drop(target: target, pointerID: 1, now: now)
@@ -478,7 +491,11 @@ final class NativeBoardScene: SKScene {
                 let destination = geometry.center(row: tile.cell.row, column: tile.cell.column)
                 let action = NativeBoardMotion.move(from: source.position, to: destination, duration: 0.18, ease: .backOut(1.65))
                 source.run(action, withKey: "snapback")
-                source.visual.run(NativeBoardMotion.rejectedLanding(), withKey: "rejected-landing")
+                let generation=engine.state.generation
+                source.visual.run(.sequence([NativeBoardMotion.rejectedLanding(),.run { [weak self,weak source] in
+                    guard let self,self.engine.state.generation==generation,!self.disposed else {return}
+                    source?.resumeIdleAfterLanding()
+                }]),withKey:"rejected-landing")
             }
             consume(result, previous: oldState, preserveRejectedPosition: id)
         } else {
@@ -515,6 +532,24 @@ final class NativeBoardScene: SKScene {
             node.position = geometry.center(row: tile.cell.row, column: tile.cell.column)
             node.zPosition = tile.isWild ? 12001 : CGFloat(tile.cell.row * engine.state.columns + tile.cell.column)
         }
+        publishFishIdleFrames(force:true)
+    }
+
+    func prepareFishMedia(tileID:String,generation:UInt64) {
+        guard !disposed,engine.state.generation==generation else {return}
+        nodesByID[tileID]?.prepareFishMediaPhase();publishFishIdleFrames(force:true)
+    }
+    func setFishMediaReady(tileID:String,generation:UInt64,ready:Bool) {
+        guard !disposed,engine.state.generation==generation else {return}
+        nodesByID[tileID]?.setFishMediaReady(ready);publishFishIdleFrames(force:true)
+    }
+    private func publishFishIdleFrames(force:Bool=false) {
+        guard !disposed else {return}
+        var frames:[String:NativeFishIdleFrame]=[:]
+        for (id,node) in nodesByID {
+            if let frame=node.fishFrame(in:self,visible:view != nil && !suspended && !exitInProgress && engine.state.terminal==nil && !specialPresentationIDs.contains(id)) {frames[id]=frame}
+        }
+        onFishIdleFrames?(frames,engine.state.generation,force)
     }
 
     private func clearHover() {
@@ -547,7 +582,7 @@ final class NativeBoardScene: SKScene {
             case .ordinaryDestinationCleanupPrepared:
                 if let plan=engine.pendingOrdinarySix,event.reason==plan.id {
                     scheduleOrdinaryCommand(key:"cleanup:"+plan.id,generation:plan.generation,delay:Double(event.value ?? 100)/1000) { [weak self] in
-                        guard let self else {return}
+                        guard let self,self.engine.pendingOrdinaryDestinationCleanup?.id == plan.id else {return}
                         let previous=self.engine.state
                         self.consume(self.engine.commitOrdinaryDestinationCleanup(receiptID:plan.id,generation:plan.generation),previous:previous)
                         self.releaseOrdinarySixIfReady()
@@ -702,6 +737,7 @@ final class NativeBoardScene: SKScene {
     }
 
     private func applyBoardShake(_ pose:NativeRegularSixSpritePresentation.ShakeReceipt) {
+        onJourneyBottomDecorShake?(pose.bottomDecor,engine.state.generation)
         boardShake=pose;canvasRoot.position=CGPoint(x:pose.canvas.x,y:-pose.canvas.y)
         let base=NativeGameplayChromePlan.make(viewport:size,safeTop:safeInsets.top).roundCenter
         roundIndicator.position=CGPoint(x:base.x+pose.indicator.x,y:base.y-pose.indicator.y)
@@ -1251,16 +1287,21 @@ final class NativeBoardScene: SKScene {
 
     override func update(_ currentTime: TimeInterval) {
         guard !disposed, !suspended else { lastFrame = nil; return }
-        let delta = lastFrame.map { max(0,min(0.05,currentTime-$0)) } ?? 0
+        let elapsedDelta=lastFrame.map {max(0,currentTime-$0)} ?? 0
+        let delta=min(0.05,elapsedDelta)
+        // GSAP's source ticker uses full elapsed time for sub500ms hitches,
+        // and its default lag smoothing substitutes33ms after larger stalls.
+        let fizzDelta=elapsedDelta>0.5 ? 0.033:elapsedDelta
         lastFrame = currentTime
         textures.advanceIdlePhases()
         for node in nodesByID.values where node.hasAnimatedArtwork {
-            node.tick(delta, suspended: engine.state.terminal != nil || exitInProgress || specialPresentationIDs.contains(node.tileID), viewportCenter: size.width / 2)
+            node.tick(delta, suspended: engine.state.terminal != nil || exitInProgress || specialPresentationIDs.contains(node.tileID), viewportCenter: size.width / 2,fizzDelta:fizzDelta)
         }
     }
 
     override func didFinishUpdate() {
         guard !disposed, !suspended else { return }
+        publishFishIdleFrames()
         let hasIdle = engine.state.terminal == nil && !exitInProgress && nodesByID.values.contains { $0.hasAnimatedArtwork }
         let actions = hasActions() || nodesByID.values.contains { $0.hasPresentationActions }
             || effects.children.contains { $0.hasActions() } || hudStarFlights.children.contains { $0.hasActions() } || !regularSixPresentations.isEmpty || hud.hasActions() || roundIndicator.hasAnimatedPresentation || ghosts.children.contains { $0.hasActions() }
@@ -1301,7 +1342,7 @@ final class NativeBoardScene: SKScene {
     func handleMemoryWarning() {
         guard !disposed, activeTouch == nil, !hasActions(), effects.children.isEmpty,
               !nodesByID.values.contains(where: { $0.hasPresentationActions }) else { return }
-        var paths: Set<String> = ["assets/tile.png", "assets/shadow.png", "assets/paper-bg.png", "assets/close-button.png", "assets/hud/help.png", "assets/hud/score-hud.png","assets/hud/combo-hud.png","assets/hud/extra-combo-hud.png","assets/hud/mega-combo-hud.png"]
+        var paths: Set<String> = ["assets/tile.png", "assets/shadow.png", "assets/paper-bg.png", "assets/close-icon.png", "assets/hud/help.png", "assets/hud/score-hud.png","assets/hud/combo-hud.png","assets/hud/extra-combo-hud.png","assets/hud/mega-combo-hud.png"]
         for node in nodesByID.values { paths.formUnion(node.resourcePaths) }
         textures.purgeUnused(retaining: paths)
     }
@@ -1367,7 +1408,8 @@ final class NativeBoardScene: SKScene {
         pendingTerminal = nil; pendingTerminalGeneration = nil; visualLifetime += 1; visualOwners = 0
         removeAllActions(); retireEffects(); nodesByID.values.forEach { $0.dispose() }
         nodesByID.removeAll();meterVisuals.removeAll(); removeAllChildren(); textures.dispose()
-        onPresentationFailure=nil;onStateChange = nil; onTerminal = nil; onGameplayEvent = nil; onGameplayReceipt = nil; onSpecialMoment = nil; onAuthoredFinale = nil;onAuthoredTntPresentation = nil;onAuthoredLaserImpact=nil;authoredTntPresentationReady = nil;authoredFinalePresentationReady=nil;onSpecialPresentationCancelled = nil; onTntGlyphClock = nil; onSplashGlyphClock = nil; onHaptic = nil
+        onFishIdleFrames?([:],engine.state.generation,true);onFishIdleFrames=nil
+        onJourneyBottomDecorShake=nil;onPresentationFailure=nil;onStateChange = nil; onTerminal = nil; onGameplayEvent = nil; onGameplayReceipt = nil; onSpecialMoment = nil; onAuthoredFinale = nil;onAuthoredTntPresentation = nil;onAuthoredLaserImpact=nil;authoredTntPresentationReady = nil;authoredFinalePresentationReady=nil;onSpecialPresentationCancelled = nil; onTntGlyphClock = nil; onSplashGlyphClock = nil; onHaptic = nil
         onExitRequest = nil; onHelpRequest = nil; onScoreRequest = nil; onComboRequest = nil; onPointerState = nil; onRenderingDemand = nil; onBoardEntry = nil
     }
 }

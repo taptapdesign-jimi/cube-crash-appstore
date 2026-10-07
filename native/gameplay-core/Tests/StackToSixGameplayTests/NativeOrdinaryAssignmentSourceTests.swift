@@ -82,4 +82,63 @@ final class NativeOrdinaryAssignmentSourceTests:XCTestCase {
             XCTAssertNil(e.pendingOrdinaryPrimaryArrival);XCTAssertTrue(e.releaseOrdinarySixHandoff(receiptID:p.id,generation:p.generation).accepted)
         }
     }
+    struct RetiredIdentityCase:Decodable {
+        struct Ownership:Decodable {let at:Int?;let active:Bool;let oldCleanupOwned:Bool;let sixAllowed:Bool;let freshID:String?}
+        struct Trace:Decodable {let at:Int;let kind:String;let active:Bool?;let oldCleanupOwned:Bool?;let sixAllowed:Bool?;let freshID:String?}
+        let interrupted:Bool;let stale:Bool;let faceDraws:Int;let before:Ownership;let trace:[Trace]
+    }
+    func testExecutedOriginalEndgameInterruptAndGuardRetireExactOldIdentityWithout100msLease()throws {
+        let rows=try JSONDecoder().decode([RetiredIdentityCase].self,from:NativeOrdinaryRetiredIdentityOracle.data)
+        XCTAssertEqual(rows.count,3)
+        for row in rows where !row.stale {
+            let e=NativeGameplayEngine(state:NativeBoardState(tiles:[NativeTile(id:"a",cell:.init(column:0,row:0),value:1),NativeTile(id:"b",cell:.init(column:1,row:0),value:5),NativeTile(id:"c",cell:.init(column:2,row:0),value:5)],board:10),recordedRandomChoices:Array(repeating:0,count:20))
+            e.stagedOrdinaryMoves=true;e.stagedOrdinaryAssignments=true
+            XCTAssertTrue(e.beginDrag(tileID:"a"));XCTAssertTrue(e.drop(target:.init(column:1,row:0)).accepted)
+            let p=try XCTUnwrap(e.pendingOrdinarySix)
+            XCTAssertTrue(e.commitOrdinarySix(receiptID:p.id,generation:p.generation).accepted)
+            XCTAssertTrue(e.prepareOrdinarySpawns(receiptID:p.id,generation:p.generation).accepted)
+            let primary=try XCTUnwrap(e.pendingOrdinaryAssignments.first)
+            XCTAssertTrue(e.commitOrdinaryAssignment(receiptID:p.id,generation:p.generation,assignmentID:primary.id).accepted)
+            XCTAssertEqual(row.before.active,true);XCTAssertEqual(row.before.oldCleanupOwned,false)
+            XCTAssertEqual(e.state.tiles.contains{$0.id==p.destination.id && $0.merge6CleanupOwned},row.before.oldCleanupOwned)
+            XCTAssertEqual(e.releaseOrdinarySixHandoff(receiptID:p.id,generation:p.generation).accepted,row.before.sixAllowed)
+            for event in row.trace where event.kind=="ownership" {
+                if event.at==140 || event.at==690 {
+                    XCTAssertTrue(e.finishOrdinaryPrimarySpawn(receiptID:p.id,generation:p.generation,assignmentID:primary.id,interrupted:row.interrupted).accepted)
+                    XCTAssertEqual(e.releaseOrdinarySixHandoff(receiptID:p.id,generation:p.generation).accepted,event.sixAllowed)
+                } else if event.at==180 {
+                    if e.pendingOrdinaryDestinationCleanup != nil {XCTAssertTrue(e.commitOrdinaryDestinationCleanup(receiptID:p.id,generation:p.generation).accepted)}
+                    XCTAssertEqual(e.pendingOrdinarySix != nil,event.active)
+                }
+                XCTAssertEqual(e.state.tile(at:p.destination.cell)?.value,1)
+                XCTAssertEqual(e.state.tiles.contains{$0.id==p.destination.id && $0.merge6CleanupOwned},event.oldCleanupOwned)
+            }
+        }
+    }
+
+    func testExecutedOriginalStaleEpochPrimaryRetiresCapturedIdentityWithoutFaceDrawOr100msGate()throws {
+        let rows=try JSONDecoder().decode([RetiredIdentityCase].self,from:NativeOrdinaryRetiredIdentityOracle.data)
+        let row=try XCTUnwrap(rows.first{$0.stale})
+        XCTAssertEqual(row.faceDraws,0);XCTAssertFalse(row.before.active);XCTAssertFalse(row.before.oldCleanupOwned)
+        XCTAssertEqual(row.trace.first{$0.kind=="retire-identity"}?.at,130)
+        XCTAssertFalse(row.trace.contains{$0.kind=="assign-primary"})
+        let e=NativeGameplayEngine(state:NativeBoardState(tiles:[NativeTile(id:"a",cell:.init(column:0,row:0),value:1),NativeTile(id:"b",cell:.init(column:1,row:0),value:5),NativeTile(id:"c",cell:.init(column:2,row:0),value:1),NativeTile(id:"d",cell:.init(column:3,row:0),value:1)],board:10),recordedRandomChoices:Array(repeating:0,count:20))
+        e.stagedOrdinaryMoves=true;e.stagedOrdinaryAssignments=true
+        XCTAssertTrue(e.beginDrag(tileID:"a"));XCTAssertTrue(e.drop(target:.init(column:1,row:0)).accepted)
+        let p=try XCTUnwrap(e.pendingOrdinarySix);XCTAssertTrue(e.commitOrdinarySix(receiptID:p.id,generation:p.generation).accepted)
+        XCTAssertTrue(e.beginDrag(tileID:"c"));XCTAssertTrue(e.drop(target:.init(column:3,row:0)).accepted)
+        let score=e.state.score,moves=e.state.moves,rng=e.state.rngState
+        XCTAssertTrue(e.prepareOrdinarySpawns(receiptID:p.id,generation:p.generation).accepted)
+        let slot=try XCTUnwrap(e.pendingOrdinaryAssignments.first)
+        XCTAssertTrue(e.commitOrdinaryAssignment(receiptID:p.id,generation:p.generation,assignmentID:slot.id).accepted)
+        XCTAssertEqual(e.state.rngState,rng);XCTAssertEqual(e.state.score,score);XCTAssertEqual(e.state.moves,moves)
+        XCTAssertEqual(e.state.tiles.contains{$0.id==p.destination.id && $0.merge6CleanupOwned},row.before.oldCleanupOwned)
+        XCTAssertTrue(e.releaseOrdinarySixHandoff(receiptID:p.id,generation:p.generation).accepted)
+        XCTAssertEqual(e.pendingOrdinarySix != nil,row.before.active)
+        for event in row.trace where event.kind=="ownership" {
+            XCTAssertFalse(e.commitOrdinaryDestinationCleanup(receiptID:p.id,generation:p.generation).accepted)
+            XCTAssertEqual(e.pendingOrdinarySix != nil,event.active);XCTAssertEqual(e.state.tile(at:p.destination.cell)?.id,event.freshID)
+        }
+    }
+
 }

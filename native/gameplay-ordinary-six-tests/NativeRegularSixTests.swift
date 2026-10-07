@@ -56,6 +56,11 @@ final class NativeRegularSixTests:XCTestCase {
             return own+node.children.flatMap{renderedTexts($0)}
         }
         XCTAssertEqual(renderedTexts(owner),["×12"])
+        let label=try XCTUnwrap(owner.multiplierLayer.children.compactMap{$0 as? SKLabelNode}.first)
+        let attributes=try XCTUnwrap(label.attributedText?.attributes(at:0,effectiveRange:nil))
+        let font=try XCTUnwrap(attributes[.font] as? UIFont),stroke=try XCTUnwrap(attributes[.strokeWidth] as? NSNumber)
+        let style=try XCTUnwrap(NativeRegularSixSourceOracle.records.first{$0.size==128}).multiplierStyle
+        XCTAssertEqual(Double(font.pointSize),style[0]);XCTAssertEqual(stroke.doubleValue,-100*style[1]/style[0],accuracy:1e-10)
         XCTAssertEqual([Double(owner.shardLayer.zPosition),Double(owner.smokeLayer.zPosition),Double(owner.multiplierLayer.zPosition)],NativeRegularSixSourceOracle.records[0].depths)
         owner.onFinished={finished.append($0)};owner.onShake={_,_ in receipts += 1}
         owner.paint(seconds:0.017);XCTAssertEqual(receipts,1)

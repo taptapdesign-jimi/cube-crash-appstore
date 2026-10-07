@@ -79,10 +79,11 @@ final class NativeOrdinaryPresentationTests:XCTestCase {
         XCTAssertTrue(scene.engine.pendingOrdinarySpawns.isEmpty);XCTAssertNotNil(scene.engine.pendingOrdinaryPrimaryArrival);XCTAssertNotNil(scene.engine.pendingOrdinarySix)
         XCTAssertTrue(scene.beginDrag(at:scene.boardGeometry!.center(row:tile.cell.row,column:tile.cell.column)),"Source permits pickup once assigned; bounce is interruptible")
         XCTAssertNil(scene.engine.pendingOrdinaryPrimaryArrival)
-        XCTAssertNotNil(scene.engine.pendingOrdinarySix,"Independent main+100 cleanup still owns the handoff after pickup")
-        let cleaned=expectation(description:"Independent captured cleanup consumes after primary interruption")
-        scene.onStateChange={_ in if scene.engine.pendingOrdinarySix==nil {cleaned.fulfill();scene.onStateChange=nil}}
-        await fulfillment(of:[cleaned],timeout:3)
+        XCTAssertNil(scene.engine.pendingOrdinarySix,"Source primary force-clear already retired the original destination; pickup interruption releases immediately")
+        XCTAssertNil(scene.engine.pendingOrdinaryDestinationCleanup,"Retired identity cannot extend the gameplay gate to the decorative cleanup callback")
+        let settled=scene.engine.state
+        try await Task.sleep(for:.milliseconds(200))
+        XCTAssertEqual(scene.engine.state,settled,"Old main+100 cleanup cannot mutate the released receipt")
         scene.cancelDrag()
         XCTAssertTrue(scene.engine.pendingOrdinarySpawns.isEmpty)
     }

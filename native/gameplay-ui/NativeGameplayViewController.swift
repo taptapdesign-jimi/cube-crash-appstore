@@ -19,8 +19,16 @@ final class NativeGameplayViewController: UIViewController {
     var onHaptic: ((String) -> Void)?
     var beforeInitialBoardEntry: ((@escaping () -> Void) -> Void)?
     var onBoardEntry: ((TimeInterval,[TimeInterval]) -> Void)?
+    var onBoardArtworkFailure:(()->Void)?
+    var journeyDecorCatalog:NativeJourneyBottomDecorCatalog?
+    var journeyDecorResources:((URL)->NativeJourneyBottomDecorResourcePreparing)?
+    private(set) var journeyBottomDecor:NativeJourneyBottomDecorOwner?
+    private var decorWaiters:[(UInt64,(Bool)->Void)]=[]
+    private var decorPreparing=false
+    private var exitingBoard=false
     private let resourceRoot: URL
     private let spriteView = SKView()
+    private let fishIdleOwner:NativeFishIdleOwner
     private let paperSurface:NativeAppPaperSurface
     private var preparedBoardEntryGeneration:UInt64?
     private var initialEntryGateRequested = false,initialEntryGateReleased = false
@@ -46,6 +54,7 @@ final class NativeGameplayViewController: UIViewController {
 
     init(engine: NativeGameplayEngine, resourceRoot: URL) {
         self.engine = engine; self.resourceRoot = resourceRoot
+        fishIdleOwner=NativeFishIdleOwner(resourceRoot:resourceRoot)
         paperSurface=NativeAppPaperSurface(artwork:JimiV9Artwork(resourceRoot:resourceRoot))
         super.init(nibName: nil, bundle: nil)
     }
@@ -59,10 +68,13 @@ final class NativeGameplayViewController: UIViewController {
         spriteView.frame = root.bounds; spriteView.autoresizingMask = [.flexibleWidth,.flexibleHeight]
         spriteView.accessibilityIdentifier = "native-gameplay-board"
         root.addSubview(spriteView)
-        if beforeInitialBoardEntry != nil {
+        fishIdleOwner.frame=root.bounds;fishIdleOwner.autoresizingMask=[.flexibleWidth,.flexibleHeight];root.addSubview(fishIdleOwner)
+        if beforeInitialBoardEntry != nil || journeyDecorCatalog != nil && engine.state.mode == .journey {
             spriteView.isHidden = true
         }
         view = root
+        ensureJourneyBottomDecor()
+        startDecorPreparation()
     }
 
     override func viewDidLoad() {
@@ -99,6 +111,18 @@ final class NativeGameplayViewController: UIViewController {
                 self.view.addSubview(glyphs); self.tntGlyphs[id] = glyphs; glyphs.layoutIfNeeded()
             }
             glyphs.paint(seconds: time)
+        }
+        scene.onFishIdleFrames={ [weak self] frames,generation,force in
+            guard let self,!self.disposed else {return}
+            self.fishIdleOwner.paint(frames,generation:generation,force:force)
+        }
+        fishIdleOwner.onPrepared={ [weak self,weak scene] id,generation in
+            guard let self,!self.disposed,self.engine.state.generation==generation else {return}
+            scene?.prepareFishMedia(tileID:id,generation:generation)
+        }
+        fishIdleOwner.onMediaReady={ [weak self,weak scene] id,generation,ready in
+            guard let self,!self.disposed,self.engine.state.generation==generation else {return}
+            scene?.setFishMediaReady(tileID:id,generation:generation,ready:ready)
         }
         scene.onHaptic = { [weak self] style in self?.onHaptic?(style) }
         scene.onSpecialPresentationCancelled = { [weak self] variant in
@@ -299,7 +323,12 @@ final class NativeGameplayViewController: UIViewController {
             self?.onStateChange?(state)
         }
         scene.onTerminal = { [weak self] result in self?.onTerminal?(result) }
-        scene.onBoardEntry = { [weak self] duration,beats in self?.onBoardEntry?(duration,beats) }
+        scene.onBoardEntry = { [weak self] duration,beats in
+            self?.journeyBottomDecor?.enter();self?.onBoardEntry?(duration,beats)
+        }
+        scene.onJourneyBottomDecorShake = { [weak self] offset,generation in
+            self?.journeyBottomDecor?.applyShake(sourceOffset:offset,generation:generation)
+        }
         scene.onGameplayReceipt = { [weak self] event,source,destination,generation in self?.onGameplayReceipt?(event,source,destination,generation) }
         scene.onSpecialMoment = { [weak self] variant,moment,index in self?.onSpecialMoment?(variant,moment,index) }
         scene.onGameplayEvent = { [weak self] event in self?.onGameplayEvent?(event) }
@@ -321,20 +350,29 @@ final class NativeGameplayViewController: UIViewController {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         guard !disposed,let boardScene,spriteView.bounds.width > 0,spriteView.bounds.height > 0 else { return }
-        if !hasPresentedScene,!initialEntryGateReleased,let beforeInitialBoardEntry {
+        journeyBottomDecor?.frame=view.bounds
+        if !hasPresentedScene,!initialEntryGateReleased,beforeInitialBoardEntry != nil || journeyBottomDecor != nil {
             if !initialEntryGateRequested {
                 initialEntryGateRequested = true
                 let generation = engine.state.generation
-                beforeInitialBoardEntry { [weak self] in
-                    guard let self,!self.disposed,!self.initialEntryGateReleased,self.engine.state.generation == generation else { return }
-                    self.initialEntryGateReleased = true;self.spriteView.isHidden = false
-                    self.view.setNeedsLayout();self.view.layoutIfNeeded()
+                let release:()->Void = { [weak self] in
+                    self?.prepareBoardEntryArtwork { [weak self] ready in
+                        guard let self,!self.disposed,!self.initialEntryGateReleased,self.engine.state.generation == generation else {return}
+                        guard ready else{self.onBoardArtworkFailure?();return}
+                        self.initialEntryGateReleased=true;self.spriteView.isHidden=false
+                        self.view.setNeedsLayout();self.view.layoutIfNeeded()
+                    }
                 }
+                if let beforeInitialBoardEntry {beforeInitialBoardEntry(release)}else{release()}
             }
             return
         }
         boardScene.layout(size: spriteView.bounds.size,insets: view.safeAreaInsets,animateEntry: !hasPresentedScene)
-        if !hasPresentedScene { hasPresentedScene = true; spriteView.presentScene(boardScene) }
+        if !hasPresentedScene {
+            hasPresentedScene=true;spriteView.presentScene(boardScene)
+            // Artwork admission is independent of the optional board wave.
+            journeyBottomDecor?.enter()
+        }
     }
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
@@ -425,8 +463,12 @@ final class NativeGameplayViewController: UIViewController {
     private func applySuspension() {
         guard !disposed else { return }
         let value = explicitlySuspended || backgrounded
+        fishIdleOwner.setSuspended(value)
         boardScene?.setSuspended(value); fishFinale?.setSuspended(value); bottleFinale?.setSuspended(value); honeyFinale?.setSuspended(value)
         area55Finales.values.forEach { $0.setSuspended(value) }
+        journeyBottomDecor?.setForeground(!backgrounded)
+        journeyBottomDecor?.setSuspended(backgrounded || explicitlySuspended && !exitingBoard)
+        if !backgrounded {startDecorPreparation()}
         if value { onStateChange?(engine.state) }
     }
 
@@ -441,10 +483,20 @@ final class NativeGameplayViewController: UIViewController {
         return { [weak self,weak boardScene] in
             guard let self,let boardScene,!self.disposed,!released,self.boardScene === boardScene,self.engine.state.generation == generation,self.preparedBoardEntryGeneration == generation else {return}
             released=true;boardScene.releasePreparedBoardEntry(generation:generation)
+            self.journeyBottomDecor?.enter()
         }
     }
 
     func refreshFromEngine() {
+        let needsDecorEntry=journeyBottomDecor?.generation != engine.state.generation
+        ensureJourneyBottomDecor();startDecorPreparation()
+        if needsDecorEntry,hasPresentedScene,preparedBoardEntryGeneration != engine.state.generation {
+            let generation=engine.state.generation
+            prepareBoardEntryArtwork { [weak self] ready in
+                guard let self,!self.disposed,self.engine.state.generation==generation else{return}
+                if ready {self.journeyBottomDecor?.enter()}else{self.onBoardArtworkFailure?()}
+            }
+        }
         if let fishGeneration,fishGeneration != engine.state.generation { fishFinale?.dispose() }
         if let bottleGeneration,bottleGeneration != engine.state.generation { bottleFinale?.dispose() }
         if let honeyGeneration,honeyGeneration != engine.state.generation { honeyFinale?.dispose() }
@@ -453,14 +505,67 @@ final class NativeGameplayViewController: UIViewController {
     }
 
     func animateBoardExit(completion: @escaping (Bool) -> Void) {
-        guard let boardScene, !disposed else { completion(false); return }
-        boardScene.animateExit(completion: completion)
+        guard let boardScene,!disposed,!exitingBoard else {completion(false);return}
+        exitingBoard=true
+        journeyBottomDecor?.setSuspended(backgrounded)
+        var remaining=journeyBottomDecor == nil ? 1:2,finished=false
+        let generation=engine.state.generation
+        let settled:(Bool)->Void = { [weak self] success in
+            guard !finished else{return}
+            guard let self,!self.disposed,self.engine.state.generation==generation,success else {
+                finished=true;self?.exitingBoard=false;completion(false);return
+            }
+            remaining -= 1
+            if remaining==0 {finished=true;self.exitingBoard=false;completion(true)}
+        }
+        journeyBottomDecor?.exit(completion:settled)
+        boardScene.animateExit(completion:settled)
+    }
+
+    /// Preparation runs while the themed carrier is moving. Its opaque cover
+    /// remains until the selected original footer is ready for the HUD entry.
+    func prepareBoardEntryArtwork(completion:@escaping(Bool)->Void) {
+        guard !disposed else{completion(false);return}
+        loadViewIfNeeded();ensureJourneyBottomDecor()
+        guard let owner=journeyBottomDecor else{completion(true);return}
+        if owner.isPrepared,!backgrounded,owner.isForeground {completion(true);return}
+        decorWaiters.append((engine.state.generation,completion));startDecorPreparation()
+    }
+    private func ensureJourneyBottomDecor() {
+        guard !disposed,isViewLoaded,engine.state.mode == .journey,let catalog=journeyDecorCatalog else{return}
+        let generation=engine.state.generation
+        if journeyBottomDecor?.generation == generation {return}
+        let old=journeyBottomDecor;journeyBottomDecor=nil;decorPreparing=false
+        let cancelled=decorWaiters;decorWaiters.removeAll();old?.dispose();cancelled.forEach{$0.1(false)}
+        let owner=NativeJourneyBottomDecorOwner(root:resourceRoot,board:engine.state.board,viewport:view.bounds.size,generation:generation,isCurrent:{[weak self] in
+            self?.disposed == false && self?.engine.state.generation == $0
+        },catalog:catalog,resources:journeyDecorResources?(resourceRoot),isApplicationActive:{[weak self] in self?.backgrounded == false})
+        journeyBottomDecor=owner;owner.autoresizingMask=[.flexibleWidth,.flexibleHeight]
+        view.insertSubview(owner,aboveSubview:paperSurface)
+        owner.setSuspended(explicitlySuspended && !exitingBoard)
+    }
+    private func startDecorPreparation() {
+        guard !disposed,!backgrounded,!decorPreparing,let owner=journeyBottomDecor else{return}
+        let generation=owner.generation
+        decorPreparing=true
+        owner.prepare { [weak self,weak owner] ready in
+            guard let self,let owner,!self.disposed,self.journeyBottomDecor === owner,self.engine.state.generation==generation else{return}
+            self.decorPreparing=false
+            // Background cancellation retains the cover and retries on resume.
+            guard !self.backgrounded,owner.isForeground else{return}
+            let replies=self.decorWaiters;self.decorWaiters.removeAll()
+            replies.forEach{$0.1(ready && $0.0==generation && !self.disposed && self.engine.state.generation==generation)}
+        }
     }
 
     func dispose() {
         guard !disposed else { return }
         disposed = true;laserResources=nil;beforeInitialBoardEntry = nil
+        let replies=decorWaiters;decorWaiters.removeAll();decorPreparing=false
+        journeyBottomDecor?.dispose();journeyBottomDecor=nil;journeyDecorResources=nil;journeyDecorCatalog=nil;onBoardArtworkFailure=nil
+        replies.forEach{$0.1(false)}
         observations.forEach(NotificationCenter.default.removeObserver); observations.removeAll()
+        fishIdleOwner.dispose()
         fishFinale?.dispose(); fishFinale = nil; fishGeneration = nil
         bottleFinale?.dispose(); bottleFinale = nil; bottleGeneration = nil
         honeyFinale?.dispose(); honeyFinale = nil; honeyGeneration = nil
