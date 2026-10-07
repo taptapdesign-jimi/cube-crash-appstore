@@ -32,8 +32,8 @@ final class NativeBoardScene: SKScene {
     private let fontName: String
     private let finaleFontName: String
     private var nodesByID: [String: NativeDiceNode] = [:]
+    private let canvasRoot = SKNode()
     private let ghosts = SKNode()
-    private let paper = SKSpriteNode()
     private let hud = SKNode()
     private let effects = SKNode()
     private let hudStarFlights = SKNode()
@@ -47,10 +47,10 @@ final class NativeBoardScene: SKScene {
     private let comboNumber = SKLabelNode()
     private var scoreHitRect = CGRect.zero
     private var comboHitRect = CGRect.zero
-    private let moves = SKLabelNode()
-    private let stage = SKLabelNode()
+    private let roundIndicator: NativeRoundIndicator
     private let noMoves = SKLabelNode()
     private let meter = SKShapeNode()
+    private let meterBackground = SKShapeNode()
     private let hover = SKShapeNode()
     private var hoverTargetID: String?
     private var geometry: NativeBoardGeometry?
@@ -73,10 +73,17 @@ final class NativeBoardScene: SKScene {
     private var ordinaryAbsorbs:[String:(SKNode,UInt64)] = [:]
     private var ordinaryPostchecks:[String:(SKNode,UInt64)] = [:]
     private var ordinarySpawnVisuals:[String:UInt64] = [:]
+    private var ordinaryDeferred:[String:(SKNode,UInt64)] = [:]
+    private var ordinaryPrimaryVisuals:[String:(String,String,UInt64)] = [:]
     private struct OrdinarySixVisual {
         let id:String,generation:UInt64,receipt:UInt64
         var committed=false,consuming=false
     }
+    var reducedBoardEffects=false
+    var onPresentationFailure:((String)->Void)?
+    private var regularSixPresentations:[String:NativeRegularSixSpritePresentation]=[:]
+    private var regularSixShakeID:String?
+    private var boardShake=NativeRegularSixSpritePresentation.ShakeReceipt(canvas:.zero,indicator:.zero,bottomDecor:.zero)
     private var ordinarySixVisual:OrdinarySixVisual?
     private var specialPresentationIDs = Set<String>()
     private var laserSpawnCallbacks:[String:() -> Void] = [:]
@@ -102,19 +109,22 @@ final class NativeBoardScene: SKScene {
         engine.stagedTntActivation = true
         engine.stagedDirectWildMoves = true
         engine.stagedOrdinaryMoves = true
+        engine.stagedOrdinaryAssignments = true
+        engine.ordinarySixPresentationAdmitted = {UIFont(name:"Arial-BoldMT",size:33) != nil}
         // Reject an unavailable choreography before RNG/reservation/mutation.
         textures = NativeBoardTextures(root: resourceRoot)
         let fonts = JimiV9Artwork(resourceRoot: resourceRoot)
         fontName = fonts.font(size: 24).fontName
         finaleFontName = fonts.font(size: 24,weight: "ExtraBold").fontName
+        roundIndicator = NativeRoundIndicator(font: fonts.font(size: 18,weight: "SemiBold"))
         super.init(size: size)
         scaleMode = .resizeFill; backgroundColor = .clear
-        paper.texture = textures.texture("assets/paper-bg.png"); paper.zPosition = -1000000; addChild(paper)
-        addChild(ghosts); addChild(effects); addChild(hud); addChild(hudStarFlights)
+        canvasRoot.name="native-gameplay-canvas";addChild(canvasRoot)
+        canvasRoot.addChild(ghosts);canvasRoot.addChild(effects);canvasRoot.addChild(hud);canvasRoot.addChild(hudStarFlights)
         hudStarFlights.zPosition = 999999
         hover.fillColor = .clear
         hover.strokeColor = UIColor(red: 138.0/255,green: 110.0/255,blue: 87.0/255,alpha: 0.15)
-        hover.zPosition = 14000; hover.isHidden = true; addChild(hover)
+        hover.zPosition = 14000; hover.isHidden = true; canvasRoot.addChild(hover)
         ghosts.zPosition = -10000; effects.zPosition = 15000; hud.zPosition = 10000
         setupHUD()
         engine.laserTargetX = { [weak self] tile in self?.geometry.map {Double($0.center(row:tile.cell.row,column:tile.cell.column).x)} ?? .nan }
@@ -180,11 +190,11 @@ final class NativeBoardScene: SKScene {
 
     private func setupHUD() {
         let brown = UIColor(red: 0.42, green: 0.35, blue: 0.29, alpha: 1)
-        for label in [score, moves, stage, noMoves] {
+        for label in [score, noMoves] {
             label.fontName = fontName; label.fontColor = brown
             label.verticalAlignmentMode = .center; hud.addChild(label)
         }
-        score.fontSize = 18; moves.fontSize = 20; stage.fontSize = 18
+        score.fontSize = 18
         score.horizontalAlignmentMode = .left
         score.fontColor = UIColor(red: 181.0/255,green: 133.0/255,blue: 115.0/255,alpha: 1)
         for label in [comboX,comboNumber] {
@@ -200,16 +210,18 @@ final class NativeBoardScene: SKScene {
         scoreArt.texture = textures.texture("assets/hud/score-hud.png")
         scoreArt.name = "native-game-score-art"; hud.addChild(scoreArt)
         comboArt.name = "native-game-combo-art"; hud.addChild(comboArt)
-        meter.fillColor = UIColor(red: 0.95, green: 0.7, blue: 0.26, alpha: 1)
+        meterBackground.name = "native-game-wild-meter-track"
+        meterBackground.fillColor = UIColor(red:234.0/255,green:223.0/255,blue:214.0/255,alpha:1)
+        meterBackground.strokeColor = .clear;hud.addChild(meterBackground)
+        meter.name = "native-game-wild-meter-fill"
+        meter.fillColor = UIColor(red:231.0/255,green:116.0/255,blue:74.0/255,alpha:1)
         meter.strokeColor = .clear; hud.addChild(meter)
+        addChild(roundIndicator)
     }
 
     private func layoutHUD() {
-        let paperDimensions = paper.texture?.size() ?? CGSize(width: 1,height: 1)
-        let paperScale = max(size.width/max(1,paperDimensions.width),size.height/max(1,paperDimensions.height))
-        paper.size = CGSize(width: paperDimensions.width*paperScale,height: paperDimensions.height*paperScale)
-        paper.position = CGPoint(x: size.width/2,y: size.height/2)
-        let top = size.height - safeInsets.top - 37
+        let chrome = NativeGameplayChromePlan.make(viewport:size,safeTop:safeInsets.top)
+        let top = chrome.valueRowY
         hud.childNode(withName: "native-game-close")?.position = CGPoint(x: 46, y: top)
         let shift = (size.width*0.05).rounded()
         let spacing: CGFloat = size.width >= 768 ? 110 : 92
@@ -229,12 +241,15 @@ final class NativeBoardScene: SKScene {
         comboNumber.position = CGPoint(x: comboX.position.x+comboX.frame.width,y: top)
         scoreHitRect = CGRect(x: scoreX-33,y: top-30,width: 70,height: 60)
         comboHitRect = CGRect(x: comboCenter-53,y: top-30,width: 106,height: 60)
-        stage.position = CGPoint(x: size.width / 2, y: top - 43)
-        moves.position = CGPoint(x: size.width / 2, y: safeInsets.bottom + 28)
         noMoves.position = CGPoint(x: size.width / 2, y: size.height / 2)
-        meter.path = CGPath(roundedRect: CGRect(x: 0, y: 0, width: max(1,size.width - 96) * engine.state.wildMeter,
-                                               height: 8), cornerWidth: 4, cornerHeight: 4, transform: nil)
-        meter.position = CGPoint(x: 48, y: safeInsets.bottom + 48)
+        let rect=chrome.meterRect
+        meterBackground.path=CGPath(roundedRect:CGRect(origin:.zero,size:rect.size),cornerWidth:5,cornerHeight:5,transform:nil)
+        meterBackground.position=rect.origin;meter.position=rect.origin
+        let ratio=NativeGameplayChromePlan.visibleMeterRatio(engine.state.wildMeter)
+        meter.isHidden=ratio<=0
+        meter.path=CGPath(roundedRect:CGRect(x:0,y:0,width:rect.width*ratio,height:rect.height),cornerWidth:5,cornerHeight:5,transform:nil)
+        roundIndicator.position=chrome.roundCenter
+
     }
 
     func synchronize(animateEntry: Bool = false) {
@@ -242,6 +257,7 @@ final class NativeBoardScene: SKScene {
         onRenderingDemand?(true)
         let state = engine.state
         if lastGeneration != state.generation {
+            retireRegularSixPresentations()
             finishExit(completed: false)
             cancelEntry()
             removeAllActions(); retireEffects(); meterVisuals.removeAll();laserSpawnCallbacks.removeAll();cancelCandidate()
@@ -249,7 +265,7 @@ final class NativeBoardScene: SKScene {
             nodesByID.values.forEach { $0.dispose() }; nodesByID.removeAll()
             hudStarFlights.removeAllChildren(); hudStarIDs.removeAll(); hudStarVisualReceipts.removeAll()
             specialPresentationIDs.removeAll(); specialPresentationID = nil;directPresentationID=nil;directPresentationVariant=nil;directFinalReceipt=nil
-            ordinaryAbsorbs.removeAll();ordinaryPostchecks.removeAll();ordinarySpawnVisuals.removeAll();ordinarySixVisual=nil
+            ordinaryAbsorbs.removeAll();ordinaryPostchecks.removeAll();ordinarySpawnVisuals.removeAll();ordinaryDeferred.removeAll();ordinaryPrimaryVisuals.removeAll();ordinarySixVisual=nil
             terminalPresentedGeneration = nil; inputAdmitted = !animateEntry
             pendingTerminal = nil; pendingTerminalGeneration = nil; visualLifetime += 1; visualOwners = 0
             navigationLocked = state.terminal != nil
@@ -281,7 +297,7 @@ final class NativeBoardScene: SKScene {
                     guard let self, !self.disposed else { return }
                     self.onRenderingDemand?(!self.suspended)
                 }
-                nodesByID[tile.id] = node; addChild(node)
+                nodesByID[tile.id] = node; canvasRoot.addChild(node)
             }
             if !entryInProgress || node.action(forKey: "entry") == nil {
                 node.setScale(geometry.scale)
@@ -294,13 +310,13 @@ final class NativeBoardScene: SKScene {
         score.text = String(state.score)
         comboNumber.text = String(state.combo)
         comboArt.texture = textures.texture(state.combo >= 10 ? "assets/hud/mega-combo-hud.png" : state.combo >= 5 ? "assets/hud/extra-combo-hud.png" : "assets/hud/combo-hud.png")
-        moves.text = "\(state.moves) MOVES"
-        stage.text = state.mode == .journey ? "STAGE \(state.stage)" : "ROUND \(state.stage)"
+        roundIndicator.synchronize(round:state.stage,arcade:state.mode == .arcade,viewport:size,alpha:state.tutorial?.shouldLockHUD == true ? 0.2:1)
         layoutHUD()
+        applyBoardShake(boardShake)
         for child in hud.children where child !== noMoves { child.alpha = state.tutorial?.shouldLockHUD == true ? 0.2 : 1 }
         if animateEntry && !UIAccessibility.isReduceMotionEnabled {
             animateBoardEntry(tiles: live,geometry: geometry)
-        } else if !entryInProgress { inputAdmitted = state.terminal == nil && pendingTerminal == nil }
+        } else if !entryInProgress { inputAdmitted = state.terminal == nil && pendingTerminal == nil;roundIndicator.enter(animated:false) }
         if preparedEntryGeneration == state.generation {inputAdmitted=false;navigationLocked=true}
     }
 
@@ -312,6 +328,7 @@ final class NativeBoardScene: SKScene {
     }
 
     private func animateBoardEntry(tiles: [NativeTile],geometry: NativeBoardGeometry) {
+        roundIndicator.enter(animated:true)
         let targets = tiles.compactMap { nodesByID[$0.id] }
         let positions = targets.map { CGPoint(x: $0.position.x,y: size.height-$0.position.y) }
         let plans = NativeBoardEntryPlan.make(positions: positions,maxOffset: geometry.tileSize*0.42)
@@ -344,6 +361,7 @@ final class NativeBoardScene: SKScene {
     }
 
     private func cancelEntry() {
+        roundIndicator.cancelExit()
         guard entryInProgress else { return }
         entryInProgress = false; entryOwners = 0; removeAction(forKey: "entry-admission")
         for node in nodesByID.values {
@@ -370,14 +388,15 @@ final class NativeBoardScene: SKScene {
         guard !disposed, !suspended, activeTouch == nil, draggedID == nil, let touch = touches.first else { return }
         onRenderingDemand?(true)
         let point = touch.location(in: self)
+        let canvasPoint=canvasRoot.convert(point,from:self)
         if let button = nodes(at: point).first(where: { $0.name == "native-game-close" || $0.name == "native-game-help" }) {
             guard inputAdmitted,!navigationLocked,engine.state.tutorial?.shouldLockHUD != true else { return }
             if button.name == "native-game-close" { onExitRequest?() } else { onHelpRequest?() }
             return
         }
-        if scoreHitRect.contains(point) || comboHitRect.contains(point) {
+        if scoreHitRect.contains(canvasPoint) || comboHitRect.contains(canvasPoint) {
             guard inputAdmitted,!navigationLocked,engine.state.tutorial?.shouldLockHUD != true else { return }
-            if comboHitRect.contains(point) { onComboRequest?() } else { onScoreRequest?() }
+            if comboHitRect.contains(canvasPoint) { onComboRequest?() } else { onScoreRequest?() }
             return
         }
         if beginDrag(at: point) { activeTouch = touch }
@@ -385,6 +404,7 @@ final class NativeBoardScene: SKScene {
 
     @discardableResult
     func beginDrag(at point: CGPoint) -> Bool {
+        let point=canvasRoot.convert(point,from:self)
         guard !disposed, !suspended, !exitInProgress, draggedID == nil, inputAdmitted, let hit = geometry?.cell(at: point),
               let tile = engine.state.tile(at: NativeCell(column: hit.column, row: hit.row)),
               let node = nodesByID[tile.id], engine.beginDrag(tileID: tile.id, pointerID: 1) else { return false }
@@ -407,6 +427,7 @@ final class NativeBoardScene: SKScene {
     }
 
     func moveDrag(to point: CGPoint,now:TimeInterval=CACurrentMediaTime()) {
+        let point=canvasRoot.convert(point,from:self)
         guard let id = draggedID, let node = nodesByID[id] else { return }
         node.position = CGPoint(x: point.x + fingerOffset.x, y: point.y + fingerOffset.y)
         let milliseconds=max(1,(now-lastPointerTime)*1000)
@@ -439,6 +460,7 @@ final class NativeBoardScene: SKScene {
 
     @discardableResult
     func finishDrag(at point: CGPoint, now: TimeInterval) -> NativeMoveResult? {
+        let point=canvasRoot.convert(point,from:self)
         guard !disposed, let id = draggedID else { return nil }
         let moved = hypot(point.x-touchStart.x, point.y-touchStart.y) >= 5
         let hit = moved ? geometry?.cell(at: point) : nil
@@ -511,17 +533,39 @@ final class NativeBoardScene: SKScene {
             let destination = event.tileIDs.dropFirst().first.flatMap { id in previous.tiles.first { $0.id == id } }
             onGameplayReceipt?(event,source,destination,previous.generation)
             switch event.kind {
+            case .ordinarySpawnsPrepareRequested:
+                if let plan=engine.pendingOrdinarySix,event.reason==plan.id {
+                    scheduleOrdinaryCommand(key:"prepare:"+plan.id,generation:plan.generation,delay:Double(event.value ?? 50)/1000) { [weak self] in
+                        guard let self else {return}
+                        let previous=self.engine.state
+                        self.consume(self.engine.prepareOrdinarySpawns(receiptID:plan.id,generation:plan.generation),previous:previous)
+                        self.releaseOrdinarySixIfReady()
+                    }
+                }
+            case .ordinaryAssignmentsPrepared:
+                startOrdinaryAssignments(ids:event.tileIDs)
+            case .ordinaryDestinationCleanupPrepared:
+                if let plan=engine.pendingOrdinarySix,event.reason==plan.id {
+                    scheduleOrdinaryCommand(key:"cleanup:"+plan.id,generation:plan.generation,delay:Double(event.value ?? 100)/1000) { [weak self] in
+                        guard let self else {return}
+                        let previous=self.engine.state
+                        self.consume(self.engine.commitOrdinaryDestinationCleanup(receiptID:plan.id,generation:plan.generation),previous:previous)
+                        self.releaseOrdinarySixIfReady()
+                    }
+                }
             case .ordinaryStackReserved: break // Captured source ghost owns the actual absorb completion.
             case .ordinarySixReserved:
                 if let plan=engine.pendingOrdinarySix,ordinarySixVisual==nil {
                     ordinarySixVisual=OrdinarySixVisual(id:plan.id,generation:plan.generation,receipt:beginVisual())
-                    nodesByID[plan.destination.id]?.stackFeedback()
+                    playRegularSixHero(plan)
                 }
             case .ordinaryPostcheckPrepared:
                 if let id=event.reason {startOrdinaryPostcheck(id:id)}
             case .merged:
-                for id in event.tileIDs {finishOrdinarySpawnVisual(id);nodesByID[id]?.stackFeedback()}
-                if event.value == 6 && engine.pendingSpecial == nil {
+                let regularSix=event.value==6 && event.reason==engine.pendingOrdinarySix?.id
+                for id in event.tileIDs {finishOrdinarySpawnVisual(id);if !regularSix {nodesByID[id]?.stackFeedback()}}
+                if regularSix,let plan=engine.pendingOrdinarySix {playRegularSixMain(plan)}
+                else if event.value == 6 && engine.pendingSpecial == nil {
                     let tile = event.tileIDs.reversed().compactMap { id in previous.tiles.first { $0.id == id } }.first
                     let carrier = event.tileIDs.compactMap { id in previous.tiles.first { $0.id == id } }.first { $0.isWild }
                     if let variant = event.variant,["fish","bottle","honey","spaceship","laser-gun","flower","barell","beach-ball","kanta","bee","cubero","mushroom","robo-cube"].contains(variant),let tile,let geometry,
@@ -557,20 +601,26 @@ final class NativeBoardScene: SKScene {
                 for id in event.tileIDs {
                     guard let node=nodesByID[id] else {continue}
                     node.visual.setScale(0.30)
-                    if let ordinary=ordinarySixVisual,ordinary.committed,ordinary.consuming {
-                        guard engine.commitOrdinarySpawnArrival(receiptID:ordinary.id,generation:ordinary.generation,tileID:id).accepted else {continue}
+                    if let ordinary=ordinarySixVisual,ordinary.committed,
+                       event.reason != nil || ordinary.consuming {
+                        if engine.pendingOrdinarySpawns.contains(id) {
+                            _ = engine.commitOrdinarySpawnArrival(receiptID:ordinary.id,generation:ordinary.generation,tileID:id)
+                        }
                         finishOrdinarySpawnVisual(id)
                         ordinarySpawnVisuals[id]=beginVisual()
+                        if let primary=engine.pendingOrdinaryPrimaryArrival,primary.id==event.reason {
+                            ordinaryPrimaryVisuals[id]=(ordinary.id,primary.id,primary.generation)
+                        }
                         node.visual.run(.sequence([NativeBoardMotion.spawnBounce(),.run { [weak self] in
                             guard let self,self.engine.state.generation==ordinary.generation else {return}
-                            self.finishOrdinarySpawnVisual(id)
+                            self.finishOrdinarySpawnVisual(id,interrupted:false)
                         }]),withKey:"spawn")
                     } else {node.visual.run(NativeBoardMotion.spawnBounce(),withKey:"spawn")}
                 }
             default: break
             }
         }
-        onStateChange?(result.state)
+        onStateChange?(engine.state)
         handleResolution(result.resolution)
     }
 
@@ -605,21 +655,122 @@ final class NativeBoardScene: SKScene {
         }]),withKey:"native-ordinary-postcheck")
     }
 
+    private func playRegularSixHero(_ plan:NativeOrdinaryMovePlan) {
+        let node=nodesByID[plan.destination.id],start=CGPoint(x:node?.visual.xScale ?? 1,y:node?.visual.yScale ?? 1)
+        // The source hidden final carrier still consumes the authored peak draw.
+        let motion=NativeRegularSixHeroMotion(random:{Double.random(in:0..<1)})
+        guard let node else {return}
+        node.visual.removeAllActions()
+        node.visual.run(.customAction(withDuration:0.275) { [weak node] _,time in
+            node?.visual.xScale=motion.sample(seconds:Double(time),startingScale:Double(start.x))
+            node?.visual.yScale=motion.sample(seconds:Double(time),startingScale:Double(start.y))
+        },withKey:"source-ordinary-six-hero")
+    }
+
+    private func playRegularSixMain(_ plan:NativeOrdinaryMovePlan) {
+        guard let geometry,regularSixPresentations[plan.id]==nil else {return}
+        let cadence=NativeRegularSixFxCadence.shared
+        let reduced=reducedBoardEffects
+        let captured=boardShake
+        let owner:NativeRegularSixSpritePresentation
+        do {
+            owner=try NativeRegularSixSpritePresentation(origin:geometry.center(row:plan.destination.cell.row,column:plan.destination.cell.column),tileSize:geometry.tileSize,
+                destinationDepth:CGFloat(plan.destination.cell.row*engine.state.columns+plan.destination.cell.column),combinedDepth:plan.source.stackDepth+plan.destination.stackDepth,
+                generation:plan.generation,reduced:reduced,hotFactor:cadence.hotFactor(nowMilliseconds:CACurrentMediaTime()*1000,reducedBoardFx:reduced),patternIndex:cadence.nextPattern(),initialShake:captured,
+                isCurrent:{ [weak self] generation in self?.disposed == false && self?.engine.state.generation == generation },random:{Double.random(in:0..<1)})
+        } catch {
+            // The same process-stable source font was checked before capture.
+            // Report an unexpected native renderer failure without substituting
+            // an unrelated effect for the authored source receipt.
+            onPresentationFailure?("ordinary_six_source_font_missing")
+            return
+        }
+        if let previous=regularSixShakeID {regularSixPresentations[previous]?.detachShake()}
+        regularSixShakeID=plan.id;regularSixPresentations[plan.id]=owner
+        let receipt=beginVisual()
+        owner.onShake={ [weak self] pose,generation in
+            guard let self,self.regularSixShakeID==plan.id,self.engine.state.generation==generation else {return}
+            self.applyBoardShake(pose)
+        }
+        owner.onFinished={ [weak self] _ in
+            guard let self else {return}
+            self.regularSixPresentations.removeValue(forKey:plan.id)
+            if self.regularSixShakeID==plan.id {self.regularSixShakeID=nil;self.applyBoardShake(.init(canvas:.zero,indicator:.zero,bottomDecor:.zero))}
+            self.finishVisual(receipt)
+        }
+        owner.mount(in:canvasRoot)
+    }
+
+    private func applyBoardShake(_ pose:NativeRegularSixSpritePresentation.ShakeReceipt) {
+        boardShake=pose;canvasRoot.position=CGPoint(x:pose.canvas.x,y:-pose.canvas.y)
+        let base=NativeGameplayChromePlan.make(viewport:size,safeTop:safeInsets.top).roundCenter
+        roundIndicator.position=CGPoint(x:base.x+pose.indicator.x,y:base.y-pose.indicator.y)
+    }
+
+    private func retireRegularSixPresentations() {
+        for owner in Array(regularSixPresentations.values) {owner.dispose()}
+        regularSixPresentations.removeAll();regularSixShakeID=nil;applyBoardShake(.init(canvas:.zero,indicator:.zero,bottomDecor:.zero))
+    }
+
+    private func scheduleOrdinaryCommand(key:String,generation:UInt64,delay:Double,command:@escaping ()->Void) {
+        guard !disposed,ordinaryDeferred[key]==nil else {return}
+        let owner=SKNode(),receipt=beginVisual()
+        ordinaryDeferred[key]=(owner,receipt);effects.addChild(owner);onRenderingDemand?(true)
+        owner.run(.sequence([.wait(forDuration:max(0,delay)),.run { [weak self,weak owner] in
+            guard let self,!self.disposed,!self.suspended,self.engine.state.generation==generation,
+                  self.ordinaryDeferred.removeValue(forKey:key) != nil else {owner?.removeFromParent();return}
+            command();self.finishVisual(receipt);owner?.removeFromParent()
+        }]))
+    }
+
+    private func startOrdinaryAssignments(ids:[String]) {
+        guard let plan=engine.pendingOrdinarySix else {return}
+        let slots=engine.pendingOrdinaryAssignments.filter {ids.contains($0.id)}
+        guard !slots.isEmpty else {releaseOrdinarySixIfReady();return}
+        let key="assignments:"+slots[0].id
+        guard ordinaryDeferred[key]==nil else {return}
+        let owner=SKNode(),receipt=beginVisual()
+        ordinaryDeferred[key]=(owner,receipt);effects.addChild(owner);onRenderingDemand?(true)
+        var index=0
+        let duration=Double(slots.map(\.delayMilliseconds).max() ?? 0)/1000
+        // All selected timers share their source preparation clock. A stalled
+        // frame consumes due immutable slots in captured order, without adding
+        // an extra per-slot delay or choosing a new face in the renderer.
+        owner.run(.sequence([.customAction(withDuration:max(0.000001,duration)) { [weak self] _,elapsed in
+            guard let self,!self.disposed,!self.suspended,self.engine.state.generation==plan.generation else {return}
+            while index<slots.count && Double(elapsed)+0.000001>=Double(slots[index].delayMilliseconds)/1000 {
+                let slot=slots[index];index+=1
+                let previous=self.engine.state
+                let result=self.engine.commitOrdinaryAssignment(receiptID:plan.id,generation:plan.generation,assignmentID:slot.id)
+                self.consume(result,previous:previous)
+                self.releaseOrdinarySixIfReady()
+            }
+        },.run { [weak self,weak owner] in
+            guard let self,self.ordinaryDeferred.removeValue(forKey:key) != nil else {owner?.removeFromParent();return}
+            self.finishVisual(receipt);owner?.removeFromParent();self.releaseOrdinarySixIfReady()
+        }]))
+    }
+
     private func releaseOrdinarySixIfReady() {
         guard !disposed,!suspended,let owner=ordinarySixVisual,owner.committed,!owner.consuming,
               engine.state.generation==owner.generation,engine.pendingOrdinarySpawns.isEmpty,
               engine.pendingOrdinarySix?.id==owner.id else {return}
-        // Current core assignment batch is atomic at main commit. Release its
-        // gameplay lease here; decorative bounce remains interruptible.
-        ordinarySixVisual=nil
         let previous=engine.state,result=engine.releaseOrdinarySixHandoff(receiptID:owner.id,generation:owner.generation)
+        guard result.accepted else {return}
+        ordinarySixVisual=nil
         consume(result,previous:previous);finishVisual(owner.receipt)
     }
     private func retireOrdinarySixVisual() {
         if let owner=ordinarySixVisual {ordinarySixVisual=nil;finishVisual(owner.receipt)}
     }
-    private func finishOrdinarySpawnVisual(_ id:String) {
+    private func finishOrdinarySpawnVisual(_ id:String,interrupted:Bool=true) {
         if let receipt=ordinarySpawnVisuals.removeValue(forKey:id) {finishVisual(receipt)}
+        if let primary=ordinaryPrimaryVisuals.removeValue(forKey:id),engine.state.generation==primary.2,
+           engine.pendingOrdinaryPrimaryArrival?.id==primary.1 {
+            let previous=engine.state
+            consume(engine.finishOrdinaryPrimarySpawn(receiptID:primary.0,generation:primary.2,assignmentID:primary.1,interrupted:interrupted),previous:previous)
+            releaseOrdinarySixIfReady()
+        }
     }
 
     private func handleResolution(_ resolution: NativeResolution) {
@@ -1112,15 +1263,16 @@ final class NativeBoardScene: SKScene {
         guard !disposed, !suspended else { return }
         let hasIdle = engine.state.terminal == nil && !exitInProgress && nodesByID.values.contains { $0.hasAnimatedArtwork }
         let actions = hasActions() || nodesByID.values.contains { $0.hasPresentationActions }
-            || effects.children.contains { $0.hasActions() } || hudStarFlights.children.contains { $0.hasActions() } || hud.hasActions() || ghosts.children.contains { $0.hasActions() }
+            || effects.children.contains { $0.hasActions() } || hudStarFlights.children.contains { $0.hasActions() } || !regularSixPresentations.isEmpty || hud.hasActions() || roundIndicator.hasAnimatedPresentation || ghosts.children.contains { $0.hasActions() }
         if !hasIdle && !actions && activeTouch == nil { onRenderingDemand?(false); lastFrame = nil }
     }
 
     func setSuspended(_ value: Bool) {
         guard !disposed else { return }
         suspended = value; lastFrame = nil
+        for owner in regularSixPresentations.values {owner.setSuspended(value)}
         if value {
-            let hadOrdinary = !ordinaryAbsorbs.isEmpty || !ordinaryPostchecks.isEmpty || !ordinarySpawnVisuals.isEmpty || ordinarySixVisual != nil
+            let hadOrdinary = !ordinaryAbsorbs.isEmpty || !ordinaryPostchecks.isEmpty || !ordinarySpawnVisuals.isEmpty || !ordinaryDeferred.isEmpty || ordinarySixVisual != nil
             cancelDrag(); cancelCandidate(); engine.cancelForBackground()
             let pendingMeters = Array(meterVisuals.values); meterVisuals.removeAll()
             for (owner,receipt) in pendingMeters { owner.removeAllActions();owner.removeFromParent();finishVisual(receipt) }
@@ -1129,7 +1281,7 @@ final class NativeBoardScene: SKScene {
             let receipts = Array(hudStarVisualReceipts.values); hudStarVisualReceipts.removeAll()
             for receipt in receipts { finishVisual(receipt) }
             if specialPresentationID != nil || directPresentationID != nil || hadOrdinary {
-                ordinaryAbsorbs.removeAll();ordinaryPostchecks.removeAll();ordinarySpawnVisuals.removeAll();ordinarySixVisual=nil
+                ordinaryAbsorbs.removeAll();ordinaryPostchecks.removeAll();ordinarySpawnVisuals.removeAll();ordinaryDeferred.removeAll();ordinaryPrimaryVisuals.removeAll();ordinarySixVisual=nil
                 laserSpawnCallbacks.removeAll()
                 if let variant=directPresentationVariant {onSpecialPresentationCancelled?(variant)}
                 directPresentationID=nil;directPresentationVariant=nil;directFinalReceipt=nil
@@ -1157,6 +1309,7 @@ final class NativeBoardScene: SKScene {
     func animateExit(completion: @escaping (Bool) -> Void) {
         guard !disposed, !exitInProgress else { completion(false); return }
         cancelEntry(); cancelDrag(); cancelCandidate(); inputAdmitted = false; navigationLocked = true
+        roundIndicator.exit()
         exitInProgress = true; exitCompletion = completion
         engine.setInputLock("native-board-exit",active: true)
         suspended = false; isPaused = false; onRenderingDemand?(true)
@@ -1194,6 +1347,7 @@ final class NativeBoardScene: SKScene {
         exitInProgress = false; exitOwners = 0
         engine.setInputLock("native-board-exit",active: false)
         if !completed {
+            roundIndicator.cancelExit()
             for node in nodesByID.values { node.removeAllActions(); node.visual.setScale(1) }
             for ghost in ghosts.children { ghost.removeAllActions(); ghost.setScale(1) }
             hud.removeAllActions(); hud.position = .zero; hud.alpha = 1
@@ -1204,15 +1358,16 @@ final class NativeBoardScene: SKScene {
 
     func dispose() {
         guard !disposed else { return }
+        retireRegularSixPresentations()
         finishExit(completed: false)
         cancelEntry(); cancelDrag(); cancelCandidate(); disposed = true
         engine.setInputLock("native-board-entry-handoff",active:false);preparedEntryGeneration=nil
         specialPresentationIDs.removeAll(); specialPresentationID = nil;directPresentationID=nil;directPresentationVariant=nil;directFinalReceipt=nil
-        ordinaryAbsorbs.removeAll();ordinaryPostchecks.removeAll();ordinarySpawnVisuals.removeAll();ordinarySixVisual=nil
+        ordinaryAbsorbs.removeAll();ordinaryPostchecks.removeAll();ordinarySpawnVisuals.removeAll();ordinaryDeferred.removeAll();ordinaryPrimaryVisuals.removeAll();ordinarySixVisual=nil
         pendingTerminal = nil; pendingTerminalGeneration = nil; visualLifetime += 1; visualOwners = 0
         removeAllActions(); retireEffects(); nodesByID.values.forEach { $0.dispose() }
         nodesByID.removeAll();meterVisuals.removeAll(); removeAllChildren(); textures.dispose()
-        onStateChange = nil; onTerminal = nil; onGameplayEvent = nil; onGameplayReceipt = nil; onSpecialMoment = nil; onAuthoredFinale = nil;onAuthoredTntPresentation = nil;onAuthoredLaserImpact=nil;authoredTntPresentationReady = nil;authoredFinalePresentationReady=nil;onSpecialPresentationCancelled = nil; onTntGlyphClock = nil; onSplashGlyphClock = nil; onHaptic = nil
+        onPresentationFailure=nil;onStateChange = nil; onTerminal = nil; onGameplayEvent = nil; onGameplayReceipt = nil; onSpecialMoment = nil; onAuthoredFinale = nil;onAuthoredTntPresentation = nil;onAuthoredLaserImpact=nil;authoredTntPresentationReady = nil;authoredFinalePresentationReady=nil;onSpecialPresentationCancelled = nil; onTntGlyphClock = nil; onSplashGlyphClock = nil; onHaptic = nil
         onExitRequest = nil; onHelpRequest = nil; onScoreRequest = nil; onComboRequest = nil; onPointerState = nil; onRenderingDemand = nil; onBoardEntry = nil
     }
 }

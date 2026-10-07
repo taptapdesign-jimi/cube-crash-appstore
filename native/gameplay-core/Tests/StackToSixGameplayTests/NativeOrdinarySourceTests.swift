@@ -19,7 +19,7 @@ final class NativeOrdinarySourceTests:XCTestCase {
     }
     func testMoveDebitMatchesExecutedOriginalAbsorbCallbackControlFlow()throws {
         let rows=try JSONDecoder().decode(Oracle.self,from:NativeOrdinarySourceOracle.data)
-        XCTAssertEqual(rows.flow.count,7)
+        XCTAssertEqual(rows.flow.count,8)
         for row in rows.flow {
             let continues=row.scenario=="continue" || row.scenario=="busy-at-absorb" || row.scenario=="source-error"
             let tiles=continues ? [die("s",1,0),die("d",2,1),die("a",1,2)]:[die("s",3,0),die("d",2,1)]
@@ -29,6 +29,7 @@ final class NativeOrdinarySourceTests:XCTestCase {
             if row.scenario=="busy-at-absorb" {var flags=e.flags;flags.busyEnding=true;e.setRuntimeFlags(flags)}
             XCTAssertEqual(row.releaseAt,80);XCTAssertTrue(e.finishOrdinaryStackAbsorb(receiptID:p.id,generation:p.generation).accepted)
             XCTAssertEqual(e.pendingOrdinaryPostchecks.first?.delayMilliseconds,row.waitMilliseconds ?? 0)
+            if row.scenario=="busy-during-await" {var flags=e.flags;flags.busyEnding=true;e.setRuntimeFlags(flags)}
             if row.scenario=="cancelled-await" || row.scenario=="source-error" {XCTAssertTrue(e.cancelOrdinaryPostcheck(receiptID:p.id,generation:p.generation).accepted)}
             else {XCTAssertTrue(e.commitOrdinaryPostcheck(receiptID:p.id,generation:p.generation).accepted)}
             XCTAssertEqual(e.state.moves,row.moves,row.scenario)

@@ -76,8 +76,13 @@ final class NativeOrdinaryPresentationTests:XCTestCase {
         XCTAssertEqual(scene.finishDrag(at:point(scene,1),now:1)?.accepted,true)
         await fulfillment(of:[assigned],timeout:3)
         let tile=try XCTUnwrap(scene.engine.state.tiles.first {$0.id==spawnedID})
-        XCTAssertTrue(scene.engine.pendingOrdinarySpawns.isEmpty);XCTAssertNil(scene.engine.pendingOrdinarySix)
+        XCTAssertTrue(scene.engine.pendingOrdinarySpawns.isEmpty);XCTAssertNotNil(scene.engine.pendingOrdinaryPrimaryArrival);XCTAssertNotNil(scene.engine.pendingOrdinarySix)
         XCTAssertTrue(scene.beginDrag(at:scene.boardGeometry!.center(row:tile.cell.row,column:tile.cell.column)),"Source permits pickup once assigned; bounce is interruptible")
+        XCTAssertNil(scene.engine.pendingOrdinaryPrimaryArrival)
+        XCTAssertNotNil(scene.engine.pendingOrdinarySix,"Independent main+100 cleanup still owns the handoff after pickup")
+        let cleaned=expectation(description:"Independent captured cleanup consumes after primary interruption")
+        scene.onStateChange={_ in if scene.engine.pendingOrdinarySix==nil {cleaned.fulfill();scene.onStateChange=nil}}
+        await fulfillment(of:[cleaned],timeout:3)
         scene.cancelDrag()
         XCTAssertTrue(scene.engine.pendingOrdinarySpawns.isEmpty)
     }
@@ -95,4 +100,93 @@ final class NativeOrdinaryPresentationTests:XCTestCase {
         try await Task.sleep(for:.milliseconds(250))
         XCTAssertEqual(engine.state,settled)
     }
+    func testLockedOpeningUsesCapturedDelayAndRetainsPlaceholderIdentity() async throws {
+        var a=tile("a",0,1),b=tile("b",1,5)
+        a.stackDepth=2;b.stackDepth=2
+        var lock1=tile("lock1",0,0),lock2=tile("lock2",1,0),lock3=tile("lock3",2,0)
+        lock1.cell=NativeCell(column:0,row:1);lock1.locked=true
+        lock2.cell=NativeCell(column:1,row:1);lock2.locked=true
+        lock3.cell=NativeCell(column:2,row:1);lock3.locked=true
+        let (window,renderer,scene)=mounted([a,b,tile("c",2,1),tile("d",3,2),lock1,lock2,lock3])
+        defer {scene.dispose();renderer.presentScene(nil);window.isHidden=true}
+        let main=expectation(description:"Six main before selection"),prepared=expectation(description:"Captured current locked selection"),opened=expectation(description:"All captured locked callbacks")
+        var mainTime=0.0,preparedTime=0.0,slots:[NativeOrdinaryAssignment]=[],arrivalTimes:[Double]=[],openedIDs:[String]=[]
+        scene.onGameplayEvent={event in
+            if event.kind == .merged,event.value==6 {
+                mainTime=CACurrentMediaTime()
+                XCTAssertTrue(scene.engine.pendingOrdinaryAssignments.isEmpty)
+                XCTAssertEqual(scene.engine.state.tiles.filter {$0.locked}.count,3)
+                main.fulfill()
+            }
+            if event.kind == .ordinaryAssignmentsPrepared {
+                preparedTime=CACurrentMediaTime();slots=scene.engine.pendingOrdinaryAssignments
+                XCTAssertEqual(slots.map(\.delayMilliseconds),[50,150,250])
+                XCTAssertEqual(scene.engine.state.tiles.filter {$0.locked}.count,3)
+                prepared.fulfill()
+            }
+            if event.kind == .spawned,slots.contains(where:{$0.id==event.reason}) {
+                openedIDs+=event.tileIDs;arrivalTimes.append(CACurrentMediaTime())
+                if openedIDs.count==3 {opened.fulfill()}
+            }
+        }
+        XCTAssertTrue(scene.beginDrag(at:point(scene,0)));scene.moveDrag(to:point(scene,1))
+        XCTAssertEqual(scene.finishDrag(at:point(scene,1),now:1)?.accepted,true)
+        await fulfillment(of:[main,prepared,opened],timeout:4,enforceOrder:true)
+        XCTAssertGreaterThanOrEqual(preparedTime-mainTime,0.035,"Source outer50ms must run after actual main")
+        XCTAssertGreaterThanOrEqual(arrivalTimes[0]-preparedTime,0.035,"First locked face remains unchanged through the separate50ms preparation delay")
+        XCTAssertGreaterThanOrEqual(arrivalTimes[2]-preparedTime,0.23,"Captured third opening uses250ms, independent of decorative bounce")
+        XCTAssertEqual(openedIDs,slots.compactMap(\.tileID))
+        XCTAssertEqual(Set(openedIDs),Set(["lock1","lock2","lock3"]))
+        XCTAssertNil(scene.engine.pendingOrdinarySix)
+        XCTAssertTrue(scene.engine.state.validationIssues().isEmpty)
+        let first=try XCTUnwrap(scene.engine.state.tiles.first {$0.id==openedIDs[0]})
+        XCTAssertTrue(scene.beginDrag(at:scene.boardGeometry!.center(row:first.cell.row,column:first.cell.column)),"Locked assignment is playable while its decoration continues")
+    }
+
+    func testPrimaryAwaitsActualBounceAndIndependentCleanupCannotRemoveFreshIdentity() async throws {
+        let (window,renderer,scene)=mounted([tile("a",0,1),tile("b",1,5),tile("c",2,1),tile("d",3,2)])
+        defer {scene.dispose();renderer.presentScene(nil);window.isHidden=true}
+        let assigned=expectation(description:"Primary assigned at source outer50ms"),released=expectation(description:"Actual primary bounce settles authoritative handoff")
+        var freshID:String?,arrival=0.0
+        scene.onGameplayEvent={event in
+            if event.kind == .spawned,freshID==nil {
+                freshID=event.tileIDs.first;arrival=CACurrentMediaTime()
+                XCTAssertNotNil(scene.engine.pendingOrdinaryPrimaryArrival)
+                XCTAssertNotNil(scene.engine.pendingOrdinaryDestinationCleanup)
+                assigned.fulfill()
+            }
+        }
+        scene.onStateChange={_ in
+            if freshID != nil,scene.engine.pendingOrdinarySix==nil {released.fulfill();scene.onStateChange=nil}
+        }
+        XCTAssertTrue(scene.beginDrag(at:point(scene,0)));scene.moveDrag(to:point(scene,1))
+        XCTAssertEqual(scene.finishDrag(at:point(scene,1),now:1)?.accepted,true)
+        await fulfillment(of:[assigned,released],timeout:4,enforceOrder:true)
+        XCTAssertGreaterThanOrEqual(CACurrentMediaTime()-arrival,0.52,"Primary awaits its actual original0.56s bounce")
+        XCTAssertNil(scene.engine.pendingOrdinaryDestinationCleanup)
+        XCTAssertEqual(scene.engine.state.tile(at:NativeCell(column:1,row:0))?.id,freshID)
+        XCTAssertNil(scene.engine.state.tiles.first {$0.id=="b"})
+        XCTAssertTrue(scene.engine.state.validationIssues().isEmpty)
+    }
+
+    func testBackgroundDuringCapturedDelayedBatchRevokesOldUICommands() async throws {
+        var locked=tile("locked",2,0);locked.locked=true
+        let (window,renderer,scene)=mounted([tile("a",0,1),tile("b",1,5),locked,tile("c",3,1),tile("d",4,2)])
+        defer {scene.dispose();renderer.presentScene(nil);window.isHidden=true}
+        let prepared=expectation(description:"Captured delayed batch before first assignment")
+        scene.onGameplayEvent={event in
+            if event.kind == .ordinaryAssignmentsPrepared {prepared.fulfill()}
+        }
+        XCTAssertTrue(scene.beginDrag(at:point(scene,0)));scene.moveDrag(to:point(scene,1))
+        XCTAssertEqual(scene.finishDrag(at:point(scene,1),now:1)?.accepted,true)
+        await fulfillment(of:[prepared],timeout:3)
+        scene.setSuspended(true)
+        let settled=scene.engine.state
+        XCTAssertNil(scene.engine.pendingOrdinarySix);XCTAssertTrue(scene.engine.pendingOrdinaryAssignments.isEmpty)
+        XCTAssertFalse(try XCTUnwrap(settled.tiles.first {$0.id=="locked"}).locked)
+        scene.onGameplayEvent=nil;scene.setSuspended(false)
+        try await Task.sleep(for:.milliseconds(450))
+        XCTAssertEqual(scene.engine.state,settled,"Retired native callbacks cannot replay after authoritative background settlement")
+    }
+
 }

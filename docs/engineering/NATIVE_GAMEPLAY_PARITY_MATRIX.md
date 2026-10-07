@@ -1,6 +1,6 @@
 # Native gameplay parity inventory
 
-Source reference: `native-benchmark-v1`, current authored TypeScript owners and Gameplay KING. Native app identity: `com.taptapdesign.stacktosix.native`. The matrix tracks implementation and evidence separately. A source port or successful build is not full gameplay/visual acceptance.
+Visual reference: immutable `production-benchmark-v9` plus later changes explicitly accepted by the user (reaffirmed2026-10-07). Same CTA, textures, fonts, colors, shadows, spacing, shapes and motion recipes; original asset/audio bytes preserved. Migration checkpoint: `native-benchmark-v1`, current accepted authored TypeScript owners and Gameplay KING. Native app identity: `com.taptapdesign.stacktosix.native`. The matrix tracks implementation and evidence separately. A source port or successful build is not full gameplay/visual acceptance.
 
 ## State and content owners
 
@@ -38,7 +38,7 @@ Swift package: `native/gameplay-state`, depending on `native/gameplay-core`. 22 
 
 | Ordinary move phases | `NativeOrdinaryMovePlan`, `NativeGameplayEngine`, actual SpriteKit absorb/postcheck receipts | Linked pure core69 and actual Ordinary5/Board27 PASS. Small-stack contact/counters are immediate, source carrier removal at80ms; conditional100/0 postcheck owns move debit. Ordinary6 contact/audio at0 and captured main at80; exact logical assignment admission remains separate from interruptible decorative bounce. Source delayed locked180/280/380 and primary130/cleanup180 assignment draft79 tests remains isolated before joint integration. |
 | Native stable save admission | `NativeSaveEnvelope.isCoherentRun`, `NativeBootstrap.record` | State23 tests PASS. Reserved transient/removal/protected6 cannot overwrite the durable coherent snapshot; background settles or cancels source-owned receipts before flush. |
-| HUD chrome / body decor | `hud-helpers.ts`, `app-core.ts`, source selected World decor | OPEN: source has Arcade-only bottom Round pill, top10px orange/beige Wild meter and no displayed Moves counter; current native prototype placement/extra counter still needs correction. |
+| HUD chrome / body decor | `hud-helpers.ts`, `app-core.ts`, source selected World decor | Native Arcade-only bottom Round pill and top10px orange/beige Wild meter replace prototype placement; displayed Moves counter removed.35 executed original viewport/safe-area samples and actual Chrome3/Paper2 PASS. Canonical paper is one fixed UIKit surface below transparent gameplay canvas; Result reuses source texture100%/gradient/tint0.4. Full HUD entry/close geometry, animated meter decor, exact final Wild-measured board geometry and selected Journey bottom decor remain OPEN. |
 
 ## All registered visual variants
 
@@ -101,3 +101,24 @@ Full closure requires no web entry in shipping configuration, all gameplay/prese
 ## Migration-only WebKit exception
 
 `NativeHybridExport` temporarily creates a blank WKWebView on `app://localhost` using this Native bundle's original default WebKit profile. It reads localStorage because those existing saves are origin/profile scoped; it never opens another app container, serves `Web.bundle`, boots gameplay, mutates the source values, or supplies normal Native UI/gameplay. Product identity is checked before construction. Export validates into one envelope and writes atomically before success; errors preserve the old profile and block silent reset. The view and navigation callbacks are disposed at completion/cancellation/12-second timeout. After successful migration the native save file is the startup owner and normal launch needs no exporter. This scoped migration transport is the only intentional WebKit exception in the new Native entry. `NativeHybridExportTests` seeds the original origin only on the dedicated QA Simulator, verifies unchanged source values and coherent durable Native save, and restores the source profile on success or failure.
+
+## Captured ordinary assignment and regular-six checkpoint
+
+Core85/85 PASS includes source outer50ms/preparation, locked180/280/380ms
+assignments, retained placeholder IDs, primary130ms awaiting actual0.56s bounce
+or valid pickup, independent180ms identity-safe cleanup, zero-success forced
+recovery0/100ms and background once-only settlement. Original callback oracle
+includes busy-ending during the awaited postcheck; exact-font admission rejects
+before revision/RNG/reservation. Actual Ordinary8 and source-layer/translated-touch
+RegularSixScene2 PASS in the66-test snapshot; an initial logical-release frame gap
+was caught and fixed before that run. Native regular-six vector smoke/shards/uncapped
+multiplier/shake match74,303 executed original TS/actual GSAP checks and six actual
+carrier tests. Latest shake owns cleanup while older accepted1s decoration finishes.
+Shared hot-factor notifications, native source frame-budget policy, Journey bottom
+decor shake and remaining generic Wild impact effects remain OPEN.
+
+The66-test snapshot passed65; its remaining Board fixture expected the former
+root UIImageView. The fixture now checks the canonical paper, its actual texture
+frame and first-child ordering while preserving initial-entry once-only checks.
+Recovery1/1PASS and actual gesture UI1PASS20.811s are recorded in CURRENT_HANDOFF. Physical verdict
+remains NEEDS PHYSICAL TEST.

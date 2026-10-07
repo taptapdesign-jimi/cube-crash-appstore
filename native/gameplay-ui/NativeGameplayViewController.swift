@@ -21,7 +21,7 @@ final class NativeGameplayViewController: UIViewController {
     var onBoardEntry: ((TimeInterval,[TimeInterval]) -> Void)?
     private let resourceRoot: URL
     private let spriteView = SKView()
-    private let initialPaper = UIImageView()
+    private let paperSurface:NativeAppPaperSurface
     private var preparedBoardEntryGeneration:UInt64?
     private var initialEntryGateRequested = false,initialEntryGateReleased = false
     private(set) var boardScene: NativeBoardScene?
@@ -46,21 +46,20 @@ final class NativeGameplayViewController: UIViewController {
 
     init(engine: NativeGameplayEngine, resourceRoot: URL) {
         self.engine = engine; self.resourceRoot = resourceRoot
+        paperSurface=NativeAppPaperSurface(artwork:JimiV9Artwork(resourceRoot:resourceRoot))
         super.init(nibName: nil, bundle: nil)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     override func loadView() {
-        let root = UIView(); root.backgroundColor = UIColor(red: 0.98, green: 0.96, blue: 0.91, alpha: 1)
+        let root = UIView(); root.backgroundColor = NativeAppPaperSurface.base
+        paperSurface.frame=root.bounds;paperSurface.autoresizingMask=[.flexibleWidth,.flexibleHeight];root.addSubview(paperSurface)
         spriteView.backgroundColor = .clear; spriteView.allowsTransparency = true
-        spriteView.ignoresSiblingOrder = true; spriteView.preferredFramesPerSecond = 60
+        spriteView.ignoresSiblingOrder = false; spriteView.preferredFramesPerSecond = 60
         spriteView.frame = root.bounds; spriteView.autoresizingMask = [.flexibleWidth,.flexibleHeight]
         spriteView.accessibilityIdentifier = "native-gameplay-board"
         root.addSubview(spriteView)
         if beforeInitialBoardEntry != nil {
-            initialPaper.image = JimiV9Artwork(resourceRoot:resourceRoot).image("assets/paper-bg.png",densityAware:true)
-            initialPaper.contentMode = .scaleAspectFill;initialPaper.clipsToBounds = true
-            initialPaper.frame = root.bounds;initialPaper.autoresizingMask = [.flexibleWidth,.flexibleHeight];root.addSubview(initialPaper)
             spriteView.isHidden = true
         }
         view = root
@@ -328,7 +327,7 @@ final class NativeGameplayViewController: UIViewController {
                 let generation = engine.state.generation
                 beforeInitialBoardEntry { [weak self] in
                     guard let self,!self.disposed,!self.initialEntryGateReleased,self.engine.state.generation == generation else { return }
-                    self.initialEntryGateReleased = true;self.initialPaper.removeFromSuperview();self.spriteView.isHidden = false
+                    self.initialEntryGateReleased = true;self.spriteView.isHidden = false
                     self.view.setNeedsLayout();self.view.layoutIfNeeded()
                 }
             }
@@ -460,7 +459,7 @@ final class NativeGameplayViewController: UIViewController {
 
     func dispose() {
         guard !disposed else { return }
-        disposed = true;laserResources=nil;beforeInitialBoardEntry = nil;initialPaper.removeFromSuperview()
+        disposed = true;laserResources=nil;beforeInitialBoardEntry = nil
         observations.forEach(NotificationCenter.default.removeObserver); observations.removeAll()
         fishFinale?.dispose(); fishFinale = nil; fishGeneration = nil
         bottleFinale?.dispose(); bottleFinale = nil; bottleGeneration = nil

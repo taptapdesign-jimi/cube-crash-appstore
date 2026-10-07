@@ -35,6 +35,14 @@ Use `SKIP_NATIVE_BUNDLE_SYNC=true` for transitional web QA/builds.
 
 ## Implementation rules
 
+**Required visual baseline:** The user explicitly reaffirmed on2026-10-07 that
+Native must retain the v9/current accepted CSS style, CTA and textures. Compare
+to immutable `production-benchmark-v9` plus explicitly accepted later changes:
+same original artwork/audio, fonts, colors, gradients, shadows, dimensions,
+spacing, shapes and animation curves. CSS is a source recipe for native layout,
+drawing and motion. No platform-default restyling or replacement artwork. Track
+and correct every known difference before marking visual parity complete.
+
 - Gameplay KING remains the behavioral authority; language changes do not waive it.
 - Start with Swift + SpriteKit for the board and UIKit/Core Animation for UI.
   Validate this choice on a complete small board before broad implementation.
@@ -78,7 +86,7 @@ Acceptance: a traceable implementation checklist, no missing registered variant.
 
 ### 2. Pure Swift gameplay core
 - [x] Implement board/tile model, stable IDs, grid classification and run modes.
-  NativeBoardState/NativeTile; linked portable core69tests PASS. Captured ordinary main/absorb/postcheck phases are connected; the next isolated79-test delayed-assignment draft is not linked proof.
+  NativeBoardState/NativeTile; linked portable core85tests PASS. Captured ordinary main/absorb/postcheck, delayed locked assignment and primary/cleanup phases are connected; Wild command-lifecycle completion remains open.
 - [ ] Port ordinary legality, stack/merge, final resolver and fail-closed errors.
 - [ ] Port spawn, moves, scoring/combo, rewards and deterministic RNG ownership.
 - [ ] Port transactions, exact-tile locks, endgame guards and generation cleanup.
@@ -160,11 +168,12 @@ Forest/Beach/Area55 full scene carriers, authored digits/clouds/bees/combat,
 music phases, result confetti/Area55 flybys and all authored Special finales
 are connected. Three original-art transition screenshots and the connected
 result/confetti/ships were visually reviewed. This does not close remaining
-delayed ordinary spawn assignments, source shared idle/impact FX, Fish media,
+Wild spawn/input command phases, source shared idle/impact FX, Fish media,
 HUD/decor parity, cold resources, default shipping activation or physical
-acceptance. The current HUD audit specifically found source Arcade-only bottom
-Round pill, top orange/beige Wild meter and no displayed Moves counter; the
-prototype native placement/extra counter still require correction.
+acceptance. Native now implements the source Arcade-only bottom Round pill, top orange/beige
+Wild meter and removes the prototype Moves counter.35 independent source layout
+samples and actual Chrome3/Paper2 checks PASS. Remaining HUD motion/close geometry,
+meter decorations, final Wild-measured board pose and Journey bottom decor stay open.
 
 Native-only QA boot uses the separate native bundle identity and original
 NativeAssets.bundle without Web.bundle. The default physical/Release entry is

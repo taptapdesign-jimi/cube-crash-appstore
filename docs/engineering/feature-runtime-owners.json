@@ -359,12 +359,19 @@
         "native/gameplay-ui/NativeGameplayViewController.swift",
         "native/gameplay-app/NativeBoardEntryHaptics.swift",
         "native/gameplay-collection/NativeHubBackpackFeedback.swift",
-        "native/gameplay-ambient/NativeJourneyAmbientOwner.swift"
+        "native/gameplay-ambient/NativeJourneyAmbientOwner.swift",
+        "native/gameplay-ui/NativeGameplayChromePlan.swift",
+        "native/gameplay-ui/NativeRoundIndicator.swift",
+        "native/gameplay-ordinary-six/NativeRegularSixSpritePresentation.swift",
+        "native/gameplay-ordinary-six/NativeRegularSixFxPlan.swift",
+        "native/gameplay-ordinary-six/NativeRegularSixFxCadence.swift",
+        "native/gameplay-ordinary-six/NativeRegularShardTemplates.swift",
+        "native/gameplay-app/NativeAppPaperSurface.swift"
       ],
       "entryOwner": "NativeAppController with injected Swift settings/progression/session services. Separate QA native-gameplay entry only until complete KING, variant, save and physical parity is proved. Current default benchmark remains recoverable.",
       "exitOwner": "Generation-owned finite route motion and World prepareGameplayExit; retired completion cannot reveal a newer route. Session state is flushed before child disposal; native core owns board transactions and endgame.",
-      "resourcePolicy": "Original asset bytes copied into separate NativeAssets.bundle by scripts/prepare-native-artwork.mjs with full inventory/hash verification; no web entry copied. Scene textures and bounded frame atlas decoding are owned by the native board surface.",
-      "animationPolicy": "Existing JimiV9Motion sampled Home/Hub recipes and UIKit Settings/World/card owners retained. SpriteKit owns board gestures and finite effects. Full Special finale, SVG/video and transition parity remain open implementation tasks.",
+      "resourcePolicy": "Original asset bytes copied into separate NativeAssets.bundle by scripts/prepare-native-artwork.mjs with full inventory/hash verification; no web entry copied. Scene textures and bounded frame atlas decoding are owned by the native board surface. NativeAppPaperSurface retains one unmodified canonical viewport texture, source gradient and0.4tint underneath the transparent SKView throughout prepared entry and canvas shake; Result uses the same surface composition. No transient duplicate texture or scene-owned background motion.",
+      "animationPolicy": "Existing JimiV9Motion sampled Home/Hub recipes and UIKit Settings/World/card owners retained. SpriteKit owns board gestures and finite effects. Full Special finale, SVG/video and transition parity remain open implementation tasks. NativeRoundIndicator owns finite source elastic entry, Round value bounce and cubic exit outside the shaken gameplay canvas; Journey hides it. NativeGameplayChromePlan places the top orange Wild meter from executed original viewport/safe-area owners. SpriteKit suspension/disposal retires these actions. Full HUD motion, decorative meter effects and bottom artwork parity remain open. NativeRegularSixSpritePresentation is a finite candidate carrier for original vector wood shards, smoke, multiplier and captured shake; source layer depths and scene-owned clock/generation/suspension/disposal are explicit. Core retains all absorb/spawn/input/endgame decisions. Actual Scene mounting and rapid shared shake ownership must be proved before carrier parity acceptance; no extra audio voice or asset conversion.",
       "audioPolicy": "NativeGameplayAudioOwner selects original authored cues and NativeSoundtrackRouteOwner uses direct native file-backed transport. Actual presentation contacts must emit captured receipts; complete Special/result cue timing and physical mix acceptance remain open.",
       "hapticPolicy": "Only committed native gameplay/contact events may emit haptics and must respect native settings. All authored events remain parity work.",
       "visibilityPolicy": "Hidden new World preparation, one visible route and one gameplay child; generation checks reject stale prepares/completions. Background suspends World/Home/Hub motion and flushes current native save. Background gesture/transaction fixtures required before release.",
@@ -376,7 +383,11 @@
         "native/standalone/Stack to SixTests/NativeHybridExportTests.swift",
         "native/standalone/Stack to SixTests/NativeBootstrapTests.swift",
         "native/gameplay-collection-tests/NativeHubBackpackFeedbackTests.swift",
-        "native/gameplay-ambient-tests/NativeJourneyAmbientTests.swift"
+        "native/gameplay-ambient-tests/NativeJourneyAmbientTests.swift",
+        "native/standalone/Stack to SixTests/NativeGameplayChromeTests.swift",
+        "native/standalone/Stack to SixTests/NativeOrdinaryPresentationTests.swift",
+        "native/gameplay-ordinary-six-tests/NativeRegularSixTests.swift",
+        "native/standalone/Stack to SixTests/NativeAppPaperTests.swift"
       ],
       "physicalAcceptance": "NEEDS PHYSICAL TEST. Work in progress; not a complete 100% native parity or approved replacement. No phone delivery from initial source migration work."
     },

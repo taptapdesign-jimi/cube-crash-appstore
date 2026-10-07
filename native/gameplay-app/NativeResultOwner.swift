@@ -95,7 +95,7 @@ final class NativeResultController:UIViewController {
     private let assets:JimiV9Artwork
     private let resourceRoot:URL
     private let headline:String
-    private let paperSurface=UIView(),paperGradient=CAGradientLayer()
+    private let paperSurface:NativeAppPaperSurface
     private var arcadePresentation:NativeArcadeRoundPresentation?
     private let content=UIView(),cardContent=UIView(),headlineContent=UIView(),statusContent=UIView(),bonusContent=UIView()
     private let stars=UIView()
@@ -134,6 +134,7 @@ final class NativeResultController:UIViewController {
     private var arcadeCue:Bool {clean && state.mode == .arcade}
     init(root:URL,state:NativeBoardState,clean:Bool,combo:Int,efficiency:Int,finalScore:Int,interimJourney:Bool=false,headlineRandom:Double=Double.random(in:0..<1)) {
         assets=JimiV9Artwork(resourceRoot:root);self.state=state;self.clean=clean
+        paperSurface=NativeAppPaperSurface(artwork:assets)
         resourceRoot=root
         self.combo=combo;self.efficiency=efficiency;self.finalScore=finalScore
         self.interimJourney=interimJourney
@@ -146,13 +147,7 @@ final class NativeResultController:UIViewController {
         view.backgroundColor = arcadeCue ? .clear : UIColor(red:243/255,green:238/255,blue:232/255,alpha:1)
         if !arcadeCue {
             paperSurface.frame=view.bounds;paperSurface.autoresizingMask=[.flexibleWidth,.flexibleHeight];paperSurface.isUserInteractionEnabled=false
-            paperGradient.frame=paperSurface.bounds
-            paperGradient.colors=[UIColor(red:243/255,green:238/255,blue:232/255,alpha:1).cgColor,UIColor(red:252/255,green:236/255,blue:223/255,alpha:1).cgColor,UIColor(red:252/255,green:236/255,blue:223/255,alpha:1).cgColor]
-            paperGradient.locations=[0,0.6,1];paperSurface.layer.addSublayer(paperGradient)
-            let paper=UIImageView(image:assets.image("assets/paper-bg.png"));paper.frame=paperSurface.bounds;paper.contentMode = .scaleToFill
-            paper.autoresizingMask=[.flexibleWidth,.flexibleHeight];paperSurface.addSubview(paper)
-            let tint=UIView(frame:paperSurface.bounds);tint.backgroundColor=view.backgroundColor?.withAlphaComponent(0.4)
-            tint.autoresizingMask=[.flexibleWidth,.flexibleHeight];paperSurface.addSubview(tint);view.addSubview(paperSurface)
+            view.addSubview(paperSurface)
         }
         view.addSubview(content);content.addSubview(cardContent);cardContent.addSubview(stars)
         cardContent.addSubview(headlineContent)
@@ -236,7 +231,6 @@ final class NativeResultController:UIViewController {
     }
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        paperGradient.frame=paperSurface.bounds
         content.frame=view.bounds
         let titleWidth=max(1,min(340,view.bounds.width*0.88)-64)
         let measured=heading.sizeThatFits(CGSize(width:titleWidth,height:CGFloat.greatestFiniteMagnitude)).height

@@ -19,6 +19,17 @@ public final class NativeGameplayEngine {
     public var stagedTntActivation = false
     public var stagedDirectWildMoves = false
     public var stagedOrdinaryMoves = false
+    public var stagedOrdinaryAssignments = false
+    public private(set) var ordinarySpawnPreparationPending = false
+    public private(set) var pendingOrdinaryAssignments:[NativeOrdinaryAssignment] = []
+    public private(set) var pendingOrdinaryDestinationCleanup:NativeOrdinaryPostcheckReceipt?
+    public private(set) var pendingOrdinaryPrimaryArrival:NativeOrdinaryAssignment?
+    private var ordinaryRefillRemaining = 0
+    private var ordinaryAssignmentsSequence = 0
+    private var ordinaryRequestedOpenings = 0
+    private var ordinarySuccessfulOpenings = 0
+    private var ordinaryForcedCandidates:[NativeTile] = []
+    private var ordinaryForcedPass = false
     public private(set) var pendingOrdinaryStack: NativeOrdinaryMovePlan?
     public private(set) var pendingOrdinarySix: NativeOrdinaryMovePlan?
     public private(set) var ordinarySixGameplayCommitted = false
@@ -38,6 +49,8 @@ public final class NativeGameplayEngine {
     public var specialPresentationAdmitted: ((NativeWildArchetype, String?) -> Bool)?
     /// Final pairs use a distinct ready roster from nonfinal mutations.
     public var finalePresentationAdmitted: ((NativeWildArchetype, String?) -> Bool)?
+    /// Ordinary six also requires its authored native multiplier/impact owner before reservation.
+    public var ordinarySixPresentationAdmitted: (() -> Bool)?
     private var specialSequence: UInt64 = 0
     private var tileSequence: UInt64 = 0
     private var specialImpactIndex = 0
@@ -72,12 +85,21 @@ public final class NativeGameplayEngine {
         state = fresh; state.generation = generation; state.revision = 0; state.terminal = nil; tileSequence = 0
         pendingSpecial = nil; pendingLaserShots = []; pendingMagnetRespawn = nil; magnetReplacementIndex = 0; specialPreBoard = nil; specialImpactIndex = 0
         pendingDirectWild = nil; directWildGameplayCommitted = false; committingDirectWild = false
-        pendingOrdinaryStack = nil; pendingOrdinarySix = nil; ordinarySixGameplayCommitted = false; pendingOrdinaryPostchecks.removeAll(); pendingOrdinarySpawns.removeAll(); committingOrdinaryStack = false
+        pendingOrdinaryStack = nil; pendingOrdinarySix = nil; ordinarySixGameplayCommitted = false; pendingOrdinaryPostchecks.removeAll(); pendingOrdinarySpawns.removeAll(); ordinarySpawnPreparationPending=false;pendingOrdinaryAssignments.removeAll();pendingOrdinaryPrimaryArrival=nil;pendingOrdinaryDestinationCleanup=nil;ordinaryRefillRemaining=0;ordinaryRequestedOpenings=0;ordinarySuccessfulOpenings=0;ordinaryForcedCandidates=[];ordinaryForcedPass=false; committingOrdinaryStack = false
         drag = nil; pendingHUDStars.removeAll(); pendingMeterRewards.removeAll(); tntReservationReleased = false; specialActivationCommitted = false; tntTargetsReserved = false; deferredFinalMerge = nil; locks.removeAll(); flags = NativeGameplayRuntimeFlags(); noMovesSignature = nil; comboLastMutationTime = nil
     }
     public func cancelForBackground() {
         drag = nil; noMovesSignature = nil
-        if let six = pendingOrdinarySix { if !ordinarySixGameplayCommitted { _ = commitOrdinarySix(receiptID:six.id,generation:six.generation) }; pendingOrdinarySpawns.removeAll(); _ = releaseOrdinarySixHandoff(receiptID:six.id,generation:six.generation) }
+        if let six = pendingOrdinarySix { if !ordinarySixGameplayCommitted { _ = commitOrdinarySix(receiptID:six.id,generation:six.generation) }; if ordinarySpawnPreparationPending {_ = prepareOrdinarySpawns(receiptID:six.id,generation:six.generation)}
+            while pendingOrdinaryPrimaryArrival != nil || !pendingOrdinaryAssignments.isEmpty {
+                if let primary=pendingOrdinaryPrimaryArrival {
+                    guard finishOrdinaryPrimarySpawn(receiptID:six.id,generation:six.generation,assignmentID:primary.id).accepted else{break}
+                } else if let slot=pendingOrdinaryAssignments.first {
+                    guard commitOrdinaryAssignment(receiptID:six.id,generation:six.generation,assignmentID:slot.id).accepted else{break}
+                }
+            }
+            if pendingOrdinaryDestinationCleanup != nil {_ = commitOrdinaryDestinationCleanup(receiptID:six.id,generation:six.generation)}
+            pendingOrdinarySpawns.removeAll(); _ = releaseOrdinarySixHandoff(receiptID:six.id,generation:six.generation) }
         if let stack = pendingOrdinaryStack { _ = finishOrdinaryStackAbsorb(receiptID:stack.id,generation:stack.generation,interrupted:true) }
         pendingOrdinaryPostchecks.removeAll() // waitTrackedResult returns cancelled on interrupted background work.
         if let direct = pendingDirectWild {
@@ -761,7 +783,10 @@ extension NativeGameplayEngine {
     public func commitOrdinaryPostcheck(receiptID:String,generation:UInt64)->NativeMoveResult {
         guard generation==state.generation,let index=pendingOrdinaryPostchecks.firstIndex(where:{$0.id==receiptID && $0.generation==generation}) else{return rejected("stale_ordinary_postcheck")}
         let receipt=pendingOrdinaryPostchecks.remove(at:index)
-        let sourceResolution=NativeGameplayResolver.resolve(state:state,flags:flags)
+        // Source entered this awaited branch before busyEnding changed. Its fresh stuck
+        // classifier must still return before moves--; only captured0ms bypasses it.
+        var postcheckFlags=flags;postcheckFlags.busyEnding=false
+        let sourceResolution=NativeGameplayResolver.resolve(state:state,flags:postcheckFlags)
         if receipt.delayMilliseconds == 0 || sourceResolution.kind != .fail {
             state.moves=max(0,state.moves-1)
         }
@@ -771,6 +796,7 @@ extension NativeGameplayEngine {
     }
     private func stageOrdinarySix(source:NativeTile,destination:NativeTile,now:Double,isFinal:Bool)->NativeMoveResult {
         guard pendingOrdinarySix==nil else{return rejected("regular_merge6_handoff")}
+        if let ordinarySixPresentationAdmitted,!ordinarySixPresentationAdmitted() {return rejected("native_ordinary_six_presentation_not_ready")}
         specialSequence &+= 1;state.revision &+= 1
         let plan=NativeOrdinaryMovePlan(id:"native-six:\(state.generation):\(specialSequence)",generation:state.generation,revision:state.revision,source:source,destination:destination,startedAt:now,isFinal:isFinal)
         pendingOrdinarySix=plan;ordinarySixGameplayCommitted=false
@@ -788,7 +814,7 @@ extension NativeGameplayEngine {
         return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
     }
     public func releaseOrdinarySixHandoff(receiptID:String,generation:UInt64)->NativeMoveResult {
-        guard generation==state.generation,let plan=pendingOrdinarySix,plan.id==receiptID,plan.generation==generation,ordinarySixGameplayCommitted,pendingOrdinarySpawns.isEmpty else{return rejected("stale_ordinary_six_handoff")}
+        guard generation==state.generation,let plan=pendingOrdinarySix,plan.id==receiptID,plan.generation==generation,ordinarySixGameplayCommitted,pendingOrdinarySpawns.isEmpty,!ordinarySpawnPreparationPending,pendingOrdinaryAssignments.isEmpty,pendingOrdinaryPrimaryArrival==nil,pendingOrdinaryDestinationCleanup==nil else{return rejected("stale_ordinary_six_handoff")}
         pendingOrdinarySix=nil;ordinarySixGameplayCommitted=false
         var events:[NativeGameplayEvent]=[];let resolution=settleDeferredFinalMerge(events:&events)
         return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolution)
@@ -806,9 +832,16 @@ extension NativeGameplayEngine {
         state.moves=max(0,state.moves-1);state.cubesCracked += 1
         let depth=plan.source.stackDepth+plan.destination.stackDepth
         state.score=min(999999,state.score+6*depth*max(1,state.combo));state.bestScore=max(state.bestScore,state.score)
+        let holdsEndgameDestination=stagedOrdinaryAssignments && !plan.isFinal && epochCurrent && !state.tiles.contains{$0.locked}
+        let destinationCarrier=state.tiles.first{$0.id==plan.destination.id}
         state.tiles.removeAll{$0.id==plan.source.id || $0.id==plan.destination.id}
+        if holdsEndgameDestination,let destinationCarrier {state.tiles.append(destinationCarrier)}
         ordinarySixGameplayCommitted=true
-        var events=[NativeGameplayEvent(.merged,tileIDs:[plan.source.id,plan.destination.id],value:6,reason:plan.id),NativeGameplayEvent(.comboChanged,value:state.combo),NativeGameplayEvent(.removed,tileIDs:[plan.source.id,plan.destination.id])]
+        var events=[NativeGameplayEvent(.merged,tileIDs:[plan.source.id,plan.destination.id],value:6,reason:plan.id),NativeGameplayEvent(.comboChanged,value:state.combo),NativeGameplayEvent(.removed,tileIDs:holdsEndgameDestination ? [plan.source.id]:[plan.source.id,plan.destination.id])]
+        if holdsEndgameDestination {
+            pendingOrdinaryDestinationCleanup=NativeOrdinaryPostcheckReceipt(id:plan.id,generation:plan.generation,delayMilliseconds:100)
+            events.append(NativeGameplayEvent(.ordinaryDestinationCleanupPrepared,value:100,reason:plan.id))
+        }
         advanceTutorialAfterMerge(source:plan.source,destination:plan.destination,events:&events)
         if plan.isFinal {
             let terminal=NativeResolution(.complete,reason:"final_regular_merge6",target:state.mode == .arcade ? "arcade-stage":"journey-board")
@@ -817,11 +850,127 @@ extension NativeGameplayEngine {
             return NativeMoveResult(accepted:true,state:state,events:events,resolution:terminal)
         }
         // BoardMutationEpochOwner rejects old spawn permits after a newer accepted stack.
-        if epochCurrent {
+        if epochCurrent && stagedOrdinaryAssignments {
+            ordinarySpawnPreparationPending=true
+            events.append(NativeGameplayEvent(.ordinarySpawnsPrepareRequested,value:50,reason:plan.id))
+        } else if epochCurrent {
             spawnRegularMerge6(at:plan.destination.cell,depth:depth,events:&events)
             pendingOrdinarySpawns.formUnion(events.filter{$0.kind == .spawned}.flatMap(\.tileIDs))
         }
         state.wildMeter += NativeWildMeterRules.increment(base:0.22,mode:state.mode,board:state.mode == .arcade ? state.stage:state.board,spawnCount:state.wildSpawnCount,tutorialSlow:state.tutorial?.completionAssist == true)
         return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
+    }
+}
+
+
+extension NativeGameplayEngine {
+    /// Independent source main+100ms cleanup: never remove a fresh owner at the same cell.
+    public func commitOrdinaryDestinationCleanup(receiptID:String,generation:UInt64)->NativeMoveResult {
+        guard generation==state.generation,let receipt=pendingOrdinaryDestinationCleanup,receipt.id==receiptID,receipt.generation==generation,let plan=pendingOrdinarySix,plan.id==receiptID else{return rejected("stale_ordinary_destination_cleanup")}
+        pendingOrdinaryDestinationCleanup=nil
+        let owned=state.tiles.contains{$0.id==plan.destination.id && $0.merge6CleanupOwned}
+        state.tiles.removeAll{$0.id==plan.destination.id && $0.merge6CleanupOwned}
+        return NativeMoveResult(accepted:true,state:state,events:owned ? [NativeGameplayEvent(.removed,tileIDs:[plan.destination.id])]:[],resolution:resolve())
+    }
+    /// app-core outer 50ms callback: select actual current placeholders only now.
+    public func prepareOrdinarySpawns(receiptID:String,generation:UInt64)->NativeMoveResult {
+        guard generation==state.generation,let plan=pendingOrdinarySix,plan.id==receiptID,ordinarySixGameplayCommitted,ordinarySpawnPreparationPending else{return rejected("stale_ordinary_spawn_preparation")}
+        ordinarySpawnPreparationPending=false
+        guard state.revision==plan.revision,state.terminal==nil else{return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())}
+        ordinaryAssignmentsSequence=0;ordinaryRequestedOpenings=0;ordinarySuccessfulOpenings=0;ordinaryForcedPass=false;ordinaryForcedCandidates=[]
+        let locked=state.tiles.filter{$0.locked}
+        if locked.isEmpty {
+            pendingOrdinaryAssignments=[ordinaryAssignment(plan:plan,cell:plan.destination.cell,tileID:nil,kind:.endgamePrimary,delay:0)]
+        } else {
+            let count=NativeSpawnRules.regularMerge6SpawnCount(plan.source.stackDepth+plan.destination.stackDepth)
+            ordinaryRequestedOpenings=count
+            let preferred=locked.filter{$0.cell==plan.destination.cell}
+            var rest=locked.filter{$0.cell != plan.destination.cell}
+            if rest.count>1 {for index in stride(from:rest.count-1,through:1,by:-1){rest.swapAt(index,min(index,Int(nextRandom()*Double(index+1))))}}
+            let picks=Array((preferred+rest).prefix(count))
+            pendingOrdinaryAssignments=picks.enumerated().map{ordinaryAssignment(plan:plan,cell:$0.element.cell,tileID:$0.element.id,kind:.locked,delay:50+100*$0.offset)}
+            ordinaryRefillRemaining=max(0,count-picks.count)
+        }
+        return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.ordinaryAssignmentsPrepared,tileIDs:pendingOrdinaryAssignments.map(\.id),reason:plan.id)],resolution:resolve())
+    }
+    private func ordinaryAssignment(plan:NativeOrdinaryMovePlan,cell:NativeCell,tileID:String?,kind:NativeOrdinaryAssignment.Kind,delay:Int)->NativeOrdinaryAssignment {
+        ordinaryAssignmentsSequence+=1
+        return NativeOrdinaryAssignment(id:"\(plan.id):opening:\(ordinaryAssignmentsSequence)",generation:plan.generation,cell:cell,tileID:tileID,kind:kind,delayMilliseconds:delay)
+    }
+    /// Values/RNG/input commit at the actual captured opening callback, never at batch reservation.
+    public func commitOrdinaryAssignment(receiptID:String,generation:UInt64,assignmentID:String)->NativeMoveResult {
+        guard generation==state.generation,let plan=pendingOrdinarySix,plan.id==receiptID,pendingOrdinaryPrimaryArrival==nil,
+              let first=pendingOrdinaryAssignments.first,first.id==assignmentID,first.generation==generation else{return rejected("stale_or_out_of_order_ordinary_assignment")}
+        pendingOrdinaryAssignments.removeFirst()
+        var events:[NativeGameplayEvent]=[]
+        guard state.terminal==nil,state.revision==plan.revision else {
+            ordinaryRefillRemaining=0
+            return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
+        }
+        if first.kind == .locked || first.kind == .forcedLocked {
+            if let index=state.tiles.firstIndex(where:{$0.id==first.tileID && $0.locked}) {
+                let value=randomValue();state.tiles[index].locked=false;state.tiles[index].value=value;state.tiles[index].stackDepth=1
+                state.tiles[index].archetype=nil;state.tiles[index].variant=nil;state.tiles[index].alpha=1;state.tiles[index].visible=true
+                // resetTileToNormalState releases registry resolution; TNT's independent bonus reservation survives.
+                let reopenedID=state.tiles[index].id
+                state.tiles[index].resolutionOwned=pendingSpecial.map{special in special.archetype == .tnt && special.targets.dropFirst(specialImpactIndex).contains{$0.id==reopenedID}} ?? false
+                state.tiles[index].magnetOwned=false;state.tiles[index].transientSpawn=false
+                events.append(NativeGameplayEvent(.spawned,tileIDs:[state.tiles[index].id],value:value,reason:first.id))
+                ordinarySuccessfulOpenings+=1
+            }
+            if pendingOrdinaryAssignments.isEmpty {finishOrdinaryLockedBatch(plan:plan,events:&events)}
+        } else {
+            // Endgame forceClearSpawnCell removes this exact protected destination before openAtCell.
+            if first.kind == .endgamePrimary,let holder=state.tile(at:first.cell),holder.id==plan.destination.id,holder.merge6CleanupOwned {
+                state.tiles.removeAll{$0.id==holder.id}
+                events.append(NativeGameplayEvent(.removed,tileIDs:[holder.id]))
+            }
+            // openAtCellCore refuses a valued/current active holder before drawing a face.
+            if let holder=state.tile(at:first.cell),holder.value>0 || holder.isWild || !holder.locked {
+                ordinaryRefillRemaining=0
+                return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
+            }
+            state.tiles.removeAll{$0.cell==first.cell}
+            let tile=freshTile(cell:first.cell,value:randomValue());state.tiles.append(tile)
+            pendingOrdinaryPrimaryArrival=first
+            events.append(NativeGameplayEvent(.spawned,tileIDs:[tile.id],value:tile.value,reason:first.id))
+        }
+        return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
+    }
+    /// Primary/remainder openAtCell Promise completes on its actual bounce or lifecycle interrupt.
+    public func finishOrdinaryPrimarySpawn(receiptID:String,generation:UInt64,assignmentID:String,interrupted:Bool=false)->NativeMoveResult {
+        guard generation==state.generation,let plan=pendingOrdinarySix,plan.id==receiptID,let slot=pendingOrdinaryPrimaryArrival,slot.id==assignmentID else{return rejected("stale_ordinary_primary_arrival")}
+        pendingOrdinaryPrimaryArrival=nil
+        var events:[NativeGameplayEvent]=[]
+        if interrupted {ordinaryRefillRemaining=0}else{continueOrdinaryRefill(plan:plan,events:&events)}
+        return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
+    }
+    private func finishOrdinaryLockedBatch(plan:NativeOrdinaryMovePlan,events:inout [NativeGameplayEvent]) {
+        if ordinarySuccessfulOpenings==0 && !ordinaryForcedPass {
+            // app-core forceUnlockLockedTiles: stable merge-cell priority, no shuffle draw.
+            ordinaryForcedPass=true
+            let locked=state.tiles.filter{$0.locked}
+            ordinaryForcedCandidates=locked.filter{$0.cell==plan.destination.cell}+locked.filter{$0.cell != plan.destination.cell}
+        }
+        if ordinaryForcedPass && ordinarySuccessfulOpenings<ordinaryRequestedOpenings && !ordinaryForcedCandidates.isEmpty {
+            let candidate=ordinaryForcedCandidates.removeFirst()
+            let slot=ordinaryAssignment(plan:plan,cell:candidate.cell,tileID:candidate.id,kind:.forcedLocked,delay:ordinarySuccessfulOpenings>0 ? 100:0)
+            pendingOrdinaryAssignments=[slot]
+            events.append(NativeGameplayEvent(.ordinaryAssignmentsPrepared,tileIDs:[slot.id],reason:plan.id))
+            return
+        }
+        ordinaryRefillRemaining=max(0,ordinaryRequestedOpenings-ordinarySuccessfulOpenings)
+        ordinaryForcedCandidates=[]
+        continueOrdinaryRefill(plan:plan,events:&events)
+    }
+    private func continueOrdinaryRefill(plan:NativeOrdinaryMovePlan,events:inout [NativeGameplayEvent]) {
+        guard ordinaryRefillRemaining>0,state.revision==plan.revision,state.terminal==nil else{ordinaryRefillRemaining=0;return}
+        ordinaryRefillRemaining-=1
+        let cells=NativeMagnetRules.emptyCells(state:state,excluding:[plan.destination.cell])
+        guard !cells.isEmpty else{ordinaryRefillRemaining=0;return}
+        let cell=cells[min(cells.count-1,Int(nextRandom()*Double(cells.count)))]
+        let slot=ordinaryAssignment(plan:plan,cell:cell,tileID:nil,kind:.remainderPrimary,delay:0)
+        pendingOrdinaryAssignments.append(slot)
+        events.append(NativeGameplayEvent(.ordinaryAssignmentsPrepared,tileIDs:[slot.id],reason:plan.id))
     }
 }

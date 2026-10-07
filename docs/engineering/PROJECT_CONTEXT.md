@@ -14,6 +14,14 @@ historical/product references, not the default build/sync target for Native work
 `production-benchmark-v9` remains the approved PWA recovery reference. Never
 mix saves, install targets or bundle sync destinations between those products.
 
+**Native visual preservation (explicit user instruction, 2026-10-07):** Keep
+the approved v9 authored CSS appearance, CTA, textures, fonts, colors, shadows,
+shapes, spacing and animation recipes. `production-benchmark-v9` is the visual
+reference, together with later changes explicitly accepted by the user. Translate
+these recipes into native drawing/layout/motion; platform defaults do not replace
+them. Preserve every original artwork/audio byte. Any unresolved difference stays
+in the parity checklist; native implementation alone is not visual acceptance.
+
 ## Product identity and repositories
 
 - Product/app name: **Stack to Six**.

@@ -4,6 +4,18 @@ final class NativeOrdinaryPhaseTests:XCTestCase {
     func die(_ id:String,_ value:Int,_ column:Int)->NativeTile{NativeTile(id:id,cell:NativeCell(column:column,row:0),value:value)}
     func engine(_ values:[Int])->NativeGameplayEngine{let e=NativeGameplayEngine(state:NativeBoardState(tiles:values.enumerated().map{die("d\($0.offset)",$0.element,$0.offset)}),recordedRandomChoices:Array(repeating:0,count:100));e.stagedOrdinaryMoves=true;return e}
     @discardableResult func drop(_ e:NativeGameplayEngine,_ source:String,_ column:Int,_ time:Double=0)->NativeMoveResult{XCTAssertTrue(e.beginDrag(tileID:source));return e.drop(target:NativeCell(column:column,row:0),now:time)}
+    func testMissingOrdinarySixPresentationRejectsBeforeReservationAndReadinessCanRecover() {
+        for values in [[1,5],[1,5,2,1]] {
+            let e=engine(values),before=e.state
+            e.ordinarySixPresentationAdmitted={false}
+            let rejected=drop(e,"d0",1)
+            XCTAssertFalse(rejected.accepted);XCTAssertEqual(rejected.events.first?.reason,"native_ordinary_six_presentation_not_ready")
+            XCTAssertEqual(e.state,before);XCTAssertNil(e.pendingOrdinarySix);XCTAssertTrue(e.pendingOrdinarySpawns.isEmpty)
+            e.ordinarySixPresentationAdmitted={true}
+            XCTAssertTrue(drop(e,"d0",1).accepted);XCTAssertEqual(e.pendingOrdinarySix?.id,"native-six:\(before.generation):1")
+            XCTAssertEqual(e.state.rngState,before.rngState);XCTAssertEqual(e.state.moves,before.moves);XCTAssertEqual(e.state.score,before.score)
+        }
+    }
     func testOrdinarySixProtectsCapturedCarrierBeforeActual80msMain() {
         let e=engine([1,5,2,1]);let rng=e.state.rngState
         XCTAssertTrue(drop(e,"d0",1,10).accepted);let p=e.pendingOrdinarySix!
@@ -52,6 +64,14 @@ final class NativeOrdinaryPhaseTests:XCTestCase {
         let fail=engine([3,2]);XCTAssertTrue(drop(fail,"d0",1).accepted);let q=fail.pendingOrdinaryStack!
         XCTAssertTrue(fail.finishOrdinaryStackAbsorb(receiptID:q.id,generation:q.generation).accepted)
         XCTAssertTrue(fail.commitOrdinaryPostcheck(receiptID:q.id,generation:q.generation).accepted);XCTAssertEqual(fail.state.moves,50);XCTAssertEqual(fail.resolve().kind,.fail)
+    }
+    func testBusyEndingChangedDuringActualPostcheckWaitCannotCreateMoveDebitBeforeFailReturn() {
+        let e=engine([3,2]);XCTAssertTrue(drop(e,"d0",1).accepted);let p=e.pendingOrdinaryStack!
+        XCTAssertTrue(e.finishOrdinaryStackAbsorb(receiptID:p.id,generation:p.generation).accepted)
+        XCTAssertEqual(e.pendingOrdinaryPostchecks.first?.delayMilliseconds,100)
+        var flags=e.flags;flags.busyEnding=true;e.setRuntimeFlags(flags)
+        XCTAssertTrue(e.commitOrdinaryPostcheck(receiptID:p.id,generation:p.generation).accepted)
+        XCTAssertEqual(e.state.moves,50);XCTAssertEqual(e.state.score,5)
     }
     func testInterruptedSmallStackFinalizesBoardButDoesNotInventDebitedMove()throws {
         let e=engine([1,2,1]);XCTAssertTrue(drop(e,"d0",1).accepted);let p=e.pendingOrdinaryStack!
