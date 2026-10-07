@@ -35,13 +35,22 @@ Use `SKIP_NATIVE_BUNDLE_SYNC=true` for transitional web QA/builds.
 
 ## Implementation rules
 
-**Required visual baseline:** The user explicitly reaffirmed on2026-10-07 that
+**Required visual baseline:** The user explicitly reaffirmed on2026-10-07 and2026-10-08 that
 Native must retain the v9/current accepted CSS style, CTA and textures. Compare
 to immutable `production-benchmark-v9` plus explicitly accepted later changes:
 same original artwork/audio, fonts, colors, gradients, shadows, dimensions,
 spacing, shapes and animation curves. CSS is a source recipe for native layout,
 drawing and motion. No platform-default restyling or replacement artwork. Track
 and correct every known difference before marking visual parity complete.
+
+Remaining HUD motion must preserve the original timing as well as appearance:
+close uses the authored220ms three-phase bounce (77/77/66ms,0.92/1.06/1,
+original cubic-bezier solver), with immediate modal opening and the source
+gameplay pause. HUD drop starts at the actual tile-entry midpoint plus two
+paint callbacks, not at entry start; it uses140px travel and0.8s
+elastic.out(1,0.6). HUD rise uses0.3s power2.in and the actual HUD top,
+not the prototype100px destination. These remain open until connected native
+motion and lifecycle are verified; current geometry tests do not close them.
 
 - Gameplay KING remains the behavioral authority; language changes do not waive it.
 - Start with Swift + SpriteKit for the board and UIKit/Core Animation for UI.
