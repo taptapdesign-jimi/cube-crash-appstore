@@ -15,6 +15,8 @@ public struct NativeTile: Identifiable, Equatable, Codable, Sendable {
     public var starOrbitCount: Int
     public var archetype: NativeWildArchetype?
     public var variant: String?
+    /// Literal first-face Wild re-entry with special still nil, only within captured Source transaction.
+    public var sourceResidualWildPresence:Bool
     public var sourceWildStateCleared: Bool
     public var locked: Bool
     public var visible: Bool
@@ -25,11 +27,11 @@ public struct NativeTile: Identifiable, Equatable, Codable, Sendable {
     public var resolutionOwned: Bool
     public var merge6CleanupOwned: Bool
     public var nonFinalMerge6: Bool
-    public init(id: String, cell: NativeCell, value: Int, stackDepth: Int = 1, starOrbitCount: Int = 3, archetype: NativeWildArchetype? = nil, variant: String? = nil, sourceWildStateCleared: Bool = false, locked: Bool = false, visible: Bool = true, alpha: Double = 1, pendingRemoval: Bool = false, transientSpawn: Bool = false, magnetOwned: Bool = false, resolutionOwned: Bool = false, merge6CleanupOwned: Bool = false, nonFinalMerge6: Bool = false) {
-        self.id = id; self.cell = cell; self.value = value; self.stackDepth = stackDepth; self.starOrbitCount = starOrbitCount; self.archetype = archetype; self.variant = variant; self.sourceWildStateCleared = sourceWildStateCleared; self.locked = locked; self.visible = visible; self.alpha = alpha; self.pendingRemoval = pendingRemoval; self.transientSpawn = transientSpawn; self.magnetOwned = magnetOwned; self.resolutionOwned = resolutionOwned; self.merge6CleanupOwned = merge6CleanupOwned; self.nonFinalMerge6 = nonFinalMerge6
+    public init(id: String, cell: NativeCell, value: Int, stackDepth: Int = 1, starOrbitCount: Int = 3, archetype: NativeWildArchetype? = nil, variant: String? = nil, sourceWildStateCleared: Bool = false, sourceResidualWildPresence:Bool = false, locked: Bool = false, visible: Bool = true, alpha: Double = 1, pendingRemoval: Bool = false, transientSpawn: Bool = false, magnetOwned: Bool = false, resolutionOwned: Bool = false, merge6CleanupOwned: Bool = false, nonFinalMerge6: Bool = false) {
+        self.id = id; self.cell = cell; self.value = value; self.stackDepth = stackDepth; self.starOrbitCount = starOrbitCount; self.archetype = archetype; self.variant = variant; self.sourceWildStateCleared = sourceWildStateCleared; self.sourceResidualWildPresence=sourceResidualWildPresence; self.locked = locked; self.visible = visible; self.alpha = alpha; self.pendingRemoval = pendingRemoval; self.transientSpawn = transientSpawn; self.magnetOwned = magnetOwned; self.resolutionOwned = resolutionOwned; self.merge6CleanupOwned = merge6CleanupOwned; self.nonFinalMerge6 = nonFinalMerge6
     }
     public var gameplayArchetype: NativeWildArchetype? { sourceWildStateCleared ? nil:variant.flatMap { NativeSpecialDiceRegistry.variants[$0]?.archetype } ?? archetype }
-    public var isWild: Bool { gameplayArchetype != nil }
+    public var isWild: Bool { sourceResidualWildPresence || gameplayArchetype != nil }
     public var countsAsFinalMergeActive: Bool {
         guard !pendingRemoval, visible, alpha > 0.01 else { return false }
         if isWild { return !magnetOwned && (!locked || alpha > 0.35) }
@@ -158,12 +160,12 @@ public struct NativeHUDStarReceipt: Equatable, Sendable {
 }
 
 extension NativeTile {
-    private enum CodingKeys: String, CodingKey { case id,cell,value,stackDepth,starOrbitCount,archetype,variant,sourceWildStateCleared,locked,visible,alpha,pendingRemoval,transientSpawn,magnetOwned,resolutionOwned,merge6CleanupOwned,nonFinalMerge6 }
+    private enum CodingKeys: String, CodingKey { case id,cell,value,stackDepth,starOrbitCount,archetype,variant,sourceWildStateCleared,sourceResidualWildPresence,locked,visible,alpha,pendingRemoval,transientSpawn,magnetOwned,resolutionOwned,merge6CleanupOwned,nonFinalMerge6 }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy:CodingKeys.self)
         self.init(id:try c.decode(String.self,forKey:.id),cell:try c.decode(NativeCell.self,forKey:.cell),value:try c.decode(Int.self,forKey:.value),
             stackDepth:try c.decodeIfPresent(Int.self,forKey:.stackDepth) ?? 1,starOrbitCount:try c.decodeIfPresent(Int.self,forKey:.starOrbitCount) ?? 3,
-            archetype:try c.decodeIfPresent(NativeWildArchetype.self,forKey:.archetype),variant:try c.decodeIfPresent(String.self,forKey:.variant),sourceWildStateCleared:try c.decodeIfPresent(Bool.self,forKey:.sourceWildStateCleared) ?? false,
+            archetype:try c.decodeIfPresent(NativeWildArchetype.self,forKey:.archetype),variant:try c.decodeIfPresent(String.self,forKey:.variant),sourceWildStateCleared:try c.decodeIfPresent(Bool.self,forKey:.sourceWildStateCleared) ?? false,sourceResidualWildPresence:try c.decodeIfPresent(Bool.self,forKey:.sourceResidualWildPresence) ?? false,
             locked:try c.decodeIfPresent(Bool.self,forKey:.locked) ?? false,visible:try c.decodeIfPresent(Bool.self,forKey:.visible) ?? true,alpha:try c.decodeIfPresent(Double.self,forKey:.alpha) ?? 1,
             pendingRemoval:try c.decodeIfPresent(Bool.self,forKey:.pendingRemoval) ?? false,transientSpawn:try c.decodeIfPresent(Bool.self,forKey:.transientSpawn) ?? false,
             magnetOwned:try c.decodeIfPresent(Bool.self,forKey:.magnetOwned) ?? false,resolutionOwned:try c.decodeIfPresent(Bool.self,forKey:.resolutionOwned) ?? false,

@@ -99,6 +99,10 @@ public final class NativeGameplayEngine {
     public private(set) var noMovesSignature: String?
     /// Opt-in until the authored Scene transport and final exit are admitted.
     public var stagedSourceNoMoves = false
+    /// nil preserves existing Native conservative guards; actual Source owners only.
+    public var sourceNoMovesRuntimeAuthority:NativeSourceNoMovesRuntimeAuthority?
+    private var sourceNoMovesAuthorityReading=false
+    private var sourceNoMovesLastAuthoritySnapshot:NativeSourceNoMovesRuntimeSnapshot?
     public var noMovesTileRuntime:[String:NativeNoMovesTileRuntime]=[:]
     public var sourceWildRetryPending=false
     public var sourceNonFinalMerge6Guard=false
@@ -183,6 +187,13 @@ public final class NativeGameplayEngine {
     public private(set) var pendingDirectWild: NativeDirectWildMovePlan?
     public private(set) var directWildGameplayCommitted = false
     public private(set) var sourceDirectWildPrefix: NativeSourceDirectWildPrefixReceipt?
+    public private(set) var pendingSourceWildDestinationFace:NativeSourceWildDestinationFaceReceipt?
+    public private(set) var completedSourceWildDestinationFace:NativeSourceWildDestinationFaceReceipt?
+    private func sourceDirectWildLiveDestination(_ prefix:NativeSourceDirectWildPrefixReceipt)->NativeTile {
+        if let face=completedSourceWildDestinationFace,face.transactionID==prefix.id,face.generation==prefix.generation{return face.afterFace}
+        return prefix.preparedDestination
+    }
+
     private var committingDirectWild = false
     private var directWildPointerID = 0
     public private(set) var specialActivationCommitted = false
@@ -240,7 +251,7 @@ public final class NativeGameplayEngine {
         sourceMagnetPostCommit=nil;pendingSourceMagnetFallback=nil;pendingSourceMagnetFallbackOpen=nil;sourceMagnetFallbackIndex=0;sourceMagnetFallbackValueCommitted=false
         pendingSpecial = nil; pendingLaserShots = []; pendingMagnetRespawn = nil; magnetReplacementIndex = 0; specialPreBoard = nil; specialImpactIndex = 0
         directWildPrimaryRecovery?.cancelForLifecycle();directWildPrimaryRecovery=nil;directWildSpawnPhase?.cancelForLifecycle();directWildSpawnPhase=nil;pendingWildSpawnActions=[];pendingWildSpawnArrivals=[];pendingWildLockedBonusPresentations=[];wildPhaseScheduledID=nil;directWildVisualReleased=false
-        pendingDirectWild = nil; sourceDirectWildPrefix = nil; directWildGameplayCommitted = false; committingDirectWild = false
+        pendingDirectWild = nil; sourceDirectWildPrefix = nil;pendingSourceWildDestinationFace=nil;completedSourceWildDestinationFace=nil; directWildGameplayCommitted = false; committingDirectWild = false
         pendingSourceSpecialAbsorb=nil;sourceSpecialAbsorbMainEntered=false
         pendingOrdinaryStack = nil; pendingOrdinarySix = nil; ordinarySixGameplayCommitted = false; pendingOrdinaryPostchecks.removeAll(); pendingOrdinarySpawns.removeAll(); ordinarySpawnPreparationPending=false;pendingOrdinaryAssignments.removeAll();pendingOrdinaryPrimaryArrival=nil;pendingOrdinaryDestinationCleanup=nil;ordinaryRefillRemaining=0;ordinaryRequestedOpenings=0;ordinarySuccessfulOpenings=0;ordinaryForcedCandidates=[];ordinaryForcedPass=false; committingOrdinaryStack = false
         drag = nil; sourceHUDStarJobs.removeAll(); sourceHUDStarJobSequence=0; pendingHUDStars.removeAll(); pendingMeterRewards.removeAll(); tntReservationReleased = false; specialActivationCommitted = false; tntTargetsReserved = false; deferredFinalMerge = nil; locks.removeAll(); flags = NativeGameplayRuntimeFlags(); noMovesSignature = nil; comboLastMutationTime = nil
@@ -355,7 +366,7 @@ public final class NativeGameplayEngine {
         let prefixPlan: NativeDirectWildMovePlan? = {
             guard committingDirectWild,let plan=pendingDirectWild,let prefix=sourceDirectWildPrefix,
                   prefix.id==plan.id,prefix.generation==state.generation,prefix.revision==state.revision,
-                  liveSource==plan.source,liveDestination==prefix.preparedDestination else{return nil}
+                  liveSource==plan.source,liveDestination==sourceDirectWildLiveDestination(prefix) else{return nil}
             return plan
         }()
         let source=prefixPlan?.source ?? liveSource,destination=prefixPlan?.destination ?? liveDestination
@@ -507,7 +518,7 @@ public final class NativeGameplayEngine {
             source=plan.source;destination=plan.destination;archetype=plan.archetype
             wildSourceResolutionBoundary=(plan.id,plan.generation)
             locks.removeValue(forKey:plan.id);flags.pendingSpecialMutation=false
-            pendingDirectWild=nil;sourceDirectWildPrefix=nil;directWildGameplayCommitted=false;directWildVisualReleased=false
+            pendingDirectWild=nil;sourceDirectWildPrefix=nil;pendingSourceWildDestinationFace=nil;completedSourceWildDestinationFace=nil;directWildGameplayCommitted=false;directWildVisualReleased=false
         } else{return rejected("stale_source_six_absorb_interrupt")}
         // isWildMagnet is saved from BOTH captured Source identities, independently
         // of the selected dominant family (e.g. Magnet + TNT).
@@ -536,7 +547,7 @@ public final class NativeGameplayEngine {
               state.tiles.first(where:{$0.id==plan.source.id})==plan.source,
               let index=state.tiles.firstIndex(where:{$0.id==plan.destination.id}),state.tiles[index]==plan.destination else{return rejected("source_direct_prefix_not_ready")}
         var prepared=plan.destination
-        prepared.value=6;prepared.archetype=nil;prepared.sourceWildStateCleared=true
+        prepared.value=6;prepared.archetype=nil;prepared.sourceWildStateCleared=true;prepared.sourceResidualWildPresence=false
         if !prepared.locked {prepared.alpha=1}
         prepared.stackDepth=plan.isFinal ? 1:min(4,plan.source.stackDepth+plan.destination.stackDepth)
         // Final hide suppresses child artwork; Source parent visibility is
@@ -546,12 +557,41 @@ public final class NativeGameplayEngine {
         return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
     }
 
+    /// Original first face callback can re-enter Wild rendering because actual
+    /// construction remembered _ccWildSpecial. This captures that selected
+    /// core-Star/Juice destination; it never chooses a regular skin or draws RNG.
+    public func prepareSourceWildDestinationFace(transactionID:String,generation:UInt64)->NativeSourceWildDestinationFaceReceipt? {
+        guard generation==state.generation,let plan=pendingDirectWild,plan.id==transactionID,
+              plan.generation==generation,plan.revision==state.revision,!directWildGameplayCommitted,
+              let prefix=sourceDirectWildPrefix,prefix.id==plan.id,
+              pendingSourceWildDestinationFace==nil,completedSourceWildDestinationFace==nil,
+              plan.destination.variant==nil,plan.destination.isWild,
+              plan.destination.gameplayArchetype == .star || plan.destination.gameplayArchetype == .juice,
+              state.tiles.first(where:{$0.id==plan.destination.id})==prefix.preparedDestination else{return nil}
+        var after=prefix.preparedDestination;after.stackDepth=1;after.sourceResidualWildPresence=true
+        let receipt=NativeSourceWildDestinationFaceReceipt(id:plan.id+":wild-first-face",transactionID:plan.id,
+            generation:generation,revision:plan.revision,originalDestination:plan.destination,
+            beforeFace:prefix.preparedDestination,afterFace:after,assetPath:"assets/wild.png")
+        pendingSourceWildDestinationFace=receipt;return receipt
+    }
+    /// Only the real first face RAF calls this. No timeout/main80 manufactures it.
+    public func commitSourceWildDestinationFace(receiptID:String,generation:UInt64)->NativeMoveResult {
+        guard generation==state.generation,let receipt=pendingSourceWildDestinationFace,receipt.id==receiptID,
+              receipt.generation==generation,receipt.revision==state.revision,let plan=pendingDirectWild,
+              plan.id==receipt.transactionID,!directWildGameplayCommitted,state.terminal==nil,
+              sourceDirectWildPrefix?.id==plan.id,
+              let index=state.tiles.firstIndex(where:{$0.id==receipt.beforeFace.id}),
+              state.tiles[index]==receipt.beforeFace else{return rejected("source_wild_first_face_not_ready")}
+        state.tiles[index]=receipt.afterFace;pendingSourceWildDestinationFace=nil;completedSourceWildDestinationFace=receipt
+        return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
+    }
+
     /// Called at the actual 80 ms absorb completion. Uses live earned HUD score, not a stale saved board.
     public func commitDirectWildGameplay(transactionID: String) -> NativeMoveResult {
         guard let plan = pendingDirectWild,plan.id == transactionID,plan.generation == state.generation,
               plan.revision == state.revision,state.terminal == nil,!directWildGameplayCommitted,
               state.tiles.first(where:{ $0.id == plan.source.id }) == plan.source,
-              state.tiles.first(where:{ $0.id == plan.destination.id }) == (sourceDirectWildPrefix?.preparedDestination ?? plan.destination),
+              state.tiles.first(where:{ $0.id == plan.destination.id }) == (sourceDirectWildPrefix.map{sourceDirectWildLiveDestination($0)} ?? plan.destination),
               sourceDirectWildPrefix == nil || (sourceDirectWildPrefix?.id==plan.id && sourceDirectWildPrefix?.generation==state.generation && sourceDirectWildPrefix?.revision==plan.revision) else { return rejected("direct_wild_commit_not_ready") }
         // Original main80 callback returns before combo, score, move debit or RNG when
         // another terminal owner is active. Abort repairs captured identities only.
@@ -560,7 +600,7 @@ public final class NativeGameplayEngine {
             let removed=[plan.destination.id,plan.source.id]
             state.tiles.removeAll { removed.contains($0.id) }
             locks.removeValue(forKey:plan.id); flags.pendingSpecialMutation=false
-            pendingDirectWild=nil;sourceDirectWildPrefix=nil;directWildGameplayCommitted=false;drag=nil
+            pendingDirectWild=nil;sourceDirectWildPrefix=nil;pendingSourceWildDestinationFace=nil;completedSourceWildDestinationFace=nil;directWildGameplayCommitted=false;drag=nil
             let check=NativeWildRecoveryCheck(id:plan.id+":recovery",generation:plan.generation,delayMilliseconds:120,reason:"merge6-terminal-owner-active")
             pendingWildRecoveryChecks.append(check)
             return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.removed,tileIDs:removed,reason:check.reason),NativeGameplayEvent(.wildRecoveryCheckPrepared,reason:check.id)],resolution:resolve())
@@ -579,7 +619,7 @@ public final class NativeGameplayEngine {
             }
             pendingDirectWild = nil; return result
         }
-        sourceDirectWildPrefix=nil
+        sourceDirectWildPrefix=nil;pendingSourceWildDestinationFace=nil;completedSourceWildDestinationFace=nil
         directWildGameplayCommitted = true
         // Star/Juice source visual gates restrict Wild/Special while ordinary input is released.
         locks[plan.id] = directWildSpawnPhase == nil
@@ -1605,7 +1645,7 @@ extension NativeGameplayEngine {
     }
     private func wildAction(phase:NativeWildSpawnPhaseOwner.Command,kind:NativeWildSpawnAction.Kind,cell:NativeCell?,tileID:String?=nil,delay:Int)->NativeWildSpawnAction {
         wildActionSequence+=1
-        return NativeWildSpawnAction(id:"\(phase.id):action:\(wildActionSequence)",transactionID:directWildSpawnPhase!.id,generation:phase.generation,phaseID:phase.id,kind:kind,cell:cell,tileID:tileID,delayMilliseconds:delay)
+        return NativeWildSpawnAction(id:"\(phase.id):action:\(wildActionSequence)",transactionID:directWildSpawnPhase!.id,generation:phase.generation,phaseID:phase.id,kind:kind,cell:cell,tileID:tileID,delayMilliseconds:delay,sourceLevelFlow:kind == .locked && [.baseLocked,.extraLocked,.remainderFallback,.emergencyLocked].contains(phase.kind))
     }
     /// Owns the live selection boundary; the renderer never derives an opening from a stale snapshot.
     private func pumpWildSpawnPhases(events:inout [NativeGameplayEvent]) {
@@ -1794,7 +1834,42 @@ extension NativeGameplayEngine {
         }
         return runtime
     }
-    private func sourceNoMovesGuard(initial:String)->NativeNoMovesCandidateOwner.Guard {
+    private var sourceNoMovesAuthorityPhaseKey:Int? {
+        guard let phase=sourceNoMovesOwner.phase else{return nil}
+        switch phase {case .waiting:return 0;case .exiting:return 1;case .awaitingPostLock:return 2}
+    }
+    private func sourceNoMovesGuard(initial:String,beginning:Bool=false)->NativeNoMovesCandidateOwner.Guard {
+        sourceNoMovesLastAuthoritySnapshot=nil
+        if let authority=sourceNoMovesRuntimeAuthority {
+            var refused=NativeNoMovesCandidateOwner.Guard(initialSignature:initial,currentSignature:sourceGameplaySignature.key)
+            refused.freshCheckFailed=true
+            guard stagedSourceNoMoves,!sourceNoMovesAuthorityReading else{return refused}
+            sourceNoMovesAuthorityReading=true;defer{sourceNoMovesAuthorityReading=false}
+            let capturedState=state,capturedFlags=flags,capturedLocks=locks
+            let capturedActive=sourceNoMovesOwner.active,capturedConfirmed=sourceNoMovesConfirmed,capturedPhase=sourceNoMovesAuthorityPhaseKey
+            func owned()->Bool {
+                sourceNoMovesRuntimeAuthority === authority && state==capturedState &&
+                flags==capturedFlags && locks==capturedLocks && sourceNoMovesOwner.active==capturedActive &&
+                sourceNoMovesConfirmed==capturedConfirmed && sourceNoMovesAuthorityPhaseKey==capturedPhase
+            }
+            guard owned() else{return refused}
+            let current=authority.isCurrent()
+            guard current,owned(),stagedSourceNoMoves else{return refused}
+            let observation=authority.capture()
+            guard owned(),stagedSourceNoMoves else{return refused}
+            let stillCurrent=authority.isCurrent()
+            guard stillCurrent,owned(),stagedSourceNoMoves,let observation,
+                observation.complete,observation.state==capturedState else{return refused}
+            sourceNoMovesLastAuthoritySnapshot=observation
+            var result=NativeNoMovesCandidateOwner.Guard(initialSignature:beginning ? observation.signature.key:initial,currentSignature:observation.signature.key)
+            result.freshEndgameType=observation.freshResult.kind == .fail ? "stuck":observation.freshResult.kind == .complete ? "clean":"continue"
+            result.wildContinuation=observation.wildContinuationPending
+            result.gameplayTransaction=observation.gameplayTransactionActive
+            result.activeDrag=observation.livingDragActive
+            result.endgameGuard=observation.endgameGuardActive
+            return result
+        }
+
         // Literal forced checker autoClearStaleFlag. An interactive stale spawn
         // marker is retired before fresh classification; no synthetic arrival.
         for index in state.tiles.indices {
@@ -1820,10 +1895,11 @@ extension NativeGameplayEngine {
     public func beginSourceNoMoves(origin:NativeNoMovesOrigin,extraWaitMilliseconds:Int=0)->NativeNoMovesCandidateOwner.Effect {
         guard stagedSourceNoMoves,state.terminal==nil,sourceNoMovesConfirmed==nil else{return .ignored}
         if sourceNoMovesOwner.active != nil || flags.busyEnding || sourceSaveRuntime.busyEnding {return .ignored}
-        let snapshot=sourceNoMovesGuard(initial:sourceGameplaySignature.key)
+        let snapshot=sourceNoMovesGuard(initial:sourceGameplaySignature.key,beginning:true)
         // Source preflight can defer Wild before candidate allocation.
         if let block=snapshot.blockReason{return .deferred(block)}
-        guard let trigger=NativeNoMovesTriggerClassifier.classify(state:state,origin:origin,runtime:sourceNoMovesEffectiveTileRuntime) else{return .ignored}
+        let classifiedRuntime=sourceNoMovesRuntimeAuthority == nil ? sourceNoMovesEffectiveTileRuntime:sourceNoMovesLastAuthoritySnapshot?.tiles ?? [:]
+        guard let trigger=NativeNoMovesTriggerClassifier.classify(state:state,origin:origin,runtime:classifiedRuntime) else{return .ignored}
         let effect=sourceNoMovesOwner.begin(trigger:trigger,busyEnding:flags.busyEnding || sourceSaveRuntime.busyEnding,extraWaitMilliseconds:extraWaitMilliseconds,guard:snapshot)
         if case .candidate = effect {sourceNoMovesGeneration=state.generation}
         return effect
@@ -1845,7 +1921,7 @@ extension NativeGameplayEngine {
         let effect=applySourceNoMovesEffect(sourceNoMovesOwner.locked(plan:plan,guard:sourceNoMovesGuard(initial:plan.signature)))
         if case .confirmedFinal = effect {
             sourceNoMovesConfirmed=plan
-            sourceNoMovesConfirmedResolution=NativeSourceEndgameChecker.check(state:state,runtime:sourceNoMovesEffectiveTileRuntime)
+            sourceNoMovesConfirmedResolution=sourceNoMovesRuntimeAuthority == nil ? NativeSourceEndgameChecker.check(state:state,runtime:sourceNoMovesEffectiveTileRuntime):sourceNoMovesLastAuthoritySnapshot?.freshResult
             if let result=sourceNoMovesConfirmedResolution {sourceNoMovesFinalFlowReceipt = .init(generation:generation,planToken:plan.token,resolution:result)}
         }
         return effect

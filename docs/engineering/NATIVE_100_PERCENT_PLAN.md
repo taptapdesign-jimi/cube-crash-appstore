@@ -324,3 +324,16 @@ Pure Core222/222 freshly reproduced. Optional typed face receipts retain physica
 Private connected Special idle now passes actual SDK107 all six fixtures alongside Direct-prefix projection3, ordinary same-object Six6, Context3 and prior idle2 (20/20 total). It admits all live registered physical Special nodes, preserves phase during captured suspension, keeps artwork pointer state separate, and borrows one existing settled cadence.
 
 Private canonical save V1 plus idle-preserving ContextV2 passes SDK108 save20 plus idle6/Six6 (32/32). Genuine accepted sub-six1200, Source wall400 delivery, current snapshot, Special-only Date pruning and captured replacement cleanup are covered. Mandatory production marker observers, genuine prepared-entry/level-check producer, remaining NO MOVES callers and whole Source activation remain open. These bounded proofs do not mark the full acceptance items above complete. Optimized Release109 is being checked after new generic owners; physical acceptance remains NEEDS PHYSICAL TEST.
+
+
+## 2026-10-08 physical Magnet and captured NO MOVES continuation
+
+- [x] Root independent Core273/273: immutable Wild spawn caller provenance and captured fresh NO MOVES runtime authority; optional nil retains existing conservative Native guards.
+- [x] Actual SDK118 50/50 and SDK121 58/58: same-board authority validation, replacement cleanup, physical Magnet constructor/face markers, actual normal respawn arrivals and wall/FIFO verification, with previous merge/idle/save regressions.
+- [x] Root independent Core280/280: literal variant-nil Star/Juice destination first-face receipt, original first-RAF Wild presence/defaultStar/depth1, old-save defaults and main/cancel cleanup. Actual Node/Scene first-face caller still pending.
+- [ ] Connect all nine genuine NO MOVES entry paths, including ordinary debit delayed check and ordinary-six pre-spawn destination presence; full physical capability publication remains required.
+- [ ] Retain literal Source Magnet survivor identity and constructor order, bind drag at actual authored spawn completion, and close protected main80/shared logical RNG/reserve placeholder composition.
+- [ ] Validate genuine Wild-destination Node texture/first-face/one-RAF stop-idle and nested pips queues, then integrate whole app while preserving all optional defaults until that composition is complete.
+- [ ] Release122 actual58 validation, final Native phone route/feel/audio/performance acceptance and Journey-to-Play grey-flash verification.
+
+These are component and source receipts; the Native app is not yet a user-accepted 100% migration. Existing v9 asset bytes remain preserved. No phone install is implied.

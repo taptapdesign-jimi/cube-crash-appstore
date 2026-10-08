@@ -18,7 +18,7 @@ public struct NativeSourceGameplaySignature: Equatable, Sendable {
             if a.element.cell.column != b.element.cell.column{return a.element.cell.column<b.element.cell.column}
             if a.element.value != b.element.value{return a.element.value<b.element.value}
             return a.offset<b.offset
-        }.map {_,t in Entry(value:t.value,special:t.archetype?.rawValue,locked:t.locked,stackDepth:t.stackDepth==0 ? 1:t.stackDepth,gridX:t.cell.column,gridY:t.cell.row,visible:t.visible)}
+        }.map {_,t in Entry(value:t.value,special:t.gameplayArchetype?.rawValue,locked:t.locked,stackDepth:t.stackDepth==0 ? 1:t.stackDepth,gridX:t.cell.column,gridY:t.cell.row,visible:t.visible)}
     }
     /// Canonical native transport of the typed Source fields, independent of UI/IDs.
     public var key:String { entries.map {e in "\(e.gridY),\(e.gridX),\(e.value),\(e.special ?? "null"),\(e.locked),\(e.stackDepth),\(e.visible)"}.joined(separator:"|") }

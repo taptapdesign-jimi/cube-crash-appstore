@@ -11,6 +11,9 @@ public struct NativeWildSpawnAction: Equatable, Sendable {
     public let cell:NativeCell?
     public let tileID:String?
     public let delayMilliseconds:Int
+    /// Captured literal level-flow promise owner, before its wall callback.
+    /// Force/manual locked branches never manufacture this marker.
+    public let sourceLevelFlow:Bool
     public var awaitsBounce:Bool {kind == .primary}
 }
 public struct NativeWildSpawnArrival: Equatable, Sendable {

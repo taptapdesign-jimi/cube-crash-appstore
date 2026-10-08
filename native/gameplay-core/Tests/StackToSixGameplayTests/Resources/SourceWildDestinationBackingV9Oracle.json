@@ -1,0 +1,999 @@
+{
+  "tag": "production-benchmark-v9",
+  "commit": "fc085599e759369900d5dc4135246a9f1355a897",
+  "hashes": {
+    "src/modules/board.ts": "66eb0208a5c8ca883090e91b23a264fb7790bfac07edab33955b8d5c47a5e95d",
+    "src/modules/app-core.ts": "284d104e4f20b7b30fd5dad2361c1edfb822a6b96a38c64efc2793033cbc09e3",
+    "src/modules/constants.ts": "03205095e11655f1882d89d50db328d711282614e2437a740d6ccef7c5732475",
+    "src/modules/final-merge-rules.ts": "e3119e1e6e398d4a672536a47819abf8362652dc04e50923df5e066768ed9428",
+    "src/utils/pixi-image-texture-health.ts": "7e1a1edadb757e1f03b7ebada11c31263596464bffa0aa4e79168b3be7955106",
+    "src/modules/gameplay-texture-filtering.ts": "15c790355db2e0e2b2c1e68fd02b202ade948acfc0a12d698621a66b3cfce4ff",
+    "package-lock.json": "a44a2653491e9c164c9ad454544c7ae352fb9f260b10469fdec270c576d5add4",
+    "installed-gsap/dist/gsap.js": "3df2afc090b64154684a2391847afdb5e417469eff0503f3fa1ddd3c08897f54",
+    "src/modules/app-merge.ts": "5280a4ccec0b8c26e08ffa4a5dbae027cf3d1195775d942aa7c61446f36dcbed",
+    "src/modules/special-dice-registry.ts": "b6818afb9ffd98a6249f17c8f0d020663a1fd9a41f8d43908da1a25bb7780fdd",
+    "assets/wild.png": "30c7cdae2f5a868111fd7cc86e2c38ca06096ce3f73328883cf3dda6e957f4d7",
+    "assets/wild-juice.png": "c8614ec843d8909011274b11e51f7fe21c7c2d3d75a69815c570c428be74cab6"
+  },
+  "cases": [
+    {
+      "special": "wild",
+      "final": false,
+      "before": {
+        "asset": "./assets/wild.png",
+        "width": 145,
+        "height": 145,
+        "scaleX": 0.8827586206896552,
+        "scaleY": 0.8827586206896552,
+        "anchorX": 0.5,
+        "anchorY": 0.5
+      },
+      "immediateLayers": [
+        {
+          "asset": "./assets/wild.png",
+          "width": 121.6,
+          "height": 121.6,
+          "scaleX": 0.8386206896551723
+        },
+        {
+          "asset": "./assets/wild.png",
+          "width": 115.19999999999999,
+          "height": 115.19999999999999,
+          "scaleX": 0.7944827586206896
+        },
+        {
+          "asset": "./assets/wild.png",
+          "width": 108.8,
+          "height": 108.8,
+          "scaleX": 0.7503448275862069
+        }
+      ],
+      "afterFirst": {
+        "rememberedWild": null,
+        "isWild": true,
+        "isWildFace": true,
+        "depth": 1,
+        "asset": "./assets/wild.png",
+        "pipsVisible": false,
+        "parentVisible": true,
+        "baseVisible": true
+      },
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 5
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 6
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 7
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 8
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 9
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 10
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 3,
+          "domain": "original-stop-idle-RAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-deliver",
+          "wall": 16,
+          "frame": 1,
+          "id": 1,
+          "domain": "sourceFaceRAF"
+        },
+        {
+          "kind": "face-callback-begin",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "face-callback-end",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "raf-deliver",
+          "wall": 16,
+          "frame": 1,
+          "id": 2,
+          "domain": "sourceFaceRAF"
+        },
+        {
+          "kind": "face-callback-begin",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "raf-register",
+          "wall": 16,
+          "frame": 1,
+          "id": 4,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "face-callback-end",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "raf-deliver",
+          "wall": 16,
+          "frame": 1,
+          "id": 3,
+          "domain": "original-stop-idle-RAF"
+        },
+        {
+          "kind": "original-stop-idle-call",
+          "wall": 16,
+          "frame": 1,
+          "sameNode": true,
+          "baseAsset": "./assets/wild.png"
+        },
+        {
+          "kind": "frame-end",
+          "wall": 16,
+          "frame": 1,
+          "queued": [
+            "sourceFaceRAF"
+          ],
+          "ticker": 0,
+          "global": 0
+        },
+        {
+          "kind": "raf-deliver",
+          "wall": 32,
+          "frame": 2,
+          "id": 4,
+          "domain": "sourceFaceRAF"
+        },
+        {
+          "kind": "face-callback-begin",
+          "wall": 32,
+          "frame": 2
+        },
+        {
+          "kind": "face-callback-end",
+          "wall": 32,
+          "frame": 2
+        },
+        {
+          "kind": "frame-end",
+          "wall": 32,
+          "frame": 2,
+          "queued": [],
+          "ticker": 0,
+          "global": 0
+        }
+      ]
+    },
+    {
+      "special": "wild",
+      "final": true,
+      "before": {
+        "asset": "./assets/wild.png",
+        "width": 145,
+        "height": 145,
+        "scaleX": 0.8827586206896552,
+        "scaleY": 0.8827586206896552,
+        "anchorX": 0.5,
+        "anchorY": 0.5
+      },
+      "immediateLayers": [],
+      "afterFirst": {
+        "rememberedWild": null,
+        "isWild": true,
+        "isWildFace": true,
+        "depth": 1,
+        "asset": "./assets/wild.png",
+        "pipsVisible": false,
+        "parentVisible": true,
+        "baseVisible": false
+      },
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "stop-final-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 3,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 4,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "app-wall-register",
+          "wall": 0,
+          "frame": 0,
+          "delay": 80
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 5,
+          "domain": "original-stop-idle-RAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-deliver",
+          "wall": 16,
+          "frame": 1,
+          "id": 1,
+          "domain": "sourceFaceRAF"
+        },
+        {
+          "kind": "face-callback-begin",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "face-callback-end",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "raf-deliver",
+          "wall": 16,
+          "frame": 1,
+          "id": 2,
+          "domain": "sourceFaceRAF"
+        },
+        {
+          "kind": "face-callback-begin",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "raf-register",
+          "wall": 16,
+          "frame": 1,
+          "id": 6,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "face-callback-end",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "raf-deliver",
+          "wall": 16,
+          "frame": 1,
+          "id": 3,
+          "domain": "sourceFaceRAF"
+        },
+        {
+          "kind": "face-callback-begin",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "stop-final-idle-visual-boundary",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "face-callback-end",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "raf-deliver",
+          "wall": 16,
+          "frame": 1,
+          "id": 4,
+          "domain": "sourceFaceRAF"
+        },
+        {
+          "kind": "face-callback-begin",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "raf-register",
+          "wall": 16,
+          "frame": 1,
+          "id": 7,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "face-callback-end",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "raf-deliver",
+          "wall": 16,
+          "frame": 1,
+          "id": 5,
+          "domain": "original-stop-idle-RAF"
+        },
+        {
+          "kind": "original-stop-idle-call",
+          "wall": 16,
+          "frame": 1,
+          "sameNode": true,
+          "baseAsset": "./assets/wild.png"
+        },
+        {
+          "kind": "frame-end",
+          "wall": 16,
+          "frame": 1,
+          "queued": [
+            "sourceFaceRAF",
+            "sourceFaceRAF"
+          ],
+          "ticker": 0,
+          "global": 0
+        },
+        {
+          "kind": "raf-deliver",
+          "wall": 32,
+          "frame": 2,
+          "id": 6,
+          "domain": "sourceFaceRAF"
+        },
+        {
+          "kind": "face-callback-begin",
+          "wall": 32,
+          "frame": 2
+        },
+        {
+          "kind": "face-callback-end",
+          "wall": 32,
+          "frame": 2
+        },
+        {
+          "kind": "raf-deliver",
+          "wall": 32,
+          "frame": 2,
+          "id": 7,
+          "domain": "sourceFaceRAF"
+        },
+        {
+          "kind": "face-callback-begin",
+          "wall": 32,
+          "frame": 2
+        },
+        {
+          "kind": "stop-final-idle-visual-boundary",
+          "wall": 32,
+          "frame": 2
+        },
+        {
+          "kind": "face-callback-end",
+          "wall": 32,
+          "frame": 2
+        },
+        {
+          "kind": "frame-end",
+          "wall": 32,
+          "frame": 2,
+          "queued": [],
+          "ticker": 0,
+          "global": 0
+        }
+      ]
+    },
+    {
+      "special": "wild-juice",
+      "final": false,
+      "before": {
+        "asset": "./assets/wild-juice.png",
+        "width": 128,
+        "height": 128,
+        "scaleX": 1,
+        "scaleY": 1,
+        "anchorX": 0.5,
+        "anchorY": 0.5
+      },
+      "immediateLayers": [
+        {
+          "asset": "./assets/wild-juice.png",
+          "width": 121.6,
+          "height": 121.6,
+          "scaleX": 0.95
+        },
+        {
+          "asset": "./assets/wild-juice.png",
+          "width": 115.2,
+          "height": 115.2,
+          "scaleX": 0.9
+        },
+        {
+          "asset": "./assets/wild-juice.png",
+          "width": 108.8,
+          "height": 108.8,
+          "scaleX": 0.85
+        }
+      ],
+      "afterFirst": {
+        "rememberedWild": null,
+        "isWild": true,
+        "isWildFace": true,
+        "depth": 1,
+        "asset": "./assets/wild.png",
+        "pipsVisible": false,
+        "parentVisible": true,
+        "baseVisible": true
+      },
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 5
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 6
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 7
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 8
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 9
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 10
+        },
+        {
+          "kind": "raf-deliver",
+          "wall": 16,
+          "frame": 1,
+          "id": 1,
+          "domain": "sourceFaceRAF"
+        },
+        {
+          "kind": "face-callback-begin",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "face-callback-end",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "raf-deliver",
+          "wall": 16,
+          "frame": 1,
+          "id": 2,
+          "domain": "sourceFaceRAF"
+        },
+        {
+          "kind": "face-callback-begin",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "raf-register",
+          "wall": 16,
+          "frame": 1,
+          "id": 3,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "face-callback-end",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "frame-end",
+          "wall": 16,
+          "frame": 1,
+          "queued": [
+            "sourceFaceRAF"
+          ],
+          "ticker": 0,
+          "global": 0
+        },
+        {
+          "kind": "raf-deliver",
+          "wall": 32,
+          "frame": 2,
+          "id": 3,
+          "domain": "sourceFaceRAF"
+        },
+        {
+          "kind": "face-callback-begin",
+          "wall": 32,
+          "frame": 2
+        },
+        {
+          "kind": "face-callback-end",
+          "wall": 32,
+          "frame": 2
+        },
+        {
+          "kind": "frame-end",
+          "wall": 32,
+          "frame": 2,
+          "queued": [],
+          "ticker": 0,
+          "global": 0
+        }
+      ]
+    },
+    {
+      "special": "wild-juice",
+      "final": true,
+      "before": {
+        "asset": "./assets/wild-juice.png",
+        "width": 128,
+        "height": 128,
+        "scaleX": 1,
+        "scaleY": 1,
+        "anchorX": 0.5,
+        "anchorY": 0.5
+      },
+      "immediateLayers": [],
+      "afterFirst": {
+        "rememberedWild": null,
+        "isWild": true,
+        "isWildFace": true,
+        "depth": 1,
+        "asset": "./assets/wild.png",
+        "pipsVisible": false,
+        "parentVisible": true,
+        "baseVisible": false
+      },
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "stop-final-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 3,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 4,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "app-wall-register",
+          "wall": 0,
+          "frame": 0,
+          "delay": 80
+        },
+        {
+          "kind": "raf-deliver",
+          "wall": 16,
+          "frame": 1,
+          "id": 1,
+          "domain": "sourceFaceRAF"
+        },
+        {
+          "kind": "face-callback-begin",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "face-callback-end",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "raf-deliver",
+          "wall": 16,
+          "frame": 1,
+          "id": 2,
+          "domain": "sourceFaceRAF"
+        },
+        {
+          "kind": "face-callback-begin",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "raf-register",
+          "wall": 16,
+          "frame": 1,
+          "id": 5,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "face-callback-end",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "raf-deliver",
+          "wall": 16,
+          "frame": 1,
+          "id": 3,
+          "domain": "sourceFaceRAF"
+        },
+        {
+          "kind": "face-callback-begin",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "stop-final-idle-visual-boundary",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "face-callback-end",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "raf-deliver",
+          "wall": 16,
+          "frame": 1,
+          "id": 4,
+          "domain": "sourceFaceRAF"
+        },
+        {
+          "kind": "face-callback-begin",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "raf-register",
+          "wall": 16,
+          "frame": 1,
+          "id": 6,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "face-callback-end",
+          "wall": 16,
+          "frame": 1
+        },
+        {
+          "kind": "frame-end",
+          "wall": 16,
+          "frame": 1,
+          "queued": [
+            "sourceFaceRAF",
+            "sourceFaceRAF"
+          ],
+          "ticker": 0,
+          "global": 0
+        },
+        {
+          "kind": "raf-deliver",
+          "wall": 32,
+          "frame": 2,
+          "id": 5,
+          "domain": "sourceFaceRAF"
+        },
+        {
+          "kind": "face-callback-begin",
+          "wall": 32,
+          "frame": 2
+        },
+        {
+          "kind": "face-callback-end",
+          "wall": 32,
+          "frame": 2
+        },
+        {
+          "kind": "raf-deliver",
+          "wall": 32,
+          "frame": 2,
+          "id": 6,
+          "domain": "sourceFaceRAF"
+        },
+        {
+          "kind": "face-callback-begin",
+          "wall": 32,
+          "frame": 2
+        },
+        {
+          "kind": "stop-final-idle-visual-boundary",
+          "wall": 32,
+          "frame": 2
+        },
+        {
+          "kind": "face-callback-end",
+          "wall": 32,
+          "frame": 2
+        },
+        {
+          "kind": "frame-end",
+          "wall": 32,
+          "frame": 2,
+          "queued": [],
+          "ticker": 0,
+          "global": 0
+        }
+      ]
+    }
+  ],
+  "scope": "Literal original Wild setup and direct prefix, actual same Pixi base/PNG dimensions and first/nestedRAF. Deferred stop call order literal; actual FX teardown itself is not substituted by this observer."
+}
