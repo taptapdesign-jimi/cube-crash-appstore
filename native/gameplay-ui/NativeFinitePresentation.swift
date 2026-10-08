@@ -3,22 +3,28 @@ import UIKit
 /// A bounded native effect has one clock, one visible lifetime and one receipt.
 /// Subclasses sample authored poses; callbacks do not make gameplay decisions.
 @MainActor
-class NativeFinitePresentation: UIView {
-    var onFinished: ((Bool) -> Void)?
+class NativeFinitePresentation: UIView,NativeSourceAnimationParticipant {
+    private let completionReceipt=NativeFiniteCompletionReceipt()
+    var onFinished: ((Bool) -> Void)? {didSet{completionReceipt.callback=onFinished}}
     var onCue: ((String,Int) -> Void)?
     let duration: TimeInterval
-    private let clockTarget = NativeFiniteClockTarget()
-    private var link: CADisplayLink?
-    var hasActiveClock: Bool { link != nil }
-    private var lastFrame: TimeInterval?
-    private var elapsed: TimeInterval = 0
+    private var delivery=NativeSourceAnimationClockService.shared
+    private var domain=NativeSourceAnimationClockService.Domain.nativeRaw
+    private var deliveryLease:NativeSourceAnimationClockService.Lease?
+    var hasActiveClock:Bool{deliveryLease?.active == true}
+    /// Source mapping requires selected original-root proof. Defaults retain
+    /// unmapped nativeRaw elapsed/pause behavior on the replacement transport.
+    func configureAnimationDelivery(_ service:NativeSourceAnimationClockService,
+                                    domain:NativeSourceAnimationClockService.Domain = .nativeRaw) {
+        precondition(!started && !disposed)
+        delivery=service;self.domain=domain
+    }
     private var started = false,suspended = false,backgrounded = false,disposed = false
     private var observations: [NSObjectProtocol] = []
     init(viewport: CGSize,duration: TimeInterval) {
         self.duration = duration
         super.init(frame: CGRect(origin: .zero,size: viewport))
         isUserInteractionEnabled = false; isOpaque = false; backgroundColor = .clear
-        clockTarget.owner = self
         observations = [
             NotificationCenter.default.addObserver(forName: UIApplication.willResignActiveNotification,object: nil,queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.backgrounded = true; self?.updatePause() } },
             NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification,object: nil,queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.backgrounded = false; self?.updatePause() } }
@@ -29,33 +35,52 @@ class NativeFinitePresentation: UIView {
         guard !started,!disposed else { return }
         started = true; layoutIfNeeded(); paint(seconds: 0)
         guard !disposed else { return }
-        let clock = CADisplayLink(target: clockTarget,selector: #selector(NativeFiniteClockTarget.tick(_:)))
-        clock.preferredFrameRateRange = CAFrameRateRange(minimum: 30,maximum: 60,preferred: 60)
-        clock.add(to: .main,forMode: .common); link = clock; updatePause()
+        let capturedReceipt=completionReceipt,capturedObservations=observations
+        deliveryLease=delivery.register(participant:self,duration:duration,domain:domain) { [weak self] success in
+            guard let self else {
+                capturedObservations.forEach(NotificationCenter.default.removeObserver)
+                capturedReceipt.finish(false);return
+            }
+            self.deliveryLease=nil
+            self.finish(success)
+        }
+        guard deliveryLease != nil else{finish(false);return}
+        updatePause()
     }
-    func paint(seconds: TimeInterval) {}
-    fileprivate func tick(_ clock: CADisplayLink) {
-        guard !disposed,!suspended,!backgrounded,window != nil else { lastFrame = nil; return }
-        elapsed += lastFrame.map { max(0,clock.timestamp-$0) } ?? 0; lastFrame = clock.timestamp
-        CATransaction.begin(); CATransaction.setDisableActions(true); paint(seconds: min(duration,elapsed)); CATransaction.commit()
-        if elapsed >= duration { finish(true) }
+    func paint(seconds:TimeInterval) {}
+    func advanceSourceAnimation(seconds:Double) {
+        guard !disposed else{return}
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        paint(seconds:min(duration,seconds));CATransaction.commit()
     }
     override func didMoveToWindow() { super.didMoveToWindow(); updatePause() }
     func setSuspended(_ value: Bool) { suspended = value; updatePause() }
-    private func updatePause() { lastFrame = nil; link?.isPaused = suspended || backgrounded || window == nil }
+    private func updatePause(){deliveryLease?.setSuspended(suspended || backgrounded || window == nil)}
     private func finish(_ success: Bool) {
-        guard !disposed else { return }; disposed = true
-        link?.invalidate(); link = nil; clockTarget.owner = nil
+        guard !disposed else{return}
+        if let lease=deliveryLease{deliveryLease=nil;lease.cancel(success:success);return}
+        disposed=true
         observations.forEach(NotificationCenter.default.removeObserver); observations.removeAll()
-        let completion = onFinished; onFinished = nil; onCue = nil
+        let completion = completionReceipt.take(); onFinished = nil; onCue = nil
         removeFromSuperview(); completion?(success)
+    }
+    isolated deinit {
+        // A covered last participant has no recurring driver callback. Retire
+        // its captured observer/completion receipt when the UIView disappears.
+        deliveryLease?.cancel(success:false)
+        observations.forEach(NotificationCenter.default.removeObserver)
     }
     func completePresentation() { finish(true) }
     func dispose() { finish(false) }
 }
 
 @MainActor
-private final class NativeFiniteClockTarget: NSObject {
-    weak var owner: NativeFinitePresentation?
-    @objc func tick(_ clock: CADisplayLink) { owner?.tick(clock) }
+private final class NativeFiniteCompletionReceipt {
+    var callback:((Bool)->Void)?
+    private var settled=false
+    func take()->((Bool)->Void)? {
+        guard !settled else{return nil};settled=true
+        let captured=callback;callback=nil;return captured
+    }
+    func finish(_ success:Bool){take()?(success)}
 }

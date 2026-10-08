@@ -241,3 +241,28 @@ until reconciled, despite its separate Simulator receipt. Full native migration,
 shipping default/bridge retirement, phone regressions and physical acceptance
 remain unchecked. No phone install, PWA sync, asset mutation or online checkpoint
 was performed by primary in this resume batch.
+
+## 2026-10-08 primary meter and shared-effect continuation
+
+- [x] Default-off merged pure core157 reproduced157/157; captured NoMoves and meter ownership remain separate from UI activation.
+- [x] Source clock v5 actual SDK12 23/23, explicit Source wall domain and finite union transport.
+- [x] Meter drop component SDK13 50/50, including same-node resource/audio/composition tests.
+- [x] Immediate shared-smoke roots SDK14 8/8; old callbacks cannot steal a newly reentered resource lease. Deferred bursts remain unported.
+- [x] HUD gain/spring/consume coordinator SDK17 5/5, including ten gain, seven consumption and five composed original-global-root traces. Full bounce begins at actual completion.
+- [x] Selected finale texture host SDK19 22/22 with mounted cache/decode cancellation and reentry, plus HUD regressions. Original bytes preserved.
+- [ ] Source before-open selection/token recheck, committed selected texture/audio preparation before charge, then pre-travel cancellation and actual Scene linkage.
+- [ ] Source meter smoke emission and width resize, original impact shake and visible paint integration.
+- [ ] Same-node accepted80ms absorb, selective outer merge impact, idle and nine marker producers.
+- [ ] Regular-six shared smoke/RNG/shard root integration; deferred smoke and full NO MOVES UI/caller handoff.
+- [ ] Whole-app default shipping activation, native diagnostics retirement and physical acceptance.
+
+These are scoped component receipts in the closed primary candidate, newer than
+online93b; they do not mark the app100%native or imply a new phone installation.
+Reported phone problems remain deferred until the planned migration is finished.
+
+Primary later continuation: exact default-off before-open Core167/167 and
+actual SDK21 114/114 PASS; final CLOSED source full3 all19 gates/530suites4010
+tests/KING24/330 PASS. Source first recheck → selected committed preparation →
+charge → second pre-travel recheck is now a tested staged pure-core API. Actual
+hidden node, selected audio and Scene activation remain open. No new phone or
+PWA operation.

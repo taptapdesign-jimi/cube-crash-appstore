@@ -48,6 +48,8 @@ final class NativeGameplayAudioOwner {
     private var receipts:[String:UInt64]=[:]
     private var tntOrder=[0,1,2,3,4],harpOrder=[0,1,2],previousHarpOrder:[Int]?
     private var kantaSequence:UInt64=0,kantaWalkingVoice:String?
+    private var meterCarrierSequence:UInt64=0
+    private var meterCarrierVoices:[String:Set<String>]=[:]
     private var transitionSequence:UInt64=0
     private var transitionVoices:Set<String>=[]
     private var transitionDigitVoices:Set<String>=[]
@@ -57,12 +59,17 @@ final class NativeGameplayAudioOwner {
     init(root:URL,enabled:Bool,transport:(any NativeGameplayAudioTransport)?=nil,random:@escaping ()->Double={Double.random(in:0..<1)}) {
         self.transport=transport ?? NativeAVGameplayAudioTransport(root:root);self.enabled=enabled;self.random=random
         for name in [UIApplication.willResignActiveNotification,UIApplication.didBecomeActiveNotification,AVAudioSession.interruptionNotification,AVAudioSession.mediaServicesWereResetNotification] {
-            observers.append(NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main) { [weak self] notice in MainActor.assumeIsolated{self?.notification(notice)} })
+            observers.append(NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main) { [weak self] notice in
+                // Copy scalar receipt data before crossing executor isolation.
+                let name=notice.name.rawValue
+                let interruption=notice.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
+                MainActor.assumeIsolated{self?.notification(name:name,interruption:interruption)}
+             })
         }
     }
     func beginGeneration(_ value:UInt64) {
         guard !disposed,value != generation else{return}
-        transport.stopAll();generation=value;receipts.removeAll();harpSequenceReady=false;ordinarySixContact=nil;transitionVoices.removeAll();transitionDigitVoices.removeAll()
+        transport.stopAll();generation=value;meterCarrierVoices.removeAll();receipts.removeAll();harpSequenceReady=false;ordinarySixContact=nil;transitionVoices.removeAll();transitionDigitVoices.removeAll()
     }
     func setEnabled(_ value:Bool) {guard !disposed else{return};enabled=value;if !value {transport.stopAll()}}
     func setForeground(_ value:Bool) {guard !disposed else{return};foreground=value;if !value {transport.stopAll()}}
@@ -106,6 +113,26 @@ final class NativeGameplayAudioOwner {
         }
     }
     /// The route owner supplies exact semantic kind, never a raw pointer event.
+    /// PRIVATE meter-carrier proposal: same authored family/transport, captured
+    /// cleanup cannot stop a replacement or unrelated gameplay/CTA voice.
+    func beginMeterCarrierAudio(arcade:Bool,id:String,receipt:UInt64,generation:UInt64)->(() -> Void) {
+        guard meterCarrierVoices[id]==nil,admit("meter-carrier",receipt:receipt,generation:generation) else {return {}}
+        meterCarrierSequence &+= 1
+        let sequence=meterCarrierSequence,suffix="-meter-\(generation)-\(sequence)"
+        let cues=NativeAuthoredAudioCatalog.groups[arcade ? "crate":"backpack"] ?? []
+        let ids=Set(cues.map{$0.voice+suffix});meterCarrierVoices[id]=ids
+        for cue in cues {
+            transport.play(NativeAudioCue(source:cue.source,voice:cue.voice+suffix,gain:cue.gain,rate:cue.rate,
+                delay:cue.delay,stopAfter:cue.stopAfter,fadeOut:cue.fadeOut))
+        }
+        var finished=false
+        return { [weak self] in
+            guard !finished else {return};finished=true
+            guard let self,!self.disposed,self.generation==generation,
+                  self.meterCarrierVoices[id]==ids else {return}
+            self.meterCarrierVoices.removeValue(forKey:id);self.transport.stopVoices(ids)
+        }
+    }
     func routeFeedback(_ kind:String,receipt:UInt64,generation:UInt64,duration:Double?=nil) {
         guard admit("route",receipt:receipt,generation:generation) else{return}
         let mapping=["cta":"cta","card-tap":"cardTap","tab":"tab","back":"back","close":"back","swipe":"swipe","exit-modal":"exitModal","card-flip":"flip","manual-flip":"manualFlip","return-flip":"returnFlip","home-enter":"homeEnter","home-exit":"homeExit","hub-exit":"hubExit","board-enter":"boardEnter","board-exit":"boardExit","backpack":"backpack","crate":"crate","area55-start":"area55Start","forest-transition":"forestTransition"]
@@ -244,13 +271,13 @@ final class NativeGameplayAudioOwner {
         }
         if !completionAttached {onFinished?()}
     }
-    func stop() {transport.stopAll();generation &+= 1;receipts.removeAll();harpSequenceReady=false;ordinarySixContact=nil}
-    func dispose() {guard !disposed else{return};disposed=true;transport.dispose();for observer in observers {NotificationCenter.default.removeObserver(observer)};observers.removeAll();receipts.removeAll()}
-    private func notification(_ notice:Notification) {
-        if notice.name==UIApplication.willResignActiveNotification {setForeground(false)}
-        else if notice.name==UIApplication.didBecomeActiveNotification {setForeground(true)}
-        else if notice.name==AVAudioSession.interruptionNotification {
-            guard let raw=notice.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,let type=AVAudioSession.InterruptionType(rawValue:raw) else{return}
+    func stop() {transport.stopAll();meterCarrierVoices.removeAll();generation &+= 1;receipts.removeAll();harpSequenceReady=false;ordinarySixContact=nil}
+    func dispose() {guard !disposed else{return};disposed=true;meterCarrierVoices.removeAll();transport.dispose();for observer in observers {NotificationCenter.default.removeObserver(observer)};observers.removeAll();receipts.removeAll()}
+    private func notification(name:String,interruption:UInt?) {
+        if name==UIApplication.willResignActiveNotification.rawValue {setForeground(false)}
+        else if name==UIApplication.didBecomeActiveNotification.rawValue {setForeground(true)}
+        else if name==AVAudioSession.interruptionNotification.rawValue {
+            guard let raw=interruption,let type=AVAudioSession.InterruptionType(rawValue:raw) else{return}
             interrupted=type == .began;if interrupted {transport.stopAll()}
         } else {transport.stopAll()}
     }
@@ -315,9 +342,11 @@ final class NativeAVGameplayAudioTransport:NSObject,NativeGameplayAudioTransport
     func stopVoices(_ ids:Set<String>) {for id in ids {stop(id)}}
     func dispose() {guard !disposed else{return};disposed=true;stopAll()}
     nonisolated func audioPlayerDidFinishPlaying(_ player:AVAudioPlayer,successfully flag:Bool) {
-        Task { @MainActor [weak self] in guard let self,let id=self.voices.first(where:{$0.value.player===player})?.key else{return};self.stop(id,reason:flag ? .ended:.unavailable) }
+        let identity=ObjectIdentifier(player)
+        Task { @MainActor [weak self] in guard let self,let id=self.voices.first(where:{$0.value.player.map(ObjectIdentifier.init)==identity})?.key else{return};self.stop(id,reason:flag ? .ended:.unavailable) }
     }
     nonisolated func audioPlayerDecodeErrorDidOccur(_ player:AVAudioPlayer,error:Error?) {
-        Task { @MainActor [weak self] in guard let self,let id=self.voices.first(where:{$0.value.player===player})?.key else{return};self.onError?(error?.localizedDescription ?? "Authored SFX decode failed");self.stop(id,reason:.unavailable) }
+        let identity=ObjectIdentifier(player),message=error?.localizedDescription ?? "Authored SFX decode failed"
+        Task { @MainActor [weak self] in guard let self,let id=self.voices.first(where:{$0.value.player.map(ObjectIdentifier.init)==identity})?.key else{return};self.onError?(message);self.stop(id,reason:.unavailable) }
     }
 }

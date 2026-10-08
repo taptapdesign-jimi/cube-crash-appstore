@@ -1657,7 +1657,8 @@ final class NativeBoardScene: SKScene {
         sourceCallbackTime();sourceFrames.visibilityChanged(hidden:value)
         for owner in regularSixPresentations.values {owner.setSuspended(value)}
         // Original pauseGame pauses the global animation timeline and stops
-        // its ticker. It does not complete/drain accepted transactions or
+        // the Pixi renderer ticker; foreground GSAP transport keeps ticking.
+        // It does not complete/drain accepted transactions or
         // remove HUD-star, spawn, meter, candidate or drag owners.
         isPaused=value;onRenderingDemand?(!value)
         if !value && !exitInProgress {

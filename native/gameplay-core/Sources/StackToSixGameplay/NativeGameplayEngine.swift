@@ -10,6 +10,14 @@ public final class NativeGameplayEngine {
     public var sourceSaveRuntime=NativeSourceSaveRuntime()
     public var hasUnsavableSourceGameplayState:Bool {
         var snapshot=sourceSaveRuntime
+        snapshot.wildSpawnInProgress = snapshot.wildSpawnInProgress || sourceMeterSpawnInProgress
+        snapshot.wildDropInProgress = snapshot.wildDropInProgress || meterDropReservations.values.contains {$0.assetsPrepared && !$0.dropCompleted && !$0.queueCanceled}
+        for drop in meterDropReservations.values {
+            var marker=NativeSourceSaveTileMarkers()
+            marker.wildSpawnDropping = drop.assetsPrepared && !drop.landed
+            marker.wildSpawnHandoffLock=drop.handoffLocked
+            snapshot.tileMarkers.append(marker)
+        }
         snapshot.busyEnding = snapshot.busyEnding || flags.busyEnding
         snapshot.wildSpawnInProgress = snapshot.wildSpawnInProgress || flags.wildSpawnInProgress
         snapshot.merge6SpawnInProgress = snapshot.merge6SpawnInProgress || flags.merge6SpawnInProgress || pendingOrdinarySix != nil || directWildSpawnPhase != nil
@@ -27,8 +35,64 @@ public final class NativeGameplayEngine {
         }
         return snapshot.hasUnsavableTransientGameplayState
     }
+    // PRIVATE candidate; the admitted Scene must provide actual Source receipts.
+    public var stagedMeterDrops=false
+    /// Opt-in only after real selected warmup/native hidden-node transport is installed.
+    public var stagedMeterOpen=false
+    public private(set) var pendingMeterOpen:NativeMeterOpenRequest?
+    public private(set) var pendingMeterOpenRetry:NativeMeterOpenRetry?
+    private var meterOpenSequence:UInt64=0,sourceMeterSpawnCancelToken:UInt64=0
+    private struct MeterOpenFlow {
+        let id:String,generation:UInt64,spawnToken:UInt64,excluded:Set<NativeCell>
+        var tries=0,attempted:Set<NativeCell>=[],queueCanceled=false
+    }
+    private var meterOpenFlow:MeterOpenFlow?
+    private var meterOpenCommitting=false
+    /// Must be fed by the actual authoritative final-merge owner, never guessed alpha/HUD state.
+    public var sourceMeterLastMergeTileIDs:Set<String>=[]
+    public private(set) var meterDropReservations:[String:NativeMeterDropReservation]=[:]
+    private var meterDropSequence:UInt64=0
+    /// Source queue owner participates in ENDGAME/SAVE, never the unrelated
+    /// shared input flag. Ordinary and prior Wild input remain independently legal.
+    public var sourceMeterSpawnInProgress:Bool {
+        (meterOpenFlow != nil && meterOpenFlow?.queueCanceled == false) || meterDropReservations.values.contains {!$0.bookkeepingCommitted && !$0.queueCanceled}
+    }
+    /// Source tile-state-utils classifies the separate140ms handoff marker as
+    /// transient even after queue/wildSpawnInProgress becomes false.
+    public var sourceMeterHandoffInProgress:Bool {
+        meterDropReservations.values.contains {$0.handoffLocked}
+    }
+    public var resolutionRuntimeFlags:NativeGameplayRuntimeFlags {
+        var snapshot=flags
+        snapshot.wildSpawnInProgress = snapshot.wildSpawnInProgress || sourceMeterSpawnInProgress
+        return snapshot
+    }
+    private var sourceMeterBlocksAnotherSpawn:Bool {
+        if meterOpenFlow != nil {return true}
+        return         meterDropReservations.values.contains {
+            (!$0.bookkeepingCommitted && !$0.queueCanceled) ||
+            ($0.assetsPrepared && !$0.landed) || $0.handoffLocked
+        }
+    }
+    private func meterDropBlocksTile(_ id:String)->Bool {
+        meterDropReservations.values.contains {$0.tileID==id && (!$0.landed || $0.handoffLocked || !$0.warmupCompleted)}
+    }
     public private(set) var flags = NativeGameplayRuntimeFlags()
     public private(set) var noMovesSignature: String?
+    /// Opt-in until the authored Scene transport and final exit are admitted.
+    public var stagedSourceNoMoves = false
+    public var noMovesTileRuntime:[String:NativeNoMovesTileRuntime]=[:]
+    public var sourceWildRetryPending=false
+    public var sourceNonFinalMerge6Guard=false
+    private var sourceNoMovesReadyPostchecks:Set<String>=[]
+    private var sourceNoMovesStackContexts:[String:NativeNoMovesStackContext]=[:]
+    private var sourceNoMovesOwner=NativeNoMovesCandidateOwner()
+    private var sourceNoMovesGeneration:UInt64?
+    private var sourceNoMovesConfirmed:NativeNoMovesCandidateOwner.Plan?
+    private var sourceNoMovesConfirmedResolution:NativeResolution?
+    public var pendingSourceNoMoves:NativeNoMovesCandidateOwner.Plan? {sourceNoMovesOwner.active ?? sourceNoMovesConfirmed}
+    public var sourceGameplaySignature:NativeSourceGameplaySignature {NativeSourceGameplaySignature(tiles:state.tiles.filter{!(noMovesTileRuntime[$0.id]?.destroyed ?? false)})}
+
     public private(set) var pendingSpecial: NativeSpecialMovePlan?
     public private(set) var pendingLaserShots: [NativeLaserShot] = []
     /// Native board supplies actual UIKit x coordinates; gameplay owns exact ordering/shooter RNG.
@@ -102,9 +166,9 @@ public final class NativeGameplayEngine {
     private var specialImpactIndex = 0
     private var specialPreBoard: NativeBoardState?
     private var specialMoveTime: Double = 0
-    public var navigationLocked: Bool { noMovesSignature != nil || state.terminal != nil }
+    public var navigationLocked: Bool { noMovesSignature != nil || state.terminal != nil || (stagedSourceNoMoves && pendingSourceNoMoves != nil) }
     public var isDragging: Bool { drag != nil }
-    private struct Drag { let id: String; let pointerID: Int; let generation: UInt64; let revision: UInt64 }
+    private struct Drag { let id: String; let pointerID: Int; let generation: UInt64; let revision: UInt64; let origin:NativeCell }
     private var drag: Drag?
     private var locks: [String: Bool] = [:] // true = wild-only; false = entire gameplay
     private var comboLastMutationTime: Double?
@@ -117,16 +181,19 @@ public final class NativeGameplayEngine {
     public func setRuntimeFlags(_ flags: NativeGameplayRuntimeFlags) { self.flags = flags; if let plan = pendingSpecial { self.flags.pendingSpecialMutation = true; self.flags.wildMagnetPullInProgress = plan.archetype == .magnet }; if pendingDirectWild != nil && !directWildGameplayCommitted { self.flags.pendingSpecialMutation = true } }
     public func beginDrag(tileID: String, pointerID: Int = 0) -> Bool {
         guard drag == nil, state.terminal == nil, state.validationIssues().isEmpty,
-              let tile = state.tiles.first(where: { $0.id == tileID }), tile.isPlayable,
+              let tile = state.tiles.first(where: { $0.id == tileID }), tile.isPlayable, !meterDropBlocksTile(tileID),
               NativeTutorialRules.allowsPickup(tile,tutorial:state.tutorial,rows:state.rows),
               !locks.values.contains(where: { !$0 || tile.isWild }), (!flags.isWaiting || canRunOrdinaryDuringTnt(tile)) else { return false }
         noMovesSignature = nil
-        drag = Drag(id: tileID, pointerID: pointerID, generation: state.generation, revision: state.revision)
+        drag = Drag(id: tileID, pointerID: pointerID, generation: state.generation, revision: state.revision,origin:tile.cell)
         return true
     }
     public func cancelDrag() { drag = nil }
     public func cancelNoMovesConfirmation() { noMovesSignature = nil }
     public func restart(state fresh: NativeBoardState) {
+        meterDropReservations.removeAll();meterDropSequence=0
+        pendingMeterOpen=nil;pendingMeterOpenRetry=nil;meterOpenFlow=nil;meterOpenSequence=0;sourceMeterSpawnCancelToken &+= 1;sourceMeterLastMergeTileIDs=[]
+        sourceNoMovesReadyPostchecks=[];sourceNoMovesStackContexts=[:];sourceNoMovesOwner=NativeNoMovesCandidateOwner();sourceNoMovesConfirmed=nil;sourceNoMovesConfirmedResolution=nil;sourceNoMovesGeneration=nil;noMovesTileRuntime=[:];sourceWildRetryPending=false;sourceNonFinalMerge6Guard=false
         pendingWildRecoveryChecks=[];pendingWildSpawnPresentations=[];wildSourceResolutionBoundary=nil;sourceSaveRuntime=NativeSourceSaveRuntime()
         let generation = state.generation &+ 1
         state = fresh; state.generation = generation; state.revision = 0; state.terminal = nil; tileSequence = 0
@@ -211,11 +278,17 @@ public final class NativeGameplayEngine {
         return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolution)
     }
     public func resolve() -> NativeResolution {
+        if state.terminal == nil && sourceMeterSpawnInProgress {
+            return NativeResolution(.wait,reason:"captured_meter_drop_continuation")
+        }
+        if state.terminal == nil && sourceMeterHandoffInProgress {
+            return NativeResolution(.wait,reason:"captured_meter_tile_handoff")
+        }
         if state.terminal == nil && directWildSpawnPhase != nil {return NativeResolution(.wait,reason:"direct_wild_spawn_continuation_pending")}
         if state.terminal == nil && (pendingOrdinaryStack != nil || pendingOrdinarySix != nil || !pendingOrdinaryPostchecks.isEmpty) { return NativeResolution(.wait,reason:"ordinary_mutation_pending") }
         if state.terminal == nil && !pendingMeterRewards.isEmpty { return NativeResolution(.wait,reason:"captured_meter_reward_pending") }
         if state.terminal == nil && state.wildMeter >= 1-0.000001 && !flags.isWaiting { return NativeResolution(.wait,reason:"wild_continuation_pending") }
-        let resolution = NativeGameplayResolver.resolve(state: state, flags: flags)
+        let resolution = NativeGameplayResolver.resolve(state: state, flags: resolutionRuntimeFlags)
         if resolution.kind == .fail && state.tutorial?.completionAssist == true { return NativeResolution(.wait,reason:"tutorial_final_chance_pending") }
         return resolution
     }
@@ -229,7 +302,9 @@ public final class NativeGameplayEngine {
         if pendingOrdinaryStack != nil && !committingOrdinaryStack { drag = nil; return rejected("regular_stack_absorb_handoff") }
         drag = nil
         guard owned.generation == state.generation, owned.revision == state.revision, state.terminal == nil else { return rejected("stale_drag_owner") }
-        guard let target, let source = state.tiles.first(where: { $0.id == owned.id }), let destination = state.tile(at: target), NativeGameplayResolver.canDrop(source, onto: destination), !locks.values.contains(where: { !$0 || source.isWild || destination.isWild }), (!flags.isWaiting || canRunOrdinaryDuringTnt(source) && canRunOrdinaryDuringTnt(destination)) else { return rejected("illegal_drop") }
+        guard let target, let source = state.tiles.first(where: { $0.id == owned.id }), let destination = state.tile(at: target), NativeGameplayResolver.canDrop(source, onto: destination),
+              !meterDropReservations.values.contains(where:{$0.tileID==source.id && (!$0.landed || $0.handoffLocked || !$0.bookkeepingCommitted)}),
+              !meterDropReservations.values.contains(where:{$0.tileID==destination.id && !$0.bookkeepingCommitted}), !locks.values.contains(where: { !$0 || source.isWild || destination.isWild }), (!flags.isWaiting || canRunOrdinaryDuringTnt(source) && canRunOrdinaryDuringTnt(destination)) else { return rejected("illegal_drop") }
         guard state.validationIssues().isEmpty else { return rejected("invalid_authoritative_board") }
         guard NativeTutorialRules.allowsDrop(source:source,destination:destination,tutorial:state.tutorial,rows:state.rows) else { return rejected("tutorial_drop_restricted") }
         let effectiveSum = source.isWild || destination.isWild ? 6 : source.value + destination.value
@@ -354,7 +429,7 @@ public final class NativeGameplayEngine {
         }
         locks.removeValue(forKey:plan.id); flags.pendingSpecialMutation = false
         committingDirectWild = true
-        drag = Drag(id:plan.source.id,pointerID:directWildPointerID,generation:plan.generation,revision:plan.revision)
+        drag = Drag(id:plan.source.id,pointerID:directWildPointerID,generation:plan.generation,revision:plan.revision,origin:plan.source.cell)
         let result = drop(target:plan.destination.cell,pointerID:directWildPointerID,now:plan.startedAt + 0.08)
         committingDirectWild = false
         guard result.accepted else { pendingDirectWild = nil; return result }
@@ -666,7 +741,9 @@ public final class NativeGameplayEngine {
     public func claimMeterReward() -> NativeMoveResult {
         // Source meter permission checks logical owners, not the remaining Wild-only FX input lock.
         let directOwnershipSettled=pendingDirectWild == nil || (directWildGameplayCommitted && directWildSpawnPhase == nil && pendingDirectWild?.isFinal == false)
-        guard state.terminal == nil, !flags.isWaiting, directOwnershipSettled, pendingOrdinaryStack == nil, pendingOrdinarySix == nil, state.wildMeter >= 1-0.000001 else { return rejected("wild_meter_not_ready") }
+        guard state.terminal == nil, !flags.isWaiting, directOwnershipSettled,
+              !sourceMeterBlocksAnotherSpawn, pendingOrdinaryStack == nil, pendingOrdinarySix == nil, state.wildMeter >= 1-0.000001 else { return rejected("wild_meter_not_ready") }
+        if stagedMeterDrops && stagedMeterOpen {return beginMeterOpenFlow()}
         let before = state; let choices = randomChoices
         var events: [NativeGameplayEvent] = []
         guard spawnMeterReward(events:&events) else { state = before; randomChoices = choices; return rejected("wild_meter_reward_unavailable") }
@@ -678,17 +755,19 @@ public final class NativeGameplayEngine {
         guard generation == state.generation, revision == state.revision, drag == nil, state.terminal == nil, !flags.isWaiting, !flags.endgameGuardActive,
               let tile = state.tiles.first(where: { $0.id == tileID }), tile.isPlayable, !tile.isWild, tile.value == 6, !tile.nonFinalMerge6,
               state.activeTiles.contains(where: { $0.id != tile.id }), !state.activeTiles.contains(where: { !$0.isWild && (1...5).contains($0.value) }),
-              NativeGameplayResolver.resolve(state:state,flags:flags).kind == .fail else { return rejected("lingering_six_repair_not_admitted") }
+              !sourceMeterSpawnInProgress, !sourceMeterHandoffInProgress, NativeGameplayResolver.resolve(state:state,flags:resolutionRuntimeFlags).kind == .fail else { return rejected("lingering_six_repair_not_admitted") }
         state.revision &+= 1; state.tiles.removeAll { $0.id == tile.id }; let replacement = freshTile(cell:tile.cell,value:randomValue()); state.tiles.append(replacement)
         noMovesSignature = nil
         return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.removed,tileIDs:[tile.id]),NativeGameplayEvent(.spawned,tileIDs:[replacement.id],value:replacement.value,reason:"lingering_merge6_rescue")],resolution:resolve())
     }
     public func beginNoMovesConfirmation() -> String? {
+        guard !stagedSourceNoMoves else{return nil}
         guard drag == nil, resolve().kind == .fail else { noMovesSignature = nil; return nil }
         noMovesSignature = state.signature
         return noMovesSignature
     }
     public func confirmNoMoves(signature: String, generation: UInt64) -> NativeMoveResult {
+        guard !stagedSourceNoMoves else{return rejected("source_no_moves_transport_required")}
         guard generation == state.generation, noMovesSignature == signature, state.signature == signature,
               drag == nil, state.terminal == nil, !flags.isWaiting, !flags.endgameGuardActive,
               state.validationIssues().isEmpty, resolve().kind == .fail else { noMovesSignature = nil; return rejected("no_moves_confirmation_cancelled") }
@@ -769,9 +848,21 @@ public final class NativeGameplayEngine {
         }
         if !arcadeSimple { openLocked(count:bonus.active,avoiding:avoiding,events:&events) }
     }
+    /// Immutable source drag-origin capture, retained even if a visual grid slot
+    /// is temporarily empty. No meter spawn can consume that pointer-owned cell.
+    public var sourceMeterDropExcludedCells:Set<NativeCell> {
+        guard let drag,drag.generation==state.generation else{return []}
+        return [drag.origin]
+    }
     private func spawnMeterReward(events: inout [NativeGameplayEvent]) -> Bool {
+        // Existing Source wildSpawnInProgress blocks only another meter spawn;
+        // ordinary moves/charge credit remain valid while the first die flies.
+        if sourceMeterBlocksAnotherSpawn {return true}
+        if stagedMeterDrops && stagedMeterOpen {
+            let result=beginMeterOpenFlow();events += result.events;return result.accepted
+        }
         guard rewardPicker != nil || state.tutorial?.waitingForWild == true else { return false }
-        let available = NativeMagnetRules.emptyCells(state:state)
+        let available = NativeMagnetRules.emptyCells(state:state,excluding:sourceMeterDropExcludedCells)
         guard !available.isEmpty else { return false }
         let cell = state.tutorial?.waitingForWild == true ? (NativeTutorialRules.preferredWildCell(state:state) ?? available[min(available.count-1,Int(nextRandom()*Double(available.count)))]) : available[min(available.count-1,Int(nextRandom()*Double(available.count)))]
         let choice = state.tutorial?.waitingForWild == true ? NativeWildRewardChoice(.star) : rewardPicker?(state,nextRandom(),{ self.nextRandom() })
@@ -779,6 +870,18 @@ public final class NativeGameplayEngine {
         state.tiles.removeAll { $0.cell == cell }
         var tile = freshTile(cell:cell,value:6); tile.archetype = reward.archetype; tile.variant = reward.variant
         if reward.archetype == .star { tile.starOrbitCount = reward.variant == nil ? 1+Int(nextRandom()*3) : 1 }
+        if stagedMeterDrops {
+            // Source openAtCell(skipSpawnAnimation:true) creates a hidden die,
+            // then consumeWildCharge subtracts exactly one, retaining surplus.
+            tile.visible=false;tile.alpha=0
+            state.tiles.append(tile);state.wildMeter=max(0,state.wildMeter-1)
+            meterDropSequence &+= 1
+            let drop=NativeMeterDropReservation(id:"native-meter-drop:\(state.generation):\(meterDropSequence)",
+                generation:state.generation,tileID:tile.id,cell:tile.cell,archetype:reward.archetype,variant:reward.variant)
+            meterDropReservations[drop.id]=drop
+            events.append(NativeGameplayEvent(.meterDropReserved,tileIDs:[tile.id],value:6,archetype:reward.archetype,reason:drop.id,variant:reward.variant))
+            return true
+        }
         state.tiles.append(tile); state.wildMeter = max(0,state.wildMeter-1); state.wildSpawnCount += 1
         if state.lastWildDropType == reward.archetype { state.wildDropTypeStreak += 1 } else { state.lastWildDropType = reward.archetype; state.wildDropTypeStreak = 1 }
         if state.tutorial?.waitingForWild == true {
@@ -787,6 +890,85 @@ public final class NativeGameplayEngine {
         }
         events.append(NativeGameplayEvent(.spawned,tileIDs:[tile.id],value:6,archetype:reward.archetype,variant:reward.variant))
         return true
+    }
+
+    /// This is an explicit Source owner request, never a background/pause hook.
+    /// Cleanup receipts still settle the actual travel/entered warmup Promise.
+    public func requestMeterDropCancellation(id:String,generation:UInt64,reason:NativeMeterDropCancellation)->NativeMoveResult {
+        guard generation==state.generation,var drop=meterDropReservations[id],
+              drop.generation==generation,!drop.cancellationRequested,!drop.bookkeepingCommitted else {
+            return rejected("stale_meter_drop_cancellation")
+        }
+        drop.cancellationRequested=true
+        if reason == .explicitPendingContinuation {drop.queueCanceled=true;state.wildMeter=0}
+        let events=[NativeGameplayEvent(.meterDropCancellationRequested,tileIDs:[drop.tileID],reason:drop.id)]
+        if drop.dropCompleted && (!drop.warmupAwaitStarted || drop.warmupCompleted) {
+            return retireCanceledMeterDrop(drop,events:events)
+        }
+        meterDropReservations[id]=drop
+        return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
+    }
+    private func retireCanceledMeterDrop(_ drop:NativeMeterDropReservation,events:[NativeGameplayEvent])->NativeMoveResult {
+        // Captured ID/cell ownership: never delete a newer replacement in this slot.
+        state.tiles.removeAll{$0.id==drop.tileID}
+        meterDropReservations.removeValue(forKey:drop.id)
+        var events=events;events.append(NativeGameplayEvent(.meterDropCanceled,tileIDs:[drop.tileID],reason:drop.id))
+        return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
+    }
+
+    /// None of these callbacks is inferred from a generic spawn bounce/input permit.
+    public func applyMeterDropReceipt(id:String,generation:UInt64,receipt:NativeMeterDropReceipt)->NativeMoveResult {
+        guard generation==state.generation,var drop=meterDropReservations[id],drop.generation==generation,
+              let index=state.tiles.firstIndex(where:{$0.id==drop.tileID}) else {return rejected("stale_meter_drop_receipt")}
+        let kind:NativeGameplayEvent.Kind
+        switch receipt {
+        case .assetsPrepared:
+            guard !drop.assetsPrepared,!drop.dropCompleted else {return rejected("duplicate_meter_drop_prepare")}
+            drop.assetsPrepared=true;kind = .meterDropPrepared
+        case .revealed:
+            guard drop.assetsPrepared,!drop.revealed,!drop.dropCompleted else {return rejected("duplicate_meter_drop_reveal")}
+            drop.revealed=true;state.tiles[index].visible=true;state.tiles[index].alpha=1;kind = .meterDropRevealed
+        case .impact:
+            guard drop.assetsPrepared,drop.revealed,!drop.impactOccurred,!drop.dropCompleted else {return rejected("duplicate_meter_drop_impact")}
+            drop.impactOccurred=true;kind = .meterDropImpact
+        case .boardFallbackRestored:
+            guard drop.assetsPrepared,!drop.landed,!drop.dropCompleted else {return rejected("duplicate_meter_drop_restore")}
+            drop.landed=true;drop.handoffLocked=true
+            state.tiles[index].visible=true;state.tiles[index].alpha=1;kind = .meterDropLanded
+        case .dropPromiseCompleted:
+            guard drop.assetsPrepared,drop.landed,!drop.dropCompleted else {return rejected("duplicate_meter_drop_completion")}
+            drop.dropCompleted=true
+            // Source finally enters an already-selected warmup await ONLY if
+            // cancellation wasn't detected when the travel Promise settled.
+            drop.warmupAwaitStarted = !drop.cancellationRequested && !drop.warmupCompleted
+            kind = .meterDropTravelCompleted
+        case .selectedWarmupCompleted:
+            guard !drop.warmupCompleted else {return rejected("duplicate_meter_drop_warmup")}
+            drop.warmupCompleted=true;kind = .meterDropWarmupCompleted
+        case .wallHandoffUnlocked:
+            guard drop.landed,drop.handoffLocked else {return rejected("stale_meter_drop_handoff")}
+            drop.handoffLocked=false;kind = .meterDropHandoffUnlocked
+        }
+        var events=[NativeGameplayEvent(kind,tileIDs:[drop.tileID],archetype:drop.archetype,reason:drop.id,variant:drop.variant)]
+        // Exact spawnWildFromMeter continuation runs after travel AND selected
+        // warmup; Source does not wait for the separate140ms wall input marker.
+        if drop.cancellationRequested,drop.dropCompleted,
+           !drop.warmupAwaitStarted || drop.warmupCompleted {
+            return retireCanceledMeterDrop(drop,events:events)
+        }
+        if drop.dropCompleted && drop.warmupCompleted && !drop.bookkeepingCommitted {
+            drop.bookkeepingCommitted=true;state.wildSpawnCount += 1
+            if state.lastWildDropType==drop.archetype {state.wildDropTypeStreak += 1}
+            else {state.lastWildDropType=drop.archetype;state.wildDropTypeStreak=1}
+            if state.tutorial?.waitingForWild==true {
+                state.tutorial?.waitingForWild=false;state.tutorial?.step = .special;state.tutorial?.wildTileID=drop.tileID
+                state.tutorial?.guidedPair=[drop.tileID]
+            }
+            events.append(NativeGameplayEvent(.meterDropCompleted,tileIDs:[drop.tileID],archetype:drop.archetype,reason:drop.id,variant:drop.variant))
+        }
+        meterDropReservations[id]=drop
+        if drop.bookkeepingCommitted && !drop.handoffLocked {meterDropReservations.removeValue(forKey:id)}
+        return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
     }
 
     private func spawnRegularMerge6(at cell: NativeCell, depth: Int, events: inout [NativeGameplayEvent]) {
@@ -837,13 +1019,17 @@ extension NativeGameplayEngine {
     private func stageOrdinaryStack(source:NativeTile,destination:NativeTile,pointerID:Int,now:Double)->NativeMoveResult {
         specialSequence &+= 1
         let plan=NativeOrdinaryMovePlan(id:"native-stack:\(state.generation):\(specialSequence)",generation:state.generation,revision:state.revision,source:source,destination:destination,startedAt:now,isFinal:false)
+        let sourceContextBefore=state
         pendingOrdinaryStack=plan; committingOrdinaryStack=true
         let movesBefore=state.moves
-        drag=Drag(id:source.id,pointerID:pointerID,generation:state.generation,revision:state.revision)
+        drag=Drag(id:source.id,pointerID:pointerID,generation:state.generation,revision:state.revision,origin:source.cell)
         let accepted=drop(target:destination.cell,pointerID:pointerID,now:now)
         committingOrdinaryStack=false
         guard accepted.accepted else {pendingOrdinaryStack=nil;return accepted}
         state.moves=movesBefore
+        if stagedSourceNoMoves,let committedDestination=state.tiles.first(where:{$0.id==destination.id}) {
+            sourceNoMovesStackContexts[plan.id]=NativeNoMovesStackContext(before:sourceContextBefore,source:source,destination:destination,effectiveSum:committedDestination.value,destinationDepthAfterCommit:committedDestination.stackDepth)
+        }
         var carrier=source;carrier.pendingRemoval=true;carrier.resolutionOwned=true;state.tiles.append(carrier)
         noMovesSignature=nil
         let events=accepted.events+[NativeGameplayEvent(.ordinaryStackReserved,tileIDs:[source.id,destination.id],reason:plan.id)]
@@ -855,6 +1041,7 @@ extension NativeGameplayEngine {
         guard generation==state.generation,let plan=pendingOrdinaryStack,plan.id==receiptID,plan.generation==generation else{return rejected("stale_ordinary_stack_absorb")}
         state.tiles.removeAll{$0.id==plan.source.id && $0.pendingRemoval};pendingOrdinaryStack=nil
         var events=[NativeGameplayEvent(.removed,tileIDs:[plan.source.id])]
+        if interrupted {sourceNoMovesStackContexts.removeValue(forKey:receiptID)}
         if !interrupted {
             let receipt=NativeOrdinaryPostcheckReceipt(id:plan.id,generation:generation,delayMilliseconds:flags.busyEnding ? 0:100)
             pendingOrdinaryPostchecks.append(receipt)
@@ -866,7 +1053,7 @@ extension NativeGameplayEngine {
     /// whether this callback continues to moves-- or returns via fail/recovery.
     public func cancelOrdinaryPostcheck(receiptID:String,generation:UInt64)->NativeMoveResult {
         guard generation==state.generation,let index=pendingOrdinaryPostchecks.firstIndex(where:{$0.id==receiptID && $0.generation==generation}) else{return rejected("stale_ordinary_postcheck")}
-        pendingOrdinaryPostchecks.remove(at:index)
+        pendingOrdinaryPostchecks.remove(at:index);sourceNoMovesStackContexts.removeValue(forKey:receiptID);sourceNoMovesReadyPostchecks.remove(receiptID)
         return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
     }
     public func commitOrdinaryPostcheck(receiptID:String,generation:UInt64)->NativeMoveResult {
@@ -875,7 +1062,9 @@ extension NativeGameplayEngine {
         // Source entered this awaited branch before busyEnding changed. Its fresh stuck
         // classifier must still return before moves--; only captured0ms bypasses it.
         var postcheckFlags=flags;postcheckFlags.busyEnding=false
-        let sourceResolution=NativeGameplayResolver.resolve(state:state,flags:postcheckFlags)
+        let sourceResolution=stagedSourceNoMoves ? NativeSourceEndgameChecker.check(state:state,runtime:sourceNoMovesEffectiveTileRuntime,endgameGuard:flags.endgameGuardActive,nonFinalGuard:sourceNonFinalMerge6Guard):NativeGameplayResolver.resolve(state:state,flags:postcheckFlags)
+        if stagedSourceNoMoves && receipt.delayMilliseconds>0 {sourceNoMovesReadyPostchecks.insert(receiptID)}
+        else {sourceNoMovesStackContexts.removeValue(forKey:receiptID)}
         if receipt.delayMilliseconds == 0 || sourceResolution.kind != .fail {
             state.moves=max(0,state.moves-1)
         }
@@ -1295,5 +1484,209 @@ extension NativeGameplayEngine {
         guard directWildSpawnPhase?.complete == true,directWildSpawnPhase?.primaryArrived == true,let plan=pendingDirectWild else{return}
         directWildSpawnPhase=nil;wildPhaseScheduledID=nil;pendingWildSpawnActions=[]
         if directWildVisualReleased {locks.removeValue(forKey:plan.id);pendingDirectWild=nil;directWildGameplayCommitted=false}
+    }
+}
+
+
+extension NativeGameplayEngine {
+    private var sourceNoMovesEffectiveTileRuntime:[String:NativeNoMovesTileRuntime] {
+        var runtime=noMovesTileRuntime
+        for drop in meterDropReservations.values {
+            var marker=runtime[drop.tileID] ?? .init()
+            marker.wildDropping = marker.wildDropping || (drop.assetsPrepared && !drop.landed)
+            marker.wildHandoff = marker.wildHandoff || drop.handoffLocked
+            runtime[drop.tileID]=marker
+        }
+        return runtime
+    }
+    private func sourceNoMovesGuard(initial:String)->NativeNoMovesCandidateOwner.Guard {
+        // Literal forced checker autoClearStaleFlag. An interactive stale spawn
+        // marker is retired before fresh classification; no synthetic arrival.
+        for index in state.tiles.indices {
+            let t=state.tiles[index],r=sourceNoMovesEffectiveTileRuntime[t.id] ?? .init()
+            if !r.destroyed && !r.wildHandoff && t.archetype != .juice && t.transientSpawn && !t.locked && (t.value>0 || t.isWild) && t.visible && r.eventMode == .normal {
+                state.tiles[index].transientSpawn=false
+            }
+        }
+        let fresh=NativeSourceEndgameChecker.check(state:state,runtime:sourceNoMovesEffectiveTileRuntime,endgameGuard:flags.endgameGuardActive,nonFinalGuard:sourceNonFinalMerge6Guard)
+        var result=NativeNoMovesCandidateOwner.Guard(initialSignature:initial,currentSignature:sourceGameplaySignature.key)
+        result.freshEndgameType = fresh.kind == .fail ? "stuck" : fresh.kind == .complete ? "clean":"continue"
+        result.freshCheckFailed = !state.validationIssues().isEmpty
+        result.wildContinuation=sourceMeterSpawnInProgress || state.wildMeter>=1-0.000001 || flags.wildSpawnInProgress || sourceSaveRuntime.wildSpawnInProgress || sourceWildRetryPending || sourceSaveRuntime.wildDropInProgress
+        result.gameplayTransaction=sourceMeterSpawnInProgress || flags.wildSpawnInProgress || flags.merge6SpawnInProgress || flags.wildMagnetPullInProgress || sourceSaveRuntime.wildSpawnInProgress || sourceSaveRuntime.merge6SpawnInProgress || sourceSaveRuntime.wildMagnetPullInProgress || sourceSaveRuntime.specialTransactionActive || sourceSaveRuntime.regularHandoffActive || pendingOrdinaryStack != nil || pendingOrdinarySix != nil || directWildSpawnPhase != nil || pendingSpecial != nil || (pendingDirectWild != nil && !directWildGameplayCommitted)
+        result.activeDrag=drag != nil || sourceSaveRuntime.activeDrag
+        result.endgameGuard=flags.endgameGuardActive
+        return result
+    }
+    public func beginSourceNoMovesForOrdinaryPostcheck(receiptID:String,generation:UInt64)->NativeNoMovesCandidateOwner.Effect {
+        guard stagedSourceNoMoves,generation==state.generation,sourceNoMovesReadyPostchecks.remove(receiptID) != nil,let context=sourceNoMovesStackContexts.removeValue(forKey:receiptID) else{return .ignored}
+        return beginSourceNoMoves(origin:.ordinaryPostcheck(context))
+    }
+    public func beginSourceNoMoves(origin:NativeNoMovesOrigin,extraWaitMilliseconds:Int=0)->NativeNoMovesCandidateOwner.Effect {
+        guard stagedSourceNoMoves,state.terminal==nil,sourceNoMovesConfirmed==nil else{return .ignored}
+        if sourceNoMovesOwner.active != nil || flags.busyEnding || sourceSaveRuntime.busyEnding {return .ignored}
+        let snapshot=sourceNoMovesGuard(initial:sourceGameplaySignature.key)
+        // Source preflight can defer Wild before candidate allocation.
+        if let block=snapshot.blockReason{return .deferred(block)}
+        guard let trigger=NativeNoMovesTriggerClassifier.classify(state:state,origin:origin,runtime:sourceNoMovesEffectiveTileRuntime) else{return .ignored}
+        let effect=sourceNoMovesOwner.begin(trigger:trigger,busyEnding:flags.busyEnding || sourceSaveRuntime.busyEnding,extraWaitMilliseconds:extraWaitMilliseconds,guard:snapshot)
+        if case .candidate = effect {sourceNoMovesGeneration=state.generation}
+        return effect
+    }
+    public func deliverSourceNoMovesWait(plan:NativeNoMovesCandidateOwner.Plan,generation:UInt64,cancelled:Bool=false)->NativeNoMovesCandidateOwner.Effect {
+        guard stagedSourceNoMoves,generation==state.generation,sourceNoMovesGeneration==generation else{return .ignored}
+        return applySourceNoMovesEffect(sourceNoMovesOwner.waited(plan:plan,delivery:cancelled ? .cancelled:.elapsed,guard:sourceNoMovesGuard(initial:plan.signature)))
+    }
+    public func deliverSourceNoMovesTextExit(plan:NativeNoMovesCandidateOwner.Plan,generation:UInt64,delivery:NativeNoMovesCandidateOwner.ExitDelivery)->NativeNoMovesCandidateOwner.Effect {
+        guard stagedSourceNoMoves,generation==state.generation,sourceNoMovesGeneration==generation else{return .ignored}
+        return applySourceNoMovesEffect(sourceNoMovesOwner.exited(plan:plan,delivery:delivery,guard:sourceNoMovesGuard(initial:plan.signature)))
+    }
+    /// Lock acquisition and the final fresh recheck are one synchronous authority
+    /// boundary. A fixture hook can simulate the original post-lock pointer race.
+    public func acquireSourceNoMovesLock(plan:NativeNoMovesCandidateOwner.Plan,generation:UInt64,afterLock:(()->Void)?=nil)->NativeNoMovesCandidateOwner.Effect {
+        guard stagedSourceNoMoves,generation==state.generation,sourceNoMovesGeneration==generation,sourceNoMovesOwner.active==plan,sourceNoMovesOwner.phase == .awaitingPostLock else{return .ignored}
+        setInputLock("terminal-no-moves",active:true);flags.busyEnding=true
+        afterLock?()
+        let effect=applySourceNoMovesEffect(sourceNoMovesOwner.locked(plan:plan,guard:sourceNoMovesGuard(initial:plan.signature)))
+        if case .confirmedFinal = effect {
+            sourceNoMovesConfirmed=plan
+            sourceNoMovesConfirmedResolution=NativeSourceEndgameChecker.check(state:state,runtime:sourceNoMovesEffectiveTileRuntime)
+        }
+        return effect
+    }
+    /// Source confirmedFailFlow awaits the real board exit and checks generation.
+    /// This receipt does not rerun RNG, mutate moves, or freshly select a failure.
+    public func finishSourceNoMovesBoardExit(plan:NativeNoMovesCandidateOwner.Plan,generation:UInt64)->NativeMoveResult {
+        guard stagedSourceNoMoves,generation==state.generation,sourceNoMovesGeneration==generation,sourceNoMovesConfirmed==plan,let result=sourceNoMovesConfirmedResolution,state.terminal==nil else{return rejected("stale_source_no_moves_board_exit")}
+        state.terminal=result;sourceNoMovesConfirmed=nil;sourceNoMovesConfirmedResolution=nil;sourceNoMovesGeneration=nil
+        return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.terminal,reason:result.reason)],resolution:result)
+    }
+    private func applySourceNoMovesEffect(_ effect:NativeNoMovesCandidateOwner.Effect)->NativeNoMovesCandidateOwner.Effect {
+        if case .rollback(_,_,let release)=effect {
+            if release {setInputLock("terminal-no-moves",active:false);flags.busyEnding=false}
+            sourceNoMovesGeneration=nil
+        }
+        return effect
+    }
+}
+
+extension NativeGameplayEngine {
+    private var hasSourceMeterLastMerge:Bool {
+        if state.tiles.contains(where:{sourceMeterLastMergeTileIDs.contains($0.id) && !(noMovesTileRuntime[$0.id]?.destroyed ?? false)}) {return true}
+        let runtime=sourceNoMovesEffectiveTileRuntime
+        let active=state.tiles.filter{NativeSourceEndgameChecker.active($0,runtime:runtime[$0.id] ?? .init())}
+        return active.count==1 && active[0].value==6
+    }
+    private var meterOpenCancelled:Bool {
+        guard let flow=meterOpenFlow else{return true}
+        return flow.spawnToken != sourceMeterSpawnCancelToken || flow.queueCanceled || flags.busyEnding || hasSourceMeterLastMerge
+    }
+    private func beginMeterOpenFlow()->NativeMoveResult {
+        guard stagedMeterDrops,stagedMeterOpen,meterOpenFlow==nil,state.terminal==nil,!flags.busyEnding,!hasSourceMeterLastMerge else{return rejected("meter_open_not_admitted")}
+        meterOpenSequence &+= 1
+        meterOpenFlow=MeterOpenFlow(id:"native-meter-open:\(state.generation):\(meterOpenSequence)",generation:state.generation,spawnToken:sourceMeterSpawnCancelToken,excluded:sourceMeterDropExcludedCells)
+        return prepareMeterOpenAttempt()
+    }
+    private func prepareMeterOpenAttempt()->NativeMoveResult {
+        guard var flow=meterOpenFlow,flow.generation==state.generation else{return rejected("stale_meter_open_flow")}
+        if meterOpenCancelled {return finishMeterOpenFlow(reason:"source_meter_open_cancelled")}
+        while flow.tries<12 {
+            let available=NativeMagnetRules.emptyCells(state:state,excluding:flow.excluded)
+            guard !available.isEmpty else {
+                flow.tries+=1;meterOpenFlow=flow
+                let retry=NativeMeterOpenRetry(id:flow.id+":empty:\(flow.tries)",generation:flow.generation,spawnToken:flow.spawnToken,milliseconds:40)
+                pendingMeterOpenRetry=retry
+                return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.meterDropOpenRetryPrepared,value:40,reason:retry.id)],resolution:resolve())
+            }
+            let cell=(state.tutorial?.waitingForWild == true && flow.tries==0) ? (NativeTutorialRules.preferredWildCell(state:state) ?? available[min(available.count-1,Int(nextRandom()*Double(available.count)))]) : available[min(available.count-1,Int(nextRandom()*Double(available.count)))]
+            if flow.attempted.contains(cell) {flow.tries+=1;continue}
+            flow.attempted.insert(cell)
+            let choice=state.tutorial?.waitingForWild == true ? NativeWildRewardChoice(.star):rewardPicker?(state,nextRandom(),{self.nextRandom()})
+            guard let choice,choice.variant==nil || NativeSpecialDiceRegistry.compatibleVariant(choice.variant!,core:choice.archetype) != nil else{flow.tries+=1;continue}
+            var tile=freshTile(cell:cell,value:6);tile.archetype=choice.archetype;tile.variant=choice.variant;tile.visible=false;tile.alpha=0
+            if choice.archetype == .star {tile.starOrbitCount=choice.variant==nil ? 1+Int(nextRandom()*3):1}
+            let request=NativeMeterOpenRequest(id:flow.id+":attempt:\(flow.tries+1)",generation:flow.generation,spawnToken:flow.spawnToken,attempt:flow.tries+1,tile:tile,expectedHolderID:state.tile(at:cell)?.id)
+            meterOpenFlow=flow;pendingMeterOpen=request
+            return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.meterDropWillOpen,tileIDs:[tile.id],archetype:tile.archetype,reason:request.id,variant:tile.variant)],resolution:resolve())
+        }
+        meterOpenFlow=flow;return finishMeterOpenFlow(reason:"source_meter_open_attempts_exhausted")
+    }
+    /// Actual native renderer calls after a matching hidden node was created.
+    /// Source await-open token/busy/final recheck occurs BEFORE charge consumption.
+    public func completeMeterOpen(id:String,generation:UInt64,receipt:NativeMeterOpenReceipt,prepareCommitted:((NativeTile)->Void)?=nil)->NativeMoveResult {
+        guard generation==state.generation,var flow=meterOpenFlow,let request=pendingMeterOpen,request.id==id,request.generation==generation else{return rejected("stale_meter_open_receipt")}
+        pendingMeterOpen=nil
+        switch receipt {
+        case .refused,.creationFailed:
+            flow.tries+=1;meterOpenFlow=flow
+            let result=prepareMeterOpenAttempt()
+            return NativeMoveResult(accepted:result.accepted,state:state,events:[NativeGameplayEvent(.meterDropOpenRejected,tileIDs:[request.tile.id],reason:id)]+result.events,resolution:result.resolution)
+        case .created(let tileID):
+            guard tileID==request.tile.id else{pendingMeterOpen=request;return rejected("foreign_meter_open_node")}
+            // The authoritative native creation receipt must be coupled to grid
+            // admission; a concurrently occupied cell is never overwritten.
+            if let holder=state.tile(at:request.tile.cell),(!holder.locked || holder.value>0 || holder.isWild) {
+                flow.tries+=1;meterOpenFlow=flow
+                let result=prepareMeterOpenAttempt()
+                return NativeMoveResult(accepted:result.accepted,state:state,events:[NativeGameplayEvent(.meterDropOpenRejected,tileIDs:[request.tile.id],reason:id)]+result.events,resolution:result.resolution)
+            }
+            state.tiles.removeAll{$0.cell==request.tile.cell};state.tiles.append(request.tile)
+            var events=[NativeGameplayEvent(.meterDropOpenCreated,tileIDs:[request.tile.id],archetype:request.tile.archetype,reason:id,variant:request.tile.variant)]
+            if meterOpenCancelled {
+                state.tiles.removeAll{$0.id==request.tile.id}
+                events.append(NativeGameplayEvent(.meterDropOpenCanceled,tileIDs:[request.tile.id],reason:id))
+                meterOpenFlow=nil;pendingMeterOpenRetry=nil
+                return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
+            }
+            // Literal Source prepares authored audio/selected Juice after the
+            // first token check, BEFORE live charge consumption. It does NOT
+            // await these callbacks and rechecks cancellation after charge.
+            meterOpenCommitting=true
+            prepareCommitted?(request.tile)
+            meterOpenCommitting=false
+            guard generation==state.generation,meterOpenFlow?.id==flow.id else{return rejected("stale_meter_committed_preparation")}
+            state.wildMeter=max(0,state.wildMeter-1)
+            events.append(NativeGameplayEvent(.meterDropChargeConsumed,tileIDs:[request.tile.id],reason:id))
+            if meterOpenCancelled {
+                state.tiles.removeAll{$0.id==request.tile.id}
+                events.append(NativeGameplayEvent(.meterDropOpenCanceled,tileIDs:[request.tile.id],reason:id+":before-travel"))
+                meterOpenFlow=nil;pendingMeterOpenRetry=nil
+                return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
+            }
+            meterDropSequence &+= 1
+            let drop=NativeMeterDropReservation(id:"native-meter-drop:\(generation):\(meterDropSequence)",generation:generation,tileID:request.tile.id,cell:request.tile.cell,archetype:request.tile.archetype!,variant:request.tile.variant)
+            meterDropReservations[drop.id]=drop;meterOpenFlow=nil;pendingMeterOpenRetry=nil
+            events.append(NativeGameplayEvent(.meterDropReserved,tileIDs:[request.tile.id],value:6,archetype:request.tile.archetype,reason:drop.id,variant:request.tile.variant))
+            return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
+        }
+    }
+    public func deliverMeterOpenEmptyWait(id:String,generation:UInt64,cancelled:Bool=false)->NativeMoveResult {
+        guard generation==state.generation,let retry=pendingMeterOpenRetry,retry.id==id,meterOpenFlow != nil else{return rejected("stale_meter_empty_wait")}
+        pendingMeterOpenRetry=nil
+        if cancelled{return finishMeterOpenFlow(reason:"source_meter_empty_wait_cancelled")}
+        return prepareMeterOpenAttempt()
+    }
+    /// Explicit literal Source global cancellation, NOT background/global GSAP
+    /// pause. A pending creation still replies; live travel cleanup belongs to
+    /// its actual carrier receipt. Entered warmup Promise is never fake-settled.
+    public func cancelMeterSourceContinuation()->NativeMoveResult {
+        guard stagedMeterDrops,stagedMeterOpen else{return rejected("source_meter_route_not_installed")}
+        sourceMeterSpawnCancelToken &+= 1;state.wildMeter=0
+        var events=[NativeGameplayEvent(.meterDropContinuationReset)]
+        if var flow=meterOpenFlow {
+            flow.queueCanceled=true;meterOpenFlow=flow
+            if pendingMeterOpen==nil && !meterOpenCommitting {
+                events += finishMeterOpenFlow(reason:"source_meter_open_explicit_cancel").events
+            }
+        }
+        for drop in Array(meterDropReservations.values) where !drop.bookkeepingCommitted {
+            events += requestMeterDropCancellation(id:drop.id,generation:drop.generation,reason:.explicitPendingContinuation).events
+        }
+        return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
+    }
+    public func cancelMeterOpenContinuation()->NativeMoveResult {cancelMeterSourceContinuation()}
+    private func finishMeterOpenFlow(reason:String)->NativeMoveResult {
+        let id=meterOpenFlow?.id;meterOpenFlow=nil;pendingMeterOpen=nil;pendingMeterOpenRetry=nil
+        return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.meterDropOpenFailed,value:reason=="source_meter_open_attempts_exhausted" ? 600:nil,reason:id.map{$0+":"+reason} ?? reason)],resolution:resolve())
     }
 }

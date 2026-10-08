@@ -1,0 +1,476 @@
+{
+  "reference": "production-benchmark-v9",
+  "records": [
+    {
+      "mode": "success",
+      "trace": [
+        [
+          "shimmer"
+        ],
+        [
+          "tntWarmupBegin"
+        ],
+        [
+          "open",
+          true,
+          true
+        ],
+        [
+          "selectedAudio"
+        ],
+        [
+          "selectedJuice"
+        ],
+        [
+          "consume",
+          0.25
+        ],
+        [
+          "dropBegin"
+        ],
+        [
+          "shimmerIdle"
+        ],
+        [
+          "bind"
+        ],
+        [
+          "saveDebounce",
+          400
+        ]
+      ],
+      "meter": 0.25,
+      "count": 1,
+      "eventMode": "static",
+      "destroyed": false,
+      "openCalls": 1,
+      "cellCalls": 1
+    },
+    {
+      "mode": "token",
+      "trace": [
+        [
+          "shimmer"
+        ],
+        [
+          "tntWarmupBegin"
+        ],
+        [
+          "open",
+          true,
+          true
+        ],
+        [
+          "removeCapturedTile"
+        ],
+        [
+          "capturedRetry",
+          600
+        ],
+        [
+          "saveDebounce",
+          400
+        ]
+      ],
+      "meter": 1.25,
+      "count": 0,
+      "eventMode": "none",
+      "destroyed": true,
+      "openCalls": 1,
+      "cellCalls": 1
+    },
+    {
+      "mode": "busy",
+      "trace": [
+        [
+          "shimmer"
+        ],
+        [
+          "tntWarmupBegin"
+        ],
+        [
+          "open",
+          true,
+          true
+        ],
+        [
+          "removeCapturedTile"
+        ],
+        [
+          "capturedRetry",
+          600
+        ],
+        [
+          "saveDebounce",
+          400
+        ]
+      ],
+      "meter": 1.25,
+      "count": 0,
+      "eventMode": "none",
+      "destroyed": true,
+      "openCalls": 1,
+      "cellCalls": 1
+    },
+    {
+      "mode": "last",
+      "trace": [
+        [
+          "shimmer"
+        ],
+        [
+          "tntWarmupBegin"
+        ],
+        [
+          "open",
+          true,
+          true
+        ],
+        [
+          "removeCapturedTile"
+        ],
+        [
+          "capturedRetry",
+          600
+        ],
+        [
+          "saveDebounce",
+          400
+        ]
+      ],
+      "meter": 1.25,
+      "count": 0,
+      "eventMode": "none",
+      "destroyed": true,
+      "openCalls": 1,
+      "cellCalls": 1
+    },
+    {
+      "mode": "explicit",
+      "trace": [
+        [
+          "shimmer"
+        ],
+        [
+          "tntWarmupBegin"
+        ],
+        [
+          "open",
+          true,
+          true
+        ],
+        [
+          "dropCleanup"
+        ],
+        [
+          "removeCapturedTile"
+        ],
+        [
+          "saveDebounce",
+          400
+        ]
+      ],
+      "meter": 0,
+      "count": 0,
+      "eventMode": "none",
+      "destroyed": true,
+      "openCalls": 1,
+      "cellCalls": 1
+    },
+    {
+      "mode": "prepare-busy",
+      "trace": [
+        [
+          "shimmer"
+        ],
+        [
+          "tntWarmupBegin"
+        ],
+        [
+          "open",
+          true,
+          true
+        ],
+        [
+          "selectedAudio"
+        ],
+        [
+          "selectedJuice"
+        ],
+        [
+          "consume",
+          0.25
+        ],
+        [
+          "removeCapturedTile"
+        ],
+        [
+          "saveDebounce",
+          400
+        ]
+      ],
+      "meter": 0.25,
+      "count": 0,
+      "eventMode": "none",
+      "destroyed": true,
+      "openCalls": 1,
+      "cellCalls": 1
+    },
+    {
+      "mode": "prepare-explicit",
+      "trace": [
+        [
+          "shimmer"
+        ],
+        [
+          "tntWarmupBegin"
+        ],
+        [
+          "open",
+          true,
+          true
+        ],
+        [
+          "selectedAudio"
+        ],
+        [
+          "dropCleanup"
+        ],
+        [
+          "selectedJuice"
+        ],
+        [
+          "consume",
+          0
+        ],
+        [
+          "removeCapturedTile"
+        ],
+        [
+          "saveDebounce",
+          400
+        ]
+      ],
+      "meter": 0,
+      "count": 0,
+      "eventMode": "none",
+      "destroyed": true,
+      "openCalls": 1,
+      "cellCalls": 1
+    },
+    {
+      "mode": "open-refused",
+      "trace": [
+        [
+          "shimmer"
+        ],
+        [
+          "tntWarmupBegin"
+        ],
+        [
+          "open",
+          true,
+          true
+        ],
+        [
+          "tntWarmupBegin"
+        ],
+        [
+          "open",
+          true,
+          true
+        ],
+        [
+          "tntWarmupBegin"
+        ],
+        [
+          "open",
+          true,
+          true
+        ],
+        [
+          "tntWarmupBegin"
+        ],
+        [
+          "open",
+          true,
+          true
+        ],
+        [
+          "tntWarmupBegin"
+        ],
+        [
+          "open",
+          true,
+          true
+        ],
+        [
+          "tntWarmupBegin"
+        ],
+        [
+          "open",
+          true,
+          true
+        ],
+        [
+          "tntWarmupBegin"
+        ],
+        [
+          "open",
+          true,
+          true
+        ],
+        [
+          "tntWarmupBegin"
+        ],
+        [
+          "open",
+          true,
+          true
+        ],
+        [
+          "tntWarmupBegin"
+        ],
+        [
+          "open",
+          true,
+          true
+        ],
+        [
+          "tntWarmupBegin"
+        ],
+        [
+          "open",
+          true,
+          true
+        ],
+        [
+          "tntWarmupBegin"
+        ],
+        [
+          "open",
+          true,
+          true
+        ],
+        [
+          "tntWarmupBegin"
+        ],
+        [
+          "open",
+          true,
+          true
+        ],
+        [
+          "capturedRetry",
+          600
+        ],
+        [
+          "saveDebounce",
+          400
+        ]
+      ],
+      "meter": 1.25,
+      "count": 0,
+      "eventMode": "none",
+      "destroyed": false,
+      "openCalls": 12,
+      "cellCalls": 12
+    },
+    {
+      "mode": "no-empty",
+      "trace": [
+        [
+          "shimmer"
+        ],
+        [
+          "emptyWait",
+          40
+        ],
+        [
+          "emptyWait",
+          40
+        ],
+        [
+          "emptyWait",
+          40
+        ],
+        [
+          "emptyWait",
+          40
+        ],
+        [
+          "emptyWait",
+          40
+        ],
+        [
+          "emptyWait",
+          40
+        ],
+        [
+          "emptyWait",
+          40
+        ],
+        [
+          "emptyWait",
+          40
+        ],
+        [
+          "emptyWait",
+          40
+        ],
+        [
+          "emptyWait",
+          40
+        ],
+        [
+          "emptyWait",
+          40
+        ],
+        [
+          "emptyWait",
+          40
+        ],
+        [
+          "capturedRetry",
+          600
+        ],
+        [
+          "saveDebounce",
+          400
+        ]
+      ],
+      "meter": 1.25,
+      "count": 0,
+      "eventMode": "none",
+      "destroyed": false,
+      "openCalls": 0,
+      "cellCalls": 12
+    },
+    {
+      "mode": "empty-wait-cancelled",
+      "trace": [
+        [
+          "shimmer"
+        ],
+        [
+          "emptyWait",
+          40
+        ],
+        [
+          "capturedRetry",
+          600
+        ],
+        [
+          "saveDebounce",
+          400
+        ]
+      ],
+      "meter": 1.25,
+      "count": 0,
+      "eventMode": "none",
+      "destroyed": false,
+      "openCalls": 0,
+      "cellCalls": 1
+    }
+  ]
+}

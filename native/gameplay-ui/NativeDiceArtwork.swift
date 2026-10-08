@@ -1,5 +1,6 @@
 import SpriteKit
 import UIKit
+import ImageIO
 
 /// Presentation identities match special-dice-registry.ts. Gameplay kind is
 /// supplied by the engine; this registry never infers rules from artwork.
@@ -100,10 +101,22 @@ final class NativeBoardTextures {
     private var waiting: [String: [([SKTexture]) -> Void]] = [:]
     private var generation = 0
     private var disposed = false
+    @MainActor private final class SelectedFinaleRequest {
+        let generation:Int
+        var callbacks:[(SKTexture?)->Void]
+        init(generation:Int,completion:@escaping(SKTexture?)->Void) {
+            self.generation=generation;callbacks=[completion]
+        }
+    }
+    typealias SelectedFinalePreload=@MainActor ([SKTexture],@escaping @Sendable()->Void)->Void
+    private var finaleWarmupWaiting:[String:SelectedFinaleRequest]=[:]
+    private let selectedFinalePreload:SelectedFinalePreload
     private var phaseScheduler=NativeArtworkPhaseScheduler()
     private let io = DispatchQueue(label: "com.taptapdesign.stacktosix.native-board-art", qos: .userInitiated)
 
-    init(root: URL) { self.root = root }
+    init(root: URL,selectedFinalePreload:@escaping SelectedFinalePreload={textures,done in
+        SKTexture.preload(textures,withCompletionHandler:done)
+    }) {self.root=root;self.selectedFinalePreload=selectedFinalePreload}
 
     func reserveIdlePhase(group:String,cycle:TimeInterval)->(id:Int,running:Bool) {
         let now=(CACurrentMediaTime()*1000).rounded(.down)
@@ -182,8 +195,69 @@ final class NativeBoardTextures {
         }
     }
 
+    /// Selected original Source asset only. BOTH cached and decoded paths remain
+    /// captured until actual native upload completion or explicit host retirement.
+    func prepareSelectedFinaleAsset(_ spec:NativeMeterWarmupAsset,completion:@escaping(SKTexture?)->Void) {
+        guard !disposed else{completion(nil);return}
+        if let request=finaleWarmupWaiting[spec.key] {
+            request.callbacks.append(completion);return
+        }
+        let request=SelectedFinaleRequest(generation:generation,completion:completion)
+        finaleWarmupWaiting[spec.key]=request
+        // Source attempts preferred before a cached fallback. A cached preferred
+        // still needs the same captured upload receipt; no unguarded fast path.
+        if let path=spec.candidates.first {
+            let relative=path.hasPrefix("./") ? String(path.dropFirst(2)):path
+            if let texture=textures[relative] {
+                selectedFinalePreload([texture]) {Task{@MainActor [weak self] in
+                    self?.finishSelectedFinale(key:spec.key,request:request,texture:texture)
+                }}
+                return
+            }
+        }
+        let root=self.root
+        io.async { [weak self] in
+            let decoded=NativeSelectedFinaleRaster.decode(root:root,candidates:spec.candidates)
+            Task { @MainActor [weak self] in
+                guard let self,self.selectedFinaleIsCurrent(key:spec.key,request:request) else{return}
+                guard let decoded else {
+                    self.finishSelectedFinale(key:spec.key,request:request,texture:nil);return
+                }
+                let texture=SKTexture(cgImage:decoded.image);texture.filteringMode = .linear
+                self.selectedFinalePreload([texture]) {Task{@MainActor [weak self] in
+                    guard let self,self.selectedFinaleIsCurrent(key:spec.key,request:request) else{return}
+                    self.textures[decoded.path]=texture
+                    let density:CGFloat=decoded.path.contains("@2x.") ? 2:1
+                    self.logicalSizes[decoded.path]=CGSize(width:CGFloat(decoded.image.width)/density,height:CGFloat(decoded.image.height)/density)
+                    self.finishSelectedFinale(key:spec.key,request:request,texture:texture)
+                }}
+            }
+        }
+    }
+
+    private func selectedFinaleIsCurrent(key:String,request:SelectedFinaleRequest)->Bool {
+        !disposed && request.generation==generation && finaleWarmupWaiting[key] === request
+    }
+    private func finishSelectedFinale(key:String,request:SelectedFinaleRequest,texture:SKTexture?) {
+        // Keep remaining consumers registered while invoking EACH callback. A
+        // reentrant invalidate/dispose then settles the rest nil exactly once.
+        while selectedFinaleIsCurrent(key:key,request:request),!request.callbacks.isEmpty {
+            let callback=request.callbacks.removeFirst();callback(texture)
+        }
+        if selectedFinaleIsCurrent(key:key,request:request) {finaleWarmupWaiting.removeValue(forKey:key)}
+    }
+    private func cancelSelectedFinaleWaiters() {
+        let requests=Array(finaleWarmupWaiting.values);finaleWarmupWaiting.removeAll()
+        let callbacks=requests.flatMap{request -> [(SKTexture?)->Void] in
+            let callbacks=request.callbacks;request.callbacks.removeAll();return callbacks
+        }
+        // Removal precedes callbacks: new-generation requests created reentrantly
+        // by invalidation listeners cannot be stolen by an obsolete upload.
+        callbacks.forEach{$0(nil)}
+    }
+
     func purgeUnused(retaining paths: Set<String>) {
-        guard waiting.isEmpty else { return }
+        guard waiting.isEmpty,finaleWarmupWaiting.isEmpty else { return }
         textures = textures.filter { paths.contains($0.key) }
         logicalSizes = logicalSizes.filter { paths.contains($0.key) }
         sheets = sheets.filter { paths.contains($0.key) }
@@ -192,6 +266,7 @@ final class NativeBoardTextures {
     func invalidatePendingPreparation() {
         guard !disposed else { return }
         generation += 1; waiting.removeAll()
+        cancelSelectedFinaleWaiters()
     }
 
     func dispose() {
@@ -199,6 +274,7 @@ final class NativeBoardTextures {
         disposed = true
         generation += 1
         waiting.removeAll(); sheets.removeAll(); textures.removeAll(); logicalSizes.removeAll()
+        cancelSelectedFinaleWaiters()
         phaseScheduler.dispose()
     }
 }
