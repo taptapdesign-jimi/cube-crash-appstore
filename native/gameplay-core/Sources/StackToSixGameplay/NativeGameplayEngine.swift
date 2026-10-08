@@ -26,7 +26,7 @@ public final class NativeGameplayEngine {
     public var hasUnsavableSourceGameplayState:Bool {
         // A Native caller cannot serialize a partially observed Core/physical
         // callback pair. Do not write a fabricated flag into SourceSaveRuntime.
-        if hasPendingSourceOrdinaryStackFace {return true}
+        if hasPendingSourceOrdinaryStackFace || pendingSourceMagnetFallbackOpen != nil {return true}
         var snapshot=sourceSaveRuntime
         snapshot.wildSpawnInProgress = snapshot.wildSpawnInProgress || sourceMeterSpawnInProgress
         snapshot.wildDropInProgress = snapshot.wildDropInProgress || meterDropReservations.values.contains {$0.assetsPrepared && !$0.dropCompleted && !$0.queueCanceled}
@@ -120,6 +120,14 @@ public final class NativeGameplayEngine {
     public var laserTargetX: ((NativeTile) -> Double)?
     public var laserViewportWidth: Double?
     public private(set) var pendingMagnetRespawn: NativeMagnetRespawnPlan?
+    /// PRIVATE/default OFF. Authentic Source app-merge fallback continuation.
+    public var sourceMagnetFallbacksEnabled=false
+    public private(set) var sourceMagnetPostCommit:NativeSourceMagnetPostCommitReceipt?
+    public private(set) var pendingSourceMagnetFallback:NativeSourceMagnetFallbackPlan?
+    public private(set) var pendingSourceMagnetFallbackOpen:NativeSourceMagnetFallbackOpen?
+    private var sourceMagnetFallbackIndex=0,sourceMagnetFallbackSequence:UInt64=0
+    private var sourceMagnetFallbackValueCommitted=false
+
     private var magnetReplacementIndex = 0
     public private(set) var pendingHUDStars: [NativeHUDStarReceipt] = []
     /// Opt-in only after genuine Source flight/job bindings are mounted.
@@ -229,6 +237,7 @@ public final class NativeGameplayEngine {
         let generation = state.generation &+ 1
         state = fresh; state.generation = generation; state.revision = 0; state.terminal = nil; tileSequence = 0
         sourceMeterMutationLedger?.resetTransientGuards(generation:generation)
+        sourceMagnetPostCommit=nil;pendingSourceMagnetFallback=nil;pendingSourceMagnetFallbackOpen=nil;sourceMagnetFallbackIndex=0;sourceMagnetFallbackValueCommitted=false
         pendingSpecial = nil; pendingLaserShots = []; pendingMagnetRespawn = nil; magnetReplacementIndex = 0; specialPreBoard = nil; specialImpactIndex = 0
         directWildPrimaryRecovery?.cancelForLifecycle();directWildPrimaryRecovery=nil;directWildSpawnPhase?.cancelForLifecycle();directWildSpawnPhase=nil;pendingWildSpawnActions=[];pendingWildSpawnArrivals=[];pendingWildLockedBonusPresentations=[];wildPhaseScheduledID=nil;directWildVisualReleased=false
         pendingDirectWild = nil; sourceDirectWildPrefix = nil; directWildGameplayCommitted = false; committingDirectWild = false
@@ -727,6 +736,9 @@ public final class NativeGameplayEngine {
         }
         pendingMagnetRespawn = NativeMagnetRespawnPlan(transactionID:plan.id,replacements:replacements,survivor:survivor,placeholders:placeholders)
         magnetReplacementIndex = 0
+        if sourceMagnetFallbacksEnabled {
+            sourceMagnetPostCommit = .init(transactionID:plan.id,generation:plan.generation,spawnCount:plan.targets.count,reserved:reserved)
+        }
         let pulledCoreStar = plan.targets.first { $0.gameplayArchetype == .star && $0.variant == nil }
         let orbitCount = pulledCoreStar.map { max(1,min(3,$0.starOrbitCount)) } ?? 0
         let stars = prepareHUDStars(count:min(3,orbitCount+plan.targets.count),origin:plan.destination.cell,variant:plan.variant)
@@ -802,6 +814,85 @@ public final class NativeGameplayEngine {
         let resolution = settleDeferredFinalMerge(events:&events)
         if resolution.kind == .fail { noMovesSignature = state.signature; events.append(NativeGameplayEvent(.noMovesCandidate,reason:resolution.reason)) }
         return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolution)
+    }
+
+    /// Literal random-empty-cell scan/shuffle. Source-current callback must own
+    /// actual postcommit revision/zero-active branch; no Core revision proxy.
+    public func prepareSourceMagnetFallback(transactionID:String,generation:UInt64,
+        sourceCurrent:()->Bool,sourceRandom:()->Double)->NativeSourceMagnetFallbackPlan? {
+        guard sourceMagnetFallbacksEnabled,state.generation==generation,state.terminal==nil,state.validationIssues().isEmpty,
+              pendingSpecial==nil,pendingSourceMagnetFallback==nil,pendingSourceMagnetFallbackOpen==nil,
+              let receipt=sourceMagnetPostCommit,receipt.transactionID==transactionID,receipt.generation==generation else{return nil}
+        let captured=state
+        func valid()->Bool {let accepted=sourceCurrent();return accepted && state==captured && sourceMagnetPostCommit==receipt && pendingSourceMagnetFallback==nil && pendingSourceMagnetFallbackOpen==nil}
+        guard valid() else{return nil}
+        var empty:[NativeCell]=[]
+        for row in 0..<state.rows {for column in 0..<state.columns {
+            let cell=NativeCell(column:column,row:row),tile=state.tile(at:cell)
+            if let tile,tile.value>0 || tile.isWild {continue}
+            if tile==nil || tile?.locked==true {empty.append(cell)}
+        }}
+        if empty.count>1 {for i in stride(from:empty.count-1,through:1,by:-1) {
+            let roll=sourceRandom();guard valid(),roll.isFinite,roll>=0,roll<1 else{return nil}
+            empty.swapAt(i,Int(floor(roll*Double(i+1))))
+        }}
+        let count=max(1,min(receipt.spawnCount,2)),reserved=Set(receipt.reserved)
+        let cells=Array(empty.prefix(count+6)).filter{!reserved.contains($0)}.prefix(count)
+        guard valid() else{return nil};sourceMagnetFallbackSequence &+= 1
+        let plan=NativeSourceMagnetFallbackPlan(id:"source-magnet-fallback:\(generation):\(sourceMagnetFallbackSequence)",transactionID:transactionID,generation:generation,cells:Array(cells))
+        pendingSourceMagnetFallback=plan;sourceMagnetFallbackIndex=0;return plan
+    }
+    /// Value draw precedes the literal openAtCell occupied-cell check. Fresh
+    /// placeholder constructor/rotation belongs to the actual Scene callback.
+    public func beginSourceMagnetFallbackOpen(planID:String,generation:UInt64,index:Int,
+        sourceCurrent:()->Bool,sourceRandom:()->Double)->NativeSourceMagnetFallbackOpen? {
+        guard sourceMagnetFallbacksEnabled,state.generation==generation,state.terminal==nil,
+              let plan=pendingSourceMagnetFallback,plan.id==planID,plan.generation==generation,index==sourceMagnetFallbackIndex,
+              plan.cells.indices.contains(index),pendingSourceMagnetFallbackOpen==nil else{return nil}
+        let captured=state
+        func valid()->Bool {let accepted=sourceCurrent();return accepted && state==captured && pendingSourceMagnetFallback==plan && pendingSourceMagnetFallbackOpen==nil && sourceMagnetFallbackIndex==index}
+        guard valid() else{return nil};let roll=sourceRandom()
+        guard valid(),roll.isFinite,roll>=0,roll<1 else{return nil}
+        let value=1+Int(floor(roll*3)),cell=plan.cells[index],old=state.tile(at:cell)
+        let skipped=old.map{!$0.locked && ($0.value>0 || $0.isWild)} ?? false
+        var holder:NativeTile?,removed:String?,created=false
+        if !skipped {
+            if let old,old.locked,old.value<=0,!old.isWild {removed=old.id;state.tiles.removeAll{$0.id==old.id}}
+            if let existing=state.tile(at:cell) {holder=existing}
+            else {var fresh=freshTile(cell:cell,value:0);fresh.locked=true;fresh.alpha=0.20;state.tiles.append(fresh);holder=fresh;created=true}
+        }
+        let open=NativeSourceMagnetFallbackOpen(id:"\(plan.id):open:\(index)",planID:plan.id,generation:generation,index:index,cell:cell,value:value,holder:holder,removedHolderID:removed,createdHolder:created,skipped:skipped)
+        pendingSourceMagnetFallbackOpen=open;sourceMagnetFallbackValueCommitted=false;return open
+    }
+    /// Actual constructor/bind before setValue caller invokes this once. It
+    /// never chooses another cell/value or draws additional gameplay randomness.
+    public func commitSourceMagnetFallbackValue(openID:String,generation:UInt64)->NativeMoveResult {
+        guard state.generation==generation,state.terminal==nil,let open=pendingSourceMagnetFallbackOpen,
+            open.id==openID,open.generation==generation,!sourceMagnetFallbackValueCommitted,!open.skipped,let holder=open.holder,
+            let i=state.tiles.firstIndex(where:{$0.id==holder.id && $0.cell==open.cell}),state.tiles[i]==holder else{return rejected("source_magnet_fallback_holder_changed")}
+        state.tiles[i].locked=false;state.tiles[i].visible=true;state.tiles[i].alpha=1;state.tiles[i].value=open.value;state.tiles[i].stackDepth=1
+        state.tiles[i].archetype=nil;state.tiles[i].variant=nil;state.tiles[i].pendingRemoval=false;state.tiles[i].magnetOwned=false;state.tiles[i].resolutionOwned=false
+        sourceMagnetFallbackValueCommitted=true
+        return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.spawned,tileIDs:[holder.id],value:open.value,archetype:.magnet,reason:open.id)],resolution:NativeResolution(.wait,reason:"source_magnet_fallback_open_pending"))
+    }
+    /// Called only from actual Source GSAP560 completion/interruption. A moved
+    /// or consumed cube is never restored by this late acknowledgement.
+    @discardableResult public func finishSourceMagnetFallbackOpen(openID:String,generation:UInt64,interrupted:Bool)->Bool {
+        guard state.generation==generation,let open=pendingSourceMagnetFallbackOpen,open.id==openID,open.generation==generation,
+            interrupted || open.skipped || sourceMagnetFallbackValueCommitted else{return false}
+        pendingSourceMagnetFallbackOpen=nil;sourceMagnetFallbackValueCommitted=false
+        if interrupted {pendingSourceMagnetFallback=nil;sourceMagnetPostCommit=nil;sourceMagnetFallbackIndex=0}
+        else {sourceMagnetFallbackIndex+=1}
+        return true
+    }
+    @discardableResult public func finishSourceMagnetFallback(planID:String,generation:UInt64)->Bool {
+        guard state.generation==generation,let plan=pendingSourceMagnetFallback,plan.id==planID,plan.generation==generation,
+            pendingSourceMagnetFallbackOpen==nil,sourceMagnetFallbackIndex==plan.cells.count else{return false}
+        pendingSourceMagnetFallback=nil;sourceMagnetFallbackIndex=0;return true
+    }
+    @discardableResult public func retireSourceMagnetPostCommit(transactionID:String,generation:UInt64)->Bool {
+        guard state.generation==generation,sourceMagnetPostCommit?.transactionID==transactionID,sourceMagnetPostCommit?.generation==generation else{return false}
+        sourceMagnetPostCommit=nil;pendingSourceMagnetFallback=nil;pendingSourceMagnetFallbackOpen=nil;sourceMagnetFallbackIndex=0;sourceMagnetFallbackValueCommitted=false;return true
     }
 
     private func settleDeferredFinalMerge(events: inout [NativeGameplayEvent]) -> NativeResolution {
@@ -1283,7 +1374,8 @@ extension NativeGameplayEngine {
         if let i=state.tiles.firstIndex(where:{$0.id==source.id}) {state.tiles[i].pendingRemoval=true;state.tiles[i].resolutionOwned=true}
         if let i=state.tiles.firstIndex(where:{$0.id==destination.id}) {
             state.tiles[i].value=6;state.tiles[i].stackDepth=isFinal ? 1:min(4,source.stackDepth+destination.stackDepth)
-            state.tiles[i].merge6CleanupOwned=true;state.tiles[i].nonFinalMerge6 = !isFinal;state.tiles[i].visible = !isFinal
+            state.tiles[i].merge6CleanupOwned=true;state.tiles[i].nonFinalMerge6 = !isFinal;state.tiles[i].visible = sourceMergeSixAutoCenterHook?.usesSourceDestinationParentState == true ? destination.visible:!isFinal
+            if sourceMergeSixAutoCenterHook?.usesSourceDestinationParentState == true {state.tiles[i].alpha=1}
         }
         noMovesSignature=nil
         stageAccepted=true
