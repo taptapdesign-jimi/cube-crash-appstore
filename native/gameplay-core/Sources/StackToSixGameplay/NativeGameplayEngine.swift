@@ -9,7 +9,21 @@ public final class NativeGameplayEngine {
     /// owner (for example Wild-drop travel); ordinary decorative SKActions add none.
     private var sourceMeterMutationLedger:NativeSourceMeterMutationLedger?
     public var sourceSaveRuntime=NativeSourceSaveRuntime()
+    /// Native physical-face bridge admission, not a Source spawn/save marker.
+    public var sourceOrdinaryStackFacesEnabled=false
+    private var sourceOrdinaryStackFaces:[String:NativeSourceOrdinaryStackFaceEntry]=[:]
+    private var sourceOrdinaryStackFaceCancellationBlocks:[String:NativeSourceOrdinaryStackFaceReceipt]=[:]
+    public var unsettledSourceOrdinaryStackFaceCancellations:[NativeSourceOrdinaryStackFaceReceipt] {
+        sourceOrdinaryStackFaceCancellationBlocks.values.sorted{$0.sequence<$1.sequence}
+    }
+    public var pendingSourceOrdinaryStackFaces:[NativeSourceOrdinaryStackFaceReceipt] {
+        sourceOrdinaryStackFaces.values.map(\.receipt).sorted{$0.sequence<$1.sequence}
+    }
+    public var hasPendingSourceOrdinaryStackFace:Bool {!sourceOrdinaryStackFaces.isEmpty || !sourceOrdinaryStackFaceCancellationBlocks.isEmpty}
     public var hasUnsavableSourceGameplayState:Bool {
+        // A Native caller cannot serialize a partially observed Core/physical
+        // callback pair. Do not write a fabricated flag into SourceSaveRuntime.
+        if hasPendingSourceOrdinaryStackFace {return true}
         var snapshot=sourceSaveRuntime
         snapshot.wildSpawnInProgress = snapshot.wildSpawnInProgress || sourceMeterSpawnInProgress
         snapshot.wildDropInProgress = snapshot.wildDropInProgress || meterDropReservations.values.contains {$0.assetsPrepared && !$0.dropCompleted && !$0.queueCanceled}
@@ -196,6 +210,7 @@ public final class NativeGameplayEngine {
     public func cancelDrag() { drag = nil }
     public func cancelNoMovesConfirmation() { noMovesSignature = nil }
     public func restart(state fresh: NativeBoardState) {
+        sourceOrdinaryStackFaces.removeAll();sourceOrdinaryStackFaceCancellationBlocks.removeAll()
         meterDropReservations.removeAll();meterDropSequence=0
         pendingMeterOpen=nil;pendingMeterOpenRetry=nil;meterOpenFlow=nil;meterOpenSequence=0;sourceMeterSpawnCancelToken &+= 1;sourceMeterLastMergeTileIDs=[]
         sourceNoMovesReadyPostchecks=[];sourceNoMovesStackContexts=[:];sourceNoMovesOwner=NativeNoMovesCandidateOwner();sourceNoMovesConfirmed=nil;sourceNoMovesConfirmedResolution=nil;completedSourceNoMovesReceipt=nil;sourceNoMovesGeneration=nil;noMovesTileRuntime=[:];sourceWildRetryPending=false;sourceNonFinalMerge6Guard=false
@@ -285,6 +300,7 @@ public final class NativeGameplayEngine {
         return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolution)
     }
     public func resolve() -> NativeResolution {
+        if state.terminal == nil && hasPendingSourceOrdinaryStackFace {return NativeResolution(.wait,reason:"captured_ordinary_face_pending")}
         if state.terminal == nil && sourceMeterSpawnInProgress {
             return NativeResolution(.wait,reason:"captured_meter_drop_continuation")
         }
@@ -360,8 +376,10 @@ public final class NativeGameplayEngine {
         if effectiveSum < 6 { state.score = min(999999, state.score + effectiveSum) }
         state.tiles.removeAll { $0.id == source.id }
         var merged = destination
-        merged.value = effectiveSum; merged.stackDepth = min(4, source.stackDepth + destination.stackDepth)
-        if effectiveSum < 6 { state.maxStackDepth = max(state.maxStackDepth,merged.stackDepth) }
+        merged.value = effectiveSum
+        let sourceFaceCaptured = sourceOrdinaryStackFacesEnabled && effectiveSum<6 && committingOrdinaryStack && pendingOrdinaryStack != nil
+        merged.stackDepth = sourceFaceCaptured ? destination.stackDepth:min(4,source.stackDepth+destination.stackDepth)
+        if effectiveSum < 6 && !sourceFaceCaptured {state.maxStackDepth=max(state.maxStackDepth,merged.stackDepth)}
         merged.archetype = nil; merged.variant = nil; merged.locked = false
         state.tiles.removeAll { $0.id == destination.id }
         var events = [NativeGameplayEvent(.merged, tileIDs: [source.id, destination.id], value: effectiveSum, archetype: NativeSpecialDiceRegistry.finale(source: source, destination: destination), variant: source.variant ?? destination.variant), NativeGameplayEvent(.comboChanged, value: state.combo)]
@@ -694,7 +712,7 @@ public final class NativeGameplayEngine {
 
     private func settleDeferredFinalMerge(events: inout [NativeGameplayEvent]) -> NativeResolution {
         let resolution = resolve()
-        guard pendingSpecial == nil,pendingMeterRewards.isEmpty,pendingOrdinaryStack == nil,pendingOrdinarySix == nil,pendingOrdinaryPostchecks.isEmpty,let captured = deferredFinalMerge else { return resolution }
+        guard !hasPendingSourceOrdinaryStackFace,pendingSpecial == nil,pendingMeterRewards.isEmpty,pendingOrdinaryStack == nil,pendingOrdinarySix == nil,pendingOrdinaryPostchecks.isEmpty,let captured = deferredFinalMerge else { return resolution }
         deferredFinalMerge = nil
         if resolution.kind == .complete {
             state.wildMeter = 0; state.terminal = captured; noMovesSignature = nil
@@ -1067,6 +1085,10 @@ extension NativeGameplayEngine {
         let accepted=drop(target:destination.cell,pointerID:pointerID,now:now)
         committingOrdinaryStack=false
         guard accepted.accepted else {pendingOrdinaryStack=nil;return accepted}
+        if sourceOrdinaryStackFacesEnabled {
+            let receipt=NativeSourceOrdinaryStackFaceReceipt(id:plan.id+":face",ordinaryMoveID:plan.id,generation:plan.generation,sequence:specialSequence,destinationID:destination.id,cell:destination.cell,value:source.value+destination.value,addStack:source.stackDepth)
+            sourceOrdinaryStackFaces[receipt.id]=NativeSourceOrdinaryStackFaceEntry(receipt:receipt,before:sourceContextBefore,source:source,destination:destination)
+        }
         state.moves=movesBefore
         if stagedSourceNoMoves,let committedDestination=state.tiles.first(where:{$0.id==destination.id}) {
             sourceNoMovesStackContexts[plan.id]=NativeNoMovesStackContext(before:sourceContextBefore,source:source,destination:destination,effectiveSum:committedDestination.value,destinationDepthAfterCommit:committedDestination.stackDepth)
@@ -1098,6 +1120,7 @@ extension NativeGameplayEngine {
         return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
     }
     public func commitOrdinaryPostcheck(receiptID:String,generation:UInt64)->NativeMoveResult {
+        if hasPendingSourceOrdinaryStackFace {return rejected("captured_ordinary_face_pending")}
         guard generation==state.generation,let index=pendingOrdinaryPostchecks.firstIndex(where:{$0.id==receiptID && $0.generation==generation}) else{return rejected("stale_ordinary_postcheck")}
         let receipt=pendingOrdinaryPostchecks.remove(at:index)
         // Source entered this awaited branch before busyEnding changed. Its fresh stuck
@@ -1554,7 +1577,7 @@ extension NativeGameplayEngine {
         result.freshEndgameType = fresh.kind == .fail ? "stuck" : fresh.kind == .complete ? "clean":"continue"
         result.freshCheckFailed = !state.validationIssues().isEmpty
         result.wildContinuation=sourceMeterSpawnInProgress || state.wildMeter>=1-0.000001 || flags.wildSpawnInProgress || sourceSaveRuntime.wildSpawnInProgress || sourceWildRetryPending || sourceSaveRuntime.wildDropInProgress
-        result.gameplayTransaction=sourceMeterSpawnInProgress || flags.wildSpawnInProgress || flags.merge6SpawnInProgress || flags.wildMagnetPullInProgress || sourceSaveRuntime.wildSpawnInProgress || sourceSaveRuntime.merge6SpawnInProgress || sourceSaveRuntime.wildMagnetPullInProgress || sourceSaveRuntime.specialTransactionActive || sourceSaveRuntime.regularHandoffActive || pendingOrdinaryStack != nil || pendingOrdinarySix != nil || directWildSpawnPhase != nil || pendingSpecial != nil || (pendingDirectWild != nil && !directWildGameplayCommitted)
+        result.gameplayTransaction=hasPendingSourceOrdinaryStackFace || sourceMeterSpawnInProgress || flags.wildSpawnInProgress || flags.merge6SpawnInProgress || flags.wildMagnetPullInProgress || sourceSaveRuntime.wildSpawnInProgress || sourceSaveRuntime.merge6SpawnInProgress || sourceSaveRuntime.wildMagnetPullInProgress || sourceSaveRuntime.specialTransactionActive || sourceSaveRuntime.regularHandoffActive || pendingOrdinaryStack != nil || pendingOrdinarySix != nil || directWildSpawnPhase != nil || pendingSpecial != nil || (pendingDirectWild != nil && !directWildGameplayCommitted)
         result.activeDrag=drag != nil || sourceSaveRuntime.activeDrag
         result.endgameGuard=flags.endgameGuardActive
         return result
@@ -1868,5 +1891,37 @@ extension NativeGameplayEngine {
             spawnEnabled:e.boardSpawnEnabled,spawnInProgress:e.queueInProgress,busyEnding:flags.busyEnding,
             boardTransition:e.boardTransitionActive,failPending:e.failScreenPending,lastMerge:hasSourceMeterLastMerge,
             animationBlock:sourceMeterAnimationBlockReason(environment:e))
+    }
+}
+
+
+extension NativeGameplayEngine {
+    /// Actual same-node setValue face callback only. No elapsed-time/pickup/main80
+    /// callback may stand in for this receipt. Signature depth/max update here.
+    public func commitSourceOrdinaryStackFace(receiptID:String,generation:UInt64)->NativeMoveResult {
+        guard generation==state.generation,let entry=sourceOrdinaryStackFaces[receiptID],entry.receipt.generation==generation,
+              !sourceOrdinaryStackFaces.values.contains(where:{$0.receipt.destinationID==entry.receipt.destinationID && $0.receipt.sequence<entry.receipt.sequence}),
+              let index=state.tiles.firstIndex(where:{$0.id==entry.receipt.destinationID && $0.cell==entry.receipt.cell}),
+              !state.tiles[index].locked,!state.tiles[index].isWild,state.tiles[index].variant==nil,
+              noMovesTileRuntime[entry.receipt.destinationID]?.destroyed != true else{return rejected("stale_or_out_of_order_ordinary_face")}
+        sourceOrdinaryStackFaces.removeValue(forKey:receiptID) // retire BEFORE publication
+        state.tiles[index].value=entry.receipt.value
+        state.tiles[index].stackDepth=min(4,max(1,state.tiles[index].stackDepth)+entry.receipt.addStack)
+        state.maxStackDepth=max(state.maxStackDepth,state.tiles[index].stackDepth)
+        if sourceNoMovesStackContexts[entry.receipt.ordinaryMoveID] != nil {
+            sourceNoMovesStackContexts[entry.receipt.ordinaryMoveID]=NativeNoMovesStackContext(before:entry.before,source:entry.source,destination:entry.destination,effectiveSum:entry.receipt.value,destinationDepthAfterCommit:state.tiles[index].stackDepth)
+        }
+        return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
+    }
+    /// Captured node/RAF cancellation or real destructive retirement only. Pure
+    /// global pause/background cannot invent a face commit or cancel this owner.
+    public func cancelSourceOrdinaryStackFace(receiptID:String,generation:UInt64)->NativeMoveResult {
+        guard generation==state.generation,let entry=sourceOrdinaryStackFaces[receiptID],entry.receipt.generation==generation else{return rejected("stale_ordinary_face_cancel")}
+        sourceOrdinaryStackFaces.removeValue(forKey:receiptID)
+        // The captured physical face did not arrive. Keep the live Native model
+        // unpublishable until a genuine generation teardown, rather than calling
+        // cancellation a coherent new depth or serializing a missing physical tile.
+        sourceOrdinaryStackFaceCancellationBlocks[receiptID]=entry.receipt
+        return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
     }
 }
