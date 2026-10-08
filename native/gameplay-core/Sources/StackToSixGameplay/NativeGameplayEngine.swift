@@ -26,7 +26,7 @@ public final class NativeGameplayEngine {
     public var hasUnsavableSourceGameplayState:Bool {
         // A Native caller cannot serialize a partially observed Core/physical
         // callback pair. Do not write a fabricated flag into SourceSaveRuntime.
-        if hasPendingSourceOrdinaryStackFace || pendingSourceMagnetFallbackOpen != nil {return true}
+        if hasPendingSourceOrdinaryStackFace || pendingSourceMagnetFallbackOpen != nil || !sourceNoMovesCallerRefusals.isEmpty {return true}
         var snapshot=sourceSaveRuntime
         snapshot.wildSpawnInProgress = snapshot.wildSpawnInProgress || sourceMeterSpawnInProgress
         snapshot.wildDropInProgress = snapshot.wildDropInProgress || meterDropReservations.values.contains {$0.assetsPrepared && !$0.dropCompleted && !$0.queueCanceled}
@@ -101,6 +101,19 @@ public final class NativeGameplayEngine {
     public var stagedSourceNoMoves = false
     /// nil preserves existing Native conservative guards; actual Source owners only.
     public var sourceNoMovesRuntimeAuthority:NativeSourceNoMovesRuntimeAuthority?
+    /// Actual Source caller transports must be installed first. Raw/default unchanged.
+    public var sourceNoMovesCallerReceiptsEnabled=false
+    public var sourceNoMovesCallerAdmission:NativeSourceNoMovesCallerAdmission?
+    public var sourceNoMovesCallerCompletionBinding:NativeSourceNoMovesCallerCompletionBinding?
+    private var sourceNoMovesCallerPlans:[String:UInt64]=[:]
+    private var sourceNoMovesCallerRollbackPlans:Set<UInt64>=[]
+    private var sourceNoMovesCallerRefusals:Set<String>=[]
+    private var sourceNoMovesCallerSequence:UInt64=0
+    private var sourceNoMovesCallerReceipts:[String:NativeSourceNoMovesCallerReceipt]=[:]
+    private var sourceNoMovesMergeContinuations:[String:Bool]=[:]
+    public var pendingSourceNoMovesCallerReceipts:[NativeSourceNoMovesCallerReceipt] {
+        sourceNoMovesCallerReceipts.values.sorted{$0.sequence<$1.sequence}
+    }
     private var sourceNoMovesAuthorityReading=false
     private var sourceNoMovesLastAuthoritySnapshot:NativeSourceNoMovesRuntimeSnapshot?
     public var noMovesTileRuntime:[String:NativeNoMovesTileRuntime]=[:]
@@ -222,10 +235,11 @@ public final class NativeGameplayEngine {
     private var locks: [String: Bool] = [:] // true = wild-only; false = entire gameplay
     private var comboLastMutationTime: Double?
     private var comboWindow: Double = 2
+    public let sourceMathRandom:NativeSourceMathRandomStream?
     private var randomChoices: [Double]
     private let rewardPicker: ((NativeBoardState, Double, () -> Double) -> NativeWildRewardChoice?)?
-    public init(state: NativeBoardState, recordedRandomChoices: [Double] = [], rewardPicker: ((NativeBoardState, Double) -> NativeWildRewardChoice?)? = nil) { self.state = state; randomChoices = recordedRandomChoices; self.rewardPicker = rewardPicker.map { picker in { state, roll, _ in picker(state,roll) } } }
-    public init(state: NativeBoardState, recordedRandomChoices: [Double] = [], rewardPicker: @escaping (NativeBoardState, Double, () -> Double) -> NativeWildRewardChoice?) { self.state = state; randomChoices = recordedRandomChoices; self.rewardPicker = rewardPicker }
+    public init(state: NativeBoardState, recordedRandomChoices: [Double] = [], rewardPicker: ((NativeBoardState, Double) -> NativeWildRewardChoice?)? = nil, sourceMathRandom:NativeSourceMathRandomStream?=nil) { self.sourceMathRandom=sourceMathRandom; self.state = state; randomChoices = recordedRandomChoices; self.rewardPicker = rewardPicker.map { picker in { state, roll, _ in picker(state,roll) } } }
+    public init(state: NativeBoardState, recordedRandomChoices: [Double] = [], rewardPicker: @escaping (NativeBoardState, Double, () -> Double) -> NativeWildRewardChoice?, sourceMathRandom:NativeSourceMathRandomStream?=nil) { self.sourceMathRandom=sourceMathRandom; self.state = state; randomChoices = recordedRandomChoices; self.rewardPicker = rewardPicker }
     public func setInputLock(_ reason: String, active: Bool, wildOnly: Bool = false) { if active { locks[reason] = wildOnly } else { locks.removeValue(forKey: reason) } }
     public func setRuntimeFlags(_ flags: NativeGameplayRuntimeFlags) { self.flags = flags; if let plan = pendingSpecial { self.flags.pendingSpecialMutation = true; self.flags.wildMagnetPullInProgress = plan.archetype == .magnet }; if pendingDirectWild != nil && !directWildGameplayCommitted { self.flags.pendingSpecialMutation = true } }
     public func beginDrag(tileID: String, pointerID: Int = 0) -> Bool {
@@ -243,7 +257,7 @@ public final class NativeGameplayEngine {
         sourceOrdinaryStackFaces.removeAll();sourceOrdinaryStackFaceCancellationBlocks.removeAll()
         meterDropReservations.removeAll();meterDropSequence=0
         pendingMeterOpen=nil;pendingMeterOpenRetry=nil;meterOpenFlow=nil;meterOpenSequence=0;sourceMeterSpawnCancelToken &+= 1;sourceMeterLastMergeTileIDs=[]
-        sourceNoMovesReadyPostchecks=[];sourceNoMovesStackContexts=[:];sourceNoMovesOwner=NativeNoMovesCandidateOwner();sourceNoMovesConfirmed=nil;sourceNoMovesConfirmedResolution=nil;completedSourceNoMovesReceipt=nil;sourceNoMovesFinalCleanupReceipt=nil;sourceNoMovesFinalFlowReceipt=nil;sourceNoMovesGeneration=nil;noMovesTileRuntime=[:];sourceWildRetryPending=false;sourceNonFinalMerge6Guard=false
+        sourceNoMovesCallerReceipts=[:];sourceNoMovesMergeContinuations=[:];sourceNoMovesCallerPlans=[:];sourceNoMovesCallerRollbackPlans=[];sourceNoMovesCallerRefusals=[];sourceNoMovesReadyPostchecks=[];sourceNoMovesStackContexts=[:];sourceNoMovesOwner=NativeNoMovesCandidateOwner();sourceNoMovesConfirmed=nil;sourceNoMovesConfirmedResolution=nil;completedSourceNoMovesReceipt=nil;sourceNoMovesFinalCleanupReceipt=nil;sourceNoMovesFinalFlowReceipt=nil;sourceNoMovesGeneration=nil;noMovesTileRuntime=[:];sourceWildRetryPending=false;sourceNonFinalMerge6Guard=false
         pendingWildRecoveryChecks=[];pendingWildSpawnPresentations=[];wildSourceResolutionBoundary=nil;sourceSaveRuntime=NativeSourceSaveRuntime()
         let generation = state.generation &+ 1
         state = fresh; state.generation = generation; state.revision = 0; state.terminal = nil; tileSequence = 0
@@ -334,6 +348,7 @@ public final class NativeGameplayEngine {
         return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolution)
     }
     public func resolve() -> NativeResolution {
+        if state.terminal==nil && !sourceNoMovesCallerRefusals.isEmpty {return .init(.wait,reason:"source_no_moves_caller_endpoint_missing")}
         if state.terminal == nil && hasPendingSourceOrdinaryStackFace {return NativeResolution(.wait,reason:"captured_ordinary_face_pending")}
         if state.terminal == nil && sourceMeterSpawnInProgress {
             return NativeResolution(.wait,reason:"captured_meter_drop_continuation")
@@ -1096,6 +1111,9 @@ public final class NativeGameplayEngine {
     }
     private func rejected(_ reason: String) -> NativeMoveResult { NativeMoveResult(accepted: false, state: state, events: [NativeGameplayEvent(.blocked, reason: reason)], resolution: NativeResolution(.wait, reason: reason)) }
     private func nextRandom() -> Double {
+        // Original APP Math draw is external and forward-only even if a native
+        // rejected attempt restores its model/recorded Raw choices.
+        if let sourceMathRandom {return sourceMathRandom.next()}
         if !randomChoices.isEmpty { let roll = randomChoices.removeFirst(); return roll.isFinite ? min(1 - Double.ulpOfOne, max(0, roll)) : 0 }
         state.rngState &+= 0x9e3779b97f4a7c15
         var z = state.rngState
@@ -1389,6 +1407,9 @@ extension NativeGameplayEngine {
         else {sourceNoMovesStackContexts.removeValue(forKey:receiptID)}
         if receipt.delayMilliseconds == 0 || sourceResolution.kind != .fail {
             state.moves=max(0,state.moves-1)
+            if sourceNoMovesCallerPublicationReady,sourceNoMovesCallerAdmission?.kinds.contains(.ordinaryMovesDepleted)==true,state.moves==0 {
+                _=prepareSourceNoMovesCaller(ownerID:receiptID,kind:.ordinaryMovesDepleted)
+            }
         }
         var events:[NativeGameplayEvent]=[]
         let resolution=settleDeferredFinalMerge(events:&events)
@@ -1427,7 +1448,7 @@ extension NativeGameplayEngine {
         return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
     }
     public func releaseOrdinarySixHandoff(receiptID:String,generation:UInt64)->NativeMoveResult {
-        guard generation==state.generation,let plan=pendingOrdinarySix,plan.id==receiptID,plan.generation==generation,ordinarySixGameplayCommitted,pendingOrdinarySpawns.isEmpty,!ordinarySpawnPreparationPending,pendingOrdinaryAssignments.isEmpty,pendingOrdinaryPrimaryArrival==nil else{return rejected("stale_ordinary_six_handoff")}
+        guard generation==state.generation,let plan=pendingOrdinarySix,plan.id==receiptID,plan.generation==generation,ordinarySixGameplayCommitted,!sourceNoMovesCallerReceipts.values.contains(where:{$0.kind == .mergeMovesDepleted && $0.ownerID==receiptID && $0.generation==generation}),pendingOrdinarySpawns.isEmpty,!ordinarySpawnPreparationPending,pendingOrdinaryAssignments.isEmpty,pendingOrdinaryPrimaryArrival==nil else{return rejected("stale_ordinary_six_handoff")}
         if pendingOrdinaryDestinationCleanup != nil {
             guard !state.tiles.contains(where:{$0.id==plan.destination.id && $0.merge6CleanupOwned}) else{return rejected("stale_ordinary_six_handoff")}
             // A primary force-clear already retired this exact old identity. Source
@@ -1452,12 +1473,14 @@ extension NativeGameplayEngine {
         let depth=plan.source.stackDepth+plan.destination.stackDepth
         state.score=min(999999,state.score+6*depth*max(1,state.combo));state.bestScore=max(state.bestScore,state.score)
         let holdsEndgameDestination=stagedOrdinaryAssignments && !plan.isFinal && epochCurrent && !state.tiles.contains{$0.locked}
+        let sourcePreSpawnCaller=sourceNoMovesCallerPublicationReady && sourceNoMovesCallerAdmission?.kinds.contains(.mergeMovesDepleted)==true &&
+            !plan.isFinal && epochCurrent && state.moves==0
         let destinationCarrier=state.tiles.first{$0.id==plan.destination.id}
         state.tiles.removeAll{$0.id==plan.source.id || $0.id==plan.destination.id}
-        if holdsEndgameDestination,let destinationCarrier {state.tiles.append(destinationCarrier)}
+        if holdsEndgameDestination || sourcePreSpawnCaller,let destinationCarrier {state.tiles.append(destinationCarrier)}
         ordinarySixGameplayCommitted=true
-        var events=[NativeGameplayEvent(.merged,tileIDs:[plan.source.id,plan.destination.id],value:6,reason:plan.id),NativeGameplayEvent(.comboChanged,value:state.combo),NativeGameplayEvent(.removed,tileIDs:holdsEndgameDestination ? [plan.source.id]:[plan.source.id,plan.destination.id])]
-        if holdsEndgameDestination {
+        var events=[NativeGameplayEvent(.merged,tileIDs:[plan.source.id,plan.destination.id],value:6,reason:plan.id),NativeGameplayEvent(.comboChanged,value:state.combo),NativeGameplayEvent(.removed,tileIDs:holdsEndgameDestination || sourcePreSpawnCaller ? [plan.source.id]:[plan.source.id,plan.destination.id])]
+        if holdsEndgameDestination && !sourcePreSpawnCaller {
             pendingOrdinaryDestinationCleanup=NativeOrdinaryPostcheckReceipt(id:plan.id,generation:plan.generation,delayMilliseconds:100)
             events.append(NativeGameplayEvent(.ordinaryDestinationCleanupPrepared,value:100,reason:plan.id))
         }
@@ -1467,6 +1490,17 @@ extension NativeGameplayEngine {
             if pendingSpecial != nil || !pendingMeterRewards.isEmpty || !pendingOrdinaryPostchecks.isEmpty {deferredFinalMerge=terminal;return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())}
             state.wildMeter=0;state.terminal=terminal;events.append(NativeGameplayEvent(.terminal,reason:terminal.reason))
             return NativeMoveResult(accepted:true,state:state,events:events,resolution:terminal)
+        }
+        if sourcePreSpawnCaller {
+            // Literal Source keeps regular dst visible/unlocked under cleanup, adds
+            // confirmed non-final meter progress, THEN checks moves before spawn.
+            if let index=state.tiles.firstIndex(where:{$0.id==plan.destination.id}) {
+                state.tiles[index].locked=false;state.tiles[index].visible=true;state.tiles[index].alpha=1
+            }
+            state.wildMeter += NativeWildMeterRules.increment(base:0.22,mode:state.mode,board:state.mode == .arcade ? state.stage:state.board,spawnCount:state.wildSpawnCount,tutorialSlow:state.tutorial?.completionAssist == true)
+            let caller=prepareSourceNoMovesCaller(ownerID:plan.id,kind:.mergeMovesDepleted)
+            sourceNoMovesMergeContinuations[caller.id]=holdsEndgameDestination
+            return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
         }
         // BoardMutationEpochOwner rejects old spawn permits after a newer accepted stack.
         if epochCurrent && stagedOrdinaryAssignments {
@@ -1892,6 +1926,73 @@ extension NativeGameplayEngine {
         guard stagedSourceNoMoves,generation==state.generation,sourceNoMovesReadyPostchecks.remove(receiptID) != nil,let context=sourceNoMovesStackContexts.removeValue(forKey:receiptID) else{return .ignored}
         return beginSourceNoMoves(origin:.ordinaryPostcheck(context))
     }
+    private var sourceNoMovesCallerPublicationReady:Bool {
+        sourceNoMovesCallerReceiptsEnabled && stagedSourceNoMoves && sourceNoMovesRuntimeAuthority != nil &&
+            sourceNoMovesCallerAdmission?.generation==state.generation && sourceNoMovesCallerAdmission?.retired==false
+    }
+    private func prepareSourceNoMovesCaller(ownerID:String,kind:NativeSourceNoMovesCallerReceipt.Kind)->NativeSourceNoMovesCallerReceipt {
+        sourceNoMovesCallerSequence &+= 1
+        let receipt=NativeSourceNoMovesCallerReceipt(id:"source-nomoves-caller:\(state.generation):\(sourceNoMovesCallerSequence)",ownerID:ownerID,generation:state.generation,sequence:sourceNoMovesCallerSequence,kind:kind,admissionID:sourceNoMovesCallerAdmission!.id)
+        sourceNoMovesCallerReceipts[receipt.id]=receipt;return receipt
+    }
+    public func sourceNoMovesCaller(ownerID:String,generation:UInt64,kind:NativeSourceNoMovesCallerReceipt.Kind)->NativeSourceNoMovesCallerReceipt? {
+        guard sourceNoMovesCallerPublicationReady,generation==state.generation else{return nil}
+        return pendingSourceNoMovesCallerReceipts.first{$0.ownerID==ownerID && $0.generation==generation && $0.kind==kind}
+    }
+    public func sourceNoMovesCallerIsCurrent(_ receipt:NativeSourceNoMovesCallerReceipt)->Bool {
+        !sourceNoMovesCallerRefusals.contains(receipt.id) && sourceNoMovesCallerPublicationReady && sourceNoMovesCallerAdmission?.kinds.contains(receipt.kind)==true && sourceNoMovesCallerAdmission?.id==receipt.admissionID && receipt.generation==state.generation && sourceNoMovesCallerReceipts[receipt.id]==receipt
+    }
+    /// Actual caller has already run forced context moves0 and tutorial/Wild
+    /// policy. Use only its genuine provenance, never mutable moves at delivery.
+    public func beginSourceNoMovesFromCaller(_ receipt:NativeSourceNoMovesCallerReceipt)->NativeNoMovesCandidateOwner.Effect {
+        guard sourceNoMovesCallerIsCurrent(receipt),sourceNoMovesRuntimeAuthority != nil,
+            state.terminal==nil,sourceNoMovesConfirmed==nil,sourceNoMovesOwner.active==nil,
+            !flags.busyEnding,!sourceSaveRuntime.busyEnding else{return .ignored}
+        let snapshot=sourceNoMovesGuard(initial:sourceGameplaySignature.key,beginning:true)
+        guard sourceNoMovesCallerIsCurrent(receipt) else{return .deferred("fresh-check-error")}
+        if let block=snapshot.blockReason{return .deferred(block)}
+        let trigger:NativeNoMovesCandidateOwner.Trigger=receipt.kind == .ordinaryMovesDepleted ? .movesDepleted:.mergeMovesDepleted
+        let effect=sourceNoMovesOwner.begin(trigger:trigger,busyEnding:flags.busyEnding || sourceSaveRuntime.busyEnding,guard:snapshot)
+        if case .candidate(let plan)=effect {sourceNoMovesGeneration=state.generation;sourceNoMovesCallerPlans[receipt.id]=plan.token}
+        return effect
+    }
+    /// Only actual original continue-merge6 branch resumes replacement work.
+    /// NO MOVES/tutorial return must never be translated into this callback.
+    public func continueSourceMergeSixAfterNoMovesCaller(_ receipt:NativeSourceNoMovesCallerReceipt)->NativeMoveResult {
+        guard sourceNoMovesCallerIsCurrent(receipt),receipt.kind == .mergeMovesDepleted,
+            let wasHeld=sourceNoMovesMergeContinuations[receipt.id],
+            let plan=pendingOrdinarySix,plan.id==receipt.ownerID,ordinarySixGameplayCommitted,!ordinarySpawnPreparationPending,
+            pendingOrdinarySpawns.isEmpty,pendingOrdinaryAssignments.isEmpty else{return rejected("stale_source_six_moves_caller")}
+        sourceNoMovesCallerReceipts.removeValue(forKey:receipt.id);sourceNoMovesMergeContinuations.removeValue(forKey:receipt.id)
+        let epochCurrent=state.revision==plan.revision,depth=plan.source.stackDepth+plan.destination.stackDepth
+        var events:[NativeGameplayEvent]=[]
+        if wasHeld {
+            pendingOrdinaryDestinationCleanup=NativeOrdinaryPostcheckReceipt(id:plan.id,generation:plan.generation,delayMilliseconds:100)
+            events.append(.init(.ordinaryDestinationCleanupPrepared,value:100,reason:plan.id))
+        } else {
+            state.tiles.removeAll{$0.id==plan.destination.id};events.append(.init(.removed,tileIDs:[plan.destination.id]))
+        }
+        if epochCurrent && stagedOrdinaryAssignments {
+            ordinarySpawnPreparationPending=true;events.append(.init(.ordinarySpawnsPrepareRequested,value:50,reason:plan.id))
+        } else if epochCurrent {
+            spawnRegularMerge6(at:plan.destination.cell,depth:depth,events:&events)
+            pendingOrdinarySpawns.formUnion(events.filter{$0.kind == .spawned}.flatMap(\.tileIDs))
+        }
+        return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
+    }
+    /// Missing genuine endpoint after acceptance preserves conservative native
+    /// ownership/durability until exact recovery/teardown. Never a Source marker.
+    @discardableResult public func refuseSourceNoMovesCaller(_ receipt:NativeSourceNoMovesCallerReceipt)->Bool {
+        guard sourceNoMovesCallerIsCurrent(receipt) else{return false};sourceNoMovesCallerRefusals.insert(receipt.id);return true
+    }
+    /// Captured Source return/teardown removes caller metadata only. It cannot
+    /// spawn, erase destination, settle native input or award pending HUD debt.
+    @discardableResult public func retireSourceNoMovesCaller(_ receipt:NativeSourceNoMovesCallerReceipt)->Bool {
+        guard receipt.generation==state.generation,sourceNoMovesCallerReceipts[receipt.id]==receipt else{return false}
+        sourceNoMovesCallerReceipts.removeValue(forKey:receipt.id);sourceNoMovesMergeContinuations.removeValue(forKey:receipt.id)
+        if let plan=sourceNoMovesCallerPlans.removeValue(forKey:receipt.id),!sourceNoMovesCallerPlans.values.contains(plan) {sourceNoMovesCallerRollbackPlans.remove(plan)}
+        sourceNoMovesCallerRefusals.remove(receipt.id);return true
+    }
     public func beginSourceNoMoves(origin:NativeNoMovesOrigin,extraWaitMilliseconds:Int=0)->NativeNoMovesCandidateOwner.Effect {
         guard stagedSourceNoMoves,state.terminal==nil,sourceNoMovesConfirmed==nil else{return .ignored}
         if sourceNoMovesOwner.active != nil || flags.busyEnding || sourceSaveRuntime.busyEnding {return .ignored}
@@ -1962,10 +2063,35 @@ extension NativeGameplayEngine {
         sourceNoMovesConfirmed=nil;sourceNoMovesConfirmedResolution=nil;sourceNoMovesGeneration=nil
         return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.terminal,reason:result.reason)],resolution:result)
     }
+    /// Genuine showFinalScreen invocation, not its eventual board-exit/modal
+    /// cleanup. The native owner must prove actual accepted launch; no timer.
+    @discardableResult public func finishSourceNoMovesCallerInvocation(planToken:UInt64,generation:UInt64)->Bool {
+        guard generation==state.generation,let flow=sourceNoMovesFinalFlowReceipt,
+            flow.generation==generation,flow.planToken==planToken,sourceNoMovesConfirmed?.token==planToken,
+            sourceNoMovesFinalCleanupReceipt==nil,sourceNoMovesCallerPlans.values.contains(planToken) else{return false}
+        completeSourceNoMovesCallerRun(planToken:planToken,generation:generation);return true
+    }
+    /// Mounted rollback finishes its real nav/text/idle/queue cleanup before the
+    /// caller coroutine returns. Core rollback alone cannot fake that receipt.
+    @discardableResult public func finishSourceNoMovesCallerRollback(planToken:UInt64,generation:UInt64)->Bool {
+        guard generation==state.generation,sourceNoMovesCallerRollbackPlans.remove(planToken) != nil else{return false}
+        completeSourceNoMovesCallerRun(planToken:planToken,generation:generation);return true
+    }
+    private func completeSourceNoMovesCallerRun(planToken:UInt64,generation:UInt64) {
+        guard generation==state.generation,let binding=sourceNoMovesCallerCompletionBinding else{return}
+        let captured=pendingSourceNoMovesCallerReceipts.filter{sourceNoMovesCallerPlans[$0.id]==planToken && $0.generation==generation && $0.admissionID==binding.admissionID}
+        for receipt in captured {
+            guard generation==state.generation,sourceNoMovesCallerCompletionBinding === binding,
+                sourceNoMovesCallerReceipts[receipt.id]==receipt,sourceNoMovesCallerPlans[receipt.id]==planToken else{return}
+            sourceNoMovesCallerPlans.removeValue(forKey:receipt.id) // remove BEFORE external, once
+            binding.deliver(receipt)
+        }
+    }
     private func applySourceNoMovesEffect(_ effect:NativeNoMovesCandidateOwner.Effect)->NativeNoMovesCandidateOwner.Effect {
-        if case .rollback(_,_,let release)=effect {
+        if case .rollback(let plan,_,let release)=effect {
             if release {setInputLock("terminal-no-moves",active:false);flags.busyEnding=false}
             sourceNoMovesGeneration=nil
+            if sourceNoMovesCallerPlans.values.contains(plan.token) {sourceNoMovesCallerRollbackPlans.insert(plan.token)}
         }
         return effect
     }

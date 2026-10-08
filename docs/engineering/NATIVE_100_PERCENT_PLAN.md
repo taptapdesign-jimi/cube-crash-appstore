@@ -330,10 +330,15 @@ Private canonical save V1 plus idle-preserving ContextV2 passes SDK108 save20 pl
 
 - [x] Root independent Core273/273: immutable Wild spawn caller provenance and captured fresh NO MOVES runtime authority; optional nil retains existing conservative Native guards.
 - [x] Actual SDK118 50/50 and SDK121 58/58: same-board authority validation, replacement cleanup, physical Magnet constructor/face markers, actual normal respawn arrivals and wall/FIFO verification, with previous merge/idle/save regressions.
-- [x] Root independent Core280/280: literal variant-nil Star/Juice destination first-face receipt, original first-RAF Wild presence/defaultStar/depth1, old-save defaults and main/cancel cleanup. Actual Node/Scene first-face caller still pending.
+- [x] Root independent Core280/280: literal variant-nil Star/Juice destination first-face receipt, original first-RAF Wild presence/defaultStar/depth1, old-save defaults and main/cancel cleanup. Actual same-node Node/Scene caller passed SDK12464 and optimized Release12564, optional defaultOFF.
 - [ ] Connect all nine genuine NO MOVES entry paths, including ordinary debit delayed check and ordinary-six pre-spawn destination presence; full physical capability publication remains required.
 - [ ] Retain literal Source Magnet survivor identity and constructor order, bind drag at actual authored spawn completion, and close protected main80/shared logical RNG/reserve placeholder composition.
-- [ ] Validate genuine Wild-destination Node texture/first-face/one-RAF stop-idle and nested pips queues, then integrate whole app while preserving all optional defaults until that composition is complete.
-- [ ] Release122 actual58 validation, final Native phone route/feel/audio/performance acceptance and Journey-to-Play grey-flash verification.
+- [x] Genuine Wild-destination Node texture/first-face/one-RAF stop-idle and nested pips queues: SDK12464 and optimized Release12564.
+- [x] Stable normal/fallback retained frame lifetime: SDK12667; actual next Engine move and route replacement covered.
+- [x] Shared immutable Source Math provider: independent Core289/289 and actual Context SDK12771; constructor/value/TNT/Magnet scheduling still open.
+- [x] Genuine ordinary debit and ordinary-six pre-spawn NO MOVES subset: independent Core305/305 and actual SDK13079, defaultOFF. Remaining callers/full physical producers still open.
+- [ ] Integrate whole app after remaining Source constructor/caller/physical owner composition is complete.
+- [x] Optimized Release12358 and Release12564 prior component regressions.
+- [ ] Release131 current79 validation; final Native phone route/feel/audio/performance acceptance and Journey-to-Play grey-flash verification.
 
 These are component and source receipts; the Native app is not yet a user-accepted 100% migration. Existing v9 asset bytes remain preserved. No phone install is implied.
