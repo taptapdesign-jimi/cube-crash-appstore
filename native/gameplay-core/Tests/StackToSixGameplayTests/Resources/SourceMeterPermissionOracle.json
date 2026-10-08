@@ -1,0 +1,3479 @@
+{
+  "lifecycle": {
+    "before": {
+      "date": 200,
+      "signature": "[{\"v\":4,\"s\":null,\"l\":false,\"d\":2,\"x\":0,\"y\":0,\"e\":\"dynamic\"},{\"v\":3,\"s\":null,\"l\":false,\"d\":1,\"x\":1,\"y\":0,\"e\":\"static\"}]",
+      "regularSequence": 2,
+      "mergeSequence": 2
+    },
+    "after": {
+      "date": 200,
+      "signature": "[{\"v\":4,\"s\":null,\"l\":false,\"d\":2,\"x\":0,\"y\":0,\"e\":\"dynamic\"},{\"v\":3,\"s\":null,\"l\":false,\"d\":1,\"x\":1,\"y\":0,\"e\":\"static\"}]",
+      "regularSequence": 2,
+      "mergeSequence": 2,
+      "activeCount": 0
+    },
+    "actualFullResetExecuted": true
+  },
+  "tag": "production-benchmark-v9",
+  "hashes": {
+    "src/modules/wild-spawn-permission.ts": "d3be239aae6c9ef194e701cbf6282edfb4e2914dcb9bb8f6b9ab6cad155044a2",
+    "src/modules/app-core-wild-preload.ts": "7c0bc22a03ca2e51ab97668ef0c0b56783e9b8f3297d1a9c0f6712b160adcace",
+    "src/modules/endgame-checker.ts": "5cc16af1abf7dddfe93330ad302a8c1410565da48a5512986952ec178d191c85",
+    "src/modules/tile-state-utils.ts": "0f717ff68a03c045a85292ebe14e52e226df9c77ef73b0fdf85d5417bc175c01",
+    "src/modules/final-merge-rules.ts": "e3119e1e6e398d4a672536a47819abf8362652dc04e50923df5e066768ed9428",
+    "src/modules/special-dice-registry.ts": "b6818afb9ffd98a6249f17c8f0d020663a1fd9a41f8d43908da1a25bb7780fdd",
+    "src/modules/journey-forest-wild-progression.ts": "6ff48dbe821d56af44ffa20903b2d8a4549a57b0450cd369d5590fd1d1833018",
+    "src/modules/journey-area55-wild-progression.ts": "c389b1804394ce6823af09a88619aabe518a93f664496d21c5bf4feb92699173",
+    "src/modules/wild-spawn-continuation.ts": "21008fd8c69475b073b7c99a5aa017a7846e642bfb33ed852878847e7abc3713",
+    "src/modules/app-core.ts": "284d104e4f20b7b30fd5dad2361c1edfb822a6b96a38c64efc2793033cbc09e3"
+  },
+  "writerLines": [
+    3378,
+    3409,
+    12717,
+    14590
+  ],
+  "writerRows": [
+    {
+      "name": "begin-at-zero",
+      "kind": "begin",
+      "now": 0,
+      "token": 1,
+      "tiles": null,
+      "stamp": 0,
+      "active": [
+        1
+      ],
+      "signature": null
+    },
+    {
+      "name": "nested",
+      "kind": "begin",
+      "now": 10,
+      "token": 2,
+      "tiles": null,
+      "stamp": 10,
+      "active": [
+        1,
+        2
+      ],
+      "signature": null
+    },
+    {
+      "name": "release-one",
+      "kind": "release",
+      "now": 30,
+      "token": 1,
+      "tiles": null,
+      "stamp": 30,
+      "active": [
+        2
+      ],
+      "signature": null
+    },
+    {
+      "name": "repeat-no-stamp",
+      "kind": "release",
+      "now": 40,
+      "token": 1,
+      "tiles": null,
+      "stamp": 30,
+      "active": [
+        2
+      ],
+      "signature": null
+    },
+    {
+      "name": "wrong-no-stamp",
+      "kind": "release",
+      "now": 50,
+      "token": 99,
+      "tiles": null,
+      "stamp": 30,
+      "active": [
+        2
+      ],
+      "signature": null
+    },
+    {
+      "name": "release-two",
+      "kind": "release",
+      "now": 60,
+      "token": 2,
+      "tiles": null,
+      "stamp": 60,
+      "active": [],
+      "signature": null
+    },
+    {
+      "name": "allocate",
+      "kind": "allocate",
+      "now": 70,
+      "token": 1,
+      "tiles": null,
+      "stamp": 70,
+      "active": [],
+      "signature": null
+    },
+    {
+      "name": "first-check",
+      "kind": "observe",
+      "now": 100,
+      "token": null,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        },
+        {
+          "id": "hidden",
+          "value": 6,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 2,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": false,
+          "alpha": 1
+        }
+      ],
+      "stamp": 100,
+      "active": [],
+      "signature": [
+        {
+          "v": 4,
+          "s": null,
+          "l": false,
+          "d": 1,
+          "x": 0,
+          "y": 0,
+          "e": "static"
+        },
+        {
+          "v": 3,
+          "s": null,
+          "l": false,
+          "d": 1,
+          "x": 1,
+          "y": 0,
+          "e": "static"
+        }
+      ]
+    },
+    {
+      "name": "same-renamed-reordered",
+      "kind": "observe",
+      "now": 120,
+      "token": null,
+      "tiles": [
+        {
+          "id": "hidden2",
+          "value": 6,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 2,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": false,
+          "alpha": 1
+        },
+        {
+          "id": "b2",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        },
+        {
+          "id": "a2",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "stamp": 100,
+      "active": [],
+      "signature": [
+        {
+          "v": 4,
+          "s": null,
+          "l": false,
+          "d": 1,
+          "x": 0,
+          "y": 0,
+          "e": "static"
+        },
+        {
+          "v": 3,
+          "s": null,
+          "l": false,
+          "d": 1,
+          "x": 1,
+          "y": 0,
+          "e": "static"
+        }
+      ]
+    },
+    {
+      "name": "mode-is-signature-field",
+      "kind": "observe",
+      "now": 140,
+      "token": null,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "dynamic",
+          "visible": true,
+          "alpha": 1
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "stamp": 140,
+      "active": [],
+      "signature": [
+        {
+          "v": 4,
+          "s": null,
+          "l": false,
+          "d": 1,
+          "x": 0,
+          "y": 0,
+          "e": "dynamic"
+        },
+        {
+          "v": 3,
+          "s": null,
+          "l": false,
+          "d": 1,
+          "x": 1,
+          "y": 0,
+          "e": "static"
+        }
+      ]
+    },
+    {
+      "name": "alpha-is-not-regular-signature-field",
+      "kind": "observe",
+      "now": 160,
+      "token": null,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "dynamic",
+          "visible": true,
+          "alpha": 0
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "stamp": 140,
+      "active": [],
+      "signature": [
+        {
+          "v": 4,
+          "s": null,
+          "l": false,
+          "d": 1,
+          "x": 0,
+          "y": 0,
+          "e": "dynamic"
+        },
+        {
+          "v": 3,
+          "s": null,
+          "l": false,
+          "d": 1,
+          "x": 1,
+          "y": 0,
+          "e": "static"
+        }
+      ]
+    },
+    {
+      "name": "depth-is-signature-field",
+      "kind": "observe",
+      "now": 180,
+      "token": null,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 2,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "dynamic",
+          "visible": true,
+          "alpha": 1
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "stamp": 180,
+      "active": [],
+      "signature": [
+        {
+          "v": 4,
+          "s": null,
+          "l": false,
+          "d": 2,
+          "x": 0,
+          "y": 0,
+          "e": "dynamic"
+        },
+        {
+          "v": 3,
+          "s": null,
+          "l": false,
+          "d": 1,
+          "x": 1,
+          "y": 0,
+          "e": "static"
+        }
+      ]
+    },
+    {
+      "name": "allocate-next",
+      "kind": "allocate",
+      "now": 200,
+      "token": 2,
+      "tiles": null,
+      "stamp": 200,
+      "active": [],
+      "signature": [
+        {
+          "v": 4,
+          "s": null,
+          "l": false,
+          "d": 2,
+          "x": 0,
+          "y": 0,
+          "e": "dynamic"
+        },
+        {
+          "v": 3,
+          "s": null,
+          "l": false,
+          "d": 1,
+          "x": 1,
+          "y": 0,
+          "e": "static"
+        }
+      ]
+    }
+  ],
+  "blockerRows": [
+    {
+      "name": "none",
+      "enabled": [],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": null,
+      "permission": {
+        "action": "allow",
+        "reason": "ready"
+      }
+    },
+    {
+      "name": "single-busy",
+      "enabled": [
+        "busy"
+      ],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "busyEnding",
+      "permission": {
+        "action": "block",
+        "reason": "busyEnding"
+      }
+    },
+    {
+      "name": "precedence-busy",
+      "enabled": [
+        "busy",
+        "transition",
+        "fail",
+        "special",
+        "guard",
+        "mergeSix",
+        "regular",
+        "cleanup",
+        "pull",
+        "settling",
+        "affected",
+        "transient",
+        "drop"
+      ],
+      "now": 6000,
+      "mutationDate": 1000,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_cleanupToken": 1,
+          "_wildMagnetAffected": true,
+          "_ccSpawnAnimating": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": true,
+        "count": 2,
+        "until": 1100,
+        "sources": [
+          "wild-second",
+          "wild-first"
+        ]
+      },
+      "reason": "busyEnding",
+      "permission": {
+        "action": "block",
+        "reason": "busyEnding"
+      }
+    },
+    {
+      "name": "single-transition",
+      "enabled": [
+        "transition"
+      ],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "board-transition",
+      "permission": {
+        "action": "block",
+        "reason": "board-transition"
+      }
+    },
+    {
+      "name": "precedence-transition",
+      "enabled": [
+        "transition",
+        "fail",
+        "special",
+        "guard",
+        "mergeSix",
+        "regular",
+        "cleanup",
+        "pull",
+        "settling",
+        "affected",
+        "transient",
+        "drop"
+      ],
+      "now": 6000,
+      "mutationDate": 1000,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_cleanupToken": 1,
+          "_wildMagnetAffected": true,
+          "_ccSpawnAnimating": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": true,
+        "count": 2,
+        "until": 1100,
+        "sources": [
+          "wild-second",
+          "wild-first"
+        ]
+      },
+      "reason": "board-transition",
+      "permission": {
+        "action": "block",
+        "reason": "board-transition"
+      }
+    },
+    {
+      "name": "single-fail",
+      "enabled": [
+        "fail"
+      ],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "fail-screen-pending",
+      "permission": {
+        "action": "block",
+        "reason": "fail-screen-pending"
+      }
+    },
+    {
+      "name": "precedence-fail",
+      "enabled": [
+        "fail",
+        "special",
+        "guard",
+        "mergeSix",
+        "regular",
+        "cleanup",
+        "pull",
+        "settling",
+        "affected",
+        "transient",
+        "drop"
+      ],
+      "now": 6000,
+      "mutationDate": 1000,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_cleanupToken": 1,
+          "_wildMagnetAffected": true,
+          "_ccSpawnAnimating": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": true,
+        "count": 2,
+        "until": 1100,
+        "sources": [
+          "wild-second",
+          "wild-first"
+        ]
+      },
+      "reason": "fail-screen-pending",
+      "permission": {
+        "action": "block",
+        "reason": "fail-screen-pending"
+      }
+    },
+    {
+      "name": "single-special",
+      "enabled": [
+        "special"
+      ],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "special-transaction",
+      "permission": {
+        "action": "retry",
+        "reason": "special-transaction",
+        "retryDelayMs": 220
+      }
+    },
+    {
+      "name": "precedence-special",
+      "enabled": [
+        "special",
+        "guard",
+        "mergeSix",
+        "regular",
+        "cleanup",
+        "pull",
+        "settling",
+        "affected",
+        "transient",
+        "drop"
+      ],
+      "now": 6000,
+      "mutationDate": 1000,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_cleanupToken": 1,
+          "_wildMagnetAffected": true,
+          "_ccSpawnAnimating": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": true,
+        "count": 2,
+        "until": 1100,
+        "sources": [
+          "wild-second",
+          "wild-first"
+        ]
+      },
+      "reason": "special-transaction",
+      "permission": {
+        "action": "retry",
+        "reason": "special-transaction",
+        "retryDelayMs": 220
+      }
+    },
+    {
+      "name": "single-guard",
+      "enabled": [
+        "guard"
+      ],
+      "now": 6000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": true,
+        "count": 2,
+        "until": 1100,
+        "sources": [
+          "wild-second",
+          "wild-first"
+        ]
+      },
+      "reason": "endgame-guard:wild-second,wild-first",
+      "permission": {
+        "action": "retry",
+        "reason": "endgame-guard:wild-second,wild-first",
+        "retryDelayMs": 220
+      }
+    },
+    {
+      "name": "precedence-guard",
+      "enabled": [
+        "guard",
+        "mergeSix",
+        "regular",
+        "cleanup",
+        "pull",
+        "settling",
+        "affected",
+        "transient",
+        "drop"
+      ],
+      "now": 6000,
+      "mutationDate": 1000,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_cleanupToken": 1,
+          "_wildMagnetAffected": true,
+          "_ccSpawnAnimating": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": true,
+        "count": 2,
+        "until": 1100,
+        "sources": [
+          "wild-second",
+          "wild-first"
+        ]
+      },
+      "reason": "endgame-guard:wild-second,wild-first",
+      "permission": {
+        "action": "retry",
+        "reason": "endgame-guard:wild-second,wild-first",
+        "retryDelayMs": 220
+      }
+    },
+    {
+      "name": "single-mergeSix",
+      "enabled": [
+        "mergeSix"
+      ],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "merge6-spawn-in-progress",
+      "permission": {
+        "action": "retry",
+        "reason": "merge6-spawn-in-progress",
+        "retryDelayMs": 80
+      }
+    },
+    {
+      "name": "precedence-mergeSix",
+      "enabled": [
+        "mergeSix",
+        "regular",
+        "cleanup",
+        "pull",
+        "settling",
+        "affected",
+        "transient",
+        "drop"
+      ],
+      "now": 1000,
+      "mutationDate": 1000,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_cleanupToken": 1,
+          "_wildMagnetAffected": true,
+          "_ccSpawnAnimating": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "merge6-spawn-in-progress",
+      "permission": {
+        "action": "retry",
+        "reason": "merge6-spawn-in-progress",
+        "retryDelayMs": 80
+      }
+    },
+    {
+      "name": "single-regular",
+      "enabled": [
+        "regular"
+      ],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "regular-merge-handoff",
+      "permission": {
+        "action": "retry",
+        "reason": "regular-merge-handoff",
+        "retryDelayMs": 220
+      }
+    },
+    {
+      "name": "precedence-regular",
+      "enabled": [
+        "regular",
+        "cleanup",
+        "pull",
+        "settling",
+        "affected",
+        "transient",
+        "drop"
+      ],
+      "now": 1000,
+      "mutationDate": 1000,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_cleanupToken": 1,
+          "_wildMagnetAffected": true,
+          "_ccSpawnAnimating": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "regular-merge-handoff",
+      "permission": {
+        "action": "retry",
+        "reason": "regular-merge-handoff",
+        "retryDelayMs": 220
+      }
+    },
+    {
+      "name": "single-cleanup",
+      "enabled": [
+        "cleanup"
+      ],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_cleanupToken": 1
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "regular-merge6-handoff",
+      "permission": {
+        "action": "retry",
+        "reason": "regular-merge6-handoff",
+        "retryDelayMs": 220
+      }
+    },
+    {
+      "name": "precedence-cleanup",
+      "enabled": [
+        "cleanup",
+        "pull",
+        "settling",
+        "affected",
+        "transient",
+        "drop"
+      ],
+      "now": 1000,
+      "mutationDate": 1000,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_cleanupToken": 1,
+          "_wildMagnetAffected": true,
+          "_ccSpawnAnimating": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "regular-merge6-handoff",
+      "permission": {
+        "action": "retry",
+        "reason": "regular-merge6-handoff",
+        "retryDelayMs": 220
+      }
+    },
+    {
+      "name": "single-pull",
+      "enabled": [
+        "pull"
+      ],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "wild-magnet-pull",
+      "permission": {
+        "action": "retry",
+        "reason": "wild-magnet-pull",
+        "retryDelayMs": 220
+      }
+    },
+    {
+      "name": "precedence-pull",
+      "enabled": [
+        "pull",
+        "settling",
+        "affected",
+        "transient",
+        "drop"
+      ],
+      "now": 1000,
+      "mutationDate": 1000,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_wildMagnetAffected": true,
+          "_ccSpawnAnimating": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "wild-magnet-pull",
+      "permission": {
+        "action": "retry",
+        "reason": "wild-magnet-pull",
+        "retryDelayMs": 220
+      }
+    },
+    {
+      "name": "single-settling",
+      "enabled": [
+        "settling"
+      ],
+      "now": 1000,
+      "mutationDate": 1000,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "board-settling",
+      "permission": {
+        "action": "retry",
+        "reason": "board-settling",
+        "retryDelayMs": 80
+      }
+    },
+    {
+      "name": "precedence-settling",
+      "enabled": [
+        "settling",
+        "affected",
+        "transient",
+        "drop"
+      ],
+      "now": 1000,
+      "mutationDate": 1000,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_wildMagnetAffected": true,
+          "_ccSpawnAnimating": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "board-settling",
+      "permission": {
+        "action": "retry",
+        "reason": "board-settling",
+        "retryDelayMs": 80
+      }
+    },
+    {
+      "name": "single-affected",
+      "enabled": [
+        "affected"
+      ],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_wildMagnetAffected": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "wild-magnet-affected-tiles",
+      "permission": {
+        "action": "retry",
+        "reason": "wild-magnet-affected-tiles",
+        "retryDelayMs": 220
+      }
+    },
+    {
+      "name": "precedence-affected",
+      "enabled": [
+        "affected",
+        "transient",
+        "drop"
+      ],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_wildMagnetAffected": true,
+          "_ccSpawnAnimating": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "wild-magnet-affected-tiles",
+      "permission": {
+        "action": "retry",
+        "reason": "wild-magnet-affected-tiles",
+        "retryDelayMs": 220
+      }
+    },
+    {
+      "name": "single-transient",
+      "enabled": [
+        "transient"
+      ],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_ccSpawnAnimating": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "tile-transient-animation",
+      "permission": {
+        "action": "retry",
+        "reason": "tile-transient-animation",
+        "retryDelayMs": 220
+      }
+    },
+    {
+      "name": "precedence-transient",
+      "enabled": [
+        "transient",
+        "drop"
+      ],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_ccSpawnAnimating": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "tile-transient-animation",
+      "permission": {
+        "action": "retry",
+        "reason": "tile-transient-animation",
+        "retryDelayMs": 220
+      }
+    },
+    {
+      "name": "single-drop",
+      "enabled": [
+        "drop"
+      ],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "wild-spawn-drop",
+      "permission": {
+        "action": "retry",
+        "reason": "wild-spawn-drop",
+        "retryDelayMs": 220
+      }
+    },
+    {
+      "name": "precedence-drop",
+      "enabled": [
+        "drop"
+      ],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "wild-spawn-drop",
+      "permission": {
+        "action": "retry",
+        "reason": "wild-spawn-drop",
+        "retryDelayMs": 220
+      }
+    },
+    {
+      "name": "settle--500",
+      "enabled": [
+        "settling",
+        "drop"
+      ],
+      "now": 500,
+      "mutationDate": 1000,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "board-settling",
+      "permission": {
+        "action": "retry",
+        "reason": "board-settling",
+        "retryDelayMs": 80
+      }
+    },
+    {
+      "name": "settle-0",
+      "enabled": [
+        "settling",
+        "drop"
+      ],
+      "now": 1000,
+      "mutationDate": 1000,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "board-settling",
+      "permission": {
+        "action": "retry",
+        "reason": "board-settling",
+        "retryDelayMs": 80
+      }
+    },
+    {
+      "name": "settle-1",
+      "enabled": [
+        "settling",
+        "drop"
+      ],
+      "now": 1001,
+      "mutationDate": 1000,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "board-settling",
+      "permission": {
+        "action": "retry",
+        "reason": "board-settling",
+        "retryDelayMs": 80
+      }
+    },
+    {
+      "name": "settle-79",
+      "enabled": [
+        "settling",
+        "drop"
+      ],
+      "now": 1079,
+      "mutationDate": 1000,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "board-settling",
+      "permission": {
+        "action": "retry",
+        "reason": "board-settling",
+        "retryDelayMs": 80
+      }
+    },
+    {
+      "name": "settle-80",
+      "enabled": [
+        "settling",
+        "drop"
+      ],
+      "now": 1080,
+      "mutationDate": 1000,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "wild-spawn-drop",
+      "permission": {
+        "action": "retry",
+        "reason": "wild-spawn-drop",
+        "retryDelayMs": 220
+      }
+    },
+    {
+      "name": "settle-81",
+      "enabled": [
+        "settling",
+        "drop"
+      ],
+      "now": 1081,
+      "mutationDate": 1000,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "wild-spawn-drop",
+      "permission": {
+        "action": "retry",
+        "reason": "wild-spawn-drop",
+        "retryDelayMs": 220
+      }
+    },
+    {
+      "name": "settle-100000",
+      "enabled": [
+        "settling",
+        "drop"
+      ],
+      "now": 101000,
+      "mutationDate": 1000,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "wild-spawn-drop",
+      "permission": {
+        "action": "retry",
+        "reason": "wild-spawn-drop",
+        "retryDelayMs": 220
+      }
+    },
+    {
+      "name": "marker-_ccWildSpawnDropping",
+      "enabled": [],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_ccWildSpawnDropping": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "tile-transient-animation",
+      "permission": {
+        "action": "retry",
+        "reason": "tile-transient-animation",
+        "retryDelayMs": 220
+      }
+    },
+    {
+      "name": "destroyed-_ccWildSpawnDropping",
+      "enabled": [],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_ccWildSpawnDropping": true,
+          "destroyed": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": null,
+      "permission": {
+        "action": "allow",
+        "reason": "ready"
+      }
+    },
+    {
+      "name": "marker-_ccWildSpawnHandoffLock",
+      "enabled": [],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_ccWildSpawnHandoffLock": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "tile-transient-animation",
+      "permission": {
+        "action": "retry",
+        "reason": "tile-transient-animation",
+        "retryDelayMs": 220
+      }
+    },
+    {
+      "name": "destroyed-_ccWildSpawnHandoffLock",
+      "enabled": [],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_ccWildSpawnHandoffLock": true,
+          "destroyed": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": null,
+      "permission": {
+        "action": "allow",
+        "reason": "ready"
+      }
+    },
+    {
+      "name": "marker-_ccSpawnAnimating",
+      "enabled": [],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_ccSpawnAnimating": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "tile-transient-animation",
+      "permission": {
+        "action": "retry",
+        "reason": "tile-transient-animation",
+        "retryDelayMs": 220
+      }
+    },
+    {
+      "name": "destroyed-_ccSpawnAnimating",
+      "enabled": [],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_ccSpawnAnimating": true,
+          "destroyed": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": null,
+      "permission": {
+        "action": "allow",
+        "reason": "ready"
+      }
+    },
+    {
+      "name": "marker-_spawnAnimating",
+      "enabled": [],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_spawnAnimating": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "tile-transient-animation",
+      "permission": {
+        "action": "retry",
+        "reason": "tile-transient-animation",
+        "retryDelayMs": 220
+      }
+    },
+    {
+      "name": "destroyed-_spawnAnimating",
+      "enabled": [],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_spawnAnimating": true,
+          "destroyed": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": null,
+      "permission": {
+        "action": "allow",
+        "reason": "ready"
+      }
+    },
+    {
+      "name": "marker-_isSpawning",
+      "enabled": [],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_isSpawning": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": "tile-transient-animation",
+      "permission": {
+        "action": "retry",
+        "reason": "tile-transient-animation",
+        "retryDelayMs": 220
+      }
+    },
+    {
+      "name": "destroyed-_isSpawning",
+      "enabled": [],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_isSpawning": true,
+          "destroyed": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": null,
+      "permission": {
+        "action": "allow",
+        "reason": "ready"
+      }
+    },
+    {
+      "name": "not-generic-{\"_isBeingSpawned\":true}",
+      "enabled": [],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_isBeingSpawned": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": null,
+      "permission": {
+        "action": "allow",
+        "reason": "ready"
+      }
+    },
+    {
+      "name": "not-generic-{\"alpha\":0}",
+      "enabled": [],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 0
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": null,
+      "permission": {
+        "action": "allow",
+        "reason": "ready"
+      }
+    },
+    {
+      "name": "not-generic-{\"visible\":false}",
+      "enabled": [],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": false,
+          "alpha": 1
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": null,
+      "permission": {
+        "action": "allow",
+        "reason": "ready"
+      }
+    },
+    {
+      "name": "not-generic-{\"_spawnTween\":{}}",
+      "enabled": [],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_spawnTween": {}
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": null,
+      "permission": {
+        "action": "allow",
+        "reason": "ready"
+      }
+    },
+    {
+      "name": "not-generic-{\"_wildMagnetAffected\":true,\"destroyed\":true}",
+      "enabled": [],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_wildMagnetAffected": true,
+          "destroyed": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": null,
+      "permission": {
+        "action": "allow",
+        "reason": "ready"
+      }
+    },
+    {
+      "name": "not-generic-{\"_cleanupToken\":1,\"destroyed\":true}",
+      "enabled": [],
+      "now": 1000,
+      "mutationDate": 0,
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1,
+          "_cleanupToken": 1,
+          "destroyed": true
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "locked": false,
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0,
+          "eventMode": "static",
+          "visible": true,
+          "alpha": 1
+        }
+      ],
+      "guard": {
+        "active": false,
+        "count": 0,
+        "until": 0,
+        "sources": []
+      },
+      "reason": null,
+      "permission": {
+        "action": "allow",
+        "reason": "ready"
+      }
+    }
+  ],
+  "permissionRows": [
+    {
+      "input": {
+        "tiles": [
+          {
+            "id": "a",
+            "value": 4,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 0,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          },
+          {
+            "id": "b",
+            "value": 3,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 1,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          }
+        ],
+        "wildMeter": 1.25,
+        "boardWildSpawnEnabled": true,
+        "boardWildMeterEnabled": true,
+        "wildSpawnInProgress": false,
+        "busyEnding": false,
+        "boardTransitionActive": false,
+        "failScreenPending": false,
+        "activeAnimationBlockReason": null
+      },
+      "expected": {
+        "action": "allow",
+        "reason": "ready"
+      }
+    },
+    {
+      "input": {
+        "tiles": [
+          {
+            "id": "a",
+            "value": 4,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 0,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          },
+          {
+            "id": "b",
+            "value": 3,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 1,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          }
+        ],
+        "wildMeter": 1.25,
+        "boardWildSpawnEnabled": true,
+        "boardWildMeterEnabled": false,
+        "wildSpawnInProgress": false,
+        "busyEnding": false,
+        "boardTransitionActive": false,
+        "failScreenPending": false,
+        "activeAnimationBlockReason": null
+      },
+      "expected": {
+        "action": "block",
+        "reason": "wild-meter-disabled"
+      }
+    },
+    {
+      "input": {
+        "tiles": [
+          {
+            "id": "a",
+            "value": 4,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 0,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          },
+          {
+            "id": "b",
+            "value": 3,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 1,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          }
+        ],
+        "wildMeter": 1.25,
+        "boardWildSpawnEnabled": false,
+        "boardWildMeterEnabled": true,
+        "wildSpawnInProgress": false,
+        "busyEnding": false,
+        "boardTransitionActive": false,
+        "failScreenPending": false,
+        "activeAnimationBlockReason": null
+      },
+      "expected": {
+        "action": "block",
+        "reason": "wild-spawn-disabled"
+      }
+    },
+    {
+      "input": {
+        "tiles": [
+          {
+            "id": "a",
+            "value": 4,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 0,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          },
+          {
+            "id": "b",
+            "value": 3,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 1,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          }
+        ],
+        "wildMeter": 0.999998,
+        "boardWildSpawnEnabled": true,
+        "boardWildMeterEnabled": true,
+        "wildSpawnInProgress": false,
+        "busyEnding": false,
+        "boardTransitionActive": false,
+        "failScreenPending": false,
+        "activeAnimationBlockReason": null
+      },
+      "expected": {
+        "action": "block",
+        "reason": "wild-meter-not-ready"
+      }
+    },
+    {
+      "input": {
+        "tiles": [
+          {
+            "id": "a",
+            "value": 4,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 0,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          },
+          {
+            "id": "b",
+            "value": 3,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 1,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          }
+        ],
+        "wildMeter": 0.999999,
+        "boardWildSpawnEnabled": true,
+        "boardWildMeterEnabled": true,
+        "wildSpawnInProgress": false,
+        "busyEnding": false,
+        "boardTransitionActive": false,
+        "failScreenPending": false,
+        "activeAnimationBlockReason": null
+      },
+      "expected": {
+        "action": "allow",
+        "reason": "ready"
+      }
+    },
+    {
+      "input": {
+        "tiles": [
+          {
+            "id": "a",
+            "value": 4,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 0,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          },
+          {
+            "id": "b",
+            "value": 3,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 1,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          }
+        ],
+        "wildMeter": 1.25,
+        "boardWildSpawnEnabled": true,
+        "boardWildMeterEnabled": true,
+        "wildSpawnInProgress": true,
+        "busyEnding": false,
+        "boardTransitionActive": false,
+        "failScreenPending": false,
+        "activeAnimationBlockReason": null
+      },
+      "expected": {
+        "action": "block",
+        "reason": "wild-spawn-in-progress"
+      }
+    },
+    {
+      "input": {
+        "tiles": [
+          {
+            "id": "a",
+            "value": 4,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 0,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          },
+          {
+            "id": "b",
+            "value": 3,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 1,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          }
+        ],
+        "wildMeter": 1.25,
+        "boardWildSpawnEnabled": true,
+        "boardWildMeterEnabled": true,
+        "wildSpawnInProgress": false,
+        "busyEnding": true,
+        "boardTransitionActive": false,
+        "failScreenPending": false,
+        "activeAnimationBlockReason": null
+      },
+      "expected": {
+        "action": "block",
+        "reason": "busyEnding"
+      }
+    },
+    {
+      "input": {
+        "tiles": [
+          {
+            "id": "a",
+            "value": 4,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 0,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          },
+          {
+            "id": "b",
+            "value": 3,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 1,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          }
+        ],
+        "wildMeter": 1.25,
+        "boardWildSpawnEnabled": true,
+        "boardWildMeterEnabled": true,
+        "wildSpawnInProgress": false,
+        "busyEnding": false,
+        "boardTransitionActive": true,
+        "failScreenPending": false,
+        "activeAnimationBlockReason": null
+      },
+      "expected": {
+        "action": "block",
+        "reason": "board-transition"
+      }
+    },
+    {
+      "input": {
+        "tiles": [
+          {
+            "id": "a",
+            "value": 4,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 0,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          },
+          {
+            "id": "b",
+            "value": 3,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 1,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          }
+        ],
+        "wildMeter": 1.25,
+        "boardWildSpawnEnabled": true,
+        "boardWildMeterEnabled": true,
+        "wildSpawnInProgress": false,
+        "busyEnding": false,
+        "boardTransitionActive": false,
+        "failScreenPending": true,
+        "activeAnimationBlockReason": null
+      },
+      "expected": {
+        "action": "block",
+        "reason": "fail-screen-pending"
+      }
+    },
+    {
+      "input": {
+        "tiles": [
+          {
+            "id": "last",
+            "value": 6,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 0,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          }
+        ],
+        "wildMeter": 1.25,
+        "boardWildSpawnEnabled": true,
+        "boardWildMeterEnabled": true,
+        "wildSpawnInProgress": false,
+        "busyEnding": false,
+        "boardTransitionActive": false,
+        "failScreenPending": false,
+        "activeAnimationBlockReason": null
+      },
+      "expected": {
+        "action": "block",
+        "reason": "last-merge"
+      }
+    },
+    {
+      "input": {
+        "tiles": [
+          {
+            "id": "a",
+            "value": 4,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 0,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          },
+          {
+            "id": "b",
+            "value": 3,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 1,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          }
+        ],
+        "wildMeter": 1.25,
+        "boardWildSpawnEnabled": true,
+        "boardWildMeterEnabled": true,
+        "wildSpawnInProgress": false,
+        "busyEnding": false,
+        "boardTransitionActive": false,
+        "failScreenPending": false,
+        "activeAnimationBlockReason": "board-settling"
+      },
+      "expected": {
+        "action": "retry",
+        "reason": "board-settling",
+        "retryDelayMs": 80
+      }
+    },
+    {
+      "input": {
+        "tiles": [
+          {
+            "id": "a",
+            "value": 4,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 0,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          },
+          {
+            "id": "b",
+            "value": 3,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 1,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          }
+        ],
+        "wildMeter": 1.25,
+        "boardWildSpawnEnabled": true,
+        "boardWildMeterEnabled": true,
+        "wildSpawnInProgress": false,
+        "busyEnding": false,
+        "boardTransitionActive": false,
+        "failScreenPending": false,
+        "activeAnimationBlockReason": "merge6-spawn-in-progress"
+      },
+      "expected": {
+        "action": "retry",
+        "reason": "merge6-spawn-in-progress",
+        "retryDelayMs": 80
+      }
+    },
+    {
+      "input": {
+        "tiles": [
+          {
+            "id": "a",
+            "value": 4,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 0,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          },
+          {
+            "id": "b",
+            "value": 3,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 1,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          }
+        ],
+        "wildMeter": 1.25,
+        "boardWildSpawnEnabled": true,
+        "boardWildMeterEnabled": true,
+        "wildSpawnInProgress": false,
+        "busyEnding": false,
+        "boardTransitionActive": false,
+        "failScreenPending": false,
+        "activeAnimationBlockReason": "special-transaction"
+      },
+      "expected": {
+        "action": "retry",
+        "reason": "special-transaction",
+        "retryDelayMs": 220
+      }
+    },
+    {
+      "input": {
+        "tiles": [
+          {
+            "id": "a",
+            "value": 4,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 0,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          },
+          {
+            "id": "b",
+            "value": 3,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 1,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          }
+        ],
+        "wildMeter": 1.25,
+        "boardWildSpawnEnabled": true,
+        "boardWildMeterEnabled": true,
+        "wildSpawnInProgress": true,
+        "busyEnding": false,
+        "boardTransitionActive": false,
+        "failScreenPending": false,
+        "activeAnimationBlockReason": "special-transaction"
+      },
+      "expected": {
+        "action": "block",
+        "reason": "wild-spawn-in-progress"
+      }
+    },
+    {
+      "input": {
+        "tiles": [
+          {
+            "id": "a",
+            "value": 4,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 0,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          },
+          {
+            "id": "b",
+            "value": 3,
+            "special": null,
+            "locked": false,
+            "stackDepth": 1,
+            "gridX": 1,
+            "gridY": 0,
+            "eventMode": "static",
+            "visible": true,
+            "alpha": 1
+          }
+        ],
+        "wildMeter": 1.25,
+        "boardWildSpawnEnabled": true,
+        "boardWildMeterEnabled": false,
+        "wildSpawnInProgress": true,
+        "busyEnding": false,
+        "boardTransitionActive": false,
+        "failScreenPending": false,
+        "activeAnimationBlockReason": null
+      },
+      "expected": {
+        "action": "block",
+        "reason": "wild-meter-disabled"
+      }
+    }
+  ],
+  "source": {
+    "allocation": "merge6SpawnOwnerToken = ++merge6SpawnOwnerSequence;\nactiveMerge6SpawnOwnerToken = merge6SpawnOwnerToken;\nmerge6SpawnInProgress = true;\nlastEndgameBoardMutationAt = Date.now();\ndevLog('✅ Set merge6SpawnInProgress = true to prevent duplicate spawns');\nclearMerge6SpawnResetTimer();",
+    "observe": "const buildEndgameBoardSignature = () => {\n      const active = tiles\n        .filter((t: any) => tileIsActive(t as any))\n        .map((t: any) => ({\n          v: t.value | 0,\n          s: t.special || null,\n          l: !!t.locked,\n          d: (t as any).stackDepth || 1,\n          x: t.gridX ?? null,\n          y: t.gridY ?? null,\n          e: t.eventMode || null\n        }))\n        .sort((a, b) => {\n          if (a.y !== b.y) return (a.y ?? -1) - (b.y ?? -1);\n          if (a.x !== b.x) return (a.x ?? -1) - (b.x ?? -1);\n          if (a.v !== b.v) return a.v - b.v;\n          return String(a.s).localeCompare(String(b.s));\n        });\n      return JSON.stringify(active);\n    };\nconst currentEndgameSignature = buildEndgameBoardSignature();\nif (currentEndgameSignature !== lastEndgameBoardSignature) {\n      lastEndgameBoardSignature = currentEndgameSignature;\n      lastEndgameBoardMutationAt = Date.now();\n    }",
+    "blocker": "function getWildSpawnAnimationBlockReason(): string | null {\n  try {\n    if (busyEnding) return 'busyEnding';\n    if ((window as any).__ccBoardTransitionActive === true) return 'board-transition';\n    if ((window as any).__ccFailScreenPending === true) return 'fail-screen-pending';\n    // The visual-tail input exception is deliberately ordinary-only. A full\n    // meter may be earned by that stack, but its wild drop must wait until the\n    // previous special transaction releases immutable board ownership.\n    if (specialDiceTransactionOwner.isActive()) return 'special-transaction';\n    const guard = getEndgameGuardState();\n    if (guard.active) return `endgame-guard:${guard.sources.join(',') || 'ttl'}`;\n    if (merge6SpawnInProgress) return 'merge6-spawn-in-progress';\n    if (regularMergeHandoffTokens.size > 0) return 'regular-merge-handoff';\n    // A regular merge-6 owns its visible destination until the merge-cell\n    // cleanup and replacement spawn have been scheduled. If the same merge\n    // fills the wild meter, letting the reward drop start in this window races\n    // the special FX against the still-locked value-6 tile.\n    const hasRegularMerge6Handoff = Array.isArray(STATE?.tiles) &&\n      STATE.tiles.some((tile: any) => merge6DestinationCleanupOwner.hasClaim(tile));\n    if (hasRegularMerge6Handoff) return 'regular-merge6-handoff';\n    if (wildMagnetPullInProgress) return 'wild-magnet-pull';\n    const sinceBoardMutation = lastEndgameBoardMutationAt ? Date.now() - lastEndgameBoardMutationAt : Infinity;\n    if (sinceBoardMutation < WILD_SPAWN_BOARD_SETTLE_MS) return 'board-settling';\n    const hasMagnetAffectedTiles = Array.isArray(STATE?.tiles)\n      && STATE.tiles.some((tile: any) => tile && !tile.destroyed && tile._wildMagnetAffected === true);\n    if (hasMagnetAffectedTiles) return 'wild-magnet-affected-tiles';\n    const hasTransientTiles = Array.isArray(STATE?.tiles)\n      && STATE.tiles.some((tile: any) => tile && !tile.destroyed && (\n        tile._ccWildSpawnDropping === true ||\n        tile._ccWildSpawnHandoffLock === true ||\n        tile._ccSpawnAnimating === true ||\n        tile._spawnAnimating === true ||\n        tile._isSpawning === true\n      ));\n    if (hasTransientTiles) return 'tile-transient-animation';\n    if ((window as any).__ccWildSpawnDropInProgress === true) return 'wild-spawn-drop';\n  } catch {}\n  return null;\n}"
+  }
+}

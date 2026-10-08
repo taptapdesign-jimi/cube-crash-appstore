@@ -7,6 +7,7 @@ public final class NativeGameplayEngine {
     public var snapshot: NativeBoardState { state }
     /// Additional exact source lifecycle markers are supplied only by their native
     /// owner (for example Wild-drop travel); ordinary decorative SKActions add none.
+    private var sourceMeterMutationLedger:NativeSourceMeterMutationLedger?
     public var sourceSaveRuntime=NativeSourceSaveRuntime()
     public var hasUnsavableSourceGameplayState:Bool {
         var snapshot=sourceSaveRuntime
@@ -90,6 +91,7 @@ public final class NativeGameplayEngine {
     private var sourceNoMovesGeneration:UInt64?
     private var sourceNoMovesConfirmed:NativeNoMovesCandidateOwner.Plan?
     private var sourceNoMovesConfirmedResolution:NativeResolution?
+    public private(set) var completedSourceNoMovesReceipt:NativeSourceNoMovesCompletedReceipt?
     public var pendingSourceNoMoves:NativeNoMovesCandidateOwner.Plan? {sourceNoMovesOwner.active ?? sourceNoMovesConfirmed}
     public var sourceGameplaySignature:NativeSourceGameplaySignature {NativeSourceGameplaySignature(tiles:state.tiles.filter{!(noMovesTileRuntime[$0.id]?.destroyed ?? false)})}
 
@@ -196,10 +198,11 @@ public final class NativeGameplayEngine {
     public func restart(state fresh: NativeBoardState) {
         meterDropReservations.removeAll();meterDropSequence=0
         pendingMeterOpen=nil;pendingMeterOpenRetry=nil;meterOpenFlow=nil;meterOpenSequence=0;sourceMeterSpawnCancelToken &+= 1;sourceMeterLastMergeTileIDs=[]
-        sourceNoMovesReadyPostchecks=[];sourceNoMovesStackContexts=[:];sourceNoMovesOwner=NativeNoMovesCandidateOwner();sourceNoMovesConfirmed=nil;sourceNoMovesConfirmedResolution=nil;sourceNoMovesGeneration=nil;noMovesTileRuntime=[:];sourceWildRetryPending=false;sourceNonFinalMerge6Guard=false
+        sourceNoMovesReadyPostchecks=[];sourceNoMovesStackContexts=[:];sourceNoMovesOwner=NativeNoMovesCandidateOwner();sourceNoMovesConfirmed=nil;sourceNoMovesConfirmedResolution=nil;completedSourceNoMovesReceipt=nil;sourceNoMovesGeneration=nil;noMovesTileRuntime=[:];sourceWildRetryPending=false;sourceNonFinalMerge6Guard=false
         pendingWildRecoveryChecks=[];pendingWildSpawnPresentations=[];wildSourceResolutionBoundary=nil;sourceSaveRuntime=NativeSourceSaveRuntime()
         let generation = state.generation &+ 1
         state = fresh; state.generation = generation; state.revision = 0; state.terminal = nil; tileSequence = 0
+        sourceMeterMutationLedger?.resetTransientGuards(generation:generation)
         pendingSpecial = nil; pendingLaserShots = []; pendingMagnetRespawn = nil; magnetReplacementIndex = 0; specialPreBoard = nil; specialImpactIndex = 0
         directWildPrimaryRecovery?.cancelForLifecycle();directWildPrimaryRecovery=nil;directWildSpawnPhase?.cancelForLifecycle();directWildSpawnPhase=nil;pendingWildSpawnActions=[];pendingWildSpawnArrivals=[];pendingWildLockedBonusPresentations=[];wildPhaseScheduledID=nil;directWildVisualReleased=false
         pendingDirectWild = nil; directWildGameplayCommitted = false; committingDirectWild = false
@@ -1596,7 +1599,9 @@ extension NativeGameplayEngine {
     /// This receipt does not rerun RNG, mutate moves, or freshly select a failure.
     public func finishSourceNoMovesBoardExit(plan:NativeNoMovesCandidateOwner.Plan,generation:UInt64)->NativeMoveResult {
         guard stagedSourceNoMoves,generation==state.generation,sourceNoMovesGeneration==generation,sourceNoMovesConfirmed==plan,let result=sourceNoMovesConfirmedResolution,state.terminal==nil else{return rejected("stale_source_no_moves_board_exit")}
-        state.terminal=result;sourceNoMovesConfirmed=nil;sourceNoMovesConfirmedResolution=nil;sourceNoMovesGeneration=nil
+        state.terminal=result
+        completedSourceNoMovesReceipt = .init(generation:generation,planToken:plan.token,resolution:result)
+        sourceNoMovesConfirmed=nil;sourceNoMovesConfirmedResolution=nil;sourceNoMovesGeneration=nil
         return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.terminal,reason:result.reason)],resolution:result)
     }
     private func applySourceNoMovesEffect(_ effect:NativeNoMovesCandidateOwner.Effect)->NativeNoMovesCandidateOwner.Effect {
@@ -1614,6 +1619,20 @@ extension NativeGameplayEngine {
         let runtime=sourceNoMovesEffectiveTileRuntime
         let active=state.tiles.filter{NativeSourceEndgameChecker.active($0,runtime:runtime[$0.id] ?? .init())}
         return active.count==1 && active[0].value==6
+    }
+    /// Literal spawnWildFromMeter closure. A completed native reservation may
+    /// already be retired when Source startLandedIdle's finally fallback runs.
+    /// Absence of a drop never substitutes for the captured cancellation token.
+    /// Caller retains the real pendingMeterOpen.spawnToken and exact tile object.
+    public func meterDropSourceCancellation(generation:UInt64,spawnToken:UInt64,dropID:String)->NativeMeterDropCancellation? {
+        guard generation==state.generation,spawnToken==sourceMeterSpawnCancelToken else {
+            return .explicitPendingContinuation
+        }
+        if let drop=meterDropReservations[dropID],drop.generation==generation,drop.queueCanceled {
+            return .explicitPendingContinuation
+        }
+        if flags.busyEnding || hasSourceMeterLastMerge {return .busyEndingOrLastMerge}
+        return nil
     }
     private var meterOpenCancelled:Bool {
         guard let flow=meterOpenFlow else{return true}
@@ -1787,4 +1806,67 @@ extension NativeGameplayEngine {
   if !restored.isEmpty {events.append(NativeGameplayEvent(.sourceMagnetPullInterrupted,tileIDs:restored,archetype:.magnet,reason:plan.id,variant:plan.variant))}
   return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
  }
+}
+
+
+extension NativeGameplayEngine {
+    /// Install only at the four captured actual Source callbacks; never in synchronize/resolve.
+    @discardableResult public func recordSourceMeterBoardMutation(_ writer:NativeSourceMeterMutationLedger.Writer,generation:UInt64,sourceDateMilliseconds:Int64)->Bool {
+        guard generation==state.generation else{return false}
+        if sourceMeterMutationLedger == nil {sourceMeterMutationLedger = .init(generation:generation)}
+        return sourceMeterMutationLedger!.record(writer,generation:generation,sourceDateMilliseconds:sourceDateMilliseconds)
+    }
+    public var sourceMeterLastBoardMutationDateMilliseconds:Int64 {sourceMeterMutationLedger?.lastMutationDateMilliseconds ?? 0}
+    /// App-lived Source context carries the actual Date/signature across replacement
+    /// Core objects. Adopt before the first writer; never rebuild it from board revision.
+    public var sourceMeterMutationSnapshot:NativeSourceMeterMutationLedger {sourceMeterMutationLedger ?? .init(generation:state.generation)}
+    @discardableResult public func adoptSourceMeterMutationSnapshot(_ captured:NativeSourceMeterMutationLedger,generation:UInt64)->Bool {
+        guard generation==state.generation,sourceMeterMutationLedger==nil else{return false}
+        var adopted=captured;adopted.resetTransientGuards(generation:generation);sourceMeterMutationLedger=adopted;return true
+    }
+
+    /// Call only after actual awaited tutorial repair and isCurrentCheck gates. Missing
+    /// Source event-mode capture refuses observation; it never fabricates a signature.
+    @discardableResult public func observeSourceMeterCheckLevelEndSignature(generation:UInt64,sourceDateMilliseconds:Int64,eventModes:[String:NativeSourceMeterEventMode])->Bool? {
+        guard generation==state.generation,state.tiles.allSatisfy({eventModes[$0.id] != nil}) else{return nil}
+        let runtime=sourceNoMovesEffectiveTileRuntime
+        let active=state.tiles.filter { NativeSourceEndgameChecker.active($0,runtime:runtime[$0.id] ?? .init()) }
+        let signature=NativeSourceMeterEndgameSignature(activeEntries:active.map {t in
+            .init(value:t.value,special:t.archetype?.rawValue,locked:t.locked,depth:t.stackDepth,
+                  x:t.cell.column,y:t.cell.row,eventMode:eventModes[t.id]!.name)
+        })
+        return recordSourceMeterBoardMutation(.checkLevelEndSignatureObserved(signature),generation:generation,sourceDateMilliseconds:sourceDateMilliseconds)
+    }
+
+    /// Canonical ordered v9 getWildSpawnAnimationBlockReason. Environment carries
+    /// actual owner state, not pending-plan presence or generic native visual tails.
+    public func sourceMeterAnimationBlockReason(environment e:NativeSourceMeterQueueEnvironment)->String? {
+        guard e.generation==state.generation else{return "obsolete-generation"}
+        guard state.tiles.allSatisfy({tile in e.tiles.filter{$0.tileID==tile.id}.count==1}) else{return "source-meter-markers-unavailable"}
+        if flags.busyEnding {return "busyEnding"}
+        if e.boardTransitionActive {return "board-transition"}
+        if e.failScreenPending {return "fail-screen-pending"}
+        if e.specialTransactionActive {return "special-transaction"}
+        if e.endgameGuardActive {return "endgame-guard:"+(e.endgameGuardSources.isEmpty ? "ttl":e.endgameGuardSources.joined(separator:","))}
+        if e.mergeSixSpawnInProgress {return "merge6-spawn-in-progress"}
+        if sourceMeterMutationLedger?.activeRegularHandoffs.isEmpty == false {return "regular-merge-handoff"}
+        let liveIDs=Set(state.tiles.map(\.id))
+        let markers=e.tiles.filter{liveIDs.contains($0.tileID) && !$0.destroyed}
+        let destroyed=Set(e.tiles.filter(\.destroyed).map(\.tileID))
+        if markers.contains(where:{$0.cleanupClaim}) || state.tiles.contains(where:{$0.merge6CleanupOwned && !destroyed.contains($0.id) && !(noMovesTileRuntime[$0.id]?.destroyed ?? false)}) {return "regular-merge6-handoff"}
+        if e.wildMagnetPullInProgress {return "wild-magnet-pull"}
+        if sourceMeterMutationLedger?.isBoardSettling(sourceDateMilliseconds:e.sourceDateMilliseconds) == true {return "board-settling"}
+        if markers.contains(where:{$0.magnetAffected}) || state.tiles.contains(where:{$0.magnetOwned && !destroyed.contains($0.id) && !(noMovesTileRuntime[$0.id]?.destroyed ?? false)}) {return "wild-magnet-affected-tiles"}
+        if markers.contains(where:{$0.transientAnimation}) || meterDropReservations.values.contains(where:{liveIDs.contains($0.tileID) && !destroyed.contains($0.tileID) && (($0.assetsPrepared && !$0.landed) || $0.handoffLocked)}) {return "tile-transient-animation"}
+        if e.wildDropInProgress {return "wild-spawn-drop"}
+        return nil
+    }
+    public func meterSourceQueuePermission(environment e:NativeSourceMeterQueueEnvironment)->NativeWildMeterRules.Permission {
+        guard e.generation==state.generation else{return .init(.block,"obsolete-generation")}
+        guard state.tiles.allSatisfy({tile in e.tiles.filter{$0.tileID==tile.id}.count==1}) else{return .init(.block,"source-meter-markers-unavailable")}
+        return NativeWildMeterRules.permission(meter:state.wildMeter,meterEnabled:e.boardMeterEnabled,
+            spawnEnabled:e.boardSpawnEnabled,spawnInProgress:e.queueInProgress,busyEnding:flags.busyEnding,
+            boardTransition:e.boardTransitionActive,failPending:e.failScreenPending,lastMerge:hasSourceMeterLastMerge,
+            animationBlock:sourceMeterAnimationBlockReason(environment:e))
+    }
 }

@@ -33,6 +33,7 @@ final class NativeSourceAnimationRuntime {
     private(set) var tickerSeconds=0.0,animationSeconds=0.0,globallyPaused=false
     var onVisit:((UInt64)->Void)? // Proof observer; no clock or activity.
     var onDemandChanged:(()->Void)?
+    var onWillChangeSuspension:((Bool)->Void)?
     var activeCount:Int{entries.count}
     var hasSourceTickerDemand:Bool{entries.values.contains{$0.active && !$0.suspended && $0.participant != nil}}
     var hasRunnableParticipants:Bool{!globallyPaused && hasSourceTickerDemand}
@@ -64,6 +65,16 @@ final class NativeSourceAnimationRuntime {
         let elapsed=wallMilliseconds-lastWall
         if elapsed>500 || elapsed<0 {startWall += elapsed-33}
         lastWall=wallMilliseconds;tickerSeconds=(lastWall-startWall)/1000
+        renderReceivedTicker()
+    }
+    /// Literal Source _tick has already applied overlap/lag and decided dispatch.
+    /// Its supplied ticker.time, not nativeRaw time, is authoritative here.
+    func deliverSourceTicker(seconds:Double,wallMilliseconds:Double){
+        guard !disposed else{return}
+        lastWall=floor(wallMilliseconds);tickerSeconds=seconds;startWall=lastWall-seconds*1000
+        renderReceivedTicker()
+    }
+    private func renderReceivedTicker(){
         guard !globallyPaused else{return}
         animationSeconds=round7(tickerSeconds-animationOffset)
         guard animationSeconds != lastRendered else{return} // Same-tick reentry.
@@ -126,6 +137,8 @@ final class NativeSourceAnimationRuntime {
     }
     private func setSuspended(id:UInt64,value:Bool){
         guard let entry=entries[id],entry.suspended != value else{return}
+        onWillChangeSuspension?(value)
+        guard !disposed,entries[id] === entry,entry.active,entry.suspended != value else{return}
         entry.suspended=value
         if value{entry.suspendedAt=animationSeconds}else{entry.birth=round7(entry.birth+animationSeconds-entry.suspendedAt)}
         onDemandChanged?()
