@@ -30,7 +30,9 @@ final class NativeSharedSmokeRootSpritePresentation {
             resources:resources,scheduler:scheduler,sourceClockNow:sourceClockNowMilliseconds,current:{isCurrent(generation)},random:random,
             consumeHot:consumeHotFactor,acquireActivity:acquireActivity)
     }
+    var onRootsDrained:(()->Void)?{get{owner.onRootsDrained}set{owner.onRootsDrained=newValue}}
     func dispose(){owner.dispose()}
+    func disposeForRetirement(){owner.disposeForRetirement()}
 
     /// Resource identities are captured per call, including old pool leases;
     /// no old animation callback can resolve a newly reused node by index.

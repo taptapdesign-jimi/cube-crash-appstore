@@ -1,0 +1,343 @@
+{
+  "reference": "production-benchmark-v9",
+  "hashes": {
+    "src/modules/special-sound-warmup.ts": "50dd9f40b2a095635bd96e91c05d8e43aed9f6729a9c8691fad589ff5acfb73a",
+    "src/modules/kanta-merge6-sound.ts": "9cecea7de2fa319d4ee0877c028599d54d889c50a595cf6640f693bf97ded71c",
+    "src/modules/sound-effects-volume.ts": "a56564c686cf71c8ff1e0fb54d1df0b721242de78619eb0d45238ccf530f31d7",
+    "src/modules/regular-merge6-sound.ts": "922c7d2c7f4d749419129c134b4ddbc270b5f08365ee9dc40699826f2ee2aea1",
+    "src/modules/special-dice-registry.ts": "b6818afb9ffd98a6249f17c8f0d020663a1fd9a41f8d43908da1a25bb7780fdd",
+    "src/modules/journey-forest-wild-progression.ts": "6ff48dbe821d56af44ffa20903b2d8a4549a57b0450cd369d5590fd1d1833018",
+    "src/modules/journey-area55-wild-progression.ts": "c389b1804394ce6823af09a88619aabe518a93f664496d21c5bf4feb92699173",
+    "src/modules/fish-merge6-sound.ts": "8fa42f5d2c015105741a543a98152411e17329160aff1731e0cc0b87d9ee0b9c",
+    "src/modules/beach-ball-merge6-sound.ts": "9c9662e71d5c058c2db84777c85b3b3583aada2f0dff5764d80a3a1fad2f80db",
+    "src/modules/core-tnt-merge6-sound.ts": "6c94cb9f7ca7167770e45670454501c66c0caa1eced56fb9097df5fbe7584d9d",
+    "src/modules/flower-merge6-sound.ts": "860124d8c758d3adfe4126e8e5b83688a198302f0facf4f8d5838c54d5d462e9",
+    "src/modules/bee-merge6-sound.ts": "90094d12fa00049ea69cfbbd757e28ccb19f837cc6671c94df3495480ce09a3a",
+    "src/modules/robo-cube-merge6-sound.ts": "a858ca77691dcd602aa849e21be49c4bfeb9c4a68c776fab9f7343c7047db27a",
+    "src/modules/bottle-finale-sound.ts": "74f058e8ec27b6c298787ef5e5a189c6742ad38d88a8297b4c2d8981d45a685e",
+    "src/modules/bottle-pull-merge-sound.ts": "ee3811a883a189232825501e9147b57eeebce25fa9a02ade95791c78187a6bf2",
+    "src/modules/magnet-pull-force-sound.ts": "ed4143f198cb31d1f4e5e5eeec8fe1db60a239393e3094a5110a5d0559d6d2f1",
+    "src/modules/honey-merge6-sound.ts": "8d1c823bb55366b24d5955fb75013d10ee487b67268b7d8495d044a3f4840288",
+    "src/modules/laser-gun-merge6-sound.ts": "8750f233222670cba874fc86f6d4ac1dfa3a1cd86b19a2e654f8113333e56b5c",
+    "src/modules/spaceship-merge6-sound.ts": "56a0bc6eac4b03f1106f0079f316321f2e0268ac1c9e788e6ffe52189a0dcffd",
+    "src/modules/barrel-merge6-sound.ts": "c3f04ee6e3e326125036a98f7609b3c26098649f087c508c06f9aa8f02da3ee1",
+    "src/modules/juice-finale-sound.ts": "a92b068a9f27de837b6515690dfc332d28d0ea92d262fa2106bdd9eac8638945",
+    "src/modules/wild-star-merge6-sound.ts": "bcde6c368ba610f6b56bbeac2de814e29921c935f78eeb71fe70eeaf6ca3a2fd"
+  },
+  "rows": [
+    {
+      "id": null,
+      "special": "wild",
+      "families": [
+        "wild-star"
+      ],
+      "sources": [
+        "./assets/sound/merge 6/merge six obicna.mp3",
+        "./assets/sound/merge 6/merge6 crash.mp3",
+        "./assets/sound/merge 6/merge6 boom.mp3",
+        "./assets/sound/merge 6/stack.mp3",
+        "./assets/sound/Wild and special kockice/star/long_magica_happy_ac_%232-1788980185281.wav",
+        "./assets/sound/Wild and special kockice/star/long_magica_happy_ac_%233-1788980189939.wav",
+        "./assets/sound/Wild and special kockice/star/star1.wav",
+        "./assets/sound/Wild and special kockice/star/star2.wav",
+        "./assets/sound/Wild and special kockice/star/magicle_sparkle_for__%231-1788980027254.wav"
+      ]
+    },
+    {
+      "id": null,
+      "special": "wild-juice",
+      "families": [
+        "juice"
+      ],
+      "sources": [
+        "./assets/sound/Wild and special kockice/juice/bubble.wav",
+        "./assets/sound/Wild and special kockice/juice/introbubble.wav",
+        "./assets/sound/Wild and special kockice/juice/mini2.mp3",
+        "./assets/sound/Wild and special kockice/juice/mini3.wav",
+        "./assets/sound/Wild and special kockice/juice/mini4.wav"
+      ]
+    },
+    {
+      "id": null,
+      "special": "wild-magnet",
+      "families": [
+        "magnet"
+      ],
+      "sources": [
+        "./assets/sound/merge 6/merge six obicna.mp3",
+        "./assets/sound/merge 6/merge6 crash.mp3",
+        "./assets/sound/merge 6/merge6 boom.mp3",
+        "./assets/sound/merge 6/stack.mp3",
+        "./assets/sound/magnet pul lforce/boiing.wav"
+      ]
+    },
+    {
+      "id": null,
+      "special": "wild-tnt",
+      "families": [
+        "tnt"
+      ],
+      "sources": [
+        "./assets/sound/merge 6/merge six obicna.mp3",
+        "./assets/sound/merge 6/merge6 crash.mp3",
+        "./assets/sound/merge 6/merge6 boom.mp3",
+        "./assets/sound/merge 6/stack.mp3",
+        "./assets/sound/Wild and special kockice/tnt/tnt3.wav",
+        "./assets/sound/Wild and special kockice/tnt/horn.wav",
+        "./assets/sound/Wild and special kockice/tnt/wood break.wav",
+        "./assets/sound/Wild and special kockice/tnt/wood ssplinter.wav",
+        "./assets/sound/Wild and special kockice/tnt/mini crash1.wav",
+        "./assets/sound/mini explozije/mini2.mp3",
+        "./assets/sound/mini explozije/mini3.wav",
+        "./assets/sound/mini explozije/mini4.wav",
+        "./assets/sound/mini explozije/mini5.wav"
+      ]
+    },
+    {
+      "id": "fish",
+      "special": "wild",
+      "families": [
+        "fish"
+      ],
+      "sources": [
+        "./assets/sound/merge 6/merge six obicna.mp3",
+        "./assets/sound/merge 6/merge6 crash.mp3",
+        "./assets/sound/merge 6/merge6 boom.mp3",
+        "./assets/sound/merge 6/stack.mp3",
+        "./assets/sound/Wild and special kockice/fish/fish0.wav",
+        "./assets/sound/Wild and special kockice/fish/fish1.wav",
+        "./assets/sound/Wild and special kockice/fish/fish2.wav",
+        "./assets/sound/Wild and special kockice/fish/plomp.wav",
+        "./assets/sound/Wild and special kockice/fish/fish speaks.wav"
+      ]
+    },
+    {
+      "id": "kanta",
+      "special": "wild",
+      "families": [
+        "kanta"
+      ],
+      "sources": [
+        "./assets/sound/merge 6/merge six obicna.mp3",
+        "./assets/sound/merge 6/merge6 crash.mp3",
+        "./assets/sound/merge 6/merge6 boom.mp3",
+        "./assets/sound/merge 6/stack.mp3",
+        "./assets/sound/Wild and special kockice/kanta/tup.wav",
+        "./assets/sound/Wild and special kockice/kanta/spacesound.wav",
+        "./assets/sound/Wild and special kockice/kanta/bibis.wav",
+        "./assets/sound/Wild and special kockice/kanta/kanta4.wav",
+        "./assets/sound/Wild and special kockice/kanta/kanta1.wav",
+        "./assets/sound/Wild and special kockice/kanta/kanta2.wav",
+        "./assets/sound/Wild and special kockice/kanta/kanta3.wav",
+        "./assets/sound/Wild and special kockice/kanta/hodanje.wav"
+      ]
+    },
+    {
+      "id": "bee",
+      "special": "wild",
+      "families": [
+        "bee"
+      ],
+      "sources": [
+        "./assets/sound/merge 6/merge six obicna.mp3",
+        "./assets/sound/merge 6/merge6 crash.mp3",
+        "./assets/sound/merge 6/merge6 boom.mp3",
+        "./assets/sound/merge 6/stack.mp3",
+        "./assets/sound/Wild and special kockice/bee/bee start.wav",
+        "./assets/sound/Wild and special kockice/bee/BEE.wav",
+        "./assets/sound/Wild and special kockice/bee/brushing.wav",
+        "./assets/sound/Wild and special kockice/bee/happy bee.wav"
+      ]
+    },
+    {
+      "id": "laser-gun",
+      "special": "wild-tnt",
+      "families": [
+        "laser-gun",
+        "tnt-bonus"
+      ],
+      "sources": [
+        "./assets/sound/Wild and special kockice/tnt/mini crash1.wav",
+        "./assets/sound/mini explozije/mini2.mp3",
+        "./assets/sound/mini explozije/mini3.wav",
+        "./assets/sound/mini explozije/mini4.wav",
+        "./assets/sound/mini explozije/mini5.wav",
+        "./assets/sound/Wild and special kockice/tnt/horn.wav",
+        "./assets/sound/Wild and special kockice/gun/prep.wav",
+        "./assets/sound/Wild and special kockice/gun/priprema.wav",
+        "./assets/sound/Wild and special kockice/gun/beam1.wav",
+        "./assets/sound/Wild and special kockice/gun/beam2.wav",
+        "./assets/sound/Wild and special kockice/gun/plombing.wav",
+        "./assets/sound/Wild and special kockice/star/star1.wav"
+      ]
+    },
+    {
+      "id": "spaceship",
+      "special": "wild-magnet",
+      "families": [
+        "spaceship"
+      ],
+      "sources": [
+        "./assets/sound/Wild and special kockice/spaceship/crash.wav",
+        "./assets/sound/Wild and special kockice/spaceship/crash2.wav",
+        "./assets/sound/Wild and special kockice/spaceship/ulazak.wav",
+        "./assets/sound/Wild and special kockice/spaceship/abduction.wav",
+        "./assets/sound/Wild and special kockice/spaceship/hi pitch beam.wav",
+        "./assets/sound/Wild and special kockice/spaceship/sucking.wav",
+        "./assets/sound/Wild and special kockice/spaceship/materijal.wav",
+        "./assets/sound/Wild and special kockice/spaceship/suck beam.wav",
+        "./assets/sound/Wild and special kockice/spaceship/odlazak.wav",
+        "./assets/sound/merge 6/merge six obicna.mp3",
+        "./assets/sound/merge 6/merge6 crash.mp3",
+        "./assets/sound/merge 6/merge6 boom.mp3",
+        "./assets/sound/merge 6/stack.mp3",
+        "./assets/sound/magnet pul lforce/boiing.wav"
+      ]
+    },
+    {
+      "id": "bottle",
+      "special": "wild-magnet",
+      "families": [
+        "bottle"
+      ],
+      "sources": [
+        "./assets/sound/Wild and special kockice/bottle/water waves.wav",
+        "./assets/sound/Wild and special kockice/bottle/bottle1.wav",
+        "./assets/sound/Wild and special kockice/bottle/bottle 2.wav",
+        "./assets/sound/Wild and special kockice/bottle/cling.wav",
+        "./assets/sound/Wild and special kockice/bottle/cling2.wav",
+        "./assets/sound/Wild and special kockice/bottle/bublesi.wav",
+        "./assets/sound/Wild and special kockice/bottle/bubsplat1.wav",
+        "./assets/sound/Wild and special kockice/bottle/bubsplat2.wav",
+        "./assets/sound/Wild and special kockice/bottle/glass crack.wav",
+        "./assets/sound/merge 6/merge six obicna.mp3",
+        "./assets/sound/merge 6/merge6 crash.mp3",
+        "./assets/sound/merge 6/merge6 boom.mp3",
+        "./assets/sound/merge 6/stack.mp3",
+        "./assets/sound/magnet pul lforce/boiing.wav"
+      ]
+    },
+    {
+      "id": "honey",
+      "special": "wild-magnet",
+      "families": [
+        "honey"
+      ],
+      "sources": [
+        "./assets/sound/merge 6/merge six obicna.mp3",
+        "./assets/sound/merge 6/merge6 crash.mp3",
+        "./assets/sound/merge 6/merge6 boom.mp3",
+        "./assets/sound/merge 6/stack.mp3",
+        "./assets/sound/magnet pul lforce/boiing.wav",
+        "./assets/sound/Wild and special kockice/honey/honeysplat.wav",
+        "./assets/sound/Wild and special kockice/honey/hapr.wav",
+        "./assets/sound/Wild and special kockice/honey/supersplat.wav",
+        "./assets/sound/Wild and special kockice/honey/BEES3s.wav"
+      ]
+    },
+    {
+      "id": "flower",
+      "special": "wild-tnt",
+      "families": [
+        "flower",
+        "tnt-bonus"
+      ],
+      "sources": [
+        "./assets/sound/Wild and special kockice/tnt/mini crash1.wav",
+        "./assets/sound/mini explozije/mini2.mp3",
+        "./assets/sound/mini explozije/mini3.wav",
+        "./assets/sound/mini explozije/mini4.wav",
+        "./assets/sound/mini explozije/mini5.wav",
+        "./assets/sound/merge 6/merge six obicna.mp3",
+        "./assets/sound/merge 6/merge6 crash.mp3",
+        "./assets/sound/merge 6/merge6 boom.mp3",
+        "./assets/sound/merge 6/stack.mp3",
+        "./assets/sound/Wild and special kockice/flower/bush0.wav",
+        "./assets/sound/Wild and special kockice/flower/bush2.wav",
+        "./assets/sound/Wild and special kockice/flower/bush3.wav",
+        "./assets/sound/Wild and special kockice/flower/boom.wav",
+        "./assets/sound/Wild and special kockice/flower/leaves.wav",
+        "./assets/sound/Wild and special kockice/flower/spark.wav"
+      ]
+    },
+    {
+      "id": "barell",
+      "special": "wild-tnt",
+      "families": [
+        "barell",
+        "tnt-bonus"
+      ],
+      "sources": [
+        "./assets/sound/Wild and special kockice/tnt/mini crash1.wav",
+        "./assets/sound/mini explozije/mini2.mp3",
+        "./assets/sound/mini explozije/mini3.wav",
+        "./assets/sound/mini explozije/mini4.wav",
+        "./assets/sound/mini explozije/mini5.wav",
+        "./assets/sound/Wild and special kockice/barell/tnt3.wav",
+        "./assets/sound/Wild and special kockice/barell/horn.wav",
+        "./assets/sound/Wild and special kockice/barell/wood break.wav",
+        "./assets/sound/Wild and special kockice/barell/wood ssplinter.wav",
+        "./assets/sound/Wild and special kockice/barell/puf1.wav",
+        "./assets/sound/Wild and special kockice/barell/puf2.wav",
+        "./assets/sound/Wild and special kockice/barell/planks.wav",
+        "./assets/sound/Wild and special kockice/barell/poof.wav",
+        "./assets/sound/merge 6/merge six obicna.mp3",
+        "./assets/sound/merge 6/merge6 crash.mp3",
+        "./assets/sound/merge 6/merge6 boom.mp3",
+        "./assets/sound/merge 6/stack.mp3"
+      ]
+    },
+    {
+      "id": "mushroom",
+      "special": "wild-juice",
+      "families": [
+        "mushroom"
+      ],
+      "sources": []
+    },
+    {
+      "id": "robo-cube",
+      "special": "wild-juice",
+      "families": [
+        "robo-cube"
+      ],
+      "sources": [
+        "./assets/sound/Wild and special kockice/robo/bibiribi.wav",
+        "./assets/sound/Wild and special kockice/robo/robo1.wav",
+        "./assets/sound/Wild and special kockice/robo/outro zing.wav"
+      ]
+    },
+    {
+      "id": "cubero",
+      "special": "wild",
+      "families": [
+        "cubero"
+      ],
+      "sources": []
+    },
+    {
+      "id": "beach-ball",
+      "special": "wild-tnt",
+      "families": [
+        "beach-ball",
+        "tnt-bonus"
+      ],
+      "sources": [
+        "./assets/sound/merge 6/merge six obicna.mp3",
+        "./assets/sound/merge 6/merge6 crash.mp3",
+        "./assets/sound/merge 6/merge6 boom.mp3",
+        "./assets/sound/merge 6/stack.mp3",
+        "./assets/sound/Wild and special kockice/ball/ball1.wav",
+        "./assets/sound/Wild and special kockice/ball/ball2.wav",
+        "./assets/sound/Wild and special kockice/ball/ball4.wav",
+        "./assets/sound/Wild and special kockice/ball/ball5-60pct.wav",
+        "./assets/sound/Wild and special kockice/ball/ball impact.mp3",
+        "./assets/sound/Wild and special kockice/tnt/mini crash1.wav",
+        "./assets/sound/mini explozije/mini2.mp3",
+        "./assets/sound/mini explozije/mini3.wav",
+        "./assets/sound/mini explozije/mini4.wav",
+        "./assets/sound/mini explozije/mini5.wav"
+      ]
+    }
+  ]
+}

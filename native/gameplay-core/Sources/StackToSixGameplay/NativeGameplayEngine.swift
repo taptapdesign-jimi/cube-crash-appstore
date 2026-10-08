@@ -1622,19 +1622,25 @@ extension NativeGameplayEngine {
             let result=prepareMeterOpenAttempt()
             return NativeMoveResult(accepted:result.accepted,state:state,events:[NativeGameplayEvent(.meterDropOpenRejected,tileIDs:[request.tile.id],reason:id)]+result.events,resolution:result.resolution)
         case .created(let tileID):
-            guard tileID==request.tile.id else{pendingMeterOpen=request;return rejected("foreign_meter_open_node")}
-            // The authoritative native creation receipt must be coupled to grid
-            // admission; a concurrently occupied cell is never overwritten.
-            if let holder=state.tile(at:request.tile.cell),(!holder.locked || holder.value>0 || holder.isWild) {
+            // Literal openAtCellCore reuses a live locked zero normal holder.
+            // The request ID identifies this operation, never the object's ID.
+            // Destroyed Source grid entries are treated as an empty slot.
+            let holder=state.tile(at:request.tile.cell).flatMap { tile in
+                (noMovesTileRuntime[tile.id]?.destroyed ?? false) ? nil:tile
+            }
+            if let holder,(!holder.locked || holder.value>0 || holder.isWild) {
                 flow.tries+=1;meterOpenFlow=flow
                 let result=prepareMeterOpenAttempt()
                 return NativeMoveResult(accepted:result.accepted,state:state,events:[NativeGameplayEvent(.meterDropOpenRejected,tileIDs:[request.tile.id],reason:id)]+result.events,resolution:result.resolution)
             }
-            state.tiles.removeAll{$0.cell==request.tile.cell};state.tiles.append(request.tile)
-            var events=[NativeGameplayEvent(.meterDropOpenCreated,tileIDs:[request.tile.id],archetype:request.tile.archetype,reason:id,variant:request.tile.variant)]
+            let actualID=holder?.id ?? request.tile.id
+            guard tileID==actualID else{pendingMeterOpen=request;return rejected("foreign_meter_open_node")}
+            var opened=request.tile;opened.id=actualID
+            state.tiles.removeAll{$0.cell==request.tile.cell};state.tiles.append(opened)
+            var events=[NativeGameplayEvent(.meterDropOpenCreated,tileIDs:[opened.id],archetype:request.tile.archetype,reason:id,variant:request.tile.variant)]
             if meterOpenCancelled {
-                state.tiles.removeAll{$0.id==request.tile.id}
-                events.append(NativeGameplayEvent(.meterDropOpenCanceled,tileIDs:[request.tile.id],reason:id))
+                state.tiles.removeAll{$0.id==opened.id}
+                events.append(NativeGameplayEvent(.meterDropOpenCanceled,tileIDs:[opened.id],reason:id))
                 meterOpenFlow=nil;pendingMeterOpenRetry=nil
                 return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
             }
@@ -1642,21 +1648,21 @@ extension NativeGameplayEngine {
             // first token check, BEFORE live charge consumption. It does NOT
             // await these callbacks and rechecks cancellation after charge.
             meterOpenCommitting=true
-            prepareCommitted?(request.tile)
+            prepareCommitted?(opened)
             meterOpenCommitting=false
             guard generation==state.generation,meterOpenFlow?.id==flow.id else{return rejected("stale_meter_committed_preparation")}
             state.wildMeter=max(0,state.wildMeter-1)
-            events.append(NativeGameplayEvent(.meterDropChargeConsumed,tileIDs:[request.tile.id],reason:id))
+            events.append(NativeGameplayEvent(.meterDropChargeConsumed,tileIDs:[opened.id],reason:id))
             if meterOpenCancelled {
-                state.tiles.removeAll{$0.id==request.tile.id}
-                events.append(NativeGameplayEvent(.meterDropOpenCanceled,tileIDs:[request.tile.id],reason:id+":before-travel"))
+                state.tiles.removeAll{$0.id==opened.id}
+                events.append(NativeGameplayEvent(.meterDropOpenCanceled,tileIDs:[opened.id],reason:id+":before-travel"))
                 meterOpenFlow=nil;pendingMeterOpenRetry=nil
                 return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
             }
             meterDropSequence &+= 1
-            let drop=NativeMeterDropReservation(id:"native-meter-drop:\(generation):\(meterDropSequence)",generation:generation,tileID:request.tile.id,cell:request.tile.cell,archetype:request.tile.archetype!,variant:request.tile.variant)
+            let drop=NativeMeterDropReservation(id:"native-meter-drop:\(generation):\(meterDropSequence)",generation:generation,tileID:opened.id,cell:request.tile.cell,archetype:request.tile.archetype!,variant:request.tile.variant)
             meterDropReservations[drop.id]=drop;meterOpenFlow=nil;pendingMeterOpenRetry=nil
-            events.append(NativeGameplayEvent(.meterDropReserved,tileIDs:[request.tile.id],value:6,archetype:request.tile.archetype,reason:drop.id,variant:request.tile.variant))
+            events.append(NativeGameplayEvent(.meterDropReserved,tileIDs:[opened.id],value:6,archetype:request.tile.archetype,reason:drop.id,variant:request.tile.variant))
             return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
         }
     }

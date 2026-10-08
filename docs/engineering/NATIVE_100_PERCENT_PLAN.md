@@ -266,3 +266,31 @@ tests/KING24/330 PASS. Source first recheck → selected committed preparation �
 charge → second pre-travel recheck is now a tested staged pure-core API. Actual
 hidden node, selected audio and Scene activation remain open. No new phone or
 PWA operation.
+
+Admitted continuation is online at9a90908cd3b6b9dabe15d8b2df494414c2e65519
+on native/continuation-20261008-owned; main/index/PWA/assets/phone preserved.
+Private later outer/shard/audio candidates are not part of this checkpoint.
+
+Next-component continuation: actual selected-audio12/12 SDK24 PASS (all90
+original files prepared without playback, existing transport borrows player).
+Outer/six component activation remains blocked by a real common-smoke teardown
+reentry regression; mounted Float32 assertion corrections are test-only and
+await the corrected SDK receipt. Source fast6 all12 gates PASS is not a runtime
+parity certificate. Hidden same-node identity, exact Six/direct absorb interrupt
+and full NO MOVES owner/Scene connections remain in private development.
+
+Hidden-node component continuation: exact fresh CLOSED Core172/172 and actual
+SDK25 79/79 PASS. Original170 open/reset/predicate cases support actual borrowed
+holder identity. All17 deferred native selections allocate no idle before
+actual landed; mounted same-object, late atlas, baseline idle and Board cases
+pass. Source normal smoke tails remain distinct from explicit terminal
+retirement; corrected smoke4/SixV3 await SDK26. Full Scene activation remains
+open; this is not a whole-app completion or a new phone build.
+
+Validated next-component batch: Core172/172, actualSDK25 79/79, correctedSDK26
+87/87 PASS, plus full CLOSED source4 all19 gates/530suites4010tests/KING24/330.
+Actual selected audio, same-node hidden open/defer, bounded Source outer and
+shared-six component receipts are admitted. Terminal smoke teardown also reaches
+prior paused tails; normal Source traversal is preserved. Preparing checkpoint3
+from9a90908c with main/index unchanged. Actual Scene linkage/NO MOVES/remaining
+interrupt receipts, Release retirement and physical acceptance remain OPEN.

@@ -10,7 +10,12 @@ final class NativeRegularSixSpritePresentation:SKNode {
     var onShake:((ShakeReceipt,UInt64)->Void)?
     var onFinished:((Bool)->Void)?
     let generation:UInt64
-    let shards:NativeRegularSixShardPlan,smoke:NativeRegularSixSmokePlan,shake:NativeRegularSixShakePlan
+    private let legacyShards:NativeRegularSixShardPlan?,legacySmoke:NativeRegularSixSmokePlan?
+    let shake:NativeRegularSixShakePlan
+    private var sourceLayers:NativeRegularSixSharedLayers?
+    // Preserve legacy inspection API only on its unchanged default route.
+    var shards:NativeRegularSixShardPlan{precondition(legacyShards != nil);return legacyShards!}
+    var smoke:NativeRegularSixSmokePlan{precondition(legacySmoke != nil);return legacySmoke!}
     let shardLayer=SKNode(),smokeLayer=SKNode(),multiplierLayer=SKNode()
     var hasActiveClock:Bool {action(forKey:Self.clockKey) != nil}
     private static let clockKey="source-regular-six-finite"
@@ -18,17 +23,26 @@ final class NativeRegularSixSpritePresentation:SKNode {
     private var shardNodes:[SKShapeNode]=[],puffNodes:[SKShapeNode]=[]
     private let halo=SKShapeNode()
     private var started=false,disposed=false,suspended=false,finishedPaint=false
-    init(origin:CGPoint,tileSize:CGFloat,destinationDepth:CGFloat,combinedDepth:Int,generation:UInt64,reduced:Bool,hotFactor:Double,patternIndex:Int,initialShake:ShakeReceipt = .init(canvas:.zero,indicator:.zero,bottomDecor:.zero),isCurrent:@escaping(UInt64)->Bool,random:()->Double) throws {
+    init(origin:CGPoint,tileSize:CGFloat,destinationDepth:CGFloat,combinedDepth:Int,generation:UInt64,reduced:Bool,hotFactor:Double,patternIndex:Int,initialShake:ShakeReceipt = .init(canvas:.zero,indicator:.zero,bottomDecor:.zero),isCurrent:@escaping(UInt64)->Bool,random:()->Double,sourceSlot:NativeRegularSixSharedSlot? = nil) throws {
         let glyph:NativeRegularSixMultiplierGlyph.Rendered
         do {glyph=try NativeRegularSixMultiplierGlyph.render(depth:combinedDepth,displayScale:UIGraphicsImageRendererFormat.preferred().scale)}
         catch {throw AdmissionError.missingSourceFont}
         self.generation=generation;current=isCurrent
-        shards=NativeRegularSixShardPlan(patternIndex:patternIndex,reduced:reduced,random:random)
-        smoke=NativeRegularSixSmokePlan(tileSize:128,reduced:reduced,hotFactor:hotFactor,random:random)
-        shake=NativeRegularSixShakePlan(multiplier:combinedDepth,initialCanvas:.init(x:initialShake.canvas.x,y:initialShake.canvas.y),initialIndicator:.init(x:initialShake.indicator.x,y:initialShake.indicator.y),initialBottomDecor:.init(x:initialShake.bottomDecor.x,y:initialShake.bottomDecor.y),random:random)
+        if let sourceSlot {
+            legacyShards=nil;legacySmoke=nil
+            // Replace BOTH legacy constructions: shard streaming precedes the
+            // common-smoke initial draws, then source shake draws use SAME RNG.
+            sourceLayers=try sourceSlot.make(origin:origin,tileSize:tileSize,destinationDepth:destinationDepth,generation:generation,reduced:reduced)
+            shake=NativeRegularSixShakePlan(multiplier:combinedDepth,initialCanvas:.init(x:initialShake.canvas.x,y:initialShake.canvas.y),initialIndicator:.init(x:initialShake.indicator.x,y:initialShake.indicator.y),initialBottomDecor:.init(x:initialShake.bottomDecor.x,y:initialShake.bottomDecor.y),random:{sourceSlot.nextRandom()})
+        }else{
+            legacyShards=NativeRegularSixShardPlan(patternIndex:patternIndex,reduced:reduced,random:random)
+            legacySmoke=NativeRegularSixSmokePlan(tileSize:128,reduced:reduced,hotFactor:hotFactor,random:random)
+            shake=NativeRegularSixShakePlan(multiplier:combinedDepth,initialCanvas:.init(x:initialShake.canvas.x,y:initialShake.canvas.y),initialIndicator:.init(x:initialShake.indicator.x,y:initialShake.indicator.y),initialBottomDecor:.init(x:initialShake.bottomDecor.x,y:initialShake.bottomDecor.y),random:random)
+        }
         super.init();position=origin;setScale(tileSize/128);zPosition=0
         shardLayer.zPosition=destinationDepth;smokeLayer.zPosition=9990;multiplierLayer.zPosition=10000
-        addChild(shardLayer);addChild(smokeLayer);addChild(multiplierLayer)
+        if sourceSlot == nil{addChild(shardLayer);addChild(smokeLayer)};addChild(multiplierLayer)
+        if let smoke=legacySmoke{
         halo.path=CGPath(ellipseIn:CGRect(x:-smoke.haloRadius,y:-smoke.haloRadius,width:smoke.haloRadius*2,height:smoke.haloRadius*2),transform:nil)
         halo.fillColor = .white;halo.strokeColor = .clear;smokeLayer.addChild(halo)
         for puff in smoke.puffs {
@@ -36,6 +50,8 @@ final class NativeRegularSixSpritePresentation:SKNode {
             item.fillColor = .white;item.strokeColor = .clear;item.setScale(puff.scale);item.zRotation = -puff.rotation
             smokeLayer.addChild(item);puffNodes.append(item)
         }
+        }
+        if let shards=legacyShards{
         for shard in shards.shards {
             let path=CGMutablePath()
             for index in stride(from:0,to:shard.points.count,by:2) {
@@ -44,6 +60,7 @@ final class NativeRegularSixSpritePresentation:SKNode {
             path.closeSubpath();let item=SKShapeNode(path:path)
             item.fillColor=UIColor(red:212/255,green:165/255,blue:132/255,alpha:1);item.strokeColor = .clear;item.zRotation = -shard.rotation
             shardLayer.addChild(item);shardNodes.append(item)
+        }
         }
         let radius=128.0*0.28,disk=SKShapeNode(circleOfRadius:radius)
         disk.fillColor=UIColor(red:171/255,green:128/255,blue:110/255,alpha:1);disk.strokeColor = .clear
@@ -68,9 +85,9 @@ final class NativeRegularSixSpritePresentation:SKNode {
     func paint(seconds:Double) {
         guard !disposed,!suspended,!finishedPaint else{return}
         guard current(generation) else{finish(false);return}
-        for(index,plan)in shards.shards.enumerated(){let pose=plan.sample(seconds:seconds);shardNodes[index].position=CGPoint(x:pose.x,y:-pose.y);shardNodes[index].alpha=pose.alpha}
-        for(index,plan)in smoke.puffs.enumerated(){let pose=plan.sample(seconds:seconds);puffNodes[index].position=CGPoint(x:pose.x,y:-pose.y);puffNodes[index].alpha=pose.alpha}
-        halo.alpha=smoke.haloAlpha(seconds:seconds)
+        for(index,plan)in (legacyShards?.shards ?? []).enumerated(){let pose=plan.sample(seconds:seconds);shardNodes[index].position=CGPoint(x:pose.x,y:-pose.y);shardNodes[index].alpha=pose.alpha}
+        for(index,plan)in (legacySmoke?.puffs ?? []).enumerated(){let pose=plan.sample(seconds:seconds);puffNodes[index].position=CGPoint(x:pose.x,y:-pose.y);puffNodes[index].alpha=pose.alpha}
+        if let smoke=legacySmoke{halo.alpha=smoke.haloAlpha(seconds:seconds)}
         let pose=multiplier.sample(seconds:seconds);multiplierLayer.alpha=pose.alpha;multiplierLayer.setScale(pose.scale);multiplierLayer.zRotation = -pose.rotation
         let p=shake.sample(seconds:seconds),indicator=shake.indicator(seconds:seconds),bottom=shake.bottomDecor(seconds:seconds)
         onShake?(.init(canvas:CGPoint(x:p.x,y:p.y),indicator:CGPoint(x:indicator.x,y:indicator.y),bottomDecor:CGPoint(x:bottom.x,y:bottom.y)),generation)
@@ -80,6 +97,9 @@ final class NativeRegularSixSpritePresentation:SKNode {
     private func finish(_ success:Bool) {
         guard !disposed else{return};disposed=true
         removeAction(forKey:Self.clockKey);removeFromParent()
+        // Natural nativeRaw carrier completion must not kill an animation-
+        // paused smoke root or replace its separate wall shard cleanup.
+        if !success{sourceLayers?.dispose()};sourceLayers=nil
         if current(generation){onShake?(.init(canvas:.zero,indicator:.zero,bottomDecor:.zero),generation)}
         let receipt=onFinished;onFinished=nil;onShake=nil;receipt?(success && current(generation))
     }

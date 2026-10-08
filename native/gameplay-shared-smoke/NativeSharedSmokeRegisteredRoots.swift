@@ -25,6 +25,7 @@ final class NativeSharedSmokeRegisteredRoots {
     // the already captured global traversal. Finite captured self-retention
     // ends at actual root cleanup or authoritative service disposal.
     private var emptyTailOwner:NativeSharedSmokeRegisteredRoots?
+    var onDrained:(()->Void)?
     let invocationID=UUID()
     var activeRootCount:Int{entries.count}
     init(scheduler:any NativeSharedSmokeRootScheduler){self.scheduler=scheduler}
@@ -44,7 +45,7 @@ final class NativeSharedSmokeRegisteredRoots {
         // Weak owner deallocation must still deliver the old cleanup receipt.
         let token=RootCleanupToken{success in retired(kind,success)}
         let cancellation=scheduler.registerSourceRoot(participant:entry.participant,family:root.family,duration:root.duration,delay:root.delay){[weak self,weak entry] success in
-            if let self,let entry,self.entries[id] === entry{self.entries.removeValue(forKey:id);if self.entries.isEmpty{self.emptyTailOwner=nil}}
+            if let self,let entry,self.entries[id] === entry{self.entries.removeValue(forKey:id);if self.entries.isEmpty{self.emptyTailOwner=nil;let drained=self.onDrained;self.onDrained=nil;drained?()}}
             token.finish(success)
         }
         guard let cancellation else{entries.removeValue(forKey:id);return false}

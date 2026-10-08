@@ -24,9 +24,15 @@ protocol NativeGameplayAudioTransport:AnyObject {
     func stopVoices(_ ids:Set<String>)
     func stopAll()
     func dispose()
+    func prepareSelectedSources(_ sources:[String],capture:String,generation:UInt64)->Bool
+    func setSelectedPreparationEnabled(_ enabled:Bool)
+    func setSelectedPreparationForeground(_ foreground:Bool)
 }
 
 extension NativeGameplayAudioTransport {
+    func prepareSelectedSources(_ sources:[String],capture:String,generation:UInt64)->Bool {false}
+    func setSelectedPreparationEnabled(_ enabled:Bool) {}
+    func setSelectedPreparationForeground(_ foreground:Bool) {}
     func stopVoices(_ ids:Set<String>) {stopAll()}
     func captureFade(_ ids:Set<String>)->((Double)->Void)? {nil}
     // An injected transport without lifecycle support must release the hook as
@@ -58,6 +64,7 @@ final class NativeGameplayAudioOwner {
     private var observers:[NSObjectProtocol]=[]
     init(root:URL,enabled:Bool,transport:(any NativeGameplayAudioTransport)?=nil,random:@escaping ()->Double={Double.random(in:0..<1)}) {
         self.transport=transport ?? NativeAVGameplayAudioTransport(root:root);self.enabled=enabled;self.random=random
+        self.transport.setSelectedPreparationEnabled(enabled)
         for name in [UIApplication.willResignActiveNotification,UIApplication.didBecomeActiveNotification,AVAudioSession.interruptionNotification,AVAudioSession.mediaServicesWereResetNotification] {
             observers.append(NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main) { [weak self] notice in
                 // Copy scalar receipt data before crossing executor isolation.
@@ -71,8 +78,16 @@ final class NativeGameplayAudioOwner {
         guard !disposed,value != generation else{return}
         transport.stopAll();generation=value;meterCarrierVoices.removeAll();receipts.removeAll();harpSequenceReady=false;ordinarySixContact=nil;transitionVoices.removeAll();transitionDigitVoices.removeAll()
     }
-    func setEnabled(_ value:Bool) {guard !disposed else{return};enabled=value;if !value {transport.stopAll()}}
-    func setForeground(_ value:Bool) {guard !disposed else{return};foreground=value;if !value {transport.stopAll()}}
+    func setEnabled(_ value:Bool) {guard !disposed else{return};enabled=value;transport.setSelectedPreparationEnabled(value);if !value {transport.stopAll()}}
+    func setForeground(_ value:Bool) {guard !disposed else{return};foreground=value;transport.setSelectedPreparationForeground(value && !interrupted);if !value {transport.stopAll()}}
+    /// Called only for the actually-created committed meter tile after Source's
+    /// open/token recheck. Preparation never plays or substitutes a generic cue.
+    func prepareSelectedSpecial(special:String,variant:String?,capture:String,generation:UInt64)->Bool {
+        guard !disposed,enabled,foreground,!interrupted,generation==self.generation,
+              let sources=NativeMeterSelectedAudioCatalog.sources(special:special,variant:variant) else{return false}
+        return transport.prepareSelectedSources(sources,capture:capture,generation:generation)
+    }
+
     private func admit(_ category:String,receipt:UInt64,generation:UInt64)->Bool {
         guard !disposed,generation==self.generation,receipt>0,receipt>(receipts[category] ?? 0) else{return false}
         receipts[category]=receipt // OFF consumes the contact; ON never replays it.
@@ -278,8 +293,8 @@ final class NativeGameplayAudioOwner {
         else if name==UIApplication.didBecomeActiveNotification.rawValue {setForeground(true)}
         else if name==AVAudioSession.interruptionNotification.rawValue {
             guard let raw=interruption,let type=AVAudioSession.InterruptionType(rawValue:raw) else{return}
-            interrupted=type == .began;if interrupted {transport.stopAll()}
-        } else {transport.stopAll()}
+            interrupted=type == .began;transport.setSelectedPreparationForeground(foreground && !interrupted);if interrupted {transport.stopAll()}
+        } else {transport.setSelectedPreparationEnabled(false);transport.stopAll();transport.setSelectedPreparationEnabled(enabled)}
     }
 }
 
@@ -298,6 +313,17 @@ final class NativeAVGameplayAudioTransport:NSObject,NativeGameplayAudioTransport
     private var voices:[String:Voice]=[:]
     private var disposed=false
     private let maximumVoices=32
+    private lazy var selectedPreparation=NativeSelectedAudioNativePreparation.make(root:root)
+    var preparedSourceCount:Int {selectedPreparation.preparedCount}
+    func prepareSelectedSources(_ sources:[String],capture:String,generation:UInt64)->Bool {
+        guard !disposed else{return false}
+        let canonical=sources.compactMap{NativeSelectedAudioFile.canonicalPath($0)}
+        guard canonical.count==sources.count else{return false}
+        selectedPreparation.beginGeneration(generation)
+        return selectedPreparation.prepare(sources:canonical,requestID:capture,generation:generation)
+    }
+    func setSelectedPreparationEnabled(_ enabled:Bool) {selectedPreparation.setEnabled(enabled)}
+    func setSelectedPreparationForeground(_ foreground:Bool) {selectedPreparation.setForeground(foreground)}
     var scheduledVoiceCount:Int {voices.count}
     func scheduledGain(for id:String)->Double? {voices[id]?.gain}
     var openedFileCount:Int {voices.values.filter{$0.player != nil}.count}
@@ -314,7 +340,7 @@ final class NativeAVGameplayAudioTransport:NSObject,NativeGameplayAudioTransport
             if cue.delay>0 {do {try await Task.sleep(for:.seconds(cue.delay))}catch{return}}
             guard let self,let voice,self.voices[cue.voice]===voice,!self.disposed,!Task.isCancelled else{return}
             do {
-                let player=try AVAudioPlayer(contentsOf:self.root.appendingPathComponent(cue.source))
+                let player=try NativeSelectedAudioFile.canonicalPath(cue.source).flatMap{self.selectedPreparation.take($0)?.player} ?? AVAudioPlayer(contentsOf:self.root.appendingPathComponent(cue.source))
                 voice.player=player;player.delegate=self;player.enableRate=true;player.rate=Float(cue.rate);player.volume=Float(voice.gain)
                 guard player.play() else {throw NSError(domain:"NativeSFX",code:1,userInfo:[NSLocalizedDescriptionKey:"Cannot start selected authored SFX"])}
                 let audible=cue.stopAfter ?? (player.duration/cue.rate)
@@ -338,9 +364,9 @@ final class NativeAVGameplayAudioTransport:NSObject,NativeGameplayAudioTransport
             }
         }
     }
-    func stopAll() {for id in Array(voices.keys) {stop(id)}}
+    func stopAll() {selectedPreparation.cancelPending();for id in Array(voices.keys) {stop(id)}}
     func stopVoices(_ ids:Set<String>) {for id in ids {stop(id)}}
-    func dispose() {guard !disposed else{return};disposed=true;stopAll()}
+    func dispose() {guard !disposed else{return};disposed=true;stopAll();selectedPreparation.dispose()}
     nonisolated func audioPlayerDidFinishPlaying(_ player:AVAudioPlayer,successfully flag:Bool) {
         let identity=ObjectIdentifier(player)
         Task { @MainActor [weak self] in guard let self,let id=self.voices.first(where:{$0.value.player.map(ObjectIdentifier.init)==identity})?.key else{return};self.stop(id,reason:flag ? .ended:.unavailable) }

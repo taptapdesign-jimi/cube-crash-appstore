@@ -25,6 +25,9 @@ final class NativeSharedSmokeRootSession {
 final class NativeSharedSmokeRootRenderer {
     private let session:NativeSharedSmokeRootSession,scheduler:any NativeSharedSmokeRootScheduler,sourceClockNow:()->Double
     private var owners:[UInt64:NativeSharedSmokeRootSpritePresentation]=[:],sequence:UInt64=0,disposed=false
+    // Strong only while the literal empty Source timeline still has a slot.
+    // Drained callback removes it; route teardown can revoke a paused tail.
+    private var tails:[UInt64:NativeSharedSmokeRootSpritePresentation]=[:]
     private let sceneID=UUID().uuidString
     var activeOwnerCount:Int{owners.count}
     init(session:NativeSharedSmokeRootSession,scheduler:any NativeSharedSmokeRootScheduler,sourceClockNow:@escaping()->Double){self.session=session;self.scheduler=scheduler;self.sourceClockNow=sourceClockNow}
@@ -38,13 +41,32 @@ final class NativeSharedSmokeRootRenderer {
         sequence += 1;let captured=sequence
         guard let owner=try? NativeSharedSmokeRootSpritePresentation(recipe:recipe,generation:generation,sequence:captured,sourceOwnerID:sceneID,
             canvas:canvas,tile:tile,origin:origin,renderScale:renderScale,pool:session.pool,scheduler:scheduler,sourceClockNowMilliseconds:sourceClockNow,
-            isCurrent:current,random:{[session] in session.nextVisualRandom()},consumeHotFactor:{[session] in session.consumeHot(monotonicMilliseconds:monotonicMilliseconds,reduced:reduced)},acquireActivity:acquireActivity) else{return nil}
+            isCurrent:{[weak self] generation in self?.disposed==false && current(generation)},random:{[session] in session.nextVisualRandom()},consumeHotFactor:{[session] in session.consumeHot(monotonicMilliseconds:monotonicMilliseconds,reduced:reduced)},acquireActivity:acquireActivity) else{return nil}
+        guard !disposed,current(generation),!owner.disposed else{owner.disposeForRetirement();return nil}
         owners[captured]=owner
-        owner.onFinished={[weak self,weak owner] _ in guard let self,let owner,self.owners[captured] === owner else{return};self.owners.removeValue(forKey:captured)}
+        owner.onRootsDrained={[weak self,weak owner] in
+            guard let self,let owner,self.tails[captured] === owner else{return}
+            self.tails.removeValue(forKey:captured)
+        }
+        owner.onFinished={[weak self,weak owner] _ in
+            guard let self,let owner,self.owners[captured] === owner else{return}
+            self.owners.removeValue(forKey:captured)
+            if !self.disposed,owner.activeRootCount>0{self.tails[captured]=owner}
+        }
         return owner
     }
     func cleanup(tag:String){for owner in owners.values.filter({$0.recipe.fxTag==tag}){owner.dispose()}}
-    func retire(generation:UInt64){for owner in owners.values.filter({$0.generation==generation}){owner.dispose()}}
-    func dispose(){guard !disposed else{return};disposed=true;for owner in Array(owners.values){owner.dispose()};owners.removeAll()}
-    isolated deinit {for owner in owners.values{owner.dispose()}}
+    func retire(generation:UInt64){
+        let captured=Array(owners.values)+Array(tails.values)
+        for owner in captured where owner.generation==generation{owner.disposeForRetirement()}
+    }
+    func dispose(){
+        guard !disposed else{return};disposed=true
+        let captured=Array(owners.values)+Array(tails.values);owners.removeAll();tails.removeAll()
+        for owner in captured{owner.disposeForRetirement()}
+    }
+    isolated deinit {
+        let captured=Array(owners.values)+Array(tails.values)
+        for owner in captured{owner.disposeForRetirement()}
+    }
 }

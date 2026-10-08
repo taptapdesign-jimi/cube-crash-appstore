@@ -30,6 +30,7 @@ final class NativeSharedSmokeRootOwner {
     private(set) var disposed=false
     var onFinished:((Bool)->Void)?
     var onParityFailure:((String)->Void)?
+    var onRootsDrained:(()->Void)?{didSet{roots.onDrained=onRootsDrained}}
     var activeRootCount:Int{roots.activeRootCount}
     init(recipe:NativeSharedSmokeRecipe,generation:UInt64,sequence:UInt64,sourceOwnerID:String,
          resources:any NativeSharedSmokeRootResources,scheduler:any NativeSharedSmokeRootScheduler,
@@ -45,12 +46,15 @@ final class NativeSharedSmokeRootOwner {
         if recipe.groupedOwner {
             guard register(.init(kind:.body,family:.timeline,delay:0,duration:recipe.ttl+2+max(0,recipe.bursts)*max(0,recipe.burstGap))) else{throw AdmissionError.clockClosed}
         }
-        guard current(),resources.isAdmitted else{finish(false);throw AdmissionError.staleResources}
+        guard current(),resources.isAdmitted else{finish(false,preserveTimelineTail:false);throw AdmissionError.staleResources}
         resources.mountLayer()
         if let label=recipe.activityLeaseLabel,!label.isEmpty {
             releaseActivity=acquireActivity(.init(kind:.smoke,generation:generation,sequence:sequence,label:label,tailMilliseconds:100,sourceOwnerID:sourceOwnerID))
         }
-        guard register(.init(kind:.lifetime,family:.eagerTween,delay:recipe.ttl,duration:0)) else{finish(false);throw AdmissionError.clockClosed}
+        // Scope acquisition is external and may synchronously retire this
+        // renderer/context. Reject before hot, RNG, or child registrations.
+        guard current(),resources.isAdmitted else{finish(false,preserveTimelineTail:false);throw AdmissionError.staleResources}
+        guard register(.init(kind:.lifetime,family:.eagerTween,delay:recipe.ttl,duration:0)) else{finish(false,preserveTimelineTail:false);throw AdmissionError.clockClosed}
         birthClockMs=sourceClockNow()
         var registrationRejected=false
         values=NativeSharedSmokeRootValues(recipe:recipe,hotFactor:consumeHot(),generation:generation,sequence:sequence,gsapNowMs:birthClockMs,random:random,
@@ -59,11 +63,11 @@ final class NativeSharedSmokeRootOwner {
                 guard let self,!recipe.groupedOwner else{return}
                 if !self.register(.init(kind:.puff(id),family:.timeline,delay:0,duration:duration)){registrationRejected=true}
             },didBuildPuff:{[weak self] in self?.resources.configurePuff($0)},acquireActivity:{_ in nil})
-        guard !registrationRejected else{finish(false);throw AdmissionError.clockClosed}
+        guard !registrationRejected else{finish(false,preserveTimelineTail:false);throw AdmissionError.clockClosed}
         bodyEnd=Self.round7(max(0.46,values!.puffs.map(\.finish).max() ?? 0))
         resources.acquireHalo(radius:values!.haloRadius,color:recipe.haloColor ?? recipe.color,fillAlpha:0.10*recipe.haloAlpha);haloActive=true
         if !recipe.groupedOwner {
-            guard register(.init(kind:.haloIn,family:.defaultLazyTween,delay:0,duration:0.08)),register(.init(kind:.haloOut,family:.defaultLazyTween,delay:0.18,duration:0.28)) else{finish(false);throw AdmissionError.clockClosed}
+            guard register(.init(kind:.haloIn,family:.defaultLazyTween,delay:0,duration:0.08)),register(.init(kind:.haloOut,family:.defaultLazyTween,delay:0.18,duration:0.28)) else{finish(false,preserveTimelineTail:false);throw AdmissionError.clockClosed}
         }
         // Literal initial geometry/alpha are written synchronously, without
         // a fabricated zero-time GSAP onUpdate or draw during paint.
@@ -73,7 +77,7 @@ final class NativeSharedSmokeRootOwner {
     }
     private func advance(_ kind:NativeSharedSmokeRootPlan.Kind,_ seconds:Double){
         guard !disposed,let values else{return}
-        guard current(),resources.isAdmitted else{finish(false);return}
+        guard current(),resources.isAdmitted else{finish(false,preserveTimelineTail:false);return}
         switch kind {
         case .body:
             let local=min(bodyEnd,seconds)
@@ -98,20 +102,26 @@ final class NativeSharedSmokeRootOwner {
     }
     private func retired(_ kind:NativeSharedSmokeRootPlan.Kind,_ success:Bool){
         guard !disposed else{return}
-        guard success else{finish(false);return}
+        guard success else{finish(false,preserveTimelineTail:false);return}
         switch kind{case .puff(let id):releasePuff(id);case .haloOut:releaseHalo();case .lifetime:finish(true);default:break}
     }
     private func releasePuff(_ id:Int){guard activePuffs.remove(id) != nil else{return};values?.markPuffReleased(id);resources.releasePuff(id:id)}
     private func releaseHalo(){guard haloActive else{return};haloActive=false;values?.markHaloReleased();resources.releaseHalo()}
     func dispose(){finish(false)}
-    private func finish(_ success:Bool){
+    /// Route/service retirement revokes even previously retained empty roots.
+    /// Ordinary tag cleanup and successful TTL keep Source traversal tails.
+    func disposeForRetirement(){
+        if disposed{roots.dispose();return}
+        finish(false,preserveTimelineTail:false)
+    }
+    private func finish(_ success:Bool,preserveTimelineTail:Bool=true){
         guard !disposed else{return};disposed=true
         // Explicit cleanupFxContainer releases activity first. autoAdd TTL
         // releases its children first, then the capture before layer destroy.
         if !success{releaseCapturedActivity()}
         // Layer insertion order halo first, followed by surviving puffs.
         releaseHalo();for id in activePuffs.sorted(){releasePuff(id)}
-        values?.sealValues();roots.retainEmptyTimelineTail();releaseCapturedActivity();resources.retireLayer()
+        values?.sealValues();if preserveTimelineTail{roots.retainEmptyTimelineTail()}else{roots.dispose()};releaseCapturedActivity();resources.retireLayer()
         let callback=onFinished;onFinished=nil;callback?(success && current())
     }
     private func releaseCapturedActivity(){let release=releaseActivity;releaseActivity=nil;release?()}
