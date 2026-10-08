@@ -106,6 +106,11 @@ public final class NativeGameplayEngine {
     public var sourceNoMovesCallerAdmission:NativeSourceNoMovesCallerAdmission?
     public var sourceNoMovesCallerCompletionBinding:NativeSourceNoMovesCallerCompletionBinding?
     private var sourceNoMovesCallerPlans:[String:UInt64]=[:]
+    /// Default OFF. Actual Source callback/transport publication only.
+    public var sourceOrdinaryPreDebitEnabled=false
+    public var sourceOrdinaryPreDebitAdmission:NativeSourceOrdinaryPreDebitAdmission?
+    private var sourceOrdinaryPreDebitReceipts:[String:NativeSourceOrdinaryPreDebitReceipt]=[:]
+    private var sourceOrdinaryPreDebitRefused:Set<String>=[]
     private var sourceNoMovesCallerRollbackPlans:Set<UInt64>=[]
     private var sourceNoMovesCallerRefusals:Set<String>=[]
     private var sourceNoMovesCallerSequence:UInt64=0
@@ -256,10 +261,11 @@ public final class NativeGameplayEngine {
     public func cancelDrag() { drag = nil }
     public func cancelNoMovesConfirmation() { noMovesSignature = nil }
     public func restart(state fresh: NativeBoardState) {
+        pendingSourceTutorialDemoActivation=nil;sourceTutorialDemoActivationSequence=0
         sourceOrdinaryStackFaces.removeAll();sourceOrdinaryStackFaceCancellationBlocks.removeAll()
         meterDropReservations.removeAll();meterDropSequence=0
         pendingMeterOpen=nil;pendingMeterOpenRetry=nil;meterOpenFlow=nil;meterOpenSequence=0;sourceMeterSpawnCancelToken &+= 1;sourceMeterLastMergeTileIDs=[]
-        sourceNoMovesCallerReceipts=[:];sourceNoMovesMergeContinuations=[:];sourceNoMovesCallerPlans=[:];sourceNoMovesCallerRollbackPlans=[];sourceNoMovesCallerRefusals=[];sourceNoMovesReadyPostchecks=[];sourceNoMovesStackContexts=[:];sourceNoMovesOwner=NativeNoMovesCandidateOwner();sourceNoMovesConfirmed=nil;sourceNoMovesConfirmedResolution=nil;completedSourceNoMovesReceipt=nil;sourceNoMovesFinalCleanupReceipt=nil;sourceNoMovesFinalFlowReceipt=nil;sourceNoMovesGeneration=nil;noMovesTileRuntime=[:];sourceWildRetryPending=false;sourceNonFinalMerge6Guard=false
+        sourceOrdinaryPreDebitReceipts=[:];sourceOrdinaryPreDebitRefused=[];sourceNoMovesCallerReceipts=[:];sourceNoMovesMergeContinuations=[:];sourceNoMovesCallerPlans=[:];sourceNoMovesCallerRollbackPlans=[];sourceNoMovesCallerRefusals=[];sourceNoMovesReadyPostchecks=[];sourceNoMovesStackContexts=[:];sourceNoMovesOwner=NativeNoMovesCandidateOwner();sourceNoMovesConfirmed=nil;sourceNoMovesConfirmedResolution=nil;completedSourceNoMovesReceipt=nil;sourceNoMovesFinalCleanupReceipt=nil;sourceNoMovesFinalFlowReceipt=nil;sourceNoMovesGeneration=nil;noMovesTileRuntime=[:];sourceWildRetryPending=false;sourceNonFinalMerge6Guard=false
         pendingWildRecoveryChecks=[];pendingWildSpawnPresentations=[];wildSourceResolutionBoundary=nil;sourceSaveRuntime=NativeSourceSaveRuntime()
         let generation = state.generation &+ 1
         state = fresh; state.generation = generation; state.revision = 0; state.terminal = nil; tileSequence = 0
@@ -350,6 +356,7 @@ public final class NativeGameplayEngine {
         return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolution)
     }
     public func resolve() -> NativeResolution {
+        if state.terminal==nil && !sourceOrdinaryPreDebitRefused.isEmpty {return .init(.wait,reason:"source_ordinary_predebit_endpoint_missing")}
         if state.terminal==nil && !sourceNoMovesCallerRefusals.isEmpty {return .init(.wait,reason:"source_no_moves_caller_endpoint_missing")}
         if state.terminal == nil && hasPendingSourceOrdinaryStackFace {return NativeResolution(.wait,reason:"captured_ordinary_face_pending")}
         if state.terminal == nil && sourceMeterSpawnInProgress {
@@ -968,6 +975,51 @@ public final class NativeGameplayEngine {
             events.append(NativeGameplayEvent(.terminal,reason:captured.reason)); return captured
         }
         return resolution
+    }
+
+    /// PRIVATE fresh-demo caller only. No timer, RNG, revision, score or move debit.
+    public var sourceTutorialDemoActivationEnabled=false
+    public private(set) var pendingSourceTutorialDemoActivation:NativeSourceTutorialDemoActivationReceipt?
+    private var sourceTutorialDemoActivationSequence:UInt64=0
+    /// Source arms active before the captured activation RAFs. Empty guided IDs
+    /// reject input until the actual prepareTutorialBoard callback owns the pair.
+    public func beginSourceTutorialDemoActivation()->NativeSourceTutorialDemoActivationReceipt? {
+        guard sourceTutorialDemoActivationEnabled,pendingSourceTutorialDemoActivation==nil,
+            state.tutorial==nil,state.terminal==nil,drag==nil,!flags.isWaiting,
+            state.board==1,state.validationIssues().isEmpty,
+            NativeSourceTutorialDemoActivationReceipt.matchesOriginalDemo(state) else{return nil}
+        sourceTutorialDemoActivationSequence &+= 1
+        let cells=NativeTutorialRules.guidedCells(columns:state.columns,rows:state.rows)
+        guard let three=state.tile(at:cells.three),let two=state.tile(at:cells.two),let one=state.tile(at:cells.one) else{return nil}
+        let receipt=NativeSourceTutorialDemoActivationReceipt(id:"source-tutorial-demo:\(state.generation):\(sourceTutorialDemoActivationSequence)",generation:state.generation,revision:state.revision,threeID:three.id,twoID:two.id,oneID:one.id,originalTiles:state.tiles)
+        state.tutorial=NativeTutorialState();pendingSourceTutorialDemoActivation=receipt
+        return receipt
+    }
+    /// Must be invoked at genuine Source wall1250 prepare, paired with actual
+    /// captured Node normalization/immediate square pips/focus roots. Original
+    /// demoReady skips initializeLowTutorialBoardValues for all nonreserved cells.
+    public func commitSourceTutorialDemoPreparation(receiptID:String,generation:UInt64)->NativeMoveResult {
+        guard let receipt=pendingSourceTutorialDemoActivation,receipt.id==receiptID,
+            receipt.generation==generation,state.generation==generation,state.revision==receipt.revision,
+            state.tiles==receipt.originalTiles,state.tutorial?.active==true,
+            state.tutorial?.guidedPair.isEmpty==true,state.terminal==nil,drag==nil,!flags.isWaiting else{return rejected("source_tutorial_demo_preparation_stale")}
+        pendingSourceTutorialDemoActivation=nil
+        for index in state.tiles.indices {state.tiles[index].stackDepth=1}
+        for (id,value) in [(receipt.threeID,3),(receipt.twoID,2),(receipt.oneID,1)] {
+            guard let i=state.tiles.firstIndex(where:{$0.id==id}) else{preconditionFailure("captured validated demo identity lost")}
+            state.tiles[i].value=value;state.tiles[i].locked=false;state.tiles[i].visible=true;state.tiles[i].alpha=1
+            state.tiles[i].archetype=nil;state.tiles[i].sourceWildStateCleared=false;state.tiles[i].sourceResidualWildPresence=false
+        }
+        state.tutorial?.guidedPair=[receipt.threeID,receipt.twoID];state.tutorial?.oneTileID=receipt.oneID
+        noMovesSignature=nil
+        return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
+    }
+    /// True lifecycle/candidate retirement only. Modal pause retains activation.
+    @discardableResult public func cancelSourceTutorialDemoActivation(receiptID:String,generation:UInt64)->Bool {
+        guard let receipt=pendingSourceTutorialDemoActivation,receipt.id==receiptID,
+            receipt.generation==generation,state.generation==generation,state.revision==receipt.revision,
+            state.tiles==receipt.originalTiles,state.tutorial?.guidedPair.isEmpty==true else{return false}
+        pendingSourceTutorialDemoActivation=nil;state.tutorial=nil;return true
     }
 
     /// Explicitly armed by the Native tutorial coordinator, never by a normal completed board.
@@ -1949,7 +2001,91 @@ extension NativeGameplayEngine {
         return pendingSourceNoMovesCallerReceipts.first{$0.ownerID==ownerID && $0.generation==generation && $0.kind==kind}
     }
     public func sourceNoMovesCallerIsCurrent(_ receipt:NativeSourceNoMovesCallerReceipt)->Bool {
-        !sourceNoMovesCallerRefusals.contains(receipt.id) && sourceNoMovesCallerPublicationReady && sourceNoMovesCallerAdmission?.kinds.contains(receipt.kind)==true && sourceNoMovesCallerAdmission?.id==receipt.admissionID && receipt.generation==state.generation && sourceNoMovesCallerReceipts[receipt.id]==receipt
+        guard !sourceNoMovesCallerRefusals.contains(receipt.id),sourceNoMovesCallerPublicationReady,
+            sourceNoMovesCallerAdmission?.id==receipt.admissionID,receipt.generation==state.generation,
+            sourceNoMovesCallerReceipts[receipt.id]==receipt else{return false}
+        if receipt.isPreDebit {
+            guard let pre=sourceOrdinaryPreDebitReceipts[receipt.ownerID],sourceOrdinaryPreDebitIsCurrent(pre) else{return false}
+            return sourceNoMovesCallerReceipts[receipt.id]==receipt && sourceNoMovesCallerAdmission?.id==receipt.admissionID
+        }
+        return sourceNoMovesCallerAdmission?.kinds.contains(receipt.kind)==true
+    }
+    /// Claim only the real postcheck produced by actual ordinary-main completion.
+    /// The Scene supplies actual physical pair/order and all external predicates.
+    public func claimSourceOrdinaryPreDebit(ownerID:String,generation:UInt64)->NativeSourceOrdinaryPreDebitReceipt? {
+        guard sourceOrdinaryPreDebitEnabled,sourceNoMovesCallerPublicationReady,
+            let endpoint=sourceOrdinaryPreDebitAdmission,!endpoint.retired,
+            endpoint.generation==generation,generation==state.generation,
+            endpoint.callerAdmissionID==sourceNoMovesCallerAdmission?.id,
+            sourceOrdinaryPreDebitReceipts[ownerID]==nil,
+            pendingOrdinaryPostchecks.contains(where:{$0.id==ownerID && $0.generation==generation}) else{return nil}
+        let current=endpoint.isCurrent()
+        guard current,sourceOrdinaryPreDebitEnabled,sourceOrdinaryPreDebitAdmission === endpoint,!endpoint.retired,
+            sourceNoMovesCallerPublicationReady,endpoint.callerAdmissionID==sourceNoMovesCallerAdmission?.id,
+            generation==state.generation,sourceOrdinaryPreDebitReceipts[ownerID]==nil,
+            pendingOrdinaryPostchecks.contains(where:{$0.id==ownerID && $0.generation==generation}) else{return nil}
+        let receipt=NativeSourceOrdinaryPreDebitReceipt(ownerID:ownerID,generation:generation,admissionID:endpoint.id)
+        sourceOrdinaryPreDebitReceipts[ownerID]=receipt;return receipt
+    }
+    public func sourceOrdinaryPreDebitIsCurrent(_ receipt:NativeSourceOrdinaryPreDebitReceipt)->Bool {
+        guard sourceOrdinaryPreDebitEnabled,sourceNoMovesCallerPublicationReady,
+            !sourceOrdinaryPreDebitRefused.contains(receipt.ownerID),receipt.generation==state.generation,
+            sourceOrdinaryPreDebitReceipts[receipt.ownerID]==receipt,
+            let endpoint=sourceOrdinaryPreDebitAdmission,!endpoint.retired,endpoint.id==receipt.admissionID,
+            endpoint.callerAdmissionID==sourceNoMovesCallerAdmission?.id,
+            pendingOrdinaryPostchecks.contains(where:{$0.id==receipt.ownerID && $0.generation==receipt.generation}) else{return false}
+        let current=endpoint.isCurrent()
+        return current && sourceOrdinaryPreDebitEnabled && sourceNoMovesCallerPublicationReady &&
+            sourceOrdinaryPreDebitAdmission === endpoint && !endpoint.retired &&
+            endpoint.callerAdmissionID==sourceNoMovesCallerAdmission?.id && receipt.generation==state.generation &&
+            !sourceOrdinaryPreDebitRefused.contains(receipt.ownerID) && sourceOrdinaryPreDebitReceipts[receipt.ownerID]==receipt &&
+            pendingOrdinaryPostchecks.contains(where:{$0.id==receipt.ownerID && $0.generation==receipt.generation})
+    }
+    public func prepareSourceOrdinaryPreDebitNoMoves(_ receipt:NativeSourceOrdinaryPreDebitReceipt,
+        trigger:NativeNoMovesCandidateOwner.Trigger)->NativeSourceNoMovesCallerReceipt? {
+        guard sourceOrdinaryPreDebitIsCurrent(receipt) else{return nil}
+        let kind:NativeSourceNoMovesCallerReceipt.Kind
+        switch trigger {
+        case .lastTwoRegular:kind = .lastTwoRegular
+        case .lastTwoSelf:kind = .lastTwoSelf
+        case .lastThreeRegular:kind = .lastThreeRegular
+        case .lastThreeSelf:kind = .lastThreeSelf
+        case .singleRegular:kind = .singleRegular
+        case .postMerge:kind = .postMerge
+        default:return nil
+        }
+        guard !sourceNoMovesCallerReceipts.values.contains(where:{$0.ownerID==receipt.ownerID && $0.isPreDebit}),
+            sourceOrdinaryPreDebitReceipts[receipt.ownerID]==receipt,sourceNoMovesCallerPublicationReady else{return nil}
+        return prepareSourceNoMovesCaller(ownerID:receipt.ownerID,kind:kind)
+    }
+    /// No fresh classifier runs here: the genuinely mounted Source coordinator
+    /// already executed the literal pre-debit branches against physical owners.
+    /// A pending face is retained; completion never invents its physical arrival.
+    public func finishSourceOrdinaryPreDebit(_ receipt:NativeSourceOrdinaryPreDebitReceipt,
+        outcome:NativeSourceOrdinaryPreDebitOutcome)->NativeMoveResult {
+        guard sourceOrdinaryPreDebitIsCurrent(receipt),let index=pendingOrdinaryPostchecks.firstIndex(where:{$0.id==receipt.ownerID && $0.generation==receipt.generation}) else{return rejected("stale_source_ordinary_predebit")}
+        sourceOrdinaryPreDebitReceipts.removeValue(forKey:receipt.ownerID)
+        pendingOrdinaryPostchecks.remove(at:index);sourceNoMovesStackContexts.removeValue(forKey:receipt.ownerID);sourceNoMovesReadyPostchecks.remove(receipt.ownerID)
+        if outcome == .continueToDebit {
+            state.moves=max(0,state.moves-1)
+            if sourceNoMovesCallerPublicationReady,sourceNoMovesCallerAdmission?.kinds.contains(.ordinaryMovesDepleted)==true,state.moves==0 {
+                _=prepareSourceNoMovesCaller(ownerID:receipt.ownerID,kind:.ordinaryMovesDepleted)
+            }
+        }
+        // Source returned/cancelled early branch does NOT schedule a generic
+        // observer, repeat debit or fabricate a post-merge save notification.
+        if outcome != .continueToDebit {return NativeMoveResult(accepted:true,state:state,events:[],resolution:.init(.wait,reason:"source_ordinary_postcheck_returned"))}
+        var events:[NativeGameplayEvent]=[];let resolution=settleDeferredFinalMerge(events:&events)
+        return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolution)
+    }
+    @discardableResult public func refuseSourceOrdinaryPreDebit(_ receipt:NativeSourceOrdinaryPreDebitReceipt)->Bool {
+        guard receipt.generation==state.generation,sourceOrdinaryPreDebitReceipts[receipt.ownerID]==receipt else{return false}
+        sourceOrdinaryPreDebitRefused.insert(receipt.ownerID);return true
+    }
+    /// Teardown metadata only; does not debit, finish a face, or invent Source cleanup.
+    @discardableResult public func retireSourceOrdinaryPreDebit(_ receipt:NativeSourceOrdinaryPreDebitReceipt)->Bool {
+        guard receipt.generation==state.generation,sourceOrdinaryPreDebitReceipts[receipt.ownerID]==receipt else{return false}
+        sourceOrdinaryPreDebitReceipts.removeValue(forKey:receipt.ownerID);sourceOrdinaryPreDebitRefused.remove(receipt.ownerID);return true
     }
     /// Actual caller has already run forced context moves0 and tutorial/Wild
     /// policy. Use only its genuine provenance, never mutable moves at delivery.
@@ -1960,7 +2096,7 @@ extension NativeGameplayEngine {
         let snapshot=sourceNoMovesGuard(initial:sourceGameplaySignature.key,beginning:true)
         guard sourceNoMovesCallerIsCurrent(receipt) else{return .deferred("fresh-check-error")}
         if let block=snapshot.blockReason{return .deferred(block)}
-        let trigger:NativeNoMovesCandidateOwner.Trigger=receipt.kind == .ordinaryMovesDepleted ? .movesDepleted:.mergeMovesDepleted
+        let trigger=receipt.trigger
         let effect=sourceNoMovesOwner.begin(trigger:trigger,busyEnding:flags.busyEnding || sourceSaveRuntime.busyEnding,guard:snapshot)
         if case .candidate(let plan)=effect {sourceNoMovesGeneration=state.generation;sourceNoMovesCallerPlans[receipt.id]=plan.token}
         return effect

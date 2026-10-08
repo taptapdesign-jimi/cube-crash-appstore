@@ -345,3 +345,5 @@ Private canonical save V1 plus idle-preserving ContextV2 passes SDK108 save20 pl
 - [ ] Final Native phone route/feel/audio/performance acceptance and Journey-to-Play grey-flash verification.
 
 These are component and source receipts; the Native app is not yet a user-accepted 100% migration. Existing v9 asset bytes remain preserved. No phone install is implied.
+
+Current bounded app graph also passes optimized Release13492/92 without skips. This validates admitted components; full app Source activation and physical acceptance remain OPEN.

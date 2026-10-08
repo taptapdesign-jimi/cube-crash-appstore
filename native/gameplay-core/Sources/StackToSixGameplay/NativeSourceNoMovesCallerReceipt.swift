@@ -1,13 +1,27 @@
 import Foundation
 
-/// Created only by actual successful moves debit / regular-Six main prefix.
+/// Created only by actual moves debit / regular-Six main prefix or captured
+/// ordinary-main pre-debit branch.
 /// Neither a resolver result nor elapsed time can manufacture this provenance.
 public struct NativeSourceNoMovesCallerReceipt:Equatable,Sendable {
-    public enum Kind:String,Hashable,Sendable {case ordinaryMovesDepleted,mergeMovesDepleted}
+    public enum Kind:String,Hashable,Sendable {case ordinaryMovesDepleted,mergeMovesDepleted,lastTwoRegular,lastTwoSelf,lastThreeRegular,lastThreeSelf,singleRegular,postMerge}
     public let id:String,ownerID:String,generation:UInt64,sequence:UInt64,kind:Kind
     public let admissionID:UUID
     init(id:String,ownerID:String,generation:UInt64,sequence:UInt64,kind:Kind,admissionID:UUID){self.id=id;self.ownerID=ownerID;self.generation=generation;self.sequence=sequence;self.kind=kind;self.admissionID=admissionID}
-    public var reason:String {kind == .ordinaryMovesDepleted ? "moves_depleted_stuck":"merge_moves_depleted_stuck"}
+    public var trigger:NativeNoMovesCandidateOwner.Trigger {
+        switch kind {
+        case .ordinaryMovesDepleted:return .movesDepleted
+        case .mergeMovesDepleted:return .mergeMovesDepleted
+        case .lastTwoRegular:return .lastTwoRegular
+        case .lastTwoSelf:return .lastTwoSelf
+        case .lastThreeRegular:return .lastThreeRegular
+        case .lastThreeSelf:return .lastThreeSelf
+        case .singleRegular:return .singleRegular
+        case .postMerge:return .postMerge
+        }
+    }
+    public var reason:String {trigger.rawValue}
+    public var isPreDebit:Bool {kind != .ordinaryMovesDepleted && kind != .mergeMovesDepleted}
 }
 
 /// Captured publication of mandatory actual caller transports. No Source global
@@ -21,7 +35,8 @@ public final class NativeSourceNoMovesCallerAdmission {
 }
 
 /// Finishes only the genuine captured runNoMovesFailFlow return: rollback or
-/// actual confirmed-final finally after modal action/abort, never board exit.
+/// actual showFinalScreen invocation/return receipt. Modal final cleanup stays
+/// independent; neither elapsed time nor board exit manufactures this reply.
 public final class NativeSourceNoMovesCallerCompletionBinding {
     public let admissionID:UUID
     public let deliver:(NativeSourceNoMovesCallerReceipt)->Void

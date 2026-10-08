@@ -66,11 +66,10 @@ final class NativeAppController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor(red:243/255,green:238/255,blue:232/255,alpha:1)
-        let paper = UIImageView(image:artwork.image("assets/paper-bg.png"))
-        paper.frame = view.bounds;paper.contentMode = .scaleToFill;paper.autoresizingMask = [.flexibleWidth,.flexibleHeight];view.addSubview(paper)
-        let tint = UIView(frame:view.bounds);tint.backgroundColor = view.backgroundColor?.withAlphaComponent(0.4)
-        tint.autoresizingMask = [.flexibleWidth,.flexibleHeight];view.addSubview(tint)
+        view.backgroundColor = NativeAppPaperSurface.base
+        let paper = NativeAppPaperSurface(artwork:artwork)
+        paper.frame=view.bounds;paper.autoresizingMask=[.flexibleWidth,.flexibleHeight]
+        view.addSubview(paper)
         home = JimiV9HomeView(frame:view.bounds,assets:artwork)
         hub = JimiV9HubView(frame:view.bounds,assets:artwork)
         settingsView = JimiNativeSettingsView(frame:view.bounds,assets:artwork)
