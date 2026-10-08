@@ -107,6 +107,33 @@ public final class NativeGameplayEngine {
     public var sourceNoMovesCallerCompletionBinding:NativeSourceNoMovesCallerCompletionBinding?
     private var sourceNoMovesCallerPlans:[String:UInt64]=[:]
     /// Default OFF. Actual Source callback/transport publication only.
+    /// Observer-only Source writer subset. The active spawn token/reset/save/
+    /// input coroutine remains a separate admission requirement.
+    public var sourceOrdinarySixSpawnBeginReceiptsEnabled=false
+    private var sourceOrdinarySixSpawnBeginSequence:UInt64=0
+    private var sourceOrdinarySixSpawnBeginReceipts:[UUID:NativeSourceOrdinarySixSpawnBeginReceipt]=[:]
+    public var pendingSourceOrdinarySixSpawnBeginReceipts:[NativeSourceOrdinarySixSpawnBeginReceipt] {
+        sourceOrdinarySixSpawnBeginReceipts.values.sorted{$0.sequence<$1.sequence}
+    }
+    public func sourceOrdinarySixSpawnBeginIsCurrent(_ receipt:NativeSourceOrdinarySixSpawnBeginReceipt)->Bool {
+        receipt.generation==state.generation && sourceOrdinarySixSpawnBeginReceipts[receipt.id]==receipt
+    }
+    @discardableResult public func acknowledgeSourceOrdinarySixSpawnBegin(_ receipt:NativeSourceOrdinarySixSpawnBeginReceipt)->Bool {
+        guard sourceOrdinarySixSpawnBeginIsCurrent(receipt) else{return false}
+        sourceOrdinarySixSpawnBeginReceipts.removeValue(forKey:receipt.id);return true
+    }
+    /// Exact observer retirement only; never finish arrival, clear native
+    /// transaction locks or infer a Source spawn-owner reset.
+    public func retireSourceOrdinarySixSpawnBeginReceipts(generation:UInt64) {
+        sourceOrdinarySixSpawnBeginReceipts=sourceOrdinarySixSpawnBeginReceipts.filter{$0.value.generation != generation}
+    }
+    private func requestSourceOrdinarySixSpawnBegin(_ plan:NativeOrdinaryMovePlan,events:inout[NativeGameplayEvent]) {
+        guard sourceOrdinarySixSpawnBeginReceiptsEnabled else{return}
+        sourceOrdinarySixSpawnBeginSequence &+= 1
+        let receipt=NativeSourceOrdinarySixSpawnBeginReceipt(ownerID:plan.id,generation:plan.generation,sequence:sourceOrdinarySixSpawnBeginSequence)
+        sourceOrdinarySixSpawnBeginReceipts[receipt.id]=receipt
+        events.append(.init(.sourceOrdinarySixSpawnOwnerBeginRequested,reason:receipt.id.uuidString))
+    }
     public var sourceOrdinaryPreDebitEnabled=false
     public var sourceOrdinaryPreDebitAdmission:NativeSourceOrdinaryPreDebitAdmission?
     private var sourceOrdinaryPreDebitReceipts:[String:NativeSourceOrdinaryPreDebitReceipt]=[:]
@@ -228,6 +255,8 @@ public final class NativeGameplayEngine {
     public private(set) var sourceSpecialAbsorbMainEntered=false
     /// Source normal Magnet caller only; Raw parent visibility remains unchanged.
     public var sourceMagnetMain80Enabled=false
+    /// Actual collect-board object order/painted position capability, default nil.
+    public var sourceMagnetPullSelection:NativeSourceMagnetPullSelectionOwner?
     private var sourceSpecialAbsorbSequence:UInt64=0
     private var tntTargetsReserved = false
     private var tntReservationReleased = false
@@ -271,6 +300,7 @@ public final class NativeGameplayEngine {
     public func cancelNoMovesConfirmation() { noMovesSignature = nil }
     public func restart(state fresh: NativeBoardState) {
         pendingSourceTutorialDemoActivation=nil;sourceTutorialDemoActivationSequence=0
+        sourceOrdinarySixSpawnBeginReceipts.removeAll()
         sourceOrdinaryStackFaces.removeAll();sourceOrdinaryStackFaceCancellationBlocks.removeAll()
         meterDropReservations.removeAll();meterDropSequence=0
         pendingMeterOpen=nil;pendingMeterOpenRetry=nil;meterOpenFlow=nil;meterOpenSequence=0;sourceMeterSpawnCancelToken &+= 1;sourceMeterLastMergeTileIDs=[]
@@ -678,6 +708,7 @@ public final class NativeGameplayEngine {
         if let specialPresentationAdmitted, !specialPresentationAdmitted(archetype,source.variant ?? destination.variant) { return rejected("native_special_presentation_not_ready") }
         if stagedTntActivation && (source.variant ?? destination.variant) == "laser-gun",
            laserTargetX == nil || laserViewportWidth == nil || !(laserViewportWidth!.isFinite && laserViewportWidth! > 0) { return rejected("native_laser_geometry_not_ready") }
+        var capturedSpecialClaim:NativeSourceSpecialContactLease?
         if let hook=sourceSpecialContactHook {
             let captured=state,capturedFlags=flags,capturedLocks=locks
             let capturedOpen=pendingMeterOpen,capturedStack=pendingOrdinaryStack,capturedSix=pendingOrdinarySix
@@ -690,6 +721,24 @@ public final class NativeGameplayEngine {
                   pendingSpecial==nil,pendingDirectWild==nil else {
                 lease.rejected();return rejected("source_special_claim_reentered")
             }
+            capturedSpecialClaim=lease
+        }
+        var capturedMagnetTargets:[NativeTile]?
+        if archetype == .magnet,let owner=sourceMagnetPullSelection {
+            let captured=state,capturedFlags=flags,capturedLocks=locks
+            let capturedOpen=pendingMeterOpen,capturedStack=pendingOrdinaryStack,capturedSix=pendingOrdinarySix,claimHook=sourceSpecialContactHook
+            let candidates=NativeGameplayResolver.magnetCandidates(captured.tiles,source:source,destination:destination)
+            let ids=owner.capture(captured,source,destination,candidates)
+            let alive=capturedSpecialClaim?.isCurrent() ?? true
+            guard alive,sourceMagnetPullSelection === owner,sourceSpecialContactHook === claimHook,
+                  state==captured,flags==capturedFlags,locks==capturedLocks,
+                  pendingMeterOpen==capturedOpen,pendingOrdinaryStack==capturedStack,pendingOrdinarySix==capturedSix,
+                  pendingSpecial==nil,pendingDirectWild==nil,let ids,
+                  ids.count==candidates.count,Set(ids).count==ids.count,Set(ids)==Set(candidates.map(\.id)) else {
+                capturedSpecialClaim?.rejected();return rejected("source_magnet_physical_target_capture_rejected")
+            }
+            let byID=Dictionary(uniqueKeysWithValues:candidates.map{($0.id,$0)})
+            capturedMagnetTargets=ids.prefix(4).compactMap{byID[$0]}
         }
         pendingLaserShots = []
         expireCombo(now:now)
@@ -697,7 +746,7 @@ public final class NativeGameplayEngine {
         let hudStars = captureHUDStars(source:source,destination:destination)
         var targets: [NativeTile]
         let variant = source.variant ?? destination.variant
-        if archetype == .magnet { targets = NativeMagnetRules.nearestPullTargets(state:state,source:source,destination:destination) }
+        if archetype == .magnet { targets = capturedMagnetTargets ?? NativeMagnetRules.nearestPullTargets(state:state,source:source,destination:destination) }
         else { targets = stagedTntActivation ? [] : selectTntTargets(source:source,destination:destination,variant:variant) }
         let replacementValues = archetype == .tnt ? NativeTntRules.replacementValues(targets:targets,random:{ self.nextRandom() }) : []
         specialSequence &+= 1
@@ -1782,6 +1831,7 @@ extension NativeGameplayEngine {
         }
         // BoardMutationEpochOwner rejects old spawn permits after a newer accepted stack.
         if epochCurrent && stagedOrdinaryAssignments {
+            requestSourceOrdinarySixSpawnBegin(plan,events:&events)
             ordinarySpawnPreparationPending=true
             events.append(NativeGameplayEvent(.ordinarySpawnsPrepareRequested,value:50,reason:plan.id))
         } else if epochCurrent {
@@ -2335,6 +2385,7 @@ extension NativeGameplayEngine {
             state.tiles.removeAll{$0.id==plan.destination.id};events.append(.init(.removed,tileIDs:[plan.destination.id]))
         }
         if epochCurrent && stagedOrdinaryAssignments {
+            requestSourceOrdinarySixSpawnBegin(plan,events:&events)
             ordinarySpawnPreparationPending=true;events.append(.init(.ordinarySpawnsPrepareRequested,value:50,reason:plan.id))
         } else if epochCurrent {
             spawnRegularMerge6(at:plan.destination.cell,depth:depth,events:&events)
