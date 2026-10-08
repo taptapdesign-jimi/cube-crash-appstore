@@ -337,8 +337,11 @@ Private canonical save V1 plus idle-preserving ContextV2 passes SDK108 save20 pl
 - [x] Stable normal/fallback retained frame lifetime: SDK12667; actual next Engine move and route replacement covered.
 - [x] Shared immutable Source Math provider: independent Core289/289 and actual Context SDK12771; constructor/value/TNT/Magnet scheduling still open.
 - [x] Genuine ordinary debit and ordinary-six pre-spawn NO MOVES subset: independent Core305/305 and actual SDK13079, defaultOFF. Remaining callers/full physical producers still open.
+- [x] Bounded actual Magnet core source→regular main80 marker/setup cancellation: independent Core308/308 and actual Scene SDK13284/84; full pull/lazy survivor/leases still open.
+- [x] Actual ordinary saved-board occupied-cell restore: SDK13392/92, constructor6/Bootstrap2; Wild/tutorial resume still refused before draws.
 - [ ] Integrate whole app after remaining Source constructor/caller/physical owner composition is complete.
 - [x] Optimized Release12358 and Release12564 prior component regressions.
-- [ ] Release131 current79 validation; final Native phone route/feel/audio/performance acceptance and Journey-to-Play grey-flash verification.
+- [x] Optimized Release131 current79/79 PASS, no skips.
+- [ ] Final Native phone route/feel/audio/performance acceptance and Journey-to-Play grey-flash verification.
 
 These are component and source receipts; the Native app is not yet a user-accepted 100% migration. Existing v9 asset bytes remain preserved. No phone install is implied.

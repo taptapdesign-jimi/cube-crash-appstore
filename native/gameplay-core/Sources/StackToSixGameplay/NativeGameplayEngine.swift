@@ -212,6 +212,8 @@ public final class NativeGameplayEngine {
     public private(set) var specialActivationCommitted = false
     public private(set) var pendingSourceSpecialAbsorb:NativeSourceSpecialAbsorbReceipt?
     public private(set) var sourceSpecialAbsorbMainEntered=false
+    /// Source normal Magnet caller only; Raw parent visibility remains unchanged.
+    public var sourceMagnetMain80Enabled=false
     private var sourceSpecialAbsorbSequence:UInt64=0
     private var tntTargetsReserved = false
     private var tntReservationReleased = false
@@ -688,7 +690,14 @@ public final class NativeGameplayEngine {
         state.tiles.removeAll { $0.id == source.id }
         if let index = state.tiles.firstIndex(where: { $0.id == destination.id }) {
             state.tiles[index].value = 6; state.tiles[index].archetype = nil; state.tiles[index].variant = nil
-            state.tiles[index].resolutionOwned = true; state.tiles[index].visible = false; state.tiles[index].alpha = 0
+            state.tiles[index].resolutionOwned = true
+            if sourceMagnetMain80Enabled && archetype == .magnet && source.variant==nil && destination.variant==nil && source.gameplayArchetype == .magnet && !destination.isWild {
+                // Literal clearWildState/setValue6 keeps the original parent;
+                // drawStack caps the actual physical result before main80.
+                state.tiles[index].visible=destination.visible;state.tiles[index].alpha=1
+                state.tiles[index].stackDepth=min(4,source.stackDepth+destination.stackDepth)
+                state.tiles[index].sourceWildStateCleared=true
+            } else {state.tiles[index].visible=false;state.tiles[index].alpha=0}
         }
         for target in targets { if let index = state.tiles.firstIndex(where: { $0.id == target.id }) {
             if archetype == .magnet { state.tiles[index].locked = true }; state.tiles[index].resolutionOwned = true
@@ -2266,6 +2275,20 @@ extension NativeGameplayEngine {
   guard generation==state.generation,let receipt=pendingSourceSpecialAbsorb,receipt.id==receiptID,receipt.generation==generation,
    let plan=pendingSpecial,plan.id==receipt.transactionID,plan.generation==generation,!sourceSpecialAbsorbMainEntered,
    !specialActivationCommitted,pendingMagnetRespawn==nil else{return rejected("stale_source_special_absorb_interrupt")}
+  return cancelSourceSpecialCapturedPair(plan)
+ }
+ /// KING-safe setup-abort overlay: the accepted actual normal Magnet pair
+ /// cannot retain input forever if a prefix/driver installation is refused.
+ /// This is destructive cancellation, never a synthesized Source arrival.
+ public func cancelSourceMagnetMainSetup(transactionID:String,generation:UInt64)->NativeMoveResult {
+  guard sourceMagnetMain80Enabled,generation==state.generation,
+   let plan=pendingSpecial,plan.id==transactionID,plan.generation==generation,
+   plan.archetype == .magnet,plan.variant==nil,plan.source.gameplayArchetype == .magnet,!plan.destination.isWild,
+   pendingSourceSpecialAbsorb==nil,!sourceSpecialAbsorbMainEntered,!specialActivationCommitted,pendingMagnetRespawn==nil
+  else{return rejected("stale_source_magnet_main_setup_abort")}
+  return cancelSourceSpecialCapturedPair(plan)
+ }
+ private func cancelSourceSpecialCapturedPair(_ plan:NativeSpecialMovePlan)->NativeMoveResult {
   var restored:[String]=[]
   if plan.archetype == .magnet {
    // Literal delayed pull timelines' onInterrupt -> cleanupPulledTile. Original
