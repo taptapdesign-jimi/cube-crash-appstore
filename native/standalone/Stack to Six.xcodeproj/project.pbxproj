@@ -36,6 +36,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+        AA2026100800000000000005 = {isa = PBXFileSystemSynchronizedBuildFileExceptionSet; membershipExceptions = ("export-frame-cadence-oracle.mjs",); target = CE7BB2982EAD5DE600E8B9F9; };
         AA2026100800000000000002 = {
             isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
             membershipExceptions = ("export-frame-budget-oracle.mjs",);
@@ -64,6 +65,8 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+        AA2026100800000000000006 = {isa = PBXFileSystemSynchronizedRootGroup; path = "../gameplay-shared-smoke"; sourceTree = "<group>"; };
+        AA2026100800000000000004 = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (AA2026100800000000000005,); path = "../gameplay-cadence-tests"; sourceTree = "<group>"; };
         AA2026100800000000000001 = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (AA2026100800000000000002,); path = "../gameplay-frame-budget-tests"; sourceTree = "<group>"; };
         AA2026100700000000000021 = {isa = PBXFileSystemSynchronizedRootGroup; path = "../gameplay-bottom-decor"; sourceTree = "<group>"; };
         AA2026100700000000000022 = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (AA2026100700000000000023,); path = "../gameplay-bottom-decor-tests"; sourceTree = "<group>"; };
@@ -151,6 +154,7 @@
                 AA202610070000000000001C,
                 AA202610070000000000001E,
                 AA2026100700000000000021,
+                AA2026100800000000000006,
 				CE7BB2822EAD5DE400E8B9F9 /* Stack to Six */,
 				CE7BB29C2EAD5DE600E8B9F9 /* Stack to SixTests */,
                 AA202610070000000000000D,
@@ -165,6 +169,7 @@
                 AA202610070000000000001F,
                 AA2026100700000000000022,
                 AA2026100800000000000001,
+                AA2026100800000000000004,
 				CE7BB2A62EAD5DE600E8B9F9 /* Stack to SixUITests */,
 				CE7BB2812EAD5DE400E8B9F9 /* Products */,
 			);
@@ -211,6 +216,7 @@
                 AA202610070000000000001C,
                 AA202610070000000000001E,
                 AA2026100700000000000021,
+                AA2026100800000000000006,
 			);
 			name = "Stack to Six";
 			packageProductDependencies = (
@@ -248,6 +254,7 @@
                 AA202610070000000000001F,
                 AA2026100700000000000022,
                 AA2026100800000000000001,
+                AA2026100800000000000004,
 			);
 			name = "Stack to SixTests";
 			packageProductDependencies = (

@@ -9,6 +9,7 @@ final class NativeHUDCloseNode:SKNode {
     let stageAdvance:CGFloat
     let ring:SKShapeNode
     let icon:SKSpriteNode
+    private var tapBase:CGPoint?
     init(texture:SKTexture?,stageFont:UIFont) {
         stageAdvance=("Stage" as NSString).size(withAttributes:[.font:stageFont]).width
         let path=CGMutablePath(),circumference=2*CGFloat.pi*Self.radius
@@ -29,6 +30,15 @@ final class NativeHUDCloseNode:SKNode {
     required init?(coder:NSCoder){fatalError("Use preserved close artwork")}
     func layout(valueRowY:CGFloat) {
         position=CGPoint(x:24+stageAdvance/2,y:valueRowY)
+    }
+    func playTapBounce() {
+        // Repeat starts from the first captured base, as the original owner.
+        let base=tapBase ?? CGPoint(x:xScale,y:yScale);tapBase=base
+        removeAction(forKey:"hud-tap-bounce");xScale=base.x;yScale=base.y
+        run(.sequence([.customAction(withDuration:NativeHUDTapMotion.duration) { node,elapsed in
+            let value=CGFloat(NativeHUDTapMotion.scale(at:Double(elapsed)))
+            node.xScale=base.x*value;node.yScale=base.y*value
+        },.run { [weak self] in self?.xScale=base.x;self?.yScale=base.y }]),withKey:"hud-tap-bounce")
     }
     var hitRect:CGRect {
         let circle=CGRect(x:position.x-22,y:position.y-22,width:44,height:44)

@@ -303,6 +303,50 @@ final class NativeBootstrapTests:XCTestCase {
         XCTAssertEqual(saved.arcadeRun?.board,3);XCTAssertEqual(saved.arcadeRun?.score,345)
         XCTAssertEqual(saved.progression.arcadeStats.highestStageOpened,3)
     }
+    func testLifecyclePauseRetainsLastSafeSaveAndResumesCapturedWildTransaction() async throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-source-pause-save-\(UUID().uuidString)")
+        defer {try? FileManager.default.removeItem(at:directory)}
+        let store=NativeSaveStore(directory:directory)
+        let tiles=[NativeTile(id:"star",cell:.init(column:0,row:0),value:6,archetype:.star),NativeTile(id:"five",cell:.init(column:1,row:0),value:5),NativeTile(id:"one-a",cell:.init(column:2,row:0),value:1),NativeTile(id:"one-b",cell:.init(column:3,row:0),value:1),NativeTile(id:"survivor",cell:.init(column:4,row:0),value:2)]
+        var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false),arcadeRun:NativeBoardState(tiles:tiles,mode:.arcade,board:1,score:37,rngState:12345))
+        seed.progression.firstPlayTutorialComplete=true;seed.arcadeRunSavedAt=Date().timeIntervalSince1970;try store.save(seed)
+        let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store)
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        let previousWindow=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        window.rootViewController=host;window.makeKeyAndVisible();bootstrap.start(in:host)
+        defer {bootstrap.dispose();window.isHidden=true;previousWindow?.makeKeyAndVisible()}
+        let app=try XCTUnwrap(host.children.first as? NativeAppController)
+        app.navigate(.gameplay,interrupt:true)
+        try await waitUntil {app.children.contains {$0 is NativeGameplayViewController}}
+        let game=try XCTUnwrap(app.children.first as? NativeGameplayViewController)
+        try await waitUntil(timeout:12) {game.boardScene?.boardGeometry != nil}
+        let scene=try XCTUnwrap(game.boardScene),geometry=try XCTUnwrap(scene.boardGeometry)
+        try await waitUntil {scene.beginDrag(at:geometry.center(row:0,column:0))}
+        let durable=try XCTUnwrap(store.load()?.arcadeRun)
+        XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:geometry.center(row:0,column:1),now:100)).accepted)
+        let captured=try XCTUnwrap(game.engine.pendingDirectWild)
+        game.setSuspended(true)
+        let paused=game.engine.state
+        XCTAssertTrue(game.engine.hasUnsavableSourceGameplayState)
+        NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+        try await Task.sleep(for:.milliseconds(200))
+        XCTAssertEqual(game.engine.state,paused)
+        XCTAssertEqual(game.engine.pendingDirectWild?.id,captured.id)
+        XCTAssertEqual(try XCTUnwrap(store.load()?.arcadeRun),durable)
+        NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+        game.setSuspended(false)
+        do {try await waitUntil(timeout:12) {!game.engine.hasUnsavableSourceGameplayState && game.engine.state.moves == paused.moves-1}}
+        catch {
+            print("[SOURCE_PAUSE_SAVE_DIAGNOSTIC] scenePaused=\(scene.isPaused) viewPaused=\(String(describing:scene.view?.isPaused)) moves=\(game.engine.state.moves) pausedMoves=\(paused.moves) flags=\(game.engine.flags) direct=\(String(describing:game.engine.pendingDirectWild)) presentations=\(game.engine.pendingWildSpawnPresentations) runtime=\(game.engine.sourceSaveRuntime) tiles=\(game.engine.state.tiles)")
+            throw error
+        }
+        game.setSuspended(true)
+        let settled=game.engine.state
+        NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+        try await Task.sleep(for:.milliseconds(100))
+        XCTAssertEqual(game.engine.state,settled)
+        XCTAssertEqual(try XCTUnwrap(store.load()?.arcadeRun),settled)
+    }
     private func waitUntil(file:StaticString=#filePath,line:UInt=#line,timeout:TimeInterval=5,_ predicate:()->Bool) async throws {
         let deadline=Date().addingTimeInterval(timeout)
         while Date()<deadline {if predicate(){return};try await Task.sleep(for:.milliseconds(50))}

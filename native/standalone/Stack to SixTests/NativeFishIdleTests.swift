@@ -56,7 +56,7 @@ final class NativeFishIdleTests:XCTestCase {
         XCTAssertEqual(host.activeMediaCount,0);XCTAssertEqual(owner.retainedItemCount,0);XCTAssertEqual(owner.playbackRate,0)
     }
     func testMissingMediaKeepsOriginalStaticArtworkAndReleasesFailedPlayerItems() {
-        let host=NativeFishIdleOwner(resourceRoot:root.appendingPathComponent("missing-original-media"))
+        let host=NativeFishIdleOwner(resourceRoot:root.appendingPathComponent("missing-original-media"),mediaPolicy:NativeFishMediaPolicy())
         let frame=NativeFishIdleFrame.project(center:CGPoint(x:90,y:100),horizontalUnit:CGPoint(x:91,y:100),verticalUnit:CGPoint(x:90,y:99),sceneHeight:844,alpha:1,dragging:false,phaseStarted:true,visible:true,bubbles:[])
         var failures=0;host.onMediaReady={id,generation,ready in XCTAssertEqual(id,"f");XCTAssertEqual(generation,7);XCTAssertFalse(ready);failures+=1}
         host.paint(["f":frame],generation:7,force:true)

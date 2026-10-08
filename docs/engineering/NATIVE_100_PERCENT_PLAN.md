@@ -192,9 +192,25 @@ samples and actual Chrome3/Paper2 checks PASS. Remaining HUD motion/close geomet
 meter decorations and final Wild-measured board pose stay open. Selected original Journey bottom decor is connected with source finite entry/exit and readiness/epoch/lifecycle ownership; actual footer9/integration6 PASS.
 
 Native-only QA boot uses the separate native bundle identity and original
-NativeAssets.bundle without Web.bundle. The default physical/Release entry is
-still the preserved hybrid entry until all parity and release gates close.
+NativeAssets.bundle without Web.bundle. The explicitly flagged Debug preview
+installed on iPhone13blue now launches Swift gameplay from the ordinary icon;
+unflagged physical Debug and Release activation remain gated. The installed
+preview receipt and its retained unused historical Web.bundle bytes are
+documented in CURRENT_HANDOFF; final package retirement remains open.
 Current source is implementation work, not a shipped100%native benchmark.
+
+2026-10-08 resumed source checkpoint: Fish fallback uses the unchanged original
+SVG/embedded72WebP frames with shared route-scoped decoding, cancellation and
+foreground no-rewind. Actual fallback4, FishIdle4 and HUDclose5 tests PASS;
+source19gates/530suites4010tests/KING330PASS. Close220ms matches663 executed
+original GSAP poses and keeps quiet-board rendering active through its child
+action. Cadence60/30/15 is proved as a linked standalone value owner; complete
+Scene callback integration remains private. Wild105 tests and original96
+varied face/cell/bounce streams are private proofs, not linked admission. HUD
+drop/rise4209 original-GSAP poses, including interrupted drop→rise, and original
+midpoint/nestedRAF8 schedules/64 decisions are private proofs pending connected
+lifecycle checks. User-reported phone problems are deferred until the planned
+migration finishes. Physical acceptance remains open.
 
 ## Execution boundary
 
@@ -205,3 +221,23 @@ native app integration. See NATIVE_GAMEPLAY_RUNTIME_OWNERS.md and the parity
 matrix. Simulator proof precedes default activation and physical delivery;
 unresolved parity items cannot be marked complete merely because code compiles.
 No PWA operations are authorized by Native migration.
+
+## 2026-10-08 primary continuation receipt
+
+Closed private source at `/tmp/native-resume-owned-snapshot` has source-correct
+wall timeout ownership (ordinary100/50/locked50-150-250, TNT400/500), typed
+completed-level-flow160 selective repair and retirement-before-interruption.
+Core114/114 PASS. SDK7 actual44/44 PASS admits final675 source geometry and
+original33px bold multiplier with connected Board/HUD/ordinary-six/timer checks.
+Source-correct app pause/save debit49 passes SDK6; do not sum separate run counts.
+Private meter122/122 mac Swift PASS keeps queue WAIT, handoff WAIT, pickup and
+target admission distinct. It is still not activated in Scene. Source coupled
+controller proves GSAP60 callbacks must remain independent of quiet Pixi15; a
+finite-union clock consolidation prototype is pending admission.
+
+Ownership is resolved: migration remains primary; secondary independent display
+packet is available for selective review. Its earlier shared draft remains held
+until reconciled, despite its separate Simulator receipt. Full native migration,
+shipping default/bridge retirement, phone regressions and physical acceptance
+remain unchecked. No phone install, PWA sync, asset mutation or online checkpoint
+was performed by primary in this resume batch.

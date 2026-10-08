@@ -89,7 +89,7 @@ public struct NativeResolution: Equatable, Codable, Sendable {
     public init(_ kind: Kind, reason: String, target: String? = nil) { self.kind = kind; self.reason = reason; self.target = target }
 }
 public struct NativeGameplayEvent: Equatable, Sendable {
-    public enum Kind: String, Sendable { case dragBegan, dragCancelled, merged, removed, spawned, comboChanged, noMovesCandidate, terminal, blocked, specialReserved, specialImpact, specialBoardCommitted, hudStarsPrepared, hudStarArrived, meterRewardPrepared, meterRewardCommitted, directWildReserved, ordinarySpawnsPrepareRequested, ordinaryAssignmentsPrepared, ordinaryDestinationCleanupPrepared, ordinaryStackReserved, ordinarySixReserved, ordinaryPostcheckPrepared }
+    public enum Kind: String, Sendable { case wildRecoveryCheckPrepared, wildLockedBonusPrepared, wildSpawnActionsPrepared, dragBegan, dragCancelled, merged, removed, spawned, comboChanged, noMovesCandidate, terminal, blocked, specialReserved, specialImpact, specialBoardCommitted, hudStarsPrepared, hudStarArrived, meterRewardPrepared, meterRewardCommitted, directWildReserved, ordinarySpawnsPrepareRequested, ordinaryAssignmentsPrepared, ordinaryDestinationCleanupPrepared, ordinaryStackReserved, ordinarySixReserved, ordinaryPostcheckPrepared }
     public var kind: Kind
     public var tileIDs: [String]
     public var value: Int?

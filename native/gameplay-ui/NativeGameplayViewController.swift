@@ -37,6 +37,7 @@ final class NativeGameplayViewController: UIViewController {
     private var disposed = false
     private var explicitlySuspended = false
     private var backgrounded = false
+    private var sourceIdleSuspended=false
     private var hasPresentedScene = false
     private var fishFinale: NativeFishFinalePresentation?
     private var tntGlyphs: [String: NativeSplashGlyphField] = [:]
@@ -175,7 +176,9 @@ final class NativeGameplayViewController: UIViewController {
                     let prefix = variant+"-",cue = moment.hasPrefix(prefix) ? String(moment.dropFirst(prefix.count)) : moment
                     self?.onSpecialMoment?(variant,cue,index)
                 }
+                let releaseSource=variant == "laser-gun" ? self.boardScene?.beginSourceMotion(.tntFinale,id:UUID().uuidString,generation:generation):nil
                 owner.onFinished = { [weak self,weak owner] _ in
+                    releaseSource?()
                     if self?.area55Finales[variant] === owner { self?.area55Finales.removeValue(forKey: variant); self?.area55Generations.removeValue(forKey: variant) }
                     completion()
                 }
@@ -197,7 +200,9 @@ final class NativeGameplayViewController: UIViewController {
                 }
                 self.area55Finales[variant]?.dispose();self.area55Finales[variant]=owner;self.area55Generations[variant]=generation
                 owner.autoresizingMask=[.flexibleWidth,.flexibleHeight];self.view.addSubview(owner)
+                let releaseSource=self.boardScene?.beginSourceMotion(.juiceFinale,id:UUID().uuidString,generation:generation)
                 owner.onFinished={ [weak self,weak owner] _ in
+                    releaseSource?()
                     (owner as? NativeMushroomFinalePresentation)?.onHaptic=nil
                     (owner as? NativeRoboFinalePresentation)?.onHaptic=nil;(owner as? NativeRoboFinalePresentation)?.onExitFrameSelected=nil
                     if self?.area55Finales[variant] === owner {self?.area55Finales.removeValue(forKey:variant);self?.area55Generations.removeValue(forKey:variant)}
@@ -323,8 +328,10 @@ final class NativeGameplayViewController: UIViewController {
             self?.onStateChange?(state)
         }
         scene.onTerminal = { [weak self] result in self?.onTerminal?(result) }
-        scene.onBoardEntry = { [weak self] duration,beats in
-            self?.journeyBottomDecor?.enter();self?.onBoardEntry?(duration,beats)
+        scene.onBoardEntry = { [weak self] duration,beats in self?.onBoardEntry?(duration,beats) }
+        scene.onHUDDrop = { [weak self] generation in
+            guard let self,!self.disposed,self.engine.state.generation==generation else{return}
+            self.journeyBottomDecor?.enter()
         }
         scene.onJourneyBottomDecorShake = { [weak self] offset,generation in
             self?.journeyBottomDecor?.applyShake(sourceOffset:offset,generation:generation)
@@ -332,9 +339,17 @@ final class NativeGameplayViewController: UIViewController {
         scene.onGameplayReceipt = { [weak self] event,source,destination,generation in self?.onGameplayReceipt?(event,source,destination,generation) }
         scene.onSpecialMoment = { [weak self] variant,moment,index in self?.onSpecialMoment?(variant,moment,index) }
         scene.onGameplayEvent = { [weak self] event in self?.onGameplayEvent?(event) }
+        scene.onFrameTarget={ [weak self] fps in
+            guard let self,!self.disposed,self.spriteView.preferredFramesPerSecond != fps else{return}
+            self.spriteView.preferredFramesPerSecond=fps
+        }
+        scene.onSpecialIdleSuspended={ [weak self] suspended in
+            guard let self,!self.disposed else{return};self.sourceIdleSuspended=suspended
+            self.fishIdleOwner.setSuspended(suspended || self.backgrounded || self.explicitlySuspended)
+        }
         scene.onRenderingDemand = { [weak self] active in
             guard let self, !self.disposed else { return }
-            self.spriteView.isPaused = !active
+            self.spriteView.isPaused = !active || self.backgrounded || (self.explicitlySuspended && !self.exitingBoard)
         }
         boardScene = scene
         observations = [
@@ -369,9 +384,10 @@ final class NativeGameplayViewController: UIViewController {
         }
         boardScene.layout(size: spriteView.bounds.size,insets: view.safeAreaInsets,animateEntry: !hasPresentedScene)
         if !hasPresentedScene {
+            boardScene.prepareSourceBoardEntry()
             hasPresentedScene=true;spriteView.presentScene(boardScene)
             // Artwork admission is independent of the optional board wave.
-            journeyBottomDecor?.enter()
+            if !boardScene.isHUDRevealPending {journeyBottomDecor?.enter()}
         }
     }
     override func viewDidDisappear(_ animated: Bool) {
@@ -448,7 +464,10 @@ final class NativeGameplayViewController: UIViewController {
             guard self?.engine.state.generation == generation else { return }
             self?.onSpecialMoment?(variant,moment,index)
         }
+        let sourceKind:NativeSourceFrameRuntime.Kind=variant == "beach-ball" ? .juiceFinale:.tntFinale
+        let releaseSource=boardScene?.beginSourceMotion(sourceKind,id:UUID().uuidString,generation:generation)
         owner.onFinished = { [weak self,weak owner] _ in
+            releaseSource?()
             if self?.area55Finales[variant] === owner {self?.area55Finales.removeValue(forKey:variant);self?.area55Generations.removeValue(forKey:variant)}
             completion()
         }
@@ -462,8 +481,8 @@ final class NativeGameplayViewController: UIViewController {
 
     private func applySuspension() {
         guard !disposed else { return }
-        let value = explicitlySuspended || backgrounded
-        fishIdleOwner.setSuspended(value)
+        let value = backgrounded || (explicitlySuspended && !exitingBoard)
+        fishIdleOwner.setSuspended(value || sourceIdleSuspended)
         boardScene?.setSuspended(value); fishFinale?.setSuspended(value); bottleFinale?.setSuspended(value); honeyFinale?.setSuspended(value)
         area55Finales.values.forEach { $0.setSuspended(value) }
         journeyBottomDecor?.setForeground(!backgrounded)
@@ -483,7 +502,7 @@ final class NativeGameplayViewController: UIViewController {
         return { [weak self,weak boardScene] in
             guard let self,let boardScene,!self.disposed,!released,self.boardScene === boardScene,self.engine.state.generation == generation,self.preparedBoardEntryGeneration == generation else {return}
             released=true;boardScene.releasePreparedBoardEntry(generation:generation)
-            self.journeyBottomDecor?.enter()
+            if !boardScene.isHUDRevealPending {self.journeyBottomDecor?.enter()}
         }
     }
 

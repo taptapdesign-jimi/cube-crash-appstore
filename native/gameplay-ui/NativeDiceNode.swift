@@ -183,6 +183,16 @@ final class NativeDiceNode: SKNode {
 
     var isSpecial: Bool { kind != "regular" && kind != "normal" && kind != "" }
 
+    /// Literal level-flow ensureActiveFullVisual(tile,true): kill only known
+    /// carrier scale owners. Position, rotation, shadow and family cues survive.
+    func repairSourceLevelFlowVisual() {
+        guard !disposed else{return}
+        visual.removeAction(forKey:"stack")
+        visual.removeAction(forKey:"source-ordinary-six-hero")
+        visual.setScale(1)
+        alpha=1;visual.alpha=1;face.alpha=1;pips.alpha=1;pips.isHidden=false
+    }
+
     func setDragging(_ active: Bool) {
         guard !disposed else { return }
         dragging = active
@@ -259,7 +269,9 @@ final class NativeDiceNode: SKNode {
     }
     func setFishMediaReady(_ ready:Bool) {
         guard !disposed,variant == "fish" else {return}
-        fishMediaReady=ready;paintFishVisibility();onResourceReady?()
+        fishMediaReady=ready
+        if !ready {if let id=artworkPhaseID {textures.releaseIdlePhase(id)};artworkPhaseID=nil;artworkRunning=false;artworkElapsed=0}
+        paintFishVisibility();onResourceReady?()
     }
     private func paintFishVisibility() {
         guard variant == "fish" else {return}

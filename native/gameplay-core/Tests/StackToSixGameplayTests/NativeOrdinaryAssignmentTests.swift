@@ -159,6 +159,44 @@ final class NativeOrdinaryAssignmentTests:XCTestCase {
         XCTAssertTrue(e.pendingOrdinaryAssignments.isEmpty);XCTAssertEqual(e.state.moves,moves)
         XCTAssertTrue(e.releaseOrdinarySixHandoff(receiptID:p.id,generation:p.generation).accepted)
     }
+    func testCancelledForced100WaitUsesOriginalRemainderContinuationWithoutInventingArrival()throws {
+        var tiles=[NativeTile(id:"t",cell:.init(column:0,row:0),value:6,archetype:.tnt),NativeTile(id:"merge",cell:.init(column:1,row:0),value:2)]
+        tiles += (0..<4).map{NativeTile(id:"l\($0)",cell:.init(column:$0,row:1),value:1,locked:true)}
+        tiles += (0..<10).map{NativeTile(id:"o\($0)",cell:.init(column:$0%5,row:2+$0/5),value:$0%2 == 0 ? 1:5)}
+        let e=NativeGameplayEngine(state:NativeBoardState(tiles:tiles,board:10),recordedRandomChoices:Array(repeating:0,count:200));e.stagedOrdinaryMoves=true;e.stagedOrdinaryAssignments=true
+        XCTAssertTrue(e.beginDrag(tileID:"t"));XCTAssertTrue(e.drop(target:.init(column:1,row:0)).accepted)
+        let tnt=try XCTUnwrap(e.pendingSpecial);XCTAssertTrue(e.releaseTntReservation(transactionID:tnt.id).accepted)
+        let ordinary=e.state.tiles.filter{$0.isPlayable && !$0.isWild}
+        let pair=try XCTUnwrap(ordinary.compactMap{a in ordinary.first{$0.id != a.id && a.value+$0.value == 6}.map{(a,$0)}}.first)
+        XCTAssertTrue(e.beginDrag(tileID:pair.0.id));XCTAssertTrue(e.drop(target:pair.1.cell).accepted);let p=try XCTUnwrap(e.pendingOrdinarySix)
+        XCTAssertTrue(e.commitOrdinarySix(receiptID:p.id,generation:p.generation).accepted);XCTAssertTrue(e.prepareOrdinarySpawns(receiptID:p.id,generation:p.generation).accepted)
+        let slots=e.pendingOrdinaryAssignments
+        XCTAssertTrue(slots.allSatisfy{slot in tnt.targets.contains{$0.id==slot.tileID}})
+        for target in tnt.targets {XCTAssertTrue(e.commitSpecialImpact(transactionID:tnt.id,tileID:target.id).accepted)}
+        for slot in slots {XCTAssertTrue(e.commitOrdinaryAssignment(receiptID:p.id,generation:p.generation,assignmentID:slot.id).accepted)}
+        let first=try XCTUnwrap(e.pendingOrdinaryAssignments.first)
+        XCTAssertEqual(first.kind,.forcedLocked);XCTAssertEqual(first.delayMilliseconds,0)
+        XCTAssertTrue(e.commitOrdinaryAssignment(receiptID:p.id,generation:p.generation,assignmentID:first.id).accepted)
+        let wait=try XCTUnwrap(e.pendingOrdinaryAssignments.first),before=e.state
+        XCTAssertEqual(wait.kind,.forcedLocked);XCTAssertEqual(wait.delayMilliseconds,100)
+        let cancelled=e.cancelOrdinarySpawnWait(receiptID:p.id,generation:p.generation,assignmentID:wait.id)
+        XCTAssertTrue(cancelled.accepted);XCTAssertEqual(e.state,before)
+        XCTAssertNil(e.pendingOrdinaryPrimaryArrival)
+        XCTAssertEqual(e.state.tiles.first{$0.id==wait.tileID}?.value,0)
+        let remainder=try XCTUnwrap(e.pendingOrdinaryAssignments.first)
+        XCTAssertEqual(remainder.kind,.remainderPrimary);XCTAssertEqual(remainder.delayMilliseconds,0)
+        XCTAssertEqual(cancelled.events.map(\.kind),[.ordinaryAssignmentsPrepared])
+        XCTAssertFalse(e.cancelOrdinarySpawnWait(receiptID:p.id,generation:p.generation,assignmentID:wait.id).accepted)
+        XCTAssertTrue(e.commitOrdinaryAssignment(receiptID:p.id,generation:p.generation,assignmentID:remainder.id).accepted)
+        XCTAssertNotNil(e.pendingOrdinaryPrimaryArrival)
+        XCTAssertEqual(e.state.moves,before.moves)
+        XCTAssertFalse(e.releaseOrdinarySixHandoff(receiptID:p.id,generation:p.generation).accepted)
+        XCTAssertTrue(e.finishOrdinaryPrimarySpawn(receiptID:p.id,generation:p.generation,assignmentID:remainder.id).accepted)
+        XCTAssertTrue(e.releaseOrdinarySixHandoff(receiptID:p.id,generation:p.generation).accepted)
+        let complete=e.state
+        XCTAssertFalse(e.cancelOrdinarySpawnWait(receiptID:p.id,generation:p.generation,assignmentID:wait.id).accepted)
+        XCTAssertEqual(e.state,complete)
+    }
     func testBackgroundDuringAwaitedRemainderBounceSettlesSubsequentOpeningsBeforeSave()throws {
         let e=make(1,depth:3),p=try XCTUnwrap(e.pendingOrdinarySix)
         XCTAssertTrue(e.commitOrdinarySix(receiptID:p.id,generation:p.generation).accepted);XCTAssertTrue(e.prepareOrdinarySpawns(receiptID:p.id,generation:p.generation).accepted)

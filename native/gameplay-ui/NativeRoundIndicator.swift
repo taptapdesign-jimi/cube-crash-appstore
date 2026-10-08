@@ -44,6 +44,7 @@ final class NativeRoundIndicator:SKNode {
             ]),withKey:"round-value")
         }
     }
+    func primeEntry(){painted.removeAllActions();painted.position.y = -72;painted.alpha=0}
     func enter(animated:Bool) {
         guard !isHidden else{return}
         if !animated,hasAnimatedPresentation {return}

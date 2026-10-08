@@ -1,0 +1,315 @@
+[
+  {
+    "mode": "initial",
+    "trace": [
+      [
+        "start",
+        [
+          5000
+        ],
+        0
+      ],
+      [
+        "wake",
+        5000,
+        [
+          7400
+        ],
+        5
+      ]
+    ],
+    "events": [
+      [
+        "lease",
+        "regular-tile-idle-bounce",
+        60,
+        5000
+      ]
+    ]
+  },
+  {
+    "mode": "drag",
+    "trace": [
+      [
+        "start",
+        [
+          5000
+        ],
+        0
+      ],
+      [
+        "wake",
+        5000,
+        [
+          5500
+        ],
+        0
+      ]
+    ],
+    "events": []
+  },
+  {
+    "mode": "early",
+    "trace": [
+      [
+        "start",
+        [
+          5000
+        ],
+        0
+      ],
+      [
+        "wake",
+        8800,
+        [
+          11200
+        ],
+        5
+      ]
+    ],
+    "events": [
+      [
+        "lease",
+        "regular-tile-idle-bounce",
+        60,
+        8800
+      ]
+    ]
+  },
+  {
+    "mode": "empty",
+    "trace": [
+      [
+        "start",
+        [
+          5000
+        ],
+        0
+      ],
+      [
+        "wake",
+        5000,
+        [
+          5800
+        ],
+        0
+      ]
+    ],
+    "events": []
+  },
+  {
+    "mode": "hidden-race",
+    "trace": [
+      [
+        "start",
+        [
+          5000
+        ],
+        0
+      ],
+      [
+        "wake",
+        5000,
+        [],
+        0
+      ]
+    ],
+    "events": []
+  },
+  {
+    "mode": "interaction",
+    "trace": [
+      [
+        "start",
+        [
+          5000
+        ],
+        0
+      ],
+      [
+        "interaction",
+        [
+          9300
+        ],
+        5
+      ]
+    ],
+    "events": [
+      [
+        "lease",
+        "regular-tile-idle-bounce",
+        60,
+        5000
+      ],
+      [
+        "release",
+        5300
+      ]
+    ]
+  },
+  {
+    "mode": "hidden",
+    "trace": [
+      [
+        "start",
+        [
+          5000
+        ],
+        0
+      ],
+      [
+        "park",
+        [],
+        0
+      ],
+      [
+        "resume",
+        [
+          11400
+        ],
+        0
+      ],
+      [
+        "wake",
+        11400,
+        [
+          13800
+        ],
+        5
+      ]
+    ],
+    "events": [
+      [
+        "lease",
+        "regular-tile-idle-bounce",
+        60,
+        11400
+      ]
+    ]
+  },
+  {
+    "mode": "hidden-interaction",
+    "trace": [
+      [
+        "start",
+        [
+          5000
+        ],
+        0
+      ],
+      [
+        "park",
+        [],
+        0
+      ],
+      [
+        "interaction",
+        [],
+        0
+      ],
+      [
+        "resume",
+        [
+          13000
+        ],
+        0
+      ],
+      [
+        "wake",
+        13000,
+        [
+          15400
+        ],
+        5
+      ]
+    ],
+    "events": [
+      [
+        "lease",
+        "regular-tile-idle-bounce",
+        60,
+        13000
+      ]
+    ]
+  },
+  {
+    "mode": "pagehide",
+    "trace": [
+      [
+        "start",
+        [
+          5000
+        ],
+        0
+      ],
+      [
+        "park",
+        [],
+        0
+      ],
+      [
+        "resume",
+        [
+          10000
+        ],
+        0
+      ],
+      [
+        "wake",
+        10000,
+        [
+          12400
+        ],
+        5
+      ]
+    ],
+    "events": [
+      [
+        "lease",
+        "regular-tile-idle-bounce",
+        60,
+        10000
+      ]
+    ]
+  },
+  {
+    "mode": "hidden-race-resume",
+    "trace": [
+      [
+        "start",
+        [
+          5000
+        ],
+        0
+      ],
+      [
+        "park",
+        [],
+        0
+      ],
+      [
+        "resume",
+        [
+          9000
+        ],
+        0
+      ],
+      [
+        "wake",
+        9000,
+        [
+          11400
+        ],
+        5
+      ]
+    ],
+    "events": [
+      [
+        "lease",
+        "regular-tile-idle-bounce",
+        60,
+        9000
+      ]
+    ]
+  }
+]

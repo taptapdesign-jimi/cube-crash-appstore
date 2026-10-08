@@ -19,7 +19,9 @@ final class NativeRegularSixSpritePresentation:SKNode {
     private let halo=SKShapeNode()
     private var started=false,disposed=false,suspended=false,finishedPaint=false
     init(origin:CGPoint,tileSize:CGFloat,destinationDepth:CGFloat,combinedDepth:Int,generation:UInt64,reduced:Bool,hotFactor:Double,patternIndex:Int,initialShake:ShakeReceipt = .init(canvas:.zero,indicator:.zero,bottomDecor:.zero),isCurrent:@escaping(UInt64)->Bool,random:()->Double) throws {
-        guard let font=UIFont(name:"Arial-BoldMT",size:33) else{throw AdmissionError.missingSourceFont}
+        let glyph:NativeRegularSixMultiplierGlyph.Rendered
+        do {glyph=try NativeRegularSixMultiplierGlyph.render(depth:combinedDepth,displayScale:UIGraphicsImageRendererFormat.preferred().scale)}
+        catch {throw AdmissionError.missingSourceFont}
         self.generation=generation;current=isCurrent
         shards=NativeRegularSixShardPlan(patternIndex:patternIndex,reduced:reduced,random:random)
         smoke=NativeRegularSixSmokePlan(tileSize:128,reduced:reduced,hotFactor:hotFactor,random:random)
@@ -49,8 +51,9 @@ final class NativeRegularSixSpritePresentation:SKNode {
         let ring=SKShapeNode(circleOfRadius:radius);ring.fillColor = .clear;ring.strokeColor=UIColor(red:250/255,green:237/255,blue:224/255,alpha:0.9);ring.lineWidth=1.4
         let glow=SKShapeNode(circleOfRadius:radius*1.08);glow.fillColor = .clear;glow.strokeColor=UIColor(red:250/255,green:237/255,blue:224/255,alpha:0.2);glow.lineWidth=3
         multiplierLayer.addChild(glow);multiplierLayer.addChild(ring)
-        let text=SKLabelNode();text.attributedText=NSAttributedString(string:"×\(combinedDepth)",attributes:[.font:font,.foregroundColor:UIColor.white,.strokeColor:UIColor(red:143/255,green:105/255,blue:89/255,alpha:1),.strokeWidth:-100.0*2/33])
-        text.horizontalAlignmentMode = .center;text.verticalAlignmentMode = .center;multiplierLayer.addChild(text)
+        let text=SKSpriteNode(texture:SKTexture(image:glyph.image));text.size=glyph.image.size
+        text.name="native-regular-six-multiplier:"+glyph.caption.string
+        multiplierLayer.addChild(text)
         paint(seconds:0)
     }
     required init?(coder:NSCoder){fatalError("init(coder:) has not been implemented")}

@@ -244,6 +244,9 @@ final class NativeBootstrap {
     }
     private func record(_ state: NativeBoardState) {
         guard !attemptCommitted,state.terminal == nil,NativeSaveEnvelope.isCoherentRun(state) else {return}
+        if let engine=gameplay?.engine {
+            guard engine.state.generation==state.generation,!engine.hasUnsavableSourceGameplayState else{return}
+        }
         let now = Date().timeIntervalSince1970
         if state.mode == .journey {
             envelope.journeyRuns[state.board] = state; envelope.journeyRunSavedAt[state.board] = now
@@ -257,7 +260,9 @@ final class NativeBootstrap {
         tutorialOwner?.onFeedback = { [weak self] in self?.routeFeedback("cta") }
     }
     private func flush() throws {
-        if UIApplication.shared.applicationState != .active {gameplay?.engine.cancelForBackground()}
+        // Source lifecycle saves do not finish an in-flight gameplay phase.
+        // record's source guard retains its last durable coherent run while
+        // preferences/progression can still be written atomically below.
         if let gameplay, !attemptCommitted { record(gameplay.engine.state) }
         envelope.savedAt = Date().timeIntervalSince1970
         try store.save(envelope)

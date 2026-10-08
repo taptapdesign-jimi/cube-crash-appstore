@@ -3,16 +3,18 @@
   "variants": {
     "fish": {
       "archetype": "wild-star",
-      "idleOwner": "native/gameplay-ui/NativeDiceNode.swift",
+      "idleOwner": "native/gameplay-ui/NativeFishIdleOwner.swift",
       "finaleOwner": "native/gameplay-ui/NativeFishFinalePresentation.swift",
-      "warmupPolicy": "Scene texture owner prepares preserved selected/restored live artwork only. One bounded resource lease per actual family presentation; no all-future-family startup decode. NativeAssets packaging is not runtime image preparation.",
+      "warmupPolicy": "Selected/restored live Fish only. Original1x HEVC readiness, then one board-route original-SVG embedded WebP lease only on authored fallback selection/failure. Weak cancellation/epoch guards retire background, generation, seek and resource replies; no global bitmap cache, asset conversion or independent ticker.",
       "cleanupPolicy": "NativeBoardScene generation and scene disposal retire tile/effect/media owners. NativeGameplayViewController retires visible finite carriers on generation replacement and disposal; background settles logical receipts before save and suspends/retire visual ownership. Late callbacks cannot reclaim another session.",
       "hudDepthPolicy": "One SpriteKit board/HUD compositor, shared above-HUD effect depth and native UIKit foreground carriers for authored video/3D text. Larger art does not change stable gameplay hit footprint.",
       "tests": [
         "native/standalone/Stack to SixTests/NativeBoardTests.swift",
-        "native/gameplay-core/Tests/StackToSixGameplayTests/NativeGameplayTests.swift"
+        "native/gameplay-core/Tests/StackToSixGameplayTests/NativeGameplayTests.swift",
+        "native/standalone/Stack to SixTests/NativeFishIdleTests.swift",
+        "native/standalone/Stack to SixTests/NativeFishSVGFallbackTests.swift"
       ],
-      "status": "IN PROGRESS. Registry/art/idle admission exists. Exact family enter/drag/finale/input timing is still tracked in parity matrix; missing staged skin presentation rejects before mutation. Resource ownership is not visual or physical acceptance.",
+      "status": "IN PROGRESS. Source179 actual SVG browser poses/all72 frames and1,253 transforms verified; healthy native HEVC already passed actual Simulator. Original SVG fallback has native SDK proof and actual Simulator resource/geometry/drag/background/generation/foreground suite PASS. Full gameplay/shared phase and physical acceptance remain tracked in parity matrix.",
       "physicalAcceptance": "NEEDS PHYSICAL TEST: active simultaneous copies, rendered outputs, FPS, memory and thermal. No emitter/timing/asset reduction authorized."
     },
     "kanta": {

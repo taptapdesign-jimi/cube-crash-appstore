@@ -5,6 +5,28 @@ import Foundation
 public final class NativeGameplayEngine {
     public private(set) var state: NativeBoardState
     public var snapshot: NativeBoardState { state }
+    /// Additional exact source lifecycle markers are supplied only by their native
+    /// owner (for example Wild-drop travel); ordinary decorative SKActions add none.
+    public var sourceSaveRuntime=NativeSourceSaveRuntime()
+    public var hasUnsavableSourceGameplayState:Bool {
+        var snapshot=sourceSaveRuntime
+        snapshot.busyEnding = snapshot.busyEnding || flags.busyEnding
+        snapshot.wildSpawnInProgress = snapshot.wildSpawnInProgress || flags.wildSpawnInProgress
+        snapshot.merge6SpawnInProgress = snapshot.merge6SpawnInProgress || flags.merge6SpawnInProgress || pendingOrdinarySix != nil || directWildSpawnPhase != nil
+        snapshot.wildMagnetPullInProgress = snapshot.wildMagnetPullInProgress || flags.wildMagnetPullInProgress
+        snapshot.specialTransactionActive = snapshot.specialTransactionActive || pendingSpecial != nil || (pendingDirectWild != nil && !directWildGameplayCommitted)
+        snapshot.regularHandoffActive = snapshot.regularHandoffActive || pendingOrdinaryStack != nil
+        snapshot.cleanupOwned = snapshot.cleanupOwned || state.tiles.contains(where:{$0.merge6CleanupOwned})
+        snapshot.activeDrag = snapshot.activeDrag || drag != nil
+        snapshot.tileMarkers += state.tiles.map {tile in
+            var marker=NativeSourceSaveTileMarkers();marker.pendingRemoval=tile.pendingRemoval
+            // Existing native transientSpawn is the imported source spawn lifecycle
+            // marker. spawn-helpers bounce by itself never sets this marker.
+            marker.isBeingSpawned=tile.transientSpawn
+            return marker
+        }
+        return snapshot.hasUnsavableTransientGameplayState
+    }
     public private(set) var flags = NativeGameplayRuntimeFlags()
     public private(set) var noMovesSignature: String?
     public private(set) var pendingSpecial: NativeSpecialMovePlan?
@@ -18,6 +40,30 @@ public final class NativeGameplayEngine {
     public private(set) var pendingMeterRewards: [NativeMeterRewardReceipt] = []
     public var stagedTntActivation = false
     public var stagedDirectWildMoves = false
+    public private(set) var pendingWildSpawnPresentations:[NativeWildSpawnPresentation] = []
+    private var wildSourceResolutionBoundary:(id:String,generation:UInt64)?
+    /// Original frame/idle scope ends at its Special-primary settlement, or the
+    /// actual coroutine finally/cancellation boundary when no primary commits.
+    /// It is independent of later Wild-only visual lease and extra spawn work.
+    public func hasReachedWildSourceResolutionBoundary(transactionID:String,generation:UInt64)->Bool {
+        wildSourceResolutionBoundary?.id==transactionID && wildSourceResolutionBoundary?.generation==generation
+    }
+    public private(set) var pendingWildRecoveryChecks:[NativeWildRecoveryCheck] = []
+    public var stagedDirectWildAssignments = false
+    enum WildSpawnPermitPurpose {case primary,hardFallback,locked,bonus}
+    var wildSpawnPermitAdmission:((WildSpawnPermitPurpose)->Bool)? // Isolated fixture injection; live epoch checks always remain authoritative.
+    private var directWildPrimaryRecovery:NativeWildPrimaryRecoveryOwner?
+    public private(set) var pendingWildLockedBonusPresentations:[NativeWildLockedBonusPresentation] = []
+    public private(set) var pendingWildSpawnActions:[NativeWildSpawnAction] = []
+    public private(set) var pendingWildSpawnArrivals:[NativeWildSpawnArrival] = []
+    private var directWildSpawnPhase:NativeWildSpawnPhaseOwner?
+    private var directWildSpawnAvoiding=0
+    private var directWildSpawnRevision:UInt64=0
+    private var directWildVisualReleased=false
+    private var wildPhaseScheduledID:String?
+    private var wildPhaseOpened=0
+    private var wildActionSequence=0
+    private var wildRemainderExcluded:Set<NativeCell>=[]
     public var stagedOrdinaryMoves = false
     public var stagedOrdinaryAssignments = false
     public private(set) var ordinarySpawnPreparationPending = false
@@ -81,14 +127,17 @@ public final class NativeGameplayEngine {
     public func cancelDrag() { drag = nil }
     public func cancelNoMovesConfirmation() { noMovesSignature = nil }
     public func restart(state fresh: NativeBoardState) {
+        pendingWildRecoveryChecks=[];pendingWildSpawnPresentations=[];wildSourceResolutionBoundary=nil;sourceSaveRuntime=NativeSourceSaveRuntime()
         let generation = state.generation &+ 1
         state = fresh; state.generation = generation; state.revision = 0; state.terminal = nil; tileSequence = 0
         pendingSpecial = nil; pendingLaserShots = []; pendingMagnetRespawn = nil; magnetReplacementIndex = 0; specialPreBoard = nil; specialImpactIndex = 0
+        directWildPrimaryRecovery?.cancelForLifecycle();directWildPrimaryRecovery=nil;directWildSpawnPhase?.cancelForLifecycle();directWildSpawnPhase=nil;pendingWildSpawnActions=[];pendingWildSpawnArrivals=[];pendingWildLockedBonusPresentations=[];wildPhaseScheduledID=nil;directWildVisualReleased=false
         pendingDirectWild = nil; directWildGameplayCommitted = false; committingDirectWild = false
         pendingOrdinaryStack = nil; pendingOrdinarySix = nil; ordinarySixGameplayCommitted = false; pendingOrdinaryPostchecks.removeAll(); pendingOrdinarySpawns.removeAll(); ordinarySpawnPreparationPending=false;pendingOrdinaryAssignments.removeAll();pendingOrdinaryPrimaryArrival=nil;pendingOrdinaryDestinationCleanup=nil;ordinaryRefillRemaining=0;ordinaryRequestedOpenings=0;ordinarySuccessfulOpenings=0;ordinaryForcedCandidates=[];ordinaryForcedPass=false; committingOrdinaryStack = false
         drag = nil; pendingHUDStars.removeAll(); pendingMeterRewards.removeAll(); tntReservationReleased = false; specialActivationCommitted = false; tntTargetsReserved = false; deferredFinalMerge = nil; locks.removeAll(); flags = NativeGameplayRuntimeFlags(); noMovesSignature = nil; comboLastMutationTime = nil
     }
     public func cancelForBackground() {
+        pendingWildRecoveryChecks=[];pendingWildSpawnPresentations=[]
         drag = nil; noMovesSignature = nil
         if let six = pendingOrdinarySix { if !ordinarySixGameplayCommitted { _ = commitOrdinarySix(receiptID:six.id,generation:six.generation) }; if ordinarySpawnPreparationPending {_ = prepareOrdinarySpawns(receiptID:six.id,generation:six.generation)}
             while pendingOrdinaryPrimaryArrival != nil || !pendingOrdinaryAssignments.isEmpty {
@@ -104,7 +153,19 @@ public final class NativeGameplayEngine {
         pendingOrdinaryPostchecks.removeAll() // waitTrackedResult returns cancelled on interrupted background work.
         if let direct = pendingDirectWild {
             if !directWildGameplayCommitted { _ = commitDirectWildGameplay(transactionID:direct.id) }
-            _ = releaseDirectWildPresentation(transactionID:direct.id,generation:direct.generation)
+            if directWildSpawnPhase != nil {
+                for _ in 0..<256 {
+                    if let action=pendingWildSpawnActions.first {
+                        guard commitWildSpawnAction(transactionID:direct.id,generation:direct.generation,actionID:action.id).accepted else{break}
+                    } else if let arrival=pendingWildSpawnArrivals.first {
+                        guard finishWildSpawnArrival(transactionID:direct.id,generation:direct.generation,arrivalID:arrival.id).accepted else{break}
+                    } else {break}
+                    if directWildSpawnPhase == nil {break}
+                }
+            }
+            if (directWildSpawnPhase?.cancelled == true || directWildSpawnPhase?.complete == true) && directWildSpawnPhase?.primaryArrived == false {
+                abortUncommittedDirectWildForLifecycle(plan:direct)
+            } else { _ = releaseDirectWildPresentation(transactionID:direct.id,generation:direct.generation) }
         }
         if let initial = pendingSpecial {
             if initial.archetype == .tnt {
@@ -150,6 +211,7 @@ public final class NativeGameplayEngine {
         return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolution)
     }
     public func resolve() -> NativeResolution {
+        if state.terminal == nil && directWildSpawnPhase != nil {return NativeResolution(.wait,reason:"direct_wild_spawn_continuation_pending")}
         if state.terminal == nil && (pendingOrdinaryStack != nil || pendingOrdinarySix != nil || !pendingOrdinaryPostchecks.isEmpty) { return NativeResolution(.wait,reason:"ordinary_mutation_pending") }
         if state.terminal == nil && !pendingMeterRewards.isEmpty { return NativeResolution(.wait,reason:"captured_meter_reward_pending") }
         if state.terminal == nil && state.wildMeter >= 1-0.000001 && !flags.isWaiting { return NativeResolution(.wait,reason:"wild_continuation_pending") }
@@ -171,6 +233,7 @@ public final class NativeGameplayEngine {
         guard state.validationIssues().isEmpty else { return rejected("invalid_authoritative_board") }
         guard NativeTutorialRules.allowsDrop(source:source,destination:destination,tutorial:state.tutorial,rows:state.rows) else { return rejected("tutorial_drop_restricted") }
         let effectiveSum = source.isWild || destination.isWild ? 6 : source.value + destination.value
+        if directWildSpawnPhase != nil && effectiveSum>=6 {return rejected("direct_wild_spawn_continuation_pending")}
         if pendingOrdinarySix != nil && (!source.isWild && !destination.isWild && effectiveSum < 6) == false { return rejected("regular_merge6_handoff") }
         // The production canDrop permits lingering regular six + 1...5. Its recovery
         // continuation is a distinct source branch; fail closed until that port exists.
@@ -252,7 +315,7 @@ public final class NativeGameplayEngine {
             return NativeMoveResult(accepted: true, state: state, events: events, resolution: resolution)
         }
         state.wildMeter = max(0, state.wildMeter + meterIncrement)
-        if state.wildMeter >= 1 - 0.000001 && pendingSpecial == nil && pendingOrdinaryStack == nil && pendingOrdinarySix == nil {
+        if state.wildMeter >= 1 - 0.000001 && directWildSpawnPhase == nil && pendingSpecial == nil && pendingOrdinaryStack == nil && pendingOrdinarySix == nil {
             guard spawnMeterReward(events: &events) else { state = initialState; pendingHUDStars = initialHUDStars; hudStarSequence = initialStarSequence; randomChoices = initialRandomChoices; comboLastMutationTime = initialComboTime; comboWindow = initialComboWindow; return rejected("native_wild_meter_reward_policy_rejected") }
         }
         state.bestScore = max(state.bestScore,state.score)
@@ -266,7 +329,8 @@ public final class NativeGameplayEngine {
         if !isFinal,let specialPresentationAdmitted,!specialPresentationAdmitted(archetype,source.variant ?? destination.variant) { return rejected("native_special_presentation_not_ready") }
         specialSequence &+= 1
         let plan = NativeDirectWildMovePlan(id:"native-direct:\(state.generation):\(specialSequence)",generation:state.generation,revision:state.revision,archetype:archetype,variant:source.variant ?? destination.variant,source:source,destination:destination,startedAt:now,isFinal:isFinal)
-        pendingDirectWild = plan; directWildGameplayCommitted = false; directWildPointerID = pointerID
+        wildSourceResolutionBoundary=nil
+        pendingDirectWild = plan; directWildGameplayCommitted = false;directWildVisualReleased=false;pendingWildLockedBonusPresentations=[];pendingWildSpawnPresentations=[]; directWildPointerID = pointerID
         locks[plan.id] = false; flags.pendingSpecialMutation = true; noMovesSignature = nil
         return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.directWildReserved,tileIDs:[source.id,destination.id],archetype:archetype,reason:plan.id,variant:plan.variant)],resolution:resolve())
     }
@@ -276,6 +340,18 @@ public final class NativeGameplayEngine {
               plan.revision == state.revision,state.terminal == nil,!directWildGameplayCommitted,
               state.tiles.first(where:{ $0.id == plan.source.id }) == plan.source,
               state.tiles.first(where:{ $0.id == plan.destination.id }) == plan.destination else { return rejected("direct_wild_commit_not_ready") }
+        // Original main80 callback returns before combo, score, move debit or RNG when
+        // another terminal owner is active. Abort repairs captured identities only.
+        if flags.busyEnding {
+            wildSourceResolutionBoundary=(plan.id,plan.generation)
+            let removed=[plan.destination.id,plan.source.id]
+            state.tiles.removeAll { removed.contains($0.id) }
+            locks.removeValue(forKey:plan.id); flags.pendingSpecialMutation=false
+            pendingDirectWild=nil;directWildGameplayCommitted=false;drag=nil
+            let check=NativeWildRecoveryCheck(id:plan.id+":recovery",generation:plan.generation,delayMilliseconds:120,reason:"merge6-terminal-owner-active")
+            pendingWildRecoveryChecks.append(check)
+            return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.removed,tileIDs:removed,reason:check.reason),NativeGameplayEvent(.wildRecoveryCheckPrepared,reason:check.id)],resolution:resolve())
+        }
         locks.removeValue(forKey:plan.id); flags.pendingSpecialMutation = false
         committingDirectWild = true
         drag = Drag(id:plan.source.id,pointerID:directWildPointerID,generation:plan.generation,revision:plan.revision)
@@ -284,13 +360,20 @@ public final class NativeGameplayEngine {
         guard result.accepted else { pendingDirectWild = nil; return result }
         directWildGameplayCommitted = true
         // Star/Juice source visual gates restrict Wild/Special while ordinary input is released.
-        locks[plan.id] = true
+        locks[plan.id] = directWildSpawnPhase == nil
         return result
+    }
+    /// Consumes the actual generation-owned120ms callback; it never clears another terminal owner.
+    public func commitWildRecoveryCheck(receiptID:String,generation:UInt64)->NativeMoveResult {
+        guard generation==state.generation,let index=pendingWildRecoveryChecks.firstIndex(where:{$0.id==receiptID && $0.generation==generation}) else{return rejected("stale_wild_recovery_check")}
+        pendingWildRecoveryChecks.remove(at:index)
+        return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
     }
     public func releaseDirectWildPresentation(transactionID: String,generation: UInt64) -> NativeMoveResult {
         guard let plan = pendingDirectWild,plan.id == transactionID,plan.generation == generation,
-              generation == state.generation,directWildGameplayCommitted else { return rejected("direct_wild_release_not_ready") }
-        locks.removeValue(forKey:plan.id); pendingDirectWild = nil; directWildGameplayCommitted = false
+              generation == state.generation,directWildGameplayCommitted,!directWildVisualReleased else { return rejected("direct_wild_release_not_ready") }
+        directWildVisualReleased=true
+        if directWildSpawnPhase == nil {locks.removeValue(forKey:plan.id);pendingDirectWild=nil;directWildGameplayCommitted=false}
         return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
     }
 
@@ -581,7 +664,9 @@ public final class NativeGameplayEngine {
     }
 
     public func claimMeterReward() -> NativeMoveResult {
-        guard state.terminal == nil, !flags.isWaiting, pendingOrdinaryStack == nil, pendingOrdinarySix == nil, state.wildMeter >= 1-0.000001 else { return rejected("wild_meter_not_ready") }
+        // Source meter permission checks logical owners, not the remaining Wild-only FX input lock.
+        let directOwnershipSettled=pendingDirectWild == nil || (directWildGameplayCommitted && directWildSpawnPhase == nil && pendingDirectWild?.isFinal == false)
+        guard state.terminal == nil, !flags.isWaiting, directOwnershipSettled, pendingOrdinaryStack == nil, pendingOrdinarySix == nil, state.wildMeter >= 1-0.000001 else { return rejected("wild_meter_not_ready") }
         let before = state; let choices = randomChoices
         var events: [NativeGameplayEvent] = []
         guard spawnMeterReward(events:&events) else { state = before; randomChoices = choices; return rejected("wild_meter_reward_unavailable") }
@@ -655,6 +740,10 @@ public final class NativeGameplayEngine {
         }
     }
     private func spawnDirectWildMerge6(at cell: NativeCell, archetype: NativeWildArchetype, depth: Int, avoiding: Int, starOrbitCount: Int, events: inout [NativeGameplayEvent]) {
+        if stagedDirectWildAssignments,committingDirectWild,let plan=pendingDirectWild,!plan.isFinal,(archetype == .star || archetype == .juice) {
+            beginDirectWildSpawnPhases(plan:plan,depth:depth,avoiding:avoiding,orbitCount:starOrbitCount,events:&events)
+            return
+        }
         let lockedCount = state.tiles.filter { $0.locked && !$0.isWild && !$0.pendingRemoval && !$0.resolutionOwned }.count
         let lockedEmptyCount = state.tiles.filter { $0.locked && $0.value <= 0 && !$0.isWild && !$0.pendingRemoval }.count
         let multiplier = NativeSpawnRules.wildEndgameMultiplier(depth,isWild:true,lockedEmptyCount:lockedEmptyCount,isLastMerge:false)
@@ -950,6 +1039,20 @@ extension NativeGameplayEngine {
         }
         return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
     }
+    /// Source cancelled forceUnlockLockedTiles wait returns the count already opened.
+    /// The caller then attempts remainder opens; cancellation is not primary arrival
+    /// and cannot award a face, debit a move or retire the captured destination.
+    public func cancelOrdinarySpawnWait(receiptID:String,generation:UInt64,assignmentID:String)->NativeMoveResult {
+        guard generation==state.generation,let plan=pendingOrdinarySix,plan.id==receiptID,
+              pendingOrdinaryPrimaryArrival==nil,let first=pendingOrdinaryAssignments.first,
+              first.id==assignmentID,first.generation==generation,first.kind == .forcedLocked,
+              first.delayMilliseconds>0 else{return rejected("stale_ordinary_spawn_wait_cancellation")}
+        pendingOrdinaryAssignments.removeFirst();ordinaryForcedCandidates=[]
+        ordinaryRefillRemaining=max(0,ordinaryRequestedOpenings-ordinarySuccessfulOpenings)
+        var events:[NativeGameplayEvent]=[]
+        continueOrdinaryRefill(plan:plan,events:&events)
+        return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
+    }
     /// Primary/remainder openAtCell Promise completes on its actual bounce or lifecycle interrupt.
     public func finishOrdinaryPrimarySpawn(receiptID:String,generation:UInt64,assignmentID:String,interrupted:Bool=false)->NativeMoveResult {
         guard generation==state.generation,let plan=pendingOrdinarySix,plan.id==receiptID,let slot=pendingOrdinaryPrimaryArrival,slot.id==assignmentID else{return rejected("stale_ordinary_primary_arrival")}
@@ -985,5 +1088,212 @@ extension NativeGameplayEngine {
         let slot=ordinaryAssignment(plan:plan,cell:cell,tileID:nil,kind:.remainderPrimary,delay:0)
         pendingOrdinaryAssignments.append(slot)
         events.append(NativeGameplayEvent(.ordinaryAssignmentsPrepared,tileIDs:[slot.id],reason:plan.id))
+    }
+}
+
+extension NativeGameplayEngine {
+    private func beginDirectWildSpawnPhases(plan:NativeDirectWildMovePlan,depth:Int,avoiding:Int,orbitCount:Int,events:inout [NativeGameplayEvent]) {
+        let mode:NativeWildSpawnPhaseOwner.Mode=state.mode == .arcade ? .arcade:state.tiles.contains{$0.locked} ? .normal:.endgame
+        // The original transient dst placeholder exists when the multiplier law is evaluated.
+        let emptyCount=state.tiles.filter{$0.locked && $0.value<=0}.count+1
+        let count=NativeSpawnRules.wildEndgameMultiplier(depth,isWild:true,lockedEmptyCount:emptyCount,isLastMerge:false)
+        let phase=NativeWildSpawnPhaseOwner(id:plan.id,generation:plan.generation,mode:mode,archetype:plan.archetype,spawnCount:count,orbitCount:orbitCount)
+        directWildPrimaryRecovery=NativeWildPrimaryRecoveryOwner(id:plan.id,generation:plan.generation,mode:mode == .normal ? .normal:.endgame);_=directWildPrimaryRecovery?.begin()
+        directWildSpawnPhase=phase;directWildSpawnAvoiding=avoiding;directWildSpawnRevision=state.revision;directWildVisualReleased=false
+        wildPhaseScheduledID=nil;wildPhaseOpened=0;wildActionSequence=0;wildRemainderExcluded=[plan.destination.cell]
+        _=phase.begin();pumpWildSpawnPhases(events:&events)
+        // Normal primary enters before this source bonus coroutine yields; endgame primary waits50ms.
+        if mode == .normal,let action=pendingWildSpawnActions.first,action.delayMilliseconds==0 {
+            let result=commitWildSpawnAction(transactionID:plan.id,generation:plan.generation,actionID:action.id)
+            events += result.events
+        }
+        let bonus=NativeSpawnRules.wildBonus(archetype:plan.archetype,isLastMerge:false,isArcadeSimpleWild:mode == .arcade,isFinalWildSnapshot:false,starOrbitCount:orbitCount)
+        var empty:[NativeCell]=[]
+        for row in 0..<state.rows {for column in 0..<state.columns {let cell=NativeCell(column:column,row:row);if cell != plan.destination.cell && state.tile(at:cell)==nil {empty.append(cell)}}}
+        let referenceAlpha=state.tiles.first{$0.locked && $0.value<=0 && $0.alpha.isFinite}?.alpha
+        let allocations=NativeWildLockedBonusRules.allocate(count:bonus.locked,emptyCells:empty,referenceAlpha:referenceAlpha,admitted:{self.state.terminal==nil && self.state.revision==self.directWildSpawnRevision && (self.wildSpawnPermitAdmission?(.bonus) ?? true)},isEmpty:{self.state.tile(at:$0)==nil},random:{self.nextRandom()})
+        for allocation in allocations {
+            var tile=freshTile(cell:allocation.cell,value:0);tile.id += ":locked";tile.locked=true;tile.alpha=allocation.alpha;state.tiles.append(tile)
+            pendingWildLockedBonusPresentations.append(.init(tileID:tile.id,transactionID:plan.id,generation:plan.generation,alpha:allocation.alpha,direction:allocation.direction,delayMilliseconds:allocation.delayMilliseconds))
+            events.append(NativeGameplayEvent(.spawned,tileIDs:[tile.id],value:0,reason:plan.id+":locked-bonus"))
+        }
+        if !allocations.isEmpty {events.append(NativeGameplayEvent(.wildLockedBonusPrepared,tileIDs:pendingWildLockedBonusPresentations.map(\.tileID),reason:plan.id))}
+    }
+    private func wildAction(phase:NativeWildSpawnPhaseOwner.Command,kind:NativeWildSpawnAction.Kind,cell:NativeCell?,tileID:String?=nil,delay:Int)->NativeWildSpawnAction {
+        wildActionSequence+=1
+        return NativeWildSpawnAction(id:"\(phase.id):action:\(wildActionSequence)",transactionID:directWildSpawnPhase!.id,generation:phase.generation,phaseID:phase.id,kind:kind,cell:cell,tileID:tileID,delayMilliseconds:delay)
+    }
+    /// Owns the live selection boundary; the renderer never derives an opening from a stale snapshot.
+    private func pumpWildSpawnPhases(events:inout [NativeGameplayEvent]) {
+        guard let phase=directWildSpawnPhase,let plan=pendingDirectWild else{return}
+        for _ in 0..<32 {
+            if phase.primaryArrived || phase.complete || phase.cancelled {
+                wildSourceResolutionBoundary=(plan.id,plan.generation)
+            }
+            if phase.complete {settleWildSpawnContinuation();return}
+            guard let command=phase.command,pendingWildSpawnActions.isEmpty,wildPhaseScheduledID != command.id else{return}
+            // Initial endgame guard executes at its actual delayed entry callback, not
+            // while preparing the50ms action. Other source guard boundaries are synchronous.
+            if flags.busyEnding,command.kind != .primary,
+               phase.acknowledgeTerminalOwnerBoundary(commandID:command.id,generation:state.generation) {continue}
+            wildPhaseScheduledID=command.id;wildPhaseOpened=0
+            switch command.kind {
+            case .juiceSafety:_=phase.acknowledgeJuiceSafety(commandID:command.id,generation:state.generation);continue
+            case .minimumActive:_=phase.acknowledgeMinimum(commandID:command.id,generation:state.generation,activeCount:state.tiles.filter(\.isActive).count);continue
+            case .remainderWait:
+                pendingWildSpawnActions=[wildAction(phase:command,kind:.wait,cell:nil,delay:command.delayMilliseconds)]
+            case .primary:
+                guard let recovery=directWildPrimaryRecovery else{return}
+                if recovery.complete {
+                    _=phase.acknowledgePrimaryReturnedFalse(commandID:command.id,generation:state.generation)
+                    directWildPrimaryRecovery=nil;continue
+                }
+                guard let recoveryCommand=recovery.command else{return}
+                if recoveryCommand.kind == .verifyActive {
+                    _=recovery.acknowledgeVerification(commandID:recoveryCommand.id,generation:state.generation,activeAtReservedCell:state.tile(at:plan.destination.cell)?.isActive == true)
+                    wildPhaseScheduledID=nil;continue
+                }
+                let hard=recoveryCommand.kind == .hardFallback
+                pendingWildSpawnActions=[wildAction(phase:command,kind:hard ? .hardPrimary:.primary,cell:plan.destination.cell,delay:recoveryCommand.attempt==1 && recoveryCommand.kind == .awaitedPrimary ? command.delayMilliseconds:0)]
+            case .juiceExtra,.juiceSafetyPrimary,.remainderPrimary:
+                let excluded=command.kind == .remainderPrimary ? wildRemainderExcluded:Set([plan.destination.cell])
+                let cells=NativeMagnetRules.emptyCells(state:state,excluding:excluded)
+                if let cell=cells.isEmpty ? nil:cells[min(cells.count-1,Int(nextRandom()*Double(cells.count)))] {
+                    if command.kind == .remainderPrimary {wildRemainderExcluded.insert(cell)}
+                    pendingWildSpawnActions=[wildAction(phase:command,kind:.primary,cell:cell,delay:0)]
+                } else {
+                    if command.kind == .remainderPrimary {_=phase.acknowledgeRemainderAssignment(commandID:command.id,generation:state.generation,arrivalID:nil,hasCell:false)}
+                    else {_=phase.acknowledgeExtraPrimary(commandID:command.id,generation:state.generation,arrivalID:nil)}
+                    continue
+                }
+            case .baseLocked,.extraLocked,.remainderFallback,.forcedLocked,.emergencyLocked,.emergencyFallback:
+                if command.count<=0 {_=phase.acknowledgeLockedBatch(commandID:command.id,generation:state.generation,openedCount:0);continue}
+                var pool=state.tiles.filter{$0.locked && (command.kind == .emergencyFallback || $0.cell != plan.destination.cell)}
+                if command.kind != .forcedLocked && command.kind != .emergencyFallback && pool.count>1 {
+                    for i in stride(from:pool.count-1,through:1,by:-1) {pool.swapAt(i,min(i,Int(nextRandom()*Double(i+1))))}
+                }
+                let picks=Array(pool.prefix(command.count))
+                if picks.isEmpty {
+                    if command.kind == .emergencyFallback {_=phase.acknowledgeEmergencyFallback(commandID:command.id,generation:state.generation)}
+                    else {_=phase.acknowledgeLockedBatch(commandID:command.id,generation:state.generation,openedCount:0)}
+                    continue
+                }
+                pendingWildSpawnActions=picks.enumerated().map {wildAction(phase:command,kind:.locked,cell:$0.element.cell,tileID:$0.element.id,delay:(command.kind == .forcedLocked || command.kind == .emergencyFallback ? 0:50)+100*$0.offset)}
+            }
+            events.append(NativeGameplayEvent(.wildSpawnActionsPrepared,tileIDs:pendingWildSpawnActions.map(\.id),reason:plan.id))
+            return
+        }
+    }
+    public func commitWildSpawnAction(transactionID:String,generation:UInt64,actionID:String)->NativeMoveResult {
+        guard generation==state.generation,let plan=pendingDirectWild,plan.id==transactionID,let phase=directWildSpawnPhase,phase.generation==generation,
+              let command=phase.command,let action=pendingWildSpawnActions.first,action.id==actionID,action.phaseID==command.id else{return rejected("stale_wild_spawn_action")}
+        pendingWildSpawnActions.removeFirst();if pendingWildSpawnActions.isEmpty {wildPhaseScheduledID=nil};var events:[NativeGameplayEvent]=[]
+        let current=state.terminal==nil && state.revision==directWildSpawnRevision
+        if flags.busyEnding,command.kind == .primary,
+           phase.acknowledgeTerminalOwnerBoundary(commandID:command.id,generation:generation) {
+            pumpWildSpawnPhases(events:&events)
+            return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
+        }
+        switch action.kind {
+        case .wait:_=phase.acknowledgeRemainderWait(commandID:command.id,generation:generation)
+        case .locked:
+            if current,(wildSpawnPermitAdmission?(.locked) ?? true),let index=state.tiles.firstIndex(where:{$0.id==action.tileID && $0.locked}) {
+                let value=randomValue(excluding:directWildSpawnAvoiding)
+                state.tiles[index].locked=false;state.tiles[index].value=value;state.tiles[index].stackDepth=1;state.tiles[index].archetype=nil;state.tiles[index].variant=nil
+                state.tiles[index].resolutionOwned=false;state.tiles[index].magnetOwned=false;state.tiles[index].alpha=1;state.tiles[index].visible=true;state.tiles[index].transientSpawn=false
+                wildPhaseOpened+=1;events.append(NativeGameplayEvent(.spawned,tileIDs:[state.tiles[index].id],value:value,reason:action.id))
+            }
+            if pendingWildSpawnActions.isEmpty {
+                if command.kind == .emergencyFallback {_=phase.acknowledgeEmergencyFallback(commandID:command.id,generation:generation)}
+                else {_=phase.acknowledgeLockedBatch(commandID:command.id,generation:generation,openedCount:wildPhaseOpened)}
+            }
+        case .primary:
+            // Source evaluates explicit Wild value arguments before its epoch permit check.
+            let value=randomValue(excluding:directWildSpawnAvoiding)
+            if current,(wildSpawnPermitAdmission?(.primary) ?? true),let cell=action.cell,state.tile(at:cell).map({$0.locked && $0.value<=0 && !$0.isWild}) ?? true {
+                state.tiles.removeAll{$0.cell==cell};let tile=freshTile(cell:cell,value:value);state.tiles.append(tile)
+                let arrival=NativeWildSpawnArrival(id:action.id,transactionID:transactionID,generation:generation,tileID:tile.id,cell:cell)
+                pendingWildSpawnArrivals.append(arrival)
+                switch command.kind {
+                case .primary:_=phase.acknowledgePrimaryAssignment(commandID:command.id,generation:generation,arrivalID:arrival.id);_=phase.acknowledgeConsumedIdentitiesRetired(generation:generation)
+                case .remainderPrimary:_=phase.acknowledgeRemainderAssignment(commandID:command.id,generation:generation,arrivalID:arrival.id,hasCell:true)
+                default:_=phase.acknowledgeExtraPrimary(commandID:command.id,generation:generation,arrivalID:arrival.id)
+                }
+                events.append(NativeGameplayEvent(.spawned,tileIDs:[tile.id],value:value,reason:action.id))
+            } else {
+                // Recovery of an uncommitted primary must not pretend its receipt settled.
+                if command.kind == .primary,let recovery=directWildPrimaryRecovery,let recoveryCommand=recovery.command {_=recovery.acknowledgeAwaited(commandID:recoveryCommand.id,generation:generation,spawned:false)}
+                else if command.kind == .remainderPrimary {_=phase.acknowledgeRemainderAssignment(commandID:command.id,generation:generation,arrivalID:nil,hasCell:true)}
+                else {_=phase.acknowledgeExtraPrimary(commandID:command.id,generation:generation,arrivalID:nil)}
+            }
+        case .hardPrimary:
+            guard let recovery=directWildPrimaryRecovery,let recoveryCommand=recovery.command else{return rejected("wild_primary_recovery_missing")}
+            let allowed=current && (wildSpawnPermitAdmission?(.hardFallback) ?? true)
+            var spawned=false
+            if allowed,let cell=action.cell,state.tile(at:cell).map({$0.locked && $0.value<=0 && !$0.isWild}) ?? true {
+                state.tiles.removeAll{$0.cell==cell};let value=randomValue(excluding:directWildSpawnAvoiding),tile=freshTile(cell:cell,value:value);state.tiles.append(tile);spawned=true
+                _=phase.acknowledgeConsumedIdentitiesRetired(generation:generation)
+                _=phase.acknowledgeHardPrimary(commandID:command.id,generation:generation)
+                if phase.ordinaryInputReleased {locks[plan.id]=true}
+                events.append(NativeGameplayEvent(.spawned,tileIDs:[tile.id],value:value,reason:action.id))
+            }
+            _=recovery.acknowledgeHardFallback(commandID:recoveryCommand.id,generation:generation,spawned:spawned)
+            if spawned {directWildPrimaryRecovery=nil}
+        }
+        // The original successful spawnBounce draws its direction after authoritative face
+        // assignment, before subsequent bonus/continuation selection. Renderer must reuse it.
+        for event in events where command.kind != .emergencyFallback && event.kind == .spawned && (event.value ?? 0)>0 {
+            for tileID in event.tileIDs {pendingWildSpawnPresentations.append(.init(tileID:tileID,transactionID:plan.id,generation:generation,direction:nextRandom()<0.5 ? 1:-1,sourceLevelFlowReinforcement:[.baseLocked,.extraLocked,.remainderFallback,.emergencyLocked].contains(command.kind)))}
+        }
+        pumpWildSpawnPhases(events:&events)
+        return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
+    }
+    public func finishWildSpawnArrival(transactionID:String,generation:UInt64,arrivalID:String,interrupted:Bool=false)->NativeMoveResult {
+        if interrupted, generation==state.generation,let plan=pendingDirectWild,plan.id==transactionID,let phase=directWildSpawnPhase,
+           pendingWildSpawnArrivals.contains(where:{$0.id==arrivalID && $0.generation==generation}) {
+            phase.cancelForLifecycle();wildSourceResolutionBoundary=(plan.id,generation)
+            pendingWildSpawnActions=[];pendingWildSpawnArrivals=[];wildPhaseScheduledID=nil
+            // Original primary promise rejection cancels its reservation: no committed primary accounting.
+            // Retain all-input ownership until exact-ID lifecycle abort recovery; never manufacture arrival.
+            if phase.primaryArrived {
+                directWildSpawnPhase=nil
+                if directWildVisualReleased {locks.removeValue(forKey:plan.id);pendingDirectWild=nil;directWildGameplayCommitted=false}
+            }
+            return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
+        }
+        guard generation==state.generation,let plan=pendingDirectWild,plan.id==transactionID,let phase=directWildSpawnPhase,
+              let index=pendingWildSpawnArrivals.firstIndex(where:{$0.id==arrivalID && $0.generation==generation}) else{return rejected("stale_wild_spawn_arrival")}
+        let arrival=pendingWildSpawnArrivals[index]
+        if !phase.primaryArrived,let recovery=directWildPrimaryRecovery,let c=recovery.command {
+            let active=state.tiles.contains{$0.id==arrival.tileID && $0.cell==arrival.cell && $0.isActive}
+            _=recovery.acknowledgeAwaited(commandID:c.id,generation:generation,spawned:active)
+            if !active {
+                guard phase.revokePrimaryAssignment(arrivalID:arrivalID,generation:generation) else{return rejected("wild_primary_retry_not_owned")}
+                pendingWildSpawnArrivals.remove(at:index);wildPhaseScheduledID=nil
+                var events:[NativeGameplayEvent]=[];pumpWildSpawnPhases(events:&events)
+                return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
+            }
+            if let verify=recovery.command {_=recovery.acknowledgeVerification(commandID:verify.id,generation:generation,activeAtReservedCell:true)}
+            directWildPrimaryRecovery=nil
+        }
+        guard phase.acknowledgeArrival(arrivalID,generation:generation) else{return rejected("stale_wild_spawn_arrival")}
+        pendingWildSpawnArrivals.remove(at:index)
+        if phase.ordinaryInputReleased {locks[plan.id]=true}
+        var events:[NativeGameplayEvent]=[];pumpWildSpawnPhases(events:&events)
+        return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
+    }
+    /// Matches explicit source abort-recovery; only captured consumed identities may be retired.
+    private func abortUncommittedDirectWildForLifecycle(plan:NativeDirectWildMovePlan) {
+        guard plan.generation==state.generation,pendingDirectWild?.id==plan.id,
+              let phase=directWildSpawnPhase,(phase.cancelled || phase.complete),!phase.primaryArrived else{return}
+        let consumed:Set<String>=[plan.source.id,plan.destination.id]
+        state.tiles.removeAll{consumed.contains($0.id)}
+        directWildSpawnPhase=nil;pendingWildSpawnActions=[];pendingWildSpawnArrivals=[];wildPhaseScheduledID=nil
+        locks.removeValue(forKey:plan.id);pendingDirectWild=nil;directWildGameplayCommitted=false
+    }
+    private func settleWildSpawnContinuation() {
+        guard directWildSpawnPhase?.complete == true,directWildSpawnPhase?.primaryArrived == true,let plan=pendingDirectWild else{return}
+        directWildSpawnPhase=nil;wildPhaseScheduledID=nil;pendingWildSpawnActions=[]
+        if directWildVisualReleased {locks.removeValue(forKey:plan.id);pendingDirectWild=nil;directWildGameplayCommitted=false}
     }
 }
