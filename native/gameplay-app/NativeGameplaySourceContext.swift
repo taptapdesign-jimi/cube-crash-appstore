@@ -6,14 +6,17 @@ import UIKit
     let service: NativeSourceAnimationClockService
     let smokeSession: NativeSharedSmokeRootSession
     let sixResources: NativeRegularSixSharedResources
+    let registrySession: NativeGameplaySourceRegistrySession
     private var active: Scope?
     private var epoch: UInt64 = 0
     private var disposed = false
 
     init(service: NativeSourceAnimationClockService = .shared,
          appOriginMilliseconds: Double = CACurrentMediaTime()*1000,
-         visualRandom: @escaping () -> Double = {Double.random(in: 0..<1)}) {
+         visualRandom: @escaping () -> Double = {Double.random(in: 0..<1)},
+         sourceDateMilliseconds: @escaping () -> Double = {floor(Date().timeIntervalSince1970*1000)}) {
         self.service = service
+        registrySession = NativeGameplaySourceRegistrySession(sourceDateMilliseconds: sourceDateMilliseconds)
         smokeSession = NativeSharedSmokeRootSession(appOriginMilliseconds: appOriginMilliseconds, visualRandom: visualRandom)
         sixResources = NativeRegularSixSharedResources(smoke: smokeSession)
     }
@@ -28,6 +31,7 @@ import UIKit
         guard !disposed, epoch == captured, active == nil else {return nil}
         let scope = Scope(context: self, epoch: captured, retire: retire)
         active = scope
+        scope.registries.bindParentCurrent { [weak scope] in scope?.current == true }
         return scope
     }
 
@@ -36,8 +40,9 @@ import UIKit
     func dispose() {
         guard !disposed else {return}; disposed = true; epoch &+= 1
         let previous = active; active = nil; previous?.dispose()
+        registrySession.dispose()
     }
-    isolated deinit {active?.dispose()}
+    isolated deinit {active?.dispose();registrySession.dispose()}
 
     @MainActor final class Scope {
         fileprivate let epoch: UInt64
@@ -45,6 +50,7 @@ import UIKit
         let service: NativeSourceAnimationClockService
         let smokeSession: NativeSharedSmokeRootSession
         let sixResources: NativeRegularSixSharedResources
+        let registries: NativeGameplaySourceRegistrySession.Scope
         let timeline: NativeSourceOuterTimelineAdapter
         let tween: NativeSourceDragTweenAdapter
         let smoke: NativeSharedSmokeRootRenderer
@@ -53,6 +59,7 @@ import UIKit
         var current: Bool { !disposed && context?.isCurrent(self) == true }
         fileprivate init(context: NativeGameplaySourceContext, epoch: UInt64, retire: @escaping () -> Void) {
             self.context = context; self.epoch = epoch; self.retire = retire
+            registries = context.registrySession.beginScope(epoch: epoch)
             service = context.service; smokeSession = context.smokeSession; sixResources = context.sixResources
             timeline = NativeSourceOuterTimelineAdapter(service: service)
             tween = NativeSourceDragTweenAdapter(service: service)
@@ -66,6 +73,7 @@ import UIKit
         func dispose() {
             guard !disposed else {return}; disposed = true
             context?.release(self)
+            registries.dispose() // seal new claims before external caller retirement
             let callback = retire; retire = nil
             // Caller first removes captured Scene bindings, then their roots.
             callback?(); timeline.dispose(); tween.dispose(); smoke.dispose()
