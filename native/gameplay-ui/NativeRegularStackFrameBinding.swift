@@ -38,9 +38,9 @@ import Foundation
         self.host=Host(host);self.service=service;self.available=available;self.random=random;self.current=current
         self.host.binding=self
     }
-    @discardableResult func setValue(_ value:Int,addStack:Int)->Bool {
-        guard !disposed,host.sourceAlive else{return false}
-        guard let receipt=owner.setValue(value,addStack:addStack) else{return false}
+    @discardableResult func setValue(_ value:Int,addStack:Int,onPhysicalCommit:(()->Bool)?=nil,onFinished:(()->Void)?=nil,onCancelled:(()->Void)?=nil)->Bool {
+        guard !disposed,host.sourceAlive else{onCancelled?();return false}
+        guard let receipt=owner.setValue(value,addStack:addStack,onPhysicalCommit:onPhysicalCommit,onFinished:onFinished,onCancelled:onCancelled) else{return false}
         return !disposed && frames[receipt]?.active==true
     }
     private func schedule(_ receipt:NativeRegularStackFrameReceipt,_ callback:@escaping @MainActor ()->Void) {

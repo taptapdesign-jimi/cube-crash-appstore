@@ -1,4 +1,5 @@
 import UIKit
+import StackToSixGameplay
 
 /// App-lived original visual RNG, smoke hot history and shard pattern pools.
 /// Scene scopes borrow the existing union service; they never own its Raw roots.
@@ -7,6 +8,8 @@ import UIKit
     let smokeSession: NativeSharedSmokeRootSession
     let sixResources: NativeRegularSixSharedResources
     let registrySession: NativeGameplaySourceRegistrySession
+    let mutationLedger=NativeSourceAppMutationLedger()
+    let sourceMicrotaskTasks:NativeSourceMicrotaskAdapters?
     private var active: Scope?
     private var epoch: UInt64 = 0
     private var disposed = false
@@ -14,14 +17,15 @@ import UIKit
     init(service: NativeSourceAnimationClockService = .shared,
          appOriginMilliseconds: Double = CACurrentMediaTime()*1000,
          visualRandom: @escaping () -> Double = {Double.random(in: 0..<1)},
-         sourceDateMilliseconds: @escaping () -> Double = {floor(Date().timeIntervalSince1970*1000)}) {
-        self.service = service
+         sourceDateMilliseconds: @escaping () -> Double = {floor(Date().timeIntervalSince1970*1000)},
+         sourceMicrotaskTasks:NativeSourceMicrotaskAdapters?=nil) {
+        self.service = service;self.sourceMicrotaskTasks=sourceMicrotaskTasks
         registrySession = NativeGameplaySourceRegistrySession(sourceDateMilliseconds: sourceDateMilliseconds)
         smokeSession = NativeSharedSmokeRootSession(appOriginMilliseconds: appOriginMilliseconds, visualRandom: visualRandom)
         sixResources = NativeRegularSixSharedResources(smoke: smokeSession)
     }
 
-    func beginScene(retire: @escaping () -> Void) -> Scope? {
+    func beginScene(engine:NativeGameplayEngine?=nil,retire: @escaping () -> Void) -> Scope? {
         guard !disposed else {return nil}
         epoch &+= 1
         let captured = epoch, previous = active
@@ -29,7 +33,12 @@ import UIKit
         previous?.dispose()
         // A retirement callback may have installed a newer Scene.
         guard !disposed, epoch == captured, active == nil else {return nil}
-        let scope = Scope(context: self, epoch: captured, retire: retire)
+        let binding:NativeSourceAppMutationLedger.Binding?
+        if let engine {
+            guard let accepted=mutationLedger.bind(engine) else{return nil}
+            binding=accepted
+        } else {binding=nil}
+        let scope = Scope(context: self, epoch: captured, mutationBinding:binding, retire: retire)
         active = scope
         scope.registries.bindParentCurrent { [weak scope] in scope?.current == true }
         return scope
@@ -40,9 +49,9 @@ import UIKit
     func dispose() {
         guard !disposed else {return}; disposed = true; epoch &+= 1
         let previous = active; active = nil; previous?.dispose()
-        registrySession.dispose()
+        registrySession.dispose();mutationLedger.dispose()
     }
-    isolated deinit {active?.dispose();registrySession.dispose()}
+    isolated deinit {active?.dispose();registrySession.dispose();mutationLedger.dispose()}
 
     @MainActor final class Scope {
         fileprivate let epoch: UInt64
@@ -51,14 +60,17 @@ import UIKit
         let smokeSession: NativeSharedSmokeRootSession
         let sixResources: NativeRegularSixSharedResources
         let registries: NativeGameplaySourceRegistrySession.Scope
+        let sourceMicrotaskTasks:NativeSourceMicrotaskAdapters?
+        private var mutationBinding:NativeSourceAppMutationLedger.Binding?
         let timeline: NativeSourceOuterTimelineAdapter
         let tween: NativeSourceDragTweenAdapter
         let smoke: NativeSharedSmokeRootRenderer
         private var retire: (() -> Void)?
         private(set) var disposed = false
         var current: Bool { !disposed && context?.isCurrent(self) == true }
-        fileprivate init(context: NativeGameplaySourceContext, epoch: UInt64, retire: @escaping () -> Void) {
+        fileprivate init(context: NativeGameplaySourceContext, epoch: UInt64, mutationBinding:NativeSourceAppMutationLedger.Binding?,retire: @escaping () -> Void) {
             self.context = context; self.epoch = epoch; self.retire = retire
+            self.mutationBinding=mutationBinding;sourceMicrotaskTasks=context.sourceMicrotaskTasks
             registries = context.registrySession.beginScope(epoch: epoch)
             service = context.service; smokeSession = context.smokeSession; sixResources = context.sixResources
             timeline = NativeSourceOuterTimelineAdapter(service: service)
@@ -72,6 +84,8 @@ import UIKit
         }
         func dispose() {
             guard !disposed else {return}; disposed = true
+            let mutation=mutationBinding;mutationBinding=nil
+            mutation?.captureBeforeRetirement() // before ANY external cleanup
             context?.release(self)
             registries.dispose() // seal new claims before external caller retirement
             let callback = retire; retire = nil

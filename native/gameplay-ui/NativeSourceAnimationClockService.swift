@@ -38,10 +38,15 @@ final class NativeSourceAnimationClockService {
         var cleanup:((Bool)->Void)?
         init(id:UInt64,duration:Double,participant:any NativeSourceAnimationParticipant,cleanup:@escaping(Bool)->Void){self.id=id;self.duration=duration;self.participant=participant;self.cleanup=cleanup}
     }
+    /// PRIVATE default-off task checkpoint; app installs its shared adapter.
+    /// Each literal RAF callback drains before the next callback, not each root.
+    var sourceMicrotaskTasks:NativeSourceMicrotaskAdapters?
+    var sourceMicrotaskRAFBoundaryInstalled:Bool{sourceFrameTransportAdmissionOpen && sourceMicrotaskTasks != nil}
     private let source:NativeSourceAnimationRuntime
     private let target=NativeSourceAnimationClockTarget()
     private var link:CADisplayLink?,raw:[UInt64:RawEntry]=[:],sequence:UInt64=0,disposed=false,sourceForeground=true
     private let sourceFrameTransportEnabled:Bool
+    var sourceFrameTransportAdmissionOpen:Bool {!disposed && sourceFrameTransportEnabled}
     private var sourceFrameEntries:[UInt64:SourceFrameEntry]=[:],sourceFrameSequence:UInt64=0,sourceTickerFrameID:UInt64?
     private var sourceFrameDeliveryInProgress=false,sourceTickerWakeInProgress=false
     var pendingSourceAnimationFrameCount:Int{sourceFrameEntries.values.filter{$0.kind == .oneShot}.count}
@@ -174,6 +179,12 @@ final class NativeSourceAnimationClockService {
         for entry in captured {
             guard !disposed,sourceForeground,sourceFrameEntries[entry.id] === entry else{continue}
             sourceFrameEntries.removeValue(forKey:entry.id)
+            if let tasks=sourceMicrotaskTasks {
+                tasks.frameCallback{[self] in deliverSourceAnimationFrame(entry,wallMilliseconds:wallMilliseconds)}()
+            } else {deliverSourceAnimationFrame(entry,wallMilliseconds:wallMilliseconds)}
+        }
+    }
+    private func deliverSourceAnimationFrame(_ entry:SourceFrameEntry,wallMilliseconds:Double){
             switch entry.kind {
             case .ticker:
                 if sourceTickerFrameID==entry.id {sourceTickerFrameID=nil}
@@ -185,7 +196,6 @@ final class NativeSourceAnimationClockService {
                 let callback=entry.callback;entry.callback=nil;entry.cancelled=nil
                 callback?()
             }
-        }
     }
     /// Only literal source gsap.ticker.add callsites use this captured lifetime.
     /// This is not a nativeRaw presentation or a generic visibility activity.

@@ -1,0 +1,177 @@
+{
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+  "results": [
+    {
+      "boundary": "input",
+      "outcome": "spawned",
+      "trace": [
+        "input:begin",
+        "shimmer",
+        "input:end",
+        "probe:1",
+        "probe:2",
+        "save:400",
+        "probe:3",
+        "probe:4",
+        "probe:5",
+        "probe:6",
+        "next-task"
+      ]
+    },
+    {
+      "boundary": "input",
+      "outcome": "false",
+      "trace": [
+        "input:begin",
+        "shimmer",
+        "input:end",
+        "after:600",
+        "probe:1",
+        "probe:2",
+        "save:400",
+        "probe:3",
+        "probe:4",
+        "probe:5",
+        "probe:6",
+        "next-task"
+      ]
+    },
+    {
+      "boundary": "input",
+      "outcome": "rejected",
+      "trace": [
+        "input:begin",
+        "shimmer",
+        "input:end",
+        "probe:1",
+        "catch-error",
+        "probe:2",
+        "save:400",
+        "probe:3",
+        "probe:4",
+        "probe:5",
+        "probe:6",
+        "next-task"
+      ]
+    },
+    {
+      "boundary": "timeout",
+      "outcome": "spawned",
+      "trace": [
+        "timeout:begin",
+        "shimmer",
+        "timeout:end",
+        "probe:1",
+        "probe:2",
+        "save:400",
+        "probe:3",
+        "probe:4",
+        "probe:5",
+        "probe:6",
+        "next-task"
+      ]
+    },
+    {
+      "boundary": "timeout",
+      "outcome": "false",
+      "trace": [
+        "timeout:begin",
+        "shimmer",
+        "timeout:end",
+        "after:600",
+        "probe:1",
+        "probe:2",
+        "save:400",
+        "probe:3",
+        "probe:4",
+        "probe:5",
+        "probe:6",
+        "next-task"
+      ]
+    },
+    {
+      "boundary": "timeout",
+      "outcome": "rejected",
+      "trace": [
+        "timeout:begin",
+        "shimmer",
+        "timeout:end",
+        "probe:1",
+        "catch-error",
+        "probe:2",
+        "save:400",
+        "probe:3",
+        "probe:4",
+        "probe:5",
+        "probe:6",
+        "next-task"
+      ]
+    },
+    {
+      "boundary": "raf",
+      "outcome": "spawned",
+      "trace": [
+        "raf:begin",
+        "shimmer",
+        "raf:end",
+        "probe:1",
+        "probe:2",
+        "save:400",
+        "probe:3",
+        "probe:4",
+        "probe:5",
+        "probe:6",
+        "second-raf:progress=false",
+        "next-frame"
+      ]
+    },
+    {
+      "boundary": "raf",
+      "outcome": "false",
+      "trace": [
+        "raf:begin",
+        "shimmer",
+        "raf:end",
+        "after:600",
+        "probe:1",
+        "probe:2",
+        "save:400",
+        "probe:3",
+        "probe:4",
+        "probe:5",
+        "probe:6",
+        "second-raf:progress=false",
+        "next-frame"
+      ]
+    },
+    {
+      "boundary": "raf",
+      "outcome": "rejected",
+      "trace": [
+        "raf:begin",
+        "shimmer",
+        "raf:end",
+        "probe:1",
+        "catch-error",
+        "probe:2",
+        "save:400",
+        "probe:3",
+        "probe:4",
+        "probe:5",
+        "probe:6",
+        "second-raf:progress=false",
+        "next-frame"
+      ]
+    }
+  ],
+  "gsapRootTraversal": {
+    "version": "3.13.0",
+    "trace": [
+      "root-A",
+      "root-B",
+      "reaction-A",
+      "reaction-B",
+      "next-RAF"
+    ]
+  }
+}

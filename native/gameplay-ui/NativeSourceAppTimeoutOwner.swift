@@ -15,6 +15,8 @@ final class NativeSourceAppTimeoutOwner {
         let elapsed:()->Void
         let cancelled:(()->Void)?
     }
+    /// PRIVATE nil preserves existing Raw dispatch. Install only app-owned FIFO.
+    var sourceMicrotaskTasks:NativeSourceMicrotaskAdapters?
     private var records:[Receipt:Pending]=[:]
     private var order:[Receipt]=[]
     var pendingCount:Int {records.count}
@@ -38,7 +40,8 @@ final class NativeSourceAppTimeoutOwner {
         // calling user code, so reentrant global cleanup cannot settle it twice.
         guard let pending=records.removeValue(forKey:receipt) else{return}
         order.removeAll{$0==receipt}
-        pending.elapsed()
+        if let tasks=sourceMicrotaskTasks {tasks.timeoutCallback(pending.elapsed)()}
+        else {pending.elapsed()}
     }
     @discardableResult
     func cancel(_ receipt:Receipt)->Bool {

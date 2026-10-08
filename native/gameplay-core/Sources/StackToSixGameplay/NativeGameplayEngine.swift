@@ -105,6 +105,8 @@ public final class NativeGameplayEngine {
     private var sourceNoMovesGeneration:UInt64?
     private var sourceNoMovesConfirmed:NativeNoMovesCandidateOwner.Plan?
     private var sourceNoMovesConfirmedResolution:NativeResolution?
+    private var sourceNoMovesFinalCleanupReceipt:NativeSourceNoMovesFinalFlowReceipt?
+    public private(set) var sourceNoMovesFinalFlowReceipt:NativeSourceNoMovesFinalFlowReceipt?
     public private(set) var completedSourceNoMovesReceipt:NativeSourceNoMovesCompletedReceipt?
     public var pendingSourceNoMoves:NativeNoMovesCandidateOwner.Plan? {sourceNoMovesOwner.active ?? sourceNoMovesConfirmed}
     public var sourceGameplaySignature:NativeSourceGameplaySignature {NativeSourceGameplaySignature(tiles:state.tiles.filter{!(noMovesTileRuntime[$0.id]?.destroyed ?? false)})}
@@ -213,7 +215,7 @@ public final class NativeGameplayEngine {
         sourceOrdinaryStackFaces.removeAll();sourceOrdinaryStackFaceCancellationBlocks.removeAll()
         meterDropReservations.removeAll();meterDropSequence=0
         pendingMeterOpen=nil;pendingMeterOpenRetry=nil;meterOpenFlow=nil;meterOpenSequence=0;sourceMeterSpawnCancelToken &+= 1;sourceMeterLastMergeTileIDs=[]
-        sourceNoMovesReadyPostchecks=[];sourceNoMovesStackContexts=[:];sourceNoMovesOwner=NativeNoMovesCandidateOwner();sourceNoMovesConfirmed=nil;sourceNoMovesConfirmedResolution=nil;completedSourceNoMovesReceipt=nil;sourceNoMovesGeneration=nil;noMovesTileRuntime=[:];sourceWildRetryPending=false;sourceNonFinalMerge6Guard=false
+        sourceNoMovesReadyPostchecks=[];sourceNoMovesStackContexts=[:];sourceNoMovesOwner=NativeNoMovesCandidateOwner();sourceNoMovesConfirmed=nil;sourceNoMovesConfirmedResolution=nil;completedSourceNoMovesReceipt=nil;sourceNoMovesFinalCleanupReceipt=nil;sourceNoMovesFinalFlowReceipt=nil;sourceNoMovesGeneration=nil;noMovesTileRuntime=[:];sourceWildRetryPending=false;sourceNonFinalMerge6Guard=false
         pendingWildRecoveryChecks=[];pendingWildSpawnPresentations=[];wildSourceResolutionBoundary=nil;sourceSaveRuntime=NativeSourceSaveRuntime()
         let generation = state.generation &+ 1
         state = fresh; state.generation = generation; state.revision = 0; state.terminal = nil; tileSequence = 0
@@ -1615,13 +1617,41 @@ extension NativeGameplayEngine {
         if case .confirmedFinal = effect {
             sourceNoMovesConfirmed=plan
             sourceNoMovesConfirmedResolution=NativeSourceEndgameChecker.check(state:state,runtime:sourceNoMovesEffectiveTileRuntime)
+            if let result=sourceNoMovesConfirmedResolution {sourceNoMovesFinalFlowReceipt = .init(generation:generation,planToken:plan.token,resolution:result)}
         }
         return effect
+    }
+    /// Literal fx.forceCleanupAllStarAnimations at confirmedFailFlow handoff.
+    /// Discard only captured outstanding receipts; this is NOT a HUD arrival.
+    /// The confirmed plan is the genuine lock receipt, not an elapsed UI claim.
+    @discardableResult public func cancelSourceConfirmedFailHUDStars(plan:NativeNoMovesCandidateOwner.Plan,generation:UInt64,receiptIDs:[String])->Bool {
+        guard stagedSourceNoMoves,generation==state.generation,sourceNoMovesGeneration==generation,
+            sourceNoMovesConfirmed==plan,sourceNoMovesFinalCleanupReceipt==nil,flags.busyEnding,state.terminal==nil else{return false}
+        let captured=Set(receiptIDs)
+        guard pendingHUDStars.filter({captured.contains($0.id)}).allSatisfy({$0.generation==generation}) else{return false}
+        pendingHUDStars.removeAll{captured.contains($0.id) && $0.generation==generation}
+        return true
+    }
+    /// Literal showFinalScreen finally AFTER actual modal result/navigation abort.
+    /// Board exit/modal mount never calls this. No score/RNG/resolver mutation.
+    @discardableResult public func finishSourceNoMovesFinalCleanup(receipt:NativeSourceNoMovesCompletedReceipt)->Bool {
+        guard completedSourceNoMovesReceipt==receipt,state.terminal==receipt.resolution,
+            let flow=sourceNoMovesFinalFlowReceipt,flow.generation==receipt.generation,flow.planToken==receipt.planToken else{return false}
+        return finishSourceConfirmedFinalFlow(receipt:flow)
+    }
+    /// Actual confirmed-final coroutine abort/action finally, including BEFORE
+    /// board exit. The receipt is created only by the genuine confirmed lock.
+    @discardableResult public func finishSourceConfirmedFinalFlow(receipt:NativeSourceNoMovesFinalFlowReceipt)->Bool {
+        guard stagedSourceNoMoves,receipt.generation==state.generation,
+            sourceNoMovesFinalFlowReceipt==receipt,sourceNoMovesFinalCleanupReceipt==nil else{return false}
+        sourceNoMovesFinalCleanupReceipt=receipt
+        flags.busyEnding=false;setInputLock("terminal-no-moves",active:false)
+        return true
     }
     /// Source confirmedFailFlow awaits the real board exit and checks generation.
     /// This receipt does not rerun RNG, mutate moves, or freshly select a failure.
     public func finishSourceNoMovesBoardExit(plan:NativeNoMovesCandidateOwner.Plan,generation:UInt64)->NativeMoveResult {
-        guard stagedSourceNoMoves,generation==state.generation,sourceNoMovesGeneration==generation,sourceNoMovesConfirmed==plan,let result=sourceNoMovesConfirmedResolution,state.terminal==nil else{return rejected("stale_source_no_moves_board_exit")}
+        guard stagedSourceNoMoves,generation==state.generation,sourceNoMovesGeneration==generation,sourceNoMovesConfirmed==plan,sourceNoMovesFinalCleanupReceipt==nil,let result=sourceNoMovesConfirmedResolution,state.terminal==nil else{return rejected("stale_source_no_moves_board_exit")}
         state.terminal=result
         completedSourceNoMovesReceipt = .init(generation:generation,planToken:plan.token,resolution:result)
         sourceNoMovesConfirmed=nil;sourceNoMovesConfirmedResolution=nil;sourceNoMovesGeneration=nil
