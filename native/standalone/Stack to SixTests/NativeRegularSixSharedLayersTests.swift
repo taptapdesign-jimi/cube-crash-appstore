@@ -16,8 +16,9 @@ final class NativeRegularSixSharedLayersTests:XCTestCase {
         let runtime=NativeSourceAnimationRuntime(wallOriginMilliseconds:0),wall=Wall(),canvas=SKNode(),tile=SKNode()
         var current=true,draws=0,seed:UInt32=123,now=1000.0
         var onAcquire:((NativeSharedFxReceipt)->Void)?
+        var onRandom:(()->Void)?
         var receipts:[NativeSharedFxReceipt]=[],released:[String:Int]=[:]
-        lazy var session=NativeSharedSmokeRootSession(appOriginMilliseconds:0,visualRandom:{[unowned self] in seed=seed &* 1664525 &+ 1013904223;draws += 1;return Double(seed)/4294967296})
+        lazy var session=NativeSharedSmokeRootSession(appOriginMilliseconds:0,visualRandom:{[unowned self] in seed=seed &* 1664525 &+ 1013904223;draws += 1;onRandom?();return Double(seed)/4294967296})
         lazy var resources=NativeRegularSixSharedResources(smoke:session)
         lazy var scheduler=NativeSharedSmokeValueRootScheduler(runtime:runtime)
         lazy var renderer=NativeSharedSmokeRootRenderer(session:session,scheduler:scheduler,sourceClockNow:{[unowned self] in runtime.animationSeconds*1000})
@@ -153,6 +154,52 @@ final class NativeRegularSixSharedLayersTests:XCTestCase {
         XCTAssertTrue(f.receipts.allSatisfy{f.released[$0.invocationID]==1})
         f.context.dispose();f.wall.fire()
         XCTAssertTrue(f.receipts.allSatisfy{f.released[$0.invocationID]==1})
+    }
+
+    func testSourceCarrierMountUsesSharedUnionAndOnlyOneShakeRNGPrefix()throws{
+        let f=Fixture();defer{f.dispose()}
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0})
+        var shakes=0,completed=0,legacyDraws=0
+        let surfaces=NativeSixSourceSurfaceOwner(service:service,current:{true},paintShake:{_ in shakes+=1})
+        defer{surfaces.dispose();service.dispose()}
+        let carrier=try NativeRegularSixSpritePresentation(origin:CGPoint(x:80,y:90),tileSize:96,destinationDepth:43,combinedDepth:5,generation:1,reduced:false,hotFactor:1,patternIndex:0,isCurrent:{_ in true},random:{legacyDraws+=1;return 0.5},sourceSlot:.init(context:f.context,canvas:f.canvas,tile:f.tile),sourceSurfaces:surfaces)
+        let prefix=f.draws
+        carrier.onFinished={success in XCTAssertTrue(success);completed+=1}
+        carrier.mount(in:f.canvas)
+        XCTAssertEqual(f.draws-prefix,36);XCTAssertEqual(legacyDraws,0)
+        XCTAssertFalse(carrier.hasActiveClock);XCTAssertFalse(carrier.hasActions())
+        XCTAssertEqual(service.activeParticipantCount,3)
+        service.setSourceGlobalPaused(true);service.deliver(wallMilliseconds:500)
+        XCTAssertEqual(completed,0);XCTAssertTrue(carrier.parent === f.canvas)
+        service.setSourceGlobalPaused(false);service.deliver(wallMilliseconds:600)
+        XCTAssertGreaterThan(shakes,0)
+        for wall in stride(from:620,through:1600,by:20){service.deliver(wallMilliseconds:Double(wall))}
+        XCTAssertEqual(completed,1);XCTAssertNil(carrier.parent)
+        XCTAssertEqual(f.context.activeOwnerCount,1,"Source shared smoke retains its independent root")
+        carrier.dispose();XCTAssertEqual(completed,1)
+    }
+    func testSourceSurfaceAdmissionRequiresSourceSlotBeforeAnyLegacyRandom()throws{
+        var draws=0
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0})
+        let surfaces=NativeSixSourceSurfaceOwner(service:service,current:{true},paintShake:{_ in})
+        defer{surfaces.dispose();service.dispose()}
+        XCTAssertThrowsError(try NativeRegularSixSpritePresentation(origin:.zero,tileSize:96,destinationDepth:0,combinedDepth:2,generation:1,reduced:false,hotFactor:1,patternIndex:0,isCurrent:{_ in true},random:{draws+=1;return 0.5},sourceSurfaces:surfaces))
+        XCTAssertEqual(draws,0);XCTAssertEqual(service.activeParticipantCount,0)
+    }
+
+    func testSourceCarrierDisposalDuringThirdShakeDrawStopsCapturedRootsAndReportsFailure()throws{
+        let f=Fixture();defer{f.dispose()}
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0})
+        let surfaces=NativeSixSourceSurfaceOwner(service:service,current:{true},paintShake:{_ in})
+        defer{surfaces.dispose();service.dispose()}
+        let carrier=try NativeRegularSixSpritePresentation(origin:.zero,tileSize:96,destinationDepth:0,combinedDepth:2,generation:1,reduced:false,hotFactor:1,patternIndex:0,isCurrent:{_ in true},random:{0.5},sourceSlot:.init(context:f.context,canvas:f.canvas,tile:f.tile),sourceSurfaces:surfaces)
+        var shakes=0,results:[Bool]=[]
+        f.onRandom={shakes+=1;if shakes==3{carrier.dispose()}}
+        carrier.onFinished={results.append($0)};carrier.mount(in:f.canvas)
+        XCTAssertEqual(shakes,3);XCTAssertEqual(results,[false]);XCTAssertNil(carrier.parent)
+        XCTAssertEqual(service.activeParticipantCount,0);XCTAssertEqual(f.context.activeOwnerCount,0)
+        XCTAssertEqual(f.resources.activeShards,0);XCTAssertEqual(f.session.pool.activeCount,0)
+        f.onRandom=nil
     }
 
 }
