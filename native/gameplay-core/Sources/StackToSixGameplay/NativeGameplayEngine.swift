@@ -167,12 +167,14 @@ public final class NativeGameplayEngine {
     private var ordinaryForcedPass = false
     public private(set) var pendingOrdinaryStack: NativeOrdinaryMovePlan?
     public private(set) var pendingOrdinarySix: NativeOrdinaryMovePlan?
+    public var sourceMergeSixAutoCenterHook:NativeSourceMergeSixAutoCenterHook?
     public private(set) var ordinarySixGameplayCommitted = false
     public private(set) var pendingOrdinarySpawns:Set<String> = []
     public private(set) var pendingOrdinaryPostchecks: [NativeOrdinaryPostcheckReceipt] = []
     private var committingOrdinaryStack = false
     public private(set) var pendingDirectWild: NativeDirectWildMovePlan?
     public private(set) var directWildGameplayCommitted = false
+    public private(set) var sourceDirectWildPrefix: NativeSourceDirectWildPrefixReceipt?
     private var committingDirectWild = false
     private var directWildPointerID = 0
     public private(set) var specialActivationCommitted = false
@@ -229,7 +231,7 @@ public final class NativeGameplayEngine {
         sourceMeterMutationLedger?.resetTransientGuards(generation:generation)
         pendingSpecial = nil; pendingLaserShots = []; pendingMagnetRespawn = nil; magnetReplacementIndex = 0; specialPreBoard = nil; specialImpactIndex = 0
         directWildPrimaryRecovery?.cancelForLifecycle();directWildPrimaryRecovery=nil;directWildSpawnPhase?.cancelForLifecycle();directWildSpawnPhase=nil;pendingWildSpawnActions=[];pendingWildSpawnArrivals=[];pendingWildLockedBonusPresentations=[];wildPhaseScheduledID=nil;directWildVisualReleased=false
-        pendingDirectWild = nil; directWildGameplayCommitted = false; committingDirectWild = false
+        pendingDirectWild = nil; sourceDirectWildPrefix = nil; directWildGameplayCommitted = false; committingDirectWild = false
         pendingSourceSpecialAbsorb=nil;sourceSpecialAbsorbMainEntered=false
         pendingOrdinaryStack = nil; pendingOrdinarySix = nil; ordinarySixGameplayCommitted = false; pendingOrdinaryPostchecks.removeAll(); pendingOrdinarySpawns.removeAll(); ordinarySpawnPreparationPending=false;pendingOrdinaryAssignments.removeAll();pendingOrdinaryPrimaryArrival=nil;pendingOrdinaryDestinationCleanup=nil;ordinaryRefillRemaining=0;ordinaryRequestedOpenings=0;ordinarySuccessfulOpenings=0;ordinaryForcedCandidates=[];ordinaryForcedPass=false; committingOrdinaryStack = false
         drag = nil; sourceHUDStarJobs.removeAll(); sourceHUDStarJobSequence=0; pendingHUDStars.removeAll(); pendingMeterRewards.removeAll(); tntReservationReleased = false; specialActivationCommitted = false; tntTargetsReserved = false; deferredFinalMerge = nil; locks.removeAll(); flags = NativeGameplayRuntimeFlags(); noMovesSignature = nil; comboLastMutationTime = nil
@@ -337,7 +339,19 @@ public final class NativeGameplayEngine {
         if pendingOrdinaryStack != nil && !committingOrdinaryStack { drag = nil; return rejected("regular_stack_absorb_handoff") }
         drag = nil
         guard owned.generation == state.generation, owned.revision == state.revision, state.terminal == nil else { return rejected("stale_drag_owner") }
-        guard let target, let source = state.tiles.first(where: { $0.id == owned.id }), let destination = state.tile(at: target), NativeGameplayResolver.canDrop(source, onto: destination),
+        guard let target, let liveSource = state.tiles.first(where: { $0.id == owned.id }), let liveDestination = state.tile(at: target) else { return rejected("illegal_drop") }
+        // Source saved the pair's family/value/depth before clearing the actual
+        // destination. Only the genuine internal main80 commit may consume it.
+        // Keep state.tiles live throughout callbacks/RNG; never swap old tiles in.
+        let prefixPlan: NativeDirectWildMovePlan? = {
+            guard committingDirectWild,let plan=pendingDirectWild,let prefix=sourceDirectWildPrefix,
+                  prefix.id==plan.id,prefix.generation==state.generation,prefix.revision==state.revision,
+                  liveSource==plan.source,liveDestination==prefix.preparedDestination else{return nil}
+            return plan
+        }()
+        let source=prefixPlan?.source ?? liveSource,destination=prefixPlan?.destination ?? liveDestination
+        let decisionTiles=prefixPlan == nil ? state.tiles:state.tiles.map{$0.id==destination.id ? destination:$0}
+        guard NativeGameplayResolver.canDrop(source, onto: destination),
               !meterDropReservations.values.contains(where:{$0.tileID==source.id && (!$0.landed || $0.handoffLocked || !$0.bookkeepingCommitted)}),
               !meterDropReservations.values.contains(where:{$0.tileID==destination.id && !$0.bookkeepingCommitted}), !locks.values.contains(where: { !$0 || source.isWild || destination.isWild }), (!flags.isWaiting || canRunOrdinaryDuringTnt(source) && canRunOrdinaryDuringTnt(destination)) else { return rejected("illegal_drop") }
         guard state.validationIssues().isEmpty else { return rejected("invalid_authoritative_board") }
@@ -348,8 +362,8 @@ public final class NativeGameplayEngine {
         // The production canDrop permits lingering regular six + 1...5. Its recovery
         // continuation is a distinct source branch; fail closed until that port exists.
         guard effectiveSum <= 6 else { return rejected("native_lingering_six_continuation_pending") }
-        let pull = (source.gameplayArchetype == .magnet || destination.gameplayArchetype == .magnet) && !NativeGameplayResolver.magnetCandidates(state.tiles, source: source, destination: destination).isEmpty
-        let final = NativeGameplayResolver.finalMerge(state.tiles, source: source, destination: destination, effectiveSum: effectiveSum, hasTilesToPull: pull)
+        let pull = (source.gameplayArchetype == .magnet || destination.gameplayArchetype == .magnet) && !NativeGameplayResolver.magnetCandidates(decisionTiles, source: source, destination: destination).isEmpty
+        let final = NativeGameplayResolver.finalMerge(decisionTiles, source: source, destination: destination, effectiveSum: effectiveSum, hasTilesToPull: pull)
         let gameplayArchetype = NativeSpecialDiceRegistry.finale(source: source, destination: destination, gameplay: true)
         if final.isFinalMerge,let gameplayArchetype,let finalePresentationAdmitted,
            !finalePresentationAdmitted(gameplayArchetype,source.variant ?? destination.variant) { return rejected("native_finale_presentation_not_ready") }
@@ -439,6 +453,17 @@ public final class NativeGameplayEngine {
     private func stageDirectWild(source: NativeTile,destination: NativeTile,archetype: NativeWildArchetype,pointerID: Int,now: Double,isFinal: Bool) -> NativeMoveResult {
         guard pendingDirectWild == nil,pendingSpecial == nil else { return rejected("direct_wild_transaction_in_progress") }
         if !isFinal,let specialPresentationAdmitted,!specialPresentationAdmitted(archetype,source.variant ?? destination.variant) { return rejected("native_special_presentation_not_ready") }
+        var prepared:NativeSourceMergeSixAutoCenterLease?,stageAccepted=false
+        defer {if !stageAccepted {prepared?.rejected()}}
+        if let hook=sourceMergeSixAutoCenterHook {
+            let captured=state,capturedFlags=flags,capturedLocks=locks
+            let capturedOpen=pendingMeterOpen,capturedStack=pendingOrdinaryStack,capturedSix=pendingOrdinarySix,capturedSpecial=pendingSpecial,capturedDirect=pendingDirectWild
+            guard let lease=hook.prepare(source,destination,state.generation) else{return rejected("source_six_auto_center_not_admitted")}
+            prepared=lease
+            let admitted=lease.isCurrent()
+            guard admitted,drag==nil,sourceMergeSixAutoCenterHook === hook,state==captured,flags==capturedFlags,locks==capturedLocks,
+                  pendingMeterOpen==capturedOpen,pendingOrdinaryStack==capturedStack,pendingOrdinarySix==capturedSix,pendingSpecial==capturedSpecial,pendingDirectWild==capturedDirect else{return rejected("source_six_auto_center_reentered")}
+        }
         if let hook=sourceSpecialContactHook {
             let captured=state,capturedFlags=flags,capturedLocks=locks
             let capturedOpen=pendingMeterOpen,capturedStack=pendingOrdinaryStack,capturedSix=pendingOrdinarySix
@@ -457,6 +482,7 @@ public final class NativeGameplayEngine {
         wildSourceResolutionBoundary=nil
         pendingDirectWild = plan; directWildGameplayCommitted = false;directWildVisualReleased=false;pendingWildLockedBonusPresentations=[];pendingWildSpawnPresentations=[]; directWildPointerID = pointerID
         locks[plan.id] = false; flags.pendingSpecialMutation = true; noMovesSignature = nil
+        stageAccepted=true
         return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.directWildReserved,tileIDs:[source.id,destination.id],archetype:archetype,reason:plan.id,variant:plan.variant)],resolution:resolve())
     }
     /// Literal Source mainTween.onInterrupt BEFORE its main80 callback. This
@@ -472,7 +498,7 @@ public final class NativeGameplayEngine {
             source=plan.source;destination=plan.destination;archetype=plan.archetype
             wildSourceResolutionBoundary=(plan.id,plan.generation)
             locks.removeValue(forKey:plan.id);flags.pendingSpecialMutation=false
-            pendingDirectWild=nil;directWildGameplayCommitted=false;directWildVisualReleased=false
+            pendingDirectWild=nil;sourceDirectWildPrefix=nil;directWildGameplayCommitted=false;directWildVisualReleased=false
         } else{return rejected("stale_source_six_absorb_interrupt")}
         // isWildMagnet is saved from BOTH captured Source identities, independently
         // of the selected dominant family (e.g. Magnet + TNT).
@@ -491,12 +517,33 @@ public final class NativeGameplayEngine {
         return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
     }
 
+    /// Called by the actual captured Source prefix, after accepted reservation
+    /// and before installing its main root. No debit, charge, spawn, RNG or cue.
+    /// Receipt identity is the exact plan; duplicate or stale calls are rejected.
+    public func prepareSourceDirectWildPrefix(receiptID:String,generation:UInt64)->NativeMoveResult {
+        guard generation==state.generation,let plan=pendingDirectWild,plan.id==receiptID,
+              plan.generation==generation,plan.revision==state.revision,!directWildGameplayCommitted,
+              sourceDirectWildPrefix==nil,state.terminal==nil,
+              state.tiles.first(where:{$0.id==plan.source.id})==plan.source,
+              let index=state.tiles.firstIndex(where:{$0.id==plan.destination.id}),state.tiles[index]==plan.destination else{return rejected("source_direct_prefix_not_ready")}
+        var prepared=plan.destination
+        prepared.value=6;prepared.archetype=nil;prepared.sourceWildStateCleared=true
+        if !prepared.locked {prepared.alpha=1}
+        prepared.stackDepth=plan.isFinal ? 1:min(4,plan.source.stackDepth+plan.destination.stackDepth)
+        // Final hide suppresses child artwork; Source parent visibility is
+        // unchanged. setValue resets an unlocked parent alpha to one. The actual Node owner controls z/input/child suppression.
+        state.tiles[index]=prepared
+        sourceDirectWildPrefix=NativeSourceDirectWildPrefixReceipt(id:plan.id,generation:generation,revision:plan.revision,isFinal:plan.isFinal,originalDestination:plan.destination,preparedDestination:prepared)
+        return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
+    }
+
     /// Called at the actual 80 ms absorb completion. Uses live earned HUD score, not a stale saved board.
     public func commitDirectWildGameplay(transactionID: String) -> NativeMoveResult {
         guard let plan = pendingDirectWild,plan.id == transactionID,plan.generation == state.generation,
               plan.revision == state.revision,state.terminal == nil,!directWildGameplayCommitted,
               state.tiles.first(where:{ $0.id == plan.source.id }) == plan.source,
-              state.tiles.first(where:{ $0.id == plan.destination.id }) == plan.destination else { return rejected("direct_wild_commit_not_ready") }
+              state.tiles.first(where:{ $0.id == plan.destination.id }) == (sourceDirectWildPrefix?.preparedDestination ?? plan.destination),
+              sourceDirectWildPrefix == nil || (sourceDirectWildPrefix?.id==plan.id && sourceDirectWildPrefix?.generation==state.generation && sourceDirectWildPrefix?.revision==plan.revision) else { return rejected("direct_wild_commit_not_ready") }
         // Original main80 callback returns before combo, score, move debit or RNG when
         // another terminal owner is active. Abort repairs captured identities only.
         if flags.busyEnding {
@@ -504,7 +551,7 @@ public final class NativeGameplayEngine {
             let removed=[plan.destination.id,plan.source.id]
             state.tiles.removeAll { removed.contains($0.id) }
             locks.removeValue(forKey:plan.id); flags.pendingSpecialMutation=false
-            pendingDirectWild=nil;directWildGameplayCommitted=false;drag=nil
+            pendingDirectWild=nil;sourceDirectWildPrefix=nil;directWildGameplayCommitted=false;drag=nil
             let check=NativeWildRecoveryCheck(id:plan.id+":recovery",generation:plan.generation,delayMilliseconds:120,reason:"merge6-terminal-owner-active")
             pendingWildRecoveryChecks.append(check)
             return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.removed,tileIDs:removed,reason:check.reason),NativeGameplayEvent(.wildRecoveryCheckPrepared,reason:check.id)],resolution:resolve())
@@ -514,7 +561,16 @@ public final class NativeGameplayEngine {
         drag = Drag(id:plan.source.id,pointerID:directWildPointerID,generation:plan.generation,revision:plan.revision,origin:plan.source.cell)
         let result = drop(target:plan.destination.cell,pointerID:directWildPointerID,now:plan.startedAt + 0.08)
         committingDirectWild = false
-        guard result.accepted else { pendingDirectWild = nil; return result }
+        guard result.accepted else {
+            if sourceDirectWildPrefix != nil {
+                // A rejected revalidation cannot make a still-live prepared
+                // object durable. Retain its captured cancellation authority.
+                locks[plan.id]=false;flags.pendingSpecialMutation=true
+                return NativeMoveResult(accepted:false,state:state,events:result.events,resolution:resolve())
+            }
+            pendingDirectWild = nil; return result
+        }
+        sourceDirectWildPrefix=nil
         directWildGameplayCommitted = true
         // Star/Juice source visual gates restrict Wild/Special while ordinary input is released.
         locks[plan.id] = directWildSpawnPhase == nil
@@ -1210,6 +1266,17 @@ extension NativeGameplayEngine {
     private func stageOrdinarySix(source:NativeTile,destination:NativeTile,now:Double,isFinal:Bool)->NativeMoveResult {
         guard pendingOrdinarySix==nil else{return rejected("regular_merge6_handoff")}
         if let ordinarySixPresentationAdmitted,!ordinarySixPresentationAdmitted() {return rejected("native_ordinary_six_presentation_not_ready")}
+        var prepared:NativeSourceMergeSixAutoCenterLease?,stageAccepted=false
+        defer {if !stageAccepted {prepared?.rejected()}}
+        if let hook=sourceMergeSixAutoCenterHook {
+            let captured=state,capturedFlags=flags,capturedLocks=locks
+            let capturedOpen=pendingMeterOpen,capturedStack=pendingOrdinaryStack,capturedSix=pendingOrdinarySix,capturedSpecial=pendingSpecial,capturedDirect=pendingDirectWild
+            guard let lease=hook.prepare(source,destination,state.generation) else{return rejected("source_six_auto_center_not_admitted")}
+            prepared=lease
+            let admitted=lease.isCurrent()
+            guard admitted,drag==nil,sourceMergeSixAutoCenterHook === hook,state==captured,flags==capturedFlags,locks==capturedLocks,
+                  pendingMeterOpen==capturedOpen,pendingOrdinaryStack==capturedStack,pendingOrdinarySix==capturedSix,pendingSpecial==capturedSpecial,pendingDirectWild==capturedDirect else{return rejected("source_six_auto_center_reentered")}
+        }
         specialSequence &+= 1;state.revision &+= 1
         let plan=NativeOrdinaryMovePlan(id:"native-six:\(state.generation):\(specialSequence)",generation:state.generation,revision:state.revision,source:source,destination:destination,startedAt:now,isFinal:isFinal)
         pendingOrdinarySix=plan;ordinarySixGameplayCommitted=false
@@ -1219,6 +1286,7 @@ extension NativeGameplayEngine {
             state.tiles[i].merge6CleanupOwned=true;state.tiles[i].nonFinalMerge6 = !isFinal;state.tiles[i].visible = !isFinal
         }
         noMovesSignature=nil
+        stageAccepted=true
         return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.ordinarySixReserved,tileIDs:[source.id,destination.id],value:6,reason:plan.id)],resolution:resolve())
     }
     /// Renderer calls only once every owned spawn/cleanup receipt actually settles.

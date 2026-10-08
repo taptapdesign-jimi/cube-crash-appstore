@@ -318,3 +318,9 @@ Primary continuation2026-10-08: exact pure Core205/205 and optional Source RAF t
 ## 2026-10-08 ordinary physical-face admission
 
 Pure Core222/222 freshly reproduced. Optional typed face receipts retain physical depth and historical maximum until the real same-node callback; an elapsed main80 callback cannot manufacture physical completion. Destructive cancellation blocks live partial save until genuine generation teardown. Default opt-in remains false. Actual PRIVATE Scene6 tests and affected frame/Node/Scene24 pass; input/render meter checkpoint integration still has one unresolved mounted assertion, so whole-app activation and physical acceptance remain open. CLOSED full14 all19 deterministic gates pass; no PWA/phone/assets operation.
+
+## 2026-10-08 captured idle and canonical save continuation
+
+Private connected Special idle now passes actual SDK107 all six fixtures alongside Direct-prefix projection3, ordinary same-object Six6, Context3 and prior idle2 (20/20 total). It admits all live registered physical Special nodes, preserves phase during captured suspension, keeps artwork pointer state separate, and borrows one existing settled cadence.
+
+Private canonical save V1 plus idle-preserving ContextV2 passes SDK108 save20 plus idle6/Six6 (32/32). Genuine accepted sub-six1200, Source wall400 delivery, current snapshot, Special-only Date pruning and captured replacement cleanup are covered. Mandatory production marker observers, genuine prepared-entry/level-check producer, remaining NO MOVES callers and whole Source activation remain open. These bounded proofs do not mark the full acceptance items above complete. Optimized Release109 is being checked after new generic owners; physical acceptance remains NEEDS PHYSICAL TEST.
