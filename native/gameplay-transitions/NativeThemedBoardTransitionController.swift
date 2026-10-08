@@ -44,7 +44,7 @@ final class NativeThemedBoardTransitionController:UIViewController {
     private let variation:NativeTransitionSceneGeometry.Variation,fontOverride:UIFont?
     private let sceneOwner:Int,paperOwner:Int
     private static var nextOwner = -200000
-    private let paper=UIImageView(),scene=UIView()
+    private let paper=UIImageView(),scene=UIView(),paperCover=UIView()
     private var sceneImages:[String:UIImageView]=[:],clouds:[(NativeTransitionCloudPlan.Cloud,UIView,UIImageView)]=[]
     private var digitViews:[UILabel]=[],digitRotations:[Double]=[]
     private struct Moment {let key:String,seconds:Double,cue:String?,index:Int,haptic:String?}
@@ -68,9 +68,12 @@ final class NativeThemedBoardTransitionController:UIViewController {
         super.init(nibName:nil,bundle:nil);modalPresentationStyle = .overFullScreen
     }
     required init?(coder:NSCoder){fatalError("Use authored native transition initializer")}
-    override func loadView(){view=UIView(frame:CGRect(origin:.zero,size:viewport));view.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:1);view.isOpaque=true;view.clipsToBounds=false
-        let gradient=CAGradientLayer();gradient.frame=view.bounds;gradient.colors=[UIColor(red:243/255,green:238/255,blue:232/255,alpha:1).cgColor,UIColor(red:252/255,green:236/255,blue:223/255,alpha:1).cgColor,UIColor(red:252/255,green:236/255,blue:223/255,alpha:1).cgColor];gradient.locations=[0,0.6,1];view.layer.insertSublayer(gradient,at:0)
-        paper.frame=view.bounds;paper.contentMode = .scaleToFill;paper.isUserInteractionEnabled=false;view.addSubview(paper);let tint=UIView(frame:view.bounds);tint.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:0.4);tint.isUserInteractionEnabled=false;view.addSubview(tint)
+    override func loadView(){view=UIView(frame:CGRect(origin:.zero,size:viewport));view.backgroundColor = .clear;view.isOpaque=false;view.clipsToBounds=false
+        // Keep the already painted gameplay paper visible while this captured
+        // cover prepares. A flat opaque placeholder must never replace it.
+        paperCover.frame=view.bounds;paperCover.isHidden=true;paperCover.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:1);paperCover.isUserInteractionEnabled=false;view.addSubview(paperCover)
+        let gradient=CAGradientLayer();gradient.frame=view.bounds;gradient.colors=[UIColor(red:243/255,green:238/255,blue:232/255,alpha:1).cgColor,UIColor(red:252/255,green:236/255,blue:223/255,alpha:1).cgColor,UIColor(red:252/255,green:236/255,blue:223/255,alpha:1).cgColor];gradient.locations=[0,0.6,1];paperCover.layer.insertSublayer(gradient,at:0)
+        paper.frame=view.bounds;paper.contentMode = .scaleToFill;paper.isUserInteractionEnabled=false;paperCover.addSubview(paper);let tint=UIView(frame:view.bounds);tint.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:0.4);tint.isUserInteractionEnabled=false;paperCover.addSubview(tint)
         scene.frame=NativeTransitionSceneGeometry.sceneFrame(viewport:viewport);scene.isUserInteractionEnabled=false;scene.clipsToBounds=false;scene.backgroundColor = .clear;scene.layer.zPosition=4;view.addSubview(scene)
     }
     static func assets(theme:NativeBoardTransitionPlan.Theme)->[String] {
@@ -84,6 +87,7 @@ final class NativeThemedBoardTransitionController:UIViewController {
         }
         resources.prepare(["./assets/paper-bg.png"],owner:paperOwner,required:true){[weak self] ready in
             guard let self,!self.disposed else{return};guard ready,let image=self.resources.image("./assets/paper-bg.png",owner:self.paperOwner) else{self.failPreparation();return};self.paper.image=image
+            self.paperCover.isHidden=false;self.view.backgroundColor=self.paperCover.backgroundColor;self.view.isOpaque=true
             self.resources.prepare(Self.assets(theme:self.theme),owner:self.sceneOwner,required:true){[weak self] ready in
                 guard let self,!self.disposed,!self.preparationFailed else{return};guard ready else{self.failPreparation();return}
                 do {try self.mountPreparedScene();self.assetsReady=true;self.paint(seconds:0,generation:self.generation);self.startClockIfReady()}catch {self.failPreparation()}

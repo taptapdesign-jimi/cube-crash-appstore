@@ -306,3 +306,5 @@ Scene activation/NO MOVES/interrupt/Release/physical gates are still OPEN.
 
 
 2026-10-08 primary continuation: inactive Source Six surfaces admitted after actual SDK41 18/18 and original1980 scalar checks; CLOSED full8 all19 deterministic gates PASS. Private V12 same-node binding retirement actual SDK42b127/127 PASS. Actual Sprite multiplier/shake optional Source binding SDK44 20/20 PASS; subsequent start-retirement/third-draw fixture SDK45 21/21 PASS, optional Sprite binding admitted inactive. Full Scene Six/main80, ordered finite APP RAF work, Wild carrier and complete NO MOVES admission/result/audio remain separate OPEN items. No default activation or physical acceptance; online checkpoint97a4f378.
+
+Latest online primary checkpoint:83323058d2b453143176157b3173a878e00399fb (parent97a4f378), remote read-back verified;9 validated inactive Source Six files. V13 Source Scene disposal SDK46 132/132 PASS; V14/Core193 SDK47 pending. Native full Source caller activation and physical acceptance remain OPEN.

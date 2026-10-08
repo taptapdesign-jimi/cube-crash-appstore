@@ -114,6 +114,7 @@ nonisolated struct NativeWildMeterDropPlan: Sendable {
             tile.pose.scaleX=k;tile.pose.scaleY=k
         }
         if restored {
+            tile.visible=true // Literal restoreTile -> revealTile, even local sample0.
             tile.pose=Pose(point:target,scaleX:1,scaleY:1,rotation:originalRotation,opacity:1)
             tile.stageParent=false;tile.dropping=false;tile.handoff=wallHandoffPending;tile.interactive = !wallHandoffPending
         }

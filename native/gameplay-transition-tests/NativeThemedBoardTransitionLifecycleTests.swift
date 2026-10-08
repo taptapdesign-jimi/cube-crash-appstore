@@ -76,4 +76,30 @@ final class NativeThemedBoardTransitionLifecycleTests:XCTestCase {
         XCTAssertTrue(owner.next(theme:.beach,random:random).beachSwapped);XCTAssertEqual(draws,1)
         let robo=owner.next(theme:.area55,random:random);XCTAssertEqual(robo.frontDirection,1);XCTAssertEqual(robo.walkerDirection,-1);XCTAssertEqual(draws,2)
     }
+    func testColdJourneyEntryCannotExposeFlatOpaqueCoverBeforePaperTexture(){
+        for board in [1,11,21] {
+            let resources=Resources(),owner=make(board:board,resources:resources)
+            owner.start()
+            XCTAssertFalse(owner.view.isOpaque)
+            XCTAssertEqual(owner.view.backgroundColor,.clear)
+            let cover=owner.view.subviews.first
+            XCTAssertTrue(cover?.isHidden == true)
+            XCTAssertFalse(owner.assetsReady);XCTAssertFalse(owner.hasActiveClock)
+            resources.pending.removeFirst()(true)
+            XCTAssertTrue(owner.view.isOpaque);XCTAssertFalse(cover?.isHidden ?? true)
+            XCTAssertNotNil(cover?.subviews.compactMap{$0 as? UIImageView}.first?.image)
+            XCTAssertFalse(owner.assetsReady);XCTAssertFalse(owner.hasActiveClock)
+            resources.accept();XCTAssertTrue(owner.assetsReady);owner.dispose()
+        }
+    }
+    func testFailedOrDisposedPendingPaperCannotRevealEmptyCover(){
+        let resources=Resources(),owner=make(board:1,resources:resources)
+        owner.start();resources.pending.removeFirst()(false)
+        XCTAssertFalse(owner.view.isOpaque);XCTAssertTrue(owner.view.subviews.first?.isHidden == true)
+        owner.dispose()
+        let late=Resources(),disposed=make(board:11,resources:late)
+        disposed.start();disposed.dispose();late.accept()
+        XCTAssertFalse(disposed.view.isOpaque);XCTAssertTrue(disposed.view.subviews.first?.isHidden == true)
+    }
+
 }
