@@ -37,7 +37,7 @@ final class NativeSourceAnimationClockService {
         source.onDemandChanged={ [weak self] in self?.refreshDemand() }
     }
     func register(participant:any NativeSourceAnimationParticipant,duration:Double,domain:Domain,
-                  delay:Double=0,wallMilliseconds:Double?=nil,cleanup:@escaping(Bool)->Void)->Lease? {
+                  delay:Double=0,wallMilliseconds:Double?=nil,initiallySuspended:Bool=false,cleanup:@escaping(Bool)->Void)->Lease? {
         guard !disposed,duration>=0,delay>=0,delay.isFinite else{return nil}
         sequence += 1
         switch domain {
@@ -45,14 +45,15 @@ final class NativeSourceAnimationClockService {
             guard delay==0 else{return nil}
             // Raw infinity already exists for finite captured phase-count owners.
             // Preserve their existing explicit completion, no invented timeout.
-            raw[sequence]=RawEntry(id:sequence,duration:duration,participant:participant,cleanup:cleanup)
+            let entry=RawEntry(id:sequence,duration:duration,participant:participant,cleanup:cleanup)
+            entry.suspended=initiallySuspended;raw[sequence]=entry
             refreshDemand();return Lease(service:self,id:sequence,source:nil)
         case .sourceGSAP(let family):
             // Infinity/phase schedulers require a separate typed bounded-phase
             // admission. They cannot silently become a permanent source clock.
             guard duration.isFinite else{return nil}
             if sourceForeground && link==nil {source.deliver(wallMilliseconds:wallMilliseconds ?? sourceWallMillisecondsNow())}
-            guard let receipt=source.attach(participant:participant,family:family,duration:duration,delay:delay,cleanup:cleanup) else{return nil}
+            guard let receipt=source.attach(participant:participant,family:family,duration:duration,delay:delay,initiallySuspended:initiallySuspended,cleanup:cleanup) else{return nil}
             refreshDemand();return Lease(service:self,id:sequence,source:receipt)
         }
     }

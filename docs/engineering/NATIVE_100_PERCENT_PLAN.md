@@ -294,3 +294,10 @@ shared-six component receipts are admitted. Terminal smoke teardown also reaches
 prior paused tails; normal Source traversal is preserved. Preparing checkpoint3
 from9a90908c with main/index unchanged. Actual Scene linkage/NO MOVES/remaining
 interrupt receipts, Release retirement and physical acceptance remain OPEN.
+
+Validated batch is ONLINE at024e325ce664818d5aa4b0b524490d971f9af379 on
+native/continuation-20261008-owned (parent9a90908c,43 files); remote-read-back
+verified. Main3f1b7762/index/PWA/assets/installed phone unchanged. Remaining
+Scene activation/NO MOVES/interrupt/Release/physical gates are still OPEN.
+
+- 2026-10-08 continuation: CLOSED Core188 and NO MOVES Source V3 actual SDK30 87/87 PASS; source full5 all19 gates/KING24/330 PASS. Private app context SDK31 45/45 PASS includes HUD6 and Scene replacement/Raw preservation3. These receipts do not admit full Source Scene/default shipping or physical parity. Real contact, selected meter, smoke/resize and destructive interruption queue/pull bindings remain in progress.

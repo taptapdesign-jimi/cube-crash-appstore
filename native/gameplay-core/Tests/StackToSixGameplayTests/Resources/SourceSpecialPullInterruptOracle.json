@@ -1,0 +1,2545 @@
+{
+  "reference": "production-benchmark-v9",
+  "hashes": {
+    "src/modules/special-dice-registry.ts": "b6818afb9ffd98a6249f17c8f0d020663a1fd9a41f8d43908da1a25bb7780fdd",
+    "src/modules/special-dice-transaction-owner.ts": "8c4c7254324ffcaf140fd3ab2df3da0df0b29b95add516c0bb51fe9937ffb795",
+    "src/modules/merge6-destination-cleanup-owner.ts": "a17bd825079a7e6e302e35e02b2a32d4175a3c45bf49aefac5794c45e12537b5",
+    "src/modules/wild-spawn-continuation.ts": "21008fd8c69475b073b7c99a5aa017a7846e642bfb33ed852878847e7abc3713",
+    "src/modules/app-core.ts": "284d104e4f20b7b30fd5dad2361c1edfb822a6b96a38c64efc2793033cbc09e3"
+  },
+  "rows": [
+    {
+      "family": "magnet",
+      "count": 1,
+      "mode": "normal",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 1,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        }
+      ]
+    },
+    {
+      "family": "magnet",
+      "count": 1,
+      "mode": "destroyed-first",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 0,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": true,
+          "locked": true,
+          "magnetOwned": true,
+          "eventMode": "none",
+          "gridOwned": false,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        }
+      ]
+    },
+    {
+      "family": "magnet",
+      "count": 2,
+      "mode": "normal",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 2,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        }
+      ]
+    },
+    {
+      "family": "magnet",
+      "count": 2,
+      "mode": "destroyed-first",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 1,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": true,
+          "locked": true,
+          "magnetOwned": true,
+          "eventMode": "none",
+          "gridOwned": false,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        }
+      ]
+    },
+    {
+      "family": "magnet",
+      "count": 3,
+      "mode": "normal",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 3,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        }
+      ]
+    },
+    {
+      "family": "magnet",
+      "count": 3,
+      "mode": "destroyed-first",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 2,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": true,
+          "locked": true,
+          "magnetOwned": true,
+          "eventMode": "none",
+          "gridOwned": false,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        }
+      ]
+    },
+    {
+      "family": "magnet",
+      "count": 4,
+      "mode": "normal",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 4,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        },
+        {
+          "id": "pull:3",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 250,
+          "y": 290,
+          "rotation": 0.5,
+          "scaleX": 1.4000000000000001,
+          "scaleY": 1.5
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        },
+        {
+          "id": "pull:3",
+          "x": 250,
+          "y": 290,
+          "rotation": 0.5,
+          "scaleX": 1.4000000000000001,
+          "scaleY": 1.5
+        }
+      ]
+    },
+    {
+      "family": "magnet",
+      "count": 4,
+      "mode": "destroyed-first",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 3,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": true,
+          "locked": true,
+          "magnetOwned": true,
+          "eventMode": "none",
+          "gridOwned": false,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        },
+        {
+          "id": "pull:3",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 250,
+          "y": 290,
+          "rotation": 0.5,
+          "scaleX": 1.4000000000000001,
+          "scaleY": 1.5
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        },
+        {
+          "id": "pull:3",
+          "x": 250,
+          "y": 290,
+          "rotation": 0.5,
+          "scaleX": 1.4000000000000001,
+          "scaleY": 1.5
+        }
+      ]
+    },
+    {
+      "family": "spaceship",
+      "count": 1,
+      "mode": "normal",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 1,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        }
+      ]
+    },
+    {
+      "family": "spaceship",
+      "count": 1,
+      "mode": "destroyed-first",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 0,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": true,
+          "locked": true,
+          "magnetOwned": true,
+          "eventMode": "none",
+          "gridOwned": false,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        }
+      ]
+    },
+    {
+      "family": "spaceship",
+      "count": 2,
+      "mode": "normal",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 2,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        }
+      ]
+    },
+    {
+      "family": "spaceship",
+      "count": 2,
+      "mode": "destroyed-first",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 1,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": true,
+          "locked": true,
+          "magnetOwned": true,
+          "eventMode": "none",
+          "gridOwned": false,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        }
+      ]
+    },
+    {
+      "family": "spaceship",
+      "count": 3,
+      "mode": "normal",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 3,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        }
+      ]
+    },
+    {
+      "family": "spaceship",
+      "count": 3,
+      "mode": "destroyed-first",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 2,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": true,
+          "locked": true,
+          "magnetOwned": true,
+          "eventMode": "none",
+          "gridOwned": false,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        }
+      ]
+    },
+    {
+      "family": "spaceship",
+      "count": 4,
+      "mode": "normal",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 4,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        },
+        {
+          "id": "pull:3",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 250,
+          "y": 290,
+          "rotation": 0.5,
+          "scaleX": 1.4000000000000001,
+          "scaleY": 1.5
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        },
+        {
+          "id": "pull:3",
+          "x": 250,
+          "y": 290,
+          "rotation": 0.5,
+          "scaleX": 1.4000000000000001,
+          "scaleY": 1.5
+        }
+      ]
+    },
+    {
+      "family": "spaceship",
+      "count": 4,
+      "mode": "destroyed-first",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 3,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": true,
+          "locked": true,
+          "magnetOwned": true,
+          "eventMode": "none",
+          "gridOwned": false,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        },
+        {
+          "id": "pull:3",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 250,
+          "y": 290,
+          "rotation": 0.5,
+          "scaleX": 1.4000000000000001,
+          "scaleY": 1.5
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        },
+        {
+          "id": "pull:3",
+          "x": 250,
+          "y": 290,
+          "rotation": 0.5,
+          "scaleX": 1.4000000000000001,
+          "scaleY": 1.5
+        }
+      ]
+    },
+    {
+      "family": "bottle",
+      "count": 1,
+      "mode": "normal",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 1,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        }
+      ]
+    },
+    {
+      "family": "bottle",
+      "count": 1,
+      "mode": "destroyed-first",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 0,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": true,
+          "locked": true,
+          "magnetOwned": true,
+          "eventMode": "none",
+          "gridOwned": false,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        }
+      ]
+    },
+    {
+      "family": "bottle",
+      "count": 2,
+      "mode": "normal",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 2,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        }
+      ]
+    },
+    {
+      "family": "bottle",
+      "count": 2,
+      "mode": "destroyed-first",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 1,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": true,
+          "locked": true,
+          "magnetOwned": true,
+          "eventMode": "none",
+          "gridOwned": false,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        }
+      ]
+    },
+    {
+      "family": "bottle",
+      "count": 3,
+      "mode": "normal",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 3,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        }
+      ]
+    },
+    {
+      "family": "bottle",
+      "count": 3,
+      "mode": "destroyed-first",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 2,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": true,
+          "locked": true,
+          "magnetOwned": true,
+          "eventMode": "none",
+          "gridOwned": false,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        }
+      ]
+    },
+    {
+      "family": "bottle",
+      "count": 4,
+      "mode": "normal",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 4,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        },
+        {
+          "id": "pull:3",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 250,
+          "y": 290,
+          "rotation": 0.5,
+          "scaleX": 1.4000000000000001,
+          "scaleY": 1.5
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        },
+        {
+          "id": "pull:3",
+          "x": 250,
+          "y": 290,
+          "rotation": 0.5,
+          "scaleX": 1.4000000000000001,
+          "scaleY": 1.5
+        }
+      ]
+    },
+    {
+      "family": "bottle",
+      "count": 4,
+      "mode": "destroyed-first",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 3,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": true,
+          "locked": true,
+          "magnetOwned": true,
+          "eventMode": "none",
+          "gridOwned": false,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        },
+        {
+          "id": "pull:3",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 250,
+          "y": 290,
+          "rotation": 0.5,
+          "scaleX": 1.4000000000000001,
+          "scaleY": 1.5
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        },
+        {
+          "id": "pull:3",
+          "x": 250,
+          "y": 290,
+          "rotation": 0.5,
+          "scaleX": 1.4000000000000001,
+          "scaleY": 1.5
+        }
+      ]
+    },
+    {
+      "family": "honey",
+      "count": 1,
+      "mode": "normal",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 1,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        }
+      ]
+    },
+    {
+      "family": "honey",
+      "count": 1,
+      "mode": "destroyed-first",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 0,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": true,
+          "locked": true,
+          "magnetOwned": true,
+          "eventMode": "none",
+          "gridOwned": false,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        }
+      ]
+    },
+    {
+      "family": "honey",
+      "count": 2,
+      "mode": "normal",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 2,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        }
+      ]
+    },
+    {
+      "family": "honey",
+      "count": 2,
+      "mode": "destroyed-first",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 1,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": true,
+          "locked": true,
+          "magnetOwned": true,
+          "eventMode": "none",
+          "gridOwned": false,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        }
+      ]
+    },
+    {
+      "family": "honey",
+      "count": 3,
+      "mode": "normal",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 3,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        }
+      ]
+    },
+    {
+      "family": "honey",
+      "count": 3,
+      "mode": "destroyed-first",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 2,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": true,
+          "locked": true,
+          "magnetOwned": true,
+          "eventMode": "none",
+          "gridOwned": false,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        }
+      ]
+    },
+    {
+      "family": "honey",
+      "count": 4,
+      "mode": "normal",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 4,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        },
+        {
+          "id": "pull:3",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 250,
+          "y": 290,
+          "rotation": 0.5,
+          "scaleX": 1.4000000000000001,
+          "scaleY": 1.5
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        },
+        {
+          "id": "pull:3",
+          "x": 250,
+          "y": 290,
+          "rotation": 0.5,
+          "scaleX": 1.4000000000000001,
+          "scaleY": 1.5
+        }
+      ]
+    },
+    {
+      "family": "honey",
+      "count": 4,
+      "mode": "destroyed-first",
+      "removed": [
+        "remove:src",
+        "remove:dst"
+      ],
+      "frameRelease": 1,
+      "idleRelease": 1,
+      "pullRelease": 1,
+      "stopped": 1,
+      "queued": 2,
+      "bindings": 3,
+      "targets": [
+        {
+          "id": "pull:0",
+          "destroyed": true,
+          "locked": true,
+          "magnetOwned": true,
+          "eventMode": "none",
+          "gridOwned": false,
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        },
+        {
+          "id": "pull:3",
+          "destroyed": false,
+          "locked": false,
+          "magnetOwned": false,
+          "eventMode": "static",
+          "gridOwned": true,
+          "x": 250,
+          "y": 290,
+          "rotation": 0.5,
+          "scaleX": 1.4000000000000001,
+          "scaleY": 1.5
+        }
+      ],
+      "initial": [
+        {
+          "id": "pull:0",
+          "x": 100,
+          "y": 200,
+          "rotation": 0.2,
+          "scaleX": 1.1,
+          "scaleY": 1.2
+        },
+        {
+          "id": "pull:1",
+          "x": 150,
+          "y": 230,
+          "rotation": 0.30000000000000004,
+          "scaleX": 1.2000000000000002,
+          "scaleY": 1.3
+        },
+        {
+          "id": "pull:2",
+          "x": 200,
+          "y": 260,
+          "rotation": 0.4,
+          "scaleX": 1.3,
+          "scaleY": 1.4
+        },
+        {
+          "id": "pull:3",
+          "x": 250,
+          "y": 290,
+          "rotation": 0.5,
+          "scaleX": 1.4000000000000001,
+          "scaleY": 1.5
+        }
+      ]
+    }
+  ],
+  "mainRows": [
+    {
+      "family": "magnet",
+      "mode": "kill79",
+      "mainEntered": false,
+      "settled": true,
+      "interrupts": 1,
+      "removals": [
+        "src",
+        "dst"
+      ]
+    },
+    {
+      "family": "magnet",
+      "mode": "entered80",
+      "mainEntered": true,
+      "settled": true,
+      "interrupts": 0,
+      "removals": []
+    },
+    {
+      "family": "magnet",
+      "mode": "kill-after80",
+      "mainEntered": true,
+      "settled": true,
+      "interrupts": 0,
+      "removals": []
+    },
+    {
+      "family": "spaceship",
+      "mode": "kill79",
+      "mainEntered": false,
+      "settled": true,
+      "interrupts": 1,
+      "removals": [
+        "src",
+        "dst"
+      ]
+    },
+    {
+      "family": "spaceship",
+      "mode": "entered80",
+      "mainEntered": true,
+      "settled": true,
+      "interrupts": 0,
+      "removals": []
+    },
+    {
+      "family": "spaceship",
+      "mode": "kill-after80",
+      "mainEntered": true,
+      "settled": true,
+      "interrupts": 0,
+      "removals": []
+    },
+    {
+      "family": "bottle",
+      "mode": "kill79",
+      "mainEntered": false,
+      "settled": true,
+      "interrupts": 1,
+      "removals": [
+        "src",
+        "dst"
+      ]
+    },
+    {
+      "family": "bottle",
+      "mode": "entered80",
+      "mainEntered": true,
+      "settled": true,
+      "interrupts": 0,
+      "removals": []
+    },
+    {
+      "family": "bottle",
+      "mode": "kill-after80",
+      "mainEntered": true,
+      "settled": true,
+      "interrupts": 0,
+      "removals": []
+    },
+    {
+      "family": "honey",
+      "mode": "kill79",
+      "mainEntered": false,
+      "settled": true,
+      "interrupts": 1,
+      "removals": [
+        "src",
+        "dst"
+      ]
+    },
+    {
+      "family": "honey",
+      "mode": "entered80",
+      "mainEntered": true,
+      "settled": true,
+      "interrupts": 0,
+      "removals": []
+    },
+    {
+      "family": "honey",
+      "mode": "kill-after80",
+      "mainEntered": true,
+      "settled": true,
+      "interrupts": 0,
+      "removals": []
+    },
+    {
+      "family": "tnt",
+      "mode": "kill79",
+      "mainEntered": false,
+      "settled": true,
+      "interrupts": 1,
+      "removals": [
+        "src",
+        "dst"
+      ]
+    },
+    {
+      "family": "tnt",
+      "mode": "entered80",
+      "mainEntered": true,
+      "settled": true,
+      "interrupts": 0,
+      "removals": []
+    },
+    {
+      "family": "tnt",
+      "mode": "kill-after80",
+      "mainEntered": true,
+      "settled": true,
+      "interrupts": 0,
+      "removals": []
+    },
+    {
+      "family": "flower",
+      "mode": "kill79",
+      "mainEntered": false,
+      "settled": true,
+      "interrupts": 1,
+      "removals": [
+        "src",
+        "dst"
+      ]
+    },
+    {
+      "family": "flower",
+      "mode": "entered80",
+      "mainEntered": true,
+      "settled": true,
+      "interrupts": 0,
+      "removals": []
+    },
+    {
+      "family": "flower",
+      "mode": "kill-after80",
+      "mainEntered": true,
+      "settled": true,
+      "interrupts": 0,
+      "removals": []
+    },
+    {
+      "family": "barell",
+      "mode": "kill79",
+      "mainEntered": false,
+      "settled": true,
+      "interrupts": 1,
+      "removals": [
+        "src",
+        "dst"
+      ]
+    },
+    {
+      "family": "barell",
+      "mode": "entered80",
+      "mainEntered": true,
+      "settled": true,
+      "interrupts": 0,
+      "removals": []
+    },
+    {
+      "family": "barell",
+      "mode": "kill-after80",
+      "mainEntered": true,
+      "settled": true,
+      "interrupts": 0,
+      "removals": []
+    },
+    {
+      "family": "beach-ball",
+      "mode": "kill79",
+      "mainEntered": false,
+      "settled": true,
+      "interrupts": 1,
+      "removals": [
+        "src",
+        "dst"
+      ]
+    },
+    {
+      "family": "beach-ball",
+      "mode": "entered80",
+      "mainEntered": true,
+      "settled": true,
+      "interrupts": 0,
+      "removals": []
+    },
+    {
+      "family": "beach-ball",
+      "mode": "kill-after80",
+      "mainEntered": true,
+      "settled": true,
+      "interrupts": 0,
+      "removals": []
+    },
+    {
+      "family": "laser-gun",
+      "mode": "kill79",
+      "mainEntered": false,
+      "settled": true,
+      "interrupts": 1,
+      "removals": [
+        "src",
+        "dst"
+      ]
+    },
+    {
+      "family": "laser-gun",
+      "mode": "entered80",
+      "mainEntered": true,
+      "settled": true,
+      "interrupts": 0,
+      "removals": []
+    },
+    {
+      "family": "laser-gun",
+      "mode": "kill-after80",
+      "mainEntered": true,
+      "settled": true,
+      "interrupts": 0,
+      "removals": []
+    }
+  ]
+}

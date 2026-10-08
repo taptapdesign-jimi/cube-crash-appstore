@@ -151,6 +151,9 @@ public final class NativeGameplayEngine {
     private var committingDirectWild = false
     private var directWildPointerID = 0
     public private(set) var specialActivationCommitted = false
+    public private(set) var pendingSourceSpecialAbsorb:NativeSourceSpecialAbsorbReceipt?
+    public private(set) var sourceSpecialAbsorbMainEntered=false
+    private var sourceSpecialAbsorbSequence:UInt64=0
     private var tntTargetsReserved = false
     private var tntReservationReleased = false
     private var deferredFinalMerge: NativeResolution?
@@ -200,6 +203,7 @@ public final class NativeGameplayEngine {
         pendingSpecial = nil; pendingLaserShots = []; pendingMagnetRespawn = nil; magnetReplacementIndex = 0; specialPreBoard = nil; specialImpactIndex = 0
         directWildPrimaryRecovery?.cancelForLifecycle();directWildPrimaryRecovery=nil;directWildSpawnPhase?.cancelForLifecycle();directWildSpawnPhase=nil;pendingWildSpawnActions=[];pendingWildSpawnArrivals=[];pendingWildLockedBonusPresentations=[];wildPhaseScheduledID=nil;directWildVisualReleased=false
         pendingDirectWild = nil; directWildGameplayCommitted = false; committingDirectWild = false
+        pendingSourceSpecialAbsorb=nil;sourceSpecialAbsorbMainEntered=false
         pendingOrdinaryStack = nil; pendingOrdinarySix = nil; ordinarySixGameplayCommitted = false; pendingOrdinaryPostchecks.removeAll(); pendingOrdinarySpawns.removeAll(); ordinarySpawnPreparationPending=false;pendingOrdinaryAssignments.removeAll();pendingOrdinaryPrimaryArrival=nil;pendingOrdinaryDestinationCleanup=nil;ordinaryRefillRemaining=0;ordinaryRequestedOpenings=0;ordinarySuccessfulOpenings=0;ordinaryForcedCandidates=[];ordinaryForcedPass=false; committingOrdinaryStack = false
         drag = nil; pendingHUDStars.removeAll(); pendingMeterRewards.removeAll(); tntReservationReleased = false; specialActivationCommitted = false; tntTargetsReserved = false; deferredFinalMerge = nil; locks.removeAll(); flags = NativeGameplayRuntimeFlags(); noMovesSignature = nil; comboLastMutationTime = nil
     }
@@ -409,6 +413,38 @@ public final class NativeGameplayEngine {
         locks[plan.id] = false; flags.pendingSpecialMutation = true; noMovesSignature = nil
         return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.directWildReserved,tileIDs:[source.id,destination.id],archetype:archetype,reason:plan.id,variant:plan.variant)],resolution:resolve())
     }
+    /// Literal Source mainTween.onInterrupt BEFORE its main80 callback. This
+    /// is destructive cancellation, never global/modal pause or fake completion.
+    /// Scene retires only the matching native ghost/pull/cleanup/frame owners.
+    public func cancelSourceMergeSixAbsorb(receiptID:String,generation:UInt64)->NativeMoveResult {
+        guard generation==state.generation else{return rejected("stale_source_six_absorb_interrupt")}
+        let source:NativeTile,destination:NativeTile,archetype:NativeWildArchetype?
+        if let plan=pendingOrdinarySix,plan.id==receiptID,plan.generation==generation,!ordinarySixGameplayCommitted {
+            source=plan.source;destination=plan.destination;archetype=nil
+            pendingOrdinarySix=nil;ordinarySixGameplayCommitted=false
+        } else if let plan=pendingDirectWild,plan.id==receiptID,plan.generation==generation,!directWildGameplayCommitted {
+            source=plan.source;destination=plan.destination;archetype=plan.archetype
+            wildSourceResolutionBoundary=(plan.id,plan.generation)
+            locks.removeValue(forKey:plan.id);flags.pendingSpecialMutation=false
+            pendingDirectWild=nil;directWildGameplayCommitted=false;directWildVisualReleased=false
+        } else{return rejected("stale_source_six_absorb_interrupt")}
+        // isWildMagnet is saved from BOTH captured Source identities, independently
+        // of the selected dominant family (e.g. Magnet + TNT).
+        if source.gameplayArchetype == .magnet || destination.gameplayArchetype == .magnet {
+            flags.wildMagnetPullInProgress=false
+        }
+        let captured=[source.id,destination.id]
+        let removed=captured.filter{id in state.tiles.contains{$0.id==id}}
+        state.tiles.removeAll{captured.contains($0.id)}
+        noMovesSignature=nil
+        var events=[NativeGameplayEvent(.mergeSixAbsorbInterrupted,tileIDs:captured,archetype:archetype,reason:receiptID)]
+        if !removed.isEmpty {events.append(NativeGameplayEvent(.removed,tileIDs:removed,reason:"merge6-absorb-interrupted"))}
+        // No debit/combo/score/RNG, new spawn, recovery timer, terminal dispatch,
+        // forced arrival or background drain. Source release's Promise-based
+        // meter continuation remains the captured Scene/queue adapter boundary.
+        return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
+    }
+
     /// Called at the actual 80 ms absorb completion. Uses live earned HUD score, not a stale saved board.
     public func commitDirectWildGameplay(transactionID: String) -> NativeMoveResult {
         guard let plan = pendingDirectWild,plan.id == transactionID,plan.generation == state.generation,
@@ -496,6 +532,7 @@ public final class NativeGameplayEngine {
     /// Source main merge callback after80ms absorb. Bonus targets are reserved later after blast return.
     public func commitSpecialActivation(transactionID: String) -> NativeMoveResult {
         guard state.terminal == nil,let plan = pendingSpecial,plan.id == transactionID,plan.generation == state.generation,plan.archetype == .tnt,!specialActivationCommitted else { return rejected("special_activation_not_ready") }
+        if pendingSourceSpecialAbsorb?.transactionID==plan.id {sourceSpecialAbsorbMainEntered=true}
         let previousCombo = state.combo
         state.combo = min(99,state.combo+1); state.longestCombo = max(state.longestCombo,state.combo)
         state.earnedComboBonus = min(999999,state.earnedComboBonus+max(0,NativeRewardMath.streakBonus(state.combo)-NativeRewardMath.streakBonus(previousCombo)))
@@ -643,6 +680,7 @@ public final class NativeGameplayEngine {
         if plan.archetype != .tnt { comboLastMutationTime = specialMoveTime; comboWindow = 4 }
         flags.pendingSpecialMutation = false; flags.wildMagnetPullInProgress = false
         pendingSpecial = nil; pendingLaserShots = []; pendingMagnetRespawn = nil; magnetReplacementIndex = 0; specialPreBoard = nil; tntReservationReleased = false; specialActivationCommitted = false; tntTargetsReserved = false
+        pendingSourceSpecialAbsorb=nil;sourceSpecialAbsorbMainEntered=false
         events.append(NativeGameplayEvent(.comboChanged,value:state.combo))
         events.append(NativeGameplayEvent(.specialBoardCommitted,archetype:plan.archetype,reason:plan.id,variant:plan.variant))
         if state.wildMeter >= 1-0.000001 && rewardPicker != nil { _ = spawnMeterReward(events:&events) }
@@ -1695,4 +1733,58 @@ extension NativeGameplayEngine {
         let id=meterOpenFlow?.id;meterOpenFlow=nil;pendingMeterOpen=nil;pendingMeterOpenRetry=nil
         return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.meterDropOpenFailed,value:reason=="source_meter_open_attempts_exhausted" ? 600:nil,reason:id.map{$0+":"+reason} ?? reason)],resolution:resolve())
     }
+}
+
+
+extension NativeGameplayEngine {
+ /// Installation is permitted only after the real captured native main owner
+ /// exists. The current raw Magnet Scene has no such owner: do not call this
+ /// based on pendingMagnetRespawn/elapsed time; its integration stays gated.
+ public func registerSourceSpecialAbsorbOwner(transactionID:String,generation:UInt64)->NativeSourceSpecialAbsorbReceipt? {
+  guard generation==state.generation,let plan=pendingSpecial,plan.id==transactionID,plan.generation==generation,
+   pendingSourceSpecialAbsorb==nil,!specialActivationCommitted,pendingMagnetRespawn==nil,
+   plan.archetype == .magnet || plan.archetype == .tnt && stagedTntActivation else{return nil}
+  sourceSpecialAbsorbSequence &+= 1
+  let receipt=NativeSourceSpecialAbsorbReceipt(id:"native-source-special-absorb:\(generation):\(sourceSpecialAbsorbSequence)",transactionID:transactionID,sourceID:plan.source.id,destinationID:plan.destination.id,generation:generation)
+  pendingSourceSpecialAbsorb=receipt;sourceSpecialAbsorbMainEntered=false;return receipt
+ }
+ /// FIRST statement of actual Source main80 onComplete, before its asynchronous
+ /// work. No body preparation/convergence/replacement/wall-wait substitutes it.
+ public func commitSourceSpecialAbsorbMain(receiptID:String,generation:UInt64)->NativeMoveResult {
+  guard generation==state.generation,let receipt=pendingSourceSpecialAbsorb,receipt.id==receiptID,receipt.generation==generation,
+   let plan=pendingSpecial,plan.id==receipt.transactionID,plan.generation==generation,!sourceSpecialAbsorbMainEntered,
+   !specialActivationCommitted,pendingMagnetRespawn==nil else{return rejected("stale_source_special_absorb_main")}
+  sourceSpecialAbsorbMainEntered=true
+  return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
+ }
+ /// Destructive pre-main callback only. Actual Source pull timeline interrupts
+ /// restore captured target poses/bindings and stop current-run force sounds.
+ public func cancelSourceSpecialAbsorb(receiptID:String,generation:UInt64)->NativeMoveResult {
+  guard generation==state.generation,let receipt=pendingSourceSpecialAbsorb,receipt.id==receiptID,receipt.generation==generation,
+   let plan=pendingSpecial,plan.id==receipt.transactionID,plan.generation==generation,!sourceSpecialAbsorbMainEntered,
+   !specialActivationCommitted,pendingMagnetRespawn==nil else{return rejected("stale_source_special_absorb_interrupt")}
+  var restored:[String]=[]
+  if plan.archetype == .magnet {
+   // Literal delayed pull timelines' onInterrupt -> cleanupPulledTile. Original
+   // captured target objects survive; no respawn/value/RNG/idle invention.
+   for target in plan.targets {
+    if let index=state.tiles.firstIndex(where:{$0.id==target.id && $0.magnetOwned && $0.resolutionOwned}),!(noMovesTileRuntime[target.id]?.destroyed ?? false) {
+     state.tiles[index].locked=false;state.tiles[index].magnetOwned=false;state.tiles[index].resolutionOwned=false
+     if var runtime=noMovesTileRuntime[target.id] {runtime.eventMode = .normal;noMovesTileRuntime[target.id]=runtime}
+     restored.append(target.id)
+    }
+   }
+  }
+  let captured=[plan.source.id,plan.destination.id],removed=captured.filter{id in state.tiles.contains{$0.id==id}}
+  state.tiles.removeAll{captured.contains($0.id)}
+  flags.pendingSpecialMutation=false
+  if plan.source.gameplayArchetype == .magnet || plan.destination.gameplayArchetype == .magnet {flags.wildMagnetPullInProgress=false}
+  pendingSpecial=nil;pendingSourceSpecialAbsorb=nil;sourceSpecialAbsorbMainEntered=false
+  specialPreBoard=nil;specialImpactIndex=0;specialActivationCommitted=false;tntTargetsReserved=false;tntReservationReleased=false
+  pendingLaserShots=[];noMovesSignature=nil
+  var events=[NativeGameplayEvent(.mergeSixAbsorbInterrupted,tileIDs:captured,archetype:plan.archetype,reason:plan.id,variant:plan.variant)]
+  if !removed.isEmpty {events.append(NativeGameplayEvent(.removed,tileIDs:removed,reason:"merge6-absorb-interrupted"))}
+  if !restored.isEmpty {events.append(NativeGameplayEvent(.sourceMagnetPullInterrupted,tileIDs:restored,archetype:.magnet,reason:plan.id,variant:plan.variant))}
+  return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
+ }
 }

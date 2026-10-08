@@ -66,6 +66,7 @@
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
         AA2026100810000000000004 = {isa = PBXFileSystemSynchronizedRootGroup; path = "../gameplay-meter-hidden-open"; sourceTree = "<group>"; };
+        AA2026100810000000000005 = {isa = PBXFileSystemSynchronizedRootGroup; path = "../gameplay-no-moves-source"; sourceTree = "<group>"; };
         AA2026100810000000000003 = {isa = PBXFileSystemSynchronizedRootGroup; path = "../gameplay-outer-motion"; sourceTree = "<group>"; };
         AA2026100810000000000001 = {isa = PBXFileSystemSynchronizedRootGroup; path = "../gameplay-meter-drop"; sourceTree = "<group>"; };
         AA2026100810000000000002 = {isa = PBXFileSystemSynchronizedRootGroup; path = "../gameplay-meter-drop-tests"; sourceTree = "<group>"; };
@@ -160,6 +161,7 @@
                 AA2026100700000000000021,
                 AA2026100810000000000001,
                 AA2026100810000000000004,
+                AA2026100810000000000005,
                 AA2026100810000000000003,
                 AA2026100800000000000006,
 				CE7BB2822EAD5DE400E8B9F9 /* Stack to Six */,
@@ -226,6 +228,7 @@
                 AA2026100700000000000021,
                 AA2026100810000000000001,
                 AA2026100810000000000004,
+                AA2026100810000000000005,
                 AA2026100810000000000003,
                 AA2026100800000000000006,
 			);

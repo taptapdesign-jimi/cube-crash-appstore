@@ -37,11 +37,14 @@ final class NativeSourceAnimationRuntime {
     var hasSourceTickerDemand:Bool{entries.values.contains{$0.active && !$0.suspended && $0.participant != nil}}
     var hasRunnableParticipants:Bool{!globallyPaused && hasSourceTickerDemand}
     init(wallOriginMilliseconds:Double){startWall=floor(wallOriginMilliseconds);lastWall=floor(wallOriginMilliseconds)}
-    func attach(participant:any NativeSourceAnimationParticipant,family:RootFamily,duration:Double,delay:Double=0,cleanup:@escaping(Bool)->Void)->Lease? {
+    func attach(participant:any NativeSourceAnimationParticipant,family:RootFamily,duration:Double,delay:Double=0,initiallySuspended:Bool=false,cleanup:@escaping(Bool)->Void)->Lease? {
         guard !disposed else{return nil}
         precondition(duration.isFinite && duration>=0 && delay>=0)
         sequence += 1
         let entry=Entry(id:sequence,family:family,duration:round7(duration),birth:round7(animationSeconds+delay),participant:participant,cleanup:cleanup)
+        // Source creates paused linked roots before entry/cloud siblings.
+        // Atomic suspension must precede demand publication, not wake+pause.
+        entry.suspended=initiallySuspended;entry.suspendedAt=animationSeconds
         if let last{entry.previous=last;last.next=entry}else{first=entry}
         last=entry;entries[entry.id]=entry;onDemandChanged?();return Lease(self,entry.id)
     }
