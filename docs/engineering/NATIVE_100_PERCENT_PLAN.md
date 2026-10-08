@@ -347,3 +347,5 @@ Private canonical save V1 plus idle-preserving ContextV2 passes SDK108 save20 pl
 These are component and source receipts; the Native app is not yet a user-accepted 100% migration. Existing v9 asset bytes remain preserved. No phone install is implied.
 
 Current bounded app graph also passes optimized Release13492/92 without skips. This validates admitted components; full app Source activation and physical acceptance remain OPEN.
+
+2026-10-08 connected continuation: actual paper/root/entry13598PASS, genuine eight NO MOVES caller subset136110PASS, normal lazy Magnet constructor-to-meter-to-retained-survivor1376PASS, combined real handoffDate138124PASS; independentCore325PASS. Date observation is onlytwo/fourwriters; wholelevelEnd/Sourceclaim/input/fullpull/shortage/retry/partialabort/accounting/tutorial/Wild/TNT admission remains OPEN. Latest confirmedoptimizedRelease13492; Release139124 running. No physical acceptance implied.

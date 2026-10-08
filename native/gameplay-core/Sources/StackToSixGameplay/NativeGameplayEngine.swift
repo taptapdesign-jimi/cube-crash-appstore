@@ -143,6 +143,15 @@ public final class NativeGameplayEngine {
     public var laserViewportWidth: Double?
     public private(set) var pendingMagnetRespawn: NativeMagnetRespawnPlan?
     /// PRIVATE/default OFF. Authentic Source app-merge fallback continuation.
+    public var sourceMagnetLazyRespawnEnabled=false
+    public private(set) var pendingSourceMagnetLazyRespawn:NativeSourceMagnetLazyRespawnPlan?
+    private var sourceMagnetLazyOperation:UInt64?,sourceMagnetLazyOperationSequence:UInt64=0
+    private var sourceMagnetLazyOpens:[Int:NativeSourceMagnetLazyOpen]=[:]
+    private var sourceMagnetLazyValueCommits:Set<Int>=[],sourceMagnetLazySettled:Set<Int>=[]
+    private var sourceMagnetLazyReserveFill:NativeSourceMagnetReserveFill?
+    private var sourceMagnetLazyReserveCommits:Set<Int>=[]
+    private var sourceMagnetLazyConversion:NativeSourceMagnetSurvivorConversion?
+    private var sourceMagnetLazyConversionCommitted=false,sourceMagnetLazyResolutionReleased=false
     public var sourceMagnetFallbacksEnabled=false
     public private(set) var sourceMagnetPostCommit:NativeSourceMagnetPostCommitReceipt?
     public private(set) var pendingSourceMagnetFallback:NativeSourceMagnetFallbackPlan?
@@ -270,6 +279,7 @@ public final class NativeGameplayEngine {
         let generation = state.generation &+ 1
         state = fresh; state.generation = generation; state.revision = 0; state.terminal = nil; tileSequence = 0
         sourceMeterMutationLedger?.resetTransientGuards(generation:generation)
+        retireSourceMagnetLazyState()
         sourceMagnetPostCommit=nil;pendingSourceMagnetFallback=nil;pendingSourceMagnetFallbackOpen=nil;sourceMagnetFallbackIndex=0;sourceMagnetFallbackValueCommitted=false
         pendingSpecial = nil; pendingLaserShots = []; pendingMagnetRespawn = nil; magnetReplacementIndex = 0; specialPreBoard = nil; specialImpactIndex = 0
         directWildPrimaryRecovery?.cancelForLifecycle();directWildPrimaryRecovery=nil;directWildSpawnPhase?.cancelForLifecycle();directWildSpawnPhase=nil;pendingWildSpawnActions=[];pendingWildSpawnArrivals=[];pendingWildLockedBonusPresentations=[];wildPhaseScheduledID=nil;directWildVisualReleased=false
@@ -783,8 +793,195 @@ public final class NativeGameplayEngine {
         let impactedIDs = replacement.id == tileID ? [tileID] : [tileID,replacement.id]
         return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.specialImpact,tileIDs:impactedIDs,value:value,archetype:.tnt,reason:plan.id,variant:plan.variant),NativeGameplayEvent(.hudStarsPrepared,tileIDs:stars.map(\.id),value:stars.count,archetype:.tnt,variant:plan.variant)]+meterEvents,resolution:NativeResolution(.wait,reason:"special_gameplay_mutation_active"))
     }
+    // PRIVATE normal source-only route. No eager/Raw entry can consume a lazy
+    // continuation and no renderer chooses or writes its logical cells/values.
+    public func prepareSourceMagnetLazyRespawn(transactionID:String,generation:UInt64,
+        sourceCurrent:()->Bool)->NativeMoveResult {
+        guard let operation=beginSourceMagnetLazyOperation() else{return rejected("source_magnet_lazy_operation_reentrant")}
+        defer{endSourceMagnetLazyOperation(operation)}
+        guard sourceMagnetLazyRespawnEnabled,sourceMathRandom != nil,state.terminal==nil,
+              let special=pendingSpecial,special.id==transactionID,special.generation==generation,
+              state.generation==generation,special.revision==state.revision,special.archetype == .magnet,
+              special.variant==nil,special.source.gameplayArchetype == .magnet,!special.destination.isWild,
+              sourceSpecialAbsorbMainEntered,!special.targets.isEmpty,
+              pendingMagnetRespawn==nil,pendingSourceMagnetLazyRespawn==nil else{return rejected("source_magnet_lazy_respawn_not_ready")}
+        let before=state
+        func validBefore()->Bool {
+            guard state==before,pendingSpecial==special,pendingSourceMagnetLazyRespawn==nil else{return false}
+            let accepted=sourceCurrent()
+            return accepted && sourceMagnetLazyRespawnEnabled && state==before && pendingSpecial==special && pendingSourceMagnetLazyRespawn==nil
+        }
+        guard validBefore() else{return rejected("source_magnet_lazy_scope_not_current")}
+        let owned=Set(special.targets.map(\.id));state.tiles.removeAll{owned.contains($0.id)}
+        let captured=state
+        func valid()->Bool {
+            guard state==captured,pendingSpecial==special,pendingSourceMagnetLazyRespawn==nil else{return false}
+            let accepted=sourceCurrent()
+            return accepted && sourceMagnetLazyRespawnEnabled && state==captured && pendingSpecial==special && pendingSourceMagnetLazyRespawn==nil
+        }
+        var refused=false
+        func draw()->Double {
+            guard valid(),!refused else{refused=true;return 0}
+            let roll=nextRandom()
+            guard valid(),roll.isFinite,roll>=0,roll<1 else{refused=true;return 0}
+            return roll
+        }
+        func find(_ count:Int)->[NativeCell] {
+            var empties=NativeMagnetRules.emptyCells(state:captured)
+            if empties.count>1 {for index in stride(from:empties.count-1,through:1,by:-1) {
+                let roll=draw();if refused{return []};empties.swapAt(index,Int(floor(roll*Double(index+1))))
+            }}
+            return Array(empties.prefix(count)) // Source slices BEFORE exclusions.
+        }
+        let count=special.targets.count,excluded=Set(special.targets.map(\.cell)+[special.destination.cell])
+        let first=find(count+6).filter{!excluded.contains($0)}
+        let cells=Array(first.prefix(count));var reserved=Array(first.dropFirst(count).prefix(6))
+        // This component requires the literal normal all-target branch. The
+        // source shortage retry/catch owns a separate real continuation; none
+        // is manufactured here or borrowed from Raw's eager transaction.
+        guard !refused,valid(),cells.count==count else{return rejected("source_magnet_target_shortage_continuation_not_bound")}
+        if reserved.count<6 {
+            let extras=find(12);var used=Set(reserved);let opens=Set(cells)
+            for cell in extras {
+                if reserved.count>=6{break}
+                if excluded.contains(cell) || used.contains(cell) || opens.contains(cell){continue}
+                reserved.append(cell);used.insert(cell)
+            }
+        }
+        guard !refused,valid() else{return rejected("source_magnet_lazy_draw_retired")}
+        let values=NativeMagnetRules.forcedReplacementValues(count:count,random:draw)
+        guard !refused,valid(),values.count==count else{return rejected("source_magnet_lazy_values_retired")}
+        let slots=zip(cells,values).enumerated().map{NativeSourceMagnetLazySlot(index:$0.offset,cell:$0.element.0,forcedValue:$0.element.1)}
+        pendingSourceMagnetLazyRespawn = .init(transactionID:transactionID,generation:generation,revision:special.revision,
+            slots:slots,reserved:reserved,destinationID:special.destination.id,avoiding:special.destination.value)
+        sourceMagnetLazyOpens=[:];sourceMagnetLazyValueCommits=[];sourceMagnetLazySettled=[];sourceMagnetLazyReserveFill=nil;sourceMagnetLazyReserveCommits=[];sourceMagnetLazyConversion=nil;sourceMagnetLazyConversionCommitted=false;sourceMagnetLazyResolutionReleased=false
+        let pulledStar=special.targets.first{$0.gameplayArchetype == .star && $0.variant==nil}
+        let stars=prepareHUDStars(count:min(3,max(0,pulledStar.map{max(1,min(3,$0.starOrbitCount))} ?? 0)+count),origin:special.destination.cell,variant:nil)
+        return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.removed,tileIDs:special.targets.map(\.id),archetype:.magnet,reason:transactionID),NativeGameplayEvent(.hudStarsPrepared,tileIDs:stars.map(\.id),value:stars.count,archetype:.magnet)],resolution:NativeResolution(.wait,reason:"source_magnet_lazy_respawn_pending"))
+    }
+    private func sourceMagnetLazyCurrent(_ transactionID:String,_ generation:UInt64,sourceCurrent:()->Bool)->Bool {
+        guard sourceMagnetLazyRespawnEnabled,state.generation==generation,state.terminal==nil,
+              let plan=pendingSourceMagnetLazyRespawn,plan.transactionID==transactionID,plan.generation==generation,
+              pendingSpecial?.id==transactionID,pendingSpecial?.generation==generation,pendingSpecial?.revision==state.revision else{return false}
+        let captured=state,accepted=sourceCurrent()
+        return accepted && sourceMagnetLazyRespawnEnabled && state==captured && pendingSourceMagnetLazyRespawn==plan && pendingSpecial?.id==transactionID
+    }
+    /// forceFreshPlaceholder is an actual per-open action, before constructor
+    /// rotation/raw RAF. It makes NO value/skin/bounce draw at preparation time.
+    public func beginSourceMagnetLazyOpen(transactionID:String,generation:UInt64,index:Int,
+        sourceCurrent:()->Bool)->NativeSourceMagnetLazyOpen? {
+        guard let operation=beginSourceMagnetLazyOperation() else{return nil}
+        defer{endSourceMagnetLazyOperation(operation)}
+        guard sourceMagnetLazyCurrent(transactionID,generation,sourceCurrent:sourceCurrent),
+              let plan=pendingSourceMagnetLazyRespawn,plan.slots.indices.contains(index),sourceMagnetLazyOpens[index]==nil else{return nil}
+        let slot=plan.slots[index],existing=state.tile(at:slot.cell)
+        let skipped=existing.map{$0.value>0 || $0.isWild || !$0.locked} ?? false
+        var holder:NativeTile?,removed:String?
+        if !skipped {
+            if let existing {removed=existing.id;state.tiles.removeAll{$0.id==existing.id}}
+            var fresh=freshTile(cell:slot.cell,value:0);fresh.locked=true;fresh.alpha=0.20
+            holder=fresh;state.tiles.append(fresh)
+        }
+        let open=NativeSourceMagnetLazyOpen(id:"\(transactionID):source-open:\(index)",transactionID:transactionID,
+            generation:generation,slot:slot,holder:holder,removedHolderID:removed,skipped:skipped)
+        sourceMagnetLazyOpens[index]=open;return open
+    }
+    public func commitSourceMagnetLazyOpenValue(openID:String,generation:UInt64,sourceCurrent:()->Bool)->NativeMoveResult {
+        guard let operation=beginSourceMagnetLazyOperation() else{return rejected("source_magnet_lazy_operation_reentrant")}
+        defer{endSourceMagnetLazyOperation(operation)}
+        guard let open=sourceMagnetLazyOpens.values.first(where:{$0.id==openID}),!open.skipped,
+              let holder=open.holder,!sourceMagnetLazyValueCommits.contains(open.slot.index),
+              sourceMagnetLazyCurrent(open.transactionID,generation,sourceCurrent:sourceCurrent),
+              let index=state.tiles.firstIndex(where:{$0.id==holder.id && $0.cell==holder.cell && $0.locked && $0.value==0}) else{return rejected("source_magnet_lazy_open_value_not_owned")}
+        var tile=state.tiles[index];tile.value=open.slot.forcedValue;tile.locked=false;tile.alpha=1;tile.visible=true
+        state.tiles[index]=tile;sourceMagnetLazyValueCommits.insert(open.slot.index)
+        return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.spawned,tileIDs:[tile.id],value:tile.value,archetype:.magnet,reason:open.transactionID)],resolution:NativeResolution(.wait,reason:"source_magnet_lazy_replacement_assigned"))
+    }
+    /// Called ONLY by the real openAtCell Promise → wall50 verification. This
+    /// preserves skipped/failed slots for the source shortage continuation.
+    public func finishSourceMagnetLazyOpen(openID:String,generation:UInt64,verifiedTileID:String?,sourceCurrent:()->Bool)->Bool {
+        guard let operation=beginSourceMagnetLazyOperation() else{return false}
+        defer{endSourceMagnetLazyOperation(operation)}
+        guard let open=sourceMagnetLazyOpens.values.first(where:{$0.id==openID}),
+              sourceMagnetLazyCurrent(open.transactionID,generation,sourceCurrent:sourceCurrent),!sourceMagnetLazySettled.contains(open.slot.index) else{return false}
+        guard !open.skipped,sourceMagnetLazyValueCommits.contains(open.slot.index),let holder=open.holder,verifiedTileID==holder.id,
+              let tile=state.tile(at:open.slot.cell),tile.id==holder.id,!tile.locked,tile.value>0 else{return false}
+        sourceMagnetLazySettled.insert(open.slot.index);return true
+    }
+    /// First literal fill runs after Promise.all and BEFORE survivor value.
+    /// An empty reserved list means all null cells row-major, not no fill.
+    public func prepareSourceMagnetLazyReserveFill(transactionID:String,generation:UInt64,sourceCurrent:()->Bool)->NativeSourceMagnetReserveFill? {
+        guard let operation=beginSourceMagnetLazyOperation() else{return nil}
+        defer{endSourceMagnetLazyOperation(operation)}
+        guard sourceMagnetLazyCurrent(transactionID,generation,sourceCurrent:sourceCurrent),let plan=pendingSourceMagnetLazyRespawn,
+              sourceMagnetLazySettled.count==plan.slots.count,sourceMagnetLazyReserveFill==nil else{return nil}
+        let cells=plan.reserved.isEmpty ? (0..<state.rows).flatMap{row in (0..<state.columns).map{NativeCell(column:$0,row:row)}}:plan.reserved
+        let holders=cells.compactMap{cell->NativeTile? in
+            guard state.tile(at:cell)==nil else{return nil};var tile=freshTile(cell:cell,value:0);tile.locked=true;tile.alpha=0.20;return tile
+        }
+        let fill=NativeSourceMagnetReserveFill(transactionID:transactionID,generation:generation,holders:holders)
+        sourceMagnetLazyReserveFill=fill;return fill
+    }
+    public func commitSourceMagnetLazyReserve(transactionID:String,generation:UInt64,index:Int,sourceCurrent:()->Bool)->NativeMoveResult {
+        guard let operation=beginSourceMagnetLazyOperation() else{return rejected("source_magnet_lazy_operation_reentrant")}
+        defer{endSourceMagnetLazyOperation(operation)}
+        guard sourceMagnetLazyCurrent(transactionID,generation,sourceCurrent:sourceCurrent),let fill=sourceMagnetLazyReserveFill,
+              fill.holders.indices.contains(index),!sourceMagnetLazyReserveCommits.contains(index) else{return rejected("source_magnet_lazy_reserve_not_owned")}
+        let tile=fill.holders[index]
+        guard state.tile(at:tile.cell)==nil else{return rejected("source_magnet_lazy_reserve_cell_replaced")}
+        state.tiles.append(tile);sourceMagnetLazyReserveCommits.insert(index)
+        return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.spawned,tileIDs:[tile.id],value:0,archetype:.magnet,reason:transactionID)],resolution:NativeResolution(.wait,reason:"source_magnet_lazy_reserve_constructed"))
+    }
+    /// At actual conversion after all real reserved constructor draws. The
+    /// SAME Core destination ID is retained; no value is selected in prepare.
+    public func prepareSourceMagnetLazySurvivor(transactionID:String,generation:UInt64,sourceCurrent:()->Bool)->NativeSourceMagnetSurvivorConversion? {
+        guard let operation=beginSourceMagnetLazyOperation() else{return nil}
+        defer{endSourceMagnetLazyOperation(operation)}
+        guard sourceMagnetLazyCurrent(transactionID,generation,sourceCurrent:sourceCurrent),let plan=pendingSourceMagnetLazyRespawn,
+              let fill=sourceMagnetLazyReserveFill,sourceMagnetLazyReserveCommits.count==fill.holders.count,
+              sourceMagnetLazyConversion==nil,let destination=state.tiles.first(where:{$0.id==plan.destinationID}),destination.value==6 else{return nil}
+        let value=randomValue(excluding:plan.avoiding)
+        guard sourceMagnetLazyCurrent(transactionID,generation,sourceCurrent:sourceCurrent) else{return nil}
+        let survivor=NativeTile(id:destination.id,cell:destination.cell,value:value)
+        let conversion=NativeSourceMagnetSurvivorConversion(transactionID:transactionID,generation:generation,survivor:survivor)
+        sourceMagnetLazyConversion=conversion;return conversion
+    }
+    /// Before genuine Node setValue, clear special state and assign the same
+    /// object. Its resolution claim stays held until setValue has returned.
+    public func commitSourceMagnetLazySurvivorValue(transactionID:String,generation:UInt64,sourceCurrent:()->Bool)->NativeMoveResult {
+        guard let operation=beginSourceMagnetLazyOperation() else{return rejected("source_magnet_lazy_operation_reentrant")}
+        defer{endSourceMagnetLazyOperation(operation)}
+        guard sourceMagnetLazyCurrent(transactionID,generation,sourceCurrent:sourceCurrent),let conversion=sourceMagnetLazyConversion,
+              !sourceMagnetLazyConversionCommitted,let index=state.tiles.firstIndex(where:{$0.id==conversion.survivor.id && $0.value==6}) else{return rejected("source_magnet_lazy_survivor_not_owned")}
+        var survivor=conversion.survivor;survivor.resolutionOwned=true
+        state.tiles[index]=survivor;sourceMagnetLazyConversionCommitted=true
+        return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.spawned,tileIDs:[survivor.id],value:survivor.value,archetype:.magnet,reason:transactionID)],resolution:NativeResolution(.wait,reason:"source_magnet_lazy_survivor_value_assigned"))
+    }
+    public func releaseSourceMagnetLazySurvivorResolution(transactionID:String,generation:UInt64,sourceCurrent:()->Bool)->Bool {
+        guard let operation=beginSourceMagnetLazyOperation() else{return false}
+        defer{endSourceMagnetLazyOperation(operation)}
+        guard sourceMagnetLazyCurrent(transactionID,generation,sourceCurrent:sourceCurrent),let conversion=sourceMagnetLazyConversion,
+              sourceMagnetLazyConversionCommitted,!sourceMagnetLazyResolutionReleased,
+              let index=state.tiles.firstIndex(where:{$0.id==conversion.survivor.id && $0.value==conversion.survivor.value}) else{return false}
+        state.tiles[index].resolutionOwned=false;sourceMagnetLazyResolutionReleased=true;return true
+    }
+    private func beginSourceMagnetLazyOperation()->UInt64? {
+        guard sourceMagnetLazyOperation==nil else{return nil}
+        sourceMagnetLazyOperationSequence &+= 1;let token=sourceMagnetLazyOperationSequence
+        sourceMagnetLazyOperation=token;return token
+    }
+    private func endSourceMagnetLazyOperation(_ token:UInt64){
+        if sourceMagnetLazyOperation==token{sourceMagnetLazyOperation=nil}
+    }
+    private func retireSourceMagnetLazyState(){
+        sourceMagnetLazyOperation=nil
+        pendingSourceMagnetLazyRespawn=nil;sourceMagnetLazyOpens=[:];sourceMagnetLazyValueCommits=[];sourceMagnetLazySettled=[]
+        sourceMagnetLazyReserveFill=nil;sourceMagnetLazyReserveCommits=[];sourceMagnetLazyConversion=nil;sourceMagnetLazyConversionCommitted=false;sourceMagnetLazyResolutionReleased=false
+    }
+
     /// Source pull convergence removes consumed IDs before the 50ms respawn pause.
     public func prepareMagnetRespawn(transactionID: String) -> NativeMoveResult {
+        guard !sourceMagnetLazyRespawnEnabled,pendingSourceMagnetLazyRespawn==nil else{return rejected("source_magnet_lazy_callback_required")}
         guard let plan = pendingSpecial, plan.id == transactionID, plan.generation == state.generation, plan.revision == state.revision,
               plan.archetype == .magnet, !plan.targets.isEmpty, pendingMagnetRespawn == nil else { return rejected("magnet_respawn_not_ready") }
         let before = state; let choices = randomChoices
@@ -830,6 +1027,17 @@ public final class NativeGameplayEngine {
         guard state.terminal == nil,let plan = pendingSpecial, plan.id == transactionID, plan.generation == state.generation, (plan.archetype == .tnt || plan.revision == state.revision),
               let pre = specialPreBoard, plan.archetype != .tnt || tntTargetsReserved && specialImpactIndex == plan.targets.count else { return rejected("special_board_commit_not_ready") }
         var events: [NativeGameplayEvent] = []
+        if plan.archetype == .magnet && pendingSourceMagnetLazyRespawn != nil && !sourceMagnetLazyRespawnEnabled {return rejected("source_magnet_lazy_retired_continuation")}
+        if plan.archetype == .magnet && sourceMagnetLazyRespawnEnabled {
+            guard sourceMagnetLazyOperation==nil,let lazy=pendingSourceMagnetLazyRespawn,lazy.transactionID==plan.id,
+                  let conversion=sourceMagnetLazyConversion,sourceMagnetLazyResolutionReleased,
+                  let fill=sourceMagnetLazyReserveFill,sourceMagnetLazySettled.count==lazy.slots.count,
+                  sourceMagnetLazyReserveCommits.count==fill.holders.count else{return rejected("source_magnet_lazy_board_not_ready")}
+            let replacements=lazy.slots.compactMap{slot in sourceMagnetLazyOpens[slot.index]?.holder.flatMap{holder in state.tiles.first{$0.id==holder.id}}}
+            guard replacements.count==lazy.slots.count else{return rejected("source_magnet_lazy_replacement_identity_missing")}
+            pendingMagnetRespawn=NativeMagnetRespawnPlan(transactionID:plan.id,replacements:replacements,survivor:conversion.survivor,placeholders:fill.holders)
+            magnetReplacementIndex=replacements.count
+        }
         if plan.archetype == .tnt && !specialActivationCommitted {
             let activation = commitSpecialActivation(transactionID:plan.id)
             guard activation.accepted else { return activation }; events += activation.events
@@ -851,9 +1059,14 @@ public final class NativeGameplayEngine {
             // Source uses an explicit 4x pull crack, independent of the one-to-four pull count.
             state.score = min(999999,state.score+24); state.cubesCracked = pre.cubesCracked+2
             state.combo = min(99,oldCombo+1+plan.targets.count)
-            state.tiles.removeAll { $0.id == plan.destination.id }
-            state.tiles.append(respawn.survivor)
-            events.append(NativeGameplayEvent(.spawned,tileIDs:[respawn.survivor.id],value:respawn.survivor.value))
+            if sourceMagnetLazyRespawnEnabled {
+                guard let index=state.tiles.firstIndex(where:{$0.id==plan.destination.id}),respawn.survivor.id==plan.destination.id else{return rejected("source_magnet_lazy_destination_identity_missing")}
+                state.tiles[index]=respawn.survivor
+            } else {
+                state.tiles.removeAll { $0.id == plan.destination.id }
+                state.tiles.append(respawn.survivor)
+            }
+            if !sourceMagnetLazyRespawnEnabled {events.append(NativeGameplayEvent(.spawned,tileIDs:[respawn.survivor.id],value:respawn.survivor.value))}
             for tile in respawn.placeholders where state.tile(at:tile.cell) == nil {
                 state.tiles.append(tile); events.append(NativeGameplayEvent(.spawned,tileIDs:[tile.id],value:0))
             }
@@ -879,6 +1092,10 @@ public final class NativeGameplayEngine {
         flags.pendingSpecialMutation = false; flags.wildMagnetPullInProgress = false
         pendingSpecial = nil; pendingLaserShots = []; pendingMagnetRespawn = nil; magnetReplacementIndex = 0; specialPreBoard = nil; tntReservationReleased = false; specialActivationCommitted = false; tntTargetsReserved = false
         pendingSourceSpecialAbsorb=nil;sourceSpecialAbsorbMainEntered=false
+        if sourceMagnetLazyRespawnEnabled {
+            if sourceMagnetFallbacksEnabled,let lazy=pendingSourceMagnetLazyRespawn {sourceMagnetPostCommit = .init(transactionID:plan.id,generation:plan.generation,spawnCount:lazy.slots.count,reserved:lazy.reserved)}
+            retireSourceMagnetLazyState()
+        }
         events.append(NativeGameplayEvent(.comboChanged,value:state.combo))
         events.append(NativeGameplayEvent(.specialBoardCommitted,archetype:plan.archetype,reason:plan.id,variant:plan.variant))
         if state.wildMeter >= 1-0.000001 && rewardPicker != nil { _ = spawnMeterReward(events:&events) }
