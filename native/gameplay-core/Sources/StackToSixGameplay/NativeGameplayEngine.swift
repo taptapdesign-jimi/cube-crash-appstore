@@ -9,6 +9,9 @@ public final class NativeGameplayEngine {
     /// owner (for example Wild-drop travel); ordinary decorative SKActions add none.
     private var sourceMeterMutationLedger:NativeSourceMeterMutationLedger?
     public var sourceSaveRuntime=NativeSourceSaveRuntime()
+    /// Actual Source Special claim AFTER canonical legality/presentation checks,
+    /// BEFORE sequence/plan/RNG. Nil preserves all existing pure/Raw callers.
+    public var sourceSpecialContactHook:NativeSourceSpecialContactHook?
     /// Native physical-face bridge admission, not a Source spawn/save marker.
     public var sourceOrdinaryStackFacesEnabled=false
     private var sourceOrdinaryStackFaces:[String:NativeSourceOrdinaryStackFaceEntry]=[:]
@@ -119,6 +122,10 @@ public final class NativeGameplayEngine {
     public private(set) var pendingMagnetRespawn: NativeMagnetRespawnPlan?
     private var magnetReplacementIndex = 0
     public private(set) var pendingHUDStars: [NativeHUDStarReceipt] = []
+    /// Opt-in only after genuine Source flight/job bindings are mounted.
+    public var sourceHUDStarJobsEnabled=false
+    public private(set) var sourceHUDStarJobs:[NativeSourceHUDStarJob]=[]
+    private var sourceHUDStarJobSequence:UInt64=0
     public private(set) var pendingMeterRewards: [NativeMeterRewardReceipt] = []
     public var stagedTntActivation = false
     public var stagedDirectWildMoves = false
@@ -225,7 +232,7 @@ public final class NativeGameplayEngine {
         pendingDirectWild = nil; directWildGameplayCommitted = false; committingDirectWild = false
         pendingSourceSpecialAbsorb=nil;sourceSpecialAbsorbMainEntered=false
         pendingOrdinaryStack = nil; pendingOrdinarySix = nil; ordinarySixGameplayCommitted = false; pendingOrdinaryPostchecks.removeAll(); pendingOrdinarySpawns.removeAll(); ordinarySpawnPreparationPending=false;pendingOrdinaryAssignments.removeAll();pendingOrdinaryPrimaryArrival=nil;pendingOrdinaryDestinationCleanup=nil;ordinaryRefillRemaining=0;ordinaryRequestedOpenings=0;ordinarySuccessfulOpenings=0;ordinaryForcedCandidates=[];ordinaryForcedPass=false; committingOrdinaryStack = false
-        drag = nil; pendingHUDStars.removeAll(); pendingMeterRewards.removeAll(); tntReservationReleased = false; specialActivationCommitted = false; tntTargetsReserved = false; deferredFinalMerge = nil; locks.removeAll(); flags = NativeGameplayRuntimeFlags(); noMovesSignature = nil; comboLastMutationTime = nil
+        drag = nil; sourceHUDStarJobs.removeAll(); sourceHUDStarJobSequence=0; pendingHUDStars.removeAll(); pendingMeterRewards.removeAll(); tntReservationReleased = false; specialActivationCommitted = false; tntTargetsReserved = false; deferredFinalMerge = nil; locks.removeAll(); flags = NativeGameplayRuntimeFlags(); noMovesSignature = nil; comboLastMutationTime = nil
     }
     public func cancelForBackground() {
         pendingWildRecoveryChecks=[];pendingWildSpawnPresentations=[]
@@ -275,7 +282,10 @@ public final class NativeGameplayEngine {
             _ = commitSpecialBoard(transactionID:plan.id)
         }
         for receipt in pendingMeterRewards { _ = commitMeterReward(receiptID:receipt.id,generation:receipt.generation) }
-        for receipt in pendingHUDStars { _ = commitHUDStarArrival(receiptID:receipt.id,generation:receipt.generation) }
+        // Protected Source roots remain paused. Their independent wall job may
+        // discard unfinished debt; background must not invent a98% arrival.
+        let protected=Set(sourceHUDStarJobs.flatMap(\.receiptIDs))
+        for receipt in pendingHUDStars where !sourceHUDStarJobsEnabled && !protected.contains(receipt.id) { _ = commitHUDStarArrival(receiptID:receipt.id,generation:receipt.generation) }
     }
     private func canRunOrdinaryDuringTnt(_ tile: NativeTile) -> Bool {
         tntReservationReleased && pendingSpecial?.archetype == .tnt && !tile.isWild && tile.isPlayable &&
@@ -429,6 +439,19 @@ public final class NativeGameplayEngine {
     private func stageDirectWild(source: NativeTile,destination: NativeTile,archetype: NativeWildArchetype,pointerID: Int,now: Double,isFinal: Bool) -> NativeMoveResult {
         guard pendingDirectWild == nil,pendingSpecial == nil else { return rejected("direct_wild_transaction_in_progress") }
         if !isFinal,let specialPresentationAdmitted,!specialPresentationAdmitted(archetype,source.variant ?? destination.variant) { return rejected("native_special_presentation_not_ready") }
+        if let hook=sourceSpecialContactHook {
+            let captured=state,capturedFlags=flags,capturedLocks=locks
+            let capturedOpen=pendingMeterOpen,capturedStack=pendingOrdinaryStack,capturedSix=pendingOrdinarySix
+            guard state.tiles.first(where:{$0.id==source.id})==source,
+                  state.tiles.first(where:{$0.id==destination.id})==destination else{return rejected("source_special_contact_changed")}
+            guard let lease=hook.claim(source,destination,archetype) else{return rejected("source_special_claim_rejected")}
+            let accepted=lease.isCurrent()
+            guard accepted,sourceSpecialContactHook === hook,state==captured,flags==capturedFlags,locks==capturedLocks,
+                  pendingMeterOpen==capturedOpen,pendingOrdinaryStack==capturedStack,pendingOrdinarySix==capturedSix,
+                  pendingSpecial==nil,pendingDirectWild==nil else {
+                lease.rejected();return rejected("source_special_claim_reentered")
+            }
+        }
         specialSequence &+= 1
         let plan = NativeDirectWildMovePlan(id:"native-direct:\(state.generation):\(specialSequence)",generation:state.generation,revision:state.revision,archetype:archetype,variant:source.variant ?? destination.variant,source:source,destination:destination,startedAt:now,isFinal:isFinal)
         wildSourceResolutionBoundary=nil
@@ -516,6 +539,19 @@ public final class NativeGameplayEngine {
         if let specialPresentationAdmitted, !specialPresentationAdmitted(archetype,source.variant ?? destination.variant) { return rejected("native_special_presentation_not_ready") }
         if stagedTntActivation && (source.variant ?? destination.variant) == "laser-gun",
            laserTargetX == nil || laserViewportWidth == nil || !(laserViewportWidth!.isFinite && laserViewportWidth! > 0) { return rejected("native_laser_geometry_not_ready") }
+        if let hook=sourceSpecialContactHook {
+            let captured=state,capturedFlags=flags,capturedLocks=locks
+            let capturedOpen=pendingMeterOpen,capturedStack=pendingOrdinaryStack,capturedSix=pendingOrdinarySix
+            guard state.tiles.first(where:{$0.id==source.id})==source,
+                  state.tiles.first(where:{$0.id==destination.id})==destination else{return rejected("source_special_contact_changed")}
+            guard let lease=hook.claim(source,destination,archetype) else{return rejected("source_special_claim_rejected")}
+            let accepted=lease.isCurrent()
+            guard accepted,sourceSpecialContactHook === hook,state==captured,flags==capturedFlags,locks==capturedLocks,
+                  pendingMeterOpen==capturedOpen,pendingOrdinaryStack==capturedStack,pendingOrdinarySix==capturedSix,
+                  pendingSpecial==nil,pendingDirectWild==nil else {
+                lease.rejected();return rejected("source_special_claim_reentered")
+            }
+        }
         pendingLaserShots = []
         expireCombo(now:now)
         let pre = state
@@ -791,8 +827,41 @@ public final class NativeGameplayEngine {
         pendingHUDStars += receipts
         return receipts
     }
+    /// Adopts one original animateStarsToHudIcon call group (cap3), never a
+    /// flattened set of several independent earned batches. No score mutation.
+    public func registerSourceHUDStarJob(receiptIDs:[String],generation:UInt64)->NativeSourceHUDStarJob? {
+        guard sourceHUDStarJobsEnabled,generation==state.generation,!receiptIDs.isEmpty,receiptIDs.count<=3,
+            Set(receiptIDs).count==receiptIDs.count else{return nil}
+        let ordered=receiptIDs.compactMap{id in pendingHUDStars.first{$0.id==id && $0.generation==generation}}
+        guard ordered.count==receiptIDs.count,let first=ordered.first,
+            ordered.allSatisfy({$0.batchCount==ordered.count && $0.variant==first.variant && $0.origin==first.origin}),
+            ordered.map(\.ordinal)==Array(0..<ordered.count),
+            ordered.allSatisfy({$0.id.dropLast(2)==first.id.dropLast(2)}),
+            sourceHUDStarJobs.allSatisfy({Set($0.receiptIDs).isDisjoint(with:receiptIDs)}) else{return nil}
+        sourceHUDStarJobSequence &+= 1
+        let job=NativeSourceHUDStarJob(id:"native-source-hud-job:\(generation):\(sourceHUDStarJobSequence)",generation:generation,receiptIDs:receiptIDs)
+        sourceHUDStarJobs.append(job);return job
+    }
+    /// Actual transformed-path98% callback for this captured job/star only.
+    public func commitSourceHUDStarArrival(job:NativeSourceHUDStarJob,receiptID:String)->NativeMoveResult {
+        guard job.generation==state.generation,sourceHUDStarJobs.contains(job),job.receiptIDs.contains(receiptID) else{return rejected("stale_source_hud_star_job")}
+        return performHUDStarArrival(receiptID:receiptID,generation:job.generation)
+    }
+    /// Genuine job wall cleanup or explicit forceCleanup kills unfinished debt
+    /// without reward. Completed stars are already absent; captured IDs retain
+    /// their original job until this callback, even if all visual sprites left.
+    @discardableResult public func retireSourceHUDStarJob(job:NativeSourceHUDStarJob)->Bool {
+        guard job.generation==state.generation,let i=sourceHUDStarJobs.firstIndex(of:job) else{return false}
+        sourceHUDStarJobs.remove(at:i);let captured=Set(job.receiptIDs)
+        pendingHUDStars.removeAll{$0.generation==job.generation && captured.contains($0.id)}
+        return true
+    }
     /// Called only by the captured flight reaching98% of its HUD path. Terminal sealing does not revoke authored score arrivals.
     public func commitHUDStarArrival(receiptID: String, generation: UInt64) -> NativeMoveResult {
+        guard !sourceHUDStarJobsEnabled,!sourceHUDStarJobs.contains(where:{$0.generation==generation && $0.receiptIDs.contains(receiptID)}) else{return rejected("source_hud_star_requires_captured_job")}
+        return performHUDStarArrival(receiptID:receiptID,generation:generation)
+    }
+    private func performHUDStarArrival(receiptID:String,generation:UInt64)->NativeMoveResult {
         guard generation == state.generation, let index = pendingHUDStars.firstIndex(where: { $0.id == receiptID && $0.generation == generation }) else { return rejected("stale_or_duplicate_hud_star") }
         let receipt = pendingHUDStars.remove(at:index)
         state.score = min(999999,state.score+100); state.bestScore = max(state.bestScore,state.score)
