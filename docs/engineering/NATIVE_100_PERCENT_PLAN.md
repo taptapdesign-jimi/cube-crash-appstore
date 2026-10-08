@@ -301,3 +301,5 @@ verified. Main3f1b7762/index/PWA/assets/installed phone unchanged. Remaining
 Scene activation/NO MOVES/interrupt/Release/physical gates are still OPEN.
 
 - 2026-10-08 continuation: CLOSED Core188 and NO MOVES Source V3 actual SDK30 87/87 PASS; source full5 all19 gates/KING24/330 PASS. Private app context SDK31 45/45 PASS includes HUD6 and Scene replacement/Raw preservation3. These receipts do not admit full Source Scene/default shipping or physical parity. Real contact, selected meter, smoke/resize and destructive interruption queue/pull bindings remain in progress.
+
+- Online checkpoint4 `e0a536e2` contains the CLOSED Core188 / NO MOVES V3 batch only. SDK31-tested app context was admitted afterwards; actual Bootstrap/VC full-contact caller patch and fixtures remain private/default-off pending connected SDK.

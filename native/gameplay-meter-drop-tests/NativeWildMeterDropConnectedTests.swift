@@ -36,7 +36,7 @@ nonisolated final class NativeWildMeterDropConnectedTests:XCTestCase {
         var current=true,renderEpoch:UInt64=1
         var receipts:[NativeWildMeterDropRuntime.Event]=[],coreReceipts:[NativeMeterDropReceipt]=[]
         var activityBegins=0,activityEnds=0,audioBegins=0,audioStops=0,masks=0,unmasks=0
-        init(root:URL,ready:@escaping()->Void)throws {
+        init(root:URL,afterAttach:((Session)->Void)?=nil,ready:@escaping()->Void)throws {
             engine=NativeGameplayEngine(state:NativeBoardState(tiles:[NativeTile(id:"a",cell:.init(column:0,row:0),value:2),NativeTile(id:"b",cell:.init(column:1,row:0),value:3)],wildMeter:1.25),
                 recordedRandomChoices:[0,0,0],rewardPicker:{_,_ in NativeWildRewardChoice(.star,variant:"cubero")})
             engine.stagedMeterDrops=true;engine.stagedOrdinaryMoves=true;engine.stagedDirectWildMoves=true
@@ -53,7 +53,11 @@ nonisolated final class NativeWildMeterDropConnectedTests:XCTestCase {
                 parentWorld:.init(a:0.4,d:0.4,tx:98.4,ty:206.4),originalRotation:0,originalZIndex:17,
                 usesUniformDropScale:NativeWildMeterDropPlan.sourceUsesUniformDropScale(variant:"cubero"),random:{0.5})
             owner=NativeWildMeterDropSceneOwner(capture:capture,tile:tile,stage:stage,arcade:false,resources:catalog,timeouts:timeouts,
-                attach:{[weak clock] duration,advance,done in clock?.attach(duration,advance,done)},wallNow:{ProcessInfo.processInfo.systemUptime*1000},
+                attach:{[weak self,weak clock] duration,advance,done in
+                    let lease=clock?.attach(duration,advance,done)
+                    if let self {afterAttach?(self)}
+                    return lease
+                },wallNow:{ProcessInfo.processInfo.systemUptime*1000},
                 renderEpoch:{[weak self] in self?.renderEpoch ?? 0},isCurrent:{[weak self] in self?.current == true},
                 stagePoint:{CGPoint(x:$0.x,y:844-$0.y)},makePlan:{plan},makeHandoff:{[weak self] plan in
                     guard let self else{return nil}
@@ -145,4 +149,57 @@ nonisolated final class NativeWildMeterDropConnectedTests:XCTestCase {
         XCTAssertEqual(s.receipts.count,count);XCTAssertTrue(replacement.parent===s.board)
         XCTAssertEqual(replacement.alpha,1);XCTAssertEqual(s.audioStops,1);XCTAssertEqual(s.activityEnds,1);XCTAssertEqual(s.unmasks,1)
     }
+    @MainActor func testReentrantLeaseAcquisitionReleasesEveryLateHandleAndCannotMountOldRoots() async throws {
+        for kind in ["activity","audio","divider"] {
+            let acquired=expectation(description:"captured \(kind) acquisition"),s=try Session(root:assetsRoot()){}
+            var lateEnds=0
+            let factory:()->(()->Void)={
+                s.owner.dispose();acquired.fulfill()
+                return {lateEnds+=1}
+            }
+            if kind=="activity" {s.owner.onBeginActivity=factory}
+            else if kind=="audio" {s.owner.onBeginAudio=factory}
+            else {s.owner.onBeginDividerMask=factory}
+            s.owner.start();await fulfillment(of:[acquired],timeout:10)
+            XCTAssertEqual(lateEnds,1,kind)
+            XCTAssertFalse(s.owner.presentationMounted);XCTAssertEqual(s.clock.runtime.activeCount,0)
+            let replacement=SKSpriteNode();s.stage.addChild(replacement)
+            s.owner.dispose();s.clock.advance(to:2200)
+            XCTAssertEqual(lateEnds,1);XCTAssertTrue(replacement.parent===s.stage)
+            s.dispose()
+        }
+    }
+    @MainActor func testTrueCurrentPredicateCannotReviveDisposedHandoffOrLateStagePointPaint() throws {
+        let scene=SKScene(size:CGSize(width:390,height:844)),parent=SKNode(),tile=SKNode()
+        scene.addChild(parent);parent.addChild(tile);tile.position=CGPoint(x:10,y:20)
+        let capture=NativeWildMeterDropRuntime.Capture(id:"a",generation:1,epoch:2)
+        let plan=NativeWildMeterDropPlan(arcade:false,viewport:.init(x:390,y:844),tileSize:128,target:.init(x:10,y:20),parentWorld:.init(a:1,d:1),originalRotation:0,originalZIndex:0,usesUniformDropScale:false,random:{0.5})
+        for phase in ["predicate","point"] {
+            var handoff:NativeWildMeterDropNodeHandoff!
+            handoff=try XCTUnwrap(NativeWildMeterDropNodeHandoff(tile:tile,stage:scene,capture:capture,sourceParentVisualScale:1,stagePoint:{point in
+                if phase=="point" {handoff.dispose()}
+                return CGPoint(x:point.x,y:point.y)
+            },isCurrent:{_,_ in if phase=="predicate" {handoff.dispose()};return true}))
+            let old=tile.position
+            XCTAssertFalse(handoff.apply(plan.sample(seconds:0,impactStart:nil,restored:false,wallHandoffPending:false).tile))
+            XCTAssertTrue(tile.parent===parent);XCTAssertEqual(tile.position,old)
+        }
+    }
+
+    @MainActor func testLateReturnedActualClockLeaseCannotSurviveReentrantOwnerDisposalOrCancelNewRoot() async throws {
+        let ready=expectation(description:"carrier ready before actual root attach")
+        var replacement:NativeWildMeterDropSceneOwner.MotionLease?,newFrames=0
+        let s=try Session(root:assetsRoot(),afterAttach:{session in
+            session.owner.dispose()
+            replacement=session.clock.attach(2,{_ in newFrames+=1},{_ in})
+        }){ready.fulfill()}
+        defer {replacement?.cancel();s.dispose()}
+        s.owner.start();await fulfillment(of:[ready],timeout:10)
+        XCTAssertEqual(s.clock.runtime.activeCount,1,"Only replacement's genuine root survives")
+        XCTAssertFalse(s.owner.presentationMounted)
+        s.clock.advance(to:300);XCTAssertGreaterThan(newFrames,0)
+        XCTAssertEqual(s.clock.runtime.activeCount,1)
+        XCTAssertEqual(s.activityEnds,1);XCTAssertEqual(s.audioStops,1);XCTAssertEqual(s.unmasks,1)
+    }
+
 }

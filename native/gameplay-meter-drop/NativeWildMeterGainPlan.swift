@@ -35,12 +35,13 @@ struct NativeWildMeterGainPlan {
             else if t<firstDuration+secondDuration+thirdDuration {let p=clamp((t-firstDuration-secondDuration)/thirdDuration);width=under+(over2-under)*sin(.pi*p/2)}
             else {let p=clamp((t-firstDuration-secondDuration-thirdDuration)/fourthDuration),q=p-1;let e=full ? elastic(p,0.74):1+2.15*q*q*q+1.15*q*q;width=over2+(target-over2)*e}
         }
-        return max(0,min(maximum*1.05,width))
+        return max(0,min(maximum*1.05,r6(width)))
     }
+    private func r6(_ x:Double)->Double{floor(x*1e6+0.5)/1e6}
     func bounce(secondsSinceBirth t:Double)->Double {
         if t<=0 || t>=0.58{return 0}
-        if t<0.16{return -2.5*sin(.pi*t/0.16/2)}
-        if t<0.34 {let p=(t-0.16)/0.18;return -2.5+3.8*(1-cos(.pi*p))/2}
-        return 1.3*(1-elastic((t-0.34)/0.24,0.82))
+        if t<0.16{return r6(-2.5*sin(.pi*t/0.16/2))}
+        if t<0.34 {let p=(t-0.16)/0.18;return r6(-2.5+3.8*(1-cos(.pi*p))/2)}
+        return r6(1.3*(1-elastic((t-0.34)/0.24,0.82)))
     }
 }

@@ -19,6 +19,7 @@ import Foundation
     private(set) var generation:UInt64=0
     private(set) var width:Double
     private(set) var maximum:Double
+    private var disposed=false
     private var cancel:(()->Void)?
     init(driver:any NativeWildMeterConsumptionDriver,maximum:Double,initialWidth:Double,
          draw:@escaping(NativeWildMeterConsumptionPlan.Pose)->Void,
@@ -27,9 +28,10 @@ import Foundation
         self.draw=draw;self.prepareConsume=prepareConsume;self.resetBounce=resetBounce;self.prepareReset=prepareReset;self.stopSmoke=stopSmoke;self.stopEmission=stopEmission;self.startSmoke=startSmoke;self.bounce=bounce
     }
     private func clamp(_ value:Double)->Double {value.isFinite ? max(0,min(1,value)):0}
-    private func paint(_ pose:NativeWildMeterConsumptionPlan.Pose){width=pose.width;draw(pose)}
+    private func paint(_ pose:NativeWildMeterConsumptionPlan.Pose){guard !disposed else{return};width=pose.width;draw(pose)}
     // Returns false when canonical regular-gain owner should take over.
     @discardableResult func acceptProgress(_ ratio:Double,animated:Bool)->Bool {
+        guard !disposed else{return true}
         let ratio=clamp(ratio)
         if animated && active {
             if !queue.isEmpty {queue[queue.count-1]=ratio}else{pending=ratio}
@@ -43,20 +45,31 @@ import Foundation
         return false
     }
     func reset(ratio:Double,immediateSmoke:Bool=false) {
-        generation &+= 1;active=false;queue.removeAll();pending=nil
-        let old=cancel;cancel=nil;old?();if !immediateSmoke {prepareReset()}
+        guard !disposed else{return}
+        generation &+= 1;let captured=generation;active=false;queue.removeAll();pending=nil
+        let old=cancel;cancel=nil;old?()
+        guard !disposed,generation==captured else{return}
+        if !immediateSmoke {prepareReset()}
+        guard !disposed,generation==captured else{return}
         if immediateSmoke {stopSmoke()}else{stopEmission()}
+        guard !disposed,generation==captured else{return}
         paint(.init(left:0,width:max(0,maximum)*clamp(ratio)))
     }
     func consume(_ ratio:Double,reducedMotion:Bool=false) {
+        guard !disposed else{return}
         let ratio=clamp(ratio)
-        if reducedMotion {prepareConsume(true);reset(ratio:ratio,immediateSmoke:true);return}
+        if reducedMotion {let captured=generation;prepareConsume(true);guard !disposed,generation==captured else{return};reset(ratio:ratio,immediateSmoke:true);return}
         if active {queue.append(ratio);return}
         active=true;pending=ratio;generation &+= 1
         let captured=generation
         prepareConsume(false)
         guard generation==captured,active else{return}
-        let old=cancel;cancel=nil;old?();stopSmoke();resetBounce()
+        let old=cancel;cancel=nil;old?()
+        guard generation==captured,active,!disposed else{return}
+        stopSmoke()
+        guard generation==captured,active,!disposed else{return}
+        resetBounce()
+        guard generation==captured,active,!disposed else{return}
         let plan=NativeWildMeterConsumptionPlan(maximum:maximum,initial:width)
         var startedRefill=false
         let receipt=driver.start(duration:plan.duration,paint:{[weak self] seconds in
@@ -73,8 +86,12 @@ import Foundation
         },completed:{[weak self] in
             guard let self,self.generation==captured,self.active else{return}
             let final=self.clamp(self.pending ?? ratio)
-            self.stopEmission();self.paint(.init(left:0,width:plan.maximum*final))
+            self.stopEmission()
+            guard self.generation==captured,self.active,!self.disposed else{return}
+            self.paint(.init(left:0,width:plan.maximum*final))
+            guard self.generation==captured,self.active,!self.disposed else{return}
             if final>0 {self.bounce()}
+            guard self.generation==captured,self.active,!self.disposed else{return}
             self.cancel=nil;self.active=false;self.pending=nil
             if !self.queue.isEmpty {let next=self.queue.removeFirst();self.consume(next)}
         },interrupted:{[weak self] in
@@ -85,6 +102,21 @@ import Foundation
         if generation==captured && active {cancel=receipt}
         else {receipt?()}
     }
-    func adoptPaintedWidth(_ value:Double){width=value}
-    func dispose(){generation &+= 1;let old=cancel;cancel=nil;old?();active=false;pending=nil;queue.removeAll();stopSmoke()}
+    /// Resize invalidates BEFORE cancellation so Source onInterrupt cannot
+    /// stop existing smoke emission. Queue is cleared, pending ratio retained
+    /// by return value; a non-consuming resize resets the visible fill to zero.
+    func resize(maximum value:Double)->Double? {
+        guard !disposed else{return nil}
+        let retained=active ? clamp(pending ?? 0):nil
+        if active {
+            generation &+= 1
+            let old=cancel;cancel=nil;active=false;queue.removeAll();pending=nil
+            old?()
+        }
+        maximum=value
+        return retained
+    }
+    func adoptPaintedWidth(_ value:Double){guard !disposed else{return};width=value}
+    func dispose(){guard !disposed else{return};disposed=true;generation &+= 1;let old=cancel;cancel=nil;old?();active=false;pending=nil;queue.removeAll();stopSmoke()}
+    isolated deinit {cancel?()}
 }

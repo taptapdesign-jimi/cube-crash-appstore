@@ -1,7 +1,7 @@
 import Foundation
 
 /// One captured finite Source root; the board's union service owns delivery.
-@MainActor final class NativeWildMeterSourceDriver: NativeWildMeterConsumptionDriver {
+@MainActor final class NativeWildMeterSourceDriver: NativeWildMeterHUDDriving {
     private final class Root: NativeSourceAnimationParticipant {
         var paint: ((Double) -> Void)?
         var completed: (() -> Void)?

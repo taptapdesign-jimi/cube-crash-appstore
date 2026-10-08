@@ -35,13 +35,16 @@ final class NativeWildMeterDropNodeHandoff {
         flightY=hypot(y.dx,y.dy)/CGFloat(sourceParentVisualScale)
         self.stagePoint=stagePoint;self.isCurrent=isCurrent
     }
+    private func valid()->Bool {guard !disposed else{return false};let current=isCurrent(capture,tile);return !disposed && current}
     @discardableResult
     func apply(_ pose:NativeWildMeterDropPlan.TilePose)->Bool {
-        guard !disposed,isCurrent(capture,tile) else{return false}
+        guard valid() else{return false}
         if pose.stageParent {
             guard !restored else{return false}
+            let point=stagePoint(pose.pose.point)
+            guard valid() else{return false}
             if tile.parent !== stage {tile.removeFromParent();stage.addChild(tile)}
-            tile.position=stagePoint(pose.pose.point)
+            tile.position=point
             tile.xScale=CGFloat(pose.pose.scaleX)*flightX;tile.yScale=CGFloat(pose.pose.scaleY)*flightY
             tile.zRotation = -CGFloat(pose.pose.rotation);tile.zPosition=CGFloat(NativeWildMeterDropPlan.tileDepth)
             tile.alpha=CGFloat(pose.pose.opacity);tile.isHidden = !pose.visible
