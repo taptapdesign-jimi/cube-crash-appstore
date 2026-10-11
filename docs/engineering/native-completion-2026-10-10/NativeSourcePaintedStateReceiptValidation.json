@@ -1,0 +1,83 @@
+{
+  "scope": "Actual retained Node c/r and Scene immutable canonical/physical board capture; typed Source alpha/visibility receipt only, checker/typed origin consume same physical snapshot; no Core gameplay mutation",
+  "migration80Reached": false,
+  "status": "PASS pre-carrier SDK1297/1 opt-in skip/0 failures; later marker extension still current connected LIVE92509",
+  "evidence": [
+    {
+      "log": "native-source-painted-state-receipt-connected.log",
+      "testSummaries": [
+        "Executed 50 tests, with 0 failures (0 unexpected) in 118.473 (118.493) seconds"
+      ],
+      "sdkTerminalSuccess": true,
+      "allSourceGatesPass": false,
+      "scope": "Predates carrier marker export; no-fallback pure log alone covers latest explicit refusal branch"
+    },
+    {
+      "log": "native-source-paint-receipt-core-focused.log",
+      "testSummaries": [
+        "Executed 14 tests, with 1 failure (0 unexpected) in 0.393 (0.405) seconds"
+      ],
+      "sdkTerminalSuccess": false,
+      "allSourceGatesPass": false,
+      "scope": "Predates carrier marker export; no-fallback pure log alone covers latest explicit refusal branch"
+    },
+    {
+      "log": "native-source-paint-receipt-core-corrected.log",
+      "testSummaries": [
+        "Executed 14 tests, with 0 failures (0 unexpected) in 0.021 (0.030) seconds"
+      ],
+      "sdkTerminalSuccess": false,
+      "allSourceGatesPass": false,
+      "scope": "Predates carrier marker export; no-fallback pure log alone covers latest explicit refusal branch"
+    },
+    {
+      "log": "native-source-paint-receipt-core-full.log",
+      "testSummaries": [
+        "Executed 372 tests, with 0 failures (0 unexpected) in 0.723 (0.753) seconds"
+      ],
+      "sdkTerminalSuccess": false,
+      "allSourceGatesPass": false,
+      "scope": "Predates carrier marker export; no-fallback pure log alone covers latest explicit refusal branch"
+    },
+    {
+      "log": "native-source-paint-receipt-core-no-fallback.log",
+      "testSummaries": [
+        "Executed 372 tests, with 0 failures (0 unexpected) in 0.753 (0.788) seconds"
+      ],
+      "sdkTerminalSuccess": false,
+      "allSourceGatesPass": false,
+      "scope": "Predates carrier marker export; no-fallback pure log alone covers latest explicit refusal branch"
+    },
+    {
+      "log": "native-source-painted-state-full.log",
+      "testSummaries": [],
+      "sdkTerminalSuccess": false,
+      "allSourceGatesPass": true,
+      "scope": "Predates carrier marker export; no-fallback pure log alone covers latest explicit refusal branch"
+    },
+    {
+      "log": "native-source-painted-state-final-king.log",
+      "testSummaries": [],
+      "sdkTerminalSuccess": false,
+      "allSourceGatesPass": false,
+      "scope": "Predates carrier marker export; no-fallback pure log alone covers latest explicit refusal branch"
+    },
+    {
+      "log": "native-source-painted-state-complete-sdk.log",
+      "verdict": "PASS",
+      "tests": 1297,
+      "skipped": 1,
+      "failures": 0,
+      "seconds": 750.331,
+      "scope": "Pre-carrier export and no-fallback cleanup; later no-fallback pure372 PASS separately",
+      "preservation": "Raw SDK normal primary/backup FAIL retained; only savedAt/identical Journey-set serialization order differ; all28 priorQA exact bytes unchanged"
+    }
+  ],
+  "releaseProof": "NativeSourcePaintReceiptIOSReleaseProof.json",
+  "failuresRetained": "First pure14/1 failure exposed Core-based trigger after physical Source forced checker; corrected shared-snapshot trigger passed14/full372. Missing capability/stale/physical logical mismatch refusals remain.",
+  "pending": [
+    "Complete pre-carrier SDK terminal and raw preservation",
+    "Actual current carrier dropping/handoff marker getter connected and root proof",
+    "Complete lifecycle/spawn/global/save/NO MOVES/family application admission"
+  ]
+}

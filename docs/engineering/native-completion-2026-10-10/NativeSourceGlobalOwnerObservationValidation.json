@@ -1,0 +1,34 @@
+{
+  "verdict": "PASS bounded connected board policy/queue/pull/drop observation; complete Source runtime environment OPEN",
+  "producerSDK": {
+    "tests": 11,
+    "failures": 0,
+    "log": "/tmp/native-source-partial-global-owners.log",
+    "filterLimitation": "Initial root selector matched zero; corrected separately."
+  },
+  "actualFreshRoot": {
+    "tests": 2,
+    "failures": 0,
+    "log": "/tmp/native-source-partial-global-actual-root.log"
+  },
+  "activeSDK": {
+    "verdict": "PASS",
+    "tests": 13,
+    "failures": 0,
+    "seconds": 9.423,
+    "log": "/tmp/native-source-global-pull-drop-connected.log",
+    "actual": "Actual restored Magnet root reports false -> true during real pull -> false, retained destination and next ordinary move. Actual Source meter carrier global drop count1 after awaited assets and0 after travel; producer missing-owner/read-only/reentry tests remain PASS."
+  },
+  "scope": "Immutable v9 Source board meter/spawn configuration observed from actual current board. Genuine installed queue signal, pull writer and drop active count read independently; absent lifecycle/coroutine owners remain unknown and cannot construct a complete environment. No guessed false from Core plans/actions. Source full save/queue/endgame/default activation and physical acceptance remain OPEN. Board rule runtime overrides are not admitted by this immutable shipped-configuration port.",
+  "featureRuntime": "PASS27 /tmp/native-global-owner-current-feature.log",
+  "gameplayLock": "PASS330 /tmp/native-global-owner-current-king.log",
+  "unsignedRelease": "PASS unsigned iOS arm64 /tmp/native-global-owner-release.log and actual compiled dependency/original-asset audit /tmp/native-global-owner-release-audit.log; before subsequent Source board-transition writer integration",
+  "sha256": {
+    "native/gameplay-app/NativeSourceGameplayRuntimeProducer.swift": "2a80565f3bad94396599319d88cd9fc7687c1450f3082ceb3d74c1f473685c21",
+    "native/gameplay-ui/NativeBoardScene.swift": "bbffcf5de6d906e84a78f916a46515056194354441481a6229c170be8a0fa6c8",
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceBoardWildPolicy.swift": "9cee513fc05c7e3c0f0c47970db12b5fdd0b67c01f9152bbc30606fd2dcec0de",
+    "native/standalone/Stack to SixTests/NativeSourceGameplayRuntimeProducerTests.swift": "f3880439d400b07c59e827f34f5a65c0ce41c6e6a2b7a3309c302723385d2a91",
+    "native/standalone/Stack to SixTests/NativeStandaloneRootTests.swift": "c7b965fb8c62e544a890f9a02e3248ab2731192a11fd26defa24e5922810d297",
+    "native/standalone/Stack to SixTests/NativeMeterSceneCallerTests.swift": "218b907b4310fe57dc1a2f636c0c1fc893a29882bfd51cb89eb2ea8718e83fd1"
+  }
+}

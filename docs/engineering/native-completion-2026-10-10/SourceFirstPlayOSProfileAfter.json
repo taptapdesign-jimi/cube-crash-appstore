@@ -1,0 +1,36 @@
+{
+  "sha256": "23e0852dea6ac92abc0e93c2f6663fabc8aa0f8b83432ea53a7525ff13f1da88",
+  "generation": 7,
+  "score": 0,
+  "moves": 50,
+  "tileCount": 45,
+  "tutorial": {
+    "active": true,
+    "completionAssist": false,
+    "done": false,
+    "finalChanceSpawnCount": 0,
+    "guideCompleted": false,
+    "guidedPair": [
+      "g7-16",
+      "g7-28"
+    ],
+    "oneTileID": "g7-8",
+    "step": 1,
+    "waitingForWild": false
+  },
+  "progression": {
+    "arcadeStats": {
+      "cubesCracked": 0,
+      "highScore": 0,
+      "highestStageOpened": 1,
+      "lastPlayed": 1791628180.438198,
+      "longestCombo": 0
+    },
+    "boardStats": {},
+    "completedJourneyBoards": [],
+    "firstPlayTutorialComplete": false,
+    "highestUnlockedJourneyBoard": 1,
+    "unlockedSpecialDice": [],
+    "viewedJourneyBoards": []
+  }
+}

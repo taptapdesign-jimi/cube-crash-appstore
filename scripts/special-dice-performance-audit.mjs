@@ -54,6 +54,22 @@ for (const [id, archetype] of variants) {
   for (const test of entry.tests ?? []) {
     if (!/^src\/.*\/__tests__\/.*\.test\.ts$/.test(test) || !fs.existsSync(test)) errors.push(`${id}: missing test ${test}`);
   }
+  // Native receipts have their own namespace; keep every original Source
+  // regression mandatory. A Native path must never replace a Source test.
+  if (entry.nativeTests !== undefined || entry.nativeBlastOwner !== undefined) {
+    const owner = typeof entry.nativeBlastOwner === 'string' ? entry.nativeBlastOwner.split(':')[0].trim() : '';
+    if (!/^native\/.+\.swift$/.test(owner) || !fs.existsSync(owner)) errors.push(`${id}: missing Native blast owner file`);
+    if (typeof entry.nativeBlastPolicy !== 'string' || !entry.nativeBlastPolicy.trim()) errors.push(`${id}: missing Native blast lifecycle policy`);
+    if (!Array.isArray(entry.nativeTests) || !entry.nativeTests.length) errors.push(`${id}: missing Native regression tests`);
+    for (const test of Array.isArray(entry.nativeTests) ? entry.nativeTests : []) {
+      if (typeof test !== 'string' || !/^native\/.+\/[^/]*Tests\/[^/]+Tests\.swift$/.test(test) || !fs.existsSync(test)) {
+        errors.push(`${id}: missing Native test ${String(test)}`);
+      } else {
+        const body = fs.readFileSync(test, 'utf8');
+        if (!/XCTestCase/.test(body) || !/func\s+test\w+\s*\(/.test(body)) errors.push(`${id}: Native test has no XCTest cases ${test}`);
+      }
+    }
+  }
 }
 for (const id of Object.keys(manifest)) if (!variants.has(id)) errors.push(`${id}: stale manifest entry`);
 if (errors.length) {

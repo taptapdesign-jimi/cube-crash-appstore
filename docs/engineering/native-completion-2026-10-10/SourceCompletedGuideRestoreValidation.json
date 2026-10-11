@@ -1,0 +1,20 @@
+{
+  "scope": "Actual Source guide completion -> real exit/Home -> opted-in Source occupied restore and wave, retaining pending result/assist. Active tutorial Source restoration remains unadmitted.",
+  "sourceSHA256": {
+    "native/gameplay-app/NativeBootstrap.swift": "3b0a547cf9bc1726a0de27c9fde0b291ff7ae9f8eefdeb7335f4f59ed10dc969",
+    "native/gameplay-ui/NativeSourceInitialBoardRecipe.swift": "32f4b025a364dcaea18e7dd786252dd9cb1ecd3e30ce78851f0d1e1a6e475cc6",
+    "native/standalone/Stack to SixTests/NativeSourceTutorialBootstrapTests.swift": "d96cf65988ad4d761dc46b73ad765730cc5955c6d10be4ee7c16ad1e56085d30",
+    "native/standalone/Stack to SixTests/NativeSourceRegularResumeConstructionTests.swift": "dc12bc02be8a8a40476ed2d6fffe653e6750917f47759dbe62a293feb3b5e586"
+  },
+  "baseline": "terminal99312 exit65 actual1FAIL saved source constructor cannot mount",
+  "focused": "terminal67064 exit0 2/2 PASS17.059s",
+  "fullQA": "terminal54441 exit0 PASS",
+  "globalFlags": "OFF",
+  "limitations": [
+    "No physical acceptance",
+    "Existing ordinary Source restore projection retains its pre-existing depth/alpha/visibility normalization. Literal saved Source alpha/visibility/renderable restoration parity is not closed by this change.",
+    "Full active tutorial/restored constructors and result acknowledgement still OPEN"
+  ],
+  "broaderSDK": "terminal13335 exit0 86/86 PASS241.468s",
+  "shippingParity": "WITHDRAWN: candidate constructor eligibility and Source metadata unit removed after immutable-v9 launch-policy contradiction. Narrow reversal verified exact source SHA, preserving pre-existing dirty work. Original source restore tutorial refusal retained."
+}

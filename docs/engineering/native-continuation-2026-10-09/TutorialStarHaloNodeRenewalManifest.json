@@ -1,0 +1,11 @@
+{
+  "status": "PRIVATE SDK10/10 PASS",
+  "archiveSHA256": "ecfad74bab97b434c96fc387287512a4b9c3ca185c4c12f438736dc41387b9b9",
+  "files": {
+    "native/gameplay-ui/NativeStarFinale.swift": "55a33eaf28bc9ae20bbbf99c3f29bd40dfbb5e2253667abbf4c70df4f045bb80",
+    "native/gameplay-ui/NativeDiceNode.swift": "d372424e86dd8c04f980cd5c5e5573906f4892f8dc9f2d95dd91999e10b8d396",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "097f036db1181e8a6c6847fb5b636da3abdcd03a48713e13b7a777c4f82fbf81"
+  },
+  "scope": "Reject mismatched captured renderer generation and disposed candidates; clear only already-disposed retained owner before renewal. Actual count/assets/foreground/caller remain OPEN.",
+  "validation": "Exact actual Node test covers disposed renewal and renderer-generation mismatch, plus existing lifecycle and original motion/render tests. Full QA predates renewal."
+}

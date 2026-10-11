@@ -1,0 +1,36 @@
+{
+  "status": "PASS bounded actual normal Direct independent outer guard graph; grouped shipping gates running",
+  "core": {
+    "tests": 442,
+    "failures": 0,
+    "seconds": 0.762,
+    "log": "/tmp/native-direct-normal-outer-guard-connected-core.log"
+  },
+  "sdk": {
+    "tests": 7,
+    "failures": 0,
+    "seconds": 73.446,
+    "log": "/tmp/native-direct-normal-initial-outer-actual-neighbors-sdk.log",
+    "scope": "actual Star/Juice Journey primary/outer ctor-order, Arcade, hard-primary, TNT normal/no-target and ordinary final Result neighbors"
+  },
+  "scope": [
+    "genuine Direct receipt type distinct from accepted TNT Special",
+    "normal primary begins before outer helper, two literal physical guard captures and independent APP FIFO reactions before bonus constructors/pop",
+    "exact actual settled Direct receipt permits outer continuation after independent primary finally",
+    "duplicate/stale/inline/rejected enqueue/capture restart cannot construct or replay Raw",
+    "normal Journey only; Arcade and Direct endgame unchanged, Source default/partial off"
+  ],
+  "release": {
+    "status": "PASS unsigned isolated Native iOS Release",
+    "log": "/tmp/native-direct-normal-initial-outer-release.log",
+    "audit": "/tmp/native-direct-normal-initial-outer-release-audit.log",
+    "scope": "actual normal Direct initial/outer graph; predates later finite-await Native local-save blocker refinement"
+  },
+  "open": [
+    "all Direct endgame guards and zero-blocker clean-board",
+    "whole global/save/queue/NO MOVES/families/default/physical acceptance"
+  ],
+  "king": "PASS330 /tmp/native-direct-normal-initial-outer-king.log",
+  "feature": "PASS /tmp/native-direct-normal-initial-outer-feature.log",
+  "fullQa": "PASS530 suites/4010 tests and KING330 /tmp/native-direct-normal-initial-outer-full.log"
+}

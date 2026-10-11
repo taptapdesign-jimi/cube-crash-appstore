@@ -1,0 +1,23 @@
+{
+  "scope": "Test-only real named WebsiteDataStore origin/SQLite producer; shipping NativeHybridExport unchanged",
+  "source": "native/standalone/Stack to SixTests/NativeLegacyStorageProducerTests.swift",
+  "sha256": "86c8a81e25c38c1fc2821749a4656144c8b24384d7ab3ae30a4d05b477dc5b14",
+  "typecheck": "PASS explicit Simulator SDK/XCTest Swift overlay; initial missing-overlay command failed before runtime",
+  "build": "terminal32716 exit0 TEST BUILD SUCCEEDED",
+  "runtime": "terminal87859 exit0 1/1 PASS2.172s",
+  "limits": [
+    "Not shipping migration closure",
+    "Default test run skips producer",
+    "Previous complete SDK1261 and Release PASS precede this test-only addition",
+    "No normal store or phone/PWA access"
+  ],
+  "baselineRuntime": "terminal71331 exit65 1 test3 failures: guessed unprefixed store root absent; both JS origin writes succeeded; actual named UUID root has bundle-prefix matching the primary WebKit conditional path branch; entitlement cause not separately measured",
+  "correctedBuild": "terminal74691 exit0 TEST BUILD SUCCEEDED",
+  "observedFormat": {
+    "originalOriginBytes": 46,
+    "foreignOriginBytes": 58,
+    "storageValues": "actual SQLite BLOB UTF-16LE; Unicode \u010c\u0107\u017e +emoji+embedded NUL+\u5c3e round-trip observed on copied private fixture",
+    "sourceDatabaseMutation": "No original DB opened; Python inspected extracted snapshot only",
+    "primaryReceipt": "LegacyProducerReadyAttachments/403D2C40-5FAA-4B67-ACD2-E4681C1A41E4.json"
+  }
+}

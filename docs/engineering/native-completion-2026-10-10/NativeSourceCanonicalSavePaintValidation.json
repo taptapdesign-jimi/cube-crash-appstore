@@ -1,0 +1,20 @@
+{
+  "phase": "canonical-source-save-paint-live-revalidation",
+  "verdict": "PASS",
+  "sdk": {
+    "tests": 31,
+    "failures": 0,
+    "seconds": 5.464,
+    "log": "/tmp/native-source-save-paint-live-revalidation.log"
+  },
+  "scope": "Strict paint-only bridge; actual retained physical roster revalidation and original playable input/paint veto. Missing owners refuse.",
+  "remaining": "Source canonical-save application endpoint, lifecycle/spawn/global capabilities unmounted; no80percent or physical acceptance",
+  "earlierFullSDKAndReleaseCoverThisPhase": false,
+  "wildCarrierConnectedSDK": {
+    "tests": 19,
+    "failures": 0,
+    "seconds": 114.188,
+    "log": "/tmp/native-source-save-wild-carrier-connected.log",
+    "scope": "Actual root dropping/save marker identity,250ms background freeze and final unlocked flags; no lifecycle/spawn capability activation"
+  }
+}

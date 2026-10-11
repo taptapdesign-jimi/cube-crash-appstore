@@ -1,0 +1,155 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "E590B52E-F314-43A7-BF55-2F49CE939C2A",
+        "deviceName" : "Stack to Six QA iPhone 13",
+        "exportedFileName" : "4FE838F9-1A82-4350-A6A0-ABC99DABB46E.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "actual-native-tutorial-board-scale_0_2D606165-77A1-4C2E-B991-F3AD9D4EF61A.png",
+        "timestamp" : 1791564904.261
+      }
+    ],
+    "testIdentifier" : "NativeSourceTutorialBootstrapTests/testActualFirstMergeKeepsSourceSheetAndInputUntilRealMonitorCompletions()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeSourceTutorialBootstrapTests/testActualFirstMergeKeepsSourceSheetAndInputUntilRealMonitorCompletions"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "E590B52E-F314-43A7-BF55-2F49CE939C2A",
+        "deviceName" : "Stack to Six QA iPhone 13",
+        "exportedFileName" : "86726B1C-C1FB-4A7E-A12B-F6931DCCF161.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "actual-native-tutorial-board-scale_0_6ADE44CD-9FA3-4425-8478-A763C38AC108.png",
+        "timestamp" : 1791564909.109
+      }
+    ],
+    "testIdentifier" : "NativeSourceTutorialBootstrapTests/testActualFreshTutorialRouteUsesSourceDemoAndWaitsForGenuinePreparation()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeSourceTutorialBootstrapTests/testActualFreshTutorialRouteUsesSourceDemoAndWaitsForGenuinePreparation"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "E590B52E-F314-43A7-BF55-2F49CE939C2A",
+        "deviceName" : "Stack to Six QA iPhone 13",
+        "exportedFileName" : "24A360CB-1071-4C77-A032-BF2CC061E541.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "actual-native-tutorial-board-scale_0_50CFC74F-7941-4949-86A1-D71CC1FB34E4.png",
+        "timestamp" : 1791564913.626
+      }
+    ],
+    "testIdentifier" : "NativeSourceTutorialBootstrapTests/testActualScopeRetirementDuringFirstExitCancelsMonitorAndInputBarrier()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeSourceTutorialBootstrapTests/testActualScopeRetirementDuringFirstExitCancelsMonitorAndInputBarrier"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "E590B52E-F314-43A7-BF55-2F49CE939C2A",
+        "deviceName" : "Stack to Six QA iPhone 13",
+        "exportedFileName" : "C8AF8BC0-4F8C-487A-82CA-2CDC23B36E62.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "actual-native-tutorial-board-scale_0_671916A5-6197-4187-A4A4-68F162D0FB51.png",
+        "timestamp" : 1791564918.613
+      }
+    ],
+    "testIdentifier" : "NativeSourceTutorialBootstrapTests/testActualScopeRetirementDuringThirdCTAExitCannotRestoreOrCommitWaiting()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeSourceTutorialBootstrapTests/testActualScopeRetirementDuringThirdCTAExitCannotRestoreOrCommitWaiting"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "E590B52E-F314-43A7-BF55-2F49CE939C2A",
+        "deviceName" : "Stack to Six QA iPhone 13",
+        "exportedFileName" : "132BF237-EA13-443C-B372-32B7A7F306A5.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "actual-native-tutorial-board-scale_0_5E8C8A6C-FE3C-4C68-B0B6-983D614D37AC.png",
+        "timestamp" : 1791564924.538
+      }
+    ],
+    "testIdentifier" : "NativeSourceTutorialBootstrapTests/testActualSecondMergeWaitsForSourceThirdRestoreAndKeepsSameIntroOwner()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeSourceTutorialBootstrapTests/testActualSecondMergeWaitsForSourceThirdRestoreAndKeepsSameIntroOwner"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "E590B52E-F314-43A7-BF55-2F49CE939C2A",
+        "deviceName" : "Stack to Six QA iPhone 13",
+        "exportedFileName" : "3EA335C9-C3BD-4DDE-AD4B-A35CBDAA57C9.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "actual-native-tutorial-board-scale_0_690B15DA-B03F-46E3-89A0-5633DAB77791.png",
+        "timestamp" : 1791564930.235
+      }
+    ],
+    "testIdentifier" : "NativeSourceTutorialBootstrapTests/testActualThirdButtonWaitsForCTAThenRestoresBeforeSourceSheetExit()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeSourceTutorialBootstrapTests/testActualThirdButtonWaitsForCTAThenRestoresBeforeSourceSheetExit"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "E590B52E-F314-43A7-BF55-2F49CE939C2A",
+        "deviceName" : "Stack to Six QA iPhone 13",
+        "exportedFileName" : "9C88171F-1AD4-405D-9D56-FB37C0911730.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "actual-native-tutorial-board-scale_0_5C13242F-EF65-43D8-B527-8DB5B0B1B42F.png",
+        "timestamp" : 1791564936.167
+      }
+    ],
+    "testIdentifier" : "NativeSourceTutorialBootstrapTests/testActualThirdTileDragUsesSameCTAExitBeforeRestore()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeSourceTutorialBootstrapTests/testActualThirdTileDragUsesSameCTAExitBeforeRestore"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "E590B52E-F314-43A7-BF55-2F49CE939C2A",
+        "deviceName" : "Stack to Six QA iPhone 13",
+        "exportedFileName" : "7DDBBB54-905F-4B69-904E-06C3A56E44E0.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "source-third-cta-430_0_3BD89B06-8A23-4A27-8147-E1C4DB1CAD5E.png",
+        "timestamp" : 1791564939.894
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "E590B52E-F314-43A7-BF55-2F49CE939C2A",
+        "deviceName" : "Stack to Six QA iPhone 13",
+        "exportedFileName" : "BD4011CD-EBF9-4BFD-A043-26A47BB55992.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "source-third-cta-390_0_874AF13C-B98A-40D2-9029-EC6A2322810E.png",
+        "timestamp" : 1791564939.52
+      }
+    ],
+    "testIdentifier" : "NativeSourceTutorialCTATests/testMountedOverlayKeepsStaticButtonHitFrameWhileVisualPressAndActualExitRun()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeSourceTutorialCTATests/testMountedOverlayKeepsStaticButtonHitFrameWhileVisualPressAndActualExitRun"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "E590B52E-F314-43A7-BF55-2F49CE939C2A",
+        "deviceName" : "Stack to Six QA iPhone 13",
+        "exportedFileName" : "4FB953FA-E243-43BA-83FA-E84E0AE77383.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Source tutorial intro 430x932_0_6B081846-53AF-4A55-AC59-97192BECB1C4.png",
+        "timestamp" : 1791564942.162
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "E590B52E-F314-43A7-BF55-2F49CE939C2A",
+        "deviceName" : "Stack to Six QA iPhone 13",
+        "exportedFileName" : "7CE6E66B-C6EC-4FC2-B198-B4E1A82A08F8.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Source tutorial intro 390x844_0_F16EF2F2-39F8-4F62-9776-A296BC1A4870.png",
+        "timestamp" : 1791564941.713
+      }
+    ],
+    "testIdentifier" : "NativeSourceTutorialIntroTests/testActualOverlayViewportRastersRetainSheetAndSourcePointer()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeSourceTutorialIntroTests/testActualOverlayViewportRastersRetainSheetAndSourcePointer"
+  }
+]

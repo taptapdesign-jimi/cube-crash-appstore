@@ -1,0 +1,13 @@
+{
+  "status": "PASS canonical destination-only Source watchdog focused Core8/8 and gameplay-lock",
+  "files": {
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "afd2273d695cdc81515f64183215b3de6da86faa6dd575a78e53dbea04bd8e8f",
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceSixAbsorbInterruptionTests.swift": "9fb11a9b8d27baeb411549c94d888c926a020982f5ac47429f6341743d8db7d0"
+  },
+  "open": [
+    "actual Scene live final-flag suppliers",
+    "actual accepted-prefix wall scheduling",
+    "Source callback after watchdog removes src separately",
+    "complete forced-finally/runtime/save/phone"
+  ]
+}

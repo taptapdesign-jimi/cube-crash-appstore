@@ -1,0 +1,22 @@
+{
+  "status": "SDK91078 terminal1/1PASS; KING54629 terminal exit0 330/330PASS",
+  "files": {
+    "native/gameplay-ui/NativeBoardScene.swift": "91c98111455940064c30a4a909c6cfdd6192767d78c83e935b4328d4aaac65aa",
+    "native/standalone/Stack to SixTests/NativeSourceSameObjectSixSceneTests.swift": "408df8b83290fa65a45e64df94735c20e760c0829b9ef47512a23661cd3ae594"
+  },
+  "log": {
+    "path": "docs/engineering/native-continuation-2026-10-09/native-ordinary-minimum-scene-admission.log",
+    "sha256": "e492bd67941cc8af6d42ca6aeb13b5c9ba0f39b4d9ad6b70ec7bdb4de3f45419"
+  },
+  "scope": "Genuine Source Scene unlock/FIFO path retains existing behavior. Scene count adapter requires current Scope/FIFO, its own admitted physical runtime authority, all current covered physical node markers, exact post-read state/owner identity. Actual incomplete fixture refuses count.",
+  "limits": [
+    "positive actual physical authority/minimum count not mounted/proven",
+    "rescue phase and forced fallback/finally producers OPEN",
+    "default admission OFF",
+    "live integration/physical/full migration OPEN"
+  ],
+  "gameplayLock": {
+    "log": "docs/engineering/native-continuation-2026-10-09/native-ordinary-minimum-scene-gameplay-lock.log",
+    "sha256": "1e5730d41d806fc215a8e2f9e0c5149ed4066f6a64a6a814616466840cebbc06"
+  }
+}

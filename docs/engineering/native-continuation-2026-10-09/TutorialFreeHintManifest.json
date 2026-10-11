@@ -1,0 +1,61 @@
+{
+  "base": [
+    "docs/engineering/native-pause-2026-10-08/NativeSource.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/EntrySourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialIntroSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialHUDSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialMonitorSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialRestoreSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialThirdSourceDelta.tar.gz"
+  ],
+  "wholeSourceFlags": "OFF",
+  "laterTutorialCallers": "Third hint connected after actual third-sheet completion and original wall260; exact APP direction/pair/fallback Math and typed repeating Source timeline. CTA/fourth-Wild/final tutorial/resume/full HUD hierarchy OPEN; flags OFF.",
+  "files": {
+    "docs/engineering/feature-runtime-owners.json": {
+      "baseSHA256": "0fe38d260e770e110b14ae05e45bc5293330ac94956b42548fc8cfae6715a20a",
+      "sha256": "2d7f4d603976687d55eca6a97b632f3ba1ff69b1bf67f5788c7443d8333dc577"
+    },
+    "native/gameplay-app/NativeTutorialOverlay.swift": {
+      "baseSHA256": "3173ccdb6a653c46d6287aa928254cd5230014a0b1d18411610d3099d1630ef8",
+      "sha256": "4c7ef457e4f6c151f0022cc7b3f0de25efe310350165590cb928fa8168f6ad1d"
+    },
+    "native/gameplay-app/NativeTutorialOwner.swift": {
+      "baseSHA256": "14e753af77bda0502127d0e577ea289035064f62acdb318381739d9a2d7d3c70",
+      "sha256": "3ef74d5d073aef591132889e40dfcfc57f28d572e8043130dfc17489400e62c2"
+    },
+    "native/gameplay-ui/NativeBoardScene.swift": {
+      "baseSHA256": "c457ca08e5f55fa4521032195d354ceeb9697cfa482c04e841e81c4a274b5e5f",
+      "sha256": "011488a0eeb57655c5c0a661b36ead14287f98fdfa1585150e6de355617b81c9"
+    },
+    "native/gameplay-ui/NativeSourceAnimationClockService.swift": {
+      "baseSHA256": "2f8048ba35801bc16eea3d44a8169f48703a301abcfeefbcdef3affbf4691949",
+      "sha256": "7afd24ab4672dc713af8c0f813a74db789077ae8acf9aee0644bc9151ceff80b"
+    },
+    "native/gameplay-ui/NativeSourceAnimationRuntime.swift": {
+      "baseSHA256": "0e1f023863db929c077b5f26f3ce33fb712a754f9df78d1af065ea8d91bb08b3",
+      "sha256": "251eaebd52ae41725f7ab0bf86bf3494dc68a6b40bea1729a9f0225c65e5f960"
+    },
+    "native/gameplay-ui/NativeSourceTutorialFreePlayHintOwner.swift": {
+      "baseSHA256": null,
+      "sha256": "7c52380e2f49622edf8ca919915513247172b6bd2fd1552b426259639dc72e99"
+    },
+    "native/gameplay-ui/NativeSourceTutorialFreePlayPlan.swift": {
+      "baseSHA256": null,
+      "sha256": "6a4a8aec465cec56514ae968569532fdcb4d34d6fdd3bccec64193642ada138e"
+    },
+    "native/standalone/Stack to SixTests/NativeSourceTutorialBootstrapTests.swift": {
+      "baseSHA256": "5c59a004b81ee740840707453d5256144d6c9e63ea085e70f1b21700be73d8aa",
+      "sha256": "6fc29aaaa86fef18011c6006ab2a43709f12685d8c9a2cbf0ea501941942fc0a"
+    },
+    "native/standalone/Stack to SixTests/NativeSourceTutorialFreePlayHintTests.swift": {
+      "baseSHA256": null,
+      "sha256": "97076548c39c5779380a796367b6d98bdc6b72d6eefaa21e6ea2fe4dd721e279"
+    },
+    "native/standalone/Stack to SixTests/NativeSourceTutorialFreePlayPlanTests.swift": {
+      "baseSHA256": null,
+      "sha256": "1dcd49445aa3a66ec6ea254b93889795b6c0ac9880b53959da55eee23053414c"
+    }
+  },
+  "archiveSHA256": "f7dbf5948d1b5027150f2e4b52f70bac249d2763ae3fb87cf2fb0816f7d35b57"
+}

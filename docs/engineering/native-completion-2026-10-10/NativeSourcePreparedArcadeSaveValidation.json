@@ -1,0 +1,62 @@
+{
+  "verdict": "PASS bounded actual fresh Arcade entry/save",
+  "entrySDK": {
+    "tests": 3,
+    "failures": 0,
+    "seconds": 28.743,
+    "log": "/tmp/native-source-prepared-arcade-save.log"
+  },
+  "beforeWaveAndSaveRegressionSDK": {
+    "tests": 16,
+    "failures": 0,
+    "seconds": 10.17,
+    "log": "/tmp/native-source-prepared-arcade-save-boundary.log"
+  },
+  "gameplayLock": {
+    "tests": 330,
+    "failures": 0,
+    "log": "/tmp/native-source-next-round-gameplay-lock.log"
+  },
+  "featureRuntime": {
+    "verdict": "PASS",
+    "log": "/tmp/native-source-prepared-arcade-feature.log"
+  },
+  "sourceIdentity": {
+    "verdict": "PASS",
+    "log": "/tmp/native-source-next-round-ios-source.log"
+  },
+  "fullSourceQA": {
+    "verdict": "PASS",
+    "log": "/tmp/native-prepared-arcade-and-native-audit-full.log",
+    "scope": "Prepared entry atomic pending write/shared paint gate and Native target audit; predates subsequent generation replacement."
+  },
+  "scope": "Explicit fresh normal Arcade with ordinary/Direct Source owners. Pending next round uses fresh construction even when resume opt-in is also enabled. Actual hidden physical/Core receipt saved once before Source wave; Source Scope canonical binding retired immediately. True resume stays separate. No ordinary canonical/global/NO MOVES admission or shipping flag activation.",
+  "pwaBundleAudit": "Historical old qa:ios PWA NEEDS SYNC retained. Current qa:ios targets active Native without PWA sync; actual source/assets and unsigned Release dependency audits PASS.",
+  "physicalAcceptance": "NEEDS PHYSICAL TEST",
+  "atomicPendingSDK": {
+    "tests": 18,
+    "failures": 0,
+    "seconds": 30.128,
+    "log": "/tmp/native-source-prepared-arcade-atomic-pending.log"
+  },
+  "rejectedPaintSDK": {
+    "tests": 2,
+    "failures": 0,
+    "seconds": 16.616,
+    "log": "/tmp/native-source-prepared-arcade-refusal.log"
+  },
+  "sharedPaintSDK": {
+    "tests": 2,
+    "failures": 0,
+    "seconds": 1.179,
+    "log": "/tmp/native-source-prepared-arcade-shared-paint.log"
+  },
+  "sha256CurrentWorkingTree": {
+    "native/gameplay-app/NativeBootstrap.swift": "7063e9c1ef291acac1f811583bd142d340924e03ece901f75bc2af418185eb4a",
+    "native/gameplay-app/NativeGameplaySourceContext.swift": "1a6dc941fb34d7ceedbb760b31c6292fbe01e6f579696748081e7f99ad487af7",
+    "native/gameplay-ui/NativeGameplayViewController.swift": "6b34a29d5cb49da5047de35580cc43b03d4e96c6263ba20d6eb81e6093510d43",
+    "native/standalone/Stack to SixTests/NativeStandaloneRootTests.swift": "541248658f2b8a925d805cfa887986111d5cf0103ec7efcc9b8141cffed5550a",
+    "docs/engineering/feature-runtime-owners.json": "a150a279892dcba319cf33e6b58f0c47ebf53bb300d4c09a86a4487ff0c5fab0"
+  },
+  "hashScope": "Current working tree includes subsequent generation-replacement work; historical test receipts retain their narrower scope."
+}

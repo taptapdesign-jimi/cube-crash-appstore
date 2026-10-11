@@ -1,0 +1,8 @@
+{
+  "actualSDK": "Initial102/102 PASS, final automatic-caller-only102/102 PASS exit0/no failures/skips. No manual RAF scheduling in paused/late tests; variant endpoint asserts actual RAF queued beforehand. Updated two-die Scene oracle includes automatic first16ms restart and subsequent original poses/colors/RNG.",
+  "fullQA": "Full run terminal exit1 ONLY unstaged diff hygiene: one newly empty test line had spaces. All other full gates PASS. Removed spaces; exact git diff --check gate rerun terminal exit0 PASS. Functional runtime unchanged; no redundant full QA rerun. Report this resolved gate scope explicitly, not terminal full-run exit0.",
+  "original": "Real original GSAP initial root\u2192Magnet callbacks at16ms\u2192later seven checkpoints. Native Scene rereads replacement fields, compares original poses/colors/RNG, no skipped callback. Independent identical oracle rerun.",
+  "scope": "Actual Scene queues one-shot RAF after fizz before variant for wild-magnet Bottle/Honey. Rejected prefix cancels captured RAF, field replacement and Scope retirement retain identity guards. Raw/modes/media/audio unchanged; global flags OFF.",
+  "remaining": "Complete family/visibility/pool/lifecycle and repeated same-node skin/coalescing parity audit, restored/caller/save/command/terminal/global admission, Release/WebKit and physical acceptance OPEN. Full SDK not rerun; previous1201 older runtime.",
+  "physical": "NEEDS PHYSICAL TEST"
+}

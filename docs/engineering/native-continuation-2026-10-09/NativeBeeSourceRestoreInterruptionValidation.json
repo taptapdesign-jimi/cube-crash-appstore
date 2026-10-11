@@ -1,0 +1,17 @@
+{
+  "scope": "Same-route actual Scene.layout settles canonical geometry then resumes current pending Bee once; replaced Scope cannot resume its pending entry. Original load-popin finally invokes onComplete only on current route. Full Wild constructor and all migration/physical acceptance remain OPEN; flags OFF, no main/phone/PWA integration.",
+  "files": {
+    "native/gameplay-ui/NativeBoardScene.swift": "a60791afb64e85c4fd341a9c45aaeccc8b1b03b94a5d872bae5f2c0c6ce738e8",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "87e449de661de8b61338937987119f5d5655ed21cd7900aa45b54f4b6afbef8f"
+  },
+  "SDK": "terminalexit0 63/63 PASS actual mounted relayout and replaced Scope plus prior61 App/Scene/meter regressions",
+  "full": "terminalexit0 all selected deterministic gates PASS frozen current Source/QA/SDK SHA match; no live checks",
+  "logs": {
+    "bee-source-restore-interruption-sdk.log": "885826117ec7b09fbe70d4940e67cbb8bc81a1faecd71bb09203f035e11c79b5",
+    "bee-source-restore-interruption-full.log": "65e12ccf9bff7da9a28533192a5b28ad58ac1fb763dba8bc8a62b769cd150bd9"
+  },
+  "snapshotMatch": {
+    "native/gameplay-ui/NativeBoardScene.swift": true,
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": true
+  }
+}

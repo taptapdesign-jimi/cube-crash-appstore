@@ -1,0 +1,21 @@
+{
+  "status": "Core34434 364/364PASS; KING9518 330/330PASS; SDK94428 terminal1/1PASS prior actual FIFO and emergency assignment bridge compile",
+  "files": {
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "a848c23a632044ebec8fc88d73fe9880bc550036d2190d2bef8f61b73ba6ef7e",
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeOrdinaryMovePlan.swift": "d285b99fec69d6ac4ee841459576d4e470d01cc3ca22ef28919e00fb18528d58",
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceOrdinarySixSpawnBeginCoreTests.swift": "64ce894afc2fe498cb7e56dc2f6d328fdd1d04306d69ac872ebe9531f6c89029",
+    "native/gameplay-ui/NativeBoardScene.swift": "80427fe32ec4724f8c28497ef37995722d9f75049c96a7a08ce99b9f989f032b"
+  },
+  "logs": {
+    "native-ordinary-minimum-rescue-core.log": "229289f7ce36d3e456310cebdc59aee02646c17fa79760447ccb754ef94c67b0",
+    "native-ordinary-minimum-rescue-gameplay-lock.log": "1cfd2222c9b01a70c586b69987626018dd6a42915584f00ac19ba4f0cdb36417",
+    "native-ordinary-minimum-rescue-sdk.log": "c58adb0456c37cc5b2c8b47871601d689a9d604d2b45e0771202c373f37eecfd"
+  },
+  "proof": "Default-off rescue chooses one preferred/shuffled locked candidate at helper boundary; actual assignment unlock uses existing Core mutation. Shared helper settlement can lead to one stable immediate forced fallback. Empty helper mints genuine pending settlement, waits explicit continuation and ends without invented fresh tile/score/move/RNG.",
+  "limits": [
+    "positive emergency50 callback/shared FIFO actual Scene proof OPEN",
+    "fallback lifecycle refresh/current epoch rejection/cancellation matrix OPEN",
+    "Scene minimum producer intentionally unbound/default OFF",
+    "coroutine finally/full startup/physical/full migration OPEN"
+  ]
+}

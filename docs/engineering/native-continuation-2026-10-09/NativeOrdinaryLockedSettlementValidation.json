@@ -1,0 +1,26 @@
+{
+  "status": "Core92792 5/5PASS; SDK96881 actual prior Scene1/1PASS; gameplay-lock81232 terminalPASS",
+  "files": {
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "aab8b34e2ad106058659b2aca0deb09982b7c5bdea3286114e12564f14151b88",
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeBoardState.swift": "f587136154eafd01ac60559a145a11ea06f1effe07815912010a53da6429517f",
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceOrdinarySixSpawnBeginCoreTests.swift": "562c1cd5055aee27a98c79d725faf6368aef57b290ec64e8314b0207492c00d3",
+    "native/gameplay-ui/NativeBoardScene.swift": "513d47399b2220ee8a0adf5086be104a4301c844fe3c690699c89c4ce5467221"
+  },
+  "coreLog": {
+    "path": "docs/engineering/native-continuation-2026-10-09/native-ordinary-locked-settlement-core.log",
+    "sha256": "ce13d616e02e7bcc88b7285f5764ff55daf92434200b3fe0a0a1f4965bbdfa97"
+  },
+  "limits": [
+    "new Source flag default OFF",
+    "actual mounted FIFO acknowledgement not yet tested",
+    "minimum-active/finally producers OPEN",
+    "Source teardown/cancellation under new flag OPEN",
+    "whole migration and physical acceptance OPEN"
+  ],
+  "native-ordinary-locked-settlement-sdk.log": {
+    "sha256": "6d69a3586fc174a79700a7a85d17d21efe5b47dae04cad5bd6182ec30c91118b"
+  },
+  "native-ordinary-locked-settlement-gameplay-lock.log": {
+    "sha256": "725b38623887713d1accc7543a513f5f73cb83a903b35b6fac185409d61f0af5"
+  }
+}

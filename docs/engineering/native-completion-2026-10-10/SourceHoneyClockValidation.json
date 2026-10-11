@@ -1,0 +1,12 @@
+{
+  "verdict": "PASS scoped component; full migration NEEDS PHYSICAL TEST and remaining implementation",
+  "sdk": "31/31 zero failures, terminal TEST SUCCEEDED",
+  "qa": "full deterministic QA PASS, terminal exit0",
+  "initialFailure": "54 golden dimension assertions due incorrect oracle VM Promise checkpoint; preserved honey-clock.log",
+  "scope": "Unmounted finite3600 common-RNG clock, force cohort callback, drag chase/countershift and visibility-only suspension. Actual renderer/resource/Node/caller remains OPEN. Source flags OFF. FullSDK1225 is earlier checkpoint.",
+  "files": {
+    "native/gameplay-ui/NativeHoneyIdleMotion.swift": "f27db78df5ef19c5dacaedd66d6e12b033a1decfde5b91178884428cb4a59672",
+    "native/standalone/Stack to SixTests/NativeSourceAnimationClockTests.swift": "e59196dc91cebd169bc262083b2a31bd0c360a707724bd48e79f26d6c24bb339",
+    "docs/engineering/feature-runtime-owners.json": "11be71d5d6f7c50796161adbf1d7ce9592b4768921cfde04a4dfcac1ee37253d"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "status": "FOCUSED1_BROADER21_PASS",
+  "scope": "Fixture-only closes prior APP/Scene/context/service owners, reads disk profile with independent NativeSaveStore/default NativeBootstrap, then genuine rendered-node readiness and pickup. Retains guide/assist/tiles/moves/score while awaiting authored later result. This is APP-owner/bootstrap recreation inside Simulator process, not OS process termination, Source restored tutorial constructor or phone proof.",
+  "checks": [
+    {
+      "handle": 94961,
+      "status": "PASS",
+      "tests": 1,
+      "failures": 0,
+      "exitCode": 0
+    },
+    {
+      "handle": 6708,
+      "status": "PASS",
+      "tests": 21,
+      "failures": 0,
+      "exitCode": 0,
+      "log": "tutorial-guide-cold-relaunch-broader.log"
+    }
+  ],
+  "sourceSHA256": {
+    "native/standalone/Stack to SixTests/NativeSourceTutorialBootstrapTests.swift": "f003073d6bc9e80e09a599f745eb5b1b8db2fad195f1ca9ee125d7a88e4b4138",
+    "native/gameplay-app/NativeBootstrap.swift": "85869d8837fa7861691e5cdb0dad05d384f4ff5044a5cca2747153ca968df1fe"
+  },
+  "runtimeCheckpoint": "Runtime unchanged from completeSDK1254/affected37/fullQA PASS. Full SDK1254 predates extra cold-bootstrap assertions.",
+  "remaining": "True OS cold process launch, full Source saved tutorial construction/active resume, result progression, global/common/family/Native-only Release/physical admission OPEN. No phone/PWA/asset operations. Snapshots replay NEW isolated trees only."
+}

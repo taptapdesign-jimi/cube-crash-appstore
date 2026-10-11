@@ -1,0 +1,26 @@
+{
+  "scope": "Static Source face ownership separated from existing actual Native per-variant idle hierarchy allocation; defer activation/registry start retain typed texture and geometry, Bottle grounded pivot uses cached Source122.88 height with no registry allocations per frame. Flags OFF; not full Source conditional FX composer/startup or physical acceptance. Typed Wild face now has logical requested SpriteKit size and unit baseline scale, so \u00b11 idle/drag flips cannot expose full raster dimensions.",
+  "files": {
+    "native/gameplay-ui/NativeDiceNode.swift": "b78568ec99b321f767faca079b245f1d4a2845368fe2d87f8652068c630aef56",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "6767002766aa6e968e3ac32ab3f1ad0a9850ca2a53ccf7875d59da509364fcff"
+  },
+  "SDKinitial": "terminalexit0 3/3 PASS prior to cached-height refinement and actual-registry added test",
+  "SDKcurrent": "terminalexit0 5/5 PASS Fish flip/drag logical geometry, actual Bottle registry/activation, repeated receipt and Laser geometry",
+  "fullPrior": "terminalexit0 all selected deterministic gates PASS prior to cached scalar/logical-size normalization",
+  "logs": {
+    "wild-skin-idle-activation-sdk.log": "8d9de14f44fda5f412d7f19e507e2be371dbf3e910efea21f42a26bbe9f8154f",
+    "wild-skin-idle-registry-sdk.log": "9613fe2e3e9d5ec59cb9913c83b0ab200cfb4b7d9fcbb51356c5b2fd15f8b7c2",
+    "wild-skin-idle-activation-full.log": "9e3df26c8dd3dc5797f07f11861f61aec9161013779efe8bd33687f3f41fbb56",
+    "wild-skin-logical-size-sdk.log": "9cf53195fa0475c6ff64ffb976ed4ef4b85c1c4f43155323c570ed573d458591",
+    "wild-skin-current-matrix-sdk.log": "5b5151611c8fcb047e45f44fcd1697bebee5fefb5d6267fdf5b567a60e6f3255",
+    "wild-skin-current-matrix-command.json": "7a448b70c7de00905d885b5f94c4eefbcb947b07a22ad835a5c0fe0b07e7a142",
+    "wild-skin-logical-size-full.log": "ffdb438527ac17e7a43ef05e25772d0d367210946bef3adb383f64c19348077a"
+  },
+  "SDKregistry": "terminalexit0 3/3 PASS: actual APP registry start/retirement, Bottle real activation, same-identity preservation",
+  "fullCurrent": "terminalexit0 all selected deterministic gates PASS; current Source/QA frozen throughout; no native bundle sync",
+  "SDKmatrix": "terminalexit0 24/24 PASS all current Source Special provider/receipt/skin/input/epoch/recovery/update/idle tests",
+  "snapshotMatch": {
+    "native/gameplay-ui/NativeDiceNode.swift": "Source=QA=SDK SHA match",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "Source=QA=SDK SHA match"
+  }
+}

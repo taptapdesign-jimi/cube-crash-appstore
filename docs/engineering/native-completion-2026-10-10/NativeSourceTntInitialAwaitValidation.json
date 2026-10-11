@@ -1,0 +1,56 @@
+{
+  "status": "PASS bounded TNT graph; shared neighbors corrected SDK RUNNING",
+  "core": {
+    "tests": 409,
+    "failures": 0,
+    "log": "/tmp/native-tnt-initial-await-no-target-core-corrected.log"
+  },
+  "sdk": {
+    "tests": 7,
+    "failures": 0,
+    "seconds": 46.34,
+    "log": "/tmp/native-tnt-initial-await-no-target-connected-sdk.log"
+  },
+  "initialSdk": {
+    "tests": 22,
+    "failures": 0,
+    "seconds": 35.705,
+    "log": "/tmp/native-tnt-initial-await-connected-sdk.log"
+  },
+  "finalSdk": {
+    "tests": 7,
+    "failures": 0,
+    "seconds": 46.026,
+    "log": "/tmp/native-tnt-initial-await-no-target-final-sdk.log",
+    "assertions": "zero complete80 tasks/lastChangeAt for empty reservation; exactly one authored complete80 for nonempty/safety"
+  },
+  "preservedFailure": "/tmp/native-tnt-initial-await-no-target-core-with-tests.log: attempted test replacement of immutable sourceMathRandom; corrected to actual lifecycle restart inside enqueue",
+  "scope": [
+    "actual mounted constructor precedes primary and nine locked-bonus construction",
+    "matching Core receipt and APP FIFO, duplicate/inline/retirement rejection",
+    "captured finally after genuinely completed all-refused source spawn; no fake primary arrival",
+    "actual empty-target reservation through real Journey root/gesture/APP timers/visual completion",
+    "no Source particle or face constructor in empty branch; authored nonempty completion80 retained"
+  ],
+  "open": [
+    "complete Source pre/post and immutable-final guards",
+    "all root/hitch/pixel parity",
+    "whole global/save/queue/NO MOVES/families/default activation",
+    "physical acceptance"
+  ],
+  "release": "last constructor Release/audit PASS predates initial-await/no-target changes; grouped rebuild pending",
+  "sharedNeighbors": {
+    "initial": "FAIL24 tests/1 failure /tmp/native-tnt-initial-await-shared-neighbors-sdk.log",
+    "cause": "Magnet fixture assumed random actual refills always leave a sub-six pair; five other actual roots and18 FIFO/installer tests passed",
+    "correction": "Supply one immutable common APP RNG from root acquisition via existing runtime visualRandom injection; no per-Scene fork/reset or gameplay policy change",
+    "current": {
+      "status": "PASS",
+      "tests": 24,
+      "failures": 0,
+      "seconds": 74.5,
+      "log": "/tmp/native-tnt-initial-await-shared-neighbors-deterministic-sdk.log"
+    },
+    "preservedCompileFailure": "/tmp/native-tnt-initial-await-shared-neighbors-corrected-sdk.log: coder initializer required default common RNG assignment; fixed without changing ordinary icon-launch policy"
+  },
+  "subsequentPhysicalGuards": "IN PROGRESS: actual physical pre_spawn and normal-before-spawn FIFO boundaries; zero/missing blocker completion remains unadmitted"
+}

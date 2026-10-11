@@ -1,0 +1,51 @@
+{
+  "base": "docs/engineering/native-pause-2026-10-08/NativeSource.tar.gz",
+  "wholeSourceFlags": "OFF",
+  "files": {
+    "native/gameplay-app/NativeBootstrap.swift": {
+      "baseSHA256": "a0bfc7b6fcaa42f936c93ab8b461fe123bc296500043e7cb64edc1e69edf8a8d",
+      "sha256": "448c3696789a97461b144f3739ec75838c955ea489c42afe8a1ebab96f7eec5d"
+    },
+    "native/gameplay-ui/NativeBoardScene.swift": {
+      "baseSHA256": "3f42b76091192b85094e53075364f6bcba41058ecc485c1fabe0d69431488951",
+      "sha256": "f207db83ffc097bd1bde2c208fc811a05f9054f1a980675811b9e3c23a9b594a"
+    },
+    "native/gameplay-ui/NativeDiceNode.swift": {
+      "baseSHA256": "08560e6eef1d202e80fb9a5112dad3ef8d252fc1bcfb0d393cb685333dc85c47",
+      "sha256": "553b92756245964071e238c51bab441dc09b3cdc88d3745eaa36eeda13e88df3"
+    },
+    "native/gameplay-ui/NativeGameplayViewController.swift": {
+      "baseSHA256": "71d3e6b012a692d44f2a69dfc653b8fcb8e2e2306bde08982cb3300d890c0b96",
+      "sha256": "35b8ec035352676e8de3c302d3cd4bff740012fab3b358717c4deda55389bbf6"
+    },
+    "native/gameplay-ui/NativeSourceBoardEntryOwner.swift": {
+      "baseSHA256": null,
+      "sha256": "5dd3a08cf65cb70d19efca3946753ecd4bf66088464f8ced32afed4f7647efb0"
+    },
+    "native/gameplay-ui/NativeSourceBoardEntryPlan.swift": {
+      "baseSHA256": null,
+      "sha256": "6c45bf8390bed5b4b37642a1468010632de6dcce06146f352d0dbaf4a72df5b1"
+    },
+    "native/gameplay-ui/NativeSourceMicrotaskAdapters.swift": {
+      "baseSHA256": "a013b8d651104bb37425b4a2495353832aa19307ca3008c7e5f15e28611a2397",
+      "sha256": "df0fd078e668cbd2b348da1c772d7051ab36beac5e3215683ac471d5c44c7e2b"
+    },
+    "native/standalone/Stack to SixTests/NativeSourceBoardEntryBootstrapTests.swift": {
+      "baseSHA256": null,
+      "sha256": "da8e90e5e4a567e283f91768029a3d280ff5f64e55370da661b160ba21bbc851"
+    },
+    "native/standalone/Stack to SixTests/NativeSourceBoardEntrySceneTests.swift": {
+      "baseSHA256": null,
+      "sha256": "0fe15d1dbdf91a1930f49eb6b1f1b68d2390cf097d2b48d02440739f32b28b64"
+    },
+    "native/standalone/Stack to SixTests/NativeSourceBoardEntryTests.swift": {
+      "baseSHA256": null,
+      "sha256": "cc7c23ec5764b19646ecf6c023af247e37e8615f8d03f75a9a22b65ff9b63328"
+    },
+    "native/standalone/Stack to SixTests/SourceBoardEntryTickerV9Oracle.json": {
+      "baseSHA256": null,
+      "sha256": "b1d49089cc2c7b2bde0888ba8386973417fab1accbbfdd89fa7a7f0c9d169ed0"
+    }
+  },
+  "archiveSHA256": "40e4814aa868be6fc4f15f6be383084fcd6d1e685fb59d662585753af6a31952"
+}

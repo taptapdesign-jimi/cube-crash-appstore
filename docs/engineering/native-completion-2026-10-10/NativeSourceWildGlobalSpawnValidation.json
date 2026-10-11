@@ -1,0 +1,49 @@
+{
+  "verdict": "Bounded PASS: Core382; corrected SDK18/0; active/unknown runtime reader SDK27/0. Later ordinary assembly independently in validation.",
+  "implementation": "Actual non-final Direct Wild replacement mints a distinct Core-owned entry receipt before selection/constructor/RNG. Captured Source ledger allocates shared app merge-six token then actual Date and diagnostic. Genuine coroutine finally resets the exact claim in frames/special/queue-request order. Special release and merge-six reset both publish scoped guard-release requests. If migration delivery is absent, one real bounded request is retained until a validated current queue installs; absence remains unknown, no Source progress/save capability fabricated. Exact graph retirement clears requests and callbacks.",
+  "core": {
+    "tests": 382,
+    "failures": 0,
+    "log": "/tmp/native-wild-global-core-with-tests.log"
+  },
+  "sdk": {
+    "log": "/tmp/native-wild-global-sdk-corrected.log",
+    "status": "PASS18/0,31.019s"
+  },
+  "firstSDK": {
+    "log": "/tmp/native-wild-global-sdk.log",
+    "tests": 14,
+    "failures": 3,
+    "actualRoots": "3/0 PASS28.197s",
+    "boundary": "Three stale ordinary Date-counter assertions mixed original non-final tile/guard Date reads with the separate spawn writer; actual global token pure tests6/0 passed."
+  },
+  "failureChronology": [
+    {
+      "log": "/tmp/native-wild-global-sdk.log",
+      "reason": "Mounted ordinary fixtures predated genuine non-final tile/guard Date writes. Corrected assertions preserve zero spawn-ledger sequence before acquisition and verify exactly one additional Date read at captured main entry. No production writer semantics weakened."
+    }
+  ],
+  "sourceQA": {
+    "king": "/tmp/native-wild-global-king.log PASS330",
+    "feature": "/tmp/native-wild-global-feature.log PASS27"
+  },
+  "boundaries": "Whole merge-six callers (ordinary main/default/TNT/Special), physical signature/all-four mutation writers, canonical save/queue/endgame/families/default activation and physical acceptance OPEN. Global runtime false is still not fabricated. Original assets/audio and NativeRaw defaults preserved; PWA and phone untouched.",
+  "physicalAcceptance": "NEEDS PHYSICAL TEST",
+  "sha256": {
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceWildSpawnBeginReceipt.swift": "8c565dca887299f33539869808f52224acc6ff753ddb01cb5fe0834a252c80b1",
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "af6a1af456483c522543d37c5a905efa742a94e43f04347222fe273c2ae62fe9",
+    "native/gameplay-app/NativeSourceEndgameMutationLedger.swift": "41d49889e4c9ba2ce603e4b176f5ec70bce7762fdf5ddcc37a44cdfccea92dad",
+    "native/gameplay-ui/NativeBoardScene.swift": "a9cc9fb2d86b64481e248586dc7307545958316b65de91ede2ef66e6eed21710",
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceWildConstructorIntegrationTests.swift": "ecf318a9330e8240298d7098934ccc877fb98dcdd5b550cf9b5aefa50d758977",
+    "native/standalone/Stack to SixTests/NativeSourceMergeSixSpawnOwnerTests.swift": "a91b02b0f5702ba50e6023264e52b15e7fd7a299f9b464534c4bf0866603a5bb",
+    "native/standalone/Stack to SixTests/NativeSourceMergeSixSpawnOwnerMountedTests.swift": "73b6c82844b41bcfa8ce9129d23fcc3fd0c85d4f74c81d4c777229f0c8a3799e",
+    "native/standalone/Stack to SixTests/NativeStandaloneRootTests.swift": "b4524afc429e21db143891d8f239575c0404e2153acb6d33d14c2d2142b9a0be"
+  },
+  "runtimeReaderSDK": {
+    "log": "/tmp/native-wild-global-observation-sdk.log",
+    "tests": 27,
+    "failures": 0,
+    "durationSeconds": 13.093
+  },
+  "sha256Boundary": "Recorded snapshot precedes later tile-only minimum and normal ordinary assembly changes; these hashes do not certify later edits."
+}

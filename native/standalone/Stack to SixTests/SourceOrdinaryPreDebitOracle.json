@@ -1,0 +1,1315 @@
+{
+  "rows": [
+    {
+      "input": {
+        "name": "lastTwoRegular",
+        "value": 5,
+        "depth": 2,
+        "visibleBefore": 2,
+        "physicalBefore": 2,
+        "reason": "last_two_regular_stack_dead_end"
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "last_two_regular_stack_dead_end"
+        ],
+        [
+          "tutorial",
+          "last_two_regular_stack_dead_end"
+        ],
+        [
+          "noMoves",
+          {
+            "reason": "last_two_regular_stack_dead_end",
+            "resetHint": false
+          }
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastTwoRegular",
+        "value": 5,
+        "depth": 2,
+        "visibleBefore": 2,
+        "physicalBefore": 2,
+        "reason": "last_two_regular_stack_dead_end",
+        "wild": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "last_two_regular_stack_dead_end"
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastTwoRegular",
+        "value": 5,
+        "depth": 2,
+        "visibleBefore": 2,
+        "physicalBefore": 2,
+        "reason": "last_two_regular_stack_dead_end",
+        "tutorial": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "last_two_regular_stack_dead_end"
+        ],
+        [
+          "tutorial",
+          "last_two_regular_stack_dead_end"
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastTwoRegular",
+        "value": 5,
+        "depth": 2,
+        "visibleBefore": 2,
+        "physicalBefore": 2,
+        "reason": "last_two_regular_stack_dead_end",
+        "ensure": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "last_two_regular_stack_dead_end"
+        ],
+        [
+          "tutorial",
+          "last_two_regular_stack_dead_end"
+        ],
+        [
+          "noMoves",
+          {
+            "reason": "last_two_regular_stack_dead_end",
+            "resetHint": false
+          }
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastTwoRegular",
+        "value": 5,
+        "depth": 2,
+        "visibleBefore": 2,
+        "physicalBefore": 2,
+        "reason": "last_two_regular_stack_dead_end",
+        "cancel": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastTwoRegular",
+        "value": 5,
+        "depth": 2,
+        "visibleBefore": 2,
+        "physicalBefore": 2,
+        "reason": "last_two_regular_stack_dead_end",
+        "lateBusy": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "last_two_regular_stack_dead_end"
+        ],
+        [
+          "tutorial",
+          "last_two_regular_stack_dead_end"
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastTwoRegular",
+        "value": 5,
+        "depth": 2,
+        "visibleBefore": 2,
+        "physicalBefore": 2,
+        "reason": "last_two_regular_stack_dead_end",
+        "full": "continue"
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "last_two_regular_stack_dead_end"
+        ],
+        [
+          "tutorial",
+          "last_two_regular_stack_dead_end"
+        ],
+        [
+          "noMoves",
+          {
+            "reason": "last_two_regular_stack_dead_end",
+            "resetHint": false
+          }
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastTwoSelf",
+        "value": 3,
+        "depth": 2,
+        "visibleBefore": 2,
+        "physicalBefore": 2,
+        "reason": "last_two_self_merge_dead_end"
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "last_two_self_merge_dead_end"
+        ],
+        [
+          "tutorial",
+          "last_two_self_merge_dead_end"
+        ],
+        [
+          "noMoves",
+          {
+            "reason": "last_two_self_merge_dead_end",
+            "resetHint": false
+          }
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastTwoSelf",
+        "value": 3,
+        "depth": 2,
+        "visibleBefore": 2,
+        "physicalBefore": 2,
+        "reason": "last_two_self_merge_dead_end",
+        "wild": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "last_two_self_merge_dead_end"
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastTwoSelf",
+        "value": 3,
+        "depth": 2,
+        "visibleBefore": 2,
+        "physicalBefore": 2,
+        "reason": "last_two_self_merge_dead_end",
+        "tutorial": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "last_two_self_merge_dead_end"
+        ],
+        [
+          "tutorial",
+          "last_two_self_merge_dead_end"
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastTwoSelf",
+        "value": 3,
+        "depth": 2,
+        "visibleBefore": 2,
+        "physicalBefore": 2,
+        "reason": "last_two_self_merge_dead_end",
+        "ensure": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "last_two_self_merge_dead_end"
+        ],
+        [
+          "tutorial",
+          "last_two_self_merge_dead_end"
+        ],
+        [
+          "noMoves",
+          {
+            "reason": "last_two_self_merge_dead_end",
+            "resetHint": false
+          }
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastTwoSelf",
+        "value": 3,
+        "depth": 2,
+        "visibleBefore": 2,
+        "physicalBefore": 2,
+        "reason": "last_two_self_merge_dead_end",
+        "cancel": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastTwoSelf",
+        "value": 3,
+        "depth": 2,
+        "visibleBefore": 2,
+        "physicalBefore": 2,
+        "reason": "last_two_self_merge_dead_end",
+        "lateBusy": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "last_two_self_merge_dead_end"
+        ],
+        [
+          "tutorial",
+          "last_two_self_merge_dead_end"
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastTwoSelf",
+        "value": 3,
+        "depth": 2,
+        "visibleBefore": 2,
+        "physicalBefore": 2,
+        "reason": "last_two_self_merge_dead_end",
+        "full": "continue"
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "last_two_self_merge_dead_end"
+        ],
+        [
+          "tutorial",
+          "last_two_self_merge_dead_end"
+        ],
+        [
+          "noMoves",
+          {
+            "reason": "last_two_self_merge_dead_end",
+            "resetHint": false
+          }
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastThreeRegular",
+        "value": 5,
+        "depth": 3,
+        "visibleBefore": 3,
+        "physicalBefore": 3,
+        "reason": "last_three_regular_stack_dead_end"
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "last_three_regular_stack_dead_end"
+        ],
+        [
+          "tutorial",
+          "last_three_regular_stack_dead_end"
+        ],
+        [
+          "noMoves",
+          {
+            "reason": "last_three_regular_stack_dead_end",
+            "resetHint": false
+          }
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastThreeRegular",
+        "value": 5,
+        "depth": 3,
+        "visibleBefore": 3,
+        "physicalBefore": 3,
+        "reason": "last_three_regular_stack_dead_end",
+        "wild": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "last_three_regular_stack_dead_end"
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastThreeRegular",
+        "value": 5,
+        "depth": 3,
+        "visibleBefore": 3,
+        "physicalBefore": 3,
+        "reason": "last_three_regular_stack_dead_end",
+        "tutorial": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "last_three_regular_stack_dead_end"
+        ],
+        [
+          "tutorial",
+          "last_three_regular_stack_dead_end"
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastThreeRegular",
+        "value": 5,
+        "depth": 3,
+        "visibleBefore": 3,
+        "physicalBefore": 3,
+        "reason": "last_three_regular_stack_dead_end",
+        "ensure": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "last_three_regular_stack_dead_end"
+        ],
+        [
+          "tutorial",
+          "last_three_regular_stack_dead_end"
+        ],
+        [
+          "noMoves",
+          {
+            "reason": "last_three_regular_stack_dead_end",
+            "resetHint": false
+          }
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastThreeRegular",
+        "value": 5,
+        "depth": 3,
+        "visibleBefore": 3,
+        "physicalBefore": 3,
+        "reason": "last_three_regular_stack_dead_end",
+        "cancel": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastThreeRegular",
+        "value": 5,
+        "depth": 3,
+        "visibleBefore": 3,
+        "physicalBefore": 3,
+        "reason": "last_three_regular_stack_dead_end",
+        "lateBusy": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "last_three_regular_stack_dead_end"
+        ],
+        [
+          "tutorial",
+          "last_three_regular_stack_dead_end"
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastThreeRegular",
+        "value": 5,
+        "depth": 3,
+        "visibleBefore": 3,
+        "physicalBefore": 3,
+        "reason": "last_three_regular_stack_dead_end",
+        "full": "continue"
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "last_three_regular_stack_dead_end"
+        ],
+        [
+          "tutorial",
+          "last_three_regular_stack_dead_end"
+        ],
+        [
+          "noMoves",
+          {
+            "reason": "last_three_regular_stack_dead_end",
+            "resetHint": false
+          }
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastThreeSelf",
+        "value": 3,
+        "depth": 2,
+        "visibleBefore": 3,
+        "physicalBefore": 3,
+        "reason": "last_three_self_merge_dead_end"
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "last_three_self_merge_dead_end"
+        ],
+        [
+          "tutorial",
+          "last_three_self_merge_dead_end"
+        ],
+        [
+          "noMoves",
+          {
+            "reason": "last_three_self_merge_dead_end",
+            "resetHint": false
+          }
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastThreeSelf",
+        "value": 3,
+        "depth": 2,
+        "visibleBefore": 3,
+        "physicalBefore": 3,
+        "reason": "last_three_self_merge_dead_end",
+        "wild": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "last_three_self_merge_dead_end"
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastThreeSelf",
+        "value": 3,
+        "depth": 2,
+        "visibleBefore": 3,
+        "physicalBefore": 3,
+        "reason": "last_three_self_merge_dead_end",
+        "tutorial": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "last_three_self_merge_dead_end"
+        ],
+        [
+          "tutorial",
+          "last_three_self_merge_dead_end"
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastThreeSelf",
+        "value": 3,
+        "depth": 2,
+        "visibleBefore": 3,
+        "physicalBefore": 3,
+        "reason": "last_three_self_merge_dead_end",
+        "ensure": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "last_three_self_merge_dead_end"
+        ],
+        [
+          "tutorial",
+          "last_three_self_merge_dead_end"
+        ],
+        [
+          "noMoves",
+          {
+            "reason": "last_three_self_merge_dead_end",
+            "resetHint": false
+          }
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastThreeSelf",
+        "value": 3,
+        "depth": 2,
+        "visibleBefore": 3,
+        "physicalBefore": 3,
+        "reason": "last_three_self_merge_dead_end",
+        "cancel": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastThreeSelf",
+        "value": 3,
+        "depth": 2,
+        "visibleBefore": 3,
+        "physicalBefore": 3,
+        "reason": "last_three_self_merge_dead_end",
+        "lateBusy": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "last_three_self_merge_dead_end"
+        ],
+        [
+          "tutorial",
+          "last_three_self_merge_dead_end"
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "lastThreeSelf",
+        "value": 3,
+        "depth": 2,
+        "visibleBefore": 3,
+        "physicalBefore": 3,
+        "reason": "last_three_self_merge_dead_end",
+        "full": "continue"
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "last_three_self_merge_dead_end"
+        ],
+        [
+          "tutorial",
+          "last_three_self_merge_dead_end"
+        ],
+        [
+          "noMoves",
+          {
+            "reason": "last_three_self_merge_dead_end",
+            "resetHint": false
+          }
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "single",
+        "value": 4,
+        "depth": 1,
+        "visibleBefore": 4,
+        "physicalBefore": 4,
+        "special": true,
+        "reason": "single_regular_tile_safety_net"
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "ensure",
+          "post_stack_single_regular_tile"
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "single_regular_tile_safety_net"
+        ],
+        [
+          "tutorial",
+          "single_regular_tile_safety_net"
+        ],
+        [
+          "noMoves",
+          {
+            "reason": "single_regular_tile_safety_net",
+            "waitMs": 500,
+            "resetHint": false
+          }
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "single",
+        "value": 4,
+        "depth": 1,
+        "visibleBefore": 4,
+        "physicalBefore": 4,
+        "special": true,
+        "reason": "single_regular_tile_safety_net",
+        "wild": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "ensure",
+          "post_stack_single_regular_tile"
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "single_regular_tile_safety_net"
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "single",
+        "value": 4,
+        "depth": 1,
+        "visibleBefore": 4,
+        "physicalBefore": 4,
+        "special": true,
+        "reason": "single_regular_tile_safety_net",
+        "tutorial": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "ensure",
+          "post_stack_single_regular_tile"
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "single_regular_tile_safety_net"
+        ],
+        [
+          "tutorial",
+          "single_regular_tile_safety_net"
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "single",
+        "value": 4,
+        "depth": 1,
+        "visibleBefore": 4,
+        "physicalBefore": 4,
+        "special": true,
+        "reason": "single_regular_tile_safety_net",
+        "ensure": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "ensure",
+          "post_stack_single_regular_tile"
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "single",
+        "value": 4,
+        "depth": 1,
+        "visibleBefore": 4,
+        "physicalBefore": 4,
+        "special": true,
+        "reason": "single_regular_tile_safety_net",
+        "cancel": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "single",
+        "value": 4,
+        "depth": 1,
+        "visibleBefore": 4,
+        "physicalBefore": 4,
+        "special": true,
+        "reason": "single_regular_tile_safety_net",
+        "lateBusy": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "ensure",
+          "post_stack_single_regular_tile"
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "single_regular_tile_safety_net"
+        ],
+        [
+          "tutorial",
+          "single_regular_tile_safety_net"
+        ],
+        [
+          "noMoves",
+          {
+            "reason": "single_regular_tile_safety_net",
+            "waitMs": 500,
+            "resetHint": false
+          }
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "single",
+        "value": 4,
+        "depth": 1,
+        "visibleBefore": 4,
+        "physicalBefore": 4,
+        "special": true,
+        "reason": "single_regular_tile_safety_net",
+        "full": "continue"
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "ensure",
+          "post_stack_single_regular_tile"
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "single_regular_tile_safety_net"
+        ],
+        [
+          "tutorial",
+          "single_regular_tile_safety_net"
+        ],
+        [
+          "noMoves",
+          {
+            "reason": "single_regular_tile_safety_net",
+            "waitMs": 500,
+            "resetHint": false
+          }
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "postMerge",
+        "value": 4,
+        "depth": 1,
+        "visibleBefore": 4,
+        "physicalBefore": 4,
+        "other": true,
+        "reason": "post_merge_stuck"
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "fresh",
+          "active",
+          20,
+          true
+        ],
+        [
+          "clear-cache"
+        ],
+        [
+          "fresh",
+          "STATE",
+          20,
+          true
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "post_merge_stuck"
+        ],
+        [
+          "tutorial",
+          "post_merge_stuck"
+        ],
+        [
+          "noMoves",
+          {
+            "reason": "post_merge_stuck",
+            "resetHint": false
+          }
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "postMerge",
+        "value": 4,
+        "depth": 1,
+        "visibleBefore": 4,
+        "physicalBefore": 4,
+        "other": true,
+        "reason": "post_merge_stuck",
+        "wild": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "fresh",
+          "active",
+          20,
+          true
+        ],
+        [
+          "clear-cache"
+        ],
+        [
+          "fresh",
+          "STATE",
+          20,
+          true
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "post_merge_stuck"
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "postMerge",
+        "value": 4,
+        "depth": 1,
+        "visibleBefore": 4,
+        "physicalBefore": 4,
+        "other": true,
+        "reason": "post_merge_stuck",
+        "tutorial": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "fresh",
+          "active",
+          20,
+          true
+        ],
+        [
+          "clear-cache"
+        ],
+        [
+          "fresh",
+          "STATE",
+          20,
+          true
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "post_merge_stuck"
+        ],
+        [
+          "tutorial",
+          "post_merge_stuck"
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "postMerge",
+        "value": 4,
+        "depth": 1,
+        "visibleBefore": 4,
+        "physicalBefore": 4,
+        "other": true,
+        "reason": "post_merge_stuck",
+        "ensure": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "fresh",
+          "active",
+          20,
+          true
+        ],
+        [
+          "clear-cache"
+        ],
+        [
+          "fresh",
+          "STATE",
+          20,
+          true
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "post_merge_stuck"
+        ],
+        [
+          "tutorial",
+          "post_merge_stuck"
+        ],
+        [
+          "noMoves",
+          {
+            "reason": "post_merge_stuck",
+            "resetHint": false
+          }
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "postMerge",
+        "value": 4,
+        "depth": 1,
+        "visibleBefore": 4,
+        "physicalBefore": 4,
+        "other": true,
+        "reason": "post_merge_stuck",
+        "cancel": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "postMerge",
+        "value": 4,
+        "depth": 1,
+        "visibleBefore": 4,
+        "physicalBefore": 4,
+        "other": true,
+        "reason": "post_merge_stuck",
+        "lateBusy": true
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "fresh",
+          "active",
+          20,
+          true
+        ],
+        [
+          "clear-cache"
+        ],
+        [
+          "fresh",
+          "STATE",
+          20,
+          true
+        ],
+        [
+          "hint"
+        ],
+        [
+          "wild",
+          "post_merge_stuck"
+        ],
+        [
+          "tutorial",
+          "post_merge_stuck"
+        ]
+      ]
+    },
+    {
+      "input": {
+        "name": "postMerge",
+        "value": 4,
+        "depth": 1,
+        "visibleBefore": 4,
+        "physicalBefore": 4,
+        "other": true,
+        "reason": "post_merge_stuck",
+        "full": "continue"
+      },
+      "trace": [
+        [
+          "wall",
+          100
+        ],
+        [
+          "fresh",
+          "active",
+          20,
+          true
+        ],
+        [
+          "clear-cache"
+        ],
+        [
+          "fresh",
+          "STATE",
+          20,
+          true
+        ],
+        [
+          "surviving-debit"
+        ]
+      ]
+    }
+  ]
+}

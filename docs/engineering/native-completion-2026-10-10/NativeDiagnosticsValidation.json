@@ -1,0 +1,42 @@
+{
+  "scope": "Actual Native standalone root owns explicit native diagnostics. Preserved cc.performanceDiagnostics preference is read-only; ordinary unrequested launch has no diagnostic work. No web/profile/assets/audio/haptic mutation.",
+  "sourceSHA256": {
+    "native/gameplay-app/NativeDiagnosticsCapture.swift": "e3e96118ea30347ae91c2a6689c33d9b6e99edb3e303a3ebabb1f34f7d8b2d63",
+    "native/gameplay-app/NativeStandaloneViewController.swift": "620e55c5983656ea18ece3f1e1f179e506546482698874b8e91e5073a77c6ae2",
+    "native/standalone/Stack to SixTests/NativeDiagnosticsCaptureTests.swift": "f88f6f9ddb7c4e58d445f05555a44f006bcd4920e6efc1ca4b88995664be740e",
+    "docs/engineering/feature-runtime-owners.json": "bdbb12251ef31c414963071d3f9e8cd71f2f3fb68567c7f2579bba45a8c6309e"
+  },
+  "initialSDK": "terminal7653 exit65 before tests: target Swift default actor initializer rejected; moved initializer into MainActor body",
+  "firstConnected": "terminal12503 exit65:14 tests,1 Simulator battery monitoring enable readback assertion failure; all capture/root/profile/lifecycle tests PASS",
+  "batteryReady": "terminal55297 exit0 15/15 PASS0.157s. Injected battery command/restore lifecycle distinguished from actual Simulator readback/cleanup; physical availability OPEN.",
+  "reentrantConnected": "terminal39851 exit0 53/53 PASS1.316s including reentrant battery cancellation,11 diagnostics +5 root +37 clock",
+  "featureGate": "terminal feature command exit0 PASS",
+  "fastQA": "terminal43426 exit0 PASS",
+  "fullQA": "terminal71311 exit0 PASS all selected deterministic gates",
+  "limits": [
+    "Original SDK1267/unsigned Release proofs predate clock +diagnostics continuation",
+    "Clock fullSDK1268 had1 uncontrolled Bee fixture clock failure; fixture ten iterations and Star/clock113 PASS; combined final fullSDK pending",
+    "Actual scoped Simulator OS launch/foreground/background capture PASS; signed distribution, physical capture and presented GPU FPS acceptance OPEN",
+    "Global Source parity flags OFF; Huge cubes OPEN; grey Journey/Play flash LAST"
+  ],
+  "metadataConnected": "terminal92655 exit0 53/53 PASS1.335s; actual thermal-only vs performance metadata, file availability, unchanged Native save bytes",
+  "iOSRelease": "terminal75024 exit0 BUILD SUCCEEDED; actual arm64 iOS binary no WebKit/JavaScriptCore/WK import strings/Web.bundle. NativeDiagnosticsIOSReleaseDependencyProof.json",
+  "completeSDK": "terminal34475 exit0 TEST SUCCEEDED:1279 tests,1 explicit opt-in producer skipped,0 failures626.347s (suite626.921s)",
+  "osUI": "terminal47837 exit0 1/1 PASS33.068s, actual Native foreground/background/same-process return, no WebView",
+  "osPreparation": {
+    "uiTest": "native/standalone/Stack to SixUITests/NativeHomeInteractionUITests.swift",
+    "uiSHA256": "0745edbb2d3728870f9fb31aee5066489dffff3ea2805cecc8e1dc3700d9e4c6",
+    "verifier": "scripts/native-oracles/verify-diagnostics-os.py",
+    "verifierSHA256": "903b93078fc94e12df661956055b49a01222bcdac57a29b7f1c2f05c86f96346",
+    "syntax": "Python compile PASS with cache under /tmp; no actual capture input run yet",
+    "scope": "Real OS private profile0003 with exact UI opt-in; active6s/background8s/resume6s, same process required. UI build/execution deferred until current fullSDK terminal."
+  },
+  "osUIBuild": "terminal93851 exit0 TEST BUILD SUCCEEDED",
+  "osUIInitial": "terminal52838 exit70 before tests/app launch: copied relative TESTROOT pointed at wrong products; retained pretest log",
+  "osChronology": "actual8 JSONL rows,8958ms background without intervals; NativeDiagnosticsOSChronology.json",
+  "osProfilePreservation": "NOT ACCEPTED: first baseline hash changed for existing normal Native save; private profile0003 already existed too (not a new unused ID). Old container removed on Xcode installation; initial before recorded hashes only, not raw values. Investigate lifecycle/app-install boundary, capture full raw before next scoped test; no reset/overwrite of any profile.",
+  "osReplay": "terminal77449 exit0 1/1 PASS32.793s, raw before/after snapshots retained; actual8 JSONL rows8956ms background without intervals",
+  "osProfilePreservationLatest": "PASS scoped replay: normal primary and backup exact bytes unchanged, previous capture unchanged; private0003 primary/backup semantic differences only savedAt through existing NativeAppController.willResignActive->services.flush lifecycle. NativeDiagnosticsOSReplayPreservation.json",
+  "osProfilePreservationInitial": "First baseline only hashes and old SDK host process/lifecycle/install boundary: normal file SHA changed, exact semantic cause unproven. Historical failed assertion retained; no profile rewritten/reset to pass.",
+  "osVisual": "Exported actual replay screenshot F27869C2-E4A1-4DEF-B7BC-C259052E95AB.png, inspected Home after foreground return: expected Native Home, no technical fault/web surface or obvious clipping. Not pixel-parity/transition/physical proof."
+}

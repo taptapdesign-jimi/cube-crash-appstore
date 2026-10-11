@@ -1,0 +1,755 @@
+{
+  "literal": "(): number => {\n          const savedPositionsCount = Array.isArray(savedStarPositionsEarly)\n            ? savedStarPositionsEarly.filter(Boolean).length\n            : 0;\n          const savedSystemCount = Array.isArray((savedStarSystemEarly as any)?.stars)\n            ? (savedStarSystemEarly as any).stars.filter(Boolean).length\n            : 0;\n          const liveSystemCount = Array.isArray((wildStarTileForAnimation as any)?._wildStarSystem?.stars)\n            ? (wildStarTileForAnimation as any)._wildStarSystem.stars.filter(Boolean).length\n            : 0;\n          const count = savedPositionsCount || savedSystemCount || liveSystemCount || 3;\n          return Math.max(1, Math.min(3, count | 0));\n        }",
+  "results": [
+    {
+      "positions": 0,
+      "saved": 0,
+      "live": 0,
+      "expected": 3
+    },
+    {
+      "positions": 0,
+      "saved": 0,
+      "live": 1,
+      "expected": 1
+    },
+    {
+      "positions": 0,
+      "saved": 0,
+      "live": 2,
+      "expected": 2
+    },
+    {
+      "positions": 0,
+      "saved": 0,
+      "live": 3,
+      "expected": 3
+    },
+    {
+      "positions": 0,
+      "saved": 0,
+      "live": 4,
+      "expected": 3
+    },
+    {
+      "positions": 0,
+      "saved": 1,
+      "live": 0,
+      "expected": 1
+    },
+    {
+      "positions": 0,
+      "saved": 1,
+      "live": 1,
+      "expected": 1
+    },
+    {
+      "positions": 0,
+      "saved": 1,
+      "live": 2,
+      "expected": 1
+    },
+    {
+      "positions": 0,
+      "saved": 1,
+      "live": 3,
+      "expected": 1
+    },
+    {
+      "positions": 0,
+      "saved": 1,
+      "live": 4,
+      "expected": 1
+    },
+    {
+      "positions": 0,
+      "saved": 2,
+      "live": 0,
+      "expected": 2
+    },
+    {
+      "positions": 0,
+      "saved": 2,
+      "live": 1,
+      "expected": 2
+    },
+    {
+      "positions": 0,
+      "saved": 2,
+      "live": 2,
+      "expected": 2
+    },
+    {
+      "positions": 0,
+      "saved": 2,
+      "live": 3,
+      "expected": 2
+    },
+    {
+      "positions": 0,
+      "saved": 2,
+      "live": 4,
+      "expected": 2
+    },
+    {
+      "positions": 0,
+      "saved": 3,
+      "live": 0,
+      "expected": 3
+    },
+    {
+      "positions": 0,
+      "saved": 3,
+      "live": 1,
+      "expected": 3
+    },
+    {
+      "positions": 0,
+      "saved": 3,
+      "live": 2,
+      "expected": 3
+    },
+    {
+      "positions": 0,
+      "saved": 3,
+      "live": 3,
+      "expected": 3
+    },
+    {
+      "positions": 0,
+      "saved": 3,
+      "live": 4,
+      "expected": 3
+    },
+    {
+      "positions": 0,
+      "saved": 4,
+      "live": 0,
+      "expected": 3
+    },
+    {
+      "positions": 0,
+      "saved": 4,
+      "live": 1,
+      "expected": 3
+    },
+    {
+      "positions": 0,
+      "saved": 4,
+      "live": 2,
+      "expected": 3
+    },
+    {
+      "positions": 0,
+      "saved": 4,
+      "live": 3,
+      "expected": 3
+    },
+    {
+      "positions": 0,
+      "saved": 4,
+      "live": 4,
+      "expected": 3
+    },
+    {
+      "positions": 1,
+      "saved": 0,
+      "live": 0,
+      "expected": 1
+    },
+    {
+      "positions": 1,
+      "saved": 0,
+      "live": 1,
+      "expected": 1
+    },
+    {
+      "positions": 1,
+      "saved": 0,
+      "live": 2,
+      "expected": 1
+    },
+    {
+      "positions": 1,
+      "saved": 0,
+      "live": 3,
+      "expected": 1
+    },
+    {
+      "positions": 1,
+      "saved": 0,
+      "live": 4,
+      "expected": 1
+    },
+    {
+      "positions": 1,
+      "saved": 1,
+      "live": 0,
+      "expected": 1
+    },
+    {
+      "positions": 1,
+      "saved": 1,
+      "live": 1,
+      "expected": 1
+    },
+    {
+      "positions": 1,
+      "saved": 1,
+      "live": 2,
+      "expected": 1
+    },
+    {
+      "positions": 1,
+      "saved": 1,
+      "live": 3,
+      "expected": 1
+    },
+    {
+      "positions": 1,
+      "saved": 1,
+      "live": 4,
+      "expected": 1
+    },
+    {
+      "positions": 1,
+      "saved": 2,
+      "live": 0,
+      "expected": 1
+    },
+    {
+      "positions": 1,
+      "saved": 2,
+      "live": 1,
+      "expected": 1
+    },
+    {
+      "positions": 1,
+      "saved": 2,
+      "live": 2,
+      "expected": 1
+    },
+    {
+      "positions": 1,
+      "saved": 2,
+      "live": 3,
+      "expected": 1
+    },
+    {
+      "positions": 1,
+      "saved": 2,
+      "live": 4,
+      "expected": 1
+    },
+    {
+      "positions": 1,
+      "saved": 3,
+      "live": 0,
+      "expected": 1
+    },
+    {
+      "positions": 1,
+      "saved": 3,
+      "live": 1,
+      "expected": 1
+    },
+    {
+      "positions": 1,
+      "saved": 3,
+      "live": 2,
+      "expected": 1
+    },
+    {
+      "positions": 1,
+      "saved": 3,
+      "live": 3,
+      "expected": 1
+    },
+    {
+      "positions": 1,
+      "saved": 3,
+      "live": 4,
+      "expected": 1
+    },
+    {
+      "positions": 1,
+      "saved": 4,
+      "live": 0,
+      "expected": 1
+    },
+    {
+      "positions": 1,
+      "saved": 4,
+      "live": 1,
+      "expected": 1
+    },
+    {
+      "positions": 1,
+      "saved": 4,
+      "live": 2,
+      "expected": 1
+    },
+    {
+      "positions": 1,
+      "saved": 4,
+      "live": 3,
+      "expected": 1
+    },
+    {
+      "positions": 1,
+      "saved": 4,
+      "live": 4,
+      "expected": 1
+    },
+    {
+      "positions": 2,
+      "saved": 0,
+      "live": 0,
+      "expected": 2
+    },
+    {
+      "positions": 2,
+      "saved": 0,
+      "live": 1,
+      "expected": 2
+    },
+    {
+      "positions": 2,
+      "saved": 0,
+      "live": 2,
+      "expected": 2
+    },
+    {
+      "positions": 2,
+      "saved": 0,
+      "live": 3,
+      "expected": 2
+    },
+    {
+      "positions": 2,
+      "saved": 0,
+      "live": 4,
+      "expected": 2
+    },
+    {
+      "positions": 2,
+      "saved": 1,
+      "live": 0,
+      "expected": 2
+    },
+    {
+      "positions": 2,
+      "saved": 1,
+      "live": 1,
+      "expected": 2
+    },
+    {
+      "positions": 2,
+      "saved": 1,
+      "live": 2,
+      "expected": 2
+    },
+    {
+      "positions": 2,
+      "saved": 1,
+      "live": 3,
+      "expected": 2
+    },
+    {
+      "positions": 2,
+      "saved": 1,
+      "live": 4,
+      "expected": 2
+    },
+    {
+      "positions": 2,
+      "saved": 2,
+      "live": 0,
+      "expected": 2
+    },
+    {
+      "positions": 2,
+      "saved": 2,
+      "live": 1,
+      "expected": 2
+    },
+    {
+      "positions": 2,
+      "saved": 2,
+      "live": 2,
+      "expected": 2
+    },
+    {
+      "positions": 2,
+      "saved": 2,
+      "live": 3,
+      "expected": 2
+    },
+    {
+      "positions": 2,
+      "saved": 2,
+      "live": 4,
+      "expected": 2
+    },
+    {
+      "positions": 2,
+      "saved": 3,
+      "live": 0,
+      "expected": 2
+    },
+    {
+      "positions": 2,
+      "saved": 3,
+      "live": 1,
+      "expected": 2
+    },
+    {
+      "positions": 2,
+      "saved": 3,
+      "live": 2,
+      "expected": 2
+    },
+    {
+      "positions": 2,
+      "saved": 3,
+      "live": 3,
+      "expected": 2
+    },
+    {
+      "positions": 2,
+      "saved": 3,
+      "live": 4,
+      "expected": 2
+    },
+    {
+      "positions": 2,
+      "saved": 4,
+      "live": 0,
+      "expected": 2
+    },
+    {
+      "positions": 2,
+      "saved": 4,
+      "live": 1,
+      "expected": 2
+    },
+    {
+      "positions": 2,
+      "saved": 4,
+      "live": 2,
+      "expected": 2
+    },
+    {
+      "positions": 2,
+      "saved": 4,
+      "live": 3,
+      "expected": 2
+    },
+    {
+      "positions": 2,
+      "saved": 4,
+      "live": 4,
+      "expected": 2
+    },
+    {
+      "positions": 3,
+      "saved": 0,
+      "live": 0,
+      "expected": 3
+    },
+    {
+      "positions": 3,
+      "saved": 0,
+      "live": 1,
+      "expected": 3
+    },
+    {
+      "positions": 3,
+      "saved": 0,
+      "live": 2,
+      "expected": 3
+    },
+    {
+      "positions": 3,
+      "saved": 0,
+      "live": 3,
+      "expected": 3
+    },
+    {
+      "positions": 3,
+      "saved": 0,
+      "live": 4,
+      "expected": 3
+    },
+    {
+      "positions": 3,
+      "saved": 1,
+      "live": 0,
+      "expected": 3
+    },
+    {
+      "positions": 3,
+      "saved": 1,
+      "live": 1,
+      "expected": 3
+    },
+    {
+      "positions": 3,
+      "saved": 1,
+      "live": 2,
+      "expected": 3
+    },
+    {
+      "positions": 3,
+      "saved": 1,
+      "live": 3,
+      "expected": 3
+    },
+    {
+      "positions": 3,
+      "saved": 1,
+      "live": 4,
+      "expected": 3
+    },
+    {
+      "positions": 3,
+      "saved": 2,
+      "live": 0,
+      "expected": 3
+    },
+    {
+      "positions": 3,
+      "saved": 2,
+      "live": 1,
+      "expected": 3
+    },
+    {
+      "positions": 3,
+      "saved": 2,
+      "live": 2,
+      "expected": 3
+    },
+    {
+      "positions": 3,
+      "saved": 2,
+      "live": 3,
+      "expected": 3
+    },
+    {
+      "positions": 3,
+      "saved": 2,
+      "live": 4,
+      "expected": 3
+    },
+    {
+      "positions": 3,
+      "saved": 3,
+      "live": 0,
+      "expected": 3
+    },
+    {
+      "positions": 3,
+      "saved": 3,
+      "live": 1,
+      "expected": 3
+    },
+    {
+      "positions": 3,
+      "saved": 3,
+      "live": 2,
+      "expected": 3
+    },
+    {
+      "positions": 3,
+      "saved": 3,
+      "live": 3,
+      "expected": 3
+    },
+    {
+      "positions": 3,
+      "saved": 3,
+      "live": 4,
+      "expected": 3
+    },
+    {
+      "positions": 3,
+      "saved": 4,
+      "live": 0,
+      "expected": 3
+    },
+    {
+      "positions": 3,
+      "saved": 4,
+      "live": 1,
+      "expected": 3
+    },
+    {
+      "positions": 3,
+      "saved": 4,
+      "live": 2,
+      "expected": 3
+    },
+    {
+      "positions": 3,
+      "saved": 4,
+      "live": 3,
+      "expected": 3
+    },
+    {
+      "positions": 3,
+      "saved": 4,
+      "live": 4,
+      "expected": 3
+    },
+    {
+      "positions": 4,
+      "saved": 0,
+      "live": 0,
+      "expected": 3
+    },
+    {
+      "positions": 4,
+      "saved": 0,
+      "live": 1,
+      "expected": 3
+    },
+    {
+      "positions": 4,
+      "saved": 0,
+      "live": 2,
+      "expected": 3
+    },
+    {
+      "positions": 4,
+      "saved": 0,
+      "live": 3,
+      "expected": 3
+    },
+    {
+      "positions": 4,
+      "saved": 0,
+      "live": 4,
+      "expected": 3
+    },
+    {
+      "positions": 4,
+      "saved": 1,
+      "live": 0,
+      "expected": 3
+    },
+    {
+      "positions": 4,
+      "saved": 1,
+      "live": 1,
+      "expected": 3
+    },
+    {
+      "positions": 4,
+      "saved": 1,
+      "live": 2,
+      "expected": 3
+    },
+    {
+      "positions": 4,
+      "saved": 1,
+      "live": 3,
+      "expected": 3
+    },
+    {
+      "positions": 4,
+      "saved": 1,
+      "live": 4,
+      "expected": 3
+    },
+    {
+      "positions": 4,
+      "saved": 2,
+      "live": 0,
+      "expected": 3
+    },
+    {
+      "positions": 4,
+      "saved": 2,
+      "live": 1,
+      "expected": 3
+    },
+    {
+      "positions": 4,
+      "saved": 2,
+      "live": 2,
+      "expected": 3
+    },
+    {
+      "positions": 4,
+      "saved": 2,
+      "live": 3,
+      "expected": 3
+    },
+    {
+      "positions": 4,
+      "saved": 2,
+      "live": 4,
+      "expected": 3
+    },
+    {
+      "positions": 4,
+      "saved": 3,
+      "live": 0,
+      "expected": 3
+    },
+    {
+      "positions": 4,
+      "saved": 3,
+      "live": 1,
+      "expected": 3
+    },
+    {
+      "positions": 4,
+      "saved": 3,
+      "live": 2,
+      "expected": 3
+    },
+    {
+      "positions": 4,
+      "saved": 3,
+      "live": 3,
+      "expected": 3
+    },
+    {
+      "positions": 4,
+      "saved": 3,
+      "live": 4,
+      "expected": 3
+    },
+    {
+      "positions": 4,
+      "saved": 4,
+      "live": 0,
+      "expected": 3
+    },
+    {
+      "positions": 4,
+      "saved": 4,
+      "live": 1,
+      "expected": 3
+    },
+    {
+      "positions": 4,
+      "saved": 4,
+      "live": 2,
+      "expected": 3
+    },
+    {
+      "positions": 4,
+      "saved": 4,
+      "live": 3,
+      "expected": 3
+    },
+    {
+      "positions": 4,
+      "saved": 4,
+      "live": 4,
+      "expected": 3
+    }
+  ]
+}

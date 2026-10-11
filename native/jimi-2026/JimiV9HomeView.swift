@@ -57,6 +57,8 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     private var dragging = false
     private var draggedPositionX: CGFloat?
     private var dragStartPositionX: CGFloat = 0
+    private var dragRecognitionTranslation: CGFloat = 0
+    var sliderSelectionStartX: CGFloat { draggedPositionX ?? sliderTrack.layer.presentation()?.position.x ?? sliderTrack.layer.position.x }
 
     var heroView: UIView { heroes[selectedSlide] }
     var logoImageView: UIImageView { logoImage }
@@ -394,6 +396,8 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     /// Route/background owner cancels without requesting another selection.
     func cancelPan(preservingCTAFeedback: Bool = false) {
         if !preservingCTAFeedback { resetCTAFeedback() }
+        sliderTrack.layer.removeAnimation(forKey:"native-slide-selection")
+        for node in navigationLayoutTargets {node.view.layer.removeAnimation(forKey:"native-slide-selection")}
         dragging = false
         draggedPositionX = nil
         panGesture.isEnabled = false
@@ -410,6 +414,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             guard onPanBegan?() == true else { cancelPan(); return }
             dragging = true
             dragStartPositionX = paintedX
+            dragRecognitionTranslation = translation
             // UIKit has already accumulated movement before recognizing a pan.
             // Adopt the painted pose, then start finger-relative movement there;
             // adding that recognition distance would jump on the first frame.
@@ -426,7 +431,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             // snap's start pose. UIKit supplies filtered velocity in points/sec.
             if !cancelled { updatePanPosition(translation) }
             let destination = cancelled ? selectedSlide : JimiV9Motion.sliderDragDestination(
-                selectedSlide: selectedSlide, distance: Double(translation),
+                selectedSlide: selectedSlide, distance: Double(translation + dragRecognitionTranslation),
                 velocityPointsPerMillisecond: Double(recognizer.velocity(in: viewport).x) / 1000)
             if let complete = onPanEnded { complete(destination, cancelled) }
             else { selectSlide(selectedSlide, animated: false) }

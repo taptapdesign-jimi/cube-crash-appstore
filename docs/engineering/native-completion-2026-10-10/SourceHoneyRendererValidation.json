@@ -1,0 +1,11 @@
+{
+  "sdk": "Final33/33 zero failures, terminal exit0. First33 FAIL3, fixed33 PASS, final shared asset sizing33 PASS. Logs preserved.",
+  "qa": "Final frozen24641 terminal exit0, full deterministic QA PASS. SDK/source manifest SHA verified unchanged.",
+  "scope": "Opt-in unmounted three SpriteKit carrier renderer; actual APP cohort resource/Node/Scene still OPEN. Raw unchanged. Global flags OFF; no phone/PWA/assets operations. FullSDK1225 older.",
+  "sizing": "SpriteKit size includes scale. Normalize authored dimensions at scale1 for every successful asset swap then apply pose; transparent nil carrier tested via CGColor alpha.",
+  "files": {
+    "native/gameplay-ui/NativeHoneyDiceIdle.swift": "12ce8e78fd9dda250dea98094f1bd2254948f2894e8f450888c2ce9ae69f65c8",
+    "native/standalone/Stack to SixTests/NativeSourceAnimationClockTests.swift": "5e08e7638a14fb94be628f639b541f02445b517c6a4620f0dd9b03e06640ffa2",
+    "docs/engineering/feature-runtime-owners.json": "849e0e100d7ab0d6eb647e2594f82a8e9d7a2aacf8cc05cffecebc8f26022e4b"
+  }
+}

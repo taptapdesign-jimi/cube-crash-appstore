@@ -1,0 +1,48 @@
+{
+  "base": [
+    "docs/engineering/native-pause-2026-10-08/NativeSource.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/EntrySourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialIntroSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialHUDSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialMonitorSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialRestoreSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialThirdSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFreeHintSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialCTAPrefixSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialCTAViewSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialThirdDismissSourceDelta.tar.gz"
+  ],
+  "archiveSHA256": "675c616b6a7fc899adbb9be2c4f50b5240cb02789dba3ae3123362476818f003",
+  "validation": "Focused Core11 and full Core347 PASS; new SDK/full source QA pending. Whole flags OFF.",
+  "files": {
+    "native/gameplay-app/NativeTutorialOwner.swift": {
+      "baseSHA256": "ae058d2e584087080c76b593f5d7b56cb5e429ed8c9a6e1296b8317a386458c1",
+      "sha256": "94e111870a66a03a4d57d2843ec84438b6c84ec12d2d2f9eade5ae4eefeb33b9"
+    },
+    "native/gameplay-core/Package.swift": {
+      "baseSHA256": "a049c2e744d63ded7f228c7e016862f3d333029d752caa069c910c9b9c01bd68",
+      "sha256": "cfcffc83fb9f977ded9f4db895371b8233c0b7739f407e996c5ae80449fecffa"
+    },
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": {
+      "baseSHA256": "3303fb014d44f852e8024c8348721a603ba345649a1a62d7d0052d9c19e156cf",
+      "sha256": "412bdfa5e2c74957aa5b088b5a206f0e51d6c2ac18e9857f96f0afa08d631de3"
+    },
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeTutorialRules.swift": {
+      "baseSHA256": "7d7e7af0c3e7a8e0469ee7edc979cfb3b4880855aaaefabf5e0a700e6b4cf6c2",
+      "sha256": "8ca7e205e1c216e182262dc682263739c2876b305994f9a603efe66edd93dcec"
+    },
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeTutorialTests.swift": {
+      "baseSHA256": "54298bd7d39d5e3f89f2c39702e6e5f2035b3b5086c5134dcb127535e50cc3c5",
+      "sha256": "7c92f582164a2ef6bb7661d248901ae5a6ade95d1ae13ca554dc83387ec3042b"
+    },
+    "native/gameplay-core/Tests/StackToSixGameplayTests/Resources/SourceTutorialWildCellsV9Oracle.json": {
+      "baseSHA256": null,
+      "sha256": "5683d6063bfc27a2767460678a0f1ef926f4860b53606f89ff834bfa914b8786"
+    },
+    "native/standalone/Stack to SixTests/NativeSourceTutorialBootstrapTests.swift": {
+      "baseSHA256": "33012ba6c318ab5f5aa3904011e62c3808bc3fc89d6e9fd67cb7f59d4642964c",
+      "sha256": "f7bcf4e52cc4e40d437a49e4a66abd3f79b5972aad0408d889befb507c966db1"
+    }
+  }
+}

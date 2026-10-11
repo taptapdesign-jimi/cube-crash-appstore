@@ -4,16 +4,21 @@ import StackToSixGameplay
 /// Native app composition. Services contain Swift state owners, never a web transport.
 @MainActor
 struct NativeAppServices {
+    var showsStudioIntro=false
+    var studioIntroCue:((String)->Void)?
     var settings: () -> [String: Any]
     var setPreference: (String, Bool) throws -> Void
     var worldSnapshot: (Int, CGSize, Int) throws -> [String: Any]
     var markViewed: (Int) throws -> Void
     var makeGameplay: (Int?, @escaping () -> Void) throws -> UIViewController
+    var prepareGameplayEntry:(Int?,@escaping(Bool)->Void)->Void = {_,completion in completion(true)}
+    var cancelGameplayEntry:()->Void = {}
     var flush: () throws -> Void
     var ambient: (Int, CGRect, [Int]) -> [[String:Any]]? = {_,_,_ in nil}
     var bees: ([Int]) -> [[String:Any]]? = {_ in nil}
     var requiresTutorial: () -> Bool = {false}
     var prepareReturnWorld: (JimiNativeWorldView,@escaping ()->Void)->Void = {world,completion in world.prepare(completion:completion)}
+    var prepareWorldEntry: (JimiNativeWorldView,@escaping ()->Void)->Void = {world,completion in world.prepare(completion:completion)}
 }
 
 @MainActor
@@ -21,12 +26,20 @@ final class NativeAppController: UIViewController {
     enum Route: Equatable {case home, hub, settings, world(Int), gameplay}
     private let services: NativeAppServices
     private let artwork: JimiV9Artwork
+    private let resourceRoot:URL
+    private var studioIntro:NativeStudioIntroView?
     private(set) var route = Route.home
     private(set) var home: JimiV9HomeView!
     private(set) var hub: JimiV9HubView!
     private(set) var settingsView: JimiNativeSettingsView!
     private(set) var world: JimiNativeWorldView?
     private var gameplay: UIViewController?
+    @MainActor private final class GameplayLaunchPreparation {
+        let board:Int?,generation:Int
+        var ready=false,exitFinished=false
+        init(board:Int?,generation:Int){self.board=board;self.generation=generation}
+    }
+    private var gameplayLaunchPreparation:GameplayLaunchPreparation?
     private var motion: NativeRouteMotion!
     private var backpack:NativeHubBackpackFeedback?
     private var generation = 0
@@ -52,13 +65,19 @@ final class NativeAppController: UIViewController {
         }
     }
     private var returnPreparation:ReturnPreparation?
+    @MainActor private final class WorldEntryPreparation {
+        let generation:Int,id:Int,world:JimiNativeWorldView
+        var ready=false
+        init(generation:Int,id:Int,world:JimiNativeWorldView){self.generation=generation;self.id=id;self.world=world}
+    }
+    private var worldEntryPreparation:WorldEntryPreparation?
     var hasPreparedGameplayReturn:Bool {guard let lease=returnPreparation else{return false};return lease.ready && isCurrentReturn(lease)}
     private let fault = UILabel()
     var onFeedback: ((String) -> Void)?
     var onRoute: ((Route) -> Void)?
 
     init(resourceRoot: URL, services: NativeAppServices) {
-        self.services = services;self.artwork = JimiV9Artwork(resourceRoot:resourceRoot)
+        self.resourceRoot=resourceRoot;self.services = services;self.artwork = JimiV9Artwork(resourceRoot:resourceRoot)
         super.init(nibName:nil,bundle:nil)
     }
     required init?(coder:NSCoder) {fatalError("Use native dependency initializer")}
@@ -66,11 +85,10 @@ final class NativeAppController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor(red:243/255,green:238/255,blue:232/255,alpha:1)
-        let paper = UIImageView(image:artwork.image("assets/paper-bg.png"))
-        paper.frame = view.bounds;paper.contentMode = .scaleToFill;paper.autoresizingMask = [.flexibleWidth,.flexibleHeight];view.addSubview(paper)
-        let tint = UIView(frame:view.bounds);tint.backgroundColor = view.backgroundColor?.withAlphaComponent(0.4)
-        tint.autoresizingMask = [.flexibleWidth,.flexibleHeight];view.addSubview(tint)
+        view.backgroundColor = NativeAppPaperSurface.base
+        let paper = NativeAppPaperSurface(artwork:artwork)
+        paper.frame=view.bounds;paper.autoresizingMask=[.flexibleWidth,.flexibleHeight]
+        view.addSubview(paper)
         home = JimiV9HomeView(frame:view.bounds,assets:artwork)
         hub = JimiV9HubView(frame:view.bounds,assets:artwork)
         settingsView = JimiNativeSettingsView(frame:view.bounds,assets:artwork)
@@ -88,7 +106,7 @@ final class NativeAppController: UIViewController {
         home.onSlideSelected = { [weak self] index in self?.selectSlide(index) }
         home.onPanBegan = { [weak self] in
             guard let self,!self.transitioning,self.route == .home else{return false}
-            self.home.pauseHeroIdle();return true
+            self.motion.cancel();self.home.pauseHeroIdle();return true
         }
         home.onPanEnded = { [weak self] index,_ in self?.selectSlide(index) }
         hub.onBack = { [weak self] in self?.navigate(.home,interrupt:true) }
@@ -112,7 +130,13 @@ final class NativeAppController: UIViewController {
         observers.append(NotificationCenter.default.addObserver(forName:UIApplication.didBecomeActiveNotification,object:nil,queue:.main) { [weak self] _ in
             MainActor.assumeIsolated {self?.resume()}
         })
-        reveal(.home)
+        if services.showsStudioIntro {
+            transitioning=true
+            let intro=NativeStudioIntroView(root:resourceRoot);studioIntro=intro
+            intro.frame=view.bounds;intro.autoresizingMask=[.flexibleWidth,.flexibleHeight];view.addSubview(intro)
+            intro.onCharacterCue=services.studioIntroCue
+            intro.start { [weak self] in guard let self,!self.disposed else{return};self.studioIntro=nil;self.reveal(.home) }
+        }else{reveal(.home)}
     }
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews();fault.frame = CGRect(x:24,y:view.safeAreaInsets.top+16,width:max(0,view.bounds.width-48),height:100)
@@ -124,15 +148,28 @@ final class NativeAppController: UIViewController {
     }
     private func selectSlide(_ index:Int) {
         guard !transitioning,route == .home else{return}
-        home.selectSlide(index,animated:true);onFeedback?("tab");home.startHeroIdle()
+        onFeedback?("tab")
+        motion.selectSlide(index) { [weak self] in
+            guard let self,self.route == .home,!self.suspended,!self.transitioning else{return}
+            self.home.startHeroIdle()
+        }
     }
     func navigate(_ next:Route,interrupt:Bool = false) {
-        guard route != next,(!transitioning || interrupt),route != .gameplay else{return}
-        if transitioning {motion.cancel()}
+        guard studioIntro == nil,route != next,(!transitioning || interrupt),route != .gameplay else{return}
+        cancelWorldEntryPreparation()
+        cancelGameplayLaunchPreparation()
+        if transitioning {motion.cancel()} else {motion.cancelSelectionLayout()}
         generation += 1;let owner = generation;transitioning = true
         backpack?.setActive(false,generation:generation)
         home.stopHeroIdle(preservePaintedPose:true);hub.stopIdle()
         home.isUserInteractionEnabled = false;hub.setContentInteractionEnabled(false);settingsView.isUserInteractionEnabled = false
+        // v9 starts the exact destination preparation under the Hub exit.
+        // Resource readiness never replaces that exit's completion receipt.
+        if route == .hub,case .world(let id)=next {
+            do {try prepareWorldEntry(id:id,owner:owner)}catch {
+                transitioning=false;hub.setContentInteractionEnabled(true);hub.startIdle();showFault(error);return
+            }
+        }
         onFeedback?(next == .home || next == .hub && route != .home ? "back" : "cta")
         let complete:()->Void = { [weak self] in
             guard let self,self.generation == owner else{return}
@@ -150,6 +187,7 @@ final class NativeAppController: UIViewController {
     }
     private func reveal(_ next:Route) {
         guard !suspended else {deferredReveal = next;return}
+        home.isUserInteractionEnabled=false
         home.isHidden = true;hub.isHidden = true;settingsView.isHidden = true;world?.isHidden = true
         route = next;onRoute?(next);fault.isHidden = true
         let owner = generation
@@ -176,34 +214,49 @@ final class NativeAppController: UIViewController {
             motion.animate(settingsView.tracks(enter:true),completion:admitted)
         case .world(let id):
             do {
-                let snapshot = try services.worldSnapshot(id,view.bounds.size,generation+1)
-                if let current = world,current.snapshot.worldID == id {current.reconcile(snapshot)}
-                else {
-                    world?.cleanup();world?.removeFromSuperview()
-                    guard let created = JimiNativeWorldView(snapshot:snapshot,assets:artwork) else {throw NativeAppError.invalidWorld}
-                    created.isHidden = true;created.frame = view.bounds;created.autoresizingMask = [.flexibleWidth,.flexibleHeight];view.addSubview(created);world = created
+                if worldEntryPreparation?.generation != owner || worldEntryPreparation?.id != id {
+                    try prepareWorldEntry(id:id,owner:owner)
                 }
-                guard let world else{throw NativeAppError.invalidWorld}
-                world.onRequest = { [weak self] action,boardID in self?.worldAction(action,boardID:boardID) }
-                world.onFeedback = { [weak self] kind,_,_ in self?.onFeedback?(kind) }
-                world.onResourceFailure = { [weak self] reason in self?.showFault(NativeAppError.resources(reason)) }
-                world.onAmbientPlansRequest = { [weak self] viewport,ids,completion in
-                    completion(self?.services.ambient(id,viewport,ids))
-                }
-                world.onBeePlansRequest = { [weak self] ids,completion in completion(self?.services.bees(ids)) }
-                world.prepare { [weak self,weak world] in
-                    guard let self,let world,self.generation == owner,self.route == next else{return}
-                    guard !self.suspended else {self.deferredReveal = next;return}
-                    world.isHidden = false;world.enter {
-                        guard self.generation == owner else{return}
-                        world.finishPresentationAdmission();admitted()
-                    }
-                }
+                finishPreparedWorldEntry()
             } catch {
                 generation += 1;reveal(.hub);showFault(error)
             }
         case .gameplay:launch(boardID:homeJourneyTutorial ? 1 : nil);homeJourneyTutorial=false
         }
+    }
+    private func prepareWorldEntry(id:Int,owner:Int)throws {
+        let snapshot=try services.worldSnapshot(id,view.bounds.size,owner+1)
+        if let current=world,current.snapshot.worldID==id {current.park();current.reconcile(snapshot)}
+        else {
+            world?.cleanup();world?.removeFromSuperview()
+            guard let created=JimiNativeWorldView(snapshot:snapshot,assets:artwork) else{throw NativeAppError.invalidWorld}
+            created.frame=view.bounds;created.autoresizingMask=[.flexibleWidth,.flexibleHeight]
+            view.addSubview(created);world=created
+        }
+        guard let incoming=world else{throw NativeAppError.invalidWorld}
+        incoming.isHidden=true;incoming.setActive(false);configureWorld(incoming,id:id)
+        let lease=WorldEntryPreparation(generation:owner,id:id,world:incoming);worldEntryPreparation=lease
+        services.prepareWorldEntry(incoming){[weak self,weak lease] in
+            guard let self,let lease,!self.disposed,!self.suspended,self.generation==lease.generation,
+                  self.worldEntryPreparation === lease,self.world === lease.world else{return}
+            lease.ready=true;self.finishPreparedWorldEntry()
+        }
+    }
+    private func finishPreparedWorldEntry(){
+        guard let lease=worldEntryPreparation,lease.ready,!disposed,!suspended,
+              generation==lease.generation,route == .world(lease.id),world === lease.world else{return}
+        worldEntryPreparation=nil
+        let incoming=lease.world;incoming.isHidden=false
+        incoming.enter{[weak self,weak incoming] in
+            guard let self,let incoming,!self.disposed,self.generation==lease.generation,
+                  self.route == .world(lease.id),self.world === incoming else{return}
+            guard !self.suspended else{self.deferredReveal=self.route;return}
+            incoming.finishPresentationAdmission();self.transitioning=false
+        }
+    }
+    private func cancelWorldEntryPreparation(){
+        guard let lease=worldEntryPreparation else{return};worldEntryPreparation=nil
+        lease.world.cancelPendingPreparation()
     }
     private func worldAction(_ action:String,boardID:Int?) {
         if action == "back",case .world = route {navigate(.hub,interrupt:true);return}
@@ -216,20 +269,64 @@ final class NativeAppController: UIViewController {
         case "close":world?.closeCard()
         case "play","continue":
             guard let boardID else{return};transitioning = true
-            world?.prepareGameplayExit(boardID:boardID) { [weak self] in self?.launch(boardID:boardID) }
+            prepareGameplayLaunch(boardID:boardID,exit:{[weak self] completion in
+                self?.world?.prepareGameplayExit(boardID:boardID,completion:completion)
+            })
         default:break
         }
     }
+    func cancelGameplayLaunchPreparation(){
+        gameplayLaunchPreparation=nil;services.cancelGameplayEntry()
+    }
+    private func prepareGameplayLaunch(boardID:Int?,exit:((@escaping()->Void)->Void)?=nil){
+        cancelGameplayLaunchPreparation()
+        let lease=GameplayLaunchPreparation(board:boardID,generation:generation)
+        gameplayLaunchPreparation=lease
+        services.prepareGameplayEntry(boardID){[weak self,weak lease] ready in
+            guard let self,let lease,!self.disposed,!self.suspended,self.generation==lease.generation,
+                  self.gameplayLaunchPreparation === lease else{return}
+            guard ready else{
+                self.cancelGameplayLaunchPreparation();self.generation+=1
+                self.reveal(boardID.map{.world(($0-1)/10+1)} ?? .home)
+                self.showFault(NativeAppError.resources("The stage artwork could not be prepared."));return
+            }
+            lease.ready=true;self.commitGameplayLaunch(lease)
+        }
+        guard gameplayLaunchPreparation === lease else{return}
+        if let exit {exit{[weak self,weak lease] in
+            guard let self,let lease,self.gameplayLaunchPreparation === lease else{return}
+            lease.exitFinished=true;self.commitGameplayLaunch(lease)
+        }}else{lease.exitFinished=true;commitGameplayLaunch(lease)}
+    }
+    private func commitGameplayLaunch(_ lease:GameplayLaunchPreparation){
+        guard !disposed,!suspended,generation==lease.generation,gameplayLaunchPreparation === lease,
+              lease.ready,lease.exitFinished else{return}
+        gameplayLaunchPreparation=nil;mountPreparedGameplay(boardID:lease.board)
+    }
     private func launch(boardID:Int?) {
+        prepareGameplayLaunch(boardID:boardID)
+    }
+    private func mountPreparedGameplay(boardID:Int?) {
         cancelGameplayReturnPreparation()
         do {
             returnRoute = boardID.map { .world(($0-1)/10+1) } ?? .home
             let controller = try services.makeGameplay(boardID) { [weak self] in self?.returnFromGameplay() }
+            let outgoing=boardID != nil && world?.isHidden==false ? world:nil
+            let owner=generation
+            if let native=controller as? NativeGameplayViewController,let outgoing {
+                native.retainOutgoingWorldUntilOriginalCover {[weak self,weak controller,weak outgoing] in
+                    guard let self,let controller,let outgoing,!self.disposed,self.generation==owner,
+                          self.gameplay === controller,self.route == .gameplay,self.world === outgoing else{return}
+                    outgoing.park();outgoing.isHidden=true
+                }
+            }
             addChild(controller);controller.view.frame = view.bounds;controller.view.autoresizingMask = [.flexibleWidth,.flexibleHeight]
             view.addSubview(controller.view);controller.didMove(toParent:self);gameplay = controller
-            home.isHidden = true;hub.isHidden = true;settingsView.isHidden = true;world?.park();world?.isHidden = true
+            home.isHidden = true;hub.isHidden = true;settingsView.isHidden = true
+            if outgoing==nil || !(controller is NativeGameplayViewController) {world?.park();world?.isHidden = true}
             route = .gameplay;transitioning = false;onRoute?(.gameplay)
         } catch {
+            services.cancelGameplayEntry()
             generation += 1;reveal(returnRoute);showFault(error)
         }
     }
@@ -237,6 +334,7 @@ final class NativeAppController: UIViewController {
         do {try services.flush()} catch {showFault(error);return}
         let prepared=hasPreparedGameplayReturn ? returnPreparation:nil
         if prepared == nil {cancelGameplayReturnPreparation()}else{returnPreparation=nil;returnPreparationEpoch += 1}
+        retireCoveredGameplay()
         (gameplay as? NativeGameplayViewController)?.dispose()
         gameplay?.willMove(toParent:nil);gameplay?.view.removeFromSuperview();gameplay?.removeFromParent();gameplay = nil
         generation += 1;transitioning = true
@@ -249,6 +347,44 @@ final class NativeAppController: UIViewController {
                 incoming.finishPresentationAdmission();self.transitioning=false
             }
         }else{reveal(returnRoute)}
+    }
+    private var pendingGameplayReplacement:NativeGameplayViewController?
+    private func retireCoveredGameplay() {
+        guard let covered=pendingGameplayReplacement else{return}
+        pendingGameplayReplacement=nil
+        covered.dispose();covered.willMove(toParent:nil)
+        covered.view.removeFromSuperview();covered.removeFromParent()
+    }
+    func canReplaceGameplay(_ expected:NativeGameplayViewController)->Bool {
+        !disposed && pendingGameplayReplacement==nil && route == .gameplay && !transitioning && gameplay === expected && expected.parent === self
+    }
+    /// New board generation keeps the current route/return destination. Source
+    /// composition belongs to the replacement VC; old captured roots retire.
+    @discardableResult func replaceGameplay(_ expected:NativeGameplayViewController,
+                                           with incoming:NativeGameplayViewController)->Bool {
+        guard canReplaceGameplay(expected),incoming !== expected,incoming.parent==nil else{return false}
+        cancelGameplayReturnPreparation();generation += 1
+        gameplay=incoming
+        addChild(incoming);incoming.view.frame=view.bounds
+        incoming.view.autoresizingMask=[.flexibleWidth,.flexibleHeight]
+        if !incoming.waitsForFirstFrameOnReplacement {
+            view.addSubview(incoming.view);incoming.didMove(toParent:self);incoming.setSuspended(suspended)
+            expected.dispose();expected.willMove(toParent:nil)
+            expected.view.removeFromSuperview();expected.removeFromParent()
+            return true
+        }
+        // Keep the previous painted board as coverage until the incoming
+        // Scene has delivered its existing two-frame readiness receipt.
+        pendingGameplayReplacement=expected
+        expected.view.isUserInteractionEnabled=false;expected.setSuspended(true)
+        view.insertSubview(incoming.view,belowSubview:expected.view);incoming.didMove(toParent:self)
+        incoming.setSuspended(suspended)
+        incoming.whenFirstBoardFrameReady { [weak self,weak incoming,weak expected] in
+            guard let self,let incoming,let expected,!self.disposed,
+                  self.gameplay === incoming,self.pendingGameplayReplacement === expected else{return}
+            self.retireCoveredGameplay()
+        }
+        return true
     }
     /// Prepare the current persisted World behind the existing result paper.
     /// Readiness never changes route, hides gameplay or starts destination idle.
@@ -316,6 +452,13 @@ final class NativeAppController: UIViewController {
     private func showFault(_ error:Error) {fault.text = error.localizedDescription;fault.isHidden = false;view.bringSubviewToFront(fault)}
     private func suspend() {
         suspended = true;motion.suspend()
+        if let launch=gameplayLaunchPreparation {
+            deferredReveal=launch.board.map{.world(($0-1)/10+1)} ?? .home
+            generation+=1;transitioning=false
+        }
+        cancelGameplayLaunchPreparation()
+        if let lease=worldEntryPreparation,route == .world(lease.id) {deferredReveal=route}
+        cancelWorldEntryPreparation()
         cancelGameplayReturnPreparation()
         backpack?.setActive(false,generation:generation)
         home.pauseHeroIdle();hub.stopIdle();world?.setActive(false)
@@ -331,12 +474,18 @@ final class NativeAppController: UIViewController {
         if case .world = route {world?.setActive(true)}
     }
     func dispose() {
+        guard !disposed else{return}
+        studioIntro?.dispose();studioIntro=nil
         disposed=true;cancelGameplayReturnPreparation()
+        cancelGameplayLaunchPreparation()
+        cancelWorldEntryPreparation()
         generation += 1;transitioning = true;suspended = true;deferredReveal = nil
         motion?.cancel();home?.stopHeroIdle(preservePaintedPose:false);hub?.stopIdle()
         backpack?.dispose();backpack=nil;hub?.onBackpack=nil
         world?.cleanup();world?.removeFromSuperview();world = nil
+        retireCoveredGameplay()
         (gameplay as? NativeGameplayViewController)?.dispose()
+        gameplay?.willMove(toParent:nil);gameplay?.view.removeFromSuperview();gameplay?.removeFromParent();gameplay = nil
         for observer in observers {NotificationCenter.default.removeObserver(observer)};observers.removeAll()
         onFeedback = nil;onRoute = nil
         beforeHomeReveal=nil

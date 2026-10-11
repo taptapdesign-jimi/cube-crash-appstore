@@ -17,6 +17,12 @@
       "src/modules/__tests__/special-sound-warmup.test.ts",
       "src/modules/__tests__/juice-finale-textures.test.ts",
       "src/modules/__tests__/gameplay-render-suspension.test.ts"
+    ],
+    "nativeBlastOwner": "native/gameplay-ui/NativeTntBoardBlastPlan.swift: NativeShortWildBoardBlastPlan; NativeShortWildBoardBlastOwner for unheld Star/Juice or NativeBoardScene for held Beach Ball",
+    "nativeBlastPolicy": "Original two-pass Math recipe. Unheld waves consume no Date and use existing captured APP timeline or SpriteKit clock; exact pickup/rest/z/generation/Scope retirement. Beach Ball uses original held return deadline/amplitude. No asset/audio/haptic/Core/global changes. Full family/pixel/physical acceptance remains OPEN.",
+    "nativeTests": [
+      "native/standalone/Stack to SixTests/NativeTntBoardBlastTests.swift",
+      "native/standalone/Stack to SixTests/NativeBoardTests.swift"
     ]
   },
   "kanta": {
@@ -35,6 +41,12 @@
       "src/modules/__tests__/special-sound-warmup.test.ts",
       "src/modules/__tests__/juice-finale-textures.test.ts",
       "src/modules/__tests__/gameplay-render-suspension.test.ts"
+    ],
+    "nativeBlastOwner": "native/gameplay-ui/NativeTntBoardBlastPlan.swift: NativeShortWildBoardBlastPlan; NativeShortWildBoardBlastOwner for unheld Star/Juice or NativeBoardScene for held Beach Ball",
+    "nativeBlastPolicy": "Original two-pass Math recipe. Unheld waves consume no Date and use existing captured APP timeline or SpriteKit clock; exact pickup/rest/z/generation/Scope retirement. Beach Ball uses original held return deadline/amplitude. No asset/audio/haptic/Core/global changes. Full family/pixel/physical acceptance remains OPEN.",
+    "nativeTests": [
+      "native/standalone/Stack to SixTests/NativeTntBoardBlastTests.swift",
+      "native/standalone/Stack to SixTests/NativeBoardTests.swift"
     ]
   },
   "bee": {
@@ -54,6 +66,12 @@
       "src/modules/__tests__/special-sound-warmup.test.ts",
       "src/modules/__tests__/juice-finale-textures.test.ts",
       "src/modules/__tests__/gameplay-render-suspension.test.ts"
+    ],
+    "nativeBlastOwner": "native/gameplay-ui/NativeTntBoardBlastPlan.swift: NativeShortWildBoardBlastPlan; NativeShortWildBoardBlastOwner for unheld Star/Juice or NativeBoardScene for held Beach Ball",
+    "nativeBlastPolicy": "Original two-pass Math recipe. Unheld waves consume no Date and use existing captured APP timeline or SpriteKit clock; exact pickup/rest/z/generation/Scope retirement. Beach Ball uses original held return deadline/amplitude. No asset/audio/haptic/Core/global changes. Full family/pixel/physical acceptance remains OPEN.",
+    "nativeTests": [
+      "native/standalone/Stack to SixTests/NativeTntBoardBlastTests.swift",
+      "native/standalone/Stack to SixTests/NativeBoardTests.swift"
     ]
   },
   "laser-gun": {
@@ -88,6 +106,12 @@
       "src/modules/__tests__/special-sound-warmup.test.ts",
       "src/modules/__tests__/juice-finale-textures.test.ts",
       "src/modules/__tests__/gameplay-render-suspension.test.ts"
+    ],
+    "nativeBlastOwner": "native/gameplay-ui/NativeTntBoardBlastPlan.swift: NativeShortWildBoardBlastPlan; NativeShortWildBoardBlastOwner for unheld Star/Juice or NativeBoardScene for held Beach Ball",
+    "nativeBlastPolicy": "Original two-pass Math recipe. Unheld waves consume no Date and use existing captured APP timeline or SpriteKit clock; exact pickup/rest/z/generation/Scope retirement. Beach Ball uses original held return deadline/amplitude. No asset/audio/haptic/Core/global changes. Full family/pixel/physical acceptance remains OPEN.",
+    "nativeTests": [
+      "native/standalone/Stack to SixTests/NativeTntBoardBlastTests.swift",
+      "native/standalone/Stack to SixTests/NativeBoardTests.swift"
     ]
   },
   "bottle": {
@@ -104,6 +128,12 @@
       "src/modules/__tests__/special-sound-warmup.test.ts",
       "src/modules/__tests__/juice-finale-textures.test.ts",
       "src/modules/__tests__/gameplay-render-suspension.test.ts"
+    ],
+    "nativeBlastOwner": "native/gameplay-ui/NativeTntBoardBlastPlan.swift: NativeShortWildBoardBlastPlan; NativeShortWildBoardBlastOwner for unheld Star/Juice or NativeBoardScene for held Beach Ball",
+    "nativeBlastPolicy": "Original two-pass Math recipe. Unheld waves consume no Date and use existing captured APP timeline or SpriteKit clock; exact pickup/rest/z/generation/Scope retirement. Beach Ball uses original held return deadline/amplitude. No asset/audio/haptic/Core/global changes. Full family/pixel/physical acceptance remains OPEN.",
+    "nativeTests": [
+      "native/standalone/Stack to SixTests/NativeTntBoardBlastTests.swift",
+      "native/standalone/Stack to SixTests/NativeBoardTests.swift"
     ]
   },
   "honey": {
@@ -174,6 +204,12 @@
       "src/modules/__tests__/special-sound-warmup.test.ts",
       "src/modules/__tests__/juice-finale-textures.test.ts",
       "src/modules/__tests__/gameplay-render-suspension.test.ts"
+    ],
+    "nativeBlastOwner": "native/gameplay-ui/NativeTntBoardBlastPlan.swift: NativeShortWildBoardBlastPlan; NativeShortWildBoardBlastOwner for unheld Star/Juice or NativeBoardScene for held Beach Ball",
+    "nativeBlastPolicy": "Original two-pass Math recipe. Unheld waves consume no Date and use existing captured APP timeline or SpriteKit clock; exact pickup/rest/z/generation/Scope retirement. Beach Ball uses original held return deadline/amplitude. No asset/audio/haptic/Core/global changes. Full family/pixel/physical acceptance remains OPEN.",
+    "nativeTests": [
+      "native/standalone/Stack to SixTests/NativeTntBoardBlastTests.swift",
+      "native/standalone/Stack to SixTests/NativeBoardTests.swift"
     ]
   },
   "robo-cube": {
@@ -191,6 +227,12 @@
       "src/modules/__tests__/special-sound-warmup.test.ts",
       "src/modules/__tests__/juice-finale-textures.test.ts",
       "src/modules/__tests__/gameplay-render-suspension.test.ts"
+    ],
+    "nativeBlastOwner": "native/gameplay-ui/NativeTntBoardBlastPlan.swift: NativeShortWildBoardBlastPlan; NativeShortWildBoardBlastOwner for unheld Star/Juice or NativeBoardScene for held Beach Ball",
+    "nativeBlastPolicy": "Original two-pass Math recipe. Unheld waves consume no Date and use existing captured APP timeline or SpriteKit clock; exact pickup/rest/z/generation/Scope retirement. Beach Ball uses original held return deadline/amplitude. No asset/audio/haptic/Core/global changes. Full family/pixel/physical acceptance remains OPEN.",
+    "nativeTests": [
+      "native/standalone/Stack to SixTests/NativeTntBoardBlastTests.swift",
+      "native/standalone/Stack to SixTests/NativeBoardTests.swift"
     ]
   },
   "cubero": {
@@ -207,6 +249,12 @@
       "src/modules/__tests__/special-sound-warmup.test.ts",
       "src/modules/__tests__/juice-finale-textures.test.ts",
       "src/modules/__tests__/gameplay-render-suspension.test.ts"
+    ],
+    "nativeBlastOwner": "native/gameplay-ui/NativeTntBoardBlastPlan.swift: NativeShortWildBoardBlastPlan; NativeShortWildBoardBlastOwner for unheld Star/Juice or NativeBoardScene for held Beach Ball",
+    "nativeBlastPolicy": "Original two-pass Math recipe. Unheld waves consume no Date and use existing captured APP timeline or SpriteKit clock; exact pickup/rest/z/generation/Scope retirement. Beach Ball uses original held return deadline/amplitude. No asset/audio/haptic/Core/global changes. Full family/pixel/physical acceptance remains OPEN.",
+    "nativeTests": [
+      "native/standalone/Stack to SixTests/NativeTntBoardBlastTests.swift",
+      "native/standalone/Stack to SixTests/NativeBoardTests.swift"
     ]
   },
   "beach-ball": {
@@ -224,6 +272,13 @@
       "src/modules/__tests__/special-sound-warmup.test.ts",
       "src/modules/__tests__/juice-finale-textures.test.ts",
       "src/modules/__tests__/gameplay-render-suspension.test.ts"
+    ],
+    "nativeBlastOwner": "native/gameplay-ui/NativeTntBoardBlastPlan.swift: NativeShortWildBoardBlastPlan; NativeShortWildBoardBlastOwner for unheld Star/Juice or NativeBoardScene for held Beach Ball",
+    "nativeBlastPolicy": "Original two-pass Math recipe. Unheld waves consume no Date and use existing captured APP timeline or SpriteKit clock; exact pickup/rest/z/generation/Scope retirement. Beach Ball uses original held return deadline/amplitude. No asset/audio/haptic/Core/global changes. Full family/pixel/physical acceptance remains OPEN.",
+    "nativeTests": [
+      "native/standalone/Stack to SixTests/NativeTntBoardBlastTests.swift",
+      "native/standalone/Stack to SixTests/NativeBoardTests.swift",
+      "native/standalone/Stack to SixTests/NativeSourceTntFinaleConstructionTests.swift"
     ]
   }
 }

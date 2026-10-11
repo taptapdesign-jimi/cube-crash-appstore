@@ -1,0 +1,26 @@
+{
+  "scope": "Private actual shared Scope.specialIdle registry: pause/resume keeps phase and single registration; active owner stop restores owned initial typed skin/pose and discards cohort, restart becomes pending and awaits new real uploads. Closed Scope stop preserves last paint for exit. Source Bee animated demand requires actual current\u22652 uploaded handles. No global startup, complete visibility/clock/constructor/marker/FX admission or phone acceptance.",
+  "files": {
+    "native/gameplay-ui/NativeDiceNode.swift": "4e93acf80cf114638b74881a921676d2404165aad632123c8990b77dcc174577",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "6cd74698a0d9e43b09fe164a498a59e5eba1dd8a188d00502f18380c5fd0253c"
+  },
+  "SDKfocused": "terminalexit0 3/3 PASS actual shared Scope registry pause/release, active retirement/restart, Scope closure",
+  "SDKmatrix": "terminalexit0 51/51 PASS: current33 Source skin/Bee cases plus four existing mounted/same-object/destination/idle regression classes",
+  "full": "terminalexit0 all selected deterministic gates PASS, Source/QA files frozen",
+  "remaining": [
+    "Actual Source landed/startup caller and complete conditional FX composer",
+    "Original safe constructor/skin capture when idle starts before static texture settles",
+    "Source clocks/visibility/inner marker admission and global suspend/background/offline routes",
+    "Main integration, fresh shipping resources and physical acceptance"
+  ],
+  "logs": {
+    "bee-source-registry-lifecycle-sdk.log": "bb12e6cb928f43f839ee3fedd3908dcd8dcc5d4657293da39c33dc767ff8f9e2",
+    "bee-source-registry-current-matrix-sdk.log": "0f63beb1e2a833ab9d745b11dbd9770ee801fa2f2e90a154a30a5d72cb394704",
+    "bee-source-registry-current-matrix-command.json": "5fff04d4afe9b2198a2d0ab3b06d9544b149cf06319968ef036a358c2783580c",
+    "bee-source-registry-lifecycle-full.log": "fc4f6356b4115529bbc4fddda6edcc4d4f45aae406defa152531054d8e650538"
+  },
+  "snapshotMatch": {
+    "native/gameplay-ui/NativeDiceNode.swift": "Source=QA=SDK SHA match",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "Source=QA=SDK SHA match"
+  }
+}

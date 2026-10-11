@@ -1,0 +1,15 @@
+{
+  "status": "PASS actual Source ordinary/direct Scene callers 11/11",
+  "files": {
+    "native/standalone/Stack to SixTests/NativeSourceSameObjectSixSceneTests.swift": "ef0def59298e86660a25e65655cea031c4452d990ba802d3ad62cbc6bc579ea0",
+    "native/standalone/Stack to SixTests/NativeSourceSameObjectDirectSceneTests.swift": "890768e48c27e8632540a40e3edd71264b66a53c53fac285a80779da747ef883"
+  },
+  "logSHA256": "6aad21f15498ba76e040ece4664539867de5350ec0debc6d2f7c23058b6b2805",
+  "open": [
+    "1200ms ordinary nonfinal wall watchdog",
+    "forced finally/destination-only canonical removal",
+    "remaining Special families",
+    "complete queue/save capability",
+    "phone"
+  ]
+}

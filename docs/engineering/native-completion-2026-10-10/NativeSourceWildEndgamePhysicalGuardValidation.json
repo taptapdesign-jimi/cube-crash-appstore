@@ -1,0 +1,49 @@
+{
+  "status": "PASS bounded actual endgame pre/post and Direct outer guard graph plus grouped shipping gates",
+  "core": {
+    "tests": 447,
+    "failures": 0,
+    "seconds": 0.811,
+    "log": "/tmp/native-wild-endgame-outer-bonus-mode-corrected-core.log"
+  },
+  "sdk": {
+    "physicalGuardRoots": {
+      "tests": 7,
+      "failures": 0,
+      "seconds": 93.135,
+      "log": "/tmp/native-wild-endgame-physical-guards-actual-roots-sdk.log",
+      "scope": "actual guide/Arcade/hard/normal Star/Juice and TNT neighbors"
+    },
+    "composedEndgameOuter": {
+      "tests": 6,
+      "failures": 0,
+      "seconds": 64.529,
+      "log": "/tmp/native-wild-endgame-outer-bonus-actual-star-juice-sdk.log",
+      "scope": "actual Journey Star nine bonus ctors/pop after both outer reactions and before APP50 primary; physical pre/single/after guards, normal/Arcade/hard and Juice final Result"
+    }
+  },
+  "scope": [
+    "actual Direct captured main releases initial pre_spawn in Arcade/endgame; no normal-mode duplicate",
+    "captured APP50 wait invokes first physical pre guard synchronously, then two distinct actual APP FIFO await reactions precede primary ctor/value",
+    "positive primary/hard reservation verification reads actual retained physical roster and literal Source active predicate",
+    "after-primary single guard independently yields APP FIFO before extras/finally",
+    "defaultOFF option preserves default432-pool phase oracle and NativeRaw",
+    "unknown/zero blockers/restart/missing capture cannot manufacture clean-board or finally",
+    "finite initial/outer helper blocks partial local Native save after independent finally; no fake Source runtime flags",
+    "Direct Journey endgame outer bonus shares genuine Direct receipt/current fences, independent of primary; actual two APP replies finish nine/three constructors before APP50 primary"
+  ],
+  "preservedFailures": [
+    "/tmp/native-wild-endgame-physical-guards-connected-core.log: extracted phase post-guard method referenced former local openedCount; corrected to captured opened property",
+    "/tmp/native-wild-endgame-physical-guards-corrected-core.log: test guessed runtime initializer arguments; corrected actual no-argument init plus destroyed field",
+    "/tmp/native-wild-endgame-outer-bonus-connected-core.log: test guessed NativeGameMode; corrected actual NativeRunMode"
+  ],
+  "release": "PASS unsigned Release BUILD SUCCEEDED /tmp/native-wild-endgame-composed-release.log; compiled identity/dependency/original-assets audit PASS /tmp/native-wild-endgame-composed-release-audit.log",
+  "open": [
+    "negative physical hard-fallback verification/detached-grid domain",
+    "zero-blocker clean-board/full immutable final for all families",
+    "whole global/canonical save/queue/NO MOVES/families/default/physical acceptance"
+  ],
+  "king": "PASS330 /tmp/native-wild-endgame-composed-king.log",
+  "feature": "PASS /tmp/native-wild-endgame-composed-feature.log",
+  "fullQA": "PASS all selected deterministic gates /tmp/native-wild-endgame-composed-full.log"
+}

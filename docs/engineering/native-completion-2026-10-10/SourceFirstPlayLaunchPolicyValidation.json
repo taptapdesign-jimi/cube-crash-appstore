@@ -1,0 +1,43 @@
+{
+  "reference": "production-benchmark-v9",
+  "scope": "Original forced-first-play Home entry. Retain disk at Home; new Play makes fresh tutorial until authored result Continue. Imported force-next overrides done.",
+  "oracle": "Executed actual immutable request owner and Homepage expression18 cases",
+  "baseline": "terminal5357 exit65 3 tests15 failures",
+  "focused": "Intermediate91974 terminal3 tests/2 failures: corrected launch/import behavior passed but fixture wrongly expected zero remaining moves; immutable app-core MOVES_MAX=50 verified, fixture corrected. Connected17761 terminal5 tests/2 errors from obsolete Journey result saved-launch fixture; policy3 and actual guide/fresh Source wave+pickup/cold default PASS. Result fixture now installs its two-die finale after real first entry.",
+  "sourceSHA256": {
+    "native/gameplay-app/NativeBootstrap.swift": "3942ca3422d36eb0eef8e6820d6829db6e1e9f9225fe48222d66fe74e821c346",
+    "native/gameplay-app/NativeTutorialOverlay.swift": "1e7c5b494c07436a4ad3be519b2994ecdf070462cd7c911618913764862d9d31",
+    "native/gameplay-state/Sources/StackToSixNativeState/NativeHybridImporter.swift": "0037febf4b72d758817180d804caf7e1cfc10e4ccecbc47a936c0ae1bd998521",
+    "native/standalone/Stack to SixTests/NativeSourceTutorialBootstrapTests.swift": "c8f7e8613ba576133b78aa8bf77b1b91f862c43d57b0bb7a546f6571e451a813",
+    "native/standalone/Stack to SixTests/NativeBootstrapTests.swift": "419d576e34606e633349c7194066192d69f247941a1c0aa4adcd5045f773d85d",
+    "native/standalone/Stack to SixTests/NativeFirstPlayLaunchPolicyTests.swift": "b9403ee6c25fa27e9aead51e3cc4182ff8c02bf933bf19091702699b303ae16f",
+    "native/standalone/Stack to SixTests/NativeFirstPlayLaunchSourceOracle.json": "027886493ae3bef5e68f36defab9999f8a7a8610dfea10ca6210e9ed8826efc4",
+    "native/standalone/Stack to SixTests/NativeGenuineCompletedGuideSave.json": "29ea39f084b13dd61b9aaf62575a641bba7438353093b90829f88113c2758795",
+    "native/standalone/Stack to SixUITests/NativeHomeInteractionUITests.swift": "b6d70646252213e62b489d59e0128274c2b627e75415d806d0942f40775d2fc6",
+    "scripts/native-oracles/first-play-launch-policy.cjs": "b259a19c8fb2366be96647a1620695a29bcd01ac64c8a3b6576aa151f2c8a0e7",
+    "native/gameplay-ui/NativeSourceInitialBoardRecipe.swift": "7b8633cc810eb455aec9cbc26a7e3b2947437b85f763a2e49958d1d94228068e",
+    "native/standalone/Stack to SixTests/NativeSourceRegularResumeConstructionTests.swift": "2c5a4fe981bc3731019c912ca991f4859d2af3219c2f356a5317804e11dd7461"
+  },
+  "limits": [
+    "Legacy guide save/OS retention evidence proves data retention only; incompatible forced-Play expectations are being replaced",
+    "Previous1254/fullQA predate current policy",
+    "Physical acceptance OPEN",
+    "Global Source flags OFF"
+  ],
+  "connected": "terminal26491 exit0 5/5 PASS26.050s",
+  "fullQA": "terminal18543 exit0 PASS",
+  "statePackage": "terminal63624 exit0 24/24 PASS0.786s after disabling only inner SwiftPM sandbox; workspace restriction retained",
+  "broader": "terminal88631 exit65 87 tests2 errors solely obsolete Arcade result saved-launch fixture; Journey result, source/default/new Play and normal acknowledged resume passed. Arcade finale now installed after real first entry too.",
+  "bothResults": "terminal27389 exit0 6/6 PASS31.181s",
+  "bothOrigins": "terminal67083 exit0 8/8 PASS33.613s",
+  "broaderReady": "terminal42564 exit0 89/89 PASS230.711s",
+  "osUI": "terminal72151 exit0 1/1 PASS34.340s; two actual OS launches; late screenshots inspected Drag to stack; private profile generation7,45tiles,moves50,score0,active step1,progression false",
+  "uiBuild": "terminal92555 exit0 TEST BUILD SUCCEEDED",
+  "fullSDK": "terminal95921 exit0 1261/1261 PASS613.671s",
+  "osProcessIDs": [
+    "86910",
+    "86935"
+  ],
+  "nextIndependentPreparation": "NativeLegacyStorageRetirementInvestigation.md; producer draft in /tmp only, not built/admitted; shipping importer unchanged",
+  "release": "terminal80792 exit0 BUILD SUCCEEDED; .native identity; Web.bundle absent; three private QA strings absent"
+}

@@ -16,7 +16,9 @@ public enum NativeHybridImporter {
             guard let object=try JSONSerialization.jsonObject(with:bytes) as? [Any] else { throw NativeSaveError.invalidState(["invalid-legacy-array:\(key)"]) };return object
         }
         var result=NativeSaveEnvelope(importedHybrid:true);result.savedAt=now
-        result.progression.firstPlayTutorialComplete=storage["cc_first_play_tutorial_done"] == "true"
+        // Original launch policy gives explicit force-next precedence over
+        // DONE_KEY. Import the effective request without touching old storage.
+        result.progression.firstPlayTutorialComplete=storage["cc_first_play_tutorial_done"] == "true" && storage["cc_first_play_tutorial_force_next"] != "true"
         result.progression.unlockedSpecialDice=Set(["flower","juice"].filter{storage["cc_special_dice_unlocked_\($0)"] == "true"})
         if let settings=try object("cc_settings") {
             result.settings=NativeSettingsPreferences(gameSoundsEnabled:settings["gameSoundsEnabled"] as? Bool == true,musicEnabled:settings["musicEnabled"] as? Bool != false,hapticsEnabled:settings["hapticsEnabled"] as? Bool != false)

@@ -1,0 +1,51 @@
+{
+  "verdict": "PASS bounded actual Wild coroutine completion/cancellation; full migration OPEN",
+  "implementation": "Actual completed Wild spawn coroutine publishes one captured APP finally reaction. Primary arrival alone cannot release the resolution frame/special owner. Interrupted awaited arrival publishes cancellation finally without primary success or fabricated arrival. Actual finally ends frames before releasing the captured special claim, whose existing callback notifies the mounted queue; revalidates exact Scene/Scope/generation/FIFO after external frame cleanup. Global merge-six token/Date writer and complete canonical queue/save remain separate and OPEN.",
+  "core": {
+    "tests": 380,
+    "failures": 0,
+    "seconds": 0.703,
+    "terminal": 0,
+    "log": "/tmp/native-wild-finally-cancellation-core.log"
+  },
+  "sdkBeforeCancellationRefinement": {
+    "tests": 4,
+    "failures": 0,
+    "seconds": 59.062,
+    "log": "/tmp/native-wild-finally-root.log",
+    "boundary": "Actual Arcade/Journey Juice, earned Star, hard primary. Before final cancellation and frame-before-special reset-order refinement."
+  },
+  "currentSDK": {
+    "tests": 24,
+    "failures": 0,
+    "seconds": 69.368,
+    "terminal": 0,
+    "log": "/tmp/native-wild-finally-final-sdk.log",
+    "scope": "Four actual Arcade/Journey Juice/earned-Star/hard-primary roots, ten adjacent NativeWildScenePhase tests, ten APP FIFO tests."
+  },
+  "sourceQA": {
+    "king": "/tmp/native-wild-finally-king.log PASS330",
+    "feature": "/tmp/native-wild-finally-feature.log PASS",
+    "full": "/tmp/native-wild-finally-full.log terminal0 PASS all selected gates; full suite530/4010, KING24/330"
+  },
+  "release": {
+    "verdict": "PASS unsigned iOS arm64 Release, actual compiled Native dependencies and original assets",
+    "terminal": 0,
+    "build": "/tmp/native-wild-finally-release.log",
+    "audit": "/tmp/native-wild-finally-release-audit.log"
+  },
+  "failureChronology": [
+    {
+      "log": "/tmp/native-wild-finally-core-with-tests.log",
+      "reason": "New test wrongly counted every resume request as an independent microtask rather than the actual Scene-deduplicated reaction, and wrongly required locked decorative bounces to create arrival Promises. Corrected fixture; production accounting unchanged."
+    }
+  ],
+  "boundaries": "Source global token/Date acquisition, complete canonical save/queue/endgame/families/default activation and physical/signing acceptance OPEN. NativeRaw defaults, original assets/audio, preserved PWA and phone unchanged.",
+  "physicalAcceptance": "NEEDS PHYSICAL TEST",
+  "sha256": {
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "2dc14f132c86ce9d886238c2ed331facf7dc2d6272147b79fcaad19d463e5652",
+    "native/gameplay-ui/NativeBoardScene.swift": "0e2b8716a9215bb7b50c6219d33061b1800f9578064f5b6c8a4aab6401a2a22a",
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceWildConstructorIntegrationTests.swift": "c6e213b5ff898a01b239e53c7f54c928e12aed1bb3ba314fb0fd5e6f9baf26a1",
+    "native/standalone/Stack to SixTests/NativeStandaloneRootTests.swift": "c9af712407fdd1b31c7609b60d82f3fff501e08d4c9f494713df4bf97c22a77c"
+  }
+}

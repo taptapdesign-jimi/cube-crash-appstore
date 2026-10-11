@@ -1,0 +1,19 @@
+{
+  "status": "DRAFT UIKit exit SDK running54471",
+  "files": {
+    "native/gameplay-ui/NativeDiceNode.swift": "5053ff124ba869c7bf9d9dcbdafc1eb58d80e7855e8871d07670e81686521548",
+    "native/gameplay-ui/NativeBoardScene.swift": "bfae87b40e597062bbfed10c5f99633390f0a6e40d8ab69942d8260c72d688aa",
+    "native/gameplay-ui/NativeSourceTutorialFocusOwner.swift": "2270f1c90a4011b64c01b7758caae6cb4e0084f77c769b8953c49faee922308e",
+    "native/gameplay-ui/NativeSourceTutorialSecondStepMonitor.swift": "701ed2ccbbfa8933f2436f258bbafc8bb0bf954bbce3698c45e34f17e9f04c94",
+    "native/gameplay-app/NativeTutorialOverlay.swift": "7432f7fcee99776fd3316e98a789e8c9614d375d1dd5558d4bac5b49468c87cc",
+    "native/gameplay-app/NativeTutorialOwner.swift": "eacc730dcdb7586585edc7ee5b09fccd3b486a467ad6a65e23b5511d642e6744",
+    "native/standalone/Stack to SixTests/NativeSourceTutorialSecondStepMonitorTests.swift": "6b1ee652c9fc1f2315c0662fdecba5e712544091d40ce6852cdc5fc642e02e79",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "84f246ebbc4f25443707842742b11a7cfca5cf201daa061f2188173f27f7e012",
+    "native/standalone/Stack to SixTests/NativeSourceTutorialIntroTests.swift": "00cfe55e8ff365a5eab9224855f654f0f19b992667f861e346e45bb2a66143c8",
+    "native/gameplay-ui/NativeSourceTutorialFreePlayPlan.swift": "83baca48d7af602979d05a9011caeea4e0e0f8e3ad6eb10801af09fb5501c790",
+    "native/gameplay-ui/NativeSourceTutorialFreePlayHintOwner.swift": "982612aeb2e2a0f621d24364663bba1e7d65466bcf127f87d5d9063cbf337a4c",
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "d87a709b05ff458dea8012b54bc6fb6c8a49df650e7c919792f313cc98406fa1",
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeTutorialTests.swift": "5a95520f7757439d8d68857f2518d050e5dc72247dfec254f8b9fee7754ac0d5"
+  },
+  "scope": "Physical prepared Wild consumed/nonStar or living unlocked ordinary6 row<=5 predicate and retained Intro pointer200\u2192sheet280 chain; actual UIView completion/pointer repeat retirement test. Final restore/Core caller OPEN."
+}

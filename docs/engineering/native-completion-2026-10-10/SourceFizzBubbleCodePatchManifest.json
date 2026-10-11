@@ -1,0 +1,12 @@
+{
+  "scope": "Apply after SourceFizzProducerCodePatch in NEW tree only. Unmounted per-bubble Source scale/rise/tint/fade roots and APP FIFO retirement. Compositor/Scene/visibility/caller and full migration acceptance OPEN.",
+  "archive": "SourceFizzBubbleCodePatch.tar.gz",
+  "archiveSHA256": "d1d2e06921010ffd9a5c05b3da09cf6fd629f0f3a95ae7fe4a2eb10596875fcc",
+  "files": {
+    "native/gameplay-ui/NativeIdleBubbleMotion.swift": "1b14c601f3e7d4f8ce248ba4310c0002c58ab417e5478e98ffe486e30d1550a5",
+    "native/standalone/Stack to SixTests/NativeIdleBubbleTests.swift": "8502279d4f37a3f1b7525cb4ec2f7cb99dca1d2094923ff504017309d859cc66",
+    "docs/engineering/feature-runtime-owners.json": "7069756cfbe8d89dc9d819bcbde1dd0dfd23b65f39b7d4b913ee5deaa24da30a",
+    "docs/engineering/native-completion-2026-10-10/fizz-shared-root-order-oracle.json": "247f0635ab0336fe1de9b8aa793898ebe595ceaa420325094ff9d508b1f79057",
+    "docs/engineering/native-completion-2026-10-10/fizz-shared-root-order-oracle.cjs": "5fc059bd97b6def3829365ec32260eb6e2960af8337d76602321c9d31d8ee1f7"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "authority": "Untouched original resumeDeferredWildIdleEffects plus isWildLikeSpecial transpiled/executed. Explicit captured-list/callback endpoints; no full Source rendering or Native parity proof.",
+  "sourceSHA256": "8a74facb4a4c1712fd78f0b66c3920c88a90ec5465ad04225ecc185e012ae4ce",
+  "profiles": [
+    {
+      "throwAt": null,
+      "calls": [
+        "bee",
+        "honey",
+        "bottle",
+        "plain-star"
+      ],
+      "allNonNullFlagsCleared": true
+    },
+    {
+      "throwAt": "bee",
+      "calls": [
+        "bee",
+        "honey",
+        "bottle",
+        "plain-star"
+      ],
+      "allNonNullFlagsCleared": true
+    },
+    {
+      "throwAt": "honey",
+      "calls": [
+        "bee",
+        "honey",
+        "bottle",
+        "plain-star"
+      ],
+      "allNonNullFlagsCleared": true
+    }
+  ]
+}

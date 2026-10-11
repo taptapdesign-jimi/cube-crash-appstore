@@ -1,0 +1,299 @@
+{
+  "reference": "production-benchmark-v9",
+  "hashes": {
+    "src/modules/regular-merge6-sound.ts": "922c7d2c7f4d749419129c134b4ddbc270b5f08365ee9dc40699826f2ee2aea1",
+    "src/modules/magnet-pull-force-sound.ts": "ed4143f198cb31d1f4e5e5eeec8fe1db60a239393e3094a5110a5d0559d6d2f1",
+    "src/modules/wild-spawn-continuation.ts": "21008fd8c69475b073b7c99a5aa017a7846e642bfb33ed852878847e7abc3713",
+    "src/modules/app-core.ts": "284d104e4f20b7b30fd5dad2361c1edfb822a6b96a38c64efc2793033cbc09e3"
+  },
+  "audioRows": [
+    {
+      "enabled": true,
+      "media": "none",
+      "timerClears": 1,
+      "stops": [
+        "regular-merge6-primary",
+        "regular-merge6-crash",
+        "regular-merge6-boom",
+        "regular-merge6-stack",
+        "magnet-pull-force-boiing"
+      ],
+      "fallback": []
+    },
+    {
+      "enabled": true,
+      "media": "primary-only",
+      "timerClears": 1,
+      "stops": [
+        "regular-merge6-primary",
+        "regular-merge6-crash",
+        "regular-merge6-boom",
+        "regular-merge6-stack",
+        "magnet-pull-force-boiing"
+      ],
+      "fallback": [
+        "primary"
+      ]
+    },
+    {
+      "enabled": true,
+      "media": "all",
+      "timerClears": 1,
+      "stops": [
+        "regular-merge6-primary",
+        "regular-merge6-crash",
+        "regular-merge6-boom",
+        "regular-merge6-stack",
+        "magnet-pull-force-boiing"
+      ],
+      "fallback": [
+        "primary",
+        "crash",
+        "boom",
+        "stack",
+        "force"
+      ]
+    },
+    {
+      "enabled": false,
+      "media": "none",
+      "timerClears": 1,
+      "stops": [
+        "regular-merge6-primary",
+        "regular-merge6-crash",
+        "regular-merge6-boom",
+        "regular-merge6-stack",
+        "magnet-pull-force-boiing"
+      ],
+      "fallback": []
+    },
+    {
+      "enabled": false,
+      "media": "primary-only",
+      "timerClears": 1,
+      "stops": [
+        "regular-merge6-primary",
+        "regular-merge6-crash",
+        "regular-merge6-boom",
+        "regular-merge6-stack",
+        "magnet-pull-force-boiing"
+      ],
+      "fallback": [
+        "primary"
+      ]
+    },
+    {
+      "enabled": false,
+      "media": "all",
+      "timerClears": 1,
+      "stops": [
+        "regular-merge6-primary",
+        "regular-merge6-crash",
+        "regular-merge6-boom",
+        "regular-merge6-stack",
+        "magnet-pull-force-boiing"
+      ],
+      "fallback": [
+        "primary",
+        "crash",
+        "boom",
+        "stack",
+        "force"
+      ]
+    }
+  ],
+  "queueRows": [
+    {
+      "initialMeter": 0.25,
+      "initialBusy": false,
+      "laterMeter": 0.25,
+      "laterBusy": false,
+      "synchronousQueues": 0,
+      "guardedRequests": 0
+    },
+    {
+      "initialMeter": 0.25,
+      "initialBusy": false,
+      "laterMeter": 0.25,
+      "laterBusy": true,
+      "synchronousQueues": 0,
+      "guardedRequests": 0
+    },
+    {
+      "initialMeter": 0.25,
+      "initialBusy": false,
+      "laterMeter": 1.25,
+      "laterBusy": false,
+      "synchronousQueues": 0,
+      "guardedRequests": 0
+    },
+    {
+      "initialMeter": 0.25,
+      "initialBusy": false,
+      "laterMeter": 1.25,
+      "laterBusy": true,
+      "synchronousQueues": 0,
+      "guardedRequests": 0
+    },
+    {
+      "initialMeter": 0.25,
+      "initialBusy": true,
+      "laterMeter": 0.25,
+      "laterBusy": false,
+      "synchronousQueues": 0,
+      "guardedRequests": 0
+    },
+    {
+      "initialMeter": 0.25,
+      "initialBusy": true,
+      "laterMeter": 0.25,
+      "laterBusy": true,
+      "synchronousQueues": 0,
+      "guardedRequests": 0
+    },
+    {
+      "initialMeter": 0.25,
+      "initialBusy": true,
+      "laterMeter": 1.25,
+      "laterBusy": false,
+      "synchronousQueues": 0,
+      "guardedRequests": 0
+    },
+    {
+      "initialMeter": 0.25,
+      "initialBusy": true,
+      "laterMeter": 1.25,
+      "laterBusy": true,
+      "synchronousQueues": 0,
+      "guardedRequests": 0
+    },
+    {
+      "initialMeter": 1,
+      "initialBusy": false,
+      "laterMeter": 0.25,
+      "laterBusy": false,
+      "synchronousQueues": 0,
+      "guardedRequests": 0
+    },
+    {
+      "initialMeter": 1,
+      "initialBusy": false,
+      "laterMeter": 0.25,
+      "laterBusy": true,
+      "synchronousQueues": 0,
+      "guardedRequests": 0
+    },
+    {
+      "initialMeter": 1,
+      "initialBusy": false,
+      "laterMeter": 1.25,
+      "laterBusy": false,
+      "synchronousQueues": 0,
+      "guardedRequests": 2
+    },
+    {
+      "initialMeter": 1,
+      "initialBusy": false,
+      "laterMeter": 1.25,
+      "laterBusy": true,
+      "synchronousQueues": 0,
+      "guardedRequests": 0
+    },
+    {
+      "initialMeter": 1,
+      "initialBusy": true,
+      "laterMeter": 0.25,
+      "laterBusy": false,
+      "synchronousQueues": 0,
+      "guardedRequests": 0
+    },
+    {
+      "initialMeter": 1,
+      "initialBusy": true,
+      "laterMeter": 0.25,
+      "laterBusy": true,
+      "synchronousQueues": 0,
+      "guardedRequests": 0
+    },
+    {
+      "initialMeter": 1,
+      "initialBusy": true,
+      "laterMeter": 1.25,
+      "laterBusy": false,
+      "synchronousQueues": 0,
+      "guardedRequests": 0
+    },
+    {
+      "initialMeter": 1,
+      "initialBusy": true,
+      "laterMeter": 1.25,
+      "laterBusy": true,
+      "synchronousQueues": 0,
+      "guardedRequests": 0
+    },
+    {
+      "initialMeter": 1.25,
+      "initialBusy": false,
+      "laterMeter": 0.25,
+      "laterBusy": false,
+      "synchronousQueues": 0,
+      "guardedRequests": 0
+    },
+    {
+      "initialMeter": 1.25,
+      "initialBusy": false,
+      "laterMeter": 0.25,
+      "laterBusy": true,
+      "synchronousQueues": 0,
+      "guardedRequests": 0
+    },
+    {
+      "initialMeter": 1.25,
+      "initialBusy": false,
+      "laterMeter": 1.25,
+      "laterBusy": false,
+      "synchronousQueues": 0,
+      "guardedRequests": 2
+    },
+    {
+      "initialMeter": 1.25,
+      "initialBusy": false,
+      "laterMeter": 1.25,
+      "laterBusy": true,
+      "synchronousQueues": 0,
+      "guardedRequests": 0
+    },
+    {
+      "initialMeter": 1.25,
+      "initialBusy": true,
+      "laterMeter": 0.25,
+      "laterBusy": false,
+      "synchronousQueues": 0,
+      "guardedRequests": 0
+    },
+    {
+      "initialMeter": 1.25,
+      "initialBusy": true,
+      "laterMeter": 0.25,
+      "laterBusy": true,
+      "synchronousQueues": 0,
+      "guardedRequests": 0
+    },
+    {
+      "initialMeter": 1.25,
+      "initialBusy": true,
+      "laterMeter": 1.25,
+      "laterBusy": false,
+      "synchronousQueues": 0,
+      "guardedRequests": 0
+    },
+    {
+      "initialMeter": 1.25,
+      "initialBusy": true,
+      "laterMeter": 1.25,
+      "laterBusy": true,
+      "synchronousQueues": 0,
+      "guardedRequests": 0
+    }
+  ]
+}

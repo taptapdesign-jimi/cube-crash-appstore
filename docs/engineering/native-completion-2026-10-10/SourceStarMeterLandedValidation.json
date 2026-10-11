@@ -1,0 +1,104 @@
+{
+  "status": "COMPLETE_CURRENT_SDK1251_AND_FULL_QA_PASS_BOUNDED_COMPONENT",
+  "scope": "Genuine actual Scene Native meter-created Source Plain Star; Source flags OFF. No phone/PWA/asset operations.",
+  "originalOracle": {
+    "file": "star-source-registry-landing-oracle.json",
+    "sha256": "c5e949001a4e16baa8711c5e0b3fbc8c153d36dad10ec9d58d5ace74dbf1d00e",
+    "independentRepeatIdentical": true,
+    "profiles": [
+      23,
+      24,
+      24,
+      23
+    ],
+    "admission": "Dropping guard registers0. Suspended landing pending2/controllers0/assetloads0 until actual registry release. Exact controller identity retained on repeat; registry pressure keeps running sheet; final keys0. Explicit other-family/mode endpoints and real Pixi CPU authority, no GPU/global transport/device proof."
+  },
+  "checks": [
+    {
+      "log": "star-sheet-meter-baseline.log",
+      "handle": 72862,
+      "status": "FAIL_EXPECTED_UNIMPLEMENTED_ATLAS",
+      "tests": 3,
+      "failures": 2,
+      "scope": "Actual meter test missing Native Star animation/sprite after genuine landing; corrected fresh Arcade fixture2/2 PASS."
+    },
+    {
+      "log": "star-sheet-meter-connected.log",
+      "status": "PASS",
+      "tests": 6,
+      "handle": 11929,
+      "exitCode": 0
+    },
+    {
+      "log": "star-sheet-meter-pending-baseline.log",
+      "status": "FAIL",
+      "tests": 6,
+      "failures": 5,
+      "handle": 1991,
+      "exitCode": 65,
+      "reason": "Actual registry pending keys nevertheless started atlas through stale Node pending flag; canonical key state now guards startup."
+    },
+    {
+      "log": "star-sheet-meter-pending-fixed.log",
+      "status": "PASS",
+      "tests": 8,
+      "handle": 99376,
+      "exitCode": 0
+    },
+    {
+      "log": "star-sheet-meter-broader.log",
+      "status": "PASS",
+      "handle": 73548,
+      "tests": 98,
+      "failures": 0,
+      "exitCode": 0
+    },
+    {
+      "log": "star-sheet-meter-full.log",
+      "status": "PASS",
+      "handle": 57577,
+      "exitCode": 0
+    },
+    {
+      "log": "star-sheet-meter-complete-sdk.log",
+      "status": "PASS",
+      "handle": 39659,
+      "tests": 1251,
+      "failures": 0,
+      "unexpected": 0,
+      "exitCode": 0
+    }
+  ],
+  "before": [
+    "SourceStarMeterBefore.tar.gz",
+    "SourceStarMeterProbesBefore.tar.gz"
+  ],
+  "fixture": {
+    "file": "native/standalone/Stack to SixTests/NativeMeterActualSceneBindingTests.swift",
+    "sha256": "be7cc2c2acdc95ead092432edac3365987b43137af0609c5cd15001bf4e22c39"
+  },
+  "next": [
+    "Connect genuine opened Star landed atlas ownership without admitting Raw fixtures/tutorial identities prematurely",
+    "Suspended registry must hold pending resource admission instead of rejecting whole landed attachment or preloading atlas",
+    "Start resources only inside genuine APP/FIFO boundary; existing actual renderer handoff can drain pending admission in captured order",
+    "Close pending/live sheet on scope/identity/defer/Scene cancellation; preserve nested current C",
+    "Verify original exact shared atlas ordering, same object, no extra Math, spawn bookkeeping1 and background no replay",
+    "Re-run complete SDK after corrected cue wait and final runtime candidate; previous1248 FAIL1 is retained, not PASS"
+  ],
+  "files": {
+    "native/gameplay-ui/NativeBoardScene.swift": "f041a2a3d303ac7eb37c82284c8888550654fd0b1eadf43699c790298c89e3d4",
+    "native/gameplay-ui/NativeDiceNode.swift": "d6d19c07c4e8ecc7a1555a4973bb5d4a2b7f59c87ff15fedbdbf12f2c7f74682",
+    "native/gameplay-app/NativeSourceSpecialIdleRegistry.swift": "871290c3e75c9775db79b73d7486f6de0707d56306c86bd76d150f6fed3fc7a5",
+    "native/gameplay-app/NativeSourceSpecialIdleScope.swift": "8bae62350b89845888c20eb1357825b74d3b15ed7696acb7ea769cea85fb0b1f",
+    "native/standalone/Stack to SixTests/NativeMeterActualSceneBindingTests.swift": "da1af82af372251aacd8f9b57744d702cbb2fe557f7d10d16035cf79f3728c64",
+    "native/standalone/Stack to SixTests/NativeSourceInitialBoardBootstrapTests.swift": "167cc83d47f500eea067225eb25fd0f0f898f678f3e35aa8a0e0bab5e0b391d4",
+    "docs/engineering/feature-runtime-owners.json": "3a269cda8b87b7780f352701fe5ebfad119b40639585b1b97283ec201e14cc6b"
+  },
+  "recovery": {
+    "before": "SourceStarMeterLandedBefore.tar.gz",
+    "patch": "SourceStarMeterLandedCodePatch.tar.gz",
+    "beforeSHA256": "b4d1a2b1d5584a5e42122a81eabccdca0e39e22a464ed464120f1d7a341fb945",
+    "patchSHA256": "cb4338c91a62207a8168473fc2a02634617b5ba0b69c95c8309110f7253db728",
+    "rule": "Replay only into new isolated checkout; never overwrite/reset dirty main. Before combines exact previously captured Scene/Node/fixture checkpoints and removes only newly added canonical Registry/Scope read helpers."
+  }
+}

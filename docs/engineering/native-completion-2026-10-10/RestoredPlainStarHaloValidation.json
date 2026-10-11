@@ -1,0 +1,11 @@
+{
+  "scope": "Restored plain Star halo lifecycle and automatic saved-game startup binding; no whole Star/other-family/migration acceptance.",
+  "sdk": {
+    "restored-star-idle.log": "4/4 exit0 before final startup hook",
+    "restored-star-idle-app.log": "11/11 exit0 with final runtime"
+  },
+  "fullQA": "restored-star-idle-final-full.log exit0 with final runtime/registry/tests",
+  "physical": "NEEDS PHYSICAL TEST",
+  "mainIntegrated": false,
+  "globalFlags": "OFF"
+}

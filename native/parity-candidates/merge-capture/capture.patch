@@ -1,0 +1,181 @@
+--- a/native/gameplay-ui/NativeBoardScene.swift
++++ b/native/gameplay-ui/NativeBoardScene.swift
+@@ -6,6 +6,7 @@
+ /// animation completion never computes a merge, spawn, reward or terminal.
+ @MainActor
+ final class NativeBoardScene: SKScene {
++    private let mergeCapture = NativeMergeCaptureRecorder()
+     let engine: NativeGameplayEngine
+     var onStateChange: ((NativeBoardState) -> Void)?
+     var onTerminal: ((NativeResolution) -> Void)?
+@@ -735,6 +736,9 @@
+     }
+ 
+     private func consume(_ result: NativeMoveResult, previous: NativeBoardState, preserveRejectedPosition: String? = nil) {
++        let captureStart = CACurrentMediaTime()
++        mergeCapture.event("consume", detail: result.events.map {String(describing:$0.kind)}.joined(separator:","))
++        defer { mergeCapture.event("consume-cost", value:(CACurrentMediaTime()-captureStart)*1000) }
+         cancelCandidate()
+         let rejectedPosition = preserveRejectedPosition.flatMap { nodesByID[$0]?.position }
+         synchronize()
+@@ -916,6 +920,9 @@
+     }
+ 
+     private func playRegularSixMain(_ plan:NativeOrdinaryMovePlan) {
++        let captureStart = CACurrentMediaTime()
++        mergeCapture.event("regular-six-main",detail:plan.id)
++        defer { mergeCapture.event("regular-six-creation-cost",value:(CACurrentMediaTime()-captureStart)*1000) }
+         guard let geometry,regularSixPresentations[plan.id]==nil else {return}
+         let cadence=NativeRegularSixFxCadence.shared
+         let reduced=reducedBoardEffects
+@@ -951,6 +958,7 @@
+ 
+     private func applyBoardShake(_ pose:NativeRegularSixSpritePresentation.ShakeReceipt) {
+         onJourneyBottomDecorShake?(pose.bottomDecor,engine.state.generation)
++        mergeCapture.event("shake",value:Double(hypot(pose.canvas.x,pose.canvas.y)))
+         boardShake=pose;canvasRoot.position=CGPoint(x:pose.canvas.x,y:-pose.canvas.y)
+         let base=NativeGameplayChromePlan.make(viewport:size,safeTop:safeInsets.top).roundCenter
+         roundIndicator.position=CGPoint(x:base.x+pose.indicator.x,y:base.y-pose.indicator.y)
+@@ -1154,6 +1162,7 @@
+         // Actual source ghost's80ms move completion invokes finishDirectWildAbsorb.
+     }
+     private func finishDirectWildAbsorb(_ plan:NativeDirectWildMovePlan) {
++        mergeCapture.event("wild-absorb-commit",detail:plan.id)
+         guard !disposed,!suspended,engine.state.generation==plan.generation,
+               engine.pendingDirectWild?.id==plan.id,let captured=directAbsorb,captured.0.id==plan.id else{return}
+         directAbsorb=nil
+@@ -1650,6 +1659,7 @@
+     }
+ 
+     override func update(_ currentTime: TimeInterval) {
++        mergeCapture.frame(now:CACurrentMediaTime(),targetFPS:view?.preferredFramesPerSecond ?? 60)
+         guard !disposed, !suspended else { lastFrame = nil; return }
+         let rawMilliseconds=CACurrentMediaTime()*1000,configuredFPS=Double(view?.preferredFramesPerSecond ?? 60)
+         if !sourceFramesAttached {
+@@ -1679,6 +1689,7 @@
+     }
+ 
+     func setSuspended(_ value: Bool) {
++        if value {mergeCapture.suspend()} else {mergeCapture.resume()}
+         guard !disposed else {return}
+         suspended=value;lastFrame=nil
+         sourceCallbackTime();sourceFrames.visibilityChanged(hidden:value)
+@@ -1768,6 +1779,7 @@
+     }
+ 
+     func dispose() {
++        mergeCapture.flush(reason:"scene-dispose")
+         guard !disposed else { return }
+         invalidateWildTransports()
+         retireRegularSixPresentations()
+--- a/native/gameplay-ui/NativeMergeCaptureRecorder.swift
++++ b/native/gameplay-ui/NativeMergeCaptureRecorder.swift
+@@ -0,0 +1,61 @@
++import Foundation
++import QuartzCore
++
++/// Opt-in debug evidence only. No gameplay decision, frame target or timer.
++/// The caller delivers existing Scene callbacks; disk writes occur only at
++/// background/dispose boundaries and run on one serial utility queue.
++@MainActor
++final class NativeMergeCaptureRecorder {
++    struct Record: Codable {
++        let seconds: Double, kind: String, detail: String
++        let value: Double, targetFPS: Int
++    }
++    struct Snapshot: Codable {
++        let schema: Int, session: String, reason: String, startedAt: Date
++        let recordsSeen: Int, droppedRecords: Int, records: [Record]
++        let timingMeaning: String
++    }
++    private static let writer = DispatchQueue(label: "native.merge.capture.disk", qos: .utility)
++    private let enabled: Bool, capacity: Int, session = UUID().uuidString
++    private let start = CACurrentMediaTime(), startedAt = Date()
++    private var ring: [Record?], seen = 0, lastFrame: Double?
++    var recordedCount: Int { min(seen, capacity) }
++    init(enabled: Bool = ProcessInfo.processInfo.arguments.contains("--native-merge-capture"), capacity: Int = 8192) {
++        self.enabled = enabled; self.capacity = max(1, capacity)
++        ring = enabled ? Array(repeating: nil, count: max(1, capacity)) : []
++    }
++    func event(_ kind: String, detail: String = "", value: Double = 0, targetFPS: Int = 0) {
++        guard enabled else { return }
++        ring[seen % capacity] = Record(seconds: CACurrentMediaTime()-start, kind: kind, detail: detail, value: value, targetFPS: targetFPS)
++        seen += 1
++    }
++    func frame(now: Double, targetFPS: Int) {
++        guard enabled else { return }
++        if let lastFrame { event("frame-gap", value: max(0, now-lastFrame)*1000, targetFPS: targetFPS) }
++        lastFrame = now
++    }
++    func suspend() { event("suspend"); lastFrame = nil; flush(reason: "suspend") }
++    func resume() { lastFrame = nil; event("resume") }
++    func snapshot(reason: String) -> Snapshot {
++        let count = recordedCount, first = max(0, seen-capacity)
++        return Snapshot(schema: 1, session: session, reason: reason, startedAt: startedAt,
++                        recordsSeen: seen, droppedRecords: max(0, seen-capacity),
++                        records: (0..<count).compactMap { ring[(first+$0) % capacity] },
++                        timingMeaning: "Scene callback intervals and CPU section durations; not presented GPU FPS")
++    }
++    func flush(reason: String) {
++        guard enabled else { return }
++        let captured = snapshot(reason: reason)
++        Self.writer.async {
++            do {
++                let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
++                    .appendingPathComponent("NativeMergeCapture", isDirectory: true)
++                try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
++                let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601
++                let bytes = try encoder.encode(captured)
++                try bytes.write(to: root.appendingPathComponent("latest.json"), options: .atomic)
++                NSLog("[NATIVE_MERGE_CAPTURE] saved records=%d dropped=%d reason=%@", captured.records.count, captured.droppedRecords, captured.reason)
++            } catch { NSLog("[NATIVE_MERGE_CAPTURE] save failed %@", String(describing: error)) }
++        }
++    }
++}
+--- a/native/standalone/Stack to SixTests/NativeMergeCaptureTests.swift
++++ b/native/standalone/Stack to SixTests/NativeMergeCaptureTests.swift
+@@ -0,0 +1,44 @@
++import XCTest
++@testable import Stack_to_Six
++
++@MainActor
++final class NativeMergeCaptureTests: XCTestCase {
++    func testBoundedRingRetainsChronologicalTailAndReportsLoss() {
++        let capture = NativeMergeCaptureRecorder(enabled:true,capacity:3)
++        for index in 0..<7 {capture.event("event",value:Double(index))}
++        let result=capture.snapshot(reason:"test")
++        XCTAssertEqual(result.records.map(\.value),[4,5,6])
++        XCTAssertEqual(result.recordsSeen,7);XCTAssertEqual(result.droppedRecords,4)
++    }
++    func testDisabledCaptureDoesNotRecordOrAllocateRecords() {
++        let capture=NativeMergeCaptureRecorder(enabled:false,capacity:3)
++        capture.event("ignored");capture.frame(now:1,targetFPS:60)
++        XCTAssertEqual(capture.recordedCount,0)
++    }
++    func testResumeDoesNotCountBackgroundTimeAsFrameHitch() {
++        let capture=NativeMergeCaptureRecorder(enabled:true)
++        capture.frame(now:1,targetFPS:60);capture.frame(now:1.04,targetFPS:60)
++        capture.resume();capture.frame(now:100,targetFPS:60);capture.frame(now:100.02,targetFPS:60)
++        let gaps=capture.snapshot(reason:"test").records.filter{$0.kind=="frame-gap"}
++        XCTAssertEqual(gaps.count,2);XCTAssertEqual(gaps[0].value,40,accuracy:0.00001)
++        XCTAssertEqual(gaps[1].value,20,accuracy:0.00001)
++    }
++    func testAtomicPhoneLocalFileContainsThisSession() async throws {
++        let capture=NativeMergeCaptureRecorder(enabled:true)
++        capture.event("persistence-sentinel",value:42)
++        let expected=capture.snapshot(reason:"persistence-test")
++        capture.flush(reason:"persistence-test")
++        let url=FileManager.default.urls(for:.applicationSupportDirectory,in:.userDomainMask)[0]
++            .appendingPathComponent("NativeMergeCapture/latest.json")
++        let decoder=JSONDecoder();decoder.dateDecodingStrategy = .iso8601
++        for _ in 0..<30 {
++            if let data=try? Data(contentsOf:url),let saved=try? decoder.decode(NativeMergeCaptureRecorder.Snapshot.self,from:data),saved.session==expected.session {
++                XCTAssertEqual(saved.records.first?.kind,"persistence-sentinel")
++                XCTAssertEqual(saved.records.first?.value,42)
++                return
++            }
++            try await Task.sleep(nanoseconds:100_000_000)
++        }
++        XCTFail("Phone-local atomic capture did not persist this session")
++    }
++}

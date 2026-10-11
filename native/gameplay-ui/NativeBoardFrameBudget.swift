@@ -3,7 +3,7 @@ import Foundation
 /// Source board-frame-budget.ts; receives the existing scene ticker's time.
 /// This value owner installs no callback, display link, timer, or renderer.
 struct NativeBoardFrameBudget {
-    struct Snapshot:Equatable,Codable {
+    nonisolated struct Snapshot:Equatable,Codable {
         var averageFrameMs,worstFrameMs:Double
         var framesOver28Ms:Int
         var reducedFx:Bool

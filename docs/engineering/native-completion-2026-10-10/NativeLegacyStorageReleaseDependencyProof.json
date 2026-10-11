@@ -1,0 +1,22 @@
+{
+  "identity": "com.taptapdesign.stacktosix.native",
+  "binarySHA256": "27de9346e124f68f9bed429c58b64a2b72bc42f0db0b13149dc014ba7c321c4f",
+  "webBundleAbsent": true,
+  "forbiddenStringsAbsent": [
+    "WKWebView",
+    "WKScriptMessage",
+    "WKWebsiteDataStore",
+    "evaluateJavaScript",
+    "callAsyncJavaScript",
+    "__native_profile_export__",
+    "CC_NATIVE_QA_PROFILE_ID",
+    "native-process-qa-"
+  ],
+  "WebKitAndJavaScriptCoreLinksAbsent": true,
+  "sqliteLinked": true,
+  "limits": [
+    "Unsigned Simulator Release only",
+    "No physical old-profile/route/audio/thermal acceptance",
+    "Global Source parity flags OFF"
+  ]
+}

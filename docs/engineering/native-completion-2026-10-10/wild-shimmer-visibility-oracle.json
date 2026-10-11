@@ -1,0 +1,33 @@
+{
+  "authority": "actual original isSpecialDiceIdlePaintable; explicit DOM/container endpoints",
+  "rows": [
+    {
+      "name": "visible",
+      "paintable": true
+    },
+    {
+      "name": "canvas-hidden",
+      "paintable": false
+    },
+    {
+      "name": "canvas-opacity-threshold",
+      "paintable": false
+    },
+    {
+      "name": "carrier-hidden",
+      "paintable": false
+    },
+    {
+      "name": "carrier-alpha-threshold",
+      "paintable": false
+    },
+    {
+      "name": "half-alpha",
+      "paintable": true
+    },
+    {
+      "name": "base-hidden",
+      "paintable": true
+    }
+  ]
+}

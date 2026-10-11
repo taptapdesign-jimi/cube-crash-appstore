@@ -1,0 +1,30 @@
+{
+  "authority": "actual installed MaskFilter.prototype.apply, explicit renderer matrix/filter endpoints; not original GPU render",
+  "rows": [
+    {
+      "worldAlpha": 1,
+      "uAlpha": 1,
+      "source": "original-artwork-source"
+    },
+    {
+      "worldAlpha": 0.5,
+      "uAlpha": 1,
+      "source": "original-artwork-source"
+    },
+    {
+      "worldAlpha": 0.1,
+      "uAlpha": 1,
+      "source": "original-artwork-source"
+    },
+    {
+      "worldAlpha": 0.001,
+      "uAlpha": 1,
+      "source": "original-artwork-source"
+    },
+    {
+      "worldAlpha": 0,
+      "uAlpha": 1,
+      "source": "original-artwork-source"
+    }
+  ]
+}

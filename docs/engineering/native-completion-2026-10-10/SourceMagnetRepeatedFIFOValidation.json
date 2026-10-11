@@ -1,0 +1,7 @@
+{
+  "actualSDK": "First corrected actual Scene69/69 PASS, final103/103 PASS exit0/no failures/skips: bubble7+clock26+Scene skin70. Same-live-node two accepted prefixes produce pending2 and24\u219248, matching executed original wrapper. Reentrant outer rejection preserves accepted inner RAF24\u219236. Scope retirement clears all pending entries without new draws.",
+  "fullQA": "Terminal exit0 SKIP_NATIVE_BUNDLE_SYNC=true npm run qa:full PASS; final metadata wording feature gate separately exit0 PASS, git diff --check PASS.",
+  "scope": "Multiple captured one-shot leases remain FIFO for same live node. Each callback resolves latest live field with matching Scope/model/generation/variant/parent. Accepted same-node field rebuild does not cancel predecessors. Rejection captures its cue before reentry and cancels only that cue. True Scope/defer/disposal closes pending entries. No fake RNG skip, duplicate clock or media changes.",
+  "remaining": "Extended family/visibility/pool/lifecycle/restore/caller/command/save/terminal/global admission, native Release/WebKit and physical acceptance OPEN. Earlier complete SDK1201 is older runtime; current complete target not rerun.",
+  "physical": "NEEDS PHYSICAL TEST"
+}

@@ -1,0 +1,7 @@
+{
+  "status": "DRAFT uninvoked, not yet compiled/tested",
+  "files": {
+    "native/gameplay-ui/NativeDiceNode.swift": "36bd7876e356dce02f85b46f4b3b872816353f4614584bca1179808eb17b615b"
+  },
+  "scope": "Same-node cached plain-Star _setValueVisuals primitive; no asset IO or Math, scale reset before raw texture size. Actual RAF ordering/caller remains OPEN."
+}

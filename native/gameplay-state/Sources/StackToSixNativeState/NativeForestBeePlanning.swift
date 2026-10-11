@@ -1,8 +1,9 @@
 import Foundation
 
 /// Canonical mobile Forest flight owner. Float32 samples preserve the source Catmull-Rom math.
-/// Five retained bees produce finite compositor plans, including gate and direction continuity.
+/// Nine retained bees produce finite compositor plans, including gate and direction continuity.
 public final class NativeForestBeePlanning {
+    public static let retainedIDs=[0,2,5,7,9,1,3,4,6]
     private struct Flight {
         var points=[Float](repeating:0,count:16)
         var duration=11.0,elapsed=0.0,onScreen=0.0,bounce=0.0,width=40.0,scale=1.0,passage=0.12
@@ -35,7 +36,7 @@ public final class NativeForestBeePlanning {
             resetRoam(&flight,index:index,initial:0.04+Double(index)/18*0.82)
             all.append(flight)
         }
-        bees=[0,2,5,7,9].enumerated().map {Bee(flight:all[$0.element],asset:$0.offset%2==0 ? "bee1" : "bee3")}
+        bees=Self.retainedIDs.enumerated().map {Bee(flight:all[$0.element],asset:$0.offset%2==0 ? "bee1" : "bee3")}
     }
     private func clamp(_ value:Double,_ low:Double,_ high:Double)->Double {min(high,max(low,value))}
     private func sample()->Double {let v=random();return v.isFinite ? clamp(v,0,1) : 0.5}

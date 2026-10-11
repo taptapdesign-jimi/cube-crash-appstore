@@ -1,0 +1,10 @@
+# Native diagnostics owner map (implementation continuation)
+
+Authoritative gap: active NativeStandaloneViewController has no performance/thermal capture; archived GameViewController owns the only CC_NATIVE_THERMAL producer. Archived web shell is excluded from shipping. Release dependency proofs are PASS; diagnostic behavior is not yet ported.
+
+Entry: exact .native identity and explicit --cc-performance-diagnostics or --cc-native-thermal-telemetry launch argument. Ordinary launch has no observer, timer, battery-monitoring or file side effect. No UserDefaults migration or profile changes.
+Exit: Native root disposal, explicit stop, sample cap, or failed persistence closes the finite capture; idempotent cancellation before callbacks, no stale restart. NativeBootstrap/gameplay remains untouched.
+Resources: own Native-only cache JSONL directory, unique session file, bounded rows and line size; source saves/old telemetry files untouched. One FileHandle, closed on all paths. Existing NativeSourceAppTimeoutOwner finite receipts, at most one five-second pending sample; no new renderer/link/audio/haptic transport.
+Visibility: interval work only while app active, cancelled immediately on resign-active/background; lifecycle/thermal/memory events append one bounded receipt. Foreground resumes one pending sample, never two.
+Data: original reason/wall/sequence/thermal/low-power/battery/brightness/build/uptime identity fields; native capture schema and explicit webRuntime=absent. No fabricated web/haptic/isolation counters. Battery-monitoring ownership captures previous state and restores only its own transition. No presented-GPU-FPS claims from timing callbacks.
+Evidence: real isolated Simulator lifecycle/notification events, JSONL sentinel and growing-file/readback, background silence, explicit disposal/cap/failure and repeated ownership; actual ordinary Native root shows zero diagnostic work. Physical measurements remain NEEDS PHYSICAL TEST. Diagnostics draft must not alter current full SDK source snapshot before its terminal receipt.

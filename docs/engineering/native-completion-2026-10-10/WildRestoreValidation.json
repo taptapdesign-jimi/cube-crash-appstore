@@ -1,0 +1,27 @@
+{
+  "scope": "Synchronous logical Wild restore recipe only. Actual Node/Scene/Bootstrap restored Wild construction and complete rehydration remain OPEN. All Source flags remain OFF. No main code integration, phone/PWA operation or physical acceptance.",
+  "source": "/tmp/native-completion-20261010-source",
+  "qa": "/tmp/native-completion-20261010-qa",
+  "sdkHost": "/tmp/native-completion-20261010-sdk-host/native",
+  "SDKFocused": "terminal exit0 17/17 PASS",
+  "SDKRegression": "terminal exit0 111/111 PASS",
+  "full": "terminal exit0 all selected deterministic gates PASS; KING330, 530 suites/4010 tests, no native sync",
+  "oracle": "19 actual TypeScript restore/schema/registry cases with explicit constructor/face/skin test endpoints, not actual Pixi construction",
+  "files": {
+    "native/gameplay-ui/NativeSourceInitialBoardRecipe.swift": "7b8633cc810eb455aec9cbc26a7e3b2947437b85f763a2e49958d1d94228068e",
+    "native/standalone/Stack to SixTests/NativeSourceRegularResumeConstructionTests.swift": "e5ffeba64a388ec8c3d041e30fca4a2521fc349b4de843155286265218407d5e"
+  },
+  "logs": {
+    "wild-restore-full.log": "b110f8d4887019e94f04227680f4243cd0e6c40c728bf398b18cffeb4c1bff70",
+    "wild-restore-oracle.cjs": "6f81336399031dfba569d6461dd0d2e8caf24de9242fe2d2ea94ddfbd91bab5c",
+    "wild-restore-sdk.log": "9c9e8c5fd4d19e8ea83e24bc67a2f7b84c83ace8127a218335cfb3f51ec62b4d",
+    "wild-restore-regression-sdk.log": "691c70dabc6fec6763fab0b1b8f1e41ad0e298f6661ead7aa136af1edaebb8de",
+    "wild-restore-oracle.json": "e86b71f80b7edbed9169c9aff324346ba78d2e54d4440e83fd90fc69dd491413"
+  },
+  "snapshotMatch": {
+    "native/gameplay-ui/NativeSourceInitialBoardRecipe.swift": true,
+    "native/standalone/Stack to SixTests/NativeSourceRegularResumeConstructionTests.swift": true
+  },
+  "liveChecks": false,
+  "next": "Connect actual ordinary constructor-to-Wild assignment, board setValue Wild RAF and separate typed static skin/entry deferred idle endpoints before adding Bootstrap admission. See WildRestoreAuthority.md."
+}

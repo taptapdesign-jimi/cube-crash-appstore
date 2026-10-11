@@ -1,0 +1,8 @@
+{
+  "status": "DRAFT real APP signals and canonical queue binding; prior version SDK45040 PASS; writer retirement guard fix requires rerun",
+  "files": {
+    "native/gameplay-app/NativeBootstrap.swift": "436beab90b4595761e9987f7a7ebd3aca20b1ef01c0799bea76c16fd4ed4ff51",
+    "native/gameplay-app/NativeGameplaySourceContext.swift": "7f997aa3a2ce53799c610f5c055869cdef4db885f5c8498de5a8bd6e93b9beb9",
+    "docs/engineering/feature-runtime-owners.json": "5f91c78eb53e829eaa5f4355b94ff331eb0e7e38f2825447cd031f51db73facf"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "scope": "Apply after SourceMagnetFirstFrameCodePatch in NEW replay tree only. Actual automatic Scene prefix queues Magnet RAF after fizz before variant; original normal-first-frame Scene pose/RNG fixture includes restart. Full family/global/migration/physical acceptance OPEN.",
+  "archive": "SourceMagnetAutoPrefixCodePatch.tar.gz",
+  "archiveSHA256": "e51413f57967be768364d079ef585c13405e6737d5b0e753bc3ef06b6a61a893",
+  "files": {
+    "native/gameplay-ui/NativeBoardScene.swift": "8f3fd36f3e32b373c74d4000a4259ab2b26ce25b542084f0f117e9fce9667370",
+    "native/gameplay-ui/NativeDiceNode.swift": "73de10efdb30c2878be21c9fcc3ae4e686cfd35d3de7e67bdbec08f7e0095587",
+    "docs/engineering/feature-runtime-owners.json": "d27f3b7ced30300be925a039d94ccbd1ea5204d8f4f2203d46e16f94753a9947",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "92e2bc215b4f99e4670e7313a2c7d5dde54e522f66169571a014452da20fc673",
+    "docs/engineering/native-completion-2026-10-10/fizz-magnet-scene-pose-oracle.cjs": "a14894306206978107a4914acb2e0c0dcc946aa286f0b37b4764b0a63ec02a7b",
+    "docs/engineering/native-completion-2026-10-10/fizz-magnet-scene-normal-oracle.json": "c9018c943a91bb656be074a058b4a6d7ae42656a93be8cc50fded78d763f54ec"
+  }
+}

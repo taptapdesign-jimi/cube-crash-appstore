@@ -1,0 +1,89 @@
+{
+  "status": "FOCUSED1_BROADER37_FULL_QA_COMPLETE_SDK1254_PASS",
+  "scope": "Actual fresh Source tutorial callbacks and earned Star merge/guide exit, one settled Native lifecycle save, authored Exit Game modal\u2192Home\u2192Native saved-board resume (separate Source restore flags OFF), genuine pickup/cancel and retained guide/assist/tiles/moves. Source canonical-save opt-in remains OFF. No claim of Source tutorial restore constructor or cold process relaunch.",
+  "changes": [
+    "Source demo/HUD/monitor factory admission requires actual pending demo receipt; unfinished later result profile alone is insufficient.",
+    "Source wave factory admission requires actual Source construction; Source fresh and restore opt-ins remain separate. Native saved-board path retains existing Native constructor."
+  ],
+  "checks": [
+    {
+      "handle": 74736,
+      "status": "FIXTURE_COMPILE_FAIL_MISSING_TRY"
+    },
+    {
+      "handle": 8667,
+      "status": "FOCUSED_SAVE_PASS1"
+    },
+    {
+      "handle": 8771,
+      "status": "SINGLE_LIFECYCLE_SAVE_PASS1"
+    },
+    {
+      "handle": 9816,
+      "status": "PRETEST_RESOURCE_BUNDLE_CRASH_EXIT65"
+    },
+    {
+      "handle": 6896,
+      "status": "INVALID_DIRECT_HOME_FIXTURE_TIMEOUT"
+    },
+    {
+      "handle": 19168,
+      "status": "INVALID_DIRECT_HOME_FIXTURE_FAIL"
+    },
+    {
+      "handle": 63739,
+      "status": "ACTUAL_EXIT_MODAL_BASELINE_FAIL2",
+      "reason": "Native resume has no Source wave receipt; tutorial HUD capability true despite completed guide"
+    },
+    {
+      "handle": 40304,
+      "status": "INTERMEDIATE37_FAIL1",
+      "reason": "Fixture still expected Source receipt on separate Native restore path; HUD gate corrected"
+    },
+    {
+      "handle": 13287,
+      "status": "INTERMEDIATE_FULL_QA_PASS"
+    },
+    {
+      "handle": 7638,
+      "status": "PASS",
+      "tests": 1,
+      "failures": 0,
+      "exitCode": 0
+    },
+    {
+      "handle": 49016,
+      "status": "FULL_QA_PASS",
+      "exitCode": 0
+    },
+    {
+      "handle": 66751,
+      "status": "FAIL",
+      "tests": 37,
+      "failures": 1,
+      "exitCode": 65,
+      "reason": "Actual new gameplay child existed before captured tile node at immediate lookup; readiness race under investigation."
+    },
+    {
+      "handle": 5620,
+      "status": "PASS",
+      "tests": 37,
+      "failures": 0,
+      "exitCode": 0,
+      "log": "tutorial-guide-native-resume-ready.log"
+    },
+    {
+      "handle": 90546,
+      "status": "PASS",
+      "tests": 1254,
+      "failures": 0,
+      "exitCode": 0,
+      "log": "tutorial-guide-native-resume-complete-sdk.log"
+    }
+  ],
+  "sourceSHA256": {
+    "native/gameplay-app/NativeBootstrap.swift": "85869d8837fa7861691e5cdb0dad05d384f4ff5044a5cca2747153ca968df1fe",
+    "native/standalone/Stack to SixTests/NativeSourceTutorialBootstrapTests.swift": "e87d1c8c6f77dc16373b963bf8f327a7fab65a66bd5be4dd6215bdce891d261a"
+  },
+  "remaining": "Full Source tutorial-restored construction/active resume, cold relaunch, result progression, whole Source/global/common/family admission, Native-only Release and physical acceptance OPEN. Earlier completeSDK1253 predates current gates. No phone/PWA/asset mutations. Before/code snapshots replay NEW isolated trees only."
+}

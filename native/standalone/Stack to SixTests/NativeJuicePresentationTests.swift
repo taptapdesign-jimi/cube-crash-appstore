@@ -81,6 +81,24 @@ final class NativeJuicePresentationTests: XCTestCase {
         owner.dispose(); owner.paint(seconds:6); XCTAssertEqual(completed,1); XCTAssertEqual(cues.count,5)
         textures.dispose()
     }
+    func testReusedLateWaveBubbleCarriersMatchOpeningDimensions() throws {
+        let root=Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle"),textures=NativeBoardTextures(root:root)
+        let owner=NativeJuiceFinale(textures:textures,viewport:CGSize(width:390,height:844),random:{0.5})
+        defer {owner.dispose();textures.dispose()}
+        owner.play {}
+        let opening=try XCTUnwrap(owner.children.compactMap {$0 as? SKSpriteNode}.first(where:{$0.name=="native-juice-rise-bubble" && !$0.isHidden}))
+        let openingSize=opening.size,openingScale=opening.xScale
+        // All opening free carriers have completed by this clock. Recycled
+        // late births use the same deterministic art/size draws.
+        owner.paint(seconds:1.69);owner.paint(seconds:1.7)
+        let late=owner.children.compactMap {$0 as? SKSpriteNode}.filter {$0.name=="native-juice-rise-bubble" && !$0.isHidden}
+        XCTAssertFalse(late.isEmpty)
+        for sprite in late {
+            XCTAssertEqual(sprite.size.width,openingSize.width,accuracy:0.000001)
+            XCTAssertEqual(sprite.size.height,openingSize.height,accuracy:0.000001)
+            XCTAssertEqual(sprite.xScale,openingScale,accuracy:0.000001)
+        }
+    }
     func testJuiceDisposedBeforeReleaseCannotCallStaleGameplayReadiness() {
         let root = Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle"),textures = NativeBoardTextures(root:root)
         let owner = NativeJuiceFinale(textures:textures,viewport:CGSize(width:390,height:844),random:{0.5})
@@ -94,9 +112,23 @@ final class NativeJuicePresentationTests: XCTestCase {
         var finished = 0; owner.onFinished = {_ in finished += 1}; owner.start()
         XCTAssertEqual(finished,1);XCTAssertFalse(owner.hasActiveClock);owner.start();owner.dispose();XCTAssertEqual(finished,1)
     }
+    func testLateBubbleWaveKeepsBirthSizeWithoutChangingRandomConsumptionOrRoute() {
+        var originalDraws=0,lateDraws=0
+        let original=NativeJuiceBubbleMotion.make(viewport:CGSize(width:390,height:844),random:{originalDraws += 1;return 0.5})
+        let late=NativeJuiceBubbleMotion.make(viewport:CGSize(width:390,height:844),preservesBirthScale:true,random:{lateDraws += 1;return 0.5})
+        XCTAssertEqual(originalDraws,lateDraws)
+        XCTAssertEqual(original.path,late.path)
+        XCTAssertEqual(original.duration,late.duration)
+        for time in [0.0,0.3,0.9,1.6] {
+            XCTAssertEqual(late.sample(seconds:time).scale,late.scale,accuracy:0.000001)
+            XCTAssertEqual(late.sample(seconds:time).point,original.sample(seconds:time).point)
+        }
+        XCTAssertGreaterThan(original.finalScale,original.scale)
+    }
 }
 
 @MainActor
 private final class DisposeOnInitialPaint: NativeFinitePresentation {
     override func paint(seconds: TimeInterval) { dispose() }
+
 }

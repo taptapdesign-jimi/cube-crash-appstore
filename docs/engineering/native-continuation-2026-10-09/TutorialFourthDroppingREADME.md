@@ -1,0 +1,5 @@
+# Exact Wild dropping observation
+
+Recover after TutorialWildReservation and its separate Owners delta, checking base/result hashes. Existing NativeWildMeterDropSceneOwner exposes its actual retained carrier lifetime: current, assets ready, mounted, not restored. NativeMeterSceneCaller requires the exact live captured node and generation. This observes real presentation state without a new timer or synthesized canonical flag.
+
+Actual SDK NativeMeterSceneCallerTests 4/4 PASS: paused motion remains dropping, completion clears it, same-ID replacement cannot inherit it, original interruption/finally and painted-release behavior pass. No whole tutorial claim: real Scene selection, phased120 monitor, sheet900, drop80 wait, fourth preparation and completion remain OPEN. Full QA for these three changed Swift files pending; prior Wild reservation Core347/SDK10/full19 receipts remain separate. QA original-resource host exception persists. No phone/PWA/assets/live Native/main/index operation. Grey flash OPEN/LAST. NEEDS PHYSICAL TEST.

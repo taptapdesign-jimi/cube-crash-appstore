@@ -1,0 +1,9 @@
+{
+  "container": "/Users/user/Library/Developer/CoreSimulator/Devices/1018BE2D-491B-465F-8F75-3E5BEB38C22A/data/Containers/Data/Application/889DCF09-F511-4AF2-B802-8BE1759E19ED",
+  "product": "com.taptapdesign.stacktosix.native",
+  "captureBefore": {},
+  "profileBefore": {
+    "Library/Application Support/StackToSixNative/state-v1.json": "f9b237970b195b004c98758566a6617d94b1f72597d4c504811387a66df19c54",
+    "tmp/native-process-qa-AD1E2026-1010-4000-8000-000000000003/state-v1.json": "6c9ac53c03f84fea5e23f58c9531f3b06b1c4969696114d2a8bb7bb52384bae6"
+  }
+}

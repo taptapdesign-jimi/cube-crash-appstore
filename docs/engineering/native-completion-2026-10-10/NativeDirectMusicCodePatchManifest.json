@@ -1,0 +1,11 @@
+{
+  "scope": "Apply only to a NEW tree restored from MainRuntimeIntegratedCodeSnapshot. Native target Debug/Release excludes soundtrack WebKit bridge through NATIVE_MUSIC_DIRECT_ONLY; preserved unflagged branch retains bridge. AV transport/session/voice logic and original media unchanged. Whole Native migration/web retirement/physical acceptance OPEN.",
+  "archive": "NativeDirectMusicCodePatch.tar.gz",
+  "archiveSHA256": "a3fe591567f0bf0c1834f7bf1aeed9213a527da3f41d12eb54cd5a06331e075a",
+  "files": {
+    "native/jimi-2026/JimiNativeMusic.swift": "b309856e62324578b9442be4c4a7a349930c7049b1050c5e1fa536a665e66441",
+    "native/standalone/Stack to Six.xcodeproj/project.pbxproj": "08c95fc9d4794fcc46c97e717b5605861838ec994a0acb7a63f76268950e4deb",
+    "native/standalone/Stack to SixTests/JimiNativeMusicLifecycleTests.swift": "ad2f8ce265b3b96fe696be71b87e8001408695858679dd0be49cc556c8402084",
+    "docs/audio/audio-runtime-owners.json": "a3c36612a366d6de40fc68685e3b3c033b80530dd074f6a570b607677cdd0c19"
+  }
+}

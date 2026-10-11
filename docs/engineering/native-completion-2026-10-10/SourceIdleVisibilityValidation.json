@@ -1,0 +1,7 @@
+{
+  "actualSDK": "First88 FAIL2 at inclusive alpha.001 boundary: old Double predicate missed actual SpriteKit Float32 representation. Final128/128 PASS terminal exit0, zero failures/skips: mounted10+restored40+Scene71+bubble7. Visual/ancestor hidden and.0005/.001 hold phase, .0011 resumes; direct hidden base ignored; actual restore/shimmer/fizz regressions PASS.",
+  "fullQA": "Initial and final SKIP_NATIVE_BUNDLE_SYNC=true npm run qa:full terminal exit0 PASS, final session90467 completed. Metadata word adjustment covered by qa:feature-runtime terminal exit0 PASS. git diff --check PASS.",
+  "scope": "One canonical Source visual/rotG ancestor predicate shared by Bottle/fizz/shimmer, inclusive.001 at exact painted SpriteKit precision and explicit tile fallback flags. Source Bottle Scene callback supplies canvas only. Canvas fizz opacity uses same Float mapping. No pause-ownership/global-flag/Raw/asset/audio changes.",
+  "remaining": "Previous complete SDK1225 PASS predates this visibility correction; latest current128 focused PASS. Native Honey common RNG/root/cohort/renderer/Node/caller remains OPEN, all family/migration/Release/native-only/physical acceptance OPEN.",
+  "physical": "NEEDS PHYSICAL TEST"
+}

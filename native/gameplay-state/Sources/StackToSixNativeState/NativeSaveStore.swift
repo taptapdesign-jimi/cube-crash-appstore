@@ -83,7 +83,9 @@ public struct NativeSaveEnvelope: Codable, Equatable, Sendable {
 public final class NativeSaveStore {
     public let directory: URL
     private let legacyLibrary: URL?
-    private var successfulContent: Data?
+    /// Same sandbox boundary used by load(); transport must not select another profile.
+    public var legacyImportLibraryRoot:URL? {legacyLibrary}
+    private var successfulContent: NativeSaveEnvelope?
     private var successfulSerialized: Data?
     public init(directory: URL, legacyLibrary: URL? = nil) { self.directory = directory; self.legacyLibrary = legacyLibrary }
     public static func applicationStore() throws -> NativeSaveStore {
@@ -93,10 +95,11 @@ public final class NativeSaveStore {
     }
     private var primary: URL { directory.appendingPathComponent("state-v1.json") }
     private var backup: URL { directory.appendingPathComponent("state-v1.previous.json") }
-    private func decode(_ url: URL) throws -> NativeSaveEnvelope {
-        let value = try JSONDecoder().decode(NativeSaveEnvelope.self, from: Data(contentsOf: url))
+    private func decode(_ data:Data) throws -> NativeSaveEnvelope {
+        let value = try JSONDecoder().decode(NativeSaveEnvelope.self, from:data)
         try value.validate(); return value
     }
+    private func decode(_ url: URL) throws -> NativeSaveEnvelope {try decode(Data(contentsOf:url))}
     public func load() throws -> NativeSaveEnvelope? {
         if FileManager.default.fileExists(atPath: primary.path) {
             do { return try decode(primary) }
@@ -114,16 +117,24 @@ public final class NativeSaveStore {
     @discardableResult
     public func save(_ envelope: NativeSaveEnvelope) throws -> Bool {
         try envelope.validate()
-        let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
-        let data = try encoder.encode(envelope)
         var contentEnvelope=envelope
         contentEnvelope.savedAt=0;contentEnvelope.journeyRunSavedAt=[:];contentEnvelope.arcadeRunSavedAt=nil
-        let content=try encoder.encode(contentEnvelope)
-        if successfulContent==content,let serialized=successfulSerialized,(try? Data(contentsOf:primary))==serialized {return false}
+        // The whole Journey document can contain thirty boards. Comparing its
+        // value avoids encoding it twice on the synchronous Source save wall.
+        // Still read the actual primary: an externally missing/corrupt copy
+        // must be repaired even when the last accepted content is unchanged.
+        let previousData=try? Data(contentsOf:primary)
+        if successfulContent==contentEnvelope,let serialized=successfulSerialized,previousData==serialized {return false}
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
+        let data = try encoder.encode(envelope)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        if (try? decode(primary)) != nil { try Data(contentsOf: primary).write(to: backup, options: .atomic) }
+        // Bytes from our last successful validated atomic write are already
+        // coherent. Foreign bytes still pass the original decoder/validator.
+        if let previousData,previousData==successfulSerialized || (try? decode(previousData)) != nil {
+            try previousData.write(to:backup,options:.atomic)
+        }
         try data.write(to: primary, options: .atomic)
-        successfulContent=content;successfulSerialized=data
+        successfulContent=contentEnvelope;successfulSerialized=data
         return true
     }
 }

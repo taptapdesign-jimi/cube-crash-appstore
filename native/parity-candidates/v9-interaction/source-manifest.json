@@ -1,0 +1,41 @@
+{
+  "baseCommit": "9a90908cd3b6b9dabe15d8b2df494414c2e65519",
+  "files": {
+    "native/gameplay-app/NativeAppController.swift": {
+      "baseSHA256": "78760dabad46a665597914cf6137fb23f517ddca5d2a40e440ba8c281a4b8c4b",
+      "candidateSHA256": "4de01b6604dfe57e508b690e3adad80f3b67ca4cfbf0531fb1bbbd6f838e9287"
+    },
+    "native/gameplay-app/NativeRouteMotion.swift": {
+      "baseSHA256": "2861ffe397d692e5d12d8895ff9cf41243e9c9099130361c0af1b5c9f83b643b",
+      "candidateSHA256": "b262f08ca1daabd5513cb0e94ff495ddd649a97f9a3bc83ca137a288e4ab4fc6"
+    },
+    "native/jimi-2026/JimiV9HomeView.swift": {
+      "baseSHA256": "fc87a748f36b916eff25dff50497d637fe35d5ffa70f6b083d1173d3d9f9e146",
+      "candidateSHA256": "ffca57d0fcfa644fe0ac98b944405f34b87964dc09ffc31c55e9039123c77672"
+    },
+    "native/gameplay-ui/NativeRegularDropTarget.swift": {
+      "baseSHA256": null,
+      "candidateSHA256": "77ea9ccb326767929ec30869f9112c68f1c03da666cf6a7fd6e77cefd507d10d"
+    },
+    "native/gameplay-ui/NativeBoardScene.swift": {
+      "baseSHA256": "1b6197abda43db89eb965baff461e5f2f14f9fcd64092dfcde4aa2c1144d0894",
+      "candidateSHA256": "30ef0827979667eaaea8f57557a8b1e555734cd19bad0080cfde7f7e12723023"
+    },
+    "native/gameplay-ui/NativeDiceNode.swift": {
+      "baseSHA256": "e04863e46b5116064b86cb130306353924a809531dcbd1b69768a6700598d5fa",
+      "candidateSHA256": "b9d92c43fe7a8d9a2cb2676d3bdc9d3e7bf1d91a03d6d57140a3e3a75ed27101"
+    },
+    "native/gameplay-ui/NativeDiceArtwork.swift": {
+      "baseSHA256": "33b66c3261fdfd79aa8c263d8a43b2ceedacdc1b39962c3ae81de67ebd33997f",
+      "candidateSHA256": "01af0b29bbad73f73544cd26eacb6cca5712fef67c02629dd1da7ce84e4c5644"
+    },
+    "native/standalone/Stack to SixTests/NativeInteractionRepairTests.swift": {
+      "baseSHA256": null,
+      "candidateSHA256": "36e6e7f5e2d2dae3c26b05b5f2117af9a3c1c15f8cda7277e0b3b3c43b0216b5"
+    },
+    "native/standalone/Stack to SixUITests/NativeHomeInteractionUITests.swift": {
+      "baseSHA256": null,
+      "candidateSHA256": "20d68f6b91fd6c347243bbc1468f48b54abb0c2e8df3cedda28e00ee9d619f07"
+    }
+  }
+}

@@ -24,7 +24,7 @@ enum NativeResultPresentationPlan {
     }
     static func layout(viewport:CGSize,clean:Bool,titleHeight:Double)->Layout {
         let w=Double(viewport.width),h=Double(viewport.height),s=min(90,max(60,w*0.2))
-        let cw=min(340,w*0.88),inner=cw-64,heroW=min(280,w*0.8),buttons=min(310,w*0.8)
+        let cw=min(340,w*0.88),inner=cw-64,heroW=min(280,w*0.8),buttons=min(w<1025 ? 249:310,w*0.8)
         let infoH=clean ? s+244+titleHeight:s+100+titleHeight
         let cardH=infoH+80,outerH=cardH+18+144,top=(h-outerH)/2
         let card=CGRect(x:(w-cw)/2,y:top,width:cw,height:cardH)

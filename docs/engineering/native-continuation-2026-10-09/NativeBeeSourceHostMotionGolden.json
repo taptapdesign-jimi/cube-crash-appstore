@@ -1,0 +1,10 @@
+{
+  "source": "src/modules/bee-dice-idle.ts",
+  "sourceSHA256": "675acb36574ca116f714aad66292f25c1227ffd8bff0435fc5978925c69e4bc2",
+  "method": "Executed original exported helper prefix through TypeScript CommonJS transpile + Node vm. No production JavaScript use.",
+  "sampleSeconds": 0.04,
+  "offsetX": 0.593619907781753,
+  "offsetY": 4.917226024976649,
+  "rotation": 0.0190610627752862,
+  "sizeScale": 1.0144282057276757
+}

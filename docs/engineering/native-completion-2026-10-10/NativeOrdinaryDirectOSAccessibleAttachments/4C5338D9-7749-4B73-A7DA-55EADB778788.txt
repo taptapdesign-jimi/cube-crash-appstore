@@ -1,0 +1,4 @@
+Query chain:
+ →Find: Target Application 'com.taptapdesign.stacktosix.native'
+  ↪︎Find: Descendants matching type Button
+    ↪︎Find: Elements matching predicate '"native.home.slide.1" IN identifiers'

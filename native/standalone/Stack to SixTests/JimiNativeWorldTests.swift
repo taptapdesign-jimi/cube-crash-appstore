@@ -1,6 +1,7 @@
 import XCTest
 import UIKit
 import WebKit
+import StackToSixNativeState
 @testable import Stack_to_Six
 
 @MainActor
@@ -21,7 +22,8 @@ final class JimiNativeWorldTests: XCTestCase {
         #if !targetEnvironment(simulator)
         throw XCTSkip("Simulator only")
         #endif
-        guard ProcessInfo.processInfo.environment["SIMULATOR_UDID"] == "1018BE2D-491B-465F-8F75-3E5BEB38C22A" else { throw XCTSkip("Isolated QA Simulator only") }
+        let isolatedQADevices:Set<String> = ["1018BE2D-491B-465F-8F75-3E5BEB38C22A", "8787CAC9-BA3D-4D0A-B62B-7418DE4BCCE7"]
+        guard let device=ProcessInfo.processInfo.environment["SIMULATOR_UDID"],isolatedQADevices.contains(device) else { throw XCTSkip("Isolated QA Simulator only") }
     }
     private var root: URL { NativeTestResources.root }
     private var art: JimiV9Artwork { JimiV9Artwork(resourceRoot: root) }
@@ -42,6 +44,19 @@ final class JimiNativeWorldTests: XCTestCase {
     }
     private func settle(_ seconds: Double = 1.3) async throws { try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000)) }
 
+    func testAreaCardUsesUnitNumberWithoutRepeatingWorld55()throws {
+        var progression=NativeProgressionState();progression.completedJourneyBoards=Set(1...30)
+        let raw=try NativeWorldLayouts().snapshot(world:3,width:390,height:844,generation:1,progression:progression)
+        let snapshot=try XCTUnwrap(JimiNativeWorldSnapshot(raw))
+        XCTAssertEqual(snapshot.title,"Area 55","World header retains its authored name")
+        let unit=try XCTUnwrap(snapshot.units.first{$0.boardID==25})
+        let resources=JimiNativeWorldResources(root:root)
+        let card=JimiNativeWorldCardView(unit:unit,assets:art,resources:resources,worldTitle:snapshot.title)
+        defer{card.cleanup()}
+        func labels(_ view:UIView)->[UILabel] {(view as? UILabel).map{[$0]} ?? view.subviews.flatMap(labels)}
+        XCTAssertTrue(labels(card).contains{$0.text=="Area 05"})
+        XCTAssertFalse(labels(card).contains{$0.text=="Area 55 05"})
+    }
     func testPhysicalBackTargetDuringEnterAndPreemptedCardReceipt() async throws {
         for worldID in 1...3 {
             var data = fixture(); data["worldID"] = worldID
@@ -196,6 +211,25 @@ final class JimiNativeWorldTests: XCTestCase {
         card.cleanup(); card.cleanup(); try await settle()
         XCTAssertFalse(lateClose,"Retired animation cannot land a replaced card")
     }
+    func testSettledGameplayPreparationRunsOnceAndBackgroundCloseOrCleanupCancelsIt()async throws {
+        let unit=try XCTUnwrap(JimiNativeWorldSnapshot(fixture())).units[0]
+        let resources=JimiNativeWorldResources(root:root)
+        let card=JimiNativeWorldCardView(unit:unit,assets:art,resources:resources)
+        defer{card.cleanup();resources.cleanup()}
+        var calls=0;card.onPrepareGameplayAssets={calls+=1}
+        card.scheduleGameplayPreparation(delay:0.01)
+        try await Task.sleep(for:.milliseconds(60))
+        XCTAssertEqual(calls,1);XCTAssertFalse(card.hasScheduledGameplayPreparation)
+        card.scheduleGameplayPreparation(delay:0.01);card.setActive(false)
+        try await Task.sleep(for:.milliseconds(60))
+        XCTAssertEqual(calls,1);XCTAssertFalse(card.hasScheduledGameplayPreparation)
+        card.setActive(true);XCTAssertTrue(card.hasScheduledGameplayPreparation)
+        card.scheduleGameplayPreparation(delay:0.01);card.close(to:.zero){}
+        try await Task.sleep(for:.milliseconds(60))
+        XCTAssertEqual(calls,1);XCTAssertFalse(card.hasScheduledGameplayPreparation)
+        card.cleanup();card.scheduleGameplayPreparation(delay:0.01)
+        XCTAssertFalse(card.hasScheduledGameplayPreparation)
+    }
 
     func testActualCardTapAlternatesApprovedV10DirectionAndNormalizesFaces() async throws {
         let unit = try XCTUnwrap(JimiNativeWorldSnapshot(fixture())).units[0]
@@ -242,6 +276,25 @@ final class JimiNativeWorldTests: XCTestCase {
         XCTAssertEqual(rotor.transform.m11,-1,accuracy:0.000001);XCTAssertEqual(rotor.transform.m13,0,accuracy:0.000001)
     }
 
+    func testPanImmediatelyTakesManualFlipAndRetiresLateCompletion() async throws {
+        let unit=try XCTUnwrap(JimiNativeWorldSnapshot(fixture())).units[0]
+        let resources=JimiNativeWorldResources(root:root)
+        let card=JimiNativeWorldCardView(unit:unit,assets:art,resources:resources)
+        card.frame=CGRect(x:0,y:0,width:390,height:844)
+        let window=UIWindow(frame:card.frame),controller=UIViewController()
+        window.rootViewController=controller;window.makeKeyAndVisible();controller.view.addSubview(card)
+        defer{card.cleanup();resources.cleanup();window.isHidden=true}
+        card.enter(from:CGRect(x:30,y:400,width:90,height:133))
+        XCTAssertFalse(card.acceptsCardPan,"Flight retains input ownership")
+        try await settle(0.65)
+        card.tapToFlip();try await settle(0.23)
+        XCTAssertTrue(card.acceptsCardPan,"Do not reject touch during manual flip rebound")
+        card.captureCardForPan()
+        let captured=card.stableFaceAngle
+        try await settle(0.55)
+        XCTAssertEqual(card.stableFaceAngle,captured,accuracy:0.000001,"Retired flip completion must not overwrite the drag pose")
+        card.setActive(false);XCTAssertFalse(card.acceptsCardPan)
+    }
     func testHostSuspendRejectsDeferredActionAndDisposeTwice() async throws {
         let web = WKWebView(frame:.zero), spy = ForestActionWebSpy()
         let host = JimiNativeWorldHost(web:web,artwork:art,transport:spy)
@@ -551,6 +604,15 @@ final class JimiNativeWorldTests: XCTestCase {
     }
     func testRenderingFixtureLegendaryOriginalCardBackStatsAndControls() async throws {
         try await renderOriginalRegularCardFixture(rarity:"legendary",path:"assets/colelctibles/Forest/legendary/01-gold.png")
+    }
+    func testForestSnapshotAdmitsNineAuthoredBeesIncludingFourRestoredGateFlights()throws {
+        let layouts=try NativeWorldLayouts()
+        let raw=try layouts.snapshot(world:1,width:390,height:844,generation:1,progression:NativeProgressionState())
+        let snapshot=try XCTUnwrap(JimiNativeWorldSnapshot(raw))
+        XCTAssertEqual(snapshot.beePlans.map(\.id),NativeForestBeePlanning.retainedIDs)
+        XCTAssertEqual(snapshot.beePlans.count,9)
+        let renewed=try XCTUnwrap(layouts.nextBees(ids:[1,3,4,6]))
+        XCTAssertEqual(Set(renewed.compactMap(JimiNativeWorldBees.Plan.parse).map(\.id)),Set([1,3,4,6]))
     }
     func testBeeCanonicalFrameProjectionAndFiniteVisibleOwner() async throws {
         func frame(_ time:Double,_ x:Double,_ depth:String,_ asset:String,_ previous:String? = nil)->[String:Any] {

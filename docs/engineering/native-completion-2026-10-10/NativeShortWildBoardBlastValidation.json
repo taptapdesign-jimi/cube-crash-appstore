@@ -1,0 +1,28 @@
+{
+  "verdict": "PASS bounded connected short Wild board wave; whole Source family/endgame/default activation remains OPEN",
+  "sourceOracle": "Actual immutable production-benchmark-v9 playShortWildMerge6TileBlast helper under iOS JavaScriptCore, TypeScript annotations compiled away. Nine seed/multi-target cases for held and unheld modes prove two-pass complete Math state/draw count, geometry, durations and held Date order. Numeric construction, not full browser pixel/root metadata parity.",
+  "sdk": {
+    "tests": 35,
+    "failures": 0,
+    "seconds": 47.219,
+    "log": "/tmp/native-short-wild-connected-regression.log",
+    "scope": "Complete affected NativeBoardTests, recipe fixtures and actual resumed Source Juice root; root confirms two actual APP timelines, original retained holders and genuine completion."
+  },
+  "earlierSDK": {
+    "tests": 10,
+    "failures": 0,
+    "log": "/tmp/native-short-wild-wave.log"
+  },
+  "retainedFailure": "/tmp/native-short-wild-source-root.log SDK terminal65: actual Source sync overwrote blast z with row depth; fixed sync to preserve exact owned position/z. Independent HUD job completion did not imply wave completion; test now waits for the actual wave receipt. Failures retained.",
+  "behavior": "Beach Ball uses original delayed backOut2.9 wave and held return deadline/amplitude; early visual commit cannot truncate outward wave. Star/Juice use original unheld wave with no Date/held draws. Actual pickup and accepted destination merge retire exact wave before drag/contact captures; removal, Magnet takeover and generation disposal release captured ownership. NativeRaw uses existing SpriteKit clock; Source uses existing APP timeline/common Math with no random fallback. No new timer/ticker/art/audio/haptic/Core/global owner.",
+  "physicalAcceptance": "NEEDS PHYSICAL TEST",
+  "release": "Last Release/audit precedes wave changes; rebuild required after current implementation batch.",
+  "sha256": {
+    "native/gameplay-ui/NativeTntBoardBlastPlan.swift": "4a2668a2921e1ce3ca573f1f8ed04e2aea58c42ae264ff07bd84f32aef256d0a",
+    "native/gameplay-ui/NativeShortWildBoardBlastOwner.swift": "c2842d62ec2aae64a6c554a04b38c7bd1d4fc4752b42bdfa4bfd2eeeb96a70e0",
+    "native/gameplay-ui/NativeBoardScene.swift": "b56a05a78c48a41461ee7f1db6fc5e50c679d6a3eeda92f04b48a33c4371b315",
+    "native/standalone/Stack to SixTests/NativeTntBoardBlastTests.swift": "51d7b0ca19464ae521d7cae49ce25b73c1af45ae39cce55354a88b6f871a3d0f",
+    "native/standalone/Stack to SixTests/NativeBoardTests.swift": "752624ad8632100eedf3ff103cdae2568007b5f75b544d0c5c59a47a33c942c0",
+    "native/standalone/Stack to SixTests/NativeStandaloneRootTests.swift": "cc04dfb0564e77cf44341f7a5064a5898590dc9fec3abe289616a2ba958259bb"
+  }
+}

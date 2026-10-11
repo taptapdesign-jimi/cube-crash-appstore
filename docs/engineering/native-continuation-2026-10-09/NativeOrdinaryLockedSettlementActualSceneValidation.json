@@ -1,0 +1,18 @@
+{
+  "status": "SDK12276 actual enabled Scene1/1PASS; SDK30958 full affected Scene11/11PASS terminal exit0 TEST SUCCEEDED",
+  "files": {
+    "native/standalone/Stack to SixTests/NativeSourceSameObjectSixSceneTests.swift": "9dad036789ac547ecd0993367ef0328630057825e79d7e825ffd166900e840d0"
+  },
+  "logs": {
+    "native-ordinary-locked-settlement-actual-first.log": "83b43cba32e3b1ae2bb736cc1e1b32b49b87f24f4eb685764d42d6c6eddec71d",
+    "native-ordinary-locked-settlement-actual-second.log": "139cb3444e81e481b3064bb17ae5d1ee256674fa349813151e8ffe0ff8cf1cc4",
+    "native-ordinary-locked-settlement-actual-all.log": "6e07222a09726225ae28ea3dd8532b7221d417ba4081620a64a35e5a9e3a8dee"
+  },
+  "proof": "Genuine contact/main\u2192APP callback unlock\u2192receipt\u2192prior queued reaction\u2192exact Source FIFO continuation\u2192remainder selection inside checkpoint. No injected completion or timeout arrival.",
+  "limits": [
+    "minimum-active safety/finally OPEN",
+    "forced/error/disposal enabled receipt matrix OPEN",
+    "whole admission flag OFF",
+    "live integration/phone/full migration OPEN"
+  ]
+}

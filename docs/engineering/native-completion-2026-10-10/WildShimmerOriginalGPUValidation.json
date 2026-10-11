@@ -1,0 +1,33 @@
+{
+  "sdk": {
+    "log": "wild-shimmer-original-gpu-current.log",
+    "exitCode": 0,
+    "tests": 50,
+    "failures": 0
+  },
+  "negativeControl": {
+    "log": "wild-shimmer-original-gpu-oldshader.log",
+    "exitCode": 65,
+    "expectedFailure": "Previous shader fails34 rotated comparisons; current shader passes all68"
+  },
+  "fullQA": {
+    "log": "wild-shimmer-original-gpu-full.log",
+    "exitCode": 0,
+    "kingTests": 330,
+    "suites": 530,
+    "tests": 4010,
+    "boundary": "Final runtime/registry frozen. Only test-reference backend assertion and Bee asynchronous-frame fixture correction followed; no runtime/web code change. Both executed in SDK50, final feature gate PASS.",
+    "nativeSync": "SKIPPED"
+  },
+  "gpuComparisons": 68,
+  "metrics": "WildShimmerOriginalGPUMetrics.json",
+  "snapshot": "WildShimmerOriginalGPUCodeSnapshotManifest.json",
+  "hashParity": "Source/QA/SDK changes match;17 original assets match root, SDK assets and actual built Simulator app",
+  "flags": "OFF",
+  "mainIntegration": "OPEN",
+  "Release": "OPEN",
+  "phone": "Untouched",
+  "PWA": "Untouched",
+  "completeMigration": "OPEN",
+  "physical": "NEEDS PHYSICAL TEST"
+}

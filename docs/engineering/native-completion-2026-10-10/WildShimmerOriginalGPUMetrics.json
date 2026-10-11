@@ -1,0 +1,572 @@
+{
+  "authority": "Real installed original Pixi WebGL and original fx.ts gradient/mask helpers versus actual SpriteKit GPU. Backend checked, no mocked mask or gradient. Single sweep pose alpha.3,x0,y0; independent GSAP envelope proof retained.",
+  "samples": [
+    {
+      "path": "assets/wild.png",
+      "density": 1,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.39383782390099265,
+      "activePixels": 7757,
+      "maxPixelDifference": 14
+    },
+    {
+      "path": "assets/wild.png",
+      "density": 1,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.41477565755544094,
+      "activePixels": 7756,
+      "maxPixelDifference": 16
+    },
+    {
+      "path": "assets/wild.png",
+      "density": 2,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.497156704361874,
+      "activePixels": 30950,
+      "maxPixelDifference": 29
+    },
+    {
+      "path": "assets/wild.png",
+      "density": 2,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.5113966552592497,
+      "activePixels": 30974,
+      "maxPixelDifference": 28
+    },
+    {
+      "path": "assets/wild-juice.png",
+      "density": 1,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.6563190455148034,
+      "activePixels": 9052,
+      "maxPixelDifference": 23
+    },
+    {
+      "path": "assets/wild-juice.png",
+      "density": 1,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.6483214089157953,
+      "activePixels": 9085,
+      "maxPixelDifference": 22
+    },
+    {
+      "path": "assets/wild-juice.png",
+      "density": 2,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.8019259870683726,
+      "activePixels": 36345,
+      "maxPixelDifference": 33
+    },
+    {
+      "path": "assets/wild-juice.png",
+      "density": 2,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.7784335355763927,
+      "activePixels": 36260,
+      "maxPixelDifference": 32
+    },
+    {
+      "path": "assets/wild-magnet.png",
+      "density": 1,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.702742354136102,
+      "activePixels": 8861,
+      "maxPixelDifference": 21
+    },
+    {
+      "path": "assets/wild-magnet.png",
+      "density": 1,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.6769836803601575,
+      "activePixels": 8885,
+      "maxPixelDifference": 21
+    },
+    {
+      "path": "assets/wild-magnet.png",
+      "density": 2,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.7694566813509545,
+      "activePixels": 35412,
+      "maxPixelDifference": 32
+    },
+    {
+      "path": "assets/wild-magnet.png",
+      "density": 2,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.7770190191320052,
+      "activePixels": 35438,
+      "maxPixelDifference": 28
+    },
+    {
+      "path": "assets/shop/explosion pack/tnt.png",
+      "density": 1,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.791418537181249,
+      "activePixels": 6549,
+      "maxPixelDifference": 19
+    },
+    {
+      "path": "assets/shop/explosion pack/tnt.png",
+      "density": 1,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.8845451779738364,
+      "activePixels": 6574,
+      "maxPixelDifference": 24
+    },
+    {
+      "path": "assets/shop/explosion pack/tnt.png",
+      "density": 2,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 1.053148931306435,
+      "activePixels": 26247,
+      "maxPixelDifference": 33
+    },
+    {
+      "path": "assets/shop/explosion pack/tnt.png",
+      "density": 2,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 1.1632116454538526,
+      "activePixels": 26242,
+      "maxPixelDifference": 36
+    },
+    {
+      "path": "assets/shop/fish/fish.png",
+      "density": 1,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.9629034613699431,
+      "activePixels": 6847,
+      "maxPixelDifference": 22
+    },
+    {
+      "path": "assets/shop/fish/fish.png",
+      "density": 1,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.5568297285527652,
+      "activePixels": 6889,
+      "maxPixelDifference": 20
+    },
+    {
+      "path": "assets/shop/fish/fish.png",
+      "density": 2,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.35473340587595215,
+      "activePixels": 27570,
+      "maxPixelDifference": 4
+    },
+    {
+      "path": "assets/shop/fish/fish.png",
+      "density": 2,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.37373001711518156,
+      "activePixels": 27461,
+      "maxPixelDifference": 9
+    },
+    {
+      "path": "assets/shop/kanta/04.png",
+      "density": 1,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.828298476633101,
+      "activePixels": 7746,
+      "maxPixelDifference": 15
+    },
+    {
+      "path": "assets/shop/kanta/04.png",
+      "density": 1,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.8936497754971136,
+      "activePixels": 7795,
+      "maxPixelDifference": 17
+    },
+    {
+      "path": "assets/shop/kanta/04.png",
+      "density": 2,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.4187780395700868,
+      "activePixels": 30983,
+      "maxPixelDifference": 10
+    },
+    {
+      "path": "assets/shop/kanta/04.png",
+      "density": 2,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.4448878447526792,
+      "activePixels": 31073,
+      "maxPixelDifference": 13
+    },
+    {
+      "path": "assets/shop/bee/bee1@2x.png",
+      "density": 1,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.8348207042024988,
+      "activePixels": 6163,
+      "maxPixelDifference": 15
+    },
+    {
+      "path": "assets/shop/bee/bee1@2x.png",
+      "density": 1,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 1.0158961881589619,
+      "activePixels": 6165,
+      "maxPixelDifference": 23
+    },
+    {
+      "path": "assets/shop/bee/bee1@2x.png",
+      "density": 2,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.838673805601318,
+      "activePixels": 24280,
+      "maxPixelDifference": 25
+    },
+    {
+      "path": "assets/shop/bee/bee1@2x.png",
+      "density": 2,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.48781790541928594,
+      "activePixels": 24339,
+      "maxPixelDifference": 18
+    },
+    {
+      "path": "assets/shop/gun/right gun@2x.png",
+      "density": 1,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 1.2956193353474321,
+      "activePixels": 6620,
+      "maxPixelDifference": 23
+    },
+    {
+      "path": "assets/shop/gun/right gun@2x.png",
+      "density": 1,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 1.2855201570285368,
+      "activePixels": 6623,
+      "maxPixelDifference": 30
+    },
+    {
+      "path": "assets/shop/gun/right gun@2x.png",
+      "density": 2,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.6101460415065334,
+      "activePixels": 26020,
+      "maxPixelDifference": 19
+    },
+    {
+      "path": "assets/shop/gun/right gun@2x.png",
+      "density": 2,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.6467562380038387,
+      "activePixels": 26050,
+      "maxPixelDifference": 22
+    },
+    {
+      "path": "assets/shop/spaceship/spaceship@2x.png",
+      "density": 1,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.8158646702480283,
+      "activePixels": 8749,
+      "maxPixelDifference": 20
+    },
+    {
+      "path": "assets/shop/spaceship/spaceship@2x.png",
+      "density": 1,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.7964379495376185,
+      "activePixels": 8759,
+      "maxPixelDifference": 24
+    },
+    {
+      "path": "assets/shop/spaceship/spaceship@2x.png",
+      "density": 2,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.4608403457882191,
+      "activePixels": 34819,
+      "maxPixelDifference": 16
+    },
+    {
+      "path": "assets/shop/spaceship/spaceship@2x.png",
+      "density": 2,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.44579039526939745,
+      "activePixels": 34837,
+      "maxPixelDifference": 16
+    },
+    {
+      "path": "assets/shop/bottle/glass bottle@2x.png",
+      "density": 1,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.8626193317422435,
+      "activePixels": 6704,
+      "maxPixelDifference": 20
+    },
+    {
+      "path": "assets/shop/bottle/glass bottle@2x.png",
+      "density": 1,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.9076854467072989,
+      "activePixels": 6727,
+      "maxPixelDifference": 25
+    },
+    {
+      "path": "assets/shop/bottle/glass bottle@2x.png",
+      "density": 2,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.4552496991576414,
+      "activePixels": 26592,
+      "maxPixelDifference": 18
+    },
+    {
+      "path": "assets/shop/bottle/glass bottle@2x.png",
+      "density": 2,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.49164256469969575,
+      "activePixels": 26623,
+      "maxPixelDifference": 20
+    },
+    {
+      "path": "assets/shop/honey/honey.png",
+      "density": 1,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.4638905828033801,
+      "activePixels": 11479,
+      "maxPixelDifference": 15
+    },
+    {
+      "path": "assets/shop/honey/honey.png",
+      "density": 1,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.45174216027874564,
+      "activePixels": 11480,
+      "maxPixelDifference": 15
+    },
+    {
+      "path": "assets/shop/honey/honey.png",
+      "density": 2,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.5086203143367147,
+      "activePixels": 45938,
+      "maxPixelDifference": 20
+    },
+    {
+      "path": "assets/shop/honey/honey.png",
+      "density": 2,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.4940333609163364,
+      "activePixels": 45922,
+      "maxPixelDifference": 23
+    },
+    {
+      "path": "assets/shop/bush/flower.png",
+      "density": 1,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.6120243706173123,
+      "activePixels": 8699,
+      "maxPixelDifference": 28
+    },
+    {
+      "path": "assets/shop/bush/flower.png",
+      "density": 1,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.42816354499771586,
+      "activePixels": 8756,
+      "maxPixelDifference": 14
+    },
+    {
+      "path": "assets/shop/bush/flower.png",
+      "density": 2,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.5272551032044703,
+      "activePixels": 35076,
+      "maxPixelDifference": 26
+    },
+    {
+      "path": "assets/shop/bush/flower.png",
+      "density": 2,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.4751501286817272,
+      "activePixels": 34970,
+      "maxPixelDifference": 24
+    },
+    {
+      "path": "assets/shop/barell/barell-static.png",
+      "density": 1,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.7198347107438017,
+      "activePixels": 9680,
+      "maxPixelDifference": 16
+    },
+    {
+      "path": "assets/shop/barell/barell-static.png",
+      "density": 1,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.7276107840099163,
+      "activePixels": 9681,
+      "maxPixelDifference": 17
+    },
+    {
+      "path": "assets/shop/barell/barell-static.png",
+      "density": 2,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.42229004474562243,
+      "activePixels": 38663,
+      "maxPixelDifference": 9
+    },
+    {
+      "path": "assets/shop/barell/barell-static.png",
+      "density": 2,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.42840891462847097,
+      "activePixels": 38678,
+      "maxPixelDifference": 11
+    },
+    {
+      "path": "assets/shop/mushroom/mushroom.png",
+      "density": 1,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.5215850515463918,
+      "activePixels": 9312,
+      "maxPixelDifference": 23
+    },
+    {
+      "path": "assets/shop/mushroom/mushroom.png",
+      "density": 1,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.40391989774179804,
+      "activePixels": 9388,
+      "maxPixelDifference": 18
+    },
+    {
+      "path": "assets/shop/mushroom/mushroom.png",
+      "density": 2,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.5387301418061627,
+      "activePixels": 37516,
+      "maxPixelDifference": 25
+    },
+    {
+      "path": "assets/shop/mushroom/mushroom.png",
+      "density": 2,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.4691483120900219,
+      "activePixels": 37502,
+      "maxPixelDifference": 26
+    },
+    {
+      "path": "assets/shop/robo/robo-cube1.png",
+      "density": 1,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.8814022874191945,
+      "activePixels": 8044,
+      "maxPixelDifference": 19
+    },
+    {
+      "path": "assets/shop/robo/robo-cube1.png",
+      "density": 1,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.7895779180591658,
+      "activePixels": 8079,
+      "maxPixelDifference": 22
+    },
+    {
+      "path": "assets/shop/robo/robo-cube1.png",
+      "density": 2,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 1.105520636591634,
+      "activePixels": 32297,
+      "maxPixelDifference": 28
+    },
+    {
+      "path": "assets/shop/robo/robo-cube1.png",
+      "density": 2,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 1.0434957712444624,
+      "activePixels": 32279,
+      "maxPixelDifference": 37
+    },
+    {
+      "path": "assets/shop/cubero/cubero.png",
+      "density": 1,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.768865270396999,
+      "activePixels": 15995,
+      "maxPixelDifference": 34
+    },
+    {
+      "path": "assets/shop/cubero/cubero.png",
+      "density": 1,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.5299352750809061,
+      "activePixels": 16068,
+      "maxPixelDifference": 17
+    },
+    {
+      "path": "assets/shop/cubero/cubero.png",
+      "density": 2,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.6255476493801075,
+      "activePixels": 64366,
+      "maxPixelDifference": 23
+    },
+    {
+      "path": "assets/shop/cubero/cubero.png",
+      "density": 2,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.5581000451776729,
+      "activePixels": 64191,
+      "maxPixelDifference": 22
+    },
+    {
+      "path": "assets/shop/ball/ball.png",
+      "density": 1,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.5956386801698791,
+      "activePixels": 12244,
+      "maxPixelDifference": 22
+    },
+    {
+      "path": "assets/shop/ball/ball.png",
+      "density": 1,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.44015287038542855,
+      "activePixels": 12298,
+      "maxPixelDifference": 17
+    },
+    {
+      "path": "assets/shop/ball/ball.png",
+      "density": 2,
+      "transform": "(0.0, 0.0, 0.0)",
+      "meanActiveDifference": 0.6046955603395752,
+      "activePixels": 49238,
+      "maxPixelDifference": 19
+    },
+    {
+      "path": "assets/shop/ball/ball.png",
+      "density": 2,
+      "transform": "(16.0, -8.0, 0.4)",
+      "meanActiveDifference": 0.553890571945591,
+      "activePixels": 49183,
+      "maxPixelDifference": 24
+    }
+  ],
+  "thresholdMeanActiveDifference": 1.5,
+  "worstMeanActiveDifference": 1.2956193353474321,
+  "worstPixelDifference": 37,
+  "originalAssetSHA256": {
+    "assets/wild.png": "30c7cdae2f5a868111fd7cc86e2c38ca06096ce3f73328883cf3dda6e957f4d7",
+    "assets/wild-juice.png": "c8614ec843d8909011274b11e51f7fe21c7c2d3d75a69815c570c428be74cab6",
+    "assets/wild-magnet.png": "5c657ef5f822cf527c7159e5be212db4180067af94d6b500fded472270b12604",
+    "assets/shop/explosion pack/tnt.png": "953a7213ad4d5d9675c6e7ee3c704fe0fd6085844cc4c3127142fe4177a61dae",
+    "assets/shop/fish/fish.png": "e02bf55402d77ea262a6b78e75343090e9636e60a38752cfd063b18acb4d5805",
+    "assets/shop/kanta/04.png": "8d27ad5385c1b7e3c09c74abaed3abca59efc3e0038bb6c5e5cbd27f6cd73c19",
+    "assets/shop/bee/bee1@2x.png": "d95883fb2a697a3d8ce505aeafb424ddbe127589e9a3103288e0ef87e89ccc04",
+    "assets/shop/gun/right gun@2x.png": "88c0c59b2eaf4c12c1e54ea3f646c12a69866379f2711870e5bda981f31b6b30",
+    "assets/shop/spaceship/spaceship@2x.png": "4c20ec3cf63351914b576e91a934676a105b4ad2108f6ad1cd6ae014db8215a4",
+    "assets/shop/bottle/glass bottle@2x.png": "52f4189d757e1977b927388b45e501a546f87004d37fc5924a9983eb45e36408",
+    "assets/shop/honey/honey.png": "e2a100714631ff1bfe4cf4552b30a59d9f71d879509bd64b26e200d024b5e765",
+    "assets/shop/bush/flower.png": "4c21e14ca241ac799940f3e9bbaeea04c6a94e1f9e4128a956efd35af8b45fc8",
+    "assets/shop/barell/barell-static.png": "a65af5850d6dd2aee38e0b3286e8ffe0661ab192ae02dda9423ac0f0b5c51933",
+    "assets/shop/mushroom/mushroom.png": "c16f1a84589cc65ae5b13096eec3b60154d47f5339dce5f129abc935527f82df",
+    "assets/shop/robo/robo-cube1.png": "d212307d4baec5dbd95222d357249a48c981b8ef2115d647fcaaebd85ca6c526",
+    "assets/shop/cubero/cubero.png": "40e524363a6090aae928307254955d8a002d9ec0ebb4517d630dac0ae429ce53",
+    "assets/shop/ball/ball.png": "c2db16991d462101195bb95371a398bb03e37764f4650e580a5f309f3f38e96f"
+  },
+  "boundary": "Mean tolerance is not pixel-perfect parity. Individual edge differences remain up to37; no physical compositor/feel/thermal acceptance. Parent-scale1/2 is not an actual iPhone display-density test."
+}

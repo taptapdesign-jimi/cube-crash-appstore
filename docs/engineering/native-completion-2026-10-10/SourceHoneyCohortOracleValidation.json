@@ -1,0 +1,14 @@
+{
+  "originalExecution": "Untouched Honey controller + heading helper, installed real GSAP/TypeScript, explicit Pixi/pool/visibility endpoints and delayed one-asset Promise. Original PNG logical dimensions retained; no Native files changed.",
+  "delayed": "35 samples, constructor78/final81 draws, one3600 root and kill. Pending asset does not block root; later cohort updates existing sprites and force-paints current clock. Independent rerun byte-identical.",
+  "disposed": "Original owner disposed before one pending asset resolves, then three held pooled sprites explicitly reused as foreign C. Late Promise leaves all three C positions/textures untouched; one kill/three releases/layers detached,78 draws. Independent rerun byte-identical.",
+  "limits": "Explicit direct tween totalTime, mock cached/missing asset and pool reuse endpoints. Not shared RAF/lag/real Pixi recovery/pool/GPU or Native acceptance. Original controller evidence only.",
+  "remaining": "Native Honey common RNG/root/cohort/renderer/Node/caller and full family/visibility/drag matrix OPEN. Complete current SDK1225 PASS; global flags OFF and full migration/physical acceptance OPEN.",
+  "hashes": {
+    "honey-source-cohort-oracle.cjs": "1a9fd0a9e82cc59d599d5d04a77c1b4e423971abbb3a953731cc4f74dff5786e",
+    "honey-source-cohort-delayed-oracle.json": "fff2a7f1bc81cebf096e8eb069975c4fc8f6b354367ef341017e813b603e1132",
+    "honey-source-cohort-disposed-oracle.json": "dcbe1705e94e0adeb2b4a11c11f8fb15da210745eed530d6fe0c5c78f271ae7d"
+  },
+  "checkpointCorrection": "2026-10-10: initial three Promise.resolve awaits did not exhaust cross-VM Promise cohort. Replaced with setImmediate checkpoint, asserted actual sprite sizing writes (cached +3, pending zero, delayed +3, disposed zero). Independent rerun byte-identical. Earlier cohort labels/hashes superseded; initial clock golden failed54 dimensions, corrected golden31 tests PASS without widening tolerance.",
+  "scope": "Original executed controller with explicit mock endpoints and direct tween samples; no GPU/full APP admission. Native clock component31 SDK PASS and full deterministic QA PASS; fullSDK1225 predates latest changes."
+}

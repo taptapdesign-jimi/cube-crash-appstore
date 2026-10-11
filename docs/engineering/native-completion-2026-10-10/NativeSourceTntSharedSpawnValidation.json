@@ -1,0 +1,138 @@
+{
+  "verdict": "Bounded Core392/0 and actual Source TNT roots PASS; full Native migration OPEN",
+  "implementation": "Shared spawn phase captures either actual Direct plan or actual accepted TNT Special plan. TNT entry mints distinct genuine receipt before selection/constructor/RNG, never a fabricated Direct plan. Separate TNT resume/finally callbacks preserve independent pendingSpecial bonus; explicit cancellation resets spawn only, stale receipt cannot resume. Existing Direct path and Raw TNT default remain unchanged. Actual TNT context explicitly admits phase; arbitrary pure TNT phase without captured owner still refuses. Shared app ledger accepts genuine TNT receipt, token then real Date, and explicit releaseSpecial:false reset policy preserves bonus owner.",
+  "core": {
+    "log": "/tmp/native-tnt-common-context-with-tests-corrected.log",
+    "tests": 390,
+    "failures": 0,
+    "durationSeconds": 0.798
+  },
+  "sdk": {
+    "log": "/tmp/native-tnt-common-context-sdk.log",
+    "status": "terminal0 PASS9/0,41.286s; actual existing Journey Juice and OS guide + token owners",
+    "boundary": "Existing actual Journey Juice/OS guide roots + pure app token owners. Incorrect NativeTntSourceRecipeTests selector matched zero; actual NativeSourceTntJSCOracleTests/NativeTntElasticSourceTests/NativeTntBoardBlastTests scheduled next with final explicit release policy."
+  },
+  "failureChronology": [
+    {
+      "log": "/tmp/native-tnt-common-context-core.log",
+      "reason": "One fixture intentionally forbids arbitrary TNT phase without real owner; corrected by explicit tntOwnerCaptured admission from genuine Special context instead of weakening fixture."
+    },
+    {
+      "log": "/tmp/native-tnt-common-context-with-tests.log",
+      "reason": "New fixture used NativePlayMode name; corrected to actual NativeRunMode."
+    },
+    {
+      "log": "/tmp/native-tnt-connected-clock-final-sdk.log",
+      "reason": "New direct retained-node test lacked import SpriteKit; production clock roots had prior terminal PASS. Import added, corrected connected SDK11 PASS."
+    },
+    {
+      "log": "/tmp/native-tnt-bonus-impact-value-core.log",
+      "reason": "New Core tests tried assigning immutable sourceMathRandom; corrected fixtures inject actual stream through existing engine initializer."
+    },
+    {
+      "log": "/tmp/native-tnt-real-hud-origin-sdk.log",
+      "reason": "CGPoint.zero needed explicit type for overloaded SpriteKit coordinate conversion. Corrected before successful genuine HUD/FX batch."
+    },
+    {
+      "log": "/tmp/native-tnt-hud-fx-sdk-command.log",
+      "reason": "Command misspelled derivedDataPath; terminal64, no test evidence. Corrected immediately; no target/profile changes."
+    }
+  ],
+  "boundaries": "Explicit normal Source standard TNT main80/shared spawn/APP composition/board/bonus constructors/face/bounce/FIFO/safety80/app-lived Date/shared FX/actual HUD origins and collection/particle choice now bounded tested. Default flag OFF. Full immutable final-clean-board/no-target, complete finale numeric/pixel/all VFX entropy ordering, all families/global/canonical save/queue/NO MOVES and physical acceptance OPEN. No all-four writer or full migration acceptance.",
+  "physicalAcceptance": "NEEDS PHYSICAL TEST",
+  "finalPolicySDK": {
+    "log": "/tmp/native-tnt-common-context-final-policy-sdk.log",
+    "tests": 20,
+    "failures": 0,
+    "durationSeconds": 0.213,
+    "boundary": "Final releaseSpecial:false reset and actual JSC/elastic/board-blast tests; typed-context/no-replay refinements additionally Core390 PASS."
+  },
+  "coreRefinements": {
+    "typedOwner": "/tmp/native-tnt-common-context-typed-owner-core.log PASS390/0,0.761s",
+    "noReplay": "/tmp/native-tnt-common-context-no-replay-core.log PASS390/0,0.755s"
+  },
+  "nextMainAssembly": {
+    "compileSDK": "/tmp/native-tnt-main-assembly-compile-sdk.log PASS7/0,0.030s before latest Core main guard/root test",
+    "actualRootSDK": "/tmp/native-tnt-main-actual-root-sdk.log terminal0 PASS9/0; actual TNT11.837s + Magnet9.245s + token owners",
+    "boundary": "Explicit new normal Source TNT root/Scene main80 assembly; stock visual/bonus transport and replacement constructor fidelity remain OPEN. Default root OFF."
+  },
+  "mainCancellationSDK": {
+    "log": "/tmp/native-tnt-main-cancel-and-root-sdk.log",
+    "tests": 2,
+    "failures": 0,
+    "durationSeconds": 21.246,
+    "boundary": "Actual TNT resume main80/background/common spawn plus actual source destruction before main80; zero charge, pair retirement and subsequent ordinary pointer move."
+  },
+  "finaleClockSDK": {
+    "log": "/tmp/native-tnt-finale-source-clock-sdk.log",
+    "tests": 10,
+    "failures": 0,
+    "durationSeconds": 21.069,
+    "boundary": "Actual APP composition/frame-six transport, modal pause and cancellation; actual roots. Before subsequent APP board-blast and cancelled visual-receipt cleanup."
+  },
+  "boardClockSDK": {
+    "log": "/tmp/native-tnt-board-source-clock-sdk.log",
+    "tests": 10,
+    "failures": 0,
+    "durationSeconds": 21.045,
+    "boundary": "Actual APP outward/frame-six/current-pose return linked through real root. Before new direct retained-pose/cancellation test and cancellation visual-receipt cleanup."
+  },
+  "currentWork": "Coherent full Source QA terminal0 all selected gates PASS; unsigned Release terminal0 BUILD SUCCEEDED; actual compiled Native target/dependency/original-assets audit terminal0 PASS. Logs /tmp/native-tnt-shared-fx-hud-final-full.log and /tmp/native-tnt-shared-fx-hud-final-release.log. These predate subsequent ordinary constructor-order batch.",
+  "bonusConstructorSDK": {
+    "log": "/tmp/native-tnt-bonus-constructor-connected-sdk.log",
+    "tests": 11,
+    "failures": 0,
+    "durationSeconds": 20.999,
+    "boundary": "Actual Source fresh replacement constructor/face/bounce and timeout stagger, actual roots; before subsequent genuine bonus Date/safety80 refinements."
+  },
+  "bonusSafetyDateSDK": {
+    "log": "/tmp/native-tnt-bonus-safety-date-sdk.log",
+    "tests": 19,
+    "failures": 0,
+    "durationSeconds": 34.544,
+    "boundary": "Actual normal Source TNT/constructors, source destruction then next move, modal-paused APP safety/completion80 and late replacement Date writes; independent Scope Date read/reentry preservation. Before deferred face draw at each actual impact."
+  },
+  "sourceQA": {
+    "log": "/tmp/native-tnt-main-and-source-clock-full.log",
+    "status": "terminal0 PASS all selected gates, before bonus constructor/Date/safety/deferred face refinements"
+  },
+  "king": {
+    "log": "/tmp/native-tnt-bonus-safety-date-king.log",
+    "status": "terminal0 PASS330, before deferred Core face-value draw refinement"
+  },
+  "impactValueCore": {
+    "log": "/tmp/native-tnt-bonus-impact-value-core-corrected.log",
+    "tests": 395,
+    "failures": 0,
+    "durationSeconds": 0.803,
+    "boundary": "Complete Core; genuine per-impact replacement selection, no reservation face draw, one-draw restart reentry and retired-capability refusal. Raw JSC/eager policy preserved."
+  },
+  "impactValueSDK": {
+    "log": "/tmp/native-tnt-bonus-impact-value-sdk.log",
+    "tests": 26,
+    "failures": 0,
+    "durationSeconds": 34.385,
+    "boundary": "Three actual TNT roots plus unchanged iOS JSC target/value oracle, Date, clock and recipe owners; before genuine frame-six and HUD/FX refinement."
+  },
+  "actualFrameSixSDK": {
+    "log": "/tmp/native-tnt-actual-frame-six-next-pickup-sdk.log",
+    "tests": 30,
+    "failures": 0,
+    "durationSeconds": 68.087,
+    "boundary": "Authored frame-six presence, absent-frame refuses early completion, genuine parent fallback, actual new Source holder pickup and adjacent ordinary/Juice/Magnet roots; before genuine HUD origins/shared bonus FX."
+  },
+  "genuineHUDSharedFXSDK": {
+    "log": "/tmp/native-tnt-genuine-hud-and-shared-fx-sdk.log",
+    "tests": 24,
+    "failures": 0,
+    "durationSeconds": 59.751,
+    "boundary": "Actual retained main/impact node screen origin; Source HUD jobs credited and drained, shared regular shards + standard TNT target smoke before replacement. Reuses shared patterns/pools/APP roots/one-second wall cleanup; before standard single-particle selection refinement."
+  },
+  "finalParticleHUDSDK": {
+    "log": "/tmp/native-tnt-particle-choice-and-real-hud-sdk.log",
+    "tests": 31,
+    "failures": 0,
+    "durationSeconds": 61.915,
+    "boundary": "Five actual TNT/ordinary/Juice roots, actual Source HUD credit/drain, shader/smoke oracles, standard original small-star texture selected with one shared draw before actual replacement value, actual cache-retirement reentry refusal."
+  }
+}

@@ -1,0 +1,70 @@
+--- a/native/gameplay-ui/NativeJuiceBubbleMotion.swift
++++ b/native/gameplay-ui/NativeJuiceBubbleMotion.swift
+@@ -4,7 +4,7 @@
+ struct NativeJuiceBubbleMotion {
+     static let sources = ["bubble1","bubble 2","bubble 3","bubble 4","bubble 5","bubble 6","bubble 7","bubble 8"].map { "assets/shop/juice/bubbles pack/"+$0+".png" }
+     let assetIndex: Int,start: CGPoint,path: [CGPoint],duration: TimeInterval,alpha: CGFloat,scale: CGFloat,finalScale: CGFloat
+-    static func make(viewport: CGSize,random: () -> Double = { Double.random(in: 0..<1) }) -> Self {
++    static func make(viewport: CGSize,preservesBirthScale: Bool = false,random: () -> Double = { Double.random(in: 0..<1) }) -> Self {
+         func roll() -> CGFloat { CGFloat(min(1-Double.ulpOfOne,max(0,random()))) }
+         let selection = roll(),index: Int
+         if selection < 0.2 { index = 3 } else if selection < 0.4 { index = 4 } else if selection < 0.5 { index = 5 }
+@@ -20,7 +20,8 @@
+                     CGPoint(x:x+drift*0.38-direction*weave*0.92,y:y+travelY*0.38),
+                     CGPoint(x:x+drift*0.6+direction*weave*0.78,y:y+travelY*0.6),
+                     CGPoint(x:x+drift*0.8-direction*weave*0.62,y:y+travelY*0.8),CGPoint(x:x+drift,y:endY)]
+-        return Self(assetIndex:index,start:CGPoint(x:x,y:y),path:path,duration:Double(duration),alpha:alpha,scale:scale,finalScale:(0.65+roll()*0.35)*ratio)
++        let sampledFinalScale = (0.65+roll()*0.35)*ratio
++        return Self(assetIndex:index,start:CGPoint(x:x,y:y),path:path,duration:Double(duration),alpha:alpha,scale:scale,finalScale:preservesBirthScale ? scale : sampledFinalScale)
+     }
+     func sample(seconds: TimeInterval) -> (point: CGPoint,scale: CGFloat) {
+         let clock = NativeBoardMotion.Ease.sineInOut.sample(CGFloat(seconds/duration))*5,index = min(4,max(0,Int(clock))),p = clock-CGFloat(index)
+--- a/native/gameplay-ui/NativeJuiceFinale.swift
++++ b/native/gameplay-ui/NativeJuiceFinale.swift
+@@ -60,7 +60,7 @@
+     }
+     private func admit(seconds: TimeInterval) {
+         guard let index = freePool.indices.first(where: { active[$0] == nil }) else { return }
+-        let plan = NativeJuiceBubbleMotion.make(viewport: viewport,random: random),sprite = freePool[index]
++        let plan = NativeJuiceBubbleMotion.make(viewport: viewport,preservesBirthScale: seconds >= 1.125,random: random),sprite = freePool[index]
+         sprite.texture = bubbleTextures[plan.assetIndex]; sprite.size = bubbleTextures[plan.assetIndex].size()
+         sprite.isHidden = false; sprite.alpha = plan.alpha; sprite.setScale(plan.scale)
+         sprite.position = CGPoint(x: plan.start.x,y: viewport.height-plan.start.y)
+--- a/native/gameplay-ui/NativeTntFinale.swift
++++ b/native/gameplay-ui/NativeTntFinale.swift
+@@ -72,7 +72,8 @@
+             sprite.size = size; sprite.position = center; sprite.zPosition = CGFloat(index)
+             sprite.zRotation = -(random()-0.5)*20 * .pi/180
+             sprite.alpha = 0; sprite.setScale(0); addChild(sprite)
+-            let scale = 1 + random()*0.52
++            // User-approved smoke-only enlargement; dice/title retain their original scale.
++            let scale = (1 + random()*0.52)*1.2
+             frames.append(Frame(sprite: sprite,index: index,size: scale,bounceSize: scale*(1.02+random()*0.06),bounceY: (random()-0.5)*4))
+         }
+         let tileTexture = textures.texture("assets/tile.png")
+--- a/native/standalone/Stack to SixTests/NativeJuicePresentationTests.swift
++++ b/native/standalone/Stack to SixTests/NativeJuicePresentationTests.swift
+@@ -94,9 +94,23 @@
+         var finished = 0; owner.onFinished = {_ in finished += 1}; owner.start()
+         XCTAssertEqual(finished,1);XCTAssertFalse(owner.hasActiveClock);owner.start();owner.dispose();XCTAssertEqual(finished,1)
+     }
++    func testLateBubbleWaveKeepsBirthSizeWithoutChangingRandomConsumptionOrRoute() {
++        var originalDraws=0,lateDraws=0
++        let original=NativeJuiceBubbleMotion.make(viewport:CGSize(width:390,height:844),random:{originalDraws += 1;return 0.5})
++        let late=NativeJuiceBubbleMotion.make(viewport:CGSize(width:390,height:844),preservesBirthScale:true,random:{lateDraws += 1;return 0.5})
++        XCTAssertEqual(originalDraws,lateDraws)
++        XCTAssertEqual(original.path,late.path)
++        XCTAssertEqual(original.duration,late.duration)
++        for time in [0.0,0.3,0.9,1.6] {
++            XCTAssertEqual(late.sample(seconds:time).scale,late.scale,accuracy:0.000001)
++            XCTAssertEqual(late.sample(seconds:time).point,original.sample(seconds:time).point)
++        }
++        XCTAssertGreaterThan(original.finalScale,original.scale)
++    }
+ }
+ 
+ @MainActor
+ private final class DisposeOnInitialPaint: NativeFinitePresentation {
+     override func paint(seconds: TimeInterval) { dispose() }
++
+ }

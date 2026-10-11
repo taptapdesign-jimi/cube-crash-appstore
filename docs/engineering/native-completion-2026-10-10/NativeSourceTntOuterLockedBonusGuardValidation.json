@@ -1,0 +1,48 @@
+{
+  "status": "PASS: bounded actual outer guard/constructor/finally/retirement graph; grouped Release pending",
+  "core": {
+    "tests": 430,
+    "failures": 0,
+    "seconds": 0.788,
+    "log": "/tmp/native-tnt-outer-bonus-rejected-enqueue-retirement-core.log"
+  },
+  "sdk": {
+    "tests": 6,
+    "failures": 0,
+    "seconds": 71.248,
+    "log": "/tmp/native-tnt-outer-bonus-guard-actual-roots-sdk.log"
+  },
+  "actualCtorPlacement": {
+    "tests": 23,
+    "failures": 0,
+    "seconds": 34.514,
+    "log": "/tmp/native-tnt-outer-bonus-ctor-order-current-sdk.log"
+  },
+  "scope": [
+    "separate genuine pre_spawn and single_merge6 outer await receipts/APP FIFO map",
+    "primary starts before outer awaits; each bonus constructor followed by direction/pop in second outer reaction",
+    "physical blockers captured separately from strict save/minimum paint",
+    "outer bonus can survive real independent primary finally through captured settled receipt while TNT Special still owns",
+    "unknown/zero-blocker/inline/lifecycle reentry refuses; no fabricated Direct/final/false authority",
+    "NativeRaw and partial Source seams remain default off"
+  ],
+  "king": "PASS330 /tmp/native-tnt-outer-bonus-guard-king.log",
+  "release": {
+    "status": "PASS",
+    "log": "/tmp/native-direct-tnt-physical-guards-release.log",
+    "audit": "/tmp/native-direct-tnt-physical-guards-release-audit.log",
+    "scope": "Current Direct entry/live presence and TNT outer awaits/retirement; predates subsequent minimum/Star-extra continuation"
+  },
+  "open": [
+    "zero-blocker/final clean-board owner",
+    "remaining Star extra/endgame pre/post guards",
+    "whole Source global/save/queue/NO MOVES/families/default/physical acceptance"
+  ],
+  "currentRetirement": {
+    "tests": 9,
+    "failures": 0,
+    "seconds": 23.51,
+    "log": "/tmp/native-tnt-outer-bonus-current-retirement-sdk.log"
+  },
+  "fullQa": "PASS terminal0 /tmp/native-direct-tnt-physical-guards-full.log"
+}

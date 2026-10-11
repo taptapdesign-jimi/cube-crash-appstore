@@ -1,0 +1,83 @@
+{
+  "authority": "actual installed Pixi Texture/TextureSource/TextureMatrix; numeric resource-only oracle, not GPU",
+  "rows": [
+    {
+      "pixelWidth": 1,
+      "pixelHeight": 1,
+      "resolution": 1,
+      "logicalWidth": 1,
+      "clampMargin": 0,
+      "clamp": [
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "pixelWidth": 16,
+      "pixelHeight": 16,
+      "resolution": 2,
+      "logicalWidth": 8,
+      "clampMargin": 0,
+      "clamp": [
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "pixelWidth": 128,
+      "pixelHeight": 128,
+      "resolution": 1,
+      "logicalWidth": 128,
+      "clampMargin": 0.5,
+      "clamp": [
+        0.00390625,
+        0.00390625,
+        0.99609375,
+        0.99609375
+      ]
+    },
+    {
+      "pixelWidth": 512,
+      "pixelHeight": 512,
+      "resolution": 2,
+      "logicalWidth": 256,
+      "clampMargin": 0.5,
+      "clamp": [
+        0.0009765625,
+        0.0009765625,
+        0.9990234375,
+        0.9990234375
+      ]
+    },
+    {
+      "pixelWidth": 1024,
+      "pixelHeight": 1024,
+      "resolution": 2,
+      "logicalWidth": 512,
+      "clampMargin": 0.5,
+      "clamp": [
+        0.00048828125,
+        0.00048828125,
+        0.99951171875,
+        0.99951171875
+      ]
+    },
+    {
+      "pixelWidth": 171,
+      "pixelHeight": 128,
+      "resolution": 1,
+      "logicalWidth": 171,
+      "clampMargin": 0.5,
+      "clamp": [
+        0.002923976629972458,
+        0.00390625,
+        0.9970760345458984,
+        0.99609375
+      ]
+    }
+  ]
+}

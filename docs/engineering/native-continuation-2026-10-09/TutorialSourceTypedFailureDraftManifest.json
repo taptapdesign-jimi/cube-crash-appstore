@@ -1,0 +1,22 @@
+{
+  "status": "DRAFT corrected bootstrap SDK running",
+  "files": {
+    "native/gameplay-ui/NativeDiceNode.swift": "5053ff124ba869c7bf9d9dcbdafc1eb58d80e7855e8871d07670e81686521548",
+    "native/gameplay-ui/NativeBoardScene.swift": "328fc9cac0c00a6e82ff851a88ddebf888f7e1f55c86e6d2942b6ef531a650d2",
+    "native/gameplay-ui/NativeSourceTutorialFocusOwner.swift": "2270f1c90a4011b64c01b7758caae6cb4e0084f77c769b8953c49faee922308e",
+    "native/gameplay-ui/NativeSourceTutorialSecondStepMonitor.swift": "701ed2ccbbfa8933f2436f258bbafc8bb0bf954bbce3698c45e34f17e9f04c94",
+    "native/gameplay-app/NativeTutorialOverlay.swift": "7432f7fcee99776fd3316e98a789e8c9614d375d1dd5558d4bac5b49468c87cc",
+    "native/gameplay-app/NativeTutorialOwner.swift": "ddcff159e65deb7b0ca100d8f3bc8b2d22e683ff1a790f750f2d4a74dbfb47aa",
+    "native/standalone/Stack to SixTests/NativeSourceTutorialSecondStepMonitorTests.swift": "6b1ee652c9fc1f2315c0662fdecba5e712544091d40ce6852cdc5fc642e02e79",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "84f246ebbc4f25443707842742b11a7cfca5cf201daa061f2188173f27f7e012",
+    "native/standalone/Stack to SixTests/NativeSourceTutorialIntroTests.swift": "00cfe55e8ff365a5eab9224855f654f0f19b992667f861e346e45bb2a66143c8",
+    "native/gameplay-ui/NativeSourceTutorialFreePlayPlan.swift": "83baca48d7af602979d05a9011caeea4e0e0f8e3ad6eb10801af09fb5501c790",
+    "native/gameplay-ui/NativeSourceTutorialFreePlayHintOwner.swift": "982612aeb2e2a0f621d24364663bba1e7d65466bcf127f87d5d9063cbf337a4c",
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "d87a709b05ff458dea8012b54bc6fb6c8a49df650e7c919792f313cc98406fa1",
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeTutorialTests.swift": "5a95520f7757439d8d68857f2518d050e5dc72247dfec254f8b9fee7754ac0d5",
+    "docs/engineering/feature-runtime-owners.json": "0914509a08d28fdb53712726ce6526129008adad5d5a692d16844be93f9aec87",
+    "native/gameplay-ui/NativeGameplayViewController.swift": "40c884556237b51683c2ef35ea94f7e4f6ed0ee3ea0d2b1c1340925f667ac0e3",
+    "native/gameplay-app/NativeBootstrap.swift": "52b64c7a9685225a740d2d0fff7a96bb0b3153e5486b59743066d98e9f19ee0b"
+  },
+  "scope": "Broad diagnostic\u2192fatal binding rejected by actual startup regression. New typed generation-specific Source transaction failure signal only: interrupted fourth mutation/final restore/commit. Existing startup diagnostics keep retry behavior. Actual fatal/durable tests OPEN."
+}

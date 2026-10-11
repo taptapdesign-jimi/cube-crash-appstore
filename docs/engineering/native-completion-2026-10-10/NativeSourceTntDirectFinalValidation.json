@@ -1,0 +1,53 @@
+{
+  "status": "PASS bounded actual final Direct constructor/clock/BOOM handoff, normal/no-target/oracle neighbors and grouped shipping gates",
+  "core": {
+    "tests": 447,
+    "failures": 0,
+    "seconds": 0.755,
+    "log": "/tmp/native-tnt-direct-final-entry-core.log"
+  },
+  "scope": [
+    "Standard TNT physical entry classifier retains genuine immutable NativeDirectWildMovePlan; read-only admission never increments accepted-drop capture count",
+    "Star/Juice short blast remains exclusive to those archetypes",
+    "Final TNT reuses actual NativeTntFinale Source glyph/dice/frame construction and shared APP timeline, no fabricated Special/spawn receipt",
+    "Exact scope/common Math/generation/Direct identity fences and idempotent visual retirement",
+    "Final handoff waits actual painted UIKit BOOM glyph duration callback; independent debris retains current scoped APP parent tail, no synthetic timer or early parent completion"
+  ],
+  "sdk": {
+    "initialFinalResult": {
+      "tests": 2,
+      "failures": 0,
+      "seconds": 29.935,
+      "log": "/tmp/native-tnt-direct-final-actual-result-corrected-sdk.log"
+    },
+    "actualBoomExitResult": {
+      "tests": 2,
+      "failures": 0,
+      "seconds": 27.802,
+      "log": "/tmp/native-tnt-direct-final-boom-exit-sdk.log",
+      "scope": "real UIKit painted glyph exit callback count1, genuine Direct plan, real Journey Collect/Result and persisted progression; Juice neighbor"
+    },
+    "normalNoTargetOracle": {
+      "tests": 9,
+      "failures": 0,
+      "seconds": 23.608,
+      "log": "/tmp/native-tnt-direct-final-nonfinal-and-oracle-sdk.log"
+    }
+  },
+  "preservedFailures": [
+    "/tmp/native-tnt-direct-final-actual-result-sdk.log: incorrect test target selector rejected before build; corrected to existing Stack to SixTests target",
+    "/tmp/native-tnt-direct-final-feature.log: QA receipt incorrectly listed as runtime surface; removed from source-only surface registry, evidence retained here",
+    "/tmp/native-tnt-direct-final-boom-exit-sdk.log: third guessed no-target selector matched no test; only two executed tests count as proof, exact no-target test separately grouped"
+  ],
+  "open": [
+    "Wild-destination and all-family/late zero-blocker clean-board admission",
+    "Grouped shipping gates",
+    "Wild-destination TNT frame admission",
+    "All variants/global/canonical save/queue/NO MOVES/default and physical acceptance"
+  ],
+  "king": "PASS330 /tmp/native-tnt-direct-final-king.log",
+  "feature": "PASS27 owners34 surfaces /tmp/native-tnt-direct-final-feature-corrected.log",
+  "fullQA": "PASS all selected deterministic gates /tmp/native-tnt-direct-final-full.log",
+  "release": "PASS unsigned Release BUILD SUCCEEDED /tmp/native-tnt-direct-final-release.log; current compiled identity/dependency/original-assets audit PASS /tmp/native-tnt-direct-final-release-audit.log",
+  "review": "docs/engineering/NATIVE_REVIEW_AND_NEXT_CHAT_2026-10-11.md"
+}

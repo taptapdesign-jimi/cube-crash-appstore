@@ -1,0 +1,77 @@
+{
+  "scope": "Actual app ordinary locked-open decorative timeline now borrows existing NativeSourceAppSpawnBounceOwner and same common service; default flags OFF",
+  "status": "PASS bounded actual root and three mandatory OS iterations; broader admission OPEN",
+  "before": "Face-only checkpoint connected30/30, fullsource530suites4010/KING330, mandatory actual OS3/3, iOS Release native-only; complete SDK predates these changes",
+  "changes": [
+    "Same retained holder independently owns raw setValue RAF and Source GSAP timeline bounce",
+    "Exact Source direction draw borrows shared Math provider, no additional clock/timer/asset owner",
+    "Pickup removes only captured bounce children; exact parent completion remains on next Source root flush",
+    "Scope/dispose retire captured entries before callbacks; no late publication or sibling ownership",
+    "Missing real face binding/Scope refuses typed; ordinary primary/global/minimum/all-family admission remains OPEN"
+  ],
+  "sourceSHA256": {
+    "native/gameplay-ui/NativeBoardScene.swift": "2d5351094d39280dbceafb1bdb7cb6e5defc141164abcc2913d910460c10bc4f",
+    "native/standalone/Stack to SixTests/NativeStandaloneRootTests.swift": "9ebeb41968c6d71a190fea6a4cfb8014c3080fadbb0dd1897a505e65be62fcf5"
+  },
+  "migration80Reached": false,
+  "evidence": [
+    {
+      "phase": "First connected actual app bounce",
+      "log": "native-ordinary-open-source-bounce-scope.log",
+      "verdict": "PASS",
+      "tests": 1,
+      "seconds": 31.085
+    },
+    {
+      "phase": "Current face-admitted bounce, actual pickup child removal/next real-root parent completion and Source marker distinction",
+      "log": "native-ordinary-source-bounce-interruption.log",
+      "verdict": "PASS",
+      "tests": 11,
+      "seconds": 32.835
+    },
+    {
+      "phase": "Current complete Native SDK, actual in-progress pause/pickup and all bounded root callers",
+      "log": "native-ordinary-source-bounce-complete-sdk.log",
+      "verdict": "PASS",
+      "tests": 1293,
+      "skipped": 1,
+      "failures": 0,
+      "seconds": 746.679,
+      "preservation": "NativeOrdinarySourceBounceSDKProfiles retains raw-byte FAIL for normal primary/backup: only savedAt and identical Journey-set order differ. All26 QA files exact bytes unchanged."
+    },
+    {
+      "phase": "Current source full QA",
+      "log": "native-ordinary-source-bounce-full.log",
+      "verdict": "PASS",
+      "suites": 530,
+      "tests": 4010,
+      "kingTests": 330,
+      "nativeSync": false
+    },
+    {
+      "phase": "Current unsigned iOS arm64 Release",
+      "verdict": "PASS",
+      "proof": "NativeOrdinaryAppSpawnBounceIOSReleaseProof.json"
+    },
+    {
+      "phase": "Updated runtime owner admission",
+      "verdict": "PASS",
+      "log": "native-ordinary-source-bounce-feature-updated.log"
+    },
+    {
+      "phase": "Actual OS three mandatory iterations with Source ordinary bounce",
+      "verdict": "PASS",
+      "tests": 3,
+      "seconds": [
+        "55.168",
+        "53.117",
+        "52.469"
+      ],
+      "log": "native-ordinary-source-bounce-os-repeated.log",
+      "profile": "AD1E2026-1010-4000-8000-000000000013",
+      "preservation": "All28 prior normal/QA save files exact bytes unchanged; new profile retained",
+      "attachments": "NativeOrdinarySourceBounceOSAttachments"
+    }
+  ],
+  "pending": []
+}

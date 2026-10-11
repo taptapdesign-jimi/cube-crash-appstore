@@ -1,0 +1,26 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "E590B52E-F314-43A7-BF55-2F49CE939C2A",
+        "deviceName" : "Stack to Six QA iPhone 13",
+        "exportedFileName" : "A5B6F740-D2AC-460B-BDF0-2CCF685C8B62.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Source tutorial intro 430x932_0_A9FEB6FC-8B27-4AC7-93A3-3D6B7775F4D5.png",
+        "timestamp" : 1791544338.638
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "E590B52E-F314-43A7-BF55-2F49CE939C2A",
+        "deviceName" : "Stack to Six QA iPhone 13",
+        "exportedFileName" : "D3371A33-027E-4B92-812E-ED2CAC041500.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Source tutorial intro 390x844_0_E6D012CF-F00D-4BDF-8BFD-092F2ADE82AF.png",
+        "timestamp" : 1791544338.182
+      }
+    ],
+    "testIdentifier" : "NativeSourceTutorialIntroTests/testActualOverlayViewportRastersRetainSheetAndSourcePointer()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeSourceTutorialIntroTests/testActualOverlayViewportRastersRetainSheetAndSourcePointer"
+  }
+]

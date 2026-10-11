@@ -1,0 +1,23 @@
+{
+  "scope": "Actual ordered deferred Bee entry resume and downstream idle authority investigation",
+  "sdk": {
+    "log": "wild-entry-order.log",
+    "tests": 11,
+    "failures": 0,
+    "exitCode": 0
+  },
+  "fullQA": {
+    "log": "wild-entry-order-full.log",
+    "exitCode": 0,
+    "kingTests": 330,
+    "suites": 530,
+    "tests": 4010,
+    "nativeBundleSync": "SKIPPED"
+  },
+  "snapshot": "WildOrderedEntryCodeSnapshotManifest.json",
+  "sourceQAandSDK": "Two changed file hashes match",
+  "nextAuthority": "WildIdleNextAuthority.md",
+  "completeMigration": "OPEN",
+  "physical": "NEEDS PHYSICAL TEST",
+  "globalSourceFlags": "OFF"
+}

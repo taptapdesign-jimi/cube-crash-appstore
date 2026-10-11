@@ -1,0 +1,24 @@
+{
+  "captureSHA256": "a125d7e76d9523954cc4d53aca45454eddc1dd3eddd053a98f0968218610978f",
+  "rows": 8,
+  "reasons": [
+    "telemetry-start",
+    "app-active",
+    "interval",
+    "interval",
+    "app-inactive",
+    "app-background",
+    "app-active",
+    "interval"
+  ],
+  "backgroundQuietMilliseconds": 8956,
+  "noBackgroundIntervalRows": true,
+  "performanceModeValues": [
+    false
+  ],
+  "scope": "Actual copied Simulator OS capture chronology; pair with terminal UI test and profile preservation evidence",
+  "limits": [
+    "Not physical iPhone thermal/battery/audio/touch acceptance",
+    "Not presented GPU FPS"
+  ]
+}

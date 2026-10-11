@@ -1,0 +1,11 @@
+{
+  "status": "PASS actual mounted Scene plain-Star landing/shared-scope halo and prior Cubero regression 2/2",
+  "testFileSHA256": "9c20c669101935a3eb054cd87e48179e1728a7d49dc27f69ba678d2708312f9c",
+  "logSHA256": "446a816bfb484affcbcb8a68745aecfc39e85e251ad86cd15f5a6de10d1ba0a4",
+  "limits": [
+    "actual full Scene microtask installer and retained resources receipt not yet combined",
+    "Math ordering not yet asserted",
+    "controller meter and halo configure calls absent",
+    "physical acceptance and original shipping resource build open"
+  ]
+}

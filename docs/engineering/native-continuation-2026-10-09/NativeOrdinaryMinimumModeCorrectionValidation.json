@@ -1,0 +1,18 @@
+{
+  "status": "Core67752 terminal368/368PASS; KING9188 terminal330/330PASS",
+  "files": {
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "23469b6b6abd6d519202b5bc705aaa2c16f5c7732acece8ddece4e30cba76121",
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceOrdinarySixSpawnBeginCoreTests.swift": "ca18047a4f66413e2b65a167a4fc35c2a21b86137d080f17f1f71019b5dcf5d4"
+  },
+  "logs": {
+    "native-ordinary-minimum-mode-core.log": "3c8f942c87229f18fc33ca1a4ae1970a2722ab8814ada80dfe89aa69439a6e58",
+    "native-ordinary-minimum-mode-king.log": "57c2bee7672e2c20636b44c47986c2fe7a20bf3dd7f7225264c6ed6d08c3a948"
+  },
+  "correction": "Original normal minimum routine is only in locked/normal spawn branch. Added mode eligibility from actual delayed preparation locked roster; no minimum request for endgamePrimary. Earlier minimum/empty fixture mistakenly used no-locked endgame primary; corrected to actual normal locked callback\u2192Source helper FIFO continuation\u2192remainderPrimary arrival. Alpha0 count is3 for this real normal fixture. Separate endgame test proves no normal rescue event.",
+  "limits": [
+    "actual Scene minimum/rescue producer still unbound",
+    "separate endgame coroutine finally and common postspawn safety OPEN",
+    "physical/full migration OPEN",
+    "default flags OFF"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "status": "PRIVATE SDK RUNNING session60091",
+  "files": {
+    "native/gameplay-ui/NativeSourceMicrotaskFIFO.swift": "e9be4e288af8582c829957480ddcba2fc3d0a77ec3ec4008b25d8b42005d0031",
+    "native/gameplay-ui/NativeSourceMicrotaskAdapters.swift": "abaed9b2532e027f57487e11c3f933abe4badeb031e8698ac1466204266b5ccc",
+    "native/gameplay-ui/NativeSourceMeterMicrotaskCapability.swift": "f9130fad44380b37e1d8a3a47378810c2d527eeacabc2901f1aa424e2a56b421",
+    "native/standalone/Stack to SixTests/NativeSourceMicrotaskFIFOTests.swift": "44eed06c0fa254ecb02ff5fe80ee3a4d4ed5a41c965321b13e2352dc8f258d27"
+  },
+  "scope": "Actual asset-completion task shares APP FIFO, explicit asset scope and unchanged four meter producer requirements. Genuine texture owner binding OPEN."
+}

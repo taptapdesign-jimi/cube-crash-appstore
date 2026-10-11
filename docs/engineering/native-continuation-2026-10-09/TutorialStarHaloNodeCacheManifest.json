@@ -1,0 +1,47 @@
+{
+  "base": [
+    "docs/engineering/native-pause-2026-10-08/NativeSource.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/EntrySourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialIntroSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialHUDSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialMonitorSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialRestoreSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialThirdSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFreeHintSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialCTAPrefixSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialCTAViewSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialThirdDismissSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialWildReservationSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialWildReservationOwnersDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthDroppingSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthSelectionSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthMonitorSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthTargetSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialGridRuntimeSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthPreparationSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialStarHaloMotionSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialStarHaloPresentationSourceDelta.tar.gz"
+  ],
+  "wholeSourceFlags": "OFF",
+  "validation": "SDK11/11 PASS: actual cache miss/no decode, candidate order, texture identity, disposal plus10 previous Star motion/render/Node tests. Full QA predates this batch.",
+  "files": {
+    "native/gameplay-ui/NativeDiceNode.swift": {
+      "baseSHA256": "6cf13d382c131ed250c94d1d59a9bcd1d34ec8d388a37ef1f31da5b921799081",
+      "sha256": "d372424e86dd8c04f980cd5c5e5573906f4892f8dc9f2d95dd91999e10b8d396"
+    },
+    "native/gameplay-ui/NativeDiceArtwork.swift": {
+      "baseSHA256": "6f74a3f469f403712e0c9759ccdfa52cecbb7d604cda707deb9bd5d9612ed584",
+      "sha256": "0e2069b45c364ded187bb0fb0b559d06bfc6351daa397e0d13345a94a21ed345"
+    },
+    "native/gameplay-ui/NativeStarFinale.swift": {
+      "baseSHA256": "a60d3c56f85721082284fc4a4e756e299dd8a3f683948739b4f0e98b81e38e70",
+      "sha256": "55a33eaf28bc9ae20bbbf99c3f29bd40dfbb5e2253667abbf4c70df4f045bb80"
+    },
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": {
+      "baseSHA256": "2d80ac3561e3e5793752b33794c337480a52e3b37803a5404bb6b06b5261f17f",
+      "sha256": "c8ede21a91620f5ec7ac557a4c76ecae4ed931e605e91234505d6d22423f4b8c"
+    }
+  },
+  "archiveSHA256": "d4ba8698f5ea3b3162f49513645498339881ea86f5853926bd73f3ba9de9468b"
+}

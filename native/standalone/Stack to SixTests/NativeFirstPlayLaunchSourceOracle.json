@@ -1,0 +1,152 @@
+{
+  "freshMoveBudget": 50,
+  "reference": "production-benchmark-v9",
+  "requestSHA256": "aee5119899813dcf4d88db70e07794c46a272f0621be658d7ab35e79a0d39f8a",
+  "entryExpression": "!isFirstPlayTutorialForced() && hasArcadeSavedState({ clearInvalid: true })",
+  "rows": [
+    {
+      "done": null,
+      "force": null,
+      "saved": false,
+      "forced": true,
+      "resume": false,
+      "savedQueries": 0
+    },
+    {
+      "done": null,
+      "force": null,
+      "saved": true,
+      "forced": true,
+      "resume": false,
+      "savedQueries": 0
+    },
+    {
+      "done": null,
+      "force": "false",
+      "saved": false,
+      "forced": true,
+      "resume": false,
+      "savedQueries": 0
+    },
+    {
+      "done": null,
+      "force": "false",
+      "saved": true,
+      "forced": true,
+      "resume": false,
+      "savedQueries": 0
+    },
+    {
+      "done": null,
+      "force": "true",
+      "saved": false,
+      "forced": true,
+      "resume": false,
+      "savedQueries": 0
+    },
+    {
+      "done": null,
+      "force": "true",
+      "saved": true,
+      "forced": true,
+      "resume": false,
+      "savedQueries": 0
+    },
+    {
+      "done": "false",
+      "force": null,
+      "saved": false,
+      "forced": true,
+      "resume": false,
+      "savedQueries": 0
+    },
+    {
+      "done": "false",
+      "force": null,
+      "saved": true,
+      "forced": true,
+      "resume": false,
+      "savedQueries": 0
+    },
+    {
+      "done": "false",
+      "force": "false",
+      "saved": false,
+      "forced": true,
+      "resume": false,
+      "savedQueries": 0
+    },
+    {
+      "done": "false",
+      "force": "false",
+      "saved": true,
+      "forced": true,
+      "resume": false,
+      "savedQueries": 0
+    },
+    {
+      "done": "false",
+      "force": "true",
+      "saved": false,
+      "forced": true,
+      "resume": false,
+      "savedQueries": 0
+    },
+    {
+      "done": "false",
+      "force": "true",
+      "saved": true,
+      "forced": true,
+      "resume": false,
+      "savedQueries": 0
+    },
+    {
+      "done": "true",
+      "force": null,
+      "saved": false,
+      "forced": false,
+      "resume": false,
+      "savedQueries": 1
+    },
+    {
+      "done": "true",
+      "force": null,
+      "saved": true,
+      "forced": false,
+      "resume": true,
+      "savedQueries": 1
+    },
+    {
+      "done": "true",
+      "force": "false",
+      "saved": false,
+      "forced": false,
+      "resume": false,
+      "savedQueries": 1
+    },
+    {
+      "done": "true",
+      "force": "false",
+      "saved": true,
+      "forced": false,
+      "resume": true,
+      "savedQueries": 1
+    },
+    {
+      "done": "true",
+      "force": "true",
+      "saved": false,
+      "forced": true,
+      "resume": false,
+      "savedQueries": 0
+    },
+    {
+      "done": "true",
+      "force": "true",
+      "saved": true,
+      "forced": true,
+      "resume": false,
+      "savedQueries": 0
+    }
+  ]
+}

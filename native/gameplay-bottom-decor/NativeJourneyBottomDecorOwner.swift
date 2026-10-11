@@ -57,6 +57,13 @@ final class NativeJourneyBottomDecorOwner:UIView {
         stopClock();elapsed=0;shakeOffset = .zero;pose=NativeJourneyBottomDecorPlan.prepared
         imageView.isHidden=false;applyPose()
     }
+    /// Restart retains settled chrome while the new dice run their entry.
+    func showSettled() {
+        guard phase != .disposed,current(generation),isPrepared else{return}
+        queuedEnter=false;stopClock();elapsed=0;shakeOffset = .zero
+        phase = .visible;pose=NativeJourneyBottomDecorPlan.visible
+        imageView.isHidden=false;applyPose()
+    }
     func enter() {
         guard phase != .disposed,current(generation) else{return}
         if phase == .visible || phase == .entering {return}

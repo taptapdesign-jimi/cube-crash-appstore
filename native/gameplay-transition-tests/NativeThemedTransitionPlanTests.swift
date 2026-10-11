@@ -47,4 +47,17 @@ final class NativeThemedTransitionPlanTests:XCTestCase {
         XCTAssertEqual(robo.first {$0.definition.key=="robo-walker"}!.left,78)
         XCTAssertEqual(robo.first {$0.definition.key=="robo-fence-static-left"}!.bottom,331.00278032,accuracy:0.000001)
     }
+    func testForestRearCloudsCannotReappearAsMountainCoverExits() {
+        for seed in UInt32(1)...36 {
+            let rng=Random(seed),plans=NativeTransitionCloudPlan.make(theme:.forest,width:390,random:rng.next)
+            for cloud in plans where cloud.depth==2 {
+                let before=cloud.sample(seconds:1.75-0.000001,exitAt:2.65,occlusionEndsAt:1.75)
+                XCTAssertEqual(before.opacity,1)
+                for frame in 0...240 {
+                    let p=cloud.sample(seconds:1.75+Double(frame)/120,exitAt:2.65,occlusionEndsAt:1.75)
+                    XCTAssertEqual(p.opacity,0);XCTAssertEqual(p.scaleX,0);XCTAssertEqual(p.scaleY,0)
+                }
+            }
+        }
+    }
 }

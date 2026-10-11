@@ -1,0 +1,33 @@
+{
+  "scope": "Attachment-only export of actual settled guide save for independent OS resume; no runtime change",
+  "sourceSHA256": {
+    "native/standalone/Stack to SixTests/NativeSourceTutorialBootstrapTests.swift": "0008deb1adb9b2de6247fce3bbf47e86ae63ffdf1fdb699674ed74bb2f9d21f7",
+    "native/standalone/Stack to SixUITests/NativeHomeInteractionUITests.swift": "7542aa6e66823211a6eccdd8ae6082787b12ed484cc444021ebceed0ce0bb931"
+  },
+  "focusedCheck": "1/1 PASS terminal25922 exit0,17.633s",
+  "physical": "NEEDS PHYSICAL TEST",
+  "uiBuild": "BUILD FOR TESTING SUCCEEDED terminal81899 exit0",
+  "uiReplay": "1/1 PASS terminal74696 exit0,23.302s",
+  "genuineSaveSHA256": "29ea39f084b13dd61b9aaf62575a641bba7438353093b90829f88113c2758795",
+  "preparedPrivateProfile": "AD1E2026-1010-4000-8000-000000000002",
+  "processIDs": [
+    81799,
+    81826
+  ],
+  "afterSave": {
+    "tilesExactlyRetained": true,
+    "tutorialExactlyRetained": true,
+    "moves": 41,
+    "score": 56,
+    "generationBefore": 1,
+    "generationAfter": 3
+  },
+  "limits": [
+    "Actual UIKit Arcade route and save retention proved, no touch drag proven by this UI fixture",
+    "Global Source flags remain OFF",
+    "Full Source saved tutorial constructors and active tutorial remain open",
+    "Physical acceptance NEEDS PHYSICAL TEST"
+  ],
+  "visualScope": "Actual final capture after4s inspected: HUD/score56/meter/Round01 painted, no tutorial sheet. Huge-cubes physical report remains OPEN; no physical or full source visual parity claim.",
+  "finalPoseCapture": "1/1 PASS terminal47343 exit0,31.580s; UI build3596 terminal exit0"
+}

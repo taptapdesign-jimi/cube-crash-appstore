@@ -1,0 +1,97 @@
+{
+  "authority": "Literal original tutorial placement and original save validator with literal registry functions; no rewritten selection or save algorithm",
+  "sourceSHA256": {
+    "tutorial": "8277b6d0cb81f1e1651a58d007f685ac0aca3abf871b8cf07beebac8407c5b7b",
+    "save": "231f0b9c9775ad4a9095c5be47c55b5984da039e2ab1369cacbada9cc4794451",
+    "registry": "b6818afb9ffd98a6249f17c8f0d020663a1fd9a41f8d43908da1a25bb7780fdd"
+  },
+  "cases": [
+    {
+      "mode": "locked-zero",
+      "selected": {
+        "c": 2,
+        "r": 1
+      },
+      "wildOwnsGrid": true,
+      "displacedRetained": true,
+      "displacedDestroyed": false,
+      "hasLiveOrphan": true,
+      "saveIssueCodes": [
+        "orphan-live-tile",
+        "duplicate-cell-claim"
+      ],
+      "savedCount": null
+    },
+    {
+      "mode": "locked-positive",
+      "selected": {
+        "c": 2,
+        "r": 1
+      },
+      "wildOwnsGrid": true,
+      "displacedRetained": true,
+      "displacedDestroyed": false,
+      "hasLiveOrphan": true,
+      "saveIssueCodes": [
+        "orphan-live-tile",
+        "duplicate-cell-claim"
+      ],
+      "savedCount": null
+    },
+    {
+      "mode": "empty",
+      "selected": {
+        "c": 2,
+        "r": 1
+      },
+      "wildOwnsGrid": true,
+      "displacedRetained": false,
+      "displacedDestroyed": false,
+      "hasLiveOrphan": false,
+      "saveIssueCodes": [],
+      "savedCount": 44
+    },
+    {
+      "mode": "current-top",
+      "selected": {
+        "c": 2,
+        "r": 0
+      },
+      "wildOwnsGrid": true,
+      "displacedRetained": true,
+      "displacedDestroyed": false,
+      "hasLiveOrphan": false,
+      "saveIssueCodes": [],
+      "savedCount": 45
+    },
+    {
+      "mode": "destroyed-placeholder",
+      "selected": {
+        "c": 2,
+        "r": 1
+      },
+      "wildOwnsGrid": true,
+      "displacedRetained": true,
+      "displacedDestroyed": true,
+      "hasLiveOrphan": false,
+      "saveIssueCodes": [],
+      "savedCount": 44
+    },
+    {
+      "mode": "unlocked-zero",
+      "selected": {
+        "c": 2,
+        "r": 1
+      },
+      "wildOwnsGrid": true,
+      "displacedRetained": true,
+      "displacedDestroyed": false,
+      "hasLiveOrphan": true,
+      "saveIssueCodes": [
+        "orphan-live-tile",
+        "duplicate-cell-claim"
+      ],
+      "savedCount": null
+    }
+  ]
+}

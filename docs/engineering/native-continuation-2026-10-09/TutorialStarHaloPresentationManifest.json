@@ -1,0 +1,42 @@
+{
+  "base": [
+    "docs/engineering/native-pause-2026-10-08/NativeSource.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/EntrySourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialIntroSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialHUDSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialMonitorSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialRestoreSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialThirdSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFreeHintSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialCTAPrefixSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialCTAViewSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialThirdDismissSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialWildReservationSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialWildReservationOwnersDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthDroppingSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthSelectionSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthMonitorSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthTargetSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialGridRuntimeSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthPreparationSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialStarHaloMotionSourceDelta.tar.gz"
+  ],
+  "wholeSourceFlags": "OFF",
+  "scope": "Actual shared APP ticker/SpriteKit ready-texture component; full Scene foreground, texture fallback/upgrade, constructor Math timing and fourth caller OPEN.",
+  "files": {
+    "native/gameplay-ui/NativeStarFinale.swift": {
+      "baseSHA256": "02d4b81d659ff2d37e2f615685cdb35718a7db5bbe3b289846a3c3922e7e818b",
+      "sha256": "a60d3c56f85721082284fc4a4e756e299dd8a3f683948739b4f0e98b81e38e70"
+    },
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": {
+      "baseSHA256": "44e833d37bdff8b7c4dcf6a022a33dec263937e69a2aef7391763c68ff86f3ad",
+      "sha256": "2d80ac3561e3e5793752b33794c337480a52e3b37803a5404bb6b06b5261f17f"
+    },
+    "docs/engineering/feature-runtime-owners.json": {
+      "baseSHA256": "b65d2e7ae9e69b08465a0b934427da175b1e45b90bc6c668cf376e7e5ba3a0c2",
+      "sha256": "e0f195a2fb6f3ddb034893fbab03fdbc069c6150dcba8403a43b0db280108ca9"
+    }
+  },
+  "archiveSHA256": "36244a13ddd5c8841eeec64d074dfacdff315ff54961cdc8c7d1fa5bf4dc41e0"
+}

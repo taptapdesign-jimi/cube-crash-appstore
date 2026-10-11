@@ -1,0 +1,34 @@
+{
+  "date": "2026-10-10",
+  "scope": "Private DEBUG Simulator-only native store path; actual OS Home restart. Gameplay OS resume remains unproven.",
+  "profile": "AD1E2026-1010-4000-8000-000000000001",
+  "simulator": "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+  "processIDs": [
+    80513,
+    81004
+  ],
+  "saveBytesRetained": true,
+  "saveSHA256": "0dbd106cb178de9aa525531932296f9573f0c0988245d77b8c2531c06b9be74f",
+  "checks": {
+    "rootSDK": "5/5 PASS terminal68990",
+    "sourceFullQA": "PASS terminal56180 exit0",
+    "realUI": "2/2 PASS terminal75215 exit0",
+    "release": "BUILD SUCCEEDED terminal22016 exit0"
+  },
+  "sourceSHA256": {
+    "native/gameplay-app/NativeStandaloneViewController.swift": "48d5c9c79e5c48f47d069450aceb360af91e0f1b364bc714a71d8d2e03320553",
+    "native/standalone/Stack to SixTests/NativeStandaloneRootTests.swift": "c0ee4c9d07a6f2e86f304a18e84e8453fd96f136a0b54a169604997aa6d5fbfa",
+    "native/standalone/Stack to SixUITests/NativeHomeInteractionUITests.swift": "c2ac695eed2dda8694ae29aa1b22a96530ce8364abe8c008c040b512165d0414"
+  },
+  "limits": [
+    "No physical acceptance",
+    "No Source flag admission",
+    "Existing profile and PWA untouched",
+    "UI Settings restart validates actual haptics preference save, not audible output or gameplay resume"
+  ],
+  "releaseBinaryQAStringsAbsent": [
+    "CC_NATIVE_QA_PROFILE_ID",
+    "NativeSimulatorQAProfile",
+    "native-process-qa-"
+  ]
+}

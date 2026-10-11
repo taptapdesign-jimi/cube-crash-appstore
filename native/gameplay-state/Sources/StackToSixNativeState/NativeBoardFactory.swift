@@ -10,7 +10,7 @@ public enum NativeBoardFactory {
             rng ^= rng << 13; rng ^= rng >> 7; rng ^= rng << 17
             return Double(rng >> 11) / 9007199254740992
         }
-        var tiles = (0..<(columns*rows)).map { index in NativeTile(id:"g\(generation)-\(index)",cell:NativeCell(column:index%columns,row:index/columns),value:0,locked:true) }
+        var tiles = (0..<(columns*rows)).map { index in NativeTile(id:"g\(generation)-\(index)",cell:NativeCell(column:index%columns,row:index/columns),value:0,locked:true,alpha:0.25) }
         if tutorial {
             let center = max(0,min(rows-3,rows/2-1)), lower = max(2,min(rows-1,center+2))
             let left = max(0,min(columns-3,columns/2-1)), right = max(2,min(columns-1,left+2))
@@ -18,7 +18,7 @@ public enum NativeBoardFactory {
             var seen: Set<Int> = []
             for (c,r,value) in desired where c >= 0 && c < columns && r >= 0 && r < rows {
                 let index = r*columns+c
-                if seen.insert(index).inserted { tiles[index].value=value; tiles[index].locked=false }
+                if seen.insert(index).inserted { tiles[index].value=value; tiles[index].locked=false;tiles[index].alpha=1 }
             }
         } else {
             var ids = Array(tiles.indices)
@@ -26,7 +26,7 @@ public enum NativeBoardFactory {
             let bias = mode == .journey ? NativeJourneyContent.smallValueBias(board:board) : 0
             for index in ids.prefix(max(1,Int((Double(tiles.count)*0.30).rounded(.toNearestOrAwayFromZero)))) {
                 let pool = bias > 0 && roll() < bias ? [1,2,3] : [1,1,1,2,2,3,3,4,5]
-                tiles[index].locked=false; tiles[index].value=pool[Int(roll()*Double(pool.count))]
+                tiles[index].locked=false; tiles[index].value=pool[Int(roll()*Double(pool.count))];tiles[index].alpha=1
             }
         }
         return NativeBoardState(columns:columns,rows:rows,tiles:tiles,mode:mode,board:max(1,board),stage:max(1,board),generation:generation,rngState:rng)

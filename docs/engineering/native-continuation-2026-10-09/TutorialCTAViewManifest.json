@@ -1,0 +1,31 @@
+{
+  "base": [
+    "docs/engineering/native-pause-2026-10-08/NativeSource.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/EntrySourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialIntroSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialHUDSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialMonitorSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialRestoreSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialThirdSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFreeHintSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialCTAPrefixSourceDelta.tar.gz"
+  ],
+  "wholeSourceFlags": "OFF",
+  "laterTutorialCallers": "Static UIKit button with separate Source CTA visual child and captured touch handlers validated; actual third-dismiss caller/audio/board restore/Wild still OPEN, install API not invoked in app. Whole flags OFF.",
+  "files": {
+    "docs/engineering/feature-runtime-owners.json": {
+      "baseSHA256": "059ca878556e923e08ef5030dcbace72eeb89a5dedf220b9c944a819a9ce9ca8",
+      "sha256": "059ca878556e923e08ef5030dcbace72eeb89a5dedf220b9c944a819a9ce9ca8"
+    },
+    "native/gameplay-app/NativeTutorialOverlay.swift": {
+      "baseSHA256": "4c7ef457e4f6c151f0022cc7b3f0de25efe310350165590cb928fa8168f6ad1d",
+      "sha256": "b641051703a6cca59c27edb4824761fb9f499c9f8f97928d80829b5b6dfd73b3"
+    },
+    "native/standalone/Stack to SixTests/NativeSourceTutorialCTATests.swift": {
+      "baseSHA256": "44391748f7254506a7ed32c1516fe377426ca8cd1f66515f5817590983e02261",
+      "sha256": "1221c6088d77a12bb1c1f2753f0b38ac3b71f9252e8a9ab01deff24b55e32a54"
+    }
+  },
+  "archiveSHA256": "11d03094108b14c832ae4c7ba9f8a2abf4ec3d8febbf22502c69fe0a87b026d3"
+}

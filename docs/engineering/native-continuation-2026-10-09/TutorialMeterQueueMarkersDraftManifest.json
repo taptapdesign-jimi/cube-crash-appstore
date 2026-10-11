@@ -1,0 +1,8 @@
+{
+  "status": "DRAFT actual physical Node queue markers; SDK82439 running",
+  "files": {
+    "native/gameplay-ui/NativeBoardScene.swift": "2baf6a055e10cf0b04cf932011d1e5bd42baa22fa640e6c575c5c5add1053ab6",
+    "native/gameplay-app/NativeBootstrap.swift": "436beab90b4595761e9987f7a7ebd3aca20b1ef01c0799bea76c16fd4ed4ff51",
+    "native/gameplay-app/NativeGameplaySourceContext.swift": "7f997aa3a2ce53799c610f5c055869cdef4db885f5c8498de5a8bd6e93b9beb9"
+  }
+}

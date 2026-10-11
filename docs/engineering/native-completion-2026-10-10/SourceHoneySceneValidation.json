@@ -1,0 +1,16 @@
+{
+  "sdk": "172/172 terminal34753 exit0, zero failures: clocks36/FIFO10/resume41/mounted12/Scene skins73.",
+  "uiRegression": "18/18 zero failures, terminal8585 exit0: actual controller3/Scene installer8/bootstrap7. Exact runtime SHA unchanged.",
+  "qa": "Frozen fullQA67480 terminal exit0, full deterministic QA PASS.",
+  "scope": "Scene saved/startup Honey through actual entry/constructor receipt, full Source skin/fizz prefix, same registry/common RNG/service/task/resource cohort. Mixed Bottle/Honey captured tile order retained. Raw Honey carrier suppressed at deferred release. Actual UIKit layout callback has explicit nativeLayoutTask checkpoint; outside-task startup waits real renderer handoff. First real frame visibility avoids settled250ms delay. Source flags OFF; full family/mixed-family global, Release/save retirement and physical acceptance OPEN.",
+  "files": {
+    "native/gameplay-ui/NativeBoardScene.swift": "fc52e841d331d55d34ff1fe8cd530daa406aeef33d28dbeeb7594626a354b981",
+    "native/gameplay-ui/NativeDiceNode.swift": "65a0f887e3a542af05fc434818661d7307bf390a28edc149e744a031f9937bff",
+    "native/gameplay-ui/NativeGameplayViewController.swift": "c8309896f9ceac90982752fe3f303dc45077bff6401177366b17d6b5f6ef4b24",
+    "native/gameplay-ui/NativeSourceMicrotaskAdapters.swift": "7878b109e90acbc7ec1a48c2c94f2aca2e4d3c1ca0c352e6f195e12c31dc5de5",
+    "native/gameplay-ui/NativeSourceMicrotaskFIFO.swift": "d77632456bc5cc6c5a3960c59afabe37da977b69e368c6a683d52cb176aa84cc",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "f2d766d1b250db2f1faed28cac3116bc76cb849714552631400d1c779af3d781",
+    "native/standalone/Stack to SixTests/NativeSourceRegularResumeConstructionTests.swift": "2c5a4fe981bc3731019c912ca991f4859d2af3219c2f356a5317804e11dd7461",
+    "docs/engineering/feature-runtime-owners.json": "c8045e982a778b67597e0e1bc6a368e0190af2fa66917f70dbb2a36e24c98afa"
+  }
+}

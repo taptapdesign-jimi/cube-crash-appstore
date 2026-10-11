@@ -1,0 +1,12 @@
+{
+  "sdk": "Terminal exit65:1201 tests,15 failure/error records including1 unexpected,7 failing test methods,no observed skips",
+  "runtime": "Integrated main unchanged since Release UI host retirement. Four Swift test fixtures changed only after first-run build/load; corrected SDK cohort is still live, no PASS claimed.",
+  "failureClasses": [
+    "NativeJourneyDecorIntegrationTests actual HUD-drop boundary",
+    "NativeOrdinaryPresentationTests retained pause/wall transaction boundary",
+    "NativePaperHandoffTests explicit showStudioIntro=false for direct route fixture",
+    "NativeSourceRegistryMountedTests existing KING destructive-scope overlay"
+  ],
+  "fullDeterministicQA": "After all four fixture edits terminal exit0 PASS; main-sdk-fixture-alignment-full.log",
+  "remaining": "Corrected SDK cohort then current complete Native SDK validation; shared RNG/non-Bee cue admission and full migration/physical acceptance remain OPEN"
+}

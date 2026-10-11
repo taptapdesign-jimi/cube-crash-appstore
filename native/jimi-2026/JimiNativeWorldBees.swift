@@ -1,4 +1,5 @@
 import UIKit
+import StackToSixNativeState
 
 @MainActor
 final class JimiNativeWorldBees {
@@ -12,7 +13,7 @@ final class JimiNativeWorldBees {
         let visualBounds:CGRect
         private static let allowedAssets:Set<String> = Set((1...7).flatMap { ["./assets/shop/honey/bee\($0).png","assets/shop/honey/bee\($0).png"] })
         static func parse(_ raw:[String:Any]) -> Plan? {
-            guard let id = raw["id"] as? Int,[0,2,5,7,9].contains(id),let duration = raw["duration"] as? Double,duration.isFinite,duration>0,duration<=60,let rows = raw["frames"] as? [[String:Any]],(2...1801).contains(rows.count) else {return nil}
+            guard let id = raw["id"] as? Int,NativeForestBeePlanning.retainedIDs.contains(id),let duration = raw["duration"] as? Double,duration.isFinite,duration>0,duration<=60,let rows = raw["frames"] as? [[String:Any]],(2...1801).contains(rows.count) else {return nil}
             var frames:[Frame] = [];frames.reserveCapacity(rows.count)
             var assets = Set<String>(),bounds = CGRect.null,lastTime = -Double.infinity
             for row in rows {

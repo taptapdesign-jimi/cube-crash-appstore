@@ -1,0 +1,60 @@
+{
+  "base": [
+    "docs/engineering/native-pause-2026-10-08/NativeSource.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/EntrySourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialIntroSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialHUDSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialMonitorSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialRestoreSourceDelta.tar.gz"
+  ],
+  "wholeSourceFlags": "OFF",
+  "laterTutorialCallers": "Second monitor and third preparation/sheet connected default-OFF; third hint/CTA/Wild/resume OPEN. Oversized Source ordinary artwork corrected and actual render inspected.",
+  "files": {
+    "docs/engineering/feature-runtime-owners.json": {
+      "baseSHA256": "4f3d87ec7660e832d5ffcd9641d48ff1242ba6d9d5854f710b17e178f7320d82",
+      "sha256": "0fe38d260e770e110b14ae05e45bc5293330ac94956b42548fc8cfae6715a20a"
+    },
+    "native/gameplay-app/NativeBootstrap.swift": {
+      "baseSHA256": "e0f7443a09589b8d5aa1588644e11630ad07ab5a9f885f734386cfe291148a64",
+      "sha256": "3700720cbb12847fa55c259e9422ed0c34ec63ac9d9ec373416d7a7268941715"
+    },
+    "native/gameplay-app/NativeTutorialOverlay.swift": {
+      "baseSHA256": "ca58e4bed0f7349bd3910d07c0c5e64eaf33e447c592f8556d78b07589c4fc9d",
+      "sha256": "3173ccdb6a653c46d6287aa928254cd5230014a0b1d18411610d3099d1630ef8"
+    },
+    "native/gameplay-app/NativeTutorialOwner.swift": {
+      "baseSHA256": "d6e0d9fff086bcaf4d5550089bb303cf16cd997a58e50ea8d244ed84ee224613",
+      "sha256": "14e753af77bda0502127d0e577ea289035064f62acdb318381739d9a2d7d3c70"
+    },
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": {
+      "baseSHA256": "eb4227cd244a0b81a7f516a65e6c3c8df047fbd5161da2f58f53383c15e1f42e",
+      "sha256": "3303fb014d44f852e8024c8348721a603ba345649a1a62d7d0052d9c19e156cf"
+    },
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceTutorialPresentationBarrier.swift": {
+      "baseSHA256": "a3d41f0d40e09fe4b021c02d7b04d5921baa408d3712c53dca30dcfa70261268",
+      "sha256": "3140faa1e2191d14f8a7dc5fd1859617bb6fd94e222f6dd8cfde15867f0eeb34"
+    },
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceTutorialPresentationBarrierTests.swift": {
+      "baseSHA256": "b4cfd18511fbedff2070d1dda7c4920301c6887bf6bed47db747f5e6c2fd5d3d",
+      "sha256": "ce9e2d093c5f55691486bbf6a0b729ce1dc69e6b90555da564206e9a8886f587"
+    },
+    "native/gameplay-ui/NativeBoardScene.swift": {
+      "baseSHA256": "384ef55e6805289d9ffb6dee6faab8929ebd9b248e459ea2ccf46df73bd1bb42",
+      "sha256": "c457ca08e5f55fa4521032195d354ceeb9697cfa482c04e841e81c4a274b5e5f"
+    },
+    "native/gameplay-ui/NativeDiceNode.swift": {
+      "baseSHA256": "553b92756245964071e238c51bab441dc09b3cdc88d3745eaa36eeda13e88df3",
+      "sha256": "6cf13d382c131ed250c94d1d59a9bcd1d34ec8d388a37ef1f31da5b921799081"
+    },
+    "native/standalone/Stack to SixTests/NativeRegularStackFrameNodeTests.swift": {
+      "baseSHA256": "8745efba2285b78bc43e560379f89e87060385e906a9d1d5611bfedea56d1b72",
+      "sha256": "a07acae7209217ac153ce9d8767bc046bc260a2e6772501f30956aadce1d2bb3"
+    },
+    "native/standalone/Stack to SixTests/NativeSourceTutorialBootstrapTests.swift": {
+      "baseSHA256": "d576e65b01dfa1228806cae77a5a1d0d726671ca7c756570020cb9528075451d",
+      "sha256": "5c59a004b81ee740840707453d5256144d6c9e63ea085e70f1b21700be73d8aa"
+    }
+  },
+  "archiveSHA256": "a15d235481e38215ef136a36bb31fe160463532281b704910ef0c515fa9ad544"
+}

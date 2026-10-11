@@ -15,6 +15,8 @@ struct NativeAudioCue:Equatable {
     }
 }
 enum NativeAudioCompletion:Equatable {case ended,stopped,unavailable}
+/// An actual skipped pull cue owns known silence; a failed voice capture is unavailable.
+enum NativeMagnetPullCleanup {case silence,voice(()->Void)}
 
 @MainActor
 protocol NativeGameplayAudioTransport:AnyObject {
@@ -24,9 +26,15 @@ protocol NativeGameplayAudioTransport:AnyObject {
     func stopVoices(_ ids:Set<String>)
     func stopAll()
     func dispose()
+    func prepareSelectedSources(_ sources:[String],capture:String,generation:UInt64)->Bool
+    func setSelectedPreparationEnabled(_ enabled:Bool)
+    func setSelectedPreparationForeground(_ foreground:Bool)
 }
 
 extension NativeGameplayAudioTransport {
+    func prepareSelectedSources(_ sources:[String],capture:String,generation:UInt64)->Bool {false}
+    func setSelectedPreparationEnabled(_ enabled:Bool) {}
+    func setSelectedPreparationForeground(_ foreground:Bool) {}
     func stopVoices(_ ids:Set<String>) {stopAll()}
     func captureFade(_ ids:Set<String>)->((Double)->Void)? {nil}
     // An injected transport without lifecycle support must release the hook as
@@ -48,29 +56,59 @@ final class NativeGameplayAudioOwner {
     private var receipts:[String:UInt64]=[:]
     private var tntOrder=[0,1,2,3,4],harpOrder=[0,1,2],previousHarpOrder:[Int]?
     private var kantaSequence:UInt64=0,kantaWalkingVoice:String?
+    private var meterCarrierSequence:UInt64=0
+    private var meterCarrierVoices:[String:Set<String>]=[:]
     private var transitionSequence:UInt64=0
     private var transitionVoices:Set<String>=[]
     private var transitionDigitVoices:Set<String>=[]
     private var harpSequenceReady=false
+    private var sourceBoardEntryOwner:UUID?
     private var ordinarySixContact:String?
+    private var magnetPullSilentGeneration:UInt64?
+    private var magnetPullStopCapture:(generation:UInt64,receipt:UInt64,stop:()->Void)?
     private var observers:[NSObjectProtocol]=[]
     init(root:URL,enabled:Bool,transport:(any NativeGameplayAudioTransport)?=nil,random:@escaping ()->Double={Double.random(in:0..<1)}) {
         self.transport=transport ?? NativeAVGameplayAudioTransport(root:root);self.enabled=enabled;self.random=random
+        self.transport.setSelectedPreparationEnabled(enabled)
         for name in [UIApplication.willResignActiveNotification,UIApplication.didBecomeActiveNotification,AVAudioSession.interruptionNotification,AVAudioSession.mediaServicesWereResetNotification] {
-            observers.append(NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main) { [weak self] notice in MainActor.assumeIsolated{self?.notification(notice)} })
+            observers.append(NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main) { [weak self] notice in
+                // Copy scalar receipt data before crossing executor isolation.
+                let name=notice.name.rawValue
+                let interruption=notice.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
+                MainActor.assumeIsolated{self?.notification(name:name,interruption:interruption)}
+             })
         }
     }
     func beginGeneration(_ value:UInt64) {
         guard !disposed,value != generation else{return}
-        transport.stopAll();generation=value;receipts.removeAll();harpSequenceReady=false;ordinarySixContact=nil;transitionVoices.removeAll();transitionDigitVoices.removeAll()
+        sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll();generation=value;meterCarrierVoices.removeAll();receipts.removeAll();harpSequenceReady=false;ordinarySixContact=nil;transitionVoices.removeAll();transitionDigitVoices.removeAll()
     }
-    func setEnabled(_ value:Bool) {guard !disposed else{return};enabled=value;if !value {transport.stopAll()}}
-    func setForeground(_ value:Bool) {guard !disposed else{return};foreground=value;if !value {transport.stopAll()}}
+    func setEnabled(_ value:Bool) {guard !disposed else{return};enabled=value;transport.setSelectedPreparationEnabled(value);if !value {sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll()}}
+    func setForeground(_ value:Bool) {guard !disposed else{return};foreground=value;transport.setSelectedPreparationForeground(value && !interrupted);if !value {sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll()}}
+    /// Called only for the actually-created committed meter tile after Source's
+    /// open/token recheck. Preparation never plays or substitutes a generic cue.
+    func prepareSelectedSpecial(special:String,variant:String?,capture:String,generation:UInt64)->Bool {
+        guard !disposed,enabled,foreground,!interrupted,generation==self.generation,
+              let sources=NativeMeterSelectedAudioCatalog.sources(special:special,variant:variant) else{return false}
+        return transport.prepareSelectedSources(sources,capture:capture,generation:generation)
+    }
+
     private func admit(_ category:String,receipt:UInt64,generation:UInt64)->Bool {
         guard !disposed,generation==self.generation,receipt>0,receipt>(receipts[category] ?? 0) else{return false}
         receipts[category]=receipt // OFF consumes the contact; ON never replays it.
         return enabled && foreground && !interrupted
     }
+    func studioIntro(character:String,receipt:UInt64,generation:UInt64) {
+        guard admit("studio-intro",receipt:receipt,generation:generation) else{return}
+        let selections:[String:[String]]=["lik-gitara":["guitar1","guitar2"],"lik-laptop":["chair"],"lik-nogomet":["nogomet"],"lik-board":["kokcice"],"lik-slikanje":["camera"],"lik-cvijet":["watering"],"lik-pas-SVG":["nala1","nala2","nala3"],"lik-speceraj":["paperbag"]]
+        func cue(_ key:String,_ gain:Double=0.42,_ delay:Double=0){transport.play(NativeAudioCue(source:"assets/sound/logo transitions/\(key).wav",voice:"native-studio-\(key)",gain:gain,delay:delay))}
+        if ["lik-speceraj","lik-game","lik-pas-SVG","pas-novine","lik-laptop"].contains(character){cue("smile",0.504)}
+        if ["lik-pas-SVG","pas-novine","lik-speceraj"].contains(character){cue(["nala1","nala2","nala3"].randomElement()!)}
+        if character == "lik-game" {cue("gamer",0.6);cue("gemer2");return}
+        if character == "lik-kauc" {cue("sleepy2",0.336);cue("sleepy1",0.336,1.44);return}
+        if character != "lik-pas-SVG",let choice=selections[character]?.randomElement(){cue(choice)}
+    }
+
     func onGameplayEvent(_ event:NativeGameplayEvent,source:NativeTile?=nil,destination:NativeTile?=nil,generation:UInt64,receipt:UInt64) {
         guard !disposed,generation==self.generation,receipt>0,receipt>(receipts["gameplay"] ?? 0) else{return}
         let audible=admit("gameplay",receipt:receipt,generation:generation)
@@ -106,10 +144,57 @@ final class NativeGameplayAudioOwner {
         }
     }
     /// The route owner supplies exact semantic kind, never a raw pointer event.
+    /// PRIVATE meter-carrier proposal: same authored family/transport, captured
+    /// cleanup cannot stop a replacement or unrelated gameplay/CTA voice.
+    func beginMeterCarrierAudio(arcade:Bool,id:String,receipt:UInt64,generation:UInt64)->(() -> Void) {
+        guard meterCarrierVoices[id]==nil,admit("meter-carrier",receipt:receipt,generation:generation) else {return {}}
+        meterCarrierSequence &+= 1
+        let sequence=meterCarrierSequence,suffix="-meter-\(generation)-\(sequence)"
+        let cues=NativeAuthoredAudioCatalog.groups[arcade ? "crate":"backpack"] ?? []
+        let ids=Set(cues.map{$0.voice+suffix});meterCarrierVoices[id]=ids
+        for cue in cues {
+            transport.play(NativeAudioCue(source:cue.source,voice:cue.voice+suffix,gain:cue.gain,rate:cue.rate,
+                delay:cue.delay,stopAfter:cue.stopAfter,fadeOut:cue.fadeOut))
+        }
+        var finished=false
+        return { [weak self] in
+            guard !finished else {return};finished=true
+            guard let self,!self.disposed,self.generation==generation,
+                  self.meterCarrierVoices[id]==ids else {return}
+            self.meterCarrierVoices.removeValue(forKey:id);self.transport.stopVoices(ids)
+        }
+    }
+    /// Called at the genuine Source sweetPopIn sound start. The supplied
+    /// duration already includes the original maxEnd+.03 tail. No Math draw.
+    func startSourceBoardEntrySound(duration:Double,receipt:UInt64,generation:UInt64)->(() -> Void)? {
+        guard !disposed,generation==self.generation,receipt>0,
+            receipt>(receipts["source-board-entry"] ?? 0),duration.isFinite,duration>=0 else{return nil}
+        let audible=admit("source-board-entry",receipt:receipt,generation:generation)
+        let id=UUID();sourceBoardEntryOwner=id
+        let cues=NativeAuthoredAudioCatalog.groups["boardEnter"] ?? []
+        let voices=Set(cues.map(\.voice))
+        // Seal the old owner before transport callbacks can reenter.
+        transport.stopVoices(voices)
+        guard !disposed,self.generation==generation,sourceBoardEntryOwner==id else{return nil}
+        if audible,duration>0 {
+            for cue in cues {
+                guard !disposed,self.generation==generation,sourceBoardEntryOwner==id,
+                    enabled,foreground,!interrupted else{return nil}
+                transport.play(NativeAudioCue(source:cue.source,voice:cue.voice,gain:cue.gain,rate:cue.rate,
+                    delay:cue.delay,stopAfter:duration,fadeOut:min(0.05,duration)))
+            }
+        }
+        guard !disposed,self.generation==generation,sourceBoardEntryOwner==id else{return nil}
+        return { [weak self] in
+            guard let self,!self.disposed,self.generation==generation,self.sourceBoardEntryOwner==id else{return}
+            self.sourceBoardEntryOwner=nil
+            self.transport.stopVoices(voices)
+        }
+    }
     func routeFeedback(_ kind:String,receipt:UInt64,generation:UInt64,duration:Double?=nil) {
         guard admit("route",receipt:receipt,generation:generation) else{return}
         let mapping=["cta":"cta","card-tap":"cardTap","tab":"tab","back":"back","close":"back","swipe":"swipe","exit-modal":"exitModal","card-flip":"flip","manual-flip":"manualFlip","return-flip":"returnFlip","home-enter":"homeEnter","home-exit":"homeExit","hub-exit":"hubExit","board-enter":"boardEnter","board-exit":"boardExit","backpack":"backpack","crate":"crate","area55-start":"area55Start","forest-transition":"forestTransition"]
-        if let group=mapping[kind] {play(group,duration:duration)}
+        if let group=mapping[kind] {if group=="boardEnter" || group=="boardExit" {sourceBoardEntryOwner=nil};play(group,duration:duration)}
     }
     /// Board Transition has its own voice identities and contact receipts. The
     /// first digit's exit accent is authored at ENTER, independently of Arcade.
@@ -176,16 +261,24 @@ final class NativeGameplayAudioOwner {
         play(group,duration:duration,completionVoice:hookVoice,onFinished:onFinished)
     }
     func specialMoment(variant:String,moment:String,index:Int=0,receipt:UInt64,generation:UInt64) {
+        guard !disposed,generation==self.generation,receipt>0,receipt>(receipts["special"] ?? 0) else{return}
+        let forcePull=moment=="pull" && ["magnet","honey","bottle","spaceship"].contains(variant)
+        // A real current contact consumes any previous unclaimed capture even
+        // while Sounds OFF. A stale/repeated A must leave C untouched.
+        if forcePull {
+            magnetPullStopCapture=nil;magnetPullSilentGeneration=nil
+            if !enabled || !foreground || interrupted {magnetPullSilentGeneration=generation}
+        }
         guard admit("special",receipt:receipt,generation:generation) else{return}
         if moment=="landing" {play("landing");return}
         let group:String?
         switch (variant,moment) {
         case ("juice",_),("mushroom",_):group="juice-\(moment)"
-        case ("bottle","pull"):play("bottleForce");group="bottlePull"
+        case ("bottle","pull"):playCapturedMagnetForce("bottleForce",receipt:receipt,generation:generation);group="bottlePull"
         case ("bottle",_):group="bottle-\(moment)"
-        case ("honey","pull"):play("honeyForce");group="honeyPull"
+        case ("honey","pull"):playCapturedMagnetForce("honeyForce",receipt:receipt,generation:generation);group="honeyPull"
         case ("honey","post"):group="honeyPost"
-        case ("magnet","pull"):group="magnetPull"
+        case ("magnet","pull"),("spaceship","pull"):group="magnetPull"
         case ("bee","finale"):group="beeFinale"
         case ("flower","leaves"):group="flowerLeaves"
         case ("flower","spark"):group="flowerSpark"
@@ -216,7 +309,39 @@ final class NativeGameplayAudioOwner {
             play("kantaExit-\(choice)-\(loud)",voiceSuffix:"-contact-\(receipt)");return
         default:group=nil
         }
-        if let group {play(group)}
+        if let group {
+            if group=="magnetPull" {playCapturedMagnetForce(group,receipt:receipt,generation:generation)}
+            else {play(group)}
+        }
+    }
+    private func playCapturedMagnetForce(_ group:String,receipt:UInt64,generation:UInt64) {
+        play(group)
+        guard !disposed,self.generation==generation,receipts["special"]==receipt,enabled,foreground,!interrupted else{return}
+        let ids=Set((NativeAuthoredAudioCatalog.groups[group] ?? []).map(\.voice))
+        // Existing transport captures Voice object identity now. No ID lookup
+        // later, no stopVoices fallback (its compatibility default is stopAll).
+        let captured=transport.captureFade(ids)
+        guard !disposed,self.generation==generation,receipts["special"]==receipt,enabled,foreground,!interrupted,
+              let captured else{return}
+        magnetPullStopCapture=(generation,receipt,{captured(1)})
+    }
+    /// Borrow immediately after this actual pull cue. Callback is cleanup, not
+    /// a new cue. Old A cannot stop replacement C, even in the same generation.
+    func captureMagnetPullStop(generation:UInt64)->(()->Void)? {
+        guard !disposed,generation==self.generation,let captured=magnetPullStopCapture,
+            captured.generation==generation else{return nil}
+        magnetPullStopCapture=nil;magnetPullSilentGeneration=nil // unhook BEFORE any external stop callback
+        var finished=false
+        return {guard !finished else{return};finished=true;captured.stop()}
+    }
+    /// Called synchronously after the real pull moment. Missing playback or
+    /// capture fails closed; intentional Settings/lifecycle suppression is typed.
+    func captureMagnetPullCleanup(generation:UInt64)->NativeMagnetPullCleanup? {
+        guard !disposed,generation==self.generation else{return nil}
+        if let stop=captureMagnetPullStop(generation:generation) {return .voice(stop)}
+        guard magnetPullSilentGeneration==generation else{return nil}
+        magnetPullSilentGeneration=nil
+        return .silence
     }
     /// Capture after this finale's first actual walking cue. Transport receipts
     /// retain identity so an old fade can never attenuate a replacement bibis.
@@ -244,80 +369,161 @@ final class NativeGameplayAudioOwner {
         }
         if !completionAttached {onFinished?()}
     }
-    func stop() {transport.stopAll();generation &+= 1;receipts.removeAll();harpSequenceReady=false;ordinarySixContact=nil}
-    func dispose() {guard !disposed else{return};disposed=true;transport.dispose();for observer in observers {NotificationCenter.default.removeObserver(observer)};observers.removeAll();receipts.removeAll()}
-    private func notification(_ notice:Notification) {
-        if notice.name==UIApplication.willResignActiveNotification {setForeground(false)}
-        else if notice.name==UIApplication.didBecomeActiveNotification {setForeground(true)}
-        else if notice.name==AVAudioSession.interruptionNotification {
-            guard let raw=notice.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,let type=AVAudioSession.InterruptionType(rawValue:raw) else{return}
-            interrupted=type == .began;if interrupted {transport.stopAll()}
-        } else {transport.stopAll()}
+    func stop() {sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll();meterCarrierVoices.removeAll();generation &+= 1;receipts.removeAll();harpSequenceReady=false;ordinarySixContact=nil}
+    func dispose() {guard !disposed else{return};disposed=true;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;meterCarrierVoices.removeAll();transport.dispose();for observer in observers {NotificationCenter.default.removeObserver(observer)};observers.removeAll();receipts.removeAll()}
+    private func notification(name:String,interruption:UInt?) {
+        if name==UIApplication.willResignActiveNotification.rawValue {setForeground(false)}
+        else if name==UIApplication.didBecomeActiveNotification.rawValue {setForeground(true)}
+        else if name==AVAudioSession.interruptionNotification.rawValue {
+            guard let raw=interruption,let type=AVAudioSession.InterruptionType(rawValue:raw) else{return}
+            interrupted=type == .began;transport.setSelectedPreparationForeground(foreground && !interrupted);if interrupted {sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll()}
+        } else {sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.setSelectedPreparationEnabled(false);transport.stopAll();transport.setSelectedPreparationEnabled(enabled)}
     }
 }
 
 /// Lazy file-backed one shots; exact selected files only. Stable semantic voice IDs
 /// replace their predecessor, while independent layered families may overlap.
 @MainActor
-final class NativeAVGameplayAudioTransport:NSObject,NativeGameplayAudioTransport,AVAudioPlayerDelegate {
+final class NativeAVGameplayAudioTransport:NSObject,NativeGameplayAudioTransport {
     private final class Voice {
         let token=UUID()
-        var player:AVAudioPlayer?
+        let control=NativeSelectedAudioFile.ControlLease()
+        var started=false
+        var completionReceipt:NativeSelectedAudioFile.Completion?
         var gain=0.0
         var task:Task<Void,Never>?
+        var preparationRequest:String?
+        var preparedFile:NativeSelectedAudioFile?
+        var preparationGeneration:UInt64?
         var onFinished:((NativeAudioCompletion)->Void)?
     }
     private let root:URL
     private var voices:[String:Voice]=[:]
     private var disposed=false
+    private var controlEpoch:UInt64=1
     private let maximumVoices=32
+    // Includes logically retired players awaiting their exact worker stop.
+    private let maximumControlVoices=64
+    private var pendingControlVoices=Set<UUID>()
+    var pendingControlVoiceCount:Int {pendingControlVoices.count}
+    private lazy var selectedPreparation=injectedPreparation ?? NativeSelectedAudioNativePreparation.make(root:root)
+    private let injectedPreparation:NativeSelectedAudioPreparation<NativeSelectedAudioFile>?
+    var preparedSourceCount:Int {selectedPreparation.preparedCount}
+    func prepareSelectedSources(_ sources:[String],capture:String,generation:UInt64)->Bool {
+        guard !disposed else{return false}
+        let canonical=sources.compactMap{NativeSelectedAudioFile.canonicalPath($0)}
+        guard canonical.count==sources.count else{return false}
+        selectedPreparation.beginGeneration(generation)
+        return selectedPreparation.prepare(sources:canonical,requestID:capture,generation:generation)
+    }
+    func setSelectedPreparationEnabled(_ enabled:Bool) {selectedPreparation.setEnabled(enabled);if !enabled {stopAll()}}
+    func setSelectedPreparationForeground(_ foreground:Bool) {selectedPreparation.setForeground(foreground);if !foreground {stopAll()}}
     var scheduledVoiceCount:Int {voices.count}
     func scheduledGain(for id:String)->Double? {voices[id]?.gain}
-    var openedFileCount:Int {voices.values.filter{$0.player != nil}.count}
+    var openedFileCount:Int {voices.values.filter{$0.started}.count}
+    func capturedCompletionReceipt(for id:String)->NativeSelectedAudioFile.Completion? {voices[id]?.completionReceipt}
     var onError:((String)->Void)?
-    init(root:URL) {self.root=root;super.init()}
+    init(root:URL,preparation:NativeSelectedAudioPreparation<NativeSelectedAudioFile>?=nil) {self.root=root;self.injectedPreparation=preparation;super.init()}
     func play(_ cue:NativeAudioCue){play(cue,completion:nil)}
     func play(_ cue:NativeAudioCue,onFinished:@escaping (NativeAudioCompletion)->Void){play(cue,completion:onFinished)}
     private func play(_ cue:NativeAudioCue,completion:((NativeAudioCompletion)->Void)?) {
-        guard !disposed,cue.source.hasPrefix("assets/sound/"),!cue.source.split(separator:"/").contains(".."),cue.gain.isFinite,cue.rate.isFinite,cue.delay.isFinite,cue.rate>0,cue.delay>=0 else{completion?(.unavailable);return}
+        guard !disposed,NativeSelectedAudioFile.canonicalPath(cue.source) != nil,cue.gain.isFinite,cue.rate.isFinite,cue.delay.isFinite,cue.rate>0,cue.delay>=0 else{completion?(.unavailable);return}
         stop(cue.voice)
         guard voices.count<maximumVoices else {onError?("Native SFX voice limit reached");completion?(.unavailable);return}
         let voice=Voice();voice.gain=max(0,min(1,cue.gain));voice.onFinished=completion;voices[cue.voice]=voice
         voice.task=Task { @MainActor [weak self,weak voice] in
             if cue.delay>0 {do {try await Task.sleep(for:.seconds(cue.delay))}catch{return}}
             guard let self,let voice,self.voices[cue.voice]===voice,!self.disposed,!Task.isCancelled else{return}
-            do {
-                let player=try AVAudioPlayer(contentsOf:self.root.appendingPathComponent(cue.source))
-                voice.player=player;player.delegate=self;player.enableRate=true;player.rate=Float(cue.rate);player.volume=Float(voice.gain)
-                guard player.play() else {throw NSError(domain:"NativeSFX",code:1,userInfo:[NSLocalizedDescriptionKey:"Cannot start selected authored SFX"])}
-                let audible=cue.stopAfter ?? (player.duration/cue.rate)
-                let fade=max(0,min(cue.fadeOut,audible)),fadeAt=max(0,audible-fade)
-                if fadeAt>0 {try await Task.sleep(for:.seconds(fadeAt))}
-                guard self.voices[cue.voice]===voice,!Task.isCancelled else{return}
-                if fade>0 {player.setVolume(0,fadeDuration:fade);try await Task.sleep(for:.seconds(fade))}
-                guard self.voices[cue.voice]===voice,!Task.isCancelled else{return}
-                self.stop(cue.voice,reason:.ended)
-            } catch is CancellationError {} catch {self.onError?(error.localizedDescription);if self.voices[cue.voice]===voice {self.stop(cue.voice,reason:.unavailable)}}
+            self.obtainSelectedPlayer(cue,voice:voice)
         }
     }
-    private func stop(_ id:String,reason:NativeAudioCompletion = .stopped) {guard let voice=voices.removeValue(forKey:id) else{return};voice.task?.cancel();voice.task=nil;voice.player?.delegate=nil;voice.player?.stop();voice.player=nil;let callback=voice.onFinished;voice.onFinished=nil;callback?(reason)}
+    private func obtainSelectedPlayer(_ cue:NativeAudioCue,voice:Voice) {
+        guard !disposed,voices[cue.voice]===voice,
+              let source=NativeSelectedAudioFile.canonicalPath(cue.source) else{return}
+        if let prepared=selectedPreparation.take(source) {
+            voice.preparedFile=prepared;voice.preparationGeneration=selectedPreparation.currentGeneration
+            start(cue,voice:voice,file:prepared);return
+        }
+        let request="native-play-\(UUID().uuidString)";voice.preparationRequest=request
+        let admitted=selectedPreparation.prepare(sources:[source],requestID:request,generation:selectedPreparation.currentGeneration){[weak self,weak voice] outcome in
+            guard let self,let voice,!self.disposed,self.voices[cue.voice]===voice,voice.preparationRequest==request else{return}
+            voice.preparationRequest=nil
+            guard case .settled(let unavailable)=outcome else{self.stop(cue.voice);return}
+            guard unavailable.isEmpty else{
+                self.onError?("Cannot prepare selected authored SFX")
+                if self.voices[cue.voice]===voice {self.stop(cue.voice,reason:.unavailable)}
+                return
+            }
+            // A coalesced sibling may already have consumed the prepared player.
+            // Each overlapping voice owns a distinct player on the same queue.
+            self.obtainSelectedPlayer(cue,voice:voice)
+        }
+        if !admitted,voices[cue.voice]===voice {voice.preparationRequest=nil;stop(cue.voice,reason:.unavailable)}
+    }
+    private func start(_ cue:NativeAudioCue,voice:Voice,file:NativeSelectedAudioFile) {
+        guard !disposed,voices[cue.voice]===voice else{return}
+        guard pendingControlVoices.count<maximumControlVoices else {
+            onError?("Native SFX control limit reached")
+            if voices[cue.voice]===voice {stop(cue.voice,reason:.unavailable)}
+            return
+        }
+        pendingControlVoices.insert(voice.token)
+        let completion:NativeSelectedAudioFile.Completion={[weak self,weak voice] success,message in
+            guard let self,let voice,self.voices[cue.voice]===voice else{return}
+            if let message {self.onError?(message)}
+            if self.voices[cue.voice]===voice {self.stop(cue.voice,reason:success ? .ended:.unavailable)}
+        }
+        voice.completionReceipt=completion
+        file.start(voice.control,rate:cue.rate,gain:voice.gain,completion:completion){[weak self,weak voice] success in
+            guard let self,let voice,self.voices[cue.voice]===voice,!self.disposed else{return}
+            guard success else {
+                self.onError?("Cannot start selected authored SFX")
+                if self.voices[cue.voice]===voice {self.stop(cue.voice,reason:.unavailable)}
+                return
+            }
+            voice.started=true
+            let audible=cue.stopAfter ?? (file.duration/cue.rate)
+            let fade=max(0,min(cue.fadeOut,audible)),fadeAt=max(0,audible-fade)
+            voice.task=Task { @MainActor [weak self,weak voice] in
+                guard let self,let voice,self.voices[cue.voice]===voice,!self.disposed,!Task.isCancelled else{return}
+                do {
+                    if fadeAt>0 {try await Task.sleep(for:.seconds(fadeAt))}
+                    guard self.voices[cue.voice]===voice,!Task.isCancelled else{return}
+                    if fade>0 {file.fadeOut(duration:fade,lease:voice.control);try await Task.sleep(for:.seconds(fade))}
+                    guard self.voices[cue.voice]===voice,!Task.isCancelled else{return}
+                    self.stop(cue.voice,reason:.ended)
+                } catch is CancellationError {} catch {self.onError?(error.localizedDescription);if self.voices[cue.voice]===voice {self.stop(cue.voice,reason:.unavailable)}}
+            }
+        }
+    }
+    private func stop(_ id:String,reason:NativeAudioCompletion = .stopped,returnIdle:Bool=true) {
+        guard let voice=voices.removeValue(forKey:id) else{return}
+        voice.control.retire();voice.task?.cancel();voice.task=nil;voice.started=false;voice.completionReceipt=nil
+        if let request=voice.preparationRequest {voice.preparationRequest=nil;selectedPreparation.cancel(requestID:request)}
+        let file=voice.preparedFile,generation=voice.preparationGeneration,epoch=controlEpoch
+        voice.preparedFile=nil;voice.preparationGeneration=nil
+        if let file {
+            file.stop(voice.control){[weak self] stopped in
+                guard let self else{return}
+                self.pendingControlVoices.remove(voice.token)
+                guard stopped,returnIdle,reason != .unavailable,!self.disposed,
+                      self.controlEpoch==epoch,let generation else{return}
+                self.selectedPreparation.returnIdle(.init(asset:file,bytes:file.estimatedDecodedBytes),source:file.source,generation:generation)
+            }
+        }
+        let callback=voice.onFinished;voice.onFinished=nil;callback?(reason)
+    }
     func captureFade(_ ids:Set<String>)->((Double)->Void)? {
         let captured=ids.compactMap {id -> (String,Voice,Double)? in guard let voice=voices[id] else{return nil};return (id,voice,voice.gain)}
         guard !captured.isEmpty,!disposed else{return nil}
         return { [weak self] progress in
             guard let self,!self.disposed,progress.isFinite else{return};let p=min(1,max(0,progress))
             for (id,voice,gain) in captured where self.voices[id]===voice {
-                if p>=1 {self.stop(id)}else{voice.gain=gain*(1-p);voice.player?.volume=Float(voice.gain)}
+                if p>=1 {self.stop(id)}else{voice.gain=gain*(1-p);voice.preparedFile?.setGain(voice.gain,lease:voice.control)}
             }
         }
     }
-    func stopAll() {for id in Array(voices.keys) {stop(id)}}
+    func stopAll() {controlEpoch &+= 1;for id in Array(voices.keys) {stop(id,returnIdle:false)};selectedPreparation.cancelPending()}
     func stopVoices(_ ids:Set<String>) {for id in ids {stop(id)}}
-    func dispose() {guard !disposed else{return};disposed=true;stopAll()}
-    nonisolated func audioPlayerDidFinishPlaying(_ player:AVAudioPlayer,successfully flag:Bool) {
-        Task { @MainActor [weak self] in guard let self,let id=self.voices.first(where:{$0.value.player===player})?.key else{return};self.stop(id,reason:flag ? .ended:.unavailable) }
-    }
-    nonisolated func audioPlayerDecodeErrorDidOccur(_ player:AVAudioPlayer,error:Error?) {
-        Task { @MainActor [weak self] in guard let self,let id=self.voices.first(where:{$0.value.player===player})?.key else{return};self.onError?(error?.localizedDescription ?? "Authored SFX decode failed");self.stop(id,reason:.unavailable) }
-    }
+    func dispose() {guard !disposed else{return};disposed=true;stopAll();selectedPreparation.dispose()}
 }

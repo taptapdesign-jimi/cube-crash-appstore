@@ -1,0 +1,18 @@
+{
+  "scope": "One real decode recovery after existing I/O/MainActor boundary; shared asset/FIFO reaction; exact provider epoch/current guards. Missing image does not loop. Private flags OFF; no main/phone/PWA integration.",
+  "files": {
+    "native/gameplay-ui/NativeDiceArtwork.swift": "32992abaa5f39272aae368b0bbba4dfd332006e57266690b3f474a838ed00fac",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "8217a830d014707c840af9f24cdd0895830196713238459399acb290aad747b5"
+  },
+  "SDK": "cohort terminalexit0 3/3 PASS; recovery/one-shot bound/existing provider generation exclusion",
+  "SDKretirement": "terminalexit0 3/3 PASS: actual successful retry, permanent missing failure, reentrant provider retirement at retry boundary",
+  "full": "terminalexit0 all selected deterministic gates PASS; implementation frozen; added retirement SDK test is verified separately and was not copied under this live QA run",
+  "failures": "Initial SDK4 tests1failure: inline checkpoint joined the still-settling failed cohort. Raw failure preserved; corrected implementation uses actual existing I/O/MainActor boundary.",
+  "logs": {
+    "wild-skin-recovery-sdk.log": "65b3e3b4379104c5ca925ee2014a734be2ea0e747f3eccc1c525ac969cfe4645",
+    "wild-skin-recovery-cohort-sdk.log": "1ba16fe59a2926beb14a8a1ea2463a0cd66f0ff2ea20d469dfd029f07751d067",
+    "wild-skin-recovery-full.log": "6ab329d64705397ce11f49bd4da5bf0a25a11ceda337c445c34453ab321fb81a",
+    "wild-skin-recovery-retirement-sdk.log": "3cb22b9ec3703339abde875e3265b424435ffdf74e5804d1dbdc59d6fcd9ee52",
+    "wild-skin-recovery-cohort-full.log": "841947b1928dc28669d3c5d21143461b8d199578138f9d5833353e50a1c87894"
+  }
+}

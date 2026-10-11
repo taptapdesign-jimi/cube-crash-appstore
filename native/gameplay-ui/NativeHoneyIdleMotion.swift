@@ -102,3 +102,63 @@ enum NativeHoneyIdleMotion {
         }
     }
 }
+
+#if canImport(UIKit)
+/// Honey owns a finite default-lazy Source clock; registry pressure changes
+/// chase state, while visibility alone suspends this individual root.
+@MainActor final class NativeSourceHoneyIdleClock:NativeSourceAnimationParticipant {
+    private let service:NativeSourceAnimationClockService,random:()->Double,current:()->Bool,paintable:()->Bool
+    private let paint:([NativeHoneyIdleMotion.Pose])->Void
+    private var runtime:NativeHoneyIdleMotion.Runtime
+    private var lease:NativeSourceAnimationClockService.Lease?
+    private var elapsed=0.0,visible=true,started=false
+    private(set) var disposed=false
+    var poses:[NativeHoneyIdleMotion.Pose]{runtime.bees.map(\.pose)}
+    var sizeScales:[Double]{runtime.profiles.map(\.sizeScale)}
+    init?(service:NativeSourceAnimationClockService,random:@escaping()->Double,
+        current:@escaping()->Bool,paintable:@escaping()->Bool,
+        paint:@escaping([NativeHoneyIdleMotion.Pose])->Void){
+        guard service.sourceMicrotaskRAFBoundaryInstalled,current() else{return nil}
+        let profiles=NativeHoneyIdleMotion.make(random:random)
+        guard current() else{return nil}
+        self.service=service;self.random=random;self.current=current;self.paintable=paintable;self.paint=paint
+        runtime = .init(profiles:profiles)
+    }
+    private func valid()->Bool {
+        guard !disposed else{return false}
+        let accepted=current();return accepted && !disposed
+    }
+    @discardableResult func start(beforeRootRegistration:()->Bool={true})->Bool {
+        guard !started,valid() else{return false};started=true
+        render(force:true)
+        guard valid(),beforeRootRegistration(),valid() else{dispose();return false}
+        let captured=service.register(participant:self,duration:3600,domain:.sourceGSAP(.defaultLazyTween),
+            initiallySuspended:!visible,cleanup:{[weak self] success in
+                guard let self,!self.disposed else{return};self.lease=nil
+                if !success {self.dispose()}
+            })
+        guard let captured,valid() else{captured?.cancel();dispose();return false}
+        lease=captured;return true
+    }
+    func advanceSourceAnimation(seconds:Double){
+        guard valid() else{dispose();return}
+        // GSAP plain numeric property setters round clock.elapsed to six decimals.
+        elapsed=(min(3600,max(0,seconds))*1_000_000).rounded()/1_000_000;render(force:false)
+    }
+    private func render(force:Bool){
+        guard valid(),visible,paintable(),valid() else{return}
+        if runtime.paint(seconds:elapsed,force:force,random:random),valid(){paint(poses)}
+    }
+    /// Called only by the genuine captured seven-resource cohort reaction.
+    func assetCohortDidCommit(){guard started,valid() else{return};render(force:true)}
+    func setDragging(_ value:Bool){guard valid() else{return};runtime.setDragging(value)}
+    func updateDragMotion(offset:CGPoint,velocity:CGPoint){
+        guard valid(),visible,paintable(),valid(),runtime.dragging else{return}
+        runtime.updateDrag(offsetX:Double(offset.x),offsetY:Double(offset.y),velocityX:Double(velocity.x),velocityY:Double(velocity.y))
+        if valid(){paint(poses)}
+    }
+    func setVisible(_ value:Bool){guard valid(),visible != value else{return};visible=value;lease?.setSuspended(!value)}
+    func dispose(){guard !disposed else{return};disposed=true;let old=lease;lease=nil;old?.cancel()}
+    isolated deinit{dispose()}
+}
+#endif

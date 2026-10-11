@@ -1,0 +1,16 @@
+{
+  "status": "SDK96649 terminal exit0 TEST SUCCEEDED actual restart1/1PASS",
+  "files": {
+    "native/standalone/Stack to SixTests/NativeSourceSameObjectSixSceneTests.swift": "d9f44d73c59690114b3b9bb18337720fd44fb267755deb00533edff97b94c122"
+  },
+  "log": {
+    "path": "docs/engineering/native-continuation-2026-10-09/native-ordinary-locked-settlement-restart.log",
+    "sha256": "a98bb736a80250b8205811153e84b6e463f89715087574f54d7faacf81c44458"
+  },
+  "proof": "Earlier actual Source FIFO job restarts canonical board and synchronizes same-ID replacement before old locked-helper acknowledgement; old queued continuation cannot change new board/state/RNG/value. Explicit old receipt rejected.",
+  "limits": [
+    "minimum-active/finally OPEN",
+    "destructive cancellation under enabled receipt OPEN",
+    "whole startup admission and physical acceptance OPEN"
+  ]
+}

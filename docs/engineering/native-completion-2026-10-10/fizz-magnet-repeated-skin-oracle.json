@@ -1,0 +1,8 @@
+{
+  "authority": "Untouched original trackAppAnimationFrame plus start/stopWildJuiceBubbles and startMagnetIdleParticles, real GSAP; explicit RAF and Pixi/visibility endpoints. Two same-tile accepted prefixes do NOT coalesce.",
+  "before": 24,
+  "pending": 2,
+  "after": 48,
+  "remaining": 0,
+  "attachedRoots": 5
+}

@@ -1,0 +1,19 @@
+{
+  "scope": "Actual NativeBootstrap opt-in -> actual NativeGameplayViewController Scope/microtask owner -> post-synchronize Scene idle startup. Saved Bee navigates actual App route, receives real UIApplication resign/become-active notifications, retains actual Node and one idle registration. Source Wild constructor/complete save rehydration and full transport/marker/FX admission remain OPEN; new opt-in defaults OFF; no main/phone/PWA integration.",
+  "files": {
+    "native/gameplay-app/NativeBootstrap.swift": "157b8fbdd4fd7f56bc7dc31f946879bc33d2529ad1ddaa5e9456f1e12a7d4b96",
+    "native/gameplay-ui/NativeGameplayViewController.swift": "c4e82aa77ed33b5604c09511a78a2e7af2edd421fc241b1be1b7d0004431d022",
+    "native/standalone/Stack to SixTests/NativeSourceRegularResumeBootstrapTests.swift": "fbe08bce76b615f018632321752f291982f31e52a2473e5f76aad8c04721066e"
+  },
+  "SDK": "terminalexit0 60/60 PASS actual App saved Bee plus two prior regular/default resume tests and57 current Scene/meter/regressions",
+  "full": "terminalexit0 all selected deterministic gates PASS current frozen Source/QA/SDK file hashes match. No live checks.",
+  "logs": {
+    "bee-source-app-sdk.log": "a608c1e455e6f80c488c516e3443eddace0eaed841d1884e4f92a9fce7ffb4c4",
+    "bee-source-app-full.log": "79bc5c4a1a3b59bf17b301283147da9bc20ed8e264d5ee90d16c777c662e6c57"
+  },
+  "snapshotMatch": {
+    "native/gameplay-app/NativeBootstrap.swift": true,
+    "native/gameplay-ui/NativeGameplayViewController.swift": true,
+    "native/standalone/Stack to SixTests/NativeSourceRegularResumeBootstrapTests.swift": true
+  }
+}

@@ -1,4 +1,5 @@
 import UIKit
+import StackToSixGameplay
 
 /// Source splash-text-overlay.ts glyph owner sampled by its finale's clock.
 /// Every letter keeps its original font, per-letter size, palette and 3D pose.
@@ -13,32 +14,36 @@ final class NativeSplashGlyphField: UIView {
     private let compactLaser: Bool
     private var exitRotationsCaptured:Bool
     init(artwork: JimiV9Artwork,text: String,colors: [UIColor],splitIndex: Double,
-         letterColors: [UIColor]? = nil,letterOpacityRange: ClosedRange<Double>? = nil,compactLaser: Bool = false,neonGlow: Bool = false,deferExitRotationCapture:Bool = false,
+         letterColors: [UIColor]? = nil,letterOpacityRange: ClosedRange<Double>? = nil,compactLaser: Bool = false,neonGlow: Bool = false,deferExitRotationCapture:Bool = false,sourcePlan:NativeSourceSplashGlyphPlan? = nil,
          random: () -> Double = { Double.random(in: 0..<1) }) {
         let letters = Array(text)
         roboNameplate = text == "BIBI - RIBI"
         self.compactLaser = compactLaser
-        exitRotationsCaptured = !deferExitRotationCapture
+        exitRotationsCaptured = sourcePlan == nil && !deferExitRotationCapture
         exitStart = compactLaser ? .infinity : 0.3+Double(max(0,letters.count-1))*0.05+0.54
         duration = compactLaser ? 0.04+Double(max(0,letters.count-1))*0.025+0.28 : exitStart+Double(max(0,letters.count-1))*0.06+0.60+0.05
         super.init(frame: .zero)
         isUserInteractionEnabled = false; backgroundColor = .clear
         container.backgroundColor = .clear; addSubview(container)
-        container.transform = CGAffineTransform(rotationAngle: CGFloat(random()-0.5)*30 * .pi/180)
+        container.transform = CGAffineTransform(rotationAngle: sourcePlan.map{CGFloat($0.containerTiltRadians)} ?? CGFloat(random()-0.5)*30 * .pi/180)
         var perspective = CATransform3DIdentity; perspective.m34 = -1/1000
         container.layer.sublayerTransform = perspective
         let buckets: [[Double]] = [[92,98,104],[66,72,80],[30,36,44,50],[66,72,80],[92,98,104],[30,36,44,50],[66,72,80],[30,36,44,50],[92,98,104]]
+        var sizes:[CGFloat]
+        if let sourcePlan {sizes=sourcePlan.sizes.map{CGFloat($0)}}
+        else {
         let offset = min(buckets.count-1,max(0,Int(random()*Double(buckets.count))))
-        var sizes: [CGFloat] = []
+        sizes=[]
         for index in letters.indices {
             let bucket = buckets[(index+offset)%buckets.count]
             let base = bucket[min(bucket.count-1,max(0,Int(random()*Double(bucket.count))))]
             sizes.append(CGFloat((max(index == 0 ? 75 : 28,base+random()*10-5)*10).rounded()/10))
         }
+        }
         for (index,character) in letters.enumerated() {
             let label = UILabel(); label.text = String(character); label.font = artwork.font(size: sizes[index],weight: "ExtraBold")
             let opacityRange = letterOpacityRange ?? 0.8...1.0
-            let opacity = (min(1,max(0,opacityRange.lowerBound+(opacityRange.upperBound-opacityRange.lowerBound)*random()))*100).rounded()/100
+            let opacity = sourcePlan.map{$0.opacities[index]} ?? (min(1,max(0,opacityRange.lowerBound+(opacityRange.upperBound-opacityRange.lowerBound)*random()))*100).rounded()/100
             let palette = colors.isEmpty ? [UIColor.white] : colors
             let color = letterColors.flatMap { index < $0.count ? $0[index] : nil } ?? palette[min(palette.count-1,Double(index) < splitIndex ? 0 : 1)]
             label.textColor = color.withAlphaComponent(opacity)
@@ -66,7 +71,7 @@ final class NativeSplashGlyphField: UIView {
             }
             label.textAlignment = .center; label.backgroundColor = .clear; label.layer.isDoubleSided = false
             label.alpha = 0; container.addSubview(label)
-            glyphs.append(Glyph(label: label,index: index,bounce: 1.02+CGFloat(random())*0.06,exitRotation: deferExitRotationCapture ? 12:CGFloat(12+random()*8),splitLabels: splitLabels,glowLabels:glowLabels))
+            glyphs.append(Glyph(label: label,index: index,bounce: sourcePlan.map{CGFloat($0.bounces[index])} ?? 1.02+CGFloat(random())*0.06,exitRotation: (sourcePlan != nil || deferExitRotationCapture) ? 12:CGFloat(12+random()*8),splitLabels: splitLabels,glowLabels:glowLabels))
         }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -94,6 +99,19 @@ final class NativeSplashGlyphField: UIView {
     func captureExitRotations(random:()->Double) {
         guard !exitRotationsCaptured else {return};exitRotationsCaptured=true
         for index in glyphs.indices {glyphs[index].exitRotation=CGFloat(12+random()*8)}
+    }
+    /// Each actual Source exit draw is fenced independently; constructor
+    /// plans never consume these later values or borrow Raw entropy.
+    func captureSourceExitRotations(random:()->Double,current:()->Bool)->Bool {
+        guard current() else{return false}
+        if exitRotationsCaptured {return current()}
+        for index in glyphs.indices {
+            guard current() else{return false}
+            let roll=random()
+            guard current(),roll.isFinite,roll>=0,roll<1 else{return false}
+            glyphs[index].exitRotation=CGFloat(12+roll*8)
+        }
+        guard current() else{return false};exitRotationsCaptured=true;return true
     }
     func paint(seconds: TimeInterval) {
         CATransaction.begin(); CATransaction.setDisableActions(true)

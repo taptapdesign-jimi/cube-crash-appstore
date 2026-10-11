@@ -1,0 +1,17 @@
+{
+  "status": "Core33261 terminal exit0 full365/365PASS",
+  "files": {
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceOrdinarySixSpawnBeginCoreTests.swift": "3e07ab5f9614e67bfd302bf7a16171af6cf02566d01ee9bfc1249c2ceec36df2"
+  },
+  "log": {
+    "path": "docs/engineering/native-continuation-2026-10-09/native-ordinary-rescue-positive-core.log",
+    "sha256": "18f229cbffa76efd92a257ada44038641297e39b3d898d3dc6cc147c8e6331c1"
+  },
+  "proof": "Actual accepted Core ordinary main\u2192two locked unlocks\u2192Source helper continuation\u2192minimum phase\u2192one remaining emergencyLocked50 candidate. Selection alone leaves whole canonical state unchanged; actual assignment unlocks; separate Source continuation clears minimum once, no extra score/moves. Duplicate assignment/settlement rejected. Controlled physical authority fixture.",
+  "limits": [
+    "no actual emergency wall50/physical Scene proof yet",
+    "fallback epoch/cancellation/destruction matrix OPEN",
+    "minimum Scene producer/finally/startup admission OPEN",
+    "physical/full migration OPEN"
+  ]
+}

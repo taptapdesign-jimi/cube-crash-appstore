@@ -1,0 +1,17 @@
+{
+  "scope": "Original app-core-load-tiles deferred Wild idle and app-core load pop-in onComplete authority. Scene config defers Bee before registry registration, uploads typed static skin during actual board entrance, starts uploaded cohort from actual Raw or Source normal/forced entry completion. Captured same-Node/current Scope guard, retirement drops deferred captures. Full Wild constructor, canceled/relayout entry re-admission, full source clocks/visibility/FX and phone acceptance remain OPEN. Flags OFF; no main/phone/PWA integration.",
+  "files": {
+    "native/gameplay-ui/NativeBoardScene.swift": "4da4c909a46ab208f3d0045b05f2ce41c548bf3c5caea974edb8ccfcd314ec0c",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "c0a21b9e1c20417c806662be72d8ea866deaaf502e868c03aac30e119d584570"
+  },
+  "SDK": "terminalexit0 61/61 PASS current defer-before-registration plus actual App/Scene/meter and prior regressions",
+  "full": "terminalexit0 all selected deterministic gates PASS current frozen Source/QA/SDK file hashes match. No live checks.",
+  "logs": {
+    "bee-source-restore-entry-current-sdk.log": "edc91622fb2113cd2cb96aa25e4c0564bb2f0ced749a03220690bf76c13a45df",
+    "bee-source-restore-entry-current-full.log": "e53bf5d5182a195f82344d509a20108128cf27b31a2138e46966e04475e108d9"
+  },
+  "snapshotMatch": {
+    "native/gameplay-ui/NativeBoardScene.swift": true,
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": true
+  }
+}

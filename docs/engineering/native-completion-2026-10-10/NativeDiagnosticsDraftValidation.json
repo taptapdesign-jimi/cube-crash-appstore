@@ -1,0 +1,12 @@
+{
+  "scope": "Prepared Native-only diagnostics draft, outside active target; no shipping or runtime acceptance claim",
+  "draftSHA256": "8ad97eb1b13bfb9a45c56732799ae868946dcd19d8a077fa8c810aab7c8f202d",
+  "typecheck": "initial95518 exit0 one Sendable action capture warning; corrected current command exit0 without warnings",
+  "limits": [
+    "Current fullSDK75220 remains source-frozen",
+    "Requires real Native-root linkage and bounded disk/ordinary-launch/lifecycle/cap/failure tests",
+    "No physical capture or presented FPS proof"
+  ],
+  "testDraftSHA256": "63e91588fcfa2913466b4da8188582288896a7a24be9aa31f419624e8943c9de",
+  "testDraftTypecheck": "initial absent XCTest framework search path; second nested fixture needed explicit MainActor; final command exit0 no warnings. Six draft behavioral tests, not executed."
+}

@@ -1,0 +1,1332 @@
+{
+  "mode": "delayed",
+  "authority": "Unmodified original Honey controller and heading helper transpiled/executed with installed real GSAP finite tween. Explicit delayed asset Promise/Pixi/pool/visibility endpoints and PNG logical dimensions; direct totalTime samples, not actual shared RAF/lag or GPU/Native admission.",
+  "sourceSHA256": "6ae2be094ed4d5688a96c8c683913600e1cff056916d683aecdb369d95e3d7ca",
+  "seed": 1,
+  "constructorDraws": 78,
+  "duration": 3600,
+  "events": [
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee1@2x.png",
+      "draws": 0
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee2@2x.png",
+      "draws": 0
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee3@2x.png",
+      "draws": 0
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee4@2x.png",
+      "draws": 0
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee5@2x.png",
+      "draws": 0
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee6@2x.png",
+      "draws": 0
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee7@2x.png",
+      "draws": 0
+    },
+    {
+      "event": "sprite-acquire",
+      "draws": 78
+    },
+    {
+      "event": "sprite-acquire",
+      "draws": 78
+    },
+    {
+      "event": "sprite-acquire",
+      "draws": 78
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee1@2x.png",
+      "draws": 78
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee2@2x.png",
+      "draws": 78
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee3@2x.png",
+      "draws": 78
+    },
+    {
+      "event": "pending-asset-load",
+      "source": "./assets/shop/honey/bee3@2x.png",
+      "draws": 78
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee4@2x.png",
+      "draws": 78
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee5@2x.png",
+      "draws": 78
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee6@2x.png",
+      "draws": 78
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee7@2x.png",
+      "draws": 78
+    },
+    {
+      "event": "root-register",
+      "duration": 3600,
+      "draws": 78
+    },
+    {
+      "event": "visibility-track",
+      "draws": 78
+    },
+    {
+      "event": "returned-before-cohort",
+      "draws": 78
+    },
+    {
+      "event": "cohort-checkpoint",
+      "draws": 78
+    },
+    {
+      "event": "visibility-release",
+      "draws": 81
+    },
+    {
+      "event": "sprite-release",
+      "draws": 81
+    },
+    {
+      "event": "sprite-release",
+      "draws": 81
+    },
+    {
+      "event": "sprite-release",
+      "draws": 81
+    }
+  ],
+  "samples": [
+    {
+      "label": "synchronous-force",
+      "seconds": 0,
+      "draws": 78,
+      "bees": [
+        {
+          "x": 23.25295985441028,
+          "y": 46.795174751068124,
+          "alpha": 0,
+          "width": 1.3424008524056793e-14,
+          "height": 1.3424008524056793e-14,
+          "asset": "bee1",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": 0.7049504487465048,
+          "y": -64.08648122426362,
+          "alpha": 0,
+          "width": 1.1043668197867162e-14,
+          "height": 1.1043668197867162e-14,
+          "asset": "bee2",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -50.89278088273551,
+          "y": 27.655929570394164,
+          "alpha": 0,
+          "width": 1.192527367139386e-14,
+          "height": 1.192527367139386e-14,
+          "asset": "bee4",
+          "layer": "honey-idle-bee-orbit-front"
+        }
+      ]
+    },
+    {
+      "label": "cohort-still-pending",
+      "seconds": 0,
+      "draws": 78,
+      "bees": [
+        {
+          "x": 23.25295985441028,
+          "y": 46.795174751068124,
+          "alpha": 0,
+          "width": 1.3424008524056793e-14,
+          "height": 1.3424008524056793e-14,
+          "asset": "bee1",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": 0.7049504487465048,
+          "y": -64.08648122426362,
+          "alpha": 0,
+          "width": 1.1043668197867162e-14,
+          "height": 1.1043668197867162e-14,
+          "asset": "bee2",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -50.89278088273551,
+          "y": 27.655929570394164,
+          "alpha": 0,
+          "width": 1.192527367139386e-14,
+          "height": 1.192527367139386e-14,
+          "asset": "bee4",
+          "layer": "honey-idle-bee-orbit-front"
+        }
+      ]
+    },
+    {
+      "label": "clock-before-cohort",
+      "seconds": 0.1,
+      "draws": 78,
+      "bees": [
+        {
+          "x": 16.89674826783832,
+          "y": 50.315877420272365,
+          "alpha": 0.2940364838016271,
+          "width": 58.16993557185843,
+          "height": 58.16993557185843,
+          "asset": "bee1",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -11.888812743231775,
+          "y": -65.1482721326889,
+          "alpha": 0.06966896265448154,
+          "width": 14.515622654088334,
+          "height": 14.515622654088334,
+          "asset": "bee2",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -58.52139313682289,
+          "y": 20.18290826103534,
+          "alpha": 0,
+          "width": 1.1401884920942464e-14,
+          "height": 1.1401884920942464e-14,
+          "asset": "bee4",
+          "layer": "honey-idle-bee-orbit-front"
+        }
+      ]
+    },
+    {
+      "label": "late-cohort-checkpoint",
+      "seconds": 0.1,
+      "draws": 78,
+      "bees": [
+        {
+          "x": 16.89674826783832,
+          "y": 50.315877420272365,
+          "alpha": 0.2940364838016271,
+          "width": 59.31493363452523,
+          "height": 59.31493363452523,
+          "asset": "bee3",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -11.888812743231775,
+          "y": -65.1482721326889,
+          "alpha": 0.06966896265448154,
+          "width": 14.515622654088334,
+          "height": 14.515622654088334,
+          "asset": "bee3",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -58.52139313682289,
+          "y": 20.18290826103534,
+          "alpha": 0,
+          "width": 1.1626315909508745e-14,
+          "height": 1.1626315909508745e-14,
+          "asset": "bee4",
+          "layer": "honey-idle-bee-orbit-front"
+        }
+      ]
+    },
+    {
+      "label": "idle",
+      "seconds": 0.116,
+      "draws": 78,
+      "bees": [
+        {
+          "x": 15.98904680943576,
+          "y": 50.54020557716395,
+          "alpha": 0.34515771465333955,
+          "width": 65.13953084812225,
+          "height": 65.13953084812225,
+          "asset": "bee3",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -14.173786642846768,
+          "y": -64.27492617784884,
+          "alpha": 0.11770779329284581,
+          "width": 22.6068316374854,
+          "height": 22.6068316374854,
+          "asset": "bee3",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -59.25592076782539,
+          "y": 19.305175897420295,
+          "alpha": 0,
+          "width": 1.1737520640829664e-14,
+          "height": 1.1737520640829664e-14,
+          "asset": "bee4",
+          "layer": "honey-idle-bee-orbit-front"
+        }
+      ]
+    },
+    {
+      "label": "idle",
+      "seconds": 0.15,
+      "draws": 78,
+      "bees": [
+        {
+          "x": 13.599542303539401,
+          "y": 50.56936181855378,
+          "alpha": 0.4537903302132284,
+          "width": 71.20257756421827,
+          "height": 71.20257756421827,
+          "asset": "bee3",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -18.49699940246984,
+          "y": -61.951912823099086,
+          "alpha": 0.21979030839936983,
+          "width": 35.592707750432396,
+          "height": 35.592707750432396,
+          "asset": "bee3",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -60.14892032990239,
+          "y": 17.66647759573613,
+          "alpha": 0.08136645067009297,
+          "width": 18.30325044633514,
+          "height": 18.30325044633514,
+          "asset": "bee4",
+          "layer": "honey-idle-bee-orbit-front"
+        }
+      ]
+    },
+    {
+      "label": "idle",
+      "seconds": 0.2,
+      "draws": 78,
+      "bees": [
+        {
+          "x": 8.845003900780164,
+          "y": 50.78906907669907,
+          "alpha": 0.6135441766248297,
+          "width": 71.2196955663561,
+          "height": 71.2196955663561,
+          "asset": "bee3",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -23.615744153398072,
+          "y": -58.52718903100782,
+          "alpha": 0.3699116541442582,
+          "width": 46.85147926546423,
+          "height": 46.85147926546423,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -61.92543528002299,
+          "y": 13.952420472900997,
+          "alpha": 0.22775098094346483,
+          "width": 42.301101017522754,
+          "height": 42.301101017522754,
+          "asset": "bee5",
+          "layer": "honey-idle-bee-orbit-front"
+        }
+      ]
+    },
+    {
+      "label": "idle",
+      "seconds": 0.35,
+      "draws": 78,
+      "bees": [
+        {
+          "x": -4.084177376556107,
+          "y": 50.73357307590237,
+          "alpha": 1,
+          "width": 65.30830607286546,
+          "height": 65.30830607286546,
+          "asset": "bee3",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -41.27235171880323,
+          "y": -39.26423366622443,
+          "alpha": 0.820275691378923,
+          "width": 51.55988350126558,
+          "height": 51.55988350126558,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -64.81396016019863,
+          "y": 4.112814137974383,
+          "alpha": 0.6669045717635802,
+          "width": 64.64423534451979,
+          "height": 64.64423534451979,
+          "asset": "bee5",
+          "layer": "honey-idle-bee-orbit-front"
+        }
+      ]
+    },
+    {
+      "label": "idle",
+      "seconds": 0.6,
+      "draws": 78,
+      "bees": [
+        {
+          "x": -29.65303576582499,
+          "y": 45.138315109402136,
+          "alpha": 1,
+          "width": 66.01498624449196,
+          "height": 66.01498624449196,
+          "asset": "bee4",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -58.67479176318112,
+          "y": 2.8606536713813124,
+          "alpha": 1,
+          "width": 47.421602093204484,
+          "height": 47.421602093204484,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -62.33390687198879,
+          "y": -9.29355210364427,
+          "alpha": 1,
+          "width": 54.6117501864044,
+          "height": 54.6117501864044,
+          "asset": "bee2",
+          "layer": "honey-idle-bee-orbit-behind"
+        }
+      ]
+    },
+    {
+      "label": "idle",
+      "seconds": 0.9,
+      "draws": 78,
+      "bees": [
+        {
+          "x": -53.970157839706005,
+          "y": 27.739652293400123,
+          "alpha": 1,
+          "width": 68.98324527826088,
+          "height": 68.98324527826088,
+          "asset": "bee5",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -45.02677557105318,
+          "y": 48.757247042888814,
+          "alpha": 1,
+          "width": 49.78984971280604,
+          "height": 49.78984971280604,
+          "asset": "bee6",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -48.52301133195676,
+          "y": -22.331429407969033,
+          "alpha": 1,
+          "width": 52.66147209652909,
+          "height": 52.66147209652909,
+          "asset": "bee2",
+          "layer": "honey-idle-bee-orbit-behind"
+        }
+      ]
+    },
+    {
+      "label": "idle",
+      "seconds": 1.3,
+      "draws": 78,
+      "bees": [
+        {
+          "x": -49.45560869421703,
+          "y": -15.67538406578201,
+          "alpha": 1,
+          "width": 66.39340485086053,
+          "height": 66.39340485086053,
+          "asset": "bee2",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": 27.085500975346875,
+          "y": 48.605468457447,
+          "alpha": 1,
+          "width": 49.81270687153169,
+          "height": 49.81270687153169,
+          "asset": "bee1",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -22.557234204647905,
+          "y": -36.91532901614168,
+          "alpha": 1,
+          "width": 52.721027996508916,
+          "height": 52.721027996508916,
+          "asset": "bee1",
+          "layer": "honey-idle-bee-orbit-behind"
+        }
+      ]
+    },
+    {
+      "label": "pointer-counter-shift",
+      "seconds": 1.3,
+      "draws": 78,
+      "bees": [
+        {
+          "x": -69.45560869421703,
+          "y": -5.67538406578201,
+          "alpha": 1,
+          "width": 66.39340485086053,
+          "height": 66.39340485086053,
+          "asset": "bee2",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": 7.085500975346875,
+          "y": 58.605468457447,
+          "alpha": 1,
+          "width": 49.81270687153169,
+          "height": 49.81270687153169,
+          "asset": "bee1",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -42.557234204647905,
+          "y": -26.915329016141683,
+          "alpha": 1,
+          "width": 52.721027996508916,
+          "height": 52.721027996508916,
+          "asset": "bee1",
+          "layer": "honey-idle-bee-orbit-behind"
+        }
+      ]
+    },
+    {
+      "label": "drag",
+      "seconds": 1.4666666666666668,
+      "draws": 78,
+      "bees": [
+        {
+          "x": -41.173090003326415,
+          "y": -15.151657285899358,
+          "alpha": 1,
+          "width": 65.01354622937207,
+          "height": 65.01354622937207,
+          "asset": "bee1",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": 10.442063172716924,
+          "y": 24.142066814949864,
+          "alpha": 1,
+          "width": 62.561186851905674,
+          "height": 62.561186851905674,
+          "asset": "bee2",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -26.69173888920652,
+          "y": -12.772302618911402,
+          "alpha": 1,
+          "width": 57.63323970589734,
+          "height": 57.63323970589734,
+          "asset": "bee1",
+          "layer": "honey-idle-bee-orbit-behind"
+        }
+      ]
+    },
+    {
+      "label": "drag",
+      "seconds": 1.6333333333333333,
+      "draws": 78,
+      "bees": [
+        {
+          "x": -36.38489603825052,
+          "y": -28.117206817232685,
+          "alpha": 1,
+          "width": 66.35610393499184,
+          "height": 66.35610393499184,
+          "asset": "bee1",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": 34.71868411404411,
+          "y": 0.6179462406303133,
+          "alpha": 1,
+          "width": 61.985959471198186,
+          "height": 61.985959471198186,
+          "asset": "bee5",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -14.7267572994075,
+          "y": -18.307048825248685,
+          "alpha": 1,
+          "width": 53.47088467460264,
+          "height": 53.47088467460264,
+          "asset": "bee1",
+          "layer": "honey-idle-bee-orbit-behind"
+        }
+      ]
+    },
+    {
+      "label": "drag",
+      "seconds": 1.8,
+      "draws": 78,
+      "bees": [
+        {
+          "x": -35.296492717174864,
+          "y": -33.264328924186685,
+          "alpha": 1,
+          "width": 62.91014414200991,
+          "height": 62.91014414200991,
+          "asset": "bee6",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": 38.818629855008346,
+          "y": -26.54130364441545,
+          "alpha": 1,
+          "width": 58.10681203439243,
+          "height": 58.10681203439243,
+          "asset": "bee4",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": 2.520512727888417,
+          "y": -40.8668917944103,
+          "alpha": 1,
+          "width": 57.43271879074424,
+          "height": 57.43271879074424,
+          "asset": "bee6",
+          "layer": "honey-idle-bee-orbit-behind"
+        }
+      ]
+    },
+    {
+      "label": "drag",
+      "seconds": 1.9666666666666668,
+      "draws": 78,
+      "bees": [
+        {
+          "x": -27.817071357014118,
+          "y": -32.750052780655054,
+          "alpha": 1,
+          "width": 67.0076659005423,
+          "height": 67.0076659005423,
+          "asset": "bee6",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": 30.949838800911625,
+          "y": -45.28572210521664,
+          "alpha": 1,
+          "width": 54.48356206750754,
+          "height": 54.48356206750754,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": 22.484391251432942,
+          "y": -44.218295419010396,
+          "alpha": 1,
+          "width": 54.04472053973296,
+          "height": 54.04472053973296,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-behind"
+        }
+      ]
+    },
+    {
+      "label": "drag",
+      "seconds": 2.1333333333333333,
+      "draws": 78,
+      "bees": [
+        {
+          "x": -21.104167781657686,
+          "y": -37.04425598975292,
+          "alpha": 1,
+          "width": 62.19363664608472,
+          "height": 62.19363664608472,
+          "asset": "bee6",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": 22.45455253726475,
+          "y": -58.88149314079773,
+          "alpha": 1,
+          "width": 52.30371819286855,
+          "height": 52.30371819286855,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": 33.71659182780149,
+          "y": -43.75720334360187,
+          "alpha": 1,
+          "width": 56.57685043455175,
+          "height": 56.57685043455175,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-behind"
+        }
+      ]
+    },
+    {
+      "label": "drag",
+      "seconds": 2.3,
+      "draws": 78,
+      "bees": [
+        {
+          "x": -13.810467909301696,
+          "y": -31.156696273187436,
+          "alpha": 1,
+          "width": 66.99103936951539,
+          "height": 66.99103936951539,
+          "asset": "bee6",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": 22.867691886270094,
+          "y": -69.66818626121552,
+          "alpha": 1,
+          "width": 54.62494047011017,
+          "height": 54.62494047011017,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": 41.19549051322752,
+          "y": -34.07136861033841,
+          "alpha": 1,
+          "width": 55.23916055316657,
+          "height": 55.23916055316657,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-behind"
+        }
+      ]
+    },
+    {
+      "label": "drag",
+      "seconds": 2.466666666666667,
+      "draws": 78,
+      "bees": [
+        {
+          "x": -13.415727388366372,
+          "y": -27.63000612181827,
+          "alpha": 1,
+          "width": 64.22574870905866,
+          "height": 64.22574870905866,
+          "asset": "bee6",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": 13.36334088859141,
+          "y": -66.63341305619944,
+          "alpha": 1,
+          "width": 51.31976910874933,
+          "height": 51.31976910874933,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": 48.17625380673562,
+          "y": -28.18116434990118,
+          "alpha": 1,
+          "width": 55.347511797352915,
+          "height": 55.347511797352915,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-behind"
+        }
+      ]
+    },
+    {
+      "label": "drag",
+      "seconds": 2.6333333333333333,
+      "draws": 78,
+      "bees": [
+        {
+          "x": -19.061826020765523,
+          "y": -23.05113228099821,
+          "alpha": 1,
+          "width": 76.78921772899312,
+          "height": 76.78921772899312,
+          "asset": "bee6",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": 1.6187020690322953,
+          "y": -64.9717193790326,
+          "alpha": 1,
+          "width": 55.18469569613611,
+          "height": 55.18469569613611,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": 40.78353304783606,
+          "y": -19.65933569966432,
+          "alpha": 1,
+          "width": 56.56446927186563,
+          "height": 56.56446927186563,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-behind"
+        }
+      ]
+    },
+    {
+      "label": "drag",
+      "seconds": 2.8,
+      "draws": 78,
+      "bees": [
+        {
+          "x": -22.1279112578778,
+          "y": -20.340775898151506,
+          "alpha": 1,
+          "width": 75.74948643399802,
+          "height": 75.74948643399802,
+          "asset": "bee6",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": 1.8621266325734414,
+          "y": -59.66552499137535,
+          "alpha": 1,
+          "width": 51.24428628805953,
+          "height": 51.24428628805953,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": 43.020331085799484,
+          "y": -10.520457489237186,
+          "alpha": 1,
+          "width": 54.211160804503336,
+          "height": 54.211160804503336,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-behind"
+        }
+      ]
+    },
+    {
+      "label": "drag",
+      "seconds": 2.966666666666667,
+      "draws": 78,
+      "bees": [
+        {
+          "x": -19.65010205609935,
+          "y": -19.710279802723182,
+          "alpha": 1,
+          "width": 77.3991353194313,
+          "height": 77.3991353194313,
+          "asset": "bee6",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": 4.045850261840217,
+          "y": -57.67800732301455,
+          "alpha": 1,
+          "width": 60.009036051716514,
+          "height": 60.009036051716514,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": 44.61390967431884,
+          "y": -13.980252056711425,
+          "alpha": 1,
+          "width": 57.52291531753264,
+          "height": 57.52291531753264,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-behind"
+        }
+      ]
+    },
+    {
+      "label": "drag",
+      "seconds": 3.1333333333333333,
+      "draws": 78,
+      "bees": [
+        {
+          "x": -24.324043118724386,
+          "y": -13.031747100498398,
+          "alpha": 1,
+          "width": 78.0081269050945,
+          "height": 78.0081269050945,
+          "asset": "bee6",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": 5.85494721776851,
+          "y": -62.4407517479316,
+          "alpha": 1,
+          "width": 61.0559551041195,
+          "height": 61.0559551041195,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": 44.11934885246323,
+          "y": -19.379151539198542,
+          "alpha": 1,
+          "width": 53.61116058256157,
+          "height": 53.61116058256157,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-behind"
+        }
+      ]
+    },
+    {
+      "label": "drag",
+      "seconds": 3.3,
+      "draws": 78,
+      "bees": [
+        {
+          "x": -31.375083431579462,
+          "y": -15.290741146428326,
+          "alpha": 1,
+          "width": 75.6799687925195,
+          "height": 75.6799687925195,
+          "asset": "bee1",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": 7.4103131332671515,
+          "y": -61.02524886890015,
+          "alpha": 1,
+          "width": 64.73031489037092,
+          "height": 64.73031489037092,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": 45.118372438459396,
+          "y": -26.22119140728143,
+          "alpha": 1,
+          "width": 57.75565585870834,
+          "height": 57.75565585870834,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-behind"
+        }
+      ]
+    },
+    {
+      "label": "reentry",
+      "seconds": 3.3166666666666664,
+      "draws": 78,
+      "bees": [
+        {
+          "x": -31.375083431579462,
+          "y": -15.290741146428326,
+          "alpha": 1,
+          "width": 75.6799687925195,
+          "height": 75.6799687925195,
+          "asset": "bee1",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": 7.4103131332671515,
+          "y": -61.02524886890015,
+          "alpha": 1,
+          "width": 64.73031489037092,
+          "height": 64.73031489037092,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": 45.118372438459396,
+          "y": -26.22119140728143,
+          "alpha": 1,
+          "width": 57.75565585870834,
+          "height": 57.75565585870834,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-behind"
+        }
+      ]
+    },
+    {
+      "label": "reentry",
+      "seconds": 3.333333333333333,
+      "draws": 78,
+      "bees": [
+        {
+          "x": -31.375083431579462,
+          "y": -15.290741146428326,
+          "alpha": 1,
+          "width": 75.6799687925195,
+          "height": 75.6799687925195,
+          "asset": "bee1",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": 7.4103131332671515,
+          "y": -61.02524886890015,
+          "alpha": 1,
+          "width": 64.73031489037092,
+          "height": 64.73031489037092,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": 45.118372438459396,
+          "y": -26.22119140728143,
+          "alpha": 1,
+          "width": 57.75565585870834,
+          "height": 57.75565585870834,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-behind"
+        }
+      ]
+    },
+    {
+      "label": "reentry",
+      "seconds": 3.3499999999999996,
+      "draws": 79,
+      "bees": [
+        {
+          "x": -34.72454696991435,
+          "y": -16.16697173568679,
+          "alpha": 1,
+          "width": 77.48607446445772,
+          "height": 77.48607446445772,
+          "asset": "bee1",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": 7.153799777103908,
+          "y": -68.33318777267161,
+          "alpha": 1,
+          "width": 63.50233036231966,
+          "height": 63.50233036231966,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": 44.19528091271244,
+          "y": -28.607600756723002,
+          "alpha": 1,
+          "width": 57.38514875818355,
+          "height": 57.38514875818355,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-front"
+        }
+      ]
+    },
+    {
+      "label": "reentry",
+      "seconds": 3.3666666666666667,
+      "draws": 79,
+      "bees": [
+        {
+          "x": -34.72454696991435,
+          "y": -16.16697173568679,
+          "alpha": 1,
+          "width": 77.48607446445772,
+          "height": 77.48607446445772,
+          "asset": "bee1",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": 7.153799777103908,
+          "y": -68.33318777267161,
+          "alpha": 1,
+          "width": 63.50233036231966,
+          "height": 63.50233036231966,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": 44.19528091271244,
+          "y": -28.607600756723002,
+          "alpha": 1,
+          "width": 57.38514875818355,
+          "height": 57.38514875818355,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-front"
+        }
+      ]
+    },
+    {
+      "label": "reentry",
+      "seconds": 3.3833333333333333,
+      "draws": 79,
+      "bees": [
+        {
+          "x": -34.72454696991435,
+          "y": -16.16697173568679,
+          "alpha": 1,
+          "width": 77.48607446445772,
+          "height": 77.48607446445772,
+          "asset": "bee1",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": 7.153799777103908,
+          "y": -68.33318777267161,
+          "alpha": 1,
+          "width": 63.50233036231966,
+          "height": 63.50233036231966,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": 44.19528091271244,
+          "y": -28.607600756723002,
+          "alpha": 1,
+          "width": 57.38514875818355,
+          "height": 57.38514875818355,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-front"
+        }
+      ]
+    },
+    {
+      "label": "reentry",
+      "seconds": 3.4666666666666663,
+      "draws": 80,
+      "bees": [
+        {
+          "x": -30.708214783728415,
+          "y": -33.65648111247036,
+          "alpha": 1,
+          "width": 73.86486272532993,
+          "height": 73.86486272532993,
+          "asset": "bee6",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": 4.4403829865639874,
+          "y": -63.79381127308141,
+          "alpha": 1,
+          "width": 57.85272937583679,
+          "height": 57.85272937583679,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": 45.23130340049405,
+          "y": -30.473277712195213,
+          "alpha": 1,
+          "width": 55.85885613398032,
+          "height": 55.85885613398032,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-front"
+        }
+      ]
+    },
+    {
+      "label": "reentry",
+      "seconds": 3.6333333333333333,
+      "draws": 81,
+      "bees": [
+        {
+          "x": -28.072834785308373,
+          "y": -34.71977397462018,
+          "alpha": 1,
+          "width": 64.2385016620333,
+          "height": 64.2385016620333,
+          "asset": "bee6",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": 1.6806549027681137,
+          "y": -56.938115965244705,
+          "alpha": 1,
+          "width": 52.30124642934863,
+          "height": 52.30124642934863,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": 36.51855371247309,
+          "y": -15.145731536861645,
+          "alpha": 1,
+          "width": 58.946944430274876,
+          "height": 58.946944430274876,
+          "asset": "bee3",
+          "layer": "honey-idle-bee-orbit-front"
+        }
+      ]
+    },
+    {
+      "label": "reentry",
+      "seconds": 3.8,
+      "draws": 81,
+      "bees": [
+        {
+          "x": -19.801106560709687,
+          "y": -35.730950441728005,
+          "alpha": 1,
+          "width": 64.98109086307964,
+          "height": 64.98109086307964,
+          "asset": "bee6",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": -1.2888825313891665,
+          "y": -52.938186287306635,
+          "alpha": 1,
+          "width": 52.48849856245228,
+          "height": 52.48849856245228,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": 33.76424907599676,
+          "y": -4.4642418215027915,
+          "alpha": 1,
+          "width": 58.427221904715395,
+          "height": 58.427221904715395,
+          "asset": "bee3",
+          "layer": "honey-idle-bee-orbit-front"
+        }
+      ]
+    },
+    {
+      "label": "reentry",
+      "seconds": 3.9666666666666663,
+      "draws": 81,
+      "bees": [
+        {
+          "x": -13.992425804406519,
+          "y": -29.26577454687389,
+          "alpha": 1,
+          "width": 59.12079935101929,
+          "height": 59.12079935101929,
+          "asset": "bee6",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": -0.43690105594924145,
+          "y": -54.73891203392747,
+          "alpha": 1,
+          "width": 49.882356237889,
+          "height": 49.882356237889,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": 26.051687664412093,
+          "y": -1.833899124826252,
+          "alpha": 1,
+          "width": 59.68694601648505,
+          "height": 59.68694601648505,
+          "asset": "bee3",
+          "layer": "honey-idle-bee-orbit-front"
+        }
+      ]
+    },
+    {
+      "label": "reentry",
+      "seconds": 4.133333333333333,
+      "draws": 81,
+      "bees": [
+        {
+          "x": -10.39960100084704,
+          "y": -23.906186384927256,
+          "alpha": 1,
+          "width": 61.354342820876404,
+          "height": 61.354342820876404,
+          "asset": "bee6",
+          "layer": "honey-idle-bee-orbit-behind"
+        },
+        {
+          "x": -1.9692157464703433,
+          "y": -50.26385765895316,
+          "alpha": 1,
+          "width": 55.78100704672539,
+          "height": 55.78100704672539,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": 21.539621836524738,
+          "y": 0.8726107265788705,
+          "alpha": 1,
+          "width": 61.55772745777164,
+          "height": 61.55772745777164,
+          "asset": "bee3",
+          "layer": "honey-idle-bee-orbit-front"
+        }
+      ]
+    },
+    {
+      "label": "reentry",
+      "seconds": 4.3,
+      "draws": 81,
+      "bees": [
+        {
+          "x": -8.259961057025459,
+          "y": -18.60469947403299,
+          "alpha": 1,
+          "width": 60.893309428095336,
+          "height": 60.893309428095336,
+          "asset": "bee6",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": 0.8391554135189938,
+          "y": -39.663580262061394,
+          "alpha": 1,
+          "width": 53.95902536730801,
+          "height": 53.95902536730801,
+          "asset": "bee7",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": 19.07137462226484,
+          "y": -5.753775054198024,
+          "alpha": 1,
+          "width": 59.32331420353885,
+          "height": 59.32331420353885,
+          "asset": "bee3",
+          "layer": "honey-idle-bee-orbit-front"
+        }
+      ]
+    }
+  ],
+  "final": {
+    "draws": 81,
+    "kills": 1,
+    "hostChildren": 0,
+    "snapshot": {
+      "disposed": true,
+      "beeCount": 0,
+      "tweenCount": 0
+    }
+  }
+}

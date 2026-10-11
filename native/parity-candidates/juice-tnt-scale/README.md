@@ -1,0 +1,9 @@
+# Secondary Juice / TNT size repair
+
+User explicitly requests no oversized final Juice bubble wave and ~20% larger core TNT smoke (2026-10-08). Scoped four-file patch; no Scene/core/clock/audio/haptic or primary migration owner changed. Build/test candidate `/tmp/native-juice-tnt-repair` is installed interaction candidate plus these four files. Phone unchanged.
+
+Juice original v9 birth/travel and RNG sequence remain exact. An explicit presentation override freezes birth scale for bubbles admitted at/after source late-burst boundary1.125s; early bubble growth remains unchanged. This is a requested appearance adjustment, not an assertion that original v9 had no late growth. Text-bubble field, props, spawning schedule and1.86s gameplay-ready stay unchanged.
+
+TNT twelve smoke sprites use original random settled scale multiplied by1.2; their entire enter/bounce/exit scale tracks inherit this once. All dice, BOOM title, timings and center unchanged. Original asset bytes preserved. Source v9 `tnt-animation.ts` offers frameScale; this correction is its smoke-only equivalent with user-specified1.2. No new runtime owner/resource.
+
+Existing main/primary source files were clean before edit; preserve this package during integration rather than copying whole live Scene. Final actual Native QA3:8/8 PASS, zero failures (`/tmp/native-juice-tnt-qa3.xcresult`), including7 Juice and1 TNT lane test. KING24/330 PASS and full19 gates/530suites4010tests PASS (`/tmp/native-juice-tnt-{king,full}.log`). Physical visual acceptance NEEDS PHYSICAL TEST. QA2 seven old tests passed but newly inserted regression accidentally sat in helper class; moved into XCTest class and QA3 explicitly executed it. First attempted test used shipping scheme with no Testables and failed before compilation; dedicated Native Gameplay QA rerun is separate receipt.

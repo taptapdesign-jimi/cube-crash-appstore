@@ -8,6 +8,28 @@ import StackToSixGameplay
 final class NativeTutorialOwner {
     private weak var gameplay:NativeGameplayViewController?
     private let overlay:NativeTutorialOverlay
+    enum ThirdDismissPhase:Equatable{case ready,exitingCTA,exitingSheet,waitingForWild,finished,retired}
+    private(set) var sourceThirdDismissPhase=ThirdDismissPhase.ready
+    var onSourceCTAContact:(()->Void)?
+    private let sourceReservationOwnerID=UUID().uuidString
+    var sourceActivationEnabled=false
+    var sourceIntroEnabled=false
+    var sourceSubsequentPresentationEnabled=false
+    private var sourceThirdHintTimer:NativeSourceAppTimeoutOwner.Receipt?
+    private weak var sourceThirdHintTimeouts:NativeSourceAppTimeoutOwner?
+    private var sourceSecondMonitor:NativeSourceTutorialSecondStepMonitor?
+    private var sourceFourthMonitor:NativeSourceTutorialFourthStepMonitor?
+    private var sourceFourthCompletion:NativeSourceTutorialFourthCompletionMonitor?
+    private var sourceFourthCompleting=false
+    var sourceFourthMonitorPhase:NativeSourceTutorialFourthStepMonitor.Phase?{sourceFourthMonitor?.phase}
+    var sourceSecondMonitorPhase:NativeSourceTutorialSecondStepMonitor.Phase?{sourceSecondMonitor?.phase}
+    var sourceFirstStepMonitorEnabled=false
+    private var sourceFirstMonitor:NativeSourceTutorialFirstStepMonitor?
+    private var secondRepairFrame:NativeSourceAnimationClockService.SourceFrameLease?
+    var sourceFirstMonitorPhase:NativeSourceTutorialFirstStepMonitor.Phase?{sourceFirstMonitor?.phase}
+    var sourceDisplayedStep:NativeTutorialState.Step?{displayedStep}
+    private weak var sourceGuidedDragNode:NativeDiceNode?
+    private var sourceGuidedDragStep:NativeTutorialState.Step?
     private var displayedStep:NativeTutorialState.Step?
     private var disposed=false,generation:UInt64
     private var observers:[NSObjectProtocol]=[]
@@ -24,6 +46,12 @@ final class NativeTutorialOwner {
         guard !disposed,state.generation==generation,let gameplay else{return}
         guard let tutorial=state.tutorial,tutorial.active,state.terminal==nil else {overlay.dispose();displayedStep=nil;return}
         guard let scene=gameplay.boardScene,let geometry=scene.boardGeometry else{return}
+        if sourceActivationEnabled,state.tutorial?.step == .stack,!scene.sourceTutorialPreparationReady{return}
+        if sourceFirstStepMonitorEnabled,displayedStep==nil,tutorial.step == .stack,sourceFirstMonitor==nil {
+            guard installSourceFirstMonitor(gameplay:gameplay,scene:scene) else{return}
+        }
+        if sourceFirstMonitor != nil,scene.sourceTutorialFirstStepPresentationActive,tutorial.step == .mergeSix{return}
+        if sourceSubsequentPresentationEnabled,(scene.sourceTutorialSecondPresentationActive && tutorial.step == .freePlay) || scene.sourceTutorialThirdPresentationActive{return}
         if overlay.superview==nil {overlay.frame=gameplay.view.bounds;overlay.autoresizingMask=[.flexibleWidth,.flexibleHeight];gameplay.view.addSubview(overlay)}
         let pair:[NativeTile]
         var moves:[(CGPoint,CGPoint)]=[]
@@ -53,18 +81,223 @@ final class NativeTutorialOwner {
         let points=pair.map {tile -> CGPoint in let p=geometry.center(row:tile.cell.row,column:tile.cell.column);return CGPoint(x:p.x,y:scene.size.height-p.y)}
         let from=points.first ?? moves.first?.0,to=points.count>1 ? points[1] : moves.first?.1
         if tutorial.waitingForWild {overlay.isHidden=true;return}
-        if displayedStep != tutorial.step {overlay.show(step:tutorial.step.rawValue,from:from,to:to,initial:displayedStep==nil,moves:moves);displayedStep=tutorial.step}
+        if displayedStep != tutorial.step {
+            if sourceIntroEnabled,displayedStep==nil,tutorial.step == .stack {
+                guard let scope=gameplay.sourceScope,scope.current,scene.sourceTutorialPreparationReady,
+                    overlay.showSourceIntro(from:from,to:to,service:scope.service,timeouts:scene.sourceTutorialIntroTimeouts,
+                        boardGeneration:generation,current:{[weak self,weak gameplay,weak scene,weak scope] in
+                            guard let self,let gameplay,let scene,let scope else{return false}
+                            return !self.disposed && scope.current && gameplay.sourceScope === scope && gameplay.boardScene === scene &&
+                                gameplay.engine.state.generation==self.generation && gameplay.engine.state.tutorial?.active==true && (self.sourceFirstStepMonitorEnabled || gameplay.engine.state.tutorial?.step == .stack) && scene.sourceTutorialPreparationReady
+                        }) else{return}
+            } else {overlay.show(step:tutorial.step.rawValue,from:from,to:to,initial:displayedStep==nil,moves:moves)}
+            displayedStep=tutorial.step
+        }
         else {overlay.updateTargets(from:from,to:to)}
+    }
+    private func installSourceFirstMonitor(gameplay:NativeGameplayViewController,scene:NativeBoardScene)->Bool {
+        guard let scope=gameplay.sourceScope,scope.current,let targets=scene.sourceTutorialFirstStepTargets() else{return false}
+        let monitor=NativeSourceTutorialFirstStepMonitor(service:scope.service,timeouts:scene.sourceTutorialIntroTimeouts,generation:generation,targets:targets,parent:scene.sourceTutorialCapturedParent,
+            current:{[weak self,weak gameplay,weak scene,weak scope] in
+                guard let self,let gameplay,let scene,let scope else{return false}
+                return !self.disposed && gameplay.engine.state.generation==self.generation && gameplay.engine.state.tutorial?.active==true &&
+                    scope.current && gameplay.sourceScope === scope && gameplay.boardScene === scene && scene.sourceTutorialFirstStepPresentationActive
+            },targetCurrent:{[weak scene] in scene?.sourceTutorialTargetCurrent($0)==true},
+            pointerExit:{[weak self] callback in self?.overlay.sourceIntroOwner?.popOutPointer(completed:callback)==true},
+            sheetExit:{[weak self] callback in self?.overlay.sourceIntroOwner?.exitSheet(completed:callback)==true},
+            activate:{[weak self,weak gameplay,weak scene,weak scope] merged in
+                guard let self,let gameplay,let scene,let scope,!self.disposed,scope.current,gameplay.sourceScope === scope,
+                    gameplay.engine.state.generation==self.generation,scene.prepareSourceTutorialSecondStep(merged),let geometry=scene.boardGeometry,
+                    let tutorial=gameplay.engine.state.tutorial else{return false}
+                let points=tutorial.guidedPair.compactMap{id -> CGPoint? in guard let tile=gameplay.engine.state.tiles.first(where:{$0.id==id}) else{return nil};let p=geometry.center(row:tile.cell.row,column:tile.cell.column);return CGPoint(x:p.x,y:scene.size.height-p.y)}
+                guard points.count==2 else{return false}
+                self.displayedStep = .mergeSix
+                if self.sourceSubsequentPresentationEnabled,!self.installSourceSecondMonitor(gameplay:gameplay,scene:scene){return false}
+                // Pointer400 is a real independent wall timer, armed before the
+                // second exit/enter sheet graph, exactly like Source.
+                self.overlay.scheduleSourceSecondStepPointer()
+                return self.overlay.transitionSourceSheetToSecondStep(from:points[0],to:points[1],entered:{[weak self,weak scene,weak scope] in
+                    guard let self,let scene,let scope,!self.disposed,scope.current,scene.sourceTutorialSecondPreparationReady else{return}
+                    self.secondRepairFrame=scope.service.requestSourceAnimationFrame(ownerID:"tutorial-second-sheet-repair:\(self.generation)",generation:self.generation,callback:{[weak self,weak scene] in
+                        guard let self,!self.disposed else{return};self.secondRepairFrame=nil
+                        if scene?.repairSourceTutorialSecondStep()==true{self.overlay.updateTargets(from:points[0],to:points[1])}
+                    },onCancelled:{[weak self] in self?.secondRepairFrame=nil})
+                })
+            })
+        guard let monitor else{return false};sourceFirstMonitor=monitor
+        if !monitor.start(){sourceFirstMonitor=nil;monitor.dispose();return false};return true
+    }
+    private func installSourceSecondMonitor(gameplay:NativeGameplayViewController,scene:NativeBoardScene)->Bool {
+        guard sourceSecondMonitor==nil,let scope=gameplay.sourceScope,scope.current,let targets=scene.sourceTutorialSecondTargets() else{return false}
+        let monitor=NativeSourceTutorialSecondStepMonitor(service:scope.service,timeouts:scene.sourceTutorialIntroTimeouts,generation:generation,five:targets[0],one:targets[1],parent:scene.sourceTutorialCapturedParent,
+            current:{[weak self,weak gameplay,weak scene,weak scope] in
+                guard let self,let gameplay,let scene,let scope else{return false};return !self.disposed && scope.current && gameplay.sourceScope === scope && gameplay.boardScene === scene && gameplay.engine.state.generation==self.generation && scene.sourceTutorialSecondPresentationActive
+            },hasUnlockedSix:{[weak scene] in scene?.sourceTutorialHasUnlockedSix==true},nodeCurrent:{[weak scene] in scene?.sourceTutorialTargetCurrent($0)==true},
+            pointerExit:{[weak self] callback in self?.overlay.sourceIntroOwner?.popOutPointer(completed:callback)==true},
+            sheetExit:{[weak self] callback in self?.overlay.sourceIntroOwner?.exitSheet(completed:callback)==true},
+            activate:{[weak self,weak gameplay,weak scene,weak scope] in
+                guard let self,let gameplay,let scene,let scope,!self.disposed,scope.current,gameplay.sourceScope === scope,scene.prepareSourceTutorialThirdStep() else{return false}
+                self.sourceGuidedDragNode=nil;self.sourceGuidedDragStep=nil;self.displayedStep = .freePlay
+                guard self.overlay.installSourceCTA(service:scope.service,current:{[weak self,weak gameplay,weak scene,weak scope] in
+                    guard let self,let gameplay,let scene,let scope else{return false}
+                    return !self.disposed && scope.current && gameplay.sourceScope === scope && gameplay.boardScene === scene && gameplay.engine.state.generation==self.generation && gameplay.engine.state.tutorial?.active==true && scene.sourceTutorialThirdPresentationActive
+                },contact:{[weak self] in self?.onSourceCTAContact?()},activate:{[weak self] in self?.dismissSourceThirdStep()}) else{return false}
+                // Sheet completion owns the original independent hint260 wall
+                // boundary; CTA/fourth-Wild admission remains separate.
+                return self.overlay.transitionSourceSheetToThirdStep(entered:{[weak self,weak gameplay,weak scene,weak scope] in
+                    guard let self,let gameplay,let scene,let scope,!self.disposed,scope.current,scene.sourceTutorialThirdPresentationActive,self.sourceThirdDismissPhase == .ready else{return}
+                    self.sourceThirdHintTimeouts=scene.sourceTutorialIntroTimeouts
+                    self.sourceThirdHintTimer=scene.sourceTutorialIntroTimeouts.schedule(sourceID:"tutorial-third-hint260",generation:self.generation,delayMilliseconds:260,elapsed:{[weak self,weak gameplay,weak scene,weak scope] in
+                        guard let self else{return};self.sourceThirdHintTimer=nil
+                        guard let gameplay,let scene,let scope,!self.disposed,scope.current,gameplay.sourceScope === scope,gameplay.engine.state.generation==self.generation,scene.sourceTutorialThirdPresentationActive,self.sourceThirdDismissPhase == .ready,
+                            let plan=scene.sourceTutorialFreePlayPlan(),!plan.moves.isEmpty else{return}
+                        let key="step3:\(Int64(Date().timeIntervalSince1970*1000)):\(scope.mathRandom.next())"
+                        _=self.overlay.startSourceFreePlayHint(plan:plan,service:scope.service,key:key,current:{[weak self,weak gameplay,weak scene,weak scope] in
+                            guard let self,let gameplay,let scene,let scope else{return false};return !self.disposed && scope.current && gameplay.sourceScope === scope && gameplay.engine.state.generation==self.generation && scene.sourceTutorialThirdPresentationActive && gameplay.engine.state.tutorial?.active==true && gameplay.engine.state.tutorial?.step == .freePlay
+                        })
+                    })
+                })
+            })
+        guard let monitor else{return false};sourceSecondMonitor=monitor
+        if !monitor.start(){sourceSecondMonitor=nil;monitor.dispose();return false};return true
     }
     func gameplayEvent(_ event:NativeGameplayEvent) {
         guard !disposed else{return}
-        if event.kind == .dragBegan {overlay.hidePointer()}
-        else if event.kind == .blocked || event.kind == .dragCancelled {overlay.restorePointer()}
+        if event.kind == .dragBegan {
+            if sourceSubsequentPresentationEnabled,gameplay?.boardScene?.sourceTutorialThirdPresentationActive==true {
+                if let id=event.tileIDs.first,let node=gameplay?.boardScene?.sourceNativeTileNode(id),!node.sourceLocked,node.sourceValue>0{dismissSourceThirdStep()}
+                return
+            }
+            if let id=event.tileIDs.first,let node=gameplay?.boardScene?.sourceNativeTileNode(id) {
+                sourceFirstMonitor?.pointerDown(node);sourceSecondMonitor?.pointerDown(node)
+                if sourceIntroEnabled{sourceGuidedDragNode=node;sourceGuidedDragStep=displayedStep}
+            }
+            overlay.hidePointer()
+        } else if event.kind == .blocked || event.kind == .dragCancelled {
+            if !sourceIntroEnabled{overlay.restorePointer()}
+        }
     }
-    func pointerState(_ dragging:Bool) {guard !disposed else{return};if dragging {overlay.hidePointer()} else {overlay.restorePointer()}}
+    func pointerState(_ dragging:Bool) {
+        guard !disposed else{return}
+        if sourceSubsequentPresentationEnabled,gameplay?.boardScene?.sourceTutorialThirdPresentationActive==true{return}
+        if dragging{overlay.hidePointer()}else if !sourceIntroEnabled{overlay.restorePointer()}
+    }
+    func sourceSnapBackCompleted(_ node:NativeDiceNode) {
+        guard !disposed,sourceIntroEnabled,sourceGuidedDragNode === node,sourceGuidedDragStep==displayedStep,
+            let gameplay,gameplay.engine.state.generation==generation,gameplay.engine.state.tutorial?.active==true,
+            gameplay.sourceScope?.current==true,gameplay.boardScene?.sourceTutorialTargetCurrent(node)==true else{return}
+        sourceGuidedDragNode=nil;sourceGuidedDragStep=nil;overlay.restorePointer()
+    }
+    private func dismissSourceThirdStep(){
+        guard !disposed,sourceSubsequentPresentationEnabled,sourceThirdDismissPhase == .ready,
+            let gameplay,let scene=gameplay.boardScene,let scope=gameplay.sourceScope,scope.current,
+            gameplay.engine.state.generation==generation,gameplay.engine.state.tutorial?.active==true,
+            gameplay.engine.state.tutorial?.step == .freePlay,gameplay.engine.state.tutorial?.waitingForWild==false,
+            scene.sourceTutorialThirdPresentationActive else{return}
+        sourceThirdDismissPhase = .exitingCTA
+        _=overlay.exitSourceCTA{[weak self,weak gameplay,weak scene,weak scope] success in
+            guard let self,let gameplay,let scene,let scope,success,!self.disposed,self.sourceThirdDismissPhase == .exitingCTA,
+                scope.current,gameplay.sourceScope === scope,gameplay.boardScene === scene,gameplay.engine.state.generation==self.generation,
+                gameplay.engine.state.tutorial?.active==true,scene.sourceTutorialThirdPresentationActive else{return}
+            self.overlay.stopSourceFreePlayHintAndPopOutPointer()
+            guard scene.restoreSourceTutorialAfterThirdDismiss() else{return}
+            // Original cell/forced-Star window intent is captured before the
+            // sheet exits. Real hidden-open success owns its exact retirement.
+            let result=gameplay.engine.dismissTutorialFreePlayGuide(sourceReservationOwnerID:self.sourceReservationOwnerID)
+            guard result.accepted else{return};self.onChanged?(result.state)
+            guard !self.disposed,scope.current,gameplay.sourceScope === scope,gameplay.boardScene === scene,gameplay.engine.state.generation==self.generation else{return}
+            self.sourceGuidedDragNode=nil;self.sourceGuidedDragStep=nil;self.sourceThirdDismissPhase = .exitingSheet
+            self.sourceFirstMonitor?.dispose();self.sourceSecondMonitor?.dispose()
+            _=self.overlay.exitSourceThirdSheetForWild(completed:{[weak self,weak gameplay,weak scene,weak scope] in
+                guard let self,let gameplay,let scene,let scope,!self.disposed,scope.current,gameplay.sourceScope === scope,gameplay.boardScene === scene,
+                    gameplay.engine.state.generation==self.generation,self.sourceThirdDismissPhase == .exitingSheet else{return}
+                self.sourceThirdDismissPhase = .waitingForWild
+                if !self.installSourceFourthMonitor(gameplay:gameplay,scene:scene) {
+                    scene.failSourceTutorialFourthPresentation("source_tutorial_fourth_monitor_rejected",generation:self.generation)
+                }
+            })
+        }
+    }
+    /// Installed only after the actual third sheet exits. Discovery and drop
+    /// state belong to the captured Scene/meter caller, never a synthetic tile.
+    @discardableResult private func installSourceFourthMonitor(gameplay:NativeGameplayViewController,scene:NativeBoardScene)->Bool {
+        guard !disposed,sourceSubsequentPresentationEnabled,sourceFourthMonitor==nil,
+            sourceThirdDismissPhase == .waitingForWild,let scope=gameplay.sourceScope,scope.current,
+            gameplay.boardScene === scene,scene.sourceTutorialThirdPresentationActive else{return false}
+        let current:()->Bool = {[weak self,weak gameplay,weak scene,weak scope] in
+            guard let self,let gameplay,let scene,let scope else{return false}
+            return !self.disposed && self.sourceThirdDismissPhase == .waitingForWild && scope.current &&
+                gameplay.sourceScope === scope && gameplay.boardScene === scene &&
+                gameplay.engine.state.generation==self.generation && gameplay.engine.state.tutorial?.active==true &&
+                scene.sourceTutorialThirdPresentationActive
+        }
+        let monitor=NativeSourceTutorialFourthStepMonitor(service:scope.service,timeouts:scene.sourceTutorialIntroTimeouts,generation:generation,
+            current:current,findWild:{[weak scene] in scene?.sourceTutorialFourthDroppingWild()},
+            nodeCurrent:{[weak scene] in scene?.sourceTutorialTargetCurrent($0)==true},
+            dropping:{[weak scene] in scene?.sourceTutorialWildIsDropping($0)==true},
+            activate:{[weak self,weak scene] _ in
+                guard let self,let scene,current() else{return false};self.sourceGuidedDragNode=nil;self.sourceGuidedDragStep=nil
+                let accepted=self.overlay.activateSourceFourthStepDim()
+                if !accepted,current(){scene.failSourceTutorialFourthPresentation("source_tutorial_fourth_dim_rejected",generation:self.generation)}
+                return accepted
+            },
+            transitionSheet:{[weak self,weak scene] callback in
+                guard let self,let scene,current() else{return false}
+                let accepted=self.overlay.transitionSourceSheetToFourthStep(entered:callback)
+                if !accepted,current(){scene.failSourceTutorialFourthPresentation("source_tutorial_fourth_sheet_rejected",generation:self.generation)}
+                return accepted
+            },
+            prepare:{[weak self,weak scene,weak gameplay] wild in
+                guard let self,let scene,let gameplay,current() else{return false}
+                guard scene.prepareSourceTutorialFourthStep(wild,ownerID:self.sourceReservationOwnerID),current() else{
+                    if current(){scene.failSourceTutorialFourthPresentation("source_tutorial_fourth_prepare_rejected",generation:self.generation)};return false
+                }
+                guard self.overlay.startSourceFourthPointer(service:scope.service,timeouts:scene.sourceTutorialIntroTimeouts,
+                    boardGeneration:self.generation,current:current,select:{[weak scene,weak wild] in
+                        guard let scene,let wild,current() else{return nil};return scene.sourceTutorialFourthPointerPlan(wild)
+                    }) else{
+                        if current(){scene.failSourceTutorialFourthPresentation("source_tutorial_fourth_pointer_rejected",generation:self.generation)};return false
+                    }
+                guard self.installSourceFourthCompletion(gameplay:gameplay,scene:scene,wild:wild,current:current) else{
+                    if current(){scene.failSourceTutorialFourthPresentation("source_tutorial_fourth_completion_monitor_rejected",generation:self.generation)};return false
+                }
+                self.displayedStep = .special;self.onChanged?(gameplay.engine.state)
+                return current()
+            })
+        guard let monitor else{return false};sourceFourthMonitor=monitor
+        guard monitor.start(),current() else{if sourceFourthMonitor === monitor{sourceFourthMonitor=nil};monitor.dispose();return false}
+        return true
+    }
+    private func installSourceFourthCompletion(gameplay:NativeGameplayViewController,scene:NativeBoardScene,wild:NativeDiceNode,current:@escaping()->Bool)->Bool {
+        guard sourceFourthCompletion==nil,let scope=gameplay.sourceScope,scope.current,current() else{return false}
+        let owner=NativeSourceTutorialFourthCompletionMonitor(service:scope.service,timeouts:scene.sourceTutorialIntroTimeouts,generation:generation,
+            current:current,isComplete:{[weak scene,weak wild] in guard let scene,let wild else{return false};return scene.sourceTutorialFourthStepIsComplete(wild)},
+            complete:{[weak self,weak gameplay,weak scene,weak scope] in
+                guard let self,let gameplay,let scene,let scope,current(),!self.sourceFourthCompleting else{return}
+                self.sourceFourthCompleting=true;scene.sourceTutorialSetMeterSmokeFrozen(true)
+                let exitStarted=self.overlay.exitSourceFourthStep{[weak self,weak gameplay,weak scene,weak scope] in
+                    guard let self,let gameplay,let scene,let scope,current(),self.sourceFourthCompleting,
+                        gameplay.sourceScope === scope,gameplay.boardScene === scene else{return}
+                    guard scene.restoreSourceTutorialAfterFourthExit(ownerID:self.sourceReservationOwnerID),current() else{
+                        if current(){scene.failSourceTutorialFourthPresentation("source_tutorial_fourth_restore_rejected",generation:self.generation)};return
+                    }
+                    let result=gameplay.engine.completeSourceTutorialFourthStep(ownerID:self.sourceReservationOwnerID,generation:self.generation)
+                    guard result.accepted else{scene.failSourceTutorialFourthPresentation("source_tutorial_fourth_commit_rejected",generation:self.generation);return}
+                    scene.finishSourceTutorialPresentation()
+                    self.sourceFourthCompletion?.dispose();self.sourceFourthCompletion=nil
+                    self.sourceFourthMonitor?.dispose();self.sourceFourthMonitor=nil
+                    self.sourceThirdDismissPhase = .finished;self.sourceGuidedDragNode=nil;self.sourceGuidedDragStep=nil
+                    self.overlay.dispose();self.onChanged?(result.state)
+                }
+                if !exitStarted,current(){scene.failSourceTutorialFourthPresentation("source_tutorial_fourth_exit_rejected",generation:self.generation)}
+            })
+        guard let owner else{return false};sourceFourthCompletion=owner
+        guard owner.start(),current() else{if sourceFourthCompletion === owner{sourceFourthCompletion=nil};owner.dispose();return false};return true
+    }
     private func dismissFreePlay() {
         guard !disposed,let gameplay,gameplay.engine.state.generation==generation,
             gameplay.engine.state.tutorial?.step == .freePlay,gameplay.engine.state.tutorial?.waitingForWild == false else{return}
+        if sourceSubsequentPresentationEnabled{dismissSourceThirdStep();return}
         onFeedback?()
         overlay.hide { [weak self] in
             guard let self,!self.disposed,let gameplay=self.gameplay,gameplay.engine.state.generation==self.generation else{return}
@@ -72,5 +305,5 @@ final class NativeTutorialOwner {
             if result.accepted {self.onChanged?(result.state);gameplay.refreshFromEngine()}
         }
     }
-    func dispose() {guard !disposed else{return};disposed=true;overlay.dispose();for token in observers {NotificationCenter.default.removeObserver(token)};observers.removeAll();onChanged=nil;onFeedback=nil;gameplay=nil}
+    func dispose() {guard !disposed else{return};disposed=true;sourceFourthCompletion?.dispose();sourceFourthCompletion=nil;sourceFourthMonitor?.dispose();sourceFourthMonitor=nil;_=gameplay?.engine.retireSourceTutorialWildReservation(ownerID:sourceReservationOwnerID,generation:generation);sourceThirdDismissPhase = .retired;sourceGuidedDragNode=nil;sourceGuidedDragStep=nil;if let timer=sourceThirdHintTimer{_=sourceThirdHintTimeouts?.cancel(timer)};sourceThirdHintTimer=nil;sourceThirdHintTimeouts=nil;sourceFirstMonitor?.dispose();sourceFirstMonitor=nil;sourceSecondMonitor?.dispose();sourceSecondMonitor=nil;secondRepairFrame?.cancel();secondRepairFrame=nil;overlay.dispose();for token in observers {NotificationCenter.default.removeObserver(token)};observers.removeAll();onChanged=nil;onFeedback=nil;onSourceCTAContact=nil;gameplay=nil}
 }

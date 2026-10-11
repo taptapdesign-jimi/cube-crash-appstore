@@ -1,0 +1,5 @@
+{
+  "status": "PRIVATE UNTESTED CACHE BRANCH",
+  "sourceSHA256": "0e2069b45c364ded187bb0fb0b559d06bfc6351daa397e0d13345a94a21ed345",
+  "scope": "Source cache-only candidate order accessor; no IO/upload/density substitution. Genuine async loader/fallback/caller remains OPEN."
+}

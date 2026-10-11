@@ -1,0 +1,676 @@
+{
+  "authority": "Untouched fx.ts start/stopWildJuiceBubbles and startMagnetIdleParticles, installed GSAP; explicit queued RAF and stopMagnet/Pixi/visibility endpoints. RAF remains independent of global GSAP pause. This is original composition evidence, not full native/app/physical acceptance.",
+  "checkpoints": [
+    {
+      "seconds": 0.3,
+      "draws": 50,
+      "systems": [
+        {
+          "owner": "bottle",
+          "bubbles": [
+            {
+              "x": 13.286621,
+              "y": 48.770573,
+              "scaleX": 0.65429,
+              "scaleY": 0.714401,
+              "alpha": 0.7788843991234898,
+              "color": 13759730
+            }
+          ]
+        },
+        {
+          "owner": "honey",
+          "bubbles": [
+            {
+              "x": 19.098108,
+              "y": 2.509672,
+              "scaleX": 0.859601,
+              "scaleY": 0.656988,
+              "alpha": 0.9924976648995651,
+              "color": 15907663
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seconds": 0.5,
+      "draws": 62,
+      "systems": [
+        {
+          "owner": "bottle",
+          "bubbles": [
+            {
+              "x": 21.579628,
+              "y": 22.373517,
+              "scaleX": 0.67091,
+              "scaleY": 0.73366,
+              "alpha": 0.7788843991234898,
+              "color": 14284533
+            },
+            {
+              "x": -49.235037,
+              "y": 64,
+              "scaleX": 0.390213,
+              "scaleY": 0.390213,
+              "alpha": 0.7692530173109844,
+              "color": 13431793
+            }
+          ]
+        },
+        {
+          "owner": "honey",
+          "bubbles": [
+            {
+              "x": 17.653662,
+              "y": -32.320229,
+              "scaleX": 0.874466,
+              "scaleY": 0.665418,
+              "alpha": 0.9924976648995651,
+              "color": 15907663
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seconds": 0.8,
+      "draws": 75,
+      "systems": [
+        {
+          "owner": "bottle",
+          "bubbles": [
+            {
+              "x": 1.148513,
+              "y": -29.662575,
+              "scaleX": 0.67091,
+              "scaleY": 0.73366,
+              "alpha": 0.7788843991234898,
+              "color": 15334137
+            },
+            {
+              "x": -56.159321,
+              "y": 14.634986,
+              "scaleX": 0.753544,
+              "scaleY": 0.618699,
+              "alpha": 0.7692530173109844,
+              "color": 14415861
+            }
+          ]
+        },
+        {
+          "owner": "honey",
+          "bubbles": [
+            {
+              "x": 16.031509,
+              "y": -71.435206,
+              "scaleX": 0.874466,
+              "scaleY": 0.665418,
+              "alpha": 0.9924976648995651,
+              "color": 15907663
+            },
+            {
+              "x": 30.134074,
+              "y": 64,
+              "scaleX": 0.386667,
+              "scaleY": 0.386667,
+              "alpha": 0.7033481253776699,
+              "color": 15907663
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seconds": 1.1,
+      "draws": 87,
+      "systems": [
+        {
+          "owner": "bottle",
+          "bubbles": [
+            {
+              "x": 16.393744,
+              "y": -77.440333,
+              "scaleX": 0.67091,
+              "scaleY": 0.73366,
+              "alpha": 0.740369,
+              "color": 16252413
+            },
+            {
+              "x": -52.472654,
+              "y": -74.880618,
+              "scaleX": 0.753544,
+              "scaleY": 0.618699,
+              "alpha": 0.740733,
+              "color": 16252413
+            },
+            {
+              "x": -8.636265,
+              "y": 64,
+              "scaleX": 0.229205,
+              "scaleY": 0.229205,
+              "alpha": 0.9706279288511723,
+              "color": 13431793
+            }
+          ]
+        },
+        {
+          "owner": "honey",
+          "bubbles": [
+            {
+              "x": 15.062773,
+              "y": -94.794331,
+              "scaleX": 0.874466,
+              "scaleY": 0.665418,
+              "alpha": 0.892373,
+              "color": 15907663
+            },
+            {
+              "x": 27.465469,
+              "y": 16.687996,
+              "scaleX": 0.859905,
+              "scaleY": 0.736576,
+              "alpha": 0.7033481253776699,
+              "color": 15907663
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seconds": 1.4,
+      "draws": 87,
+      "systems": [
+        {
+          "owner": "bottle",
+          "bubbles": [
+            {
+              "x": 13.60826,
+              "y": -101.513912,
+              "scaleX": 0.67091,
+              "scaleY": 0.73366,
+              "alpha": 0.241271,
+              "color": 16777215
+            },
+            {
+              "x": -15.935612,
+              "y": 41.291068,
+              "scaleX": 0.82666,
+              "scaleY": 0.81111,
+              "alpha": 0.9706279288511723,
+              "color": 13891059
+            }
+          ]
+        },
+        {
+          "owner": "honey",
+          "bubbles": [
+            {
+              "x": 25.242194,
+              "y": -22.728722,
+              "scaleX": 0.921523,
+              "scaleY": 0.782136,
+              "alpha": 0.7033481253776699,
+              "color": 15907663
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seconds": 1.7,
+      "draws": 112,
+      "systems": [
+        {
+          "owner": "bottle",
+          "bubbles": [
+            {
+              "x": 1.674718,
+              "y": -14.439204,
+              "scaleX": 0.831266,
+              "scaleY": 0.815596,
+              "alpha": 0.9706279288511723,
+              "color": 15006200
+            },
+            {
+              "x": -22.280093,
+              "y": 64,
+              "scaleX": 0.20032,
+              "scaleY": 0.20032,
+              "alpha": 0.8053519337205216,
+              "color": 13431793
+            }
+          ]
+        },
+        {
+          "owner": "honey",
+          "bubbles": [
+            {
+              "x": 23.464247,
+              "y": -54.250152,
+              "scaleX": 0.921523,
+              "scaleY": 0.782136,
+              "alpha": 0.7033481253776699,
+              "color": 15907663
+            },
+            {
+              "x": -23.120079,
+              "y": 64,
+              "scaleX": 0.382212,
+              "scaleY": 0.382212,
+              "alpha": 0.982379332720302,
+              "color": 15907663
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seconds": 2,
+      "draws": 112,
+      "systems": [
+        {
+          "owner": "bottle",
+          "bubbles": [
+            {
+              "x": -14.358584,
+              "y": -72.768337,
+              "scaleX": 0.831266,
+              "scaleY": 0.815596,
+              "alpha": 0.942637,
+              "color": 16186877
+            },
+            {
+              "x": -35.443306,
+              "y": 18.519477,
+              "scaleX": 0.717891,
+              "scaleY": 0.685987,
+              "alpha": 0.8053519337205216,
+              "color": 14350069
+            }
+          ]
+        },
+        {
+          "owner": "honey",
+          "bubbles": [
+            {
+              "x": 22.131629,
+              "y": -77.876296,
+              "scaleX": 0.921523,
+              "scaleY": 0.782136,
+              "alpha": 0.703302,
+              "color": 15907663
+            },
+            {
+              "x": -23.629535,
+              "y": 1.615635,
+              "scaleX": 0.731467,
+              "scaleY": 0.602152,
+              "alpha": 0.982379332720302,
+              "color": 15907663
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "scenario": "normal",
+  "firstSeconds": 0.016,
+  "initialDraws": 25,
+  "before": 25,
+  "draws": 112,
+  "ordinaryGuard": true,
+  "retired": [
+    {
+      "owner": "bottle",
+      "disposed": true,
+      "bubbles": 0,
+      "detached": true,
+      "replaced": true
+    },
+    {
+      "owner": "honey",
+      "disposed": true,
+      "bubbles": 0,
+      "detached": true,
+      "replaced": true
+    }
+  ],
+  "attachedRoots": 9,
+  "arrivals": [
+    {
+      "owner": "bottle",
+      "time": 0,
+      "drawsBefore": 0
+    },
+    {
+      "owner": "honey",
+      "time": 0,
+      "drawsBefore": 12
+    },
+    {
+      "owner": "bottle",
+      "time": 0.016,
+      "drawsBefore": 25
+    },
+    {
+      "owner": "honey",
+      "time": 0.016,
+      "drawsBefore": 37
+    },
+    {
+      "owner": "bottle",
+      "time": 0.5,
+      "drawsBefore": 50
+    },
+    {
+      "owner": "honey",
+      "time": 0.8,
+      "drawsBefore": 62
+    },
+    {
+      "owner": "bottle",
+      "time": 1.1,
+      "drawsBefore": 75
+    },
+    {
+      "owner": "honey",
+      "time": 1.7,
+      "drawsBefore": 87
+    },
+    {
+      "owner": "bottle",
+      "time": 1.7,
+      "drawsBefore": 100
+    }
+  ],
+  "rootTrace": [
+    {
+      "owner": "bottle",
+      "kind": "scale",
+      "time": 0,
+      "duration": 0.3175988544034771,
+      "delay": 0
+    },
+    {
+      "owner": "bottle",
+      "kind": "rise",
+      "time": 0,
+      "duration": 1.0586628480115905,
+      "delay": 0
+    },
+    {
+      "owner": "bottle",
+      "kind": "tint",
+      "time": 0,
+      "duration": 1.0586628480115905,
+      "delay": 0
+    },
+    {
+      "owner": "bottle",
+      "kind": "fade",
+      "time": 0,
+      "duration": 0.42346513920463624,
+      "delay": 0.6351977088069543
+    },
+    {
+      "owner": "bottle",
+      "kind": "producer",
+      "time": 0,
+      "duration": 0,
+      "delay": 0.4267133304616436
+    },
+    {
+      "owner": "honey",
+      "kind": "scale",
+      "time": 0,
+      "duration": 0.49835054303286597,
+      "delay": 0
+    },
+    {
+      "owner": "honey",
+      "kind": "rise",
+      "time": 0,
+      "duration": 1.66116847677622,
+      "delay": 0
+    },
+    {
+      "owner": "honey",
+      "kind": "fade",
+      "time": 0,
+      "duration": 0.6644673907104881,
+      "delay": 0.9967010860657319
+    },
+    {
+      "owner": "honey",
+      "kind": "producer",
+      "time": 0,
+      "duration": 0,
+      "delay": 0.44062788709066814
+    },
+    {
+      "owner": "bottle",
+      "kind": "scale",
+      "time": 0.016,
+      "duration": 0.43544719223398715,
+      "delay": 0
+    },
+    {
+      "owner": "bottle",
+      "kind": "rise",
+      "time": 0.016,
+      "duration": 1.4514906407799573,
+      "delay": 0
+    },
+    {
+      "owner": "bottle",
+      "kind": "tint",
+      "time": 0.016,
+      "duration": 1.4514906407799573,
+      "delay": 0
+    },
+    {
+      "owner": "bottle",
+      "kind": "fade",
+      "time": 0.016,
+      "duration": 0.580596256311983,
+      "delay": 0.8708943844679743
+    },
+    {
+      "owner": "bottle",
+      "kind": "producer",
+      "time": 0.016,
+      "duration": 0,
+      "delay": 0.43983696699142455
+    },
+    {
+      "owner": "honey",
+      "kind": "scale",
+      "time": 0.016,
+      "duration": 0.4136311415426898,
+      "delay": 0
+    },
+    {
+      "owner": "honey",
+      "kind": "rise",
+      "time": 0.016,
+      "duration": 1.3787704718089662,
+      "delay": 0
+    },
+    {
+      "owner": "honey",
+      "kind": "fade",
+      "time": 0.016,
+      "duration": 0.5515081887235865,
+      "delay": 0.8272622830853796
+    },
+    {
+      "owner": "honey",
+      "kind": "producer",
+      "time": 0.016,
+      "duration": 0,
+      "delay": 0.7300142304156907
+    },
+    {
+      "owner": "bottle",
+      "kind": "scale",
+      "time": 0.5,
+      "duration": 0.2454391198907979,
+      "delay": 0
+    },
+    {
+      "owner": "bottle",
+      "kind": "rise",
+      "time": 0.5,
+      "duration": 0.818130399635993,
+      "delay": 0
+    },
+    {
+      "owner": "bottle",
+      "kind": "tint",
+      "time": 0.5,
+      "duration": 0.818130399635993,
+      "delay": 0
+    },
+    {
+      "owner": "bottle",
+      "kind": "fade",
+      "time": 0.5,
+      "duration": 0.3272521598543972,
+      "delay": 0.4908782397815958
+    },
+    {
+      "owner": "bottle",
+      "kind": "producer",
+      "time": 0.5,
+      "duration": 0,
+      "delay": 0.4223630004795268
+    },
+    {
+      "owner": "honey",
+      "kind": "scale",
+      "time": 0.8,
+      "duration": 0.5843192844763397,
+      "delay": 0
+    },
+    {
+      "owner": "honey",
+      "kind": "rise",
+      "time": 0.8,
+      "duration": 1.947730948254466,
+      "delay": 0
+    },
+    {
+      "owner": "honey",
+      "kind": "fade",
+      "time": 0.8,
+      "duration": 0.7790923793017864,
+      "delay": 1.1686385689526795
+    },
+    {
+      "owner": "honey",
+      "kind": "producer",
+      "time": 0.8,
+      "duration": 0,
+      "delay": 0.6761198650533333
+    },
+    {
+      "owner": "bottle",
+      "kind": "scale",
+      "time": 1.1,
+      "duration": 0.3736175857018679,
+      "delay": 0
+    },
+    {
+      "owner": "bottle",
+      "kind": "rise",
+      "time": 1.1,
+      "duration": 1.2453919523395598,
+      "delay": 0
+    },
+    {
+      "owner": "bottle",
+      "kind": "tint",
+      "time": 1.1,
+      "duration": 1.2453919523395598,
+      "delay": 0
+    },
+    {
+      "owner": "bottle",
+      "kind": "fade",
+      "time": 1.1,
+      "duration": 0.49815678093582394,
+      "delay": 0.7472351714037359
+    },
+    {
+      "owner": "bottle",
+      "kind": "producer",
+      "time": 1.1,
+      "duration": 0,
+      "delay": 0.5839109235908836
+    },
+    {
+      "owner": "honey",
+      "kind": "scale",
+      "time": 1.7,
+      "duration": 0.4298586389736738,
+      "delay": 0
+    },
+    {
+      "owner": "honey",
+      "kind": "rise",
+      "time": 1.7,
+      "duration": 1.4328621299122462,
+      "delay": 0
+    },
+    {
+      "owner": "honey",
+      "kind": "fade",
+      "time": 1.7,
+      "duration": 0.5731448519648985,
+      "delay": 0.8597172779473476
+    },
+    {
+      "owner": "honey",
+      "kind": "producer",
+      "time": 1.7,
+      "duration": 0,
+      "delay": 0.5848791251401417
+    },
+    {
+      "owner": "bottle",
+      "kind": "scale",
+      "time": 1.7,
+      "duration": 0.25697726517682895,
+      "delay": 0
+    },
+    {
+      "owner": "bottle",
+      "kind": "rise",
+      "time": 1.7,
+      "duration": 0.8565908839227632,
+      "delay": 0
+    },
+    {
+      "owner": "bottle",
+      "kind": "tint",
+      "time": 1.7,
+      "duration": 0.8565908839227632,
+      "delay": 0
+    },
+    {
+      "owner": "bottle",
+      "kind": "fade",
+      "time": 1.7,
+      "duration": 0.34263635356910527,
+      "delay": 0.5139545303536579
+    },
+    {
+      "owner": "bottle",
+      "kind": "producer",
+      "time": 1.7,
+      "duration": 0,
+      "delay": 0.4845714558614418
+    }
+  ]
+}

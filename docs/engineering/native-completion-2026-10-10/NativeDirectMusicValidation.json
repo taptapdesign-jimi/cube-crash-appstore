@@ -1,0 +1,8 @@
+{
+  "release": "Native unsigned Simulator Release BUILD SUCCEEDED exit0; both arm64/x86_64. Not device signing/App Store acceptance.",
+  "sdk": "11/11 PASS exit0; actual Native music object has no WKScriptMessageHandlerWithReply conformance, session/interruption/route/adaptive lifecycle unchanged.",
+  "preservedBranch": "standalone source typecheck without Native flag exit0; PWA project neither built nor operated.",
+  "fullQA": "PASS exit0 including audio runtime; only test-only protocol assertion added after frozen full run, passed SDK11.",
+  "physical": "NEEDS PHYSICAL TEST",
+  "remaining": "Legacy save exporter and hybrid world/home/result adapters still import WebKit; complete parity/global admission/Release resource retirement/phone acceptance remain OPEN."
+}

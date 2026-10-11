@@ -1,0 +1,7 @@
+{
+  "actualSDK": "First host28 suite FAIL: double-scaled SpriteKit size produced incorrect pivot; exact-literal restoration assertions also ignored SpriteKit float storage. Corrected host28/28 PASS. Final106/106 PASS exit0/no failures/skips: clock29+Scene70+bubble7. Twelve original GSAP poses and exact captured base restore; stale host owner cannot paint/restore foreign pose.",
+  "fullQA": "Terminal exit0 SKIP_NATIVE_BUNDLE_SYNC=true npm run qa:full PASS on corrected runtime; final additional stale-owner test covered by expanded SDK106.",
+  "scope": "NativeSourceBottleIdlePresentation borrows typed repeat root, captures actual SKSpriteNode anchor/position/rotation/scale, uses SpriteKit displayed size directly for Source bottom-pivot compensation, converts source y/rotation once. Stop restores only if ownership current. UIKit guard preserves pure scalar compilation. Raw bottle sample unchanged.",
+  "remaining": "Actual Node face/registry/drag/visibility and restored callers remain NOT wired. Complete Source family/current-world transforms/input parity and full Native migration/Release/WebKit/physical acceptance OPEN; full current SDK not rerun.",
+  "physical": "NEEDS PHYSICAL TEST"
+}

@@ -1,0 +1,9 @@
+{
+  "status": "DRAFT SDK running session62489",
+  "files": {
+    "native/gameplay-ui/NativeDiceNode.swift": "36bd7876e356dce02f85b46f4b3b872816353f4614584bca1179808eb17b615b",
+    "native/gameplay-ui/NativeSourceTutorialSecondStepMonitor.swift": "4cedf5cb9d0e699c9085789724efb9fa32c31de52ca52dad8a72414df449e92c",
+    "native/standalone/Stack to SixTests/NativeSourceTutorialSecondStepMonitorTests.swift": "533922766cc9f0db571e31514a1c34bb674b76527a5ea39e84056913ec189b27"
+  },
+  "scope": "Actual Source service raw RAF ordering first face then halo in outer RAF then second face next RAF; owner-local reentrant cancellation tests. Scene whole caller remains uninvoked."
+}

@@ -1,0 +1,28 @@
+{
+  "verdict": "PASS bounded actual Source primary constructor/face/bounce; full Source coroutine/default activation OPEN",
+  "sdk": {
+    "tests": 7,
+    "failures": 0,
+    "seconds": 48.735,
+    "log": "/tmp/native-wild-primary-source-constructor-face-bounce.log"
+  },
+  "actual": "Actual Journey Juice and Arcade Juice, plus OS-guide earned Star root: fresh primary retained holder constructed with genuine common APP Math tilt, constructor batch frame queued before independent Source value/face RAF, direction captured by Core after construction with no duplicate draw, Source bounce completes actual primary arrival and unlocks continuation. Same Source Node has actual Source generation/physical markers and no NativeRaw spawn SKAction. Existing locked opening and captured-direction/pickup contracts PASS.",
+  "boundaries": "Installed only on Source Direct + stack-face admission. Explicit Wild value argument precedes constructor tilt. NativeRaw and hard recovery fallback remain independent; no hard recovery Source admission or whole coroutine/finally/global spawn flag is manufactured. Full canonical save/queue/endgame/family/default/physical acceptance remain OPEN.",
+  "admissionFollowup": {
+    "verdict": "PASS bounded Scene compatibility and actual Journey Juice root",
+    "tests": 13,
+    "failures": 0,
+    "seconds": 14.37,
+    "log": "/tmp/native-wild-primary-admission-regression.log",
+    "boundary": "Requires engine Source Math identity with Scope Math; old bounded Scene caller remains without whole physical-face admission. No full Source default or physical acceptance."
+  },
+  "release": "Prior grouped Release /tmp/native-transition-wild-locked-release.log and compiled audit PASS precede prefix/pickup and primary constructor refinement. Group next rebuild with subsequent batch.",
+  "king": "/tmp/native-wild-primary-source-king.log",
+  "feature": "/tmp/native-wild-primary-source-feature.log",
+  "physicalAcceptance": "NEEDS PHYSICAL TEST",
+  "sha256": {
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "a2d4686a55f02aed037d6531f332de3cbcf8a26d214699a620c9f58a7a38c2f4",
+    "native/gameplay-ui/NativeBoardScene.swift": "1036516904564471b1ffdb440320f22b84f33f38c187c54769c217803863862a",
+    "native/standalone/Stack to SixTests/NativeStandaloneRootTests.swift": "0c97f516b02870f9a3007f5569bdecf1887e7d25725e7e40384b1c7eef58e61f"
+  }
+}

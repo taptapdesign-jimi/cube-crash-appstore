@@ -1,0 +1,9 @@
+# Source tutorial runtime grid ownership
+
+Recover after FourthTarget with base/result hashes. Optional sourceDetachedGridTileIDs separate living roster identity from authoritative grid ownership. Literal placement keeps displaced object/value/pose/order, moves only the Wild, and clears old grid ownership. Current cell lookup and eight real cell-replacement sites respect detached objects; rebind clears their marker. Generic Native snapshot signature includes this grid identity; original Source roster signature is unchanged. Existing custom decoder explicitly defaults the additive optional field to nil for older data.
+
+Default/durable validation rejects live orphan and duplicate cell claim. Only existing default-OFF Source subsequent-presentation policy admits this runtime branch for input/fresh checks. SaveStore is unchanged: its strict validation rejects before file mutation. Actual file test preserves byte-for-byte previous coherent document and reloads it. Living detached positive roster object remains active and source-only pickup is allowed; it cannot steal Wild grid identity.
+
+Final Core351/351 PASS; state24/24 PASS, including new actual file guard, predates only snapshot-signature addition. Full Source QA all19 gates PASS. Actual SDK17/17 PASS: Bootstrap7, SecondMonitor6 and MeterScene4; retry accepted after one auto-review timeout. This proves selected existing actual callers, not whole fourth preparation. Initial test cancelDrag argument typo and missing custom-decoder field were found by tests and corrected; failed and final raw logs preserved. No new clock/RNG/save schema version change.
+
+Runtime model only: actual fourth preparation caller, same-node face/pips/rawRAF/idle/focus, monitor installation/hint/completion and full meter bootstrap remain OPEN. Whole flags OFF. QA original-resource host exception persists. No phone/PWA/JIMI/assets/live Native/main/index/remote operation. Grey flash OPEN/LAST. NEEDS PHYSICAL TEST.

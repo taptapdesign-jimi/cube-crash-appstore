@@ -1,0 +1,35 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "CDEA762B-328C-412D-902A-3FBD443D50EA.json",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "native-legacy-storage-disk-producer_0_38730FB9-117C-4DF0-8BCF-2A759C7203A7.json",
+        "timestamp" : 1791629068.217
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "11DF1AFD-E0FD-4CEA-B9F9-FD43DA635D56.json",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "native-legacy-producer-foreign_0_8B2A16EC-A0FF-46FD-9C50-64219E7E0FCE.invalid",
+        "timestamp" : 1791629066.557
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "F5AFC481-76B1-4D94-9173-46BBB5166EDF.json",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "native-legacy-producer-localhost_0_74E25966-8FF5-4557-9A55-1D924D578303.json",
+        "timestamp" : 1791629066.504
+      }
+    ],
+    "testIdentifier" : "NativeLegacyStorageProducerTests/testNamedProfileProducesOriginalOriginAndForeignOriginStorage()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeLegacyStorageProducerTests/testNamedProfileProducesOriginalOriginAndForeignOriginStorage"
+  }
+]

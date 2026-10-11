@@ -67,3 +67,87 @@ public enum NativeTutorialRules {
         return max(1,min(5,6-highest.value))
     }
 }
+
+/// Transient original tutorial window flags. The owner identity is Native
+/// cancellation metadata, never APP Math/save/gameplay state.
+public struct NativeSourceTutorialWildReservation:Equatable,Sendable {
+    public let ownerID:String,generation:UInt64
+    public var cell:NativeCell
+}
+extension NativeTutorialRules {
+    private static func sourceTutorialCellAvailable(_ cell:NativeCell,state:NativeBoardState,wildID:String?,destroyedIDs:Set<String>,emptyGridCells:Set<NativeCell>)->Bool {
+        guard cell.column>=0,cell.column<state.columns,cell.row>=0,cell.row<state.rows else{return false}
+        guard !emptyGridCells.contains(cell),let tile=state.tile(at:cell) else{return true}
+        return tile.id==wildID || destroyedIDs.contains(tile.id) || tile.locked || (tile.value<=0 && tile.gameplayArchetype==nil)
+    }
+    private static func sourceTutorialTopCells(state:NativeBoardState,preferred:NativeCell)->[NativeCell] {
+        var cells:[NativeCell]=[]
+        for row in 0...min(1,state.rows-1){for column in 0..<state.columns{cells.append(.init(column:column,row:row))}}
+        return cells.sorted{a,b in
+            let da=abs(a.column-preferred.column)+abs(a.row-preferred.row),db=abs(b.column-preferred.column)+abs(b.row-preferred.row)
+            return da != db ? da<db:a.row != b.row ? a.row<b.row:a.column<b.column
+        }
+    }
+    /// Literal first-play-tutorial findFourthStepWildCell. The temporary grid
+    /// hole at a genuine active drag origin participates in reservation; the
+    /// app spawn's separate exclusion guard is applied only on revalidation.
+    public static func sourceFourthWildCell(state:NativeBoardState,wildID:String?=nil,destroyedIDs:Set<String>=[],emptyGridCells:Set<NativeCell>=[])->NativeCell? {
+        guard state.columns>0,state.rows>0 else{return nil}
+        let available:(NativeCell)->Bool={sourceTutorialCellAvailable($0,state:state,wildID:wildID,destroyedIDs:destroyedIDs,emptyGridCells:emptyGridCells)}
+        if let wildID,let wild=state.tiles.first(where:{$0.id==wildID}),wild.cell.row<=min(1,state.rows-1),available(wild.cell){return wild.cell}
+        let preferred=NativeCell(column:state.columns/2,row:min(state.rows-1,1))
+        if available(preferred){return preferred}
+        if let cell=sourceTutorialTopCells(state:state,preferred:preferred).first(where:available){return cell}
+        // Literal findEmptyishCell fallback differs from the top-row predicate:
+        // it accepts any locked or value<=0 occupant, including special zero.
+        if emptyGridCells.contains(preferred){return preferred}
+        if let tile=state.tile(at:preferred) {
+            if destroyedIDs.contains(tile.id) || tile.locked || tile.value<=0{return preferred}
+        } else{return preferred}
+        for radius in 1...max(state.columns,state.rows){
+            for row in 0..<state.rows{for column in 0..<state.columns{
+                let cell=NativeCell(column:column,row:row)
+                guard abs(column-preferred.column)+abs(row-preferred.row)==radius else{continue}
+                if emptyGridCells.contains(cell){return cell}
+                guard let tile=state.tile(at:cell) else{return cell}
+                if destroyedIDs.contains(tile.id) || tile.locked || tile.value<=0{return cell}
+            }}
+        }
+        return preferred
+    }
+    /// Literal app-core forcedTutorialWildCell before the retry loop. Excludes
+    /// the active drag origin and searches around the ORIGINAL reservation,
+    /// not around a newly chosen middle cell. No random draw or displacement.
+    public static func sourceResolveReservedWildCell(state:NativeBoardState,reserved:NativeCell,destroyedIDs:Set<String>=[],excluded:Set<NativeCell>=[])->NativeCell? {
+        guard state.columns>0,state.rows>0 else{return nil}
+        let preferred=NativeCell(column:max(0,min(state.columns-1,Int(Int32(truncatingIfNeeded:reserved.column)))),row:max(0,min(state.rows-1,Int(Int32(truncatingIfNeeded:reserved.row)))))
+        let available:(NativeCell)->Bool={cell in !excluded.contains(cell) && sourceTutorialCellAvailable(cell,state:state,wildID:nil,destroyedIDs:destroyedIDs,emptyGridCells:[])}
+        if available(preferred){return preferred}
+        return sourceTutorialTopCells(state:state,preferred:preferred).first(where:available)
+    }
+    /// Literal fourth-step target priority and original roster-order fallback.
+    /// Ordinary zero/locked fallback is intentional; preparation unlocks it.
+    public static func sourceFourthTarget(state:NativeBoardState,wildID:String?,destroyedIDs:Set<String>=[])->(id:String,value:Int)? {
+        let preferred=NativeCell(column:max(0,min(state.columns-1,state.columns/2)),row:min(state.rows-1,1))
+        let rowLimit=min(state.rows-1,5)
+        let regular=state.tiles.enumerated().filter { _,tile in
+            tile.id != wildID && !destroyedIDs.contains(tile.id) && tile.gameplayArchetype==nil && tile.cell.row<=rowLimit
+        }
+        let candidates=regular.filter { _,tile in !tile.locked && tile.value>0 && tile.cell != preferred }.sorted { a,b in
+            if (a.element.value==2) != (b.element.value==2){return a.element.value==2}
+            if a.element.cell.row != b.element.cell.row{return a.element.cell.row<b.element.cell.row}
+            if a.element.cell.column != b.element.cell.column{return a.element.cell.column<b.element.cell.column}
+            return a.offset<b.offset
+        }
+        guard let target=candidates.first?.element ?? regular.first?.element else{return nil}
+        let value=Int(Int32(truncatingIfNeeded:target.value))
+        return (target.id,max(1,min(5,value==0 ? 4:value)))
+    }
+
+}
+
+/// Transient same-object tutorial preparation identity; never a saved lock.
+public struct NativeSourceTutorialFourthPreparationReceipt:Equatable,Sendable {
+    public let ownerID:String,generation:UInt64,wildID:String,targetID:String
+    public let wildCell:NativeCell,targetValue:Int
+}

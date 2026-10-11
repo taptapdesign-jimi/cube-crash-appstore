@@ -1,0 +1,13 @@
+{
+  "sdk": "Actual main Native Gameplay QA dedicated Simulator1018BE2D, Debug24/24 PASS exit0, no skips",
+  "scope": [
+    "Honey idle",
+    "Fish idle",
+    "ordinary idle motion/schedule",
+    "captured special idle",
+    "bubble idle",
+    "tutorial board restore"
+  ],
+  "firstAttempt": "exit66: ordinary build scheme has no test action; corrected dedicated QA scheme passed",
+  "notProven": "Complete deferred restored Wild family composition, full gameplay parity, global Source admission and physical acceptance remain OPEN"
+}

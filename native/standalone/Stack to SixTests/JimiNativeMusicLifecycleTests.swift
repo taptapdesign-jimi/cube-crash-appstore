@@ -1,10 +1,16 @@
 import XCTest
 import AVFoundation
 import UIKit
+import WebKit
 @testable import Stack_to_Six
 
 @MainActor
 final class JimiNativeMusicLifecycleTests: XCTestCase {
+    func testNativeTargetTransportDoesNotExposeWebKitScriptHandler() {
+        let music=JimiNativeMusic(root:URL(fileURLWithPath:"/unused-native-transport-test"))
+        defer{music.dispose()}
+        XCTAssertFalse(music is any WKScriptMessageHandlerWithReply)
+    }
     func testWebCueCoexistenceKeepsSilentSwitchCategory() {
         XCTAssertEqual(JimiNativeMusic.sessionCategory, .ambient)
     }

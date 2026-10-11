@@ -1,0 +1,83 @@
+{
+  "status": "BOUNDED CORE/SDK/UNSIGNED RELEASE PASS; WHOLE MIGRATION OPEN",
+  "scope": "Ordinary value:null real zero-holder before common face draw. No-locked explicit default-OFF root flag; actual awaited/retry/hard APP publication and physical tile-only verification/FIFO opacity/finally. Raw and explicit Wild/TNT value ordering preserved. Whole immutable-final/pre/post clean-board/global/save/queue/NO MOVES/default/physical acceptance OPEN.",
+  "core": {
+    "log": "/tmp/native-ordinary-constructor-order-core-corrected.log",
+    "exitCode": 0,
+    "tests": 398,
+    "failures": 0
+  },
+  "initialFixtureCompileFailure": "/tmp/native-ordinary-constructor-order-core-with-tests.log: board argument before tiles; corrected actual initializer order.",
+  "sdk": {
+    "log": "/tmp/native-ordinary-constructor-order-connected-sdk.log",
+    "status": "RUNNING"
+  },
+  "physical": "NEEDS PHYSICAL TEST",
+  "constructorSDK": {
+    "log": "/tmp/native-ordinary-constructor-order-connected-sdk.log",
+    "exitCode": 0,
+    "tests": 3,
+    "failures": 0,
+    "seconds": 33.409,
+    "boundary": "Predates final Scope/schema/endgame changes."
+  },
+  "endgameCore": {
+    "log": "/tmp/native-ordinary-endgame-recovery-core.log",
+    "exitCode": 0,
+    "tests": 401,
+    "failures": 0
+  },
+  "endgameSDK": {
+    "log": "/tmp/native-ordinary-endgame-actual-root-sdk.log",
+    "exitCode": 0,
+    "tests": 4,
+    "failures": 0,
+    "seconds": 42.863,
+    "boundary": "Actual no-locked primary verification/finally/pickup and normal/TNT/Juice, before final Scope/fifo fences."
+  },
+  "finalCore": {
+    "log": "/tmp/native-ordinary-endgame-final-core.log",
+    "exitCode": 0,
+    "tests": 402,
+    "failures": 0
+  },
+  "finalSDK": {
+    "log": "/tmp/native-ordinary-endgame-fifo-final-sdk.log",
+    "exitCode": 0,
+    "tests": 38,
+    "failures": 0,
+    "seconds": 63.919,
+    "boundary": "Actual roots/Raw ordinary/FIFO/installers/token ledger, before exact-Math assembly placement refinement."
+  },
+  "gameplayLock": {
+    "log": "/tmp/native-ordinary-endgame-final-king.log",
+    "tests": 330,
+    "failures": 0
+  },
+  "exactMathAndPartialSDK": {
+    "log": "/tmp/native-ordinary-endgame-exact-math-and-partial-sdk.log",
+    "exitCode": 0,
+    "tests": 16,
+    "failures": 0,
+    "seconds": 56.193,
+    "boundary": "All four actual roots plus 12 same-object Scene tests; full constructor requires shared Math, partial test seams preserved."
+  },
+  "release": {
+    "log": "/tmp/native-ordinary-endgame-final-release.log",
+    "exitCode": 0,
+    "verdict": "BUILD SUCCEEDED"
+  },
+  "featureRuntime": {
+    "log": "/tmp/native-ordinary-endgame-final-feature.log",
+    "exitCode": 0
+  },
+  "nativeAdmission": {
+    "log": "/tmp/native-ordinary-endgame-final-admission.log",
+    "exitCode": 0
+  },
+  "compiledArtifactAudit": {
+    "log": "/tmp/native-ordinary-endgame-final-release-audit.log",
+    "exitCode": 0,
+    "verdict": "PASS: Native identity/dependencies/original assets; no PWA prerequisite"
+  }
+}

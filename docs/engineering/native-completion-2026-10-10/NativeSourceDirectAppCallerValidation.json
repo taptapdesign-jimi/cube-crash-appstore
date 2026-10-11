@@ -1,0 +1,23 @@
+{
+  "sourceSHA256": {
+    "native/gameplay-app/NativeStandaloneViewController.swift": "912536c9fb16945932d561b423ab268bd38248775faf6c2bfd0bd762c1951aa4",
+    "native/gameplay-app/NativeBootstrap.swift": "bd1ab15cefec35bcdeceb94c49ae09c961a5eb29b01f70ddad997b200d6daaa7",
+    "native/gameplay-ui/NativeGameplayViewController.swift": "4da6bd4e126a5e5b6761aa9bb0ac2eea53632f47019cd163b3bf44a752cd8b9a",
+    "native/gameplay-ui/NativeBoardScene.swift": "01062946bcdc03ff9832fda7edeeeeb36f2a643dfc195774bd60ac719c5aa5a1",
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "56a91babe28dcebcd4b1ed181599d2ce6882549142b473016107a5f4d19919cf"
+  },
+  "root": "55412 terminal0 PASS1/1,31.069s; actual guide/earnedStar/direct prefix/same-object main/HUD/save/background/recreation. Subsequent change explicitly clears pending HUD receipt on dispose and admits separate DEBUG OS flags, pending combined rerun.",
+  "sourceFull": "90853 terminal0 PASS;530 suites4010tests/KING330, no native sync; before last UI coordinates-only edit",
+  "scope": "Bounded eligible fresh tutorial; normal/Release/default, all-family/minimum/NO MOVES/global-marker/canonical save remain unadmitted.",
+  "resourceLifetime": "Original selected small-star upload borrowed from app context; same entry epoch/request cancellation. Install HUD only after genuine Scene layout. Direct capture requires actual sourceDirectHUDOrigins and HUD target; unknown family origin refuses.",
+  "historicalFailures": [
+    "29986 terminal65: pre-layout Scene viewport0, HUD install refused; fixed by captured preload receipt followed by actual layout installation",
+    "20291 terminal65 OS guide reached fourth; used old Raw Star/target coordinates, actual Source screenshot shows different surviving roster. All16 prior files identical;0007 raw save retained. No reset/reseed.",
+    "Early attachment export before xctestrun finalization refused; exported after terminal.",
+    "Second fixed-coordinate OS92735 failure; viewed screenshot shows Star landing and target variable under shared RNG. Preserve raw proof, no reseed/reset."
+  ],
+  "OS": "92735 terminal65 failed final drag with stale fixed Source coordinates;18 prior files unchanged;0008 preserved. Actual RNG-dependent Source pointer geometry now reused as UIKit accessibility elements;0009 UI build running.",
+  "physical": "NEEDS PHYSICAL TEST",
+  "combinedRootAndIntro": "87453 terminal0 PASS25/25,91.562s including full live guide/ordinary/Direct; later selection/AX exact-frame/no-touch/retirement assertions27544 PASS1/1,0.028s",
+  "pureSwift": "31765 terminal0 PASS369/369"
+}

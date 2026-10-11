@@ -1,0 +1,13 @@
+{
+  "verdict": "PASS",
+  "sdk": {
+    "tests": 11,
+    "failures": 0,
+    "seconds": 34.427,
+    "log": "/tmp/native-source-queue-drop-global-readers.log"
+  },
+  "scope": "Actual root earned carrier active count/pause/restore; Source queue writer identity/progress/retry; original drop geometry and restore-before-foreground/wall timing.",
+  "subsequentTestOnlyExtension": "Connected SceneOwner pause/interruption/retirement assertions added after SDK; awaiting next combined targeted batch.",
+  "completeGlobalLifecycleCapabilitiesMounted": false,
+  "sourceDefaultFlagsEnabled": false
+}

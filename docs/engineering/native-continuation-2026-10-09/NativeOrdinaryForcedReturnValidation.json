@@ -1,0 +1,18 @@
+{
+  "status": "Core76819 terminal367/367PASS; KING91750 terminal330/330PASS",
+  "files": {
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "11ba99364f6b8c0e4ddb8b402e489c90bcefa9d19cf5b72473e806f62903ca42",
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceOrdinarySixSpawnBeginCoreTests.swift": "9a03539ed4c142310e611267aa0f85960e05300ef9337683a3238b7713080736"
+  },
+  "logs": {
+    "native-ordinary-forced-return-core.log": "e75851b7af74efbfc75dbc80bffc8f6ab290a0a943cf9d7e48c4619a3ae8b2fa",
+    "native-ordinary-forced-return-king.log": "72aecd8a08b27152287accc60210dbda3a268435f5e4e427d3c9395cbf4e8ad3"
+  },
+  "proof": "Source14387\u201314388 returns opened count on first failed spawn permit. Native opted-in forced loop now clears remaining captured candidates at that actual rejected callback. Real accepted sibling merge invalidates normal locked batch; one forced rejection then helper continuation reaches minimum phase, no second candidate and unchanged canonical/RNG/accounting.",
+  "limits": [
+    "actual Scene minimum/rescue producer not yet bound",
+    "cancellation/destruction/finally/startup integration OPEN",
+    "default flags OFF",
+    "physical/full migration OPEN"
+  ]
+}

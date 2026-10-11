@@ -1,0 +1,6 @@
+{
+  "status": "DRAFT Bootstrap audio binding; SDK55302 prior version PASS1/1, subsequent weak Scene capture needs rerun; actual Bootstrap caller test open",
+  "files": {
+    "native/gameplay-app/NativeBootstrap.swift": "4926c6bfa9624a2ddab51012b5b7eb09e10f9fa7346934d858431d0603e17719"
+  }
+}

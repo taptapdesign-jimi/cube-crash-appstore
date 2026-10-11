@@ -1,0 +1,591 @@
+[
+  {
+    "variant": null,
+    "inputCore": "wild",
+    "outputCore": "wild",
+    "deferred": 1,
+    "calls": [
+      "ctor:0,0",
+      "face:0,0",
+      "ctor:3,2",
+      "face:3,2",
+      "skin:3,2"
+    ],
+    "tiles": [
+      {
+        "value": 0,
+        "locked": true,
+        "special": null,
+        "variant": null,
+        "alpha": 0.25,
+        "visible": true
+      },
+      {
+        "value": 6,
+        "locked": false,
+        "special": "wild",
+        "variant": null,
+        "alpha": 1,
+        "visible": true
+      }
+    ]
+  },
+  {
+    "variant": null,
+    "inputCore": "wild-juice",
+    "outputCore": "wild-juice",
+    "deferred": 1,
+    "calls": [
+      "ctor:0,0",
+      "face:0,0",
+      "ctor:3,2",
+      "face:3,2",
+      "skin:3,2"
+    ],
+    "tiles": [
+      {
+        "value": 0,
+        "locked": true,
+        "special": null,
+        "variant": null,
+        "alpha": 0.25,
+        "visible": true
+      },
+      {
+        "value": 6,
+        "locked": false,
+        "special": "wild-juice",
+        "variant": null,
+        "alpha": 1,
+        "visible": true
+      }
+    ]
+  },
+  {
+    "variant": null,
+    "inputCore": "wild-magnet",
+    "outputCore": "wild-magnet",
+    "deferred": 1,
+    "calls": [
+      "ctor:0,0",
+      "face:0,0",
+      "ctor:3,2",
+      "face:3,2",
+      "skin:3,2"
+    ],
+    "tiles": [
+      {
+        "value": 0,
+        "locked": true,
+        "special": null,
+        "variant": null,
+        "alpha": 0.25,
+        "visible": true
+      },
+      {
+        "value": 6,
+        "locked": false,
+        "special": "wild-magnet",
+        "variant": null,
+        "alpha": 1,
+        "visible": true
+      }
+    ]
+  },
+  {
+    "variant": null,
+    "inputCore": "wild-tnt",
+    "outputCore": "wild-tnt",
+    "deferred": 1,
+    "calls": [
+      "ctor:0,0",
+      "face:0,0",
+      "ctor:3,2",
+      "face:3,2",
+      "skin:3,2"
+    ],
+    "tiles": [
+      {
+        "value": 0,
+        "locked": true,
+        "special": null,
+        "variant": null,
+        "alpha": 0.25,
+        "visible": true
+      },
+      {
+        "value": 6,
+        "locked": false,
+        "special": "wild-tnt",
+        "variant": null,
+        "alpha": 1,
+        "visible": true
+      }
+    ]
+  },
+  {
+    "variant": "bee",
+    "inputCore": "wild",
+    "outputCore": "wild",
+    "deferred": 1,
+    "calls": [
+      "ctor:0,0",
+      "face:0,0",
+      "ctor:3,2",
+      "face:3,2",
+      "skin:3,2"
+    ],
+    "tiles": [
+      {
+        "value": 0,
+        "locked": true,
+        "special": null,
+        "variant": null,
+        "alpha": 0.25,
+        "visible": true
+      },
+      {
+        "value": 6,
+        "locked": false,
+        "special": "wild",
+        "variant": "bee",
+        "alpha": 1,
+        "visible": true
+      }
+    ]
+  },
+  {
+    "variant": "fish",
+    "inputCore": "wild",
+    "outputCore": "wild",
+    "deferred": 1,
+    "calls": [
+      "ctor:0,0",
+      "face:0,0",
+      "ctor:3,2",
+      "face:3,2",
+      "skin:3,2"
+    ],
+    "tiles": [
+      {
+        "value": 0,
+        "locked": true,
+        "special": null,
+        "variant": null,
+        "alpha": 0.25,
+        "visible": true
+      },
+      {
+        "value": 6,
+        "locked": false,
+        "special": "wild",
+        "variant": "fish",
+        "alpha": 1,
+        "visible": true
+      }
+    ]
+  },
+  {
+    "variant": "kanta",
+    "inputCore": "wild",
+    "outputCore": "wild",
+    "deferred": 1,
+    "calls": [
+      "ctor:0,0",
+      "face:0,0",
+      "ctor:3,2",
+      "face:3,2",
+      "skin:3,2"
+    ],
+    "tiles": [
+      {
+        "value": 0,
+        "locked": true,
+        "special": null,
+        "variant": null,
+        "alpha": 0.25,
+        "visible": true
+      },
+      {
+        "value": 6,
+        "locked": false,
+        "special": "wild",
+        "variant": "kanta",
+        "alpha": 1,
+        "visible": true
+      }
+    ]
+  },
+  {
+    "variant": "laser-gun",
+    "inputCore": "wild-tnt",
+    "outputCore": "wild-tnt",
+    "deferred": 1,
+    "calls": [
+      "ctor:0,0",
+      "face:0,0",
+      "ctor:3,2",
+      "face:3,2",
+      "skin:3,2"
+    ],
+    "tiles": [
+      {
+        "value": 0,
+        "locked": true,
+        "special": null,
+        "variant": null,
+        "alpha": 0.25,
+        "visible": true
+      },
+      {
+        "value": 6,
+        "locked": false,
+        "special": "wild-tnt",
+        "variant": "laser-gun",
+        "alpha": 1,
+        "visible": true
+      }
+    ]
+  },
+  {
+    "variant": "spaceship",
+    "inputCore": "wild-magnet",
+    "outputCore": "wild-magnet",
+    "deferred": 1,
+    "calls": [
+      "ctor:0,0",
+      "face:0,0",
+      "ctor:3,2",
+      "face:3,2",
+      "skin:3,2"
+    ],
+    "tiles": [
+      {
+        "value": 0,
+        "locked": true,
+        "special": null,
+        "variant": null,
+        "alpha": 0.25,
+        "visible": true
+      },
+      {
+        "value": 6,
+        "locked": false,
+        "special": "wild-magnet",
+        "variant": "spaceship",
+        "alpha": 1,
+        "visible": true
+      }
+    ]
+  },
+  {
+    "variant": "bottle",
+    "inputCore": "wild-magnet",
+    "outputCore": "wild-magnet",
+    "deferred": 1,
+    "calls": [
+      "ctor:0,0",
+      "face:0,0",
+      "ctor:3,2",
+      "face:3,2",
+      "skin:3,2"
+    ],
+    "tiles": [
+      {
+        "value": 0,
+        "locked": true,
+        "special": null,
+        "variant": null,
+        "alpha": 0.25,
+        "visible": true
+      },
+      {
+        "value": 6,
+        "locked": false,
+        "special": "wild-magnet",
+        "variant": "bottle",
+        "alpha": 1,
+        "visible": true
+      }
+    ]
+  },
+  {
+    "variant": "honey",
+    "inputCore": "wild-magnet",
+    "outputCore": "wild-magnet",
+    "deferred": 1,
+    "calls": [
+      "ctor:0,0",
+      "face:0,0",
+      "ctor:3,2",
+      "face:3,2",
+      "skin:3,2"
+    ],
+    "tiles": [
+      {
+        "value": 0,
+        "locked": true,
+        "special": null,
+        "variant": null,
+        "alpha": 0.25,
+        "visible": true
+      },
+      {
+        "value": 6,
+        "locked": false,
+        "special": "wild-magnet",
+        "variant": "honey",
+        "alpha": 1,
+        "visible": true
+      }
+    ]
+  },
+  {
+    "variant": "flower",
+    "inputCore": "wild-tnt",
+    "outputCore": "wild-tnt",
+    "deferred": 1,
+    "calls": [
+      "ctor:0,0",
+      "face:0,0",
+      "ctor:3,2",
+      "face:3,2",
+      "skin:3,2"
+    ],
+    "tiles": [
+      {
+        "value": 0,
+        "locked": true,
+        "special": null,
+        "variant": null,
+        "alpha": 0.25,
+        "visible": true
+      },
+      {
+        "value": 6,
+        "locked": false,
+        "special": "wild-tnt",
+        "variant": "flower",
+        "alpha": 1,
+        "visible": true
+      }
+    ]
+  },
+  {
+    "variant": "barell",
+    "inputCore": "wild-tnt",
+    "outputCore": "wild-tnt",
+    "deferred": 1,
+    "calls": [
+      "ctor:0,0",
+      "face:0,0",
+      "ctor:3,2",
+      "face:3,2",
+      "skin:3,2"
+    ],
+    "tiles": [
+      {
+        "value": 0,
+        "locked": true,
+        "special": null,
+        "variant": null,
+        "alpha": 0.25,
+        "visible": true
+      },
+      {
+        "value": 6,
+        "locked": false,
+        "special": "wild-tnt",
+        "variant": "barell",
+        "alpha": 1,
+        "visible": true
+      }
+    ]
+  },
+  {
+    "variant": "mushroom",
+    "inputCore": "wild-juice",
+    "outputCore": "wild-juice",
+    "deferred": 1,
+    "calls": [
+      "ctor:0,0",
+      "face:0,0",
+      "ctor:3,2",
+      "face:3,2",
+      "skin:3,2"
+    ],
+    "tiles": [
+      {
+        "value": 0,
+        "locked": true,
+        "special": null,
+        "variant": null,
+        "alpha": 0.25,
+        "visible": true
+      },
+      {
+        "value": 6,
+        "locked": false,
+        "special": "wild-juice",
+        "variant": "mushroom",
+        "alpha": 1,
+        "visible": true
+      }
+    ]
+  },
+  {
+    "variant": "robo-cube",
+    "inputCore": "wild-juice",
+    "outputCore": "wild-juice",
+    "deferred": 1,
+    "calls": [
+      "ctor:0,0",
+      "face:0,0",
+      "ctor:3,2",
+      "face:3,2",
+      "skin:3,2"
+    ],
+    "tiles": [
+      {
+        "value": 0,
+        "locked": true,
+        "special": null,
+        "variant": null,
+        "alpha": 0.25,
+        "visible": true
+      },
+      {
+        "value": 6,
+        "locked": false,
+        "special": "wild-juice",
+        "variant": "robo-cube",
+        "alpha": 1,
+        "visible": true
+      }
+    ]
+  },
+  {
+    "variant": "cubero",
+    "inputCore": "wild",
+    "outputCore": "wild",
+    "deferred": 1,
+    "calls": [
+      "ctor:0,0",
+      "face:0,0",
+      "ctor:3,2",
+      "face:3,2",
+      "skin:3,2"
+    ],
+    "tiles": [
+      {
+        "value": 0,
+        "locked": true,
+        "special": null,
+        "variant": null,
+        "alpha": 0.25,
+        "visible": true
+      },
+      {
+        "value": 6,
+        "locked": false,
+        "special": "wild",
+        "variant": "cubero",
+        "alpha": 1,
+        "visible": true
+      }
+    ]
+  },
+  {
+    "variant": "beach-ball",
+    "inputCore": "wild-tnt",
+    "outputCore": "wild-tnt",
+    "deferred": 1,
+    "calls": [
+      "ctor:0,0",
+      "face:0,0",
+      "ctor:3,2",
+      "face:3,2",
+      "skin:3,2"
+    ],
+    "tiles": [
+      {
+        "value": 0,
+        "locked": true,
+        "special": null,
+        "variant": null,
+        "alpha": 0.25,
+        "visible": true
+      },
+      {
+        "value": 6,
+        "locked": false,
+        "special": "wild-tnt",
+        "variant": "beach-ball",
+        "alpha": 1,
+        "visible": true
+      }
+    ]
+  },
+  {
+    "variant": "beach-ball",
+    "inputCore": "wild-juice",
+    "outputCore": "wild-tnt",
+    "deferred": 1,
+    "calls": [
+      "ctor:0,0",
+      "face:0,0",
+      "ctor:3,2",
+      "face:3,2",
+      "skin:3,2"
+    ],
+    "tiles": [
+      {
+        "value": 0,
+        "locked": true,
+        "special": null,
+        "variant": null,
+        "alpha": 0.25,
+        "visible": true
+      },
+      {
+        "value": 6,
+        "locked": false,
+        "special": "wild-tnt",
+        "variant": "beach-ball",
+        "alpha": 1,
+        "visible": true
+      }
+    ]
+  },
+  {
+    "variant": "beach-ball",
+    "inputCore": "wild-magnet",
+    "outputCore": "wild-tnt",
+    "deferred": 1,
+    "calls": [
+      "ctor:0,0",
+      "face:0,0",
+      "ctor:3,2",
+      "face:3,2",
+      "skin:3,2"
+    ],
+    "tiles": [
+      {
+        "value": 0,
+        "locked": true,
+        "special": null,
+        "variant": null,
+        "alpha": 0.25,
+        "visible": true
+      },
+      {
+        "value": 6,
+        "locked": false,
+        "special": "wild-tnt",
+        "variant": "beach-ball",
+        "alpha": 1,
+        "visible": true
+      }
+    ]
+  }
+]

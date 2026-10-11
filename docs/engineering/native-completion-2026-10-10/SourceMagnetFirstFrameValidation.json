@@ -1,0 +1,7 @@
+{
+  "actualSDK": "Terminal exit0:102/102 PASS, no failures/skips, bubble7+clock26+actual Scene skin69. Late first500ms actual Node component uses shared source ticker before Magnet RAF: constant Bottle12\u219224 producer\u219236 restart; old system disposed and timeline continues0.516.",
+  "original": "Untouched original functions/real GSAP: explicit first root callback then queued Magnet callback. Normal16ms/paused16ms Bottle+Honey25\u219250; late500ms25\u219250 producer\u219275 restart. Three independent identical reruns.",
+  "qa": "Production runtime and metadata unchanged since prior fullQA101 PASS; test/oracle-only continuation validated by SDK102. No redundant fullQA.",
+  "remaining": "Automatic actual Scene prefix scheduling still NOT wired. Next wire AFTER fizz BEFORE variant and update the actual full Scene oracle to include restart/first-RAF order rather than omit it. Full family/visibility/pool/caller/global/Native/Release/WebKit/physical acceptance OPEN.",
+  "physical": "NEEDS PHYSICAL TEST"
+}

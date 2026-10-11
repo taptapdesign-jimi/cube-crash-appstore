@@ -1,0 +1,40 @@
+{
+  "verdict": "PASS bounded Source Wild locked face/bounce; complete Source spawn coroutine/global save/queue/endgame/default activation OPEN",
+  "sdk": {
+    "tests": 14,
+    "failures": 0,
+    "seconds": 19.236,
+    "log": "/tmp/native-wild-locked-source-face-bounce-corrected.log"
+  },
+  "actual": "Actual resumed Source Journey Juice uses its genuinely selected locked holder; immediate Source value assignment and independent raw face RAF precede bounce publication. Source bounce reuses APP timeline, captured Core direction without an extra draw, literal level-flow timeScale2 or manual timeScale1; pickup removes children through existing captured Node binding. Actual Arcade Juice and existing Magnet binding/caller paths PASS. Refusal publishes no bounce and does not acknowledge the locked phase; duplicate callback rejected.",
+  "boundaries": "Core Source callback nil for Raw. Installed only by actual Source Direct + stack face admission. No complete Source coroutine/finally or mergeSixSpawn global writer is manufactured. Source short-wave eligibility, all-family/default activation and physical timing remain separate.",
+  "failureChronology": [
+    "/tmp/native-wild-locked-face-connected.log: misplaced test fixture compile65",
+    "/tmp/native-wild-locked-face-connected-corrected.log: Arcade does not execute literal locked branch; independent resolution boundary assertion incorrect",
+    "/tmp/native-wild-locked-face-journey-connected.log: Journey test copied Arcade wave and HUD assumptions",
+    "/tmp/native-wild-locked-face-journey-focused.log: Source random selection opened genuine bonus locked holder, not fixture-specific id",
+    "/tmp/native-wild-locked-face-selected-owner.log: face PASS, Journey reward is not Arcade100 points",
+    "/tmp/native-wild-locked-source-face-bounce.log: Swift whitespace compile65",
+    "/tmp/native-wild-source-prefix-old-board-wave.log: initial prefix edit matched ordinary handler, corrected to actual Direct handler; failed scope retained"
+  ],
+  "king": "330/0 PASS /tmp/native-wild-locked-bounce-final-king.log before subsequent Source prefix/pickup refinement",
+  "feature": "27 PASS /tmp/native-wild-locked-bounce-final-feature.log before subsequent Source prefix/pickup refinement",
+  "release": "BUILD SUCCEEDED /tmp/native-transition-wild-locked-release.log; compiled dependency/original asset audit PASS /tmp/native-transition-wild-locked-release-audit.log. Covers board-transition writer and face/bounce SDK14 scope, BEFORE later prefix-wave/pickup refinement.",
+  "physicalAcceptance": "NEEDS PHYSICAL TEST",
+  "sha256": {
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "0fc043232bf4f459d0e300c9e9ae3fa9898d0def458747b2dd96c4e614843dbd",
+    "native/gameplay-ui/NativeBoardScene.swift": "01fe7e3d019fa0c3cf3cda7c994bfea13f27233d33db6a3e8573425b4613a56b",
+    "native/gameplay-app/NativeSourceAppSpawnBounceOwner.swift": "b11fa467f4a1ef6c1950cfa72a824bd7916b75624c5c937762a832e27148d886",
+    "native/standalone/Stack to SixTests/NativeWildLockedFaceCommitTests.swift": "ba11967b25550777612bf9a44a7e98494bb7cc6f9ff6ae77341c3d8a14f45738",
+    "native/standalone/Stack to SixTests/NativeStandaloneRootTests.swift": "b1f2373beaaa3485e2e3fd467557e22c0a736fcd25354f0c9f0b04db40dc3362",
+    "native/standalone/Stack to SixTests/NativeSourceWildBounceTransportTests.swift": "8741532671d8995557877bcdda9a0eba04eaa6bdd244b0b65f2bc3f34c2b0c74"
+  },
+  "prefixWaveAndPickup": {
+    "tests": 6,
+    "failures": 0,
+    "seconds": 74.793,
+    "log": "/tmp/native-wild-source-prefix-correct-owner.log",
+    "actual": "Source Direct prefix captures old board wave before main80 primary/bonus holders exist; later Core publication skips duplicate wave. Actual Journey Juice + Arcade Juice + earned Star guided root + ordinary final Journey reward/Continue/next move PASS. Source captured direction/timeScale2 consumes zero additional Math; pickup retains parent until next real APP root, once release.",
+    "release": "Latest Release predates prefix/pickup refinement; group next rebuild with subsequent migration batch."
+  }
+}

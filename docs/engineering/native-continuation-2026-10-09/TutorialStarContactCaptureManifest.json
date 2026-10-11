@@ -1,0 +1,14 @@
+{
+  "status": "PRIVATE Core356/356 PASS; SDK21/21 PASS compilation/previous cases, mounted contact behavior OPEN",
+  "files": {
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceSpecialContactLease.swift": "61e78c6821ba6f97fe6aad1b7080f89b657c6eb6bc9c40cb36a264c4f8836187",
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeBoardState.swift": "e6534dbaf8648daeab9461780ae710243b482a676e2f1f583c6100297ea16b20",
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "bc41c8db3a5a4bfc9834918fc02d333d91f22e6a73d1fde7f3a2765c880b3dcb",
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceSpecialContactCoreTests.swift": "d75b42bda73b43c7c7a3bd8e474e02d5f85a8e9f35f66f86919fb6764a674a61",
+    "native/gameplay-ui/NativeBoardScene.swift": "ae7b25e18903a077d2ebf67690a62d78b4f6e19b289db705a4776ec2a379dd96",
+    "native/gameplay-ui/NativeDiceNode.swift": "4b6c3e6cda9d42868ac7cb582719b08a257fdb8a3b1e6875f98b0419b7ccfe56",
+    "native/gameplay-ui/NativeStarFinale.swift": "29d552795441babc689963f330949e0897493d181f095d31aef13f4de52d6618",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "9f6bd9dcfea931fd7124311c863aaa6d50bb0301300be7c993e474a146b2d02e"
+  },
+  "scope": "Scene plain-Star contact claim can carry immutable early counts on existing lease into direct/special plans; staged TNT replanning preserves payload. Early SDK21 PASS. Actual mounted contact behavior, capture validation and reward consumption still OPEN; source count flag OFF."
+}

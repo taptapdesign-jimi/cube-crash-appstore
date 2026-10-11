@@ -1,0 +1,23 @@
+{
+  "date": "2026-10-10",
+  "scope": "Private actual Scene/Node mobile Bee four-frame all-settled cohort via actual provider/APP asset/FIFO receipts; retains original order and minimum2, frame-path resource pin and typed current frame receipt, defer/Scope/identity rejection. Source tick cannot raw-swap a Source-owned Bee. Global startup/Source exact decorative host motion and conditional FX composer remain OPEN; flags OFF; no main/phone/PWA integration.",
+  "files": {
+    "native/gameplay-ui/NativeDiceNode.swift": "045c36ce8f2e76b1085cecfed2c6aa70cf4378c82e867fdd70539b3fa8efaf23",
+    "native/gameplay-ui/NativeBoardScene.swift": "b445a96fd7dbd9dcbb75a2291d165bc682deb9ecbebcc65102773f257ab87600",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "46b1484d4ef95a64d4cdf0e07d522c45b34349e7b6ae4d315d2415453dd5410d"
+  },
+  "SDK": "terminalexit0 3/3 PASS: actual mobile upload/tick/paths, actual Scope retirement, 2-of-4 ordered frames vs1-of-4 static fallback",
+  "full": "terminalexit0 all selected deterministic gates PASS; production Node/Scene frozen; corrected/added Swift tests verified separately in actual SDK (not copied under live QA)",
+  "logs": {
+    "bee-source-frame-receipts-sdk.log": "e58d00d4b08c5955adfdb104b8cee9ef65ca63c678cfea7c89c83a58a6804ebe",
+    "bee-source-frame-cohort-sdk.log": "b3b751a6694a64af5c8496081c30ddcba556312885d055d1dea1b643c18c68e5",
+    "bee-source-frame-receipts-full.log": "7d8557361cd7b0d2f678b9d62a73607943f59b35198281af3a2baee4fd3703be",
+    "bee-source-current-matrix-sdk.log": "20f6aa09ca9e233f8089549ef5c78ae6f6a6216acc286067d512bdd86ba5c1cf",
+    "bee-source-current-matrix-command.json": "4f1de4eb0adcca35f64317215d667685dfc7e51bb852fbbc28b27b4dd7f3a121"
+  },
+  "SDKmatrix": "terminalexit0 27/27 PASS current provider/receipt/skin/input/model/idle/Bee frame cohort matrix",
+  "snapshotMatch": {
+    "native/gameplay-ui/NativeDiceNode.swift": "Source=QA=SDK SHA match",
+    "native/gameplay-ui/NativeBoardScene.swift": "Source=QA=SDK SHA match"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "status": "Core77844 terminal exit0 full363/363PASS; KING82666 terminal exit0 330/330PASS",
+  "files": {
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "eaeee6cd114d7d58363d570110403953c38c3cee7e4583041e0e0f7ffb3842a6",
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceOrdinarySixSpawnBeginCoreTests.swift": "ce58dffaebdf3e71119c69e1ac84640fb5e111a9e75b1158f0db5bed51ff47e9"
+  },
+  "logs": {
+    "native-ordinary-minimum-painted-core.log": "df974cb28317a452628b9a00b1c8ceec48ce01c83334f2b0e53304bc699b92e1",
+    "native-ordinary-minimum-painted-gameplay-lock.log": "1546241fb1267f06c94e9a4c4d58dd14000840a6a44b452f68007ac314404e7a"
+  },
+  "proof": "Controlled physical/runtime authority may report painted alpha/visibility differing from canonical model. Logical copy must match entire canonical state after only alpha/visibility normalization. Source checker counts regular alpha0; actual canonical state unchanged. Value mutation/incomplete/reentrant restart rejected.",
+  "limits": [
+    "controlled authority fixture is not full Scene lifecycle-owner admission",
+    "actual rescue producer and coroutine finally OPEN",
+    "default admission OFF",
+    "physical/full migration OPEN"
+  ]
+}

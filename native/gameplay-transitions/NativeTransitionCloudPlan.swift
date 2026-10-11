@@ -6,7 +6,12 @@ enum NativeTransitionCloudPlan {
         let asset:Int,depth:Int
         let width,height,xPercent,yPercent,baseScale,rotation,bounceAmount,bounceSpeed,windDuration,driftDistance,initialY,enterDelay:Double
         struct Pose {let wrapperX,imageY,scaleX,scaleY,opacity:Double}
-        func sample(seconds:Double,exitAt:Double?=nil)->Pose {
+        func sample(seconds:Double,exitAt:Double?=nil,occlusionEndsAt:Double?=nil)->Pose {
+            // Rear Forest clouds must retire while their mountain cover is still
+            // intact. Exit anticipation otherwise exposes their enlarged edges.
+            if let occlusionEndsAt,seconds>=occlusionEndsAt {
+                return Pose(wrapperX:0,imageY:initialY,scaleX:0,scaleY:0,opacity:0)
+            }
             func clamp(_ p:Double)->Double{min(1,max(0,p))}
             let t=max(0,seconds),drift=driftDistance*clamp((t-enterDelay-0.24)/windDuration)
             let bounceAge=max(0,t-enterDelay-0.5),bounceP=bounceAge.truncatingRemainder(dividingBy:bounceSpeed)/bounceSpeed

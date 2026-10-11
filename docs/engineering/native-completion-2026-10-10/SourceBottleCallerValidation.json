@@ -1,0 +1,7 @@
+{
+  "actualSDK": "116/116 PASS terminal exit0, zero failures/skips: clock29+Scene71+bubble7+mounted9. Actual entry/relayout caller resumes Bottle, async skin receipt retains bottom pivot; borrowed Source clock motion resists Raw tick and registry suspension. Existing Source regressions PASS.",
+  "fullQA": "Terminal exit0 SKIP_NATIVE_BUNDLE_SYNC=true npm run qa:full PASS; session74297 completed. git diff --check PASS.",
+  "scope": "Actual Scene special-idle startup queues Bottle until entry and restored constructor face settled; clearing defer preserves base and starts full skin/fizz/Magnet prefix then host root. Existing settled-face callback drains queue. Scope retirement clears queue. Raw bottleElapsed does not advance under Source owner; default Raw behavior remains.",
+  "remaining": "Genuine restored construction/normal entrance/late raw-face FIFO matrix, cached synchronous texture completion, scope retirement/visibility/drag/reentrant skin matrix remain OPEN. Full family and global shipping flags OFF; no complete current SDK/Release/native-only/physical acceptance.",
+  "physical": "NEEDS PHYSICAL TEST"
+}

@@ -1,0 +1,30 @@
+{
+  "base": [
+    "docs/engineering/native-pause-2026-10-08/NativeSource.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/EntrySourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialIntroSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialHUDSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialMonitorSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialRestoreSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialThirdSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFreeHintSourceDelta.tar.gz"
+  ],
+  "wholeSourceFlags": "OFF",
+  "laterTutorialCallers": "Third hint connected after actual third-sheet completion and original wall260; exact APP direction/pair/fallback Math and typed repeating Source timeline. CTA/fourth-Wild/final tutorial/resume/full HUD hierarchy OPEN; flags OFF.",
+  "files": {
+    "docs/engineering/feature-runtime-owners.json": {
+      "baseSHA256": "2d7f4d603976687d55eca6a97b632f3ba1ff69b1bf67f5788c7443d8333dc577",
+      "sha256": "059ca878556e923e08ef5030dcbace72eeb89a5dedf220b9c944a819a9ce9ca8"
+    },
+    "native/gameplay-ui/NativeSourceTutorialCTAOwner.swift": {
+      "baseSHA256": null,
+      "sha256": "3c8b70782b39236530819a1e0e8653efce0df3ad0d7f7d4b2966d812953fe9ed"
+    },
+    "native/standalone/Stack to SixTests/NativeSourceTutorialCTATests.swift": {
+      "baseSHA256": null,
+      "sha256": "44391748f7254506a7ed32c1516fe377426ca8cd1f66515f5817590983e02261"
+    }
+  },
+  "archiveSHA256": "9fc8c1371feaecab7edde52a631899cda47d25ac17aded73352f029b68ffe640"
+}

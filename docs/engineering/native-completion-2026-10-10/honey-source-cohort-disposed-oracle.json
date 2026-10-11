@@ -1,0 +1,272 @@
+{
+  "authority": "Untouched original Honey controller with one explicitly delayed asset and borrowed real GSAP; mock Pixi/pool/visibility. Dispose then simulated pool reuse C before late Promise cohort. Not Native/recovery/GPU proof.",
+  "mode": "disposed",
+  "sourceSHA256": "6ae2be094ed4d5688a96c8c683913600e1cff056916d683aecdb369d95e3d7ca",
+  "events": [
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee1@2x.png",
+      "draws": 0
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee2@2x.png",
+      "draws": 0
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee3@2x.png",
+      "draws": 0
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee4@2x.png",
+      "draws": 0
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee5@2x.png",
+      "draws": 0
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee6@2x.png",
+      "draws": 0
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee7@2x.png",
+      "draws": 0
+    },
+    {
+      "event": "sprite-acquire",
+      "draws": 78
+    },
+    {
+      "event": "sprite-acquire",
+      "draws": 78
+    },
+    {
+      "event": "sprite-acquire",
+      "draws": 78
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee1@2x.png",
+      "draws": 78
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee2@2x.png",
+      "draws": 78
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee3@2x.png",
+      "draws": 78
+    },
+    {
+      "event": "pending-asset-load",
+      "source": "./assets/shop/honey/bee3@2x.png",
+      "draws": 78
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee4@2x.png",
+      "draws": 78
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee5@2x.png",
+      "draws": 78
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee6@2x.png",
+      "draws": 78
+    },
+    {
+      "event": "cached-read",
+      "source": "./assets/shop/honey/bee7@2x.png",
+      "draws": 78
+    },
+    {
+      "event": "root-register",
+      "duration": 3600,
+      "draws": 78
+    },
+    {
+      "event": "visibility-track",
+      "draws": 78
+    },
+    {
+      "event": "returned-before-cohort",
+      "draws": 78
+    },
+    {
+      "event": "visibility-release",
+      "draws": 78
+    },
+    {
+      "event": "sprite-release",
+      "draws": 78
+    },
+    {
+      "event": "sprite-release",
+      "draws": 78
+    },
+    {
+      "event": "sprite-release",
+      "draws": 78
+    },
+    {
+      "event": "cohort-checkpoint",
+      "draws": 78
+    }
+  ],
+  "samples": [
+    {
+      "label": "synchronous-force",
+      "seconds": 0,
+      "draws": 78,
+      "bees": [
+        {
+          "x": 23.25295985441028,
+          "y": 46.795174751068124,
+          "alpha": 0,
+          "width": 1.3424008524056793e-14,
+          "height": 1.3424008524056793e-14,
+          "asset": "bee1",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": 0.7049504487465048,
+          "y": -64.08648122426362,
+          "alpha": 0,
+          "width": 1.1043668197867162e-14,
+          "height": 1.1043668197867162e-14,
+          "asset": "bee2",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -50.89278088273551,
+          "y": 27.655929570394164,
+          "alpha": 0,
+          "width": 1.192527367139386e-14,
+          "height": 1.192527367139386e-14,
+          "asset": "bee4",
+          "layer": "honey-idle-bee-orbit-front"
+        }
+      ]
+    },
+    {
+      "label": "cohort-still-pending",
+      "seconds": 0,
+      "draws": 78,
+      "bees": [
+        {
+          "x": 23.25295985441028,
+          "y": 46.795174751068124,
+          "alpha": 0,
+          "width": 1.3424008524056793e-14,
+          "height": 1.3424008524056793e-14,
+          "asset": "bee1",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": 0.7049504487465048,
+          "y": -64.08648122426362,
+          "alpha": 0,
+          "width": 1.1043668197867162e-14,
+          "height": 1.1043668197867162e-14,
+          "asset": "bee2",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -50.89278088273551,
+          "y": 27.655929570394164,
+          "alpha": 0,
+          "width": 1.192527367139386e-14,
+          "height": 1.192527367139386e-14,
+          "asset": "bee4",
+          "layer": "honey-idle-bee-orbit-front"
+        }
+      ]
+    },
+    {
+      "label": "clock-before-cohort",
+      "seconds": 0.1,
+      "draws": 78,
+      "bees": [
+        {
+          "x": 16.89674826783832,
+          "y": 50.315877420272365,
+          "alpha": 0.2940364838016271,
+          "width": 58.16993557185843,
+          "height": 58.16993557185843,
+          "asset": "bee1",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -11.888812743231775,
+          "y": -65.1482721326889,
+          "alpha": 0.06966896265448154,
+          "width": 14.515622654088334,
+          "height": 14.515622654088334,
+          "asset": "bee2",
+          "layer": "honey-idle-bee-orbit-front"
+        },
+        {
+          "x": -58.52139313682289,
+          "y": 20.18290826103534,
+          "alpha": 0,
+          "width": 1.1401884920942464e-14,
+          "height": 1.1401884920942464e-14,
+          "asset": "bee4",
+          "layer": "honey-idle-bee-orbit-front"
+        }
+      ]
+    },
+    {
+      "label": "late-cohort-checkpoint",
+      "seconds": 0.1,
+      "draws": 78,
+      "bees": [
+        {
+          "x": 999,
+          "y": 222,
+          "alpha": 0.2940364838016271,
+          "width": 96.94989261976406,
+          "height": 48.47494630988203,
+          "asset": "C"
+        },
+        {
+          "x": 999,
+          "y": 222,
+          "alpha": 0.06966896265448154,
+          "width": 24.192704423480556,
+          "height": 12.096352211740278,
+          "asset": "C"
+        },
+        {
+          "x": 999,
+          "y": 222,
+          "alpha": 0,
+          "width": 1.9003141534904107e-14,
+          "height": 9.501570767452054e-15,
+          "asset": "C"
+        }
+      ]
+    }
+  ],
+  "final": {
+    "draws": 78,
+    "kills": 1,
+    "hostChildren": 0,
+    "snapshot": {
+      "disposed": true,
+      "beeCount": 0,
+      "tweenCount": 0
+    }
+  }
+}

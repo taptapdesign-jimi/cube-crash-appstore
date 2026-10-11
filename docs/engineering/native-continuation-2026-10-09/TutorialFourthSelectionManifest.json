@@ -1,0 +1,11 @@
+{
+  "applyAfter": "TutorialFourthDroppingSourceDelta.tar.gz",
+  "archiveSHA256": "2a3b10faab818ef255e46e9b07e67a7e0031e44c07fa10948ed784a48fad6666",
+  "files": {
+    "native/gameplay-ui/NativeBoardScene.swift": {
+      "baseSHA256": "8bab9e7b107fff69f2a3318bc29fea7602e12674c13f89b23a26c9f2a8e150ed",
+      "sha256": "c62a282ad090c03e6e7637933bd9fcbfa923cc2e7f08ef5f04136bd9b5452b16"
+    }
+  },
+  "validation": "Scene compiles with actual SDK; existing MeterSceneCaller4/4 PASS. Selection behavior itself not yet exercised through full real tutorial/meter Scene route."
+}

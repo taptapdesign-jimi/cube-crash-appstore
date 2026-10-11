@@ -1,0 +1,27 @@
+{
+  "status": "FOCUSED1_BROADER18_PASS",
+  "scope": "Fixture-only extension through genuine earned Star\u2192target Scene drag, actual completion60 and sheet/pointer exits, guideCompleted/assist and overlay cleanup. No manufactured completion. Runtime unchanged from exact completeSDK1253/fullQA checkpoint. Global flags OFF.",
+  "checks": [
+    {
+      "handle": 48615,
+      "status": "PASS",
+      "tests": 1,
+      "failures": 0,
+      "exitCode": 0
+    },
+    {
+      "handle": 62075,
+      "status": "PASS",
+      "tests": 18,
+      "failures": 0,
+      "exitCode": 0
+    }
+  ],
+  "sourceSHA256": {
+    "native/standalone/Stack to SixTests/NativeSourceTutorialBootstrapTests.swift": "577257d78fc1a2073f91a1b8365017504658076447f653ff274d1ab688f822e0",
+    "native/gameplay-ui/NativeBoardScene.swift": "66f3cd72d620a2a5fa1db686d4c87420d002674f3213338b303f1b5fc0d92342",
+    "native/gameplay-ui/NativeGameplayViewController.swift": "58745acf6ee1110e887d659e7bf480bf5e98825cb2beb3520a31cc6e933036f3"
+  },
+  "completeSDK": "Previous fixture/runtime checkpoint1253/1253 PASS; new completion fixture is covered by focused1 and expanded18, not claimed whole1254 suite.",
+  "remaining": "Save/resume, final tutorial result progression, all global Source constructors/common time/RNG/tasks/resources/family admission, Native-only Release and physical acceptance OPEN. No phone/PWA/assets operations."
+}

@@ -1,0 +1,176 @@
+{
+  "authority": "Untouched fx.ts start/stopWildJuiceBubbles and startMagnetIdleParticles, installed GSAP; explicit queued RAF and stopMagnet/Pixi/visibility endpoints. RAF remains independent of global GSAP pause. This is original composition evidence, not full native/app/physical acceptance.",
+  "scenario": "normal",
+  "firstSeconds": 0.016,
+  "initialDraws": 25,
+  "before": 25,
+  "draws": 50,
+  "ordinaryGuard": true,
+  "retired": [
+    {
+      "owner": "bottle",
+      "disposed": true,
+      "bubbles": 0,
+      "detached": true,
+      "replaced": true
+    },
+    {
+      "owner": "honey",
+      "disposed": true,
+      "bubbles": 0,
+      "detached": true,
+      "replaced": true
+    }
+  ],
+  "attachedRoots": 9,
+  "arrivals": [
+    {
+      "owner": "bottle",
+      "time": 0,
+      "drawsBefore": 0
+    },
+    {
+      "owner": "honey",
+      "time": 0,
+      "drawsBefore": 12
+    },
+    {
+      "owner": "bottle",
+      "time": 0.016,
+      "drawsBefore": 25
+    },
+    {
+      "owner": "honey",
+      "time": 0.016,
+      "drawsBefore": 37
+    }
+  ],
+  "rootTrace": [
+    {
+      "owner": "bottle",
+      "kind": "scale",
+      "time": 0,
+      "duration": 0.3175988544034771,
+      "delay": 0
+    },
+    {
+      "owner": "bottle",
+      "kind": "rise",
+      "time": 0,
+      "duration": 1.0586628480115905,
+      "delay": 0
+    },
+    {
+      "owner": "bottle",
+      "kind": "tint",
+      "time": 0,
+      "duration": 1.0586628480115905,
+      "delay": 0
+    },
+    {
+      "owner": "bottle",
+      "kind": "fade",
+      "time": 0,
+      "duration": 0.42346513920463624,
+      "delay": 0.6351977088069543
+    },
+    {
+      "owner": "bottle",
+      "kind": "producer",
+      "time": 0,
+      "duration": 0,
+      "delay": 0.4267133304616436
+    },
+    {
+      "owner": "honey",
+      "kind": "scale",
+      "time": 0,
+      "duration": 0.49835054303286597,
+      "delay": 0
+    },
+    {
+      "owner": "honey",
+      "kind": "rise",
+      "time": 0,
+      "duration": 1.66116847677622,
+      "delay": 0
+    },
+    {
+      "owner": "honey",
+      "kind": "fade",
+      "time": 0,
+      "duration": 0.6644673907104881,
+      "delay": 0.9967010860657319
+    },
+    {
+      "owner": "honey",
+      "kind": "producer",
+      "time": 0,
+      "duration": 0,
+      "delay": 0.44062788709066814
+    },
+    {
+      "owner": "bottle",
+      "kind": "scale",
+      "time": 0.016,
+      "duration": 0.43544719223398715,
+      "delay": 0
+    },
+    {
+      "owner": "bottle",
+      "kind": "rise",
+      "time": 0.016,
+      "duration": 1.4514906407799573,
+      "delay": 0
+    },
+    {
+      "owner": "bottle",
+      "kind": "tint",
+      "time": 0.016,
+      "duration": 1.4514906407799573,
+      "delay": 0
+    },
+    {
+      "owner": "bottle",
+      "kind": "fade",
+      "time": 0.016,
+      "duration": 0.580596256311983,
+      "delay": 0.8708943844679743
+    },
+    {
+      "owner": "bottle",
+      "kind": "producer",
+      "time": 0.016,
+      "duration": 0,
+      "delay": 0.43983696699142455
+    },
+    {
+      "owner": "honey",
+      "kind": "scale",
+      "time": 0.016,
+      "duration": 0.4136311415426898,
+      "delay": 0
+    },
+    {
+      "owner": "honey",
+      "kind": "rise",
+      "time": 0.016,
+      "duration": 1.3787704718089662,
+      "delay": 0
+    },
+    {
+      "owner": "honey",
+      "kind": "fade",
+      "time": 0.016,
+      "duration": 0.5515081887235865,
+      "delay": 0.8272622830853796
+    },
+    {
+      "owner": "honey",
+      "kind": "producer",
+      "time": 0.016,
+      "duration": 0,
+      "delay": 0.7300142304156907
+    }
+  ]
+}

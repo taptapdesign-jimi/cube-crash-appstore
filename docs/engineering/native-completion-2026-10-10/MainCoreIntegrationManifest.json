@@ -1,0 +1,573 @@
+{
+  "scope": "First main integration: only clean pure Swift gameplay-core package, captured from verified private checkpoint. No UI/SDK/project/assets or other dirty paths overwritten. Global Source flags unchanged; whole migration remains OPEN.",
+  "backup": "/tmp/native-completion-20261010-evidence/main-core-before-integration.tar.gz",
+  "backupSHA256": "cfdfcb3a5841205511ad78f3b49e10e0114217ad4bf5b4c4c3df2640623d7c94",
+  "changes": [
+    {
+      "path": "native/gameplay-core/Package.swift",
+      "before": "ce8c50d5e35b6417ac5a6550fd7098d0c2e7f143a3c57d93c74ad6593e630203",
+      "after": "cfcffc83fb9f977ded9f4db895371b8233c0b7739f407e996c5ae80449fecffa"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeBoardState.swift",
+      "before": "b7b0281d41132e43e6f363b561d3b20232be430dbfb4360a24372daa51fd5932",
+      "after": "119f0a48a19473d3f418398104f59e5ce3000530b6f383b72968c03cfb2fbbc0"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift",
+      "before": "328f1e7e2b57abf0c672745d1d2ca1668a72c9defa94837321e77d542e2dbf07",
+      "after": "41f9caa7dbe68fbb37ad2eda65e69690d0940e98442431569c9e8ed5965e4fed"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeMeterDropReservation.swift",
+      "before": null,
+      "after": "02b95489db67e55d613a71dfaa27a47da5fd2b128059d8efd20d46b0ebf1a4db"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeMeterOpenRequest.swift",
+      "before": null,
+      "after": "3ca6131ac3cfe1fc1ad40029e89f4a58cd39785fc1b5082a21fe5783422767de"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeNoMovesCandidateOwner.swift",
+      "before": null,
+      "after": "8d151373cab5957095eaca6309d68f896059e15277513efeba7d026d1ac9a84e"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeNoMovesTriggerClassification.swift",
+      "before": null,
+      "after": "fe4d7410a9277fbd3e28c6e25138878d41845db16db58e47cd5a0c9ab8d2d77b"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeOrdinaryMovePlan.swift",
+      "before": "7669df9afcfff23523c2a10d1e2b36bd30f17bba60eeb0aa182bffde7a59fa08",
+      "after": "d285b99fec69d6ac4ee841459576d4e470d01cc3ca22ef28919e00fb18528d58"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceDirectWildPrefixReceipt.swift",
+      "before": null,
+      "after": "d3e48628ebbd724c7e901551e91759ec1fe4e3d38b1721265e65b1a8c375a509"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceGameplaySignature.swift",
+      "before": null,
+      "after": "db886ad7b3267a64389ea0f980f445fc669e2fcca7e55cc946e9378ecfd53172"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceHUDStarJob.swift",
+      "before": null,
+      "after": "fefc1b579658f413b5e82b2a887f919a52b351ad675823a7e73a96f642546d18"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceMagnetFallback.swift",
+      "before": null,
+      "after": "26ecc61faa58876c861dd3de40893338048ad062560666a4dac6c0bc217fc5b4"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceMagnetLazyRespawn.swift",
+      "before": null,
+      "after": "b7de90b0f71d6e53fc297093026c2d7435ef6c259919f99c6f823571ba54b5f4"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceMagnetPullSelectionOwner.swift",
+      "before": null,
+      "after": "1174594542705e2fd4ca6d1a18d4d27179c9dd4349702ddc92ff625569553bc7"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceMathRandomStream.swift",
+      "before": null,
+      "after": "ae85bd9407ce9f3ae66e37446f5d607ef516e7a0b1c88be6f144093e7248ced4"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceMergeSixAutoCenterHook.swift",
+      "before": null,
+      "after": "b69247a8ab5b4ff539f701716b2fcdd34926040b41816a5e0a124fdec35ab139"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceMeterQueuePermission.swift",
+      "before": null,
+      "after": "6370baa1f934581a1fac27686aae72415719478c6149a80eff59a00d74dc05d3"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceNoMovesCallerReceipt.swift",
+      "before": null,
+      "after": "9a01c5e6d1f87e267873b4ec8ac39ffa4e5b553e9cfb1d2ba2703249041ae8b7"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceNoMovesCompletedReceipt.swift",
+      "before": null,
+      "after": "0177b37f76797dfb4a57a17c754cab358e63b7228050d64ceb6fc2dfc050d5ce"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceNoMovesFinalFlowReceipt.swift",
+      "before": null,
+      "after": "73035036c927b95017ec1441faf9543ce3e59f3b2fe8f1631793e6f23398b77a"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceNoMovesRuntimeAuthority.swift",
+      "before": null,
+      "after": "2e51f95b6a2e7e9b6f67e242a606d5c1e55b5b014b686051b416410ba7908141"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceOrdinaryPreDebitReceipt.swift",
+      "before": null,
+      "after": "f2654f13e87f46e42399f15864324a2893db05a53c8a78aebe212eb2f952617e"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceOrdinarySixSpawnBeginReceipt.swift",
+      "before": null,
+      "after": "b490c1c7bfdbcb4620652adda0aa7df52f334be4ef679851e3e2357bc8797116"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceOrdinaryStackFaceReceipt.swift",
+      "before": null,
+      "after": "a8127a5bdb163e122db0a816af23fd05459fec00623e9a68a0220c575a058df0"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceSaveAdmission.swift",
+      "before": null,
+      "after": "3cbff13eb8c4bf2e08b51b790949f7cb852da6146f51ef94075e1c65276b7c13"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceSpecialAbsorbReceipt.swift",
+      "before": null,
+      "after": "040f34ac2d890414eb29c35bb6ee3e8b44eaa42fd7f1a990a6f0f94abf347734"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceSpecialContactLease.swift",
+      "before": null,
+      "after": "66d49c28c804290f56015279c37558e676a5efd0f42f1abdcf2506a92bd15df7"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceTntTargetSort.swift",
+      "before": null,
+      "after": "08645fa28c26566413753457cad4a096ac2d1b5a8c5a41fa64e16e2a0c84382d"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceTutorialDemoActivationReceipt.swift",
+      "before": null,
+      "after": "97e0e8b4c095c2266832ba1410806001b0671308aa6beb5e1f87ade1acaa7306"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceTutorialPresentationBarrier.swift",
+      "before": null,
+      "after": "3140faa1e2191d14f8a7dc5fd1859617bb6fd94e222f6dd8cfde15867f0eeb34"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceWildDestinationFaceReceipt.swift",
+      "before": null,
+      "after": "3186fe96b7f07baac59d241851401b26cdc97de5e29fc3e5c4ba471c28cd81ee"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeTutorialRules.swift",
+      "before": "7d7e7af0c3e7a8e0469ee7edc979cfb3b4880855aaaefabf5e0a700e6b4cf6c2",
+      "after": "787936a7a493de0a2e80b67d2768b0a81bc03bec1a19c65e97fddcaa10a96d4c"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeWildLockedBonusRules.swift",
+      "before": null,
+      "after": "338cefbf5f95e18c84fbb15422e14a3819ed156b571e3e7848a69600c502c6a5"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeWildPrimaryRecoveryOwner.swift",
+      "before": null,
+      "after": "eacd5c421bc4b687cd4e3e28461a1c0b3ab65a1b419bf0acf6b21294fd5ea848"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeWildSpawnAction.swift",
+      "before": null,
+      "after": "101d4be7c2964c83d193edc026bac11fcf9a4c359fe3dc55f4a81295ec6bdd6b"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeWildSpawnPhaseOwner.swift",
+      "before": null,
+      "after": "c15418733ef78c3cb860a364a572b3747be31e007deaf9092bf820a47e65db13"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeMeterBeforeOpenTests.swift",
+      "before": null,
+      "after": "c86121ff3b282020befee2e4918610483d0a165c7e3bb0ee1f8bc62354f6d124"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeMeterDropCoreTests.swift",
+      "before": null,
+      "after": "57b9188c28c56cb189ea52a27c0099a2ecd088dc339871f7ff1113c82fd9c41c"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeMeterHiddenHolderTests.swift",
+      "before": null,
+      "after": "c4047cb007c0ec2a2b1aca83c17f1e31e0456b8a2b6ee407497bdc6d126c4008"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeMeterNoMovesIntegrationTests.swift",
+      "before": null,
+      "after": "12b1a82237e7725e28650b361ff4a4815e513997c0375b5e532f8ef67a89ab6e"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeNoMovesAdditionalSourceTests.swift",
+      "before": null,
+      "after": "868d486e1bdae034d88c806c7cdc6ccaf5d20b4de08c651ca151c391b8fe5272"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeOrdinaryAssignmentTests.swift",
+      "before": "8afa26aa3015e55d8dc9b0660cfc56be3793593cf2c62b567e39f5da77f15773",
+      "after": "ab5752b87fa8e0d7d651618411a91835d01977024bdf18409ebfd53f10d4250c"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeOrdinaryRetiredIdentityOracle.swift",
+      "before": "d6865f6e32cbd68ef6fbc0a52b2a894facd9895ca30ce05350650fab14c764d7",
+      "after": "e31de4d4eda0d6d601995d5710ecc4db29db78f5e311aab88055056fe1aa1162"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeRegularStackLayout.swift",
+      "before": null,
+      "after": "bc8a6eaeeae8c868e0d892b713523dc357c3f47f871b913eb5cb570e64c6903b"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceConfirmedFailCleanupTests.swift",
+      "before": null,
+      "after": "d9da4fa182fb130c9dc7c5fa85ee5b93f73f49721ace93d2224320dac21f98bc"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceDirectWildPrefixTests.swift",
+      "before": null,
+      "after": "79c9af923c69d403801b5164d51bbf86a081bb03b72e51f67d1a496620227087"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceHUDStarJobTests.swift",
+      "before": null,
+      "after": "ac2df6c3c13ac5ff31a4eb36f4bfd459a52ee2e6754e4dbd59370553bab63cca"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceHUDStarUnadoptedDebtTests.swift",
+      "before": null,
+      "after": "5f71b5e774d0fa78fe3dcb9b02c3072668872d2df5346f145cec87c3874afe7c"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceInitialBoardRecipe.swift",
+      "before": null,
+      "after": "1dd2d51303cd126e6e17544d31d2c64482de294390979c061c9a2b9db56b8c6f"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceMagnetFallbackTests.swift",
+      "before": null,
+      "after": "58e5380faf3e7acf63da2e25c5a236460bb9b3bf9f3b50bcc8d3681dab82dc7d"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceMagnetLazyRespawnTests.swift",
+      "before": null,
+      "after": "80962d40888b5ad0bf9539069cf17659a40f9552f043401ed285bc4435314f44"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceMagnetMainSetupTests.swift",
+      "before": null,
+      "after": "140e990eb1f03b72f6051df08aba84a8f9763cd1ef10565b03a561845660eb10"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceMagnetPullSelectionTests.swift",
+      "before": null,
+      "after": "9358c938f048809c7c12109c70cb97d704ea4711d967c8fb23ac574b5b076a71"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceMathRandomTests.swift",
+      "before": null,
+      "after": "480495743e1c095d5419f8d364cbc45a6e56a80953093c2194528b3e6bf42ada"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceMeterCancellationQueryTests.swift",
+      "before": null,
+      "after": "b63ebf63c2e2676118f16cc66f17e84aca978e528947efd50d05a776024ad569"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceMeterQueuePermissionTests.swift",
+      "before": null,
+      "after": "eeb6b066765d648e4d01e33ffdabf82d3a457d988319866aa0db770f6204889d"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceNoMovesAuthorityTests.swift",
+      "before": null,
+      "after": "8a4e4aa1932b1fda582df680375dc28edba452270909c32472b22c38777c84dc"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceNoMovesCompletedReceiptTests.swift",
+      "before": null,
+      "after": "b0badbed3731551070641c19f4b120c63ef87504a3f1e554b250f3b8e887b518"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceNoMovesGenuineCallerTests.swift",
+      "before": null,
+      "after": "61b7c507102ec18ba6f31f7a0779c8d17e45223eae6e7f1d5808a7453a428a58"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceNoMovesOracleTransportTests.swift",
+      "before": null,
+      "after": "1163659f09b4ac309d314c2ef888eb190dce825ff07cd9ea84415500d514510d"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceNoMovesTests.swift",
+      "before": null,
+      "after": "2672cff6c58d7a3f6626d27fbb4d1cd6a6c042de5519b083d840d730acfb5140"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceOrdinaryPreDebitCoreTests.swift",
+      "before": null,
+      "after": "43387f3d0bf9b8a942d1c7c568fd444cac1efeabeafb0a32134d116e4fffa9ea"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceOrdinarySixSpawnBeginCoreTests.swift",
+      "before": null,
+      "after": "b1edc04bb9b30e1f4f4ac7c488a0494821382bea23bf9acb2970beaf94f888f9"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceOrdinaryStackFaceTests.swift",
+      "before": null,
+      "after": "01d8eed832cecef8d2573a9eafc0f495ebf5acae5ea1575c8d215a2df5046ce0"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceSaveAdmissionTests.swift",
+      "before": null,
+      "after": "dbaec07d14513d531d5425dd18d4266cce6a1faa8852327fe305595bf07c5d6a"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceSixAbsorbInterruptionTests.swift",
+      "before": null,
+      "after": "9fb11a9b8d27baeb411549c94d888c926a020982f5ac47429f6341743d8db7d0"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceSixParentVisibilityTests.swift",
+      "before": null,
+      "after": "c47a5ca8d19365d666fe4546fa6a8a7afa32f51f97ce48341442d7b198aded3b"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceSpecialAbsorbInterruptionTests.swift",
+      "before": null,
+      "after": "fe414af81ec70150be061d2648e42562508493b94d595e1dd80954a74516a357"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceSpecialContactCoreTests.swift",
+      "before": null,
+      "after": "ee8f49b006a89e78cfabb101d99b901efc176e6c83dcd1487c35412dd7641bb6"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceTntTargetSortTests.swift",
+      "before": null,
+      "after": "fc2049b5ebeb7684a186c502267de155b0dba8b5fcbb4807265f20fa1193865a"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceTutorialDemoPrefixTests.swift",
+      "before": null,
+      "after": "9b564acc4c675c1a47c17331bf98fb5ee87ee91fd5865dbdb4c044f1b470f87e"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceTutorialPresentationBarrierTests.swift",
+      "before": null,
+      "after": "ce9e2d093c5f55691486bbf6a0b729ce1dc69e6b90555da564206e9a8886f587"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceWildDestinationFaceTests.swift",
+      "before": null,
+      "after": "05bb9fd6673aa1fbb59535e6dd2d42aa630e69dc0e57c2d78391b0f6361efd10"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeTutorialTests.swift",
+      "before": "54298bd7d39d5e3f89f2c39702e6e5f2035b3b5086c5134dcb127535e50cc3c5",
+      "after": "5a95520f7757439d8d68857f2518d050e5dc72247dfec254f8b9fee7754ac0d5"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildActionProvenanceTests.swift",
+      "before": null,
+      "after": "c89d6c40737aea81cad63d083e022993fac1ad9ba44f852e2a5b3f73fb2e0769"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildBonusOracle.swift",
+      "before": null,
+      "after": "13174f59e78f0d5c1b13651d3e314354e25dd1904b4abda76741bbf3b26e2d9e"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildBonusSourceTests.swift",
+      "before": null,
+      "after": "27923c9807d7b6fe35f799e71ec38d8d18be0993566d0ce1c3e411878d674078"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildBusySourceTests.swift",
+      "before": null,
+      "after": "dcf14e75b2c3e7fcaf364ab1c2057d6e721c2b668631d346f7848fb2de896652"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildCallsiteOracle.swift",
+      "before": null,
+      "after": "ca0310eced72e404a1055ee41a1fe73ab5d553faa437fce0498457ab298162dd"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildCancellationOracle.swift",
+      "before": null,
+      "after": "31af90b02d1ef7030cc651d83b93fcb88d56b5fedc0dfde8dba016a8b75b03c9"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildEnginePhaseTests.swift",
+      "before": null,
+      "after": "93e4a9e81e44bea10b88947dc893d60dd296d813a42bbc6cab281d7f984892d1"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildFinalBranchTests.swift",
+      "before": null,
+      "after": "3d3bf9c95aa3dd18420c2c2f75765756d1c1e95bfc928e68955b457f75516b20"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildLateBusyOracle.swift",
+      "before": null,
+      "after": "07f2b69864140088cd8de9ba1e561aeac1441291d1012d665a8e3873e550a7ca"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildLateBusyTests.swift",
+      "before": null,
+      "after": "c46edc9399e741fa7452329ca07fd7e518d4e61da766f952cd30bfced9a64c83"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildMeterLeaseOracle.swift",
+      "before": null,
+      "after": "7c1ea3646f954fe2a23bf84c64a136452f74f4deb821c5b6c1e415f7027630db"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildPrimaryRecoverySourceTests.swift",
+      "before": null,
+      "after": "fe73c958229a5ed790a780dcc031d4b51336b429b31fb95edf9dd71b832177d5"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildPrimaryRejectionOracle.swift",
+      "before": null,
+      "after": "76991272475f7560b314256e3ba8a70aaae82eb1119fda1e14ff6c1d7abbdea0"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildReinforcementTests.swift",
+      "before": null,
+      "after": "39069e204f8849d8fcd814d40ddb504d760c356b3a5de6b4a57565bb1053fd76"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildRejectedCallsiteOracle.swift",
+      "before": null,
+      "after": "217f0ea0220026085574a831ccfe3712c58a3898df92e31ad3ff39dbe5bc4a52"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildRejectedEngineSourceTests.swift",
+      "before": null,
+      "after": "cc004ad76ad970928a968266d0a9c2ddc6886d38c1d406e09a5b063e66f9e974"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildRejectedRNGOracle.swift",
+      "before": null,
+      "after": "d1ef2e31b6eeacc6463d447a532e13a77a78edf6cfdf9816cc5683c8bdc50f53"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildRejectedRNGTests.swift",
+      "before": null,
+      "after": "d4309f58365f70a326be20025793373a65710cc7c5e04f5f7d2bf43513f904bb"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildSemanticRNGOracle.swift",
+      "before": null,
+      "after": "21e4a145b79ae2cdc41c06bf4909504e219866b804c2c25a9dfe3638d3fae196"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildSemanticRNGTests.swift",
+      "before": null,
+      "after": "e5963397f2e462dcd603894613b76382ca83b2809fdb4a501d08e7b8ba2df6c7"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildSourceFrameBoundaryTests.swift",
+      "before": null,
+      "after": "71d30345c8c37c72dc45464a77627210ce894a635509a79a3a55fa50ad69a607"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildSpawnPhaseOracle.swift",
+      "before": null,
+      "after": "eb20c547ec841d96b828ceddd1ac694255e9937202a3cb54117f748c5524ad91"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildSpawnPhaseTests.swift",
+      "before": null,
+      "after": "e1d0a319bba62d2872dfa29fbf7527ceddba08a239c83d6285c729a51124f698"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildTargetRNGOracle.swift",
+      "before": null,
+      "after": "5e736a6394839a45d9989f4a1cf8ed2653bf534d776bfddfe7baa84a5d1004e6"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildTargetRNGTests.swift",
+      "before": null,
+      "after": "3a09efd834aeb957d0327e3cf339242f25e7fe67c7c138c7c089dc3d96dfff06"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/Resources/BeforeOpenSourceOracle.json",
+      "before": null,
+      "after": "9ae7f9c6363498a8f61959d535fb74b5ecf3b92249274fc4e8cda974895fc445"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/Resources/NativeNoMovesFreshOracle.json",
+      "before": null,
+      "after": "ff61ac521219df553d6b345de7660ab59e76cfe88b053dbc0c9573a57cb5dd19"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/Resources/SourceAbsorbInterruptOracle.json",
+      "before": null,
+      "after": "80fe356a7e9a6340ae202a18534e057684b5459c8a3c04fc8f82302f9f2b9ab8"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/Resources/SourceAppMathSharedV9Oracle.json",
+      "before": null,
+      "after": "6427e33b45a35b34f87463904966b9685c087034fd05f55d94b82f921ada0421"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/Resources/SourceDirectWildPrefixV9Oracle.json",
+      "before": null,
+      "after": "f2bdffe3d39c823a95f303c628ac59aac069d2bf0026613795cdb3dfc51ee232"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/Resources/SourceLazyMagnetOrder.json",
+      "before": null,
+      "after": "65bed927aca971ec108d8c3fec249f35c2b783cecf5d03cdc8b707ccf22e5ba0"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/Resources/SourceMeterCancellationOracle.json",
+      "before": null,
+      "after": "aa7eeb4f4d795a1aa98a7eba8f1de95102fbbf644051be271d90586f12acfdbe"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/Resources/SourceMeterPermissionOracle.json",
+      "before": null,
+      "after": "1dc69c70c67b38e4d0245e4fa1f00f39cb7d7178d577480bbd31e070557f96da"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/Resources/SourceNoMovesAuthorityOracle.json",
+      "before": null,
+      "after": "cd94eafea9ad07a2f79dee729b8494a424b0063cf7458a358c0303baa4b461d6"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/Resources/SourceOrdinaryStackFaceOracle.json",
+      "before": null,
+      "after": "a49173deae60af17cc268edb01307f0874c9a59f9063986fa5ce3591baa275de"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/Resources/SourceSpecialPullInterruptOracle.json",
+      "before": null,
+      "after": "d4abc2c7ea0d72c6a1d5e5377392203f78981d52c82928fa07397593275500a7"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/Resources/SourceTutorialPreparationV9Oracle.json",
+      "before": null,
+      "after": "7790b6a456cadbd4dbbb4fac0c8a72b14dd79f551e6f090815e8a1590cd2d33e"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/Resources/SourceTutorialWildCellsV9Oracle.json",
+      "before": null,
+      "after": "c6ae2513caf41e2ce9deb288da2474129d6ab9d814558a203807c416b02eb4b7"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/Resources/SourceWildDestinationBackingV9Oracle.json",
+      "before": null,
+      "after": "593644988b9e495eaf315c6f233ceb0f1ed4aa8233020bfb5f037c086bb44435"
+    }
+  ],
+  "durableBackup": "MainCoreBeforeIntegration.tar.gz"
+}

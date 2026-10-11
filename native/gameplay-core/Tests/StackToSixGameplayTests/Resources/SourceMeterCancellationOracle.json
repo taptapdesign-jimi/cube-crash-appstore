@@ -1,0 +1,4008 @@
+{
+  "tag": "production-benchmark-v9",
+  "hashes": {
+    "src/modules/app-core-wild-preload.ts": "7c0bc22a03ca2e51ab97668ef0c0b56783e9b8f3297d1a9c0f6712b160adcace",
+    "src/modules/endgame-checker.ts": "5cc16af1abf7dddfe93330ad302a8c1410565da48a5512986952ec178d191c85",
+    "src/modules/tile-state-utils.ts": "0f717ff68a03c045a85292ebe14e52e226df9c77ef73b0fdf85d5417bc175c01",
+    "src/modules/final-merge-rules.ts": "e3119e1e6e398d4a672536a47819abf8362652dc04e50923df5e066768ed9428",
+    "src/modules/special-dice-registry.ts": "b6818afb9ffd98a6249f17c8f0d020663a1fd9a41f8d43908da1a25bb7780fdd",
+    "src/modules/journey-forest-wild-progression.ts": "6ff48dbe821d56af44ffa20903b2d8a4549a57b0450cd369d5590fd1d1833018",
+    "src/modules/journey-area55-wild-progression.ts": "c389b1804394ce6823af09a88619aabe518a93f664496d21c5bf4feb92699173",
+    "src/modules/app-core.ts": "284d104e4f20b7b30fd5dad2361c1edfb822a6b96a38c64efc2793033cbc09e3"
+  },
+  "prefix": "const spawnToken = wildSpawnCancelToken;\nconst isSpawnCancelled = () => spawnToken !== wildSpawnCancelToken || busyEnding || hasLastMergeTile({ tiles: STATE.tiles, devLog });",
+  "rows": [
+    {
+      "name": "empty-false-false",
+      "tiles": [],
+      "after": [],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": false,
+      "cancelled": false,
+      "expected": null
+    },
+    {
+      "name": "empty-false-true",
+      "tiles": [],
+      "after": [],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": true,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "empty-true-false",
+      "tiles": [],
+      "after": [],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": false,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "empty-true-true",
+      "tiles": [],
+      "after": [],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": true,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "regular4-false-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": false,
+      "cancelled": false,
+      "expected": null
+    },
+    {
+      "name": "regular4-false-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": true,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "regular4-true-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": false,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "regular4-true-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": true,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "single6-false-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": false,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "single6-false-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": true,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "single6-true-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": false,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "single6-true-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": true,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "two6and1-false-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        },
+        {
+          "id": "b",
+          "value": 1,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        },
+        {
+          "id": "b",
+          "value": 1,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": false,
+      "cancelled": false,
+      "expected": null
+    },
+    {
+      "name": "two6and1-false-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        },
+        {
+          "id": "b",
+          "value": 1,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        },
+        {
+          "id": "b",
+          "value": 1,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": true,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "two6and1-true-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        },
+        {
+          "id": "b",
+          "value": 1,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        },
+        {
+          "id": "b",
+          "value": 1,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": false,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "two6and1-true-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        },
+        {
+          "id": "b",
+          "value": 1,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        },
+        {
+          "id": "b",
+          "value": 1,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": true,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "hidden6-false-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": false,
+      "cancelled": false,
+      "expected": null
+    },
+    {
+      "name": "hidden6-false-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": true,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "hidden6-true-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": false,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "hidden6-true-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": true,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "alpha0regular6-false-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 0,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 0,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": false,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "alpha0regular6-false-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 0,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 0,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": true,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "alpha0regular6-true-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 0,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 0,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": false,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "alpha0regular6-true-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 0,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 0,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": true,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "locked6-false-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": true,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": true,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": false,
+      "cancelled": false,
+      "expected": null
+    },
+    {
+      "name": "locked6-false-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": true,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": true,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": true,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "locked6-true-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": true,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": true,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": false,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "locked6-true-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": true,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": true,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": true,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "hiddenAuthoritativeFlag-false-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 1,
+          "special": null,
+          "visible": false,
+          "alpha": 0,
+          "locked": true,
+          "eventMode": "none",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 1,
+          "special": null,
+          "visible": false,
+          "alpha": 0,
+          "locked": true,
+          "eventMode": "none",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": false,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "hiddenAuthoritativeFlag-false-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 1,
+          "special": null,
+          "visible": false,
+          "alpha": 0,
+          "locked": true,
+          "eventMode": "none",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 1,
+          "special": null,
+          "visible": false,
+          "alpha": 0,
+          "locked": true,
+          "eventMode": "none",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": true,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "hiddenAuthoritativeFlag-true-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 1,
+          "special": null,
+          "visible": false,
+          "alpha": 0,
+          "locked": true,
+          "eventMode": "none",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 1,
+          "special": null,
+          "visible": false,
+          "alpha": 0,
+          "locked": true,
+          "eventMode": "none",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": false,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "hiddenAuthoritativeFlag-true-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 1,
+          "special": null,
+          "visible": false,
+          "alpha": 0,
+          "locked": true,
+          "eventMode": "none",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 1,
+          "special": null,
+          "visible": false,
+          "alpha": 0,
+          "locked": true,
+          "eventMode": "none",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": true,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "destroyedFlag-false-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": true,
+          "destroyed": true
+        },
+        {
+          "id": "b",
+          "value": 4,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": true,
+          "destroyed": true
+        },
+        {
+          "id": "b",
+          "value": 4,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": false,
+      "cancelled": false,
+      "expected": null
+    },
+    {
+      "name": "destroyedFlag-false-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": true,
+          "destroyed": true
+        },
+        {
+          "id": "b",
+          "value": 4,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": true,
+          "destroyed": true
+        },
+        {
+          "id": "b",
+          "value": 4,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": true,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "destroyedFlag-true-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": true,
+          "destroyed": true
+        },
+        {
+          "id": "b",
+          "value": 4,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": true,
+          "destroyed": true
+        },
+        {
+          "id": "b",
+          "value": 4,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": false,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "destroyedFlag-true-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": true,
+          "destroyed": true
+        },
+        {
+          "id": "b",
+          "value": 4,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": true,
+          "destroyed": true
+        },
+        {
+          "id": "b",
+          "value": 4,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": true,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "twoAuthoritativeFlag-false-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 2,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": true
+        },
+        {
+          "id": "b",
+          "value": 4,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 2,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": true
+        },
+        {
+          "id": "b",
+          "value": 4,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": false,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "twoAuthoritativeFlag-false-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 2,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": true
+        },
+        {
+          "id": "b",
+          "value": 4,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 2,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": true
+        },
+        {
+          "id": "b",
+          "value": 4,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": true,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "twoAuthoritativeFlag-true-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 2,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": true
+        },
+        {
+          "id": "b",
+          "value": 4,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 2,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": true
+        },
+        {
+          "id": "b",
+          "value": 4,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": false,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "twoAuthoritativeFlag-true-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 2,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": true
+        },
+        {
+          "id": "b",
+          "value": 4,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 2,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": true
+        },
+        {
+          "id": "b",
+          "value": 4,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": true,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "wildStarSingle-false-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": false,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "wildStarSingle-false-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": true,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "wildStarSingle-true-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": false,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "wildStarSingle-true-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": true,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "wildStarHidden-false-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": false,
+      "cancelled": false,
+      "expected": null
+    },
+    {
+      "name": "wildStarHidden-false-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": true,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "wildStarHidden-true-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": false,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "wildStarHidden-true-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": true,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "wildStarZeroAlpha-false-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": true,
+          "alpha": 0,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": true,
+          "alpha": 0,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": false,
+      "cancelled": false,
+      "expected": null
+    },
+    {
+      "name": "wildStarZeroAlpha-false-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": true,
+          "alpha": 0,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": true,
+          "alpha": 0,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": true,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "wildStarZeroAlpha-true-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": true,
+          "alpha": 0,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": true,
+          "alpha": 0,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": false,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "wildStarZeroAlpha-true-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": true,
+          "alpha": 0,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": true,
+          "alpha": 0,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": true,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "wildStarPassive-false-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "passive",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "passive",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": false,
+      "cancelled": false,
+      "expected": null
+    },
+    {
+      "name": "wildStarPassive-false-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "passive",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "passive",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": true,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "wildStarPassive-true-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "passive",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "passive",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": false,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "wildStarPassive-true-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "passive",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild",
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "passive",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": true,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "wildTntResolving-false-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild-tnt",
+          "visible": true,
+          "alpha": 0.5,
+          "locked": false,
+          "eventMode": "none",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild-tnt",
+          "visible": true,
+          "alpha": 0.5,
+          "locked": false,
+          "eventMode": "none",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": false,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "wildTntResolving-false-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild-tnt",
+          "visible": true,
+          "alpha": 0.5,
+          "locked": false,
+          "eventMode": "none",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild-tnt",
+          "visible": true,
+          "alpha": 0.5,
+          "locked": false,
+          "eventMode": "none",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": true,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "wildTntResolving-true-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild-tnt",
+          "visible": true,
+          "alpha": 0.5,
+          "locked": false,
+          "eventMode": "none",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild-tnt",
+          "visible": true,
+          "alpha": 0.5,
+          "locked": false,
+          "eventMode": "none",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": false,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "wildTntResolving-true-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild-tnt",
+          "visible": true,
+          "alpha": 0.5,
+          "locked": false,
+          "eventMode": "none",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild-tnt",
+          "visible": true,
+          "alpha": 0.5,
+          "locked": false,
+          "eventMode": "none",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": true,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "magnetAffected6-false-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_wildMagnetAffected": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_wildMagnetAffected": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": false,
+      "cancelled": false,
+      "expected": null
+    },
+    {
+      "name": "magnetAffected6-false-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_wildMagnetAffected": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_wildMagnetAffected": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": true,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "magnetAffected6-true-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_wildMagnetAffected": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_wildMagnetAffected": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": false,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "magnetAffected6-true-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_wildMagnetAffected": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_wildMagnetAffected": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": true,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "pendingRemoval6-false-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_pendingRemoval": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_pendingRemoval": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": false,
+      "cancelled": false,
+      "expected": null
+    },
+    {
+      "name": "pendingRemoval6-false-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_pendingRemoval": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_pendingRemoval": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": true,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "pendingRemoval6-true-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_pendingRemoval": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_pendingRemoval": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": false,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "pendingRemoval6-true-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_pendingRemoval": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_pendingRemoval": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": true,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "beingRemoved6-false-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_beingRemoved": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_beingRemoved": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": false,
+      "cancelled": false,
+      "expected": null
+    },
+    {
+      "name": "beingRemoved6-false-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_beingRemoved": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_beingRemoved": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": true,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "beingRemoved6-true-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_beingRemoved": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_beingRemoved": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": false,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "beingRemoved6-true-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_beingRemoved": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_beingRemoved": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": true,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "cleanupQueued6-false-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_cleanupQueued": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_cleanupQueued": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": false,
+      "cancelled": false,
+      "expected": null
+    },
+    {
+      "name": "cleanupQueued6-false-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_cleanupQueued": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_cleanupQueued": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": true,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "cleanupQueued6-true-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_cleanupQueued": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_cleanupQueued": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": false,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "cleanupQueued6-true-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_cleanupQueued": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_cleanupQueued": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": true,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "handoff6-false-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_ccWildSpawnHandoffLock": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_ccWildSpawnHandoffLock": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": false,
+      "cancelled": false,
+      "expected": null
+    },
+    {
+      "name": "handoff6-false-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_ccWildSpawnHandoffLock": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_ccWildSpawnHandoffLock": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": true,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "handoff6-true-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_ccWildSpawnHandoffLock": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_ccWildSpawnHandoffLock": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": false,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "handoff6-true-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_ccWildSpawnHandoffLock": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_ccWildSpawnHandoffLock": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": true,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "lockedSpawn6-false-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": true,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_spawnTween": {}
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": true,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_spawnTween": {}
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": false,
+      "cancelled": false,
+      "expected": null
+    },
+    {
+      "name": "lockedSpawn6-false-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": true,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_spawnTween": {}
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": true,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_spawnTween": {}
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": true,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "lockedSpawn6-true-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": true,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_spawnTween": {}
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": true,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_spawnTween": {}
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": false,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "lockedSpawn6-true-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": true,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_spawnTween": {}
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": true,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_spawnTween": {}
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": true,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "interactiveStaleSpawn6-false-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isBeingSpawned": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isBeingSpawned": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": false,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "interactiveStaleSpawn6-false-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isBeingSpawned": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isBeingSpawned": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": true,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "interactiveStaleSpawn6-true-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isBeingSpawned": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isBeingSpawned": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": false,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "interactiveStaleSpawn6-true-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isBeingSpawned": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isBeingSpawned": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": true,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "hiddenSpawn6-false-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isBeingSpawned": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isBeingSpawned": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": false,
+      "cancelled": false,
+      "expected": null
+    },
+    {
+      "name": "hiddenSpawn6-false-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isBeingSpawned": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isBeingSpawned": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": true,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "hiddenSpawn6-true-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isBeingSpawned": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isBeingSpawned": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": false,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "hiddenSpawn6-true-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isBeingSpawned": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": null,
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isBeingSpawned": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": true,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "wildJuiceIgnoredSpawn-false-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild-juice",
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isBeingSpawned": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild-juice",
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isBeingSpawned": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": false,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "wildJuiceIgnoredSpawn-false-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild-juice",
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isBeingSpawned": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild-juice",
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isBeingSpawned": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": true,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "wildJuiceIgnoredSpawn-true-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild-juice",
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isBeingSpawned": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild-juice",
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isBeingSpawned": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": false,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "wildJuiceIgnoredSpawn-true-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild-juice",
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isBeingSpawned": true
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 6,
+          "special": "wild-juice",
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isBeingSpawned": true
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": true,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "twoHiddenFlagFalse-false-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": false
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": false
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": false,
+      "cancelled": false,
+      "expected": null
+    },
+    {
+      "name": "twoHiddenFlagFalse-false-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": false
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": false
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 0,
+      "busy": true,
+      "cancelled": true,
+      "expected": "busyEndingOrLastMerge"
+    },
+    {
+      "name": "twoHiddenFlagFalse-true-false",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": false
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": false
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": false,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    },
+    {
+      "name": "twoHiddenFlagFalse-true-true",
+      "tiles": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": false
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "after": [
+        {
+          "id": "a",
+          "value": 4,
+          "special": null,
+          "visible": false,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 0,
+          "gridY": 0,
+          "_isLastMerge": false
+        },
+        {
+          "id": "b",
+          "value": 3,
+          "special": null,
+          "visible": true,
+          "alpha": 1,
+          "locked": false,
+          "eventMode": "static",
+          "stackDepth": 1,
+          "gridX": 1,
+          "gridY": 0
+        }
+      ],
+      "spawnToken": 0,
+      "liveToken": 1,
+      "busy": true,
+      "cancelled": true,
+      "expected": "explicitPendingContinuation"
+    }
+  ]
+}

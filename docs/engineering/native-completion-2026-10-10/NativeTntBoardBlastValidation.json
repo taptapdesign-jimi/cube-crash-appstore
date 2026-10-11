@@ -1,0 +1,32 @@
+{
+  "verdict": "PASS bounded Native TNT displacement/elastic and NativeRaw pickup",
+  "connectedSDK": {
+    "tests": 6,
+    "failures": 0,
+    "log": "/tmp/native-tnt-blast-elastic-source.log"
+  },
+  "affectedBoardAndSourceRootsSDK": {
+    "tests": 29,
+    "failures": 0,
+    "seconds": 55.431,
+    "log": "/tmp/native-native-raw-and-source-board-regression.log",
+    "scope": "Predates later shared-elastic correction and hint."
+  },
+  "sourceProof": "Actual immutable v9 startTntBoardBlast body runs under iOS JSC; recipe matches draw order and reflected geometry. Pinned GSAP3.13 parseEase supplies144 independent return/wobble/endpoint samples. Product code uses Swift only.",
+  "pickupCorrection": "Never-bound NativeRaw nodes have Source generation0. Source generation is required before Core pickup only when the actual Source outer driver is installed; same-node and Source admission remain fenced.",
+  "initialFailureLog": "/tmp/native-tnt-blast-connected.log",
+  "initialFailureReason": "Old NativeRaw pickup guard rejected all default nodes; oracle retained a TypeScript assertion before strip correction. Retained, not erased.",
+  "scope": "Original standard TNT nine draws/ten at center plus finite transaction-owned delayed wobble; captured current Scope Math never falls back after retirement. Separate Beach Ball blast recipe retained; shared sub-one amplitude period correction now matches original GSAP. Whole TNT bonus Date/global/final/coroutine admission remains OPEN.",
+  "featureRuntime": "PASS /tmp/native-tnt-blast-feature.log",
+  "nativeAdmission": "PASS /tmp/native-tnt-blast-admission.log",
+  "gameplayLock": "PASS330 /tmp/native-tnt-blast-gameplay-lock.log",
+  "physicalAcceptance": "NEEDS PHYSICAL TEST",
+  "sha256CurrentWorkingTree": {
+    "native/gameplay-ui/NativeTntBoardBlastPlan.swift": "f544afe98c2dbd2a1ea6e90606c734cf9085c8483275ff1dd6955309f45a45fc",
+    "native/gameplay-ui/NativeBoardMotion.swift": "313144299e1d46f174f9986dbaa9bfcc3973439aafc919fea798cc4bcbd4b5c6",
+    "native/gameplay-ui/NativeBoardScene.swift": "9aa4c06f044594fbdaf8bcb8fccdca1179c741a88be77150fa797ca862a92c2e",
+    "native/standalone/Stack to SixTests/NativeTntBoardBlastTests.swift": "0f4bf2a3e7a60103968375969628c0bf9847276c68b00724f39488bf06de3983",
+    "native/standalone/Stack to SixTests/NativeTntElasticSourceTests.swift": "3ade80ac6e822fbbb3d80a53678d093423563cc09e83e239822a4df2b280ceec"
+  },
+  "hashScope": "Current Scene hash includes subsequent connected idle-hint callbacks."
+}

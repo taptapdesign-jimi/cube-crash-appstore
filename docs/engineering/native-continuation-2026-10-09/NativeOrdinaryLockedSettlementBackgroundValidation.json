@@ -1,0 +1,27 @@
+{
+  "status": "targeted5/5PASS; full Core22861 terminal362/362PASS; KING66595 terminal330/330PASS",
+  "files": {
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "2643836153e14c7561fb3533a6c061cb99618f394d9c8fc49371707d035da5bd",
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeBoardState.swift": "f587136154eafd01ac60559a145a11ea06f1effe07815912010a53da6429517f",
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceOrdinarySixSpawnBeginCoreTests.swift": "33d91366a7f9e572424a2378aec203a2589bdd77dd4028a02c81512c11971658",
+    "native/gameplay-ui/NativeBoardScene.swift": "513d47399b2220ee8a0adf5086be104a4301c844fe3c690699c89c4ce5467221",
+    "native/standalone/Stack to SixTests/NativeSourceSameObjectSixSceneTests.swift": "9dad036789ac547ecd0993367ef0328630057825e79d7e825ffd166900e840d0"
+  },
+  "coreLog": {
+    "path": "docs/engineering/native-continuation-2026-10-09/native-ordinary-locked-settlement-background-core.log",
+    "sha256": "2fe41902ddf9e246bfed01e27f2d3578e5a54c61bee82dec32dd278b7631b37b"
+  },
+  "limits": [
+    "Source coroutine background no longer drains ordinary plan",
+    "default-off admission",
+    "Scene destructive cancellation with new receipt OPEN",
+    "minimum-active/finally producers OPEN",
+    "no physical acceptance or full migration claim"
+  ],
+  "native-ordinary-locked-settlement-background-core-full.log": {
+    "sha256": "f55ebd5c27ba1afc780e212a9d3181c11fd64a344ebd18cf40f478f4886d5706"
+  },
+  "native-ordinary-locked-settlement-background-gameplay-lock.log": {
+    "sha256": "bdc25b5ecffa992fc87952cfb53f0c6db93ae123e7f93cc4c5547152593fed87"
+  }
+}

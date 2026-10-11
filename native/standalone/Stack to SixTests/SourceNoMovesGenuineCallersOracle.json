@@ -1,0 +1,6138 @@
+{
+  "debitRows": [
+    {
+      "moves": 0,
+      "result": 0,
+      "earlyReturn": true,
+      "trace": [
+        "hud",
+        "wall:400",
+        "checkMovesDepleted"
+      ]
+    },
+    {
+      "moves": 1,
+      "result": 0,
+      "earlyReturn": true,
+      "trace": [
+        "hud",
+        "wall:400",
+        "checkMovesDepleted"
+      ]
+    },
+    {
+      "moves": 2,
+      "result": 1,
+      "earlyReturn": false,
+      "trace": [
+        "hud"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile",
+        "fresh:0:true",
+        "wild:moves_depleted_stuck",
+        "tutorial:moves_depleted_stuck",
+        "noMoves:{\"reason\":\"moves_depleted_stuck\"}"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile",
+        "fresh:0:true",
+        "visibility",
+        "clean:clean_board_from_moves_depleted"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile",
+        "fresh:0:true"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile",
+        "fresh:0:true",
+        "wild:moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile",
+        "fresh:0:true",
+        "visibility",
+        "clean:clean_board_from_moves_depleted"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile",
+        "fresh:0:true"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile",
+        "fresh:0:true",
+        "wild:moves_depleted_stuck",
+        "tutorial:moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile",
+        "fresh:0:true",
+        "visibility",
+        "clean:clean_board_from_moves_depleted"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile",
+        "fresh:0:true"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile",
+        "fresh:0:true",
+        "wild:moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile",
+        "fresh:0:true",
+        "visibility",
+        "clean:clean_board_from_moves_depleted"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile",
+        "fresh:0:true"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile",
+        "fresh:0:true",
+        "wild:moves_depleted_stuck",
+        "tutorial:moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile",
+        "fresh:0:true",
+        "visibility",
+        "clean:clean_board_from_moves_depleted"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile",
+        "fresh:0:true"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile",
+        "fresh:0:true",
+        "wild:moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile",
+        "fresh:0:true",
+        "visibility",
+        "clean:clean_board_from_moves_depleted"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile",
+        "fresh:0:true"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile",
+        "fresh:0:true",
+        "wild:moves_depleted_stuck",
+        "tutorial:moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile",
+        "fresh:0:true",
+        "visibility",
+        "clean:clean_board_from_moves_depleted"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile",
+        "fresh:0:true"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile",
+        "fresh:0:true",
+        "wild:moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile",
+        "fresh:0:true",
+        "visibility",
+        "clean:clean_board_from_moves_depleted"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile",
+        "fresh:0:true"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100",
+        "ensure:moves_depleted_single_regular_tile"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "wait:100"
+      ]
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "ordinary",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": []
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck",
+        "noMoves:{\"reason\":\"merge_moves_depleted_stuck\",\"resetHint\":false}"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck",
+        "noMoves:{\"reason\":\"merge_moves_depleted_stuck\",\"resetHint\":false}"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck",
+        "noMoves:{\"reason\":\"merge_moves_depleted_stuck\",\"resetHint\":false}"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck",
+        "noMoves:{\"reason\":\"merge_moves_depleted_stuck\",\"resetHint\":false}"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck",
+        "noMoves:{\"reason\":\"merge_moves_depleted_stuck\",\"resetHint\":false}"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck",
+        "noMoves:{\"reason\":\"merge_moves_depleted_stuck\",\"resetHint\":false}"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck",
+        "noMoves:{\"reason\":\"merge_moves_depleted_stuck\",\"resetHint\":false}"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck",
+        "noMoves:{\"reason\":\"merge_moves_depleted_stuck\",\"resetHint\":false}"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": false,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": false,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "tutorial:merge_moves_depleted_stuck"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": false,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": false,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": false,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": false,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "stuck"
+      },
+      "trace": [
+        "fresh:0:true",
+        "hint",
+        "wild:merge_moves_depleted_stuck",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "clean"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    },
+    {
+      "input": {
+        "mode": "six",
+        "busy": true,
+        "cancelled": true,
+        "ensure": true,
+        "wild": true,
+        "tutorial": true,
+        "busyAfter": true,
+        "type": "continue"
+      },
+      "trace": [
+        "fresh:0:true",
+        "continue-merge6"
+      ]
+    }
+  ],
+  "invocation": [
+    {
+      "isArcade": false,
+      "trace": [
+        "showFinalScreen:true",
+        "clear",
+        "wall:60",
+        "caller-return",
+        "stars-cleanup",
+        "board-exit",
+        "modal"
+      ]
+    },
+    {
+      "isArcade": true,
+      "trace": [
+        "showFinalScreen:true",
+        "clear",
+        "wall:40",
+        "caller-return",
+        "stars-cleanup",
+        "board-exit",
+        "modal"
+      ]
+    }
+  ],
+  "nine": {
+    "source": "production-benchmark-v9",
+    "commit": "fc085599e759369900d5dc4135246a9f1355a897",
+    "sha256": "284d104e4f20b7b30fd5dad2361c1edfb822a6b96a38c64efc2793033cbc09e3",
+    "rows": [
+      {
+        "line": 8696,
+        "options": {
+          "reason": "'last_two_regular_stack_dead_end'",
+          "resetHint": "false"
+        },
+        "text": "runNoMovesFailFlow({ reason: 'last_two_regular_stack_dead_end', resetHint: false })"
+      },
+      {
+        "line": 8729,
+        "options": {
+          "reason": "'last_two_self_merge_dead_end'",
+          "resetHint": "false"
+        },
+        "text": "runNoMovesFailFlow({ reason: 'last_two_self_merge_dead_end', resetHint: false })"
+      },
+      {
+        "line": 8775,
+        "options": {
+          "reason": "'last_three_regular_stack_dead_end'",
+          "resetHint": "false"
+        },
+        "text": "runNoMovesFailFlow({ reason: 'last_three_regular_stack_dead_end', resetHint: false })"
+      },
+      {
+        "line": 8798,
+        "options": {
+          "reason": "'last_three_self_merge_dead_end'",
+          "resetHint": "false"
+        },
+        "text": "runNoMovesFailFlow({ reason: 'last_three_self_merge_dead_end', resetHint: false })"
+      },
+      {
+        "line": 8821,
+        "options": {
+          "reason": "'single_regular_tile_safety_net'",
+          "waitMs": "500",
+          "resetHint": "false"
+        },
+        "text": "runNoMovesFailFlow({\n                reason: 'single_regular_tile_safety_net',\n                waitMs: 500,\n                resetHint: false,\n              })"
+      },
+      {
+        "line": 8883,
+        "options": {
+          "reason": "'post_merge_stuck'",
+          "resetHint": "false"
+        },
+        "text": "runNoMovesFailFlow({ reason: 'post_merge_stuck', resetHint: false })"
+      },
+      {
+        "line": 12547,
+        "options": {
+          "reason": "'merge_moves_depleted_stuck'",
+          "resetHint": "false"
+        },
+        "text": "runNoMovesFailFlow({ reason: 'merge_moves_depleted_stuck', resetHint: false })"
+      },
+      {
+        "line": 14167,
+        "options": {
+          "reason": "'moves_depleted_stuck'"
+        },
+        "text": "runNoMovesFailFlow({ reason: 'moves_depleted_stuck' })"
+      },
+      {
+        "line": 15079,
+        "options": {
+          "reason": "'check_level_end_stuck'",
+          "resetHint": "false",
+          "exitTimeoutMs": "700",
+          "persistStuckState": "true"
+        },
+        "text": "runNoMovesFailFlow({\n          reason: 'check_level_end_stuck',\n          resetHint: false,\n          exitTimeoutMs: 700,\n          persistStuckState: true,\n        })"
+      }
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "status": "PASS real wall watchdog/token owner tests 5/5",
+  "files": {
+    "native/gameplay-app/NativeSourceMergeSixSpawnOwner.swift": "e140534e0b55c6a6f788a1915b674b45ebbbbdf9f9f1b29233753f02e23b61a8",
+    "native/standalone/Stack to SixTests/NativeSourceMergeSixSpawnOwnerMountedTests.swift": "4497af4bffa571acffa98d561f1b8316ce9456b953e24df55cf3a6a0043ba62c"
+  },
+  "logSHA256": "fb4d48d5337d7172d865d819a659ecda318784ead9233e450771c7f498021c0d",
+  "open": [
+    "actual accepted-prefix scheduling",
+    "actual final flags reads",
+    "destination-only Core mutation",
+    "forced finally",
+    "all caller/physical proof"
+  ]
+}

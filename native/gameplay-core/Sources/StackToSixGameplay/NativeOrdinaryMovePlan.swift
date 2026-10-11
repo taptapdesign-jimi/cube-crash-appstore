@@ -7,7 +7,7 @@ public struct NativeOrdinaryPostcheckReceipt:Equatable,Sendable {
 }
 
 public struct NativeOrdinaryAssignment:Equatable,Sendable {
-    public enum Kind:Sendable {case locked,forcedLocked,endgamePrimary,remainderPrimary}
+    public enum Kind:Sendable {case locked,forcedLocked,emergencyLocked,emergencyForced,endgamePrimary,endgameHardPrimary,remainderPrimary}
     public let id:String,generation:UInt64,cell:NativeCell,tileID:String?,kind:Kind,delayMilliseconds:Int
     public var awaitsBounce:Bool {kind == .endgamePrimary || kind == .remainderPrimary}
 }

@@ -1,0 +1,13 @@
+{
+  "authority": "Exact five original fx.ts functions and installed real Pixi WebGL renderer; PNG decode and actual artwork sprite mask, no mocked mask/gradient renderer",
+  "functions": [
+    "makeLinearGradientTexture",
+    "isWildShimmerTextureUsable",
+    "pruneWildShimmerTextureCache",
+    "acquireWildShimmerTexture",
+    "createWildShimmer"
+  ],
+  "sourceSHA256": "e80ca937acfb182ddd1b4ffcd8f5a1a32a0b00974a733a9bc70b110635cab980",
+  "bundleSHA256": "287a5ff397b07a438cd24427528435621f0760976adfdb1ddde389a5cdb58551",
+  "pixiVersion": "8.2.0"
+}

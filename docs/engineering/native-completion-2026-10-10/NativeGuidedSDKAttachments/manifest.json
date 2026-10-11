@@ -1,0 +1,464 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "623B05F6-68B3-4351-9009-F1D99D7EBF6E.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Original Forest 02 — actual large front artwork and NEW_0_796ABD97-2486-4336-AC90-D5CC6AD12FC9.png",
+        "timestamp" : 1791637359.48
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "6F9CAC44-0EEA-45FF-AD93-987F775F2198.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Original Forest 02 — small NEW top aligned_0_9A84C520-6E1E-4751-8828-41888545B6F2.png",
+        "timestamp" : 1791637358.025
+      }
+    ],
+    "testIdentifier" : "JimiNativeWorldRibbonTests/testAcceptedViewedReceiptPreservesNewOnLargePhysicalFrontOnlyUntilReturn()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/JimiNativeWorldRibbonTests/testAcceptedViewedReceiptPreservesNewOnLargePhysicalFrontOnlyUntilReturn"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "3C1D1903-AF2E-4630-A52D-7B27C24BC6A7.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "rendering-fixture-only-forest-common-original-card-back_0_B8CA91E4-B743-4897-AD75-F2EFD3EB6B1C.png",
+        "timestamp" : 1791637384.197
+      }
+    ],
+    "testIdentifier" : "JimiNativeWorldTests/testRenderingFixtureCommonOriginalCardBackStatsAndControls()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/JimiNativeWorldTests/testRenderingFixtureCommonOriginalCardBackStatsAndControls"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "9C80732C-9284-4322-A938-2883737CC108.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "rendering-fixture-only-forest-legendary-original-card-back_0_6004385E-2360-482D-B82D-CFD2C3BF6DF7.png",
+        "timestamp" : 1791637388.442
+      }
+    ],
+    "testIdentifier" : "JimiNativeWorldTests/testRenderingFixtureLegendaryOriginalCardBackStatsAndControls()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/JimiNativeWorldTests/testRenderingFixtureLegendaryOriginalCardBackStatsAndControls"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "3E1B079A-E0D9-4329-97E5-DA11F983CF69.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Native canonical gameplay paper after entry_0_3BC6EE01-BF80-48DE-8EC3-4C8867A803D4.png",
+        "timestamp" : 1791637400.069
+      }
+    ],
+    "testIdentifier" : "NativeAppPaperTests/testActualGameplayKeepsOneFixedPaperAcrossPreparedEntryAndCanvasMotion()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeAppPaperTests/testActualGameplayKeepsOneFixedPaperAcrossPreparedEntryAndCanvasMotion"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "02C1FDE7-C3B2-41EC-A914-E28862935D0B.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Native authored board transition 1, completed=true_0_7E6EFECB-A8AC-4676-8383-4258EDA3A746.png",
+        "timestamp" : 1791637474.789
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "E1E23DFD-C698-4151-89D7-F0E80205ADB9.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Native authored board transition 21, completed=false_0_C6DDEE23-208F-4B2D-BFD2-6A395B94CFCE.png",
+        "timestamp" : 1791637466.788
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "54803193-268F-40B2-B88A-415E1F4E9A20.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Native authored board transition 11, completed=false_0_8A8BB358-F8DD-4AD1-A3D1-2D563DCCF60D.png",
+        "timestamp" : 1791637459.762
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "1F43E94D-7675-41F1-8B2D-9514BAB614C2.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Native authored board transition 1, completed=false_0_62F6FB36-5081-4043-88DA-294FA859E595.png",
+        "timestamp" : 1791637452.155
+      }
+    ],
+    "testIdentifier" : "NativeBootstrapTests/testFreshJourneyUsesEachAuthoredNativeTransitionBeforeBoardEntry()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeBootstrapTests/testFreshJourneyUsesEachAuthoredNativeTransitionBeforeBoardEntry"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "FCB21ECC-7ECE-4B4C-90B0-F18204AD4F03.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Native gameplay HUD journey_0_56D5D4C8-9CE9-457A-8D0E-6ACE8DCBCD21.png",
+        "timestamp" : 1791637549.446
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "9DE2E0DE-4FD8-4A52-AD84-DA31DE62637F.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Native gameplay HUD arcade_home_0_7DA4A13D-BF7C-4939-9811-D0BBD276A1D3.png",
+        "timestamp" : 1791637548.744
+      }
+    ],
+    "testIdentifier" : "NativeGameplayChromeTests/testConnectedSceneUsesTopWildMeterAndArcadeOnlyRound()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeGameplayChromeTests/testConnectedSceneUsesTopWildMeterAndArcadeOnlyRound"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "0D08EEDD-DE94-4013-86DC-3072DB3A6079.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Native Area55 result with authored ship layers_0_E17B1011-C371-47EC-8065-87A09CCFA64A.png",
+        "timestamp" : 1791637623.09
+      }
+    ],
+    "testIdentifier" : "NativeResultOwnerTests/testArea55ResultActuallyConnectsSelectedShipsToItsPausedClock()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeResultOwnerTests/testArea55ResultActuallyConnectsSelectedShipsToItsPausedClock"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "9B0BD291-9A85-477B-94DD-60EE81B77414.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Native Clean Board authored result_0_7B31D73E-6330-4EAD-ACBB-CA58B1B5DEEA.png",
+        "timestamp" : 1791637623.619
+      }
+    ],
+    "testIdentifier" : "NativeResultOwnerTests/testCleanResultRelayoutPreservesZeroScaleEntryAndOutsideCardCTA()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeResultOwnerTests/testCleanResultRelayoutPreservesZeroScaleEntryAndOutsideCardCTA"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "710DFA59-CEBC-45AB-BF1B-CB78AAA0BA40.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Native Fail authored result_0_C7BF221E-C506-4FC6-967F-AD3C7F5CC3E4.png",
+        "timestamp" : 1791637624.177
+      }
+    ],
+    "testIdentifier" : "NativeResultOwnerTests/testFailedResultUsesAuthoredNativePresentationWithoutEarlyCTA()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeResultOwnerTests/testFailedResultUsesAuthoredNativePresentationWithoutEarlyCTA"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "771E5283-0ED7-428B-B999-FE98CCFA2631.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Source immediate vector smoke native root projection_0_48716E1D-EC51-4097-9BBA-A57A30EE94FB.png",
+        "timestamp" : 1791637636.628
+      }
+    ],
+    "testIdentifier" : "NativeSharedSmokeRootTests/testActualVectorCarrierRasterizesAuthoredSmokeAndRetiresAllFiniteRoots()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeSharedSmokeRootTests/testActualVectorCarrierRasterizesAuthoredSmokeAndRetiresAllFiniteRoots"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "0A61C803-E4FC-4AFB-9249-1DBBAD4CBCDE.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "private-authored-vector-smoke-105ms_0_ED5DE057-8473-45F6-A4F0-C71DC4FE68F8.png",
+        "timestamp" : 1791637636.728
+      }
+    ],
+    "testIdentifier" : "NativeSharedSmokeSpriteTests/testActualSKViewVectorSnapshotAndDisposeInstallNoClock()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeSharedSmokeSpriteTests/testActualSKViewVectorSnapshotAndDisposeInstallNoClock"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "AFCB6B32-8B06-4A8C-947C-BC9A120CDC09.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "actual-native-tutorial-board-scale_0_991CBDB3-039A-40F8-AE7D-3BEFE3BCD6AF.png",
+        "timestamp" : 1791637836.037
+      }
+    ],
+    "testIdentifier" : "NativeSourceTutorialBootstrapTests/testActualBootstrapInstallsMeterOwnersWithRealResourcesAndSharedCoreMath()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeSourceTutorialBootstrapTests/testActualBootstrapInstallsMeterOwnersWithRealResourcesAndSharedCoreMath"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "8305FEFF-A6EE-4C33-B378-2B5473C7932D.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "actual-native-tutorial-board-scale_0_DDB613A9-BD2F-4F9F-8528-833087EF2538.png",
+        "timestamp" : 1791637839.303
+      }
+    ],
+    "testIdentifier" : "NativeSourceTutorialBootstrapTests/testActualFirstMergeKeepsSourceSheetAndInputUntilRealMonitorCompletions()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeSourceTutorialBootstrapTests/testActualFirstMergeKeepsSourceSheetAndInputUntilRealMonitorCompletions"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "4F17A439-C7C2-4FF8-A635-67876C4B6DC2.json",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "native-genuine-completed-guide-save_0_AF2BE840-C2C4-4844-A72F-2D29D6337382.json",
+        "timestamp" : 1791637854.421
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "42FC7A06-0D62-4FFC-8895-3BF9D7D86937.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "actual-native-tutorial-board-scale_0_A07CE1FB-D5A4-42F1-8CB7-E37ED823F603.png",
+        "timestamp" : 1791637844.124
+      }
+    ],
+    "testIdentifier" : "NativeSourceTutorialBootstrapTests/testActualFourthTutorialMergeWaitsForRealExitThenCompletesGuide()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeSourceTutorialBootstrapTests/testActualFourthTutorialMergeWaitsForRealExitThenCompletesGuide"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "0923ACA8-37C1-4166-B0C2-0DA9FE27B55E.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "actual-native-tutorial-board-scale_0_A528A086-572B-404B-BDBD-E578DCD8F18B.png",
+        "timestamp" : 1791637862.241
+      }
+    ],
+    "testIdentifier" : "NativeSourceTutorialBootstrapTests/testActualFourthTutorialUsesEarnedStarSheetAndRetiresSameOwner()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeSourceTutorialBootstrapTests/testActualFourthTutorialUsesEarnedStarSheetAndRetiresSameOwner"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "6FA41D51-711D-4A18-BF33-104C27B7A8F2.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "actual-native-tutorial-board-scale_0_C82FA0F1-5411-4111-B8EE-ADE33ACE5BBF.png",
+        "timestamp" : 1791637874.746
+      }
+    ],
+    "testIdentifier" : "NativeSourceTutorialBootstrapTests/testActualFreshTutorialRouteUsesSourceDemoAndWaitsForGenuinePreparation()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeSourceTutorialBootstrapTests/testActualFreshTutorialRouteUsesSourceDemoAndWaitsForGenuinePreparation"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "014E262B-1805-4F62-82E5-BA8887DBCC0D.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "actual-native-tutorial-board-scale_0_F7A99563-631A-4789-AFF1-1D3C6F1DD1B6.png",
+        "timestamp" : 1791637879.243
+      }
+    ],
+    "testIdentifier" : "NativeSourceTutorialBootstrapTests/testActualScopeRetirementDuringFirstExitCancelsMonitorAndInputBarrier()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeSourceTutorialBootstrapTests/testActualScopeRetirementDuringFirstExitCancelsMonitorAndInputBarrier"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "84D1952F-1787-4B7B-9DF7-7DDEE2CB9264.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "actual-native-tutorial-board-scale_0_5D3158EF-C601-4200-9EE1-6CA76AE3C9A4.png",
+        "timestamp" : 1791637884.251
+      }
+    ],
+    "testIdentifier" : "NativeSourceTutorialBootstrapTests/testActualScopeRetirementDuringThirdCTAExitCannotRestoreOrCommitWaiting()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeSourceTutorialBootstrapTests/testActualScopeRetirementDuringThirdCTAExitCannotRestoreOrCommitWaiting"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "B94B0574-784B-4051-8E11-31B9EF3B1ECC.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "actual-native-tutorial-board-scale_0_87E867E1-14F5-4DEA-A276-BBF24EC6ABFF.png",
+        "timestamp" : 1791637890.211
+      }
+    ],
+    "testIdentifier" : "NativeSourceTutorialBootstrapTests/testActualSecondMergeWaitsForSourceThirdRestoreAndKeepsSameIntroOwner()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeSourceTutorialBootstrapTests/testActualSecondMergeWaitsForSourceThirdRestoreAndKeepsSameIntroOwner"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "6230F6BE-9323-4F4E-8734-207B9F63666F.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "actual-native-tutorial-board-scale_0_51F17993-DB4E-4207-AA8E-F003FB3D8BF1.png",
+        "timestamp" : 1791637895.915
+      }
+    ],
+    "testIdentifier" : "NativeSourceTutorialBootstrapTests/testActualThirdButtonWaitsForCTAThenRestoresBeforeSourceSheetExit()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeSourceTutorialBootstrapTests/testActualThirdButtonWaitsForCTAThenRestoresBeforeSourceSheetExit"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "C29D2F46-4568-4757-A3DC-B3B859EBF823.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "actual-native-tutorial-board-scale_0_2854AC29-E37C-4FAD-AC7C-757206D4F633.png",
+        "timestamp" : 1791637901.908
+      }
+    ],
+    "testIdentifier" : "NativeSourceTutorialBootstrapTests/testActualThirdTileDragUsesSameCTAExitBeforeRestore()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeSourceTutorialBootstrapTests/testActualThirdTileDragUsesSameCTAExitBeforeRestore"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "B3069D13-3181-4550-9786-6B903746BFDC.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "actual-native-tutorial-board-scale_0_BC6C560F-6FBA-41C2-82EB-4C71B054D8C4.png",
+        "timestamp" : 1791637907.905
+      }
+    ],
+    "testIdentifier" : "NativeSourceTutorialBootstrapTests/testActualTypedSourceFailureReturnsThroughNativeRouteAndPreservesDurableBytes()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeSourceTutorialBootstrapTests/testActualTypedSourceFailureReturnsThroughNativeRouteAndPreservesDurableBytes"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "4FCFF2B0-C5BB-435B-B531-792817B4DBFD.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "source-third-cta-430_0_BA34CC68-3B22-4503-BDA2-F50E0E672425.png",
+        "timestamp" : 1791637908.885
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "556BFEED-C2FF-4A39-A175-87EF0BB38BB1.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "source-third-cta-390_0_70AD52EF-C65D-486E-A1F3-5BAF54E8875B.png",
+        "timestamp" : 1791637908.519
+      }
+    ],
+    "testIdentifier" : "NativeSourceTutorialCTATests/testMountedOverlayKeepsStaticButtonHitFrameWhileVisualPressAndActualExitRun()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeSourceTutorialCTATests/testMountedOverlayKeepsStaticButtonHitFrameWhileVisualPressAndActualExitRun"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "86074692-BD62-4ED8-B25A-E4BF4C19067A.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Source tutorial intro 430x932_0_013CD410-B00A-4AAC-BA3A-D4EF04013EF0.png",
+        "timestamp" : 1791637916.832
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "97F5D847-943B-476A-AD2E-4B1A53EA826D.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Source tutorial intro 390x844_0_8798C08E-FD04-4D03-A286-269E4FA2DED6.png",
+        "timestamp" : 1791637916.39
+      }
+    ],
+    "testIdentifier" : "NativeSourceTutorialIntroTests/testActualOverlayViewportRastersRetainSheetAndSourcePointer()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeSourceTutorialIntroTests/testActualOverlayViewportRastersRetainSheetAndSourcePointer"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "5FB2BE78-D3F0-4E87-BB5F-EADE3D36A1E9.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "native-live-root-earned-star-guide_0_BA152A16-8007-495A-88A2-1EF885699E92.png",
+        "timestamp" : 1791637982.813
+      }
+    ],
+    "testIdentifier" : "NativeStandaloneRootTests/testRootGuidedDragsAndCTAUseLiveTransportAcrossBackgroundAndRecreation()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeStandaloneRootTests/testRootGuidedDragsAndCTAUseLiveTransportAcrossBackgroundAndRecreation"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "E7619135-685C-4DA4-AFFF-9A1FF22B8A5A.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "SourceStarHaloMounted390_0_C881E574-6F80-412C-B095-A0CEC8039F2B.png",
+        "timestamp" : 1791637999.77
+      }
+    ],
+    "testIdentifier" : "NativeStarPresentationTests/testSourceHaloPaintsOriginalTextureOnActualVisibleSpriteKitSurface()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixTests/NativeStarPresentationTests/testSourceHaloPaintsOriginalTextureOnActualVisibleSpriteKitSurface"
+  }
+]

@@ -1,0 +1,20 @@
+{
+  "status": "SDK72164 terminal exit0 TEST SUCCEEDED8/8; full92960 terminal exit0 all selected deterministic gatesPASS; Source/QA frozen through checks",
+  "files": {
+    "native/gameplay-ui/NativeBoardScene.swift": "c1ed3de8073da9e1aa5e6e270cb74c4736788c09a8933841ab53396b7e943bdb",
+    "native/gameplay-ui/NativeSourceAppTimeoutOwner.swift": "091e1871914c2a52ea1ea1c2acdf0e5a6065ae7c747e81008f375a901d07656f",
+    "native/standalone/Stack to SixTests/NativeSourceAppTimeoutTests.swift": "8f6fb048f45f09ce872309226ca10adefbfd61ebf4bcf18a9820731a9b3bef76",
+    "docs/engineering/feature-runtime-owners.json": "1b9efa92a371e7ead5071c4fbf04c2807c5f2f30c3b861c28c5891f524a89720"
+  },
+  "behavior": "Source APP600/1200 finite wall jobs; full repair precedes opacity; generation/scope/reentry validation; exact jobs cancelled by scope/spawn-owner retirement, generation replacement and disposal; other APP work preserved",
+  "limits": [
+    "Actual complete transform marker/face geometry/Wild asset repair callbacks OPEN",
+    "Enabled whole minimum/rescue/finally Scene proof OPEN",
+    "New timing tests use explicit bounded callbacks, not production physical repair admission",
+    "Source flags OFF; private Source only; no phone/PWA change"
+  ],
+  "logs": {
+    "native-spawn-visual-safety-wall-sdk.log": "669c54ab9245b2fbc7f8082dba8c739c992239a829b7a6190a253cf3eaa93032",
+    "native-spawn-visual-safety-wall-full.log": "e044e430125c7470a2702aa2314d3ea0dd8d21ae289de014a9d2f2aa20a97502"
+  }
+}

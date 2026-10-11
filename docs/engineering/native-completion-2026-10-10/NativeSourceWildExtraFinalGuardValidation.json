@@ -1,0 +1,56 @@
+{
+  "status": "PASS bounded actual minimum/extra APP await graph",
+  "core": {
+    "tests": 433,
+    "failures": 0,
+    "seconds": 0.784,
+    "log": "/tmp/native-wild-minimum-and-extra-await-separated-core.log"
+  },
+  "sdk": {
+    "actualNeighbors": "Five real Juice/TNT branches passed in six-test run /tmp/native-wild-minimum-extra-actual-guard-counts-sdk.log; sixth failure was incorrect Arcade guard-count expectation",
+    "arcadeGuide": "PASS /tmp/native-wild-extra-arcade-earned-star-corrected-sdk.log",
+    "journeyStar": {
+      "status": "PASS",
+      "tests": 1,
+      "failures": 0,
+      "seconds": 10.726,
+      "log": "/tmp/native-wild-extra-journey-star-actual-sdk.log"
+    },
+    "journeyStarFaceCommitOrdering": {
+      "status": "PASS",
+      "tests": 2,
+      "failures": 0,
+      "seconds": 20.789,
+      "log": "/tmp/native-wild-extra-star-face-order-with-juice-neighbor-sdk.log",
+      "scope": "Actual Star three extra faces follow both guards; locked Juice neighbor"
+    }
+  },
+  "king": "PASS330 /tmp/native-wild-extra-entry-current-king.log",
+  "scope": [
+    "sufficient physical minimum returns through actual APP coroutine await before extra/finally",
+    "separate literal pre/single extra guards each yield actual APP FIFO before Star selection",
+    "Juice/TNT no-extra branches still execute the original helper guards",
+    "current actual retained physical roster and Scope/phase/common Math fences",
+    "missing actual bridge rejects Raw fallback; capture restart protects successor",
+    "defaultOFF phase option preserves prior432-pool oracle NativeRaw behavior"
+  ],
+  "preservedFailures": [
+    "/tmp/native-wild-extra-guard-connected-core.log: fixture omitted actual Math stream initializer draw label; corrected actual draw API",
+    "/tmp/native-wild-extra-guard-actual-star-juice-tnt-sdk.log: earned Star entry strict minimum/save reader rejected genuine transient guide markers; corrected entry to actual physical presence without relaxing save/minimum",
+    "/tmp/native-wild-minimum-extra-actual-guard-counts-sdk.log: six tests, one failure; Arcade guide expectation incorrectly required two extra guards although original Arcade skips helper; corrected expectation zero",
+    "/tmp/native-wild-extra-journey-star-face-guard-order-sdk.log: TEST SUCCEEDED with 0 executed tests; not accepted as proof; renamed current selector plus Juice neighbor executed 2/0 in subsequent log"
+  ],
+  "release": {
+    "status": "PASS unsigned isolated Native iOS Release",
+    "log": "/tmp/native-wild-minimum-extra-entry-current-release.log",
+    "audit": "/tmp/native-wild-minimum-extra-entry-current-release-audit.log"
+  },
+  "open": [
+    "full final/zero-blocker clean-board owner",
+    "endgame pre/post and all initial Direct/outer Direct guards",
+    "whole global/save/queue/NO MOVES/families/default/physical acceptance"
+  ],
+  "fullQa": "PASS /tmp/native-wild-minimum-extra-entry-current-full.log",
+  "feature": "PASS /tmp/native-wild-extra-current-feature.log",
+  "iosSourceAudit": "PASS /tmp/native-wild-minimum-extra-entry-current-ios.log"
+}

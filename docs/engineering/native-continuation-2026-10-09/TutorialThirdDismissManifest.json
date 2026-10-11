@@ -1,0 +1,56 @@
+{
+  "base": [
+    "docs/engineering/native-pause-2026-10-08/NativeSource.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/EntrySourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialIntroSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialHUDSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialMonitorSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialRestoreSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialThirdSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFreeHintSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialCTAPrefixSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialCTAViewSourceDelta.tar.gz"
+  ],
+  "wholeSourceFlags": "OFF",
+  "laterTutorialCallers": "Genuine third sheet CTA now installed: original contact audio only once; actual button or accepted positive tile drag waits CTA310, stops hint/starts pointer200, smoke unfreeze/empty wall180, immediate board/HUD restore with captured ordered shuffle keys, canonical waiting then dim200/sheet340. Scope retirement sealed. Original frozen-cell reservation/forced-spawn selection and actual fourth dropping-Wild120/900/80 preparation/hint/cleanup/resume and full HUD hierarchy remain OPEN; whole flags OFF.",
+  "files": {
+    "docs/audio/audio-runtime-owners.json": {
+      "baseSHA256": "7569cad2c10f4271b2045aa7c74d9c0265ee3562945402aa0ebba51518246a16",
+      "sha256": "bc8e089411b1bc7ff2f68a3f74d7aa4229aca3a56adf0602f0155fcc678b5220"
+    },
+    "docs/engineering/feature-runtime-owners.json": {
+      "baseSHA256": "059ca878556e923e08ef5030dcbace72eeb89a5dedf220b9c944a819a9ce9ca8",
+      "sha256": "93d4d43607d6b3cdb2d218f7c2aa629789a70b56b9d9e891dee0675d22daa3a2"
+    },
+    "native/gameplay-app/NativeBootstrap.swift": {
+      "baseSHA256": "3700720cbb12847fa55c259e9422ed0c34ec63ac9d9ec373416d7a7268941715",
+      "sha256": "f1b77fcab0712a69781972886f1e98636a5ad9fec7885c70340df3039d001e9d"
+    },
+    "native/gameplay-app/NativeTutorialOverlay.swift": {
+      "baseSHA256": "b641051703a6cca59c27edb4824761fb9f499c9f8f97928d80829b5b6dfd73b3",
+      "sha256": "862a6513ff575fd87175b9636b72d4aa258c04086297cfb374ff72bf11649e2c"
+    },
+    "native/gameplay-app/NativeTutorialOwner.swift": {
+      "baseSHA256": "3ef74d5d073aef591132889e40dfcfc57f28d572e8043130dfc17489400e62c2",
+      "sha256": "ae058d2e584087080c76b593f5d7b56cb5e429ed8c9a6e1296b8317a386458c1"
+    },
+    "native/gameplay-ui/NativeBoardScene.swift": {
+      "baseSHA256": "011488a0eeb57655c5c0a661b36ead14287f98fdfa1585150e6de355617b81c9",
+      "sha256": "8bab9e7b107fff69f2a3318bc29fea7602e12674c13f89b23a26c9f2a8e150ed"
+    },
+    "native/gameplay-ui/NativeSourceTutorialIntroOwner.swift": {
+      "baseSHA256": "cb4ef232d5f4bb74e80e4d66727816db600ac6f6d3222a9ec2d5ae79f77d0779",
+      "sha256": "e8836c187c7f71860b399b9f570e343190bcb1bd83d69e651025c9d69ff1a149"
+    },
+    "native/standalone/Stack to SixTests/NativeSourceTutorialBootstrapTests.swift": {
+      "baseSHA256": "6fc29aaaa86fef18011c6006ab2a43709f12685d8c9a2cbf0ea501941942fc0a",
+      "sha256": "33012ba6c318ab5f5aa3904011e62c3808bc3fc89d6e9fd67cb7f59d4642964c"
+    },
+    "native/standalone/Stack to SixTests/NativeSourceTutorialCTATests.swift": {
+      "baseSHA256": "1221c6088d77a12bb1c1f2753f0b38ac3b71f9252e8a9ab01deff24b55e32a54",
+      "sha256": "0877b660f11a5f6a6971cf7efc220526bcbe4fdc5c4703169090d28e9a2cd94f"
+    }
+  },
+  "archiveSHA256": "eda0000e9f04c49625bb1dd0d79f5277a368b3f028fde6bbdfbfdb0a073f8833"
+}

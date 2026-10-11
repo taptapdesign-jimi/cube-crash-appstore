@@ -82,7 +82,7 @@ These rows are not complete merely because the implementation compiles. Root int
 
 ## Remaining bridge and surface inventory
 
-The legacy `native/standalone/Stack to Six/GameViewController.swift` still contains WKWebView transport, script-message handlers, JavaScript thermal/recovery/preferences/music/route hooks and web diagnostics. The new native coordinator must enter its Swift owners before WKWebView creation to prove a no-web route. Preserve the archived source while call-site and acceptance evidence are incomplete.
+The archived `native/standalone/Stack to Six/GameViewController.swift` remains preserved as a historical reference and is excluded from the active target, together with Web.bundle. Actual storyboard root is `NativeStandaloneViewController → NativeBootstrap → Swift/UIKit/SpriteKit`. Own-sandbox legacy storage import uses Foundation/SQLite; diagnostics use NativeDiagnosticsCapture. Unsigned iOS Release linkage/resource proof is recorded in CURRENT_HANDOFF. This closes the tested shipping web-dependency boundary, not signing/distribution or complete Source-fidelity gameplay admission. Normal storyboard Debug/Release now activates the complete Swift Source-fidelity graph; DEBUG hosted unit-test roots isolate explicit fixtures. Current actual caller, queue and authored-branch verification is recorded in CURRENT_HANDOFF and supersedes historical default-off admission notes. Source is the Swift port of preserved rules, not a web dependency. Current compiled Release verification, visual/performance and physical acceptance remain explicit.
 
 | Surface / operation | Required native boundary |
 | --- | --- |
@@ -98,9 +98,16 @@ The legacy `native/standalone/Stack to Six/GameViewController.swift` still conta
 
 Full closure requires no web entry in shipping configuration, all gameplay/presentation parity rows, actual isolated-save migration and physical regression/soak acceptance. Until then the immutable starting benchmark remains a hybrid recovery reference.
 
-## Migration-only WebKit exception
+## Preserved Native save import
 
-`NativeHybridExport` temporarily creates a blank WKWebView on `app://localhost` using this Native bundle's original default WebKit profile. It reads localStorage because those existing saves are origin/profile scoped; it never opens another app container, serves `Web.bundle`, boots gameplay, mutates the source values, or supplies normal Native UI/gameplay. Product identity is checked before construction. Export validates into one envelope and writes atomically before success; errors preserve the old profile and block silent reset. The view and navigation callbacks are disposed at completion/cancellation/12-second timeout. After successful migration the native save file is the startup owner and normal launch needs no exporter. This scoped migration transport is the only intentional WebKit exception in the new Native entry. `NativeHybridExportTests` seeds the original origin only on the dedicated QA Simulator, verifies unchanged source values and coherent durable Native save, and restores the source profile on success or failure.
+The active `NativeHybridExport` delegates to `NativeLegacyStorageReader`, using
+Foundation/SQLite to read only this Native app's historical sandbox storage.
+It does not create a WKWebView, boot JavaScript or access the separate PWA app.
+The signed target identity and final compiled dependency/resource audit remain
+required delivery evidence. Legacy bridge files and TypeScript references stay
+preserved outside the active shipping runtime; they are migration references,
+not an application fallback. Existing Native saves are imported atomically
+without resetting the player's profile.
 
 ## Captured ordinary assignment and regular-six checkpoint
 
@@ -126,3 +133,5 @@ remains NEEDS PHYSICAL TEST.
 Current2026-10-08 footer/Fizz checkpoint: linked core87/87 and fresh KING24/330PASS. Actual Simulator67/67 PASS130.468s plus focused updated footer integration6/6 PASS1.890s. Fizz4 verifies original194,860 poses, fixed18 nodes/family exclusions and actual0.285 rejection return; footer source1,898 samples plus cold/concurrent themed admission, exact layer/asset/anchor, no settled clock, stale/background/dispose and dual exit. Independent review's missing non-animated retry admission was corrected before the6/6 run. No original assets changed; complete HUD/geometry, Wild lifecycle, original HEVC/SVG fallback, source frame-budget/hot-factor and physical acceptance remain separate requirements.
 
 Current source/style follow-up: full19gates530suites4010testsKING330PASS; current Fish4/Close2 recovery6/6PASS1.464s and actual native UI gesture1PASS22.190s. Source-derived Close typography44.615982 center, original24icon/dashed44 circle/stroke2 and exact104x68 invisible hit wrapper are measured; pulse/drop remains open. Source FrameBudget value owner actual4PASS has NO Scene cadence hook yet. SVG fallback and failed-seek guard are isolated follow-up. Retain earlier55-run FAIL52pass/3failed receipt; integer-width/pointer-admission production/test corrections and Float32 fixture assertions are documented, not waived.
+
+2026-10-10 accelerated Source Wild constructor/coroutine continuation: locked-bonus construction consumes shared Math tilt before each direction and publishes the actual zero-holder before its two captured APP timeline roots. Hard-primary constructor precedes value/face/captured bounce; awaited primary and subsequent phase reactions use the existing APP FIFO. Actual completed or rejected Wild coroutine publishes one captured finally, ends frames before actual special release/queue notification, and revalidates generation after cleanup. Initial constructor/all-root SDK59/0 PASS304.909s; final completion/cancellation affected SDK24/0 PASS69.368s, complete Core380/0 PASS0.703s. Manifests NativeSourceWildLockedBonusConstructorValidation.json and NativeSourceWildCoroutineFinallyValidation.json retain failed fixture assumptions and exact bounded evidence. Source global merge-six token/Date acquisition, canonical save/queue/endgame/all-family/default activation and physical/signing acceptance remain OPEN. Checks are grouped by connected behavior; full Source/Release gates are reserved for meaningful batches, with one Simulator runner and separate DerivedData for independent Release. No assets/audio/PWA/phone changes and no completion percentage.

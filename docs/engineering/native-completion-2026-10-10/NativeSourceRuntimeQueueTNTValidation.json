@@ -1,0 +1,48 @@
+{
+  "verdict": "PASS bounded integration",
+  "runtimeObservation": {
+    "tests": 13,
+    "failures": 0,
+    "seconds": 32.136,
+    "log": "/tmp/native-source-actual-runtime-marker-batch.log",
+    "scope": "Actual normal fresh/resume/Magnet/Juice Scene producer; global and terminal owners explicitly missing."
+  },
+  "installedQueueAndBootstrap": {
+    "tests": 9,
+    "failures": 0,
+    "seconds": 4.505,
+    "log": "/tmp/native-source-queue-bootstrap-installation.log",
+    "scope": "Actual initial writer available before environment validation; exact rollback before enqueue or claim."
+  },
+  "connectedTntAndQueue": {
+    "tests": 13,
+    "failures": 0,
+    "seconds": 3.524,
+    "log": "/tmp/native-source-tnt-staged-queue-connected.log",
+    "scope": "210 actual eager engine selections plus actual staged current-board/unrewound RNG selections match independent iOS JSC; Source selector640 cases and queue ownership paths."
+  },
+  "completePureCore": {
+    "tests": 373,
+    "failures": 0,
+    "seconds": 0.743,
+    "log": "/tmp/native-tnt-selector-core-final.log",
+    "scope": "All core suites, actual eager/staged Math reentry refuses after one draw and preserves replacement board."
+  },
+  "retainedFailure": "/tmp/native-tnt-selector-core.log",
+  "defaultSourceShippingFlags": false,
+  "completeSourceTntPresentation": false,
+  "completeSourceSaveNoMovesGlobalAssembly": false,
+  "physicalAcceptance": "NEEDS PHYSICAL TEST",
+  "sha256": {
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "0a22cf6e7cb51b3d518cdf051c088a58443bd9090daf0bea6d47a2bf5267069d",
+    "native/gameplay-ui/NativeBoardScene.swift": "498e78b7bd83eca263837e0bd912f7f6fcc78bba55c323ffb90475e592559205",
+    "native/gameplay-app/NativeBootstrap.swift": "f38716bf6fd9a493c207289bfea857dd2034b564a2d5e7b50604e51a83632682",
+    "native/gameplay-meter-scene/NativeMeterSourceQueueCoreBridge.swift": "7fc793f9a6b80936157a583c09dd5aa557628b32f7c55d3b00cc3ce212e40d24",
+    "native/gameplay-ui/NativeDiceNode.swift": "f059151d8839fd42dc1146ae0712aac0a02286a6351416d8d23f8a8c33fc7740"
+  },
+  "fullSourceQA": {
+    "verdict": "PASS",
+    "log": "/tmp/native-source-runtime-queue-tnt-full.log",
+    "scope": "All selected deterministic gates, transitional production build with native bundle synchronization disabled; no physical or full Native SDK/Release attribution."
+  }
+}

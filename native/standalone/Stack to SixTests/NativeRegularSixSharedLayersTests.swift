@@ -1,0 +1,232 @@
+import XCTest
+import SpriteKit
+@testable import Stack_to_Six
+
+@MainActor
+final class NativeRegularSixSharedLayersTests:XCTestCase {
+    @MainActor private final class Wall:NativeRegularSixWallScheduling {
+        var captured:[String:()->Void]=[:]
+        func schedule(generation:UInt64,id:String,delayMilliseconds:Int,elapsed:@escaping()->Void)->NativeSharedSmokeRootCancellation {
+            XCTAssertEqual(delayMilliseconds,1000);captured[id]=elapsed
+            return .init{[weak self] _ in self?.captured.removeValue(forKey:id)}
+        }
+        func fire(){let callbacks=captured;captured.removeAll();for key in callbacks.keys.sorted(){callbacks[key]?()}}
+    }
+    @MainActor private final class Fixture {
+        let runtime=NativeSourceAnimationRuntime(wallOriginMilliseconds:0),wall=Wall(),canvas=SKNode(),tile=SKNode()
+        var current=true,draws=0,seed:UInt32=123,now=1000.0
+        var onAcquire:((NativeSharedFxReceipt)->Void)?
+        var onRandom:(()->Void)?
+        var receipts:[NativeSharedFxReceipt]=[],released:[String:Int]=[:]
+        lazy var session=NativeSharedSmokeRootSession(appOriginMilliseconds:0,visualRandom:{[unowned self] in seed=seed &* 1664525 &+ 1013904223;draws += 1;onRandom?();return Double(seed)/4294967296})
+        lazy var resources=NativeRegularSixSharedResources(smoke:session)
+        lazy var scheduler=NativeSharedSmokeValueRootScheduler(runtime:runtime)
+        lazy var renderer=NativeSharedSmokeRootRenderer(session:session,scheduler:scheduler,sourceClockNow:{[unowned self] in runtime.animationSeconds*1000})
+        lazy var context=NativeRegularSixSharedContext(resources:resources,scheduler:scheduler,wall:wall,smokeRenderer:renderer,monotonicNow:{[unowned self] in now},current:{[weak self] _ in self?.current==true},acquire:{[weak self] receipt in
+            self?.receipts.append(receipt);self?.onAcquire?(receipt)
+            return{[weak self] in self?.released[receipt.invocationID,default:0] += 1}
+        })
+        init(){canvas.addChild(tile)}
+        func make()->NativeRegularSixSharedLayers {try! .init(context:context,canvas:canvas,tile:tile,origin:CGPoint(x:80,y:90),tileSize:96,destinationDepth:43,generation:1,reduced:false)}
+        func advance(to ms:Int){for time in stride(from:0,through:ms,by:10){runtime.deliver(wallMilliseconds:Double(time))}}
+        func dispose(){context.dispose();renderer.dispose();runtime.dispose()}
+    }
+    func testRealCapturedPoolsDepthAndIndependentSourceReceipts(){
+        let f=Fixture(),owner=f.make();defer{f.dispose()}
+        XCTAssertEqual(owner.shardCount,12);XCTAssertEqual(f.resources.cachedPatterns,1)
+        XCTAssertEqual(Double(owner.shardLayer.zPosition),Double(Float(43)))
+        XCTAssertEqual(owner.shardLayer.position,CGPoint(x:80,y:90));XCTAssertEqual(owner.shardLayer.xScale,0.75)
+        XCTAssertTrue(owner.shardLayer.parent === f.canvas)
+        XCTAssertEqual(f.canvas.children.filter{$0.zPosition==9990}.count,1)
+        XCTAssertEqual(f.receipts.map(\.label),["regular-merge6-shards","regular-merge6-smoke"])
+        XCTAssertNotEqual(f.receipts[0].invocationID,f.receipts[1].invocationID)
+        XCTAssertEqual(f.receipts.map(\.tailMilliseconds),[100,100])
+        XCTAssertEqual(owner.shardLayer.children[0].alpha,CGFloat(Float(NativeSharedSmokeSpritePresentation.sourcePackedAlpha(0.85))))
+        XCTAssertNil(owner.shardLayer.action(forKey:"source-regular-six-finite"))
+    }
+    func testShardsOnlyStageUsesOrdinaryPoolAndRNGThenRetiresAtActualWallBoundary()throws {
+        let f=Fixture();defer{f.dispose()}
+        let owner=try NativeRegularSixSharedLayers(context:f.context,canvas:f.canvas,tile:f.tile,origin:.zero,
+            tileSize:128,destinationDepth:9993,generation:1,reduced:false,stage:.shardsOnly)
+        XCTAssertEqual(owner.shardCount,12);XCTAssertGreaterThan(f.draws,0)
+        XCTAssertEqual(f.resources.cachedPatterns,1)
+        XCTAssertEqual(f.renderer.activeOwnerCount,0);XCTAssertEqual(f.session.pool.activeCount,0)
+        XCTAssertEqual(f.receipts.map(\.label),["regular-merge6-shards"])
+        var completed:[Bool]=[];owner.onFinished={completed.append($0)}
+        f.runtime.setGlobalPaused(true);f.wall.fire()
+        XCTAssertEqual(completed,[true]);XCTAssertEqual(f.context.activeOwnerCount,0)
+        XCTAssertEqual(f.resources.activeShards,0);XCTAssertNil(owner.shardLayer.parent)
+    }
+    func testSplitOrdinaryStagesConsumeSameRandomAndPoolsAsCombinedRecipe()throws {
+        let combined=Fixture(),split=Fixture();defer{combined.dispose();split.dispose()}
+        _=combined.make()
+        _=try NativeRegularSixSharedLayers(context:split.context,canvas:split.canvas,tile:split.tile,origin:CGPoint(x:80,y:90),
+            tileSize:96,destinationDepth:43,generation:1,reduced:false,stage:.shardsOnly)
+        XCTAssertNotNil(split.renderer.admit(recipe:NativeSharedSmokeRecipes.regularSix(tileDepth:43,reduced:false),
+            canvas:split.canvas,tile:split.tile,generation:1,origin:CGPoint(x:80,y:90),renderScale:0.75,
+            monotonicMilliseconds:split.now,reduced:false,current:{_ in split.current},acquireActivity:split.context.acquire))
+        XCTAssertEqual(split.draws,combined.draws);XCTAssertEqual(split.seed,combined.seed)
+        XCTAssertEqual(split.resources.activeShards,combined.resources.activeShards)
+        XCTAssertEqual(split.session.pool.activeCount,combined.session.pool.activeCount)
+        XCTAssertEqual(split.receipts.map(\.label),combined.receipts.map(\.label))
+        split.dispose();XCTAssertEqual(split.resources.activeShards,0);XCTAssertEqual(split.session.pool.activeCount,0)
+    }
+    func testWallCleanupDuringGlobalPauseLeavesCommonSmokeOnItsActualAnimationClock(){
+        let f=Fixture(),owner=f.make();defer{f.dispose()}
+        f.advance(to:900)
+        XCTAssertEqual(f.resources.activeShards,12)
+        XCTAssertEqual(owner.shardLayer.children.count,12)
+        XCTAssertTrue(f.released.isEmpty)
+        f.runtime.setGlobalPaused(true);f.wall.fire()
+        XCTAssertEqual(f.resources.activeShards,0);XCTAssertNil(owner.shardLayer.parent)
+        XCTAssertEqual(f.renderer.activeOwnerCount,1)
+        XCTAssertEqual(f.context.activeOwnerCount,1)
+        XCTAssertEqual(f.released[f.receipts[0].invocationID],1)
+        XCTAssertNil(f.released[f.receipts[1].invocationID])
+        f.runtime.deliver(wallMilliseconds:1100);f.runtime.setGlobalPaused(false)
+        f.runtime.deliver(wallMilliseconds:1200)
+        XCTAssertEqual(f.renderer.activeOwnerCount,0);XCTAssertEqual(f.context.activeOwnerCount,0)
+        XCTAssertEqual(f.released[f.receipts[1].invocationID],1)
+    }
+    func testCapturedOldWallCannotStealReplacementPooledShaders(){
+        let f=Fixture();defer{f.dispose()}
+        let old=f.make(),oldCallbacks=Array(f.wall.captured.values)
+        old.dispose()
+        // Cycle all three app patterns, then reuse the original selected pool.
+        let b=f.make(),c=f.make();b.dispose();c.dispose()
+        let replacement=f.make(),node=replacement.shardLayer.children[0]
+        let releases=f.released
+        oldCallbacks.forEach{$0()}
+        XCTAssertEqual(f.resources.activeShards,12)
+        XCTAssertTrue(node.parent === replacement.shardLayer)
+        XCTAssertEqual(f.released,releases)
+        XCTAssertEqual(f.resources.cachedPatterns,3)
+    }
+    func testServiceDisposalDrainsResourcesAndCapturedScopesExactlyOnce(){
+        let f=Fixture(),owner=f.make();defer{f.dispose()}
+        f.runtime.dispose()
+        XCTAssertEqual(owner.shardCount,0);XCTAssertEqual(f.resources.activeShards,0)
+        XCTAssertEqual(f.session.pool.activeCount,0)
+        XCTAssertEqual(f.context.activeOwnerCount,0);XCTAssertTrue(f.wall.captured.isEmpty)
+        XCTAssertTrue(f.receipts.allSatisfy{f.released[$0.invocationID]==1})
+        owner.dispose();f.wall.fire()
+        XCTAssertTrue(f.receipts.allSatisfy{f.released[$0.invocationID]==1})
+    }
+    func testRejectedGenerationAcquiresNoHotRandomPatternPoolOrActivity(){
+        let f=Fixture();defer{f.dispose()};f.current=false
+        XCTAssertThrowsError(try NativeRegularSixSharedLayers(context:f.context,canvas:f.canvas,tile:f.tile,origin:.zero,tileSize:128,destinationDepth:43,generation:1,reduced:false))
+        XCTAssertEqual(f.draws,0);XCTAssertEqual(f.resources.cachedPatterns,0)
+        XCTAssertTrue(f.receipts.isEmpty);XCTAssertEqual(f.runtime.activeCount,0)
+        XCTAssertEqual(f.session.nextRegularSixPattern(),0)
+    }
+    // Requires the private bounded carrier patch; tests actual constructor
+    // injection rather than merely calling the arithmetic smoke planner.
+    func testOptInCarrierReplacesOldSmokeRNGSlotAndDoesNotOwnSourceLayerRetirement()throws{
+        let f=Fixture();defer{f.dispose()}
+        let slot=NativeRegularSixSharedSlot(context:f.context,canvas:f.canvas,tile:f.tile)
+        var legacyDraws=0
+        let carrier=try NativeRegularSixSpritePresentation(origin:CGPoint(x:80,y:90),tileSize:96,destinationDepth:43,combinedDepth:5,generation:1,reduced:false,hotFactor:0.1,patternIndex:2,isCurrent:{_ in true},random:{legacyDraws += 1;return 0.1},sourceSlot:slot)
+        XCTAssertEqual(legacyDraws,0,"Source exact slot shares session stream; no second legacy smoke plan")
+        XCTAssertTrue(carrier.shardLayer.children.isEmpty);XCTAssertTrue(carrier.smokeLayer.children.isEmpty)
+        XCTAssertEqual(f.resources.activeShards,12);XCTAssertEqual(f.renderer.activeOwnerCount,1)
+        XCTAssertEqual(f.context.activeOwnerCount,1)
+        f.runtime.setGlobalPaused(true);carrier.paint(seconds:1)
+        XCTAssertEqual(f.renderer.activeOwnerCount,1,"nativeRaw paint cannot settle GSAP smoke")
+        carrier.dispose()
+        XCTAssertEqual(f.context.activeOwnerCount,0);XCTAssertEqual(f.resources.activeShards,0)
+        XCTAssertEqual(f.session.pool.activeCount,0)
+    }
+    func testActualNativeRawCarrierCompletionDoesNotCancelPausedSourceSmoke()async throws{
+        let f=Fixture();defer{f.dispose()}
+        let host=SKView(frame:CGRect(x:0,y:0,width:240,height:300)),scene=SKScene(size:CGSize(width:240,height:300))
+        scene.addChild(f.canvas)
+        let window=UIWindow(frame:host.frame),controller=UIViewController()
+        window.rootViewController=controller;controller.view.addSubview(host);window.isHidden=false
+        host.presentScene(scene)
+        defer{host.presentScene(nil);window.isHidden=true}
+        let carrier=try NativeRegularSixSpritePresentation(origin:CGPoint(x:80,y:90),tileSize:96,destinationDepth:43,combinedDepth:5,generation:1,reduced:false,hotFactor:1,patternIndex:0,isCurrent:{_ in true},random:{0.5},sourceSlot:.init(context:f.context,canvas:f.canvas,tile:f.tile))
+        f.runtime.setGlobalPaused(true)
+        let completed=expectation(description:"actual existing nativeRaw SKAction carrier completion")
+        carrier.onFinished={success in XCTAssertTrue(success);completed.fulfill()}
+        carrier.mount(in:f.canvas)
+        await fulfillment(of:[completed],timeout:4)
+        XCTAssertEqual(f.renderer.activeOwnerCount,1)
+        XCTAssertEqual(f.context.activeOwnerCount,1)
+        XCTAssertEqual(f.resources.activeShards,12,"manual wall scheduler has not delivered; Source shards remain captured")
+        f.wall.fire()
+        XCTAssertEqual(f.resources.activeShards,0);XCTAssertEqual(f.renderer.activeOwnerCount,1)
+    }
+
+    func testShardActivityAcquisitionReentryClosesAdmissionBeforeResourcesRandomOrRetention(){
+        let f=Fixture();defer{f.dispose()}
+        f.onAcquire={[weak f] receipt in if receipt.kind == .shards{f?.context.dispose()}}
+        XCTAssertThrowsError(try NativeRegularSixSharedLayers(context:f.context,canvas:f.canvas,tile:f.tile,origin:.zero,tileSize:128,destinationDepth:43,generation:1,reduced:false))
+        XCTAssertFalse(f.context.canAdmit);XCTAssertEqual(f.context.activeOwnerCount,0)
+        XCTAssertEqual(f.resources.activeShards,0);XCTAssertEqual(f.session.pool.activeCount,0)
+        XCTAssertEqual(f.renderer.activeOwnerCount,0);XCTAssertEqual(f.runtime.activeCount,0)
+        XCTAssertEqual(f.draws,0);XCTAssertTrue(f.wall.captured.isEmpty)
+        XCTAssertEqual(f.receipts.count,1);XCTAssertEqual(f.released[f.receipts[0].invocationID],1)
+    }
+    func testCommonSmokeActivityAcquisitionReentryClosesBothCapturedComponents(){
+        let f=Fixture();defer{f.dispose()}
+        var capturedShardDraws=0
+        f.onAcquire={[weak f] receipt in if receipt.kind == .smoke{capturedShardDraws=f?.draws ?? -1;f?.context.dispose()}}
+        XCTAssertThrowsError(try NativeRegularSixSharedLayers(context:f.context,canvas:f.canvas,tile:f.tile,origin:.zero,tileSize:128,destinationDepth:43,generation:1,reduced:false))
+        XCTAssertFalse(f.context.canAdmit);XCTAssertEqual(f.context.activeOwnerCount,0)
+        XCTAssertEqual(f.resources.activeShards,0);XCTAssertEqual(f.session.pool.activeCount,0)
+        XCTAssertEqual(f.renderer.activeOwnerCount,0);XCTAssertEqual(f.runtime.activeCount,0)
+        XCTAssertTrue(f.wall.captured.isEmpty)
+        XCTAssertEqual(f.draws,capturedShardDraws,"Rejected smoke must not consume hot/visual RNG after its activity acquisition")
+        XCTAssertEqual(f.receipts.map(\.kind),[.shards,.smoke])
+        XCTAssertTrue(f.receipts.allSatisfy{f.released[$0.invocationID]==1})
+        f.context.dispose();f.wall.fire()
+        XCTAssertTrue(f.receipts.allSatisfy{f.released[$0.invocationID]==1})
+    }
+
+    func testSourceCarrierMountUsesSharedUnionAndOnlyOneShakeRNGPrefix()throws{
+        let f=Fixture();defer{f.dispose()}
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0})
+        var shakes=0,completed=0,legacyDraws=0
+        let surfaces=NativeSixSourceSurfaceOwner(service:service,current:{true},paintShake:{_ in shakes+=1})
+        defer{surfaces.dispose();service.dispose()}
+        let carrier=try NativeRegularSixSpritePresentation(origin:CGPoint(x:80,y:90),tileSize:96,destinationDepth:43,combinedDepth:5,generation:1,reduced:false,hotFactor:1,patternIndex:0,isCurrent:{_ in true},random:{legacyDraws+=1;return 0.5},sourceSlot:.init(context:f.context,canvas:f.canvas,tile:f.tile),sourceSurfaces:surfaces)
+        let prefix=f.draws
+        carrier.onFinished={success in XCTAssertTrue(success);completed+=1}
+        carrier.mount(in:f.canvas)
+        XCTAssertEqual(f.draws-prefix,36);XCTAssertEqual(legacyDraws,0)
+        XCTAssertFalse(carrier.hasActiveClock);XCTAssertFalse(carrier.hasActions())
+        XCTAssertEqual(service.activeParticipantCount,3)
+        service.setSourceGlobalPaused(true);service.deliver(wallMilliseconds:500)
+        XCTAssertEqual(completed,0);XCTAssertTrue(carrier.parent === f.canvas)
+        service.setSourceGlobalPaused(false);service.deliver(wallMilliseconds:600)
+        XCTAssertGreaterThan(shakes,0)
+        for wall in stride(from:620,through:1600,by:20){service.deliver(wallMilliseconds:Double(wall))}
+        XCTAssertEqual(completed,1);XCTAssertNil(carrier.parent)
+        XCTAssertEqual(f.context.activeOwnerCount,1,"Source shared smoke retains its independent root")
+        carrier.dispose();XCTAssertEqual(completed,1)
+    }
+    func testSourceSurfaceAdmissionRequiresSourceSlotBeforeAnyLegacyRandom()throws{
+        var draws=0
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0})
+        let surfaces=NativeSixSourceSurfaceOwner(service:service,current:{true},paintShake:{_ in})
+        defer{surfaces.dispose();service.dispose()}
+        XCTAssertThrowsError(try NativeRegularSixSpritePresentation(origin:.zero,tileSize:96,destinationDepth:0,combinedDepth:2,generation:1,reduced:false,hotFactor:1,patternIndex:0,isCurrent:{_ in true},random:{draws+=1;return 0.5},sourceSurfaces:surfaces))
+        XCTAssertEqual(draws,0);XCTAssertEqual(service.activeParticipantCount,0)
+    }
+
+    func testSourceCarrierDisposalDuringThirdShakeDrawStopsCapturedRootsAndReportsFailure()throws{
+        let f=Fixture();defer{f.dispose()}
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0})
+        let surfaces=NativeSixSourceSurfaceOwner(service:service,current:{true},paintShake:{_ in})
+        defer{surfaces.dispose();service.dispose()}
+        let carrier=try NativeRegularSixSpritePresentation(origin:.zero,tileSize:96,destinationDepth:0,combinedDepth:2,generation:1,reduced:false,hotFactor:1,patternIndex:0,isCurrent:{_ in true},random:{0.5},sourceSlot:.init(context:f.context,canvas:f.canvas,tile:f.tile),sourceSurfaces:surfaces)
+        var shakes=0,results:[Bool]=[]
+        f.onRandom={shakes+=1;if shakes==3{carrier.dispose()}}
+        carrier.onFinished={results.append($0)};carrier.mount(in:f.canvas)
+        XCTAssertEqual(shakes,3);XCTAssertEqual(results,[false]);XCTAssertNil(carrier.parent)
+        XCTAssertEqual(service.activeParticipantCount,0);XCTAssertEqual(f.context.activeOwnerCount,0)
+        XCTAssertEqual(f.resources.activeShards,0);XCTAssertEqual(f.session.pool.activeCount,0)
+        f.onRandom=nil
+    }
+
+}

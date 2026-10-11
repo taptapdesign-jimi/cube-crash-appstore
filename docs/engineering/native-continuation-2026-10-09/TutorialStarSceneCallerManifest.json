@@ -1,0 +1,10 @@
+{
+  "status": "PRIVATE actual SDK20/20 PASS",
+  "files": {
+    "native/gameplay-ui/NativeBoardScene.swift": "c2e5b9975d3f55295a7bdc8736c24eccdd19352c4842042c6dd11e804316fdae",
+    "native/gameplay-ui/NativeDiceNode.swift": "328411673c8ca2e2e739707e830b4418704d1c7501312709c30ab15bce25155a",
+    "native/gameplay-ui/NativeStarFinale.swift": "f4592e3bb62b77c553ea2f2d253da11425cf0ca15feaac456ccd77ff89b865c5",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "290b2dea9257c6f1df0b78cb571b460427eb6d9f43a6fb4008a0bcc890249682"
+  },
+  "scope": "Actual Scene method test uses existing shared Math, original async assets, aboveHUD layer and context retirement. Full tutorial/startup/Core count relocation remain OPEN."
+}

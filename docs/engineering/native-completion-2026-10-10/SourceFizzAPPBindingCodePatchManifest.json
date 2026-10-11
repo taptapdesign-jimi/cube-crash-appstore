@@ -1,0 +1,13 @@
+{
+  "scope": "Apply after SourceFizzSourceFieldCodePatch into NEW replay tree only. Genuine Scene/Node Source field binding to APP shared service/installed microtask scope; Source cadence removed from Scene. No media/global flags changes. Complete migration and physical acceptance OPEN.",
+  "archive": "SourceFizzAPPBindingCodePatch.tar.gz",
+  "archiveSHA256": "2d5d0143ff0a9874bf9d2e5b01c2b6d90fe1fa530e9c0a970c9760629b0b9603",
+  "files": {
+    "native/gameplay-ui/NativeDiceNode.swift": "ba4d36a862d38d8474f43a579a33558d170d88a9247534fe753195229ad6a564",
+    "native/gameplay-ui/NativeBoardScene.swift": "f82bdcb6357cd4bccf6096275b75e55ed752198aace6864022a627d420dbab7c",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "0db93de3ed30e3eda84e843866bdb993621bcf7529bce843265fdc6c24144c36",
+    "native/gameplay-ui/NativeSourceMeterMicrotaskCapability.swift": "5421a556d94cadeac045eb2e34c954ef0a45e377b0fd75a195e117d28ac44911",
+    "native/gameplay-ui/NativeSourceSceneMicrotaskInstallation.swift": "a3defc5de53e2748f9accc7a05bd6225fb2a365718af26834c0bbeecedffdc90",
+    "docs/engineering/feature-runtime-owners.json": "e636b12673436562da264e3f79b325d0ab816eda8aa3339ea6e087d157979802"
+  }
+}

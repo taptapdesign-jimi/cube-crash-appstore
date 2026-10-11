@@ -1,0 +1,25 @@
+{
+  "scope": "Private Source Node/Scene typed Wild skin, painted hit geometry, mobile registry recipe and live active Bottle/Kanta pivot requirement. Flags OFF; not main integration or phone acceptance.",
+  "files": {
+    "native/gameplay-ui/NativeDiceArtwork.swift": "4cf0aff6fddd1aec7eb3652d3a379f486904f8d27c6bee7a10f1a7bb4e2930ad",
+    "native/gameplay-ui/NativeDiceNode.swift": "42ddc2471c667f4f32facd9263fcb5de7206955d4649b49b683ccacf40817240",
+    "native/gameplay-ui/NativeBoardScene.swift": "f77a72374d132f01638bfc4881d926dda6c756fab63a9c4c73ecc569a72926b1",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "ff7aaffde4916037ec74e2883ab59e1c490065a2767c939aba84d47930b0ab52"
+  },
+  "tests": {
+    "initialSDK": "terminal9/10 prior to corrected assertion; failure preserved; implementation unchanged",
+    "full": "terminal PASS all selected deterministic gates; production implementation unchanged since this run",
+    "correctedSDK": "terminal exit0 TEST SUCCEEDED: 3/3; live Bottle pivot and both logical dimensions, Bottle/Honey122.88, repeated skin no inflation"
+  },
+  "logs": {
+    "wild-skin-source-recipe-sdk.log": "a8ac527ddd99b0b4b95fff1070c9eff0b91804305a0366207aaa37a7a64228c1",
+    "wild-skin-source-recipe-full.log": "9d41d6bc7f8d5472b078f760f49b5bce80e446ff36d315b2b5840489861431b8",
+    "wild-skin-pivot-corrected-sdk.log": "cbdde4ba6c11007e36b44632b9de258346332cf64aa0108672861cea04b6af21"
+  },
+  "remaining": [
+    "Whole production idle composer/Source constructor coverage and marker writers",
+    "One-shot decode recovery and actual renderer-context invalidation",
+    "Enabled full minimum/rescue/finally and startup integration",
+    "Physical huge-cubes regression and full migration acceptance"
+  ]
+}

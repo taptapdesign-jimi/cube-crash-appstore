@@ -1,0 +1,12 @@
+{
+  "scope": "Apply after SourceSkinFizzRNGCodePatch in NEW replay tree only. Unmounted finite Source fizz producer component, exact shared-root oracle, tests and existing owner metadata. Full compositor/Scene admission/migration/phone acceptance OPEN.",
+  "archive": "SourceFizzProducerCodePatch.tar.gz",
+  "archiveSHA256": "1e5f4a9097f48d9c2eaf69d9e163eb8f12c13df8323304b6bc924f79fb5f7cb3",
+  "files": {
+    "native/gameplay-ui/NativeIdleBubbleMotion.swift": "b947812e67a90b2fe4da24f495b101eeed6878068f5ae9d1646aad86e357cf25",
+    "native/standalone/Stack to SixTests/NativeSourceAnimationClockTests.swift": "6c231acb712e64dc4276f1bd4dc9610af6eb3a1ee51e39dc5371498685223ebb",
+    "docs/engineering/feature-runtime-owners.json": "258a51675d2de1d7e0a6bf2a89591a3724c28fc8c07b4807c512e2bfc472c498",
+    "docs/engineering/native-completion-2026-10-10/fizz-shared-root-order-oracle.cjs": "9950f544307e8ed6389143cdaaba3dc02bfad7c1739b31f483a1ddd0658ef334",
+    "docs/engineering/native-completion-2026-10-10/fizz-shared-root-order-oracle.json": "87f4583e30b9e30ba8c5a06c31c2d6adb07bbb9eda63d9914a70f7c45e9eb03f"
+  }
+}

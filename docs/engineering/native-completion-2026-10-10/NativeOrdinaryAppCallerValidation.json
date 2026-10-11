@@ -1,0 +1,15 @@
+{
+  "sourceSHA256": {
+    "native/gameplay-app/NativeStandaloneViewController.swift": "229adf896d7c2b8db164720372142c30b51f32fd5e35297871aa7bf949d6aeb5",
+    "native/gameplay-app/NativeBootstrap.swift": "b8be132733ae4685fb645cb32454a722df700bb9547a98a4f01682469f5f5045",
+    "native/gameplay-ui/NativeGameplayViewController.swift": "63899f749cbc0672a1123e000af7231074dfca18746dee67890081a411313bc3",
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "56a91babe28dcebcd4b1ed181599d2ce6882549142b473016107a5f4d19919cf",
+    "native/standalone/Stack to SixTests/NativeStandaloneRootTests.swift": "21ccbaea23fc56a1612dd959feebf9a5de04d5a045436b4b46b559e925a825aa",
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceTutorialPresentationBarrierTests.swift": "6c7cedca1a5cdb8ff48657f7dfc1bee98fe104af481a1355e5385f2b39f76c2b"
+  },
+  "SDK": "14274 terminal0;22/22 PASS126.577s including ordinary root12.209s and complete guide31.069s; before direct-caller extension",
+  "pureSwift": "5/5 PASS",
+  "KING": "330/330 PASS",
+  "scope": "Explicit eligible fresh Source tutorial ordinary sub-six/physical face/same object six/locked settlement only; no whole ordinary minimum/spawn/Wild/save/runtime-marker/NO MOVES activation",
+  "historical": "First actual root and diagnostic refused Core2/physical1; retained; reference SourceSecondTutorialDepthNormalization.json"
+}

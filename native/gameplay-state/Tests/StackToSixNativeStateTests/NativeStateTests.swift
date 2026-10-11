@@ -4,6 +4,28 @@ import StackToSixGameplay
 @testable import StackToSixNativeState
 
 final class NativeStateTests: XCTestCase {
+    func testWholeJourneySaveWorkloadPreservesLatestContentAndBackup() throws {
+        let dir=try temporary(),store=NativeSaveStore(directory:dir)
+        var envelope=NativeSaveEnvelope()
+        for number in 1...30 {envelope.journeyRuns[number]=NativeBoardFactory.make(mode:.journey,board:number)}
+        try store.save(envelope)
+        let duplicateStart=Date.timeIntervalSinceReferenceDate
+        for index in 0..<50 {
+            envelope.savedAt=Double(index+1000)
+            XCTAssertFalse(try store.save(envelope))
+        }
+        let duplicateMS=(Date.timeIntervalSinceReferenceDate-duplicateStart)*1000/50
+        let changedStart=Date.timeIntervalSinceReferenceDate
+        for index in 0..<10 {
+            envelope.journeyRuns[1]?.score=index+1
+            XCTAssertTrue(try store.save(envelope))
+        }
+        let changedMS=(Date.timeIntervalSinceReferenceDate-changedStart)*1000/10
+        XCTAssertEqual(try store.load()?.journeyRuns[1]?.score,10)
+        try Data("corrupt".utf8).write(to:dir.appendingPathComponent("state-v1.json"))
+        XCTAssertEqual(try store.load()?.journeyRuns[1]?.score,9)
+        print("[NativeSaveWorkload] fullJourney duplicateMeanMS=\(duplicateMS) changedMeanMS=\(changedMS)")
+    }
     func testHybridRunCountersSurviveCanonicalSchemaRange() throws {
         let run:[String:Any] = ["schemaVersion":2,"boardNumber":2,"level":2,"starsCount":7,"bestScore":9182,"wildMeter":4.5,"wildSpawnCount":12,"grid":[[["value":3,"locked":false,"open":true]]]]
         let text = String(data:try JSONSerialization.data(withJSONObject:run),encoding:.utf8)!
@@ -54,7 +76,8 @@ final class NativeStateTests: XCTestCase {
         let board=NativeBoardFactory.make(mode:.journey,board:1,seed:9)
         XCTAssertEqual(board.columns,5);XCTAssertEqual(board.rows,9);XCTAssertEqual(board.tiles.count,45)
         XCTAssertEqual(board.tiles.filter { !$0.locked }.count,14)
-        XCTAssertTrue(board.tiles.filter(\.locked).allSatisfy {$0.value==0})
+        XCTAssertTrue(board.tiles.filter(\.locked).allSatisfy {$0.value==0 && $0.alpha==0.25})
+        XCTAssertTrue(board.tiles.filter{!$0.locked}.allSatisfy{$0.alpha==1})
         XCTAssertEqual(board,NativeBoardFactory.make(mode:.journey,board:1,seed:9))
         XCTAssertEqual(NativeBoardFactory.make(mode:.journey,board:21,columns:7).tiles.filter { !$0.locked }.count,19)
     }
@@ -66,6 +89,19 @@ final class NativeStateTests: XCTestCase {
         XCTAssertEqual(try store.load()?.savedAt,1000)
         try FileManager.default.removeItem(at:dir.appendingPathComponent("state-v1.json"))
         XCTAssertTrue(try store.save(envelope));XCTAssertEqual(try store.load()?.savedAt,2000)
+    }
+    func testSaveCacheValidatesForeignPrimaryAndPreservesItsCoherentBackup() throws {
+        let dir=try temporary(),store=NativeSaveStore(directory:dir)
+        let original=NativeSaveEnvelope()
+        try store.save(original)
+        var foreign=original;foreign.settings.musicEnabled=false
+        try JSONEncoder().encode(foreign).write(to:dir.appendingPathComponent("state-v1.json"))
+        XCTAssertTrue(try store.save(original),"A foreign primary cannot borrow our successful-content dedup receipt")
+        try Data("corrupt".utf8).write(to:dir.appendingPathComponent("state-v1.json"))
+        XCTAssertEqual(try store.load()?.settings,foreign.settings,"Backup must contain the actual validated foreign primary")
+        XCTAssertTrue(try store.save(original),"Corrupt primary must be repaired without backing up corrupt bytes")
+        try Data("corrupt again".utf8).write(to:dir.appendingPathComponent("state-v1.json"))
+        XCTAssertEqual(try store.load()?.settings,foreign.settings)
     }
     func testWorldStarThresholdsRestartInEveryWorld() {
         for board in [1,11,21] {
@@ -269,7 +305,7 @@ final class NativeStateTests: XCTestCase {
         var seed:UInt32=7
         let planner=NativeForestBeePlanning(contentTop:138,mainX:0,mainY:154,mainWidth:390,mainHeight:350,random:{seed=seed &* 1664525 &+ 1013904223;return Double(seed)/4294967296})
         for cycle in cycles.indices {
-            let actual=planner.next(),expected=cycles[cycle]
+            let actual=planner.next(ids:[0,2,5,7,9]),expected=cycles[cycle]
             XCTAssertEqual(actual.map {$0["id"] as! Int},[0,2,5,7,9])
             for index in actual.indices {
                 let frames=actual[index]["frames"] as! [[String:Any]],oracle=expected[index]["frames"] as! [[String:Any]]
@@ -282,6 +318,21 @@ final class NativeStateTests: XCTestCase {
             }
         }
     }
+    func testForestAddsFourBeesWithExistingGateDepthAndRenewal() {
+        var seed:UInt32=7
+        let planner=NativeForestBeePlanning(contentTop:138,mainX:0,mainY:154,mainWidth:390,mainHeight:350,random:{seed=seed &* 1664525 &+ 1013904223;return Double(seed)/4294967296})
+        let added=Set([1,3,4,6]);var passing=Set<Int>()
+        for _ in 0..<10 {
+            let plans=planner.next()
+            XCTAssertEqual(plans.map{$0["id"] as! Int},NativeForestBeePlanning.retainedIDs)
+            for plan in plans where added.contains(plan["id"] as! Int) {
+                let frames=plan["frames"] as! [[String:Any]]
+                if frames.contains(where:{$0["depth"] as? String == "behind"}) {passing.insert(plan["id"] as! Int)}
+            }
+        }
+        XCTAssertEqual(passing,added,"All four added bees must pass behind the gate")
+        XCTAssertEqual(Set(planner.next(ids:Array(added)).map{$0["id"] as! Int}),added)
+    }
     func testNewProfileUsesInterimCardsWithoutUnlockingOtherWorlds() throws {
         let provider=try NativeWorldLayouts(),state=NativeProgressionState()
         let snapshot=try provider.snapshot(world:3,width:393,height:852,generation:8,progression:state)
@@ -290,4 +341,19 @@ final class NativeStateTests: XCTestCase {
         XCTAssertEqual(units[1]["locked"] as? Bool,true)
         XCTAssertFalse((units[1]["parts"] as? [[String:Any]] ?? []).contains {$0["role"] as? String=="card"})
     }
+    func testSourceTutorialGridOrphanCannotOverwriteLastCoherentSave()throws {
+        let dir=try temporary(),store=NativeSaveStore(directory:dir)
+        let old=NativeTile(id:"old",cell:.init(column:2,row:1),value:0,locked:true)
+        let wild=NativeTile(id:"wild",cell:.init(column:2,row:4),value:6,archetype:.star)
+        let run=NativeBoardState(tiles:[old,wild])
+        var good=NativeSaveEnvelope();good.journeyRuns[1]=run
+        XCTAssertTrue(try store.save(good));let original=try Data(contentsOf:dir.appendingPathComponent("state-v1.json"))
+        var transient=run;XCTAssertTrue(transient.sourcePlaceTutorialTile(id:"wild",at:old.cell))
+        XCTAssertTrue(transient.validationIssues(allowSourceDetachedGridReferences:true).isEmpty)
+        XCTAssertFalse(NativeSaveEnvelope.isCoherentRun(transient))
+        var bad=good;bad.journeyRuns[1]=transient;XCTAssertThrowsError(try store.save(bad))
+        XCTAssertEqual(try Data(contentsOf:dir.appendingPathComponent("state-v1.json")),original)
+        XCTAssertEqual(try XCTUnwrap(store.load()).journeyRuns[1],run)
+    }
+
 }

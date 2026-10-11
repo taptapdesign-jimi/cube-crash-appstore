@@ -1,0 +1,15 @@
+Immutable source: production-benchmark-v9 8e4364e8ee571f16c6322727a9ae79fee5a982eb
+Geometry PASS675 cases, max error1.1368683772161603e-13
+Glyph motion PASS20832 v9 GSAP poses, max property rounding error5.000000200539034e-7
+Cloud motion PASS45 v9 plans9906 poses, max property rounding error9.598645480668466e-7
+Multiplier source PASS4 original owner/Pixi TextStyle records
+UIKit multiplier PASS12 depth/density cases; every fully opaque source-fill pixel preserved
+UIKit NO MOVES PASS original resources/finite clouds/captured exit/duplicates/dispose/late paint/resource rejection
+Connected ordinary6 SpriteKit carrier PASS ×12 raster/source motion/stale cleanup exactly once
+Feature-runtime gate PASS22 owned groups34 known source surfaces; candidate excluded from shipping
+Gameplay KING PASS24 suites330 tests
+qa:fast PASS all selected deterministic gates
+Patch check PASS against /tmp/native-resume-owned-snapshot; patches not applied
+One-command reproduction PASS: /tmp/native-secondary-display-final-all.log
+Logs: /tmp/native-secondary-v9-feature.log /tmp/native-secondary-v9-king.log /tmp/native-secondary-v9-fast.log
+Phone acceptance NEEDS PHYSICAL TEST

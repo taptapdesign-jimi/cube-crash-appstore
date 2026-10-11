@@ -1,0 +1,18 @@
+{
+  "status": "Core85605 terminal366/366PASS; KING54400 terminal330/330PASS",
+  "files": {
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "5014a802e9bba4ef97adbd00685196f220bde4e8f3e451d3f037dd80daf923c5",
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceOrdinarySixSpawnBeginCoreTests.swift": "5bbf327eb5580c9b7c1c159e57deebaa2fd073b0943569d65ba71b85667b17dc"
+  },
+  "logs": {
+    "native-ordinary-rescue-epoch-core.log": "413b76494ac691a7b57f2953f5b0add64ed296d526b493ef9eaf49cd3bdc39ea",
+    "native-ordinary-rescue-epoch-king.log": "b16fad1302002fb64fc6b28c3939e95cc7f1ceb336e88f397eee322ed6527bf6"
+  },
+  "proof": "Real second accepted sibling merge changes revision during emergency wait. Rejected original opening now emits actual helper settlement; zero opened reaches forced fallback, whose obsolete permit also resolves helper. Exact minimum retires with whole canonical state unchanged after sibling merge, no added RNG/unlock/score/moves.",
+  "limits": [
+    "broader normal forced loop epoch admission OPEN",
+    "actual Scene emergency/forced/cancel/destruction producer OPEN",
+    "finally/full startup and physical/full migration OPEN",
+    "default flags OFF"
+  ]
+}

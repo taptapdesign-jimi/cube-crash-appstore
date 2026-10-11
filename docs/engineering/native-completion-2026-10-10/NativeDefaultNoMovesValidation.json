@@ -1,0 +1,34 @@
+{
+  "verdict": "PASS bounded connected default Native NO MOVES display; full Source checker/global/endgame admission OPEN",
+  "sdk": {
+    "tests": 24,
+    "failures": 0,
+    "seconds": 5.17,
+    "log": "/tmp/native-default-no-moves-exit-owned.log"
+  },
+  "actualNative": "Actual default Native VC/Scene two-tile4+3 candidate mounts original8 Baloo2 glyphs and5 cloud carriers; cue is once after glyph mount. Local pause freezes existing roots without clearing Core/presentation; pickup clears exact graph without Core state mutation and retains playable pickup. Second candidate reuses original preparation. Conservative Core1500 confirmation still owns terminal state; its actual mounted text exit/fallback owns modal delivery. Source Scope/NO MOVES authority remains absent.",
+  "sourceRegression": "Existing Source graph/cue/audio tests and new local pause mask/intrinsic-bounce-slot proof PASS; unchanged Source staged authority is not synthesized by the Native display adapter.",
+  "resources": "Four unchanged original PNGs prepared once per default Native VC; idle hint borrows exact prepared UIImage references. No new independent ticker/timer/art/audio/haptic. Existing Scene app1190 fallback only.",
+  "retainedFailures": [
+    "/tmp/native-default-no-moves-graph.log compile65: new test omitted defining SpriteKit import; corrected test import.",
+    "/tmp/native-default-no-moves-graph-current.log SDK65: generic consume cleared the actual graph before exit; fixed exact generation/receipt exit ownership. Failed terminal-order assertion preserved."
+  ],
+  "screenshot": "docs/engineering/native-completion-2026-10-10/NativeDefaultNoMovesSimulator.png",
+  "screenshotViewed": true,
+  "visualScope": "Exported attachment from passing SDK result viewed: original orange NO MOVES glyphs/cloud carriers over Native paper/board/HUD, no technical/web surface. Not full browser pixel/physical acceptance.",
+  "featureRuntime": "PASS27 /tmp/native-default-no-moves-feature.log",
+  "audioRuntime": "PASS /tmp/native-default-no-moves-audio-runtime.log",
+  "gameplayLock": "PASS330 /tmp/native-default-no-moves-gameplay-lock.log",
+  "sourceFullQA": "FAIL one metadata namespace gate /tmp/native-wild-no-moves-full.log; all other selected gates PASS. Corrected composite including7 Native admission rejection contracts PASS /tmp/native-special-admission-corrected-composite.log; whole full command not rerun.",
+  "unsignedRelease": "PASS unsigned iOS arm64 BUILD SUCCEEDED /tmp/native-wild-no-moves-release.log; compiled Native identity/dependency/original-assets audit PASS /tmp/native-wild-no-moves-release-audit.log",
+  "physicalAcceptance": "NEEDS PHYSICAL TEST",
+  "sha256": {
+    "native/gameplay-ui/NativeBoardScene.swift": "5ee4c299be4421706543aed9da3db42e18df0038d6622c3fefd01bc7a9780746",
+    "native/gameplay-ui/NativeGameplayViewController.swift": "64bec05bfb5b9378a363e616ad8f1d85384b7de1941e919bd200779f318d1d86",
+    "native/gameplay-ui/NativeEndgameHintCoordinator.swift": "145f7cf10ae9b0ac86aa781568d4bb3234aaa3c7bec9c74ba46a4e2829b3541b",
+    "native/gameplay-no-moves-source/NativeSourceNoMovesUIKitCoordinator.swift": "3462afa33560e491e58880b6e106982d07e5c922e38afc08db54f7061b56ca19",
+    "native/gameplay-no-moves-source/NativeNoMovesSourceGraph.swift": "6eb40b5b593d19d33ae98b305826a2ffae68374e6eeb86917906a6eb4d407e31",
+    "native/gameplay-no-moves-source/NativeNoMovesSourcePresentation.swift": "0db1155f83c87dac9e96a2957f093efcf73a4cc37cbb320052b506d87374de2b",
+    "native/standalone/Stack to SixTests/NativeDefaultNoMovesMountedTests.swift": "9648be5f77421b20b1d0a66c22894846d5b7b00cd8175d41af1c629709fc4a46"
+  }
+}

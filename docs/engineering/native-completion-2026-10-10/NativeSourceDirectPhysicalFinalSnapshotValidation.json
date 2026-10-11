@@ -1,0 +1,43 @@
+{
+  "status": "PASS: bounded no-variant Star/Juice physical immutable entry and separate live presence",
+  "core": {
+    "tests": 423,
+    "failures": 0,
+    "seconds": 0.784,
+    "log": "/tmp/native-direct-physical-final-presence-identity-core.log"
+  },
+  "sdk": {
+    "tests": 6,
+    "failures": 0,
+    "seconds": 67.106,
+    "log": "/tmp/native-direct-physical-final-separate-presence-sdk.log",
+    "scope": "Actual Juice hidden-other reward/Result, ordinary final, Juice normal/locked/hard-primary and TNT main neighbor"
+  },
+  "scope": [
+    "actual entry physical snapshot before accepted Direct reservation",
+    "confirmed final survives actual prefix and main80 without another physical read/refill",
+    "missing authority/reentrant restart cannot stage or charge successor",
+    "bounded Star/Juice no variant; full app physical owner only; partial/Raw default off",
+    "Entry and main both borrow actual retained physical presence; transient earned-Star guide markers remain separate from strict save/minimum receipts"
+  ],
+  "king": "PASS330 /tmp/native-direct-physical-final-king.log",
+  "release": {
+    "status": "PASS",
+    "log": "/tmp/native-wild-minimum-extra-entry-current-release.log",
+    "audit": "/tmp/native-wild-minimum-extra-entry-current-release-audit.log",
+    "scope": "Current Star entry/live presence, TNT outer guards and minimum/extra await graph; unsigned shipping target only"
+  },
+  "open": [
+    "later live final reclassification requires genuine clean-board owner; currently typed refusal",
+    "all variant/family immutable final guards",
+    "whole global/save/queue/NO MOVES/default and physical acceptance"
+  ],
+  "preservedFailures": [
+    "/tmp/native-direct-physical-final-connected-sdk.log:5 tests/6 failures; final2 passed, normal/locked/hard-primary main attempted strict save/minimum receipt during actual temporary Source face markers; corrected with separate retained-object live presence authority, strict save receipt unchanged",
+    "/tmp/native-wild-extra-guard-actual-star-juice-tnt-sdk.log: initial earned-Star guide drop rejected strict entry save/minimum snapshot; actual presence entry correction passed real guide and two Juice neighbors /tmp/native-wild-entry-and-extra-earned-star-corrected-sdk.log"
+  ],
+  "fast": "PASS /tmp/native-direct-physical-final-presence-fast.log",
+  "feature": "PASS /tmp/native-direct-physical-final-presence-feature.log",
+  "fullQa": "PASS terminal0 /tmp/native-direct-tnt-physical-guards-full.log",
+  "currentEntryCorrection": "Core433/0 PASS /tmp/native-wild-entry-and-extra-presence-corrected-core.log; actual SDK3/0 PASS /tmp/native-wild-entry-and-extra-earned-star-corrected-sdk.log"
+}

@@ -42,6 +42,17 @@ final class NativeFishIdleTests:XCTestCase {
         let entryDeadline=CACurrentMediaTime()+3
         while !scene.isBoardEntryComplete,CACurrentMediaTime()<entryDeadline {try await Task.sleep(for:.milliseconds(25))}
         XCTAssertTrue(scene.isBoardEntryComplete,"Wait for the actual authored entry completion and input admission")
+        let face=try XCTUnwrap(node.visual.children.compactMap {$0 as? SKSpriteNode}.first)
+        XCTAssertTrue(face.isHidden)
+        // A sibling stack/merge suspends shared registry motion, never this
+        // admitted direct-media identity or its already hidden static base.
+        scene.onSpecialIdleSuspended?(true)
+        XCTAssertFalse(owner.isHidden);XCTAssertEqual(owner.playbackRate,1)
+        controller.refreshFromEngine()
+        XCTAssertTrue(host.presentation(tileID:"fish") === owner)
+        XCTAssertTrue(face.isHidden)
+        scene.onSpecialIdleSuspended?(false)
+        XCTAssertFalse(owner.isHidden);XCTAssertEqual(owner.playbackRate,1)
         let point=scene.boardGeometry!.center(row:0,column:0)
         XCTAssertTrue(scene.beginDrag(at:point));XCTAssertTrue(owner.isHidden);XCTAssertEqual(owner.playbackRate,0)
         XCTAssertEqual(field.activeCount,0);XCTAssertFalse(field.isHidden)
@@ -56,7 +67,7 @@ final class NativeFishIdleTests:XCTestCase {
         XCTAssertEqual(host.activeMediaCount,0);XCTAssertEqual(owner.retainedItemCount,0);XCTAssertEqual(owner.playbackRate,0)
     }
     func testMissingMediaKeepsOriginalStaticArtworkAndReleasesFailedPlayerItems() {
-        let host=NativeFishIdleOwner(resourceRoot:root.appendingPathComponent("missing-original-media"))
+        let host=NativeFishIdleOwner(resourceRoot:root.appendingPathComponent("missing-original-media"),mediaPolicy:NativeFishMediaPolicy())
         let frame=NativeFishIdleFrame.project(center:CGPoint(x:90,y:100),horizontalUnit:CGPoint(x:91,y:100),verticalUnit:CGPoint(x:90,y:99),sceneHeight:844,alpha:1,dragging:false,phaseStarted:true,visible:true,bubbles:[])
         var failures=0;host.onMediaReady={id,generation,ready in XCTAssertEqual(id,"f");XCTAssertEqual(generation,7);XCTAssertFalse(ready);failures+=1}
         host.paint(["f":frame],generation:7,force:true)
@@ -81,5 +92,23 @@ final class NativeFishIdleTests:XCTestCase {
         fish.position.x=90;_ = fish.fishFrame(in:scene,visible:true);XCTAssertEqual(face.xScale,1)
         fish.setDragging(false);fish.setFishMediaReady(true);XCTAssertTrue(face.isHidden)
         fish.setFishMediaReady(false);XCTAssertFalse(face.isHidden)
+    }
+    func testMediaVisibilityPreservesPaintedFacingAndPointerReleaseAloneRestoresRestFacing()throws {
+        let scene=SKScene(size:.init(width:390,height:844)),canvas=SKNode();scene.addChild(canvas)
+        let textures=NativeBoardTextures(root:root)
+        let fish=NativeDiceNode(id:"f",value:6,kind:"wild",variant:"fish",depth:1,locked:false,textures:textures)
+        defer{fish.dispose();textures.dispose()};canvas.addChild(fish);fish.position = .init(x:260,y:300)
+        let face=try XCTUnwrap(fish.visual.children.compactMap{$0 as? SKSpriteNode}.first)
+        face.xScale = -1;fish.setFishMediaReady(true)
+        XCTAssertTrue(face.isHidden);XCTAssertEqual(face.xScale,-1,"Media readiness owns visibility, not the repaired face's sign")
+        fish.setFishMediaReady(false);XCTAssertFalse(face.isHidden);XCTAssertEqual(face.xScale,-1)
+        fish.setDragging(true);_ = fish.fishFrame(in:scene,visible:true)
+        XCTAssertEqual(face.xScale,-1);XCTAssertFalse(face.isHidden)
+        fish.setFishMediaReady(true);XCTAssertFalse(face.isHidden);XCTAssertEqual(face.xScale,-1)
+        fish.setDragging(false)
+        XCTAssertEqual(face.xScale,1,"Actual pointer release restores the authored resting direction")
+        XCTAssertTrue(face.isHidden,"The ready media still hides its static base on release")
+        fish.setDragging(true);fish.position.x=90;_ = fish.fishFrame(in:scene,visible:true)
+        XCTAssertEqual(face.xScale,1);XCTAssertFalse(face.isHidden)
     }
 }

@@ -4,15 +4,21 @@ import StackToSixNativeState
 import StackToSixGameplay
 @testable import Stack_to_Six
 
-/// Exercises the real default profile and original origin only in the isolated QA Simulator.
-/// Source values are captured and restored even if import or an assertion fails.
+/// Exercises a new named WebKit producer on the isolated QA Simulator.
+/// Its real persisted bytes are lent through an owned Library fixture; default
+/// profiles are never written or opened by this test.
 @MainActor
 final class NativeHybridExportTests:XCTestCase {
     func testOriginalOriginExportPreservesSourceAndPersistsCoherentNativeProfile() async throws {
         #if !targetEnvironment(simulator)
         throw XCTSkip("Save transport writes are QA Simulator only")
         #else
-        guard ProcessInfo.processInfo.environment["SIMULATOR_UDID"] == "1018BE2D-491B-465F-8F75-3E5BEB38C22A" else {throw XCTSkip("Isolated QA Simulator only")}
+        guard ["1018BE2D-491B-465F-8F75-3E5BEB38C22A","E590B52E-F314-43A7-BF55-2F49CE939C2A"].contains(ProcessInfo.processInfo.environment["SIMULATOR_UDID"] ?? "") else {throw XCTSkip("Isolated QA Simulator only")}
+        // Retire the dedicated QA host's normal startup importer before the
+        // test lends its captured origin profile. The export under test must
+        // be the only consumer of the temporary fixture.
+        if let appDelegate=UIApplication.shared.delegate as? AppDelegate,
+           let host=appDelegate.window?.rootViewController as? NativeStandaloneViewController {host.dispose()}
         let probe = OriginProbe();try await probe.open()
         let original = try await probe.readGameKeys()
         let fixture:[String:String] = [
@@ -27,7 +33,9 @@ final class NativeHybridExportTests:XCTestCase {
         defer {try? FileManager.default.removeItem(at:directory);probe.dispose()}
         do {
             try await probe.replaceGameKeys(fixture)
-            let exporter = NativeHybridExport()
+            let library=directory.appendingPathComponent("Library")
+            try await probe.snapshotLibrary(into:library)
+            let exporter = NativeHybridExport(libraryRoot:library)
             let store = NativeSaveStore(directory:directory)
             let imported:NativeSaveEnvelope = try await withCheckedThrowingContinuation { continuation in
                 exporter.importInto(store) {continuation.resume(with:$0)}
@@ -53,14 +61,26 @@ final class NativeHybridExportTests:XCTestCase {
 
     private final class OriginProbe:NSObject,WKNavigationDelegate,WKURLSchemeHandler {
         private var web:WKWebView!
+        private let identifier=UUID()
         private var loaded:CheckedContinuation<Void,Error>?
         private let url = URL(string:"app://localhost/__native_migration_test__.html")!
         private let predicate = "(k)=>['cc_settings','cc_board_stats_v1','cc_arcade_stats_v1','cc_arcade_run_state_v1','cc_arcade_pending_round_v1','journey_boards_state','journey_viewed_boards','journey_highest_unlocked_board_id','journey_last_opened_board_id','journey_current_run_state','cc_board_completed','cc_first_play_tutorial_done','cc_first_play_tutorial_force_next','cc_saved_game'].includes(k)||/^cc_saved_game_board_\\d+$/.test(k)||/^cc_journey_completed_board_\\d+$/.test(k)"
         func open() async throws {
-            let configuration = WKWebViewConfiguration();configuration.websiteDataStore = .default()
+            let configuration = WKWebViewConfiguration();configuration.websiteDataStore = WKWebsiteDataStore(forIdentifier:identifier)
             configuration.setURLSchemeHandler(self,forURLScheme:"app")
             web = WKWebView(frame:.zero,configuration:configuration);web.navigationDelegate = self
             try await withCheckedThrowingContinuation { continuation in loaded = continuation;web.load(URLRequest(url:url)) }
+        }
+        func snapshotLibrary(into library:URL) async throws {
+            // The actual WebKit transaction uses a bounded deferred disk commit.
+            try await Task.sleep(nanoseconds:1_500_000_000)
+            let own=try FileManager.default.url(for:.libraryDirectory,in:.userDomainMask,appropriateFor:nil,create:false)
+            let paths=["WebKit/WebsiteDataStore","WebKit/com.taptapdesign.stacktosix.native/WebsiteDataStore"].map{own.appendingPathComponent($0).appendingPathComponent(identifier.uuidString.lowercased())}.filter{FileManager.default.fileExists(atPath:$0.path)}
+            XCTAssertEqual(paths.count,1)
+            let source=try XCTUnwrap(paths.first).appendingPathComponent("Origins")
+            let target=library.appendingPathComponent("WebKit/WebsiteData/Default")
+            try FileManager.default.createDirectory(at:target.deletingLastPathComponent(),withIntermediateDirectories:true)
+            try FileManager.default.copyItem(at:source,to:target)
         }
         func readGameKeys() async throws -> [String:String] {
             let value = try await evaluate("(()=>{const accepts=\(predicate),result={};for(let i=0;i<localStorage.length;i++){let k=localStorage.key(i);if(accepts(k))result[k]=localStorage.getItem(k);}return JSON.stringify(result)})()")

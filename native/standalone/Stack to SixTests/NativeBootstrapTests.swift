@@ -14,7 +14,7 @@ final class NativeBootstrapTests:XCTestCase {
         let tiles=[NativeTile(id:"left",cell:.init(column:0,row:0),value:2),NativeTile(id:"right",cell:.init(column:1,row:0),value:3),NativeTile(id:"other",cell:.init(column:2,row:0),value:5)]
         var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false),journeyRuns:[1:NativeBoardState(tiles:tiles,mode:.journey,board:1,moves:1,score:123)])
         seed.progression.firstPlayTutorialComplete=true;seed.journeyRunSavedAt[1]=Date().timeIntervalSince1970;try store.save(seed)
-        let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store)
+        let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store,showStudioIntro:false)
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         let previousWindow=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
         window.rootViewController=host;window.makeKeyAndVisible();bootstrap.start(in:host)
@@ -51,7 +51,7 @@ final class NativeBootstrapTests:XCTestCase {
             seed.progression.firstPlayTutorialComplete=true
             if completed {seed.progression.completedJourneyBoards=[board]}
             try store.save(seed)
-            let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store)
+            let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store,showStudioIntro:false)
             let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
             let previousWindow=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
             window.rootViewController=host;window.makeKeyAndVisible();bootstrap.start(in:host)
@@ -86,7 +86,7 @@ final class NativeBootstrapTests:XCTestCase {
         var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false),arcadeRun:state)
         seed.arcadeRunSavedAt=Date().timeIntervalSince1970;seed.progression.arcadeStats.highScore=777;seed.progression.arcadeStats.longestCombo=8
         try store.save(seed)
-        let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store)
+        let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store,showStudioIntro:false)
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         let previousWindow=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
         window.rootViewController=host;window.makeKeyAndVisible();bootstrap.start(in:host)
@@ -95,7 +95,13 @@ final class NativeBootstrapTests:XCTestCase {
         app.navigate(.gameplay,interrupt:true);try await waitUntil {app.route == .gameplay}
         let game=try XCTUnwrap(app.children.first as? NativeGameplayViewController)
         try await waitUntil(timeout:12) {game.boardScene?.boardGeometry != nil}
-        let scene=try XCTUnwrap(game.boardScene),geometry=try XCTUnwrap(scene.boardGeometry)
+        let scene=try XCTUnwrap(game.boardScene)
+        try await waitUntil {scene.isBoardEntryComplete}
+        // Result fixture follows actual forced entry before installing its
+        // two-die finale; it cannot assume a saved unacknowledged launch.
+        var finale=state;finale.generation=game.engine.state.generation+1
+        game.engine.restart(state:finale);scene.synchronize()
+        let geometry=try XCTUnwrap(scene.boardGeometry)
         let from=geometry.center(row:0,column:0),to=geometry.center(row:0,column:1)
         try await waitUntil {scene.beginDrag(at:from)}
         XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:to,now:100)).accepted)
@@ -122,7 +128,7 @@ final class NativeBootstrapTests:XCTestCase {
         var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false),journeyRuns:[1:state])
         seed.journeyRunSavedAt[1]=Date().timeIntervalSince1970;seed.progression.arcadeStats.highScore=777;seed.progression.arcadeStats.longestCombo=8
         try store.save(seed)
-        let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store)
+        let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store,showStudioIntro:false)
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         let previousWindow=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
         window.rootViewController=host;window.makeKeyAndVisible();bootstrap.start(in:host)
@@ -131,7 +137,13 @@ final class NativeBootstrapTests:XCTestCase {
         app.home.onActivate?(0);try await waitUntil {app.route == .gameplay}
         let game=try XCTUnwrap(app.children.first as? NativeGameplayViewController)
         try await waitUntil(timeout:12) {game.boardScene?.boardGeometry != nil}
-        let scene=try XCTUnwrap(game.boardScene),geometry=try XCTUnwrap(scene.boardGeometry)
+        let scene=try XCTUnwrap(game.boardScene)
+        try await waitUntil {scene.isBoardEntryComplete}
+        // Terminal presentation fixture: install its two-die finale after
+        // genuine forced first entry, not through a forbidden saved launch.
+        var finale=state;finale.generation=game.engine.state.generation+1
+        game.engine.restart(state:finale);scene.synchronize()
+        let geometry=try XCTUnwrap(scene.boardGeometry)
         let from=geometry.center(row:0,column:0),to=geometry.center(row:0,column:1)
         try await waitUntil {scene.beginDrag(at:from)}
         XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:to,now:100)).accepted)
@@ -157,7 +169,7 @@ final class NativeBootstrapTests:XCTestCase {
         let store=NativeSaveStore(directory:directory)
         var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
         seed.progression.firstPlayTutorialComplete=true;try store.save(seed)
-        let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store)
+        let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store,showStudioIntro:false)
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         let previousWindow=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
         window.rootViewController=host;window.makeKeyAndVisible();bootstrap.start(in:host)
@@ -183,7 +195,7 @@ final class NativeBootstrapTests:XCTestCase {
         var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false),journeyRuns:[2:NativeBoardState(tiles:tiles,mode:.journey,board:2,score:123)])
         seed.progression.firstPlayTutorialComplete=true;seed.progression.completedJourneyBoards=[1]
         seed.journeyRunSavedAt[2]=Date().timeIntervalSince1970;try store.save(seed)
-        let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store)
+        let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store,showStudioIntro:false)
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         let previousWindow=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
         window.rootViewController=host;window.makeKeyAndVisible();bootstrap.start(in:host)
@@ -243,7 +255,7 @@ final class NativeBootstrapTests:XCTestCase {
         var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false),arcadeRun:NativeBoardFactory.make(mode:.arcade,board:8))
         seed.pendingArcadeRound = .init(round:9,score:999,ownerID:"old-round")
         try store.save(seed)
-        let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store)
+        let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store,showStudioIntro:false)
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         let previousWindow=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
         window.rootViewController=host;window.makeKeyAndVisible();bootstrap.start(in:host)
@@ -264,7 +276,7 @@ final class NativeBootstrapTests:XCTestCase {
         var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
         seed.progression.firstPlayTutorialComplete=true
         try store.save(seed)
-        let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store)
+        let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store,showStudioIntro:false)
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         let previousWindow=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
         window.rootViewController=host;window.makeKeyAndVisible();bootstrap.start(in:host)
@@ -289,7 +301,7 @@ final class NativeBootstrapTests:XCTestCase {
         seed.progression.firstPlayTutorialComplete=true
         seed.pendingArcadeRound = .init(round:3,score:345,ownerID:"accepted-round")
         try store.save(seed)
-        let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store)
+        let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store,showStudioIntro:false)
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         let previousWindow=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
         window.rootViewController=host;window.makeKeyAndVisible();bootstrap.start(in:host)
@@ -302,6 +314,50 @@ final class NativeBootstrapTests:XCTestCase {
         let saved=try XCTUnwrap(store.load());XCTAssertNil(saved.pendingArcadeRound)
         XCTAssertEqual(saved.arcadeRun?.board,3);XCTAssertEqual(saved.arcadeRun?.score,345)
         XCTAssertEqual(saved.progression.arcadeStats.highestStageOpened,3)
+    }
+    func testLifecyclePauseRetainsLastSafeSaveAndResumesCapturedWildTransaction() async throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-source-pause-save-\(UUID().uuidString)")
+        defer {try? FileManager.default.removeItem(at:directory)}
+        let store=NativeSaveStore(directory:directory)
+        let tiles=[NativeTile(id:"star",cell:.init(column:0,row:0),value:6,archetype:.star),NativeTile(id:"five",cell:.init(column:1,row:0),value:5),NativeTile(id:"one-a",cell:.init(column:2,row:0),value:1),NativeTile(id:"one-b",cell:.init(column:3,row:0),value:1),NativeTile(id:"survivor",cell:.init(column:4,row:0),value:2)]
+        var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false),arcadeRun:NativeBoardState(tiles:tiles,mode:.arcade,board:1,score:37,rngState:12345))
+        seed.progression.firstPlayTutorialComplete=true;seed.arcadeRunSavedAt=Date().timeIntervalSince1970;try store.save(seed)
+        let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store,showStudioIntro:false)
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        let previousWindow=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        window.rootViewController=host;window.makeKeyAndVisible();bootstrap.start(in:host)
+        defer {bootstrap.dispose();window.isHidden=true;previousWindow?.makeKeyAndVisible()}
+        let app=try XCTUnwrap(host.children.first as? NativeAppController)
+        app.navigate(.gameplay,interrupt:true)
+        try await waitUntil {app.children.contains {$0 is NativeGameplayViewController}}
+        let game=try XCTUnwrap(app.children.first as? NativeGameplayViewController)
+        try await waitUntil(timeout:12) {game.boardScene?.boardGeometry != nil}
+        let scene=try XCTUnwrap(game.boardScene),geometry=try XCTUnwrap(scene.boardGeometry)
+        try await waitUntil {scene.beginDrag(at:geometry.center(row:0,column:0))}
+        let durable=try XCTUnwrap(store.load()?.arcadeRun)
+        XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:geometry.center(row:0,column:1),now:100)).accepted)
+        let captured=try XCTUnwrap(game.engine.pendingDirectWild)
+        game.setSuspended(true)
+        let paused=game.engine.state
+        XCTAssertTrue(game.engine.hasUnsavableSourceGameplayState)
+        NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+        try await Task.sleep(for:.milliseconds(200))
+        XCTAssertEqual(game.engine.state,paused)
+        XCTAssertEqual(game.engine.pendingDirectWild?.id,captured.id)
+        XCTAssertEqual(try XCTUnwrap(store.load()?.arcadeRun),durable)
+        NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+        game.setSuspended(false)
+        do {try await waitUntil(timeout:12) {!game.engine.hasUnsavableSourceGameplayState && game.engine.state.moves == paused.moves-1}}
+        catch {
+            print("[SOURCE_PAUSE_SAVE_DIAGNOSTIC] scenePaused=\(scene.isPaused) viewPaused=\(String(describing:scene.view?.isPaused)) moves=\(game.engine.state.moves) pausedMoves=\(paused.moves) flags=\(game.engine.flags) direct=\(String(describing:game.engine.pendingDirectWild)) presentations=\(game.engine.pendingWildSpawnPresentations) runtime=\(game.engine.sourceSaveRuntime) tiles=\(game.engine.state.tiles)")
+            throw error
+        }
+        game.setSuspended(true)
+        let settled=game.engine.state
+        NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+        try await Task.sleep(for:.milliseconds(100))
+        XCTAssertEqual(game.engine.state,settled)
+        XCTAssertEqual(try XCTUnwrap(store.load()?.arcadeRun),settled)
     }
     private func waitUntil(file:StaticString=#filePath,line:UInt=#line,timeout:TimeInterval=5,_ predicate:()->Bool) async throws {
         let deadline=Date().addingTimeInterval(timeout)

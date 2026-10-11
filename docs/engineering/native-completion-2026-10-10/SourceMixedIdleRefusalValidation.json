@@ -1,0 +1,13 @@
+{
+  "sdk": "10/10 zero failures, terminal74098 exit0 TEST SUCCEEDED. Existing original-order case retained; new first PlainStar owner refusal uses actual missing foreground parent. First slot reports rejection, later Bee/Honey/Bottle owners start in captured order, all defer flags cleared, background/foreground does not replay list.",
+  "qa": "Production runtime SHA unchanged from SDK123/frozen fullQA97445 PASS. Only Bootstrap regression test/helper changed. No live checks; no redundant production QA rerun.",
+  "scope": "Actual Native Bootstrap/UIViewController/Scene and real ownership refusal; no fixture switch returning fake failure. Source global flags OFF; full retired/changed identity/reentry mixed matrix, remaining families/noWK/Release/import and physical acceptance OPEN.",
+  "files": {
+    "native/standalone/Stack to SixTests/NativeSourceRegularResumeBootstrapTests.swift": "1a8d202e1236862f35bd5ffc1c90e240ab0dbb535603e3482ae54bc1750978b3"
+  },
+  "runtimeSHA": {
+    "native/gameplay-ui/NativeBoardScene.swift": "86e6620512c56ee66e0219c68dc45d8621a8d2e32e1f4cc8cd177393df5beb1a",
+    "native/gameplay-ui/NativeGameplayViewController.swift": "ebdd0e67aa2587d147032eb649d3d6c51d280c4bd9931f9d065e0b610726f307",
+    "docs/engineering/feature-runtime-owners.json": "b3b16c5229d8cc55ca0d0e4294f485a9fbb4e0fc84fa06a3bfdc526881e30ea6"
+  }
+}

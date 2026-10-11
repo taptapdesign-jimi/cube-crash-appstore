@@ -1,0 +1,21 @@
+{
+  "scope": "Reviewed and integrated owner-aware merge. Candidate compile and tests cover decisions; no remaining merge markers. Full migration/physical acceptance remains OPEN.",
+  "preserved": [
+    "studio intro default and route guard",
+    "showStudioIntro initializer option plus new Source context",
+    "first actual board-frame receipt and waiters",
+    "drag trail at accepted pointer/geometry coordinates",
+    "HUD tap finished callback and allowed feedback while gameplay paused",
+    "shared pip texture disposal",
+    "exact dedicated interaction Simulator guard",
+    "all unrelated Native/Jimi dirty files outside integration manifest"
+  ],
+  "canonicalized": [
+    "Source cadence is sole frame policy; old callback forwards same target",
+    "HUD drop uses captured generation receipt rather than duplicate property",
+    "core NativeWildSpawnPresentation is qualified, preserved old renderer class stays inactive",
+    "original Source retained pause/transaction ownership rather than duplicate cancellation transport",
+    "typed texture/provider epochs and stale callbacks remain with original Source owner"
+  ],
+  "validation": "Candidate build/full QA PASS; 73 unique candidate SDK tests PASS after intro fixture correction. Actual main build/full QA and dedicated SDK9/9 PASS. All checks terminal."
+}

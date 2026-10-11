@@ -1,0 +1,8 @@
+{
+  "status": "PRIVATE corrected SDK running session5078",
+  "files": {
+    "native/gameplay-ui/NativeStarFinale.swift": "728ab9808be56c7f22ff7b4725bc27ebc995637c9aeb7aeb2bd97652049817c4",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "056745daf45b69073252845d98ece012dd44633467d93860a862bd9fb34d357d"
+  },
+  "scope": "Existing orbit projected through two rotations and signed scales preserving nested shear; alpha excludes stage, hidden/offscene host hides, disposal reparents same orbit. Whole Scene layer/runtime sync/artworkZ capture not yet bound."
+}

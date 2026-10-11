@@ -8,6 +8,7 @@ final class NativeResultOwner {
     private weak var gameplay: NativeGameplayViewController?
     private let root: URL
     private let resolution: NativeResolution
+    private let sourceNoMovesReceipt: NativeSourceNoMovesCompletedReceipt?
     private let commit: (Int) throws -> Void
     private let restart: () -> Void
     private let continueArcade: () -> Void
@@ -22,17 +23,26 @@ final class NativeResultOwner {
     var onHaptic:((String)->Void)?
     var onError:((Error)->Void)?
     var afterReward:((@escaping ()->Void)->Void)?
+    var onSourceFinalCleanup:((NativeSourceNoMovesCompletedReceipt)->Void)?
     var prepareExit:((@escaping (Bool)->Void)->Void)?
     init(gameplay: NativeGameplayViewController, root: URL, resolution: NativeResolution,
          commit: @escaping (Int) throws -> Void, restart: @escaping () -> Void,
          continueArcade: @escaping () -> Void, exit: @escaping () -> Void,
-         interimJourney:Bool=false,rewardScore:Int?=nil,continueJourney:(()->Void)?=nil) {
-        self.gameplay=gameplay;self.root=root;self.resolution=resolution
+         interimJourney:Bool=false,rewardScore:Int?=nil,continueJourney:(()->Void)?=nil,
+         sourceNoMovesReceipt:NativeSourceNoMovesCompletedReceipt?=nil) {
+        self.gameplay=gameplay;self.root=root;self.resolution=resolution;self.sourceNoMovesReceipt=sourceNoMovesReceipt
         self.commit=commit;self.restart=restart;self.continueArcade=continueArcade;self.exit=exit
         self.interimJourney=interimJourney;self.rewardScore=rewardScore;self.continueJourney=continueJourney
     }
     func present() {
         guard !disposed,!started,let gameplay,modal==nil,gameplay.presentedViewController==nil else{return}
+        if let receipt=sourceNoMovesReceipt {
+            guard receipt.admits(generation:gameplay.engine.state.generation,resolution:resolution),
+                gameplay.engine.completedSourceNoMovesReceipt==receipt,
+                gameplay.engine.state.terminal==resolution else{return}
+        }
+        // Source's real board exit is already acknowledged by Core. This owner
+        // mounts the existing result sheet directly; it never replays text/exit.
         started=true;lease += 1;let token=lease
         let state=gameplay.engine.state
         let clean=resolution.kind == .complete
@@ -72,13 +82,19 @@ final class NativeResultOwner {
             if case .exit=action,state.mode == .journey {preparation=self.prepareExit}else {preparation=nil}
             sheet.close(prepareDestination:preparation) {
                 guard self.modal === sheet else {return}
+                self.finishSourceFinalCleanup()
+                guard !self.disposed,self.modal === sheet else{return}
                 self.modal=nil
                 switch action {case .restart:self.restart();case .exit:self.exit();case .nextRound:self.continueArcade();case .nextJourney:self.continueJourney?()}
             }
         }
         modal=sheet;gameplay.setSuspended(true);gameplay.present(sheet,animated:false)
     }
-    func dispose() {disposed=true;lease += 1;let card=reward;reward=nil;card?.dispose(notify:false);card?.dismiss(animated:false);modal?.dispose();modal?.dismiss(animated:false);modal=nil;onMoment=nil;onHaptic=nil;onError=nil;afterReward=nil;prepareExit=nil}
+    private func finishSourceFinalCleanup() {
+        let callback=onSourceFinalCleanup;onSourceFinalCleanup=nil
+        if let receipt=sourceNoMovesReceipt {callback?(receipt)}
+    }
+    func dispose() {disposed=true;lease += 1;finishSourceFinalCleanup();let card=reward;reward=nil;card?.dispose(notify:false);card?.dismiss(animated:false);modal?.dispose();modal?.dismiss(animated:false);modal=nil;onMoment=nil;onHaptic=nil;onError=nil;afterReward=nil;prepareExit=nil}
 }
 
 /// Authored stars/text/score/result CTA layout; its native clock pauses with the app.
@@ -157,6 +173,8 @@ final class NativeResultController:UIViewController {
             let back=UIImageView(image:assets.image("assets/modals/star-empty.png"))
             let front=UIImageView(image:assets.image("assets/modals/star.png"))
             for image in [back,front] {image.contentMode = .scaleAspectFit;holder.addSubview(image)}
+            back.accessibilityIdentifier="native.result.star.empty.\(index)"
+            front.accessibilityIdentifier="native.result.star.filled.\(index)"
             empty.append(back);filled.append(front)
             holder.transform=CGAffineTransform(rotationAngle:index == 0 ? -.pi*8/180 : index == 2 ? .pi*8/180 : 0)
         }
@@ -179,12 +197,19 @@ final class NativeResultController:UIViewController {
             label.append(NSAttributedString(string:"Highscore",attributes:[.font:scoreLabel.font!,.foregroundColor:brown,.kern:0.4]))
             scoreLabel.attributedText=label
         } else {scoreLabel.text="Your score"}
+        score.accessibilityIdentifier="native.result.score"
         status.text="\(state.mode == .arcade ? String(format:"Round %02d",state.stage) : "Stage \((state.board-1)%10+1)") \(clean ? "cleared" : "not cleared")"
         for (index,button) in buttons.enumerated() {
             button.setTitle(index == 0 ? (clean && interimJourney ? "Continue" : "Play Again") : "Exit",for:.normal)
             button.titleLabel?.font=assets.font(size:28,weight:"Bold")
-            button.backgroundColor=index == 0 ? orange : UIColor(red:226/255,green:211/255,blue:198/255,alpha:1)
-            button.setTitleColor(index == 0 ? .white : brown,for:.normal);button.layer.cornerRadius=40
+            button.backgroundColor=index == 0 ? UIColor(red:233/255,green:122/255,blue:85/255,alpha:1) : .white
+            button.setTitleColor(index == 0 ? UIColor(red:1,green:251/255,blue:242/255,alpha:1) : UIColor(red:173/255,green:134/255,blue:117/255,alpha:1),for:.normal);button.layer.cornerRadius=40
+            button.layer.shadowColor=(index == 0 ? UIColor(red:194/255,green:73/255,blue:33/255,alpha:1) : UIColor(red:216/255,green:199/255,blue:187/255,alpha:1)).cgColor
+            button.layer.shadowOpacity=1;button.layer.shadowOffset=CGSize(width:0,height:8);button.layer.shadowRadius=0
+            button.layer.borderWidth=index == 0 ? 0:1
+            button.layer.borderColor=UIColor(red:234/255,green:222/255,blue:215/255,alpha:1).cgColor
+            button.titleLabel?.shadowColor=index == 0 ? UIColor(red:194/255,green:73/255,blue:33/255,alpha:1):nil
+            button.titleLabel?.shadowOffset=CGSize(width:0,height:index == 0 ? 2:0)
             button.tag=index;button.accessibilityIdentifier=index == 0 ? "native.result.play-again" : "native.result.exit"
             button.addTarget(self,action:#selector(activate(_:)),for:.touchUpInside);content.addSubview(button)
         }
@@ -244,7 +269,8 @@ final class NativeResultController:UIViewController {
             let holder=empty[index].superview!
             let frame=layout.star(index).offsetBy(dx:-layout.hero.minX,dy:-layout.hero.minY)
             holder.bounds=CGRect(origin:.zero,size:frame.size);holder.center=CGPoint(x:frame.midX,y:frame.midY)
-            empty[index].frame=holder.bounds;filled[index].frame=holder.bounds
+            // Filled stars are initially scale zero; assigning frame then destroys bounds.
+            place(empty[index],in:holder.bounds);place(filled[index],in:holder.bounds)
         }
         place(headlineContent,in:layout.title.offsetBy(dx:-layout.card.minX,dy:-layout.card.minY))
         // CSS line-height permits glyph overhang outside the title's line box.
@@ -340,7 +366,7 @@ final class NativeResultController:UIViewController {
             }
         }
         if clean {
-            score.text=plan.displayedScore.formatted()
+            score.text=String(plan.displayedScore)
             let comboVisible=elapsed<3.97
             bonus.isHidden=false;bonusLabel.isHidden=false
             bonus.text="+\(comboVisible ? plan.displayedCombo:plan.displayedEfficiency)"

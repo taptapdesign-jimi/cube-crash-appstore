@@ -1,0 +1,44 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "0B1EA46A-4048-42C2-84EA-2ECCCD4296B2.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "native-source-entire-guide-os-completed_0_58A1A6CE-D658-4750-BA12-6DDF8002CF36.png",
+        "timestamp" : 1791640241.774
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "D8BA9FF7-41FF-41D2-B2C2-65A7D416F49E.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "native-source-entire-guide-os-earned-star_0_2C82BF0B-A626-4688-8EAE-DF09ECB0A081.png",
+        "timestamp" : 1791640236.848
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "D6D16595-DCC8-4EF6-9BD9-483B43FD6FC3.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "native-source-guided-os-free-play_0_0FF203F7-D87B-4E84-9BAF-1394E3B9FE45.png",
+        "timestamp" : 1791640218.696
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "BB8678A3-5133-418F-B012-60911677A782.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "native-source-guided-os-third_0_205E323E-2C98-400D-B5BC-9569289F9896.png",
+        "timestamp" : 1791640216.84
+      }
+    ],
+    "testIdentifier" : "NativeHomeInteractionUITests/testExplicitSourceOrdinaryAndDirectEntireGuideUsesActualOSInput()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixUITests/NativeHomeInteractionUITests/testExplicitSourceOrdinaryAndDirectEntireGuideUsesActualOSInput"
+  }
+]

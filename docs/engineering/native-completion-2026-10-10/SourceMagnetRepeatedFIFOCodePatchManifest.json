@@ -1,0 +1,12 @@
+{
+  "scope": "Apply after SourceMagnetAutoPrefixCodePatch into NEW replay tree only. Original repeated same-live-node RAF FIFO, cue-specific rejection and true Scope/generation retirement. Full remaining migration/physical acceptance OPEN.",
+  "archive": "SourceMagnetRepeatedFIFOCodePatch.tar.gz",
+  "archiveSHA256": "28db5ddc301cd0f2f2f5ee6f442cb6585fe507e41460ed0aa91bded5f949cd85",
+  "files": {
+    "native/gameplay-ui/NativeDiceNode.swift": "c13d7d85483bb2589fccba2cd478062bb67ba35076aaeeb71c6421d41246e41b",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "3d9e9c98fe86bdb8fd77a5293f6270a424e801ca11da4608a7efb92adb291611",
+    "docs/engineering/feature-runtime-owners.json": "d4c1ec0390827dc602cdf1814a82e8d8d73675295ba78bc4a83810d5f8487322",
+    "docs/engineering/native-completion-2026-10-10/fizz-magnet-repeated-skin-oracle.cjs": "c47d050976d7d9942fe425de5779f29d15604ee25dde67524bdcbf1580a6b5ab",
+    "docs/engineering/native-completion-2026-10-10/fizz-magnet-repeated-skin-oracle.json": "4575603390a7104a4bc0b122f2d3c9dce489c34bf9fdb60734817c4b4f61f154"
+  }
+}

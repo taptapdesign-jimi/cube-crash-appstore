@@ -1,0 +1,223 @@
+{
+  "reference": "production-benchmark-v9",
+  "records": [
+    {
+      "id": "fish",
+      "identity": "_ccSpecialDiceVariant",
+      "uniform": true,
+      "width": 128,
+      "height": 128
+    },
+    {
+      "id": "fish",
+      "identity": "specialDiceVariant",
+      "uniform": true,
+      "width": 128,
+      "height": 128
+    },
+    {
+      "id": "kanta",
+      "identity": "_ccSpecialDiceVariant",
+      "uniform": true,
+      "width": 95.81286549707602,
+      "height": 128
+    },
+    {
+      "id": "kanta",
+      "identity": "specialDiceVariant",
+      "uniform": true,
+      "width": 95.81286549707602,
+      "height": 128
+    },
+    {
+      "id": "bee",
+      "identity": "_ccSpecialDiceVariant",
+      "uniform": false,
+      "width": null,
+      "height": null
+    },
+    {
+      "id": "bee",
+      "identity": "specialDiceVariant",
+      "uniform": false,
+      "width": null,
+      "height": null
+    },
+    {
+      "id": "laser-gun",
+      "identity": "_ccSpecialDiceVariant",
+      "uniform": true,
+      "width": 184.32,
+      "height": 184.32
+    },
+    {
+      "id": "laser-gun",
+      "identity": "specialDiceVariant",
+      "uniform": true,
+      "width": 184.32,
+      "height": 184.32
+    },
+    {
+      "id": "spaceship",
+      "identity": "_ccSpecialDiceVariant",
+      "uniform": true,
+      "width": 147.456,
+      "height": 147.456
+    },
+    {
+      "id": "spaceship",
+      "identity": "specialDiceVariant",
+      "uniform": true,
+      "width": 147.456,
+      "height": 147.456
+    },
+    {
+      "id": "bottle",
+      "identity": "_ccSpecialDiceVariant",
+      "uniform": false,
+      "width": null,
+      "height": null
+    },
+    {
+      "id": "bottle",
+      "identity": "specialDiceVariant",
+      "uniform": false,
+      "width": null,
+      "height": null
+    },
+    {
+      "id": "honey",
+      "identity": "_ccSpecialDiceVariant",
+      "uniform": false,
+      "width": null,
+      "height": null
+    },
+    {
+      "id": "honey",
+      "identity": "specialDiceVariant",
+      "uniform": false,
+      "width": null,
+      "height": null
+    },
+    {
+      "id": "flower",
+      "identity": "_ccSpecialDiceVariant",
+      "uniform": false,
+      "width": null,
+      "height": null
+    },
+    {
+      "id": "flower",
+      "identity": "specialDiceVariant",
+      "uniform": false,
+      "width": null,
+      "height": null
+    },
+    {
+      "id": "barell",
+      "identity": "_ccSpecialDiceVariant",
+      "uniform": true,
+      "width": 160.2,
+      "height": 207.9
+    },
+    {
+      "id": "barell",
+      "identity": "specialDiceVariant",
+      "uniform": true,
+      "width": 160.2,
+      "height": 207.9
+    },
+    {
+      "id": "mushroom",
+      "identity": "_ccSpecialDiceVariant",
+      "uniform": false,
+      "width": null,
+      "height": null
+    },
+    {
+      "id": "mushroom",
+      "identity": "specialDiceVariant",
+      "uniform": false,
+      "width": null,
+      "height": null
+    },
+    {
+      "id": "robo-cube",
+      "identity": "_ccSpecialDiceVariant",
+      "uniform": false,
+      "width": null,
+      "height": null
+    },
+    {
+      "id": "robo-cube",
+      "identity": "specialDiceVariant",
+      "uniform": false,
+      "width": null,
+      "height": null
+    },
+    {
+      "id": "cubero",
+      "identity": "_ccSpecialDiceVariant",
+      "uniform": true,
+      "width": 170,
+      "height": 128
+    },
+    {
+      "id": "cubero",
+      "identity": "specialDiceVariant",
+      "uniform": true,
+      "width": 170,
+      "height": 128
+    },
+    {
+      "id": "beach-ball",
+      "identity": "_ccSpecialDiceVariant",
+      "uniform": false,
+      "width": null,
+      "height": null
+    },
+    {
+      "id": "beach-ball",
+      "identity": "specialDiceVariant",
+      "uniform": false,
+      "width": null,
+      "height": null
+    },
+    {
+      "id": null,
+      "identity": "_ccSpecialDiceVariant",
+      "uniform": false,
+      "width": null,
+      "height": null
+    },
+    {
+      "id": null,
+      "identity": "specialDiceVariant",
+      "uniform": false,
+      "width": null,
+      "height": null
+    },
+    {
+      "id": "unknown",
+      "identity": "_ccSpecialDiceVariant",
+      "uniform": false,
+      "width": null,
+      "height": null
+    },
+    {
+      "id": "unknown",
+      "identity": "specialDiceVariant",
+      "uniform": false,
+      "width": null,
+      "height": null
+    }
+  ],
+  "uniform": [
+    "fish",
+    "kanta",
+    "laser-gun",
+    "spaceship",
+    "barell",
+    "cubero"
+  ]
+}

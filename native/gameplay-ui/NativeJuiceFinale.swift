@@ -21,6 +21,7 @@ final class NativeJuiceFinale: SKNode {
     private var tickCount = 1,started = false,disposed = false,introPlayed = false,released = false
     private var completion: (() -> Void)?
     private var lastSeconds: TimeInterval = 0
+    private var openingMaximumScale:CGFloat = 0
     var spawnedBubbleCount: Int { scheduler.spawned }
     var activeBubbleCount: Int { active.count }
     var hasActiveClock: Bool { action(forKey: "juice-field") != nil }
@@ -60,9 +61,15 @@ final class NativeJuiceFinale: SKNode {
     }
     private func admit(seconds: TimeInterval) {
         guard let index = freePool.indices.first(where: { active[$0] == nil }) else { return }
-        let plan = NativeJuiceBubbleMotion.make(viewport: viewport,random: random),sprite = freePool[index]
+        let plan = NativeJuiceBubbleMotion.make(viewport: viewport,preservesBirthScale: seconds >= 1.125,random: random),sprite = freePool[index]
+        // A reused carrier still has the preceding wave's scale. Normalize
+        // before setting its logical dimensions so later births cannot grow.
+        sprite.setScale(1)
         sprite.texture = bubbleTextures[plan.assetIndex]; sprite.size = bubbleTextures[plan.assetIndex].size()
-        sprite.isHidden = false; sprite.alpha = plan.alpha; sprite.setScale(plan.scale)
+        if seconds==0 {openingMaximumScale=max(openingMaximumScale,plan.scale)}
+        sprite.name="native-juice-rise-bubble"
+        let birthScale=seconds >= 1.125 ? min(plan.scale,openingMaximumScale):plan.scale
+        sprite.isHidden = false; sprite.alpha = plan.alpha; sprite.setScale(birthScale)
         sprite.position = CGPoint(x: plan.start.x,y: viewport.height-plan.start.y)
         active[index] = (plan,seconds)
     }
@@ -73,7 +80,8 @@ final class NativeJuiceFinale: SKNode {
             guard let (plan,birth) = active[index] else { continue }
             if seconds >= birth+plan.duration { active.removeValue(forKey: index); freePool[index].isHidden = true; continue }
             let pose = plan.sample(seconds: seconds-birth),sprite = freePool[index]
-            sprite.position = CGPoint(x: pose.point.x,y: viewport.height-pose.point.y); sprite.setScale(pose.scale)
+            let scale=birth >= 1.125 ? min(pose.scale,openingMaximumScale):pose.scale
+            sprite.position = CGPoint(x: pose.point.x,y: viewport.height-pose.point.y); sprite.setScale(scale)
         }
         for index in textBubbles.indices {
             let pose = textBubbles[index].1.sample(seconds: seconds),sprite = textBubbles[index].0

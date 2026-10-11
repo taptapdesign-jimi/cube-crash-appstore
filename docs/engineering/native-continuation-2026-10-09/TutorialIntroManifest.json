@@ -1,0 +1,56 @@
+{
+  "base": [
+    "docs/engineering/native-pause-2026-10-08/NativeSource.tar.gz",
+    "EntrySourceDelta.tar.gz",
+    "TutorialSourceDelta.tar.gz"
+  ],
+  "wholeSourceFlags": "OFF",
+  "sourceTutorialIntroEnabled": "OFF by default; fresh first-step opt-in only",
+  "files": {
+    "native/gameplay-app/NativeBootstrap.swift": {
+      "baseSHA256": "a545fbd4c9ac9e37a38a5611f2423bcc213107c5963186b2ff809af6c550556c",
+      "sha256": "6218ec1edee41a5b863842fb75e02210325d01b653f8988802fef9738b9eeb71"
+    },
+    "native/gameplay-app/NativeTutorialOwner.swift": {
+      "baseSHA256": "9fb366ba394e584416c7a6fb8dd4813688df1b40ee233f9caa1132276ca9936a",
+      "sha256": "45cff11ed4620f762653ed888a8e0495044d1494526f7e0b534a49314926c113"
+    },
+    "native/gameplay-app/NativeTutorialOverlay.swift": {
+      "baseSHA256": "4ff60e67b846b625eaec554c8ec4b30997a645909f93bc624db7d4c4b8e34e97",
+      "sha256": "34302b9c0185cdd814188633c12f8a2296ec840cccc646b417756e6e2c860e67"
+    },
+    "native/gameplay-ui/NativeBoardScene.swift": {
+      "baseSHA256": "4d159b131ee210f9dfae2c20f073761a2dee02d8531c408a135db3917a2c3548",
+      "sha256": "b35cb79d20b79a973233c88942bcd2520f93de63004d897db023a39d8a81c0f8"
+    },
+    "native/gameplay-ui/NativeSourceTutorialIntroOwner.swift": {
+      "baseSHA256": null,
+      "sha256": "bd01e87880b7d168eef80f1f7b1fe4ef4babdebf812fc4ff6b73c26687a7c673"
+    },
+    "native/gameplay-ui/NativeSourceAnimationClockService.swift": {
+      "baseSHA256": "5c1203069e9e25fa371fe7272b757f2a842cb98069eb3b96fceda09eb239e668",
+      "sha256": "2f8048ba35801bc16eea3d44a8169f48703a301abcfeefbcdef3affbf4691949"
+    },
+    "native/gameplay-ui/NativeSourceAnimationRuntime.swift": {
+      "baseSHA256": "58ebbb495b4e7bad4452bb37c53436c945fc4556a9b6b54700088ae0d172d892",
+      "sha256": "0e1f023863db929c077b5f26f3ce33fb712a754f9df78d1af065ea8d91bb08b3"
+    },
+    "native/standalone/Stack to SixTests/NativeSourceTutorialBootstrapTests.swift": {
+      "baseSHA256": "4489b9d814c34b8518ad6fc79fb7687ac5d04feb10fc1a05a175ffaf7092731f",
+      "sha256": "d59b3905b449e2bfbc8767159f8744320acf9c9284bf4bfa619b5b8626dbef24"
+    },
+    "native/standalone/Stack to SixTests/NativeSourceTutorialIntroTests.swift": {
+      "baseSHA256": null,
+      "sha256": "b8ac9b1fa23533bb1e9e1cdd53083f44d4f724ad7cbd829941858bce5797429c"
+    },
+    "native/standalone/Stack to SixTests/SourceTutorialIntroV9Oracle.json": {
+      "baseSHA256": null,
+      "sha256": "82011a2fc923260a008d8c3dc700c0cdebdaa71159f5206f8ec05f5ac57099e4"
+    },
+    "docs/engineering/feature-runtime-owners.json": {
+      "baseSHA256": "5d8d1caba1d3a5719ce8715047bc77c3e7748ef878292356513210cd12dfbcb4",
+      "sha256": "ecfa461d8d99427352819b5145d7ca2f097f2c710c201ef0edb80513c8b5012d"
+    }
+  },
+  "archiveSHA256": "2312bc5f2757879a0b7f423cddada81ce978bcc692b197288a7976c75102c0a7"
+}

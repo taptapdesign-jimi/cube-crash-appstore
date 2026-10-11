@@ -23,6 +23,17 @@ final class NativeJourneyBottomDecorTests:XCTestCase {
     private func assertPose(_ p:NativeJourneyBottomDecorPlan.Pose,_ values:[Double],file:StaticString=#filePath,line:UInt=#line) {
         for(a,b)in zip([p.x,p.y,p.scaleX,p.scaleY,p.opacity],values){XCTAssertEqual(a,b,accuracy:0.000001,file:file,line:line)}
     }
+    func testRestartSettledFooterBorrowsPreparedImageWithoutAnEnterClock() {
+        let resources=Resources(),footer=owner(resources:resources)
+        defer {footer.dispose()}
+        footer.prepare {_ in};resources.finish(0,image:testImage())
+        footer.showSettled()
+        XCTAssertEqual(footer.phase,.visible)
+        XCTAssertEqual(footer.pose,NativeJourneyBottomDecorPlan.visible)
+        XCTAssertFalse(footer.hasActiveClock)
+        footer.enter();footer.showSettled()
+        XCTAssertEqual(resources.paths.count,1);XCTAssertFalse(footer.hasActiveClock)
+    }
     func testOriginalAssetMapWarmupAndPerBoardForestCacheAcross180Visits() {
         for session in NativeJourneyBottomDecorSourceOracle.payload.assets {
             let catalog=NativeJourneyBottomDecorCatalog(),random=Random(session.seed)

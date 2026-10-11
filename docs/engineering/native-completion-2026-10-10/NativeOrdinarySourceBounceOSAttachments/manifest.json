@@ -1,0 +1,128 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "54C259D2-728C-455F-86A4-3E9BB30A04D8.png",
+        "isAssociatedWithFailure" : false,
+        "repetitionNumber" : 1,
+        "suggestedHumanReadableName" : "native-source-entire-guide-os-completed_0_CBAE427C-D821-49FE-B45A-7CA3311C675B.png",
+        "timestamp" : 1791642189.688
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "BB92B02F-F083-4C3F-B84F-F0533610F6A0.png",
+        "isAssociatedWithFailure" : false,
+        "repetitionNumber" : 1,
+        "suggestedHumanReadableName" : "native-source-entire-guide-os-earned-star_0_667DA53C-7115-416D-BF71-D5F5C16FF683.png",
+        "timestamp" : 1791642184.99
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "5378FF07-8775-4351-951F-C935B99B6172.png",
+        "isAssociatedWithFailure" : false,
+        "repetitionNumber" : 1,
+        "suggestedHumanReadableName" : "native-source-guided-os-free-play_0_15D1F06A-CC5C-47F0-B8A2-BDE3FBF3B9F1.png",
+        "timestamp" : 1791642166.987
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "D9E49455-4B92-46A0-AB11-BA8BD48DD34E.png",
+        "isAssociatedWithFailure" : false,
+        "repetitionNumber" : 1,
+        "suggestedHumanReadableName" : "native-source-guided-os-third_0_8622946F-C3F1-4D89-BE94-2591F4208554.png",
+        "timestamp" : 1791642165.128
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "25FD4072-BD53-4D71-981B-C61233D344CE.png",
+        "isAssociatedWithFailure" : false,
+        "repetitionNumber" : 2,
+        "suggestedHumanReadableName" : "native-source-entire-guide-os-completed_0_1C961687-0CF1-48BE-B92C-7C9C848CB2FD.png",
+        "timestamp" : 1791642242.889
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "62A70EFD-EC6B-44C3-9DC6-B9A94B1B7FFA.png",
+        "isAssociatedWithFailure" : false,
+        "repetitionNumber" : 2,
+        "suggestedHumanReadableName" : "native-source-entire-guide-os-earned-star_0_2BC2D33C-D76B-4AF5-B6FD-655E72C3E1C8.png",
+        "timestamp" : 1791642238.074
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "1523F04E-D987-4893-A8B7-58292FE60A8E.png",
+        "isAssociatedWithFailure" : false,
+        "repetitionNumber" : 2,
+        "suggestedHumanReadableName" : "native-source-guided-os-free-play_0_0797F26F-9909-45E2-A1BE-EAC6EC023B33.png",
+        "timestamp" : 1791642220.174
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "393BBBCD-6292-4AF9-AF73-F35772411A17.png",
+        "isAssociatedWithFailure" : false,
+        "repetitionNumber" : 2,
+        "suggestedHumanReadableName" : "native-source-guided-os-third_0_21498218-0F00-483C-80CE-78FF86EAE2D6.png",
+        "timestamp" : 1791642218.391
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "3386E738-8F52-4F2A-8B0C-E8FCAE87BB47.png",
+        "isAssociatedWithFailure" : false,
+        "repetitionNumber" : 3,
+        "suggestedHumanReadableName" : "native-source-entire-guide-os-completed_0_4B4FC84C-2BE3-4349-8826-E8B7491DA48C.png",
+        "timestamp" : 1791642295.388
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "E95B1D5A-BEB1-4105-AC51-CBBCDD3DACB4.png",
+        "isAssociatedWithFailure" : false,
+        "repetitionNumber" : 3,
+        "suggestedHumanReadableName" : "native-source-entire-guide-os-earned-star_0_4DD7FE85-A200-44CF-96C4-1D57F073A727.png",
+        "timestamp" : 1791642290.718
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "5438247A-4653-4454-9D9B-D2411FFC1CC4.png",
+        "isAssociatedWithFailure" : false,
+        "repetitionNumber" : 3,
+        "suggestedHumanReadableName" : "native-source-guided-os-free-play_0_C5B249C5-320A-4DEB-A925-0512CB6E3521.png",
+        "timestamp" : 1791642272.753
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "629E250C-572C-4802-81DD-F12CC707E753.png",
+        "isAssociatedWithFailure" : false,
+        "repetitionNumber" : 3,
+        "suggestedHumanReadableName" : "native-source-guided-os-third_0_FCF1C44B-5317-40A5-BA9A-8E0D52B49404.png",
+        "timestamp" : 1791642270.926
+      }
+    ],
+    "testIdentifier" : "NativeHomeInteractionUITests/testExplicitSourceOrdinaryAndDirectEntireGuideUsesActualOSInput()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixUITests/NativeHomeInteractionUITests/testExplicitSourceOrdinaryAndDirectEntireGuideUsesActualOSInput"
+  }
+]

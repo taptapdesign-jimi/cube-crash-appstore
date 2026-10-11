@@ -1,0 +1,7 @@
+{
+  "native/gameplay-ui/NativeDiceNode.swift": "f781968915ae5913538786cd0737019f2bb62da7f817658df8b26a272a1186eb",
+  "native/gameplay-ui/NativeBoardScene.swift": "8053b94a3fe8c9b5e1e8931d89030d42690141afcbd7dfcefb35128de49a81ab",
+  "native/gameplay-ui/NativeSourceBoardEntryOwner.swift": "f76a4f11056772764dd3afcdb5399b190aa451a101f56c621ed7bcd0de98d8cb",
+  "native/standalone/Stack to SixTests/NativeSourceRegularResumeConstructionTests.swift": "574593010fbe8a4892ade4b6f741bd19022aea6c0384b70ad64baca759237e1f",
+  "docs/engineering/feature-runtime-owners.json": "ba65846494e337900442e0a6a8dafd5545552dbc42e309b7f1eadc5ba8383fd4"
+}

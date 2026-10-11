@@ -1,0 +1,15 @@
+{
+  "status": "PRIVATE full Core359/359 PASS",
+  "files": {
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceSpecialContactLease.swift": "66d49c28c804290f56015279c37558e676a5efd0f42f1abdcf2506a92bd15df7",
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeBoardState.swift": "e6534dbaf8648daeab9461780ae710243b482a676e2f1f583c6100297ea16b20",
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "baf5f843ca076109c885a1e17a132c53bcf94bf76ba752426237eb8deb8b7dd9",
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceSpecialContactCoreTests.swift": "ee8f49b006a89e78cfabb101d99b901efc176e6c83dcd1487c35412dd7641bb6",
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildEnginePhaseTests.swift": "93e4a9e81e44bea10b88947dc893d60dd296d813a42bbc6cab281d7f984892d1",
+    "native/gameplay-ui/NativeBoardScene.swift": "ae7b25e18903a077d2ebf67690a62d78b4f6e19b289db705a4776ec2a379dd96",
+    "native/gameplay-ui/NativeDiceNode.swift": "4b6c3e6cda9d42868ac7cb582719b08a257fdb8a3b1e6875f98b0419b7ccfe56",
+    "native/gameplay-ui/NativeStarFinale.swift": "29d552795441babc689963f330949e0897493d181f095d31aef13f4de52d6618",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "7c9a51d03487952232180779d239a2a92e55a6d6280e1eb70d966668b3ee9176"
+  },
+  "scope": "Direct/special HUD Star count from early texture positions; zero skips HUD registration. Spawn bonus still uses saved system count: fallback2 gives7 locked and0HUD. Actual Scene contact22 proof predates HUD addition; all whole flags OFF."
+}

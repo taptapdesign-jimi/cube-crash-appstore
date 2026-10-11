@@ -13,6 +13,9 @@ private final class JimiWorldCameraStage: UIView {
 final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
     let boardID: Int
     var onFeedback: ((String) -> Void)?
+    var onPrepareGameplayAssets:(()->Void)?
+    private var gameplayPreparation:DispatchWorkItem?
+    var hasScheduledGameplayPreparation:Bool {gameplayPreparation != nil}
     var onRequest: ((String) -> Void)?
     private let cameraStage = JimiWorldCameraStage()
     private let carrier = JimiWorldRotorView(), dragShell = JimiWorldRotorView(), effectShell = JimiWorldRotorView(), pinchShell = JimiWorldRotorView(), rotorShell = JimiWorldRotorView()
@@ -39,6 +42,8 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
     private var effects: JimiNativeWorldCardEffects?
     private var active = true, disposed = false, closing = false, pinching = false
     private var flipGeneration = 0
+    private var manualFlipInFlight = false
+    var acceptsCardPan:Bool {active && !disposed && !closing && !pinching && (!animating || manualFlipInFlight)}
     private var stableCTAEnabled = false
     private weak var resources: JimiNativeWorldResources?
     private let cardArt2x: String?
@@ -72,7 +77,8 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         back.layer.transform = CATransform3DTranslate(CATransform3DMakeRotation(-.pi,0,1,0),0,0,0.6)
         panel.backgroundColor = .clear; panel.layer.cornerRadius = 34; panel.clipsToBounds = true;back.addSubview(panel)
         paper.image = resources.image("assets/modals/paper.png",owner:boardID); paper.contentMode = .scaleToFill; paper.alpha = 1; panel.addSubview(paper)
-        title.text = String(format:"%@ %02d",worldTitle,(boardID-1)%10+1); title.font = assets.font(size:32,weight:"ExtraBold"); title.textAlignment = .center; title.textColor = UIColor(red:173/255,green:134/255,blue:117/255,alpha:1); back.addSubview(title)
+        let cardTitle=(21...30).contains(boardID) ? "Area":worldTitle
+        title.text = String(format:"%@ %02d",cardTitle,(boardID-1)%10+1); title.font = assets.font(size:32,weight:"ExtraBold"); title.textAlignment = .center; title.textColor = UIColor(red:173/255,green:134/255,blue:117/255,alpha:1); back.addSubview(title)
         stars.axis = .horizontal; stars.spacing = 8; stars.alignment = .center
         for index in 0..<3 {
             let image = UIImageView(image:resources.image(index < unit.stars ? "assets/modals/star.png" : "assets/modals/star-empty.png",owner:boardID)); image.contentMode = .scaleAspectFit; image.widthAnchor.constraint(equalToConstant:31.45).isActive = true; image.heightAnchor.constraint(equalToConstant:31.45).isActive = true; image.transform = index == 1 ? CGAffineTransform(translationX:0,y:-8) : CGAffineTransform(rotationAngle:index == 0 ? -8 * .pi/180 : 8 * .pi/180); stars.addArrangedSubview(image)
@@ -180,6 +186,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         CATransaction.begin();CATransaction.setDisableActions(true);backdrop.layer.opacity = opacity;backdrop.layer.add(animation,forKey:"card.backdrop.fade");CATransaction.commit()
     }
     func enter(from origin:CGRect) {
+        scheduleGameplayPreparation()
         onFeedback?("card-entry-flip");transitionBackdrop(to:1,duration:duration)
         base = destination; carrier.frame = base; layoutIfNeeded();effects?.layout();cta.isEnabled = false
         animateBackStats(entering:true,delay:duration*0.5)
@@ -189,6 +196,25 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
             if let path = self.cardArt2x,let resources = self.resources {let token = self.generation;resources.prepare([path],owner:self.boardID,required:false) { [weak self,weak resources] accepted in guard accepted,let self,self.generation == token else {return};if let image = resources?.image(path,owner:self.boardID) {self.front.image = image;self.effects?.layout()} } }
         }
     }
+    /// v9 detail-modal preload: one captured 2400ms settled window, with at
+    /// most eight900ms retries while the card is moving. No recurring ticker.
+    func scheduleGameplayPreparation(delay:TimeInterval=2.4,attempt:Int=0) {
+        gameplayPreparation?.cancel();gameplayPreparation=nil
+        guard active,!disposed,!closing,onPrepareGameplayAssets != nil else{return}
+        let token=generation
+        let task=DispatchWorkItem{[weak self] in
+            guard let self,self.generation==token,self.active,!self.disposed,!self.closing else{return}
+            self.gameplayPreparation=nil
+            let gesturing=self.carrier.gestureRecognizers?.contains{ $0.state == .began || $0.state == .changed } == true
+            guard !self.animating,!self.pinching,!gesturing else{
+                if attempt<8 {self.scheduleGameplayPreparation(delay:0.9,attempt:attempt+1)}
+                return
+            }
+            self.onPrepareGameplayAssets?()
+        }
+        gameplayPreparation=task;DispatchQueue.main.asyncAfter(deadline:.now()+delay,execute:task)
+    }
+    private func cancelGameplayPreparation(){gameplayPreparation?.cancel();gameplayPreparation=nil}
     private func rotate(from:Double,to:Double,duration:Double,flight:Bool = false) {
         let animation = CAKeyframeAnimation(keyPath:"transform.rotation.y")
         animation.values = (0...128).map { index in
@@ -201,7 +227,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         CATransaction.begin(); CATransaction.setDisableActions(true); rotor.transform = CATransform3DMakeRotation(to,0,1,0); CATransaction.commit()
     }
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
-        guard active,!disposed,!closing,!animating else {return false}
+        guard active,!disposed,!closing,(!animating || (gestureRecognizer is UIPanGestureRecognizer && manualFlipInFlight)) else {return false}
         var view = touch.view
         while let current = view {if current is UIControl {return false};view = current.superview}
         return true
@@ -252,7 +278,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
     private var isBackFacing:Bool {abs(cos(angle)) > 0.001 && cos(angle) < 0}
     private func interactiveFlip(direction:Double? = nil,from incoming:Double? = nil) {
         guard active,!disposed,!closing,!animating,!pinching else{return}
-        effects?.cancel();onFeedback?("card-manual-flip");animating = true;cta.isEnabled = false
+        effects?.cancel();onFeedback?("card-manual-flip");animating = true;manualFlipInFlight = true;cta.isEnabled = false
         flipGeneration += 1;let token = flipGeneration
         let sampled = incoming ?? angle
         let from = sampled+((angle-sampled)/(2 * .pi)).rounded()*2 * .pi
@@ -268,7 +294,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         animation.keyTimes = [0.0,0.20/0.46,(0.20+0.26*0.38)/0.46,1].map {NSNumber(value:$0)}
         animation.timingFunctions = [.init(name:.linear),.init(controlPoints:0.45,0,0.55,1),.init(controlPoints:0.22,1,0.36,1)]
         animation.duration = UIAccessibility.isReduceMotionEnabled ? 0.001 : 0.46
-        CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in guard let self,self.flipGeneration == token,!self.disposed,!self.closing else{return};self.rotor.removeAnimation(forKey:"card.flip");self.angle = canonical;CATransaction.begin();CATransaction.setDisableActions(true);self.rotor.transform = CATransform3DMakeRotation(canonical,0,1,0);CATransaction.commit();self.animating = false;self.cta.isEnabled = self.stableCTAEnabled && self.isBackFacing;self.effects?.present(frontFacing:!self.isBackFacing)}
+        CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in guard let self,self.flipGeneration == token,!self.disposed,!self.closing else{return};self.rotor.removeAnimation(forKey:"card.flip");self.angle = canonical;CATransaction.begin();CATransaction.setDisableActions(true);self.rotor.transform = CATransform3DMakeRotation(canonical,0,1,0);CATransaction.commit();self.animating = false;self.manualFlipInFlight = false;self.cta.isEnabled = self.stableCTAEnabled && self.isBackFacing;self.effects?.present(frontFacing:!self.isBackFacing)}
         CATransaction.setDisableActions(true);rotor.transform = CATransform3DMakeRotation(to,0,1,0);rotor.add(animation,forKey:"card.flip");CATransaction.commit()
     }
     private func animateFaceTilt(_ target:CGFloat) {
@@ -287,9 +313,10 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         let settle = CABasicAnimation(keyPath:"transform");settle.fromValue = NSValue(caTransform3D:from);settle.toValue = NSValue(caTransform3D:CATransform3DIdentity);settle.duration = 0.2;settle.timingFunction = CAMediaTimingFunction(controlPoints:0.22,1,0.36,1);dragShell.layer.add(settle,forKey:"card.drag.settle");CATransaction.commit()
     }
     @objc private func drag(_ pan:UIPanGestureRecognizer) {
-        guard active,!disposed,!closing,!animating,!pinching else{return}
+        guard acceptsCardPan else{return}
         switch pan.state {
         case .began:
+            captureCardForPan()
             effects?.cancel();frontDrag = !isBackFacing;dragAxis = nil;dragStartAngle = angle;rotor.removeAnimation(forKey:"card.flip")
         case .changed:
             let delta = pan.translation(in:self)
@@ -309,6 +336,17 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         default:break
         }
     }
+    /// Transfer the painted manual-flip pose to input before retiring its completion.
+    func captureCardForPan() {
+        guard acceptsCardPan,manualFlipInFlight else{return}
+        let painted=rotor.presentation() ?? rotor
+        let sampled=(painted.value(forKeyPath:"transform.rotation.y") as? NSNumber)?.doubleValue ?? angle
+        flipGeneration += 1;manualFlipInFlight=false;animating=false
+        angle=sampled+((angle-sampled)/(2 * .pi)).rounded()*2 * .pi
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        rotor.transform=CATransform3DMakeRotation(angle,0,1,0);rotor.removeAnimation(forKey:"card.flip")
+        CATransaction.commit();cta.isEnabled=stableCTAEnabled && isBackFacing
+    }
     @objc private func pinched(_ pinch:UIPinchGestureRecognizer) {
         guard active,!disposed,!closing,!animating else{return}
         switch pinch.state {
@@ -324,6 +362,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         }
     }
     func close(to destination:CGRect,gameplay:Bool = false,completion:@escaping () -> Void) {
+        cancelGameplayPreparation()
         guard !disposed,!closing else {completion();return};closing = true;flipGeneration += 1;effects?.cancel(handoff:false)
         newRibbon?.removeFromSuperview();newRibbon = nil
         onFeedback?(frontDrag ? "card-manual-flip" : "card-return-flip")
@@ -343,12 +382,13 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
     }
     func setActive(_ value:Bool) {
         guard !disposed,active != value else{return};active = value;effects?.setActive(value)
+        if value {scheduleGameplayPreparation()}else{cancelGameplayPreparation()}
         if !value {CATransaction.begin();CATransaction.setDisableActions(true);cta.layer.removeAllAnimations();cta.layer.transform = CATransform3DIdentity;CATransaction.commit()}
         guard (layer.speed == 0) == value else {return}
         if value {let paused = layer.timeOffset; layer.speed = 1;layer.timeOffset = 0;layer.beginTime = 0;layer.beginTime = layer.convertTime(CACurrentMediaTime(),from:nil)-paused}
         else {let paused = layer.convertTime(CACurrentMediaTime(),from:nil);layer.speed = 0;layer.timeOffset = paused}
     }
-    func cleanup() {guard !disposed else{return};disposed = true;active = false;generation += 1;flipGeneration += 1;effects?.cleanup();effects = nil;[carrier,dragShell,effectShell,pinchShell,rotorShell,cta,backdrop].forEach{$0.layer.removeAllAnimations()};carrier.gestureRecognizers?.forEach{carrier.removeGestureRecognizer($0)};stats.arrangedSubviews.forEach{$0.layer.removeAllAnimations()};onRequest = nil;onFeedback = nil;isUserInteractionEnabled = false}
+    func cleanup() {guard !disposed else{return};cancelGameplayPreparation();onPrepareGameplayAssets=nil;disposed = true;active = false;generation += 1;flipGeneration += 1;effects?.cleanup();effects = nil;[carrier,dragShell,effectShell,pinchShell,rotorShell,cta,backdrop].forEach{$0.layer.removeAllAnimations()};carrier.gestureRecognizers?.forEach{carrier.removeGestureRecognizer($0)};stats.arrangedSubviews.forEach{$0.layer.removeAllAnimations()};onRequest = nil;onFeedback = nil;isUserInteractionEnabled = false}
 }
 
 

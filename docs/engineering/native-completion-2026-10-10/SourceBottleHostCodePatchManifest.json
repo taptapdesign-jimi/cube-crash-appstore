@@ -1,0 +1,12 @@
+{
+  "scope": "Apply after SourceBottleRepeatClockCodePatch into NEW replay tree only. Bottle SpriteKit host/pivot/restore component and executed original oracle. Actual Node/registry/restored caller and full migration/physical acceptance OPEN.",
+  "archive": "SourceBottleHostCodePatch.tar.gz",
+  "archiveSHA256": "2266e2e1aae0ee19ed088f2f13056ba56018bcee11a29043792d88b2e1c0d34b",
+  "files": {
+    "native/gameplay-ui/NativeBottleIdleMotion.swift": "ffd119e358da59cf5c658ea3c8882699cd4b7a87c82571d8816fb87820592f21",
+    "native/standalone/Stack to SixTests/NativeSourceAnimationClockTests.swift": "f95aa0d349f8dd34975ca3b696351bc7302cfa09221d47c344997128918b1451",
+    "docs/engineering/feature-runtime-owners.json": "c498dbc0915c8a29844aedf617e2159e22761ca289ec3897e79e75293d901184",
+    "docs/engineering/native-completion-2026-10-10/bottle-source-owner-oracle.cjs": "ff9edc7ee7b7fbafeb98ca25d2d4961a3994efe0aa7a90edb9cb449193fb5ce0",
+    "docs/engineering/native-completion-2026-10-10/bottle-source-owner-oracle.json": "ec85f8dcf7e90b5d884ef01ea6ddcb5e6c389697898e6772a2545accce491284"
+  }
+}

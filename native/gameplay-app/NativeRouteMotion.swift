@@ -94,6 +94,67 @@ final class NativeRouteMotion {
         CATransaction.commit()
     }
 
+    /// Slider selection shares route cancellation and background ownership.
+    /// Capture the painted track/nav before committing the new layout.
+    func selectSlide(_ index: Int, completion: @escaping () -> Void) {
+        guard home.navigationButtonViews.indices.contains(index) else { return }
+        let changed = index != home.selectedSlide
+        let oldX = home.sliderSelectionStartX
+        let navigation = home.navigationLayoutTargets.map { target in
+            let layer = target.view.layer.presentation() ?? target.view.layer
+            return (target.view, target.slideIndex, layer.bounds, layer.position)
+        }
+        cancel()
+        home.cancelPan()
+        home.pauseHeroIdle()
+        home.selectSlide(index, animated: false)
+        CATransaction.begin(); CATransaction.setDisableActions(true)
+        let destination = home.sliderTrack.layer.position.x
+        let slide = CAKeyframeAnimation(keyPath: "position.x")
+        slide.values = (0...80).map { oldX + (destination-oldX)*JimiV9Motion.sliderEase.value(Double($0)/80) }
+        slide.duration = JimiV9Motion.sliderDuration
+        home.sliderTrack.layer.add(slide, forKey: "native-slide-selection")
+        register(home.sliderTrack.layer)
+        for (target, index, oldBounds, oldPosition) in navigation {
+            let layer = target.layer, bounds = layer.bounds, position = layer.position
+            let sizeEase = JimiV9Motion.Ease.powerOut(index == home.selectedSlide ? 3 : 2)
+            let boundsMotion = CAKeyframeAnimation(keyPath: "bounds")
+            boundsMotion.values = (0...80).map { step in
+                let t = sizeEase.value(Double(step)/80)
+                return NSValue(cgRect: CGRect(x: bounds.minX, y: bounds.minY,
+                    width: oldBounds.width+(bounds.width-oldBounds.width)*t,
+                    height: oldBounds.height+(bounds.height-oldBounds.height)*t))
+            }
+            let positionMotion = CAKeyframeAnimation(keyPath: "position")
+            positionMotion.values = (0...80).map { step in
+                let t = JimiV9Motion.Ease.powerOut(3).value(Double(step)/80)
+                return NSValue(cgPoint: CGPoint(x: oldPosition.x+(position.x-oldPosition.x)*t,
+                    y: oldPosition.y+(position.y-oldPosition.y)*t))
+            }
+            boundsMotion.duration = 0.38; positionMotion.duration = 0.38
+            let group = CAAnimationGroup(); group.animations = [boundsMotion, positionMotion]; group.duration = 0.38
+            layer.add(group, forKey: "native-slide-selection"); register(layer)
+        }
+        CATransaction.commit()
+        animate([(changed ? home.heroView : home.navigationButtonViews[index],
+                  changed ? JimiV9Motion.selectedHeroBounce : JimiV9Motion.navigationTapBounce)], completion: completion)
+    }
+
+    /// Route exit must retain the hero's painted bounce for homeTracks to
+    /// retarget its collapse, while retiring conflicting track/nav layout.
+    func cancelSelectionLayout() {
+        CATransaction.begin(); CATransaction.setDisableActions(true)
+        for layer in animatedLayers where layer.animation(forKey: "native-slide-selection") != nil {
+            if let painted=layer.presentation() { layer.position=painted.position; layer.bounds=painted.bounds }
+            layer.removeAnimation(forKey: "native-slide-selection")
+        }
+        CATransaction.commit()
+    }
+
+    private func register(_ layer: CALayer) {
+        if !animatedLayers.contains(where: { $0 === layer }) { animatedLayers.append(layer) }
+    }
+
     private func installTracks(_ entries: [(UIView, JimiV9Motion.Track)], holdUntil: Double? = nil) {
         for (target, track) in entries {
             let layer = target.layer
@@ -149,7 +210,13 @@ final class NativeRouteMotion {
     func cancel() {
         generation += 1
         for layer in animatedLayers {
-            if let painted = layer.presentation() {layer.transform = painted.transform;layer.opacity = painted.opacity}
+            if let painted = layer.presentation() {
+                layer.transform = painted.transform; layer.opacity = painted.opacity
+                if layer.animation(forKey: "native-slide-selection") != nil {
+                    layer.position = painted.position; layer.bounds = painted.bounds
+                }
+            }
+            layer.removeAnimation(forKey: "native-slide-selection")
             layer.removeAnimation(forKey: "native-route")
             layer.speed = 1;layer.timeOffset = 0;layer.beginTime = 0
             restoreAnchor(layer)

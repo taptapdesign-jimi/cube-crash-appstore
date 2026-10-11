@@ -1,0 +1,9 @@
+{
+  "authority": "Executed untouched original resumeDeferredWildIdleEffects and original isWildLikeSpecial. Independent rerun byte-identical.",
+  "result": "Captured list order bee,honey,bottle,plain-star in all three normal/bee-throws/honey-throws profiles. Both defer flags deleted before callback, destroyed and regular skip after clear; individual callback failures do not prevent later owners.",
+  "limits": "Explicit list/callback endpoints, not full Source assets/controller clocks or Native admission. Original loader builds row-major deferred list. Current Native separate PlainStar/Variants/Bee queues need mounted mixed-order/failure proof and reconciliation; per-family PASS does not establish global order.",
+  "hashes": {
+    "source-mixed-idle-resume-oracle.cjs": "32d12b81f8ac6dde71654089e17d0cc54e129f1d77a6f8bbb36b36480c908794",
+    "source-mixed-idle-resume-oracle.json": "679fbeb81c5cd67a216c27ebcbea72b4ef5fda4c658d881f48e3f966a72426e0"
+  }
+}

@@ -1,0 +1,3035 @@
+{
+  "tag": "production-benchmark-v9",
+  "hashes": {
+    "src/modules/app-core-board-build.ts": "a384a8528e791e8ca854f89e987946bc472a265b38ce8162ee10f9a0499b0559",
+    "src/modules/app-core-open-tiles.ts": "037e3b12c7c181235a535f19ddec1bf5963cf095cd5864edfa463d60673077d4",
+    "src/modules/app-core-utils.ts": "c4f2e00afb437b3321adb87425586784ed67ebb70a2eec19cfec055a8746b2a0",
+    "src/modules/drag-shadow-pose.ts": "701c65e296bacbdafdbcd67455bc41d794550eba23bd3dcff62183a98895ee3c",
+    "src/modules/app-core-board-visibility.ts": "c3005ef90ce4951c3023b7b44fbf0da3ad959854690ed010f323d734ed92f408",
+    "src/modules/board.ts": "66eb0208a5c8ca883090e91b23a264fb7790bfac07edab33955b8d5c47a5e95d",
+    "src/modules/app-core.ts": "284d104e4f20b7b30fd5dad2361c1edfb822a6b96a38c64efc2793033cbc09e3",
+    "src/modules/constants.ts": "03205095e11655f1882d89d50db328d711282614e2437a740d6ccef7c5732475",
+    "src/modules/final-merge-rules.ts": "e3119e1e6e398d4a672536a47819abf8362652dc04e50923df5e066768ed9428",
+    "src/utils/pixi-image-texture-health.ts": "7e1a1edadb757e1f03b7ebada11c31263596464bffa0aa4e79168b3be7955106",
+    "src/modules/gameplay-texture-filtering.ts": "15c790355db2e0e2b2c1e68fd02b202ade948acfc0a12d698621a66b3cfce4ff",
+    "package-lock.json": "a44a2653491e9c164c9ad454544c7ae352fb9f260b10469fdec270c576d5add4",
+    "installed-gsap/dist/gsap.js": "3df2afc090b64154684a2391847afdb5e417469eff0503f3fa1ddd3c08897f54",
+    "src/modules/journey-stage-balance.ts": "0d8c2c2c377b510a0f328c67dc376f63cbb3fb823b5c6cb32b5c7683ec2c4cd8",
+    "src/modules/special-dice-registry.ts": "b6818afb9ffd98a6249f17c8f0d020663a1fd9a41f8d43908da1a25bb7780fdd",
+    "src/modules/app-core-save-schema.ts": "70b1cb7fbd19f1424ef5a9ecfce35afc8a0706286f85bad5a78caece09c2ddf3",
+    "src/modules/app-core-load-tiles.ts": "286d872b00a48dbe638444a6039f76b5507617514e319920e415a579e5408de5"
+  },
+  "cases": [
+    {
+      "name": "sparse",
+      "input": {
+        "schemaVersion": 2,
+        "boardNumber": 7,
+        "level": 7,
+        "moves": 23,
+        "score": 123,
+        "wildMeter": 0.4,
+        "grid": [
+          [
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 0,
+              "gridY": 0,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            {
+              "value": 2,
+              "locked": false,
+              "open": true,
+              "special": null,
+              "gridX": 2,
+              "gridY": 3,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            {
+              "value": 5,
+              "locked": false,
+              "open": true,
+              "special": null,
+              "gridX": 4,
+              "gridY": 8,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            }
+          ]
+        ]
+      },
+      "before": {
+        "draw": 3,
+        "queued": 4,
+        "tiles": [
+          {
+            "c": 0,
+            "r": 0,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.014226804123711342,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 2,
+            "r": 3,
+            "value": 2,
+            "locked": false,
+            "rotation": 0.03154639175257731,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 1,
+            "visible": true,
+            "eventMode": "static",
+            "pips": 0
+          },
+          {
+            "c": 4,
+            "r": 8,
+            "value": 5,
+            "locked": false,
+            "rotation": -0.04268041237113402,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 1,
+            "visible": true,
+            "eventMode": "static",
+            "pips": 0
+          }
+        ]
+      },
+      "after": {
+        "draw": 5,
+        "queued": 0,
+        "tiles": [
+          {
+            "c": 0,
+            "r": 0,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.014226804123711342,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 2,
+            "r": 3,
+            "value": 2,
+            "locked": false,
+            "rotation": 0.03154639175257731,
+            "texture": "./assets/tile_numbers2.png",
+            "depth": 1,
+            "alpha": 1,
+            "visible": true,
+            "eventMode": "static",
+            "pips": 2
+          },
+          {
+            "c": 4,
+            "r": 8,
+            "value": 5,
+            "locked": false,
+            "rotation": -0.04268041237113402,
+            "texture": "./assets/tile_numbers4.png",
+            "depth": 1,
+            "alpha": 1,
+            "visible": true,
+            "eventMode": "static",
+            "pips": 5
+          }
+        ]
+      },
+      "result": {
+        "tilesToRestoreCount": 3,
+        "deferredWildIdleTiles": []
+      },
+      "events": [
+        {
+          "kind": "rng",
+          "draw": 1,
+          "value": 0.38144329896907214
+        },
+        {
+          "kind": "raf-register",
+          "id": 1
+        },
+        {
+          "kind": "raf-register",
+          "id": 2
+        },
+        {
+          "kind": "rng",
+          "draw": 2,
+          "value": 0.7628865979381443
+        },
+        {
+          "kind": "raf-register",
+          "id": 3
+        },
+        {
+          "kind": "bind",
+          "c": 2,
+          "r": 3
+        },
+        {
+          "kind": "rng",
+          "draw": 3,
+          "value": 0.14432989690721648
+        },
+        {
+          "kind": "raf-register",
+          "id": 4
+        },
+        {
+          "kind": "bind",
+          "c": 4,
+          "r": 8
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 1
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 2
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 3
+        },
+        {
+          "kind": "rng",
+          "draw": 4,
+          "value": 0.5257731958762887
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 4
+        },
+        {
+          "kind": "rng",
+          "draw": 5,
+          "value": 0.9072164948453608
+        }
+      ]
+    },
+    {
+      "name": "depth-reset",
+      "input": {
+        "schemaVersion": 2,
+        "boardNumber": 7,
+        "level": 7,
+        "moves": 23,
+        "score": 123,
+        "wildMeter": 0.4,
+        "grid": [
+          [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            {
+              "value": 3,
+              "locked": false,
+              "open": true,
+              "special": null,
+              "gridX": 1,
+              "gridY": 1,
+              "stackDepth": 4,
+              "alpha": 0.7,
+              "visible": false
+            },
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            {
+              "value": 1,
+              "locked": false,
+              "open": true,
+              "special": null,
+              "gridX": 3,
+              "gridY": 2,
+              "stackDepth": 4,
+              "alpha": 0.7,
+              "visible": false
+            },
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        ]
+      },
+      "before": {
+        "draw": 2,
+        "queued": 3,
+        "tiles": [
+          {
+            "c": 1,
+            "r": 1,
+            "value": 3,
+            "locked": false,
+            "rotation": -0.014226804123711342,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 1,
+            "visible": true,
+            "eventMode": "static",
+            "pips": 0
+          },
+          {
+            "c": 3,
+            "r": 2,
+            "value": 1,
+            "locked": false,
+            "rotation": 0.03154639175257731,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 1,
+            "visible": true,
+            "eventMode": "static",
+            "pips": 0
+          }
+        ]
+      },
+      "after": {
+        "draw": 4,
+        "queued": 0,
+        "tiles": [
+          {
+            "c": 1,
+            "r": 1,
+            "value": 3,
+            "locked": false,
+            "rotation": -0.014226804123711342,
+            "texture": "./assets/tile_numbers.png",
+            "depth": 1,
+            "alpha": 1,
+            "visible": true,
+            "eventMode": "static",
+            "pips": 3
+          },
+          {
+            "c": 3,
+            "r": 2,
+            "value": 1,
+            "locked": false,
+            "rotation": 0.03154639175257731,
+            "texture": "./assets/tile_numbers2.png",
+            "depth": 1,
+            "alpha": 1,
+            "visible": true,
+            "eventMode": "static",
+            "pips": 1
+          }
+        ]
+      },
+      "result": {
+        "tilesToRestoreCount": 2,
+        "deferredWildIdleTiles": []
+      },
+      "events": [
+        {
+          "kind": "rng",
+          "draw": 1,
+          "value": 0.38144329896907214
+        },
+        {
+          "kind": "raf-register",
+          "id": 1
+        },
+        {
+          "kind": "raf-register",
+          "id": 2
+        },
+        {
+          "kind": "bind",
+          "c": 1,
+          "r": 1
+        },
+        {
+          "kind": "rng",
+          "draw": 2,
+          "value": 0.7628865979381443
+        },
+        {
+          "kind": "raf-register",
+          "id": 3
+        },
+        {
+          "kind": "bind",
+          "c": 3,
+          "r": 2
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 1
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 2
+        },
+        {
+          "kind": "rng",
+          "draw": 3,
+          "value": 0.14432989690721648
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 3
+        },
+        {
+          "kind": "rng",
+          "draw": 4,
+          "value": 0.5257731958762887
+        }
+      ]
+    },
+    {
+      "name": "locked-positive",
+      "input": {
+        "schemaVersion": 2,
+        "boardNumber": 7,
+        "level": 7,
+        "moves": 23,
+        "score": 123,
+        "wildMeter": 0.4,
+        "grid": [
+          [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            {
+              "value": 3,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 1,
+              "gridY": 2,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            {
+              "value": 2,
+              "locked": false,
+              "open": true,
+              "special": null,
+              "gridX": 2,
+              "gridY": 4,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        ]
+      },
+      "before": {
+        "draw": 2,
+        "queued": 3,
+        "tiles": [
+          {
+            "c": 1,
+            "r": 2,
+            "value": 3,
+            "locked": true,
+            "rotation": -0.014226804123711342,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 1,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 2,
+            "r": 4,
+            "value": 2,
+            "locked": false,
+            "rotation": 0.03154639175257731,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 1,
+            "visible": true,
+            "eventMode": "static",
+            "pips": 0
+          }
+        ]
+      },
+      "after": {
+        "draw": 4,
+        "queued": 0,
+        "tiles": [
+          {
+            "c": 1,
+            "r": 2,
+            "value": 3,
+            "locked": true,
+            "rotation": -0.014226804123711342,
+            "texture": "./assets/tile_numbers.png",
+            "depth": 1,
+            "alpha": 1,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 2,
+            "r": 4,
+            "value": 2,
+            "locked": false,
+            "rotation": 0.03154639175257731,
+            "texture": "./assets/tile_numbers2.png",
+            "depth": 1,
+            "alpha": 1,
+            "visible": true,
+            "eventMode": "static",
+            "pips": 2
+          }
+        ]
+      },
+      "result": {
+        "tilesToRestoreCount": 2,
+        "deferredWildIdleTiles": []
+      },
+      "events": [
+        {
+          "kind": "rng",
+          "draw": 1,
+          "value": 0.38144329896907214
+        },
+        {
+          "kind": "raf-register",
+          "id": 1
+        },
+        {
+          "kind": "raf-register",
+          "id": 2
+        },
+        {
+          "kind": "rng",
+          "draw": 2,
+          "value": 0.7628865979381443
+        },
+        {
+          "kind": "raf-register",
+          "id": 3
+        },
+        {
+          "kind": "bind",
+          "c": 2,
+          "r": 4
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 1
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 2
+        },
+        {
+          "kind": "rng",
+          "draw": 3,
+          "value": 0.14432989690721648
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 3
+        },
+        {
+          "kind": "rng",
+          "draw": 4,
+          "value": 0.5257731958762887
+        }
+      ]
+    },
+    {
+      "name": "all-locked",
+      "input": {
+        "schemaVersion": 2,
+        "boardNumber": 7,
+        "level": 7,
+        "moves": 23,
+        "score": 123,
+        "wildMeter": 0.4,
+        "grid": [
+          [
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 0,
+              "gridY": 0,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 1,
+              "gridY": 0,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 2,
+              "gridY": 0,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 3,
+              "gridY": 0,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 4,
+              "gridY": 0,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            }
+          ],
+          [
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 0,
+              "gridY": 1,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 1,
+              "gridY": 1,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 2,
+              "gridY": 1,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 3,
+              "gridY": 1,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 4,
+              "gridY": 1,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            }
+          ],
+          [
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 0,
+              "gridY": 2,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 1,
+              "gridY": 2,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 2,
+              "gridY": 2,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 3,
+              "gridY": 2,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 4,
+              "gridY": 2,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            }
+          ],
+          [
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 0,
+              "gridY": 3,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 1,
+              "gridY": 3,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 2,
+              "gridY": 3,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 3,
+              "gridY": 3,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 4,
+              "gridY": 3,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            }
+          ],
+          [
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 0,
+              "gridY": 4,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 1,
+              "gridY": 4,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 2,
+              "gridY": 4,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 3,
+              "gridY": 4,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 4,
+              "gridY": 4,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            }
+          ],
+          [
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 0,
+              "gridY": 5,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 1,
+              "gridY": 5,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 2,
+              "gridY": 5,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 3,
+              "gridY": 5,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 4,
+              "gridY": 5,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            }
+          ],
+          [
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 0,
+              "gridY": 6,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 1,
+              "gridY": 6,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 2,
+              "gridY": 6,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 3,
+              "gridY": 6,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 4,
+              "gridY": 6,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            }
+          ],
+          [
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 0,
+              "gridY": 7,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 1,
+              "gridY": 7,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 2,
+              "gridY": 7,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 3,
+              "gridY": 7,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 4,
+              "gridY": 7,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            }
+          ],
+          [
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 0,
+              "gridY": 8,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 1,
+              "gridY": 8,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 2,
+              "gridY": 8,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 3,
+              "gridY": 8,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            },
+            {
+              "value": 0,
+              "locked": true,
+              "open": false,
+              "special": null,
+              "gridX": 4,
+              "gridY": 8,
+              "stackDepth": 1,
+              "alpha": 0.7,
+              "visible": false
+            }
+          ]
+        ]
+      },
+      "before": {
+        "draw": 45,
+        "queued": 46,
+        "tiles": [
+          {
+            "c": 0,
+            "r": 0,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.014226804123711342,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 1,
+            "r": 0,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.03154639175257731,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 2,
+            "r": 0,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.04268041237113402,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 3,
+            "r": 0,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.003092783505154642,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 4,
+            "r": 0,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.0488659793814433,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 0,
+            "r": 1,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.025360824742268043,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 1,
+            "r": 1,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.020412371134020613,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 2,
+            "r": 1,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.05381443298969072,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 3,
+            "r": 1,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.008041237113402058,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 4,
+            "r": 1,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.0377319587628866,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 0,
+            "r": 2,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.03649484536082474,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 1,
+            "r": 2,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.009278350515463912,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 2,
+            "r": 2,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.05505154639175258,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 3,
+            "r": 2,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.01917525773195876,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 4,
+            "r": 2,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.026597938144329897,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 0,
+            "r": 3,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.04762886597938144,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 1,
+            "r": 3,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.001855670103092781,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 2,
+            "r": 3,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.04391752577319588,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 3,
+            "r": 3,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.030309278350515462,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 4,
+            "r": 3,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.015463917525773196,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 0,
+            "r": 4,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.058762886597938144,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 1,
+            "r": 4,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.012989690721649481,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 2,
+            "r": 4,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.03278350515463918,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 3,
+            "r": 4,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.04144329896907216,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 4,
+            "r": 4,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.004329896907216496,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 0,
+            "r": 5,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.05010309278350515,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 1,
+            "r": 5,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.02412371134020619,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 2,
+            "r": 5,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.02164948453608248,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 3,
+            "r": 5,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.05257731958762887,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 4,
+            "r": 5,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.006804123711340211,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 0,
+            "r": 6,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.03896907216494845,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 1,
+            "r": 6,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.03525773195876289,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 2,
+            "r": 6,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.01051546391752578,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 3,
+            "r": 6,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.056288659793814436,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 4,
+            "r": 6,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.01793814432989691,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 0,
+            "r": 7,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.02783505154639175,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 1,
+            "r": 7,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.04639175257731959,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 2,
+            "r": 7,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.000618556701030927,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 3,
+            "r": 7,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.045154639175257735,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 4,
+            "r": 7,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.029072164948453612,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 0,
+            "r": 8,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.01670103092783505,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 1,
+            "r": 8,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.05752577319587629,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 2,
+            "r": 8,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.011752577319587627,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 3,
+            "r": 8,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.034020618556701035,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 4,
+            "r": 8,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.040206185567010305,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          }
+        ]
+      },
+      "after": {
+        "draw": 45,
+        "queued": 0,
+        "tiles": [
+          {
+            "c": 0,
+            "r": 0,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.014226804123711342,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 1,
+            "r": 0,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.03154639175257731,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 2,
+            "r": 0,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.04268041237113402,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 3,
+            "r": 0,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.003092783505154642,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 4,
+            "r": 0,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.0488659793814433,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 0,
+            "r": 1,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.025360824742268043,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 1,
+            "r": 1,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.020412371134020613,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 2,
+            "r": 1,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.05381443298969072,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 3,
+            "r": 1,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.008041237113402058,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 4,
+            "r": 1,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.0377319587628866,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 0,
+            "r": 2,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.03649484536082474,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 1,
+            "r": 2,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.009278350515463912,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 2,
+            "r": 2,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.05505154639175258,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 3,
+            "r": 2,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.01917525773195876,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 4,
+            "r": 2,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.026597938144329897,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 0,
+            "r": 3,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.04762886597938144,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 1,
+            "r": 3,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.001855670103092781,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 2,
+            "r": 3,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.04391752577319588,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 3,
+            "r": 3,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.030309278350515462,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 4,
+            "r": 3,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.015463917525773196,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 0,
+            "r": 4,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.058762886597938144,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 1,
+            "r": 4,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.012989690721649481,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 2,
+            "r": 4,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.03278350515463918,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 3,
+            "r": 4,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.04144329896907216,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 4,
+            "r": 4,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.004329896907216496,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 0,
+            "r": 5,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.05010309278350515,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 1,
+            "r": 5,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.02412371134020619,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 2,
+            "r": 5,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.02164948453608248,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 3,
+            "r": 5,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.05257731958762887,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 4,
+            "r": 5,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.006804123711340211,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 0,
+            "r": 6,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.03896907216494845,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 1,
+            "r": 6,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.03525773195876289,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 2,
+            "r": 6,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.01051546391752578,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 3,
+            "r": 6,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.056288659793814436,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 4,
+            "r": 6,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.01793814432989691,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 0,
+            "r": 7,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.02783505154639175,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 1,
+            "r": 7,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.04639175257731959,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 2,
+            "r": 7,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.000618556701030927,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 3,
+            "r": 7,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.045154639175257735,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 4,
+            "r": 7,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.029072164948453612,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 0,
+            "r": 8,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.01670103092783505,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 1,
+            "r": 8,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.05752577319587629,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 2,
+            "r": 8,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.011752577319587627,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 3,
+            "r": 8,
+            "value": 0,
+            "locked": true,
+            "rotation": 0.034020618556701035,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          },
+          {
+            "c": 4,
+            "r": 8,
+            "value": 0,
+            "locked": true,
+            "rotation": -0.040206185567010305,
+            "texture": "./assets/tile.png",
+            "depth": 1,
+            "alpha": 0.25,
+            "visible": true,
+            "eventMode": "none",
+            "pips": 0
+          }
+        ]
+      },
+      "result": {
+        "tilesToRestoreCount": 45,
+        "deferredWildIdleTiles": []
+      },
+      "events": [
+        {
+          "kind": "rng",
+          "draw": 1,
+          "value": 0.38144329896907214
+        },
+        {
+          "kind": "raf-register",
+          "id": 1
+        },
+        {
+          "kind": "raf-register",
+          "id": 2
+        },
+        {
+          "kind": "rng",
+          "draw": 2,
+          "value": 0.7628865979381443
+        },
+        {
+          "kind": "raf-register",
+          "id": 3
+        },
+        {
+          "kind": "rng",
+          "draw": 3,
+          "value": 0.14432989690721648
+        },
+        {
+          "kind": "raf-register",
+          "id": 4
+        },
+        {
+          "kind": "rng",
+          "draw": 4,
+          "value": 0.5257731958762887
+        },
+        {
+          "kind": "raf-register",
+          "id": 5
+        },
+        {
+          "kind": "rng",
+          "draw": 5,
+          "value": 0.9072164948453608
+        },
+        {
+          "kind": "raf-register",
+          "id": 6
+        },
+        {
+          "kind": "rng",
+          "draw": 6,
+          "value": 0.28865979381443296
+        },
+        {
+          "kind": "raf-register",
+          "id": 7
+        },
+        {
+          "kind": "rng",
+          "draw": 7,
+          "value": 0.6701030927835051
+        },
+        {
+          "kind": "raf-register",
+          "id": 8
+        },
+        {
+          "kind": "rng",
+          "draw": 8,
+          "value": 0.05154639175257732
+        },
+        {
+          "kind": "raf-register",
+          "id": 9
+        },
+        {
+          "kind": "rng",
+          "draw": 9,
+          "value": 0.4329896907216495
+        },
+        {
+          "kind": "raf-register",
+          "id": 10
+        },
+        {
+          "kind": "rng",
+          "draw": 10,
+          "value": 0.8144329896907216
+        },
+        {
+          "kind": "raf-register",
+          "id": 11
+        },
+        {
+          "kind": "rng",
+          "draw": 11,
+          "value": 0.1958762886597938
+        },
+        {
+          "kind": "raf-register",
+          "id": 12
+        },
+        {
+          "kind": "rng",
+          "draw": 12,
+          "value": 0.5773195876288659
+        },
+        {
+          "kind": "raf-register",
+          "id": 13
+        },
+        {
+          "kind": "rng",
+          "draw": 13,
+          "value": 0.9587628865979382
+        },
+        {
+          "kind": "raf-register",
+          "id": 14
+        },
+        {
+          "kind": "rng",
+          "draw": 14,
+          "value": 0.3402061855670103
+        },
+        {
+          "kind": "raf-register",
+          "id": 15
+        },
+        {
+          "kind": "rng",
+          "draw": 15,
+          "value": 0.7216494845360825
+        },
+        {
+          "kind": "raf-register",
+          "id": 16
+        },
+        {
+          "kind": "rng",
+          "draw": 16,
+          "value": 0.10309278350515463
+        },
+        {
+          "kind": "raf-register",
+          "id": 17
+        },
+        {
+          "kind": "rng",
+          "draw": 17,
+          "value": 0.4845360824742268
+        },
+        {
+          "kind": "raf-register",
+          "id": 18
+        },
+        {
+          "kind": "rng",
+          "draw": 18,
+          "value": 0.865979381443299
+        },
+        {
+          "kind": "raf-register",
+          "id": 19
+        },
+        {
+          "kind": "rng",
+          "draw": 19,
+          "value": 0.24742268041237114
+        },
+        {
+          "kind": "raf-register",
+          "id": 20
+        },
+        {
+          "kind": "rng",
+          "draw": 20,
+          "value": 0.6288659793814433
+        },
+        {
+          "kind": "raf-register",
+          "id": 21
+        },
+        {
+          "kind": "rng",
+          "draw": 21,
+          "value": 0.010309278350515464
+        },
+        {
+          "kind": "raf-register",
+          "id": 22
+        },
+        {
+          "kind": "rng",
+          "draw": 22,
+          "value": 0.3917525773195876
+        },
+        {
+          "kind": "raf-register",
+          "id": 23
+        },
+        {
+          "kind": "rng",
+          "draw": 23,
+          "value": 0.7731958762886598
+        },
+        {
+          "kind": "raf-register",
+          "id": 24
+        },
+        {
+          "kind": "rng",
+          "draw": 24,
+          "value": 0.15463917525773196
+        },
+        {
+          "kind": "raf-register",
+          "id": 25
+        },
+        {
+          "kind": "rng",
+          "draw": 25,
+          "value": 0.5360824742268041
+        },
+        {
+          "kind": "raf-register",
+          "id": 26
+        },
+        {
+          "kind": "rng",
+          "draw": 26,
+          "value": 0.9175257731958762
+        },
+        {
+          "kind": "raf-register",
+          "id": 27
+        },
+        {
+          "kind": "rng",
+          "draw": 27,
+          "value": 0.29896907216494845
+        },
+        {
+          "kind": "raf-register",
+          "id": 28
+        },
+        {
+          "kind": "rng",
+          "draw": 28,
+          "value": 0.6804123711340206
+        },
+        {
+          "kind": "raf-register",
+          "id": 29
+        },
+        {
+          "kind": "rng",
+          "draw": 29,
+          "value": 0.061855670103092786
+        },
+        {
+          "kind": "raf-register",
+          "id": 30
+        },
+        {
+          "kind": "rng",
+          "draw": 30,
+          "value": 0.44329896907216493
+        },
+        {
+          "kind": "raf-register",
+          "id": 31
+        },
+        {
+          "kind": "rng",
+          "draw": 31,
+          "value": 0.8247422680412371
+        },
+        {
+          "kind": "raf-register",
+          "id": 32
+        },
+        {
+          "kind": "rng",
+          "draw": 32,
+          "value": 0.20618556701030927
+        },
+        {
+          "kind": "raf-register",
+          "id": 33
+        },
+        {
+          "kind": "rng",
+          "draw": 33,
+          "value": 0.5876288659793815
+        },
+        {
+          "kind": "raf-register",
+          "id": 34
+        },
+        {
+          "kind": "rng",
+          "draw": 34,
+          "value": 0.9690721649484536
+        },
+        {
+          "kind": "raf-register",
+          "id": 35
+        },
+        {
+          "kind": "rng",
+          "draw": 35,
+          "value": 0.35051546391752575
+        },
+        {
+          "kind": "raf-register",
+          "id": 36
+        },
+        {
+          "kind": "rng",
+          "draw": 36,
+          "value": 0.7319587628865979
+        },
+        {
+          "kind": "raf-register",
+          "id": 37
+        },
+        {
+          "kind": "rng",
+          "draw": 37,
+          "value": 0.1134020618556701
+        },
+        {
+          "kind": "raf-register",
+          "id": 38
+        },
+        {
+          "kind": "rng",
+          "draw": 38,
+          "value": 0.4948453608247423
+        },
+        {
+          "kind": "raf-register",
+          "id": 39
+        },
+        {
+          "kind": "rng",
+          "draw": 39,
+          "value": 0.8762886597938144
+        },
+        {
+          "kind": "raf-register",
+          "id": 40
+        },
+        {
+          "kind": "rng",
+          "draw": 40,
+          "value": 0.25773195876288657
+        },
+        {
+          "kind": "raf-register",
+          "id": 41
+        },
+        {
+          "kind": "rng",
+          "draw": 41,
+          "value": 0.6391752577319587
+        },
+        {
+          "kind": "raf-register",
+          "id": 42
+        },
+        {
+          "kind": "rng",
+          "draw": 42,
+          "value": 0.020618556701030927
+        },
+        {
+          "kind": "raf-register",
+          "id": 43
+        },
+        {
+          "kind": "rng",
+          "draw": 43,
+          "value": 0.4020618556701031
+        },
+        {
+          "kind": "raf-register",
+          "id": 44
+        },
+        {
+          "kind": "rng",
+          "draw": 44,
+          "value": 0.7835051546391752
+        },
+        {
+          "kind": "raf-register",
+          "id": 45
+        },
+        {
+          "kind": "rng",
+          "draw": 45,
+          "value": 0.16494845360824742
+        },
+        {
+          "kind": "raf-register",
+          "id": 46
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 1
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 2
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 3
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 4
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 5
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 6
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 7
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 8
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 9
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 10
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 11
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 12
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 13
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 14
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 15
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 16
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 17
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 18
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 19
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 20
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 21
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 22
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 23
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 24
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 25
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 26
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 27
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 28
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 29
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 30
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 31
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 32
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 33
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 34
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 35
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 36
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 37
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 38
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 39
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 40
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 41
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 42
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 43
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 44
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 45
+        },
+        {
+          "kind": "raf-deliver",
+          "id": 46
+        }
+      ]
+    }
+  ]
+}

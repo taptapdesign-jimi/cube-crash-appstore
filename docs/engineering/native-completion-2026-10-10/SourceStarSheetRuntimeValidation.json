@@ -1,0 +1,129 @@
+{
+  "status": "PASS_BOUNDED_NATIVE_COMPONENT_CHECKPOINT",
+  "scope": "Actual restored Native Plain Star immutable atlas lifecycle. Migration flags OFF. No phone/PWA/assets touched.",
+  "files": {
+    "native/gameplay-ui/NativeSourceStarSheet.swift": "44e66228f8911b5cf54c524e6d12767d0cee8cc93057fd1ca4b0fb77bd74fd3e",
+    "native/gameplay-ui/NativeDiceArtwork.swift": "8bb28715809e9ecaae841b79f391a53c3f6090eac0afbc559b3777811f02b7d4",
+    "native/gameplay-ui/NativeDiceNode.swift": "0d356d188d78428031f6b3bd5ceea73b11e038d2708e11b88e2cc78042b69dac",
+    "native/gameplay-ui/NativeStarFinale.swift": "99af0be89f746892e3a198cb07aec3c17b0a36663831367f33c1582e80b45ae0",
+    "native/gameplay-ui/NativeBoardScene.swift": "daaba8069ba2f213e112c4577ceec8712845599b58ac5f65d0b3fc5630c6d5ed",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "870282142dbcece0de2a619ada1e34d30b5b8a257bbdda17a7d57f3000d95138",
+    "native/standalone/Stack to SixTests/NativeSourceRegularResumeBootstrapTests.swift": "f568bd4d6aa1a9b8d04b02e2d48ae9874ccb2b0f7f7a925dd95f9b1d7249d1b5",
+    "docs/engineering/feature-runtime-owners.json": "61f5638384c85e22fc1a03593f538d725443a6cd096f76c66a7511032bff83dc"
+  },
+  "recovery": {
+    "before": "SourceStarSheetRuntimeBefore.tar.gz",
+    "patch": "SourceStarSheetRuntimeCodePatch.tar.gz",
+    "patchSHA256": "8d36d81705f82b27584520628936e95d4ac5f9fffba376f2988dc69a978cdb98",
+    "rule": "Replay only into new isolated checkout; preserve unrelated dirty main."
+  },
+  "originalOracle": {
+    "file": "star-source-sheet-oracle.json",
+    "sha256": "77c26d79edd91c8b54167e157f1a95d115999f744b1de41781987d1afb22f640",
+    "independentRepeatIdentical": true,
+    "profiles": [
+      22,
+      23,
+      23
+    ],
+    "authority": "Original unmodified modules with real Pixi CPU objects; mocked logical Date/timers/assets/document endpoints, no GPU or physical acceptance."
+  },
+  "checks": [
+    {
+      "log": "star-sheet-runtime.log",
+      "status": "PASS",
+      "tests": 2
+    },
+    {
+      "log": "star-sheet-fast.log",
+      "status": "PASS"
+    },
+    {
+      "log": "star-sheet-broader.log",
+      "status": "FAIL",
+      "tests": 87,
+      "failures": 1,
+      "reason": "Single restored Star entered atlas before actual APP task; genuine task admission now waits."
+    },
+    {
+      "log": "star-sheet-full.log",
+      "status": "PASS",
+      "staleForLatestBoundaryChanges": true
+    },
+    {
+      "log": "star-sheet-task-fixed.log",
+      "status": "PASS",
+      "tests": 4
+    },
+    {
+      "log": "star-sheet-final-broader.log",
+      "status": "COMPILE_FAIL",
+      "reason": "New test CGPoint.zero overload ambiguity corrected."
+    },
+    {
+      "log": "star-sheet-final-broader-fixed.log",
+      "status": "PASS",
+      "handle": 2681,
+      "tests": 90,
+      "failures": 0,
+      "exitCode": 0
+    },
+    {
+      "log": "star-sheet-final-full.log",
+      "status": "PASS",
+      "handle": 3889,
+      "exitCode": 0
+    },
+    {
+      "log": "star-sheet-complete-sdk.log",
+      "status": "FAIL",
+      "handle": 67576,
+      "tests": 1248,
+      "failures": 1,
+      "unexpected": 0,
+      "exitCode": 65,
+      "reason": "NativeSourceInitialBoardBootstrapTests line29 expects Arcade cue immediately when child VC exists; async artwork/presentation boundary under investigation."
+    },
+    {
+      "log": "star-sheet-fresh-arcade-recheck.log",
+      "status": "PRE_TEST_RUNNER_CRASH",
+      "handle": 49624,
+      "exitCode": 65,
+      "reason": "Test bundle initialized from CoreSimulator Dead/temp path; package resource_bundle_accessor fatal missing StackToSixNativeState bundle. No test ran; root cause unproven."
+    },
+    {
+      "log": "star-sheet-fresh-arcade-recheck-retry.log",
+      "status": "PASS",
+      "tests": 2,
+      "handle": 58461,
+      "exitCode": 0,
+      "scope": "Unchanged production/test recheck after pre-test runner crash; UIKit mounting race identified by authoritative call graph, not attributed to new Star runtime."
+    }
+  ],
+  "open": [
+    "Whole common Promise/root/callback transport ordering",
+    "Pending phase timer/resource retry/eviction parity",
+    "Opened/tutorial Star sheet admission",
+    "Full family/gameplay and Release matrix",
+    "Physical touch/audio/thermal acceptance",
+    "Huge cubes physical issue; grey flash last"
+  ],
+  "originalLandedRegistryOracle": {
+    "file": "star-source-registry-landing-oracle.json",
+    "sha256": "c5e949001a4e16baa8711c5e0b3fbc8c153d36dad10ec9d58d5ace74dbf1d00e",
+    "independentRepeatIdentical": true,
+    "profiles": [
+      23,
+      24,
+      24,
+      23
+    ],
+    "authority": "Untouched full original registry class plus five selected complete original idle lifecycle functions, actual shared-sheet/phase/visibility/foreground modules and real Pixi CPU objects. Explicit mode and ineligible other-family endpoints. Dropping registers0; repeat keeps controller; final retirement registers0. No GPU/global-transport/device acceptance.",
+    "pendingAdmission": "Fourth suspended-landing profile registers two pending keys, no controllers and no asset work until actual registry release."
+  },
+  "freshArcadeFixtureCorrection": {
+    "file": "native/standalone/Stack to SixTests/NativeSourceInitialBoardBootstrapTests.swift",
+    "sha256": "167cc83d47f500eea067225eb25fd0f0f898f678f3e35aa8a0e0bab5e0b391d4",
+    "change": "Bounded wait for genuine mounted Arcade cue before assertion; preserves Source construction/node/save assertions. Controller child existence is earlier than UIView layout cue."
+  }
+}

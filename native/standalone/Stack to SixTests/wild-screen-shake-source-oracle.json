@@ -1,0 +1,2611 @@
+{
+  "sourceSHA256": "51b802535fe957e6d77aa61922971221eb292cb504d2a8da8179b98adba6ba52",
+  "gsapVersion": "3.13.0",
+  "reference": "production-benchmark-v9:src/modules/fx.ts screenShake",
+  "traces": [
+    {
+      "name": "star",
+      "strength": 25,
+      "duration": 0.52,
+      "steps": 32,
+      "ease": "sine.inOut",
+      "yScale": 1,
+      "overlay": false,
+      "draws": 64,
+      "rows": [
+        {
+          "seconds": 0,
+          "canvas": [
+            8,
+            -6
+          ],
+          "indicator": [
+            4,
+            -2
+          ],
+          "decor": [
+            2,
+            3
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.008125,
+          "canvas": [
+            -1.3678,
+            4.4486
+          ],
+          "indicator": [
+            -2.2943,
+            4.9589
+          ],
+          "decor": [
+            -3.2943,
+            7.4589
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.0166667,
+          "canvas": [
+            -10.6971,
+            14.8632
+          ],
+          "indicator": [
+            -8.5577,
+            11.8905
+          ],
+          "decor": [
+            -8.5577,
+            11.8985
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.0333333,
+          "canvas": [
+            12.8012,
+            -6.0867
+          ],
+          "indicator": [
+            10.241,
+            -4.8694
+          ],
+          "decor": [
+            10.241,
+            0.0185
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.05,
+          "canvas": [
+            -20.8055,
+            3.8048
+          ],
+          "indicator": [
+            -16.6443,
+            3.0439
+          ],
+          "decor": [
+            -16.6443,
+            3.0439
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.0833333,
+          "canvas": [
+            -14.2774,
+            14.1797
+          ],
+          "indicator": [
+            -11.422,
+            11.3437
+          ],
+          "decor": [
+            -11.422,
+            11.3437
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.1,
+          "canvas": [
+            -2.3573,
+            7.5065
+          ],
+          "indicator": [
+            -1.8859,
+            6.0052
+          ],
+          "decor": [
+            -1.8859,
+            6.0052
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.15,
+          "canvas": [
+            -9.0373,
+            -7.1016
+          ],
+          "indicator": [
+            -7.2298,
+            -5.6812
+          ],
+          "decor": [
+            -7.2298,
+            0
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.2,
+          "canvas": [
+            2.1151,
+            -2.9858
+          ],
+          "indicator": [
+            1.6921,
+            -2.3886
+          ],
+          "decor": [
+            1.6921,
+            0
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.26,
+          "canvas": [
+            6.615,
+            3.1424
+          ],
+          "indicator": [
+            5.292,
+            2.5139
+          ],
+          "decor": [
+            5.292,
+            2.5139
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.3,
+          "canvas": [
+            -0.7046,
+            2.2153
+          ],
+          "indicator": [
+            -0.5636,
+            1.7722
+          ],
+          "decor": [
+            -0.5636,
+            1.7722
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.36,
+          "canvas": [
+            0.9845,
+            -0.1259
+          ],
+          "indicator": [
+            0.7876,
+            -0.1007
+          ],
+          "decor": [
+            0.7876,
+            0
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.4,
+          "canvas": [
+            -0.7809,
+            0.1753
+          ],
+          "indicator": [
+            -0.6247,
+            0.1403
+          ],
+          "decor": [
+            -0.6247,
+            0.1626
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.52,
+          "canvas": [
+            -0.0199,
+            -0.0154
+          ],
+          "indicator": [
+            -0.0159,
+            -0.0123
+          ],
+          "decor": [
+            -0.0159,
+            0
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.64,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.8,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": null
+        }
+      ]
+    },
+    {
+      "name": "star-final",
+      "strength": 20,
+      "duration": 0.52,
+      "steps": 32,
+      "ease": "sine.inOut",
+      "yScale": 1,
+      "overlay": false,
+      "draws": 64,
+      "rows": [
+        {
+          "seconds": 0,
+          "canvas": [
+            8,
+            -6
+          ],
+          "indicator": [
+            4,
+            -2
+          ],
+          "decor": [
+            2,
+            3
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.008125,
+          "canvas": [
+            -0.2943,
+            2.9589
+          ],
+          "indicator": [
+            -1.4354,
+            3.7671
+          ],
+          "decor": [
+            -2.4354,
+            6.2671
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.0166667,
+          "canvas": [
+            -8.5577,
+            11.8905
+          ],
+          "indicator": [
+            -6.8461,
+            9.5124
+          ],
+          "decor": [
+            -6.8461,
+            9.5187
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.0333333,
+          "canvas": [
+            10.241,
+            -4.8694
+          ],
+          "indicator": [
+            8.1928,
+            -3.8955
+          ],
+          "decor": [
+            8.1928,
+            0.0148
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.05,
+          "canvas": [
+            -16.6443,
+            3.0439
+          ],
+          "indicator": [
+            -13.3155,
+            2.4351
+          ],
+          "decor": [
+            -13.3155,
+            2.4351
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.0833333,
+          "canvas": [
+            -11.422,
+            11.3437
+          ],
+          "indicator": [
+            -9.1375,
+            9.0749
+          ],
+          "decor": [
+            -9.1375,
+            9.0749
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.1,
+          "canvas": [
+            -1.8859,
+            6.0052
+          ],
+          "indicator": [
+            -1.5087,
+            4.8042
+          ],
+          "decor": [
+            -1.5087,
+            4.8042
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.15,
+          "canvas": [
+            -7.2298,
+            -5.6812
+          ],
+          "indicator": [
+            -5.7839,
+            -4.545
+          ],
+          "decor": [
+            -5.7839,
+            0
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.2,
+          "canvas": [
+            1.6921,
+            -2.3886
+          ],
+          "indicator": [
+            1.3537,
+            -1.9109
+          ],
+          "decor": [
+            1.3537,
+            0
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.26,
+          "canvas": [
+            5.292,
+            2.5139
+          ],
+          "indicator": [
+            4.2336,
+            2.0111
+          ],
+          "decor": [
+            4.2336,
+            2.0111
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.3,
+          "canvas": [
+            -0.5636,
+            1.7722
+          ],
+          "indicator": [
+            -0.4509,
+            1.4178
+          ],
+          "decor": [
+            -0.4509,
+            1.4178
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.36,
+          "canvas": [
+            0.7876,
+            -0.1007
+          ],
+          "indicator": [
+            0.6301,
+            -0.0805
+          ],
+          "decor": [
+            0.6301,
+            0
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.4,
+          "canvas": [
+            -0.6247,
+            0.1403
+          ],
+          "indicator": [
+            -0.4998,
+            0.1122
+          ],
+          "decor": [
+            -0.4998,
+            0.13
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.52,
+          "canvas": [
+            -0.0159,
+            -0.0123
+          ],
+          "indicator": [
+            -0.0127,
+            -0.0099
+          ],
+          "decor": [
+            -0.0127,
+            0
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.64,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.8,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": null
+        }
+      ]
+    },
+    {
+      "name": "magnet",
+      "strength": 20,
+      "duration": 0.26,
+      "steps": 16,
+      "ease": "sine.inOut",
+      "yScale": 1,
+      "overlay": false,
+      "draws": 32,
+      "rows": [
+        {
+          "seconds": 0,
+          "canvas": [
+            8,
+            -6
+          ],
+          "indicator": [
+            4,
+            -2
+          ],
+          "decor": [
+            2,
+            3
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.008125,
+          "canvas": [
+            -0.2943,
+            2.9589
+          ],
+          "indicator": [
+            -1.4354,
+            3.7671
+          ],
+          "decor": [
+            -2.4354,
+            6.2671
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.0166667,
+          "canvas": [
+            -8.5588,
+            11.891
+          ],
+          "indicator": [
+            -6.847,
+            9.5128
+          ],
+          "decor": [
+            -6.847,
+            9.5187
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.0333333,
+          "canvas": [
+            9.598,
+            -4.5615
+          ],
+          "indicator": [
+            7.6784,
+            -3.6492
+          ],
+          "decor": [
+            7.6784,
+            0.0129
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.05,
+          "canvas": [
+            -14.4857,
+            2.6358
+          ],
+          "indicator": [
+            -11.5886,
+            2.1086
+          ],
+          "decor": [
+            -11.5886,
+            2.1086
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.0833333,
+          "canvas": [
+            -8.3852,
+            8.3173
+          ],
+          "indicator": [
+            -6.7081,
+            6.6539
+          ],
+          "decor": [
+            -6.7081,
+            6.6539
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.1,
+          "canvas": [
+            -1.2712,
+            3.9579
+          ],
+          "indicator": [
+            -1.017,
+            3.1664
+          ],
+          "decor": [
+            -1.017,
+            3.1664
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.15,
+          "canvas": [
+            -3.1756,
+            -2.4801
+          ],
+          "indicator": [
+            -2.5406,
+            -1.984
+          ],
+          "decor": [
+            -2.5406,
+            0
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.2,
+          "canvas": [
+            0.2886,
+            -0.5136
+          ],
+          "indicator": [
+            0.2309,
+            -0.4108
+          ],
+          "decor": [
+            0.2309,
+            0
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.26,
+          "canvas": [
+            0.0732,
+            0.0348
+          ],
+          "indicator": [
+            0.0586,
+            0.0278
+          ],
+          "decor": [
+            0.0586,
+            0.0278
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.3,
+          "canvas": [
+            0.0209,
+            0.0099
+          ],
+          "indicator": [
+            0.0167,
+            0.0079
+          ],
+          "decor": [
+            0.0167,
+            0.0079
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.36,
+          "canvas": [
+            0.0002,
+            0.0001
+          ],
+          "indicator": [
+            0.0002,
+            0.0001
+          ],
+          "decor": [
+            0.0002,
+            0.0001
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.4,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.52,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.64,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.8,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": null
+        }
+      ]
+    },
+    {
+      "name": "magnet-final",
+      "strength": 16,
+      "duration": 0.26,
+      "steps": 16,
+      "ease": "sine.inOut",
+      "yScale": 1,
+      "overlay": false,
+      "draws": 32,
+      "rows": [
+        {
+          "seconds": 0,
+          "canvas": [
+            8,
+            -6
+          ],
+          "indicator": [
+            4,
+            -2
+          ],
+          "decor": [
+            2,
+            3
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.008125,
+          "canvas": [
+            0.5646,
+            1.7671
+          ],
+          "indicator": [
+            -0.7483,
+            2.8137
+          ],
+          "decor": [
+            -1.7483,
+            5.3137
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.0166667,
+          "canvas": [
+            -6.847,
+            9.5128
+          ],
+          "indicator": [
+            -5.4776,
+            7.6102
+          ],
+          "decor": [
+            -5.4776,
+            7.615
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.0333333,
+          "canvas": [
+            7.6784,
+            -3.6492
+          ],
+          "indicator": [
+            6.1427,
+            -2.9193
+          ],
+          "decor": [
+            6.1427,
+            0.0103
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.05,
+          "canvas": [
+            -11.5886,
+            2.1086
+          ],
+          "indicator": [
+            -9.2709,
+            1.6869
+          ],
+          "decor": [
+            -9.2709,
+            1.6869
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.0833333,
+          "canvas": [
+            -6.7081,
+            6.6539
+          ],
+          "indicator": [
+            -5.3665,
+            5.3231
+          ],
+          "decor": [
+            -5.3665,
+            5.3231
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.1,
+          "canvas": [
+            -1.017,
+            3.1664
+          ],
+          "indicator": [
+            -0.8135,
+            2.5331
+          ],
+          "decor": [
+            -0.8135,
+            2.5331
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.15,
+          "canvas": [
+            -2.5406,
+            -1.984
+          ],
+          "indicator": [
+            -2.0325,
+            -1.5872
+          ],
+          "decor": [
+            -2.0325,
+            0
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.2,
+          "canvas": [
+            0.2309,
+            -0.4108
+          ],
+          "indicator": [
+            0.1848,
+            -0.3287
+          ],
+          "decor": [
+            0.1848,
+            0
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.26,
+          "canvas": [
+            0.0586,
+            0.0278
+          ],
+          "indicator": [
+            0.0469,
+            0.0223
+          ],
+          "decor": [
+            0.0469,
+            0.0223
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.3,
+          "canvas": [
+            0.0167,
+            0.0079
+          ],
+          "indicator": [
+            0.0134,
+            0.0064
+          ],
+          "decor": [
+            0.0134,
+            0.0064
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.36,
+          "canvas": [
+            0.0002,
+            0.0001
+          ],
+          "indicator": [
+            0.0001,
+            0.0001
+          ],
+          "decor": [
+            0.0001,
+            0.0001
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.4,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.52,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.64,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.8,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": null
+        }
+      ]
+    },
+    {
+      "name": "tnt",
+      "strength": 32,
+      "duration": 0.26,
+      "steps": 16,
+      "ease": "sine.inOut",
+      "yScale": 1,
+      "overlay": true,
+      "draws": 32,
+      "rows": [
+        {
+          "seconds": 0,
+          "canvas": [
+            8,
+            -6
+          ],
+          "indicator": [
+            4,
+            -2
+          ],
+          "decor": [
+            2,
+            3
+          ],
+          "overlay": [
+            0,
+            0
+          ]
+        },
+        {
+          "seconds": 0.008125,
+          "canvas": [
+            -2.8708,
+            6.5342
+          ],
+          "indicator": [
+            -3.4966,
+            6.6274
+          ],
+          "decor": [
+            -4.4966,
+            9.1274
+          ],
+          "overlay": [
+            -6.8708,
+            9.5342
+          ]
+        },
+        {
+          "seconds": 0.0166667,
+          "canvas": [
+            -13.694,
+            19.0256
+          ],
+          "indicator": [
+            -10.9552,
+            15.2205
+          ],
+          "decor": [
+            -10.9552,
+            15.2301
+          ],
+          "overlay": [
+            -13.694,
+            19.0256
+          ]
+        },
+        {
+          "seconds": 0.0333333,
+          "canvas": [
+            15.3568,
+            -7.2983
+          ],
+          "indicator": [
+            12.2855,
+            -5.8387
+          ],
+          "decor": [
+            12.2855,
+            0.0206
+          ],
+          "overlay": [
+            15.3568,
+            -7.2983
+          ]
+        },
+        {
+          "seconds": 0.05,
+          "canvas": [
+            -23.1772,
+            4.2173
+          ],
+          "indicator": [
+            -18.5417,
+            3.3738
+          ],
+          "decor": [
+            -18.5417,
+            3.3738
+          ],
+          "overlay": [
+            -23.1772,
+            4.2173
+          ]
+        },
+        {
+          "seconds": 0.0833333,
+          "canvas": [
+            -13.4163,
+            13.3077
+          ],
+          "indicator": [
+            -10.733,
+            10.6462
+          ],
+          "decor": [
+            -10.733,
+            10.6462
+          ],
+          "overlay": [
+            -13.4163,
+            13.3077
+          ]
+        },
+        {
+          "seconds": 0.1,
+          "canvas": [
+            -2.0338,
+            6.3327
+          ],
+          "indicator": [
+            -1.6271,
+            5.0662
+          ],
+          "decor": [
+            -1.6271,
+            5.0662
+          ],
+          "overlay": [
+            -2.0338,
+            6.3327
+          ]
+        },
+        {
+          "seconds": 0.15,
+          "canvas": [
+            -5.0811,
+            -3.9681
+          ],
+          "indicator": [
+            -4.0648,
+            -3.1744
+          ],
+          "decor": [
+            -4.0648,
+            0
+          ],
+          "overlay": [
+            -5.0811,
+            -3.9681
+          ]
+        },
+        {
+          "seconds": 0.2,
+          "canvas": [
+            0.4619,
+            -0.8217
+          ],
+          "indicator": [
+            0.3694,
+            -0.6574
+          ],
+          "decor": [
+            0.3694,
+            0
+          ],
+          "overlay": [
+            0.4619,
+            -0.8217
+          ]
+        },
+        {
+          "seconds": 0.26,
+          "canvas": [
+            0.1172,
+            0.0557
+          ],
+          "indicator": [
+            0.0938,
+            0.0445
+          ],
+          "decor": [
+            0.0938,
+            0.0445
+          ],
+          "overlay": [
+            0.1172,
+            0.0557
+          ]
+        },
+        {
+          "seconds": 0.3,
+          "canvas": [
+            0.0334,
+            0.0159
+          ],
+          "indicator": [
+            0.0267,
+            0.0127
+          ],
+          "decor": [
+            0.0267,
+            0.0127
+          ],
+          "overlay": [
+            0.0334,
+            0.0159
+          ]
+        },
+        {
+          "seconds": 0.36,
+          "canvas": [
+            0.0004,
+            0.0002
+          ],
+          "indicator": [
+            0.0003,
+            0.0001
+          ],
+          "decor": [
+            0.0003,
+            0.0001
+          ],
+          "overlay": [
+            0.0004,
+            0.0002
+          ]
+        },
+        {
+          "seconds": 0.4,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": [
+            0,
+            0
+          ]
+        },
+        {
+          "seconds": 0.52,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": [
+            0,
+            0
+          ]
+        },
+        {
+          "seconds": 0.64,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": [
+            0,
+            0
+          ]
+        },
+        {
+          "seconds": 0.8,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": [
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "tnt-targets",
+      "strength": 40,
+      "duration": 0.26,
+      "steps": 16,
+      "ease": "sine.inOut",
+      "yScale": 1,
+      "overlay": true,
+      "draws": 32,
+      "rows": [
+        {
+          "seconds": 0,
+          "canvas": [
+            8,
+            -6
+          ],
+          "indicator": [
+            4,
+            -2
+          ],
+          "decor": [
+            2,
+            3
+          ],
+          "overlay": [
+            0,
+            0
+          ]
+        },
+        {
+          "seconds": 0.008125,
+          "canvas": [
+            -4.5885,
+            8.9178
+          ],
+          "indicator": [
+            -4.8708,
+            8.5342
+          ],
+          "decor": [
+            -5.8708,
+            11.0342
+          ],
+          "overlay": [
+            -8.5885,
+            11.9178
+          ]
+        },
+        {
+          "seconds": 0.0166667,
+          "canvas": [
+            -17.1175,
+            23.782
+          ],
+          "indicator": [
+            -13.694,
+            19.0256
+          ],
+          "decor": [
+            -13.694,
+            19.0376
+          ],
+          "overlay": [
+            -17.1175,
+            23.782
+          ]
+        },
+        {
+          "seconds": 0.0333333,
+          "canvas": [
+            19.196,
+            -9.123
+          ],
+          "indicator": [
+            15.3568,
+            -7.2983
+          ],
+          "decor": [
+            15.3568,
+            0.0257
+          ],
+          "overlay": [
+            19.196,
+            -9.123
+          ]
+        },
+        {
+          "seconds": 0.05,
+          "canvas": [
+            -28.9716,
+            5.2715
+          ],
+          "indicator": [
+            -23.1772,
+            4.2173
+          ],
+          "decor": [
+            -23.1772,
+            4.2173
+          ],
+          "overlay": [
+            -28.9716,
+            5.2715
+          ]
+        },
+        {
+          "seconds": 0.0833333,
+          "canvas": [
+            -16.7703,
+            16.6346
+          ],
+          "indicator": [
+            -13.4163,
+            13.3077
+          ],
+          "decor": [
+            -13.4163,
+            13.3077
+          ],
+          "overlay": [
+            -16.7703,
+            16.6346
+          ]
+        },
+        {
+          "seconds": 0.1,
+          "canvas": [
+            -2.5423,
+            7.9159
+          ],
+          "indicator": [
+            -2.0338,
+            6.3327
+          ],
+          "decor": [
+            -2.0338,
+            6.3327
+          ],
+          "overlay": [
+            -2.5423,
+            7.9159
+          ]
+        },
+        {
+          "seconds": 0.15,
+          "canvas": [
+            -6.3513,
+            -4.96
+          ],
+          "indicator": [
+            -5.0811,
+            -3.9681
+          ],
+          "decor": [
+            -5.0811,
+            0
+          ],
+          "overlay": [
+            -6.3513,
+            -4.96
+          ]
+        },
+        {
+          "seconds": 0.2,
+          "canvas": [
+            0.5773,
+            -1.0271
+          ],
+          "indicator": [
+            0.4619,
+            -0.8217
+          ],
+          "decor": [
+            0.4619,
+            0
+          ],
+          "overlay": [
+            0.5773,
+            -1.0271
+          ]
+        },
+        {
+          "seconds": 0.26,
+          "canvas": [
+            0.1465,
+            0.0696
+          ],
+          "indicator": [
+            0.1172,
+            0.0557
+          ],
+          "decor": [
+            0.1172,
+            0.0557
+          ],
+          "overlay": [
+            0.1465,
+            0.0696
+          ]
+        },
+        {
+          "seconds": 0.3,
+          "canvas": [
+            0.0418,
+            0.0198
+          ],
+          "indicator": [
+            0.0334,
+            0.0159
+          ],
+          "decor": [
+            0.0334,
+            0.0159
+          ],
+          "overlay": [
+            0.0418,
+            0.0198
+          ]
+        },
+        {
+          "seconds": 0.36,
+          "canvas": [
+            0.0004,
+            0.0002
+          ],
+          "indicator": [
+            0.0004,
+            0.0002
+          ],
+          "decor": [
+            0.0004,
+            0.0002
+          ],
+          "overlay": [
+            0.0004,
+            0.0002
+          ]
+        },
+        {
+          "seconds": 0.4,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": [
+            0,
+            0
+          ]
+        },
+        {
+          "seconds": 0.52,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": [
+            0,
+            0
+          ]
+        },
+        {
+          "seconds": 0.64,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": [
+            0,
+            0
+          ]
+        },
+        {
+          "seconds": 0.8,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": [
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "magnet-pull",
+      "strength": 28,
+      "duration": 0.36,
+      "steps": 28,
+      "ease": "sine.inOut",
+      "yScale": 1,
+      "overlay": false,
+      "draws": 56,
+      "rows": [
+        {
+          "seconds": 0,
+          "canvas": [
+            8,
+            -6
+          ],
+          "indicator": [
+            4,
+            -2
+          ],
+          "decor": [
+            2,
+            3
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.008125,
+          "canvas": [
+            -6.0443,
+            9.9107
+          ],
+          "indicator": [
+            -5.5521,
+            8.7647
+          ],
+          "decor": [
+            -6.1494,
+            10.2578
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.0166667,
+          "canvas": [
+            -6.6915,
+            11.9495
+          ],
+          "indicator": [
+            -5.3532,
+            9.5596
+          ],
+          "decor": [
+            -5.3532,
+            10.6592
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.0333333,
+          "canvas": [
+            -9.5952,
+            0.0856
+          ],
+          "indicator": [
+            -7.6762,
+            0.0685
+          ],
+          "decor": [
+            -7.6762,
+            2.0153
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.05,
+          "canvas": [
+            -18.6407,
+            21.3968
+          ],
+          "indicator": [
+            -14.9126,
+            17.1174
+          ],
+          "decor": [
+            -14.9126,
+            17.1174
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.0833333,
+          "canvas": [
+            1.2507,
+            8.5023
+          ],
+          "indicator": [
+            1.0006,
+            6.8018
+          ],
+          "decor": [
+            1.0006,
+            6.8018
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.1,
+          "canvas": [
+            -13.0812,
+            6.8846
+          ],
+          "indicator": [
+            -10.465,
+            5.5077
+          ],
+          "decor": [
+            -10.465,
+            5.5077
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.15,
+          "canvas": [
+            -0.8907,
+            -5.0278
+          ],
+          "indicator": [
+            -0.7125,
+            -4.0222
+          ],
+          "decor": [
+            -0.7125,
+            0
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.2,
+          "canvas": [
+            2.1895,
+            1.764
+          ],
+          "indicator": [
+            1.7516,
+            1.4112
+          ],
+          "decor": [
+            1.7516,
+            1.4112
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.26,
+          "canvas": [
+            -2.2812,
+            -1.9036
+          ],
+          "indicator": [
+            -1.825,
+            -1.5229
+          ],
+          "decor": [
+            -1.825,
+            0
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.3,
+          "canvas": [
+            0.5488,
+            -0.7944
+          ],
+          "indicator": [
+            0.4391,
+            -0.6355
+          ],
+          "decor": [
+            0.4391,
+            0.0569
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.36,
+          "canvas": [
+            0.0155,
+            0.0236
+          ],
+          "indicator": [
+            0.0124,
+            0.0189
+          ],
+          "decor": [
+            0.0124,
+            0.0189
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.4,
+          "canvas": [
+            0.0046,
+            0.007
+          ],
+          "indicator": [
+            0.0037,
+            0.0056
+          ],
+          "decor": [
+            0.0037,
+            0.0056
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.52,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.64,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": null
+        },
+        {
+          "seconds": 0.8,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": null
+        }
+      ]
+    },
+    {
+      "name": "laser-third",
+      "strength": 9,
+      "duration": 0.18,
+      "steps": 10,
+      "ease": "power2.out",
+      "yScale": 0.72,
+      "overlay": true,
+      "draws": 20,
+      "rows": [
+        {
+          "seconds": 0,
+          "canvas": [
+            8,
+            -6
+          ],
+          "indicator": [
+            4,
+            -2
+          ],
+          "decor": [
+            2,
+            3
+          ],
+          "overlay": [
+            0,
+            0
+          ]
+        },
+        {
+          "seconds": 0.008125,
+          "canvas": [
+            -1.9057,
+            2.2331
+          ],
+          "indicator": [
+            -1.9209,
+            2.2488
+          ],
+          "decor": [
+            -2.2511,
+            3.0744
+          ],
+          "overlay": [
+            -3.2267,
+            3.2238
+          ]
+        },
+        {
+          "seconds": 0.0166667,
+          "canvas": [
+            -3.86,
+            3.8574
+          ],
+          "indicator": [
+            -3.089,
+            3.087
+          ],
+          "decor": [
+            -3.0898,
+            3.0891
+          ],
+          "overlay": [
+            -3.8633,
+            3.8598
+          ]
+        },
+        {
+          "seconds": 0.0333333,
+          "canvas": [
+            4.02,
+            -1.3587
+          ],
+          "indicator": [
+            3.216,
+            -1.087
+          ],
+          "decor": [
+            3.216,
+            0.01
+          ],
+          "overlay": [
+            4.02,
+            -1.3587
+          ]
+        },
+        {
+          "seconds": 0.05,
+          "canvas": [
+            -5.3642,
+            0.6501
+          ],
+          "indicator": [
+            -4.2914,
+            0.5201
+          ],
+          "decor": [
+            -4.2914,
+            0.5322
+          ],
+          "overlay": [
+            -5.3642,
+            0.6501
+          ]
+        },
+        {
+          "seconds": 0.0833333,
+          "canvas": [
+            -2.5563,
+            1.8315
+          ],
+          "indicator": [
+            -2.045,
+            1.4652
+          ],
+          "decor": [
+            -2.045,
+            1.4652
+          ],
+          "overlay": [
+            -2.5563,
+            1.8315
+          ]
+        },
+        {
+          "seconds": 0.1,
+          "canvas": [
+            -0.5481,
+            0.7716
+          ],
+          "indicator": [
+            -0.4385,
+            0.6173
+          ],
+          "decor": [
+            -0.4385,
+            0.6173
+          ],
+          "overlay": [
+            -0.5481,
+            0.7716
+          ]
+        },
+        {
+          "seconds": 0.15,
+          "canvas": [
+            -0.4111,
+            -0.0219
+          ],
+          "indicator": [
+            -0.3289,
+            -0.0175
+          ],
+          "decor": [
+            -0.3289,
+            0.0577
+          ],
+          "overlay": [
+            -0.4111,
+            -0.0219
+          ]
+        },
+        {
+          "seconds": 0.2,
+          "canvas": [
+            -0.015,
+            -0.0129
+          ],
+          "indicator": [
+            -0.012,
+            -0.0104
+          ],
+          "decor": [
+            -0.012,
+            0
+          ],
+          "overlay": [
+            -0.015,
+            -0.0129
+          ]
+        },
+        {
+          "seconds": 0.26,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": [
+            0,
+            0
+          ]
+        },
+        {
+          "seconds": 0.3,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": [
+            0,
+            0
+          ]
+        },
+        {
+          "seconds": 0.36,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": [
+            0,
+            0
+          ]
+        },
+        {
+          "seconds": 0.4,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": [
+            0,
+            0
+          ]
+        },
+        {
+          "seconds": 0.52,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": [
+            0,
+            0
+          ]
+        },
+        {
+          "seconds": 0.64,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": [
+            0,
+            0
+          ]
+        },
+        {
+          "seconds": 0.8,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": [
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "laser-fourth",
+      "strength": 12,
+      "duration": 0.22,
+      "steps": 12,
+      "ease": "power2.out",
+      "yScale": 0.72,
+      "overlay": true,
+      "draws": 24,
+      "rows": [
+        {
+          "seconds": 0,
+          "canvas": [
+            8,
+            -6
+          ],
+          "indicator": [
+            4,
+            -2
+          ],
+          "decor": [
+            2,
+            3
+          ],
+          "overlay": [
+            0,
+            0
+          ]
+        },
+        {
+          "seconds": 0.008125,
+          "canvas": [
+            -2.8824,
+            3.2238
+          ],
+          "indicator": [
+            -2.7202,
+            3.0625
+          ],
+          "decor": [
+            -3.0655,
+            3.9256
+          ],
+          "overlay": [
+            -4.2635,
+            4.2597
+          ]
+        },
+        {
+          "seconds": 0.0166667,
+          "canvas": [
+            -5.1432,
+            5.1401
+          ],
+          "indicator": [
+            -4.1164,
+            4.1142
+          ],
+          "decor": [
+            -4.1179,
+            4.118
+          ],
+          "overlay": [
+            -5.1492,
+            5.1446
+          ]
+        },
+        {
+          "seconds": 0.0333333,
+          "canvas": [
+            5.5313,
+            -1.8605
+          ],
+          "indicator": [
+            4.4251,
+            -1.4884
+          ],
+          "decor": [
+            4.4251,
+            0.0248
+          ],
+          "overlay": [
+            5.5313,
+            -1.8605
+          ]
+        },
+        {
+          "seconds": 0.05,
+          "canvas": [
+            -7.6378,
+            0.9147
+          ],
+          "indicator": [
+            -6.1102,
+            0.7318
+          ],
+          "decor": [
+            -6.1102,
+            0.7626
+          ],
+          "overlay": [
+            -7.6378,
+            0.9147
+          ]
+        },
+        {
+          "seconds": 0.0833333,
+          "canvas": [
+            -4.2505,
+            3.0773
+          ],
+          "indicator": [
+            -3.4004,
+            2.4619
+          ],
+          "decor": [
+            -3.4004,
+            2.4619
+          ],
+          "overlay": [
+            -4.2505,
+            3.0773
+          ]
+        },
+        {
+          "seconds": 0.1,
+          "canvas": [
+            -1.2152,
+            1.4989
+          ],
+          "indicator": [
+            -0.9722,
+            1.1991
+          ],
+          "decor": [
+            -0.9722,
+            1.1991
+          ],
+          "overlay": [
+            -1.2152,
+            1.4989
+          ]
+        },
+        {
+          "seconds": 0.15,
+          "canvas": [
+            -1.5435,
+            0.1192
+          ],
+          "indicator": [
+            -1.2348,
+            0.0954
+          ],
+          "decor": [
+            -1.2348,
+            0.2745
+          ],
+          "overlay": [
+            -1.5435,
+            0.1192
+          ]
+        },
+        {
+          "seconds": 0.2,
+          "canvas": [
+            -0.1382,
+            -0.23
+          ],
+          "indicator": [
+            -0.1105,
+            -0.184
+          ],
+          "decor": [
+            -0.1105,
+            0
+          ],
+          "overlay": [
+            -0.1382,
+            -0.23
+          ]
+        },
+        {
+          "seconds": 0.26,
+          "canvas": [
+            0.0007,
+            -0.0037
+          ],
+          "indicator": [
+            0.0006,
+            -0.003
+          ],
+          "decor": [
+            0.0006,
+            0
+          ],
+          "overlay": [
+            0.0007,
+            -0.0037
+          ]
+        },
+        {
+          "seconds": 0.3,
+          "canvas": [
+            0,
+            -0.0001
+          ],
+          "indicator": [
+            0,
+            -0.0001
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": [
+            0,
+            -0.0001
+          ]
+        },
+        {
+          "seconds": 0.36,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": [
+            0,
+            0
+          ]
+        },
+        {
+          "seconds": 0.4,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": [
+            0,
+            0
+          ]
+        },
+        {
+          "seconds": 0.52,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": [
+            0,
+            0
+          ]
+        },
+        {
+          "seconds": 0.64,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": [
+            0,
+            0
+          ]
+        },
+        {
+          "seconds": 0.8,
+          "canvas": [
+            0,
+            0
+          ],
+          "indicator": [
+            0,
+            0
+          ],
+          "decor": [
+            0,
+            0
+          ],
+          "overlay": [
+            0,
+            0
+          ]
+        }
+      ]
+    }
+  ]
+}

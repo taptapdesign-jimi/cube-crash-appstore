@@ -1,0 +1,518 @@
+diff --git a/native/gameplay-app/NativeAppController.swift b/native/gameplay-app/NativeAppController.swift
+--- a/native/gameplay-app/NativeAppController.swift
++++ b/native/gameplay-app/NativeAppController.swift
+@@ -88,7 +88,7 @@
+         home.onSlideSelected = { [weak self] index in self?.selectSlide(index) }
+         home.onPanBegan = { [weak self] in
+             guard let self,!self.transitioning,self.route == .home else{return false}
+-            self.home.pauseHeroIdle();return true
++            self.motion.cancel();self.home.pauseHeroIdle();return true
+         }
+         home.onPanEnded = { [weak self] index,_ in self?.selectSlide(index) }
+         hub.onBack = { [weak self] in self?.navigate(.home,interrupt:true) }
+@@ -124,11 +124,15 @@
+     }
+     private func selectSlide(_ index:Int) {
+         guard !transitioning,route == .home else{return}
+-        home.selectSlide(index,animated:true);onFeedback?("tab");home.startHeroIdle()
++        onFeedback?("tab")
++        motion.selectSlide(index) { [weak self] in
++            guard let self,self.route == .home,!self.suspended,!self.transitioning else{return}
++            self.home.startHeroIdle()
++        }
+     }
+     func navigate(_ next:Route,interrupt:Bool = false) {
+         guard route != next,(!transitioning || interrupt),route != .gameplay else{return}
+-        if transitioning {motion.cancel()}
++        if transitioning {motion.cancel()} else {motion.cancelSelectionLayout()}
+         generation += 1;let owner = generation;transitioning = true
+         backpack?.setActive(false,generation:generation)
+         home.stopHeroIdle(preservePaintedPose:true);hub.stopIdle()
+diff --git a/native/gameplay-app/NativeRouteMotion.swift b/native/gameplay-app/NativeRouteMotion.swift
+--- a/native/gameplay-app/NativeRouteMotion.swift
++++ b/native/gameplay-app/NativeRouteMotion.swift
+@@ -94,6 +94,67 @@
+         CATransaction.commit()
+     }
+ 
++    /// Slider selection shares route cancellation and background ownership.
++    /// Capture the painted track/nav before committing the new layout.
++    func selectSlide(_ index: Int, completion: @escaping () -> Void) {
++        guard home.navigationButtonViews.indices.contains(index) else { return }
++        let changed = index != home.selectedSlide
++        let oldX = home.sliderSelectionStartX
++        let navigation = home.navigationLayoutTargets.map { target in
++            let layer = target.view.layer.presentation() ?? target.view.layer
++            return (target.view, target.slideIndex, layer.bounds, layer.position)
++        }
++        cancel()
++        home.cancelPan()
++        home.pauseHeroIdle()
++        home.selectSlide(index, animated: false)
++        CATransaction.begin(); CATransaction.setDisableActions(true)
++        let destination = home.sliderTrack.layer.position.x
++        let slide = CAKeyframeAnimation(keyPath: "position.x")
++        slide.values = (0...80).map { oldX + (destination-oldX)*JimiV9Motion.sliderEase.value(Double($0)/80) }
++        slide.duration = JimiV9Motion.sliderDuration
++        home.sliderTrack.layer.add(slide, forKey: "native-slide-selection")
++        register(home.sliderTrack.layer)
++        for (target, index, oldBounds, oldPosition) in navigation {
++            let layer = target.layer, bounds = layer.bounds, position = layer.position
++            let sizeEase = JimiV9Motion.Ease.powerOut(index == home.selectedSlide ? 3 : 2)
++            let boundsMotion = CAKeyframeAnimation(keyPath: "bounds")
++            boundsMotion.values = (0...80).map { step in
++                let t = sizeEase.value(Double(step)/80)
++                return NSValue(cgRect: CGRect(x: bounds.minX, y: bounds.minY,
++                    width: oldBounds.width+(bounds.width-oldBounds.width)*t,
++                    height: oldBounds.height+(bounds.height-oldBounds.height)*t))
++            }
++            let positionMotion = CAKeyframeAnimation(keyPath: "position")
++            positionMotion.values = (0...80).map { step in
++                let t = JimiV9Motion.Ease.powerOut(3).value(Double(step)/80)
++                return NSValue(cgPoint: CGPoint(x: oldPosition.x+(position.x-oldPosition.x)*t,
++                    y: oldPosition.y+(position.y-oldPosition.y)*t))
++            }
++            boundsMotion.duration = 0.38; positionMotion.duration = 0.38
++            let group = CAAnimationGroup(); group.animations = [boundsMotion, positionMotion]; group.duration = 0.38
++            layer.add(group, forKey: "native-slide-selection"); register(layer)
++        }
++        CATransaction.commit()
++        animate([(changed ? home.heroView : home.navigationButtonViews[index],
++                  changed ? JimiV9Motion.selectedHeroBounce : JimiV9Motion.navigationTapBounce)], completion: completion)
++    }
++
++    /// Route exit must retain the hero's painted bounce for homeTracks to
++    /// retarget its collapse, while retiring conflicting track/nav layout.
++    func cancelSelectionLayout() {
++        CATransaction.begin(); CATransaction.setDisableActions(true)
++        for layer in animatedLayers where layer.animation(forKey: "native-slide-selection") != nil {
++            if let painted=layer.presentation() { layer.position=painted.position; layer.bounds=painted.bounds }
++            layer.removeAnimation(forKey: "native-slide-selection")
++        }
++        CATransaction.commit()
++    }
++
++    private func register(_ layer: CALayer) {
++        if !animatedLayers.contains(where: { $0 === layer }) { animatedLayers.append(layer) }
++    }
++
+     private func installTracks(_ entries: [(UIView, JimiV9Motion.Track)], holdUntil: Double? = nil) {
+         for (target, track) in entries {
+             let layer = target.layer
+@@ -149,7 +210,13 @@
+     func cancel() {
+         generation += 1
+         for layer in animatedLayers {
+-            if let painted = layer.presentation() {layer.transform = painted.transform;layer.opacity = painted.opacity}
++            if let painted = layer.presentation() {
++                layer.transform = painted.transform; layer.opacity = painted.opacity
++                if layer.animation(forKey: "native-slide-selection") != nil {
++                    layer.position = painted.position; layer.bounds = painted.bounds
++                }
++            }
++            layer.removeAnimation(forKey: "native-slide-selection")
+             layer.removeAnimation(forKey: "native-route")
+             layer.speed = 1;layer.timeOffset = 0;layer.beginTime = 0
+             restoreAnchor(layer)
+diff --git a/native/jimi-2026/JimiV9HomeView.swift b/native/jimi-2026/JimiV9HomeView.swift
+--- a/native/jimi-2026/JimiV9HomeView.swift
++++ b/native/jimi-2026/JimiV9HomeView.swift
+@@ -57,6 +57,8 @@
+     private var dragging = false
+     private var draggedPositionX: CGFloat?
+     private var dragStartPositionX: CGFloat = 0
++    private var dragRecognitionTranslation: CGFloat = 0
++    var sliderSelectionStartX: CGFloat { draggedPositionX ?? sliderTrack.layer.presentation()?.position.x ?? sliderTrack.layer.position.x }
+ 
+     var heroView: UIView { heroes[selectedSlide] }
+     var logoImageView: UIImageView { logoImage }
+@@ -394,6 +396,8 @@
+     /// Route/background owner cancels without requesting another selection.
+     func cancelPan(preservingCTAFeedback: Bool = false) {
+         if !preservingCTAFeedback { resetCTAFeedback() }
++        sliderTrack.layer.removeAnimation(forKey:"native-slide-selection")
++        for node in navigationLayoutTargets {node.view.layer.removeAnimation(forKey:"native-slide-selection")}
+         dragging = false
+         draggedPositionX = nil
+         panGesture.isEnabled = false
+@@ -410,6 +414,7 @@
+             guard onPanBegan?() == true else { cancelPan(); return }
+             dragging = true
+             dragStartPositionX = paintedX
++            dragRecognitionTranslation = translation
+             // UIKit has already accumulated movement before recognizing a pan.
+             // Adopt the painted pose, then start finger-relative movement there;
+             // adding that recognition distance would jump on the first frame.
+@@ -426,7 +431,7 @@
+             // snap's start pose. UIKit supplies filtered velocity in points/sec.
+             if !cancelled { updatePanPosition(translation) }
+             let destination = cancelled ? selectedSlide : JimiV9Motion.sliderDragDestination(
+-                selectedSlide: selectedSlide, distance: Double(translation),
++                selectedSlide: selectedSlide, distance: Double(translation + dragRecognitionTranslation),
+                 velocityPointsPerMillisecond: Double(recognizer.velocity(in: viewport).x) / 1000)
+             if let complete = onPanEnded { complete(destination, cancelled) }
+             else { selectSlide(selectedSlide, animated: false) }
+diff --git a/native/gameplay-ui/NativeRegularDropTarget.swift b/native/gameplay-ui/NativeRegularDropTarget.swift
+new file mode 100644
+--- /dev/null
++++ b/native/gameplay-ui/NativeRegularDropTarget.swift
+@@ -0,0 +1,31 @@
++import Foundation
++import CoreGraphics
++
++/// v9 drag-core pickDropTarget: ordinary overlap, followed by release-only
++/// pointer grace. Caller supplies live bounds and already-eligible targets;
++/// resolver remains the sole owner of stack/merge legality.
++struct NativeRegularDropTarget {
++    struct Candidate { let id: String; let bounds: CGRect; let pointerBounds: CGRect }
++    static func pick(source: CGRect, candidates: [Candidate], pointer: CGPoint?, tileSize: CGFloat) -> String? {
++        guard source.width > 0, source.height > 0 else { return nil }
++        var best: String?, ratio: CGFloat = 0
++        for target in candidates where target.bounds.width > 0 && target.bounds.height > 0 {
++            let overlap = source.intersection(target.bounds)
++            let area = overlap.isNull ? 0 : overlap.width*overlap.height
++            let value = area / (target.bounds.width*target.bounds.height)
++            if value > ratio { ratio = value; best = target.id }
++        }
++        if ratio >= 0.05 { return best }
++        guard let pointer else { return nil }
++        var distance = CGFloat.infinity, closest: String?
++        for target in candidates where target.pointerBounds.width > 0 && target.pointerBounds.height > 0 {
++            let rect = target.pointerBounds
++            let pad = tileSize*0.26
++            guard pointer.x >= rect.minX-pad, pointer.x <= rect.maxX+pad,
++                  pointer.y >= rect.minY-pad, pointer.y <= rect.maxY+pad else { continue }
++            let value = hypot(pointer.x-rect.midX, pointer.y-rect.midY)
++            if value < distance && value <= tileSize*0.68 { distance = value; closest = target.id }
++        }
++        return closest
++    }
++}
+diff --git a/native/gameplay-ui/NativeBoardScene.swift b/native/gameplay-ui/NativeBoardScene.swift
+--- a/native/gameplay-ui/NativeBoardScene.swift
++++ b/native/gameplay-ui/NativeBoardScene.swift
+@@ -131,6 +131,7 @@
+     private var safeInsets = UIEdgeInsets.zero
+     private var activeTouch: UITouch?
+     private var draggedID: String?
++    private var dragMoved = false
+     private var fingerOffset = CGPoint.zero
+     private var touchStart = CGPoint.zero
+     private var lastTouchPoint = CGPoint.zero
+@@ -563,7 +564,7 @@
+               let node = nodesByID[tile.id], engine.beginDrag(tileID: tile.id, pointerID: 1) else { return false }
+         onRenderingDemand?(true)
+         cancelCandidate()
+-        draggedID = tile.id; touchStart = point; lastTouchPoint = point
++        draggedID = tile.id; dragMoved = false; touchStart = point; lastTouchPoint = point
+         lastPointerTime=CACurrentMediaTime();pointerVelocity = .zero
+         fingerOffset = CGPoint(x: node.position.x - point.x, y: node.position.y - point.y)
+         retireSourceSpawns(tileID:tile.id)
+@@ -590,15 +591,13 @@
+         pointerVelocity.x+=((point.x-lastTouchPoint.x)/milliseconds-pointerVelocity.x)*0.10
+         pointerVelocity.y+=((lastTouchPoint.y-point.y)/milliseconds-pointerVelocity.y)*0.10
+         let scale=max(0.0001,geometry?.scale ?? 1)
++        if hypot(point.x-touchStart.x,point.y-touchStart.y)/scale > 4 { dragMoved = true }
+         node.updateIdleDrag(offset:CGPoint(x:(point.x-touchStart.x)/scale,y:(touchStart.y-point.y)/scale),velocity:pointerVelocity)
+         lastPointerTime=now
+         node.updateShadow(direction: CGPoint(x: point.x-lastTouchPoint.x, y: point.y-lastTouchPoint.y))
+         lastTouchPoint = point
+         guard let geometry, let source = engine.state.tiles.first(where: { $0.id == id }),
+-              let hit = geometry.cell(at: point),
+-              let target = engine.state.tile(at: NativeCell(column: hit.column,row: hit.row)),
+-              NativeGameplayResolver.canDrop(source,onto: target),
+-              NativeTutorialRules.allowsDrop(source: source,destination: target,tutorial: engine.state.tutorial,rows: engine.state.rows) else { clearHover(); return }
++              let target = dragTarget(source: source, pointer: nil) else { clearHover(); return }
+         if hoverTargetID != target.id {
+             hoverTargetID = target.id; hover.isHidden = false
+             let side = geometry.tileSize
+@@ -609,6 +608,30 @@
+         }
+     }
+ 
++    private func dragTarget(source: NativeTile, pointer: CGPoint?) -> NativeTile? {
++        guard let geometry else { return nil }
++        // Special targeting remains with the existing owner until its full
++        // authored footprint policy is independently admitted.
++        guard !source.isWild, let node = nodesByID[source.id] else {
++            let point = pointer ?? lastTouchPoint
++            guard let hit = geometry.cell(at: point),
++                  let tile = engine.state.tile(at: NativeCell(column:hit.column,row:hit.row)),
++                  NativeGameplayResolver.canDrop(source,onto:tile),
++                  NativeTutorialRules.allowsDrop(source:source,destination:tile,tutorial:engine.state.tutorial,rows:engine.state.rows) else { return nil }
++            return tile
++        }
++        let candidates = engine.state.tiles.compactMap { tile -> NativeRegularDropTarget.Candidate? in
++            guard tile.id != source.id, NativeGameplayResolver.canDrop(source,onto:tile),
++                  NativeTutorialRules.allowsDrop(source:source,destination:tile,tutorial:engine.state.tutorial,rows:engine.state.rows),
++                  let target = nodesByID[tile.id], !tile.transientSpawn else { return nil }
++            let side=geometry.tileSize
++            return .init(id:tile.id,bounds:target.calculateAccumulatedFrame(),
++                         pointerBounds:CGRect(x:target.position.x-side/2,y:target.position.y-side/2,width:side,height:side))
++        }
++        let selected=NativeRegularDropTarget.pick(source:node.calculateAccumulatedFrame(),candidates:candidates,pointer:pointer,tileSize:geometry.tileSize)
++        return selected.flatMap {id in engine.state.tiles.first {$0.id==id}}
++    }
++
+     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+         sourceCallbackTime();sourceFrames.pointerEnded()
+         guard let touch = activeTouch, touches.contains(touch) else { return }
+@@ -618,11 +641,15 @@
+     @discardableResult
+     func finishDrag(at point: CGPoint, now: TimeInterval) -> NativeMoveResult? {
+         sourceCallbackTime();sourceFrames.pointerEnded()
+-        let point=canvasRoot.convert(point,from:self)
+         guard !disposed, let id = draggedID else { return nil }
+-        let moved = hypot(point.x-touchStart.x, point.y-touchStart.y) >= 5
+-        let hit = moved ? geometry?.cell(at: point) : nil
+-        let target = hit.map { NativeCell(column: $0.column, row: $0.row) }
++        // Like v9 onUp, consume the release sample before bounds/target lookup.
++        // UIKit may deliver no final touchesMoved during a fast flick.
++        let releasePoint=canvasRoot.convert(point,from:self)
++        if releasePoint != lastTouchPoint { moveDrag(to: point, now: now) }
++        let point=releasePoint
++        let moved = dragMoved
++        let tile = engine.state.tiles.first(where: { $0.id == id })
++        let target = moved ? tile.flatMap { dragTarget(source: $0, pointer: point)?.cell } : nil
+         let oldState = engine.state
+         let source = nodesByID[id]
+         let sourcePosition = source?.position
+diff --git a/native/gameplay-ui/NativeDiceNode.swift b/native/gameplay-ui/NativeDiceNode.swift
+--- a/native/gameplay-ui/NativeDiceNode.swift
++++ b/native/gameplay-ui/NativeDiceNode.swift
+@@ -147,9 +147,8 @@
+             for index in maps[min(6,max(1,value))] ?? [] {
+                 let x = CGFloat(index % 3 - 1) * 25.6
+                 let y = -CGFloat(index / 3 - 1) * 25.6
+-                let pip = SKShapeNode(rect: CGRect(x: x - 7.5, y: y - 7.5, width: 15, height: 15), cornerRadius: 6)
+-                pip.fillColor = UIColor(red: 129.0/255, green: 90.0/255, blue: 66.0/255, alpha: 0.9)
+-                pip.strokeColor = .clear; pip.isAntialiased = true
++                let pip=SKSpriteNode(texture:textures.pipTexture(),size:CGSize(width:15,height:15))
++                pip.position=CGPoint(x:x,y:y)
+                 pips.addChild(pip)
+             }
+             for index in 1..<max(1,min(4,depth)) {
+diff --git a/native/gameplay-ui/NativeDiceArtwork.swift b/native/gameplay-ui/NativeDiceArtwork.swift
+--- a/native/gameplay-ui/NativeDiceArtwork.swift
++++ b/native/gameplay-ui/NativeDiceArtwork.swift
+@@ -99,6 +99,7 @@
+     private var logicalSizes: [String: CGSize] = [:]
+     private var sheets: [String: [SKTexture]] = [:]
+     private var waiting: [String: [([SKTexture]) -> Void]] = [:]
++    private var pip:SKTexture?
+     private var generation = 0
+     private var disposed = false
+     @MainActor private final class SelectedFinaleRequest {
+@@ -126,6 +127,18 @@
+     func advanceIdlePhase(_ id:Int)->Bool {phaseScheduler.advance(id,now:(CACurrentMediaTime()*1000).rounded(.down))}
+     func advanceIdlePhases() {phaseScheduler.advancePending(now:(CACurrentMediaTime()*1000).rounded(.down))}
+     func releaseIdlePhase(_ id:Int) {phaseScheduler.release(id)}
++
++    /// One shared raster of the original rounded15px pip, not one vector
++    /// render surface per pip per die. Source fill/alpha/corner remain exact.
++    func pipTexture()->SKTexture {
++        if let pip{return pip}
++        let format=UIGraphicsImageRendererFormat();format.scale=UIGraphicsImageRendererFormat.preferred().scale;format.opaque=false
++        let image=UIGraphicsImageRenderer(size:CGSize(width:15,height:15),format:format).image { _ in
++            UIColor(red:129.0/255,green:90.0/255,blue:66.0/255,alpha:0.9).setFill()
++            UIBezierPath(roundedRect:CGRect(x:0,y:0,width:15,height:15),cornerRadius:6).fill()
++        }
++        let texture=SKTexture(image:image);texture.filteringMode = .linear;pip=texture;return texture
++    }
+ 
+     func texture(_ path: String, densityAware: Bool = true) -> SKTexture? {
+         guard !disposed else { return nil }
+@@ -272,6 +285,7 @@
+     func dispose() {
+         guard !disposed else { return }
+         disposed = true
++        pip=nil
+         generation += 1
+         waiting.removeAll(); sheets.removeAll(); textures.removeAll(); logicalSizes.removeAll()
+         cancelSelectedFinaleWaiters()
+diff --git a/native/standalone/Stack to SixTests/NativeInteractionRepairTests.swift b/native/standalone/Stack to SixTests/NativeInteractionRepairTests.swift
+new file mode 100644
+--- /dev/null
++++ b/native/standalone/Stack to SixTests/NativeInteractionRepairTests.swift
+@@ -0,0 +1,141 @@
++import XCTest
++import UIKit
++import SpriteKit
++import StackToSixGameplay
++@testable import Stack_to_Six
++
++@MainActor
++private final class RepairPan: UIPanGestureRecognizer {
++    var phase: UIGestureRecognizer.State = .possible
++    var offset = CGPoint.zero
++    var speed = CGPoint.zero
++    override var state: UIGestureRecognizer.State { get { phase } set { phase = newValue } }
++    override func translation(in view: UIView?) -> CGPoint { offset }
++    override func setTranslation(_ translation: CGPoint, in view: UIView?) { offset = translation }
++    override func velocity(in view: UIView?) -> CGPoint { speed }
++}
++
++@MainActor
++final class NativeInteractionRepairTests: XCTestCase {
++    override func setUpWithError() throws {
++        guard ProcessInfo.processInfo.environment["SIMULATOR_UDID"] == "1018BE2D-491B-465F-8F75-3E5BEB38C22A" else { throw XCTSkip("Dedicated QA Simulator only") }
++    }
++    func testSelectionInstallsOriginalMotionForTrackAndNavigationAndSuspendsTogether() throws {
++        let home=JimiV9HomeView(frame:CGRect(x:0,y:0,width:390,height:844),assets:JimiV9Artwork(resourceRoot:NativeTestResources.root))
++        let hub=JimiV9HubView(frame:home.bounds,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root))
++        let motion=NativeRouteMotion(home:home,hub:hub)
++        home.layoutIfNeeded();let old=home.sliderTrack.layer.position.x
++        motion.selectSlide(2) {}
++        let a=try XCTUnwrap(home.sliderTrack.layer.animation(forKey:"native-slide-selection") as? CAKeyframeAnimation)
++        XCTAssertEqual(a.duration,0.4);let values=try XCTUnwrap(a.values as? [Double])
++        XCTAssertEqual(values.first,Double(old));XCTAssertEqual(values.last,Double(home.sliderTrack.layer.position.x))
++        XCTAssertEqual(values[40],Double(old)+(Double(home.sliderTrack.layer.position.x)-Double(old))*0.875,accuracy:1e-8)
++        for target in home.navigationLayoutTargets {XCTAssertEqual(target.view.layer.animation(forKey:"native-slide-selection")?.duration,0.38)}
++        motion.suspend();XCTAssertEqual(home.sliderTrack.layer.speed,0)
++        for target in home.navigationLayoutTargets {XCTAssertEqual(target.view.layer.speed,0)}
++        motion.resume();XCTAssertEqual(home.sliderTrack.layer.speed,1)
++        motion.cancel();motion.cancel()
++        XCTAssertNil(home.sliderTrack.layer.animation(forKey:"native-slide-selection"))
++        for target in home.navigationLayoutTargets {XCTAssertNil(target.view.layer.animation(forKey:"native-slide-selection"));XCTAssertEqual(target.view.layer.speed,1)}
++    }
++    func testReplacementStartsAtPaintedPoseAndCannotCompleteRetiredHero() async throws {
++        let controller=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
++        let home=JimiV9HomeView(frame:window.bounds,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root))
++        let hub=JimiV9HubView(frame:window.bounds,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root))
++        controller.view=home;window.rootViewController=controller;window.makeKeyAndVisible()
++        let motion=NativeRouteMotion(home:home,hub:hub);defer {motion.cancel();window.isHidden=true}
++        var retired=0,current=0;home.layoutIfNeeded();motion.selectSlide(1) {retired += 1}
++        try await Task.sleep(nanoseconds:100_000_000)
++        let painted=try XCTUnwrap(home.sliderTrack.layer.presentation()).position.x
++        motion.selectSlide(2) {current += 1}
++        let a=try XCTUnwrap(home.sliderTrack.layer.animation(forKey:"native-slide-selection") as? CAKeyframeAnimation)
++        let values=try XCTUnwrap(a.values as? [Double]);XCTAssertEqual(try XCTUnwrap(values.first),Double(painted),accuracy:3)
++        try await Task.sleep(nanoseconds:1_000_000_000)
++        XCTAssertEqual(retired,0);XCTAssertEqual(current,1)
++    }
++    func testActualPanHandlerRetiresSelectionAndUsesSameSlideMotionOnRelease() async throws {
++        let controller=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
++        let home=JimiV9HomeView(frame:window.bounds,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root))
++        let hub=JimiV9HubView(frame:window.bounds,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root))
++        controller.view=home;window.rootViewController=controller;window.makeKeyAndVisible()
++        let motion=NativeRouteMotion(home:home,hub:hub);defer {motion.cancel();window.isHidden=true}
++        home.onPanBegan={motion.cancel();home.pauseHeroIdle();return true}
++        home.onPanEnded={index,_ in motion.selectSlide(index) {}}
++        home.layoutIfNeeded();motion.selectSlide(1) {}
++        try await Task.sleep(nanoseconds:100_000_000)
++        let painted=try XCTUnwrap(home.sliderTrack.layer.presentation()).position.x
++        let pan=RepairPan();pan.phase = .began;pan.offset=CGPoint(x:-18,y:0)
++        home.perform(NSSelectorFromString("pan:"),with:pan)
++        XCTAssertNil(home.sliderTrack.layer.animation(forKey:"native-slide-selection"))
++        XCTAssertEqual(home.sliderTrack.layer.position.x,painted,accuracy:3)
++        pan.phase = .changed;pan.offset=CGPoint(x:-110,y:0)
++        home.perform(NSSelectorFromString("pan:"),with:pan)
++        XCTAssertEqual(home.sliderTrack.layer.position.x,painted-110,accuracy:3)
++        let released=home.sliderTrack.layer.position.x
++        pan.phase = .ended;pan.speed=CGPoint(x:-500,y:0)
++        home.perform(NSSelectorFromString("pan:"),with:pan)
++        XCTAssertEqual(home.selectedSlide,2)
++        let track=try XCTUnwrap(home.sliderTrack.layer.animation(forKey:"native-slide-selection") as? CAKeyframeAnimation)
++        XCTAssertEqual(track.duration,0.4)
++        let values=try XCTUnwrap(track.values as? [Double]);XCTAssertEqual(try XCTUnwrap(values.first),Double(released),accuracy:3)
++        // A fast gesture may deliver its entire travel at recognition and then
++        // an immediate zero-translation/zero-velocity release. Do not lose it.
++        pan.phase = .began;pan.offset=CGPoint(x:120,y:0)
++        home.perform(NSSelectorFromString("pan:"),with:pan)
++        pan.phase = .ended;pan.speed = .zero
++        home.perform(NSSelectorFromString("pan:"),with:pan)
++        XCTAssertEqual(home.selectedSlide,1)
++
++    }
++    func testRouteExitKeepsPaintedHeroBounceWhileRetiringSliderLayout() async throws {
++        let controller=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
++        let home=JimiV9HomeView(frame:window.bounds,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root))
++        let hub=JimiV9HubView(frame:window.bounds,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root))
++        controller.view=home;window.rootViewController=controller;window.makeKeyAndVisible()
++        let motion=NativeRouteMotion(home:home,hub:hub);defer {motion.cancel();window.isHidden=true}
++        home.layoutIfNeeded();motion.selectSlide(1) {}
++        try await Task.sleep(nanoseconds:360_000_000)
++        let painted=try XCTUnwrap(home.heroView.layer.presentation()).transform.m11
++        motion.cancelSelectionLayout()
++        XCTAssertNil(home.sliderTrack.layer.animation(forKey:"native-slide-selection"))
++        XCTAssertNotNil(home.heroView.layer.animation(forKey:"native-route"))
++        let entries=motion.homeTracks(enter:false)
++        let hero=try XCTUnwrap(entries.first {$0.0 === home.heroView})
++        XCTAssertEqual(try XCTUnwrap(hero.1.tweens.first).from.scaleX,Double(painted),accuracy:0.003)
++        motion.animate(entries) {}
++    }
++    private func scene(_ sourceValue:Int,_ targetValue:Int)->NativeBoardScene {
++        let tiles=[NativeTile(id:"source",cell:.init(column:0,row:0),value:sourceValue),NativeTile(id:"target",cell:.init(column:1,row:0),value:targetValue)]
++        let scene=NativeBoardScene(engine:NativeGameplayEngine(state:.init(columns:5,rows:9,tiles:tiles)),resourceRoot:NativeTestResources.root,size:CGSize(width:390,height:844))
++        scene.layout(size:scene.size,insets:UIEdgeInsets(top:47,left:0,bottom:34,right:0));return scene
++    }
++    func testFastReleaseWithoutMoveAcceptsStackAndMergeOutsideStrictCell() throws {
++        for (a,b) in [(1,2),(3,3)] {
++            let scene=scene(a,b);defer {scene.dispose()}
++            let g=try XCTUnwrap(scene.boardGeometry),start=g.center(row:0,column:0),center=g.center(row:0,column:1)
++            let release=CGPoint(x:center.x+g.tileSize*0.58,y:center.y)
++            XCTAssertNil(g.cell(at:release));XCTAssertTrue(scene.beginDrag(at:start))
++            XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:release,now:1)).accepted)
++            XCTAssertNil(scene.finishDrag(at:release,now:1))
++        }
++    }
++    func testFastReleaseSupersedesOldMoveAndKeepsInvalidTargetsRejected() throws {
++        let scene=scene(4,3);defer {scene.dispose()};let g=try XCTUnwrap(scene.boardGeometry)
++        XCTAssertTrue(scene.beginDrag(at:g.center(row:0,column:0)))
++        scene.moveDrag(to:g.center(row:0,column:1))
++        XCTAssertFalse(try XCTUnwrap(scene.finishDrag(at:g.center(row:0,column:1),now:1)).accepted)
++        XCTAssertEqual(scene.engine.state.tiles.map(\.value),[4,3])
++        XCTAssertTrue(scene.beginDrag(at:g.center(row:0,column:0)))
++        scene.cancelDrag();scene.setSuspended(true);XCTAssertNil(scene.finishDrag(at:g.center(row:0,column:1),now:2))
++    }
++    func testOrdinaryPipsUseOneSharedTextureInsteadOfLiveShapeNodes() throws {
++        let textures=NativeBoardTextures(root:NativeTestResources.root)
++        defer {textures.dispose()}
++        let a=textures.pipTexture(),b=textures.pipTexture();XCTAssertTrue(a===b)
++        let node=NativeDiceNode(id:"a",value:6,kind:"regular",variant:nil,depth:1,locked:false,textures:textures)
++        let pipRoot=try XCTUnwrap(node.visual.children.first {$0.zPosition==1})
++        XCTAssertEqual(pipRoot.children.count,6);XCTAssertTrue(pipRoot.children.allSatisfy {$0 is SKSpriteNode})
++        for pip in pipRoot.children {XCTAssertTrue((pip as? SKSpriteNode)?.texture===a)}
++        node.dispose()
++    }
++}
+diff --git a/native/standalone/Stack to SixUITests/NativeHomeInteractionUITests.swift b/native/standalone/Stack to SixUITests/NativeHomeInteractionUITests.swift
+new file mode 100644
+--- /dev/null
++++ b/native/standalone/Stack to SixUITests/NativeHomeInteractionUITests.swift
+@@ -0,0 +1,35 @@
++import XCTest
++
++@MainActor
++final class NativeHomeInteractionUITests: XCTestCase {
++    func testRealSlowAndFastSwipesAndNavClicksKeepHomeRoute() throws {
++        #if !targetEnvironment(simulator)
++        throw XCTSkip("Simulator-only")
++        #endif
++        guard ProcessInfo.processInfo.environment["SIMULATOR_UDID"] == "1018BE2D-491B-465F-8F75-3E5BEB38C22A" else {throw XCTSkip("Dedicated QA Simulator only")}
++        continueAfterFailure=false
++        let app=XCUIApplication(bundleIdentifier:"com.taptapdesign.stacktosix.native")
++        app.launchArguments=["--native-gameplay","--native-qa-fresh-profile"];app.launch()
++        func nav(_ index:Int)->XCUIElement {app.buttons["native.home.slide.\(index)"]}
++        XCTAssertTrue(nav(0).waitForExistence(timeout:15))
++        func settled(_ index:Int) {
++            let target=nav(index)
++            let selectionExpectation=XCTNSPredicateExpectation(predicate:NSPredicate(format:"selected == true AND hittable == true"),object:target)
++            XCTAssertEqual(XCTWaiter.wait(for:[selectionExpectation],timeout:5),.completed)
++            // Input admission does not cover selection; allow original finite
++            // track/bounce completion before the next unrelated slow gesture.
++            let done=expectation(description:"Original finite Home motion")
++            DispatchQueue.main.asyncAfter(deadline:.now()+0.9){done.fulfill()};wait(for:[done],timeout:2)
++            XCTAssertTrue(app.buttons["native.home.cta"].exists)
++        }
++        settled(0)
++        app.swipeLeft(velocity:.slow);settled(1)
++        app.swipeLeft(velocity:.fast);settled(2)
++        app.swipeRight(velocity:.fast);settled(1)
++        app.swipeRight(velocity:.slow);settled(0)
++        nav(2).tap();settled(2)
++        nav(0).tap();settled(0)
++        XCTAssertEqual(app.webViews.count,0)
++        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="native-home-real-swipes-nav";shot.lifetime = .keepAlways;add(shot)
++    }
++}

@@ -5,6 +5,41 @@ import StackToSixGameplay
 
 @MainActor
 final class NativeResultOwnerTests:XCTestCase {
+    func testZeroScaleFilledStarsRetainImageBoundsAcrossInitialRelayout() {
+        let result=controller(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=result;window.makeKeyAndVisible();result.loadViewIfNeeded()
+        defer {result.dispose();window.isHidden=true;window.rootViewController=nil}
+        result.view.frame=window.bounds
+        result.view.setNeedsLayout();result.view.layoutIfNeeded()
+        func find(_ root:UIView,_ id:String)->UIView? {
+            if root.accessibilityIdentifier==id{return root}
+            return root.subviews.compactMap{find($0,id)}.first
+        }
+        for index in 0..<3 {
+            let gold=find(result.view,"native.result.star.filled.\(index)") as! UIImageView
+            XCTAssertNotNil(gold.image);XCTAssertGreaterThan(gold.bounds.width,0)
+            XCTAssertGreaterThan(gold.bounds.height,0);XCTAssertEqual(gold.transform.a,0)
+        }
+        result.tick(0);for index in 1...30 {result.tick(Double(index)/10)}
+        result.view.setNeedsLayout();result.view.layoutIfNeeded()
+        for index in 0..<3 {XCTAssertGreaterThan(find(result.view,"native.result.star.filled.\(index)")!.bounds.width,0)}
+        let primary=button(in:result.view,id:"native.result.play-again")!
+        let secondary=button(in:result.view,id:"native.result.exit")!
+        XCTAssertEqual(primary.layer.shadowOffset,CGSize(width:0,height:8))
+        XCTAssertEqual(secondary.backgroundColor,.white);XCTAssertEqual(secondary.layer.borderWidth,1)
+    }
+    func testCleanScoreUsesPlainIntegerWithoutGroupingSeparator() {
+        let root=Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!
+        let state=NativeBoardState(tiles:[],mode:.journey,board:1,score:1234)
+        let result=NativeResultController(root:root,state:state,clean:true,combo:0,efficiency:0,finalScore:1234)
+        result.loadViewIfNeeded();defer {result.dispose()}
+        result.tick(0);for index in 1...80 {result.tick(Double(index)/10)}
+        func find(_ root:UIView)->UILabel? {
+            if root.accessibilityIdentifier=="native.result.score" {return root as? UILabel}
+            return root.subviews.compactMap{find($0)}.first
+        }
+        XCTAssertEqual(find(result.view)?.text,"1234")
+    }
     private func controller(clean:Bool=true,mode:NativeRunMode = .journey,board:Int=1,headlineRandom:Double=0)->NativeResultController {
         let root=Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!
         let state=NativeBoardState(tiles:[],mode:mode,board:board,score:100)
@@ -53,8 +88,8 @@ final class NativeResultOwnerTests:XCTestCase {
         result.view.frame=window.bounds;result.view.setNeedsLayout();result.view.layoutIfNeeded()
         let primary=button(in:result.view,id:"native.result.play-again")!
         let secondary=button(in:result.view,id:"native.result.exit")!
-        XCTAssertEqual(primary.bounds.size,CGSize(width:310,height:64))
-        XCTAssertEqual(secondary.bounds.size,CGSize(width:310,height:64))
+        XCTAssertEqual(primary.bounds.size,CGSize(width:249,height:64))
+        XCTAssertEqual(secondary.bounds.size,CGSize(width:249,height:64))
         XCTAssertEqual(primary.center.x,195);XCTAssertEqual(secondary.center.y-primary.center.y,80)
         XCTAssertEqual(primary.transform.a,0)
         result.tick(0)
@@ -79,7 +114,7 @@ final class NativeResultOwnerTests:XCTestCase {
         window.rootViewController=result;window.makeKeyAndVisible();result.loadViewIfNeeded()
         result.view.frame=window.bounds;result.view.setNeedsLayout();result.view.layoutIfNeeded()
         let primary=button(in:result.view,id:"native.result.play-again")!
-        XCTAssertEqual(primary.bounds.size,CGSize(width:310,height:64));XCTAssertFalse(primary.isUserInteractionEnabled)
+        XCTAssertEqual(primary.bounds.size,CGSize(width:249,height:64));XCTAssertFalse(primary.isUserInteractionEnabled)
         result.tick(0)
         for index in 1...15 {result.tick(Double(index)/10)}
         XCTAssertTrue(primary.isUserInteractionEnabled)

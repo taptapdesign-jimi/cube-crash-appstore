@@ -1,0 +1,40 @@
+{
+  "base": [
+    "docs/engineering/native-pause-2026-10-08/NativeSource.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/EntrySourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialIntroSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialHUDSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialMonitorSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialRestoreSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialThirdSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFreeHintSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialCTAPrefixSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialCTAViewSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialThirdDismissSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialWildReservationSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialWildReservationOwnersDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthDroppingSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthSelectionSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthMonitorSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthTargetSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialGridRuntimeSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthPreparationSourceDelta.tar.gz"
+  ],
+  "archiveSHA256": "faf136c2aa73d6ace5995e5f2432663ccff494c9c470e137d4dcc5dae40ebcb0",
+  "files": {
+    "native/gameplay-ui/NativeStarBurstMotion.swift": {
+      "baseSHA256": "2ed6a330fc9934e2bb28675ce0411acebe10fdcc7f4bc4c5ac561665f1c8e801",
+      "sha256": "ad7eaabb31d6afd185c0c19f6fb4813aa709b94e20395fad9e9ab9ac3e5429fa"
+    },
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": {
+      "baseSHA256": "ebd343967be5b93267d97a0580475cd1574f67a73abeef3243fceb1271e57ef7",
+      "sha256": "44e833d37bdff8b7c4dcf6a022a33dec263937e69a2aef7391763c68ff86f3ad"
+    },
+    "docs/engineering/feature-runtime-owners.json": {
+      "baseSHA256": "fb07fb8ffd4f4048ec82de0cc3b9d9f7ebcfc805e4488500ff6c998afb8a3812",
+      "sha256": "b65d2e7ae9e69b08465a0b934427da175b1e45b90bc6c668cf376e7e5ba3a0c2"
+    }
+  },
+  "validation": "Actual SDK StarPresentation6/6 PASS including128-frame literal Source+actual GSAP oracle; exact full Source QA all19 gates PASS. Motion-only component, real halo renderer/caller admission OPEN. Whole flags OFF."
+}

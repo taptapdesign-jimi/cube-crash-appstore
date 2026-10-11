@@ -1,0 +1,18 @@
+const fs=require('fs'),vm=require('vm'),path=require('path'),crypto=require('crypto');
+const root=path.resolve(__dirname,'../../..'),{gsap}=require(root+'/node_modules/gsap/dist/gsap');
+const source=fs.readFileSync(root+'/src/modules/special-dice-idle.ts','utf8');
+const start=source.indexOf('    const isBottleFloat ='),end=source.indexOf('    if (variant.idleMotion',start);
+const capture=source.slice(start,end);
+const rockStart=source.indexOf('      const bottleRockRadians'),rockEnd=source.indexOf("    } else if (variant.idleMotion === 'cubero-hop')",rockStart);
+const rock=source.slice(rockStart,rockEnd);
+const host={x:23,y:41,rotation:0.17,width:160,height:140,scale:{x:0.8,y:0.9},anchor:{x:0.3,y:0.4,set(x,y){this.x=x;this.y=y}}};
+const original={...host,anchor:{x:host.anchor.x,y:host.anchor.y}};
+const tl=gsap.timeline({paused:true,repeat:-1,repeatDelay:0.12});
+const context={tile:{base:host,rotG:{}},variant:{idleMotion:'bottle-float'},tl,Math,Number};
+vm.createContext(context);vm.runInContext("(function(){"+capture+rock+"})()",context);
+if(host.anchor.x!==0.5||host.anchor.y!==1||host.x!==55||host.y!==125)throw Error('actual Bottle pivot capture changed');
+if(host.x-host.width*host.anchor.x!==original.x-original.width*original.anchor.x||host.y-host.height*host.anchor.y!==original.y-original.height*original.anchor.y)throw Error('painted bounds moved during original pivot capture');
+const times=[0,0.45,1.8,3.6,5.4,7.2,7.26,7.32,7.4,8,14.64,14.9];
+const samples=times.map(seconds=>{tl.totalTime(seconds,false);return{seconds,x:host.x,y:host.y,rotation:host.rotation,anchorX:host.anchor.x,anchorY:host.anchor.y}});
+const result={authority:'Unmodified original Bottle host/base/pivot capture and authored motion branch, installed real GSAP infinite timeline/repeatDelay. Explicit host and variant endpoints; not full Source visibility/registry or Native acceptance.',sourceSHA256:crypto.createHash('sha256').update(capture+rock).digest('hex'),original,motionBase:{x:55,y:125},duration:tl.duration(),repeatDelay:tl.repeatDelay(),samples};
+fs.writeFileSync(path.join(__dirname,'bottle-source-owner-oracle.json'),JSON.stringify(result,null,2)+'\n');tl.kill();gsap.ticker.sleep();console.log(JSON.stringify({duration:result.duration,repeatDelay:result.repeatDelay,samples}));

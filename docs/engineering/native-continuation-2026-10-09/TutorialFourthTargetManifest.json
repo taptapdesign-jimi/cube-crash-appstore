@@ -1,0 +1,37 @@
+{
+  "base": [
+    "docs/engineering/native-pause-2026-10-08/NativeSource.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/EntrySourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialIntroSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialHUDSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialMonitorSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialRestoreSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialThirdSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFreeHintSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialCTAPrefixSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialCTAViewSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialThirdDismissSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialWildReservationSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialWildReservationOwnersDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthDroppingSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthSelectionSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthMonitorSourceDelta.tar.gz"
+  ],
+  "archiveSHA256": "39008e5bf54a54451ccf56ffa6ba8f9e774f0a9441eb04ecbe56047da4153ebe",
+  "files": {
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeTutorialRules.swift": {
+      "baseSHA256": "8ca7e205e1c216e182262dc682263739c2876b305994f9a603efe66edd93dcec",
+      "sha256": "b88a226e2eb2cbf10268443597712a3ec2f20b9f86664c31ee220a51f0bac3c9"
+    },
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeTutorialTests.swift": {
+      "baseSHA256": "7c92f582164a2ef6bb7661d248901ae5a6ade95d1ae13ca554dc83387ec3042b",
+      "sha256": "51394219dbea755a575ed60e4a0842a99438c37823312652658c431f72011459"
+    },
+    "native/gameplay-core/Tests/StackToSixGameplayTests/Resources/SourceTutorialWildCellsV9Oracle.json": {
+      "baseSHA256": "5683d6063bfc27a2767460678a0f1ef926f4860b53606f89ff834bfa914b8786",
+      "sha256": "c6ae2513caf41e2ce9deb288da2474129d6ab9d814558a203807c416b02eb4b7"
+    }
+  },
+  "validation": "Literal96-case target oracle PASS; focused Core12/12/full Core348/348 PASS; actual SDK10/10 PASS; exact full Source QA all19 gates PASS. No actual fourth preparation caller admission."
+}

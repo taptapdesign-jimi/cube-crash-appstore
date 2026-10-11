@@ -4,11 +4,16 @@ This file is the stable, authoritative onboarding map for new Codex chats. Verif
 
 ## Native-first main decision (2026-10-07)
 
+User-selected continuation baseline (2026-10-12): immutable
+`native-benchmark-v2`; see [NATIVE_BENCHMARK_V2.md](NATIVE_BENCHMARK_V2.md).
+Continue Native work from v2. This checkpoint preserves known open physical
+acceptance/parity issues and does not replace the approved PWA recovery tags.
+
 The user designates `main` as the **Stack to Six Native** development project,
 with a **100% native** destination. The active development target is the separate
 `native/standalone/Stack to Six.xcodeproj` / `com.taptapdesign.stacktosix.native`.
 Follow [NATIVE_100_PERCENT_PLAN.md](NATIVE_100_PERCENT_PLAN.md).
-`native-benchmark-v1` preserves the starting source; it is currently hybrid,
+`native-benchmark-v1` preserves the historical hybrid starting source,
 not a completed native gameplay benchmark. PWA identities below are preserved
 historical/product references, not the default build/sync target for Native work.
 `production-benchmark-v9` remains the approved PWA recovery reference. Never
@@ -24,51 +29,22 @@ in the parity checklist; native implementation alone is not visual acceptance.
 
 ## Product identity and repositories
 
-- Product/app name: **Stack to Six**.
-- Web/game source repository: `/Users/user/cube-crash`.
-- Active native iOS shell: `/Users/user/Stack to Six/Stack to Six.xcodeproj`.
-- Active Xcode scheme/target: `Stack to Six`.
-- Active bundle identifier: `com.taptapdesign.stacktosix.Stack-to-Six`.
-- Bundled web destination: `/Users/user/Stack to Six/Stack to Six/Web.bundle`.
-- Legacy shell `/Users/user/Kockice Crash/Kockice Crash.xcodeproj` and bundle `com.taptapdesign.kockice.Kockice-Crash` are not part of the normal workflow. Never modify, sync, build, install, launch, or uninstall them unless the user explicitly requests Kockice Crash.
-- `/Users/user/cube-crash/ios/App/App.xcworkspace` is a separate Capacitor shell and is not the visible Stack to Six app.
-
-The repository retains historical `cube-crash` names in paths and code. That does not change the current product/native target identity.
+- Product: **Stack to Six**. Development repository `/Users/user/cube-crash`, `main`.
+- Active Native target: `native/standalone/Stack to Six.xcodeproj`, scheme `Stack to Six`, bundle `com.taptapdesign.stacktosix.native`.
+- Current actual root is NativeStandaloneViewController/NativeBootstrap with Swift state/rules and UIKit/SpriteKit presentation. Storyboard and target membership exclude archived GameViewController.swift and Web.bundle. NativeAssets.bundle packages preserved original bytes. This is implementation status, not complete parity or physical acceptance.
+- NativeStandaloneViewController owns opt-in NativeDiagnosticsCapture for native thermal/lifecycle/memory JSONL evidence. Exact Native identity plus explicit performance/thermal launch argument or existing read-only cc.performanceDiagnostics preference admits capture; unrequested launches acquire no diagnostic resources. Bounded own cache sessions/rows, foreground finite timeout and symmetric cleanup do not modify gameplay/profile/media/audio/haptics. This is native capture infrastructure; internal DEV-menu parity and real-device diagnostic/performance acceptance remain separate.
+- Preserved PWA: `/Users/user/Stack to Six/Stack to Six.xcodeproj`, bundle `com.taptapdesign.stacktosix.Stack-to-Six`, its own Web.bundle and saves. Do not sync/build/install it as a Native side effect.
+- Legacy Kockice Crash and repository Capacitor shell are separate, prohibited default targets.
+- NativeHybridExport one-time old Native sandbox migration now uses Foundation/SQLite with a private stable WAL snapshot and the same Library boundary as NativeSaveStore; connected verification is recorded in CURRENT_HANDOFF. Preserved Jimi hybrid UI adapters are Debug fixtures and already excluded from Release by NATIVE_HYBRID_UI_RETIRED; the music script adapter is excluded by NATIVE_MUSIC_DIRECT_ONLY. Verify the resulting Release dependency graph before closure. Preserve old Native data; never access PWA sandbox.
 
 ## Native mode and device
 
-- User-authorized separate **Stack to Six Native** development app (2026-10-06):
-  project `native/standalone/Stack to Six.xcodeproj` in this repository, scheme
-  `Stack to Six`, bundle ID `com.taptapdesign.stacktosix.native`. This explicit
-  exception must never replace the original bundle. UIKit Home/Hub and native
-  soundtrack are enabled by exact bundle identity; gameplay remains web.
-  User requested native Settings and Arcade Home on2026-10-06. Main Settings
-  presentation, v10 pill/knob switches, Back and centered textured Privacy modal use UIKit/CoreAnimation, with
-  canonical `_settings`/`saveSettings` and existing audio/haptic owners. Internal
-  DEV tools retain their separate web diagnostic flow. Arcade Home already uses
-  UIKit; its direct gameplay activation now avoids any web Home presentation.
-  User authorized all three Native Debug iPhone Worlds on2026-10-06: Forest,
-  Beach and Area55 render through shared UIKit on ordinary icon launches.
-  QA Simulator retains `--jimi-native-forest` / `--jimi-native-worlds` opt-ins;
-  Release Worlds remain OFF. Physical performance/visual acceptance is separate.
-  User explicitly requested a current Swift gameplay phone preview on2026-10-08.
-  Build the exact separate Native target with Debug plus the opt-in
-  `NATIVE_GAMEPLAY_PHONE_PREVIEW` compilation condition to open NativeBootstrap
-  on ordinary icon launches. Keep its existing Native save and canonical
-  Native-only migration; no QA fresh profile or PWA save access. This preview
-  is incomplete parity, not Release admission. Simulator gating is unchanged.
-  Prepare only its ignored Web.bundle from complete `dist`, never by changing
-  the original native sync destination. See `native/standalone/README.md`.
-  The original app's requested label is **Stack to Six PWA** (still a WKWebView
-  shell, not technically a PWA); its bundle ID and separate save remain unchanged.
-
-- Physical-device checks normally use the bundled `Web.bundle` mode with `useDevServer = false` in `/Users/user/Stack to Six/Stack to Six/GameViewController.swift`.
-- Do not switch to LAN/Vite loading unless the user explicitly requests that experiment. The prior LAN workflow produced white-screen and routing failures.
-- The only normal physical test/install target is `iPhone 13 blue`. Never fall back to another iPhone or iPad unless the user explicitly names that device and asks to change targets.
-- Hardware destination ID used by `xcodebuild`: `00008110-001E39961AFA801E`.
-- CoreDevice ID used successfully by `xcrun devicectl`: `0F62B71E-0B04-53C3-906E-EC28F5D2390B`.
-- Resolve and verify the connected device before an install; identifiers may change after device re-pairing.
-- Install over the existing Stack to Six app. Do not uninstall it unless explicitly asked, because uninstalling destroys app data and can reintroduce developer-profile trust friction.
+- Ordinary active Native storyboard launches use Swift root in Debug/Release. Historical `NATIVE_GAMEPLAY_PHONE_PREVIEW` and archived GameViewController arguments are not current active-root prerequisites. Normal storyboard launches now select the complete Swift Source-fidelity graph by default. DEBUG hosted unit-test roots stay quiet so explicit fixtures can own the shared transport. Current behavioral acceptance is tracked in CURRENT_HANDOFF; the word Source denotes a Swift port of the preserved rules, not JavaScript execution.
+- Native work follows NATIVE_100_PERCENT_PLAN and current handoff; asset/motion and physical acceptance remain explicit. Native QA requires no external PWA bundle sync. Historical PWA workflows below apply only to explicitly requested PWA work.
+- Original v9 first-play Homepage policy forces a fresh tutorial on new Play until authored Tutorial Complete Continue. Mounting Home retains the old save. Explicit force-next has precedence over done during Native import. Saved unacknowledged guide retention alone is not original launch-policy parity.
+- Physical target: **iPhone 13 blue**; verify connected identity before any install. Do not uninstall or reset saves. Do not change to LAN/Vite mode or another device without user authorization.
+- Historical hardware destination `00008110-001E39961AFA801E`, CoreDevice `0F62B71E-0B04-53C3-906E-EC28F5D2390B`; these are mutable, verify live.
+- Dedicated isolated Native QA Simulator: `1018BE2D-491B-465F-8F75-3E5BEB38C22A`. DEBUG-only named temporary QA profile requires exact Simulator/bundle/UUID; no normal profile fallback or migration, excluded from Release.
 
 ## Mobile-first thermal and stability policy
 
@@ -82,7 +58,7 @@ The repository retains historical `cube-crash` names in paths and code. That doe
 
 Read [`dev-production-modes.md`](dev-production-modes.md) before every native build/install. Before installation, verify the final `.app/Info.plist` bundle ID and bundled intro/assets. A successful Xcode build alone is not proof that the correct app was targeted.
 
-## Web-to-iOS ownership
+## Preserved PWA web-to-iOS ownership
 
 1. Edit source only in `/Users/user/cube-crash`.
 2. Build the Vite app.
@@ -100,7 +76,7 @@ Use `SKIP_NATIVE_BUNDLE_SYNC=true npm run build` when validating web code withou
 
 - Repository QA instructions live in `.agents/skills/stack-to-six-qa/SKILL.md`; `AGENTS.md` requires them for validation and release work.
 - Use `npm run qa:fast` during implementation and `npm run qa:full` before handoff, commit, push, or release preparation.
-- Use `npm run qa:ios` before a native build/install. It is read-only and verifies the authoritative Stack to Six project, scheme, bundle ID, bundled-mode flag, complete raw assets, and `dist`/`Web.bundle` freshness.
+- `npm run qa:ios` verifies the active standalone Native target, `.native` identity, Native storyboard/root, excluded web archives and byte-exact NativeAssets. `qa:ios:source` is its fast source-only guard. `release:native-audit -- --built-app <Release app>` additionally verifies compiled host/framework dependencies and packaged original assets. The preserved PWA audit is explicit `qa:ios:pwa`; it is never a Native build prerequisite. SDK/UI/physical parity remain separate.
 - The generic Capacitor `ios:sync`/`ios:build` scripts are intentionally absent because the repository Capacitor shell is not the visible Stack to Six app.
 - GitHub Actions runs `qa:full` on pull requests and pushes to `main` or `feature/**`.
 - Deterministic QA does not replace physical verification of animation feel, clipping at real safe areas, haptics, sustained FPS/memory, touch, or WebView lifecycle on `iPhone 13 blue`.

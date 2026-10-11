@@ -1,0 +1,43 @@
+{
+  "scope": "Automatic live UIKit-hidden shimmer visibility and active board-entry ownership guard; full migration OPEN",
+  "sdk": {
+    "log": "wild-shimmer-live-final.log",
+    "exitCode": 0,
+    "tests": 49,
+    "failures": 0
+  },
+  "regressions": {
+    "log": "wild-shimmer-entry-regressions.log",
+    "exitCode": 0,
+    "tests": 30,
+    "failures": 0
+  },
+  "fullQA": {
+    "log": "wild-shimmer-live-full.log",
+    "exitCode": 0,
+    "kingTests": 330,
+    "suites": 530,
+    "tests": 4010,
+    "nativeSync": "SKIPPED",
+    "boundary": "Frozen full QA used final runtime/registry, before one Swift fixture was corrected to call actual synchronize and compare adopted canonical state. No web or runtime change followed. Latest Swift fixture executed in final SDK49; final feature gate also PASS."
+  },
+  "featureGate": {
+    "log": "wild-shimmer-live-feature-final.log",
+    "exitCode": 0
+  },
+  "proof": [
+    "Actual App/Window/real shared Source clock and SpriteKit visible sweep",
+    "Automatic UIKit ancestor hide retains same pose and RNG count; reveal resumes same renderer",
+    "Repeated entry synchronize preserves exact active SKAction and canonical state",
+    "Guard fixes invisible tiles caused by recaptured alpha0 during didMove"
+  ],
+  "snapshot": "WildShimmerLiveVisibilityCodeSnapshotManifest.json",
+  "SHA": "Three changed Swift files Source/QA/SDK match; private feature record Source/QA matches",
+  "flags": "OFF",
+  "mainIntegration": "OPEN",
+  "originalMedia": "Untouched",
+  "PWA": "Untouched",
+  "phone": "Untouched",
+  "completeMigration": "OPEN",
+  "physical": "NEEDS PHYSICAL TEST"
+}

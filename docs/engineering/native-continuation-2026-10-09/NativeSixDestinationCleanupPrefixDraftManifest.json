@@ -1,0 +1,10 @@
+{
+  "status": "DRAFT literal token test SDK31898 PASS1/1; actual ordinary/direct prefixes connected, SDK54310 running",
+  "files": {
+    "native/gameplay-ui/NativeBoardScene.swift": "fba0375e4abad6ffb047e94d2020bdc0a3c53ed317ae48560c47688680bebe4d",
+    "native/gameplay-app/NativeSourceMergeSixSpawnOwner.swift": "bed21a5d1abdee0a86e4a8625f54251eaf20b07f0dce6cba98920da820dc467c",
+    "native/gameplay-ui/NativeDiceNode.swift": "b9af72c64095ab65a4b71c202a5921dc4b28eac5a3239e4ec5c90d8a72a58e85",
+    "native/gameplay-app/NativeGameplaySourceContext.swift": "c6ef5022ef511216fd6d6f7c17c844c4700da0db512cec7315e0b04454fcc38f",
+    "native/standalone/Stack to SixTests/NativeSourceMergeSixSpawnOwnerMountedTests.swift": "476747527d4165246dfb25161e38fe649d10edeb6a51f6dd95a53235bc13e297"
+  }
+}

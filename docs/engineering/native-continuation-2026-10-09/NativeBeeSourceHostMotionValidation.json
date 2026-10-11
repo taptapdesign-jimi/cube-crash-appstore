@@ -1,0 +1,18 @@
+{
+  "scope": "Private actual typed Bee cohort captures settled inner rotG host pose; decorative Source motion paints host not face, preserving logical base128 and root position. Original 5% anisotropy/min0.01 capture guard, original Source golden motion, global facing after host movement. Drag restores only last owned pose and releases channels; resumes only after actual captured neutral pose. A foreign transform writer prevents stale decoration/restore. Scope retirement preserves painted pose. Whole source clock/visibility/constructor/global startup/conditional FX/inner marker admission remain open. Flags OFF; no phone/PWA/main integration.",
+  "files": {
+    "native/gameplay-ui/NativeDiceNode.swift": "4fca3e7bf95ca1fe1bd98907c438ddfb879e132f075b8b603d564f30ed975d67",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "458d319a336287f636a80d89fbf8d39a15c81d280457709d1705061755021c35"
+  },
+  "SDK": "terminalexit0 current30/30 PASS provider/skin/model/input/idle/Bee cohort + captured host, actual settled pose, foreign owner protection/drag restore",
+  "full": "terminalexit0 all selected deterministic gates PASS, frozen current production Node; corrected SDK assertions not copied under live QA",
+  "logs": {
+    "bee-source-host-motion-sdk.log": "9a54d22f84a999b12685ee9b6aa43822a18482fc4bee1fb4f91263ec8357352a",
+    "bee-source-host-motion-full.log": "741322987d8a58ac7073152b8ec06ab4c8bfbb5cf003d14802e34e3797df9c0b",
+    "bee-source-host-current-matrix-sdk.log": "acc0863c41dbcea5e9258607745c917be8c46d7f3b042c84f4d81fa8cde7ede0",
+    "bee-source-host-current-matrix-command.json": "078c89c3bfb9821a37b72116205bee92d9ae574a113b7861bc3639921ba077ca"
+  },
+  "snapshotMatch": {
+    "native/gameplay-ui/NativeDiceNode.swift": "Source=QA=SDK SHA match"
+  }
+}

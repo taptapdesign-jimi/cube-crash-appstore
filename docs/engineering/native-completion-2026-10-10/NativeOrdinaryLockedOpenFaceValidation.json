@@ -1,0 +1,97 @@
+{
+  "scope": "Bounded Source ordinary locked opening face actual app caller; whole ordinary spawn/minimum/marker/family/save admissions remain OPEN",
+  "migration80Reached": false,
+  "sourceSHA256": {
+    "native/gameplay-ui/NativeBoardScene.swift": "c67ef921d77f336ebfdb14fb2e03c31f5a9f121a652708665d7a482921052399",
+    "native/gameplay-app/NativeAppController.swift": "09e48642bb025e2a0a2cb39bd0aeb22f27648aced24109947269aca125a22d21",
+    "native/standalone/Stack to SixTests/NativeStandaloneRootTests.swift": "12f99791e479cb349e505f6d0e766731c6ba348b24423c7d097a8633d9d38c6e",
+    "native/standalone/Stack to SixTests/NativeAppCoordinatorTests.swift": "de31e17f030c2d1b9fb445cdeaa4391a86af350a1c69ec8203461f336231a5c2",
+    "native/standalone/Stack to SixUITests/NativeHomeInteractionUITests.swift": "453fbb818a1fc27f25c7515aa323e4d17e244c18cbc8f6471cbe2a784bc55728"
+  },
+  "sourceReference": {
+    "tag": "production-benchmark-v9",
+    "file": "src/modules/app-spawn.ts",
+    "lines": "266-312",
+    "sha256": "43104e9c6513da0d85cb1264f6de7f21fd6b79cfa5ec350317d80fcfbc0049d4",
+    "contract": "Existing holder unlock/reset, genuine assigned value, setValue immediate value and raw face RAF before decorative bounce."
+  },
+  "evidence": [
+    {
+      "test": "actual OS fourth input",
+      "profile": "00010",
+      "log": "native-source-os-touch-admitted-stream.log",
+      "verdict": "FAIL",
+      "observed": "begin accepted true for actual Star; drop blocked source_same_node_absorb_not_admitted; seven preceding real touch moves accepted"
+    },
+    {
+      "test": "actual OS fourth input",
+      "profile": "00011",
+      "log": "native-source-os-admission-detail.log",
+      "verdict": "PASS",
+      "tests": 1,
+      "seconds": 57.765,
+      "limit": "Different randomly selected target; did not close the earlier failure; 24 earlier profile files retained exact bytes"
+    },
+    {
+      "test": "root repeats same actual OS earning moves; all eligible pointer targets",
+      "log": "native-os-earning-all-targets.log",
+      "verdict": "FAIL",
+      "observed": "g1-5 and g1-6 missing genuine retained Source face binding; actual canonical fourth drop rejected; model/physical value alone insufficient"
+    },
+    {
+      "test": "same all-target root regression after genuine opening face caller",
+      "log": "native-os-earning-all-targets-open-face.log",
+      "verdict": "PASS",
+      "tests": 1,
+      "seconds": 31.146,
+      "limit": "Before helper extraction and temporary DEBUG trace removal; current connected/OS/Release pending"
+    },
+    {
+      "test": "gameplay-lock",
+      "log": "native-ordinary-open-face-king.log",
+      "verdict": "PASS",
+      "suites": 24,
+      "tests": 330
+    },
+    {
+      "test": "current helper/retained face app root, Home admission and tutorial lifecycle",
+      "log": "native-open-face-connected.log",
+      "verdict": "PASS",
+      "tests": 30,
+      "seconds": 125.508
+    },
+    {
+      "test": "Source full QA",
+      "log": "native-ordinary-open-face-full.log",
+      "verdict": "PASS",
+      "suites": 530,
+      "tests": 4010,
+      "gameplayLockTests": 330,
+      "nativeSync": false
+    },
+    {
+      "test": "unsigned iOS arm64 Release",
+      "log": "native-open-face-ios-release.log",
+      "verdict": "PASS",
+      "inspection": "NativeOrdinaryOpenFaceIOSReleaseProof.json"
+    },
+    {
+      "test": "Actual OS input, three mandatory full-guide iterations without retry masking",
+      "log": "native-open-face-os-repeated.log",
+      "verdict": "PASS",
+      "tests": 3,
+      "seconds": [
+        55.31,
+        52.765,
+        52.78
+      ],
+      "profile": "00012",
+      "preservation": "NativeOrdinaryOpenFaceOSProfiles; all26 earlier files exact bytes retained",
+      "limit": "No physical acceptance, ordinary global/minimum/all-families/save activation"
+    }
+  ],
+  "pending": [
+    "Complete current Native SDK"
+  ],
+  "defaults": "Normal/Release/global Source flags remain OFF; no phone/PWA/asset/save reset operations"
+}

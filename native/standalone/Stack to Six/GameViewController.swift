@@ -239,8 +239,11 @@ class GameViewController: UIViewController, WKUIDelegate, WKNavigationDelegate, 
         #if DEBUG
         guard Bundle.main.bundleIdentifier == "com.taptapdesign.stacktosix.native" else { return false }
         #if targetEnvironment(simulator)
+        // PRIVATE QA host: keep the user-visible preview on its original
+        // destination intact while running the explicitly opted-in test host.
         return ProcessInfo.processInfo.arguments.contains("--native-gameplay")
-            && ProcessInfo.processInfo.environment["SIMULATOR_UDID"] == "1018BE2D-491B-465F-8F75-3E5BEB38C22A"
+            && ["1018BE2D-491B-465F-8F75-3E5BEB38C22A", "E590B52E-F314-43A7-BF55-2F49CE939C2A"]
+                .contains(ProcessInfo.processInfo.environment["SIMULATOR_UDID"] ?? "")
         #elseif NATIVE_GAMEPLAY_PHONE_PREVIEW
         // Explicit user-authorized physical preview,2026-10-08. This build
         // opens Swift gameplay on normal icon launches; it is not Release

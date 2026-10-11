@@ -1,0 +1,11 @@
+{
+  "scope": "Apply after MainRuntimeIntegratedCodeSnapshot, NativeDirectMusicCodePatch and NativeReleaseUIAdapterCodePatch in NEW isolated tree only. Four test fixtures aligned to preserved intro choice, actual HUD-drop, retained pause/wall callbacks and KING destructive guard ownership. Runtime/media/global Source flags unchanged.",
+  "archive": "MainSDKFixtureAlignmentCodePatch.tar.gz",
+  "archiveSHA256": "43bc036720fef21dd215af059365a29cc46ff2b8f2ca7b59a5ccb97dcdd99b26",
+  "files": {
+    "native/standalone/Stack to SixTests/NativeJourneyDecorIntegrationTests.swift": "5468e69a868a9e830ecc6c860c8d067c4d1880b3caa88d682aad9098a3f79c5d",
+    "native/standalone/Stack to SixTests/NativeOrdinaryPresentationTests.swift": "4cfb9c443869425caa9027b87c0ab790894ccf68badea60394c5de30aa47b754",
+    "native/standalone/Stack to SixTests/NativePaperHandoffTests.swift": "31b0d7ed98519cf5e749d96e2a63b37d5c20dadd7e01942f0668e492b7d5a4c4",
+    "native/standalone/Stack to SixTests/NativeSourceRegistryMountedTests.swift": "7e9520afdec8db2a812696982730745db21f9246f7ec7b9b1747805b52716b02"
+  }
+}

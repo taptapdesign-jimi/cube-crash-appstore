@@ -65,7 +65,8 @@ const fullSteps = [
   ['Production build (no native sync)', npm, ['run', 'build'], { env: buildEnv }],
   ['Built bundle audit', npm, ['run', 'release:bundle-audit']],
   ['Built startup dependency boundary', node, ['scripts/startup-dependency-audit.mjs', '--built']],
-  ['Native source guard', node, ['scripts/stack-to-six-native-audit.mjs', '--source-only']],
+  ['Native source guard', node, ['scripts/stack-to-six-native-target-audit.mjs', '--source-only']],
+  ['Native target audit contract', node, ['--test', 'scripts/tests/native-target-audit.test.mjs']],
 ];
 
 const results = [];

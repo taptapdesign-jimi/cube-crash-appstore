@@ -1,0 +1,32 @@
+{
+  "scope": "Actual Source constructor/owned placement c-r, independent Node physical semantic fields and frozen actual Scene roster observation; no new marker/global admission",
+  "status": "Intermediate focused tests PASS; current full physical-board + stricter paint receipt extension requires new checks",
+  "evidence": [
+    {
+      "log": "native-source-actual-grid-identity-focused.log",
+      "terminalTestSucceeded": true,
+      "testSummary": [
+        "Executed 29 tests, with 0 failures (0 unexpected) in 115.084 (115.096) seconds"
+      ]
+    },
+    {
+      "log": "native-source-actual-grid-observation-focused.log",
+      "terminalTestSucceeded": true,
+      "testSummary": [
+        "Executed 39 tests, with 0 failures (0 unexpected) in 115.775 (115.797) seconds"
+      ]
+    },
+    {
+      "log": "native-source-actual-grid-observation-full.log",
+      "terminalTestSucceeded": false,
+      "testSummary": []
+    },
+    {
+      "log": "native-source-actual-grid-identity-king.log",
+      "terminalTestSucceeded": false,
+      "testSummary": []
+    }
+  ],
+  "globalFlagsEnabled": false,
+  "migration80Reached": false
+}

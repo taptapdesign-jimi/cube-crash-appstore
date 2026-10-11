@@ -1,0 +1,10 @@
+{
+  "verdict": "PASS",
+  "tests": 36,
+  "failures": 0,
+  "seconds": 47.496,
+  "log": "/tmp/native-source-connected-lifecycle-batch.log",
+  "scope": "Actual ordinary/Direct accepted prefix non-final tile flag/timestamp, app guard with exact common Date writers and expiry, same-node physical flags and root earning route.",
+  "defaultSourceFlags": false,
+  "completeGlobalLifecycleCapabilitiesMounted": false
+}

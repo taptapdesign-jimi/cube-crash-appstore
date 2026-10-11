@@ -3,8 +3,9 @@
 This repository is the **Stack to Six Native** development project on `main`
 (user decision 2026-10-07), targeting **100% native** gameplay and UI. Read
 [`docs/engineering/NATIVE_100_PERCENT_PLAN.md`](docs/engineering/NATIVE_100_PERCENT_PLAN.md)
-for the migration sequence and Native/PWA separation. The current checkpoint is
-still hybrid: web gameplay is a temporary migration dependency.
+for the migration sequence and Native/PWA separation. The active standalone app runs Swift gameplay and UIKit/SpriteKit UI without a
+web gameplay fallback. Complete parity and physical acceptance remain tracked
+in the current handoff; preserved web source is a separate reference/product.
 
 For Native work the active target is `native/standalone/Stack to Six.xcodeproj`,
 bundle `com.taptapdesign.stacktosix.native`. Do not sync/build/install the

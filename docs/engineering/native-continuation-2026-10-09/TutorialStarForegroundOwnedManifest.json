@@ -1,0 +1,8 @@
+{
+  "status": "PRIVATE corrected SDK running",
+  "files": {
+    "native/gameplay-ui/NativeStarFinale.swift": "f4592e3bb62b77c553ea2f2d253da11425cf0ca15feaac456ccd77ff89b865c5",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "232a2e6d2faa9eed4dc2c4e3e6652d3b3bd15b43a8fb37caea4b0d02e4c4c3fa"
+  },
+  "scope": "Halo owns optional foreground owner and syncs before visibility/tick; dispose removes wrapper. Artworkz max2600+1 captured. Geometry float tolerance.001 logicalpoint; no Source numeric oracle precision change."
+}

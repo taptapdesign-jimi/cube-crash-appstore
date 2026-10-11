@@ -1,0 +1,19 @@
+{
+  "status": "SDK53371 terminal exit0 TEST SUCCEEDED10/10; full97997 terminal exit0 all selected deterministic gatesPASS, Source/QA frozen. Failed SDK5045/16804 preserved and corrected; KING84547 earlierPASS",
+  "files": {
+    "native/gameplay-ui/NativeDiceNode.swift": "b5322b82729f62f65748b8778b27668f7728fb812d0e73297e34ec5f66d31a15",
+    "native/standalone/Stack to SixTests/NativeSourceRegularResumeConstructionTests.swift": "6dab8292f86f6559f58e813f1f8fba7a05df4ae04ed2e581fff1a615c6121ac7"
+  },
+  "logs": {
+    "native-regular-visual-repair-sdk.log": "1732771ba51a3e4bd96f883cef1f61dddba391cf059aeed41485e6993f107c79",
+    "native-regular-visual-repair-sdk2.log": "f9d646a51a5ff9dfa2ba9f1a7588d0a819d59dad1d92544a3389060b1cfe131e",
+    "native-regular-visual-repair-king.log": "43834cf93f685748a783167473c5a90078900c3b2a31c855febadf5bf86a5b33",
+    "native-regular-visual-repair-sdk3.log": "ae2fcd54c52e3776beec8ead6792b0088706493b228e625138048078e5b0342b",
+    "native-regular-visual-repair-full.log": "cb1a1422bd7dbb44a31ae8ff3039ca51bdfe0c1aaededb626d726d5d2ae68d82"
+  },
+  "limits": [
+    "Regular branch primitive only; whole Scene repair callback binding/complete markers/inner-retirement/Wild broker OPEN",
+    "Fixture now binds actual Source context and Scene outer driver; bounded inner retirement callback no production admission",
+    "Phone huge-cube issue remains OPEN, flags OFF, no phone/PWA/main Swift change"
+  ]
+}

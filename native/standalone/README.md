@@ -1,63 +1,52 @@
-# Stack to Six Native — separate development app
+# Stack to Six Native — active development app
 
-User-authorized on 2026-10-06; designated the main development project on
+User-authorized on 2026-10-06 and designated the main development project on
 2026-10-07. Goal: **100% native**, including gameplay, rules and persistence.
-See [the migration plan](../../docs/engineering/NATIVE_100_PERCENT_PLAN.md).
-`native-benchmark-v1` preserves the starting source. This starting implementation
-is still hybrid; production-benchmark-v9 remains the preserved PWA reference.
+See [the migration plan](../../docs/engineering/NATIVE_100_PERCENT_PLAN.md) and
+[current handoff](../../docs/engineering/CURRENT_HANDOFF.md) for remaining work.
 
 - Display name: **Stack to Six Native**.
-- Bundle ID: `com.taptapdesign.stacktosix.native` (separate sandbox/save).
+- Bundle ID: `com.taptapdesign.stacktosix.native`, with its own sandbox/save.
 - Project: `native/standalone/Stack to Six.xcodeproj`; scheme `Stack to Six`.
-- UIKit Home/Hub and native soundtrack are enabled by this exact bundle identity,
-  including ordinary launches from the phone icon. No Simulator launch flags needed.
-- Swift presentation/audio implementations are shared directly from `../jimi-2026`.
-- Gameplay and progression remain in the complete web runtime.
-- Main Settings, its three switches, authored enter/exit, Back and Privacy Policy
-  modal now use UIKit/CoreAnimation, including v10 pill/knob toggles and the centered textured Privacy card. Existing `_settings`/`saveSettings` and
-  soundtrack/SFX/haptic owners remain authoritative. Internal DEV tools are an
-  explicit web diagnostic escape; Back to main restores native Settings.
-- Arcade Home hero, CTA, tabs and swipe use UIKit. Play now delegates directly
-  to canonical gameplay after native exit, without preparing a web Home copy.
-- User authorized all three Native Debug iPhone Worlds on2026-10-06. Forest,
-  Beach and Area55 use shared UIKit presentation on ordinary icon launches.
-  QA Simulator retains `--jimi-native-forest` and `--jimi-native-worlds` opt-ins.
-  Release Worlds remain disabled. Physical performance acceptance is separate.
-- Existing `com.taptapdesign.stacktosix.Stack-to-Six` installation is separate.
-  Never uninstall it or copy/reset its save as part of this experiment.
+- Actual storyboard root: `NativeStandaloneViewController -> NativeBootstrap`.
+- Gameplay/state/save are Swift; presentation is UIKit/SpriteKit. Shared UIKit
+  Home/Hub/World/Settings and native audio owners remain connected.
+- Archived `GameViewController.swift` and `Web.bundle` are excluded from app
+  target membership. Native startup has no web fallback.
+- `NativeAssets.bundle` contains byte-identical original artwork/audio.
+- Normal storyboard launches select the complete Swift Source-fidelity graph.
+  DEBUG hosted unit-test roots isolate explicit fixtures. Source means the Swift
+  port of preserved rules; it does not add a JavaScript runtime. Remaining
+  behavioral and physical acceptance is tracked in the current handoff.
 
-## Reproducible preparation
+## Preparation and validation
 
-### Swift gameplay phone preview (user-authorized2026-10-08)
+Run `npm run qa:ios` before a Native build. This checks the active standalone
+project, Native identity/root/membership and original Native asset bytes.
+`npm run qa:ios:source` is the fast source guard. Native preparation needs no
+`dist` or `Web.bundle`. If asset preparation is required, the explicit
+`node scripts/prepare-native-artwork.mjs` copies original bytes only.
 
-Build this separate target with Debug and
-`SWIFT_ACTIVE_COMPILATION_CONDITIONS='DEBUG NATIVE_GAMEPLAY_PHONE_PREVIEW'`
-to show the current Swift/UIKit/SpriteKit gameplay on iPhone13blue, including
-ordinary icon relaunches. Preserve the app's existing Native sandbox; its
-canonical atomic store imports only that sandbox's prior hybrid profile once.
-Never use the QA fresh-profile flag on the phone. The exact `.native` identity
-and Debug condition are mandatory; Release and ordinary Debug builds retain
-their existing activation policy. This is a preview of incomplete parity.
-Ship all original bytes in `NativeAssets.bundle`; the preview may exclude
-`Web.bundle` because its gameplay does not boot web game code. The isolated
-blank legacy-profile exporter remains available for one-time save migration.
-No private `/tmp` SVG/Wild/cadence draft belongs to this preview.
+`npm run release:native-audit -- --built-app <Release-app-path>` verifies actual
+compiled host/framework dependencies and packaged original assets. It rejects
+WebKit/JavaScriptCore and a web entry. The private DEBUG QA producer can link
+WebKit and intentionally fails this shipping dependency gate; use Release for
+shipping evidence. Build identity, source parity, signing and physical acceptance
+are distinct checks.
 
-Run `SKIP_NATIVE_BUNDLE_SYNC=true npm run qa:full` from the repo root. It builds
-the complete normal web payload without updating the original native project.
-Copy `dist` to `native/standalone/Stack to Six/Web.bundle` with `ditto`; this
-generated bundle is ignored by Git. Build this project only. Verify final plist
-identity, signing, complete assets and entry hash before installing exclusively
-on the user-authorized iPhone 13 blue. Do not use the original bundle sync command.
+Transitional web QA uses `SKIP_NATIVE_BUNDLE_SYNC=true`. `qa:ios:pwa` is the
+separate preserved-PWA audit and is not a Native prerequisite. Never sync/build/
+install `/Users/user/Stack to Six`, uninstall it or copy/reset its saves as a
+Native side effect. The legacy Kockice shell is never an implicit target.
 
 ## Recovery and acceptance
 
-`pre-native-main-2026-10-06` preserves prior main; `pre-native-ui-2026-10-06`
-preserves the last committed Jimi source before UIKit work (not a stable baseline).
-`production-benchmark-v9` remains the accepted complete baseline, unchanged.
-Git recovery restores code, not device save migrations. This separate app begins
-with its own save/tutorial; the original app retains its own progress.
+`native-benchmark-v1` preserves the starting checkpoint, not complete native
+acceptance. `production-benchmark-v9` remains the accepted PWA reference.
+`pre-native-main-2026-10-06` and `pre-native-ui-2026-10-06` preserve earlier code.
+Git recovery does not restore device saves. Preserve current dirty migration
+work and the Native app's existing sandbox; QA fresh profiles are not for phones.
 
-Open findings: Simulator audio inaudible even with an independent native player;
-Settings apparent duplicate entry and Homepage vertical handoff jump. Physical
-audio, sustained fluidity and complete terminal flows are not accepted yet.
+Unsigned Release/source/Simulator evidence does not prove physical touch,
+audio, thermal behavior, signing or App Store readiness. Final Native acceptance
+requires the complete migration plan and explicit user physical acceptance.

@@ -1,0 +1,8 @@
+{
+  "status": "PRIVATE actual SDK14/14 PASS",
+  "files": {
+    "native/gameplay-ui/NativeDiceArtwork.swift": "39ddeffe0b1a4fadd6af3417f3fa2d29e822200eea4f7f9e91ff87e54f827aaf",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "6575baf621c87c75bdb79ad17119dbec2629f568cd984f38bba304df9cfaf80f"
+  },
+  "scope": "Actual missing candidate then original texture decode/upload; invalidation prevents obsolete cache publication and duplicate callback; cached candidate no upload. Genuine APP FIFO/full caller still OPEN."
+}

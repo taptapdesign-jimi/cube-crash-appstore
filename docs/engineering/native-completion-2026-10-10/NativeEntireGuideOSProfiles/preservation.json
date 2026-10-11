@@ -1,0 +1,23 @@
+{
+  "exactBytesUnchanged": {
+    "Library/Application Support/StackToSixNative/state-v1.previous.json": true,
+    "Library/Application Support/StackToSixNative/state-v1.json": true,
+    "tmp/native-process-qa-AD1E2026-1010-4000-8000-000000000001/state-v1.json": true,
+    "tmp/native-process-qa-E842627B-3B6F-4893-98A3-9C7028BEB040/state-v1.previous.json": true,
+    "tmp/native-process-qa-E842627B-3B6F-4893-98A3-9C7028BEB040/state-v1.json": true,
+    "tmp/native-process-qa-AD1E2026-1010-4000-8000-000000000002/state-v1.previous.json": true,
+    "tmp/native-process-qa-AD1E2026-1010-4000-8000-000000000002/state-v1.json": true,
+    "tmp/native-process-qa-AD1E2026-1010-4000-8000-000000000005/state-v1.previous.json": true,
+    "tmp/native-process-qa-AD1E2026-1010-4000-8000-000000000005/state-v1.json": true,
+    "tmp/native-process-qa-6447BE54-BE50-4742-8A05-42CE4D18A7B8/state-v1.json": true,
+    "tmp/native-process-qa-AD1E2026-1010-4000-8000-000000000004/state-v1.previous.json": true,
+    "tmp/native-process-qa-AD1E2026-1010-4000-8000-000000000004/state-v1.json": true,
+    "tmp/native-process-qa-AD1E2026-1010-4000-8000-000000000003/state-v1.previous.json": true,
+    "tmp/native-process-qa-AD1E2026-1010-4000-8000-000000000003/state-v1.json": true
+  },
+  "allUnchanged": true,
+  "newFiles": [
+    "tmp/native-process-qa-AD1E2026-1010-4000-8000-000000000006/state-v1.previous.json",
+    "tmp/native-process-qa-AD1E2026-1010-4000-8000-000000000006/state-v1.json"
+  ]
+}

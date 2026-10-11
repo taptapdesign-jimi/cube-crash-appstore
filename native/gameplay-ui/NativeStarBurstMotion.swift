@@ -55,3 +55,89 @@ struct NativeStarBurstMotion {
         }
     }
 }
+
+/// Original wild-stars setup/tick recipe. Rendering, assets and APP ticker/GSAP
+/// roots stay caller-owned; count is sampled BEFORE asset preparation.
+enum NativeSourceStarHaloMotion {
+    struct Pose {var x=0.0,y=0.0,rotation=0.0;var scale:Double,alpha:Double}
+    struct Star {
+        var angle:Double
+        let speed,direction,orbitRadius,radiusJitter,radiusJitterSpeed,pulseSpeed,pulsePhase,baseScale,rotationSpeed,rotationPhase,rotationAmplitude,normalizer,revealAt:Double
+        var revealed:Bool
+        var introAnimating=false
+        var pose:Pose
+    }
+    static func pickCount(random:()->Double)->Int? {
+        let roll=random();guard roll.isFinite,roll>=0,roll<1 else{return nil}
+        return 1+Int(floor(roll*3))
+    }
+    static func makeStars(count:Int,textureWidth:Double,introBounce:Bool,performanceNow:()->Double,
+        random:()->Double,current:()->Bool={true})->[Star]? {
+        guard (1...3).contains(count),textureWidth.isFinite,current() else{return nil}
+        var stars:[Star]=[]
+        for index in 0..<count {
+            var r:[Double]=[]
+            for _ in 0..<10 {
+                guard current() else{return nil};let value=random()
+                guard current(),value.isFinite,value>=0,value<1 else{return nil};r.append(value)
+            }
+            let base=0.90+r[6]*0.15,normalizer=56/max(1,textureWidth)
+            let reveal=introBounce ? performanceNow()+Double(index)*500:0
+            guard current(),reveal.isFinite else{return nil}
+            // Reuse the already captured visual phase; do not consume another
+            // shared Math draw and shift subsequent gameplay assignments.
+            stars.append(.init(angle:Double.pi*2*(Double(index)/Double(count)+r[5]),speed:0.4+r[0]*0.3,direction:index==0 ? 1:-1,
+                orbitRadius:0.6+r[1]*0.17,radiusJitter:0.05+r[2]*0.04,radiusJitterSpeed:0.85+r[3]*0.6,
+                pulseSpeed:1.1+r[4]*0.3,pulsePhase:r[5]*Double.pi*2,baseScale:base,rotationSpeed:0.5+r[7]*0.3,
+                rotationPhase:r[8]*Double.pi*2,rotationAmplitude:(4+r[9]*4)*Double.pi/180,normalizer:normalizer,revealAt:reveal,
+                revealed:!introBounce,pose:.init(scale:normalizer*base*(introBounce ? 0.08:1),alpha:introBounce ? 0:1)))
+        }
+        return stars
+    }
+    struct Field {
+        var stars:[Star],lastUpdate:Double
+        let introBounce:Bool
+        /// Hidden delivery refreshes the baseline. Visible orbit follows every
+        /// delivered display frame, retaining the authored elapsed-time clamp.
+        mutating func tick(now:Double,paintable:Bool,width:Double,height:Double)->[Int] {
+            guard paintable else{lastUpdate=now;return []}
+            let elapsed=now-lastUpdate;guard elapsed>0 else{return []};lastUpdate=now
+            let delta=max(0.55,min(2,elapsed/(1000/60))),time=now*0.001,radius=max(width,height)*0.6
+            var starts:[Int]=[]
+            for index in stars.indices {
+                stars[index].angle += stars[index].speed*stars[index].direction*delta*0.04
+                let s=stars[index],wobble=sin(time*s.radiusJitterSpeed+s.pulsePhase)*s.radiusJitter
+                stars[index].pose.x=cos(s.angle)*radius*(s.orbitRadius+wobble)
+                stars[index].pose.y=sin(s.angle)*radius*(s.orbitRadius+wobble)
+                stars[index].pose.rotation=sin(time*s.rotationSpeed+s.rotationPhase)*s.rotationAmplitude
+                if introBounce && !s.revealed {
+                    if now<s.revealAt{stars[index].pose.alpha=0;stars[index].pose.scale=s.normalizer*s.baseScale*0.08;continue}
+                    stars[index].revealed=true;stars[index].introAnimating=true
+                    stars[index].pose.alpha=1;stars[index].pose.scale=s.normalizer*s.baseScale*0.12;starts.append(index);continue
+                }
+                stars[index].pose.alpha=1
+                if !s.introAnimating{stars[index].pose.scale=s.normalizer*s.baseScale*(0.92+sin(time*s.pulseSpeed+s.pulsePhase)*0.1)}
+            }
+            return starts
+        }
+        /// Actual finite APP timeline supplies elapsed; global GSAP pause must
+        /// never be replaced by wall elapsed from the orbit ticker.
+        mutating func paintIntro(index:Int,seconds:Double) {
+            guard stars.indices.contains(index),stars[index].introAnimating else{return}
+            let s=stars[index],scale:Double
+            if seconds<=0.18 {
+                let t=max(0,min(1,seconds/0.18))-1,ease=1+4.4*t*t*t+3.4*t*t
+                scale=0.12+(1.26-0.12)*ease
+            } else if seconds<=0.26 {
+                let t=max(0,min(1,(seconds-0.18)/0.08)),ease=t<0.5 ? 4*t*t*t:1-pow(-2*t+2,3)/2
+                scale=1.26+(0.86-1.26)*ease
+            } else {
+                let t=max(0,min(1,(seconds-0.26)/0.22))
+                let ease=t==0 ? 0:t==1 ? 1:pow(2,-10*t)*sin((t-0.68/4)*Double.pi*2/0.68)+1
+                scale=0.86+(1-0.86)*ease
+            }
+            stars[index].pose.scale=s.normalizer*s.baseScale*scale
+            if seconds>=0.48{stars[index].introAnimating=false}
+        }
+    }
+}

@@ -1,0 +1,12 @@
+{
+  "scope": "Apply after SourceMagnetRAFNodeCodePatch in NEW replay tree only. Tests/executed-original first-frame oracle only; production runtime unchanged. Automatic Scene prefix scheduling and full migration/physical acceptance OPEN.",
+  "archive": "SourceMagnetFirstFrameCodePatch.tar.gz",
+  "archiveSHA256": "502d783bf3f01a51bc773f603aed942abc5789c1cf8a01d6c56ab63d199ca0bb",
+  "files": {
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "8e63640cec933b325eb4d0c230f76258d7d277065d1b134a3b95babe43e71f66",
+    "docs/engineering/native-completion-2026-10-10/fizz-magnet-first-frame-oracle.cjs": "d20848f45b191e50fbafb45237f4452621cc853eaf448e732ebd46a1a8663ed7",
+    "docs/engineering/native-completion-2026-10-10/fizz-magnet-raf-paused-oracle.json": "81c7f74d1a41e01ee8acc13dde4247afbc0b630930248865c204dc7928bee926",
+    "docs/engineering/native-completion-2026-10-10/fizz-magnet-raf-normal-oracle.json": "710ec77b231653b8def5ec46e438a0b561e1817814e0563cc738f5a4561e6805",
+    "docs/engineering/native-completion-2026-10-10/fizz-magnet-raf-late-oracle.json": "d68cf9cec3b40d791d9e0a1073b99e429e54fd01dac947f3356e411e8ca9e61b"
+  }
+}

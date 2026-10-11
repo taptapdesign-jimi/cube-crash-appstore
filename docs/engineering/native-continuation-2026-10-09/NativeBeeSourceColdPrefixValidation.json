@@ -1,0 +1,25 @@
+{
+  "scope": "Private actual synchronous Source idle prefix can start real Bee frame cohort before typed static upload. While cohort pending, actual static Source provider receipt becomes the safe typed retirement fallback; no Raw-cache receipt is synthesized. Test starts through actual Scene startSourceIdle callback (not delayed until static ready), runs real uploads/frame tick and active retirement. Original full constructor capture/marker/global startup/clock/visibility/FX coverage remains OPEN. Flags OFF; not main/phone/PWA acceptance. Node.dispose clears motion/original receipt even without any idle registry binding; actual weak original SKTexture is released after provider/render ownership closes while disposed Node remains strongly held.",
+  "files": {
+    "native/gameplay-ui/NativeDiceNode.swift": "d06019799339c108b8fd4999075493f5bc1ab3b16c528b19c078319af477fd0e",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "9f781f924c1f66949d165218070bfc263f6f91ad18e81617b6263e9a42847cb4"
+  },
+  "SDKfocused": "terminalexit0 2/2 PASS actual early prefix and existing active restart",
+  "SDKmatrix": "terminalexit0 53/53 PASS current Source provider/skin/input/idle/Bee/cold-prefix/dispose cases plus four existing regression classes",
+  "full": "terminalexit0 all selected deterministic gates PASS current Source/QA frozen",
+  "logs": {
+    "bee-source-cold-prefix-sdk.log": "c57ed46ff6f81cb6984944f26a4c4d9947d4ca4227001c2421e079f08ff296d7",
+    "bee-source-cold-prefix-full.log": "5bc0c16ac7fc257d42562ebefdd44fcd22decfb8556b633fb90bbff16a93a938",
+    "bee-source-cold-current-matrix-sdk.log": "ecb0f5e31ab835dbb710f735a7ccbe38ed31e4467a1e7a2d0678900f2614e8ac",
+    "bee-source-dispose-texture-sdk.log": "5a5fe04ef05962e936434ae8e45a3fad3211927d4db447fabce3d0c1666e98e2",
+    "bee-source-dispose-current-matrix-sdk.log": "3c34a73c0e89590576689b5b09a0a53a0e029c45648585e5c9ec7351465ee0a7",
+    "bee-source-dispose-current-matrix-command.json": "bf4356ac5b26e4a42186cf92f55d3788839f6ff28aee46f135ece9bd4a6f3457",
+    "bee-source-dispose-texture-full.log": "d31a5d063c82cd4f368ae6e6902c4e245b34fca8ef601adeee30ea44468012ba"
+  },
+  "SDKmatrixPrior": "terminalexit0 52/52 PASS before final dispose reference clearing",
+  "SDKfocusedCurrent": "terminalexit0 2/2 PASS actual original SKTexture weak release on retained disposed Node and actual early prefix",
+  "snapshotMatch": {
+    "native/gameplay-ui/NativeDiceNode.swift": "Source=QA=SDK SHA match",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "Source=QA=SDK SHA match"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "scope": "Apply after MainRuntimeIntegratedCodeSnapshot and NativeDirectMusicCodePatch in NEW isolated tree only. Native Release excludes legacy HomeHub/World/end-run web hosts; Debug compatibility and unflagged preserved targets retain them. Native modal/renderers and legacy profile exporter retained. No media edits or PWA/phone operations. Full migration remains OPEN.",
+  "archive": "NativeReleaseUIAdapterCodePatch.tar.gz",
+  "archiveSHA256": "ba5562a915d6a7f9b42b8ac5de8a7f75d52cb63f8c37fa1ea229f019ba6643bf",
+  "files": {
+    "native/jimi-2026/JimiHomeHubController.swift": "8e9fd9adf0fc96e1b140ee4147b554023c4f21600189a6392f13e11bd9d2195a",
+    "native/jimi-2026/JimiNativeWorldHost.swift": "e30abf55b85c255fea47786c4fd9e7bc7e60326dee687a791798c232e42fa44a",
+    "native/jimi-2026/JimiNativeEndRunModal.swift": "e2b13b8a74b453790556d0191bc55485dcbba53c4367185e09bd5c62b5c27b13",
+    "native/standalone/Stack to Six.xcodeproj/project.pbxproj": "7ae3714fecd9dc9d37fefa9b65cf3914c487a7893a7b0ed25162402e2031d43d"
+  }
+}

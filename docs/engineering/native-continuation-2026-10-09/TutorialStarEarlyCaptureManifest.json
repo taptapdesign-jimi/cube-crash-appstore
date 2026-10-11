@@ -1,0 +1,8 @@
+{
+  "status": "PRIVATE SDK running session56409",
+  "files": {
+    "native/gameplay-ui/NativeStarFinale.swift": "29d552795441babc689963f330949e0897493d181f095d31aef13f4de52d6618",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "9f6bd9dcfea931fd7124311c863aaa6d50bb0301300be7c993e474a146b2d02e"
+  },
+  "scope": "Actual halo EARLY snapshot retains original texture reference, global SpriteKit position and local scale by value, plus system length. No sprite references/RNG. Actual contact claim/Core reward supplier integration still OPEN."
+}

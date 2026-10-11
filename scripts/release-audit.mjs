@@ -81,6 +81,9 @@ function collectMatches(rule) {
   for (const file of files) {
     const text = readText(file);
     if (!text) continue;
+    // Preserve the complete byte/text scan and exact line receipts. Avoid
+    // allocating/splitting large evidence files when this rule has no match.
+    if (!rule.pattern.test(text)) continue;
 
     const lines = text.split(/\r?\n/);
     lines.forEach((line, index) => {

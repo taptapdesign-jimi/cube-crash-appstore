@@ -1,0 +1,184 @@
+Actual Source raw face RAF:8 current-identity cases and destroyed callback PASS
+gistry and PNG dimensions, explicit Sprite/Texture/RAF endpoints. Caller variant assignment simulated before/after genuine queued callback; not whole open/meter/asset composer proof.",
+  "sourceSHA256": "66eb0208a5c8ca883090e91b23a264fb7790bfac07edab33955b8d5c47a5e95d",
+  "rows": [
+    {
+      "core": "wild",
+      "variant": "bee",
+      "switchBeforeRAF": true,
+      "synchronous": {
+        "value": 6,
+        "alpha": 1,
+        "texture": "./assets/tile.png",
+        "queued": 1
+      },
+      "afterRAF": {
+        "value": 6,
+        "path": "assets/shop/bee/bee1@2x.png",
+        "width": 128,
+        "height": 128,
+        "anchorY": 0.5,
+        "stackDepth": 1,
+        "pipsVisible": false,
+        "shadowVisible": false,
+        "clearCount": 1
+      }
+    },
+    {
+      "core": "wild",
+      "variant": "bee",
+      "switchBeforeRAF": false,
+      "synchronous": {
+        "value": 6,
+        "alpha": 1,
+        "texture": "./assets/tile.png",
+        "queued": 1
+      },
+      "afterRAF": {
+        "value": 6,
+        "path": "assets/wild.png",
+        "width": 128,
+        "height": 128,
+        "anchorY": 0.5,
+        "stackDepth": 1,
+        "pipsVisible": false,
+        "shadowVisible": false,
+        "clearCount": 1
+      }
+    },
+    {
+      "core": "wild-juice",
+      "variant": "mushroom",
+      "switchBeforeRAF": true,
+      "synchronous": {
+        "value": 6,
+        "alpha": 1,
+        "texture": "./assets/tile.png",
+        "queued": 1
+      },
+      "afterRAF": {
+        "value": 6,
+        "path": "assets/shop/mushroom/mushroom.png",
+        "width": 128,
+        "height": 128,
+        "anchorY": 0.5,
+        "stackDepth": 1,
+        "pipsVisible": false,
+        "shadowVisible": false,
+        "clearCount": 1
+      }
+    },
+    {
+      "core": "wild-juice",
+      "variant": "mushroom",
+      "switchBeforeRAF": false,
+      "synchronous": {
+        "value": 6,
+        "alpha": 1,
+        "texture": "./assets/tile.png",
+        "queued": 1
+      },
+      "afterRAF": {
+        "value": 6,
+        "path": "assets/wild-juice.png",
+        "width": 128,
+        "height": 128,
+        "anchorY": 0.5,
+        "stackDepth": 1,
+        "pipsVisible": false,
+        "shadowVisible": false,
+        "clearCount": 1
+      }
+    },
+    {
+      "core": "wild-magnet",
+      "variant": "spaceship",
+      "switchBeforeRAF": true,
+      "synchronous": {
+        "value": 6,
+        "alpha": 1,
+        "texture": "./assets/tile.png",
+        "queued": 1
+      },
+      "afterRAF": {
+        "value": 6,
+        "path": "assets/shop/spaceship/spaceship@2x.png",
+        "width": 147.456,
+        "height": 147.456,
+        "anchorY": 0.5,
+        "stackDepth": 1,
+        "pipsVisible": false,
+        "shadowVisible": false,
+        "clearCount": 1
+      }
+    },
+    {
+      "core": "wild-magnet",
+      "variant": "spaceship",
+      "switchBeforeRAF": false,
+      "synchronous": {
+        "value": 6,
+        "alpha": 1,
+        "texture": "./assets/tile.png",
+        "queued": 1
+      },
+      "afterRAF": {
+        "value": 6,
+        "path": "assets/wild-magnet.png",
+        "width": 122.88,
+        "height": 122.88,
+        "anchorY": 0.5,
+        "stackDepth": 1,
+        "pipsVisible": false,
+        "shadowVisible": false,
+        "clearCount": 1
+      }
+    },
+    {
+      "core": "wild-tnt",
+      "variant": "flower",
+      "switchBeforeRAF": true,
+      "synchronous": {
+        "value": 6,
+        "alpha": 1,
+        "texture": "./assets/tile.png",
+        "queued": 1
+      },
+      "afterRAF": {
+        "value": 6,
+        "path": "assets/shop/bush/flower.png",
+        "width": 128,
+        "height": 128,
+        "anchorY": 0.5,
+        "stackDepth": 1,
+        "pipsVisible": false,
+        "shadowVisible": false,
+        "clearCount": 1
+      }
+    },
+    {
+      "core": "wild-tnt",
+      "variant": "flower",
+      "switchBeforeRAF": false,
+      "synchronous": {
+        "value": 6,
+        "alpha": 1,
+        "texture": "./assets/tile.png",
+        "queued": 1
+      },
+      "afterRAF": {
+        "value": 6,
+        "path": "assets/shop/explosion pack/tnt.png",
+        "width": 128,
+        "height": 128,
+        "anchorY": 0.5,
+        "stackDepth": 1,
+        "pipsVisible": false,
+        "shadowVisible": false,
+        "clearCount": 1
+      }
+    }
+  ],
+  "destroyedCallback": "No paint",
+  "numbersDraws": 0
+}

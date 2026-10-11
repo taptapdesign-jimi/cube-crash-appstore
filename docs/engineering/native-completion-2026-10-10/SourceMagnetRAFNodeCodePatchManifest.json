@@ -1,0 +1,12 @@
+{
+  "scope": "Apply after SourceFizzMultiSceneCodePatch into NEW replay tree only. Node one-shot Magnet RAF component, actual Scene tests, existing owner metadata and executed original oracle. Automatic Scene prefix scheduling awaits first-RAF ordering parity. Global/full migration/physical acceptance OPEN.",
+  "archive": "SourceMagnetRAFNodeCodePatch.tar.gz",
+  "archiveSHA256": "dfee152bbd83ec44f4d967d10e3962c109ab8b897267f6edfec57da43fdc660c",
+  "files": {
+    "native/gameplay-ui/NativeDiceNode.swift": "7854155d2bf5aa041496f3c6775ef230de3da7972145daa8771c549303fa0e7c",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "04cbc56c20e816c708e3f6582a22961cf09d5d412e3d6c577710625a3178074b",
+    "docs/engineering/feature-runtime-owners.json": "930a7d366cfc6229b31f3c6bb7e001f37cc9737a8594dd9e0658255d78bbf7e2",
+    "docs/engineering/native-completion-2026-10-10/fizz-magnet-raf-oracle.cjs": "95c5431152c97e25ffa87f064331ff6ff39645599a897bc016507c3d7d965583",
+    "docs/engineering/native-completion-2026-10-10/fizz-magnet-raf-oracle.json": "249104e93c86980b5ea47e5a559ea63768fea4e8c035122e451d4322b7fa3e69"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "status": "PRIVATE exact full Core358/358 PASS",
+  "files": {
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceSpecialContactLease.swift": "66d49c28c804290f56015279c37558e676a5efd0f42f1abdcf2506a92bd15df7",
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeBoardState.swift": "e6534dbaf8648daeab9461780ae710243b482a676e2f1f583c6100297ea16b20",
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "cdd035e8c58b73d627bc0f55b453858e063b5f675d801b7f0210c53f689fa27a",
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceSpecialContactCoreTests.swift": "ee8f49b006a89e78cfabb101d99b901efc176e6c83dcd1487c35412dd7641bb6",
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeWildEnginePhaseTests.swift": "72a7d8b6214ff49b7b251123d0f027b6581e54fc4e8d0d9445c38d2230722622",
+    "native/gameplay-ui/NativeBoardScene.swift": "ae7b25e18903a077d2ebf67690a62d78b4f6e19b289db705a4776ec2a379dd96",
+    "native/gameplay-ui/NativeDiceNode.swift": "4b6c3e6cda9d42868ac7cb582719b08a257fdb8a3b1e6875f98b0419b7ccfe56",
+    "native/gameplay-ui/NativeStarFinale.swift": "29d552795441babc689963f330949e0897493d181f095d31aef13f4de52d6618",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "9f6bd9dcfea931fd7124311c863aaa6d50bb0301300be7c993e474a146b2d02e"
+  },
+  "scope": "Source capture validates same generation/contact plainStar identity/nonnegative truthful counts, rejected lease cleanup. Direct spawn normal/staged bonus uses immutable captured positions/system count after removal. Actual mounted contact and late live fallback/HUD counts/whole route remain OPEN; flagOFF."
+}

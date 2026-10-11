@@ -1,0 +1,211 @@
+{
+  "reference": "production-benchmark-v9",
+  "scope": "Immutable schema and restore function with explicit minimal board factory; no Pixi renderer, entry animation, live marker or physical proof",
+  "dependencies": {
+    "boardFactory": "Minimal explicit holder/scale/occluder/ghost/drag producer",
+    "removal": "Unreachable empty-board dependency throws if called",
+    "artwork": "No-op; visual artwork not asserted"
+  },
+  "hashes": {
+    "src/modules/app-core-save-schema.ts": "70b1cb7fbd19f1424ef5a9ecfce35afc8a0706286f85bad5a78caece09c2ddf3",
+    "src/modules/final-merge-rules.ts": "e3119e1e6e398d4a672536a47819abf8362652dc04e50923df5e066768ed9428",
+    "src/modules/special-dice-registry.ts": "b6818afb9ffd98a6249f17c8f0d020663a1fd9a41f8d43908da1a25bb7780fdd",
+    "src/modules/journey-forest-wild-progression.ts": "6ff48dbe821d56af44ffa20903b2d8a4549a57b0450cd369d5590fd1d1833018",
+    "src/modules/journey-area55-wild-progression.ts": "c389b1804394ce6823af09a88619aabe518a93f664496d21c5bf4feb92699173",
+    "src/modules/app-core-load-tiles.ts": "286d872b00a48dbe638444a6039f76b5507617514e319920e415a579e5408de5"
+  },
+  "rows": [
+    {
+      "legacy": false,
+      "kind": "regular",
+      "normalized": {
+        "value": 3,
+        "special": null,
+        "specialDiceVariant": null,
+        "locked": false,
+        "open": true,
+        "isWild": false,
+        "isWildFace": false,
+        "gridX": 0,
+        "gridY": 0
+      },
+      "restored": {
+        "value": 3,
+        "visible": true,
+        "alpha": 1,
+        "locked": false,
+        "occluderVisible": false,
+        "eventMode": "static",
+        "deferredWildIdle": false
+      }
+    },
+    {
+      "legacy": false,
+      "kind": "locked-positive",
+      "normalized": {
+        "value": 3,
+        "special": null,
+        "specialDiceVariant": null,
+        "locked": true,
+        "open": false,
+        "isWild": false,
+        "isWildFace": false,
+        "gridX": 0,
+        "gridY": 0
+      },
+      "restored": {
+        "value": 3,
+        "visible": true,
+        "alpha": 1,
+        "locked": true,
+        "occluderVisible": true,
+        "eventMode": "none",
+        "deferredWildIdle": false
+      }
+    },
+    {
+      "legacy": false,
+      "kind": "locked-zero",
+      "normalized": {
+        "value": 0,
+        "special": null,
+        "specialDiceVariant": null,
+        "locked": true,
+        "open": false,
+        "isWild": false,
+        "isWildFace": false,
+        "gridX": 0,
+        "gridY": 0
+      },
+      "restored": {
+        "value": 0,
+        "visible": true,
+        "alpha": 0.25,
+        "locked": true,
+        "occluderVisible": true,
+        "eventMode": "none",
+        "deferredWildIdle": false
+      }
+    },
+    {
+      "legacy": false,
+      "kind": "wild",
+      "normalized": {
+        "value": 6,
+        "special": "wild",
+        "specialDiceVariant": null,
+        "locked": false,
+        "open": true,
+        "isWild": true,
+        "isWildFace": true,
+        "gridX": 0,
+        "gridY": 0
+      },
+      "restored": {
+        "value": 6,
+        "visible": true,
+        "alpha": 1,
+        "locked": false,
+        "occluderVisible": false,
+        "eventMode": "static",
+        "deferredWildIdle": true
+      }
+    },
+    {
+      "legacy": true,
+      "kind": "regular",
+      "normalized": {
+        "value": 3,
+        "special": null,
+        "specialDiceVariant": null,
+        "locked": false,
+        "open": true,
+        "isWild": false,
+        "isWildFace": false,
+        "gridX": 0,
+        "gridY": 0
+      },
+      "restored": {
+        "value": 3,
+        "visible": true,
+        "alpha": 1,
+        "locked": false,
+        "occluderVisible": false,
+        "eventMode": "static",
+        "deferredWildIdle": false
+      }
+    },
+    {
+      "legacy": true,
+      "kind": "locked-positive",
+      "normalized": {
+        "value": 3,
+        "special": null,
+        "specialDiceVariant": null,
+        "locked": true,
+        "open": false,
+        "isWild": false,
+        "isWildFace": false,
+        "gridX": 0,
+        "gridY": 0
+      },
+      "restored": {
+        "value": 3,
+        "visible": true,
+        "alpha": 1,
+        "locked": true,
+        "occluderVisible": true,
+        "eventMode": "none",
+        "deferredWildIdle": false
+      }
+    },
+    {
+      "legacy": true,
+      "kind": "locked-zero",
+      "normalized": {
+        "value": 0,
+        "special": null,
+        "specialDiceVariant": null,
+        "locked": true,
+        "open": false,
+        "isWild": false,
+        "isWildFace": false,
+        "gridX": 0,
+        "gridY": 0
+      },
+      "restored": {
+        "value": 0,
+        "visible": true,
+        "alpha": 0.25,
+        "locked": true,
+        "occluderVisible": true,
+        "eventMode": "none",
+        "deferredWildIdle": false
+      }
+    },
+    {
+      "legacy": true,
+      "kind": "wild",
+      "normalized": {
+        "value": 6,
+        "special": "wild",
+        "specialDiceVariant": null,
+        "locked": false,
+        "open": true,
+        "isWild": true,
+        "isWildFace": true,
+        "gridX": 0,
+        "gridY": 0
+      },
+      "restored": {
+        "value": 6,
+        "visible": true,
+        "alpha": 1,
+        "locked": false,
+        "occluderVisible": false,
+        "eventMode": "static",
+        "deferredWildIdle": true
+      }
+    }
+  ]
+}

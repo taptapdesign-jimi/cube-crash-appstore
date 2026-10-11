@@ -1,0 +1,23 @@
+{
+  "scope": "Default Source Date.now millisecond resolution; nativeRaw CADisplayLink timestamps and injected clocks unchanged",
+  "sourceSHA256": {
+    "native/gameplay-ui/NativeSourceAnimationClockService.swift": "73ccf878bf88276dc6f22366ab13db7f7f9d7bb57976f5c816581b3bed940cda",
+    "native/standalone/Stack to SixTests/NativeSourceAnimationClockTests.swift": "0106480c9bfb6c55a8710fc8af884cf7eacd2b2f961fb2636d1d997ba991e612",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "d90ba0c39291e7202c4e512422ac2c9973eeeab3480706b01c1fde8ed27b8ac7"
+  },
+  "reference": "Immutable production-benchmark-v9 package-lock GSAP3.13.0 matches installed version; gsap-core.js _getTime = Date.now",
+  "clock": "terminal5021 exit0 36/36 PASS1.161s",
+  "actualDefaultClock": "terminal69447 exit0 37/37 PASS1.169s including real display-link wall resolution",
+  "connected": "terminal33776 exit0 103/103 PASS98.816s: actual default clock/ticker/FIFO/Tutorial/resume",
+  "fullSourceQA": "terminal65155 exit0 PASS all selected deterministic QA gates",
+  "gameplayLock": "terminal37355 exit0 PASS",
+  "limits": [
+    "Prior SDK1267/Release proofs predate this clock correction",
+    "Global Source feature flags OFF",
+    "No physical timing/touch/audio/thermal acceptance"
+  ],
+  "completeSDK": "terminal75220 exit65:1268 tests,1 opt-in producer skipped,1 failure626.913s. Bee synchronous pre-upload test manual40ms observed frame3 instead of2; fixture uses explicit sourceWall0 so default Source wall correction does not run in that fixture. Investigating real SKView native idle elapsed during async upload.",
+  "beeFixture": "terminal61137 exit0:10 iterations,0 failures1.015s. Only synchronous pre-upload test pauses SKView independent native clock before async upload; Source wall was already0. Manual40ms tick/assertion and production code unchanged.",
+  "starClock": "terminal14376 exit0 113/113 PASS9.354s; all76 Star presentation +37 actual Source clock",
+  "completeSDKAfterFixture": "combined terminal34475 exit0:1279 tests,1 opt-in producer skipped,0 failures626.347s including current clock/Bee fixture/native diagnostics"
+}

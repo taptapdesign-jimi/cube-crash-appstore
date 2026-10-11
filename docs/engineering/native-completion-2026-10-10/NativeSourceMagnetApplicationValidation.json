@@ -1,0 +1,40 @@
+{
+  "verdict": "PASS",
+  "actualApplicationBatch": {
+    "tests": 8,
+    "failures": 0,
+    "seconds": 15.551,
+    "log": "/tmp/native-source-magnet-actual-root.log"
+  },
+  "actualNextMove": {
+    "tests": 1,
+    "failures": 0,
+    "seconds": 9.217,
+    "log": "/tmp/native-source-magnet-next-move-source-debit.log"
+  },
+  "existingConnectedComponents": {
+    "tests": 12,
+    "failures": 0,
+    "log": "/tmp/native-source-magnet-connected-next-move.log",
+    "note": "Three existing component suites passed. Entire earlier combined batch failed the next-move test with its incorrect unconditional debit expectation. Preserve failure evidence."
+  },
+  "diagnostic": "/tmp/native-source-magnet-next-move-diagnostic.log",
+  "scope": "Actual normal saved-Magnet root, genuine fallback/physical guard/main80/lazy/pull callers, real audio voice or typed intentional silence, retained destination and next ordinary input/face/postcheck. Original stuck-before-moves-- conditional preserved.",
+  "audioRuntime": "PASS",
+  "featureRuntime": "PASS",
+  "defaultShippingFlags": false,
+  "completeSourceGameplayRuntimeAdmission": false,
+  "physicalAcceptance": "NEEDS PHYSICAL TEST",
+  "independentMagnetAndJuiceHUD": {
+    "tests": 2,
+    "failures": 0,
+    "seconds": 16.952,
+    "log": "/tmp/native-source-magnet-independent-juice-credit.log",
+    "scope": "Magnet without Direct/HUD admission mounts its own genuine Special transaction endpoint; actual next ordinary move completes. Juice actual HUD arrival credits at least100."
+  },
+  "sourceFullQA": {
+    "verdict": "PASS",
+    "log": "/tmp/native-source-normal-magnet-full.log",
+    "note": "Before independent Magnet transaction line and restored constructor marker extension."
+  }
+}

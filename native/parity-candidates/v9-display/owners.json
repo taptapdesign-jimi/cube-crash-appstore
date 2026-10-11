@@ -1,0 +1,15 @@
+{
+  "status": "isolated candidate; not linked into shipping Xcode target",
+  "feature": "native-v9-no-moves-display",
+  "entryOwner": "Primary NativeBoardScene captured candidate receipt mounts NativeNoMovesPresentation; no decision or input lock in renderer",
+  "exitOwner": "Primary scene calls beginExit with captured display timestamp; same receipt receives onExitFinished once; dispose reports cancellation once",
+  "animationOwner": "NativeNoMovesPlan and NativeNoMovesCloudPlan sampled through primary existing clock; no timers, observers or new ticker",
+  "resourceOwner": "Primary route-scoped artwork preparation supplies preserved Baloo2-ExtraBold and four original cloud UIImage values; missing font/art rejects admission",
+  "audioPolicy": "Existing primary NO MOVES audio event remains sole owner; display never plays audio",
+  "hapticPolicy": "None added",
+  "visibilityPolicy": "Primary suspends paint calls on hidden/background/modal; display preserves current pose; route/generation replacement calls dispose; no autonomous resume",
+  "persistencePolicy": "No save/state/RNG/progression mutations; supplied decorative RNG must be separate from gameplay RNG",
+  "tests": ["no-moves-main.swift", "cloud-main.swift", "display-check.swift"],
+  "sourceReference": "production-benchmark-v9 splash-text-overlay.ts and text-clouds.ts",
+  "physicalAcceptance": "NEEDS PHYSICAL TEST after primary connected integration"
+}

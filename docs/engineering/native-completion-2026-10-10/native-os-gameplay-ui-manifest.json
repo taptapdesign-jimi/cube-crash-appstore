@@ -1,0 +1,26 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "7AD35662-D7CB-46AF-B04D-4B53810F5C7E.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "native-genuine-guide-os-resume-1_0_35481442-E68A-43CD-B76D-79F41BC33BCC.png",
+        "timestamp" : 1791625813.555
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "D55D81B8-63AB-4BBB-9428-72CBEF4A714B.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "native-genuine-guide-os-resume-0_0_4A41492A-B3E0-479C-B52D-B4B24FFD97AB.png",
+        "timestamp" : 1791625802.921
+      }
+    ],
+    "testIdentifier" : "NativeHomeInteractionUITests/testPreparedGenuineGuideProfileResumesAcrossTwoOSLaunches()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixUITests/NativeHomeInteractionUITests/testPreparedGenuineGuideProfileResumesAcrossTwoOSLaunches"
+  }
+]

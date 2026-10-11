@@ -1,0 +1,9 @@
+{
+  "status": "PRIVATE COMPONENT; whole caller OPEN",
+  "archiveSHA256": "f55c48891b98b7cd3f112a5ccd23bdcdba39d2461d5e5ad9fe1bf62f300a1e0e",
+  "files": {
+    "native/gameplay-ui/NativeDiceNode.swift": "96c4fd44addba6f0ed2373c87d3587d506ba2fe385314aa6d07a20c4b84916f4",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "8aeb0e12271cff90831b658479a14c9ff1ece166810501e82ad57ae1dcc04a48"
+  },
+  "validation": "Exact SDK10/10 PASS incl actual Node duplicate adoption, same-kind depth retention, generation replacement, kind replacement and dispose; full QA receipt predates Node draft. Actual caller count/assets/foreground OPEN."
+}

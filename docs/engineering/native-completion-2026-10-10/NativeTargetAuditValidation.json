@@ -1,0 +1,24 @@
+{
+  "verdict": "PASS active Native source/assets and unsigned Release audit",
+  "sourceAssetsLog": "/tmp/native-active-target-audit.log",
+  "contractTests": {
+    "tests": 8,
+    "failures": 0,
+    "log": "/tmp/native-target-audit-contract.log"
+  },
+  "unsignedReleaseBuildLog": "/tmp/native-prepared-arcade-current-release.log",
+  "releaseAuditLog": "/tmp/native-current-release-target-audit.log",
+  "releaseScope": "Predates subsequent Source generation replacement. No signing/physical claim.",
+  "debugHostAudit": {
+    "verdict": "FAIL expected rejection",
+    "log": "/tmp/native-active-target-built-audit.log",
+    "reason": "DEBUG QA host links WebKit/private oracle; shipping dependency gate rejects it."
+  },
+  "pwa": "Preserved untouched; explicit qa:ios:pwa remains separate.",
+  "sha256": {
+    "scripts/stack-to-six-native-target-audit.mjs": "d49f7c768cd4f65f41239cfaa793242c673d564dbcd073db80a6964101d46ec8",
+    "scripts/tests/native-target-audit.test.mjs": "0026d5d733ed0700e863d96ebff1046d5e13bc89a13a9cd93ea627b95e32057f",
+    "scripts/qa-gate.mjs": "7245ccb7a1aa4294596da64a0c4c99af5938b05fd050b4ab89d36afca1df96ec",
+    "package.json": "e08b24a0532e7741b7ee57ba78010c0efadbb9292804701d63c01697b6457d3b"
+  }
+}

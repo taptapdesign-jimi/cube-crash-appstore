@@ -29,19 +29,26 @@ final class NativeOrdinaryPresentationTests:XCTestCase {
         XCTAssertTrue(scene.beginDrag(at:point(scene,2)));scene.moveDrag(to:point(scene,3))
         XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:point(scene,3),now:1.2)).accepted)
     }
-    func testBackgroundSettlesAcceptedStackShapeAndCancelsPostcheckDebit() {
-        let engine=NativeGameplayEngine(state:NativeBoardState(columns:5,rows:9,tiles:[tile("a",0,1),tile("b",1,2),tile("c",2,1)]))
-        let scene=NativeBoardScene(engine:engine,resourceRoot:root,size:CGSize(width:390,height:844));scene.layout(size:scene.size,insets:.zero)
-        defer {scene.dispose()}
+    func testBackgroundRetainsAcceptedStackAndResumesItsOriginalPostcheckOnce() async throws {
+        let (window,renderer,scene)=mounted([tile("a",0,1),tile("b",1,2),tile("c",2,1)])
+        defer {scene.dispose();renderer.presentScene(nil);window.isHidden=true}
+        let engine=scene.engine
         XCTAssertTrue(scene.beginDrag(at:point(scene,0)));scene.moveDrag(to:point(scene,1))
         XCTAssertEqual(scene.finishDrag(at:point(scene,1),now:1)?.accepted,true)
-        let score=engine.state.score;XCTAssertGreaterThan(score,0)
-        scene.setSuspended(true)
-        XCTAssertNil(engine.pendingOrdinaryStack);XCTAssertTrue(engine.pendingOrdinaryPostchecks.isEmpty)
+        let captured=try XCTUnwrap(engine.pendingOrdinaryStack),score=engine.state.score
+        XCTAssertGreaterThan(score,0)
+        scene.setSuspended(true);let held=engine.state
+        XCTAssertEqual(engine.pendingOrdinaryStack,captured)
+        XCTAssertEqual(held.moves,50,"Pause must not synthesize the accepted absorb or debit")
+        try await Task.sleep(for:.milliseconds(250))
+        XCTAssertEqual(engine.state,held);XCTAssertEqual(engine.pendingOrdinaryStack,captured)
+        scene.setSuspended(false)
+        try await waitUntil {engine.pendingOrdinaryStack==nil && engine.pendingOrdinaryPostchecks.isEmpty && engine.state.moves==49}
         XCTAssertNil(engine.state.tiles.first {$0.id=="a"});XCTAssertEqual(engine.state.tiles.first {$0.id=="b"}?.value,3)
-        XCTAssertEqual(engine.state.moves,50,"Interrupted awaited postcheck cannot invent moves debit")
         XCTAssertEqual(engine.state.score,score);XCTAssertTrue(engine.state.validationIssues().isEmpty)
-        scene.setSuspended(false);XCTAssertTrue(scene.beginDrag(at:point(scene,1)))
+        let settled=engine.state
+        try await Task.sleep(for:.milliseconds(250));XCTAssertEqual(engine.state,settled,"Original postcheck debits once after actual resume")
+        XCTAssertTrue(scene.beginDrag(at:point(scene,1)))
     }
     func testSixMainUsesLiveInterleavedStackAndRevokesOldSpawnPermit() async throws {
         let (window,renderer,scene)=mounted([tile("a",0,1),tile("b",1,5),tile("c",2,1),tile("d",3,1),tile("e",4,3)])
@@ -87,19 +94,24 @@ final class NativeOrdinaryPresentationTests:XCTestCase {
         scene.cancelDrag()
         XCTAssertTrue(scene.engine.pendingOrdinarySpawns.isEmpty)
     }
-    func testSixBackgroundCommitsMainOnceAndNeverReplaysItsOldGhost() async throws {
-        let engine=NativeGameplayEngine(state:NativeBoardState(columns:5,rows:9,tiles:[tile("a",0,1),tile("b",1,5),tile("c",2,1),tile("d",3,2)]))
-        let scene=NativeBoardScene(engine:engine,resourceRoot:root,size:CGSize(width:390,height:844));scene.layout(size:scene.size,insets:.zero)
-        defer {scene.dispose()}
+    func testSixBackgroundRetainsMainAndCompletesItsCapturedTransactionAfterResume() async throws {
+        let (window,renderer,scene)=mounted([tile("a",0,1),tile("b",1,5),tile("c",2,1),tile("d",3,2)])
+        defer {scene.dispose();renderer.presentScene(nil);window.isHidden=true}
+        let engine=scene.engine;var mainCount=0
+        scene.onGameplayEvent={event in if event.kind == .merged,event.value==6 {mainCount+=1}}
         XCTAssertTrue(scene.beginDrag(at:point(scene,0)));scene.moveDrag(to:point(scene,1))
         XCTAssertEqual(scene.finishDrag(at:point(scene,1),now:1)?.accepted,true)
+        let captured=try XCTUnwrap(engine.pendingOrdinarySix)
         XCTAssertEqual(engine.state.moves,50);XCTAssertEqual(engine.state.score,0)
-        XCTAssertEqual(engine.state.tiles.first {$0.id=="b"}?.value,6)
-        scene.setSuspended(true);let settled=engine.state
-        XCTAssertEqual(settled.moves,49);XCTAssertGreaterThan(settled.score,0);XCTAssertNil(engine.pendingOrdinarySix)
-        scene.setSuspended(false)
+        scene.setSuspended(true);let held=engine.state
+        XCTAssertEqual(engine.pendingOrdinarySix,captured)
         try await Task.sleep(for:.milliseconds(250))
-        XCTAssertEqual(engine.state,settled)
+        XCTAssertEqual(engine.state,held);XCTAssertEqual(mainCount,0)
+        scene.setSuspended(false)
+        try await waitUntil {engine.pendingOrdinarySix==nil}
+        XCTAssertEqual(engine.state.moves,49);XCTAssertGreaterThan(engine.state.score,0);XCTAssertEqual(mainCount,1)
+        let settled=engine.state
+        try await Task.sleep(for:.milliseconds(250));XCTAssertEqual(engine.state,settled);XCTAssertEqual(mainCount,1)
     }
     func testLockedOpeningUsesCapturedDelayAndRetainsPlaceholderIdentity() async throws {
         var a=tile("a",0,1),b=tile("b",1,5)
@@ -170,24 +182,40 @@ final class NativeOrdinaryPresentationTests:XCTestCase {
         XCTAssertTrue(scene.engine.state.validationIssues().isEmpty)
     }
 
-    func testBackgroundDuringCapturedDelayedBatchRevokesOldUICommands() async throws {
+    func testBackgroundRetainsCapturedDelayedBatchAndLetsGenuineWallCommandsArrive() async throws {
         var locked=tile("locked",2,0);locked.locked=true
         let (window,renderer,scene)=mounted([tile("a",0,1),tile("b",1,5),locked,tile("c",3,1),tile("d",4,2)])
         defer {scene.dispose();renderer.presentScene(nil);window.isHidden=true}
         let prepared=expectation(description:"Captured delayed batch before first assignment")
+        var spawned:[String]=[],batchPrepared=false
         scene.onGameplayEvent={event in
-            if event.kind == .ordinaryAssignmentsPrepared {prepared.fulfill()}
+            if event.kind == .ordinaryAssignmentsPrepared,!batchPrepared {batchPrepared=true;prepared.fulfill()}
+            if event.kind == .spawned {spawned += event.tileIDs}
         }
         XCTAssertTrue(scene.beginDrag(at:point(scene,0)));scene.moveDrag(to:point(scene,1))
         XCTAssertEqual(scene.finishDrag(at:point(scene,1),now:1)?.accepted,true)
         await fulfillment(of:[prepared],timeout:3)
+        let captured=try XCTUnwrap(scene.engine.pendingOrdinarySix),assignments=scene.engine.pendingOrdinaryAssignments
         scene.setSuspended(true)
+        XCTAssertEqual(scene.engine.pendingOrdinarySix,captured);XCTAssertEqual(scene.engine.pendingOrdinaryAssignments,assignments)
+        XCTAssertTrue(try XCTUnwrap(scene.engine.state.tiles.first {$0.id=="locked"}).locked)
+        try await waitUntil {scene.engine.pendingOrdinaryAssignments.isEmpty}
+        XCTAssertFalse(spawned.isEmpty,"Source wall producers remain live while renderer/timeline is paused")
+        XCTAssertFalse(try XCTUnwrap(scene.engine.state.tiles.first {$0.id=="locked"}).locked)
+        XCTAssertNotNil(scene.engine.pendingOrdinarySix,"Actual paused arrival must not be manufactured by background settlement")
+        scene.setSuspended(false)
+        try await waitUntil {scene.engine.pendingOrdinarySix==nil}
+        XCTAssertEqual(spawned.count,Set(spawned).count,"Captured commands cannot duplicate the same assigned identity")
         let settled=scene.engine.state
-        XCTAssertNil(scene.engine.pendingOrdinarySix);XCTAssertTrue(scene.engine.pendingOrdinaryAssignments.isEmpty)
-        XCTAssertFalse(try XCTUnwrap(settled.tiles.first {$0.id=="locked"}).locked)
-        scene.onGameplayEvent=nil;scene.setSuspended(false)
-        try await Task.sleep(for:.milliseconds(450))
-        XCTAssertEqual(scene.engine.state,settled,"Retired native callbacks cannot replay after authoritative background settlement")
+        try await Task.sleep(for:.milliseconds(450));XCTAssertEqual(scene.engine.state,settled)
+    }
+
+    private func waitUntil(_ predicate:()->Bool) async throws {
+        let deadline=Date().addingTimeInterval(4)
+        while !predicate() {
+            if Date()>deadline {XCTFail("Captured ordinary transaction did not reach its genuine boundary");throw CancellationError()}
+            try await Task.sleep(for:.milliseconds(20))
+        }
     }
 
 }

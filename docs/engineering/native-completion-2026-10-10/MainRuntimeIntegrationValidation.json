@@ -1,0 +1,12 @@
+{
+  "scope": "371 reviewed main runtime integration files:342 new and29 backed-up existing. Prior pure core113 already integrated. No original media or PWA/phone operations.",
+  "candidateSDK": "73 unique tests passed across final terminal runs; two intro-dependent fixtures corrected without shipping intro changes",
+  "mainSDK": "9/9 PASS exit0 on exact dedicated Simulator",
+  "mainBuild": "Debug Simulator BUILD SUCCEEDED exit0",
+  "mainFullQA": "PASS all selected gates exit0 including Feature runtime23 and KING330; prior missing37 paths now present",
+  "physical": "NEEDS PHYSICAL TEST",
+  "fullMigration": "OPEN",
+  "globalSourceFlags": "unchanged/OFF",
+  "authoritativeRuntime": "main; private standalone checkpoint now reference only",
+  "snapshotFiles": 744
+}

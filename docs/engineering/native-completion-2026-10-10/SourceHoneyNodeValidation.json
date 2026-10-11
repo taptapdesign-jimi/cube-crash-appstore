@@ -1,0 +1,11 @@
+{
+  "sdk": "48/48 zero failures, terminal39522 exit0. Source clocks36 + actual registry/Node12. One whitespace indentation fix afterward; no behavioral source change.",
+  "qa": "Frozen fullQA80762 terminal exit0/full deterministic PASS; no live checks.",
+  "scope": "Actual Node opt-in Honey endpoint, borrowed genuine registry/common RNG/service/task/resource pipeline. Repeated phase/profiles/carriers retained, Raw tick cannot overwrite, registry pressure chase continues, visibility holds phase, immediate countershift, defer/scope retirement root cleanup, nested currentC preserved. Actual Scene caller/restored entry still OPEN. Global flags OFF and full migration/physical acceptance OPEN.",
+  "files": {
+    "native/gameplay-ui/NativeDiceNode.swift": "605c77e694ee1ef8cb146948291c13caa51f2c2de12dd54867ea58f15182f96c",
+    "native/gameplay-ui/NativeHoneyDiceIdle.swift": "53432602bba0f7b7138faa380599dc030317f9a77927bb03e8109e9ca419566d",
+    "native/standalone/Stack to SixTests/NativeSourceSpecialIdleMountedTests.swift": "68f7e5b48257463cf27c8f8e04cf995b167d382af47a8d8433ad72a4b1830b31",
+    "docs/engineering/feature-runtime-owners.json": "fe02f504b843daab6100392c9ccb2444f8545f1586d033dd45ff2411674be054"
+  }
+}

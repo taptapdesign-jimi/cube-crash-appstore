@@ -1,0 +1,50 @@
+{
+  "status": "PASS for bounded constructor and visible completion only; full migration OPEN",
+  "sourceReference": "8e4364e8ee571f16c6322727a9ae79fee5a982eb",
+  "core": {
+    "tests": 405,
+    "failures": 0,
+    "log": "/tmp/native-tnt-glyph-plan-core-oracle-resource-corrected.log"
+  },
+  "sdk": {
+    "tests": 22,
+    "failures": 0,
+    "seconds": 35.35,
+    "log": "/tmp/native-tnt-source-constructor-and-visible-boundary-sdk.log"
+  },
+  "priorSdk": {
+    "tests": 18,
+    "failures": 0,
+    "log": "/tmp/native-tnt-source-glyph-and-deferred-frame-sdk.log"
+  },
+  "preservedFailure": "/tmp/native-tnt-glyph-plan-core-with-oracle.log: missing explicit Swift Package fixture resource; corrected manifest only",
+  "scope": [
+    "actual UIKit glyph constructor and common Math",
+    "282 actual constructor draws; deferred frame and exit draws bring total310",
+    "actual loaded frame6 enter end0.51",
+    "actual loaded last-frame fade1.75 and separate parent4.2",
+    "resource retirement stops draws without Raw fallback"
+  ],
+  "open": [
+    "whole main/pre-spawn coroutine order",
+    "all APP root traversal/hitch parity",
+    "full pixel parity",
+    "immutable final/pre/post clean-board/no-target",
+    "global/save/queue/NO MOVES/all families/default activation",
+    "physical acceptance"
+  ],
+  "release": {
+    "status": "PASS before subsequent initial-await change",
+    "log": "/tmp/native-tnt-constructor-final-release.log",
+    "compiledAudit": "/tmp/native-tnt-constructor-final-release-audit.log"
+  },
+  "qa": {
+    "king": "PASS330 /tmp/native-tnt-constructor-final-king.log",
+    "feature": "PASS /tmp/native-tnt-constructor-final-feature.log",
+    "nativeAdmission": "PASS /tmp/native-tnt-constructor-final-admission.log",
+    "specialAdmission": "PASS corrected /tmp/native-tnt-constructor-final-special-corrected.log",
+    "full": "PASS all selected gates /tmp/native-tnt-constructor-final-full.log",
+    "preservedFailure": "/tmp/native-tnt-constructor-final-special.log: new test was over-scoped into unrelated TNT variants; removed only newly added entries"
+  },
+  "subsequentInitialAwait": "IN PROGRESS: actual mounted Source TNT constructor now releases primary and nine locked-bonus construction through matching receipt/APP FIFO; Core and SDK receipts pending; complete pre-guard/pixel/global acceptance remains OPEN"
+}

@@ -3,7 +3,7 @@ import SpriteKit
 /// Exact GSAP power2/back easing and accepted regular stack tuning.
 enum NativeBoardMotion {
     enum Ease {
-        case linear, sineInOut, power2In, power2Out, power2InOut, elasticOut(CGFloat,CGFloat), backIn(CGFloat), backOut(CGFloat)
+        case linear, sineInOut, power2In, power2Out, power2InOut, elasticOut(CGFloat,CGFloat), elasticInOut(CGFloat,CGFloat), backIn(CGFloat), backOut(CGFloat)
         func sample(_ progress: CGFloat) -> CGFloat {
             let t = min(1, max(0, progress))
             switch self {
@@ -14,10 +14,13 @@ enum NativeBoardMotion {
             case .power2InOut: return t < 0.5 ? 4*t*t*t : 1-pow(-2*t+2,3)/2
             case .elasticOut(let amplitude,let period):
                 if t == 0 || t == 1 { return t }
-                // GSAP Elastic clamps amplitude below one to one.
-                let a = max(1,amplitude), p = max(0.0001,period)
+                // GSAP clamps the gain but also divides the period by sub-one amplitude.
+                let a = max(1,amplitude), p = (period == 0 ? 0.3:period)/(amplitude<1 ? amplitude:1)
                 let shift = p/(2 * .pi)*asin(1/a)
                 return a*pow(2,-10*t)*sin((t-shift)*2 * .pi/p)+1
+            case .elasticInOut(let amplitude,let period):
+                let out=Ease.elasticOut(amplitude,period == 0 ? 0.45:period)
+                return t<0.5 ? (1-out.sample(1-t*2))/2:0.5+out.sample((t-0.5)*2)/2
             case .backIn(let strength): return t * t * ((strength + 1) * t - strength)
             case .backOut(let strength):
                 let shifted = t - 1

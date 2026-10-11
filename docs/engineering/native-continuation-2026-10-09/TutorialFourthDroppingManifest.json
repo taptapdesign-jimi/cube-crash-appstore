@@ -1,0 +1,34 @@
+{
+  "base": [
+    "docs/engineering/native-pause-2026-10-08/NativeSource.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/EntrySourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialIntroSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialHUDSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialMonitorSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialRestoreSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialThirdSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFreeHintSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialCTAPrefixSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialCTAViewSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialThirdDismissSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialWildReservationSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialWildReservationOwnersDelta.tar.gz"
+  ],
+  "archiveSHA256": "5e73dfc15b21c325d77660a550c882505565337b6aea3e4e2b518603627e241f",
+  "files": {
+    "native/gameplay-meter-drop/NativeWildMeterDropSceneOwner.swift": {
+      "baseSHA256": "09c6631f600b563e48a8e33b6247f7dc86b5a75a1a9e44091be6b67f6a892242",
+      "sha256": "81bf3b6d1e6f27a49b9762bb56ef09c31430ed5033bdc4a058bfc77ea84fc8a8"
+    },
+    "native/gameplay-meter-scene/NativeMeterSceneCaller.swift": {
+      "baseSHA256": "7cff4ed5c98e2ab3ac9410c38b538252c35a2bad26b287cccdf7f39007167cf4",
+      "sha256": "4cca0932521637d5a7b2220b079ca3a3199ff5c4e6ceda375d87dd75d593e395"
+    },
+    "native/standalone/Stack to SixTests/NativeMeterSceneCallerTests.swift": {
+      "baseSHA256": "57024e8d85389b1d280b1f728bb21c9798de43a92384bf3ec42c4a44ae9b7b51",
+      "sha256": "e63992c26e4530f3f44753b57c85a5f446e3fd15595bac4b08cd8d30d972bef1"
+    }
+  },
+  "validation": "Actual SDK NativeMeterSceneCallerTests4/4 PASS; previous full QA predates this delta. Whole Source flags OFF."
+}

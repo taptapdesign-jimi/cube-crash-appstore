@@ -1,0 +1,11 @@
+# Regular-six destination cleanup authority
+
+Original merge6-destination-cleanup-owner.ts retains only nextToken1; exact tile field owns token. claim guards destroyed, allocates/replaces token and protects eventMode none/interactive false; release deletes only current matching token and does not restore input. hasClaim ignores destroyed, forget deletes even destroyed field. Original app-core10389 claims Special or nonfinal regular destination; ordinary nonfinal watchdog10400 at1200ms reads same object/current token, releases exempt final/changed value or removes only unfinished ordinarySix destination.
+
+Private literal NativeSourceMergeSixDestinationCleanupOwner added in existing compiled spawn-owner file. NativeDiceNode stores actual token and disposal clears it. SourceContext borrows one APP-lived owner into Scope; no tile registry, timer or reference retention. Genuine real Node token/replace/same-id foreign node/destructive retirement test pending.
+
+Not yet connected to actual accepted app-prefix, Source regular-six1200 wall watchdog/forced finally/destination-only canonical cleanup. Do not mount queue/save cleanup capability or infer absence until every actual caller is covered. Existing SourceSix main path currently only sets eventMode none, which cannot substitute for hasClaim. Full ordinary/special/final and physical acceptance remain OPEN.
+
+## Current connected checkpoint — 2026-10-09
+
+The earlier disconnected statement is superseded for the covered ordinary/direct accepted prefixes: actual SourceSix contacts claim the same physical destination where required. Ordinary nonfinal now schedules existing APP1200 wall transport and exact Core destination-only removal. Actual captured source/main paint survives destination retirement and Scene synchronization; the genuine resumed main callback separately removes the remaining source without arrival/debit/reward. SDK49979 actual Scene10/10 PASS covers paused wall, final exemption, replaced token, live final flags, and disposal before/after wall expiry. Existing direct caller11/11 and component/Core evidence remain separate. Forced-finally, Date guard writers, broader same-ID/stale caller admission, whole activation and physical acceptance remain OPEN.

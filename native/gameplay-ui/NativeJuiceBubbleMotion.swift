@@ -4,7 +4,7 @@ import UIKit
 struct NativeJuiceBubbleMotion {
     static let sources = ["bubble1","bubble 2","bubble 3","bubble 4","bubble 5","bubble 6","bubble 7","bubble 8"].map { "assets/shop/juice/bubbles pack/"+$0+".png" }
     let assetIndex: Int,start: CGPoint,path: [CGPoint],duration: TimeInterval,alpha: CGFloat,scale: CGFloat,finalScale: CGFloat
-    static func make(viewport: CGSize,random: () -> Double = { Double.random(in: 0..<1) }) -> Self {
+    static func make(viewport: CGSize,preservesBirthScale: Bool = false,random: () -> Double = { Double.random(in: 0..<1) }) -> Self {
         func roll() -> CGFloat { CGFloat(min(1-Double.ulpOfOne,max(0,random()))) }
         let selection = roll(),index: Int
         if selection < 0.2 { index = 3 } else if selection < 0.4 { index = 4 } else if selection < 0.5 { index = 5 }
@@ -20,7 +20,8 @@ struct NativeJuiceBubbleMotion {
                     CGPoint(x:x+drift*0.38-direction*weave*0.92,y:y+travelY*0.38),
                     CGPoint(x:x+drift*0.6+direction*weave*0.78,y:y+travelY*0.6),
                     CGPoint(x:x+drift*0.8-direction*weave*0.62,y:y+travelY*0.8),CGPoint(x:x+drift,y:endY)]
-        return Self(assetIndex:index,start:CGPoint(x:x,y:y),path:path,duration:Double(duration),alpha:alpha,scale:scale,finalScale:(0.65+roll()*0.35)*ratio)
+        let sampledFinalScale = (0.65+roll()*0.35)*ratio
+        return Self(assetIndex:index,start:CGPoint(x:x,y:y),path:path,duration:Double(duration),alpha:alpha,scale:scale,finalScale:preservesBirthScale ? scale : sampledFinalScale)
     }
     func sample(seconds: TimeInterval) -> (point: CGPoint,scale: CGFloat) {
         let clock = NativeBoardMotion.Ease.sineInOut.sample(CGFloat(seconds/duration))*5,index = min(4,max(0,Int(clock))),p = clock-CGFloat(index)

@@ -1,0 +1,41 @@
+{
+  "scope": "Actual ordered Scene/Node visibility reconciliation and corrected literal Pixi Sprite mask uAlpha1; full migration remains OPEN",
+  "sdk": {
+    "log": "wild-shimmer-visibility-ordered.log",
+    "exitCode": 0,
+    "tests": 44,
+    "failures": 0
+  },
+  "fullQA": {
+    "log": "wild-shimmer-visibility-ordered-full.log",
+    "exitCode": 0,
+    "kingTests": 330,
+    "suites": 530,
+    "tests": 4010,
+    "nativeSync": "SKIPPED"
+  },
+  "sourceAuthority": [
+    "wild-shimmer-mask-alpha-oracle.cjs",
+    "wild-shimmer-mask-alpha-oracle.json",
+    "wild-shimmer-visibility-oracle.cjs",
+    "wild-shimmer-visibility-oracle.json",
+    "wild-shimmer-clamp-oracle.cjs",
+    "wild-shimmer-clamp-oracle.json"
+  ],
+  "correctedPriorInference": "MaskFilter uAlpha is1; inferred worldAlpha tracking was wrong and withdrawn",
+  "proof": "Actual Scene visibility reconciliation across UIKit/Node ancestors retains paused sweep/object and RNG; hidden fallback base ignored. Original predicate and MaskFilter.apply executed with explicit endpoints. Cadence is wired to existing Scene.update and setSuspended.",
+  "boundary": "Visibility test explicitly invokes reconciliation; automatic sampling while UIKit hides/stops renderer still needs live UI coverage. Source matrix numeric evidence is not original GPU border proof.",
+  "next": [
+    "Exact TextureMatrix half-texel mask clamp from existing decode pixel metadata",
+    "Actual GPU original-artwork/density/border parity and automatic hidden-UIView sampler coverage",
+    "Other Source constructor current-face lineage and all remaining idle/save/full Native plan"
+  ],
+  "snapshot": "WildShimmerVisibilityCodeSnapshotManifest.json",
+  "SHA": "Four changed code/test Source/QA/SDK match; private registry Source/QA match",
+  "flags": "OFF",
+  "mainIntegration": "OPEN",
+  "originalMedia": "Untouched",
+  "completeShimmer": "OPEN",
+  "completeMigration": "OPEN",
+  "physical": "NEEDS PHYSICAL TEST"
+}

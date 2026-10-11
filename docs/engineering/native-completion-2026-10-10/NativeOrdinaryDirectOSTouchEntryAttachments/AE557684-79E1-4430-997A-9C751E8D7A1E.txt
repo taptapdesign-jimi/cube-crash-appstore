@@ -1,0 +1,30 @@
+Attributes: Button, 0x107252e40, {{167.0, 752.0}, {64.0, 64.0}}, identifier: 'native.home.slide.1', label: 'Arcade'
+Element subtree:
+ →Button, 0x107252e40, {{167.0, 752.0}, {64.0, 64.0}}, identifier: 'native.home.slide.1', label: 'Arcade'
+Path to element:
+ →Application, 0x1169a3840, pid: 15111, label: 'Stack to Six Native'
+  ↳Window (Main), 0x1169a3980, {{0.0, 0.0}, {390.0, 844.0}}
+   ↳Other, 0x1169a3ac0, {{0.0, 0.0}, {390.0, 844.0}}
+    ↳Other, 0x1169a3c00, {{0.0, 0.0}, {390.0, 844.0}}
+     ↳Other, 0x1169a3d40, {{0.0, 0.0}, {390.0, 844.0}}
+      ↳Other, 0x1169a3e80, {{0.0, 0.0}, {390.0, 844.0}}
+       ↳Other, 0x1169a2300, {{0.0, 0.0}, {390.0, 844.0}}, identifier: 'native.home'
+        ↳Other, 0x1169a2440, {{0.0, 724.0}, {390.0, 120.0}}, identifier: 'native.home.navigation'
+         ↳Button, 0x107252e40, {{167.0, 752.0}, {64.0, 64.0}}, identifier: 'native.home.slide.1', label: 'Arcade'
+Query chain:
+ →Find: Target Application 'com.taptapdesign.stacktosix.native'
+  Output: {
+    Application, 0x1169a12c0, pid: 15111, label: 'Stack to Six Native'
+  }
+  ↪︎Find: Descendants matching type Button
+    Output: {
+      Button, 0x1169a0000, {{39.6, 744.0}, {72.0, 72.0}}, identifier: 'native.home.slide.0', label: 'Journey', Selected
+      Button, 0x1169a0140, {{167.0, 752.0}, {64.0, 64.0}}, identifier: 'native.home.slide.1', label: 'Arcade'
+      Button, 0x1169a0b40, {{286.4, 752.0}, {64.0, 64.0}}, identifier: 'native.home.slide.2', label: 'Settings'
+      Button, 0x1168f3e80, {{27.0, 233.0}, {336.0, 336.0}}, identifier: 'native.home.hero.0', label: 'Journey'
+      Button, 0x1168f2f80, {{82.0, 600.0}, {226.0, 64.0}}, identifier: 'native.home.cta', label: 'Journey'
+    }
+    ↪︎Find: Elements matching predicate '"native.home.slide.1" IN identifiers'
+      Output: {
+        Button, 0x1168f1b80, {{167.0, 752.0}, {64.0, 64.0}}, identifier: 'native.home.slide.1', label: 'Arcade'
+      }

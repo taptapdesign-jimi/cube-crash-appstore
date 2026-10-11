@@ -1,0 +1,22 @@
+{
+  "status": "Core15375 363/363PASS; KING27460 330/330PASS; SDK4906 terminal1/1PASS existing actual Scene FIFO plus new phase compilation",
+  "files": {
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "43a737c3dd55596a5559d09ff2c2a75c77213962ab581de3ec0e4f833706bc7a",
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeBoardState.swift": "119f0a48a19473d3f418398104f59e5ce3000530b6f383b72968c03cfb2fbbc0",
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceOrdinarySixSpawnBeginCoreTests.swift": "07a0dd570afb01b3f9f6a6064b0afcb1a0452fccc797729534c0b36b15eecf23",
+    "native/gameplay-ui/NativeBoardScene.swift": "2aa9b7692c4efe76aa576d1717a96301994dbc67a3faf497ac79fd45955efedf"
+  },
+  "logs": {
+    "native-ordinary-minimum-phase-core.log": "92b9573612c8becf09e83f491a939d71a89fe029dfd6fbcf943b0854de1054d0",
+    "native-ordinary-minimum-phase-gameplay-lock.log": "7fc74952b872beb8572c0bea0e5692283fa068377395a03e57633fcd07073b9a",
+    "native-ordinary-minimum-phase-sdk.log": "57ee84e5cb708f417eb6e81ec33207655527d940617a68cb354fd44388fbefe7"
+  },
+  "proof": "Default-off minimum phase acquires exact owner/gen/UUID after refill branch; blocks ordinary handoff until sufficient actual physical count acknowledgement. Deficient painted count0 preserves receipt/canonical/RNG; sufficient count2 clears once, duplicate rejected. Restart clears phase.",
+  "limits": [
+    "rescue/emergency helper and forced fallback producer OPEN",
+    "Scene explicitly typed-refuses unbound new producer",
+    "positive Scene lifecycle/minimum integration OPEN",
+    "whole admission OFF",
+    "physical/full migration OPEN"
+  ]
+}

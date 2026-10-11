@@ -1,0 +1,27 @@
+{
+  "status": "SDK67251 terminal exit0 TEST SUCCEEDED; actual SameObjectSixScene 8/8 PASS",
+  "files": {
+    "native/gameplay-ui/NativeSourceMergeSixMainCapture.swift": "4f3ffeda41efd00f1250fbb757908998b5c2be521cf9176e91afa222037b0e9e",
+    "native/gameplay-ui/NativeDiceNode.swift": "d8c3de24b7f3272edca4e2cc2b0ca2722d0d5dfbfd0419f6b45d6dbe292b703b",
+    "native/gameplay-ui/NativeBoardScene.swift": "734cf8856e86df4c0a9462143bc6b572a790046e6de4fa1713f55fdc4964ecc2",
+    "native/standalone/Stack to SixTests/NativeSourceSameObjectSixSceneTests.swift": "9e8ae19281b0e3b206e94b76984ff4910f98e56e144146da4b0d87d1eb691b6b"
+  },
+  "scope": "Actual ordinary nonfinal Scene watchdog and source retention until genuine main callback. No whole activation or phone/PWA change.",
+  "pending": [
+    "mounted wall1200 test",
+    "stale/final/disposal matrix",
+    "current QA gates",
+    "live integration",
+    "physical acceptance"
+  ],
+  "log": {
+    "path": "docs/engineering/native-continuation-2026-10-09/native-six-watchdog-scene-second.log",
+    "sha256": "f3bb5d8b5d62d45da517b6069e5d08887be7ddf0ac47c44634d4a16ab4988f0b"
+  },
+  "gameplayLock": {
+    "status": "PASS terminal exit0;330/330 tests",
+    "log": "docs/engineering/native-continuation-2026-10-09/native-six-watchdog-scene-gameplay-lock.log",
+    "sha256": "5dac0c043179445dbdb994815298badcd5127b58acbd9e425b39f84e4ed54b7a",
+    "scope": "transitional Source safety gate; not Native physical acceptance"
+  }
+}

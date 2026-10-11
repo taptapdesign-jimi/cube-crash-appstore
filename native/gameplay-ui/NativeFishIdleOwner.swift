@@ -7,11 +7,13 @@ import QuartzCore
 final class NativeFishIdleOwner:UIView {
     var onPrepared:((String,UInt64)->Void)?
     var onMediaReady:((String,UInt64,Bool)->Void)?
+    private let mediaPolicy:NativeFishMediaPolicy
     private let resourceRoot:URL
+    private let svgResources:NativeFishSVGResourceLease
     private var owners:[String:NativeFishIdlePresentation]=[:]
     private var generation:UInt64?,disposed=false,suspended=false
-    init(resourceRoot:URL) {
-        self.resourceRoot=resourceRoot;super.init(frame:.zero)
+    init(resourceRoot:URL,mediaPolicy:NativeFishMediaPolicy? = nil) {
+        self.mediaPolicy=mediaPolicy ?? .shared;self.resourceRoot=resourceRoot;svgResources=NativeFishSVGResourceLease(resourceRoot:resourceRoot);super.init(frame:.zero)
         isOpaque=false;backgroundColor = .clear;isUserInteractionEnabled=false;clipsToBounds=true
         accessibilityIdentifier="native-fish-authored-foreground"
     }
@@ -26,7 +28,7 @@ final class NativeFishIdleOwner:UIView {
             let owner:NativeFishIdlePresentation
             if let existing=owners[id] {owner=existing}
             else {
-                owner=NativeFishIdlePresentation(resourceRoot:resourceRoot)
+                owner=NativeFishIdlePresentation(resourceRoot:resourceRoot,svgResources:svgResources,allowHEVC:mediaPolicy.useHEVC)
                 owners[id]=owner;addSubview(owner);owner.setSuspended(suspended)
                 owner.onPrepared={ [weak self,weak owner] in
                     guard let self,!self.disposed,self.generation==generation,self.owners[id] === owner else {return}
@@ -36,14 +38,17 @@ final class NativeFishIdleOwner:UIView {
                     guard let self,!self.disposed,self.generation==generation,self.owners[id] === owner else {return}
                     self.onMediaReady?(id,generation,ready)
                 }
+                owner.onVideoSourceError={ [weak mediaPolicy=self.mediaPolicy] in mediaPolicy?.recordVideoSourceError() }
                 owner.prepare()
             }
             bringSubviewToFront(owner);owner.paint(frame,now:now,force:force)
         }
     }
-    func setSuspended(_ value:Bool) {suspended=value;owners.values.forEach {$0.setSuspended(value)}}
+    func setSuspended(_ value:Bool) {suspended=value;svgResources.setSuspended(value);owners.values.forEach {$0.setSuspended(value)}}
+    var selectedSVGFrameCount:Int {svgResources.decodedFrameCount}
+    var pendingSVGRequests:Int {svgResources.pendingRequestCount}
     var activeMediaCount:Int {owners.count}
     func presentation(tileID:String)->NativeFishIdlePresentation? {owners[tileID]}
     private func retireMedia() {Array(owners.values).forEach {$0.dispose()};owners.removeAll()}
-    func dispose() {guard !disposed else {return};disposed=true;onPrepared=nil;onMediaReady=nil;retireMedia();generation=nil;removeFromSuperview()}
+    func dispose() {guard !disposed else {return};disposed=true;onPrepared=nil;onMediaReady=nil;retireMedia();svgResources.dispose();generation=nil;removeFromSuperview()}
 }

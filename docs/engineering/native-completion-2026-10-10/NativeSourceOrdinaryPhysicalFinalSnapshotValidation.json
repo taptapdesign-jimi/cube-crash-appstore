@@ -1,0 +1,53 @@
+{
+  "status": "PASS: bounded ordinary physical-final capture; full migration OPEN",
+  "core": {
+    "tests": 418,
+    "failures": 0,
+    "seconds": 0.769,
+    "log": "/tmp/native-ordinary-physical-final-snapshot-source-oracle-corrected-core.log"
+  },
+  "sdk": {
+    "tests": 15,
+    "failures": 0,
+    "seconds": 34.582,
+    "log": "/tmp/native-ordinary-physical-final-snapshot-corrected-sdk.log"
+  },
+  "actualHiddenResult": {
+    "tests": 2,
+    "failures": 0,
+    "seconds": 37.284,
+    "log": "/tmp/native-ordinary-physical-final-journey-reward-result-sdk.log",
+    "scope": "Actual hidden-other ordinary drop reaches real Journey reward Collect/Result and persisted progression; adjacent Journey Continue creates fresh Scene."
+  },
+  "scope": [
+    "actual accepted ordinary six captures physical source paint/marker snapshot before immutable plan",
+    "literal active/blocker/depth/final fields match pinned actual Source640/256 cases",
+    "missing authority and capture restart refuse without staging/debit/Raw fallback",
+    "partial Source Scene seams and default Raw preserved"
+  ],
+  "preservedFailures": [
+    "/tmp/native-ordinary-physical-final-snapshot-connected-sdk.log: counter asserted before gesture; corrected to0 before/1 after genuine accepted drop",
+    "/tmp/native-ordinary-physical-final-snapshot-source-oracle-core.log: oracle generator used wrong exported Source function name and empty redirected fixture; corrected getFinalMergeSnapshot via validated temporary output before fixture replacement",
+    "/tmp/native-ordinary-physical-final-snapshot-real-result-sdk.log: fixture used guessed optional save/progression API; corrected actual XCTUnwrap/load/completedJourneyBoards",
+    "/tmp/native-ordinary-physical-final-snapshot-real-result-corrected-sdk.log:16/1; fixture waited for Result child instead of actual Journey reward modal then Collect and presented Result; corrected to genuine user flow"
+  ],
+  "open": [
+    "full final pre/post clean-board owner",
+    "Direct/Special physical immutable snapshot",
+    "whole global/save/queue/NO MOVES/families/default/physical acceptance"
+  ],
+  "release": {
+    "status": "PASS",
+    "log": "/tmp/native-ordinary-physical-final-release.log",
+    "audit": "/tmp/native-ordinary-physical-final-release-audit.log",
+    "scope": "Current ordinary physical capture shipping build; predates subsequent Direct snapshot changes."
+  },
+  "fullQa": "PASS terminal0 /tmp/native-ordinary-physical-final-full.log",
+  "king": {
+    "tests": 330,
+    "failures": 0,
+    "log": "/tmp/native-ordinary-physical-final-snapshot-king.log"
+  },
+  "feature": "PASS /tmp/native-ordinary-physical-final-snapshot-feature.log",
+  "next": "Preparing bounded Direct entry physical final through real prefix/main; new tests not yet run."
+}

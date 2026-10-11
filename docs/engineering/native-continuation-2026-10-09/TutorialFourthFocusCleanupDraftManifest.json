@@ -1,0 +1,12 @@
+{
+  "status": "DRAFT SDK running14204; preceding Scene preparation compilation SDK8/8 PASS",
+  "files": {
+    "native/gameplay-ui/NativeDiceNode.swift": "5053ff124ba869c7bf9d9dcbdafc1eb58d80e7855e8871d07670e81686521548",
+    "native/gameplay-ui/NativeBoardScene.swift": "06f2155e08130baaffb88e96c25bf712b2dae00bfb254246d18e0629eb8cc17a",
+    "native/gameplay-ui/NativeSourceTutorialFocusOwner.swift": "2270f1c90a4011b64c01b7758caae6cb4e0084f77c769b8953c49faee922308e",
+    "native/gameplay-ui/NativeSourceTutorialSecondStepMonitor.swift": "4cedf5cb9d0e699c9085789724efb9fa32c31de52ca52dad8a72414df449e92c",
+    "native/standalone/Stack to SixTests/NativeSourceTutorialSecondStepMonitorTests.swift": "0050394df0f9058f4d0cb62faeca664a22b0555679c32bb0f63f42392d9437f4",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "84f246ebbc4f25443707842742b11a7cfca5cf201daa061f2188173f27f7e012"
+  },
+  "scope": "Scene interrupted preparation retires only captured frames/focus identity; current-only fail-visible, no canonical rollback. New actual APP focus .35/.07, immediate target/noMath/retirement test."
+}

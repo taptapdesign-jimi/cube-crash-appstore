@@ -1,0 +1,20 @@
+{
+  "verdict": "PASS",
+  "freshArcade": {
+    "tests": 1,
+    "failures": 0,
+    "seconds": 9.098,
+    "log": "/tmp/native-source-normal-fresh-resume-application-batch.log",
+    "note": "Fresh case passed; combined run failed earlier resume fixture."
+  },
+  "restoredArcade": {
+    "tests": 1,
+    "failures": 0,
+    "seconds": 6.584,
+    "log": "/tmp/native-source-normal-resume-input-receipt.log"
+  },
+  "scope": "Actual root normal fresh and saved regular/Star entry, retained holders, real input and ordinary merge outside tutorial. Resume waits actual entry owner completion, not HUD midpoint.",
+  "defaultShippingFlags": false,
+  "completeCanonicalSaveAndNoMovesAdmission": false,
+  "physicalAcceptance": "NEEDS PHYSICAL TEST"
+}

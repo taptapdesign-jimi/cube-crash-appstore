@@ -1,0 +1,4 @@
+Query chain:
+ →Find: Target Application 'com.taptapdesign.stacktosix.native'
+  ↪︎Find: Descendants matching type Other
+    ↪︎Find: Elements matching predicate '"native.tutorial.sheet" IN identifiers'

@@ -1,0 +1,25 @@
+{
+  "authority": "actual installed original getResolutionOfUrl; numeric URI resolution only",
+  "rows": [
+    {
+      "path": "assets/bee.png",
+      "resolution": 1
+    },
+    {
+      "path": "assets/bee@2x.png",
+      "resolution": 2
+    },
+    {
+      "path": "assets/bee@3x.png",
+      "resolution": 3
+    },
+    {
+      "path": "assets/bee@0.5x.png",
+      "resolution": 0.5
+    },
+    {
+      "path": "assets/bee@2.5x.png",
+      "resolution": 2.5
+    }
+  ]
+}

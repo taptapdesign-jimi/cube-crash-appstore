@@ -56,6 +56,9 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
     var decodedArtworkBytes: Int { resources.decodedBytes }
     var preparedUnitCount: Int {loaded.count}
     var hasActiveCard: Bool { modal != nil }
+    var gameplayTransitionResources:any NativeBoardTransitionResources {resources}
+    private static let gameplayPreparationOwner = -900_001
+    func releaseGameplayTransitionPreparation(){resources.release(Self.gameplayPreparationOwner)}
     var isReadyForInput: Bool { active && admitted && !transition }
     private var scale: CGFloat { max(0.01, bounds.width / 390) }
 
@@ -520,6 +523,12 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         modal = card; card.frame = bounds; addSubview(card)
         card.onFeedback = { [weak self] kind in self?.onFeedback?(kind,boardID,nil) }
         card.onRequest = { [weak self] action in self?.onRequest?(action,boardID) }
+        card.onPrepareGameplayAssets = {[weak self,weak card] in
+            guard let self,let card,self.active,self.modal === card,!self.transition else{return}
+            self.releaseGameplayTransitionPreparation()
+            let paths=NativeThemedBoardTransitionController.assets(theme:.init(board:boardID))+["./assets/paper-bg.png"]
+            self.resources.prepare(paths,owner:Self.gameplayPreparationOwner,required:true){_ in}
+        }
         sourceCard?.isHidden = true
         card.enter(from:origin)
     }
@@ -574,6 +583,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
     }
     private func restoreSourceCard() { guard let modal else { return }; units[modal.boardID]?.subviews.forEach { $0.isHidden = false } }
     func closeCard(gameplay:Bool = false,completion:@escaping () -> Void = {}) {
+        if !gameplay {releaseGameplayTransitionPreparation()}
         guard let modal,let source = units[modal.boardID] else { completion(); return }
         let sourceCard = source.subviews.first { $0.accessibilityIdentifier?.hasSuffix(".card") == true }
         let destination = paintedCardRect(sourceCard,in:source)

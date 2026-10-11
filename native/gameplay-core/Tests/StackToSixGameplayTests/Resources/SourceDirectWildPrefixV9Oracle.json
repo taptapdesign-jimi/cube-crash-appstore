@@ -1,0 +1,3590 @@
+{
+  "tag": "production-benchmark-v9",
+  "commit": "fc085599e759369900d5dc4135246a9f1355a897",
+  "hashes": {
+    "src/modules/board.ts": "66eb0208a5c8ca883090e91b23a264fb7790bfac07edab33955b8d5c47a5e95d",
+    "src/modules/app-core.ts": "284d104e4f20b7b30fd5dad2361c1edfb822a6b96a38c64efc2793033cbc09e3",
+    "src/modules/constants.ts": "03205095e11655f1882d89d50db328d711282614e2437a740d6ccef7c5732475",
+    "src/modules/final-merge-rules.ts": "e3119e1e6e398d4a672536a47819abf8362652dc04e50923df5e066768ed9428",
+    "src/utils/pixi-image-texture-health.ts": "7e1a1edadb757e1f03b7ebada11c31263596464bffa0aa4e79168b3be7955106",
+    "src/modules/gameplay-texture-filtering.ts": "15c790355db2e0e2b2c1e68fd02b202ade948acfc0a12d698621a66b3cfce4ff",
+    "package-lock.json": "a44a2653491e9c164c9ad454544c7ae352fb9f260b10469fdec270c576d5add4",
+    "installed-gsap/dist/gsap.js": "3df2afc090b64154684a2391847afdb5e417469eff0503f3fa1ddd3c08897f54",
+    "src/modules/app-merge.ts": "5280a4ccec0b8c26e08ffa4a5dbae027cf3d1195775d942aa7c61446f36dcbed",
+    "src/modules/special-dice-registry.ts": "b6818afb9ffd98a6249f17c8f0d020663a1fd9a41f8d43908da1a25bb7780fdd"
+  },
+  "records": [
+    {
+      "choice": {
+        "special": "wild",
+        "variant": null
+      },
+      "final": false,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": null,
+      "depth": 4,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 10,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 5
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 6
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 7
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 8
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 9
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 10
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild",
+        "variant": null
+      },
+      "final": true,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": null,
+      "depth": 1,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 0,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "stop-final-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 3,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 4,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "app-wall-register",
+          "wall": 0,
+          "frame": 0,
+          "delay": 80
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild-juice",
+        "variant": null
+      },
+      "final": false,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": null,
+      "depth": 4,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 10,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 5
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 6
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 7
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 8
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 9
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 10
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild-juice",
+        "variant": null
+      },
+      "final": true,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": null,
+      "depth": 1,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 0,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "stop-final-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 3,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 4,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "app-wall-register",
+          "wall": 0,
+          "frame": 0,
+          "delay": 80
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild-magnet",
+        "variant": null
+      },
+      "final": false,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": null,
+      "depth": 4,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 10,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 5
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 6
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 7
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 8
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 9
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 10
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild-magnet",
+        "variant": null
+      },
+      "final": true,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": null,
+      "depth": 1,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 0,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "stop-final-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 3,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 4,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "app-wall-register",
+          "wall": 0,
+          "frame": 0,
+          "delay": 80
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild-tnt",
+        "variant": null
+      },
+      "final": false,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": null,
+      "depth": 4,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 10,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 5
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 6
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 7
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 8
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 9
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 10
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild-tnt",
+        "variant": null
+      },
+      "final": true,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": null,
+      "depth": 1,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 0,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "stop-final-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 3,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 4,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "app-wall-register",
+          "wall": 0,
+          "frame": 0,
+          "delay": 80
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild",
+        "variant": "fish"
+      },
+      "final": false,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "fish",
+      "depth": 4,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 10,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 5
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 6
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 7
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 8
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 9
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 10
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild",
+        "variant": "fish"
+      },
+      "final": true,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "fish",
+      "depth": 1,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 0,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "stop-final-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 3,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 4,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "app-wall-register",
+          "wall": 0,
+          "frame": 0,
+          "delay": 80
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild",
+        "variant": "kanta"
+      },
+      "final": false,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "kanta",
+      "depth": 4,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 10,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 5
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 6
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 7
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 8
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 9
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 10
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild",
+        "variant": "kanta"
+      },
+      "final": true,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "kanta",
+      "depth": 1,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 0,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "stop-final-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 3,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 4,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "app-wall-register",
+          "wall": 0,
+          "frame": 0,
+          "delay": 80
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild",
+        "variant": "bee"
+      },
+      "final": false,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "bee",
+      "depth": 4,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 10,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 5
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 6
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 7
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 8
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 9
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 10
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild",
+        "variant": "bee"
+      },
+      "final": true,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "bee",
+      "depth": 1,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 0,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "stop-final-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 3,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 4,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "app-wall-register",
+          "wall": 0,
+          "frame": 0,
+          "delay": 80
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild-tnt",
+        "variant": "laser-gun"
+      },
+      "final": false,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "laser-gun",
+      "depth": 4,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 10,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 5
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 6
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 7
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 8
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 9
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 10
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild-tnt",
+        "variant": "laser-gun"
+      },
+      "final": true,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "laser-gun",
+      "depth": 1,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 0,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "stop-final-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 3,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 4,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "app-wall-register",
+          "wall": 0,
+          "frame": 0,
+          "delay": 80
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild-magnet",
+        "variant": "spaceship"
+      },
+      "final": false,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "spaceship",
+      "depth": 4,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 10,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 5
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 6
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 7
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 8
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 9
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 10
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild-magnet",
+        "variant": "spaceship"
+      },
+      "final": true,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "spaceship",
+      "depth": 1,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 0,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "stop-final-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 3,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 4,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "app-wall-register",
+          "wall": 0,
+          "frame": 0,
+          "delay": 80
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild-magnet",
+        "variant": "bottle"
+      },
+      "final": false,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "bottle",
+      "depth": 4,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 10,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 5
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 6
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 7
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 8
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 9
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 10
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild-magnet",
+        "variant": "bottle"
+      },
+      "final": true,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "bottle",
+      "depth": 1,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 0,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "stop-final-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 3,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 4,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "app-wall-register",
+          "wall": 0,
+          "frame": 0,
+          "delay": 80
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild-magnet",
+        "variant": "honey"
+      },
+      "final": false,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "honey",
+      "depth": 4,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 10,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 5
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 6
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 7
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 8
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 9
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 10
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild-magnet",
+        "variant": "honey"
+      },
+      "final": true,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "honey",
+      "depth": 1,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 0,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "stop-final-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 3,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 4,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "app-wall-register",
+          "wall": 0,
+          "frame": 0,
+          "delay": 80
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild-tnt",
+        "variant": "flower"
+      },
+      "final": false,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "flower",
+      "depth": 4,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 10,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 5
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 6
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 7
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 8
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 9
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 10
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild-tnt",
+        "variant": "flower"
+      },
+      "final": true,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "flower",
+      "depth": 1,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 0,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "stop-final-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 3,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 4,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "app-wall-register",
+          "wall": 0,
+          "frame": 0,
+          "delay": 80
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild-tnt",
+        "variant": "barell"
+      },
+      "final": false,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "barell",
+      "depth": 4,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 10,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 5
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 6
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 7
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 8
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 9
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 10
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild-tnt",
+        "variant": "barell"
+      },
+      "final": true,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "barell",
+      "depth": 1,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 0,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "stop-final-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 3,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 4,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "app-wall-register",
+          "wall": 0,
+          "frame": 0,
+          "delay": 80
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild-juice",
+        "variant": "mushroom"
+      },
+      "final": false,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "mushroom",
+      "depth": 4,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 10,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 5
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 6
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 7
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 8
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 9
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 10
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild-juice",
+        "variant": "mushroom"
+      },
+      "final": true,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "mushroom",
+      "depth": 1,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 0,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "stop-final-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 3,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 4,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "app-wall-register",
+          "wall": 0,
+          "frame": 0,
+          "delay": 80
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild-juice",
+        "variant": "robo-cube"
+      },
+      "final": false,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "robo-cube",
+      "depth": 4,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 10,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 5
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 6
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 7
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 8
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 9
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 10
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild-juice",
+        "variant": "robo-cube"
+      },
+      "final": true,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "robo-cube",
+      "depth": 1,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 0,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "stop-final-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 3,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 4,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "app-wall-register",
+          "wall": 0,
+          "frame": 0,
+          "delay": 80
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild",
+        "variant": "cubero"
+      },
+      "final": false,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "cubero",
+      "depth": 4,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 10,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 5
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 6
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 7
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 8
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 9
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 10
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild",
+        "variant": "cubero"
+      },
+      "final": true,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "cubero",
+      "depth": 1,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 0,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "stop-final-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 3,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 4,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "app-wall-register",
+          "wall": 0,
+          "frame": 0,
+          "delay": 80
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild-tnt",
+        "variant": "beach-ball"
+      },
+      "final": false,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "beach-ball",
+      "depth": 4,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 10,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 5
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 6
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 7
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 8
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 9
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 10
+        }
+      ]
+    },
+    {
+      "choice": {
+        "special": "wild-tnt",
+        "variant": "beach-ball"
+      },
+      "final": true,
+      "value": 6,
+      "special": null,
+      "isWild": false,
+      "isWildFace": false,
+      "variant": "beach-ball",
+      "depth": 1,
+      "parentVisible": true,
+      "parentAlpha": 1,
+      "drawsBeforeFace": 0,
+      "events": [
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 1
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 2
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 3
+        },
+        {
+          "kind": "visual-rng",
+          "wall": 0,
+          "frame": 0,
+          "draw": 4
+        },
+        {
+          "kind": "stop-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 1,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 2,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "stop-final-idle-visual-boundary",
+          "wall": 0,
+          "frame": 0
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 3,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "raf-register",
+          "wall": 0,
+          "frame": 0,
+          "id": 4,
+          "domain": "sourceFaceRAF",
+          "name": ""
+        },
+        {
+          "kind": "app-wall-register",
+          "wall": 0,
+          "frame": 0,
+          "delay": 80
+        }
+      ]
+    }
+  ],
+  "scope": "Literal app prefix +clearWildState+setValue/drawStack, actual Pixi; stop-idle visual boundary observers only. No main/finale/Source stop-idle choreography claim."
+}

@@ -1,0 +1,21 @@
+{
+  "id": "native-v9-no-moves-display-candidate",
+  "surfaces": [
+    "native/parity-candidates/v9-display/NativeNoMovesPlan.swift",
+    "native/parity-candidates/v9-display/NativeNoMovesCloudPlan.swift",
+    "native/parity-candidates/v9-display/NativeNoMovesPresentation.swift"
+  ],
+  "entryOwner": "Primary NativeBoardScene captured candidate receipt mounts NativeNoMovesPresentation; no decision or input lock in renderer",
+  "exitOwner": "Primary scene calls beginExit with captured display timestamp; same receipt receives onExitFinished once; dispose reports cancellation once",
+  "resourcePolicy": "Primary route-scoped artwork preparation supplies preserved Baloo2-ExtraBold and four original cloud UIImage values; missing font/art rejects admission",
+  "animationPolicy": "NativeNoMovesPlan and NativeNoMovesCloudPlan sampled through primary existing clock; no timers, observers or new ticker",
+  "audioPolicy": "Existing primary NO MOVES audio event remains sole owner; display never plays audio",
+  "hapticPolicy": "None added",
+  "visibilityPolicy": "Primary suspends paint calls on hidden/background/modal; display preserves current pose; route/generation replacement calls dispose; no autonomous resume",
+  "tests": [
+    "native/parity-candidates/v9-display/no-moves-main.swift",
+    "native/parity-candidates/v9-display/cloud-main.swift",
+    "native/parity-candidates/v9-display/display-check.swift"
+  ],
+  "physicalAcceptance": "NEEDS PHYSICAL TEST after primary connected integration"
+}

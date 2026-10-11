@@ -1,0 +1,17 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "F27869C2-E4A1-4DEF-B7BC-C259052E95AB.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "native-diagnostics-os-return-home_0_961BE81B-8AF8-4FA4-B21E-875D238BEAFE.png",
+        "timestamp" : 1791633972.307
+      }
+    ],
+    "testIdentifier" : "NativeHomeInteractionUITests/testExplicitNativeDiagnosticsCaptureAcrossActualOSForegroundAndBackground()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixUITests/NativeHomeInteractionUITests/testExplicitNativeDiagnosticsCaptureAcrossActualOSForegroundAndBackground"
+  }
+]

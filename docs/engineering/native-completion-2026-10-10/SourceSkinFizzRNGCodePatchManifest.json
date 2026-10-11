@@ -1,0 +1,14 @@
+{
+  "scope": "Apply after MainRuntimeIntegratedCodeSnapshot, DirectMusic, ReleaseUIAdapter and SDKFixtureAlignment patches into NEW tree only. Six runtime/test files plus existing owner metadata, no media edits. Main SDK79/full QA PASS; full Source family/global activation and phone acceptance OPEN.",
+  "archive": "SourceSkinFizzRNGCodePatch.tar.gz",
+  "archiveSHA256": "611c9deb4a3dcd1d6776bc55394bdbe2156f7af4ad4722908f3a80a41ffbffe7",
+  "files": {
+    "native/gameplay-app/NativeSourceSpecialIdleScope.swift": "85db8adb67bf2c6e9cdcab203e46bd46b2bbc0f0bc6c2568a4fdf3c61e515c98",
+    "native/gameplay-app/NativeGameplaySourceContext.swift": "9d88fc6a31605536c696f1fde17f7752b4a1a4219b8e90e8271af3572d1795bb",
+    "native/gameplay-ui/NativeDiceNode.swift": "418743989d1f8f6edf75643e97ee1dabc021373e7712ad10ffcf19bd6d186709",
+    "native/gameplay-ui/NativeBoardScene.swift": "d2af841d5f9de7c05927ffa16bbe1b5270a4d7dcc4f99cc484d2645f53e4dff7",
+    "native/standalone/Stack to SixTests/NativeSourceMathRandomContextTests.swift": "f9490a9cde07f5e69d2bc9801e88c8260a901483b669d167568492d816448e46",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "23199f22265905e3c8dd4ce8834ee1e87ea7a9d5dadd9f5931bc0216a170b26b",
+    "docs/engineering/feature-runtime-owners.json": "4049cf356f3cb5b4083dc5c7039e588101de8d3e6b9446d303fa27fbc64c1d16"
+  }
+}

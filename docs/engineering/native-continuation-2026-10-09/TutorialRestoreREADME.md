@@ -1,0 +1,15 @@
+# Native tutorial restore continuation — 2026-10-09
+
+Recover pause → Entry → Tutorial → TutorialIntro → TutorialHUD → TutorialMonitor → TutorialRestore, checking each full-file delta against its manifest baseSHA256 and verifying resulting SHA256. Never overwrite unrelated dirty live source. Current isolated composition is `/tmp/native-resume-20261009/source`; QA/SDK host contain all660 identical Swift files.
+
+TutorialRestore archive SHA256: `2c94ce4f9a807f8dbccc749e1aa9a7b8652c479a35d9be6cbad7d3d42668cca2`. Thirteen changed/new files. Whole Source flags remain OFF.
+
+Connected fixes: guided pointer image hides immediately and can restore only from the captured actual Scene snap-back callback with matching node, generation and displayed step. Accepted merge/generic pointer-up cannot restore it. Bottom board indicator is separate from original unified DOM HUD and no longer registered as tutorial dim target. Late uncaptured HUD child uses original restore fallback alpha1.
+
+HUD restore implements original ordinary, loader, locked-control and unified roles, animated alpha and two independent Math delays/scale channels, subtree interactions, exact captured retirement. Genuine third-phase caller is still OPEN. Component-only second monitor implements original phased wall40 with genuine pointer200/sheet280 roots and distinct wall90; actual step-three wiring remains OPEN. Component-only board restore implements actual surviving-node random-key ordering, sorted delay draw, active/locked alpha and active scale bounce; genuine object roster/caller admission remains OPEN. Header meter bridge is uninvoked and does not admit the whole HUD hierarchy or caller graph. Score/combo semantic containers and original top-level HUD child/Math parity still need review.
+
+Actual SDK: final combined25/25 PASS (Scene8, Bootstrap3, HUD11, second-monitor3); separate board-restore3/3 PASS. Do not add counts into a claimed single run. All zero failures/skips. Raw logs included. The earlier14-test run used a nonexistent Scene selector; it covers Bootstrap3+HUD11 only and is not Scene proof. Correct final selector uses NativeSourceBoardEntrySceneTests.
+
+SDK host retains documented unchanged precompiled-resource exceptions; it validates Swift and actual Simulator objects, not fresh original storyboard/assets compilation, optimized shipping Release, phone installation or physical acceptance. Final isolated Source full QA: all19 selected deterministic gates PASS, KING330 and530 suites/4010 tests. The subsequently updated feature owner record separately passes qa:feature-runtime; no runtime source changes after the final combined SDK other than the board-restore test fixture, separately SDK-admitted.
+
+Next: Source second→third transient presentation/input boundary, real monitor and board/HUD restore caller, exact third hint/CTA/fourth-Wild/cancellation, tutorial resume/restart; then Magnet, regular-six finality/input/statistics, TNT/full specials, whole Native shipping and physical validation. Grey Journey→Play flash OPEN and LAST. No phone/PWA/JIMI/assets/main/index/remote operation. Migration goal remains ACTIVE; NEEDS PHYSICAL TEST.

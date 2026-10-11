@@ -1,0 +1,36 @@
+{
+  "base": [
+    "docs/engineering/native-pause-2026-10-08/NativeSource.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/EntrySourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialIntroSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialHUDSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialMonitorSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialRestoreSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialThirdSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFreeHintSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialCTAPrefixSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialCTAViewSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialThirdDismissSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialWildReservationSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialWildReservationOwnersDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthDroppingSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthSelectionSourceDelta.tar.gz"
+  ],
+  "archiveSHA256": "26650f551f3016b1f76f81cd18dc1b514cf8662fb3e78ef53b328e6aa3507ce6",
+  "files": {
+    "native/gameplay-ui/NativeSourceTutorialSecondStepMonitor.swift": {
+      "baseSHA256": "a863d99b5733164563d2ee93b8581c5084fbc57a8dff7354768dc2b74137c778",
+      "sha256": "02ebd5587df4e0d359d9b4c1fb2a4d11f2426ab72457e81d2dc9670a097a0c91"
+    },
+    "native/standalone/Stack to SixTests/NativeSourceTutorialSecondStepMonitorTests.swift": {
+      "baseSHA256": "786285d6a3e348f9103470ad0c4f5f4364808e52d0350f487babb97e73541e44",
+      "sha256": "c01f12d1d30bc89e92f1f53379e628bbb619c2dc4f2f09f5ac25ea699b625dd0"
+    },
+    "docs/engineering/feature-runtime-owners.json": {
+      "baseSHA256": "9d92599e4cedb59893401ea6441f1807ac704d7bc52f60de3536fa50658617cc",
+      "sha256": "350b324627906d80643efbae090bde554989a1b938f23c8cb0ed243e94096d2c"
+    }
+  },
+  "validation": "Actual SDK6/6 PASS; exact preceding fourth monitor composition full QA all19 gates PASS. Fourth target work occurs after this receipt."
+}

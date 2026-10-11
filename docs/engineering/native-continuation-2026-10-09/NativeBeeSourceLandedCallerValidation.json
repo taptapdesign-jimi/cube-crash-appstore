@@ -1,0 +1,17 @@
+{
+  "scope": "Actual meter core.landed -> Scene idleAdmitted -> Source typed Bee static skin and uploaded frame cohort, conditional on configured shared Source idle Scope. Full bootstrap, Source constructor, clocks and physical admission remain OPEN.",
+  "files": {
+    "native/gameplay-ui/NativeBoardScene.swift": "49593a19eed2a5bfd759849f78bcf84bbbfedb18767f7547994cc5af53a4f8dc",
+    "native/standalone/Stack to SixTests/NativeMeterActualSceneBindingTests.swift": "6128dabe640a01a69964a235eab93e7d723a62169149cf472a7784a1355df01e"
+  },
+  "validation": "SDK terminalexit0 56/56 PASS: actual mounted Bee meter plus existing two meter Scene tests, current35 Source skin/Bee and four existing regression classes. Full production QA terminalexit0 all selected deterministic gates PASS; test-only fixture corrections afterwards independently SDK verified. No live checks.",
+  "logs": {
+    "bee-source-landed-registry-sdk.log": "69165895dc24700c4f3f1d7b1455355c7bb2c8d991b9d441631081c03aaf9d3f",
+    "bee-source-landed-full.log": "2bac6e1f25e5b92a31cc2a3ccc2cc66fae1ae77967b2cb2734bd8236cb27a69b",
+    "bee-source-landed-current-command.json": "8689d5fe595070c9c56834231ecb5d77571825e154541b2571d0df550e062d97"
+  },
+  "snapshotMatch": {
+    "native/gameplay-ui/NativeBoardScene.swift": true,
+    "native/standalone/Stack to SixTests/NativeMeterActualSceneBindingTests.swift": true
+  }
+}

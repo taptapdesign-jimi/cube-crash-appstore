@@ -1,0 +1,340 @@
+{
+  "boundary": "Actual Source skin and resume/predicate/registry; explicit effect/texture/frame endpoints, not complete idle composers or renderer",
+  "cases": [
+    {
+      "variant": null,
+      "inputCore": "wild",
+      "core": "wild",
+      "synchronous": [
+        "startWildStars",
+        "register-special-idle"
+      ],
+      "afterFrame": [
+        "startWildStars",
+        "register-special-idle"
+      ]
+    },
+    {
+      "variant": null,
+      "inputCore": "wild-juice",
+      "core": "wild-juice",
+      "synchronous": [
+        "startWildShimmer",
+        "stopTntIdleParticles",
+        "stopTntIdleShake",
+        "startWildJuiceBubbles",
+        "register-special-idle"
+      ],
+      "afterFrame": [
+        "startWildShimmer",
+        "stopTntIdleParticles",
+        "stopTntIdleShake",
+        "startWildJuiceBubbles",
+        "register-special-idle"
+      ]
+    },
+    {
+      "variant": null,
+      "inputCore": "wild-magnet",
+      "core": "wild-magnet",
+      "synchronous": [
+        "startWildShimmer",
+        "queue-magnet-frame",
+        "register-special-idle"
+      ],
+      "afterFrame": [
+        "startWildShimmer",
+        "queue-magnet-frame",
+        "register-special-idle",
+        "startMagnetIdleParticles"
+      ]
+    },
+    {
+      "variant": null,
+      "inputCore": "wild-tnt",
+      "core": "wild-tnt",
+      "synchronous": [
+        "startWildShimmer",
+        "startTntIdleParticles",
+        "startTntIdleShake",
+        "register-special-idle"
+      ],
+      "afterFrame": [
+        "startWildShimmer",
+        "startTntIdleParticles",
+        "startTntIdleShake",
+        "register-special-idle"
+      ]
+    },
+    {
+      "variant": "bee",
+      "inputCore": "wild",
+      "core": "wild",
+      "synchronous": [
+        "startWildShimmer",
+        "startWildStars",
+        "register-special-idle"
+      ],
+      "afterFrame": [
+        "startWildShimmer",
+        "startWildStars",
+        "register-special-idle"
+      ]
+    },
+    {
+      "variant": "fish",
+      "inputCore": "wild",
+      "core": "wild",
+      "synchronous": [
+        "startWildShimmer",
+        "stopTntIdleParticles",
+        "stopTntIdleShake",
+        "startWildJuiceBubbles",
+        "register-special-idle"
+      ],
+      "afterFrame": [
+        "startWildShimmer",
+        "stopTntIdleParticles",
+        "stopTntIdleShake",
+        "startWildJuiceBubbles",
+        "register-special-idle"
+      ]
+    },
+    {
+      "variant": "kanta",
+      "inputCore": "wild",
+      "core": "wild",
+      "synchronous": [
+        "startWildShimmer",
+        "startWildStars",
+        "register-special-idle"
+      ],
+      "afterFrame": [
+        "startWildShimmer",
+        "startWildStars",
+        "register-special-idle"
+      ]
+    },
+    {
+      "variant": "laser-gun",
+      "inputCore": "wild-tnt",
+      "core": "wild-tnt",
+      "synchronous": [
+        "startWildShimmer",
+        "startTntIdleParticles",
+        "startTntIdleShake",
+        "register-special-idle"
+      ],
+      "afterFrame": [
+        "startWildShimmer",
+        "startTntIdleParticles",
+        "startTntIdleShake",
+        "register-special-idle"
+      ]
+    },
+    {
+      "variant": "spaceship",
+      "inputCore": "wild-magnet",
+      "core": "wild-magnet",
+      "synchronous": [
+        "startWildShimmer",
+        "queue-magnet-frame",
+        "register-special-idle"
+      ],
+      "afterFrame": [
+        "startWildShimmer",
+        "queue-magnet-frame",
+        "register-special-idle",
+        "startMagnetIdleParticles"
+      ]
+    },
+    {
+      "variant": "bottle",
+      "inputCore": "wild-magnet",
+      "core": "wild-magnet",
+      "synchronous": [
+        "startWildShimmer",
+        "stopTntIdleParticles",
+        "stopTntIdleShake",
+        "startWildJuiceBubbles",
+        "queue-magnet-frame",
+        "register-special-idle"
+      ],
+      "afterFrame": [
+        "startWildShimmer",
+        "stopTntIdleParticles",
+        "stopTntIdleShake",
+        "startWildJuiceBubbles",
+        "queue-magnet-frame",
+        "register-special-idle",
+        "startMagnetIdleParticles"
+      ]
+    },
+    {
+      "variant": "honey",
+      "inputCore": "wild-magnet",
+      "core": "wild-magnet",
+      "synchronous": [
+        "startWildShimmer",
+        "stopTntIdleParticles",
+        "stopTntIdleShake",
+        "startWildJuiceBubbles",
+        "queue-magnet-frame",
+        "register-special-idle"
+      ],
+      "afterFrame": [
+        "startWildShimmer",
+        "stopTntIdleParticles",
+        "stopTntIdleShake",
+        "startWildJuiceBubbles",
+        "queue-magnet-frame",
+        "register-special-idle",
+        "startMagnetIdleParticles"
+      ]
+    },
+    {
+      "variant": "flower",
+      "inputCore": "wild-tnt",
+      "core": "wild-tnt",
+      "synchronous": [
+        "startWildShimmer",
+        "startTntIdleParticles",
+        "startTntIdleShake",
+        "register-special-idle"
+      ],
+      "afterFrame": [
+        "startWildShimmer",
+        "startTntIdleParticles",
+        "startTntIdleShake",
+        "register-special-idle"
+      ]
+    },
+    {
+      "variant": "barell",
+      "inputCore": "wild-tnt",
+      "core": "wild-tnt",
+      "synchronous": [
+        "startWildShimmer",
+        "startTntIdleParticles",
+        "startTntIdleShake",
+        "register-special-idle"
+      ],
+      "afterFrame": [
+        "startWildShimmer",
+        "startTntIdleParticles",
+        "startTntIdleShake",
+        "register-special-idle"
+      ]
+    },
+    {
+      "variant": "mushroom",
+      "inputCore": "wild-juice",
+      "core": "wild-juice",
+      "synchronous": [
+        "startWildShimmer",
+        "stopTntIdleParticles",
+        "stopTntIdleShake",
+        "startWildJuiceBubbles",
+        "register-special-idle"
+      ],
+      "afterFrame": [
+        "startWildShimmer",
+        "stopTntIdleParticles",
+        "stopTntIdleShake",
+        "startWildJuiceBubbles",
+        "register-special-idle"
+      ]
+    },
+    {
+      "variant": "robo-cube",
+      "inputCore": "wild-juice",
+      "core": "wild-juice",
+      "synchronous": [
+        "startWildShimmer",
+        "stopTntIdleParticles",
+        "stopTntIdleShake",
+        "startWildJuiceBubbles",
+        "register-special-idle"
+      ],
+      "afterFrame": [
+        "startWildShimmer",
+        "stopTntIdleParticles",
+        "stopTntIdleShake",
+        "startWildJuiceBubbles",
+        "register-special-idle"
+      ]
+    },
+    {
+      "variant": "cubero",
+      "inputCore": "wild",
+      "core": "wild",
+      "synchronous": [
+        "startWildShimmer",
+        "startWildStars",
+        "register-special-idle"
+      ],
+      "afterFrame": [
+        "startWildShimmer",
+        "startWildStars",
+        "register-special-idle"
+      ]
+    },
+    {
+      "variant": "beach-ball",
+      "inputCore": "wild-tnt",
+      "core": "wild-tnt",
+      "synchronous": [
+        "startWildShimmer",
+        "stopTntIdleParticles",
+        "stopTntIdleShake",
+        "startWildJuiceBubbles",
+        "register-special-idle"
+      ],
+      "afterFrame": [
+        "startWildShimmer",
+        "stopTntIdleParticles",
+        "stopTntIdleShake",
+        "startWildJuiceBubbles",
+        "register-special-idle"
+      ]
+    },
+    {
+      "variant": "beach-ball",
+      "inputCore": "wild-juice",
+      "core": "wild-tnt",
+      "synchronous": [
+        "startWildShimmer",
+        "stopTntIdleParticles",
+        "stopTntIdleShake",
+        "startWildJuiceBubbles",
+        "register-special-idle"
+      ],
+      "afterFrame": [
+        "startWildShimmer",
+        "stopTntIdleParticles",
+        "stopTntIdleShake",
+        "startWildJuiceBubbles",
+        "register-special-idle"
+      ]
+    },
+    {
+      "variant": "beach-ball",
+      "inputCore": "wild-magnet",
+      "core": "wild-tnt",
+      "synchronous": [
+        "startWildShimmer",
+        "stopTntIdleParticles",
+        "stopTntIdleShake",
+        "startWildJuiceBubbles",
+        "register-special-idle"
+      ],
+      "afterFrame": [
+        "startWildShimmer",
+        "stopTntIdleParticles",
+        "stopTntIdleShake",
+        "startWildJuiceBubbles",
+        "register-special-idle"
+      ]
+    }
+  ]
+}

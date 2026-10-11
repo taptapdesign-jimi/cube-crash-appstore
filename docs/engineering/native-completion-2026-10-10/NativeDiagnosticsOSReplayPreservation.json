@@ -1,0 +1,31 @@
+{
+  "container": "/Users/user/Library/Developer/CoreSimulator/Devices/1018BE2D-491B-465F-8F75-3E5BEB38C22A/data/Containers/Data/Application/ADD22735-4DC0-4D06-9EC5-B92A712AB5DF",
+  "profiles": {
+    "Library/Application Support/StackToSixNative/state-v1.json": {
+      "exactBytesUnchanged": true,
+      "semanticChangedFields": [],
+      "afterSHA256": "f9b237970b195b004c98758566a6617d94b1f72597d4c504811387a66df19c54"
+    },
+    "Library/Application Support/StackToSixNative/state-v1.previous.json": {
+      "exactBytesUnchanged": true,
+      "semanticChangedFields": [],
+      "afterSHA256": "04a5fface9b1415772f25e055be009e58c39134dfba042ce0eccf427af5377e8"
+    },
+    "tmp/native-process-qa-AD1E2026-1010-4000-8000-000000000003/state-v1.json": {
+      "exactBytesUnchanged": false,
+      "semanticChangedFields": [
+        ".savedAt"
+      ],
+      "afterSHA256": "585f9d3b32a271c663b6b4a04f27e810a26d492da47637c014c7689f492da18c"
+    },
+    "tmp/native-process-qa-AD1E2026-1010-4000-8000-000000000003/state-v1.previous.json": {
+      "exactBytesUnchanged": false,
+      "semanticChangedFields": [
+        ".savedAt"
+      ],
+      "afterSHA256": "2f62f8b4e8216289f0de2736010adb73fbc424427b0cfbf49fde3a04c5ff018e"
+    }
+  },
+  "priorCapturesUnchanged": true,
+  "newCapture": "native-thermal-51517439-D6FB-4FA0-956B-6F304E256F5C.jsonl"
+}

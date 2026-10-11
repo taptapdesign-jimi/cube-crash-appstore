@@ -1,0 +1,38 @@
+{
+  "verdict": "PASS bounded connected Source-generation replacement",
+  "arcadeRestartContinuationSDK": {
+    "tests": 3,
+    "failures": 0,
+    "log": "/tmp/native-source-new-generation-next-move.log"
+  },
+  "journeyRewardContinuationSDK": {
+    "tests": 1,
+    "failures": 0,
+    "seconds": 25.636,
+    "log": "/tmp/native-source-journey-generation-next-move.log"
+  },
+  "earlierFailedFixture": {
+    "log": "/tmp/native-source-new-generation-root.log",
+    "reason": "Expectations ignored the actual restore generation increment and Source fresh-restart meter reset; corrected assertions, no production workaround."
+  },
+  "scope": "Actual Native exit modal Restart and final Arcade/Journey merge-result continuation create a new VC/Scene/Scope through the actual Source constructor factory. Old holders/scope retire; same app Source transport survives. Next move on the new board retains the real destination holder. Journey reward uses activate tap handler and actual result UIButton; Arcade result automatically announces its next round once. Actual stale previous VC replacement refused. Default shipping Source flags remain off.",
+  "gameplayLock": "PASS /tmp/native-source-generation-gameplay-lock.log",
+  "featureRuntime": "PASS /tmp/native-source-generation-feature.log",
+  "fullSourceQA": "PASS /tmp/native-source-generation-full.log (predates subsequent TNT/pickup changes)",
+  "unsignedRelease": "BUILD SUCCEEDED /tmp/native-source-generation-current-release.log (predates subsequent TNT/pickup changes)",
+  "physicalAcceptance": "NEEDS PHYSICAL TEST",
+  "open": "Whole ordinary canonical save/queue/global/NO MOVES/minimum/families/default activation; full visual/performance/physical acceptance.",
+  "sha256": {
+    "native/gameplay-app/NativeAppController.swift": "222ec76b0ba6b1b65ba7158139752884b3e95c73a6ce947c39687dbd0ecc0394",
+    "native/gameplay-app/NativeBootstrap.swift": "7063e9c1ef291acac1f811583bd142d340924e03ece901f75bc2af418185eb4a",
+    "native/standalone/Stack to SixTests/NativeStandaloneRootTests.swift": "541248658f2b8a925d805cfa887986111d5cf0103ec7efcc9b8141cffed5550a",
+    "docs/engineering/feature-runtime-owners.json": "a150a279892dcba319cf33e6b58f0c47ebf53bb300d4c09a86a4487ff0c5fab0"
+  },
+  "firstPlayRestartSDK": {
+    "tests": 1,
+    "failures": 0,
+    "seconds": 12.066,
+    "log": "/tmp/native-source-first-play-restart.log"
+  },
+  "releaseDependencyAudit": "PASS /tmp/native-source-generation-release-audit.log"
+}

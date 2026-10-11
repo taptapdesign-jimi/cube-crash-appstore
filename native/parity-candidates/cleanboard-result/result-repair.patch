@@ -1,0 +1,133 @@
+diff --git a/native/gameplay-app/NativeResultOwner.swift b/native/gameplay-app/NativeResultOwner.swift
+index 1b8ed568..0b9357e1 100644
+--- a/native/gameplay-app/NativeResultOwner.swift
++++ b/native/gameplay-app/NativeResultOwner.swift
+@@ -157,6 +157,8 @@ final class NativeResultController:UIViewController {
+             let back=UIImageView(image:assets.image("assets/modals/star-empty.png"))
+             let front=UIImageView(image:assets.image("assets/modals/star.png"))
+             for image in [back,front] {image.contentMode = .scaleAspectFit;holder.addSubview(image)}
++            back.accessibilityIdentifier="native.result.star.empty.\(index)"
++            front.accessibilityIdentifier="native.result.star.filled.\(index)"
+             empty.append(back);filled.append(front)
+             holder.transform=CGAffineTransform(rotationAngle:index == 0 ? -.pi*8/180 : index == 2 ? .pi*8/180 : 0)
+         }
+@@ -179,12 +181,19 @@ final class NativeResultController:UIViewController {
+             label.append(NSAttributedString(string:"Highscore",attributes:[.font:scoreLabel.font!,.foregroundColor:brown,.kern:0.4]))
+             scoreLabel.attributedText=label
+         } else {scoreLabel.text="Your score"}
++        score.accessibilityIdentifier="native.result.score"
+         status.text="\(state.mode == .arcade ? String(format:"Round %02d",state.stage) : "Stage \((state.board-1)%10+1)") \(clean ? "cleared" : "not cleared")"
+         for (index,button) in buttons.enumerated() {
+             button.setTitle(index == 0 ? (clean && interimJourney ? "Continue" : "Play Again") : "Exit",for:.normal)
+             button.titleLabel?.font=assets.font(size:28,weight:"Bold")
+-            button.backgroundColor=index == 0 ? orange : UIColor(red:226/255,green:211/255,blue:198/255,alpha:1)
+-            button.setTitleColor(index == 0 ? .white : brown,for:.normal);button.layer.cornerRadius=40
++            button.backgroundColor=index == 0 ? UIColor(red:233/255,green:122/255,blue:85/255,alpha:1) : .white
++            button.setTitleColor(index == 0 ? UIColor(red:1,green:251/255,blue:242/255,alpha:1) : UIColor(red:173/255,green:134/255,blue:117/255,alpha:1),for:.normal);button.layer.cornerRadius=40
++            button.layer.shadowColor=(index == 0 ? UIColor(red:194/255,green:73/255,blue:33/255,alpha:1) : UIColor(red:216/255,green:199/255,blue:187/255,alpha:1)).cgColor
++            button.layer.shadowOpacity=1;button.layer.shadowOffset=CGSize(width:0,height:8);button.layer.shadowRadius=0
++            button.layer.borderWidth=index == 0 ? 0:1
++            button.layer.borderColor=UIColor(red:234/255,green:222/255,blue:215/255,alpha:1).cgColor
++            button.titleLabel?.shadowColor=index == 0 ? UIColor(red:194/255,green:73/255,blue:33/255,alpha:1):nil
++            button.titleLabel?.shadowOffset=CGSize(width:0,height:index == 0 ? 2:0)
+             button.tag=index;button.accessibilityIdentifier=index == 0 ? "native.result.play-again" : "native.result.exit"
+             button.addTarget(self,action:#selector(activate(_:)),for:.touchUpInside);content.addSubview(button)
+         }
+@@ -244,7 +253,8 @@ final class NativeResultController:UIViewController {
+             let holder=empty[index].superview!
+             let frame=layout.star(index).offsetBy(dx:-layout.hero.minX,dy:-layout.hero.minY)
+             holder.bounds=CGRect(origin:.zero,size:frame.size);holder.center=CGPoint(x:frame.midX,y:frame.midY)
+-            empty[index].frame=holder.bounds;filled[index].frame=holder.bounds
++            // Filled stars are initially scale zero; assigning frame then destroys bounds.
++            place(empty[index],in:holder.bounds);place(filled[index],in:holder.bounds)
+         }
+         place(headlineContent,in:layout.title.offsetBy(dx:-layout.card.minX,dy:-layout.card.minY))
+         // CSS line-height permits glyph overhang outside the title's line box.
+@@ -340,7 +350,7 @@ final class NativeResultController:UIViewController {
+             }
+         }
+         if clean {
+-            score.text=plan.displayedScore.formatted()
++            score.text=String(plan.displayedScore)
+             let comboVisible=elapsed<3.97
+             bonus.isHidden=false;bonusLabel.isHidden=false
+             bonus.text="+\(comboVisible ? plan.displayedCombo:plan.displayedEfficiency)"
+diff --git a/native/gameplay-results/NativeResultPresentationPlan.swift b/native/gameplay-results/NativeResultPresentationPlan.swift
+index 1897649a..e5ae7298 100644
+--- a/native/gameplay-results/NativeResultPresentationPlan.swift
++++ b/native/gameplay-results/NativeResultPresentationPlan.swift
+@@ -24,7 +24,7 @@ enum NativeResultPresentationPlan {
+     }
+     static func layout(viewport:CGSize,clean:Bool,titleHeight:Double)->Layout {
+         let w=Double(viewport.width),h=Double(viewport.height),s=min(90,max(60,w*0.2))
+-        let cw=min(340,w*0.88),inner=cw-64,heroW=min(280,w*0.8),buttons=min(310,w*0.8)
++        let cw=min(340,w*0.88),inner=cw-64,heroW=min(280,w*0.8),buttons=min(w<1025 ? 249:310,w*0.8)
+         let infoH=clean ? s+244+titleHeight:s+100+titleHeight
+         let cardH=infoH+80,outerH=cardH+18+144,top=(h-outerH)/2
+         let card=CGRect(x:(w-cw)/2,y:top,width:cw,height:cardH)
+diff --git a/native/standalone/Stack to SixTests/NativeResultOwnerTests.swift b/native/standalone/Stack to SixTests/NativeResultOwnerTests.swift
+index 8fdeb814..de0287e5 100644
+--- a/native/standalone/Stack to SixTests/NativeResultOwnerTests.swift	
++++ b/native/standalone/Stack to SixTests/NativeResultOwnerTests.swift	
+@@ -5,6 +5,41 @@ import StackToSixGameplay
+ 
+ @MainActor
+ final class NativeResultOwnerTests:XCTestCase {
++    func testZeroScaleFilledStarsRetainImageBoundsAcrossInitialRelayout() {
++        let result=controller(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
++        window.rootViewController=result;window.makeKeyAndVisible();result.loadViewIfNeeded()
++        defer {result.dispose();window.isHidden=true;window.rootViewController=nil}
++        result.view.frame=window.bounds
++        result.view.setNeedsLayout();result.view.layoutIfNeeded()
++        func find(_ root:UIView,_ id:String)->UIView? {
++            if root.accessibilityIdentifier==id{return root}
++            return root.subviews.compactMap{find($0,id)}.first
++        }
++        for index in 0..<3 {
++            let gold=find(result.view,"native.result.star.filled.\(index)") as! UIImageView
++            XCTAssertNotNil(gold.image);XCTAssertGreaterThan(gold.bounds.width,0)
++            XCTAssertGreaterThan(gold.bounds.height,0);XCTAssertEqual(gold.transform.a,0)
++        }
++        result.tick(0);for index in 1...30 {result.tick(Double(index)/10)}
++        result.view.setNeedsLayout();result.view.layoutIfNeeded()
++        for index in 0..<3 {XCTAssertGreaterThan(find(result.view,"native.result.star.filled.\(index)")!.bounds.width,0)}
++        let primary=button(in:result.view,id:"native.result.play-again")!
++        let secondary=button(in:result.view,id:"native.result.exit")!
++        XCTAssertEqual(primary.layer.shadowOffset,CGSize(width:0,height:8))
++        XCTAssertEqual(secondary.backgroundColor,.white);XCTAssertEqual(secondary.layer.borderWidth,1)
++    }
++    func testCleanScoreUsesPlainIntegerWithoutGroupingSeparator() {
++        let root=Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!
++        let state=NativeBoardState(tiles:[],mode:.journey,board:1,score:1234)
++        let result=NativeResultController(root:root,state:state,clean:true,combo:0,efficiency:0,finalScore:1234)
++        result.loadViewIfNeeded();defer {result.dispose()}
++        result.tick(0);for index in 1...80 {result.tick(Double(index)/10)}
++        func find(_ root:UIView)->UILabel? {
++            if root.accessibilityIdentifier=="native.result.score" {return root as? UILabel}
++            return root.subviews.compactMap{find($0)}.first
++        }
++        XCTAssertEqual(find(result.view)?.text,"1234")
++    }
+     private func controller(clean:Bool=true,mode:NativeRunMode = .journey,board:Int=1,headlineRandom:Double=0)->NativeResultController {
+         let root=Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!
+         let state=NativeBoardState(tiles:[],mode:mode,board:board,score:100)
+@@ -53,8 +88,8 @@ final class NativeResultOwnerTests:XCTestCase {
+         result.view.frame=window.bounds;result.view.setNeedsLayout();result.view.layoutIfNeeded()
+         let primary=button(in:result.view,id:"native.result.play-again")!
+         let secondary=button(in:result.view,id:"native.result.exit")!
+-        XCTAssertEqual(primary.bounds.size,CGSize(width:310,height:64))
+-        XCTAssertEqual(secondary.bounds.size,CGSize(width:310,height:64))
++        XCTAssertEqual(primary.bounds.size,CGSize(width:249,height:64))
++        XCTAssertEqual(secondary.bounds.size,CGSize(width:249,height:64))
+         XCTAssertEqual(primary.center.x,195);XCTAssertEqual(secondary.center.y-primary.center.y,80)
+         XCTAssertEqual(primary.transform.a,0)
+         result.tick(0)
+@@ -79,7 +114,7 @@ final class NativeResultOwnerTests:XCTestCase {
+         window.rootViewController=result;window.makeKeyAndVisible();result.loadViewIfNeeded()
+         result.view.frame=window.bounds;result.view.setNeedsLayout();result.view.layoutIfNeeded()
+         let primary=button(in:result.view,id:"native.result.play-again")!
+-        XCTAssertEqual(primary.bounds.size,CGSize(width:310,height:64));XCTAssertFalse(primary.isUserInteractionEnabled)
++        XCTAssertEqual(primary.bounds.size,CGSize(width:249,height:64));XCTAssertFalse(primary.isUserInteractionEnabled)
+         result.tick(0)
+         for index in 1...15 {result.tick(Double(index)/10)}
+         XCTAssertTrue(primary.isUserInteractionEnabled)

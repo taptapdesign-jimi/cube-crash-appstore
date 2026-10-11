@@ -1,5 +1,7 @@
 import UIKit
+#if DEBUG || !NATIVE_HYBRID_UI_RETIRED
 import WebKit
+#endif
 
 /// Preserve the nested CSS 3D owners instead of flattening each UIView plane.
 final class JimiNativeModalTransformView: UIView {
@@ -320,6 +322,7 @@ final class JimiNativeEndRunModal: UIViewController {
     override func viewDidDisappear(_ animated:Bool) {super.viewDidDisappear(animated);dispose()}
 }
 
+#if DEBUG || !NATIVE_HYBRID_UI_RETIRED
 @MainActor
 final class JimiNativeEndRunHost {
     private weak var presenter: UIViewController?
@@ -357,3 +360,5 @@ final class JimiNativeEndRunHost {
     func resume() {modal?.resume()}
     func dispose() {modal?.dispose();modal?.dismiss(animated:false);modal = nil}
 }
+
+#endif

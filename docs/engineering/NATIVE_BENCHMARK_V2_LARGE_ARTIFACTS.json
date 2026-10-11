@@ -1,0 +1,26 @@
+{
+  "tag": "native-benchmark-v2",
+  "artifacts": [
+    {
+      "path": "docs/engineering/native-completion-2026-10-10/NativeOrdinaryDirectOSAccessibleAttachments/AFC0E24B-E245-499B-AC1D-64547EB97A0F.mp4",
+      "bytes": 161291492,
+      "sha256": "70404554fe81ec8ade63ab487f46bb3025061e8ca2c4aebb6129d567ecc56c0c",
+      "releaseAsset": "AFC0E24B-E245-499B-AC1D-64547EB97A0F.mp4",
+      "url": "https://github.com/taptapdesign-jimi/cube-crash-appstore/releases/download/native-benchmark-v2/AFC0E24B-E245-499B-AC1D-64547EB97A0F.mp4"
+    },
+    {
+      "path": "docs/engineering/native-completion-2026-10-10/NativeOrdinaryDirectOSAttachments/8F6F6665-2566-4D37-96A1-9C158AACDD45.mp4",
+      "bytes": 151627825,
+      "sha256": "3783a59276c839b061698b5bd218fac62a66408d931b457e8cd7d9397bdacafc",
+      "releaseAsset": "8F6F6665-2566-4D37-96A1-9C158AACDD45.mp4",
+      "url": "https://github.com/taptapdesign-jimi/cube-crash-appstore/releases/download/native-benchmark-v2/8F6F6665-2566-4D37-96A1-9C158AACDD45.mp4"
+    },
+    {
+      "path": "docs/engineering/native-completion-2026-10-10/NativeOrdinaryDirectOSRetryAttachments/8E7D1E63-98B8-4C89-9656-F822CBF2338C.mp4",
+      "bytes": 156313757,
+      "sha256": "a9b99f1d904e441c7d891bfd488c6049c99ce2f42ec8d1e85c723e0dbd7449f4",
+      "releaseAsset": "8E7D1E63-98B8-4C89-9656-F822CBF2338C.mp4",
+      "url": "https://github.com/taptapdesign-jimi/cube-crash-appstore/releases/download/native-benchmark-v2/8E7D1E63-98B8-4C89-9656-F822CBF2338C.mp4"
+    }
+  ]
+}

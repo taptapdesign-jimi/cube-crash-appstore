@@ -1,0 +1,19 @@
+{
+  "status": "targeted57862 6/6PASS; full Core97917 363/363PASS; KING86704 330/330PASS; all terminal exit0",
+  "files": {
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "39593818c859f7e00e0090e2301aa30186e07ce9f83d9b544dfe9bfaac446172",
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceOrdinarySixSpawnBeginCoreTests.swift": "cccb51975b89236ac93beb53d4d6f5def4a042c6b9d55d44db23add76fc01577"
+  },
+  "logs": {
+    "native-ordinary-minimum-capture-core.log": "05d1a26fb2ae2b88656a46d50a196f98987b8ff06b9f408f4472e41366b5d131",
+    "native-ordinary-minimum-capture-core-full.log": "86d8643a9d7b3d3de52bb9adfeccee47fa14cc899a55c5ddb6e80f2e283c9a07",
+    "native-ordinary-minimum-capture-gameplay-lock.log": "e0c62124397b95e44b92aec2f5b55dedac5bf6a324b76ed6ea3bda86a98a810e"
+  },
+  "scope": "Core minimum count capability uses existing literal NativeSourceEndgameChecker.active and mandatory complete current physical/runtime authority; rejects unsatisfied primary/helper/remainder phase, missing capability, reentrant restart. Authority in unit test is controlled fixture, not actual physical marker-owner proof.",
+  "limits": [
+    "actual Scene minimum/rescue producer not mounted",
+    "emergency locked/forced/coroutine finally OPEN",
+    "whole admission flag OFF",
+    "native shipping/phone/full migration OPEN"
+  ]
+}

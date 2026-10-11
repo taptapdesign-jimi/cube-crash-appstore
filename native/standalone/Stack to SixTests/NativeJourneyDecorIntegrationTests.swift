@@ -25,7 +25,7 @@ final class NativeJourneyDecorIntegrationTests:XCTestCase {
         let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=controller;window.makeKeyAndVisible()
         controller.view.frame=window.bounds;controller.view.setNeedsLayout();controller.view.layoutIfNeeded();return window
     }
-    func testThemedAdmissionStartsBeforeDecodeAndRevealsOnePreparedFooterBelowCanvas() throws {
+    func testThemedAdmissionStartsBeforeDecodeAndRevealsOnePreparedFooterBelowCanvas() async throws {
         let resources=Resources(),controller=controller(resources);var release:(()->Void)?,entries=0
         controller.beforeInitialBoardEntry={release=$0};controller.onBoardEntry={_,_ in entries += 1}
         let window=mount(controller);defer{controller.dispose();window.isHidden=true}
@@ -35,7 +35,8 @@ final class NativeJourneyDecorIntegrationTests:XCTestCase {
         release?();XCTAssertNil(renderer.scene);XCTAssertEqual(entries,0)
         resources.finish(0);controller.view.setNeedsLayout();controller.view.layoutIfNeeded()
         let footer=try XCTUnwrap(controller.journeyBottomDecor)
-        XCTAssertTrue(footer.isPrepared);XCTAssertEqual(footer.phase,.entering);XCTAssertNotNil(renderer.scene);XCTAssertEqual(entries,1)
+        XCTAssertTrue(footer.isPrepared);XCTAssertNotNil(renderer.scene);XCTAssertEqual(entries,1)
+        try await waitForActualDecorEntry(controller);XCTAssertEqual(footer.phase,.entering)
         XCTAssertTrue(controller.view.subviews.first is NativeAppPaperSurface)
         XCTAssertTrue(controller.view.subviews[1] === footer);XCTAssertTrue(controller.view.subviews[2] === renderer)
         release?();controller.view.layoutIfNeeded();XCTAssertEqual(entries,1)
@@ -61,13 +62,14 @@ final class NativeJourneyDecorIntegrationTests:XCTestCase {
         resources.finish(1);XCTAssertEqual(next,[true]);XCTAssertEqual(controller.journeyBottomDecor?.board,13)
         controller.dispose();XCTAssertFalse(old.hasActiveClock)
     }
-    func testPreparedArtworkAdmissionDoesNotDependOnAnimatedWaveNotification() throws {
+    func testPreparedArtworkAdmissionDoesNotDependOnAnimatedWaveNotification() async throws {
         let resources=Resources(),controller=controller(resources),window=mount(controller)
         defer{controller.dispose();window.isHidden=true}
         // The optional animation/audio wave callback is absent on reduced-motion
         // admission. The controller's real prepared-frame boundary still enters.
         controller.boardScene?.onBoardEntry=nil
         resources.finish(0);controller.view.setNeedsLayout();controller.view.layoutIfNeeded()
+        try await waitForActualDecorEntry(controller)
         XCTAssertEqual(controller.journeyBottomDecor?.phase,.entering)
     }
     func testJourneyRetryWithoutThemedWaveEntersOnlyItsFreshPreparedFooter() throws {
@@ -94,4 +96,12 @@ final class NativeJourneyDecorIntegrationTests:XCTestCase {
         XCTAssertEqual(footer.phase,.exiting);XCTAssertTrue(footer.hasActiveClock);XCTAssertTrue(replies.isEmpty)
         await fulfillment(of:[done],timeout:4);XCTAssertEqual(replies,[true])
     }
+    private func waitForActualDecorEntry(_ controller:NativeGameplayViewController) async throws {
+        let deadline=Date().addingTimeInterval(4)
+        while controller.journeyBottomDecor?.phase != .entering {
+            if Date()>deadline {XCTFail("Prepared footer did not enter through the actual HUD-drop owner");throw CancellationError()}
+            try await Task.sleep(for:.milliseconds(20))
+        }
+    }
+
 }

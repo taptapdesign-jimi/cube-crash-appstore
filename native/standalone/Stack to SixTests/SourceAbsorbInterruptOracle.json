@@ -1,0 +1,1209 @@
+{
+  "reference": "production-benchmark-v9",
+  "hashes": {
+    "src/modules/special-dice-registry.ts": "b6818afb9ffd98a6249f17c8f0d020663a1fd9a41f8d43908da1a25bb7780fdd",
+    "src/modules/merge6-destination-cleanup-owner.ts": "a17bd825079a7e6e302e35e02b2a32d4175a3c45bf49aefac5794c45e12537b5",
+    "src/modules/special-dice-transaction-owner.ts": "8c4c7254324ffcaf140fd3ab2df3da0df0b29b95add516c0bb51fe9937ffb795",
+    "src/modules/app-core.ts": "284d104e4f20b7b30fd5dad2361c1edfb822a6b96a38c64efc2793033cbc09e3",
+    "src/modules/wild-spawn-continuation.ts": "21008fd8c69475b073b7c99a5aa017a7846e642bfb33ed852878847e7abc3713"
+  },
+  "records": [
+    {
+      "type": "regular",
+      "scenario": "normal",
+      "removed": [
+        "src",
+        "dst"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 0,
+      "trace": [
+        "remove:src",
+        "remove:dst",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "regular",
+      "scenario": "src-destroyed",
+      "removed": [
+        "dst"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 0,
+      "trace": [
+        "remove:dst",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "regular",
+      "scenario": "dst-destroyed",
+      "removed": [
+        "src"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 0,
+      "trace": [
+        "remove:src",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "regular",
+      "scenario": "both-destroyed",
+      "removed": [],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 0,
+      "trace": [
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "regular",
+      "scenario": "already-main-settled",
+      "removed": [],
+      "sourceDestroyed": false,
+      "destinationDestroyed": false,
+      "sourceResolution": true,
+      "destinationResolution": true,
+      "frameReleases": 0,
+      "idleReleases": 0,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 0,
+      "trace": []
+    },
+    {
+      "type": "regular",
+      "scenario": "obsolete-special-token",
+      "removed": [
+        "src",
+        "dst"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 0,
+      "trace": [
+        "remove:src",
+        "remove:dst",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "regular",
+      "scenario": "remove-src-throws",
+      "removed": [
+        "dst"
+      ],
+      "sourceDestroyed": false,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 0,
+      "trace": [
+        "remove:src",
+        "remove:dst",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "regular",
+      "scenario": "pull-cleanup-throws",
+      "removed": [
+        "src",
+        "dst"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 0,
+      "trace": [
+        "remove:src",
+        "remove:dst",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "star",
+      "scenario": "normal",
+      "removed": [
+        "src",
+        "dst"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 1,
+      "trace": [
+        "remove:src",
+        "remove:dst",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "star",
+      "scenario": "src-destroyed",
+      "removed": [
+        "dst"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 1,
+      "trace": [
+        "remove:dst",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "star",
+      "scenario": "dst-destroyed",
+      "removed": [
+        "src"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 1,
+      "trace": [
+        "remove:src",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "star",
+      "scenario": "both-destroyed",
+      "removed": [],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 1,
+      "trace": [
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "star",
+      "scenario": "already-main-settled",
+      "removed": [],
+      "sourceDestroyed": false,
+      "destinationDestroyed": false,
+      "sourceResolution": true,
+      "destinationResolution": true,
+      "frameReleases": 0,
+      "idleReleases": 0,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": true,
+      "queued": 0,
+      "trace": []
+    },
+    {
+      "type": "star",
+      "scenario": "obsolete-special-token",
+      "removed": [
+        "src",
+        "dst"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 0,
+      "idleReleases": 0,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": true,
+      "queued": 0,
+      "trace": [
+        "remove:src",
+        "remove:dst",
+        "resolution-release:src",
+        "resolution-release:dst"
+      ]
+    },
+    {
+      "type": "star",
+      "scenario": "remove-src-throws",
+      "removed": [
+        "dst"
+      ],
+      "sourceDestroyed": false,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 1,
+      "trace": [
+        "remove:src",
+        "remove:dst",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "star",
+      "scenario": "pull-cleanup-throws",
+      "removed": [
+        "src",
+        "dst"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 1,
+      "trace": [
+        "remove:src",
+        "remove:dst",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "juice",
+      "scenario": "normal",
+      "removed": [
+        "src",
+        "dst"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 1,
+      "trace": [
+        "remove:src",
+        "remove:dst",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "juice",
+      "scenario": "src-destroyed",
+      "removed": [
+        "dst"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 1,
+      "trace": [
+        "remove:dst",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "juice",
+      "scenario": "dst-destroyed",
+      "removed": [
+        "src"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 1,
+      "trace": [
+        "remove:src",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "juice",
+      "scenario": "both-destroyed",
+      "removed": [],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 1,
+      "trace": [
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "juice",
+      "scenario": "already-main-settled",
+      "removed": [],
+      "sourceDestroyed": false,
+      "destinationDestroyed": false,
+      "sourceResolution": true,
+      "destinationResolution": true,
+      "frameReleases": 0,
+      "idleReleases": 0,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": true,
+      "queued": 0,
+      "trace": []
+    },
+    {
+      "type": "juice",
+      "scenario": "obsolete-special-token",
+      "removed": [
+        "src",
+        "dst"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 0,
+      "idleReleases": 0,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": true,
+      "queued": 0,
+      "trace": [
+        "remove:src",
+        "remove:dst",
+        "resolution-release:src",
+        "resolution-release:dst"
+      ]
+    },
+    {
+      "type": "juice",
+      "scenario": "remove-src-throws",
+      "removed": [
+        "dst"
+      ],
+      "sourceDestroyed": false,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 1,
+      "trace": [
+        "remove:src",
+        "remove:dst",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "juice",
+      "scenario": "pull-cleanup-throws",
+      "removed": [
+        "src",
+        "dst"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 1,
+      "trace": [
+        "remove:src",
+        "remove:dst",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "magnet",
+      "scenario": "normal",
+      "removed": [
+        "src",
+        "dst"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 1,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 2,
+      "trace": [
+        "remove:src",
+        "remove:dst",
+        "pull-cleanup",
+        "input:magnet-pull:false",
+        "input:magnetic-text:false",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "magnet",
+      "scenario": "src-destroyed",
+      "removed": [
+        "dst"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 1,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 2,
+      "trace": [
+        "remove:dst",
+        "pull-cleanup",
+        "input:magnet-pull:false",
+        "input:magnetic-text:false",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "magnet",
+      "scenario": "dst-destroyed",
+      "removed": [
+        "src"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 1,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 2,
+      "trace": [
+        "remove:src",
+        "pull-cleanup",
+        "input:magnet-pull:false",
+        "input:magnetic-text:false",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "magnet",
+      "scenario": "both-destroyed",
+      "removed": [],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 1,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 2,
+      "trace": [
+        "pull-cleanup",
+        "input:magnet-pull:false",
+        "input:magnetic-text:false",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "magnet",
+      "scenario": "already-main-settled",
+      "removed": [],
+      "sourceDestroyed": false,
+      "destinationDestroyed": false,
+      "sourceResolution": true,
+      "destinationResolution": true,
+      "frameReleases": 0,
+      "idleReleases": 0,
+      "pullCleanup": 0,
+      "magnetGate": true,
+      "transactionActive": true,
+      "queued": 0,
+      "trace": []
+    },
+    {
+      "type": "magnet",
+      "scenario": "obsolete-special-token",
+      "removed": [
+        "src",
+        "dst"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 0,
+      "idleReleases": 0,
+      "pullCleanup": 1,
+      "magnetGate": false,
+      "transactionActive": true,
+      "queued": 1,
+      "trace": [
+        "remove:src",
+        "remove:dst",
+        "pull-cleanup",
+        "input:magnet-pull:false",
+        "input:magnetic-text:false",
+        "resolution-release:src",
+        "resolution-release:dst"
+      ]
+    },
+    {
+      "type": "magnet",
+      "scenario": "remove-src-throws",
+      "removed": [
+        "dst"
+      ],
+      "sourceDestroyed": false,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 1,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 2,
+      "trace": [
+        "remove:src",
+        "remove:dst",
+        "pull-cleanup",
+        "input:magnet-pull:false",
+        "input:magnetic-text:false",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "magnet",
+      "scenario": "pull-cleanup-throws",
+      "removed": [
+        "src",
+        "dst"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 1,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 2,
+      "trace": [
+        "remove:src",
+        "remove:dst",
+        "pull-cleanup",
+        "input:magnet-pull:false",
+        "input:magnetic-text:false",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "tnt",
+      "scenario": "normal",
+      "removed": [
+        "src",
+        "dst"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 1,
+      "trace": [
+        "remove:src",
+        "remove:dst",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "tnt",
+      "scenario": "src-destroyed",
+      "removed": [
+        "dst"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 1,
+      "trace": [
+        "remove:dst",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "tnt",
+      "scenario": "dst-destroyed",
+      "removed": [
+        "src"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 1,
+      "trace": [
+        "remove:src",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "tnt",
+      "scenario": "both-destroyed",
+      "removed": [],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 1,
+      "trace": [
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "tnt",
+      "scenario": "already-main-settled",
+      "removed": [],
+      "sourceDestroyed": false,
+      "destinationDestroyed": false,
+      "sourceResolution": true,
+      "destinationResolution": true,
+      "frameReleases": 0,
+      "idleReleases": 0,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": true,
+      "queued": 0,
+      "trace": []
+    },
+    {
+      "type": "tnt",
+      "scenario": "obsolete-special-token",
+      "removed": [
+        "src",
+        "dst"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 0,
+      "idleReleases": 0,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": true,
+      "queued": 0,
+      "trace": [
+        "remove:src",
+        "remove:dst",
+        "resolution-release:src",
+        "resolution-release:dst"
+      ]
+    },
+    {
+      "type": "tnt",
+      "scenario": "remove-src-throws",
+      "removed": [
+        "dst"
+      ],
+      "sourceDestroyed": false,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 1,
+      "trace": [
+        "remove:src",
+        "remove:dst",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "tnt",
+      "scenario": "pull-cleanup-throws",
+      "removed": [
+        "src",
+        "dst"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 0,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 1,
+      "trace": [
+        "remove:src",
+        "remove:dst",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "mixed-magnet-tnt",
+      "scenario": "normal",
+      "removed": [
+        "src",
+        "dst"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 1,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 2,
+      "trace": [
+        "remove:src",
+        "remove:dst",
+        "pull-cleanup",
+        "input:magnet-pull:false",
+        "input:magnetic-text:false",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "mixed-magnet-tnt",
+      "scenario": "src-destroyed",
+      "removed": [
+        "dst"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 1,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 2,
+      "trace": [
+        "remove:dst",
+        "pull-cleanup",
+        "input:magnet-pull:false",
+        "input:magnetic-text:false",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "mixed-magnet-tnt",
+      "scenario": "dst-destroyed",
+      "removed": [
+        "src"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 1,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 2,
+      "trace": [
+        "remove:src",
+        "pull-cleanup",
+        "input:magnet-pull:false",
+        "input:magnetic-text:false",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "mixed-magnet-tnt",
+      "scenario": "both-destroyed",
+      "removed": [],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 1,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 2,
+      "trace": [
+        "pull-cleanup",
+        "input:magnet-pull:false",
+        "input:magnetic-text:false",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "mixed-magnet-tnt",
+      "scenario": "already-main-settled",
+      "removed": [],
+      "sourceDestroyed": false,
+      "destinationDestroyed": false,
+      "sourceResolution": true,
+      "destinationResolution": true,
+      "frameReleases": 0,
+      "idleReleases": 0,
+      "pullCleanup": 0,
+      "magnetGate": true,
+      "transactionActive": true,
+      "queued": 0,
+      "trace": []
+    },
+    {
+      "type": "mixed-magnet-tnt",
+      "scenario": "obsolete-special-token",
+      "removed": [
+        "src",
+        "dst"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 0,
+      "idleReleases": 0,
+      "pullCleanup": 1,
+      "magnetGate": false,
+      "transactionActive": true,
+      "queued": 1,
+      "trace": [
+        "remove:src",
+        "remove:dst",
+        "pull-cleanup",
+        "input:magnet-pull:false",
+        "input:magnetic-text:false",
+        "resolution-release:src",
+        "resolution-release:dst"
+      ]
+    },
+    {
+      "type": "mixed-magnet-tnt",
+      "scenario": "remove-src-throws",
+      "removed": [
+        "dst"
+      ],
+      "sourceDestroyed": false,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 1,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 2,
+      "trace": [
+        "remove:src",
+        "remove:dst",
+        "pull-cleanup",
+        "input:magnet-pull:false",
+        "input:magnetic-text:false",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    },
+    {
+      "type": "mixed-magnet-tnt",
+      "scenario": "pull-cleanup-throws",
+      "removed": [
+        "src",
+        "dst"
+      ],
+      "sourceDestroyed": true,
+      "destinationDestroyed": true,
+      "sourceResolution": false,
+      "destinationResolution": false,
+      "frameReleases": 1,
+      "idleReleases": 1,
+      "pullCleanup": 1,
+      "magnetGate": false,
+      "transactionActive": false,
+      "queued": 2,
+      "trace": [
+        "remove:src",
+        "remove:dst",
+        "pull-cleanup",
+        "input:magnet-pull:false",
+        "input:magnetic-text:false",
+        "resolution-release:src",
+        "resolution-release:dst",
+        "frame-release",
+        "idle-release",
+        "input:special-transaction:false"
+      ]
+    }
+  ]
+}

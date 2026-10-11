@@ -1,0 +1,75 @@
+{
+  "status": "BOUNDED99_SDK_FULL_QA_PASS",
+  "scope": "Same actual Native meter-created Source Star, exact fourth-face painter and async typed Scene skin publication. Global flags OFF; no phone/PWA/assets touched.",
+  "originalOracle": {
+    "file": "star-source-static-repaint-oracle.json",
+    "sha256": "4d1c8874a44e5e4032d18238b339fb1e5ec4e9d803d3793685c89e8d6ce47208",
+    "profiles": [
+      24,
+      25,
+      25,
+      24
+    ],
+    "independentRepeatIdentical": true,
+    "authority": "Untouched original board painter/stack/final-hidden functions, real variant/final-rule helpers and transitive SHA, actual original registry/Star/shared-sheet/phase/foreground with real Pixi CPU. Explicit other-family/mode/time/ticker/resource endpoints. Actual repaint visible=true/renderable=false; no GPU/global/physical claim."
+  },
+  "checks": [
+    {
+      "log": "star-sheet-static-repaint-baseline.log",
+      "handle": 89693,
+      "status": "PRE_TEST_RUNNER_CRASH",
+      "exitCode": 65,
+      "reason": "Package resource bundle_accessor missing bundle; no test ran; root cause unproven."
+    },
+    {
+      "log": "star-sheet-static-repaint-baseline-retry.log",
+      "handle": 79228,
+      "status": "FAIL",
+      "tests": 1,
+      "failures": 2,
+      "exitCode": 65,
+      "reason": "Immediate fourth repaint and exact async onResourceReady publication exposed static base under same live sheet."
+    },
+    {
+      "log": "star-sheet-static-repaint-fixed.log",
+      "handle": 18609,
+      "status": "PASS",
+      "tests": 7,
+      "failures": 0,
+      "exitCode": 0
+    },
+    {
+      "log": "star-sheet-static-repaint-broader.log",
+      "handle": 27004,
+      "status": "PASS",
+      "tests": 99,
+      "failures": 0,
+      "exitCode": 0
+    },
+    {
+      "log": "star-sheet-static-repaint-full.log",
+      "handle": 77868,
+      "status": "PASS",
+      "exitCode": 0
+    }
+  ],
+  "files": {
+    "native/gameplay-ui/NativeDiceNode.swift": "2366a455fc31df001b77247c6cdfd14ef30616f0196544e0c57fb5ae86da45d8",
+    "native/gameplay-ui/NativeSourceStarSheet.swift": "11534dd0d2713b752d9b1c5901b5f27f5a979718ec7c715a06db8be4e3cfe80f",
+    "native/standalone/Stack to SixTests/NativeMeterActualSceneBindingTests.swift": "fb98e9585dacae715e38ef715fb4546e140c1e4df29a561a13fcf221f3d342f6",
+    "docs/engineering/feature-runtime-owners.json": "3ea83dc6f0b7d09c74a8983407ddf2213f911a7006c335019d87d484b1c49394"
+  },
+  "recovery": {
+    "before": "SourceStarStaticRepaintBefore.tar.gz",
+    "beforeSHA256": "725dbb455adefc46b0574e43cec60a7ab198610aa1f7327439e4040bb271586a",
+    "patch": "SourceStarStaticRepaintCodePatch.tar.gz",
+    "patchSHA256": "0f29dc3716266b662b36350199a49de9713cbdf19b69476b7b09ff4840de9a98",
+    "rule": "Replay only into fresh isolated checkout; preserve unrelated dirty main."
+  },
+  "open": [
+    "Full distinct visible/renderable field model",
+    "Whole genuine tutorial/APP producer admission",
+    "Common callback/timer/retry/eviction transport",
+    "Full family and physical acceptance"
+  ]
+}

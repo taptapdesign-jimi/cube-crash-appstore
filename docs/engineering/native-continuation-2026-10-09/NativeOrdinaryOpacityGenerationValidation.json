@@ -1,0 +1,16 @@
+{
+  "status": "SDK69625 terminal exit0 TEST SUCCEEDED5/5; full45086 terminal exit0 all selected deterministic gatesPASS; Source/QA frozen through checks",
+  "files": {
+    "native/gameplay-ui/NativeBoardScene.swift": "3b2f8c26717ae432328c53e925b95c686508764e7d1e7fa4764718088782f306"
+  },
+  "limits": [
+    "Enabled opacity-scheduler reentrant restart test OPEN",
+    "Mounted spawn-owner tests compile/existing token lifecycle only",
+    "Complete visual safety owner and positive minimum/rescue/finally OPEN",
+    "Flags OFF, private Source only, no phone/PWA change"
+  ],
+  "logs": {
+    "native-ordinary-opacity-generation-sdk.log": "36a0afaa6e6b3c841a2a44662cd0db6ece58d616556e919fcc08a8addab3ae1d",
+    "native-ordinary-opacity-generation-full.log": "73b4129db1f418474dfe184a59d1403aa9974f84286220df0676df634e49f943"
+  }
+}

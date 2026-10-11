@@ -1,0 +1,17 @@
+{
+  "scope": "Actual Scene configureSourceSpecialIdle starts real typed Bee static skin/frame cohort on current already-landed nodes with bound Source microtask owner. Deferred meter nodes remain landed-driven. Actual Scene suspend/update/resume and shared registry acquire/release preserve one registration. App bootstrap, full original constructor, source clocks/visibility/FX and physical admission remain OPEN. Flags OFF; no main/phone/PWA integration.",
+  "files": {
+    "native/gameplay-ui/NativeBoardScene.swift": "d9d3c7f642c1ed7077be846604a04b6a891f9c3e4cf07e91eb756c1028c56ca7",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "a2a99b332d9c3489f68125f98d82bb20813b1c9bfbd7d8b8542ccf5e1ab19e81"
+  },
+  "SDK": "terminalexit0 57/57 PASS",
+  "full": "terminalexit0 all selected deterministic gates PASS current frozen Source/QA/SDK file hashes match. No live checks.",
+  "logs": {
+    "bee-source-startup-sdk.log": "8ec88d8fa22590e30791dcf55c8c4adc7bb330c2afff86297336a01cfe1aa661",
+    "bee-source-startup-full.log": "0a8868ed002a717ab18a821e032831319dd7e732662fdfabfba8104d4dfee8fa"
+  },
+  "snapshotMatch": {
+    "native/gameplay-ui/NativeBoardScene.swift": true,
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": true
+  }
+}

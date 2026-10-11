@@ -1,3 +1,4 @@
+#if DEBUG || !NATIVE_HYBRID_UI_RETIRED
 import UIKit
 import WebKit
 
@@ -1143,3 +1144,5 @@ final class JimiHomeHubController: UIViewController {
         web.evaluateJavaScript("(window.__jimiNativeHomeHubRuntime ?? window.__jimiNativeHomeHub)?.cancel()", completionHandler: nil)
     }
 }
+
+#endif

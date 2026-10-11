@@ -1,0 +1,22 @@
+{
+  "status": "SDK59784 terminal exit0 TEST SUCCEEDED14/14; full62796 terminal exit0 all selected deterministic gatesPASS frozen latest owner-epoch Source. Prior SDK71225/full34774 separate earlier bridge proof",
+  "files": {
+    "native/gameplay-ui/NativeBoardScene.swift": "bd98b785b4755f11d65d98d5e411a6a20109c624cb97a0fc44897dcef01f0261",
+    "native/gameplay-ui/NativeDiceNode.swift": "6728f85a88976c61af088cc674c03b7b9a9f28ff87fdf94dc5425fcfa8186f7c",
+    "native/standalone/Stack to SixTests/NativeSourceRegularResumeConstructionTests.swift": "4b3e5b9c2560bd5fdfaf2b2531860ad2c59aee24d74dc5a00c1092b1784164ae"
+  },
+  "logs": {
+    "native-spawn-visual-scene-bridge-sdk.log": "da93edb33d76d36761cfce818f8d5398eb8cb88abf2927363b336290c2c36850",
+    "native-spawn-visual-scene-bridge-full.log": "e6d5730495a0b06ce797d3806d3a07fea13bd67d748c0290e9802ca226594197",
+    "native-spawn-visual-scene-epoch-sdk.log": "b01520c8b2b5983af3c799124e435fa65cd2644226308395cb9c62465241b39a",
+    "native-spawn-visual-scene-epoch-full.log": "5ae0362107f7ce50c56ef68595b17aec93ddca74c06ccd7c865846a79f24104e"
+  },
+  "proof": "Scene actual Source roster uses regular primitives and phase-aware special callback; mandatory exact object/gen/current owner capture; no missing row defaults; current checks before paint and after inner retirement protect same-generation replacement",
+  "limits": [
+    "Complete production APP owner capture/marker writers OPEN",
+    "Special/Wild generation-owned broker branch and real inner retirement OPEN",
+    "Enabled whole minimum/rescue/finally Scene proof OPEN",
+    "Fixtures use explicit bounded regular-only impact/epoch endpoints, not global production admission",
+    "Private Source only, flags OFF, no phone/PWA/main Swift integration"
+  ]
+}

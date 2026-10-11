@@ -1,0 +1,18 @@
+{
+  "authority": {
+    "src/modules/fx.ts": "e80ca937acfb182ddd1b4ffcd8f5a1a32a0b00974a733a9bc70b110635cab980",
+    "src/modules/special-dice-idle-visibility.ts": "170e861b072d0e78530d04ec27b39dce4969ef8d62fa4379e16bec8c74ae92b0",
+    "node_modules/pixi.js/lib/filters/mask/mask.frag.mjs": "9b580bcc02de843a99039dc486c1d1c25b0da0dfc3def25e2a27b53f87ca9f94",
+    "node_modules/gsap/dist/gsap.js": "3df2afc090b64154684a2391847afdb5e417469eff0503f3fa1ddd3c08897f54"
+  },
+  "boundary": "Actual original startWildShimmer with real installed GSAP; explicit texture/visibility/delayed callback endpoints. Native actual shared clock tested; renderer not mounted.",
+  "ownerMap": {
+    "entry": "Private explicit owner start; final Node entry/skin receipt connection remains OPEN",
+    "exit": "Epoch seal then delay/timeline cancellation, idempotent",
+    "animation": "Existing Source service owns delayed eager root and finite timeline; no new display link",
+    "resources": "No texture at clock checkpoint; bounded gradient/mask renderer remains OPEN",
+    "visibility": "Per-owner suspension + shared app foreground/pause",
+    "audioHapticsGameplaySaves": "No change",
+    "physical": "NEEDS PHYSICAL TEST"
+  }
+}

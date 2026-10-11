@@ -1,0 +1,55 @@
+{
+  "checkpoint": "explicit isolated Source fresh tutorial actual root OS capability",
+  "sourceSHA256": {
+    "native/gameplay-app/NativeStandaloneViewController.swift": "9ea6b3b576e20527dd1260695edd032e662aba34536e91b937588da836019744",
+    "native/standalone/Stack to SixTests/NativeStandaloneRootTests.swift": "63db8428bdc52c7cb70d0bb49f05ea51c36ff2d97b621f6a16ec843305f59e2c",
+    "native/standalone/Stack to SixUITests/NativeHomeInteractionUITests.swift": "5caf60e1c97fb0e7bacaa156a4ba26dd6c54b361a7977e46fcf9d839f5f60e31"
+  },
+  "uiBuild": "terminal84448 exit0 TEST BUILD SUCCEEDED",
+  "descriptorTargets": [
+    "Stack to SixUITests"
+  ],
+  "scope": "DEBUG Simulator exact native bundle/dedicated device/flag/valid isolated UUID only; Source fresh construction+entry+first tutorial presentation subset; ordinary/Release global flags remain OFF",
+  "open": [
+    "actual full Guide/input/subsequent-step root/OS completion",
+    "full Source family/save/default shipping activation",
+    "physical acceptance; Huge cubes OPEN; grey Journey-to-Play flash LAST"
+  ],
+  "sdkBuild": "terminal56507 exit0 TEST BUILD SUCCEEDED (current added root/admission tests compiled)",
+  "codeArchive": "NativeSourceOSCapabilityCode.tar.gz",
+  "codeArchiveSHA256": "e75d3c2f8cc9a9b941a37f52fe0456510779078c6f9d8049238ce6d25c377f2a",
+  "restoreBoundary": "Read-only reference or replay into NEW isolated directory; do not overwrite unrelated current dirty work.",
+  "connectedSDK": "terminal68571 exit0:127/127 PASS (9 root,5 app runtime,37 clock,76 Star)",
+  "fixtureSHA256": {
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "2dfc1354c4522ecbc214f4d0be348da76daea45364e020082424a140694d2963"
+  },
+  "beeRepeated": "SDK99109 terminal0:10/10 iterations PASS; unchanged original40ms values",
+  "iosRelease": "NativeSourceOSCapabilityIOSReleaseProof.json",
+  "actualOSUI": "terminal33607 exit0:1/1 PASS36.394s; two actual launches, both first-step sheets and zero webViews",
+  "profilePreservation": "NativeSourceOSProfilePreservation.json: exact normal primary/backup +eight prior QA files unchanged; new private0004 generation2,45 tiles,50 moves,score0,incomplete step1",
+  "visualInspection": "Both exported real screenshots viewed: expected Drag to stack sheet, authored pointer and focus dimming, no technical error or web surface. No full pixel/transition/input/physical acceptance claim.",
+  "sourceFullQA": "terminal34319 exit0 PASS: all selected deterministic QA gates, SKIP_NATIVE_BUNDLE_SYNC=true",
+  "explicitGameplayLock": "terminal97977 exit0 PASS:330 tests,24 suites",
+  "codeArchiveFiles": {
+    "native/gameplay-app/NativeSourceApplicationRuntime.swift": "232414a0f15edea47acf3ced8767f20b952767052cc4258a046df22c68f7535f",
+    "native/gameplay-app/NativeStandaloneViewController.swift": "9ea6b3b576e20527dd1260695edd032e662aba34536e91b937588da836019744",
+    "native/gameplay-app/NativeGameplaySourceContext.swift": "f089ab1e2016089c35cda73a8a32d6497e903937ff9e935a7c3d21a80801f6f4",
+    "native/gameplay-ui/NativeSourceAnimationClockService.swift": "d21e421cbb90a04710b7a76ceb77ad90561ade71020fc3027f052a24b06cf63e",
+    "native/standalone/Stack to SixTests/NativeSourceApplicationRuntimeTests.swift": "b0556cd08234d9dce6af46539220293223f982f410fc5834fd5325f847bc3e5a",
+    "native/standalone/Stack to SixTests/NativeStandaloneRootTests.swift": "63db8428bdc52c7cb70d0bb49f05ea51c36ff2d97b621f6a16ec843305f59e2c",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "2dfc1354c4522ecbc214f4d0be348da76daea45364e020082424a140694d2963",
+    "native/standalone/Stack to SixUITests/NativeHomeInteractionUITests.swift": "5caf60e1c97fb0e7bacaa156a4ba26dd6c54b361a7977e46fcf9d839f5f60e31"
+  },
+  "sourceSHAComparisonIgnoresOnlyMacOSAppleDoubleMetadata": [
+    "native/gameplay-app/._NativeSourceApplicationRuntime.swift",
+    "native/gameplay-app/._NativeStandaloneViewController.swift",
+    "native/gameplay-app/._NativeGameplaySourceContext.swift",
+    "native/gameplay-ui/._NativeSourceAnimationClockService.swift",
+    "native/standalone/Stack to SixTests/._NativeSourceApplicationRuntimeTests.swift",
+    "native/standalone/Stack to SixTests/._NativeStandaloneRootTests.swift",
+    "native/standalone/Stack to SixTests/._NativeStarPresentationTests.swift",
+    "native/standalone/Stack to SixUITests/._NativeHomeInteractionUITests.swift"
+  ],
+  "currentCompleteNativeSDK": "SDK10223 terminal0:1288 tests,1 explicit producer skipped,0 failures,638.897s; TEST SUCCEEDED",
+  "currentCompleteNativeSDKLog": "native-source-os-capability-complete-sdk.log"
+}

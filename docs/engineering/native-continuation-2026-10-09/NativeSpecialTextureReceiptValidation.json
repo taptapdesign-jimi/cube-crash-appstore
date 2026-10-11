@@ -1,0 +1,21 @@
+{
+  "status": "SDK87273 terminal exit0 TEST SUCCEEDED6/6 latest texture/Scope tests; full87490 terminal exit0 all selected deterministic gatesPASS frozen. Prior SDK45541/full33361 separate earlier snapshot PASS",
+  "files": {
+    "native/gameplay-ui/NativeDiceArtwork.swift": "080096c377ee820323aace11329de4eaf5102ddee3f532cb59aed5851c2e65d1",
+    "native/gameplay-ui/NativeSourceMicrotaskFIFO.swift": "9b3cf4559ab046eb88adc343b0660567aa381422e0f039381e60b1f8765d8aac",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "f2d79607d901f35532058d193b8037fbac692e3936bc441745e3abeb299f5932"
+  },
+  "logs": {
+    "native-special-texture-receipt-sdk.log": "cfd29ec6fe2f64083d6b768543d89d9ff361ef8f7dde70bbebb27414a9cbb435",
+    "native-special-texture-receipt-full.log": "ed83cc4057794bc22b047af2346eaad38c3aca69e211ad586e0b5bc9084ce269",
+    "native-special-texture-scope-sdk.log": "61e8457c342d194d66997ab9bc2a1360b96d3af40f4cc9b5118eb0a21be4074b",
+    "native-special-texture-scope-full.log": "73461f53217131e8e6f69a261806396c43027cab10d5ead5e16c3dbb19ca5da8"
+  },
+  "behavior": "Actual existing decode/upload/preload owner creates exact path/provider preparation-generation/cache texture identity handle; cached textures await upload receipt; only bound/current APP asset FIFO publishes; invalidation/foreign provider/Scope retirement cannot publish current texture",
+  "limits": [
+    "Provider preparation epoch is not yet SpriteKit renderer-context recovery proof",
+    "Actual Special/Wild Node skin geometry/hit/idle/one-shot decode recovery caller OPEN",
+    "Complete Scene repair markers/inner retirement and enabled whole minimum/rescue/finally OPEN",
+    "Flags OFF/private Source only/no phone/PWA/main Swift integration"
+  ]
+}

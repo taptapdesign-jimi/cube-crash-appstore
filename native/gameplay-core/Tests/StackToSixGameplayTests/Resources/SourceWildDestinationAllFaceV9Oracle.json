@@ -1,0 +1,288 @@
+[
+  {
+    "core": "wild",
+    "variant": null,
+    "path": "assets/wild.png",
+    "width": 128,
+    "height": 128,
+    "anchorY": 0.5,
+    "depth": 1,
+    "pipsVisible": false,
+    "shadowVisible": false,
+    "hit": null,
+    "clears": 1
+  },
+  {
+    "core": "wild-juice",
+    "variant": null,
+    "path": "assets/wild.png",
+    "width": 128,
+    "height": 128,
+    "anchorY": 0.5,
+    "depth": 1,
+    "pipsVisible": false,
+    "shadowVisible": false,
+    "hit": null,
+    "clears": 1
+  },
+  {
+    "core": "wild-magnet",
+    "variant": null,
+    "path": "assets/wild.png",
+    "width": 128,
+    "height": 128,
+    "anchorY": 0.5,
+    "depth": 1,
+    "pipsVisible": false,
+    "shadowVisible": false,
+    "hit": null,
+    "clears": 1
+  },
+  {
+    "core": "wild-tnt",
+    "variant": null,
+    "path": "assets/wild.png",
+    "width": 128,
+    "height": 128,
+    "anchorY": 0.5,
+    "depth": 1,
+    "pipsVisible": false,
+    "shadowVisible": false,
+    "hit": null,
+    "clears": 1
+  },
+  {
+    "core": "wild",
+    "variant": "fish",
+    "path": "assets/shop/fish/fish.png",
+    "width": 128,
+    "height": 128,
+    "anchorY": 0.5,
+    "depth": 1,
+    "pipsVisible": false,
+    "shadowVisible": false,
+    "hit": {
+      "x": -64,
+      "y": -64,
+      "width": 128,
+      "height": 128
+    },
+    "clears": 1
+  },
+  {
+    "core": "wild",
+    "variant": "kanta",
+    "path": "assets/shop/kanta/04.png",
+    "width": 95.81286549707602,
+    "height": 128,
+    "anchorY": 0.5,
+    "depth": 1,
+    "pipsVisible": false,
+    "shadowVisible": false,
+    "hit": {
+      "x": -64,
+      "y": -64,
+      "width": 128,
+      "height": 128
+    },
+    "clears": 1
+  },
+  {
+    "core": "wild",
+    "variant": "bee",
+    "path": "assets/shop/bee/bee1@2x.png",
+    "width": 128,
+    "height": 128,
+    "anchorY": 0.5,
+    "depth": 1,
+    "pipsVisible": false,
+    "shadowVisible": false,
+    "hit": {
+      "x": -64,
+      "y": -64,
+      "width": 128,
+      "height": 128
+    },
+    "clears": 1
+  },
+  {
+    "core": "wild-tnt",
+    "variant": "laser-gun",
+    "path": "assets/shop/gun/right gun@2x.png",
+    "width": 184.32,
+    "height": 184.32,
+    "anchorY": 0.5,
+    "depth": 1,
+    "pipsVisible": false,
+    "shadowVisible": false,
+    "hit": {
+      "x": -64,
+      "y": -64,
+      "width": 128,
+      "height": 128
+    },
+    "clears": 1
+  },
+  {
+    "core": "wild-magnet",
+    "variant": "spaceship",
+    "path": "assets/shop/spaceship/spaceship@2x.png",
+    "width": 147.456,
+    "height": 147.456,
+    "anchorY": 0.5,
+    "depth": 1,
+    "pipsVisible": false,
+    "shadowVisible": false,
+    "hit": {
+      "x": -64,
+      "y": -64,
+      "width": 128,
+      "height": 128
+    },
+    "clears": 1
+  },
+  {
+    "core": "wild-magnet",
+    "variant": "bottle",
+    "path": "assets/shop/bottle/glass bottle@2x.png",
+    "width": 128,
+    "height": 128,
+    "anchorY": 0.5,
+    "depth": 1,
+    "pipsVisible": false,
+    "shadowVisible": false,
+    "hit": {
+      "x": -64,
+      "y": -64,
+      "width": 128,
+      "height": 128
+    },
+    "clears": 1
+  },
+  {
+    "core": "wild-magnet",
+    "variant": "honey",
+    "path": "assets/shop/honey/honey.png",
+    "width": 128,
+    "height": 128,
+    "anchorY": 0.5,
+    "depth": 1,
+    "pipsVisible": false,
+    "shadowVisible": false,
+    "hit": {
+      "x": -64,
+      "y": -64,
+      "width": 128,
+      "height": 128
+    },
+    "clears": 1
+  },
+  {
+    "core": "wild-tnt",
+    "variant": "flower",
+    "path": "assets/shop/bush/flower.png",
+    "width": 128,
+    "height": 128,
+    "anchorY": 0.5,
+    "depth": 1,
+    "pipsVisible": false,
+    "shadowVisible": false,
+    "hit": {
+      "x": -64,
+      "y": -64,
+      "width": 128,
+      "height": 128
+    },
+    "clears": 1
+  },
+  {
+    "core": "wild-tnt",
+    "variant": "barell",
+    "path": "assets/shop/barell/barell-static.png",
+    "width": 160.2,
+    "height": 207.9,
+    "anchorY": 0.6296296296296297,
+    "depth": 1,
+    "pipsVisible": false,
+    "shadowVisible": false,
+    "hit": {
+      "x": -64,
+      "y": -64,
+      "width": 128,
+      "height": 128
+    },
+    "clears": 1
+  },
+  {
+    "core": "wild-juice",
+    "variant": "mushroom",
+    "path": "assets/shop/mushroom/mushroom.png",
+    "width": 128,
+    "height": 128,
+    "anchorY": 0.5,
+    "depth": 1,
+    "pipsVisible": false,
+    "shadowVisible": false,
+    "hit": {
+      "x": -64,
+      "y": -64,
+      "width": 128,
+      "height": 128
+    },
+    "clears": 1
+  },
+  {
+    "core": "wild-juice",
+    "variant": "robo-cube",
+    "path": "assets/shop/robo/robo-cube1.png",
+    "width": 128,
+    "height": 128,
+    "anchorY": 0.5,
+    "depth": 1,
+    "pipsVisible": false,
+    "shadowVisible": false,
+    "hit": {
+      "x": -64,
+      "y": -64,
+      "width": 128,
+      "height": 128
+    },
+    "clears": 1
+  },
+  {
+    "core": "wild",
+    "variant": "cubero",
+    "path": "assets/shop/cubero/cubero.png",
+    "width": 170,
+    "height": 128,
+    "anchorY": 0.5,
+    "depth": 1,
+    "pipsVisible": false,
+    "shadowVisible": false,
+    "hit": {
+      "x": -64,
+      "y": -64,
+      "width": 128,
+      "height": 128
+    },
+    "clears": 1
+  },
+  {
+    "core": "wild-tnt",
+    "variant": "beach-ball",
+    "path": "assets/shop/ball/ball.png",
+    "width": 128,
+    "height": 128,
+    "anchorY": 0.5,
+    "depth": 1,
+    "pipsVisible": false,
+    "shadowVisible": false,
+    "hit": {
+      "x": -64,
+      "y": -64,
+      "width": 128,
+      "height": 128
+    },
+    "clears": 1
+  }
+]

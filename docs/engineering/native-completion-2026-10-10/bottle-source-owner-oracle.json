@@ -1,0 +1,123 @@
+{
+  "authority": "Unmodified original Bottle host/base/pivot capture and authored motion branch, installed real GSAP infinite timeline/repeatDelay. Explicit host and variant endpoints; not full Source visibility/registry or Native acceptance.",
+  "sourceSHA256": "702e5db777cee39a649244df9f788f3cff89b40df13a0f4a86c70d4f8eade2d4",
+  "original": {
+    "x": 23,
+    "y": 41,
+    "rotation": 0.17,
+    "width": 160,
+    "height": 140,
+    "scale": {
+      "x": 0.8,
+      "y": 0.9
+    },
+    "anchor": {
+      "x": 0.3,
+      "y": 0.4
+    }
+  },
+  "motionBase": {
+    "x": 55,
+    "y": 125
+  },
+  "duration": 7.2,
+  "repeatDelay": 0.12,
+  "samples": [
+    {
+      "seconds": 0,
+      "x": 55,
+      "y": 125,
+      "rotation": 0.17,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    {
+      "seconds": 0.45,
+      "x": 55,
+      "y": 124.56066,
+      "rotation": 0.157731,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    {
+      "seconds": 1.8,
+      "x": 55,
+      "y": 122,
+      "rotation": 0.086224,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    {
+      "seconds": 3.6,
+      "x": 55,
+      "y": 124.5,
+      "rotation": 0.17,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    {
+      "seconds": 5.4,
+      "x": 55,
+      "y": 127,
+      "rotation": 0.253776,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    {
+      "seconds": 7.2,
+      "x": 55,
+      "y": 125,
+      "rotation": 0.17,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    {
+      "seconds": 7.26,
+      "x": 55,
+      "y": 125,
+      "rotation": 0.17,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    {
+      "seconds": 7.32,
+      "x": 55,
+      "y": 125,
+      "rotation": 0.17,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    {
+      "seconds": 7.4,
+      "x": 55,
+      "y": 124.985402,
+      "rotation": 0.169592,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    {
+      "seconds": 8,
+      "x": 55,
+      "y": 124.06191,
+      "rotation": 0.143804,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    {
+      "seconds": 14.64,
+      "x": 55,
+      "y": 125,
+      "rotation": 0.17,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    {
+      "seconds": 14.9,
+      "x": 55,
+      "y": 124.848191,
+      "rotation": 0.165761,
+      "anchorX": 0.5,
+      "anchorY": 1
+    }
+  ]
+}

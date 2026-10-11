@@ -1,0 +1,47 @@
+{
+  "scope": "Actual Source Wild drop/handoff marker readers; no broader sourceSpawnMarkers/lifecycle/NO MOVES/save/family admission",
+  "status": "PASS connected25/25 33.009s + Source fullQA; next canonical save paint bridge in progress",
+  "sourceReference": {
+    "tag": "production-benchmark-v9",
+    "file": "src/modules/wild-spawn-drop.ts",
+    "sha256": "556c90a76308afe99698a9d93aea3152ccd86736db0268a62d469dcd1bf262e2",
+    "lines": "319,458,516-524,740-746",
+    "contract": "Dropping is written after awaited assets; restore deletes dropping and sets handoff; matching140ms wall clears handoff. Disposal/replaced identity is not inferred false."
+  },
+  "sourceSHA256": {
+    "native/gameplay-meter-drop/NativeWildMeterDropRuntime.swift": "03cac444b90fc66e10528bf19eb1071f32361597976c3f42c6e7702d394a5dd9",
+    "native/gameplay-meter-drop/NativeWildMeterDropSceneOwner.swift": "a84e8dbc697553806d014ce0e472129c447fa71fde2f6d54e750fd65157e478a",
+    "native/gameplay-meter-scene/NativeMeterSceneCaller.swift": "e42535ca0175983067ab07380cde13e76ec5110423598dec9b80d7dad991664b",
+    "native/gameplay-meter-scene/NativeMeterSceneNodeStore.swift": "beba5526f6bbfc65645a70cd2e0405009e3122a1e0c5243c564fac84df927fba",
+    "native/gameplay-ui/NativeBoardScene.swift": "f81d1569e8e73c2bf60fddab9bba37722c57cb680356544b5fe15ddd5a808e95",
+    "native/standalone/Stack to SixTests/NativeStandaloneRootTests.swift": "121237dcfba30996abec6698922d05422fbdbf1059983869060bbfe6851550eb",
+    "native/gameplay-meter-drop-tests/NativeWildMeterDropTests.swift": "19e87bc1091f65350e7bf04799cf1463f9397689bc40207c03a2407fe5f3da0c"
+  },
+  "migration80Reached": false,
+  "pending": [
+    "Whole lifecycle/spawn/global and application producer admission",
+    "Next canonical save paint bridge + current iOS Release after later changes"
+  ],
+  "defaults": "All global marker/family/NO MOVES/save/normal/Release Source flags OFF; no phone/PWA/assets/save reset.",
+  "evidence": [
+    {
+      "phase": "Actual root OS-move earning carrier marker reads,250ms background freeze and settled false flags; original2100 drop oracle/matching140ms boundary/retirement plus node/caller/noMoves regression",
+      "log": "native-source-wild-drop-marker-connected.log",
+      "verdict": "PASS",
+      "tests": 25,
+      "failures": 0,
+      "seconds": 33.009
+    },
+    {
+      "phase": "Source full QA",
+      "log": "native-source-wild-drop-markers-full.log",
+      "verdict": "PASS",
+      "nativeSync": false
+    },
+    {
+      "phase": "Feature admission",
+      "log": "native-source-drop-marker-feature.log",
+      "verdict": "PASS"
+    }
+  ]
+}

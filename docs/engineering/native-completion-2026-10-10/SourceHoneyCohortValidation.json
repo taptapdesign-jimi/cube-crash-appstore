@@ -1,0 +1,12 @@
+{
+  "sdk": "36/36 zero failures/skips, terminal60322 exit0 TEST SUCCEEDED.",
+  "qa": "Final frozen84809 terminal exit0/full deterministic QA PASS; no live checks.",
+  "scope": "Genuine common service/APP task/FIFO resource cohort component. Cached seven element reactions then aggregate, no upload. Actual one-missing decode/upload held/released, root continues and exactly three carriers persist. Actual late upload after disposal cannot paint foreign retained sprites. Constructor cache, force, preparation, finite root, cohort order preserved. Node/Scene/restored caller still OPEN; global flags OFF; full migration/physical acceptance OPEN.",
+  "failures": "First compile failed3 actor diagnostics: local settle required explicit MainActor. Next36 FAIL1 fixture incorrectly expected idle positions to move at same-time force. Corrected to prove root moves while asset pending then force retains current time/positions; production motion not changed. All failed logs retained.",
+  "files": {
+    "native/gameplay-ui/NativeHoneyIdleMotion.swift": "1c8b919bced63326927a21abe1a6a25732ef4cbdb9f0115bb8419f6fc76d3948",
+    "native/gameplay-ui/NativeHoneyDiceIdle.swift": "bb3a6f5e7259a39cc1435d30a1885510d4737a741494c0f3af26686520f02835",
+    "native/standalone/Stack to SixTests/NativeSourceAnimationClockTests.swift": "271cff560bdbcbe88446d7216a7ae0d94112f1721db654b32fc67f59b26e3407",
+    "docs/engineering/feature-runtime-owners.json": "6a8eae05aaa8b39303b67e5bd2aa43d4be97db3778ab4bd16ca8ae9e0694e197"
+  }
+}

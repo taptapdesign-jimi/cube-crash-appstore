@@ -1,0 +1,13 @@
+{
+  "sdk": "12/12 zero failures, terminal9300 exit0 TEST SUCCEEDED. Real Source Scope disposed from first slot resource-ready; later captured slots never activate after late frame/renderer handoffs. Registry zero and later owner counts zero. Normal/refusal/reentry retained.",
+  "qa": "Test-only change. Production SHA unchanged from SDK123/fullQA97445 PASS.",
+  "files": {
+    "native/standalone/Stack to SixTests/NativeSourceRegularResumeBootstrapTests.swift": "2af9357b21d7b51dc102f0da1ee5bbe701d13f9ba4dfe81d5a288acc68f869f7"
+  },
+  "runtimeSHA": {
+    "native/gameplay-ui/NativeBoardScene.swift": "86e6620512c56ee66e0219c68dc45d8621a8d2e32e1f4cc8cd177393df5beb1a",
+    "native/gameplay-ui/NativeGameplayViewController.swift": "ebdd0e67aa2587d147032eb649d3d6c51d280c4bd9931f9d065e0b610726f307",
+    "docs/engineering/feature-runtime-owners.json": "b3b16c5229d8cc55ca0d0e4294f485a9fbb4e0fc84fa06a3bfdc526881e30ea6"
+  },
+  "remaining": "Whole Scene replacement, changed identity, exact defer flag cleanup and full remaining migration/physical acceptance OPEN. Flags OFF."
+}

@@ -1,0 +1,13 @@
+{
+  "verdict": "PASS",
+  "scope": "60 unique selected Simulator tests across terminal runs, full deterministic QA PASS. No phone or full migration acceptance.",
+  "sdk": {
+    "wild-open-core-fixed.log": "57 passed, 2 failed new fixtures; corrected subsequently",
+    "wild-open-core-accepted.log": "5 meter passed, including new actual Source constructor; remaining pair fixture failed and corrected",
+    "wild-open-core-verified.log": "2 corrected new constructor tests passed; exit0"
+  },
+  "fullQA": "wild-open-core-full.log exit0 covers final runtime+registry. Only XCTest fixture additions/corrections followed; final feature gate exit0.",
+  "physical": "NEEDS PHYSICAL TEST",
+  "snapshotFiles": 752,
+  "remaining": "Separate core/variant APP skin upload, remaining exact family idle, complete save rehydration, main integration, Release/resources and physical acceptance."
+}

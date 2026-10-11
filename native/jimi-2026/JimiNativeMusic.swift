@@ -1,10 +1,12 @@
 import AVFoundation
 import UIKit
+#if !NATIVE_MUSIC_DIRECT_ONLY
 import WebKit
+#endif
 
-/// File-backed soundtrack transport. JS retains route/Settings ownership.
+/// File-backed soundtrack transport. Native routes call perform directly; the preserved hybrid target can retain its bridge.
 @MainActor
-final class JimiNativeMusic: NSObject, WKScriptMessageHandlerWithReply {
+final class JimiNativeMusic: NSObject {
     @MainActor private final class Voice {
         let node = AVAudioPlayerNode()
         let file: AVAudioFile
@@ -81,16 +83,6 @@ final class JimiNativeMusic: NSObject, WKScriptMessageHandlerWithReply {
               reason, engine.isRunning ? 1 : 0, UIApplication.shared.applicationState.rawValue,
               session.sampleRate, session.category.rawValue, rows)
     }
-    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage,
-                               replyHandler: @escaping (Any?, String?) -> Void) {
-        guard message.frameInfo.isMainFrame, message.frameInfo.securityOrigin.protocol == "app",
-              let body = message.body as? [String: Any], let id = body["id"] as? String,
-              id.hasPrefix("soundtrack-"), id.count < 64, let op = body["op"] as? String else {
-            replyHandler(nil, "Invalid native music request"); return
-        }
-        perform(id: id, op: op, body: body, replyHandler: replyHandler)
-    }
-
     /// Direct native route owner entry. No WKWebView or script is required.
     func perform(id: String, op: String, body: [String: Any], replyHandler: @escaping (Any?, String?) -> Void) {
         guard id.hasPrefix("soundtrack-"), id.count < 64 else {
@@ -232,3 +224,19 @@ final class JimiNativeMusic: NSObject, WKScriptMessageHandlerWithReply {
     }
     private func failure(_ message: String) -> NSError { NSError(domain: "JimiNativeMusic", code: 1, userInfo: [NSLocalizedDescriptionKey: message]) }
 }
+
+#if !NATIVE_MUSIC_DIRECT_ONLY
+@MainActor
+extension JimiNativeMusic: WKScriptMessageHandlerWithReply {
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage,
+                               replyHandler: @escaping (Any?, String?) -> Void) {
+        guard message.frameInfo.isMainFrame, message.frameInfo.securityOrigin.protocol == "app",
+              let body = message.body as? [String: Any], let id = body["id"] as? String,
+              id.hasPrefix("soundtrack-"), id.count < 64, let op = body["op"] as? String else {
+            replyHandler(nil, "Invalid native music request"); return
+        }
+        perform(id: id, op: op, body: body, replyHandler: replyHandler)
+    }
+
+}
+#endif

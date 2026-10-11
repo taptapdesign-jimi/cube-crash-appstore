@@ -1,0 +1,69 @@
+{
+  "container": "/Users/user/Library/Developer/CoreSimulator/Devices/1018BE2D-491B-465F-8F75-3E5BEB38C22A/data/Containers/Data/Application/E182EF36-593D-4844-8F18-C089A15E824B",
+  "files": {
+    "Library/Application Support/StackToSixNative/state-v1.previous.json": {
+      "sha256": "7194c6b4d037f884273e6f7ac954c172070d4bd0146e2bb92dad7aaa7330e19b",
+      "bytes": 46954
+    },
+    "Library/Application Support/StackToSixNative/state-v1.json": {
+      "sha256": "eaef826fa32a33c870a65ae5720a4a58f09ecd5ce7e8e00d2bf5a3d95b6a65d2",
+      "bytes": 46954
+    },
+    "tmp/native-process-qa-AD1E2026-1010-4000-8000-000000000006/state-v1.previous.json": {
+      "sha256": "11717b740cb2d6d0e90ca528166cabdf6c88b3cf85cb73dde393603a889bc151",
+      "bytes": 12722
+    },
+    "tmp/native-process-qa-AD1E2026-1010-4000-8000-000000000006/state-v1.json": {
+      "sha256": "c142710627bcffb9a331439cdff0eee8ddbad4cdb718b942baf1aafcab1be975",
+      "bytes": 12803
+    },
+    "tmp/native-process-qa-AD1E2026-1010-4000-8000-000000000001/state-v1.json": {
+      "sha256": "0dbd106cb178de9aa525531932296f9573f0c0988245d77b8c2531c06b9be74f",
+      "bytes": 512
+    },
+    "tmp/native-process-qa-E842627B-3B6F-4893-98A3-9C7028BEB040/state-v1.previous.json": {
+      "sha256": "b998cd6a8105e1e6b38516126f48101ed9ebbc035b85b985c59b7033db0b3785",
+      "bytes": 512
+    },
+    "tmp/native-process-qa-E842627B-3B6F-4893-98A3-9C7028BEB040/state-v1.json": {
+      "sha256": "c2dbfd411475c1202259af92d6e5c27cc2ab6c031e98e23f3c9e76e1b99e80a0",
+      "bytes": 512
+    },
+    "tmp/native-process-qa-AD1E2026-1010-4000-8000-000000000002/state-v1.previous.json": {
+      "sha256": "d0d0bbe2069cb2fab0d60f510ad3afc068f6dd7885cd9267f90735ab62ed5380",
+      "bytes": 16057
+    },
+    "tmp/native-process-qa-AD1E2026-1010-4000-8000-000000000002/state-v1.json": {
+      "sha256": "23e0852dea6ac92abc0e93c2f6663fabc8aa0f8b83432ea53a7525ff13f1da88",
+      "bytes": 16059
+    },
+    "tmp/native-process-qa-AD1E2026-1010-4000-8000-000000000005/state-v1.previous.json": {
+      "sha256": "f3eb8f2ccfe44a94a0dfd13823d9613806cd5e31eae9f045e5dcadb8cb5bc081",
+      "bytes": 15723
+    },
+    "tmp/native-process-qa-AD1E2026-1010-4000-8000-000000000005/state-v1.json": {
+      "sha256": "185aa52e193581bce270a03d0050836d1b4d8467337dbb2646d503616a86847b",
+      "bytes": 15035
+    },
+    "tmp/native-process-qa-6447BE54-BE50-4742-8A05-42CE4D18A7B8/state-v1.json": {
+      "sha256": "bba0a76317c3f5b0302d2921d8b611f4b7138192e2277376385f7c4bbb8ebd3f",
+      "bytes": 512
+    },
+    "tmp/native-process-qa-AD1E2026-1010-4000-8000-000000000004/state-v1.previous.json": {
+      "sha256": "334318ce1e2b89e9a12b29b7ff6f96d64e8750feeb72ede7fc8a6e7c3f34c8ff",
+      "bytes": 16007
+    },
+    "tmp/native-process-qa-AD1E2026-1010-4000-8000-000000000004/state-v1.json": {
+      "sha256": "c7a77c86750db0198b1f1e3515ad5a7ca2dc4b3504b85fe72444c33649d2e049",
+      "bytes": 16005
+    },
+    "tmp/native-process-qa-AD1E2026-1010-4000-8000-000000000003/state-v1.previous.json": {
+      "sha256": "2f62f8b4e8216289f0de2736010adb73fbc424427b0cfbf49fde3a04c5ff018e",
+      "bytes": 512
+    },
+    "tmp/native-process-qa-AD1E2026-1010-4000-8000-000000000003/state-v1.json": {
+      "sha256": "585f9d3b32a271c663b6b4a04f27e810a26d492da47637c014c7689f492da18c",
+      "bytes": 513
+    }
+  }
+}

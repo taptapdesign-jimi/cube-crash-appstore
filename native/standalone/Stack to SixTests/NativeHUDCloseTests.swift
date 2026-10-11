@@ -6,6 +6,43 @@ import StackToSixGameplay
 
 @MainActor
 final class NativeHUDCloseTests:XCTestCase {
+    func testQuietBoardKeepsRenderingWhileCloseTapActionIsActive() throws {
+        let tile=NativeTile(id:"quiet",cell:NativeCell(column:0,row:0),value:1)
+        let scene=NativeBoardScene(engine:NativeGameplayEngine(state:NativeBoardState(tiles:[tile])),resourceRoot:NativeTestResources.root,size:CGSize(width:390,height:844))
+        defer{scene.dispose()}
+        scene.layout(size:scene.size,insets:UIEdgeInsets(top:47,left:0,bottom:34,right:0))
+        let close=try XCTUnwrap(scene.childNode(withName:"//native-game-close") as? NativeHUDCloseNode)
+        var renderingDemands:[Bool]=[]
+        scene.onRenderingDemand={renderingDemands.append($0)}
+        close.playTapBounce()
+        scene.didFinishUpdate()
+        XCTAssertNotNil(close.action(forKey:"hud-tap-bounce"))
+        XCTAssertFalse(renderingDemands.contains(false),"Quiet-board ownership must retain the finite child action")
+    }
+    func testExactTapCurveMatchesExecutedImmutableV9GSAPTimeline() {
+        for row in NativeHUDTapSourceOracle.rows {
+            let multiplier=NativeHUDTapMotion.scale(at:row[0])
+            // GSAP rounds generic object-property values to six decimals.
+            XCTAssertEqual(row[1]*multiplier,row[3],accuracy:0.000001)
+            XCTAssertEqual(row[2]*multiplier,row[4],accuracy:0.000001)
+        }
+    }
+    func testRealTapActionFreezesWithGameplayPauseAndFinishesAfterResume() async throws {
+        let artwork=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        let close=NativeHUDCloseNode(texture:nil,stageFont:artwork.font(size:16))
+        let scene=SKScene(size:CGSize(width:100,height:100));scene.addChild(close)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:100,height:100)),controller=UIViewController(),renderer=SKView(frame:window.bounds)
+        controller.view=renderer;window.rootViewController=controller;window.makeKeyAndVisible();renderer.presentScene(scene)
+        defer{renderer.presentScene(nil);window.isHidden=true}
+        renderer.isPaused=true;close.playTapBounce()
+        try await Task.sleep(for:.milliseconds(300))
+        XCTAssertNotNil(close.action(forKey:"hud-tap-bounce"));XCTAssertEqual(close.xScale,1)
+        renderer.isPaused=false
+        let finished=expectation(description:"Existing renderer finishes authored finite tap")
+        close.run(.sequence([.wait(forDuration:0.4),.run{finished.fulfill()}]),withKey:"tap-completion-observer")
+        await fulfillment(of:[finished],timeout:3)
+        XCTAssertNil(close.action(forKey:"hud-tap-bounce"));XCTAssertEqual(close.xScale,1);XCTAssertEqual(close.yScale,1)
+    }
     func testTypographicPlacementMatchesExecutedV9BrowserFontAdvanceAndAuthoredAsset() throws {
         let root=NativeTestResources.root,artwork=JimiV9Artwork(resourceRoot:root),texture=SKTexture(image:try XCTUnwrap(artwork.image("assets/close-icon.png")))
         let close=NativeHUDCloseNode(texture:texture,stageFont:artwork.font(size:16))

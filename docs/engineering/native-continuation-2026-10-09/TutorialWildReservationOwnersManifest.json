@@ -1,0 +1,11 @@
+{
+  "applyAfter": "TutorialWildReservationSourceDelta.tar.gz",
+  "archiveSHA256": "aaee83fe7665e6dfa928575d58881ed03c5134feb591004fe265d470782b439e",
+  "files": {
+    "docs/engineering/feature-runtime-owners.json": {
+      "baseSHA256": "93d4d43607d6b3cdb2d218f7c2aa629789a70b56b9d9e891dee0675d22daa3a2",
+      "sha256": "9d92599e4cedb59893401ea6441f1807ac704d7bc52f60de3536fa50658617cc"
+    }
+  },
+  "validation": "Separate qa:feature-runtime PASS after full source QA terminal; no Swift change."
+}

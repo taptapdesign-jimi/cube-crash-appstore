@@ -1,0 +1,7 @@
+{
+  "actualSDK": "Final113/113 PASS, exit0, no failures/skips: clock29+Scene70+bubble7+mounted registry7. Explicit actual Node endpoint tested: Source paint ownership, registry pause, drag phase retention, visibility and captured stop restore. First focused test also terminal exit0.",
+  "fullQA": "Terminal exit0 SKIP_NATIVE_BUNDLE_SYNC=true npm run qa:full PASS, session62403 completed. git diff --check PASS.",
+  "iosGate": "qa:ios exit2 NEEDS SYNC for preserved PWA dist/Web.bundle; no sync performed. Dedicated Native Simulator scheme compiled and tested independently.",
+  "remaining": "No production/restored caller admission yet. Actual Source raw-face base/async texture pivot receipts, reentrant identity/visibility matrix and full family/migration/physical acceptance OPEN. Flags OFF.",
+  "physical": "NEEDS PHYSICAL TEST"
+}

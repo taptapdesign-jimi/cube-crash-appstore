@@ -1,0 +1,13 @@
+{
+  "verdict": "PASS",
+  "scope": "Unsigned iOS Release build started at paint-receipt checkpoint; predates later carrier marker export and no-fallback cleanup. No current later-code Release claim.",
+  "bundle": "com.taptapdesign.stacktosix.native",
+  "architectures": "arm64",
+  "binarySHA256": "7af729185a416e4dd38315a128ac6897ff028635421d4f25aa7050440995c637",
+  "linkedWebKit": false,
+  "linkedJavaScriptCore": false,
+  "undefinedWKJSClasses": false,
+  "webBundles": [],
+  "privateQAStrings": [],
+  "signedOrInstalled": false
+}

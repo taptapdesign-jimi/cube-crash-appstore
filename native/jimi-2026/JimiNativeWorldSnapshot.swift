@@ -1,4 +1,5 @@
 import UIKit
+import StackToSixNativeState
 
 /// Read-only projection of the web Journey owner. No saves or unlock rules live here.
 struct JimiNativeWorldSnapshot {
@@ -136,7 +137,7 @@ struct JimiNativeWorldSnapshot {
         ambientPlans = parsedAmbient;ambientSessionID = ambientSession
         let rawBees = value["beePlans"] as? [[String:Any]] ?? []
         let parsedBees = rawBees.compactMap {JimiNativeWorldBees.Plan.parse($0)}
-        guard (worldID == 1 || rawBees.isEmpty), parsedBees.count == rawBees.count,parsedBees.count <= 5,Set(parsedBees.map {$0.id}).count == parsedBees.count else {return nil}
+        guard (worldID == 1 || rawBees.isEmpty), parsedBees.count == rawBees.count,parsedBees.count <= NativeForestBeePlanning.retainedIDs.count,Set(parsedBees.map {$0.id}).count == parsedBees.count else {return nil}
         guard let session = value["beeSessionID"] as? Int ?? (parsedBees.isEmpty ? 0 : nil),session >= 0 else {return nil}
         beeSessionID = session
         beePlans = parsedBees

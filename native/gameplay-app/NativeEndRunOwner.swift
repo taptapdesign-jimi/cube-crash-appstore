@@ -49,7 +49,15 @@ final class NativeEndRunOwner {
                 switch action {
                 case "close":self.gameplay?.setSuspended(false)
                 case "restart":self.restart()
-                case "exit":if self.save(){self.exit()} else {self.gameplay?.setSuspended(false)}
+                case "exit":
+                    guard self.save(),let gameplay=self.gameplay else{self.gameplay?.setSuspended(false);return}
+                    let runGeneration=gameplay.engine.state.generation
+                    gameplay.animateBoardExit { [weak self,weak gameplay] completed in
+                        guard let self,let gameplay,self.generation==owner,self.gameplay === gameplay,
+                              gameplay.engine.state.generation==runGeneration else{return}
+                        if completed {self.exit()}
+                        else {gameplay.setSuspended(false)}
+                    }
                 default:break
                 }
             }

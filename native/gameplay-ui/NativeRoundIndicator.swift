@@ -8,6 +8,16 @@ final class NativeRoundIndicator:SKNode {
     private let painted=SKNode(),content=SKNode(),label=SKLabelNode(),pill=SKShapeNode(),lines=SKShapeNode()
     private let lineHeight:CGFloat
     private var round:Int?
+    private var sourceDividerMaskLeases=Set<UUID>()
+    var sourceDividerMaskCount:Int {sourceDividerMaskLeases.count}
+    var sourceDividerLinesHidden:Bool {lines.isHidden}
+    func beginSourceBackpackDividerMask()->(()->Void) {
+        let id=UUID();sourceDividerMaskLeases.insert(id);lines.isHidden=true
+        return { [weak self] in
+            guard let self,self.sourceDividerMaskLeases.remove(id) != nil else{return}
+            self.lines.isHidden = !self.sourceDividerMaskLeases.isEmpty
+        }
+    }
     init(font:UIFont) {
         lineHeight=font.lineHeight
         super.init()
@@ -44,6 +54,7 @@ final class NativeRoundIndicator:SKNode {
             ]),withKey:"round-value")
         }
     }
+    func primeEntry(){painted.removeAllActions();painted.position.y = -72;painted.alpha=0}
     func enter(animated:Bool) {
         guard !isHidden else{return}
         if !animated,hasAnimatedPresentation {return}

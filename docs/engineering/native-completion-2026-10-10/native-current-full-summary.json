@@ -1,0 +1,46 @@
+{
+  "devicesAndConfigurations" : [
+    {
+      "device" : {
+        "architecture" : "arm64",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "modelName" : "iPhone 13",
+        "osBuildNumber" : "23F77",
+        "osVersion" : "26.5",
+        "platform" : "iOS Simulator"
+      },
+      "expectedFailures" : 0,
+      "failedTests" : 0,
+      "passedTests" : 1225,
+      "skippedTests" : 0,
+      "testPlanConfiguration" : {
+        "configurationId" : "1",
+        "configurationName" : "Test Scheme Action"
+      }
+    }
+  ],
+  "environmentDescription" : "Stack to Six Native Gameplay QA · Built with macOS 26.3",
+  "expectedFailures" : 0,
+  "failedTests" : 0,
+  "finishTime" : 1791603457.721,
+  "passedTests" : 1225,
+  "result" : "Passed",
+  "skippedTests" : 0,
+  "startTime" : 1791602875.09,
+  "statistics" : [
+
+  ],
+  "testFailures" : [
+
+  ],
+  "title" : "Test - Stack to Six Native Gameplay QA",
+  "topInsights" : [
+    {
+      "category" : "Longest Test Runs",
+      "impact" : "33% of duration",
+      "text" : "19 longest test runs with outlier durations exceeding 5.45s (three standard deviations)"
+    }
+  ],
+  "totalTestCount" : 1225
+}

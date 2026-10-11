@@ -1,0 +1,34 @@
+{
+  "checkpoint": "explicit-default-off Native root Source app transport",
+  "sourceSHA256": {
+    "native/gameplay-app/NativeSourceApplicationRuntime.swift": "232414a0f15edea47acf3ced8767f20b952767052cc4258a046df22c68f7535f",
+    "native/gameplay-app/NativeStandaloneViewController.swift": "29d4d78386e31e942f9c3231146df2e5a1f7d948dce7f5ff36fca7c7bcaa518d",
+    "native/gameplay-app/NativeGameplaySourceContext.swift": "f089ab1e2016089c35cda73a8a32d6497e903937ff9e935a7c3d21a80801f6f4",
+    "native/gameplay-ui/NativeSourceAnimationClockService.swift": "d21e421cbb90a04710b7a76ceb77ad90561ade71020fc3027f052a24b06cf63e",
+    "native/standalone/Stack to SixTests/NativeSourceApplicationRuntimeTests.swift": "b0556cd08234d9dce6af46539220293223f982f410fc5834fd5325f847bc3e5a",
+    "native/standalone/Stack to SixTests/NativeStandaloneRootTests.swift": "e81c9b7088432477e5df8b9ec127d25b7893babf67f4f21ff6fa5d5375a7791a"
+  },
+  "verified": {
+    "appAndClock": "42/42 PASS terminal0 SDK50774 4.803s",
+    "rootAppAndClock": "49/49 PASS terminal0 SDK84355 4.833s",
+    "sourceFullBeforeRoot": "PASS terminal0 SDK33515",
+    "sourceFullAfterRoot": "PASS terminal0 SDK72920 (before OS-capability edits)",
+    "completeNativeSDK": "SDK81350 terminal65; 1286 tests, 1 skipped producer, 1 failed Bee test (5 exact-pose assertions). Preserve log; no whole-suite PASS."
+  },
+  "historicalFailures": [
+    "Initial actor default argument compile failure corrected",
+    "Live Bootstrap test missing StackToSixGameplay import corrected",
+    "SDK42344 invalid missing-resource fixture 3 assertion failures; interrupted terminal75. Default store access occurred; preservation unproven. Replaced with private store busy admission test; no reset/restore."
+  ],
+  "open": [
+    "complete Native SDK current run",
+    "source full QA after root",
+    "shipping Source feature flags OFF",
+    "actual OS Source root producer capability",
+    "full family resource and marker parity",
+    "physical touch/audio/thermal and signed release acceptance"
+  ],
+  "fixtureCorrection": "Only failing explicit Bee40ms golden test pauses independent SKView update before async texture prep; expected Source numbers/drag assertions unchanged; no production Bee/runtime edits.",
+  "currentCompleteNativeSDK": "SDK10223 terminal0:1288 tests,1 explicit producer skipped,0 failures,638.897s; TEST SUCCEEDED",
+  "currentCompleteNativeSDKLog": "native-source-os-capability-complete-sdk.log"
+}

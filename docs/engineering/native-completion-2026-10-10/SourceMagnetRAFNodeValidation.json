@@ -1,0 +1,7 @@
+{
+  "actualSDK": "Initial Scene skin67/67 PASS; expanded101/101 PASS; final weak-service-capture frozen101/101 PASS terminal exit0/no failures/skips: bubble7+clock26+Scene skin68.",
+  "fullQA": "Terminal exit0 SKIP_NATIVE_BUNDLE_SYNC=true npm run qa:full on final runtime; source/native/built audits PASS.",
+  "scope": "Node actual Scene component queues genuine Source one-shot RAF, replaces captured Bottle fizz under global GSAP pause (12\u219224 draws), preserves paused timeline, cancels obsolete RAF on newer field, deferred hide, Scope retirement and disposal. Field/Scope/generation/current guards and weak node/field/scope/service captures. No independent clock or media.",
+  "remaining": "Automatic actual Scene skin-prefix scheduling is NOT connected; first-RAF GSAP-vs-Magnet callback ordering, ordinary/non-Bottle/Honey full compositor and complete family/lifecycle/global admission remain OPEN. Component uses actual Scene explicit caller only. Current full target not rerun; earlier1201 is older runtime. Full migration/Release/WebKit/physical acceptance OPEN.",
+  "physical": "NEEDS PHYSICAL TEST"
+}

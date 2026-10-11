@@ -1,0 +1,8 @@
+{
+  "status": "PRIVATE actual SDK18/18 PASS",
+  "files": {
+    "native/gameplay-ui/NativeDiceNode.swift": "dec07f519b604439dac85ee3d0715a31f8317caa894c3784bec975344642c192",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "eb68867529602959e92dde1236a6fecf654c08da3a4f6d668744590a97c6aea8"
+  },
+  "scope": "Actual async Node retirement stops per-star Math after count; initial orbit baseline captured before assets, not reset to readiness time. Full Scene/foreground/Core orbit timing OPEN."
+}

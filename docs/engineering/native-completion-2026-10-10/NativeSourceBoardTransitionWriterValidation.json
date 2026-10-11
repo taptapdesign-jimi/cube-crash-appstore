@@ -1,0 +1,22 @@
+{
+  "verdict": "PASS bounded actual Source board-transition flag writer; complete Source save/queue/endgame/default activation OPEN",
+  "sdk": {
+    "tests": 9,
+    "failures": 0,
+    "seconds": 38.712,
+    "log": "/tmp/native-source-board-transition-writer-connected.log"
+  },
+  "actual": "Actual Journey final merge -> authored reward tap/result UIButton -> new Scene/Scope shows transition flag true during its real carrier, then false at accepted handoff before board wave. New board admits next real ordinary move; old Scope cannot publish or clear new claim. Actual fresh Arcade remains false and playable. Owner and app-Scope replacement/reentry/disposal contracts PASS.",
+  "ownership": "Existing APP Source context owns explicit flag state. Source continuation writes after old graph retirement; accepted onSceneExit, original asset-failure boundary, Scope retirement and Bootstrap disposal release exact claim. No flag inferred from controller presence, no Core pending-plan proxy, no timer/Date/RNG/audio/media/save writer added. Whole v9 transition cleanup/rendered/physical timing remains separate.",
+  "unsignedRelease": "Previous current Release and compiled audit PASS /tmp/native-global-owner-release.log and /tmp/native-global-owner-release-audit.log precede this transition writer; grouped rebuild required.",
+  "physicalAcceptance": "NEEDS PHYSICAL TEST",
+  "sha256": {
+    "native/gameplay-app/NativeSourceBoardTransitionState.swift": "187164717cef2a464ff85cf3fae1aa490dbf8df75f537593041d49db01d1499f",
+    "native/gameplay-app/NativeGameplaySourceContext.swift": "f70c37e40b1359a4ff9afcb3a9133dfbef0950c61a34a28a8100d0b38674fd17",
+    "native/gameplay-app/NativeBootstrap.swift": "7108a1401627532fa23541466591f5cd4d75b1ebc70c0e45cd46140dd6f93b18",
+    "native/gameplay-ui/NativeBoardScene.swift": "61971b0e3af144d8082921783a67427068006dad30e4ebc5c6f6af8523fa1ba1",
+    "native/standalone/Stack to SixTests/NativeSourceBoardTransitionStateTests.swift": "17653453765056a33b6f87d7d86af1aa7a423f7d44b3eed30a6b180eb675e796",
+    "native/standalone/Stack to SixTests/NativeGameplaySourceContextTests.swift": "f664231c52ddd8e002109b9d746facd6b0531c8c5e9b96e5cc7b64de04160597",
+    "native/standalone/Stack to SixTests/NativeStandaloneRootTests.swift": "7c8540047be8596e8d3f618184048cb2dc58152c201d8eb1702603b1ca2d973c"
+  }
+}

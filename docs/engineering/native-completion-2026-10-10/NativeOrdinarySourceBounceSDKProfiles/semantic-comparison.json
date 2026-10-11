@@ -1,0 +1,14 @@
+{
+  "exactByteVerdict": "FAIL retained",
+  "normalProfiles": {
+    "Library/Application Support/StackToSixNative/state-v1.previous.json": {
+      "exactBytesUnchanged": false,
+      "equivalentExceptSavedAtAndJourneySetSerializationOrder": true
+    },
+    "Library/Application Support/StackToSixNative/state-v1.json": {
+      "exactBytesUnchanged": false,
+      "equivalentExceptSavedAtAndJourneySetSerializationOrder": true
+    }
+  },
+  "all26PriorQAProfilesExactBytesUnchanged": true
+}

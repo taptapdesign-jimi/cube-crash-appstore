@@ -1,0 +1,14 @@
+{
+  "native/gameplay-app/NativeResultOwner.swift": {
+    "baseSHA256": "d233ace9970a9c525a85d7aa06afebf0b1b253adcd94d09639a94b45175d3da1",
+    "candidateSHA256": "bc55126757607d81869270fcd69e4d1ebfd213687118231deec0dc915eb3c875"
+  },
+  "native/gameplay-results/NativeResultPresentationPlan.swift": {
+    "baseSHA256": "10f3f3469701a23d8e382e3aeddc2dad6ca6047c2504ff444adbe78e8c69f7e7",
+    "candidateSHA256": "99593f7bce58542e224d373f568fc089f9be8e96e64fe691447b56e1e1bf2e85"
+  },
+  "native/standalone/Stack to SixTests/NativeResultOwnerTests.swift": {
+    "baseSHA256": "9ff3e995ec1976c2fd8b12539fa45c02da48b0644d6e4a44760e2d2c79b80e28",
+    "candidateSHA256": "4065ad706b302c7aebce86629b148baf858c2c34d67bc273074511e292a0e2a0"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "base": [
+    "docs/engineering/native-pause-2026-10-08/NativeSource.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/EntrySourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialIntroSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialHUDSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialMonitorSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialRestoreSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialThirdSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFreeHintSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialCTAPrefixSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialCTAViewSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialThirdDismissSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialWildReservationSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialWildReservationOwnersDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthDroppingSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthSelectionSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthMonitorSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthTargetSourceDelta.tar.gz"
+  ],
+  "archiveSHA256": "0d986aef41e11fe5ef9e326f8356d1241d9ff01b20819052c4c3d198b44976bc",
+  "files": {
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeBoardState.swift": {
+      "baseSHA256": "605b390478300c7d9b2f7757cb8c98b2cf00667cbccb40b336d8c18c015b6c14",
+      "sha256": "47920337efe0a28b8d6d0b0d0ae9eb066c00a4081225457cb6ea81cc8c6c632f"
+    },
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": {
+      "baseSHA256": "412bdfa5e2c74957aa5b088b5a206f0e51d6c2ac18e9857f96f0afa08d631de3",
+      "sha256": "6e05bef3c737e1d3fb25a480907d7aa8da3350f6ae9001513d28c5b9427c2e66"
+    },
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeTutorialTests.swift": {
+      "baseSHA256": "51394219dbea755a575ed60e4a0842a99438c37823312652658c431f72011459",
+      "sha256": "dc10ad65015bc38e39f52ec76aace70e6901a6c88fc919fc1e80bfffe2414f83"
+    },
+    "native/gameplay-state/Tests/StackToSixNativeStateTests/NativeStateTests.swift": {
+      "baseSHA256": "c258a6ebe22a43e830418136aaea4b02974b975b560ae4655b98ee43cf0324c0",
+      "sha256": "e0026f57296004736049dbb8ba98182684277f7a25d58d6802582b13e645ce14"
+    },
+    "docs/engineering/feature-runtime-owners.json": {
+      "baseSHA256": "350b324627906d80643efbae090bde554989a1b938f23c8cb0ed243e94096d2c",
+      "sha256": "5b922ea7059f09c685c1c4613c84f4c304150ca66c3ebeb60098c5e6d4813b11"
+    }
+  },
+  "validation": "Final signature Core351/351 PASS; state24/24 PASS (state receipt predates signature-only Core change); exact full QA all19 gates PASS. Actual SDK17/17 PASS after one automatic approval timeout; selected Bootstrap7/SecondMonitor6/MeterScene4, no full actual fourth preparation claim. Whole Source flags OFF."
+}

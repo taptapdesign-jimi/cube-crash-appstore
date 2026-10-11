@@ -1,0 +1,43 @@
+{
+  "scope": "Isolated actual Wild restore Node/Scene/Bootstrap constructor opt-in; default OFF; whole migration OPEN",
+  "sdk": {
+    "log": "wild-constructor-parity-confirmed.log",
+    "exitCode": 0,
+    "tests": 127,
+    "failures": 0
+  },
+  "fullQA": {
+    "log": "wild-constructor-parity-full.log",
+    "exitCode": 0,
+    "kingTests": 330,
+    "suites": 530,
+    "tests": 4010,
+    "nativeBundleSync": "SKIPPED"
+  },
+  "sourceOracle": {
+    "restoreIdentities": 19,
+    "mobileGeometryCases": 17,
+    "files": [
+      "wild-face-oracle.cjs",
+      "wild-face-oracle.json"
+    ],
+    "boundary": "Actual original functions with texture/sprite endpoints, not Pixi renderer"
+  },
+  "snapshot": "WildConstructorCodeSnapshotManifest.json",
+  "matchingSourceQASDKFiles": 8,
+  "assets": "No original media edited or included in snapshot",
+  "acceptance": {
+    "sourceSDK": "PASS",
+    "fullDeterministicQA": "PASS",
+    "shippingResourceRelease": "OPEN",
+    "mainIntegration": "OPEN",
+    "phone": "NEEDS PHYSICAL TEST",
+    "completeMigration": "OPEN"
+  },
+  "remaining": [
+    "Exact non-Bee Source idle composers and connected entry resume",
+    "Full Source save rehydration/statistics/tutorial ownership",
+    "Remaining NATIVE_100_PERCENT_PLAN and main integration",
+    "Huge phone cubes OPEN; grey Journey to Play flash LAST"
+  ]
+}

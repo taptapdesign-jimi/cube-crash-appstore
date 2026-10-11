@@ -1,0 +1,20 @@
+{
+  "status": "Core5028 364/364PASS; KING79060 330/330PASS; SDK35637 terminal1/1PASS existing actual FIFO and typed failure bridge compile",
+  "files": {
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "5c96f8cc79510e23497d4654c93a0e9a2c88e6edfd414219a7de78eb212da9c8",
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceOrdinarySixSpawnBeginCoreTests.swift": "a7dfc82a3d0675c63c9b99c49c7b2d7a47f0b6eff840b569aa28a91e33a084f4",
+    "native/gameplay-ui/NativeBoardScene.swift": "ebd8bcb79b85f9233a771ba8793d333e0a783683968312746606fc7e375a90d9"
+  },
+  "logs": {
+    "native-ordinary-rescue-lifecycle-core.log": "f67e9902d1653a0fecf5e30e103e2e8c4087a760aa0f7f2fc5f8bc249c74ddf2",
+    "native-ordinary-rescue-lifecycle-king.log": "9772cb41e9f480bf56a69f2b2142f634b0f8b0a99757e29eadbe1977fc35375d",
+    "native-ordinary-rescue-lifecycle-sdk.log": "5246cb6104b914bbe841d6b469e71c74f99bcad420041cc143274c693405c35d"
+  },
+  "proof": "Emergency zero-open continuation refreshes complete current lifecycle authority before selecting fallback, retains exact receipt only if same plan/gen on refusal. Controlled missing capability after helper wait leaves board/accounting/RNG unchanged and later genuine complete capture can settle. Scene same-current rejected continuation emits typed presentation failure; stale receipt never emits it.",
+  "limits": [
+    "positive emergency/fallback actual Scene producer not yet installed",
+    "epoch rejection/helper cancellation matrix OPEN",
+    "minimum/finally startup bindings and physical/full migration OPEN",
+    "default flags OFF"
+  ]
+}

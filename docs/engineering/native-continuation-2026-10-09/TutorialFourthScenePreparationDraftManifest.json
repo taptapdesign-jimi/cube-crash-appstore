@@ -1,0 +1,12 @@
+{
+  "status": "DRAFT SDK running session79696",
+  "files": {
+    "native/gameplay-ui/NativeDiceNode.swift": "5053ff124ba869c7bf9d9dcbdafc1eb58d80e7855e8871d07670e81686521548",
+    "native/gameplay-ui/NativeBoardScene.swift": "2cd2b23db9fee585c6a0124107d1c842fe49d57a9742f6d119fcd4210c45e367",
+    "native/gameplay-ui/NativeSourceTutorialFocusOwner.swift": "2270f1c90a4011b64c01b7758caae6cb4e0084f77c769b8953c49faee922308e",
+    "native/gameplay-ui/NativeSourceTutorialSecondStepMonitor.swift": "4cedf5cb9d0e699c9085789724efb9fa32c31de52ca52dad8a72414df449e92c",
+    "native/standalone/Stack to SixTests/NativeSourceTutorialSecondStepMonitorTests.swift": "533922766cc9f0db571e31514a1c34bb674b76527a5ea39e84056913ec189b27",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "84f246ebbc4f25443707842742b11a7cfca5cf201daa061f2188173f27f7e012"
+  },
+  "scope": "Actual Scene API canonical fourth placement/same Wild RAF/target pips and no-Math focus .28 sine normalAlpha*.35. Whole monitor/overlay invocation, prefix behavior tests/failure cleanup and pointer60 completion remain OPEN."
+}

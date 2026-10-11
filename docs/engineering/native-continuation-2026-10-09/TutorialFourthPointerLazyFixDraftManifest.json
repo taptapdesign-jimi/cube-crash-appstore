@@ -1,0 +1,17 @@
+{
+  "status": "DRAFT corrected numeric+wall SDK running",
+  "files": {
+    "native/gameplay-ui/NativeDiceNode.swift": "5053ff124ba869c7bf9d9dcbdafc1eb58d80e7855e8871d07670e81686521548",
+    "native/gameplay-ui/NativeBoardScene.swift": "8a285dd42d1177ca5406e7bbd903324871e9aeda7e57328868ad57c773c2320c",
+    "native/gameplay-ui/NativeSourceTutorialFocusOwner.swift": "2270f1c90a4011b64c01b7758caae6cb4e0084f77c769b8953c49faee922308e",
+    "native/gameplay-ui/NativeSourceTutorialSecondStepMonitor.swift": "4cedf5cb9d0e699c9085789724efb9fa32c31de52ca52dad8a72414df449e92c",
+    "native/gameplay-app/NativeTutorialOverlay.swift": "ffb79809f609a38bb8275d29cdb9430a7d822ac65ab9984df3202a98fd0dc0fb",
+    "native/gameplay-app/NativeTutorialOwner.swift": "eacc730dcdb7586585edc7ee5b09fccd3b486a467ad6a65e23b5511d642e6744",
+    "native/standalone/Stack to SixTests/NativeSourceTutorialSecondStepMonitorTests.swift": "cd2c6e32d1de54240f0ebc857b515dea99565d2b83a5770c64f90e6d96d38008",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "84f246ebbc4f25443707842742b11a7cfca5cf201daa061f2188173f27f7e012",
+    "native/standalone/Stack to SixTests/NativeSourceTutorialIntroTests.swift": "f2d4009bd915084e94855e4b44d1c61bb33c1d06fcb1659c180af99fe5d112ad",
+    "native/gameplay-ui/NativeSourceTutorialFreePlayPlan.swift": "83baca48d7af602979d05a9011caeea4e0e0f8e3ad6eb10801af09fb5501c790",
+    "native/gameplay-ui/NativeSourceTutorialFreePlayHintOwner.swift": "982612aeb2e2a0f621d24364663bba1e7d65466bcf127f87d5d9063cbf337a4c"
+  },
+  "scope": "Original oracle exposed8 coordinate differences at unpainted time0. Removed native synchronous shell paint; actual-owner test requires0 paints before APP. Numeric test asserts original unpainted0 baseline then compares260 painted scalar channels. Source oracle unchanged; final60 completion OPEN."
+}

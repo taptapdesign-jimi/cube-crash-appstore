@@ -1,0 +1,48 @@
+{
+  "verdict": "PASS bounded connected Native idle hint; full rendered Source animation parity OPEN",
+  "actualAppSDK": {
+    "tests": 5,
+    "failures": 0,
+    "actualIdleRootSeconds": 26.894,
+    "log": "/tmp/native-endgame-hint-connected.log",
+    "scope": "Predates later bounce-duration rounding refinement/independent construction fixtures."
+  },
+  "sourceAndLifecycleSDK": {
+    "tests": 6,
+    "failures": 0,
+    "log": "/tmp/native-endgame-hint-source-and-lifecycle.log"
+  },
+  "sourceConstruction": "Actual immutable production-benchmark-v9 endgame-hint.ts and text-clouds.ts bodies execute with captured DOM/tween construction. Nine seed/message cases match font/tilt/cloud fields and complete Math state/draw count. Numeric/markup only, not browser/rendered pose proof.",
+  "actualApp": "Default Native with no Source opt-ins waits actual20s, shows five original clouds/Baloo2 caption, leaves Core byte-equivalent state, disables hint hit testing, and actual pickup removes exact caption. Root default Arcade final->next->move->Exit save also PASS14.390s.",
+  "screenshot": "docs/engineering/native-completion-2026-10-10/NativeEndgameHintSimulator.png",
+  "screenshotViewed": true,
+  "sourceScope": "Explicit Source scopes refuse positive eligibility until genuine whole Source endgame caller is connected. Native Core result is not a Source global/NO MOVES capability.",
+  "featureRuntime": "PASS26 /tmp/native-hint-source-reset-feature.log",
+  "gameplayLock": "PASS330 /tmp/native-endgame-hint-gameplay-lock.log",
+  "fastQA": "PASS /tmp/native-endgame-hint-fast.log; predates lazy preparation/Source reset refinement",
+  "releaseScope": "PASS unsigned iOS arm64 Release /tmp/native-tnt-hint-release.log and actual shipping dependency/original-asset audit /tmp/native-tnt-hint-release-audit.log. Covers final TNT/hint/Source-reset refinement; precedes subsequent Beach Ball held-wave changes.",
+  "physicalAcceptance": "NEEDS PHYSICAL TEST",
+  "sha256": {
+    "native/gameplay-ui/NativeEndgameHintCoordinator.swift": "e4e83c986de74ce6350a6776e2c093547f3084b0cdf9783c4c43ce21732d7924",
+    "native/gameplay-ui/NativeEndgameHintSourceGraph.swift": "65912c166fd239e5a8790b86f57baeff4449aa2231e47cf222f59ee7b9ce1dcb",
+    "native/gameplay-ui/NativeEndgameHintSourcePresentation.swift": "fa326c7fbf96e8df4b16d59261b0d8beee4bd42992646cd106506d191bfc42bc",
+    "scripts/native-oracles/endgame-hint-construction.cjs": "284e8696702e3cbb7b6a9193a3b33048aafbfbc319300a68a790d83caeda4fbf",
+    "native/standalone/Stack to SixTests/NativeEndgameHintTests.swift": "12ccfe4f86a23265475a2519d2d6f4f7182ecfcd7fe68422cb17e11fbe7de8d9"
+  },
+  "fullSourceQA": "PASS /tmp/native-tnt-hint-current-full.log; predates lazy preparation/Source reset refinement",
+  "sourceResetSDK": {
+    "tests": 11,
+    "failures": 0,
+    "log": "/tmp/native-endgame-hint-source-reset.log",
+    "actualIdleRootSeconds": 26.934,
+    "scope": "Lazy ineligible module allocates zero resources/timers/roots; actual Source NO MOVES binding resets exact hint module and preserves external reset callback; positive Source hint admission remains OFF."
+  },
+  "sharedPreparedCloudActualRoot": {
+    "verdict": "PASS",
+    "tests": 1,
+    "failures": 0,
+    "seconds": 27.052,
+    "log": "/tmp/native-hint-shared-cloud-final.log",
+    "scope": "Actual20s idle wait and pickup after borrowing original NO MOVES prepared UIImage references; Core unchanged. Whole Source positive admission and physical acceptance remain OPEN."
+  }
+}

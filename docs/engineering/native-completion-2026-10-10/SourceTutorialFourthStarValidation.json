@@ -1,0 +1,78 @@
+{
+  "status": "BOUNDED17_FULL_QA_COMPLETE_SDK1253_PASS",
+  "scope": "Real fresh Bootstrap tutorial first/second/third CTA, actual free-play drags, canonical meter reuse of original zero holder, real fourth callbacks and same Star sheet/intro Scope retirement. Global flags OFF. No PWA/phone/asset operations.",
+  "fixes": [
+    "Pending Source skin admission recognizes captured expectedHolderID as well as proposed new tile ID; canonical Core preserves actual reused holder identity.",
+    "Rejected duplicate meter admission retains preceding successful Star owner; Source special idle enables shared-registry Star sheet configuration."
+  ],
+  "checks": [
+    {
+      "handle": 41351,
+      "status": "WRONG_TEST_TARGET_PRETEST_EXIT70"
+    },
+    {
+      "handle": 20957,
+      "status": "FAIL",
+      "reason": "Fixture expected fourth before filling meter"
+    },
+    {
+      "handle": 37467,
+      "status": "PRETEST_RESOURCE_BUNDLE_CRASH_EXIT65"
+    },
+    {
+      "handle": 57232,
+      "status": "FAIL",
+      "reason": "Actual reused holder skin rejected"
+    },
+    {
+      "handle": 50194,
+      "status": "FAIL",
+      "reason": "Actual diagnostic confirms proposed ID differs from expectedHolderID"
+    },
+    {
+      "handle": 91557,
+      "status": "FAIL17_TESTS_3_ASSERTIONS",
+      "reason": "New fourth case exposes duplicate cleanup removing retained Star scope"
+    },
+    {
+      "handle": 8158,
+      "status": "FULL_QA_PASS"
+    },
+    {
+      "handle": 74482,
+      "status": "FAIL",
+      "reason": "Fourth preparation investigation"
+    },
+    {
+      "handle": 9370,
+      "status": "FAIL",
+      "reason": "Exact fourth prefix confirmed missing Star scope"
+    },
+    {
+      "handle": 95219,
+      "status": "PASS",
+      "tests": 17,
+      "failures": 0,
+      "exitCode": 0
+    },
+    {
+      "handle": 69259,
+      "status": "FULL_QA_PASS",
+      "exitCode": 0
+    },
+    {
+      "handle": 2776,
+      "status": "PASS",
+      "tests": 1253,
+      "failures": 0,
+      "exitCode": 0,
+      "log": "tutorial-fourth-complete-sdk.log"
+    }
+  ],
+  "sourceSHA256": {
+    "native/gameplay-ui/NativeBoardScene.swift": "66f3cd72d620a2a5fa1db686d4c87420d002674f3213338b303f1b5fc0d92342",
+    "native/gameplay-ui/NativeGameplayViewController.swift": "58745acf6ee1110e887d659e7bf480bf5e98825cb2beb3520a31cc6e933036f3",
+    "native/standalone/Stack to SixTests/NativeSourceTutorialBootstrapTests.swift": "23384f4786cc67f82f55b1b3e9d9f726581e484ee65a7d531a8b5d7b094ca006"
+  },
+  "remaining": "All global Source creator/common time/RNG/task/cache/media admission, remaining families, whole-game connected release and physical acceptance OPEN. Earlier full1251 suite predates current changes."
+}

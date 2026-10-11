@@ -1,0 +1,7 @@
+{
+  "archive": "CURRENT_HANDOFF_HISTORY_BEFORE_WALL_SAFETY_COMPACTION.md",
+  "bytes": 3310005,
+  "sha256": "a7e54d91833c1b66db611839901c7845279218b42162a1a3a047a5880d601f90",
+  "purpose": "Byte-identical prior handoff preserved; concise active continuation replaces accumulated transcript",
+  "sourceChanges": "none from compaction"
+}

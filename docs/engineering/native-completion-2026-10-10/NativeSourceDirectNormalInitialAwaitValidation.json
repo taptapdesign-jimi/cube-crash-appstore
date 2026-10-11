@@ -1,0 +1,35 @@
+{
+  "status": "PASS bounded normal Direct initial physical await graph; subsequent outer batch in progress",
+  "core": {
+    "tests": 438,
+    "failures": 0,
+    "seconds": 0.831,
+    "log": "/tmp/native-direct-normal-initial-current-core.log"
+  },
+  "sdk": {
+    "tests": 3,
+    "failures": 0,
+    "seconds": 33.054,
+    "log": "/tmp/native-direct-normal-initial-retirement-actual-sdk.log",
+    "scope": "current retirement/typed guards; actual Journey Star/Juice and TNT neighbor"
+  },
+  "scope": [
+    "genuine existing Direct begin receipt; no TNT conversion",
+    "actual captured main callback retires pair, synchronizes retained physical roster then releases initial await",
+    "pre_spawn and normal-before-spawn each literal physical presence check and APP FIFO reaction before primary and bonus ctor/RNG",
+    "normal Journey only, Raw/partial/default off and Arcade/endgame unchanged",
+    "missing dependency refuses before debit; restart protects successor; inline/rejected enqueue/exact retired receipts cannot replay Raw"
+  ],
+  "release": {
+    "status": "PASS unsigned isolated Native iOS Release",
+    "log": "/tmp/native-direct-normal-initial-outer-release.log",
+    "audit": "/tmp/native-direct-normal-initial-outer-release-audit.log",
+    "scope": "actual normal Direct initial/outer graph; predates later finite-await Native local-save blocker refinement"
+  },
+  "open": [
+    "outer Direct bonus guards",
+    "all endgame/pre/post/final clean-board",
+    "whole global/save/queue/NO MOVES/families/default/physical acceptance"
+  ],
+  "fullQa": "PASS530 suites/4010 tests and KING330 /tmp/native-direct-normal-initial-outer-full.log"
+}

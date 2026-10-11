@@ -1,0 +1,9 @@
+{
+  "status": "DRAFT missing SpriteKit import compile error fixed; rerun required",
+  "files": {
+    "native/gameplay-app/NativeSourceMergeSixSpawnOwner.swift": "bed21a5d1abdee0a86e4a8625f54251eaf20b07f0dce6cba98920da820dc467c",
+    "native/gameplay-ui/NativeDiceNode.swift": "b9af72c64095ab65a4b71c202a5921dc4b28eac5a3239e4ec5c90d8a72a58e85",
+    "native/gameplay-app/NativeGameplaySourceContext.swift": "c6ef5022ef511216fd6d6f7c17c844c4700da0db512cec7315e0b04454fcc38f",
+    "native/standalone/Stack to SixTests/NativeSourceMergeSixSpawnOwnerMountedTests.swift": "476747527d4165246dfb25161e38fe649d10edeb6a51f6dd95a53235bc13e297"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "scope": "Release arm64 symbol inventory; three retired host types absent, native modal and preserved legacy importer present. Not all WebKit retirement proof.",
+  "symbols": {
+    "JimiHomeHubController": 0,
+    "JimiNativeWorldHost": 0,
+    "JimiNativeEndRunHost": 0,
+    "JimiNativeEndRunModal": 80,
+    "NativeHybridExport": 111
+  }
+}

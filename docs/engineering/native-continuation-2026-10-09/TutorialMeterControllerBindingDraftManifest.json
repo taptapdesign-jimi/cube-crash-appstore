@@ -1,0 +1,8 @@
+{
+  "status": "DRAFT actual Controller binding added; SDK34591 running; mounted Controller caller test required",
+  "files": {
+    "native/gameplay-ui/NativeGameplayViewController.swift": "f91edba454fb8048547fdf6d0041378ce7ac5ca761c161af6d0e0ef6697aa8f9",
+    "native/gameplay-ui/NativeBoardScene.swift": "a5304e761bf00659d465b0d92fca6fbe8b08c208a49ae2d2ae6e032c971f6f78",
+    "native/standalone/Stack to SixTests/NativeSceneMicrotaskInstallerTests.swift": "e17bde3a06074a88b1513be60f1e8924b108bae6fc15c86d6c3cc93e7bc266d7"
+  }
+}

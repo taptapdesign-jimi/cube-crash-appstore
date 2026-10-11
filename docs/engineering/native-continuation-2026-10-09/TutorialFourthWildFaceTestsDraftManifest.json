@@ -1,0 +1,11 @@
+{
+  "status": "DRAFT face SDK running session13821; Scene bridge SDK8/8 PASS",
+  "files": {
+    "native/gameplay-ui/NativeDiceNode.swift": "5053ff124ba869c7bf9d9dcbdafc1eb58d80e7855e8871d07670e81686521548",
+    "native/gameplay-ui/NativeBoardScene.swift": "f5829da2f87865c92cc6d938a1093775117c40e828ee2d17b950a5492bd81749",
+    "native/gameplay-ui/NativeSourceTutorialSecondStepMonitor.swift": "4cedf5cb9d0e699c9085789724efb9fa32c31de52ca52dad8a72414df449e92c",
+    "native/standalone/Stack to SixTests/NativeSourceTutorialSecondStepMonitorTests.swift": "533922766cc9f0db571e31514a1c34bb674b76527a5ea39e84056913ec189b27",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "84f246ebbc4f25443707842742b11a7cfca5cf201daa061f2188173f27f7e012"
+  },
+  "scope": "Exact texture identity, repeated128x128 dimensions, foreign generation and reentrant retirement test. Whole Scene caller remains OPEN."
+}

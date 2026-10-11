@@ -1,0 +1,38 @@
+{
+  "scope": "Foundation/SQLite transport connected to NativeBootstrap via same NativeSaveStore legacy Library boundary. No original SQLite opened; original WK exporter runtime retired. Actual Simulator Release dependency proof PASS; complete updated SDK PASS.",
+  "sourceSHA256": {
+    "native/gameplay-state/Sources/StackToSixNativeState/NativeLegacyStorageReader.swift": "72ee3451ed2e6c6dd098622bcee7196135ba1c15abdec3d98d19015ecd7b8716",
+    "native/gameplay-state/Tests/StackToSixNativeStateTests/NativeLegacyStorageReaderTests.swift": "0bde1a7f1a042efc0866b42f2be921291e2aa6ac58fa739af769fcb63109e8ab",
+    "native/gameplay-state/Tests/StackToSixNativeStateTests/Resources/NativeLegacyStorageDiskProducer.json": "1ab379039d12574435e98728b99fe60d63bc96e7059866d26ec45f6ddc301627",
+    "native/gameplay-app/NativeHybridExport.swift": "dfde41d8632af2847c24cdc104cbda172431210e9bf614f45e0fd09d3aee7733",
+    "native/gameplay-app/NativeBootstrap.swift": "53f3405f036ab4dd38c64752318fc1442a6f53f7c65cbe3552310a21d6126183",
+    "native/gameplay-state/Sources/StackToSixNativeState/NativeSaveStore.swift": "d63e0ac6df2d7dd89365e4936cf3ee618b0016ebbbbf0844d276742f6be95bcf",
+    "native/standalone/Stack to SixTests/NativeHybridExportTests.swift": "b704ee8a7d36020f0d6e59b6a89dc47d6e3e3d203bf5c897d21fb1ceb2606375",
+    "native/standalone/Stack to SixTests/NativeLegacyStorageNativeTests.swift": "1578611602f52e8153f99ad16bd1f8553c461b9cd0664d609ae0d49858451efc",
+    "native/standalone/Stack to SixTests/NativeLegacyStorageDiskProducer.json": "1ab379039d12574435e98728b99fe60d63bc96e7059866d26ec45f6ddc301627"
+  },
+  "baselineCompile": "terminal36690 exit1 test-helper while condition syntax; no tests",
+  "firstBehavior": "terminal85104 exit1 6 tests3 failures: two bad test mutation offsets; corrupted primary header masked by valid WAL",
+  "header": "terminal88495 exit0 6/6 PASS0.053s; header validation+bound original origin receipt added",
+  "unicode": "terminal4760 exit0 9/9 PASS0.111s",
+  "schema": "terminal93576 exit0 12/12 PASS0.177s; strict UTF16 errors, view/type, WAL missing, empty refusal tested",
+  "fullState": "terminal45361 exit0 36/36 PASS0.940s before library/cancellation adapter; terminal63398 current exit0 36/36 PASS1.023s",
+  "limits": [
+    "Physical old-profile compatibility/latency acceptance remains OPEN",
+    "Global Source flags OFF",
+    "Historical Jimi hybrid adapters remain Debug fixtures, already excluded from Release by NATIVE_HYBRID_UI_RETIRED; music bridge already excluded by NATIVE_MUSIC_DIRECT_ONLY",
+    "Policy SDK1261/Release predate this transport; current complete SDK1267 has0 failures,1 guarded producer skip"
+  ],
+  "SDKConnected": "terminal77518 exit0 10/10 PASS2.838s",
+  "SDKWall": "terminal39036 exit0 11/11 PASS14.946s, actual12second timeout no late save",
+  "sourceFullQA": "terminal13504 exit0 PASS, no native bundle sync",
+  "release": "terminal85572 exit0 BUILD SUCCEEDED, both Simulator architectures; no WebKit/JavaScriptCore linkage or WK/JS importer strings; proof NativeLegacyStorageReleaseDependencyProof.json",
+  "completeSDK": "terminal73706 exit0 TEST SUCCEEDED:1267 tests,1 explicit opt-in producer skipped,0 failures,626.559s (suite627.105s)",
+  "saveSchemaCorrection": {
+    "script": "scripts/native-oracles/save-schema-markers.cjs",
+    "scriptSHA256": "319dfa03bee0b3926b198b09bd3ca67cfdd045f8d3d4ebd36895cb4803861081",
+    "receipt": "SourceSaveSchemaMarkerOracle.json",
+    "result": "8/8 immutable v9 schema + restore cases PASS; explicit minimal factory, no rendered entry/live markers proof"
+  },
+  "iOSRelease": "terminal98953 exit0 BUILD SUCCEEDED; arm64 iphoneos no WebKit/JavaScriptCore/WK importer strings/Web.bundle; NativeLegacyStorageIOSReleaseDependencyProof.json"
+}

@@ -1,0 +1,166 @@
+{
+  "rows": [
+    {
+      "events": [
+        {
+          "kind": "read",
+          "at": 0
+        },
+        {
+          "kind": "begin",
+          "id": "A",
+          "at": 1000
+        },
+        {
+          "kind": "read",
+          "at": 1099
+        },
+        {
+          "kind": "release",
+          "id": "A",
+          "at": 1200
+        },
+        {
+          "kind": "release",
+          "id": "A",
+          "at": 1500
+        },
+        {
+          "kind": "read",
+          "at": 1700
+        }
+      ],
+      "trace": [
+        {
+          "lastMutationAt": 0,
+          "dateCalls": 0,
+          "active": 0
+        },
+        {
+          "lastMutationAt": 1000,
+          "dateCalls": 1,
+          "active": 1
+        },
+        {
+          "lastMutationAt": 1000,
+          "dateCalls": 1,
+          "active": 1
+        },
+        {
+          "lastMutationAt": 1200,
+          "dateCalls": 2,
+          "active": 0
+        },
+        {
+          "lastMutationAt": 1200,
+          "dateCalls": 2,
+          "active": 0
+        },
+        {
+          "lastMutationAt": 1200,
+          "dateCalls": 2,
+          "active": 0
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "begin",
+          "id": "A",
+          "at": 1000
+        },
+        {
+          "kind": "begin",
+          "id": "B",
+          "at": 1050
+        },
+        {
+          "kind": "release",
+          "id": "A",
+          "at": 1120
+        },
+        {
+          "kind": "clear",
+          "at": 1140
+        },
+        {
+          "kind": "release",
+          "id": "B",
+          "at": 1200
+        },
+        {
+          "kind": "read",
+          "at": 1250
+        }
+      ],
+      "trace": [
+        {
+          "lastMutationAt": 1000,
+          "dateCalls": 1,
+          "active": 1
+        },
+        {
+          "lastMutationAt": 1050,
+          "dateCalls": 2,
+          "active": 2
+        },
+        {
+          "lastMutationAt": 1120,
+          "dateCalls": 3,
+          "active": 1
+        },
+        {
+          "lastMutationAt": 1120,
+          "dateCalls": 3,
+          "active": 0
+        },
+        {
+          "lastMutationAt": 1120,
+          "dateCalls": 3,
+          "active": 0
+        },
+        {
+          "lastMutationAt": 1120,
+          "dateCalls": 3,
+          "active": 0
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "begin",
+          "id": "A",
+          "at": 0
+        },
+        {
+          "kind": "read",
+          "at": 100
+        },
+        {
+          "kind": "release",
+          "id": "A",
+          "at": 200
+        }
+      ],
+      "trace": [
+        {
+          "lastMutationAt": 0,
+          "dateCalls": 1,
+          "active": 1
+        },
+        {
+          "lastMutationAt": 0,
+          "dateCalls": 1,
+          "active": 1
+        },
+        {
+          "lastMutationAt": 200,
+          "dateCalls": 2,
+          "active": 0
+        }
+      ]
+    }
+  ]
+}

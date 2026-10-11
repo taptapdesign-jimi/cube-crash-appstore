@@ -1,0 +1,61 @@
+{
+  "base": [
+    "docs/engineering/native-pause-2026-10-08/NativeSource.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/EntrySourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialIntroSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialHUDSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialMonitorSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialRestoreSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialThirdSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFreeHintSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialCTAPrefixSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialCTAViewSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialThirdDismissSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialWildReservationSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialWildReservationOwnersDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthDroppingSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthSelectionSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthMonitorSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthTargetSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialGridRuntimeSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthPreparationSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialStarHaloMotionSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialStarHaloPresentationSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialStarHaloNodeCacheSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialStarHaloFallbackSourceDelta.tar.gz"
+  ],
+  "wholeSourceFlags": "OFF",
+  "validation": "Exact SDK26/26 PASS (Star16+FIFO10). Full QA running session42343. Whole attachment/foreground/count timing/per-request cancellation OPEN.",
+  "files": {
+    "native/gameplay-ui/NativeDiceArtwork.swift": {
+      "baseSHA256": "0e2069b45c364ded187bb0fb0b559d06bfc6351daa397e0d13345a94a21ed345",
+      "sha256": "f73d57652a2f4059dcead26e4d87ba788cbb94143899a32660ee88d618350a71"
+    },
+    "native/gameplay-ui/NativeSourceMicrotaskFIFO.swift": {
+      "baseSHA256": "7c522131347124a694a119a2e39c17589637e455a1948670c314b75e3cbddcee",
+      "sha256": "81b5a607ccd8836b58ab727d67d2b4ebeac0e8978e344bf1daabe63efd7aa3a8"
+    },
+    "native/gameplay-ui/NativeSourceMicrotaskAdapters.swift": {
+      "baseSHA256": "df0fd078e668cbd2b348da1c772d7051ab36beac5e3215683ac471d5c44c7e2b",
+      "sha256": "abaed9b2532e027f57487e11c3f933abe4badeb031e8698ac1466204266b5ccc"
+    },
+    "native/gameplay-ui/NativeSourceMeterMicrotaskCapability.swift": {
+      "baseSHA256": "95c442b2646c271f74fd4b5ec64443a8ab7cb64e5216836e4cc010a0b4653727",
+      "sha256": "f9130fad44380b37e1d8a3a47378810c2d527eeacabc2901f1aa424e2a56b421"
+    },
+    "native/standalone/Stack to SixTests/NativeSourceMicrotaskFIFOTests.swift": {
+      "baseSHA256": "11ee7161681931b240cf4c73e8980ba224acaea9af680b07141f9f884f797af9",
+      "sha256": "44eed06c0fa254ecb02ff5fe80ee3a4d4ed5a41c965321b13e2352dc8f258d27"
+    },
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": {
+      "baseSHA256": "78417e548ac3ef1714a6b4d99d0e911debcc31fbfa316068a737a33de6efb258",
+      "sha256": "339676fb5a7b7693b2bab445b6e4aa858c07231f16253ba9a457c8a9528e9989"
+    },
+    "docs/engineering/feature-runtime-owners.json": {
+      "baseSHA256": "6fd072ee292fa8b1615cc7db78efa5154f47d4ec393c597d205f3837d20fef8a",
+      "sha256": "2896dee4196e1d87ef4b100f4de98a3940149afc7ee2f89d62655f6dab5d1f6f"
+    }
+  },
+  "archiveSHA256": "166fee41651807caaced043673b855d2b8bd73335bdcfb250cc807498e5f8c61"
+}

@@ -1,0 +1,45 @@
+{
+  "base": [
+    "NativeSource.tar.gz",
+    "EntrySourceDelta.tar.gz",
+    "TutorialSourceDelta.tar.gz",
+    "TutorialIntroSourceDelta.tar.gz"
+  ],
+  "wholeSourceFlags": "OFF",
+  "sourceTutorialHUDEnabled": "OFF by default; fresh guided-phase dim only",
+  "files": {
+    "native/gameplay-app/NativeBootstrap.swift": {
+      "baseSHA256": "6218ec1edee41a5b863842fb75e02210325d01b653f8988802fef9738b9eeb71",
+      "sha256": "978cf744d13c1caafc3b6df36d0b5a024cb32bb7d2ca5012d63d64391aea89cc"
+    },
+    "native/gameplay-ui/NativeGameplayViewController.swift": {
+      "baseSHA256": "6e1d1cac0834e9e8a03542581c99ac4315c9fc9dc69397e1776b2313fb740b8f",
+      "sha256": "778ddb4e5cb8b62b42bd78e3af2ede2540cd175aa976947be5676825780b1838"
+    },
+    "native/gameplay-ui/NativeBoardScene.swift": {
+      "baseSHA256": "b35cb79d20b79a973233c88942bcd2520f93de63004d897db023a39d8a81c0f8",
+      "sha256": "ebc2db693c61280e9568391ecedee976fcdcc8e117cefef6b2963d861f184480"
+    },
+    "native/gameplay-ui/NativeSourceTutorialHUDOwner.swift": {
+      "baseSHA256": null,
+      "sha256": "ca882bc5a852e61886596ad55a4e81e17df11c35fc8e4b7ee3cb12d796c05ecb"
+    },
+    "native/standalone/Stack to SixTests/NativeSourceTutorialHUDTests.swift": {
+      "baseSHA256": null,
+      "sha256": "86dfe62045f82f107e1fd1ea782bd988cbdaf95710820f96b23a73cf077df1f1"
+    },
+    "native/standalone/Stack to SixTests/NativeSourceTutorialBootstrapTests.swift": {
+      "baseSHA256": "d59b3905b449e2bfbc8767159f8744320acf9c9284bf4bfa619b5b8626dbef24",
+      "sha256": "5e49f9cde92ded831cc8ddd3b13f0d6edf887dbecea94d7eb833894afbc88164"
+    },
+    "native/standalone/Stack to SixTests/NativeSourceBoardEntrySceneTests.swift": {
+      "baseSHA256": "8c9227f843bf5057fe2a1bd404f11a0430d659f3a25e540eb1d0c9659655381e",
+      "sha256": "804a50a71266228189a47925734702436311b4cade384d0677a09ce5f9dcae7b"
+    },
+    "docs/engineering/feature-runtime-owners.json": {
+      "baseSHA256": "ecfa461d8d99427352819b5145d7ca2f097f2c710c201ef0edb80513c8b5012d",
+      "sha256": "0328693549dd7e63a9a20b38f7865da1f1044c6dbadbb04c1822abab9b4a1af7"
+    }
+  },
+  "archiveSHA256": "34ea1f7bdae9f2f5cae077dc9491df29450af2e624717e5522676064de8e61c8"
+}

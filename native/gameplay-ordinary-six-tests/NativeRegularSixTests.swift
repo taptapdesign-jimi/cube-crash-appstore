@@ -52,12 +52,14 @@ final class NativeRegularSixTests:XCTestCase {
         var generation:UInt64=4,finished:[Bool]=[],receipts=0
         let owner=try NativeRegularSixSpritePresentation(origin:CGPoint(x:190,y:400),tileSize:70,destinationDepth:43,combinedDepth:12,generation:4,reduced:false,hotFactor:1,patternIndex:0,isCurrent:{$0==generation},random:{0.4})
         func renderedTexts(_ node:SKNode)->[String] {
-            let own=(node as? SKLabelNode).flatMap{$0.attributedText?.string}.map{[$0]} ?? []
+            let own=node.name.flatMap{$0.hasPrefix("native-regular-six-multiplier:") ? String($0.dropFirst("native-regular-six-multiplier:".count)):nil}.map{[$0]} ?? []
             return own+node.children.flatMap{renderedTexts($0)}
         }
         XCTAssertEqual(renderedTexts(owner),["×12"])
-        let label=try XCTUnwrap(owner.multiplierLayer.children.compactMap{$0 as? SKLabelNode}.first)
-        let attributes=try XCTUnwrap(label.attributedText?.attributes(at:0,effectiveRange:nil))
+        let sprite=try XCTUnwrap(owner.multiplierLayer.children.compactMap{$0 as? SKSpriteNode}.first)
+        XCTAssertNotNil(sprite.texture)
+        let rendered=try NativeRegularSixMultiplierGlyph.render(depth:12,displayScale:3)
+        let attributes=rendered.caption.attributes(at:0,effectiveRange:nil)
         let font=try XCTUnwrap(attributes[.font] as? UIFont),stroke=try XCTUnwrap(attributes[.strokeWidth] as? NSNumber)
         let style=try XCTUnwrap(NativeRegularSixSourceOracle.records.first{$0.size==128}).multiplierStyle
         XCTAssertEqual(Double(font.pointSize),style[0]);XCTAssertEqual(stroke.doubleValue,-100*style[1]/style[0],accuracy:1e-10)

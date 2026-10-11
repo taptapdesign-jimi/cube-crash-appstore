@@ -1,0 +1,10 @@
+{
+  "scope": "QA host only; not an original project resource compilation or phone build",
+  "nativeSwiftIdentity": "All source native Swift files byte-identical to QA host before final SDK run",
+  "projectSHA256": "c4386dc840869bb3ace68202cfcbc362475b1ec39e9158b52d402e542433265e",
+  "compiledResourceArchiveSHA256": "e026d038255421a579b8f82a8fb29d26b0834045723acca7eaea3fb5471accdf",
+  "originalStoryboardSource": {
+    "Main.storyboard": "d0f24b40e324ebf02046d202e2d1d2cd80fd727e166f454d53656b4466584c46",
+    "LaunchScreen.storyboard": "60ddd4c717c20b7a1373a3edc6d17b98cde90d64b653334c61dd045fd462dea8"
+  }
+}

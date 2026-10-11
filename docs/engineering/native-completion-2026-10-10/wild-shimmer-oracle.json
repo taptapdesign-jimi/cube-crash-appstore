@@ -1,0 +1,70 @@
+{
+  "authority": "actual original startWildShimmer and installed real GSAP timeline; explicit texture/visibility/delayed-call endpoints",
+  "delays": [
+    5,
+    7
+  ],
+  "draws": 2,
+  "samples": [
+    {
+      "seconds": 0,
+      "alpha": 0,
+      "x": -102.4,
+      "y": -102.4
+    },
+    {
+      "seconds": 0.07,
+      "alpha": 0.173438,
+      "x": -102.4,
+      "y": -102.4
+    },
+    {
+      "seconds": 0.14,
+      "alpha": 0.2625,
+      "x": -102.4,
+      "y": -102.4
+    },
+    {
+      "seconds": 0.28,
+      "alpha": 0.3,
+      "x": -102.4,
+      "y": -102.4
+    },
+    {
+      "seconds": 0.78,
+      "alpha": 0.3,
+      "x": -89.6,
+      "y": -89.6
+    },
+    {
+      "seconds": 1.28,
+      "alpha": 0.3,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "seconds": 1.78,
+      "alpha": 0.3,
+      "x": 89.6,
+      "y": 89.6
+    },
+    {
+      "seconds": 2.28,
+      "alpha": 0.3,
+      "x": 102.4,
+      "y": 102.4
+    },
+    {
+      "seconds": 2.42,
+      "alpha": 0.2625,
+      "x": 102.4,
+      "y": 102.4
+    },
+    {
+      "seconds": 2.56,
+      "alpha": 0,
+      "x": 102.4,
+      "y": 102.4
+    }
+  ]
+}

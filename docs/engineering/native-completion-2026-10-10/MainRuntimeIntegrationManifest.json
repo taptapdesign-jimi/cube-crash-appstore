@@ -1,0 +1,2235 @@
+{
+  "scope": "Reviewed three-way main/runtime integration. Existing studio intro/default and route guard, first-frame waiters, drag trail, HUD tap callbacks/feedback, pip cleanup and exact interaction Simulator guard preserved. Source canonical cadence/mutation/texture owners merged; no whole-tree replacement, no media/PWA/phone operations or global Source flag activation.",
+  "backup": "MainRuntimeBeforeIntegration.tar.gz",
+  "backupSHA256": "6cb08e6bcc1bb0df7aef1599ad009c927517a3899612af80550034ecba598046",
+  "candidateSDK": "73 unique tests passed across terminal candidate runs; initial two intro-fixture failures corrected.",
+  "candidateQA": "full PASS exit0; final fixture-only feature gate PASS.",
+  "changes": [
+    {
+      "path": "native/gameplay-outer-motion/NativeDragShadowPresentationOwner.swift",
+      "before": null,
+      "after": "9fd370a9beb0026e9c779b34aa8f381d4a45c2090896b12d2311e84bf4678171",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-outer-motion/NativeTileOuterEligibility.swift",
+      "before": null,
+      "after": "20be9d4e5e3dd34a3a8e6a8a8092b9cdeaf843633e1d919b3695dbd43630dd98",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-outer-motion/NativeTileOuterNodeBridge.swift",
+      "before": null,
+      "after": "8dd97098b7b2ebc72cb3876947cf6f139c3a54160b60710c2b94c3b7f3550961",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-outer-motion/NativeTileOuterMotion.swift",
+      "before": null,
+      "after": "ac59669e97e8819debae0ac3e7150f9bfd1a7305feb39e9be2b6ab600831612f",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-outer-motion/NativeSourceOuterTimelineAdapter.swift",
+      "before": null,
+      "after": "92f506f2473d702fcc2c45754a4adb7bbd5213696bd5c67ba74be3ea175e819d",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-outer-motion/NativeRegularContactSceneCompanions.swift",
+      "before": null,
+      "after": "4d975183e9a58b8ad63ce0d3955137ed87332b4d4bc232bf22a01e1d2630793b",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-outer-motion/NativeSourceDragTweenAdapter.swift",
+      "before": null,
+      "after": "495acad5a4adf8400933466357744f29099dab254cf3a2e2595942052e88e425",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-outer-motion/NativeSourceSpecialMainCapture.swift",
+      "before": null,
+      "after": "707159357fdbab2a6192e08ead06d26015c4c341ec04136e3bd4f71ca9cb7e2f",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-outer-motion/NativeDragShadowPose.swift",
+      "before": null,
+      "after": "93e8a75008f99ed7fea7dc81d7b8310d47d8b161ee8600f58d5ed452d818ac16",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-outer-motion/NativeRegularContactMotion.swift",
+      "before": null,
+      "after": "b7e918cf6a239cccc84b56d8dc6c5b3b97a277a73aa1ac08326f3ae1ef5c948d",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-outer-motion/NativeTileOuterPresentationOwner.swift",
+      "before": null,
+      "after": "29ccc1393a23f468f47f327967bacded88938578c62c68578b56b13a959d6d51",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-outer-motion/NativeMergeImpactMotion.swift",
+      "before": null,
+      "after": "e43e4cf64943ddaa4abd11159719409712d7330e14ac88f38d80cfd27767cc06",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-outer-motion/NativeSourceAcceptedAbsorbOwner.swift",
+      "before": null,
+      "after": "9a889e53ac22031bc4e112b28ffd1aed07378052ff3b10cc6553829e3af48b4f",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-outer-motion/NativeSourceSpecialPullCleanup.swift",
+      "before": null,
+      "after": "542d3a243be7699144fa3748e804638071134e5743aeed007fbc5d751e21e727",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-outer-motion/NativeRegularContactPresentationOwner.swift",
+      "before": null,
+      "after": "cfbf92fc58d7217494ce2e19cfb4d15487ccd86a3c0c0a08fc91c7c6b5a39323",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-state/Tests/StackToSixNativeStateTests/NativeStateTests.swift",
+      "before": "c258a6ebe22a43e830418136aaea4b02974b975b560ae4655b98ee43cf0324c0",
+      "after": "e0026f57296004736049dbb8ba98182684277f7a25d58d6802582b13e645ce14",
+      "merge": "clean-source-change"
+    },
+    {
+      "path": "native/gameplay-hud-stars/NativeSourceHUDStarPresentation.swift",
+      "before": null,
+      "after": "30064508d345cced470fc8aff4c908dd0cc3da978b66779597725bf7f1b8cfbe",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-hud-stars/NativeSourceHUDStarFeedback.swift",
+      "before": null,
+      "after": "d09ef05290101d6b9054588130010912e41203b0102bb14769f3667fa2312e0c",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-hud-stars/NativeSourceHUDStarScaleFeedback.swift",
+      "before": null,
+      "after": "cef0cef6ac05422ac4a134debe8b3785999f18f46e9c317faa60dbc0e1677bbb",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-hud-stars/NativeSourceHUDStarTexturePreparation.swift",
+      "before": null,
+      "after": "2ccce324d1a5a6ddfdc9624e2a168cec1c61aad7de47bbc7503741c7d69bdb62",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-hud-stars/NativeSourceHUDStarJobs.swift",
+      "before": null,
+      "after": "db9226f2ae539db2a23835b74814a4ecf28ed797ed11d47430b5500d15d103a6",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-hud-stars/NativeSourceHUDStarScaleClockAdapter.swift",
+      "before": null,
+      "after": "c42e990fc1e9e8d6e0f74dfdc7bd1b5f14e7595c6d01269792a8af0a29e1a2b9",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-hud-stars/NativeSourceHUDStarPlan.swift",
+      "before": null,
+      "after": "dc3b1c5da870baf4559d1607fe64f468ed90486de9ea0a19b5e62a765468f764",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to Six/GameViewController.swift",
+      "before": "ca80e2f2441c035e52bcbc46f7616200647f43f8e546cc47bfb38e6eeea4bd32",
+      "after": "2d2d035ece92aae8edaae2fa7b407d64e071230df79f90168be3e1c6f3656b04",
+      "merge": "clean-source-change"
+    },
+    {
+      "path": "native/standalone/Stack to Six/Base.lproj/Main.storyboard",
+      "before": "c7c1b845ae7a63fb14913f7b8d37919101840cab36615c5097b33a91480849c7",
+      "after": "d0f24b40e324ebf02046d202e2d1d2cd80fd727e166f454d53656b4466584c46",
+      "merge": "clean-source-change"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeRegularIdleScheduleOracle.json",
+      "before": null,
+      "after": "44f9ae3c7adfc93cea1ee6bff9cc3c9f237eb49a2bd243612c875c652dd85e11",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceMathRandomContextTests.swift",
+      "before": null,
+      "after": "1b06887efd5f53afa15a0def69a3771bee5ee386606e9ab862692c75e8fd8d7b",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeNoMovesSourceGraphTests.swift",
+      "before": null,
+      "after": "9674fcdcb76ad0a5696e2a1e1bf3881d579a57aab038337af35ab9f337fc83c7",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceSpecialSceneRegistryTests.swift",
+      "before": null,
+      "after": "5da5ddce0665a39d4ddce6eb542f15d4cc4b7bfa7cc96fa53c0e3d927ca15bde",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/consumption-oracle.json",
+      "before": null,
+      "after": "28b4f863bb931ed10c8d88f6fb8117aa0cf509024a376f7d9953ab9502193505",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceNoMovesResultMountedTests.swift",
+      "before": null,
+      "after": "f5937d0fcc14ba49b84a2254bb4dd6601cdb3f8b9e67c25d25b0a100ffd5e64c",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/SourceOrdinaryPreDebitOracle.json",
+      "before": null,
+      "after": "01c03fc8c99bf88d4bb67f9293d824c072bc143a586a562c04abfe3cc87564a1",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceHUDStarScaleFeedbackOracle.json",
+      "before": null,
+      "after": "4c0e7e7e11736137bb4e956709204c435dded10726547387938a9a784e3e7ca5",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceMagnetPullOracleTests.swift",
+      "before": null,
+      "after": "ab459b775d1fdabdefb0649097e3d3e1e9543731a7f51e214450f956cf2b69e8",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/six-surfaces-source-oracle.json",
+      "before": null,
+      "after": "1606a78a1fb357965582848d42a1b037c0b9389c6e02fec94ae05a9404ff4ff4",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceMagnetLazySceneTests.swift",
+      "before": null,
+      "after": "ab36fd419b9cae0248795bb5f5f7e793cc926c1673a323bc8d888291b5468981",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceNoMovesTerminalEndpointMountedTests.swift",
+      "before": null,
+      "after": "b1c7b8afd9b8681e7743f3ef0280a895896ce7e1b6af8c857ae1e667b7575756",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceHUDStarPlanTests.swift",
+      "before": null,
+      "after": "9a9bf4bd292891942cfc389ac11609aead2fdfcc3e29de1a35d66f37ddd3de9b",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceHUDStarSourceOracle.json",
+      "before": null,
+      "after": "e97f3ebe679812472913d7cd389b30396c257db91ac5bd495a07913d8808dfef",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceStackPhysicalFaceSceneTests.swift",
+      "before": null,
+      "after": "491ba08232c6a7ab4103c2ebc091bacfc878ce89eceea362acc115e83f7be12b",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceBoardEntryAudioTests.swift",
+      "before": null,
+      "after": "9fe28f961b2f63dd23c4b150af6ff29b94cd0a7f5660d666a0fe29a6df2a8566",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialFreePlayHintTests.swift",
+      "before": null,
+      "after": "97076548c39c5779380a796367b6d98bdc6b72d6eefaa21e6ea2fe4dd721e279",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSharedSmokeRetirementTests.swift",
+      "before": null,
+      "after": "aec57f57a63c233fa9b8af76aa3c36eea9a61fff7f0b416bd52a54514f0d93ab",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialIntroTests.swift",
+      "before": null,
+      "after": "00cfe55e8ff365a5eab9224855f654f0f19b992667f861e346e45bb2a66143c8",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialHUDTests.swift",
+      "before": null,
+      "after": "8829e9ed51e471e5da4f2b4c6ec591e23a317094455f4dc3aace85640e7ac3ff",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceSixAbsorbInterruptionTests.swift",
+      "before": null,
+      "after": "a1b13f6e19ad04685fa218967a88b980171e0da5f51529aadf66004edf022524",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceContextMutationLedgerMountedTests.swift",
+      "before": null,
+      "after": "b4d19aa7b7ddab650cdb1f1d281af7e6a88c8270f4886f677902bcc112936b96",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/SourceBoardEntryTickerV9Oracle.json",
+      "before": null,
+      "after": "b1d49089cc2c7b2bde0888ba8386973417fab1accbbfdd89fa7a7f0c9d169ed0",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceOrdinaryPreDebitFlowTests.swift",
+      "before": null,
+      "after": "2f8f4f13d1769c0076c5d4f94da640310c3b047ed13e33c1a6ddc740db292351",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/SourceStopQueueOracle.json",
+      "before": null,
+      "after": "d1332646abdb0e590eeec74cc7e6b9ec6edcf14f5aff6b5d7cd9182f78beea38",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeMeterSelectedWarmupTests.swift",
+      "before": null,
+      "after": "23ad05035b157a96d4ed40ae5303a18e04d46eea83c78b5ded9ef21eb44a3a61",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceNoMovesTerminalRegistryEndpointTests.swift",
+      "before": null,
+      "after": "b6eea30f518110c4f6ee7bdeeb358be755905642b7d585189e73cbd8cf60e7dd",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialActivationTests.swift",
+      "before": null,
+      "after": "bca520e2a0f7ca4b95fd625bf0eb5e21cec63854dc4ff9c944bb5a7b39730e4f",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceMergeSixSpawnOwnerMountedTests.swift",
+      "before": null,
+      "after": "4497af4bffa571acffa98d561f1b8316ce9456b953e24df55cf3a6a0043ba62c",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSceneMicrotaskInstallerTests.swift",
+      "before": null,
+      "after": "ee4872e6bdd6d5f8f1f003c6f2336d1ed1c043f5d57a9e11fdd0011ceb29f0bc",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceMicrotaskFIFOTests.swift",
+      "before": null,
+      "after": "44eed06c0fa254ecb02ff5fe80ee3a4d4ed5a41c965321b13e2352dc8f258d27",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/smoke-resize-oracle.json",
+      "before": null,
+      "after": "64b08d8418a7764a70b702e525f57da57c6aae0906c7373f6edac0a32e6794fd",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceNoMovesMountedSceneTests.swift",
+      "before": null,
+      "after": "3ac16b2ffd5edad1281cf627c3d3fe3fff23b2aac17db73429d60370a7be420a",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceEndgameMutationLedgerMountedTests.swift",
+      "before": null,
+      "after": "23f719697bfbe68c9b91b5db66e314222896822bff51dbf7fc318c5aafe99659",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeWildMeterHUDSourceTests.swift",
+      "before": null,
+      "after": "b89bdefe264abe1b858dc2fb2eaffcbae421f340ca19e0f7ddce0265f938f9e2",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeGameplaySourceContextTests.swift",
+      "before": null,
+      "after": "6d792d851f898c8098d6d131d04cc5279356ff0aa89b6462c1b2b19eef48432e",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeMeterSceneCapabilitiesTests.swift",
+      "before": null,
+      "after": "dd5e5775d8ea29c63dd35c5a09670477a14233ae5ad8dc99fa32342f25e0ee56",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTickerIntegrationTests.swift",
+      "before": null,
+      "after": "4e09031315e690d1ea3eb480f0a65a4cf0abf078e84d0bde2ede15a0c7f3a9e1",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeRegularIdlePoseOracle.json",
+      "before": null,
+      "after": "3d974f4fc36c69f208f01c740969d0e21a0c61d28e0ecd9ffa81aebf9a90ad86",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/SourceTutorialIntroV9Oracle.json",
+      "before": null,
+      "after": "82011a2fc923260a008d8c3dc700c0cdebdaa71159f5206f8ec05f5ac57099e4",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/HiddenOpenSourceOracle.json",
+      "before": null,
+      "after": "a8c168b92b25523128459dacc15f4755dade6f7dc14d2d03830569b2b9a800a6",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceCanonicalSaveOwnerTests.swift",
+      "before": null,
+      "after": "c528e5d2e5ac78ab8d021fdd8090d8b30763e2ca3880f6f251d33904d1f2df3a",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSixSourceSurfaceTests.swift",
+      "before": null,
+      "after": "5e3b4eb3047e10b2e02f6de8da3733cad4ec3486711e57672610e3e5387383a5",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceCanonicalSaveBootstrapTests.swift",
+      "before": null,
+      "after": "1585fb657737658061655a89e27fd4ead60e7434d00c374e9613bef1f3224128",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialSecondStepTests.swift",
+      "before": null,
+      "after": "ed1c935ef259e0b1cd94e55b97e97958bb4843139c48066014617e08f05eb13e",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeFinalGeometryTests.swift",
+      "before": null,
+      "after": "58cd0c1fec1dd403ea939264dd8071b2525deef1afbcb156e795b60f2c0dfa6e",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/shared-smoke-global-root-oracle.json",
+      "before": null,
+      "after": "c57bcc6ef4076421ece1c11774c80132d19d5afea7cfe0a00b0d6ae0b0dcdded",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSharedSmokeSpriteTests.swift",
+      "before": null,
+      "after": "6eb2418eefd914a421215ca8492f1426d950d78704f01238fe1e821cac423cd2",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceCanonicalSaveTransientTests.swift",
+      "before": null,
+      "after": "d09f578671edb8b18c4dcb0836ef7caa864d3b81e4b8cb64ff38862699722402",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTntJSCOracle.swift",
+      "before": null,
+      "after": "e964f119f52e2b8e748e8d1fa33f8deb4d2465b122daf1a31cb2f57fbfade26b",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceMagnetFallbackCallerTests.swift",
+      "before": null,
+      "after": "b224e8255bb446d17eff5a1a455054619a4e2abd3ddaabe12d6b95ecfdcbc600",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceOrdinaryPreDebitCoreTests.swift",
+      "before": null,
+      "after": "43387f3d0bf9b8a942d1c7c568fd444cac1efeabeafb0a32134d116e4fffa9ea",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeHybridExportTests.swift",
+      "before": "454b59ff2bb57338c0ba26883a986f70cdccdb9f30711ca933195dc8cbe22c85",
+      "after": "a11739d2071a88842bd9ece1e3cbc6a5b68b3e03c02f43c6384a40adddea3a77",
+      "merge": "clean-source-change"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceMagnetPhysicalBindingTests.swift",
+      "before": null,
+      "after": "5e679398baf56c311d2f957a7e4f504b0f6684c1d3523c3868aa6469acb39573",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeNoMovesCueOriginalGraph.json",
+      "before": null,
+      "after": "3753884922c755a7ea3e7c04fd0e1e19887c846f1d405c28c049d296e194d654",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/SourceAbsorbInterruptOracle.json",
+      "before": null,
+      "after": "80fe356a7e9a6340ae202a18534e057684b5459c8a3c04fc8f82302f9f2b9ab8",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceMagnetNormalFrameLifetimeTests.swift",
+      "before": null,
+      "after": "424369cac737ab9c60bac7fe10199af32dc649a178ead2921a9d333dde35e930",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceLogicalWallTimerTests.swift",
+      "before": null,
+      "after": "03f7bd1109a44247005718e5040385b51b8bb05bc7539ab871ce44ddfc29a6a8",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/wake-context-oracle.json",
+      "before": null,
+      "after": "e9078a960b140bc8ae791af2f0e704e42d683bb3e7438f68b3c370d8a1d5183e",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeMeterSelectedAudioHostTests.swift",
+      "before": null,
+      "after": "5e2da85330f4f45f6699cc68d3af9e9eadb9e0e961b362129c559bbc378ec071",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceBoardEntrySceneTests.swift",
+      "before": null,
+      "after": "804a50a71266228189a47925734702436311b4cade384d0677a09ce5f9dcae7b",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceSameObjectDirectSceneTests.swift",
+      "before": null,
+      "after": "890768e48c27e8632540a40e3edd71264b66a53c53fac285a80779da747ef883",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/shared-smoke-sdk-oracle.json",
+      "before": null,
+      "after": "197f04fc0a90bb203ec47b2c99f5020a4553099d5613d07390876fc6a82678d2",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/SourceRegularRestoreV9Oracle.json",
+      "before": null,
+      "after": "e0eccfb16b8022f52dc25491cc9db2a41d6330e375cec308404e54325e9a9333",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/SourceMagnetPullV9.json",
+      "before": null,
+      "after": "9a0865c12469a119c99a29d1f965abf751b6ae3096880d8f334042de69b2f2d5",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/SelectedAudioSourceOracle.json",
+      "before": null,
+      "after": "67bb0c589edc7b52c1c9f87416409ca89396c27a858e557183469ace61f8ee0c",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/SourceEndgameHandoffLedgerOracle.json",
+      "before": null,
+      "after": "af099755a15b112f13044d33b5c2615d986d32a9ff093c3038f2e7f78f44b8e7",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift",
+      "before": "ebd343967be5b93267d97a0580475cd1574f67a73abeef3243fceb1271e57ef7",
+      "after": "87e449de661de8b61338937987119f5d5655ed21cd7900aa45b54f4b6afbef8f",
+      "merge": "clean-source-change"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceOrdinaryPreDebitMountedTests.swift",
+      "before": null,
+      "after": "dd49d0c8729007838916e43f4fff0afc6e7390f19a9a8109aba488b48cbdb62c",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialFreePlayPlanTests.swift",
+      "before": null,
+      "after": "1dcd49445aa3a66ec6ea254b93889795b6c0ac9880b53959da55eee23053414c",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceMagnetPullSceneTests.swift",
+      "before": null,
+      "after": "b46eccf12fb218b17129ef4736e9c8e10632199e15fc8c62784620af8d71eb69",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativePaperHandoffTests.swift",
+      "before": null,
+      "after": "50b45406e9b2d6109bbf5991eb2148238cbf478b51bf8005116a265799c42e77",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSharedSmokeRootTests.swift",
+      "before": null,
+      "after": "fa211d4265b87b2f7d7afb1f3b7b78cbdf1da921de8c092b4c5c2f84e8081f25",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialSecondStepMonitorTests.swift",
+      "before": null,
+      "after": "6b1ee652c9fc1f2315c0662fdecba5e712544091d40ce6852cdc5fc642e02e79",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceBoardEntryBootstrapTests.swift",
+      "before": null,
+      "after": "8d782e853c65a113fb177d83923f498cc0dc07d1d36d6e53420e7c371635b582",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeMeterActualSceneBindingTests.swift",
+      "before": null,
+      "after": "8aac91ebb80ee53074764872f731d1cdd3f5f249ba34bb1e8e82f74555e94997",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceMagnetPullOwnerTests.swift",
+      "before": null,
+      "after": "fd8d3b9dc7bbbd18ff428eab46a7430e053b9f352bbf9cc6bf48057cd2c3bd55",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceSpecialIdleMountedTests.swift",
+      "before": null,
+      "after": "1b828f5a95ccadd7c2d3d79a6287a8ed540ad95c6774847f32a8d1dacf16509c",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceMergeSixSpawnOwnerTests.swift",
+      "before": null,
+      "after": "1b198aae84ffc7c6f3bbebf7e1b57ee6dc2a487930eedff026527e637ec951aa",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeWildMeterSmokeResizeTests.swift",
+      "before": null,
+      "after": "c53effd1cf749f137e3dabdc84a72e525965bf63fd20f5994acc87fec137cffb",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeBoardTests.swift",
+      "before": "cf686149c36464ff9b70ad77874f5897a61a16ad5f7de0890e0f02fa3638aa48",
+      "after": "6125ac5adbf17b120ea999dda72253bd2754d6a8fe20e0d7679aae39afb70ff2",
+      "merge": "clean-source-change"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeRegularStackFrameBindingSDKTests.swift",
+      "before": null,
+      "after": "334eb1f155e1e97231156045fb3a89d4b16f502db7d5a817d17bcf37c14d3f27",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeFinalGeometryOracle.json",
+      "before": null,
+      "after": "815b26577cfe6640d779b53f5e041c7247220c4fbe61214fe8a94fb4fa3852ab",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeBootstrapTests.swift",
+      "before": "ebc86dc2099d56e2d2ff9012c33f986cc84dbbb2e2c6aa69a97fd6bb53a817e0",
+      "after": "879dc092be9ba874db9edb767ec0bfa644ef4a7ac5962f3b3cb1d555dbffef7c",
+      "merge": "merged"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeHUDTransitionTests.swift",
+      "before": null,
+      "after": "eed8ee9b4e1efb58c37c0a70dc0a07d1cf2fc84b2fed59b19d3596666b60cb5c",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceWildShimmerRendererTests.swift",
+      "before": null,
+      "after": "b17f77221f8fba7d0c715ea7880eb44520426b6fea15c6a678badc8a9cdde8fd",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceInitialBoardBootstrapTests.swift",
+      "before": null,
+      "after": "14ff73ddea4c1c7fd43aa5056236cee2d0a2ee29afacf69c8018cbf81ec23e89",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/SourceNoMovesGenuineCallersOracle.json",
+      "before": null,
+      "after": "d39361ad395b97639833e600a0a8f3422b3d17e69342b2fa0daed65df8954080",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceNoMovesDepletedCallerMountedTests.swift",
+      "before": null,
+      "after": "df5b808aa625e409600dcfff082fbea747d6718ac9ebdb46e592b12a0cdc97e6",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceRAFTransportUIKitTests.swift",
+      "before": null,
+      "after": "5bfaff8e729d0ab348603795046b0a5149a4344383fb209f54818c22f054cc6f",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeMeterDeferredDiceTests.swift",
+      "before": null,
+      "after": "80ee25e935d7e3612605d80d93a4493b879b24ed5f96a54a4c2581de4815e35c",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialPreparationTests.swift",
+      "before": null,
+      "after": "7781cf9767a1f28f1f8a0af21f780fb221e8dd7935d6f13f28d15b36159187f0",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTntJSCOracleTests.swift",
+      "before": null,
+      "after": "4661d8055a00c775f611778c1c3795bb524e740487caf98ad92b5f36de3cdd84",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceSpecialAbsorbInterruptionTests.swift",
+      "before": null,
+      "after": "128677234e69f37fb45a5bdc98d3721c16612cc0db78eb4d6ca6615152278dd9",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSameNodeStackSceneTests.swift",
+      "before": null,
+      "after": "d05c92ba1c803afabcf86603910317f2c3c2301ae86e829f8327e51fb313f1e8",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeGameplaySourceBindingTests.swift",
+      "before": null,
+      "after": "ceaa57367e0d54f68861d1675ba4205659f6adca3c44c6d62da61f5e109e6fa7",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeHUDTransitionSourceOracle.json",
+      "before": null,
+      "after": "43034f3bfb9ee1fbcd367aa93e51f99998be8eaf213f5887ea0e21109f4c9e06",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeHUDRevealSourceOracle.json",
+      "before": null,
+      "after": "e42eee4bdb646ed921484455dd5e2c4d5a5d4b8ea51da9fbf9db078cc5df595c",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceMagnetCoroutineTests.swift",
+      "before": null,
+      "after": "61f61ffc431855d49637ae11d2172f2ba7ec5082e306aa927da9e3e080c24394",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceWildShimmerTests.swift",
+      "before": null,
+      "after": "2ffea27a57ee76a23b360218827b3491cc756c2d608a5d15446a0a8b2fb362e4",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeMeterSceneCallerTests.swift",
+      "before": null,
+      "after": "dd59e2f7bbb6ae5e99882dc90649932bbea792fb175d170e24d9907091e706f1",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceDirectPrefixNodeTests.swift",
+      "before": null,
+      "after": "1c7ffae2a3cc89bd5d811fda223b6742fb57ecd5e26f9c1bbbbf2648f76a57ca",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceNoMovesCueMountedTests.swift",
+      "before": null,
+      "after": "1f5e3b81af5858545d0e787eef8d3a8a77be6c9b9e8b1682f69216ac8a6758cf",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeRegularIdleMotionTests.swift",
+      "before": null,
+      "after": "c138679a5a9df4ce343d8c9a6f9bdbf89f68e2630dbe6f4253d244cc2db74fdc",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceMagnetNormalCallerTests.swift",
+      "before": null,
+      "after": "69e38eb851a038ce6ba81ec874e5950e4d73475bc53f7b01a1bba2909b8ade3d",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSpecialInputRetirementTests.swift",
+      "before": null,
+      "after": "472541c80f0b84463097012308f40bb8a10d954b3e27dd47d9948d02af39f160",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialFirstStepMonitorTests.swift",
+      "before": null,
+      "after": "90e68e32efc4d7355942e4a9e953d341f8d4c01f0531ff3626767b738fef1fc7",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceHUDStarScaleFeedbackMountedTests.swift",
+      "before": null,
+      "after": "bc5be2a06cc8fbede601e6bc0b4599ec7a5d2b32ec63c332c05df60dc5121998",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialBootstrapTests.swift",
+      "before": null,
+      "after": "4e42f69771fda3a726a465ec71b5e311c006b43e3bd168d868f06b4c5e8645ba",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeWildMeterSmokeIntervalDriverTests.swift",
+      "before": null,
+      "after": "cb71b4903905e85cf037f260473387f37c46ac2418b6894c9ce8090d9a44133d",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeMeterRestorationVisibilityTests.swift",
+      "before": null,
+      "after": "0868e2444a9f124fb56fb5c39baae325bed1b4bb4748aff9e17d83c780907842",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeMagnetForceCapturedStopTests.swift",
+      "before": null,
+      "after": "13c81ba2dfacbe103933e85df68a3a854c300ca08959cc8c7cf9fe93309991ee",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceMagnetFallbackFrameLifetimeTests.swift",
+      "before": null,
+      "after": "242e27029511ded88e90207b1a1ae9488fdf16978959291cb9537da4e6bef715",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeAcceptedAbsorbComponentTests.swift",
+      "before": null,
+      "after": "abf5e853794f6f52782ccd0e1114f14e8ae26ea037cac5578e51b54bedf2f5c1",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeRegularStackFrameNodeTests.swift",
+      "before": null,
+      "after": "a07acae7209217ac153ce9d8767bc046bc260a2e6772501f30956aadce1d2bb3",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeRegularIdleScheduleTests.swift",
+      "before": null,
+      "after": "d74af7db5bcb3be84b5d1bf59acedb671661b591d8ba31dd1268b80023f16431",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceWildDestinationFaceSceneTests.swift",
+      "before": null,
+      "after": "24a9b9bd019888837f23e8759380a3435d722fa933c3ba621dba4668de33d37b",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeRegularStackHandoffSceneTests.swift",
+      "before": null,
+      "after": "d7faddb5b75c1d12765e334fd95ce06b4193c128bd922223591d586c4e67102b",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeMeterBeforeOpenTests.swift",
+      "before": null,
+      "after": "aba1f3947c3640687abeee4f7867f45010cb6602144d56133b9d8ccc7dd114eb",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceAppTimeoutTests.swift",
+      "before": null,
+      "after": "8f6fb048f45f09ce872309226ca10adefbfd61ebf4bcf18a9820731a9b3bef76",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceAnimationClockTests.swift",
+      "before": null,
+      "after": "3ccf7bf7a9b8a8d18f2feba36e72d49f6c330f34949732dab255544930a26d56",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceCanonicalSavePhysicalMarkerTests.swift",
+      "before": null,
+      "after": "fb924216eb7fb22391c090f25ef0d5faaaa904575d4bb244c4de3ebed49976ee",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeMeterSelectedTextureHostTests.swift",
+      "before": null,
+      "after": "7634281e09ba5f7e2c381cef4736555152b07d789dd8d65c165adb10a8de33cb",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeWildScenePhaseTests.swift",
+      "before": null,
+      "after": "b42b9381d9e4976d3eff7e64fa86b651ec0a99e32e1ef9bd05cbe43d8b0713e5",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceHUDStarScaleFeedbackTests.swift",
+      "before": null,
+      "after": "7e2d0074d3d87cff64ff35c31637611f493463d3e336b90853166542b9851b7b",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceMagnetGuardRetirementTests.swift",
+      "before": null,
+      "after": "badf2feceab0713d5955667f52fe6d74dfdeacb9c99a6d77c81c96f921b7c8d2",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceBoardEntryTests.swift",
+      "before": null,
+      "after": "cc7c23ec5764b19646ecf6c023af247e37e8615f8d03f75a9a22b65ff9b63328",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceConfirmedFailHandoffTests.swift",
+      "before": null,
+      "after": "76f33a2fcd4aa839dde5eacb46a82edbd1253415a005df47e30f8747246f7ac2",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeMeterSelectedAudioTests.swift",
+      "before": null,
+      "after": "b5174c6c7d83e766020ba79f5f2448566bdf8875bd1de522c454c5718af0b19c",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/SourceWildShimmerGPUReference.js",
+      "before": null,
+      "after": "287a5ff397b07a438cd24427528435621f0760976adfdb1ddde389a5cdb58551",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeMeterHiddenOpenTests.swift",
+      "before": null,
+      "after": "06911eaf25f728c22abca4f5698d7509b56d8f6c8289f013f73a4dfd62b37990",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceCanonicalSaveMountedTests.swift",
+      "before": null,
+      "after": "55b6051a2efa499b54c327970e72d292e5643019dcdd0bb5f61279e9408d4e37",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialCTATests.swift",
+      "before": null,
+      "after": "0877b660f11a5f6a6971cf7efc220526bcbe4fdc5c4703169090d28e9a2cd94f",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceHUDStarJobsTests.swift",
+      "before": null,
+      "after": "494e049ec44f40c1e9e7b5ea8ffda3d63b6515df795201d75520f902864954d8",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceHUDStarFeedbackTests.swift",
+      "before": null,
+      "after": "e97b8188754f7affbfad9e49553b9143644bcc2ae173af6a761343a439b50871",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceInitialBoardConstructionTests.swift",
+      "before": null,
+      "after": "c1010f6465e8d9d775ded3ded764c81c86ab619e64624321ba64bdf51e90c0c3",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/SourceSpecialPullInterruptOracle.json",
+      "before": null,
+      "after": "d4abc2c7ea0d72c6a1d5e5377392203f78981d52c82928fa07397593275500a7",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeGameplaySourceRegistrySessionTests.swift",
+      "before": null,
+      "after": "bd7f50a3fc8bbac0dc45b4e6608a0d1d8385af86651548d18650c95a7f76793e",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/literal-game-pause-oracle.json",
+      "before": null,
+      "after": "f74254b2c9ec2a3e6389f6ff35ba26fc199cb7fd32105c6c63169195386bcc21",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceMagnetMainSceneTests.swift",
+      "before": null,
+      "after": "172135b02d38a9be32f4bb3d21a8b2d02ec94a7fd409c47b8fac94d4c369ef9b",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceConfirmedFailMountedTests.swift",
+      "before": null,
+      "after": "387eab5cc81145583b082ccbf4072e6ecff7e905800d1e8eb0b86fc47cff05d1",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceMicrotaskOracle.json",
+      "before": null,
+      "after": "f41016fd3cbeb8f8e3a697b5d53b8869a2050bda441aabc135aed5156986a46e",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeStandaloneRootTests.swift",
+      "before": null,
+      "after": "69de9f81d4b9cbb776dcee583e3c52e1131fe354ce9e435b3e8d7d253387fd7d",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceHUDStarMountedTests.swift",
+      "before": null,
+      "after": "8334794c2841f9a5d0f8484a298c8c6793b0d87bbac4ee81bccc0efce52fdaba",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceSameObjectSixSceneTests.swift",
+      "before": null,
+      "after": "408df8b83290fa65a45e64df94735c20e760c0829b9ef47512a23661cd3ae594",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceNoMovesAuthorityMountedTests.swift",
+      "before": null,
+      "after": "cfdee53bf47ff963e918d99b74a6d0dfd338d3909b9bbed70000228a03c9441c",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeRegularSixSharedLayersTests.swift",
+      "before": null,
+      "after": "8c9e6aaab0e73d272b4693ea5818c5de279850e3a6092d8204b285a558a2a7c4",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceRegistryMountedTests.swift",
+      "before": null,
+      "after": "24477070df4f2e772201d13cfc0665c4d051c7b2c506063d19a26b3ec76fffb1",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceRegularResumeBootstrapTests.swift",
+      "before": null,
+      "after": "cc6edd7ad607036f261cea166270cc52a2a4d5df3a70d5780c681f6a22cc0e64",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialFocusTests.swift",
+      "before": null,
+      "after": "32ed8f9f6075e3bb52a92765f79ffdeb7232600cd3bdbb2c39b8fc3a97a35225",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/composed-oracle.json",
+      "before": null,
+      "after": "1fcee976be944a8e9b439ba105ecebd6a8a285896c96413f9b894f5375f958e6",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/SourceWildFaceGPUFixtures.json",
+      "before": null,
+      "after": "4d26bd90f0261cd47bafd4a727fb6fc9c6c2dc0ae32f8dbb89c0d85a417b7df0",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialExitTests.swift",
+      "before": null,
+      "after": "dfc994c846bf3079456d58b98913767a219ccee057b49a81e53ca81692ea111e",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialBoardRestoreTests.swift",
+      "before": null,
+      "after": "b469fb7057adfde3252c5ffb3256ef35bd6b964bba0568b2541d5c6d1748d8ce",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceOrdinarySixSpawnBeginCoreTests.swift",
+      "before": null,
+      "after": "5bb99feda8a8384539f80494eb62b1bbee97d61d3171297d83805f9bfee5a86c",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceEndgameMutationLedgerTests.swift",
+      "before": null,
+      "after": "49d5ef9247fc0ee47744aedbba32a6032cd7d0838f21cfd71ad3d6fa2beaff21",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSelectedFinaleRasterTests.swift",
+      "before": null,
+      "after": "42bcd32ec6c3209f9ebb8a1c03199185a0968538b75e9a2e7a9cccd0d93671a6",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/BeforeOpenSourceOracle.json",
+      "before": null,
+      "after": "9ae7f9c6363498a8f61959d535fb74b5ecf3b92249274fc4e8cda974895fc445",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceNoMovesDepletedCallerFlowTests.swift",
+      "before": null,
+      "after": "bb10f09beaf198fd470d1b1d59d262fb8b39581210e35466a9f153e3cf587d8d",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceCanonicalSaveOracle.json",
+      "before": null,
+      "after": "134c58e5174f881906ec0a3ab0acc32809d5f8108f0631698b127ebd30f98864",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeRegularStackFeedbackNodeTests.swift",
+      "before": null,
+      "after": "bdfe398e27dc918081ab6d6c9750b5dfc7b3620a8a6d9072fd3330e09c87e056",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceMagnetLazyNormalCallerTests.swift",
+      "before": null,
+      "after": "4669c8c9e440d1e4b631644af8841d956a9566a55e258fbe36c6753d91826722",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSpecialMainBridgeTests.swift",
+      "before": null,
+      "after": "587745b378653952200d6b943fdceeacef091ba949921b7ef46840c1cea853f9",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeMeterLandingSourceTests.swift",
+      "before": null,
+      "after": "90f1376f9eb5c4c83089edbc7619b8ef40ace1dacc9508b3059495854b71eaf2",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceAppMutationLedgerTests.swift",
+      "before": null,
+      "after": "45e038d553bf504c744aa8ec4f55ba9f5dc7dd3c5a2c7c3765d19d80c905400a",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/SelectedWarmupOracle.json",
+      "before": null,
+      "after": "5a8eb0b29e1e65fcf14a3c9190ea6022dd00bdd5656a00dbb862f68cd51f386b",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceGameplayRuntimeProducerTests.swift",
+      "before": null,
+      "after": "2977c07fda55a3d6fbf55f8db1a0d9b4d56f880ccf07a3550160e8c22195fb39",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceRegularResumeConstructionTests.swift",
+      "before": null,
+      "after": "29db83d973ac86a03bbae2a37ba9031ec8ad29fe173a63367c7b7fcb820084c6",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/gain-oracle.json",
+      "before": null,
+      "after": "25c851cdcf4c7883aa92d33de9755101f969403b64d5d4832ea28290136cf49a",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeRegularContactSceneTests.swift",
+      "before": null,
+      "after": "ef3064fa5532b0e985fdd287077d7e4458b0b23124fb2112d0113d94a4fd81bd",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeMeterSourceQueueCoreBridgeTests.swift",
+      "before": null,
+      "after": "ce2754303bbf692f93326b4c74073e3d8c00e2efc3bdbdf105a2a9f2ffae7a66",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeNoMovesCueOrderTests.swift",
+      "before": null,
+      "after": "6b52eb57b39c11eaeb0cfed30c84ad078a59dd22e994baa8e604ca8792c25b4c",
+      "merge": "new"
+    },
+    {
+      "path": "native/standalone/Stack to Six.xcodeproj/project.pbxproj",
+      "before": "676172bc53fc0c688e57dafcd19fd55c6974c2457360c35f6ef54fcc39be363d",
+      "after": "982b981ef463a22e78431629b7151d785bd7e3f826475ba631901aa782e4cc4c",
+      "merge": "conflict"
+    },
+    {
+      "path": "native/gameplay-meter-scene/NativeMeterLandingShakeGraph.swift",
+      "before": null,
+      "after": "186656840bda5f9c56c9b6e9969c9d3a52736f48f500d0494414cd6a44960c9a",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-scene/NativeMeterHiddenCoreCaller.swift",
+      "before": null,
+      "after": "6ae01645264883fabeaf1cc791e387d02c50165fbaeb3f26b71ba28c761c1761",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-scene/NativeMeterQueueSignals.swift",
+      "before": null,
+      "after": "8621206c1ba77d838c194c320a1b52c55ed3840c61d1a6f21fcb101bdf959b8e",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-scene/NativeMeterSceneNodeStore.swift",
+      "before": null,
+      "after": "5a940c693c53ddb7ab5638912cdd3a6d0f93f7b8cbd62c366b0fd7a51784e43b",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-scene/NativeMeterSceneCaller.swift",
+      "before": null,
+      "after": "faf05682f14219dc701e46c2d02453514c708ce16f2248d1e74b1e49d3a000da",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-scene/NativeMeterSourceQueue.swift",
+      "before": null,
+      "after": "91ed1b707096b28f9fdb9c8961c9c8e09d3996a4f75edd6f34a2ec3ef4155b45",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-scene/NativeMeterSourceQueueCoreBridge.swift",
+      "before": null,
+      "after": "49733a70e7cd2f036038866952b095b4fa9ecb823bdadd5988df46cc93395940",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-scene/NativeMeterLandingSourceOwner.swift",
+      "before": null,
+      "after": "32977da2ebef2e88be3abf1aaef531cfc5e2cd0f45088a156af8fbef9dc154e4",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-scene/NativeMeterSceneGeometry.swift",
+      "before": null,
+      "after": "2fe86e6ce1de9714cd46380c129092e180f2a6a428ff553687b8e1a7bb934e1f",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-no-moves-source/NativeSourceNoMovesUIKitCoordinator.swift",
+      "before": null,
+      "after": "814844b40414d937b073591890b7c5c17f219f5bf0d8cb1d0a2311f340095e6e",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-no-moves-source/NativeSourceNoMovesSceneBridge.swift",
+      "before": null,
+      "after": "cb01896fe1d4cae5cf1653b4f1b553b5789e922881f9d356c2dcbe337148d0f4",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-no-moves-source/NativeNoMovesSourcePresentation.swift",
+      "before": null,
+      "after": "fb99b3c3b58bd30515c2c2a315dbed8e2eeff3bab4a95908e1e850981d040df8",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-no-moves-source/NativeSourceNoMovesDepletedCallerFlow.swift",
+      "before": null,
+      "after": "4e83b9c4b58743f84c9c87048ef0b1e46b820106e7a4b8cd00e047fa62d6de97",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-no-moves-source/NativeNoMovesSourceGraph.swift",
+      "before": null,
+      "after": "53b5c4686bfe02a44f5e6ae9e92a8a73013b73baa6fc66723cf28d28a8cc87b8",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-no-moves-source/NativeNoMovesCloudPlan.swift",
+      "before": null,
+      "after": "73dd48dfc3dd2f912d6c53b4fb918a0729e71580f023c188fc04c72228272d57",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-no-moves-source/NativeNoMovesPlan.swift",
+      "before": null,
+      "after": "48bf9adb83bf84e2fb033999d92e7dfa4a00a0faaaa98196135be526ab6c7233",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-no-moves-source/NativeSourceRegularHandoffMutationReceipt.swift",
+      "before": null,
+      "after": "7711e35750e594fcd17db37f0644df722276afcafac704daa71e365b9c6b3cf2",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-no-moves-source/NativeSourceOrdinaryPreDebitBindings.swift",
+      "before": null,
+      "after": "f1e9fcff769de8fd1af21467fe31ccc982ead0e1d3fe2e098dfb28d07979417e",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-no-moves-source/NativeSourceNoMovesDepletedCallerBindings.swift",
+      "before": null,
+      "after": "a660592ff8748c26255f6f18cca785c262ea165a845069547c81299c7a63d1be",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-no-moves-source/NativeSourceNoMovesSceneAdmission.swift",
+      "before": null,
+      "after": "c480f0ef74f67e8442352851b95b98ff9f5c7c4af49039e13ba0500c4fd387c7",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-no-moves-source/NativeSourceOrdinaryPreDebitFlow.swift",
+      "before": null,
+      "after": "7adb51ca40ecb89d53923d6ed787f4c27a94eeab5f1f014d7fe3476b72c2d1e1",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ordinary-six/NativeSixSourceSurfaceOwner.swift",
+      "before": null,
+      "after": "88baf42071f23392304e9be9f169b37a6cf96f2c2f9240a9d6af087b87870ec5",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ordinary-six/NativeRegularSixSharedShardPlan.swift",
+      "before": null,
+      "after": "5973fe4c85a7807129b7b61b3614311f9d11c96b5782304ebe895b3d6773ab2d",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ordinary-six/NativeRegularSixSharedSlot.swift",
+      "before": null,
+      "after": "95a5e86cf287fd26feadcc0bcccd2ac68564aac29df3cfad64b38afaf17c69b1",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ordinary-six/NativeRegularSixSharedContext.swift",
+      "before": null,
+      "after": "2be7dc197a2468cb72050b78d0b711f31c71ad25f151ac612073c8e468ba83ab",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ordinary-six/NativeRegularSixSpritePresentation.swift",
+      "before": "aac56c0924cdb6712b219b009d93cce3791f76314c4d02ab91a1a23dddd65dd4",
+      "after": "22c97a1b9f4173c07a9811ed4f6f7aa7084a0480decd980ce18f6c4ba7539719",
+      "merge": "conflict"
+    },
+    {
+      "path": "native/gameplay-ordinary-six/NativeSixSourceSurfaceGraph.swift",
+      "before": null,
+      "after": "68211479d9330e117e4ac3f122c7f618a929423565d73d7113f50f707f9b0d4d",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ordinary-six/NativeRegularSixSharedLayers.swift",
+      "before": null,
+      "after": "9c8050c09ddd76a23bdf78f2b373c9010ad8c829f087281ebbed5d0a6d59fe3a",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ordinary-six/NativeRegularSixMultiplierGlyph.swift",
+      "before": null,
+      "after": "beb1363d0eeabff10144014d8fea0d001483360bc859b1143930dbcfa2b2c570",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ordinary-six/NativeRegularSixSharedShardOwner.swift",
+      "before": null,
+      "after": "c19c574da9177c9af4a57fa89010108206bdd5ec24e37a283a8151445eb373a5",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-shared-smoke/NativeSharedSmokeRuntime.swift",
+      "before": null,
+      "after": "a785fc32455251ba16f43f6334429cbf10be6ef38e5feb4a2828959835b6f703",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-shared-smoke/NativeSharedSmokeRegisteredRoots.swift",
+      "before": null,
+      "after": "cf744b8a5e5d3c0bc3f14efcae8ca65f5c7c9ec5bcd20d8534e10da2a4013a65",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-shared-smoke/NativeSharedSmokeSpritePresentation.swift",
+      "before": null,
+      "after": "bf638aacc78d782ec07944475caf270797cd21100a9833598b70849f6f939cab",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-shared-smoke/NativeSharedSmokeRecipes.swift",
+      "before": null,
+      "after": "ee382ff9a7ec3a0ae218d0be818cf809ccd0c37ec971936bab18fddc3b36ae45",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-shared-smoke/NativeSharedSmokeRootOwner.swift",
+      "before": null,
+      "after": "4fb3e383b64c64da5ffc59a87ea0bb2e178d984becb7e9784ccb5f27bd7cdfbd",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-shared-smoke/NativeSharedSmokeRootValues.swift",
+      "before": null,
+      "after": "7397f68f459a0547dfc20f20f775c193d4387e8a5c52b495de9465cc2c3003c2",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-shared-smoke/NativeSharedSmokeRootSpritePresentation.swift",
+      "before": null,
+      "after": "be0948fb2b4381ffe45d30fb80566d317f8ea996ece45c899714cdbaa79c6190",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-shared-smoke/NativeSharedSmokeRootSession.swift",
+      "before": null,
+      "after": "227de8455635b38e7eb42ea2b4412b78c5cbee7074db8367064046ebd75fa14a",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-shared-smoke/NativeSharedSmokeRecipe.swift",
+      "before": null,
+      "after": "00909a75bda7dbda117c1b09be6f67df33b67d17f207cb4df3d99867d53d1430",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-shared-smoke/NativeSharedSmokeSpritePool.swift",
+      "before": null,
+      "after": "c940d0473427722108e3e30ae943279363a5d0059c2491773bb3a11d591f531e",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-shared-smoke/NativeSharedSmokeClockRootScheduler.swift",
+      "before": null,
+      "after": "4fff96e78e644df1aa62c8974b90b847e3d5d246084d403bc8357c47fa08eeb6",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-shared-smoke/NativeSharedSmokeRootPlan.swift",
+      "before": null,
+      "after": "ea21c843315d7b0d10669dd8abeed7b4908bc38aa895e027f632b716d06db4eb",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-shared-smoke/NativeSharedSmokeSpriteRenderer.swift",
+      "before": null,
+      "after": "b5a20ee874daf715e132822c4bceeabf92a65b8185116953bc849706723cc836",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-shared-smoke/NativeSharedFxResources.swift",
+      "before": null,
+      "after": "f71c4d169543a95d409a51ebfb28e799779bc0d64ab6c9946d31e638af985ac4",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop-tests/NativeWildMeterDropTests.swift",
+      "before": null,
+      "after": "18389bc06a8e8cb943ccf48ed16aa4ba11d4c9acbc320990b2dc7e095843b2c3",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop-tests/variant-scale-oracle.json",
+      "before": null,
+      "after": "cf144c79969703d1d55f25870a8e56416033928cd2ab01de4f9da81479eff694",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop-tests/NativeWildMeterDropRenderingTests.swift",
+      "before": null,
+      "after": "61cd298369b69812502ba9252271581a54a80fb042c3672e046f62e7c25dd8ba",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop-tests/NativeWildMeterDropConnectedTests.swift",
+      "before": null,
+      "after": "11a721ab594b4767f49cfc27ba12632fb08033badbbbb16d9be2f5a2b5545c85",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop-tests/NativeWildMeterDropAudioTests.swift",
+      "before": null,
+      "after": "4265b0245a6379826b09cac06f0dc70247d7e59e9d0a9ecd3fb4863db4490a22",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop-tests/NativeMeterDropCoreTests.swift",
+      "before": null,
+      "after": "57b9188c28c56cb189ea52a27c0099a2ecd088dc339871f7ff1113c82fd9c41c",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop-tests/drop-oracle.json",
+      "before": null,
+      "after": "4e39304dab14c7207128191cefe9239d89625acd57953318b7884481347ca23b",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-transitions/NativeThemedBoardTransitionController.swift",
+      "before": "3e1af0ee741076b39553a1fbb611b83bdbecca6dbe9bc3d9edbc9c158caf9ee6",
+      "after": "d8456da3f1c8f653d4f57237811088dfc596b0f79c004250856eb7bf4476fe5d",
+      "merge": "clean-source-change"
+    },
+    {
+      "path": "native/gameplay-meter-hidden-open/NativeMeterHiddenOpenPolicy.swift",
+      "before": null,
+      "after": "9f26dd78c036f3175391bc33911a1f8a8949d4defed5813a82372e850fe59c88",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-hidden-open/NativeMeterHiddenOpenOwner.swift",
+      "before": null,
+      "after": "3b5953bff92bbb5623c9f34b3ff17c4f17df569cbdf26f487ffba2b1d1ef8423",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceInputGateRegistry.swift",
+      "before": null,
+      "after": "8aa19669051c9ef04a82fa64a82952010ac4a23fe9aa3142fc2b63c94060a29b",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeTutorialOwner.swift",
+      "before": "67ef39a0899cbd7295cf9f5ca206fb13e3bb1080e7a6071a4635dac1f892fe71",
+      "after": "dd9676e49b084f25b41c5bd40acca8969993a0a9cd3fa1b1de035a54b189de40",
+      "merge": "clean-source-change"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceCanonicalSaveTransient.swift",
+      "before": null,
+      "after": "809b3ff0b58657c9ff67c59d8f171a7795de5904b15d807212a0d7f9b73c0b29",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceNoMovesTerminalRegistryEndpoint.swift",
+      "before": null,
+      "after": "c2a7f35616319cf3166a8c59fcd952d5bf43b9399334bb57ca47b4b87be8bdc1",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceMagnetSceneBindings.swift",
+      "before": null,
+      "after": "5e6de248b8630eb163c2e9ecc92635d45ad7b492ca9e1b70e4d81a0aff531b00",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceConfirmedFailHandoff.swift",
+      "before": null,
+      "after": "48ce0a835d22d2c8d08611d36642d5120c2c7269bb2a07cb1e45756d166f2a68",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceNodeRuntimeObservation.swift",
+      "before": null,
+      "after": "63f4a38d2294e979b8017a3612affc85836bf46e62d302100b015a1f5d175967",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceAppSpawnBounceOwner.swift",
+      "before": null,
+      "after": "bc63961e971a22ccc7f97352a93bf77a4b66d6501bd3c2046f69ad8e237500fe",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeStandaloneViewController.swift",
+      "before": null,
+      "after": "6dc2dbdb74d8f1f26f274e7bdee5002062d64429073308a851ee04fcbaea828a",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeGameplaySourceContext.swift",
+      "before": null,
+      "after": "c6ef5022ef511216fd6d6f7c17c844c4700da0db512cec7315e0b04454fcc38f",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceAppMutationLedger.swift",
+      "before": null,
+      "after": "bc643004e3b2e8a01353f5d521e361f6ac506302ab0dfba4e6b3de83b4cfa376",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceCanonicalSaveCapture.swift",
+      "before": null,
+      "after": "1d9093424cb89c569e7fdd07e3f891c161be687f7269198db9bbff74001abb6b",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeResultOwner.swift",
+      "before": "bc55126757607d81869270fcd69e4d1ebfd213687118231deec0dc915eb3c875",
+      "after": "a5be122063b6c9a4cebefea8df7e6d46a7c97176abfc4c7468e779bd9dad2d48",
+      "merge": "merged"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceCanonicalSaveOwner.swift",
+      "before": null,
+      "after": "a2cfee26b1520df5219f77a49634a4436a7ba4e46011a178d8ba9db94931c654",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeGameplayAudioOwner.swift",
+      "before": "4ead51b2696a8927e9449d7bc0568ec9ea8767bb6d5dd812cbcebbf513599c65",
+      "after": "507ad8e0cf3fabca9df019d78ff3482cd6bb990e2374fda39e1980ecc1aa3219",
+      "merge": "merged"
+    },
+    {
+      "path": "native/gameplay-app/NativeAppController.swift",
+      "before": "2504ad0770a30b7692f81272fb6ebb61a3b9bcd1cd561881930c6f9ebc8d61ed",
+      "after": "326605a7f96152634bafad101334374d7170662f3ac9d45dd6f6913ef49e24e4",
+      "merge": "conflict"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceMagnetPhysicalState.swift",
+      "before": null,
+      "after": "90dc42d486c96adba7c37028bb36916c00a66989aa8874b66686ff24bf9922c8",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceSpecialTransactionRegistry.swift",
+      "before": null,
+      "after": "b66a97058351973c1375165c4e7211f1aefd474eb029b80eeb8d9eaa2fc1be69",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceContactMutationOwner.swift",
+      "before": null,
+      "after": "889102a8e8c6bc5e5677cd7e45af218aaa5eb24f2ceefb9f46387a0014bffeb9",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceMagnetPullOwner.swift",
+      "before": null,
+      "after": "a20acbfcdf866a5dd6a3df732555d5b29e3aeab5abaaced4da00260fd0f3e456",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceMagnetSurvivorOwner.swift",
+      "before": null,
+      "after": "ab8beccc03202a2e60e52b1b20af89a77a58e7ae7847b584ebb8eb02629bf740",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceGameplayRuntimeProducer.swift",
+      "before": null,
+      "after": "f34e4886fe257fb882246cea1e7644aa6c14e4e99150cb43c609d491e5c865a7",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceSpecialSceneTransactionOwner.swift",
+      "before": null,
+      "after": "e38704badb22bcc23c4880e22ac6185bdc82c6b9f1fc6bde8278d023b2846ec5",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceMagnetRespawnOwner.swift",
+      "before": null,
+      "after": "ecce66f622380aa4ad12ce52e8fb0eec77f9f4abb5a567bc4435c51bf10fe1dd",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceMagnetPullServiceAdapter.swift",
+      "before": null,
+      "after": "ce1598085d9757e481b79cbf567b2af701f1e1b81a00c4859b9e100d3b2bfc44",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeMeterSelectedAudioCatalog.swift",
+      "before": null,
+      "after": "e4cc1c41c1623e62b5bcf653f175e818946f6d5d858a8329aa63579ff886dbba",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceSpecialIdleRegistry.swift",
+      "before": null,
+      "after": "6d0831f3301a657a7e449eb8d770e62452178a74359d2a8e752edc75f1508d44",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeBootstrap.swift",
+      "before": "860bafb123d65582213e000a37bd69d65271ae8793e638995ab2a9737b6ec09e",
+      "after": "756b77d026c97c5331cbd9136a49a45430c9a5fabe3edeeb9e47f74074ee4971",
+      "merge": "conflict"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceMagnetGuardAdapter.swift",
+      "before": null,
+      "after": "78675bc9e1ca62fcdac75c0c8d19904934601bef5e5c325b85bda4857a52b34b",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceEndgameMutationLedger.swift",
+      "before": null,
+      "after": "532d5d12038bf334107d3442d6f2880279da14fab31e89e4d5f030d4a1c4ac0e",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceMergeSixSpawnOwner.swift",
+      "before": null,
+      "after": "e140534e0b55c6a6f788a1915b674b45ebbbbdf9f9f1b29233753f02e23b61a8",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceMagnetCoroutineOwner.swift",
+      "before": null,
+      "after": "86868796a931403fcb83d29358d7711702522cc297e21985ef8f4047e4b45de4",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSelectedAudioFile.swift",
+      "before": null,
+      "after": "866c7f504f65323405f748a4c13c9adbeaadde87fae56893b8d3335fb0783bb6",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeTutorialOverlay.swift",
+      "before": "4ff60e67b846b625eaec554c8ec4b30997a645909f93bc624db7d4c4b8e34e97",
+      "after": "7432f7fcee99776fd3316e98a789e8c9614d375d1dd5558d4bac5b49468c87cc",
+      "merge": "clean-source-change"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceMagnetFallbackCaller.swift",
+      "before": null,
+      "after": "fc0113718e9b96fa55db263d8c25954aa3af35e610c3bc742b7484b5b1607809",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSelectedAudioPreparation.swift",
+      "before": null,
+      "after": "6a7acdc60985914eac7c8f615fbf779983a8e85bafb914b49c56cf6ba19768e9",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeGameplaySourceRegistrySession.swift",
+      "before": null,
+      "after": "23a52ac24b81f29b4c19ed6ddac41639b842f8f3955217033e9c90483138b791",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceSpecialIdleScope.swift",
+      "before": null,
+      "after": "048ef7c019cf1016a5b3bf50096244af20c78017a97c688fcbd88a51dd168469",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceEndgameGuardRegistry.swift",
+      "before": null,
+      "after": "0cbf5ead8c880be53e477b8cfc5d0a3148fb594bc73ecf960047d35714c83f93",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceMagnetPullMotion.swift",
+      "before": null,
+      "after": "0fa0f7bbab5bf591e49d0643cae5e6e27c0eefd0e6e4ab66ac85d9c6abe34dcc",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceMagnetNormalCaller.swift",
+      "before": null,
+      "after": "8f9ca4884b8a9237733a93a8ec139dde16053808552100d78f57f74bc8adb27a",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeRegularStackLayout.swift",
+      "before": null,
+      "after": "bc8a6eaeeae8c868e0d892b713523dc357c3f47f871b913eb5cb570e64c6903b",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeRegularIdleMotion.swift",
+      "before": null,
+      "after": "5b36733fa0d7344f371896fa66e227ca46790324cc8ef38f06f3d1da0fd51eb4",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceTutorialFreePlayHintOwner.swift",
+      "before": null,
+      "after": "982612aeb2e2a0f621d24364663bba1e7d65466bcf127f87d5d9063cbf337a4c",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceTutorialIntroOwner.swift",
+      "before": null,
+      "after": "e8836c187c7f71860b399b9f570e343190bcb1bd83d69e651025c9d69ff1a149",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceTutorialHUDOwner.swift",
+      "before": null,
+      "after": "346fa1787dd7d9c2b2e3f6b7346cc91bfdff1345c2c255edf041b6f8c277bb3d",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceInitialBoardRecipe.swift",
+      "before": null,
+      "after": "7b8633cc810eb455aec9cbc26a7e3b2947437b85f763a2e49958d1d94228068e",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceTutorialActivationOwner.swift",
+      "before": null,
+      "after": "671538febd0eca147ead59843fdc8fed8be2d87518e5a7b5636ae302a09add4e",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceTutorialFirstStepMonitor.swift",
+      "before": null,
+      "after": "1b87b3232a499fd3b2f9915eaad89c96254864094e1bbc27871ffa3cd99ebe47",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeGameplayViewController.swift",
+      "before": "ac4a0814b09ed1e3272abe2bcefd426e84f7092f802c3fb9ac8d68e000cd5017",
+      "after": "8df8f92684e9f9d8eb8c83057c2353131712bae54c3c137032f153b56a4f1aa3",
+      "merge": "conflict"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceTutorialSecondStepMonitor.swift",
+      "before": null,
+      "after": "701ed2ccbbfa8933f2436f258bbafc8bb0bf954bbce3698c45e34f17e9f04c94",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeRegularStackFrameBinding.swift",
+      "before": null,
+      "after": "192e1f74f7836b8b0c339276c26cd56c47fd361b9a784c6bd69898dfde5af46c",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceWildShimmerMotion.swift",
+      "before": null,
+      "after": "8d313fd462e98c0279a152a1cdc4651b5985b4d591187f7fb057206aa4c4a856",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceTutorialFocusPlan.swift",
+      "before": null,
+      "after": "32bc1adef329bfc55ef61dff3e6f5e301638ac606593af0807d7f8aa8f6b0e50",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeHUDTransitionMotion.swift",
+      "before": null,
+      "after": "599c2bcf76f80c62c20419d8207d9fccc72382ca3189ebbb8eb6287da119fe34",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceRestoreFaceAdmission.swift",
+      "before": null,
+      "after": "ab37e36977d78f2b4ff97bc73aa8fbfeacd0ec959ff340e6d4c94853835cd01a",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeRegularStackFrameOwner.swift",
+      "before": null,
+      "after": "a64eb91e03b14fbce06bedb0519aaa64cb786ef49c0acbf07589fa2f9956b960",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceAnimationClockService.swift",
+      "before": null,
+      "after": "7afd24ab4672dc713af8c0f813a74db789077ae8acf9aee0644bc9151ceff80b",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceTickerRAFState.swift",
+      "before": null,
+      "after": "50dbfd652c3fab6fafed15d0609cebf22b8a93afe01f639da2f2f10ab4b9dcdb",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeRegularIdleSchedule.swift",
+      "before": null,
+      "after": "390925064d43a33ac3fa60e953d874b3e56e4d20b531d03372c5a7fcdf9c1fc6",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeBoardScene.swift",
+      "before": "f2069613e7606f4a4418fc8a92df3e0c503c61116f196d3ae62eb46baf81670d",
+      "after": "58fd0951afadb047fb8c2f16956d517cd4fbfeaea0dd95a1021401cac083b349",
+      "merge": "conflict"
+    },
+    {
+      "path": "native/gameplay-ui/NativeDiceNode.swift",
+      "before": "05c550a1eb2bbdfb5500a0618452c7e5aea5e6fa1c754de81099f548eccd19cc",
+      "after": "9e57f1f23e050cc3c33d435f168498eef03d4ffa87b76b8aed30efc60e03b172",
+      "merge": "conflict"
+    },
+    {
+      "path": "native/gameplay-ui/NativeStarBurstMotion.swift",
+      "before": "2ed6a330fc9934e2bb28675ce0411acebe10fdcc7f4bc4c5ac561665f1c8e801",
+      "after": "ad7eaabb31d6afd185c0c19f6fb4813aa709b94e20395fad9e9ab9ac3e5429fa",
+      "merge": "clean-source-change"
+    },
+    {
+      "path": "native/gameplay-ui/NativeRegularStackFeedbackOwner.swift",
+      "before": null,
+      "after": "27772b7ae202e019efd5858f6049b7195c7f714db820012d42d59a6932598b5d",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceAnimationRuntime.swift",
+      "before": null,
+      "after": "251eaebd52ae41725f7ab0bf86bf3494dc68a6b40bea1729a9f0225c65e5f960",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceInitialBoardConstruction.swift",
+      "before": null,
+      "after": "0ebaba37a8547b26d29b2b3eb25e1c618696a2d524aa518d02958d29341d8836",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceTutorialFreePlayPlan.swift",
+      "before": null,
+      "after": "83baca48d7af602979d05a9011caeea4e0e0f8e3ad6eb10801af09fb5501c790",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceMergeSixMainCapture.swift",
+      "before": null,
+      "after": "4f3ffeda41efd00f1250fbb757908998b5c2be521cf9176e91afa222037b0e9e",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceMergeSixHeroOwner.swift",
+      "before": null,
+      "after": "4684b5b8662dff81c812b98ed227ed03a62ce4107c17db9cd5b6fd731179bac5",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceWildDestinationFaceSequence.swift",
+      "before": null,
+      "after": "4e1d540d7b30fa1d982e21300139efc3b3e6674b40312dbe66292fd5b99a2c38",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceAppTimeoutOwner.swift",
+      "before": null,
+      "after": "091e1871914c2a52ea1ea1c2acdf0e5a6065ae7c747e81008f375a901d07656f",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceBoardEntryOwner.swift",
+      "before": null,
+      "after": "5dd3a08cf65cb70d19efca3946753ecd4bf66088464f8ced32afed4f7647efb0",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceSceneMicrotaskInstallation.swift",
+      "before": null,
+      "after": "360656e2b97f67233ebdfb7fc952e6b12169a4ed4724b29b8c10674f92a21a2a",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeFinitePresentation.swift",
+      "before": "717313cf3183489c371caccecc05d66370fb6b866f1696de7d9e779db349f5e3",
+      "after": "701ac140e4c51e28241887b74dee4b67b2f4f18748dc38340dffa94354d768a0",
+      "merge": "clean-source-change"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceMicrotaskFIFO.swift",
+      "before": null,
+      "after": "9b3cf4559ab046eb88adc343b0660567aa381422e0f039381e60b1f8765d8aac",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceMeterMicrotaskCapability.swift",
+      "before": null,
+      "after": "f9130fad44380b37e1d8a3a47378810c2d527eeacabc2901f1aa424e2a56b421",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceBoardEntryPlan.swift",
+      "before": null,
+      "after": "6c45bf8390bed5b4b37642a1468010632de6dcce06146f352d0dbaf4a72df5b1",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceFrameRuntime.swift",
+      "before": null,
+      "after": "6ed9db054123d24986c89f5faada27df7b0b34b69ad7ca91e984dcf960974c7e",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeRoundIndicator.swift",
+      "before": "618a8c0afa24a29e12716f9695b16c8a6b7fd0b385e0af54307afc49df8d0498",
+      "after": "e05c392ef404b7c33abdd5456e671322717b53811448929e351f2b0e3835cbeb",
+      "merge": "merged"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceWildShimmerRenderer.swift",
+      "before": null,
+      "after": "a5b11acc9e28b3e28a5c49374733f6f350d74ff3c73b5b713e8212531f7db68e",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceMergeSixAbsorbOwner.swift",
+      "before": null,
+      "after": "d2ecc0f16e67671f722de08524bfb3ee8de57d33c00330b894a693a6d983cc9a",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceTutorialFocusOwner.swift",
+      "before": null,
+      "after": "2270f1c90a4011b64c01b7758caae6cb4e0084f77c769b8953c49faee922308e",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeHUDEntryReveal.swift",
+      "before": null,
+      "after": "e5e7382007520814972cc3ac90ae612289b5af23c606fcba2b6b29c7e6ce4e52",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceTutorialBoardRestoreOwner.swift",
+      "before": null,
+      "after": "e2ad94c0cc00ab79461014b738ccdd4556a403a75d4957dedbf69a1ffd8dc4d0",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeBoardFrameCadence.swift",
+      "before": "12c5bb4c14a9b72c9c606480356357dfa7f764045406379e007c6fc4f1a2c6f7",
+      "after": "fce7ff589e5470866a446a262196e6f75697d10e9967efea41c35cbb410818c7",
+      "merge": "untracked-conflict"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceTutorialCTAOwner.swift",
+      "before": null,
+      "after": "3c8b70782b39236530819a1e0e8653efce0df3ad0d7f7d4b2966d812953fe9ed",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeRegularStackFeedbackNodeBridge.swift",
+      "before": null,
+      "after": "8b5ced100e4aa4e4e64554735aa36aed98ab3588d44ae3d335380c95c05997ad",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceTutorialSecondStepPreparation.swift",
+      "before": null,
+      "after": "2c094f3fd0e8788fb55aaf85bed2e43698fad38453241e9a9302be6171f3398a",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceTutorialStepOnePreparation.swift",
+      "before": null,
+      "after": "b952f53406d70802200e759fa6070a71e3ecd4485ce6ab3499471ea05ac82472",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ui/NativeBoardFrameBudget.swift",
+      "before": "b25ee40ad58bf6558998d2f82558e6f67d28778749cf8354e044ea39f4acea78",
+      "after": "4e81faff44d9834a1c369526f80e4366d5c874f762c12cd8a18a870f3e4029b6",
+      "merge": "clean-source-change"
+    },
+    {
+      "path": "native/gameplay-ui/NativeDiceArtwork.swift",
+      "before": "424ef54e16f8f60851c5db7fd91cfd9b66d812fc7c4dca96e773c67544c49d5b",
+      "after": "285b753259548b8a10bae7a28adc03bc04e23a0d4318532b1a69af68605f8a59",
+      "merge": "conflict"
+    },
+    {
+      "path": "native/gameplay-ui/NativeStarFinale.swift",
+      "before": "02d4b81d659ff2d37e2f615685cdb35718a7db5bbe3b289846a3c3922e7e818b",
+      "after": "29d552795441babc689963f330949e0897493d181f095d31aef13f4de52d6618",
+      "merge": "clean-source-change"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceMicrotaskAdapters.swift",
+      "before": null,
+      "after": "abaed9b2532e027f57487e11c3f933abe4badeb031e8698ac1466204266b5ccc",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-transition-tests/NativeThemedBoardTransitionLifecycleTests.swift",
+      "before": "30c2af10c8dd5b9bfc40dfcd147513a7f2908114e837551275bd1fa27044efc4",
+      "after": "014cd40d5f4a512aad5f6b684f1e5046baa3c9f27fd8136b9b06bbfa0a19d02b",
+      "merge": "clean-source-change"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeWildMeterSmokeOwner.swift",
+      "before": null,
+      "after": "39d37705f081aca4745b41065885dbab2110db6b473a36161ca323a8a0efaa0d",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeWildMeterHUDPresentation.swift",
+      "before": null,
+      "after": "3c60749bd2bb7137eb589c69e4a4e14950db98e1386d63931f79dd05fba2cc14",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeSelectedFinaleRaster.swift",
+      "before": null,
+      "after": "ce50a44170bea56b4c1238a4346d4250368278ee9e8870ead09e487279831265",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeWildMeterHUDOwner.swift",
+      "before": null,
+      "after": "daf9c1ea620d93f005f8f9c9c3c008d3f5f1f68a4716b24e78dcbaca8cc1df07",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeWildMeterDropPlan.swift",
+      "before": null,
+      "after": "cfb09d32ac8d634228028cff8ebbdb51863914aea9b398079697282fc04ec6be",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeWildMeterGainPlan.swift",
+      "before": null,
+      "after": "e07e2d4892d212c4d2e4a186ec8883a39060685f3fcd3692caac51183a2f4554",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeWildMeterGainOwner.swift",
+      "before": null,
+      "after": "427b85f49620baf517ee6147e4ec9271f51b27d1b3856f91e12b579378aec904",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeWildMeterDropPresentation.swift",
+      "before": null,
+      "after": "a12cd2344f66899ec7fa2335a518c2653b3b82e53bafe9388e74cceaf90ad7f6",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeWildMeterSmokeWallDriver.swift",
+      "before": null,
+      "after": "8eec50cc8e51e9df9d29ee4e1489bbc77b800c4829e3c7369afe49c7aaebe3ea",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeMeterSelectedNativeWarmup.swift",
+      "before": null,
+      "after": "3bccee5a3aeb767d6acd9e8684eac986b93cd0731a84b1350cf624bc35765fd2",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeWildMeterSourceDriver.swift",
+      "before": null,
+      "after": "cb42fda669c081dcc0761ff21d5c5ad01b84626346b3d41d1e2f452e13c1e711",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeWildMeterHUDDriving.swift",
+      "before": null,
+      "after": "04edd48e80684c6f3f2191c309ba5af9d3ae0ccd57e140149c8ec9eda34ec071",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeSourceHUDIntervalPhase.swift",
+      "before": null,
+      "after": "8f98226b1dc7c57a98ff80f35779af81fe4a4baa45e2a01af815c69e56dc235a",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeMeterSourceClockAdapter.swift",
+      "before": null,
+      "after": "ae027b7c0e857a317d644282aa761d27694e2f474cd1457d40319fba815e5fe5",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeWildMeterDropRuntime.swift",
+      "before": null,
+      "after": "b4d9cc15c5daba638e1cb8691f7cdef447e3a90c7948c1de08361c262b319ed3",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeWildMeterSmokePlan.swift",
+      "before": null,
+      "after": "0d59e2c45e6a9e314f3c0f2a7d6c863102d2fb7709876a5d17aab5fbce4b211c",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeMeterSelectedWarmupCatalog.swift",
+      "before": null,
+      "after": "f1a845cc4bb0d976c454346f1f4d699efbe55dcd46b52d771bb66be3746caeee",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeWildMeterDropNodeHandoff.swift",
+      "before": null,
+      "after": "cc3ef07c3efa02d09f60fbc1da19b43d56c4be42910d39cea34d274920790318",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeWildMeterDropResources.swift",
+      "before": null,
+      "after": "1c813a4b54d08718a53f6c9368831de401228a9395e952be855867feccff78df",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeWildMeterConsumptionPlan.swift",
+      "before": null,
+      "after": "cce86cc057efa690ffaa6c8b3e5e49a6e61d3e38ec6b65fe305c3118e7faced1",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeWildMeterConsumptionOwner.swift",
+      "before": null,
+      "after": "4afcbe44d2f99b1c07891e1de3ffc43845c5d7827758e1972d60604e526a2c9d",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeMeterSelectedFinaleWarmup.swift",
+      "before": null,
+      "after": "187186f0070e80ae983b90175f073642656f0a1e80fa5da7512fe4491f5534c6",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeWildMeterDropSceneOwner.swift",
+      "before": null,
+      "after": "81bf3b6d1e6f27a49b9762bb56ef09c31430ed5033bdc4a058bfc77ea84fc8a8",
+      "merge": "new"
+    },
+    {
+      "path": "native/gameplay-ordinary-six-tests/NativeRegularSixTests.swift",
+      "before": "9d6c104581bb1e5ebc320375f0e651c0805658db06bc88a247e00d3679815c7c",
+      "after": "e56c99f6aba5bc71135d4a6fa3b851cfee3e5aa461e1a7a02a21334f15ea3b3f",
+      "merge": "clean-source-change"
+    },
+    {
+      "path": "docs/engineering/feature-runtime-owners.json",
+      "before": "73619798654d39926ea9b4af75c379605e774af479131ed1dd83fdc0fc15af3f",
+      "after": "4132c3e2825da4b05b38c4d388fc3729bc4a321b8059d7acb80b3029a0814f77",
+      "merge": "registry addition"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "status": "Core66158 368/368PASS; SDK67152 terminal1/1PASS prior real Scene FIFO/new producer compile; full41721 terminal exit0 all selected deterministic gatesPASS",
+  "files": {
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "41f9caa7dbe68fbb37ad2eda65e69690d0940e98442431569c9e8ed5965e4fed",
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceOrdinarySixSpawnBeginCoreTests.swift": "b1edc04bb9b30e1f4f4ac7c488a0494821382bea23bf9acb2970beaf94f888f9",
+    "native/gameplay-ui/NativeBoardScene.swift": "d84df3b9bb51ad9e63c12afeca2fa6c8851bf3b30451c0db4d2dbaa1f6d39477"
+  },
+  "logs": {
+    "native-ordinary-minimum-single-capture-core.log": "dbcb8768472313349354f5825dd5962ebafb90d03004387f118a8ffac5f3ff06",
+    "native-ordinary-minimum-producer-full.log": "457c3bcf3c017e0936649bf56cc965bf19004ea0e7f98b631e4ddf2836dd199c",
+    "native-ordinary-minimum-single-capture-sdk.log": "d6473c87d1805925fb32060b6e364c9c850c65eef72255e75a2f42e521546e5e",
+    "native-ordinary-minimum-single-capture-full.log": "e54d6457e48f99f8f63ba8b88401931634414d07ee7034e8df0af021e3a6e219"
+  },
+  "proof": "Scene pure Node/authority admission then combined Core phase decision captures once for sufficient acknowledgement or rescue selection. Separate direct APIs preserved; regression asserts one capture and no canonical/accounting mutation. Scene post-capture generation check prevents stale failure/finally after restart.",
+  "previousFullLimit": "QA worktree updated before prior live handle was collected; prior fullPASS is not consistent-snapshot proof for this new Source change. Fresh current full41721 runs with Source frozen.",
+  "limits": [
+    "enabled actual minimum/rescue/opacity/finally Scene positive proof OPEN",
+    "endgame/common safety/destruction and startup integration OPEN",
+    "default OFF; physical/full migration OPEN"
+  ],
+  "fullQAScope": "Source/QA files frozen through current full41721. Transitional Source/dist/Native-source checks only; no physical/active whole minimum producer proof."
+}

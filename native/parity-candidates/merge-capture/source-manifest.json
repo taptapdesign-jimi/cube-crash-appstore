@@ -1,0 +1,14 @@
+{
+  "native/gameplay-ui/NativeBoardScene.swift": {
+    "baseSHA256": "30ef0827979667eaaea8f57557a8b1e555734cd19bad0080cfde7f7e12723023",
+    "candidateSHA256": "2247ed08c06b55fc9ab45c87a3fbd6d916d25da8dceb3407df12c6928fc608fc"
+  },
+  "native/gameplay-ui/NativeMergeCaptureRecorder.swift": {
+    "baseSHA256": null,
+    "candidateSHA256": "507457561a1705fe3928d5a9fbb24932a1a5bf77b4873675742a40a8dcb1675f"
+  },
+  "native/standalone/Stack to SixTests/NativeMergeCaptureTests.swift": {
+    "baseSHA256": null,
+    "candidateSHA256": "29e707511abdcb7c3ba7230db9437095a71e8cf5847abd2f86f4a85edf20ecf5"
+  }
+}

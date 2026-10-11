@@ -1,0 +1,8 @@
+{
+  "status": "PRIVATE actual SDK17/17 PASS",
+  "files": {
+    "native/gameplay-ui/NativeDiceNode.swift": "02665a6bb3800ffdf9404d91f14fc9e662331683f49b05227615e5e986909e8f",
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": "31df335e2ee328f646fbd9d64d6edb32e622584ce4dfa7b9a5c3105380230a2a"
+  },
+  "scope": "Actual plain-Star Node API binds count-before-cache/assets then per-star setup, existing-owner suppression and force retirement to actual APP runtime. Scene mounting/foreground/current closures are caller-supplied; full Scene invocation and Core premature orbit count still OPEN."
+}

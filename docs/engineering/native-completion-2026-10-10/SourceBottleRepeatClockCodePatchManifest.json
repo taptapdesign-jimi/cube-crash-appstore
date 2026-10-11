@@ -1,0 +1,11 @@
+{
+  "scope": "Apply after SourceMagnetRepeatedFIFOCodePatch in NEW replay tree only. Typed Source Bottle repeat timeline transport. Host/pivot/registry/restored caller and complete migration/physical acceptance OPEN.",
+  "archive": "SourceBottleRepeatClockCodePatch.tar.gz",
+  "archiveSHA256": "88c2501e10550f12f9d100ee6809e76934c435dd52f15730e723ffe95357b1a8",
+  "files": {
+    "native/gameplay-ui/NativeSourceAnimationRuntime.swift": "283d37aa4970213fe802790c6dc338c5caf5be23639c7d392b0d0c59c64867ef",
+    "native/gameplay-ui/NativeSourceAnimationClockService.swift": "bc0ffd477f84700c23f96227d2b9b353c532227a1bb48fdd2c013b9dbc3ab1d8",
+    "native/standalone/Stack to SixTests/NativeSourceAnimationClockTests.swift": "1e7abe7153fab869a0dadb611ca903639dee10ddee9dce6f5bd938f24c35d286",
+    "docs/engineering/feature-runtime-owners.json": "ce3fb2aedc67574d9f37a3ab8bd08b244927e9f0ec423932c81c4fbfd582655d"
+  }
+}

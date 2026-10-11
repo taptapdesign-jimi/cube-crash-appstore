@@ -1,0 +1,55 @@
+{
+  "base": [
+    "docs/engineering/native-pause-2026-10-08/NativeSource.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/EntrySourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialIntroSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialHUDSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialMonitorSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialRestoreSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialThirdSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFreeHintSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialCTAPrefixSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialCTAViewSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialThirdDismissSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialWildReservationSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialWildReservationOwnersDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthDroppingSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthSelectionSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthMonitorSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthTargetSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialGridRuntimeSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialFourthPreparationSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialStarHaloMotionSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialStarHaloPresentationSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialStarHaloNodeCacheSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialStarHaloFallbackSourceDelta.tar.gz",
+    "docs/engineering/native-continuation-2026-10-09/TutorialStarResourceFIFOSourceDelta.tar.gz"
+  ],
+  "wholeSourceFlags": "OFF",
+  "scope": "Actual Scene API tested, not full startup/fourth route. Core eager count timing/live reward capture OPEN.",
+  "validation": "SDK20/20 actual Scene/Node/foreground/async/Source numeric oracle PASS; full QA running session26466.",
+  "files": {
+    "native/gameplay-ui/NativeBoardScene.swift": {
+      "baseSHA256": "c62a282ad090c03e6e7637933bd9fcbfa923cc2e7f08ef5f04136bd9b5452b16",
+      "sha256": "c2e5b9975d3f55295a7bdc8736c24eccdd19352c4842042c6dd11e804316fdae"
+    },
+    "native/gameplay-ui/NativeDiceNode.swift": {
+      "baseSHA256": "d372424e86dd8c04f980cd5c5e5573906f4892f8dc9f2d95dd91999e10b8d396",
+      "sha256": "328411673c8ca2e2e739707e830b4418704d1c7501312709c30ab15bce25155a"
+    },
+    "native/gameplay-ui/NativeStarFinale.swift": {
+      "baseSHA256": "6408f65e072531fb70bd16e1ec87e2a42e08e134d187608db03609cb038e2306",
+      "sha256": "f4592e3bb62b77c553ea2f2d253da11425cf0ca15feaac456ccd77ff89b865c5"
+    },
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": {
+      "baseSHA256": "339676fb5a7b7693b2bab445b6e4aa858c07231f16253ba9a457c8a9528e9989",
+      "sha256": "290b2dea9257c6f1df0b78cb571b460427eb6d9f43a6fb4008a0bcc890249682"
+    },
+    "docs/engineering/feature-runtime-owners.json": {
+      "baseSHA256": "2896dee4196e1d87ef4b100f4de98a3940149afc7ee2f89d62655f6dab5d1f6f",
+      "sha256": "6a26f9b2461e08d3068078cdfacc39d6d4011bf9eaf5d9bb334b2d5eefb87218"
+    }
+  },
+  "archiveSHA256": "bafd93d91d4afe5db4e12850e7b9f3bd73724c97c9979af3bdce0e3b42d7814d"
+}

@@ -32,6 +32,14 @@ public enum NativeSpecialDiceRegistry {
         if id == "beach-ball" && (core == .juice || core == .magnet) { return variant }
         return nil
     }
+    /// Admission uses the canonical gameplay identity, including historical
+    /// Beach Ball saves, rather than treating authored artwork as a new rule.
+    public static func admits(_ tile: NativeTile, as archetype: NativeWildArchetype) -> Bool {
+        guard tile.isWild, tile.gameplayArchetype == archetype else { return false }
+        guard let variant = tile.variant else { return true }
+        return variants[variant]?.archetype == archetype &&
+            tile.archetype.map { compatibleVariant(variant, core: $0) != nil } == true
+    }
     public static func finale(source: NativeTile, destination: NativeTile, gameplay: Bool = false) -> NativeWildArchetype? {
         let types = [source, destination].compactMap { tile -> NativeWildArchetype? in
             if gameplay { return tile.gameplayArchetype }

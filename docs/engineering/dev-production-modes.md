@@ -1,4 +1,36 @@
-# Stack to Six Web/App Sync Workflow
+# Stack to Six Native build workflow
+
+## Current Native target (2026-10-10)
+
+Active: `native/standalone/Stack to Six.xcodeproj`, scheme `Stack to Six`,
+bundle `com.taptapdesign.stacktosix.native`. The storyboard runs
+`NativeStandaloneViewController -> NativeBootstrap -> Swift/UIKit/SpriteKit`.
+`GameViewController.swift` and `Web.bundle` are archived and excluded from the
+application target. Original artwork/audio are copied unchanged into
+`NativeAssets.bundle`. Native builds do not need `dist` or a PWA bundle sync.
+
+Run `npm run qa:ios` before a Native build. It audits this actual target and
+the unchanged original asset bytes. `qa:ios:source` is the fast source-only
+identity/root/membership guard used by source QA. For a compiled Release app:
+
+```bash
+npm run release:native-audit -- --built-app '/tmp/native-main-core-integration-derived/Build/Products/Release-iphoneos/Stack to Six.app'
+```
+
+That compiled audit rejects any WebKit/JavaScriptCore dependency and Web.bundle.
+The private DEBUG QA producer can link WebKit; such a test host intentionally
+fails this shipping dependency gate. Use an actual Release artifact for shipping
+dependency evidence. A historical artifact is not proof of current Swift code.
+Source fidelity, signing and physical acceptance remain separate.
+
+If Native assets need preparation, use the explicit native-only
+`node scripts/prepare-native-artwork.mjs`; it copies original bytes without
+transforming source assets. Transitional web builds/QA retain
+`SKIP_NATIVE_BUNDLE_SYNC=true`. The preserved PWA audit is `npm run qa:ios:pwa`,
+only when that separate PWA audit is requested. Do not use any PWA build/sync/
+install instructions below as a Native side effect.
+
+## Historical preserved PWA workflow
 
 ## Explicit separate Native app exception (2026-10-06)
 
@@ -16,11 +48,11 @@ The official source project is unchanged; future original-app builds must
 explicitly preserve the requested label. PWA is a user-facing distinction here;
 the original remains a bundled WKWebView shell, not technically a PWA.
 
-This project uses `/Users/user/cube-crash` as the web source and `/Users/user/Stack to Six/Stack to Six.xcodeproj` as the only active native iPhone shell.
+The preserved PWA uses `/Users/user/cube-crash` as its web source and `/Users/user/Stack to Six/Stack to Six.xcodeproj` as its separate bundled shell.
 
 Do not use the legacy `/Users/user/Kockice Crash/Kockice Crash.xcodeproj` workflow unless the user explicitly asks for it.
 
-## Default Workflow
+## Explicit PWA workflow
 
 When a change must be visible both on web and in the iPhone app:
 

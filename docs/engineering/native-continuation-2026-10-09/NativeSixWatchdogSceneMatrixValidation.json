@@ -1,0 +1,26 @@
+{
+  "status": "SDK49979 exit0 TEST SUCCEEDED10/10; feature-runtime exit0 PASS",
+  "files": {
+    "native/gameplay-ui/NativeSourceMergeSixMainCapture.swift": "4f3ffeda41efd00f1250fbb757908998b5c2be521cf9176e91afa222037b0e9e",
+    "native/gameplay-ui/NativeDiceNode.swift": "d8c3de24b7f3272edca4e2cc2b0ca2722d0d5dfbfd0419f6b45d6dbe292b703b",
+    "native/gameplay-ui/NativeBoardScene.swift": "734cf8856e86df4c0a9462143bc6b572a790046e6de4fa1713f55fdc4964ecc2",
+    "native/standalone/Stack to SixTests/NativeSourceSameObjectSixSceneTests.swift": "eddbffe5fdbd1188a7e249cf20a66def6dc851b59032be88207104a11a07bfb7",
+    "docs/engineering/feature-runtime-owners.json": "9e89634f668e499aa467d0fde4de315134de7f098c344a5905a841f05512fe47"
+  },
+  "logs": {
+    "native-six-watchdog-scene-matrix.log": "5299d458aa25547fedbdb8a6ef5ee2ef20d182266a2cf33f7fdd4d9b8e47f8ac",
+    "native-six-watchdog-scene-feature.log": "5d4ebaff0d1628721dcc8d2b08d3d87c558036aed5cc08efb012ef975187a41e"
+  },
+  "limits": [
+    "same-ID successor/full admission routes require further coverage",
+    "private draft not live integrated",
+    "physical acceptance OPEN",
+    "100 percent migration OPEN"
+  ],
+  "fullQA": {
+    "status": "PASS all selected deterministic gates; session31004 terminal exit0",
+    "log": "docs/engineering/native-continuation-2026-10-09/native-six-watchdog-scene-full.log",
+    "sha256": "6a2ad5e4d1c8f366664ab0a3c61e963244a6e6c8c58b6f4381f9f31adfdd0dad",
+    "scope": "isolated transitional Source/dist QA with SKIP_NATIVE_BUNDLE_SYNC=true; not phone/shipping resource proof"
+  }
+}

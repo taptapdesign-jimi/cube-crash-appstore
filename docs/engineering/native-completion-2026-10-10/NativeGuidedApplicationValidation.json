@@ -1,0 +1,40 @@
+{
+  "checkpoint": "Resumed actual Source guide/root application integration",
+  "sourceSHA256": {
+    "native/gameplay-app/NativeAppController.swift": "2ccfc484461d6b8a453c46aa5053210e712ea69e57a37a4e8c2b3c3db501ec4a",
+    "native/gameplay-app/NativeBootstrap.swift": "4605c0c83e7cb382314375c76b64b85c7743b11369628d2a645d5c9a1c5ff973",
+    "native/gameplay-app/NativeStandaloneViewController.swift": "c4d2a7ec85d748c1907c05c8249c3dc161a9603d302e6888c07d85c969264021",
+    "native/standalone/Stack to SixTests/NativeStandaloneRootTests.swift": "54806abd7f514eb460d970a0469e26399f885d3b366f3a088a7c61e4bd2ee0bc",
+    "native/standalone/Stack to SixUITests/NativeHomeInteractionUITests.swift": "10017de97dc5c3276c6b484f07b3dc2b024ac7ce3db5fc31d9d0bd8f9752f90c",
+    "docs/engineering/feature-runtime-owners.json": "d1e3ba987583764db4a3e95ff9787c212d5f85da13b4f0f6a00f5d8f2801c107"
+  },
+  "connectedBeforeEarnedMeter": "21/21 PASS; SDK73125 terminal0; original11 tutorial fixture tests +10 root tests (third CTA/live background/recreation)",
+  "rootWithEarnedMeter": "10/10 scoped PASS and complete SDK PASS including final fourth-sheet/background assertions; real clock guide/earned Star/save/recreation",
+  "actualOSGuided": "1/1 PASS30.718s; UI11753 terminal0; genuine first/second drag/thirdCTA +OS background; full fourth guide UI test prepared, not run yet",
+  "sourceFull": "PASS, terminal2897 exit0;530 suites/4010 tests; KING330; no native bundle sync",
+  "sourceFast": "PASS, final fast44121 exit0 before latest assertion-only test additions",
+  "profilePreservation": "NativeGuidedOSProfiles/preservation.json;12 prior files exact byte-identical across OS install/launch; private0005 durable, do not reseed",
+  "release": "NativeGuidedIOSReleaseProof.json; unsigned arm64 iOS Release PASS; exact native identity/no WK-JS-Web.bundle/private QA strings",
+  "changes": [
+    "Native root isolated tutorial opts into existing subsequent monitors and eligible earned-Star carrier",
+    "Bootstrap prepares original meter resources through existing initial-entry gate; shared RNG/Star idle; exact epoch/generation cancellation; default/global/canonical save remain off",
+    "NativeAppController disposal becomes idempotent and detaches the retired gameplay child"
+  ],
+  "historicalFailures": [
+    "First sandbox Xcode package cache denied; retried with authorized required cache/Simulator access",
+    "Initial new root test missing SpriteKit import corrected",
+    "First live guide attempted input before authored intro settled and timed out; test now waits actual settled first sheet/pointer without fabricated frames",
+    "Diagnostic guide reached thirdCTA/recreation but found retained child on root disposal; corrected in owning NativeAppController"
+  ],
+  "open": [
+    "Actual ordinary/four-family/mixed/runtime-marker/canonical-save app admission",
+    "Whole shipping parity/signing/physical acceptance; Huge cubes OPEN; grey flash LAST"
+  ],
+  "phone": "Untouched",
+  "PWA": "Untouched",
+  "assetMediaBytes": "Preserved",
+  "completeSDK": "1289 tests,1 explicit producer skipped,0 failures,667.849s; SDK96427 terminal0",
+  "actualOSEntireGuide": "1/1 PASS51.207s; UI7654 terminal0; genuine first/second drag,OS background,thirdCTA,five legal earning moves,fourthStar drag; four screenshots exported,two fourth/completed inspected",
+  "entireGuideProfilePreservation": "NativeEntireGuideOSProfiles/preservation.json;14 prior files byte-identical;new0006 primary/backup retained",
+  "SDKProfilePreservation": "NativeGuidedSDKProfiles/preservation.json FAIL exact-byte assertion for normal primary/backup;12 QA files unchanged. Normal savedAt advanced and unordered Journey ID sets reordered, values unchanged; raw before/after retained. No reset/restore."
+}

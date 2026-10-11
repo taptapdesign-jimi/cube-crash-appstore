@@ -1,0 +1,10 @@
+{
+  "scope": "Apply after SourceFizzBubbleCodePatch into NEW replay tree only. Actual Native Source field compositor constructor and lifecycle, with Raw initializer preserved. APP Scope/Node/Scene caller admission and full migration/physical acceptance OPEN.",
+  "archive": "SourceFizzSourceFieldCodePatch.tar.gz",
+  "archiveSHA256": "8c01339b7244101a21e64478663734d17b8298373ab7e0e705839725bf4cd42e",
+  "files": {
+    "native/gameplay-ui/NativeIdleBubbleField.swift": "ec45bac16d6d053378df3260e3d110d42dafe8276674b641e687155501035bd0",
+    "native/standalone/Stack to SixTests/NativeIdleBubbleTests.swift": "5a01705d6920a86a2b8eadff3d3733592ef2701d5d94b1eece036356b1269c2b",
+    "docs/engineering/feature-runtime-owners.json": "813c2b7fc966ae77f2000840ecf86feac9bafac4874aba5f1e4daf690bdcd290"
+  }
+}

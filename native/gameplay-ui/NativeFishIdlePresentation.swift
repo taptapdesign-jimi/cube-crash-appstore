@@ -22,6 +22,10 @@ final class NativeFishIdlePresentation:UIView {
     static let logicalMediaSize=CGSize(width:272.0*128.0/224.0,height:280.0*128.0/224.0)
     var onPrepared:(()->Void)?
     var onMediaReady:((Bool)->Void)?
+    var onVideoSourceError:(()->Void)?
+    private let allowHEVC:Bool
+    private weak var svgResources:NativeFishSVGResourceLease?
+    private var svgRequest:UUID?,svgView:NativeFishSVGFallbackView?,svgStart:Double?,mediaEpoch:UInt64=0
     private let video=UIView(),bubbleHost=UIView(),mediaLayer=AVPlayerLayer()
     private let player=AVQueuePlayer()
     private var looper:AVPlayerLooper?
@@ -29,10 +33,11 @@ final class NativeFishIdlePresentation:UIView {
     private var itemObservation:NSKeyValueObservation?
     private var notifiedPrepared=false,prepared=false,started=false,seeking=false,ready=false,disposed=false,suspended=false,failed=false
     private var displayedFrame:NativeFishIdleFrame?
-    private var lastPaint:Double?
+    private var lastPaint:Double?,lastAcceptedTime:Double?
     private let assetURL:URL
     private var carriers:[NativeFishIdleBubbleCarrier]=[]
-    init(resourceRoot:URL) {
+    init(resourceRoot:URL,svgResources:NativeFishSVGResourceLease?=nil,allowHEVC:Bool=true) {
+        self.allowHEVC=allowHEVC;self.svgResources=svgResources
         assetURL=resourceRoot.appendingPathComponent("assets/shop/fish/fish-mobile-hevc.mov")
         super.init(frame:CGRect(origin:.zero,size:Self.logicalMediaSize))
         accessibilityIdentifier="native-fish-idle-original-hevc"
@@ -48,6 +53,7 @@ final class NativeFishIdlePresentation:UIView {
     required init?(coder:NSCoder){fatalError("Use the original media resource")}
     func prepare() {
         guard !prepared,!disposed else {return};prepared=true
+        if !allowHEVC {fail(markUnavailable:false);return}
         guard FileManager.default.fileExists(atPath:assetURL.path) else {fail();return}
         let item=AVPlayerItem(url:assetURL)
         looper=AVPlayerLooper(player:player,templateItem:item)
@@ -78,27 +84,31 @@ final class NativeFishIdlePresentation:UIView {
         notifiedPrepared=true;player.pause();onPrepared?()
     }
     func paint(_ frame:NativeFishIdleFrame,now:Double,force:Bool=false) {
-        guard !disposed else {return};displayedFrame=frame
+        guard !disposed else {return};displayedFrame=frame;lastAcceptedTime=now
         if !force,let lastPaint,now-lastPaint<1/30 {return};lastPaint=now
         CATransaction.begin();CATransaction.setDisableActions(true)
         center=frame.point;transform=frame.transform;alpha=frame.alpha
         bubbleHost.center=CGPoint(x:bounds.midX,y:bounds.midY)
         CATransaction.commit()
-        if frame.phaseStarted,!started,!seeking,!failed {startAdmittedMedia()}
+        if let svgView {
+            if frame.phaseStarted,svgStart==nil {svgStart=now}
+            if frame.visible,!frame.dragging,!suspended {svgView.paint(seconds:svgStart.map {max(0,now-$0)} ?? 0)}
+        } else if frame.phaseStarted,!started,!seeking,!failed {startAdmittedMedia()}
         let visible=ready && frame.visible && !frame.dragging && !suspended && window != nil
         isHidden = !visible
         if visible {
-            if player.rate != 1 {player.playImmediately(atRate:1)}
+            if svgView==nil,player.rate != 1 {player.playImmediately(atRate:1)}
             paintBubbles(frame.bubbles)
         } else {player.pause();carriers.forEach {$0.isHidden=true}}
     }
     private func startAdmittedMedia() {
-        guard mediaLayer.isReadyForDisplay else {return};seeking=true
+        guard mediaLayer.isReadyForDisplay,!failed else {return};seeking=true
+        let acceptedEpoch=mediaEpoch
         player.seek(to:.zero,toleranceBefore:.zero,toleranceAfter:.zero) { [weak self] success in
             Task { @MainActor [weak self] in
-                guard let self,!self.disposed,self.seeking else {return}
+                guard let self,!self.disposed,!self.failed,self.seeking,self.mediaEpoch==acceptedEpoch else {return}
                 self.seeking=false
-                guard success else {self.fail();return}
+                guard success else {self.fail(markUnavailable:false);return}
                 self.started=true;self.ready=true;self.onMediaReady?(true)
                 if let frame=self.displayedFrame {self.paint(frame,now:self.lastPaint ?? 0,force:true)}
             }
@@ -114,28 +124,42 @@ final class NativeFishIdlePresentation:UIView {
     func setSuspended(_ value:Bool) {
         suspended=value
         if value {player.pause();isHidden=true;lastPaint=nil}
-        else if let frame=displayedFrame {paint(frame,now:lastPaint ?? 0,force:true)}
+        else if let frame=displayedFrame {paint(frame,now:lastAcceptedTime ?? 0,force:true)}
     }
     override func didMoveToWindow() {
         super.didMoveToWindow()
         if window==nil {player.pause();isHidden=true;lastPaint=nil}
-        else if let frame=displayedFrame {paint(frame,now:lastPaint ?? 0,force:true)}
+        else if let frame=displayedFrame {paint(frame,now:lastAcceptedTime ?? 0,force:true)}
     }
-    private func fail() {
-        guard !disposed,!failed else {return};failed=true;ready=false;player.pause();isHidden=true
+    private func fail(markUnavailable:Bool=true) {
+        guard !disposed,!failed else {return};failed=true;ready=false;seeking=false;mediaEpoch+=1;player.pause();isHidden=true
+        if markUnavailable {onVideoSourceError?()}
         itemObservation?.invalidate();itemObservation=nil
         readiness.forEach {$0.invalidate()};readiness.removeAll();looper?.disableLooping();looper=nil
-        player.removeAllItems();mediaLayer.player=nil;onMediaReady?(false)
+        player.removeAllItems();mediaLayer.player=nil;mediaLayer.removeFromSuperlayer();onMediaReady?(false)
+        guard let svgResources else {return}
+        let acceptedEpoch=mediaEpoch
+        svgRequest=svgResources.request { [weak self] resources in
+            guard let self,!self.disposed,self.mediaEpoch==acceptedEpoch,let resources else {return}
+            self.svgRequest=nil
+            let view=NativeFishSVGFallbackView(resources:resources);self.svgView=view;self.video.addSubview(view)
+            self.started=false;self.svgStart=nil;self.onPrepared?()
+            self.ready=true;self.onMediaReady?(true)
+            if let frame=self.displayedFrame {self.paint(frame,now:CACurrentMediaTime(),force:true)}
+        }
     }
-    var mediaReady:Bool {ready && !disposed && !failed}
+    var mediaReady:Bool {ready && !disposed && (!failed || svgView != nil)}
+    var usesOriginalSVGFallback:Bool {svgView != nil}
+    var originalSVGFrame:Int? {svgView?.currentFrame}
     var retainedItemCount:Int {player.items().count}
     var playbackRate:Float {player.rate}
     var bubbleCarrierCount:Int {carriers.count}
     func dispose() {
-        guard !disposed else {return};disposed=true;onPrepared=nil;onMediaReady=nil
+        guard !disposed else {return};disposed=true;mediaEpoch+=1;seeking=false;onPrepared=nil;onMediaReady=nil;onVideoSourceError=nil
+        if let token=svgRequest {svgResources?.cancel(token)};svgRequest=nil;svgView?.dispose();svgView=nil;svgStart=nil;svgResources=nil
         itemObservation?.invalidate();itemObservation=nil
         readiness.forEach {$0.invalidate()};readiness.removeAll();looper?.disableLooping();looper=nil
-        player.pause();player.removeAllItems();mediaLayer.player=nil;displayedFrame=nil
+        player.pause();player.removeAllItems();mediaLayer.player=nil;displayedFrame=nil;lastAcceptedTime=nil
         carriers.removeAll();removeFromSuperview()
     }
 }

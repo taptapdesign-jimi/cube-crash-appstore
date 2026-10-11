@@ -1,0 +1,42 @@
+[
+  {
+    "caption": "×2",
+    "fontFamily": "Arial",
+    "fontWeight": "800",
+    "fontSize": 33,
+    "stroke": {
+      "color": "#8F6959",
+      "width": 2
+    }
+  },
+  {
+    "caption": "×3",
+    "fontFamily": "Arial",
+    "fontWeight": "800",
+    "fontSize": 33,
+    "stroke": {
+      "color": "#8F6959",
+      "width": 2
+    }
+  },
+  {
+    "caption": "×12",
+    "fontFamily": "Arial",
+    "fontWeight": "800",
+    "fontSize": 33,
+    "stroke": {
+      "color": "#8F6959",
+      "width": 2
+    }
+  },
+  {
+    "caption": "×99",
+    "fontFamily": "Arial",
+    "fontWeight": "800",
+    "fontSize": 33,
+    "stroke": {
+      "color": "#8F6959",
+      "width": 2
+    }
+  }
+]

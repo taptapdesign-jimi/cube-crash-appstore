@@ -1,0 +1,22 @@
+{
+  "status": "Core5173 368/368PASS; KING80897 330/330PASS; SDK53731 prior actual FIFO1/1PASS; feature gate PASS; fullQA82168 running",
+  "files": {
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "f316c6ff8535956d52fbeff4e18ea4541bd43d244b18f0feb9081722f0bcac66",
+    "native/gameplay-ui/NativeBoardScene.swift": "d2dacbbdc0259e4f82a1d49d7740244025951feab85e1f6a200a9c7f52c9ff66",
+    "docs/engineering/feature-runtime-owners.json": "a0d3ffcba68b660aa6302c186034ddb278c8bc823f035831e918467a5a2cc669"
+  },
+  "logs": {
+    "native-ordinary-minimum-producer-core.log": "bb8896ffdf484c0a88a2cc7db96a5aa5c77435962d99f004a858462c1ab1c874",
+    "native-ordinary-minimum-producer-king.log": "d6b630651179af7cc939da69a832f7cfd216d3053e6370fee5c7746f359b325b",
+    "native-ordinary-minimum-producer-sdk.log": "dc60ccc921046b62ad82230b0c4a4c14e828434b3bdcf7379f427418bf874ddd",
+    "native-ordinary-minimum-producer-feature.log": "5d4ebaff0d1628721dcc8d2b08d3d87c558036aed5cc08efb012ef975187a41e"
+  },
+  "scope": "Distinct locked/minimum receipt types. Scene opt-in requires real current lifecycle authority/covered Nodes/FIFO/existing spawn owner; normal minimum reaction starts sufficient ack or rescue, helper continuation schedules mandatory opacity safety before separate actual FIFO finally/reset. Retire clears captured binding.",
+  "sdkLimit": "SDK compiles producer with mandatory opacity callback; final additional initial generation guard was added afterwards and awaits next SDK validation.",
+  "limits": [
+    "actual enabled positive lifecycle/minimum/rescue/opacity/finally Scene test OPEN",
+    "actual opacity owner startup binding OPEN",
+    "endgame coroutine finally/common safety/cancellation/destruction OPEN",
+    "flags defaultOFF; physical/full migration OPEN"
+  ]
+}

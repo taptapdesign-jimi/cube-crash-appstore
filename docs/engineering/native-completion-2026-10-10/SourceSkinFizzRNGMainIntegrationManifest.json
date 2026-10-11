@@ -1,0 +1,32 @@
+{
+  "scope": "Six owner-aware files verified against integrated main snapshot before copy. Original versions and owner metadata backed up. Main is authoritative; no original media or global Source flag change. Final follow-up stores the genuine model/Scene predicate for every later FX tick; actual main79 SDK covers Core replacement before Scene synchronization.",
+  "files": {
+    "native/gameplay-app/NativeSourceSpecialIdleScope.swift": {
+      "before": "048ef7c019cf1016a5b3bf50096244af20c78017a97c688fcbd88a51dd168469",
+      "after": "85db8adb67bf2c6e9cdcab203e46bd46b2bbc0f0bc6c2568a4fdf3c61e515c98"
+    },
+    "native/gameplay-app/NativeGameplaySourceContext.swift": {
+      "before": "c6ef5022ef511216fd6d6f7c17c844c4700da0db512cec7315e0b04454fcc38f",
+      "after": "9d88fc6a31605536c696f1fde17f7752b4a1a4219b8e90e8271af3572d1795bb"
+    },
+    "native/gameplay-ui/NativeDiceNode.swift": {
+      "before": "9e57f1f23e050cc3c33d435f168498eef03d4ffa87b76b8aed30efc60e03b172",
+      "after": "418743989d1f8f6edf75643e97ee1dabc021373e7712ad10ffcf19bd6d186709"
+    },
+    "native/gameplay-ui/NativeBoardScene.swift": {
+      "before": "58fd0951afadb047fb8c2f16956d517cd4fbfeaea0dd95a1021401cac083b349",
+      "after": "d2af841d5f9de7c05927ffa16bbe1b5270a4d7dcc4f99cc484d2645f53e4dff7"
+    },
+    "native/standalone/Stack to SixTests/NativeSourceMathRandomContextTests.swift": {
+      "before": "1b06887efd5f53afa15a0def69a3771bee5ee386606e9ab862692c75e8fd8d7b",
+      "after": "f9490a9cde07f5e69d2bc9801e88c8260a901483b669d167568492d816448e46"
+    },
+    "native/standalone/Stack to SixTests/NativeStarPresentationTests.swift": {
+      "before": "87e449de661de8b61338937987119f5d5655ed21cd7900aa45b54f4b6afbef8f",
+      "after": "23199f22265905e3c8dd4ce8834ee1e87ea7a9d5dadd9f5931bc0216a170b26b"
+    },
+    "docs/engineering/feature-runtime-owners.json": {
+      "after": "4049cf356f3cb5b4083dc5c7039e588101de8d3e6b9446d303fa27fbc64c1d16"
+    }
+  }
+}

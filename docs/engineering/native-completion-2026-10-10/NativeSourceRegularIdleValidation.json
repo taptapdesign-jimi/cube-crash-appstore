@@ -1,0 +1,42 @@
+{
+  "verdict": "PASS bounded actual regular idle integration",
+  "connectedNativeSDK": {
+    "tests": 7,
+    "failures": 0,
+    "seconds": 18.923,
+    "log": "/tmp/native-source-regular-idle-final.log"
+  },
+  "actualExitBoundary": {
+    "tests": 1,
+    "failures": 0,
+    "seconds": 15.029,
+    "log": "/tmp/native-source-regular-idle-exit.log"
+  },
+  "fullSourceQA": {
+    "verdict": "PASS",
+    "log": "/tmp/native-source-regular-idle-full.log",
+    "nativeBundleSync": false
+  },
+  "gameplayLock": {
+    "tests": 330,
+    "failures": 0,
+    "log": "/tmp/native-source-regular-idle-gameplay-lock.log"
+  },
+  "featureRuntime": {
+    "verdict": "PASS",
+    "log": "/tmp/native-source-regular-idle-feature.log"
+  },
+  "actualAppScope": "Explicit normal Source fresh/resume. Retained Scene nodes; actual pointer, stop/restart and board exit. Existing timeout/FIFO/Date/Math/outer/frame/smoke owners. Hidden-delay/RNG reentry tested through actual wake owner; not a physical phone claim.",
+  "defaultSourceShippingFlags": false,
+  "completeSourceSaveNoMovesGlobalAssembly": false,
+  "physicalAcceptance": "NEEDS PHYSICAL TEST",
+  "sha256": {
+    "native/gameplay-ui/NativeRegularIdleSchedule.swift": "3315043efa2fa06bb8dedc9a74c496b69a5b67fb5cdaa2222ebc9eda2d4f7ea4",
+    "native/gameplay-ui/NativeRegularIdleMotion.swift": "5b36733fa0d7344f371896fa66e227ca46790324cc8ef38f06f3d1da0fd51eb4",
+    "native/gameplay-ui/NativeBoardScene.swift": "143e620924e8b6025d37fa0123ffdaf91a46d0dcbb8a9d71b727ba0aba56f55e",
+    "native/gameplay-ui/NativeDiceNode.swift": "6ef3d051873472d75794da241188adcef80cdc549276e5b7e875e9a02d1660d8",
+    "native/gameplay-ui/NativeGameplayViewController.swift": "7d342af1f1568ad1f17a8c63f26c2f1ac598b6d8c954334d2c6860b46e972b5f",
+    "native/gameplay-app/NativeGameplaySourceContext.swift": "d165ef27f92f0b5df43a346305caf89d2c59c7f15343f78281fa1916c693fc92",
+    "native/gameplay-app/NativeBootstrap.swift": "58dd6291051bed75b64f30f3df975d70b15ebe30964946ce592269f32880351f"
+  }
+}

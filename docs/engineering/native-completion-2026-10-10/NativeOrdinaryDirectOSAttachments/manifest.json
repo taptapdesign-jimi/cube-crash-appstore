@@ -1,0 +1,395 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "DDB31596-3E7B-48CF-A0B8-388FABBFAC12.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"native.tutorial.sheet\" Other`_0_1018AF21-B074-4889-B6BF-111368968A56.txt",
+        "timestamp" : 1791638896.295
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "BB323E1A-32FF-4F3F-A79F-171462827690.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"native.tutorial.sheet\" Other`_0_96633232-698F-45D1-B61B-33B87AF67E5F.txt",
+        "timestamp" : 1791638895.334
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "F7707C3D-6AD6-4FA8-8116-3D45BA132E0E.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"native.tutorial.sheet\" Other`_0_8BA10A31-2428-437E-AC84-926FDA085713.txt",
+        "timestamp" : 1791638894.303
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "33D42A64-227E-41BE-B0F6-DBC4DA37CC98.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"native.tutorial.sheet\" Other`_0_ABC2B017-981A-41CC-8300-013DB6623249.txt",
+        "timestamp" : 1791638893.307
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "C2C54B5D-EA74-4272-ADF8-A80680C22C5D.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"native.tutorial.sheet\" Other`_0_70D3D523-38BF-420E-8906-207072541146.txt",
+        "timestamp" : 1791638892.299
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "7F7A533F-7ACE-4A11-9E84-5DDAD545E3AB.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"native.tutorial.sheet\" Other`_0_D8A3EB99-919C-4C84-A9E0-D786FED0317F.txt",
+        "timestamp" : 1791638891.282
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "9D677875-F5B6-4695-B80C-6D569B28C7CA.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"native.tutorial.sheet\" Other`_0_7CBEAB07-4289-4315-8704-0437B2CB1F1B.txt",
+        "timestamp" : 1791638890.286
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "59D5D5D6-15C3-42B0-901E-CFECAE1F7CA7.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"native.tutorial.sheet\" Other`_0_76F828BC-8881-434D-A149-9A51578082B1.txt",
+        "timestamp" : 1791638889.28
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "BB7DB50F-2533-4E1A-BDBC-9B50C4AE8156.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"native.tutorial.sheet\" Other`_0_2645EC04-E9F1-4190-AA0E-278F127A2D5A.txt",
+        "timestamp" : 1791638888.363
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "E804D303-FE55-4F74-A72C-942D45FADE74.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"native.tutorial.sheet\" Other`_0_1E2FA9EF-D546-4C91-AED7-B411F1EBBBBD.txt",
+        "timestamp" : 1791638887.331
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "58328525-18AB-4A7B-9E74-2DAF85171238.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"native.tutorial.sheet\" Other`_0_EFD41D4F-C671-41B5-89DD-9DB829C78180.txt",
+        "timestamp" : 1791638886.315
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "53B86FCF-F7B7-46E4-A62E-872B25CA5CE6.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"native.tutorial.sheet\" Other`_0_48072E8D-8497-4333-9EE5-EF396F74CFCF.txt",
+        "timestamp" : 1791638885.309
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "F75E81D8-E7F6-4BA8-9AE6-DC622391393C.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"native.tutorial.sheet\" Other`_0_507F5B49-B928-4CAE-AFCB-E853EA9C3CA2.txt",
+        "timestamp" : 1791638884.297
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "9B487BE6-E0A2-4B0F-8806-BADD6DD50130.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"native.tutorial.sheet\" Other`_0_2FD4EB3A-E6D1-46C0-A12F-6B256712A0AA.txt",
+        "timestamp" : 1791638883.284
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "D863C02A-07FF-495B-9614-9E0A9D6E842A.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"native.tutorial.sheet\" Other`_0_0EFAE2D3-3337-462C-88D9-DA74F426AF81.txt",
+        "timestamp" : 1791638882.284
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "0B7FA25B-C587-4382-8EBB-2DF508EAB36B",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "UI Snapshot 2026-10-10 at 03.28.00 PM",
+        "timestamp" : 1791638880.199
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "83527742-AEA1-43AD-8B21-D994A9A23035",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Synthesized Event 2026-10-10 at 03.28.01 PM",
+        "timestamp" : 1791638881.168
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "806CEC0D-F133-4AF5-9ED8-29E57176044B.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "native-source-entire-guide-os-earned-star_0_65224BB7-31E2-44CC-BFBC-23D0F91D96CD.png",
+        "timestamp" : 1791638880
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "91045407-301E-40B1-8E02-47DB303E67A2",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "UI Snapshot 2026-10-10 at 03.27.54 PM",
+        "timestamp" : 1791638874.537
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "0D0DCB28-C14C-4FD1-B324-11BC2A5F50D9",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Synthesized Event 2026-10-10 at 03.27.55 PM",
+        "timestamp" : 1791638875.582
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "9805886F-987C-49CC-86F2-696D0693798D",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "UI Snapshot 2026-10-10 at 03.27.51 PM",
+        "timestamp" : 1791638871.904
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "9E41EE4A-1795-4FFC-BE6E-A5B39CD2264D",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Synthesized Event 2026-10-10 at 03.27.52 PM",
+        "timestamp" : 1791638872.835
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "AAE17D7D-E887-4E27-80D0-A89B21E4FA08",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "UI Snapshot 2026-10-10 at 03.27.49 PM",
+        "timestamp" : 1791638869.272
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "89359779-43D0-4F22-8B73-A36903C768C4",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Synthesized Event 2026-10-10 at 03.27.50 PM",
+        "timestamp" : 1791638870.197
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "449C9003-C9AE-4B11-A7FA-122531960EB3",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "UI Snapshot 2026-10-10 at 03.27.46 PM",
+        "timestamp" : 1791638866.62
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "5B5069EB-C719-4037-9780-2261EC104359",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Synthesized Event 2026-10-10 at 03.27.47 PM",
+        "timestamp" : 1791638867.559
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "0D1F75C5-8247-432C-999F-F4FDE4005876",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "UI Snapshot 2026-10-10 at 03.27.43 PM",
+        "timestamp" : 1791638863.95
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "351A732A-2F73-4144-B9AF-C7CD5C3BBEC4",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Synthesized Event 2026-10-10 at 03.27.44 PM",
+        "timestamp" : 1791638864.901
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "2AF83C5C-9C19-44BE-A757-D02F45C2E917.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "native-source-guided-os-free-play_0_D508BC3F-FDF2-4FF6-8EF4-72F500612276.png",
+        "timestamp" : 1791638862.245
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "15E22274-5950-46C4-9B83-DD5CF2BF4B9E",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "UI Snapshot 2026-10-10 at 03.27.41 PM",
+        "timestamp" : 1791638861.968
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "B21271C2-810F-4DB1-8A63-E48B5F199F82",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "UI Snapshot 2026-10-10 at 03.27.40 PM",
+        "timestamp" : 1791638860.561
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "F4523147-BBDD-42B3-BC81-6DB040134442",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Synthesized Event 2026-10-10 at 03.27.40 PM",
+        "timestamp" : 1791638860.853
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "EDC489D9-CC88-4250-BA8D-688BB5973EE0.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "native-source-guided-os-third_0_DEDA776C-25D9-4C35-99E3-CDACCAC55297.png",
+        "timestamp" : 1791638860.41
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "56724972-CA25-48B6-891A-2D15E51C3C73",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Synthesized Event 2026-10-10 at 03.27.37 PM",
+        "timestamp" : 1791638857.513
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "D07F1C52-2FE1-42A8-95A5-D8972C3FAF1E",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Synthesized Event 2026-10-10 at 03.27.30 PM",
+        "timestamp" : 1791638850.546
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "0ABE93E8-F319-4FA6-9ED5-E120DA2DE575.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"Drag to stack\" StaticText`_0_DCFC4222-A3AC-4E65-BADC-A6F187A2A327.txt",
+        "timestamp" : 1791638846.409
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "E54CAB89-8674-4A3E-BD79-6150C4F27508.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"Drag to stack\" StaticText`_0_1B78A45B-5419-4D59-AB21-86AE2DEB3125.txt",
+        "timestamp" : 1791638845.398
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "3907331F-E98E-4185-B222-4D3BC979EFF0",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Synthesized Event 2026-10-10 at 03.27.23 PM",
+        "timestamp" : 1791638843.109
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "71B1AE10-8A78-4C58-8565-DEA18F34E5B6",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Synthesized Event 2026-10-10 at 03.27.21 PM",
+        "timestamp" : 1791638841.684
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "FA1136FB-199D-47CE-ABBF-DEDD3D001021.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"native.home.slide.1\" Button`_0_770F6475-87F0-474D-9AD6-A6AFB561FF12.txt",
+        "timestamp" : 1791638840.381
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "5F24AD78-326C-45D6-8CF8-D9E40F220E7A.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"native.home.slide.1\" Button`_0_5322F45C-EBE3-48C4-86BD-54956719DCF8.txt",
+        "timestamp" : 1791638839.324
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "E884CC11-CA66-4C2E-9C09-35E43228C097.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"native.home.slide.1\" Button`_0_51AB44CD-9897-45D0-B28A-5DFC36BC6FA7.txt",
+        "timestamp" : 1791638838.37
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+        "deviceName" : "Jimi 2026 QA iPhone 13",
+        "exportedFileName" : "8F6F6665-2566-4D37-96A1-9C158AACDD45.mp4",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Screen Recording 2026-10-10 at 03.27.12 PM.mp4",
+        "timestamp" : 1791638832.535
+      }
+    ],
+    "testIdentifier" : "NativeHomeInteractionUITests/testExplicitSourceOrdinaryAndDirectEntireGuideUsesActualOSInput()",
+    "testIdentifierURL" : "test://com.apple.xcode/Stack%20to%20Six/Stack%20to%20SixUITests/NativeHomeInteractionUITests/testExplicitSourceOrdinaryAndDirectEntireGuideUsesActualOSInput"
+  }
+]

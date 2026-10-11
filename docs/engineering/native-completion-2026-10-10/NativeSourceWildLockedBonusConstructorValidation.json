@@ -1,0 +1,106 @@
+{
+  "verdict": "PASS bounded actual constructor/pop/hard-primary APP publication; full migration OPEN",
+  "sdk": {
+    "tests": 22,
+    "failures": 0,
+    "seconds": 69.654,
+    "log": "/tmp/native-wild-constructor-publication-sdk.log",
+    "terminal": "xcodebuild terminal0 TEST SUCCEEDED"
+  },
+  "core": {
+    "tests": 377,
+    "failures": 0,
+    "log": "/tmp/native-wild-source-coroutine-core-full.log"
+  },
+  "sourceQA": {
+    "full": "/tmp/native-wild-coroutine-final-source-full.log",
+    "fast": "/tmp/native-wild-bonus-fast.log",
+    "king": "/tmp/native-wild-source-coroutine-king.log",
+    "boundary": "Current terminal PASS with native bundle sync disabled; source QA is separate from actual Swift SDK coverage."
+  },
+  "actual": "Journey Juice retained locked holder, Arcade Simple Wild (zero bonus), forced endgame hard primary, and earned Star actual root. Bonus consumes per-cell constructor tilt before captured direction, publishes Core holder before its two synchronous APP roots, assigns scale .30 after direction, preserves low alpha and guarded APP80ms repair. No zero-holder value-face RAF or synthetic spawn marker. Hard recovery consumes constructor tilt before logical value and face RAF; captured-direction bounce timeScale1 is decorative and has no arrival Promise. Normal primary timeScale2 remains awaited. APP bounce is published synchronously before later bonus construction/phase selection; later event does not restart it.",
+  "cancellation": "Both exact finite timeline roots and APP repair retire once; reentrant frame acquisition releases uninstalled frames once; generation retirement before delayed frame does no late paint. Original adjacent Raw pause/restart/lifecycle tests included.",
+  "failureChronology": [
+    {
+      "log": "/tmp/native-wild-bonus-source-sdk.log",
+      "reason": "Outer sandbox denied SwiftPM cache/Simulator access; no tests executed."
+    },
+    {
+      "log": "/tmp/native-wild-bonus-source-sdk-retry.log",
+      "reason": "Arcade fixture wrongly required bonus construction; original Arcade Simple Wild correctly has none."
+    },
+    {
+      "log": "/tmp/native-wild-bonus-interleaved-sdk.log",
+      "reason": "Strict equality on SpriteKit .30 float; corrected numerical tolerance."
+    },
+    {
+      "log": "/tmp/native-wild-constructor-batch-sdk.log",
+      "reason": "New test fixture needed testable Core import for private permit rejection injection."
+    },
+    {
+      "log": "/tmp/native-wild-constructor-batch-sdk-corrected.log",
+      "reason": "Hard-path .20 alpha Float precision assertions; corrected tolerance. Other paths and owner tests passed."
+    },
+    {
+      "log": "/tmp/native-wild-constructor-core-order-reentry.log",
+      "reason": "New pure fixture used wrong restart API signature; corrected test only."
+    },
+    {
+      "log": "/tmp/native-wild-constructor-core-order-reentry-corrected.log",
+      "reason": "Fixture incorrectly expected value2 for excluding5/roll.2 and included a valid later next-phase draw in exact suffix; corrected selected ordered prefix and value1."
+    }
+  ],
+  "release": {
+    "verdict": "PASS unsigned iOS arm64 Release and actual compiled dependency/original-assets audit",
+    "build": "/tmp/native-wild-coroutine-release.log",
+    "audit": "/tmp/native-wild-coroutine-release-audit.log",
+    "boundary": "Current constructor/pop/hard-primary publication and captured arrival/phase FIFO refinement."
+  },
+  "boundaries": "Original assets/audio and NativeRaw defaults preserved. Whole Source coroutine/finally/global save/queue/endgame/families/default activation, full visual parity, signed/device/audio/touch/performance/thermal acceptance OPEN.",
+  "physicalAcceptance": "NEEDS PHYSICAL TEST",
+  "sha256": {
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift": "52c1df31a246893b0dc053adb3b0279d283df799670c494b7de4c81918633bcb",
+    "native/gameplay-core/Sources/StackToSixGameplay/NativeWildLockedBonusRules.swift": "59d8111b7065b6807b584d2ab29ffe741abfee3e7ac62ab330cf6582a9383936",
+    "native/gameplay-app/NativeSourceLockedBonusPopOwner.swift": "54875e6fec723f529b96c4f9823d7c205fef9c05dad7d0fe859283c095cd279b",
+    "native/gameplay-ui/NativeBoardScene.swift": "b4395cef9f5d43b208fc801ef2309ef69b0779f4ca83d1bb3c555d664d94a5f8",
+    "native/gameplay-ui/NativeDiceNode.swift": "241162b0d95d58ed683eabca7e47e880253f0d4269d1f33b53f99e2a7d3c2e39",
+    "native/standalone/Stack to SixTests/NativeStandaloneRootTests.swift": "21c1db1be59a7f83b4de34bf5d1a45b0eac88b649e1e9948305588701f51b3bf",
+    "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceWildConstructorIntegrationTests.swift": "847b3aaa79680dc57c33e21ad59de4156e8ec7f6b234d327c66784f3d215b554",
+    "native/standalone/Stack to SixTests/NativeSourceLockedBonusPopTests.swift": "3e399b5d16dd2adcfc1c6671675be46826b829ef3188a766314a45c2fa65e0f8"
+  },
+  "arrivalFIFO": {
+    "tests": 23,
+    "failures": 0,
+    "seconds": 31.842,
+    "log": "/tmp/native-wild-source-arrival-fifo-sdk.log",
+    "verdict": "PASS actual Source awaited arrival crosses app FIFO; Direct partial admission and nine original browser microtask traces covered",
+    "boundary": "Before subsequent Source phase-resume FIFO refinement."
+  },
+  "coreOrderReentry": {
+    "log": "/tmp/native-wild-constructor-core-reentry-strict.log",
+    "tests": 2,
+    "failures": 0,
+    "verdict": "PASS per-cell direction generation retirement and hard constructor/value/face/direction order. Initial wrong fixture signature/value/full-suffix assertions retained in prior logs."
+  },
+  "sourceCoroutineRefinement": {
+    "coreTests": 377,
+    "failures": 0,
+    "log": "/tmp/native-wild-source-coroutine-core-full.log",
+    "sdk": {
+      "tests": 59,
+      "failures": 0,
+      "seconds": 304.909,
+      "log": "/tmp/native-wild-source-coroutine-root-batch.log",
+      "terminal": "xcodebuild terminal0 TEST SUCCEEDED"
+    },
+    "boundary": "Captured FIFO resumes after assignment/arrival/false retries; all 27 actual root tests and affected Wild/FIFO owners pass. No Source global/finally/default acceptance claim."
+  },
+  "qaAcceleration": {
+    "file": "scripts/release-audit.mjs",
+    "scope": "All files/bytes and rules preserved; avoid splitting nonmatching evidence text",
+    "receipt": "/tmp/native-release-audit-preserved-scope-fast.log",
+    "exactPriorFindingsPreserved": true,
+    "seconds": 24.5,
+    "boundary": "Not a claimed percentage or measured before/after speed ratio."
+  }
+}

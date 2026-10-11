@@ -69,12 +69,15 @@ public enum NativeTntRules {
     public static func replacementValues(targets: [NativeTile], random: () -> Double) -> [Int] {
         var used: [Int] = []
         return targets.map { tile in
-            var available = (1...5).filter { !used.contains($0) && $0 != tile.value }
-            if available.isEmpty { available = (1...5).filter { $0 != tile.value } }
-            let roll = random()
-            let value = available[min(available.count-1,max(0,Int((roll.isFinite ? roll : 0)*Double(available.count))))]
+            let value = replacementValue(oldValue:tile.value,used:used,random:random)
             used.append(value); return value
         }
+    }
+    public static func replacementValue(oldValue:Int,used:[Int],random:()->Double)->Int {
+        var available=(1...5).filter{!used.contains($0) && $0 != oldValue}
+        if available.isEmpty {available=(1...5).filter{$0 != oldValue}}
+        let roll=random()
+        return available[min(available.count-1,max(0,Int((roll.isFinite ? roll:0)*Double(available.count))))]
     }
     public static let progressPerImpact = 0.05
     public static let maximumTargets = 4

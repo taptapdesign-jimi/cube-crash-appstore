@@ -1,0 +1,12 @@
+{
+  "scope": "Actual meter core/variant typed APP linkage, Bee pre-landing upload and landed idle. Not full migration or all timing permutations.",
+  "sdk": {
+    "wild-meter-app-skin.log": "9/9 exit0",
+    "wild-meter-app-skin-scene.log": "5/5 exit0",
+    "wild-meter-app-skin-prefixes.log": "1/1 exit0"
+  },
+  "fullQA": "wild-meter-app-skin-full.log exit0, final runtime/registry+Scene test; final prefix-only XCTest assertion followed and passed SDK1",
+  "physical": "NEEDS PHYSICAL TEST",
+  "globalFlags": "OFF",
+  "mainIntegrated": false
+}

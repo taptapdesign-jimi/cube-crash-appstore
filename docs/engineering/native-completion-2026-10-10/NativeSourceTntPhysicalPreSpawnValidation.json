@@ -1,0 +1,39 @@
+{
+  "status": "PASS bounded initial physical guard graph; full Source completion OPEN",
+  "core": {
+    "tests": 414,
+    "failures": 0,
+    "seconds": 0.767,
+    "log": "/tmp/native-tnt-physical-pre-spawn-final-core.log"
+  },
+  "sdk": {
+    "tests": 25,
+    "failures": 0,
+    "seconds": 57.001,
+    "log": "/tmp/native-tnt-physical-pre-spawn-connected-sdk.log"
+  },
+  "oracle": "640 marker cases execute immutable8e4364e8ee571f16c6322727a9ae79fee5a982eb final-merge-rules.ts tileBlocksFinalMerge; fixture in Core test resources only",
+  "scope": [
+    "real current physical tile receipts at pre_spawn and normal-before-spawn FIFO boundaries",
+    "no constructor/selection before second normal guard reaction",
+    "literal blocker predicate distinct from tileIsActive/input event mode",
+    "missing/current-retired physical authority refuses without Source false or Raw fallback",
+    "Scope restart during second capture cannot mutate or draw in successor",
+    "ordinary/no-locked/Juice/Magnet/Continue and real FIFO neighbors previously24/0 PASS74.500s"
+  ],
+  "preservedFailure": "/tmp/native-tnt-physical-pre-spawn-core.log: shared phase context has no source getter; corrected to its genuine captured TNT owner",
+  "open": [
+    "zero blocker immutable-final/clean-board authority",
+    "remaining bonus pre/post guards and canonical physical grid final snapshot",
+    "full root/hitch/pixel parity",
+    "global/signature/save/queue/NO MOVES/all families/default activation",
+    "physical acceptance"
+  ],
+  "qa": {
+    "king": "PASS330 /tmp/native-tnt-physical-pre-spawn-king.log",
+    "feature": "PASS /tmp/native-tnt-physical-pre-spawn-feature.log",
+    "full": "PASS all selected gates /tmp/native-tnt-physical-pre-spawn-full.log",
+    "release": "PASS unsigned iOS Release /tmp/native-tnt-physical-pre-spawn-release.log",
+    "compiledAudit": "PASS /tmp/native-tnt-physical-pre-spawn-release-audit.log"
+  }
+}

@@ -1,3 +1,4 @@
+#if DEBUG || !NATIVE_HYBRID_UI_RETIRED
 import UIKit
 import WebKit
 
@@ -283,3 +284,5 @@ final class JimiNativeWorldHost {
         onBack = nil; onGameplayCommitted = nil; onLaunchRejected = nil; onBusy = nil; onError = nil
     }
 }
+
+#endif

@@ -1,0 +1,15 @@
+# Fourth tutorial meter admission gap — 2026-10-09
+
+Current private connected tutorial caller is default-OFF. Its components do not prove a successful complete Source route.
+
+Inspected actual NativeGameplayViewController viewDidLoad: initial construction, board-entry microtask and tutorial activation are bound; no configureSourceMeterOpen or configureSourcePlainStarHalos invocation exists. Scene fourth discovery requires sourceMeterCaller.sourceTutorialWildDropping(actualNode). It cannot discover a prototype-only drop.
+
+Actual Scene configureSourceMeterOpen exists and has dedicated real Scene tests, but when the Source microtask installer exists it requires a current sourceSynchronousPreparationReceipt from NativeWildMeterDropResources. Cold resource preparation is explicitly not a proven Source producer. Do not bypass that guard, substitute a synthetic receipt, or admit all artwork eagerly.
+
+Actual plain-Star count timing must move with the same live creation/attachment path. Engine sourceStarOrbitCountAtPresentationEnabled remains OFF; its two constructor paths can represent an attached-count-pending0 only with the shared Source Math owner. Scene/Node halo consumes one count draw before selected texture preparation and ten parameter draws per orbit afterward. Wiring a halo only at fourth preparation would move Source count timing past unrelated random draws. It would also duplicate an eager Core count draw if the flag remained off.
+
+Next integration requirements: inspect literal original create/open/attachment ordering; install the shared halo scope before live meter construction; bind the existing selected resource/asset FIFO/audio/queue/landing/save ownership; attach the original plain-Star halo at its actual onLanded/startLandedIdle phase, not construction or tutorial-only discovery; activate count timing only for the covered full creator path; drive actual bootstrap third-dismiss→real meter selection/drop→fourth activation/preparation/Star merge→restore/complete. Test exact Math count/order, same Node, cancellation and save legality. Retain default-OFF whole admission until that full chain is proved.
+
+No phone/PWA/assets/live Native mutation. Grey flash remains LAST. Current component/Core/SDK proof and physical acceptance remain separate.
+
+Correction from inspected original app-core.ts8223–8339: _ccDeferWildIdleFx suppresses meter idle until animateWildSpawnDropFromMeter onLanded calls startLandedIdle, with an idempotent fallback after drop. That helper starts plain Star halo. Scene idleAdmitted now calls existing Source halo attachment only when the exact shared halo scope is already configured; no whole flag or count timing activation yet. Prior constructor-phase wording is superseded. Actual mounted pointer→ordinary merge→earned meter→plain-Star landing now PASS with actual Scene FIFO/displaylink/original30 resource receipt. Shared Core/halo Math and pending count0 at selected creation plus exact21 post-landed count/parameter draws PASS1/1. This covers the earned-meter creator; other creators/resume, full audio/landing/save and actual Controller activation remain OPEN.

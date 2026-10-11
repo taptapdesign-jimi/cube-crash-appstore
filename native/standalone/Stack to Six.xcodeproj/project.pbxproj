@@ -36,6 +36,8 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+        AA2026100817000000000001 = {isa = PBXFileSystemSynchronizedBuildFileExceptionSet; membershipExceptions = ("GameViewController.swift", "Web.bundle",); target = CE7BB27F2EAD5DE400E8B9F9; };
+        AA2026100800000000000005 = {isa = PBXFileSystemSynchronizedBuildFileExceptionSet; membershipExceptions = ("export-frame-cadence-oracle.mjs",); target = CE7BB2982EAD5DE600E8B9F9; };
         AA2026100800000000000002 = {
             isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
             membershipExceptions = ("export-frame-budget-oracle.mjs",);
@@ -64,6 +66,15 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+        AA2026100820000000000001 = {isa = PBXFileSystemSynchronizedRootGroup; path = "../gameplay-hud-stars"; sourceTree = "<group>"; };
+        AA2026100810000000000006 = {isa = PBXFileSystemSynchronizedRootGroup; path = "../gameplay-meter-scene"; sourceTree = "<group>"; };
+        AA2026100810000000000004 = {isa = PBXFileSystemSynchronizedRootGroup; path = "../gameplay-meter-hidden-open"; sourceTree = "<group>"; };
+        AA2026100810000000000005 = {isa = PBXFileSystemSynchronizedRootGroup; path = "../gameplay-no-moves-source"; sourceTree = "<group>"; };
+        AA2026100810000000000003 = {isa = PBXFileSystemSynchronizedRootGroup; path = "../gameplay-outer-motion"; sourceTree = "<group>"; };
+        AA2026100810000000000001 = {isa = PBXFileSystemSynchronizedRootGroup; path = "../gameplay-meter-drop"; sourceTree = "<group>"; };
+        AA2026100810000000000002 = {isa = PBXFileSystemSynchronizedRootGroup; path = "../gameplay-meter-drop-tests"; sourceTree = "<group>"; };
+        AA2026100800000000000006 = {isa = PBXFileSystemSynchronizedRootGroup; path = "../gameplay-shared-smoke"; sourceTree = "<group>"; };
+        AA2026100800000000000004 = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (AA2026100800000000000005,); path = "../gameplay-cadence-tests"; sourceTree = "<group>"; };
         AA2026100800000000000001 = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (AA2026100800000000000002,); path = "../gameplay-frame-budget-tests"; sourceTree = "<group>"; };
         AA2026100700000000000021 = {isa = PBXFileSystemSynchronizedRootGroup; path = "../gameplay-bottom-decor"; sourceTree = "<group>"; };
         AA2026100700000000000022 = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (AA2026100700000000000023,); path = "../gameplay-bottom-decor-tests"; sourceTree = "<group>"; };
@@ -92,6 +103,7 @@
 		AA2026000000000000000001 = {isa = PBXFileSystemSynchronizedRootGroup; path = "../jimi-2026"; sourceTree = "<group>"; };
 		CE7BB2822EAD5DE400E8B9F9 /* Stack to Six */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+            exceptions = (AA2026100817000000000001,);
 			path = "Stack to Six";
 			sourceTree = "<group>";
 		};
@@ -151,6 +163,13 @@
                 AA202610070000000000001C,
                 AA202610070000000000001E,
                 AA2026100700000000000021,
+                AA2026100810000000000001,
+                AA2026100810000000000004,
+                AA2026100810000000000006,
+                AA2026100820000000000001,
+                AA2026100810000000000005,
+                AA2026100810000000000003,
+                AA2026100800000000000006,
 				CE7BB2822EAD5DE400E8B9F9 /* Stack to Six */,
 				CE7BB29C2EAD5DE600E8B9F9 /* Stack to SixTests */,
                 AA202610070000000000000D,
@@ -165,6 +184,8 @@
                 AA202610070000000000001F,
                 AA2026100700000000000022,
                 AA2026100800000000000001,
+                AA2026100810000000000002,
+                AA2026100800000000000004,
 				CE7BB2A62EAD5DE600E8B9F9 /* Stack to SixUITests */,
 				CE7BB2812EAD5DE400E8B9F9 /* Products */,
 			);
@@ -211,6 +232,13 @@
                 AA202610070000000000001C,
                 AA202610070000000000001E,
                 AA2026100700000000000021,
+                AA2026100810000000000001,
+                AA2026100810000000000004,
+                AA2026100810000000000006,
+                AA2026100820000000000001,
+                AA2026100810000000000005,
+                AA2026100810000000000003,
+                AA2026100800000000000006,
 			);
 			name = "Stack to Six";
 			packageProductDependencies = (
@@ -248,6 +276,8 @@
                 AA202610070000000000001F,
                 AA2026100700000000000022,
                 AA2026100800000000000001,
+                AA2026100810000000000002,
+                AA2026100800000000000004,
 			);
 			name = "Stack to SixTests";
 			packageProductDependencies = (
@@ -533,6 +563,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.taptapdesign.stacktosix.native";
+                SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) NATIVE_MUSIC_DIRECT_ONLY NATIVE_HYBRID_UI_RETIRED";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -560,6 +591,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.taptapdesign.stacktosix.native";
+                SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) NATIVE_MUSIC_DIRECT_ONLY NATIVE_HYBRID_UI_RETIRED";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
