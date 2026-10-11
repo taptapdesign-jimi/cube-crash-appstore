@@ -2,6 +2,15 @@
 
 ## User-selected Native benchmark v2 — 2026-10-12
 
+Local checkpoint commit f73018d239272f7ef2b65094d16fefff412b9346 and annotated
+tag native-benchmark-v2 are complete; full QA PASS. Publication is BLOCKED,
+not completed: automatic approval review rejected the git push because the
+2253-file source/QA payload would be published to the public origin repository
+https://github.com/taptapdesign-jimi/cube-crash-appstore without confirmation
+of that exact payload/destination. No push or GitHub release/upload executed.
+Await user's explicit approval of public source/QA publication there, including
+the three large QA video release attachments. Preserve the local benchmark tag.
+
 User requests all current project work saved online as the new continuation
 baseline. Commit on main and immutable annotated tag `native-benchmark-v2`;
 see NATIVE_BENCHMARK_V2.md. Existing v1/PWA recovery tags remain preserved.
