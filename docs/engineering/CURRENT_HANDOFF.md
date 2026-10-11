@@ -2,14 +2,15 @@
 
 ## User-selected Native benchmark v2 — 2026-10-12
 
-Local checkpoint commit f73018d239272f7ef2b65094d16fefff412b9346 and annotated
-tag native-benchmark-v2 are complete; full QA PASS. Publication is BLOCKED,
-not completed: automatic approval review rejected the git push because the
-2253-file source/QA payload would be published to the public origin repository
-https://github.com/taptapdesign-jimi/cube-crash-appstore without confirmation
-of that exact payload/destination. No push or GitHub release/upload executed.
-Await user's explicit approval of public source/QA publication there, including
-the three large QA video release attachments. Preserve the local benchmark tag.
+Checkpoint commit f73018d239272f7ef2b65094d16fefff412b9346 and annotated
+tag native-benchmark-v2 are published to the public origin repository
+https://github.com/taptapdesign-jimi/cube-crash-appstore after the user's explicit
+publication approval. Full QA PASS. Atomic main/tag push completed; GitHub release
+https://github.com/taptapdesign-jimi/cube-crash-appstore/releases/tag/native-benchmark-v2
+is public with all three QA video attachments. Uploaded sizes and GitHub SHA256
+digests match NATIVE_BENCHMARK_V2_LARGE_ARTIFACTS.json exactly. The earlier automatic
+approval block is resolved by user authorization; no bypass was used. Later concurrent
+Native edits remain outside immutable benchmark f73018d2 and are not staged here.
 
 User requests all current project work saved online as the new continuation
 baseline. Commit on main and immutable annotated tag `native-benchmark-v2`;
