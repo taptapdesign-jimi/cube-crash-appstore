@@ -1,3 +1,7 @@
+## All current Native changes saved online on main — 2026-10-14
+
+User explicitly approves all11 current files and PUBLIC origin https://github.com/taptapdesign-jimi/cube-crash-appstore, main. Commit4785213d6d50a14dd77be26eb585a283e856e2cf contains shared laser settlement repair, shared Journey/Worlds/Settings navigation header, main-paper bottom extension, regression tests and handoff. Normal push succeeded; git ls-remote confirms that exact commit on refs/heads/main. Current code QA/Simulator receipts remain those below; no new benchmark tag, phone install, PWA operation or physical acceptance claim. This publication receipt is a documentation-only follow-up.
+
 ## Native laser replacement pickup/stack settlement repaired — 2026-10-14
 
 User reports Area55 laser-created dice refuse further stacks/merges on active1018 Simulator. UI merge of adjacent3+3 and attempted pickup/movement were unresponsive. Actual complete Source root reproduces accepted pickup/stack during the first laser replacement bounce, then indefinite pendingSpecialMutation/unsavable state: /tmp/native-laser-overlap-repro-sdk.log. Native beginDrag retires the captured spawn; the old shared owner released frames without notifying the accepted laser impact, so its pendingSpawns never emptied. First overlap fixture also had an early assertion placed before impact; corrected to the real settled boundary. This is a reproduced causal path, not a reconstruction of every action in the original unsaved board.
