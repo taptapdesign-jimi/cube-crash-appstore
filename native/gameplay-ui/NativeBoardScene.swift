@@ -363,6 +363,7 @@ final class NativeBoardScene: SKScene {
     private var sourcePopulation:Set<String>=[]
     private struct SourceSpawnScope {
         let tileID:String,actionKey:String,id:String,release:()->Void
+        let interrupted:(()->Void)?
     }
     private var sourceSpawns:[String:SourceSpawnScope]=[:]
     private struct SourceOrdinaryOpenBounce {
@@ -779,21 +780,52 @@ final class NativeBoardScene: SKScene {
     private func retireSourceSpawns(tileID:String?=nil) {
         for (key,owner) in Array(sourceSpawns) where tileID==nil || owner.tileID==tileID {
             sourceSpawns.removeValue(forKey:key);owner.release()
+            // Removing/merging a live replacement settles its accepted impact.
+            // Whole-board retirement must never notify the departed gameplay.
+            if tileID != nil {owner.interrupted?()}
         }
     }
     /// Only source-identified wrapped/app-spawn paths call this helper. The
     /// unported Wild meter drop must not acquire a substitute bounce scope.
-    private func runSourceSpawn(_ node:NativeDiceNode,key:String,postDelay:Double=0,completion:(()->Void)?=nil) {
+    private func runSourceSpawn(_ node:NativeDiceNode,key:String,postDelay:Double=0,settleOnInterruption:Bool=false,completion:(()->Void)?=nil) {
         let ownerKey=node.tileID+":"+key,id=UUID().uuidString
-        if let previous=sourceSpawns.removeValue(forKey:ownerKey) {previous.release()}
+        if let previous=sourceSpawns.removeValue(forKey:ownerKey) {previous.release();previous.interrupted?()}
         let release=beginSourceMotion(.spawnBounce,id:id,generation:engine.state.generation) ?? {}
-        sourceSpawns[ownerKey]=SourceSpawnScope(tileID:node.tileID,actionKey:key,id:id,release:release)
-        var actions:[SKAction]=[NativeBoardMotion.spawnBounce(),.run { [weak self] in
+        let generation=engine.state.generation,lifetime=visualLifetime,binding=sourceMicrotaskInstallation
+        var settled=false
+        let settle:(Bool)->Void = {[weak self,weak node] interrupted in
+            guard !settled else{return};settled=true
+            if interrupted,let node,node.sourceGeneration==generation {
+                node.visual.removeAction(forKey:key);node.visual.setScale(1);node.visual.zRotation=0
+            }
             release()
             if self?.sourceSpawns[ownerKey]?.id==id {self?.sourceSpawns.removeValue(forKey:ownerKey)}
-        }]
+            guard let completion else{return}
+            let deliver:@MainActor @Sendable ()->Void = {[weak self,weak binding] in
+                guard let self,!self.disposed,!self.sourceDisposalInProgress,
+                      self.engine.state.generation==generation,self.visualLifetime==lifetime else{return}
+                if let binding {guard binding.isCurrent,self.sourceMicrotaskInstallation === binding else{return}}
+                else {guard self.sourceMicrotaskInstallation==nil else{return}}
+                completion()
+            }
+            // Completion may commit/synchronize the board. Keep it outside the
+            // current SpriteKit/synchronize mutation, using the actual APP FIFO.
+            if let binding {
+                if !binding.enqueue(deliver),binding.isCurrent,self?.engine.state.generation==generation {
+                    self?.onSourcePresentationFailure?("source_spawn_completion_fifo_rejected",generation)
+                }
+            }
+            else if interrupted {DispatchQueue.main.async(execute:deliver)}
+            else {deliver()}
+        }
+        sourceSpawns[ownerKey]=SourceSpawnScope(tileID:node.tileID,actionKey:key,id:id,release:release,
+            interrupted:settleOnInterruption ? {settle(true)}:nil)
+        var actions:[SKAction]=[NativeBoardMotion.spawnBounce(),.run(release)]
         if postDelay>0 {actions.append(.wait(forDuration:postDelay))}
-        if let completion {actions.append(.run(completion))}
+        actions.append(.run{
+            if let binding {_=binding.renderActionTask{settle(false)}}
+            else {settle(false)}
+        })
         node.visual.run(.sequence(actions),withKey:key)
     }
     private func retireSourceOrdinaryOpenBounces() {
@@ -7418,7 +7450,7 @@ final class NativeBoardScene: SKScene {
                     }
                     node.visual.setScale(0.30)
                     if let completed=laserSpawnCallbacks.removeValue(forKey:id) {
-                        runSourceSpawn(node,key:"special-impact-spawn",postDelay:0.05,completion:completed)
+                        runSourceSpawn(node,key:"special-impact-spawn",postDelay:0.05,settleOnInterruption:true,completion:completed)
                     } else {runSourceSpawn(node,key:"special-impact-spawn")}
                 } }
             case .spawned:

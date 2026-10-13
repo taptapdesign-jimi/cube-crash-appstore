@@ -12,14 +12,12 @@ private final class JimiV9HubScrollView: UIScrollView {
 @MainActor
 final class JimiV9HubView: UIView, UIScrollViewDelegate {
     let scrollView: UIScrollView = JimiV9HubScrollView()
-    let header = UIView()
+    let header = JimiV9NavigationHeader(frame:.zero)
     private let navigationTarget = UIButton(type:.custom)
     let backButton = JimiV9PlainButton(type: .custom)
     let backpackButton = JimiV9PlainButton(type: .custom)
     private let content = UIView()
     private let title = UILabel()
-    private let divider = UIView()
-    private let shadow: UIImageView
     private(set) var worldUnits: [UIButton] = []
     private var counts: [Int: UILabel] = [:]
     private var cloudViews: [(UIImageView, CGRect)] = []
@@ -60,7 +58,6 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     func bannerWidth(for worldID: Int) -> CGFloat { banners[worldID]?.bounds.width ?? 0 }
 
     init(frame: CGRect, assets: JimiV9Artwork) {
-        shadow = UIImageView(image: assets.image("assets/divider-shadow.png"))
         super.init(frame: frame)
         navigationTarget.isAccessibilityElement = false
         navigationTarget.addTarget(self,action:#selector(back),for:.touchUpInside)
@@ -146,9 +143,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         title.text = "Journey"; title.font = assets.font(size: 32, weight: "ExtraBold")
         title.textColor = UIColor(red: 173/255, green: 135/255, blue: 117/255, alpha: 1)
         title.textAlignment = .center
-        divider.backgroundColor = title.textColor.withAlphaComponent(0.2)
-        shadow.alpha = 0.2 // v9: descendant of the 20%-alpha underline.
-        [backButton, title, backpackButton, divider, shadow].forEach { header.addSubview($0) }
+        [backButton, title, backpackButton].forEach { header.addSubview($0) }
     }
     required init?(coder: NSCoder) { fatalError("Use init(frame:assets:)") }
 
@@ -230,8 +225,6 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         navigationTarget.frame = backButton.frame
         backpackButton.frame = CGRect(x: width-64, y: headerTop + 4, width: 40, height: 48)
         title.frame = CGRect(x: 72, y: headerTop + 14, width: width-144, height: 32)
-        divider.frame = CGRect(x: 24, y: header.bounds.height-2, width: width-48, height: 2)
-        shadow.frame = CGRect(x: 0, y: header.bounds.height, width: width, height: 49)
         updateIdleAdmission()
     }
     private func cloudWorldID(_ y: CGFloat) -> Int { y < 220 ? 1 : y < 560 ? 3 : 2 }

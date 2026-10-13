@@ -32,6 +32,18 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         try await exercise(archetype:.tnt,variant:"laser-gun",reverse:false,disposeDuringMain:false)
         try await exercise(archetype:.tnt,variant:"laser-gun",reverse:true,disposeDuringMain:false)
     }
+    func testLaserReplacementStackDuringBounceSettlesAndAdmitsNextMove()async throws {
+        try await exercise(archetype:.tnt,variant:"laser-gun",reverse:false,disposeDuringMain:false,laserInterveningStack:true)
+        try await exercise(archetype:.tnt,variant:"laser-gun",reverse:true,disposeDuringMain:false,laserInterveningStack:true)
+    }
+    func testArcadeLaserReplacementStackDuringBounceSettlesAndAdmitsNextMove()async throws {
+        try await exercise(archetype:.tnt,variant:"laser-gun",reverse:false,disposeDuringMain:false,laserInterveningStack:true,arcadeRun:true)
+        try await exercise(archetype:.tnt,variant:"laser-gun",reverse:true,disposeDuringMain:false,laserInterveningStack:true,arcadeRun:true)
+    }
+    func testChargedLaserReplacementInterruptionReleasesMeterQueueAndContinues()async throws {
+        try await exercise(archetype:.tnt,variant:"laser-gun",reverse:false,disposeDuringMain:false,laserInterveningStack:true,initialMeter:0.8)
+        try await exercise(archetype:.tnt,variant:"laser-gun",reverse:true,disposeDuringMain:false,laserInterveningStack:true,arcadeRun:true,initialMeter:0.8)
+    }
     func testCoreTNTDestinationActualImpactSharedLayersSettleAndContinue()async throws {
         try await exercise(archetype:.tnt,variant:nil,reverse:true,disposeDuringMain:false)
     }
@@ -101,7 +113,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
     func testMagnetDestinationPullsVisibleKantaAndCompletesItsActualRestoredMove()async throws {
         try await exercise(archetype:.magnet,variant:nil,reverse:true,disposeDuringMain:false,pulledKanta:true,moves:34)
     }
-    private func exercise(archetype:NativeWildArchetype,variant:String?,reverse:Bool,disposeDuringMain:Bool=true,pulledKanta:Bool=false,moves:Int=50,finalOnly:Bool=false,starCount:Int=3,capturedBoard:NativeBoardState?=nil,freshStar:Bool=false,verifyStarTail:Bool=false,interveningOrdinary:Bool=false,interveningSix:Bool=false,heldOrdinaryMilliseconds:Int=160,rapidOrdinaryContacts:Int=0,tutorialAssist:Bool=false,arcadeTutorial:Bool=false)async throws {
+    private func exercise(archetype:NativeWildArchetype,variant:String?,reverse:Bool,disposeDuringMain:Bool=true,pulledKanta:Bool=false,moves:Int=50,finalOnly:Bool=false,starCount:Int=3,capturedBoard:NativeBoardState?=nil,freshStar:Bool=false,verifyStarTail:Bool=false,interveningOrdinary:Bool=false,interveningSix:Bool=false,heldOrdinaryMilliseconds:Int=160,rapidOrdinaryContacts:Int=0,tutorialAssist:Bool=false,arcadeTutorial:Bool=false,laserInterveningStack:Bool=false,arcadeRun:Bool=false,initialMeter:Double?=nil)async throws {
         let label=(variant ?? archetype.rawValue)+(reverse ? ":destination":":source")
         print("[WildMergeSixRoot] start \(label)")
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("wild-six-particles-"+UUID().uuidString)
@@ -113,19 +125,20 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         for (i,value) in (finalOnly ? [(0,6),(1,2)]:[(0,6),(1,2),(2,1),(3,1),(40,1)]) {
             board.tiles[i].value=value;board.tiles[i].locked=false;board.tiles[i].alpha=1
         }
-        if interveningOrdinary {
+        if interveningOrdinary || laserInterveningStack {
             for i in [2,3,4,5,40,41] {board.tiles[i].value=1;board.tiles[i].locked=false;board.tiles[i].alpha=1}
             if interveningSix {board.tiles[40].value=3;board.tiles[41].value=3}
         }
         board.tiles[0].archetype=archetype;board.tiles[0].variant=variant;board.tiles[0].starOrbitCount=starCount
         if tutorialAssist {var tutorial=NativeTutorialState();tutorial.active=false;tutorial.guideCompleted=true;tutorial.completionAssist=true;tutorial.step = .freePlay;board.tutorial=tutorial}
         board.moves=moves
+        if let initialMeter {board.wildMeter=initialMeter}
         if freshStar {board.tiles[0].archetype=nil;board.tiles[0].variant=nil;board.tiles[0].value=1;board.wildMeter=0.99}
         if pulledKanta {board.tiles[2].value=6;board.tiles[2].archetype = .star;board.tiles[2].variant="kanta"}
         if let capturedBoard {board=capturedBoard;envelope.progression.completedJourneyBoards=Set(1..<board.board)}
-        if arcadeTutorial {board.mode = .arcade;board.board=1}
+        if arcadeTutorial || arcadeRun {board.mode = .arcade;board.board=1}
         let boardNumber=board.board
-        if arcadeTutorial {envelope.arcadeRun=board;envelope.arcadeRunSavedAt=Date().timeIntervalSince1970}
+        if arcadeTutorial || arcadeRun {envelope.arcadeRun=board;envelope.arcadeRunSavedAt=Date().timeIntervalSince1970}
         else {envelope.journeyRuns[boardNumber]=board}
         try store.save(envelope)
         weak var drawingScene:NativeBoardScene?
@@ -145,7 +158,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         func game()->NativeGameplayViewController? {app.children.compactMap{$0 as? NativeGameplayViewController}.first}
         timeoutDiagnostic={"route=\(app.route) homeHidden=\(app.home.isHidden) worldReady=\(app.world?.isReadyForInput==true) gameplay=\(game() != nil)"}
         try await wait(label+":home"){!app.home.isHidden}
-        app.navigate(arcadeTutorial ? .gameplay:.world(boardNumber < 26 ? 1:3),interrupt:true)
+        app.navigate(arcadeTutorial || arcadeRun ? .gameplay:.world(boardNumber < 26 ? 1:3),interrupt:true)
         try await wait(label+":world") {
             if game() != nil{return true}
             app.world?.onRequest?("continue",boardNumber)
@@ -170,11 +183,34 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             originalPlainFailure?(reason)
         }
         func drag(_ source:String,_ target:String,holdMilliseconds:Int=160)async throws {
+            let inputTasks=try XCTUnwrap(scope.sourceMicrotaskTasks)
             let a=try XCTUnwrap(scene.sourceNativeTileNode(source)),b=try XCTUnwrap(scene.sourceNativeTileNode(target))
             let from=scene.convert(a.position,from:try XCTUnwrap(a.parent)),to=scene.convert(b.position,from:try XCTUnwrap(b.parent))
-            XCTAssertTrue(scene.beginDrag(at:from),label);scene.moveDrag(to:to,now:CACurrentMediaTime())
+            inputTasks.inputTask {
+                XCTAssertTrue(scene.beginDrag(at:from),label);scene.moveDrag(to:to,now:CACurrentMediaTime())
+            }
             try await Task.sleep(for:.milliseconds(holdMilliseconds))
-            XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:to,now:CACurrentMediaTime())).accepted,label)
+            var result:NativeMoveResult?
+            inputTasks.inputTask {result=scene.finishDrag(at:to,now:CACurrentMediaTime())}
+            XCTAssertTrue(try XCTUnwrap(result).accepted,label)
+        }
+        var laserOverlapAccepted=false
+        if laserInterveningStack {
+            let previousMoment=scene.onSpecialMoment
+            scene.onSpecialMoment={kind,moment,index in
+                previousMoment?(kind,moment,index)
+                guard kind=="laser-gun",moment=="impact",index==0,
+                      let plan=gameplay.engine.pendingSpecial,let hit=plan.targets.first,
+                      let source=gameplay.engine.state.tiles.first(where:{$0.id==hit.id}),
+                      let target=gameplay.engine.state.activeTiles.first(where:{$0.id != hit.id && !$0.isWild && !$0.resolutionOwned && $0.value+source.value<6}) else{return}
+                Task { @MainActor in
+                    do {
+                        try await drag(source.id,target.id,holdMilliseconds:20)
+                        laserOverlapAccepted=true
+                        print("[LaserOverlap] accepted during replacement bounce \(label)")
+                    } catch {XCTFail("Laser overlap failed: \(error)")}
+                }
+            }
         }
         if freshStar {
             try await drag(board.tiles[0].id,board.tiles[1].id)
@@ -336,6 +372,14 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             failure != nil || (!gameplay.engine.hasUnsavableSourceGameplayState && gameplay.engine.pendingHUDStars.isEmpty &&
                 scene.sourceMagnetActualPullOwnerCount==0 && scene.sourceMagnetSurvivorPendingInputIDs.isEmpty)
         }
+        if laserInterveningStack {XCTAssertTrue(laserOverlapAccepted,"Must exercise replacement interruption")}
+        if initialMeter != nil {
+            try await wait(label+":charged-meter-release") {
+                failure != nil || (gameplay.engine.state.wildSpawnCount>board.wildSpawnCount && !gameplay.engine.hasUnsavableSourceGameplayState)
+            }
+            XCTAssertNil(failure,label)
+            XCTAssertGreaterThan(gameplay.engine.state.wildSpawnCount,board.wildSpawnCount)
+        }
         XCTAssertNil(failure,label);XCTAssertEqual(app.route,.gameplay,label);XCTAssertTrue(game() === gameplay,label)
         if interveningOrdinary {XCTAssertFalse(gameplay.engine.flags.wildMagnetPullInProgress);XCTAssertNil(gameplay.engine.sourceMagnetPostCommit)}
         XCTAssertEqual(scene.sourceWildSixParticleAdmissions[mainKey],1,"Late-final or pull must not repeat the main burst: "+label)
@@ -358,9 +402,26 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             if variant == "laser-gun" {
                 XCTAssertEqual(scene.sourceLaserImpactMergeSixShardCounts.count,scene.sourceSpecialImpactParticleAdmissions["laser-gun"],label)
                 XCTAssertTrue(scene.sourceLaserImpactMergeSixShardCounts.allSatisfy{$0==12},"Each actual Laser contact admits the existing ordinary merge6 shard profile: "+label)
+                for tile in gameplay.engine.state.activeTiles where !tile.isWild && !tile.locked {
+                    let node=try XCTUnwrap(scene.sourceNativeTileNode(tile.id),label)
+                    XCTAssertEqual(node.sourceValue,tile.value,label)
+                    XCTAssertEqual(node.sourceEventMode,"static",label)
+                    XCTAssertTrue(gameplay.engine.canBeginDrag(tileID:tile.id),"Laser replacement must admit pickup: \(tile.id) flags=\(gameplay.engine.flags)")
+                    let point=scene.convert(node.position,from:try XCTUnwrap(node.parent))
+                    XCTAssertTrue(scene.beginDrag(at:point),"Actual laser replacement pickup: \(tile.id)")
+                    scene.cancelDrag()
+                }
             }
         } else {XCTAssertEqual(scene.sourceWildScreenShakeInvocations.count,1,label)}
         try await wait(label+":shards-retired"){scene.sourceWildSixShardOwnerCount==0}
+        if laserInterveningStack {
+            let playable=gameplay.engine.state.activeTiles.filter{!$0.isWild && !$0.locked && $0.value>0 && $0.value<6}
+            let six=try XCTUnwrap(playable.lazy.flatMap{a in playable.filter{$0.id != a.id && a.value+$0.value==6}.map{(a,$0)}}.first,
+                "Laser interruption fixture must retain a real merge-six pair")
+            try await drag(six.0.id,six.1.id)
+            try await wait(label+":post-laser-merge-six"){failure != nil || !gameplay.engine.hasUnsavableSourceGameplayState}
+            XCTAssertNil(failure,label);XCTAssertNil(gameplay.sourcePresentationFailure)
+        }
         let ordinary=gameplay.engine.state.activeTiles.filter{!$0.isWild && !$0.locked && $0.value>0 && $0.value<6}
         let pair=ordinary.lazy.flatMap{a in ordinary.filter{$0.id != a.id && a.value+$0.value<=6}.map{(a,$0)}}.first
         if let pair {

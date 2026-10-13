@@ -18,7 +18,9 @@ final class NativeAppPaperTests:XCTestCase {
         for size in [CGSize(width:390,height:844),CGSize(width:844,height:390)] {
             paper.frame=CGRect(origin:.zero,size:size);paper.setNeedsLayout();paper.layoutIfNeeded()
             XCTAssertEqual(gradient.frame,paper.bounds)
-            for child in paper.subviews {XCTAssertEqual(child.frame,paper.bounds)}
+            XCTAssertEqual(texture.frame,CGRect(x:0,y:0,width:size.width,height:size.height+64))
+            XCTAssertEqual(paper.subviews.last?.frame,paper.bounds)
+            XCTAssertTrue(paper.clipsToBounds)
             XCTAssertTrue(gradient.animationKeys()?.isEmpty ?? true)
         }
         var r:CGFloat=0,g:CGFloat=0,b:CGFloat=0,a:CGFloat=0
@@ -35,7 +37,7 @@ final class NativeAppPaperTests:XCTestCase {
         defer {controller.dispose();window.isHidden=true}
         controller.view.frame=window.bounds;controller.view.setNeedsLayout();controller.view.layoutIfNeeded()
         let paper=try XCTUnwrap(controller.view.subviews.compactMap{$0 as? NativeAppPaperSurface}.first)
-        let renderer=try XCTUnwrap(controller.view.subviews.compactMap{$0 as? SKView}.first)
+        let renderer=try XCTUnwrap(controller.view.subviews.first{$0.accessibilityIdentifier == "native-gameplay-board"})
         XCTAssertEqual(requests,1);XCTAssertTrue(renderer.isHidden)
         XCTAssertTrue(controller.view.subviews.first === paper)
         try XCTUnwrap(release)()

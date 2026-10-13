@@ -11,7 +11,7 @@ final class JimiNativeSettingsView: UIView {
     var onDeveloperAction: ((NativeDeveloperAction, Int) -> Void)?
     private(set) var developerButtons: [JimiV9PlainButton] = []
     private let assets: JimiV9Artwork
-    let header = UIView()
+    let header = JimiV9NavigationHeader(frame:.zero)
     let footer = UIView()
     let scroll = UIScrollView()
     let back = JimiV9PlainButton(type: .custom)
@@ -39,6 +39,7 @@ final class JimiNativeSettingsView: UIView {
         super.init(frame: frame)
         accessibilityIdentifier = "native.settings"
         addSubview(header); addSubview(scroll); addSubview(footer)
+        header.backgroundColor = UIColor(red:243/255,green:238/255,blue:232/255,alpha:0.8)
         // Padding belongs to the rows, never to a clipping animation viewport.
         clipsToBounds = false; scroll.clipsToBounds = false
         scroll.alwaysBounceVertical = false
@@ -83,8 +84,6 @@ final class JimiNativeSettingsView: UIView {
             button.addTarget(self, action: #selector(activateDeveloperAction(_:)), for: .touchUpInside)
             button.isHidden = true; scroll.addSubview(button); developerButtons.append(button)
         }
-        let headerLine = UIView(); headerLine.backgroundColor = ink.withAlphaComponent(0.15)
-        headerLine.tag = 99; header.addSubview(headerLine)
         for i in keys.indices {
             let row = UIView(); scroll.addSubview(row); rows.append(row)
             let status = UILabel(); status.font = assets.font(size: 32, weight: "ExtraBold"); status.textColor = UIColor(red: 232/255, green: 116/255, blue: 74/255, alpha: 1)
@@ -146,11 +145,11 @@ final class JimiNativeSettingsView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         let top = safeAreaInsets.top
-        place(header, in: CGRect(x: 24, y: top, width: max(0,bounds.width-48), height: 62))
-        title.frame = CGRect(x: 40, y: 10, width: max(0,header.bounds.width-80), height: 38)
-        back.frame = CGRect(x: -8, y: 4, width: 44, height: 44)
-        developer.frame = CGRect(x: header.bounds.width-44, y: 4, width: 44, height: 44)
-        header.viewWithTag(99)?.frame = CGRect(x: 0, y: 60, width: header.bounds.width, height: 2)
+        let headerTop = max(0,top+bounds.height*0.02-16)
+        place(header, in: CGRect(x:0,y:0,width:bounds.width,height:headerTop+66))
+        title.frame = CGRect(x:72,y:headerTop+14,width:max(0,bounds.width-144),height:32)
+        back.frame = CGRect(x:24,y:headerTop+4,width:44,height:44)
+        developer.frame = CGRect(x:bounds.width-68,y:headerTop+4,width:44,height:44)
         let footerHeight: CGFloat = min(165, max(110,bounds.height*0.2))
         place(footer, in: CGRect(x: 24, y: bounds.height-safeAreaInsets.bottom-footerHeight, width: max(0,bounds.width-48), height: footerHeight))
         footerCopy.frame = CGRect(x: 0, y: 0, width: footer.bounds.width, height: footerHeight-40)

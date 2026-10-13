@@ -437,25 +437,32 @@ final class JimiNativeWorldTests: XCTestCase {
         world.reconcile(fixture(1));XCTAssertEqual(regular.accessibilityValue,"interim","Stale snapshot cannot relabel current admission")
     }
 
-    func testForestHeaderMatchesOriginalMobileCSSRecipe() throws {
+    func testForestHeaderKeepsGeometryWithSoftDownwardNavigationShadow() throws {
         let world = try XCTUnwrap(JimiNativeWorldView(snapshot:fixture(),assets:art))
         world.frame = CGRect(x:0,y:0,width:390,height:844);world.layoutIfNeeded()
         defer {world.cleanup()}
         // Existing390×844 CSS: headerTop safeTop +2%ofviewport -16px,
-        // title32px,24px artwork in44pxhit,2pxdivider/full49pxshadow.
+        // Title32px and24px artwork in44pxhit retain their authored geometry.
         let top = max(0,world.safeAreaInsets.top + 844 * 0.02 - 16)
         let geometry = world.headerGeometrySnapshot()
         let header = try XCTUnwrap(geometry["header"]),title = try XCTUnwrap(geometry["title"])
         let target = try XCTUnwrap(geometry["backTarget"]),artwork = try XCTUnwrap(geometry["backArtwork"])
-        let divider = try XCTUnwrap(geometry["divider"]),shadow = try XCTUnwrap(geometry["shadow"])
         XCTAssertEqual(header.minY,0,accuracy:0.001);XCTAssertEqual(header.height,top+58,accuracy:0.001)
         XCTAssertEqual(title.minY,top+10,accuracy:0.001);XCTAssertEqual(title.height,32,accuracy:0.001)
         XCTAssertEqual(target.minX,22,accuracy:0.001);XCTAssertEqual(target.minY,top+2,accuracy:0.001)
         XCTAssertEqual(target.width,44,accuracy:0.001);XCTAssertEqual(target.height,44,accuracy:0.001)
         XCTAssertEqual(artwork.minX,32,accuracy:0.001);XCTAssertEqual(artwork.minY,top+12,accuracy:0.001)
         XCTAssertEqual(artwork.width,24,accuracy:0.001);XCTAssertEqual(artwork.height,24,accuracy:0.001)
-        XCTAssertEqual(divider,CGRect(x:24,y:top+56,width:342,height:2))
-        XCTAssertEqual(shadow,CGRect(x:0,y:top+58,width:390,height:49))
+        XCTAssertNil(geometry["divider"]);XCTAssertNil(geometry["shadow"])
+        XCTAssertEqual(world.header.layer.shadowOffset,CGSize(width:0,height:4))
+        XCTAssertEqual(world.header.layer.shadowRadius,6)
+        XCTAssertEqual(world.header.layer.shadowOpacity,0.16,accuracy:0.001)
+        XCTAssertEqual(try XCTUnwrap(world.header.layer.shadowPath).boundingBox,world.header.bounds)
+        world.alpha=1;world.backgroundColor=NativeAppPaperSurface.base
+        let preview=UIGraphicsImageRenderer(size:CGSize(width:390,height:160)).image {context in
+            world.layer.render(in:context.cgContext)
+        }
+        let attachment=XCTAttachment(image:preview);attachment.name="native-navigation-soft-shadow";attachment.lifetime = .keepAlways;add(attachment)
     }
 
     private func rotatedInterimCard() -> (UIView,UIView) {

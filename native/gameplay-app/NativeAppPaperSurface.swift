@@ -7,7 +7,7 @@ final class NativeAppPaperSurface:UIView {
     static let base=UIColor(red:243/255,green:238/255,blue:232/255,alpha:1)
     private let gradient=CAGradientLayer()
     private let textureBottomExtension:CGFloat
-    init(artwork:JimiV9Artwork,textureBottomExtension:CGFloat=0) {
+    init(artwork:JimiV9Artwork,textureBottomExtension:CGFloat=64) {
         self.textureBottomExtension=max(0,textureBottomExtension)
         super.init(frame:.zero)
         accessibilityIdentifier="native-canonical-paper"
@@ -24,6 +24,7 @@ final class NativeAppPaperSurface:UIView {
         super.layoutSubviews()
         CATransaction.begin();CATransaction.setDisableActions(true);gradient.frame=bounds;CATransaction.commit()
         for child in subviews {
+            // Keep the authored lower folds below the viewport, including the home indicator.
             child.frame=child is UIImageView ? CGRect(x:0,y:0,width:bounds.width,height:bounds.height+textureBottomExtension):bounds
         }
     }

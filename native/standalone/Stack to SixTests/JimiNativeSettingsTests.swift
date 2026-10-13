@@ -29,6 +29,20 @@ final class JimiNativeSettingsTests: XCTestCase {
         let settings=JimiNativeSettingsView(frame:CGRect(x:0,y:0,width:390,height:844),assets:JimiV9Artwork(resourceRoot:root))
         var value=preferences;value["firstPlayRequired"]=false
         XCTAssertTrue(settings.apply(value));settings.layoutSubviews()
+        settings.header.layoutIfNeeded()
+        XCTAssertEqual(settings.header.frame.minX,0)
+        XCTAssertEqual(settings.header.bounds.width,settings.bounds.width)
+        XCTAssertNil(settings.header.viewWithTag(99))
+        XCTAssertEqual(settings.header.layer.shadowOpacity,0.16,accuracy:0.001)
+        XCTAssertEqual(settings.header.layer.shadowOffset,CGSize(width:0,height:4))
+        XCTAssertEqual(settings.header.layer.shadowPath?.boundingBox,settings.header.bounds)
+        let paper=NativeAppPaperSurface(artwork:JimiV9Artwork(resourceRoot:root))
+        paper.frame=settings.bounds;paper.layoutIfNeeded()
+        let image=UIGraphicsImageRenderer(bounds:settings.bounds).image{context in
+            paper.layer.render(in:context.cgContext)
+            settings.layer.render(in:context.cgContext)
+        }
+        let attachment=XCTAttachment(image:image);attachment.name="Settings shared Journey navigation header";attachment.lifetime = .keepAlways;add(attachment)
         XCTAssertFalse(settings.developer.isHidden);XCTAssertNotNil(settings.developer.image(for:.normal))
         XCTAssertEqual(settings.developer.convert(settings.developer.bounds,to:settings).maxX,366,accuracy:0.001)
         settings.onDeveloper={epoch in XCTAssertEqual(epoch,10);settings.setDeveloperPanelVisible(true)}

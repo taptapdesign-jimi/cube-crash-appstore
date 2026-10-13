@@ -14,7 +14,7 @@ private final class JimiWorldScroll: UIScrollView {
 @MainActor
 final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
     let scrollView: UIScrollView = JimiWorldScroll()
-    let header = UIView()
+    let header = JimiV9NavigationHeader(frame:.zero)
     private let navigationTarget = UIButton(type:.custom)
     let backButton = UIButton(type: .custom)
     var onRequest: ((String, Int?) -> Void)?
@@ -25,8 +25,6 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
     private let content = UIView()
     private let main = UIView()
     private let title = UILabel()
-    private let divider = UIView()
-    private let dividerShadow = UIImageView()
     private let backArtwork = UIImageView()
     private let artwork: JimiV9Artwork
     private let resources: JimiNativeWorldResources
@@ -79,7 +77,6 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         title.font = assets.font(size: 32, weight: "ExtraBold"); title.textAlignment = .center
         title.textColor = UIColor(red:173/255,green:135/255,blue:117/255,alpha:1); title.text = snapshot.title
         header.backgroundColor = UIColor(red:243/255,green:238/255,blue:232/255,alpha:0.8)
-        divider.backgroundColor = title.textColor.withAlphaComponent(0.2);dividerShadow.image = assets.image("assets/divider-shadow.png");dividerShadow.alpha = 0.2;header.addSubview(divider);header.addSubview(dividerShadow)
         backButton.configuration = nil;backArtwork.image = assets.image("assets/close-icon.png",densityAware:true);backArtwork.contentMode = .scaleAspectFit;backArtwork.isUserInteractionEnabled = false;backButton.addSubview(backArtwork)
         backButton.setTitleColor(title.textColor, for: .normal)
         backButton.accessibilityIdentifier = "native.world.back"
@@ -121,8 +118,6 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         backButton.frame = CGRect(x:22,y:headerTop+2,width:44,height:44)
         navigationTarget.frame = backButton.frame
         backArtwork.frame = CGRect(x:10,y:10,width:24,height:24)
-        divider.frame = CGRect(x:24,y:headerTop+56,width:bounds.width-48,height:2)
-        dividerShadow.frame = CGRect(x:0,y:header.bounds.height,width:bounds.width,height:49)
         content.frame = CGRect(x: 0, y: 0, width: bounds.width, height: snapshot.contentHeight * scale)
         scrollView.contentSize = content.bounds.size; main.frame = snapshot.mainFrame.applying(CGAffineTransform(scaleX: scale, y: scale))
         for unit in snapshot.units { let frame = unit.frame.applying(CGAffineTransform(scaleX: scale, y: scale));units[unit.boardID]?.frame = frame;depthPlanes[unit.boardID]?.forEach {$0.frame = frame} }
@@ -564,7 +559,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
     }
     /// CSS parity evidence from the actual laid-out UIKit owners.
     func headerGeometrySnapshot() -> [String:CGRect] {
-        ["header":header.frame,"title":title.frame,"backTarget":backButton.frame,"backArtwork":backArtwork.convert(backArtwork.bounds,to:header),"divider":divider.frame,"shadow":dividerShadow.frame]
+        ["header":header.frame,"title":title.frame,"backTarget":backButton.frame,"backArtwork":backArtwork.convert(backArtwork.bounds,to:header)]
     }
     /// Read-only boundary evidence for UIKit regression tests/opt-in diagnostics.
     /// Never sampled by the idle or animation owners.

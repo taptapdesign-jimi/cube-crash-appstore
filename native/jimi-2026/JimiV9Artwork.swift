@@ -1,6 +1,24 @@
 import UIKit
 import CoreText
 
+/// Shared rectangular navigation surface; its existing parent owns all motion.
+@MainActor
+final class JimiV9NavigationHeader: UIView {
+    override init(frame:CGRect) {
+        super.init(frame:frame)
+        clipsToBounds=false
+        layer.shadowColor=UIColor(red:185/255,green:145/255,blue:119/255,alpha:1).cgColor
+        layer.shadowOpacity=0.16
+        layer.shadowRadius=6
+        layer.shadowOffset=CGSize(width:0,height:4)
+    }
+    required init?(coder:NSCoder) {fatalError("Use frame initializer")}
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        layer.shadowPath=UIBezierPath(rect:bounds).cgPath
+    }
+}
+
 /// Original, unmodified Web.bundle artwork. Lifetime and preparation belong to
 /// the presenting controller; this instance is not a process-global cache.
 @MainActor
