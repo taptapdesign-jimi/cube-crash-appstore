@@ -35,6 +35,12 @@ final class NativeWildMergeSixRootTests:XCTestCase {
     func testCoreTNTDestinationActualImpactSharedLayersSettleAndContinue()async throws {
         try await exercise(archetype:.tnt,variant:nil,reverse:true,disposeDuringMain:false)
     }
+    func testTutorialAssistFinalStarMergeShowsCompletionAndContinue()async throws {
+        try await exercise(archetype:.star,variant:nil,reverse:true,disposeDuringMain:false,finalOnly:true,starCount:0,tutorialAssist:true)
+    }
+    func testArcadeTutorialResultContinueReplacesSourceGenerationAndAdmitsNextMove()async throws {
+        try await exercise(archetype:.star,variant:nil,reverse:true,disposeDuringMain:false,finalOnly:true,starCount:0,tutorialAssist:true,arcadeTutorial:true)
+    }
     func testStarSourceAndDestinationSettleAndAdmitNextActualDrag()async throws {
         try await exercise(archetype:.star,variant:nil,reverse:false,disposeDuringMain:false)
         try await exercise(archetype:.star,variant:nil,reverse:true,disposeDuringMain:false)
@@ -70,6 +76,22 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         try await exercise(archetype:.star,variant:"fish",reverse:false,disposeDuringMain:false)
         try await exercise(archetype:.star,variant:"fish",reverse:true,disposeDuringMain:false)
     }
+    func testSpaceshipOrdinaryContactDuringPullAndAfterBoardCommitReleasesAllOwners()async throws {
+        try await exercise(archetype:.magnet,variant:"spaceship",reverse:false,disposeDuringMain:false,interveningOrdinary:true)
+        try await exercise(archetype:.magnet,variant:"spaceship",reverse:true,disposeDuringMain:false,interveningOrdinary:true)
+    }
+    func testSpaceshipOrdinaryMergeSixAfterBoardCommitReleasesAllOwners()async throws {
+        try await exercise(archetype:.magnet,variant:"spaceship",reverse:false,disposeDuringMain:false,interveningOrdinary:true,interveningSix:true)
+        try await exercise(archetype:.magnet,variant:"spaceship",reverse:true,disposeDuringMain:false,interveningOrdinary:true,interveningSix:true)
+    }
+    func testSpaceshipHeldOrdinaryDragAcrossHelperFinallyAndRapidContactsRemainPlayable()async throws {
+        for reverse in [false,true] {
+            try await exercise(archetype:.magnet,variant:"spaceship",reverse:reverse,disposeDuringMain:false,
+                interveningOrdinary:true,heldOrdinaryMilliseconds:1600,rapidOrdinaryContacts:5)
+            try await exercise(archetype:.magnet,variant:"spaceship",reverse:reverse,disposeDuringMain:false,
+                interveningOrdinary:true,interveningSix:true,rapidOrdinaryContacts:5)
+        }
+    }
     func testSpaceshipSourceActualSourceParticlesSettleAndContinue()async throws {
         try await exercise(archetype:.magnet,variant:"spaceship",reverse:false,disposeDuringMain:false)
     }
@@ -79,7 +101,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
     func testMagnetDestinationPullsVisibleKantaAndCompletesItsActualRestoredMove()async throws {
         try await exercise(archetype:.magnet,variant:nil,reverse:true,disposeDuringMain:false,pulledKanta:true,moves:34)
     }
-    private func exercise(archetype:NativeWildArchetype,variant:String?,reverse:Bool,disposeDuringMain:Bool=true,pulledKanta:Bool=false,moves:Int=50,finalOnly:Bool=false,starCount:Int=3,capturedBoard:NativeBoardState?=nil,freshStar:Bool=false,verifyStarTail:Bool=false)async throws {
+    private func exercise(archetype:NativeWildArchetype,variant:String?,reverse:Bool,disposeDuringMain:Bool=true,pulledKanta:Bool=false,moves:Int=50,finalOnly:Bool=false,starCount:Int=3,capturedBoard:NativeBoardState?=nil,freshStar:Bool=false,verifyStarTail:Bool=false,interveningOrdinary:Bool=false,interveningSix:Bool=false,heldOrdinaryMilliseconds:Int=160,rapidOrdinaryContacts:Int=0,tutorialAssist:Bool=false,arcadeTutorial:Bool=false)async throws {
         let label=(variant ?? archetype.rawValue)+(reverse ? ":destination":":source")
         print("[WildMergeSixRoot] start \(label)")
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("wild-six-particles-"+UUID().uuidString)
@@ -91,13 +113,21 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         for (i,value) in (finalOnly ? [(0,6),(1,2)]:[(0,6),(1,2),(2,1),(3,1),(40,1)]) {
             board.tiles[i].value=value;board.tiles[i].locked=false;board.tiles[i].alpha=1
         }
+        if interveningOrdinary {
+            for i in [2,3,4,5,40,41] {board.tiles[i].value=1;board.tiles[i].locked=false;board.tiles[i].alpha=1}
+            if interveningSix {board.tiles[40].value=3;board.tiles[41].value=3}
+        }
         board.tiles[0].archetype=archetype;board.tiles[0].variant=variant;board.tiles[0].starOrbitCount=starCount
+        if tutorialAssist {var tutorial=NativeTutorialState();tutorial.active=false;tutorial.guideCompleted=true;tutorial.completionAssist=true;tutorial.step = .freePlay;board.tutorial=tutorial}
         board.moves=moves
         if freshStar {board.tiles[0].archetype=nil;board.tiles[0].variant=nil;board.tiles[0].value=1;board.wildMeter=0.99}
         if pulledKanta {board.tiles[2].value=6;board.tiles[2].archetype = .star;board.tiles[2].variant="kanta"}
         if let capturedBoard {board=capturedBoard;envelope.progression.completedJourneyBoards=Set(1..<board.board)}
+        if arcadeTutorial {board.mode = .arcade;board.board=1}
         let boardNumber=board.board
-        envelope.journeyRuns[boardNumber]=board;try store.save(envelope)
+        if arcadeTutorial {envelope.arcadeRun=board;envelope.arcadeRunSavedAt=Date().timeIntervalSince1970}
+        else {envelope.journeyRuns[boardNumber]=board}
+        try store.save(envelope)
         weak var drawingScene:NativeBoardScene?
         var drawPhases:[String]=[],drawCount=0
         let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,
@@ -107,13 +137,15 @@ final class NativeWildMergeSixRootTests:XCTestCase {
                 return 0.1+Double(drawCount % 7)*0.01
             },completeNativeGameplayEnabled:true)
         let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
-        let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
+        let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844))
+        if interveningOrdinary {window.windowScene=try XCTUnwrap(previous?.windowScene,"Overlap fixture must mount on the actual Simulator UIWindowScene")}
+        window.rootViewController=host;window.makeKeyAndVisible()
         defer{host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory);timeoutDiagnostic=nil}
         host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
         func game()->NativeGameplayViewController? {app.children.compactMap{$0 as? NativeGameplayViewController}.first}
         timeoutDiagnostic={"route=\(app.route) homeHidden=\(app.home.isHidden) worldReady=\(app.world?.isReadyForInput==true) gameplay=\(game() != nil)"}
         try await wait(label+":home"){!app.home.isHidden}
-        app.navigate(.world(boardNumber < 26 ? 1:3),interrupt:true)
+        app.navigate(arcadeTutorial ? .gameplay:.world(boardNumber < 26 ? 1:3),interrupt:true)
         try await wait(label+":world") {
             if game() != nil{return true}
             app.world?.onRequest?("continue",boardNumber)
@@ -137,11 +169,11 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             print("[WildMergeSixRoot] \(label) failure=\(reason) \(self.timeoutDiagnostic?() ?? "")")
             originalPlainFailure?(reason)
         }
-        func drag(_ source:String,_ target:String)async throws {
+        func drag(_ source:String,_ target:String,holdMilliseconds:Int=160)async throws {
             let a=try XCTUnwrap(scene.sourceNativeTileNode(source)),b=try XCTUnwrap(scene.sourceNativeTileNode(target))
             let from=scene.convert(a.position,from:try XCTUnwrap(a.parent)),to=scene.convert(b.position,from:try XCTUnwrap(b.parent))
             XCTAssertTrue(scene.beginDrag(at:from),label);scene.moveDrag(to:to,now:CACurrentMediaTime())
-            try await Task.sleep(for:.milliseconds(160))
+            try await Task.sleep(for:.milliseconds(holdMilliseconds))
             XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:to,now:CACurrentMediaTime())).accepted,label)
         }
         if freshStar {
@@ -156,6 +188,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             XCTAssertEqual(scene.sourceWildDropTileMarkers(try XCTUnwrap(scene.sourceNativeTileNode(wildID))),.init(dropping:false,handoffLocked:false))
         }
         try await drag(reverse ? targetID:wildID,reverse ? wildID:targetID)
+        if interveningOrdinary {print("[SpaceshipOverlap] visible-scene-entry direction=\(reverse ? "destination":"source")")}
         let pulledNodes=archetype == .magnet ? try XCTUnwrap(gameplay.engine.pendingSpecial).targets.compactMap{scene.sourceNativeTileNode($0.id)}:[]
         let pulledPositions=pulledNodes.map(\.position)
         let mainKey=(variant ?? archetype.rawValue)+":main"
@@ -198,6 +231,24 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         }
         XCTAssertGreaterThan(scene.sourceWildSixShardOwnerCount,0,label)
         XCTAssertGreaterThan(scope.smoke.activeOwnerCount,0,label)
+        if interveningOrdinary {
+            let farID=board.tiles[40].id
+            XCTAssertFalse(try XCTUnwrap(gameplay.engine.pendingSpecial).targets.contains{$0.id==farID})
+            let far=try XCTUnwrap(scene.sourceNativeTileNode(farID))
+            let point=scene.convert(far.position,from:try XCTUnwrap(far.parent))
+            XCTAssertFalse(scene.beginDrag(at:point),"Actual pull mutation must reject unrelated pickup without cancelling its cleanup")
+            for _ in 0..<10 where gameplay.engine.pendingSpecial != nil && failure==nil {
+                XCTAssertFalse(scene.beginDrag(at:point),"Repeated pickup during captured pull must not acquire stale drag ownership")
+                try await Task.sleep(for:.milliseconds(20))
+            }
+            try await wait(label+":special-board-commit") {failure != nil || gameplay.engine.pendingSpecial==nil}
+            XCTAssertNil(failure,label)
+            XCTAssertNotNil(gameplay.engine.sourceMagnetPostCommit,"Ordinary contact must occur before captured helper finally")
+            let revision=scope.contactMutations.revision
+            try await drag(board.tiles[40].id,board.tiles[41].id,holdMilliseconds:heldOrdinaryMilliseconds)
+            try await wait(label+":intervening-ordinary-commit") {failure != nil || scope.contactMutations.revision>revision}
+            XCTAssertNil(failure,label)
+        }
         if !finalOnly,(archetype == .star || archetype == .juice) {
             let mainSmoke=try XCTUnwrap(drawPhases.firstIndex(of:"main-smoke"),label)
             let mainShards=try XCTUnwrap(drawPhases.firstIndex(of:"main-shards"),label)
@@ -229,6 +280,45 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             XCTAssertEqual(gameplay.engine.state.terminal?.kind,.complete,label)
             XCTAssertEqual(app.route,.gameplay,"Final Wild must retain gameplay for Clean Board: "+label)
             XCTAssertTrue(game() === gameplay,label)
+            if tutorialAssist {
+                try await wait(label+":tutorial-completion") {failure != nil || app.children.contains{$0 is NativeTutorialCompleteController}}
+                XCTAssertNil(failure,label)
+                let sheet=try XCTUnwrap(app.children.compactMap{$0 as? NativeTutorialCompleteController}.first)
+                try await wait(label+":tutorial-ready"){sheet.phase == .ready}
+                sheet.requestContinue()
+                if arcadeTutorial {
+                    try await wait(label+":fresh-arcade"){failure != nil || (game() !== gameplay && game()?.boardScene?.isBoardEntryComplete==true)}
+                    XCTAssertNil(failure)
+                    let incoming=try XCTUnwrap(game())
+                    XCTAssertFalse(incoming === gameplay)
+                    XCTAssertFalse(scope.current)
+                    XCTAssertTrue(incoming.sourceScope?.current==true)
+                    XCTAssertNil(incoming.sourcePresentationFailure)
+                    XCTAssertNil(incoming.engine.state.tutorial)
+                    let nextScene=try XCTUnwrap(incoming.boardScene)
+                    var moved=false
+                    try await wait(label+":next-arcade-move") {
+                        for a in incoming.engine.state.activeTiles where !moved {
+                            for b in incoming.engine.state.activeTiles where !moved && a.id != b.id && NativeGameplayResolver.canDrop(a,onto:b) {
+                                guard let source=nextScene.sourceNativeTileNode(a.id),let target=nextScene.sourceNativeTileNode(b.id),let parent=source.parent else{continue}
+                                let from=parent.convert(source.position,to:nextScene),to=parent.convert(target.position,to:nextScene)
+                                guard nextScene.beginDrag(at:from) else{continue}
+                                nextScene.moveDrag(to:to)
+                                moved=nextScene.finishDrag(at:to,now:CACurrentMediaTime())?.accepted==true
+                            }
+                        }
+                        return moved || incoming.sourcePresentationFailure != nil
+                    }
+                    XCTAssertTrue(moved)
+                    try await wait(label+":next-arcade-settlement"){incoming.sourcePresentationFailure != nil || !incoming.engine.hasUnsavableSourceGameplayState}
+                    XCTAssertNil(incoming.sourcePresentationFailure)
+                    return
+                }
+                try await wait(label+":tutorial-continue"){app.route == .home}
+                XCTAssertNil(failure,label)
+                XCTAssertTrue(try XCTUnwrap(store.load()).progression.firstPlayTutorialComplete)
+                return
+            }
             try await wait(label+":clean-presentation") {
                 failure != nil || gameplay.presentedViewController is NativeJourneyRewardController || gameplay.presentedViewController is NativeResultController
             }
@@ -247,6 +337,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
                 scene.sourceMagnetActualPullOwnerCount==0 && scene.sourceMagnetSurvivorPendingInputIDs.isEmpty)
         }
         XCTAssertNil(failure,label);XCTAssertEqual(app.route,.gameplay,label);XCTAssertTrue(game() === gameplay,label)
+        if interveningOrdinary {XCTAssertFalse(gameplay.engine.flags.wildMagnetPullInProgress);XCTAssertNil(gameplay.engine.sourceMagnetPostCommit)}
         XCTAssertEqual(scene.sourceWildSixParticleAdmissions[mainKey],1,"Late-final or pull must not repeat the main burst: "+label)
         if archetype == .magnet {
             let pullKey=(variant ?? archetype.rawValue)+":pull"
@@ -276,6 +367,22 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             try await drag(pair.0.id,pair.1.id)
             try await wait(label+":next-drag"){failure != nil || !gameplay.engine.hasUnsavableSourceGameplayState}
             XCTAssertNil(failure,label);XCTAssertEqual(app.route,.gameplay,label)
+        }
+        for index in 0..<rapidOrdinaryContacts {
+            try await wait(label+":rapid-ready-\(index)") {failure != nil || !gameplay.engine.hasUnsavableSourceGameplayState}
+            XCTAssertNil(failure,label)
+            let playable=gameplay.engine.state.activeTiles.filter{!$0.isWild && !$0.locked && $0.value>0 && $0.value<6}
+            let pair=try XCTUnwrap(playable.lazy.flatMap{a in playable.filter{$0.id != a.id && a.value+$0.value<=6}.map{(a,$0)}}.first,"Rapid continuation must retain a legal pair")
+            try await drag(pair.0.id,pair.1.id,holdMilliseconds:20)
+            print("[SpaceshipOverlap] direction=\(reverse ? "destination":"source") hold=\(heldOrdinaryMilliseconds) six=\(interveningSix) contact=\(index) revision=\(gameplay.engine.state.revision) pull=\(scene.sourceMagnetActualPullOwnerCount) failure=\(failure ?? "none")")
+        }
+        if rapidOrdinaryContacts>0 {
+            try await wait(label+":rapid-final-settle") {failure != nil || (!gameplay.engine.hasUnsavableSourceGameplayState && gameplay.engine.pendingHUDStars.isEmpty)}
+            XCTAssertNil(failure,label);XCTAssertNil(gameplay.sourcePresentationFailure)
+            XCTAssertFalse(gameplay.engine.flags.wildMagnetPullInProgress)
+            XCTAssertEqual(scene.sourceMagnetActualPullOwnerCount,0)
+            XCTAssertTrue(scene.sourceMagnetSurvivorPendingInputIDs.isEmpty)
+            XCTAssertEqual(app.route,.gameplay)
         }
         host.dispose();XCTAssertFalse(scope.current,label);XCTAssertEqual(scope.smoke.activeOwnerCount,0,label)
         print("[WildMergeSixRoot] settled continuation PASS \(label)")

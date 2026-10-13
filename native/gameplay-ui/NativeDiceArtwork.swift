@@ -105,7 +105,7 @@ struct NativeDiceSheet {
         anchor: CGPoint(x: 79.5 / 151, y: 1 - 104.5 / 172))
     static let ball = Self(path: "assets/shop/ball/ball-pixi-sheet.webp", atlas: CGSize(width: 4048, height: 840),
         cell: CGSize(width: 176, height: 210), columns: 23, frameCount: 84, cycle: 1.4,
-        anchor: CGPoint(x: 88.5 / 176, y: 1 - 149.65 / 210), offsetY: -56)
+        anchor: CGPoint(x: 88.5 / 176, y: 1 - 149.65 / 210))
     static let barrel = Self(path: "assets/shop/barell/barell-pixi-sheet.webp", atlas: CGSize(width: 2430, height: 2106),
         cell: CGSize(width: 270, height: 351), columns: 9, frameCount: 54, cycle: 0.821428571,
         anchor: CGPoint(x: 0.5, y: 1 - 221.0 / 351), activeLoops: 2, restingDuration: 1,
@@ -311,6 +311,25 @@ final class NativeBoardTextures {
         acquire(recoveryRemaining:true)
         return true
     }
+    private static func isOrdinaryFace(_ path:String)->Bool {
+        path=="assets/tile.png" || NativeRegularStackLayout.Skin.allCases.contains {String($0.rawValue.dropFirst(2))==path}
+    }
+    /// Exact original2x PNG avoids UIKit's automatic non-power-of-two3x selection.
+    /// Its2x UIImage scale preserves the existing logical texture dimensions.
+    private func ordinaryMinificationImage(path:String)->UIImage? {
+        let base=root.appendingPathComponent(path)
+        let double=base.deletingLastPathComponent().appendingPathComponent(base.deletingPathExtension().lastPathComponent+"@2x."+base.pathExtension)
+        for (url,scale) in [(double,CGFloat(2)),(base,CGFloat(1))] {
+            guard let source=CGImageSourceCreateWithURL(url as CFURL,nil),let image=CGImageSourceCreateImageAtIndex(source,0,nil) else{continue}
+            return UIImage(cgImage:image,scale:scale,orientation:.up)
+        }
+        return nil
+    }
+    private func configureOrdinaryMinification(_ texture:SKTexture,path:String,image:CGImage) {
+        guard Self.isOrdinaryFace(path) else{return}
+        func powerOfTwo(_ value:Int)->Bool {value>0 && value & (value-1)==0}
+        texture.usesMipmaps=powerOfTwo(image.width) && powerOfTwo(image.height)
+    }
     func texture(_ path: String, densityAware: Bool = true) -> SKTexture? {
         guard !disposed else { return nil }
         if let texture = textures[path] { return texture }
@@ -325,13 +344,15 @@ final class NativeBoardTextures {
             }
         }
         for (candidate, density) in candidates {
-            if let image = UIImage(contentsOfFile: candidate.path) {
+            if let image = Self.isOrdinaryFace(path) ? ordinaryMinificationImage(path:path):UIImage(contentsOfFile:candidate.path) {
                 let texture = SKTexture(image: image)
                 texture.filteringMode = .linear
                 textures[path] = texture
                 if let cg=image.cgImage {
+                    configureOrdinaryMinification(texture,path:path,image:cg)
                     sourceRasterPixels[ObjectIdentifier(texture)]=CGSize(width:cg.width,height:cg.height)
-                    sourceRasterLogicalWidths[ObjectIdentifier(texture)]=CGFloat(cg.width)/Self.sourceRasterResolution(path:candidate.path)
+                    let resolution=Self.isOrdinaryFace(path) ? Self.sourceRasterResolution(path:path)*image.scale:Self.sourceRasterResolution(path:candidate.path)
+                    sourceRasterLogicalWidths[ObjectIdentifier(texture)]=CGFloat(cg.width)/resolution
                 }
                 logicalSizes[path] = CGSize(width: image.size.width / density,height: image.size.height / density)
                 return texture
@@ -470,6 +491,7 @@ final class NativeBoardTextures {
                     self.finishSelectedFinale(key:spec.key,request:request,texture:nil);return
                 }
                 let texture=SKTexture(cgImage:decoded.image);texture.filteringMode = .linear
+                self.configureOrdinaryMinification(texture,path:decoded.path,image:decoded.image)
                 self.selectedFinalePreload([texture]) {Task{@MainActor [weak self] in
                     guard let self,self.selectedFinaleIsCurrent(key:spec.key,request:request) else{return}
                     self.textures[decoded.path]=texture

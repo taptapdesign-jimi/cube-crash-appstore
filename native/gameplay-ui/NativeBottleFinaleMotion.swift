@@ -21,7 +21,12 @@ enum NativeBottleFinaleMotion {
     }
     static func mixedOpacities(count: Int,random: () -> Double) -> [CGFloat] {
         guard count > 0 else { return [] }
-        var values = (0..<count).map { CGFloat(0.2+(Double($0)+min(1,max(0,random())))/Double(count)*0.5) }
+        let levels: [CGFloat] = [0.6,0.7,0.8,0.9]
+        // Stratify then shuffle so every wave has variety, keeping RNG draw ownership unchanged.
+        var values = (0..<count).map { index in
+            let position = (Double(index)+min(1,max(0,random())))/Double(count)
+            return levels[min(levels.count-1,Int(position*Double(levels.count)))]
+        }
         if count > 1 { for index in stride(from: count-1,through: 1,by: -1) {
             let swap = min(index,Int(min(1,max(0,random()))*Double(index+1))); values.swapAt(index,swap)
         } }

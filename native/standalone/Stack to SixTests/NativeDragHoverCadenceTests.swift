@@ -3,6 +3,23 @@ import SpriteKit
 @testable import Stack_to_Six
 
 @MainActor final class NativeDragHoverCadenceTests:XCTestCase {
+    func testSpecialOverlapRankingAndReleaseGracePreservePWALimits() {
+        let targets:[NativeRegularDropTarget.Candidate]=[
+            .init(id:"left",bounds:.init(x:0,y:0,width:100,height:100),pointerBounds:.init(x:0,y:0,width:100,height:100)),
+            .init(id:"right",bounds:.init(x:110,y:0,width:100,height:100),pointerBounds:.init(x:110,y:0,width:100,height:100))]
+        func pick(_ x:CGFloat,_ y:CGFloat=0,_ pointer:CGPoint?=nil,_ policy:NativeSpecialDropTarget.Policy = .direct)->String? {
+            NativeSpecialDropTarget.pick(source:.init(x:x,y:y,width:100,height:100),center:.init(x:x+50,y:y+50),candidates:targets,pointer:pointer,tileSize:100,policy:policy)
+        }
+        XCTAssertEqual(pick(-95),"left","Five percent of destination area is sufficient")
+        XCTAssertNil(pick(-96),"Below five percent contact must not select")
+        XCTAssertEqual(pick(80),"right","Largest overlap wins")
+        XCTAssertEqual(pick(-200,0,.init(x:105,y:50)),"left","Release pointer has ten percent grace")
+        XCTAssertNil(pick(-200,0,.init(x:105,y:50),.barrel),"Barrel excludes pointer and center fallback")
+        XCTAssertEqual(pick(0,145,nil,.magnet),"left","Magnet retains authored nearby hover field")
+        XCTAssertNil(pick(0,151,nil,.magnet))
+        XCTAssertEqual(pick(-65,0,.init(x:-15,y:50),.magnet),"left","Magnet release fallback admits72percent center radius")
+        XCTAssertNil(pick(-73,0,.init(x:-23,y:50),.magnet))
+    }
     func testHighRatePointerSamplesLimitGeometryWorkButReleaseAlwaysReadsLiveTarget() {
         var cadence=NativeDragHoverCadence(),calls=0
         for sample in 0..<120 {

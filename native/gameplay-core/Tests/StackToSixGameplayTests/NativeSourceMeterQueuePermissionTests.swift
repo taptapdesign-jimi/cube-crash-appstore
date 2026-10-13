@@ -2,6 +2,14 @@ import XCTest
 @testable import StackToSixGameplay
 
 nonisolated final class NativeSourceMeterQueuePermissionTests:XCTestCase {
+    func testSpecialBarIntervalBlocksCanonicalQueuePermissionWithoutChangingMeter() {
+        var tutorial=NativeTutorialState();tutorial.step = .freePlay
+        let engine=NativeGameplayEngine(state:.init(tiles:[.init(id:"live",cell:.init(column:0,row:0),value:1)],wildMeter:1.25,tutorial:tutorial))
+        XCTAssertTrue(engine.beginTutorialSpecialBarInterval().accepted)
+        let permission=engine.meterSourceQueuePermission(environment:environment(engine))
+        XCTAssertEqual(permission.action,.block);XCTAssertEqual(permission.reason,"tutorial-special-bar")
+        XCTAssertEqual(engine.state.wildMeter,1.25);XCTAssertNil(engine.pendingMeterOpen)
+    }
     private struct Packet:Decodable {let writerLines:[Int],writerRows:[Writer],blockerRows:[Blocker],permissionRows:[PermissionRow]}
     private struct Tile:Decodable {
         let id:String,value:Int,special:String?,locked:Bool,stackDepth:Int,gridX:Int,gridY:Int,eventMode:String,visible:Bool,alpha:Double

@@ -26,6 +26,7 @@ import StackToSixGameplay
         let ownershipReleased:()->Void
         let fault:(String)->Void
         let consume:(NativeMoveResult,NativeBoardState)->Void
+        var onDropStarted:((NativeDiceNode)->Void)?=nil
         var sourceSkin:((NativeDiceNode)->Bool)?=nil
     }
     @MainActor private final class Drop {
@@ -229,6 +230,7 @@ import StackToSixGameplay
                     })
             })
         drop.owner=owner
+        owner.onDropStarted={[weak self,weak drop] in guard let self,let drop,self.valid(drop) else{return};self.hooks.onDropStarted?(drop.captured.lease.node)}
         owner.onBeginActivity={[weak self,weak drop] in guard let self,let drop,self.valid(drop) else{return nil};return self.hooks.sourceActivity(drop.runtime.id,drop.runtime.generation)}
         owner.onBeginAudio={[weak self,weak drop] in guard let self,let drop,self.valid(drop) else{return {}};return self.hooks.carrierAudio(self.engine.state.mode == .arcade,drop.runtime.id,drop.runtime.generation)}
         owner.onBeginDividerMask={[weak self,weak drop] in guard let self,let drop,self.valid(drop) else{return {}};return self.hooks.dividerMask()}

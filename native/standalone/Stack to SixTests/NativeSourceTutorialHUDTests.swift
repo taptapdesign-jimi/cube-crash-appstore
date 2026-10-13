@@ -3,6 +3,25 @@ import SpriteKit
 @testable import Stack_to_Six
 
 @MainActor final class NativeSourceTutorialHUDTests:XCTestCase {
+    func testRootFinalAlphaWaitsForActualHUDEntryOwnerThenRestoresOne()async throws {
+        let parent=SKNode(),root=SKNode();parent.addChild(root);root.alpha=0.486
+        root.run(.wait(forDuration:10),withKey:"hud-enter")
+        let fifo=NativeSourceMicrotaskFIFO(),timeouts=NativeSourceAppTimeoutOwner()
+        let tasks=NativeSourceMicrotaskAdapters(fifo:fifo);timeouts.sourceMicrotaskTasks=tasks
+        var wall=0.0
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{wall},sourceFrameTransportEnabled:true);service.sourceMicrotaskTasks=tasks
+        let owner=try XCTUnwrap(NativeSourceTutorialHUDOwner(root:root,rootFinalAlpha:1,service:service,timeouts:timeouts,generation:1,current:{true}))
+        defer{owner.dispose();timeouts.cancelAll();service.dispose();fifo.dispose()}
+        XCTAssertTrue(owner.start());XCTAssertEqual(root.alpha,0.486,accuracy:1e-6)
+        wall=16;service.deliver(wallMilliseconds:wall)
+        XCTAssertEqual(root.alpha,0.486,accuracy:1e-6)
+        try await Task.sleep(for:.milliseconds(150))
+        XCTAssertGreaterThanOrEqual(owner.intervalDeliveries,1)
+        XCTAssertEqual(root.alpha,0.486,accuracy:1e-6)
+        root.removeAction(forKey:"hud-enter")
+        try await Task.sleep(for:.milliseconds(150))
+        XCTAssertEqual(root.alpha,1,accuracy:1e-6)
+    }
     @MainActor private final class Fixture {
         var wall=0.0,current=true
         let parent=SKNode(),root=SKNode(),ordinary=SKNode(),loader=SKNode(),extra=SKNode(),child=SKNode()
@@ -33,6 +52,19 @@ import SpriteKit
         XCTAssertEqual(f.ordinary.alpha,0.8,accuracy:1e-6);XCTAssertEqual(f.loader.alpha,0.6,accuracy:1e-6)
         XCTAssertEqual(f.extra.alpha,1,accuracy:1e-6);XCTAssertEqual(f.ordinary.xScale,1,accuracy:1e-6)
         XCTAssertEqual(draws,2);XCTAssertEqual(f.service.activeParticipantCount,0)
+    }
+    func testContinuousRestorePreservesCurrentScaleAndAlphaAtAdmission()throws {
+        let f=try Fixture();defer{f.dispose()};XCTAssertTrue(f.owner.start())
+        f.ordinary.xScale=1.07;f.ordinary.yScale=0.97;f.ordinary.alpha=0.57
+        XCTAssertTrue(f.owner.stop(animateRestore:true,continuous:true,random:{0},hudLocked:false,isLockedControl:{_ in false},cleanupSmoke:{}))
+        XCTAssertEqual(f.ordinary.xScale,1.07,accuracy:1e-6);XCTAssertEqual(f.ordinary.yScale,0.97,accuracy:1e-6)
+        XCTAssertEqual(f.ordinary.alpha,0.57,accuracy:1e-6)
+        f.deliver(16);f.deliver(64)
+        XCTAssertGreaterThan(f.ordinary.xScale,1.07);XCTAssertGreaterThan(f.ordinary.alpha,0.57)
+        for time in stride(from:80.0,through:900,by:16){f.deliver(time)}
+        XCTAssertEqual(f.ordinary.xScale,1.07,accuracy:1e-6);XCTAssertEqual(f.ordinary.yScale,0.97,accuracy:1e-6)
+        XCTAssertEqual(f.ordinary.alpha,0.8,accuracy:1e-6)
+        f.owner.dispose();f.owner.dispose();XCTAssertEqual(f.service.activeParticipantCount,0)
     }
     func testUnifiedHUDRetainsInitialDOMFadeAcrossWallClampAndCapturesLazyBackgroundAlpha()async throws {
         for background in [false,true] {

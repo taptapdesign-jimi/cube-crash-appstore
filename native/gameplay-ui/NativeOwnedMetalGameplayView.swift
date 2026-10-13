@@ -2,7 +2,7 @@ import UIKit
 import SpriteKit
 import MetalKit
 
-/// Opt-in Native presentation owner. MTKView supplies the only frame scheduler;
+/// Standalone Native presentation owner. MTKView supplies the only frame scheduler;
 /// SKRenderer borrows the existing Scene and canonical Source delivery.
 @MainActor
 final class NativeOwnedMetalGameplayView: MTKView, @preconcurrency MTKViewDelegate, NativeGameplayRenderHost {

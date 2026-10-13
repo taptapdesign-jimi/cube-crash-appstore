@@ -1,6 +1,91 @@
 import XCTest
 @testable import StackToSixGameplay
 final class NativeTutorialTests: XCTestCase {
+    func testHUDRemainsLockedAfterGuideUntilResultAcknowledged() {
+        var tutorial=NativeTutorialState()
+        XCTAssertTrue(tutorial.shouldLockHUD)
+        tutorial.active=false;tutorial.guideCompleted=true;tutorial.completionAssist=true
+        XCTAssertTrue(tutorial.shouldLockHUD)
+        tutorial.done=true;tutorial.completionAssist=false
+        XCTAssertFalse(tutorial.shouldLockHUD)
+    }
+
+    func testSpecialBarPickupAdmissionIgnoresOnlyItsOwnLockAndDoesNotStartDrag() {
+        var tutorial=NativeTutorialState();tutorial.step = .freePlay
+        let tile=NativeTile(id:"pickup",cell:NativeCell(column:0,row:0),value:1)
+        let engine=NativeGameplayEngine(state:NativeBoardState(tiles:[tile],tutorial:tutorial))
+        let ownerLock="tutorial-special-bar:owner:1"
+        engine.setInputLock(ownerLock,active:true)
+        let before=engine.state
+        XCTAssertFalse(engine.canBeginDrag(tileID:tile.id))
+        XCTAssertTrue(engine.canBeginDrag(tileID:tile.id,ignoringInputLock:ownerLock))
+        XCTAssertFalse(engine.isDragging);XCTAssertEqual(engine.state,before)
+        engine.setInputLock("foreign-gameplay-owner",active:true)
+        XCTAssertFalse(engine.canBeginDrag(tileID:tile.id,ignoringInputLock:ownerLock))
+        XCTAssertFalse(engine.isDragging);XCTAssertEqual(engine.state,before)
+        engine.setInputLock("foreign-gameplay-owner",active:false)
+        XCTAssertFalse(engine.canBeginDrag(tileID:"missing",ignoringInputLock:ownerLock))
+        XCTAssertFalse(engine.beginDrag(tileID:tile.id))
+        engine.setInputLock(ownerLock,active:false)
+        XCTAssertTrue(engine.beginDrag(tileID:tile.id));XCTAssertTrue(engine.isDragging)
+        XCTAssertFalse(engine.canBeginDrag(tileID:tile.id,ignoringInputLock:ownerLock))
+    }
+    func testSpecialBarCountsTwoCommittedActionsAndClearStageReservesStar() throws {
+        var tutorial = NativeTutorialState(); tutorial.step = .freePlay
+        let tiles = (0..<4).map { NativeTile(id:"bar-\($0)",cell:NativeCell(column:$0,row:0),value:1) }
+        let engine = NativeGameplayEngine(state:NativeBoardState(tiles:tiles,tutorial:tutorial),recordedRandomChoices:Array(repeating:0,count:200))
+        XCTAssertTrue(engine.beginTutorialSpecialBarInterval().accepted)
+        XCTAssertFalse(engine.beginTutorialSpecialBarInterval().accepted)
+        XCTAssertFalse(engine.acknowledgeTutorialSpecialBar().accepted)
+        XCTAssertFalse(engine.drop(target:tiles[1].cell).accepted)
+        XCTAssertEqual(engine.state.tutorial?.specialBarSuccessfulActions,0)
+        for index in 0..<2 {
+            XCTAssertTrue(engine.beginDrag(tileID:"bar-\(index)"))
+            XCTAssertTrue(engine.drop(target:tiles[index+1].cell).accepted)
+            XCTAssertEqual(engine.state.tutorial?.specialBarSuccessfulActions,index+1)
+            XCTAssertEqual(engine.state.tutorial?.specialBarReady,index == 1)
+            XCTAssertEqual(engine.state.tutorial?.waitingForWild,false)
+        }
+        XCTAssertTrue(engine.acknowledgeTutorialSpecialBar().accepted)
+        XCTAssertEqual(engine.state.tutorial?.waitingForWild,false)
+        XCTAssertTrue(engine.state.tutorial?.specialBarDefersReward==true)
+        XCTAssertEqual(engine.state.tutorial?.specialBarAcknowledged,true)
+        XCTAssertFalse(engine.acknowledgeTutorialSpecialBar().accepted)
+        XCTAssertTrue(engine.dismissTutorialFreePlayGuide().accepted)
+        XCTAssertEqual(engine.state.tutorial?.waitingForWild,true)
+    }
+    func testOlderTutorialSaveDecodesWithoutSpecialBarFields() throws {
+        let encoded = try JSONEncoder().encode(NativeTutorialState())
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with:encoded) as? [String:Any])
+        object.removeValue(forKey:"specialBarSuccessfulActions"); object.removeValue(forKey:"specialBarAcknowledged")
+        let decoded = try JSONDecoder().decode(NativeTutorialState.self,from:JSONSerialization.data(withJSONObject:object))
+        XCTAssertNil(decoded.specialBarSuccessfulActions)
+        XCTAssertNil(decoded.specialBarAcknowledged)
+        XCTAssertFalse(decoded.specialBarReady)
+    }
+    func testSpecialBarThreeSixMergesRetainFullMeterUntilContinue() {
+        var tutorial = NativeTutorialState(); tutorial.step = .freePlay
+        var tiles = (0..<6).map { NativeTile(id:"six-\($0)",cell:NativeCell(column:$0 % 5,row:$0 / 5),value:3) }
+        tiles.append(NativeTile(id:"remaining",cell:NativeCell(column:4,row:2),value:1))
+        var state = NativeBoardState(tiles:tiles,tutorial:tutorial); state.wildMeter = 0.8
+        let engine = NativeGameplayEngine(state:state,recordedRandomChoices:Array(repeating:0,count:200))
+        XCTAssertTrue(engine.beginTutorialSpecialBarInterval().accepted)
+        for index in stride(from:0,to:6,by:2) {
+            XCTAssertTrue(engine.beginDrag(tileID:"six-\(index)"))
+            XCTAssertTrue(engine.drop(target:tiles[index+1].cell).accepted)
+            XCTAssertFalse(engine.claimMeterReward().accepted)
+            XCTAssertFalse(engine.state.activeTiles.contains{$0.isWild})
+        }
+        XCTAssertTrue(engine.state.tutorial?.specialBarReady == true)
+        XCTAssertGreaterThan(engine.state.wildMeter,1)
+        let meter = engine.state.wildMeter
+        XCTAssertTrue(engine.acknowledgeTutorialSpecialBar().accepted)
+        XCTAssertEqual(engine.state.wildMeter,meter)
+        XCTAssertFalse(engine.claimMeterReward().accepted,"Clear the Stage still owns reward admission")
+        XCTAssertTrue(engine.dismissTutorialFreePlayGuide().accepted)
+        XCTAssertTrue(engine.claimMeterReward().accepted)
+        XCTAssertTrue(engine.state.activeTiles.contains{$0.gameplayArchetype == .star})
+    }
     func board() -> NativeBoardState {
         var tiles: [NativeTile] = []
         for row in 0..<9 { for column in 0..<5 {
@@ -23,6 +108,27 @@ final class NativeTutorialTests: XCTestCase {
         XCTAssertFalse(engine.acknowledgeTutorialResult())
         XCTAssertTrue(engine.dismissTutorialFreePlayGuide().accepted); XCTAssertTrue(engine.state.tutorial?.waitingForWild == true)
     }
+    func testActualFirstTwoGuidedCommitsIntroduceSpecialBarWithUnfilledMeter()throws {
+        let engine=NativeGameplayEngine(state:board(),recordedRandomChoices:Array(repeating:0,count:200))
+        XCTAssertTrue(engine.startTutorial().accepted)
+        XCTAssertTrue(engine.beginTutorialSpecialBarInterval().accepted)
+        let pair=try XCTUnwrap(engine.state.tutorial?.guidedPair),one=try XCTUnwrap(engine.state.tutorial?.oneTileID)
+        let destination=try XCTUnwrap(engine.state.tiles.first{$0.id==pair[1]})
+        XCTAssertTrue(engine.beginDrag(tileID:pair[0]));XCTAssertTrue(engine.drop(target:destination.cell).accepted)
+        XCTAssertEqual(engine.state.tutorial?.specialBarSuccessfulActions,1)
+        XCTAssertFalse(engine.state.tutorial?.specialBarReady==true)
+        XCTAssertTrue(engine.beginDrag(tileID:one));XCTAssertTrue(engine.drop(target:destination.cell).accepted)
+        XCTAssertEqual(engine.state.tutorial?.specialBarSuccessfulActions,2)
+        XCTAssertTrue(engine.state.tutorial?.specialBarReady==true)
+        XCTAssertLessThan(engine.state.wildMeter,1)
+        XCTAssertFalse(engine.state.activeTiles.contains{$0.isWild})
+        let preserved=engine.state.tiles
+        XCTAssertTrue(engine.acknowledgeTutorialSpecialBar().accepted)
+        XCTAssertEqual(engine.state.tiles,preserved)
+        XCTAssertEqual(engine.state.tutorial?.waitingForWild,false)
+        XCTAssertTrue(engine.dismissTutorialFreePlayGuide().accepted)
+        XCTAssertEqual(engine.state.tutorial?.waitingForWild,true)
+    }
     func testForcedStarSpawnAndSpecialTargetAdmissionUseSourceTopRows() {
         var state = board(); var tutorial = NativeTutorialState(); tutorial.step = .freePlay; tutorial.waitingForWild = true
         state.tutorial = tutorial; state.wildMeter = 1
@@ -35,7 +141,7 @@ final class NativeTutorialTests: XCTestCase {
         XCTAssertTrue(engine.beginDrag(tileID:wild.id)); let finish = engine.drop(target:target.cell)
         XCTAssertTrue(finish.accepted); XCTAssertEqual(engine.state.tutorial?.active,false); XCTAssertEqual(engine.state.tutorial?.guideCompleted,true)
         XCTAssertEqual(engine.state.tutorial?.completionAssist,true); XCTAssertTrue(engine.state.tutorial?.requiresResultCompletion == true)
-        XCTAssertFalse(engine.state.tutorial?.shouldLockHUD == true); XCTAssertTrue(engine.acknowledgeTutorialResult())
+        XCTAssertTrue(engine.state.tutorial?.shouldLockHUD == true); XCTAssertTrue(engine.acknowledgeTutorialResult()); XCTAssertFalse(engine.state.tutorial?.shouldLockHUD == true)
         XCTAssertEqual(engine.state.tutorial?.done,true)
     }
     func testCompletionAssistWeightedValuesSlowMeterAndFailSuppression() {
@@ -46,7 +152,7 @@ final class NativeTutorialTests: XCTestCase {
         XCTAssertTrue(engine.claimTutorialFinalChance().accepted)
         XCTAssertEqual(engine.state.activeTiles.map(\.value).sorted(),[1,5]); XCTAssertEqual(engine.state.tutorial?.finalChanceSpawnCount,1)
         XCTAssertEqual(NativeTutorialRules.lowValue(excluding:1,roll:0),2); XCTAssertEqual(NativeTutorialRules.lowValue(roll:0.99),3)
-        XCTAssertEqual(tutorial.meterMultiplier,0.05); XCTAssertFalse(tutorial.shouldLockHUD)
+        XCTAssertEqual(tutorial.meterMultiplier,0.05); XCTAssertTrue(tutorial.shouldLockHUD)
     }
     func testOrdinaryBoardCompletionNeverMarksTutorialDone() {
         let a = NativeTile(id:"a",cell:NativeCell(column:0,row:0),value:3), b = NativeTile(id:"b",cell:NativeCell(column:1,row:0),value:3)
@@ -229,6 +335,7 @@ extension NativeTutorialTests {
         XCTAssertEqual(e.state.tiles[0],original.tiles[0]);XCTAssertEqual(e.state.tiles[1],original.tiles[1])
         XCTAssertEqual(e.state.tile(at:.init(column:2,row:1))?.id,"wild");XCTAssertEqual(e.state.sourceDetachedGridTileIDs,["holder"])
         XCTAssertEqual(e.state.tiles[2].starOrbitCount,2);XCTAssertEqual(e.state.tiles[3].stackDepth,3)
+        XCTAssertFalse(e.state.tiles[3].sourceWildStateCleared)
         XCTAssertEqual(e.state.tutorial?.step,.special);XCTAssertEqual(e.state.tutorial?.guidedPair,["wild","target"])
         XCTAssertEqual(e.state.moves,original.moves);XCTAssertEqual(e.state.revision,original.revision);XCTAssertEqual(e.state.rngState,original.rngState)
         XCTAssertEqual(e.state.score,original.score);XCTAssertEqual(e.state.wildMeter,original.wildMeter)

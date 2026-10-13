@@ -7,6 +7,7 @@ import UIKit
 @MainActor
 final class NativeTntFinale: SKNode, NativeSourceAnimationParticipant {
     static let duration: TimeInterval = 4.2
+    static let smokeScale: Double = 1.4
     var onGlyphClock: ((TimeInterval,Bool) -> Void)?
     private struct Frame {
         let sprite: SKSpriteNode
@@ -56,7 +57,7 @@ final class NativeTntFinale: SKNode, NativeSourceAnimationParticipant {
             for (index,handle,size) in retained {
                 let rotation=(try draw()-0.5)*20 * .pi/180
                 // Preserve the accepted Native smoke-only enlargement.
-                let scale=(1+0.52*(try draw()))*1.2
+                let scale=(1+0.52*(try draw()))*smokeScale
                 frames.append(.init(index:index,handle:handle,logicalSize:size,rotation:rotation,scale:scale))
             }
             guard admitted() else{return nil};return .init(frames:frames,dice:dice)
@@ -125,7 +126,7 @@ final class NativeTntFinale: SKNode, NativeSourceAnimationParticipant {
             sprite.zRotation = -(random()-0.5)*20 * .pi/180
             sprite.alpha = 0; sprite.setScale(0); addChild(sprite)
             // User-approved smoke-only enlargement; dice/title retain their original scale.
-            let scale = (1 + random()*0.52)*1.2
+            let scale = (1 + random()*0.52)*Self.smokeScale
             frames.append(Frame(sprite: sprite,index: index,size: scale,bounceSize: scale*(1.02+random()*0.06),bounceY: (random()-0.5)*4))
         }
         }

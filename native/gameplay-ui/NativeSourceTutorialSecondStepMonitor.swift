@@ -67,6 +67,7 @@ import SpriteKit
     private let timeouts:NativeSourceAppTimeoutOwner,generation:UInt64
     private let current:()->Bool,findWild:()->NativeDiceNode?,nodeCurrent:(NativeDiceNode)->Bool,dropping:(NativeDiceNode)->Bool
     private let activate:(NativeDiceNode)->Bool,transitionSheet:(@escaping()->Void)->Bool,prepare:(NativeDiceNode)->Bool,wallNow:()->Double
+    private let sheetDelayMilliseconds:Int
     private var timer:NativeSourceAppTimeoutOwner.Receipt?,deadline:UInt64=0,waitStarted=0.0
     private var wild:NativeDiceNode?
     private(set) var phase=Phase.idle
@@ -74,11 +75,11 @@ import SpriteKit
         current:@escaping()->Bool,findWild:@escaping()->NativeDiceNode?,nodeCurrent:@escaping(NativeDiceNode)->Bool,
         dropping:@escaping(NativeDiceNode)->Bool,activate:@escaping(NativeDiceNode)->Bool,
         transitionSheet:@escaping(@escaping()->Void)->Bool,prepare:@escaping(NativeDiceNode)->Bool,
-        wallNow:@escaping()->Double={Date().timeIntervalSince1970*1000}) {
+        sheetDelayMilliseconds:Int=900,wallNow:@escaping()->Double={Date().timeIntervalSince1970*1000}) {
         guard generation>0,service.sourceMicrotaskRAFBoundaryInstalled,
             let tasks=service.sourceMicrotaskTasks,timeouts.sourceMicrotaskTasks === tasks,current() else{return nil}
         self.timeouts=timeouts;self.generation=generation;self.current=current;self.findWild=findWild;self.nodeCurrent=nodeCurrent
-        self.dropping=dropping;self.activate=activate;self.transitionSheet=transitionSheet;self.prepare=prepare;self.wallNow=wallNow
+        self.dropping=dropping;self.activate=activate;self.transitionSheet=transitionSheet;self.prepare=prepare;self.wallNow=wallNow;self.sheetDelayMilliseconds=max(0,sheetDelayMilliseconds)
     }
     private func admitted()->Bool {guard phase != .retired else{return false};let ok=current();return ok && phase != .retired}
     @discardableResult func start()->Bool {
@@ -100,20 +101,30 @@ import SpriteKit
                     self.schedulePoll();return
                 }
                 guard self.admitted(),self.phase == .polling else{self.dispose();return}
-                self.wild=candidate;self.phase = .sheetDelay
-                guard self.activate(candidate),self.admitted(),self.phase == .sheetDelay else{self.dispose();return}
-                self.timer=self.timeouts.schedule(sourceID:"tutorial-fourth-sheet900",generation:self.generation,delayMilliseconds:900,elapsed:{[weak self] in
-                    guard let self else{return};self.timer=nil
-                    guard self.admitted(),self.phase == .sheetDelay else{self.dispose();return}
-                    self.phase = .sheetTransition
-                    guard self.transitionSheet({[weak self] in
-                        guard let self,self.admitted(),self.phase == .sheetTransition else{return}
-                        self.phase = .waitingForDrop;self.waitStarted=self.wallNow()
-                        guard self.admitted(),self.phase == .waitingForDrop else{self.dispose();return}
-                        self.waitForDrop()
-                    }) else{self.dispose();return}
-                })
+                _=self.activateDroppingWild(candidate)
             })
+    }
+    @discardableResult func activateDroppingWild(_ candidate:NativeDiceNode)->Bool {
+        guard admitted(),phase == .polling,nodeCurrent(candidate),dropping(candidate) else{return false}
+        let old=timer;timer=nil;if let old{_=timeouts.cancel(old)}
+        wild=candidate;phase = .sheetDelay
+        guard activate(candidate),admitted(),phase == .sheetDelay else{dispose();return false}
+        if sheetDelayMilliseconds==0{return transitionToSheet()}
+        timer=timeouts.schedule(sourceID:"tutorial-fourth-sheet900",generation:generation,delayMilliseconds:sheetDelayMilliseconds,elapsed:{[weak self] in
+            guard let self,self.admitted(),self.phase == .sheetDelay else{return};self.timer=nil
+            _=self.transitionToSheet()
+        })
+        return timer != nil
+    }
+    @discardableResult private func transitionToSheet()->Bool {
+        guard admitted(),phase == .sheetDelay else{return false};phase = .sheetTransition
+        guard transitionSheet({[weak self] in
+            guard let self,self.admitted(),self.phase == .sheetTransition else{return}
+            self.phase = .waitingForDrop;self.waitStarted=self.wallNow()
+            guard self.admitted(),self.phase == .waitingForDrop else{self.dispose();return}
+            self.waitForDrop()
+        }) else{dispose();return false}
+        return true
     }
     private func waitForDrop(){
         guard admitted(),phase == .waitingForDrop,let wild,nodeCurrent(wild) else{dispose();return}

@@ -26,6 +26,7 @@ final class NativeWildMeterDropSceneOwner {
     private var presentation:NativeWildMeterDropPresentation?,handoff:NativeWildMeterDropNodeHandoff?
     private var stopAudio:(()->Void)?,endActivity:(()->Void)?,restoreDivider:(()->Void)?
     private var suspended=false,disposed=false,warmupReady=false,impactPhase=false,forwardedWarmup=false,interrupted=false
+    var onDropStarted:(()->Void)?
     private(set) var assetReady=false
     var presentationMounted:Bool {presentation?.parent != nil}
     var restored:Bool {presentation?.runtime.restored == true}
@@ -84,6 +85,8 @@ final class NativeWildMeterDropSceneOwner {
                 owner.onTilePose={ [weak self] pose in guard let self,!self.disposed,self.valid() else{return};_ = self.handoff?.apply(pose)}
                 owner.onEvent={ [weak self] event in self?.receive(event) }
                 self.assetReady=true
+                self.onDropStarted?()
+                guard self.valid(),self.presentation === owner else{return}
                 // Source marks dropping before its initially hidden stage pose.
                 owner.prepared(animationSeconds:0)
                 owner.advance(animationSeconds:0,wallMilliseconds:self.wallNow(),renderEpoch:self.renderEpoch())
@@ -179,6 +182,6 @@ final class NativeWildMeterDropSceneOwner {
         let restore=restoreDivider;restoreDivider=nil;restore?()
         // Obsolete generation disposal never mutates engine or replacement node.
         presentation?.dispose();presentation=nil;handoff?.dispose();handoff=nil
-        onReceipt=nil;onBeginActivity=nil;onBeginAudio=nil;onBeginDividerMask=nil;onFailure=nil
+        onDropStarted=nil;onReceipt=nil;onBeginActivity=nil;onBeginAudio=nil;onBeginDividerMask=nil;onFailure=nil
     }
 }

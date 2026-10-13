@@ -3,6 +3,50 @@ import UIKit
 /// Authored feedback owns pressed visuals, never UIKit's dark highlight.
 @MainActor
 final class JimiV9PlainButton: UIButton {
+    private var ctaSoftShadow: CALayer?
+    private let ctaShadowCaster = CALayer()
+    private let ctaShadowMask = CAShapeLayer()
+    func removeModalCTAPaint() {
+        ctaSoftShadow?.removeFromSuperlayer();ctaSoftShadow = nil
+        backgroundColor = .clear;layer.shadowOpacity = 0;layer.borderWidth = 0
+    }
+    func applyModalCTA(artwork: JimiV9Artwork,primary: Bool = true) {
+        let edge = primary ? UIColor(red:194/255,green:73/255,blue:33/255,alpha:1) : UIColor(red:216/255,green:199/255,blue:187/255,alpha:1)
+        backgroundColor = primary ? UIColor(red:233/255,green:122/255,blue:85/255,alpha:1) : .white
+        setTitleColor(primary ? UIColor(red:1,green:251/255,blue:242/255,alpha:1) : UIColor(red:173/255,green:134/255,blue:117/255,alpha:1),for:.normal)
+        titleLabel?.font = artwork.font(size:28,weight:"Bold")
+        titleLabel?.shadowColor = primary ? edge : nil
+        titleLabel?.shadowOffset = CGSize(width:0,height:primary ? 2:0)
+        layer.cornerRadius = 32;layer.shadowColor = edge.cgColor
+        layer.shadowOffset = CGSize(width:0,height:8);layer.shadowOpacity = 1;layer.shadowRadius = 0
+        layer.borderWidth = primary ? 0:1
+        layer.borderColor = UIColor(red:234/255,green:222/255,blue:215/255,alpha:1).cgColor
+        clipsToBounds = false
+        let soft = ctaSoftShadow ?? CALayer()
+        if ctaSoftShadow == nil {layer.insertSublayer(soft,at:0);soft.addSublayer(ctaShadowCaster);ctaSoftShadow = soft}
+        ctaShadowCaster.backgroundColor = backgroundColor?.cgColor
+        ctaShadowCaster.cornerRadius = 32
+        ctaShadowCaster.shadowColor = (primary ? UIColor(red:112/255,green:55/255,blue:34/255,alpha:1) : UIColor(red:112/255,green:85/255,blue:73/255,alpha:1)).cgColor
+        ctaShadowCaster.shadowOpacity = primary ? 0.16:0.12;ctaShadowCaster.shadowOffset = CGSize(width:0,height:13);ctaShadowCaster.shadowRadius = 11
+        ctaShadowMask.fillRule = .evenOdd;soft.mask = ctaShadowMask
+        setNeedsLayout()
+    }
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        guard let soft = ctaSoftShadow else{return}
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        let radius = min(40,bounds.height/2)
+        layer.cornerRadius = radius
+        let body = UIBezierPath(roundedRect:bounds,cornerRadius:radius)
+        layer.shadowPath = body.cgPath;soft.frame = bounds.insetBy(dx:-44,dy:-44)
+        ctaShadowCaster.frame = bounds.offsetBy(dx:44,dy:44);ctaShadowCaster.shadowPath = body.cgPath;ctaShadowCaster.cornerRadius = radius
+        // Keep the soft shadow outside the painted button body, like CSS box-shadow.
+        ctaShadowMask.frame = soft.bounds
+        let mask = UIBezierPath(rect:ctaShadowMask.bounds)
+        mask.append(UIBezierPath(roundedRect:bounds.offsetBy(dx:44,dy:44),cornerRadius:radius))
+        ctaShadowMask.path = mask.cgPath
+        CATransaction.commit()
+    }
     override var isHighlighted: Bool {
         get { false }
         set { /* Keep normal artwork/title colors while tracking touches. */ }

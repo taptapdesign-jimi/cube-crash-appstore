@@ -88,8 +88,8 @@ final class NativeResultConfettiCanvas:UIView {
         }
         for p in bubbles {
             let pose=p.sample(seconds:elapsed);guard pose.visible else{continue}
-            c.saveGState();c.translateBy(x:pose.x,y:pose.y);c.scaleBy(x:pose.scale,y:pose.scale);c.setAlpha(pose.opacity)
-            images[p.asset].draw(in:CGRect(x:-p.size/2,y:-p.size/2,width:p.size,height:p.size));c.restoreGState()
+            c.saveGState();c.translateBy(x:pose.x,y:pose.y);c.scaleBy(x:pose.scale,y:pose.scale)
+            images[p.asset].draw(in:CGRect(x:-p.size/2,y:-p.size/2,width:p.size,height:p.size),blendMode:.normal,alpha:pose.opacity);c.restoreGState()
         }
     }
 }

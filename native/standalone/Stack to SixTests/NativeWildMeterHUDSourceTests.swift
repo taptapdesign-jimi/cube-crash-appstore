@@ -1,7 +1,50 @@
 import XCTest
+import SpriteKit
 @testable import Stack_to_Six
 
 @MainActor final class NativeWildMeterHUDSourceTests: XCTestCase {
+    func testTutorialPulseCyclesJoinContinuouslyAndStopRestoresCapturedPose() {
+        var wall=0.0,current=true
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{wall})
+        let timeouts=NativeSourceAppTimeoutOwner(),stage=SKNode()
+        let hud=NativeWildMeterHUDPresentation(hudStage:stage,service:service,timeouts:timeouts,generation:1,maximum:200,isPad:false,sourceOrigin:.init(x:12,y:34),sourceToNative:{$0},nativeToSource:{$0},smokeDisabled:{true},current:{current},visualRandom:{0.5})
+        defer{hud.dispose();timeouts.cancelAll();service.dispose()}
+        hud.container.xScale=0.97;hud.container.yScale=1.02
+        let position=hud.container.position,fillPosition=hud.fill.position
+        XCTAssertEqual(NativeWildMeterHUDPresentation.tutorialPulseScale(0),1,accuracy:1e-9)
+        XCTAssertEqual(NativeWildMeterHUDPresentation.tutorialPulseScale(0.3),1.04,accuracy:1e-9)
+        XCTAssertEqual(NativeWildMeterHUDPresentation.tutorialPulseScale(0.6),1,accuracy:1e-9)
+        hud.setProgress(0.6,animated:false)
+        let fillWidth=hud.fillPose.width,track=hud.background.path!,fillPath=hud.fill.path!
+        hud.startTutorialPulse();hud.startTutorialPulse()
+        if !hud.tutorialPulseRunning{return} // System Reduce Motion legitimately admits no pulse.
+        XCTAssertEqual(hud.container.xScale,0.97,accuracy:1e-6)
+        wall=16;service.deliver(wallMilliseconds:wall)
+        wall=150;service.deliver(wallMilliseconds:wall)
+        XCTAssertGreaterThan(hud.container.xScale,0.97)
+        XCTAssertGreaterThan(hud.container.yScale,1.02)
+        XCTAssertGreaterThan(hud.fill.xScale,1.4);XCTAssertGreaterThan(hud.fill.yScale,1.1)
+        XCTAssertEqual(hud.activeSmokeCount,0)
+        wall=316;service.deliver(wallMilliseconds:wall)
+        XCTAssertEqual(hud.activeSmokeCount,1,"original meter bubble appears after300ms even with normal tutorial emission frozen")
+        XCTAssertEqual(hud.background.path!,track);XCTAssertEqual(hud.fill.path!,fillPath)
+        XCTAssertEqual(hud.container.position.x+100*hud.container.xScale,position.x+100*0.97,accuracy:1e-5)
+        XCTAssertEqual(hud.fillPose.width,fillWidth,accuracy:1e-6)
+        for milliseconds in stride(from:332.0,through:1800,by:16) {wall=milliseconds;service.deliver(wallMilliseconds:wall)}
+        XCTAssertTrue(hud.tutorialPulseRunning)
+        hud.stopTutorialPulse();hud.stopTutorialPulse()
+        XCTAssertFalse(hud.tutorialPulseRunning);XCTAssertEqual(hud.container.position,position)
+        XCTAssertEqual(hud.container.xScale,0.97,accuracy:1e-6);XCTAssertEqual(hud.container.yScale,1.02,accuracy:1e-6)
+        XCTAssertEqual(hud.background.path!.boundingBox.height,10,accuracy:1e-6)
+        XCTAssertEqual(hud.fill.path!.boundingBox.width,fillWidth,accuracy:1e-6)
+        XCTAssertEqual(hud.fill.position,fillPosition)
+        XCTAssertEqual(hud.fill.xScale,1,accuracy:1e-6);XCTAssertEqual(hud.fill.yScale,1,accuracy:1e-6)
+        XCTAssertEqual(hud.activeSmokeCount,0)
+        XCTAssertEqual(service.activeParticipantCount,0)
+        current=false;hud.startTutorialPulse();XCTAssertFalse(hud.tutorialPulseRunning)
+        wall=2000;service.deliver(wallMilliseconds:wall)
+        XCTAssertEqual(hud.container.position,position)
+    }
     func testActualUnionServiceMatchesTenOriginalGainAndSpringTraces() throws {
         let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "gain-oracle", withExtension: "json"))
         let fixture = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as! [String: Any]

@@ -43,9 +43,26 @@ final class NativeGameplayViewController: UIViewController {
     private weak var endgameHintSourceScope:NativeGameplaySourceContext.Scope?
     private let resourceRoot: URL
     private let spriteView: UIView & NativeGameplaySurfaceControl
-    private static func makeRenderSurface()->(UIView & NativeGameplaySurfaceControl) {
-        if Bundle.main.bundleIdentifier == "com.taptapdesign.stacktosix.native",
-           ProcessInfo.processInfo.arguments.contains("--cc-owned-metal-renderer"),
+    private var tutorialSpecialBarSiblings:[(UIView,CGFloat)]=[]
+    func focusTutorialSpecialBarSiblings(excluding overlay:UIView) {
+        guard tutorialSpecialBarSiblings.isEmpty else{return}
+        tutorialSpecialBarSiblings=view.subviews.filter{$0 !== spriteView && $0 !== paperSurface && $0 !== overlay}.map{($0,$0.alpha)}
+        boardScene?.onTutorialSpecialBarFocusProgress = {[weak self] progress in self?.paintTutorialSpecialBarSiblings(progress)}
+        paintTutorialSpecialBarSiblings(boardScene?.tutorialSpecialBarFocusValue ?? 1)
+    }
+    private func paintTutorialSpecialBarSiblings(_ progress:Double) {
+        for (surface,alpha) in tutorialSpecialBarSiblings {surface.alpha=alpha+(min(alpha,0.2)-alpha)*CGFloat(progress)}
+    }
+    func restoreTutorialSpecialBarSiblings() {
+        boardScene?.onTutorialSpecialBarFocusProgress=nil
+        let captured=tutorialSpecialBarSiblings;tutorialSpecialBarSiblings=[]
+        for (surface,alpha) in captured where surface.superview === view {surface.alpha=alpha}
+    }
+    static func makeRenderSurface(bundleIdentifier:String?=Bundle.main.bundleIdentifier)->(UIView & NativeGameplaySurfaceControl) {
+        // Icon/cold launches must use the same renderer as device
+        // delivery. The previous launch-only flag silently selected SKView
+        // again after the user closed and reopened the standalone app.
+        if bundleIdentifier == "com.taptapdesign.stacktosix.native",
            let owned=NativeOwnedMetalGameplayView() { return owned }
         return SKView()
     }
@@ -1359,7 +1376,8 @@ final class NativeGameplayViewController: UIViewController {
         exitingBoard=true
         applySuspension()
         journeyBottomDecor?.setSuspended(backgrounded)
-        var remaining=journeyBottomDecor == nil ? 1:2,finished=false
+        let keepsChromeVisible=finalMerge && engine.state.mode == .arcade
+        var remaining=keepsChromeVisible || journeyBottomDecor == nil ? 1:2,finished=false
         let generation=engine.state.generation
         let settled:(Bool)->Void = { [weak self] success in
             guard !finished else{return}
@@ -1373,7 +1391,9 @@ final class NativeGameplayViewController: UIViewController {
                 completion(true)
             }
         }
-        if finalMerge {
+        if keepsChromeVisible {
+            boardScene.animateExit(keepsHUDVisible:true,completion:settled)
+        } else if finalMerge {
             boardScene.animateExit(afterResidualExit:{ [weak self] in
                 self?.journeyBottomDecor?.exit(completion:settled)
             },completion:settled)
@@ -1393,7 +1413,7 @@ final class NativeGameplayViewController: UIViewController {
         decorWaiters.append((engine.state.generation,completion));startDecorPreparation()
     }
     private func ensureJourneyBottomDecor() {
-        guard !disposed,isViewLoaded,engine.state.mode == .journey,let catalog=journeyDecorCatalog else{return}
+        guard !disposed,isViewLoaded,engine.state.tutorial?.shouldLockHUD != true,engine.state.mode == .journey,let catalog=journeyDecorCatalog else{return}
         let generation=engine.state.generation
         if journeyBottomDecor?.generation == generation {return}
         let old=journeyBottomDecor;journeyBottomDecor=nil;decorPreparing=false
@@ -1424,6 +1444,7 @@ final class NativeGameplayViewController: UIViewController {
     }
 
     func dispose() {
+        restoreTutorialSpecialBarSiblings()
         beforeSourceInitialBoardReveal=nil
         beforeSourceGameplayAdmission=nil
         guard !disposed else { return }

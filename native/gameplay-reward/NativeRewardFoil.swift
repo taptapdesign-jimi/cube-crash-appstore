@@ -28,7 +28,8 @@ final class NativeRewardFoil {
         rainbow.locations=[0.08,0.24,0.37,0.49,0.61,0.73,0.91]
         layer.addSublayer(rainbow);layer.addSublayer(gold);layer.opacity=0;layer.zPosition=1.2
     }
-    func layout(_ bounds:CGRect,mask:CGImage?) {
+    func layout(_ bounds:CGRect,mask:CGImage?,displayScale:CGFloat=1) {
+        for surface in [layer,gold,rainbow] {surface.contentsScale=max(1,displayScale);surface.allowsEdgeAntialiasing=true;surface.isDoubleSided=false}
         layer.frame=bounds
         gold.frame=CGRect(x:-bounds.width*0.9,y:0,width:bounds.width*2.8,height:bounds.height)
         rainbow.frame=CGRect(x:-bounds.width*0.6,y:-bounds.height*0.225,width:bounds.width*2.2,height:bounds.height*1.45)
@@ -38,7 +39,7 @@ final class NativeRewardFoil {
             gradient.startPoint=CGPoint(x:0.5-dx*extent/(2*max(1,w)),y:0.5-dy*extent/(2*max(1,h)))
             gradient.endPoint=CGPoint(x:0.5+dx*extent/(2*max(1,w)),y:0.5+dy*extent/(2*max(1,h)))
         }
-        let clipping=CALayer();clipping.frame=CGRect(x:bounds.width*0.025,y:bounds.height*0.025-4,width:bounds.width*0.95,height:bounds.height*0.95);clipping.contents=mask;clipping.contentsGravity = .resizeAspect;layer.mask=clipping
+        let clipping=CALayer();clipping.frame=CGRect(x:bounds.width*0.025,y:bounds.height*0.025-4,width:bounds.width*0.95,height:bounds.height*0.95);clipping.contents=mask;clipping.contentsGravity = .resizeAspect;clipping.contentsScale=max(1,displayScale);clipping.minificationFilter = .trilinear;clipping.magnificationFilter = .linear;clipping.allowsEdgeAntialiasing=true;layer.mask=clipping
     }
     func paint(angle:Double,idle:Bool) {
         stop();let state=NativeRewardFoilPlanning.reflection(angle)

@@ -29,6 +29,35 @@ import StackToSixGameplay
     }
     private func close(_ window:UIWindow){window.isHidden=true;window.rootViewController=nil}
 
+    func testNativeColdLaunchControllerMountsOwnedRendererWithoutInjectedSurface()throws {
+        guard MTLCreateSystemDefaultDevice() != nil else {throw XCTSkip("A real Metal device is required")}
+        XCTAssertEqual(Bundle.main.bundleIdentifier,"com.taptapdesign.stacktosix.native")
+        let engine=NativeGameplayEngine(state:.init(columns:5,rows:9,tiles:[
+            .init(id:"source",cell:.init(column:0,row:0),value:1),
+            .init(id:"target",cell:.init(column:1,row:0),value:2)]))
+        let controller=NativeGameplayViewController(engine:engine,resourceRoot:NativeTestResources.root)
+        let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844))
+        defer{controller.dispose();close(window)}
+        window.rootViewController=controller;window.makeKeyAndVisible()
+        controller.view.frame=window.bounds;controller.view.layoutIfNeeded()
+        let actual=try XCTUnwrap(controller.boardScene)
+        let owned=try XCTUnwrap(actual.gameplayRenderHost as? NativeOwnedMetalGameplayView,
+            "Normal standalone controller construction must not require a delivery launch flag")
+        XCTAssertTrue(owned.renderedScene === actual)
+        XCTAssertNil(actual.view)
+        XCTAssertEqual(actual.scaleMode,.fill)
+        let census=NativeDiagnosticsRenderCensus.capture(root:controller.view)
+        XCTAssertEqual(census["mountedScenes"] as? Int,1)
+        XCTAssertEqual(census["mountedSKViews"] as? Int,0)
+        controller.dispose()
+        XCTAssertNil(owned.renderedScene);XCTAssertNil(actual.gameplayRenderHost)
+    }
+
+    func testNonNativeRenderSurfaceKeepsIsolatedLegacyHost() {
+        XCTAssertTrue(NativeGameplayViewController.makeRenderSurface(bundleIdentifier:"isolated.test.host") is SKView)
+        XCTAssertTrue(NativeGameplayViewController.makeRenderSurface(bundleIdentifier:nil) is SKView)
+    }
+
     func testActualOwnedHostMountsWithoutSKViewAndRetiresTwice()throws {
         let scene=scene(),host=try host(),window=mount(host)
         defer{host.retirePresentation();scene.dispose();close(window)}

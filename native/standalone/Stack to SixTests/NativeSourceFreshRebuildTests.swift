@@ -6,9 +6,10 @@ import StackToSixNativeState
 @testable import Stack_to_Six
 
 @MainActor final class NativeSourceFreshRebuildTests:XCTestCase {
+    private var observeTransitionPaint:(()->Void)?
     private func wait(_ predicate:()->Bool)async throws {
         let deadline=Date().addingTimeInterval(35)
-        while !predicate(){guard Date()<deadline else{XCTFail("Actual fresh rebuild boundary timed out");throw CancellationError()};try await Task.sleep(for:.milliseconds(20))}
+        while !predicate(){observeTransitionPaint?();guard Date()<deadline else{XCTFail("Actual fresh rebuild boundary timed out");throw CancellationError()};try await Task.sleep(for:.milliseconds(20))}
     }
     private func button(_ root:UIView,id:String)->UIButton? {
         if let value=root as? UIButton,value.accessibilityIdentifier==id{return value}
@@ -148,6 +149,86 @@ import StackToSixNativeState
             try await wait{gameplay.engine.pendingOrdinarySix==nil && !gameplay.engine.hasUnsavableSourceGameplayState}
         }
     }
+    func testActualOwnedGameplayRetainsDragAfterRepeatedStacksSixesAndMeterReward()async throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-sustained-contacts-"+UUID().uuidString)
+        let store=NativeSaveStore(directory:directory)
+        var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
+        seed.progression.firstPlayTutorialComplete=true
+        let tiles=(0..<30).map { index in
+            NativeTile(id:"sustained-\(index)",cell:.init(column:index%5,row:index/5),value:1+index%5)
+        }
+        seed.arcadeRun = .init(tiles:tiles,mode:.arcade,board:3,stage:3,generation:9,moves:90,score:123)
+        seed.arcadeRun?.wildMeter=0.95
+        seed.arcadeRunSavedAt=Date().timeIntervalSince1970
+        try store.save(seed)
+        let root=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:{0.1},completeNativeGameplayEnabled:true)
+        let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=root;window.makeKeyAndVisible()
+        defer{root.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
+        root.loadViewIfNeeded()
+        let app=try XCTUnwrap(root.children.first as? NativeAppController)
+        try await wait{!app.home.isHidden};app.navigate(.gameplay,interrupt:true)
+        try await wait{app.children.compactMap{$0 as? NativeGameplayViewController}.first?.boardScene?.isBoardEntryComplete==true}
+        let gameplay=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first)
+        let scene=try XCTUnwrap(gameplay.boardScene),scope=try XCTUnwrap(gameplay.sourceScope)
+        let renderer=try XCTUnwrap(scene.gameplayRenderHost as? NativeOwnedMetalGameplayView,"Actual standalone route must retain the accepted renderer without launch flags")
+        try await wait{!gameplay.engine.hasUnsavableSourceGameplayState && gameplay.beforeSourceGameplayAdmission==nil}
+        let initialMoves=gameplay.engine.state.moves,initialScore=gameplay.engine.state.score
+        func settled()->Bool {
+            !gameplay.engine.hasUnsavableSourceGameplayState && gameplay.engine.pendingOrdinaryStack==nil &&
+                gameplay.engine.pendingOrdinarySix==nil && scene.sourceRegularStackFeedbackRootCount==0 &&
+                scope.sixResources.activeShards==0 && scope.smoke.activeOwnerCount==0 &&
+                gameplay.engine.state.tiles.allSatisfy{scene.sourceNativeTileNode($0.id)?.sourcePendingStackFrameCount==0}
+        }
+        for cycle in 0..<6 {
+            for mergeSix in [false,true] {
+                try await wait{settled()}
+                let ordinary=gameplay.engine.state.tiles.filter{$0.isPlayable && !$0.isWild}
+                let pair=try XCTUnwrap(ordinary.lazy.compactMap { a in
+                    ordinary.first { b in b.id != a.id && (mergeSix ? a.value+b.value==6:a.value+b.value<6) }.map{(a,$0)}
+                }.first,"Cycle \(cycle) must have an actual \(mergeSix ? "merge6":"stack") pair")
+                let source=try XCTUnwrap(scene.sourceNativeTileNode(pair.0.id)),destination=try XCTUnwrap(scene.sourceNativeTileNode(pair.1.id))
+                let start=scene.convert(source.position,from:try XCTUnwrap(source.parent)),end=scene.convert(destination.position,from:try XCTUnwrap(destination.parent))
+                XCTAssertTrue(scene.beginDrag(at:start))
+                scene.moveDrag(to:end,now:CACurrentMediaTime())
+                // Existing authored contact target settling, also exercised by the reward regression above.
+                try await Task.sleep(for:.milliseconds(160))
+                let result=try XCTUnwrap(scene.finishDrag(at:end,now:CACurrentMediaTime()))
+                XCTAssertTrue(result.accepted,"Cycle \(cycle) refused actual contact: \(result.events)")
+                try await wait{settled()}
+                XCTAssertNil(gameplay.sourcePresentationFailure)
+                XCTAssertNil(gameplay.engine.state.terminal)
+                XCTAssertFalse(gameplay.engine.flags.isWaiting)
+                if !mergeSix {XCTAssertEqual(destination.sourceValue,pair.0.value+pair.1.value)}
+            }
+        }
+        XCTAssertEqual(gameplay.engine.state.moves,initialMoves-12)
+        XCTAssertGreaterThan(gameplay.engine.state.score,initialScore)
+        XCTAssertNil(gameplay.engine.pendingMeterOpen)
+        XCTAssertTrue(gameplay.engine.state.tiles.contains(where:\.isWild),"The charged meter must actually deliver its reward")
+        let held=try XCTUnwrap(gameplay.engine.state.tiles.first{$0.isPlayable && !$0.isWild})
+        let node=try XCTUnwrap(scene.sourceNativeTileNode(held.id)),parent=try XCTUnwrap(node.parent)
+        let origin=scene.convert(node.position,from:parent)
+        let rafBefore=scope.service.pendingSourceAnimationFrameCount
+        XCTAssertTrue(scene.beginDrag(at:origin))
+        for index in 1...20 {
+            let point=CGPoint(x:origin.x+CGFloat(index%5)*3,y:origin.y+CGFloat(index)*0.5)
+            scene.dispatchSourceTouchMove(to:point)
+            XCTAssertTrue(renderer.updateSceneForRendererFrame(atTime:CACurrentMediaTime()))
+            let actual=scene.convert(node.position,from:parent)
+            XCTAssertEqual(actual.x,point.x,accuracy:0.001,"Latest real touch must paint after sustained contacts")
+            XCTAssertEqual(actual.y,point.y,accuracy:0.001)
+        }
+        scene.cancelDrag(pointerCancelled:true)
+        try await wait{
+            let actual=scene.convert(node.position,from:parent)
+            return settled() && scope.service.pendingSourceAnimationFrameCount<=rafBefore &&
+                abs(actual.x-origin.x)<0.001 && abs(actual.y-origin.y)<0.001
+        }
+        XCTAssertFalse(scope.service.rendererDragDeliveryActive)
+        XCTAssertEqual(gameplay.engine.state.moves,initialMoves-12,"Cancelled physical drag must not create another move")
+        XCTAssertNil(gameplay.sourcePresentationFailure)
+    }
     func testDisposalAtActualRestartPreparationCannotConstructOrWriteSuccessor()async throws {
         try await exerciseRestart(board:nil,disposeAtPreparation:true)
     }
@@ -166,9 +247,12 @@ import StackToSixNativeState
     func testActualJourneyCleanRewardAndContinueAdoptPreparedFoundationAndCarryScore()async throws {
         try await exerciseContinuation(board:21)
     }
-    private func exerciseContinuation(board:Int?)async throws {
+    func testActualArcadeRoundOneToTwoKeepsUpperAndLowerHUDVisibleThroughoutCueAndEntry()async throws {
+        try await exerciseContinuation(board:nil,arcadeRound:1,verifyChrome:true)
+    }
+    private func exerciseContinuation(board:Int?,arcadeRound:Int=3,verifyChrome:Bool=false)async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-fresh-continue-"+UUID().uuidString)
-        let store=NativeSaveStore(directory:directory),number=board ?? 3
+        let store=NativeSaveStore(directory:directory),number=board ?? arcadeRound
         var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
         seed.progression.firstPlayTutorialComplete=true;seed.progression.completedJourneyBoards=Set(1..<21)
         let saved=NativeBoardState(tiles:[
@@ -191,6 +275,23 @@ import StackToSixNativeState
         try await wait{app.children.compactMap{$0 as? NativeGameplayViewController}.first?.boardScene?.isBoardEntryComplete==true}
         let old=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first),scene=try XCTUnwrap(old.boardScene)
         try await wait{!old.engine.hasUnsavableSourceGameplayState && old.beforeSourceGameplayAdmission==nil}
+        var sawUpperHUDHidden=false,sawLowerHUDHidden=false
+        if verifyChrome {
+            try await wait{scene.boardChromeReceipt.alpha==1 && scene.boardChromeReceipt.offset==0 && !scene.boardChromeReceipt.entering && scene.roundChromeReceipt.alpha==1 && !scene.roundChromeReceipt.animating}
+            observeTransitionPaint={
+                let visible=old.parent != nil ? old:app.children.compactMap{$0 as? NativeGameplayViewController}.first
+                if let chrome=visible?.boardScene?.boardChromeReceipt {
+                    sawUpperHUDHidden = sawUpperHUDHidden || chrome.alpha != 1 || chrome.offset != 0 || chrome.entering
+                }
+                if let lower=visible?.boardScene?.roundChromeReceipt {
+                    sawLowerHUDHidden = sawLowerHUDHidden || lower.hidden || lower.alpha != 1 || lower.offset != 0
+                }
+                if let footer=visible?.journeyBottomDecor {
+                    sawLowerHUDHidden = sawLowerHUDHidden || footer.phase != .visible || footer.pose.opacity != 1
+                }
+            }
+        }
+        defer{observeTransitionPaint=nil}
         let oldGeneration=old.engine.state.generation
         let sourceID=try XCTUnwrap(old.engine.state.tiles.first{$0.cell == .init(column:0,row:0)}?.id)
         let destinationID=try XCTUnwrap(old.engine.state.tiles.first{$0.cell == .init(column:1,row:0)}?.id)
@@ -230,7 +331,16 @@ import StackToSixNativeState
         XCTAssertEqual(fresh.engine.state.generation,oldGeneration+1)
         XCTAssertEqual(fresh.engine.state.board,number+1);XCTAssertEqual(fresh.engine.state.score,carriedScore)
         XCTAssertEqual(fresh.engine.state.moves,50);XCTAssertEqual(fresh.engine.state.mode,saved.mode)
+        if verifyChrome {
+            XCTAssertTrue(fresh.keepsGameplayChromeVisibleOnEntry)
+            XCTAssertTrue(fresh.waitsForFirstFrameOnReplacement)
+        }
         try await wait{(board != nil || fresh.sourceInitialBoardSaveAccepted) && fresh.boardScene?.isBoardEntryComplete==true && fresh.beforeSourceGameplayAdmission==nil && !fresh.engine.hasUnsavableSourceGameplayState}
+        if verifyChrome {
+            observeTransitionPaint?()
+            XCTAssertFalse(sawUpperHUDHidden,"Arcade Round01→02 must keep upper HUD settled through clean cue and next-board entry")
+            XCTAssertFalse(sawLowerHUDHidden,"Arcade Round01→02 must keep lower Round pill visible through clean cue and next-board entry")
+        }
         if board != nil {
             // Journey persists through its canonical lifecycle receipt; unlike
             // Arcade it has no beforeSourceInitialBoardReveal save callback.
@@ -260,7 +370,7 @@ import StackToSixNativeState
         let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
         defer{host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
         host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
-        try await wait{!app.home.isHidden}
+        try await wait{!app.home.isHidden && app.home.isUserInteractionEnabled}
         if let board {
             app.navigate(.world((board-1)/10+1),interrupt:true)
             try await wait{if app.children.contains(where:{$0 is NativeGameplayViewController}){return true};app.world?.onRequest?("continue",board);return false}
@@ -275,7 +385,7 @@ import StackToSixNativeState
             // Constructor synchronization can admit its initial physical grid
             // before the VC presents the Scene and starts fresh sweetPopIn.
             // Use the real completed entry receipt before modal/background input.
-            try await wait{scene.completedSourceBoardEntry != nil && scene.view?.window != nil && scene.isBoardEntryComplete}
+            try await wait{scene.completedSourceBoardEntry != nil && scene.gameplayRenderHost?.renderView.window != nil && scene.isBoardEntryComplete}
             XCTAssertTrue(old.sourceBoardEntryEnabled,"Warmup belongs to actual fresh sweetPopIn, not resumed ordinary entry")
             XCTAssertNotNil(scene.completedSourceBoardEntry)
             let beforeWarmup=old.engine.state
@@ -341,7 +451,7 @@ import StackToSixNativeState
             if let chrome=fresh.boardScene?.boardChromeReceipt {
                 sawChromeReplay = sawChromeReplay || chrome.offset != 0 || chrome.alpha != 1 || chrome.entering
             }
-            return fresh.boardScene?.completedSourceBoardEntry != nil && fresh.boardScene?.view?.window != nil &&
+            return fresh.boardScene?.completedSourceBoardEntry != nil && fresh.boardScene?.gameplayRenderHost?.renderView.window != nil &&
                 fresh.boardScene?.isBoardEntryComplete==true && fresh.beforeSourceGameplayAdmission==nil
         }
         XCTAssertFalse(sawAnnouncement,"Journey/Arcade Exit Restart must stay announcement-free throughout actual entry readiness")

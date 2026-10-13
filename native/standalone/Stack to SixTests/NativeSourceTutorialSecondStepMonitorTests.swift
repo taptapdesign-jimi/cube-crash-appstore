@@ -4,6 +4,29 @@ import StackToSixGameplay
 @testable import Stack_to_Six
 
 @MainActor final class NativeSourceTutorialSecondStepMonitorTests:XCTestCase {
+    func testNativeFourthDropAdmissionStartsSheetImmediatelyThenWaitsActualLanding()async throws {
+        let f=try Fixture();defer{f.dispose()};let node=f.targets[0]
+        var dropping=true,activated=0,prepared=0,entered:(()->Void)?
+        let monitor=try XCTUnwrap(NativeSourceTutorialFourthStepMonitor(service:f.service,timeouts:f.timeouts,generation:1,
+            current:{f.current},findWild:{nil},nodeCurrent:{$0 === node},dropping:{_ in dropping},activate:{_ in activated+=1;return true},
+            transitionSheet:{entered=$0;return true},prepare:{_ in prepared+=1;return true},sheetDelayMilliseconds:0))
+        defer{monitor.dispose()};XCTAssertTrue(monitor.start())
+        XCTAssertTrue(monitor.activateDroppingWild(node));XCTAssertFalse(monitor.activateDroppingWild(node))
+        XCTAssertEqual(activated,1);XCTAssertEqual(monitor.phase,.sheetTransition)
+        XCTAssertFalse(f.timeouts.pendingReceipts.contains{$0.sourceID=="tutorial-fourth-sheet900"})
+        try XCTUnwrap(entered)();XCTAssertEqual(prepared,0);XCTAssertEqual(monitor.phase,.waitingForDrop)
+        dropping=false;try await Task.sleep(for:.milliseconds(110))
+        XCTAssertEqual(prepared,1);XCTAssertEqual(monitor.phase,.prepared)
+    }
+    func testNativeFourthImmediateDropInterruptedDuringActivationCannotEnterSheet()throws {
+        let f=try Fixture();defer{f.dispose()};var sheets=0
+        var monitor:NativeSourceTutorialFourthStepMonitor!
+        monitor=try XCTUnwrap(NativeSourceTutorialFourthStepMonitor(service:f.service,timeouts:f.timeouts,generation:1,
+            current:{f.current},findWild:{nil},nodeCurrent:{_ in true},dropping:{_ in true},activate:{_ in monitor.dispose();return true},
+            transitionSheet:{_ in sheets+=1;return true},prepare:{_ in XCTFail("retired prepare");return false},sheetDelayMilliseconds:0))
+        XCTAssertTrue(monitor.start());XCTAssertFalse(monitor.activateDroppingWild(f.targets[0]))
+        XCTAssertEqual(sheets,0);XCTAssertEqual(monitor.phase,.retired)
+    }
     @MainActor private final class Fixture {
         var wall=0.0,current=true,activated=0,hasSix=false
         let fifo=NativeSourceMicrotaskFIFO(),timeouts=NativeSourceAppTimeoutOwner()

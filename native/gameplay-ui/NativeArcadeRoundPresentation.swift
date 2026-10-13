@@ -332,7 +332,14 @@ private final class NativeArcadeDisplayTarget: NSObject {
     @objc func tick(_ link: CADisplayLink) { owner?.tick(link) }
 }
 
-private final class NativeArcadeThumbShadow: UIView {
+final class NativeArcadeThumbShadow: UIView {
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isOpaque = false
+        backgroundColor = .clear
+        isUserInteractionEnabled = false
+    }
+    required init?(coder: NSCoder) { fatalError("Use native shadow initializer") }
     override func draw(_ rect: CGRect) {
         guard let context = UIGraphicsGetCurrentContext(),let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
             colors: [UIColor(red: 185.0/255,green: 105.0/255,blue: 62.0/255,alpha: 0.32).cgColor,

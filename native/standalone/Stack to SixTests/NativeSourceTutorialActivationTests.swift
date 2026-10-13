@@ -7,14 +7,31 @@ import XCTest
         let state=State(),fifo=NativeSourceMicrotaskFIFO(),timeouts=NativeSourceAppTimeoutOwner()
         let service:NativeSourceAnimationClockService
         var owner:NativeSourceTutorialActivationOwner?
-        init()throws {
+        init(immediate:Bool=false)throws {
             let state=state
             service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{state.wall},sourceFrameTransportEnabled:true)
             let tasks=NativeSourceMicrotaskAdapters(fifo:fifo);service.sourceMicrotaskTasks=tasks;timeouts.sourceMicrotaskTasks=tasks
-            owner=try XCTUnwrap(NativeSourceTutorialActivationOwner(service:service,timeouts:timeouts,generation:1,current:{state.current},ready:{state.readyAction?();return state.ready},prepare:{[fifo] in XCTAssertTrue(fifo.isAcceptingJobs);state.prepared+=1;return state.prepareResult},activated:{state.activated+=1}))
+            owner=try XCTUnwrap(NativeSourceTutorialActivationOwner(service:service,timeouts:timeouts,generation:1,activateImmediately:immediate,current:{state.current},ready:{state.readyAction?();return state.ready},prepare:{[fifo] in XCTAssertTrue(fifo.isAcceptingJobs);state.prepared+=1;return state.prepareResult},activated:{state.activated+=1}))
         }
         func deliver(_ wall:Double){state.wall=wall;service.deliver(wallMilliseconds:wall)}
         func dispose(){owner?.dispose();timeouts.cancelAll();service.dispose();fifo.dispose()}
+    }
+    func testBoardCompletionModePreparesImmediatelyWithoutWallWait()throws {
+        let f=try Fixture(immediate:true);defer{f.dispose()}
+        let owner=try XCTUnwrap(f.owner)
+        XCTAssertTrue(NativeSourceMicrotaskAdapters(fifo:f.fifo).renderedFrameHandoff {XCTAssertTrue(owner.start())})
+        XCTAssertEqual(f.state.prepared,1);XCTAssertEqual(f.state.activated,1)
+        XCTAssertEqual(f.owner?.phase,.prepared);XCTAssertEqual(f.timeouts.pendingCount,0)
+        f.deliver(16);XCTAssertEqual(f.state.prepared,1)
+    }
+    func testImmediateModeRetainsReadinessAndRetriesFailedPreparationOnNextFrame()throws {
+        let f=try Fixture(immediate:true);defer{f.dispose()};f.state.ready=false
+        XCTAssertTrue(try XCTUnwrap(f.owner).start());XCTAssertEqual(f.state.prepared,0)
+        f.state.ready=true;f.state.prepareResult=false;f.deliver(16)
+        XCTAssertEqual(f.state.prepared,1);XCTAssertEqual(f.state.activated,0)
+        f.state.prepareResult=true;f.deliver(32)
+        XCTAssertEqual(f.state.prepared,2);XCTAssertEqual(f.state.activated,1)
+        XCTAssertEqual(f.timeouts.pendingCount,0)
     }
     func testTwoSeparateActualRAFsThenRealWall1250TimeoutAndSinglePreparation()async throws {
         let f=try Fixture();defer{f.dispose()};XCTAssertTrue(try XCTUnwrap(f.owner).start())

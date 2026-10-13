@@ -4,9 +4,9 @@ This file is the stable, authoritative onboarding map for new Codex chats. Verif
 
 ## Native-first main decision (2026-10-07)
 
-User-selected continuation baseline (2026-10-12): immutable
-`native-benchmark-v2`; see [NATIVE_BENCHMARK_V2.md](NATIVE_BENCHMARK_V2.md).
-Continue Native work from v2. This checkpoint preserves known open physical
+User-selected continuation baseline (2026-10-13): immutable
+`native-benchmark-v4`; see [NATIVE_BENCHMARK_V4.md](NATIVE_BENCHMARK_V4.md).
+Continue Native work from v4. This checkpoint preserves known open physical
 acceptance/parity issues and does not replace the approved PWA recovery tags.
 
 The user designates `main` as the **Stack to Six Native** development project,
@@ -42,6 +42,7 @@ in the parity checklist; native implementation alone is not visual acceptance.
 - Ordinary active Native storyboard launches use Swift root in Debug/Release. Historical `NATIVE_GAMEPLAY_PHONE_PREVIEW` and archived GameViewController arguments are not current active-root prerequisites. Normal storyboard launches now select the complete Swift Source-fidelity graph by default. DEBUG hosted unit-test roots stay quiet so explicit fixtures can own the shared transport. Current behavioral acceptance is tracked in CURRENT_HANDOFF; the word Source denotes a Swift port of the preserved rules, not JavaScript execution.
 - Native work follows NATIVE_100_PERCENT_PLAN and current handoff; asset/motion and physical acceptance remain explicit. Native QA requires no external PWA bundle sync. Historical PWA workflows below apply only to explicitly requested PWA work.
 - Original v9 first-play Homepage policy forces a fresh tutorial on new Play until authored Tutorial Complete Continue. Mounting Home retains the old save. Explicit force-next has precedence over done during Native import. Saved unacknowledged guide retention alone is not original launch-policy parity.
+- Standalone Native cold/icon launch selects the existing NativeOwnedMetalGameplayView without requiring `--cc-owned-metal-renderer`. Non-Native test hosts and unavailable Metal retain the legacy fallback. Scene/Core/input/audio/save owners and pixel-density budget remain shared; physical sustained drag acceptance is tracked separately in CURRENT_HANDOFF.
 - Physical target: **iPhone 13 blue**; verify connected identity before any install. Do not uninstall or reset saves. Do not change to LAN/Vite mode or another device without user authorization.
 - Historical hardware destination `00008110-001E39961AFA801E`, CoreDevice `0F62B71E-0B04-53C3-906E-EC28F5D2390B`; these are mutable, verify live.
 - Dedicated isolated Native QA Simulator: `1018BE2D-491B-465F-8F75-3E5BEB38C22A`. DEBUG-only named temporary QA profile requires exact Simulator/bundle/UUID; no normal profile fallback or migration, excluded from Release.

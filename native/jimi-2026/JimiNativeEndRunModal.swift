@@ -215,13 +215,7 @@ final class JimiNativeEndRunModal: UIViewController {
         idle.addSubview(heading);idle.addSubview(subtitle)
         for (i,button) in buttons.enumerated() {
             button.tag = i;button.setTitle(i == 0 ? model.restartLabel : model.exitLabel,for:.normal)
-            button.titleLabel?.font = assets.font(size:28,weight:"Bold");button.layer.cornerRadius = 40
-            button.backgroundColor = i == 0 ? UIColor(red:233/255,green:122/255,blue:85/255,alpha:1) : .white
-            button.setTitleColor(i == 0 ? UIColor(red:1,green:251/255,blue:242/255,alpha:1) : ink,for:.normal)
-            button.layer.shadowColor = (i == 0 ? UIColor(red:194/255,green:73/255,blue:33/255,alpha:1) : UIColor(red:216/255,green:199/255,blue:187/255,alpha:1)).cgColor
-            button.layer.shadowOpacity = 1;button.layer.shadowOffset = CGSize(width:0,height:8);button.layer.shadowRadius = 0
-            button.accessibilityIdentifier = i == 0 ? "native.end-run.restart" : "native.end-run.exit"
-            if i == 1 {button.layer.borderWidth = 1;button.layer.borderColor = UIColor(red:234/255,green:222/255,blue:215/255,alpha:1).cgColor}
+            button.applyModalCTA(artwork:assets,primary:i == 0)
             button.addTarget(self,action:#selector(pressButton(_:)),for:.touchDown)
             button.addTarget(self,action:#selector(releaseButton(_:)),for:[.touchCancel,.touchUpOutside])
             button.addTarget(self,action:#selector(requestButton(_:)),for:.touchUpInside);idle.addSubview(button)

@@ -30,11 +30,11 @@ import SpriteKit
     private var timer:NativeSourceAppTimeoutOwner.Receipt?,deadline:UInt64=0,started=false,disposed=false
     private(set) var intervalDeliveries=0
     var pendingInterval:Bool{timer != nil}
-    init?(root:SKNode,extraTargets:[SKNode]=[],unifiedTargets:[SKNode]=[],excludedTargets:[SKNode]=[],service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner,
+    init?(root:SKNode,rootFinalAlpha:CGFloat?=nil,extraTargets:[SKNode]=[],unifiedTargets:[SKNode]=[],excludedTargets:[SKNode]=[],service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner,
         generation:UInt64,current:@escaping()->Bool) {
         guard generation>0,root.parent != nil,service.sourceMicrotaskRAFBoundaryInstalled,
             let tasks=service.sourceMicrotaskTasks,timeouts.sourceMicrotaskTasks === tasks,current() else{return nil}
-        self.root=root;rootParent=root.parent;rootOriginalAlpha=root.alpha
+        self.root=root;rootParent=root.parent;rootOriginalAlpha=rootFinalAlpha ?? root.alpha
         self.service=service;self.timeouts=timeouts;self.generation=generation;self.current=current
         excluded=Set(excludedTargets.map(ObjectIdentifier.init))
         var seen=Set<ObjectIdentifier>();targets=[]
@@ -42,12 +42,13 @@ import SpriteKit
             targets.append(Target(node,unified:unifiedTargets.contains(where:{$0 === node})))
         }
     }
+    private func restoreRootAlpha(){if root.action(forKey:"hud-enter")==nil{root.alpha=rootOriginalAlpha}}
     private func admitted()->Bool{guard !disposed,root.parent === rootParent,rootParent != nil else{return false};let valid=current();return valid && !disposed}
     func owns(_ node:SKNode)->Bool{!disposed && targets.contains{$0.node === node && $0.current}}
     private func captureNewRootChildren(restoring:Bool=false){for node in root.children where !excluded.contains(ObjectIdentifier(node)) && !targets.contains(where:{$0.node === node}){targets.append(Target(node,originalAlpha:restoring ? 1:nil))}}
     @discardableResult func start()->Bool {
         guard !started,admitted() else{return false};started=true
-        root.isHidden=false;root.alpha=rootOriginalAlpha
+        root.isHidden=false;restoreRootAlpha()
         for target in targets where target.current {
             target.dimInteractions()
             let to=target.preservesAlpha ? Double(target.originalAlpha):0.2
@@ -67,7 +68,7 @@ import SpriteKit
                 if self.deadline<=now{self.deadline += ((now-self.deadline)/120_000_000+1)*120_000_000}
                 self.scheduleInterval();guard self.admitted() else{return}
                 self.intervalDeliveries+=1;self.cancelFades(includingUnified:false)
-                self.root.isHidden=false;self.root.alpha=self.rootOriginalAlpha
+                self.root.isHidden=false;self.restoreRootAlpha()
                 self.captureNewRootChildren()
                 for target in self.targets where target.current {
                     target.dimInteractions();target.node.alpha=target.preservesAlpha ? target.originalAlpha:0.2
@@ -76,13 +77,14 @@ import SpriteKit
     }
     /// stopHudDim(false) only stops polling. A true restore kills the captured
     /// alpha/scale roots and may interrupt an earlier animated restore safely.
-    @discardableResult func stop(restore:Bool=true,animateRestore:Bool=false,random:()->Double,
+    @discardableResult func stop(restore:Bool=true,animateRestore:Bool=false,continuous:Bool=false,stopPresentationWrites:Bool=false,random:()->Double,
         hudLocked:Bool,isLockedControl:(SKNode)->Bool,cleanupSmoke:()->Void)->Bool {
         guard started,admitted() else{return false}
         let old=timer;timer=nil;if let old{_=timeouts.cancel(old)}
+        if stopPresentationWrites {cancelFades()}
         guard restore else{return admitted()}
         cleanupSmoke();guard admitted() else{return false}
-        cancelFades();captureNewRootChildren(restoring:true);root.alpha=rootOriginalAlpha;root.isHidden=false
+        cancelFades();captureNewRootChildren(restoring:true);restoreRootAlpha();root.isHidden=false
         for target in targets where target.current {
             guard admitted() else{return false}
             if hudLocked && isLockedControl(target.node){target.node.alpha=0.2;target.dimInteractions();continue}
@@ -92,16 +94,16 @@ import SpriteKit
                 guard fade(target,to:Double(target.originalAlpha),duration:0.22,delay:0,ease:{sin($0*Double.pi/2)}) else{dispose();return false}
                 continue
             }
-            target.node.alpha=min(target.node.alpha.isFinite ? target.node.alpha:0.2,0.35)
+            if !continuous {target.node.alpha=min(target.node.alpha.isFinite ? target.node.alpha:0.2,0.35)}
             let alphaDelay=target.preservesAlpha ? 0:random()*0.1
             guard admitted(),target.current,fade(target,to:Double(target.originalAlpha),duration:0.22,delay:alphaDelay,ease:{sin($0*Double.pi/2)}) else{dispose();return false}
             if !target.preservesAlpha {
                 let x=target.node.xScale.isFinite ? Double(target.node.xScale):1,y=target.node.yScale.isFinite ? Double(target.node.yScale):1
-                target.node.xScale=CGFloat(x*0.9);target.node.yScale=CGFloat(y*0.9)
+                if !continuous {target.node.xScale=CGFloat(x*0.9);target.node.yScale=CGFloat(y*0.9)}
                 let scaleDelay=random()*0.1
                 guard admitted(),target.current,attach(target,duration:0.36,domain:.sourceGSAP(.timeline),delay:scaleDelay,update:{node,time in
                     let multiplier:Double
-                    if time<=0.18{let t=max(0,min(1,time/0.18))-1;multiplier=0.9+0.22*(1+3.5*t*t*t+2.5*t*t)}
+                    if time<=0.18{let t=max(0,min(1,time/0.18))-1;multiplier=(continuous ? 1:0.9)+(continuous ? 0.12:0.22)*(1+3.5*t*t*t+2.5*t*t)}
                     else{multiplier=1.12-0.12*sin(max(0,min(1,(time-0.18)/0.18))*Double.pi/2)}
                     node.xScale=CGFloat(x*multiplier);node.yScale=CGFloat(y*multiplier)
                 }) else{dispose();return false}

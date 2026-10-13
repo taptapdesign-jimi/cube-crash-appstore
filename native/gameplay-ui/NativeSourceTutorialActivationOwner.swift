@@ -2,10 +2,12 @@ import Foundation
 
 /// Literal activateFirstPlayTutorialWhenReady: two separate APP RAF callbacks,
 /// readiness RAF retries, then the existing real-wall1250 timeout. Failed
-/// preparation restarts that same graph; no guessed animation completion.
+/// preparation restarts that same graph. Native board-completion entry can
+/// explicitly prepare immediately, retaining readiness and cancellation fences.
 @MainActor final class NativeSourceTutorialActivationOwner {
     enum Phase:Equatable {case idle,frames,waiting,prepared,retired}
     private let service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner
+    private let activateImmediately:Bool
     private let generation:UInt64,current:()->Bool,ready:()->Bool,prepare:()->Bool,activated:()->Void
     private var frame:NativeSourceAnimationClockService.SourceFrameLease?
     private var timeout:NativeSourceAppTimeoutOwner.Receipt?
@@ -14,9 +16,10 @@ import Foundation
     var pendingFrame:Bool{frame?.active==true}
     var pendingTimeout:Bool{timeout != nil}
     init?(service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner,generation:UInt64,
-          current:@escaping()->Bool,ready:@escaping()->Bool,prepare:@escaping()->Bool,activated:@escaping()->Void) {
+          activateImmediately:Bool=false,current:@escaping()->Bool,ready:@escaping()->Bool,prepare:@escaping()->Bool,activated:@escaping()->Void) {
         guard generation>0,service.sourceMicrotaskRAFBoundaryInstalled,
             let tasks=service.sourceMicrotaskTasks,timeouts.sourceMicrotaskTasks === tasks,current() else{return nil}
+        self.activateImmediately=activateImmediately
         self.service=service;self.timeouts=timeouts;self.generation=generation
         self.current=current;self.ready=ready;self.prepare=prepare;self.activated=activated
     }
@@ -28,6 +31,7 @@ import Foundation
         guard phase == .idle else{return false};epoch &+= 1;let capture=epoch
         guard admitted(capture) else{dispose();return false}
         phase = .frames
+        if activateImmediately {tick(capture);return phase != .retired}
         return enqueue(capture){[weak self] in
             guard let self,self.admitted(capture) else{return}
             if !self.enqueue(capture,{[weak self] in self?.tick(capture)}){self.dispose()}
@@ -45,6 +49,12 @@ import Foundation
         guard admitted(capture) else{dispose();return}
         let isReady=ready();guard admitted(capture) else{return}
         if !isReady {if !enqueue(capture,{[weak self] in self?.tick(capture)}){dispose()};return}
+        if activateImmediately {
+            let prepared=prepare();guard admitted(capture) else{return}
+            if prepared {phase = .prepared;activated()}
+            else if !enqueue(capture,{[weak self] in self?.tick(capture)}){dispose()}
+            return
+        }
         phase = .waiting
         let receipt=timeouts.schedule(sourceID:"tutorial-activation1250:\(generation):\(capture)",generation:generation,delayMilliseconds:1250,elapsed:{[weak self] in
             guard let self,self.admitted(capture),self.phase == .waiting else{return};self.timeout=nil

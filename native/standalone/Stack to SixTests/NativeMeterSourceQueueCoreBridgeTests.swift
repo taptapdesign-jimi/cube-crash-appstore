@@ -3,6 +3,18 @@ import XCTest
 @testable import StackToSixGameplay
 
 nonisolated final class NativeMeterSourceQueueCoreBridgeTests:XCTestCase {
+    @MainActor func testSpecialBarIntervalBlocksRealQueueBeforePermissionShimmerOrRetry() {
+        var tutorial=NativeTutorialState();tutorial.step = .freePlay
+        let engine=NativeGameplayEngine(state:.init(tiles:[.init(id:"live",cell:.init(column:0,row:0),value:1)],wildMeter:1.25,tutorial:tutorial))
+        XCTAssertTrue(engine.beginTutorialSpecialBarInterval().accepted)
+        let timeouts=NativeSourceAppTimeoutOwner(),signals=NativeMeterQueueSignals()
+        let bridge=NativeMeterSourceQueueCoreBridge(engine:engine,timeouts:timeouts,signalRegistry:signals,hooks:.init(
+            current:{true},permission:{_ in XCTFail("Deferred tutorial must precede permission hooks");return .allow},continuation:{true},meterReady:{true},enqueue:{$0()},sourceQueueInProgress:{_ in},shimmer:{XCTFail("No deferred shimmer")},canonicalSave:{_ in XCTFail("No retry save")},consume:{_,_ in XCTFail("No deferred claim")},fault:{XCTFail($0)}))
+        defer{bridge.dispose();signals.dispose();timeouts.cancelAll()}
+        for _ in 0..<3 {bridge.guardReleased();bridge.queueIfNeeded()}
+        XCTAssertEqual(bridge.captureSourceQueueSignals(),.init(generation:engine.state.generation,inProgress:false,retryPending:false))
+        XCTAssertEqual(timeouts.pendingCount,0);XCTAssertEqual(engine.state.wildMeter,1.25)
+    }
     @MainActor func testCapturedQueueClaimPreservesForeignMutationVetoAndRejectsRetiredWriter() {
         let engine=NativeGameplayEngine(state:.init(tiles:[.init(id:"live",cell:.init(column:0,row:0),value:1)],wildMeter:1.25))
         engine.stagedMeterDrops=true;engine.stagedMeterOpen=true

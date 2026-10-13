@@ -7,14 +7,23 @@ import UIKit
         var wall=0.0,current=true,sheet:[Double]=[],pointer:[NativeSourceTutorialIntroOwner.PointerPose]=[],reveals=0,focuses=0
         let fifo=NativeSourceMicrotaskFIFO(),timeouts=NativeSourceAppTimeoutOwner()
         var service:NativeSourceAnimationClockService!,owner:NativeSourceTutorialIntroOwner!
-        init()throws {
+        init(immediate:Bool=false)throws {
             let tasks=NativeSourceMicrotaskAdapters(fifo:fifo);timeouts.sourceMicrotaskTasks=tasks
             service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{[weak self] in self?.wall ?? 0},sourceFrameTransportEnabled:true)
             service.sourceMicrotaskTasks=tasks
-            owner=try XCTUnwrap(NativeSourceTutorialIntroOwner(service:service,timeouts:timeouts,generation:1,current:{[weak self] in self?.current==true},sheet:{[weak self] in self?.sheet.append($0)},pointer:{[weak self] in self?.pointer.append($0)},reveal:{[weak self] in self?.reveals+=1},focus:{[weak self] in self?.focuses+=1}))
+            owner=try XCTUnwrap(NativeSourceTutorialIntroOwner(service:service,timeouts:timeouts,generation:1,immediateSheet:immediate,current:{[weak self] in self?.current==true},sheet:{[weak self] in self?.sheet.append($0)},pointer:{[weak self] in self?.pointer.append($0)},reveal:{[weak self] in self?.reveals+=1},focus:{[weak self] in self?.focuses+=1}))
         }
         func deliver(_ value:Double){wall=value;service.deliver(wallMilliseconds:value)}
         func dispose(){owner.dispose();timeouts.cancelAll();service.dispose();fifo.dispose()}
+    }
+    func testNativeSheetStartsAtActivationWithout800msWait()throws {
+        let f=try Fixture(immediate:true);defer{f.dispose()}
+        XCTAssertTrue(f.owner.start());XCTAssertTrue(f.owner.sheetStarted)
+        XCTAssertFalse(f.owner.pointerStarted)
+        XCTAssertEqual(f.timeouts.pendingReceipts.map(\.sourceID),["tutorial-pointer400"])
+        f.deliver(16);f.deliver(32)
+        XCTAssertLessThan(try XCTUnwrap(f.sheet.last),1)
+        f.owner.dispose();XCTAssertEqual(f.timeouts.pendingCount,0)
     }
     func testIndependentWall800SheetAndWall1200PointerWhileGSAPPaused()async throws {
         let f=try Fixture();defer{f.dispose()};_=f.service.setSourceGlobalPaused(true)
@@ -137,6 +146,68 @@ import UIKit
             let attachment=XCTAttachment(image:image);attachment.name="Source tutorial intro \(Int(size.width))x\(Int(size.height))";attachment.lifetime = .keepAlways;add(attachment)
         }
         overlay.dispose();XCTAssertEqual(f.service.activeParticipantCount,0);XCTAssertEqual(f.timeouts.pendingCount,0)
+    }
+
+    func testEveryTeachingSheetUsesOneContinuousEnterAndExitWithoutHiddenPause()throws {
+        let f=try Fixture(immediate:true);defer{f.dispose()}
+        let overlay=NativeTutorialOverlay(resourceRoot:NativeTestResources.root);defer{overlay.dispose()}
+        overlay.frame=CGRect(x:0,y:0,width:390,height:844)
+        func tick(_ frames:Int){for _ in 0..<frames{f.deliver(f.wall+16)}}
+        XCTAssertTrue(overlay.showSourceIntro(from:nil,to:nil,service:f.service,timeouts:f.timeouts,boardGeneration:1,immediateSheet:true,current:{f.current}))
+        tick(40);XCTAssertEqual(overlay.sourceSheetTranslation,0,accuracy:1e-6)
+        let intro=try XCTUnwrap(overlay.sourceIntroOwner)
+        for step in [2,3,4] {
+            var exited=false;XCTAssertTrue(intro.exitSheet{exited=true})
+            tick(12);XCTAssertFalse(exited);XCTAssertGreaterThan(overlay.sourceSheetTranslation,0)
+            tick(10);XCTAssertTrue(exited)
+            var entered=false
+            switch step {
+            case 2:XCTAssertTrue(overlay.transitionSourceSheetToSecondStep(from:nil,to:nil,entered:{entered=true}))
+            case 3:XCTAssertTrue(overlay.transitionSourceSheetToThirdStep(entered:{entered=true}))
+            default:XCTAssertTrue(overlay.transitionSourceSheetToFourthStep(entered:{entered=true}))
+            }
+            XCTAssertEqual(overlay.sourceSheetTranslation,overlay.sourceSheetHeight,accuracy:1e-6)
+            tick(4)
+            XCTAssertLessThan(overlay.sourceSheetTranslation,overlay.sourceSheetHeight,"next enter starts now instead of waiting for another hidden exit")
+            XCTAssertGreaterThan(overlay.sourceSheetTranslation,0,"no instant snap to visible sheet")
+            XCTAssertFalse(entered)
+            tick(36);XCTAssertTrue(entered);XCTAssertEqual(overlay.sourceSheetTranslation,0,accuracy:1e-6)
+        }
+        var thirdExited=false;XCTAssertTrue(overlay.exitSourceThirdSheetForWild{thirdExited=true})
+        tick(20);XCTAssertTrue(thirdExited,"Clear uses the same .28s exit as every other sheet")
+    }
+
+    func testMountedTeachingSheetsKeepPaintedBottomBelowViewportDuringEveryBounce()throws {
+        let f=try Fixture(immediate:true);defer{f.dispose()}
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible()
+        let overlay=NativeTutorialOverlay(resourceRoot:NativeTestResources.root)
+        overlay.frame=window.bounds;host.view.addSubview(overlay)
+        defer{overlay.dispose();window.isHidden=true}
+        var sawOvershoot=false
+        func tick(_ frames:Int){for _ in 0..<frames{
+            f.deliver(f.wall+16)
+            let surface=overlay.sourceSheetSurfaceFrame
+            XCTAssertGreaterThanOrEqual(surface.maxY,overlay.bounds.maxY,"painted bottom remains attached throughout motion")
+            XCTAssertEqual(surface.width,overlay.bounds.width,accuracy:1e-6)
+            if overlay.sourceSheetTranslation<0{sawOvershoot=true}
+        }}
+        XCTAssertTrue(overlay.showSourceIntro(from:nil,to:nil,service:f.service,timeouts:f.timeouts,boardGeneration:1,immediateSheet:true,current:{f.current}))
+        tick(40)
+        let intro=try XCTUnwrap(overlay.sourceIntroOwner)
+        for step in [2,3,4] {
+            XCTAssertTrue(intro.exitSheet{});tick(22)
+            switch step {
+            case 2:XCTAssertTrue(overlay.transitionSourceSheetToSecondStep(from:nil,to:nil,entered:{}))
+            case 3:XCTAssertTrue(overlay.transitionSourceSheetToThirdStep(entered:{}))
+            default:XCTAssertTrue(overlay.transitionSourceSheetToFourthStep(entered:{}))
+            }
+            tick(40)
+        }
+        XCTAssertTrue(intro.exitSheet{});tick(22)
+        XCTAssertTrue(overlay.showSpecialBar(entered:{}));tick(40)
+        XCTAssertTrue(overlay.hideSpecialBar(completed:{}));tick(22)
+        XCTAssertTrue(sawOvershoot,"test captures the authored backOut upward bounce")
     }
 
     func testFourthActualOverlayUsesCapturedDimAndSheetCompletion()throws {

@@ -65,9 +65,7 @@ final class NativeSpecialDiceUnlockController:UIViewController {
         hero.addGestureRecognizer(UITapGestureRecognizer(target:self,action:#selector(activateHero)))
         shadow.type = .radial;shadow.colors=[UIColor(red:185/255,green:105/255,blue:62/255,alpha:0.34).cgColor,UIColor(red:185/255,green:105/255,blue:62/255,alpha:0.2).cgColor,UIColor.clear.cgColor];shadow.locations=[0,0.42,0.76];shadow.startPoint=CGPoint(x:0.5,y:0.5);shadow.endPoint=CGPoint(x:1,y:1)
         sweep.colors=[UIColor.clear.cgColor,UIColor.white.withAlphaComponent(0.56).cgColor,UIColor.clear.cgColor];sweep.locations=[0,0.5,1];sweep.startPoint=CGPoint(x:0,y:0.5);sweep.endPoint=CGPoint(x:1,y:0.5);sweep.opacity=0;light.opacity=0
-        cta.setTitle("Continue",for:.normal);cta.titleLabel?.font=assets.font(size:28,weight:"Bold");cta.setTitleColor(UIColor(red:1,green:251/255,blue:242/255,alpha:1),for:.normal)
-        cta.backgroundColor=UIColor(red:233/255,green:122/255,blue:85/255,alpha:1);cta.layer.cornerRadius=32;cta.layer.shadowColor=UIColor(red:194/255,green:73/255,blue:33/255,alpha:1).cgColor;cta.layer.shadowOffset=CGSize(width:0,height:8);cta.layer.shadowOpacity=1;cta.layer.shadowRadius=0
-        cta.titleLabel?.shadowColor=UIColor(red:194/255,green:73/255,blue:33/255,alpha:1);cta.titleLabel?.shadowOffset=CGSize(width:0,height:2)
+        cta.setTitle("Continue",for:.normal);cta.applyModalCTA(artwork:assets)
         cta.addTarget(self,action:#selector(activateContinue),for:.touchUpInside);cta.addTarget(self,action:#selector(pressCTA),for:[.touchDown,.touchDragEnter]);cta.addTarget(self,action:#selector(cancelCTA),for:[.touchCancel,.touchUpOutside,.touchDragExit]);cta.accessibilityIdentifier="native.special-unlock.continue";view.addSubview(cta)
         fault.numberOfLines=0;fault.textColor = .systemRed;fault.textAlignment = .center;fault.font=assets.font(size:16,weight:"Medium");view.addSubview(fault)
         for layer in [hero.layer,headingLabel.layer,subtitle.layer,shadow,final.layer,cta.layer] {layer.opacity=0}

@@ -11,12 +11,12 @@ import StackToSixNativeState
         let previous:UIWindow?
         var app:NativeAppController {host.children.first as! NativeAppController}
         var game:NativeGameplayViewController? {app.children.compactMap{$0 as? NativeGameplayViewController}.first}
-        init(state:NativeBoardState)throws {
+        init(state:NativeBoardState,random:@escaping()->Double={0.1})throws {
             directory=FileManager.default.temporaryDirectory.appendingPathComponent("complete-no-moves-"+UUID().uuidString)
             store=NativeSaveStore(directory:directory)
             var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
             seed.progression.firstPlayTutorialComplete=true;seed.arcadeRun=state;try store.save(seed)
-            host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:{0.1},completeNativeGameplayEnabled:true)
+            host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:random,completeNativeGameplayEnabled:true)
             previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
             window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible();host.loadViewIfNeeded()
         }
@@ -30,7 +30,7 @@ import StackToSixNativeState
         try await wait("home"){!fixture.app.home.isHidden};fixture.app.navigate(.gameplay,interrupt:true)
         do {try await wait("entry"){
             guard let game=fixture.game,let scene=game.boardScene else{return false}
-            return scene.view != nil && scene.view?.window != nil && scene.isBoardEntryComplete && game.beforeSourceGameplayAdmission==nil
+            return scene.gameplayRenderHost?.renderView.window != nil && scene.isBoardEntryComplete && game.beforeSourceGameplayAdmission==nil
         }} catch {
             let profileError=fixture.host.view.subviews.compactMap{$0 as? UILabel}.first{$0.accessibilityIdentifier=="native.profile.error"}?.text ?? "none"
             let detail="profileError=\(profileError);Actual Native root entry timeout: game=\(fixture.game != nil);entry=\(fixture.game?.sourceEntryDiagnostic() ?? "no-game");state=\(String(describing:fixture.game?.engine.state));sceneView=\(fixture.game?.boardScene?.view != nil);complete=\(String(describing:fixture.game?.boardScene?.isBoardEntryComplete));scene=\(fixture.game?.boardScene?.sourceLevelEndDiagnostic() ?? "no-scene")"
@@ -45,6 +45,41 @@ import StackToSixNativeState
         let runtime=try XCTUnwrap(game.engine.sourceNoMovesRuntimeAuthority?.capture())
         XCTAssertEqual(runtime.capabilities,Set(NativeSourceNoMovesRuntimeSnapshot.Capability.allCases))
         return (game,scene)
+    }
+    func testArcadeRoundFourFinalStackStartsNoMovesWithoutForegroundRecovery() async throws {
+        let values=[2,3,3,4,4,5,5]
+        let tiles=values.enumerated().map{NativeTile(id:"stall-\($0.offset)",cell:.init(column:$0.offset%5,row:$0.offset/5),value:$0.element)}
+        let fixture=try Fixture(state:.init(tiles:tiles,mode:.arcade,board:4,stage:4,generation:19,moves:22,score:9900,wildMeter:0.81))
+        defer{fixture.dispose()}
+        let(game,scene)=try await enter(fixture)
+        let geometry=try XCTUnwrap(scene.boardGeometry),start=geometry.center(row:0,column:0),end=geometry.center(row:0,column:1)
+        XCTAssertTrue(scene.beginDrag(at:start));scene.moveDrag(to:end,now:CACurrentMediaTime())
+        try await Task.sleep(for:.milliseconds(160))
+        XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:end,now:CACurrentMediaTime())).accepted)
+        try await wait("automatic-no-moves: "+scene.sourceLevelEndDiagnostic()){
+            game.engine.pendingSourceNoMoves != nil || game.engine.completedSourceNoMovesReceipt != nil
+        }
+        XCTAssertEqual(game.engine.state.moves,22,"Source pre-debit stuck return preserves the move")
+        try await awaitNoMovesResultWithoutTextRevival(game)
+    }
+    func testArcadeRoundFourSixSpawnStartsNoMovesWithoutForegroundRecovery() async throws {
+        let values=[2,4,3,4,4,5,5,5]
+        let tiles=values.enumerated().map{NativeTile(id:"six-stall-\($0.offset)",cell:.init(column:$0.offset%5,row:$0.offset/5),value:$0.element)}
+        let fixture=try Fixture(state:.init(tiles:tiles,mode:.arcade,board:4,stage:4,generation:19,moves:22,score:9900,wildMeter:0.5),random:{0.9})
+        defer{fixture.dispose()};let(game,scene)=try await enter(fixture)
+        let geometry=try XCTUnwrap(scene.boardGeometry),start=geometry.center(row:0,column:0),end=geometry.center(row:0,column:1)
+        XCTAssertTrue(scene.beginDrag(at:start));scene.moveDrag(to:end,now:CACurrentMediaTime())
+        try await Task.sleep(for:.milliseconds(160))
+        XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:end,now:CACurrentMediaTime())).accepted)
+        try await wait("six settles"){game.engine.pendingOrdinarySix==nil && game.engine.pendingOrdinarySpawns.isEmpty}
+        if game.engine.pendingSourceNoMoves != nil || game.engine.completedSourceNoMovesReceipt != nil {
+            try await awaitNoMovesResultWithoutTextRevival(game);return
+        }
+        let physical=try XCTUnwrap(game.engine.sourceNoMovesRuntimeAuthority?.capture())
+        XCTAssertEqual(physical.freshResult.kind,.fail,"Actual seeded replacement board must have no legal contacts: \(game.engine.state.tiles)")
+        do {try await wait("six automatic no moves"){game.engine.pendingSourceNoMoves != nil || game.engine.completedSourceNoMovesReceipt != nil}}
+        catch {XCTFail(scene.sourceLevelEndDiagnostic());throw error}
+        try await awaitNoMovesResultWithoutTextRevival(game)
     }
     private func persistedGameplayMatches(_ fixture:Fixture,_ engine:NativeGameplayEngine)->Bool {
         guard let saved=try? fixture.store.load()?.arcadeRun else{return false}

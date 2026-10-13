@@ -13,8 +13,13 @@ public struct NativeTutorialState: Equatable, Codable, Sendable {
     public var completionAssist = false
     public var done = false
     public var finalChanceSpawnCount = 0
+    /// Optional fields retain compatibility with tutorial saves predating this guide.
+    public var specialBarSuccessfulActions: Int?
+    public var specialBarAcknowledged: Bool?
+    public var specialBarReady: Bool { (specialBarSuccessfulActions ?? 0) >= 2 && specialBarAcknowledged != true }
+    public var specialBarDefersReward: Bool { active && specialBarSuccessfulActions != nil && !waitingForWild && step != .special }
     public init() {}
-    public var shouldLockHUD: Bool { active }
+    public var shouldLockHUD: Bool { active || requiresResultCompletion }
     public var requiresResultCompletion: Bool { guideCompleted && !done }
     public var usesLowValues: Bool { active || completionAssist }
     public var meterMultiplier: Double { completionAssist ? 0.05 : 1 }

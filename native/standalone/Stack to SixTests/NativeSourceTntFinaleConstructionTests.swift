@@ -23,6 +23,14 @@ import StackToSixGameplay
         XCTAssertEqual(draws,22)
         XCTAssertTrue(field.captureSourceExitRotations(random:{draws+=1;return 0.2},current:{true}));XCTAssertEqual(draws,22)
     }
+    func testOriginalTntSmokeUsesLargeBarrelScaleWithoutChangingRNGDraws()throws {
+        let root=Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle")
+        let textures=NativeBoardTextures(root:root);defer{textures.dispose()}
+        var draws=0
+        let plan=try XCTUnwrap(NativeTntFinale.captureSourceConstruction(textures:textures,current:{true},random:{draws+=1;return 0.5},prepareGlyphs:{true}))
+        XCTAssertEqual(draws,264);XCTAssertEqual(plan.frames.count,12)
+        for frame in plan.frames {XCTAssertEqual(frame.scale,1.26*1.4,accuracy:0.000001)}
+    }
     func testGenuineCtorThenDeferredBounceExitAndVisibleSequenceBeforeParentTail()throws {
         let root=Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle"),textures=NativeBoardTextures(root:root)
         let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true)

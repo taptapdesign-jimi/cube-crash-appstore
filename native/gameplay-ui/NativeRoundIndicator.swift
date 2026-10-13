@@ -76,6 +76,7 @@ final class NativeRoundIndicator:SKNode {
             self.painted.position.y=start+(-72-start)*p;self.painted.alpha=alpha*(1-p)
         },withKey:"round-exit")
     }
+    var presentationReceipt:(offset:CGFloat,alpha:CGFloat,hidden:Bool,animating:Bool) {(painted.position.y,alpha*painted.alpha,isHidden,hasAnimatedPresentation)}
     var hasAnimatedPresentation:Bool {painted.hasActions() || content.hasActions()}
     func cancelExit(){painted.removeAllActions();content.removeAllActions();content.position = .zero;content.setScale(1);painted.position = .zero;painted.alpha=1}
 }

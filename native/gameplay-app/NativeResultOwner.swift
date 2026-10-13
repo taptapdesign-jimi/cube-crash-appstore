@@ -204,15 +204,7 @@ final class NativeResultController:UIViewController {
         status.text="\(state.mode == .arcade ? String(format:"Round %02d",state.stage) : "Stage \((state.board-1)%10+1)") \(clean ? "cleared" : "not cleared")"
         for (index,button) in buttons.enumerated() {
             button.setTitle(index == 0 ? (clean && interimJourney ? "Continue" : "Play Again") : "Exit",for:.normal)
-            button.titleLabel?.font=assets.font(size:28,weight:"Bold")
-            button.backgroundColor=index == 0 ? UIColor(red:233/255,green:122/255,blue:85/255,alpha:1) : .white
-            button.setTitleColor(index == 0 ? UIColor(red:1,green:251/255,blue:242/255,alpha:1) : UIColor(red:173/255,green:134/255,blue:117/255,alpha:1),for:.normal)
-            button.layer.shadowColor=(index == 0 ? UIColor(red:194/255,green:73/255,blue:33/255,alpha:1) : UIColor(red:216/255,green:199/255,blue:187/255,alpha:1)).cgColor
-            button.layer.shadowOpacity=1;button.layer.shadowOffset=CGSize(width:0,height:8);button.layer.shadowRadius=0
-            button.layer.borderWidth=index == 0 ? 0:1
-            button.layer.borderColor=UIColor(red:234/255,green:222/255,blue:215/255,alpha:1).cgColor
-            button.titleLabel?.shadowColor=index == 0 ? UIColor(red:194/255,green:73/255,blue:33/255,alpha:1):nil
-            button.titleLabel?.shadowOffset=CGSize(width:0,height:index == 0 ? 2:0)
+            button.applyModalCTA(artwork:assets,primary:index == 0)
             button.tag=index;button.accessibilityIdentifier=index == 0 ? "native.result.play-again" : "native.result.exit"
             button.addTarget(self,action:#selector(activate(_:)),for:.touchUpInside);content.addSubview(button)
         }

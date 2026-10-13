@@ -5,6 +5,31 @@ import StackToSixGameplay
 
 @MainActor
 final class NativeResultOwnerTests:XCTestCase {
+    func testSharedModalCTAPaintsHardEdgeAndSoftShadowWithoutDuplicatingLayers()throws {
+        let root=Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!
+        let artwork=JimiV9Artwork(resourceRoot:root)
+        for primary in [true,false] {
+            let button=JimiV9PlainButton(type:.custom)
+            button.frame=CGRect(x:0,y:0,width:249,height:64);button.setTitle(primary ? "Continue":"Exit",for:.normal)
+            button.applyModalCTA(artwork:artwork,primary:primary);button.layoutIfNeeded()
+            let layerCount=button.layer.sublayers?.count
+            button.applyModalCTA(artwork:artwork,primary:primary);button.layoutIfNeeded()
+            XCTAssertEqual(button.layer.sublayers?.count,layerCount)
+            XCTAssertEqual(button.layer.cornerRadius,32);XCTAssertEqual(button.titleLabel?.font.pointSize,28)
+            XCTAssertEqual(button.titleLabel?.shadowOffset.height,primary ? 2:0)
+            let format=UIGraphicsImageRendererFormat();format.scale=1;format.opaque=false
+            let image=UIGraphicsImageRenderer(size:CGSize(width:337,height:152),format:format).image {
+                $0.cgContext.translateBy(x:44,y:44);button.layer.render(in:$0.cgContext)
+            }
+            let cg=try XCTUnwrap(image.cgImage),data=cg.dataProvider!.data! as Data
+            func alpha(_ x:Int,_ y:Int)->UInt8 {data[y*cg.bytesPerRow+x*4+3]}
+            XCTAssertEqual(alpha(168,112),255,"PWA's solid8px edge remains opaque")
+            XCTAssertGreaterThan(alpha(168,125),0,"PWA's second soft shadow must actually paint")
+            XCTAssertLessThan(alpha(168,125),70)
+            try image.pngData()?.write(to:URL(fileURLWithPath:primary ? "/tmp/native-modal-primary-cta.png":"/tmp/native-modal-secondary-cta.png"))
+        }
+    }
+
     func testZeroScaleFilledStarsRetainImageBoundsAcrossInitialRelayout() {
         let result=controller(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         window.rootViewController=result;window.makeKeyAndVisible();result.loadViewIfNeeded()

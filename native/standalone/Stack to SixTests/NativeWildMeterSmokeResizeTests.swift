@@ -81,6 +81,37 @@ import SpriteKit
         XCTAssertEqual(draws,3);XCTAssertEqual(resources.created,resources.destroyed)
         XCTAssertEqual(service.activeParticipantCount,0);XCTAssertNil(wall.callback);service.dispose()
     }
+    func testLowFillDensityPreservesRandomStreamAndTransitionsToFullRecipe() {
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0})
+        let wall=Wall(),resources=Resources();var width=6.0,draws=0
+        let smoke=NativeWildMeterSmokeOwner(driver:NativeWildMeterSourceDriver(service:service),wall:wall,resources:resources,
+            geometry:{.init(x:24,y:52,left:0,width:width,fillAlive:true,parentAttached:true,maximum:200)},
+            disabled:{false},current:{true},random:{draws+=1;return 0.5})
+        smoke.startEmission()
+        for tick in 1...10 {wall.deliver(tick*100)}
+        XCTAssertEqual(resources.created,4)
+        XCTAssertEqual(draws,60,"Density must not shift the shared Source random stream")
+        for circle in resources.circles.values {
+            XCTAssertEqual(circle.pose.alpha,0,"Low-fill circles mount invisibly before fade-in")
+            XCTAssertLessThan(circle.radius,2.5)
+        }
+        width=60
+        for tick in 11...20 {wall.deliver(tick*100)}
+        XCTAssertEqual(resources.created,14,"At 30% the original full cadence resumes")
+        XCTAssertEqual(draws,120)
+        smoke.dispose();service.dispose()
+        XCTAssertEqual(resources.created,resources.destroyed);XCTAssertNil(wall.callback)
+    }
+    func testLowFillFadeIsContinuousAndFullFillKeepsOriginalOpacity() {
+        let low=NativeWildMeterSmokePlan(x:0,y:0,radius:2,intensity:0.1,random:{0.5})
+        XCTAssertEqual(low.sample(seconds:0).alpha,0)
+        XCTAssertGreaterThan(low.sample(seconds:0.05).alpha,0)
+        XCTAssertLessThan(low.sample(seconds:0.05).alpha,low.sample(seconds:0.1).alpha)
+        XCTAssertEqual(low.sample(seconds:low.duration).alpha,0)
+        let full=NativeWildMeterSmokePlan(x:0,y:0,radius:4,random:{0.5})
+        XCTAssertEqual(full.sample(seconds:0).alpha,1)
+        XCTAssertEqual(full.sample(seconds:full.duration).alpha,0)
+    }
     func testOldCleanupPreservesReentrantNewBubbleAndZeroWidthSkipsAllRNG() {
         var now=0.0,draws=0,width=100.0
         let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{now})

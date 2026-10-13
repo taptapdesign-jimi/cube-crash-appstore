@@ -89,6 +89,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     func retireSourceStarHalo(){
         retireSourceStarSheet();retireSourceStarHaloOnly()
     }
+    func retireSourceStarOrbit(){retireSourceStarHaloOnly()}
     private func retireSourceStarHaloOnly(){
         sourceStarHaloPreparationID=nil
         let scope=sourceStarHaloReactionScope;sourceStarHaloReactionScope=nil;scope?.dispose()
@@ -1186,6 +1187,21 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         return face.texture === receipt.handle.texture && textures.isSourceTextureHandleCurrent(receipt.handle)
     }
     var sourceWildSkinAssetPath:String? {sourceWildSkinReceiptCurrent ? sourceWildSkinTexture?.handle.assetPath:nil}
+    /// Main authored die body in board coordinates. Decoration descendants
+    /// (orbit stars, shadows, trails and bubbles) never enlarge drop contact.
+    /// Keep the live artwork size/anchor/pose rather than a blanket128px box.
+    var dragContactBounds:CGRect {
+        guard let parent else {return .zero}
+        let body:SKNode = !flowerCanvas.isHidden ? flowerArt:
+            !artwork.isHidden && artwork.size.width>0 ? artwork:face
+        guard let bodyParent=body.parent else {return .zero}
+        let frame=body.frame
+        let corners=[CGPoint(x:frame.minX,y:frame.minY),CGPoint(x:frame.maxX,y:frame.minY),
+                     CGPoint(x:frame.maxX,y:frame.maxY),CGPoint(x:frame.minX,y:frame.maxY)]
+        let points=corners.map{bodyParent.convert($0,to:parent)}
+        let xs=points.map(\.x),ys=points.map(\.y)
+        return CGRect(x:xs.min()!,y:ys.min()!,width:xs.max()!-xs.min()!,height:ys.max()!-ys.min()!)
+    }
     var hasSourceSkinHitArea:Bool {sourceSkinHitArea != nil || (sourceRestoredWildConstructorCurrent && sourceRestoredWildFaceHit != nil) || (sourceOpenedWildConstructorCurrent && sourceOpenedWildFaceHit != nil)}
     func containsSourceSkinInput(_ point:CGPoint,in canvas:SKNode,generation:UInt64)->Bool {
         guard !disposed,!isHidden,sourceGeneration==generation,sourceOuterDriven,sourceEventMode=="static",

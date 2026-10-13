@@ -4,6 +4,52 @@ import UIKit
 
 @MainActor
 final class NativeArcadePresentationTests: XCTestCase {
+    func testThumbShadowPaintHasTransparentCornersAndSoftCenter() {
+        let shadow = NativeArcadeThumbShadow(frame: CGRect(x: 0,y: 0,width: 250,height: 48))
+        let format = UIGraphicsImageRendererFormat(); format.scale = 1; format.opaque = false
+        let image = UIGraphicsImageRenderer(size: shadow.bounds.size,format: format).image { shadow.layer.render(in: $0.cgContext) }
+        let bytes = image.cgImage!.dataProvider!.data! as Data
+        let stride = image.cgImage!.bytesPerRow
+        XCTAssertEqual(bytes[3],0)
+        let centerAlpha = bytes[24*stride+125*4+3]
+        XCTAssertGreaterThan(centerAlpha,60); XCTAssertLessThan(centerAlpha,90)
+        try? image.pngData()?.write(to: URL(fileURLWithPath: "/tmp/native-arcade-shadow-fixed.png"))
+    }
+
+    func testBeachBubblePaintHonorsIdleOpacityInActualImagePixels() {
+        let size = CGSize(width: 390,height: 844)
+        let resources = OpaqueBubbleResources()
+        let canvas = NativeResultConfettiCanvas(root: root,theme: .beach,viewport: size,generation: 7,resources: resources,random: {0.5})
+        defer { canvas.dispose() }
+        canvas.paint(seconds: 1,generation: 7)
+        let plan = NativeResultConfettiPlan.beach(width: 390,height: 844,random: {0.5})
+        let first = plan[0].sample(seconds: 1)
+        let x = Int(first.x),y = Int(first.y)
+        var expected = 0.0
+        for bubble in plan {
+            let pose = bubble.sample(seconds: 1)
+            let half = bubble.size*pose.scale/2
+            if pose.visible && abs(Double(x)+0.5-pose.x)<half && abs(Double(y)+0.5-pose.y)<half {
+                expected = pose.opacity+expected*(1-pose.opacity)
+            }
+        }
+        XCTAssertGreaterThan(expected,0); XCTAssertLessThan(expected,0.9)
+        let format = UIGraphicsImageRendererFormat(); format.scale = 1; format.opaque = false
+        let image = UIGraphicsImageRenderer(size: size,format: format).image { _ in canvas.draw(canvas.bounds) }
+        let cg = image.cgImage!,bytes = cg.dataProvider!.data! as Data
+        XCTAssertEqual(Double(bytes[y*cg.bytesPerRow+x*4+3])/255,expected,accuracy: 0.02)
+        try? image.pngData()?.write(to: URL(fileURLWithPath: "/tmp/native-beach-opacity-fixed.png"))
+    }
+
+    private final class OpaqueBubbleResources: NativeResultConfettiResources {
+        private let sprite: UIImage = UIGraphicsImageRenderer(size: CGSize(width: 10,height: 10)).image {
+            UIColor.white.setFill(); $0.fill(CGRect(x: 0,y: 0,width: 10,height: 10))
+        }
+        func image(_ path: String,owner: Int)->UIImage? {sprite}
+        func prepare(_ paths: [String],owner: Int,required: Bool,completion: @escaping (Bool)->Void) {completion(true)}
+        func release(_ owner: Int) {}
+    }
+
     private var root: URL { Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle") }
     private enum ReceiptFailure: Error { case rejected }
 

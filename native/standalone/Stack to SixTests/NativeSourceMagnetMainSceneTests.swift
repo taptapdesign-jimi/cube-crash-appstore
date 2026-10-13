@@ -159,6 +159,53 @@ import StackToSixGameplay
    ocean.dispose();XCTAssertFalse(ocean.hasActiveClock);XCTAssertNil(ocean.superview)
   }
  }
+ func testNormalHoneyMergeMountsAuthoredBeesOnceForEitherContactDirection()async throws {
+  for reversed in [false,true] {
+   let f=try Fixture(variant:"honey",reversed:reversed);defer{f.dispose()}
+   if reversed {
+    let ready=await withCheckedContinuation { continuation in
+     f.scene.prepareSourceSpecialWildDestinationFaceResources(scope:f.scope){continuation.resume(returning:$0)}
+    }
+    XCTAssertTrue(ready)
+   }
+   let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),host=UIViewController()
+   window.rootViewController=host;window.makeKeyAndVisible()
+   var calls:[String]=[],owners:[NativeHoneyFinalePresentation]=[],postCues=0
+   defer{owners.forEach{$0.dispose()};window.isHidden=true}
+   f.scene.onAuthoredFinale={variant,_,generation,completed in
+    XCTAssertEqual(generation,f.scene.engine.state.generation)
+    calls.append(variant)
+    let owner=NativeHoneyFinalePresentation(resourceRoot:NativeTestResources.root,viewport:window.bounds.size,random:{0.5})
+    owners.append(owner);host.view.addSubview(owner)
+    owner.onCue={moment,_ in XCTAssertEqual(moment,"post");postCues+=1}
+    owner.onFinished={_ in completed()};owner.start();return true
+   }
+   XCTAssertTrue(try f.contact().accepted)
+   XCTAssertNotNil(f.scene.engine.pendingSpecial)
+   XCTAssertTrue(calls.isEmpty,"Reservation must not create bees before main80")
+   f.deliver(41);f.deliver(109)
+   XCTAssertEqual(calls,["honey"]);XCTAssertEqual(postCues,1)
+   XCTAssertTrue(f.scene.engine.sourceSpecialAbsorbMainEntered)
+   f.scene.synchronize();f.deliver(180);f.deliver(500)
+   XCTAssertEqual(calls,["honey"],"Later main/pull callbacks must not remount the bees")
+   let bees=try XCTUnwrap(owners.first)
+   XCTAssertTrue(bees.hasActiveClock);XCTAssertTrue(bees.superview === host.view)
+   let images=bees.subviews.compactMap{$0 as? UIImageView}
+   XCTAssertEqual(images.count,16);XCTAssertTrue(images.allSatisfy{$0.image != nil})
+   bees.paint(seconds:0.8)
+   XCTAssertTrue(images.contains{$0.alpha>0})
+   bees.dispose();XCTAssertFalse(bees.hasActiveClock);XCTAssertNil(bees.superview)
+  }
+ }
+ func testRetiredHoneyMainCannotMountAuthoredBees()throws {
+  let f=try Fixture(variant:"honey");defer{f.dispose()}
+  var calls=0
+  f.scene.onAuthoredFinale={_,_,_,completed in calls+=1;completed();return true}
+  XCTAssertTrue(try f.contact().accepted)
+  try XCTUnwrap(f.scene.sourceNativeTileNode("d")).removeFromParent()
+  f.scene.synchronize();f.deliver(500)
+  XCTAssertEqual(calls,0)
+ }
  func testRetiredBottleMainCannotMountAuthoredOcean()throws {
   let f=try Fixture(variant:"bottle");defer{f.dispose()}
   var calls=0

@@ -1,4 +1,5 @@
 import UIKit
+import CoreImage
 
 /// Native tutorial result cover. Continue is a receipt; the caller releases paper only after the destination owns the surface.
 @MainActor
@@ -10,20 +11,26 @@ final class NativeTutorialCompleteController: UIViewController {
     /// The application's existing audio/haptic owner handles these authored moments.
     var onMoment: ((String,Int) -> Void)?
     private let artwork: JimiV9Artwork
-    private let titleLabel = UILabel(), subtitleLabel = UILabel(), thumb = UIImageView(), shadow = UIView()
+    private let titleLabel = UILabel(), subtitleLabel = UILabel(), thumb = UIImageView(), shadow = UIImageView()
+    let visualUnit = UIView()
+    private var shadowSize = CGSize.zero
+    private var exitPoses:[ObjectIdentifier:NativeTutorialCompletePose]=[:]
+    private var motionGroups:[[UIView]]{[[titleLabel],[subtitleLabel],[thumb,shadow],[button]]}
+    private var stagger:Double{reducedMotion ? 0.015:0.03}
+    private var enterDuration:Double{(reducedMotion ? 0.12:0.65)+stagger*3}
+    private var exitDuration:Double{(reducedMotion ? 0.12:JimiV9Motion.homeExit(.hero).duration)+stagger*3}
     private let button = JimiV9PlainButton(type: .custom)
-    private let paper = UIImageView()
+    private let paper:NativeAppPaperSurface
     private var motion: NativeTutorialCompleteMotion?
     private var disposed = false
     private var reducedMotion: Bool
     private var suspended = false
     private let lease = UUID()
     private var sentMoments = Set<Int>()
-    private var exitThumb = NativeTutorialCompletePose()
-    private var exitShadow = NativeTutorialCompletePose()
     private var observations: [NSObjectProtocol] = []
     init(resourceRoot: URL, title: String = "Congrats!", subtitle: String = "You cleared the stage.", reducedMotion: Bool? = nil) {
         artwork = JimiV9Artwork(resourceRoot: resourceRoot); self.reducedMotion = reducedMotion ?? UIAccessibility.isReduceMotionEnabled
+        paper=NativeAppPaperSurface(artwork:artwork,textureBottomExtension:64)
         super.init(nibName: nil,bundle: nil)
         titleLabel.text = title; subtitleLabel.text = subtitle
         modalPresentationStyle = .overFullScreen
@@ -32,7 +39,6 @@ final class NativeTutorialCompleteController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor(red:243/255,green:238/255,blue:232/255,alpha:1)
-        paper.image = artwork.image("assets/paper-bg.png"); paper.contentMode = .scaleAspectFill; paper.clipsToBounds = true
         paper.autoresizingMask = [.flexibleWidth,.flexibleHeight]; view.addSubview(paper)
         titleLabel.textAlignment = .center; titleLabel.numberOfLines = 0
         titleLabel.textColor = UIColor(red:239/255,green:116/255,blue:77/255,alpha:1)
@@ -40,17 +46,12 @@ final class NativeTutorialCompleteController: UIViewController {
         subtitleLabel.textColor = UIColor(red:181/255,green:138/255,blue:120/255,alpha:1)
         thumb.image = artwork.image("assets/thumbs-up@2x.png"); thumb.contentMode = .scaleAspectFit
         thumb.layer.anchorPoint = CGPoint(x:0.5,y:0.74)
-        shadow.backgroundColor = UIColor(red:185/255,green:105/255,blue:62/255,alpha:0.20)
-        shadow.layer.shadowColor = UIColor(red:185/255,green:105/255,blue:62/255,alpha:1).cgColor
-        shadow.layer.shadowOpacity = 0.34; shadow.layer.shadowRadius = 12; shadow.layer.shadowOffset = .zero
-        button.setTitle("Continue",for:.normal); button.titleLabel?.font = artwork.font(size:28,weight:"Bold")
-        button.setTitleColor(UIColor(red:1,green:251/255,blue:242/255,alpha:1),for:.normal)
-        button.backgroundColor = UIColor(red:233/255,green:122/255,blue:85/255,alpha:1)
-        button.layer.cornerRadius = 40; button.layer.shadowColor = UIColor(red:194/255,green:73/255,blue:33/255,alpha:1).cgColor
-        button.layer.shadowOffset = CGSize(width:0,height:8); button.layer.shadowOpacity = 1; button.layer.shadowRadius = 0
+        shadow.contentMode = .scaleToFill
+        view.addSubview(visualUnit)
+        button.setTitle("Continue",for:.normal);button.applyModalCTA(artwork:artwork)
         button.accessibilityIdentifier = "native.tutorial-complete.continue"
         button.addTarget(self,action:#selector(continueTapped),for:.touchUpInside)
-        for item in [shadow,thumb,titleLabel,subtitleLabel,button] { view.addSubview(item) }
+        for item in [shadow,thumb,titleLabel,subtitleLabel,button] { visualUnit.addSubview(item) }
         button.isUserInteractionEnabled = false
         for (name,value) in [(UIApplication.willResignActiveNotification,true),(UIApplication.didBecomeActiveNotification,false)] {
             observations.append(NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main) { [weak self] _ in MainActor.assumeIsolated { self?.setSuspended(value) } })
@@ -60,7 +61,7 @@ final class NativeTutorialCompleteController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         guard motion == nil, phase == .entering, !disposed else { return }
-        runMotion(duration:reducedMotion ? 0.2 : 0.9,paint:{ [weak self] seconds in self?.sampleEnter(seconds:seconds) }) { [weak self] in
+        runMotion(duration:enterDuration,paint:{ [weak self] seconds in self?.sampleEnter(seconds:seconds) }) { [weak self] in
             guard let self,!self.disposed,self.phase == .entering else { return }
             self.phase = .ready; self.button.isUserInteractionEnabled = !self.suspended
             if !self.reducedMotion { self.runIdle() }
@@ -70,6 +71,8 @@ final class NativeTutorialCompleteController: UIViewController {
         super.viewDidLayoutSubviews()
         let width = view.bounds.width, height = view.bounds.height, compact = height <= 760
         paper.frame = view.bounds
+        visualUnit.bounds=view.bounds;visualUnit.center=CGPoint(x:width/2,y:height*0.54)
+        visualUnit.layer.anchorPoint=CGPoint(x:0.5,y:0.54)
         let top: CGFloat = compact ? 58 : min(150,max(92,height*0.15))
         let titleSize = min(64,max(44,width*0.094)), subtitleSize = min(32,max(23,width*0.051))
         titleLabel.font = artwork.font(size:titleSize,weight:"ExtraBold")
@@ -84,9 +87,11 @@ final class NativeTutorialCompleteController: UIViewController {
         thumb.bounds = CGRect(x:0,y:0,width:heroSize,height:heroSize)
         thumb.layer.position = CGPoint(x:width/2,y:heroTop-16+heroSize*0.74)
         let shadowHeight = heroSize*0.18
-        shadow.bounds = CGRect(x:0,y:0,width:heroSize*0.76,height:shadowHeight)
+        let size=CGSize(width:heroSize*0.76,height:shadowHeight)
+        if shadowSize != size {shadowSize=size;shadow.image=Self.makeShadow(size:size)}
+        shadow.bounds = CGRect(x:0,y:0,width:size.width+72,height:size.height+72)
         shadow.center = CGPoint(x:width/2,y:heroTop+heroSize+heroSize*0.03+24-shadowHeight/2)
-        shadow.layer.cornerRadius = shadowHeight/2
+
         let gap = compact ? CGFloat(30) : min(82,max(44,height*0.07))
         let buttonWidth = min(width*0.68,408), bottom = heroTop+heroSize+gap+48
         button.bounds = CGRect(x:0,y:0,width:buttonWidth,height:64)
@@ -95,14 +100,16 @@ final class NativeTutorialCompleteController: UIViewController {
     /// The pure sampled enter timeline is shared by runtime and deterministic UIKit tests.
     func sampleEnter(seconds: Double) {
         guard !disposed,phase == .entering else { return }
-        let time = reducedMotion ? seconds*4.5 : seconds
-        pose(titleLabel,time:time,begin:0,duration:0.3,from:.scale(0,y:-28,opacity:0),to:.init(),ease:.backOut(1.65))
-        pose(subtitleLabel,time:time,begin:0.04,duration:0.3,from:.scale(0,y:-22,opacity:0),to:.init(),ease:.backOut(1.65))
-        pose(button,time:time,begin:0.12,duration:0.65,from:.scale(0,opacity:1),to:.init(),ease:.cubicBezier(0.68,-0.6,0.32,1.6))
-        pose(thumb,time:time,begin:0.22,duration:0.65,from:NativeTutorialCompletePose(x:0,y:-30,scaleX:0,scaleY:0,rotation:-8,opacity:1),to:.init(),ease:.cubicBezier(0.68,-0.6,0.32,1.6))
-        pose(shadow,time:time,begin:0.22,duration:0.32,from:NativeTutorialCompletePose(x:0,y:0,scaleX:0.42,scaleY:0.54,rotation:0,opacity:0),to:.init(),ease:.powerOut(2))
-        button.isUserInteractionEnabled = time >= 0.77 && !suspended
-        for (index,delay) in [0.0,0.15,0.3,0.45,0.6].enumerated() where time >= delay && !sentMoments.contains(index) {
+        let time=seconds
+        for (index,group) in motionGroups.enumerated() {
+            let delay=Double(index)*stagger,duration=reducedMotion ? 0.12:0.65
+            for target in group {
+                pose(target,time:time,begin:delay,duration:duration,from:.scale(reducedMotion ? 0.96:0,opacity:0),to:.init(),ease:reducedMotion ? .powerOut(2):JimiV9Motion.homeEnterEase)
+            }
+        }
+        button.isUserInteractionEnabled = seconds >= enterDuration && !suspended
+        let momentTime=reducedMotion ? seconds*0.9/enterDuration:seconds
+        for (index,delay) in [0.0,0.15,0.3,0.45,0.6].enumerated() where momentTime >= delay && !sentMoments.contains(index) {
             sentMoments.insert(index); onMoment?(index % 2 == 0 ? "tutorial-complete-medium" : "tutorial-complete-light",index)
         }
     }
@@ -141,34 +148,54 @@ final class NativeTutorialCompleteController: UIViewController {
             target.layer.removeAllAnimations(); target.transform = transform; target.alpha = alpha
             return pose
         }
-        exitThumb = snapshot(thumb); exitShadow = snapshot(shadow)
+        _ = snapshot(thumb); _ = snapshot(shadow)
     }
     @objc private func continueTapped() { requestContinue() }
     func requestContinue() {
         guard !disposed,!suspended,(phase == .ready || phase == .entering && button.isUserInteractionEnabled) else { return }
         phase = .leaving; button.isUserInteractionEnabled = false; onMoment?("tutorial-complete-selection",0)
         cancelMotion(); retireIdle()
-        runMotion(duration:reducedMotion ? 0.12 : 0.65,paint:{ [weak self] time in
-            guard let self else { return }; let t = self.reducedMotion ? time/0.12*0.65 : time
-            self.pose(self.button,time:t,begin:0,duration:0.65,from:.init(),to:.scale(0,y:20),ease:.cubicBezier(0.68,-0.6,0.32,1.6))
-        }) { [weak self] in self?.beginElementExit() }
-    }
-    private func beginElementExit() {
-        guard !disposed,phase == .leaving else { return }
-        runMotion(duration:reducedMotion ? 0.12 : 0.38,paint:{ [weak self] time in self?.sampleElementExit(seconds:time) }) { [weak self] in
-            guard let self,!self.disposed,self.phase == .leaving else { return }
+        for target in motionGroups.flatMap({$0}) {
+            let transform=target.transform
+            exitPoses[ObjectIdentifier(target)] = .init(x:transform.tx,y:transform.ty,scaleX:hypot(transform.a,transform.b),scaleY:hypot(transform.c,transform.d),rotation:atan2(transform.b,transform.a)*180/Double.pi,opacity:target.alpha)
+        }
+        let duration=exitDuration
+        runMotion(duration:duration,paint:{[weak self] time in self?.sampleElementExit(seconds:time)}) { [weak self] in
+            guard let self,!self.disposed,self.phase == .leaving else{return}
             self.phase = .continued
-            let receipt = self.onContinue; self.onContinue = nil; self.onCancelled = nil; self.onMoment = nil
-            receipt?() // Opaque paper remains mounted until caller invokes captured cleanup.
+            let receipt=self.onContinue;self.onContinue=nil;self.onCancelled=nil;self.onMoment=nil
+            receipt?() // Paper stays opaque until the destination owns its cover.
         }
     }
     func sampleElementExit(seconds: Double) {
-        guard !disposed,phase == .leaving else { return }
-        let time = reducedMotion ? seconds/0.12*0.38 : seconds
-        pose(titleLabel,time:time,begin:0,duration:0.3,from:.init(),to:.scale(0,y:-28,opacity:0),ease:.backIn(1.65))
-        pose(subtitleLabel,time:time,begin:0.03,duration:0.3,from:.init(),to:.scale(0,y:-22,opacity:0),ease:.backIn(1.65))
-        pose(thumb,time:time,begin:0.06,duration:0.32,from:exitThumb,to:NativeTutorialCompletePose(x:0,y:-30,scaleX:0,scaleY:0,rotation:-8,opacity:0),ease:.backIn(1.65))
-        pose(shadow,time:time,begin:0.06,duration:0.32,from:exitShadow,to:NativeTutorialCompletePose(x:0,y:0,scaleX:0.42,scaleY:0.54,rotation:0,opacity:0),ease:.powerIn(2))
+        guard !disposed,phase == .leaving else{return}
+        for (index,group) in motionGroups.enumerated() {
+            let time=max(0,seconds-Double(index)*stagger)
+            for target in group {
+                guard let base=exitPoses[ObjectIdentifier(target)] else{continue}
+                if reducedMotion {target.alpha=base.opacity*(1-min(1,time/0.12));continue}
+                let sampled=JimiV9Motion.homeExit(.hero).pose(at:time)
+                target.transform=CGAffineTransform(translationX:base.x,y:base.y).rotated(by:base.rotation*Double.pi/180).scaledBy(x:base.scaleX*sampled.scaleX,y:base.scaleY*sampled.scaleY)
+                target.alpha=time >= JimiV9Motion.homeExit(.hero).duration ? 0:base.opacity
+            }
+        }
+    }
+    /// PWA radial-gradient stops and blur(12px), prepared only on layout-size change.
+    private static func makeShadow(size:CGSize)->UIImage? {
+        let padding:CGFloat=36,canvas=CGSize(width:size.width+padding*2,height:size.height+padding*2)
+        let format=UIGraphicsImageRendererFormat();format.scale=1;format.opaque=false
+        let image=UIGraphicsImageRenderer(size:canvas,format:format).image{renderer in
+            let context=renderer.cgContext
+            context.translateBy(x:canvas.width/2,y:canvas.height/2)
+            context.scaleBy(x:size.width/2,y:size.height/2)
+            let colors=[CGFloat(0.34),0.2,0].map{UIColor(red:185/255,green:105/255,blue:62/255,alpha:$0).cgColor}
+            guard let gradient=CGGradient(colorsSpace:CGColorSpaceCreateDeviceRGB(),colors:colors as CFArray,locations:[0,0.42,0.76]) else{return}
+            context.drawRadialGradient(gradient,startCenter:.zero,startRadius:0,endCenter:.zero,endRadius:1,options:[])
+        }
+        guard let input=CIImage(image:image),let filter=CIFilter(name:"CIGaussianBlur") else{return image}
+        filter.setValue(input,forKey:kCIInputImageKey);filter.setValue(12,forKey:kCIInputRadiusKey)
+        guard let output=filter.outputImage,let rendered=CIContext(options:[.useSoftwareRenderer:true]).createCGImage(output,from:input.extent) else{return image}
+        return UIImage(cgImage:rendered)
     }
     private func pose(_ target: UIView,time: Double,begin: Double,duration: Double,from: NativeTutorialCompletePose,to: NativeTutorialCompletePose,ease: JimiV9Motion.Ease) {
         let sampled = from.interpolated(to:to,progress:ease.value((time-begin)/duration))

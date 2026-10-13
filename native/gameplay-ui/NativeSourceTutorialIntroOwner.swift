@@ -11,6 +11,7 @@ import Foundation
         func advanceSourceAnimation(seconds:Double){update(seconds)}
     }
     private let service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner
+    private let immediateSheet:Bool
     private let generation:UInt64,current:()->Bool,sheet:(Double)->Void,pointer:(PointerPose)->Void,reveal:()->Void,focus:()->Void
     private var timers:[NativeSourceAppTimeoutOwner.Receipt]=[]
     private var sheetPaint:Paint?,pointerPaint:Paint?,hintPaint:Paint?
@@ -24,10 +25,11 @@ import Foundation
     private(set) var sheetStarted=false,pointerStarted=false
     var pendingTimerCount:Int{timers.count}
     init?(service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner,generation:UInt64,
-          current:@escaping()->Bool,sheet:@escaping(Double)->Void,pointer:@escaping(PointerPose)->Void,
+          immediateSheet:Bool=false,current:@escaping()->Bool,sheet:@escaping(Double)->Void,pointer:@escaping(PointerPose)->Void,
           reveal:@escaping()->Void,focus:@escaping()->Void,conceal:@escaping()->Void={},dim:@escaping(Double)->Void={_ in}) {
         guard generation>0,service.sourceMicrotaskRAFBoundaryInstalled,
               let tasks=service.sourceMicrotaskTasks,timeouts.sourceMicrotaskTasks === tasks,current() else{return nil}
+        self.immediateSheet=immediateSheet
         self.service=service;self.timeouts=timeouts;self.generation=generation
         self.current=current;self.sheet=sheet;self.pointer=pointer;self.reveal=reveal;self.focus=focus;self.conceal=conceal;self.dim=dim
     }
@@ -37,8 +39,14 @@ import Foundation
         paintSheet(1);guard admitted() else{return false}
         paintPointer(.init(alpha:0,scale:0,rotation:-8));guard admitted() else{return false}
         // Source pushes pointer1200 before sheet800. Keep insertion order too.
-        schedule("tutorial-pointer1200",1200){[weak self] in self?.startPointer(scheduleFocus:true)}
-        schedule("tutorial-sheet800",800){[weak self] in self?.startSheet()}
+        if immediateSheet {
+            // Preserve the pointer's 400ms offset from the sheet entry.
+            schedule("tutorial-pointer400",400){[weak self] in self?.startPointer(scheduleFocus:true)}
+            startSheet()
+        } else {
+            schedule("tutorial-pointer1200",1200){[weak self] in self?.startPointer(scheduleFocus:true)}
+            schedule("tutorial-sheet800",800){[weak self] in self?.startSheet()}
+        }
         return admitted()
     }
     private func schedule(_ name:String,_ delay:Int,_ callback:@escaping()->Void) {

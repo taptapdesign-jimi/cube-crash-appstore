@@ -103,6 +103,28 @@ final class NativeStateTests: XCTestCase {
         try Data("corrupt again".utf8).write(to:dir.appendingPathComponent("state-v1.json"))
         XCTAssertEqual(try store.load()?.settings,foreign.settings)
     }
+    func testOrderedExistingPrimaryKeepsActualBackupBytesAndUnorderedSaveDedup() throws {
+        let dir=try temporary(),store=NativeSaveStore(directory:dir)
+        var previous=NativeSaveEnvelope();previous.savedAt=1000
+        previous.journeyRuns[3]=NativeBoardFactory.make(mode:.journey,board:3)
+        previous.arcadeRun=NativeBoardFactory.make(mode:.arcade,board:2)
+        let sorted=JSONEncoder();sorted.outputFormatting=[.sortedKeys,.prettyPrinted]
+        let previousBytes=try sorted.encode(previous)
+        let primary=dir.appendingPathComponent("state-v1.json"),backup=dir.appendingPathComponent("state-v1.previous.json")
+        try previousBytes.write(to:primary)
+        XCTAssertEqual(try store.load(),previous,"Existing ordered documents retain their exact schema and state")
+        var changed=previous;changed.journeyRuns[3]?.score=420;changed.savedAt=2000
+        XCTAssertTrue(try store.save(changed))
+        XCTAssertEqual(try store.load(),changed)
+        XCTAssertEqual(try Data(contentsOf:backup),previousBytes,"Recovery preserves actual prior bytes, without re-encoding their key order")
+        let changedBytes=try Data(contentsOf:primary)
+        changed.savedAt=3000;changed.journeyRunSavedAt[3]=3000;changed.arcadeRunSavedAt=3000
+        XCTAssertFalse(try store.save(changed),"Timestamp-only changes retain semantic-content dedup with unsorted output")
+        XCTAssertEqual(try Data(contentsOf:primary),changedBytes)
+        XCTAssertEqual(try Data(contentsOf:backup),previousBytes)
+        try Data("corrupt".utf8).write(to:primary)
+        XCTAssertEqual(try store.load(),previous,"Ordered legacy bytes remain a coherent whole-document recovery fallback")
+    }
     func testWorldStarThresholdsRestartInEveryWorld() {
         for board in [1,11,21] {
             XCTAssertEqual(NativeJourneyContent.smallValueBias(board:board),0.75)

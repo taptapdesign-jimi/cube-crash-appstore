@@ -28,8 +28,10 @@ import StackToSixGameplay
     private var closed=false,attempt:Attempt?,innerWait:NativeSourceAppTimeoutOwner.Receipt?
     private var retrySequence:UInt64=0
     private lazy var queue:NativeMeterSourceQueue=NativeMeterSourceQueue(hooks:.init(current:{[weak self] in self?.valid()==true},permission:{[weak self] in
-        guard let self,self.valid() else{return .block("retired")};return self.hooks.permission(self.queue.isSpawning)
-    },continuation:{[weak self] in self?.hooks.continuation()==true},meterReady:{[weak self] in self?.hooks.meterReady()==true},enqueue:hooks.enqueue,after:{[weak self] delay,callback in
+        guard let self,self.valid() else{return .block("retired")}
+        guard self.engine.state.tutorial?.specialBarDefersReward != true else{return .block("tutorial-special-bar")}
+        return self.hooks.permission(self.queue.isSpawning)
+    },continuation:{[weak self] in guard let self,self.engine.state.tutorial?.specialBarDefersReward != true else{return false};return self.hooks.continuation()},meterReady:{[weak self] in guard let self,self.engine.state.tutorial?.specialBarDefersReward != true else{return false};return self.hooks.meterReady()},enqueue:hooks.enqueue,after:{[weak self] delay,callback in
         guard let self,self.valid() else{return {}}
         self.retrySequence &+= 1
         let receipt=self.timeouts.schedule(sourceID:"source-meter-outer-retry:\(self.retrySequence)",generation:self.engine.state.generation,delayMilliseconds:delay,elapsed:callback)

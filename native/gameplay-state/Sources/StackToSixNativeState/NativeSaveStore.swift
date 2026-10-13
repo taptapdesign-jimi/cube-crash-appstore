@@ -125,7 +125,9 @@ public final class NativeSaveStore {
         // must be repaired even when the last accepted content is unchanged.
         let previousData=try? Data(contentsOf:primary)
         if successfulContent==contentEnvelope,let serialized=successfulSerialized,previousData==serialized {return false}
-        let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
+        // JSON object key order is not durable authority. Keep the original
+        // synchronous atomic write, without sorting every field in every run.
+        let encoder = JSONEncoder()
         let data = try encoder.encode(envelope)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         // Bytes from our last successful validated atomic write are already

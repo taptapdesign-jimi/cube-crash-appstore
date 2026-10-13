@@ -4051,14 +4051,15 @@ final class NativeStarPresentationTests: XCTestCase {
     }
     func testActualScenePlainStarCallUsesSharedMathAndRetiresAboveHUDOnScopeReplacement()async throws {try await runActualSceneStar(contact:false)}
     func testActualSceneDragContactCapturesLiveOrbitBeforeRemoval()async throws {try await runActualSceneStar(contact:true)}
-    private func runActualSceneStar(contact:Bool)async throws {
+    func testArcadeHidesOrbitingStarsWhileJourneyKeepsThem()async throws {try await runActualSceneStar(contact:false,mode:.arcade)}
+    private func runActualSceneStar(contact:Bool,mode:NativeRunMode = .journey)async throws {
         let fifo=NativeSourceMicrotaskFIFO(),tasks=NativeSourceMicrotaskAdapters(fifo:fifo)
         let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true);service.sourceMicrotaskTasks=tasks
         var draws=0
         let context=NativeGameplaySourceContext(service:service,visualRandom:{draws+=1;return 0.5},sourceMicrotaskTasks:tasks)
         let star=NativeTile(id:"scene-star",cell:.init(column:0,row:0),value:6,archetype:.star)
         let tiles=contact ? [star,NativeTile(id:"target",cell:.init(column:1,row:0),value:2),NativeTile(id:"survivor",cell:.init(column:4,row:8),value:1),NativeTile(id:"holder",cell:.init(column:0,row:1),value:0,locked:true)]:[star]
-        let engine=NativeGameplayEngine(state:NativeBoardState(tiles:tiles))
+        let engine=NativeGameplayEngine(state:NativeBoardState(tiles:tiles,mode:mode))
         if contact {engine.stagedDirectWildMoves=true;engine.stagedDirectWildAssignments=true;engine.specialPresentationAdmitted={_,_ in true}}
         let scene=NativeBoardScene(engine:engine,resourceRoot:root,size:.init(width:390,height:844))
         let scope=try XCTUnwrap(context.beginScene(engine:engine){scene.retireSourceAnimationBindings()})
@@ -4073,6 +4074,8 @@ final class NativeStarPresentationTests: XCTestCase {
         let deadline=Date().addingTimeInterval(5)
         while node.sourceLiveStarHaloCount==0 && Date()<deadline {try await Task.sleep(nanoseconds:10_000_000)}
         XCTAssertEqual(node.sourceLiveStarHaloCount,2);XCTAssertEqual(draws-before,21)
+        let orbit=try XCTUnwrap(scene.childNode(withName:"//native-source-wild-star-orbit"))
+        XCTAssertEqual(orbit.isHidden,mode == .arcade)
         XCTAssertEqual(scene.children.filter{$0.name=="ANIMATED_DICE_HUD_FOREGROUND"}.count,1)
         if contact {
             XCTAssertTrue(scene.configureSourceSpecialTransactions(scope:scope))

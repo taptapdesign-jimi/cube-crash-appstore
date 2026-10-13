@@ -142,7 +142,7 @@ final class NativeBottleFinalePresentation: NativeFinitePresentation {
             let x = NativeBottleFinaleMotion.keyframes([0,bubble.direction*bubble.weave*0.55,-bubble.direction*bubble.weave*0.8,bubble.direction*bubble.weave,-bubble.direction*bubble.weave*0.7,bubble.direction*bubble.weave*0.3],progress: p)
             let y = NativeBottleFinaleMotion.keyframes([0,-bubble.rise*0.18,-bubble.rise*(bubble.pause ? 0.43 : 0.38),-bubble.rise*(bubble.pause ? 0.49 : 0.6),-bubble.rise*(bubble.pause ? 0.7 : 0.8),-bubble.rise],progress: p)
             var scale = bubble.startScale*grow,alpha = bubble.alpha*min(1,max(0,grow))
-            let popAlpha = min(0.7,bubble.alpha+0.06)
+            let popAlpha = min(0.9,bubble.alpha+0.06)
             if local >= bubble.pop && local < bubble.pop+0.06 {
                 let p = NativeBoardMotion.Ease.power2Out.sample((local-bubble.pop)/0.06)
                 scale = bubble.startScale+(1.2-bubble.startScale)*p; alpha = bubble.alpha+(popAlpha-bubble.alpha)*p

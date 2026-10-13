@@ -4,6 +4,7 @@ import StackToSixGameplay
 /// Native app composition. Services contain Swift state owners, never a web transport.
 @MainActor
 struct NativeAppServices {
+    var developerAction: ((NativeDeveloperAction, UIViewController) throws -> Void)?
     var showsStudioIntro=false
     var studioIntroCue:((String)->Void)?
     var settings: () -> [String: Any]
@@ -112,6 +113,17 @@ final class NativeAppController: UIViewController {
         hub.onBack = { [weak self] in self?.navigate(.home,interrupt:true) }
         hub.onWorld = { [weak self] id in self?.navigate(.world(id)) }
         settingsView.onBack = { [weak self] in self?.navigate(.home) }
+        settingsView.onDeveloper = { [weak self] epoch in
+            guard let self,!self.disposed,!self.suspended,!self.transitioning,
+                  self.route == .settings,epoch == self.generation else{return}
+            self.settingsView.setDeveloperPanelVisible(true)
+        }
+        settingsView.onDeveloperAction = { [weak self] action, epoch in
+            guard let self, !self.disposed, !self.suspended, !self.transitioning,
+                  self.route == .settings, epoch == self.generation,
+                  self.settingsView.developerPanelVisible, self.presentedViewController == nil else { return }
+            do { try self.services.developerAction?(action, self) } catch { self.showFault(error) }
+        }
         settingsView.onPreference = { [weak self] key,enabled,epoch in
             guard let self,self.route == .settings,!self.transitioning,epoch == self.generation else{return}
             do {try self.services.setPreference(key,enabled);self.applySettings()} catch {self.showFault(error)}
@@ -143,7 +155,8 @@ final class NativeAppController: UIViewController {
     }
     private func applySettings() {
         var value = services.settings();value["presentationEpoch"] = generation
-        value["developerToolsAvailable"] = false // native diagnostics are separate; no web escape
+        value["developerToolsAvailable"] = true
+        value["firstPlayRequired"] = services.requiresTutorial()
         _ = settingsView.apply(value)
     }
     private func selectSlide(_ index:Int,feedback:String="tab") {
@@ -156,10 +169,12 @@ final class NativeAppController: UIViewController {
     }
     func navigate(_ next:Route,interrupt:Bool = false) {
         guard studioIntro == nil,route != next,(!transitioning || interrupt),route != .gameplay else{return}
+        retireDeveloperPresentation()
         cancelWorldEntryPreparation()
         cancelGameplayLaunchPreparation()
         if transitioning {motion.cancel()} else {motion.cancelSelectionLayout()}
         generation += 1;let owner = generation;transitioning = true
+        settingsView.setDeveloperPanelVisible(false)
         backpack?.setActive(false,generation:generation)
         home.stopHeroIdle(preservePaintedPose:true);hub.stopIdle()
         home.isUserInteractionEnabled = false;hub.setContentInteractionEnabled(false);settingsView.isUserInteractionEnabled = false
@@ -303,6 +318,17 @@ final class NativeAppController: UIViewController {
         guard !disposed,!suspended,generation==lease.generation,gameplayLaunchPreparation === lease,
               lease.ready,lease.exitFinished else{return}
         gameplayLaunchPreparation=nil;mountPreparedGameplay(boardID:lease.board)
+    }
+    func admitsDeveloperAction(epoch: Int) -> Bool {
+        !disposed && !suspended && !transitioning && route == .settings &&
+            settingsView.developerPanelVisible && settingsView.presentationEpoch == epoch
+    }
+    /// Only the isolated Developer host calls this, after its Home mount.
+    func launchDeveloperBoard(_ board: Int) {
+        guard !disposed, !suspended, route == .home else { return }
+        motion.cancel(); home.stopHeroIdle(preservePaintedPose: false)
+        generation += 1; transitioning = false
+        launch(boardID: board)
     }
     private func launch(boardID:Int?) {
         prepareGameplayLaunch(boardID:boardID)
@@ -474,10 +500,15 @@ final class NativeAppController: UIViewController {
         backpack?.setActive(route == .hub,generation:generation)
         if case .world = route {world?.setActive(true)}
     }
+    private func retireDeveloperPresentation() {
+        if let preview = presentedViewController as? NativeDeveloperPreviewHost { preview.finish() }
+        else if let preview = presentedViewController as? NativeDeveloperGameplayHost { preview.finish() }
+        else if let picker = presentedViewController as? NativeDeveloperPicker { picker.dispose() }
+    }
     func dispose() {
         guard !disposed else{return}
         studioIntro?.dispose();studioIntro=nil
-        disposed=true;cancelGameplayReturnPreparation()
+        disposed=true;retireDeveloperPresentation();cancelGameplayReturnPreparation()
         cancelGameplayLaunchPreparation()
         cancelWorldEntryPreparation()
         generation += 1;transitioning = true;suspended = true;deferredReveal = nil

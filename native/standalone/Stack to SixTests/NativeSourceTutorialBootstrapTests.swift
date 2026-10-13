@@ -6,6 +6,37 @@ import StackToSixNativeState
 @testable import Stack_to_Six
 
 @MainActor final class NativeSourceTutorialBootstrapTests:XCTestCase {
+    func testRestoredNonSourceSpecialBarContinuesToClearWithoutReservingStarEarly()async throws {
+        var tutorial=NativeTutorialState();tutorial.step = .freePlay
+        tutorial.specialBarSuccessfulActions=2;tutorial.specialBarAcknowledged=false
+        var state=NativeBoardState(tiles:[NativeTile(id:"fallback-a",cell:.init(column:0,row:0),value:1),NativeTile(id:"fallback-b",cell:.init(column:1,row:0),value:2)])
+        state.tutorial=tutorial;state.wildMeter=0.4
+        let gameplay=NativeGameplayViewController(engine:NativeGameplayEngine(state:state),resourceRoot:NativeTestResources.root)
+        let owner=NativeTutorialOwner(gameplay:gameplay,root:NativeTestResources.root)
+        owner.onChanged={[weak owner] state in owner?.refresh(state)}
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=gameplay;window.makeKeyAndVisible()
+        defer{owner.dispose();gameplay.dispose();window.isHidden=true}
+        gameplay.view.frame=window.bounds;gameplay.view.setNeedsLayout();gameplay.view.layoutIfNeeded()
+        owner.refresh(gameplay.engine.state)
+        let deadline=Date().addingTimeInterval(5)
+        var overlay:NativeTutorialOverlay?
+        while Date()<deadline {
+            overlay=gameplay.view.subviews.compactMap{$0 as? NativeTutorialOverlay}.first
+            if overlay?.specialBarVisible==true,overlay?.subviews.flatMap({$0.subviews}).compactMap({$0 as? UIButton}).first?.isEnabled==true{break}
+            try await Task.sleep(for:.milliseconds(40))
+        }
+        let sheet=try XCTUnwrap(overlay);XCTAssertTrue(sheet.specialBarVisible)
+        let button=try XCTUnwrap(sheet.subviews.flatMap{$0.subviews}.compactMap{$0 as? UIButton}.first)
+        XCTAssertNil(gameplay.engine.sourceTutorialWildReservation)
+        button.sendActions(for:.touchUpInside)
+        while sheet.specialBarVisible && Date()<deadline{try await Task.sleep(for:.milliseconds(40))}
+        XCTAssertFalse(sheet.specialBarVisible);XCTAssertEqual(gameplay.engine.state.tutorial?.specialBarAcknowledged,true)
+        XCTAssertEqual(gameplay.engine.state.tutorial?.waitingForWild,false);XCTAssertNil(gameplay.engine.sourceTutorialWildReservation)
+        XCTAssertTrue(sheet.subviews.flatMap{$0.subviews}.compactMap{$0 as? UILabel}.contains{$0.text=="Clear the stage"})
+        button.sendActions(for:.touchUpInside)
+        while gameplay.engine.state.tutorial?.waitingForWild==false && Date()<deadline{try await Task.sleep(for:.milliseconds(40))}
+        XCTAssertEqual(gameplay.engine.state.tutorial?.waitingForWild,true)
+    }
     func testActualFreshTutorialRouteUsesSourceDemoAndWaitsForGenuinePreparation() async throws {try await run(monitored:false,retireDuringExit:false)}
     func testActualFirstMergeKeepsSourceSheetAndInputUntilRealMonitorCompletions()async throws {try await run(monitored:true,retireDuringExit:false)}
     func testActualScopeRetirementDuringFirstExitCancelsMonitorAndInputBarrier()async throws {try await run(monitored:true,retireDuringExit:true)}
@@ -17,7 +48,12 @@ import StackToSixNativeState
     func testActualBootstrapInstallsMeterOwnersWithRealResourcesAndSharedCoreMath()async throws {try await run(monitored:false,retireDuringExit:false,meter:true)}
     func testActualFourthTutorialUsesEarnedStarSheetAndRetiresSameOwner()async throws {try await run(monitored:true,retireDuringExit:false,third:true,dismiss:"button",fourth:true)}
     func testActualFourthTutorialMergeWaitsForRealExitThenCompletesGuide()async throws {try await run(monitored:true,retireDuringExit:false,third:true,dismiss:"button",fourth:true,fourthComplete:true)}
-    private func run(monitored:Bool,retireDuringExit:Bool,third:Bool=false,dismiss:String?=nil,failure:Bool=false,meter:Bool=false,fourth:Bool=false,fourthComplete:Bool=false)async throws {
+    func testCompleteNativeTutorialStarMergeRetainsGameplayAndCompletesGuide()async throws {try await run(monitored:true,retireDuringExit:false,third:true,dismiss:"button",fourth:true,fourthComplete:true,complete:true)}
+    func testCompleteNativeTutorialOrdinaryOntoStarRetainsGameplayAndCompletesGuide()async throws {try await run(monitored:true,retireDuringExit:false,third:true,dismiss:"button",fourth:true,fourthComplete:true,complete:true,reverseFourth:true)}
+    func testActualSpecialBarBoardDragDismissesAndRetainsSamePhysicalPickup()async throws {try await run(monitored:true,retireDuringExit:false,third:true,dismiss:"button",fourth:true,complete:true,specialInteraction:true)}
+    func testSettledPostTutorialGameplayRetainsPhysicalOwnership()async throws {try await run(monitored:true,retireDuringExit:false,third:true,dismiss:"button",fourth:true,fourthComplete:true,complete:true,reverseFourth:true,stressTurns:70)}
+    func testRapidPostTutorialGameplayRetainsPhysicalOwnership()async throws {try await run(monitored:true,retireDuringExit:false,third:true,dismiss:"button",fourth:true,fourthComplete:true,complete:true,reverseFourth:true,stressTurns:150,stressFrames:4)}
+    private func run(monitored:Bool,retireDuringExit:Bool,third:Bool=false,dismiss:String?=nil,failure:Bool=false,meter:Bool=false,fourth:Bool=false,fourthComplete:Bool=false,complete:Bool=false,reverseFourth:Bool=false,specialInteraction:Bool=false,stressTurns:Int=1,stressFrames:Int=100)async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("source-initial-bootstrap-\(UUID().uuidString)")
         defer{try? FileManager.default.removeItem(at:directory)}
         let store=NativeSaveStore(directory:directory)
@@ -32,6 +68,21 @@ import StackToSixNativeState
         bootstrap.sourceInitialFreshStartupEnabled=true;bootstrap.sourceBoardEntryEnabled=true;bootstrap.sourceTutorialActivationEnabled=true;bootstrap.sourceTutorialIntroEnabled=true;bootstrap.sourceTutorialHUDEnabled=true;bootstrap.sourceTutorialFirstStepMonitorEnabled=monitored;bootstrap.sourceTutorialSubsequentPresentationEnabled=third
         bootstrap.sourceLogicalMathRandomEnabled=meter || fourth
         bootstrap.sourceSpecialIdlePresentationEnabled=fourth
+        if complete {
+            bootstrap.completeNativeGameplayEnabled=true
+            bootstrap.sourceCanonicalGameplaySaveEnabled=true
+            bootstrap.sourceWildShimmerPresentationEnabled=true
+            bootstrap.sourceTutorialEarnedMeterEnabled=true
+            bootstrap.sourceOrdinaryPresentationEnabled=true
+            bootstrap.sourceDirectPresentationEnabled=true
+            bootstrap.sourceFreshOrdinaryPresentationEnabled=true
+            bootstrap.sourceRestoredOrdinaryPresentationEnabled=true
+            bootstrap.sourceInitialRegularResumeEnabled=true
+            bootstrap.sourceInitialWildResumeEnabled=true
+            bootstrap.sourceMagnetPresentationEnabled=true
+            bootstrap.sourceOrdinaryEndgamePresentationEnabled=true
+            bootstrap.sourceTntPresentationEnabled=true
+        }
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
         window.rootViewController=host;window.makeKeyAndVisible();bootstrap.start(in:host)
@@ -41,7 +92,7 @@ import StackToSixNativeState
         try await waitUntil{app.children.contains{$0 is NativeGameplayViewController}}
         let game=try XCTUnwrap(app.children.first as? NativeGameplayViewController),scene=try XCTUnwrap(game.boardScene),construction=try XCTUnwrap(game.sourceInitialConstruction)
         XCTAssertTrue(scene.sourceInitialStartupReady);XCTAssertTrue(game.sourceScope?.service === service)
-        XCTAssertFalse(game.sourceSmallStackPresentationEnabled)
+        XCTAssertEqual(game.sourceSmallStackPresentationEnabled,complete)
         for holder in construction.recipe?.holders ?? [] {XCTAssertTrue(scene.sourceNativeTileNode(holder.tileID) === construction.nodes[holder.tileID])}
         XCTAssertTrue(scene.sourceBoardEntryAdmissionOpen)
         XCTAssertNotNil(game.engine.pendingSourceTutorialDemoActivation)
@@ -55,6 +106,11 @@ import StackToSixNativeState
             try await Task.sleep(nanoseconds:20_000_000)
         }
         XCTAssertEqual(scene.completedSourceBoardEntry?.outcome,.normal)
+        if construction.pendingFaceCount==0 {
+            XCTAssertTrue(scene.sourceTutorialPreparationReady,"ready board completion must not start an activation delay")
+            let firstSheet=try XCTUnwrap(game.view.subviews.first{$0 is NativeTutorialOverlay} as? NativeTutorialOverlay)
+            XCTAssertTrue(firstSheet.sourceIntroOwner?.sheetStarted==true,"Drag to stack entry starts at the ready board completion")
+        }
         while !scene.sourceTutorialPreparationReady && Date()<deadline {
             wall+=16;service.deliver(wallMilliseconds:wall)
             try await Task.sleep(nanoseconds:20_000_000)
@@ -71,14 +127,15 @@ import StackToSixNativeState
             let shot=XCTAttachment(image:UIImage(cgImage:texture.cgImage()));shot.name="actual-native-tutorial-board-scale";shot.lifetime = .keepAlways;add(shot)
         }
         XCTAssertTrue(scene.sourceTutorialHUDActive)
+        if complete {for _ in 0..<40 {wall+=16;service.deliver(wallMilliseconds:wall)}}
         try await Task.sleep(for:.milliseconds(150))
-        XCTAssertTrue(scene.sourceTutorialHUDAlphas.allSatisfy{abs($0-0.2)<1e-6})
+        if !complete {XCTAssertTrue(scene.sourceTutorialHUDAlphas.allSatisfy{abs($0-0.2)<1e-6})}
         scene.synchronize()
-        XCTAssertTrue(scene.sourceTutorialHUDAlphas.allSatisfy{abs($0-0.2)<1e-6})
+        if !complete {XCTAssertTrue(scene.sourceTutorialHUDAlphas.allSatisfy{abs($0-0.2)<1e-6})}
         XCTAssertNil(game.engine.pendingSourceTutorialDemoActivation)
         var meterResources:NativeWildMeterDropResources?
         defer{meterResources?.dispose()}
-        if meter || fourth {
+        if (meter || fourth) && !complete {
             let resources=NativeWildMeterDropResources(root:NativeTestResources.root)
             meterResources=resources
             let ready=expectation(description:"actual original meter resource preload")
@@ -124,7 +181,13 @@ import StackToSixNativeState
         XCTAssertEqual(game.engine.state.tiles.map(\.value),initialTiles.map(\.value))
         let overlay=try XCTUnwrap(game.view.subviews.first{$0 is NativeTutorialOverlay} as? NativeTutorialOverlay)
         let intro=try XCTUnwrap(overlay.sourceIntroOwner)
-        XCTAssertEqual(overlay.sourceSheetTranslation,overlay.sourceSheetHeight)
+        if complete {
+            XCTAssertEqual(overlay.sourceSheetTranslation,0)
+        } else {
+            XCTAssertTrue(intro.sheetStarted,"Native initial sheet starts on its rendered handoff")
+            XCTAssertGreaterThanOrEqual(overlay.sourceSheetTranslation,-overlay.sourceSheetHeight*0.15)
+            XCTAssertLessThanOrEqual(overlay.sourceSheetTranslation,overlay.sourceSheetHeight)
+        }
         XCTAssertFalse(overlay.sourcePointerVisible)
         service.setSourceForeground(false)
         try await Task.sleep(for:.milliseconds(1300))
@@ -156,6 +219,8 @@ import StackToSixNativeState
             for _ in 0..<10{wall+=16;service.deliver(wallMilliseconds:wall)}
             let moved=try XCTUnwrap(scene.finishDrag(at:destination,now:1.2));XCTAssertTrue(moved.accepted)
             XCTAssertEqual(game.engine.state.tutorial?.step,.mergeSix)
+            XCTAssertEqual(game.engine.state.tutorial?.specialBarSuccessfulActions,1)
+            XCTAssertFalse(overlay.specialBarVisible,"one successful guided action cannot show Special Bar")
             let receipt=try XCTUnwrap(game.engine.pendingSourceTutorialPresentationBarrier)
             XCTAssertEqual(receipt.mergedID,target.tileID);XCTAssertTrue(scene.sourceTutorialFirstStepPresentationActive)
             XCTAssertFalse(game.engine.beginDrag(tileID:oneID));XCTAssertFalse(scene.sourceTutorialSecondPreparationReady)
@@ -208,6 +273,14 @@ import StackToSixNativeState
                 // The existing Native Six transaction commits later than its
                 // accepted gesture; wait for that genuine producer while Source
                 // exit roots stay paused, rather than asserting at acceptance.
+                if complete {
+                    let deadline=Date().addingTimeInterval(12)
+                    while !scene.sourceTutorialThirdPresentationActive && Date()<deadline {
+                        wall+=16;service.deliver(wallMilliseconds:wall);try await Task.sleep(for:.milliseconds(20))
+                    }
+                    XCTAssertNil(game.sourcePresentationFailure, String(describing:game.sourcePresentationFailure))
+                    XCTAssertEqual(game.engine.state.tutorial?.step,.freePlay)
+                } else {
                 _=service.setSourceGlobalPaused(true)
                 let sixDeadline=Date().addingTimeInterval(6)
                 while game.engine.state.tutorial?.step != .freePlay && Date()<sixDeadline {
@@ -224,11 +297,89 @@ import StackToSixNativeState
                 while !scene.sourceTutorialThirdPresentationActive && Date()<thirdDeadline {
                     wall+=16;service.deliver(wallMilliseconds:wall);try await Task.sleep(for:.milliseconds(20))
                 }
+                }
                 XCTAssertTrue(scene.sourceTutorialThirdPresentationActive);XCTAssertFalse(scene.sourceTutorialSecondPresentationActive)
                 XCTAssertNil(game.engine.pendingSourceTutorialPresentationBarrier)
                 XCTAssertTrue(overlay.sourceIntroOwner === intro)
                 for _ in 0..<110{wall+=16;service.deliver(wallMilliseconds:wall)}
+                let specialButton=try XCTUnwrap(overlay.subviews.flatMap{$0.subviews}.compactMap{$0 as? UIButton}.first)
+                let specialFocusDeadline=Date().addingTimeInterval(5)
+                while (!overlay.specialBarVisible || scene.tutorialSpecialBarFocusValue<1 || abs(overlay.sourceSheetTranslation)>1e-6 || !specialButton.isEnabled) && Date()<specialFocusDeadline {
+                    wall+=16;service.deliver(wallMilliseconds:wall);try await Task.sleep(for:.milliseconds(40))
+                }
+                XCTAssertEqual(scene.tutorialSpecialBarFocusValue,1,accuracy:1e-6)
                 XCTAssertEqual(overlay.sourceSheetTranslation,0,accuracy:1e-6)
+                XCTAssertEqual(game.engine.state.tutorial?.specialBarSuccessfulActions,2)
+                XCTAssertTrue(overlay.specialBarVisible)
+                XCTAssertLessThan(game.engine.state.wildMeter,1,"Special Bar precedes a fully charged meter")
+                let button=specialButton
+                XCTAssertNil(game.engine.sourceTutorialWildReservation)
+                    let liveNode=try XCTUnwrap(scene.sourceNativeTileNode(try XCTUnwrap(game.engine.state.activeTiles.first).id))
+                    func effectiveAlpha(_ node:SKNode)->CGFloat {var alpha=node.alpha;var parent=node.parent;while let ancestor=parent{alpha *= ancestor.alpha;parent=ancestor.parent};return alpha}
+                    XCTAssertEqual(effectiveAlpha(liveNode),min(liveNode.alpha,0.2),accuracy:1e-6)
+                    XCTAssertLessThanOrEqual(effectiveAlpha(liveNode),0.2+1e-6)
+                    scene.synchronize()
+                    XCTAssertLessThanOrEqual(effectiveAlpha(liveNode),0.2+1e-6,"focus survives canonical synchronize")
+                    let focusedDice=game.engine.state.activeTiles.compactMap{scene.sourceNativeTileNode($0.id)}
+                    for node in focusedDice{node.run(.fadeAlpha(to:1,duration:0),withKey:"qa.late-alpha-writer")}
+                    // Mounted SpriteKit frames evaluate real SKActions before
+                    // the renderer handoff reapplies the tutorial's dim paint.
+                    for _ in 0..<4 {
+                        wall+=16;service.deliver(wallMilliseconds:wall)
+                        try await Task.sleep(for:.milliseconds(40))
+                        for node in focusedDice {
+                            XCTAssertLessThanOrEqual(effectiveAlpha(node),0.2+1e-6,"late physical alpha writers cannot brighten another die")
+                        }
+                    }
+                    if let loader=scene.childNode(withName:"//wildLoader"){
+                        var path:[String]=[];var cursor:SKNode?=loader
+                        while let node=cursor{path.append("\(node.name ?? String(describing:type(of:node))):\(node.alpha)");cursor=node.parent}
+                        XCTAssertEqual(effectiveAlpha(loader),1,accuracy:1e-6,"meter ancestry: \(path.joined(separator:" -> "))")
+                    }
+                    var meterBubbles:[SKNode]=[]
+                    scene.enumerateChildNodes(withName:"//wild-meter-smoke"){node,_ in meterBubbles.append(node)}
+                    XCTAssertFalse(meterBubbles.isEmpty,"tutorial focus emits original meter bubbles")
+                    XCTAssertTrue(meterBubbles.contains{$0.alpha>0.2},"meter bubbles retain original opacity animation above dimmed board")
+                    let labels=overlay.subviews.flatMap{$0.subviews}.compactMap{$0 as? UILabel}
+                    let body=try XCTUnwrap(labels.first{$0.text=="Stack and merge dice to fill the bar and earn special dice."})
+                    XCTAssertGreaterThanOrEqual(body.bounds.height,ceil(body.sizeThatFits(CGSize(width:body.bounds.width,height:.greatestFiniteMagnitude)).height))
+                    XCTAssertLessThanOrEqual(overlay.convert(button.bounds,to:game.view).maxY,game.view.bounds.maxY)
+                    let shot=UIGraphicsImageRenderer(bounds:game.view.bounds).image{_ in game.view.drawHierarchy(in:game.view.bounds,afterScreenUpdates:true)}
+                    let attachment=XCTAttachment(image:shot);attachment.name="actual-native-special-bar";attachment.lifetime = .keepAlways;add(attachment)
+                    try shot.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-special-bar-mounted.png"))
+                    XCTAssertNil(overlay.hitTest(CGPoint(x:10,y:10),with:nil),"board touches reach the real Scene interaction admission")
+                    let playable=try XCTUnwrap(game.engine.state.activeTiles.first{$0.isPlayable})
+                    XCTAssertFalse(game.engine.beginDrag(tileID:playable.id),"sheet locks real engine admission")
+                    if specialInteraction {
+                        let pickup=try XCTUnwrap(scene.sourceNativeTileNode(playable.id))
+                        game.engine.setInputLock("qa.foreign-modal",active:true)
+                        XCTAssertFalse(scene.beginDrag(at:point(pickup)),"foreign lock cannot acknowledge the tutorial")
+                        XCTAssertEqual(game.engine.state.tutorial?.specialBarAcknowledged,false)
+                        XCTAssertTrue(overlay.specialBarVisible)
+                        game.engine.setInputLock("qa.foreign-modal",active:false)
+                        XCTAssertTrue(scene.beginDrag(at:point(pickup)),"same physical down dismisses modal then picks up")
+                        XCTAssertTrue(game.engine.isDragging)
+                        XCTAssertEqual(game.engine.state.tutorial?.specialBarAcknowledged,true)
+                        XCTAssertTrue(overlay.specialBarVisible,"sheet exits continuously while drag owns its real node")
+                    } else {button.sendActions(for:.touchUpInside);button.sendActions(for:.touchUpInside)}
+                    for _ in 0..<4{wall+=16;service.deliver(wallMilliseconds:wall);try await Task.sleep(for:.milliseconds(10))}
+                    XCTAssertGreaterThan(scene.tutorialSpecialBarFocusValue,0,"focus exit is continuous")
+                    XCTAssertLessThan(scene.tutorialSpecialBarFocusValue,1,"exit begins before final restore")
+                    XCTAssertTrue(overlay.specialBarVisible)
+                    if specialInteraction{XCTAssertTrue(game.engine.isDragging)}
+                    for _ in 0..<51{wall+=16;service.deliver(wallMilliseconds:wall);try await Task.sleep(for:.milliseconds(10))}
+                    XCTAssertEqual(scene.tutorialSpecialBarFocusValue,0,accuracy:1e-6)
+                    scene.didFinishUpdate()
+                    let restoredMeter=try XCTUnwrap(scene.childNode(withName:"//wildLoader"))
+                    XCTAssertEqual(effectiveAlpha(restoredMeter),1,accuracy:1e-6,"Continue keeps the meter fully opaque while tutorial controls stay locked")
+                    XCTAssertTrue(game.engine.state.tutorial?.shouldLockHUD == true)
+                    XCTAssertTrue(try XCTUnwrap(scene.childNode(withName:"//native-game-round-indicator")).isHidden,"bottom HUD stays absent through tutorial")
+                    XCTAssertFalse(overlay.specialBarVisible)
+                    XCTAssertEqual(liveNode.parent?.alpha ?? 1,1,accuracy:1e-6)
+                    XCTAssertEqual(game.engine.state.tutorial?.specialBarAcknowledged,true)
+                    if specialInteraction{scene.cancelDrag()}
+                XCTAssertEqual(game.engine.state.tutorial?.waitingForWild,false)
+                XCTAssertNil(game.engine.sourceTutorialWildReservation)
                 service.setSourceForeground(false)
                 try await Task.sleep(for:.milliseconds(320))
                 XCTAssertTrue(overlay.sourceFreeHintActive);XCTAssertTrue(overlay.sourcePointerVisible)
@@ -267,12 +418,12 @@ import StackToSixNativeState
                     }
                     _=service.setSourceGlobalPaused(false)
                     var delivered=0
-                    while game.engine.state.tutorial?.waitingForWild != true && delivered<60 {
+                    while game.engine.state.tutorial?.waitingForWild == false && delivered<60 {
                         delivered+=1;wall+=16;service.deliver(wallMilliseconds:wall)
                     }
                     XCTAssertEqual(game.engine.state.tutorial?.waitingForWild,true)
-                    let reservation=try XCTUnwrap(game.engine.sourceTutorialWildReservation);XCTAssertEqual(reservation.generation,game.engine.state.generation)
-                    XCTAssertEqual(reservation.cell,NativeTutorialRules.sourceFourthWildCell(state:game.engine.state,emptyGridCells:game.engine.sourceMeterDropExcludedCells))
+                    XCTAssertEqual(game.engine.state.tutorial?.specialBarSuccessfulActions,2)
+                    XCTAssertNotNil(game.engine.sourceTutorialWildReservation)
                     XCTAssertEqual(count,draws+restoreKeys,"one original shuffle-key draw per actual surviving node, no delay/HUD draw for immediate restore")
                     XCTAssertEqual(overlay.sourceCTAState,.hidden);XCTAssertFalse(overlay.sourceFreeHintActive)
                     XCTAssertFalse(scene.sourceTutorialMeterSmokeFrozen)
@@ -291,7 +442,18 @@ import StackToSixNativeState
                     XCTAssertFalse(scene.sourceTutorialIntroTimeouts.pendingReceipts.contains{$0.sourceID=="tutorial-meter-smoke-resume180"})
                     XCTAssertFalse(overlay.sourceFreeHintActive)
                     service.setSourceForeground(true)
+                    if dismiss=="drag"{scene.cancelDrag()}
+                    if !fourth {XCTAssertNotNil(game.engine.sourceTutorialWildReservation)}
                     if fourth {
+                        let originalDropStart=scene.onTutorialSpecialDropStarted
+                        var actualDropStarts=0
+                        scene.onTutorialSpecialDropStarted={wild in
+                            actualDropStarts+=1
+                            XCTAssertTrue(scene.sourceTutorialWildIsDropping(wild))
+                            originalDropStart?(wild)
+                            XCTAssertFalse(scene.sourceTutorialIntroTimeouts.pendingReceipts.contains{$0.sourceID=="tutorial-fourth-sheet900"})
+                            XCTAssertTrue(overlay.subviews.flatMap{$0.subviews}.compactMap{$0 as? UILabel}.contains{$0.text=="Special dice"},"Special Dice copy mounts at genuine fall admission")
+                        }
                         let failureCallback=scene.onSourcePresentationFailure
                         scene.onSourcePresentationFailure={reason,generation in
                             XCTFail("fourth actual failure \(reason), generation=\(generation)")
@@ -324,8 +486,10 @@ import StackToSixNativeState
                             try await Task.sleep(for:.milliseconds(10))
                         }
                         let receipt=try XCTUnwrap(game.engine.sourceTutorialFourthPreparation)
+                        XCTAssertEqual(actualDropStarts,1)
                         let wild=try XCTUnwrap(scene.sourceNativeTileNode(receipt.wildID))
                         XCTAssertTrue(wild.sourceOpenedWildConstructorCurrent)
+                        XCTAssertEqual(wild.sourceLiveStarHaloCount,0,"tutorial Star has no orbiting dice")
                         while wild.sourcePlainStarArtworkSprite==nil && Date()<fourthDeadline {
                             wall+=16;service.deliver(wallMilliseconds:wall)
                             try await Task.sleep(for:.milliseconds(10))
@@ -339,10 +503,20 @@ import StackToSixNativeState
                                 try await Task.sleep(for:.milliseconds(10))
                             }
                             let target=try XCTUnwrap(scene.sourceNativeTileNode(receipt.targetID))
-                            let destination=point(target)
-                            XCTAssertTrue(scene.beginDrag(at:point(wild)))
+                            XCTAssertEqual(game.engine.state.tiles.first{$0.id==receipt.targetID}?.sourceWildStateCleared,target.sourceWildStateCleared,"tutorial preparation must retain matching logical and physical ordinary flags")
+                            let destination=point(reverseFourth ? wild:target)
+                            XCTAssertTrue(scene.beginDrag(at:point(reverseFourth ? target:wild)))
                             scene.moveDrag(to:destination,now:50)
                             for _ in 0..<10{wall+=16;service.deliver(wallMilliseconds:wall)}
+                            let selector=try XCTUnwrap(scene.childNode(withName:"//native-stack-hover"))
+                            for tile in game.engine.state.activeTiles {
+                                let node=try XCTUnwrap(scene.sourceNativeTileNode(tile.id))
+                                if node.zPosition >= 12001 {
+                                    XCTAssertLessThan(selector.zPosition,node.zPosition,"Wild/Special and held dice stay above the selector")
+                                } else {
+                                    XCTAssertGreaterThan(selector.zPosition,node.zPosition,"ordinary target faces must not occlude the inset stroke")
+                                }
+                            }
                             let merged=try XCTUnwrap(scene.finishDrag(at:destination,now:50.2))
                             XCTAssertTrue(merged.accepted)
                             XCTAssertEqual(game.engine.state.tutorial?.active,true,"actual fourth exit owns guide completion after merge")
@@ -350,10 +524,21 @@ import StackToSixNativeState
                             while game.engine.state.tutorial?.active==true && Date()<completionDeadline {
                                 wall+=16;service.deliver(wallMilliseconds:wall)
                                 try await Task.sleep(for:.milliseconds(10))
+                                for name in ["native-game-close","native-game-help"] {
+                                    let control=try XCTUnwrap(scene.childNode(withName:"//"+name))
+                                    XCTAssertLessThanOrEqual(control.alpha,0.200001,"HUD must stay dim through fourth sheet exit as well as after guide completion")
+                                }
                             }
                             XCTAssertEqual(game.engine.state.tutorial?.active,false)
                             XCTAssertEqual(game.engine.state.tutorial?.guideCompleted,true)
                             XCTAssertEqual(game.engine.state.tutorial?.completionAssist,true)
+                            XCTAssertEqual(game.engine.state.tutorial?.shouldLockHUD,true)
+                            for _ in 0..<4 {wall+=16;service.deliver(wallMilliseconds:wall);try await Task.sleep(for:.milliseconds(40))}
+                            for name in ["native-game-close","native-game-help"] {
+                                let control=try XCTUnwrap(scene.childNode(withName:"//"+name))
+                                XCTAssertLessThanOrEqual(control.alpha,0.200001)
+                            }
+
                             XCTAssertNil(game.engine.sourceTutorialFourthPreparation)
                             XCTAssertNil(overlay.sourceIntroOwner)
                             XCTAssertNil(game.sourcePresentationFailureGeneration)
@@ -377,6 +562,32 @@ import StackToSixNativeState
                             XCTAssertEqual(run.moves,game.engine.state.moves)
                             XCTAssertEqual(run.score,game.engine.state.score)
                             XCTAssertFalse(persisted.progression.firstPlayTutorialComplete,"guide exit does not acknowledge the later authored result")
+                            if complete {
+                                var acceptedMoves=0
+                                for turn in 0..<stressTurns where game.engine.state.terminal==nil && game.sourcePresentationFailure==nil {
+                                    var moved=false
+                                    let live=game.engine.state.activeTiles.sorted{($0.isWild ? 0:1)<($1.isWild ? 0:1)}
+                                    for a in live where !moved {
+                                        for b in live where !moved && a.id != b.id && NativeGameplayResolver.canDrop(a,onto:b) {
+                                            guard let source=scene.sourceNativeTileNode(a.id),let target=scene.sourceNativeTileNode(b.id),scene.beginDrag(at:point(source)) else{continue}
+                                            let destination=point(target);scene.moveDrag(to:destination,now:Double(100+turn))
+                                            moved=scene.finishDrag(at:destination,now:Double(100+turn)+0.2)?.accepted==true
+                                        }
+                                    }
+                                    if moved {acceptedMoves+=1}
+                                    for _ in 0..<stressFrames {wall+=16;service.deliver(wallMilliseconds:wall);try await Task.sleep(for:.milliseconds(5))}
+                                    XCTAssertNil(game.sourcePresentationFailure,"turn=\(turn) minimum=\(scene.sourceMinimumCaptureDiagnostic) safety=\(scene.sourceSpawnSafetyDiagnostic) failure=\(String(describing:game.sourcePresentationFailure))")
+                                    if game.sourcePresentationFailure != nil {break}
+                                }
+                                if stressTurns>1 {
+                                    for _ in 0..<150 {wall+=16;service.deliver(wallMilliseconds:wall);try await Task.sleep(for:.milliseconds(5))}
+                                    print("[NativeRapidStack] accepted=\(acceptedMoves) terminal=\(String(describing:game.engine.state.terminal)) physical=\(scene.sourcePhysicalBoardCaptureDiagnostic)")
+                                    XCTAssertGreaterThan(acceptedMoves,3)
+                                    XCTAssertNil(game.sourcePresentationFailure)
+                                    XCTAssertTrue(game.engine.state.validationIssues(allowSourceDetachedGridReferences:true).isEmpty)
+                                }
+                                return
+                            }
                             // Preserve bytes produced by the genuine guide and
                             // save owner for separate OS-process resume evidence.
                             let savedGuide=XCTAttachment(data:try Data(contentsOf:directory.appendingPathComponent("state-v1.json")),uniformTypeIdentifier:"public.json")

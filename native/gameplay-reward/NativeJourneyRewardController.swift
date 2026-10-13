@@ -38,10 +38,12 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
     private let headingLabel=UILabel(),subtitle=UILabel(),coach=UILabel()
     private let shadow=CAGradientLayer(),foil=NativeRewardFoil()
     private var holo:CALayer {foil.layer}
-    private let glow=CALayer(),interimLight=CALayer(),interimSweep=CAGradientLayer()
+    private let glow=CALayer(),interimGlow=CALayer(),interimLight=CALayer(),interimSweep=CAGradientLayer()
     private let preparationLease=NativeRewardPreparationLease()
     private var blurredFrames:[String:UIImage]=[:]
     private var ownedSmoke:CALayer?
+    private var shimmerTextureSize:CGSize = .zero,shimmerTextureScale:CGFloat=0
+    private var shimmerTextureGeneration:UInt64=0
     private var tap:UITapGestureRecognizer!,pan:UIPanGestureRecognizer!
     private var observations:[NSObjectProtocol]=[]
     @MainActor private final class Work {
@@ -90,16 +92,17 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         for image in [frame,front,hand] {image.contentMode = .scaleAspectFit;image.isUserInteractionEnabled=false}
         view.addSubview(hand);hand.alpha=0;hand.layer.shadowColor=UIColor(red:132/255,green:82/255,blue:63/255,alpha:1).cgColor;hand.layer.shadowOpacity=0.24;hand.layer.shadowOffset=CGSize(width:0,height:12);hand.layer.shadowRadius=16
         shadow.type = .radial;shadow.colors=[UIColor(red:185/255,green:105/255,blue:62/255,alpha:0.34).cgColor,UIColor(red:185/255,green:105/255,blue:62/255,alpha:0.2).cgColor,UIColor.clear.cgColor];shadow.shadowColor=UIColor(red:185/255,green:105/255,blue:62/255,alpha:1).cgColor;shadow.shadowOpacity=0.2;shadow.shadowRadius=14;shadow.shadowOffset = .zero;shadow.locations=[0,0.42,0.76];shadow.startPoint=CGPoint(x:0.5,y:0.5);shadow.endPoint=CGPoint(x:1,y:1)
-        glow.name="native.reward.unlocked-burn";glow.opacity=0;glow.contentsGravity = .resizeAspect
+        glow.name="native.reward.unlocked-burn";interimGlow.name="native.reward.interim-burn"
+        for burn in [glow,interimGlow] {burn.opacity=0;burn.contentsGravity = .resizeAspect;burn.zPosition=0.5;burn.isDoubleSided=false}
         for (surface,gradient) in [(interimLight,interimSweep)] {
-            surface.opacity=0;surface.masksToBounds=true;surface.addSublayer(gradient)
+            surface.name="native.reward.interim-shimmer";surface.opacity=0;surface.zPosition=1;surface.isDoubleSided=false;surface.masksToBounds=true;surface.addSublayer(gradient)
             gradient.colors=[UIColor.clear.cgColor,UIColor.white.withAlphaComponent(0.52).cgColor,UIColor.clear.cgColor];gradient.locations=[0,0.5,1];gradient.startPoint=CGPoint(x:0,y:0.5);gradient.endPoint=CGPoint(x:1,y:0.5);gradient.opacity=0
         }
         frame.layer.shadowColor=UIColor(red:161/255,green:91/255,blue:54/255,alpha:1).cgColor;frame.layer.shadowOpacity=0.22;frame.layer.shadowRadius=26;frame.layer.shadowOffset=CGSize(width:0,height:12)
-        unlockedRotor.layer.addSublayer(glow);interimRotor.layer.addSublayer(interimLight)
+        unlockedRotor.layer.addSublayer(glow);interimRotor.layer.addSublayer(interimGlow);interimRotor.layer.addSublayer(interimLight)
         unlockedRotor.layer.addSublayer(holo)
         tap=UITapGestureRecognizer(target:self,action:#selector(tapped));pan=UIPanGestureRecognizer(target:self,action:#selector(panned(_:)));tap.delegate=self;pan.delegate=self;tap.require(toFail:pan);hero.addGestureRecognizer(tap);hero.addGestureRecognizer(pan)
-        ownedLayers=[view.layer,headingLabel.layer,subtitle.layer,hero.layer,pose.layer,interim.layer,unlocked.layer,interimRotor.layer,unlockedRotor.layer,frame.layer,front.layer,shadow,hand.layer,coach.layer,glow,holo,interimLight,interimSweep]
+        ownedLayers=[view.layer,headingLabel.layer,subtitle.layer,hero.layer,pose.layer,interim.layer,unlocked.layer,interimRotor.layer,unlockedRotor.layer,frame.layer,front.layer,shadow,hand.layer,coach.layer,glow,interimGlow,holo,interimLight,interimSweep]
         headingLabel.layer.opacity=0;subtitle.layer.opacity=0;pose.layer.opacity=0;shadow.opacity=0;unlocked.layer.opacity=0
         applyFace(interim,scale:1,y:40,z:tilt.interimZ,x:tilt.interimX,ry:tilt.interimY)
         applyFace(unlocked,scale:0.58,y:22,z:tilt.entryZ,x:tilt.entryX,ry:tilt.entryY,depth:-180)
@@ -115,7 +118,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
             }
             self.view.setNeedsLayout()
             self.prepareFilteredFrames(self.preparedImages,self.preparationLease) { [weak self] filtered in
-                guard let self,!self.disposed,!self.resolved else{return};self.blurredFrames=filtered;self.glow.contents=filtered[self.cardPath+"#burn"]?.cgImage;self.assetsReady=true
+                guard let self,!self.disposed,!self.resolved else{return};self.blurredFrames=filtered;self.glow.contents=filtered[self.cardPath+"#burn"]?.cgImage;self.interimGlow.contents=filtered["assets/animations/sand/zguzvano9.png#burn"]?.cgImage;self.assetsReady=true
                 if self.waitingReveal {
                     if self.foreground {self.waitingReveal=false;self.reveal()}
                 } else if self.waitingCrumble {self.waitingCrumble=false;self.crumble()}
@@ -125,6 +128,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
     }
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews();paper.frame=view.bounds
+        NativeRewardCardRendering.configure(faces:[interim,unlocked,interimRotor,unlockedRotor],images:[frame,front],displayScale:view.window?.screen.scale ?? traitCollection.displayScale)
         let aspect=(hand.image?.size.height ?? 1)/max(1,hand.image?.size.width ?? 1)
         let layout=NativeRewardPresentation.Layout(width:view.bounds.width,height:view.bounds.height,bottomSafe:view.safeAreaInsets.bottom,handAspect:aspect)
         headingLabel.frame=layout.title;subtitle.frame=layout.subtitle;hero.frame=layout.hero
@@ -133,10 +137,24 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         interimRotor.frame=interim.bounds;unlockedRotor.frame=unlocked.bounds
         frame.bounds=interim.bounds;frame.center=CGPoint(x:interim.bounds.midX,y:interim.bounds.midY);front.bounds=unlocked.bounds;front.center=CGPoint(x:unlocked.bounds.midX,y:unlocked.bounds.midY);front.transform=CGAffineTransform(translationX:0,y:-4).scaledBy(x:0.95,y:0.95)
         shadow.frame=layout.shadow;hand.frame=layout.hand;coach.frame=layout.coach
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        let effectScale=view.window?.screen.scale ?? view.traitCollection.displayScale
+        for layer in [glow,interimGlow,interimLight,interimSweep] {layer.contentsScale=max(1,effectScale);layer.allowsEdgeAntialiasing=true;layer.edgeAntialiasingMask=[.layerLeftEdge,.layerRightEdge,.layerTopEdge,.layerBottomEdge];layer.minificationFilter = .trilinear;layer.magnificationFilter = .linear}
         glow.frame=CGRect(x:unlocked.bounds.width*0.025,y:unlocked.bounds.height*0.025-4,width:unlocked.bounds.width*0.95,height:unlocked.bounds.height*0.95);holo.frame=unlocked.bounds;interimLight.frame=interim.bounds;interimSweep.frame=interimLight.bounds
+        interimGlow.bounds=frame.bounds;interimGlow.position=frame.layer.position;interimGlow.transform=frame.layer.transform
         let maskImage=self.maskImage
-        foil.layout(unlocked.bounds,mask:maskImage)
-        let interimMask=CALayer();interimMask.frame=interim.bounds.insetBy(dx:-interim.bounds.width*0.1,dy:-interim.bounds.height*0.1);interimMask.contents=preparedImages["assets/animations/sand/zguzvano9.png"]?.cgImage;interimMask.contentsGravity = .resizeAspect;interimLight.mask=interimMask
+        foil.layout(unlocked.bounds,mask:maskImage,displayScale:effectScale)
+        let interimMask=CALayer();interimMask.frame=interim.bounds.insetBy(dx:-interim.bounds.width*0.1,dy:-interim.bounds.height*0.1);interimMask.contents=preparedImages["assets/animations/sand/zguzvano9.png"]?.cgImage;interimMask.contentsGravity = .resizeAspect;interimMask.contentsScale=max(1,effectScale);interimMask.minificationFilter = .trilinear;interimMask.magnificationFilter = .linear;interimMask.allowsEdgeAntialiasing=true;interimLight.mask=interimMask
+        CATransaction.commit()
+        prepareShimmerTexture(size:interimSweep.bounds.size,displayScale:effectScale)
+    }
+    private func prepareShimmerTexture(size:CGSize,displayScale:CGFloat) {
+        guard !disposed,size.width>0,size.height>0,(size != shimmerTextureSize || displayScale != shimmerTextureScale) else{return}
+        shimmerTextureSize=size;shimmerTextureScale=displayScale;shimmerTextureGeneration &+= 1;let token=shimmerTextureGeneration
+        NativeRewardFilteredFrames.prepareShimmer(size:size,displayScale:displayScale,lease:preparationLease) { [weak self] image in
+            guard let self,!self.disposed,self.shimmerTextureGeneration==token,let image else{return}
+            CATransaction.begin();CATransaction.setDisableActions(true);self.interimSweep.colors=nil;self.interimSweep.contents=image;self.interimSweep.contentsGravity = .resize;CATransaction.commit()
+        }
     }
     override func viewDidAppear(_ animated:Bool) {super.viewDidAppear(animated);start()}
     func start() {
@@ -175,7 +193,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
             self.later("clear-blur\(index)",after:0.035*0.55){ [weak self] in self?.frame.image=self?.preparedImages[path] }
             self.onHaptic?(index==8 ? "medium":"light")
         };time=stepTime+0.035 }
-        later("interim-pulse",after:time){ [weak self] in guard let self,!self.revealRunning,!self.revealed else{return};self.shimmer(self.interimLight,gradient:self.interimSweep);self.shake(strength:16,duration:0.38);self.keyframes(self.frame.layer,"transform",values:([1,1.34,1.2] as [Double]).map{NSValue(caTransform3D:CATransform3DMakeScale(CGFloat($0),CGFloat($0),1))},times:[0,0.08/0.26,1],duration:0.26,final:NSValue(caTransform3D:CATransform3DMakeScale(1.2,1.2,1)))}
+        later("interim-pulse",after:time){ [weak self] in guard let self,!self.revealRunning,!self.revealed else{return};self.shimmer(self.interimLight,gradient:self.interimSweep,impact:true);self.shake(strength:16,duration:0.38);for layer in [self.frame.layer,self.interimGlow] {self.keyframes(layer,"transform",values:([1,1.34,1.2] as [Double]).map{NSValue(caTransform3D:CATransform3DMakeScale(CGFloat($0),CGFloat($0),1))},times:[0,0.08/0.26,1],duration:0.26,final:NSValue(caTransform3D:CATransform3DMakeScale(1.2,1.2,1)))}}
         later("interim-rest",after:time+0.26) { [weak self] in
             guard let self,!self.revealRunning,!self.revealed else{return};self.interimScale=1.17
             self.applyFace(self.interim,scale:1.17,y:40,z:self.tilt.interimZ,x:self.tilt.interimX,ry:self.tilt.interimY);self.frame.transform=CGAffineTransform(scaleX:1.2,y:1.2)
@@ -212,7 +230,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         later("impact",after:closedExit+enter){ [weak self] in guard let self else{return};self.shine();self.revealSmoke();self.shake(strength:22,duration:0.42);self.onHaptic?("medium") }
         later("revealed",after:closedExit+enter+0.192) { [weak self] in
             guard let self else{return};self.phase="unlocked";self.revealRunning=false;self.revealed=true;self.hero.accessibilityLabel="Collect \(NativeRewardPresentation.name(board:self.board))"
-            self.onHaptic?("light");self.shine();if self.queuedCollect {self.collect()}else{self.scheduleCoach(after:1);self.scheduleUnlockedIdle(after:3)}
+            self.onHaptic?("light");if self.queuedCollect {self.collect()}else{self.scheduleCoach(after:1);self.scheduleUnlockedIdle(after:3)}
         }
     }
     private func collect() {
@@ -255,8 +273,37 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
             self.scheduleCoach(after:3)
         }
     }
-    private func shimmer(_ surface:CALayer,gradient:CAGradientLayer) {
+    private func shimmer(_ surface:CALayer,gradient:CAGradientLayer,impact:Bool=false) {
         guard !reducedMotion,foreground,!disposed else{return};surface.opacity=0.92
+        // The canonical sweep and the face filter are independent owners.
+        // Keep the burn on the same image transform as the authored sprite.
+        interimGlow.bounds=frame.bounds;interimGlow.position=frame.layer.position;interimGlow.transform=frame.layer.transform
+        interimGlow.contents=blurredFrames["assets/animations/sand/zguzvano9.png"+(impact ? "#impact":"#burn")]?.cgImage
+        if impact {
+            // Sprite-nine punch:80ms power2.out peak, then authored160ms
+            // sine.out brightness return beginning at120ms.
+            let times=(0...56).map{Double($0)/56},values=times.map { t -> Double in
+                let seconds=t*0.28
+                if seconds<=0.08 {return 1-pow(1-seconds/0.08,2)}
+                let progress=min(1,(min(seconds,0.12)-0.08)/0.18),back=JimiV9Motion.Ease.backOut(2.1).value(progress)
+                let brightness=1.32+(1.04-1.32)*back
+                if seconds<0.12 {return max(0,(brightness-1)/0.32)}
+                return max(0,(brightness-1)/0.32)*(1-sin(min(1,(seconds-0.12)/0.16) * .pi/2))
+            }
+            keyframes(interimGlow,"opacity",values:values,times:times,duration:0.28)
+        } else {
+            later("interim-face-pulse",after:0.15) { [weak self] in
+                guard let self,!self.revealed,!self.revealRunning else{return}
+                self.keyframes(self.interimGlow,"opacity",values:[0,1,0],times:[0,0.56,1],duration:0.5)
+                let count=96,times=(0...count).map{Double($0)/Double(count)}
+                let scales=times.map { t -> Double in
+                    let seconds=t*0.32
+                    if seconds<=0.14 {return 1.2+(1.2*1.055-1.2)*JimiV9Motion.Ease.backOut(2).value(seconds/0.14)}
+                    return 1.2*1.055+(1.2-1.2*1.055)*sin(min(1,(seconds-0.14)/0.18) * .pi/2)
+                }
+                for layer in [self.frame.layer,self.interimGlow] {self.keyframes(layer,"transform",values:scales.map{NSValue(caTransform3D:CATransform3DMakeScale($0,$0,1))},times:times,duration:0.32,final:NSValue(caTransform3D:CATransform3DMakeScale(1.2,1.2,1)))}
+            }
+        }
         let times=[0.0,0.01,0.02,0.05,0.12,0.20,0.30,0.40,0.45,0.50,1]
         let positions=[-1.60,-1.58,-1.54,-1.40,-1.20,-0.80,0,0.80,1.20,1.60,1.60]
         keyframes(gradient,"opacity",values:[0,0.125,0.25,0.375,0.45,0.5,0.5,0.5,0.25,0,0],times:times,duration:1.7)
@@ -353,5 +400,5 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
     private func cancelTasks(){for task in tasks.values {task.cancel()};tasks.removeAll()}
     private func removeAnimations(){foil.stop();for layer in ownedLayers {layer.removeAllAnimations()};ownedSmoke?.sublayers?.forEach{$0.removeAllAnimations()};ownedSmoke?.removeAllAnimations();ownedSmoke?.removeFromSuperlayer();ownedSmoke=nil}
     private func settle(_ action:Action){guard !disposed else{return};let callback=onFinish;onFinish=nil;dispose(notify:false);callback?(action)}
-    func dispose(notify:Bool=true){guard !disposed else{return};disposed=true;phase="disposed";epoch &+= 1;cancelTasks();removeAnimations();resources.release(resourceOwner);preparationLease.cancel();preparedImages.removeAll();blurredFrames.removeAll();maskImage=nil;ownedSmoke?.removeAllAnimations();ownedSmoke?.removeFromSuperlayer();ownedSmoke=nil;for observer in observations {NotificationCenter.default.removeObserver(observer)};observations.removeAll();onSoundMoment=nil;onHaptic=nil;onAssetFailure=nil;let callback=onFinish;onFinish=nil;if notify {callback?(.cancelled)}}
+    func dispose(notify:Bool=true){guard !disposed else{return};disposed=true;phase="disposed";epoch &+= 1;cancelTasks();removeAnimations();resources.release(resourceOwner);preparationLease.cancel();preparedImages.removeAll();blurredFrames.removeAll();maskImage=nil;glow.contents=nil;interimGlow.contents=nil;interimLight.mask=nil;interimSweep.contents=nil;holo.mask=nil;ownedSmoke?.removeAllAnimations();ownedSmoke?.removeFromSuperlayer();ownedSmoke=nil;for observer in observations {NotificationCenter.default.removeObserver(observer)};observations.removeAll();onSoundMoment=nil;onHaptic=nil;onAssetFailure=nil;let callback=onFinish;onFinish=nil;if notify {callback?(.cancelled)}}
 }

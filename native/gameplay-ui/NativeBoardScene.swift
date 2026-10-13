@@ -181,14 +181,19 @@ final class NativeBoardScene: SKScene {
                 sourceStarSheetPendingStarts.append(.init(node:node,id:id,generation:generation))
             }
         }
+        // Tutorial keeps the authored Star face/sheet, without orbit resources.
+        if engine.state.tutorial?.shouldLockHUD == true {
+            node.retireSourceStarOrbit();return true
+        }
         return node.beginSourcePlainStarHalo(service:scope.service,ticker:ticker,tasks:tasks,generation:generation,
             introBounce:introBounce,force:force,random:{scope.mathRandom.next()},performanceNow:now,
             current:{[weak self,weak scope,weak node] in
                 guard let self,let scope,let node else{return false}
                 return self.sourceAnimationBindingAdmissionOpen && scope.current && self.sourceStarHaloScope === scope && self.engine.state.generation==generation && self.nodesByID[node.tileID] === node
             },paintable:{[weak self] in self?.gameplayRenderHost != nil},metrics:{[weak node] in node?.sourceStarOrbitMetrics ?? .zero},
-            mount:{[weak node,weak layer] halo in
-                guard let node,let layer else{return false}
+            mount:{[weak self,weak node,weak layer] halo in
+                guard let self,let node,let layer else{return false}
+                halo.isHidden = self.engine.state.mode == .arcade
                 return halo.mountAboveHUD(host:node.sourceStarOrbitHost,layer:layer,artworkZIndex:node.sourceStarArtworkZIndex)
             })
     }
@@ -1035,7 +1040,7 @@ final class NativeBoardScene: SKScene {
     private var sourceTutorialEpoch:UInt64=0
     var sourceTutorialActivationPhase:NativeSourceTutorialActivationOwner.Phase?{sourceTutorialActivation?.phase}
     var sourceTutorialIntroTimeouts:NativeSourceAppTimeoutOwner{sourceAppTimeouts}
-    var sourceTutorialPreparationReady:Bool{sourceTutorialPreparation?.prepared==true || sourceTutorialSecondPreparation != nil || (sourceTutorialThirdPresentationActive && sourceTutorialBoardRestore != nil)}
+    var sourceTutorialPreparationReady:Bool{sourceTutorialPreparation?.prepared==true || sourceTutorialSecondPreparation != nil || (sourceTutorialThirdPresentationActive && (sourceTutorialBoardRestore != nil || sourceTutorialFourthExitAlpha != nil))}
     var sourceTutorialSecondPreparationReady:Bool{sourceTutorialSecondPreparation != nil}
     @discardableResult func configureSourceTutorialActivation(scope:NativeGameplaySourceContext.Scope)->Bool {
         guard sourceTutorialActivationEnabled,sourceBoardEntryAdmissionOpen,sourceTutorialScope==nil,
@@ -1059,6 +1064,7 @@ final class NativeBoardScene: SKScene {
             let scope=sourceTutorialScope,sourceTutorialCurrent(sourceTutorialEpoch) else{return false}
         let epoch=sourceTutorialEpoch
         let owner=NativeSourceTutorialActivationOwner(service:scope.service,timeouts:sourceAppTimeouts,generation:entry.generation,
+            activateImmediately:true,
             current:{[weak self] in self?.sourceTutorialCurrent(epoch)==true},
             ready:{[weak self] in guard let self,self.sourceTutorialCurrent(epoch),let initial=self.sourceInitialConstruction else{return false};return initial.pendingFaceCount==0 && self.geometry != nil && !self.nodesByID.isEmpty},
             prepare:{[weak self] in self?.prepareSourceTutorialStepOne(epoch)==true},
@@ -1087,7 +1093,7 @@ final class NativeBoardScene: SKScene {
     private func startSourceTutorialHUD(){
         guard sourceTutorialHUDEnabled,sourceTutorialHUD==nil,sourceTutorialPreparationReady,
             let scope=sourceTutorialScope,scope.current,let receipt=sourceTutorialReceipt else{return}
-        let owner=NativeSourceTutorialHUDOwner(root:hud,excludedTargets:[noMoves],service:scope.service,timeouts:sourceAppTimeouts,generation:receipt.generation,
+        let owner=NativeSourceTutorialHUDOwner(root:hud,rootFinalAlpha:hud.action(forKey:"hud-enter") == nil ? nil:1,excludedTargets:[noMoves],service:scope.service,timeouts:sourceAppTimeouts,generation:receipt.generation,
             current:{[weak self,weak scope] in guard let self,let scope else{return false};return self.sourceAnimationBindingAdmissionOpen && scope.current && self.sourceBoardEntryScope === scope && self.engine.state.generation==receipt.generation && self.engine.state.tutorial?.active==true && (self.engine.state.tutorial?.step == .stack || self.engine.state.tutorial?.step == .mergeSix || self.sourceTutorialSecondPresentationActive || self.sourceTutorialThirdPresentationActive)})
         guard let owner else{onPresentationFailure?("source_tutorial_hud_not_admitted");return}
         sourceTutorialHUD=owner
@@ -1103,6 +1109,7 @@ final class NativeBoardScene: SKScene {
     /// Literal Source getActiveTiles/findWildTile ordering. The first Star is
     /// chosen before asking whether it drops; a later dropping Star cannot
     /// bypass an earlier resting Star. Captured object order breaks equal cells.
+    var onTutorialSpecialDropStarted:((NativeDiceNode)->Void)?
     func sourceTutorialFourthDroppingWild()->NativeDiceNode? {
         guard sourceAnimationBindingAdmissionOpen,sourceTutorialSubsequentPresentationEnabled,
             sourceTutorialThirdPresentationActive,let scope=sourceTutorialScope,scope.current,
@@ -1344,7 +1351,7 @@ final class NativeBoardScene: SKScene {
         let owner=NativeSourceTutorialBoardRestoreOwner(service:scope.service,random:{[scope] in scope.mathRandom.next()},nodes:ordered,parent:canvasRoot,generation:barrier.generation,
             current:{[weak self,weak scope] in guard let self,let scope else{return false};return self.sourceAnimationBindingAdmissionOpen && scope.current && self.sourceTutorialScope === scope && self.sourceTutorialEpoch==epoch && self.sourceTutorialThirdPresentationActive && self.engine.state.generation==barrier.generation && self.engine.state.tutorial?.active==true && self.engine.state.tutorial?.step == .freePlay})
         guard let owner else{return false};sourceTutorialBoardRestore=owner
-        guard owner.restore(immediate:false),sourceTutorialHUD?.stop(animateRestore:true,random:{[scope] in scope.mathRandom.next()},hudLocked:engine.state.tutorial?.shouldLockHUD==true,isLockedControl:{[weak self] in $0 === self?.closeButton || $0.name=="native-game-help"},cleanupSmoke:{[weak self] in self?.sourceTutorialMeterHUD?.stopSmoke()}) != false else{return false}
+        guard owner.restore(immediate:false,continuous:true),sourceTutorialHUD?.stop(animateRestore:true,continuous:true,random:{[scope] in scope.mathRandom.next()},hudLocked:engine.state.tutorial?.shouldLockHUD==true,isLockedControl:{[weak self] in $0 === self?.closeButton || $0.name=="native-game-help"},cleanupSmoke:{[weak self] in self?.sourceTutorialMeterHUD?.stopSmoke()}) != false else{return false}
         for node in ordered{node.sourceEventMode = !node.sourceLocked && node.sourceValue>0 ? "static":"none"}
         return engine.completeSourceTutorialPresentationBarrier(barrier)
     }
@@ -1353,7 +1360,7 @@ final class NativeBoardScene: SKScene {
     @discardableResult func restoreSourceTutorialAfterThirdDismiss()->Bool {
         restoreSourceTutorialImmediate(unfreezeSmoke:true,hudLocked:engine.state.tutorial?.shouldLockHUD==true)
     }
-    private func restoreSourceTutorialImmediate(unfreezeSmoke:Bool,hudLocked:Bool)->Bool {
+    private func restoreSourceTutorialImmediate(unfreezeSmoke:Bool,hudLocked:Bool,preserveScale:Bool=false)->Bool {
         guard sourceAnimationBindingAdmissionOpen,sourceTutorialSubsequentPresentationEnabled,sourceTutorialThirdPresentationActive,
             let scope=sourceTutorialScope,scope.current,engine.state.tutorial?.active==true else{return false}
         if unfreezeSmoke{sourceTutorialSetMeterSmokeFrozen(false)}
@@ -1363,7 +1370,7 @@ final class NativeBoardScene: SKScene {
         let owner=NativeSourceTutorialBoardRestoreOwner(service:scope.service,random:{[scope] in scope.mathRandom.next()},nodes:ordered,parent:canvasRoot,generation:generation,
             current:{[weak self,weak scope] in guard let self,let scope else{return false};return self.sourceAnimationBindingAdmissionOpen && scope.current && self.sourceTutorialScope === scope && self.sourceTutorialEpoch==epoch && self.sourceTutorialThirdPresentationActive && self.engine.state.generation==generation && self.engine.state.tutorial?.active==true})
         guard let owner else{return false};sourceTutorialBoardRestore=owner
-        guard owner.restore(immediate:true),sourceTutorialHUD?.stop(random:{[scope] in scope.mathRandom.next()},hudLocked:hudLocked,isLockedControl:{[weak self] in $0 === self?.closeButton || $0.name=="native-game-help"},cleanupSmoke:{[weak self] in self?.sourceTutorialMeterHUD?.stopSmoke()}) != false else{return false}
+        guard owner.restore(immediate:true,preserveScale:preserveScale),sourceTutorialHUD?.stop(random:{[scope] in scope.mathRandom.next()},hudLocked:hudLocked,isLockedControl:{[weak self] in $0 === self?.closeButton || $0.name=="native-game-help"},cleanupSmoke:{[weak self] in self?.sourceTutorialMeterHUD?.stopSmoke()}) != false else{return false}
         for node in ordered {
             guard sourceTutorialTargetCurrent(node) else{continue}
             node.sourceEventMode = !node.sourceLocked && node.sourceValue>0 ? "static":"none"
@@ -1373,15 +1380,47 @@ final class NativeBoardScene: SKScene {
     }
     /// Source completeFourthStep restores once before normal drag/assist,
     /// then completeFirstPlayTutorial restores again and restores HUD again.
+    @MainActor private final class TutorialFourthExitAlpha:NativeSourceAnimationParticipant {
+        struct Target {let node:SKNode,parent:SKNode?,from:CGFloat,to:CGFloat}
+        let targets:[Target],current:()->Bool
+        var progress:CGFloat=0
+        init(targets:[Target],current:@escaping()->Bool){self.targets=targets;self.current=current}
+        func advanceSourceAnimation(seconds:Double){guard current() else{return};progress=CGFloat(pow(max(0,min(1,seconds/0.28)),3));paint()}
+        func paint(){guard current() else{return};for target in targets where target.node.parent === target.parent{target.node.alpha=target.from+(target.to-target.from)*progress}}
+    }
+    private var sourceTutorialFourthExitAlpha:TutorialFourthExitAlpha?
+    private var sourceTutorialFourthExitAlphaLease:NativeSourceAnimationClockService.Lease?
+    @discardableResult func beginSourceTutorialFourthExitFade(ownerID:String)->Bool {
+        guard sourceTutorialFourthExitAlpha==nil,let receipt=engine.sourceTutorialFourthPreparation,receipt.ownerID==ownerID,
+            receipt.generation==engine.state.generation,let scope=sourceTutorialScope,scope.current else{return false}
+        let focus=sourceTutorialFourthFocus;sourceTutorialFourthFocus=nil;focus?.dispose()
+        let frames=sourceTutorialFourthWildFrames;sourceTutorialFourthWildFrames=nil;frames?.dispose()
+        sourceTutorialBoardRestore?.dispose();sourceTutorialBoardRestore=nil
+        // Retain the HUD interaction/restore owner but stop its periodic dim writer.
+        guard sourceTutorialHUD?.stop(restore:false,stopPresentationWrites:true,random:{0},hudLocked:true,isLockedControl:{_ in false},cleanupSmoke:{}) != false else{return false}
+        let generation=engine.state.generation,epoch=sourceTutorialEpoch
+        let targets=nodesByID.values.map{TutorialFourthExitAlpha.Target(node:$0,parent:$0.parent,from:$0.alpha,to:$0.sourceLocked ? 0.2:1)} +
+            hud.children.map{node in
+                let locked=engine.state.tutorial?.shouldLockHUD==true && node.name != "wildLoader" && node !== meter && node !== meterBackground
+                return TutorialFourthExitAlpha.Target(node:node,parent:node.parent,from:locked ? min(node.alpha,0.2):node.alpha,to:locked ? 0.2:1)
+            }
+        let owner=TutorialFourthExitAlpha(targets:targets,current:{[weak self,weak scope] in guard let self,let scope else{return false};return self.sourceAnimationBindingAdmissionOpen && scope.current && self.sourceTutorialScope === scope && self.sourceTutorialEpoch==epoch && self.engine.state.generation==generation})
+        sourceTutorialFourthExitAlpha=owner
+        guard let lease=scope.service.register(participant:owner,duration:0.28,domain:.sourceGSAP(.timeline),cleanup:{_ in}) else{sourceTutorialFourthExitAlpha=nil;return false}
+        sourceTutorialFourthExitAlphaLease=lease;return true
+    }
+    private func retireSourceTutorialFourthExitFade(){let lease=sourceTutorialFourthExitAlphaLease;sourceTutorialFourthExitAlphaLease=nil;sourceTutorialFourthExitAlpha=nil;lease?.cancel(success:false)}
     @discardableResult func restoreSourceTutorialAfterFourthExit(ownerID:String)->Bool {
         guard let receipt=engine.sourceTutorialFourthPreparation,receipt.ownerID==ownerID,
             receipt.generation==engine.state.generation else{return false}
         let focus=sourceTutorialFourthFocus;sourceTutorialFourthFocus=nil;focus?.dispose()
         let frames=sourceTutorialFourthWildFrames;sourceTutorialFourthWildFrames=nil;frames?.dispose()
-        guard restoreSourceTutorialImmediate(unfreezeSmoke:false,hudLocked:engine.state.tutorial?.shouldLockHUD==true),
-            restoreSourceTutorialImmediate(unfreezeSmoke:false,hudLocked:false),
+        let preserveScale=sourceTutorialFourthExitAlpha != nil
+        retireSourceTutorialFourthExitFade()
+        guard restoreSourceTutorialImmediate(unfreezeSmoke:false,hudLocked:engine.state.tutorial?.shouldLockHUD==true,preserveScale:preserveScale),
+            restoreSourceTutorialImmediate(unfreezeSmoke:false,hudLocked:engine.state.tutorial?.shouldLockHUD==true,preserveScale:preserveScale),
             let scope=sourceTutorialScope,scope.current else{return false}
-        return sourceTutorialHUD?.stop(random:{[scope] in scope.mathRandom.next()},hudLocked:false,
+        return sourceTutorialHUD?.stop(random:{[scope] in scope.mathRandom.next()},hudLocked:engine.state.tutorial?.shouldLockHUD==true,
             isLockedControl:{[weak self] in $0 === self?.closeButton || $0.name=="native-game-help"},
             cleanupSmoke:{[weak self] in self?.sourceTutorialMeterHUD?.stopSmoke()}) != false
     }
@@ -1391,6 +1430,7 @@ final class NativeBoardScene: SKScene {
         onSourcePresentationFailure?(reason,generation)
     }
     func finishSourceTutorialPresentation(){
+        retireSourceTutorialFourthExitFade()
         sourceTutorialThirdPresentationActive=false
         let restore=sourceTutorialBoardRestore;sourceTutorialBoardRestore=nil;restore?.dispose()
         retireSourceTutorialHUD()
@@ -1402,6 +1442,7 @@ final class NativeBoardScene: SKScene {
         (sourceTutorialCurrent(sourceTutorialEpoch) && sourceTutorialPreparation?.owns(node)==true && engine.state.tiles.first(where:{$0.id==node.tileID})?.value==node.value) || (sourceTutorialSecondPreparation?.owns(node)==true && engine.state.tiles.first(where:{$0.id==node.tileID})?.value==node.value) || sourceTutorialBoardRestore?.owns(node)==true
     }
     private func retireSourceTutorialActivation() {
+        retireSourceTutorialFourthExitFade()
         let fourthFocus=sourceTutorialFourthFocus;sourceTutorialFourthFocus=nil;fourthFocus?.dispose()
         let fourthFrames=sourceTutorialFourthWildFrames;sourceTutorialFourthWildFrames=nil;fourthFrames?.dispose()
         let retirePresentation=sourceTutorialFirstStepPresentationActive || sourceTutorialSecondPreparation != nil || sourceTutorialThirdPresentationActive
@@ -1428,6 +1469,88 @@ final class NativeBoardScene: SKScene {
         sourceBoardEntryScope=nil;sourceBoardEntrySound=nil;sourceBoardEntryCompleted=nil
         if captured != nil {entryInProgress=false;entryOwners=0;inputAdmitted=false}
         captured?.retire() // Paint-preserving route retirement, not abort settle.
+    }
+    // One finite tutorial focus lease; the real meter stays in its existing HUD.
+    var onTutorialSpecialBarSettled:(()->Void)? {didSet {if onTutorialSpecialBarSettled != nil {requestRendering(true)}}}
+    private var tutorialSpecialBarFocus:[(SKNode,CGFloat,ObjectIdentifier?)]=[]
+    var onTutorialSpecialBarInteraction:((NativeTile)->Bool)?
+    var onTutorialSpecialBarFocusProgress:((Double)->Void)?
+    private var tutorialSpecialBarFocusProgress=1.0
+    var tutorialSpecialBarFocusValue:Double{tutorialSpecialBarFocusProgress}
+    private var tutorialSpecialBarFocusCancel:(()->Void)?
+    private var tutorialSpecialBarIdleWasActive=false
+    private func tutorialSpecialBarTargets()->[SKNode] {
+        let outside=children.filter{$0 !== canvasRoot && $0 !== hud}
+        let board=canvasRoot.children.filter{$0 !== hud}
+        let controls=hud.children.filter{$0.name != "wildLoader" && $0.name != "wild-meter-smoke" && $0 !== meter && $0 !== meterBackground}
+        return outside + board + controls
+    }
+    private func applyTutorialSpecialBarFocus() {
+        guard !tutorialSpecialBarFocus.isEmpty else{return}
+        let known=Set(tutorialSpecialBarFocus.map{ObjectIdentifier($0.0)})
+        for node in tutorialSpecialBarTargets() where !known.contains(ObjectIdentifier(node)) {
+            tutorialSpecialBarFocus.append((node,node.alpha,node.parent.map(ObjectIdentifier.init)))
+        }
+        for (node,alpha,parent) in tutorialSpecialBarFocus where node.parent.map(ObjectIdentifier.init)==parent {
+            node.alpha=alpha+(min(alpha,0.2)-alpha)*CGFloat(tutorialSpecialBarFocusProgress)
+        }
+    }
+    var tutorialSpecialBarSettled:Bool {
+        !disposed && !suspended && !sourceDisposalInProgress && !entryInProgress &&
+        draggedID == nil && !engine.isDragging && visualOwners == 0 &&
+        !navigationLocked && !sourceNoMovesCandidateActive &&
+        !engine.flags.isWaiting && !engine.hasUnsavableSourceGameplayState &&
+        engine.pendingHUDStars.isEmpty && engine.pendingMeterRewards.isEmpty &&
+        engine.state.terminal == nil && pendingTerminal == nil &&
+        !engine.state.activeTiles.contains { tile in
+            guard let node=nodesByID[tile.id] else{return true}
+            let owners=node.sourceOuterOwners
+            return owners.snapBack || owners.mergeImpact || owners.isBeingSpawned || owners.pendingRemoval ||
+                owners.beingRemoved || owners.cleanupQueued || owners.wildSpawnDropping
+        }
+    }
+    @discardableResult func showTutorialSpecialBarFocus()->Bool {
+        guard tutorialSpecialBarFocus.isEmpty,tutorialSpecialBarSettled else{return false}
+        // Stop the original board idle owner and its admitted white smoke.
+        tutorialSpecialBarIdleWasActive=sourceRegularIdleOwner?.active==true
+        stopSourceRegularIdle();sourceRegularIdleScope?.smoke.cleanup(tag:"tile-idle-smoke")
+        // HUD is nested in canvasRoot; dim its siblings, never the meter's ancestor.
+        tutorialSpecialBarFocus=tutorialSpecialBarTargets().map{($0,$0.alpha,$0.parent.map(ObjectIdentifier.init))}
+        tutorialSpecialBarFocusProgress=0
+        if let service=sourceTutorialScope?.service {
+            tutorialSpecialBarFocusCancel=NativeWildMeterSourceDriver(service:service).start(duration:0.42,paint:{[weak self] seconds in
+                guard let self,!self.tutorialSpecialBarFocus.isEmpty else{return}
+                self.tutorialSpecialBarFocusProgress=sin(min(1,max(0,seconds/0.42))*Double.pi/2)
+                self.applyTutorialSpecialBarFocus();self.onTutorialSpecialBarFocusProgress?(self.tutorialSpecialBarFocusProgress)
+            },completed:{[weak self] in self?.tutorialSpecialBarFocusCancel=nil},interrupted:{[weak self] in self?.tutorialSpecialBarFocusCancel=nil})
+        }
+        if tutorialSpecialBarFocusCancel==nil {tutorialSpecialBarFocusProgress=1;applyTutorialSpecialBarFocus()}
+        sourceTutorialMeterHUD?.startTutorialPulse()
+        requestRendering(true);return true
+    }
+    func beginTutorialSpecialBarFocusExit() {
+        guard !tutorialSpecialBarFocus.isEmpty else{return}
+        sourceTutorialMeterHUD?.stopTutorialPulse()
+        let cancel=tutorialSpecialBarFocusCancel;tutorialSpecialBarFocusCancel=nil;cancel?()
+        guard let service=sourceTutorialScope?.service else{return}
+        let from=tutorialSpecialBarFocusProgress
+        tutorialSpecialBarFocusCancel=NativeWildMeterSourceDriver(service:service).start(duration:0.28,paint:{[weak self] seconds in
+            guard let self,!self.tutorialSpecialBarFocus.isEmpty else{return}
+            self.tutorialSpecialBarFocusProgress=from*(1-pow(min(1,max(0,seconds/0.28)),3))
+            self.applyTutorialSpecialBarFocus();self.onTutorialSpecialBarFocusProgress?(self.tutorialSpecialBarFocusProgress)
+        },completed:{[weak self] in self?.tutorialSpecialBarFocusCancel=nil},interrupted:{[weak self] in self?.tutorialSpecialBarFocusCancel=nil})
+    }
+    func restoreTutorialSpecialBarFocus() {
+        onTutorialSpecialBarInteraction=nil
+        sourceTutorialMeterHUD?.stopTutorialPulse()
+        let cancel=tutorialSpecialBarFocusCancel;tutorialSpecialBarFocusCancel=nil;cancel?()
+        onTutorialSpecialBarFocusProgress?(0);onTutorialSpecialBarFocusProgress=nil
+        guard !tutorialSpecialBarFocus.isEmpty else{return}
+        let captured=tutorialSpecialBarFocus;tutorialSpecialBarFocus=[]
+        let resumeIdle=tutorialSpecialBarIdleWasActive;tutorialSpecialBarIdleWasActive=false
+        if resumeIdle,!disposed,!sourceDisposalInProgress,!exitInProgress{_=restartSourceRegularIdle()}
+        for (node,alpha,parent) in captured where node.parent.map(ObjectIdentifier.init) == parent {node.alpha=alpha}
+        if !disposed && !sourceDisposalInProgress {requestRendering(true)}
     }
     private let textures: NativeBoardTextures
     private let closeStageFont:UIFont
@@ -1464,6 +1587,7 @@ final class NativeBoardScene: SKScene {
     private let meterBackground = SKShapeNode()
     private let hover = SKShapeNode()
     private var hoverTargetID: String?
+    private var hoverVisualTargetID: String?
     private var hoverGeometryKey:CGSize?
     private var dragHoverCadence=NativeDragHoverCadence()
     private var geometry: NativeBoardGeometry?
@@ -2782,7 +2906,7 @@ final class NativeBoardScene: SKScene {
                     let result=self.engine.commitSourceLateFinalMergeGuard(ownerID:transactionID,generation:generation) ??
                         self.engine.resumeSourceWildSpawnCoroutine(transactionID:transactionID,generation:generation)
                     guard result.accepted else{
-                        NSLog("[NativeSourceWildCoroutine] rejected=%@ physical=%@",result.events.compactMap(\.reason).joined(separator:","),self.sourcePhysicalBoardCaptureDiagnostic)
+                        NSLog("[NativeSourceWildCoroutine] rejected=%@ physical=%@ minimum=%@",result.events.compactMap(\.reason).joined(separator:","),self.sourcePhysicalBoardCaptureDiagnostic,self.sourceMinimumCaptureDiagnostic)
                         self.onSourcePresentationFailure?("source_wild_coroutine_resume_refused",generation);return
                     }
                     self.sourceWildCoroutineResumeDeliveredCount+=1
@@ -4569,10 +4693,10 @@ final class NativeBoardScene: SKScene {
                     guard impact.begin() else{self.onSourcePresentationFailure?("source_magnet_impact_not_bound",plan.generation);return}
                 }
                 // v9 main80 calls showMagneticText after the Magnet shards;
-                // Bottle and Spaceship mount their selected authored scene there.
+                // Honey, Bottle and Spaceship mount their selected authored scene there.
                 // The generic merged-event path excludes pendingSpecial, so
                 // this actual Source main continuation owns that presentation.
-                if let variant=plan.variant,variant=="spaceship" || variant=="bottle" {
+                if let variant=plan.variant,variant=="spaceship" || variant=="bottle" || variant=="honey" {
                     guard self.authoredFinale(variant,at:entry.destination.position) else {
                         self.onSourcePresentationFailure?("source_\(variant)_main_finale_not_admitted",plan.generation);return
                     }
@@ -5060,6 +5184,7 @@ final class NativeBoardScene: SKScene {
                     if ["source_meter_placeholder_constructor_rejected","source_meter_wild_constructor_rejected","source_meter_wild_variant_rejected","source_meter_wild_skin_rejected"].contains(reason) {self.onSourcePresentationFailure?(reason,generation)}
                     else{self.onPresentationFailure?(reason)}
                 },consume:{[weak self] result,previous in guard admitted() else{return};self?.consume(result,previous:previous)},
+                onDropStarted:{[weak self] node in guard let self,admitted() else{return};self.onTutorialSpecialDropStarted?(node)},
                 sourceSkin:microtasks == nil ? nil:{[weak self] node in
                     guard let self,admitted(),self.nodesByID[node.tileID] === node else{return false}
                     return self.repairSourceWildSkin(tileID:node.tileID,scope:scope,startSourceIdle:{false},allowPendingMeter:true)
@@ -5244,6 +5369,7 @@ final class NativeBoardScene: SKScene {
     private var entryOwners = 0
     private var hudEntryReveal=NativeHUDEntryReveal()
     private var hudEntryReceipt:NativeHUDEntryReveal.Receipt?
+    var roundChromeReceipt:(offset:CGFloat,alpha:CGFloat,hidden:Bool,animating:Bool) {roundIndicator.presentationReceipt}
     var keepsHUDVisibleOnEntry=false
     var boardChromeReceipt:(offset:CGFloat,alpha:CGFloat,entering:Bool) {(hud.position.y,hud.alpha,hud.action(forKey:"hud-enter") != nil)}
     private(set) var isHUDRevealPending=false
@@ -5313,7 +5439,8 @@ final class NativeBoardScene: SKScene {
         hudStarFlights.zPosition = 999999
         hover.fillColor = .clear
         hover.strokeColor = UIColor(red: 138.0/255,green: 110.0/255,blue: 87.0/255,alpha: 0.168)
-        hover.name = "native-stack-hover"; hover.zPosition = 14000; hover.isHidden = true; canvasRoot.addChild(hover)
+        // Paint the inset stroke above ordinary faces, below Wild/Special and held dice.
+        hover.name = "native-stack-hover"; hover.zPosition = 12000; hover.isHidden = true; canvasRoot.addChild(hover)
         hud.name="native-game-hud"
         ghosts.zPosition = -10000; effects.zPosition = 15000; hud.zPosition = 10000
         setupHUD()
@@ -5731,7 +5858,7 @@ final class NativeBoardScene: SKScene {
     }
     func stopSourceRegularIdle(){sourceRegularIdleOwner?.stop()}
     @discardableResult func restartSourceRegularIdle()->Bool {
-        guard sourceRegularIdleAdmissionOpen,!exitInProgress else{return false}
+        guard sourceRegularIdleAdmissionOpen,!exitInProgress,tutorialSpecialBarFocus.isEmpty else{return false}
         return sourceRegularIdleOwner?.start()==true
     }
     func setSourceRegularIdleForeground(_ value:Bool){sourceRegularIdleHidden = !value;sourceRegularIdleOwner?.setHidden(!value)}
@@ -6040,6 +6167,7 @@ final class NativeBoardScene: SKScene {
     }
 
     func synchronize(animateEntry: Bool = false) {
+        defer{sourceTutorialFourthExitAlpha?.paint()}
         guard !sourceDisposalInProgress else {return }
         guard !disposed else { return }
         guard completedExitGeneration != engine.state.generation else{return}
@@ -6197,15 +6325,16 @@ final class NativeBoardScene: SKScene {
         score.text = String(state.score)
         comboNumber.text = String(state.combo)
         comboArt.texture = textures.texture(state.combo >= 10 ? "assets/hud/mega-combo-hud.png" : state.combo >= 5 ? "assets/hud/extra-combo-hud.png" : "assets/hud/combo-hud.png")
-        roundIndicator.synchronize(round:state.stage,arcade:state.mode == .arcade,viewport:size,alpha:sourceTutorialHUD?.owns(roundIndicator)==true ? roundIndicator.alpha:(sourceTutorialHUDEnabled ? 1:(state.tutorial?.shouldLockHUD == true ? 0.2:1)))
+        roundIndicator.synchronize(round:state.stage,arcade:state.mode == .arcade && state.tutorial?.shouldLockHUD != true,viewport:size,alpha:(!tutorialSpecialBarFocus.isEmpty || sourceTutorialHUD?.owns(roundIndicator)==true) ? roundIndicator.alpha:(sourceTutorialHUDEnabled ? 1:(state.tutorial?.shouldLockHUD == true ? 0.2:1)))
         layoutHUD()
         applyBoardShake(boardShake)
-        for child in hud.children where child !== noMoves && sourceTutorialHUD?.owns(child) != true {child.alpha = sourceTutorialHUDEnabled ? 1:(state.tutorial?.shouldLockHUD == true ? 0.2:1)}
+        for child in hud.children where child !== noMoves && sourceTutorialHUD?.owns(child) != true && tutorialSpecialBarFocus.isEmpty {child.alpha = sourceTutorialHUDEnabled ? 1:(state.tutorial?.shouldLockHUD == true ? 0.2:1)}
         if animateEntry && !UIAccessibility.isReduceMotionEnabled {
             animateBoardEntry(tiles: live,geometry: geometry)
         } else if !entryInProgress { inputAdmitted = state.terminal == nil && pendingTerminal == nil;roundIndicator.enter(animated:false) }
         if preparedEntryGeneration == state.generation {inputAdmitted=false;navigationLocked=true}
         publishFishIdleFrames(force:true)
+        applyTutorialSpecialBarFocus()
     }
 
     private func presentationAlpha(_ tile: NativeTile,state: NativeBoardState) -> CGFloat {
@@ -6499,6 +6628,14 @@ final class NativeBoardScene: SKScene {
     func beginDrag(at point: CGPoint) -> Bool {
         // Programmatic QA shares the existing callback domain; no new ticker.
         guard sourceAnimationBindingAdmissionOpen else{return false}
+        if let interaction=onTutorialSpecialBarInteraction {
+            guard !disposed,!sourceOuterTearingDown,!suspended,!exitInProgress,draggedID==nil,inputAdmitted,
+                let tile=sourceInputTile(at:canvasRoot.convert(point,from:self)),
+                let node=nodesByID[tile.id],(!node.sourceOuterDriven || node.sourceEventMode == "static"),
+                !sourceMagnetSurvivorEntries.values.contains(where:{$0.node === node && sourceMagnetSurvivorCurrent($0) && $0.owner?.inputBound != true}),
+                (sourceOuterTimelineDriver==nil || engine.state.generation==node.sourceGeneration),
+                interaction(tile) else{return false}
+        }
         onEndgameHintInteraction?()
         guard sourceAnimationBindingAdmissionOpen else{return false};sourceCallbackTime();sourceFrames.pointerBegan()
         let point=canvasRoot.convert(point,from:self)
@@ -6507,7 +6644,7 @@ final class NativeBoardScene: SKScene {
               let node = nodesByID[tile.id],(!node.sourceOuterDriven || node.sourceEventMode == "static"), !sourceMagnetSurvivorEntries.values.contains(where:{$0.node === node && sourceMagnetSurvivorCurrent($0) && $0.owner?.inputBound != true}),
               (sourceOuterTimelineDriver==nil || engine.state.generation==node.sourceGeneration),
               engine.beginDrag(tileID: tile.id, pointerID: 1) else { return false }
-        sourceRegularIdleOwner?.interact()
+        if tutorialSpecialBarFocus.isEmpty{sourceRegularIdleOwner?.interact()}
         shortWildBoardBlast?.interrupt(node)
         guard sourceAnimationBindingAdmissionOpen,
               (sourceOuterTimelineDriver==nil || engine.state.generation==node.sourceGeneration),
@@ -6668,7 +6805,7 @@ final class NativeBoardScene: SKScene {
         else {node.updateShadow(direction: CGPoint(x: point.x-lastTouchPoint.x, y: point.y-lastTouchPoint.y))}
         lastTouchPoint = point
         guard let geometry,let source=engine.state.tiles.first(where:{$0.id==id}),
-              let target=dragTarget(source:source,pointer:nil,now:now) else {clearHover();return}
+              let target=dragTarget(source:source,pointer:nil,now:now) else {clearHover(animated:true);return}
         let geometryKey=CGSize(width:geometry.tileSize,height:geometry.scale)
         if hoverGeometryKey != geometryKey {
             hoverGeometryKey=geometryKey
@@ -6680,37 +6817,45 @@ final class NativeBoardScene: SKScene {
             hover.lineWidth = 10*geometry.scale
         }
         if hoverTargetID != target.id {
+            let position = geometry.center(row: target.cell.row,column: target.cell.column)
+            let resumingExit = hover.action(forKey:"stack-hover-exit") != nil && hoverVisualTargetID == target.id
+            hoverVisualTargetID = target.id
             hoverTargetID = target.id; hover.isHidden = false
-            hover.position = geometry.center(row: target.cell.row,column: target.cell.column)
+            hover.position = position
             hover.removeAction(forKey:"stack-hover-enter")
-            hover.alpha = 0
+            hover.removeAction(forKey:"stack-hover-exit")
+            if !resumingExit {hover.alpha = 0}
             let reveal = SKAction.fadeAlpha(to:1,duration:0.10)
-            reveal.timingMode = .easeInEaseOut
+            reveal.timingMode = .easeIn
             hover.run(reveal,withKey:"stack-hover-enter")
         }
     }
 
     private func dragTarget(source: NativeTile, pointer: CGPoint?,now:TimeInterval=CACurrentMediaTime()) -> NativeTile? {
         guard let geometry else { return nil }
-        // Special targeting remains with the existing owner until its full
-        // authored footprint policy is independently admitted.
-        guard !source.isWild, let node = nodesByID[source.id] else {
-            let point = pointer ?? lastTouchPoint
-            guard let hit = geometry.cell(at: point),
-                  let tile = engine.state.tile(at: NativeCell(column:hit.column,row:hit.row)),
-                  NativeGameplayResolver.canDrop(source,onto:tile),
-                  NativeTutorialRules.allowsDrop(source:source,destination:tile,tutorial:engine.state.tutorial,rows:engine.state.rows) else { return nil }
-            return tile
-        }
+        guard let node = nodesByID[source.id] else {return nil}
         let selected=dragHoverCadence.pick(sourceID:source.id,generation:engine.state.generation,
             revision:engine.state.revision,nowMs:now*1000,force:pointer != nil) {
         let candidates = engine.state.tiles.compactMap { tile -> NativeRegularDropTarget.Candidate? in
             guard tile.id != source.id, NativeGameplayResolver.canDrop(source,onto:tile),
                   NativeTutorialRules.allowsDrop(source:source,destination:tile,tutorial:engine.state.tutorial,rows:engine.state.rows),
                   let target = nodesByID[tile.id], !tile.transientSpawn else { return nil }
-            let side=geometry.tileSize
-            return .init(id:tile.id,bounds:target.calculateAccumulatedFrame(),
-                         pointerBounds:CGRect(x:target.position.x-side/2,y:target.position.y-side/2,width:side,height:side))
+            let width=source.isWild ? NativeBoardGeometry.tile*abs(target.xScale):geometry.tileSize
+            let height=source.isWild ? NativeBoardGeometry.tile*abs(target.yScale):geometry.tileSize
+            return .init(id:tile.id,bounds:source.isWild ? target.dragContactBounds:target.calculateAccumulatedFrame(),
+                         pointerBounds:CGRect(x:target.position.x-width/2,y:target.position.y-height/2,width:width,height:height))
+        }
+        if source.isWild {
+            let policy:NativeSpecialDropTarget.Policy = source.gameplayArchetype == .magnet ? .magnet:
+                source.variant == "barell" ? .barrel:.direct
+            let bounds:CGRect
+            if policy == .barrel {
+                // v9 deliberately excludes the Barrel's transparent jump canvas.
+                let width=NativeBoardGeometry.tile*abs(node.xScale),height=NativeBoardGeometry.tile*abs(node.yScale)
+                bounds=CGRect(x:node.position.x-width/2,y:node.position.y-height/2,width:width,height:height)
+            } else {bounds=node.dragContactBounds}
+            return NativeSpecialDropTarget.pick(source:bounds,center:node.position,candidates:candidates,
+                pointer:pointer,tileSize:geometry.tileSize,policy:policy)
         }
         return NativeRegularDropTarget.pick(source:node.calculateAccumulatedFrame(),candidates:candidates,pointer:pointer,tileSize:geometry.tileSize)
         }
@@ -6755,7 +6900,7 @@ final class NativeBoardScene: SKScene {
         }
         publishFishIdleFrames(force:true)
         onPointerState?(false)
-        clearHover()
+        clearHover(animated:true)
         // Reject unadmitted presentation BEFORE gameplay capture, value/score,
         // RNG or revision mutation. Full Six/direct80 waits its exact destructive
         // callback owner; never disguise a killed tween as arrival.
@@ -6903,7 +7048,7 @@ final class NativeBoardScene: SKScene {
         let matchingSourceGeneration = sourceDisposalGeneration == nil || sourceDisposalGeneration == engine.state.generation
         if matchingSourceGeneration {engine.cancelDrag()}
         if id != nil {onPointerState?(false)}
-        clearHover()
+        clearHover(animated:pointerCancelled && !sourceDisposalInProgress && !disposed && !exitInProgress)
         // onPointerState is external and can restart the shared engine. The
         // captured pre-callback permit cannot authorize painting a new run.
         if matchingSourceGeneration,(sourceDisposalGeneration == nil || sourceDisposalGeneration == engine.state.generation),let id,let node=nodesByID[id],let tile=engine.state.tiles.first(where:{$0.id==id}),let geometry {
@@ -6945,10 +7090,22 @@ final class NativeBoardScene: SKScene {
         onFishIdleFrames?(frames,engine.state.generation,force)
     }
 
-    private func clearHover() {
+    private func clearHover(animated:Bool=false) {
         guard hoverTargetID != nil || !hover.isHidden else { return }
-        hover.removeAction(forKey:"stack-hover-enter"); hover.alpha = 0
-        hoverTargetID = nil; hover.isHidden = true
+        if animated {
+            // Clear target admission now; only its visual receipt fades out.
+            // Repeated invalid move samples must not restart the exit clock.
+            guard hoverTargetID != nil else {return}
+            hoverTargetID = nil
+            hover.removeAction(forKey:"stack-hover-enter")
+            let fade = SKAction.fadeAlpha(to:0,duration:0.18)
+            fade.timingMode = .easeInEaseOut
+            hover.run(.sequence([fade,.hide()]),withKey:"stack-hover-exit")
+        } else {
+            hover.removeAction(forKey:"stack-hover-enter")
+            hover.removeAction(forKey:"stack-hover-exit")
+            hover.alpha = 0; hoverTargetID = nil; hoverVisualTargetID = nil; hover.isHidden = true
+        }
     }
 
     private func consume(_ result: NativeMoveResult, previous: NativeBoardState, preserveRejectedPosition: String? = nil) {
@@ -7528,6 +7685,7 @@ final class NativeBoardScene: SKScene {
         let current:()->Bool // actual capture/owner epoch, including same-generation replacement
     }
     enum SourceSpawnVisualRepairPass {case board,opacity}
+    private(set) var sourceSpawnSafetyDiagnostic="not-captured"
     /// Capture complete real APP owners for each exact physical object before
     /// painting. Absent coverage rejects the sweep, never implies false flags.
     @discardableResult func repairSourceSpawnVisuals(scope:NativeGameplaySourceContext.Scope,
@@ -7535,17 +7693,22 @@ final class NativeBoardScene: SKScene {
         captureTransformOwners:(NativeDiceNode)->SourceSpawnVisualRepairOwners?,
         repairSpecialVisuals:(NativeDiceNode,SourceSpawnVisualRepairOwners,SourceSpawnVisualRepairPass)->Bool)->Bool {
         let generation=engine.state.generation
+        func rejected(_ reason:String)->Bool {
+            sourceSpawnSafetyDiagnostic=reason
+            NSLog("[NativeRapidStack] safety rejected %@ generation=%llu",reason,generation)
+            return false
+        }
         func current()->Bool {sourceAnimationBindingAdmissionOpen && scope.current &&
             sourceOuterTimelineDriver === scope.timeline && engine.state.generation==generation}
         guard current() else{return false}
         var captured:[SourceSpawnVisualRepairOwners]=[]
         for model in engine.state.tiles {
-            guard let node=nodesByID[model.id] else{return false}
+            guard let node=nodesByID[model.id] else{return rejected("missing-node:\(model.id)")}
             if !node.sourceContactNodeAlive {continue} // literal destroyed skip
             guard node.parent === canvasRoot,node.sourceGeneration==generation,
-                  node.sourcePhysicalMarkersCovered else{return false}
+                  node.sourcePhysicalMarkersCovered else{return rejected("physical:\(model.id):parent=\(node.parent === canvasRoot):generation=\(node.sourceGeneration):markers=\(node.sourcePhysicalMarkersCovered)")}
             let owners=captureTransformOwners(node)
-            guard current(),let owners,owners.node === node,owners.generation==generation else{return false}
+            guard current(),let owners,owners.node === node,owners.generation==generation else{return rejected("transform-owner:\(model.id)")}
             let ownerCurrent=owners.current()
             guard current(),ownerCurrent,nodesByID[model.id] === node,node.parent === canvasRoot,node.sourceContactNodeAlive else{return false}
             captured.append(owners)
@@ -7594,7 +7757,9 @@ final class NativeBoardScene: SKScene {
             let stillOwned=owners.current()
             guard current(),accepted,stillOwned else{return false}
         }
-        return current()
+        guard current() else{return false}
+        sourceSpawnSafetyDiagnostic="captured"
+        return true
     }
     func configureSourceOrdinaryMinimumPhase(scope:NativeGameplaySourceContext.Scope,
         captureTransformOwners:@escaping(NativeDiceNode)->SourceSpawnVisualRepairOwners?,
@@ -7715,6 +7880,7 @@ final class NativeBoardScene: SKScene {
     }
     private var sourceOrdinaryPreconstructedIDs:Set<String>=[]
     private var sourceOrdinaryConstructorFrames:[String:NativeSourceAnimationClockService.SourceFrameLease]=[:]
+    private(set) var sourceMinimumCaptureDiagnostic="not-captured"
     private var sourceOwnedOrdinaryMinimumTileAuthority:NativeSourceOrdinaryMinimumTileAuthority?
     /// The minimum-active predicate has its own physical capture. This never
     /// mounts the whole NO MOVES, global/save or queue permission authority.
@@ -7728,16 +7894,30 @@ final class NativeBoardScene: SKScene {
                 self.engine.state.generation==generation
         }
         let authority=NativeSourceOrdinaryMinimumTileAuthority(isCurrent:current,capture:{[weak self] in
-            guard let self,current(),let board=self.captureSourcePhysicalBoard(),board.isStillCurrent(),
-                  let paint=NativeSourceNoMovesRuntimeSnapshot.PaintedStateReceipt(
+            guard let self,current() else{return nil}
+            self.sourceMinimumCaptureDiagnostic="physical-board"
+            guard let board=self.captureSourcePhysicalBoard(),board.isStillCurrent() else{return nil}
+            guard let paint=NativeSourceNoMovesRuntimeSnapshot.PaintedStateReceipt(
                     canonicalState:board.canonicalState,paintedState:board.observedState,
-                    allowSourceDetachedGridReferences:true) else{return nil}
+                    allowSourceDetachedGridReferences:true) else{
+                let mismatches=zip(board.canonicalState.tiles,board.observedState.tiles).compactMap{model,painted -> String? in
+                    var normalized=painted;normalized.alpha=model.alpha;normalized.visible=model.visible
+                    return normalized==model ? nil:"\(model.id):cleared=\(model.sourceWildStateCleared)/\(painted.sourceWildStateCleared),kind=\(String(describing:model.archetype))/\(String(describing:painted.archetype)),value=\(model.value)/\(painted.value)"
+                }
+                self.sourceMinimumCaptureDiagnostic="paint-receipt:tiles=\(mismatches);canonical=\(board.canonicalState.validationIssues(allowSourceDetachedGridReferences:true));painted=\(board.observedState.validationIssues(allowSourceDetachedGridReferences:true))"
+                return nil
+            }
             var tiles:[String:NativeNoMovesTileRuntime]=[:]
             for (id,physical) in board.tiles {
-                guard current(),let marker=self.captureSourceGameplayTileMarkers(id),current() else{return nil}
+                guard current(),let marker=self.captureSourceGameplayTileMarkers(id),current() else{
+                    self.sourceMinimumCaptureDiagnostic="tile-markers:\(id):kind=\(self.nodesByID[id]?.kind ?? "absent"):residual=\(self.nodesByID[id]?.sourceResidualWildPresence == true)"
+                    return nil
+                }
                 tiles[id]=marker.noMovesRuntime(eventMode:physical.eventMode)
             }
+            self.sourceMinimumCaptureDiagnostic="revalidate"
             guard current(),board.isStillCurrent() else{return nil}
+            self.sourceMinimumCaptureDiagnostic="captured"
             return .init(paint:paint,tiles:tiles)
         })
         guard current(),engine.sourceOrdinaryMinimumTileAuthority==nil else{return false}
@@ -8028,6 +8208,7 @@ final class NativeBoardScene: SKScene {
         guard !disposed else { return }
         if resolution.kind == .wait,resolution.reason == "wild_continuation_pending" {
             cancelCandidate()
+            if engine.state.tutorial?.specialBarDefersReward == true {return}
             if let queue=sourceMeterQueue {queue.queueIfNeeded();return}
             let previous = engine.state,result = engine.claimMeterReward()
             if result.accepted { consume(result,previous:previous) }
@@ -8035,6 +8216,12 @@ final class NativeBoardScene: SKScene {
         }
         if resolution.kind == .wait,resolution.reason == "tutorial_final_chance_pending" {
             cancelCandidate()
+            // Source repair must construct/bind the actual holder and face.
+            // The raw claim only appends a logical die; synchronize cannot
+            // invent that constructor's physical ownership/marker receipt.
+            if let caller=sourceLevelEndCaller,sourceLevelEndCallerGeneration==engine.state.generation {
+                caller.check();return
+            }
             let previous = engine.state,result = engine.claimTutorialFinalChance()
             if result.accepted { consume(result,previous: previous) }
             return
@@ -9522,6 +9709,7 @@ final class NativeBoardScene: SKScene {
     override func update(_ currentTime: TimeInterval) {
         guard !sourceDisposalInProgress else {return}
         guard !disposed, !suspended else { lastFrame = nil; return }
+        defer {if onTutorialSpecialBarSettled != nil,tutorialSpecialBarSettled {onTutorialSpecialBarSettled?()}}
         if frameDiagnosticsEnabled {
             if let previous=diagnosticDragInput.sceneTime,draggedID != nil {
                 let gap=max(0,(currentTime-previous)*1000)
@@ -9595,6 +9783,17 @@ final class NativeBoardScene: SKScene {
         if let binding=sourceMicrotaskInstallation {
             _=binding.renderedHandoff{[self] in sourceDidFinishUpdate()}
         } else {sourceDidFinishUpdate()}
+        // Apply after SKActions and rendered-handoff FIFO writers, before pixels.
+        applyTutorialSpecialBarFocus();sourceTutorialFourthExitAlpha?.paint()
+        roundIndicator.isHidden=engine.state.mode != .arcade || engine.state.tutorial?.shouldLockHUD == true
+        if engine.state.tutorial?.shouldLockHUD==true {
+            for child in hud.children where child !== noMoves {
+                let meterFocused = (!tutorialSpecialBarFocus.isEmpty || engine.state.tutorial?.specialBarAcknowledged == true) && (child.name=="wildLoader" || child === meter || child === meterBackground)
+                let tutorialBubble = !tutorialSpecialBarFocus.isEmpty && child.name=="wild-meter-smoke"
+                if !tutorialBubble {child.alpha = meterFocused ? 1:min(child.alpha,0.2)}
+            }
+            roundIndicator.alpha=min(roundIndicator.alpha,0.2)
+        }
     }
     private func sourceDidFinishUpdate() {
         guard !disposed, !suspended else { return }
@@ -9679,7 +9878,7 @@ final class NativeBoardScene: SKScene {
         textures.purgeUnused(retaining: paths)
     }
 
-    func animateExit(afterResidualExit:(()->Void)?=nil,completion: @escaping (Bool) -> Void) {
+    func animateExit(keepsHUDVisible:Bool=false,afterResidualExit:(()->Void)?=nil,completion: @escaping (Bool) -> Void) {
         guard !sourceDisposalInProgress else {completion(false); return }
         guard !disposed, !exitInProgress else { completion(false); return }
         let capturedGeneration=engine.state.generation
@@ -9692,15 +9891,17 @@ final class NativeBoardScene: SKScene {
         suspended = false; isPaused = false; requestRendering(true)
         let generation = engine.state.generation
         sourceCallbackTime();sourceExit=sourceFrames.begin(.init(kind:.boardExit,generation:generation,id:UUID().uuidString))
-        let hudCapture=sourceFrames.begin(.init(kind:.hudExit,generation:generation,id:UUID().uuidString));sourceHUDExit=hudCapture
+        let hudCapture=keepsHUDVisible ? nil:sourceFrames.begin(.init(kind:.hudExit,generation:generation,id:UUID().uuidString));sourceHUDExit=hudCapture
         let targets: [SKNode] = nodesByID.values.sorted { $0.tileID < $1.tileID } + ghosts.children
         let plans = NativeBoardExitPlan.make(count: targets.count)
         exitOwners = targets.count + 1
         let startHUDExit:()->Void = { [weak self] in
             guard let self,!self.disposed,self.exitInProgress,self.engine.state.generation==generation else{return}
             afterResidualExit?()
-            self.roundIndicator.exit()
-            self.animateHUDExit(generation:generation,capture:hudCapture)
+            if let hudCapture {
+                self.roundIndicator.exit()
+                self.animateHUDExit(generation:generation,capture:hudCapture)
+            } else {self.finishExitOwner(generation:generation)}
         }
         if afterResidualExit == nil || targets.isEmpty {startHUDExit()}
         for plan in plans {
@@ -9833,6 +10034,7 @@ final class NativeBoardScene: SKScene {
         invalidateWildTransports()
         retireRegularSixPresentations()
         finishExit(completed: false)
+        onTutorialSpecialBarSettled=nil;restoreTutorialSpecialBarFocus()
         cancelEntry(); cancelDrag(); cancelCandidate();dragTrail.dispose(); disposed = true
         retireSourceSpawns()
         onEndgameHintEvaluation=nil;onEndgameHintInteraction=nil

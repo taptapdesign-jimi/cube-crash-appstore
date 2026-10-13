@@ -8,12 +8,17 @@ final class JimiNativeSettingsView: UIView {
     var onPreference: ((String, Bool, Int) -> Void)?
     var onPrivacy: (() -> Void)?
     var onDeveloper: ((Int) -> Void)?
+    var onDeveloperAction: ((NativeDeveloperAction, Int) -> Void)?
+    private(set) var developerButtons: [JimiV9PlainButton] = []
     private let assets: JimiV9Artwork
     let header = UIView()
     let footer = UIView()
     let scroll = UIScrollView()
     let back = JimiV9PlainButton(type: .custom)
     let developer = JimiV9PlainButton(type: .custom)
+    private let developerSummary = UILabel()
+    let firstPlay = JimiV9PlainButton(type: .custom)
+    private(set) var developerPanelVisible = false
     private(set) var rows: [UIView] = []
     private(set) var dividers: [UIView] = []
     private(set) var switches: [JimiNativeSettingsToggle] = []
@@ -46,10 +51,38 @@ final class JimiNativeSettingsView: UIView {
         back.setTitleColor(ink, for: .normal)
         back.accessibilityLabel = "Go back to home"; back.accessibilityIdentifier = "native.settings.back"
         back.addTarget(self, action: #selector(goBack), for: .touchUpInside); header.addSubview(back)
-        developer.setTitle("⚙︎", for: .normal); developer.setTitleColor(ink, for: .normal)
-        developer.titleLabel?.font = .systemFont(ofSize: 24)
+        developer.setImage(assets.image("assets/nav/settings-nav.png"), for: .normal)
+        developer.imageView?.contentMode = .scaleAspectFit
+        developer.imageEdgeInsets = UIEdgeInsets(top: 9,left: 9,bottom: 9,right: 9)
         developer.accessibilityLabel = "Open developer tools"; developer.accessibilityIdentifier = "native.settings.developer"
         developer.addTarget(self, action: #selector(openDeveloper), for: .touchUpInside); header.addSubview(developer)
+        developerSummary.numberOfLines = 0; developerSummary.font = assets.font(size: 20,weight: "Medium")
+        developerSummary.textColor = ink; developerSummary.accessibilityIdentifier = "native.settings.developer.summary"
+        developerSummary.isHidden = true; scroll.addSubview(developerSummary)
+        firstPlay.titleLabel?.font = assets.font(size: 20,weight: "Medium"); firstPlay.setTitleColor(accent,for: .normal)
+        firstPlay.accessibilityIdentifier = "native.settings.developer.first-play"
+        firstPlay.addTarget(self,action: #selector(toggleFirstPlay),for: .touchUpInside)
+        firstPlay.isHidden = true; scroll.addSubview(firstPlay)
+        for action in NativeDeveloperAction.allCases {
+            let button = JimiV9PlainButton(type: .custom)
+            button.setTitle(action.title, for: .normal)
+            button.titleLabel?.numberOfLines = 2; button.titleLabel?.textAlignment = .center
+            let palette: (UInt32,UInt32)
+            switch action {
+            case .hide: palette = (0xAD8775,0x8D6E61)
+            case .legendary: palette = (0xD6A13D,0xA87824)
+            case .reset: palette = (0x735C4C,0x5A4639)
+            case .newCard: palette = (0xF35F37,0xC64A2A)
+            case .newDice: palette = (0x4FAE8A,0x34785F)
+            case .clean: palette = (0xE9A03A,0xBD7627)
+            default: palette = (0xE8744A,0xC95E39)
+            }
+            styleDeveloperButton(button,fill: palette.0,depth: palette.1)
+            button.tag = developerButtons.count
+            button.accessibilityIdentifier = "native.settings.developer.\(action.rawValue)"
+            button.addTarget(self, action: #selector(activateDeveloperAction(_:)), for: .touchUpInside)
+            button.isHidden = true; scroll.addSubview(button); developerButtons.append(button)
+        }
         let headerLine = UIView(); headerLine.backgroundColor = ink.withAlphaComponent(0.15)
         headerLine.tag = 99; header.addSubview(headerLine)
         for i in keys.indices {
@@ -86,8 +119,29 @@ final class JimiNativeSettingsView: UIView {
             switches[i].setOn(enabled, animated: false)
             statuses[i].text = enabled ? "ON" : "OFF"
         }
-        developer.isHidden = value["developerToolsAvailable"] as? Bool != true
+        developerSummary.attributedText = NSAttributedString(string: "DEV\nJourney card tools",attributes: [.font: assets.font(size: 18),.foregroundColor: UIColor(red: 173/255,green: 135/255,blue: 117/255,alpha: 1)])
+        let summary = NSMutableAttributedString(attributedString: developerSummary.attributedText!)
+        summary.addAttributes([.font: assets.font(size: 28,weight: "ExtraBold"),.foregroundColor: accent],range: NSRange(location: 0,length: 3))
+        developerSummary.attributedText = summary
+        let firstPlayEnabled = value["firstPlayRequired"] as? Bool == true
+        styleDeveloperButton(firstPlay,fill: firstPlayEnabled ? 0xF35F37 : 0xAD8775,depth: firstPlayEnabled ? 0xC64A2A : 0x8D6E61)
+        firstPlay.setTitle("First Time Run \(value["firstPlayRequired"] as? Bool == true ? "ON" : "OFF")",for: .normal)
+        setDeveloperPanelVisible(developerPanelVisible && value["developerToolsAvailable"] as? Bool == true)
         return true
+    }
+    func setDeveloperPanelVisible(_ visible: Bool) {
+        developerPanelVisible = visible
+        scroll.clipsToBounds = visible
+        title.text = visible ? "Developer" : "Settings"
+        developer.isHidden = visible || snapshot["developerToolsAvailable"] as? Bool != true
+        developerSummary.isHidden = !visible
+        firstPlay.isHidden = !visible
+        for button in developerButtons { button.isHidden = !visible }
+        for row in rows { row.isHidden = visible }
+        for divider in dividers { divider.isHidden = visible }
+        back.accessibilityLabel = visible ? "Back to settings" : "Go back to home"
+        scroll.setContentOffset(.zero,animated: false)
+        setNeedsLayout()
     }
     override func layoutSubviews() {
         super.layoutSubviews()
@@ -95,13 +149,25 @@ final class JimiNativeSettingsView: UIView {
         place(header, in: CGRect(x: 24, y: top, width: max(0,bounds.width-48), height: 62))
         title.frame = CGRect(x: 40, y: 10, width: max(0,header.bounds.width-80), height: 38)
         back.frame = CGRect(x: -8, y: 4, width: 44, height: 44)
-        developer.frame = CGRect(x: header.bounds.width-36, y: 4, width: 44, height: 44)
+        developer.frame = CGRect(x: header.bounds.width-44, y: 4, width: 44, height: 44)
         header.viewWithTag(99)?.frame = CGRect(x: 0, y: 60, width: header.bounds.width, height: 2)
         let footerHeight: CGFloat = min(165, max(110,bounds.height*0.2))
         place(footer, in: CGRect(x: 24, y: bounds.height-safeAreaInsets.bottom-footerHeight, width: max(0,bounds.width-48), height: footerHeight))
         footerCopy.frame = CGRect(x: 0, y: 0, width: footer.bounds.width, height: footerHeight-40)
         privacy.frame = CGRect(x: 0, y: footerHeight-44, width: footer.bounds.width, height: 44)
         scroll.frame = CGRect(x: 0, y: header.center.y+header.bounds.height/2, width: bounds.width, height: max(0,(footer.center.y-footer.bounds.height/2)-(header.center.y+header.bounds.height/2)))
+        developerSummary.frame = CGRect(x: 24,y: 20,width: max(0,bounds.width-48),height: 64)
+        let columns = bounds.width <= 374 ? 1 : 3
+        let buttonWidth = max(0,(bounds.width-48-CGFloat(columns-1)*10)/CGFloat(columns))
+        for (index,button) in developerButtons.enumerated() {
+            button.titleLabel?.font = assets.font(size: columns == 1 ? 18 : 16,weight: "ExtraBold")
+            button.frame = CGRect(x: 24+CGFloat(index%columns)*(buttonWidth+10),y: 100+CGFloat(index/columns)*64,width: buttonWidth,height: 48)
+            button.layer.shadowPath = UIBezierPath(roundedRect: button.bounds,cornerRadius: 18).cgPath
+        }
+        let firstPlayY = 100+CGFloat((developerButtons.count+columns-1)/columns)*64
+        firstPlay.frame = CGRect(x: 24,y: firstPlayY,width: max(0,bounds.width-48),height: 48)
+        firstPlay.titleLabel?.font = assets.font(size: columns == 1 ? 18 : 16,weight: "ExtraBold")
+        firstPlay.layer.shadowPath = UIBezierPath(roundedRect: firstPlay.bounds,cornerRadius: 18).cgPath
         for i in rows.indices {
             let rowWidth = max(0,scroll.bounds.width-48)
             place(rows[i], in: CGRect(x: 24, y: CGFloat(i)*126, width: rowWidth, height: 124))
@@ -110,7 +176,15 @@ final class JimiNativeSettingsView: UIView {
             switches[i].frame = CGRect(x: max(0,rowWidth-67), y: 43, width: 67, height: 45)
             if i < dividers.count { place(dividers[i], in: CGRect(x: 24, y: CGFloat(i+1)*126-1, width: rowWidth, height: 2)) }
         }
-        scroll.contentSize = CGSize(width: scroll.bounds.width, height: 378)
+        scroll.contentSize = CGSize(width: scroll.bounds.width, height: developerPanelVisible ? firstPlay.frame.maxY+32 : 378)
+    }
+    private func styleDeveloperButton(_ button: UIButton, fill: UInt32, depth: UInt32) {
+        func color(_ value: UInt32) -> UIColor {
+            UIColor(red: CGFloat((value >> 16) & 255)/255,green: CGFloat((value >> 8) & 255)/255,blue: CGFloat(value & 255)/255,alpha: 1)
+        }
+        button.setTitleColor(.white,for: .normal); button.backgroundColor = color(fill)
+        button.layer.cornerRadius = 18; button.layer.shadowColor = color(depth).cgColor
+        button.layer.shadowOpacity = 1; button.layer.shadowRadius = 0; button.layer.shadowOffset = CGSize(width: 0,height: 7)
     }
     // UIView.frame is undefined under a non-identity transform. The route owner
     // sets the final zero-scale model while CA paints the v10 exit; keep layout
@@ -138,9 +212,20 @@ final class JimiNativeSettingsView: UIView {
         guard keys.indices.contains(sender.tag) else { return }
         onPreference?(keys[sender.tag], sender.isOn, presentationEpoch)
     }
-    @objc private func goBack() { onBack?() }
+    @objc private func goBack() {
+        if developerPanelVisible { setDeveloperPanelVisible(false) } else { onBack?() }
+    }
     @objc private func openPrivacy() { onPrivacy?() }
     @objc private func openDeveloper() { onDeveloper?(presentationEpoch) }
+    @objc private func activateDeveloperAction(_ sender: JimiV9PlainButton) {
+        guard developerPanelVisible, snapshot["developerToolsAvailable"] as? Bool == true,
+              NativeDeveloperAction.allCases.indices.contains(sender.tag) else { return }
+        onDeveloperAction?(NativeDeveloperAction.allCases[sender.tag], presentationEpoch)
+    }
+    @objc private func toggleFirstPlay() {
+        guard developerPanelVisible else{return}
+        onPreference?("firstPlayRequired",snapshot["firstPlayRequired"] as? Bool != true,presentationEpoch)
+    }
 }
 
 /// Native v10 centered paper modal; each transform has a separate lifecycle owner.

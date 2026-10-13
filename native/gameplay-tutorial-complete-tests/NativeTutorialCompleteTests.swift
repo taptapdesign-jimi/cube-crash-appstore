@@ -19,7 +19,7 @@ final class NativeTutorialCompleteTests: XCTestCase {
         await fulfillment(of:[received],timeout:2)
         XCTAssertEqual(continues,1); XCTAssertEqual(cancels,0); XCTAssertEqual(owner.phase,.continued)
         XCTAssertTrue(owner.view.window === window); XCTAssertEqual(owner.view.backgroundColor?.cgColor.alpha,1)
-        XCTAssertFalse(owner.view.subviews.compactMap { $0 as? UIButton }.first?.isUserInteractionEnabled ?? true)
+        XCTAssertFalse(owner.visualUnit.subviews.compactMap { $0 as? UIButton }.first?.isUserInteractionEnabled ?? true)
         let cleanup = owner.captureCoverCleanup(); cleanup(); cleanup()
         XCTAssertEqual(owner.phase,.disposed); XCTAssertEqual(continues,1); XCTAssertEqual(cancels,0)
         window.isHidden = true
@@ -44,19 +44,74 @@ final class NativeTutorialCompleteTests: XCTestCase {
     func testSmallViewportContainsContinueAndUsesOriginalHeroArtwork() {
         let owner = NativeTutorialCompleteController(resourceRoot:root,reducedMotion:true)
         let window = mount(owner,size:CGSize(width:390,height:667))
-        let button = owner.view.subviews.compactMap { $0 as? UIButton }.first!
+        let button = owner.visualUnit.subviews.compactMap { $0 as? UIButton }.first!
         XCTAssertEqual(button.currentTitle,"Continue"); XCTAssertEqual(button.accessibilityIdentifier,"native.tutorial-complete.continue")
         XCTAssertGreaterThanOrEqual(button.frame.minX,0); XCTAssertLessThanOrEqual(button.frame.maxX,390)
         XCTAssertLessThanOrEqual(button.frame.maxY,667); XCTAssertGreaterThan(button.bounds.height,44)
-        let images = owner.view.subviews.compactMap { $0 as? UIImageView }
+        let images = owner.visualUnit.subviews.compactMap { $0 as? UIImageView }
         XCTAssertEqual(images.count,2); XCTAssertTrue(images.allSatisfy { $0.image != nil })
-        XCTAssertEqual(owner.view.subviews.compactMap { $0 as? UILabel }.map(\.text),["Congrats!","You cleared the stage."])
+        XCTAssertEqual(owner.visualUnit.subviews.compactMap { $0 as? UILabel }.map(\.text),["Congrats!","You cleared the stage."])
         owner.dispose(); window.isHidden = true
+    }
+    func testIndividualElementsFollowSharedHomepageExitWithThirtyMillisecondStagger() {
+        let owner=NativeTutorialCompleteController(resourceRoot:root,reducedMotion:false)
+        let window=mount(owner);owner.sampleEnter(seconds:1)
+        let image=UIGraphicsImageRenderer(bounds:owner.view.bounds).image{_ in owner.view.drawHierarchy(in:owner.view.bounds,afterScreenUpdates:true)}
+        try? image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-tutorial-win-mounted.png"))
+        owner.requestContinue()
+        owner.sampleElementExit(seconds:0.18)
+        let labels=owner.visualUnit.subviews.compactMap{$0 as? UILabel}
+        let button=owner.visualUnit.subviews.compactMap{$0 as? UIButton}.first!
+        XCTAssertEqual(labels[0].transform.a,1.18,accuracy:1e-6)
+        XCTAssertLessThan(labels[1].transform.a,labels[0].transform.a)
+        XCTAssertEqual(owner.visualUnit.transform,.identity)
+        owner.sampleElementExit(seconds:0.516)
+        XCTAssertEqual(labels[0].alpha,0)
+        XCTAssertEqual(button.alpha,1)
+        owner.sampleElementExit(seconds:0.606)
+        XCTAssertTrue(owner.visualUnit.subviews.allSatisfy{$0.alpha==0})
+        XCTAssertEqual(owner.visualUnit.transform,.identity)
+        XCTAssertEqual(owner.view.backgroundColor?.cgColor.alpha,1)
+        owner.dispose();window.isHidden=true
+    }
+    func testEnterUsesSameQuickElementOrderWithoutScalingWholeCover() {
+        let owner=NativeTutorialCompleteController(resourceRoot:root,reducedMotion:false)
+        let window=mount(owner);defer{owner.dispose();window.isHidden=true}
+        let labels=owner.visualUnit.subviews.compactMap{$0 as? UILabel}
+        let button=owner.visualUnit.subviews.compactMap{$0 as? UIButton}.first!
+        owner.sampleEnter(seconds:0.02)
+        XCTAssertGreaterThan(labels[0].transform.a,0)
+        XCTAssertEqual(labels[1].transform.a,0,accuracy:1e-6)
+        XCTAssertEqual(button.transform.a,0,accuracy:1e-6)
+        XCTAssertFalse(button.isUserInteractionEnabled)
+        owner.sampleEnter(seconds:0.74)
+        XCTAssertTrue(owner.visualUnit.subviews.allSatisfy{abs($0.transform.a-1)<1e-6 && $0.alpha==1})
+        XCTAssertTrue(button.isUserInteractionEnabled)
+        XCTAssertEqual(owner.visualUnit.transform,.identity)
     }
     func testCapturedCleanupCannotDisposeAnotherPresentation() {
         let first = NativeTutorialCompleteController(resourceRoot:root), second = NativeTutorialCompleteController(resourceRoot:root)
         first.loadViewIfNeeded(); second.loadViewIfNeeded()
         let cleanup = first.captureCoverCleanup(); cleanup(); cleanup()
         XCTAssertEqual(first.phase,.disposed); XCTAssertEqual(second.phase,.entering); second.dispose()
+    }
+    func testMountedWinPaperStretchesTextureToViewportBottomAndSurvivesUnitMotion()throws {
+        let owner=NativeTutorialCompleteController(resourceRoot:root,reducedMotion:false)
+        let window=mount(owner);defer{owner.dispose();window.isHidden=true}
+        let paper=try XCTUnwrap(owner.view.subviews.compactMap{$0 as? NativeAppPaperSurface}.first)
+        let texture=try XCTUnwrap(paper.subviews.first as? UIImageView)
+        XCTAssertEqual(texture.contentMode,.scaleToFill)
+        for size in [CGSize(width:390,height:844),CGSize(width:390,height:667),CGSize(width:430,height:932)] {
+            owner.view.frame=CGRect(origin:.zero,size:size);owner.view.setNeedsLayout();owner.view.layoutIfNeeded();paper.layoutIfNeeded()
+            for seconds in [0.0,0.2,0.45,0.9] {
+                owner.sampleEnter(seconds:seconds)
+                XCTAssertEqual(paper.frame,owner.view.bounds)
+                XCTAssertEqual(texture.frame.width,paper.bounds.width)
+                XCTAssertGreaterThanOrEqual(texture.frame.maxY,paper.bounds.maxY+64)
+                XCTAssertTrue(paper.clipsToBounds)
+                XCTAssertEqual(paper.transform,.identity)
+                XCTAssertEqual(paper.alpha,1)
+            }
+        }
     }
 }

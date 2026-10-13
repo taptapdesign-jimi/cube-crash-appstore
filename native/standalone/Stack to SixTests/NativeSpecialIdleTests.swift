@@ -5,6 +5,30 @@ import SpriteKit
 @MainActor
 final class NativeSpecialIdleTests:XCTestCase {
     private var root:URL {Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle")}
+    func testBallSheetUsesPWAAnchorWithoutAnExtraBoardOffsetAfterDrag() async throws {
+        let textures=NativeBoardTextures(root:root)
+        let die=NativeDiceNode(id:"ball-centered",value:6,kind:"wild-juice",variant:"beach-ball",depth:1,locked:false,textures:textures)
+        defer{die.dispose();textures.dispose()}
+        // Immutable production-benchmark-v9 ball sheet: 176x210, Pixi anchor88.5/149.65.
+        // Its shared presentation follows the base transform with no local translation.
+        let deadline=Date().addingTimeInterval(10)
+        var art:SKSpriteNode?
+        while Date()<deadline {
+            art=die.visual.children.compactMap{$0 as? SKSpriteNode}.first{$0.size==CGSize(width:176,height:210) && !$0.isHidden}
+            if art != nil {break}
+            try await Task.sleep(for:.milliseconds(20))
+        }
+        let sheet=try XCTUnwrap(art)
+        // SKSpriteNode stores its normalized anchor as Float32.
+        XCTAssertEqual(sheet.anchorPoint.x,CGFloat(Float(88.5/176)))
+        XCTAssertEqual(sheet.anchorPoint.y,CGFloat(Float(1-149.65/210)))
+        for delta in [0.1,0.6,0.7,1.4] {
+            die.tick(delta,suspended:false,viewportCenter:195)
+            XCTAssertEqual(sheet.position,.zero)
+        }
+        die.setDragging(true);XCTAssertTrue(sheet.isHidden)
+        die.setDragging(false);XCTAssertFalse(sheet.isHidden);XCTAssertEqual(sheet.position,.zero)
+    }
     func testBottleRetainsExecutedSourceRepeatGapAndGroundedPivot() throws {
         XCTAssertEqual(NativeBottleIdleMotion.duration,7.32)
         for cycle in [0.0,7.32,21.96] {

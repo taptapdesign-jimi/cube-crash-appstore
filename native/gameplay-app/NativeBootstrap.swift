@@ -19,6 +19,7 @@ enum NativeGameplayRestartOrigin:Equatable {
 /// The migration exporter is retired before any gameplay route is admitted.
 @MainActor
 final class NativeBootstrap {
+    private let ownsSourceContext: Bool
     private let root: URL
     private let showStudioIntro:Bool
     private let store: NativeSaveStore
@@ -107,7 +108,8 @@ final class NativeBootstrap {
     private let errorLabel = UILabel()
     private var disposed = false
 
-    init(root: URL, store: NativeSaveStore? = nil,showStudioIntro:Bool=true,sourceContext:NativeGameplaySourceContext?=nil) throws {
+    init(root: URL, store: NativeSaveStore? = nil,showStudioIntro:Bool=true,sourceContext:NativeGameplaySourceContext?=nil, ownsSourceContext:Bool=true) throws {
+        self.ownsSourceContext=ownsSourceContext
         self.showStudioIntro=showStudioIntro;self.sourceContext=sourceContext ?? NativeGameplaySourceContext()
         self.root = root
         self.store = try store ?? NativeSaveStore.applicationStore()
@@ -154,6 +156,9 @@ final class NativeBootstrap {
                 return try self.makeGameplay(board: board, exit: exit)
             },
             flush: { [weak self] in try self?.flush() })
+        services.developerAction = { [weak self] action, presenter in
+            try self?.openDeveloperAction(action, presenter: presenter)
+        }
         services.showsStudioIntro=showStudioIntro
         services.studioIntroCue = { [weak self] character in
             guard let self else{return};self.audioReceipt &+= 1
@@ -212,6 +217,12 @@ final class NativeBootstrap {
          "hapticsEnabled": envelope.settings.hapticsEnabled]
     }
     private func setPreference(_ key: String, _ value: Bool) throws {
+        if key == "firstPlayRequired" {
+            let previous = envelope.progression.firstPlayTutorialComplete
+            envelope.progression.firstPlayTutorialComplete = !value
+            do { try flush() } catch { envelope.progression.firstPlayTutorialComplete = previous; throw error }
+            return
+        }
         let previous = envelope.settings
         guard ["gameSoundsEnabled","musicEnabled","hapticsEnabled"].contains(key) else{return}
         // PWA preserves OFF's final light pulse before changing the preference.
@@ -230,16 +241,16 @@ final class NativeBootstrap {
         if key == "hapticsEnabled",value {impactFeedback("light")}
     }
     private enum FreshGameplayEntry:Equatable {
-        case restart(UInt64,NativeGameplayRestartOrigin),arcadeContinuation(UInt64),journeyContinuation(UInt64,Int)
+        case restart(UInt64,NativeGameplayRestartOrigin),arcadeContinuation(UInt64),journeyContinuation(UInt64,Int),tutorialCompletion(UInt64)
         var generation:UInt64 {
-            switch self {case .restart(let value,_),.arcadeContinuation(let value),.journeyContinuation(let value,_):return value}
+            switch self {case .restart(let value,_),.arcadeContinuation(let value),.journeyContinuation(let value,_),.tutorialCompletion(let value):return value}
         }
         var isJourneyContinuation:Bool {if case .journeyContinuation=self{return true};return false}
         var isRestart:Bool {if case .restart=self{return true};return false}
         var consumesPendingArcade:Bool {if case .arcadeContinuation=self{return true};return false}
         var alreadyAnnouncedArcade:Bool {consumesPendingArcade}
         var skipsBoardAnnouncement:Bool {if case .restart(_,let origin)=self{return origin.skipsBoardAnnouncement};return isJourneyContinuation}
-        var keepsGameplayChromeVisible:Bool {if case .restart(_, .exitMenu)=self{return true};return false}
+        var keepsGameplayChromeVisible:Bool {if case .restart(_, .exitMenu)=self{return true};return consumesPendingArcade}
         var carriedJourneyScore:Int? {if case .journeyContinuation(_,let score)=self{return score};return nil}
     }
     private func cancelGameplayEntryPreparation(){
@@ -374,7 +385,7 @@ final class NativeBootstrap {
         }
         let gameplay = NativeGameplayViewController(engine: engine, resourceRoot: root)
         gameplay.keepsGameplayChromeVisibleOnEntry=freshEntry?.keepsGameplayChromeVisible == true
-        gameplay.waitsForFirstFrameOnReplacement=freshEntry?.skipsBoardAnnouncement == true
+        gameplay.waitsForFirstFrameOnReplacement=freshEntry?.skipsBoardAnnouncement == true || freshEntry?.consumesPendingArcade == true
         gameplay.sourceContext=sourceContext
         // The profile remains incomplete until the later result is acknowledged.
         // A saved completed guide has no new demo activation to prepare; retain
@@ -1072,7 +1083,7 @@ final class NativeBootstrap {
         }
         cue.start()
     }
-    private func rebuildSourceGameplay(_ previous:NativeGameplayViewController,board:Int?,entry:FreshGameplayEntry) {
+    private func rebuildSourceGameplay(_ previous:NativeGameplayViewController,board:Int?,entry:FreshGameplayEntry,onReplaced:(()->Void)?=nil) {
         guard !disposed,let controller,controller.canReplaceGameplay(previous),let exit=returnAction,
               self.gameplay === previous,let scope=previous.sourceScope,scope.current else{return}
         if entry.consumesPendingArcade,envelope.pendingArcadeRound==nil{return}
@@ -1095,11 +1106,11 @@ final class NativeBootstrap {
                 }
                 self.finishGameplayExit();self.showError("Unable to prepare Native board resources");return
             }
-            self.replacePreparedSourceGameplay(previous,controller:controller,board:board,entry:entry,exit:exit)
+            self.replacePreparedSourceGameplay(previous,controller:controller,board:board,entry:entry,exit:exit,onReplaced:onReplaced)
         }
     }
     private func replacePreparedSourceGameplay(_ previous:NativeGameplayViewController,controller:NativeAppController,
-        board:Int?,entry:FreshGameplayEntry,exit:@escaping()->Void) {
+        board:Int?,entry:FreshGameplayEntry,exit:@escaping()->Void,onReplaced:(()->Void)?=nil) {
         do {
             guard let incoming=try makeGameplay(board:board,exit:exit,freshEntry:entry) as? NativeGameplayViewController else{return}
             guard !disposed,self.gameplay === incoming,controller.canReplaceGameplay(previous),
@@ -1111,6 +1122,7 @@ final class NativeBootstrap {
             if incoming.engine.state.mode == .arcade {
                 arcadeMusic?.enterRound(generation:incoming.engine.state.generation,immediate:entry.isRestart)
             } else if boardTransition == nil {soundtrack?.setJourneyGameplay()}
+            onReplaced?()
         } catch {
             if previous.sourcePresentationFailureGeneration==previous.engine.state.generation {
                 self.gameplay=previous;self.returnAction=exit
@@ -1309,6 +1321,10 @@ final class NativeBootstrap {
                 self.endRun?.dispose();self.endRun=nil;self.scoreOwner?.dispose();self.scoreOwner=nil
                 self.gameplay=nil;self.returnAction=nil;self.controller?.returnTutorialToHome(onPrepared:release)
             } else {
+                if gameplay.sourceInitialConstruction != nil,gameplay.sourceScope?.current==true {
+                    self.rebuildSourceGameplay(gameplay,board:nil,entry:.tutorialCompletion(generation+1),onReplaced:release)
+                    return
+                }
                 let state=self.fresh(mode:.arcade,board:1,generation:generation+1)
                 gameplay.engine.restart(state:state);self.attemptCommitted=false;self.committedScore=nil
                 self.audio?.beginGeneration(state.generation);self.arcadeMusic?.enterRound(generation:state.generation,immediate:true)
@@ -1525,6 +1541,126 @@ final class NativeBootstrap {
         errorLabel.accessibilityIdentifier = "native.profile.error"
         host.view.addSubview(errorLabel)
     }
+    func launchDeveloperBoard(_ board: Int) { controller?.launchDeveloperBoard(board) }
+
+    private func openDeveloperAction(_ action: NativeDeveloperAction, presenter: UIViewController) throws {
+        guard !disposed, let app = presenter as? NativeAppController,
+              app.route == .settings, app.settingsView.developerPanelVisible else { return }
+        let epoch = app.settingsView.presentationEpoch
+        let current: () -> Bool = { [weak self, weak app] in
+            guard let self, let app else { return false }
+            return !self.disposed && app.admitsDeveloperAction(epoch: epoch)
+        }
+        let board = max(1,min(30,envelope.progression.lastOpenedJourneyBoard ?? 1))
+        switch action {
+        case .show, .hide, .legendary, .reset:
+            var choices = (1...30).map { NativeDeveloperPicker.Choice(title: "\(["Forest","Beach","Area 55"][($0-1)/10]) \(String(format: "%02d",($0-1)%10+1))",value: String($0)) }
+            if action == .reset { choices.append(.init(title: "Arcade",value: "arcade")) }
+            let picker = NativeDeveloperPicker(root: root,title: action.title,choices: choices,multiple: action != .legendary)
+            picker.onSelect = { [weak self, weak presenter] values in
+                guard let self, let presenter, current() else { return }
+                do {
+                    if action == .legendary, let selected = values.compactMap(Int.init).first {
+                        self.presentDeveloperReward(board: selected, score: 10000, presenter: presenter)
+                    } else { try self.applyDeveloperProgress(action, values: values) }
+                } catch { self.showError(error.localizedDescription) }
+            }
+            presenter.present(picker,animated: false)
+        case .newCard:
+            presentDeveloperReward(board: board,score: envelope.progression.boardStats[board]?.highScore ?? 0,presenter: presenter)
+        case .newDice:
+            let preview = NativeSpecialDiceUnlockController(root: root,diceType: .juice,generation: UInt64(epoch))
+            preview.onUnlock = { _ in } // A preview never grants a real unlock.
+            let host = NativeDeveloperPreviewHost(preview: preview,release: { [weak preview] in preview?.dispose() })
+            preview.onFinish = { [weak host] _ in host?.finish() }
+            presenter.present(host,animated: false)
+        case .clean:
+            let state = NativeBoardState(tiles: [],board: board,stage: board,score: 2500)
+            let preview = NativeResultController(root: root,state: state,clean: true,combo: 0,efficiency: 500,finalScore: 3000)
+            preview.onCommit = {} // Authored result presentation, no attempt commit.
+            let host = NativeDeveloperPreviewHost(preview: preview,release: { [weak preview] in preview?.dispose() })
+            preview.onAction = { [weak host] _ in host?.finish() }
+            presenter.present(host,animated: false)
+        case .lastMerge:
+            let cores = NativeWildArchetype.allCases.map { NativeDeveloperPicker.Choice(title: String(describing: $0).capitalized,value: $0.rawValue) }
+            let variants = NativeSpecialDiceRegistry.variants.values.sorted { $0.id < $1.id }.map { NativeDeveloperPicker.Choice(title: $0.id,value: $0.id) }
+            let picker = NativeDeveloperPicker(root: root,title: "Last Merge",choices: cores+variants,multiple: false)
+            picker.onSelect = { [weak self, weak presenter] values in
+                guard let self, let presenter, current(), let choice = values.first else { return }
+                do { presenter.present(try self.makeDeveloperLastMerge(board: board,choice: choice),animated: false) }
+                catch { self.showError(error.localizedDescription) }
+            }
+            presenter.present(picker,animated: false)
+        }
+    }
+    private func presentDeveloperReward(board: Int, score: Int, presenter: UIViewController) {
+        let preview = NativeJourneyRewardController(root: root,board: board,score: score,generation: routeLease)
+        let host = NativeDeveloperPreviewHost(preview: preview,release: { [weak preview] in preview?.dispose(notify: false) })
+        preview.onFinish = { [weak host] _ in host?.finish() }
+        presenter.present(host,animated: false)
+    }
+    /// Selected DEV mutations commit one complete document before publishing it.
+    func applyDeveloperProgress(_ action: NativeDeveloperAction, values: Set<String>) throws {
+        guard [.show,.hide,.reset].contains(action), !disposed else { return }
+        var next = envelope
+        for board in values.compactMap(Int.init) where (1...30).contains(board) {
+            switch action {
+            case .show: next.progression.completedJourneyBoards.insert(board)
+            case .hide:
+                if next.progression.isPlayable(board: board) {
+                    next.progression.completedJourneyBoards.remove(board); next.progression.viewedJourneyBoards.remove(board)
+                    next.progression.boardStats.removeValue(forKey: board)
+                }
+            case .reset:
+                next.progression.boardStats.removeValue(forKey: board); next.journeyRuns.removeValue(forKey: board)
+                next.journeyRunSavedAt.removeValue(forKey: board)
+            default: break
+            }
+        }
+        if action == .reset, values.contains("arcade") {
+            next.arcadeRun = nil; next.pendingArcadeRound = nil; next.arcadeRunSavedAt = nil; next.progression.arcadeStats = .init()
+        }
+        next.progression.highestUnlockedJourneyBoard = max(1,next.progression.completedJourneyBoards.max() ?? 1)
+        next.savedAt = Date().timeIntervalSince1970
+        try store.save(next); envelope = next
+    }
+    func makeDeveloperLastMerge(board: Int, choice: String) throws -> UIViewController {
+        let variant = NativeSpecialDiceRegistry.variants[choice]
+        guard let archetype = variant?.archetype ?? NativeWildArchetype(rawValue: choice) else { throw NativeSaveError.invalidState(["developer-wild-choice"]) }
+        let state = NativeBoardState(tiles: [
+            NativeTile(id: "dev-regular",cell: .init(column: 2,row: 4),value: 5),
+            NativeTile(id: "dev-wild",cell: .init(column: 3,row: 4),value: 6,archetype: archetype,variant: variant?.id)
+        ],board: board,stage: board)
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("stacktosix-dev-\(UUID().uuidString)",isDirectory: true)
+        let previewStore = NativeSaveStore(directory: directory)
+        do {
+            var profile = NativeSaveEnvelope(settings: envelope.settings,journeyRuns: [board: state])
+            profile.settings.musicEnabled = false
+            profile.progression.firstPlayTutorialComplete = true
+            profile.progression.completedJourneyBoards = Set(1..<board)
+            profile.progression.lastOpenedJourneyBoard = board
+            try previewStore.save(profile)
+            let child = try NativeBootstrap(root: root,store: previewStore,showStudioIntro: false,sourceContext: sourceContext,ownsSourceContext: false)
+            child.completeNativeGameplayEnabled = completeNativeGameplayEnabled
+            child.sourceCanonicalGameplaySaveEnabled = sourceCanonicalGameplaySaveEnabled
+            child.sourceInitialRegularResumeEnabled = sourceInitialRegularResumeEnabled
+            child.sourceInitialWildResumeEnabled = sourceInitialWildResumeEnabled
+            child.sourceRestoredOrdinaryPresentationEnabled = sourceRestoredOrdinaryPresentationEnabled
+            child.sourceFreshOrdinaryPresentationEnabled = sourceFreshOrdinaryPresentationEnabled
+            child.sourceInitialFreshStartupEnabled = sourceInitialFreshStartupEnabled
+            child.sourceBoardEntryEnabled = sourceBoardEntryEnabled
+            child.sourceLogicalMathRandomEnabled = sourceLogicalMathRandomEnabled
+            child.sourceOrdinaryPresentationEnabled = sourceOrdinaryPresentationEnabled
+            child.sourceDirectPresentationEnabled = sourceDirectPresentationEnabled
+            child.sourceMagnetPresentationEnabled = sourceMagnetPresentationEnabled
+            child.sourceTntPresentationEnabled = sourceTntPresentationEnabled
+            child.sourceOrdinaryEndgamePresentationEnabled = sourceOrdinaryEndgamePresentationEnabled
+            child.sourceSpecialIdlePresentationEnabled = sourceSpecialIdlePresentationEnabled
+            child.sourceWildShimmerPresentationEnabled = sourceWildShimmerPresentationEnabled
+            return NativeDeveloperGameplayHost(bootstrap: child,directory: directory,board: board)
+        } catch { try? FileManager.default.removeItem(at: directory); throw error }
+    }
+
     func dispose() {
         guard !disposed else{return};disposed = true
         retireSourceFailureRecovery()
@@ -1540,7 +1676,7 @@ final class NativeBootstrap {
         arcadeEntryCue?.dispose();arcadeEntryCue=nil
         retireBoardTransition()
         resultOwner?.dispose();resultOwner = nil;gameplay?.dispose();gameplay = nil
-        sourceContext.dispose()
+        if ownsSourceContext { sourceContext.dispose() }
         audio?.dispose();ambient?.dispose();arcadeMusic?.dispose();soundtrack?.dispose()
         controller?.dispose();controller?.willMove(toParent:nil)
         controller?.view.removeFromSuperview();controller?.removeFromParent();controller = nil

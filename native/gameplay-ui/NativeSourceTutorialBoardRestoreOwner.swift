@@ -30,7 +30,7 @@ import SpriteKit
         self.service=service;self.random=random;self.nodes=nodes;self.parent=parent;self.generation=generation;self.current=current
     }
     private func admitted()->Bool{guard !disposed else{return false};let valid=current();return valid && !disposed}
-    @discardableResult func restore(immediate:Bool)->Bool {
+    @discardableResult func restore(immediate:Bool,continuous:Bool=false,preserveScale:Bool=false)->Bool {
         guard !started,admitted() else{return false};started=true
         var keyed:[(NativeDiceNode,Double,Int)]=[]
         for (index,node) in nodes.enumerated(){guard admitted(),node.parent === parent,node.sourceContactNodeAlive else{dispose();return false};let key=random();guard admitted() else{dispose();return false};keyed.append((node,key,index))}
@@ -41,8 +41,8 @@ import SpriteKit
             let entry=Entry(node,parent:parent,generation:generation);entries[ObjectIdentifier(node)]=entry
             node.isHidden=false;let target=node.sourceLocked ? 0.2:1.0,active = !node.sourceLocked && node.sourceValue>0
             if immediate {
-                node.killSourceActiveScaleChildren();guard admitted(),entry.current else{dispose();return false}
-                node.alpha=CGFloat(target);if active{node.paintSourceOuterScale(.init(x:1,y:1))};continue
+                if !preserveScale {node.killSourceActiveScaleChildren()};guard admitted(),entry.current else{dispose();return false}
+                node.alpha=CGFloat(target);if active && !preserveScale{node.paintSourceOuterScale(.init(x:1,y:1))};continue
             }
             let delay=random()*(active ? 0.78:0.42);guard admitted(),entry.current else{dispose();return false}
             let duration=active ? 0.2:0.34;var from:Double?
@@ -52,10 +52,17 @@ import SpriteKit
             }) else{dispose();return false}
             if active {
                 node.killSourceActiveScaleChildren();guard admitted(),entry.current else{dispose();return false}
-                node.paintSourceOuterScale(.init(x:0.88,y:0.88))
+                let captured=node.sourceLocalScale
+                var start:CGPoint?=continuous ? nil:CGPoint(x:0.88,y:0.88)
+                if !continuous {node.paintSourceOuterScale(.init(x:0.88,y:0.88))}
                 guard attach(entry,duration:0.44,domain:.sourceGSAP(.timeline),delay:delay,update:{node,time in
+                    if start==nil {start=node.sourceLocalScale}
+                    let from=start ?? captured
                     let scale:Double
-                    if time<=0.18{scale=0.88+0.24*Self.backOut(time/0.18,2.6)}
+                    if time<=0.18{
+                        let t=Self.backOut(time/0.18,2.6)
+                        node.paintSourceOuterScale(.init(x:Double(from.x)+(1.12-Double(from.x))*t,y:Double(from.y)+(1.12-Double(from.y))*t));return
+                    }
                     else if time<=0.28{let t=0.5-0.5*cos(max(0,min(1,(time-0.18)/0.1))*Double.pi);scale=1.12-0.15*t}
                     else{scale=0.97+0.03*Self.backOut((time-0.28)/0.16,2)}
                     node.paintSourceOuterScale(.init(x:scale,y:scale))

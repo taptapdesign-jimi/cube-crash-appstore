@@ -101,9 +101,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         let action = unit.actions.contains("continue") ? "continue" : "play"
         cta.accessibilityIdentifier = "native.world.card.\(action)"
         cta.setTitle(action == "continue" ? "Continue" : "Play",for:.normal)
-        cta.titleLabel?.font = assets.font(size:28); cta.titleLabel?.shadowColor = UIColor(red:194/255,green:73/255,blue:33/255,alpha:1);cta.titleLabel?.shadowOffset = CGSize(width:0,height:2); cta.backgroundColor = UIColor(red:233/255,green:122/255,blue:85/255,alpha:1); cta.layer.cornerRadius = 32
-        cta.setTitleColor(UIColor(red:1,green:251/255,blue:242/255,alpha:1),for:.normal)
-        cta.layer.shadowColor = UIColor(red:194/255,green:73/255,blue:33/255,alpha:1).cgColor; cta.layer.shadowOpacity = 1; cta.layer.shadowOffset = CGSize(width:0,height:8); cta.layer.shadowRadius = 0
+        cta.applyModalCTA(artwork:assets)
         stableCTAEnabled = unit.actions.contains(action);cta.isEnabled = stableCTAEnabled; cta.addAction(UIAction { [weak self] _ in guard let self,self.active,!self.disposed,!self.closing,!self.animating,!self.pinching else {return}; self.onFeedback?("cta"); self.onRequest?(action) },for:.touchUpInside); back.addSubview(cta)
         closePaper.backgroundColor = UIColor(red:1,green:250/255,blue:244/255,alpha:1);closePaper.layer.cornerRadius = 28;closePaper.clipsToBounds = true;closePaper.isUserInteractionEnabled = false
         closeTexture.image = paper.image;closeTexture.contentMode = .scaleToFill;closePaper.addSubview(closeTexture);closeButton.addSubview(closePaper)

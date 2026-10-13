@@ -21,6 +21,7 @@ nonisolated final class NativeMeterSceneCallerTests:XCTestCase {
         var caller:NativeMeterSceneCaller!,nodes:[String:NativeDiceNode]=[:],wall=0.0,epoch:UInt64=0
         var current=true,results:[NativeGameplayEvent.Kind]=[],activity=0,releases=0,audio=0,stops=0,masks=0,unmasks=0
         var onResult:((NativeGameplayEvent)->Void)?
+        var startedDropIDs:[String]=[]
         init(root:URL,sourceConstructor:Bool=false){
             engine=NativeGameplayEngine(state:.init(tiles:[.init(id:"a",cell:.init(column:0,row:0),value:2),.init(id:"b",cell:.init(column:1,row:0),value:3)],wildMeter:1.25),recordedRandomChoices:Array(repeating:0,count:100),rewardPicker:{_,_ in .init(.star,variant:"cubero")})
             engine.stagedMeterOpen=true;engine.stagedMeterDrops=true
@@ -38,6 +39,11 @@ nonisolated final class NativeMeterSceneCallerTests:XCTestCase {
                     guard let self else{return};XCTAssertEqual(self.engine.state.wildMeter,1.25);XCTAssertEqual(self.nodes[tile.id]?.variant,"cubero");XCTAssertTrue(self.nodes[tile.id]?.sourceIdleDeferred==true)
                 },texturesCurrent:{true},onImpact:{_,_ in},onHaptic:{},idleAdmitted:{_ in},ownershipReleased:{[weak self] in self?.onReleased?()},fault:{XCTFail($0)},consume:{[weak self] result,_ in
                     guard let self else{return};self.caller.receive(result);for event in result.events{self.results.append(event.kind);self.onResult?(event)}
+                },onDropStarted:{[weak self] node in
+                    guard let self else{return}
+                    XCTAssertTrue(self.caller.sourceTutorialWildDropping(node))
+                    XCTAssertFalse(self.results.contains(.meterDropLanded))
+                    self.startedDropIDs.append(node.tileID)
                 },sourceSkin:sourceConstructor ? {[weak self] node in self?.skinPrefixes.append(node.kind+":"+(node.variant ?? "core"));return true}:nil),random:{0.5},wallNow:{ProcessInfo.processInfo.systemUptime*1000},sourcePromiseBookkeeping:sourceConstructor)
             scene.receipt={[weak self] in
                 guard let self else{return};self.epoch &+= 1
@@ -59,6 +65,7 @@ nonisolated final class NativeMeterSceneCallerTests:XCTestCase {
         f.start();await fulfillment(of:[ready],timeout:10)
         let drop=try XCTUnwrap(f.engine.meterDropReservations.values.first),node=try XCTUnwrap(f.nodes[drop.tileID])
         XCTAssertEqual(f.skinPrefixes,["wild:core","wild:cubero"])
+        XCTAssertEqual(f.startedDropIDs,[node.tileID],"Exactly one callback at actual mounted drop admission, before landing")
         XCTAssertEqual(f.caller.captureSourceDropActiveCount(),1,"Actual awaited assets acquired the original global drop writer")
         XCTAssertTrue(node.sourceOpenedWildConstructorCurrent);XCTAssertEqual(node.kind,"wild");XCTAssertEqual(node.variant,"cubero")
         XCTAssertEqual(node.value,6);XCTAssertTrue(node.sourceIdleDeferred);XCTAssertEqual(node.alpha,0)

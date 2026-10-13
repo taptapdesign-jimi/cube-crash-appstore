@@ -631,11 +631,15 @@ public final class NativeGameplayEngine {
     public init(state: NativeBoardState, recordedRandomChoices: [Double] = [], rewardPicker: @escaping (NativeBoardState, Double, () -> Double) -> NativeWildRewardChoice?, sourceMathRandom:NativeSourceMathRandomStream?=nil) { self.sourceMathRandom=sourceMathRandom; self.state = state; randomChoices = recordedRandomChoices; self.rewardPicker = rewardPicker }
     public func setInputLock(_ reason: String, active: Bool, wildOnly: Bool = false) { if active { locks[reason] = wildOnly } else { locks.removeValue(forKey: reason) } }
     public func setRuntimeFlags(_ flags: NativeGameplayRuntimeFlags) { self.flags = flags; if let plan = pendingSpecial { self.flags.pendingSpecialMutation = true; self.flags.wildMagnetPullInProgress = plan.archetype == .magnet }; if pendingDirectWild != nil && !directWildGameplayCommitted { self.flags.pendingSpecialMutation = true } }
-    public func beginDrag(tileID: String, pointerID: Int = 0) -> Bool {
+    public func canBeginDrag(tileID:String,ignoringInputLock:String?=nil)->Bool {
         guard drag == nil, state.terminal == nil, state.validationIssues(allowSourceDetachedGridReferences:sourceTutorialSubsequentPresentationEnabled).isEmpty,
               let tile = state.tiles.first(where: { $0.id == tileID }), tile.isPlayable, !meterDropBlocksTile(tileID),
               NativeTutorialRules.allowsPickup(tile,tutorial:state.tutorial,rows:state.rows),
-              !locks.values.contains(where: { !$0 || tile.isWild }), (!flags.isWaiting || canRunOrdinaryDuringTnt(tile)) else { return false }
+              !locks.contains(where: { $0.key != ignoringInputLock && (!$0.value || tile.isWild) }), (!flags.isWaiting || canRunOrdinaryDuringTnt(tile)) else { return false }
+        return true
+    }
+    public func beginDrag(tileID: String, pointerID: Int = 0) -> Bool {
+        guard canBeginDrag(tileID:tileID),let tile=state.tiles.first(where:{$0.id==tileID}) else{return false}
         noMovesSignature = nil
         drag = Drag(id: tileID, pointerID: pointerID, generation: state.generation, revision: state.revision,origin:tile.cell)
         return true
@@ -851,7 +855,7 @@ public final class NativeGameplayEngine {
         let arcadeStage = max(1, state.stage)
         let arcadeMeterMultiplier: Double = state.mode != .arcade ? 1 : arcadeStage == 1 ? 1.15 : arcadeStage == 2 ? 1 : arcadeStage == 3 ? 0.9 : arcadeStage == 4 ? 0.8 : arcadeStage < 8 ? 0.7 : 0.6
         let meterIncrement = (effectiveSum == 6 ? 0.22 : 0.10) * (state.wildSpawnCount >= 2 ? 0.6 : 1) * arcadeMeterMultiplier * (state.tutorial?.meterMultiplier ?? 1)
-        if pendingSpecial == nil && !final.isFinalMerge && state.wildMeter + meterIncrement >= 1 - 0.000001 && rewardPicker == nil && state.tutorial?.waitingForWild != true { return rejected("native_wild_meter_spawn_pending") }
+        if pendingSpecial == nil && !final.isFinalMerge && state.wildMeter + meterIncrement >= 1 - 0.000001 && rewardPicker == nil && state.tutorial?.waitingForWild != true && state.tutorial?.specialBarDefersReward != true { return rejected("native_wild_meter_spawn_pending") }
         if stagedDirectWildMoves && !committingDirectWild,let gameplayArchetype,
            final.isFinalMerge || gameplayArchetype == .star || gameplayArchetype == .juice || sourceMagnetWithoutPull {
             return stageDirectWild(source:source,destination:destination,archetype:gameplayArchetype,pointerID:pointerID,now:now,isFinal:final.isFinalMerge,sourceEntryFinalSnapshot:sourceDirectEntrySnapshot)
@@ -935,7 +939,7 @@ public final class NativeGameplayEngine {
             return NativeMoveResult(accepted: true, state: state, events: events, resolution: resolution)
         }
         state.wildMeter = max(0, state.wildMeter + meterIncrement)
-        if state.wildMeter >= 1 - 0.000001 && directWildSpawnPhase == nil && pendingSpecial == nil && pendingOrdinaryStack == nil && pendingOrdinarySix == nil {
+        if state.wildMeter >= 1 - 0.000001 && directWildSpawnPhase == nil && pendingSpecial == nil && pendingOrdinaryStack == nil && pendingOrdinarySix == nil && state.tutorial?.specialBarDefersReward != true {
             guard spawnMeterReward(events: &events) else { state = initialState; pendingHUDStars = initialHUDStars; hudStarSequence = initialStarSequence; randomChoices = initialRandomChoices; comboLastMutationTime = initialComboTime; comboWindow = initialComboWindow; return rejected("native_wild_meter_reward_policy_rejected") }
         }
         state.bestScore = max(state.bestScore,state.score)
@@ -1873,6 +1877,30 @@ public final class NativeGameplayEngine {
         state.tutorial = tutorial; state.revision &+= 1; drag = nil; noMovesSignature = nil
         return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
     }
+    /// Arm before the first guided action. The actual stack and merge-six
+    /// commits introduce Special Bar before Clear the Stage.
+    public func beginTutorialSpecialBarInterval() -> NativeMoveResult {
+        guard state.terminal == nil, state.tutorial?.active == true,
+              state.tutorial?.step != .special,
+              state.tutorial?.waitingForWild == false,
+              state.tutorial?.specialBarSuccessfulActions == nil, sourceTutorialWildReservation == nil else {
+            return rejected("tutorial_special_bar_interval_not_ready")
+        }
+        state.tutorial?.specialBarSuccessfulActions = 0
+        state.tutorial?.specialBarAcknowledged = false
+        return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
+    }
+    /// Continue acknowledges Special Bar. Clear the Stage owns subsequent
+    /// forced-Star reservation through dismissTutorialFreePlayGuide.
+    public func acknowledgeTutorialSpecialBar(sourceReservationOwnerID:String?=nil) -> NativeMoveResult {
+        guard state.terminal == nil, state.tutorial?.specialBarReady == true else {
+            return rejected("tutorial_special_bar_not_ready")
+        }
+        guard state.tutorial?.active==true,state.tutorial?.step == .freePlay,
+            state.tutorial?.waitingForWild==false else{return rejected("tutorial_special_bar_not_ready")}
+        state.tutorial?.specialBarAcknowledged = true
+        return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
+    }
     /// Source calls after actual CTA exit/restore, before sheet340; default
     /// Native prototype calls after its sheet. Window reservation is transient.
     public func dismissTutorialFreePlayGuide(sourceReservationOwnerID:String?=nil) -> NativeMoveResult {
@@ -1918,7 +1946,9 @@ public final class NativeGameplayEngine {
         prepared.tiles[wildIndex].archetype = .star;prepared.tiles[wildIndex].sourceWildStateCleared=false;prepared.tiles[wildIndex].sourceResidualWildPresence=false
         prepared.tiles[wildIndex].locked=false;prepared.tiles[wildIndex].value=6;prepared.tiles[wildIndex].visible=true;prepared.tiles[wildIndex].alpha=1
         prepared.tiles[targetIndex].value=target.value;prepared.tiles[targetIndex].archetype=nil
-        prepared.tiles[targetIndex].sourceWildStateCleared=true;prepared.tiles[targetIndex].sourceResidualWildPresence=false
+        // Match the ordinary tutorial node's initial-value setter. This tile
+        // has no cleared Wild state to carry into physical-board receipts.
+        prepared.tiles[targetIndex].sourceWildStateCleared=false;prepared.tiles[targetIndex].sourceResidualWildPresence=false
         prepared.tiles[targetIndex].locked=false;prepared.tiles[targetIndex].visible=true;prepared.tiles[targetIndex].alpha=1
         prepared.tutorial?.step = .special;prepared.tutorial?.waitingForWild=false;prepared.tutorial?.wildTileID=wildID;prepared.tutorial?.guidedPair=[wildID,targetID]
         guard prepared.validationIssues(allowSourceDetachedGridReferences:true).isEmpty else{return rejected("source_tutorial_fourth_preparation_invalid")}
@@ -1928,6 +1958,10 @@ public final class NativeGameplayEngine {
     }
     private func advanceTutorialAfterMerge(source: NativeTile, destination: NativeTile, events: inout [NativeGameplayEvent]) {
         guard var tutorial = state.tutorial, tutorial.active else { return }
+        if let count=tutorial.specialBarSuccessfulActions,tutorial.specialBarAcknowledged != true,
+            !tutorial.waitingForWild,source.gameplayArchetype==nil,destination.gameplayArchetype==nil {
+            tutorial.specialBarSuccessfulActions=min(2,count+1)
+        }
         switch tutorial.step {
         case .stack:
             guard let merged = state.tile(at:destination.cell), merged.value == 5, let oneID = tutorial.oneTileID else { return }
@@ -2064,6 +2098,7 @@ public final class NativeGameplayEngine {
     }
     public func claimMeterReward() -> NativeMoveResult {claimMeterReward(sourceQueueOwned:false)}
     private func claimMeterReward(sourceQueueOwned:Bool)->NativeMoveResult {
+        guard state.tutorial?.specialBarDefersReward != true else { return rejected("tutorial_special_bar_reward_deferred") }
         // Only the captured queue's own progress writer is excluded. Every
         // independent mutation/end-game owner remains a claim veto.
         var waiting=flags
@@ -2192,6 +2227,7 @@ public final class NativeGameplayEngine {
         return [drag.origin]
     }
     private func spawnMeterReward(events: inout [NativeGameplayEvent]) -> Bool {
+        if state.tutorial?.specialBarDefersReward == true { return true }
         // Existing Source wildSpawnInProgress blocks only another meter spawn;
         // ordinary moves/charge credit remain valid while the first die flies.
         if sourceMeterBlocksAnotherSpawn {return true}
@@ -4161,6 +4197,7 @@ extension NativeGameplayEngine {
         return flow.spawnToken != sourceMeterSpawnCancelToken || flow.queueCanceled || flags.busyEnding || hasSourceMeterLastMerge
     }
     private func beginMeterOpenFlow()->NativeMoveResult {
+        guard state.tutorial?.specialBarDefersReward != true else{return rejected("tutorial_special_bar_reward_deferred")}
         guard stagedMeterDrops,stagedMeterOpen,meterOpenFlow==nil,state.terminal==nil,!flags.busyEnding,!hasSourceMeterLastMerge else{return rejected("meter_open_not_admitted")}
         meterOpenSequence &+= 1
         let excluded=sourceMeterDropExcludedCells
@@ -4425,6 +4462,7 @@ extension NativeGameplayEngine {
     }
     public func meterSourceQueuePermission(environment e:NativeSourceMeterQueueEnvironment)->NativeWildMeterRules.Permission {
         guard e.generation==state.generation else{return .init(.block,"obsolete-generation")}
+        guard state.tutorial?.specialBarDefersReward != true else{return .init(.block,"tutorial-special-bar")}
         guard state.tiles.allSatisfy({tile in e.tiles.filter{$0.tileID==tile.id}.count==1}) else{return .init(.block,"source-meter-markers-unavailable")}
         return NativeWildMeterRules.permission(meter:state.wildMeter,meterEnabled:e.boardMeterEnabled,
             spawnEnabled:e.boardSpawnEnabled,spawnInProgress:e.queueInProgress,busyEnding:flags.busyEnding,

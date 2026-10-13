@@ -41,6 +41,56 @@ import StackToSixGameplay
             XCTAssertEqual(node.sourceLocalScale.x,node.sourceLocked || node.sourceValue<=0 ? 0.7:1,accuracy:1e-6)
         }
     }
+    func testContinuousRestoreKeepsLivePoseThenAnimatesAndCleanupCannotRepaint()throws {
+        let f=try Fixture();defer{f.dispose()}
+        let active=try XCTUnwrap(f.targets.first{!$0.sourceLocked && $0.sourceValue>0})
+        active.paintSourceOuterScale(.init(x:1.03,y:0.96));active.alpha=0.43
+        let snapshot=f.scene.engine.state
+        XCTAssertTrue(f.restore.restore(immediate:false,continuous:true))
+        XCTAssertEqual(active.sourceLocalScale.x,1.03,accuracy:1e-6)
+        XCTAssertEqual(active.sourceLocalScale.y,0.96,accuracy:1e-6)
+        XCTAssertEqual(active.alpha,0.43,accuracy:1e-6)
+        f.deliver(608);f.deliver(656)
+        XCTAssertNotEqual(active.sourceLocalScale.x,1.03)
+        XCTAssertGreaterThan(active.alpha,0.43)
+        for time in stride(from:672.0,through:1800,by:16){f.deliver(time)}
+        XCTAssertEqual(active.sourceLocalScale.x,1,accuracy:1e-6)
+        XCTAssertEqual(active.sourceLocalScale.y,1,accuracy:1e-6)
+        XCTAssertEqual(active.alpha,1,accuracy:1e-6)
+        XCTAssertEqual(f.scene.engine.state,snapshot)
+        f.restore.dispose();f.restore.dispose()
+        active.paintSourceOuterScale(.init(x:0.94,y:0.92));active.alpha=0.61
+        f.deliver(1900)
+        XCTAssertEqual(active.sourceLocalScale.x,0.94,accuracy:1e-6);XCTAssertEqual(active.alpha,0.61,accuracy:1e-6)
+        XCTAssertEqual(f.restore.activeRootCount,0)
+    }
+    func testImmediateFourthRestorePreservesLiveMergeScaleAndOriginalShuffleDraws()throws {
+        let f=try Fixture();defer{f.dispose()}
+        let active=try XCTUnwrap(f.targets.first{!$0.sourceLocked && $0.sourceValue>0})
+        active.paintSourceOuterScale(.init(x:1.18,y:0.83));active.alpha=0.2
+        XCTAssertTrue(f.restore.restore(immediate:true,preserveScale:true))
+        XCTAssertEqual(f.draws,f.targets.count)
+        XCTAssertEqual(active.sourceLocalScale.x,1.18,accuracy:1e-6)
+        XCTAssertEqual(active.sourceLocalScale.y,0.83,accuracy:1e-6)
+        XCTAssertEqual(active.alpha,1,accuracy:1e-6)
+        XCTAssertEqual(f.restore.activeRootCount,0)
+    }
+    func testImmediateFourthRestoreDoesNotKillAnActiveMergeScaleChild()throws {
+        let f=try Fixture();defer{f.dispose()}
+        let active=try XCTUnwrap(f.targets.first{!$0.sourceLocked && $0.sourceValue>0})
+        XCTAssertTrue(active.beginSourceMergeImpact(.init(variantDraw:0.8,variationDraw:0.5)))
+        f.deliver(608);f.deliver(640)
+        XCTAssertTrue(active.sourceOuterOwners.mergeImpact)
+        let captured=active.sourceLocalScale
+        active.alpha=0.2
+        XCTAssertTrue(f.restore.restore(immediate:true,preserveScale:true))
+        XCTAssertTrue(active.sourceOuterOwners.mergeImpact)
+        XCTAssertEqual(active.sourceLocalScale,captured)
+        XCTAssertEqual(active.alpha,1,accuracy:1e-6)
+        f.deliver(688)
+        XCTAssertNotEqual(active.sourceLocalScale,captured)
+        XCTAssertTrue(active.sourceOuterOwners.mergeImpact)
+    }
     func testAnimatedRestoreUsesOneSortedDelayPerObjectAndRetiresOnlyCapturedNode()throws {
         let f=try Fixture();defer{f.dispose()};for node in f.targets{node.alpha=0.2}
         let snapshot=f.scene.engine.state

@@ -161,7 +161,7 @@ describe('native Home/Hub outgoing-pose source contracts', () => {
   });
 
   test('hero layout preserves its rest rectangle across route and selected-slide pivot changes', () => {
-    const layout = home.slice(home.indexOf('override func layoutSubviews()'))
+    const layout = home.slice(home.indexOf('override func layoutSubviews()', home.indexOf('final class JimiV9HomeView')))
       .split(/\n {4}(?:private )?func /)[0].replace(/\/\/[^\n]*/g, '');
     expect(layout).toContain('heroes[i].bounds = CGRect(x: 0, y: 0, width: 336, height: 336)');
     expect(layout).toContain('heroes[i].layer.position = CGPoint(');
@@ -171,7 +171,7 @@ describe('native Home/Hub outgoing-pose source contracts', () => {
   });
 
   test('layout uses bounds with anchor-safe position or center, never frame, for animated Home targets', () => {
-    const layout = home.slice(home.indexOf('override func layoutSubviews()'))
+    const layout = home.slice(home.indexOf('override func layoutSubviews()', home.indexOf('final class JimiV9HomeView')))
       .split(/\n {4}(?:private )?func /)[0]
       .replace(/\/\/[^\n]*/g, '');
     // installTracks writes the terminal model scale immediately. UIView.frame

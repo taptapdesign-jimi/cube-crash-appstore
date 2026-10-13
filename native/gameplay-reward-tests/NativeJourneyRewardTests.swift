@@ -47,6 +47,92 @@ final class NativeJourneyRewardTests:XCTestCase {
         XCTAssertNil(burn.animation(forKey:"transform"))
         controller.dispose();XCTAssertTrue((burn.animationKeys() ?? []).isEmpty)
     }
+    func testInterimSelectedArtworkHasFaceGlowAboveImageAndAlignedShimmerMask() async {
+        final class ArtworkResources:NativeRewardResources {
+            let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+            func image(_ path:String,owner:Int)->UIImage? {assets.image(path)}
+            func prepare(_ paths:[String],owner:Int,required:Bool,completion:@escaping(Bool)->Void) {completion(paths.allSatisfy{assets.image($0) != nil})}
+            func release(_ owner:Int) {}
+        }
+        let clock=Clock(),resources=ArtworkResources(),ready=expectation(description:"real selected carriers")
+        let controller=NativeJourneyRewardController(root:NativeTestResources.root,board:11,score:1000,generation:77,resources:resources,scheduler:clock,reducedMotion:false,random:{0.37},now:{clock.time})
+        controller.prepareFilteredFrames={images,lease,completion in NativeRewardFilteredFrames.prepare(images,lease:lease) {frames in completion(frames);ready.fulfill()}}
+        controller.loadViewIfNeeded();controller.view.frame=CGRect(x:0,y:0,width:390,height:844)
+        await fulfillment(of:[ready],timeout:10)
+        controller.view.setNeedsLayout();controller.view.layoutIfNeeded();controller.start();clock.advance(1.7)
+        let hero=controller.view.subviews.first{$0.accessibilityIdentifier=="native.reward.card"}!
+        func descendants(_ layer:CALayer)->[CALayer] {[layer]+(layer.sublayers ?? []).flatMap{descendants($0)}}
+        let layers=descendants(hero.layer),burn=layers.first{$0.name=="native.reward.interim-burn"}!,light=layers.first{$0.name=="native.reward.interim-shimmer"}!
+        let image=burn.superlayer!.sublayers!.first{$0 !== burn && $0 !== light}!
+        XCTAssertNotNil(burn.contents);XCTAssertGreaterThan(burn.zPosition,image.zPosition);XCTAssertGreaterThan(light.zPosition,burn.zPosition)
+        XCTAssertEqual(burn.bounds,image.bounds);XCTAssertEqual(burn.position,image.position)
+        XCTAssertTrue(CATransform3DEqualToTransform(burn.transform,image.transform))
+        let mask=light.mask!;XCTAssertEqual(mask.frame.width,light.bounds.width*1.2,accuracy:0.000001)
+        XCTAssertEqual(mask.frame.height,light.bounds.height*1.2,accuracy:0.000001)
+        XCTAssertEqual(mask.frame.midX,light.bounds.midX);XCTAssertEqual(mask.frame.midY,light.bounds.midY)
+        let maskContents=try! XCTUnwrap(mask.contents)
+        let selectedMask=try! XCTUnwrap(resources.image("assets/animations/sand/zguzvano9.png",owner:0)?.cgImage)
+        XCTAssertTrue((maskContents as! CGImage) === selectedMask)
+        XCTAssertEqual(light.contentsScale,max(1,controller.view.traitCollection.displayScale));XCTAssertEqual(mask.contentsScale,light.contentsScale)
+        clock.advance(3);let pulse=burn.animation(forKey:"reward.opacity.0.0") as? CAKeyframeAnimation
+        XCTAssertEqual(pulse?.duration,0.5);XCTAssertEqual(pulse?.keyTimes,[0,0.56,1].map{NSNumber(value:$0)})
+        controller.setForeground(false);XCTAssertEqual(controller.view.layer.speed,0);XCTAssertEqual(clock.activeCount,0)
+        controller.setForeground(true);XCTAssertEqual(controller.view.layer.speed,1)
+        controller.dispose();XCTAssertNil(burn.animationKeys());XCTAssertNil(burn.contents);XCTAssertNil(light.mask);XCTAssertNil(light.sublayers?.first?.animationKeys());XCTAssertEqual(clock.activeCount,0)
+    }
+    func testIdleGlowWaits150MillisecondsAndResumesItsOwnedBounceAfterBackground() {
+        let clock=Clock(),resources=Resources(),controller=screen(clock,resources)
+        resources.finish();controller.start();clock.advance(4.39)
+        func descendants(_ layer:CALayer)->[CALayer] {[layer]+(layer.sublayers ?? []).flatMap{descendants($0)}}
+        let burn=descendants(controller.view.layer).first{$0.name=="native.reward.interim-burn"}!
+        burn.removeAllAnimations();clock.advance(0.11)
+        XCTAssertNil(burn.animation(forKey:"reward.opacity.0.0"),"Sweep starts before the authored delayed face pulse")
+        controller.setForeground(false);clock.advance(10)
+        XCTAssertNil(burn.animation(forKey:"reward.opacity.0.0"));XCTAssertEqual(clock.activeCount,0)
+        controller.setForeground(true);clock.advance(0.06)
+        let pulse=burn.animation(forKey:"reward.opacity.0.0") as? CAKeyframeAnimation
+        XCTAssertEqual(pulse?.duration,0.5)
+        let bounce=burn.animation(forKey:"reward.transform.0.0") as? CAKeyframeAnimation
+        XCTAssertEqual(bounce?.duration,0.32)
+        let transforms=(bounce?.values as? [NSValue])!.map{$0.caTransform3DValue}
+        XCTAssertEqual(transforms.first!.m11,1.2,accuracy:0.000001);XCTAssertEqual(transforms.last!.m11,1.2,accuracy:0.000001)
+        XCTAssertGreaterThan(transforms.map{$0.m11}.max()!,1.2*1.055,"Authored back.out(2) retains its overshoot")
+        controller.dispose();XCTAssertEqual(clock.activeCount,0);XCTAssertNil(burn.animationKeys())
+    }
+    func testDisplaySizedShimmerUsesSoftTransparentEdgesAndRetiredPreparationCannotPublish() async {
+        let retired=NativeRewardPreparationLease();retired.cancel()
+        NativeRewardFilteredFrames.prepareShimmer(size:CGSize(width:80,height:120),displayScale:3,lease:retired) {_ in XCTFail("Retired reward may not publish a texture")}
+        for scale in [CGFloat(1),CGFloat(3)] {
+            let ready=expectation(description:"display-sized softened sweep")
+            NativeRewardFilteredFrames.prepareShimmer(size:CGSize(width:80,height:120),displayScale:scale,lease:NativeRewardPreparationLease()) {output in
+                guard let image=output else{XCTFail("Sweep preparation failed");ready.fulfill();return}
+                XCTAssertEqual(image.width,Int(80*scale));XCTAssertEqual(image.height,Int(120*scale))
+                var bytes=[UInt8](repeating:0,count:image.width*image.height*4)
+                bytes.withUnsafeMutableBytes {storage in
+                    let bitmap=CGContext(data:storage.baseAddress,width:image.width,height:image.height,bitsPerComponent:8,bytesPerRow:image.width*4,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue)!
+                    bitmap.draw(image,in:CGRect(x:0,y:0,width:image.width,height:image.height))
+                }
+                func alpha(_ x:Int,_ y:Int)->UInt8 {bytes[(y*image.width+x)*4+3]}
+                let middle=alpha(image.width/2,image.height/2)
+                XCTAssertGreaterThan(middle,125);XCTAssertLessThanOrEqual(middle,134)
+                XCTAssertLessThan(alpha(image.width/2,0),middle,"CSS blur softens the horizontal crop boundary")
+                XCTAssertLessThan(alpha(0,image.height/2),5)
+                ready.fulfill()
+            }
+            await fulfillment(of:[ready],timeout:5)
+        }
+    }
+    func testUnlockedRevealDoesNotRestartItsBurnBeforePeak() {
+        let clock=Clock(),resources=Resources(),controller=screen(clock,resources)
+        resources.finish();controller.start();controller.activate();clock.advance(0.63)
+        func descendants(_ layer:CALayer)->[CALayer] {[layer]+(layer.sublayers ?? []).flatMap{descendants($0)}}
+        let burn=descendants(controller.view.layer).first{$0.name=="native.reward.unlocked-burn"}!
+        let first=burn.animation(forKey:"reward.opacity.0.0")!.beginTime
+        clock.advance(0.2)
+        XCTAssertEqual(controller.phase,"unlocked")
+        XCTAssertEqual(burn.animation(forKey:"reward.opacity.0.0")!.beginTime,first)
+        controller.dispose()
+    }
     func testOffMainSelectedBurnCarrierChangesColorAndPreservesTransparentPixels() async {
         let bytes:[UInt8]=[102,51,26,255,0,0,0,0,102,51,26,255,0,0,0,0]
         let provider=CGDataProvider(data:Data(bytes) as CFData)!

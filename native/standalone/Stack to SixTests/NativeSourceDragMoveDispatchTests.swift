@@ -5,6 +5,60 @@ import StackToSixGameplay
 @testable import Stack_to_Six
 
 @MainActor final class NativeSourceDragMoveDispatchTests:XCTestCase {
+    func testAllWildAndSpecialVariantsHoverAndReleaseAtNearEdgeContact()throws {
+        let identities:[(NativeWildArchetype,String?)]=NativeWildArchetype.allCases.map{($0,nil)} +
+            NativeSpecialDiceRegistry.variants.values.sorted{$0.id<$1.id}.map{($0.archetype,$0.id)}
+        for (core,variant) in identities {
+            let state=NativeBoardState(columns:5,rows:9,tiles:[
+                .init(id:"wild",cell:.init(column:0,row:3),value:6,archetype:core,variant:variant),
+                .init(id:"target",cell:.init(column:3,row:3),value:2)])
+            XCTAssertTrue(state.tiles[0].isWild)
+            XCTAssertTrue(NativeGameplayResolver.canDrop(state.tiles[0],onto:state.tiles[1]),"Fixture must represent an admitted Wild merge")
+            let scene=NativeBoardScene(engine:NativeGameplayEngine(state:state),resourceRoot:Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle"),size:.init(width:390,height:844))
+            // This bounded targeting fixture supplies the controller-owned
+            // authored finale readiness/receipt seam; finale visuals have their
+            // own mounted tests. Production admission gates remain intact.
+            var readinessRequests:[String]=[]
+            scene.authoredFinalePresentationReady={requested in
+                readinessRequests.append(requested);return requested == variant
+            }
+            scene.authoredTntPresentationReady={requested in requested == variant}
+            scene.onAuthoredFinale={requested,_,generation,completed in
+                XCTAssertEqual(requested,variant);XCTAssertEqual(generation,state.generation)
+                completed();return requested == variant
+            }
+            scene.layout(size:scene.size,insets:.init(top:47,left:0,bottom:34,right:0))
+            defer {scene.dispose()}
+            let geometry=try XCTUnwrap(scene.boardGeometry),target=geometry.center(row:3,column:3)
+            let edge=CGPoint(x:target.x+geometry.tileSize*(core == .magnet ? 0.65:0.80),y:target.y)
+            XCTAssertNotEqual(geometry.cell(at:edge)?.column,3,"Contact sample lies outside the target's centered grid hit box")
+            XCTAssertTrue(scene.beginDrag(at:geometry.center(row:3,column:0)),"\(variant ?? core.rawValue)")
+            scene.moveDrag(to:edge,now:1)
+            let hover=try XCTUnwrap(scene.childNode(withName:"//native-stack-hover") as? SKShapeNode)
+            XCTAssertFalse(hover.isHidden,"\(variant ?? core.rawValue) should select on resting-body contact")
+            XCTAssertEqual(hover.position.x,target.x,accuracy:0.0001);XCTAssertEqual(hover.position.y,target.y,accuracy:0.0001)
+            let result=try XCTUnwrap(scene.finishDrag(at:edge,now:1.1))
+            XCTAssertTrue(result.accepted,"\(variant ?? core.rawValue) release must accept the highlighted edge target: \(result)")
+            if let variant {
+                XCTAssertTrue(readinessRequests.contains(variant),"Release must request the selected variant's actual presentation admission")
+                XCTAssertTrue(readinessRequests.allSatisfy{$0 == variant})
+            }
+        }
+    }
+    func testSpecialContactRejectsTransientAndLockedDestinations()throws {
+        for transient in [false,true] {
+            let state=NativeBoardState(columns:5,rows:9,tiles:[
+                .init(id:"wild",cell:.init(column:0,row:3),value:6,archetype:.star),
+                .init(id:"target",cell:.init(column:3,row:3),value:2,locked:!transient,transientSpawn:transient)])
+            let scene=NativeBoardScene(engine:NativeGameplayEngine(state:state),resourceRoot:Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle"),size:.init(width:390,height:844))
+            scene.layout(size:scene.size,insets:.init(top:47,left:0,bottom:34,right:0));defer{scene.dispose()}
+            let geometry=try XCTUnwrap(scene.boardGeometry),target=geometry.center(row:3,column:3)
+            XCTAssertTrue(scene.beginDrag(at:geometry.center(row:3,column:0)))
+            scene.moveDrag(to:target,now:1)
+            XCTAssertTrue(try XCTUnwrap(scene.childNode(withName:"//native-stack-hover") as? SKShapeNode).isHidden)
+            XCTAssertFalse(try XCTUnwrap(scene.finishDrag(at:target,now:1.1)).accepted)
+        }
+    }
     private func fixture()throws->(NativeBoardScene,NativeSourceAnimationClockService,CGPoint,CGPoint) {
         let state=NativeBoardState(columns:5,rows:9,tiles:[
             .init(id:"source",cell:.init(column:0,row:0),value:1),
@@ -33,10 +87,12 @@ import StackToSixGameplay
             let hover=try XCTUnwrap(scene.childNode(withName:"//native-stack-hover") as? SKShapeNode)
             XCTAssertEqual(hover.isHidden,!valid)
             if valid {
+                XCTAssertGreaterThan(hover.zPosition,try XCTUnwrap(scene.sourceNativeTileNode("target")).zPosition,"Inset stroke must paint above the ordinary target face")
+                XCTAssertLessThan(hover.zPosition,12001,"Wild/Special artwork stays above the stroke")
                 XCTAssertEqual(hover.lineWidth,10*geometry.scale,accuracy:0.0001)
                 let reveal=try XCTUnwrap(hover.action(forKey:"stack-hover-enter"))
                 XCTAssertEqual(reveal.duration,0.10,accuracy:0.0001)
-                XCTAssertEqual(reveal.timingMode,.easeInEaseOut)
+                XCTAssertEqual(reveal.timingMode,.easeIn)
                 XCTAssertEqual(hover.alpha,0,"The indicator starts transparent")
                 var red:CGFloat=0,green:CGFloat=0,blue:CGFloat=0,alpha:CGFloat=0
                 XCTAssertTrue(hover.strokeColor.getRed(&red,green:&green,blue:&blue,alpha:&alpha))
@@ -60,6 +116,70 @@ import StackToSixGameplay
         scene.dispatchSourceTouchMove(to:from);service.deliver(wallMilliseconds:32)
         XCTAssertEqual(node.position.x,from.x,accuracy:1e-4,"A later frame receives its own newest sample")
         XCTAssertEqual(node.position.y,from.y,accuracy:1e-4)
+    }
+    func testHoverExitFadesWithoutRestartAndReentryCancelsOldHide()async throws {
+        let(scene,service,from,to)=try fixture()
+        let view=SKView(frame:.init(x:0,y:0,width:390,height:844)),host=UIViewController(),window=UIWindow(frame:.init(x:0,y:0,width:390,height:844))
+        host.view=view;window.rootViewController=host;window.isHidden=false
+        view.preferredFramesPerSecond=60;view.presentScene(scene)
+        defer {scene.dispose();service.dispose();view.presentScene(nil);window.isHidden=true;window.rootViewController=nil}
+        scene.cancelDrag();XCTAssertTrue(scene.beginDrag(at:from))
+        scene.moveDrag(to:to,now:1)
+        let hover=try XCTUnwrap(scene.childNode(withName:"//native-stack-hover") as? SKShapeNode)
+        try await Task.sleep(for:.milliseconds(250))
+        XCTAssertEqual(hover.alpha,1,accuracy:0.001)
+        scene.moveDrag(to:from,now:2)
+        XCTAssertFalse(hover.isHidden,"Leaving a valid target keeps the visual alive for its exit")
+        XCTAssertEqual(hover.alpha,1,accuracy:0.001)
+        XCTAssertNil(hover.action(forKey:"stack-hover-enter"))
+        let exit=try XCTUnwrap(hover.action(forKey:"stack-hover-exit"))
+        XCTAssertEqual(exit.duration,0.18,accuracy:0.0001)
+        scene.moveDrag(to:from,now:2.02)
+        XCTAssertTrue(hover.action(forKey:"stack-hover-exit") === exit)
+        // Await an actual rendered intermediate frame rather than assuming
+        // the simulator starts a newly submitted SKAction immediately.
+        for _ in 0..<60 {
+            if hover.alpha > 0 && hover.alpha < 1 {break}
+            try await Task.sleep(for:.milliseconds(5))
+        }
+        XCTAssertGreaterThan(hover.alpha,0);XCTAssertLessThan(hover.alpha,1)
+        let fadingAlpha=hover.alpha
+        scene.moveDrag(to:to,now:2.10)
+        XCTAssertNil(hover.action(forKey:"stack-hover-exit"))
+        XCTAssertEqual(hover.alpha,fadingAlpha,accuracy:0.0001,"Reentry must continue from the current alpha")
+        try await Task.sleep(for:.milliseconds(200))
+        XCTAssertFalse(hover.isHidden);XCTAssertEqual(hover.alpha,1,accuracy:0.001)
+        scene.moveDrag(to:from,now:3)
+        try await Task.sleep(for:.milliseconds(300))
+        XCTAssertTrue(hover.isHidden);XCTAssertEqual(hover.alpha,0,accuracy:0.001)
+        scene.moveDrag(to:to,now:4)
+        scene.moveDrag(to:from,now:4.10)
+        scene.cancelDrag()
+        XCTAssertTrue(hover.isHidden);XCTAssertNil(hover.action(forKey:"stack-hover-exit"))
+    }
+    func testReleasePreservesAlreadyRunningHoverFadeUntilRenderedCompletion()async throws {
+        let(scene,service,from,to)=try fixture()
+        let view=SKView(frame:.init(x:0,y:0,width:390,height:844)),host=UIViewController()
+        let window=UIWindow(frame:view.bounds)
+        host.view=view;window.rootViewController=host;window.isHidden=false;view.presentScene(scene)
+        defer {scene.dispose();service.dispose();view.presentScene(nil);window.isHidden=true;window.rootViewController=nil}
+        scene.cancelDrag();XCTAssertTrue(scene.beginDrag(at:from))
+        scene.moveDrag(to:to,now:1)
+        let hover=try XCTUnwrap(scene.childNode(withName:"//native-stack-hover") as? SKShapeNode)
+        try await Task.sleep(for:.milliseconds(250))
+        XCTAssertEqual(hover.alpha,1,accuracy:0.001)
+        scene.moveDrag(to:from,now:2)
+        let exit=try XCTUnwrap(hover.action(forKey:"stack-hover-exit"))
+        _=scene.finishDrag(at:from,now:2.01)
+        XCTAssertFalse(hover.isHidden,"Release must not hide the exiting border immediately")
+        XCTAssertTrue(hover.action(forKey:"stack-hover-exit") === exit,"Release must not restart an existing exit")
+        for _ in 0..<60 {
+            if hover.alpha>0 && hover.alpha<1 {break}
+            try await Task.sleep(for:.milliseconds(5))
+        }
+        XCTAssertGreaterThan(hover.alpha,0);XCTAssertLessThan(hover.alpha,1)
+        try await Task.sleep(for:.milliseconds(300))
+        XCTAssertTrue(hover.isHidden);XCTAssertEqual(hover.alpha,0,accuracy:0.001)
     }
     func testMountedScene60PaintsLatestTouchBeforeIndependentSourceFrameAndKeepsFIFOOrder()throws {
         let(scene,service,from,to)=try fixture()

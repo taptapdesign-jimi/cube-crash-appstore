@@ -18,6 +18,7 @@ import Foundation
     private var wallCancel:(()->Void)?
     private var emissionEpoch:UInt64=0,sequence:UInt64=0
     private var closed=false,emitting=false
+    private var emissionCredit=1.0
     var activeBubbleCount:Int{bubbles.count}
     var isEmitting:Bool{emitting}
     init(driver:any NativeWildMeterHUDDriving,wall:any NativeWildMeterSmokeWallDriving,
@@ -50,6 +51,7 @@ import Foundation
     }
     func stopSmoke(){
         stopEmission()
+        emissionCredit=1
         // Remove captured old owners BEFORE any external cleanup. Reentrant C
         // is owned by its new identity and cannot be destroyed by old A.
         let captured=bubbles.values.sorted{$0.id<$1.id};bubbles.removeAll()
@@ -64,8 +66,9 @@ import Foundation
         guard bubbles[bubble.id] === bubble else{return}
         bubbles.removeValue(forKey:bubble.id);retire(bubble)
     }
-    private func emit(){
-        guard valid(),!disabled() else{return}
+    func emitTutorialBubble(){emit(tutorial:true)}
+    private func emit(tutorial:Bool=false){
+        guard valid(),tutorial || !disabled() else{return}
         guard valid() else{return}
         let g=geometry()
         guard valid(),g.fillAlive,g.parentAttached else{return}
@@ -73,14 +76,27 @@ import Foundation
         guard width>0 else{return} // original zero-width callback draws no RNG
         let x=g.x+left+random()*max(1,width)
         let y=g.y+5+(random()-0.5)*5
-        let radius=2.5+pow(random(),1.7)*3
+        let intensity=g.intensity
+        let radius=(2.5+pow(random(),1.7)*3)*(0.55+0.45*intensity)
+        guard valid() else{return}
+        // Keep the existing wall cadence and carry fractional density across
+        // short gains. Consume the original six visual RNG slots even when a
+        // bubble is omitted: this stream is shared with other Source owners.
+        if !tutorial {emissionCredit=min(2,emissionCredit+0.25+0.75*intensity)}
+        guard tutorial || emissionCredit>=1 else {
+            _=random();_=random();_=random()
+            return
+        }
+        if !tutorial {emissionCredit-=1}
         guard valid() else{return}
         sequence &+= 1;let bubble=Bubble(sequence)
         bubbles[bubble.id]=bubble
         resources.create(id:bubble.id,x:x,y:y,radius:radius)
         guard valid(),bubbles[bubble.id] === bubble,!bubble.retired else{finish(bubble);return}
+        if intensity<1 {resources.paint(id:bubble.id,.init(x:x,y:y,alpha:0))}
+        guard valid(),bubbles[bubble.id] === bubble,!bubble.retired else{finish(bubble);return}
         // Literal source evaluates these three vars AFTER adding the Graphics.
-        let plan=NativeWildMeterSmokePlan(x:x,y:y,radius:radius,random:random)
+        let plan=NativeWildMeterSmokePlan(x:x,y:y,radius:radius,intensity:intensity,random:random)
         guard valid(),bubbles[bubble.id] === bubble else{finish(bubble);return}
         let lease=driver.start(duration:plan.duration,family:.defaultLazyTween,paint:{[weak self,weak bubble] seconds in
             guard let self,let bubble,self.valid(),self.bubbles[bubble.id] === bubble else{return}

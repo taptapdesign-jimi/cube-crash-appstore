@@ -45,3 +45,46 @@ struct NativeRegularDropTarget {
         return closest
     }
 }
+
+/// Preserved v9 Wild/Special contact policy. Eligible live targets are supplied
+/// by the scene; artwork overlap controls hover, not the finger's grid cell.
+struct NativeSpecialDropTarget {
+    enum Policy { case direct, barrel, magnet }
+    static func pick(source: CGRect, center: CGPoint, candidates: [NativeRegularDropTarget.Candidate],
+                     pointer: CGPoint?, tileSize: CGFloat, policy: Policy) -> String? {
+        guard source.width > 0, source.height > 0 else { return nil }
+        if policy == .direct, let pointer {
+            if let hit = nearest(candidates,point:pointer,maxDistance:nil,pad:tileSize*0.10) { return hit }
+        }
+        // Magnet's authored nearby field owns hover, independently of its
+        // stricter final-drop contact policy.
+        if policy == .magnet, pointer == nil {
+            return nearest(candidates,point:center,maxDistance:tileSize*1.5,pad:nil)
+        }
+        var best: String?, ratio: CGFloat = 0
+        for target in candidates where target.bounds.width > 0 && target.bounds.height > 0 {
+            if policy == .magnet && (abs(source.midX-target.bounds.midX)>tileSize*0.35 ||
+                                    abs(source.midY-target.bounds.midY)>tileSize*0.35) {continue}
+            let overlap = source.intersection(target.bounds)
+            let value = overlap.isNull ? 0 : overlap.width*overlap.height/(target.bounds.width*target.bounds.height)
+            if value > ratio {ratio=value;best=target.id}
+        }
+        if ratio >= (policy == .magnet ? 0.12:0.05) {return best}
+        guard pointer != nil, policy != .barrel else {return nil}
+        return nearest(candidates,point:center,maxDistance:tileSize*(policy == .magnet ? 0.72:0.55),pad:nil)
+    }
+    private static func nearest(_ candidates:[NativeRegularDropTarget.Candidate],point:CGPoint,
+                                maxDistance:CGFloat?,pad:CGFloat?)->String? {
+        var best:String?,distance=CGFloat.infinity
+        for target in candidates {
+            let rect=target.pointerBounds
+            guard rect.width>0,rect.height>0 else {continue}
+            if let pad, !(point.x>=rect.minX-pad && point.x<=rect.maxX+pad &&
+                          point.y>=rect.minY-pad && point.y<=rect.maxY+pad) {continue}
+            let value=hypot(point.x-rect.midX,point.y-rect.midY)
+            if let maxDistance,value>maxDistance {continue}
+            if value<distance {distance=value;best=target.id}
+        }
+        return best
+    }
+}

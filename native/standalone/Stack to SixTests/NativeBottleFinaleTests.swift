@@ -29,8 +29,10 @@ final class NativeBottleFinaleTests: XCTestCase {
         XCTAssertEqual(NativeBottleFinaleMotion.keyframes(values,progress: 0.75),9.514718,accuracy: 0.000001)
         let alpha = NativeBottleFinaleMotion.mixedOpacities(count: 40,random: { 0.5 })
         XCTAssertEqual(alpha.count,40)
-        XCTAssertEqual(Set(alpha).count,40)
-        XCTAssertTrue(alpha.allSatisfy { $0 >= 0.2 && $0 <= 0.7 })
+        XCTAssertEqual(Set(alpha),Set([CGFloat(0.6),0.7,0.8,0.9]))
+        for level: CGFloat in [0.6,0.7,0.8,0.9] {
+            XCTAssertEqual(alpha.filter { $0 == level }.count,10)
+        }
     }
     func testFullBottleClockKeepsCueOrderAndOneVisibleCompletionReceipt() async {
         let window = UIWindow(frame: CGRect(x: 0,y: 0,width: 390,height: 844)),controller = UIViewController()

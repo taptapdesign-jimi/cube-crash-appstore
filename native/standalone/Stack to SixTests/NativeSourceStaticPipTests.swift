@@ -20,6 +20,23 @@ import StackToSixGameplay
             XCTAssertEqual(sprite.xScale,1,file:file,line:line);XCTAssertEqual(sprite.yScale,1,file:file,line:line)
         }
     }
+    func testOrdinaryMinificationIsLimitedToFacesAndPreservesCachedIdentity()throws {
+        let textures=NativeBoardTextures(root:NativeTestResources.root)
+        defer{textures.dispose()}
+        for path in ["assets/tile.png"]+NativeRegularStackLayout.Skin.allCases.map({String($0.rawValue.dropFirst(2))}) {
+            let face=try XCTUnwrap(textures.texture(path,densityAware:false))
+            XCTAssertTrue(face.usesMipmaps,path)
+            let baselineImage=try XCTUnwrap(UIImage(contentsOfFile:NativeTestResources.root.appendingPathComponent(path).path))
+            XCTAssertEqual(face.size(),SKTexture(image:baselineImage).size(),"Logical face dimensions must remain unchanged")
+            XCTAssertEqual(face.filteringMode,.linear)
+            XCTAssertEqual(textures.sourceRasterLogicalWidth(for:face),face.size().width,"Source raster coordinates must retain the logical face width")
+            XCTAssertTrue(face === textures.texture(path,densityAware:false))
+        }
+        XCTAssertFalse(try XCTUnwrap(textures.texture("assets/shadow.png",densityAware:false)).usesMipmaps)
+        XCTAssertFalse(try XCTUnwrap(textures.texture("assets/wild.png",densityAware:false)).usesMipmaps)
+        XCTAssertFalse(textures.pipTexture().usesMipmaps)
+    }
+
     func testActualInitialHolderBatchUsesSharedPipsWithoutChangingRngOrPhysicalReceipts()throws {
         var draws=0,onDraw:(()->Void)?
         let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true)
@@ -30,6 +47,7 @@ import StackToSixGameplay
         scene.sourceOuterTimelineDriver=timeline
         defer{onDraw=nil;scene.dispose();construction.dispose();timeline.dispose();service.dispose()}
         scene.synchronize();let before=draws
+        XCTAssertTrue(construction.nodes.values.allSatisfy {$0.sourcePaintedNumbersTexture?.usesMipmaps == true},"Actual Source holders must borrow the filtered ordinary texture")
         XCTAssertTrue(construction.nodes.values.allSatisfy{$0.sourcePipNodes.isEmpty})
         var batchObserved=false
         onDraw={
