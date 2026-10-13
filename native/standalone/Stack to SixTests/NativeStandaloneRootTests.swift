@@ -6,6 +6,111 @@ import StackToSixNativeState
 @testable import Stack_to_Six
 
 @MainActor final class NativeStandaloneRootTests:XCTestCase {
+    @MainActor private final class RetiredRound {
+        weak var controller:NativeGameplayViewController?
+        weak var scene:NativeBoardScene?
+        init(_ controller:NativeGameplayViewController) {self.controller=controller;scene=controller.boardScene}
+    }
+    func testCompleteNativeRepeatedResetReleasesOutgoingRoundsAndSettlesSharedResources()async throws {
+        try await exerciseCompleteRoundRetirement(playAgainFirst:false)
+    }
+    func testCompleteNativeActualFailPlayAgainThenRepeatedResetReleasesOutgoingRounds()async throws {
+        try await exerciseCompleteRoundRetirement(playAgainFirst:true)
+    }
+    private func exerciseCompleteRoundRetirement(playAgainFirst:Bool)async throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-round-retirement-"+UUID().uuidString)
+        let store=NativeSaveStore(directory:directory)
+        var envelope=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
+        envelope.progression.firstPlayTutorialComplete=true
+        if playAgainFirst {
+            envelope.arcadeRun = .init(tiles:[.init(id:"a",cell:.init(column:0,row:0),value:1),
+                .init(id:"b",cell:.init(column:1,row:0),value:2),
+                .init(id:"c",cell:.init(column:2,row:0),value:5)],mode:.arcade,board:1,generation:9,moves:1)
+        }
+        try store.save(envelope)
+        let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,
+            sourceVisualRandom:{0.1},completeNativeGameplayEnabled:true)
+        let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
+        defer{host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
+        host.loadViewIfNeeded()
+        let app=try XCTUnwrap(host.children.first as? NativeAppController),runtime=try XCTUnwrap(host.sourceRuntime)
+        func wait(_ label:String,_ predicate:()->Bool)async throws {
+            let deadline=Date().addingTimeInterval(40)
+            while !predicate(){guard Date()<deadline else{XCTFail(label);throw CancellationError()};try await Task.sleep(for:.milliseconds(20))}
+        }
+        func game()->NativeGameplayViewController? {app.children.compactMap{$0 as? NativeGameplayViewController}.first}
+        func ready()->Bool {
+            guard let game=game(),let scene=game.boardScene else{return false}
+            return scene.isBoardEntryComplete && game.beforeSourceGameplayAdmission==nil &&
+                !game.engine.hasUnsavableSourceGameplayState && scene.sourceFrameSnapshot.activityLeaseCount==0 &&
+                runtime.fifo.pendingCount==0 && runtime.service.pendingSourceAnimationFrameCount==0
+        }
+        func resources()->[Int] {[runtime.service.activeParticipantCount,runtime.service.sourceTickerListenerCount,
+            runtime.service.pendingSourceAnimationFrameCount,runtime.service.directManipulationTransportCount,runtime.fifo.pendingCount]}
+        func button(_ view:UIView,_ id:String)->UIButton? {
+            if let button=view as? UIButton,button.accessibilityIdentifier==id{return button}
+            return view.subviews.lazy.compactMap{button($0,id)}.first
+        }
+        func reset()->RetiredRound? {
+            guard let current=game() else{return nil}
+            let retired=RetiredRound(current);current.onExit?();return retired
+        }
+        try await wait("Home ready"){!app.home.isHidden};app.navigate(.gameplay,interrupt:true)
+        try await wait("Initial complete gameplay settled",ready)
+        if playAgainFirst {
+            // Genuine accepted contact exhausts moves; no synthetic terminal or receipt.
+            let retired:RetiredRound = try {
+                let current=try XCTUnwrap(game()),scene=try XCTUnwrap(current.boardScene),geometry=try XCTUnwrap(scene.boardGeometry)
+                let captured=RetiredRound(current),a=geometry.center(row:0,column:0),b=geometry.center(row:0,column:1)
+                XCTAssertTrue(scene.beginDrag(at:a));scene.moveDrag(to:b,now:CACurrentMediaTime())
+                XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:b,now:CACurrentMediaTime())).accepted)
+                return captured
+            }()
+            try await wait("Genuine Source fail result"){
+                game()?.engine.completedSourceNoMovesReceipt != nil && game()?.presentedViewController is NativeResultController
+            }
+            try await wait("Play Again CTA"){
+                guard let current=game(),let modal=current.presentedViewController,
+                      let primary=button(modal.view,"native.result.play-again"),primary.isUserInteractionEnabled else{return false}
+                primary.sendActions(for:.touchUpInside);return true
+            }
+            try await wait("Play Again retires controller and scene"){retired.controller==nil && retired.scene==nil && ready()}
+        }
+        let baseline=resources()
+        var retired:[RetiredRound]=[]
+        for index in 0..<6 {
+            let old=try XCTUnwrap(reset());retired.append(old)
+            try await wait("Reset modal admitted"){
+                guard let modal=game()?.presentedViewController as? JimiNativeEndRunModal,
+                      modal.view.isUserInteractionEnabled else{return false}
+                modal.buttons[0].sendActions(for:.touchUpInside);return true
+            }
+            try await wait("Round \(index) deallocated and resources settled"){
+                retired.allSatisfy{$0.controller==nil && $0.scene==nil} && ready() && resources()==baseline
+            }
+            XCTAssertEqual(app.children.filter{$0 is NativeGameplayViewController}.count,1)
+            XCTAssertEqual(app.route,.gameplay);XCTAssertTrue(game()?.sourceScope?.current==true)
+            let expectedMoves:Int = try {
+                let current=try XCTUnwrap(game()),scene=try XCTUnwrap(current.boardScene),geometry=try XCTUnwrap(scene.boardGeometry)
+                let tiles=current.engine.state.activeTiles.filter{!$0.isWild && !$0.locked}
+                let pair=try XCTUnwrap(tiles.enumerated().flatMap{i,a in
+                    tiles.dropFirst(i+1).filter{a.value+$0.value<6}.map{(a,$0)}
+                }.first)
+                let a=geometry.center(row:pair.0.cell.row,column:pair.0.cell.column)
+                let b=geometry.center(row:pair.1.cell.row,column:pair.1.cell.column)
+                let moves=current.engine.state.moves
+                XCTAssertTrue(scene.beginDrag(at:a));scene.moveDrag(to:b,now:CACurrentMediaTime())
+                XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:b,now:CACurrentMediaTime())).accepted)
+                return moves-1
+            }()
+            try await wait("Replacement accepts and settles actual contact"){ready() && game()?.engine.state.moves==expectedMoves}
+        }
+        host.dispose()
+        try await wait("Whole host releases all shared work"){
+            resources()==[0,0,0,0,0] && !runtime.service.hasActiveClock
+        }
+    }
     func testSourceNormalRestartFromActualExitModalCreatesFreshSceneAndRetiresOldScope()async throws {
         try await runSourceGenerationReplacement(restart:true)
     }
@@ -351,6 +456,9 @@ import StackToSixNativeState
     }
     func testActualMagnetWildDestinationNoPullFinalReachesJourneyResult()async throws {
         try await runOrdinaryResumeRoot(noLocked:true,physicalFinal:true,directFinal:true,directArchetype:.magnet,wildDestination:true)
+    }
+    func testActualBottleWildDestinationFinalReachesJourneyResult()async throws {
+        try await runOrdinaryResumeRoot(noLocked:true,physicalFinal:true,directFinal:true,directArchetype:.magnet,wildDestination:true,directVariant:"bottle")
     }
     func testActualRegistryFlowerWildDestinationFinalRetainsVariantThroughJourneyResult()async throws {
         try await runOrdinaryResumeRoot(noLocked:true,physicalFinal:true,directFinal:true,directArchetype:.tnt,wildDestination:true,directVariant:"flower")

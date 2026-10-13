@@ -1,10 +1,9 @@
 import UIKit
-import AVFoundation
 import ImageIO
 import CoreImage
 
 /// Selected authored proxy only. Images are decoded on one serial queue;
-/// no array of the movie's hundreds of frames is retained.
+/// only the current authored WebP frame is retained.
 nonisolated private final class NativeStudioAnimatedDecoder:@unchecked Sendable {
     let source:CGImageSource,count:Int
     init?(url:URL){
@@ -21,10 +20,9 @@ nonisolated private final class NativeStudioAnimatedDecoder:@unchecked Sendable 
 }
 
 /// Native owner of the preserved v9 studio composition. One finite CA timeline;
-/// only the selected original transparent HEVC loop is decoded. No web surface.
+/// the selected original animated WebP paints the image directly. No web surface.
 @MainActor
 final class NativeStudioIntroView:UIView,CAAnimationDelegate {
-    enum MediaPreparation {case automatic,animatedFallback,manualReadiness}
     struct Character {
         let key:String,scale:CGFloat,x:CGFloat,y:CGFloat,topPivot:Bool
         init(_ key:String,_ scale:CGFloat,_ x:CGFloat=0,_ y:CGFloat=0,_ top:Bool=false){self.key=key;self.scale=scale;self.x=x;self.y=y;topPivot=top}
@@ -37,36 +35,20 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
     static let duration=4.33
     let character:Character
     private let artwork:JimiV9Artwork,logoUnit=UIView(),logo=UIImageView(),sheen=UIImageView(),label=UILabel(),characterView=UIView(),fallback=UIImageView()
-    private let sheenMask=CAGradientLayer(),resourceRoot:URL,mediaPreparation:MediaPreparation,readinessTimeout:TimeInterval
+    private let sheenMask=CAGradientLayer(),resourceRoot:URL
     private let decodeQueue=DispatchQueue(label:"com.taptapdesign.stacktosix.native-intro-proxy",qos:.userInitiated)
-    private let videoProgressProbe:(()->Double)?
     private let decodedPublicationGate:((@escaping ()->Void)->Void)?
-    private var pendingFallbackReason:String?
     private var decoder:NativeStudioAnimatedDecoder?,mediaEpoch:UInt64=0,frameIndex=0
-    private var readinessDeadline:DispatchWorkItem?,fallbackFrameWork:DispatchWorkItem?
-    private var videoProgressWork:DispatchWorkItem?,lastVideoTime=0.0,lastVideoAdvance=0.0
-    private let playerLayer=AVPlayerLayer()
-    private var readiness:NSKeyValueObservation?
-    private var itemStatus:NSKeyValueObservation?
-    private var currentItemObservation:NSKeyValueObservation?
-    private var player:AVQueuePlayer?,looper:AVPlayerLooper?,observers:[NSObjectProtocol]=[]
-    private var playbackObservation:Any?,sampledPlaybackSeconds=0.0,playbackObservationSequence:UInt64=0
+    private var fallbackFrameWork:DispatchWorkItem?
+    private var observers:[NSObjectProtocol]=[]
     private var completion:(()->Void)?,started=false,disposed=false,backgrounded=false
     private(set) var timelineStarted=false,selectedMotionSource="pending",fallbackFramesPresented=0
-    private(set) var videoProgressCheckCount=0
-    private var pendingTimelineStart=false
     var displayedFallbackImage:UIImage?{fallback.image}
-    /// AVPlayer currentTime can block behind decoder locks. Main reads only the
-    /// last time delivered by the selected player's existing media clock.
-    var mediaPlaybackSeconds:Double{sampledPlaybackSeconds}
     var isRetired:Bool{disposed}
     var terminalCompositionHidden:Bool{isHidden && logoUnit.layer.opacity==0 && characterView.layer.opacity==0}
     var onCharacterCue:((String)->Void)?
-    init(root:URL,character:Character?=nil,mediaPreparation:MediaPreparation = .automatic,readinessTimeout:TimeInterval=1.8,
-         videoProgressProbe:(()->Double)?=nil,decodedPublicationGate:((@escaping ()->Void)->Void)?=nil) {
-        resourceRoot=root;self.mediaPreparation=mediaPreparation;self.readinessTimeout=readinessTimeout
-        self.videoProgressProbe=videoProgressProbe
-        self.decodedPublicationGate=decodedPublicationGate
+    init(root:URL,character:Character?=nil,decodedPublicationGate:((@escaping ()->Void)->Void)?=nil) {
+        resourceRoot=root;self.decodedPublicationGate=decodedPublicationGate
         artwork=JimiV9Artwork(resourceRoot:root)
         self.character=character ?? Self.characters.randomElement()!
         super.init(frame:.zero);isUserInteractionEnabled=true;accessibilityIdentifier="native.studio-intro"
@@ -85,57 +67,11 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
         label.textAlignment = .center
         let png=self.character.key == "lik-slikanje" ? "lik slikanje":self.character.key == "pas-novine" ? "pas novine":self.character.key == "lik-pas-SVG" ? "lik-pas":self.character.key
         fallback.image=artwork.image("assets/logo addons/\(png).png");fallback.contentMode = .scaleAspectFit
-        let url=root.appendingPathComponent("assets/logo addons/optimized/\(self.character.key)-mobile-hevc.mov")
-        if mediaPreparation == .automatic,FileManager.default.fileExists(atPath:url.path) {
-            let item=AVPlayerItem(url:url),queue=AVQueuePlayer();queue.isMuted=true;queue.actionAtItemEnd = .none
-            looper=AVPlayerLooper(player:queue,templateItem:item);player=queue;playerLayer.player=queue;playerLayer.videoGravity = .resizeAspect
-            installPlaybackObservation()
-            characterView.layer.addSublayer(playerLayer)
-            readiness=playerLayer.observe(\.isReadyForDisplay,options:[.initial,.new]) { [weak self] layer,_ in
-                DispatchQueue.main.async { [weak self] in
-                    guard let self,!self.disposed else{return}
-                    self.receiveVideoReadiness(layer.isReadyForDisplay)
-                }
-            }
-            currentItemObservation=queue.observe(\.currentItem,options:[.initial,.new]){[weak self] queue,_ in
-                let current=queue.currentItem
-                DispatchQueue.main.async{[weak self] in
-                    guard let self,!self.disposed,let current,self.player?.currentItem === current else{return}
-                    self.itemStatus?.invalidate()
-                    self.itemStatus=current.observe(\.status,options:[.initial,.new]){[weak self] item,_ in
-                        guard item.status == .failed else{return}
-                        DispatchQueue.main.async{[weak self] in
-                            guard let self,!self.disposed,self.player?.currentItem === item else{return}
-                            self.beginAnimatedFallback(reason:"video-failed")
-                        }
-                    }
-                }
-            }
-        }
         if self.character.topPivot {characterView.layer.anchorPoint=CGPoint(x:0.5,y:0)}
         for name in [UIApplication.willResignActiveNotification,UIApplication.didBecomeActiveNotification] {
             observers.append(NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main){[weak self] note in
                 MainActor.assumeIsolated{self?.setBackgrounded(note.name==UIApplication.willResignActiveNotification)}
             })
-        }
-    }
-    private func retirePlaybackObservation(){
-        playbackObservationSequence &+= 1
-        if let playbackObservation{player?.removeTimeObserver(playbackObservation)}
-        playbackObservation=nil
-    }
-    private func installPlaybackObservation(){
-        retirePlaybackObservation()
-        guard let player,!disposed,!backgrounded else{return}
-        let sequence=playbackObservationSequence,epoch=mediaEpoch
-        playbackObservation=player.addPeriodicTimeObserver(forInterval:CMTime(seconds:0.1,preferredTimescale:600),queue:decodeQueue){[weak self,weak player] time in
-            let seconds=time.seconds
-            DispatchQueue.main.async{[weak self,weak player] in
-                guard let self,let player,!self.disposed,!self.backgrounded,self.player === player,
-                      self.playbackObservationSequence==sequence,self.mediaEpoch==epoch,seconds.isFinite,
-                      self.selectedMotionSource=="pending" || self.selectedMotionSource=="hevc-alpha" else{return}
-                self.sampledPlaybackSeconds=seconds
-            }
         }
     }
     required init?(coder:NSCoder){fatalError("Native original-art initializer")}
@@ -158,7 +94,7 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
         CATransaction.commit()
         characterView.bounds=CGRect(x:0,y:0,width:charWidth,height:charHeight)
         characterView.layer.position=CGPoint(x:bounds.midX+character.x,y:top+logoHeight+20+charHeight*characterView.layer.anchorPoint.y+character.y)
-        fallback.frame=characterView.bounds;playerLayer.frame=characterView.bounds
+        fallback.frame=characterView.bounds
     }
     static func scale(at seconds:Double,character:Bool,rest:Double=1)->Double {
         let begin=character ? 0.15:0,enter=character ? 0.55:0.45,exit=character ? 3.5:3.68
@@ -172,77 +108,25 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
     }
     func start(completion:@escaping()->Void){
         guard !started,!disposed else{return};started=true;self.completion=completion;layoutIfNeeded()
-        player?.play()
-        if mediaPreparation == .animatedFallback || (mediaPreparation == .automatic && player==nil){beginAnimatedFallback(reason:"video-unavailable");return}
-        if player?.currentItem?.status == .failed{beginAnimatedFallback(reason:"video-failed");return}
-        if playerLayer.isReadyForDisplay {receiveVideoReadiness(true);return}
-        armReadinessDeadline()
+        prepareAnimatedCharacter()
     }
-    private func armReadinessDeadline(){
-        guard !disposed,!backgrounded,!timelineStarted else{return}
-        let epoch=mediaEpoch,deadline=DispatchWorkItem{[weak self] in
-            MainActor.assumeIsolated{guard let self,!self.disposed,self.mediaEpoch==epoch,!self.timelineStarted else{return};self.beginAnimatedFallback(reason:"readiness-timeout")}
-        }
-        readinessDeadline=deadline;scheduleMediaDeadline(deadline,after:readinessTimeout)
-    }
-    /// One selected-media preparation scheduling site for initial readiness and
-    /// finite playback checks. These jobs never acquire a display/ticker lease.
-    private func scheduleMediaDeadline(_ work:DispatchWorkItem,after delay:Double){
-        DispatchQueue.main.asyncAfter(deadline:.now()+delay,execute:work)
-    }
-    func receiveVideoReadiness(_ ready:Bool){
-        guard started,!disposed,ready,selectedMotionSource=="pending" || selectedMotionSource=="hevc-alpha" else{return}
-        let firstReady=selectedMotionSource=="pending"
-        readinessDeadline?.cancel();readinessDeadline=nil;selectedMotionSource="hevc-alpha"
-        fallback.isHidden=true;playerLayer.isHidden=false
-        NSLog("[NativeStudioIntro] character=%@ motion=hevc-alpha ready=1",character.key)
-        beginTimeline()
-        if firstReady {beginVideoProgressChecks()}
-    }
-    /// Readiness proves only a displayed first frame. Keep a finite selected
-    /// playback watchdog during this intro, using no animation/display ticker.
-    private func beginVideoProgressChecks(){
-        guard mediaPreparation == .automatic,!disposed,!backgrounded,selectedMotionSource=="hevc-alpha" else{return}
-        lastVideoTime=videoProgressProbe?() ?? mediaPlaybackSeconds;lastVideoAdvance=CACurrentMediaTime()
-        scheduleVideoProgressCheck()
-    }
-    private func scheduleVideoProgressCheck(){
-        guard !disposed,!backgrounded,selectedMotionSource=="hevc-alpha",videoProgressCheckCount<13 else{return}
-        videoProgressWork?.cancel()
-        let epoch=mediaEpoch,work=DispatchWorkItem{[weak self] in MainActor.assumeIsolated{
-            guard let self,!self.disposed,!self.backgrounded,self.mediaEpoch==epoch,self.selectedMotionSource=="hevc-alpha" else{return}
-            self.videoProgressWork=nil;self.videoProgressCheckCount+=1
-            let time=self.videoProgressProbe?() ?? self.mediaPlaybackSeconds,now=CACurrentMediaTime()
-            // Loop wrap also proves playback; don't misclassify a short movie.
-            if time.isFinite,abs(time-self.lastVideoTime)>0.01 {
-                self.lastVideoTime=time;self.lastVideoAdvance=now
-            } else if now-self.lastVideoAdvance>=0.8 {
-                self.beginAnimatedFallback(reason:"video-playback-stalled");return
-            }
-            self.scheduleVideoProgressCheck()
-        }}
-        videoProgressWork=work;scheduleMediaDeadline(work,after:0.35)
-    }
-    private func beginAnimatedFallback(reason:String){
-        guard started,!disposed,!backgrounded,decoder==nil,selectedMotionSource != "animated-webp",selectedMotionSource != "fallback-loading" else{return}
-        readinessDeadline?.cancel();readinessDeadline=nil;mediaEpoch &+= 1;let epoch=mediaEpoch
-        videoProgressWork?.cancel();videoProgressWork=nil;retirePlaybackObservation()
-        selectedMotionSource="fallback-loading";player?.pause();playerLayer.isHidden=true;fallback.isHidden=false
-        pendingFallbackReason=reason
+    private func prepareAnimatedCharacter(){
+        guard started,!disposed,!backgrounded,decoder==nil,selectedMotionSource != "fallback-loading" else{return}
+        mediaEpoch &+= 1;let epoch=mediaEpoch
+        selectedMotionSource="fallback-loading"
         let url=resourceRoot.appendingPathComponent("assets/logo addons/optimized/\(character.key)-mobile.webp")
         decodeQueue.async{[weak self] in
             let decoder=NativeStudioAnimatedDecoder(url:url),first=decoder?.frame(0)
             DispatchQueue.main.async{[weak self] in
                 self?.publishDecodedMedia{[weak self] in
                 guard let self,!self.disposed,!self.backgrounded,self.mediaEpoch==epoch else{return}
-                self.pendingFallbackReason=nil
                 guard let decoder,let first else{
-                    self.selectedMotionSource="static-fallback-unavailable";NSLog("[NativeStudioIntro] character=%@ motion=static reason=%@",self.character.key,reason)
+                    self.selectedMotionSource="static-fallback-unavailable";NSLog("[NativeStudioIntro] character=%@ motion=static reason=%@",self.character.key,"webp-unavailable")
                     self.beginTimeline();return
                 }
                 self.decoder=decoder;self.selectedMotionSource="animated-webp";self.frameIndex=0
                 self.fallback.image=UIImage(cgImage:first.0);self.fallbackFramesPresented+=1
-                NSLog("[NativeStudioIntro] character=%@ motion=animated-webp reason=%@ frames=%d",self.character.key,reason,decoder.count)
+                NSLog("[NativeStudioIntro] character=%@ motion=animated-webp frames=%d",self.character.key,decoder.count)
                 self.beginTimeline();self.scheduleFallbackFrame(after:first.1)
                 }
             }
@@ -273,8 +157,8 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
     }
     private func beginTimeline(){
         guard !timelineStarted,!disposed else{return}
-        guard !backgrounded else{pendingTimelineStart=true;return}
-        pendingTimelineStart=false;timelineStarted=true
+        guard !backgrounded else{return}
+        timelineStarted=true
         onCharacterCue?(character.key);guard !disposed else{return}
         CATransaction.begin();CATransaction.setDisableActions(true)
         for target in [logoUnit,characterView]{target.layer.transform=CATransform3DMakeScale(0,0,1);target.layer.opacity=0}
@@ -312,27 +196,21 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
             else {let paused=layer.timeOffset;layer.speed=1;layer.timeOffset=0;layer.beginTime=0;layer.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil)-paused}
         }}
         if value{
-            mediaEpoch &+= 1;retirePlaybackObservation()
-            player?.pause();fallbackFrameWork?.cancel();fallbackFrameWork=nil;readinessDeadline?.cancel();readinessDeadline=nil;videoProgressWork?.cancel();videoProgressWork=nil
+            mediaEpoch &+= 1
+            fallbackFrameWork?.cancel();fallbackFrameWork=nil
             if selectedMotionSource=="fallback-loading"{selectedMotionSource="pending"}
         }else if started{
-            if pendingTimelineStart{beginTimeline()}
-            if let reason=pendingFallbackReason,decoder==nil{beginAnimatedFallback(reason:reason)}
-            else if player?.currentItem?.status == .failed,decoder==nil{beginAnimatedFallback(reason:"video-failed-after-resume")}
-            if selectedMotionSource=="hevc-alpha"{installPlaybackObservation();player?.play();beginVideoProgressChecks()}
-            else if decoder != nil{scheduleFallbackFrame(after:1.0/30)}
-            else if selectedMotionSource=="pending"{installPlaybackObservation();player?.play();if playerLayer.isReadyForDisplay{receiveVideoReadiness(true)}else{armReadinessDeadline()}}
+            if decoder != nil{scheduleFallbackFrame(after:1.0/30)}
+            else if selectedMotionSource=="pending"{prepareAnimatedCharacter()}
         }
     }
     func dispose(){guard !disposed else{return};disposed=true;completion=nil;onCharacterCue=nil
-        isHidden=true;mediaEpoch &+= 1;pendingFallbackReason=nil;readinessDeadline?.cancel();readinessDeadline=nil;fallbackFrameWork?.cancel();fallbackFrameWork=nil;videoProgressWork?.cancel();videoProgressWork=nil;decoder=nil
+        isHidden=true;mediaEpoch &+= 1;fallbackFrameWork?.cancel();fallbackFrameWork=nil;decoder=nil
         CATransaction.begin();CATransaction.setDisableActions(true)
         for target in [logoUnit,characterView]{target.layer.opacity=0;target.layer.transform=CATransform3DMakeScale(0,0,1)}
         sheen.layer.opacity=0;CATransaction.commit()
         for target in [logoUnit,characterView]{target.layer.removeAllAnimations()}
         sheen.layer.removeAllAnimations();sheenMask.removeAllAnimations()
-        retirePlaybackObservation()
-        readiness?.invalidate();readiness=nil;itemStatus?.invalidate();itemStatus=nil;currentItemObservation?.invalidate();currentItemObservation=nil;player?.pause();looper?.disableLooping();looper=nil;player?.removeAllItems();playerLayer.player=nil;player=nil
         observers.forEach(NotificationCenter.default.removeObserver);observers.removeAll();removeFromSuperview()
     }
 }

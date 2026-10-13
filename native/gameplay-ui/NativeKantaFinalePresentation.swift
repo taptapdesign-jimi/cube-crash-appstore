@@ -10,9 +10,9 @@ final class NativeKantaFinalePresentation: NativeFinitePresentation {
     private let motion: NativeKantaFinaleMotion,glyphs: NativeSplashGlyphField
     private var robots:[UIImageView]=[],cans:[UIImageView]=[],composites:[UIImageView]=[]
     private var receipts=Set<String>(),cancelled=false
-    init(resourceRoot:URL,viewport:CGSize,random:()->Double={Double.random(in:0..<1)}) {
+    init(resourceRoot:URL,viewport:CGSize,preparedArtwork:JimiV9Artwork?=nil,random:()->Double={Double.random(in:0..<1)}) {
         motion=NativeKantaFinaleMotion.make(viewport:viewport,random:random)
-        let artwork=JimiV9Artwork(resourceRoot:resourceRoot)
+        let artwork=preparedArtwork ?? JimiV9Artwork(resourceRoot:resourceRoot)
         glyphs=NativeSplashGlyphField(artwork:artwork,text:"SPLAT!",colors:[UIColor(red:123.0/255,green:211.0/255,blue:224.0/255,alpha:1)],splitIndex:0,letterOpacityRange:1...1,neonGlow:true,random:random)
         let sources=Set(motion.robots.map(\.source)+motion.cans.map(\.source)+motion.composites.map(\.source))
         assetReady=sources.allSatisfy {artwork.image($0,densityAware:true) != nil}

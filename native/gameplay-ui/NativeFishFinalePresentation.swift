@@ -20,12 +20,12 @@ final class NativeFishFinalePresentation: UIView {
     private var lastFrame: TimeInterval?,elapsed: TimeInterval = 0,preparing: TimeInterval = 0
     private var started = false,ready = false,paused = false,backgrounded = false,disposed = false
 
-    init(resourceRoot: URL,origin: CGPoint,viewport: CGSize) {
+    init(resourceRoot: URL,origin: CGPoint,viewport: CGSize,preparedArtwork:JimiV9Artwork?=nil) {
         let fishItem = AVPlayerItem(url: resourceRoot.appendingPathComponent("assets/shop/fish/fish-mobile-hevc.mov"))
         swimmerPlayer = AVQueuePlayer(); swimmerLoop = AVPlayerLooper(player: swimmerPlayer,templateItem: fishItem)
         bubblesPlayer = AVPlayer(url: resourceRoot.appendingPathComponent("assets/shop/fish/bubbly-fast-hevc.mov"))
         motion = NativeFishFinaleMotion(origin: origin,viewport: viewport)
-        glyphs = NativeSplashGlyphField(artwork: JimiV9Artwork(resourceRoot: resourceRoot),text: "FISHY",
+        glyphs = NativeSplashGlyphField(artwork: preparedArtwork ?? JimiV9Artwork(resourceRoot: resourceRoot),text: "FISHY",
             colors: [UIColor(red: 253.0/255,green: 124.0/255,blue: 65.0/255,alpha: 1),UIColor(red: 252.0/255,green: 164.0/255,blue: 112.0/255,alpha: 1)],splitIndex: 3)
         super.init(frame: CGRect(origin: .zero,size: viewport))
         isUserInteractionEnabled = false; isOpaque = false; backgroundColor = .clear; clipsToBounds = true

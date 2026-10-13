@@ -30,6 +30,71 @@ struct NativeSourceDragRenderDiagnostics {
 /// animation completion never computes a merge, spawn, reward or terminal.
 @MainActor
 final class NativeBoardScene: SKScene {
+    private weak var ownedRenderHost:(any NativeGameplayRenderHost)?
+    private weak var mountedLifecycleHost:(any NativeGameplayRenderHost)?
+    var renderPipelineProbe:NativeRenderPipelineProbe? = Bundle.main.bundleIdentifier=="com.taptapdesign.stacktosix.native" && ProcessInfo.processInfo.arguments.contains("--cc-render-pipeline-probe") ? NativeRenderPipelineProbe():nil
+    var renderPipelineProbeAdmissionOpen:Bool {
+        guard sourceAnimationBindingAdmissionOpen,!suspended,!isPaused,!exitInProgress,isBoardEntryComplete,
+              engine.state.terminal==nil,engine.state.tutorial?.active != true,
+              let host=gameplayRenderHost,host.renderedScene === self,host.renderView.window != nil,
+              !host.renderView.isHidden,!host.renderingPaused,gameplayRenderHostVisible(host) else{return false}
+        return true
+    }
+    func renderPipelineProbeTarget()->NativeRenderPipelineProbe.Target? {
+        guard renderPipelineProbeAdmissionOpen,activeTouch==nil,draggedID==nil,!engine.hasUnsavableSourceGameplayState,
+              let geometry else{return nil}
+        for tile in engine.state.tiles.sorted(by:{$0.id<$1.id}) where tile.isPlayable && tile.value>0 && tile.value<6 && tile.gameplayArchetype==nil && !tile.sourceResidualWildPresence {
+            guard let node=nodesByID[tile.id],node.parent === canvasRoot,node.sourceContactNodeAlive,
+                  !node.isHidden,node.alpha>0.01,(!node.sourceOuterDriven || node.sourceEventMode=="static") else{continue}
+            return .init(id:tile.id,generation:engine.state.generation,center:node.convert(.zero,to:self),radius:min(12,geometry.tileSize*0.15))
+        }
+        return nil
+    }
+    func renderPipelineProbeHolds(_ target:NativeRenderPipelineProbe.Target)->Bool {
+        draggedID==target.id && engine.state.generation==target.generation && nodesByID[target.id]?.parent === canvasRoot
+    }
+    var gameplayRenderHost:(any NativeGameplayRenderHost)? {
+        if let host=ownedRenderHost {return host.renderedScene === self ? host:nil}
+        return view
+    }
+    private func gameplayRenderHostVisible(_ host:any NativeGameplayRenderHost)->Bool {
+        guard host.renderedScene === self,let window=host.renderView.window,
+              UIApplication.shared.applicationState == .active,
+              window.windowScene?.activationState == nil || window.windowScene?.activationState == .foregroundActive else{return false}
+        var surface:UIView?=host.renderView
+        while let current=surface {
+            if current.isHidden || current.alpha<=0.001 {return false}
+            surface=current.superview
+        }
+        return true
+    }
+    @discardableResult func mountOwnedRenderHost(_ host:any NativeGameplayRenderHost)->Bool {
+        guard !sourceDisposalInProgress,!disposed,host.renderedScene === self,
+              view==nil,ownedRenderHost==nil || ownedRenderHost === host else{return false}
+        ownedRenderHost=host
+        mountGameplayRenderHost(host)
+        return !disposed && ownedRenderHost === host && host.renderedScene === self
+    }
+    func unmountOwnedRenderHost(_ host:any NativeGameplayRenderHost) {
+        guard ownedRenderHost === host else{return}
+        renderPipelineProbe?.cancel(scene:self,reason:"host-unmounted")
+        if draggedID != nil {cancelDrag(pointerCancelled:true)}
+        retireSourceRendererDragTransport()
+        ownedRenderHost=nil
+        if mountedLifecycleHost === host {mountedLifecycleHost=nil}
+    }
+    private func mountGameplayRenderHost(_ host:any NativeGameplayRenderHost) {
+        guard mountedLifecycleHost !== host else{return}
+        mountedLifecycleHost=host;host.renderView.isMultipleTouchEnabled=true
+        let sourceInitialEntry=sourceInitialEntryPending;sourceInitialEntryPending=false
+        synchronize(animateEntry:lastGeneration==nil || sourceInitialEntry)
+        guard !disposed,mountedLifecycleHost === host,host.renderedScene === self else{return}
+        retainSourceRendererDragTransport()
+    }
+    private func touchLocationInGameplayScene(_ touch:UITouch)->CGPoint {
+        guard let host=ownedRenderHost else{return touch.location(in:self)}
+        return host.viewPointToScene(touch.location(in:host.renderView),scene:self)
+    }
     var sourceWildShimmerEnabled=false
     private var sourceShimmerVisibilityElapsedMs=0.0
     let engine: NativeGameplayEngine
@@ -121,7 +186,7 @@ final class NativeBoardScene: SKScene {
             current:{[weak self,weak scope,weak node] in
                 guard let self,let scope,let node else{return false}
                 return self.sourceAnimationBindingAdmissionOpen && scope.current && self.sourceStarHaloScope === scope && self.engine.state.generation==generation && self.nodesByID[node.tileID] === node
-            },paintable:{[weak self] in self?.view != nil},metrics:{[weak node] in node?.sourceStarOrbitMetrics ?? .zero},
+            },paintable:{[weak self] in self?.gameplayRenderHost != nil},metrics:{[weak node] in node?.sourceStarOrbitMetrics ?? .zero},
             mount:{[weak node,weak layer] halo in
                 guard let node,let layer else{return false}
                 return halo.mountAboveHUD(host:node.sourceStarOrbitHost,layer:layer,artworkZIndex:node.sourceStarArtworkZIndex)
@@ -173,10 +238,30 @@ final class NativeBoardScene: SKScene {
     var onFrameCadence:((Int)->Void)?
     private func requestRendering(_ active:Bool){onRenderingDemand?(active)}
     var onFrameTarget:((Int)->Void)?
+    var onRenderSurfacePreparation:(()->Void)?
     var onSpecialIdleSuspended:((Bool)->Void)?
     private let sourceFrames=NativeSourceFrameRuntime()
     private var sourceFramesAttached=false
     private let frameDiagnosticsEnabled=NativeDiagnosticsCapture.admitted(arguments:ProcessInfo.processInfo.arguments,bundleIdentifier:Bundle.main.bundleIdentifier,preferenceEnabled:UserDefaults.standard.bool(forKey:"cc.performanceDiagnostics"))
+    func traceNoMovesHandoff(_ stage:String,token:UInt64=0,owner:AnyObject?=nil,mounted:Bool=false) {
+        guard frameDiagnosticsEnabled else{return}
+        let identity=owner.map{String(describing:ObjectIdentifier($0))} ?? "none"
+        NSLog("[CC_NATIVE_NO_MOVES_HANDOFF] stage=%@ board=%d generation=%llu token=%llu owner=%@ mounted=%d exitInProgress=%d",stage,engine.state.board,engine.state.generation,token,identity,mounted,exitInProgress)
+    }
+    /// Event-only capture: reads stored model/node scalars, never Source admission hooks.
+    private func traceSourceMagnetContact(_ stage:String,id:String,target:NativeCell?=nil,result:NativeMoveResult?=nil) {
+        guard frameDiagnosticsEnabled else{return}
+        let state=engine.state
+        func describe(_ tileID:String)->String {
+            let model=state.tiles.first{$0.id==tileID},node=nodesByID[tileID]
+            let modelFlags=model.map{"value=\($0.value),kind=\($0.archetype?.rawValue ?? "regular"),variant=\($0.variant ?? "none"),locked=\($0.locked),removal=\($0.pendingRemoval),magnet=\($0.magnetOwned),resolution=\($0.resolutionOwned),cleared=\($0.sourceWildStateCleared),residual=\($0.sourceResidualWildPresence)"} ?? "missing"
+            let nodeFlags=node.map{"value=\($0.value),kind=\($0.kind),variant=\($0.variant ?? "none"),event=\($0.sourceEventMode),mounted=\($0.parent === canvasRoot),generation=\($0.sourceGeneration),cleared=\($0.sourceWildStateCleared),residual=\($0.sourceResidualWildPresence)"} ?? "missing"
+            return "id=\(tileID) model={\(modelFlags)} node={\(nodeFlags)}"
+        }
+        let destination=target.flatMap{state.tile(at:$0)}.map{describe($0.id)} ?? "none"
+        let reasons=result.map{$0.events.compactMap{$0.reason}.joined(separator:",") + ";resolution=" + String(describing:$0.resolution.reason)} ?? "none"
+        NSLog("[CC_NATIVE_MAGNET_CONTACT] stage=%@ board=%d generation=%llu revision=%llu accepted=%@ reason=%@ source=%@ target=%@ specialPending=%d lazyPending=%d",stage,state.board,state.generation,state.revision,result.map{String($0.accepted)} ?? "none",reasons,describe(id),destination,engine.pendingSpecial != nil,engine.pendingSourceMagnetLazyRespawn != nil)
+    }
     private var diagnosticWindowStart:Double?,diagnosticLastFrame:Double?,diagnosticFrameCount=0
     private var diagnosticWorstGap=0.0,diagnosticElapsed=0.0
     private var diagnosticPreviousTarget:Int?
@@ -185,6 +270,42 @@ final class NativeBoardScene: SKScene {
     private var diagnosticMoveWorstMs=0.0,diagnosticUpdateWorstMs=0.0,diagnosticCadenceWorstMs=0.0,diagnosticIdleWorstMs=0.0,diagnosticHandoffWorstMs=0.0
     private var diagnosticDragRender=NativeSourceDragRenderDiagnostics()
     private var diagnosticLatestTouchMilliseconds:Double?
+    // Scalars only: no retained UITouch/UIEvent, timer, or per-frame output.
+    private struct DragInputProbe {
+        var osTimestampMs:Double?,coalescedTimestampMs:Double?,paintedOSTimestampMs:Double?,paintedCoalescedTimestampMs:Double?,sceneTime:Double?
+        var osSamples=0,coalescedSamples=0,coalescedEvents=0
+        var callbackAgeWorst=0.0,paintAgeWorst=0.0,renderAgeWorst=0.0
+        var coalescedCallbackAgeWorst=0.0,coalescedPaintAgeWorst=0.0,coalescedRenderAgeWorst=0.0
+        var sceneGaps=0,sceneOver20=0,sceneOver30=0,sceneGapWorst=0.0
+        var arrivalTime:Double?,phaseMinimum:Double?,phaseMaximum:Double?
+        var arrivalGaps=0,arrivalOver20=0,arrivalOver30=0,arrivalGapWorst=0.0
+        var positionChecks=0,positionMismatches=0,positionErrorWorst=0.0
+        mutating func resetInterval(){
+            osSamples=0;coalescedSamples=0;coalescedEvents=0
+            callbackAgeWorst=0;paintAgeWorst=0;renderAgeWorst=0
+            coalescedCallbackAgeWorst=0;coalescedPaintAgeWorst=0;coalescedRenderAgeWorst=0
+            sceneGaps=0;sceneOver20=0;sceneOver30=0;sceneGapWorst=0
+            arrivalGaps=0;arrivalOver20=0;arrivalOver30=0;arrivalGapWorst=0;phaseMinimum=nil;phaseMaximum=nil
+            positionChecks=0;positionMismatches=0;positionErrorWorst=0
+        }
+    }
+    private var diagnosticDragInput=DragInputProbe()
+    private weak var diagnosticExpectedDragNode:NativeDiceNode?
+    private var diagnosticExpectedDragPosition:CGPoint?
+    private var diagnosticExpectedDragGeneration:UInt64?
+    /// Read-only QA receipt; default-off callers do not observe nodes or clocks.
+    func sourceDragInputDiagnosticSnapshot()->[String:Double] {
+        guard frameDiagnosticsEnabled else{return [:]}
+        let input=diagnosticDragInput
+        return ["osSamples":Double(input.osSamples),"coalescedEvents":Double(input.coalescedEvents),
+                "coalescedSamples":Double(input.coalescedSamples),
+                "lastOSTimestampMs":input.osTimestampMs ?? -1,"lastCoalescedTimestampMs":input.coalescedTimestampMs ?? -1,
+                "osCallbackAgeWorstMs":input.callbackAgeWorst,"osPaintAgeWorstMs":input.paintAgeWorst,"osRenderAgeWorstMs":input.renderAgeWorst,
+                "coalescedCallbackAgeWorstMs":input.coalescedCallbackAgeWorst,"coalescedPaintAgeWorstMs":input.coalescedPaintAgeWorst,"coalescedRenderAgeWorstMs":input.coalescedRenderAgeWorst,
+                "sceneGaps":Double(input.sceneGaps),"sceneOver20Ms":Double(input.sceneOver20),"sceneOver30Ms":Double(input.sceneOver30),
+                "sceneGapWorstMs":input.sceneGapWorst,"heldPositionChecks":Double(input.positionChecks),
+                "heldPositionMismatches":Double(input.positionMismatches),"heldPositionErrorWorstPoints":input.positionErrorWorst]
+    }
     private var diagnosticLastLinkCreations=0
     private func resetDiagnosticFrameInterval() {
         diagnosticFrameCount=0;diagnosticElapsed=0;diagnosticWorstGap=0
@@ -192,6 +313,7 @@ final class NativeBoardScene: SKScene {
         diagnosticDrags=0;diagnosticMoves=0;diagnosticTouchSamples=0;diagnosticAnyDragging=false
         diagnosticMoveWorstMs=0;diagnosticUpdateWorstMs=0;diagnosticCadenceWorstMs=0;diagnosticIdleWorstMs=0;diagnosticHandoffWorstMs=0
         diagnosticDragRender.resetInterval()
+        if frameDiagnosticsEnabled {diagnosticDragInput.resetInterval()}
     }
     private func recordDiagnosticFrame(nowMs:Double,configuredFPS:Double) {
         guard frameDiagnosticsEnabled else{return}
@@ -216,9 +338,14 @@ final class NativeBoardScene: SKScene {
             let reads=sourcePhysicalReadDiagnostics,links=service.displayLinkCreationCount
             NSLog("[CC_NATIVE_HITCH_WORK] board=%d generation=%llu linkCreationsTotal=%d linkCreationsInterval=%d dragTransportReceipts=%d boardCaptures=%d boardRevalidations=%d tileObservationReads=%d observerCreations=%d",engine.state.board,engine.state.generation,links,max(0,links-diagnosticLastLinkCreations),service.directManipulationTransportCount,reads.boardCaptures,reads.boardRevalidations,reads.tileObservationReads,reads.observerCreations)
             diagnosticLastLinkCreations=links;resetSourcePhysicalReadDiagnostics()
+            NSLog("[CC_NATIVE_FRAME_COST] board=%d generation=%llu deliveryMs=%.2f rootsMs=%.2f rootCleanupMs=%.2f rafMs=%.2f tickerMs=%.2f rawMs=%.2f fifoValidationMs=%.2f fifoReactionsMs=%.2f fifoCompactMs=%.2f otherMs=%.2f rootVisits=%d fifoJobs=%d reactionOwner=%@ reactionWorstMs=%.2f",engine.state.board,engine.state.generation,source.worstDeliveryMilliseconds,source.worstFrameRootTotalMilliseconds,source.worstFrameRootCleanupMilliseconds,source.worstFrameRAFTotalMilliseconds,source.worstFrameTickerTotalMilliseconds,source.worstFrameRawTotalMilliseconds,source.worstFrameFIFOValidationMilliseconds,source.worstFrameFIFOReactionMilliseconds,source.worstFrameFIFOCompactMilliseconds,source.worstFrameOtherMilliseconds,source.worstFrameRootCount,source.worstFrameFIFOJobCount,source.slowestReactionOwner,source.slowestReactionMilliseconds)
+            NSLog("[CC_NATIVE_FRAME_OWNER] board=%d generation=%llu slowestOwner=%@ phase=%@ ownerWorstMs=%.2f rootWorstMs=%.2f rafWorstMs=%.2f tickerWorstMs=%.2f rawWorstMs=%.2f microtaskWorstMs=%.2f layerCommitWorstMs=%.2f rootHighWater=%d rawHighWater=%d rafHighWater=%d tickerHighWater=%d renderDemandHighWater=%d",engine.state.board,engine.state.generation,source.slowestParticipantOwner,source.slowestParticipantPhase,source.slowestParticipantMilliseconds,source.worstRootMilliseconds,source.worstRAFMilliseconds,source.worstTickerListenerMilliseconds,source.worstRawMilliseconds,source.worstMicrotaskMilliseconds,source.worstLayerCommitMilliseconds,source.rootHighWater,source.rawHighWater,source.rafHighWater,source.tickerListenerHighWater,source.renderDemandHighWater)
             NSLog("[CC_NATIVE_SCHEDULING] board=%d generation=%llu sourceDeliveries=%d sourceWorstGapMs=%.2f sourceDeliveryWorstMs=%.2f sourceDeadlineLateWorstMs=%.2f dragRendersWithoutPaint=%d dragRendersOnePaint=%d dragRendersMultiplePaints=%d dragPaintAgeWorstMs=%.2f queuedTouchAgeWorstMs=%.2f",engine.state.board,engine.state.generation,source.deliveries,source.worstGapMilliseconds,source.worstDeliveryMilliseconds,source.worstDeadlineLateMilliseconds,drag.rendersWithoutPaint,drag.rendersOnePaint,drag.rendersMultiplePaints,drag.worstPaintAgeMilliseconds,drag.worstQueuedTouchAgeMilliseconds)
         }
         NSLog("[CC_NATIVE_FRAME] board=%d generation=%llu callbacks=%d elapsedMs=%.1f worstGapMs=%.1f target=%.0f dragging=%d time15Ms=%.1f time30Ms=%.1f time60Ms=%.1f active60WorstGapMs=%.1f acceptedDrags=%d touchSamples=%d movePaints=%d anyDragging=%d activityCount=%d settledCount=%d activityLabels=%@ settledLabels=%@ moveCallbackWorstMs=%.2f updateCallbackWorstMs=%.2f cadenceStageWorstMs=%.2f idleStageWorstMs=%.2f handoffCallbackWorstMs=%.2f",engine.state.board,engine.state.generation,diagnosticFrameCount,diagnosticElapsed,diagnosticWorstGap,configuredFPS,draggedID == nil ? 0:1,diagnosticTime15,diagnosticTime30,diagnosticTime60,diagnosticActiveWorstGap,diagnosticDrags,diagnosticTouchSamples,diagnosticMoves,diagnosticAnyDragging ? 1:0,state.activityLeaseCount,state.settledMotionLeaseCount,labels.activity,labels.settled,diagnosticMoveWorstMs,diagnosticUpdateWorstMs,diagnosticCadenceWorstMs,diagnosticIdleWorstMs,diagnosticHandoffWorstMs)
+        let input=diagnosticDragInput
+        NSLog("[CC_NATIVE_DRAG_PHASE] board=%d generation=%llu arrivalGaps=%d arrivalOver20Ms=%d arrivalOver30Ms=%d arrivalGapWorstMs=%.2f phaseMinMs=%.2f phaseMaxMs=%.2f",engine.state.board,engine.state.generation,input.arrivalGaps,input.arrivalOver20,input.arrivalOver30,input.arrivalGapWorst,input.phaseMinimum ?? 0,input.phaseMaximum ?? 0)
+        NSLog("[CC_NATIVE_DRAG_INPUT] board=%d generation=%llu osSamples=%d coalescedEvents=%d coalescedSamples=%d lastOSTimestampMs=%.2f lastCoalescedTimestampMs=%.2f osCallbackAgeWorstMs=%.2f osPaintAgeWorstMs=%.2f osRenderAgeWorstMs=%.2f coalescedCallbackAgeWorstMs=%.2f coalescedPaintAgeWorstMs=%.2f coalescedRenderAgeWorstMs=%.2f sceneGaps=%d sceneOver20Ms=%d sceneOver30Ms=%d sceneGapWorstMs=%.2f heldPositionChecks=%d heldPositionMismatches=%d heldPositionErrorWorstPoints=%.4f",engine.state.board,engine.state.generation,input.osSamples,input.coalescedEvents,input.coalescedSamples,input.osTimestampMs ?? -1,input.coalescedTimestampMs ?? -1,input.callbackAgeWorst,input.paintAgeWorst,input.renderAgeWorst,input.coalescedCallbackAgeWorst,input.coalescedPaintAgeWorst,input.coalescedRenderAgeWorst,input.sceneGaps,input.sceneOver20,input.sceneOver30,input.sceneGapWorst,input.positionChecks,input.positionMismatches,input.positionErrorWorst)
         diagnosticWindowStart=nowMs;resetDiagnosticFrameInterval()
     }
 
@@ -793,7 +920,7 @@ final class NativeBoardScene: SKScene {
             current:current,acquireFrames:{[weak self] in self?.beginSourceMotion(.boardPopIn,id:"source-board-entry:\(epoch)",generation:generation)},
             sound:{duration in guard current() else{return nil};return sound(duration,audioReceipt,generation)},
             half:{[weak self] in guard let self,current(),let receipt=self.hudEntryReceipt else{return};self.hudEntryReveal.midpoint(receipt)},
-            haptic:{[weak self] in guard current() else{return};self?.onHaptic?("light")},
+            haptic:{[weak self] in guard current() else{return};self?.onHaptic?("protected-light")},
             syncZ:{node,animating in guard current(),nodes[node.tileID] === node,node.parent === captures.first?.parent else{return};node.zPosition=node.locked ? (animating ? 80:5):(animating ? 120:20)},
             drawBG:{[weak self] in guard let self,current() else{return};self.renderGhosts(state:self.engine.state,geometry:geometry)},
             finished:{[weak self,weak installation] completion in
@@ -1317,6 +1444,7 @@ final class NativeBoardScene: SKScene {
     private var ghostNodesByCell:[NativeCell:SKSpriteNode]=[:]
     private let hud = SKNode()
     private let dragTrail=NativeDragTrail()
+    private var sourceDragTrailRelease:(()->Void)?
     private let effects = SKNode()
     private let hudStarFlights = SKNode()
     private var hudStarNodes:[String:SKNode]=[:]
@@ -1336,6 +1464,7 @@ final class NativeBoardScene: SKScene {
     private let meterBackground = SKShapeNode()
     private let hover = SKShapeNode()
     private var hoverTargetID: String?
+    private var hoverGeometryKey:CGSize?
     private var dragHoverCadence=NativeDragHoverCadence()
     private var geometry: NativeBoardGeometry?
     var boardGeometry: NativeBoardGeometry? { geometry }
@@ -1343,6 +1472,7 @@ final class NativeBoardScene: SKScene {
     private var activeTouch: UITouch?
     private var sourceDragMoves:NativeSourceDragMoveQueue?
     private var sourceDragTransport:NativeSourceAnimationClockService.DirectManipulationTransportLease?
+    private var sourceRendererDragTransport:NativeSourceAnimationClockService.RendererDragTransportLease?
     private var draggedID: String?
     private var dragMoved = false
     private var fingerOffset = CGPoint.zero
@@ -1553,9 +1683,13 @@ final class NativeBoardScene: SKScene {
         guard configureSourceNoMovesDepletedCallers(.init(kinds:[.ordinaryMovesDepleted,.mergeMovesDepleted],admitted:{gen,_ in gen==generation && current()},busyEnding:{[weak self] in current() ? self?.engine.flags.busyEnding:nil},ensureTutorialSingleTile:{receipt,reply in repair("moves_depleted_single_regular_tile",true,reply)},forceFresh:{_ in
             guard let snapshot=fresh() else{return nil};var state=snapshot.state;state.moves=0
             return NativeSourceEndgameChecker.check(state:state,runtime:snapshot.tiles,endgameGuard:snapshot.endgameGuardActive,nonFinalGuard:snapshot.nonFinalMergeSixGuardActive)
-        },resetHint:{[weak self] in self?.sourceNoMovesBindings?.resetHint()},deferWild:wild,tutorialFinalChance:{reason,reply in repair(reason,false,reply)},cleanVisibility:{[weak self] in guard current(),let self else{return nil};guard let host=self.view,host.window != nil,!host.isHidden,host.alpha>0.01,!self.suspended,!self.exitInProgress,self.isBoardEntryComplete else{return nil};return (false,false)},clean:{[weak self] reason in self?.handleResolution(NativeResolution(.complete,reason:reason))})) else{return false}
-        let roster:()->NativeSourcePostcheckRoster? = {[weak self] in guard current(),let self,let board=self.captureSourcePhysicalBoard(),board.isStillCurrent() else{return nil};var values:[NativeSourcePostcheckTile]=[]
-            for model in board.observedState.tiles {guard let node=self.nodesByID[model.id],let markers=self.captureSourceGameplayTileMarkers(model.id),let physical=board.tiles[model.id],board.isStillCurrent() else{return nil};values.append(.init(object:node,id:model.id,value:model.value,depth:model.stackDepth,locked:model.locked,destroyed:markers.destroyed,isWildLike:model.isWild,active:NativeSourceEndgameChecker.active(model,runtime:markers.noMovesRuntime(eventMode:physical.eventMode))))}
+        },resetHint:{[weak self] in self?.sourceNoMovesBindings?.resetHint()},deferWild:wild,tutorialFinalChance:{reason,reply in repair(reason,false,reply)},cleanVisibility:{[weak self] in guard current(),let self else{return nil};guard let host=self.gameplayRenderHost?.renderView,host.window != nil,!host.isHidden,host.alpha>0.01,!self.suspended,!self.exitInProgress,self.isBoardEntryComplete else{return nil};return (false,false)},clean:{[weak self] reason in self?.handleResolution(NativeResolution(.complete,reason:reason))})) else{return false}
+        let roster:()->NativeSourcePostcheckRoster? = {[weak self] in guard current(),let self,let board=self.captureSourcePhysicalBoard() else{return nil};var values:[NativeSourcePostcheckTile]=[]
+            guard self.scanSourceSynchronousPhysicalBoard(board,current:current,readsExternalOwner:{$0.isSpecial || $0.sourceResidualWildPresence},read:{model,node in
+                guard let markers=self.captureSourceGameplayTileMarkers(model.id),let physical=board.tiles[model.id] else{return nil}
+                values.append(.init(object:node,id:model.id,value:model.value,depth:model.stackDepth,locked:model.locked,destroyed:markers.destroyed,isWildLike:model.isWild,active:NativeSourceEndgameChecker.active(model,runtime:markers.noMovesRuntime(eventMode:physical.eventMode))))
+                return false
+            }) != nil else{return nil}
             return .init(tiles:values,moves:board.observedState.moves,complete:true)
         }
         guard configureSourceOrdinaryPreDebit(.init(markerCapabilities:Set(NativeSourceNoMovesRuntimeSnapshot.Capability.allCases),admitted:{gen in gen==generation && current()},captureBefore:roster,stateRoster:roster,reread:{held in guard let captured=roster() else{return nil};return captured.tiles.first{$0.id==held.id && $0.object === held.object}},busyEnding:{[weak self] in current() ? self?.engine.flags.busyEnding:nil},forceFresh:{request in
@@ -1827,19 +1961,37 @@ final class NativeBoardScene: SKScene {
         return .ready
     }
     private func captureSourceLevelEndSignature()->(key:String,signature:NativeSourceMeterEndgameSignature)? {
-        guard let board=captureSourcePhysicalBoard(),board.isStillCurrent() else{return nil}
+        guard let board=captureSourcePhysicalBoard() else{return nil}
         var entries:[NativeSourceMeterEndgameSignature.Entry]=[]
-        for model in board.observedState.tiles {
-            guard let physical=board.tiles[model.id],let markers=captureSourceGameplayTileMarkers(model.id),board.isStillCurrent() else{return nil}
+        guard scanSourceSynchronousPhysicalBoard(board,current:{self.sourceAnimationBindingAdmissionOpen},readsExternalOwner:{$0.isSpecial || $0.sourceResidualWildPresence},read:{model,_ in
+            guard let physical=board.tiles[model.id],let markers=self.captureSourceGameplayTileMarkers(model.id) else{return nil}
             if NativeSourceEndgameChecker.active(model,runtime:markers.noMovesRuntime(eventMode:physical.eventMode)) {
                 entries.append(.init(value:model.value,special:model.archetype?.rawValue,locked:model.locked,depth:model.stackDepth,x:model.cell.column,y:model.cell.row,eventMode:physical.eventMode))
             }
-        }
+            return false
+        }) != nil else{return nil}
         let signature=NativeSourceMeterEndgameSignature(activeEntries:entries)
+        return (Self.sourceLevelEndSignatureKey(signature),signature)
+    }
+    static func sourceLevelEndSignatureKey(_ signature:NativeSourceMeterEndgameSignature)->String {
+        sourceLevelEndSignatureFormatting(signature).key
+    }
+    static func sourceLevelEndSignatureFormatting(_ signature:NativeSourceMeterEndgameSignature)->(key:String,encodedStringCount:Int) {
         // Fixed field order is the literal Source JSON.stringify object order.
-        func quote(_ value:String?)->String {guard let value else{return "null"};let bytes=try? JSONSerialization.data(withJSONObject:[value],options:[.fragmentsAllowed,.withoutEscapingSlashes]);guard let bytes,let string=String(data:bytes,encoding:.utf8) else{return "null"};return String(string.dropFirst().dropLast())}
+        // Only pure escaped fragments are reused within this synchronous call.
+        // Every caller still captures/revalidates its own live physical roster.
+        var quotedFragments:[String:String]=[:],encodedStringCount=0
+        func quote(_ value:String?)->String {
+            guard let value else{return "null"}
+            if let quoted=quotedFragments[value]{return quoted}
+            encodedStringCount+=1
+            let bytes=try? JSONSerialization.data(withJSONObject:[value],options:[.fragmentsAllowed,.withoutEscapingSlashes])
+            guard let bytes,let string=String(data:bytes,encoding:.utf8) else{return "null"}
+            let quoted=String(string.dropFirst().dropLast());quotedFragments[value]=quoted
+            return quoted
+        }
         let key="["+signature.entries.map {e in "{\"v\":\(e.value),\"s\":\(quote(e.special)),\"l\":\(e.locked),\"d\":\(e.depth),\"x\":\(e.x.map(String.init) ?? "null"),\"y\":\(e.y.map(String.init) ?? "null"),\"e\":\(quote(e.eventMode))}"}.joined(separator:",")+"]"
-        return board.isStillCurrent() ? (key,signature):nil
+        return (key,encodedStringCount)
     }
     /// Genuine checkLevelEnd caller preflight, never a resolver .fail inference.
     @discardableResult func beginSourceNoMovesFromLevelEndCaller()->Bool {
@@ -2417,6 +2569,7 @@ final class NativeBoardScene: SKScene {
     private var sourceSixIdleAcquire:((String)->(()->Void)?)?
     private var sourceSixIdleReleases:[String:()->Void]=[:]
     private var sourceSixHeroes:[String:NativeSourceMergeSixHeroOwner]=[:]
+    private var sourceMagnetImpacts:[String:NativeSourceMagnetImpactOwner]=[:]
     @MainActor private final class SourceSixContact {
         var shortWildBlastAdmitted=false
         var shortWildBlastTargets:[NativeDiceNode]?
@@ -2914,7 +3067,7 @@ final class NativeBoardScene: SKScene {
         case .tnt:
             let before=sourceTntFinaleSourceConstructionCount;coreTntFinale()
             guard sourceTntFinaleSourceConstructionCount==before+1 else{return false}
-        case .magnet:smoke(at:geometry.center(row:receipt.destination.cell.row,column:receipt.destination.cell.column),special:true)
+        case .magnet:guard coreMagnetFinale() else{return false}
         }
         return sourceAnimationBindingAdmissionOpen && scope.current && engine.pendingSourceLateFinalMerge==receipt &&
             playSourceWildMergeSixParticles(ownerID:receipt.ownerID,archetype:receipt.archetype,variant:nil,
@@ -2962,7 +3115,7 @@ final class NativeBoardScene: SKScene {
             guard let captured=engine.sourceDirectTntFinalAdmission(source:source,destination:destination) else{return false}
             final=captured
         } else {final=NativeGameplayResolver.finalMerge(engine.state.tiles,source:source,destination:destination,effectiveSum:6,hasTilesToPull:pull)}
-        guard final.isFinalMerge || archetype == .star || archetype == .juice else{return false}
+        guard final.isFinalMerge || archetype == .star || archetype == .juice || (archetype == .magnet && !pull && engine.stagedDirectWildAssignments) else{return false}
         if archetype == .star || archetype == .juice {guard sourceHUDStarJobsAdmissionOpen else{return false}}
         if final.isFinalMerge {guard engine.finalePresentationAdmitted != nil else{return false}}
         return sourceSixNodeCurrent(src,generation:generation) && sourceSixNodeCurrent(dst,generation:generation)
@@ -2998,6 +3151,25 @@ final class NativeBoardScene: SKScene {
             if self?.sourceSixPrepared === entry {self?.sourceSixPrepared=nil};entry.owner.dispose()
         })
     }
+    func sourceRetainedDirectCleanupPresentationCurrent(_ node:NativeDiceNode,
+        scope:NativeGameplaySourceContext.Scope,generation:UInt64)->Bool {
+        guard sourceAnimationBindingAdmissionOpen,scope.current,sourceDirectScope === scope,
+              sourceSixScope === scope,engine.state.generation==generation,
+              let receipt=engine.sourceRetainedDirectDestination,receipt.generation==generation,
+              receipt.tileID==node.tileID,let owned=sourceDirectRetainedDestinations[receipt.ownerID],
+              owned.0==receipt,owned.1 === node,nodesByID[node.tileID] === node,
+              node.parent === canvasRoot,node.sourceGeneration==generation,node.sourceContactNodeAlive,
+              scope.mergeSixDestinationCleanup.owns(node,token:owned.2),
+              let model=engine.state.tiles.first(where:{$0.id==node.tileID}),
+              model.value==6,model.archetype==nil,model.variant==node.variant,
+              model.sourceWildStateCleared==node.sourceWildStateCleared,
+              model.sourceResidualWildPresence==node.sourceResidualWildPresence,
+              model.merge6CleanupOwned,model.nonFinalMerge6,!model.visible,model.alpha==0,
+              engine.state.sourceDetachedGridTileIDs?.contains(node.tileID)==true,
+              node.value==6,node.kind=="regular",node.isHidden,node.alpha==0,
+              node.sourceEventMode=="none" else{return false}
+        return true
+    }
     private func sourceSixOwns(_ node:NativeDiceNode,generation:UInt64)->Bool {
         if let retained=engine.sourceRetainedDirectDestination,retained.generation==generation,
            retained.tileID==node.tileID,let owned=sourceDirectRetainedDestinations[retained.ownerID],owned.0==retained,
@@ -3026,8 +3198,8 @@ final class NativeBoardScene: SKScene {
             contextCurrent:{[weak self] in self?.sourceAnimationBindingAdmissionOpen==true && self?.sourceSixScope === scope && scope.current},
             nodeCurrent:{[weak self] node,_,gen in self?.sourceSixNodeCurrent(node,generation:gen)==true},
             captureGeometry:{[weak self] node in
-                guard let self,let view=self.view,self.sourceSixNodeCurrent(node,generation:plan.generation) else{return nil}
-                return .init(destinationScreen:view.convert(node.convert(CGPoint.zero,to:self),from:self))
+                guard let self,let host=self.gameplayRenderHost,self.sourceSixNodeCurrent(node,generation:plan.generation) else{return nil}
+                return .init(destinationScreen:host.scenePointToView(node.convert(CGPoint.zero,to:self),scene:self))
             },removeCapturedPair:{[weak self] src,dst in
                 guard let self else{return};for node in [src,dst] where self.nodesByID[node.tileID] === node {
                     self.nodesByID.removeValue(forKey:node.tileID);node.dispose();node.removeFromParent()
@@ -3176,8 +3348,8 @@ final class NativeBoardScene: SKScene {
             contextCurrent:{[weak self] in self?.sourceAnimationBindingAdmissionOpen==true && self?.sourceSixScope === scope && scope.current},
             nodeCurrent:{[weak self] node,_,gen in self?.sourceSixNodeCurrent(node,generation:gen)==true},
             captureGeometry:{[weak self] node in
-                guard let self,let view=self.view,self.sourceSixNodeCurrent(node,generation:plan.generation) else{return nil}
-                return .init(destinationScreen:view.convert(node.convert(CGPoint.zero,to:self),from:self))
+                guard let self,let host=self.gameplayRenderHost,self.sourceSixNodeCurrent(node,generation:plan.generation) else{return nil}
+                return .init(destinationScreen:host.scenePointToView(node.convert(CGPoint.zero,to:self),scene:self))
             },removeCapturedPair:{[weak self] src,dst in
                 guard let self else{return}
                 for node in [src,dst] where self.nodesByID[node.tileID] === node {
@@ -3225,6 +3397,15 @@ final class NativeBoardScene: SKScene {
                     guard self.playSourceWildMergeSixParticles(ownerID:plan.id,archetype:plan.archetype,variant:plan.variant,
                         destination:entry.destination,generation:plan.generation,stage:.shards) else {
                         self.onSourcePresentationFailure?("source_wild_merge6_shards_rejected",plan.generation);return
+                    }
+                    if plan.archetype == .magnet {
+                        let final = plan.isFinal || self.engine.hasConfirmedSourceLateFinalMerge(ownerID:plan.id,generation:plan.generation)
+                        guard self.playSourceMagnetMultiplier(ownerID:plan.id,destination:entry.destination,
+                            multiplier:final ? 0:2,generation:plan.generation,service:scope.service,current:{[weak self,scope] in
+                                self?.sourceSixScope === scope && scope.current
+                            }) else {
+                            self.onSourcePresentationFailure?("source_magnet_direct_multiplier_not_bound",plan.generation);return
+                        }
                     }
                     if plan.archetype != .tnt {
                         self.recordSourceWildSixPresentation(plan.id)
@@ -3962,10 +4143,13 @@ final class NativeBoardScene: SKScene {
             },resolutionReleased:{[weak self,weak entry] in
                 guard let self,let entry,current() else{return}
                 if !self.engine.releaseSourceMagnetLazySurvivorResolution(transactionID:plan.id,generation:plan.generation,sourceCurrent:current){self.retireSourceMagnetSurvivor(entry)}
-            },inputBound:{[weak entry] in if current(){entry?.node.sourceEventMode="static"}},finished:{[weak self,weak entry] outcome in
+            },inputBound:{[weak self,weak entry] in if current(){entry?.node.sourceEventMode="static";if let self,let entry{self.traceSourceMagnetContact("survivor_input_bound",id:plan.destination.id)}}},finished:{[weak self,weak entry] outcome in
                 guard let self,let entry else{return};let valid=current();self.retireSourceMagnetSurvivor(entry)
                 if valid,outcome != .completed{self.onPresentationFailure?("source_magnet_survivor_tail_interrupted")}
             }))
+        // PWA keeps the inner swell during replacement spawning. Retire it
+        // only at the actual retained-destination conversion boundary.
+        sourceMagnetImpacts.removeValue(forKey:plan.id)?.dispose()
         entry.owner=owner
         guard owner.start(position:geometry.center(row:plan.destination.cell.row,column:plan.destination.cell.column),depthZ:CGFloat(plan.destination.cell.row*engine.state.columns+plan.destination.cell.column),selectSurvivor:{[weak self] in
             guard let self,current() else{return nil}
@@ -3977,6 +4161,7 @@ final class NativeBoardScene: SKScene {
         // Source's final fill rechecks the SAME reserved cells; already-created
         // holders are not recreated. Empty-list full-grid is handled above.
         let before=engine.state,result=engine.commitSpecialBoard(transactionID:plan.id)
+        traceSourceMagnetContact("survivor_board_commit",id:plan.destination.id,result:result)
         guard result.accepted,current() else{retireSourceMagnetSurvivor(entry);return nil}
         return(result,before)
     }
@@ -3992,6 +4177,24 @@ final class NativeBoardScene: SKScene {
         }
     }
     private var sourceMagnetPullScope:NativeGameplaySourceContext.Scope?
+    @discardableResult private func playSourceMagnetMultiplier(ownerID:String,destination:NativeDiceNode,multiplier:Int,
+        generation:UInt64,service:NativeSourceAnimationClockService,current:@escaping()->Bool)->Bool {
+        guard sourceAnimationBindingAdmissionOpen,engine.state.generation==generation,current(),let geometry,
+              let badge=try? NativeWildSixMultiplierPresentation(origin:destination.position,tileSize:geometry.tileSize,
+                multiplier:multiplier,service:service,current:{[weak self] in
+                    guard let self else{return false}
+                    return self.sourceAnimationBindingAdmissionOpen && self.engine.state.generation==generation && current()
+                }) else{return false}
+        sourceMagnetMultiplierPresentations[ownerID]?.dispose()
+        sourceMagnetMultiplierPresentations[ownerID]=badge
+        badge.onFinished={[weak self,weak badge] in
+            guard let self,let badge,self.sourceMagnetMultiplierPresentations[ownerID] === badge else{return}
+            self.sourceMagnetMultiplierPresentations.removeValue(forKey:ownerID)
+        }
+        guard badge.mount(in:effects) else{badge.dispose();return false}
+        return true
+    }
+    private var sourceMagnetMultiplierPresentations:[String:NativeWildSixMultiplierPresentation]=[:]
     private var sourceMagnetPullForceStopFactory:((String,UInt64)->NativeMagnetPullCleanup?)?
     private var sourceMagnetPullSelectionOwner:NativeSourceMagnetPullSelectionOwner?
     private var sourceMagnetSourcePulls:[String:SourceMagnetPullEntry]=[:]
@@ -4068,6 +4271,18 @@ final class NativeBoardScene: SKScene {
         node.position = .init(x:geometry.origin.x+CGFloat(pose.point.x)*geometry.scale,y:top-CGFloat(pose.point.y)*geometry.scale)
         node.xScale=CGFloat(pose.scaleX)*geometry.scale;node.yScale=CGFloat(pose.scaleY)*geometry.scale;node.dragInnerTilt=CGFloat(pose.rotation)
     }
+    private func hideSourceMagnetConsumedSix(_ plan:NativeSpecialMovePlan)->Bool {
+        guard sourceAnimationBindingAdmissionOpen,engine.state.generation==plan.generation,
+              engine.pendingSourceMagnetLazyRespawn?.transactionID==plan.id,
+              let model=engine.state.tiles.first(where:{$0.id==plan.destination.id}),model.value==6,!model.visible,model.alpha==0,
+              let entry=sourceMagnetMainEntries[plan.id],!entry.retired,
+              sourceMagnetMainNodeCurrent(entry.destination,generation:plan.generation) else{return false}
+        sourceMagnetImpacts.removeValue(forKey:plan.id)?.dispose()
+        // A retained hidden carrier, never a removed/free spawn cell. Its
+        // ordinary conversion explicitly restores visibility at real commit.
+        entry.destination.isHidden=true;entry.destination.alpha=0;entry.destination.sourceEventMode="none"
+        return true
+    }
     private func startSourceMagnetPull(_ plan:NativeSpecialMovePlan,receipt:UInt64)->Bool {
         guard sourceAnimationBindingAdmissionOpen,let scope=sourceMagnetPullScope,scope.current,sourceMagnetMainScope === scope,
               plan.archetype == .magnet,NativeSpecialDiceRegistry.finale(source:plan.source,destination:plan.destination,gameplay:true) == .magnet,
@@ -4132,7 +4347,7 @@ final class NativeBoardScene: SKScene {
                     guard self.beginSourceMagnetHelper(plan) else{self.onPresentationFailure?("source_magnet_helper_producer_missing");self.retireSourceMagnetPull(entry);return}
                     let before=self.engine.state
                     let result=self.engine.prepareSourceMagnetLazyRespawn(transactionID:plan.id,generation:plan.generation,sourceCurrent:current)
-                    guard result.accepted,let destination=self.nodesByID[plan.destination.id],
+                    guard result.accepted,self.hideSourceMagnetConsumedSix(plan),let destination=self.nodesByID[plan.destination.id],
                         self.playSourceWildMergeSixParticles(ownerID:plan.id,archetype:.magnet,variant:plan.variant,
                             destination:destination,generation:plan.generation,pull:true),current() else {
                         self.onSourcePresentationFailure?("source_magnet_pull_shards_rejected",plan.generation);return
@@ -4327,17 +4542,43 @@ final class NativeBoardScene: SKScene {
                     self.onSourcePresentationFailure?("source_magnet_screen_shake_rejected",plan.generation);return
                 }
                 guard self.playSourceWildMergeSixParticles(ownerID:plan.id,archetype:plan.archetype,variant:plan.variant,
-                    destination:entry.destination,generation:plan.generation) else {
+                    destination:entry.destination,generation:plan.generation,stage:.shards) else {
                     self.onSourcePresentationFailure?("source_magnet_merge6_particles_rejected",plan.generation);return
                 }
+                if plan.archetype == .magnet {
+                    guard self.playSourceMagnetMultiplier(ownerID:plan.id,destination:entry.destination,multiplier:2,
+                        generation:plan.generation,service:scope.service,current:{[weak self,scope] in
+                            self?.sourceMagnetMainScope === scope && scope.current
+                        }) else {self.onSourcePresentationFailure?("source_magnet_multiplier_not_bound",plan.generation);return}
+                }
+                guard self.playSourceWildMergeSixParticles(ownerID:plan.id,archetype:plan.archetype,variant:plan.variant,
+                    destination:entry.destination,generation:plan.generation,stage:.smoke) else {
+                    self.onSourcePresentationFailure?("source_magnet_merge6_particles_rejected",plan.generation);return
+                }
+                if !plan.targets.isEmpty {
+                    let destination=entry.destination
+                    let impact=NativeSourceMagnetImpactOwner(node:destination,service:scope.service,generation:plan.generation,current:{[weak self,weak destination,scope] in
+                        guard let self,let destination else{return false}
+                        return self.sourceMagnetMainScope === scope && scope.current && self.engine.pendingSpecial?.id==plan.id && self.sourceMagnetMainNodeCurrent(destination,generation:plan.generation)
+                    })
+                    self.sourceMagnetImpacts.removeValue(forKey:plan.id)?.dispose()
+                    self.sourceMagnetImpacts[plan.id]=impact
+                    impact.onFinished={[weak self,weak impact] in
+                        if self?.sourceMagnetImpacts[plan.id] === impact {self?.sourceMagnetImpacts.removeValue(forKey:plan.id)}
+                    }
+                    guard impact.begin() else{self.onSourcePresentationFailure?("source_magnet_impact_not_bound",plan.generation);return}
+                }
                 // v9 main80 calls showMagneticText after the Magnet shards;
-                // Spaceship's selected splash mounts its abduction scene there.
+                // Bottle and Spaceship mount their selected authored scene there.
                 // The generic merged-event path excludes pendingSpecial, so
                 // this actual Source main continuation owns that presentation.
-                if plan.variant=="spaceship" {
-                    guard self.authoredFinale("spaceship",at:entry.destination.position) else {
-                        self.onSourcePresentationFailure?("source_spaceship_main_finale_not_admitted",plan.generation);return
+                if let variant=plan.variant,variant=="spaceship" || variant=="bottle" {
+                    guard self.authoredFinale(variant,at:entry.destination.position) else {
+                        self.onSourcePresentationFailure?("source_\(variant)_main_finale_not_admitted",plan.generation);return
                     }
+                }
+                if plan.variant==nil,!self.coreMagnetFinale() {
+                    self.onSourcePresentationFailure?("source_magnet_main_finale_not_admitted",plan.generation);return
                 }
                 if self.nodesByID[entry.source.tileID] === entry.source {self.nodesByID.removeValue(forKey:entry.source.tileID);entry.source.dispose();entry.source.removeFromParent()}
             },retireNativeRoots:{[weak entry] in entry?.owner.dispose()}))
@@ -4581,8 +4822,8 @@ final class NativeBoardScene: SKScene {
                 let blastIDs=Set(self.engine.state.tiles.filter{$0.id != plan.destination.id && ($0.value>0 || $0.isWild) && !$0.locked}.map(\.id))
                 let previous=self.engine.state,activated=self.engine.commitSpecialActivation(transactionID:plan.id)
                 guard activated.accepted else{self.onSourcePresentationFailure?("source_tnt_main_activation_refused",plan.generation);return}
-                guard let view=self.view,entry.destination.parent === self.canvasRoot,
-                      let hud=self.captureSourceHUDOrigins(activated,screenOrigin:view.convert(entry.destination.convert(CGPoint.zero,to:self),from:self)) else {
+                guard let host=self.gameplayRenderHost,entry.destination.parent === self.canvasRoot,
+                      let hud=self.captureSourceHUDOrigins(activated,screenOrigin:host.scenePointToView(entry.destination.convert(CGPoint.zero,to:self),scene:self)) else {
                     self.onSourcePresentationFailure?("source_tnt_main_hud_origin_not_admitted",plan.generation);return
                 }
                 self.consume(activated,previous:previous)
@@ -4700,6 +4941,9 @@ final class NativeBoardScene: SKScene {
         return configureSourceSpecialTransactions(scope:scope)
     }
     private func retireSourceSpecialTransactions(){
+        let impacts=Array(sourceMagnetImpacts.values);sourceMagnetImpacts=[:];impacts.forEach{$0.dispose()}
+        let badges=Array(sourceMagnetMultiplierPresentations.values);sourceMagnetMultiplierPresentations=[:]
+        badges.forEach{$0.dispose()}
         retireSourceTntMain()
         retireSourceMagnetMain()
         retireSourceMagnetVerification()
@@ -5024,6 +5268,9 @@ final class NativeBoardScene: SKScene {
         return true
     }
     private var exitInProgress = false
+    // The exited surface remains owned until a fresh board replaces it. UIKit
+    // result mounting may relayout the old SpriteKit view before its next paint.
+    private var completedExitGeneration:UInt64?
     private var exitCompletion: ((Bool) -> Void)?
     private var exitOwners = 0
 
@@ -5053,10 +5300,20 @@ final class NativeBoardScene: SKScene {
         }
         canvasRoot.addChild(ghosts);canvasRoot.addChild(effects);canvasRoot.addChild(hud);canvasRoot.addChild(hudStarFlights)
         canvasRoot.addChild(dragTrail);dragTrail.zPosition=17999
+        dragTrail.onTailChanged = {[weak self] active in
+            guard let self else{return}
+            if active {
+                if self.sourceDragTrailRelease==nil {
+                    self.sourceDragTrailRelease=self.beginSourceMotion(.dragTrail,id:"drag-trail",generation:self.engine.state.generation)
+                }
+            } else {
+                let release=self.sourceDragTrailRelease;self.sourceDragTrailRelease=nil;release?()
+            }
+        }
         hudStarFlights.zPosition = 999999
         hover.fillColor = .clear
-        hover.strokeColor = UIColor(red: 138.0/255,green: 110.0/255,blue: 87.0/255,alpha: 0.15)
-        hover.zPosition = 14000; hover.isHidden = true; canvasRoot.addChild(hover)
+        hover.strokeColor = UIColor(red: 138.0/255,green: 110.0/255,blue: 87.0/255,alpha: 0.168)
+        hover.name = "native-stack-hover"; hover.zPosition = 14000; hover.isHidden = true; canvasRoot.addChild(hover)
         hud.name="native-game-hud"
         ghosts.zPosition = -10000; effects.zPosition = 15000; hud.zPosition = 10000
         setupHUD()
@@ -5066,7 +5323,7 @@ final class NativeBoardScene: SKScene {
         engine.laserTargetX = { [weak self] tile in self?.geometry.map {Double($0.center(row:tile.cell.row,column:tile.cell.column).x)} ?? .nan }
         engine.specialPresentationAdmitted = { [weak self] archetype,variant in
             guard let self else {return false}
-            if archetype == .magnet {return true}
+            if archetype == .magnet {return variant != nil || self.directArtworkReady(archetype,variant:nil)}
             if archetype == .star || archetype == .juice {return self.directArtworkReady(archetype,variant:variant)}
             guard archetype == .tnt else {return false}
             guard let variant else {return true}
@@ -5075,7 +5332,7 @@ final class NativeBoardScene: SKScene {
         engine.finalePresentationAdmitted = { [weak self] archetype,variant in
             guard let self else {return false}
             if let variant {return self.authoredFinalePresentationReady?(variant) == true}
-            if archetype == .star || archetype == .juice {return self.directArtworkReady(archetype,variant:nil)}
+            if archetype == .star || archetype == .juice || archetype == .magnet {return self.directArtworkReady(archetype,variant:nil)}
             return true
         }
     }
@@ -5087,24 +5344,39 @@ final class NativeBoardScene: SKScene {
             let paths=NativeJuiceBubbleMotion.sources+["casa","poklopac","slamka"].map {"assets/shop/juice/\($0).png"}+(1...8).map {"assets/animations/bubble\($0).png"}
             return paths.allSatisfy {textures.texture($0) != nil}
         }
+        if archetype == .magnet {return NativeMagnetFinalePresentation.assets.allSatisfy{textures.texture($0) != nil}}
         return false
+    }
+    func preparePlainMagnetFinaleTextures(){
+        guard !disposed else{return}
+        for path in NativeMagnetFinalePresentation.assets {textures.prepareSelectedFinaleAsset(.init([path])){_ in}}
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     override func didMove(to view: SKView) {
-        view.isMultipleTouchEnabled = true
-        let sourceInitialEntry=sourceInitialEntryPending;sourceInitialEntryPending=false
-        synchronize(animateEntry: lastGeneration == nil || sourceInitialEntry)
+        mountGameplayRenderHost(view)
+    }
+
+    override func willMove(from view:SKView) {
+        retireSourceRendererDragTransport()
+        if mountedLifecycleHost === view {mountedLifecycleHost=nil}
+        super.willMove(from:view)
     }
 
     func layout(size: CGSize, insets: UIEdgeInsets, animateEntry: Bool = false) {
         guard !sourceDisposalInProgress else {return }
+        guard completedExitGeneration != engine.state.generation else{return}
         if let gen=sourceNoMovesGeneration,gen != engine.state.generation {retireSourceNoMoves()}
         guard !sourceDisposalInProgress else{return}
         guard !disposed else { return }
         guard self.size != size || safeInsets != insets || geometry == nil else { return }
-        if exitInProgress { finishExit(completed: false) }
+        if exitInProgress {
+            if frameDiagnosticsEnabled {
+                NSLog("[CC_NATIVE_EXIT_RELAYOUT] board=%d generation=%llu oldViewport=%.2fx%.2f newViewport=%.2fx%.2f oldInsets=%.2f,%.2f,%.2f,%.2f newInsets=%.2f,%.2f,%.2f,%.2f",engine.state.board,engine.state.generation,self.size.width,self.size.height,size.width,size.height,safeInsets.top,safeInsets.left,safeInsets.bottom,safeInsets.right,insets.top,insets.left,insets.bottom,insets.right)
+            }
+            finishExit(completed: false)
+        }
         cancelEntry()
         self.size = size; safeInsets = insets
         cancelDrag()
@@ -5551,12 +5823,10 @@ final class NativeBoardScene: SKScene {
                 return self.sourceGameplay.keys.contains{$0.kind == .regularMergeHandoff}
             },cleanupClaim:{[weak self,weak scope] in
                 guard current(),let self,let scope,self.sourceSixScope === scope,
-                      let board=self.captureSourcePhysicalBoard(),board.isStillCurrent() else{return nil}
-                for model in board.canonicalState.tiles {
-                    guard let node=self.nodesByID[model.id],board.isStillCurrent(),current() else{return nil}
-                    if scope.mergeSixDestinationCleanup.hasClaim(node){return true}
-                }
-                return board.isStillCurrent() && current() ? false:nil
+                      let board=self.captureSourcePhysicalBoard() else{return nil}
+                return self.scanSourceSynchronousPhysicalBoard(board,current:current,readsExternalOwner:{_ in false},read:{_,node in
+                    scope.mergeSixDestinationCleanup.hasClaim(node)
+                })
             },livingDrag:{[weak self] in
                 guard current(),let self,self.sourceOuterTimelineDriver === scope.timeline,
                       self.sourceDragTweenDriver === scope.tween else{return nil}
@@ -5567,12 +5837,11 @@ final class NativeBoardScene: SKScene {
                 guard current(),let count=self?.captureSourceWildDropActiveCount(),current() else{return nil}
                 return count>0
             },livingTileMarker:{[weak self] in
-                guard current(),let self,let board=self.captureSourcePhysicalBoard(),board.isStillCurrent() else{return nil}
-                for model in board.canonicalState.tiles {
-                    guard let m=self.captureSourceSaveTileMarkers(id:model.id),board.isStillCurrent(),current() else{return nil}
-                    if !m.destroyed && (m.wildSpawnDropping || m.wildSpawnHandoffLock || m.isBeingSpawned || m.pendingRemoval || m.beingRemoved || m.cleanupQueued || m.ccSpawnAnimating || m.spawnAnimating || m.isSpawning || m.hasSpawnTween){return true}
-                }
-                return board.isStillCurrent() && current() ? false:nil
+                guard current(),let self,let board=self.captureSourcePhysicalBoard() else{return nil}
+                return self.scanSourceSynchronousPhysicalBoard(board,current:current,readsExternalOwner:{$0.isSpecial || $0.sourceResidualWildPresence},read:{model,_ in
+                    guard let m=self.captureSourceSaveTileMarkers(id:model.id) else{return nil}
+                    return !m.destroyed && (m.wildSpawnDropping || m.wildSpawnHandoffLock || m.isBeingSpawned || m.pendingRemoval || m.beingRemoved || m.cleanupQueued || m.ccSpawnAnimating || m.spawnAnimating || m.isSpawning || m.hasSpawnTween)
+                })
             })
         return NativeSourceCanonicalSaveCapture.physical(canonicalState:physical.canonicalState,
             physicalState:physical.observedState,eventModes:physical.tiles.mapValues(\.eventMode),
@@ -5611,11 +5880,11 @@ final class NativeBoardScene: SKScene {
                 },physical:{[weak self] in
                     guard current(),let self,let board=self.captureSourcePhysicalBoard(),board.isStillCurrent(),
                           let nonfinal=self.captureSourceNonFinalMergeSixGuardActive() else{return nil}
-                    var state=board.observedState,runtime:[String:NativeNoMovesTileRuntime]=[:]
-                    for index in state.tiles.indices {
-                        let id=state.tiles[index].id
-                        guard let tile=board.tiles[id],let marker=self.captureSourceGameplayTileMarkers(id),
-                              board.isStillCurrent(),current() else{return nil}
+                    var state=board.observedState,runtime:[String:NativeNoMovesTileRuntime]=[:],index=0
+                    guard self.scanSourceSynchronousPhysicalBoard(board,current:current,readsExternalOwner:{$0.isSpecial || $0.sourceResidualWildPresence},read:{model,_ in
+                        let id=model.id
+                        guard index<state.tiles.count,state.tiles[index].id==id,
+                              let tile=board.tiles[id],let marker=self.captureSourceGameplayTileMarkers(id) else{return nil}
                         state.tiles[index].pendingRemoval=marker.pendingRemoval
                         state.tiles[index].magnetOwned=marker.magnetAffected
                         state.tiles[index].resolutionOwned=marker.resolutionOwned
@@ -5623,8 +5892,9 @@ final class NativeBoardScene: SKScene {
                         state.tiles[index].nonFinalMerge6=marker.nonFinalMergeSix
                         state.tiles[index].transientSpawn=marker.ccSpawnAnimating
                         runtime[id]=marker.noMovesRuntime(eventMode:tile.eventMode)
-                    }
-                    guard board.isStillCurrent(),current(),let receipt=NativeSourceNoMovesRuntimeSnapshot.PaintedStateReceipt(
+                        index+=1;return false
+                    }) != nil else{return nil}
+                    guard current(),let receipt=NativeSourceNoMovesRuntimeSnapshot.PaintedStateReceipt(
                         canonicalState:board.canonicalState,paintedState:state) else{return nil}
                     return .init(state:state,tiles:runtime,nonFinalMergeSixGuardActive:nonfinal,paintedStateReceipt:receipt)
                 },fresh:{physical,guardActive in
@@ -5664,6 +5934,32 @@ final class NativeBoardScene: SKScene {
         var paintedStateReceipt:NativeSourceNoMovesRuntimeSnapshot.PaintedStateReceipt? {
             .init(canonicalState:canonicalState,paintedState:observedState)
         }
+    }
+    /// Synchronous Source roster scan. Ordinary node reads cannot invoke
+    /// external owners, so complete physical fences bracket their batch.
+    /// Wild marker reads CAN call carrier/current hooks: fence immediately on
+    /// both sides and stop before reading another tile if any sibling changed.
+    /// A true reader result retains ordered early-return behavior; nil refuses.
+    /// No receipt or result is reused across a callback/microtask boundary.
+    func scanSourceSynchronousPhysicalBoard(_ board:SourcePhysicalBoardCapture,
+        current:()->Bool,readsExternalOwner:(NativeDiceNode)->Bool,
+        read:(NativeTile,NativeDiceNode)->Bool?)->Bool? {
+        guard current(),board.isStillCurrent(),current() else{return nil}
+        let generation=board.canonicalState.generation
+        let captured=nodesByID
+        for model in board.observedState.tiles {
+            guard current(),sourceAnimationBindingAdmissionOpen,engine.state.generation==generation,
+                  let node=captured[model.id],nodesByID[model.id] === node,
+                  node.parent === canvasRoot,node.sourceGeneration==generation else{return nil}
+            let external=readsExternalOwner(node)
+            if external {guard current(),board.isStillCurrent(),current() else{return nil}}
+            guard let stop=read(model,node),current(),sourceAnimationBindingAdmissionOpen,
+                  engine.state.generation==generation,nodesByID[model.id] === node,
+                  node.parent === canvasRoot,node.sourceGeneration==generation else{return nil}
+            if external {guard board.isStillCurrent(),current() else{return nil}}
+            if stop {return board.isStillCurrent() && current() ? true:nil}
+        }
+        return board.isStillCurrent() && current() ? false:nil
     }
     /// One actual retained-object roster capture for the future save/endgame
     /// adapters. Lifecycle/spawn/global capabilities are deliberately separate.
@@ -5746,6 +6042,8 @@ final class NativeBoardScene: SKScene {
     func synchronize(animateEntry: Bool = false) {
         guard !sourceDisposalInProgress else {return }
         guard !disposed else { return }
+        guard completedExitGeneration != engine.state.generation else{return}
+        completedExitGeneration=nil
         onRenderingDemand?(true)
         guard !sourceDisposalInProgress else {return}
         let state = engine.state
@@ -5773,7 +6071,7 @@ final class NativeBoardScene: SKScene {
             retireSourceSpawns()
             if let previous=lastGeneration {sourceRegularContactCompanions?.retire(generation:previous);sourceFrames.retireGeneration(previous)}
             sourceGameplay.removeAll();sourceRegularHandoffMutationReceipts.removeAll();sourcePopulation.removeAll();sourceFrames.registerPopulation([]);sourceStars=nil
-            if sourceFramesAttached {sourceFrames.newBoard(nowMs:sourceFrames.nowMs,configuredFPS:Double(view?.preferredFramesPerSecond ?? 60))}
+            if sourceFramesAttached {sourceFrames.newBoard(nowMs:sourceFrames.nowMs,configuredFPS:Double(gameplayRenderHost?.renderingFPS ?? 60))}
             retireRegularSixPresentations()
             finishExit(completed: false)
             cancelEntry()
@@ -5847,6 +6145,16 @@ final class NativeBoardScene: SKScene {
                 node = existing
                 if sourceTutorialOwns(node) {continue}
                 if sourceBoardEntryOwns(node) {continue}
+                // Reservation locks the donors before .specialReserved starts
+                // the pull caller. Source only changes their input fields here;
+                // it does not repaint the visible numbered face as a locked
+                // placeholder. Keep the exact admitted physical donors through
+                // this first synchronize, just as the active pull does below.
+                if sourceMagnetPullScope != nil,let plan=engine.pendingSpecial,
+                   plan.archetype == .magnet,plan.generation==state.generation,
+                   tile.magnetOwned,!tile.pendingRemoval,
+                   plan.targets.contains(where:{$0.id==tile.id && !$0.locked && $0.visible && $0.alpha>0.01}),
+                   sourceMagnetMainNodeCurrent(node,generation:state.generation) {continue}
                 if sourceMagnetSourcePulls.values.contains(where:{$0.nodes[node.tileID] === node && sourceMagnetPullCurrent($0)}) {continue}
                 if sourceMagnetSurvivorOwns(node) {continue}
                 if sourceMagnetFallbackOwns(node) || sourceMagnetNormalOwns(node) {continue}
@@ -6061,10 +6369,11 @@ final class NativeBoardScene: SKScene {
     private func sourceTouchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard !sourceDisposalInProgress else {return }
         guard !disposed,!touches.isEmpty else{return}
+        if renderPipelineProbe?.active==true {renderPipelineProbe?.cancel(scene:self,reason:"actual-touch")}
         sourceCallbackTime();sourceFrames.pointerBegan()
         guard !disposed, !suspended, activeTouch == nil, draggedID == nil, let touch = touches.first else { return }
         requestRendering(true)
-        let point = touch.location(in: self)
+        let point = touchLocationInGameplayScene(touch)
         let canvasPoint=canvasRoot.convert(point,from:self)
         if closeButton?.hitRect.contains(canvasPoint)==true {
             guard inputAdmitted,!navigationLocked,engine.state.tutorial?.shouldLockHUD != true else{return}
@@ -6244,6 +6553,7 @@ final class NativeBoardScene: SKScene {
                     }
                 })
             retainSourceDragTransport()
+            retainSourceRendererDragTransport()
         }
         if node.sourceOuterDriven {sourceRegularContactCompanions?.pointerDown(node);node.sourcePointerDown()}
         publishFishIdleFrames(force:true)
@@ -6260,7 +6570,18 @@ final class NativeBoardScene: SKScene {
     }
     private func sourceTouchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = activeTouch, touches.contains(touch) else { return }
-        dispatchSourceTouchMove(to:touch.location(in:self))
+        if frameDiagnosticsEnabled {
+            let now=CACurrentMediaTime()*1000,stamp=touch.timestamp*1000
+            let coalesced=event?.coalescedTouches(for:touch)
+            diagnosticDragInput.osSamples+=1;diagnosticDragInput.osTimestampMs=stamp
+            diagnosticDragInput.callbackAgeWorst=max(diagnosticDragInput.callbackAgeWorst,max(0,now-stamp))
+            diagnosticDragInput.coalescedTimestampMs=coalesced?.last.map{$0.timestamp*1000}
+            if let coalesced,!coalesced.isEmpty {
+                diagnosticDragInput.coalescedEvents+=1;diagnosticDragInput.coalescedSamples+=coalesced.count
+                if let latest=diagnosticDragInput.coalescedTimestampMs {diagnosticDragInput.coalescedCallbackAgeWorst=max(diagnosticDragInput.coalescedCallbackAgeWorst,max(0,now-latest))}
+            }
+        }
+        dispatchSourceTouchMove(to:touchLocationInGameplayScene(touch))
     }
 
     /// Real touch dispatcher; programmatic QA retains synchronous moveDrag.
@@ -6270,9 +6591,16 @@ final class NativeBoardScene: SKScene {
         if let sourceDragMoves {sourceDragMoves.enqueue(point)}else{moveDrag(to:point)}
     }
     private func retireSourceDragMoves() {
+        retireSourceRendererDragTransport()
         let transport=sourceDragTransport;sourceDragTransport=nil;transport?.cancel()
         let captured=sourceDragMoves;sourceDragMoves=nil;captured?.dispose()
         diagnosticLatestTouchMilliseconds=nil
+        if frameDiagnosticsEnabled {
+            diagnosticDragInput.arrivalTime=nil
+        diagnosticDragInput.osTimestampMs=nil;diagnosticDragInput.coalescedTimestampMs=nil
+            diagnosticDragInput.paintedOSTimestampMs=nil;diagnosticDragInput.paintedCoalescedTimestampMs=nil
+            diagnosticExpectedDragNode=nil;diagnosticExpectedDragPosition=nil;diagnosticExpectedDragGeneration=nil
+        }
         diagnosticDragRender.retireDrag()
     }
     private func retainSourceDragTransport() {
@@ -6289,6 +6617,27 @@ final class NativeBoardScene: SKScene {
             })
     }
 
+    /// Revoke before the renderer can stop producing frames; the same Source
+    /// CAD transport then resumes without creating a second animation clock.
+    func retireSourceRendererDragTransport() {
+        let captured=sourceRendererDragTransport;sourceRendererDragTransport=nil;captured?.cancel()
+    }
+    private func retainSourceRendererDragTransport() {
+        guard sourceRendererDragTransport?.active != true,sourceDragTransport?.active==true,
+              let service=sourceStackFrameService,let id=draggedID,let node=nodesByID[id] else{return}
+        let generation=engine.state.generation
+        sourceRendererDragTransport=service.retainRendererDragTransport(ownerID:"drag-render:"+id,generation:generation,
+            current:{[weak self,weak node,weak service] in
+                guard let self,let node,let service,let host=self.gameplayRenderHost else{return false}
+                return !self.disposed && !self.suspended && !self.isPaused &&
+                    host.renderedScene === self && host.renderView.window != nil && !host.renderView.isHidden && !host.renderingPaused &&
+                    host.renderingFPS>=60 && self.gameplayRenderHostVisible(host) && self.sourceAnimationBindingAdmissionOpen &&
+                    self.sourceStackFrameAdmission?()==true && self.engine.state.generation==generation &&
+                    self.draggedID==id && self.nodesByID[id] === node && node.parent === self.canvasRoot &&
+                    self.sourceStackFrameService === service && service.sourceFrameTransportAdmissionOpen
+            })
+    }
+
     func moveDrag(to point: CGPoint,now:TimeInterval=CACurrentMediaTime()) {
         guard !sourceDisposalInProgress else {return }
         let point=canvasRoot.convert(point,from:self)
@@ -6297,6 +6646,14 @@ final class NativeBoardScene: SKScene {
         if frameDiagnosticsEnabled {diagnosticMoves+=1;diagnosticAnyDragging=true}
         defer {if let diagnosticStart {diagnosticMoveWorstMs=max(diagnosticMoveWorstMs,(CACurrentMediaTime()-diagnosticStart)*1000)}}
         node.position = CGPoint(x: point.x + fingerOffset.x, y: point.y + fingerOffset.y)
+        if frameDiagnosticsEnabled {
+            let now=CACurrentMediaTime()*1000
+            if let stamp=diagnosticDragInput.osTimestampMs {diagnosticDragInput.paintAgeWorst=max(diagnosticDragInput.paintAgeWorst,max(0,now-stamp))}
+            if let stamp=diagnosticDragInput.coalescedTimestampMs {diagnosticDragInput.coalescedPaintAgeWorst=max(diagnosticDragInput.coalescedPaintAgeWorst,max(0,now-stamp))}
+            diagnosticDragInput.paintedOSTimestampMs=diagnosticDragInput.osTimestampMs
+            diagnosticDragInput.paintedCoalescedTimestampMs=diagnosticDragInput.coalescedTimestampMs
+            diagnosticExpectedDragNode=node;diagnosticExpectedDragPosition=node.position;diagnosticExpectedDragGeneration=engine.state.generation
+        }
         let tile=engine.state.tiles.first(where:{$0.id==id})
         let trailStyle=NativeDragTrailStyle.resolve(core:tile?.gameplayArchetype,variant:tile?.isWild == true ? tile?.variant:nil)
         dragTrail.emit(at:node.position,time:now*1000,scale:geometry?.scale ?? 1,style:trailStyle,reduced:sourceFrames.reducedFx)
@@ -6312,13 +6669,24 @@ final class NativeBoardScene: SKScene {
         lastTouchPoint = point
         guard let geometry,let source=engine.state.tiles.first(where:{$0.id==id}),
               let target=dragTarget(source:source,pointer:nil,now:now) else {clearHover();return}
+        let geometryKey=CGSize(width:geometry.tileSize,height:geometry.scale)
+        if hoverGeometryKey != geometryKey {
+            hoverGeometryKey=geometryKey
+            // Match app-core's authored PWA hover (not drag-core defaults).
+            let side = geometry.tileSize, pad = 3*geometry.scale
+            let radius = (NativeBoardGeometry.tile*0.26).rounded()*geometry.scale
+            hover.path = CGPath(roundedRect: CGRect(x: -side/2+pad,y: -side/2+pad,width: side-2*pad,height: side-2*pad),
+                                cornerWidth: radius,cornerHeight: radius,transform: nil)
+            hover.lineWidth = 10*geometry.scale
+        }
         if hoverTargetID != target.id {
             hoverTargetID = target.id; hover.isHidden = false
-            let side = geometry.tileSize
-            hover.path = CGPath(roundedRect: CGRect(x: -side/2,y: -side/2,width: side,height: side),
-                                cornerWidth: 22*geometry.scale,cornerHeight: 22*geometry.scale,transform: nil)
-            hover.lineWidth = 4*geometry.scale
             hover.position = geometry.center(row: target.cell.row,column: target.cell.column)
+            hover.removeAction(forKey:"stack-hover-enter")
+            hover.alpha = 0
+            let reveal = SKAction.fadeAlpha(to:1,duration:0.10)
+            reveal.timingMode = .easeInEaseOut
+            hover.run(reveal,withKey:"stack-hover-enter")
         }
     }
 
@@ -6359,7 +6727,7 @@ final class NativeBoardScene: SKScene {
     private func sourceTouchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         sourceCallbackTime();sourceFrames.pointerEnded()
         guard let touch = activeTouch, touches.contains(touch) else { return }
-        finishDrag(at:touch.location(in:self),now:CACurrentMediaTime())
+        finishDrag(at:touchLocationInGameplayScene(touch),now:CACurrentMediaTime())
     }
 
     @discardableResult
@@ -6402,6 +6770,7 @@ final class NativeBoardScene: SKScene {
                     let generation=engine.state.generation
                     _ = source.beginSourceReturn(to:heldOrigin.position,onCompleted:{[weak self,weak source] in guard let self,!self.disposed,self.engine.state.generation==generation else{return};source?.sourceSnapBackCompleted();if let source,self.sourceTutorialTargetCurrent(source){self.onSourceGuidedSnapBack?(source)}})
                 }
+                traceSourceMagnetContact("drop_presentation_refused",id:id,target:target,result:rejection)
                 consume(rejection,previous:oldState,preserveRejectedPosition:id);return rejection
             }
         }
@@ -6415,6 +6784,7 @@ final class NativeBoardScene: SKScene {
                 engine.state==oldState,sourceOrdinaryPreDebitPresentationEnabled else {
                 let rejected=NativeMoveResult(accepted:false,state:engine.state,events:[.init(.blocked,tileIDs:[id],reason:"source_predebit_contact_not_admitted")],resolution:engine.resolve())
                 if engine.state.generation==oldState.generation {engine.cancelDrag()}
+                traceSourceMagnetContact("drop_predebit_refused",id:id,target:target,result:rejected)
                 return rejected
             }
             preDebitContact=contact
@@ -6433,6 +6803,7 @@ final class NativeBoardScene: SKScene {
             else {transactions.rejectedContact()}
         }
         if !result.accepted {
+            traceSourceMagnetContact("drop_engine_refused",id:id,target:target,result:result)
             if let tile = oldState.tiles.first(where: { $0.id == id }), let geometry, let source {
                 let captured=heldOrigin
                 let destination = source.sourceOuterDriven && captured?.tileID==id && captured?.generation==engine.state.generation ? captured!.position:geometry.center(row: tile.cell.row, column: tile.cell.column)
@@ -6569,13 +6940,14 @@ final class NativeBoardScene: SKScene {
         guard !disposed else {return}
         var frames:[String:NativeFishIdleFrame]=[:]
         for (id,node) in nodesByID {
-            if let frame=node.fishFrame(in:self,visible:view != nil && !suspended && !exitInProgress && engine.state.terminal==nil && !specialPresentationIDs.contains(id)) {frames[id]=frame}
+            if let frame=node.fishFrame(in:self,visible:gameplayRenderHost != nil && !suspended && !exitInProgress && engine.state.terminal==nil && !specialPresentationIDs.contains(id)) {frames[id]=frame}
         }
         onFishIdleFrames?(frames,engine.state.generation,force)
     }
 
     private func clearHover() {
         guard hoverTargetID != nil || !hover.isHidden else { return }
+        hover.removeAction(forKey:"stack-hover-enter"); hover.alpha = 0
         hoverTargetID = nil; hover.isHidden = true
     }
 
@@ -6840,6 +7212,8 @@ final class NativeBoardScene: SKScene {
                         coreStarFinale()
                     } else if event.archetype == .juice && carrier?.variant == nil {
                         coreJuiceFinale()
+                    } else if event.archetype == .magnet && carrier?.variant == nil {
+                        coreMagnetFinale()
                     } else if let tile, let geometry {
                         smoke(at: geometry.center(row: tile.cell.row, column: tile.cell.column), special: event.archetype != nil)
                     }
@@ -7184,6 +7558,23 @@ final class NativeBoardScene: SKScene {
             guard current(),ownerCurrent,nodesByID[node.tileID] === node,node.parent === canvasRoot,
                   node.sourceGeneration==generation else{return false}
             if owners.wildDropping {continue}
+            // Direct main retires the face RAF/contact owner before the hidden
+            // destination's separate cleanup callback. Borrow that exact live
+            // cleanup claim, never the revoked Bee/Special skin. Residual flags
+            // or hidden state alone cannot admit an ownerless object.
+            if sourceRetainedDirectCleanupPresentationCurrent(node,scope:scope,generation:generation) {
+                guard current(),owners.current() else{return false}
+                continue
+            }
+            // A current cleared Wild-six face has its own retained physical
+            // owner, including after its independent RAFs have delivered.
+            // Older spawn sweeps borrow that pose; they cannot reactivate the
+            // revoked Special skin or normalize the active transaction.
+            if let model=engine.state.tiles.first(where:{$0.id==node.tileID}),
+               node.sourceClearedWildSixPresentationCurrent(model:model) {
+                guard node.repairSourceClearedWildSixOpacity(model:model),current(),owners.current() else{return false}
+                continue
+            }
             let regular=node.kind=="regular" && node.variant==nil && !node.sourceResidualWildPresence
             let accepted:Bool
             switch pass {
@@ -7218,6 +7609,9 @@ final class NativeBoardScene: SKScene {
             })
     }
     private var sourceSpawnVisualSafety:NativeSourceSpawnVisualSafetyOwner?
+    @discardableResult func scheduleSourceSpawnVisualSafetySweep()->Bool {
+        sourceSpawnVisualSafety?.schedule()==true
+    }
     /// Bind both actual repair owners. The scheduler alone is not admission
     /// for missing transform markers, face geometry or Wild asset brokers.
     func configureSourceOrdinaryMinimumPhase(scope:NativeGameplaySourceContext.Scope,
@@ -7232,7 +7626,10 @@ final class NativeBoardScene: SKScene {
                     self.sourceSixScope === scope && self.engine.state.generation==generation
             },repairBoard:repairBoardTileVisuals,repairOpacity:repairSpawnOpacity,
             failure:{[weak self] in self?.onSourcePresentationFailure?("source_spawn_visual_safety_rejected",generation)})
-        guard configureSourceOrdinaryMinimumPhase(scope:scope,scheduleOpacitySafetySweep:{[weak owner] in owner?.schedule()==true}) else {
+        guard configureSourceOrdinaryMinimumPhase(scope:scope,scheduleOpacitySafetySweep:{[weak self,weak owner] in
+            guard let self,let owner,self.sourceSpawnVisualSafety === owner else{return false}
+            return self.scheduleSourceSpawnVisualSafetySweep()
+        }) else {
             owner.dispose();return false
         }
         sourceSpawnVisualSafety=owner
@@ -8197,6 +8594,21 @@ final class NativeBoardScene: SKScene {
         return admitted
     }
 
+    @discardableResult private func coreMagnetFinale()->Bool {
+        let owner=NativeMagnetFinalePresentation(textures:textures,viewport:size)
+        guard owner.assetReady else{owner.dispose();return false}
+        for previous in effects.children.compactMap({$0 as? NativeMagnetFinalePresentation}){previous.dispose()}
+        let id=UUID().uuidString,generation=engine.state.generation
+        owner.onGlyphClock={[weak self] time,finished in
+            guard let self,finished || !self.disposed && self.engine.state.generation==generation else{return}
+            self.onSplashGlyphClock?("magnet",id,time,finished)
+        }
+        owner.zPosition=999998;effects.addChild(owner)
+        let receipt=beginVisual();requestRendering(true)
+        let release=beginSourceMotion(.magnetFinale,id:id,generation:generation)
+        owner.play{[weak self] in release?();self?.finishVisual(receipt)}
+        return true
+    }
     private func coreStarFinale() {
         let owner = NativeStarFinale(textures: textures,viewport: size)
         let id = UUID().uuidString,generation = engine.state.generation
@@ -8251,6 +8663,7 @@ final class NativeBoardScene: SKScene {
             if let tnt = child as? NativeTntFinale { tnt.dispose() }
             else if let star = child as? NativeStarFinale { star.dispose() }
             else if let juice = child as? NativeJuiceFinale { juice.dispose() }
+            else if let magnet = child as? NativeMagnetFinalePresentation {magnet.dispose()}
             else { child.removeAllActions(); child.removeAllChildren(); child.removeFromParent() }
         }
     }
@@ -8307,8 +8720,8 @@ final class NativeBoardScene: SKScene {
     // PRIVATE Source caller capability, defaultOFF. A family capture must come
     // from its genuine animateStarsToHudIcon call, not a Core grid reconstruction.
     var sourceHUDStarTargetScreen:CGPoint? {
-        guard sourceAnimationBindingAdmissionOpen,let view,scoreArt.parent != nil else{return nil}
-        return view.convert(scoreArt.convert(CGPoint.zero,to:self),from:self)
+        guard sourceAnimationBindingAdmissionOpen,let host=gameplayRenderHost,scoreArt.parent != nil else{return nil}
+        return host.scenePointToView(scoreArt.convert(CGPoint.zero,to:self),scene:self)
     }
     struct SourceHUDStarCallCapture {let screenOrigin:CGPoint,hudTarget:CGPoint}
     var sourceHUDStarJobsPresentationEnabled=false
@@ -8336,8 +8749,8 @@ final class NativeBoardScene: SKScene {
     private func sourceSpecialHUDScreenOrigin(node:NativeDiceNode,generation:UInt64)->CGPoint? {
         guard sourceAnimationBindingAdmissionOpen,engine.state.generation==generation,
               nodesByID[node.tileID] === node,node.parent === canvasRoot,
-              node.sourceGeneration==generation,node.sourceContactNodeAlive,let view else{return nil}
-        let origin=view.convert(node.convert(CGPoint.zero,to:self),from:self)
+              node.sourceGeneration==generation,node.sourceContactNodeAlive,let host=gameplayRenderHost else{return nil}
+        let origin=host.scenePointToView(node.convert(CGPoint.zero,to:self),scene:self)
         return origin.x.isFinite && origin.y.isFinite ? origin:nil
     }
     private func consumeSourceSpecialHUDCall(_ result:NativeMoveResult,previous:NativeBoardState,origin:CGPoint?)->Bool {
@@ -8565,6 +8978,7 @@ final class NativeBoardScene: SKScene {
                             return scope.current && self.specialIsCurrent(plan) && self.engine.sourceSpecialAbsorbMainEntered
                         })
                     } else {prepared=self.engine.prepareMagnetRespawn(transactionID:plan.id)}
+                    if prepared.accepted,self.sourceMagnetLazyScope != nil,!self.hideSourceMagnetConsumedSix(plan) {self.onPresentationFailure?("source_magnet_consumed_six_hide_not_bound");return}
                     self.consume(prepared,previous: previous)
                     if !prepared.accepted {self.sourceMagnetHelpers[plan.id]?.retire();return}
                     self.startMagnetRespawn(plan,receipt: receipt,owner: owner)
@@ -8589,6 +9003,8 @@ final class NativeBoardScene: SKScene {
 
     private func startMagnetRespawn(_ plan: NativeSpecialMovePlan,receipt: UInt64,owner: SKNode?) {
         guard specialIsCurrent(plan) else { return }
+        // Component fallback has no retained Source conversion boundary.
+        if sourceMagnetLazyScope==nil {sourceMagnetImpacts.removeValue(forKey:plan.id)?.dispose()}
         if sourceMagnetBindings != nil {
             if !startSourceMagnetRespawn(plan,receipt:receipt,carrier:owner) {onPresentationFailure?("source_magnet_replacement_producer_not_bound")}
             return
@@ -8878,7 +9294,7 @@ final class NativeBoardScene: SKScene {
                 self.onSourcePresentationFailure?("source_laser_impact_screen_shake_rejected",plan.generation);return false
             }
             self.onSpecialMoment?("laser-gun","impact",index)
-            if index==0 || index==targets.count-1 {self.onHaptic?("heavy")}
+            self.onHaptic?("protected-heavy")
             if self.sourceStackCoreFaceReceiptsEnabled {
                 guard let impactNode,self.playSourceSpecialImpactParticles(variant:"laser-gun",target:impactNode,generation:plan.generation) else {
                     self.onSourcePresentationFailure?("source_laser_impact_particles_rejected",plan.generation);return false
@@ -8930,10 +9346,20 @@ final class NativeBoardScene: SKScene {
         let owner = SKNode(); effects.addChild(owner)
         let delays = plan.variant == "beach-ball" ? [0.0,0.26,0.56,0.9] : [0.0,0.2,0.4,0.6]
         let initialDelay = plan.variant == "flower" ? 0.7 : plan.variant == "barell" ? 0.2 : 0
+        let capturedMicrotasks=sourceMicrotaskInstallation
+        let renderAction: (@escaping ()->Void)->()->Void = {[weak self,capturedMicrotasks] body in
+            return {[weak self,capturedMicrotasks] in
+                guard let self,self.specialIsCurrent(plan) else{return}
+                if let capturedMicrotasks {
+                    guard self.sourceMicrotaskInstallation === capturedMicrotasks,capturedMicrotasks.isCurrent else{return}
+                    _=capturedMicrotasks.renderActionTask(body)
+                } else if self.sourceMicrotaskInstallation==nil {body()}
+            }
+        }
         var actions: [SKAction] = initialDelay > 0 ? [.wait(forDuration:initialDelay)] : []
         for (index,tile) in plan.targets.enumerated() {
             if index > 0 { actions.append(.wait(forDuration:delays[index]-delays[index-1])) }
-            actions.append(.run { [weak self] in
+            actions.append(.run(renderAction { [weak self] in
                 guard let self,self.specialIsCurrent(plan) else { return }
                 let origin=self.nodesByID[tile.id].flatMap{self.sourceSpecialHUDScreenOrigin(node:$0,generation:plan.generation)}
                 let impactNode=self.nodesByID[tile.id]
@@ -8950,9 +9376,9 @@ final class NativeBoardScene: SKScene {
                         }
                     } else {self.smoke(at: geometry.center(row: tile.cell.row,column: tile.cell.column),special: false)}
                 }
-            })
+            }))
         }
-        actions += [.wait(forDuration: 0.56+0.08),.run { [weak self,weak owner] in
+        actions += [.wait(forDuration: 0.56+0.08),.run(renderAction { [weak self,weak owner] in
             guard let self,self.specialIsCurrent(plan) else { owner?.removeFromParent(); return }
             let previous = self.engine.state
             let result = self.engine.commitSpecialBoard(transactionID: plan.id)
@@ -8964,7 +9390,7 @@ final class NativeBoardScene: SKScene {
             // Source app-core markBreakComplete: onComplete, then checkLevelEnd.
             // Keep its existing authored completion clock; no extra timer.
             if result.accepted,self.engine.state.generation==plan.generation {self.evaluate()}
-        }]
+        })]
         owner.run(.sequence(actions),withKey: "tnt-captured-impacts")
     }
 
@@ -9015,10 +9441,10 @@ final class NativeBoardScene: SKScene {
         for (index,tile) in plan.targets.enumerated() {
             let impact:()->Void = {[weak self] in
                 guard let self,current(),!committed else{return}
-                guard let target=self.nodesByID[tile.id],target.parent === self.canvasRoot,let view=self.view else {
+                guard let target=self.nodesByID[tile.id],target.parent === self.canvasRoot,let host=self.gameplayRenderHost else {
                     self.onSourcePresentationFailure?("source_tnt_bonus_origin_holder_missing",plan.generation);return
                 }
-                let origin=view.convert(target.convert(CGPoint.zero,to:self),from:self)
+                let origin=host.scenePointToView(target.convert(CGPoint.zero,to:self),scene:self)
                 guard self.geometry != nil,self.sourceSixShared?.canAdmit==true else {
                     self.onSourcePresentationFailure?("source_tnt_bonus_shared_fx_not_bound",plan.generation);return
                 }
@@ -9068,8 +9494,8 @@ final class NativeBoardScene: SKScene {
     }
 
     private var sourceFizzCanvasPaintable:Bool {
-        guard !disposed,!suspended,let view else{return false}
-        var surface:UIView?=view
+        guard !disposed,!suspended,let host=gameplayRenderHost else{return false}
+        var surface:UIView?=host.renderView
         while let current=surface {
             if current.isHidden || Float(current.alpha)<=Float(0.001){return false};surface=current.superview
         }
@@ -9077,8 +9503,8 @@ final class NativeBoardScene: SKScene {
     }
 
     private var sourceShimmerCanvasPaintable:Bool {
-        guard !disposed,!suspended,let view,!view.isPaused else{return false}
-        var surface:UIView?=view
+        guard !disposed,!suspended,let host=gameplayRenderHost,!host.renderingPaused else{return false}
+        var surface:UIView?=host.renderView
         while let current=surface {
             if current.isHidden || Float(current.alpha)<=Float(0.001) {return false}
             surface=current.superview
@@ -9096,9 +9522,41 @@ final class NativeBoardScene: SKScene {
     override func update(_ currentTime: TimeInterval) {
         guard !sourceDisposalInProgress else {return}
         guard !disposed, !suspended else { lastFrame = nil; return }
+        if frameDiagnosticsEnabled {
+            if let previous=diagnosticDragInput.sceneTime,draggedID != nil {
+                let gap=max(0,(currentTime-previous)*1000)
+                diagnosticDragInput.sceneGaps+=1;diagnosticDragInput.sceneGapWorst=max(diagnosticDragInput.sceneGapWorst,gap)
+                if gap>20 {diagnosticDragInput.sceneOver20+=1};if gap>30 {diagnosticDragInput.sceneOver30+=1}
+            }
+            diagnosticDragInput.sceneTime=currentTime
+            if draggedID != nil {
+                let arrival=CACurrentMediaTime()*1000,phase=arrival-currentTime*1000
+                if let previous=diagnosticDragInput.arrivalTime {
+                    let gap=max(0,arrival-previous)
+                    diagnosticDragInput.arrivalGaps+=1;diagnosticDragInput.arrivalGapWorst=max(diagnosticDragInput.arrivalGapWorst,gap)
+                    if gap>20 {diagnosticDragInput.arrivalOver20+=1};if gap>30 {diagnosticDragInput.arrivalOver30+=1}
+                }
+                diagnosticDragInput.arrivalTime=arrival
+                diagnosticDragInput.phaseMinimum=min(diagnosticDragInput.phaseMinimum ?? phase,phase)
+                diagnosticDragInput.phaseMaximum=max(diagnosticDragInput.phaseMaximum ?? phase,phase)
+            } else {diagnosticDragInput.arrivalTime=nil}
+        }
         let diagnosticStart=frameDiagnosticsEnabled ? CACurrentMediaTime():nil
         defer {if let diagnosticStart {diagnosticUpdateWorstMs=max(diagnosticUpdateWorstMs,(CACurrentMediaTime()-diagnosticStart)*1000)}}
-        let rawMilliseconds=CACurrentMediaTime()*1000,configuredFPS=Double(view?.preferredFramesPerSecond ?? 60)
+        renderPipelineProbe?.step(scene:self,atTime:currentTime)
+        retainSourceRendererDragTransport()
+        if let lease=sourceRendererDragTransport,let service=sourceStackFrameService {
+            let generation=engine.state.generation
+            let delivered=service.deliverRendererFrame(lease,rawFrameMilliseconds:currentTime*1000)
+            // A canonical batch may dispose, replace or suspend this Scene.
+            guard !sourceDisposalInProgress,!disposed,!suspended,!isPaused,
+                  engine.state.generation==generation,sourceStackFrameService === service else{return}
+            if delivered {
+                guard let host=gameplayRenderHost,host.renderedScene === self,host.renderView.window != nil,!host.renderingPaused,!host.renderView.isHidden else{return}
+                if let successor=sourceRendererDragTransport,successor !== lease {return}
+            }
+        }
+        let rawMilliseconds=CACurrentMediaTime()*1000,configuredFPS=Double(gameplayRenderHost?.renderingFPS ?? 60)
         recordDiagnosticFrame(nowMs:rawMilliseconds,configuredFPS:configuredFPS)
         if !sourceFramesAttached {
             sourceFramesAttached=true;sourceFrames.attach(rendererID:1,nowMs:rawMilliseconds,configuredFPS:configuredFPS)
@@ -9109,6 +9567,7 @@ final class NativeBoardScene: SKScene {
             else if hudEntryReveal.renderedCallback(receipt) {startHUDDrop(receipt)}
         }
         let elapsedDelta=lastFrame.map {max(0,currentTime-$0)} ?? 0
+        dragTrail.advance(delta:elapsedDelta,timeMilliseconds:rawMilliseconds)
         let delta=min(0.05,elapsedDelta)
         // GSAP's source ticker uses full elapsed time for sub500ms hitches,
         // and its default lag smoothing substitutes33ms after larger stalls.
@@ -9128,7 +9587,7 @@ final class NativeBoardScene: SKScene {
             node.tickSourceIdleBubbles(fizzDelta,suspended:engine.state.terminal != nil || exitInProgress || specialPresentationIDs.contains(node.tileID))
         }
         for node in nodesByID.values where node.hasAnimatedArtwork {
-            node.tick(delta, suspended: sourceFrames.isSpecialIdleSuspended || engine.state.terminal != nil || exitInProgress || specialPresentationIDs.contains(node.tileID), viewportCenter: size.width / 2,fizzDelta:fizzDelta)
+            node.tick(delta, suspended: (sourceFrames.isSpecialIdleSuspended && !node.keepsDirectArtworkDuringRegistryPressure) || engine.state.terminal != nil || exitInProgress || specialPresentationIDs.contains(node.tileID), viewportCenter: size.width / 2,fizzDelta:fizzDelta)
         }
     }
 
@@ -9139,6 +9598,18 @@ final class NativeBoardScene: SKScene {
     }
     private func sourceDidFinishUpdate() {
         guard !disposed, !suspended else { return }
+        onRenderSurfacePreparation?()
+        guard !disposed,!suspended else{return}
+        if frameDiagnosticsEnabled,let id=draggedID,let node=diagnosticExpectedDragNode,
+           nodesByID[id] === node,diagnosticExpectedDragGeneration==engine.state.generation,
+           let expected=diagnosticExpectedDragPosition {
+            let now=CACurrentMediaTime()*1000
+            if let stamp=diagnosticDragInput.paintedOSTimestampMs {diagnosticDragInput.renderAgeWorst=max(diagnosticDragInput.renderAgeWorst,max(0,now-stamp))}
+            if let stamp=diagnosticDragInput.paintedCoalescedTimestampMs {diagnosticDragInput.coalescedRenderAgeWorst=max(diagnosticDragInput.coalescedRenderAgeWorst,max(0,now-stamp))}
+            let position=node.position,error=hypot(position.x-expected.x,position.y-expected.y)
+            diagnosticDragInput.positionChecks+=1;diagnosticDragInput.positionErrorWorst=max(diagnosticDragInput.positionErrorWorst,Double(error))
+            if error>0.001 {diagnosticDragInput.positionMismatches+=1}
+        }
         if frameDiagnosticsEnabled {diagnosticDragRender.rendered(at:CACurrentMediaTime()*1000,dragging:draggedID != nil)}
         let diagnosticStart=frameDiagnosticsEnabled ? CACurrentMediaTime():nil
         defer {if let diagnosticStart {diagnosticHandoffWorstMs=max(diagnosticHandoffWorstMs,(CACurrentMediaTime()-diagnosticStart)*1000)}}
@@ -9152,7 +9623,7 @@ final class NativeBoardScene: SKScene {
         }
         sourceMeterRenderEpoch &+= 1
         sourceMeterCaller?.painted(epoch:sourceMeterRenderEpoch,
-            onscreen:view?.window != nil && view?.isHidden==false && view?.isPaused==false,
+            onscreen:gameplayRenderHost?.renderView.window != nil && gameplayRenderHost?.renderView.isHidden==false && gameplayRenderHost?.renderingPaused==false,
             contains:{[weak self] node in guard let self else{return false}
                 return self.nodesByID[node.tileID] === node && node.parent === self.canvasRoot && !node.isHidden && node.alpha>0
             })
@@ -9162,16 +9633,23 @@ final class NativeBoardScene: SKScene {
     }
 
     func setSuspended(_ value: Bool,allowHUDFeedback:Bool=false) {
+        if value {renderPipelineProbe?.cancel(scene:self,reason:"suspended")}
         guard !sourceDisposalInProgress else {return }
         guard !disposed else {return}
         // VC publishes Source foreground before this existing lifecycle seam.
         // Cancel before iOS freezes APP timers; modal pauses stay foreground.
         if value,sourceBoardEntryScope?.service.sourceForegroundAdmissionOpen==false {sourceSmokePoolWarmup?.dispose()}
         suspended=value;lastFrame=nil
-        if value {let transport=sourceDragTransport;sourceDragTransport=nil;transport?.cancel()}
+        if value {retireSourceRendererDragTransport();let transport=sourceDragTransport;sourceDragTransport=nil;transport?.cancel()}
         else {retainSourceDragTransport()}
         diagnosticWindowStart=nil;diagnosticLastFrame=nil;diagnosticPreviousTarget=nil;resetDiagnosticFrameInterval()
         diagnosticDragRender.retireDrag();diagnosticLatestTouchMilliseconds=nil
+        if frameDiagnosticsEnabled {
+            diagnosticDragInput.arrivalTime=nil
+        diagnosticDragInput.sceneTime=nil;diagnosticDragInput.osTimestampMs=nil;diagnosticDragInput.coalescedTimestampMs=nil
+            diagnosticDragInput.paintedOSTimestampMs=nil;diagnosticDragInput.paintedCoalescedTimestampMs=nil
+            diagnosticExpectedDragNode=nil;diagnosticExpectedDragPosition=nil;diagnosticExpectedDragGeneration=nil
+        }
         sourceCallbackTime();sourceFrames.visibilityChanged(hidden:value)
         for owner in regularSixPresentations.values {owner.setSuspended(value)}
         // Original pauseGame pauses the global animation timeline and stops
@@ -9201,7 +9679,7 @@ final class NativeBoardScene: SKScene {
         textures.purgeUnused(retaining: paths)
     }
 
-    func animateExit(completion: @escaping (Bool) -> Void) {
+    func animateExit(afterResidualExit:(()->Void)?=nil,completion: @escaping (Bool) -> Void) {
         guard !sourceDisposalInProgress else {completion(false); return }
         guard !disposed, !exitInProgress else { completion(false); return }
         let capturedGeneration=engine.state.generation
@@ -9209,7 +9687,6 @@ final class NativeBoardScene: SKScene {
         guard !disposed,!exitInProgress,engine.state.generation==capturedGeneration else{completion(false);return}
         cancelEntry(restoreHUD:false); cancelDrag(); cancelCandidate(); inputAdmitted = false; navigationLocked = true
         retireSourceSpawns()
-        roundIndicator.exit()
         exitInProgress = true; exitCompletion = completion
         engine.setInputLock("native-board-exit",active: true)
         suspended = false; isPaused = false; requestRendering(true)
@@ -9219,6 +9696,13 @@ final class NativeBoardScene: SKScene {
         let targets: [SKNode] = nodesByID.values.sorted { $0.tileID < $1.tileID } + ghosts.children
         let plans = NativeBoardExitPlan.make(count: targets.count)
         exitOwners = targets.count + 1
+        let startHUDExit:()->Void = { [weak self] in
+            guard let self,!self.disposed,self.exitInProgress,self.engine.state.generation==generation else{return}
+            afterResidualExit?()
+            self.roundIndicator.exit()
+            self.animateHUDExit(generation:generation,capture:hudCapture)
+        }
+        if afterResidualExit == nil || targets.isEmpty {startHUDExit()}
         for plan in plans {
             let node = targets[plan.tileIndex]
             node.removeAllActions()
@@ -9232,8 +9716,15 @@ final class NativeBoardScene: SKScene {
                     .sequence([NativeBoardMotion.scale(from: small,to: peak,duration: plan.compress,ease: .power2In),
                         NativeBoardMotion.scale(from: peak,to: .zero,duration: plan.collapse,ease: .backIn(2))]),
                     .fadeOut(withDuration: max(0.12,plan.collapse*0.68))
-                ]),.run { [weak self] in self?.finishExitOwner(generation: generation) }]),withKey: "board-exit")
+                ]),.run { [weak self] in
+                    guard let self,!self.disposed,self.exitInProgress,self.engine.state.generation==generation else{return}
+                    self.finishExitOwner(generation:generation)
+                    if afterResidualExit != nil,self.exitOwners==1 {startHUDExit()}
+                }]),withKey: "board-exit")
         }
+    }
+
+    private func animateHUDExit(generation:UInt64,capture hudCapture:NativeSourceFrameRuntime.Capture) {
         let start=NativeHUDTransitionMotion.Pose(offset:Double(hud.position.y),alpha:Double(hud.alpha))
         let top=Double(NativeGameplayChromePlan.make(viewport:size,safeTop:safeInsets.top).hudTop)
         hud.run(.sequence([.customAction(withDuration:NativeHUDTransitionMotion.riseDuration) { node,time in
@@ -9257,6 +9748,7 @@ final class NativeBoardScene: SKScene {
         if let capture=sourceExit {sourceExit=nil;sourceFrames.end(capture)}
         if let capture=sourceHUDExit {sourceHUDExit=nil;sourceFrames.end(capture)}
         guard exitInProgress else { return }
+        if completed {completedExitGeneration=engine.state.generation}
         exitInProgress = false; exitOwners = 0
         if sourceDisposalGeneration == nil || sourceDisposalGeneration == engine.state.generation {engine.setInputLock("native-board-exit",active: false)}
         if !completed {
@@ -9309,6 +9801,7 @@ final class NativeBoardScene: SKScene {
 
     func dispose() {
         guard !disposed,!sourceDisposalInProgress else {return}
+        renderPipelineProbe?.cancel(scene:self,reason:"disposed")
         retireSourceWildSkinAssets()
         retireSourceSpawnVisualSafety()
         let sourceLifetime = sourceInitialConstruction != nil || sourceMicrotaskInstallation != nil || sourceDisposalSealingEnabled || sourceOuterTimelineDriver != nil || sourceDragTweenDriver != nil || sourceRegularContactCompanions != nil || sourceSameNodeStackAbsorbsEnabled || sourceOuterTearingDown
@@ -9352,6 +9845,7 @@ final class NativeBoardScene: SKScene {
         retireSourcePhysicalObservers();nodesByID.removeAll();meterTimeoutIDs.removeAll();ghostNodesByCell.removeAll();ghosts.removeAllChildren(); removeAllChildren(); textures.dispose()
         onFishIdleFrames?([:],engine.state.generation,true);onFishIdleFrames=nil
         onNativeNoMovesShow=nil;onNativeNoMovesExit=nil;onNativeNoMovesClear=nil;onJourneyBottomDecorShake=nil;captureSourceScreenOverlayShake=nil;sourceCoreTntShakeTargets.removeAll();sourceScreenShakeTargets.removeAll();onPresentationFailure=nil;onSourcePresentationFailure=nil;onStateChange = nil; onTerminal = nil; onGameplayEvent = nil; onGameplayReceipt = nil; onSpecialMoment = nil; onAuthoredFinale = nil;onAuthoredTntPresentation = nil;onAuthoredLaserImpact=nil;authoredTntPresentationReady = nil;authoredFinalePresentationReady=nil;onSpecialPresentationCancelled = nil; onTntGlyphClock = nil; onSplashGlyphClock = nil; onHaptic = nil
+        onRenderSurfacePreparation=nil
         onSourceGuidedSnapBack=nil;onSourceTutorialRetired=nil;onLevelFlowBounceCompletion=nil;onExitRequest = nil; onHelpRequest = nil; onScoreRequest = nil; onComboRequest = nil; onPointerState = nil; onRenderingDemand = nil; onBoardEntry = nil; onHUDDrop = nil
     }
 }

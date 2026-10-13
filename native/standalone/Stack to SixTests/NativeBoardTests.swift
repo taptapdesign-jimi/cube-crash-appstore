@@ -1,5 +1,6 @@
 import XCTest
 import SpriteKit
+import QuartzCore
 import StackToSixGameplay
 @testable import Stack_to_Six
 
@@ -17,6 +18,64 @@ final class NativeBoardTests: XCTestCase {
     }
     private func center(_ scene: NativeBoardScene, _ column: Int) throws -> CGPoint {
         try XCTUnwrap(scene.boardGeometry).center(row: 0,column: column)
+    }
+
+    func testActualGameplayDrawableMatchesMobilePWAPixelBudgetAcrossWindowRelayout()async throws {
+        let engine=NativeGameplayEngine(state:NativeBoardState(tiles:[tile("a",0,2),tile("b",1,3)]))
+        let controller=NativeGameplayViewController(engine:engine,resourceRoot:root)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=controller;window.makeKeyAndVisible()
+        defer{controller.dispose();window.isHidden=true;window.rootViewController=nil}
+        controller.view.setNeedsLayout();controller.view.layoutIfNeeded()
+        let renderer=try XCTUnwrap(controller.view.subviews.compactMap{$0 as? SKView}.first)
+        let chromeScale=controller.view.contentScaleFactor
+        func metalSurface(_ layer:CALayer)->CAMetalLayer? {
+            if let metal=layer as? CAMetalLayer{return metal}
+            for child in layer.sublayers ?? [] {if let metal=metalSurface(child){return metal}}
+            return nil
+        }
+        try await Task.sleep(for:.milliseconds(100))
+        let surface=try XCTUnwrap(metalSurface(renderer.layer),"Assert the actual GPU surface, not only a requested scale")
+        XCTAssertEqual(renderer.contentScaleFactor,1)
+        XCTAssertEqual(surface.drawableSize.width,renderer.bounds.width,accuracy:1)
+        XCTAssertEqual(surface.drawableSize.height,renderer.bounds.height,accuracy:1)
+        let geometry=try XCTUnwrap(controller.boardScene?.boardGeometry)
+        renderer.contentScaleFactor=3
+        controller.view.setNeedsLayout();controller.view.layoutIfNeeded()
+        try await Task.sleep(for:.milliseconds(100))
+        XCTAssertEqual(renderer.contentScaleFactor,1,"Reattachment/relayout cannot silently triple render density")
+        XCTAssertEqual(surface.drawableSize.width,renderer.bounds.width,accuracy:1)
+        XCTAssertEqual(surface.drawableSize.height,renderer.bounds.height,accuracy:1)
+        XCTAssertEqual(controller.boardScene?.boardGeometry,geometry,"Render density cannot alter drag geometry")
+        XCTAssertEqual(controller.view.contentScaleFactor,chromeScale,"Gameplay density must not change the UIKit surface")
+        let board=try XCTUnwrap(controller.boardScene)
+        let markers:[(UIColor,CGPoint,[UInt8])]=[
+            (.red,.init(x:16,y:board.size.height-16),[255,0,0]),
+            (.green,.init(x:board.size.width-16,y:board.size.height-16),[0,255,0]),
+            (.blue,.init(x:16,y:16),[0,0,255]),
+            (.yellow,.init(x:board.size.width-16,y:16),[255,255,0]),
+            (.magenta,.init(x:board.size.width/2,y:board.size.height/2),[255,0,255])]
+        for (color,point,_) in markers {
+            let marker=SKSpriteNode(color:color,size:.init(width:24,height:24))
+            marker.position=point;marker.zPosition=1_000_000;board.addChild(marker)
+        }
+        try await Task.sleep(for:.milliseconds(100))
+        let format=UIGraphicsImageRendererFormat();format.scale=1;format.preferredRange = .standard
+        let presented=UIGraphicsImageRenderer(bounds:window.bounds,format:format).image{_ in
+            XCTAssertTrue(window.drawHierarchy(in:window.bounds,afterScreenUpdates:true))
+        }
+        let attachment=XCTAttachment(image:presented);attachment.name="Actual one-pixel gameplay drawable corner coverage";attachment.lifetime = .keepAlways;add(attachment)
+        for (_,point,expected) in markers {
+            let screen=renderer.convert(board.convertPoint(toView:point),to:window)
+            let sample=UIGraphicsImageRenderer(size:.init(width:1,height:1),format:format).image{_ in presented.draw(at:.init(x:-screen.x,y:-screen.y))}
+            var pixel=[UInt8](repeating:0,count:4)
+            let sampled=pixel.withUnsafeMutableBytes{raw->Bool in
+                guard let context=CGContext(data:raw.baseAddress,width:1,height:1,bitsPerComponent:8,bytesPerRow:4,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue),let image=sample.cgImage else{return false}
+                context.draw(image,in:.init(x:0,y:0,width:1,height:1));return true
+            }
+            XCTAssertTrue(sampled)
+            for channel in 0..<3 {XCTAssertEqual(Double(pixel[channel]),Double(expected[channel]),accuracy:8,"Presented corner/center at \(screen) must not crop or change projection")}
+        }
     }
 
     func testGeometryPreservesLogicalGridAndRejectsGapAutoAim() {

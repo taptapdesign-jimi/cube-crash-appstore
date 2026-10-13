@@ -8,6 +8,61 @@ nonisolated final class NativeSourceMagnetMainSetupTests:XCTestCase {
   XCTAssertTrue(engine.beginDrag(tileID:"m"));XCTAssertTrue(engine.drop(target:.init(column:1,row:0)).accepted)
   return(engine,try XCTUnwrap(engine.pendingSpecial))
  }
+ func testLazyNoPullCleanupDoesNotRequireReplacementOrSurvivorProducer()throws {
+  for variant in [String?.none,"honey","bottle","spaceship"] {
+   // A cleanup-owned regular die blocks final-pair classification but is not an
+   // eligible pull. Source therefore enters its normal no-pulled cleanup.
+   let engine=NativeGameplayEngine(state:.init(tiles:[
+    .init(id:"m",cell:.init(column:0,row:0),value:6,archetype:.magnet,variant:variant),
+    .init(id:"d",cell:.init(column:1,row:0),value:2),
+    .init(id:"blocked",cell:.init(column:2,row:0),value:3,merge6CleanupOwned:true)
+   ],board:10),recordedRandomChoices:Array(repeating:0,count:100))
+   engine.sourceMagnetMain80Enabled=true;engine.sourceMagnetLazyRespawnEnabled=true
+   XCTAssertTrue(engine.beginDrag(tileID:"m"));XCTAssertTrue(engine.drop(target:.init(column:1,row:0)).accepted)
+   let plan=try XCTUnwrap(engine.pendingSpecial);XCTAssertTrue(plan.targets.isEmpty)
+   let receipt=try XCTUnwrap(engine.registerSourceSpecialAbsorbOwner(transactionID:plan.id,generation:plan.generation))
+   XCTAssertTrue(engine.commitSourceSpecialAbsorbMain(receiptID:receipt.id,generation:receipt.generation).accepted)
+   let result=engine.commitSpecialBoard(transactionID:plan.id)
+   XCTAssertTrue(result.accepted)
+   XCTAssertFalse(engine.state.tiles.contains{$0.id=="d"})
+   XCTAssertNil(engine.pendingSpecial);XCTAssertNil(engine.pendingSourceMagnetLazyRespawn)
+   XCTAssertFalse(engine.flags.pendingSpecialMutation);XCTAssertFalse(engine.flags.wildMagnetPullInProgress)
+  }
+ }
+ func testLazyFinalPairKeepsDirectFinalOwnerForEveryMagnetVariant()throws {
+  for variant in [String?.none,"honey","bottle","spaceship"] {
+   let engine=NativeGameplayEngine(state:.init(tiles:[
+    .init(id:"m",cell:.init(column:0,row:0),value:6,archetype:.magnet,variant:variant),
+    .init(id:"d",cell:.init(column:1,row:0),value:2)
+   ],board:10),recordedRandomChoices:Array(repeating:0,count:100))
+   engine.sourceMagnetMain80Enabled=true;engine.sourceMagnetLazyRespawnEnabled=true;engine.stagedDirectWildMoves=true
+   XCTAssertTrue(engine.beginDrag(tileID:"m"));XCTAssertTrue(engine.drop(target:.init(column:1,row:0)).accepted)
+   XCTAssertNil(engine.pendingSpecial);XCTAssertTrue(try XCTUnwrap(engine.pendingDirectWild).isFinal)
+   XCTAssertNil(engine.pendingSourceMagnetLazyRespawn)
+  }
+ }
+ func testSourceNoPullUsesAwaitedDirectSpawnInsteadOfEagerSpecialRefill()throws {
+  for variant in [String?.none,"honey","bottle","spaceship"] {
+   let engine=NativeGameplayEngine(state:.init(tiles:[
+    .init(id:"m",cell:.init(column:0,row:0),value:6,archetype:.magnet,variant:variant),
+    .init(id:"d",cell:.init(column:1,row:0),value:2),
+    .init(id:"cleanup",cell:.init(column:2,row:0),value:3,merge6CleanupOwned:true),
+    .init(id:"locked",cell:.init(column:3,row:0),value:0,locked:true)
+   ],board:10),recordedRandomChoices:Array(repeating:0.2,count:1000))
+   engine.sourceMagnetMain80Enabled=true;engine.sourceMagnetLazyRespawnEnabled=true
+   engine.stagedDirectWildMoves=true;engine.stagedDirectWildAssignments=true
+   XCTAssertTrue(engine.beginDrag(tileID:"m"));XCTAssertTrue(engine.drop(target:.init(column:1,row:0)).accepted)
+   XCTAssertNil(engine.pendingSpecial)
+   let plan=try XCTUnwrap(engine.pendingDirectWild);XCTAssertFalse(plan.isFinal);XCTAssertEqual(plan.archetype,.magnet)
+   XCTAssertTrue(engine.commitDirectWildGameplay(transactionID:plan.id).accepted)
+   // Normal primary assignment has a real awaited arrival. The nine bonus
+   // holders match PWA wild-merge-spawn-bonus-decision.ts Magnet policy.
+   let arrival=try XCTUnwrap(engine.pendingWildSpawnArrivals.first)
+   XCTAssertEqual(engine.state.tiles.filter{$0.locked && $0.value==0}.count,10)
+   XCTAssertNotNil(engine.pendingDirectWild)
+   XCTAssertTrue(engine.finishWildSpawnArrival(transactionID:plan.id,generation:plan.generation,arrivalID:arrival.id).accepted)
+  }
+ }
  func testSourceParentPrefixRetainsActualVisibilityAndCombinedDepthWhileRawRemainsHidden()throws {
   for enabled in [false,true] {
    let(e,_)=try fixture(enabled:enabled),tile=try XCTUnwrap(e.state.tiles.first{$0.id=="d"})

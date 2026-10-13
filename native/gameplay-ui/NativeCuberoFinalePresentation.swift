@@ -8,9 +8,9 @@ final class NativeCuberoFinalePresentation:NativeFinitePresentation {
     let assetReady:Bool
     private let plans:[NativeCuberoFinaleMotion.Plan],glyphs:NativeSplashGlyphField
     private var hosts:[UIView]=[],images:[UIImageView]=[],beats=Set<Int>(),cancelled=false
-    init(resourceRoot:URL,viewport:CGSize,random:()->Double={Double.random(in:0..<1)}) {
+    init(resourceRoot:URL,viewport:CGSize,preparedArtwork:JimiV9Artwork?=nil,random:()->Double={Double.random(in:0..<1)}) {
         plans=NativeCuberoFinaleMotion.make(viewport:viewport,random:random)
-        let artwork=JimiV9Artwork(resourceRoot:resourceRoot)
+        let artwork=preparedArtwork ?? JimiV9Artwork(resourceRoot:resourceRoot)
         let color=UIColor(red:254.0/255,green:145.0/255,blue:48.0/255,alpha:1)
         glyphs=NativeSplashGlyphField(artwork:artwork,text:"Hiyaa!",colors:[color],splitIndex:0,deferExitRotationCapture:true,random:random)
         glyphs.captureExitRotations(random:random)

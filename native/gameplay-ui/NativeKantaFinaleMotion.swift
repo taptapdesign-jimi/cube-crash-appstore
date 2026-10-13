@@ -1,5 +1,23 @@
 import UIKit
 
+/// Match the authored fixed-decimal paint values without allocating a formatted
+/// string for every layer on every frame. Values at a decimal half boundary use
+/// the original formatter because multiplication can move a binary Double tie.
+enum NativeFinaleDecimal {
+    static func rounded(_ value:Double,digits:Int)->Double {
+        let scale:Double
+        switch digits {case 2:scale=100;case 3:scale=1000;case 4:scale=10000;default:return formatted(value,digits:digits)}
+        let scaled=value*scale
+        guard scaled.isFinite,abs(scaled)<1e12 else{return formatted(value,digits:digits)}
+        let magnitude=abs(scaled),fraction=magnitude-magnitude.rounded(.down)
+        guard abs(fraction-0.5)>scaled.ulp*8 else{return formatted(value,digits:digits)}
+        return scaled.rounded(.toNearestOrEven)/scale
+    }
+    private static func formatted(_ value:Double,digits:Int)->Double {
+        Double(String(format:"%.\(digits)f",value)) ?? value
+    }
+}
+
 /// Original kanta-finale-scene.ts captured collection geometry and playheads.
 struct NativeKantaFinaleMotion {
     struct Point { var x:Double,y:Double }
@@ -14,7 +32,7 @@ struct NativeKantaFinaleMotion {
     private static func cubic(_ x:Double)->Double {1-pow(1-clamp(x),3)}
     private static func back(_ x:Double,_ strength:Double=1.70158)->Double {let t=clamp(x)-1;return 1+(strength+1)*pow(t,3)+strength*t*t}
     private static func backIn(_ x:Double)->Double {let t=clamp(x);return 2.70158*t*t*t-1.70158*t*t}
-    private static func rounded(_ x:Double,_ digits:Double)->Double {Double(String(format:digits == 100 ? "%.2f":"%.4f",x))!}
+    private static func rounded(_ x:Double,_ digits:Double)->Double {NativeFinaleDecimal.rounded(x,digits:digits == 100 ? 2:4)}
     static func pickup(progress:Double,start:Point,target:Point,jump:Double)->Pose {
         let p=clamp(progress),apex=min(start.y,target.y)-jump,descent=(p-0.42)/0.58
         let landing=descent <= 0.78 ? pow(descent/0.78,2)*0.86 : 0.86+back((descent-0.78)/0.22,1.8)*0.14

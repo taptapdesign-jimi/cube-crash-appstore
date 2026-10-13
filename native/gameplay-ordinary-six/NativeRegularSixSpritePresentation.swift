@@ -131,3 +131,59 @@ final class NativeRegularSixSpritePresentation:SKNode {
     func detachShake(){onShake=nil}
     func dispose(){finish(false)}
 }
+
+/// Wild main-merge badge from showMultiplierTile. It borrows the existing
+/// Source clock but owns no gameplay lock, smoke, shards, shake or tile object.
+@MainActor final class NativeWildSixMultiplierPresentation: SKNode, NativeSourceAnimationParticipant {
+    private let graph = NativeSixSourceMultiplierGraph()
+    private let service: NativeSourceAnimationClockService
+    private let current: () -> Bool
+    private var lease: NativeSourceAnimationClockService.Lease?
+    private var disposed = false
+    var onFinished: (() -> Void)?
+    init(origin: CGPoint, tileSize: CGFloat, multiplier: Int,
+         service: NativeSourceAnimationClockService, current: @escaping () -> Bool) throws {
+        self.service = service; self.current = current
+        let glyph = try NativeRegularSixMultiplierGlyph.render(depth: multiplier,
+            displayScale: UIGraphicsImageRendererFormat.preferred().scale,tileSize:128*1.3)
+        super.init()
+        position = origin; zPosition = 10000; alpha = 0
+        // Wild calls showMultiplierTile with TILE * 1.3. Scale artwork only;
+        // timeline scale belongs to this parent and stays Source-authored.
+        let art = SKNode(); art.setScale(tileSize * 1.3 / 128); addChild(art)
+        let radius = 128.0 * 0.28
+        let disk = SKShapeNode(circleOfRadius: radius)
+        disk.fillColor = UIColor(red:171/255,green:128/255,blue:110/255,alpha:1)
+        disk.strokeColor = .clear; art.addChild(disk)
+        let halo = SKShapeNode(circleOfRadius: radius * 1.08)
+        halo.fillColor = .clear
+        halo.strokeColor = UIColor(red:250/255,green:237/255,blue:224/255,alpha:0.2)
+        halo.lineWidth = 3; art.addChild(halo)
+        let ring = SKShapeNode(circleOfRadius: radius)
+        ring.fillColor = .clear
+        ring.strokeColor = UIColor(red:250/255,green:237/255,blue:224/255,alpha:0.9)
+        ring.lineWidth = 1.4; art.addChild(ring)
+        let text = SKSpriteNode(texture: SKTexture(image: glyph.image))
+        text.size = CGSize(width:glyph.image.size.width/1.3,height:glyph.image.size.height/1.3); text.name = "native-wild-six-multiplier:" + glyph.caption.string
+        art.addChild(text)
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    @discardableResult func mount(in canvas: SKNode) -> Bool {
+        guard !disposed, lease == nil, current() else { return false }
+        canvas.addChild(self)
+        let admitted = service.register(participant:self,duration:0.9,domain:.sourceGSAP(.timeline),cleanup:{[weak self] _ in self?.dispose()})
+        guard !disposed, current(), let admitted else { admitted?.cancel(); dispose(); return false }
+        lease = admitted; return true
+    }
+    func advanceSourceAnimation(seconds: Double) {
+        guard !disposed, current() else { dispose(); return }
+        let pose = graph.advance(seconds)
+        alpha = pose.alpha; setScale(pose.scale); zRotation = -pose.rotation
+    }
+    func dispose() {
+        guard !disposed else { return }; disposed = true
+        let captured = lease; lease = nil; captured?.cancel()
+        removeFromParent(); let finished = onFinished; onFinished = nil; finished?()
+    }
+    isolated deinit { dispose() }
+}

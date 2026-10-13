@@ -89,6 +89,8 @@ import StackToSixGameplay
   XCTAssertNil(f.scene.engine.pendingSpecial);XCTAssertNil(f.scene.engine.pendingMagnetRespawn);XCTAssertNil(f.scene.engine.pendingSourceMagnetLazyRespawn)
   XCTAssertTrue(f.scene.sourceNativeTileNode("d") === original);XCTAssertEqual(original.kind,"regular");XCTAssertFalse(original.sourceResidualWildPresence)
   XCTAssertEqual(original.sourceValue,1);XCTAssertEqual(original.sourceStackDepth,1);XCTAssertFalse(original.isHidden);XCTAssertEqual(original.alpha,1)
+  XCTAssertTrue(f.scene.sourceMagnetSurvivorPendingInputIDs.isEmpty,"regular survivor input commits before decorative bounce completes")
+  XCTAssertEqual(original.sourceEventMode,"static")
   let survivorIndex=try XCTUnwrap(f.events.firstIndex{$0.kind == .spawned && $0.tileIDs==["d"]})
   XCTAssertTrue(f.events[..<survivorIndex].contains{$0.kind == .spawned && $0.value==0})
   XCTAssertEqual(f.events.filter{$0.kind == .spawned && $0.tileIDs==["d"]}.count,1)

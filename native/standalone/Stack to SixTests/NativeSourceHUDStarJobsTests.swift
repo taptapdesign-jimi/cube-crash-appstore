@@ -3,13 +3,25 @@ import XCTest
 @testable import Stack_to_Six
 @MainActor final class NativeSourceHUDStarJobsTests:XCTestCase {
     @MainActor final class Host {
-        var time=0.0,events:[String]=[],sequence=0,valid=true
+        var time=0.0,events:[String]=[],sequence=0,valid=true,cadenceAdmitted=true
         var roots:[String:(Double)->Void]=[:],completions:[String:()->Void]=[:]
         var timers:[Int:(Double,()->Void)]=[:],ids:[String]=[],owner:NativeSourceHUDStarJobs!
         var onCurrent:(()->Bool)?,onMount:(()->Void)?,onRetire:(()->Void)?
-        init(){owner=NativeSourceHUDStarJobs(hooks:.init(current:{[unowned self] in self.onCurrent?() ?? self.valid},acquireCadence:{[unowned self] in self.events.append("acquire60");return{self.events.append("release60")}},mountContainer:{[unowned self] in self.events.append("container+");return true},removeContainer:{[unowned self] in self.events.append("container-")},mountStar:{[unowned self] id,_ in self.ids.append(id);self.events.append("mount:\(id)");self.onMount?();return true},paintStar:{_,_ in},removeStar:{[unowned self] id in self.events.append("remove:\(id)")},timeline:{[unowned self] _,update,complete in let id=self.ids.last!;self.roots[id]=update;self.completions[id]=complete;self.events.append("root:\(id)");return{self.roots.removeValue(forKey:id);self.completions.removeValue(forKey:id);self.events.append("kill:\(id)")}},wall:{[unowned self] delay,fn in self.sequence += 1;let id=self.sequence;self.timers[id]=(self.time+delay,fn);return{self.timers.removeValue(forKey:id)}},arrive:{[unowned self] id in self.events.append("score:\(id)")},retire:{[unowned self] _,_ in self.events.append("retire");self.onRetire?()}))}
+        init(){owner=NativeSourceHUDStarJobs(hooks:.init(current:{[unowned self] in self.onCurrent?() ?? self.valid},acquireCadence:{[unowned self] in guard self.cadenceAdmitted else{return nil};self.events.append("acquire60");return{self.events.append("release60")}},mountContainer:{[unowned self] in self.events.append("container+");return true},removeContainer:{[unowned self] in self.events.append("container-")},mountStar:{[unowned self] id,_ in self.ids.append(id);self.events.append("mount:\(id)");self.onMount?();return true},paintStar:{_,_ in},removeStar:{[unowned self] id in self.events.append("remove:\(id)")},timeline:{[unowned self] _,update,complete in let id=self.ids.last!;self.roots[id]=update;self.completions[id]=complete;self.events.append("root:\(id)");return{self.roots.removeValue(forKey:id);self.completions.removeValue(forKey:id);self.events.append("kill:\(id)")}},wall:{[unowned self] delay,fn in self.sequence += 1;let id=self.sequence;self.timers[id]=(self.time+delay,fn);return{self.timers.removeValue(forKey:id)}},arrive:{[unowned self] id in self.events.append("score:\(id)")},retire:{[unowned self] _,_ in self.events.append("retire");self.onRetire?()}))}
         func start(_ ids:[String])->Bool {var seed:UInt32=1;return owner.start(jobID:UUID(),ids:ids,origin:.init(x:195,y:430),target:.init(x:37,y:76),textureWidth:64,random:{seed=seed &* 1664525 &+ 1013904223;return Double(seed)/4294967296})}
         func wall(_ now:Double){time=now;let due=timers.sorted{$0.value.0<$1.value.0}.filter{$0.value.0<=now};for (id,record) in due where timers[id] != nil {timers.removeValue(forKey:id);record.1()}}
+    }
+    func testRefusedActualFlightCadenceRetiresJobBeforeAnyStarOrTimeline() {
+        let h=Host();h.cadenceAdmitted=false
+        XCTAssertFalse(h.start(["a","b"]))
+        XCTAssertEqual(h.owner.jobCount,0)
+        XCTAssertTrue(h.roots.isEmpty)
+        XCTAssertTrue(h.ids.isEmpty)
+        XCTAssertEqual(h.events.filter{$0=="retire"}.count,1)
+        XCTAssertFalse(h.events.contains("acquire60"))
+        XCTAssertFalse(h.events.contains("release60"))
+        h.wall(120)
+        XCTAssertFalse(h.owner.containerMounted)
     }
     func testPausedGSAPIndependentWallRetiresDebtWithoutRewardThenContainer120() {
         let h=Host();XCTAssertTrue(h.start(["a","b","c"]))

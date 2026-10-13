@@ -50,7 +50,7 @@ final class NativeWildSpawnPhaseOwner {
         self.spawnCount=max(0,spawnCount);self.orbitCount=max(1,min(3,orbitCount))
     }
     @discardableResult func begin()->Command? {
-        guard !cancelled,stage == .idle,(archetype == .star || archetype == .juice || archetype == .tnt && tntOwnerCaptured),spawnCount>0 else{return nil}
+        guard !cancelled,stage == .idle,(archetype == .star || archetype == .juice || archetype == .magnet || archetype == .tnt && tntOwnerCaptured),spawnCount>0 else{return nil}
         if sourceEndgameGuardAwaits,mode != .normal {stage = .endgameDelay;return issue(.endgameDelay,delay:50)}
         stage = .primary
         return issue(.primary,delay:mode == .normal ? 0:50)

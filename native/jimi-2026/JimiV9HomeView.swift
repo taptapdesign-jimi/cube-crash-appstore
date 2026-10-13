@@ -220,10 +220,10 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         logoImage.bounds = CGRect(x: 0, y: 0, width: 208, height: 127)
         logoImage.center = CGPoint(x: 104, y: 55.5)
         let shardCenters = [
-            CGPoint(x: -208*0.12 + 29.5, y: -127*0.16 + 29.5),
+            CGPoint(x: -208*0.12 + 29.5, y: -127*0.16 + 29.5 - 8),
             CGPoint(x: 208 + 208*0.08 - 29.5, y: -127*0.16 + 29.5),
-            CGPoint(x: -208*0.032 + 29.5, y: 127 - 127*0.023 - 29.5),
-            CGPoint(x: 208 + 208*0.018 - 29.5, y: 127 + 127*0.019 - 29.5),
+            CGPoint(x: -208*0.032 + 29.5, y: 127 - 127*0.023 - 29.5 - 8),
+            CGPoint(x: 208 + 208*0.018 - 29.5, y: 127 + 127*0.019 - 29.5 - 8),
         ]
         for i in shards.indices {
             shardShells[i].bounds = CGRect(x: 0, y: 0, width: 59, height: 59)

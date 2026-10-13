@@ -5,9 +5,10 @@ import UIKit
 @MainActor
 enum NativeRegularSixMultiplierGlyph {
     struct Rendered {let caption:NSAttributedString;let image:UIImage;let contentRect:CGRect}
-    static func render(depth:Int,displayScale:CGFloat) throws -> Rendered {
-        guard let font=UIFont(name:"Arial-BoldMT",size:33) else {throw FontError.unavailable}
-        let caption=NSAttributedString(string:"×\(depth)",attributes:[.font:font,.foregroundColor:UIColor.white,.strokeColor:UIColor(red:143.0/255,green:105.0/255,blue:89.0/255,alpha:1),.strokeWidth:-100.0*2/33])
+    static func render(depth:Int,displayScale:CGFloat,tileSize:CGFloat=128) throws -> Rendered {
+        let fontSize=(tileSize*0.26).rounded(),stroke=max(1,(tileSize*0.018).rounded())
+        guard let font=UIFont(name:"Arial-BoldMT",size:fontSize) else {throw FontError.unavailable}
+        let caption=NSAttributedString(string:"×\(depth)",attributes:[.font:font,.foregroundColor:UIColor.white,.strokeColor:UIColor(red:143.0/255,green:105.0/255,blue:89.0/255,alpha:1),.strokeWidth:-100.0*stroke/fontSize])
         let measured=caption.size(),content=CGRect(x:4,y:4,width:ceil(measured.width),height:ceil(measured.height))
         let format=UIGraphicsImageRendererFormat();format.scale=max(1,displayScale);format.opaque=false
         let image=UIGraphicsImageRenderer(size:CGSize(width:content.width+8,height:content.height+8),format:format).image { _ in

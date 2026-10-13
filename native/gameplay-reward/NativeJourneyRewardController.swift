@@ -38,7 +38,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
     private let headingLabel=UILabel(),subtitle=UILabel(),coach=UILabel()
     private let shadow=CAGradientLayer(),foil=NativeRewardFoil()
     private var holo:CALayer {foil.layer}
-    private let glow=CALayer(),interimLight=CALayer(),sweep=CAGradientLayer(),interimSweep=CAGradientLayer()
+    private let glow=CALayer(),interimLight=CALayer(),interimSweep=CAGradientLayer()
     private let preparationLease=NativeRewardPreparationLease()
     private var blurredFrames:[String:UIImage]=[:]
     private var ownedSmoke:CALayer?
@@ -85,19 +85,21 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         coach.text="TAP TO COLLECT";coach.font=assets.font(size:32,weight:"ExtraBold");coach.textColor = .white;coach.alpha=0
         coach.layer.shadowColor=UIColor(red:159/255,green:105/255,blue:82/255,alpha:0.34).cgColor;coach.layer.shadowOffset=CGSize(width:0,height:3);coach.layer.shadowOpacity=1
         hero.accessibilityIdentifier="native.reward.card";hero.accessibilityLabel="Reveal \(NativeRewardPresentation.name(board:board))";hero.accessibilityTraits = .button
-        view.addSubview(hero);hero.layer.addSublayer(shadow);hero.addSubview(pose);pose.addSubview(interim);pose.addSubview(unlocked)
+        view.addSubview(hero);shadow.name="native.reward.floor-shadow";shadow.zPosition=0;pose.layer.name="native.reward.card-pose";pose.layer.zPosition=1;hero.layer.addSublayer(shadow);hero.addSubview(pose);pose.addSubview(interim);pose.addSubview(unlocked)
         interim.addSubview(interimRotor);unlocked.addSubview(unlockedRotor);interimRotor.addSubview(frame);unlockedRotor.addSubview(front)
         for image in [frame,front,hand] {image.contentMode = .scaleAspectFit;image.isUserInteractionEnabled=false}
         view.addSubview(hand);hand.alpha=0;hand.layer.shadowColor=UIColor(red:132/255,green:82/255,blue:63/255,alpha:1).cgColor;hand.layer.shadowOpacity=0.24;hand.layer.shadowOffset=CGSize(width:0,height:12);hand.layer.shadowRadius=16
-        shadow.type = .radial;shadow.colors=[UIColor(red:185/255,green:105/255,blue:62/255,alpha:0.34).cgColor,UIColor(red:185/255,green:105/255,blue:62/255,alpha:0.2).cgColor,UIColor.clear.cgColor];shadow.locations=[0,0.42,0.76];shadow.startPoint=CGPoint(x:0.5,y:0.5);shadow.endPoint=CGPoint(x:1,y:1)
-        for (surface,gradient) in [(glow,sweep),(interimLight,interimSweep)] {
+        shadow.type = .radial;shadow.colors=[UIColor(red:185/255,green:105/255,blue:62/255,alpha:0.34).cgColor,UIColor(red:185/255,green:105/255,blue:62/255,alpha:0.2).cgColor,UIColor.clear.cgColor];shadow.shadowColor=UIColor(red:185/255,green:105/255,blue:62/255,alpha:1).cgColor;shadow.shadowOpacity=0.2;shadow.shadowRadius=14;shadow.shadowOffset = .zero;shadow.locations=[0,0.42,0.76];shadow.startPoint=CGPoint(x:0.5,y:0.5);shadow.endPoint=CGPoint(x:1,y:1)
+        glow.name="native.reward.unlocked-burn";glow.opacity=0;glow.contentsGravity = .resizeAspect
+        for (surface,gradient) in [(interimLight,interimSweep)] {
             surface.opacity=0;surface.masksToBounds=true;surface.addSublayer(gradient)
             gradient.colors=[UIColor.clear.cgColor,UIColor.white.withAlphaComponent(0.52).cgColor,UIColor.clear.cgColor];gradient.locations=[0,0.5,1];gradient.startPoint=CGPoint(x:0,y:0.5);gradient.endPoint=CGPoint(x:1,y:0.5);gradient.opacity=0
         }
+        frame.layer.shadowColor=UIColor(red:161/255,green:91/255,blue:54/255,alpha:1).cgColor;frame.layer.shadowOpacity=0.22;frame.layer.shadowRadius=26;frame.layer.shadowOffset=CGSize(width:0,height:12)
         unlockedRotor.layer.addSublayer(glow);interimRotor.layer.addSublayer(interimLight)
         unlockedRotor.layer.addSublayer(holo)
         tap=UITapGestureRecognizer(target:self,action:#selector(tapped));pan=UIPanGestureRecognizer(target:self,action:#selector(panned(_:)));tap.delegate=self;pan.delegate=self;tap.require(toFail:pan);hero.addGestureRecognizer(tap);hero.addGestureRecognizer(pan)
-        ownedLayers=[view.layer,headingLabel.layer,subtitle.layer,hero.layer,pose.layer,interim.layer,unlocked.layer,interimRotor.layer,unlockedRotor.layer,frame.layer,front.layer,shadow,hand.layer,coach.layer,glow,holo,sweep,interimLight,interimSweep]
+        ownedLayers=[view.layer,headingLabel.layer,subtitle.layer,hero.layer,pose.layer,interim.layer,unlocked.layer,interimRotor.layer,unlockedRotor.layer,frame.layer,front.layer,shadow,hand.layer,coach.layer,glow,holo,interimLight,interimSweep]
         headingLabel.layer.opacity=0;subtitle.layer.opacity=0;pose.layer.opacity=0;shadow.opacity=0;unlocked.layer.opacity=0
         applyFace(interim,scale:1,y:40,z:tilt.interimZ,x:tilt.interimX,ry:tilt.interimY)
         applyFace(unlocked,scale:0.58,y:22,z:tilt.entryZ,x:tilt.entryX,ry:tilt.entryY,depth:-180)
@@ -113,7 +115,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
             }
             self.view.setNeedsLayout()
             self.prepareFilteredFrames(self.preparedImages,self.preparationLease) { [weak self] filtered in
-                guard let self,!self.disposed,!self.resolved else{return};self.blurredFrames=filtered;self.assetsReady=true
+                guard let self,!self.disposed,!self.resolved else{return};self.blurredFrames=filtered;self.glow.contents=filtered[self.cardPath+"#burn"]?.cgImage;self.assetsReady=true
                 if self.waitingReveal {
                     if self.foreground {self.waitingReveal=false;self.reveal()}
                 } else if self.waitingCrumble {self.waitingCrumble=false;self.crumble()}
@@ -131,10 +133,9 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         interimRotor.frame=interim.bounds;unlockedRotor.frame=unlocked.bounds
         frame.bounds=interim.bounds;frame.center=CGPoint(x:interim.bounds.midX,y:interim.bounds.midY);front.bounds=unlocked.bounds;front.center=CGPoint(x:unlocked.bounds.midX,y:unlocked.bounds.midY);front.transform=CGAffineTransform(translationX:0,y:-4).scaledBy(x:0.95,y:0.95)
         shadow.frame=layout.shadow;hand.frame=layout.hand;coach.frame=layout.coach
-        glow.frame=unlocked.bounds;holo.frame=unlocked.bounds;sweep.frame=glow.bounds;interimLight.frame=interim.bounds;interimSweep.frame=interimLight.bounds
+        glow.frame=CGRect(x:unlocked.bounds.width*0.025,y:unlocked.bounds.height*0.025-4,width:unlocked.bounds.width*0.95,height:unlocked.bounds.height*0.95);holo.frame=unlocked.bounds;interimLight.frame=interim.bounds;interimSweep.frame=interimLight.bounds
         let maskImage=self.maskImage
         foil.layout(unlocked.bounds,mask:maskImage)
-        for layer in [glow] {let mask=CALayer();mask.frame=CGRect(x:unlocked.bounds.width*0.025,y:unlocked.bounds.height*0.025-4,width:unlocked.bounds.width*0.95,height:unlocked.bounds.height*0.95);mask.contents=maskImage;mask.contentsGravity = .resizeAspect;layer.mask=mask}
         let interimMask=CALayer();interimMask.frame=interim.bounds.insetBy(dx:-interim.bounds.width*0.1,dy:-interim.bounds.height*0.1);interimMask.contents=preparedImages["assets/animations/sand/zguzvano9.png"]?.cgImage;interimMask.contentsGravity = .resizeAspect;interimLight.mask=interimMask
     }
     override func viewDidAppear(_ animated:Bool) {super.viewDidAppear(animated);start()}
@@ -216,7 +217,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
     }
     private func collect() {
         guard !disposed,!resolved,!revealRunning,revealed else{return};resolved=true;phase="exiting";epoch &+= 1;cancelTasks();removeAnimations();hand.alpha=0;coach.alpha=0
-        onSoundMoment?("cta",0,generation)
+        onSoundMoment?("cta",0,generation);onHaptic?("selection")
         let inflation=reducedMotion ? 0 : 0.12,collapse=reducedMotion ? 0.16 : 0.224
         if inflation>0 {animate(pose.layer,"transform",from:NSValue(caTransform3D:CATransform3DIdentity),to:NSValue(caTransform3D:spatial(scaleX:1.18,scaleY:1.15)),duration:inflation,ease:.powerIn(2))}
         animate(pose.layer,"transform",from:NSValue(caTransform3D:spatial(scaleX:inflation>0 ? 1.18:1,scaleY:inflation>0 ? 1.15:1)),to:NSValue(caTransform3D:spatial(scale:0)),duration:collapse,delay:inflation,ease:reducedMotion ? .powerIn(1):.backIn(1.7))
@@ -261,7 +262,12 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         keyframes(gradient,"opacity",values:[0,0.125,0.25,0.375,0.45,0.5,0.5,0.5,0.25,0,0],times:times,duration:1.7)
         keyframes(gradient,"transform",values:positions.map{position -> NSValue in var transform=CATransform3DMakeTranslation(position*gradient.bounds.width,0,0);transform.m21=tan(-12 * .pi/180);return NSValue(caTransform3D:transform)},times:times,duration:1.7)
     }
-    private func shine(){shimmer(glow,gradient:sweep)}
+    private func shine() {
+        guard !reducedMotion,foreground,!disposed else{return}
+        // Keep the finite face-local burn; the removed traveling shimmer has
+        // no gradient or transform owner on the unlocked card.
+        keyframes(glow,"opacity",values:[0,1,0],times:[0,0.56,1],duration:0.5)
+    }
     private func shake(strength:Double,duration:Double) {
         guard !reducedMotion else{return}
         let points=[(0.0,0.0),(strength,-strength*0.45),(-strength*0.85,strength*0.35),(strength*0.55,-strength*0.25),(-strength*0.25,strength*0.12),(0.0,0.0)]

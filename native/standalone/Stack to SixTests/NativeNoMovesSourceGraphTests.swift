@@ -5,6 +5,42 @@ import CoreText
 
 @MainActor
 final class NativeNoMovesSourceGraphTests:XCTestCase {
+    func testMountedExitCannotRepaintAnAlreadyFadedGlyphOrReviveAfterCompletion()throws {
+        let root=NativeTestResources.root
+        let font=JimiV9Artwork(resourceRoot:root).font(size:48,weight:"ExtraBold")
+        let images=try NativeNoMovesCloudPlan.paths.map{try XCTUnwrap(UIImage(contentsOfFile:root.appendingPathComponent($0).path))}
+        var wall=0.0
+        let timeouts=NativeSourceAppTimeoutOwner()
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{wall},sourceFrameTransportEnabled:true)
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible()
+        defer {timeouts.cancelAll();service.dispose();window.isHidden=true;window.rootViewController=nil}
+        let view=try NativeNoMovesSourcePresentation(font:font,images:images,viewport:window.bounds.size,generation:1,service:service,current:{_ in true},random:{0.5},scheduleExitFallback:{callback in
+            let receipt=timeouts.schedule(sourceID:"mounted-no-moves-exit-fallback",generation:1,delayMilliseconds:1190,elapsed:callback)
+            return {_=timeouts.cancel(receipt)}
+        })
+        host.view.addSubview(view)
+        for time in stride(from:0.0,through:1500.0,by:1000.0/60) {wall=time;service.deliver(wallMilliseconds:wall)}
+        var completed=0
+        view.onExitFinished={success in XCTAssertTrue(success);completed+=1;XCTAssertNil(view.superview)}
+        view.beginExit()
+        let retained=view.glyphViews
+        var zero=Set<Int>(),previous=retained.map{$0.alpha}
+        for elapsed in stride(from:1000.0/60,through:1300.0,by:1000.0/60) {
+            wall=1500+elapsed;service.deliver(wallMilliseconds:wall)
+            for (index,label) in retained.enumerated() {
+                if elapsed>190+Double(index)*60 {
+                    XCTAssertLessThanOrEqual(label.alpha,previous[index]+1e-6)
+                }
+                if zero.contains(index) {XCTAssertEqual(label.alpha,0,"Faded glyph cannot flash back")}
+                if label.alpha==0 {zero.insert(index)}
+                previous[index]=label.alpha
+            }
+        }
+        XCTAssertEqual(completed,1);XCTAssertEqual(zero.count,8)
+        XCTAssertTrue(view.disposed);XCTAssertNil(view.superview)
+        XCTAssertTrue(host.view.subviews.isEmpty)
+    }
     @MainActor private final class Participant:NativeSourceAnimationParticipant {
         var values:[Double]=[]
         func advanceSourceAnimation(seconds:Double){values.append(seconds)}

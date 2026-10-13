@@ -26,8 +26,14 @@ import Foundation
         guard isCurrent else{return false}
         return tasks.renderedFrameHandoff{[self] in guard isCurrent else{return};action()}
     }
-    @discardableResult func enqueue(_ action:@escaping @MainActor ()->Void)->Bool {
-        guard isCurrent else{return false};return capability.enqueue{[weak self] in guard self?.isCurrent==true else{return};action()}
+    /// One real SpriteKit action callback. Its checkpoint follows the entire
+    /// callback, independently of Scene.didFinishUpdate and Source RAF delivery.
+    @discardableResult func renderActionTask(_ action:()->Void)->Bool {
+        guard isCurrent else{return false}
+        return tasks.fifo.performTask(.nativeRenderActionTask){[self] in guard isCurrent else{return};action()}
+    }
+    @discardableResult func enqueue(owner:String?=nil,function:StaticString=#function,line:UInt=#line,_ action:@escaping @MainActor ()->Void)->Bool {
+        guard isCurrent else{return false};return capability.enqueue(owner:tasks.fifo.diagnosticsEnabled ? (owner ?? "\(function):\(line)"):nil){[weak self] in guard self?.isCurrent==true else{return};action()}
     }
     func dispose(){guard !closed else{return};closed=true;capability.dispose()}
     isolated deinit {dispose()}

@@ -18,6 +18,7 @@ import Foundation
     private var sequence:UInt64=0,started=false,disposed=false
     private(set) var firstFaceDelivered=false
     var pendingCount:Int {cancellations.count}
+    var presentationCurrent:Bool {started && current()}
     init(request:@escaping Request,hooks:Hooks){self.request=request;self.hooks=hooks}
     private func current()->Bool {
         guard !disposed else{return false}

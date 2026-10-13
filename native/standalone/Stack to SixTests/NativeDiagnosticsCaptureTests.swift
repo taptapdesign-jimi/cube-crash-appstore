@@ -1,5 +1,8 @@
 import XCTest
 import UIKit
+import SpriteKit
+import QuartzCore
+import StackToSixGameplay
 import StackToSixNativeState
 @testable import Stack_to_Six
 
@@ -10,8 +13,9 @@ import StackToSixNativeState
         var owner:NativeDiagnosticsCapture?
         func make(limit:Int=720,interval:Int=5000,batteryMonitor:NativeDiagnosticsCapture.BatteryMonitor?=nil,
                   processCPUReading:@escaping()->NativeDiagnosticsCapture.ProcessCPUReading?={NativeDiagnosticsCapture.ProcessCPUReading.current()},
+                  diagnosticMillisecondsNow:@escaping()->Double={ProcessInfo.processInfo.systemUptime*1000},
                   snapshot:@escaping()->[String:Any]={ ["thermalState":"nominal","lowPowerMode":false] },output:@escaping(String)->Void={_ in})->NativeDiagnosticsCapture {
-            let value=NativeDiagnosticsCapture(directory:directory,center:center,timeouts:timeouts,sampleLimit:limit,intervalMilliseconds:interval,batteryMonitor:batteryMonitor,processCPUReading:processCPUReading,snapshot:snapshot,output:output)
+            let value=NativeDiagnosticsCapture(directory:directory,center:center,timeouts:timeouts,sampleLimit:limit,intervalMilliseconds:interval,batteryMonitor:batteryMonitor,processCPUReading:processCPUReading,diagnosticMillisecondsNow:diagnosticMillisecondsNow,snapshot:snapshot,output:output)
             owner=value;return value
         }
         func rows()throws->[[String:Any]] {
@@ -19,6 +23,60 @@ import StackToSixNativeState
             return try data.split(separator:10).map{try XCTUnwrap(JSONSerialization.jsonObject(with:Data($0)) as? [String:Any])}
         }
         func dispose(){owner?.dispose();owner=nil;try? FileManager.default.removeItem(at:directory)}
+    }
+    func testDrawableBudgetProbeAndCensusRemainEmptyWhenDisabledWithoutMutatingPresentation()throws {
+        let state=NativeBoardState(tiles:[.init(id:"one",cell:.init(column:0,row:0),value:1)])
+        let controller=NativeGameplayViewController(engine:NativeGameplayEngine(state:state),resourceRoot:NativeTestResources.root)
+        controller.drawableBudgetDiagnosticsEnabled=false
+        controller.loadViewIfNeeded();controller.view.frame = .init(x:0,y:0,width:390,height:844)
+        controller.view.layoutIfNeeded()
+        defer{controller.dispose()}
+        let sprite=try XCTUnwrap(controller.view.subviews.compactMap{$0 as? SKView}.first)
+        let beforeSize=(sprite.layer as? CAMetalLayer)?.drawableSize,beforeState=controller.engine.state
+        for _ in 0..<3 {
+            XCTAssertTrue(controller.drawableBudgetDiagnosticSnapshot().isEmpty)
+            let census=NativeDiagnosticsRenderCensus.capture(root:controller.view)
+            XCTAssertEqual((census["gameplayDrawableBudgets"] as? [[String:Any]])?.count,0)
+        }
+        XCTAssertEqual((sprite.layer as? CAMetalLayer)?.drawableSize,beforeSize)
+        XCTAssertEqual(controller.engine.state,beforeState)
+    }
+    func testDrawableBudgetProbeCountsActualMetalWriteAndCensusReadingDoesNotWrite()throws {
+        let state=NativeBoardState(tiles:[.init(id:"one",cell:.init(column:0,row:0),value:1)])
+        let controller=NativeGameplayViewController(engine:NativeGameplayEngine(state:state),resourceRoot:NativeTestResources.root)
+        controller.drawableBudgetDiagnosticsEnabled=false
+        controller.loadViewIfNeeded();controller.view.frame = .init(x:0,y:0,width:390,height:844)
+        controller.view.layoutIfNeeded()
+        defer{controller.dispose()}
+        let sprite=try XCTUnwrap(controller.view.subviews.compactMap{$0 as? SKView}.first)
+        let metal=try XCTUnwrap(sprite.layer as? CAMetalLayer,"This regression requires the actual SpriteKit Metal-backed surface")
+        XCTAssertGreaterThan(sprite.bounds.width,0);XCTAssertGreaterThan(sprite.bounds.height,0)
+        let desired=sprite.bounds.size,oversized=CGSize(width:desired.width*3,height:desired.height*3)
+        controller.drawableBudgetDiagnosticsEnabled=true
+        let before=controller.drawableBudgetDiagnosticSnapshot()
+        metal.drawableSize=oversized
+        controller.viewDidLayoutSubviews()
+        let after=controller.drawableBudgetDiagnosticSnapshot()
+        XCTAssertEqual(after["isAsynchronous"] as? Bool,sprite.isAsynchronous)
+        XCTAssertEqual(after["renderingMode"] as? String,sprite.isAsynchronous ? "asynchronous":"synchronous")
+        XCTAssertEqual(after["preferredFramesPerSecond"] as? Int,sprite.preferredFramesPerSecond)
+        XCTAssertEqual(after["contentScaleFactor"] as? Double,Double(sprite.contentScaleFactor))
+        XCTAssertEqual(after["calls"] as? Int,(before["calls"] as? Int ?? 0)+1)
+        XCTAssertEqual(after["actualWrites"] as? Int,(before["actualWrites"] as? Int ?? 0)+1)
+        XCTAssertEqual(after["lastWriteBeforePixels"] as? [Double],[Double(oversized.width),Double(oversized.height)])
+        XCTAssertEqual(after["lastWriteAfterPixels"] as? [Double],[Double(desired.width),Double(desired.height)])
+        XCTAssertEqual(after["desiredPixels"] as? [Double],[Double(desired.width),Double(desired.height)])
+        XCTAssertEqual(metal.drawableSize,desired)
+        for _ in 0..<3 {
+            let census=NativeDiagnosticsRenderCensus.capture(root:controller.view)
+            let snapshots=try XCTUnwrap(census["gameplayDrawableBudgets"] as? [[String:Any]])
+            XCTAssertEqual(snapshots.count,1)
+            XCTAssertEqual(snapshots.first?["actualWrites"] as? Int,after["actualWrites"] as? Int)
+            XCTAssertEqual(snapshots.first?["isAsynchronous"] as? Bool,sprite.isAsynchronous)
+            XCTAssertEqual(snapshots.first?["renderingMode"] as? String,after["renderingMode"] as? String)
+        }
+        XCTAssertEqual(controller.drawableBudgetDiagnosticSnapshot()["calls"] as? Int,after["calls"] as? Int)
+        XCTAssertEqual(metal.drawableSize,desired);XCTAssertEqual(controller.engine.state,state)
     }
     func testAdmissionRequiresExactNativeIdentityAndExplicitArgument() {
         for flag in ["--cc-performance-diagnostics","--cc-native-thermal-telemetry"] {
@@ -30,6 +88,23 @@ import StackToSixNativeState
         XCTAssertFalse(NativeDiagnosticsCapture.admitted(arguments:[],bundleIdentifier:"com.taptapdesign.stacktosix.native"))
         XCTAssertTrue(NativeDiagnosticsCapture.admitted(arguments:[],bundleIdentifier:"com.taptapdesign.stacktosix.native",preferenceEnabled:true))
         XCTAssertFalse(NativeDiagnosticsCapture.admitted(arguments:[],bundleIdentifier:"com.taptapdesign.stacktosix.Stack-to-Six",preferenceEnabled:true))
+    }
+    func testCaptureMeasuresItsOwnSnapshotAndOutputOverheadOnlyWhenStarted()throws {
+        let f=Fixture();defer{f.dispose()}
+        var now=0.0,reads=0
+        let owner=f.make(processCPUReading:{nil},diagnosticMillisecondsNow:{reads+=1;return now},snapshot:{now+=2;return [:]},output:{_ in now+=3})
+        XCTAssertEqual(reads,0)
+        owner.start(foreground:true)
+        let first=try XCTUnwrap(f.rows().first)
+        XCTAssertEqual(first["diagnosticSnapshotMilliseconds"] as? Double,2)
+        XCTAssertEqual(first["diagnosticPreviousSampleMilliseconds"] as? Double,0)
+        f.center.post(name:ProcessInfo.thermalStateDidChangeNotification,object:nil)
+        let second=try XCTUnwrap(f.rows().last)
+        XCTAssertEqual(second["diagnosticSnapshotMilliseconds"] as? Double,2)
+        XCTAssertEqual(second["diagnosticPreviousSampleMilliseconds"] as? Double,5)
+        owner.dispose();let stoppedReads=reads
+        f.center.post(name:ProcessInfo.thermalStateDidChangeNotification,object:nil)
+        XCTAssertEqual(reads,stoppedReads)
     }
     func testCPUIntervalUsesMonotonicProcessDeltaAndResetsAcrossBackground()throws {
         let f=Fixture();defer{f.dispose()}
@@ -124,14 +199,61 @@ import StackToSixNativeState
         XCTAssertFalse(owner.active);XCTAssertEqual(owner.sampleCount,0);XCTAssertEqual(f.timeouts.pendingCount,0);XCTAssertEqual(owner.observerCount,0)
         XCTAssertEqual(try f.rows().count,0)
     }
-    func testExistingSessionCapPreservesEvidenceAndCreatesNoObserverOrTimeout()throws {
+    func testExistingSessionCapPreservesEvidenceAndContinuesBoundedConsoleCapture()throws {
         let f=Fixture();defer{f.dispose()}
         try FileManager.default.createDirectory(at:f.directory,withIntermediateDirectories:true)
         let bytes=Data("retained evidence".utf8)
         for i in 0..<8{try bytes.write(to:f.directory.appendingPathComponent("native-thermal-\(i).jsonl"))}
-        let owner=f.make();owner.start(foreground:true)
-        XCTAssertFalse(owner.active);XCTAssertNil(owner.fileURL);XCTAssertEqual(owner.observerCount,0);XCTAssertEqual(f.timeouts.pendingCount,0)
+        var lines:[String]=[]
+        let owner=f.make(limit:2,output:{lines.append($0)});owner.start(foreground:true)
+        XCTAssertTrue(owner.active);XCTAssertNil(owner.fileURL);XCTAssertEqual(owner.observerCount,5);XCTAssertEqual(f.timeouts.pendingCount,1)
+        f.center.post(name:ProcessInfo.thermalStateDidChangeNotification,object:nil)
+        XCTAssertFalse(owner.active);XCTAssertEqual(owner.sampleCount,2);XCTAssertEqual(owner.observerCount,0);XCTAssertEqual(f.timeouts.pendingCount,0)
+        let rows=try lines.filter{$0.hasPrefix("[CC_NATIVE_THERMAL] ")}.map {
+            try XCTUnwrap(JSONSerialization.jsonObject(with:Data($0.dropFirst("[CC_NATIVE_THERMAL] ".count).utf8)) as? [String:Any])
+        }
+        XCTAssertEqual(rows.count,2)
+        XCTAssertTrue(rows.allSatisfy{$0["persistenceAvailable"] as? Bool==false})
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath:f.directory.path).count,8)
         for i in 0..<8{XCTAssertEqual(try Data(contentsOf:f.directory.appendingPathComponent("native-thermal-\(i).jsonl")),bytes)}
+    }
+    func testUnavailableCaptureDirectoryUsesConsoleAndRestoresMonitoringOnDispose()throws {
+        let f=Fixture();defer{f.dispose()}
+        try Data("preserve".utf8).write(to:f.directory)
+        var enabled=false,writes:[Bool]=[],lines:[String]=[]
+        let owner=f.make(batteryMonitor:.init(isEnabled:{enabled},setEnabled:{enabled=$0;writes.append($0)}),output:{lines.append($0)})
+        owner.start(foreground:true)
+        XCTAssertTrue(owner.active);XCTAssertTrue(enabled);XCTAssertNil(owner.fileURL)
+        XCTAssertTrue(lines.contains{$0.contains("\"persistenceAvailable\":false")})
+        owner.dispose();XCTAssertFalse(enabled);XCTAssertEqual(writes,[true,false]);XCTAssertEqual(owner.observerCount,0);XCTAssertEqual(f.timeouts.pendingCount,0)
+        XCTAssertEqual(try Data(contentsOf:f.directory),Data("preserve".utf8))
+    }
+    func testRenderCensusCountsSharedTexturesAndUnmountedSceneWithoutLoadingResources() {
+        let root=UIView(),view=SKView();root.addSubview(view)
+        let scene=SKScene(size:.init(width:20,height:20)),texture=SKTexture(image:UIGraphicsImageRenderer(size:.init(width:4,height:4)).image{_ in})
+        let group=SKNode();group.isHidden=true;scene.addChild(group)
+        group.addChild(SKSpriteNode(texture:texture));scene.addChild(SKSpriteNode(texture:texture));scene.addChild(SKShapeNode())
+        view.presentScene(scene)
+        let first=NativeDiagnosticsRenderCensus.capture(root:root)
+        XCTAssertEqual(first["mountedSKViews"] as? Int,1);XCTAssertEqual(first["mountedScenes"] as? Int,1)
+        XCTAssertEqual(first["sceneNodes"] as? Int,5);XCTAssertEqual(first["paintableNodes"] as? Int,3)
+        XCTAssertEqual(first["sprites"] as? Int,2);XCTAssertEqual(first["shapes"] as? Int,1)
+        XCTAssertEqual(first["uniqueSpriteTextureObjects"] as? Int,1)
+        XCTAssertEqual(first["truncated"] as? Bool,false)
+        view.presentScene(nil)
+        XCTAssertEqual(NativeDiagnosticsRenderCensus.capture(root:root)["sceneNodes"] as? Int,0)
+    }
+    func testRenderCensusTraversalIsBoundedAndMarksTruncation() {
+        let root=UIView();for _ in 0..<100 {root.addSubview(UIView())}
+        let result=NativeDiagnosticsRenderCensus.capture(root:root,visitLimit:8)
+        XCTAssertEqual(result["mountedViews"] as? Int,8);XCTAssertEqual(result["truncated"] as? Bool,true)
+    }
+    func testActualProcessFootprintIsFiniteAndPublishedInDiagnosticSample()throws {
+        let bytes=try XCTUnwrap(NativeDiagnosticsCapture.memoryFootprintBytes())
+        XCTAssertGreaterThan(bytes,0)
+        let f=Fixture();defer{f.dispose()};let owner=f.make();owner.start(foreground:true)
+        let row=try XCTUnwrap(f.rows().first)
+        XCTAssertGreaterThan(try XCTUnwrap(row["processPhysicalFootprintBytes"] as? NSNumber).uint64Value,0)
     }
     func testActualNativeRootConnectsCaptureAndLeavesNativeSaveBytesUntouched()throws {
         let f=Fixture();defer{f.dispose()}

@@ -58,6 +58,17 @@ final class NativeJuicePresentationTests: XCTestCase {
                 XCTAssertEqual(pose.alpha,golden.2,accuracy:0.000001)
             }
         }
+        XCTAssertTrue(player.isFinished)
+        let terminal = player.sample(seconds: 4)
+        XCTAssertEqual(terminal.y,473,accuracy:0.000001)
+        XCTAssertEqual(terminal.scale,0.3,accuracy:0.000001)
+        XCTAssertEqual(terminal.alpha,0)
+        // A replacement finale receives a fresh playhead and performs the
+        // authored first burst again after the preceding player has retired.
+        var replacement = NativeTextBubbleMotion.Player(plans[0])
+        XCTAssertFalse(replacement.isFinished)
+        let firstBurst = replacement.sample(seconds:0.15)
+        XCTAssertEqual(firstBurst.alpha,0.74,accuracy:0.000001)
     }
     func testFiniteJuiceRendererEmitsAllSourceBubblesAndReleasesExactlyOnce() {
         let root = Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle")

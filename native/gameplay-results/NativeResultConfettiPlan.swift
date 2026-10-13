@@ -65,7 +65,10 @@ enum NativeResultConfettiPlan {
         }
     }
     static func beach(width:Double,height:Double,random:()->Double)->[Bubble] {
-        var opacities=(0..<40).map {0.2+(Double($0)+min(1,max(0,random())))/40*0.5}
+        // Same five authored opacity levels as Journey Beach bubble drift.
+        // Retain the original draw count and shuffle so travel RNG is unchanged.
+        let levels=[0.2,0.3,0.4,0.5,0.6]
+        var opacities=(0..<40).map {levels[min(4,Int((Double($0)+min(1,max(0,random())))/8))]}
         for i in stride(from:39,through:1,by:-1) {let other=min(i,Int(floor(min(1,max(0,random()))*Double(i+1))));opacities.swapAt(i,other)}
         let waves=[6,10,7,7,5,5];var wave=0,start=0,result:[Bubble]=[]
         for i in 0..<40 {
@@ -77,7 +80,7 @@ enum NativeResultConfettiPlan {
             let sampledLife=1.65+random()*0.5,sampledDelay=Double(slot)*(0.045+random()*0.035)
             let lifetime=i==39 ? 2.15:sampledLife,delay=i==39 ? 0.32:sampledDelay
             result.append(Bubble(birth:Double(wave)/5*7.33+delay,lifetime:lifetime,startX:x,startY:y,rise:rise,direction:direction,weave:weave,cycles:cycles,
-                size:size,scale:0.75+random()*0.35,opacity:opacities[i]*0.8,asset:i%6))
+                size:size,scale:0.75+random()*0.35,opacity:opacities[i],asset:i%6))
         }
         return result
     }

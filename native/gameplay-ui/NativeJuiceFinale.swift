@@ -83,7 +83,7 @@ final class NativeJuiceFinale: SKNode {
             let scale=birth >= 1.125 ? min(pose.scale,openingMaximumScale):pose.scale
             sprite.position = CGPoint(x: pose.point.x,y: viewport.height-pose.point.y); sprite.setScale(scale)
         }
-        for index in textBubbles.indices {
+        for index in textBubbles.indices where !textBubbles[index].1.isFinished {
             let pose = textBubbles[index].1.sample(seconds: seconds),sprite = textBubbles[index].0
             sprite.position = CGPoint(x: pose.x,y: viewport.height-pose.y); sprite.setScale(pose.scale); sprite.alpha = pose.alpha
         }

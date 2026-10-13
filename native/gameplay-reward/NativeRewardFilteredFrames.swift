@@ -20,6 +20,14 @@ nonisolated enum NativeRewardFilteredFrames {
                 let filtered=bright.clampedToExtent().applyingFilter("CIGaussianBlur",parameters:[kCIInputRadiusKey:1.2]).cropped(to:original.extent)
                 if let output=context.createCGImage(filtered,from:original.extent) {result[path]=UIImage(cgImage:output,scale:image.scale,orientation:.up)}
             }
+            for (path,image) in images where path.contains("colelctibles") {
+                guard !lease.cancelled,let cg=image.cgImage else{continue}
+                let original=CIImage(cgImage:cg)
+                let bright=original.applyingFilter("CIColorMatrix",parameters:["inputRVector":CIVector(x:1.312,y:0,z:0,w:0),"inputGVector":CIVector(x:0,y:1.312,z:0,w:0),"inputBVector":CIVector(x:0,y:0,z:1.312,w:0)])
+                    .applyingFilter("CIColorControls",parameters:[kCIInputSaturationKey:1.156])
+                    .applyingFilter("CISepiaTone",parameters:[kCIInputIntensityKey:0.065])
+                if let output=context.createCGImage(bright,from:original.extent) {result[path+"#burn"]=UIImage(cgImage:output,scale:image.scale,orientation:.up)}
+            }
             let prepared=result
             Task { @MainActor in guard !lease.cancelled else{return};completion(prepared) }
         }

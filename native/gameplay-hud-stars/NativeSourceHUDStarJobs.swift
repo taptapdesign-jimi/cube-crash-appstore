@@ -7,7 +7,7 @@ import Foundation
     typealias Cancel=()->Void
     struct Hooks {
         let current:()->Bool
-        let acquireCadence:()->Cancel
+        let acquireCadence:()->Cancel?
         let mountContainer:()->Bool
         let removeContainer:()->Void
         let mountStar:(String,NativeSourceHUDStarPlan)->Bool
@@ -56,7 +56,7 @@ import Foundation
             guard hooks.mountContainer(),current(job),containerMounted else{retire(job);return false}
         }
         if cadence==nil {
-            let release=hooks.acquireCadence()
+            guard let release=hooks.acquireCadence() else{retire(job);return false}
             guard current(job),containerMounted else{release();retire(job);return false}
             cadence=release
         }

@@ -1,7 +1,38 @@
 import XCTest
+import StackToSixGameplay
 @testable import Stack_to_Six
 
 @MainActor final class NativeSourceLevelEndCallerFlowTests:XCTestCase {
+    func testSynchronousSignatureMemoizationMatchesOriginalExactJSONAcrossFreshStates() {
+        var originalEncodingCalls=0
+        func original(_ signature:NativeSourceMeterEndgameSignature)->String {
+            func quote(_ value:String?)->String {
+                guard let value else{return "null"}
+                originalEncodingCalls+=1
+                let bytes=try? JSONSerialization.data(withJSONObject:[value],options:[.fragmentsAllowed,.withoutEscapingSlashes])
+                guard let bytes,let string=String(data:bytes,encoding:.utf8) else{return "null"}
+                return String(string.dropFirst().dropLast())
+            }
+            return "["+signature.entries.map {e in "{\"v\":\(e.value),\"s\":\(quote(e.special)),\"l\":\(e.locked),\"d\":\(e.depth),\"x\":\(e.x.map(String.init) ?? "null"),\"y\":\(e.y.map(String.init) ?? "null"),\"e\":\(quote(e.eventMode))}"}.joined(separator:",")+"]"
+        }
+        let first=NativeSourceMeterEndgameSignature(activeEntries:(0..<36).map{index in
+            .init(value:index%6+1,special:index%3==0 ? "magnet":nil,locked:false,depth:0,x:index%6,y:index/6,eventMode:"static")
+        })
+        let next=NativeSourceMeterEndgameSignature(activeEntries:[
+            .init(value:2,special:"honey\"\\/\n🍯",locked:false,depth:3,x:1,y:2,eventMode:"quoted\"\\/\t\u{0001} hrvatski ž 世界"),
+            .init(value:6,special:nil,locked:true,depth:0,x:nil,y:nil,eventMode:nil),
+            .init(value:3,special:"honey\"\\/\n🍯",locked:false,depth:2,x:2,y:2,eventMode:"quoted\"\\/\t\u{0001} hrvatski ž 世界")
+        ])
+        let measured=NativeBoardScene.sourceLevelEndSignatureFormatting(first)
+        XCTAssertEqual(first.entries.count,36)
+        XCTAssertEqual(measured.encodedStringCount,2,"Only the two distinct strings invoke Foundation JSON encoding")
+        XCTAssertEqual(measured.key,original(first))
+        XCTAssertEqual(originalEncodingCalls,48)
+        for signature in [first,next,first,NativeSourceMeterEndgameSignature(activeEntries:[])] {
+            XCTAssertEqual(NativeBoardScene.sourceLevelEndSignatureKey(signature),original(signature))
+        }
+        XCTAssertNotEqual(NativeBoardScene.sourceLevelEndSignatureKey(first),NativeBoardScene.sourceLevelEndSignatureKey(next))
+    }
     @MainActor final class Fixture {
         var current=true,signature="physical",trace:[String]=[],waits:[(Int,()->Void)]=[]
         var tutorial:((Bool?)->Void)?,finalTutorial:((Bool?)->Void)?

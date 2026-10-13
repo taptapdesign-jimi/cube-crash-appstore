@@ -843,14 +843,17 @@ public final class NativeGameplayEngine {
         let gameplayArchetype = NativeSpecialDiceRegistry.finale(source: source, destination: destination, gameplay: true)
         if final.isFinalMerge,let gameplayArchetype,let finalePresentationAdmitted,
            !finalePresentationAdmitted(gameplayArchetype,source.variant ?? destination.variant) { return rejected("native_finale_presentation_not_ready") }
-        if let gameplayArchetype, (gameplayArchetype == .magnet || gameplayArchetype == .tnt) && !final.isFinalMerge { return stageSpecialMove(source:source,destination:destination,archetype:gameplayArchetype,now:now) }
+        // Source no-pull Magnet uses the same genuine primary/locked spawn
+        // continuation as the other Direct Wilds, rather than eager refill.
+        let sourceMagnetWithoutPull = gameplayArchetype == .magnet && !pull && stagedDirectWildMoves && stagedDirectWildAssignments
+        if let gameplayArchetype, (gameplayArchetype == .magnet || gameplayArchetype == .tnt) && !final.isFinalMerge && !sourceMagnetWithoutPull { return stageSpecialMove(source:source,destination:destination,archetype:gameplayArchetype,now:now) }
         // Meter reward can create a Special die. Never discard the reward or substitute a regular die.
         let arcadeStage = max(1, state.stage)
         let arcadeMeterMultiplier: Double = state.mode != .arcade ? 1 : arcadeStage == 1 ? 1.15 : arcadeStage == 2 ? 1 : arcadeStage == 3 ? 0.9 : arcadeStage == 4 ? 0.8 : arcadeStage < 8 ? 0.7 : 0.6
         let meterIncrement = (effectiveSum == 6 ? 0.22 : 0.10) * (state.wildSpawnCount >= 2 ? 0.6 : 1) * arcadeMeterMultiplier * (state.tutorial?.meterMultiplier ?? 1)
         if pendingSpecial == nil && !final.isFinalMerge && state.wildMeter + meterIncrement >= 1 - 0.000001 && rewardPicker == nil && state.tutorial?.waitingForWild != true { return rejected("native_wild_meter_spawn_pending") }
         if stagedDirectWildMoves && !committingDirectWild,let gameplayArchetype,
-           final.isFinalMerge || gameplayArchetype == .star || gameplayArchetype == .juice {
+           final.isFinalMerge || gameplayArchetype == .star || gameplayArchetype == .juice || sourceMagnetWithoutPull {
             return stageDirectWild(source:source,destination:destination,archetype:gameplayArchetype,pointerID:pointerID,now:now,isFinal:final.isFinalMerge,sourceEntryFinalSnapshot:sourceDirectEntrySnapshot)
         }
         if stagedOrdinaryMoves && !committingOrdinaryStack && gameplayArchetype == nil {
@@ -1388,7 +1391,10 @@ public final class NativeGameplayEngine {
             let accepted=sourceCurrent()
             return accepted && sourceMagnetLazyRespawnEnabled && state==before && pendingSpecial==special && pendingSourceMagnetLazyRespawn==nil
         }
-        guard validBefore() else{return rejected("source_magnet_lazy_scope_not_current")}
+        guard validBefore(),let destinationIndex=state.tiles.firstIndex(where:{$0.id==special.destination.id && $0.value==6}) else{return rejected("source_magnet_lazy_scope_not_current")}
+        // PWA app-merge hides the consumed six at the second impact, while
+        // keeping this exact grid cell reserved until survivor conversion.
+        state.tiles[destinationIndex].visible=false;state.tiles[destinationIndex].alpha=0
         let owned=Set(special.targets.map(\.id));state.tiles.removeAll{owned.contains($0.id)}
         let captured=state
         func valid()->Bool {
@@ -1605,7 +1611,7 @@ public final class NativeGameplayEngine {
               let pre = specialPreBoard, plan.archetype != .tnt || tntTargetsReserved && specialImpactIndex == plan.targets.count else { return rejected("special_board_commit_not_ready") }
         var events: [NativeGameplayEvent] = []
         if plan.archetype == .magnet && pendingSourceMagnetLazyRespawn != nil && !sourceMagnetLazyRespawnEnabled {return rejected("source_magnet_lazy_retired_continuation")}
-        if plan.archetype == .magnet && sourceMagnetLazyRespawnEnabled {
+        if plan.archetype == .magnet && sourceMagnetLazyRespawnEnabled && !plan.targets.isEmpty {
             guard sourceMagnetLazyOperation==nil,let lazy=pendingSourceMagnetLazyRespawn,lazy.transactionID==plan.id,
                   let conversion=sourceMagnetLazyConversion,sourceMagnetLazyResolutionReleased,
                   let fill=sourceMagnetLazyReserveFill,sourceMagnetLazySettled.count==lazy.slots.count,
@@ -2150,7 +2156,7 @@ public final class NativeGameplayEngine {
             let capture=plan.sourceStarOrbitCapture,capture.generation==state.generation {
             effectiveOrbitCount=NativeSpawnRules.sourceStarOrbitCountForSpawn(savedPositions:capture.savedPositions,savedSystem:capture.savedSystem,liveSystem:0)
         } else {effectiveOrbitCount=starOrbitCount}
-        if stagedDirectWildAssignments,committingDirectWild,let plan=pendingDirectWild,!plan.isFinal,(archetype == .star || archetype == .juice) {
+        if stagedDirectWildAssignments,committingDirectWild,let plan=pendingDirectWild,!plan.isFinal,(archetype == .star || archetype == .juice || archetype == .magnet) {
             beginDirectWildSpawnPhases(plan:plan,depth:depth,avoiding:avoiding,orbitCount:effectiveOrbitCount,events:&events)
             return
         }

@@ -32,6 +32,9 @@ final class NativeBootstrap {
     private var ambient: NativeJourneyAmbientOwner?
     private var routeLease: UInt64 = 0
     private var endRun: NativeEndRunOwner?
+    private(set) var sourceFailureModal:JimiNativeEndRunModal?
+    private var sourceFailureModalEpoch=0
+    private var sourceFailureObservers:[NSObjectProtocol]=[]
     private var scoreOwner:NativeScoreOwner?
     private var tutorialOwner:NativeTutorialOwner?
     private weak var gameplay: NativeGameplayViewController?
@@ -47,6 +50,12 @@ final class NativeBootstrap {
     private var committedScore:Int?
     private var specialUnlock:NativeSpecialDiceUnlockController?
     private var boardEntryHaptics:NativeBoardEntryHaptics?
+    private lazy var haptics=NativeHapticRuntime(enabled:{[weak self] in self?.disposed==false && self?.envelope.settings.hapticsEnabled==true})
+    var hapticOutputObserver:((NativeHapticRuntime.Output)->Void)? {get {haptics.onOutput} set {haptics.onOutput=newValue}}
+    private var failHapticGeneration:UInt64?
+    private var ordinarySixHapticContact:String?
+    private var specialHapticTargetCounts:[String:Int]=[:]
+
     private var tutorialComplete:NativeTutorialCompleteController?
     private var arcadeEntryCue:NativeArcadeRoundPresentation?
     private var boardTransition:NativeThemedBoardTransitionController?
@@ -204,6 +213,9 @@ final class NativeBootstrap {
     }
     private func setPreference(_ key: String, _ value: Bool) throws {
         let previous = envelope.settings
+        guard ["gameSoundsEnabled","musicEnabled","hapticsEnabled"].contains(key) else{return}
+        // PWA preserves OFF's final light pulse before changing the preference.
+        if key != "hapticsEnabled" || !value {impactFeedback("light")}
         switch key {
         case "gameSoundsEnabled": envelope.settings.gameSoundsEnabled = value
         case "musicEnabled": envelope.settings.musicEnabled = value
@@ -215,7 +227,7 @@ final class NativeBootstrap {
         arcadeMusic?.apply(enabled:envelope.settings.musicEnabled)
         audio?.setEnabled(envelope.settings.gameSoundsEnabled)
         ambient?.setEnabled(envelope.settings.gameSoundsEnabled)
-        selectionFeedback()
+        if key == "hapticsEnabled",value {impactFeedback("light")}
     }
     private enum FreshGameplayEntry:Equatable {
         case restart(UInt64,NativeGameplayRestartOrigin),arcadeContinuation(UInt64),journeyContinuation(UInt64,Int)
@@ -402,7 +414,11 @@ final class NativeBootstrap {
         // Fresh and restore admission are independent. The Source wave owns
         // actual constructed holders; a Native resume cannot borrow that flag
         // when its separate Source restore constructor has not been admitted.
-        gameplay.sourceBoardEntryEnabled=sourceBoardEntryEnabled && sourceConstruction != nil && (!sourceRestoredOrdinaryPresentationEnabled || !resumed)
+        // Home Arcade entry always presents the captured saved holders again.
+        // Restoring gameplay state does not acknowledge its new entry motion.
+        let homeArcadeEntry=mode == .arcade && freshEntry == nil && !needsTutorial
+        gameplay.sourceBoardEntryEnabled=sourceBoardEntryEnabled && sourceConstruction != nil &&
+            (!sourceRestoredOrdinaryPresentationEnabled || !resumed || homeArcadeEntry)
         gameplay.sourceSpecialIdlePresentationEnabled=sourceSpecialIdlePresentationEnabled && (!sourceTutorialEarnedMeterEnabled || gameplay.sourceTutorialActivationEnabled || normalOrdinarySource)
         gameplay.sourceWildShimmerPresentationEnabled=sourceWildShimmerPresentationEnabled
         gameplay.onSourceBoardEntrySound={ [weak self,weak gameplay] duration,_,generation in
@@ -415,13 +431,14 @@ final class NativeBootstrap {
         gameplay.journeyDecorCatalog=journeyBottomDecorCatalog
         gameplay.onBoardArtworkFailure = { [weak self,weak gameplay] in
             guard let self,let gameplay,self.gameplay === gameplay,!self.disposed else{return}
+            if gameplay.sourcePresentationFailureGeneration==gameplay.engine.state.generation {self.presentSourceFailureRecovery(gameplay);return}
             self.showError("The stage artwork could not be prepared. Your progress is saved.")
         }
         gameplay.onSourcePresentationFailure = {[weak self,weak gameplay] in
             guard let self,let gameplay,!self.disposed,self.gameplay === gameplay else{return}
             // The last coherent durable envelope is retained. A failed physical
             // phase is never saved, completed, scored or acknowledged here.
-            self.finishGameplayExit()
+            self.presentSourceFailureRecovery(gameplay)
         }
         self.gameplay = gameplay; returnAction = exit; attemptCommitted = false
         if completeSource {
@@ -473,12 +490,12 @@ final class NativeBootstrap {
                 }
                 self.prepareSourceTutorialMeter(gameplay:gameplay) { [weak self,weak gameplay] in
                     guard let self,let gameplay,!self.disposed,self.gameplay === gameplay else{return}
-                    if resumed || freshEntry?.alreadyAnnouncedArcade == true || freshEntry?.skipsBoardAnnouncement == true {release()}
+                    if freshEntry?.alreadyAnnouncedArcade == true || freshEntry?.skipsBoardAnnouncement == true {release()}
                     else if mode == .arcade {self.mountArcadeEntry(gameplay,release:release)}
                     else {self.mountJourneyTransition(gameplay,board:number,sourceContinuation:freshEntry?.isJourneyContinuation==true,release:release)}
                 }
             }
-        } else if mode == .arcade,!resumed,!needsTutorial {
+        } else if mode == .arcade,!needsTutorial {
             gameplay.beforeInitialBoardEntry = { [weak self,weak gameplay] release in
                 guard let self,let gameplay,!self.disposed,self.gameplay === gameplay else{return}
                 if freshEntry?.skipsBoardAnnouncement == true {release()}
@@ -494,6 +511,7 @@ final class NativeBootstrap {
         committedScore=nil
         interimJourney = mode == .journey && !envelope.progression.completedJourneyBoards.contains(number)
         audio?.stop();audio?.beginGeneration(initial.generation)
+        haptics.cancelSequences();failHapticGeneration=nil;ordinarySixHapticContact=nil;specialHapticTargetCounts.removeAll()
         lastReturnBoard = mode == .journey ? number : nil
         if !resumed || consumedPending { envelope.progression.beginAttempt(mode: mode, board: number) }
         gameplay.onStateChange = { [weak self] state in self?.record(state);self?.tutorialOwner?.refresh(state) }
@@ -501,9 +519,13 @@ final class NativeBootstrap {
         gameplay.onGameplayEvent = { [weak self] event in self?.tutorialOwner?.gameplayEvent(event) }
         gameplay.onHaptic = { [weak self] kind in self?.impactFeedback(kind) }
         gameplay.onPointerState = { [weak self] dragging in self?.tutorialOwner?.pointerState(dragging) }
-        gameplay.onTerminal = { [weak self] result in self?.terminal(result) }
+        gameplay.onTerminal = { [weak self,weak gameplay] result in
+            guard let self,let gameplay,self.gameplay === gameplay else{return}
+            self.terminal(result)
+        }
         gameplay.onGameplayReceipt = { [weak self] event,source,destination,generation in
             guard let self else{return};self.audioReceipt &+= 1
+            self.gameplayHaptic(event,source:source,destination:destination,generation:generation)
             self.audio?.onGameplayEvent(event,source:source,destination:destination,generation:generation,receipt:self.audioReceipt)
             if event.kind == .noMovesCandidate,self.gameplay?.engine.stagedSourceNoMoves != true {self.resultMoment("no-moves",index:0,duration:nil)}
             if event.kind == .merged,event.value == 6,initial.mode == .arcade {self.arcadeMusic?.committedMerge6(generation:generation)}
@@ -522,7 +544,7 @@ final class NativeBootstrap {
             self.tutorialOwner?.refresh(state)
             self.boardEntryHaptics?.dispose()
             let pulse=NativeBoardEntryHaptics(duration:duration,beats:beats);self.boardEntryHaptics=pulse
-            pulse.onImpact = { [weak self] in guard self?.gameplay?.engine.state.generation==state.generation else{return};self?.impactFeedback("light") }
+            pulse.onImpact = { [weak self] in guard self?.gameplay?.engine.state.generation==state.generation else{return};self?.impactFeedback("protected-light") }
             self.gameplay?.view.addSubview(pulse);pulse.start()
         }
         endRun = NativeEndRunOwner(gameplay: gameplay, resourceRoot: root,
@@ -532,7 +554,7 @@ final class NativeBootstrap {
             // Its owner/generation-guarded completion must not try to capture
             // a second save after the physical board has become hidden.
             exit: { [weak self] in self?.finishGameplayExit() })
-        endRun?.onFeedback = { [weak self] kind in self?.routeFeedback(kind) }
+        endRun?.onFeedback = { [weak self] kind in self?.routeFeedback(kind,haptic:kind == "cta" ? "selection":"light") }
         scoreOwner=NativeScoreOwner(gameplay:gameplay,root:root,progression:{[weak self] in self?.envelope.progression ?? NativeProgressionState()})
         scoreOwner?.onFeedback = { [weak self] kind in self?.routeFeedback(kind) }
         installTutorial(gameplay)
@@ -901,6 +923,7 @@ final class NativeBootstrap {
         catch {envelope=previous;showError(error.localizedDescription);return false}
     }
     private func record(_ state: NativeBoardState) {
+        guard gameplay?.sourcePresentationFailureGeneration != state.generation else{return}
         // Installed Source producers own gameplay snapshot writes. Settings and
         // progression can still flush the last durable envelope independently.
         guard !sourceCanonicalGameplaySaveEnabled else{return}
@@ -942,6 +965,7 @@ final class NativeBootstrap {
         try store.save(envelope)
     }
     private func saveCurrent() -> Bool {
+        if let gameplay,gameplay.sourcePresentationFailureGeneration == gameplay.engine.state.generation {return false}
         if sourceCanonicalGameplaySaveEnabled,!attemptCommitted {
             guard let binding=sourceCanonicalSaveBinding else{return false}
             return binding.notify(.lifecycle) == .written
@@ -999,6 +1023,7 @@ final class NativeBootstrap {
         }
         carrier.onAssetFailure = { [weak self,weak carrier,weak gameplay] in
             guard let self,let gameplay,self.boardTransition === carrier,self.gameplay === gameplay,gameplay.engine.state.generation==generation else{return}
+            if gameplay.sourcePresentationFailureGeneration==generation {self.presentSourceFailureRecovery(gameplay);return}
             self.completeSourceBoardTransitionClaim()
             self.showError("The stage artwork could not be prepared. Your progress is saved.")
             if gameplay.retainsOutgoingWorldPaint {self.finishGameplayExit()}
@@ -1065,6 +1090,9 @@ final class NativeBootstrap {
         prepareGameplayEntry(board:board,freshEntry:entry,callerCurrent:current){[weak self,weak previous,weak controller] ready in
             guard let self,let previous,let controller,current() else{return}
             guard ready else {
+                if previous.sourcePresentationFailureGeneration==generation {
+                    self.presentSourceFailureRecovery(previous);return
+                }
                 self.finishGameplayExit();self.showError("Unable to prepare Native board resources");return
             }
             self.replacePreparedSourceGameplay(previous,controller:controller,board:board,entry:entry,exit:exit)
@@ -1084,6 +1112,10 @@ final class NativeBootstrap {
                 arcadeMusic?.enterRound(generation:incoming.engine.state.generation,immediate:entry.isRestart)
             } else if boardTransition == nil {soundtrack?.setJourneyGameplay()}
         } catch {
+            if previous.sourcePresentationFailureGeneration==previous.engine.state.generation {
+                self.gameplay=previous;self.returnAction=exit
+                self.presentSourceFailureRecovery(previous);return
+            }
             // No Native-raw fallback on a retired Source generation. Preserve
             // the last durable envelope and return through the current route.
             if controller.canReplaceGameplay(previous) {finishGameplayExit()}
@@ -1118,7 +1150,9 @@ final class NativeBootstrap {
         }
     }
     private var sourceNoMovesResultCapture:NativeSourceNoMovesCompletedReceipt?
+    private weak var sourceNoMovesResultGameplay:NativeGameplayViewController?
     private var sourceNoMovesShownCue:String?
+    private weak var sourceNoMovesShownGameplay:NativeGameplayViewController?
     /// Mandatory Source NoMoves Scene visibleShowCue binding. The constructor
     /// invokes this only after original glyphs mount and BEFORE cloud RNG.
     /// The shared result audio owner retains Settings/interruption/voice policy.
@@ -1127,7 +1161,10 @@ final class NativeBootstrap {
             gameplay.engine.stagedSourceNoMoves,
             gameplay.engine.pendingSourceNoMoves?.token==planToken else{return}
         let key="\(generation):\(planToken)"
-        guard sourceNoMovesShownCue != key else{return}
+        // Generation/token are local to a Core run, so independent gameplay
+        // instances can legitimately reuse them. Dedup only this live owner.
+        guard sourceNoMovesShownGameplay !== gameplay || sourceNoMovesShownCue != key else{return}
+        sourceNoMovesShownGameplay=gameplay
         sourceNoMovesShownCue=key
         audioReceipt &+= 1
         audio?.resultMoment("no-moves",receipt:audioReceipt,generation:generation)
@@ -1176,11 +1213,14 @@ final class NativeBootstrap {
         return result
     }
     private func terminal(_ resolution: NativeResolution) {
-        guard let gameplay, !attemptCommitted, resolution.kind == .complete || resolution.kind == .fail else { return }
+        guard let gameplay, !attemptCommitted,gameplay.sourcePresentationFailureGeneration != gameplay.engine.state.generation,
+            resolution.kind == .complete || resolution.kind == .fail else { return }
         let sourceReceipt=gameplay.engine.completedSourceNoMovesReceipt
         if let sourceReceipt {
             guard sourceReceipt.admits(generation:gameplay.engine.state.generation,resolution:resolution),
-                gameplay.engine.state.terminal==resolution,sourceNoMovesResultCapture != sourceReceipt else{return}
+                gameplay.engine.state.terminal==resolution,
+                sourceNoMovesResultGameplay !== gameplay || sourceNoMovesResultCapture != sourceReceipt else{return}
+            sourceNoMovesResultGameplay=gameplay
             sourceNoMovesResultCapture=sourceReceipt
         } else if gameplay.engine.stagedSourceNoMoves && resolution.kind == .fail {
             // No implicit generic fallback for unsupported Source caller paths.
@@ -1192,6 +1232,10 @@ final class NativeBootstrap {
             presentTutorialComplete(gameplay);return
         }
         // NativeResultOwner commits rewards and progression atomically before presenting.
+        if resolution.kind == .fail,failHapticGeneration != gameplay.engine.state.generation {
+            failHapticGeneration=gameplay.engine.state.generation
+            impactFeedback(gameplay.engine.state.mode == .arcade && gameplay.engine.state.board>=2 ? "medium":"notification-error")
+        }
         resultOwner = NativeResultOwner(gameplay: gameplay, root: root, resolution: resolution,
             commit: { [weak self] score in try self?.commitResult(score: score, clean: resolution.kind == .complete) },
             restart: { [weak self] in self?.restart(origin:resolution.kind == .fail ? .failPlayAgain:.result) },
@@ -1224,6 +1268,7 @@ final class NativeBootstrap {
     }
     private func commitResult(score: Int, clean: Bool) throws {
         guard let gameplay, !attemptCommitted else { return }
+        guard gameplay.sourcePresentationFailureGeneration != gameplay.engine.state.generation else{return}
         let state = gameplay.engine.state
         var next = envelope
         next.progression.finishAttempt(mode: state.mode, board: state.board, score: score,
@@ -1287,7 +1332,7 @@ final class NativeBootstrap {
             try self.store.save(value);self.envelope=value
         }
         sheet.onHaptic = { [weak self] kind in self?.impactFeedback(kind) }
-        sheet.onFeedback = { [weak self] kind in self?.routeFeedback(kind) }
+        sheet.onFeedback = { [weak self] kind in self?.routeFeedback(kind,includesHaptic:false) }
         sheet.onFinish = { [weak self,weak sheet] action in
             guard let self,let sheet,!self.disposed,self.specialUnlock === sheet,self.gameplay?.engine.state.generation==generation else{return}
             self.specialUnlock=nil;sheet.dismiss(animated:false) {if action == .continue {next()}}
@@ -1334,7 +1379,70 @@ final class NativeBootstrap {
         guard saveCurrent() else { return }
         finishGameplayExit()
     }
+    private func presentSourceFailureRecovery(_ captured:NativeGameplayViewController) {
+        guard !disposed,gameplay === captured,sourceFailureModal == nil else{return}
+        // A rejected physical phase is not a navigation instruction. Keep its
+        // exact sealed engine and painted board until an explicit user choice.
+        // Never serialize this partially committed phase or replay its closures.
+        let generation=captured.engine.state.generation
+        captured.setSuspended(true)
+        endRun?.dispose();endRun=nil;scoreOwner?.dispose();scoreOwner=nil
+        resultOwner?.dispose();resultOwner=nil;tutorialOwner?.dispose();tutorialOwner=nil
+        guard let model=JimiNativeEndRunModel(["title":"Replay board?",
+            "subtitle":"This board could not continue.\nReplay starts this round again.",
+            "restartLabel":"Replay Board","exitLabel":"Exit"]) else{return}
+        sourceFailureModalEpoch += 1;let epoch=sourceFailureModalEpoch
+        let sheet=JimiNativeEndRunModal(id:epoch,model:model,assets:JimiV9Artwork(resourceRoot:root),dismissalAllowed:false)
+        sheet.loadViewIfNeeded()
+        sheet.buttons[0].isEnabled=controller?.canReplaceGameplay(captured)==true && captured.sourceScope?.current==true && captured.sourceInitialConstruction != nil
+        sourceFailureModal=sheet
+        sourceFailureObservers=[
+            NotificationCenter.default.addObserver(forName:UIApplication.willResignActiveNotification,object:nil,queue:.main){[weak sheet] _ in
+                MainActor.assumeIsolated{sheet?.suspend()}
+            },
+            NotificationCenter.default.addObserver(forName:UIApplication.didBecomeActiveNotification,object:nil,queue:.main){[weak sheet] _ in
+                MainActor.assumeIsolated{sheet?.resume()}
+            }
+        ]
+        sheet.onAction={ [weak self,weak captured,weak sheet] action in
+            guard let self,let captured,let sheet,!self.disposed,self.gameplay === captured,
+                captured.engine.state.generation==generation,self.sourceFailureModalEpoch==epoch,
+                self.sourceFailureModal === sheet,["restart","exit"].contains(action),!sheet.closing else{return}
+            if action == "restart" {
+                guard self.controller?.canReplaceGameplay(captured)==true,captured.sourceScope?.current==true,
+                    captured.sourceInitialConstruction != nil else{sheet.buttons[0].isEnabled=false;sheet.actionRejected();return}
+            }
+            sheet.onClosed={ [weak self,weak captured,weak sheet] in
+                guard let self,let captured,let sheet,!self.disposed,self.gameplay === captured,
+                    captured.engine.state.generation==generation,self.sourceFailureModalEpoch==epoch,
+                    self.sourceFailureModal === sheet else{return}
+                self.retireSourceFailureRecovery()
+                if action == "restart" {self.restart(origin:.exitMenu)}
+                else {self.finishGameplayExit()}
+            }
+            sheet.closeFromOwner()
+        }
+        // The incoming Scene may fail before its first-frame replacement
+        // receipt. Present above the mounted host, not its still-covered child.
+        let presenter=host ?? captured
+        if let presented=presenter.presentedViewController ?? captured.presentedViewController {
+            presented.dismiss(animated:false){[weak self,weak captured,weak sheet] in
+                guard let self,let captured,let sheet,!self.disposed,self.gameplay === captured,
+                    self.sourceFailureModal === sheet,captured.engine.state.generation==generation else{return}
+                (self.host ?? captured).present(sheet,animated:false)
+            }
+        } else {presenter.present(sheet,animated:false)}
+    }
+    private func retireSourceFailureRecovery() {
+        sourceFailureModalEpoch += 1
+        for observer in sourceFailureObservers {NotificationCenter.default.removeObserver(observer)}
+        sourceFailureObservers.removeAll()
+        let sheet=sourceFailureModal;sourceFailureModal=nil
+        sheet?.dispose();sheet?.dismiss(animated:false)
+    }
     private func finishGameplayExit() {
+        retireSourceFailureRecovery()
+        haptics.cancelSequences()
         cancelGameplayEntryPreparation()
         retireSourceTutorialMeterRequest()
         endRun?.dispose();endRun=nil;scoreOwner?.dispose();scoreOwner=nil;tutorialOwner?.dispose();tutorialOwner=nil;resultOwner?.dispose();resultOwner=nil
@@ -1345,17 +1453,27 @@ final class NativeBootstrap {
         retireBoardTransition()
         gameplay = nil; let action = returnAction; returnAction = nil; action?()
     }
-    private func routeFeedback(_ kind:String) {
+    private func routeFeedback(_ kind:String,haptic:String?=nil,includesHaptic:Bool=true) {
         audioReceipt &+= 1
-        audio?.routeFeedback(kind,receipt:audioReceipt,generation:audio?.generation ?? 1)
-        selectionFeedback()
+        if kind != "home-haptic-enter" {audio?.routeFeedback(kind == "tab-swipe" ? "tab":kind,receipt:audioReceipt,generation:audio?.generation ?? 1)}
+        guard includesHaptic else{return}
+        if let haptic {impactFeedback(haptic)}
+        else if kind == "home-haptic-enter",let controller {
+            let capturedRoute=routeLease
+            haptics.play(NativeHapticPatterns.home,in:controller.view) {[weak self,weak controller] in
+                self?.disposed==false && self?.routeLease==capturedRoute && self?.controller === controller && controller?.route == .home
+            }
+        } else if ["cta","tab","back","card-tap","card-manual-flip","hud-modal-open","exit-modal"].contains(kind) {
+            if kind == "cta",case .world = controller?.route {impactFeedback("medium")}
+            else {impactFeedback("light")}
+        }
     }
     private func resultMoment(_ kind:String,index:Int,duration:Double?) {
         audioReceipt &+= 1
         if kind == "cta" {
             audio?.routeFeedback(kind,receipt:audioReceipt,generation:audio?.generation ?? 1);return
         }
-        if kind == "clean-star" {impactFeedback("medium")}
+        if ["clean-star","clean-hero","clean-cta"].contains(kind) {impactFeedback("medium")}
         var release:(()->Void)?
         if kind == "clean-sax" || kind == "fail-sax" {
             if let state=gameplay?.engine.state,state.mode == .arcade {release=arcadeMusic?.beginResultHook(generation:state.generation)}
@@ -1363,14 +1481,37 @@ final class NativeBootstrap {
         }
         audio?.resultMoment(kind,index:index,receipt:audioReceipt,generation:audio?.generation ?? 1,duration:duration,onFinished:release)
     }
-    private func selectionFeedback() {
-        guard envelope.settings.hapticsEnabled, UIApplication.shared.applicationState == .active else { return }
-        UISelectionFeedbackGenerator().selectionChanged()
-    }
+    private func selectionFeedback() {haptics.emit("selection")}
     private func impactFeedback(_ style:String) {
-        guard envelope.settings.hapticsEnabled,UIApplication.shared.applicationState == .active else{return}
-        let kind:UIImpactFeedbackGenerator.FeedbackStyle = style == "heavy" ? .heavy : style == "medium" ? .medium : .light
-        UIImpactFeedbackGenerator(style:kind).impactOccurred()
+        let protected=style.hasPrefix("protected-")
+        haptics.emit(protected ? String(style.dropFirst("protected-".count)):style,protected:protected)
+    }
+    private func gameplayHaptic(_ event:NativeGameplayEvent,source:NativeTile?,destination:NativeTile?,generation:UInt64) {
+        guard let gameplay,!disposed,gameplay.engine.state.generation==generation,
+              gameplay.sourcePresentationFailureGeneration != generation else{return}
+        if event.kind == .specialReserved,let id=event.reason {
+            specialHapticTargetCounts[id]=event.tileIDs.count
+        }
+        if event.kind == .ordinarySixReserved {
+            ordinarySixHapticContact=event.reason;impactFeedback("protected-medium");return
+        }
+        if event.kind == .merged,let value=event.value,(1..<6).contains(value) {
+            impactFeedback("stack-contact");return
+        }
+        if event.kind == .merged,event.value==6 {
+            if let id=ordinarySixHapticContact,id==event.reason {ordinarySixHapticContact=nil;return}
+            playGameplayHaptics(NativeHapticPatterns.mergeSix(source:source,destination:destination,event:event),gameplay:gameplay,generation:generation)
+        } else if event.kind == .specialBoardCommitted,let id=event.reason {
+            let count=specialHapticTargetCounts.removeValue(forKey:id) ?? 0
+            if event.archetype == .magnet {playGameplayHaptics(NativeHapticPatterns.magnetPull(count:count),gameplay:gameplay,generation:generation)}
+        }
+    }
+    private func playGameplayHaptics(_ beats:[NativeHapticRuntime.Beat],gameplay:NativeGameplayViewController,generation:UInt64) {
+        haptics.play(beats,in:gameplay.view) {[weak self,weak gameplay] in
+            guard let self,let gameplay else{return false}
+            return !self.disposed && self.gameplay === gameplay && gameplay.engine.state.generation==generation &&
+                gameplay.sourcePresentationFailureGeneration != generation && self.controller?.route == .gameplay
+        }
     }
     private func showError(_ text: String) {
         #if DEBUG
@@ -1386,6 +1527,8 @@ final class NativeBootstrap {
     }
     func dispose() {
         guard !disposed else{return};disposed = true
+        retireSourceFailureRecovery()
+        haptics.dispose()
         cancelGameplayEntryPreparation()
         retireSourceTutorialMeterRequest();sourceTutorialMeterResources?.dispose();sourceTutorialMeterResources=nil
         sourceCanonicalSaveEpoch &+= 1;let save=sourceCanonicalSaveBinding;sourceCanonicalSaveBinding=nil;save?.retire()

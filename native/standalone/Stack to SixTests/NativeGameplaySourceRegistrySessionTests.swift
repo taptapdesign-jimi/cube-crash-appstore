@@ -112,4 +112,53 @@ nonisolated final class NativeGameplaySourceRegistrySessionTests:XCTestCase {
         a.endpointMounted(.sourceTileLifecycle);XCTAssertFalse(a.current)
         XCTAssertNil(a.snapshot(isWild:false));XCTAssertEqual(a.missing([.sourceTileLifecycle]),["sourceTileLifecycle"])
     }
+    @MainActor func testRepeatedResetScopesReleaseEveryArchetypeWithoutAccumulatingInputOrGuards()throws {
+        let session=NativeGameplaySourceRegistrySession(sourceDateMilliseconds:{100})
+        var previous:NativeGameplaySourceRegistrySession.Scope?
+        var previousToken:UInt64?
+        var token:UInt64=0
+        for epoch in 1...80 {
+            let current=scope(session,epoch:UInt64(epoch))
+            current.endpointMounted(.specialContactCommitRelease)
+            current.endpointMounted(.magnetGuardBeginFinally)
+            // Scene retirement releases each captured special token through
+            // NativeSourceSpecialSceneTransactionOwner.retire(), then disposes
+            // the scope's independent guard leases. Scope.dispose alone is
+            // deliberately not a blanket Special transaction reset.
+            if let previous,let previousToken {
+                XCTAssertTrue(previous.releaseSpecial(token:previousToken))
+            }
+            previous?.dispose()
+            XCTAssertEqual(session.retainedSpecialInputCaptureCount,0)
+            XCTAssertEqual(current.snapshot(isWild:false)?.inputReasons,[])
+            XCTAssertEqual(current.snapshot(isWild:false)?.endgameGuard.count,0)
+            let kinds:[NativeSourceSpecialTransactionRegistry.Kind]=[.star,.juice,.magnet,.tnt]
+            let kind=kinds[(epoch-1)%kinds.count]
+            let next=try XCTUnwrap(current.claimSpecial(kind:kind))
+            XCTAssertGreaterThan(next,token);token=next
+            if let previous,let previousToken {
+                XCTAssertFalse(current.releaseSpecial(token:previousToken))
+                _=previous.releaseSpecial(token:previousToken)
+                XCTAssertEqual(current.snapshot(isWild:false)?.special?.token,next)
+                XCTAssertEqual(current.snapshot(isWild:false)?.inputReasons,["special-transaction"])
+            }
+            XCTAssertTrue(current.commitSpecial(token:next,revision:Double(epoch)))
+            XCTAssertEqual(current.snapshot(isWild:false)?.inputReasons,[])
+            XCTAssertEqual(current.snapshot(isWild:true)?.inputReasons,["special-transaction"])
+            _=try XCTUnwrap(current.beginMagnetGuard())
+            XCTAssertEqual(current.snapshot(isWild:false)?.endgameGuard.count,1)
+            previous=current;previousToken=next
+        }
+        if let previous,let previousToken {
+            XCTAssertTrue(previous.releaseSpecial(token:previousToken))
+        }
+        previous?.dispose()
+        XCTAssertEqual(session.retainedSpecialInputCaptureCount,0)
+        let final=scope(session,epoch:81)
+        XCTAssertEqual(final.snapshot(isWild:false)?.inputReasons,[])
+        XCTAssertEqual(final.snapshot(isWild:false)?.endgameGuard.count,0)
+        XCTAssertNil(final.snapshot(isWild:false)?.special)
+        final.dispose()
+    }
+
 }

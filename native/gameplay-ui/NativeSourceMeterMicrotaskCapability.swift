@@ -22,7 +22,7 @@ import Foundation
     }
     /// Hook adapters must report false as a missing/retired producer fault;
     /// never substitute DispatchQueue.main.async to fabricate Source ordering.
-    @discardableResult func enqueue(_ reaction:@escaping @MainActor ()->Void)->Bool {capture.enqueue(reaction)}
+    @discardableResult func enqueue(owner:String?=nil,function:StaticString=#function,line:UInt=#line,_ reaction:@escaping @MainActor ()->Void)->Bool {capture.enqueue(owner:capture.diagnosticsEnabled ? (owner ?? "\(function):\(line)"):nil,reaction)}
     func dispose(){capture.dispose()}
     isolated deinit {dispose()}
 }

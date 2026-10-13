@@ -116,9 +116,9 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             let count = UILabel(frame: banner.bounds.insetBy(dx: 12, dy: 8))
             count.font = assets.font(size: 19, weight: "ExtraBold")
             count.textColor = UIColor(red: 232/255, green: 115/255, blue: 74/255, alpha: 1)
-            count.textAlignment = .center; count.text = "—/10"
+            count.textAlignment = .center; count.text = "0 / 10"
             counts[id] = count; banner.addSubview(count)
-            banner.transform = CGAffineTransform(rotationAngle: (id == 1 ? -15 : id == 2 ? 8 : -6) * .pi / 180)
+            banner.transform = CGAffineTransform(rotationAngle: bannerAngle(id) * .pi / 180)
             let revealShell = UIView()
             revealShell.isUserInteractionEnabled = false
             revealShell.addSubview(banner); tilt.addSubview(revealShell)
@@ -158,7 +158,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
                   let total = world["total"] as? Int, total >= 0, (0...total).contains(completed) else { continue }
             // Bridge's completed is canonical unlocked && !interim, exactly
             // the original banner count (not an independent progression model).
-            counts[id]?.attributedText = NSAttributedString(string: "\(completed)/\(total)", attributes: [.kern: -0.76])
+            counts[id]?.attributedText = NSAttributedString(string: "\(completed) / \(total)", attributes: [.kern: -0.76])
             let locked = activeWorldId.map { id > $0 && completed == 0 } ?? false
             let interim = world["hasInterimCard"] as? Bool ?? false
             worldUnits.first { $0.tag == id }?.accessibilityValue = "\(completed) of \(total)"
@@ -181,7 +181,8 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         for (index, unit) in worldUnits.enumerated() {
             let id = worldIDs[index]
             let y: CGFloat = [118,323,557][index]
-            let x: CGFloat = id == 3 ? width+8-buttonWidth : (id == 1 ? -2 : -6)
+            let originalX: CGFloat = id == 3 ? width+8-buttonWidth : (id == 1 ? -2 : -6)
+            let x: CGFloat = id == 3 ? width-16-buttonWidth : 16
             let rect = CGRect(x: x, y: top+y, width: buttonWidth, height: buttonHeight)
             unit.bounds = CGRect(origin: .zero, size: rect.size)
             // Route exit uses a54% vertical pivot. Relayout must preserve the
@@ -212,7 +213,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             }
             var overflow = rect
             for (cloud, authored) in cloudViews where cloudWorldID(authored.minY) == id {
-                let cloudRect = authored.offsetBy(dx: 0, dy: top+82)
+                let cloudRect = authored.offsetBy(dx: x-originalX, dy: top+82)
                 cloud.frame = cloudRect.offsetBy(dx: -rect.minX, dy: -rect.minY)
                 overflow = overflow.union(cloudRect)
             }
@@ -327,7 +328,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     }
 
     private func transforms(_ values: [CATransform3D]) -> [NSValue] { values.map { NSValue(caTransform3D: $0) } }
-    private func bannerAngle(_ id: Int) -> CGFloat { id == 1 ? -15 : id == 2 ? 8 : -6 }
+    private func bannerAngle(_ id: Int) -> CGFloat { id == 1 ? -15 : id == 2 ? 0 : 2 }
     private func addLoop(_ layer: CALayer, keyPath: String, values: [Any], times: [NSNumber], duration: Double,
                          timing: CAMediaTimingFunction = CAMediaTimingFunction(name: .easeInEaseOut)) {
         let animation = CAKeyframeAnimation(keyPath: keyPath)

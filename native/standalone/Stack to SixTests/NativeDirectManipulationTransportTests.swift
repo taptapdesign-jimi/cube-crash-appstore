@@ -65,6 +65,7 @@ import StackToSixGameplay
             let from=try XCTUnwrap(scene.boardGeometry).center(row:0,column:0)
             XCTAssertTrue(scene.beginDrag(at:from),variant ?? core.rawValue)
             XCTAssertEqual(clock.directManipulationTransportCount,1)
+            XCTAssertEqual(clock.sourceTransportFrameRateRange?.minimum,60,"An admitted drag must not permit the APP transport to fall to30")
             scene.dispatchSourceTouchMove(to:.init(x:from.x+10,y:from.y));clock.deliver(wallMilliseconds:16)
             XCTAssertTrue(clock.hasActiveClock)
             scene.setSuspended(true);XCTAssertEqual(clock.directManipulationTransportCount,0)
@@ -75,5 +76,51 @@ import StackToSixGameplay
             XCTAssertEqual(clock.directManipulationTransportCount,0)
             scene.dispose();XCTAssertEqual(clock.directManipulationTransportCount,0)
         }
+    }
+    func testActualExistingDisplayLinkPromotesForExactRenderDemandAndReturnsToIdleWithoutNewClock()throws {
+        let clock=service();defer{clock.dispose()}
+        let frame=try XCTUnwrap(clock.requestSourceAnimationFrame(ownerID:"pending",generation:1,callback:{}));defer{frame.cancel()}
+        XCTAssertEqual(clock.sourceTransportFrameRateRange?.minimum,30)
+        let creations=clock.displayLinkCreationCount,tickerFrame=clock.sourceTickerDispatchFrame
+        let first=try XCTUnwrap(clock.acquireSource60HzRenderDemand(ownerID:"hud-job:A",generation:1,current:{true}))
+        XCTAssertEqual(clock.sourceTransportFrameRateRange?.minimum,60)
+        XCTAssertEqual(clock.sourceTransportFrameRateRange?.maximum,60)
+        XCTAssertEqual(clock.sourceTransportFrameRateRange?.preferred,60)
+        let next=try XCTUnwrap(clock.acquireSource60HzRenderDemand(ownerID:"hud-job:C",generation:1,current:{true}))
+        first.cancel();first.cancel()
+        XCTAssertTrue(next.active);XCTAssertEqual(clock.source60HzRenderDemandCount,1)
+        XCTAssertEqual(clock.sourceTransportFrameRateRange?.minimum,60)
+        next.cancel();XCTAssertEqual(clock.sourceTransportFrameRateRange?.minimum,30)
+        XCTAssertEqual(clock.displayLinkCreationCount,creations)
+        XCTAssertEqual(clock.sourceTickerDispatchFrame,tickerFrame,"A render-rate hint never delivers a Source ticker or changes its time")
+        XCTAssertEqual(clock.pendingSourceAnimationFrameCount,1)
+    }
+    func testRenderDemandAloneCreatesNoClockAndPreservesOwnedPolicyAcrossForeground()throws {
+        let clock=service();defer{clock.dispose()}
+        let demand=try XCTUnwrap(clock.acquireSource60HzRenderDemand(ownerID:"visible",generation:1,current:{true}))
+        XCTAssertFalse(clock.hasActiveClock);XCTAssertEqual(clock.displayLinkCreationCount,0)
+        let frame=try XCTUnwrap(clock.requestSourceAnimationFrame(ownerID:"flight",generation:1,callback:{}));defer{frame.cancel()}
+        XCTAssertEqual(clock.sourceTransportFrameRateRange?.minimum,60)
+        clock.setSourceForeground(false)
+        XCTAssertFalse(clock.hasActiveClock);XCTAssertTrue(demand.active)
+        XCTAssertNil(clock.acquireSource60HzRenderDemand(ownerID:"background",generation:1,current:{true}))
+        clock.setSourceForeground(true)
+        XCTAssertEqual(clock.sourceTransportFrameRateRange?.minimum,60)
+        demand.cancel();XCTAssertEqual(clock.sourceTransportFrameRateRange?.minimum,30)
+        clock.dispose();XCTAssertFalse(demand.active);XCTAssertEqual(clock.source60HzRenderDemandCount,0)
+    }
+    func testStaleRenderDemandCannotChangeSuccessorAndReentrantDisposalRefusesHint()throws {
+        let clock=service();defer{clock.dispose()};var admitted=true
+        let old=try XCTUnwrap(clock.acquireSource60HzRenderDemand(ownerID:"old",generation:1,current:{admitted}))
+        let frame=try XCTUnwrap(clock.requestSourceAnimationFrame(ownerID:"pending",generation:2,callback:{}));defer{frame.cancel()}
+        let next=try XCTUnwrap(clock.acquireSource60HzRenderDemand(ownerID:"next",generation:2,current:{true}))
+        admitted=false;clock.deliver(wallMilliseconds:16)
+        XCTAssertFalse(old.active);XCTAssertTrue(next.active);XCTAssertEqual(clock.source60HzRenderDemandCount,1)
+        let another=try XCTUnwrap(clock.requestSourceAnimationFrame(ownerID:"pending-next",generation:2,callback:{}));defer{another.cancel()}
+        old.cancel();XCTAssertEqual(clock.sourceTransportFrameRateRange?.minimum,60)
+        next.cancel();XCTAssertEqual(clock.sourceTransportFrameRateRange?.minimum,30)
+        let hostile=service();defer{hostile.dispose()}
+        XCTAssertNil(hostile.acquireSource60HzRenderDemand(ownerID:"disposed-during-admission",generation:1,current:{hostile.dispose();return true}))
+        XCTAssertEqual(hostile.source60HzRenderDemandCount,0);XCTAssertEqual(hostile.displayLinkCreationCount,0)
     }
 }

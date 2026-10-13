@@ -56,16 +56,30 @@ import StackToSixNativeState
     func testActualBarrelReplacementDiceReturnToFullSize()async throws {
         try await exerciseAuthoredTntReplacementSize(variant:"barell")
     }
+    func testActualBarrelMeterChargeCrossingKeepsReplacementInput()async throws {
+        try await exerciseAuthoredTntReplacementSize(variant:"barell",meter:0.95)
+    }
+    func testActualBarrelMeterReusesLockedHolderAndKeepsReplacementInput()async throws {
+        try await exerciseAuthoredTntReplacementSize(variant:"barell",meter:0.95,reuseMeterHolder:true)
+    }
+    func testActualFlowerMeterChargeCrossingKeepsReplacementInput()async throws {
+        try await exerciseAuthoredTntReplacementSize(variant:"flower",meter:0.95)
+    }
+    func testActualBeachBallMeterChargeCrossingKeepsReplacementInput()async throws {
+        try await exerciseAuthoredTntReplacementSize(variant:"beach-ball",meter:0.95)
+    }
     func testActualBeachBallReplacementDiceReturnToFullSize()async throws {
         try await exerciseAuthoredTntReplacementSize(variant:"beach-ball")
     }
-    private func exerciseAuthoredTntReplacementSize(variant:String)async throws {
+    private func exerciseAuthoredTntReplacementSize(variant:String,meter:Double=0,reuseMeterHolder:Bool=false)async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-flower-size-"+UUID().uuidString)
         let store=NativeSaveStore(directory:directory)
         var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
         seed.progression.firstPlayTutorialComplete=true
-        let tiles:[NativeTile]=[.init(id:"flower",cell:.init(column:0,row:0),value:6,archetype:.tnt,variant:variant),.init(id:"destination",cell:.init(column:1,row:0),value:2)]+(1...6).map{.init(id:"target-\($0)",cell:.init(column:$0%5,row:1+$0/5),value:1+$0%5)}
+        var tiles:[NativeTile]=[.init(id:"flower",cell:.init(column:0,row:0),value:6,archetype:.tnt,variant:variant),.init(id:"destination",cell:.init(column:1,row:0),value:2)]+(1...6).map{.init(id:"target-\($0)",cell:.init(column:$0%5,row:1+$0/5),value:1+$0%5)}
+        if reuseMeterHolder {tiles.append(.init(id:"meter-holder",cell:.init(column:4,row:0),value:0,locked:true,alpha:0.25))}
         seed.arcadeRun = .init(tiles:tiles,mode:.arcade,board:3,stage:3,generation:9,moves:37,score:123)
+        seed.arcadeRun?.wildMeter=meter
         seed.arcadeRunSavedAt=Date().timeIntervalSince1970;try store.save(seed)
         let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:{0.1},completeNativeGameplayEnabled:true)
         let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
@@ -81,7 +95,13 @@ import StackToSixNativeState
         XCTAssertTrue(scene.beginDrag(at:from));scene.moveDrag(to:to,now:CACurrentMediaTime())
         try await Task.sleep(for:.milliseconds(160))
         XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:to,now:CACurrentMediaTime())).accepted)
-        try await wait{gameplay.engine.pendingSpecial==nil && !gameplay.engine.hasUnsavableSourceGameplayState}
+        try await wait{
+            if gameplay.sourcePresentationFailure != nil {
+                XCTFail("Barrel subsequent reward failure: \(gameplay.sourcePresentationFailure!)")
+                return true
+            }
+            return gameplay.engine.pendingSpecial==nil && !gameplay.engine.hasUnsavableSourceGameplayState
+        }
         try await Task.sleep(for:.seconds(2))
         let originals=Set(tiles.map(\.id)),replacements=gameplay.engine.state.tiles.filter{!originals.contains($0.id) && $0.value>0 && !$0.isWild}
         XCTAssertFalse(replacements.isEmpty)
@@ -92,6 +112,40 @@ import StackToSixNativeState
             XCTAssertEqual(node.visual.xScale,1,accuracy:0.01,"Replacement \(tile.id) retained inner shrink")
             XCTAssertEqual(node.visual.yScale,1,accuracy:0.01)
             XCTAssertEqual(node.sourceStarOrbitMetrics.width,128,accuracy:0.01)
+            XCTAssertEqual(node.sourceGridCell,tile.cell)
+            XCTAssertEqual(node.sourceValue,tile.value)
+            XCTAssertEqual(node.sourceStackDepth,tile.stackDepth)
+            XCTAssertEqual(node.sourceEventMode,"static")
+            let center=scene.convert(node.position,from:try XCTUnwrap(node.parent))
+            XCTAssertTrue(scene.beginDrag(at:center),"Replacement \(tile.id) refuses pickup")
+            scene.cancelDrag(pointerCancelled:true)
+        }
+        try await Task.sleep(for:.milliseconds(500))
+        let playable=gameplay.engine.state.tiles.filter{$0.isPlayable && !$0.isWild}
+        let pair=try XCTUnwrap(replacements.lazy.compactMap{a in playable.first{b in b.id != a.id && a.value+b.value<6}.map{(a,$0)}}.first)
+        let source=try XCTUnwrap(scene.sourceNativeTileNode(pair.0.id)),destination=try XCTUnwrap(scene.sourceNativeTileNode(pair.1.id))
+        let start=scene.convert(source.position,from:try XCTUnwrap(source.parent)),end=scene.convert(destination.position,from:try XCTUnwrap(destination.parent))
+        XCTAssertTrue(scene.beginDrag(at:start))
+        scene.moveDrag(to:end,now:CACurrentMediaTime())
+        try await Task.sleep(for:.milliseconds(160))
+        let drop=try XCTUnwrap(scene.finishDrag(at:end,now:CACurrentMediaTime()))
+        XCTAssertTrue(drop.accepted,"Replacement stack refused: \(drop.events)")
+        try await wait{gameplay.engine.pendingOrdinaryStack==nil && destination.sourcePendingStackFrameCount==0}
+        XCTAssertEqual(destination.sourceValue,pair.0.value+pair.1.value)
+        if meter>0 {
+            XCTAssertNil(gameplay.engine.pendingMeterOpen)
+            XCTAssertFalse(gameplay.engine.state.tiles.filter(\.isWild).isEmpty,"Meter reward must actually complete")
+            if reuseMeterHolder {XCTAssertTrue(gameplay.engine.state.tiles.contains{$0.id=="meter-holder" && $0.isWild && !$0.locked},"Reward must reuse the original locked holder")}
+            try await Task.sleep(for:.milliseconds(500))
+            let ordinary=gameplay.engine.state.tiles.filter{$0.isPlayable && !$0.isWild}
+            let six=try XCTUnwrap(ordinary.lazy.compactMap{a in ordinary.first{b in b.id != a.id && a.value+b.value==6}.map{(a,$0)}}.first)
+            let sn=try XCTUnwrap(scene.sourceNativeTileNode(six.0.id)),dn=try XCTUnwrap(scene.sourceNativeTileNode(six.1.id))
+            let p=scene.convert(sn.position,from:try XCTUnwrap(sn.parent)),q=scene.convert(dn.position,from:try XCTUnwrap(dn.parent))
+            XCTAssertTrue(scene.beginDrag(at:p));scene.moveDrag(to:q,now:CACurrentMediaTime())
+            try await Task.sleep(for:.milliseconds(160))
+            let merged=try XCTUnwrap(scene.finishDrag(at:q,now:CACurrentMediaTime()))
+            XCTAssertTrue(merged.accepted,"Subsequent merge6 refused: \(merged.events)")
+            try await wait{gameplay.engine.pendingOrdinarySix==nil && !gameplay.engine.hasUnsavableSourceGameplayState}
         }
     }
     func testDisposalAtActualRestartPreparationCannotConstructOrWriteSuccessor()async throws {

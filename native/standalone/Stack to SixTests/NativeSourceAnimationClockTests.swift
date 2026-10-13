@@ -13,6 +13,121 @@ final class NativeSourceAnimationClockV5Tests:XCTestCase {
         var values:[Double]=[]
         override func paint(seconds:TimeInterval){values.append(seconds)}
     }
+    func testRendererBatchBorrowsActualLayerTransactionEvenWhenLeaseRetiresInsideRAF()throws {
+        var wall=0.0,trace:[String]=[]
+        let fifo=NativeSourceMicrotaskFIFO(),tasks=NativeSourceMicrotaskAdapters(fifo:fifo)
+        let scope=try XCTUnwrap(fifo.makeMeterScope(boundProducers:Set(NativeSourceMicrotaskFIFO.Boundary.allCases),isCurrent:{true}))
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{wall},sourceFrameTransportEnabled:true)
+        service.sourceMicrotaskTasks=tasks
+        let direct=try XCTUnwrap(service.retainDirectManipulationTransport(ownerID:"drag",generation:1,current:{true}))
+        let renderer=try XCTUnwrap(service.retainRendererDragTransport(ownerID:"scene",generation:1,current:{true}))
+        defer{renderer.cancel();direct.cancel();scope.dispose();service.dispose();fifo.dispose()}
+        CATransaction.begin();CATransaction.setAnimationDuration(0.25)
+        defer{CATransaction.commit()}
+        let parentDisablesActions=CATransaction.disableActions(),layer=CALayer()
+        _=service.requestSourceAnimationFrame(ownerID:"paint",generation:1,callback:{
+            trace.append("raf");CATransaction.setAnimationDuration(0.73)
+            // Actual glyph/cloud painters use a disabled-action subtransaction.
+            // Its local policy must survive while the renderer retains its own.
+            CATransaction.begin();CATransaction.setDisableActions(true);CATransaction.setAnimationDuration(0.11)
+            layer.position=CGPoint(x:4,y:7)
+            XCTAssertTrue(CATransaction.disableActions());XCTAssertEqual(CATransaction.animationDuration(),0.11,accuracy:1e-9)
+            CATransaction.commit()
+            XCTAssertEqual(layer.position,CGPoint(x:4,y:7));XCTAssertNil(layer.animation(forKey:"position"))
+            XCTAssertEqual(CATransaction.disableActions(),parentDisablesActions)
+            XCTAssertEqual(CATransaction.animationDuration(),0.73,accuracy:1e-9)
+            renderer.cancel()
+            // Reentry cannot deliver another Source batch or take ownership.
+            service.deliver(wallMilliseconds:16)
+            XCTAssertTrue(scope.enqueue{trace.append("reaction");XCTAssertEqual(CATransaction.animationDuration(),0.73,accuracy:1e-9)})
+        })
+        wall=16;XCTAssertTrue(service.deliverRendererFrame(renderer,rawFrameMilliseconds:16))
+        trace.append("renderer-submit")
+        XCTAssertEqual(trace,["raf","reaction","renderer-submit"])
+        XCTAssertEqual(CATransaction.animationDuration(),0.73,accuracy:1e-9,"Renderer batch must not introduce a nested outer Source transaction")
+        XCTAssertFalse(service.rendererDragDeliveryActive)
+        _=service.requestSourceAnimationFrame(ownerID:"fallback",generation:1,callback:{CATransaction.setAnimationDuration(0.91)})
+        wall=32;XCTAssertTrue(service.deliverIndependentFrame(rawFrameMilliseconds:32))
+        XCTAssertEqual(CATransaction.animationDuration(),0.73,accuracy:1e-9,"Independent fallback resumes its own grouped transaction")
+    }
+    func testManualSourceBatchKeepsGroupedLayerTransactionWithoutBorrowingEligibleRenderer()throws {
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true)
+        let direct=try XCTUnwrap(service.retainDirectManipulationTransport(ownerID:"drag",generation:2,current:{true}))
+        let renderer=try XCTUnwrap(service.retainRendererDragTransport(ownerID:"scene",generation:2,current:{true}))
+        defer{renderer.cancel();direct.cancel();service.dispose()}
+        CATransaction.begin();CATransaction.setAnimationDuration(0.31)
+        defer{CATransaction.commit()}
+        _=service.requestSourceAnimationFrame(ownerID:"manual",generation:2,callback:{CATransaction.setAnimationDuration(0.82);service.dispose()})
+        service.deliver(wallMilliseconds:16)
+        XCTAssertEqual(CATransaction.animationDuration(),0.31,accuracy:1e-9,"Captured entry context, not mutable renderer eligibility, owns the transaction")
+        XCTAssertFalse(service.hasActiveClock)
+    }
+    func testRendererDragBatchConsumesLatestRAFBeforePaintAndKeepsRootFIFOOrder()throws {
+        var wall=0.0,trace:[String]=[],eligible=true
+        let fifo=NativeSourceMicrotaskFIFO(),tasks=NativeSourceMicrotaskAdapters(fifo:fifo)
+        let scope=try XCTUnwrap(fifo.makeMeterScope(boundProducers:Set(NativeSourceMicrotaskFIFO.Boundary.allCases),isCurrent:{true}))
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{wall},sourceFrameTransportEnabled:true)
+        service.sourceMicrotaskTasks=tasks
+        let root=Participant();root.onAdvance={_ in trace.append("root");XCTAssertTrue(scope.enqueue{trace.append("reaction")})}
+        let rootLease=service.register(participant:root,duration:1,domain:.sourceGSAP(.timeline)){_ in}
+        let direct=try XCTUnwrap(service.retainDirectManipulationTransport(ownerID:"drag",generation:1,current:{true}))
+        let renderer=try XCTUnwrap(service.retainRendererDragTransport(ownerID:"scene",generation:1,current:{eligible}))
+        var latest=CGPoint.zero,painted=CGPoint.zero
+        let queue=NativeSourceDragMoveQueue(service:service,ownerID:"drag",generation:1,current:{true},paint:{painted=$0;trace.append("drag")})
+        defer{queue.dispose();renderer.cancel();direct.cancel();rootLease?.cancel();scope.dispose();service.dispose();fifo.dispose()}
+        trace=[];queue.enqueue(.init(x:1,y:1));latest = .init(x:5,y:8);queue.enqueue(latest)
+        XCTAssertEqual(painted,.zero,"Independent transport previously leaves input queued until its callback")
+        wall=16
+        XCTAssertFalse(service.deliverIndependentFrame(rawFrameMilliseconds:16))
+        XCTAssertEqual(painted,.zero);XCTAssertTrue(queue.hasPendingSample)
+        XCTAssertTrue(service.deliverRendererFrame(renderer,rawFrameMilliseconds:16))
+        trace.append("SpriteKit-paint")
+        XCTAssertEqual(painted,latest);XCTAssertFalse(queue.hasPendingSample)
+        XCTAssertEqual(trace,["root","reaction","drag","SpriteKit-paint"])
+        XCTAssertFalse(service.deliverIndependentFrame(rawFrameMilliseconds:16),"A second clock cannot dispatch this borrowed frame")
+        eligible=false
+        XCTAssertFalse(service.deliverRendererFrame(renderer,rawFrameMilliseconds:32))
+        wall=32;XCTAssertTrue(service.deliverIndependentFrame(rawFrameMilliseconds:32))
+    }
+    func testRendererDragCancellationAndReplacementReturnToSameExistingLink()throws {
+        var wall=0.0,eligible=true,calls=0
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{wall},sourceFrameTransportEnabled:true)
+        defer{service.dispose()}
+        let direct=try XCTUnwrap(service.retainDirectManipulationTransport(ownerID:"drag",generation:4,current:{true}))
+        let old=try XCTUnwrap(service.retainRendererDragTransport(ownerID:"old",generation:4,current:{eligible}))
+        let replacement=try XCTUnwrap(service.retainRendererDragTransport(ownerID:"replacement",generation:4,current:{eligible}))
+        XCTAssertFalse(old.active);XCTAssertTrue(replacement.active);old.cancel()
+        XCTAssertTrue(service.rendererDragDeliveryActive)
+        _=service.requestSourceAnimationFrame(ownerID:"paint",generation:4,callback:{calls+=1})
+        XCTAssertFalse(service.deliverRendererFrame(old,rawFrameMilliseconds:16));XCTAssertEqual(calls,0)
+        wall=16;XCTAssertTrue(service.deliverRendererFrame(replacement,rawFrameMilliseconds:16));XCTAssertEqual(calls,1)
+        let creations=service.displayLinkCreationCount
+        replacement.cancel();XCTAssertFalse(service.rendererDragDeliveryActive)
+        _=service.requestSourceAnimationFrame(ownerID:"fallback",generation:4,callback:{calls+=1})
+        wall=32;XCTAssertTrue(service.deliverIndependentFrame(rawFrameMilliseconds:32));XCTAssertEqual(calls,2)
+        XCTAssertEqual(service.displayLinkCreationCount,creations,"Borrow/release reuse the existing link")
+        let pauseLease=try XCTUnwrap(service.retainRendererDragTransport(ownerID:"pause",generation:4,current:{eligible}))
+        eligible=false
+        XCTAssertFalse(service.deliverRendererFrame(pauseLease,rawFrameMilliseconds:48));XCTAssertFalse(service.rendererDragDeliveryActive)
+        direct.cancel();pauseLease.cancel()
+    }
+    func testRendererDragCannotBorrowWrongGenerationOrBackgroundAndRetiresQueuedDrag()throws {
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true)
+        let direct=try XCTUnwrap(service.retainDirectManipulationTransport(ownerID:"drag",generation:1,current:{true}))
+        let wrong=try XCTUnwrap(service.retainRendererDragTransport(ownerID:"other-generation",generation:2,current:{true}))
+        XCTAssertFalse(service.rendererDragDeliveryActive);XCTAssertFalse(service.deliverRendererFrame(wrong,rawFrameMilliseconds:16))
+        let renderer=try XCTUnwrap(service.retainRendererDragTransport(ownerID:"scene",generation:1,current:{true}))
+        var paints=0
+        let queue=NativeSourceDragMoveQueue(service:service,ownerID:"drag",generation:1,current:{true},paint:{_ in paints+=1})
+        queue.enqueue(.init(x:4,y:5));queue.dispose()
+        XCTAssertTrue(service.deliverRendererFrame(renderer,rawFrameMilliseconds:16));XCTAssertEqual(paints,0)
+        service.setSourceForeground(false)
+        XCTAssertFalse(renderer.active);XCTAssertFalse(direct.active);XCTAssertFalse(service.rendererDragDeliveryActive)
+        XCTAssertFalse(service.deliverRendererFrame(renderer,rawFrameMilliseconds:32))
+        service.setSourceForeground(true)
+        XCTAssertFalse(service.rendererDragDeliveryActive,"Foreground cannot revive retired renderer or pointer claims")
+        wrong.cancel();renderer.cancel();direct.cancel();service.dispose()
+    }
     func testActualDefaultSourceWallClockKeepsDateNowMillisecondResolution() async {
         let service=NativeSourceAnimationClockService(wallOriginMilliseconds:floor(Date().timeIntervalSince1970*1000))
         let participant=Participant(),advanced=expectation(description:"actual Source wall callback")
@@ -491,7 +606,10 @@ final class NativeSourceAnimationClockV5Tests:XCTestCase {
         defer{textures.dispose()}
         for index in 1...7 where index != 3 {XCTAssertNotNil(textures.texture("assets/shop/honey/bee\(index)@2x.png",densityAware:false))}
         let fifo=NativeSourceMicrotaskFIFO(),tasks=NativeSourceMicrotaskAdapters(fifo:fifo)
-        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true)
+        // The live transport and explicit test delivery share one monotonic
+        // source Date domain. A pending upload must not rewind from400 to0.
+        var sourceWallMilliseconds=0.0
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{sourceWallMilliseconds},sourceFrameTransportEnabled:true)
         service.sourceMicrotaskTasks=tasks;defer{service.dispose();fifo.dispose()}
         let owner=try XCTUnwrap(NativeSourceHoneyIdlePresentation(textures:textures,use2x:true,service:service,random:{0.5},current:{true},paintable:{true}))
         defer{owner.dispose()}
@@ -500,7 +618,8 @@ final class NativeSourceAnimationClockV5Tests:XCTestCase {
         await fulfillment(of:[uploaded],timeout:3)
         XCTAssertFalse(owner.cohortCommitted);XCTAssertEqual(service.activeParticipantCount,1)
         let initial=owner.sprites.map(\.position)
-        service.deliver(wallMilliseconds:400)
+        sourceWallMilliseconds=400
+        service.deliver(wallMilliseconds:sourceWallMilliseconds)
         let before=owner.sprites.map(\.position)
         XCTAssertNotEqual(before,initial)
         finish?()

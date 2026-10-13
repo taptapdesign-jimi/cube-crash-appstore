@@ -11,12 +11,13 @@ final class NativeSourceFrameRuntime {
         case specialShards="special-merge6-shards",specialSmoke="special-merge6-smoke",laserSmoke="laser-gun-merge6-smoke"
         case magnetPull="magnet-pull",honeyPull="honey-pull",hudStarFlight="hud-star-flight"
         case regularIdleBounce="regular-tile-idle-bounce",hudExit="hud-exit"
+        case dragTrail="drag-trail"
         case starHalo="wild-star-shared-halo"
-        case starFinale="wild-star-finale",tntFinale="tnt-flower-finale",juiceFinale="juice-family-finale",cleanBoardHandoff="clean-board-handoff"
+        case starFinale="wild-star-finale",magnetFinale="magnet-swoop-finale",tntFinale="tnt-flower-finale",juiceFinale="juice-family-finale",cleanBoardHandoff="clean-board-handoff"
         var tailMs:Double {
             switch self {
             case .starHalo:return 0
-            case .regularMergeHandoff,.hudExit,.starFinale,.tntFinale,.juiceFinale,.cleanBoardHandoff:return 180
+            case .regularMergeHandoff,.hudExit,.starFinale,.magnetFinale,.tntFinale,.juiceFinale,.cleanBoardHandoff:return 180
             case .hudStarFlight,.regularIdleBounce:return 60
             default:return 100
             }

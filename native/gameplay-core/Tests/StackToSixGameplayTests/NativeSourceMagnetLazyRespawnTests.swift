@@ -6,9 +6,14 @@ nonisolated final class NativeSourceMagnetLazyRespawnTests:XCTestCase {
  private struct Cell:Decodable {let c:Int,r:Int;var native:NativeCell{.init(column:c,row:r)}}
  private struct Row:Decodable {let rows:Int,count:Int,seed:Int,cells:[Cell],reserved:[Cell],values:[Int],prepareDraws:Int,reserveDraws:Int,survivor:Int,totalDraws:Int}
  private final class Stream {var draws=0;let seed:Int;init(_ seed:Int){self.seed=seed};func next()->Double{defer{draws+=1};return Double((draws*17+seed)%97)/97}}
- private func fixture(_ rows:Int=5,count:Int=2,seed:Int=3,lazy:Bool=true,variant:String?=nil)throws->(NativeGameplayEngine,NativeSpecialMovePlan,Stream,NativeSourceMathRandomStream) {
+ private func fixture(_ rows:Int=5,count:Int=2,seed:Int=3,lazy:Bool=true,variant:String?=nil,pulledVariant:String?=nil,includePulledMagnet:Bool=false)throws->(NativeGameplayEngine,NativeSpecialMovePlan,Stream,NativeSourceMathRandomStream) {
   let stream=Stream(seed),math=NativeSourceMathRandomStream(draw:stream.next)
-  let tiles:[NativeTile]=[.init(id:"m",cell:.init(column:0,row:0),value:6,archetype:.magnet,variant:variant),.init(id:"d",cell:.init(column:1,row:0),value:2)] + (0..<count).map{.init(id:"p\($0)",cell:.init(column:($0+2)%5,row:($0+2)/5),value:1)}
+  var tiles:[NativeTile]=[.init(id:"m",cell:.init(column:0,row:0),value:6,archetype:.magnet,variant:variant),.init(id:"d",cell:.init(column:1,row:0),value:2)]
+  for index in 0..<count {
+   let isMagnet=includePulledMagnet && index==0
+   tiles.append(NativeTile(id:"p\(index)",cell:.init(column:(index+2)%5,row:(index+2)/5),
+    value:isMagnet ? 6:1,archetype:isMagnet ? .magnet:nil,variant:isMagnet ? pulledVariant:nil))
+  }
   let engine=NativeGameplayEngine(state:.init(columns:5,rows:rows,tiles:tiles,board:10),sourceMathRandom:math)
   engine.sourceMagnetLazyRespawnEnabled=lazy
   XCTAssertTrue(engine.beginDrag(tileID:"m"));XCTAssertTrue(engine.drop(target:.init(column:1,row:0)).accepted)
@@ -25,6 +30,46 @@ nonisolated final class NativeSourceMagnetLazyRespawnTests:XCTestCase {
    XCTAssertEqual(holder.value,0);XCTAssertTrue(holder.locked)
    XCTAssertTrue(e.commitSourceMagnetLazyOpenValue(openID:opening.id,generation:p.generation,sourceCurrent:{true}).accepted)
    XCTAssertTrue(e.finishSourceMagnetLazyOpen(openID:opening.id,generation:p.generation,verifiedTileID:holder.id,sourceCurrent:{true}))
+  }
+ }
+ func testEveryMagnetBackingConsumesAnotherMagnetAndClearsSurvivorGameplayOwnership()throws {
+  for variant:String? in [nil,"honey","bottle","spaceship"] {
+   for pulledVariant:String? in [nil,"honey","bottle","spaceship"] {
+    let(e,p,_,math)=try fixture(variant:variant,pulledVariant:pulledVariant,includePulledMagnet:true)
+    XCTAssertTrue(p.targets.contains{$0.id=="p0" && $0.gameplayArchetype == .magnet})
+    XCTAssertTrue(e.prepareSourceMagnetLazyRespawn(transactionID:p.id,generation:p.generation,sourceCurrent:{true}).accepted)
+    try settle(e,p)
+    let fill=try XCTUnwrap(e.prepareSourceMagnetLazyReserveFill(transactionID:p.id,generation:p.generation,sourceCurrent:{true}))
+    for index in fill.holders.indices {
+     _=math.next()
+     XCTAssertTrue(e.commitSourceMagnetLazyReserve(transactionID:p.id,generation:p.generation,index:index,sourceCurrent:{true}).accepted)
+    }
+    let conversion=try XCTUnwrap(e.prepareSourceMagnetLazySurvivor(transactionID:p.id,generation:p.generation,sourceCurrent:{true}))
+    XCTAssertTrue(e.commitSourceMagnetLazySurvivorValue(transactionID:p.id,generation:p.generation,sourceCurrent:{true}).accepted)
+    XCTAssertTrue(e.releaseSourceMagnetLazySurvivorResolution(transactionID:p.id,generation:p.generation,sourceCurrent:{true}))
+    XCTAssertTrue(e.commitSpecialBoard(transactionID:p.id).accepted)
+    let survivor=try XCTUnwrap(e.state.tiles.first{$0.id==conversion.survivor.id})
+    XCTAssertNil(survivor.archetype);XCTAssertNil(survivor.variant)
+    XCTAssertFalse(survivor.locked);XCTAssertFalse(survivor.magnetOwned);XCTAssertFalse(survivor.resolutionOwned)
+    XCTAssertFalse(survivor.sourceResidualWildPresence);XCTAssertFalse(survivor.pendingRemoval)
+    XCTAssertNil(e.pendingSpecial);XCTAssertNil(e.pendingSourceMagnetLazyRespawn)
+    XCTAssertFalse(e.flags.wildMagnetPullInProgress);XCTAssertFalse(e.flags.pendingSpecialMutation)
+    XCTAssertFalse(e.state.tiles.contains{$0.id=="p0"})
+   }
+  }
+ }
+ func testSecondMagnetImpactHidesSixButReservesItsCellForEveryBacking()throws {
+  for variant:String? in [nil,"honey","bottle","spaceship"] {
+   for count in 1...4 {
+    let(e,p,_,_)=try fixture(count:count,variant:variant)
+    XCTAssertEqual(e.state.tile(at:p.destination.cell)?.value,6)
+    XCTAssertTrue(e.prepareSourceMagnetLazyRespawn(transactionID:p.id,generation:p.generation,sourceCurrent:{true}).accepted)
+    let six=try XCTUnwrap(e.state.tile(at:p.destination.cell))
+    XCTAssertEqual(six.id,p.destination.id);XCTAssertEqual(six.value,6)
+    XCTAssertFalse(six.visible);XCTAssertEqual(six.alpha,0)
+    XCTAssertTrue(e.pendingSourceMagnetLazyRespawn?.slots.allSatisfy{$0.cell != six.cell}==true)
+    XCTAssertTrue(p.targets.allSatisfy{t in !e.state.tiles.contains{$0.id==t.id}})
+   }
   }
  }
  func testExecutedOriginalSelectionAndSurvivorDrawSlot16Cases()throws {

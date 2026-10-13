@@ -8,6 +8,45 @@ import StackToSixGameplay
 /// Actual Exit modal action must await existing board/HUD/footer owners before
 /// Bootstrap returns to World/Home; no synthetic completion or clock delivery.
 @MainActor final class NativeEndRunExitRootTests:XCTestCase {
+    func testCompletedExitSurfaceCannotRepaintDuringResultRelayoutButFreshBoardCanEnter()async throws {
+        let state=NativeBoardState(tiles:[.init(id:"old",cell:.init(column:0,row:0),value:3)])
+        let engine=NativeGameplayEngine(state:state)
+        let scene=NativeBoardScene(engine:engine,resourceRoot:NativeTestResources.root,size:.init(width:390,height:844))
+        let view=SKView(frame:.init(x:0,y:0,width:390,height:844))
+        let host=UIViewController();host.view=view
+        let window=UIWindow(frame:view.bounds);window.rootViewController=host;window.makeKeyAndVisible()
+        defer{scene.dispose();window.isHidden=true}
+        view.presentScene(scene);scene.layout(size:view.bounds.size,insets:.zero)
+        let node=try XCTUnwrap(scene.sourceNativeTileNode("old"))
+        let hud=try XCTUnwrap(scene.childNode(withName:"//native-game-hud"))
+        let ghost=try XCTUnwrap(scene.childNode(withName:"//native-ghost-1-0"))
+        let exited=expectation(description:"Actual SpriteKit exit completion")
+        scene.animateExit{XCTAssertTrue($0);exited.fulfill()}
+        await fulfillment(of:[exited],timeout:5)
+        XCTAssertEqual(node.alpha,0,accuracy:0.001);XCTAssertEqual(hud.alpha,0,accuracy:0.001)
+        XCTAssertEqual(ghost.alpha,0,accuracy:0.001)
+        let oldPose=node.position,oldScale=node.xScale,oldHUDPose=hud.position
+        scene.isPaused=true
+        let before=try XCTUnwrap(view.texture(from:scene)?.cgImage())
+        // This is the actual UIKit-layout seam used while presenting results,
+        // followed by a late same-generation state publication.
+        scene.layout(size:.init(width:390,height:843),insets:.init(top:47,left:0,bottom:34,right:0))
+        scene.synchronize()
+        XCTAssertEqual(node.alpha,0,accuracy:0.001);XCTAssertEqual(node.xScale,oldScale)
+        XCTAssertEqual(node.position,oldPose);XCTAssertEqual(hud.alpha,0,accuracy:0.001)
+        XCTAssertEqual(hud.position,oldHUDPose)
+        XCTAssertTrue(scene.childNode(withName:"//native-ghost-1-0") === ghost)
+        XCTAssertEqual(ghost.alpha,0,accuracy:0.001)
+        let after=try XCTUnwrap(view.texture(from:scene)?.cgImage())
+        XCTAssertEqual(UIImage(cgImage:before).pngData(),UIImage(cgImage:after).pngData(),"The renderer must retain the exited surface across result layout")
+        var fresh=state;fresh.generation=state.generation+1
+        engine.restart(state:fresh);scene.isPaused=false
+        scene.synchronize()
+        scene.layout(size:view.bounds.size,insets:.zero)
+        let replacement=try XCTUnwrap(scene.sourceNativeTileNode("old"))
+        XCTAssertFalse(replacement === node);XCTAssertGreaterThan(replacement.alpha,0.01)
+        XCTAssertGreaterThan(replacement.xScale,0.01)
+    }
     private func wait(_ label:String,_ predicate:()->Bool)async throws {
         let deadline=Date().addingTimeInterval(40)
         while !predicate(){guard Date()<deadline else{XCTFail(label);throw CancellationError()};try await Task.sleep(for:.milliseconds(10))}

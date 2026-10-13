@@ -10,12 +10,12 @@ import StackToSixGameplay
         let timeouts=NativeSourceAppTimeoutOwner()
         var wall=0.0,seed:UInt32=1,acquires=0,releases=0,arrivals=0,retired=0,current=true
         var owner:NativeSourceHUDStarPresentation?
-        init(count:Int=3) {
+        init(count:Int=3,sourceFrameTransportEnabled:Bool=false) {
             var star=NativeTile(id:"s",cell:.init(column:0,row:0),value:6,archetype:.star);star.starOrbitCount=count
             engine=NativeGameplayEngine(state:.init(tiles:[star,.init(id:"d",cell:.init(column:1,row:0),value:2)]))
             XCTAssertTrue(engine.beginDrag(tileID:"s"));XCTAssertTrue(engine.drop(target:.init(column:1,row:0)).accepted)
             engine.sourceHUDStarJobsEnabled=true
-            service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0})
+            service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:sourceFrameTransportEnabled)
             scene=SKScene(size:.init(width:390,height:844));view=SKView(frame:.init(x:0,y:0,width:390,height:844));view.ignoresSiblingOrder=false;view.presentScene(scene);view.isPaused=true
         }
         func mount(_ prepared:NativeSourceHUDStarTexturePreparation.Prepared)->Bool {
@@ -56,6 +56,37 @@ import StackToSixGameplay
         XCTAssertEqual(f.owner?.pendingJobCount,1);XCTAssertEqual(f.releases,0) // wall is independent of this manually delivered Source phase.
         f.deliver(2000);XCTAssertEqual(f.arrivals,3);XCTAssertEqual(f.engine.state.score,score+300)
     }
+    func testActualAppRAFTransportPaintsEvery60HzFlightSampleWithoutAlternatingFrozenFrames()async throws {
+        let textures=NativeSourceHUDStarTexturePreparation(),prepared=try await prepare(textures)
+        let f=Fixture(count:1,sourceFrameTransportEnabled:true)
+        defer{f.dispose();textures.dispose()}
+        XCTAssertEqual(f.service.source60HzRenderDemandCount,0)
+        XCTAssertTrue(f.mount(prepared))
+        XCTAssertEqual(f.service.source60HzRenderDemandCount,1)
+        XCTAssertEqual(f.service.sourceTransportFrameRateRange?.minimum,60)
+        let container=try XCTUnwrap(f.owner?.mountedContainer)
+        let sprite=try XCTUnwrap(container.children.first as? SKSpriteNode)
+        var previous:CGPoint?,changed=0
+        for frame in 0...42 {
+            f.deliver(Double(frame)*1000/60)
+            guard frame>=12 else{continue}
+            if let previous {
+                XCTAssertNotEqual(sprite.position,previous,"APP RAF must paint each 60 Hz delivery, not every other renderer frame")
+                changed += 1
+            }
+            previous=sprite.position
+        }
+        XCTAssertEqual(changed,30)
+        XCTAssertTrue(sprite.parent === container)
+        XCTAssertEqual(f.arrivals,0)
+        XCTAssertEqual(f.acquires,1)
+        XCTAssertEqual(f.releases,0)
+        XCTAssertEqual(f.service.displayLinkCreationCount,1)
+        f.owner?.dispose()
+        XCTAssertEqual(f.releases,1)
+        XCTAssertEqual(f.service.source60HzRenderDemandCount,0)
+        XCTAssertTrue(f.engine.pendingHUDStars.isEmpty)
+    }
     func testGlobalPauseWallCleanupDiscardsNoRewardAndReleasesAfterRealJobThen120()async throws {
         let textures=NativeSourceHUDStarTexturePreparation(),prepared=try await prepare(textures),f=Fixture();defer{f.dispose();textures.dispose()}
         let score=f.engine.state.score;XCTAssertTrue(f.mount(prepared));XCTAssertTrue(f.service.setSourceGlobalPaused(true))
@@ -65,6 +96,7 @@ import StackToSixGameplay
         DispatchQueue.main.asyncAfter(deadline:.now()+2){wall.fulfill()};await fulfillment(of:[wall],timeout:3)
         XCTAssertEqual(f.arrivals,0);XCTAssertEqual(f.engine.state.score,score);XCTAssertTrue(f.engine.pendingHUDStars.isEmpty)
         XCTAssertEqual(f.retired,1);XCTAssertEqual(f.releases,1);XCTAssertNil(f.owner?.mountedContainer)
+        XCTAssertEqual(f.service.source60HzRenderDemandCount,0)
     }
     func testExplicitDisposalAndLateSourceDeliveryNeverAwardOrAffectNewGeneration()async throws {
         let textures=NativeSourceHUDStarTexturePreparation(),prepared=try await prepare(textures),f=Fixture();defer{f.dispose();textures.dispose()}

@@ -23,6 +23,52 @@ final class NativeJourneyRewardTests:XCTestCase {
     private func screen(_ clock:Clock,_ resources:Resources,reduced:Bool=false)->NativeJourneyRewardController {
         let screen=NativeJourneyRewardController(root:URL(fileURLWithPath:"/unused"),board:11,score:1000,generation:77,resources:resources,scheduler:clock,reducedMotion:reduced,random:{0.37},now:{clock.time});screen.prepareFilteredFrames={images,_,completion in completion(images)};screen.loadViewIfNeeded();screen.view.frame=CGRect(x:0,y:0,width:390,height:844);screen.view.layoutIfNeeded();return screen
     }
+    func testUnlockedBurnHasNoSweepAndFloorStaysBelowCardPose() {
+        let clock=Clock(),resources=Resources(),controller=screen(clock,resources)
+        let hero=controller.view.subviews.first{$0.accessibilityIdentifier=="native.reward.card"}!
+        let floor=hero.layer.sublayers!.first{$0.name=="native.reward.floor-shadow"}!
+        let pose=hero.layer.sublayers!.first{$0.name=="native.reward.card-pose"}!
+        XCTAssertLessThan(floor.zPosition,pose.zPosition)
+        func descendants(_ layer:CALayer)->[CALayer] {[layer]+(layer.sublayers ?? []).flatMap{descendants($0)}}
+        let burn=descendants(hero.layer).first{$0.name=="native.reward.unlocked-burn"}!
+        XCTAssertTrue((burn.sublayers ?? []).isEmpty)
+        let carrier=UIGraphicsImageRenderer(size:CGSize(width:2,height:2)).image {context in
+            UIColor(red:0.4,green:0.2,blue:0.1,alpha:1).setFill();context.fill(CGRect(x:0,y:0,width:1,height:2))
+        }
+        controller.prepareFilteredFrames={images,_,completion in
+            var prepared=images;for path in images.keys where path.contains("colelctibles") {prepared[path+"#burn"]=carrier};completion(prepared)
+        }
+        resources.finish();controller.start();controller.activate();clock.advance(1.1)
+        XCTAssertNotNil(burn.contents)
+        let pulse=burn.animation(forKey:"reward.opacity.0.0") as? CAKeyframeAnimation
+        XCTAssertNotNil(pulse);XCTAssertEqual(pulse?.duration ?? 0,0.5,accuracy:0.000001)
+        XCTAssertEqual(pulse?.keyTimes,[0,0.56,1].map{NSNumber(value:$0)})
+        XCTAssertEqual(pulse?.values as? [Int],[0,1,0])
+        XCTAssertNil(burn.animation(forKey:"transform"))
+        controller.dispose();XCTAssertTrue((burn.animationKeys() ?? []).isEmpty)
+    }
+    func testOffMainSelectedBurnCarrierChangesColorAndPreservesTransparentPixels() async {
+        let bytes:[UInt8]=[102,51,26,255,0,0,0,0,102,51,26,255,0,0,0,0]
+        let provider=CGDataProvider(data:Data(bytes) as CFData)!
+        let source=CGImage(width:2,height:2,bitsPerComponent:8,bitsPerPixel:32,bytesPerRow:8,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGBitmapInfo(rawValue:CGImageAlphaInfo.premultipliedLast.rawValue),provider:provider,decode:nil,shouldInterpolate:false,intent:.defaultIntent)!
+        let image=UIImage(cgImage:source,scale:1,orientation:.up)
+        let ready=expectation(description:"selected burn prepared")
+        let path="./assets/colelctibles/Forest/common/1@2x.png"
+        NativeRewardFilteredFrames.prepare([path:image],lease:NativeRewardPreparationLease()) {prepared in
+            guard let output=prepared[path+"#burn"]?.cgImage,let input=image.cgImage else {XCTFail("Burn carrier missing");ready.fulfill();return}
+            func pixels(_ cg:CGImage)->[UInt8] {
+                var bytes=[UInt8](repeating:0,count:16)
+                bytes.withUnsafeMutableBytes {storage in
+                    let context=CGContext(data:storage.baseAddress,width:2,height:2,bitsPerComponent:8,bytesPerRow:8,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue)!
+                    context.interpolationQuality = .none;context.draw(cg,in:CGRect(x:0,y:0,width:2,height:2))
+                };return bytes
+            }
+            let original=pixels(input),burn=pixels(output)
+            XCTAssertGreaterThan(burn[0],original[0]);XCTAssertEqual(burn[3],original[3]);XCTAssertEqual(original[3],255);XCTAssertEqual(original[7],0);XCTAssertEqual(burn[7],original[7])
+            ready.fulfill()
+        }
+        await fulfillment(of:[ready],timeout:3)
+    }
     func testCanonicalTSOracleProfilesGesturesAndCopy() {
         for (draws,expected) in NativeRewardOracleFixtures.profiles {
             var index=0;let value=NativeRewardPresentation.Tilt(random:{defer{index += 1};return draws[index]})

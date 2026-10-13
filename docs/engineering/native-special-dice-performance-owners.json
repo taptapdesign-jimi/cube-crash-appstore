@@ -161,7 +161,7 @@
       "archetype": "wild-magnet",
       "idleOwner": "native/gameplay-ui/NativeDiceNode.swift",
       "finaleOwner": "native/gameplay-area55/NativeSpaceshipFinalePresentation.swift",
-      "warmupPolicy": "Scene texture owner prepares preserved selected/restored live artwork only. One bounded resource lease per actual family presentation; no all-future-family startup decode. NativeAssets packaging is not runtime image preparation.",
+      "warmupPolicy": "Scene texture owner prepares preserved selected/restored live artwork only. One bounded resource lease per actual family presentation; no all-future-family startup decode. NativeAssets packaging is not runtime image preparation. Shared plain Magnet separately prepares its actual selected8bolt PNGs through NativeBoardTextures; NativeMagnetFinalePresentation owns sixteen finite screen-blended sprites and guarded off-main exact-size shadow composites on the existing Scene clock, without borrowing this variant artwork.",
       "cleanupPolicy": "NativeBoardScene generation and scene disposal retire tile/effect/media owners. NativeGameplayViewController retires visible finite carriers on generation replacement and disposal; background settles logical receipts before save and suspends/retire visual ownership. Late callbacks cannot reclaim another session. Actual Source Magnet main mounts the existing authored ship presentation while the transaction is active; pendingSpecial does not suppress its selected visual finale.",
       "hudDepthPolicy": "One SpriteKit board/HUD compositor, shared above-HUD effect depth and native UIKit foreground carriers for authored video/3D text. Larger art does not change stable gameplay hit footprint.",
       "tests": [
@@ -181,7 +181,9 @@
         "native/standalone/Stack to SixTests/NativeSharedVectorSpritePoolTests.swift",
         "native/standalone/Stack to SixTests/NativeSelectedFinaleRasterTests.swift",
         "native/standalone/Stack to SixTests/NativeMeterSelectedTextureHostTests.swift",
-        "native/standalone/Stack to SixTests/NativeRegularSixSharedLayersTests.swift"
+        "native/standalone/Stack to SixTests/NativeRegularSixSharedLayersTests.swift",
+        "native/standalone/Stack to SixTests/NativeMagnetBoltMotionTests.swift",
+        "native/standalone/Stack to SixTests/NativeMagnetFinaleTests.swift"
       ],
       "status": "IN PROGRESS. Registry/art/idle admission exists. Exact family enter/drag/finale/input timing is still tracked in parity matrix; missing staged skin presentation rejects before mutation. Resource ownership is not visual or physical acceptance.",
       "physicalAcceptance": "NEEDS PHYSICAL TEST: active simultaneous copies, rendered outputs, FPS, memory and thermal. User-requested ordinary merge6 particles and60Hz Star orbit are explicit visual deltas; original assets and authored variant finales retained.",
@@ -200,7 +202,7 @@
       "archetype": "wild-magnet",
       "idleOwner": "native/gameplay-ui/NativeDiceNode.swift",
       "finaleOwner": "native/gameplay-ui/NativeBottleFinalePresentation.swift",
-      "warmupPolicy": "Scene texture owner prepares preserved selected/restored live artwork only. One bounded resource lease per actual family presentation; no all-future-family startup decode. NativeAssets packaging is not runtime image preparation.",
+      "warmupPolicy": "Scene texture owner prepares preserved selected/restored live artwork only. One bounded resource lease per actual family presentation; no all-future-family startup decode. NativeAssets packaging is not runtime image preparation. Shared plain Magnet separately prepares its actual selected8bolt PNGs through NativeBoardTextures; NativeMagnetFinalePresentation owns sixteen finite screen-blended sprites and guarded off-main exact-size shadow composites on the existing Scene clock, without borrowing this variant artwork.",
       "cleanupPolicy": "NativeBoardScene generation and scene disposal retire tile/effect/media owners. NativeGameplayViewController retires visible finite carriers on generation replacement and disposal; background settles logical receipts before save and suspends/retire visual ownership. Late callbacks cannot reclaim another session.",
       "hudDepthPolicy": "One SpriteKit board/HUD compositor, shared above-HUD effect depth and native UIKit foreground carriers for authored video/3D text. Larger art does not change stable gameplay hit footprint.",
       "tests": [
@@ -220,7 +222,9 @@
         "native/standalone/Stack to SixTests/NativeSharedVectorSpritePoolTests.swift",
         "native/standalone/Stack to SixTests/NativeSelectedFinaleRasterTests.swift",
         "native/standalone/Stack to SixTests/NativeMeterSelectedTextureHostTests.swift",
-        "native/standalone/Stack to SixTests/NativeRegularSixSharedLayersTests.swift"
+        "native/standalone/Stack to SixTests/NativeRegularSixSharedLayersTests.swift",
+        "native/standalone/Stack to SixTests/NativeMagnetBoltMotionTests.swift",
+        "native/standalone/Stack to SixTests/NativeMagnetFinaleTests.swift"
       ],
       "status": "IN PROGRESS. Registry/art/idle admission exists. Exact family enter/drag/finale/input timing is still tracked in parity matrix; missing staged skin presentation rejects before mutation. Resource ownership is not visual or physical acceptance.",
       "physicalAcceptance": "NEEDS PHYSICAL TEST: active simultaneous copies, rendered outputs, FPS, memory and thermal. User-requested ordinary merge6 particles and60Hz Star orbit are explicit visual deltas; original assets and authored variant finales retained.",
@@ -239,7 +243,7 @@
       "archetype": "wild-magnet",
       "idleOwner": "native/gameplay-ui/NativeDiceNode.swift",
       "finaleOwner": "native/gameplay-ui/NativeHoneyFinalePresentation.swift",
-      "warmupPolicy": "Scene texture owner prepares preserved selected/restored live artwork only. One bounded resource lease per actual family presentation; no all-future-family startup decode. NativeAssets packaging is not runtime image preparation.",
+      "warmupPolicy": "Scene texture owner prepares preserved selected/restored live artwork only. One bounded resource lease per actual family presentation; no all-future-family startup decode. NativeAssets packaging is not runtime image preparation. Shared plain Magnet separately prepares its actual selected8bolt PNGs through NativeBoardTextures; NativeMagnetFinalePresentation owns sixteen finite screen-blended sprites and guarded off-main exact-size shadow composites on the existing Scene clock, without borrowing this variant artwork.",
       "cleanupPolicy": "NativeBoardScene generation and scene disposal retire tile/effect/media owners. NativeGameplayViewController retires visible finite carriers on generation replacement and disposal; background settles logical receipts before save and suspends/retire visual ownership. Late callbacks cannot reclaim another session.",
       "hudDepthPolicy": "One SpriteKit board/HUD compositor, shared above-HUD effect depth and native UIKit foreground carriers for authored video/3D text. Larger art does not change stable gameplay hit footprint.",
       "tests": [
@@ -258,7 +262,9 @@
         "native/standalone/Stack to SixTests/NativeSharedVectorSpritePoolTests.swift",
         "native/standalone/Stack to SixTests/NativeSelectedFinaleRasterTests.swift",
         "native/standalone/Stack to SixTests/NativeMeterSelectedTextureHostTests.swift",
-        "native/standalone/Stack to SixTests/NativeRegularSixSharedLayersTests.swift"
+        "native/standalone/Stack to SixTests/NativeRegularSixSharedLayersTests.swift",
+        "native/standalone/Stack to SixTests/NativeMagnetBoltMotionTests.swift",
+        "native/standalone/Stack to SixTests/NativeMagnetFinaleTests.swift"
       ],
       "status": "IN PROGRESS. Registry/art/idle admission exists. Exact family enter/drag/finale/input timing is still tracked in parity matrix; missing staged skin presentation rejects before mutation. Resource ownership is not visual or physical acceptance.",
       "physicalAcceptance": "NEEDS PHYSICAL TEST: active simultaneous copies, rendered outputs, FPS, memory and thermal. User-requested ordinary merge6 particles and60Hz Star orbit are explicit visual deltas; original assets and authored variant finales retained.",

@@ -162,15 +162,27 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         let count = Int(ceil(total*240)); let animation = CAKeyframeAnimation(keyPath:"transform")
         animation.values = (0...count).map { index -> NSValue in
             let time = Double(index)*total/Double(count)
-            let p = spatialProgress(max(0,min(1,(time-launch)/travel)),returning:returning)
+            let progress = max(0,min(1,(time-launch)/travel))
+            // PWA Play/Continue decelerates into the Unit before its resident
+            // landing punch/collapse. Back-in belongs to that later collapse,
+            // not the portal's spatial return.
+            let p = gameplay ? progress*progress*(3-2*progress) : spatialProgress(progress,returning:returning)
             let dx = to.midX-from.midX,dy = to.midY-from.midY,distance = hypot(dx,dy)
-            let bounded = min(1,max(0,p)), arc = distance < 1 ? 0 : min(34,max(14,distance*0.075))*sin(.pi*bounded)
+            let arcProgress = gameplay ? p : min(1,max(0,p))
+            let arc = distance < 1 ? 0 : min(34,max(14,distance*0.075))*sin(.pi*arcProgress)
             let direction:CGFloat = dx >= 0 ? 1 : -1
             let x = from.midX+dx*p-base.midX+(distance < 1 ? 0 : -dy/distance*arc*direction), y = from.midY+dy*p-base.midY+(distance < 1 ? 0 : dx/distance*arc*direction)
-            let width = from.width+(to.width-from.width)*p, height = from.height+(to.height-from.height)*p
+            // Match the PWA's up/down launch bounce, retaining the previously
+            // accepted 60% reduction of Native inflation. It returns to 1 before
+            // travel, so the portal and resident Unit share the exact landing pose.
+            let launchProgress = launch > 0 ? min(1,time/launch) : 1
+            let punch = gameplay ? 1+0.06*0.4*(1-abs(2*launchProgress-1)) : 1
+            func dimension(_ start:CGFloat,_ end:CGFloat)->CGFloat {
+                (start+(end-start)*p)*punch
+            }
+            let width = dimension(from.width,to.width), height = dimension(from.height,to.height)
             let rotation = returning ? startRotation+(originRotation-startRotation)*p : originRotation+(backTilt-originRotation)*p
             var transform = CATransform3DMakeTranslation(x,y,0); transform = CATransform3DRotate(transform,rotation,0,0,1); transform = CATransform3DScale(transform,width/base.width,height/base.height,1)
-            if gameplay && time < launch {let peak = 1+0.14*JimiV9Motion.Ease.backOut(2.4).value(time/launch);transform = CATransform3DScale(transform,peak,peak,1)}
             return NSValue(caTransform3D:transform)
         }
         animation.duration = UIAccessibility.isReduceMotionEnabled ? 0.18 : total

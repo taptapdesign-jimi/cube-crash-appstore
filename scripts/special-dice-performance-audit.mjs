@@ -56,6 +56,17 @@ for (const [id, archetype] of variants) {
   }
   // Native receipts have their own namespace; keep every original Source
   // regression mandatory. A Native path must never replace a Source test.
+  if (entry.nativeUIKitFinaleArtworkOwner !== undefined) {
+    const owner = typeof entry.nativeUIKitFinaleArtworkOwner === 'string' ? entry.nativeUIKitFinaleArtworkOwner.split(':')[0].trim() : '';
+    if (!/^native\/.+\.swift$/.test(owner) || !fs.existsSync(owner)) errors.push(`${id}: missing Native UIKit finale artwork owner`);
+    for (const field of ['nativeUIKitFinaleWarmupPolicy', 'nativeUIKitFinaleCleanupPolicy']) {
+      if (typeof entry[field] !== 'string' || !entry[field].trim()) errors.push(`${id}: missing ${field}`);
+    }
+    if (!Array.isArray(entry.nativeUIKitFinaleTests) || !entry.nativeUIKitFinaleTests.length) errors.push(`${id}: missing Native UIKit finale regressions`);
+    for (const test of entry.nativeUIKitFinaleTests ?? []) {
+      if (typeof test !== 'string' || !/^native\/.+Tests\.swift$/.test(test) || !fs.existsSync(test)) errors.push(`${id}: missing Native UIKit finale test ${String(test)}`);
+    }
+  }
   if (entry.nativeTests !== undefined || entry.nativeBlastOwner !== undefined) {
     const owner = typeof entry.nativeBlastOwner === 'string' ? entry.nativeBlastOwner.split(':')[0].trim() : '';
     if (!/^native\/.+\.swift$/.test(owner) || !fs.existsSync(owner)) errors.push(`${id}: missing Native blast owner file`);

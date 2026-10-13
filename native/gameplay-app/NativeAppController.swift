@@ -108,7 +108,7 @@ final class NativeAppController: UIViewController {
             guard let self,!self.transitioning,self.route == .home else{return false}
             self.motion.cancel();self.home.pauseHeroIdle();return true
         }
-        home.onPanEnded = { [weak self] index,_ in self?.selectSlide(index) }
+        home.onPanEnded = { [weak self] index,_ in self?.selectSlide(index,feedback:"tab-swipe") }
         hub.onBack = { [weak self] in self?.navigate(.home,interrupt:true) }
         hub.onWorld = { [weak self] id in self?.navigate(.world(id)) }
         settingsView.onBack = { [weak self] in self?.navigate(.home) }
@@ -146,9 +146,9 @@ final class NativeAppController: UIViewController {
         value["developerToolsAvailable"] = false // native diagnostics are separate; no web escape
         _ = settingsView.apply(value)
     }
-    private func selectSlide(_ index:Int) {
+    private func selectSlide(_ index:Int,feedback:String="tab") {
         guard !transitioning,route == .home else{return}
-        onFeedback?("tab")
+        onFeedback?(feedback)
         motion.selectSlide(index) { [weak self] in
             guard let self,self.route == .home,!self.suspended,!self.transitioning else{return}
             self.home.startHeroIdle()
@@ -204,6 +204,7 @@ final class NativeAppController: UIViewController {
         switch next {
         case .home:
             home.isHidden = false;home.selectSlide(home.selectedSlide,animated:false)
+            onFeedback?("home-haptic-enter")
             motion.animate(motion.homeTracks(enter:true),completion:admitted)
             let prepared=beforeHomeReveal;beforeHomeReveal=nil;prepared?()
         case .hub:

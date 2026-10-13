@@ -90,6 +90,7 @@ final class NativeResultOwnerTests:XCTestCase {
         let secondary=button(in:result.view,id:"native.result.exit")!
         XCTAssertEqual(primary.bounds.size,CGSize(width:249,height:64))
         XCTAssertEqual(secondary.bounds.size,CGSize(width:249,height:64))
+        XCTAssertEqual(primary.layer.cornerRadius,32);XCTAssertEqual(secondary.layer.cornerRadius,32)
         XCTAssertEqual(primary.center.x,195);XCTAssertEqual(secondary.center.y-primary.center.y,80)
         XCTAssertEqual(primary.transform.a,0)
         result.tick(0)
@@ -115,6 +116,7 @@ final class NativeResultOwnerTests:XCTestCase {
         result.view.frame=window.bounds;result.view.setNeedsLayout();result.view.layoutIfNeeded()
         let primary=button(in:result.view,id:"native.result.play-again")!
         XCTAssertEqual(primary.bounds.size,CGSize(width:249,height:64));XCTAssertFalse(primary.isUserInteractionEnabled)
+        XCTAssertEqual(primary.layer.cornerRadius,32)
         result.tick(0)
         for index in 1...15 {result.tick(Double(index)/10)}
         XCTAssertTrue(primary.isUserInteractionEnabled)

@@ -3,7 +3,7 @@ import UIKit
 import StackToSixGameplay
 
 /// Source distance-based touch trail: at most one burst per pointer frame.
-/// Particles have finite SpriteKit actions; a bounded pool owns their reuse.
+/// The existing board frame owner advances finite tails; a bounded pool owns reuse.
 struct NativeDragTrailCadence {
     var point:CGPoint?,at=0.0,carry=0.0
     mutating func reset(at point:CGPoint,time:Double){self.point=point;at=time;carry=0}
@@ -94,14 +94,17 @@ final class NativeDragTrail:SKNode {
         let texture=SKTexture(image:image);texture.filteringMode = .linear;return texture
     }
     private var cadence=NativeDragTrailCadence(),pool:[SKSpriteNode]=[]
+    private struct Tail {let node:SKSpriteNode,plan:NativeDragTrailParticlePlan;var bornAtMilliseconds:Double?;var elapsed:Double=0}
+    private var tails:[Tail]=[]
 #if DEBUG
     private(set) var textureAssignmentCount=0
 #endif
     private(set) var live=Set<SKSpriteNode>()
+    var onTailChanged:((Bool)->Void)?
     private var active=false,disposed=false
     private let random:()->Double
     init(random:@escaping ()->Double={Double.random(in:0..<1)}) {
-        self.random=random;super.init()
+        self.random=random;super.init();pool.reserveCapacity(128);tails.reserveCapacity(128);live.reserveCapacity(128)
         // Prepare the tiny shared silhouettes before the first pointer burst.
         _=Self.unitCircleTexture;_=Self.unitSquareTexture
     }
@@ -118,7 +121,7 @@ final class NativeDragTrail:SKNode {
         let fast=speed/Double(scale)>=0.65,count=style.wild ? (reduced ? 1:(fast ? 2:1)):(reduced ? (fast ? 3:2):(fast ? 4:3))
         for _ in 0..<count {
             guard live.count<128 else{break}
-            let particle=pool.popLast() ?? SKSpriteNode();particle.removeAllActions()
+            let particle=pool.popLast() ?? SKSpriteNode()
             let plan=style.wild ? NativeDragTrailParticlePlan.make(style:style,origin:origin,scale:scale,random:random):NativeDragTrailParticlePlan.makeRegular(origin:origin,scale:scale,random:random)
             let texture=plan.round ? Self.unitCircleTexture:Self.unitSquareTexture
             if particle.texture !== texture {
@@ -134,18 +137,37 @@ final class NativeDragTrail:SKNode {
             // Source Graphics fill alpha and node alpha both participate.
             let effectiveAlpha=plan.fill*plan.fill
             particle.alpha=effectiveAlpha;particle.zRotation=plan.rotation;particle.position=plan.start
-            addChild(particle);live.insert(particle)
-            particle.run(.sequence([.customAction(withDuration:plan.life){node,time in
-                let t=min(1,CGFloat(time)/CGFloat(plan.life)),p=1-(1-t)*(1-t)
-                node.position=CGPoint(x:plan.start.x+(plan.end.x-plan.start.x)*p,y:plan.start.y+(plan.end.y-plan.start.y)*p)
-                node.zRotation=plan.rotation+(plan.endRotation-plan.rotation)*p;node.alpha=effectiveAlpha*(1-p)
-            },.run{[weak self,weak particle] in
-                guard let self,let particle else{return};particle.removeFromParent();self.live.remove(particle)
-                if !self.disposed{self.pool.append(particle)}
-            }]),withKey:"native-drag-trail-tail")
+            if particle.parent !== self {addChild(particle)}
+            particle.isHidden=false;live.insert(particle)
+            let first=tails.isEmpty
+            tails.append(Tail(node:particle,plan:plan,bornAtMilliseconds:time))
+            if first {onTailChanged?(true)}
         }
     }
-    var hasTail:Bool {!live.isEmpty}
-    func clear(){active=false;for particle in live{particle.removeAllActions();particle.removeFromParent();pool.append(particle)};live.removeAll()}
-    func dispose(){guard !disposed else{return};clear();disposed=true;pool.removeAll();removeFromParent()}
+    /// Uses the Scene's existing elapsed frame time, so global suspension and
+    /// renderer cadence retain their owner. No per-particle actions or closures.
+    func advance(delta:Double,timeMilliseconds:Double?=nil) {
+        guard !disposed,delta.isFinite,delta>=0 else{return}
+        let hadTail = !tails.isEmpty
+        for index in tails.indices.reversed() {
+            let step:Double
+            if let born=tails[index].bornAtMilliseconds,let now=timeMilliseconds {
+                step=min(delta,max(0,(now-born)/1000))
+            } else {step=delta}
+            tails[index].bornAtMilliseconds=nil
+            tails[index].elapsed+=step
+            let tail=tails[index],plan=tail.plan,node=tail.node
+            let t=min(1,CGFloat(tail.elapsed/plan.life)),p=1-(1-t)*(1-t)
+            node.position=CGPoint(x:plan.start.x+(plan.end.x-plan.start.x)*p,y:plan.start.y+(plan.end.y-plan.start.y)*p)
+            node.zRotation=plan.rotation+(plan.endRotation-plan.rotation)*p;node.alpha=plan.fill*plan.fill*(1-p)
+            if tail.elapsed>=plan.life {
+                node.isHidden=true;live.remove(node);pool.append(node)
+                tails.swapAt(index,tails.count-1);tails.removeLast()
+            }
+        }
+        if hadTail,tails.isEmpty {onTailChanged?(false)}
+    }
+    var hasTail:Bool {!tails.isEmpty}
+    func clear(){let hadTail = !tails.isEmpty;active=false;for tail in tails{tail.node.isHidden=true;pool.append(tail.node)};tails.removeAll(keepingCapacity:true);live.removeAll(keepingCapacity:true);if hadTail {onTailChanged?(false)}}
+    func dispose(){guard !disposed else{return};clear();disposed=true;onTailChanged=nil;pool.removeAll();removeAllChildren();removeFromParent()}
 }

@@ -15,8 +15,8 @@ final class NativeLaserGunResources {
     let leftBeam: UIImage?
     let rightBeam: UIImage?
     var assetReady: Bool { frames.count == 6 && leftBeam != nil && rightBeam != nil }
-    init(resourceRoot: URL) {
-        let artwork = JimiV9Artwork(resourceRoot:resourceRoot)
+    init(resourceRoot: URL,preparedArtwork:JimiV9Artwork?=nil) {
+        let artwork = preparedArtwork ?? JimiV9Artwork(resourceRoot:resourceRoot)
         frames = (1...6).compactMap{artwork.image("assets/shop/gun/lasergun\($0)@2x.png")}
         leftBeam = artwork.image("assets/shop/gun/left laser@2x.png").flatMap(NativeLaserGunImpactPresentation.prepareBeam)
         rightBeam = artwork.image("assets/shop/gun/right laser@2x.png").flatMap(NativeLaserGunImpactPresentation.prepareBeam)

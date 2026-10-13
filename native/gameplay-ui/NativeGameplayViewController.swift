@@ -1,5 +1,7 @@
 import UIKit
 import SpriteKit
+import MetalKit
+import QuartzCore
 import StackToSixGameplay
 
 @MainActor
@@ -22,6 +24,14 @@ final class NativeGameplayViewController: UIViewController {
     var onBoardEntry: ((TimeInterval,[TimeInterval]) -> Void)?
     var onBoardArtworkFailure:(()->Void)?
     var onSourcePresentationFailure:(()->Void)?
+    struct SourcePresentationFailure:Equatable {
+        enum Kind:Equatable {case renderOwnership,phaseAuthority}
+        let reason:String
+        let generation:UInt64
+        let boardState:NativeBoardState
+        var kind:Kind {reason == "source_spawn_visual_safety_rejected" ? .renderOwnership:.phaseAuthority}
+    }
+    private(set) var sourcePresentationFailure:SourcePresentationFailure?
     private(set) var sourcePresentationFailureGeneration:UInt64?
     var journeyDecorCatalog:NativeJourneyBottomDecorCatalog?
     var journeyDecorResources:((URL)->NativeJourneyBottomDecorResourcePreparing)?
@@ -32,7 +42,13 @@ final class NativeGameplayViewController: UIViewController {
     private var endgameHint:NativeEndgameHintCoordinator?
     private weak var endgameHintSourceScope:NativeGameplaySourceContext.Scope?
     private let resourceRoot: URL
-    private let spriteView = SKView()
+    private let spriteView: UIView & NativeGameplaySurfaceControl
+    private static func makeRenderSurface()->(UIView & NativeGameplaySurfaceControl) {
+        if Bundle.main.bundleIdentifier == "com.taptapdesign.stacktosix.native",
+           ProcessInfo.processInfo.arguments.contains("--cc-owned-metal-renderer"),
+           let owned=NativeOwnedMetalGameplayView() { return owned }
+        return SKView()
+    }
     private let fishIdleOwner:NativeFishIdleOwner
     private let paperSurface:NativeAppPaperSurface
     private var preparedBoardEntryGeneration:UInt64?
@@ -135,14 +151,15 @@ final class NativeGameplayViewController: UIViewController {
     private var honeyGeneration: UInt64?
     private var lastRoboExitFrame:Int?
     private var laserResources:NativeLaserGunResources?
-    private var finaleVariantReadiness:[String:Bool] = [:]
-    private var tntVariantReadiness: [String:Bool] = [:]
+    private(set) var finaleArtworkOwner:NativeSelectedUIKitFinaleArtworkOwner?
     private var area55Finales: [String:NativeFinitePresentation] = [:]
     private var area55Generations: [String:UInt64] = [:]
     private var area55SourceOwnerIDs:[String:String]=[:]
 
-    init(engine: NativeGameplayEngine, resourceRoot: URL) {
+    init(engine: NativeGameplayEngine, resourceRoot: URL,
+         renderSurfaceFactory:(()->(UIView & NativeGameplaySurfaceControl))?=nil) {
         self.engine = engine; self.resourceRoot = resourceRoot
+        spriteView=renderSurfaceFactory?() ?? Self.makeRenderSurface()
         fishIdleOwner=NativeFishIdleOwner(resourceRoot:resourceRoot)
         paperSurface=NativeAppPaperSurface(artwork:JimiV9Artwork(resourceRoot:resourceRoot))
         super.init(nibName: nil, bundle: nil)
@@ -220,8 +237,18 @@ final class NativeGameplayViewController: UIViewController {
     override func loadView() {
         let root = UIView(); root.backgroundColor = NativeAppPaperSurface.base
         paperSurface.frame=root.bounds;paperSurface.autoresizingMask=[.flexibleWidth,.flexibleHeight];root.addSubview(paperSurface)
-        spriteView.backgroundColor = .clear; spriteView.allowsTransparency = true
-        spriteView.ignoresSiblingOrder = false; spriteView.preferredFramesPerSecond = 60
+        spriteView.backgroundColor = .clear
+        if let legacy=spriteView as? SKView {
+            legacy.allowsTransparency=true;legacy.ignoresSiblingOrder=false
+        }
+        spriteView.surfaceFrameRate=60
+        if let owned=spriteView as? NativeOwnedMetalGameplayView {
+            owned.diagnosticsEnabled=drawableBudgetDiagnosticsEnabled
+        }
+        // The preserved mobile PWA renders gameplay at one pixel per point.
+        // UIKit chrome remains at the screen scale; original textures and
+        // logical board geometry are independent of this render-surface budget.
+        spriteView.contentScaleFactor=1
         spriteView.frame = root.bounds; spriteView.autoresizingMask = [.flexibleWidth,.flexibleHeight]
         spriteView.accessibilityIdentifier = "native-gameplay-board"
         root.addSubview(spriteView)
@@ -311,10 +338,10 @@ final class NativeGameplayViewController: UIViewController {
                 return !self.disposed && self.boardScene === scene && scope.current && self.sourceScope === scope &&
                     self.engine.state.generation==generation && scene.sourceAnimationBindingAdmissionOpen
             }
-            guard current(),self.tntGlyphs[id]==nil,
+            guard current(),self.tntGlyphs[id]==nil,let artwork=self.selectedFinaleArtwork(),
                   let plan=NativeSourceSplashGlyphPlan.capture(text:"BOOM",random:{scope.mathRandom.next()},current:current),current() else{return false}
             let color=UIColor(red:241.0/255,green:132.0/255,blue:83.0/255,alpha:1)
-            let field=NativeSplashGlyphField(artwork:JimiV9Artwork(resourceRoot:self.resourceRoot),text:"BOOM",
+            let field=NativeSplashGlyphField(artwork:artwork,text:"BOOM",
                 colors:[color,color],splitIndex:0,deferExitRotationCapture:true,sourcePlan:plan)
             guard current(),self.tntGlyphs[id]==nil else{field.removeFromSuperview();return false}
             field.frame=self.view.bounds;field.autoresizingMask=[.flexibleWidth,.flexibleHeight]
@@ -355,8 +382,9 @@ final class NativeGameplayViewController: UIViewController {
             let glyphs: NativeSplashGlyphField
             if let existing = self.tntGlyphs[id] { glyphs = existing }
             else {
+                guard let artwork=self.selectedFinaleArtwork() else{return}
                 let color = UIColor(red: 241.0/255,green: 132.0/255,blue: 83.0/255,alpha: 1)
-                glyphs = NativeSplashGlyphField(artwork: JimiV9Artwork(resourceRoot: self.resourceRoot),text: "BOOM",colors: [color,color],splitIndex: 0)
+                glyphs = NativeSplashGlyphField(artwork: artwork,text: "BOOM",colors: [color,color],splitIndex: 0)
                 glyphs.frame = self.view.bounds; glyphs.autoresizingMask = [.flexibleWidth,.flexibleHeight]
                 self.view.addSubview(glyphs); self.tntGlyphs[id] = glyphs; glyphs.layoutIfNeeded()
             }
@@ -365,12 +393,13 @@ final class NativeGameplayViewController: UIViewController {
         scene.onSplashGlyphClock = { [weak self] variant,id,time,finished in
             guard let self else { return }
             if finished { self.tntGlyphs.removeValue(forKey: id)?.removeFromSuperview(); return }
-            guard !self.disposed,variant == "star" || variant == "juice" else { return }
+            guard !self.disposed,variant == "star" || variant == "juice" || variant == "magnet" else { return }
             let glyphs: NativeSplashGlyphField
             if let existing = self.tntGlyphs[id] { glyphs = existing }
             else {
+                guard let artwork=self.selectedFinaleArtwork() else{return}
                 let color = variant == "juice" ? UIColor(red: 1,green: 166.0/255,blue: 175.0/255,alpha: 1) : UIColor(red: 1,green: 203.0/255,blue: 129.0/255,alpha: 1)
-                glyphs = NativeSplashGlyphField(artwork: JimiV9Artwork(resourceRoot: self.resourceRoot),text: variant == "juice" ? "BUBBLY" : "SPARKLE",colors: [color],splitIndex: 0)
+                glyphs = NativeSplashGlyphField(artwork: artwork,text: variant == "magnet" ? "SWOOP":variant == "juice" ? "BUBBLY" : "SPARKLE",colors: [variant == "magnet" ? .white:color],splitIndex: 0)
                 glyphs.frame = self.view.bounds; glyphs.autoresizingMask = [.flexibleWidth,.flexibleHeight]
                 self.view.addSubview(glyphs); self.tntGlyphs[id] = glyphs; glyphs.layoutIfNeeded()
             }
@@ -408,6 +437,7 @@ final class NativeGameplayViewController: UIViewController {
             }
             owner.onFinished={ [weak self,weak owner] _ in
                 if self?.area55Finales["laser-gun"] === owner {self?.area55Finales.removeValue(forKey:"laser-gun");self?.area55Generations.removeValue(forKey:"laser-gun")}
+                if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                 completion()
             }
             owner.start();return true
@@ -423,10 +453,10 @@ final class NativeGameplayViewController: UIViewController {
             if variant == "spaceship" || variant == "laser-gun" {
                 let owner: NativeFinitePresentation,ready: Bool
                 if variant == "spaceship" {
-                    let spaceship = NativeSpaceshipFinalePresentation(resourceRoot: self.resourceRoot,viewport: self.view.bounds.size,origin: origin,generation: generation)
+                    let spaceship = NativeSpaceshipFinalePresentation(resourceRoot: self.resourceRoot,viewport: self.view.bounds.size,origin: origin,generation: generation,preparedArtwork:self.selectedFinaleArtwork())
                     owner = spaceship; ready = spaceship.assetReady
                 } else {
-                    let laser = NativeLaserGunFinalePresentation(resourceRoot: self.resourceRoot,viewport: self.view.bounds.size,origin: origin,generation: generation)
+                    let laser = NativeLaserGunFinalePresentation(resourceRoot: self.resourceRoot,viewport: self.view.bounds.size,origin: origin,generation: generation,preparedArtwork:self.selectedFinaleArtwork())
                     owner = laser; ready = laser.assetReady
                 }
                 guard ready else { owner.dispose(); return false }
@@ -444,6 +474,7 @@ final class NativeGameplayViewController: UIViewController {
                 owner.onFinished = { [weak self,weak owner] _ in
                     releaseSource?()
                     if self?.area55Finales[variant] === owner { self?.area55Finales.removeValue(forKey: variant); self?.area55Generations.removeValue(forKey: variant) }
+                    if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
                 owner.start(); return true
@@ -451,12 +482,12 @@ final class NativeGameplayViewController: UIViewController {
             if variant == "mushroom" || variant == "robo-cube" {
                 let owner:NativeFinitePresentation
                 if variant == "mushroom" {
-                    let mushroom=NativeMushroomFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size)
+                    let mushroom=NativeMushroomFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size,preparedArtwork:self.selectedFinaleArtwork())
                     guard mushroom.assetReady else {mushroom.dispose();return false}
                     mushroom.onHaptic={ [weak self] style in guard self?.engine.state.generation == generation else {return};self?.onHaptic?(style)}
                     owner=mushroom
                 } else {
-                    let robo=NativeRoboFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size,previousExitFrame:self.lastRoboExitFrame)
+                    let robo=NativeRoboFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size,previousExitFrame:self.lastRoboExitFrame,preparedArtwork:self.selectedFinaleArtwork())
                     guard robo.assetReady else {robo.dispose();return false}
                     robo.onHaptic={ [weak self] style in guard self?.engine.state.generation == generation else {return};self?.onHaptic?(style)}
                     robo.onExitFrameSelected={ [weak self] frame in guard self?.engine.state.generation == generation else {return};self?.lastRoboExitFrame=frame}
@@ -470,12 +501,13 @@ final class NativeGameplayViewController: UIViewController {
                     (owner as? NativeMushroomFinalePresentation)?.onHaptic=nil
                     (owner as? NativeRoboFinalePresentation)?.onHaptic=nil;(owner as? NativeRoboFinalePresentation)?.onExitFrameSelected=nil
                     if self?.area55Finales[variant] === owner {self?.area55Finales.removeValue(forKey:variant);self?.area55Generations.removeValue(forKey:variant)}
+                    if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
                 owner.start();return true
             }
             if variant == "cubero" {
-                let owner=NativeCuberoFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size)
+                let owner=NativeCuberoFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size,preparedArtwork:self.selectedFinaleArtwork())
                 guard owner.assetReady else {owner.dispose();return false}
                 self.area55Finales[variant]?.dispose()
                 self.area55Finales[variant]=owner;self.area55Generations[variant]=generation
@@ -487,12 +519,13 @@ final class NativeGameplayViewController: UIViewController {
                 owner.onFinished={ [weak self,weak owner] _ in
                     owner?.onHaptic=nil
                     if self?.area55Finales[variant] === owner {self?.area55Finales.removeValue(forKey:variant);self?.area55Generations.removeValue(forKey:variant)}
+                    if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
                 owner.start();return true
             }
             if variant == "bee" {
-                let owner=NativeBeeFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size,origin:origin)
+                let owner=NativeBeeFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size,origin:origin,preparedArtwork:self.selectedFinaleArtwork())
                 guard owner.assetReady else {owner.dispose();return false}
                 self.area55Finales[variant]?.dispose()
                 self.area55Finales[variant]=owner;self.area55Generations[variant]=generation
@@ -508,12 +541,13 @@ final class NativeGameplayViewController: UIViewController {
                 owner.onFinished={ [weak self,weak owner] _ in
                     owner?.onHaptic=nil
                     if self?.area55Finales[variant] === owner {self?.area55Finales.removeValue(forKey:variant);self?.area55Generations.removeValue(forKey:variant)}
+                    if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
                 owner.start();return true
             }
             if variant == "kanta" {
-                let owner = NativeKantaFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size)
+                let owner = NativeKantaFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size,preparedArtwork:self.selectedFinaleArtwork())
                 guard owner.assetReady else {owner.dispose();return false}
                 self.area55Finales[variant]?.dispose()
                 self.area55Finales[variant] = owner;self.area55Generations[variant] = generation
@@ -530,6 +564,7 @@ final class NativeGameplayViewController: UIViewController {
                 owner.onFinished = { [weak self,weak owner] _ in
                     owner?.onAudioFade = nil;owner?.onHaptic = nil
                     if self?.area55Finales[variant] === owner {self?.area55Finales.removeValue(forKey:variant);self?.area55Generations.removeValue(forKey:variant)}
+                    if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
                 owner.start();return true
@@ -538,7 +573,7 @@ final class NativeGameplayViewController: UIViewController {
                 self.area55Finales["spaceship"]?.dispose()
                 self.honeyFinale?.dispose()
                 self.bottleFinale?.dispose()
-                let owner = NativeBottleFinalePresentation(resourceRoot: self.resourceRoot,viewport: self.view.bounds.size)
+                let owner = NativeBottleFinalePresentation(resourceRoot: self.resourceRoot,viewport: self.view.bounds.size,preparedArtwork:self.selectedFinaleArtwork())
                 owner.autoresizingMask = [.flexibleWidth,.flexibleHeight]
                 self.bottleFinale = owner; self.bottleGeneration = generation; self.view.addSubview(owner)
                 owner.onCue = { [weak self] moment,index in
@@ -548,6 +583,7 @@ final class NativeGameplayViewController: UIViewController {
                 }
                 owner.onFinished = { [weak self,weak owner] _ in
                     if self?.bottleFinale === owner { self?.bottleFinale = nil; self?.bottleGeneration = nil }
+                    if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
                 owner.start(); return true
@@ -555,7 +591,7 @@ final class NativeGameplayViewController: UIViewController {
             if variant == "honey" {
                 self.area55Finales["spaceship"]?.dispose()
                 self.bottleFinale?.dispose(); self.honeyFinale?.dispose()
-                let owner = NativeHoneyFinalePresentation(resourceRoot: self.resourceRoot,viewport: self.view.bounds.size)
+                let owner = NativeHoneyFinalePresentation(resourceRoot: self.resourceRoot,viewport: self.view.bounds.size,preparedArtwork:self.selectedFinaleArtwork())
                 owner.autoresizingMask = [.flexibleWidth,.flexibleHeight]
                 self.honeyFinale = owner; self.honeyGeneration = generation; self.view.addSubview(owner)
                 owner.onCue = { [weak self] moment,index in
@@ -564,18 +600,20 @@ final class NativeGameplayViewController: UIViewController {
                 }
                 owner.onFinished = { [weak self,weak owner] _ in
                     if self?.honeyFinale === owner { self?.honeyFinale = nil; self?.honeyGeneration = nil }
+                    if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
                 owner.start(); return true
             }
             guard variant == "fish" else { return false }
             self.fishFinale?.dispose()
-            let owner = NativeFishFinalePresentation(resourceRoot: self.resourceRoot,origin: origin,viewport: self.view.bounds.size)
+            let owner = NativeFishFinalePresentation(resourceRoot: self.resourceRoot,origin: origin,viewport: self.view.bounds.size,preparedArtwork:self.selectedFinaleArtwork())
             owner.autoresizingMask = [.flexibleWidth,.flexibleHeight]
             self.fishFinale = owner; self.fishGeneration = generation; self.view.addSubview(owner)
             owner.onFinished = { [weak self,weak owner] success in
                 if self?.fishFinale === owner { self?.fishFinale = nil; self?.fishGeneration = nil }
                 if !success { NSLog("[NativeFishFinale] preserved HEVC rendering did not complete") }
+                if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                 completion()
             }
             owner.start(); return true
@@ -591,10 +629,22 @@ final class NativeGameplayViewController: UIViewController {
             if let generation = self?.bottleGeneration,generation != state.generation { self?.bottleFinale?.dispose() }
             if let generation = self?.honeyGeneration,generation != state.generation { self?.honeyFinale?.dispose() }
             if let self { for (variant,generation) in self.area55Generations where generation != state.generation { self.area55Finales[variant]?.dispose() } }
+            self?.prepareSelectedFinaleArtwork(state)
             self?.onStateChange?(state)
             self?.updateNativeEndgameHint()
         }
-        scene.onTerminal = { [weak self] result in self?.onTerminal?(result) }
+        scene.onTerminal = { [weak self] result in
+            guard let self,!self.disposed else{return}
+            guard result.kind == .complete,self.engine.state.tutorial?.requiresResultCompletion != true else {
+                self.onTerminal?(result);return
+            }
+            let generation=self.engine.state.generation
+            self.animateBoardExit(finalMerge:true) { [weak self,weak scene] completed in
+                guard let self,let scene,completed,!self.disposed,self.boardScene === scene,
+                      self.engine.state.generation==generation else{return}
+                self.onTerminal?(result)
+            }
+        }
         scene.onFirstBoardFrame = { [weak self] in
             guard let self,!self.disposed else{return}
             self.updateNativeEndgameHint()
@@ -639,26 +689,37 @@ final class NativeGameplayViewController: UIViewController {
         scene.onGameplayReceipt = { [weak self] event,source,destination,generation in self?.onGameplayReceipt?(event,source,destination,generation) }
         scene.onSpecialMoment = { [weak self] variant,moment,index in self?.onSpecialMoment?(variant,moment,index) }
         scene.onGameplayEvent = { [weak self] event in self?.onGameplayEvent?(event) }
-        scene.onFrameTarget={ [weak self] fps in
-            guard let self,!self.disposed,self.spriteView.preferredFramesPerSecond != fps else{return}
-            self.spriteView.preferredFramesPerSecond=fps
+        scene.onFrameTarget={ [weak self,weak scene] fps in
+            guard let self,!self.disposed,self.spriteView.surfaceFrameRate != fps else{return}
+            if fps<60 {scene?.retireSourceRendererDragTransport()}
+            self.spriteView.surfaceFrameRate=fps
+        }
+        scene.onRenderSurfacePreparation = { [weak self,weak scene] in
+            guard let self,let scene,!self.disposed,self.boardScene === scene,
+                  self.spriteView.renderedScene === scene else{return}
+            self.applyGameplayDrawableBudget()
         }
         // Registry suspension pauses shared SpriteKit motion, not Fish's
         // direct authored media. Only its pointer or route lifecycle hides it.
-        scene.onRenderingDemand = { [weak self] active in
+        scene.onRenderingDemand = { [weak self,weak scene] active in
             guard let self, !self.disposed else { return }
-            self.spriteView.isPaused = !active || self.backgrounded || (self.explicitlySuspended && !self.exitingBoard)
+            let paused = !active || self.backgrounded || (self.explicitlySuspended && !self.exitingBoard)
+            if paused {scene?.retireSourceRendererDragTransport()}
+            self.spriteView.surfacePaused = paused
         }
         boardScene = scene
         scene.onSourcePresentationFailure = {[weak self,weak scene] reason,generation in
             guard let self,let scene,!self.disposed,self.boardScene === scene,let scope=self.sourceScope,scope.current,
                 self.engine.state.generation==generation,self.sourcePresentationFailureGeneration != generation else{return}
+            self.finaleArtworkOwner?.dispose();self.finaleArtworkOwner=nil
             self.sourcePresentationFailureGeneration=generation
+            self.sourcePresentationFailure = .init(reason:reason,generation:generation,boardState:self.engine.state)
             guard scene.sealSourcePresentationFailure(generation:generation),!self.disposed,self.boardScene === scene,
                 self.engine.state.generation==generation else{return}
             NSLog("[NativeSourcePresentation] captured generation %llu retired: %@",generation,reason)
             self.onSourcePresentationFailure?()
         }
+        prepareSelectedFinaleArtwork(engine.state)
         prepareSourceNoMovesSceneBinding()
         prepareNativeNoMovesPresentation()
         observations = [
@@ -679,6 +740,9 @@ final class NativeGameplayViewController: UIViewController {
     }
     private func layoutGameplayPresentation() {
         guard !disposed,let boardScene,spriteView.bounds.width > 0,spriteView.bounds.height > 0 else { return }
+        // Window attachment can restore the screen's default render density.
+        if spriteView.contentScaleFactor != 1 {spriteView.contentScaleFactor=1}
+        applyGameplayDrawableBudget()
         journeyBottomDecor?.frame=view.bounds
         if !hasPresentedScene,!initialEntryGateReleased,beforeInitialBoardEntry != nil || journeyBottomDecor != nil {
             if !initialEntryGateRequested {
@@ -850,9 +914,66 @@ final class NativeGameplayViewController: UIViewController {
             }
             boardScene.prepareSourceBoardEntry()
             if preparedSourceSave {boardScene.synchronize(animateEntry:true)}
-            hasPresentedScene=true;spriteView.presentScene(boardScene)
+            hasPresentedScene=true
+            guard spriteView.presentGameplayScene(boardScene) else {
+                hasPresentedScene=false
+                boardScene.onSourcePresentationFailure?("native_render_host_mount_refused",engine.state.generation)
+                return
+            }
+            applyGameplayDrawableBudget()
             // Artwork admission is independent of the optional board wave.
             if !boardScene.isHUDRevealPending {revealJourneyBottomDecor()}
+        }
+    }
+    // Uses the same opt-in admission as Scene diagnostics. No sampling timer
+    // or layout/resource walk; counters are read by the existing capture owner.
+    var drawableBudgetDiagnosticsEnabled=NativeDiagnosticsCapture.admitted(arguments:ProcessInfo.processInfo.arguments,
+        bundleIdentifier:Bundle.main.bundleIdentifier,preferenceEnabled:UserDefaults.standard.bool(forKey:"cc.performanceDiagnostics"))
+    private var drawableBudgetCalls=0,drawableBudgetWrites=0
+    private var drawableBudgetBefore=CGSize.zero,drawableBudgetAfter=CGSize.zero,drawableBudgetDesired=CGSize.zero
+    private var drawableBudgetLastWriteBefore=CGSize.zero,drawableBudgetLastWriteAfter=CGSize.zero
+    private var drawableBudgetWorstMilliseconds=0.0
+    func drawableBudgetDiagnosticSnapshot()->[String:Any] {
+        guard drawableBudgetDiagnosticsEnabled else{return [:]}
+        func dimensions(_ size:CGSize)->[Double] {[Double(size.width),Double(size.height)]}
+        var snapshot:[String:Any] = ["calls":drawableBudgetCalls,"actualWrites":drawableBudgetWrites,
+            "lastBeforePixels":dimensions(drawableBudgetBefore),"lastAfterPixels":dimensions(drawableBudgetAfter),
+            "desiredPixels":dimensions(drawableBudgetDesired),
+            "lastWriteBeforePixels":dimensions(drawableBudgetLastWriteBefore),
+            "lastWriteAfterPixels":dimensions(drawableBudgetLastWriteAfter),
+            "worstMilliseconds":drawableBudgetWorstMilliseconds,
+            "renderingMode":spriteView is NativeOwnedMetalGameplayView ? "owned-metal" : ((spriteView as? SKView)?.isAsynchronous == true ? "asynchronous":"synchronous"),
+            "preferredFramesPerSecond":spriteView.surfaceFrameRate,
+            "contentScaleFactor":Double(spriteView.contentScaleFactor)]
+        if let legacy=spriteView as? SKView {snapshot["isAsynchronous"]=legacy.isAsynchronous}
+        if let owned=spriteView as? NativeOwnedMetalGameplayView {
+            snapshot["ownedMetal"]=owned.diagnosticSnapshot()
+        }
+        if let surface=spriteView.layer as? CAMetalLayer {
+            snapshot["presentsWithTransaction"]=surface.presentsWithTransaction
+            snapshot["maximumDrawableCount"]=surface.maximumDrawableCount
+        }
+        return snapshot
+    }
+    private func applyGameplayDrawableBudget() {
+        // SpriteKit sizes its drawable explicitly; changing UIView density
+        // alone leaves the native-resolution Metal target unchanged.
+        guard let surface=spriteView.layer as? CAMetalLayer,
+              spriteView.bounds.width>0,spriteView.bounds.height>0 else{return}
+        let diagnosticStart=drawableBudgetDiagnosticsEnabled ? CACurrentMediaTime():nil
+        let pixels=spriteView.bounds.size,before=surface.drawableSize
+        if before != pixels {
+            if let owned=spriteView as? NativeOwnedMetalGameplayView {owned.drawableSize=pixels}
+            else {surface.drawableSize=pixels}
+        }
+        if let diagnosticStart {
+            drawableBudgetCalls+=1
+            let after=surface.drawableSize
+            drawableBudgetBefore=before;drawableBudgetAfter=after;drawableBudgetDesired=pixels
+            if before != pixels {
+                drawableBudgetWrites+=1;drawableBudgetLastWriteBefore=before;drawableBudgetLastWriteAfter=after
+            }
+            drawableBudgetWorstMilliseconds=max(drawableBudgetWorstMilliseconds,(CACurrentMediaTime()-diagnosticStart)*1000)
         }
     }
     override func viewDidDisappear(_ animated: Bool) {
@@ -868,56 +989,60 @@ final class NativeGameplayViewController: UIViewController {
         boardScene?.handleMemoryWarning()
     }
 
-    private func finaleArtworkReady(_ variant:String)->Bool {
-        guard !disposed else {return false}
-        if let cached=finaleVariantReadiness[variant] {return cached}
-        if ["flower","barell","beach-ball"].contains(variant) {return tntArtworkReady(variant)}
-        let paths:[String]
-        switch variant {
-        case "kanta":paths=["assets/journey assets/robo/robo1.png","assets/journey assets/robo/robo frontalni.png"]+["01","03","04","kante-ljevo","kante-sredina","kante-desno"].map {"assets/shop/kanta/\($0).png"}
-        case "mushroom":paths=NativeMushroomFinalePresentation.assets
-        case "robo-cube":paths=NativeRoboFinalePresentation.assets
-        case "cubero":paths=(1...7).map {"assets/shop/cubero/krpa\($0).png"}
-        case "bee":paths=(1...4).map {"assets/shop/bee/bee\($0).png"}+(1...6).map {"assets/shop/bee/leaf\($0).png"}+["assets/shop/honey/bee1.png","assets/shop/honey/bee3.png"]
-        case "honey":paths=(1...7).map {"assets/shop/honey/bee\($0).png"}
-        case "bottle":paths=NativeBottleFinaleMotion.layers.map {"assets/shop/bottle/bottle animation pack/\($0.asset).png"}+(1...6).map {"assets/shop/bottle/bottle animation pack/bubble\($0).png"}
-        case "laser-gun":paths=(1...3).map {"assets/shop/gun/lasergun\($0)@2x.png"}
-        case "spaceship":paths=(1...4).map {"assets/shop/spaceship/saucer\($0)@2x.png"}+["assets/shop/spaceship/leftbeam@2x.png","assets/shop/spaceship/rightbeam@2x.png","assets/tile@2x.png"]+NativeArea55Motion.debris.compactMap(\.source)
-        case "fish":
-            let ready=["assets/shop/fish/fish-mobile-hevc.mov","assets/shop/fish/bubbly-fast-hevc.mov"].allSatisfy {FileManager.default.fileExists(atPath:resourceRoot.appendingPathComponent($0).path)}
-            finaleVariantReadiness[variant]=ready;return ready
-        default:return false
+    func selectedFinaleArtwork()->JimiV9Artwork? {
+        guard !disposed,sourcePresentationFailureGeneration != engine.state.generation else{return nil}
+        if finaleArtworkOwner?.generation != engine.state.generation {
+            finaleArtworkOwner?.dispose();laserResources=nil
+            let generation=engine.state.generation
+            finaleArtworkOwner=NativeSelectedUIKitFinaleArtworkOwner(root:resourceRoot,generation:generation,current:{[weak self] in
+                guard let self else{return false}
+                return !self.disposed && self.engine.state.generation==generation && self.sourcePresentationFailureGeneration != generation
+            })
         }
-        let artwork=JimiV9Artwork(resourceRoot:resourceRoot)
-        let ready=paths.allSatisfy {artwork.image($0,densityAware:true) != nil}
-        finaleVariantReadiness[variant]=ready;return ready
+        return finaleArtworkOwner?.artwork
     }
-
-    private func tntArtworkReady(_ variant: String) -> Bool {
-        if variant == "laser-gun" {
-            if laserResources == nil {laserResources=NativeLaserGunResources(resourceRoot:resourceRoot)}
-            return laserResources.map {NativeLaserGunImpactPresentation.resourcesReady($0)} == true
+    private func prepareSelectedFinaleArtwork(_ state:NativeBoardState) {
+        guard state.generation==engine.state.generation,selectedFinaleArtwork() != nil else{return}
+        // Only actual selected/restored variants, never the entire reward pool.
+        // This runs at selection publication, before the meter drop/next merge.
+        var variants=Set(state.tiles.filter(\.isWild).compactMap(\.variant)).union(area55Finales.keys)
+        if state.tiles.contains(where:{$0.gameplayArchetype == .magnet && $0.variant==nil}) {boardScene?.preparePlainMagnetFinaleTextures()}
+        if bottleFinale != nil {variants.insert("bottle")}
+        if honeyFinale != nil {variants.insert("honey")}
+        if fishFinale != nil {variants.insert("fish")}
+        finaleArtworkOwner?.setSuspended(backgrounded || explicitlySuspended && !exitingBoard)
+        finaleArtworkOwner?.retain(variants:variants)
+        for variant in variants {finaleArtworkOwner?.prepare(variant:variant)}
+    }
+    private func finaleArtworkReady(_ variant:String)->Bool {
+        guard !disposed,let artwork=selectedFinaleArtwork() else{return false}
+        if ["flower","barell","beach-ball"].contains(variant) {return tntArtworkReady(variant)}
+        if variant=="fish" {
+            return ["assets/shop/fish/fish-mobile-hevc.mov","assets/shop/fish/bubbly-fast-hevc.mov"].allSatisfy{FileManager.default.fileExists(atPath:resourceRoot.appendingPathComponent($0).path)}
         }
-        if let cached = tntVariantReadiness[variant] { return cached }
-        let paths: [String]
-        if variant == "flower" { paths = NativeTntVariantPresentation.assets(.flower) }
-        else if variant == "barell" { paths = NativeTntVariantPresentation.assets(.barell) }
-        else if variant == "beach-ball" { paths = NativeBeachBallPresentation.assets }
-        else { return false }
-        let artwork = JimiV9Artwork(resourceRoot:resourceRoot)
-        let ready = paths.allSatisfy { artwork.image($0.replacingOccurrences(of:"@2x.png",with:".png"),densityAware:true) != nil }
-        tntVariantReadiness[variant] = ready; return ready
+        guard let specs=NativeSelectedUIKitFinaleArtworkOwner.assets(variant) else{return false}
+        return specs.allSatisfy{artwork.image($0.path,densityAware:$0.densityAware) != nil}
+    }
+    private func tntArtworkReady(_ variant:String)->Bool {
+        guard !disposed,let artwork=selectedFinaleArtwork() else{return false}
+        if variant=="laser-gun" {
+            if laserResources==nil {laserResources=NativeLaserGunResources(resourceRoot:resourceRoot,preparedArtwork:artwork)}
+            return laserResources.map{NativeLaserGunImpactPresentation.resourcesReady($0)}==true
+        }
+        guard ["flower","barell","beach-ball"].contains(variant),
+              let specs=NativeSelectedUIKitFinaleArtworkOwner.assets(variant) else{return false}
+        return specs.allSatisfy{artwork.image($0.path,densityAware:$0.densityAware) != nil}
     }
 
     private func presentTntVariant(_ variant: String,generation: UInt64,onGameplayReady: (() -> Void)?,completion: @escaping () -> Void) -> Bool {
         guard !disposed,engine.state.generation == generation,tntArtworkReady(variant) else { return false }
         let owner: NativeFinitePresentation
         if variant == "beach-ball" {
-            let ball = NativeBeachBallPresentation(resourceRoot:resourceRoot,viewport:view.bounds.size)
+            let ball = NativeBeachBallPresentation(resourceRoot:resourceRoot,viewport:view.bounds.size,preparedArtwork:selectedFinaleArtwork())
             guard ball.assetsReady else { ball.dispose(); return false }
             ball.onGameplayReady = onGameplayReady; owner = ball
         } else {
-            let tnt = NativeTntVariantPresentation(resourceRoot:resourceRoot,variant:variant == "flower" ? .flower:.barell,viewport:view.bounds.size)
+            let tnt = NativeTntVariantPresentation(resourceRoot:resourceRoot,variant:variant == "flower" ? .flower:.barell,viewport:view.bounds.size,preparedArtwork:selectedFinaleArtwork())
             guard tnt.assetsReady else { tnt.dispose(); return false }
             tnt.onSprite6Entered = onGameplayReady; owner = tnt
         }
@@ -935,6 +1060,7 @@ final class NativeGameplayViewController: UIViewController {
         owner.onFinished = { [weak self,weak owner] _ in
             releaseSource?()
             if self?.area55Finales[variant] === owner {self?.area55Finales.removeValue(forKey:variant);self?.area55Generations.removeValue(forKey:variant)}
+            if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
             completion()
         }
         owner.start(); return true
@@ -982,6 +1108,8 @@ final class NativeGameplayViewController: UIViewController {
     private func applySuspension() {
         guard !disposed else { return }
         let value = backgrounded || (explicitlySuspended && !exitingBoard)
+        finaleArtworkOwner?.setSuspended(value)
+        if !value {prepareSelectedFinaleArtwork(engine.state)}
         if value {endgameHint?.forceClear()}
         nativeNoMovesUIKit?.setSuspended(value)
         sourceScope?.update(foreground: !backgrounded, globalPaused: explicitlySuspended && !exitingBoard,
@@ -1013,6 +1141,7 @@ final class NativeGameplayViewController: UIViewController {
     }
 
     func refreshFromEngine() {
+        prepareSelectedFinaleArtwork(engine.state)
         if sourceNoMovesInstalledGeneration != engine.state.generation {
             retireSourceNoMovesUIKit()
             prepareSourceNoMovesSceneBinding()
@@ -1140,10 +1269,22 @@ final class NativeGameplayViewController: UIViewController {
             scene.sourceNoMovesPresentationEnabled=self.sourceNoMovesPresentationEnabled
             let terminal=NativeSourceNoMovesTerminalRegistryEndpoint(scope:scope.registries,engine:self.engine)
             let installed=scene.configureSourceNoMoves(bindings:ownedBindings,
-                showText:{[weak owner] plan,gen in _=owner?.show(generation:gen,receipt:plan.token)},
-                beginTextExit:{[weak owner] gen,reply in
-                    guard let owner else{reply(false);return};owner.beginExit(generation:gen,completion:reply)
-                },clearText:{[weak owner] in owner?.clear()},
+                showText:{[weak owner,weak scene] plan,gen in
+                    _=owner?.show(generation:gen,receipt:plan.token)
+                    scene?.traceNoMovesHandoff("text-show",token:plan.token,owner:owner?.presentation,mounted:owner?.presentation?.superview != nil)
+                },
+                beginTextExit:{[weak owner,weak scene] gen,reply in
+                    guard let owner else{reply(false);return}
+                    let presentation=owner.presentation
+                    scene?.traceNoMovesHandoff("text-exit-begin",owner:presentation,mounted:presentation?.superview != nil)
+                    owner.beginExit(generation:gen,completion:{[weak presentation,weak scene] success in
+                        scene?.traceNoMovesHandoff(success ? "text-exit-complete":"text-exit-rejected",owner:presentation,mounted:presentation?.superview != nil)
+                        reply(success)
+                    })
+                },clearText:{[weak owner,weak scene] in
+                    scene?.traceNoMovesHandoff("text-clear",owner:owner?.presentation,mounted:owner?.presentation?.superview != nil)
+                    owner?.clear()
+                },
                 confirmedBoardExit:{[weak self,weak scene] gen,reply in
                     guard let self,let scene,!self.disposed,self.boardScene === scene,
                         self.engine.state.generation==gen else{reply(false);return}
@@ -1168,6 +1309,7 @@ final class NativeGameplayViewController: UIViewController {
             let plan=engine.pendingSourceNoMoves,let flow=engine.sourceNoMovesFinalFlowReceipt,flow.generation==generation,flow.planToken==plan.token,engine.state.generation==generation,
             let scope=sourceScope,scope.current,sourceConfirmedFailHandoff==nil else{completion(false);return}
         let epoch=sourceNoMovesUIKitEpoch
+        scene.traceNoMovesHandoff("confirmed-fail-clear",token:plan.token,owner:sourceNoMovesUIKit?.presentation,mounted:sourceNoMovesUIKit?.presentation?.superview != nil)
         sourceNoMovesUIKit?.clear() // literal showFinalScreen before wall wait
         guard !disposed,sourceNoMovesUIKitEpoch==epoch,boardScene === scene,sourceNoMovesTerminalRegistry === endpoint,scope.current,engine.state.generation==generation else{completion(false);return}
         let owner=NativeSourceConfirmedFailHandoff(wait:{[weak scene] gen,ms,elapsed,cancelled in
@@ -1211,10 +1353,11 @@ final class NativeGameplayViewController: UIViewController {
         // its registry lease already unhooked; Core still seals the old flow.
         return engine.finishSourceNoMovesFinalCleanup(receipt:receipt)
     }
-    func animateBoardExit(completion: @escaping (Bool) -> Void) {
+    func animateBoardExit(finalMerge:Bool=false,completion: @escaping (Bool) -> Void) {
         guard let boardScene,!disposed,!exitingBoard else {completion(false);return}
+        if let plan=engine.pendingSourceNoMoves {boardScene.traceNoMovesHandoff("board-exit-begin",token:plan.token)}
         exitingBoard=true
-        if sourceNoMovesPresentationEnabled {applySuspension()}
+        applySuspension()
         journeyBottomDecor?.setSuspended(backgrounded)
         var remaining=journeyBottomDecor == nil ? 1:2,finished=false
         let generation=engine.state.generation
@@ -1224,10 +1367,20 @@ final class NativeGameplayViewController: UIViewController {
                 finished=true;self?.exitingBoard=false;completion(false);return
             }
             remaining -= 1
-            if remaining==0 {finished=true;self.exitingBoard=false;completion(true)}
+            if remaining==0 {
+                finished=true;self.exitingBoard=false
+                if let plan=self.engine.pendingSourceNoMoves {self.boardScene?.traceNoMovesHandoff("board-exit-complete",token:plan.token)}
+                completion(true)
+            }
         }
-        journeyBottomDecor?.exit(completion:settled)
-        boardScene.animateExit(completion:settled)
+        if finalMerge {
+            boardScene.animateExit(afterResidualExit:{ [weak self] in
+                self?.journeyBottomDecor?.exit(completion:settled)
+            },completion:settled)
+        } else {
+            journeyBottomDecor?.exit(completion:settled)
+            boardScene.animateExit(completion:settled)
+        }
     }
 
     /// Preparation runs while the themed carrier is moving. Its opaque cover
@@ -1277,6 +1430,7 @@ final class NativeGameplayViewController: UIViewController {
         incomingOriginalCoverCompletion=nil;incomingOriginalCoverGeneration=nil
         disposed = true;nativeNoMovesUIKit?.dispose();nativeNoMovesUIKit=nil;endgameHint?.dispose();endgameHint=nil;endgameHintSourceScope=nil;firstBoardFrameWaiters.removeAll();laserResources=nil;beforeInitialBoardEntry = nil
         sourceDirectHUDPrepared=nil
+        finaleArtworkOwner?.dispose();finaleArtworkOwner=nil
         retireSourceNoMovesUIKit();sourceNoMovesBindings=nil
 
         let replies=decorWaiters;decorWaiters.removeAll();decorPreparing=false
@@ -1290,9 +1444,85 @@ final class NativeGameplayViewController: UIViewController {
         Array(area55Finales.values).forEach { $0.dispose() }; area55Finales.removeAll(); area55Generations.removeAll();area55SourceOwnerIDs.removeAll()
         sourceScope?.dispose(); sourceScope = nil; sourceContext = nil
         boardScene?.dispose(); boardScene = nil;
-        sourceTntGlyphScopes.removeAll();sourceTntGlyphOwnerIDs.removeAll();tntGlyphs.values.forEach { $0.removeFromSuperview() }; tntGlyphs.removeAll(); spriteView.presentScene(nil); spriteView.isPaused = true
+        sourceTntGlyphScopes.removeAll();sourceTntGlyphOwnerIDs.removeAll();tntGlyphs.values.forEach { $0.removeFromSuperview() }; tntGlyphs.removeAll(); spriteView.presentGameplayScene(nil); spriteView.surfacePaused = true
         onSourceGuidedSnapBack=nil;onSourceTutorialRetired=nil;onSourceTutorialPrepared=nil
         onSourceBoardEntrySound=nil;onSourceBoardEntryCompleted=nil
         onExit = nil; onStateChange = nil; onTerminal = nil; onGameplayEvent = nil; onHelp = nil; onScore = nil; onCombo = nil; onPointerState = nil; onHaptic = nil; onBoardEntry = nil; onGameplayReceipt = nil; onSpecialMoment = nil; onSpecialFadeCapture = nil
+    }
+}
+
+/// One selected/restored UIKit finale bitmap owner per gameplay generation.
+/// It has no clock/input/gameplay lease. Presentation borrows this same artwork;
+/// queued raster work is serial, coalesced, and retired with the generation.
+@MainActor final class NativeSelectedUIKitFinaleArtworkOwner {
+    struct Asset:Equatable {let path:String;let densityAware:Bool}
+    let generation:UInt64,artwork:JimiV9Artwork
+    private let current:()->Bool
+    private var disposed=false,suspended=false
+    private(set) var selected:Set<String>=[]
+    private(set) var pendingFamilies:Set<String>=[]
+    private(set) var readyFamilies:Set<String>=[]
+    init(root:URL,generation:UInt64,current:@escaping()->Bool) {
+        self.generation=generation;self.current=current;artwork=JimiV9Artwork(resourceRoot:root)
+        // Plain Star/juice also borrow the generation font before their first paint.
+        _=artwork.font(size:32,weight:"ExtraBold")
+    }
+    static func assets(_ variant:String)->[Asset]? {
+        let paths:[String]
+        switch variant {
+        case "flower":paths=NativeTntVariantPresentation.assets(.flower).map{$0.replacingOccurrences(of:"@2x.png",with:".png")}
+        case "barell":paths=NativeTntVariantPresentation.assets(.barell).map{$0.replacingOccurrences(of:"@2x.png",with:".png")}
+        case "beach-ball":paths=NativeBeachBallPresentation.assets
+        case "kanta":paths=["assets/journey assets/robo/robo1.png","assets/journey assets/robo/robo frontalni.png"]+["01","03","04","kante-ljevo","kante-sredina","kante-desno"].map{"assets/shop/kanta/\($0).png"}
+        case "mushroom":paths=NativeMushroomFinalePresentation.assets
+        case "robo-cube":paths=NativeRoboFinalePresentation.assets
+        case "cubero":paths=(1...7).map{"assets/shop/cubero/krpa\($0).png"}
+        case "bee":paths=(1...4).map{"assets/shop/bee/bee\($0).png"}+(1...6).map{"assets/shop/bee/leaf\($0).png"}+["assets/shop/honey/bee1.png","assets/shop/honey/bee3.png"]
+        case "honey":paths=(1...7).map{"assets/shop/honey/bee\($0).png"}
+        case "bottle":paths=NativeBottleFinaleMotion.layers.map{"assets/shop/bottle/bottle animation pack/\($0.asset).png"}+(1...6).map{"assets/shop/bottle/bottle animation pack/bubble\($0).png"}
+        case "laser-gun":paths=(1...6).map{"assets/shop/gun/lasergun\($0)@2x.png"}+["assets/shop/gun/left laser@2x.png","assets/shop/gun/right laser@2x.png"]
+        case "spaceship":paths=(1...4).map{"assets/shop/spaceship/saucer\($0)@2x.png"}+["assets/shop/spaceship/leftbeam@2x.png","assets/shop/spaceship/rightbeam@2x.png","assets/tile@2x.png"]+NativeArea55Motion.debris.compactMap(\.source)
+        case "fish":paths=[] // Existing AVPlayer owner retains exact HEVC lifecycle.
+        default:return nil
+        }
+        // Authored explicit @2x callers keep their scale1 UIImage semantics;
+        // density-aware callers keep the same canonical high-density selector.
+        return paths.map{Asset(path:$0,densityAware:variant != "spaceship" && variant != "laser-gun")}
+    }
+    func prepare(variant:String) {
+        guard !disposed,!suspended,current(),!selected.contains(variant),let specs=Self.assets(variant) else{return}
+        selected.insert(variant);pendingFamilies.insert(variant)
+        _=artwork.font(size:32,weight:"ExtraBold")
+        if specs.isEmpty {pendingFamilies.remove(variant);readyFamilies.insert(variant);return}
+        var remaining=specs.count,failed=false
+        for spec in specs {
+            artwork.prepareImage(spec.path,densityAware:spec.densityAware){[weak self] image in
+                guard let self,!self.disposed,self.current() else{return}
+                remaining-=1;failed = failed || image==nil
+                if remaining==0 {
+                    self.pendingFamilies.remove(variant)
+                    if !failed {self.readyFamilies.insert(variant)}
+                    else {self.selected.remove(variant)} // genuine missing asset may retry.
+                }
+            }
+        }
+    }
+    func setSuspended(_ value:Bool) {
+        guard !disposed,suspended != value else{return};suspended=value
+        if value {
+            selected.subtract(pendingFamilies);pendingFamilies.removeAll()
+            artwork.cancelPendingImagePreparation()
+        }
+    }
+    func retain(variants:Set<String>) {
+        guard !disposed,current() else{return}
+        selected.formIntersection(variants);pendingFamilies.formIntersection(variants);readyFamilies.formIntersection(variants)
+        let specs=variants.flatMap{Self.assets($0) ?? []}
+        artwork.retainPreparedImages(specs.map{($0.path,$0.densityAware)})
+    }
+    func dispose() {
+        guard !disposed else{return};disposed=true
+        selected.removeAll();pendingFamilies.removeAll();readyFamilies.removeAll()
+        artwork.retireImagePreparation()
     }
 }

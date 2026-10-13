@@ -40,9 +40,11 @@ struct NativeDiceArtwork {
         let explicit:Set<String>=["fish","kanta","laser-gun","spaceship","barell","cubero"]
         let side:CGFloat=archetype == .magnet ? 128*0.96:128
         let size=variant.map{explicit.contains($0)}==true ? raw.size:CGSize(width:side,height:side)
-        // Plain Juice retains the authored bounce frames after Source
-        // construction/restore; variant-specific Source owners stay separate.
-        return Self(path:path,size:size,anchor:raw.anchor,idleSheet:archetype == .juice && variant == nil ? .juice:nil)
+        // Static Source skin geometry must not discard the same identity's
+        // authored animation. Variant sheets retain the existing shared owner;
+        // plain Star continues to use its separately admitted Source sheet.
+        let sheet=variant != nil ? raw.idleSheet:(archetype == .juice ? NativeDiceSheet.juice:nil)
+        return Self(path:path,size:size,anchor:raw.anchor,idleSheet:sheet)
     }
     static let variants: [String: Self] = [
         "fish": Self(path: "assets/shop/fish/fish.png"),
@@ -107,7 +109,7 @@ struct NativeDiceSheet {
     static let barrel = Self(path: "assets/shop/barell/barell-pixi-sheet.webp", atlas: CGSize(width: 2430, height: 2106),
         cell: CGSize(width: 270, height: 351), columns: 9, frameCount: 54, cycle: 0.821428571,
         anchor: CGPoint(x: 0.5, y: 1 - 221.0 / 351), activeLoops: 2, restingDuration: 1,
-        displayScale: 115.2 / 194)
+        displayScale: 115.2 / 194, animateDuringDrag:true)
 }
 
 @MainActor

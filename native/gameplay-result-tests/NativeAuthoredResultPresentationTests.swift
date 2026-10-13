@@ -30,8 +30,15 @@ final class NativeAuthoredResultPresentationTests:XCTestCase {
             } else {
                 let plans=NativeResultConfettiPlan.beach(width:fixture.width,height:fixture.height,random:rng.next)
                 XCTAssertEqual(plans.count,40)
-                for (p,e) in zip(plans,fixture.plans){compare([p.birth,p.lifetime,p.startX,p.startY,p.rise,p.direction,p.weave,p.cycles,p.size,p.scale,p.opacity,Double(p.asset)],e)}
-                for e in fixture.samples {let p=plans[Int(e[0])].sample(seconds:e[1]);XCTAssertTrue(p.visible);compare([p.x,p.y,p.opacity,p.scale,p.rotation,p.skewX,p.imageScaleX,p.imageScaleY],Array(e.dropFirst(2)))}
+                // User-approved opacity replacement; keep the independent
+                // source oracle for every travel/scale and RNG component.
+                let levels=[0.2,0.3,0.4,0.5,0.6]
+                func beachOpacity(_ original:Double)->Double {
+                    levels[min(4,max(0,Int(((original/0.8-0.2)/0.5)*5)))]
+                }
+                for (p,e) in zip(plans,fixture.plans){var expected=e;expected[10]=beachOpacity(e[10]);compare([p.birth,p.lifetime,p.startX,p.startY,p.rise,p.direction,p.weave,p.cycles,p.size,p.scale,p.opacity,Double(p.asset)],expected)}
+                for e in fixture.samples {let index=Int(e[0]),p=plans[index].sample(seconds:e[1]);XCTAssertTrue(p.visible);var expected=Array(e.dropFirst(2));expected[2] *= beachOpacity(fixture.plans[index][10])/fixture.plans[index][10];compare([p.x,p.y,p.opacity,p.scale,p.rotation,p.skewX,p.imageScaleX,p.imageScaleY],expected)}
+                for level in levels {XCTAssertEqual(plans.filter{abs($0.opacity-level)<0.000001}.count,8)}
                 XCTAssertEqual(plans.last!.birth+plans.last!.lifetime,9.8,accuracy:0.0000001)
             }
             XCTAssertEqual(rng.draws,fixture.draws,"\(fixture.kind) original RNG consumption")

@@ -1,5 +1,961 @@
 # Stack to Six Native — current handoff
 
+## Native benchmark v3 delivery — 2026-10-13
+
+User explicitly authorizes immediate Native installation and online Git checkpoint of all current changes, superseding the pending web-preview delivery question. Installed signed candidate A38025DB-C7B3-31FC-9FF6-B1AECE2CB0DE at 02:12 CEST on iPhone 13 blue, bundle com.taptapdesign.stacktosix.native, over existing data. Explicit App installed receipt /tmp/native-benchmark-v3-install.log; launch /tmp/native-benchmark-v3-launch.log with accepted --cc-owned-metal-renderer only; live PID36347 confirmed /tmp/native-benchmark-v3-processes.json. Save directory byte-identical before/after installation (/tmp/native-benchmark-v3-save-before and /tmp/native-benchmark-v3-save-installed). Existing full QA, KING330, source iOS, 17/17 NoMoves SDK, signed Release and compiled audit PASS; final strict signature PASS. No PWA shell, uninstall, reset or save import.
+
+Checkpoint native-benchmark-v3 captures all current tracked/untracked Native implementation, tests, ownership documentation and oracle scripts in existing PUBLIC origin taptapdesign-jimi/cube-crash-appstore, as explicitly requested. Physical NoMoves, visuals, haptics and sustained performance acceptance remain NEEDS PHYSICAL TEST. Arcade Clean Board read-only audit found missing PWA 10px shadow blur, missing explicit transparent backing and stage clipping difference; these were not edited and remain open in this checkpoint. Thumb geometry and authored motion match source. Earlier pending-delivery notes below are historical; candidate is now installed.
+
+
+## Global No Moves result ownership repair — 2026-10-13, validated Native candidate
+
+User authorizes global fix with agents. Actual before SDK reproduces blank background exactly: independent fresh Forest1 thenBeach11 in same Bootstrap eachg1/token1/fail:no_merges_possible, first result mountedtrue, second resultfalse after completed real board exit. /tmp/native-no-moves-global-before.log241-243 FAIL;34sec real flow, no fake receipt/generation/timing. Existing durable first attempt/actual result Exit and World route are exercised.
+
+NativeBootstrap now scopes result receipt and alternate shown cue dedup by weak captured gameplay identity plus original value; equal receipts from separate games admitted, same-game duplicates rejected. onTerminal closure rejects retired VC callbacks. Core receipt/transaction/save/motion/assets unchanged. Existing complete-root visibleShowCue already guards captured gameplay directly, explaining live sourceNoMovesShownCue=nil; legacy/alternate callback now safe too. No new animation/audio runtime owner or resource introduced.
+
+GroupedSDK17/17 PASS177sec /tmp/native-no-moves-global-after.log: exact previously-failing Forest->Beach sequence now both resultsvisible with unchanged equalreceipts and independent durable attempts; actual mounted Forest1/Beach11/Area55-21/Arcade depleted-moves, repeatterminal singlemodal/save and Exitreturn; existing genuine root NoMoves and endpoint/result cleanup paths. FullQA/KING330/sourceios PASS /tmp/native-no-moves-global-{full,ios}.log; diffcheck PASS. Independent bounded review no high/medium; physical NEEDS PHYSICAL TEST. FullQA used SKIP_NATIVE_BUNDLE_SYNC=true, repo dist regenerated; PWA/assets untouched.
+
+Signed standalone candidate A38025DB-C7B3-31FC-9FF6-B1AECE2CB0DE at /tmp/native-barrel-release-derived/Build/Products/Release-iphoneos/Stack to Six.app build/compiledaudit/strictsignature PASS /tmp/native-no-moves-global-{release,audit,signature}.log. No phone modification/restart/install in this repair; phone remains44FC9BC6 and captured blank-result evidence preserved. LIVE_DEBUG_WORKFLOW explicitly requires web approval before installing investigated fix; Swift Native repair has no equivalent web preview and PWA must remain separate. Candidate is concrete/validated; ask user to authorize direct Native delivery without web step, then preserve saves/install/launch and physical retest. No active consolecapture, no KRENI/GOTOVO reproduction started in postmortem. Native identity/save safeguards remain mandatory.
+
+## Beach No Moves blank background incident — 2026-10-13, read-only phone investigation
+
+User reports Beach NO MOVES then everything disappears except background. Existing installed44FC9BC6 PID35964 verified, no relaunch/reset/install/save mutation. Read-only Native save capture /tmp/native-beach-no-moves-save; LLDB inspected existing process (temporary debugger pause), detached/resumed without restart. No KRENI reproduction or ongoing console stream started; post-incident snapshot only. No screenshot optical evidence.
+
+Actual live UIKit: current NativeGameplayViewController0x145830000 mounted, presentedViewController=nil; bottomDecor alpha0/hiddenYES, ownedMetal view remains. Live Core Journey board13/generation1/revision12/moves39/score193 terminalfail/no_merges_possible, completedSourceNoMovesReceipt generation1/token1. Bootstrap resultOwner=nil/attemptCommittedfalse/disposedfalse/routeLease6; sourceNoMovesResultCapture already structurally equals completed currentreceipt, sourceNoMovesShownCue=nil, no presentationFailure. Evidence /tmp/native-beach-no-moves-live-state.json synthesized faithfully from direct LLDB outputs (initial raw-receipts export failed, not a raw complete console file). Blank-result defect confirmed.
+
+Strong code-supported hypothesis: NativeBootstrap sourceNoMovesResultCapture is never reset when makeGameplay disposes prior resultOwner and constructs new run. Receipt contains generation/token/resolution but no scope/board identity; independently fresh runs commonly reuse generation1/token1, so terminal guard rejects next equalfail receipt before creating modal. Need actual sequential-run regression proving first receipt provenance and reproduce blank result; scope-key or clear at exact gameplay replacement is smallest candidate repair. No code fix/build/install performed in this incident. Physical FAIL; cause prior-receipt provenance remains inferred, not traced.
+
+## World Hub16px and sign angles delivered — 2026-10-13 00:48 CEST
+
+Latest request supersedes24px with16px nearest-edge Unit padding for all three Hub worlds. Area55 sign moves+8deg clockwise from-6 to+2; Beach sign moves-8deg counterclockwise from+8 to0; Forest-15 unchanged. One bannerAngle is shared by initial layout, resetIdlePose and authored idle tracks so new angles persist across route lifecycle. Clouds retain shared delta/pivot/timing. Responsive margin/angle/text and relayout tests2/2 PASS /tmp/native-hub16-sdk.log; fullQA/sourceios PASS /tmp/native-hub16-{full,ios}.log; diffcheck PASS. Original assets/PWA unchanged, SKIP_NATIVE_BUNDLE_SYNC=true throughout.
+
+Signed standalone Release44FC9BC6-9010-386C-B090-636448C03EF9 build/compiledaudit/signature PASS /tmp/native-hub16-{release,audit,signature}.log. Confirmed exact iPhone13blue, installed00:47:55 over existing.native container3EBDFAD4-DD80-4077-A5EF-50C09250DD0D. Both save files byte-identical /tmp/native-hub16-save-{before,after}. Launched00:48 with only accepted --cc-owned-metal-renderer, diagnosticsOFF; running PID35964 /tmp/native-hub16-{launch,processes}.json. No uninstall/reset/import. Physical placement and angle acceptance NEEDS PHYSICAL TEST.
+
+## World Hub padding correction — 2026-10-13
+
+User supersedes40px with24px nearest-edge Unit padding: Forest/Beach left24, Area55 right24. Shared cloud delta and authored motion/pivot preserved. Existing responsive375/390/430 margin/progress and pivot tests2/2 PASS /tmp/native-hub24-sdk.log; fullQA and sourceios PASS /tmp/native-hub24-{full,ios}.log; diffcheck PASS. FullQA used SKIP_NATIVE_BUNDLE_SYNC=true; PWA untouched.
+
+Signed standalone Release2391F2CC-8B9D-3F3C-822C-F8C90424F35B build/audit/strictsignature PASS /tmp/native-hub24-{release,audit,signature}.log. Confirmed exact iPhone13blue connected, installed00:41CEST over existing.native, container16A964A7-152D-4049-ACAB-042706724E27. Save snapshots /tmp/native-hub24-save-{before,after} show both primary/previous JSON byte-identical. Launched00:42 with only accepted --cc-owned-metal-renderer, diagnosticsOFF; running PID35957 confirmed /tmp/native-hub24-{launch,processes}.json. No reset/uninstall/import. Physical visual acceptance NEEDS PHYSICAL TEST.
+
+## All requested fixes delivered — 2026-10-13 00:33 CEST
+
+Latest signed Native Release UUID453A43D0-D8C3-3338-8BD1-842A492669EC from standalone Stack to Six scheme at /tmp/native-barrel-release-derived/Build/Products/Release-iphoneos/Stack to Six.app includes Home shard positioning, Juice hidden-write optimizations, ordinary stack haptic strength, Beach Clean Board opacity, Bottle normal montage, Hub40px/spaced progress, original Magnet SWOOP/bolts, Arcade repeated saved-entry cue/wave and reward shimmer removal/burn/shadows. Build PASS /tmp/native-all-fixes-release.log; exact .native identity/compiled original-assets/dependency audit and strict signature PASS /tmp/native-all-fixes-{audit,signature}.log. FullQA/KING330 PASS /tmp/native-arcade-reward-full.log; sourceios PASS /tmp/native-arcade-reward-ios.log; diffcheck PASS. SKIP_NATIVE_BUNDLE_SYNC=true throughout; no preserved PWA shell/save/asset changes.
+
+Arcade/reward grouped initial SDK command FAIL from two premature Home fixtures; remaining16 tests PASS (reward12, restart/continuation/pending4), /tmp/native-arcade-reward-sdk.log. Second focused command FAIL: redundant same-tab CA selection wait and density-resampled transparent-pixel fixture, /tmp/native-arcade-reward-sdk-final.log. Production unchanged after signed build; fixtures now use visible/interactive Home, exact actual CTA reentry on already-selected Arcade, exact2x2 alpha bytes. Final focused SDK4/4 PASS /tmp/native-arcade-reward-sdk-v3.log: round1/4 actual Home->Arcade->Exit->Home->Arcade, real cue+captured wave/durable save, actual selected burn pixels/transparent alpha and mounted500ms keyframes/cleanup. No actual userflow failure remains in this batch; redundant same-tab wait failure is not asserted as a production defect or proven root cause. Independent bounded reviews no high/medium; physical NEEDS PHYSICAL TEST.
+
+Confirmed exact iPhone13blue0F62B71E device connected immediately before install. Read-only refreshed save snapshots /tmp/native-complete-save-{preinstall-final,installed}, both state-v1.json101250bytes and state-v1.previous.json104026bytes byte-identical before/after install (SHA256 fa3f4ed356f1dcd932f91b3d8d49b36520c85e6593bfebf5d8d35bb958967530 / 055c77d621b196abdcd498fa0c2eff00a8d8e4016df26e8006bb9970eea1fd89). App installed confirmation /tmp/native-complete-delivery-install.log at00:33, containerCEA1D510-2979-442E-BDAD-6D7140E44F06. Exact newly installed .native launched00:33:27 with only --cc-owned-metal-renderer, no diagnostics/probes, PID35937 /tmp/native-complete-delivery-launch.json and processes.json. No uninstall/reset/import/commit/publication. Presented60FPS, haptic feel, authored Magnet/Bottle/Beach visuals, reward shadow softness and Arcade touch acceptance remain physical checks; build/install do not close them.
+
+## Beach/Bottle and Journey Hub source batch — 2026-10-13
+
+Beach Clean Board bubbles now use Journey Beach's exact five opacity levels0.2/0.3/0.4/0.5/0.6, retaining RNG consumption/shuffle and all geometry/count/lifetimes. Independent original oracle still verifies motion/RNG with only user-requested opacity expectations changed. Bottle normal Source main80 omitted its authored montage (only Spaceship admitted); selected Bottle now mounts there exactly once. Both actual contact directions mount/start real NativeBottleFinalePresentation and stale/retired main refuses. Final Direct path remains separate; added actual Bottle wild-destination final Journey regression.
+
+Journey Hub requested nearest-edge40px Unit padding: Forest/Beach left40, Area55 right40, their clouds move by same delta. Flag defaults0 / 10 and all progress strings use spaced separator. Actual responsive375/390/430 Unit/layout-pivot/text-fit tests pass;10 / 10 fits unchanged authored ExtraBold label width.
+
+SDK Beach/Bottle17/17 PASS /tmp/native-beach-bottle-sdk.log; Hub+pivot/Bottle-final3/3 PASS /tmp/native-hub-bottle-final-sdk.log; extended exact label-fit1/1 PASS /tmp/native-hub-progress-fit-sdk.log. KING330, full QA twice after respective source changes and qa:ios PASS (/tmp/native-beach-bottle-{king,full,ios}.log, /tmp/native-hub-delivery-{full,ios}.log), diffcheck PASS. Independent bounded review no high/medium findings; physical NEEDS PHYSICAL TEST. FullQA regenerates repo dist with SKIP_NATIVE_BUNDLE_SYNC=true; PWA/assets untouched.
+
+Original plain Magnet now mounts its missing authored white SWOOP +16 screen-blended bolts (8 original PNGs), sharing existing field/pull transaction rather than copying Honey artwork. Finite SpriteKit clock starts without waiting for bounded off-main shadow preparation; late/disposed preparation is rejected. Exact .magnetFinale60Hz lease owns completion+180ms tail. Normal main and final routes retire one owner. Source immutable v9 GSAP oracle executes three cases/16 bolts/19 times; initial SDK golden FAIL exposed repeat seams and captured CSS precision, corrected without tolerance widening. Final SDK golden PASS /tmp/native-magnet-swoop-sdk-final.log; supplemental4560 comparisons0 failures. Other9 actual lifecycle/pull/final-route tests PASS /tmp/native-magnet-swoop-sdk.log (whole initial command FAIL due to then-failing golden). Direct original PNG shadow-composite orientation host check PASS; SpriteKit physical rendering remains open. FullQA/KING/feature/ios PASS /tmp/native-complete-delivery-{full,ios}.log and /tmp/native-magnet-swoop-feature.log.
+
+User authorized Native install after Hub; latest steering adds Arcade Home reentry01/dice animation and New Card Unlocked removal of broken shimmer while preserving burn, plus PWA-matched shadows below cards. Agents implement/review these before final delivery. Signed pre-addition builds are not final receipts; rebuild/audit latest completed source before install. Phone initially unavailable then available; read-only Native save capture /tmp/native-hub-save-before PASS. Refresh snapshot immediately before installation. No new phone install/launch/reset/uninstall yet; phone retains D857162E. Continue explicit --cc-owned-metal-renderer accepted route with diagnostics OFF. Physical presented FPS/haptic feel/visual acceptance NEEDS PHYSICAL TEST.
+
+## Arcade Home reentry / reward card source batch — 2026-10-13
+
+Restored Home Arcade now runs the authored round cue and captured Source-holder dice wave on each entry; gameplay IDs/cells/value/depth/score/moves and original restore generation/revision semantics remain retained. Exit Restart still skips announcements, already-announced round continuation stays separate, Journey restore/transition policy unchanged. Two real-root regressions cover saved rounds1/4 through actual Home CTA -> Arcade -> Exit modal -> Home -> Arcade. Grouped SDK includes existing restart/pending-continuation paths; /tmp/native-arcade-reward-sdk.log pending.
+
+New Card Unlocked removes its traveling white sweep and retains500ms finite face burn using existing selected-image off-main preparation (brightness1.312/saturation1.156/sepia0.065 peak56%, original PNG alpha preserved). Interim shimmer/legendary foil remain independent. Floor z0 below whole pose z1 fixes3D sorting; interim image uses PWA0/12/26 warm.22 shadow; final card has no image outline shadow. Floor CALayer shadow softness approximates CSS blur14, not exact convolution. New tests verify actual filtered pixels/transparent alpha, mounted burn contents/500ms keyframes and cleanup. Independent review no high/medium; visual NEEDS PHYSICAL TEST. FullQA/ios and signed latest Release currently running; no device install yet.
+
+## Juice BUBBLY work and stack haptic adjustment — 2026-10-13
+
+User reports Juice bubbly jank/not60FPS and no ordinary stack haptic; explicitly requests agents. Two implementation agents plus bounded independent review used. Juice finale already owns .juiceFinale60Hz through completion/tail; no physical frame trace collected, so no root-cause or actual60FPS claim. NativeTextBubbleMotion preorders immutable tracks once instead of14 sorts per rendered frame; NativeJuiceFinale skips completed text-bubble geometry/setters; NativeSplashGlyphField commits hidden glyph exits once then stops layer writes/transactions, with backward seek reactivation. Original motion/timing/assets and idle30FPS policy preserved. User clarification idle versus finale pending; BUBBLY authored caption treated as finale.
+
+Ordinary committed stack callback is connected through Source contact -> GameplayVC -> Bootstrap. Adjusted dedicated cached UIKit stack actuator from soft0.15 to light0.35 with prepare, preserving one subtle contact, Settings/foreground/disposal gates and separate merge6 budgets. This addresses reported perceptibility; physical cause/strength remain unverified. Haptic parity record updated.
+
+SDK18/18 HapticRuntime/Juice PASS /tmp/native-juice-stack-sdk.log, actual mounted glyph/font2/2 PASS /tmp/native-juice-stack-glyph-sdk.log. Existing GSAP golden poses, actual stack+merge6 callback, actuator reuse and hidden glyph writes/rewind/cleanup covered. KING330, fullQA, qa:ios and diffcheck PASS (/tmp/native-juice-stack-{king,full,ios}.log). Independent scoped review no high/medium findings, NEEDS PHYSICAL TEST. FullQA used SKIP_NATIVE_BUNDLE_SYNC=true and regenerated repo dist. No signed Native Release/phone install/launch, PWA sync or asset change. Phone still previous D857162E. Physical Juice presented cadence, stack feel and Home shard position require acceptance.
+
+## Home logo shard position — 2026-10-12
+
+User requests all shards behind Stack to Six logo up8px except upper-right. JimiV9HomeView layout moves upper-left/lower-left/lower-right shell centers by -8; upper-right/logo/artwork/motion unchanged. Full QA PASS /tmp/native-logo-shards-full.log with SKIP_NATIVE_BUNDLE_SYNC=true; diff check PASS. Repository dist regenerated; no PWA sync or Native build/install. Physical placement NEEDS PHYSICAL TEST.
+
+## Barrel repair delivered to iPhone13blue — 2026-10-12
+
+User `instalira na mobitel` authorizes direct Native delivery after SDK/full QA. Signed Release D857162E-0780-3E29-A07C-FFF8B6019C21 built from current standalone source at /tmp/native-barrel-release-derived/Build/Products/Release-iphoneos/Stack to Six.app. Source qa:ios, compiled Native dependencies/original-assets audit and strict/deep signature PASS (/tmp/native-barrel-delivery-{ios,audit,signature}.log). Restricted signature check initially could not read system trust; identical artifact passed with actual trust service access. No code/signature change needed.
+
+Installed23:36/37 CEST over existing com.taptapdesign.stacktosix.native on confirmed iPhone13blue, no uninstall/reset/import; PWA untouched (/tmp/native-barrel-delivery-install.log). Refreshed pre-install and installed snapshots /tmp/native-barrel-save-{preinstall,installed}: state-v1.json and state-v1.previous.json byte-identical. Exact newly installed container F355D016-15E3-4AB4-A7DE-9ECC2345C1CE launched successfully with only --cc-owned-metal-renderer, diagnostics/probe OFF; running PID35530 verified (/tmp/native-barrel-delivery-launch.json, /tmp/native-barrel-delivery-processes.json). Includes the shared authored-TNT producer fix for Barrel/Flower/BeachBall. Source/regression and delivery PASS; repaired physical gameplay/touch/motion acceptance NEEDS PHYSICAL TEST. Default icon cold launch renderer policy remains unchanged.
+
+## Barrel merge6 / full-board drop refusal repair — 2026-10-12
+
+Physical capture exact .native on iPhone13blue: first launch22:59:57 CEST, user `problem`23:01:14, `gotovo`23:01:21; diagnostics OFF yielded no gameplay rejection. Read-only LLDB found Journey7/generation2/revision43 input clear; regular replacement values/cells/depth/static input match Core. Targeted KRENI23:07:38 yielded no drop evidence before process35259 exited0. User `ajde opet`: existing installed Native A67A3562 relaunched23:11:33 with owned Metal renderer + performance diagnostics, KRENI23:11:42. User `sada prati evo stize barell`23:13:13, `problem nista nemogu s nicim vise stackat ni mergat`23:13:47, GOTOVO23:13:55. Evidence: /tmp/native-barrel-live-console-2.log, /tmp/native-barrel-live-markers.log, /tmp/native-barrel-drop-lldb.log. No install/reset/import/PWA operation; old diagnostics preserved at session limit. Debuggers closed; phone process35290 no longer present on later attach, cause unproved.
+
+Confirmed rejection source_ordinary_final_snapshot_unavailable repeats on legal 4+2,2+4,3+3 and stack pairs, Journey7/generation3/revision44 with specialPending0/lazyPending0. Physical roster/cells captured; Core holder native:3:44:1:1:die:8:locked still locked0, Scene already opened wild-magnet/core variantnil. Honey pendingMeterOpen attempt1 never completed, no reservation. Half-open Wild Meter reward makes ordinary final snapshot unavailable across entire board. Actual SDK Barrel high-meter regression reproduced timeout42.085s /tmp/native-barrel-meter-before.log. Diagnostic repeat /tmp/native-barrel-meter-inspect.log confirms hidden operation receiptDelivered:false with Core pending request. Further reflection test /tmp/native-barrel-meter-authority.log exited unexpectedly before useful authority proof; no production crash inference.
+
+Small owner fix: authored Barrel/Flower/BeachBall real SpriteKit impact/completion callbacks now enter nativeRenderActionTask on the existing Scene FIFO. Captured installation/current transaction guards prevent late callback mutation; no new clock, async fallback, fabricated marker or relaxed snapshot admission. Previously a completion callback opened the node outside an admitted producer task and its actual-created receipt was discarded. Existing delays/artwork/effects/audio/save behavior preserved. Changed NativeBoardScene.swift, NativeSourceSceneMicrotaskInstallation.swift, NativeSourceMicrotaskFIFO.swift; actual regression coverage in NativeSourceFreshRebuildTests.swift.
+
+SDK4/4 PASS /tmp/native-barrel-meter-after.log: Barrel meter crossing (15.662s), ordinary Barrel replacement pickup/stack (12.351s), BeachBall crossing (15.870s), Flower crossing (15.857s). High-meter fixtures assert actual reward completes, then next stack and merge6 both succeed. Final SDK11/11 PASS /tmp/native-barrel-meter-final.log: original locked-holder reuse (15.561s, actual holder ID remains the reward ID, following stack/merge6 accepted) plus10 FIFO lifetime/checkpoint/producer regressions. Total affected-flow SDK5/5 + FIFO10/10 PASS. KING330 PASS /tmp/native-barrel-meter-king.log; full QA terminal PASS530suites4010tests /tmp/native-barrel-meter-full.log; diff check PASS. Production assets and phone saves unchanged. Full QA used SKIP_NATIVE_BUNDLE_SYNC=true and regenerated dist; no PWA bundle sync/delivery. Native Swift change cannot be previewed by preserved web on5174. User `instalira na mobitel` explicitly authorizes Native delivery/reordering; signed Release BUILD SUCCEEDED /tmp/native-barrel-delivery-build.log into /tmp/native-barrel-release-derived. Source qa:ios PASS /tmp/native-barrel-delivery-ios.log. Observed pre-install Native save snapshot /tmp/native-barrel-save-before (read-only device copy). Delivered in the new signed Native artifact recorded above; Physical repaired gameplay NEEDS PHYSICAL TEST; installation alone does not prove the physical bug closed.
+
+## Native studio intro direct animated frames — 2026-10-12
+
+User requests repair of intermittently static launch characters, including Football/Dog/NewspaperDog. Previous readiness/media-time proof did not establish actual presented HEVC pixels. NativeStudioIntroView now always decodes the selected existing animated WebP directly into the mounted UIImageView. Removed the Native movie/player/KVO/time observer/watchdog and alternate test-media admissions; original HEVC/WebP/SVG/PNG assets remain unchanged. Reuses one serial queue/current image and authored frame delays; unchanged character profiles,4.33s composition, sheen and one cue/handoff. Foreground/media epoch/disposal guards reject stale preparation/frame callbacks and resume one selected chain. This bypasses the unproven video presentation fault; it does not claim its original cause was measured.
+
+Updated default-production-path all11 changing-image/layer-content and lifecycle tests, plus feature ownership and stable context. Focused SDK7/7 PASS9.600s (/tmp/native-intro-webp-sdk-final.log); all11 mounted selections paint changed frames, one natural4.33s handoff, unchanged sheen and stale preparation/frame/background/disposal verified. Initial SDK6/7 retained in /tmp/native-intro-webp-sdk.log: async unmounted test carrier lost its CA animation before inspection; corrected fixture mounts a real window without weakening authored sheen assertions. Initial restricted Xcode attempt only failed on cache permissions; authorized retry compiled successfully. qa:fast, qa:full, feature and qa:ios PASS (/tmp/native-intro-webp-{fast,full,feature,ios}.log); full530suites4010tests and source/bundle/native audits pass. git diff --check PASS. Full QA regenerated repository dist with SKIP_NATIVE_BUNDLE_SYNC=true. No phone launch/install, PWA shell/bundle operations or asset edits. Actual iPhone motion/sheens/timing remain NEEDS PHYSICAL TEST; no signed delivery or physical acceptance claimed.
+
+
+## All Wild/Special idle animation repair — 2026-10-12
+
+Delivered22:54 CEST after user "spremno": signed Native A67A3562-09D7-3F49-9098-71ED04569B15 installed over existing iPhone13blue app (/tmp/native-all-special-idle-install.log). Current and previous save files byte-identical across installation (/tmp/native-all-special-idle-save-{before,installed}). Exact .native launched successfully with only --cc-owned-metal-renderer, diagnostics/probe OFF (/tmp/native-all-special-idle-launch.log). Includes gentle stack haptic. No PWA/reset/import/uninstall. Actual animation appearance and haptic strength await physical user acceptance; default icon cold launch still legacy until separately finalized.
+
+User reports Barell/Mushroom static and requests every original SVG/other Wild/Special animation. Read-only live LLDB inspection of actual installed Native PID35011, Journey7 Barell g1-22, proves its definition had idleSheet:nil, frames:[], artworkRunning:false despite sourceIdleDeferred:false/sourceRegistryPending:false/sourceRegistryPaused:false. Original Barell atlas has54 distinct frames; no asset defect. Debugger detached without restart/reset. UI automation failed enabling automation before test navigation, so no visual screenshot evidence (/tmp/native-barell-inspect.log); actual field evidence /tmp/native-barell-live-state.json.
+
+Shared NativeDiceArtwork Source constructor now preserves selected variant idleSheet (Barell/Mushroom/Robo/BeachBall); plain Star remains its separately admitted Source owner. Both static-skin repair paths reapply running atlas visibility rather than covering it. Direct atlas/Flower owners continue their original phase under registry interaction pressure, preserving actual app/Scene suspension, terminal/exit/special-presentation, deferred and retired guards. Barrel animates while held, matching preserved PWA. No new timer, Core/save/renderer/asset changes. Audit covers17 identities: Star, Juice, Barell, Mushroom, Robo, BeachBall, Fish, Bee, Kanta, Honey, Bottle, Spaceship, Flower, Cubero, plain Magnet, plain TNT and LaserGun. Last3 have no original idle SVG loop; their authored effects remain. Separate Robo pickup fallback artwork parity (PWA frame2 versus Native frame1) remains outside this animation repair.
+
+Validation PASS: actual SDK43/43 including5 new restore/open/typed skin-repair/pressure/pointer/suspension/retirement tests (/tmp/native-all-special-idle-sdk.log); final fast, ios and KING330 PASS. Independent read-only review PASS for scoped ownership/lifecycle. Final full530suites4010 PASS (/tmp/native-all-special-idle-final-full.log). Signed Release BUILD SUCCEEDED22:45, UUID A67A3562-09D7-3F49-9098-71ED04569B15; codesign strict/deep and compiled Native audit PASS (/tmp/native-all-special-idle-{release,release-audit}.log). App ready at /tmp/native-deep-drag-release-derived/Build/Products/Release-iphoneos/Stack to Six.app. Build/sign verification require system cache/trust access; sandbox-only attempts fail cache permissions/trust, authorized escalated commands pass. Physical animation appearance/performance across variants NEEDS PHYSICAL TEST. Phone retains accepted smooth owned-renderer projection candidate7AAE. User asked to return Journey/Home and signal readiness before replacing active game; no new install yet. Candidate also includes verified gentle stack haptic. Preserve saves and launch explicit --cc-owned-metal-renderer only, diagnostics/probe OFF; PWA untouched.
+
+## Gentle stack haptic — 2026-10-12
+
+User requests one very subtle haptic per stack. NativeBootstrap's actual committed merged receipt (value1..5) now emits stack-contact once via the existing NativeHapticRuntime. Cached soft UIKit generator uses intensity0.15. Settings/foreground/disposal gates remain; stack contacts do not consume finale burst budgets, so every accepted stack receives its own finite pulse. No drag/hover/rejected-drop pulse, timer, new generator owner or Core/render change. Actual mounted Bootstrap test now performs1+1 stack then2+4 merge6 and verifies one stack pulse plus unchanged merge6; runtime regression verifies each contact and OFF/background/disposal. SDK/full/KING running /tmp/native-gentle-stack-{sdk,full,king}.log. No new build/install yet; phone retains projection candidate7AAE.
+
+Final validation PASS22:31 CEST: SDK9/9 /tmp/native-gentle-stack-sdk-v3.log; full530suites4010tests /tmp/native-gentle-stack-full.log; KING330 and diffcheck PASS. Initial connected fixture tried a second merge before the existing stack transaction/physical face settled and was refused; final test waits for pendingOrdinaryStack/face retirement and confirms one stack pulse then unchanged ordinary merge6. No production admission/timing change to make the test pass. This haptic change is source-only and awaits next Native device build; physical strength remains NEEDS PHYSICAL TEST.
+
+User physically accepts projection candidate7AAE after install: "super je nema trzanja nema laga". Natural drag feel accepted in that session; sustained thermal/memory/actual presented60FPS and complete heavy-effect lifecycle coverage remain unmeasured. Owned route still explicit launch flag, default cold launch legacy.
+
+## Stack indicator opacity and enter refinement — 2026-10-12
+
+User requests40% weaker opacity and fast ease-in-out appearance. Stroke alpha
+is now0.168 (0.28*0.60). Each new valid target starts a finite100ms SpriteKit
+fade with easeInEaseOut; unchanged targets do not restart it. clearHover cancels
+the action immediately, so invalid targets/release/cancel cannot retain it.
+Width/color/shape and drop admission remain as accepted above. Mounted drag
+regression verifies duration, easing, initial transparency and cancellation.
+Evidence `/tmp/native-stack-fade-{sdk,full,ios,king}.log`; SDK PASS9/9,
+iOS and gameplay-lock PASS330. Full gate PASS.
+No device install or PWA/save changes. Physical appearance remains open.
+
+
+## Continuous drag investigation — 2026-10-12, no cause closed
+
+Projection repair installed22:20 CEST after explicit user "spremno"/Journey-Home save readiness. Exact Native7AAE74AA-D798-3706-B3E6-F5330E9F6AD9 installed successfully (/tmp/native-board-projection-install.log). Both state-v1.json and state-v1.previous.json byte-identical before/after install (/tmp/native-board-projection-save-{before,installed}). Corrected owned path launched successfully with only --cc-owned-metal-renderer, diagnostics/probe OFF (/tmp/native-board-projection-launch.log). No reset/import/uninstall or PWA operations. User may now test complete board/dice/HUD projection and natural touch; physical projection and60FPS remain NEEDS PHYSICAL TEST, no performance closure claimed. Default cold icon launch remains legacy SKView pending candidate acceptance.
+
+Projection delivery ready22:09 CEST: final SDK14/14 and full530suites4010tests PASS; signed Release BUILD SUCCEEDED, codesign strict/deep PASS, compiled Native audit PASS. Candidate UUID7AAE74AA-D798-3706-B3E6-F5330E9F6AD9 at /tmp/native-deep-drag-release-derived/Build/Products/Release-iphoneos/Stack to Six.app, exact .native. Existing phone still98AB; new candidate NOT installed. Read-only observed save backup /tmp/native-board-projection-save-observed. Await user's Journey/Home readiness so latest volatile run can commit before replacement; then refresh before-save snapshot, install over existing data, compare both files, launch explicitly --cc-owned-metal-renderer (diagnostics/probe OFF). Physical projection/touch/FPS still unaccepted; default legacy route unchanged.
+
+Projection regression repair22:07 CEST: user screenshot of installed opt-in98AB shows approximately3x board/dice zoom and cropped HUD. Actual SKRenderer Retina logical target differs from one-pixel-per-point texture extent; resizeFill does not scale the complete controller-sized scene. Owned host now temporarily uses fill while retaining authoritative Scene point geometry/pixel budget and restores captured authored resizeFill on exact retirement/mount failure/deinit. Epoch guards prevent reentrant cleanup from overwriting replacement scene projection. Legacy SKView unchanged. New actual GPU texture readback tests reproduce resizeFill mismatch and verify an80pt marker occupies80pixels in390x844 output; actual production host mode/restoration also covered. Initial and final SDK PASS14/14 (/tmp/native-board-projection{-final,}-sdk.log); independent projection review no blockers, physical full-board/touch acceptance NEEDS PHYSICAL TEST. fast/ios/KING PASS; full and signed Release build in progress (/tmp/native-board-projection-{full,release}.log). User requested to return to Journey/Home and signal readiness before replacement install, so latest volatile gameplay can save; no new installation yet.
+
+Latest delivery21:26 CEST: signed Native Release98ABA775-BA02-379E-9C34-84B46D647DDF installed on iPhone13blue; both current/previous save files byte-identical across install (/tmp/native-owned-metal-save-{before,installed}). Current final SDK PASS42/42 (owned11/diagnostics22/drag9), fast/compiled Release audit/codesign PASS. Existing Journey2 automatic Continue did not execute: UIrunner34814 timed out enabling automation mode before any test navigation (/tmp/native-owned-metal-physical-resume.log). Thus bounded physical trace PID34810 is Home-only and supplies no owned gameplay/FPS proof; do not claim synthetic probe success or60FPS. Console47484 closed by rootCtrlC expected SIG2, not app crash. Native candidate then launched successfully with only --cc-owned-metal-renderer, diagnostics/probe OFF (/tmp/native-owned-metal-user-launch.log) for user testing. Default icon cold-launch still legacy SKView; this is an explicitly launched opt-in candidate. Physical gameplay/visual/touch/FPS acceptance remains NEEDS PHYSICAL TEST and overall drag issue OPEN. No PWA/reset/save import.
+
+Opt-in owned-renderer validation21:12 CEST: actual SDKv5 PASS100/100 across owned host, Source clock/drag/noMoves/mixed-family resume/scheduling. Additional concrete owned-host window-detach repair cancels probe/held input/queued RAF/direct-transport using original pointer-cancel return with epoch guards; no new pause owner. Final focused SDK PASS20/20 (11owned-host +9drag), /tmp/native-owned-metal-sdk-final.log. Earlier fixture-only replayclock failure corrected: first genuine pickup lazily creates exactly one canonical SourceCAD link, and1200 synthetic updates retain exactly one. fast/full/ios/feature/KING PASS; full530suites4010tests. Signed Release+physical UIrunner build now active /tmp/native-owned-metal-release.log. Current phone still E60 candidate; no new install yet. Next same-build legacy-vs-owned20sec synthetic pipeline A/B on actual existing saved Journey2 (current generation8/revision13/score290/moves39/29tiles); physicalOS-touch/feel acceptance remains separate and unresolved.
+
+Architectural opt-in experiment IN PROGRESS21:05 CEST: public MTKView/SKRenderer host replaces SKView's render transport only when exactNative bundle launches with --cc-owned-metal-renderer. Default shipping launch still uses existing SKView pending actual-frame proof. Owner map: existing Source entry/input-ready/exit/controller/Scene/generation/save/audio/haptic owners retained; actual host supplies coordinate conversion, mount/pause/FPS/visibility and exactly one Scene update/encode/present cycle using MTK's scheduler, one Metal queue and bounded three in-flight submissions. No second Scene renderer, hidden fake SKView, feature timer, asset change or Core resolver. Resources retained through actual GPU completion; stale epoch/foreignhost/reentrant mount/hidden-ancestor guards and symmetric retirement. Scene host abstraction preserves UIKit FX origins and existing Source drag transport ordering. Explicit --cc-render-pipeline-probe uses the current actual playable ordinary tile and the existing Scene callback/Source drag queue for20sec synthetic same-cell motion, then existing pointer-cancel return; logs distinguish synthetic pressure from real UITouch and assert unchanged canonical state. Never seeds/imports/reset saves. This permits autonomous pipeline A/B without another user reproduction. New host/probe lifecycle tests, actual VC ordinary→NoMoves fixture and runtime ownership record added. Initial SDK58/1fail was a fixture assuming queued Source RAF cancels on pause; corrected to existing freeze/resume-once policy without changing production suspension. Final revised batch running. No new device install yet, no60FPS claim.
+
+Manual candidate capture COMPLETE: KRENI20:54:40, GOTOVO20:55:38; full buffered console read then rootCtrlC session89317 exit1/SIG2 (expected rootstop, not crash). Metal session59361 terminal0, actualTOC61.074s start20:54:22.364. No active capture remains. Matched pure held20:55:11.422–14.455 proves129 unique appframes/42.43FPS with53 two-vsync gaps, while182 actual touch samples/paints/Source callbacks and zero held-position mismatches; actualScene arrivalmax17.36–18.18ms in stablewindows. GPU median0.651/max3.152ms. Candidate transaction patch FAIL to demonstrate correction, comparable prior43.54. Source residual merge cleanup48.56ms and levelend35.08ms distinct from continuous pure jank. Artifacts /tmp/native-manual-render-candidate-source-analysis.json, /tmp/bee-manual-candidate-summary.json; display exports independently corroborated. SpriteKit availability gate skips still present; exact buffer release causality unproven. Public iOS displaySyncEnabled unsupported, drawablepool already3; no speculative property toggles. No reset/save import/PWA operations. Physical drag acceptance remains FAIL; no new manual repetition requested.
+
+Latest update20:54 CEST: candidate E60BC483-C9A0-3FEA-B5F2-161D707337D3 installed20:46; Release/signature/compiled audit PASS. Both save files byte-identical across installation. Automated existing Journey24 Continue and four same-cell drags PASS; resume advances presentation generation and rejected drops reset combo by existing policy. Slow XCTest4pt/s input is not equivalent to manual drag. Bounded30s Metal A/B does NOT demonstrate cadence improvement: matched steady windows2/3 about13.3 distinct frames/s in both. Actual OS sample delivery unresolved. Artifacts /tmp/dice-display-comparison.json and /tmp/bee-baseline-candidate-comparison.json. No cause or60FPS acceptance closed.
+
+User offers manual drag. Console-only exact Native launch verified20:54:06, PID34625, session89317, /tmp/native-manual-render-candidate-console.log; diagnostics ON. Bounded60s Metal System Trace attached to actual PID34625, session59361, /tmp/native-manual-render-candidate.trace. No QuickTime/screen recording, reset or new installation. KRENI follows verified attachment; retain console through explicit GOTOVO. This measures the installed candidate, not a proven fix.
+
+User reports installed24794 still continuously microjanks; physical acceptance FAIL, prior renderer-order repair is not sufficient. Three agents independently audited GPU/render, main-thread Source work, and Native/PWA input/transform ownership. Historical profiles establish SpriteKit render-group CPU work and intermittent Source cleanup/FIFO bursts, but cannot assign current continuous jank. No competing held outer position writer found; direct latest-point/velocity/tilt constants match PWA. Current callbacks do not prove GPU-presented60FPS.
+
+Initial console-only connection attempt19:57:31 failed before app launch: CoreDevice4000 device disconnect (/tmp/native-continuous-drag-24794-console.log, session71353 exit1). No KRENI given, no capture active, no app crash inferred. User says spreman; targeted diagnostics being prepared before next verified launch: actual touch/coalesced timestamps/sample age, held outer position after actions, Scene timing gaps, and actual CAMetalLayer drawable-size write counts. Default off; no gameplay/motion changes or new timer. Existing diagnostic census routes live VC drawable aggregates. Existing5sec census overhead remains explicitly measured. Interpretation: render-age is age of last painted OS sample and stationary holding naturally inflates it; it is not presented-frame latency. Correlate moving-input callback/paint age, frame gaps and mismatch counts. Drawable calls count valid surface/bounds calls and writes count actual size assignments, not GPU reallocations by themselves. Focused SDK PASS45 tests (diagnostics22/drag9/scheduling14), fast/full/ios/diffcheck PASS. Signed diagnostic Release/codesign/compiledaudit PASS (/tmp/native-continuous-drag-release{,-audit}.log). Native5B4B5638-AE0D-37BB-9896-EB7E9E851EB3 installed20:07 CEST; dSYM /tmp/native-continuous-drag-delivery-symbols. Snapshots /tmp/native-continuous-drag-save-{before,after}: not byte-identical because the active Journey run advanced45→42tiles, moves/score/combo/revision/meter+save timestamps during the preparation interval; unrelated durable fields identical. No reset/uninstall/import performed; do not overwrite newer progress with the earlier backup. Console-only exactlaunch verified20:08:05, PID34284, session29737, /tmp/native-continuous-drag-console-live.log. Nominal thermal, lowPowerfalse. Capture file-session limit reached; existing evidence retained and bounded stdout continues. KRENI20:08:22; user current-sessionfeedback "Trza cijelo vrijeme"; GOTOVO20:12:20. Bufferedread thenCtrlC; session29737 terminal1 andsignal2 are expected rootstop, NOT appcrash. No activecapture. Complete analysis /tmp/native-continuous-drag-source-analysis.json:210 coherentwindows/23strictpuredrag/52thermal; Sourcepuredrag0.42–0.83ms, heldmismatch0, matching60/61OSsamples/paints; drawablewrites1 across thousandscalls. Thermalnominal, no monotonicbuildup proven. Realwallcallback26.3ms at20:09:58 despiteScene scheduled16.67ms; callbacktime≠presentationtime. Mixed Source39.61ms20:09:02 (inclusivecleanup28.69),37.44ms20:10:01 (FIFOlevelendjob21.37+cleanup15.83). Splitowner attribution required; do notcallcleanup28.69 exclusive. Withdrawn publicSKViewasync experiment: actualiOS26.5 simulator getter/setter disassembly proves it only handles CAEAGLLayer and doesnot changeMetal. Removed flag/initseams/experimentmetadata +onlyits2tests, retainedrealmode telemetry. Strictfalseassert wasnot weakened or claimedPASS. Final retainedprobeSDK PASS45 (/tmp/native-drag-phase-final-sdk.log); localScene arrival-vs-scheduled phaseprobe added, notyetonphone. No blind CAMetalLayer transaction toggle: Apple requires actualcommandbuffer/drawable presentation ownership SpriteKitdoesnotexpose. Existingphone5B4B remainsunchanged. NormalNativeconsole launched20:19:58 PID34348 session62157, /tmp/native-presentation-profile-console.log, diagnosticobserversOFF. GamePerformance verification: first attachname StacktoSix failed; corrected StacktoSixNative short8s capturePASS /tmp/native-presentation-verify-v2.trace; actualNativeCPU18numericrows +509numericglobaldisplay-swaprows; Homehas0Metalpresentrequests, so gameplay GPU correspondencestillrequiresrepro. Unboundedtraceautoreviewrejected dueindefiniteprofilingoverhead; safeexplicit60saccepted. Bounded Game Performance recording completed after the configured60s, but the actual trace metadata and numeric exports retain only10s (20:24:02.768–20:24:12.768; Windowed5s). Do not call this60s of measured gameplay. KRENI2 about20:24:07; GOTOVO2 received20:25–26. Buffered console read and rootCtrlC after analysis preparation closed session62157 with expectedSIG2/exit1, NOT a spontaneous appcrash. No activecapture remains. Actual appPID34348 displayed-surface rows1.245–9.950s prove380 distinctframes,379gaps:236×16.67ms and143×33.35ms,43.54 appframes/sec, early16/33ms alternation. Artifacts /tmp/dice-display-{interval,swap,queue}.xml and analysis.json. Appsurfaces171/176/226 correspond with actualMetal/present activity; globaldisplay cadence is not the metric. CPU /tmp/native-presentation-{time-profile.xml,cpu-analysis.json,cpu-samples.json}:2457 Running samples, main1619; SpriteKitrender652 inclusive, Source169, drag98. Actual app-scoped GPU execution median0.722ms,p950.913,max2.940; shortGPU work excludes saturation as the wholecause. No exported CA drawablewaitingintervals, but SpriteKit checks availability before acquisition; simulatorpublicmethod disassembly proves warning throttled5,000,000,001ns, so recurring5s warnings cannot countactualfailedframes. Later warningtimestamps begin20:24:44 outside retainedtrace; don't falsely correlateindividualwarning totraceframe. Trace rootcause is narrowed to actualsubmission/presentationcadence rather than Source callbackFPS; exactcausalitystillOPEN. Bounded candidate: NativeSourceAnimationClockService captures layertransactionownership at actual admitted renderer delivery; skips redundant outerSource begin/commit in Scene update, preserving groupedtransactions for independentCAD/manualdelivery and allinner authoredpaint scopes. Two actualUIKit tests cover capturedownership underlease retirement/reentry/FIFO/disposal/fallback. Reviewer requires actualpresentedcadence and authoredUIKit verification; implicit outertransaction availability is being investigated because inner painters can otherwise commit separately. Renderer entry additionally establishes the implicit scope through public same-inherited-duration CATransaction setter (captured iOS27 QuartzCore disassembly confirms ensure_implicit; no flush/open explicit scope). Actual inner disabled-action CALayer write test preserves parentduration/actions. Final SDK PASS65 /tmp/native-render-transaction-complete-sdk.log; full PASS530suites/4010tests, KING330, feature/ios/diffcheck PASS. Release build active /tmp/native-render-transaction-release.log; previous signed5B4B app preserved /tmp/native-render-baseline/Stack to Six.app. Opt-in physical UIprobe added in syncedUITests folder; separate inspect, validatedJourney24 Continue-onlyresume, and4×15pt/4pt-per-sec within-original-cell drags. No fixtureprofile/reset/launcharguments; requires actual390×844board and coordinatorverified pickup(265.3,236.7) from copiedsave g3-8,row1col3,value1. Probe not yet executed; UItestbuild initially failed only missing nativeUITests.xctrunner developmentprofile, no app installed orcrash. Root preparing own-team debugprovisioning for automation. Not yet installed/accepted as60FPS. Existingphone5B4B/save/PWA untouched by thiscandidate. Rootcause and physicalacceptance remain OPEN.
+
+
+## Shared drag renderer ordering repair — 2026-10-12, delivered; physical retest open
+
+Latest user feedback after normal B8761169 launch is continuous small drag jank across dice. User ended observation with GOTOVO; no active console/video capture existed for that last report. Prior nominal-thermal traces do not prove memory growth or callback phase as the complete cause.
+
+Source touch RAF and SpriteKit previously used independent 60Hz delivery callbacks. NativeBoardScene now borrows the canonical Source animation service transport only during an admitted drag in the actual mounted visible unpaused Scene60. Scene.update delivers the complete original Source RAF/root/FIFO/raw batch before SpriteKit paint; wall/raw time domains, RNG, accepted motion, input coalescing and release ordering remain unchanged. Existing CAD link pauses during that ownership and resumes on cancel/release/suspension/background/unmount/FPS reduction; no new ticker/link. Post-batch Scene generation/service/disposal guards protect replacement. Scene15/30 never drives Source. Hover rounded geometry is reused across target changes without changing authored dimensions or admission. Runtime ownership metadata and real mounted Scene/fake-clock regressions added.
+
+PASS so far: qa:feature-runtime, qa:fast, KING330, qa:ios, diff check. Full QA PASS530 suites/4010 tests (/tmp/native-drag-renderer-full.log); SDKv1 exposed only overly exact SpriteKit coordinate equality in the new hover test (Float rounding). Corrected accuracy0.001; SDKv2 PASS55 tests (clock40/direct6/drag9), SDKv3 PASS19 tests (final Scene guard/drag9/shared registry10). Source independent review found no high/medium findings, physical verdict NEEDS PHYSICAL TEST. Signed Release/codesign/compiled Native audit PASS (/tmp/native-drag-renderer-release{,-audit}.log). Installed exact .native on iPhone13blue 19:49 CEST, UUID24794A10-5C27-3203-AC5A-A47B0F8267D1; matching dSYM /tmp/native-drag-renderer-delivery-symbols. Evidence /tmp/native-drag-renderer-{install,launch}.json/log; normal launch verified19:50:18 without diagnostics, console recording, QuickTime or profiler. Save current+previous byte-identical before/after install (/tmp/native-drag-renderer-save-{before,after}). This is a Native-only Swift repair under ongoing Native fix/delivery authorization; no equivalent web preview/change or PWA bundle sync. qa:full regenerated repository dist with SKIP_NATIVE_BUNDLE_SYNC=true. No active capture. Physical smoothness NEEDS PHYSICAL TEST, overall drag issue OPEN. Per-frame drawable resize was independently reviewed against prior profiler: 11 samples in budget method but no setter/resize symbols, so repeated resizing is not established and accepted drawable budget is preserved.
+
+
+## Console-only B9EFF520 retest COMPLETE — 2026-10-12 19:23 CEST
+
+Native PID33957 session16272 ended after explicit GOTOVO (~19:23:42) and buffered read; no active console capture remains. User reported "trza" before GOTOVO; exact symptom onset not known, use complete gameplay interval19:23:14–28 plus surrounding seconds. No video/profiler. /tmp/native-deep-drag-v2-console-live.log, markers and parsed analysis sameprefix. Thermal nominal throughout. Actual gameplay callback gaps49.9/50.0ms while dragging/recentdrag, with ordinary smoke/shards/spawn/Wild/HUD overlap; no ejection observed. Footprint settles206MiB,1Scene/SKView430nodes. Own census max5.73ms/full previous sample6.45ms; this does not account for the measured25–41ms Source work but remains observer overhead.
+
+Coherent worst-delivery attribution: interval19:23:25.928 Source41.14ms, rootcleanup32.4ms, ticker32.58ms, roots0.12ms, FIFOreactions4.81ms.19:23:21.878 Source24.38ms/rootcleanup24.2ms; currentcleanup measurement combines captured cleanup callback and demand refresh, so exact owner not yet proven.19:23:16.830 one FIFO reaction configureSourceLevelEndCaller(scope:):1637 costs25.47ms, Source27.24ms. This continuation runs fresh roster/signature reads, resolve and potentially canonical save on MainActor. Source save-store already has successful-content/actual-primary dedup; no save/phase deferral was introduced. Ordinary spawn cleanup chain also consumes/synchronizes/evaluates; Bee constructor around25s remains synchronous ~110views despite prepared images. Do not assign all remaininghitches to Bee or memory.
+
+Bounded repair from evidence: each synchronous level-end signature now memoizes identical escaped string fragments locally; full roster checks, exact JSON fieldorder/escaping and continuation/save order stay unchanged.36tile oracle proves2Foundation encodings vs48previous, with identical exactkey inclescaped/control/Unicode/nil and successive freshstates. SDKv8 compile found missing Gameplay import in new oracle test; root added it. SDKv9 PASS8/8 actual LevelEnd flow tests, KING330/qa:fast-v3/git diff--check PASS. Signed Releasev3/codesign/release:native-audit PASS. Native B8761169-70B9-3DA2-B049-860F8DFF056D installed19:32 CEST (/tmp/native-deep-drag-v3-{install,launch}.json/log), matching dSYM /tmp/native-deep-drag-v3-delivery-symbols. Both saves byte-identical before/after installation. Exact .native launched normally19:33 without --cc-performance-diagnostics, console recording or profiler. No activecapture; normal phone feel remains NEEDS PHYSICAL TEST for this small signature repair. Remaining overall drag hitches not closed. Physical smoothness FAIL/userstilltrza; overall issue remains OPEN.
+
+
+## Console-only Native retest COMPLETE — 2026-10-12 19:05 CEST
+
+Exact installed Native5038C2E1 PID33876, /tmp/native-deep-drag-console-live.log. KRENI19:03:53 after verified launch, GOTOVO received19:05:17. Buffered console read before Ctrl-C; console process session99364 closed. No QuickTime/video/Instruments. Markers /tmp/native-deep-drag-console-markers.jsonl, parsed70 Scene/Source/owner/work intervals and21 thermal samples /tmp/native-deep-drag-console-analysis.json. All thermal samples nominal. Gameplay footprint187–210MiB after initial244.9MiB preparation peak; settles209.7MiB, Scene/view counts1/1 and nodes383, no proved cumulative leak or ejection in this short run.
+
+User feedback: "Bolje, ali povremeno zapne"; also "još zna trzati". Remaining physical smoothness FAIL from measured callback gaps (not GPU-present FPS). Interval ending19:04:37.149 has active drag plus ordinary merge smoke/shards/spawn, Scene96.9ms/Source97.56ms gap; drag callback0.31ms, Sceneupdate0.64ms, Source delivery10.65ms, measured owner dragRAF0.32ms/layer commit1.05ms. No new observer/link there. Exact scheduling/render/main-thread cause is not attributed by these interval maxima. Adjacent pure drag intervals return17.2/17.4ms. Other intervals show Source delivery37.05ms (19:04:12.966),39.25ms (19:04:56.362), and microtask-boundary24.96/20.00ms (19:04:11–13), plus aggregate127 root high-water during Star finale at19:04:34 that retires to0–3 later. High-water is concurrent roots, not a leak count. New diagnostics distinguish fast individual callbacks from aggregate/unmeasured work. Follow-up repair: all actual BOOM/SPARKLE/BUBBLY controller glyph constructors borrow generation artwork, prewarming ExtraBold before first merge instead of reparsing/registering font on first paint. Glyph layout, plan/RNG, timing and final removal preserved. New console diagnostics record coherent costs from one worst actual delivery, FIFO job callsite/validation/reaction/compact costs, fully qualified participant type and diagnostic snapshot/previous sample overhead. Microtask-boundary previously named the RAF triggering drain, not the heavy reaction. These improvements do not yet attribute97ms stall; no new phone candidate yet. SDK v5 PASS85/85 (37 actual clock,8 UIKit artwork/glyph,10 scheduling,10 FIFO,20 capture), qa:fast and KING330 PASS. Final diagnostic ownership/default-off hardening PASS: old service UUID cannot remove replacement FIFO hook; captured checkpoint clock/report cannot mix generations; normal launch does not format job labels. SDK v6 PASS21/21 and final v7 PASS22/22; qa:full-v3, qa:ios-v2 PASS. Signed Release/codesign/release:native-audit PASS (/tmp/native-deep-drag-release-v2{,-audit}.log). Installed exact Native B9EFF520-BF71-31FA-9FCB-9788DBDCDD06 19:19 CEST, matching dSYM /tmp/native-deep-drag-v2-delivery-symbols; save-v1/current+previous byte-identical (/tmp/native-deep-drag-v2-save-{before,after}). New console-only session16272 PID33957 verified launch19:19:53, /tmp/native-deep-drag-v2-console-live.log. Diagnostics own sample/snapshot fields present, nominal thermal. No QuickTime/video/profiler. KRENI19:20, GOTOVO19:23; capture complete as recorded above. Markers /tmp/native-deep-drag-v2-console-markers.jsonl. Physical acceptance remains OPEN; do not call latest install fully smooth or assign remaining96ms gap to Bee/trail without evidence.
+
+## Shared Wild/Special drag hotpaths — 2026-10-12
+
+User requests a deep shared Native fix and console-only physical measurement; no further QuickTime capture. Three parallel agents plus root reviewed the previous nominal-thermal Time Profiler capture, including seconds before and after the reported drag marker. Proven heavy Bee construction/resource work and formatter work are distinct from later ordinary drag stalls; no memory leak is claimed from this capture. New installed Native candidate UUID 5038C2E1-F052-3AEA-A1BD-25C5BDA7B5C1 replaces 04A4674B; console-only retest is complete above.
+
+Implemented one gameplay-generation UIKit finale artwork owner in NativeGameplayViewController, shared with readiness and all 13 variant constructors. Only actual live Wild variants plus mounted finales prepare original pixels on a serial resource queue. JimiV9Artwork coalesces exact requests, cancels queued decode/publication on trimming/background/disposal, rejects stale same-key completions, replaces a cold encoded fallback with materialized backing, and retains per-request image scale while sharing CGImage pixels. Cold merge admission remains immediate. Matching Native UIKit finale ownership metadata and admission checks are registered.
+
+Bee/Kanta decimal paint quantization uses a numeric fast path with the original formatter near ambiguous decimal half boundaries; dense authored route/tie oracle and independent audit preserve motion precision. Bee haptic times/keys are immutable. Drag trails retain the authored plans/counts/colors/lifetimes with bounded analytic tails and pooled raster sprites, removing per-particle SKActions/closures and repeated add/remove child mutations. One actual trail cadence receipt lasts through completion; existing Scene time controls pause and first-frame birth timing.
+
+Opt-in scheduling diagnostics now report slowest actual participant/phase, RAF/FIFO/layer-commit costs and owner high-water counts once per Scene interval through [CC_NATIVE_FRAME_OWNER]. Ordinary launches do not read the diagnostic clock. No scheduling, microtask or gameplay ordering was changed. Independent resource/trail/decimal review has no remaining source findings; physical FPS/touch acceptance remains NEEDS PHYSICAL TEST.
+
+Validation: qa:fast, qa:ios, qa:special-dice, KING 330 and qa:full PASS (/tmp/native-deep-drag-{fast,ios,special,king}.log, /tmp/native-deep-drag-full-v2.log; full 530 suites/4010 tests). SDK v2 PASS 53 tests, including all 17 shapes and 15 actual Wild merge-six root cases. SDK v3 confirms Flower replacement stack/merge (2 tests) and latest UIKit resource/density lifecycle (7 tests); it found one Honey fixture whose fixed injected wall clock rewound during an async upload. Fixture now advances consistently to 400 ms, preserving production callbacks and assertions; final actual animation-clock v4 PASS 37/37 (/tmp/native-deep-drag-sdk-v4.log). Independent resource/trail/decimal review PASS and git diff --check PASS. Signed Release, strict codesign and release:native-audit PASS; installed exact .native on iPhone 13 blue 19:03 CEST, UUID 5038C2E1-F052-3AEA-A1BD-25C5BDA7B5C1, matching dSYM /tmp/native-deep-drag-delivery-symbols. Both save files byte-identical before/after install (/tmp/native-deep-drag-save-before-final, /tmp/native-deep-drag-save-after). Console-only launch verified 19:03:39, PID33876, process session99364, /tmp/native-deep-drag-console-live.log; thermal nominal, diagnostics enabled. App capture limit reached: existing evidence retained, bounded stdout continues. No QuickTime, video or profiler. KRENI19:03:53, GOTOVO19:05:17; console stopped after buffered read. Physical smoothness FAIL from remaining measured hitches; detailed evidence above. PWA target/bundle/saves untouched; qa:full regenerated repository dist with SKIP_NATIVE_BUNDLE_SYNC=true. Preserve unrelated hover/card/haptic and earlier gameplay dirty work.
+
+
+## Stack hover PWA appearance parity — 2026-10-12
+
+Native BoardScene hover used drag-core defaults (4 logical px, alpha0.15).
+Actual PWA app-core, including immutable production-benchmark-v9, configures
+brown #8a6e57, width10, alpha0.28. Native now uses those values scaled by
+board geometry, inset3 logical px and rounded radius round(128*0.26)=33.
+Existing canDrop/tutorial/transient target admission remains the owner; invalid
+ordinary sums above6 never show a hover. Added actual Scene drag regression
+for2+3,2+4,5+4 and cancellation cleanup in NativeSourceDragMoveDispatchTests.
+Evidence `/tmp/native-stack-hover-{sdk,full,fast,ios,king}.log`.
+SDK PASS6/6 (including mounted appearance/admission test); fast/iOS and
+gameplay-lock PASS330. Full gate PASS. No install, PWA sync or save mutation in this task.
+Physical appearance remains NEEDS PHYSICAL TEST.
+
+
+## Profiled drag capture COMPLETE — 2026-10-12 (CEST)
+
+Existing phoneNative04A4674B retained; concurrent uninstalled Journey soft-return
+source preserved. Exact .native console launched18:08:11, PID33393, session52492,
+`/tmp/native-drag-profiled-live.log`. Initial and every captured thermal sample
+nominal: cold-phone symptom reproduced, do not explain it solely by temperature.
+First Instruments PID+extra instrument attachment fails process lookup; exact
+Native PID/container rechecked. Plain TimeProfiler name attachment succeeds on
+Stack to Six Native33393. Saved `/tmp/native-drag-profiled-name.trace`; traceTOC
+18:09:49.026–18:12:27.136,158.109911s, UserPressedStop. Only TimeProfiler present,
+no ThreadStateTrace/CACommits from failed first attachment. Matching04A4674B dSYM
+and automatically symbolicated Native function names verified in export.
+
+KRENI18:10:26 after actualQuickTime iPhoneScreen/Home and StopRecording receipt.
+"trza" observed18:11:45; user explicitly notes typing delay, so marker is NOT
+exact onset. "gotovo" observed18:12:03. Buffered log read before stop; movie
+stopped/saved `/tmp/native-drag-profiled.mov` (QuickTime2:08 receipt), profiler
+SIGINT finished trace, console then closed. No active capture remains.
+Marker file `/tmp/native-drag-profiled-markers.jsonl`; parsed metrics
+`/tmp/native-drag-profiled-analysis.json`; traceTOC/samples XML and resolved stacks
+`/tmp/native-drag-profiled-{toc,samples}.xml`,
+`/tmp/native-drag-profiled-stacks.json`. Analysis helper
+`/tmp/analyze-native-drag-profile.py`. Broad pre/post marker trace100–120s
+(~18:11:29–49) and video65–105s inspected; overview local
+`/tmp/native-drag-profiled-overview.jpg`. Do not align the message to one frame.
+
+Concrete profiled costs: Bee finale constructor sampled33ms at trace89.650–89.682
+and49ms at94.010–94.059 (~18:11:23). Latter overlaps the Source callback81.27ms /
+gap82.93ms interval ending18:11:24.034. JimiV9Artwork.image contributes36 sampledms
+in93.99–95.01s. Current unchanged Bee constructor creates its own per-instance
+artwork cache; finaleArtworkReady also builds/discards a separate cache. Resource
+preparation/reuse is a concrete owner repair candidate, not a generic global cache.
+Bee `rounded` converts each coordinateDouble->String(format)->Double each frame;
+104 main samples in94–96s (98 directly include formatter), corroborating expense.
+
+Ordinary drag persists after Bee ends: marker±10s callback gaps21–32.6ms with
+nominal temperature and no Bee in relevant105–120s stacks. NativeDragTrail emit
+and actions have86 main samples in105–120s; SpriteKit render has1007 samples in
+same window (inclusive counts, NOT one-call durations nor per-frame FPS). Scene
+synchronize/merge callbacks and render transaction costs also recur. These are
+separate investigation targets; Bee alone does not explain all drag symptoms.
+SKView logs skipped drawables at~5s cadence, including18:11:40.567 and45.688;
+this may include capture/profiler effects, not proven baseline GPU starvation.
+No behavior/code fix, build, install, asset mutation or save change performed.
+Physical smoothness FAIL; complete root-owner attribution/fix remains OPEN.
+Next bounded repairs should address proven Bee preparation + numerical formatter
+cost while preserving authored poses, then attribute ordinary drag renderer/trail
+before claiming full smoothness. Retest same capture after any delivered fix.
+
+
+## Journey card Play/Continue soft return — 2026-10-12
+
+Compared the actual PWA portal return with Native `JimiNativeWorldCardView.fly`.
+PWA travels with smoothstep after a 100/0.98 ms up/down launch bounce;
+Native used back-in spatial travel and held launch inflation until contact,
+arriving at the Unit with velocity. Native now uses the PWA smoothstep path
+and resets its launch bounce before travel, retaining the previously accepted
+60% reduction of launch inflation. Travel remains 500/0.98 ms. Existing
+resident Unit landing punch, collapse, smoke, World exit and board-transition
+handoff stay owned by `prepareGameplayExit`; both modal Play and Continue
+share that path. Non-gameplay dismissal/entry owners remain intact.
+
+Actual compositor sample regression PASS (1/1), including the entire scale
+curve, exact destination size and deceleration: `/tmp/native-card-soft-sdk.log`.
+QA fast/iOS and gameplay-lock PASS (330 tests); lifecycle SDK PASS (2/2) in `/tmp/native-card-soft-lifecycle.log`;
+full gate PASS in `/tmp/native-card-soft-full.log`. No install, device capture, PWA sync, save mutation or
+Git publication in this task. Physical feel remains NEEDS PHYSICAL TEST.
+
+
+## Drag hitch attribution preparation — 2026-10-12
+
+User reports the same drag symptom on a cold phone, so heat is not accepted as
+the sole explanation. Previous17:21:52 spike is Source delivery37.87ms versus
+move0.99ms / Scene update0.44ms, queued touch40.69ms. Inspection bounds this
+Source callback to ordered RAF/ticker roots + listener callbacks + microtask
+boundary + CATransaction commit + nativeRaw carriers / demand refresh; exact
+owner remains unknown. No behavior/code change or new install made.
+Available Instruments CLI templates includeTimeProfiler andAnimationHitches;
+instruments includeTimeProfiler,ThreadStateTrace,Hitches,CoreAnimationCommits.
+Use a targeted TimeProfiler attachment with thread-state/commit evidence on the
+existing installed candidate; matching dSYM04A4674B verified. Exact .native
+process33105 found via current deviceprocess/container match. Refresh PID before
+attachment. Next capture requires user's readiness and KRENI-to-GOTOVO; async
+readiness question pending. Do not mistake profiler overhead for baseline FPS.
+This uses profiler attribution instead of shipping guessed gameplay changes or
+new phase diagnostics before owner evidence. Source owner repair remains OPEN.
+
+## Live drag smoothness capture — 2026-10-12 (CEST)
+
+User asks to connect and inspect perceived drag stutter/frame drops. Existing
+installed Native04A4674B retained; no product edits/build/install. Exact .native
+console launch17:20:23 verified, PID32877, session36185, console
+`/tmp/native-drag-physical-live.log`. Performance diagnostics explicitly enabled;
+file-session cap reached, existing evidence retained and bounded console active.
+QuickTime iPhone13blue Screen selected, actual Native pixels and recording
+verified before KRENI17:20:53. User markers in order: "trza", then "gotovo";
+exact message arrival times unavailable. GOTOVO observed by tool17:22:14.
+Buffered log read before stopping; video stopped after GOTOVO then console
+closed. QuickTime displayed RecordingStopped alert, but preserved complete
+110.291683s movie, successfully saved `/tmp/native-drag-physical.mov`.
+Incoming system interruption in final~105s tail excluded from gameplay diagnosis.
+No 17:22:16 background/15Hz transition included in drag worst-gap finding.
+
+Proven17:21:52.349: during direct-manipulation at target60, Scene callback gap
+41.1ms, Source delivery37.87ms / Source callback gap39.55ms, queued touch age
+40.69ms. Own move callback0.99ms, Scene update0.44ms. This proves intermittent
+callback/touch delay, not direct GPU-present FPS nor a precise root owner.
+Further drag intervals include33.4ms gaps; original user marker cannot be aligned
+to one exact second. Initial thermalState serious and remained serious through
+capture; thermal contribution possible, not a sufficient root diagnosis.
+Short gameplay footprint~187–212MiB, late~207MiB; no memory leak proven here.
+Parsed evidence `/tmp/native-drag-physical-analysis.json`; exact-frame overview
+`/tmp/native-drag-overview` and gameplay76–79s denseframes
+`/tmp/native-drag-dense`, visually inspected. Local raw movie contains unrelated
+system interruption tail; do not publish it. No code or device install changed.
+Smoothness FAIL for this physical run; root cause OPEN. Next: attribute the
+37.87ms Source callback to concrete owners with bounded diagnostics, then repeat
+same capture (also cooler-device baseline) before choosing any repair.
+
+
+## Journey detail inflation refinement — 2026-10-12
+
+User rejects the delivered puff as excessive and requests Homepage slider CTA
+exit character with 60% less scale inflation. Modal gameplay flight now uses the
+same Home hero powerIn(2) inflation / backIn(1.7) departure family. Scale excess
+above the noninflated flight is multiplied by0.4 throughout, including negative
+back-in anticipation; initial14% becomes5.6%. Spatial/flip timing and exact
+landing/completion remain unchanged. Prior boundary regression now also bounds
+launch and whole-flight inflation. No original assets or Home recipe changed.
+qa:fast/qa:ios, KING330 and focused mounted SDK1/1 PASS. Evidence
+`/tmp/native-detail-small-bounce-{fast,ios,king,sdk}.log`. Full QA, signed
+Release BUILD SUCCEEDED; compiledNative/original-assets/dependency audit and
+strictsignature PASS (`/tmp/native-detail-small-bounce-{release,built-audit,signature}.log`).
+qa:full PASS. NewUUID04A4674B-5EF6-3424-B931-5896412EC700, symbols at
+`/tmp/native-detail-small-bounce-delivery-symbols`. Verified only Native process
+32547 stopped before backup; saves at `/tmp/native-detail-small-bounce-save-before`.
+Candidate04A4674B installed17:00 CEST on iPhone13blue, container
+34C38806-47B7-417A-88DD-862A1208E0C4. Exact .native launch succeeded.
+Receipts `/tmp/native-detail-small-bounce-{install,launch}.{json,log}`. Both
+Native savefilesbyteidentical afterinstall (`/tmp/native-detail-small-bounce-save-proof.json`).
+Physical feel remains
+NEEDS PHYSICAL TEST; previous gameplay/Forest/NoMoves acceptance stays open.
+
+## Direct Native haptic parity — 2026-10-12
+
+User asks to verify direct iOS haptics and connect all accepted PWA events.
+NativeHapticRuntime now owns cached UIKit impact/selection/notification generators;
+no JavaScript/WebKit bridge is used by the active Native graph. Governor policy
+is an exact Swift port of production-benchmark-v9 (confirmed byte-identical to
+current preserved governor). Settings/foreground gate all output; background
+cancels finite captured sequences and resets budgets without replay. Existing
+finale/transition/reward clocks retain their authored schedules. Added missing
+ordinary/Wild/TNT main contacts, captured Magnet pull pattern, correct four
+protected Laser beam contacts, Home enter,50ms changed-value Clean counter,
+Clean hero/CTA beats, fail notification/Arcade summary, Collect selection and
+Settings OFF-before/ON-after-save ordering. Corrected selection-as-light fallback,
+removed duplicate unlock CTA feedback and extra Home-swipe impact. Audio cue
+selection/assets/transport are preserved. See NATIVE_HAPTIC_PARITY.md for map.
+
+SDK governor/pattern5/5 PASS `/tmp/native-haptics-sdk-correct-scheme.log`; actual
+Settings touches + accepted board merge and adjacent result/entry18/18 PASS
+`/tmp/native-haptics-connected-sdk.log`. Final grouped Native33/33 PASS
+`/tmp/native-haptics-final-sdk.log` (haptics7, reward11, Laser4, result11).
+Added Clean counter regression: final haptics8/8 PASS
+`/tmp/native-haptics-counter-sdk.log`. Final captured Home route-epoch refinement
+also passes8/8 `/tmp/native-haptics-epoch-sdk.log`; actual Source entry mounted
+owner10/10 PASS `/tmp/native-haptics-entry-sdk.log`. qa:fast, qa:full, qa:ios and KING330 PASS
+`/tmp/native-haptics-{fast,full,ios,king}.log`. Initial SDK invocation used the
+ordinary scheme without test targets and failed before tests; corrected existing
+Native Gameplay QA scheme is the evidence. Initial isolated unsigned Release BUILD SUCCEEDED `/tmp/native-haptics-release.log`;
+final Home epoch refinement Release BUILD SUCCEEDED `/tmp/native-haptics-release-final.log`, DerivedData
+`/tmp/native-haptics-release-derived`. Compiled Native dependency/original-asset
+audit PASS `/tmp/native-haptics-built-audit.log`; feature ownership admission
+PASS `/tmp/native-haptics-feature.log`. No phone install or save mutation in this
+task. Tactile timing/intensity and prolonged-play acceptance NEEDS PHYSICAL TEST.
+Concurrent Native fixes remain preserved; immutable native-benchmark-v2 unchanged.
+
+
+## Journey detail Play/Continue exit bounce — 2026-10-12
+
+User requested smoother, more authored bounce before the next gameplay retest,
+then explicitly requested iPhone installation. `JimiNativeWorldCardView.fly`
+now preserves the 1.14 punch pose into the departure instead of dropping to
+1.0 at the launch/flight boundary. Gameplay departure uses back.in(1.7) with
+continuous arc anticipation rather than the reversed entry landing rebounds.
+Duration, flip, source-card landing and transition completion ownership remain
+unchanged; ordinary close/return retains its existing motion. No assets changed.
+Mounted compositor regression checks punch continuity and exact destination;
+35/35 Journey SDK methods PASS; final-source punch/arc regression1/1 PASS.
+qa:fast/qa:full/qa:ios and KING330 PASS; gitdiffcheck PASS. Evidence
+`/tmp/native-detail-bounce-{sdk,final-sdk,fast,full,ios,king}.log`. Signed Release
+BUILD SUCCEEDED, compiledNative/original-assets/dependency audit and strict
+signature PASS (`/tmp/native-detail-bounce-{release,built-audit,signature}.log`).
+NewUUID2C909953-2FCF-3A80-BCDA-9844A031909C; dSYM preserved at
+`/tmp/native-detail-bounce-delivery-symbols`. Candidate installed16:31–32 CEST
+on iPhone13blue, container29EFA510-423D-48A1-B761-51CDD6E4D197. Install
+receipt `/tmp/native-detail-bounce-install.{json,log}`; exact .native launch
+succeeded (`/tmp/native-detail-bounce-launch.{json,log}`). Exact connected
+iPhone13blue verified; Native app was
+not running (other bundle process left untouched). Native save directory backed
+up to `/tmp/native-detail-bounce-save-before`; bothsavefilesbyteidentical after
+install (`/tmp/native-detail-bounce-save-proof.json`). Current phone candidate
+is2C909953. Physical feel remains
+NEEDS PHYSICAL TEST; earlier Forest/NoMoves/ejection acceptance stays open.
+
+## Captured No Moves / Bee gameplay ejection — 2026-10-12
+
+User expanded active capture to No Moves exit, then reported unexpected gameplay
+return and explicitly GOTOVO. QuickTime initially lost the recording window;
+reestablished iPhone13blue Screen after user resolved Trust prompt. Actual
+recording and Native launch verified before new KRENI. Saved complete116.0073s
+video `/tmp/native-no-moves-physical.mov`; console
+`/tmp/native-no-moves-physical-live.log`, PID32072. Read buffered console then
+stopped recording/console after GOTOVO; no product changes during capture.
+Proven15:49:37.385 special safety rejection tileg7-7 kindregular variantbee
+deferred0 cleared1 residual1 passopacity -> captured generation7 retired at
+15:49:37.388 -> world(1), app remains live. This is not an OS crash.
+Physical No Moves text exit15:49:19.566–20.634, board exit20.702–21.884,
+result mount21.940. Exact video57–62sec frame/contact evidence
+`/tmp/native-no-moves-exact`, `/tmp/native-no-moves-dense-*.jpg`; reviewed
+exit has no proven one-frame resurrection. No Moves blink remains OPEN.
+All three agents repaired exact retained Direct cleanup ownership, audited127
+Source failure labels, and broadened cross-variant/repeated-reset regressions.
+Actual SDK7/7 mounted interaction tests PASS, including17 identities and all7
+Direct cleanup identities. First combined SDK17tests fails only new raw registry
+reset fixture (owner token retirement omitted); fixture corrected to actual
+Scene retirement protocol, second SDK pending. Never report first run asPASS.
+Evidence `/tmp/native-dice-safety-sdk.log`.
+Central fatal presentation now retains failed engine/paint/coherent durable save,
+blocks result/reward/save and uses existing authored mandatory EndRun surface
+for explicit Replay Board/Exit, presented above host including incoming cover.
+No generic replay of revoked captured closures, no automatic restart/navigation
+or authority bypass. Unavailable Replay stays disabled; preparation failure
+reopens retained choice. Background/disposal observers scoped. New connected
+recovery/registry/NoMoves SDK `/tmp/native-failure-recovery-sdk.log`: NoMoves5,
+EndRun4 and registry10 PASS; recovery class FAIL from four unclocked fixtures
+and existing test bypassing genuine Scene seal. Fixture correction supplies
+actual clock/FIFO/context and genuine failure endpoint, retaining original
+stale-slot assertions. Final class `/tmp/native-failure-recovery-final-sdk.log`:17/18 methodsPASS,
+only Replay teardown assertions precede the existing first-frame replacement
+receipt. Corrected wait uses actualcanReplaceGameplay incoming readiness.
+Focused final `/tmp/native-failure-recovery-receipt-sdk.log`2/2PASS (Replay +
+retained-save/Exit); remaining17 methods independentlyPASS. No production guard
+weakened. Actual UIKit recovery screenshot
+`/tmp/native-failure-recovery-attachments/177315CA-9506-4ED5-9EBB-CE13B6057DD7.png`
+visually inspected: original authored modal, readable labels, unclippedCTAs.
+Independent current-source reviewPASS, pending-first-frame physical surface
+acceptance remainsopen. KING contract now explicitly records user-requested
+failure containment; KING330/finalfast/featurePASS. Signed Release BUILD SUCCEEDED; compiledNative dependency/original-assets
+audit and strictsignaturePASS (`/tmp/native-dice-safety-{release,built-audit,signature}.log`).
+NewUUID100F7A25-F126-30E6-B1AD-2701EBFB713D; symbols
+`/tmp/native-dice-safety-delivery-symbols`. iPhone13blue physicalidentity
+verifiedlive (`/tmp/native-dice-safety-device.json`); existingNative saves
+backedup immediatelybefore install. Candidate100F7A25 installed16:12:01 CEST on iPhone13blue, container
+B471811A-62A0-4D77-A905-23A69C2D4A75. Receipts
+`/tmp/native-dice-safety-install.{json,log}`. BothNative savefilesbyteidentical
+before/after (`/tmp/native-dice-safety-save-proof.json`). Normal console launch
+`/tmp/native-dice-safety-retest-live.log` active. QuickTime reselected iPhone13blue Screen and now shows TrustThisComputer
+passcode screen again. No recording started while credential prompt visible;
+user must resolve locally before actualgame capture/KRENI. Console remainslive,
+noKRENI given for this new candidate yet.
+Physicalejection/NoMoves/Forest retest acceptanceOPEN.
+qa:fast/qa:full/qa:ios and KING330 PASS; current installed remainsCB5AA705.
+Source/build/install/physical verdicts remain distinct; physical acceptanceOPEN.
+
+
+## Physical Forest cloud capture — 2026-10-12 (CEST)
+
+Latest Native8E00FCA2 physically rejected: user asks to connect and observe.
+Console launch15:09:54 PID31757 succeeded; QuickTime selected iPhone13blue
+Screen (not camera), verified actual Native Home pixels and active movie recording
+before KRENI. User markers in order: "evo jesam", "jesi vidio blink oblaka",
+then explicit "gotovo". Marker at QuickTime00:41 showed actual gameplay.
+Read console before closing it; then stopped movie recording at~113.37seconds.
+Console file-session cap refused persistence but bounded console remained live;
+no new product edits/build/install during KRENI-to-GOTOVO.
+
+Saved video `/tmp/native-forest-cloud-physical.mov` (113.372283s); live console
+`/tmp/native-forest-cloud-physical-live.log`. Exact-frame extraction uses local
+AVFoundation, artifacts `/tmp/native-forest-cloud-exact` and contact sheets
+`/tmp/native-forest-exit-*.jpg`. Proven blink at video21.300–21.333seconds:
+cloud behind mountain suddenly paints over its face, then returns behind by
+21.350. Coincides with first NN digit's 3D exit, before cloud bounce exit. Earlier
+terminal-time fixes did not solve this physical depth swap. Cause hypothesis:
+Native root siblings include direct 3D UILabel transforms, unlike PWA NN Unit
+stacking context. Mounted high-contrast UIKit pixel probe reproduced the actual depth swap:
+`/tmp/native-forest-depth-before.log` FAIL at2.45 (magenta cloud over cyan
+mountain). Exact same probe after only NN parent isolation PASS;
+`/tmp/native-forest-depth-after.log`. All3 themes now mount authored 3D UILabels
+inside a fixed affine depth10 NN Unit, matching PWA stacking-context ownership.
+No cloud/scenery/number motion recipe or original asset change. Existing Scene
+retirement removes the Unit; no rasterization, new clock or media/cache owner.
+Final SDK14/14 PASS including pixel probe, all-theme fixed-plane ownership,
+source numeric plans and lifecycle cancellation/retirement. qa:full and qa:ios
+PASS; signed Release BUILD SUCCEEDED, compiled Native dependency/original-asset
+audit and strict signature PASS. Before/after actual image attachments exported to
+`/tmp/native-forest-depth-{before,after}-attachments`, visually inspected.
+At2.45 before `BD04C2FB-655A-47CB-A21A-892354986580.png` vs after
+`9EFBA844-AAC3-4C5E-905D-87263447A2A8.png`: repaired mountain occlusion and
+NN foreground ownership. New candidate UUID CB5AA705-FC97-3DD1-8EE2-56F252481201
+installed15:26:21 CEST on iPhone13blue. Both save files byte-identical before/after
+installation: `/tmp/native-forest-depth-save-proof.json`. Receipts/symbols
+`/tmp/native-forest-depth-install.{json,log}` and
+`/tmp/native-forest-depth-delivery-symbols`. New console capture
+`/tmp/native-forest-depth-retest-live.log` active; QuickTime iPhone13blue Screen
+shows actual Native gameplay, recording verified active (stop recording button,
+00:01 /5.4MB). Ready for new KRENI-to-GOTOVO physical retest; freeze product
+mutations during capture. Physical retest NEEDS PHYSICAL TEST.
+
+
+## Forest cloud PWA exit parity correction — 2026-10-12
+
+User rejects latest5AE432DA: one Forest cloud disappears without visible bounce
+exit. Source comparison finds actual deviation: prior Native rear-depth2
+occlusion policy started exit2.055 and force-retired2.65, whereas immutable/current
+PWA addCloudExitAt(hillExitBaseStart) selects every cloud and begins all at2.65.
+Removed the extra occlusion parameter/deadline and restored the complete common
+anticipation.07/rebound.065/collapse.46 timeline through3.245. Terminal retirement
+from prior batch remains, only after the full authored exit. No geometry/depth,
+wind/bounce, asset or scenery recipe changes. Explicit authored end boundary
+avoids floating-point near-zero opacity1 at exact3.245.
+
+New source-extracted actual-GSAP oracle generator
+`scripts/native-oracles/transition-cloud-exit.cjs` compares preserved/current
+recipes and emits three rest-scale/dense120Hz plus phase-boundary samples.
+Tests compare every cloud depth in all three themes against those samples and
+retain real UIKit frozen-terminal-content checks. SDK12/12 and qa:full/qa:ios
+PASS; signed Release, compiled Native audit and strict signature PASS.
+Evidence `/tmp/native-cloud-pwa-parity-{sdk,full,ios,release,built-audit}.log`.
+New candidate UUID `8E00FCA2-639F-3203-A997-93053D5CF1AC`, symbols
+`/tmp/native-cloud-pwa-parity-delivery-symbols`; installed14:26:05 CEST on
+ iPhone13blue, container `7A5BB130-5076-419C-8393-B51BD22B2F65`;
+normal launch14:27:02 succeeded. Receipts
+`/tmp/native-cloud-pwa-parity-{install,launch}.json`. Both save files byte-identical
+before/after installation (`/tmp/native-cloud-pwa-parity-save-proof.json`).
+No PWA/legacy app changes or physical optical acceptance claim.
+Physical optical acceptance OPEN; source parity is now independently sampled.
+
+
+## Transition cloud terminal retirement — 2026-10-12
+
+User still reports Forest clouds flashing at end of life on UUID29576F8E.
+Prior transaction/depth/drift patch is physically rejected for this symptom.
+Mounted cloud presentation now primes hidden and owns an exact retired bit.
+At authored terminal opacity0 it hides the host, clears its UIImage reference,
+and skips the singular zero-scale write and every subsequent setter. Geometry,
+layer parent/depth, plan timing/RNG and assets unchanged; shared policy applies
+Forest/Beach/Area55. Scene resource owner releases at normal scene completion.
+New dense120Hz lifecycle regression covers all8/6/8 mounted clouds and freezes
+post-retirement transforms/content. SDK12/12 PASS, qa:full/qa:ios, Release,
+compiled Native dependency/asset audit and strict signature PASS. Evidence
+`/tmp/native-cloud-retirement-{sdk,full,ios,release,built-audit}.log`. Physical verdict
+NEEDS PHYSICAL TEST; no proven claim that singular matrices caused the flash.
+New signed UUID `5AE432DA-D046-34BC-878B-4C7C7BC4F61C` installed14:14:03
+CEST on iPhone13blue; normal launch succeeded14:14. Container
+`E4B77C98-3328-4AF9-89BB-F97DB47B4AFF`; receipts
+`/tmp/native-cloud-retirement-{install,launch}.json`, symbols
+`/tmp/native-cloud-retirement-delivery-symbols`. Save backup14:11:23 predates
+user's board4 completion14:12:30, before installation. Postinstall/prelaunch
+snapshot preserves newer highScore16960/cubes204 (old13542/158), settings and
+all other progression unchanged; both files legitimately advanced while user
+played, so no byte-identity claim. Evidence `/tmp/native-cloud-retirement-save-proof.json`.
+PWA/legacy apps untouched. Forest end-of-life optical acceptance still OPEN.
+
+
+## Intro character animation investigation — 2026-10-12
+
+User reports static intro characters on latest Native candidate. Read-only
+investigation: NativeStudioIntroView selects original HEVC-alpha plus original
+animated WebP fallback, not static-only artwork. Current phone normal console
+launch14:06:12 succeeded; lik-speceraj HEVC-ready14:06:13 and natural Home
+handoff14:06:17, no stalled/failure/static fallback receipt. This proves readiness
+and completion, not presented moving pixels. User confirmation of this exact
+launch requested, unanswered so far. No product edits or reinstall.
+
+Fresh isolated SDK intro suite10/10 PASS (`/tmp/native-intro-current-sdk.log`):
+all11 HEVC assets have changing decoded pixels, all11 mounted selected players
+advance media time, all11 WebP fallbacks paint changing images; stall/background/
+late readiness/disposal tests pass. Actual HEVC on-screen changing pixels remain
+unproven by these tests and physical symptom remains NEEDS PHYSICAL TEST.
+Phone trace `/tmp/native-intro-current-live.log`; preserve existing intro owner
+and original assets until reproduced cause. Latest installed UUID29576F8E.
+
+
+## Native render corrections after rejected physical batch — 2026-10-12
+
+User confirms latest installed UUID0FDE5C78 still has drag/HUD low FPS and
+No Moves flash. Prior CPU scan batch did not close those issues.
+
+Concrete NoMoves resurrection fixed: after successful board exit, same-generation
+layout/synchronize could cancel entry with HUD restoration, repaint dice and
+regenerate ghosts before modal presentation. Scene now owns a completed-exit
+generation receipt; hidden surface remains retired until genuine new generation.
+Actual mounted SpriteKit exit/relayout image equality and fresh-generation entry
+regression PASS. PWA has a retained game-over exit-complete flag until run reset.
+Canceled active exits still return failure; authored exit timing unchanged.
+
+Shared APP clock now uses minimum60 for exact active drag/HUD-flight render
+leases and idle minimum30. HUD job refusal/completion/wall/disposal releases its
+existing cadence and transport-policy demand together. No extra clock/RAF/root,
+no Source wall/FIFO/phase change. Final SDK50/50 PASS, including actual
+render-target sizing/window coverage, full board/exit/mounted HUD suites and
+repeated Reset/Fail Play Again resource cleanup. Earlier64-method run exposed
+an ineffective UIView-only scale patch; that patch was replaced and verified.
+
+GPU-density correction: immutable PWA mobile resolution1 vs actual Native
+1170x2532 drawable on390x844 viewport. Public CAMetalLayer drawableSize now
+matches logical viewport. Exact current Scene render preparation owns the
+budget after SpriteKit startup and relayout, with weak/current/disposed guards,
+no extra clock or nextDrawable consumption. Dimension setter runs only on
+mismatch. Final actual presented-window corner/center coverage PASS; geometry,
+UIKit root density and original assets preserved. Independent owner review PASS.
+Actual window detach/reattach and physical sharpness/smoothness remain unproven.
+
+Final qa:full PASS, native sync skipped. Evidence:
+`/tmp/native-render-corrections-sdk-final.log`,
+`/tmp/native-render-corrections-owned-full.log`,
+`/tmp/native-render-drawable-owned.log` and screenshot
+`/tmp/native-render-owned-attachments/362A8864-7823-41A0-9834-EA5D01491B5C.png`.
+
+Physical Metal capture requested; launch13:35 denied by iOS Locked. No capture
+started/active, user unlock/KRENI question pending. New signed Release installed13:59:45 CEST on iPhone13blue,
+UUID `29576F8E-FC15-358F-A1D0-DEF0C2CC0010`, Native container
+`34A62540-E4A8-4854-A60E-AD64F183E2B9`. qa:ios, compiled Native audit,
+Release build and strict signature PASS. Before/after install both Native
+save files are byte-identical (`/tmp/native-render-corrections-save-proof.json`).
+Original PWA/legacy shells untouched. Symbols retained at
+`/tmp/native-render-corrections-delivery-symbols`; install receipt
+`/tmp/native-render-corrections-install.json`. Normal launch attempted14:00:40 and iOS denied it because device is Locked
+(`/tmp/native-render-corrections-launch.log`); no live capture active. Physical verdict NEEDS PHYSICAL TEST
+for all three user-rejected symptoms.
+User requested installation again; latest candidate was already installed. Retry normal
+launch14:05:06 CEST succeeded (`/tmp/native-render-corrections-launch-retry.json`).
+No reinstall/save mutation or live console capture; physical acceptance still pending.
+
+
+## Post-capture performance / result / Honey investigation — 2026-10-12
+
+Synchronous ordinary physical scans now use complete board fences before/after
+one batch, with exact identity/generation/parent/admission checks per row.
+Wild/residual reads retain complete fences around external owner hooks; no
+receipt crosses an async boundary. Independent source review PASS. Seven
+physical-observation tests PASS, including45-tile two-fence count and destructive
+sibling mutation. This reduces demonstrated CPU work; rendered smoothness is
+NEEDS PHYSICAL TEST. The actual NoMoves physical authority uses the same scan; Source read
+ordering, external guard fences and state/runtime field mapping are retained.
+
+Native Fail/Clean CTA clipping radius now matches CSS overlap normalization:
+authored40 at64pt height paints32. Both result variants use the shared layout;
+11 result tests PASS and exported Clean/Fail screenshots visually reviewed.
+No button size, motion, audio or original assets changed.
+
+No Moves natural/700ms timeout exit order matches preserved PWA. Three actual
+mounted/root fade-and-handoff regressions PASS. Physical one-frame flash is
+OPEN: added opt-in handoff and changed-geometry exit-cancellation trace, no
+speculative motion change. Positive Honey-pulls-Honey physical Scene test PASS
+with actual Source idle/face resources and usable next stack. Direct Magnet→
+Magnet contact is intentionally illegal in PWA and Native; initial positive
+contact fixture was invalid and is being replaced by a no-mutation refusal
+regression. All16 positive attraction pairs and16 direct-refusal pairs now
+PASS in the actual mounted Scene. User's magnetic attraction issue remains
+OPEN, not proven fixed. Opt-in `CC_NATIVE_MAGNET_CONTACT` logs actual survivor
+input bind/board commit and each refused next-drop reason using stored scalars;
+no Source admission/readiness hooks are invoked by telemetry.
+
+Current batch qa:full/qa:ios PASS and KING330/330 PASS (`/tmp/native-drag-batch2-*`).
+Final SDK `/tmp/native-drag-batch2-sdk-final.log`:32/32 methods PASS, including
+all16 attraction pairs, all16 direct refusals, existing second-impact visibility,
+pause and real next-input cases, mounted NoMoves/physical scans/result suites.
+Fresh full QA also PASS `/tmp/native-drag-batch2-final-full.log`. Signed Release,
+compiled Native audit and strict signature PASS. Delivered13:26:59 CEST to
+iPhone13blue, UUID `0FDE5C78-F41F-35B5-B806-B268A5F3A90A`, installed container
+`3222E45E-7ED1-42BC-8BF8-7576080C5E4D`, launch13:28:32 succeeded.
+Receipts `/tmp/native-drag-batch2-{install,launch}.json`, binary/dSYM
+`/tmp/native-drag-batch2-delivery-symbols`. Fresh pre/post saves preserve all
+current gameplay/progression; latest source autosave13:18:56 changed only savedAt
+and Set-array serialization order, and original current save is byte-exact as
+new previous. Proof `/tmp/native-drag-batch2-save-proof.json`. No reset/uninstall
+or PWA operation. Capture remains CLOSED; normal launch only, no active console.
+Next explicit KRENI starts the new opt-in trace through GOTOVO. Physical drag/HUD,
+Honey next-contact and NoMoves flash remain NEEDS PHYSICAL TEST.
+
+## Native progressive drag / physical gameplay exits — 2026-10-12
+
+Authorized live console capture on iPhone 13 blue, Native build1618, PID30763,
+ran through user GOTOVO. Raw evidence `/tmp/native-drag-rounds-live.log`, drag
+marker `/tmp/native-drag-rounds-markers.log`. At12:16:59 generation4 Flower
+and12:19:06 generation6 Honey both logged `kind=regular`, `cleared=1`,
+`residual=1`, followed by `source_spawn_visual_safety_rejected`. These two
+incidents are Source failure recovery to the menu, not process crashes.
+A delayed ordinary spawn repair dispatched a genuine cleared Wild-six face
+to the revoked live Special skin owner. A shared owner-aware repair is being
+validated and installed; protective failure recovery remains intact.
+
+Progressive drag stutter is physically reported, and SpriteKit logged skipped
+frames (`no drawables available`). At the12:18:36 user marker CPU delivered
+60 touch samples/paint/handoffs with low callback costs; this does not prove
+displayed frames are smooth or rule out resource growth. No memory growth
+claim: the existing8-session diagnostic file cap prevented memory sampling.
+Bounded console fallback, process physical-footprint and mounted render-resource
+census now pass Native tests without deleting prior diagnostic evidence.
+Repeated full-Native Reset/Play Again deallocation/resource tests PASS: six
+real resets in each test, genuine moves-exhausted Play Again in the second,
+outgoing controllers/scenes deallocate and settled shared counts stay identical.
+
+QA: `qa:full`, `qa:gameplay-lock`330/330, `qa:ios`, `qa:feature-runtime`,
+compiled Release audit and strict signature PASS. Logs `/tmp/native-drag-*`.
+SDK selected run32/33 PASS in `/tmp/native-drag-sdk-verified.log`; the older
+Juice fixture's missing shared Source Math identity was then corrected,
+and its full Wild-face class8/8 PASS in `/tmp/native-wild-face-real-owner.log`.
+All33 selected distinct methods are green across those runs. Includes actual
+Flower/Honey600/1200ms race, hidden consumed-six sweeps for all four Magnet
+backings, owner retirement negative and19 bounded diagnostic tests. Earlier
+fixture failures required real Magnet audio cleanup, restored-entry readiness,
+asynchronous stack accounting and Source RNG identity; no gameplay guard was
+weakened. Independent source review NEEDS PHYSICAL TEST, no blocking findings.
+
+Latest Native delivery UUID `44D31D76-5165-344D-BF37-D2DAE6D8DCEB`, installed
+on iPhone13blue at12:42 CEST, container
+`49C6F2CA-C4D2-409A-97B3-D8124ED85AE5`. Receipt
+`/tmp/native-drag-install.json`; binary/dSYM `/tmp/native-drag-delivery-symbols`.
+Both Native saves byte-identical before/after installation, before launch,
+106216/111239 bytes; SHA256 proof `/tmp/native-drag-save-proof.json`.
+No PWA sync/install, no uninstall/reset. Diagnostic launch at12:43 was rejected
+by iOS because the phone is locked, `/tmp/native-drag-fixed-live.log`.
+Post-fix physical capture PID31254 ran12:58–13:01 through explicit GOTOVO;
+`/tmp/native-drag-fixed-live.log` and `/tmp/native-drag-fixed-markers.log`.
+No Source presentation recovery/ejection appeared. One mounted Scene/SKView
+across generations7–9, settled views246, nodes decreased423→129; footprint
+233.5→250.6MiB stabilized then decreased238.9MiB. No monotonic memory leak
+is established. Drag/HUD low FPS remained physically reported. APP callback
+53.65ms coincided with508 whole-board revalidations/22,971 observation reads;
+SpriteKit also skipped drawables. Capture is closed; no active console session.
+Installed code/source tests do not close physical drag/HUD acceptance.
+Physical verdict NEEDS PHYSICAL TEST; progressive drag issue remains OPEN.
+
+
+
+## Flower TNT replacement interaction investigation — 2026-10-12
+
+User reports Flower-changed dice can drag but refuse both stack and merge.
+OPEN: no confirmed cause or gameplay fix. Added mounted Native controller
+regressions in `NativeSourceTntFinaleConstructionTests.swift`: real restored
+ordinary Source constructors, HUD upload, meter preparation/earned Flower,
+both Flower contact directions, actual bonus impacts and accepted replacement
+stack/merge-six plus destructive callback settlement. Production ordinary
+idle/endgame owners and a locked cell are enabled. All four scenarios PASS
+(`/tmp/native-flower-repro-fullgraph.log`,2 test methods). Final retained
+regressions plus three adjacent TNT finale tests5/5 PASS in
+`/tmp/native-flower-sdk-final.log`. `qa:full` PASS
+(`/tmp/native-flower-investigation-full.log`). Current phone build stays1618;
+no new build/install or gameplay mutation for this investigation.
+
+Fixture preparation failures were corrected with actual pre-entry HUD and
+meter receipts. A no-TNT-main graph refuses the initial Flower contact before
+mutation, as designed, so it was not retained as a replacement regression.
+Picking up during the still-gated bonus mutation is also refused at pickup,
+not the reported draggable/unmergable symptom. Removed that unsupported
+expectation; no gate was weakened. Source/Core owner inspection alone does
+not reproduce the physical issue and does not close it.
+
+Read-only current Native save copied to `/tmp/native-flower-phone-state`;
+lastOpened board4, stored board7 contains Flower but zero moves and an ordinary
+six that is ineligible for Source restore. This stored snapshot is not proof
+of the current incident board or cause. User clarification requested for board
+and Flower contact direction; exact recording/reproduction is needed before
+claiming a fix. Physical verdict NEEDS PHYSICAL TEST.
+
+## Latest Native delivery 1618 — 2026-10-12 11:47 CEST
+
+Cloud transition fix below installed over existing Native app on verified
+iPhone 13 blue, exact bundle `com.taptapdesign.stacktosix.native`. Signed UUID
+`16187789-A764-39CE-85DE-D6CC72683E75`, installed container
+`3D6388E1-C6EB-444C-B3E8-354A329304C1`, launch PID30563, no diagnostic arguments.
+Install/launch evidence `/tmp/native-cloud-{install,launch}.json`; running-process
+receipt `/tmp/native-cloud-processes.json`. Binary/dSYM preserved under
+`/tmp/native-cloud-delivery-symbols`. Both saves byte-identical before/after
+install and before launch:111116/111114 bytes, SHA256 proof
+`/tmp/native-cloud-save-proof.json`. No uninstall/reset or PWA sync/install.
+Supersedes2161 installed code; physical cloud visual acceptance remains open.
+
+## Native transition clouds — 2026-10-12
+
+Forest rear-cloud retirement previously reset wrapper drift to zero and snapped
+scale/opacity to zero at 1.75s. The same host stayed mounted with a singular
+transform. Replaced this with the existing authored .595s cloud exit, ending
+at 2.65s before the mountain's exit starts; wrapper drift/bounce remain
+continuous after retirement. This is a bounded Native fix, not PWA authoring
+or artwork changes. Parent/depth placement remains fixed for all three themes.
+The shared controller commits cloud/scenery transforms and visibility together
+with implicit actions disabled, and hides retired cloud hosts. Route/audio
+callbacks stay outside that transaction. No extra clock, preload or resource
+owner was introduced; existing disposal removes all hosts.
+
+QA: `qa:full`, `qa:gameplay-lock` (330 tests), `qa:ios` PASS; logs
+`/tmp/native-cloud-{full,gameplay,ios}.log`. Added 36-seed all-theme drift/scale
+continuity and rear occlusion retirement tests, plus actual UIKit cloud-host
+parent/depth/hidden/action checks. First UIKit fixture also selected the Area55
+fighters, whose 9/11 depth intentionally changes; corrected selection to exact
+cloud depths and asserted exact 8/6/8 counts. Rechecked 20 scoped SDK tests PASS
+in `/tmp/native-cloud-sdk-verified.log`; final callback-scope recheck also20/20 PASS in
+`/tmp/native-cloud-sdk-current.log`. Signed Release BUILD SUCCEEDED; built dependency/assets audit PASS, strict
+signature PASS. Final logs `/tmp/native-cloud-{release-final,built-audit,signature}.log`.
+Feature-owner record updated; `qa:feature-runtime` PASS. Physical cloud disappearance, left-edge flash,
+Forest mountain overlap and Beach/Area55 compositor feel NEEDS PHYSICAL TEST.
+
+## Latest Native delivery 2161 — 2026-10-12 11:37 CEST
+
+Existing Native phone-delivery authorization continued with the second Magnet
+merge visibility correction below. Current signed standalone Release installed
+over and launched on verified iPhone 13 blue, exact bundle
+`com.taptapdesign.stacktosix.native`, no diagnostic arguments. UUID
+`216149C0-A667-3B68-9068-35BAE45382B8`, installed container
+`D5BF355F-AD53-4CA3-A678-C02A33E011AF`, launch PID30531. Binary/dSYM preserved
+in `/tmp/native-magnet-hide-delivery-symbols`. Source/assets audit, Release,
+strict signature, compiled dependency/assets audit, install and launch PASS:
+`/tmp/native-magnet-hide-{ios,release,signature,built-audit,install,launch}.log`.
+Both Native saves byte-identical before/after install and before launch:
+111113/111044 bytes, SHA256 evidence `/tmp/native-magnet-hide-save-proof.json`.
+Initial broad Library copy hit an OS-protected SplashBoard snapshot; the exact
+Native Application Support save folder was copied successfully instead.
+No uninstall/reset, PWA operation or diagnostic capture. Installed-code state
+supersedes2A94. Physical second-merge timing acceptance NEEDS PHYSICAL TEST.
+
+## Magnet second-merge six visibility — 2026-10-12
+
+User physically accepts the beginning of the inflation but reports the six
+remains visible too long after the second pull merge. PWA `app-merge.ts`
+lines627-666 hides it immediately after removing donors, retaining the same
+grid object until the later `commitMagnetSurvivor` conversion. Native lacked
+that visible/alpha boundary. Source Core now marks the consumed six hidden at
+accepted pull preparation, preserving its ID/cell/value6. Scene hides the exact
+captured node and retires its inner inflation before second-impact VFX/spawn
+awaits. Genuine survivor conversion restores that same node as an ordinary
+playable die. No earlier survivor value draw, cell deletion, extra clock or
+timer. First-impact inflation remains; no-pull/final paths are unchanged.
+This corrects the prior2A94 policy that left inflation visible through spawning.
+
+PASS Core469/469 `/tmp/native-magnet-hide-core-final.log`, full QA
+`/tmp/native-magnet-hide-full.log`, Native source/assets audit. Broader actual
+pull/main/lazy SDK18/19 passed; the new four-variant test lacked its host-owned
+Spaceship overlay admission callback. After mapping that existing host seam,
+the same strong four-variant test PASS23.174s
+`/tmp/native-magnet-hide-four-variants-sdk.log`. It verifies immediate hiding,
+reserved cell, no inner paint owner,180ms paused spawn interval and same-object
+visible ordinary/input commit for core/Honey/Bottle/Spaceship. Existing lazy
+same-object next-move and main/pull/pause/retirement tests passed in the broader
+run. Initial Core fixture assumed visible main despite its legacy main80 opt-in;
+physical scene test proves actual visible-first/hidden-second ordering.
+Current signed Release/device delivery completed in2161 above. Physical
+appearance/timing acceptance of this correction remains NEEDS PHYSICAL TEST.
+No assets, PWA operations, saves/schema or unrelated gameplay changes.
+
+## Latest Native delivery 2A94 — 2026-10-12 10:24 CEST
+
+Existing user authorization for Native iPhone delivery continued with the
+requested recording/PWA Magnet inflation update. Signed current Release
+installed-over and launched on iPhone 13 blue, exact bundle
+`com.taptapdesign.stacktosix.native`, no diagnostic arguments. UUID
+`2A949F7B-0A91-31D0-B47D-F50C9F00380D`, installed container
+`A8634B81-4987-4392-B601-1180581C9E8A`, launch PID29802. Binary/dSYM preserved
+in `/tmp/native-magnet-inflate-delivery-symbols`. Source audit, final Release,
+strict signature, compiled dependency/assets audit, install and launch PASS:
+`/tmp/native-magnet-inflate-{ios,release-final,signature,built-audit,install,
+launch}.log`. Before/after install and before launch both Native save files
+are byte-identical:117893/117117 bytes; exact SHA256 evidence
+`/tmp/native-magnet-inflate-save-proof.json`. Transient CoreDevice connection
+reset resolved before the successful save copy/install. No uninstall/reset,
+PWA operation or diagnostic capture. Installed-code state supersedes4C51;
+physical Magnet animation/touch/timing acceptance remains NEEDS PHYSICAL TEST.
+
+## Magnet inner inflation from user recording — 2026-10-12
+
+User supplies `ScreenRecording_10-12-2026 02-56-44_1.mov.zip` and requests
+the PWA Magnet merge-six carrier swell during pull in Native. Read-only local
+AVFoundation frame inspection (1s clip, 12 samples) compared with the actual
+`fx.ts wildImpactEffect` and app-core main80 caller. Shared Native Magnet main
+now mounts the original inner rotG .88 immediate pose,1.30/.74 squash,1.24
+back.out(3) swell and authored settle/tilt. The Source GSAP owner borrows the
+existing clock and consumes no RNG or extra gameplay/input lock. All four
+Magnet backings (core/Honey/Bottle/Spaceship) use it when donors exist. Effect
+continues during replacement spawning and retires at real retained-destination
+conversion, before ordinary input/tail ownership. Exact inner-transform token
+restores on scene interruption without repainting a successor owner.
+
+PASS full QA `/tmp/native-magnet-inflate-full.log`, feature runtime and Native
+source/assets audit. Connected pull/main/lazy SDK17/17 PASS
+`/tmp/native-magnet-inflate-sdk-final.log`; final natural-expiry/stale-token/main
+and actual lazy conversion SDK13/13 PASS
+`/tmp/native-magnet-inflate-owner-final-sdk.log`. Early tests caught missing
+SpriteKit import, teardown restoration and a hitch-clamped test clock; shipping
+cleanup was corrected and expiry verified using actual16ms ticks. No assets,
+PWA or save schema changes. Current signed Release/compiled audit and phone
+delivery completed in2A94 above; physical visual acceptance remains
+NEEDS PHYSICAL TEST.
+
+## Latest Native delivery 4C51 — 2026-10-12 01:48 CEST
+
+User explicitly requested installation of the Magnet/Honey/final-exit fixes.
+Current signed standalone Release installed-over and launched on verified
+iPhone 13 blue, exact bundle `com.taptapdesign.stacktosix.native`, no diagnostic
+arguments. UUID `4C51EB1F-02A7-3E30-9258-BCA4C6060BD4`, installed container
+`5521F661-DF44-4AB0-A847-710DAE66C504`, launch PID28486 verified live.
+Native source/asset audit, Release, strict signature, compiled dependency/assets
+audit, install and launch PASS: `/tmp/native-magnet-install-{ios,release,
+signature,built-audit,device,launch}.log`. Save proof before/after installation
+and before launch: `/tmp/native-magnet-install-save-proof.json`; primary119038
+bytes and previous116222 bytes are byte-identical. No uninstall/reset or PWA
+operation. This delivery supersedes DB3C for installed-code state, not physical
+acceptance. Magnet/Honey touch/appearance/timing and final exit remain
+NEEDS PHYSICAL TEST.
+
+## Native Magnet/Honey and final board exit — 2026-10-12
+
+User requests PWA comparison and repair of the entire Magnet archetype, including
+Honey donors becoming locked artwork during pull, delayed six cleanup, missing
+brown bonus, and the skipped residual board/HUD/footer exit before Clean Board.
+All three agents reviewed separate pull, survivor and multiplier ownership paths.
+These changes are working-tree changes after benchmark v2 and delivery DB3C;
+they are now installed in delivery4C51 above, not published as a new checkpoint.
+
+Native now retains the captured visible donor face/pose while Magnet owns the
+pull; core reservation still blocks input. Real survivor conversion restores
+ordinary input ownership before its decorative bounce, matching PWA's atomic
+commit boundary. The authored brown multiplier runs on an independent finite
+owner, including zero bonus, without requiring the destination node to survive.
+Genuine no-pull Magnet uses the existing Source Direct primary/locked spawn
+phase (nine locked bonuses, zero extra active) and awaits that choreography
+before cleanup; it does not synthesize an empty pull or eagerly refill at main80.
+Final completion awaits residual dice/closed tiles/ghosts, then HUD and footer
+exit, before presenting Clean Board. Existing cancellation/generation guards
+and standard motion owners remain authoritative.
+
+PWA references were read only: app-core donor reservation and Magnet main,
+fx.ts showMultiplierTile, magnet-survivor-commit.ts and the wild merge spawn
+bonus decision. No PWA bundle sync, assets, device saves or phone operation.
+
+Validation: PASS core468/468 (`/tmp/magnet-six-direct-fullcore.log`), final
+qa:fast and qa:full (`/tmp/native-magnet-honey-final-{fast,full}.log`),
+qa:ios, gameplay lock, feature-runtime and special-dice admission. The broader
+Simulator run passed47/50: one invalid saved-transient fixture was removed
+without weakening save validation; two existing Direct scene fixtures needed
+the shared Source RNG. After those fixture corrections, all seven affected
+Direct/final-exit tests PASS (`/tmp/native-magnet-honey-final-direct-sdk.log`).
+Other broader-run passing coverage includes real earned Honey in both directions,
+Magnet main/pull/lazy/fallback paths, independent multiplier expiry and the real
+wild-destination final merge (`/tmp/native-magnet-honey-final-sdk.log`).
+Physical Magnet/Honey appearance, timing, touch and final exit acceptance remain
+NEEDS PHYSICAL TEST. Build/Simulator receipts do not prove phone acceptance.
+
 ## User-selected Native benchmark v2 — 2026-10-12
 
 Checkpoint commit f73018d239272f7ef2b65094d16fefff412b9346 and annotated

@@ -7,10 +7,10 @@ final class NativeHoneyFinalePresentation: NativeFinitePresentation {
     private var images: [UIImageView] = [],offsets: [CGPoint]
     private let glyphs: NativeSplashGlyphField
     private var emittedPost = false
-    init(resourceRoot: URL,viewport: CGSize,random: @escaping () -> Double = { Double.random(in: 0..<1) }) {
+    init(resourceRoot: URL,viewport: CGSize,preparedArtwork:JimiV9Artwork?=nil,random: @escaping () -> Double = { Double.random(in: 0..<1) }) {
         plans = NativeHoneyFinaleMotion.make(viewport: viewport,random: random)
         offsets = Array(repeating: .zero,count: plans.count)
-        let artwork = JimiV9Artwork(resourceRoot: resourceRoot)
+        let artwork = preparedArtwork ?? JimiV9Artwork(resourceRoot: resourceRoot)
         glyphs = NativeSplashGlyphField(artwork: artwork,text: "BUZZING!",
             colors: [UIColor(red: 1,green: 193.0/255,blue: 79.0/255,alpha: 1),UIColor(red: 208.0/255,green: 120.0/255,blue: 77.0/255,alpha: 1)],splitIndex: 4,random: random)
         super.init(viewport: viewport,duration: 3.16)

@@ -98,4 +98,53 @@ import StackToSixGameplay
         let kanta=try XCTUnwrap(scene.captureSourcePhysicalBoard())
         XCTAssertFalse(try XCTUnwrap(scene.captureSourceRegularIdleEligibleIDs(kanta,externalMarkerReader:provider)).contains(second.id),"Immutable v9 excludes the rigid Kanta idle family")
     }
+    func testSynchronousFortyFiveTileMarkerScanUsesTwoPhysicalFencesAndPreservesOrder()throws {
+        let (scene,construction,service,timeline)=try fixture()
+        defer{scene.dispose();construction.dispose();timeline.dispose();service.dispose()}
+        let board=try XCTUnwrap(scene.captureSourcePhysicalBoard());XCTAssertEqual(board.observedState.tiles.count,45)
+        var fences=0,ids:[String]=[]
+        let counted=NativeBoardScene.SourcePhysicalBoardCapture(canonicalState:board.canonicalState,observedState:board.observedState,tiles:board.tiles,isStillCurrent:{fences+=1;return board.isStillCurrent()})
+        XCTAssertEqual(scene.scanSourceSynchronousPhysicalBoard(counted,current:{true},readsExternalOwner:{$0.isSpecial || $0.sourceResidualWildPresence},read:{model,node in
+            XCTAssertEqual(node.tileID,model.id)
+            guard scene.captureSourceGameplayTileMarkers(model.id) != nil else{return nil}
+            ids.append(model.id);return false
+        }),false)
+        XCTAssertEqual(ids,board.observedState.tiles.map(\.id))
+        XCTAssertEqual(fences,2,"45 ordinary rows require90 physical re-observations, not45×45")
+        XCTAssertEqual(scene.engine.state,board.canonicalState)
+    }
+    func testSynchronousWildOwnerReadFencesDestructiveSiblingMutationsBeforeNextRow()throws {
+        for mutation in 0..<3 {
+            let (scene,construction,service,timeline)=try fixture()
+            defer{scene.dispose();construction.dispose();timeline.dispose();service.dispose()}
+            let models=scene.engine.state.tiles,first=try XCTUnwrap(models.first),second=try XCTUnwrap(models.dropFirst().first)
+            let earlier=try XCTUnwrap(scene.sourceNativeTileNode(first.id)),wild=try XCTUnwrap(scene.sourceNativeTileNode(second.id))
+            wild.update(value:6,kind:"wild",variant:nil,depth:1,locked:false)
+            let board=try XCTUnwrap(scene.captureSourcePhysicalBoard());var calls:[String]=[]
+            XCTAssertNil(scene.scanSourceSynchronousPhysicalBoard(board,current:{true},readsExternalOwner:{$0.isSpecial || $0.sourceResidualWildPresence},read:{model,_ in
+                calls.append(model.id)
+                if model.id==second.id {
+                    switch mutation {
+                    case 0:earlier.isHidden.toggle()
+                    case 1:earlier.removeFromParent()
+                    default:var fresh=scene.engine.state;fresh.generation+=1;scene.engine.restart(state:fresh)
+                    }
+                }
+                return false
+            }))
+            XCTAssertEqual(calls,[first.id,second.id],"A Wild/carrier callback may not invalidate an earlier row and then continue")
+        }
+    }
+    func testSynchronousExternalReadRetainsPositiveAdmissionAndOrderedEarlyReturn()throws {
+        let (scene,construction,service,timeline)=try fixture()
+        defer{scene.dispose();construction.dispose();timeline.dispose();service.dispose()}
+        let board=try XCTUnwrap(scene.captureSourcePhysicalBoard()),first=try XCTUnwrap(board.observedState.tiles.first)
+        var calls=0,fences=0
+        let counted=NativeBoardScene.SourcePhysicalBoardCapture(canonicalState:board.canonicalState,observedState:board.observedState,tiles:board.tiles,isStillCurrent:{fences+=1;return board.isStillCurrent()})
+        XCTAssertEqual(scene.scanSourceSynchronousPhysicalBoard(counted,current:{true},readsExternalOwner:{_ in true},read:{model,_ in
+            calls+=1;XCTAssertEqual(model.id,first.id);return true
+        }),true)
+        XCTAssertEqual(calls,1,"Save cleanup/mutation short-circuit must not query later owners")
+        XCTAssertEqual(fences,4,"Entry, both external-owner fences and final early-return fence remain real")
+    }
 }

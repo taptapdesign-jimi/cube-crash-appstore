@@ -185,11 +185,12 @@ final class JimiNativeEndRunModal: UIViewController {
     private var modalDrag: JimiNativeModalDrag?
     private var clickedButton: Int?
     private let assets: JimiV9Artwork
+    private let dismissalAllowed:Bool
     private(set) var closing = false
     private var ready = false
     private var disposed = false
-    init(id:Int,model:JimiNativeEndRunModel,assets:JimiV9Artwork) {
-        requestID = id; self.model = model; self.assets = assets
+    init(id:Int,model:JimiNativeEndRunModel,assets:JimiV9Artwork,dismissalAllowed:Bool = true) {
+        requestID = id; self.model = model; self.assets = assets;self.dismissalAllowed=dismissalAllowed
         super.init(nibName:nil,bundle:nil); modalPresentationStyle = .overFullScreen
     }
     required init?(coder:NSCoder) { fatalError("Use init(id:model:assets:)") }
@@ -230,7 +231,8 @@ final class JimiNativeEndRunModal: UIViewController {
         close.imageEdgeInsets = UIEdgeInsets(top:12.5,left:12.5,bottom:12.5,right:12.5)
         close.accessibilityLabel = "Close "+model.title;close.accessibilityIdentifier = "native.end-run.close"
         close.addTarget(self,action:#selector(requestClose),for:.touchUpInside);idle.addSubview(close)
-        modalDrag = JimiNativeModalDrag(target:card,idle:idle,viewport:view,canDrag:{[weak self] in guard let self else{return false};return self.ready && !self.closing && !self.disposed},onDismiss:{[weak self] in self?.requestClose()})
+        close.isHidden = !dismissalAllowed;backdrop.isUserInteractionEnabled=dismissalAllowed
+        modalDrag = JimiNativeModalDrag(target:card,idle:idle,viewport:view,canDrag:{[weak self] in guard let self else{return false};return self.dismissalAllowed && self.ready && !self.closing && !self.disposed},onDismiss:{[weak self] in self?.requestClose()})
         view.isUserInteractionEnabled = false
     }
     override func viewDidLayoutSubviews() {
@@ -268,7 +270,7 @@ final class JimiNativeEndRunModal: UIViewController {
     }
     private func completeEnter() {
         guard !disposed,!closing,!ready else{return};ready = true;view.isUserInteractionEnabled = true;onReady?()
-        guard !UIAccessibility.isReduceMotionEnabled else{return}
+        guard dismissalAllowed,!UIAccessibility.isReduceMotionEnabled else{return}
         let a = CAKeyframeAnimation(keyPath:"transform");a.duration = 6.8;a.repeatCount = .infinity
         a.keyTimes = [0,0.18,0.38,0.58,0.76,0.84,0.89,0.94,1]
         a.values = [pose(0,0,0,0,1),pose(-3,3,0,0,1.003),pose(0,0,0,0,1),pose(-3.75,4,0,0,1.004),pose(0,0,0,0,1),pose(-4,8,0,0,1.015),pose(1,0,0,0,0.995),pose(-1,3,0,0,1.006),pose(0,0,0,0,1)].map{NSValue(caTransform3D:$0)}
@@ -294,7 +296,7 @@ final class JimiNativeEndRunModal: UIViewController {
     }
     func actionRejected() {if !disposed,!closing {modalDrag?.cancel();clickedButton = nil;for button in buttons {releaseButton(button)};view.isUserInteractionEnabled = ready}}
     private func request(_ action:String) {guard ready,!closing,!disposed else{return};view.isUserInteractionEnabled = false;onAction?(action)}
-    @objc private func requestClose() {request("close")}
+    @objc private func requestClose() {guard dismissalAllowed else{return};request("close")}
     @objc private func requestButton(_ sender:UIButton) {clickedButton = sender.tag;request(sender.tag == 0 ? "restart" : "exit")}
     func closeFromOwner() {
         guard !disposed,!closing else{return};modalDrag?.cancel(preservePose:true);closing = true;view.isUserInteractionEnabled = false

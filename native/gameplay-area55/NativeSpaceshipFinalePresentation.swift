@@ -19,9 +19,9 @@ final class NativeSpaceshipFinalePresentation: NativeFinitePresentation {
     private var debris: [Debris] = [],bitmapIndex = -1,beamRetired = false
     private var deliveredCues = Set<String>()
     init(resourceRoot: URL,viewport: CGSize,origin: CGPoint,generation: UInt64,
-         random: () -> Double = { Double.random(in: 0..<1) }) {
+         preparedArtwork:JimiV9Artwork?=nil,random: () -> Double = { Double.random(in: 0..<1) }) {
         self.generation = generation
-        let artwork = JimiV9Artwork(resourceRoot: resourceRoot)
+        let artwork = preparedArtwork ?? JimiV9Artwork(resourceRoot: resourceRoot)
         entry = max(0,min(3,Int(NativeArea55Motion.clamp(random(),0,0.999999)*4)))
         lane = random() < 0.5 ? -1 : 1
         frames = (1...4).compactMap { artwork.image("assets/shop/spaceship/saucer\($0)@2x.png") }

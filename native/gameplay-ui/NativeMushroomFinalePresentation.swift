@@ -11,9 +11,9 @@ final class NativeMushroomFinalePresentation:NativeFinitePresentation {
     private var sporeViews:[UIView]=[],spores:[NativeMushroomSporeMotion.Runtime],sporeStart:Double?,sporeFinished=false
     private var beats=Set<Int>(),cancelled=false
     static let assets=["assets/shop/mushroom/mushroom.png"]+(1...5).map {"assets/shop/mushroom/mushroom\($0).png"}
-    init(resourceRoot:URL,viewport:CGSize,random:()->Double={Double.random(in:0..<1)}) {
+    init(resourceRoot:URL,viewport:CGSize,preparedArtwork:JimiV9Artwork?=nil,random:()->Double={Double.random(in:0..<1)}) {
         self.viewport=viewport
-        let artwork=JimiV9Artwork(resourceRoot:resourceRoot),color=UIColor(red:253.0/255,green:125.0/255,blue:95.0/255,alpha:1)
+        let artwork=preparedArtwork ?? JimiV9Artwork(resourceRoot:resourceRoot),color=UIColor(red:253.0/255,green:125.0/255,blue:95.0/255,alpha:1)
         glyphs=NativeSplashGlyphField(artwork:artwork,text:"SHROOMY",colors:[color],splitIndex:0,deferExitRotationCapture:true,random:random)
         let textures=Self.assets.map {artwork.image($0,densityAware:true)}
         assetReady=textures.allSatisfy {$0 != nil}

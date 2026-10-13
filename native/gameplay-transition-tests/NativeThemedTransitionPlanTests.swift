@@ -47,17 +47,39 @@ final class NativeThemedTransitionPlanTests:XCTestCase {
         XCTAssertEqual(robo.first {$0.definition.key=="robo-walker"}!.left,78)
         XCTAssertEqual(robo.first {$0.definition.key=="robo-fence-static-left"}!.bottom,331.00278032,accuracy:0.000001)
     }
-    func testForestRearCloudsCannotReappearAsMountainCoverExits() {
-        for seed in UInt32(1)...36 {
-            let rng=Random(seed),plans=NativeTransitionCloudPlan.make(theme:.forest,width:390,random:rng.next)
-            for cloud in plans where cloud.depth==2 {
-                let before=cloud.sample(seconds:1.75-0.000001,exitAt:2.65,occlusionEndsAt:1.75)
-                XCTAssertEqual(before.opacity,1)
-                for frame in 0...240 {
-                    let p=cloud.sample(seconds:1.75+Double(frame)/120,exitAt:2.65,occlusionEndsAt:1.75)
-                    XCTAssertEqual(p.opacity,0);XCTAssertEqual(p.scaleX,0);XCTAssertEqual(p.scaleY,0)
+    func testEveryCloudUsesTheFullSourceBounceExitIncludingRearForestClouds() {
+        for theme in [NativeBoardTransitionPlan.Theme.forest,.beach,.area55] {
+            let plans=NativeTransitionCloudPlan.make(theme:theme,width:390,random:{0.37})
+            for cloud in plans {
+                for row in NativeThemedCloudExitOracle.samples {
+                    let rest=row[0],age=row[1]
+                    let adjusted=NativeTransitionCloudPlan.Cloud(asset:cloud.asset,depth:cloud.depth,width:cloud.width,height:cloud.height,xPercent:cloud.xPercent,yPercent:cloud.yPercent,baseScale:rest,rotation:cloud.rotation,bounceAmount:cloud.bounceAmount,bounceSpeed:cloud.bounceSpeed,windDuration:cloud.windDuration,driftDistance:cloud.driftDistance,initialY:cloud.initialY,enterDelay:cloud.enterDelay)
+                    let pose=adjusted.sample(seconds:2.65+age,exitAt:2.65)
+                    XCTAssertEqual(pose.scaleX,row[2],accuracy:0.000002)
+                    XCTAssertEqual(pose.scaleY,row[3],accuracy:0.000002)
+                    XCTAssertEqual(pose.opacity,age>=0.595 ? 0:1)
+                }
+                // Mountain withdrawal must not hard-hide a rear cloud.
+                XCTAssertEqual(cloud.sample(seconds:2.65,exitAt:2.65).opacity,1)
+                XCTAssertEqual(cloud.sample(seconds:2.75,exitAt:2.65).opacity,1)
+            }
+        }
+    }
+    func testCloudExitKeepsDriftContinuousAcrossAllThemesAndBothEdges() {
+        for theme in [NativeBoardTransitionPlan.Theme.forest,.beach,.area55] {
+            for seed in UInt32(1)...36 {
+                let rng=Random(seed)
+                for cloud in NativeTransitionCloudPlan.make(theme:theme,width:390,random:rng.next) {
+                    for boundary in [2.055,2.65,3.245] {
+                        let before=cloud.sample(seconds:boundary-0.000001,exitAt:2.65)
+                        let after=cloud.sample(seconds:boundary+0.000001,exitAt:2.65)
+                        XCTAssertEqual(before.wrapperX,after.wrapperX,accuracy:0.001)
+                        XCTAssertEqual(before.scaleX,after.scaleX,accuracy:0.001)
+                        XCTAssertEqual(before.scaleY,after.scaleY,accuracy:0.001)
+                    }
                 }
             }
         }
     }
+
 }

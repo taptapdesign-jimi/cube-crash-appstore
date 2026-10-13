@@ -23,6 +23,12 @@
     "nativeTests": [
       "native/standalone/Stack to SixTests/NativeTntBoardBlastTests.swift",
       "native/standalone/Stack to SixTests/NativeBoardTests.swift"
+    ],
+    "nativeUIKitFinaleArtworkOwner": "native/gameplay-ui/NativeGameplayViewController.swift: NativeSelectedUIKitFinaleArtworkOwner; native/jimi-2026/JimiV9Artwork.swift: selected serial bitmap preparation",
+    "nativeUIKitFinaleWarmupPolicy": "Only actual selected/restored live variants and active mounted finales. Same generation-owned UIKit artwork cache is borrowed by readiness and constructors; original PNG pixels materialize on one serial resource queue, UIKit cache publication stays MainActor. Canonical density preserved, no all-variant/global eager cache. Cold fallback remains immediate; late preparation replaces encoded cache for future borrowers.",
+    "nativeUIKitFinaleCleanupPolicy": "Live/active family reconciliation retires unused image aliases and per-request tokens before queued decode/publication. Background or explicit suspension cancels pending speculative preparation, retaining admitted active pixels; foreground reselects only actual live families. Generation replacement, Source failure and disposal retire all preparation and bitmap references; mounted UIKit images retain their own pixels. Fish preserves existing exact HEVC owner.",
+    "nativeUIKitFinaleTests": [
+      "native/standalone/Stack to SixTests/NativeSelectedFinaleRasterTests.swift"
     ]
   },
   "kanta": {
@@ -47,6 +53,12 @@
     "nativeTests": [
       "native/standalone/Stack to SixTests/NativeTntBoardBlastTests.swift",
       "native/standalone/Stack to SixTests/NativeBoardTests.swift"
+    ],
+    "nativeUIKitFinaleArtworkOwner": "native/gameplay-ui/NativeGameplayViewController.swift: NativeSelectedUIKitFinaleArtworkOwner; native/jimi-2026/JimiV9Artwork.swift: selected serial bitmap preparation",
+    "nativeUIKitFinaleWarmupPolicy": "Only actual selected/restored live variants and active mounted finales. Same generation-owned UIKit artwork cache is borrowed by readiness and constructors; original PNG pixels materialize on one serial resource queue, UIKit cache publication stays MainActor. Canonical density preserved, no all-variant/global eager cache. Cold fallback remains immediate; late preparation replaces encoded cache for future borrowers.",
+    "nativeUIKitFinaleCleanupPolicy": "Live/active family reconciliation retires unused image aliases and per-request tokens before queued decode/publication. Background or explicit suspension cancels pending speculative preparation, retaining admitted active pixels; foreground reselects only actual live families. Generation replacement, Source failure and disposal retire all preparation and bitmap references; mounted UIKit images retain their own pixels. Fish preserves existing exact HEVC owner.",
+    "nativeUIKitFinaleTests": [
+      "native/standalone/Stack to SixTests/NativeSelectedFinaleRasterTests.swift"
     ]
   },
   "bee": {
@@ -72,6 +84,12 @@
     "nativeTests": [
       "native/standalone/Stack to SixTests/NativeTntBoardBlastTests.swift",
       "native/standalone/Stack to SixTests/NativeBoardTests.swift"
+    ],
+    "nativeUIKitFinaleArtworkOwner": "native/gameplay-ui/NativeGameplayViewController.swift: NativeSelectedUIKitFinaleArtworkOwner; native/jimi-2026/JimiV9Artwork.swift: selected serial bitmap preparation",
+    "nativeUIKitFinaleWarmupPolicy": "Only actual selected/restored live variants and active mounted finales. Same generation-owned UIKit artwork cache is borrowed by readiness and constructors; original PNG pixels materialize on one serial resource queue, UIKit cache publication stays MainActor. Canonical density preserved, no all-variant/global eager cache. Cold fallback remains immediate; late preparation replaces encoded cache for future borrowers.",
+    "nativeUIKitFinaleCleanupPolicy": "Live/active family reconciliation retires unused image aliases and per-request tokens before queued decode/publication. Background or explicit suspension cancels pending speculative preparation, retaining admitted active pixels; foreground reselects only actual live families. Generation replacement, Source failure and disposal retire all preparation and bitmap references; mounted UIKit images retain their own pixels. Fish preserves existing exact HEVC owner.",
+    "nativeUIKitFinaleTests": [
+      "native/standalone/Stack to SixTests/NativeSelectedFinaleRasterTests.swift"
     ]
   },
   "laser-gun": {
@@ -89,6 +107,12 @@
       "src/modules/__tests__/special-sound-warmup.test.ts",
       "src/modules/__tests__/juice-finale-textures.test.ts",
       "src/modules/__tests__/gameplay-render-suspension.test.ts"
+    ],
+    "nativeUIKitFinaleArtworkOwner": "native/gameplay-ui/NativeGameplayViewController.swift: NativeSelectedUIKitFinaleArtworkOwner; native/jimi-2026/JimiV9Artwork.swift: selected serial bitmap preparation",
+    "nativeUIKitFinaleWarmupPolicy": "Only actual selected/restored live variants and active mounted finales. Same generation-owned UIKit artwork cache is borrowed by readiness and constructors; original PNG pixels materialize on one serial resource queue, UIKit cache publication stays MainActor. Canonical density preserved, no all-variant/global eager cache. Cold fallback remains immediate; late preparation replaces encoded cache for future borrowers.",
+    "nativeUIKitFinaleCleanupPolicy": "Live/active family reconciliation retires unused image aliases and per-request tokens before queued decode/publication. Background or explicit suspension cancels pending speculative preparation, retaining admitted active pixels; foreground reselects only actual live families. Generation replacement, Source failure and disposal retire all preparation and bitmap references; mounted UIKit images retain their own pixels. Fish preserves existing exact HEVC owner.",
+    "nativeUIKitFinaleTests": [
+      "native/standalone/Stack to SixTests/NativeSelectedFinaleRasterTests.swift"
     ]
   },
   "spaceship": {
@@ -111,7 +135,23 @@
     "nativeBlastPolicy": "Original two-pass Math recipe. Unheld waves consume no Date and use existing captured APP timeline or SpriteKit clock; exact pickup/rest/z/generation/Scope retirement. Beach Ball uses original held return deadline/amplitude. No asset/audio/haptic/Core/global changes. Full family/pixel/physical acceptance remains OPEN.",
     "nativeTests": [
       "native/standalone/Stack to SixTests/NativeTntBoardBlastTests.swift",
-      "native/standalone/Stack to SixTests/NativeBoardTests.swift"
+      "native/standalone/Stack to SixTests/NativeBoardTests.swift",
+      "native/standalone/Stack to SixTests/NativeSixSourceSurfaceTests.swift",
+      "native/standalone/Stack to SixTests/NativeSourceMagnetPullSceneTests.swift",
+      "native/standalone/Stack to SixTests/NativeSourceMagnetLazySceneTests.swift"
+    ],
+    "nativeMultiplierOwner": "native/gameplay-ordinary-six/NativeRegularSixSpritePresentation.swift: NativeWildSixMultiplierPresentation; NativeBoardScene playSourceMagnetMultiplier",
+    "nativeMultiplierPolicy": "Initial Source Magnet main uses shards, original brown multiplier badge, then smoke. Final Direct uses x0; continuation uses x2. Existing Source GSAP timeline owns the finite 0.9s badge; destination removal does not cancel it. Exact generation/scope/scene retirement removes badge and lease; no gameplay, input, audio or new recurring clock ownership. Physical visual/FPS acceptance remains open.",
+    "nativeImpactOwner": "native/gameplay-ui/NativeSourceMergeSixHeroOwner.swift: NativeSourceMagnetImpactOwner",
+    "nativeImpactPolicy": "Magnet main80 inner rotG squash .88 to 1.30/.74, back.out(3) swell1.24 and authored return/tilt, on existing finite APP Source GSAP timeline. Exact carrier/generation/Scope ownership; retire before survivor conversion and restore on interruption. No additional RNG, clock, gameplay or input lock. Physical visual acceptance open. Consumed six hides at actual second impact, not after replacement spawns. Hidden retained carrier reserves the exact grid cell until ordinary conversion; no per-frame inner effect while hidden.",
+    "nativeImpactTests": [
+      "native/standalone/Stack to SixTests/NativeSourceMagnetMainSceneTests.swift"
+    ],
+    "nativeUIKitFinaleArtworkOwner": "native/gameplay-ui/NativeGameplayViewController.swift: NativeSelectedUIKitFinaleArtworkOwner; native/jimi-2026/JimiV9Artwork.swift: selected serial bitmap preparation",
+    "nativeUIKitFinaleWarmupPolicy": "Only actual selected/restored live variants and active mounted finales. Same generation-owned UIKit artwork cache is borrowed by readiness and constructors; original PNG pixels materialize on one serial resource queue, UIKit cache publication stays MainActor. Canonical density preserved, no all-variant/global eager cache. Cold fallback remains immediate; late preparation replaces encoded cache for future borrowers.",
+    "nativeUIKitFinaleCleanupPolicy": "Live/active family reconciliation retires unused image aliases and per-request tokens before queued decode/publication. Background or explicit suspension cancels pending speculative preparation, retaining admitted active pixels; foreground reselects only actual live families. Generation replacement, Source failure and disposal retire all preparation and bitmap references; mounted UIKit images retain their own pixels. Fish preserves existing exact HEVC owner.",
+    "nativeUIKitFinaleTests": [
+      "native/standalone/Stack to SixTests/NativeSelectedFinaleRasterTests.swift"
     ]
   },
   "bottle": {
@@ -133,7 +173,23 @@
     "nativeBlastPolicy": "Original two-pass Math recipe. Unheld waves consume no Date and use existing captured APP timeline or SpriteKit clock; exact pickup/rest/z/generation/Scope retirement. Beach Ball uses original held return deadline/amplitude. No asset/audio/haptic/Core/global changes. Full family/pixel/physical acceptance remains OPEN.",
     "nativeTests": [
       "native/standalone/Stack to SixTests/NativeTntBoardBlastTests.swift",
-      "native/standalone/Stack to SixTests/NativeBoardTests.swift"
+      "native/standalone/Stack to SixTests/NativeBoardTests.swift",
+      "native/standalone/Stack to SixTests/NativeSixSourceSurfaceTests.swift",
+      "native/standalone/Stack to SixTests/NativeSourceMagnetPullSceneTests.swift",
+      "native/standalone/Stack to SixTests/NativeSourceMagnetLazySceneTests.swift"
+    ],
+    "nativeMultiplierOwner": "native/gameplay-ordinary-six/NativeRegularSixSpritePresentation.swift: NativeWildSixMultiplierPresentation; NativeBoardScene playSourceMagnetMultiplier",
+    "nativeMultiplierPolicy": "Initial Source Magnet main uses shards, original brown multiplier badge, then smoke. Final Direct uses x0; continuation uses x2. Existing Source GSAP timeline owns the finite 0.9s badge; destination removal does not cancel it. Exact generation/scope/scene retirement removes badge and lease; no gameplay, input, audio or new recurring clock ownership. Physical visual/FPS acceptance remains open.",
+    "nativeImpactOwner": "native/gameplay-ui/NativeSourceMergeSixHeroOwner.swift: NativeSourceMagnetImpactOwner",
+    "nativeImpactPolicy": "Magnet main80 inner rotG squash .88 to 1.30/.74, back.out(3) swell1.24 and authored return/tilt, on existing finite APP Source GSAP timeline. Exact carrier/generation/Scope ownership; retire before survivor conversion and restore on interruption. No additional RNG, clock, gameplay or input lock. Physical visual acceptance open. Consumed six hides at actual second impact, not after replacement spawns. Hidden retained carrier reserves the exact grid cell until ordinary conversion; no per-frame inner effect while hidden.",
+    "nativeImpactTests": [
+      "native/standalone/Stack to SixTests/NativeSourceMagnetMainSceneTests.swift"
+    ],
+    "nativeUIKitFinaleArtworkOwner": "native/gameplay-ui/NativeGameplayViewController.swift: NativeSelectedUIKitFinaleArtworkOwner; native/jimi-2026/JimiV9Artwork.swift: selected serial bitmap preparation",
+    "nativeUIKitFinaleWarmupPolicy": "Only actual selected/restored live variants and active mounted finales. Same generation-owned UIKit artwork cache is borrowed by readiness and constructors; original PNG pixels materialize on one serial resource queue, UIKit cache publication stays MainActor. Canonical density preserved, no all-variant/global eager cache. Cold fallback remains immediate; late preparation replaces encoded cache for future borrowers.",
+    "nativeUIKitFinaleCleanupPolicy": "Live/active family reconciliation retires unused image aliases and per-request tokens before queued decode/publication. Background or explicit suspension cancels pending speculative preparation, retaining admitted active pixels; foreground reselects only actual live families. Generation replacement, Source failure and disposal retire all preparation and bitmap references; mounted UIKit images retain their own pixels. Fish preserves existing exact HEVC owner.",
+    "nativeUIKitFinaleTests": [
+      "native/standalone/Stack to SixTests/NativeSelectedFinaleRasterTests.swift"
     ]
   },
   "honey": {
@@ -153,6 +209,24 @@
       "src/modules/__tests__/special-sound-warmup.test.ts",
       "src/modules/__tests__/juice-finale-textures.test.ts",
       "src/modules/__tests__/gameplay-render-suspension.test.ts"
+    ],
+    "nativeMultiplierOwner": "native/gameplay-ordinary-six/NativeRegularSixSpritePresentation.swift: NativeWildSixMultiplierPresentation; NativeBoardScene playSourceMagnetMultiplier",
+    "nativeMultiplierPolicy": "Initial Source Magnet main uses shards, original brown multiplier badge, then smoke. Final Direct uses x0; continuation uses x2. Existing Source GSAP timeline owns the finite 0.9s badge; destination removal does not cancel it. Exact generation/scope/scene retirement removes badge and lease; no gameplay, input, audio or new recurring clock ownership. Physical visual/FPS acceptance remains open.",
+    "nativeMultiplierTests": [
+      "native/standalone/Stack to SixTests/NativeSixSourceSurfaceTests.swift",
+      "native/standalone/Stack to SixTests/NativeSourceMagnetPullSceneTests.swift",
+      "native/standalone/Stack to SixTests/NativeSourceMagnetLazySceneTests.swift"
+    ],
+    "nativeImpactOwner": "native/gameplay-ui/NativeSourceMergeSixHeroOwner.swift: NativeSourceMagnetImpactOwner",
+    "nativeImpactPolicy": "Magnet main80 inner rotG squash .88 to 1.30/.74, back.out(3) swell1.24 and authored return/tilt, on existing finite APP Source GSAP timeline. Exact carrier/generation/Scope ownership; retire before survivor conversion and restore on interruption. No additional RNG, clock, gameplay or input lock. Physical visual acceptance open. Consumed six hides at actual second impact, not after replacement spawns. Hidden retained carrier reserves the exact grid cell until ordinary conversion; no per-frame inner effect while hidden.",
+    "nativeImpactTests": [
+      "native/standalone/Stack to SixTests/NativeSourceMagnetMainSceneTests.swift"
+    ],
+    "nativeUIKitFinaleArtworkOwner": "native/gameplay-ui/NativeGameplayViewController.swift: NativeSelectedUIKitFinaleArtworkOwner; native/jimi-2026/JimiV9Artwork.swift: selected serial bitmap preparation",
+    "nativeUIKitFinaleWarmupPolicy": "Only actual selected/restored live variants and active mounted finales. Same generation-owned UIKit artwork cache is borrowed by readiness and constructors; original PNG pixels materialize on one serial resource queue, UIKit cache publication stays MainActor. Canonical density preserved, no all-variant/global eager cache. Cold fallback remains immediate; late preparation replaces encoded cache for future borrowers.",
+    "nativeUIKitFinaleCleanupPolicy": "Live/active family reconciliation retires unused image aliases and per-request tokens before queued decode/publication. Background or explicit suspension cancels pending speculative preparation, retaining admitted active pixels; foreground reselects only actual live families. Generation replacement, Source failure and disposal retire all preparation and bitmap references; mounted UIKit images retain their own pixels. Fish preserves existing exact HEVC owner.",
+    "nativeUIKitFinaleTests": [
+      "native/standalone/Stack to SixTests/NativeSelectedFinaleRasterTests.swift"
     ]
   },
   "flower": {
@@ -170,6 +244,12 @@
       "src/modules/__tests__/special-sound-warmup.test.ts",
       "src/modules/__tests__/juice-finale-textures.test.ts",
       "src/modules/__tests__/gameplay-render-suspension.test.ts"
+    ],
+    "nativeUIKitFinaleArtworkOwner": "native/gameplay-ui/NativeGameplayViewController.swift: NativeSelectedUIKitFinaleArtworkOwner; native/jimi-2026/JimiV9Artwork.swift: selected serial bitmap preparation",
+    "nativeUIKitFinaleWarmupPolicy": "Only actual selected/restored live variants and active mounted finales. Same generation-owned UIKit artwork cache is borrowed by readiness and constructors; original PNG pixels materialize on one serial resource queue, UIKit cache publication stays MainActor. Canonical density preserved, no all-variant/global eager cache. Cold fallback remains immediate; late preparation replaces encoded cache for future borrowers.",
+    "nativeUIKitFinaleCleanupPolicy": "Live/active family reconciliation retires unused image aliases and per-request tokens before queued decode/publication. Background or explicit suspension cancels pending speculative preparation, retaining admitted active pixels; foreground reselects only actual live families. Generation replacement, Source failure and disposal retire all preparation and bitmap references; mounted UIKit images retain their own pixels. Fish preserves existing exact HEVC owner.",
+    "nativeUIKitFinaleTests": [
+      "native/standalone/Stack to SixTests/NativeSelectedFinaleRasterTests.swift"
     ]
   },
   "barell": {
@@ -187,6 +267,12 @@
       "src/modules/__tests__/special-sound-warmup.test.ts",
       "src/modules/__tests__/juice-finale-textures.test.ts",
       "src/modules/__tests__/gameplay-render-suspension.test.ts"
+    ],
+    "nativeUIKitFinaleArtworkOwner": "native/gameplay-ui/NativeGameplayViewController.swift: NativeSelectedUIKitFinaleArtworkOwner; native/jimi-2026/JimiV9Artwork.swift: selected serial bitmap preparation",
+    "nativeUIKitFinaleWarmupPolicy": "Only actual selected/restored live variants and active mounted finales. Same generation-owned UIKit artwork cache is borrowed by readiness and constructors; original PNG pixels materialize on one serial resource queue, UIKit cache publication stays MainActor. Canonical density preserved, no all-variant/global eager cache. Cold fallback remains immediate; late preparation replaces encoded cache for future borrowers.",
+    "nativeUIKitFinaleCleanupPolicy": "Live/active family reconciliation retires unused image aliases and per-request tokens before queued decode/publication. Background or explicit suspension cancels pending speculative preparation, retaining admitted active pixels; foreground reselects only actual live families. Generation replacement, Source failure and disposal retire all preparation and bitmap references; mounted UIKit images retain their own pixels. Fish preserves existing exact HEVC owner.",
+    "nativeUIKitFinaleTests": [
+      "native/standalone/Stack to SixTests/NativeSelectedFinaleRasterTests.swift"
     ]
   },
   "mushroom": {
@@ -210,6 +296,12 @@
     "nativeTests": [
       "native/standalone/Stack to SixTests/NativeTntBoardBlastTests.swift",
       "native/standalone/Stack to SixTests/NativeBoardTests.swift"
+    ],
+    "nativeUIKitFinaleArtworkOwner": "native/gameplay-ui/NativeGameplayViewController.swift: NativeSelectedUIKitFinaleArtworkOwner; native/jimi-2026/JimiV9Artwork.swift: selected serial bitmap preparation",
+    "nativeUIKitFinaleWarmupPolicy": "Only actual selected/restored live variants and active mounted finales. Same generation-owned UIKit artwork cache is borrowed by readiness and constructors; original PNG pixels materialize on one serial resource queue, UIKit cache publication stays MainActor. Canonical density preserved, no all-variant/global eager cache. Cold fallback remains immediate; late preparation replaces encoded cache for future borrowers.",
+    "nativeUIKitFinaleCleanupPolicy": "Live/active family reconciliation retires unused image aliases and per-request tokens before queued decode/publication. Background or explicit suspension cancels pending speculative preparation, retaining admitted active pixels; foreground reselects only actual live families. Generation replacement, Source failure and disposal retire all preparation and bitmap references; mounted UIKit images retain their own pixels. Fish preserves existing exact HEVC owner.",
+    "nativeUIKitFinaleTests": [
+      "native/standalone/Stack to SixTests/NativeSelectedFinaleRasterTests.swift"
     ]
   },
   "robo-cube": {
@@ -233,6 +325,12 @@
     "nativeTests": [
       "native/standalone/Stack to SixTests/NativeTntBoardBlastTests.swift",
       "native/standalone/Stack to SixTests/NativeBoardTests.swift"
+    ],
+    "nativeUIKitFinaleArtworkOwner": "native/gameplay-ui/NativeGameplayViewController.swift: NativeSelectedUIKitFinaleArtworkOwner; native/jimi-2026/JimiV9Artwork.swift: selected serial bitmap preparation",
+    "nativeUIKitFinaleWarmupPolicy": "Only actual selected/restored live variants and active mounted finales. Same generation-owned UIKit artwork cache is borrowed by readiness and constructors; original PNG pixels materialize on one serial resource queue, UIKit cache publication stays MainActor. Canonical density preserved, no all-variant/global eager cache. Cold fallback remains immediate; late preparation replaces encoded cache for future borrowers.",
+    "nativeUIKitFinaleCleanupPolicy": "Live/active family reconciliation retires unused image aliases and per-request tokens before queued decode/publication. Background or explicit suspension cancels pending speculative preparation, retaining admitted active pixels; foreground reselects only actual live families. Generation replacement, Source failure and disposal retire all preparation and bitmap references; mounted UIKit images retain their own pixels. Fish preserves existing exact HEVC owner.",
+    "nativeUIKitFinaleTests": [
+      "native/standalone/Stack to SixTests/NativeSelectedFinaleRasterTests.swift"
     ]
   },
   "cubero": {
@@ -255,6 +353,12 @@
     "nativeTests": [
       "native/standalone/Stack to SixTests/NativeTntBoardBlastTests.swift",
       "native/standalone/Stack to SixTests/NativeBoardTests.swift"
+    ],
+    "nativeUIKitFinaleArtworkOwner": "native/gameplay-ui/NativeGameplayViewController.swift: NativeSelectedUIKitFinaleArtworkOwner; native/jimi-2026/JimiV9Artwork.swift: selected serial bitmap preparation",
+    "nativeUIKitFinaleWarmupPolicy": "Only actual selected/restored live variants and active mounted finales. Same generation-owned UIKit artwork cache is borrowed by readiness and constructors; original PNG pixels materialize on one serial resource queue, UIKit cache publication stays MainActor. Canonical density preserved, no all-variant/global eager cache. Cold fallback remains immediate; late preparation replaces encoded cache for future borrowers.",
+    "nativeUIKitFinaleCleanupPolicy": "Live/active family reconciliation retires unused image aliases and per-request tokens before queued decode/publication. Background or explicit suspension cancels pending speculative preparation, retaining admitted active pixels; foreground reselects only actual live families. Generation replacement, Source failure and disposal retire all preparation and bitmap references; mounted UIKit images retain their own pixels. Fish preserves existing exact HEVC owner.",
+    "nativeUIKitFinaleTests": [
+      "native/standalone/Stack to SixTests/NativeSelectedFinaleRasterTests.swift"
     ]
   },
   "beach-ball": {
@@ -279,6 +383,12 @@
       "native/standalone/Stack to SixTests/NativeTntBoardBlastTests.swift",
       "native/standalone/Stack to SixTests/NativeBoardTests.swift",
       "native/standalone/Stack to SixTests/NativeSourceTntFinaleConstructionTests.swift"
+    ],
+    "nativeUIKitFinaleArtworkOwner": "native/gameplay-ui/NativeGameplayViewController.swift: NativeSelectedUIKitFinaleArtworkOwner; native/jimi-2026/JimiV9Artwork.swift: selected serial bitmap preparation",
+    "nativeUIKitFinaleWarmupPolicy": "Only actual selected/restored live variants and active mounted finales. Same generation-owned UIKit artwork cache is borrowed by readiness and constructors; original PNG pixels materialize on one serial resource queue, UIKit cache publication stays MainActor. Canonical density preserved, no all-variant/global eager cache. Cold fallback remains immediate; late preparation replaces encoded cache for future borrowers.",
+    "nativeUIKitFinaleCleanupPolicy": "Live/active family reconciliation retires unused image aliases and per-request tokens before queued decode/publication. Background or explicit suspension cancels pending speculative preparation, retaining admitted active pixels; foreground reselects only actual live families. Generation replacement, Source failure and disposal retire all preparation and bitmap references; mounted UIKit images retain their own pixels. Fish preserves existing exact HEVC owner.",
+    "nativeUIKitFinaleTests": [
+      "native/standalone/Stack to SixTests/NativeSelectedFinaleRasterTests.swift"
     ]
   }
 }

@@ -14,9 +14,9 @@ final class NativeLaserGunFinalePresentation: NativeFinitePresentation {
     // tnt-animation's onFireReady at .04 × LASERGUN_TIMING_SCALE (.455).
     static let handoffDelay = 0.0182
     init(resourceRoot: URL,viewport: CGSize,origin: CGPoint,generation: UInt64,
-         random: () -> Double = { Double.random(in: 0..<1) }) {
+         preparedArtwork:JimiV9Artwork?=nil,random: () -> Double = { Double.random(in: 0..<1) }) {
         self.generation = generation; self.origin = origin
-        let artwork = JimiV9Artwork(resourceRoot: resourceRoot)
+        let artwork = preparedArtwork ?? JimiV9Artwork(resourceRoot: resourceRoot)
         frames = (1...3).compactMap { artwork.image("assets/shop/gun/lasergun\($0)@2x.png") }
         assetReady = origin.x.isFinite && origin.y.isFinite && viewport.width > 0 && viewport.height > 0 && frames.count == 3 && FileManager.default.fileExists(atPath: resourceRoot.appendingPathComponent("assets/fonts/Baloo2-ExtraBold.ttf").path)
         var scales = [1.0,0.875,0.75]

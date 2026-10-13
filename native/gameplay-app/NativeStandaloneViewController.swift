@@ -152,7 +152,7 @@ import StackToSixNativeState
             case .critical:thermal="critical"
             @unknown default:thermal="unknown"
             }
-            return ["thermalState":thermal,"lowPowerMode":process.isLowPowerModeEnabled,
+            var payload:[String:Any] = ["thermalState":thermal,"lowPowerMode":process.isLowPowerModeEnabled,
                 "batteryPercent":device.batteryLevel>=0 ? Int((device.batteryLevel*100).rounded()):-1,
                 "batteryState":device.batteryState.rawValue,
                 "brightnessPercent":self?.view.window.map{Int(($0.screen.brightness*100).rounded())} ?? -1,
@@ -162,6 +162,10 @@ import StackToSixNativeState
                 "product":Bundle.main.bundleIdentifier ?? "unknown","performanceDiagnosticsEnabled":performanceEnabled,
                 "nativeThermalTelemetryEnabled":true,
                 "nativeRoute":self?.bootstrap?.diagnosticRoute ?? "unmounted"]
+            if performanceEnabled {
+                payload["renderResources"]=NativeDiagnosticsRenderCensus.capture(root:self?.viewIfLoaded)
+            }
+            return payload
         })
         diagnostics=owner;owner.start(foreground:UIApplication.shared.applicationState == .active)
     }

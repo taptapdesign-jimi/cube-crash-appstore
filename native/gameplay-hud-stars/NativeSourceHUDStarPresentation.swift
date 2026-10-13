@@ -33,7 +33,7 @@ import StackToSixGameplay
     var capturedJobs:[NativeSourceHUDStarJob]{Array(jobCaptures.values)}
     var starIDs:[String]{jobs.liveStarIDs}
     var mountedContainer:SKNode?{jobs.containerMounted ? container:nil}
-    private lazy var jobs=NativeSourceHUDStarJobs(hooks:.init(current:{[weak self] in self?.current() ?? false},acquireCadence:{[weak self] in self?.bindings.acquireCadence() ?? {}},mountContainer:{[weak self] in self?.mountContainer() ?? false},removeContainer:{[weak self] in self?.container.removeFromParent()},mountStar:{[weak self] id,plan in self?.mountStar(id,plan) ?? false},paintStar:{[weak self] id,pose in self?.paint(id,pose)},removeStar:{[weak self] id in self?.sprites.removeValue(forKey:id)?.removeFromParent()},timeline:{[weak self] plan,update,complete in self?.timeline(plan,update,complete)},wall:{[weak self] delay,elapsed in
+    private lazy var jobs=NativeSourceHUDStarJobs(hooks:.init(current:{[weak self] in self?.current() ?? false},acquireCadence:{[weak self] in self?.acquireFlightCadence()},mountContainer:{[weak self] in self?.mountContainer() ?? false},removeContainer:{[weak self] in self?.container.removeFromParent()},mountStar:{[weak self] id,plan in self?.mountStar(id,plan) ?? false},paintStar:{[weak self] id,pose in self?.paint(id,pose)},removeStar:{[weak self] id in self?.sprites.removeValue(forKey:id)?.removeFromParent()},timeline:{[weak self] plan,update,complete in self?.timeline(plan,update,complete)},wall:{[weak self] delay,elapsed in
         guard let self else{return{}}
         let token=self.timeouts.schedule(sourceID:"source-hud-star-wall:\(UUID().uuidString)",generation:self.generation,delayMilliseconds:Int(delay.rounded(.towardZero)),elapsed:elapsed)
         return{[weak self] in _=self?.timeouts.cancel(token)}
@@ -50,6 +50,12 @@ import StackToSixGameplay
         guard !disposed,stage != nil,engine.state.generation==generation else{return false}
         let admitted=bindings.current()
         return admitted && !disposed && stage != nil && engine.state.generation==generation
+    }
+    private func acquireFlightCadence()->NativeSourceHUDStarJobs.Cancel? {
+        guard current(),let demand=service.acquireSource60HzRenderDemand(ownerID:"source-hud-star-flight",generation:generation,current:{[weak self] in self?.current()==true}) else{return nil}
+        let release=bindings.acquireCadence()
+        guard current(),demand.active else{release();demand.cancel();return nil}
+        return{release();demand.cancel()}
     }
     private func mountContainer()->Bool {
         guard current(),let stage else{return false};stage.addChild(container)

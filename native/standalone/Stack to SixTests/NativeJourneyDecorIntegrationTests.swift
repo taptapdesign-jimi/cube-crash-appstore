@@ -96,6 +96,50 @@ final class NativeJourneyDecorIntegrationTests:XCTestCase {
         XCTAssertEqual(footer.phase,.exiting);XCTAssertTrue(footer.hasActiveClock);XCTAssertTrue(replies.isEmpty)
         await fulfillment(of:[done],timeout:4);XCTAssertEqual(replies,[true])
     }
+    func testCleanTerminalWaitsForResidualBoardThenHUDAndFooter() async throws {
+        let resources=Resources(),controller=controller(resources)
+        var state=controller.engine.state
+        state.tiles.append(NativeTile(id:"closed",cell:NativeCell(column:1,row:0),value:0,locked:true))
+        controller.engine.restart(state:state)
+        let window=mount(controller)
+        defer{controller.dispose();window.isHidden=true}
+        resources.finish(0);controller.view.setNeedsLayout();controller.view.layoutIfNeeded()
+        let scene=try XCTUnwrap(controller.view.subviews.compactMap{$0 as? SKView}.first?.scene as? NativeBoardScene)
+        let footer=try XCTUnwrap(controller.journeyBottomDecor)
+        try await waitForActualDecorEntry(controller)
+        let entryDeadline=Date().addingTimeInterval(4)
+        while !scene.isBoardEntryComplete {
+            guard Date()<entryDeadline else {XCTFail("Actual board entry did not complete");throw CancellationError()}
+            try await Task.sleep(for:.milliseconds(20))
+        }
+        footer.paint(seconds:0.62,generation:1)
+        let tile=try XCTUnwrap(scene.sourceNativeTileNode("a"))
+        let closed=try XCTUnwrap(scene.sourceNativeTileNode("closed"))
+        let hud=try XCTUnwrap(scene.childNode(withName:"//native-game-hud"))
+        var ghosts:[SKNode]=[]
+        scene.enumerateChildNodes(withName:"//native-ghost-*"){node,_ in ghosts.append(node)}
+        XCTAssertFalse(ghosts.isEmpty)
+        let done=expectation(description:"Clean callback follows residual, HUD and footer exit")
+        var callbacks=0
+        controller.onTerminal={result in
+            callbacks += 1;XCTAssertEqual(result.kind,.complete)
+            XCTAssertEqual(footer.phase,.hidden);XCTAssertFalse(footer.hasActiveClock)
+            for target in [tile,closed] + ghosts {
+                XCTAssertEqual(target.xScale,0,accuracy:0.001);XCTAssertEqual(target.alpha,0,accuracy:0.001)
+            }
+            XCTAssertEqual(hud.alpha,0,accuracy:0.001)
+            done.fulfill()
+        }
+        scene.onTerminal?(NativeResolution(.complete,reason:"final_regular_merge6"))
+        XCTAssertEqual(callbacks,0)
+        XCTAssertNotEqual(footer.phase,.exiting,"Footer must wait for board residual pop-out")
+        XCTAssertNotNil(tile.action(forKey:"board-exit"))
+        XCTAssertNotNil(closed.action(forKey:"board-exit"))
+        XCTAssertNil(hud.action(forKey:"hud-exit"),"HUD must wait for all residual targets")
+        await fulfillment(of:[done],timeout:4)
+        XCTAssertEqual(callbacks,1)
+    }
+
     private func waitForActualDecorEntry(_ controller:NativeGameplayViewController) async throws {
         let deadline=Date().addingTimeInterval(4)
         while controller.journeyBottomDecor?.phase != .entering {

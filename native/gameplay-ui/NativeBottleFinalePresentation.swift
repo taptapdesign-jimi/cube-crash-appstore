@@ -29,10 +29,10 @@ final class NativeBottleFinalePresentation: NativeFinitePresentation {
     private let viewport: CGSize
     private let pack = "assets/shop/bottle/bottle animation pack/"
     private func roll() -> CGFloat { CGFloat(min(1-Double.ulpOfOne,max(0,random()))) }
-    init(resourceRoot: URL,viewport: CGSize,random: @escaping () -> Double = { Double.random(in: 0..<1) }) {
+    init(resourceRoot: URL,viewport: CGSize,preparedArtwork:JimiV9Artwork?=nil,random: @escaping () -> Double = { Double.random(in: 0..<1) }) {
         self.random = random
         self.viewport = CGSize(width: max(320,viewport.width),height: max(520,viewport.height))
-        let artwork = JimiV9Artwork(resourceRoot: resourceRoot)
+        let artwork = preparedArtwork ?? JimiV9Artwork(resourceRoot: resourceRoot)
         let color = UIColor(red: 117.0/255,green: 221.0/255,blue: 223.0/255,alpha: 1)
         glyphs = NativeSplashGlyphField(artwork: artwork,text: "S.O.S.",colors: [color],splitIndex: 0,random: random)
         // Source particle completion 0.30 + 5.35, followed by 0.05 cleanup.

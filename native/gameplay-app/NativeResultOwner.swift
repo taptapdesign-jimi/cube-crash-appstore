@@ -89,6 +89,9 @@ final class NativeResultOwner {
             }
         }
         modal=sheet;gameplay.setSuspended(true);gameplay.present(sheet,animated:false)
+        if let receipt=sourceNoMovesReceipt {
+            gameplay.boardScene?.traceNoMovesHandoff("result-mount",token:receipt.planToken,owner:sheet,mounted:sheet.view.window != nil)
+        }
     }
     private func finishSourceFinalCleanup() {
         let callback=onSourceFinalCleanup;onSourceFinalCleanup=nil
@@ -203,7 +206,7 @@ final class NativeResultController:UIViewController {
             button.setTitle(index == 0 ? (clean && interimJourney ? "Continue" : "Play Again") : "Exit",for:.normal)
             button.titleLabel?.font=assets.font(size:28,weight:"Bold")
             button.backgroundColor=index == 0 ? UIColor(red:233/255,green:122/255,blue:85/255,alpha:1) : .white
-            button.setTitleColor(index == 0 ? UIColor(red:1,green:251/255,blue:242/255,alpha:1) : UIColor(red:173/255,green:134/255,blue:117/255,alpha:1),for:.normal);button.layer.cornerRadius=40
+            button.setTitleColor(index == 0 ? UIColor(red:1,green:251/255,blue:242/255,alpha:1) : UIColor(red:173/255,green:134/255,blue:117/255,alpha:1),for:.normal)
             button.layer.shadowColor=(index == 0 ? UIColor(red:194/255,green:73/255,blue:33/255,alpha:1) : UIColor(red:216/255,green:199/255,blue:187/255,alpha:1)).cgColor
             button.layer.shadowOpacity=1;button.layer.shadowOffset=CGSize(width:0,height:8);button.layer.shadowRadius=0
             button.layer.borderWidth=index == 0 ? 0:1
@@ -285,6 +288,11 @@ final class NativeResultController:UIViewController {
         bonus.frame=CGRect(x:0,y:0,width:bonusContent.bounds.width,height:36)
         bonusLabel.frame=CGRect(x:0,y:42,width:bonusContent.bounds.width,height:18)
         place(buttons[0],in:layout.primary);place(buttons[1],in:layout.secondary)
+        // CSS reduces overlapping uniform40px corners to half the shortest
+        // side. Use that painted radius for both authored result CTAs.
+        for button in buttons {
+            button.layer.cornerRadius=min(40,min(button.bounds.width,button.bounds.height)/2)
+        }
         confetti?.frame=view.bounds
     }
     /// Entry and exit poses can be zero-scale during a layout pass. UIKit's
@@ -310,6 +318,8 @@ final class NativeResultController:UIViewController {
         target.alpha=max(0,min(1,pose.opacity));target.transform=pose.transform
     }
     private var earnedStars:Int {clean ? NativeJourneyContent.earnedStars(score:finalScore,board:state.board):0}
+    private var lastCounterValue:Int?
+    private var lastCounterHapticAt = -Double.infinity
     private func paint() {
         if let closingAt {
             var age=max(0,elapsed-closingAt)
@@ -349,7 +359,7 @@ final class NativeResultController:UIViewController {
         for (target,pose) in [(stars,plan.hero),(headlineContent,plan.title),(scoreLabel,plan.scoreLabel),(score,plan.score),(status,plan.status),(buttons[0],plan.primary),(buttons[1],plan.secondary)] {apply(pose,to:target)}
         moment(clean ? "clean-applause":"fail-sax",at:0)
         if clean {
-            moment("clean-sax",at:0);moment("clean-count",at:0.47,duration:NativeResultPresentationPlan.counterDuration(from:0,to:state.score))
+            moment("clean-hero",at:0.1);moment("clean-sax",at:0);moment("clean-count",at:0.47,duration:NativeResultPresentationPlan.counterDuration(from:0,to:state.score))
             moment("clean-bonus",at:2.15,duration:combo>0 ? 1.4:0.8);moment("clean-bonus",at:4.6,duration:efficiency>0 ? 1.4:0.8)
         }
         for index in 0..<3 {
@@ -367,6 +377,12 @@ final class NativeResultController:UIViewController {
         }
         if clean {
             score.text=String(plan.displayedScore)
+            if lastCounterValue != plan.displayedScore {
+                let previous=lastCounterValue;lastCounterValue=plan.displayedScore
+                if previous != nil,elapsed-lastCounterHapticAt>=0.05 {
+                    lastCounterHapticAt=elapsed;onHaptic?("protected-light")
+                }
+            }
             let comboVisible=elapsed<3.97
             bonus.isHidden=false;bonusLabel.isHidden=false
             bonus.text="+\(comboVisible ? plan.displayedCombo:plan.displayedEfficiency)"

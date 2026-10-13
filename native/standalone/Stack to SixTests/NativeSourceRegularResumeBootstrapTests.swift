@@ -6,6 +6,114 @@ import StackToSixNativeState
 @testable import Stack_to_Six
 @MainActor final class NativeSourceRegularResumeBootstrapTests:XCTestCase {
  private func run()->NativeBoardState {.init(tiles:[.init(id:"saved-five",cell:.init(column:4,row:8),value:5,stackDepth:4),.init(id:"saved-zero",cell:.init(column:0,row:0),value:0,locked:true,alpha:0.7),.init(id:"saved-two",cell:.init(column:2,row:3),value:2,stackDepth:3)],mode:.arcade,board:1,stage:1,generation:9,revision:4,moves:23,score:123,wildMeter:0.4,rngState:777)}
+ func testFatalPresentationRetainsExactBoardAndSaveUntilExplicitExit()async throws {
+  try await exerciseFaultChoice(action:"exit")
+ }
+ func testFatalPresentationExplicitReplayReplacesOnlyAfterChoice()async throws {
+  try await exerciseFaultChoice(action:"restart")
+ }
+ func testFatalPresentationReplayResourceFailureRetainsChoiceAndSave()async throws {
+  try await exerciseFaultChoice(action:"resource-failure")
+ }
+ func testFatalPresentationUnavailableReplayKeepsVisibleExitChoice()async throws {
+  try await exerciseFaultChoice(action:"unavailable")
+ }
+ private func exerciseFaultChoice(action:String)async throws {
+  let directory=FileManager.default.temporaryDirectory.appendingPathComponent("source-failure-choice-"+UUID().uuidString)
+  defer{try? FileManager.default.removeItem(at:directory)}
+  let store=NativeSaveStore(directory:directory)
+  var envelope=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
+  envelope.progression.firstPlayTutorialComplete=true;envelope.arcadeRun=run();try store.save(envelope)
+  var root=NativeTestResources.root
+  if action == "resource-failure" {
+   root=directory.appendingPathComponent("resources")
+   try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+   for child in try FileManager.default.contentsOfDirectory(at:NativeTestResources.root,includingPropertiesForKeys:nil) {
+    try FileManager.default.createSymbolicLink(at:root.appendingPathComponent(child.lastPathComponent),withDestinationURL:child)
+   }
+  }
+  let wall=Date().timeIntervalSince1970*1000
+  let fifo=NativeSourceMicrotaskFIFO(),tasks=NativeSourceMicrotaskAdapters(fifo:fifo)
+  let service=NativeSourceAnimationClockService(wallOriginMilliseconds:wall,sourceFrameTransportEnabled:true)
+  service.sourceMicrotaskTasks=tasks
+  let context=NativeGameplaySourceContext(service:service,appOriginMilliseconds:wall,visualRandom:{0.5},sourceMicrotaskTasks:tasks)
+  let bootstrap=try NativeBootstrap(root:root,store:store,showStudioIntro:false,sourceContext:context)
+  bootstrap.sourceInitialRegularResumeEnabled=true
+  bootstrap.sourceInitialFreshStartupEnabled=true
+  let host=UIViewController(),window=UIWindow(frame:.init(x:0,y:0,width:390,height:844))
+  let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+  window.rootViewController=host;window.makeKeyAndVisible();bootstrap.start(in:host)
+  defer{bootstrap.dispose();context.dispose();service.dispose();fifo.dispose();window.isHidden=true;previous?.makeKeyAndVisible()}
+  let app=try XCTUnwrap(host.children.first as? NativeAppController);app.navigate(.gameplay,interrupt:true)
+  try await waitUntil(label:"fault-mounted-game"){app.children.contains{$0 is NativeGameplayViewController}}
+  let game=try XCTUnwrap(app.children.first as? NativeGameplayViewController),scene=try XCTUnwrap(game.boardScene)
+  try await waitUntil(label:"fault-replacement-admission: "+game.sourceEntryDiagnostic()){app.canReplaceGameplay(game)}
+  let callback=try XCTUnwrap(scene.onSourcePresentationFailure),before=game.engine.state,durable=try store.load()
+  callback("source_spawn_visual_safety_rejected",before.generation+1)
+  XCTAssertNil(bootstrap.sourceFailureModal)
+  callback("source_spawn_visual_safety_rejected",before.generation)
+  let recovery=try XCTUnwrap(bootstrap.sourceFailureModal)
+  XCTAssertEqual(game.sourcePresentationFailure?.kind,.renderOwnership)
+  XCTAssertEqual(game.sourcePresentationFailure?.boardState,before)
+  XCTAssertEqual(app.route,.gameplay);XCTAssertTrue(game.boardScene === scene)
+  XCTAssertEqual(game.engine.state,before);XCTAssertEqual(try store.load(),durable)
+  callback("source_tnt_main_activation_refused",before.generation)
+  XCTAssertTrue(bootstrap.sourceFailureModal === recovery)
+  recovery.loadViewIfNeeded();XCTAssertTrue(recovery.close.isHidden)
+  XCTAssertFalse(recovery.backdrop.isUserInteractionEnabled)
+  if action == "exit" {
+   try await waitUntil(label:"fault-choice-visible-and-admitted"){
+    recovery.presentingViewController === host && recovery.view.window === window && recovery.view.isUserInteractionEnabled
+   }
+   let image=UIGraphicsImageRenderer(bounds:window.bounds).image{_ in
+    window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)
+   }
+   let attachment=XCTAttachment(image:image);attachment.name="Native-retained-board-recovery-choice";attachment.lifetime = .keepAlways
+   add(attachment)
+  }
+  recovery.onAction?("close")
+  XCTAssertTrue(bootstrap.sourceFailureModal === recovery);XCTAssertEqual(app.route,.gameplay)
+  NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+  XCTAssertEqual(recovery.view.layer.speed,0)
+  NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+  XCTAssertEqual(recovery.view.layer.speed,1)
+  if action == "unavailable" {
+   let retained=game.sourceInitialConstruction
+   game.sourceInitialConstruction=nil
+   recovery.onAction?("restart")
+   XCTAssertTrue(bootstrap.sourceFailureModal === recovery);XCTAssertFalse(recovery.closing)
+   XCTAssertFalse(recovery.buttons[0].isEnabled);XCTAssertEqual(app.route,.gameplay)
+   game.sourceInitialConstruction=retained
+  }
+  if action == "restart" {
+   recovery.onAction?("restart")
+   try await waitUntil(label:"fault-replay-completed-replacement"){
+    app.children.compactMap{$0 as? NativeGameplayViewController}.first{$0 !== game}.map{app.canReplaceGameplay($0)} == true
+   }
+   XCTAssertEqual(app.route,.gameplay);XCTAssertNil(game.boardScene);XCTAssertNil(game.sourceScope)
+   XCTAssertNil(bootstrap.sourceFailureModal)
+   return
+  }
+  if action == "resource-failure" {
+   try FileManager.default.removeItem(at:root.appendingPathComponent("assets"))
+   recovery.onAction?("restart")
+   try await waitUntil{bootstrap.sourceFailureModal.map{$0 !== recovery} == true}
+   XCTAssertEqual(app.route,.gameplay);XCTAssertTrue(game.boardScene === scene)
+   XCTAssertEqual(game.engine.state,before);XCTAssertEqual(try store.load(),durable)
+   let retry=try XCTUnwrap(bootstrap.sourceFailureModal)
+   retry.onAction?("exit")
+   try await waitUntil{app.route == .home}
+   return
+  }
+  recovery.onAction?("exit")
+  try await waitUntil{app.route == .home}
+  XCTAssertNil(bootstrap.sourceFailureModal);XCTAssertEqual(try store.load(),durable)
+  let speed=recovery.view.layer.speed
+  NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+  XCTAssertEqual(recovery.view.layer.speed,speed,"retired recovery observers cannot touch the old modal")
+  callback("source_spawn_visual_safety_rejected",before.generation)
+  XCTAssertNil(bootstrap.sourceFailureModal)
+ }
  func testGenuineSavedArcadeRouteUsesCapturedResumeFactoryAndRetainsRunAccounting()async throws {
   let directory=FileManager.default.temporaryDirectory.appendingPathComponent("source-resume-bootstrap-\(UUID().uuidString)")
   defer{try? FileManager.default.removeItem(at:directory)}
@@ -336,9 +444,14 @@ import StackToSixNativeState
     resumed.append(node.tileID)
     if retire,node.tileID==ids[0] {scope.dispose()}
     if scenario == .replacement,node.tileID==ids[0] {
-     // Invoke the genuine typed failure endpoint. Bootstrap returns through
-     // NativeAppController, disposing the old controller/Scene/Scope.
+     // A presentation fault retains gameplay until an explicit user action.
+     scene.onSourcePresentationFailure?("source_spawn_visual_safety_rejected",game.engine.state.generation)
+     XCTAssertEqual(app.route,.gameplay)
+     XCTAssertTrue(app.children.contains{$0 === game})
+     let recovery=bootstrap.sourceFailureModal
      game.onSourcePresentationFailure?()
+     XCTAssertTrue(bootstrap.sourceFailureModal === recovery)
+     recovery?.onAction?("exit")
     }
     if reenter,node.tileID==ids[0],!reentered {
      reentered=true
@@ -446,9 +559,9 @@ import StackToSixNativeState
   for node in ordered{node.onResourceReady=nil}
  }
 
- private func waitUntil(_ predicate:()->Bool)async throws {
+ private func waitUntil(label:String="SourceResumeTimeout",_ predicate:()->Bool)async throws {
   let deadline=Date().addingTimeInterval(8)
-  while !predicate() {if Date()>deadline{throw NSError(domain:"SourceResumeTimeout",code:1)};try await Task.sleep(nanoseconds:20_000_000)}
+  while !predicate() {if Date()>deadline{XCTFail(label);throw NSError(domain:label,code:1)};try await Task.sleep(nanoseconds:20_000_000)}
  }
  func testActualSavedHoneyBootstrapRetainsThreeCarriersAcrossBackgroundAndDurableAccounting()async throws {
   let directory=FileManager.default.temporaryDirectory.appendingPathComponent("source-honey-bootstrap-\(UUID().uuidString)")

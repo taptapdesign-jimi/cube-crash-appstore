@@ -196,6 +196,40 @@ final class JimiNativeWorldTests: XCTestCase {
         XCTAssertFalse(world.isUserInteractionEnabled)
     }
 
+    func testGameplayDetailReturnMatchesPWALaunchAndSoftLanding() async throws {
+        let unit = try XCTUnwrap(JimiNativeWorldSnapshot(fixture())).units[0]
+        let card = JimiNativeWorldCardView(unit:unit,assets:art,resources:JimiNativeWorldResources(root:root))
+        card.frame = CGRect(x:0,y:0,width:390,height:844)
+        let destination = CGRect(x:30,y:400,width:90,height:120)
+        card.enter(from:destination);try await settle()
+        defer {card.cleanup()}
+        card.close(to:destination,gameplay:true) {}
+        func flight(_ view:UIView)->CAKeyframeAnimation? {
+            if let animation = view.layer.animation(forKey:"card.flight") as? CAKeyframeAnimation {return animation}
+            return view.subviews.lazy.compactMap {flight($0)}.first
+        }
+        let animation = try XCTUnwrap(flight(card))
+        let poses = try XCTUnwrap(animation.values as? [NSValue]).map {$0.caTransform3DValue}
+        func scale(_ pose:CATransform3D)->CGFloat {hypot(pose.m11,pose.m12)}
+        let start = scale(try XCTUnwrap(poses.first))
+        let count = poses.count-1
+        for index in 0...count {
+            let elapsed = Double(index)/Double(count)*0.600
+            let travel = max(0,min(1,(elapsed-0.100)/0.500))
+            let p = travel*travel*(3-2*travel)
+            let launch = min(1,elapsed/0.100)
+            let punch = 1+0.06*0.4*(1-abs(2*launch-1))
+            let expected = (start+(destination.width/min(card.bounds.width-64,390)-start)*p)*punch
+            XCTAssertEqual(scale(poses[index]),expected,accuracy:0.0001,"Actual compositor follows PWA smoothstep with accepted smaller launch bounce")
+        }
+        let boundary = Int((Double(count)/6).rounded())
+        XCTAssertEqual(scale(poses[boundary]),start,accuracy:0.0001,"Launch settles before travel")
+        let landingDelta = abs(scale(poses[count])-scale(poses[count-1]))
+        let middleDelta = abs(scale(poses[count/2])-scale(poses[count/2-1]))
+        XCTAssertLessThan(landingDelta,middleDelta*0.05,"Return decelerates into the resident landing punch")
+        let last = try XCTUnwrap(poses.last)
+        XCTAssertEqual(scale(last)*min(card.bounds.width-64,390),destination.width,accuracy:0.01,"Land at the source card's exact size")
+    }
     func testCloseDuringFlipIsAcceptedAndCleanupRetiresOldCompletion() async throws {
         let unit = try XCTUnwrap(JimiNativeWorldSnapshot(fixture())).units[0]
         let card = JimiNativeWorldCardView(unit:unit,assets:art,resources:JimiNativeWorldResources(root:root))

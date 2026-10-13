@@ -24,9 +24,9 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
         }
         return (1...12).map { "assets/shop/explosion pack/animation/tnt\($0)@2x.png" }+(1...6).map { "assets/shop/barell/wood\($0).png" }+["assets/tile.png"]
     }
-    init(resourceRoot: URL,variant: Variant,viewport: CGSize,random: @escaping () -> Double = { Double.random(in:0..<1) }) {
+    init(resourceRoot: URL,variant: Variant,viewport: CGSize,preparedArtwork:JimiV9Artwork?=nil,random: @escaping () -> Double = { Double.random(in:0..<1) }) {
         self.variant = variant; effectCenter = CGPoint(x:viewport.width/2,y:viewport.height/2)
-        let artwork = JimiV9Artwork(resourceRoot:resourceRoot)
+        let artwork = preparedArtwork ?? JimiV9Artwork(resourceRoot:resourceRoot)
         let colors: [UIColor] = variant == .flower ? [UIColor(red:1,green:254.0/255,blue:250.0/255,alpha:1),UIColor(red:254.0/255,green:248.0/255,blue:234.0/255,alpha:1)] : [UIColor(red:244.0/255,green:141.0/255,blue:89.0/255,alpha:1)]
         glyphs = NativeSplashGlyphField(artwork:artwork,text:variant == .flower ? "BLOOMING!":"POOOF",colors:colors,splitIndex:variant == .flower ? 3.5:0,letterOpacityRange:variant == .barell ? 1...1:nil,random:random)
         super.init(viewport:viewport,duration:4.2)

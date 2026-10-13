@@ -1,4 +1,5 @@
 import XCTest
+import SpriteKit
 import StackToSixGameplay
 @testable import Stack_to_Six
 
@@ -231,4 +232,36 @@ import StackToSixGameplay
         XCTAssertEqual(art,.zero);XCTAssertFalse(composite.isCurrent)
     }
 
+}
+
+
+extension NativeSixSourceSurfaceTests {
+    func testWildMainBadgeIsFiniteAndIndependentOfDestinationLifetime() throws {
+        var wall=0.0,valid=true,finished=0
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{wall})
+        let canvas=SKNode(),destination=SKNode();canvas.addChild(destination)
+        let badge=try NativeWildSixMultiplierPresentation(origin:.init(x:24,y:48),tileSize:96,multiplier:2,service:service,current:{valid})
+        badge.onFinished={finished+=1}
+        XCTAssertTrue(badge.mount(in:canvas));destination.removeFromParent()
+        wall=100;service.deliver(wallMilliseconds:wall)
+        XCTAssertTrue(badge.parent === canvas);XCTAssertGreaterThan(badge.alpha,0)
+        XCTAssertNotNil(badge.children.first?.children.first{$0.name=="native-wild-six-multiplier:×2"})
+        valid=false;wall=200;service.deliver(wallMilliseconds:wall)
+        XCTAssertNil(badge.parent);XCTAssertEqual(finished,1)
+        badge.dispose();XCTAssertEqual(finished,1);XCTAssertEqual(service.activeParticipantCount,0)
+        service.dispose()
+    }
+    func testWildMainBadgeNaturalExpiryReleasesSourceLease() throws {
+        var wall=0.0,finished=0
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{wall})
+        let canvas=SKNode()
+        let badge=try NativeWildSixMultiplierPresentation(origin:.zero,tileSize:96,multiplier:0,service:service,current:{true})
+        badge.onFinished={finished+=1};XCTAssertTrue(badge.mount(in:canvas))
+        XCTAssertNotNil(badge.children.first?.children.first{$0.name=="native-wild-six-multiplier:×0"})
+        // PWA's fifth argument1.2 is lifetime, not an artwork scale.
+        XCTAssertEqual(try XCTUnwrap(badge.children.first).xScale,96*1.3/128,accuracy:0.000001)
+        for tick in stride(from:100,through:1200,by:100){wall=Double(tick);service.deliver(wallMilliseconds:wall)}
+        XCTAssertNil(badge.parent);XCTAssertEqual(finished,1);XCTAssertEqual(service.activeParticipantCount,0)
+        service.dispose()
+    }
 }

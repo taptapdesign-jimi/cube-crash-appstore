@@ -14,8 +14,8 @@ final class NativeBeachBallPresentation: NativeFinitePresentation {
     private var born=0,frameCount=0,accumulator=0.0,lastUpdate=0.0
     private var released=false,sequenceCompleted=false,cancelled=false
     static let assets=(1...6).map { "assets/shop/ball/ball\($0).png" }
-    init(resourceRoot:URL,viewport:CGSize,random:@escaping ()->Double={ Double.random(in:0..<1) }) {
-        artwork=JimiV9Artwork(resourceRoot:resourceRoot);self.random=random
+    init(resourceRoot:URL,viewport:CGSize,preparedArtwork:JimiV9Artwork?=nil,random:@escaping ()->Double={ Double.random(in:0..<1) }) {
+        artwork=preparedArtwork ?? JimiV9Artwork(resourceRoot:resourceRoot);self.random=random
         let hexes=[0xDD94EB,0xDD94EB,0xFDEB8C,0xFDEB8C,0x4BC9FC,0x4BC9FC,0xFD979D]
         let colors=hexes.map { UIColor(red:CGFloat(($0>>16)&255)/255,green:CGFloat(($0>>8)&255)/255,blue:CGFloat($0&255)/255,alpha:1) }
         glyphs=NativeSplashGlyphField(artwork:artwork,text:"Boooing",colors:[colors[0]],splitIndex:0,letterColors:colors,random:random)

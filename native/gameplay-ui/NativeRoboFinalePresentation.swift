@@ -11,9 +11,9 @@ final class NativeRoboFinalePresentation:NativeFinitePresentation {
     static let assets=(1...12).map {"assets/shop/robo/robo\($0).png"}+(1...4).map {"assets/shop/robo/neon\($0).png"}
     private let viewport:CGSize,plan:NativeRoboFinaleMotion.Plan,glyphs:NativeSplashGlyphField,random:()->Double,previousExit:Int?
     private var runtime:NativeRoboFinaleMotion.Runtime,headFrames:[UIImage],neonImages:[UIImageView]=[],head=UIImageView(),beats=Set<Int>(),exitFrame:Int?,paintedFrame = -1,cancelled=false
-    init(resourceRoot:URL,viewport:CGSize,previousExitFrame:Int?=nil,random:@escaping ()->Double={Double.random(in:0..<1)}) {
+    init(resourceRoot:URL,viewport:CGSize,previousExitFrame:Int?=nil,preparedArtwork:JimiV9Artwork?=nil,random:@escaping ()->Double={Double.random(in:0..<1)}) {
         self.viewport=viewport;self.random=random;previousExit=previousExitFrame
-        let artwork=JimiV9Artwork(resourceRoot:resourceRoot),color=UIColor(red:166.0/255,green:139.0/255,blue:124.0/255,alpha:1)
+        let artwork=preparedArtwork ?? JimiV9Artwork(resourceRoot:resourceRoot),color=UIColor(red:166.0/255,green:139.0/255,blue:124.0/255,alpha:1)
         glyphs=NativeSplashGlyphField(artwork:artwork,text:"BIBI - RIBI",colors:[color],splitIndex:0,deferExitRotationCapture:true,random:random)
         let images=Self.assets.map {artwork.image($0,densityAware:true)}
         headFrames=images.prefix(12).compactMap {$0};let neonFrames=Array(images.suffix(4))

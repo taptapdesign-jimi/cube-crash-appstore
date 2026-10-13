@@ -839,6 +839,24 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         let captured=sourceWildDestinationFrames;sourceWildDestinationFrames=nil
         captured?.dispose()
     }
+    /// Cleared Wild destinations retain their authored six face until their
+    /// actual transaction consumes/converts the same object. A delayed spawn
+    /// sweep must not send this backing to the already-revoked Special skin.
+    func sourceClearedWildSixPresentationCurrent(model:NativeTile)->Bool {
+        guard !disposed,sourceOuterDriven,parent != nil,model.id==tileID,
+              value==6,model.value==6,kind=="regular",sourceWildStateCleared,
+              model.sourceWildStateCleared,variant==model.variant,
+              sourceResidualWildPresence==model.sourceResidualWildPresence,
+              let owner=sourceWildDestinationFrames else{return false}
+        return owner.presentationCurrent
+    }
+    func repairSourceClearedWildSixOpacity(model:NativeTile)->Bool {
+        guard sourceClearedWildSixPresentationCurrent(model:model) else{return false}
+        // Literal visible-board alpha repair, while the Magnet consumption
+        // owner keeps its hidden reserved destination at alpha zero.
+        if model.visible,!isHidden {alpha=1;visual.alpha=1;face.alpha=1}
+        return sourceClearedWildSixPresentationCurrent(model:model)
+    }
     func hideSourceWildDestinationFinalChildren() {
         guard !disposed,sourceWildStateCleared else{return}
         depth=1;stack.removeAllChildren();pips.removeAllChildren();pips.isHidden=true
@@ -928,6 +946,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         return true
     }
 
+    var sourceMagnetImpactToken:UUID?
     let visual = SKNode()
     private let face = SKSpriteNode()
     private let pips = SKNode()
@@ -1239,7 +1258,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         sourceWildSkinTexture=receipt;expectedReceipt=receipt
         sourceStarSheet?.baseFacePainted()
         paintFishVisibility()
-        if kind=="wild-juice",variant==nil {paintArtwork()}
+        if definition.idleSheet != nil {paintArtwork()}
         return valid()
     }
     @discardableResult func repairSourceWildSkin(generation:UInt64,assetTasks:NativeSourceMicrotaskAdapters,
@@ -1285,7 +1304,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
                 // xScale=±1 must never expose the full @2x raster dimensions.
                 self.face.anchorPoint=anchor;self.face.alpha=1;self.face.isHidden=false
                 self.paintFishVisibility()
-                if self.kind=="wild-juice",self.variant==nil {self.paintArtwork()}
+                if self.definition.idleSheet != nil {self.paintArtwork()}
                 self.face.colorBlendFactor=0
                 self.sourceWildSkinTexture=(generation,capturedKind,capturedVariant,handle)
                 self.sourceStarSheet?.baseFacePainted()
@@ -1602,6 +1621,10 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
+    /// Direct SVG/atlas artwork keeps its authored phase under registry pressure,
+    /// just like the preserved direct-artwork owners. Actual lifecycle suspension
+    /// and pointer-only visibility remain independent controls.
+    var keepsDirectArtworkDuringRegistryPressure:Bool {definition.idleSheet != nil || variant=="flower"}
     var hasAnimatedArtwork: Bool {
         if let sheet=sourceStarSheet,sheet.isCurrent {return true}
         if let honey=sourceHoneyIdle {return !disposed && !sourceWildStateCleared && !sourceIdleDeferred && honey.isCurrent}
@@ -1609,7 +1632,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
             guard let cohort=sourceBeeFrames,cohort.generation==sourceGeneration,cohort.handles.count>=2,
                   cohort.handles.allSatisfy({textures.isSourceTextureHandleCurrent($0)}) else{return false}
         }
-        return !disposed && !sourceWildStateCleared && !sourceRegistryPaused && !sourceIdleDeferred && !sourceRegistryPending && ((!frames.isEmpty && definition.idleSheet != nil) || variant == "bee" || variant == "flower" || variant == "cubero" || variant == "bottle" || variant == "spaceship" || variant == "fish" && artworkPhaseID != nil && !artworkRunning || honeyIdle?.hasActiveMotion==true || idleFizz?.isRunning==true || mushroomSmoke != nil || kantaIdle?.assetReady == true)
+        return !disposed && !sourceWildStateCleared && (!sourceRegistryPaused || keepsDirectArtworkDuringRegistryPressure) && !sourceIdleDeferred && !sourceRegistryPending && ((!frames.isEmpty && definition.idleSheet != nil) || variant == "bee" || variant == "flower" || variant == "cubero" || variant == "bottle" || variant == "spaceship" || variant == "fish" && artworkPhaseID != nil && !artworkRunning || honeyIdle?.hasActiveMotion==true || idleFizz?.isRunning==true || mushroomSmoke != nil || kantaIdle?.assetReady == true)
     }
     var authoredArtworkReceipt:(frame:Int,elapsed:Double,running:Bool,pending:Bool,paused:Bool) {(paintedFrame,artworkElapsed,artworkRunning,sourceRegistryPending,sourceRegistryPaused)}
     var hasPresentationActions: Bool { hasActions() || visual.hasActions() || shadow.hasActions() }
@@ -2138,7 +2161,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
 
     func tick(_ delta: TimeInterval, suspended: Bool, viewportCenter: CGFloat, fizzDelta:TimeInterval?=nil) {
         guard sourceStarSheet==nil else{return}
-        guard !disposed, !sourceWildStateCleared, !sourceIdleDeferred && !sourceRegistryPending, !isHidden, alpha > 0, !suspended,!sourceRegistryPaused else { return }
+        guard !disposed, !sourceWildStateCleared, !sourceIdleDeferred && !sourceRegistryPending, !isHidden, alpha > 0, !suspended,(!sourceRegistryPaused || keepsDirectArtworkDuringRegistryPressure) else { return }
         if variant=="bee",sourceSkinHitArea != nil {
             guard let frames=sourceBeeFrames,frames.generation==sourceGeneration,frames.handles.count>=2,
                   frames.handles.allSatisfy({textures.isSourceTextureHandleCurrent($0)}) else{return}

@@ -34,6 +34,11 @@ final class NativeSourceAnimationRuntime {
     var onVisit:((UInt64)->Void)? // Proof observer; no clock or activity.
     var onDemandChanged:(()->Void)?
     var onWillChangeSuspension:((Bool)->Void)?
+    // Borrow the opt-in service diagnostic clock; ordinary roots do not read
+    // time, create labels or retain samples for profiling.
+    var diagnosticMillisecondsNow:(()->Double)?
+    var onParticipantDuration:((any NativeSourceAnimationParticipant,RootFamily,Double)->Void)?
+    var onCleanupDuration:((Double)->Void)?
     var activeCount:Int{entries.count}
     var hasSourceTickerDemand:Bool{entries.values.contains{$0.active && !$0.suspended && $0.participant != nil}}
     var hasRunnableParticipants:Bool{!globallyPaused && hasSourceTickerDemand}
@@ -123,7 +128,11 @@ final class NativeSourceAnimationRuntime {
         let emits=local>0 || entry.family == .eagerTween || entry.duration==0
         if emits && (entry.lastDelivered != clamped || !entry.initialized) {
             entry.initialized=true;entry.lastDelivered=clamped
+            let diagnosticStart=diagnosticMillisecondsNow?()
             participant.advanceSourceAnimation(seconds:clamped)
+            if let diagnosticStart,let diagnosticMillisecondsNow {
+                onParticipantDuration?(participant,entry.family,max(0,diagnosticMillisecondsNow()-diagnosticStart))
+            }
         }
         if entry.active && !entry.tutorialGuidedHint && !entry.bottleIdleRepeat && entry.tutorialFreePlayMoves==nil && local>=entry.duration {cancel(id:entry.id,success:true)}
     }
@@ -136,7 +145,9 @@ final class NativeSourceAnimationRuntime {
         let cleanup=entry.cleanup;entry.cleanup=nil
         // Captured cleanup executes even after participant deallocation or
         // generation replacement. It never looks up a latest same-label owner.
+        let start=diagnosticMillisecondsNow?()
         cleanup?(success);onDemandChanged?()
+        if let start,let clock=diagnosticMillisecondsNow {onCleanupDuration?(max(0,clock()-start))}
     }
     private func setSuspended(id:UInt64,value:Bool){
         guard let entry=entries[id],entry.suspended != value else{return}
@@ -151,6 +162,7 @@ final class NativeSourceAnimationRuntime {
         // Close BEFORE captured callbacks. A cleanup may attempt registration;
         // rejected attachment has no callback and cannot extend this teardown.
         for id in entries.keys.sorted(){cancel(id:id,success:false)}
+        diagnosticMillisecondsNow=nil;onParticipantDuration=nil;onCleanupDuration=nil
     }
     private func round7(_ x:Double)->Double{(x*1e7).rounded()/1e7}
 }

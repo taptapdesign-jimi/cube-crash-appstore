@@ -49,6 +49,10 @@ import StackToSixGameplay
         // Source releaseSpecialDiceResolution is after setValue and before the
         // decorative spawnBounce. This is distinct from its real drag bind.
         hooks.resolutionReleased();guard current() else{finish(.unavailable);return false}
+        // PWA atomic survivor commit binds the regular input host before its
+        // decorative bounce. Pickup may settle that tail without losing input.
+        inputBound=true;hooks.inputBound()
+        guard current() else{finish(.interrupted);return false}
         let ownerID="magnet-survivor:\(generation):\(transactionID)"
         let tail=NativeSourceAppSpawnBounceOwner(service:service,hooks:.init(current:{[weak self] in self?.current()==true},
             readRotation:{[weak self] in self.map{Double($0.node.dragInnerTilt)}},
@@ -61,10 +65,11 @@ import StackToSixGameplay
                 switch completion {
                 case .completed:
                     guard self.current() else{self.finish(.interrupted);return}
-                    self.inputBound=true;self.hooks.inputBound()
-                    guard self.current() else{self.finish(.interrupted);return}
                     self.finish(.completed)
-                case .interrupted:self.finish(.interrupted)
+                case .interrupted:
+                    // Once regular face/input are committed, cancellation of
+                    // the decorative tail is a successful visual settlement.
+                    self.finish(self.inputBound && self.current() ? .completed:.interrupted)
                 case .unavailable:self.finish(.unavailable)
                 }
             }))

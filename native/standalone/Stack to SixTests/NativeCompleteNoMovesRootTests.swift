@@ -56,13 +56,40 @@ import StackToSixNativeState
         XCTAssertTrue(scene.beginDrag(at:source));scene.moveDrag(to:destination,now:CACurrentMediaTime())
         XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:destination,now:CACurrentMediaTime())).accepted)
     }
+    private func awaitNoMovesResultWithoutTextRevival(_ game:NativeGameplayViewController)async throws {
+        var observed:NativeNoMovesSourcePresentation?,textRemoved=false
+        let resultDeadline=Date().addingTimeInterval(40)
+        while !(game.presentedViewController is NativeResultController),Date()<resultDeadline {
+            let overlays=game.view.subviews.compactMap{$0 as? NativeNoMovesSourcePresentation}
+            XCTAssertLessThanOrEqual(overlays.count,1,"One actual NO MOVES presentation owns this fail flow")
+            if let overlay=overlays.first {
+                XCTAssertFalse(textRemoved,"Text cannot remount between clear and result")
+                if let observed {XCTAssertTrue(observed === overlay,"No replacement text after exit begins")}
+                else {observed=overlay}
+            } else if observed != nil {textRemoved=true}
+            try await Task.sleep(for:.milliseconds(16))
+        }
+        XCTAssertTrue(game.presentedViewController is NativeResultController)
+        XCTAssertNotNil(observed);XCTAssertTrue(textRemoved)
+        XCTAssertTrue(observed?.disposed==true);XCTAssertNil(observed?.superview)
+    }
+    func testActualCompleteRootLevelEndTimeoutCannotRemountTextDuringBoardExitAndResult()async throws {
+        let fixture=try Fixture(state:.init(tiles:[.init(id:"s",cell:.init(column:0,row:0),value:4),.init(id:"d",cell:.init(column:1,row:0),value:3)],mode:.arcade,generation:25,moves:7,wildMeter:0))
+        defer {fixture.dispose()}
+        let (game,scene)=try await enter(fixture)
+        scene.evaluate()
+        try await wait("level-end-candidate"){game.engine.pendingSourceNoMoves?.trigger == .levelEnd}
+        XCTAssertEqual(game.engine.pendingSourceNoMoves?.trigger.exitTimeoutMilliseconds,700)
+        try await awaitNoMovesResultWithoutTextRevival(game)
+        XCTAssertTrue(game.engine.completedSourceNoMovesReceipt?.boardExitCompleted==true)
+    }
     func testActualCompleteRootLastTwoDeadEndReachesOriginalNoMovesRealResultAndPersistedAttempt()async throws {
         let fixture=try Fixture(state:.init(tiles:[.init(id:"s",cell:.init(column:0,row:0),value:2),.init(id:"d",cell:.init(column:1,row:0),value:3)],mode:.arcade,generation:19,moves:7,score:123,wildMeter:0))
         defer{fixture.dispose()};let (game,scene)=try await enter(fixture);try drop(scene)
         try await wait("last-two-candidate"){game.engine.pendingSourceNoMoves?.trigger == .lastTwoRegular}
         XCTAssertEqual(game.engine.state.moves,7,"Source dead-end caller returns before debit")
         XCTAssertEqual(game.engine.pendingSourceNoMovesCallerReceipts.first?.kind,.lastTwoRegular)
-        try await wait("actual-result"){game.presentedViewController is NativeResultController}
+        try await awaitNoMovesResultWithoutTextRevival(game)
         XCTAssertEqual(game.engine.completedSourceNoMovesReceipt?.resolution.kind,.fail)
         XCTAssertTrue(game.engine.completedSourceNoMovesReceipt?.boardExitCompleted==true)
         XCTAssertTrue(game.view.subviews.filter{$0.accessibilityIdentifier=="native.no-moves.source-graph"}.isEmpty)

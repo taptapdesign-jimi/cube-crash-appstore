@@ -1,6 +1,8 @@
 import XCTest
 import ImageIO
 import CoreGraphics
+import UIKit
+import StackToSixGameplay
 @testable import Stack_to_Six
 nonisolated final class NativeSelectedFinaleRasterTests:XCTestCase {
  func testOriginalSelectedNativePathsDecodeWithPreferredSourceAndNoConversion()throws {
@@ -52,5 +54,190 @@ nonisolated final class NativeSelectedFinaleRasterTests:XCTestCase {
    context.setBlendMode(.copy);context.draw(original,in:CGRect(x:0,y:0,width:original.width,height:original.height))
   }
   XCTAssertEqual(backing,reference,"Original geometry, color and premultiplied alpha survive resource preparation")
+ }
+}
+
+@MainActor final class NativeSelectedUIKitFinaleArtworkTests:XCTestCase {
+ nonisolated private final class DecodeCount:@unchecked Sendable {
+  private let lock=NSLock();private var value=0
+  func increment(){lock.lock();value+=1;lock.unlock()}
+  var count:Int {lock.lock();defer{lock.unlock()};return value}
+ }
+ func testActualControllerSplashGlyphsBorrowGenerationFontBeforeFirstMerge()throws {
+  let game=NativeGameplayViewController(engine:NativeGameplayEngine(state:.init(tiles:[.init(id:"a",cell:.init(column:0,row:0),value:2)])),resourceRoot:NativeTestResources.root)
+  game.loadViewIfNeeded();defer{game.dispose()}
+  let scene=try XCTUnwrap(game.boardScene),owner=try XCTUnwrap(game.finaleArtworkOwner)
+  XCTAssertEqual(owner.artwork.fontDescriptorReadCount,1,"ExtraBold is prepared at generation admission even without a selected variant")
+  let expected=owner.artwork.font(size:32,weight:"ExtraBold").fontName
+  func labels(_ view:UIView)->[UILabel] {view.subviews.flatMap{child in (child as? UILabel).map{[$0]} ?? labels(child)}}
+  for repeatIndex in 0..<2 {
+   scene.onTntGlyphClock?("boom-\(repeatIndex)",0,false)
+   scene.onSplashGlyphClock?("star","star-\(repeatIndex)",0,false)
+   scene.onSplashGlyphClock?("juice","juice-\(repeatIndex)",0,false)
+   let fields=game.view.subviews.compactMap{$0 as? NativeSplashGlyphField}
+   XCTAssertEqual(fields.count,3)
+   XCTAssertEqual(fields.flatMap{labels($0)}.count,17)
+   XCTAssertTrue(fields.flatMap{labels($0)}.allSatisfy{$0.font.fontName==expected})
+   XCTAssertTrue(game.finaleArtworkOwner === owner)
+   XCTAssertEqual(owner.artwork.fontDescriptorReadCount,1,"Actual BOOM/SPARKLE/BUBBLY creation must not reread the font URL")
+   scene.onTntGlyphClock?("boom-\(repeatIndex)",1,true)
+   scene.onSplashGlyphClock?("star","star-\(repeatIndex)",1,true)
+   scene.onSplashGlyphClock?("juice","juice-\(repeatIndex)",1,true)
+   XCTAssertFalse(game.view.subviews.contains{$0 is NativeSplashGlyphField})
+  }
+ }
+ func testFinishedBubblyGlyphsStopLayerWritesAndBackwardSeekRestoresMotion()throws {
+  let game=NativeGameplayViewController(engine:NativeGameplayEngine(state:.init(tiles:[.init(id:"a",cell:.init(column:0,row:0),value:2)])),resourceRoot:NativeTestResources.root)
+  game.loadViewIfNeeded();defer{game.dispose()}
+  let scene=try XCTUnwrap(game.boardScene)
+  scene.onSplashGlyphClock?("juice","bubbly-retirement",0,false)
+  let field=try XCTUnwrap(game.view.subviews.compactMap{$0 as? NativeSplashGlyphField}.first)
+  func labels(_ view:UIView)->[UILabel] {view.subviews.flatMap{child in (child as? UILabel).map{[$0]} ?? labels(child)}}
+  let glyphs=labels(field);XCTAssertEqual(glyphs.count,6)
+  field.paint(seconds:field.duration)
+  XCTAssertTrue(glyphs.allSatisfy{$0.alpha==0})
+  let sentinel=CATransform3DMakeTranslation(123,456,789)
+  for glyph in glyphs {glyph.layer.transform=sentinel}
+  for time in [field.duration+0.1,3.4,5.4] {field.paint(seconds:time)}
+  XCTAssertTrue(glyphs.allSatisfy{CATransform3DEqualToTransform($0.layer.transform,sentinel) && $0.alpha==0},"Hidden caption must not keep assigning layer transforms")
+  field.paint(seconds:0.75)
+  XCTAssertTrue(glyphs.contains{$0.alpha>0})
+  XCTAssertTrue(glyphs.allSatisfy{!CATransform3DEqualToTransform($0.layer.transform,sentinel)})
+  scene.onSplashGlyphClock?("juice","bubbly-retirement",1,true)
+  XCTAssertNil(field.superview)
+ }
+ func testTrimThenReselectExactRequestCancelsOldQueuedDecodeWithoutStealingNewCallbacks()async throws {
+  let queue=DispatchQueue(label:"test.finale-cancel"),gate=DispatchSemaphore(value:0),count=DecodeCount()
+  queue.async{gate.wait()}
+  let root=NativeTestResources.root,path="assets/shop/bee/bee1.png"
+  let artwork=JimiV9Artwork(resourceRoot:root,preparationQueue:queue,prepareRaster:{root,paths in count.increment();return NativeSelectedFinaleRaster.decode(root:root,candidates:paths)})
+  artwork.prepareImage(path,densityAware:true){_ in XCTFail("Retired request must not settle a replacement")}
+  artwork.retainPreparedImages([])
+  let ready=expectation(description:"exact replacement selected request")
+  artwork.prepareImage(path,densityAware:true){image in XCTAssertNotNil(image);ready.fulfill()}
+  gate.signal();await fulfillment(of:[ready],timeout:15)
+  XCTAssertEqual(count.count,1,"Dropped queued family cannot perform raster work")
+  XCTAssertEqual(artwork.preparedImageCount,1)
+  artwork.retireImagePreparation()
+ }
+ func testActualControllerIgnoresClearedNonWildVariantMetadataAndSuspensionCancelsSelectedWork()async throws {
+  let stale=NativeTile(id:"old",cell:.init(column:0,row:0),value:2,variant:"bee",sourceWildStateCleared:true)
+  let game=NativeGameplayViewController(engine:NativeGameplayEngine(state:.init(tiles:[stale])),resourceRoot:NativeTestResources.root)
+  game.loadViewIfNeeded();defer{game.dispose()}
+  let owner=try XCTUnwrap(game.finaleArtworkOwner)
+  XCTAssertTrue(owner.selected.isEmpty);XCTAssertEqual(owner.artwork.preparedImageCount,0)
+  let active=NativeSelectedUIKitFinaleArtworkOwner(root:NativeTestResources.root,generation:9,current:{true})
+  defer{active.dispose()}
+  active.prepare(variant:"bee");active.setSuspended(true)
+  try await Task.sleep(for:.milliseconds(100))
+  XCTAssertTrue(active.pendingFamilies.isEmpty);XCTAssertTrue(active.selected.isEmpty)
+  active.setSuspended(false);active.prepare(variant:"bee")
+  try await wait{active.readyFamilies.contains("bee")}
+  XCTAssertEqual(active.selected,["bee"])
+ }
+ func testExactAndDensityAliasesPreserveOriginalScaleInBothOrdersBeforeAndAfterPreparation()async throws {
+  let density=min(3,max(1,Int(UIScreen.main.scale.rounded(.up))))
+  guard density>1 else{return}
+  let base="assets/tile.png",exact="assets/tile@\(density)x.png"
+  for exactFirst in [true,false] {
+   let artwork=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+   defer{artwork.retireImagePreparation()}
+   var exactImage:UIImage?,densityImage:UIImage?
+   if exactFirst {exactImage=artwork.image(exact);densityImage=artwork.image(base,densityAware:true)}
+   else {densityImage=artwork.image(base,densityAware:true);exactImage=artwork.image(exact)}
+   let originalExact=try XCTUnwrap(exactImage),originalDensity=try XCTUnwrap(densityImage)
+   XCTAssertEqual(originalExact.scale,1);XCTAssertEqual(originalDensity.scale,CGFloat(density))
+   XCTAssertEqual(originalExact.size.width,originalDensity.size.width*CGFloat(density),accuracy:1e-6)
+   let prepared=expectation(description:"both aliases share materialized backing with distinct logical scales")
+   artwork.prepareImage(base,densityAware:true){XCTAssertNotNil($0);prepared.fulfill()}
+   await fulfillment(of:[prepared],timeout:15)
+   XCTAssertEqual(try XCTUnwrap(artwork.image(exact)).scale,1)
+   XCTAssertEqual(try XCTUnwrap(artwork.image(base,densityAware:true)).scale,CGFloat(density))
+   XCTAssertEqual(try XCTUnwrap(artwork.image(exact)).size,originalExact.size)
+   XCTAssertEqual(try XCTUnwrap(artwork.image(base,densityAware:true)).size,originalDensity.size)
+   XCTAssertEqual(artwork.imageFileLoadCount,1,"Separate logical aliases must share one original file load")
+  }
+ }
+ private func wait(_ predicate:()->Bool)async throws {
+  let end=Date().addingTimeInterval(15)
+  while !predicate(),Date()<end {try await Task.sleep(for:.milliseconds(10))}
+  XCTAssertTrue(predicate())
+ }
+ func testActualControllerSelectedBeeUsesSamePreparedBitmapsForReadinessAndRepeatedFinales()async throws {
+  let state=NativeBoardState(tiles:[.init(id:"bee",cell:.init(column:0,row:0),value:6,archetype:.star,variant:"bee"),.init(id:"a",cell:.init(column:1,row:0),value:2)])
+  let game=NativeGameplayViewController(engine:NativeGameplayEngine(state:state),resourceRoot:NativeTestResources.root)
+  game.loadViewIfNeeded();defer{game.dispose()}
+  let owner=try XCTUnwrap(game.finaleArtworkOwner)
+  try await wait{owner.readyFamilies.contains("bee")}
+  XCTAssertEqual(owner.selected,["bee"]);XCTAssertEqual(owner.artwork.imageFileLoadCount,0)
+  let prepared=owner.artwork.preparedImageCount
+  XCTAssertEqual(prepared,12)
+  let scene=try XCTUnwrap(game.boardScene)
+  XCTAssertTrue(scene.authoredFinalePresentationReady?("bee")==true)
+  for _ in 0..<2 {
+   XCTAssertTrue(scene.onAuthoredFinale?("bee",CGPoint(x:195,y:422),state.generation,{})==true)
+   XCTAssertTrue(game.finaleArtworkOwner === owner)
+   XCTAssertEqual(owner.artwork.imageFileLoadCount,0)
+   XCTAssertEqual(owner.artwork.preparedImageCount,prepared)
+  }
+ }
+ func testEverySelectedFamilyConstructorReusesPreparedOriginalsWithoutAnotherMainFileLoad()async throws {
+  for variant in NativeSpecialDiceRegistry.variants.keys.sorted() {
+   let owner=NativeSelectedUIKitFinaleArtworkOwner(root:NativeTestResources.root,generation:7,current:{true})
+   defer{owner.dispose()};owner.prepare(variant:variant);owner.prepare(variant:variant)
+   try await wait{owner.readyFamilies.contains(variant)}
+   XCTAssertEqual(owner.selected,[variant]);XCTAssertEqual(owner.artwork.imageFileLoadCount,0)
+   let artwork=owner.artwork,size=CGSize(width:390,height:844),origin=CGPoint(x:195,y:422)
+   let presentation:NativeFinitePresentation?
+   switch variant {
+   case "bee":presentation=NativeBeeFinalePresentation(resourceRoot:NativeTestResources.root,viewport:size,origin:origin,preparedArtwork:artwork)
+   case "honey":presentation=NativeHoneyFinalePresentation(resourceRoot:NativeTestResources.root,viewport:size,preparedArtwork:artwork)
+   case "bottle":presentation=NativeBottleFinalePresentation(resourceRoot:NativeTestResources.root,viewport:size,preparedArtwork:artwork)
+   case "kanta":presentation=NativeKantaFinalePresentation(resourceRoot:NativeTestResources.root,viewport:size,preparedArtwork:artwork)
+   case "cubero":presentation=NativeCuberoFinalePresentation(resourceRoot:NativeTestResources.root,viewport:size,preparedArtwork:artwork)
+   case "mushroom":presentation=NativeMushroomFinalePresentation(resourceRoot:NativeTestResources.root,viewport:size,preparedArtwork:artwork)
+   case "robo-cube":presentation=NativeRoboFinalePresentation(resourceRoot:NativeTestResources.root,viewport:size,preparedArtwork:artwork)
+   case "flower","barell":presentation=NativeTntVariantPresentation(resourceRoot:NativeTestResources.root,variant:variant=="flower" ? .flower:.barell,viewport:size,preparedArtwork:artwork)
+   case "beach-ball":presentation=NativeBeachBallPresentation(resourceRoot:NativeTestResources.root,viewport:size,preparedArtwork:artwork)
+   case "spaceship":presentation=NativeSpaceshipFinalePresentation(resourceRoot:NativeTestResources.root,viewport:size,origin:origin,generation:7,preparedArtwork:artwork)
+   case "laser-gun":
+    let resources=NativeLaserGunResources(resourceRoot:NativeTestResources.root,preparedArtwork:artwork)
+    XCTAssertTrue(resources.assetReady)
+    presentation=NativeLaserGunFinalePresentation(resourceRoot:NativeTestResources.root,viewport:size,origin:origin,generation:7,preparedArtwork:artwork)
+   default:
+    let fish=NativeFishFinalePresentation(resourceRoot:NativeTestResources.root,origin:origin,viewport:size,preparedArtwork:artwork)
+    fish.dispose();presentation=nil
+   }
+   XCTAssertEqual(artwork.imageFileLoadCount,0,variant+" constructor must borrow the prepared bitmap owner")
+   presentation?.dispose()
+  }
+ }
+ func testColdFallbackStaysImmediateThenPreparationReplacesEncodedCacheAndRetirementRejectsLateWork()async throws {
+  let artwork=JimiV9Artwork(resourceRoot:NativeTestResources.root),path="assets/shop/bee/bee1.png"
+  let cold=try XCTUnwrap(artwork.image(path,densityAware:true))
+  XCTAssertEqual(artwork.imageFileLoadCount,1)
+  let ready=expectation(description:"pixel-backed preparation after genuine cold fallback")
+  artwork.prepareImage(path,densityAware:true){image in XCTAssertNotNil(image);ready.fulfill()}
+  await fulfillment(of:[ready],timeout:15)
+  let prepared=try XCTUnwrap(artwork.image(path,densityAware:true))
+  XCTAssertFalse(cold === prepared);XCTAssertEqual(cold.size,prepared.size);XCTAssertEqual(cold.scale,prepared.scale)
+  XCTAssertEqual(artwork.preparedImageCount,1);XCTAssertEqual(artwork.imageFileLoadCount,1)
+  let owner=NativeSelectedUIKitFinaleArtworkOwner(root:NativeTestResources.root,generation:8,current:{true})
+  owner.prepare(variant:"bee");owner.dispose()
+  try await Task.sleep(for:.milliseconds(100))
+  XCTAssertTrue(owner.readyFamilies.isEmpty);XCTAssertTrue(owner.pendingFamilies.isEmpty);XCTAssertEqual(owner.artwork.preparedImageCount,0)
+ }
+ func testActualControllerGenerationReplacementAndLiveFamilyTrimDoNotRetainOldCaches()async throws {
+  let engine=NativeGameplayEngine(state:.init(tiles:[.init(id:"bee",cell:.init(column:0,row:0),value:6,archetype:.star,variant:"bee")],generation:1))
+  let game=NativeGameplayViewController(engine:engine,resourceRoot:NativeTestResources.root);game.loadViewIfNeeded();defer{game.dispose()}
+  let previous=try XCTUnwrap(game.finaleArtworkOwner)
+  try await wait{previous.readyFamilies.contains("bee")}
+  previous.retain(variants:[]);XCTAssertTrue(previous.selected.isEmpty)
+  engine.restart(state:.init(tiles:[.init(id:"honey",cell:.init(column:0,row:0),value:6,archetype:.magnet,variant:"honey")],generation:2))
+  game.refreshFromEngine()
+  let next=try XCTUnwrap(game.finaleArtworkOwner)
+  XCTAssertFalse(next === previous);XCTAssertEqual(next.generation,2)
+  try await wait{next.readyFamilies.contains("honey")}
+  XCTAssertEqual(next.selected,["honey"]);XCTAssertTrue(previous.pendingFamilies.isEmpty)
  }
 }

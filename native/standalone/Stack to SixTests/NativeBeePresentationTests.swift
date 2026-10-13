@@ -4,6 +4,29 @@ import UIKit
 
 @MainActor
 final class NativeBeePresentationTests: XCTestCase {
+    func testDecimalPaintQuantizationMatchesOriginalFormatterAcrossRouteAndTies() {
+        func verify(_ value:Double) {
+            for digits in [2,3,4] {
+                let expected=Double(String(format:"%.\(digits)f",value))!
+                XCTAssertEqual(NativeFinaleDecimal.rounded(value,digits:digits),expected,accuracy:1e-10)
+            }
+        }
+        for value in [2.675,-2.675,1.005,-1.005,0.00005,-0.00005,123.455,-123.455,0] {
+            verify(value);verify(value.nextUp);verify(value.nextDown)
+        }
+        for seed in [0.0,0.4,1.5,3.14,5.8] {
+            let route=NativeBeeFinaleMotion(width:390,height:844,origin:.init(x:70,y:170),seed:seed)
+            let leaves=NativeBeeLeafPlan.make(route:route)
+            for frame in 0...480 {
+                let t=Double(frame)/120,pose=route.sample(seconds:t)
+                for value in [pose.point.x,pose.point.y,pose.rotation,pose.scale] {verify(value)}
+                for leaf in leaves where frame%6==0 {
+                    let p=leaf.motion.sample(seconds:t)
+                    for value in [p.x,p.y,p.opacity,p.scale,p.rotation,p.skewX,p.imageScaleX,p.imageScaleY] {verify(value)}
+                }
+            }
+        }
+    }
     private var root:URL {Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle")}
     // Gold recorded by executing original bee-finale-scene and shared leaf
     // module: seeded route shape/corner corridor and exact captured births.

@@ -9,13 +9,15 @@ import StackToSixGameplay
  @MainActor private final class Fixture {
   let clock:Clock,service:NativeSourceAnimationClockService,context:NativeGameplaySourceContext,scope:NativeGameplaySourceContext.Scope,scene:NativeBoardScene,view:SKView
   let initial:NativeSourceInitialBoardConstruction?
+  let window:UIWindow
+  var failures:[String]=[]
   init(_ kind:NativeWildArchetype,final:Bool=true,restoredSource:Bool=false)throws {
    let c=Clock();clock=c
    service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{c.wall},sourceFrameTransportEnabled:true)
    context=NativeGameplaySourceContext(service:service,appOriginMilliseconds:0,visualRandom:{c.next()})
    let saved=NativeBoardState(tiles:[.init(id:"src",cell:.init(column:0,row:0),value:4,stackDepth:4),.init(id:"dst",cell:.init(column:1,row:0),value:6,archetype:kind)]+(final ? []:[.init(id:"other",cell:.init(column:4,row:8),value:3)]))
    initial=restoredSource ? try XCTUnwrap(NativeSourceInitialBoardConstruction.makeRestored(root:NativeTestResources.root,service:service,saved:saved,random:{c.next()})):nil
-   let e=NativeGameplayEngine(state:initial?.recipe?.state ?? saved)
+   let e=NativeGameplayEngine(state:initial?.recipe?.state ?? saved,sourceMathRandom:context.mathRandom)
    e.stagedOrdinaryMoves=true;e.stagedOrdinaryAssignments=true;e.stagedDirectWildMoves=true;e.stagedDirectWildAssignments=true
    scene=NativeBoardScene(engine:e,resourceRoot:NativeTestResources.root,size:.init(width:390,height:844),sourceInitialConstruction:initial)
    let captured=scene
@@ -26,6 +28,10 @@ import StackToSixGameplay
    scene.sourceContactVisualRandom={c.next()};scene.configureSourceRegularStackHandoff(service:service,admitted:{true})
    scene.layout(size:scene.size,insets:.init(top:47,left:0,bottom:34,right:0))
    view=SKView(frame:.init(x:0,y:0,width:390,height:844));view.presentScene(scene)
+   let host=UIViewController();host.view=view
+   window=UIWindow(frame:view.bounds);window.rootViewController=host;window.makeKeyAndVisible()
+   scene.onPresentationFailure={[weak self] in self?.failures.append($0)}
+   scene.onSourcePresentationFailure={[weak self] reason,_ in self?.failures.append(reason)}
    let src=try XCTUnwrap(scene.sourceNativeTileNode("src"))
    XCTAssertTrue(src.queueSourceStackValue(4,addStack:0,service:service,random:{c.next()},current:{true}))
    c.wall=16;service.deliver(wallMilliseconds:16)
@@ -56,7 +62,7 @@ import StackToSixGameplay
    return try XCTUnwrap(scene.finishDrag(at:g.center(row:0,column:1),now:0.025))
   }
   func deliver(_ wall:Double){clock.wall=wall;service.deliver(wallMilliseconds:wall)}
-  func dispose(){scene.dispose();context.dispose();service.dispose();view.presentScene(nil)}
+  func dispose(){scene.dispose();context.dispose();service.dispose();view.presentScene(nil);window.isHidden=true;window.rootViewController=nil}
  }
  func testActualRestoredJuiceShimmerIsRetiredBeforeDestinationFaceAndCannotResumeFromResidualWild()async throws {
   let f=try Fixture(.juice,final:false,restoredSource:true);defer{f.dispose()}
@@ -124,7 +130,30 @@ import StackToSixGameplay
   f.deliver(41);XCTAssertEqual(f.scene.engine.pendingDirectWild?.archetype,.juice);XCTAssertTrue(f.scene.engine.completedSourceWildDestinationFace?.afterFace.isWild==true)
   f.deliver(57);f.deliver(104);f.deliver(105);f.deliver(109)
   XCTAssertEqual(f.scene.engine.state.moves,before.moves-1);XCTAssertNil(f.scene.engine.sourceDirectWildPrefix);XCTAssertNil(f.scene.engine.pendingSourceWildDestinationFace)
-  XCTAssertEqual(f.scene.engine.sourceHUDStarJobs.count,1);XCTAssertEqual(f.context.contactMutations.revision,1)
+  XCTAssertEqual(f.scene.engine.sourceHUDStarJobs.count,1,"Juice actual main must retain its earned HUD job")
+  XCTAssertEqual(f.context.contactMutations.revision,1,"Juice actual main must publish one physical contact mutation")
+  XCTAssertTrue(f.failures.isEmpty,"Source failures="+f.failures.joined(separator:",")+" pendingHUD="+String(f.scene.engine.pendingHUDStars.count)+" HUDenabled="+String(f.scene.engine.sourceHUDStarJobsEnabled))
+ }
+ func testClearedWildSixRepairPreservesCurrentFaceButRejectsRetiredOwner()async throws {
+  for kind in [NativeWildArchetype.star,.juice] {
+   let f=try Fixture(kind,final:false);defer{f.dispose()};try await f.prepare(self)
+   XCTAssertTrue(try f.contact().accepted)
+   let dst=try XCTUnwrap(f.scene.sourceNativeTileNode("dst"))
+   // The preceding ordinary spawn's sweep can run before the face RAF,
+   // after it, or after nested RAF delivery; all share the same real owner.
+   for wall in [25.0,41.0,57.0] {
+    if wall>25 {f.deliver(wall)}
+    let model=try XCTUnwrap(f.scene.engine.state.tiles.first{$0.id=="dst"})
+    XCTAssertTrue(dst.sourceClearedWildSixPresentationCurrent(model:model))
+    let texture=dst.sourcePaintedNumbersTexture,scale=dst.sourceLocalScale,alpha=dst.alpha
+    XCTAssertTrue(dst.repairSourceClearedWildSixOpacity(model:model))
+    XCTAssertTrue(dst.sourcePaintedNumbersTexture === texture)
+    XCTAssertEqual(dst.sourceLocalScale,scale);XCTAssertEqual(dst.alpha,alpha)
+   }
+   dst.retireSourceWildDestinationFrames()
+   XCTAssertFalse(dst.sourceClearedWildSixPresentationCurrent(model:try XCTUnwrap(f.scene.engine.state.tiles.first{$0.id=="dst"})))
+   XCTAssertFalse(dst.repairSourceClearedWildSixOpacity(model:try XCTUnwrap(f.scene.engine.state.tiles.first{$0.id=="dst"})),"Residual flags alone cannot admit an ownerless face")
+  }
  }
  func testForegroundGlobalPauseStillDeliversRawFaceAndNestedRAFButNeverMainArrival()async throws {
   let f=try Fixture(.star,final:false);defer{f.dispose()};try await f.prepare(self);XCTAssertTrue(try f.contact().accepted)

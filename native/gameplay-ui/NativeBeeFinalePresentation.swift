@@ -11,12 +11,17 @@ final class NativeBeeFinalePresentation: NativeFinitePresentation {
     private var heroFrames:[UIImageView]=[],leafHosts:[UIView]=[],leafImages:[UIImageView]=[]
     private struct AmbientOwner {let host:UIView,frames:[UIImageView];var current=0,previous:Int?,pending:Int?,pendingSeconds=0.0,blendSeconds=0.08}
     private var ambient:[AmbientOwner]=[]
+    private static let hapticBeats:[(key:String,at:Double)] = {
+        let early=(0..<7).map {Double($0)*0.095}
+        let late=(0..<6).map {1.0+Double($0)*0.11}
+        return (early+late).enumerated().map {("haptic-\($0.offset)",$0.element)}
+    }()
     private var facing=1,candidateFacing=1,candidateSince=0.0,priorTime=0.0,cancelled=false,receipts=Set<String>()
-    init(resourceRoot:URL,viewport:CGSize,origin:CGPoint?,random:()->Double={Double.random(in:0..<1)}) {
+    init(resourceRoot:URL,viewport:CGSize,origin:CGPoint?,preparedArtwork:JimiV9Artwork?=nil,random:()->Double={Double.random(in:0..<1)}) {
         let roll=random(),phase=(roll.isFinite ? min(1-Double.ulpOfOne,max(0,roll)):0.5)*2 * .pi
         route=NativeBeeFinaleMotion(width:Double(viewport.width),height:Double(viewport.height),origin:origin.map {NativeBeeFinaleMotion.Point(x:Double($0.x),y:Double($0.y))},seed:phase)
         leaves=NativeBeeLeafPlan.make(route:route)
-        let artwork=JimiV9Artwork(resourceRoot:resourceRoot)
+        let artwork=preparedArtwork ?? JimiV9Artwork(resourceRoot:resourceRoot)
         glyphs=NativeSplashGlyphField(artwork:artwork,text:"WEEEE!",colors:[UIColor(red:219.0/255,green:118.0/255,blue:84.0/255,alpha:1),UIColor(red:1,green:217.0/255,blue:120.0/255,alpha:1)],splitIndex:3,letterOpacityRange:1...1,random:random)
         let paths=(1...4).map {"assets/shop/bee/bee\($0).png"}+(1...6).map {"assets/shop/bee/leaf\($0).png"}+["assets/shop/honey/bee1.png","assets/shop/honey/bee3.png"]
         assetReady=paths.allSatisfy {artwork.image($0,densityAware:true) != nil}
@@ -42,7 +47,7 @@ final class NativeBeeFinalePresentation: NativeFinitePresentation {
     required init?(coder:NSCoder) {fatalError("init(coder:) has not been implemented")}
     override func start() {guard assetReady else {dispose();return};super.start()}
     private func fire(_ key:String,_ callback:()->Void) {if receipts.insert(key).inserted {callback()}}
-    private func rounded(_ value:Double,_ digits:Int)->CGFloat {CGFloat(Double(String(format:"%.\(digits)f",value)) ?? value)}
+    private func rounded(_ value:Double,_ digits:Int)->CGFloat {CGFloat(NativeFinaleDecimal.rounded(value,digits:digits))}
     override func paint(seconds time:TimeInterval) {
         guard !cancelled,assetReady else {return}
         let t=min(4,time),pose=route.sample(seconds:t),delta=max(0,t-priorTime);priorTime=t
@@ -80,10 +85,7 @@ final class NativeBeeFinalePresentation: NativeFinitePresentation {
         }
         field.alpha=t<=3.88 ? 1:CGFloat(cos(NativeBeeFinaleMotion.clamp((t-3.88)/0.12) * .pi/2))
         if t>=1.6 {fire("finale") {onCue?("finale",0)}}
-        let early:[Double]=(0..<7).map {Double($0)*0.095}
-        let late:[Double]=(0..<6).map {1.0+Double($0)*0.11}
-        let beats=early+late
-        for (index,at) in beats.enumerated() where t>=at {fire("haptic-\(index)") {onHaptic?("light")}}
+        for beat in Self.hapticBeats where t>=beat.at {fire(beat.key) {onHaptic?("light")}}
         glyphs.paint(seconds:time)
     }
     override func dispose() {guard !cancelled else {return};cancelled=true;onHaptic=nil;heroFrames.removeAll();leafHosts.removeAll();leafImages.removeAll();ambient.removeAll();super.dispose()}

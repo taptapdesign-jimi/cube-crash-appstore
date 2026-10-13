@@ -7,6 +7,8 @@ import StackToSixGameplay
 final class NativeSplashGlyphField: UIView {
     private struct Glyph { let label: UILabel; let index: Int; let bounce: CGFloat; var exitRotation: CGFloat; let splitLabels: [UILabel]; let glowLabels:[UILabel] }
     private var glyphs: [Glyph] = []
+    private var finishedGlyphs = Set<Int>()
+    private var lastPaintSeconds: TimeInterval?
     private let container = UIView()
     let exitStart: TimeInterval
     let duration: TimeInterval
@@ -114,9 +116,15 @@ final class NativeSplashGlyphField: UIView {
         guard current() else{return false};exitRotationsCaptured=true;return true
     }
     func paint(seconds: TimeInterval) {
+        // Finale clocks may outlive their fully hidden caption. Commit each
+        // exit once, then avoid redundant UIKit transactions and transforms.
+        // Backward seeking explicitly reactivates every authored glyph.
+        if let previous = lastPaintSeconds,seconds < previous { finishedGlyphs.removeAll() }
+        lastPaintSeconds = seconds
+        guard finishedGlyphs.count < glyphs.count else { return }
         CATransaction.begin(); CATransaction.setDisableActions(true)
         defer { CATransaction.commit() }
-        for glyph in glyphs {
+        for glyph in glyphs where !finishedGlyphs.contains(glyph.index) {
             let enter = compactLaser ? 0.04+Double(glyph.index)*0.025 : 0.3+Double(glyph.index)*0.05
             let firstDuration = compactLaser ? 0.16 : 0.3
             let settleDuration = compactLaser ? 0.06 : 0.12
@@ -152,6 +160,7 @@ final class NativeSplashGlyphField: UIView {
             transform = CATransform3DRotate(transform,rx * .pi/180,1,0,0)
             glyph.label.layer.transform = CATransform3DScale(transform,scale,scale,1)
             glyph.label.alpha = min(1,max(0,alpha))
+            if seconds >= exitStart+Double(glyph.index)*0.06+0.60 { finishedGlyphs.insert(glyph.index) }
         }
     }
     private func idleScale(_ glyph: Glyph,time: TimeInterval) -> CGFloat {

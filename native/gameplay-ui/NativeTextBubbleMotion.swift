@@ -21,12 +21,20 @@ struct NativeTextBubbleMotion {
     /// and an overlapping tween captures the actual painted values at birth.
     struct Player {
         private let motion: NativeTextBubbleMotion
+        private let orderedTracks: [(index: Int,track: Track)]
         private var pose: Pose
         private var from: [Int:Pose] = [:],targets: [Int:Pose] = [:],finished = Set<Int>()
-        init(_ motion: NativeTextBubbleMotion) { self.motion = motion; pose = motion.initial }
+        var isFinished: Bool { finished.count == orderedTracks.count }
+        init(_ motion: NativeTextBubbleMotion) {
+            self.motion = motion; pose = motion.initial
+            // Capture the source crossing order once, rather than sorting all
+            // fourteen players' immutable tracks on every rendered frame.
+            orderedTracks = motion.tracks.enumerated().sorted(by: { $0.element.start < $1.element.start })
+                .map { (index: $0.offset,track: $0.element) }
+        }
         mutating func sample(seconds: TimeInterval) -> Pose {
             let time = seconds-motion.delay
-            for (index,track) in motion.tracks.enumerated().sorted(by: { $0.element.start < $1.element.start }) where time >= track.start && !finished.contains(index) {
+            for (index,track) in orderedTracks where time >= track.start && !finished.contains(index) {
                 if from[index] == nil { from[index] = pose
                     var target = track.to
                     if track.relative { target.x += pose.x; target.y += pose.y }
