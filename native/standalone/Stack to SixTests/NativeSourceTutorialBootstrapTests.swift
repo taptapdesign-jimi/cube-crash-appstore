@@ -6,6 +6,34 @@ import StackToSixNativeState
 @testable import Stack_to_Six
 
 @MainActor final class NativeSourceTutorialBootstrapTests:XCTestCase {
+    func testInactiveTutorialRetiresOverlayCallbacksAndReleasesOwnerOnRepeatedMount()throws {
+        var state=NativeBoardState(tiles:[NativeTile(id:"cleanup-a",cell:.init(column:0,row:0),value:1),NativeTile(id:"cleanup-b",cell:.init(column:1,row:0),value:2)])
+        var tutorial=NativeTutorialState();tutorial.step = .freePlay;tutorial.specialBarAcknowledged=true
+        state.tutorial=tutorial
+        let gameplay=NativeGameplayViewController(engine:NativeGameplayEngine(state:state),resourceRoot:NativeTestResources.root)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=gameplay;window.makeKeyAndVisible()
+        gameplay.view.frame=window.bounds;gameplay.view.setNeedsLayout();gameplay.view.layoutIfNeeded()
+        defer{gameplay.dispose();window.isHidden=true}
+        for _ in 0..<12 {
+            weak var retired:NativeTutorialOwner?
+            do {
+                let owner=NativeTutorialOwner(gameplay:gameplay,root:NativeTestResources.root);retired=owner
+                owner.refresh(gameplay.engine.state)
+                XCTAssertTrue(gameplay.view.subviews.contains{$0 is NativeTutorialOverlay})
+                gameplay.boardScene?.onTutorialSpecialDropStarted={_ in XCTFail("retired start")}
+                gameplay.boardScene?.onTutorialSpecialDropLanded={_ in XCTFail("retired landing")}
+                var inactive=gameplay.engine.state;inactive.tutorial?.active=false
+                owner.refresh(inactive)
+                XCTAssertNil(gameplay.boardScene?.onTutorialSpecialDropStarted)
+                XCTAssertNil(gameplay.boardScene?.onTutorialSpecialDropLanded)
+                XCTAssertFalse(gameplay.view.subviews.contains{$0 is NativeTutorialOverlay})
+                NotificationCenter.default.post(name:UIApplication.didEnterBackgroundNotification,object:nil)
+                NotificationCenter.default.post(name:UIApplication.willEnterForegroundNotification,object:nil)
+                owner.dispose();owner.dispose()
+            }
+            XCTAssertNil(retired,"tutorial observer and callback closures must not retain the retired owner")
+        }
+    }
     func testRestoredNonSourceSpecialBarContinuesToClearWithoutReservingStarEarly()async throws {
         var tutorial=NativeTutorialState();tutorial.step = .freePlay
         tutorial.specialBarSuccessfulActions=2;tutorial.specialBarAcknowledged=false
@@ -188,7 +216,9 @@ import StackToSixNativeState
             XCTAssertGreaterThanOrEqual(overlay.sourceSheetTranslation,-overlay.sourceSheetHeight*0.15)
             XCTAssertLessThanOrEqual(overlay.sourceSheetTranslation,overlay.sourceSheetHeight)
         }
-        XCTAssertFalse(overlay.sourcePointerVisible)
+        // Cold meter asset preparation above can legitimately outlast the
+        // independent 1200ms pointer receipt. Assert its actual owner state.
+        XCTAssertEqual(overlay.sourcePointerVisible,intro.pointerStarted)
         service.setSourceForeground(false)
         try await Task.sleep(for:.milliseconds(1300))
         XCTAssertTrue(intro.sheetStarted);XCTAssertTrue(intro.pointerStarted)
@@ -447,12 +477,23 @@ import StackToSixNativeState
                     if fourth {
                         let originalDropStart=scene.onTutorialSpecialDropStarted
                         var actualDropStarts=0
+                        var actualLandings=0
+                        let originalLanding=scene.onTutorialSpecialDropLanded
+                        scene.onTutorialSpecialDropLanded={wild in
+                            actualLandings+=1
+                            XCTAssertFalse(scene.sourceTutorialWildIsDropping(wild))
+                            XCTAssertFalse(overlay.subviews.flatMap{$0.subviews}.compactMap{$0 as? UILabel}.contains{$0.text=="Special dice"})
+                            originalLanding?(wild)
+                            XCTAssertTrue(overlay.subviews.flatMap{$0.subviews}.compactMap{$0 as? UILabel}.contains{$0.text=="Special dice"})
+                            for tile in game.engine.state.activeTiles {XCTAssertFalse(game.engine.canBeginDrag(tileID:tile.id),"sheet entry retains arrival lock")}
+                        }
                         scene.onTutorialSpecialDropStarted={wild in
                             actualDropStarts+=1
                             XCTAssertTrue(scene.sourceTutorialWildIsDropping(wild))
                             originalDropStart?(wild)
                             XCTAssertFalse(scene.sourceTutorialIntroTimeouts.pendingReceipts.contains{$0.sourceID=="tutorial-fourth-sheet900"})
-                            XCTAssertTrue(overlay.subviews.flatMap{$0.subviews}.compactMap{$0 as? UILabel}.contains{$0.text=="Special dice"},"Special Dice copy mounts at genuine fall admission")
+                            XCTAssertFalse(overlay.subviews.flatMap{$0.subviews}.compactMap{$0 as? UILabel}.contains{$0.text=="Special dice"},"Special Dice sheet must wait for actual landing")
+                            for tile in game.engine.state.activeTiles {XCTAssertFalse(game.engine.canBeginDrag(tileID:tile.id),"rapid pickup stays blocked during tutorial arrival")}
                         }
                         let failureCallback=scene.onSourcePresentationFailure
                         scene.onSourcePresentationFailure={reason,generation in
@@ -487,6 +528,7 @@ import StackToSixNativeState
                         }
                         let receipt=try XCTUnwrap(game.engine.sourceTutorialFourthPreparation)
                         XCTAssertEqual(actualDropStarts,1)
+                        XCTAssertEqual(actualLandings,1)
                         let wild=try XCTUnwrap(scene.sourceNativeTileNode(receipt.wildID))
                         XCTAssertTrue(wild.sourceOpenedWildConstructorCurrent)
                         XCTAssertEqual(wild.sourceLiveStarHaloCount,0,"tutorial Star has no orbiting dice")

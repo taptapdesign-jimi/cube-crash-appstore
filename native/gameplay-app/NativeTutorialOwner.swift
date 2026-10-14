@@ -26,6 +26,7 @@ final class NativeTutorialOwner {
     var sourceFirstStepMonitorEnabled=false
     private var sourceFirstMonitor:NativeSourceTutorialFirstStepMonitor?
     private var specialBarExiting=false
+    private var arrivalLock:String{"tutorial-special-arrival:\(sourceReservationOwnerID):\(generation)"}
     private var specialBarLock:String{"tutorial-special-bar:\(sourceReservationOwnerID):\(generation)"}
     private var secondRepairFrame:NativeSourceAnimationClockService.SourceFrameLease?
     var sourceFirstMonitorPhase:NativeSourceTutorialFirstStepMonitor.Phase?{sourceFirstMonitor?.phase}
@@ -35,6 +36,7 @@ final class NativeTutorialOwner {
     private var displayedStep:NativeTutorialState.Step?
     private var disposed=false,generation:UInt64
     private var observers:[NSObjectProtocol]=[]
+    isolated deinit{dispose()}
     var onChanged:((NativeBoardState)->Void)?
     var onFeedback:(()->Void)?
     init(gameplay:NativeGameplayViewController,root:URL) {
@@ -46,8 +48,14 @@ final class NativeTutorialOwner {
         }
     }
     func refresh(_ state:NativeBoardState) {
-        guard !disposed,state.generation==generation,let gameplay else{return}
-        guard let tutorial=state.tutorial,tutorial.active,state.terminal==nil else {gameplay.boardScene?.onTutorialSpecialDropStarted=nil;gameplay.boardScene?.onTutorialSpecialBarInteraction=nil;gameplay.boardScene?.onTutorialSpecialBarSettled=nil;gameplay.boardScene?.restoreTutorialSpecialBarFocus();gameplay.restoreTutorialSpecialBarSiblings();gameplay.engine.setInputLock(specialBarLock,active:false);overlay.dispose();displayedStep=nil;return}
+        guard !disposed else{return}
+        guard state.generation==generation,let gameplay else{dispose();return}
+        guard let tutorial=state.tutorial,tutorial.active,state.terminal==nil else {dispose();displayedStep=nil;return}
+        if sourceSubsequentPresentationEnabled,tutorial.waitingForWild,state.wildMeter>=1-0.000001 {
+            gameplay.engine.setInputLock(arrivalLock,active:true)
+            if gameplay.engine.isDragging {gameplay.boardScene?.cancelDrag()}
+            guard !disposed,gameplay.engine.state.generation==generation else{return}
+        }
         if specialBarExiting{return}
         guard let scene=gameplay.boardScene,let geometry=scene.boardGeometry else{return}
         if tutorial.step == .stack,tutorial.specialBarSuccessfulActions == nil {
@@ -254,7 +262,11 @@ final class NativeTutorialOwner {
             nodeCurrent:{[weak scene] in scene?.sourceTutorialTargetCurrent($0)==true},
             dropping:{[weak scene] in scene?.sourceTutorialWildIsDropping($0)==true},
             activate:{[weak self,weak scene] _ in
-                guard let self,let scene,current() else{return false};self.sourceGuidedDragNode=nil;self.sourceGuidedDragStep=nil
+                guard let self,let scene,current(),let gameplay=self.gameplay else{return false}
+                gameplay.engine.setInputLock(self.arrivalLock,active:true)
+                scene.cancelDrag()
+                guard current() else{return false}
+                self.sourceGuidedDragNode=nil;self.sourceGuidedDragStep=nil
                 let accepted=self.overlay.activateSourceFourthStepDim()
                 if !accepted,current(){scene.failSourceTutorialFourthPresentation("source_tutorial_fourth_dim_rejected",generation:self.generation)}
                 return accepted
@@ -279,12 +291,14 @@ final class NativeTutorialOwner {
                 guard self.installSourceFourthCompletion(gameplay:gameplay,scene:scene,wild:wild,current:current) else{
                     if current(){scene.failSourceTutorialFourthPresentation("source_tutorial_fourth_completion_monitor_rejected",generation:self.generation)};return false
                 }
+                gameplay.engine.setInputLock(self.arrivalLock,active:false)
                 self.displayedStep = .special;self.onChanged?(gameplay.engine.state)
                 return current()
-            },sheetDelayMilliseconds:0)
+            },sheetDelayMilliseconds:0,waitForLandingBeforeSheet:true)
         guard let monitor else{return false};sourceFourthMonitor=monitor
         guard monitor.start(),current() else{if sourceFourthMonitor === monitor{sourceFourthMonitor=nil};monitor.dispose();return false}
         scene.onTutorialSpecialDropStarted = {[weak monitor] wild in _=monitor?.activateDroppingWild(wild)}
+        scene.onTutorialSpecialDropLanded = {[weak monitor] wild in _=monitor?.landedWild(wild)}
         return true
     }
     private func installSourceFourthCompletion(gameplay:NativeGameplayViewController,scene:NativeBoardScene,wild:NativeDiceNode,current:@escaping()->Bool)->Bool {
@@ -312,6 +326,7 @@ final class NativeTutorialOwner {
                     self.sourceFourthMonitor?.dispose();self.sourceFourthMonitor=nil
                     self.sourceThirdDismissPhase = .finished;self.sourceGuidedDragNode=nil;self.sourceGuidedDragStep=nil
                     self.overlay.dispose();self.onChanged?(result.state)
+                    self.dispose();self.sourceThirdDismissPhase = .finished
                 }
                 if !exitStarted,current(){scene.failSourceTutorialFourthPresentation("source_tutorial_fourth_exit_rejected",generation:self.generation)}
             })
@@ -386,5 +401,30 @@ final class NativeTutorialOwner {
         if !started{specialBarExiting=false;restoreSpecialBarFocus(gameplay);gameplay.boardScene?.failSourceTutorialFourthPresentation("tutorial_special_bar_exit_rejected",generation:generation)}
         return started
     }
-    func dispose() {guard !disposed else{return};gameplay?.boardScene?.onTutorialSpecialDropStarted=nil;gameplay?.restoreTutorialSpecialBarSiblings();gameplay?.boardScene?.onTutorialSpecialBarInteraction=nil;gameplay?.boardScene?.onTutorialSpecialBarSettled=nil;gameplay?.boardScene?.restoreTutorialSpecialBarFocus();gameplay?.engine.setInputLock(specialBarLock,active:false);disposed=true;sourceFourthCompletion?.dispose();sourceFourthCompletion=nil;sourceFourthMonitor?.dispose();sourceFourthMonitor=nil;_=gameplay?.engine.retireSourceTutorialWildReservation(ownerID:sourceReservationOwnerID,generation:generation);sourceThirdDismissPhase = .retired;sourceGuidedDragNode=nil;sourceGuidedDragStep=nil;if let timer=sourceThirdHintTimer{_=sourceThirdHintTimeouts?.cancel(timer)};sourceThirdHintTimer=nil;sourceThirdHintTimeouts=nil;sourceFirstMonitor?.dispose();sourceFirstMonitor=nil;sourceSecondMonitor?.dispose();sourceSecondMonitor=nil;secondRepairFrame?.cancel();secondRepairFrame=nil;overlay.dispose();for token in observers {NotificationCenter.default.removeObserver(token)};observers.removeAll();onChanged=nil;onFeedback=nil;onSourceCTAContact=nil;gameplay=nil}
+    func dispose() {
+        guard !disposed else{return}
+        disposed=true
+        let gameplay=self.gameplay
+        gameplay?.boardScene?.onTutorialSpecialDropStarted=nil
+        gameplay?.boardScene?.onTutorialSpecialDropLanded=nil
+        gameplay?.boardScene?.onTutorialSpecialBarInteraction=nil
+        gameplay?.boardScene?.onTutorialSpecialBarSettled=nil
+        gameplay?.restoreTutorialSpecialBarSiblings()
+        gameplay?.boardScene?.restoreTutorialSpecialBarFocus()
+        gameplay?.engine.setInputLock(arrivalLock,active:false)
+        gameplay?.engine.setInputLock(specialBarLock,active:false)
+        sourceFourthCompletion?.dispose();sourceFourthCompletion=nil
+        sourceFourthMonitor?.dispose();sourceFourthMonitor=nil
+        _=gameplay?.engine.retireSourceTutorialWildReservation(ownerID:sourceReservationOwnerID,generation:generation)
+        sourceThirdDismissPhase = .retired;sourceGuidedDragNode=nil;sourceGuidedDragStep=nil
+        if let timer=sourceThirdHintTimer{_=sourceThirdHintTimeouts?.cancel(timer)}
+        sourceThirdHintTimer=nil;sourceThirdHintTimeouts=nil
+        sourceFirstMonitor?.dispose();sourceFirstMonitor=nil
+        sourceSecondMonitor?.dispose();sourceSecondMonitor=nil
+        secondRepairFrame?.cancel();secondRepairFrame=nil
+        overlay.dispose()
+        for token in observers {NotificationCenter.default.removeObserver(token)}
+        observers.removeAll();onChanged=nil;onFeedback=nil;onSourceCTAContact=nil
+        self.gameplay=nil
+    }
 }

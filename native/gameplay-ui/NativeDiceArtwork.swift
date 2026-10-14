@@ -117,6 +117,10 @@ final class NativeBoardTextures {
     let sourceWildShimmerGradients=NativeSourceWildShimmerGradientCache()
     private let root: URL
     private var textures: [String: SKTexture] = [:]
+    // Only the eight selected OG Magnet bolt sources need CPU pixels for their
+    // authored shadows. Borrow the original decode, never read a GPU texture
+    // back synchronously at the merge-six completion boundary.
+    private var magnetBoltRasterImages:[String:CGImage]=[:]
     private var logicalSizes: [String: CGSize] = [:]
     private var sourceRasterPixels:[ObjectIdentifier:CGSize]=[:]
     private var sourceRasterLogicalWidths:[ObjectIdentifier:CGFloat]=[:]
@@ -208,6 +212,12 @@ final class NativeBoardTextures {
             if let texture=textures[path] {return texture}
         }
         return nil
+    }
+    func sourceMagnetBoltRasterInputs()->[CGImage]? {
+        guard !disposed else{return nil}
+        let paths=NativeMagnetFinalePresentation.assets
+        guard paths.allSatisfy({textures[$0] != nil && magnetBoltRasterImages[$0] != nil}) else{return nil}
+        return paths.compactMap{magnetBoltRasterImages[$0]}
     }
     /// Sequential Source asset attempts; caller owns the APP Promise/FIFO boundary.
     /// Reuses canonical decode/upload ownership, never loads all candidates at once.
@@ -349,6 +359,7 @@ final class NativeBoardTextures {
                 texture.filteringMode = .linear
                 textures[path] = texture
                 if let cg=image.cgImage {
+                    if NativeMagnetFinalePresentation.assets.contains(path) {magnetBoltRasterImages[path]=cg}
                     configureOrdinaryMinification(texture,path:path,image:cg)
                     sourceRasterPixels[ObjectIdentifier(texture)]=CGSize(width:cg.width,height:cg.height)
                     let resolution=Self.isOrdinaryFace(path) ? Self.sourceRasterResolution(path:path)*image.scale:Self.sourceRasterResolution(path:candidate.path)
@@ -495,6 +506,7 @@ final class NativeBoardTextures {
                 self.selectedFinalePreload([texture]) {Task{@MainActor [weak self] in
                     guard let self,self.selectedFinaleIsCurrent(key:spec.key,request:request) else{return}
                     self.textures[decoded.path]=texture
+                    if NativeMagnetFinalePresentation.assets.contains(decoded.path) {self.magnetBoltRasterImages[decoded.path]=decoded.image}
                     self.sourceRasterPixels[ObjectIdentifier(texture)]=CGSize(width:decoded.image.width,height:decoded.image.height)
                     self.sourceRasterLogicalWidths[ObjectIdentifier(texture)]=CGFloat(decoded.image.width)/Self.sourceRasterResolution(path:decoded.path)
                     let density:CGFloat=decoded.path.contains("@2x.") ? 2:1
@@ -529,6 +541,7 @@ final class NativeBoardTextures {
     func purgeUnused(retaining paths: Set<String>) {
         guard waiting.isEmpty,finaleWarmupWaiting.isEmpty else { return }
         textures = textures.filter { paths.contains($0.key) }
+        magnetBoltRasterImages=magnetBoltRasterImages.filter{paths.contains($0.key)}
         logicalSizes = logicalSizes.filter { paths.contains($0.key) }
         sheets = sheets.filter { paths.contains($0.key) };sourceSheetHandles=sourceSheetHandles.filter{paths.contains($0.key)}
     }
@@ -543,6 +556,7 @@ final class NativeBoardTextures {
         guard !disposed else { return }
         disposed = true
         sourceWildShimmerGradients.dispose()
+        magnetBoltRasterImages.removeAll()
         pip=nil
         generation += 1
         waiting.removeAll(); sheets.removeAll();sourceSheetHandles.removeAll(); textures.removeAll(); logicalSizes.removeAll();sourceRasterPixels.removeAll();sourceRasterLogicalWidths.removeAll()

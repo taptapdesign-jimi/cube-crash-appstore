@@ -6,6 +6,8 @@ public final class NativeWorldLayouts {
     private let viewports: [String: [[String: Any]]]
     private var planners: [Int:NativeWorldPlanning] = [:]
     private var beePlanner:NativeForestBeePlanning?
+    private var beamSequences:[Int:[String:Any]] = [:]
+    private lazy var beamTempoBands=Array(0..<10).shuffled()
     public init(data: Data? = nil) throws {
         let source: Data
         if let data { source = data }
@@ -23,7 +25,10 @@ public final class NativeWorldLayouts {
         // using two exact producer outputs; don't resize the fixed-point card/offset geometry.
         let factor = (390/width-1)/(390/768-1)
         func project(_ a: Any,_ b: Any) -> Any {
-            if let one = a as? [String:Any],let two = b as? [String:Any] { return one.mapWithValues { key,value in project(value,two[key] ?? value) } }
+            if let one = a as? [String:Any],let two = b as? [String:Any] { return one.mapWithValues { key,value in
+                // Temporal profiles are native-owned below, not viewport geometry.
+                key == "beamIdle" ? value:project(value,two[key] ?? value)
+            } }
             if let one = a as? [Any],let two = b as? [Any],one.count == two.count { return zip(one,two).map { project($0,$1) } }
             if let one=a as? NSNumber,let two=b as? NSNumber,CFGetTypeID(one) != CFBooleanGetTypeID() {
                 // Constant authored fields include discrete protocol identities. Keep
@@ -68,7 +73,7 @@ public final class NativeWorldLayouts {
                     let suffix=(side=="center" && state=="filled") || (side=="right" && state=="empty") ? "-1" : ""
                     parts[part]["asset"]="./assets/journey assets/level stars/star-\(state)-\(side)\(suffix).png"
                 }
-                if parts[part]["role"] as? String == "beam" { parts[part]["beamIdle"]=Self.beamIdle() }
+                if world == 3,parts[part]["role"] as? String == "beam" { parts[part]["beamIdle"]=beamIdle(board:board) }
             }
             if !allowed { parts.removeAll { $0["role"] as? String == "card" } }
             units[index]["parts"]=parts
@@ -97,15 +102,18 @@ public final class NativeWorldLayouts {
         guard top.isFinite,bottom.isFinite,bottom > top else {return nil}
         return planners[world]?.next(top:top,bottom:bottom,ids:ids)
     }
-    private static func beamIdle() -> [String:Any] {
-        var time=0.0,points:[[String:Double]]=[["time":0,"opacity":0.5]]
-        func add(_ seconds:Double,_ opacity:Double) {time += seconds;points.append(["time":time,"opacity":opacity])}
-        for _ in 0..<10 {
-            add(Double.random(in:0.7...1.2),0.5)
-            let brightness=Double.random(in:0.55...0.60)
-            add(Double.random(in:0.32...0.50),brightness);add(Double.random(in:1.8...2.8),brightness);add(Double.random(in:0.36...0.56),0.5)
-        }
-        return ["points":points,"duration":time,"phase":Double.random(in:0...time)]
+    private func beamIdle(board:Int) -> [String:Any] {
+        let index=max(0,min(9,board-21))
+        if let cached=beamSequences[index] {return cached}
+        // Disjoint tempo bands keep all ten Units independent, even when their
+        // random draws coincide. Choose once; refresh/layout never rolls again.
+        let duration=3.2+Double(beamTempoBands[index])*0.24+Double.random(in:0...0.14)
+        let peak=duration*Double.random(in:0.42...0.58)
+        let sequence:[String:Any] = ["points":[["time":0.0,"opacity":0.5],
+            ["time":peak,"opacity":0.6],["time":duration,"opacity":0.5]],
+            "duration":duration,"phase":Double.random(in:0..<duration)]
+        beamSequences[index]=sequence
+        return sequence
     }
 }
 import CoreFoundation

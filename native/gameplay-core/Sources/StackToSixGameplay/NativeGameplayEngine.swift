@@ -4182,13 +4182,17 @@ extension NativeGameplayEngine {
     /// already be retired when Source startLandedIdle's finally fallback runs.
     /// Absence of a drop never substitutes for the captured cancellation token.
     /// Caller retains the real pendingMeterOpen.spawnToken and exact tile object.
-    public func meterDropSourceCancellation(generation:UInt64,spawnToken:UInt64,dropID:String)->NativeMeterDropCancellation? {
+    public func meterDropSourceCancellation(generation:UInt64,spawnToken:UInt64,dropID:String,retainedCarrier:Bool=false)->NativeMeterDropCancellation? {
         guard generation==state.generation,spawnToken==sourceMeterSpawnCancelToken else {
             return .explicitPendingContinuation
         }
         if let drop=meterDropReservations[dropID],drop.generation==generation,drop.queueCanceled {
             return .explicitPendingContinuation
         }
+        // A captured carrier is an independent main presentation. Other
+        // merge-six owners cannot cancel its travel or landed bookkeeping.
+        // Explicit cancellation and generation replacement still win above.
+        if retainedCarrier || meterDropReservations[dropID]?.generation==generation {return nil}
         if flags.busyEnding || hasSourceMeterLastMerge {return .busyEndingOrLastMerge}
         return nil
     }

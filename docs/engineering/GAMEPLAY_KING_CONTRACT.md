@@ -113,6 +113,8 @@ TNT and Wild Magnet gameplay archetypes respectively; Kanta retains canonical
 Wild Star gameplay. The per-board `wildSpawnCount` remains persisted across
 reloads.
 
+- User-requested Native carrier independence (2026-10-14): a reserved Journey backpack or Arcade crate drop owns its die through travel, landing and presentation handoff. Concurrent ordinary or Wild/Special merge-6 effects cannot capture its transform or cancel its bookkeeping. Explicit route/restart/generation retirement still cancels the obsolete owner; background/modal pause retains normal lifecycle ownership.
+
 ### 5.3 Clean board and final merge
 
 - Clean Board Combo bonus (user-requested 2026-09-21) belongs to the current

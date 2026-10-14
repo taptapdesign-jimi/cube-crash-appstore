@@ -27,6 +27,24 @@ import StackToSixGameplay
         XCTAssertTrue(monitor.start());XCTAssertFalse(monitor.activateDroppingWild(f.targets[0]))
         XCTAssertEqual(sheets,0);XCTAssertEqual(monitor.phase,.retired)
     }
+    func testNativeFourthWaitsForExactLandingAndRetirementCancelsOwnedWork()throws {
+        let f=try Fixture();defer{f.dispose()}
+        let node=f.targets[0];var dropping=true,sheets=0,prepared=0;var entered:(()->Void)?
+        let monitor=try XCTUnwrap(NativeSourceTutorialFourthStepMonitor(service:f.service,timeouts:f.timeouts,generation:1,
+            current:{f.current},findWild:{nil},nodeCurrent:{$0 === node},dropping:{_ in dropping},activate:{_ in true},
+            transitionSheet:{sheets+=1;entered=$0;return true},prepare:{_ in prepared+=1;return true},
+            sheetDelayMilliseconds:0,waitForLandingBeforeSheet:true))
+        XCTAssertTrue(monitor.start());XCTAssertTrue(monitor.activateDroppingWild(node))
+        XCTAssertEqual(monitor.phase,.waitingForLanding);XCTAssertEqual(sheets,0)
+        XCTAssertFalse(monitor.landedWild(node));dropping=false
+        XCTAssertFalse(monitor.landedWild(f.targets[1]));XCTAssertEqual(sheets,0)
+        XCTAssertTrue(monitor.landedWild(node));XCTAssertEqual(sheets,1);XCTAssertEqual(prepared,0)
+        XCTAssertFalse(monitor.landedWild(node));try XCTUnwrap(entered)()
+        XCTAssertEqual(prepared,1);XCTAssertEqual(monitor.phase,.prepared)
+        monitor.dispose();monitor.dispose();try XCTUnwrap(entered)()
+        XCTAssertFalse(monitor.landedWild(node));XCTAssertEqual(prepared,1)
+        XCTAssertFalse(f.timeouts.pendingReceipts.contains{$0.sourceID.hasPrefix("tutorial-fourth-")})
+    }
     @MainActor private final class Fixture {
         var wall=0.0,current=true,activated=0,hasSix=false
         let fifo=NativeSourceMicrotaskFIFO(),timeouts=NativeSourceAppTimeoutOwner()

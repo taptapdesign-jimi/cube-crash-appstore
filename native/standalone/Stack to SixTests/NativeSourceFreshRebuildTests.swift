@@ -72,25 +72,62 @@ import StackToSixNativeState
     func testActualBeachBallReplacementDiceReturnToFullSize()async throws {
         try await exerciseAuthoredTntReplacementSize(variant:"beach-ball")
     }
-    private func exerciseAuthoredTntReplacementSize(variant:String,meter:Double=0,reuseMeterHolder:Bool=false)async throws {
+    func testArcadeCrateDropKeepsExclusiveMotionDuringFlowerMergeSix()async throws {
+        try await exerciseAuthoredTntReplacementSize(variant:"flower",meter:0.95,overlapMode:.arcade)
+    }
+    func testJourneyBackpackDropKeepsExclusiveMotionDuringFlowerMergeSix()async throws {
+        try await exerciseAuthoredTntReplacementSize(variant:"flower",meter:0.95,overlapMode:.journey)
+    }
+    private func exerciseAuthoredTntReplacementSize(variant:String,meter:Double=0,reuseMeterHolder:Bool=false,overlapMode:NativeRunMode?=nil)async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-flower-size-"+UUID().uuidString)
         let store=NativeSaveStore(directory:directory)
         var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
         seed.progression.firstPlayTutorialComplete=true
         var tiles:[NativeTile]=[.init(id:"flower",cell:.init(column:0,row:0),value:6,archetype:.tnt,variant:variant),.init(id:"destination",cell:.init(column:1,row:0),value:2)]+(1...6).map{.init(id:"target-\($0)",cell:.init(column:$0%5,row:1+$0/5),value:1+$0%5)}
+        if overlapMode != nil {
+            tiles += [.init(id:"ordinary-three-a",cell:.init(column:0,row:4),value:3),.init(id:"ordinary-three-b",cell:.init(column:1,row:4),value:3)]
+        }
         if reuseMeterHolder {tiles.append(.init(id:"meter-holder",cell:.init(column:4,row:0),value:0,locked:true,alpha:0.25))}
         seed.arcadeRun = .init(tiles:tiles,mode:.arcade,board:3,stage:3,generation:9,moves:37,score:123)
         seed.arcadeRun?.wildMeter=meter
-        seed.arcadeRunSavedAt=Date().timeIntervalSince1970;try store.save(seed)
+        seed.arcadeRunSavedAt=Date().timeIntervalSince1970
+        if overlapMode == .journey {
+            seed.journeyRuns[3]=seed.arcadeRun!
+            seed.journeyRuns[3]?.mode = .journey
+            seed.journeyRunSavedAt[3]=Date().timeIntervalSince1970
+            seed.progression.completedJourneyBoards=[1,2]
+            seed.arcadeRun=nil
+        }
+        try store.save(seed)
         let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:{0.1},completeNativeGameplayEnabled:true)
         let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
         let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
-        defer{host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
+        defer{observeTransitionPaint=nil;host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
         host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
-        try await wait{!app.home.isHidden};app.navigate(.gameplay,interrupt:true)
+        try await wait{!app.home.isHidden}
+        if overlapMode == .journey {
+            app.navigate(.world(1),interrupt:true)
+            try await wait{if app.children.contains(where:{$0 is NativeGameplayViewController}){return true};app.world?.onRequest?("continue",3);return false}
+        }else{app.navigate(.gameplay,interrupt:true)}
         try await wait{app.children.compactMap{$0 as? NativeGameplayViewController}.first?.boardScene?.isBoardEntryComplete==true}
         let gameplay=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first),scene=try XCTUnwrap(gameplay.boardScene)
         try await wait{!gameplay.engine.hasUnsavableSourceGameplayState && gameplay.beforeSourceGameplayAdmission==nil}
+        var carrier:NativeDiceNode?,carrierCell:NativeCell?,carrierSamples=0
+        if overlapMode != nil {
+            let sn=try XCTUnwrap(scene.sourceNativeTileNode("ordinary-three-a")),dn=try XCTUnwrap(scene.sourceNativeTileNode("ordinary-three-b"))
+            let p=scene.convert(sn.position,from:try XCTUnwrap(sn.parent)),q=scene.convert(dn.position,from:try XCTUnwrap(dn.parent))
+            XCTAssertTrue(scene.beginDrag(at:p));scene.moveDrag(to:q,now:CACurrentMediaTime())
+            try await Task.sleep(for:.milliseconds(160))
+            XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:q,now:CACurrentMediaTime())).accepted)
+            try await wait{gameplay.engine.meterDropReservations.values.contains{$0.assetsPrepared && !$0.landed}}
+            let drop=try XCTUnwrap(gameplay.engine.meterDropReservations.values.first)
+            carrier=try XCTUnwrap(scene.sourceNativeTileNode(drop.tileID));carrierCell=drop.cell
+            observeTransitionPaint={
+                guard let carrier else{return};carrierSamples+=1
+                XCTAssertNil(carrier.action(forKey:"tnt-blast"),"Flower stole the carrier transform")
+                XCTAssertNil(carrier.action(forKey:"tnt-return"),"Flower rewound the landed carrier")
+            }
+        }
         let a=try XCTUnwrap(scene.sourceNativeTileNode("flower")),b=try XCTUnwrap(scene.sourceNativeTileNode("destination"))
         let from=scene.convert(a.position,from:try XCTUnwrap(a.parent)),to=scene.convert(b.position,from:try XCTUnwrap(b.parent))
         XCTAssertTrue(scene.beginDrag(at:from));scene.moveDrag(to:to,now:CACurrentMediaTime())
@@ -102,6 +139,15 @@ import StackToSixNativeState
                 return true
             }
             return gameplay.engine.pendingSpecial==nil && !gameplay.engine.hasUnsavableSourceGameplayState
+        }
+        if let carrier,let carrierCell {
+            observeTransitionPaint?();observeTransitionPaint=nil
+            XCTAssertGreaterThan(carrierSamples,0)
+            XCTAssertTrue(scene.sourceNativeTileNode(carrier.tileID) === carrier)
+            XCTAssertEqual(carrier.sourceGridCell,carrierCell)
+            XCTAssertEqual(gameplay.engine.state.wildSpawnCount,1)
+            XCTAssertTrue(gameplay.engine.meterDropReservations.isEmpty)
+            XCTAssertNil(gameplay.sourcePresentationFailure)
         }
         try await Task.sleep(for:.seconds(2))
         let originals=Set(tiles.map(\.id)),replacements=gameplay.engine.state.tiles.filter{!originals.contains($0.id) && $0.value>0 && !$0.isWild}

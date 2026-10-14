@@ -415,8 +415,9 @@ final class NativeGameplayViewController: UIViewController {
             if let existing = self.tntGlyphs[id] { glyphs = existing }
             else {
                 guard let artwork=self.selectedFinaleArtwork() else{return}
-                let color = variant == "juice" ? UIColor(red: 1,green: 166.0/255,blue: 175.0/255,alpha: 1) : UIColor(red: 1,green: 203.0/255,blue: 129.0/255,alpha: 1)
-                glyphs = NativeSplashGlyphField(artwork: artwork,text: variant == "magnet" ? "SWOOP":variant == "juice" ? "BUBBLY" : "SPARKLE",colors: [variant == "magnet" ? .white:color],splitIndex: 0)
+                let color = variant == "magnet" ? UIColor(red: 1,green: 148.0/255,blue: 114.0/255,alpha: 1) :
+                    variant == "juice" ? UIColor(red: 1,green: 166.0/255,blue: 175.0/255,alpha: 1) : UIColor(red: 1,green: 203.0/255,blue: 129.0/255,alpha: 1)
+                glyphs = NativeSplashGlyphField(artwork: artwork,text: variant == "magnet" ? "SWOOP":variant == "juice" ? "BUBBLY" : "SPARKLE",colors: [color],splitIndex: 0)
                 glyphs.frame = self.view.bounds; glyphs.autoresizingMask = [.flexibleWidth,.flexibleHeight]
                 self.view.addSubview(glyphs); self.tntGlyphs[id] = glyphs; glyphs.layoutIfNeeded()
             }

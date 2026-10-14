@@ -27,6 +27,7 @@ import StackToSixGameplay
         let fault:(String)->Void
         let consume:(NativeMoveResult,NativeBoardState)->Void
         var onDropStarted:((NativeDiceNode)->Void)?=nil
+        var onDropLanded:((NativeDiceNode)->Void)?=nil
         var sourceSkin:((NativeDiceNode)->Bool)?=nil
     }
     @MainActor private final class Drop {
@@ -245,7 +246,7 @@ import StackToSixGameplay
     }
     private func sourceCancellation(_ drop:Drop)->NativeMeterDropCancellation? {
         engine.meterDropSourceCancellation(generation:drop.captured.request.generation,
-            spawnToken:drop.captured.request.spawnToken,dropID:drop.runtime.id)
+            spawnToken:drop.captured.request.spawnToken,dropID:drop.runtime.id,retainedCarrier:true)
     }
     private func receive(_ event:NativeWildMeterDropRuntime.Event,drop:Drop){
         guard valid(drop) else{return}
@@ -343,6 +344,7 @@ import StackToSixGameplay
             guard valid(drop) else{return}
             if core.landed(dropID:drop.runtime.id,allowsSourceIdle:allowed) {hooks.idleAdmitted(drop.captured.lease.node)}
             guard valid(drop) else{return}
+            if event == .landed {hooks.onDropLanded?(drop.captured.lease.node)}
             if event == .spawnCompleted {drop.spawned=true}
         case .foregroundReleased:drop.foreground=true
         case .handoffLock(false):drop.wallUnlocked=true

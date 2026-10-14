@@ -50,7 +50,7 @@ nonisolated final class NativeSourceMeterCancellationQueryTests:XCTestCase {
         let e=engine(),(open,reservation)=try drop(e)
         XCTAssertNil(e.meterDropSourceCancellation(generation:open.generation,spawnToken:open.spawnToken,dropID:reservation.id))
         var f=NativeGameplayRuntimeFlags();f.busyEnding=true;e.setRuntimeFlags(f)
-        XCTAssertEqual(e.meterDropSourceCancellation(generation:open.generation,spawnToken:open.spawnToken,dropID:reservation.id),.busyEndingOrLastMerge)
+        XCTAssertNil(e.meterDropSourceCancellation(generation:open.generation,spawnToken:open.spawnToken,dropID:reservation.id))
         XCTAssertFalse(try XCTUnwrap(e.meterDropReservations[reservation.id]).cancellationRequested)
         e.setRuntimeFlags(.init())
         XCTAssertNil(e.meterDropSourceCancellation(generation:open.generation,spawnToken:open.spawnToken,dropID:reservation.id))
@@ -69,10 +69,33 @@ nonisolated final class NativeSourceMeterCancellationQueryTests:XCTestCase {
     func testActualLastMergeMarkersHonorDestroyedAndHiddenAuthoritativeFlag()throws {
         let e=engine(),(open,r)=try drop(e)
         e.sourceMeterLastMergeTileIDs=["a"]
-        XCTAssertEqual(e.meterDropSourceCancellation(generation:open.generation,spawnToken:open.spawnToken,dropID:r.id),.busyEndingOrLastMerge)
+        XCTAssertNil(e.meterDropSourceCancellation(generation:open.generation,spawnToken:open.spawnToken,dropID:r.id))
         var m=NativeNoMovesTileRuntime();m.destroyed=true;e.noMovesTileRuntime["a"]=m
         XCTAssertNil(e.meterDropSourceCancellation(generation:open.generation,spawnToken:open.spawnToken,dropID:r.id))
         XCTAssertFalse(try XCTUnwrap(e.meterDropReservations[r.id]).cancellationRequested)
+    }
+    func testReservedCarrierCompletesOnceDuringConcurrentMergeSixInBothModes()throws {
+        for mode:NativeRunMode in [.journey,.arcade] {
+            let e=NativeGameplayEngine(state:.init(tiles:[
+                .init(id:"a",cell:.init(column:0,row:0),value:4),
+                .init(id:"b",cell:.init(column:1,row:0),value:3)],mode:mode,wildMeter:1.25),
+                recordedRandomChoices:[0,0,0],rewardPicker:{_,_ in .init(.star)})
+            e.stagedMeterDrops=true;e.stagedMeterOpen=true
+            let (open,r)=try drop(e)
+            var flags=NativeGameplayRuntimeFlags();flags.pendingSpecialMutation=true;flags.merge6SpawnInProgress=true
+            e.setRuntimeFlags(flags);e.sourceMeterLastMergeTileIDs=["a"]
+            for receipt:NativeMeterDropReceipt in [.assetsPrepared,.revealed,.impact,.boardFallbackRestored,.dropPromiseCompleted,.selectedWarmupCompleted] {
+                XCTAssertNil(e.meterDropSourceCancellation(generation:open.generation,spawnToken:open.spawnToken,dropID:r.id))
+                XCTAssertTrue(e.applyMeterDropReceipt(id:r.id,generation:r.generation,receipt:receipt).accepted)
+            }
+            XCTAssertEqual(e.state.wildSpawnCount,1)
+            XCTAssertEqual(e.flags,flags,"Drop cannot release the other merge owner")
+            XCTAssertTrue(e.state.tiles.contains{$0.id==r.tileID && $0.isWild})
+            XCTAssertFalse(e.applyMeterDropReceipt(id:r.id,generation:r.generation,receipt:.dropPromiseCompleted).accepted)
+            XCTAssertTrue(e.applyMeterDropReceipt(id:r.id,generation:r.generation,receipt:.wallHandoffUnlocked).accepted)
+            XCTAssertTrue(e.meterDropReservations.isEmpty)
+            XCTAssertNil(e.meterDropSourceCancellation(generation:open.generation,spawnToken:open.spawnToken,dropID:r.id,retainedCarrier:true),"Painted carrier release may outlive Core bookkeeping")
+        }
     }
     func testExplicitCancelAndGenerationReplacementInvalidateCapturedToken()throws {
         let e=engine(),(open,r)=try drop(e)

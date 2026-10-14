@@ -124,7 +124,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         if !transition { updateResources() }
     }
     private func populate(_ target: UIView, parts: [JimiNativeWorldSnapshot.Part], owner: Int) {
-        interimOwners.removeValue(forKey:owner)?.stop(); partViews(target).forEach { $0.removeFromSuperview() }
+        interimOwners.removeValue(forKey:owner)?.stop(); partViews(target).forEach { $0.layer.removeAllAnimations();$0.removeFromSuperview() }
         for part in parts {
             guard let image = resources.image(part.asset, owner: owner) else { preparationHasMissingResources = true; onResourceFailure?(part.asset); continue }
             let view = UIImageView(image: image); view.contentMode = .scaleAspectFit
@@ -196,7 +196,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
             if viewport.intersects(view.frame) {
                 if !loaded.contains(unit.boardID) || dirtyUnits.contains(unit.boardID) { scheduleParts(unit.parts,target:view,owner:unit.boardID) }
             } else if loaded.contains(unit.boardID), modal?.boardID != unit.boardID, reminderSource?.superview !== view {
-                interimOwners.removeValue(forKey:unit.boardID)?.stop(); view.layer.removeAllAnimations(); depthPlanes[unit.boardID]?.forEach {$0.layer.removeAllAnimations()};partViews(view).forEach { $0.removeFromSuperview() }
+                interimOwners.removeValue(forKey:unit.boardID)?.stop(); view.layer.removeAllAnimations(); depthPlanes[unit.boardID]?.forEach {$0.layer.removeAllAnimations()};partViews(view).forEach { $0.layer.removeAllAnimations();$0.removeFromSuperview() }
                 resources.release(unit.boardID); loaded.remove(unit.boardID)
             }
         }

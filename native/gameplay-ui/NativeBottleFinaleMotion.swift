@@ -19,12 +19,14 @@ enum NativeBottleFinaleMotion {
         let p0 = path[max(0,index-1)],p1 = path[index],p2 = path[index+1],p3 = path[min(segmentCount,index+2)]
         return 0.5*(2*p1+(-p0+p2)*t+(2*p0-5*p1+4*p2-p3)*t*t+(-p0+3*p1-3*p2+p3)*t*t*t)
     }
-    static func mixedOpacities(count: Int,random: () -> Double) -> [CGFloat] {
+    static func mixedOpacities(count: Int,range: ClosedRange<CGFloat>? = nil,random: () -> Double) -> [CGFloat] {
         guard count > 0 else { return [] }
         let levels: [CGFloat] = [0.6,0.7,0.8,0.9]
         // Stratify then shuffle so every wave has variety, keeping RNG draw ownership unchanged.
+        // Trails keep the authored four levels; rising bubbles select a continuous range.
         var values = (0..<count).map { index in
             let position = (Double(index)+min(1,max(0,random())))/Double(count)
+            if let range {return min(range.upperBound,max(range.lowerBound,range.lowerBound+(range.upperBound-range.lowerBound)*CGFloat(position)))}
             return levels[min(levels.count-1,Int(position*Double(levels.count)))]
         }
         if count > 1 { for index in stride(from: count-1,through: 1,by: -1) {

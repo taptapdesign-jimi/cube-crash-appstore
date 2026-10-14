@@ -23,7 +23,7 @@ import CoreGraphics
         self.viewport=viewport
         plans=NativeMagnetBoltMotion.make(viewport:viewport,random:random)
         let originals=Self.assets.compactMap{textures.texture($0)}
-        rasterInputs=originals.count==8 ? originals.map{$0.cgImage()}:[]
+        rasterInputs=originals.count==8 ? (textures.sourceMagnetBoltRasterInputs() ?? []):[]
         sprites=plans.map{plan in
             let sprite=SKSpriteNode(texture:textures.texture("assets/animations/bolt\(plan.assetIndex).png"))
             let dimensions=sprite.texture?.size() ?? .init(width:1,height:1)
@@ -31,7 +31,7 @@ import CoreGraphics
             sprite.size = .init(width:dimensions.width*ratio,height:dimensions.height*ratio)
             sprite.alpha=0;sprite.blendMode = .screen;return sprite
         }
-        assetReady=sprites.allSatisfy{$0.texture != nil}
+        assetReady=rasterInputs.count==8 && sprites.allSatisfy{$0.texture != nil}
         super.init();name="native-magnet-finale";sprites.forEach(addChild)
     }
     required init?(coder:NSCoder){fatalError("init(coder:) has not been implemented")}

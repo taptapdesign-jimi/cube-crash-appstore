@@ -39,7 +39,7 @@ final class NativeBottleFinalePresentation: NativeFinitePresentation {
         super.init(viewport: viewport,duration: 5.70)
         clipsToBounds = true; accessibilityIdentifier = "native-bottle-finale"
         let trailAlpha = NativeBottleFinaleMotion.mixedOpacities(count: 60,random: random)
-        let mainAlpha = NativeBottleFinaleMotion.mixedOpacities(count: 40,random: random)
+        let mainAlpha = NativeBottleFinaleMotion.mixedOpacities(count: 40,range: 0.3...0.9,random: random)
         for (index,spec) in NativeBottleFinaleMotion.layers.enumerated() {
             let mover = UIView(); mover.backgroundColor = .clear; mover.layer.zPosition = spec.z; addSubview(mover)
             let image = UIImageView(image: artwork.image(pack+spec.asset+".png",densityAware: true))
@@ -150,7 +150,8 @@ final class NativeBottleFinalePresentation: NativeFinitePresentation {
                 let p = NativeBoardMotion.Ease.backIn(3).sample((local-bubble.pop-0.06)/0.08)
                 scale = 1.2*(1-p); alpha = popAlpha*(1-p)
             }
-            pose(bubble.image,size: bubble.size,center: CGPoint(x: bubble.origin.x+x,y: bubble.origin.y+y),scale: scale,alpha: alpha)
+            // The authored back-in pop may overshoot; keep its scale but cap opacity.
+            pose(bubble.image,size: bubble.size,center: CGPoint(x: bubble.origin.x+x,y: bubble.origin.y+y),scale: scale,alpha: min(0.9,alpha))
         }
         glyphs.paint(seconds: seconds)
     }

@@ -1141,6 +1141,7 @@ final class NativeBoardScene: SKScene {
     /// Literal Source getActiveTiles/findWildTile ordering. The first Star is
     /// chosen before asking whether it drops; a later dropping Star cannot
     /// bypass an earlier resting Star. Captured object order breaks equal cells.
+    var onTutorialSpecialDropLanded:((NativeDiceNode)->Void)?
     var onTutorialSpecialDropStarted:((NativeDiceNode)->Void)?
     func sourceTutorialFourthDroppingWild()->NativeDiceNode? {
         guard sourceAnimationBindingAdmissionOpen,sourceTutorialSubsequentPresentationEnabled,
@@ -5217,6 +5218,7 @@ final class NativeBoardScene: SKScene {
                     else{self.onPresentationFailure?(reason)}
                 },consume:{[weak self] result,previous in guard admitted() else{return};self?.consume(result,previous:previous)},
                 onDropStarted:{[weak self] node in guard let self,admitted() else{return};self.onTutorialSpecialDropStarted?(node)},
+                onDropLanded:{[weak self] node in guard let self,admitted() else{return};self.onTutorialSpecialDropLanded?(node)},
                 sourceSkin:microtasks == nil ? nil:{[weak self] node in
                     guard let self,admitted(),self.nodesByID[node.tileID] === node else{return false}
                     return self.repairSourceWildSkin(tileID:node.tileID,scope:scope,startSourceIdle:{false},allowPendingMeter:true)
@@ -6357,10 +6359,13 @@ final class NativeBoardScene: SKScene {
         score.text = String(state.score)
         comboNumber.text = String(state.combo)
         comboArt.texture = textures.texture(state.combo >= 10 ? "assets/hud/mega-combo-hud.png" : state.combo >= 5 ? "assets/hud/extra-combo-hud.png" : "assets/hud/combo-hud.png")
-        roundIndicator.synchronize(round:state.stage,arcade:state.mode == .arcade && state.tutorial?.shouldLockHUD != true,viewport:size,alpha:(!tutorialSpecialBarFocus.isEmpty || sourceTutorialHUD?.owns(roundIndicator)==true) ? roundIndicator.alpha:(sourceTutorialHUDEnabled ? 1:(state.tutorial?.shouldLockHUD == true ? 0.2:1)))
+        // Source startup owns its initial fade; after guide completion the
+        // completion-assist HUD lock still owns dimming, including cleanup refreshes.
+        let tutorialHUDAlpha:CGFloat=state.tutorial?.shouldLockHUD==true && (!sourceTutorialHUDEnabled || state.tutorial?.active != true) ? 0.2:1
+        roundIndicator.synchronize(round:state.stage,arcade:state.mode == .arcade && state.tutorial?.shouldLockHUD != true,viewport:size,alpha:(!tutorialSpecialBarFocus.isEmpty || sourceTutorialHUD?.owns(roundIndicator)==true) ? roundIndicator.alpha:tutorialHUDAlpha)
         layoutHUD()
         applyBoardShake(boardShake)
-        for child in hud.children where child !== noMoves && sourceTutorialHUD?.owns(child) != true && tutorialSpecialBarFocus.isEmpty {child.alpha = sourceTutorialHUDEnabled ? 1:(state.tutorial?.shouldLockHUD == true ? 0.2:1)}
+        for child in hud.children where child !== noMoves && sourceTutorialHUD?.owns(child) != true && tutorialSpecialBarFocus.isEmpty {child.alpha = tutorialHUDAlpha}
         if animateEntry && !UIAccessibility.isReduceMotionEnabled {
             animateBoardEntry(tiles: live,geometry: geometry)
         } else if !entryInProgress { inputAdmitted = state.terminal == nil && pendingTerminal == nil;roundIndicator.enter(animated:false) }
@@ -8774,7 +8779,7 @@ final class NativeBoardScene: SKScene {
             guard let node=nodesByID[tile.id],node.parent === canvasRoot,shortWildBoardBlast?.owns(node) != true else{continue}
             if sourceOwned {
                 guard let marker=sourceWildDropTileMarkers(node) else{onPresentationFailure?("source_short_wild_blast_drop_owner_missing");return nil}
-                if marker.dropping {continue}
+                if marker.dropping || sourceMeterCaller?.owns(node)==true {continue}
             } else if tile.transientSpawn {continue}
             targets.append(node)
         }
@@ -8789,7 +8794,7 @@ final class NativeBoardScene: SKScene {
         guard let captured=capturedTargets ?? captureShortWildBoardBlastTargets(sourceID:sourceID,destinationID:destinationID) else{return false}
         // Destroyed/replaced captured objects are no longer Source participants;
         // never substitute a newly constructed holder into their old wave.
-        let targets=captured.filter{nodesByID[$0.tileID] === $0 && $0.parent === canvasRoot && (!sourceOwned || $0.sourceGeneration==generation)}
+        let targets=captured.filter{nodesByID[$0.tileID] === $0 && $0.parent === canvasRoot && sourceMeterCaller?.owns($0) != true && (!sourceOwned || $0.sourceGeneration==generation)}
         if targets.isEmpty {return true}
         let owner=shortWildBoardBlast ?? NativeShortWildBoardBlastOwner();shortWildBoardBlast=owner
         let previousPhase=sourceWildFXDrawingPhase;sourceWildFXDrawingPhase="board-blast"
@@ -9260,10 +9265,13 @@ final class NativeBoardScene: SKScene {
 
     private func playCoreTntTransaction(_ plan: NativeSpecialMovePlan,receipt: UInt64,geometry: NativeBoardGeometry,blastIDs:Set<String>) {
         let center = geometry.center(row: plan.destination.cell.row,column: plan.destination.cell.column)
+        // Carrier ownership includes awaited assets and the painted landing
+        // handoff, not just the visible flight. No blast may borrow that die.
         let blastNodes = engine.state.tiles.compactMap { tile -> NativeDiceNode? in
             guard blastIDs.contains(tile.id),tile.id != plan.source.id,tile.id != plan.destination.id,tile.value > 0 || tile.isWild,
                   !tile.locked else { return nil }
-            guard let node=nodesByID[tile.id],shortWildBoardBlast?.owns(node) != true else{return nil}
+            guard let node=nodesByID[tile.id],shortWildBoardBlast?.owns(node) != true,
+                  sourceMeterCaller?.owns(node) != true else{return nil}
             return node
         }
         specialPresentationIDs.formUnion(blastNodes.map(\.tileID))
@@ -10034,6 +10042,7 @@ final class NativeBoardScene: SKScene {
 
     func dispose() {
         guard !disposed,!sourceDisposalInProgress else {return}
+        onTutorialSpecialDropStarted=nil;onTutorialSpecialDropLanded=nil
         renderPipelineProbe?.cancel(scene:self,reason:"disposed")
         retireSourceWildSkinAssets()
         retireSourceSpawnVisualSafety()

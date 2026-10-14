@@ -23,13 +23,13 @@ final class NativeJourneyRewardTests:XCTestCase {
     private func screen(_ clock:Clock,_ resources:Resources,reduced:Bool=false)->NativeJourneyRewardController {
         let screen=NativeJourneyRewardController(root:URL(fileURLWithPath:"/unused"),board:11,score:1000,generation:77,resources:resources,scheduler:clock,reducedMotion:reduced,random:{0.37},now:{clock.time});screen.prepareFilteredFrames={images,_,completion in completion(images)};screen.loadViewIfNeeded();screen.view.frame=CGRect(x:0,y:0,width:390,height:844);screen.view.layoutIfNeeded();return screen
     }
-    func testUnlockedBurnHasNoSweepAndFloorStaysBelowCardPose() {
+    func testInterimAndUnlockedHaveNoFloorShadowAndUnlockedBurnHasNoSweep() {
         let clock=Clock(),resources=Resources(),controller=screen(clock,resources)
         let hero=controller.view.subviews.first{$0.accessibilityIdentifier=="native.reward.card"}!
-        let floor=hero.layer.sublayers!.first{$0.name=="native.reward.floor-shadow"}!
         let pose=hero.layer.sublayers!.first{$0.name=="native.reward.card-pose"}!
-        XCTAssertLessThan(floor.zPosition,pose.zPosition)
+        XCTAssertTrue(pose.superlayer === hero.layer)
         func descendants(_ layer:CALayer)->[CALayer] {[layer]+(layer.sublayers ?? []).flatMap{descendants($0)}}
+        XCTAssertFalse(descendants(hero.layer).contains{$0.name=="native.reward.floor-shadow"},"Interim has no separate floor shadow")
         let burn=descendants(hero.layer).first{$0.name=="native.reward.unlocked-burn"}!
         XCTAssertTrue((burn.sublayers ?? []).isEmpty)
         let carrier=UIGraphicsImageRenderer(size:CGSize(width:2,height:2)).image {context in
@@ -39,6 +39,9 @@ final class NativeJourneyRewardTests:XCTestCase {
             var prepared=images;for path in images.keys where path.contains("colelctibles") {prepared[path+"#burn"]=carrier};completion(prepared)
         }
         resources.finish();controller.start();controller.activate();clock.advance(1.1)
+        controller.view.setNeedsLayout();controller.view.layoutIfNeeded()
+        XCTAssertEqual(controller.phase,"unlocked")
+        XCTAssertFalse(descendants(hero.layer).contains{$0.name=="native.reward.floor-shadow"},"Unlocked card has no separate floor shadow")
         XCTAssertNotNil(burn.contents)
         let pulse=burn.animation(forKey:"reward.opacity.0.0") as? CAKeyframeAnimation
         XCTAssertNotNil(pulse);XCTAssertEqual(pulse?.duration ?? 0,0.5,accuracy:0.000001)

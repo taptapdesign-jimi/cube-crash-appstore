@@ -503,7 +503,7 @@ import StackToSixNativeState
         try await wait{
             guard let game=app.children.compactMap({$0 as? NativeGameplayViewController}).first,
                   let scene=game.boardScene else{return false}
-            return scene.view != nil && game.view.window != nil && scene.isBoardEntryComplete
+            return scene.gameplayRenderHost?.renderedScene === scene && game.view.window != nil && scene.isBoardEntryComplete
         }
         let game=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first),scene=try XCTUnwrap(game.boardScene)
         XCTAssertEqual(game.engine.sourceOrdinarySixSpawnNormalOnly,!noLocked)

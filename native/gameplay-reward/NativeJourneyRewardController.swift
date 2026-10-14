@@ -36,7 +36,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
     private let paper=UIImageView(),hero=UIView(),interim=UIView(),unlocked=UIView(),pose=UIView(),frame=UIImageView(),front=UIImageView(),hand=UIImageView()
     private let interimRotor=UIView(),unlockedRotor=UIView()
     private let headingLabel=UILabel(),subtitle=UILabel(),coach=UILabel()
-    private let shadow=CAGradientLayer(),foil=NativeRewardFoil()
+    private let foil=NativeRewardFoil()
     private var holo:CALayer {foil.layer}
     private let glow=CALayer(),interimGlow=CALayer(),interimLight=CALayer(),interimSweep=CAGradientLayer()
     private let preparationLease=NativeRewardPreparationLease()
@@ -87,11 +87,10 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         coach.text="TAP TO COLLECT";coach.font=assets.font(size:32,weight:"ExtraBold");coach.textColor = .white;coach.alpha=0
         coach.layer.shadowColor=UIColor(red:159/255,green:105/255,blue:82/255,alpha:0.34).cgColor;coach.layer.shadowOffset=CGSize(width:0,height:3);coach.layer.shadowOpacity=1
         hero.accessibilityIdentifier="native.reward.card";hero.accessibilityLabel="Reveal \(NativeRewardPresentation.name(board:board))";hero.accessibilityTraits = .button
-        view.addSubview(hero);shadow.name="native.reward.floor-shadow";shadow.zPosition=0;pose.layer.name="native.reward.card-pose";pose.layer.zPosition=1;hero.layer.addSublayer(shadow);hero.addSubview(pose);pose.addSubview(interim);pose.addSubview(unlocked)
+        view.addSubview(hero);pose.layer.name="native.reward.card-pose";pose.layer.zPosition=1;hero.addSubview(pose);pose.addSubview(interim);pose.addSubview(unlocked)
         interim.addSubview(interimRotor);unlocked.addSubview(unlockedRotor);interimRotor.addSubview(frame);unlockedRotor.addSubview(front)
         for image in [frame,front,hand] {image.contentMode = .scaleAspectFit;image.isUserInteractionEnabled=false}
         view.addSubview(hand);hand.alpha=0;hand.layer.shadowColor=UIColor(red:132/255,green:82/255,blue:63/255,alpha:1).cgColor;hand.layer.shadowOpacity=0.24;hand.layer.shadowOffset=CGSize(width:0,height:12);hand.layer.shadowRadius=16
-        shadow.type = .radial;shadow.colors=[UIColor(red:185/255,green:105/255,blue:62/255,alpha:0.34).cgColor,UIColor(red:185/255,green:105/255,blue:62/255,alpha:0.2).cgColor,UIColor.clear.cgColor];shadow.shadowColor=UIColor(red:185/255,green:105/255,blue:62/255,alpha:1).cgColor;shadow.shadowOpacity=0.2;shadow.shadowRadius=14;shadow.shadowOffset = .zero;shadow.locations=[0,0.42,0.76];shadow.startPoint=CGPoint(x:0.5,y:0.5);shadow.endPoint=CGPoint(x:1,y:1)
         glow.name="native.reward.unlocked-burn";interimGlow.name="native.reward.interim-burn"
         for burn in [glow,interimGlow] {burn.opacity=0;burn.contentsGravity = .resizeAspect;burn.zPosition=0.5;burn.isDoubleSided=false}
         for (surface,gradient) in [(interimLight,interimSweep)] {
@@ -102,8 +101,8 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         unlockedRotor.layer.addSublayer(glow);interimRotor.layer.addSublayer(interimGlow);interimRotor.layer.addSublayer(interimLight)
         unlockedRotor.layer.addSublayer(holo)
         tap=UITapGestureRecognizer(target:self,action:#selector(tapped));pan=UIPanGestureRecognizer(target:self,action:#selector(panned(_:)));tap.delegate=self;pan.delegate=self;tap.require(toFail:pan);hero.addGestureRecognizer(tap);hero.addGestureRecognizer(pan)
-        ownedLayers=[view.layer,headingLabel.layer,subtitle.layer,hero.layer,pose.layer,interim.layer,unlocked.layer,interimRotor.layer,unlockedRotor.layer,frame.layer,front.layer,shadow,hand.layer,coach.layer,glow,interimGlow,holo,interimLight,interimSweep]
-        headingLabel.layer.opacity=0;subtitle.layer.opacity=0;pose.layer.opacity=0;shadow.opacity=0;unlocked.layer.opacity=0
+        ownedLayers=[view.layer,headingLabel.layer,subtitle.layer,hero.layer,pose.layer,interim.layer,unlocked.layer,interimRotor.layer,unlockedRotor.layer,frame.layer,front.layer,hand.layer,coach.layer,glow,interimGlow,holo,interimLight,interimSweep]
+        headingLabel.layer.opacity=0;subtitle.layer.opacity=0;pose.layer.opacity=0;unlocked.layer.opacity=0
         applyFace(interim,scale:1,y:40,z:tilt.interimZ,x:tilt.interimX,ry:tilt.interimY)
         applyFace(unlocked,scale:0.58,y:22,z:tilt.entryZ,x:tilt.entryX,ry:tilt.entryY,depth:-180)
         let paths=(1...9).map{"assets/animations/sand/zguzvano\($0).png"}+[cardPath,maskPath,"assets/hand-pointer.png"]
@@ -136,7 +135,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         pose.frame=hero.bounds;interim.bounds=hero.bounds;interim.center=CGPoint(x:hero.bounds.midX,y:hero.bounds.midY);unlocked.bounds=hero.bounds;unlocked.center=interim.center
         interimRotor.frame=interim.bounds;unlockedRotor.frame=unlocked.bounds
         frame.bounds=interim.bounds;frame.center=CGPoint(x:interim.bounds.midX,y:interim.bounds.midY);front.bounds=unlocked.bounds;front.center=CGPoint(x:unlocked.bounds.midX,y:unlocked.bounds.midY);front.transform=CGAffineTransform(translationX:0,y:-4).scaledBy(x:0.95,y:0.95)
-        shadow.frame=layout.shadow;hand.frame=layout.hand;coach.frame=layout.coach
+        hand.frame=layout.hand;coach.frame=layout.coach
         CATransaction.begin();CATransaction.setDisableActions(true)
         let effectScale=view.window?.screen.scale ?? view.traitCollection.displayScale
         for layer in [glow,interimGlow,interimLight,interimSweep] {layer.contentsScale=max(1,effectScale);layer.allowsEdgeAntialiasing=true;layer.edgeAntialiasingMask=[.layerLeftEdge,.layerRightEdge,.layerTopEdge,.layerBottomEdge];layer.minificationFilter = .trilinear;layer.magnificationFilter = .linear}
@@ -164,7 +163,6 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         animate(headingLabel.layer,"opacity",from:0,to:1,duration:0.24)
         animate(subtitle.layer,"transform",from:NSValue(caTransform3D:spatial(scale:0,y:-22)),to:NSValue(caTransform3D:CATransform3DIdentity),duration:0.24,delay:0.032,ease:.backOut(1.65));animate(subtitle.layer,"opacity",from:0,to:1,duration:0.24,delay:0.032)
         animate(pose.layer,"transform",from:NSValue(caTransform3D:spatial(scale:0,y:-30)),to:NSValue(caTransform3D:CATransform3DIdentity),duration:0.52,delay:0.176,ease:.backOut(1.7));animate(pose.layer,"opacity",from:0,to:1,duration:0.52,delay:0.176)
-        animate(shadow,"opacity",from:0,to:1,duration:0.256)
         later("intro",after:0.176) { [weak self] in self?.onSoundMoment?("new-card-intro",0,self?.generation ?? 0) }
         later("intro-haptic",after:0.12){ [weak self] in self?.onHaptic?("light")}
         later("intro-haptic2",after:0.24){ [weak self] in self?.onHaptic?("medium")}

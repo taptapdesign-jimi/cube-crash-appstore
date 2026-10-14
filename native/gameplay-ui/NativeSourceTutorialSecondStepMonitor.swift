@@ -63,11 +63,12 @@ import SpriteKit
 /// Original step-three polling ends before step-four activation. Sheet motion
 /// and the drop predicate are genuine caller-owned completions, not deadlines.
 @MainActor final class NativeSourceTutorialFourthStepMonitor {
-    enum Phase:Equatable {case idle,polling,sheetDelay,sheetTransition,waitingForDrop,prepared,unprepared,retired}
+    enum Phase:Equatable {case idle,polling,waitingForLanding,sheetDelay,sheetTransition,waitingForDrop,prepared,unprepared,retired}
     private let timeouts:NativeSourceAppTimeoutOwner,generation:UInt64
     private let current:()->Bool,findWild:()->NativeDiceNode?,nodeCurrent:(NativeDiceNode)->Bool,dropping:(NativeDiceNode)->Bool
     private let activate:(NativeDiceNode)->Bool,transitionSheet:(@escaping()->Void)->Bool,prepare:(NativeDiceNode)->Bool,wallNow:()->Double
     private let sheetDelayMilliseconds:Int
+    private let waitForLandingBeforeSheet:Bool
     private var timer:NativeSourceAppTimeoutOwner.Receipt?,deadline:UInt64=0,waitStarted=0.0
     private var wild:NativeDiceNode?
     private(set) var phase=Phase.idle
@@ -75,11 +76,11 @@ import SpriteKit
         current:@escaping()->Bool,findWild:@escaping()->NativeDiceNode?,nodeCurrent:@escaping(NativeDiceNode)->Bool,
         dropping:@escaping(NativeDiceNode)->Bool,activate:@escaping(NativeDiceNode)->Bool,
         transitionSheet:@escaping(@escaping()->Void)->Bool,prepare:@escaping(NativeDiceNode)->Bool,
-        sheetDelayMilliseconds:Int=900,wallNow:@escaping()->Double={Date().timeIntervalSince1970*1000}) {
+        sheetDelayMilliseconds:Int=900,waitForLandingBeforeSheet:Bool=false,wallNow:@escaping()->Double={Date().timeIntervalSince1970*1000}) {
         guard generation>0,service.sourceMicrotaskRAFBoundaryInstalled,
             let tasks=service.sourceMicrotaskTasks,timeouts.sourceMicrotaskTasks === tasks,current() else{return nil}
         self.timeouts=timeouts;self.generation=generation;self.current=current;self.findWild=findWild;self.nodeCurrent=nodeCurrent
-        self.dropping=dropping;self.activate=activate;self.transitionSheet=transitionSheet;self.prepare=prepare;self.wallNow=wallNow;self.sheetDelayMilliseconds=max(0,sheetDelayMilliseconds)
+        self.dropping=dropping;self.activate=activate;self.transitionSheet=transitionSheet;self.prepare=prepare;self.wallNow=wallNow;self.sheetDelayMilliseconds=max(0,sheetDelayMilliseconds);self.waitForLandingBeforeSheet=waitForLandingBeforeSheet
     }
     private func admitted()->Bool {guard phase != .retired else{return false};let ok=current();return ok && phase != .retired}
     @discardableResult func start()->Bool {
@@ -109,12 +110,19 @@ import SpriteKit
         let old=timer;timer=nil;if let old{_=timeouts.cancel(old)}
         wild=candidate;phase = .sheetDelay
         guard activate(candidate),admitted(),phase == .sheetDelay else{dispose();return false}
+        if waitForLandingBeforeSheet{phase = .waitingForLanding;return true}
         if sheetDelayMilliseconds==0{return transitionToSheet()}
         timer=timeouts.schedule(sourceID:"tutorial-fourth-sheet900",generation:generation,delayMilliseconds:sheetDelayMilliseconds,elapsed:{[weak self] in
             guard let self,self.admitted(),self.phase == .sheetDelay else{return};self.timer=nil
             _=self.transitionToSheet()
         })
         return timer != nil
+    }
+    /// Only the captured transport's genuine landed receipt may open the Native sheet.
+    @discardableResult func landedWild(_ candidate:NativeDiceNode)->Bool {
+        guard admitted(),phase == .waitingForLanding,wild === candidate,nodeCurrent(candidate),!dropping(candidate) else{return false}
+        phase = .sheetDelay
+        return transitionToSheet()
     }
     @discardableResult private func transitionToSheet()->Bool {
         guard admitted(),phase == .sheetDelay else{return false};phase = .sheetTransition

@@ -3,7 +3,7 @@ import UIKit
 struct NativeRewardPresentation {
     static let names=["Star Is Out","Weee - Beee","Final Gate","Honey Splat","Dreamy","Shroomy","Kaboom","Break Out","Flying Tent","Winner","Fishy","Fresh Juice","Bouncy Day","Bottle Tips","Castle Ruins","Star Below","Looky Here","Playtime","The Letter","Life Saver","The Bloob","Bibi - Ribi","Woombuu","Zap - Zap","Beam Up","Bloob Spill","Team Party","Transport","Fixer Upper","Take Over"]
     static let inflateDuration=0.12,collapseDuration=0.224,unlockedEnterDuration=0.28
-    static let surfaceScale=1.17,surfaceY=40.0,shadowY=48.0
+    static let surfaceScale=1.17,surfaceY=40.0
     enum TapAction {case reveal,queueCollect,collect,ignore}
     static func tapAction(revealed:Bool,revealRunning:Bool,resolved:Bool,disposed:Bool)->TapAction {
         if resolved || disposed{return .ignore};if revealed && !revealRunning{return .collect};if revealRunning{return .queueCollect};return .reveal
@@ -12,7 +12,7 @@ struct NativeRewardPresentation {
     static func dragTilt(start:Double,deltaX:Double,width:Double)->Double {max(-28.8,min(28.8,start+deltaX/max(1,abs(width)*0.4)*28.8))}
     static func collectDrag(deltaX:Double,deltaY:Double,cardHeight:Double)->Bool {abs(deltaY)>=min(96,max(48,abs(cardHeight)*0.12)) && abs(deltaY)>abs(deltaX)*1.15}
     struct Layout {
-        let title: CGRect,subtitle:CGRect,hero:CGRect,shadow:CGRect,hand:CGRect,coach:CGRect
+        let title: CGRect,subtitle:CGRect,hero:CGRect,hand:CGRect,coach:CGRect
         let titleFont:CGFloat,subtitleFont:CGFloat
         init(width:CGFloat,height:CGFloat,bottomSafe:CGFloat,handAspect:CGFloat=1) {
             func clamp(_ value:CGFloat,_ lower:CGFloat,_ upper:CGFloat)->CGFloat {max(lower,min(upper,value))}
@@ -22,7 +22,6 @@ struct NativeRewardPresentation {
             title=CGRect(x:(width-textWidth)/2,y:padding-16,width:textWidth,height:titleHeight)
             subtitle=CGRect(x:(width-textWidth)/2,y:padding+titleHeight+26-16,width:textWidth,height:subtitleHeight)
             hero=CGRect(x:(width-heroWidth)/2,y:padding+titleHeight+26+subtitleHeight+clamp(height*0.125,70,116)-64,width:heroWidth,height:heroHeight)
-            shadow=CGRect(x:heroWidth*0.06,y:heroHeight*0.89+36,width:heroWidth*0.88,height:heroHeight*0.16)
             let handWidth=min(width*0.36,168),handHeight=handWidth*handAspect
             hand=CGRect(x:(width-handWidth)/2,y:height*0.56-handHeight*0.28,width:handWidth,height:handHeight)
             coach=CGRect(x:16,y:height-bottomSafe-34-32,width:width-32,height:32)

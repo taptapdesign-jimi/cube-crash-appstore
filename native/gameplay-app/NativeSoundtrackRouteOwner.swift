@@ -14,7 +14,9 @@ final class NativeSoundtrackRouteOwner {
     private let transport:any NativeSoundtrackTransport
     private let isApplicationActive:@MainActor ()->Bool
     private var enabled = true
-    private var target = 0.578
+    private static let menuGain = 0.578 * 0.8
+    private static let journeyGain = 0.19074 * 0.8
+    private var target = NativeSoundtrackRouteOwner.menuGain
     private var themePrepared = false
     private var foreground = true
     private var arcade = false
@@ -41,11 +43,11 @@ final class NativeSoundtrackRouteOwner {
     func apply(enabled:Bool) {
         guard !disposed else{return}
         self.enabled = enabled
-        if !enabled {lease &+= 1;if transition != nil{target=0.19074};transition=nil;command("dispose");themePrepared = false}
+        if !enabled {lease &+= 1;if transition != nil{target=Self.journeyGain};transition=nil;command("dispose");themePrepared = false}
         else if foreground,!arcade {resume()}
     }
-    func setMenu() {guard !disposed else{return};lease &+= 1;transition=nil;arcade = false;target = 0.578;resume();setGain(duration:0.42)}
-    func setJourneyGameplay() {guard !disposed,transition==nil else{return};lease &+= 1;arcade = false;target = 0.19074;setGain(duration:0.32)}
+    func setMenu() {guard !disposed else{return};lease &+= 1;transition=nil;arcade = false;target = Self.menuGain;resume();setGain(duration:0.42)}
+    func setJourneyGameplay() {guard !disposed,transition==nil else{return};lease &+= 1;arcade = false;target = Self.journeyGain;setGain(duration:0.32)}
     func setArcadeGameplay() {guard !disposed else{return};lease &+= 1;transition=nil;arcade = true;command("pause")}
     /// Authored controller phase contacts use the one existing theme voice.
     /// The transport's actual fade-end receipt owns the320ms soft tail; no
@@ -56,13 +58,13 @@ final class NativeSoundtrackRouteOwner {
         guard let current=transition,current.generation==generation,current.lease==lease,!current.settling else{return}
         if phase=="complete" {
             transition?.completionRequested=true
-            if !enabled || !foreground || !themePrepared {transition=nil;target=0.19074;if enabled,foreground{target=0;resume();target=0.19074;setGain(duration:0.32)};return}
+            if !enabled || !foreground || !themePrepared {transition=nil;target=Self.journeyGain;if enabled,foreground{target=0;resume();target=Self.journeyGain;setGain(duration:0.32)};return}
             if current.tailSettled {settleBoardTransition(current)}
             return
         }
         guard ["begin","hold","exit"].contains(phase) else{return}
-        guard enabled,foreground,themePrepared else{target=0.19074;return} // A cold paused theme starts only at complete.
-        target=0.578*min(1,max(0,ratio))
+        guard enabled,foreground,themePrepared else{target=Self.journeyGain;return} // A cold paused theme starts only at complete.
+        target=Self.menuGain*min(1,max(0,ratio))
         if phase != "exit" {command("volume",extra:["volume":target,"duration":duration]);return}
         transport.perform(id:"soundtrack-native-main",op:"volume",body:["volume":target,"duration":duration+0.32,"replyOnFadeFinished":true]){[weak self] _,error in
             guard let self,error==nil,!self.disposed,self.enabled,self.foreground,self.lease==current.lease,self.transition?.generation==generation else{return}
@@ -72,7 +74,7 @@ final class NativeSoundtrackRouteOwner {
     }
     private func settleBoardTransition(_ captured:Transition) {
         guard transition?.lease==captured.lease,lease==captured.lease,!disposed,enabled,foreground else{return}
-        transition?.settling=true;target=0.19074
+        transition?.settling=true;target=Self.journeyGain
         transport.perform(id:"soundtrack-native-main",op:"volume",body:["volume":target,"duration":0.32,"replyOnFadeFinished":true]){[weak self] _,error in
             guard let self,error==nil,!self.disposed,self.lease==captured.lease,self.transition?.lease==captured.lease else{return}
             self.transition=nil
@@ -87,7 +89,7 @@ final class NativeSoundtrackRouteOwner {
         var released=false
         return { [weak self] in
             guard let self,!released,!self.disposed,self.enabled,!self.arcade,self.lease==token else{return}
-            released=true;self.target=0.578
+            released=true;self.target=Self.menuGain
             if self.foreground {self.setGain(duration:1)}
         }
     }
@@ -123,6 +125,6 @@ final class NativeSoundtrackRouteOwner {
     }
     /// Source background receipt cancels the transition envelope and preserves
     /// gameplay intent at33%; foreground cannot replay any old phase contact.
-    private func retireTransitionForInterruption(){guard transition != nil else{return};lease &+= 1;transition=nil;target=0.19074}
+    private func retireTransitionForInterruption(){guard transition != nil else{return};lease &+= 1;transition=nil;target=Self.journeyGain}
     func dispose() {guard !disposed else{return};disposed=true;lease &+= 1;transition=nil;enabled = false;command("dispose");themePrepared = false;for observer in observers {NotificationCenter.default.removeObserver(observer)};observers.removeAll()}
 }

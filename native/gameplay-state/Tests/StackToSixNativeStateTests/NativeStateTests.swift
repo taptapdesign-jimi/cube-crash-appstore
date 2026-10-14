@@ -235,6 +235,35 @@ final class NativeStateTests: XCTestCase {
         XCTAssertFalse(envelope.settings.musicEnabled);XCTAssertTrue(envelope.progression.completedJourneyBoards.contains(1))
         XCTAssertNil(envelope.resumedRun(mode:.journey,board:2,now:1000+8*24*60*60))
     }
+    func testArea55BeamPulsesAreMinimalIndependentAndStableAcrossRefresh() throws {
+        let provider=try NativeWorldLayouts(),state=NativeProgressionState()
+        func sequences(_ width:Double,_ revision:Int) throws -> [[String:Any]] {
+            let snapshot=try provider.snapshot(world:3,width:width,height:844,generation:revision+1,revision:revision,progression:state)
+            let units=try XCTUnwrap(snapshot["units"] as? [[String:Any]])
+            XCTAssertEqual(units.compactMap{$0["boardID"] as? Int},Array(21...30))
+            return try units.map {unit in
+                let parts=try XCTUnwrap(unit["parts"] as? [[String:Any]])
+                return try XCTUnwrap(parts.first{$0["role"] as? String == "beam"}?["beamIdle"] as? [String:Any])
+            }
+        }
+        let first=try sequences(390,0),refreshed=try sequences(768,1)
+        var durations:Set<Double>=[],bands:Set<Int>=[]
+        for (index,sequence) in first.enumerated() {
+            let points=try XCTUnwrap(sequence["points"] as? [[String:Double]])
+            let duration=try XCTUnwrap(sequence["duration"] as? Double),phase=try XCTUnwrap(sequence["phase"] as? Double)
+            durations.insert(duration)
+            XCTAssertEqual(points.count,3);XCTAssertEqual(points.compactMap{$0["opacity"]},[0.5,0.6,0.5])
+            XCTAssertEqual(points.first?["time"],0);XCTAssertEqual(points.last?["time"],duration)
+            let peak=try XCTUnwrap(points[1]["time"])
+            XCTAssertGreaterThanOrEqual(peak/duration,0.42-0.000001);XCTAssertLessThanOrEqual(peak/duration,0.58+0.000001)
+            let matchingBands=(0..<10).filter{duration>=3.2+Double($0)*0.24-0.000001 && duration<=3.34+Double($0)*0.24+0.000001}
+            XCTAssertEqual(matchingBands.count,1)
+            if let band=matchingBands.first {bands.insert(band)}
+            XCTAssertGreaterThanOrEqual(phase,0);XCTAssertLessThan(phase,duration)
+            XCTAssertTrue(NSDictionary(dictionary:sequence).isEqual(to:refreshed[index]),"Refresh/density must retain the same Unit rhythm")
+        }
+        XCTAssertEqual(durations.count,10);XCTAssertEqual(bands,Set(0..<10))
+    }
     func testAuthoredWorldGeometryAtEveryExportedViewport() throws {
         let provider=try NativeWorldLayouts()
         var state=NativeProgressionState();state.completedJourneyBoards=Set(1...30)

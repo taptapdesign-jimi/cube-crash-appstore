@@ -347,7 +347,7 @@
       "family": "Soundtrack route",
       "eventOwner": "NativeAppController routes, versioned Native Music setting and generation-scoped NativeThemedBoardTransitionController source phase contacts.",
       "transport": "Existing JimiNativeMusic file-backed AVAudioEngine via direct Swift perform call; no WKWebView instance. Native standalone Debug and Release define NATIVE_MUSIC_DIRECT_ONLY: JimiNativeMusic has no WebKit import or script-handler conformance in this target. Preserved hybrid targets without that condition retain the original validated reply bridge; AV transport/session code is unchanged.",
-      "voicePolicy": "One persistent soundtrack-native-main voice with existing segmented loop transport and per-voice native fade timer. Transition 62% arrival, 50% hold, 20% exit plus 320ms soft tail, then 33% lift await actual AV gain fade-end receipts; ordinary Journey route cannot overwrite an active phase lease.",
+      "voicePolicy": "One persistent soundtrack-native-main voice with existing segmented loop transport and per-voice native fade timer. User-requested overall theme gain20percent lower: Menu/result restore0.4624 and Journey0.152592; every transition ratio and interruption/Settings recovery uses those scaled bases. Arcade adaptive music and SFX retain their own gains. Transition 62% arrival, 50% hold, 20% exit plus 320ms soft tail, then 33% lift await actual AV gain fade-end receipts; ordinary Journey route cannot overwrite an active phase lease.",
       "preloadPolicy": "No voice allocated until native Music ON foreground play.",
       "settingsPolicy": "Native Music OFF immediately disposes voice and invalidates foreground recovery. Sounds remains separate.",
       "interruptionPolicy": "Inactive/interrupt retires the source transition envelope at 33% gameplay gain and pauses the voice; only still-enabled foreground state resumes, with the source 420ms resume fade. Muting, route replacement, dispose and stale generation invalidate pending fade receipts.",
@@ -360,7 +360,7 @@
         "native/standalone/Stack to SixTests/NativeSoundtrackRouteTests.swift",
         "native/gameplay-transition-tests/NativeBoardTransitionMusicTests.swift"
       ],
-      "physicalAcceptance": "NEEDS PHYSICAL TEST for speaker mix and route timing. Source Menu/Journey gain, loop region and all three themed Board Transition phase envelopes have direct native owners; four transition music test sources SDK PASS, actual Simulator receipt tests pending. Arcade adaptive owner is separate."
+      "physicalAcceptance": "NEEDS PHYSICAL TEST for the20percent quieter theme speaker mix and unchanged route/fade/loop feel. Native Menu/Journey/result restore, all three transition phase envelopes and foreground/Settings recovery have current SDK regression receipts. Arcade adaptive owner is separate."
     },
     {
       "id": "native-swift-authored-gameplay-sfx",
