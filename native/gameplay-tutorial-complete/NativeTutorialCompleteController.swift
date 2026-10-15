@@ -43,7 +43,7 @@ final class NativeTutorialCompleteController: UIViewController {
         titleLabel.textAlignment = .center; titleLabel.numberOfLines = 0
         titleLabel.textColor = UIColor(red:239/255,green:116/255,blue:77/255,alpha:1)
         subtitleLabel.textAlignment = .center; subtitleLabel.numberOfLines = 0
-        subtitleLabel.textColor = UIColor(red:181/255,green:138/255,blue:120/255,alpha:1)
+        subtitleLabel.textColor = NativeTextPalette.subtitle
         thumb.image = artwork.image("assets/thumbs-up@2x.png"); thumb.contentMode = .scaleAspectFit
         thumb.layer.anchorPoint = CGPoint(x:0.5,y:0.74)
         shadow.contentMode = .scaleToFill

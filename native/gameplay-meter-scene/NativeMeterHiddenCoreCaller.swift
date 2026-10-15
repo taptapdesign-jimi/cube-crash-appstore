@@ -17,7 +17,10 @@ import StackToSixGameplay
         init(_ request:NativeMeterOpenRequest){
             self.request=request
             hidden = .init(id:request.id,generation:request.generation,spawnToken:request.spawnToken,column:request.tile.cell.column,row:request.tile.cell.row)
-            warmup = .init(token:request.spawnToken,generation:request.generation,selection:request.tile.variant ?? request.tile.gameplayArchetype!.rawValue)
+            // spawnToken is a cancellation epoch, shared by successive drops.
+            // The prior carrier may still await its actual foreground receipt
+            // after Core bookkeeping admits another reward of the same family.
+            warmup = .init(token:request.spawnToken,generation:request.generation,selection:request.tile.variant ?? request.tile.gameplayArchetype!.rawValue,requestID:request.id)
         }
         // Swift 6.3.3 EarlyPerfInliner crashes on this synthesized generic
         // destroyer in optimized builds. Keep only its ARC destruction out

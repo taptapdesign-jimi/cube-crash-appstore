@@ -35,7 +35,8 @@ final class NativeSpecialDiceUnlockController:UIViewController {
     }
     let diceType:Dice,generation:UInt64
     private let assets:JimiV9Artwork,resources:any NativeRewardResources,scheduler:any NativeMusicScheduler,now:()->Double,reducedMotion:Bool
-    private let paper=UIImageView(),hero=UIView(),motion=UIView(),backpack=UIImageView(),final=UIImageView()
+    private var paper:NativeAppPaperSurface!
+    private let hero=UIView(),motion=UIView(),backpack=UIImageView(),final=UIImageView()
     private let headingLabel=UILabel(),subtitle=UILabel(),fault=UILabel(),cta=JimiV9PlainButton(type:.custom)
     private let shadow=CAGradientLayer(),sweep=CAGradientLayer(),light=CALayer()
     private let preparationLease=NativeRewardPreparationLease()
@@ -56,9 +57,9 @@ final class NativeSpecialDiceUnlockController:UIViewController {
     required init?(coder:NSCoder){fatalError("Use Native unlock initializer")}
     override func viewDidLoad() {
         super.viewDidLoad();view.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:1)
-        paper.image=assets.image("assets/paper-bg.png");paper.contentMode = .scaleToFill;view.addSubview(paper)
+        paper=NativeAppPaperSurface(artwork:assets);view.addSubview(paper)
         for label in [headingLabel,subtitle] {label.textAlignment = .center;view.addSubview(label)}
-        headingLabel.text="Special Dice";headingLabel.textColor=UIColor(red:239/255,green:116/255,blue:77/255,alpha:1);subtitle.text="Tap the backpack to reveal";subtitle.textColor=UIColor(red:196/255,green:168/255,blue:150/255,alpha:1)
+        headingLabel.text="Special Dice";headingLabel.textColor=UIColor(red:239/255,green:116/255,blue:77/255,alpha:1);subtitle.text="Tap the backpack to reveal";subtitle.textColor=NativeTextPalette.subtitle
         view.addSubview(hero);hero.layer.addSublayer(shadow);hero.addSubview(motion);motion.addSubview(backpack);motion.addSubview(final);motion.layer.addSublayer(light);light.addSublayer(sweep);light.masksToBounds=true
         for image in [backpack,final] {image.contentMode = .scaleAspectFit;image.isUserInteractionEnabled=false}
         hero.accessibilityIdentifier="native.special-unlock.hero";hero.accessibilityLabel="Reveal \(diceType.label) special dice";hero.accessibilityTraits = .button

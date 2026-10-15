@@ -196,6 +196,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         CATransaction.begin();CATransaction.setDisableActions(true);backdrop.layer.opacity = opacity;backdrop.layer.add(animation,forKey:"card.backdrop.fade");CATransaction.commit()
     }
     func enter(from origin:CGRect) {
+        (newRibbon as? JimiNativeNewRibbonView)?.enter()
         scheduleGameplayPreparation()
         onFeedback?("card-entry-flip");transitionBackdrop(to:1,duration:duration)
         base = destination; carrier.frame = base; layoutIfNeeded();effects?.layout();cta.isEnabled = false
@@ -374,7 +375,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
     func close(to destination:CGRect,gameplay:Bool = false,completion:@escaping () -> Void) {
         cancelGameplayPreparation()
         guard !disposed,!closing else {completion();return};closing = true;flipGeneration += 1;effects?.cancel(handoff:false)
-        newRibbon?.removeFromSuperview();newRibbon = nil
+        (newRibbon as? JimiNativeNewRibbonView)?.exit();newRibbon = nil
         onFeedback?(frontDrag ? "card-manual-flip" : "card-return-flip")
         transitionBackdrop(to:0,duration:gameplay ? 0.600/0.98 : duration)
         closeButton.isEnabled = false;cta.isEnabled = false;isUserInteractionEnabled = false;animateBackStats(entering:false,delay:max(0,duration*0.5-0.225))
@@ -390,7 +391,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         let painted = CGRect(x:base.midX+transform.m41-base.width*hypot(transform.m11,transform.m12)/2,y:base.midY+transform.m42-base.height*hypot(transform.m21,transform.m22)/2,width:base.width*hypot(transform.m11,transform.m12),height:base.height*hypot(transform.m21,transform.m22))
         fly(from:painted,to:destination,returning:true,gameplay:gameplay) { [weak self] in self?.backdrop.alpha = 0; completion() }
     }
-    func setActive(_ value:Bool) {
+    func setActive(_ value:Bool) {if !value {front.subviews.compactMap{$0 as? JimiNativeNewRibbonView}.forEach{$0.quiesce()}};
         guard !disposed,active != value else{return};active = value;effects?.setActive(value)
         if value {scheduleGameplayPreparation()}else{cancelGameplayPreparation()}
         if !value {CATransaction.begin();CATransaction.setDisableActions(true);cta.layer.removeAllAnimations();cta.layer.transform = CATransform3DIdentity;CATransaction.commit()}
@@ -398,7 +399,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         if value {let paused = layer.timeOffset; layer.speed = 1;layer.timeOffset = 0;layer.beginTime = 0;layer.beginTime = layer.convertTime(CACurrentMediaTime(),from:nil)-paused}
         else {let paused = layer.convertTime(CACurrentMediaTime(),from:nil);layer.speed = 0;layer.timeOffset = paused}
     }
-    func cleanup() {guard !disposed else{return};cancelGameplayPreparation();onPrepareGameplayAssets=nil;disposed = true;active = false;generation += 1;flipGeneration += 1;effects?.cleanup();effects = nil;[carrier,dragShell,effectShell,pinchShell,rotorShell,cta,backdrop].forEach{$0.layer.removeAllAnimations()};carrier.gestureRecognizers?.forEach{carrier.removeGestureRecognizer($0)};stats.arrangedSubviews.forEach{$0.layer.removeAllAnimations()};onRequest = nil;onFeedback = nil;isUserInteractionEnabled = false}
+    func cleanup() {guard !disposed else{return};front.subviews.compactMap{$0 as? JimiNativeNewRibbonView}.forEach{$0.quiesce()};cancelGameplayPreparation();onPrepareGameplayAssets=nil;disposed = true;active = false;generation += 1;flipGeneration += 1;effects?.cleanup();effects = nil;[carrier,dragShell,effectShell,pinchShell,rotorShell,cta,backdrop].forEach{$0.layer.removeAllAnimations()};carrier.gestureRecognizers?.forEach{carrier.removeGestureRecognizer($0)};stats.arrangedSubviews.forEach{$0.layer.removeAllAnimations()};onRequest = nil;onFeedback = nil;isUserInteractionEnabled = false}
 }
 
 
@@ -406,7 +407,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
 @MainActor
 enum JimiNativeWorldRibbon {
     static func make(image:UIImage?,assets:JimiV9Artwork,cardSize:CGSize,scale:CGFloat,portal:Bool,compact:Bool = true)->UIImageView {
-        let ribbon = UIImageView(image:image);ribbon.contentMode = .scaleAspectFit
+        let ribbon = JimiNativeNewRibbonView(image:image);ribbon.layer.opacity=0;ribbon.contentMode = .scaleAspectFit
         ribbon.accessibilityIdentifier = "native.world.ribbon";ribbon.isUserInteractionEnabled = false
         if portal {ribbon.layer.shadowColor = UIColor(red:226/255,green:119/255,blue:74/255,alpha:1).cgColor;ribbon.layer.shadowOpacity = 1;ribbon.layer.shadowOffset = CGSize(width:0,height:5);ribbon.layer.shadowRadius = 2.85}
         let label = UILabel();label.tag = 991;label.textAlignment = .center;ribbon.addSubview(label)
@@ -428,4 +429,51 @@ enum JimiNativeWorldRibbon {
         label.transform = .identity;label.sizeToFit();label.center = CGPoint(x:width*0.45,y:height*0.55)
         label.transform = CGAffineTransform(translationX:(portal ? 32 : 11)*scale,y:(portal ? -33 : -10)*scale).rotated(by:41 * .pi/180)
     }
+}
+
+/// Finite face-local decoration. World/modal owns visible admission and parent
+/// clocks; replacing/removing the view invalidates its completion receipt.
+@MainActor
+final class JimiNativeNewRibbonView:UIImageView,CAAnimationDelegate {
+    private var epoch=0,entered=false,removing=false
+    func enter(delay:Double=0,replay:Bool=false) {
+        if replay {entered=false}
+        guard !entered,!removing else{return};entered=true
+        play(entering:true,delay:delay,remove:false)
+    }
+    func exit(remove:Bool=true,delay:Double=0){removing=remove;entered=false;play(entering:false,delay:delay,remove:remove)}
+    private func play(entering:Bool,delay:Double,remove:Bool) {
+        epoch += 1;let receipt=epoch
+        let reduced=UIAccessibility.isReduceMotionEnabled,duration=reduced ? 0.12 : entering ? 0.36:0.24
+        let visible=layer.presentation() ?? layer
+        let startScale=entering ? 0.72:(visible.value(forKeyPath:"transform.scale") as? NSNumber)?.doubleValue ?? 1
+        let startY=entering ? -10.0:Double(visible.transform.m42),startAlpha=entering ? 0.0:Double(visible.opacity)
+        layer.removeAnimation(forKey:"ribbon.motion")
+        let transform=CAKeyframeAnimation(keyPath:"transform"),opacity=CAKeyframeAnimation(keyPath:"opacity")
+        let times=(0...60).map{Double($0)/60}
+        transform.values=times.map{t -> NSValue in
+            let p=reduced ? t : (entering ? JimiV9Motion.Ease.backOut(1.8):.backIn(1.5)).value(t)
+            let scale=startScale+((entering ? 1:0.72)-startScale)*p
+            var pose=CATransform3DMakeTranslation(0,startY+((entering ? 0:-8)-startY)*p,0)
+            pose=CATransform3DScale(pose,scale,scale,1);return NSValue(caTransform3D:pose)
+        }
+        opacity.values=times.map{t in startAlpha+((entering ? 1:0)-startAlpha)*JimiV9Motion.Ease.powerOut(1).value(t)}
+        for animation in [transform,opacity] {animation.keyTimes=times.map{NSNumber(value:$0)};animation.duration=duration}
+        let group=CAAnimationGroup();group.animations=[transform,opacity];group.duration=duration;group.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil)+delay;group.fillMode = .backwards;group.delegate=self
+        group.setValue(receipt,forKey:"ribbonEpoch");group.setValue(remove,forKey:"ribbonRemove")
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        layer.opacity=entering ? 1:0;layer.transform=CATransform3DIdentity;layer.add(group,forKey:"ribbon.motion");CATransaction.commit()
+    }
+    nonisolated func animationDidStop(_ animation:CAAnimation,finished:Bool) {
+        MainActor.assumeIsolated {
+            guard finished,(animation.value(forKey:"ribbonEpoch") as? Int)==epoch else{return}
+            if animation.value(forKey:"ribbonRemove") as? Bool == true {epoch += 1;layer.removeAllAnimations();removeFromSuperview()}
+        }
+    }
+    func quiesce() {
+        epoch += 1;layer.removeAllAnimations()
+        CATransaction.begin();CATransaction.setDisableActions(true);layer.transform=CATransform3DIdentity;layer.opacity=entered && !removing ? 1:0;CATransaction.commit()
+        if removing,superview != nil {removeFromSuperview()}
+    }
+    override func didMoveToWindow(){super.didMoveToWindow();if window==nil {quiesce()}}
 }

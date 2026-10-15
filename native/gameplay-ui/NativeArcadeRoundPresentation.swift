@@ -1,5 +1,6 @@
 import UIKit
 import QuartzCore
+import CoreImage
 
 /// Native owner of arcade-stage-clear-modal.ts. One finite display clock owns
 /// glyph transforms, authored shakes and thumb motion. Progression belongs to
@@ -56,8 +57,8 @@ final class NativeArcadeRoundPresentation: UIView {
         accessibilityIdentifier = "native-arcade-round-presentation"
         addSubview(stage); stage.addSubview(clearCard); stage.addSubview(nextCard)
         titleGlyphs = glyphs(headline,color: UIColor(red: 239.0/255,green: 116.0/255,blue: 77.0/255,alpha: 1),parent: clearCard)
-        subtitleGlyphs = glyphs("Round \(String(format: "%02d",self.clearedRound)) complete",color: .init(red: 181.0/255,green: 138.0/255,blue: 120.0/255,alpha: 1),parent: clearCard)
-        roundGlyphs = glyphs("Round",color: .init(red: 181.0/255,green: 138.0/255,blue: 120.0/255,alpha: 1),parent: nextCard)
+        subtitleGlyphs = glyphs("Round \(String(format: "%02d",self.clearedRound)) complete",color: NativeTextPalette.subtitle,parent: clearCard)
+        roundGlyphs = glyphs("Round",color: NativeTextPalette.subtitle,parent: nextCard)
         digits = glyphs(String(format: "%02d",self.nextRound),color: .init(red: 231.0/255,green: 116.0/255,blue: 73.0/255,alpha: 1),parent: nextCard)
         for character in headline { titleFactors.append(character == " " ? 1 : CGFloat((85+random()*30).rounded())/100) }
         exitAngles = (titleGlyphs+subtitleGlyphs+roundGlyphs).indices.map { CGFloat(($0 % 2 == 0 ? 1 : -1)*(12+random()*8)) }
@@ -333,20 +334,48 @@ private final class NativeArcadeDisplayTarget: NSObject {
 }
 
 final class NativeArcadeThumbShadow: UIView {
+    private let imageView = UIImageView()
+    private var preparedSize = CGSize.zero
+    private static let padding: CGFloat = 30
+
     override init(frame: CGRect) {
         super.init(frame: frame)
         isOpaque = false
         backgroundColor = .clear
         isUserInteractionEnabled = false
+        addSubview(imageView)
     }
     required init?(coder: NSCoder) { fatalError("Use native shadow initializer") }
-    override func draw(_ rect: CGRect) {
-        guard let context = UIGraphicsGetCurrentContext(),let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
-            colors: [UIColor(red: 185.0/255,green: 105.0/255,blue: 62.0/255,alpha: 0.32).cgColor,
-                     UIColor(red: 185.0/255,green: 105.0/255,blue: 62.0/255,alpha: 0.16).cgColor,
-                     UIColor(red: 185.0/255,green: 105.0/255,blue: 62.0/255,alpha: 0).cgColor] as CFArray,
-            locations: [0,0.46,0.78]) else { return }
-        context.translateBy(x: rect.midX,y: rect.midY); context.scaleBy(x: rect.width/2,y: rect.height/2)
-        context.drawRadialGradient(gradient,startCenter: .zero,startRadius: 0,endCenter: .zero,endRadius: 1,options: [.drawsAfterEndLocation])
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        imageView.frame = bounds.insetBy(dx: -Self.padding,dy: -Self.padding)
+        guard bounds.width > 0,bounds.height > 0,preparedSize != bounds.size else { return }
+        preparedSize = bounds.size
+        imageView.image = Self.makeShadow(size: bounds.size)
+    }
+
+    /// PWA radial-gradient plus blur(10px). Prepare once per layout size;
+    /// the existing finite clock animates only the cached image's parent.
+    private static func makeShadow(size: CGSize) -> UIImage? {
+        let canvas = CGSize(width: size.width+padding*2,height: size.height+padding*2)
+        let format = UIGraphicsImageRendererFormat(); format.scale = 1; format.opaque = false
+        let image = UIGraphicsImageRenderer(size: canvas,format: format).image { renderer in
+            let context = renderer.cgContext
+            let colors = [CGFloat(0.32),0.16,0].map {
+                UIColor(red: 185.0/255,green: 105.0/255,blue: 62.0/255,alpha: $0).cgColor
+            }
+            guard let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                colors: colors as CFArray,locations: [0,0.46,0.78]) else { return }
+            context.translateBy(x: canvas.width/2,y: canvas.height/2)
+            context.scaleBy(x: size.width/2,y: size.height/2)
+            context.drawRadialGradient(gradient,startCenter: .zero,startRadius: 0,
+                endCenter: .zero,endRadius: 1,options: [])
+        }
+        guard let input = CIImage(image: image) else { return nil }
+        let output = input.applyingFilter("CIGaussianBlur",parameters: [kCIInputRadiusKey: 10])
+        guard let rendered = CIContext(options: [.useSoftwareRenderer: true,.cacheIntermediates: false])
+            .createCGImage(output,from: input.extent) else { return nil }
+        return UIImage(cgImage: rendered)
     }
 }

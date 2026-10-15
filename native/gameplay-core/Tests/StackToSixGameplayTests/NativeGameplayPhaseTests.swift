@@ -108,11 +108,25 @@ final class NativeGameplayPhaseTests: XCTestCase {
         XCTAssertFalse(engine.commitHUDStarArrival(receiptID:stale.id,generation:stale.generation).accepted)
         XCTAssertEqual(engine.state.score,0)
     }
-    func testSpecialStarWithoutOrbitUsesSourceFallbackOneAndBackgroundPreservesScore() {
-        let engine = NativeGameplayEngine(state:NativeBoardState(tiles:[die("fish",6,0,wild:.star,variant:"fish"),die("r",2,1)]))
-        XCTAssertTrue(engine.beginDrag(tileID:"fish")); _ = engine.drop(target:NativeCell(column:1,row:0))
+    func testBeeRemainsSingleHelperDespiteDefaultThreeAndBackgroundPreservesScore() {
+        let engine = NativeGameplayEngine(state:NativeBoardState(tiles:[die("bee",6,0,wild:.star,variant:"bee"),die("r",2,1)]))
+        XCTAssertTrue(engine.beginDrag(tileID:"bee")); _ = engine.drop(target:NativeCell(column:1,row:0))
         XCTAssertEqual(engine.pendingHUDStars.count,1); engine.cancelForBackground()
         XCTAssertEqual(engine.state.score,112); XCTAssertTrue(engine.pendingHUDStars.isEmpty)
+    }
+    func testThreeHelperVariantsSettleEveryEarnedReceiptOnceOnBackground() {
+        for variant in ["fish","kanta","cubero"] {
+            var special=die(variant,6,0,wild:.star,variant:variant);special.starOrbitCount=3
+            let engine=NativeGameplayEngine(state:.init(tiles:[special,die("r",2,1)]))
+            XCTAssertTrue(engine.beginDrag(tileID:variant));_=engine.drop(target:.init(column:1,row:0))
+            XCTAssertEqual(engine.pendingHUDStars.count,3)
+            let receipts=engine.pendingHUDStars
+            engine.cancelForBackground()
+            XCTAssertEqual(engine.state.score,312);XCTAssertTrue(engine.pendingHUDStars.isEmpty)
+            engine.cancelForBackground();XCTAssertEqual(engine.state.score,312)
+            for receipt in receipts {XCTAssertFalse(engine.commitHUDStarArrival(receiptID:receipt.id,generation:receipt.generation).accepted)}
+            XCTAssertEqual(engine.state.score,312)
+        }
     }
     func testTntRewardFacesAndStarReceiptsSettleWithoutDuplicateCredit() {
         let engine = NativeGameplayEngine(state:NativeBoardState(tiles:[die("t",6,0,wild:.tnt),die("d",1,1),die("a",2,2),die("b",4,3),die("c",5,4)]),recordedRandomChoices:Array(repeating:0,count:200))

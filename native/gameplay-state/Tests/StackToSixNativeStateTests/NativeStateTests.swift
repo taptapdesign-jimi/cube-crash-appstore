@@ -4,6 +4,21 @@ import StackToSixGameplay
 @testable import StackToSixNativeState
 
 final class NativeStateTests: XCTestCase {
+    func testStarVariantDropCountSurvivesAtomicSaveAndResumeWithoutReroll() throws {
+        for variant in ["fish","kanta","cubero"] {for count in 1...3 {
+            let store=NativeSaveStore(directory:try temporary())
+            var envelope=NativeSaveEnvelope();envelope.savedAt=1000
+            envelope.journeyRuns[11] = .init(tiles:[.init(id:"special",cell:.init(column:0,row:0),value:6,starOrbitCount:count,archetype:.star,variant:variant)],board:11,rngState:873)
+            envelope.journeyRunSavedAt[11]=1000
+            XCTAssertTrue(try store.save(envelope))
+            let loaded=try XCTUnwrap(store.load())
+            let resumed=try XCTUnwrap(loaded.resumedRun(mode:.journey,board:11,now:1001))
+            XCTAssertEqual(resumed.tiles.first?.starOrbitCount,count)
+            XCTAssertEqual(resumed.tiles.first?.effectiveStarDropCount,count)
+            XCTAssertEqual(resumed.rngState,873)
+        }}
+    }
+
     func testWholeJourneySaveWorkloadPreservesLatestContentAndBackup() throws {
         let dir=try temporary(),store=NativeSaveStore(directory:dir)
         var envelope=NativeSaveEnvelope()
@@ -252,17 +267,29 @@ final class NativeStateTests: XCTestCase {
             let points=try XCTUnwrap(sequence["points"] as? [[String:Double]])
             let duration=try XCTUnwrap(sequence["duration"] as? Double),phase=try XCTUnwrap(sequence["phase"] as? Double)
             durations.insert(duration)
-            XCTAssertEqual(points.count,3);XCTAssertEqual(points.compactMap{$0["opacity"]},[0.5,0.6,0.5])
+            XCTAssertEqual(points.count,3);XCTAssertEqual(points.compactMap{$0["opacity"]},[0.2,1.0,0.2])
             XCTAssertEqual(points.first?["time"],0);XCTAssertEqual(points.last?["time"],duration)
             let peak=try XCTUnwrap(points[1]["time"])
-            XCTAssertGreaterThanOrEqual(peak/duration,0.42-0.000001);XCTAssertLessThanOrEqual(peak/duration,0.58+0.000001)
-            let matchingBands=(0..<10).filter{duration>=3.2+Double($0)*0.24-0.000001 && duration<=3.34+Double($0)*0.24+0.000001}
+            XCTAssertGreaterThanOrEqual(peak/duration,0.28-0.000001);XCTAssertLessThanOrEqual(peak/duration,0.42+0.000001)
+            let baseDuration=duration*(index == 0 ? 2 : 1)*1.5
+            let matchingBands=(0..<10).filter{baseDuration>=3.2+Double($0)*0.24-0.000001 && baseDuration<=3.34+Double($0)*0.24+0.000001}
             XCTAssertEqual(matchingBands.count,1)
             if let band=matchingBands.first {bands.insert(band)}
             XCTAssertGreaterThanOrEqual(phase,0);XCTAssertLessThan(phase,duration)
             XCTAssertTrue(NSDictionary(dictionary:sequence).isEqual(to:refreshed[index]),"Refresh/density must retain the same Unit rhythm")
         }
         XCTAssertEqual(durations.count,10);XCTAssertEqual(bands,Set(0..<10))
+        var advanced=state;advanced.completedJourneyBoards.insert(21)
+        let next=try provider.snapshot(world:3,width:390,height:844,generation:2,revision:2,progression:advanced)
+        let nextUnits=try XCTUnwrap(next["units"] as? [[String:Any]])
+        for (index,unit) in nextUnits.enumerated() {
+            let parts=try XCTUnwrap(unit["parts"] as? [[String:Any]])
+            let pulse=try XCTUnwrap(parts.first{$0["role"] as? String == "beam"}?["beamIdle"] as? [String:Any])
+            let factor=index == 1 ? 0.5 : 1.0
+            XCTAssertEqual(try XCTUnwrap(pulse["duration"] as? Double),try XCTUnwrap(first[index]["duration"] as? Double)*factor)
+            XCTAssertEqual(try XCTUnwrap(pulse["phase"] as? Double),try XCTUnwrap(first[index]["phase"] as? Double)*factor)
+            XCTAssertEqual(parts.contains{$0["role"] as? String == "card"},index<=1)
+        }
     }
     func testAuthoredWorldGeometryAtEveryExportedViewport() throws {
         let provider=try NativeWorldLayouts()

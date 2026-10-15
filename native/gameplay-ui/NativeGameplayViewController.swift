@@ -10,6 +10,34 @@ final class NativeGameplayViewController: UIViewController {
     var onExit: (() -> Void)?
     var onStateChange: ((NativeBoardState) -> Void)?
     var onTerminal: ((NativeResolution) -> Void)?
+    var prepareJourneyRewardController:((NativeResolution)->NativeJourneyRewardController?)?
+    private var preparedJourneyReward:NativeJourneyRewardController?
+    func takePreparedJourneyReward(generation:UInt64)->NativeJourneyRewardController? {
+        guard engine.state.generation==generation,preparedJourneyReward?.presentationGeneration==generation else {retirePreparedJourneyReward();return nil}
+        let card=preparedJourneyReward;preparedJourneyReward=nil;return card
+    }
+    private func retirePreparedJourneyReward() {preparedJourneyReward?.dispose(notify:false);preparedJourneyReward=nil}
+    var visibleJourneyRewardController:NativeJourneyRewardController? {
+        children.compactMap{$0 as? NativeJourneyRewardController}.first ?? (presentedViewController as? NativeJourneyRewardController)
+    }
+    func mountJourneyRewardController(_ card:NativeJourneyRewardController,generation:UInt64) {
+        guard !disposed,isViewLoaded,view.window != nil,engine.state.generation==generation,visibleJourneyRewardController==nil,presentedViewController==nil else {card.dispose(notify:false);return}
+        card.useGameplayPaper();card.setRewardActionsAdmitted(false)
+        card.loadViewIfNeeded()
+        guard card.phase != "asset-failed",card.phase != "disposed" else{return}
+        addChild(card);card.view.frame=view.bounds;card.view.autoresizingMask=[.flexibleWidth,.flexibleHeight]
+        view.addSubview(card.view);card.view.setNeedsLayout();card.view.layoutIfNeeded();card.didMove(toParent:self);card.start()
+        card.setRewardActionsAdmitted(true)
+    }
+    func retireJourneyRewardController(_ card:NativeJourneyRewardController) {
+        guard card.parent === self else{return}
+        card.dispose(notify:false);card.willMove(toParent:nil);card.view.removeFromSuperview();card.removeFromParent()
+    }
+    private func retireJourneyRewardChildren(excludingGeneration:UInt64?=nil) {
+        for card in children.compactMap({$0 as? NativeJourneyRewardController}) where card.presentationGeneration != excludingGeneration {
+            retireJourneyRewardController(card)
+        }
+    }
     var onSourceGuidedSnapBack:((NativeDiceNode)->Void)?
     var onGameplayEvent: ((NativeGameplayEvent) -> Void)?
     var onGameplayReceipt: ((NativeGameplayEvent,NativeTile?,NativeTile?,UInt64) -> Void)?
@@ -643,6 +671,8 @@ final class NativeGameplayViewController: UIViewController {
         scene.onEndgameHintEvaluation={ [weak self] _ in self?.updateNativeEndgameHint() }
         scene.onEndgameHintInteraction={ [weak self] in self?.endgameHint?.interact() }
         scene.onStateChange = { [weak self] state in
+            if self?.preparedJourneyReward?.presentationGeneration != state.generation {self?.retirePreparedJourneyReward()}
+            self?.retireJourneyRewardChildren(excludingGeneration:state.generation)
             if let generation = self?.fishGeneration,generation != state.generation { self?.fishFinale?.dispose() }
             if let generation = self?.bottleGeneration,generation != state.generation { self?.bottleFinale?.dispose() }
             if let generation = self?.honeyGeneration,generation != state.generation { self?.honeyFinale?.dispose() }
@@ -656,10 +686,14 @@ final class NativeGameplayViewController: UIViewController {
             guard result.kind == .complete,self.engine.state.tutorial?.requiresResultCompletion != true else {
                 self.onTerminal?(result);return
             }
+            guard !self.exitingBoard else{return}
             let generation=self.engine.state.generation
+            self.preparedJourneyReward=self.prepareJourneyRewardController?(result)
+            self.preparedJourneyReward?.loadViewIfNeeded()
             self.animateBoardExit(finalMerge:true) { [weak self,weak scene] completed in
-                guard let self,let scene,completed,!self.disposed,self.boardScene === scene,
-                      self.engine.state.generation==generation else{return}
+                guard let self else{return}
+                guard let scene,completed,!self.disposed,self.boardScene === scene,
+                      self.engine.state.generation==generation else{self.retirePreparedJourneyReward();return}
                 self.onTerminal?(result)
             }
         }
@@ -732,6 +766,7 @@ final class NativeGameplayViewController: UIViewController {
             self.finaleArtworkOwner?.dispose();self.finaleArtworkOwner=nil
             self.sourcePresentationFailureGeneration=generation
             self.sourcePresentationFailure = .init(reason:reason,generation:generation,boardState:self.engine.state)
+            self.retirePreparedJourneyReward();self.retireJourneyRewardChildren()
             guard scene.sealSourcePresentationFailure(generation:generation),!self.disposed,self.boardScene === scene,
                 self.engine.state.generation==generation else{return}
             NSLog("[NativeSourcePresentation] captured generation %llu retired: %@",generation,reason)
@@ -752,6 +787,7 @@ final class NativeGameplayViewController: UIViewController {
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+        paperSurface.frame=view.bounds
         if let tasks=sourceScope?.sourceMicrotaskTasks {
             _=tasks.layoutTask{layoutGameplayPresentation()}
         } else {layoutGameplayPresentation()}
@@ -1445,6 +1481,7 @@ final class NativeGameplayViewController: UIViewController {
     }
 
     func dispose() {
+        retirePreparedJourneyReward();retireJourneyRewardChildren();prepareJourneyRewardController=nil
         restoreTutorialSpecialBarSiblings()
         beforeSourceInitialBoardReveal=nil
         beforeSourceGameplayAdmission=nil

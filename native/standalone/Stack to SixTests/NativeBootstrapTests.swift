@@ -7,6 +7,49 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeBootstrapTests:XCTestCase {
+    func testCanonicalRewardChildMountsAfterCommitAndDisposesWithOwner() async throws {
+        let state=NativeBoardState(tiles:[],mode:.journey,board:1,moves:2,score:1000)
+        let game=NativeGameplayViewController(engine:NativeGameplayEngine(state:state),resourceRoot:NativeTestResources.root)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=game;window.makeKeyAndVisible();game.view.layoutIfNeeded()
+        defer {game.dispose();window.isHidden=true;window.rootViewController=nil}
+        var commits=0
+        let owner=NativeResultOwner(gameplay:game,root:NativeTestResources.root,resolution:NativeResolution(.complete,reason:"final_regular_merge6"),commit:{_ in
+            XCTAssertNil(game.visibleJourneyRewardController,"Reward must not appear before canonical commit")
+            commits += 1
+        },restart:{},continueArcade:{},exit:{},interimJourney:true)
+        owner.present();owner.present()
+        try await waitUntil {game.visibleJourneyRewardController != nil}
+        let card=try XCTUnwrap(game.visibleJourneyRewardController)
+        XCTAssertEqual(card.phase,"opening","The first admitted reward frame starts the prepared SVG immediately")
+        XCTAssertEqual(commits,1);XCTAssertTrue(card.parent === game);XCTAssertTrue(card.view.window === window)
+        XCTAssertEqual(card.view.frame,game.view.bounds);XCTAssertNil(game.presentedViewController)
+        owner.dispose();XCTAssertNil(card.parent);XCTAssertNil(card.view.superview);XCTAssertEqual(card.phase,"disposed")
+    }
+    func testRewardStaleGenerationAndCommitFailureDoNotMountReward() throws {
+        let state=NativeBoardState(tiles:[],mode:.journey,board:1,score:1000)
+        let game=NativeGameplayViewController(engine:NativeGameplayEngine(state:state),resourceRoot:NativeTestResources.root)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=game;window.makeKeyAndVisible();game.view.layoutIfNeeded()
+        defer {game.dispose();window.isHidden=true;window.rootViewController=nil}
+        let stale=NativeJourneyRewardController(root:NativeTestResources.root,board:1,score:1000,generation:state.generation)
+        game.mountJourneyRewardController(stale,generation:state.generation+1)
+        XCTAssertEqual(stale.phase,"disposed");XCTAssertNil(game.visibleJourneyRewardController)
+        let owner=NativeResultOwner(gameplay:game,root:NativeTestResources.root,resolution:NativeResolution(.complete,reason:"final_regular_merge6"),commit:{_ in throw NSError(domain:"commit-failure",code:1)},restart:{},continueArcade:{},exit:{},interimJourney:true)
+        owner.present();XCTAssertNil(game.visibleJourneyRewardController);owner.dispose()
+    }
+    func testCanonicalRewardAssetFailureRetiresChildAndPresentsResultOnce() async throws {
+        let state=NativeBoardState(tiles:[],mode:.journey,board:1,score:1000)
+        let game=NativeGameplayViewController(engine:NativeGameplayEngine(state:state),resourceRoot:NativeTestResources.root)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=game;window.makeKeyAndVisible();game.view.layoutIfNeeded()
+        let owner=NativeResultOwner(gameplay:game,root:NativeTestResources.root,resolution:NativeResolution(.complete,reason:"final_regular_merge6"),commit:{_ in},restart:{},continueArcade:{},exit:{},interimJourney:true)
+        var failures=0;owner.onError={_ in failures += 1}
+        defer {owner.dispose();game.dispose();window.isHidden=true;window.rootViewController=nil}
+        owner.present();try await waitUntil {game.visibleJourneyRewardController != nil}
+        let card=try XCTUnwrap(game.visibleJourneyRewardController),failed=try XCTUnwrap(card.onAssetFailure)
+        failed("controlled missing selected SVG");failed("duplicate stale failure")
+        try await waitUntil {game.presentedViewController is NativeResultController}
+        XCTAssertNil(game.visibleJourneyRewardController);XCTAssertNil(card.parent)
+        XCTAssertEqual(card.phase,"disposed");XCTAssertEqual(failures,1)
+    }
     func testNativeFailExitPreparesAndConsumesTheSameWorldUnderItsResultCover() async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-bootstrap-fail-return-\(UUID().uuidString)")
         defer {try? FileManager.default.removeItem(at:directory)}
@@ -215,12 +258,16 @@ final class NativeBootstrapTests:XCTestCase {
         let scene=try XCTUnwrap(game.boardScene),geometry=try XCTUnwrap(scene.boardGeometry)
         try await waitUntil {scene.beginDrag(at:geometry.center(row:0,column:0))}
         XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:geometry.center(row:0,column:1),now:100)).accepted)
-        try await waitUntil {game.presentedViewController is NativeJourneyRewardController}
-        let reward=try XCTUnwrap(game.presentedViewController as? NativeJourneyRewardController)
+        try await waitUntil {game.visibleJourneyRewardController != nil}
+        let reward=try XCTUnwrap(game.visibleJourneyRewardController)
+        XCTAssertTrue(try XCTUnwrap(store.load()).progression.completedJourneyBoards.contains(2),"Reward only mounts after canonical exit and commit")
+        XCTAssertEqual(scene.boardChromeReceipt.alpha,0,"Top HUD exit must finish before reward appears")
+        if let footer=game.journeyBottomDecor {XCTAssertEqual(footer.phase,.hidden,"Bottom decoration exit must finish before reward appears")}
         var saved=try XCTUnwrap(store.load())
         XCTAssertTrue(saved.progression.completedJourneyBoards.contains(2));XCTAssertNil(saved.journeyRuns[2])
         XCTAssertFalse(saved.progression.unlockedSpecialDice.contains("flower"))
-        try await waitUntil {reward.phase == "interim"};reward.activate();reward.activate()
+        try await waitUntil {reward.phase == "interim"};reward.activate()
+        try await waitUntil {reward.phase == "unlocked"};reward.activate()
         try await waitUntil {game.presentedViewController is NativeSpecialDiceUnlockController}
         let unlock=try XCTUnwrap(game.presentedViewController as? NativeSpecialDiceUnlockController)
         XCTAssertFalse(try XCTUnwrap(store.load()).progression.unlockedSpecialDice.contains("flower"))

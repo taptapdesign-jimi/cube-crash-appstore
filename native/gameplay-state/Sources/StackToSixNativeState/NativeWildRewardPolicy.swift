@@ -41,10 +41,11 @@ public enum NativeWildRewardPolicy {
             }
         }
         if state.mode == .arcade && board <= 1 {
-            // Registry's authored order is Ball/Bottle/Barrel. First Arcade Magnet skips
-            // index zero, leaving Bottle at count1 and Barrel at count2, as in source.
+            // Native Arcade01 authored sequence: Magnet, Bottle, Cubero, Barrel.
+            // Cubero is guaranteed immediately after Bottle (user decision 2026-10-15).
             if count == 1 {return NativeWildRewardChoice(.magnet,variant:"bottle")}
-            if count == 2 {return NativeWildRewardChoice(.tnt,variant:"barell")}
+            if count == 2 {return NativeWildRewardChoice(.star,variant:"cubero")}
+            if count == 3 {return NativeWildRewardChoice(.tnt,variant:"barell")}
         }
         return NativeWildRewardChoice(core)
     }

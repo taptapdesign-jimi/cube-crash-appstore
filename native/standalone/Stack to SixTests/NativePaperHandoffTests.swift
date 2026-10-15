@@ -29,9 +29,12 @@ import StackToSixNativeState
             let game=try XCTUnwrap(app.children.first as? NativeGameplayViewController)
             game.view.layoutIfNeeded()
             let gameplayPaper=try XCTUnwrap(game.view.subviews.first as? NativeAppPaperSurface)
-            gameplayPaper.layoutIfNeeded()
+            XCTAssertTrue(app.view.subviews.first === paper)
+            XCTAssertEqual(initial,render(paper))
+            try await waitUntil {!game.retainsOutgoingWorldPaint && !gameplayPaper.isHidden && game.view.isOpaque}
+            game.view.layoutIfNeeded();gameplayPaper.layoutIfNeeded()
             XCTAssertEqual(paper.bounds,gameplayPaper.bounds)
-            XCTAssertEqual(initial,render(gameplayPaper),"The first mounted gameplay paper must not replace the Journey viewport with a different composition")
+            XCTAssertEqual(initial,render(gameplayPaper),"The first visible gameplay paper must not replace the Journey viewport with a different composition")
             XCTAssertTrue(app.view.subviews.first === paper)
             XCTAssertEqual(initial,render(paper))
         }

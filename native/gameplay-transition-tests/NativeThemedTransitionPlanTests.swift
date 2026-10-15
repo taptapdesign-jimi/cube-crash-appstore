@@ -53,10 +53,16 @@ final class NativeThemedTransitionPlanTests:XCTestCase {
             for cloud in plans {
                 for row in NativeThemedCloudExitOracle.samples {
                     let rest=row[0],age=row[1]
-                    let adjusted=NativeTransitionCloudPlan.Cloud(asset:cloud.asset,depth:cloud.depth,width:cloud.width,height:cloud.height,xPercent:cloud.xPercent,yPercent:cloud.yPercent,baseScale:rest,rotation:cloud.rotation,bounceAmount:cloud.bounceAmount,bounceSpeed:cloud.bounceSpeed,windDuration:cloud.windDuration,driftDistance:cloud.driftDistance,initialY:cloud.initialY,enterDelay:cloud.enterDelay)
+                    let adjusted=NativeTransitionCloudPlan.Cloud(asset:cloud.asset,depth:cloud.depth,width:cloud.width,height:cloud.height,xPercent:cloud.xPercent,yPercent:cloud.yPercent,baseScale:rest,rotation:cloud.rotation,bounceAmount:cloud.bounceAmount,bounceSpeed:cloud.bounceSpeed,windDuration:cloud.windDuration,driftDistance:cloud.driftDistance,initialY:cloud.initialY,enterDelay:cloud.enterDelay,preservesAspectDuringExit:cloud.preservesAspectDuringExit)
                     let pose=adjusted.sample(seconds:2.65+age,exitAt:2.65)
-                    XCTAssertEqual(pose.scaleX,row[2],accuracy:0.000002)
-                    XCTAssertEqual(pose.scaleY,row[3],accuracy:0.000002)
+                    if theme == .forest {
+                        XCTAssertEqual(pose.scaleX,pose.scaleY,accuracy:0.000002)
+                        XCTAssertGreaterThanOrEqual(pose.scaleX,0)
+                        XCTAssertLessThanOrEqual(pose.scaleX,rest+0.000002)
+                    } else {
+                        XCTAssertEqual(pose.scaleX,row[2],accuracy:0.000002)
+                        XCTAssertEqual(pose.scaleY,row[3],accuracy:0.000002)
+                    }
                     XCTAssertEqual(pose.opacity,age>=0.595 ? 0:1)
                 }
                 // Mountain withdrawal must not hard-hide a rear cloud.

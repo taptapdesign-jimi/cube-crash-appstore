@@ -1,0 +1,51 @@
+import Foundation
+import StackToSixGameplay
+import StackToSixNativeState
+
+/// Read-only projection of the real Journey reward pools and durable progression.
+struct NativeBackpackCatalog {
+    struct Die:Equatable {
+        let id:String,title:String,copy:String,board:Int
+        var artwork:NativeDiceArtwork {NativeDiceArtwork.definition(kind:id,variant:NativeSpecialDiceRegistry.variants[id] == nil ? nil:id)}
+    }
+    struct Section {
+        let title:String,dice:[Die],unlocked:Set<String>
+        var count:Int {dice.filter{unlocked.contains($0.id)}.count}
+    }
+    static let arcade:[Die] = [
+        Die(id:"tnt",title:"TNT",copy:"Boom-boom, merge me! I blast max 4 dice and rebuild each with a new number!",board:0),
+        Die(id:"wild-magnet",title:"MAGNET",copy:"Swoop-swoop! Merge me to pull in max 4 dice and swap each for another!",board:0),
+        Die(id:"cubero",title:"CUBERO",copy:"Hop-hop, merge me! I’ll bounce 1–3 bonus dice into play!",board:0)]
+    static let forest:[Die] = [
+        Die(id:"wild-star",title:"STAR",copy:"Twinkle-twinkle! Merge me to sprinkle 1–3 bonus dice onto your board!",board:1),
+        Die(id:"bee",title:"WEE BEE",copy:"Bzz-bzz, merge me and I’ll drop 2 new dice onto your board!",board:2),
+        Die(id:"flower",title:"FLOWER POWER",copy:"Bloom-boom! Merge me and my petals give max 4 dice a different number!",board:3),
+        Die(id:"honey",title:"HONEY",copy:"Sticky-sticky, merge me! I scoop up max 4 dice and trade each for a fresh one!",board:4),
+        Die(id:"mushroom",title:"SHROOMY",copy:"Pop-pop! Merge me and watch a fresh number die sprout onto your board!",board:6),
+        Die(id:"barell",title:"BARREL",copy:"Kaboom! Merge me to smash max 4 dice and replace the whole batch!",board:7)]
+    static let area:[Die] = [
+        Die(id:"kanta",title:"BLOOB",copy:"Clank-clank, merge me! There are 1–3 bonus dice ready to tumble out!",board:21),
+        Die(id:"robo-cube",title:"BIBI RIBI",copy:"Beep-boop! Merge me and I’ll build a fresh number die for your board!",board:22),
+        Die(id:"spaceship",title:"SPACESHIP",copy:"Beam me up! Merge me to abduct max 4 dice and beam replacements down!",board:23),
+        Die(id:"laser-gun",title:"LASER GUN",copy:"Zap-zap! Merge me to shoot max 4 dice and change every number I hit!",board:24)]
+    static let beach:[Die] = [
+        Die(id:"fish",title:"FISHY",copy:"Splash-splash! Merge me and I’ll reel in 1–3 bonus dice for your board!",board:11),
+        Die(id:"wild-juice",title:"JUICE",copy:"Slurp-slurp, merge me! I’ll pour a fresh number die into play!",board:12),
+        Die(id:"beach-ball",title:"BEACH BALL",copy:"Boing-boing! Merge me to bounce through max 4 dice and reroll each one!",board:12),
+        Die(id:"bottle",title:"BOTTLE",copy:"Glug-glug, merge me! I wash away max 4 dice, then send back just as many!",board:12)]
+    static func sections(_ progression:NativeProgressionState)->[Section] {
+        [("Forest",forest,1...10),("Area 55",area,21...30),("Beach",beach,11...20)].map {title,dice,range in
+            // Each World progresses independently. A high Area55 board must
+            // never unlock the unrelated Forest or Beach collection.
+            var reached=progression.completedJourneyBoards.filter(range.contains).max().map{min(range.upperBound,$0+1)}
+            let played=progression.boardStats.filter{range.contains($0.key) && $0.value.timesPlayed>0}.keys.max()
+            let opened=progression.lastOpenedJourneyBoard.flatMap{range.contains($0) ? $0:nil}
+            let legacy=progression.highestUnlockedJourneyBoard>1 && range.contains(progression.highestUnlockedJourneyBoard) ? progression.highestUnlockedJourneyBoard:nil
+            reached=[reached,played,opened,legacy].compactMap{$0}.max()
+            var eligible=reached.map{Set(NativeJourneyContent.rewardPool(board:$0))} ?? []
+            if title=="Forest",progression.unlockedSpecialDice.contains("flower") {eligible.insert("flower")}
+            if title=="Beach",progression.unlockedSpecialDice.contains("juice") {eligible.insert("wild-juice")}
+            return Section(title:title,dice:dice,unlocked:eligible)
+        }
+    }
+}

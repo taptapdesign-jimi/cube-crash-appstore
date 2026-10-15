@@ -84,6 +84,13 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         try await exercise(archetype:.star,variant:"bee",reverse:false,disposeDuringMain:false)
         try await exercise(archetype:.star,variant:"bee",reverse:true,disposeDuringMain:false)
     }
+    func testHiddenVariantDropCountsSettleWithoutOrbitPresentation()async throws {
+        for (variant,count) in [("fish",1),("kanta",2),("cubero",3)] {
+            for reverse in [false,true] {
+                try await exercise(archetype:.star,variant:variant,reverse:reverse,disposeDuringMain:false,starCount:count)
+            }
+        }
+    }
     func testFishSourceAndDestinationSettleAndAdmitNextActualDrag()async throws {
         try await exercise(archetype:.star,variant:"fish",reverse:false,disposeDuringMain:false)
         try await exercise(archetype:.star,variant:"fish",reverse:true,disposeDuringMain:false)
@@ -356,14 +363,14 @@ final class NativeWildMergeSixRootTests:XCTestCase {
                 return
             }
             try await wait(label+":clean-presentation") {
-                failure != nil || gameplay.presentedViewController is NativeJourneyRewardController || gameplay.presentedViewController is NativeResultController
+                failure != nil || gameplay.visibleJourneyRewardController != nil || gameplay.presentedViewController is NativeResultController
             }
             XCTAssertNil(failure,label)
-            if let reward=gameplay.presentedViewController as? NativeJourneyRewardController {reward.activate()}
             try await wait(label+":completion-committed") {
                 failure != nil || ((try? store.load()?.progression.completedJourneyBoards.contains(boardNumber)) == true)
             }
             XCTAssertNil(failure,label)
+            if let reward=gameplay.visibleJourneyRewardController {reward.activate()}
             XCTAssertEqual(try store.load()?.progression.completedJourneyBoards.contains(boardNumber),true,label)
             XCTAssertEqual(app.route,.gameplay,label)
             return

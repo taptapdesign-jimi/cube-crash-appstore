@@ -73,7 +73,13 @@ public final class NativeWorldLayouts {
                     let suffix=(side=="center" && state=="filled") || (side=="right" && state=="empty") ? "-1" : ""
                     parts[part]["asset"]="./assets/journey assets/level stars/star-\(state)-\(side)\(suffix).png"
                 }
-                if world == 3,parts[part]["role"] as? String == "beam" { parts[part]["beamIdle"]=beamIdle(board:board) }
+                if world == 3,parts[part]["role"] as? String == "beam" { var pulse=beamIdle(board:board)
+                    if allowed {
+                        pulse["duration"]=(pulse["duration"] as! Double)*0.5
+                        pulse["phase"]=(pulse["phase"] as! Double)*0.5
+                        pulse["points"]=(pulse["points"] as! [[String:Double]]).map { point in var scaled=point;scaled["time"]=point["time"]!*0.5;return scaled }
+                    }
+                    parts[part]["beamIdle"]=pulse }
             }
             if !allowed { parts.removeAll { $0["role"] as? String == "card" } }
             units[index]["parts"]=parts
@@ -107,10 +113,10 @@ public final class NativeWorldLayouts {
         if let cached=beamSequences[index] {return cached}
         // Disjoint tempo bands keep all ten Units independent, even when their
         // random draws coincide. Choose once; refresh/layout never rolls again.
-        let duration=3.2+Double(beamTempoBands[index])*0.24+Double.random(in:0...0.14)
-        let peak=duration*Double.random(in:0.42...0.58)
-        let sequence:[String:Any] = ["points":[["time":0.0,"opacity":0.5],
-            ["time":peak,"opacity":0.6],["time":duration,"opacity":0.5]],
+        let duration=(3.2+Double(beamTempoBands[index])*0.24+Double.random(in:0...0.14))/1.5
+        let peak=duration*Double.random(in:0.28...0.42)
+        let sequence:[String:Any] = ["points":[["time":0.0,"opacity":0.2],
+            ["time":peak,"opacity":1.0],["time":duration,"opacity":0.2]],
             "duration":duration,"phase":Double.random(in:0..<duration)]
         beamSequences[index]=sequence
         return sequence

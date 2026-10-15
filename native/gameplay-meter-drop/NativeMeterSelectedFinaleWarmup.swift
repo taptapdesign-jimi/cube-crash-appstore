@@ -15,7 +15,13 @@ nonisolated struct NativeMeterWarmupAsset:Hashable,Sendable {
 /// Clockless selected-family promise bridge. Decode/upload belongs to the
 /// injected canonical native resource owner; no motion/input/save lease inferred.
 @MainActor final class NativeMeterSelectedFinaleWarmup<Asset> {
- nonisolated struct Capture:Hashable,Sendable {let token:UInt64;let generation:UInt64;let selection:String}
+ nonisolated struct Capture:Hashable,Sendable {
+  let token:UInt64,generation:UInt64
+  let selection:String,requestID:String?
+  init(token:UInt64,generation:UInt64,selection:String,requestID:String?=nil) {
+   self.token=token;self.generation=generation;self.selection=selection;self.requestID=requestID
+  }
+ }
  nonisolated enum Outcome:Equatable,Sendable {case settled(unavailable:[String]);case retired}
  typealias Load=(NativeMeterWarmupAsset,@escaping(Asset?)->Void)->Void
  private struct Consumer {let capture:Capture;let current:()->Bool;let preOpen:Bool}

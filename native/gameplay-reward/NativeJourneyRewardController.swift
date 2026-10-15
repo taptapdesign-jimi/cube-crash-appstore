@@ -26,6 +26,11 @@ private final class RewardScheduler:NativeMusicScheduler {
 final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDelegate {
     enum Action {case collect,cancelled}
     let board:Int,score:Int
+    private var borrowsGameplayPaper=false,rewardActionsAdmitted=true
+    private let resourceRoot:URL
+    private let magic=NativeMagicCardReveal()
+    private var magicOpened=false,magicOpening=false,magicPrepared=false,cardPrepared=false
+    var prepareMagicCard:(URL,NativeRewardPreparationLease,@escaping(NativeMagicCardSource.Node?)->Void)->Void=NativeMagicCardSource.load
     private let assets:JimiV9Artwork
     private let resources:any NativeRewardResources
     private let scheduler:any NativeMusicScheduler
@@ -33,17 +38,20 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
     private let tilt:NativeRewardPresentation.Tilt
     private let reducedMotion:Bool
     private let generation:UInt64
-    private let paper=UIImageView(),hero=UIView(),interim=UIView(),unlocked=UIView(),pose=UIView(),frame=UIImageView(),front=UIImageView(),hand=UIImageView()
+    var presentationGeneration:UInt64 {generation}
+    private var magicPreparationWaiters:[()->Void]=[]
+    func whenMagicCardPrepared(_ completion:@escaping ()->Void) {
+        guard !disposed,phase != "asset-failed" else{return}
+        if magicPrepared {completion()}else {magicPreparationWaiters.append(completion)}
+    }
+    private var paper:NativeAppPaperSurface!
+    private let hero=UIView(),interim=UIView(),unlocked=UIView(),pose=UIView(),front=UIImageView(),hand=UIImageView()
     private let interimRotor=UIView(),unlockedRotor=UIView()
     private let headingLabel=UILabel(),subtitle=UILabel(),coach=UILabel()
     private let foil=NativeRewardFoil()
     private var holo:CALayer {foil.layer}
-    private let glow=CALayer(),interimGlow=CALayer(),interimLight=CALayer(),interimSweep=CAGradientLayer()
+    private let glow=CALayer()
     private let preparationLease=NativeRewardPreparationLease()
-    private var blurredFrames:[String:UIImage]=[:]
-    private var ownedSmoke:CALayer?
-    private var shimmerTextureSize:CGSize = .zero,shimmerTextureScale:CGFloat=0
-    private var shimmerTextureGeneration:UInt64=0
     private var tap:UITapGestureRecognizer!,pan:UIPanGestureRecognizer!
     private var observations:[NSObjectProtocol]=[]
     @MainActor private final class Work {
@@ -60,7 +68,6 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
     private var epoch:UInt64=1
     private var disposed=false,resolved=false,revealRunning=false,revealed=false,queuedCollect=false,waitingReveal=false,started=false,foreground=true,assetsReady=false,waitingCrumble=false
     private var dragStart=0.0,dragAngle=0.0,dragAxis:String?
-    private var interimScale=1.0
     private(set) var phase="mounted"
     var onFinish:((Action)->Void)?
     var onSoundMoment:((String,Int,UInt64)->Void)?
@@ -73,87 +80,87 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
     private var cardPath:String {NativeJourneyContent.cardAsset(board:board,score:score,doubleDensity:true)}
     private var maskPath:String {NativeJourneyContent.cardAsset(board:board,score:score)}
     init(root:URL,board:Int,score:Int,generation:UInt64,resources:(any NativeRewardResources)?=nil,scheduler:(any NativeMusicScheduler)?=nil,reducedMotion:Bool?=nil,random:@escaping ()->Double={Double.random(in:0..<1)},now:@escaping ()->Double={ProcessInfo.processInfo.systemUptime}) {
-        self.board=max(1,min(30,board));self.score=score;self.generation=generation;self.resources=resources ?? JimiNativeWorldResources(root:root)
+        self.resourceRoot=root;self.board=max(1,min(30,board));self.score=score;self.generation=generation;self.resources=resources ?? JimiNativeWorldResources(root:root)
         self.scheduler=scheduler ?? RewardScheduler();self.random=random;self.now=now;self.reducedMotion=reducedMotion ?? UIAccessibility.isReduceMotionEnabled;tilt=NativeRewardPresentation.Tilt(random:random);assets=JimiV9Artwork(resourceRoot:root)
         super.init(nibName:nil,bundle:nil);modalPresentationStyle = .overFullScreen
     }
+    /// Keep the exact painted gameplay viewport beneath this transparent cover.
+    /// Standalone reward previews retain their canonical local-paper fallback.
+    func useGameplayPaper() {
+        borrowsGameplayPaper=true
+        if isViewLoaded {paper.isHidden=true;view.backgroundColor = .clear;view.isOpaque=false}
+    }
+    func setRewardActionsAdmitted(_ value:Bool){rewardActionsAdmitted=value}
     required init?(coder:NSCoder){fatalError("Use Native reward initializer")}
     override func viewDidLoad() {
         super.viewDidLoad();view.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:1)
-        paper.image=assets.image("assets/paper-bg.png");paper.contentMode = .scaleAspectFill;view.addSubview(paper)
+        paper=NativeAppPaperSurface(artwork:assets);view.addSubview(paper)
+        if borrowsGameplayPaper {paper.isHidden=true;view.backgroundColor = .clear;view.isOpaque=false}
         for label in [headingLabel,subtitle,coach] {label.textAlignment = .center;label.isUserInteractionEnabled=false;view.addSubview(label)}
         headingLabel.text="New Reward";headingLabel.textColor=UIColor(red:239/255,green:116/255,blue:77/255,alpha:1)
-        subtitle.text="Tap the card to reveal";subtitle.textColor=UIColor(red:196/255,green:168/255,blue:150/255,alpha:1)
+        subtitle.text="Tap the card to reveal";subtitle.textColor=NativeTextPalette.subtitle
         coach.text="TAP TO COLLECT";coach.font=assets.font(size:32,weight:"ExtraBold");coach.textColor = .white;coach.alpha=0
         coach.layer.shadowColor=UIColor(red:159/255,green:105/255,blue:82/255,alpha:0.34).cgColor;coach.layer.shadowOffset=CGSize(width:0,height:3);coach.layer.shadowOpacity=1
         hero.accessibilityIdentifier="native.reward.card";hero.accessibilityLabel="Reveal \(NativeRewardPresentation.name(board:board))";hero.accessibilityTraits = .button
         view.addSubview(hero);pose.layer.name="native.reward.card-pose";pose.layer.zPosition=1;hero.addSubview(pose);pose.addSubview(interim);pose.addSubview(unlocked)
-        interim.addSubview(interimRotor);unlocked.addSubview(unlockedRotor);interimRotor.addSubview(frame);unlockedRotor.addSubview(front)
-        for image in [frame,front,hand] {image.contentMode = .scaleAspectFit;image.isUserInteractionEnabled=false}
+        interim.layer.zPosition=1;interim.addSubview(interimRotor);unlocked.addSubview(unlockedRotor);interimRotor.layer.addSublayer(magic.layer);unlockedRotor.addSubview(front)
+        for image in [front,hand] {image.contentMode = .scaleAspectFit;image.isUserInteractionEnabled=false}
         view.addSubview(hand);hand.alpha=0;hand.layer.shadowColor=UIColor(red:132/255,green:82/255,blue:63/255,alpha:1).cgColor;hand.layer.shadowOpacity=0.24;hand.layer.shadowOffset=CGSize(width:0,height:12);hand.layer.shadowRadius=16
-        glow.name="native.reward.unlocked-burn";interimGlow.name="native.reward.interim-burn"
-        for burn in [glow,interimGlow] {burn.opacity=0;burn.contentsGravity = .resizeAspect;burn.zPosition=0.5;burn.isDoubleSided=false}
-        for (surface,gradient) in [(interimLight,interimSweep)] {
-            surface.name="native.reward.interim-shimmer";surface.opacity=0;surface.zPosition=1;surface.isDoubleSided=false;surface.masksToBounds=true;surface.addSublayer(gradient)
-            gradient.colors=[UIColor.clear.cgColor,UIColor.white.withAlphaComponent(0.52).cgColor,UIColor.clear.cgColor];gradient.locations=[0,0.5,1];gradient.startPoint=CGPoint(x:0,y:0.5);gradient.endPoint=CGPoint(x:1,y:0.5);gradient.opacity=0
-        }
-        frame.layer.shadowColor=UIColor(red:161/255,green:91/255,blue:54/255,alpha:1).cgColor;frame.layer.shadowOpacity=0.22;frame.layer.shadowRadius=26;frame.layer.shadowOffset=CGSize(width:0,height:12)
-        unlockedRotor.layer.addSublayer(glow);interimRotor.layer.addSublayer(interimGlow);interimRotor.layer.addSublayer(interimLight)
+        glow.name="native.reward.unlocked-burn";glow.opacity=0;glow.contentsGravity = .resizeAspect;glow.zPosition=0.5;glow.isDoubleSided=false
+        unlockedRotor.layer.addSublayer(glow)
         unlockedRotor.layer.addSublayer(holo)
         tap=UITapGestureRecognizer(target:self,action:#selector(tapped));pan=UIPanGestureRecognizer(target:self,action:#selector(panned(_:)));tap.delegate=self;pan.delegate=self;tap.require(toFail:pan);hero.addGestureRecognizer(tap);hero.addGestureRecognizer(pan)
-        ownedLayers=[view.layer,headingLabel.layer,subtitle.layer,hero.layer,pose.layer,interim.layer,unlocked.layer,interimRotor.layer,unlockedRotor.layer,frame.layer,front.layer,hand.layer,coach.layer,glow,interimGlow,holo,interimLight,interimSweep]
+        ownedLayers=[view.layer,headingLabel.layer,subtitle.layer,hero.layer,pose.layer,interim.layer,unlocked.layer,interimRotor.layer,unlockedRotor.layer,front.layer,hand.layer,coach.layer,glow,holo]
         headingLabel.layer.opacity=0;subtitle.layer.opacity=0;pose.layer.opacity=0;unlocked.layer.opacity=0
-        applyFace(interim,scale:1,y:40,z:tilt.interimZ,x:tilt.interimX,ry:tilt.interimY)
+        applyFace(interim,scale:1,y:40,z:0,x:0,ry:0)
         applyFace(unlocked,scale:0.58,y:22,z:tilt.entryZ,x:tilt.entryX,ry:tilt.entryY,depth:-180)
-        let paths=(1...9).map{"assets/animations/sand/zguzvano\($0).png"}+[cardPath,maskPath,"assets/hand-pointer.png"]
+        let paths=[cardPath,maskPath,"assets/hand-pointer.png"]
         resources.prepare(paths,owner:resourceOwner,required:true) { [weak self] accepted in
             guard let self,!self.disposed,!self.resolved else{return}
             for path in paths {if let image=self.resources.image(path,owner:self.resourceOwner) {self.preparedImages[path]=image}}
             self.maskImage=self.preparedImages[self.maskPath]?.cgImage
-            self.frame.image=self.preparedImages[self.revealRunning || self.revealed ? "assets/animations/sand/zguzvano9.png":"assets/animations/sand/zguzvano1.png"]
             self.front.image=self.preparedImages[self.cardPath];self.hand.image=self.preparedImages["assets/hand-pointer.png"]
             guard accepted,paths.allSatisfy({self.preparedImages[$0] != nil}) else {
                 self.phase="asset-failed";self.onAssetFailure?("Selected Native reward artwork preparation failed");return
             }
             self.view.setNeedsLayout()
             self.prepareFilteredFrames(self.preparedImages,self.preparationLease) { [weak self] filtered in
-                guard let self,!self.disposed,!self.resolved else{return};self.blurredFrames=filtered;self.glow.contents=filtered[self.cardPath+"#burn"]?.cgImage;self.interimGlow.contents=filtered["assets/animations/sand/zguzvano9.png#burn"]?.cgImage;self.assetsReady=true
-                if self.waitingReveal {
-                    if self.foreground {self.waitingReveal=false;self.reveal()}
-                } else if self.waitingCrumble {self.waitingCrumble=false;self.crumble()}
+                guard let self,!self.disposed,!self.resolved else{return};self.glow.contents=filtered[self.cardPath+"#burn"]?.cgImage;self.cardPrepared=true;self.admitPreparedArtwork()
             }
+        }
+        prepareMagicCard(resourceRoot,preparationLease) { [weak self] source in
+            guard let self,!self.disposed,!self.resolved else{return}
+            guard let source else{self.phase="asset-failed";self.onAssetFailure?("Native magic-card SVG preparation failed");return}
+            self.magic.install(source);self.magicPrepared=true;self.view.setNeedsLayout();self.admitPreparedArtwork()
+            let ready=self.magicPreparationWaiters;self.magicPreparationWaiters=[];ready.forEach{$0()}
         }
         observations=[NotificationCenter.default.addObserver(forName:UIApplication.willResignActiveNotification,object:nil,queue:.main) { [weak self] _ in MainActor.assumeIsolated {self?.setForeground(false)} },NotificationCenter.default.addObserver(forName:UIApplication.didBecomeActiveNotification,object:nil,queue:.main) { [weak self] _ in MainActor.assumeIsolated {self?.setForeground(true)} }]
     }
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews();paper.frame=view.bounds
-        NativeRewardCardRendering.configure(faces:[interim,unlocked,interimRotor,unlockedRotor],images:[frame,front],displayScale:view.window?.screen.scale ?? traitCollection.displayScale)
+        NativeRewardCardRendering.configure(faces:[interim,unlocked,interimRotor,unlockedRotor],images:[front],displayScale:view.window?.screen.scale ?? traitCollection.displayScale)
         let aspect=(hand.image?.size.height ?? 1)/max(1,hand.image?.size.width ?? 1)
         let layout=NativeRewardPresentation.Layout(width:view.bounds.width,height:view.bounds.height,bottomSafe:view.safeAreaInsets.bottom,handAspect:aspect)
         headingLabel.frame=layout.title;subtitle.frame=layout.subtitle;hero.frame=layout.hero
         headingLabel.font=assets.font(size:layout.titleFont,weight:"ExtraBold");subtitle.font=assets.font(size:layout.subtitleFont,weight:"SemiBold")
         pose.frame=hero.bounds;interim.bounds=hero.bounds;interim.center=CGPoint(x:hero.bounds.midX,y:hero.bounds.midY);unlocked.bounds=hero.bounds;unlocked.center=interim.center
         interimRotor.frame=interim.bounds;unlockedRotor.frame=unlocked.bounds
-        frame.bounds=interim.bounds;frame.center=CGPoint(x:interim.bounds.midX,y:interim.bounds.midY);front.bounds=unlocked.bounds;front.center=CGPoint(x:unlocked.bounds.midX,y:unlocked.bounds.midY);front.transform=CGAffineTransform(translationX:0,y:-4).scaledBy(x:0.95,y:0.95)
+        front.bounds=unlocked.bounds;front.center=CGPoint(x:unlocked.bounds.midX,y:unlocked.bounds.midY);front.transform=CGAffineTransform(translationX:0,y:-4).scaledBy(x:NativeRewardPresentation.frontArtworkScale,y:NativeRewardPresentation.frontArtworkScale)
         hand.frame=layout.hand;coach.frame=layout.coach
         CATransaction.begin();CATransaction.setDisableActions(true)
         let effectScale=view.window?.screen.scale ?? view.traitCollection.displayScale
-        for layer in [glow,interimGlow,interimLight,interimSweep] {layer.contentsScale=max(1,effectScale);layer.allowsEdgeAntialiasing=true;layer.edgeAntialiasingMask=[.layerLeftEdge,.layerRightEdge,.layerTopEdge,.layerBottomEdge];layer.minificationFilter = .trilinear;layer.magnificationFilter = .linear}
-        glow.frame=CGRect(x:unlocked.bounds.width*0.025,y:unlocked.bounds.height*0.025-4,width:unlocked.bounds.width*0.95,height:unlocked.bounds.height*0.95);holo.frame=unlocked.bounds;interimLight.frame=interim.bounds;interimSweep.frame=interimLight.bounds
-        interimGlow.bounds=frame.bounds;interimGlow.position=frame.layer.position;interimGlow.transform=frame.layer.transform
+        for layer in [glow] {layer.contentsScale=max(1,effectScale);layer.allowsEdgeAntialiasing=true;layer.edgeAntialiasingMask=[.layerLeftEdge,.layerRightEdge,.layerTopEdge,.layerBottomEdge];layer.minificationFilter = .trilinear;layer.magnificationFilter = .linear}
+        let artworkScale=NativeRewardPresentation.frontArtworkScale
+        glow.frame=CGRect(x:unlocked.bounds.width*(1-artworkScale)/2,y:unlocked.bounds.height*(1-artworkScale)/2-4,width:unlocked.bounds.width*artworkScale,height:unlocked.bounds.height*artworkScale);holo.frame=unlocked.bounds
         let maskImage=self.maskImage
         foil.layout(unlocked.bounds,mask:maskImage,displayScale:effectScale)
-        let interimMask=CALayer();interimMask.frame=interim.bounds.insetBy(dx:-interim.bounds.width*0.1,dy:-interim.bounds.height*0.1);interimMask.contents=preparedImages["assets/animations/sand/zguzvano9.png"]?.cgImage;interimMask.contentsGravity = .resizeAspect;interimMask.contentsScale=max(1,effectScale);interimMask.minificationFilter = .trilinear;interimMask.magnificationFilter = .linear;interimMask.allowsEdgeAntialiasing=true;interimLight.mask=interimMask
-        CATransaction.commit()
-        prepareShimmerTexture(size:interimSweep.bounds.size,displayScale:effectScale)
+        CATransaction.commit();magic.layout(in:interimRotor.bounds)
     }
-    private func prepareShimmerTexture(size:CGSize,displayScale:CGFloat) {
-        guard !disposed,size.width>0,size.height>0,(size != shimmerTextureSize || displayScale != shimmerTextureScale) else{return}
-        shimmerTextureSize=size;shimmerTextureScale=displayScale;shimmerTextureGeneration &+= 1;let token=shimmerTextureGeneration
-        NativeRewardFilteredFrames.prepareShimmer(size:size,displayScale:displayScale,lease:preparationLease) { [weak self] image in
-            guard let self,!self.disposed,self.shimmerTextureGeneration==token,let image else{return}
-            CATransaction.begin();CATransaction.setDisableActions(true);self.interimSweep.colors=nil;self.interimSweep.contents=image;self.interimSweep.contentsGravity = .resize;CATransaction.commit()
-        }
+    private func admitPreparedArtwork() {
+        guard phase != "asset-failed" else{return}
+        if foreground,started,magicPrepared,!magicOpening,!magicOpened {crumble()}
+        guard cardPrepared,magicPrepared else{return};assetsReady=true
+        if foreground,started,waitingReveal,magicOpened {waitingReveal=false;reveal()}
     }
     override func viewDidAppear(_ animated:Bool) {super.viewDidAppear(animated);start()}
     func start() {
@@ -162,16 +169,26 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         animate(headingLabel.layer,"transform",from:NSValue(caTransform3D:spatial(scale:0,y:-28)),to:NSValue(caTransform3D:CATransform3DIdentity),duration:0.24,ease:.backOut(1.65))
         animate(headingLabel.layer,"opacity",from:0,to:1,duration:0.24)
         animate(subtitle.layer,"transform",from:NSValue(caTransform3D:spatial(scale:0,y:-22)),to:NSValue(caTransform3D:CATransform3DIdentity),duration:0.24,delay:0.032,ease:.backOut(1.65));animate(subtitle.layer,"opacity",from:0,to:1,duration:0.24,delay:0.032)
-        animate(pose.layer,"transform",from:NSValue(caTransform3D:spatial(scale:0,y:-30)),to:NSValue(caTransform3D:CATransform3DIdentity),duration:0.52,delay:0.176,ease:.backOut(1.7));animate(pose.layer,"opacity",from:0,to:1,duration:0.52,delay:0.176)
-        later("intro",after:0.176) { [weak self] in self?.onSoundMoment?("new-card-intro",0,self?.generation ?? 0) }
+        // The SVG itself owns appearance from empty. No parent card bounce,
+        // opacity ramp, fixed lead-in or unlocked-art filter gates its start.
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        pose.layer.transform=CATransform3DIdentity;pose.layer.opacity=1;CATransaction.commit()
+        onSoundMoment?("new-card-intro",0,generation)
         later("intro-haptic",after:0.12){ [weak self] in self?.onHaptic?("light")}
         later("intro-haptic2",after:0.24){ [weak self] in self?.onHaptic?("medium")}
-        later("crumble",after:0.696) { [weak self] in guard let self,!self.revealRunning,!self.revealed else{return};self.onSoundMoment?("new-card-crumble",0,self.generation);if self.assetsReady {self.crumble()}else{self.waitingCrumble=true} }
+        if magicPrepared {crumble()}else{waitingCrumble=true}
     }
     @objc private func tapped(){activate()}
     func activate() {
-        guard foreground else{return}
-        if waitingReveal,!disposed,!resolved {queuedCollect=true;return}
+        guard rewardActionsAdmitted,foreground,!disposed,!resolved,phase != "asset-failed" else{return}
+        if !magicOpened,!revealed {
+            // An early tap requests reveal after the authored opening settles;
+            // duplicates cannot skip opening or invisibly collect the reward.
+            waitingReveal=true
+            if !assetsReady {phase="awaiting-artwork"}
+            else if started,!magicOpening {crumble()}
+            return
+        }
         switch NativeRewardPresentation.tapAction(revealed:revealed,revealRunning:revealRunning,resolved:resolved,disposed:disposed) {
         case .reveal:reveal()
         case .queueCollect:queuedCollect=true
@@ -180,54 +197,57 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         }
     }
     private func crumble() {
-        guard !disposed,!revealRunning,!revealed else{return};phase="interim"
-        let delays=[27,26,24,23,24,25,27,29].map{Double(max(10,Int((Double($0)*0.8).rounded())))/1000}
-        var time=0.0
-        for index in 1...8 {time += delays[index-1];let stepTime=time;later("frame\(index)",after:time) { [weak self] in
-            guard let self,!self.revealRunning,!self.revealed else{return};let path="assets/animations/sand/zguzvano\(index+1).png"
-            self.frame.image=self.blurredFrames[path] ?? self.preparedImages[path]
-            let peak=0.94+self.random()*0.12,start=peak*(0.86+self.random()*0.06)
-            self.keyframes(self.frame.layer,"transform",values:([start,peak,1] as [Double]).map{NSValue(caTransform3D:CATransform3DMakeScale(CGFloat($0),CGFloat($0),1))},times:[0,0.55,1],duration:0.035,final:NSValue(caTransform3D:CATransform3DIdentity))
-            self.later("clear-blur\(index)",after:0.035*0.55){ [weak self] in self?.frame.image=self?.preparedImages[path] }
-            self.onHaptic?(index==8 ? "medium":"light")
-        };time=stepTime+0.035 }
-        later("interim-pulse",after:time){ [weak self] in guard let self,!self.revealRunning,!self.revealed else{return};self.shimmer(self.interimLight,gradient:self.interimSweep,impact:true);self.shake(strength:16,duration:0.38);for layer in [self.frame.layer,self.interimGlow] {self.keyframes(layer,"transform",values:([1,1.34,1.2] as [Double]).map{NSValue(caTransform3D:CATransform3DMakeScale(CGFloat($0),CGFloat($0),1))},times:[0,0.08/0.26,1],duration:0.26,final:NSValue(caTransform3D:CATransform3DMakeScale(1.2,1.2,1)))}}
-        later("interim-rest",after:time+0.26) { [weak self] in
-            guard let self,!self.revealRunning,!self.revealed else{return};self.interimScale=1.17
-            self.applyFace(self.interim,scale:1.17,y:40,z:self.tilt.interimZ,x:self.tilt.interimX,ry:self.tilt.interimY);self.frame.transform=CGAffineTransform(scaleX:1.2,y:1.2)
-            self.onHaptic?("medium");self.scheduleInterimIdle()
+        guard foreground,started,magicPrepared,!disposed,!revealRunning,!revealed,!magicOpening,!magicOpened else{return}
+        magicOpening=true;phase="opening"
+        // SVG owns the whole card opening, dust, bounce and angular motion.
+        // Start at visible admission or immediately upon selected SVG readiness.
+        waitingCrumble=false;onSoundMoment?("new-card-crumble",0,generation)
+        magic.play(from:0,to:NativeMagicCardSource.hold,reduced:reducedMotion)
+        later("magic-opened",after:reducedMotion ? 0.16:NativeMagicCardSource.hold) { [weak self] in
+            guard let self,self.phase != "asset-failed",!self.revealRunning,!self.revealed else{return}
+            self.magic.settle(at:NativeMagicCardSource.hold);self.magicOpening=false;self.magicOpened=true;self.phase="interim";self.onHaptic?("medium")
+            if self.waitingReveal {self.waitingReveal=false;self.reveal()}else{self.startInterimIdle()}
         }
+    }
+    private func startInterimIdle() {
+        guard !reducedMotion,foreground,!disposed,!resolved,magicOpened,!revealed,!revealRunning else{return}
+        // The settled SVG stays intact; its two existing parent carriers own
+        // the gentle float and tilt on the compositor, without recurring timers.
+        cssTrack(pose.layer,poses:[NativeRewardMotion.pose(),NativeRewardMotion.pose(scale:1.02,y:-8),NativeRewardMotion.pose()],offsets:[0,0.5,1],duration:3,repeating:true)
+        let poses=[NativeRewardMotion.pose(),NativeRewardMotion.pose(z:1.35,x:-2.3,ry:2.6,depth:5),NativeRewardMotion.pose(z:-1.15,x:1.65,ry:-2.35,depth:3),NativeRewardMotion.pose(z:0.3,x:-0.4,ry:0.7,depth:1),NativeRewardMotion.pose()]
+        cssTrack(interimRotor.layer,poses:poses,offsets:[0,0.28,0.58,0.78,1],duration:3,interimOrder:true,repeating:true)
     }
     private func reveal() {
         guard !disposed,!resolved,!revealRunning,!revealed else{return}
         guard assetsReady else {waitingReveal=true;phase="awaiting-artwork";return}
+        let idlePose=pose.layer.presentation()?.transform ?? pose.layer.transform
+        let idleRotor=interimRotor.layer.presentation()?.transform ?? interimRotor.layer.transform
         waitingReveal=false;epoch &+= 1;cancelTasks();removeAnimations();waitingCrumble=false
         phase="revealing";revealRunning=true;pose.layer.opacity=1;pose.layer.transform=CATransform3DIdentity
-        onHaptic?("medium");onSoundMoment?("new-card-reveal",0,generation)
-        frame.image=preparedImages["assets/animations/sand/zguzvano9.png"];frame.transform=CGAffineTransform(scaleX:1.2,y:1.2)
-        interim.layer.opacity=1;interimScale=1.17
-        let inflation=reducedMotion ? 0 : 0.12,collapse=reducedMotion ? 0.16 : 0.224,closedExit=inflation+collapse
-        let start=NativeRewardMotion.pose(scale:1.17,y:40,z:tilt.interimZ,x:tilt.interimX,ry:tilt.interimY)
-        let peak=NativeRewardMotion.pose(scaleX:1.17*1.18,scaleY:1.17*1.15,y:40,z:tilt.interimZ,x:tilt.interimX,ry:tilt.interimY)
-        if inflation>0 {animatePose(interim.layer,from:start,to:peak,duration:inflation,ease:.powerIn(2))}
-        animatePose(interim.layer,from:inflation>0 ? peak:start,to:NativeRewardMotion.pose(scale:0,y:40,z:tilt.interimExitZ,x:tilt.interimExitX,ry:tilt.interimExitY,depth:-188),duration:collapse,delay:inflation,ease:reducedMotion ? .powerIn(1):.backIn(1.7))
-        headingLabel.layer.opacity=0;subtitle.layer.opacity=0
-        later("closed-exited",after:closedExit) { [weak self] in
-            guard let self else{return};self.interim.layer.opacity=0;self.unlocked.layer.opacity=1;self.shake(strength:11,duration:0.42)
-            self.headingLabel.text=self.rarity=="legendary" ? "Legendary!":"Common"
-            let copy=NSMutableAttributedString(string:"Unlocked \(NativeRewardPresentation.name(board:self.board))")
-            copy.addAttribute(.foregroundColor,value:UIColor(red:239/255,green:116/255,blue:77/255,alpha:1),range:NSRange(location:9,length:copy.length-9));self.subtitle.attributedText=copy
-            self.onHaptic?("medium")
+        interimRotor.layer.transform=CATransform3DIdentity
+        if !reducedMotion {
+            animate(pose.layer,"transform",from:NSValue(caTransform3D:idlePose),to:NSValue(caTransform3D:CATransform3DIdentity),duration:0.16)
+            animate(interimRotor.layer,"transform",from:NSValue(caTransform3D:idleRotor),to:NSValue(caTransform3D:CATransform3DIdentity),duration:0.16)
         }
+        onHaptic?("medium");onSoundMoment?("new-card-reveal",0,generation)
+        interim.layer.opacity=1
+        let closedExit=reducedMotion ? 0.16:(NativeMagicCardSource.end-NativeMagicCardSource.hold)*1.3
+        let unlockedDelay=0.300
+        magic.play(from:NativeMagicCardSource.hold,to:NativeMagicCardSource.end,reduced:reducedMotion,durationScale:1.3)
+        headingLabel.layer.opacity=0;subtitle.layer.opacity=0
+        animate(unlocked.layer,"opacity",from:0,to:1,duration:0.001,delay:unlockedDelay)
+        headingLabel.text=rarity=="legendary" ? "Legendary!":"Common"
+        let copy=NSMutableAttributedString(string:"Unlocked \(NativeRewardPresentation.name(board:board))")
+        copy.addAttribute(.foregroundColor,value:NativeTextPalette.subtitle,range:NSRange(location:9,length:copy.length-9));subtitle.attributedText=copy
         let enter=reducedMotion ? 0.16:0.28
-        animatePose(unlocked.layer,from:NativeRewardMotion.pose(scale:0.58,y:22,z:tilt.entryZ,x:tilt.entryX,ry:tilt.entryY,depth:-180),to:NativeRewardMotion.pose(scale:1.17,y:40,z:tilt.restZ,x:tilt.restX,ry:tilt.restY),duration:enter,delay:closedExit,ease:.backOut(2.1))
-        animate(headingLabel.layer,"opacity",from:0,to:1,duration:0.192,delay:closedExit);animate(subtitle.layer,"opacity",from:0,to:1,duration:0.192,delay:closedExit)
-        animate(headingLabel.layer,"transform",from:NSValue(caTransform3D:spatial(scale:0.72,y:-16)),to:NSValue(caTransform3D:CATransform3DIdentity),duration:0.192,delay:closedExit,ease:.backOut(1.65))
-        animate(subtitle.layer,"transform",from:NSValue(caTransform3D:spatial(scale:0.78,y:-12)),to:NSValue(caTransform3D:CATransform3DIdentity),duration:0.192,delay:closedExit,ease:.backOut(1.65))
+        animatePose(unlocked.layer,from:NativeRewardMotion.pose(scale:0.58,y:22,z:tilt.entryZ,x:tilt.entryX,ry:tilt.entryY,depth:-180),to:NativeRewardMotion.pose(scale:1.17,y:40,z:tilt.restZ,x:tilt.restX,ry:tilt.restY),duration:enter,delay:unlockedDelay,ease:.backOut(2.1))
+        animate(headingLabel.layer,"opacity",from:0,to:1,duration:0.192,delay:unlockedDelay);animate(subtitle.layer,"opacity",from:0,to:1,duration:0.192,delay:unlockedDelay)
+        animate(headingLabel.layer,"transform",from:NSValue(caTransform3D:spatial(scale:0.72,y:-16)),to:NSValue(caTransform3D:CATransform3DIdentity),duration:0.192,delay:unlockedDelay,ease:.backOut(1.65))
+        animate(subtitle.layer,"transform",from:NSValue(caTransform3D:spatial(scale:0.78,y:-12)),to:NSValue(caTransform3D:CATransform3DIdentity),duration:0.192,delay:unlockedDelay,ease:.backOut(1.65))
         later("reveal-haptic",after:0.176){ [weak self] in self?.onHaptic?("light") }
-        later("impact",after:closedExit+enter){ [weak self] in guard let self else{return};self.shine();self.revealSmoke();self.shake(strength:22,duration:0.42);self.onHaptic?("medium") }
-        later("revealed",after:closedExit+enter+0.192) { [weak self] in
-            guard let self else{return};self.phase="unlocked";self.revealRunning=false;self.revealed=true;self.hero.accessibilityLabel="Collect \(NativeRewardPresentation.name(board:self.board))"
+        later("impact",after:max(closedExit,unlockedDelay+enter)){ [weak self] in guard let self else{return};self.shine();self.shake(strength:22,duration:0.42);self.onHaptic?("medium") }
+        later("revealed",after:max(closedExit,unlockedDelay+enter)+0.192) { [weak self] in
+            guard let self else{return};self.interim.layer.opacity=0;self.magic.dispose();self.phase="unlocked";self.revealRunning=false;self.revealed=true;self.hero.accessibilityLabel="Collect \(NativeRewardPresentation.name(board:self.board))"
             self.onHaptic?("light");if self.queuedCollect {self.collect()}else{self.scheduleCoach(after:1);self.scheduleUnlockedIdle(after:3)}
         }
     }
@@ -243,13 +263,6 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         animatePose(unlocked.layer,from:NativeRewardMotion.pose(scale:1.17,y:40,z:tilt.restZ,x:tilt.restX,ry:tilt.restY),to:NativeRewardMotion.pose(scale:1.17,y:40,z:tilt.exitZ,x:tilt.exitX,ry:tilt.exitY,depth:-188),duration:inflation+collapse,ease:.powerIn(2))
         animate(view.layer,"opacity",from:1,to:0,duration:0.08,delay:inflation+collapse)
         later("collected",after:inflation+collapse+0.08,allowResolved:true) { [weak self] in self?.settle(.collect) }
-    }
-    private func scheduleInterimIdle() {
-        guard !reducedMotion,foreground,!disposed,!revealed,!revealRunning else{return}
-        cssTrack(pose.layer,poses:[NativeRewardMotion.pose(),NativeRewardMotion.pose(scale:1.02,y:-8),NativeRewardMotion.pose()],offsets:[0,0.5,1],duration:3)
-        let extra=[NativeRewardMotion.pose(z:-0.45),NativeRewardMotion.pose(z:1.35,x:-2.3,ry:2.6,depth:5),NativeRewardMotion.pose(z:-1.15,x:1.65,ry:-2.35,depth:3),NativeRewardMotion.pose(z:0.3,x:-0.4,ry:0.7,depth:1),NativeRewardMotion.pose(z:-0.45)]
-        cssTrack(interimRotor.layer,poses:extra,offsets:[0,0.28,0.58,0.78,1],duration:3,interimOrder:true)
-        later("interim-idle",after:3){ [weak self] in guard let self else{return};self.shimmer(self.interimLight,gradient:self.interimSweep);self.scheduleInterimIdle()}
     }
     private func scheduleUnlockedIdle(after:Double) {
         guard !reducedMotion,foreground,!disposed,revealed,!resolved else{return}
@@ -271,42 +284,6 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
             self.scheduleCoach(after:3)
         }
     }
-    private func shimmer(_ surface:CALayer,gradient:CAGradientLayer,impact:Bool=false) {
-        guard !reducedMotion,foreground,!disposed else{return};surface.opacity=0.92
-        // The canonical sweep and the face filter are independent owners.
-        // Keep the burn on the same image transform as the authored sprite.
-        interimGlow.bounds=frame.bounds;interimGlow.position=frame.layer.position;interimGlow.transform=frame.layer.transform
-        interimGlow.contents=blurredFrames["assets/animations/sand/zguzvano9.png"+(impact ? "#impact":"#burn")]?.cgImage
-        if impact {
-            // Sprite-nine punch:80ms power2.out peak, then authored160ms
-            // sine.out brightness return beginning at120ms.
-            let times=(0...56).map{Double($0)/56},values=times.map { t -> Double in
-                let seconds=t*0.28
-                if seconds<=0.08 {return 1-pow(1-seconds/0.08,2)}
-                let progress=min(1,(min(seconds,0.12)-0.08)/0.18),back=JimiV9Motion.Ease.backOut(2.1).value(progress)
-                let brightness=1.32+(1.04-1.32)*back
-                if seconds<0.12 {return max(0,(brightness-1)/0.32)}
-                return max(0,(brightness-1)/0.32)*(1-sin(min(1,(seconds-0.12)/0.16) * .pi/2))
-            }
-            keyframes(interimGlow,"opacity",values:values,times:times,duration:0.28)
-        } else {
-            later("interim-face-pulse",after:0.15) { [weak self] in
-                guard let self,!self.revealed,!self.revealRunning else{return}
-                self.keyframes(self.interimGlow,"opacity",values:[0,1,0],times:[0,0.56,1],duration:0.5)
-                let count=96,times=(0...count).map{Double($0)/Double(count)}
-                let scales=times.map { t -> Double in
-                    let seconds=t*0.32
-                    if seconds<=0.14 {return 1.2+(1.2*1.055-1.2)*JimiV9Motion.Ease.backOut(2).value(seconds/0.14)}
-                    return 1.2*1.055+(1.2-1.2*1.055)*sin(min(1,(seconds-0.14)/0.18) * .pi/2)
-                }
-                for layer in [self.frame.layer,self.interimGlow] {self.keyframes(layer,"transform",values:scales.map{NSValue(caTransform3D:CATransform3DMakeScale($0,$0,1))},times:times,duration:0.32,final:NSValue(caTransform3D:CATransform3DMakeScale(1.2,1.2,1)))}
-            }
-        }
-        let times=[0.0,0.01,0.02,0.05,0.12,0.20,0.30,0.40,0.45,0.50,1]
-        let positions=[-1.60,-1.58,-1.54,-1.40,-1.20,-0.80,0,0.80,1.20,1.60,1.60]
-        keyframes(gradient,"opacity",values:[0,0.125,0.25,0.375,0.45,0.5,0.5,0.5,0.25,0,0],times:times,duration:1.7)
-        keyframes(gradient,"transform",values:positions.map{position -> NSValue in var transform=CATransform3DMakeTranslation(position*gradient.bounds.width,0,0);transform.m21=tan(-12 * .pi/180);return NSValue(caTransform3D:transform)},times:times,duration:1.7)
-    }
     private func shine() {
         guard !reducedMotion,foreground,!disposed else{return}
         // Keep the finite face-local burn; the removed traveling shimmer has
@@ -318,14 +295,8 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         let points=[(0.0,0.0),(strength,-strength*0.45),(-strength*0.85,strength*0.35),(strength*0.55,-strength*0.25),(-strength*0.25,strength*0.12),(0.0,0.0)]
         keyframes(view.layer,"transform",values:points.map{NSValue(caTransform3D:CATransform3DMakeTranslation($0.0,$0.1,0))},times:[0,0.12,0.24,0.38,0.54,1],duration:duration)
     }
-    private func revealSmoke() {
-        guard !reducedMotion,!disposed,foreground else{return};ownedSmoke?.removeFromSuperlayer()
-        let plan=NativeRewardSmokePlan(width:hero.bounds.width,height:hero.bounds.height,random:random)
-        let container=NativeRewardSmoke.layer(plan:plan,center:CGPoint(x:hero.bounds.midX,y:hero.bounds.midY));hero.layer.insertSublayer(container,at:0);ownedSmoke=container
-        later("smoke-retire",after:1.75){ [weak self,weak container] in container?.removeAllAnimations();container?.removeFromSuperlayer();if self?.ownedSmoke===container {self?.ownedSmoke=nil} }
-    }
     @objc private func panned(_ gesture:UIPanGestureRecognizer) {
-        guard revealed,!revealRunning,!resolved,!disposed else{return};let delta=gesture.translation(in:view)
+        guard rewardActionsAdmitted,revealed,!revealRunning,!resolved,!disposed else{return};let delta=gesture.translation(in:view)
         switch gesture.state {
         case .began:
             if let visible=unlockedRotor.layer.presentation()?.transform {dragAngle=atan2(-visible.m13,visible.m11)*180 / .pi;unlockedRotor.layer.transform=visible}
@@ -341,7 +312,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         default:break
         }
     }
-    func gestureRecognizerShouldBegin(_ gestureRecognizer:UIGestureRecognizer)->Bool {gestureRecognizer !== pan || revealed && !revealRunning}
+    func gestureRecognizerShouldBegin(_ gestureRecognizer:UIGestureRecognizer)->Bool {rewardActionsAdmitted && (gestureRecognizer !== pan || revealed && !revealRunning)}
     func setForeground(_ value:Bool) {
         guard !disposed,foreground != value else{return};foreground=value
         // Pause one parent clock; child layers inherit it without compounded offsets.
@@ -352,7 +323,8 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
             let paused=view.layer.timeOffset;view.layer.speed=1;view.layer.timeOffset=0;view.layer.beginTime=0
             view.layer.beginTime=view.layer.convertTime(CACurrentMediaTime(),from:nil)-paused
             for (id,work) in tasks {arm(id,work)}
-            if waitingReveal,assetsReady {waitingReveal=false;reveal()}
+            if started,magicPrepared,!magicOpened,!magicOpening {crumble()}
+            if waitingReveal,magicOpened,assetsReady {waitingReveal=false;reveal()}
         }
     }
     private func spatial(scale:Double=1,scaleX:Double?=nil,scaleY:Double?=nil,y:Double=0,z:Double=0,x:Double=0,ry:Double=0,depth:Double=0)->CATransform3D {
@@ -362,9 +334,9 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         let samples=NativeRewardMotion.samples(from:from,to:to,ease:ease.value)
         keyframes(layer,"transform",values:samples.map{NSValue(caTransform3D:$0)},times:(0..<samples.count).map{Double($0)/Double(samples.count-1)},duration:reducedMotion ? min(0.16,duration):duration,delay:delay,final:NSValue(caTransform3D:to.transform))
     }
-    private func cssTrack(_ layer:CALayer,poses:[NativeRewardMotion.Pose],offsets:[Double],duration:Double,interimOrder:Bool=false) {
+    private func cssTrack(_ layer:CALayer,poses:[NativeRewardMotion.Pose],offsets:[Double],duration:Double,interimOrder:Bool=false,repeating:Bool=false) {
         let samples=NativeRewardMotion.cssTrack(poses:poses,offsets:offsets,interimOrder:interimOrder)
-        keyframes(layer,"transform",values:samples.map{NSValue(caTransform3D:$0)},times:(0..<samples.count).map{Double($0)/Double(samples.count-1)},duration:duration,final:NSValue(caTransform3D:interimOrder ? poses.last!.interimIdleTransform:poses.last!.transform))
+        keyframes(layer,"transform",values:samples.map{NSValue(caTransform3D:$0)},times:(0..<samples.count).map{Double($0)/Double(samples.count-1)},duration:duration,final:NSValue(caTransform3D:interimOrder ? poses.last!.interimIdleTransform:poses.last!.transform),repeating:repeating)
     }
     private func applyFace(_ face:UIView,scale:Double,y:Double,z:Double,x:Double,ry:Double,depth:Double=0){face.layer.transform=spatial(scale:scale,y:y,z:z,x:x,ry:ry,depth:depth)}
     private func animate(_ layer:CALayer,_ key:String,from:Any,to:Any,duration:Double,delay:Double=0,ease:JimiV9Motion.Ease = .powerOut(2)) {
@@ -378,9 +350,10 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         } else {return}
         keyframes(layer,key,values:values,times:(0...count).map{Double($0)/Double(count)},duration:reducedMotion ? min(0.16,duration):duration,delay:delay,final:to)
     }
-    private func keyframes(_ layer:CALayer,_ key:String,values:[Any],times:[Double],duration:Double,delay:Double=0,final:Any?=nil) {
+    private func keyframes(_ layer:CALayer,_ key:String,values:[Any],times:[Double],duration:Double,delay:Double=0,final:Any?=nil,repeating:Bool=false) {
         CATransaction.begin();CATransaction.setDisableActions(true);if let final {layer.setValue(final,forKeyPath:key)};CATransaction.commit()
         let animation=CAKeyframeAnimation(keyPath:key);animation.values=values;animation.keyTimes=times.map{NSNumber(value:$0)};animation.duration=duration;animation.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil)+delay;animation.fillMode = delay>0 && (layer.animationKeys() ?? []).contains(where:{$0.hasPrefix("reward.\(key).")}) ? .removed:.backwards;animation.isRemovedOnCompletion=true
+        if repeating {animation.repeatCount = .infinity}
         layer.add(animation,forKey:"reward.\(key).\(delay)")
     }
     private func later(_ id:String,after seconds:Double,allowResolved:Bool=false,_ callback:@escaping ()->Void) {
@@ -396,7 +369,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         }
     }
     private func cancelTasks(){for task in tasks.values {task.cancel()};tasks.removeAll()}
-    private func removeAnimations(){foil.stop();for layer in ownedLayers {layer.removeAllAnimations()};ownedSmoke?.sublayers?.forEach{$0.removeAllAnimations()};ownedSmoke?.removeAllAnimations();ownedSmoke?.removeFromSuperlayer();ownedSmoke=nil}
+    private func removeAnimations(){foil.stop();magic.stop();for layer in ownedLayers {layer.removeAllAnimations()}}
     private func settle(_ action:Action){guard !disposed else{return};let callback=onFinish;onFinish=nil;dispose(notify:false);callback?(action)}
-    func dispose(notify:Bool=true){guard !disposed else{return};disposed=true;phase="disposed";epoch &+= 1;cancelTasks();removeAnimations();resources.release(resourceOwner);preparationLease.cancel();preparedImages.removeAll();blurredFrames.removeAll();maskImage=nil;glow.contents=nil;interimGlow.contents=nil;interimLight.mask=nil;interimSweep.contents=nil;holo.mask=nil;ownedSmoke?.removeAllAnimations();ownedSmoke?.removeFromSuperlayer();ownedSmoke=nil;for observer in observations {NotificationCenter.default.removeObserver(observer)};observations.removeAll();onSoundMoment=nil;onHaptic=nil;onAssetFailure=nil;let callback=onFinish;onFinish=nil;if notify {callback?(.cancelled)}}
+    func dispose(notify:Bool=true){guard !disposed else{return};disposed=true;magicPreparationWaiters.removeAll();phase="disposed";epoch &+= 1;cancelTasks();removeAnimations();resources.release(resourceOwner);preparationLease.cancel();preparedImages.removeAll();maskImage=nil;glow.contents=nil;magic.dispose();holo.mask=nil;for observer in observations {NotificationCenter.default.removeObserver(observer)};observations.removeAll();onSoundMoment=nil;onHaptic=nil;onAssetFailure=nil;let callback=onFinish;onFinish=nil;if notify {callback?(.cancelled)}}
 }

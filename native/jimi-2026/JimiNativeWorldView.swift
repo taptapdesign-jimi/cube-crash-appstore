@@ -133,7 +133,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
             if owner == 0 { rect.origin.x -= snapshot.mainFrame.minX; rect.origin.y -= snapshot.mainFrame.minY }
             if rect.height <= 0 { rect.size.height = rect.width * image.size.height / max(1,image.size.width) }
             view.frame = rect.applying(CGAffineTransform(scaleX: scale, y: scale))
-            view.transform = CGAffineTransform(rotationAngle: part.rotation); view.alpha = part.role == "beam" ? 0.5 : part.opacity
+            view.transform = CGAffineTransform(rotationAngle: part.rotation); view.alpha = part.role == "beam" ? CGFloat(part.beamIdle?.opacities.first ?? 0.2) : part.opacity
             view.accessibilityIdentifier = "native.world.part.\(owner).\(part.role)"
             let planeIndex = part.role == "cloud" ? 0 : (part.role == "island" || part.role == "stump") ? 1 : 2
             let parent = part.role == "card" ? target : depthPlanes[owner]?[planeIndex] ?? target
@@ -220,7 +220,10 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
             if old?.parts != unit.parts || old?.locked != unit.locked || old?.interim != unit.interim {
                 dirtyUnits.insert(unit.boardID)
             } else if old?.newRibbon != unit.newRibbon,let view = units[unit.boardID],let card = view.subviews.first(where:{$0.accessibilityIdentifier?.hasSuffix(".card") == true}) {
-                card.subviews.filter {$0.accessibilityIdentifier == "native.world.ribbon"}.forEach {$0.removeFromSuperview()}
+                if unit.newRibbon {
+                    let ribbon=JimiNativeWorldRibbon.make(image:resources.image("assets/journey assets/orange-ribbon.png",owner:unit.boardID),assets:artwork,cardSize:card.bounds.size,scale:scale,portal:false,compact:bounds.width<=768)
+                    card.addSubview(ribbon);if active && !transition && modal == nil {(ribbon as? JimiNativeNewRibbonView)?.enter()}
+                } else {card.subviews.compactMap{$0 as? JimiNativeNewRibbonView}.forEach{ribbon in if active && !transition && modal == nil {ribbon.exit()}else{ribbon.quiesce();ribbon.removeFromSuperview()}}}
             }
         }
         if active && !transition && modal == nil {updateResources()}
@@ -270,6 +273,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         }
         for target in visible {
             let unitIndex = snapshot.units.firstIndex { units[$0.boardID] === target }.map { $0+1 } ?? 0
+            target.subviews.flatMap{$0.subviews}.compactMap{$0 as? JimiNativeNewRibbonView}.forEach{$0.enter(delay:lead+offsets[unitIndex],replay:true)}
             animate(target, track: .init(tweens: [.init(begin: lead + offsets[unitIndex], duration: reduced ? 0.20 : 0.56,
                 from: .scale(reduced ? 0.96 : 0.65,y:reduced ? 8 : 30,opacity:0), to: .scale(1), ease:reduced ? .powerOut(1) : .backOut(1.8))]), key:"world.enter")
         }
@@ -295,6 +299,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         animate(header,track:JimiV9Motion.journeyNavigationExit(reducedMotion:reduced),key:"world.exit")
         for (index,target) in exitOrder.enumerated() {
             let delay = Double(index)*stagger
+            target.subviews.flatMap{$0.subviews}.compactMap{$0 as? JimiNativeNewRibbonView}.forEach{$0.exit(remove:false,delay:delay)}
             let gentle = JimiV9Motion.Track(tweens:[.init(begin:delay,duration:reduced ? 0.16 : 0.48,from:.scale(1),to:.scale(reduced ? 0.96 : 0.65,y:reduced ? 8 : 28,opacity:0),ease:reduced ? .powerIn(1) : .backIn(1.25))])
             if target === main, main.layer.animation(forKey:"world.enter") != nil {
                 let interruptedMain = JimiV9Motion.Track(tweens:[.init(begin:delay,duration:0.234,from:.scale(1),to:.init(scaleX:1.18,scaleY:1.15),ease:.powerIn(2)),.init(begin:delay+0.234,duration:0.4368,from:.init(scaleX:1.18,scaleY:1.15),to:.scale(0,y:28),ease:.backIn(1.7))],anchorY:0.54)
@@ -409,6 +414,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
             guard let unit = units[definition.boardID] else {continue}
             ([unit] + (depthPlanes[definition.boardID] ?? [])).forEach {$0.layer.removeAnimation(forKey:"world.enter");$0.layer.removeAnimation(forKey:"world.exit")}
             if viewport.intersects(visualBounds(unit)),loaded.contains(definition.boardID) {
+                unit.subviews.flatMap{$0.subviews}.compactMap{$0 as? JimiNativeNewRibbonView}.forEach{$0.enter()}
                 startWave(unit,axis:"y",index:index+1)
                 if definition.interim, let card = unit.subviews.first(where: {$0.accessibilityIdentifier?.hasSuffix(".card") == true}) {
                     if interimOwners[definition.boardID] == nil {interimOwners[definition.boardID] = JimiNativeInterimEffect(card:card,scale:scale)}
@@ -456,7 +462,8 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
     private func stopIdle(pauseBees:Bool = true) {
         ambient?.update(enabled:false,viewport:CGRect(origin:scrollView.contentOffset,size:scrollView.bounds.size),scale:scale)
         if pauseBees {bees?.update(enabled:false,viewport:CGRect(origin:scrollView.contentOffset,size:scrollView.bounds.size),scale:scale)};interimOwners.values.forEach {$0.stop()};units.values.forEach {stopWave($0);JimiNativeWorldEffects.stop($0); partViews($0).forEach {stopWave($0);JimiNativeWorldEffects.stop($0)}}; main.subviews.forEach(stopWave)}
-    func setActive(_ value: Bool) { if !value {landingBarrier?.cancel();landingBarrier = nil;units.values.forEach {$0.subviews.forEach {$0.layer.removeAnimation(forKey:"world.card.landing")}}};active = value; modal?.setActive(value); if value {updateIdle()} else {cancelReminder();stopIdle();units.values.forEach {$0.layer.sublayers?.filter {$0.name == "world.smoke.feedback"}.forEach {$0.removeAllAnimations();$0.removeFromSuperlayer()}}} }
+    private func quiesceRibbons(){units.values.flatMap{$0.subviews}.flatMap{$0.subviews}.compactMap{$0 as? JimiNativeNewRibbonView}.forEach{$0.quiesce()}}
+    func setActive(_ value: Bool) { if !value {quiesceRibbons();landingBarrier?.cancel();landingBarrier = nil;units.values.forEach {$0.subviews.forEach {$0.layer.removeAnimation(forKey:"world.card.landing")}}};active = value; modal?.setActive(value); if value {updateIdle()} else {cancelReminder();stopIdle();units.values.forEach {$0.layer.sublayers?.filter {$0.name == "world.smoke.feedback"}.forEach {$0.removeAllAnimations();$0.removeFromSuperlayer()}}} }
     func prepareGameplayExit(boardID:Int? = nil,completion: @escaping () -> Void) {
         let sourceID = boardID ?? modal?.boardID
         let regularModal = modal != nil
@@ -493,7 +500,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         if !viewport.intersects(main.frame) {main.subviews.forEach {$0.layer.removeAllAnimations();$0.removeFromSuperview()};resources.release(0);loaded.remove(0)}
     }
     func park() { cancelHiddenReturnPose();depthPlanes.values.flatMap {$0}.forEach {$0.layer.removeAllAnimations()}; generation += 1; transition = false; admitted = false; backRequested = false; cancelReminder(); units.values.forEach {$0.layer.removeAnimation(forKey:"world.enter");$0.layer.removeAnimation(forKey:"world.exit");$0.subviews.forEach {$0.layer.removeAnimation(forKey:"card.tap.exit");$0.layer.removeAnimation(forKey:"world.exit")}}; main.subviews.forEach {$0.layer.removeAnimation(forKey:"world.exit")};main.layer.removeAllAnimations();header.layer.removeAllAnimations();backButton.layer.removeAllAnimations(); restoreSourceCard(); setActive(false); isUserInteractionEnabled = false; modal?.cleanup(); modal?.removeFromSuperview(); modal = nil }
-    func cleanup() {cancelHiddenReturnPose();ambient?.cleanup();ambient = nil;onAmbientPlansRequest = nil;depthPlanes.values.flatMap {$0}.forEach {$0.layer.removeAllAnimations();$0.removeFromSuperview()};depthPlanes.removeAll();bees?.cleanup();bees = nil;onBeePlansRequest = nil; landingBarrier?.cancel();landingBarrier = nil;interimOwners.values.forEach {$0.stop()};interimOwners.removeAll();cancelReminder(); resourceEpoch += 1; preparing.removeAll(); generation += 1; active = false; transition = false; backRequested = false; modal?.cleanup(); modal?.removeFromSuperview(); modal = nil; stopIdle(); layer.removeAllAnimations(); units.values.forEach {$0.layer.removeAllAnimations()}; main.layer.removeAllAnimations(); header.layer.removeAllAnimations(); main.subviews.forEach { $0.removeFromSuperview() }; units.values.forEach { $0.subviews.forEach { $0.layer.removeAllAnimations();$0.removeFromSuperview() } }; resources.cleanup(); loaded.removeAll() }
+    func cleanup() {quiesceRibbons();cancelHiddenReturnPose();ambient?.cleanup();ambient = nil;onAmbientPlansRequest = nil;depthPlanes.values.flatMap {$0}.forEach {$0.layer.removeAllAnimations();$0.removeFromSuperview()};depthPlanes.removeAll();bees?.cleanup();bees = nil;onBeePlansRequest = nil; landingBarrier?.cancel();landingBarrier = nil;interimOwners.values.forEach {$0.stop()};interimOwners.removeAll();cancelReminder(); resourceEpoch += 1; preparing.removeAll(); generation += 1; active = false; transition = false; backRequested = false; modal?.cleanup(); modal?.removeFromSuperview(); modal = nil; stopIdle(); layer.removeAllAnimations(); units.values.forEach {$0.layer.removeAllAnimations()}; main.layer.removeAllAnimations(); header.layer.removeAllAnimations(); main.subviews.forEach { $0.removeFromSuperview() }; units.values.forEach { $0.subviews.forEach { $0.layer.removeAllAnimations();$0.removeFromSuperview() } }; resources.cleanup(); loaded.removeAll() }
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         guard !isHidden, isUserInteractionEnabled, alpha > 0.01 else { return nil }
         if active, modal == nil, navigationTarget.frame.contains(point), backButton.isEnabled { return navigationTarget }

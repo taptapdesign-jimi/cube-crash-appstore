@@ -1,6 +1,11 @@
 import UIKit
 import CoreText
 
+/// Shared semantic text colors for Native UI.
+enum NativeTextPalette {
+    static let subtitle = UIColor(red:188/255,green:160/255,blue:148/255,alpha:1)
+}
+
 /// Shared rectangular navigation surface; its existing parent owns all motion.
 @MainActor
 final class JimiV9NavigationHeader: UIView {

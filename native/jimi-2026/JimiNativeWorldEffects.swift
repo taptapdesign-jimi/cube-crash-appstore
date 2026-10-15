@@ -24,8 +24,10 @@ enum JimiNativeWorldEffects {
     @discardableResult
     static func smoke(at rect:CGRect,in owner:UIView,delay:Double = 0,repeatPeriod:Double? = nil,scale:CGFloat = 1,landing:Bool = false,below card:UIView? = nil) -> CALayer? {
         guard !UIAccessibility.isReduceMotionEnabled else {return nil}
+        let cloudStyle = NativeSharedSmokeRecipes.regularSix(tileDepth:0,reduced:false)
         let size = landing ? max(rect.width,rect.height) : min(rect.width,rect.height)
-        let count = landing ? max(4,Int((Double.random(in:24...32)*Double.random(in:1.55...1.75)*0.28).rounded())) : Int.random(in:24...32)
+        let originalCount = landing ? max(4,Int((Double.random(in:24...32)*Double.random(in:1.55...1.75)*0.28).rounded())) : Int.random(in:24...32)
+        let count = max(1,Int((Double(originalCount)*0.8).rounded()))
         let baseAlpha = landing ? min(1,CGFloat.random(in:0.68...0.82)*1.4) : 0.95
         CATransaction.begin()
         let container = CALayer(); container.name = repeatPeriod == nil ? "world.smoke.feedback" : "world.smoke"; container.frame = rect
@@ -36,9 +38,14 @@ enum JimiNativeWorldEffects {
             let inset = size*0.02
             let radiusScale:CGFloat = landing ? 0.54 : 1
             let minRadius = max(6,(size*0.051*radiusScale).rounded()),maxRadius = max(18,(size*0.24*radiusScale).rounded())
-            let radius = landing ? CGFloat.random(in:minRadius...maxRadius) : min(CGFloat.random(in:minRadius...maxRadius),size*0.18)
-            let ellipse = CAShapeLayer(); ellipse.fillColor = UIColor.white.withAlphaComponent(landing ? baseAlpha : CGFloat.random(in:0.7...1)).cgColor
-            ellipse.path = UIBezierPath(ovalIn:CGRect(x:-radius,y:-radius,width:radius*2,height:radius*2*CGFloat.random(in:0.6...1.4))).cgPath
+            let radius = (landing ? CGFloat.random(in:minRadius...maxRadius) : min(CGFloat.random(in:minRadius...maxRadius),size*0.18))*0.49
+            // Borrow ordinary merge-6's white, normal-blend cloud vocabulary;
+            // the Journey owner retains edge placement with the requested 49% of original size.
+            let isEllipse = Double.random(in:0...1) < cloudStyle.ellipseChance
+            let aspect = isEllipse ? CGFloat.random(in:CGFloat(cloudStyle.ellipseAspectMin)...CGFloat(cloudStyle.ellipseAspectMax)) : 1
+            let ellipse = CAShapeLayer();ellipse.fillColor = UIColor.white.cgColor
+            ellipse.path = UIBezierPath(ovalIn:CGRect(x:-radius,y:-radius*aspect,width:radius*2,height:radius*2*aspect)).cgPath
+            if isEllipse {ellipse.transform = CATransform3DMakeRotation(CGFloat.random(in:0...(2 * .pi)),0,0,1)}
             let alongX = CGFloat.random(in:inset...max(inset,rect.width-inset)),alongY = CGFloat.random(in:inset...max(inset,rect.height-inset))
             let origin:CGPoint = side == 0 ? CGPoint(x:alongX,y:inset) : side == 1 ? CGPoint(x:rect.width*0.8-inset,y:alongY) : side == 2 ? CGPoint(x:alongX,y:rect.height*0.8-inset) : CGPoint(x:inset,y:alongY)
             ellipse.position = origin; ellipse.opacity = 0; container.addSublayer(ellipse)
@@ -47,7 +54,10 @@ enum JimiNativeWorldEffects {
             let end = CGPoint(x:origin.x+cos(direction)*distance,y:origin.y+sin(direction)*distance)
             let tIn = Double.random(in:0.018...0.04),run = Double.random(in:0.16...0.28),hold = Double.random(in:0.02...0.05),out = Double.random(in:0.08...0.14)
             let offset = delay+Double(index/max(1,Int(ceil(Double(count)/4))))*0.04+(landing ? Double.random(in:0...0.018) : 0),total = repeatPeriod ?? offset+tIn+run+hold+out
-            let alpha = CAKeyframeAnimation(keyPath:"opacity"); alpha.values = [0,0,baseAlpha,baseAlpha,baseAlpha,0,0]; alpha.keyTimes = [0,offset/total,(offset+tIn)/total,(offset+tIn+run)/total,(offset+tIn+run+hold)/total,(offset+tIn+run+hold+out)/total,1].map(NSNumber.init(value:)); alpha.duration = total
+            let radial = hypot((origin.x-rect.width/2)/max(1,rect.width/2),(origin.y-rect.height/2)/max(1,rect.height/2))
+            let center = 1-min(1,radial/1.25)
+            let cloudAlpha = max(0.3,min(1,0.34+center*0.64+CGFloat.random(in:-0.08...0.08)))*baseAlpha
+            let alpha = CAKeyframeAnimation(keyPath:"opacity"); alpha.values = [0,0,cloudAlpha,cloudAlpha,cloudAlpha,0,0]; alpha.keyTimes = [0,offset/total,(offset+tIn)/total,(offset+tIn+run)/total,(offset+tIn+run+hold)/total,(offset+tIn+run+hold+out)/total,1].map(NSNumber.init(value:)); alpha.duration = total
             let position = CAKeyframeAnimation(keyPath:"position"); position.values = [NSValue(cgPoint:origin),NSValue(cgPoint:origin),NSValue(cgPoint:end),NSValue(cgPoint:end)]; position.keyTimes = [0,NSNumber(value:(offset+tIn)/total),NSNumber(value:(offset+tIn+run)/total),1]; position.duration = total
             let group = CAAnimationGroup(); group.animations = [alpha,position]; group.duration = total; group.repeatCount = repeatPeriod == nil ? 1 : .infinity; group.fillMode = .both; group.isRemovedOnCompletion = false
             ellipse.add(group,forKey:"world.smoke")

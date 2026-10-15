@@ -44,6 +44,34 @@ final class JimiNativeWorldTests: XCTestCase {
     }
     private func settle(_ seconds: Double = 1.3) async throws { try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000)) }
 
+    func testNEWFlagWaitsForVisibleEntryThenAnimatesRemovalAndParkQuiescesIt() async throws {
+        var initial=fixture();var unit=(initial["units"] as! [[String:Any]])[0];unit["newRibbon"]=true;initial["units"]=[unit]
+        let world=try XCTUnwrap(JimiNativeWorldView(snapshot:initial,assets:art));world.frame=CGRect(x:0,y:0,width:390,height:844);world.layoutIfNeeded()
+        defer{world.cleanup()}
+        let ready=expectation(description:"Selected World ready");world.prepare{ready.fulfill()};await fulfillment(of:[ready],timeout:10)
+        let ribbon=try XCTUnwrap(descendant(world,"native.world.ribbon") as? JimiNativeNewRibbonView)
+        XCTAssertEqual(ribbon.layer.opacity,0);XCTAssertNil(ribbon.layer.animationKeys())
+        let entered=expectation(description:"Visible Unit enter");world.enter{entered.fulfill()}
+        XCTAssertNotNil(ribbon.layer.animation(forKey:"ribbon.motion"));await fulfillment(of:[entered],timeout:5);world.finishPresentationAdmission()
+        var next=initial;unit["newRibbon"]=false;next["units"]=[unit];next["stateRevision"]=2
+        world.reconcile(next);XCTAssertNotNil(ribbon.layer.animation(forKey:"ribbon.motion"));XCTAssertNotNil(ribbon.superview)
+        world.park();XCTAssertNil(ribbon.layer.animationKeys());XCTAssertNil(ribbon.superview)
+    }
+    func testNEWPortalRibbonExitsBeforeTheExistingCardReturnAndCleanup() async throws {
+        var initial=fixture();var unit=(initial["units"] as! [[String:Any]])[0];unit["newRibbon"]=true;initial["units"]=[unit]
+        let world=try XCTUnwrap(JimiNativeWorldView(snapshot:initial,assets:art));world.frame=CGRect(x:0,y:0,width:390,height:844);world.layoutIfNeeded()
+        let scene=try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.first),previous=scene.windows.first{$0.isKeyWindow}
+        let window=UIWindow(windowScene:scene),host=UIViewController();window.frame=world.frame;window.rootViewController=host;host.view.addSubview(world);window.makeKeyAndVisible()
+        defer{world.cleanup();window.isHidden=true;window.rootViewController=nil;previous?.makeKey()}
+        let prepared=expectation(description:"Ribbon card ready");world.prepare{prepared.fulfill()};await fulfillment(of:[prepared],timeout:10)
+        let entered=expectation(description:"World admission");world.enter{entered.fulfill()};await fulfillment(of:[entered],timeout:5);world.finishPresentationAdmission()
+        world.openCard(boardID:1);try await settle(0.7)
+        let modal=try XCTUnwrap(descendant(world,"native.world.card.modal"))
+        let ribbon=try XCTUnwrap(descendant(modal,"native.world.ribbon") as? JimiNativeNewRibbonView)
+        let returned=expectation(description:"Original card return");world.closeCard{returned.fulfill()}
+        XCTAssertEqual(ribbon.layer.animation(forKey:"ribbon.motion")?.duration,0.24)
+        await fulfillment(of:[returned],timeout:5);XCTAssertNil(ribbon.superview);XCTAssertNil(ribbon.layer.animationKeys())
+    }
     func testAreaCardUsesUnitNumberWithoutRepeatingWorld55()throws {
         var progression=NativeProgressionState();progression.completedJourneyBoards=Set(1...30)
         let raw=try NativeWorldLayouts().snapshot(world:3,width:390,height:844,generation:1,progression:progression)
@@ -534,6 +562,30 @@ final class JimiNativeWorldTests: XCTestCase {
         XCTAssertTrue(card.superview === parent)
     }
 
+    func testCardSmokeBorrowsMergeSixCloudOpacityWithinExistingEnvelope() throws {
+        let owner = UIView(frame:CGRect(x:0,y:0,width:300,height:300))
+        let rect = CGRect(x:90,y:30,width:90,height:133)
+        let smoke = try XCTUnwrap(JimiNativeWorldEffects.smoke(at:rect,in:owner))
+        defer {smoke.sublayers?.forEach {$0.removeAllAnimations()};smoke.removeFromSuperlayer()}
+        XCTAssertEqual(smoke.frame,rect)
+        let puffs = try XCTUnwrap(smoke.sublayers)
+        XCTAssertTrue((19...26).contains(puffs.count))
+        for puff in puffs {
+            let shape = try XCTUnwrap(puff as? CAShapeLayer)
+            XCTAssertEqual(shape.fillColor,UIColor.white.cgColor)
+            let bounds = try XCTUnwrap(shape.path).boundingBoxOfPath
+            XCTAssertLessThanOrEqual(bounds.width,rect.width*0.36*0.49+0.001)
+            XCTAssertTrue(smoke.bounds.contains(puff.position))
+            let group = try XCTUnwrap(puff.animation(forKey:"world.smoke") as? CAAnimationGroup)
+            let opacity = try XCTUnwrap(group.animations?.first as? CAKeyframeAnimation)
+            let values = try XCTUnwrap(opacity.values as? [NSNumber])
+            XCTAssertEqual(values.first?.doubleValue,0);XCTAssertEqual(values.last?.doubleValue,0)
+            XCTAssertGreaterThanOrEqual(values[2].doubleValue,0.3*0.95-0.000001)
+            XCTAssertLessThan(values[2].doubleValue,0.95)
+            XCTAssertLessThan(group.duration,0.8)
+        }
+    }
+
     func testReturnLandingBouncesOnlyCardAndShowsFiniteSmokeAboveIsland() async throws {
         let window = UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),controller = UIViewController()
         window.rootViewController = controller;window.makeKeyAndVisible()
@@ -556,7 +608,7 @@ final class JimiNativeWorldTests: XCTestCase {
         XCTAssertLessThan(siblings.firstIndex(of:island.layer)!,siblings.firstIndex(of:smoke)!)
         XCTAssertLessThan(siblings.firstIndex(of:smoke)!,siblings.firstIndex(of:card.layer)!)
         let bubbles = smoke.sublayers?.filter {$0.name != "world.smoke.halo"} ?? []
-        XCTAssertGreaterThanOrEqual(bubbles.count,10);XCTAssertLessThanOrEqual(bubbles.count,16)
+        XCTAssertGreaterThanOrEqual(bubbles.count,8);XCTAssertLessThanOrEqual(bubbles.count,13)
         for bubble in bubbles {
             let animation = try XCTUnwrap(bubble.animation(forKey:"world.smoke") as? CAAnimationGroup)
             let opacity = try XCTUnwrap(animation.animations?.first as? CAKeyframeAnimation)

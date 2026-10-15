@@ -6,6 +6,51 @@ import StackToSixNativeState
 @testable import Stack_to_Six
 
 @MainActor final class NativeStandaloneRootTests:XCTestCase {
+    func testCompleteNativeLastOrdinaryStackToFourDropsEarnedWildAndKeepsExitAvailable() async throws {
+        try await exerciseLastFourMeterReward()
+    }
+    func testCompleteNativeRestoresCapturedFullMeterFourWithoutLosingScore() async throws {
+        let state=try JSONDecoder().decode(NativeBoardState.self,from:Data(#"{  "tiles": [    {      "id": "native:1:32:4:5:die:20",      "cell": {        "column": 4,        "row": 5      },      "value": 0,      "stackDepth": 1,      "starOrbitCount": 3,      "sourceResidualWildPresence": false,      "sourceWildStateCleared": false,      "locked": true,      "visible": true,      "pendingRemoval": false,      "transientSpawn": false,      "magnetOwned": false,      "resolutionOwned": false,      "merge6CleanupOwned": false,      "nonFinalMerge6": false,      "alpha": 0.2    },    {      "id": "native:1:32:2:7:die:21",      "cell": {        "column": 2,        "row": 7      },      "value": 0,      "stackDepth": 1,      "starOrbitCount": 3,      "sourceResidualWildPresence": false,      "sourceWildStateCleared": false,      "locked": true,      "visible": true,      "pendingRemoval": false,      "transientSpawn": false,      "magnetOwned": false,      "resolutionOwned": false,      "merge6CleanupOwned": false,      "nonFinalMerge6": false,      "alpha": 0.2    },    {      "id": "native:1:32:2:2:die:22",      "cell": {        "column": 2,        "row": 2      },      "value": 0,      "stackDepth": 1,      "starOrbitCount": 3,      "sourceResidualWildPresence": false,      "sourceWildStateCleared": false,      "locked": true,      "visible": true,      "pendingRemoval": false,      "transientSpawn": false,      "magnetOwned": false,      "resolutionOwned": false,      "merge6CleanupOwned": false,      "nonFinalMerge6": false,      "alpha": 0.2    },    {      "id": "native:1:32:1:7:die:23",      "cell": {        "column": 1,        "row": 7      },      "value": 0,      "stackDepth": 1,      "starOrbitCount": 3,      "sourceResidualWildPresence": false,      "sourceWildStateCleared": false,      "locked": true,      "visible": true,      "pendingRemoval": false,      "transientSpawn": false,      "magnetOwned": false,      "resolutionOwned": false,      "merge6CleanupOwned": false,      "nonFinalMerge6": false,      "alpha": 0.2    },    {      "id": "native:1:32:3:8:die:24",      "cell": {        "column": 3,        "row": 8      },      "value": 0,      "stackDepth": 1,      "starOrbitCount": 3,      "sourceResidualWildPresence": false,      "sourceWildStateCleared": false,      "locked": true,      "visible": true,      "pendingRemoval": false,      "transientSpawn": false,      "magnetOwned": false,      "resolutionOwned": false,      "merge6CleanupOwned": false,      "nonFinalMerge6": false,      "alpha": 0.2    },    {      "id": "native:1:32:3:7:die:25",      "cell": {        "column": 3,        "row": 7      },      "value": 0,      "stackDepth": 1,      "starOrbitCount": 3,      "sourceResidualWildPresence": false,      "sourceWildStateCleared": false,      "locked": true,      "visible": true,      "pendingRemoval": false,      "transientSpawn": false,      "magnetOwned": false,      "resolutionOwned": false,      "merge6CleanupOwned": false,      "nonFinalMerge6": false,      "alpha": 0.2    },    {      "id": "native:1:32:0:2:die:19",      "cell": {        "column": 0,        "row": 2      },      "value": 4,      "stackDepth": 2,      "starOrbitCount": 3,      "sourceResidualWildPresence": false,      "sourceWildStateCleared": false,      "locked": false,      "visible": true,      "pendingRemoval": false,      "transientSpawn": false,      "magnetOwned": false,      "resolutionOwned": false,      "merge6CleanupOwned": false,      "nonFinalMerge6": false,      "alpha": 1.0    }  ],  "mode": "arcade_home",  "columns": 5,  "rows": 9,  "board": 1,  "stage": 1,  "generation": 1,  "revision": 33,  "moves": 18,  "maxMoves": 50,  "score": 4672,  "starsCount": 0,  "bestScore": 4672,  "maxStackDepth": 3,  "longestCombo": 29,  "cubesCracked": 24,  "combo": 3,  "earnedComboBonus": 10675,  "wildSpawnCount": 4,  "wildDropTypeStreak": 1,  "rngState": 1,  "wildMeter": 1.151999999999999,  "lastWildDropType": "wild"}"#.utf8))
+        try await exerciseLastFourMeterReward(captured:state)
+    }
+    private func exerciseLastFourMeterReward(captured:NativeBoardState?=nil) async throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-meter-four-"+UUID().uuidString)
+        let store=NativeSaveStore(directory:directory)
+        var envelope=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
+        envelope.progression.firstPlayTutorialComplete=true
+        var tiles=[NativeTile(id:"two-a",cell:.init(column:0,row:2),value:2),NativeTile(id:"two-b",cell:.init(column:1,row:2),value:2)]
+        for (index,cell) in [NativeCell(column:4,row:5),.init(column:2,row:7),.init(column:2,row:2),.init(column:1,row:7),.init(column:3,row:8),.init(column:3,row:7)].enumerated() {
+            tiles.append(.init(id:"locked-\(index)",cell:cell,value:0,locked:true))
+        }
+        envelope.arcadeRun = captured ?? .init(tiles:tiles,mode:.arcade,board:1,generation:1,moves:19,wildMeter:0.99,wildSpawnCount:4)
+        try store.save(envelope)
+        let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:{0.1},completeNativeGameplayEnabled:true)
+        let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
+        defer{host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
+        host.loadViewIfNeeded()
+        let app=try XCTUnwrap(host.children.first as? NativeAppController)
+        func wait(_ label:String,_ predicate:()->Bool) async throws {
+            let deadline=Date().addingTimeInterval(20)
+            while !predicate(){guard Date()<deadline else{XCTFail(label);throw CancellationError()};try await Task.sleep(for:.milliseconds(20))}
+        }
+        try await wait("Home ready"){!app.home.isHidden};app.navigate(.gameplay,interrupt:true)
+        try await wait("Gameplay ready"){app.children.compactMap{$0 as? NativeGameplayViewController}.first?.boardScene?.isBoardEntryComplete==true}
+        let game=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first),scene=try XCTUnwrap(game.boardScene)
+        if captured==nil {
+        let a=try XCTUnwrap(scene.sourceNativeTileNode("two-a")),b=try XCTUnwrap(scene.sourceNativeTileNode("two-b"))
+        let from=scene.convert(a.position,from:try XCTUnwrap(a.parent)),to=scene.convert(b.position,from:try XCTUnwrap(b.parent))
+        XCTAssertTrue(scene.beginDrag(at:from));scene.moveDrag(to:to,now:CACurrentMediaTime());XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:to,now:CACurrentMediaTime())).accepted)
+        }
+        try await wait("Earned Wild must finish instead of orphaning a full meter") {game.engine.state.wildSpawnCount==5 && game.engine.pendingMeterOpen==nil && !game.engine.hasUnsavableSourceGameplayState}
+        XCTAssertTrue(game.engine.state.tiles.contains{$0.value==4 && !$0.isWild})
+        XCTAssertTrue(game.engine.state.tiles.contains(where:\.isWild));XCTAssertLessThan(game.engine.state.wildMeter,1)
+        XCTAssertNil(game.engine.state.terminal);XCTAssertFalse(game.engine.navigationLocked)
+        XCTAssertNil(game.sourcePresentationFailure)
+        if let captured {XCTAssertEqual(game.engine.state.score,captured.score);XCTAssertEqual(game.engine.state.moves,captured.moves)}
+        game.onExit?()
+        try await wait("Exit menu opens after earned Wild"){game.presentedViewController is JimiNativeEndRunModal}
+    }
     @MainActor private final class RetiredRound {
         weak var controller:NativeGameplayViewController?
         weak var scene:NativeBoardScene?
@@ -167,8 +212,9 @@ import StackToSixNativeState
             XCTAssertTrue(try XCTUnwrap(oldScene.finishDrag(at:target,now:CACurrentMediaTime())).accepted)
         }
         if journey {
-            try await wait{old.presentedViewController is NativeJourneyRewardController}
-            let reward=try XCTUnwrap(old.presentedViewController as? NativeJourneyRewardController)
+            try await wait{old.visibleJourneyRewardController != nil}
+            let reward=try XCTUnwrap(old.visibleJourneyRewardController)
+            try await wait{(try? store.load()?.progression.completedJourneyBoards.contains(reward.board)) == true}
             reward.activate();reward.activate() // real tap handler queues collect during reveal
             try await wait{old.presentedViewController is NativeResultController}
             let result=try XCTUnwrap(old.presentedViewController as? NativeResultController)
@@ -180,12 +226,19 @@ import StackToSixNativeState
             try await wait{button.isUserInteractionEnabled};button.sendActions(for:.touchUpInside)
         }
         var observedSourceTransition=false
+        var observedThemedAnnouncement=false
+        var transitionObservations:[String]=[]
         try await wait{
-            guard let current=app.children.compactMap({$0 as? NativeGameplayViewController}).first,current !== old else{return false}
-            if journey,current.children.contains(where:{$0 is NativeThemedBoardTransitionController}),
-               current.sourceScope?.captureSourceBoardTransitionActive()==true {observedSourceTransition=true}
+            guard let current=app.children.compactMap({$0 as? NativeGameplayViewController}).first(where:{$0 !== old}) else{return false}
+            let observation="generation=\(current.engine.state.generation) current=\(current.sourceScope?.current ?? false) flag=\(String(describing:current.sourceScope?.captureSourceBoardTransitionActive())) children=\(current.children.map{String(describing:type(of:$0))}) pendingEntry=\(current.beforeInitialBoardEntry != nil) completedEntry=\(current.boardScene?.completedSourceBoardEntry != nil) sourceConstructor=\(current.sourceInitialConstruction != nil)"
+            if transitionObservations.last != observation,transitionObservations.count<24 {transitionObservations.append(observation)}
+            if journey {
+                observedThemedAnnouncement = observedThemedAnnouncement || current.children.contains(where:{$0 is NativeThemedBoardTransitionController})
+                observedSourceTransition = observedSourceTransition || current.sourceScope?.captureSourceBoardTransitionActive()==true
+            }
             return current.boardScene?.completedSourceBoardEntry != nil
         }
+        if journey {let receipt=XCTAttachment(string:transitionObservations.joined(separator:"\n"));receipt.lifetime = .keepAlways;add(receipt)}
         let game=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first)
         let scene=try XCTUnwrap(game.boardScene),scope=try XCTUnwrap(game.sourceScope)
         XCTAssertFalse(oldScope.current);XCTAssertFalse(oldNode.sourceContactNodeAlive)
@@ -203,7 +256,10 @@ import StackToSixNativeState
         XCTAssertFalse(app.replaceGameplay(old,with:game),"Stale previous VC cannot replace or dispose the current board")
         XCTAssertTrue(scope.current)
         XCTAssertEqual(scope.captureSourceBoardTransitionActive(),false)
-        if journey {XCTAssertTrue(observedSourceTransition,"Actual Journey Continue owns the Source transition flag until its accepted handoff")}
+        if journey {
+            XCTAssertFalse(observedThemedAnnouncement,"Accepted Journey Play Again continues directly under first-frame coverage without another announcement")
+            XCTAssertFalse(observedSourceTransition,"Direct Journey continuation must not acquire an announcement transition flag")
+        }
         let saved=try XCTUnwrap(store.load())
         let savedRun=journey ? saved.journeyRuns[2]:saved.arcadeRun
         XCTAssertEqual(savedRun?.generation,nextGeneration);XCTAssertEqual(savedRun?.board,game.engine.state.board)
@@ -552,7 +608,7 @@ import StackToSixNativeState
                     }
                 } else {XCTAssertTrue(plan.isFinal);XCTAssertTrue(try XCTUnwrap(plan.sourceEntryFinalSnapshot).isFinalMerge)}
             } else {XCTAssertTrue(try XCTUnwrap(game.engine.pendingOrdinarySix).isFinal)}
-            try await wait{game.presentedViewController is NativeJourneyRewardController}
+            try await wait{game.visibleJourneyRewardController != nil}
             if coroutineLate {
                 XCTAssertNotNil(observedRetainedNode,"Actual FIFO uses the same retained constructor destination")
                 XCTAssertEqual(game.engine.state.terminal?.reason,"final_single_merge6_guard")
@@ -560,7 +616,8 @@ import StackToSixNativeState
                 XCTAssertTrue(game.engine.pendingWildSpawnActions.isEmpty)
                 XCTAssertGreaterThan(scene.sourceWildCoroutineFinallyDeliveredCount,0)
             }
-            let reward=try XCTUnwrap(game.presentedViewController as? NativeJourneyRewardController)
+            let reward=try XCTUnwrap(game.visibleJourneyRewardController)
+            try await wait{(try? store.load()?.progression.completedJourneyBoards.contains(reward.board)) == true}
             reward.activate();reward.activate() // genuine collect handler, including reveal queuing
             try await wait{game.presentedViewController is NativeResultController}
             XCTAssertEqual(game.engine.state.terminal?.kind,.complete)

@@ -1,25 +1,53 @@
 import XCTest
 import UIKit
 import ImageIO
+import StackToSixGameplay
 import StackToSixNativeState
 @testable import Stack_to_Six
 
 @MainActor
 final class NativeRewardCardRenderingTests:XCTestCase {
+    func testMountedGameplayRewardKeepsTheSameWindowAnchoredPaper() throws {
+        for size in [CGSize(width:390,height:844),CGSize(width:430,height:932)] {
+            let engine=NativeGameplayEngine(state:NativeBoardState(tiles:[]))
+            let game=NativeGameplayViewController(engine:engine,resourceRoot:NativeTestResources.root)
+            let scene=try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.first),previous=scene.windows.first{$0.isKeyWindow}
+            let window=UIWindow(windowScene:scene);window.frame=CGRect(origin:.zero,size:size);window.rootViewController=game;window.makeKeyAndVisible()
+            defer{game.dispose();window.isHidden=true;window.rootViewController=nil;previous?.makeKey()}
+            game.view.frame=window.bounds;game.view.layoutIfNeeded()
+            let paper=try XCTUnwrap(game.view.subviews.first as? NativeAppPaperSurface);paper.layoutIfNeeded()
+            let rect=paper.convert(paper.bounds,to:window)
+            let format=UIGraphicsImageRendererFormat();format.scale=1
+            func pixels()->Data? {UIGraphicsImageRenderer(bounds:paper.bounds,format:format).image{paper.layer.render(in:$0.cgContext)}.pngData()}
+            let before=try XCTUnwrap(pixels())
+            let reward=NativeJourneyRewardController(root:NativeTestResources.root,board:1,score:1000,generation:90);reward.useGameplayPaper();reward.setRewardActionsAdmitted(false)
+            game.addChild(reward);reward.view.frame=game.view.bounds;game.view.addSubview(reward.view);reward.didMove(toParent:game);reward.view.layoutIfNeeded()
+            defer{reward.dispose();reward.willMove(toParent:nil);reward.view.removeFromSuperview();reward.removeFromParent()}
+            XCTAssertTrue(reward.view.subviews.first?.isHidden == true);XCTAssertFalse(reward.view.isOpaque);XCTAssertEqual(reward.view.backgroundColor,.clear)
+            XCTAssertTrue(game.view.subviews.first === paper);XCTAssertEqual(rect,paper.convert(paper.bounds,to:window));XCTAssertEqual(before,try XCTUnwrap(pixels()))
+            XCTAssertEqual(paper.bounds.size,size)
+        }
+    }
+    func testNewRewardUsesExactCanonicalGamePaperIncludingLowerExtension() throws {
+        let root=NativeTestResources.root
+        let controller=NativeJourneyRewardController(root:root,board:1,score:1000,generation:90)
+        controller.loadViewIfNeeded();defer{controller.dispose()}
+        controller.view.frame=CGRect(x:0,y:0,width:390,height:844);controller.view.layoutIfNeeded()
+        let actual=try XCTUnwrap(controller.view.subviews.first as? NativeAppPaperSurface)
+        let reference=NativeAppPaperSurface(artwork:JimiV9Artwork(resourceRoot:root))
+        reference.frame=actual.frame;actual.layoutIfNeeded();reference.layoutIfNeeded()
+        let texture=try XCTUnwrap(actual.subviews.first as? UIImageView)
+        XCTAssertEqual(texture.frame.height,actual.bounds.height+64);XCTAssertEqual(texture.contentMode,.scaleToFill)
+        func pixels(_ view:UIView)->Data? {
+            let format=UIGraphicsImageRendererFormat();format.scale=1
+            return UIGraphicsImageRenderer(bounds:view.bounds,format:format).image{view.layer.render(in:$0.cgContext)}.pngData()
+        }
+        XCTAssertEqual(pixels(actual),pixels(reference),"Reward paper must match canonical gameplay paper pixel for pixel")
+    }
     func testMountedRewardKeepsOriginalDensityAndLiveAntialiasedFaces() async throws {
         let root=Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle")
         let resources=JimiNativeWorldResources(root:root)
         let cardPath=NativeJourneyContent.cardAsset(board:1,score:1000,doubleDensity:true)
-        let paths=[cardPath,"assets/animations/sand/zguzvano1.png","assets/animations/sand/zguzvano9.png"]
-        let ready=expectation(description:"original reward pixels ready")
-        resources.prepare(paths,owner:-50001,required:true){accepted in XCTAssertTrue(accepted);ready.fulfill()}
-        await fulfillment(of:[ready],timeout:5)
-        let selected=try XCTUnwrap(resources.image("assets/animations/sand/zguzvano9.png",owner:-50001))
-        let baseURL=root.appendingPathComponent("assets/animations/sand/zguzvano9.png")
-        let baseSource=try XCTUnwrap(CGImageSourceCreateWithURL(baseURL as CFURL,nil))
-        let original=try XCTUnwrap(CGImageSourceCreateImageAtIndex(baseSource,0,nil))
-        XCTAssertEqual(selected.scale,2)
-        XCTAssertGreaterThan(try XCTUnwrap(selected.cgImage).width,original.width)
         let controller=NativeJourneyRewardController(root:root,board:1,score:1000,generation:1,resources:resources,reducedMotion:true,random:{0.37})
         controller.prepareFilteredFrames={images,_,completion in completion(images)}
         controller.loadViewIfNeeded()
@@ -42,7 +70,7 @@ final class NativeRewardCardRenderingTests:XCTestCase {
         let faces=pose.subviews
         XCTAssertEqual(faces.count,2)
         let imageViews=faces.compactMap{$0.subviews.first?.subviews.first as? UIImageView}
-        XCTAssertEqual(imageViews.count,2)
+        XCTAssertEqual(imageViews.count,1)
         for face in faces+faces.flatMap(\.subviews) {
             XCTAssertTrue(face.layer.allowsEdgeAntialiasing)
             XCTAssertFalse(face.layer.shouldRasterize)
@@ -55,13 +83,13 @@ final class NativeRewardCardRenderingTests:XCTestCase {
             XCTAssertFalse(image.layer.shouldRasterize)
         }
         let front=try XCTUnwrap(imageViews.last?.image?.cgImage)
-        XCTAssertEqual(front.width,resources.image(cardPath,owner:-50001)?.cgImage?.width)
+        XCTAssertEqual(front.width,JimiV9Artwork(resourceRoot:root).image(cardPath)?.cgImage?.width)
         XCTAssertFalse(CATransform3DIsIdentity(faces[0].layer.transform),"Actual authored tilted face remains live")
-        try await Task.sleep(for:.milliseconds(850))
+        try await Task.sleep(for:.milliseconds(1100))
         let screenshot=UIGraphicsImageRenderer(bounds:controller.view.bounds).image{_ in controller.view.drawHierarchy(in:controller.view.bounds,afterScreenUpdates:true)}
         let attachment=XCTAttachment(image:screenshot);attachment.name="New reward original artwork and transformed face";attachment.lifetime = .keepAlways;add(attachment)
     }
-    func testActualRewardInterimShimmerAndUnlockedBurnVisualArtifacts() async throws {
+    func testActualMagicCardDelayedUnlockedEntry() async throws {
         let root=Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle")
         let controller=NativeJourneyRewardController(root:root,board:1,score:1000,generation:2,reducedMotion:false,random:{0.37})
         controller.loadViewIfNeeded()
@@ -71,10 +99,10 @@ final class NativeRewardCardRenderingTests:XCTestCase {
         defer{controller.dispose();window.isHidden=true;window.rootViewController=nil;previousKey?.makeKey()}
         controller.view.layoutIfNeeded();controller.start()
         func descendants(_ layer:CALayer)->[CALayer] {[layer]+(layer.sublayers ?? []).flatMap{descendants($0)}}
-        // drawHierarchy captures UIView contents, not proof of the compositor's
-        // animated effect intensity; presentation visibility is asserted separately.
+        // Sample the real presentation tree, so the exit snapshot retains
+        // animated SVG contents instead of its already-hidden model endpoint.
         func capture(_ name:String) {
-            let image=UIGraphicsImageRenderer(bounds:controller.view.bounds).image{_ in controller.view.drawHierarchy(in:controller.view.bounds,afterScreenUpdates:true)}
+            let image=UIGraphicsImageRenderer(bounds:controller.view.bounds).image{context in (controller.view.layer.presentation() ?? controller.view.layer).render(in:context.cgContext)}
             let attachment=XCTAttachment(image:image);attachment.name=name;attachment.lifetime = .keepAlways;add(attachment)
         }
         func waitUntil(_ condition:()->Bool) async throws -> Bool {
@@ -91,16 +119,30 @@ final class NativeRewardCardRenderingTests:XCTestCase {
                 current=node.superlayer
             };return true
         }
-        let interimVisible=try await waitUntil {
-            guard controller.phase=="interim" else{return false}
-            return descendants(controller.view.layer).contains {layer in
-                guard layer is CAGradientLayer,let surface=layer.superlayer,surface.name=="native.reward.interim-shimmer" else{return false}
-                return (layer.presentation()?.opacity ?? 0)>0.4 && surface.mask?.contents != nil && visiblyMounted(surface)
-            }
-        }
-        XCTAssertTrue(interimVisible,"Real interim shimmer must paint before reveal")
-        capture("UIView hierarchy snapshot while interim shimmer presentation is active")
+        let interimVisible=try await waitUntil {controller.phase=="interim"}
+        XCTAssertTrue(interimVisible,"Real SVG opening must reach its stable open card")
+        let magic=try XCTUnwrap(descendants(controller.view.layer).first{$0.name=="native.reward.magic-card"})
+        XCTAssertEqual(descendants(magic).filter{$0.contents != nil}.count,9)
+        XCTAssertTrue(descendants(magic).allSatisfy{($0.animationKeys() ?? []).isEmpty})
+        XCTAssertTrue(visiblyMounted(magic))
+        capture("Native SVG fully open card waiting for click")
         controller.activate()
+        XCTAssertTrue(descendants(magic).contains{!($0.animationKeys() ?? []).isEmpty})
+        try await Task.sleep(for:.milliseconds(55))
+        let lastImage=try XCTUnwrap(descendants(magic).last{$0.contents != nil})
+        XCTAssertGreaterThan(lastImage.presentation()?.opacity ?? 0,0.9,"SVG exit carrier remains visible during unlocked entry")
+        let unlockedFace=try XCTUnwrap(descendants(controller.view.layer).first{$0.name=="native.reward.unlocked-burn"}?.superlayer?.superlayer)
+        XCTAssertEqual(unlockedFace.presentation()?.opacity ?? 1,0,accuracy:0.001,"Unlocked stays hidden through the requested300ms delay")
+        controller.setForeground(false)
+        let marker=URL(fileURLWithPath:NSTemporaryDirectory()).appendingPathComponent("magic-card-overlap-ready")
+        try Data("ready".utf8).write(to:marker)
+        defer{try? FileManager.default.removeItem(at:marker)}
+        // A host simctl screenshot captures the real compositor, including SVG
+        // animations that UIKit/layer.render omit from their model snapshot.
+        try await Task.sleep(for:.seconds(6))
+        controller.setForeground(true)
+        try await Task.sleep(for:.milliseconds(280))
+        XCTAssertGreaterThan(unlockedFace.presentation()?.opacity ?? 0,0.9)
         let burn=try XCTUnwrap(descendants(controller.view.layer).first{$0.name=="native.reward.unlocked-burn"})
         let burnVisible=try await waitUntil {burn.contents != nil && (burn.presentation()?.opacity ?? 0)>0.8}
         XCTAssertTrue(burnVisible,"Real filtered unlocked card burn must reach its visible peak")

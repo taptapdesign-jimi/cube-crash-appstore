@@ -919,7 +919,7 @@ public final class NativeGameplayEngine {
             }
             if sourceRetainedDirectDestination?.tileID != destination.id {events.append(NativeGameplayEvent(.removed, tileIDs: [destination.id]))}
             if !final.isFinalMerge {
-                if let gameplayArchetype { spawnDirectWildMerge6(at: destination.cell, archetype: gameplayArchetype, depth: multiplier, avoiding: source.isWild ? destination.value : source.value, starOrbitCount: (source.isWild ? source.variant : destination.variant) != nil ? 1 : (source.isWild ? source.starOrbitCount : destination.starOrbitCount), events: &events) }
+                if let gameplayArchetype { spawnDirectWildMerge6(at: destination.cell, archetype: gameplayArchetype, depth: multiplier, avoiding: source.isWild ? destination.value : source.value, starOrbitCount: (source.isWild ? (source.variant == nil ? source.starOrbitCount:source.effectiveStarDropCount) : (destination.variant == nil ? destination.starOrbitCount:destination.effectiveStarDropCount)), events: &events) }
                 else { spawnRegularMerge6(at: destination.cell, depth: multiplier, events: &events) }
             }
         }
@@ -1442,8 +1442,8 @@ public final class NativeGameplayEngine {
         pendingSourceMagnetLazyRespawn = .init(transactionID:transactionID,generation:generation,revision:special.revision,
             slots:slots,reserved:reserved,destinationID:special.destination.id,avoiding:special.destination.value)
         sourceMagnetLazyOpens=[:];sourceMagnetLazyValueCommits=[];sourceMagnetLazySettled=[];sourceMagnetLazyReserveFill=nil;sourceMagnetLazyReserveCommits=[];sourceMagnetLazyConversion=nil;sourceMagnetLazyConversionCommitted=false;sourceMagnetLazyResolutionReleased=false
-        let pulledStar=special.targets.first{$0.gameplayArchetype == .star && $0.variant==nil}
-        let stars=prepareHUDStars(count:min(3,max(0,pulledStar.map{max(1,min(3,$0.starOrbitCount))} ?? 0)+count),origin:special.destination.cell,variant:nil)
+        let pulledStar=special.targets.first{$0.gameplayArchetype == .star && NativeStarDropCountPolicy.usesRandomCount(variant:$0.variant)}
+        let stars=prepareHUDStars(count:min(3,max(0,pulledStar.map{$0.effectiveStarDropCount} ?? 0)+count),origin:special.destination.cell,variant:nil)
         return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.removed,tileIDs:special.targets.map(\.id),archetype:.magnet,reason:transactionID),NativeGameplayEvent(.hudStarsPrepared,tileIDs:stars.map(\.id),value:stars.count,archetype:.magnet)],resolution:NativeResolution(.wait,reason:"source_magnet_lazy_respawn_pending"))
     }
     private func sourceMagnetLazyCurrent(_ transactionID:String,_ generation:UInt64,sourceCurrent:()->Bool)->Bool {
@@ -1594,8 +1594,8 @@ public final class NativeGameplayEngine {
         if sourceMagnetFallbacksEnabled {
             sourceMagnetPostCommit = .init(transactionID:plan.id,generation:plan.generation,spawnCount:plan.targets.count,reserved:reserved)
         }
-        let pulledCoreStar = plan.targets.first { $0.gameplayArchetype == .star && $0.variant == nil }
-        let orbitCount = pulledCoreStar.map { max(1,min(3,$0.starOrbitCount)) } ?? 0
+        let pulledCoreStar = plan.targets.first { $0.gameplayArchetype == .star && NativeStarDropCountPolicy.usesRandomCount(variant:$0.variant) }
+        let orbitCount = pulledCoreStar.map { $0.effectiveStarDropCount } ?? 0
         let stars = prepareHUDStars(count:min(3,orbitCount+plan.targets.count),origin:plan.destination.cell,variant:plan.variant)
         return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.removed,tileIDs:plan.targets.map(\.id),archetype:.magnet,reason:plan.id,variant:plan.variant),NativeGameplayEvent(.hudStarsPrepared,tileIDs:stars.map(\.id),value:stars.count,archetype:.magnet,variant:plan.variant)],resolution:NativeResolution(.wait,reason:"magnet_respawn_pending"))
     }
@@ -2025,7 +2025,7 @@ public final class NativeGameplayEngine {
             if wild.variant==nil,let capture=starOrbitCapture,capture.tileID==wild.id,capture.generation==state.generation {
                 count=max(0,min(3,capture.savedPositions))
                 if count==0 {return []} // Original missing texture poses skips HUD call.
-            } else {count = wild.variant == nil ? max(1,min(3,wild.starOrbitCount)) : 1}
+            } else {count = wild.effectiveStarDropCount}
         }
         else if wild.archetype == .juice { count = 1+Int(nextRandom()*3) }
         else { return [] }
@@ -2185,6 +2185,13 @@ public final class NativeGameplayEngine {
             state.tiles.append(tile); events.append(NativeGameplayEvent(.spawned,tileIDs:[tile.id],value:0))
         }
     }
+    private func initialStarDropCount(variant:String?)->Int {
+        guard NativeStarDropCountPolicy.usesRandomCount(variant:variant) else{return 1}
+        // Preserve plain Star's original Source presentation draw boundary. Variant
+        // drop counts use this committed reward draw and never reroll during rendering.
+        if variant == nil,sourceStarOrbitCountAtPresentationEnabled,sourceMathRandom != nil{return 0}
+        return 1+Int(nextRandom()*3)
+    }
     private func spawnDirectWildMerge6(at cell: NativeCell, archetype: NativeWildArchetype, depth: Int, avoiding: Int, starOrbitCount: Int, events: inout [NativeGameplayEvent]) {
         let effectiveOrbitCount:Int
         if archetype == .star,committingDirectWild,let plan=pendingDirectWild,
@@ -2243,7 +2250,7 @@ public final class NativeGameplayEngine {
         guard let reward = choice, reward.variant == nil || NativeSpecialDiceRegistry.compatibleVariant(reward.variant!,core:reward.archetype) != nil else { return false }
         state.removeSourceGridOwner(at:cell)
         var tile = freshTile(cell:cell,value:6); tile.archetype = reward.archetype; tile.variant = reward.variant
-        if reward.archetype == .star { tile.starOrbitCount = reward.variant == nil ? (sourceStarOrbitCountAtPresentationEnabled && sourceMathRandom != nil ? 0:1+Int(nextRandom()*3)) : 1 }
+        if reward.archetype == .star { tile.starOrbitCount = initialStarDropCount(variant:reward.variant) }
         if stagedMeterDrops {
             // Source openAtCell(skipSpawnAnimation:true) creates a hidden die,
             // then consumeWildCharge subtracts exactly one, retaining surplus.
@@ -4233,7 +4240,7 @@ extension NativeGameplayEngine {
             let choice=forceTutorialWildStar ? NativeWildRewardChoice(.star):rewardPicker?(state,nextRandom(),{self.nextRandom()})
             guard let choice,choice.variant==nil || NativeSpecialDiceRegistry.compatibleVariant(choice.variant!,core:choice.archetype) != nil else{flow.tries+=1;continue}
             var tile=freshTile(cell:cell,value:6);tile.archetype=choice.archetype;tile.variant=choice.variant;tile.visible=false;tile.alpha=0
-            if choice.archetype == .star {tile.starOrbitCount=choice.variant==nil ? (sourceStarOrbitCountAtPresentationEnabled && sourceMathRandom != nil ? 0:1+Int(nextRandom()*3)):1}
+            if choice.archetype == .star {tile.starOrbitCount=initialStarDropCount(variant:choice.variant)}
             let request=NativeMeterOpenRequest(id:flow.id+":attempt:\(flow.tries+1)",generation:flow.generation,spawnToken:flow.spawnToken,attempt:flow.tries+1,tile:tile,expectedHolderID:state.tile(at:cell)?.id)
             meterOpenFlow=flow;pendingMeterOpen=request
             return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.meterDropWillOpen,tileIDs:[tile.id],archetype:tile.archetype,reason:request.id,variant:tile.variant)],resolution:resolve())

@@ -88,7 +88,7 @@ final class JimiNativeSettingsView: UIView {
             let row = UIView(); scroll.addSubview(row); rows.append(row)
             let status = UILabel(); status.font = assets.font(size: 32, weight: "ExtraBold"); status.textColor = UIColor(red: 232/255, green: 116/255, blue: 74/255, alpha: 1)
             row.addSubview(status); statuses.append(status)
-            let label = UILabel(); label.text = labels[i]; label.font = assets.font(size: 20, weight: "Medium"); label.textColor = UIColor(red: 173/255, green: 135/255, blue: 117/255, alpha: 1)
+            let label = UILabel(); label.text = labels[i]; label.font = assets.font(size: 20, weight: "Medium"); label.textColor = NativeTextPalette.subtitle
             row.addSubview(label); descriptions.append(label)
             let toggle = JimiNativeSettingsToggle(); toggle.tag = i; toggle.onTintColor = accent
             toggle.accessibilityLabel = labels[i]; toggle.accessibilityIdentifier = "native.settings.\(keys[i])"
@@ -118,7 +118,7 @@ final class JimiNativeSettingsView: UIView {
             switches[i].setOn(enabled, animated: false)
             statuses[i].text = enabled ? "ON" : "OFF"
         }
-        developerSummary.attributedText = NSAttributedString(string: "DEV\nJourney card tools",attributes: [.font: assets.font(size: 18),.foregroundColor: UIColor(red: 173/255,green: 135/255,blue: 117/255,alpha: 1)])
+        developerSummary.attributedText = NSAttributedString(string: "DEV\nJourney card tools",attributes: [.font: assets.font(size: 18),.foregroundColor: NativeTextPalette.subtitle])
         let summary = NSMutableAttributedString(attributedString: developerSummary.attributedText!)
         summary.addAttributes([.font: assets.font(size: 28,weight: "ExtraBold"),.foregroundColor: accent],range: NSRange(location: 0,length: 3))
         developerSummary.attributedText = summary

@@ -59,7 +59,7 @@ struct NativeDiceArtwork {
                        anchor: CGPoint(x: 0.5, y: 1 - 221.0 / 351.0), idleSheet: .barrel),
         "mushroom": Self(path: "assets/shop/mushroom/mushroom.png", idleSheet: .mushroom),
         "robo-cube": Self(path: "assets/shop/robo/robo-cube1.png", idleSheet: .robo),
-        "cubero": Self(path: "assets/shop/cubero/cubero.png", size: CGSize(width: 170, height: 128)),
+        "cubero": Self(path: "assets/shop/cubero/cubero.png", size: CGSize(width: 170, height: 128), idleSheet: .cubero),
         "beach-ball": Self(path: "assets/shop/ball/ball.png", idleSheet: .ball)
     ]
 }
@@ -82,6 +82,7 @@ struct NativeDiceSheet {
     var animateDuringDrag = false
 
     func frame(at elapsed: TimeInterval) -> Int {
+        if path == NativeCuberoIdleMotion.sourcePath {return NativeCuberoIdleMotion.frame(seconds:elapsed)}
         let sequence = cycle * Double(activeLoops) + restingDuration
         let time = max(0, elapsed).truncatingRemainder(dividingBy: sequence)
         if time >= cycle * Double(activeLoops) { return 0 }
@@ -91,6 +92,9 @@ struct NativeDiceSheet {
         return min(frameCount - 1, Int(floor(local / active * Double(frameCount))))
     }
 
+    static let cubero = Self(path: "assets/shop/cubero/cubero.svg", atlas: CGSize(width:3360,height:540),
+        cell:CGSize(width:480,height:540),columns:7,frameCount:7,cycle:NativeCuberoIdleMotion.duration,
+        anchor:CGPoint(x:0.5,y:1-480.0/540),displayScale:128.0/360.5,offsetY:-64,animateDuringDrag:true)
     static let star = Self(path: "assets/shop/star/star-pixi-sheet.webp", atlas: CGSize(width: 4077, height: 735),
         cell: CGSize(width: 151, height: 147), columns: 27, frameCount: 120, cycle: 2,
         anchor: CGPoint(x: 75.5 / 151, y: 1 - 86.39 / 147), animateDuringDrag: true)
@@ -447,11 +451,13 @@ final class NativeBoardTextures {
         let token = generation
         let url = root.appendingPathComponent(spec.path)
         io.async { [weak self] in
-            let image = UIImage(contentsOfFile: url.path)
+            let cgImage:CGImage?
+            if spec.path == "assets/shop/cubero/cubero.svg" {cgImage=NativeCuberoSVGAtlas.decode(url)}
+            else {cgImage=UIImage(contentsOfFile:url.path)?.cgImage}
             DispatchQueue.main.async { [weak self] in
                 guard let self, !self.disposed, token == self.generation else { return }
                 let callbacks = self.waiting.removeValue(forKey: spec.path) ?? []
-                guard let image, let cgImage = image.cgImage,
+                guard let cgImage,
                       cgImage.width == Int(spec.atlas.width), cgImage.height == Int(spec.atlas.height) else {
                     NSLog("[NATIVE_BOARD_ART] Missing/invalid atlas %@", spec.path)
                     callbacks.forEach { $0([]) }

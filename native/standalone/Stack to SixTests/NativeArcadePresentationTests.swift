@@ -4,16 +4,26 @@ import UIKit
 
 @MainActor
 final class NativeArcadePresentationTests: XCTestCase {
-    func testThumbShadowPaintHasTransparentCornersAndSoftCenter() {
-        let shadow = NativeArcadeThumbShadow(frame: CGRect(x: 0,y: 0,width: 250,height: 48))
+    func testThumbShadowPaintHasTransparentCornersAndPwaBlurredCenter() {
+        // Actual iPhone13 thumb shadow dimensions: 58vw * 74%, 58vw * 15%.
+        let size = CGSize(width: 390*0.58*0.74,height: 390*0.58*0.15)
+        let shadow = NativeArcadeThumbShadow(frame: CGRect(origin: .zero,size: size))
+        shadow.layoutIfNeeded()
+        let canvas = UIView(frame: CGRect(x: 0,y: 0,width: size.width+60,height: size.height+60))
+        canvas.backgroundColor = .clear; shadow.frame.origin = CGPoint(x: 30,y: 30); canvas.addSubview(shadow)
         let format = UIGraphicsImageRendererFormat(); format.scale = 1; format.opaque = false
-        let image = UIGraphicsImageRenderer(size: shadow.bounds.size,format: format).image { shadow.layer.render(in: $0.cgContext) }
-        let bytes = image.cgImage!.dataProvider!.data! as Data
-        let stride = image.cgImage!.bytesPerRow
+        let image = UIGraphicsImageRenderer(size: canvas.bounds.size,format: format).image { canvas.layer.render(in: $0.cgContext) }
+        let cg = image.cgImage!,bytes = cg.dataProvider!.data! as Data
+        let stride = cg.bytesPerRow,x = cg.width/2,y = cg.height/2
         XCTAssertEqual(bytes[3],0)
-        let centerAlpha = bytes[24*stride+125*4+3]
-        XCTAssertGreaterThan(centerAlpha,60); XCTAssertLessThan(centerAlpha,90)
-        try? image.pngData()?.write(to: URL(fileURLWithPath: "/tmp/native-arcade-shadow-fixed.png"))
+        let centerAlpha = bytes[y*stride+x*4+3]
+        XCTAssertGreaterThan(centerAlpha,15); XCTAssertLessThan(centerAlpha,45,
+            "PWA blur spreads the raw 32% center instead of leaving a dark concentrated ellipse")
+        XCTAssertGreaterThan(bytes[29*stride+x*4+3],0,"Blur must extend beyond the original ellipse bounds")
+        let cachedImage = (shadow.subviews.first as? UIImageView)?.image
+        shadow.setNeedsLayout(); shadow.layoutIfNeeded()
+        XCTAssertTrue(cachedImage === (shadow.subviews.first as? UIImageView)?.image)
+        try? image.pngData()?.write(to: URL(fileURLWithPath: "/tmp/native-arcade-shadow-pwa-blur.png"))
     }
 
     func testBeachBubblePaintHonorsIdleOpacityInActualImagePixels() {

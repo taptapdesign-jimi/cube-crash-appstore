@@ -208,7 +208,7 @@ final class JimiNativeEndRunModal: UIViewController {
         idle.layer.shadowOpacity = 0.8;idle.layer.shadowOffset = CGSize(width:0,height:13);idle.layer.shadowRadius = 16.8
         let ink = UIColor(red:173/255,green:134/255,blue:117/255,alpha:1)
         heading.text = model.title;heading.font = assets.font(size:32,weight:"ExtraBold");heading.textColor = ink;heading.textAlignment = .center
-        subtitle.text = model.subtitle;subtitle.font = assets.font(size:20,weight:"Medium");subtitle.textColor = UIColor(red:203/255,green:168/255,blue:154/255,alpha:1);subtitle.textAlignment = .center;subtitle.numberOfLines = 0
+        subtitle.text = model.subtitle;subtitle.font = assets.font(size:20,weight:"Medium");subtitle.textColor = NativeTextPalette.subtitle;subtitle.textAlignment = .center;subtitle.numberOfLines = 0
         let subtitleParagraph = NSMutableParagraphStyle();subtitleParagraph.alignment = .center
         subtitleParagraph.minimumLineHeight = 26;subtitleParagraph.maximumLineHeight = 26
         subtitle.attributedText = NSAttributedString(string:model.subtitle,attributes:[.font:subtitle.font as Any,.foregroundColor:subtitle.textColor as Any,.paragraphStyle:subtitleParagraph])

@@ -62,6 +62,19 @@ Canonical native registry must retain each identity and its shared rule owner. A
 
 Generic Star/Juice/Magnet/TNT idle/finale/audio families are additional presentation owners, not replacements for these thirteen variants.
 
+OG TNT fuse sparkles: `NativeTntFuseSparkles.swift`, mounted by the actual
+`NativeBoardScene.repairSourceWildSkin` / `NativeDiceNode` idle prefix, ports
+`fx.ts:startTntIdleParticles` (three rectangles/200ms, original palette,
+0.55 size,0.2 spread,power1.out,300–600ms lifetime; original96-unit emitter inside128-unit tile).
+Nine reusable sprites and one finite200ms APP clock root per live OG TNT;
+no independent timer/ticker, artwork decode, audio or gameplay RNG draw.
+Pointer/registry/hidden suspension clears particles; exact node retirement,
+identity/generation replacement, deferral and disposal cancel the root and
+remove all carriers. Variant TNT skins are excluded. Regression owner:
+`NativeTntFuseSparkleTests.swift`. Rendered/physical sustained-FPS/thermal
+acceptance remains separate from deterministic lifecycle evidence.
+
+
 ## Required gameplay parity scenarios
 
 | Scenario | Authority / required evidence |

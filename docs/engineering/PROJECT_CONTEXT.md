@@ -4,9 +4,9 @@ This file is the stable, authoritative onboarding map for new Codex chats. Verif
 
 ## Native-first main decision (2026-10-07)
 
-User-selected continuation baseline (2026-10-13): immutable
-`native-benchmark-v4`; see [NATIVE_BENCHMARK_V4.md](NATIVE_BENCHMARK_V4.md).
-Continue Native work from v4. This checkpoint preserves known open physical
+User-selected continuation baseline (2026-10-16): immutable
+`native-benchmark-v5`; see [NATIVE_BENCHMARK_V5.md](NATIVE_BENCHMARK_V5.md).
+Continue Native work from v5. This checkpoint preserves known open physical
 acceptance/parity issues and does not replace the approved PWA recovery tags.
 
 The user designates `main` as the **Stack to Six Native** development project,
@@ -82,7 +82,7 @@ Use `SKIP_NATIVE_BUNDLE_SYNC=true npm run build` when validating web code withou
 - GitHub Actions runs `qa:full` on pull requests and pushes to `main` or `feature/**`.
 - Deterministic QA does not replace physical verification of animation feel, clipping at real safe areas, haptics, sustained FPS/memory, touch, or WebView lifecycle on `iPhone 13 blue`.
 
-Native Area55 Unit beam policy (user request2026-10-14): `NativeWorldLayouts` caches ten independent three-point0.50→0.60→0.50 opacity profiles, shuffled distinct3.20–5.50s periods, randomized fade split and phase. Existing child Core Animation owns visible playback; refresh/viewport geometry does not re-roll temporal profiles. `JimiNativeWorldView` removes child animations before replacement/eviction and retains existing viewport/background/park/Reduce Motion admission. Original beam artwork and Unit enter/exit geometry remain preserved; phone delivery/physical acceptance is tracked in CURRENT_HANDOFF.
+Native Area55 Unit beam policy (user request2026-10-14): `NativeWorldLayouts` caches ten independent three-point0.20→1.00→0.20 opacity profiles, shuffled distinct2.13–3.67s periods, randomized rise at28–42percent of the period and phase. Interim/unlocked card Units halve cached times/duration/phase for2× speed; locked number-only Units keep the base period. Existing child Core Animation owns visible playback; refresh/viewport geometry does not re-roll temporal profiles. `JimiNativeWorldView` removes child animations before replacement/eviction and retains existing viewport/background/park/Reduce Motion admission. Original beam artwork and Unit enter/exit geometry remain preserved; phone delivery/physical acceptance is tracked in CURRENT_HANDOFF.
 
 ## Current launch/preloader design
 

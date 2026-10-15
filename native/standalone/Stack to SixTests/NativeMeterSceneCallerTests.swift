@@ -21,9 +21,9 @@ nonisolated final class NativeMeterSceneCallerTests:XCTestCase {
         var caller:NativeMeterSceneCaller!,nodes:[String:NativeDiceNode]=[:],wall=0.0,epoch:UInt64=0
         var current=true,results:[NativeGameplayEvent.Kind]=[],activity=0,releases=0,audio=0,stops=0,masks=0,unmasks=0
         var onResult:((NativeGameplayEvent)->Void)?
-        var startedDropIDs:[String]=[]
-        init(root:URL,sourceConstructor:Bool=false){
-            engine=NativeGameplayEngine(state:.init(tiles:[.init(id:"a",cell:.init(column:0,row:0),value:2),.init(id:"b",cell:.init(column:1,row:0),value:3)],wildMeter:1.25),recordedRandomChoices:Array(repeating:0,count:100),rewardPicker:{_,_ in .init(.star,variant:"cubero")})
+        var startedDropIDs:[String]=[],selectedAudioCalls=0
+        init(root:URL,sourceConstructor:Bool=false,initialMeter:Double=1.25){
+            engine=NativeGameplayEngine(state:.init(tiles:[.init(id:"a",cell:.init(column:0,row:0),value:2),.init(id:"b",cell:.init(column:1,row:0),value:3)],wildMeter:initialMeter),recordedRandomChoices:Array(repeating:0,count:100),rewardPicker:{_,_ in .init(.star,variant:"cubero")})
             engine.stagedMeterOpen=true;engine.stagedMeterDrops=true
             textures=NativeBoardTextures(root:root);resources=NativeWildMeterDropResources(root:root)
             // Shared injected wall freezes during async assets: actual displaylink cannot
@@ -36,13 +36,13 @@ nonisolated final class NativeMeterSceneCallerTests:XCTestCase {
                 current:{[weak self] in self?.current==true},viewport:{.init(width:390,height:844)},renderEpoch:{[weak self] in self?.epoch ?? 0},node:{[weak self] in self?.nodes[$0]},install:{[weak self] node,_ in self?.nodes[node.tileID]=node},retire:{[weak self] id,node in
                     guard let self,self.nodes[id] === node else{return};self.nodes.removeValue(forKey:id);node.dispose()
                 },cellPose:{_ in (.init(x:164,y:500),0.4)},enqueue:{action in DispatchQueue.main.async{action()}},sourceActivity:{[weak self] _,_ in self?.activity+=1;return{[weak self] in self?.releases+=1}},carrierAudio:{[weak self] _,_,_ in self?.audio+=1;return{[weak self] in self?.stops+=1}},dividerMask:{[weak self] in self?.masks+=1;return{[weak self] in self?.unmasks+=1}},selectedAudio:{[weak self] tile,_ in
-                    guard let self else{return};XCTAssertEqual(self.engine.state.wildMeter,1.25);XCTAssertEqual(self.nodes[tile.id]?.variant,"cubero");XCTAssertTrue(self.nodes[tile.id]?.sourceIdleDeferred==true)
+                    guard let self else{return};XCTAssertEqual(self.engine.state.wildMeter,initialMeter-Double(self.selectedAudioCalls),accuracy:0.000001);self.selectedAudioCalls+=1;XCTAssertEqual(self.nodes[tile.id]?.variant,"cubero");XCTAssertTrue(self.nodes[tile.id]?.sourceIdleDeferred==true)
                 },texturesCurrent:{true},onImpact:{_,_ in},onHaptic:{},idleAdmitted:{_ in},ownershipReleased:{[weak self] in self?.onReleased?()},fault:{XCTFail($0)},consume:{[weak self] result,_ in
                     guard let self else{return};self.caller.receive(result);for event in result.events{self.results.append(event.kind);self.onResult?(event)}
                 },onDropStarted:{[weak self] node in
                     guard let self else{return}
                     XCTAssertTrue(self.caller.sourceTutorialWildDropping(node))
-                    XCTAssertFalse(self.results.contains(.meterDropLanded))
+                    if self.startedDropIDs.isEmpty {XCTAssertFalse(self.results.contains(.meterDropLanded))}
                     self.startedDropIDs.append(node.tileID)
                 },sourceSkin:sourceConstructor ? {[weak self] node in self?.skinPrefixes.append(node.kind+":"+(node.variant ?? "core"));return true}:nil),random:{0.5},wallNow:{ProcessInfo.processInfo.systemUptime*1000},sourcePromiseBookkeeping:sourceConstructor)
             scene.receipt={[weak self] in
@@ -58,6 +58,35 @@ nonisolated final class NativeMeterSceneCallerTests:XCTestCase {
         func dispose(){current=false;caller.dispose();scene.receipt=nil;onRendered=nil;onReleased=nil;service.dispose();timeouts.cancelAll();resources.dispose();textures.dispose();nodes.values.forEach{$0.dispose()};nodes.removeAll();view.presentScene(nil);window.isHidden=true;window.rootViewController=nil}
     }
     @MainActor private func root()->URL {Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle") ?? Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle")}
+    @MainActor func testSecondSameSelectionCanOpenWhileFirstAwaitsActualForegroundRelease() async throws {
+        let firstReady=expectation(description:"first prepared"),firstCompleted=expectation(description:"first completed"),firstUnlocked=expectation(description:"first wall unlocked")
+        let f=Fixture(root:root(),initialMeter:2.25);defer{f.dispose()}
+        let foregroundReceipt=f.scene.receipt
+        f.scene.receipt=nil // Keep the real foreground paint receipt outstanding.
+        f.onResult={event in
+            if event.kind == .meterDropPrepared {firstReady.fulfill()}
+            if event.kind == .meterDropCompleted {firstCompleted.fulfill()}
+            if event.kind == .meterDropHandoffUnlocked {firstUnlocked.fulfill()}
+        }
+        f.start();await fulfillment(of:[firstReady],timeout:10)
+        let first=try XCTUnwrap(f.engine.meterDropReservations.values.first)
+        f.advance(to:3000);await fulfillment(of:[firstCompleted,firstUnlocked],timeout:10)
+        XCTAssertFalse(f.engine.sourceMeterSpawnInProgress);XCTAssertFalse(f.engine.sourceMeterHandoffInProgress)
+        XCTAssertTrue(f.caller.retainedNodeIDs.contains(first.tileID),"Actual unpainted carrier remains owned independently of Core bookkeeping")
+        let nextReady=expectation(description:"second same-selection prepared without orphaning its request")
+        f.onResult={if $0.kind == .meterDropPrepared {nextReady.fulfill()}}
+        f.start();await fulfillment(of:[nextReady],timeout:3)
+        XCTAssertNil(f.engine.pendingMeterOpen);XCTAssertEqual(f.selectedAudioCalls,2)
+        XCTAssertEqual(f.engine.state.wildMeter,0.25,accuracy:0.000001)
+        XCTAssertEqual(f.caller.retainedNodeIDs.count,2)
+        let next=try XCTUnwrap(f.engine.meterDropReservations.values.first)
+        let firstReleased=expectation(description:"first actual foreground release")
+        f.onReleased={firstReleased.fulfill()};f.scene.receipt=foregroundReceipt
+        await fulfillment(of:[firstReleased],timeout:2)
+        f.onReleased=nil
+        XCTAssertEqual(f.caller.retainedNodeIDs,[next.tileID],"Retiring the first borrower must preserve the second same-family preparation")
+        XCTAssertNotEqual(first.tileID,next.tileID)
+    }
     @MainActor func testActualSourceMeterConstructorUsesSelectedRawFaceBeforeCarrierLanding()async throws {
         let ready=expectation(description:"actual selected constructor preparation")
         let f=Fixture(root:root(),sourceConstructor:true);defer{f.dispose()}

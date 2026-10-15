@@ -55,7 +55,7 @@ final class NativeTutorialOverlay:UIView {
         sheetSurface.layer.shadowOpacity=0.14;sheetSurface.layer.shadowRadius=45;sheetSurface.layer.shadowOffset=CGSize(width:0,height:-18)
         sheetSurface.addSubview(paper);sheet.addSubview(sheetSurface);sheet.addSubview(heading);sheet.addSubview(subtitle);sheet.addSubview(button);addSubview(sheet)
         heading.textAlignment = .center;heading.numberOfLines=0
-        subtitle.numberOfLines=0;subtitle.textAlignment = .center;subtitle.textColor=UIColor(red:180/255,green:133/255,blue:114/255,alpha:1)
+        subtitle.numberOfLines=0;subtitle.textAlignment = .center;subtitle.textColor=NativeTextPalette.subtitle
         button.setTitle("Got it!",for:.normal);button.applyModalCTA(artwork:assets)
         button.accessibilityIdentifier="native.tutorial.got-it";button.addTarget(self,action:#selector(gotIt),for:.touchUpInside)
         button.addTarget(self,action:#selector(sourceCTADown),for:.touchDown)

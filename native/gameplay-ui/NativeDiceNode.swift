@@ -5,6 +5,36 @@ import StackToSixGameplay
 @MainActor
 final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHost, NativeRegularStackFrameHost {
     let tileID: String
+    private var tntFuse:NativeTntFuseSparkles?
+    private var tntFusePaintable:(()->Bool)?
+    @discardableResult func beginSourceTntFuse(service:NativeSourceAnimationClockService,current:@escaping()->Bool,paintable:@escaping()->Bool)->Bool {
+        guard !disposed,kind=="wild-tnt",variant==nil,!sourceIdleDeferred,parent != nil else{return false}
+        if let old=tntFuse,!old.isDisposed {reconcileTntFuseVisibility();return true}
+        retireTntFuse()
+        let generation=sourceGeneration,revision=sourceBindingRevision
+        let field=NativeTntFuseSparkles(service:service,current:{[weak self] in
+            guard let self,!self.disposed,self.kind=="wild-tnt",self.variant==nil,
+                  !self.sourceWildStateCleared,!self.sourceIdleDeferred,self.parent != nil,
+                  self.sourceGeneration==generation,self.sourceBindingRevision==revision else{return false}
+            return current()
+        },paintable:{[weak self] in self?.tntFuseCanPaint==true})
+        tntFuse=field;tntFusePaintable=paintable;visual.addChild(field)
+        reconcileTntFuseVisibility()
+        let accepted=field.start()
+        guard tntFuse === field else{field.dispose();return false}
+        guard accepted else{retireTntFuse();return false}
+        onResourceReady?();return tntFuse === field && !field.isDisposed
+    }
+    private var tntFuseCanPaint:Bool {
+        !dragging && !sourceRegistryPaused && !sourceRegistryPending &&
+            sourceIdleHostPaintable(canvasPaintable:tntFusePaintable?()==true)
+    }
+    private func reconcileTntFuseVisibility(){
+        guard let field=tntFuse else{return}
+        let visible=tntFuseCanPaint
+        guard tntFuse === field else{return};field.setVisible(visible)
+    }
+    private func retireTntFuse(){let old=tntFuse;tntFuse=nil;tntFusePaintable=nil;old?.dispose()}
     private var sourceStarHalo:NativeSourceStarHaloPresentation?
     private var sourceStarSheet:NativeSourceStarSheetPresentation?
     private var sourceStarSheetID:UUID?
@@ -312,6 +342,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
                 if self.variant != nil {self.sourceRestoredWildFaceHit=CGRect(x:-64,y:-64,width:128,height:128)}
                 self.face.texture=texture;self.face.setScale(1);self.face.size=requested.size
                 self.face.anchorPoint=requested.anchor;self.face.alpha=1;self.face.isHidden=false;self.face.colorBlendFactor=0
+                if self.variant=="cubero" {self.paintArtwork()}
                 self.onResourceReady?()
                 guard self.sourceRestoredWildConstructorCurrent,self.sourceGeneration==generation,current(),
                       self.sourceRestoredWildConstructorCurrent else{onCancelled();return}
@@ -385,7 +416,9 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
                 self.face.texture=texture;self.face.setScale(1);self.face.size=face.size;self.face.anchorPoint=face.anchor
                 self.face.alpha=1;self.face.isHidden=false;self.face.colorBlendFactor=0
                 if self.variant != nil {self.sourceOpenedWildFaceHit=CGRect(x:-64,y:-64,width:128,height:128)}
-                self.sourceOpenedWildTexture=texture;self.onResourceReady?()
+                self.sourceOpenedWildTexture=texture
+                if self.variant=="cubero" {self.paintArtwork()}
+                self.onResourceReady?()
                 if !valid(){onCancelled()}
             },onCancelled:{[weak self] in
                 if self?.sourceOpenedWildIdentity?.id==id {self?.sourceOpenedWildFrame=nil}
@@ -644,6 +677,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         guard valid() else{return false}
         // Seal family/frame/outer owners before external captured retirement.
         // Suppression is established without rebuild/onResourceReady callbacks.
+        retireTntFuse()
         sourceIdleDeferred=true;sourceRegistryPending=false;artworkGeneration &+= 1
         let idleScope=sourceSpecialIdle
         idleScope?.retire(self);guard valid() else{return false}
@@ -1192,7 +1226,9 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     /// Keep the live artwork size/anchor/pose rather than a blanket128px box.
     var dragContactBounds:CGRect {
         guard let parent else {return .zero}
-        let body:SKNode = !flowerCanvas.isHidden ? flowerArt:
+        // Cubero's SVG retains transparent hop padding. Its original neutral
+        // face keeps that decoration out of gameplay contact geometry.
+        let body:SKNode = variant == "cubero" ? face:!flowerCanvas.isHidden ? flowerArt:
             !artwork.isHidden && artwork.size.width>0 ? artwork:face
         guard let bodyParent=body.parent else {return .zero}
         let frame=body.frame
@@ -1279,7 +1315,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     }
     @discardableResult func repairSourceWildSkin(generation:UInt64,assetTasks:NativeSourceMicrotaskAdapters,
         reactionScope:NativeSourceMicrotaskFIFO.Scope,current:@escaping()->Bool,
-        startSourceIdle:()->Bool,startSourceShimmer:(()->Bool)?=nil,startSourceIdleBubbles:(()->NativeIdleBubbleField?)?=nil,currentSourceFaceAnchor:(()->CGPoint?)?=nil,completion:@escaping(Bool)->Void)->Bool {
+        startSourceIdle:()->Bool,startSourceTntFuse:(()->Bool)?=nil,startSourceShimmer:(()->Bool)?=nil,startSourceIdleBubbles:(()->NativeIdleBubbleField?)?=nil,currentSourceFaceAnchor:(()->CGPoint?)?=nil,completion:@escaping(Bool)->Void)->Bool {
         guard !disposed,parent != nil,sourceOuterDriven,sourceGeneration==generation,
               isSpecial,!sourceWildStateCleared,NativeWildArchetype(rawValue:kind) != nil,
               reactionScope.isBound(to:assetTasks.fifo),reactionScope.admissionOpen else{return false}
@@ -1320,6 +1356,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
                 // xScale=±1 must never expose the full @2x raster dimensions.
                 self.face.anchorPoint=anchor;self.face.alpha=1;self.face.isHidden=false
                 self.paintFishVisibility()
+                if capturedVariant=="cubero",self.sourceIdleDeferred {self.prepareCuberoCarrierArtwork()}
                 if self.definition.idleSheet != nil {self.paintArtwork()}
                 self.face.colorBlendFactor=0
                 self.sourceWildSkinTexture=(generation,capturedKind,capturedVariant,handle)
@@ -1359,6 +1396,9 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
             }
             let idle=startSourceIdle()
             guard idle,valid() else{return reject()}
+            if let startSourceTntFuse {
+                guard startSourceTntFuse(),valid() else{retireTntFuse();return reject()}
+            }
         }
         return true
     }
@@ -1437,8 +1477,8 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     private var frames: [SKTexture] = []
     private var paintedFrame = -1
     private var artworkGeneration = 0
+    private var cuberoCarrierArtwork=false
     private var disposed = false
-    private var cuberoElapsed:TimeInterval = 0
     private var sourceBottleIdle:NativeSourceBottleIdlePresentation?
     private var sourceBottlePreservingBase=false
     var hasSourceBottleIdle:Bool {sourceBottleIdle != nil}
@@ -1485,6 +1525,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         guard !disposed else{return}
         if sourceGeneration != generation {
             sourceGridCell=nil
+            retireTntFuse()
             retireSourceStarHalo()
             let outer=sourceOuterBridge,shadow=sourceShadowOwner
             sourceOuterBridge=nil;sourceShadowOwner=nil;sourceOuterBindingID=nil;sourceBindingRevision &+= 1
@@ -1679,6 +1720,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         guard self.value != value || self.kind != kind || self.variant != variant || self.depth != depth || self.locked != locked else { return }
         let sourceSkinOwnsUnchangedIdentity = self.kind==kind && self.variant==variant && (sourceSkinHitArea != nil || sourceRestoredWildConstructorCurrent || sourceOpenedWildConstructorCurrent)
         if self.kind != kind || self.variant != variant {
+            retireTntFuse()
             retireSourceWildShimmer()
             // Retire this skin identity before any callback or raw rebuilding.
             // Its revision prevents an old A→B→A async receipt from repainting.
@@ -1701,13 +1743,14 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         // This applies while its real texture request is pending as well.
         if sourceSkinOwnsUnchangedIdentity {return}
         if identityChanged {
+            cuberoCarrierArtwork=false
             if let id=artworkPhaseID {textures.releaseIdlePhase(id)}
             fishMediaReady=false
             artworkPhaseID=nil;artworkRunning=false;artworkElapsed=0
             kantaIdle?.dispose(); kantaIdle = nil;mushroomSmoke?.dispose();mushroomSmoke=nil;spaceshipEngine?.dispose();spaceshipEngine=nil;honeyIdle?.dispose();honeyIdle=nil;idleFizz?.dispose();idleFizz=nil
             let hash = tileID.utf8.reduce(UInt64(5381)) { ($0 &* 33) &+ UInt64($1) }
             definition = NativeDiceArtwork.definition(kind: kind, variant: variant, regularSkin: Int(hash % 4))
-            elapsed = 0; cuberoElapsed = 0; bottleElapsed=0;spaceshipElapsed=0;spaceshipRoot.position = .zero;spaceshipRoot.zRotation=0;face.position = .zero; face.zRotation = 0; frames = []; paintedFrame = -1
+            elapsed = 0; bottleElapsed=0;spaceshipElapsed=0;spaceshipRoot.position = .zero;spaceshipRoot.zRotation=0;face.position = .zero; face.zRotation = 0; frames = []; paintedFrame = -1
         }
         rebuild()
         if let scope=sourceSpecialIdle {_ = configureSourceSpecialIdle(scope)}
@@ -1798,6 +1841,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
                 self.onResourceReady?()
             }
         }
+        if cuberoCarrierArtwork {paintArtwork()}
     }
 
     private var sourceMagnetFizzRAFs:[UUID:(cue:UUID,lease:NativeSourceAnimationClockService.SourceFrameLease)]=[:]
@@ -1900,6 +1944,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     }
 
     func reconcileSourceIdleBubbleVisibility(){
+        reconcileTntFuseVisibility()
         reconcileSourceHoneyIdleVisibility()
         reconcileSourceBottleIdleVisibility()
         guard let field=sourceIdleBubbleField,idleFizz === field else{return}
@@ -1910,15 +1955,16 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     /// while hidden; phase/media allocation starts only at real Source landed.
     var sourceIdleOwnerCount:Int {
         [artworkPhaseID != nil,kantaIdle != nil,mushroomSmoke != nil,
-         spaceshipEngine != nil,honeyIdle != nil,sourceHoneyIdle != nil,idleFizz != nil].filter{$0}.count
+         spaceshipEngine != nil,honeyIdle != nil,sourceHoneyIdle != nil,idleFizz != nil,tntFuse != nil].filter{$0}.count
     }
     func setSourceIdleDeferred(_ active:Bool,preserveSourceBottleBase:Bool=false,preserveSourceHoneyIdle:Bool=false) {
         guard !disposed,sourceIdleDeferred != active else{return}
         sourceBottlePreservingBase=preserveSourceBottleBase && !active && variant=="bottle"
         sourceHoneyPreparing=preserveSourceHoneyIdle && !active && variant=="honey"
         defer{sourceBottlePreservingBase=false;sourceHoneyPreparing=false}
-        sourceIdleDeferred=active;artworkGeneration+=1
+        sourceIdleDeferred=active;artworkGeneration+=1;cuberoCarrierArtwork=false
         if active {
+            retireTntFuse()
             retireSourceStarSheet()
             retireSourceBottleIdle(restoring:true)
             retireSourceHoneyIdle()
@@ -1931,7 +1977,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
             kantaIdle?.dispose();kantaIdle=nil;mushroomSmoke?.dispose();mushroomSmoke=nil
             spaceshipEngine?.dispose();spaceshipEngine=nil;honeyIdle?.dispose();honeyIdle=nil
             idleFizz?.dispose();idleFizz=nil
-            elapsed=0;cuberoElapsed=0;bottleElapsed=0;spaceshipElapsed=0
+            elapsed=0;bottleElapsed=0;spaceshipElapsed=0
             spaceshipRoot.position = .zero;spaceshipRoot.zRotation=0
             face.position = .zero;face.zRotation=0
             if sourceSkinHitArea == nil {face.xScale=1;face.yScale=1}
@@ -2091,6 +2137,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     private func setSourceRegistryPaused(_ active:Bool) {
         guard !disposed,sourceRegistryPaused != active else{return}
         sourceRegistryPaused=active
+        reconcileTntFuseVisibility()
         sourceStarSheet?.pointerStateChanged()
         reconcileSourceBottleIdleVisibility()
         let effective=active || dragging
@@ -2106,6 +2153,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         // retains its original base sprite; retiring our projection must hand
         // visibility back to that same face before a Magnet pulls the die.
         let kantaBaseWasCovered=kantaIdle?.assetReady==true && variant=="kanta" && face.texture != nil
+        retireTntFuse()
         retireSourceStarSheet()
         retireSourceBottleIdle(restoring:true)
         retireSourceHoneyIdle()
@@ -2139,10 +2187,10 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
             motion.lastPaint=nil;sourceBeeHostMotion=motion
         }
         dragging = active
+        reconcileTntFuseVisibility()
         sourceHoneyIdle?.setDragging(active || sourceRegistryPaused)
         reconcileSourceBottleIdleVisibility()
         if active {idleFizz?.stopForPointer()}
-        if variant == "cubero" {cuberoElapsed = 0;face.position = .zero;face.zRotation = 0}
         kantaIdle?.setDragging(active || sourceRegistryPaused);mushroomSmoke?.setDragging(active || sourceRegistryPaused);honeyIdle?.setDragging(active || sourceRegistryPaused)
         if !sourceOuterTransform {
             visual.removeAction(forKey: "stack"); visual.removeAction(forKey: "lift")
@@ -2213,9 +2261,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
                 face.yScale = scale; face.xScale *= scale
             } else { face.position = .zero; face.zRotation = 0; face.yScale = 1 }
         } else if variant == "cubero" {
-            if !dragging {cuberoElapsed += delta}
-            let pose=NativeCuberoIdleMotion.sample(seconds:cuberoElapsed)
-            face.position=CGPoint(x:pose.x,y:-pose.y);face.zRotation = -pose.rotation
+            paintArtwork()
         } else if variant == "bottle" {
             if !dragging,sourceBottleIdle==nil {bottleElapsed+=delta};paintBottle()
         } else if variant == "spaceship" {
@@ -2285,16 +2331,46 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         flowerRotation.zRotation = -pose.rotationDegrees * .pi / 180
     }
 
+    /// Only the selected Source carrier borrows neutral SVG pixels before
+    /// genuine landing. This prepares no idle phase, ticker, or gameplay receipt.
+    private func prepareCuberoCarrierArtwork() {
+        guard !disposed,variant=="cubero",sourceIdleDeferred,!sourceWildStateCleared,
+              sourceOpenedWildConstructorCurrent || sourceRestoredWildConstructorCurrent else{return}
+        if cuberoCarrierArtwork {paintArtwork();return}
+        let token=artworkGeneration,generation=sourceGeneration,revision=sourceBindingRevision
+        let capturedParent=parent
+        textures.prepare(.cubero) {[weak self] loaded in
+            guard let self,!self.disposed,self.artworkGeneration==token,
+                  self.sourceGeneration==generation,self.sourceBindingRevision==revision,
+                  self.parent === capturedParent,self.variant=="cubero",self.sourceIdleDeferred,
+                  !self.sourceWildStateCleared,loaded.count==7 else{return}
+            self.frames=loaded;self.paintedFrame = -1;self.cuberoCarrierArtwork=true
+            self.paintArtwork();self.onResourceReady?()
+        }
+    }
+
     private func paintArtwork() {
-        guard !disposed, !sourceIdleDeferred && !sourceRegistryPending, let sheet = definition.idleSheet, !frames.isEmpty else { return }
-        let useFrames = artworkRunning && (!dragging || sheet.animateDuringDrag)
+        let carrier = variant=="cubero" && cuberoCarrierArtwork
+        guard !disposed,(!sourceIdleDeferred && !sourceRegistryPending || carrier),
+              let sheet=definition.idleSheet,!frames.isEmpty else{return}
+        let useFrames = (artworkRunning || variant == "cubero") && (!dragging || sheet.animateDuringDrag)
         artwork.isHidden = !useFrames; face.isHidden = useFrames
         guard useFrames else { return }
-        let frame = sheet.frame(at: artworkElapsed)
+        let time = variant == "cubero" && (carrier || !artworkRunning) ? 0:artworkElapsed
+        let frame = sheet.frame(at: time)
         if frame != paintedFrame { artwork.texture = frames[frame]; paintedFrame = frame }
         artwork.anchorPoint = sheet.anchor
+        if artwork.xScale != 1 || artwork.yScale != 1 {artwork.setScale(1)}
         artwork.size = CGSize(width: sheet.cell.width * sheet.displayScale, height: sheet.cell.height * sheet.displayScale)
         artwork.position.y = sheet.offsetY
+        if variant == "cubero" {
+            let pose=NativeCuberoIdleMotion.sample(seconds:time)
+            // Keep the enlarged SVG's resting foot aligned with ordinary dice.
+            // The authored hop displacement and contact face stay unchanged.
+            artwork.position.y = sheet.offsetY-pose.y*sheet.displayScale
+            artwork.xScale=pose.scaleX*NativeCuberoIdleMotion.artworkScale
+            artwork.yScale=pose.scaleY*NativeCuberoIdleMotion.artworkScale
+        }
     }
 
     /// Capture only the current authored artwork into plain nodes. SpriteKit's
@@ -2334,6 +2410,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     func dispose() {
         guard !disposed else { return }
         sourceGridCell=nil
+        retireTntFuse()
         retireSourceBottleIdle(restoring:false)
         retireSourceHoneyIdle()
         cancelSourceMagnetFizzRAF()

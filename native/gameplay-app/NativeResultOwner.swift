@@ -25,6 +25,18 @@ final class NativeResultOwner {
     var afterReward:((@escaping ()->Void)->Void)?
     var onSourceFinalCleanup:((NativeSourceNoMovesCompletedReceipt)->Void)?
     var prepareExit:((@escaping (Bool)->Void)->Void)?
+    static func finalScore(state:NativeBoardState,clean:Bool)->Int {
+        let arcade=clean && state.mode == .arcade
+        let efficiency=clean && !arcade ? NativeRewardMath.efficiencyBonus(baseBonus:500+(state.board-1)*200,
+            remainingMoves:state.moves,maxMoves:state.maxMoves,maxStackDepth:state.maxStackDepth) : 0
+        return NativeRewardMath.finalScore(currentScore:state.score,comboBonus:clean && !arcade ? state.earnedComboBonus:0,efficiencyBonus:efficiency)
+    }
+    private static func removeReward(_ card:NativeJourneyRewardController,completion:@escaping ()->Void) {
+        if card.parent != nil {
+            card.willMove(toParent:nil);card.view.removeFromSuperview();card.removeFromParent();completion()
+        } else if card.presentingViewController != nil {card.dismiss(animated:false,completion:completion)}
+        else {completion()}
+    }
     init(gameplay: NativeGameplayViewController, root: URL, resolution: NativeResolution,
          commit: @escaping (Int) throws -> Void, restart: @escaping () -> Void,
          continueArcade: @escaping () -> Void, exit: @escaping () -> Void,
@@ -50,25 +62,46 @@ final class NativeResultOwner {
         let efficiency=clean && !arcadeCue ? NativeRewardMath.efficiencyBonus(baseBonus:500+(state.board-1)*200,
             remainingMoves:state.moves,maxMoves:state.maxMoves,maxStackDepth:state.maxStackDepth) : 0
         let combo=clean && !arcadeCue ? state.earnedComboBonus : 0
-        let score=NativeRewardMath.finalScore(currentScore:state.score,comboBonus:combo,efficiencyBonus:efficiency)
+        let score=Self.finalScore(state:state,clean:clean)
         let showResult:()->Void = { [weak self,weak gameplay] in
             guard let self,let gameplay,!self.disposed,self.lease==token else{return}
             self.presentResult(gameplay:gameplay,state:state,clean:clean,combo:combo,efficiency:efficiency,score:score)
         }
         if clean,interimJourney,state.mode == .journey {
-            do {try commit(score)} catch {onError?(error);return}
+            do {try commit(score)} catch {
+                gameplay.takePreparedJourneyReward(generation:state.generation)?.dispose(notify:false)
+                onError?(error);return
+            }
             gameplay.setSuspended(true)
-            let card=NativeJourneyRewardController(root:root,board:state.board,score:max(score,rewardScore ?? 0),generation:state.generation)
+            let prepared=gameplay.takePreparedJourneyReward(generation:state.generation)
+            let card=prepared ?? NativeJourneyRewardController(root:root,board:state.board,score:max(score,rewardScore ?? 0),generation:state.generation)
             reward=card;card.onSoundMoment = { [weak self] kind,index,_ in self?.onMoment?(kind,index,nil) };card.onHaptic=onHaptic
-            card.onFinish = { [weak self,weak card] action in
-                guard let self,let card,!self.disposed,self.lease==token,self.reward === card else{return}
+            card.onAssetFailure = { [weak self,weak card,weak gameplay] message in
+                guard let self,let card,let gameplay,!self.disposed,self.lease==token,self.reward === card,
+                      gameplay.engine.state.generation==state.generation else{return}
+                self.reward=nil;card.dispose(notify:false)
+                Self.removeReward(card) {
+                    guard !self.disposed,self.lease==token,gameplay.engine.state.generation==state.generation else{return}
+                    showResult()
+                    self.onError?(NSError(domain:"NativeJourneyReward",code:1,userInfo:[NSLocalizedDescriptionKey:message]))
+                }
+            }
+            card.onFinish = { [weak self,weak card,weak gameplay] action in
+                guard let self,let card,let gameplay,!self.disposed,self.lease==token,self.reward === card,
+                      gameplay.engine.state.generation==state.generation else{return}
                 self.reward=nil
-                card.dismiss(animated:false) {
-                    guard !self.disposed,self.lease==token else{return}
+                Self.removeReward(card) {
+                    guard !self.disposed,self.lease==token,gameplay.engine.state.generation==state.generation else{return}
                     if action == .collect {if let next=self.afterReward {next(showResult)} else {showResult()}}
                 }
             }
-            gameplay.present(card,animated:false)
+            card.loadViewIfNeeded()
+            if card.phase=="asset-failed" {card.onAssetFailure?("Selected Native reward artwork preparation failed")}
+            card.whenMagicCardPrepared { [weak self,weak card,weak gameplay] in
+                guard let self,let card,let gameplay,!self.disposed,self.lease==token,self.reward === card,
+                      gameplay.engine.state.generation==state.generation else{return}
+                gameplay.mountJourneyRewardController(card,generation:state.generation)
+            }
         } else {showResult()}
     }
     private func presentResult(gameplay:NativeGameplayViewController,state:NativeBoardState,clean:Bool,combo:Int,efficiency:Int,score:Int) {
@@ -97,7 +130,7 @@ final class NativeResultOwner {
         let callback=onSourceFinalCleanup;onSourceFinalCleanup=nil
         if let receipt=sourceNoMovesReceipt {callback?(receipt)}
     }
-    func dispose() {disposed=true;lease += 1;finishSourceFinalCleanup();let card=reward;reward=nil;card?.dispose(notify:false);card?.dismiss(animated:false);modal?.dispose();modal?.dismiss(animated:false);modal=nil;onMoment=nil;onHaptic=nil;onError=nil;afterReward=nil;prepareExit=nil}
+    func dispose() {disposed=true;lease += 1;finishSourceFinalCleanup();let card=reward;reward=nil;card?.dispose(notify:false);if let card {Self.removeReward(card,completion:{})};modal?.dispose();modal?.dismiss(animated:false);modal=nil;onMoment=nil;onHaptic=nil;onError=nil;afterReward=nil;prepareExit=nil}
 }
 
 /// Authored stars/text/score/result CTA layout; its native clock pauses with the app.

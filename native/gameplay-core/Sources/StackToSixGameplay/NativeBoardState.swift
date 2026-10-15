@@ -2,6 +2,15 @@ import Foundation
 
 public enum NativeRunMode: String, Codable, Sendable { case arcade = "arcade_home", journey }
 public enum NativeWildArchetype: String, Codable, CaseIterable, Sendable { case star = "wild", juice = "wild-juice", magnet = "wild-magnet", tnt = "wild-tnt" }
+/// Plain Star and these variants share a persisted drop count; Bee remains fixed at one.
+public enum NativeStarDropCountPolicy {
+    public static func usesRandomCount(variant:String?)->Bool {
+        variant == nil || variant == "fish" || variant == "kanta" || variant == "cubero"
+    }
+    public static func effectiveCount(variant:String?,savedCount:Int)->Int {
+        usesRandomCount(variant:variant) ? max(1,min(3,savedCount)) : 1
+    }
+}
 public struct NativeCell: Hashable, Codable, Sendable {
     public var column: Int
     public var row: Int
@@ -31,6 +40,7 @@ public struct NativeTile: Identifiable, Equatable, Codable, Sendable {
         self.id = id; self.cell = cell; self.value = value; self.stackDepth = stackDepth; self.starOrbitCount = starOrbitCount; self.archetype = archetype; self.variant = variant; self.sourceWildStateCleared = sourceWildStateCleared; self.sourceResidualWildPresence=sourceResidualWildPresence; self.locked = locked; self.visible = visible; self.alpha = alpha; self.pendingRemoval = pendingRemoval; self.transientSpawn = transientSpawn; self.magnetOwned = magnetOwned; self.resolutionOwned = resolutionOwned; self.merge6CleanupOwned = merge6CleanupOwned; self.nonFinalMerge6 = nonFinalMerge6
     }
     public var gameplayArchetype: NativeWildArchetype? { sourceWildStateCleared ? nil:variant.flatMap { NativeSpecialDiceRegistry.variants[$0]?.archetype } ?? archetype }
+    public var effectiveStarDropCount:Int { NativeStarDropCountPolicy.effectiveCount(variant:variant,savedCount:starOrbitCount) }
     public var isWild: Bool { sourceResidualWildPresence || gameplayArchetype != nil }
     public var countsAsFinalMergeActive: Bool {
         guard !pendingRemoval, visible, alpha > 0.01 else { return false }

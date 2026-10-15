@@ -1,5 +1,6 @@
 import UIKit
 import StackToSixGameplay
+import StackToSixNativeState
 
 /// Native app composition. Services contain Swift state owners, never a web transport.
 @MainActor
@@ -7,6 +8,7 @@ struct NativeAppServices {
     var developerAction: ((NativeDeveloperAction, UIViewController) throws -> Void)?
     var showsStudioIntro=false
     var studioIntroCue:((String)->Void)?
+    var backpackProgression: () -> NativeProgressionState = {NativeProgressionState()}
     var settings: () -> [String: Any]
     var setPreference: (String, Bool) throws -> Void
     var worldSnapshot: (Int, CGSize, Int) throws -> [String: Any]
@@ -24,7 +26,7 @@ struct NativeAppServices {
 
 @MainActor
 final class NativeAppController: UIViewController {
-    enum Route: Equatable {case home, hub, settings, world(Int), gameplay}
+    enum Route: Equatable {case home, hub, settings, backpack, world(Int), gameplay}
     private let services: NativeAppServices
     private let artwork: JimiV9Artwork
     private let resourceRoot:URL
@@ -42,6 +44,8 @@ final class NativeAppController: UIViewController {
     }
     private var gameplayLaunchPreparation:GameplayLaunchPreparation?
     private var motion: NativeRouteMotion!
+    private(set) var backpackView:NativeBackpackView?
+    private var backpackDetail:NativeBackpackDetail?
     private var backpack:NativeHubBackpackFeedback?
     private var generation = 0
     private var transitioning = false
@@ -98,7 +102,7 @@ final class NativeAppController: UIViewController {
         }
         motion = NativeRouteMotion(home:home,hub:hub)
         backpack=NativeHubBackpackFeedback(button:hub.backpackButton)
-        hub.onBackpack = { [weak self] in guard let self else{return};self.backpack?.activate(generation:self.generation) }
+        hub.onBackpack = { [weak self] in guard let self else{return};self.navigate(.backpack) }
         home.onActivate = { [weak self] index in
             guard let self else{return}
             self.homeJourneyTutorial = index == 0 && self.services.requiresTutorial()
@@ -190,7 +194,11 @@ final class NativeAppController: UIViewController {
             guard let self,self.generation == owner else{return}
             self.reveal(next)
         }
+        backpackView?.isUserInteractionEnabled=false
         switch route {
+        case .backpack:
+            retireBackpackDetail()
+            motion.animate(backpackView?.tracks(enter:false) ?? [],completion:complete)
         case .home:motion.animate(motion.homeTracks(enter:false),completion:complete)
         case .hub:
             let id:Int? = {if case .world(let id) = next{return id};return nil}()
@@ -202,8 +210,10 @@ final class NativeAppController: UIViewController {
     }
     private func reveal(_ next:Route) {
         guard !suspended else {deferredReveal = next;return}
+        if route == .backpack || next == .backpack {motion.cancel()}
         home.isUserInteractionEnabled=false
         home.isHidden = true;hub.isHidden = true;settingsView.isHidden = true;world?.isHidden = true
+        backpackView?.isHidden=true
         route = next;onRoute?(next);fault.isHidden = true
         let owner = generation
         let admitted:()->Void = { [weak self] in
@@ -213,10 +223,21 @@ final class NativeAppController: UIViewController {
             self.home.isUserInteractionEnabled = self.route == .home
             self.hub.setContentInteractionEnabled(self.route == .hub)
             self.settingsView.isUserInteractionEnabled = self.route == .settings
+            self.backpackView?.isUserInteractionEnabled = self.route == .backpack
             if self.route == .home {self.home.startHeroIdle()}
             if self.route == .hub {self.hub.startIdle()}
         }
         switch next {
+        case .backpack:
+            if backpackView == nil {
+                let screen=NativeBackpackView(frame:view.bounds,assets:JimiV9Artwork(resourceRoot:resourceRoot))
+                screen.autoresizingMask=[.flexibleWidth,.flexibleHeight];view.addSubview(screen);backpackView=screen
+                screen.onClose={[weak self] in self?.navigate(.hub)}
+                screen.onDie={[weak self] die in self?.openBackpackDetail(die)}
+            }
+            backpackView?.isHidden=false;backpackView?.isUserInteractionEnabled=false
+            backpackView?.apply(NativeBackpackCatalog.sections(services.backpackProgression()))
+            motion.animate(backpackView?.tracks(enter:true) ?? [],completion:admitted)
         case .home:
             home.isHidden = false;home.selectSlide(home.selectedSlide,animated:false)
             onFeedback?("home-haptic-enter")
@@ -476,9 +497,17 @@ final class NativeAppController: UIViewController {
         home.selectSlide(0,animated:false);returnRoute = .home;beforeHomeReveal=onPrepared
         returnFromGameplay()
     }
+    private func openBackpackDetail(_ die:NativeBackpackCatalog.Die) {
+        guard !disposed,!suspended,!transitioning,route == .backpack,presentedViewController == nil else{return}
+        let detail=NativeBackpackDetail(die:die,assets:JimiV9Artwork(resourceRoot:resourceRoot),motion:NativeRouteMotion(home:home,hub:hub))
+        backpackDetail=detail;backpackView?.isUserInteractionEnabled=false;onFeedback?("cta")
+        detail.onClose={[weak self] in guard let self else{return};self.backpackDetail=nil;self.backpackView?.isUserInteractionEnabled = self.route == .backpack && !self.transitioning && !self.suspended;self.onFeedback?("close")}
+        present(detail,animated:false)
+    }
+    private func retireBackpackDetail(){backpackDetail?.dispose();backpackDetail?.dismiss(animated:false);backpackDetail=nil}
     private func showFault(_ error:Error) {fault.text = error.localizedDescription;fault.isHidden = false;view.bringSubviewToFront(fault)}
     private func suspend() {
-        suspended = true;motion.suspend()
+        suspended = true;motion.suspend();backpackDetail?.setForeground(false)
         if let launch=gameplayLaunchPreparation {
             deferredReveal=launch.board.map{.world(($0-1)/10+1)} ?? .home
             generation+=1;transitioning=false
@@ -492,7 +521,8 @@ final class NativeAppController: UIViewController {
         do {try services.flush()} catch {showFault(error)}
     }
     private func resume() {
-        suspended = false;motion.resume()
+        suspended = false;motion.resume();backpackDetail?.setForeground(true)
+        if route == .backpack {backpackView?.isUserInteractionEnabled = !transitioning && backpackDetail == nil}
         if let next = deferredReveal {deferredReveal = nil;reveal(next);return}
         guard !transitioning else{return}
         if route == .home {home.startHeroIdle()}
@@ -513,6 +543,7 @@ final class NativeAppController: UIViewController {
         cancelWorldEntryPreparation()
         generation += 1;transitioning = true;suspended = true;deferredReveal = nil
         motion?.cancel();home?.stopHeroIdle(preservePaintedPose:false);hub?.stopIdle()
+        retireBackpackDetail();backpackView?.onClose=nil;backpackView?.onDie=nil;backpackView?.removeFromSuperview();backpackView=nil
         backpack?.dispose();backpack=nil;hub?.onBackpack=nil
         world?.cleanup();world?.removeFromSuperview();world = nil
         retireCoveredGameplay()

@@ -422,7 +422,7 @@ final class NativeBoardScene: SKScene {
             self.onSpecialIdleSuspended?(snapshot.suspended || self.sourceFrames.isSpecialIdleSuspended)
         }
         for node in engine.state.tiles.compactMap({nodesByID[$0.id]}) {
-            let startupVariant=sourceMicrotaskInstallation != nil && (node.variant=="bottle" || node.variant=="honey") && (!node.sourceIdleDeferred || node.sourceRestoredWildConstructorCurrent)
+            let startupVariant=sourceMicrotaskInstallation != nil && (node.variant=="bottle" || node.variant=="honey" || node.variant=="cubero" || node.kind=="wild-tnt" && node.variant==nil) && (!node.sourceIdleDeferred || node.sourceRestoredWildConstructorCurrent)
             if startupVariant {
                 node.setSourceIdleDeferred(true)
                 sourceEntryDeferredVariants.append(node)
@@ -513,7 +513,7 @@ final class NativeBoardScene: SKScene {
         let captured=sourceEntryDeferredVariants.filter{only==nil || $0 === only};sourceEntryDeferredVariants.removeAll{only==nil || $0 === only}
         for node in captured {
             guard sourceSpecialIdleAdmissionOpen,nodesByID[node.tileID] === node,
-                  node.sourceGeneration==engine.state.generation,node.variant=="bottle" || node.variant=="honey" else{continue}
+                  node.sourceGeneration==engine.state.generation,node.variant=="bottle" || node.variant=="honey" || node.variant=="cubero" || node.kind=="wild-tnt" && node.variant==nil else{continue}
             let variant=node.variant
             if node.sourceRestoreWildFacePending {sourceEntryDeferredVariants.append(node);continue}
             node.setSourceIdleDeferred(false,preserveSourceBottleBase:variant=="bottle",preserveSourceHoneyIdle:variant=="honey")
@@ -524,6 +524,7 @@ final class NativeBoardScene: SKScene {
                     node.sourceGeneration==self.engine.state.generation && node.variant==variant
             }
             guard repairSourceWildSkin(tileID:node.tileID,scope:scope,startSourceIdle:{
+                if variant==nil || variant=="cubero" {return node.configureSourceSpecialIdle(scope.specialIdle)}
                 if variant=="honey" {
                     guard let tasks=scope.sourceMicrotaskTasks else{return false}
                     return node.beginSourceHoneyIdle(service:scope.service,scope:scope.specialIdle,assetTasks:tasks,
@@ -5210,6 +5211,15 @@ final class NativeBoardScene: SKScene {
                             return
                         }
                     }
+                    if node.kind=="wild-tnt",node.variant==nil,self.sourceIdleScope === scope {
+                        guard self.sourceSpecialIdleAdmissionOpen,
+                              self.repairSourceWildSkin(tileID:node.tileID,scope:scope,startSourceIdle:{
+                                  admitted() && node.configureSourceSpecialIdle(scope.specialIdle)
+                              }),admitted() else {
+                            if admitted(){self.onSourcePresentationFailure?("source_meter_tnt_fuse_landed_attachment_rejected",generation)}
+                            return
+                        }
+                    }
                     self.sourcePopulation.insert(node.tileID);self.refreshSourceIdlePopulation()
                 },ownershipReleased:{[weak self] in guard admitted() else{return};self?.synchronize()},
                 fault:{[weak self] reason in
@@ -6608,7 +6618,12 @@ final class NativeBoardScene: SKScene {
             return modelCurrent()
         }
         return node.repairSourceWildSkin(generation:generation,assetTasks:installation.tasks,reactionScope:reactions,
-            current:current,startSourceIdle:startSourceIdle,startSourceShimmer:sourceWildShimmerEnabled ? {
+            current:current,startSourceIdle:startSourceIdle,startSourceTntFuse:kind=="wild-tnt" && variant==nil ? {
+                node.beginSourceTntFuse(service:scope.service,current:current,paintable:{[weak self] in
+                    guard let self else{return false}
+                    return self.sourceFizzCanvasPaintable && self.engine.state.terminal==nil && !self.exitInProgress && !self.specialPresentationIDs.contains(tileID)
+                })
+            }:nil,startSourceShimmer:sourceWildShimmerEnabled ? {
                 node.beginSourceWildShimmer(service:scope.service,random:{scope.mathRandom.next()},current:current,canvasPaintable:self.sourceShimmerCanvasPaintable)
             }:nil,startSourceIdleBubbles:sourceSpecialIdleAdmissionOpen && sourceIdleScope === scope &&
                 NativeIdleBubbleMotion.family(kind:kind,variant:variant) != nil ? {

@@ -347,8 +347,9 @@ import StackToSixNativeState
         try await Task.sleep(for:.milliseconds(160))
         XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:to,now:CACurrentMediaTime())).accepted)
         if board != nil {
-            try await wait{old.presentedViewController is NativeJourneyRewardController}
-            let reward=try XCTUnwrap(old.presentedViewController as? NativeJourneyRewardController)
+            try await wait{old.visibleJourneyRewardController != nil}
+            let reward=try XCTUnwrap(old.visibleJourneyRewardController)
+            try await wait{(try? store.load()?.progression.completedJourneyBoards.contains(reward.board)) == true}
             // The real card input performs reveal and queued collection, using
             // its resource and animation owners rather than a result callback.
             reward.activate();reward.activate()

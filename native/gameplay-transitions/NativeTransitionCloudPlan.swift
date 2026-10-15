@@ -5,6 +5,7 @@ enum NativeTransitionCloudPlan {
     struct Cloud {
         let asset:Int,depth:Int
         let width,height,xPercent,yPercent,baseScale,rotation,bounceAmount,bounceSpeed,windDuration,driftDistance,initialY,enterDelay:Double
+        var preservesAspectDuringExit=false
         struct Pose {let wrapperX,imageY,scaleX,scaleY,opacity:Double}
         func sample(seconds:Double,exitAt:Double?=nil)->Pose {
             // All clouds follow the same source exit, including rear Forest
@@ -24,6 +25,12 @@ enum NativeTransitionCloudPlan {
             guard let exitAt,t>=exitAt else{return Pose(wrapperX:drift,imageY:y,scaleX:visible.scale,scaleY:visible.scale,opacity:visible.opacity)}
             if t>=exitAt+0.595 {return Pose(wrapperX:drift,imageY:y,scaleX:0,scaleY:0,opacity:0)}
             let age=t-exitAt,entry=enter(exitAt).scale
+            if preservesAspectDuringExit {
+                // One continuous exit from the painted rest size: no fixed-size
+                // contraction/rebound between the idle bounce and retirement.
+                let p=clamp(age/0.595),e=p*p*(3-2*p),scale=entry*(1-e)
+                return Pose(wrapperX:drift,imageY:y,scaleX:scale,scaleY:scale,opacity:1)
+            }
             if age<0.07 {let p=NativeBoardTransitionPlan.powerIn(age/0.07,2);return Pose(wrapperX:drift,imageY:y,scaleX:entry+(0.94-entry)*p,scaleY:entry+(1.07-entry)*p,opacity:1)}
             if age<0.135 {let p=NativeBoardTransitionPlan.backOut((age-0.07)/0.065,2.2);return Pose(wrapperX:drift,imageY:y,scaleX:0.94+0.14*p,scaleY:1.07-0.14*p,opacity:1)}
             let p=clamp((age-0.135)/0.46),e=p==1 ? 1:p*p*((1.85+1)*p-1.85)
@@ -56,7 +63,7 @@ enum NativeTransitionCloudPlan {
             let y=(lower ? -40.0:0)+(random()*2-1)*(lower ? 18:28)
             // Lower clouds live inside scene z15; other hosts are overlay z1/2/5.
             let depth=theme == .beach ? 1:behind ? 2:lower ? 415:i%3==1 ? 5:1
-            result.append(Cloud(asset:i%4,depth:depth,width:size,height:height,xPercent:left,yPercent:top,baseScale:baseScale,rotation:rotation,bounceAmount:bounce,bounceSpeed:bounceSpeed,windDuration:wind,driftDistance:distance,initialY:y,enterDelay:delay))
+            result.append(Cloud(asset:i%4,depth:depth,width:size,height:height,xPercent:left,yPercent:top,baseScale:baseScale,rotation:rotation,bounceAmount:bounce,bounceSpeed:bounceSpeed,windDuration:wind,driftDistance:distance,initialY:y,enterDelay:delay,preservesAspectDuringExit:theme == .forest))
         }
         return result
     }

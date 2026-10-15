@@ -156,6 +156,7 @@ final class NativeBootstrap {
                 return try self.makeGameplay(board: board, exit: exit)
             },
             flush: { [weak self] in try self?.flush() })
+        services.backpackProgression = { [weak self] in self?.envelope.progression ?? NativeProgressionState() }
         services.developerAction = { [weak self] action, presenter in
             try self?.openDeveloperAction(action, presenter: presenter)
         }
@@ -533,6 +534,15 @@ final class NativeBootstrap {
         gameplay.onTerminal = { [weak self,weak gameplay] result in
             guard let self,let gameplay,self.gameplay === gameplay else{return}
             self.terminal(result)
+        }
+        gameplay.prepareJourneyRewardController = { [weak self,weak gameplay] result in
+            guard let self,let gameplay,self.gameplay === gameplay,!self.disposed,!self.attemptCommitted,
+                  self.interimJourney,result.kind == .complete,gameplay.engine.state.mode == .journey,
+                  gameplay.engine.state.tutorial?.requiresResultCompletion != true,
+                  gameplay.sourcePresentationFailureGeneration != gameplay.engine.state.generation else{return nil}
+            let state=gameplay.engine.state
+            let score=max(NativeResultOwner.finalScore(state:state,clean:true),self.envelope.progression.boardStats[state.board]?.highScore ?? 0)
+            return NativeJourneyRewardController(root:self.root,board:state.board,score:score,generation:state.generation)
         }
         gameplay.onGameplayReceipt = { [weak self] event,source,destination,generation in
             guard let self else{return};self.audioReceipt &+= 1
