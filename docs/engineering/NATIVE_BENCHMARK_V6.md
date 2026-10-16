@@ -72,3 +72,13 @@ It does not rebuild/reinstall the phone, touch the preserved PWA/legacy shell,
 reset saves, rewrite earlier tags, or publish ignored binaries/private saves.
 This is a user-selected source checkpoint, not complete Native/PWA parity or
 physical touch/audio/haptic/FPS/thermal acceptance. Those remain NEEDS PHYSICAL TEST.
+
+## Verified publication
+
+Published benchmark commit:
+[`80d6b43ca5d41eb658e78a70d12aae96fdb9b31b`](https://github.com/taptapdesign-jimi/cube-crash-appstore/commit/80d6b43ca5d41eb658e78a70d12aae96fdb9b31b).
+GitHub `main` and peeled `native-benchmark-v6` matched that commit after the
+atomic push. Annotated tag object:
+`dee90eb7e0c593e7e0a832859e4aaf9be41eec2a`.
+A following documentation-only receipt may advance `main`; the immutable tag
+continues to identify the complete runtime/artwork benchmark above.
