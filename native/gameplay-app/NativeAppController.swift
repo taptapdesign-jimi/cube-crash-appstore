@@ -8,7 +8,7 @@ struct NativeAppServices {
     var developerAction: ((NativeDeveloperAction, UIViewController) throws -> Void)?
     var showsStudioIntro=false
     var studioIntroCue:((String)->Void)?
-    var backpackProgression: () -> NativeProgressionState = {NativeProgressionState()}
+    var journeyProgression: () -> NativeProgressionState = {NativeProgressionState()}
     var settings: () -> [String: Any]
     var setPreference: (String, Bool) throws -> Void
     var worldSnapshot: (Int, CGSize, Int) throws -> [String: Any]
@@ -46,6 +46,7 @@ final class NativeAppController: UIViewController {
     private var motion: NativeRouteMotion!
     private(set) var backpackView:NativeBackpackView?
     private var backpackDetail:NativeBackpackDetail?
+    private var backpackReturnRoute:Route = .hub
     private var backpack:NativeHubBackpackFeedback?
     private var generation = 0
     private var transitioning = false
@@ -173,6 +174,9 @@ final class NativeAppController: UIViewController {
     }
     func navigate(_ next:Route,interrupt:Bool = false) {
         guard studioIntro == nil,route != next,(!transitioning || interrupt),route != .gameplay else{return}
+        if next == .backpack {
+            if case .world = route {backpackReturnRoute=route}else{backpackReturnRoute = .hub}
+        }
         retireDeveloperPresentation()
         cancelWorldEntryPreparation()
         cancelGameplayLaunchPreparation()
@@ -180,6 +184,11 @@ final class NativeAppController: UIViewController {
         generation += 1;let owner = generation;transitioning = true
         settingsView.setDeveloperPanelVisible(false)
         backpack?.setActive(false,generation:generation)
+        if route == .hub {
+            let button:UIButton? = next == .backpack ? hub.backpackButton : next == .home ? hub.backButton : nil
+            if let button {NativeHubBackpackFeedback.play(on:button.imageView ?? button)}
+        }
+
         home.stopHeroIdle(preservePaintedPose:true);hub.stopIdle()
         home.isUserInteractionEnabled = false;hub.setContentInteractionEnabled(false);settingsView.isUserInteractionEnabled = false
         // v9 starts the exact destination preparation under the Hub exit.
@@ -189,7 +198,7 @@ final class NativeAppController: UIViewController {
                 transitioning=false;hub.setContentInteractionEnabled(true);hub.startIdle();showFault(error);return
             }
         }
-        onFeedback?(next == .home || next == .hub && route != .home ? "back" : "cta")
+        onFeedback?(route == .backpack || next == .home || next == .hub && route != .home ? "back" : "cta")
         let complete:()->Void = { [weak self] in
             guard let self,self.generation == owner else{return}
             self.reveal(next)
@@ -232,11 +241,11 @@ final class NativeAppController: UIViewController {
             if backpackView == nil {
                 let screen=NativeBackpackView(frame:view.bounds,assets:JimiV9Artwork(resourceRoot:resourceRoot))
                 screen.autoresizingMask=[.flexibleWidth,.flexibleHeight];view.addSubview(screen);backpackView=screen
-                screen.onClose={[weak self] in self?.navigate(.hub)}
+                screen.onClose={[weak self] in guard let self else{return};self.navigate(self.backpackReturnRoute)}
                 screen.onDie={[weak self] die in self?.openBackpackDetail(die)}
             }
             backpackView?.isHidden=false;backpackView?.isUserInteractionEnabled=false
-            backpackView?.apply(NativeBackpackCatalog.sections(services.backpackProgression()))
+            backpackView?.apply(NativeBackpackCatalog.sections(services.journeyProgression()))
             motion.animate(backpackView?.tracks(enter:true) ?? [],completion:admitted)
         case .home:
             home.isHidden = false;home.selectSlide(home.selectedSlide,animated:false)
@@ -244,6 +253,12 @@ final class NativeAppController: UIViewController {
             motion.animate(motion.homeTracks(enter:true),completion:admitted)
             let prepared=beforeHomeReveal;beforeHomeReveal=nil;prepared?()
         case .hub:
+            let progression=services.journeyProgression()
+            hub.updateProgress(hub.worldIDs.map { id in
+                let boards=((id-1)*10+1)...(id*10)
+                return ["worldId":id,"completed":boards.filter(progression.completedJourneyBoards.contains).count,
+                        "total":boards.count,"hasInterimCard":progression.interimBoard(world:id) != nil] as [String:Any]
+            })
             hub.isHidden = false;hub.isUserInteractionEnabled = true
             motion.animate(motion.hubTracks(enter:true),completion:admitted)
         case .settings:
@@ -300,9 +315,17 @@ final class NativeAppController: UIViewController {
         guard !transitioning,case .world = route else{return}
         switch action {
         case "back":navigate(.hub,interrupt:true)
+        case "backpack":navigate(.backpack)
         case "openCard":
-            guard let boardID else{return}
-            do {try services.markViewed(boardID);world?.openCard(boardID:boardID)} catch {showFault(error)}
+            guard let boardID,let world else{return}
+            do {
+                try services.markViewed(boardID)
+                // Clone the visible NEW face before adopting the durable viewed projection.
+                // The modal owns its ribbon until return; the retained World must not replay it.
+                let updated=try services.worldSnapshot(world.snapshot.worldID,view.bounds.size,generation+1)
+                world.openCard(boardID:boardID)
+                world.reconcile(updated)
+            } catch {showFault(error)}
         case "close":world?.closeCard()
         case "play","continue":
             guard let boardID else{return};transitioning = true
@@ -500,8 +523,10 @@ final class NativeAppController: UIViewController {
     private func openBackpackDetail(_ die:NativeBackpackCatalog.Die) {
         guard !disposed,!suspended,!transitioning,route == .backpack,presentedViewController == nil else{return}
         let detail=NativeBackpackDetail(die:die,assets:JimiV9Artwork(resourceRoot:resourceRoot),motion:NativeRouteMotion(home:home,hub:hub))
-        backpackDetail=detail;backpackView?.isUserInteractionEnabled=false;onFeedback?("cta")
-        detail.onClose={[weak self] in guard let self else{return};self.backpackDetail=nil;self.backpackView?.isUserInteractionEnabled = self.route == .backpack && !self.transitioning && !self.suspended;self.onFeedback?("close")}
+        backpackDetail=detail;backpackView?.isUserInteractionEnabled=false
+        detail.onPresentationStarted={[weak self] in self?.onFeedback?("exit-modal")}
+        detail.onCloseRequested={[weak self] in self?.onFeedback?("back")}
+        detail.onClose={[weak self] in guard let self else{return};self.backpackDetail=nil;self.backpackView?.isUserInteractionEnabled = self.route == .backpack && !self.transitioning && !self.suspended}
         present(detail,animated:false)
     }
     private func retireBackpackDetail(){backpackDetail?.dispose();backpackDetail?.dismiss(animated:false);backpackDetail=nil}

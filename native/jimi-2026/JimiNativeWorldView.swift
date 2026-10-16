@@ -16,7 +16,8 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
     let scrollView: UIScrollView = JimiWorldScroll()
     let header = JimiV9NavigationHeader(frame:.zero)
     private let navigationTarget = UIButton(type:.custom)
-    let backButton = UIButton(type: .custom)
+    let backButton = JimiV9PlainButton(type: .custom)
+    let backpackButton = JimiV9PlainButton(type: .custom)
     var onRequest: ((String, Int?) -> Void)?
     var onFeedback: ((String,Int?,Double?) -> Void)?
     var onAmbientPlansRequest: ((CGRect,[Int],@escaping ([[String:Any]]?)->Void)->Void)?
@@ -73,7 +74,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         scrollView.contentInsetAdjustmentBehavior = .never; scrollView.showsVerticalScrollIndicator = false
         scrollView.delaysContentTouches = true; scrollView.canCancelContentTouches = true
         addSubview(scrollView); scrollView.addSubview(content); content.addSubview(main)
-        addSubview(header); header.addSubview(title); header.addSubview(backButton)
+        addSubview(header); header.addSubview(title); header.addSubview(backButton); header.addSubview(backpackButton)
         title.font = assets.font(size: 32, weight: "ExtraBold"); title.textAlignment = .center
         title.textColor = UIColor(red:173/255,green:135/255,blue:117/255,alpha:1); title.text = snapshot.title
         header.backgroundColor = UIColor(red:243/255,green:238/255,blue:232/255,alpha:0.8)
@@ -81,6 +82,11 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         backButton.setTitleColor(title.textColor, for: .normal)
         backButton.accessibilityIdentifier = "native.world.back"
         backButton.addTarget(self, action: #selector(back), for: .touchUpInside)
+        backpackButton.setImage(assets.image("assets/nav/stats-nav.png",densityAware:true),for:.normal)
+        backpackButton.imageView?.contentMode = .scaleAspectFit
+        backpackButton.imageEdgeInsets=UIEdgeInsets(top:4,left:0,bottom:4,right:0)
+        backpackButton.accessibilityLabel="Backpack";backpackButton.accessibilityIdentifier="native.world.backpack"
+        backpackButton.addTarget(self,action:#selector(openBackpack),for:.touchUpInside)
         createUnits(); alpha = 0
         if snapshot.worldID != 1 {
             main.layer.zPosition = 3
@@ -112,10 +118,12 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
     override func layoutSubviews() {
         super.layoutSubviews(); scrollView.frame = bounds
         scrollView.contentInset.bottom = safeAreaInsets.bottom
-        let headerTop = max(0,safeAreaInsets.top+bounds.height*0.02-16)
+        let row=JimiV9NavigationHeader.RowLayout(bounds:bounds,safeAreaTop:safeAreaInsets.top)
+        let headerTop=row.top
         header.frame = CGRect(x:0,y:0,width:bounds.width,height:headerTop+58)
-        title.frame = CGRect(x:72,y:headerTop+10,width:bounds.width-144,height:32)
-        backButton.frame = CGRect(x:22,y:headerTop+2,width:44,height:44)
+        title.frame = row.titleFrame
+        backButton.frame = row.buttonFrame(x:22)
+        backpackButton.frame=row.buttonFrame(x:bounds.width-64,width:40,height:48)
         navigationTarget.frame = backButton.frame
         backArtwork.frame = CGRect(x:10,y:10,width:24,height:24)
         content.frame = CGRect(x: 0, y: 0, width: bounds.width, height: snapshot.contentHeight * scale)
@@ -463,7 +471,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         ambient?.update(enabled:false,viewport:CGRect(origin:scrollView.contentOffset,size:scrollView.bounds.size),scale:scale)
         if pauseBees {bees?.update(enabled:false,viewport:CGRect(origin:scrollView.contentOffset,size:scrollView.bounds.size),scale:scale)};interimOwners.values.forEach {$0.stop()};units.values.forEach {stopWave($0);JimiNativeWorldEffects.stop($0); partViews($0).forEach {stopWave($0);JimiNativeWorldEffects.stop($0)}}; main.subviews.forEach(stopWave)}
     private func quiesceRibbons(){units.values.flatMap{$0.subviews}.flatMap{$0.subviews}.compactMap{$0 as? JimiNativeNewRibbonView}.forEach{$0.quiesce()}}
-    func setActive(_ value: Bool) { if !value {quiesceRibbons();landingBarrier?.cancel();landingBarrier = nil;units.values.forEach {$0.subviews.forEach {$0.layer.removeAnimation(forKey:"world.card.landing")}}};active = value; modal?.setActive(value); if value {updateIdle()} else {cancelReminder();stopIdle();units.values.forEach {$0.layer.sublayers?.filter {$0.name == "world.smoke.feedback"}.forEach {$0.removeAllAnimations();$0.removeFromSuperlayer()}}} }
+    func setActive(_ value: Bool) { if !value {backpackButton.imageView?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey);quiesceRibbons();landingBarrier?.cancel();landingBarrier = nil;units.values.forEach {$0.subviews.forEach {$0.layer.removeAnimation(forKey:"world.card.landing")}}};active = value; modal?.setActive(value); if value {updateIdle()} else {cancelReminder();stopIdle();units.values.forEach {$0.layer.sublayers?.filter {$0.name == "world.smoke.feedback"}.forEach {$0.removeAllAnimations();$0.removeFromSuperlayer()}}} }
     func prepareGameplayExit(boardID:Int? = nil,completion: @escaping () -> Void) {
         let sourceID = boardID ?? modal?.boardID
         let regularModal = modal != nil
@@ -509,8 +517,13 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
     @objc private func back() {
         guard active, !backRequested else { return }
         backRequested = true
-        animate(backButton,track:JimiV9Motion.navigationTapBounce,key:"nav.tap")
+        NativeHubBackpackFeedback.play(on:backArtwork)
         onFeedback?("back",nil,nil); onRequest?("back",nil)
+    }
+    @objc private func openBackpack() {
+        guard active,admitted,!transition,!backRequested,modal == nil else{return}
+        NativeHubBackpackFeedback.play(on:backpackButton.imageView ?? backpackButton)
+        onRequest?("backpack",nil)
     }
     func rejectBackRequest() { backRequested = false }
 

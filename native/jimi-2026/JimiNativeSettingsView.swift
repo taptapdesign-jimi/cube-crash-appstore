@@ -145,11 +145,12 @@ final class JimiNativeSettingsView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         let top = safeAreaInsets.top
-        let headerTop = max(0,top+bounds.height*0.02-16)
+        let row=JimiV9NavigationHeader.RowLayout(bounds:bounds,safeAreaTop:top)
+        let headerTop=row.top
         place(header, in: CGRect(x:0,y:0,width:bounds.width,height:headerTop+66))
-        title.frame = CGRect(x:72,y:headerTop+14,width:max(0,bounds.width-144),height:32)
-        back.frame = CGRect(x:24,y:headerTop+4,width:44,height:44)
-        developer.frame = CGRect(x:bounds.width-68,y:headerTop+4,width:44,height:44)
+        title.frame = row.titleFrame
+        back.frame = row.buttonFrame(x:24)
+        developer.frame = row.buttonFrame(x:bounds.width-68)
         let footerHeight: CGFloat = min(165, max(110,bounds.height*0.2))
         place(footer, in: CGRect(x: 24, y: bounds.height-safeAreaInsets.bottom-footerHeight, width: max(0,bounds.width-48), height: footerHeight))
         footerCopy.frame = CGRect(x: 0, y: 0, width: footer.bounds.width, height: footerHeight-40)
@@ -212,10 +213,11 @@ final class JimiNativeSettingsView: UIView {
         onPreference?(keys[sender.tag], sender.isOn, presentationEpoch)
     }
     @objc private func goBack() {
+        NativeHubBackpackFeedback.play(on:back.imageView ?? back)
         if developerPanelVisible { setDeveloperPanelVisible(false) } else { onBack?() }
     }
     @objc private func openPrivacy() { onPrivacy?() }
-    @objc private func openDeveloper() { onDeveloper?(presentationEpoch) }
+    @objc private func openDeveloper() { NativeHubBackpackFeedback.play(on:developer.imageView ?? developer);onDeveloper?(presentationEpoch) }
     @objc private func activateDeveloperAction(_ sender: JimiV9PlainButton) {
         guard developerPanelVisible, snapshot["developerToolsAvailable"] as? Bool == true,
               NativeDeveloperAction.allCases.indices.contains(sender.tag) else { return }
@@ -232,7 +234,7 @@ final class JimiNativeSettingsView: UIView {
 final class JimiNativePrivacyController: UIViewController {
     private let assets: JimiV9Artwork
     let card = UIView(), flip = JimiNativeModalTransformView(), idle = UIView(), paper = UIImageView()
-    let copy = UITextView(), close = UIButton(type: .custom), backdrop = UIButton(type: .custom)
+    let copy = UITextView(), close = JimiV9PlainButton(type: .custom), backdrop = UIButton(type: .custom)
     private var closing = false
     private var modalDrag: JimiNativeModalDrag?
     init(assets: JimiV9Artwork) { self.assets = assets; super.init(nibName: nil, bundle: nil) }
@@ -316,7 +318,7 @@ final class JimiNativePrivacyController: UIViewController {
         idle.layer.add(float,forKey:"privacy-idle")
     }
     @objc private func closeSheet() {
-        guard !closing else{return};modalDrag?.cancel(preservePose:true);closing = true;view.isUserInteractionEnabled = false
+        guard !closing else{return};NativeHubBackpackFeedback.play(on:close.imageView ?? close);modalDrag?.cancel(preservePose:true);closing = true;view.isUserInteractionEnabled = false
         guard !UIAccessibility.isReduceMotionEnabled else{dismiss(animated:false);return}
         let releaseY = card.layer.presentation()?.transform.m42 ?? card.layer.transform.m42
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.dismiss(animated:false)}

@@ -1,12 +1,41 @@
 import XCTest
 import UIKit
 import StackToSixNativeState
+import StackToSixGameplay
 @testable import Stack_to_Six
 
 @MainActor
 final class NativeAppCoordinatorTests:XCTestCase {
     private func resources()->URL {
         Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!
+    }
+    func testHubFlagsReadCanonicalUniqueWinsAndRefreshWhenRetainedHubReturns() async throws {
+        var progression=NativeProgressionState()
+        func finish(_ board:Int,clean:Bool=true,mode:NativeRunMode = .journey) {
+            progression.finishAttempt(mode:mode,board:board,score:100,longestCombo:0,cubesCracked:1,clean:clean)
+        }
+        finish(1);finish(2);finish(2);finish(3,clean:false)
+        progression.markViewed(board:2)
+        var services=NativeAppServices(settings:{[:]},setPreference:{_,_ in},worldSnapshot:{_,_,_ in throw FixtureError.unavailable},markViewed:{_ in},makeGameplay:{_,_ in throw FixtureError.unavailable},flush:{})
+        services.journeyProgression={progression}
+        let controller=NativeAppController(resourceRoot:resources(),services:services)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=controller;window.makeKeyAndVisible()
+        defer{controller.dispose();window.isHidden=true}
+        func label(_ view:UIView)->String? {
+            if let label=view as? UILabel {return label.attributedText?.string ?? label.text}
+            return view.subviews.lazy.compactMap{label($0)}.first
+        }
+        func count(_ id:Int)->String? {controller.hub.worldUnits.first{$0.tag==id}.flatMap{label($0)}}
+        controller.navigate(.hub,interrupt:true)
+        try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
+        XCTAssertEqual(count(1),"2 / 10");XCTAssertEqual(count(2),"0 / 10");XCTAssertEqual(count(3),"0 / 10")
+        controller.navigate(.settings)
+        try await waitFor{controller.route == .settings && controller.settingsView.isUserInteractionEnabled}
+        finish(3);finish(11);finish(21);finish(22);finish(1,mode:.arcade)
+        controller.navigate(.hub)
+        try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
+        XCTAssertEqual(count(1),"3 / 10");XCTAssertEqual(count(2),"1 / 10");XCTAssertEqual(count(3),"2 / 10")
+        XCTAssertEqual(progression.completedJourneyBoards,[1,2,3,11,21,22])
     }
     func testHomeInputWaitsForActualEnterCompletion()async throws {
         let services=NativeAppServices(settings:{["gameSoundsEnabled":false,"musicEnabled":false,"hapticsEnabled":false]},
@@ -137,6 +166,92 @@ final class NativeAppCoordinatorTests:XCTestCase {
         replies[0]();XCTAssertTrue(try XCTUnwrap(controller.world).isHidden)
         replies[1]()
         try await waitFor{controller.world?.isReadyForInput==true}
+    }
+    func testNavigationHeadersShareForestRowCenterAndCloseArtwork() throws {
+        let assets=JimiV9Artwork(resourceRoot:resources()),bounds=CGRect(x:0,y:0,width:390,height:844)
+        let host=UIViewController(),window=UIWindow(frame:bounds)
+        window.rootViewController=host;window.makeKeyAndVisible();host.view.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:1)
+        defer{window.isHidden=true}
+        let hub=JimiV9HubView(frame:bounds,assets:assets)
+        let settings=JimiNativeSettingsView(frame:bounds,assets:assets)
+        let backpack=NativeBackpackView(frame:bounds,assets:assets)
+        backpack.apply(NativeBackpackCatalog.sections(NativeProgressionState()))
+        var entries:[(String,UIView,JimiV9NavigationHeader,[UIButton])]=[
+            ("journey",hub,hub.header,[hub.backButton,hub.backpackButton]),
+            ("settings",settings,settings.header,[settings.back,settings.developer]),
+            ("backpack",backpack,backpack.header,[backpack.close])]
+        let layouts=try NativeWorldLayouts()
+        var progress=NativeProgressionState();progress.firstPlayTutorialComplete=true
+        var worlds:[JimiNativeWorldView]=[]
+        defer{worlds.forEach{$0.cleanup()}}
+        for id in 1...3 {
+            let raw=try layouts.snapshot(world:id,width:390,height:844,generation:10,progression:progress)
+            let world=try XCTUnwrap(JimiNativeWorldView(snapshot:raw,assets:assets));worlds.append(world)
+            entries.append(("world\(id)",world,world.header,[world.backButton,world.backpackButton]))
+        }
+        for (name,screen,header,buttons) in entries {
+            screen.frame=host.view.bounds;screen.alpha=1;host.view.addSubview(screen)
+            window.layoutIfNeeded();screen.setNeedsLayout();screen.layoutIfNeeded()
+            let title=try XCTUnwrap(header.subviews.compactMap{$0 as? UILabel}.first)
+            let expected=max(0,screen.safeAreaInsets.top+screen.bounds.height*0.02-16)+26
+            XCTAssertEqual(title.frame.midY,expected,accuracy:0.001,name)
+            for button in buttons {
+                button.layoutIfNeeded()
+                XCTAssertEqual(button.frame.midY,expected,accuracy:0.001,name)
+                if let image=button.imageView,!image.bounds.isEmpty {
+                    XCTAssertEqual(image.convert(image.bounds,to:header).midY,expected,accuracy:0.001,name)
+                }
+            }
+            if let world=screen as? JimiNativeWorldView {
+                let art=try XCTUnwrap(world.headerGeometrySnapshot()["backArtwork"])
+                XCTAssertEqual(art.midY,expected,accuracy:0.001)
+                XCTAssertEqual(art.size,CGSize(width:24,height:24))
+            }
+            if screen === backpack {
+                let image=try XCTUnwrap(backpack.close.imageView)
+                XCTAssertEqual(image.bounds.width,24,accuracy:0.001)
+                XCTAssertEqual(image.bounds.height,24,accuracy:0.001)
+            }
+            let clip=CGRect(x:0,y:0,width:bounds.width,height:header.bounds.height+8)
+            let picture=UIGraphicsImageRenderer(bounds:clip).image{screen.layer.render(in:$0.cgContext)}
+            try picture.pngData()?.write(to:URL(fileURLWithPath:"/tmp/nav-consistency-\(name).png"))
+            screen.removeFromSuperview()
+        }
+    }
+    func testEveryWorldBackpackButtonReturnsToSameWorldAndScroll() async throws {
+        let (controller,window)=try worldEntryFixture{world,done in world.prepare(completion:done)}
+        var cues:[String]=[];controller.onFeedback={cues.append($0)}
+        defer{controller.dispose();window.isHidden=true}
+        controller.navigate(.hub,interrupt:true)
+        try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
+        for id in 1...3 {
+            controller.navigate(.world(id))
+            try await waitFor{controller.route == .world(id) && controller.world?.isReadyForInput==true}
+            let world=try XCTUnwrap(controller.world)
+            world.scrollView.setContentOffset(CGPoint(x:0,y:150),animated:false)
+            let offset=world.scrollView.contentOffset
+            XCTAssertEqual(world.backpackButton.accessibilityIdentifier,"native.world.backpack")
+            XCTAssertNotNil(world.backpackButton.image(for:.normal))
+            XCTAssertTrue(world.hitTest(world.backpackButton.convert(CGPoint(x:20,y:24),to:world),with:nil)?.isDescendant(of:world.backpackButton)==true)
+            world.backpackButton.sendActions(for:.touchUpInside)
+            world.backpackButton.sendActions(for:.touchUpInside)
+            try await waitFor{controller.route == .backpack && controller.backpackView?.isUserInteractionEnabled==true}
+            XCTAssertTrue(controller.world === world)
+            XCTAssertFalse(world.isReadyForInput)
+            XCTAssertTrue(world.isHidden)
+            cues.removeAll()
+            controller.backpackView?.close.sendActions(for:.touchUpInside)
+            XCTAssertEqual(cues.first,"back","World-origin Backpack close retains the existing back cue")
+            try await waitFor{controller.route == .world(id) && world.isReadyForInput}
+            XCTAssertTrue(controller.world === world)
+            XCTAssertEqual(world.scrollView.contentOffset.y,offset.y,accuracy:0.5)
+        }
+        controller.world?.backButton.sendActions(for:.touchUpInside)
+        try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
+        controller.hub.backpackButton.sendActions(for:.touchUpInside)
+        try await waitFor{controller.route == .backpack && controller.backpackView?.isUserInteractionEnabled==true}
+        controller.backpackView?.close.sendActions(for:.touchUpInside)
+        try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
     }
     private func worldEntryFixture(prepare:@escaping(JimiNativeWorldView,@escaping()->Void)->Void)throws->(NativeAppController,UIWindow){
         let layouts=try NativeWorldLayouts()

@@ -136,8 +136,10 @@ final class NativeRouteMotion {
             layer.add(group, forKey: "native-slide-selection"); register(layer)
         }
         CATransaction.commit()
-        animate([(changed ? home.heroView : home.navigationButtonViews[index],
-                  changed ? JimiV9Motion.selectedHeroBounce : JimiV9Motion.navigationTapBounce)], completion: completion)
+        // The artwork owns contact; the button/nav ancestors own layout and exit.
+        // An immediate route replacement must not cancel the tapped icon's bounce.
+        NativeHubBackpackFeedback.play(on:home.navigationIconViews[index])
+        animate(changed ? [(home.heroView, JimiV9Motion.selectedHeroBounce)] : [], completion: completion)
     }
 
     /// Route exit must retain the hero's painted bounce for homeTracks to

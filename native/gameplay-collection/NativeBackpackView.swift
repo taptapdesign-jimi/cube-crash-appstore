@@ -4,7 +4,7 @@ import UIKit
 @MainActor
 final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionViewDelegateFlowLayout {
     private let assets:JimiV9Artwork
-    let header=JimiV9NavigationHeader(frame:.zero),close=UIButton(type:.custom)
+    let header=JimiV9NavigationHeader(frame:.zero),close=JimiV9PlainButton(type:.custom)
     let grid:UICollectionView
     private let title=UILabel()
     private(set) var sections:[NativeBackpackCatalog.Section]=[]
@@ -16,28 +16,33 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
         grid=UICollectionView(frame:.zero,collectionViewLayout:layout)
         super.init(frame:frame)
         accessibilityIdentifier="native.backpack"
-        grid.backgroundColor = .clear;grid.showsVerticalScrollIndicator=false
+        grid.backgroundColor = .clear;grid.showsVerticalScrollIndicator=false;grid.contentInsetAdjustmentBehavior = .never
         grid.register(NativeBackpackCell.self,forCellWithReuseIdentifier:"die")
         grid.register(NativeBackpackSectionHeader.self,forSupplementaryViewOfKind:UICollectionView.elementKindSectionHeader,withReuseIdentifier:"section")
         grid.dataSource=self;grid.delegate=self;grid.isPrefetchingEnabled=false
         addSubview(grid);addSubview(header)
-        header.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:0.94)
+        header.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:0.8);header.isOpaque=false
         title.text="Backpack";title.font=assets.font(size:28);title.textColor=NativeBackpackCell.ink;title.textAlignment = .center
         header.addSubview(title);header.addSubview(close)
         close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal)
-        close.imageView?.contentMode = .scaleAspectFit;close.imageEdgeInsets=UIEdgeInsets(top:12,left:12,bottom:12,right:12)
+        close.imageView?.contentMode = .scaleAspectFit;close.imageEdgeInsets=UIEdgeInsets(top:10,left:10,bottom:10,right:10)
         close.accessibilityLabel="Close Backpack";close.accessibilityIdentifier="native.backpack.close"
         close.addTarget(self,action:#selector(closeTapped),for:.touchUpInside)
     }
     required init?(coder:NSCoder){fatalError("Use assets initializer")}
-    func apply(_ sections:[NativeBackpackCatalog.Section]) {self.sections=sections;grid.setContentOffset(.zero,animated:false);grid.reloadData();setNeedsLayout();layoutIfNeeded()}
+    func apply(_ sections:[NativeBackpackCatalog.Section]) {self.sections=sections;grid.setContentOffset(CGPoint(x:0,y:-grid.contentInset.top),animated:false);grid.reloadData();setNeedsLayout();layoutIfNeeded()}
     override func layoutSubviews() {
         super.layoutSubviews()
-        let top=max(0,safeAreaInsets.top+bounds.height*0.02-16),height=top+66
+        let row=JimiV9NavigationHeader.RowLayout(bounds:bounds,safeAreaTop:safeAreaInsets.top),height=row.top+66
         header.bounds=CGRect(x:0,y:0,width:bounds.width,height:height);header.center=CGPoint(x:bounds.midX,y:height/2)
-        title.frame=CGRect(x:72,y:top+14,width:max(0,bounds.width-144),height:34)
-        close.frame=CGRect(x:22,y:top+4,width:44,height:44)
-        grid.frame=CGRect(x:0,y:height,width:bounds.width,height:max(0,bounds.height-height))
+        title.frame=row.titleFrame
+        close.frame=row.buttonFrame(x:22)
+        let previousTop=grid.contentInset.top,previousOffset=grid.contentOffset
+        grid.frame=bounds
+        if previousTop != height {
+            grid.contentInset.top=height
+            grid.setContentOffset(CGPoint(x:previousOffset.x,y:previousOffset.y+previousTop-height),animated:false)
+        }
         grid.contentInset.bottom=safeAreaInsets.bottom+16
         if let layout=grid.collectionViewLayout as? UICollectionViewFlowLayout {
             let side=floor((bounds.width-84)/2)
@@ -75,11 +80,11 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
         let labels=grid.visibleSupplementaryViews(ofKind:UICollectionView.elementKindSectionHeader)
         let targets=[header as UIView]+labels+visible
         return (enter ? targets:Array(targets.reversed())).enumerated().map {i,target in
-            let reduced=UIAccessibility.isReduceMotionEnabled,delay=reduced ? 0:Double(i)*0.035
+            let reduced=UIAccessibility.isReduceMotionEnabled,delay=reduced || !enter ? 0:Double(i)*0.035
             return (target,.init(tweens:[.init(begin:delay,duration:reduced ? 0.16:enter ? 0.56:0.40,from:.scale(enter ? 0:1),to:.scale(enter ? 1:0),ease:enter ? .backOut(1.8):.backIn(1.7))]))
         }
     }
-    @objc private func closeTapped(){onClose?()}
+    @objc private func closeTapped(){NativeHubBackpackFeedback.play(on:close.imageView ?? close);onClose?()}
 }
 
 @MainActor
@@ -87,27 +92,41 @@ private final class NativeBackpackCell:UICollectionViewCell {
     static let ink=UIColor(red:0.68,green:0.53,blue:0.46,alpha:1)
     private let holder=UIImageView(),die=UIImageView()
     private var arcade=false
-    private var arcadeArtworkSize=CGSize(width:80,height:80)
-    private var arcadeArtworkOffset=CGPoint.zero
+    private var artworkSize=CGSize(width:80,height:80)
+    private var artworkOffset=CGPoint.zero
     override init(frame:CGRect){super.init(frame:frame);for image in [holder,die]{image.contentMode = .scaleAspectFit;contentView.addSubview(image)};isAccessibilityElement=true}
     required init?(coder:NSCoder){fatalError("Use frame")}
     func apply(_ item:NativeBackpackCatalog.Die,unlocked:Bool,right:Bool,arcade:Bool,assets:JimiV9Artwork) {
         self.arcade=arcade
-        holder.image=assets.image("assets/backpack/dice holder\(unlocked ? (right ? " desno":""):" locked").png",densityAware:true)
+        let holderSuffix = !unlocked ? " locked" : arcade ? (item.id=="wild-magnet" ? " middle" : item.id=="cubero" ? " desno" : "") : (right ? " desno" : "")
+        holder.image=assets.image("assets/backpack/dice holder\(holderSuffix).png",densityAware:true)
         die.image=assets.image(unlocked ? item.artwork.path:"assets/backpack/lokot.png",densityAware:true)
-        arcadeArtworkSize=CGSize(width:80,height:80);arcadeArtworkOffset = .zero
+        artworkSize=arcade ? CGSize(width:80,height:80):CGSize(width:120,height:120);artworkOffset = arcade ? .zero:CGPoint(x:-0.5,y:-0.5)
         if arcade,unlocked,let image=die.image,let tnt=assets.image(NativeBackpackCatalog.arcade[0].artwork.path,densityAware:true) {
             let originalTntHeight=min(60/tnt.size.width,80/tnt.size.height)*tnt.size.height
             let targetHeight=originalTntHeight*NativeBackpackDetail.visibleHeightRatio(tnt)*1.10
             let visible=NativeBackpackDetail.visibleArtworkBounds(image)
-            let height=targetHeight/visible.height
-            arcadeArtworkSize=CGSize(width:height*image.size.width/image.size.height,height:height)
-            arcadeArtworkOffset=CGPoint(x:(visible.midX-0.5)*arcadeArtworkSize.width,y:(visible.midY-0.5)*height)
+            let artworkScale:CGFloat=["cubero","wild-magnet"].contains(item.id) ? 0.9:1
+            let height=targetHeight*artworkScale/visible.height
+            artworkSize=CGSize(width:height*image.size.width/image.size.height,height:height)
+            artworkOffset=CGPoint(x:(visible.midX-0.5)*artworkSize.width,y:(visible.midY-0.5)*height)
+        }else if unlocked,item.id=="laser-gun" {
+            artworkSize=CGSize(width:144,height:144)
+        }else if unlocked,item.id=="barell",let image=die.image {
+            let visible=NativeBackpackDetail.visibleArtworkBounds(image)
+            let height=120/visible.height
+            artworkSize=CGSize(width:height*image.size.width/image.size.height,height:height)
+            artworkOffset=CGPoint(x:(visible.midX-0.5)*artworkSize.width,y:(visible.midY-0.5)*height)
+        }
+        if unlocked {
+            let iconScale:CGFloat=item.id=="barell" ? 0.855:item.id=="mushroom" ? 0.95:item.id=="honey" ? 0.85:["wild-star","wild-juice","beach-ball"].contains(item.id) ? 0.9:1
+            artworkSize=CGSize(width:artworkSize.width*iconScale,height:artworkSize.height*iconScale)
+            artworkOffset=CGPoint(x:artworkOffset.x*iconScale,y:artworkOffset.y*iconScale)
         }
         die.tag=unlocked ? 1:0;accessibilityLabel=item.title+(unlocked ? "":" Locked");accessibilityTraits=unlocked ? .button:.image
         accessibilityIdentifier="native.backpack.die.\(item.id)";setNeedsLayout()
     }
-    override func layoutSubviews(){super.layoutSubviews();let scale=contentView.bounds.width/(arcade ? 98:153);holder.bounds=CGRect(x:0,y:0,width:contentView.bounds.width+(die.tag==0 ? 2*scale:0),height:contentView.bounds.height);holder.center=CGPoint(x:contentView.bounds.midX,y:contentView.bounds.midY);let size=die.tag==0 ? CGSize(width:70*scale,height:80*scale):arcade ? CGSize(width:arcadeArtworkSize.width*scale,height:arcadeArtworkSize.height*scale):CGSize(width:120*scale,height:120*scale);die.bounds=CGRect(origin:.zero,size:size);die.center=CGPoint(x:contentView.bounds.midX+(arcade ? -arcadeArtworkOffset.x*scale:0.5*scale),y:contentView.bounds.midY+(arcade ? -arcadeArtworkOffset.y*scale:0.5*scale))}
+    override func layoutSubviews(){super.layoutSubviews();let scale=contentView.bounds.width/(arcade ? 98:153);holder.bounds=CGRect(x:0,y:0,width:contentView.bounds.width+(die.tag==0 ? 2*scale:0),height:contentView.bounds.height);holder.center=CGPoint(x:contentView.bounds.midX,y:contentView.bounds.midY);let size=die.tag==0 ? CGSize(width:70*scale,height:80*scale):CGSize(width:artworkSize.width*scale,height:artworkSize.height*scale);die.bounds=CGRect(origin:.zero,size:size);die.center=CGPoint(x:contentView.bounds.midX-artworkOffset.x*scale,y:contentView.bounds.midY-artworkOffset.y*scale)}
     override func prepareForReuse(){super.prepareForReuse();holder.image=nil;die.image=nil;layer.removeAllAnimations();layer.transform=CATransform3DIdentity;layer.opacity=1}
 }
 @MainActor

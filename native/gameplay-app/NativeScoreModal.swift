@@ -87,11 +87,7 @@ final class NativeScoreModal:UIViewController {
         super.viewDidAppear(animated);guard !disposed,!closing else{return};card.alpha=1
         if UIAccessibility.isReduceMotionEnabled {completeEnter();backdrop.alpha=1;return}
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.completeEnter()}
-        for (target,poses,times) in [(card,[pose(88,0,0,0,0.72,-2),pose(-10,0,0,0,1.07,0.8),pose(4,0,0,0,0.98,-0.35),CATransform3DIdentity],[0,0.55,0.76,1]),
-            (flip,[pose(88,-180,17,-88,0.72),CATransform3DIdentity],[0,1])] {
-            let a=CAKeyframeAnimation(keyPath:"transform");a.duration=0.65;a.values=poses.map{NSValue(caTransform3D:$0)};a.keyTimes=times.map{NSNumber(value:$0)}
-            a.timingFunctions=Array(repeating:target === card ? CAMediaTimingFunction(controlPoints:0.22,1.18,0.36,1) : CAMediaTimingFunction(controlPoints:0.16,1,0.3,1),count:poses.count-1);target.layer.add(a,forKey:"score.enter")
-        }
+        JimiNativeModalV10.enter(card:card,flip:flip,key:"score.enter")
         animateStats(enter:true);CATransaction.commit();UIView.animate(withDuration:0.5){self.backdrop.alpha=1}
     }
     private func completeEnter() {
@@ -109,7 +105,7 @@ final class NativeScoreModal:UIViewController {
         }
     }
     @objc func requestClose() {
-        guard ready,!disposed,!closing else{return};closing=true;view.isUserInteractionEnabled=false;drag?.cancel(preservePose:true)
+        guard ready,!disposed,!closing else{return};NativeHubBackpackFeedback.play(on:close.imageView ?? close);closing=true;view.isUserInteractionEnabled=false;drag?.cancel(preservePose:true)
         if UIAccessibility.isReduceMotionEnabled {finishClose();return}
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.finishClose()};animateStats(enter:false)
         JimiNativeModalV10.exit(card,flip:false,releaseY:card.layer.presentation()?.transform.m42 ?? 0,key:"score.exit")

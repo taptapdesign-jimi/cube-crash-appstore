@@ -28,7 +28,10 @@ final class JimiNativeWorldRibbonTests:XCTestCase {
         guard ProcessInfo.processInfo.environment["SIMULATOR_UDID"] == "1018BE2D-491B-465F-8F75-3E5BEB38C22A",UIApplication.shared.applicationState == .active else {throw XCTSkip("Active isolated QA Simulator only")}
         let root = NativeTestResources.root,spy = RibbonActionSpy()
         let host = JimiNativeWorldHost(web:WKWebView(frame:.zero),artwork:JimiV9Artwork(resourceRoot:root),transport:spy)
-        let container = UIView(frame:CGRect(x:0,y:0,width:390,height:844));defer {host.dispose()}
+        let container = UIView(frame:CGRect(x:0,y:0,width:390,height:844))
+        let controller=UIViewController(),window=UIWindow(frame:container.bounds)
+        window.rootViewController=controller;controller.view.addSubview(container);window.makeKeyAndVisible()
+        defer {host.dispose();window.isHidden=true}
         XCTAssertTrue(host.prepare(snapshot(new:true,revision:1),in:container))
         let world = try XCTUnwrap(host.worldView)
         let prepared = expectation(description:"Visible original ribbon prepared");world.prepare {prepared.fulfill()};await fulfillment(of:[prepared],timeout:5)
@@ -49,7 +52,9 @@ final class JimiNativeWorldRibbonTests:XCTestCase {
         XCTAssertEqual(large.frame.maxX,front.bounds.width,accuracy:0.001)
         XCTAssertEqual(large.frame.width,front.bounds.width*0.5904,accuracy:0.001)
         XCTAssertEqual(world.snapshot.units[0].newRibbon,false,"Only canonical receipt owns viewed state")
-        XCTAssertNil(small.superview,"Canonical source clears its ribbon; accepted physical clone retains it")
+        let faded=Date().addingTimeInterval(3)
+        while small.superview != nil,Date()<faded {try await Task.sleep(for:.milliseconds(20))}
+        XCTAssertNil(small.superview,"Canonical source clears its ribbon after the finite fade; accepted physical clone retains it")
         XCTAssertFalse((large.layer.animationKeys() ?? []).contains("world.shimmer"))
         try await Task.sleep(nanoseconds:650_000_000)
         let physicalCard = try XCTUnwrap(modal as? JimiNativeWorldCardView)
@@ -58,10 +63,44 @@ final class JimiNativeWorldRibbonTests:XCTestCase {
         let closed = expectation(description:"Return flip and card landing complete")
         XCTAssertTrue(large.superview === front,"NEW survives entry and the entire open presentation")
         world.closeCard {closed.fulfill()}
-        XCTAssertNil(large.superview,"Accepted return begins with a clean physical front")
-        XCTAssertNil(find(modal,"native.world.ribbon"))
+        XCTAssertTrue(large.superview === front,"Return keeps the ribbon attached through its fade")
+        let fade=try XCTUnwrap(large.layer.animation(forKey:"ribbon.motion") as? CAAnimationGroup)
+        XCTAssertEqual(fade.duration,0.24)
+        XCTAssertEqual(large.layer.opacity,0)
         await fulfillment(of:[closed],timeout:5)
         XCTAssertNil(modal.superview);XCTAssertNil(find(world,"native.world.ribbon"))
         XCTAssertFalse(world.hasActiveCard)
     }
+    func testNativeViewedProjectionClearsRetainedWorldAndModalReopen() async throws {
+        var viewed=false
+        let services=NativeAppServices(settings:{[:]},setPreference:{_,_ in},worldSnapshot:{[self] _,_,generation in
+            var value=snapshot(new:!viewed,revision:viewed ? 2:1)
+            value["routeGeneration"]=generation
+            return value
+        },markViewed:{_ in viewed=true},makeGameplay:{_,_ in UIViewController()},flush:{})
+        let app=NativeAppController(resourceRoot:NativeTestResources.root,services:services)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=app;window.makeKeyAndVisible()
+        defer{app.dispose();window.isHidden=true}
+        try await Task.sleep(for:.seconds(1));app.navigate(.hub)
+        try await Task.sleep(for:.seconds(1.6));app.navigate(.world(1))
+        let deadline=Date().addingTimeInterval(8)
+        while app.world?.isReadyForInput != true,Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
+        XCTAssertTrue(app.world?.isReadyForInput == true)
+        let button=try XCTUnwrap(find(app.view,"native.world.card.2") as? UIButton)
+        button.sendActions(for:.touchUpInside)
+        XCTAssertTrue(viewed)
+        let modal=try XCTUnwrap(find(app.view,"native.world.card.modal") as? JimiNativeWorldCardView)
+        XCTAssertNotNil(find(modal,"native.world.ribbon"),"First presentation retains its NEW artwork")
+        try await Task.sleep(for:.seconds(0.8))
+        let close=try XCTUnwrap(find(modal,"native.world.card.close") as? UIButton)
+        close.sendActions(for:.touchUpInside)
+        let returned=Date().addingTimeInterval(6)
+        while app.world?.hasActiveCard == true,Date()<returned {try await Task.sleep(for:.milliseconds(20))}
+        XCTAssertFalse(app.world?.hasActiveCard == true)
+        XCTAssertNil(find(app.view,"native.world.ribbon"))
+        button.sendActions(for:.touchUpInside)
+        XCTAssertNotNil(find(app.view,"native.world.card.modal"))
+        XCTAssertNil(find(app.view,"native.world.ribbon"),"Retained World cannot replay the viewed ribbon")
+    }
+
 }

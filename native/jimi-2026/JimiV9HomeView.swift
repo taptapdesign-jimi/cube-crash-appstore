@@ -3,6 +3,16 @@ import UIKit
 /// Authored feedback owns pressed visuals, never UIKit's dark highlight.
 @MainActor
 final class JimiV9PlainButton: UIButton {
+    override init(frame: CGRect) {
+        super.init(frame:frame)
+        adjustsImageWhenHighlighted = false
+        showsTouchWhenHighlighted = false
+    }
+    required init?(coder: NSCoder) {
+        super.init(coder:coder)
+        adjustsImageWhenHighlighted = false
+        showsTouchWhenHighlighted = false
+    }
     private var ctaSoftShadow: CALayer?
     private let ctaShadowCaster = CALayer()
     private let ctaShadowMask = CAShapeLayer()

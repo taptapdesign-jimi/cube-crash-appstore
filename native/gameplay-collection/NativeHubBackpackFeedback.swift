@@ -1,7 +1,6 @@
 import UIKit
 
-/// The current source Hub Backpack is intentionally a visual contact only.
-/// Its image receives the shared former-heart bounce; it opens no new route.
+/// Finite image-only navigation feedback, independent of parent route motion.
 @MainActor
 final class NativeHubBackpackFeedback {
     private weak var button:UIButton?
@@ -18,13 +17,19 @@ final class NativeHubBackpackFeedback {
     @discardableResult
     func activate(generation:Int)->Bool {
         guard !disposed,active,generation==self.generation,let button,!button.isHidden,button.isEnabled else{return false}
-        let target=button.imageView ?? button
-        target.layer.removeAnimation(forKey:Self.animationKey)
-        CATransaction.begin();CATransaction.setDisableActions(true);target.layer.transform=CATransform3DIdentity;CATransaction.commit()
-        let animation=CAKeyframeAnimation(keyPath:"transform")
-        animation.values=(0...220).map{NSValue(caTransform3D:CATransform3DMakeScale(Self.scale(at:Double($0)/1000),Self.scale(at:Double($0)/1000),1))}
-        animation.keyTimes=(0...220).map{NSNumber(value:Double($0)/220)};animation.duration=0.22;animation.isRemovedOnCompletion=true
-        target.layer.add(animation,forKey:Self.animationKey);acceptedContacts += 1;return true
+        Self.play(on:button.imageView ?? button)
+        acceptedContacts += 1;return true
+    }
+    /// Call after route cancellation so outgoing parent motion cannot erase contact.
+    /// Core Animation retires this finite track; repeated taps replace only this key.
+    static func play(on target:UIView) {
+        guard !UIAccessibility.isReduceMotionEnabled else{return}
+        target.layer.removeAnimation(forKey:animationKey)
+        let animation=CAKeyframeAnimation(keyPath:"transform.scale")
+        animation.values=(0...220).map{NSNumber(value:scale(at:Double($0)/1000))}
+        animation.keyTimes=(0...220).map{NSNumber(value:Double($0)/220)}
+        animation.duration=0.22;animation.isRemovedOnCompletion=true
+        target.layer.add(animation,forKey:animationKey)
     }
     static func scale(at seconds:Double)->Double {
         let t=max(0,min(0.22,seconds)),start:Double,end:Double,p:Double

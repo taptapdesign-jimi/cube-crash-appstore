@@ -214,17 +214,18 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             }
             visualBounds[id] = overflow.insetBy(dx: -12, dy: -12)
         }
-        let headerTop = max(0, top + bounds.height*0.02 - 16)
+        let row=JimiV9NavigationHeader.RowLayout(bounds:bounds,safeAreaTop:top)
+        let headerTop=row.top
         // Header is a route-motion target with a top-center animation pivot.
         // frame is undefined under its collapsed model transform; retain the
         // same untransformed rectangle for both active and restored anchors.
         header.bounds = CGRect(x: 0, y: 0, width: width, height: headerTop + 66)
         header.layer.position = CGPoint(x: width * header.layer.anchorPoint.x,
                                         y: header.bounds.height * header.layer.anchorPoint.y)
-        backButton.frame = CGRect(x: 24, y: headerTop + 4, width: 44, height: 44)
+        backButton.frame = row.buttonFrame(x:24)
         navigationTarget.frame = backButton.frame
-        backpackButton.frame = CGRect(x: width-64, y: headerTop + 4, width: 40, height: 48)
-        title.frame = CGRect(x: 72, y: headerTop + 14, width: width-144, height: 32)
+        backpackButton.frame = row.buttonFrame(x:width-64,width:40,height:48)
+        title.frame = row.titleFrame
         updateIdleAdmission()
     }
     private func cloudWorldID(_ y: CGFloat) -> Int { y < 220 ? 1 : y < 560 ? 3 : 2 }

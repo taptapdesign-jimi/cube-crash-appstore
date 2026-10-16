@@ -12,6 +12,20 @@ final class JimiNativeModalTransformView: UIView {
 /// Matrix interpolation cannot recover that rotation from the collapsed endpoint.
 @MainActor
 enum JimiNativeModalV10 {
+    /// Shared Exit Game / High Score / Backpack entrance planes and timing.
+    static func enter(card:UIView,flip:UIView,key:String) {
+        func pose(_ y:CGFloat,_ z:CGFloat,_ rx:CGFloat,_ ry:CGFloat,_ scale:CGFloat,_ rz:CGFloat=0)->CATransform3D {
+            var t=CATransform3DMakeTranslation(0,y,z)
+            t=CATransform3DRotate(t,rx * .pi/180,1,0,0);t=CATransform3DRotate(t,ry * .pi/180,0,1,0);t=CATransform3DRotate(t,rz * .pi/180,0,0,1)
+            return CATransform3DScale(t,scale,scale,scale)
+        }
+        for (target,poses,times) in [(card,[pose(88,0,0,0,0.72,-2),pose(-10,0,0,0,1.07,0.8),pose(4,0,0,0,0.98,-0.35),CATransform3DIdentity],[0,0.55,0.76,1]),
+            (flip,[pose(88,-180,17,-88,0.72),CATransform3DIdentity],[0,1])] {
+            let a=CAKeyframeAnimation(keyPath:"transform");a.duration=0.65;a.values=poses.map{NSValue(caTransform3D:$0)};a.keyTimes=times.map{NSNumber(value:$0)}
+            a.timingFunctions=Array(repeating:target === card ? CAMediaTimingFunction(controlPoints:0.22,1.18,0.36,1) : CAMediaTimingFunction(controlPoints:0.16,1,0.3,1),count:poses.count-1)
+            target.layer.add(a,forKey:key)
+        }
+    }
     static func paperLayout(_ paper: UIImageView, bounds: CGRect, bottomExtension: CGFloat = 0) {
         paper.frame = bounds
         paper.contentMode = .scaleToFill
@@ -245,11 +259,6 @@ final class JimiNativeEndRunModal: UIViewController {
         t = CATransform3DTranslate(t,0,y,z);t = CATransform3DRotate(t,rx * .pi/180,1,0,0);t = CATransform3DRotate(t,ry * .pi/180,0,1,0);t = CATransform3DRotate(t,rz * .pi/180,0,0,1)
         return CATransform3DScale(t,scale,scale,scale)
     }
-    private func animate(_ target:UIView,_ poses:[CATransform3D],_ times:[NSNumber],exit:Bool) {
-        let a = CAKeyframeAnimation(keyPath:"transform");a.values = poses.map{NSValue(caTransform3D:$0)};a.keyTimes = times;a.duration = 0.65
-        let curve = exit ? CAMediaTimingFunction(controlPoints:0.4,0,0.2,1) : target === card ? CAMediaTimingFunction(controlPoints:0.22,1.18,0.36,1) : CAMediaTimingFunction(controlPoints:0.16,1,0.3,1)
-        a.timingFunctions = Array(repeating:curve,count:poses.count-1);target.layer.add(a,forKey:exit ? "end-run-exit" : "end-run-enter")
-    }
     override func viewDidAppear(_ animated:Bool) {
         super.viewDidAppear(animated);guard !disposed,!closing else{return};card.alpha = 1
         for (i,button) in buttons.enumerated() {
@@ -257,8 +266,7 @@ final class JimiNativeEndRunModal: UIViewController {
         }
         if UIAccessibility.isReduceMotionEnabled { completeEnter();backdrop.alpha = 1;return }
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.completeEnter()}
-        animate(card,[pose(88,0,0,0,0.72,-2),pose(-10,0,0,0,1.07,0.8),pose(4,0,0,0,0.98,-0.35),CATransform3DIdentity],[0,0.55,0.76,1],exit:false)
-        animate(flip,[pose(88,-180,17,-88,0.72),CATransform3DIdentity],[0,1],exit:false)
+        JimiNativeModalV10.enter(card:card,flip:flip,key:"end-run-enter")
         CATransaction.commit()
         UIView.animate(withDuration:0.5){self.backdrop.alpha = 1}
     }
@@ -289,7 +297,7 @@ final class JimiNativeEndRunModal: UIViewController {
         track(sender,.init(tweens:[.init(begin:0,duration:0.26,from:.scale(0.84,y:4),to:.scale(1),ease:.backOut(2.1))]),key:"cta-release")
     }
     func actionRejected() {if !disposed,!closing {modalDrag?.cancel();clickedButton = nil;for button in buttons {releaseButton(button)};view.isUserInteractionEnabled = ready}}
-    private func request(_ action:String) {guard ready,!closing,!disposed else{return};view.isUserInteractionEnabled = false;onAction?(action)}
+    private func request(_ action:String) {guard ready,!closing,!disposed else{return};if action == "close" {NativeHubBackpackFeedback.play(on:close.imageView ?? close)};view.isUserInteractionEnabled = false;onAction?(action)}
     @objc private func requestClose() {guard dismissalAllowed else{return};request("close")}
     @objc private func requestButton(_ sender:UIButton) {clickedButton = sender.tag;request(sender.tag == 0 ? "restart" : "exit")}
     func closeFromOwner() {

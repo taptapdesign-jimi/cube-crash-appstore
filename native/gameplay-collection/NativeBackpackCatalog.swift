@@ -6,7 +6,10 @@ import StackToSixNativeState
 struct NativeBackpackCatalog {
     struct Die:Equatable {
         let id:String,title:String,copy:String,board:Int
-        var artwork:NativeDiceArtwork {NativeDiceArtwork.definition(kind:id,variant:NativeSpecialDiceRegistry.variants[id] == nil ? nil:id)}
+        var artwork:NativeDiceArtwork {
+            if id=="barell" {return NativeDiceArtwork(path:"assets/shop/barell/barell.png")}
+            return NativeDiceArtwork.definition(kind:id,variant:NativeSpecialDiceRegistry.variants[id] == nil ? nil:id)
+        }
     }
     struct Section {
         let title:String,dice:[Die],unlocked:Set<String>
@@ -18,8 +21,8 @@ struct NativeBackpackCatalog {
         Die(id:"cubero",title:"CUBERO",copy:"Hop-hop, merge me! I’ll bounce 1–3 bonus dice into play!",board:0)]
     static let forest:[Die] = [
         Die(id:"wild-star",title:"STAR",copy:"Twinkle-twinkle! Merge me to sprinkle 1–3 bonus dice onto your board!",board:1),
-        Die(id:"bee",title:"WEE BEE",copy:"Bzz-bzz, merge me and I’ll drop 2 new dice onto your board!",board:2),
-        Die(id:"flower",title:"FLOWER POWER",copy:"Bloom-boom! Merge me and my petals give max 4 dice a different number!",board:3),
+        Die(id:"bee",title:"Wee Bee",copy:"Bzz-bzz, merge me and I’ll drop 2 new dice onto your board!",board:2),
+        Die(id:"flower",title:"Flower",copy:"Bloom-boom! Merge me and my petals give max 4 dice a different number!",board:3),
         Die(id:"honey",title:"HONEY",copy:"Sticky-sticky, merge me! I scoop up max 4 dice and trade each for a fresh one!",board:4),
         Die(id:"mushroom",title:"SHROOMY",copy:"Pop-pop! Merge me and watch a fresh number die sprout onto your board!",board:6),
         Die(id:"barell",title:"BARREL",copy:"Kaboom! Merge me to smash max 4 dice and replace the whole batch!",board:7)]

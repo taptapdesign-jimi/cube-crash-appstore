@@ -5,8 +5,8 @@ This file is the stable, authoritative onboarding map for new Codex chats. Verif
 ## Native-first main decision (2026-10-07)
 
 User-selected continuation baseline (2026-10-16): immutable
-`native-benchmark-v5`; see [NATIVE_BENCHMARK_V5.md](NATIVE_BENCHMARK_V5.md).
-Continue Native work from v5. This checkpoint preserves known open physical
+`native-benchmark-v6`; see [NATIVE_BENCHMARK_V6.md](NATIVE_BENCHMARK_V6.md).
+Continue Native work from v6. This checkpoint preserves known open physical
 acceptance/parity issues and does not replace the approved PWA recovery tags.
 
 The user designates `main` as the **Stack to Six Native** development project,

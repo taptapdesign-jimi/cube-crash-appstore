@@ -23,6 +23,7 @@ final class NativeFishIdlePresentation:UIView {
     var onPrepared:(()->Void)?
     var onMediaReady:((Bool)->Void)?
     var onVideoSourceError:(()->Void)?
+    private let minimumPaintInterval:Double,svgPlaybackRate:Double
     private let allowHEVC:Bool
     private weak var svgResources:NativeFishSVGResourceLease?
     private var svgRequest:UUID?,svgView:NativeFishSVGFallbackView?,svgStart:Double?,mediaEpoch:UInt64=0
@@ -36,7 +37,8 @@ final class NativeFishIdlePresentation:UIView {
     private var lastPaint:Double?,lastAcceptedTime:Double?
     private let assetURL:URL
     private var carriers:[NativeFishIdleBubbleCarrier]=[]
-    init(resourceRoot:URL,svgResources:NativeFishSVGResourceLease?=nil,allowHEVC:Bool=true) {
+    init(resourceRoot:URL,svgResources:NativeFishSVGResourceLease?=nil,allowHEVC:Bool=true,minimumPaintInterval:Double=1/30,svgPlaybackRate:Double=1) {
+        self.minimumPaintInterval=minimumPaintInterval;self.svgPlaybackRate=svgPlaybackRate
         self.allowHEVC=allowHEVC;self.svgResources=svgResources
         assetURL=resourceRoot.appendingPathComponent("assets/shop/fish/fish-mobile-hevc.mov")
         super.init(frame:CGRect(origin:.zero,size:Self.logicalMediaSize))
@@ -85,14 +87,14 @@ final class NativeFishIdlePresentation:UIView {
     }
     func paint(_ frame:NativeFishIdleFrame,now:Double,force:Bool=false) {
         guard !disposed else {return};displayedFrame=frame;lastAcceptedTime=now
-        if !force,let lastPaint,now-lastPaint<1/30 {return};lastPaint=now
+        if !force,let lastPaint,now-lastPaint<minimumPaintInterval {return};lastPaint=now
         CATransaction.begin();CATransaction.setDisableActions(true)
         center=frame.point;transform=frame.transform;alpha=frame.alpha
         bubbleHost.center=CGPoint(x:bounds.midX,y:bounds.midY)
         CATransaction.commit()
         if let svgView {
             if frame.phaseStarted,svgStart==nil {svgStart=now}
-            if frame.visible,!frame.dragging,!suspended {svgView.paint(seconds:svgStart.map {max(0,now-$0)} ?? 0)}
+            if frame.visible,!frame.dragging,!suspended {svgView.paint(seconds:(svgStart.map {max(0,now-$0)} ?? 0)*svgPlaybackRate)}
         } else if frame.phaseStarted,!started,!seeking,!failed {startAdmittedMedia()}
         let visible=ready && frame.visible && !frame.dragging && !suspended && window != nil
         isHidden = !visible

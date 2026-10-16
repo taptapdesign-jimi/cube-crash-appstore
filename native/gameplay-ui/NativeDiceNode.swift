@@ -1460,6 +1460,12 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     private var kantaIdle: NativeKantaDiceIdle?
     private var mushroomSmoke:NativeMushroomDiceSmoke?
     private var spaceshipEngine:NativeSpaceshipDiceIdle?
+    /// Selected collection presentation only; normal board owners keep authored defaults.
+    func configureCollectionHoney() {
+        guard variant == "honey" else{return}
+        honeyIdle?.collectionPresentation=true
+        idleFizz?.useCollectionHoneyBubbles()
+    }
     private var honeyIdle:NativeHoneyDiceIdle?
     private var sourceHoneyIdle:NativeSourceHoneyIdlePresentation?
     private var sourceHoneyAdmissionID:UUID?,sourceHoneyOwnerID:UUID?
@@ -1648,17 +1654,41 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     }
     func sourcePointerUp(){sourceShadowOwner?.release(keepsInnerIdle:sourceKeepsInnerIdle)}
     func sourceSnapBackCompleted(){sourceShadowOwner?.snapBackCompleted()}
+    /// Read-only neutral geometry for the selected collection presentation.
+    /// Effects are excluded so orbiting bees/smoke never resize the modal.
+    private func collectionGeometrySize(_ sprite:SKSpriteNode)->CGSize {
+        guard variant=="cubero",sprite === artwork else{return sprite.size}
+        // SpriteKit size already reflects this SVG sprite's authored scale.
+        // convert(to:) applies it again unless local coordinates divide it out.
+        return CGSize(width:sprite.size.width/max(0.001,abs(sprite.xScale)),height:sprite.size.height/max(0.001,abs(sprite.yScale)))
+    }
+    var collectionCanvasBounds:CGRect {
+        let sprite = !flowerCanvas.isHidden ? flowerArt:!artwork.isHidden ? artwork:face
+        let size=collectionGeometrySize(sprite)
+        let a=sprite.convert(CGPoint(x:-sprite.anchorPoint.x*size.width,y:-sprite.anchorPoint.y*size.height),to:self)
+        let b=sprite.convert(CGPoint(x:(1-sprite.anchorPoint.x)*size.width,y:(1-sprite.anchorPoint.y)*size.height),to:self)
+        return CGRect(x:min(a.x,b.x),y:min(a.y,b.y),width:abs(b.x-a.x),height:abs(b.y-a.y))
+    }
+    var collectionBodyBounds:CGRect {collectionBodyBounds(normalizedBounds:CGRect(x:0,y:0,width:1,height:1))}
+    func collectionBodyBounds(normalizedBounds:CGRect)->CGRect {
+        let sprite = !flowerCanvas.isHidden ? flowerArt:!artwork.isHidden ? artwork:face
+        let bounds = sprite === artwork ? definition.idleSheet.map{textures.firstSheetBodyBounds($0)} ?? normalizedBounds:normalizedBounds
+        let size=collectionGeometrySize(sprite)
+        let a=sprite.convert(CGPoint(x:(bounds.minX-sprite.anchorPoint.x)*size.width,y:(1-bounds.maxY-sprite.anchorPoint.y)*size.height),to:self)
+        let b=sprite.convert(CGPoint(x:(bounds.maxX-sprite.anchorPoint.x)*size.width,y:(1-bounds.minY-sprite.anchorPoint.y)*size.height),to:self)
+        return CGRect(x:min(a.x,b.x),y:min(a.y,b.y),width:abs(b.x-a.x),height:abs(b.y-a.y))
+    }
     var onResourceReady: (() -> Void)?
 
     init(id: String, value: Int, kind: String, variant: String?, depth: Int, locked: Bool,
-         textures: NativeBoardTextures, deferSourceIdle:Bool=false,sourceSpecialIdle:NativeSourceSpecialIdleScope?=nil) {
+         textures: NativeBoardTextures, deferSourceIdle:Bool=false,sourceSpecialIdle:NativeSourceSpecialIdleScope?=nil,artworkOverride:NativeDiceArtwork?=nil) {
         sourceIdleDeferred=deferSourceIdle
         self.sourceSpecialIdle=sourceSpecialIdle
         sourceRegistryPending=sourceSpecialIdle != nil && (kind != "regular" && kind != "normal" && kind != "" || variant.flatMap{NativeSpecialDiceRegistry.variants[$0]} != nil)
         tileID = id; self.value = value; self.kind = kind; self.variant = variant
         self.depth = depth; self.locked = locked; self.textures = textures
         let hash = id.utf8.reduce(UInt64(5381)) { ($0 &* 33) &+ UInt64($1) }
-        definition = NativeDiceArtwork.definition(kind: kind, variant: variant, regularSkin: Int(hash % 4))
+        definition = artworkOverride ?? NativeDiceArtwork.definition(kind: kind, variant: variant, regularSkin: Int(hash % 4))
         super.init()
         name = "native-die-\(id)"
         visual.name = "die-visual"
@@ -2223,7 +2253,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
 
     func updateIdleDrag(offset:CGPoint,velocity:CGPoint) {sourceHoneyIdle?.updateDrag(offset:offset,velocity:velocity);honeyIdle?.updateDrag(offset:offset,velocity:velocity)}
 
-    func tick(_ delta: TimeInterval, suspended: Bool, viewportCenter: CGFloat, fizzDelta:TimeInterval?=nil) {
+    func tick(_ delta: TimeInterval, suspended: Bool, viewportCenter: CGFloat, fizzDelta:TimeInterval?=nil, beeFrameOrder:[Int]?=nil) {
         guard sourceStarSheet==nil else{return}
         guard !disposed, !sourceWildStateCleared, !sourceIdleDeferred && !sourceRegistryPending, !isHidden, alpha > 0, !suspended,(!sourceRegistryPaused || keepsDirectArtworkDuringRegistryPressure) else { return }
         if variant=="bee",sourceSkinHitArea != nil {
@@ -2245,7 +2275,10 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
                     guard textures.isSourceTextureHandleCurrent(handle) else{return}
                     face.texture=handle.texture
                     sourceWildSkinTexture=(sourceGeneration,kind,variant,handle)
-                } else {face.texture = textures.texture("assets/shop/bee/bee\(index+1).png")}
+                } else {
+                    let frame=beeFrameOrder.flatMap{$0.indices.contains(index) ? $0[index]:nil} ?? index+1
+                    face.texture = textures.texture("assets/shop/bee/bee\(frame).png")
+                }
                 paintedFrame = index
             }
             face.xScale = position.x > viewportCenter ? -1 : 1
@@ -2276,6 +2309,24 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         else if variant == "mushroom" {mushroomSmoke?.tick(delta);paintArtwork()}
         else if variant == "flower" { paintFlower() }
         else { paintArtwork() }
+    }
+
+    /// Selected Backpack only; no gameplay constructor or idle ownership changes.
+    func paintCollectionPreview(seconds:Double) {
+        guard !disposed else{return}
+        if ((kind=="wild-tnt" || kind=="wild-magnet") && variant==nil) || variant=="laser-gun" {
+            let motion=NativeRegularIdleMotion(variantDraw:0.7,directionDraw:0.7,tiltDraw:0.5)
+            let laserPause:Double=variant=="laser-gun" ? 1:0
+            let cycle=variant=="laser-gun" ? laserPause+NativeRegularIdleMotion.duration:2.52
+            let pose=motion.sample(max(0,seconds.truncatingRemainder(dividingBy:cycle)-laserPause))
+            face.zRotation=pose.rotation;face.xScale=pose.x;face.yScale=pose.y
+            // Gentle3s idle float, four modal points in either direction.
+            face.position.y=sin(seconds*2 * .pi/3)*4/max(0.001,abs(yScale))
+        }else if variant=="bottle" {
+            paintBottle()
+            face.position.y += sin(seconds*2 * .pi/3)*4/max(0.001,abs(yScale))
+        }
+
     }
 
     func prepareFishMediaPhase() {

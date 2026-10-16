@@ -21,7 +21,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
     private let carrier = JimiWorldRotorView(), dragShell = JimiWorldRotorView(), effectShell = JimiWorldRotorView(), pinchShell = JimiWorldRotorView(), rotorShell = JimiWorldRotorView()
     private var rotor: CALayer { rotorShell.layer }
     private let front = UIImageView(), back = UIView(), panel = UIView(), paper = UIImageView()
-    private let closeButton = UIButton(type:.custom), backdrop = UIButton(type:.custom)
+    private let closeButton = JimiV9PlainButton(type:.custom), backdrop = UIButton(type:.custom)
     private let closePaper = UIView(), closeTexture = UIImageView(), closeIcon = UIImageView()
     private let title = UILabel(), stats = UIStackView(), stars = UIStackView()
     private let cta = JimiV9PlainButton(type:.custom)
@@ -316,7 +316,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         animation.timingFunction = CAMediaTimingFunction(controlPoints:0.22,1,0.36,1)
         CATransaction.begin();CATransaction.setDisableActions(true);carrier.layer.transform = final;carrier.layer.add(animation,forKey:"card.face.tilt");CATransaction.commit()
     }
-    @objc private func requestClose() {guard active,!disposed,!closing else{return};onRequest?("close")}
+    @objc private func requestClose() {guard active,!disposed,!closing else{return};NativeHubBackpackFeedback.play(on:closeIcon);onRequest?("close")}
     private func setDrag(_ y:CGFloat) {CATransaction.begin();CATransaction.setDisableActions(true);dragShell.layer.transform = CATransform3DMakeTranslation(0,y,0);CATransaction.commit()}
     private func settleDrag() {
         let from = dragShell.layer.presentation()?.transform ?? dragShell.layer.transform
@@ -375,7 +375,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
     func close(to destination:CGRect,gameplay:Bool = false,completion:@escaping () -> Void) {
         cancelGameplayPreparation()
         guard !disposed,!closing else {completion();return};closing = true;flipGeneration += 1;effects?.cancel(handoff:false)
-        (newRibbon as? JimiNativeNewRibbonView)?.exit();newRibbon = nil
+        (newRibbon as? JimiNativeNewRibbonView)?.exit(fadeOnly:true);newRibbon = nil
         onFeedback?(frontDrag ? "card-manual-flip" : "card-return-flip")
         transitionBackdrop(to:0,duration:gameplay ? 0.600/0.98 : duration)
         closeButton.isEnabled = false;cta.isEnabled = false;isUserInteractionEnabled = false;animateBackStats(entering:false,delay:max(0,duration*0.5-0.225))
@@ -441,8 +441,8 @@ final class JimiNativeNewRibbonView:UIImageView,CAAnimationDelegate {
         guard !entered,!removing else{return};entered=true
         play(entering:true,delay:delay,remove:false)
     }
-    func exit(remove:Bool=true,delay:Double=0){removing=remove;entered=false;play(entering:false,delay:delay,remove:remove)}
-    private func play(entering:Bool,delay:Double,remove:Bool) {
+    func exit(remove:Bool=true,delay:Double=0,fadeOnly:Bool=false){removing=remove;entered=false;play(entering:false,delay:delay,remove:remove,fadeOnly:fadeOnly)}
+    private func play(entering:Bool,delay:Double,remove:Bool,fadeOnly:Bool=false) {
         epoch += 1;let receipt=epoch
         let reduced=UIAccessibility.isReduceMotionEnabled,duration=reduced ? 0.12 : entering ? 0.36:0.24
         let visible=layer.presentation() ?? layer
@@ -453,6 +453,7 @@ final class JimiNativeNewRibbonView:UIImageView,CAAnimationDelegate {
         let times=(0...60).map{Double($0)/60}
         transform.values=times.map{t -> NSValue in
             let p=reduced ? t : (entering ? JimiV9Motion.Ease.backOut(1.8):.backIn(1.5)).value(t)
+            if fadeOnly {return NSValue(caTransform3D:visible.transform)}
             let scale=startScale+((entering ? 1:0.72)-startScale)*p
             var pose=CATransform3DMakeTranslation(0,startY+((entering ? 0:-8)-startY)*p,0)
             pose=CATransform3DScale(pose,scale,scale,1);return NSValue(caTransform3D:pose)

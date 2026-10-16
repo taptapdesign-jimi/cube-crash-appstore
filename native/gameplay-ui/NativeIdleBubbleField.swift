@@ -9,6 +9,8 @@ final class NativeIdleBubbleField:SKNode {
         var color:UInt32?
     }
     private let runtime:NativeIdleBubbleMotion.Runtime?
+    private var collectionHoney=false,collectionElapsed=0.0
+    func useCollectionHoneyBubbles(){collectionHoney=true;runtime?.stopForPointer();paint()}
     private struct SourceBubble {
         let id:Int,slot:Int,plan:NativeIdleBubbleMotion.Plan
         var pose:NativeIdleBubbleMotion.Pose,clock:NativeSourceFizzBubbleClock?
@@ -36,7 +38,7 @@ final class NativeIdleBubbleField:SKNode {
         paint()
     }
     required init?(coder:NSCoder) {fatalError("init(coder:) has not been implemented")}
-    func tick(_ delta:Double) {guard !disposed,let runtime else {return};runtime.advance(delta);paint()}
+    func tick(_ delta:Double) {guard !disposed,let runtime else {return};if collectionHoney {collectionElapsed+=max(0,delta)}else{runtime.advance(delta)};paint()}
     func stopForPointer() {
         guard !disposed else{return}
         runtime?.stopForPointer();let producer=sourceProducer;sourceProducer=nil;producer?.dispose()
@@ -100,6 +102,16 @@ final class NativeIdleBubbleField:SKNode {
     }
     private struct PaintedBubble {let id:Int,slot:Int,plan:NativeIdleBubbleMotion.Plan,pose:NativeIdleBubbleMotion.Pose}
     private var paintedBubbles:[PaintedBubble] {
+        if collectionHoney {
+            return (0..<2).map {slot in
+                let duration=4.8,age=(collectionElapsed+Double(slot)*2.4).truncatingRemainder(dividingBy:duration)
+                let plan=NativeIdleBubbleMotion.Plan(family:.honey,radius:slot==0 ? 7:9,color:0xF7D58A,startX:Double(slot)*8-4,startScale:0.2,startAlpha:0.65,duration:duration,scaleX:0.8,scaleY:0.9,nextDelay:0,points:[CGPoint(x:slot==0 ? -12:14,y:4)])
+                let pose=plan.sample(seconds:age)
+                // Original Honey bubble coordinates start at the bottom (64).
+                // Move the bounded pair to the jar mouth, then rise slowly.
+                return .init(id:slot,slot:slot,plan:plan,pose:.init(x:pose.x,y:pose.y-108,scaleX:pose.scaleX,scaleY:pose.scaleY,alpha:pose.alpha,tint:pose.tint))
+            }
+        }
         if let runtime{return runtime.bubbles.map{.init(id:$0.id,slot:$0.slot,plan:$0.plan,pose:$0.plan.sample(seconds:runtime.elapsed-$0.born))}}
         return sourceBubbles.map{.init(id:$0.id,slot:$0.slot,plan:$0.plan,pose:$0.pose)}
     }
@@ -141,7 +153,7 @@ final class NativeIdleBubbleField:SKNode {
             return NativeFishIdleFrame.Bubble(id:bubble.id,slot:bubble.slot,radius:bubble.plan.radius,color:bubble.plan.color,point:CGPoint(x:pose.x,y:pose.y),scale:CGPoint(x:pose.scaleX,y:pose.scaleY),alpha:pose.alpha)
         }
     }
-    var activeCount:Int {runtime?.bubbles.count ?? sourceBubbles.count}
+    var activeCount:Int {disposed ? 0:collectionHoney ? 2:runtime?.bubbles.count ?? sourceBubbles.count}
     var isRunning:Bool {!disposed && (runtime?.running ?? (sourceProducer != nil))}
     func dispose() {guard !disposed else {return};stopForPointer();disposed=true;sourceRestart=nil;carriers.removeAll();removeAllChildren();removeFromParent()}
 }

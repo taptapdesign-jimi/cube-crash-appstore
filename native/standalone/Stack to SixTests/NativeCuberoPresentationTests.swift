@@ -109,6 +109,34 @@ final class NativeCuberoPresentationTests:XCTestCase {
         XCTAssertEqual(max(1.2,(plans.map(\.end).max() ?? 0)+0.45),3.17623220735736,accuracy:1e-12)
         XCTAssertEqual(b.sample(seconds:b.end).alpha,0)
     }
+    func testCollectionSVGUsesNewWarmPixelsWithOriginalAlphaAndTiming() throws {
+        let original=try XCTUnwrap(NativeCuberoSVGAtlas.decode(root.appendingPathComponent(NativeCuberoIdleMotion.sourcePath)))
+        let updated=try XCTUnwrap(NativeCuberoSVGAtlas.decode(root.appendingPathComponent(NativeCuberoIdleMotion.collectionSourcePath)))
+        let rect=CGRect(x:0,y:0,width:480,height:540)
+        let old=try XCTUnwrap(original.cropping(to:rect)),new=try XCTUnwrap(updated.cropping(to:rect))
+        let oldRaw=try XCTUnwrap(NativeSelectedFinaleRaster.materialize(old)),newRaw=try XCTUnwrap(NativeSelectedFinaleRaster.materialize(new))
+        let oldData=try XCTUnwrap(oldRaw.dataProvider?.data) as Data,newData=try XCTUnwrap(newRaw.dataProvider?.data) as Data
+        var oldRed=0,newRed=0,oldBlue=0,newBlue=0,opaque=0,maximumAlphaDelta=0
+        for index in stride(from:0,to:oldData.count,by:4) {
+            maximumAlphaDelta=max(maximumAlphaDelta,abs(Int(oldData[index+3])-Int(newData[index+3])))
+            if oldData[index+3]>=240 {
+                opaque += 1;oldRed += Int(oldData[index]);newRed += Int(newData[index])
+                oldBlue += Int(oldData[index+2]);newBlue += Int(newData[index+2])
+            }
+        }
+        XCTAssertEqual(maximumAlphaDelta,0,"Atlas color filtering must preserve every alpha byte")
+        XCTAssertEqual(NativeArtworkAlphaBounds.measure(UIImage(cgImage:old)),NativeArtworkAlphaBounds.measure(UIImage(cgImage:new)),"Authored color matrix cannot change silhouette or spacing")
+        XCTAssertGreaterThan(opaque,10000)
+        XCTAssertGreaterThan(newRed,oldRed);XCTAssertLessThan(newBlue,oldBlue)
+        XCTAssertEqual(NativeDiceSheet.cuberoCollection.path,NativeCuberoIdleMotion.collectionSourcePath)
+        XCTAssertEqual(NativeDiceSheet.cuberoCollection.cell,NativeDiceSheet.cubero.cell)
+        XCTAssertEqual(NativeDiceSheet.cuberoCollection.displayScale,NativeDiceSheet.cubero.displayScale)
+        for frame in 0..<120 {
+            let time=Double(frame)/60
+            XCTAssertEqual(NativeDiceSheet.cuberoCollection.frame(at:time),NativeDiceSheet.cubero.frame(at:time))
+        }
+        try UIImage(cgImage:new).pngData()?.write(to:URL(fileURLWithPath:"/tmp/cubero-new-svg-preview.png"))
+    }
     func testSVGAuthoredFramesAndBounceBoundaries() throws {
         XCTAssertEqual(NativeCuberoIdleMotion.duration,1.153846153846,accuracy:0.000000001)
         let svg=try String(contentsOf:root.appendingPathComponent(NativeCuberoIdleMotion.sourcePath),encoding:.utf8)

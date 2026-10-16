@@ -11,8 +11,12 @@ nonisolated struct NativeSelectedFinaleRaster:@unchecked Sendable {
  static func decode(root:URL,candidates:[String])->Self? {
   for path in candidates {
    let relative=path.hasPrefix("./") ? String(path.dropFirst(2)):path
-   guard !relative.hasPrefix("/"),!relative.split(separator:"/").contains(".."),
-         let source=CGImageSourceCreateWithURL(root.appendingPathComponent(relative) as CFURL,nil),
+   guard !relative.hasPrefix("/"),!relative.split(separator:"/").contains("..") else{continue}
+   if NativeCuberoIdleMotion.isSVGSource(relative) {
+    if let image=NativeCuberoSVGAtlas.decode(root.appendingPathComponent(relative)) {return Self(path:relative,image:image)}
+    continue
+   }
+   guard let source=CGImageSourceCreateWithURL(root.appendingPathComponent(relative) as CFURL,nil),
          let image=CGImageSourceCreateImageAtIndex(source,0,[kCGImageSourceShouldCacheImmediately:true] as CFDictionary),
          let pixels=materialize(image) else{continue}
    return Self(path:relative,image:pixels)

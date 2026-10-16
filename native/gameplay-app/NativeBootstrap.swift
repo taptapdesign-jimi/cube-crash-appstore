@@ -156,7 +156,7 @@ final class NativeBootstrap {
                 return try self.makeGameplay(board: board, exit: exit)
             },
             flush: { [weak self] in try self?.flush() })
-        services.backpackProgression = { [weak self] in self?.envelope.progression ?? NativeProgressionState() }
+        services.journeyProgression = { [weak self] in self?.envelope.progression ?? NativeProgressionState() }
         services.developerAction = { [weak self] action, presenter in
             try self?.openDeveloperAction(action, presenter: presenter)
         }

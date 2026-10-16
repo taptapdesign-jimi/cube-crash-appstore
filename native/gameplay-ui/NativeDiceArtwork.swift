@@ -82,7 +82,7 @@ struct NativeDiceSheet {
     var animateDuringDrag = false
 
     func frame(at elapsed: TimeInterval) -> Int {
-        if path == NativeCuberoIdleMotion.sourcePath {return NativeCuberoIdleMotion.frame(seconds:elapsed)}
+        if NativeCuberoIdleMotion.isSVGSource(path) {return NativeCuberoIdleMotion.frame(seconds:elapsed)}
         let sequence = cycle * Double(activeLoops) + restingDuration
         let time = max(0, elapsed).truncatingRemainder(dividingBy: sequence)
         if time >= cycle * Double(activeLoops) { return 0 }
@@ -95,6 +95,10 @@ struct NativeDiceSheet {
     static let cubero = Self(path: "assets/shop/cubero/cubero.svg", atlas: CGSize(width:3360,height:540),
         cell:CGSize(width:480,height:540),columns:7,frameCount:7,cycle:NativeCuberoIdleMotion.duration,
         anchor:CGPoint(x:0.5,y:1-480.0/540),displayScale:128.0/360.5,offsetY:-64,animateDuringDrag:true)
+    static let cuberoCollection = Self(path:NativeCuberoIdleMotion.collectionSourcePath,
+        atlas:cubero.atlas,cell:cubero.cell,columns:cubero.columns,frameCount:cubero.frameCount,
+        cycle:cubero.cycle,anchor:cubero.anchor,displayScale:cubero.displayScale,
+        offsetY:cubero.offsetY,animateDuringDrag:cubero.animateDuringDrag)
     static let star = Self(path: "assets/shop/star/star-pixi-sheet.webp", atlas: CGSize(width: 4077, height: 735),
         cell: CGSize(width: 151, height: 147), columns: 27, frameCount: 120, cycle: 2,
         anchor: CGPoint(x: 75.5 / 151, y: 1 - 86.39 / 147), animateDuringDrag: true)
@@ -107,6 +111,9 @@ struct NativeDiceSheet {
     static let robo = Self(path: "assets/shop/robo/robo-pixi-sheet.webp", atlas: CGSize(width: 4077, height: 1032),
         cell: CGSize(width: 151, height: 172), columns: 27, frameCount: 144, cycle: 2.4,
         anchor: CGPoint(x: 79.5 / 151, y: 1 - 104.5 / 172))
+    // Alpha>8 union of the immutable84-frame source atlas in176x210 cells.
+    // Verified from original pixels by the collection geometry regression.
+    static let ballMotionBounds=CGRect(x:5.0/176,y:4.0/210,width:167.0/176,height:202.0/210)
     static let ball = Self(path: "assets/shop/ball/ball-pixi-sheet.webp", atlas: CGSize(width: 4048, height: 840),
         cell: CGSize(width: 176, height: 210), columns: 23, frameCount: 84, cycle: 1.4,
         anchor: CGPoint(x: 88.5 / 176, y: 1 - 149.65 / 210))
@@ -129,6 +136,11 @@ final class NativeBoardTextures {
     private var sourceRasterPixels:[ObjectIdentifier:CGSize]=[:]
     private var sourceRasterLogicalWidths:[ObjectIdentifier:CGFloat]=[:]
     private var sheets: [String: [SKTexture]] = [:]
+    private var sheetBodyBounds:[String:CGRect]=[:]
+    private var sheetMotionBodyBounds:[String:CGRect]=[:]
+    func lowestSheetBodyBottom(_ sheet:NativeDiceSheet)->CGFloat? {sheetMotionBodyBounds[sheet.path]?.maxY}
+    func highestSheetBodyTop(_ sheet:NativeDiceSheet)->CGFloat? {sheetMotionBodyBounds[sheet.path]?.minY}
+    func firstSheetBodyBounds(_ sheet:NativeDiceSheet)->CGRect {sheetBodyBounds[sheet.path] ?? CGRect(x:0,y:0,width:1,height:1)}
     private var sourceSheetHandles:[String:SourceTextureHandle]=[:]
     private var waiting: [String: [([SKTexture]) -> Void]] = [:]
     private var pip:SKTexture?
@@ -443,7 +455,7 @@ final class NativeBoardTextures {
 
     /// One serial decoder, one source per eligible family. No future variants
     /// are warmed. Disposed/stale completions cannot repopulate the cache.
-    func prepare(_ spec: NativeDiceSheet, completion: @escaping ([SKTexture]) -> Void) {
+    func prepare(_ spec: NativeDiceSheet, includeMotionBounds:Bool=false, completion: @escaping ([SKTexture]) -> Void) {
         guard !disposed else { return }
         if let frames = sheets[spec.path] { completion(frames); return }
         if waiting[spec.path] != nil { waiting[spec.path, default: []].append(completion); return }
@@ -452,8 +464,16 @@ final class NativeBoardTextures {
         let url = root.appendingPathComponent(spec.path)
         io.async { [weak self] in
             let cgImage:CGImage?
-            if spec.path == "assets/shop/cubero/cubero.svg" {cgImage=NativeCuberoSVGAtlas.decode(url)}
-            else {cgImage=UIImage(contentsOfFile:url.path)?.cgImage}
+            if NativeCuberoIdleMotion.isSVGSource(spec.path) {cgImage=NativeCuberoSVGAtlas.decode(url)}
+            else if includeMotionBounds {
+                // The selected atlas crosses to SpriteKit as raw pixels, never
+                // as an encoded WebP provider that can decode on MainActor.
+                cgImage=NativeSelectedFinaleRaster.decode(root:url.deletingLastPathComponent(),candidates:[url.lastPathComponent])?.image
+            } else {cgImage=UIImage(contentsOfFile:url.path)?.cgImage}
+            let firstBounds=cgImage.flatMap{$0.cropping(to:CGRect(origin:.zero,size:spec.cell))}.map{NativeArtworkAlphaBounds.measure(UIImage(cgImage:$0))}
+            // Immutable original atlas geometry is verified against all84 cells
+            // by NativeBackpackTests, rather than rescanning them on each tap.
+            let motionBounds=includeMotionBounds && spec.path==NativeDiceSheet.ball.path ? NativeDiceSheet.ballMotionBounds:nil
             DispatchQueue.main.async { [weak self] in
                 guard let self, !self.disposed, token == self.generation else { return }
                 let callbacks = self.waiting.removeValue(forKey: spec.path) ?? []
@@ -473,9 +493,36 @@ final class NativeBoardTextures {
                     frame.filteringMode = .linear
                     return frame
                 }
+                self.sheetBodyBounds[spec.path]=firstBounds
+                self.sheetMotionBodyBounds[spec.path]=motionBounds
                 self.sheets[spec.path] = frames
                 callbacks.forEach { $0(frames) }
             }
+        }
+    }
+
+    /// Reuse one decoded atlas and the existing upload owner for first reveal.
+    func prepareArtworkSheetForPresentation(_ sheet:NativeDiceSheet,includeMotionBounds:Bool=false,completion:@escaping([SKTexture])->Void){
+        let captured=generation
+        prepare(sheet,includeMotionBounds:includeMotionBounds){[weak self] frames in
+            guard let self,!self.disposed,self.generation==captured else{return}
+            guard !frames.isEmpty else{completion([]);return}
+            self.selectedFinalePreload(frames){Task{@MainActor [weak self] in
+                guard let self,!self.disposed,self.generation==captured else{return}
+                completion(frames)
+            }}
+        }
+    }
+
+    /// Selected read-only presentation warmup retains the preferred density
+    /// under the normal artwork key, avoiding a second synchronous decode.
+    func prepareDensityAwareArtwork(_ path:String,completion:@escaping(SKTexture?)->Void){
+        let source=path as NSString,stem=source.deletingPathExtension
+        let candidates=[stem+"@3x."+source.pathExtension,stem+"@2x."+source.pathExtension,path]
+        prepareSelectedFinaleAsset(.init(candidates)){[weak self] texture in
+            guard let self,!self.disposed else{return}
+            if let texture {self.textures[path]=texture}
+            completion(texture)
         }
     }
 
@@ -567,6 +614,6 @@ final class NativeBoardTextures {
         generation += 1
         waiting.removeAll(); sheets.removeAll();sourceSheetHandles.removeAll(); textures.removeAll(); logicalSizes.removeAll();sourceRasterPixels.removeAll();sourceRasterLogicalWidths.removeAll()
         pip=nil;cancelSelectedFinaleWaiters()
-        phaseScheduler.dispose()
+        phaseScheduler.dispose();sheetBodyBounds.removeAll();sheetMotionBodyBounds.removeAll()
     }
 }

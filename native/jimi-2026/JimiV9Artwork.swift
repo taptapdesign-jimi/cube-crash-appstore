@@ -9,6 +9,18 @@ enum NativeTextPalette {
 /// Shared rectangular navigation surface; its existing parent owns all motion.
 @MainActor
 final class JimiV9NavigationHeader: UIView {
+    /// Forest's accepted row center, shared by differently sized controls.
+    struct RowLayout {
+        let top,width:CGFloat
+        var centerY:CGFloat {top+26}
+        var titleFrame:CGRect {CGRect(x:72,y:centerY-16,width:max(0,width-144),height:32)}
+        init(bounds:CGRect,safeAreaTop:CGFloat) {
+            width=bounds.width;top=max(0,safeAreaTop+bounds.height*0.02-16)
+        }
+        func buttonFrame(x:CGFloat,width:CGFloat=44,height:CGFloat=44)->CGRect {
+            CGRect(x:x,y:centerY-height/2,width:width,height:height)
+        }
+    }
     override init(frame:CGRect) {
         super.init(frame:frame)
         clipsToBounds=false

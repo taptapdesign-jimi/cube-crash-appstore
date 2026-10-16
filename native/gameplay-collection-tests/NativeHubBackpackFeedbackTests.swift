@@ -21,4 +21,49 @@ final class NativeHubBackpackFeedbackTests:XCTestCase {
         owner.setActive(true,generation:1);XCTAssertFalse(owner.activate(generation:1));XCTAssertEqual(owner.acceptedContacts,2)
         owner.dispose();owner.dispose();owner.setActive(true,generation:3);XCTAssertFalse(owner.activate(generation:3))
     }
+    func testContactSurvivesParentRouteReplacementAndKeepsModelPose() {
+        let header=UIView(),icon=UIImageView()
+        header.addSubview(icon)
+        NativeHubBackpackFeedback.play(on:icon)
+        header.layer.removeAllAnimations()
+        let exit=CABasicAnimation(keyPath:"transform.scale");exit.toValue=0;exit.duration=0.48
+        header.layer.add(exit,forKey:"native-route")
+        let contact=icon.layer.animation(forKey:NativeHubBackpackFeedback.animationKey) as? CAKeyframeAnimation
+        XCTAssertEqual(contact?.duration,0.22)
+        XCTAssertEqual(contact?.keyPath,"transform.scale")
+        XCTAssertTrue(CATransform3DIsIdentity(icon.layer.transform))
+        XCTAssertEqual((contact?.values?.last as? NSNumber)?.doubleValue,1)
+        NativeHubBackpackFeedback.play(on:icon)
+        XCTAssertEqual(icon.layer.animationKeys(),[NativeHubBackpackFeedback.animationKey])
+        XCTAssertNotNil(header.layer.animation(forKey:"native-route"))
+    }
+
+    func testHomeEveryTabBouncesArtworkAndSurvivesImmediateExit() {
+        let root=Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!
+        let artwork=JimiV9Artwork(resourceRoot:root)
+        let home=JimiV9HomeView(frame:CGRect(x:0,y:0,width:390,height:844),assets:artwork)
+        let hub=JimiV9HubView(frame:home.bounds,assets:artwork)
+        let motion=NativeRouteMotion(home:home,hub:hub)
+        for index in home.navigationIconViews.indices {
+            // Both selecting a new tab and tapping the selected tab use the same child owner.
+            for _ in 0..<2 {
+                motion.selectSlide(index) {}
+                let icon=home.navigationIconViews[index]
+                XCTAssertNotNil(icon.layer.animation(forKey:NativeHubBackpackFeedback.animationKey))
+                XCTAssertNil(home.navigationButtonViews[index].layer.animation(forKey:NativeHubBackpackFeedback.animationKey))
+                motion.cancelSelectionLayout()
+                motion.animate(motion.homeTracks(enter:false)) {}
+                XCTAssertNotNil(icon.layer.animation(forKey:NativeHubBackpackFeedback.animationKey))
+                motion.cancel()
+            }
+        }
+    }
+    func testPlainNavigationButtonKeepsNormalPaintOnPress() {
+        let button=JimiV9PlainButton(type:.custom)
+        button.isHighlighted=true
+        XCTAssertFalse(button.isHighlighted)
+        XCTAssertFalse(button.adjustsImageWhenHighlighted)
+        XCTAssertFalse(button.showsTouchWhenHighlighted)
+    }
+
 }

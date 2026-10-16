@@ -8,11 +8,15 @@ final class NativeFishIdleOwner:UIView {
     var onPrepared:((String,UInt64)->Void)?
     var onMediaReady:((String,UInt64,Bool)->Void)?
     private let mediaPolicy:NativeFishMediaPolicy
+    private let minimumPaintInterval:Double,svgPlaybackRate:Double
+    private let preferOriginalSVG:Bool
     private let resourceRoot:URL
     private let svgResources:NativeFishSVGResourceLease
     private var owners:[String:NativeFishIdlePresentation]=[:]
     private var generation:UInt64?,disposed=false,suspended=false
-    init(resourceRoot:URL,mediaPolicy:NativeFishMediaPolicy? = nil) {
+    init(resourceRoot:URL,mediaPolicy:NativeFishMediaPolicy? = nil,preferOriginalSVG:Bool=false,minimumPaintInterval:Double=1/30,svgPlaybackRate:Double=1) {
+        self.minimumPaintInterval=minimumPaintInterval;self.svgPlaybackRate=svgPlaybackRate
+        self.preferOriginalSVG=preferOriginalSVG
         self.mediaPolicy=mediaPolicy ?? .shared;self.resourceRoot=resourceRoot;svgResources=NativeFishSVGResourceLease(resourceRoot:resourceRoot);super.init(frame:.zero)
         isOpaque=false;backgroundColor = .clear;isUserInteractionEnabled=false;clipsToBounds=true
         accessibilityIdentifier="native-fish-authored-foreground"
@@ -28,7 +32,7 @@ final class NativeFishIdleOwner:UIView {
             let owner:NativeFishIdlePresentation
             if let existing=owners[id] {owner=existing}
             else {
-                owner=NativeFishIdlePresentation(resourceRoot:resourceRoot,svgResources:svgResources,allowHEVC:mediaPolicy.useHEVC)
+                owner=NativeFishIdlePresentation(resourceRoot:resourceRoot,svgResources:svgResources,allowHEVC:!preferOriginalSVG && mediaPolicy.useHEVC,minimumPaintInterval:minimumPaintInterval,svgPlaybackRate:svgPlaybackRate)
                 owners[id]=owner;addSubview(owner);owner.setSuspended(suspended)
                 owner.onPrepared={ [weak self,weak owner] in
                     guard let self,!self.disposed,self.generation==generation,self.owners[id] === owner else {return}
