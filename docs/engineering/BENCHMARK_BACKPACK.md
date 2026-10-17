@@ -12,8 +12,9 @@ HUD/navigation feedback, special-die presentation fixes, Arcade hub/variant work
 and save/rule changes. This checkpoint preserves current development state;
 it is not a claim of complete parity or physical acceptance.
 
-The original oversized `game design.zip` is preserved unchanged as a GitHub
-release attachment, rather than a Git blob. Its size/hash and recovery location
+The original oversized `game design.zip` is retained locally for a possible GitHub
+release attachment, rather than a Git blob. Automatic approval review rejected
+public archive upload; explicit user approval is pending. Its size/hash and recovery location
 are recorded in BENCHMARK_BACKPACK_LARGE_ARTIFACTS.json. The unpacked current
 `game design/` directory is versioned normally, including the small render-style
 ZIP. Existing benchmark tags and PWA recovery references remain immutable.

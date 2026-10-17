@@ -4,5 +4,6 @@
   "bytes": 281063415,
   "sha256": "95797c97f5d5e1c4cca514cb8d650dfcf8c4daf510cc078fd2ac854d0dcad252",
   "source_directory": "game design/",
-  "note": "Original archive preserved unchanged as release asset; the current design directory and smaller render-style ZIP are versioned in Git."
+  "note": "Original local archive preserved unchanged. All substantive design content is versioned in Git; archive also contains untracked macOS metadata.",
+  "publication_status": "not uploaded: automatic approval review rejected public archive publication; explicit user approval pending"
 }

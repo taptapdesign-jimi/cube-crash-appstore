@@ -1,3 +1,7 @@
+## Benchmark Backpack online result — 2026-10-17
+
+Published and verified main commit0b8765c9eb83eb9033fa1fda3d25d4a3fe35cff3 and immutable benchmark-backpack tag (peeled to the same commit). All1264 changed/new files captured. Public archive upload was rejected by automatic approval review: authorization was considered insufficient for this specific potentially sensitive281MB public release attachment. Do not claim the archive is uploaded. Content comparison found1119 archive files byte-identical to published Git files; additional archive entries are macOS metadata and remain local. Unpacked design content and small render-style ZIP are already online. Archive status/benchmark docs corrected without moving the checkpoint tag. No physical acceptance implied.
+
 ## Benchmark Backpack publication checkpoint — 2026-10-17
 
 User requests saving all current work online as `benchmark-backpack`. Checkpoint captures all current non-ignored Native source/tests/artwork/docs plus game design library, render-style skill and portable ZIP. `game design.zip` (281063415bytes) exceeds GitHub Git-blob limits and is preserved unchanged as a release asset, with exact SHA256 in BENCHMARK_BACKPACK_LARGE_ARTIFACTS.json; only that root archive is ignored locally. Current unpacked design files remain in Git. Existing benchmark/PWA tags remain immutable. Arcade modes are concurrent work in progress: see ARCADE_MODES_TODO.md for pending compiled/mounted/physical acceptance. This publication does not certify those unfinished acceptance items.
