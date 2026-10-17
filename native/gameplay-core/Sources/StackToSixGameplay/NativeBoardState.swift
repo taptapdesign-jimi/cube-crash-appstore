@@ -1,5 +1,18 @@
 import Foundation
 
+/// Separate Arcade rule sets share the existing merge engine and Journey unlocks.
+public enum NativeArcadeVariant: String, Codable, CaseIterable, Sendable {
+    case endurance, pureDice, slowBurn
+    public var title: String { switch self { case .endurance: return "Endurance"; case .pureDice: return "Pure Dice"; case .slowBurn: return "Slow Burn" } }
+    public var meterMultiplier: Double { switch self { case .endurance: return 1; case .pureDice: return 0; case .slowBurn: return 0.5 } }
+    public var allowsSpecials: Bool { self != .pureDice }
+    /// Only initial openings are biased; refills and rounds five onward retain normal rules.
+    public func initialSmallValueBias(round: Int) -> Double {
+        guard self == .pureDice, (1...4).contains(round) else { return 0 }
+        return [0.80, 0.65, 0.50, 0.35][round-1]
+    }
+}
+
 public enum NativeRunMode: String, Codable, Sendable { case arcade = "arcade_home", journey }
 public enum NativeWildArchetype: String, Codable, CaseIterable, Sendable { case star = "wild", juice = "wild-juice", magnet = "wild-magnet", tnt = "wild-tnt" }
 /// Plain Star and these variants share a persisted drop count; Bee remains fixed at one.
@@ -57,6 +70,8 @@ public struct NativeBoardState: Equatable, Codable, Sendable {
     /// Original Source roster objects whose grid references were explicitly cleared.
     /// Optional for backward decoding; a live detached object is never save-admissible.
     public var sourceDetachedGridTileIDs:Set<String>?
+    public var arcadeVariant: NativeArcadeVariant?
+    public var effectiveArcadeVariant: NativeArcadeVariant { mode == .arcade ? arcadeVariant ?? .endurance : .endurance }
     public var mode: NativeRunMode
     public var board: Int
     public var stage: Int
@@ -79,7 +94,8 @@ public struct NativeBoardState: Equatable, Codable, Sendable {
     public var rngState: UInt64
     public var tutorial: NativeTutorialState?
     public var terminal: NativeResolution?
-    public init(columns: Int = 5, rows: Int = 9, tiles: [NativeTile], mode: NativeRunMode = .journey, board: Int = 1, stage: Int = 1, generation: UInt64 = 1, revision: UInt64 = 0, moves: Int = 50, maxMoves: Int = 50, score: Int = 0, starsCount: Int = 0, bestScore: Int = 0, maxStackDepth: Int = 1, longestCombo: Int = 0, cubesCracked: Int = 0, combo: Int = 0, earnedComboBonus: Int = 0, wildMeter: Double = 0, wildSpawnCount: Int = 0, lastWildDropType: NativeWildArchetype? = nil, wildDropTypeStreak: Int = 0, rngState: UInt64 = 1, terminal: NativeResolution? = nil, tutorial: NativeTutorialState? = nil, sourceDetachedGridTileIDs:Set<String>? = nil) {
+    public init(columns: Int = 5, rows: Int = 9, tiles: [NativeTile], mode: NativeRunMode = .journey, board: Int = 1, stage: Int = 1, generation: UInt64 = 1, revision: UInt64 = 0, moves: Int = 50, maxMoves: Int = 50, score: Int = 0, starsCount: Int = 0, bestScore: Int = 0, maxStackDepth: Int = 1, longestCombo: Int = 0, cubesCracked: Int = 0, combo: Int = 0, earnedComboBonus: Int = 0, wildMeter: Double = 0, wildSpawnCount: Int = 0, lastWildDropType: NativeWildArchetype? = nil, wildDropTypeStreak: Int = 0, rngState: UInt64 = 1, terminal: NativeResolution? = nil, tutorial: NativeTutorialState? = nil, sourceDetachedGridTileIDs:Set<String>? = nil, arcadeVariant: NativeArcadeVariant? = nil) {
+        self.arcadeVariant=arcadeVariant
         self.sourceDetachedGridTileIDs=sourceDetachedGridTileIDs
         self.columns = columns; self.rows = rows; self.tiles = tiles; self.mode = mode; self.board = board; self.stage = stage; self.generation = generation; self.revision = revision; self.moves = moves; self.maxMoves = maxMoves; self.score = score; self.starsCount = starsCount; self.bestScore = bestScore; self.maxStackDepth = maxStackDepth; self.longestCombo = longestCombo; self.cubesCracked = cubesCracked; self.combo = combo; self.earnedComboBonus = earnedComboBonus; self.wildMeter = wildMeter; self.wildSpawnCount = wildSpawnCount; self.lastWildDropType = lastWildDropType; self.wildDropTypeStreak = wildDropTypeStreak; self.rngState = rngState; self.terminal = terminal; self.tutorial = tutorial
     }
@@ -213,7 +229,7 @@ extension NativeTile {
     }
 }
 extension NativeBoardState {
-    private enum CodingKeys: String, CodingKey { case columns,rows,tiles,mode,board,stage,generation,revision,moves,maxMoves,score,starsCount,bestScore,maxStackDepth,longestCombo,cubesCracked,combo,earnedComboBonus,wildMeter,wildSpawnCount,lastWildDropType,wildDropTypeStreak,rngState,terminal,tutorial,sourceDetachedGridTileIDs }
+    private enum CodingKeys: String, CodingKey { case columns,rows,tiles,mode,board,stage,generation,revision,moves,maxMoves,score,starsCount,bestScore,maxStackDepth,longestCombo,cubesCracked,combo,earnedComboBonus,wildMeter,wildSpawnCount,lastWildDropType,wildDropTypeStreak,rngState,terminal,tutorial,sourceDetachedGridTileIDs,arcadeVariant }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy:CodingKeys.self)
         self.init(columns:try c.decode(Int.self,forKey:.columns),rows:try c.decode(Int.self,forKey:.rows),tiles:try c.decode([NativeTile].self,forKey:.tiles),
@@ -225,7 +241,7 @@ extension NativeBoardState {
             combo:try c.decodeIfPresent(Int.self,forKey:.combo) ?? 0,earnedComboBonus:try c.decodeIfPresent(Int.self,forKey:.earnedComboBonus) ?? 0,wildMeter:try c.decodeIfPresent(Double.self,forKey:.wildMeter) ?? 0,
             wildSpawnCount:try c.decodeIfPresent(Int.self,forKey:.wildSpawnCount) ?? 0,lastWildDropType:try c.decodeIfPresent(NativeWildArchetype.self,forKey:.lastWildDropType),
             wildDropTypeStreak:try c.decodeIfPresent(Int.self,forKey:.wildDropTypeStreak) ?? 0,rngState:try c.decodeIfPresent(UInt64.self,forKey:.rngState) ?? 1,
-            terminal:try c.decodeIfPresent(NativeResolution.self,forKey:.terminal),tutorial:try c.decodeIfPresent(NativeTutorialState.self,forKey:.tutorial),sourceDetachedGridTileIDs:try c.decodeIfPresent(Set<String>.self,forKey:.sourceDetachedGridTileIDs))
+            terminal:try c.decodeIfPresent(NativeResolution.self,forKey:.terminal),tutorial:try c.decodeIfPresent(NativeTutorialState.self,forKey:.tutorial),sourceDetachedGridTileIDs:try c.decodeIfPresent(Set<String>.self,forKey:.sourceDetachedGridTileIDs),arcadeVariant:try c.decodeIfPresent(NativeArcadeVariant.self,forKey:.arcadeVariant))
     }
 }
 

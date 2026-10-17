@@ -24,28 +24,20 @@ final class NativeHubBackpackFeedback {
     /// Core Animation retires this finite track; repeated taps replace only this key.
     static func play(on target:UIView) {
         guard !UIAccessibility.isReduceMotionEnabled else{return}
+        CATransaction.begin();CATransaction.setDisableActions(true)
         target.layer.removeAnimation(forKey:animationKey)
         let animation=CAKeyframeAnimation(keyPath:"transform.scale")
         animation.values=(0...220).map{NSNumber(value:scale(at:Double($0)/1000))}
         animation.keyTimes=(0...220).map{NSNumber(value:Double($0)/220)}
         animation.duration=0.22;animation.isRemovedOnCompletion=true
+        // Pin contact to input time. A zero beginTime starts only when a
+        // deferred/hidden layer is next committed, replaying on modal return.
+        animation.beginTime=target.layer.convertTime(CACurrentMediaTime(),from:nil)
         target.layer.add(animation,forKey:animationKey)
+        CATransaction.commit()
     }
-    static func scale(at seconds:Double)->Double {
-        let t=max(0,min(0.22,seconds)),start:Double,end:Double,p:Double
-        if t<=0.077 {start=1;end=0.92;p=t/0.077}
-        else if t<=0.154 {start=0.92;end=1.06;p=(t-0.077)/0.077}
-        else {start=1.06;end=1;p=(t-0.154)/0.066}
-        return start+(end-start)*ease(p)
-    }
-    /// Same twelve-step inversion as nav-icon-bounce.ts.
-    static func ease(_ progress:Double)->Double {
-        if progress<=0{return 0};if progress>=1{return 1}
-        func coordinate(_ t:Double,_ a:Double,_ b:Double)->Double {let inverse=1-t;return 3*inverse*inverse*t*a+3*inverse*t*t*b+t*t*t}
-        var lower=0.0,upper=1.0
-        for _ in 0..<12 {let candidate=(lower+upper)/2;if coordinate(candidate,0.34,0.64)<progress {lower=candidate}else{upper=candidate}}
-        return coordinate((lower+upper)/2,1.56,1)
-    }
+    static func scale(at seconds:Double)->Double {NativeHUDTapMotion.scale(at:seconds)}
+    static func ease(_ progress:Double)->Double {NativeHUDTapMotion.ease(progress)}
     private func cancel(){guard let button else{return};let target=button.imageView ?? button;target.layer.removeAnimation(forKey:Self.animationKey);CATransaction.begin();CATransaction.setDisableActions(true);target.layer.transform=CATransform3DIdentity;CATransaction.commit()}
     func dispose(){guard !disposed else{return};disposed=true;active=false;cancel();button=nil}
 }

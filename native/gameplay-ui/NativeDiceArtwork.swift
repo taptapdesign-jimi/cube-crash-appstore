@@ -123,6 +123,15 @@ struct NativeDiceSheet {
         displayScale: 115.2 / 194, animateDuringDrag:true)
 }
 
+/// Cross-queue retirement fence. It skips work that has not started; an
+/// already executing ImageIO/SVG decode may finish once and cannot publish.
+nonisolated private final class NativeArtworkPreparationLifetime:@unchecked Sendable {
+    private let lock=NSLock()
+    private var retired=false
+    var isCurrent:Bool {lock.lock();defer{lock.unlock()};return !retired}
+    func cancel(){lock.lock();retired=true;lock.unlock()}
+}
+
 @MainActor
 final class NativeBoardTextures {
     let sourceWildShimmerGradients=NativeSourceWildShimmerGradientCache()
@@ -137,6 +146,14 @@ final class NativeBoardTextures {
     private var sourceRasterLogicalWidths:[ObjectIdentifier:CGFloat]=[:]
     private var sheets: [String: [SKTexture]] = [:]
     private var sheetBodyBounds:[String:CGRect]=[:]
+    private var sheetFrameBodyBounds:[String:[CGRect]]=[:]
+    func frameSheetBodyBounds(_ sheet:NativeDiceSheet,frame:Int)->CGRect? {
+        guard let frames=sheetFrameBodyBounds[sheet.path],frames.indices.contains(frame) else{return nil}
+        return frames[frame]
+    }
+    func animatedSheetBodyBounds(_ sheet:NativeDiceSheet)->CGRect? {
+        sheetFrameBodyBounds[sheet.path]?.reduce(CGRect.null){$0.union($1)}
+    }
     private var sheetMotionBodyBounds:[String:CGRect]=[:]
     func lowestSheetBodyBottom(_ sheet:NativeDiceSheet)->CGFloat? {sheetMotionBodyBounds[sheet.path]?.maxY}
     func highestSheetBodyTop(_ sheet:NativeDiceSheet)->CGFloat? {sheetMotionBodyBounds[sheet.path]?.minY}
@@ -159,10 +176,22 @@ final class NativeBoardTextures {
     private let selectedFinalePreload:SelectedFinalePreload
     private var phaseScheduler=NativeArtworkPhaseScheduler()
     private let io = DispatchQueue(label: "com.taptapdesign.stacktosix.native-board-art", qos: .userInitiated)
+    private var preparationLifetime=NativeArtworkPreparationLifetime()
+    typealias PreparationQueue=@MainActor (@escaping @Sendable ()->Void)->Void
+    typealias SelectedRasterDecoder=@Sendable (URL,[String])->NativeSelectedFinaleRaster?
+    private let preparationQueue:PreparationQueue?
+    private let selectedRasterDecoder:SelectedRasterDecoder
+    private func enqueuePreparation(_ work:@escaping @Sendable ()->Void) {
+        if let preparationQueue {preparationQueue(work)}else{io.async(execute:work)}
+    }
 
     init(root: URL,selectedFinalePreload:@escaping SelectedFinalePreload={textures,done in
         SKTexture.preload(textures,withCompletionHandler:done)
-    }) {self.root=root;self.selectedFinalePreload=selectedFinalePreload}
+    },preparationQueue:PreparationQueue?=nil,
+        selectedRasterDecoder:@escaping SelectedRasterDecoder={NativeSelectedFinaleRaster.decode(root:$0,candidates:$1)}) {
+        self.root=root;self.selectedFinalePreload=selectedFinalePreload
+        self.preparationQueue=preparationQueue;self.selectedRasterDecoder=selectedRasterDecoder
+    }
 
     func reserveIdlePhase(group:String,cycle:TimeInterval,nowMilliseconds:Double?=nil)->(id:Int,running:Bool) {
         let now=nowMilliseconds ?? (CACurrentMediaTime()*1000).rounded(.down)
@@ -356,6 +385,29 @@ final class NativeBoardTextures {
         func powerOfTwo(_ value:Int)->Bool {value>0 && value & (value-1)==0}
         texture.usesMipmaps=powerOfTwo(image.width) && powerOfTwo(image.height)
     }
+    private static let hudMinificationPaths:Set<String> = [
+        "assets/close-icon.png","assets/nav/stats-nav.png","assets/hud/score-hud.png",
+        "assets/hud/combo-hud.png","assets/hud/extra-combo-hud.png","assets/hud/mega-combo-hud.png"
+    ]
+    /// A tiny cached runtime raster enables SpriteKit mipmaps for non-POT HUD PNGs.
+    /// Original files, UV coverage and logical texture dimensions remain intact.
+    private static func hudMinificationImage(_ image:UIImage,path:String)->UIImage {
+        guard hudMinificationPaths.contains(path),let cg=image.cgImage else{return image}
+        func nextPower(_ value:Int)->Int {var n=1;while n<value {n *= 2};return n}
+        // Trophy has finer internal detail; a 64px prefilter avoids the
+        // excess intermediate upsampling of its 84px Retina source.
+        let trophy=path=="assets/hud/score-hud.png"
+        let width=trophy ? 64:nextPower(cg.width),height=trophy ? 64:nextPower(cg.height)
+        guard width != cg.width || height != cg.height else{return image}
+        // All admitted HUD artwork is square; preserve its original aspect/scale.
+        guard cg.width==cg.height,width<=512,
+              let context=CGContext(data:nil,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,
+                  space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue) else{return image}
+        context.interpolationQuality = .high
+        context.draw(cg,in:CGRect(x:0,y:0,width:width,height:height))
+        guard let filtered=context.makeImage() else{return image}
+        return UIImage(cgImage:filtered,scale:image.scale*CGFloat(width)/CGFloat(cg.width),orientation:image.imageOrientation)
+    }
     func texture(_ path: String, densityAware: Bool = true) -> SKTexture? {
         guard !disposed else { return nil }
         if let texture = textures[path] { return texture }
@@ -371,13 +423,17 @@ final class NativeBoardTextures {
         }
         for (candidate, density) in candidates {
             if let image = Self.isOrdinaryFace(path) ? ordinaryMinificationImage(path:path):UIImage(contentsOfFile:candidate.path) {
-                let texture = SKTexture(image: image)
+                let sampled=Self.hudMinificationImage(image,path:path)
+                let texture = SKTexture(image: sampled)
                 texture.filteringMode = .linear
+                if Self.hudMinificationPaths.contains(path),let cg=sampled.cgImage {
+                    texture.usesMipmaps=cg.width>0 && cg.height>0 && cg.width & (cg.width-1)==0 && cg.height & (cg.height-1)==0
+                }
                 textures[path] = texture
                 if let cg=image.cgImage {
                     if NativeMagnetFinalePresentation.assets.contains(path) {magnetBoltRasterImages[path]=cg}
                     configureOrdinaryMinification(texture,path:path,image:cg)
-                    sourceRasterPixels[ObjectIdentifier(texture)]=CGSize(width:cg.width,height:cg.height)
+                    sourceRasterPixels[ObjectIdentifier(texture)]=CGSize(width:sampled.cgImage?.width ?? cg.width,height:sampled.cgImage?.height ?? cg.height)
                     let resolution=Self.isOrdinaryFace(path) ? Self.sourceRasterResolution(path:path)*image.scale:Self.sourceRasterResolution(path:candidate.path)
                     sourceRasterLogicalWidths[ObjectIdentifier(texture)]=CGFloat(cg.width)/resolution
                 }
@@ -455,14 +511,32 @@ final class NativeBoardTextures {
 
     /// One serial decoder, one source per eligible family. No future variants
     /// are warmed. Disposed/stale completions cannot repopulate the cache.
-    func prepare(_ spec: NativeDiceSheet, includeMotionBounds:Bool=false, completion: @escaping ([SKTexture]) -> Void) {
+    func prepare(_ spec: NativeDiceSheet, includeMotionBounds:Bool=false, includeFrameBodyBounds:Bool=false, completion: @escaping ([SKTexture]) -> Void) {
         guard !disposed else { return }
-        if let frames = sheets[spec.path] { completion(frames); return }
-        if waiting[spec.path] != nil { waiting[spec.path, default: []].append(completion); return }
+        let cachedFrames=sheets[spec.path]
+        if includeMotionBounds,spec.path==NativeDiceSheet.ball.path,cachedFrames != nil {
+            // Immutable motion metadata requires no second pixel decode, even
+            // when the selected frame-bounds request upgrades a cached atlas.
+            sheetMotionBodyBounds[spec.path]=NativeDiceSheet.ballMotionBounds
+        }
+        if let frames=cachedFrames,!includeFrameBodyBounds || sheetFrameBodyBounds[spec.path] != nil {completion(frames);return}
+        if waiting[spec.path] != nil {
+            if includeFrameBodyBounds {
+                let captured=generation
+                waiting[spec.path,default:[]].append { [weak self] frames in
+                    guard let self,!self.disposed,self.generation==captured else{return}
+                    guard !frames.isEmpty else{completion([]);return}
+                    self.prepare(spec,includeMotionBounds:includeMotionBounds,includeFrameBodyBounds:true,completion:completion)
+                }
+            }else{waiting[spec.path,default:[]].append(completion)}
+            return
+        }
         waiting[spec.path] = [completion]
         let token = generation
         let url = root.appendingPathComponent(spec.path)
-        io.async { [weak self] in
+        let lifetime=preparationLifetime
+        enqueuePreparation { [weak self] in
+            guard lifetime.isCurrent else{return}
             let cgImage:CGImage?
             if NativeCuberoIdleMotion.isSVGSource(spec.path) {cgImage=NativeCuberoSVGAtlas.decode(url)}
             else if includeMotionBounds {
@@ -470,18 +544,30 @@ final class NativeBoardTextures {
                 // as an encoded WebP provider that can decode on MainActor.
                 cgImage=NativeSelectedFinaleRaster.decode(root:url.deletingLastPathComponent(),candidates:[url.lastPathComponent])?.image
             } else {cgImage=UIImage(contentsOfFile:url.path)?.cgImage}
+            guard lifetime.isCurrent else{return}
+            let frameBounds=includeFrameBodyBounds ? cgImage.flatMap {
+                NativeArtworkAlphaBounds.measureFrames($0,cell:spec.cell,columns:spec.columns,frameCount:spec.frameCount,current:{lifetime.isCurrent})
+            }:nil
+            guard lifetime.isCurrent else{return}
+            // Keep the established first-frame layout measurement unchanged;
+            // animated bounds are a separate selected-only shadow contract.
             let firstBounds=cgImage.flatMap{$0.cropping(to:CGRect(origin:.zero,size:spec.cell))}.map{NativeArtworkAlphaBounds.measure(UIImage(cgImage:$0))}
             // Immutable original atlas geometry is verified against all84 cells
             // by NativeBackpackTests, rather than rescanning them on each tap.
             let motionBounds=includeMotionBounds && spec.path==NativeDiceSheet.ball.path ? NativeDiceSheet.ballMotionBounds:nil
             DispatchQueue.main.async { [weak self] in
-                guard let self, !self.disposed, token == self.generation else { return }
+                guard lifetime.isCurrent,let self, !self.disposed, token == self.generation else { return }
                 let callbacks = self.waiting.removeValue(forKey: spec.path) ?? []
                 guard let cgImage,
                       cgImage.width == Int(spec.atlas.width), cgImage.height == Int(spec.atlas.height) else {
                     NSLog("[NATIVE_BOARD_ART] Missing/invalid atlas %@", spec.path)
                     callbacks.forEach { $0([]) }
                     return
+                }
+                self.sheetFrameBodyBounds[spec.path]=frameBounds
+                if let motionBounds {self.sheetMotionBodyBounds[spec.path]=motionBounds}
+                if let cachedFrames {
+                    callbacks.forEach{$0(cachedFrames)};return
                 }
                 let source = SKTexture(cgImage: cgImage)
                 source.filteringMode = .linear
@@ -494,7 +580,6 @@ final class NativeBoardTextures {
                     return frame
                 }
                 self.sheetBodyBounds[spec.path]=firstBounds
-                self.sheetMotionBodyBounds[spec.path]=motionBounds
                 self.sheets[spec.path] = frames
                 callbacks.forEach { $0(frames) }
             }
@@ -502,9 +587,9 @@ final class NativeBoardTextures {
     }
 
     /// Reuse one decoded atlas and the existing upload owner for first reveal.
-    func prepareArtworkSheetForPresentation(_ sheet:NativeDiceSheet,includeMotionBounds:Bool=false,completion:@escaping([SKTexture])->Void){
+    func prepareArtworkSheetForPresentation(_ sheet:NativeDiceSheet,includeMotionBounds:Bool=false,includeFrameBodyBounds:Bool=false,completion:@escaping([SKTexture])->Void){
         let captured=generation
-        prepare(sheet,includeMotionBounds:includeMotionBounds){[weak self] frames in
+        prepare(sheet,includeMotionBounds:includeMotionBounds,includeFrameBodyBounds:includeFrameBodyBounds){[weak self] frames in
             guard let self,!self.disposed,self.generation==captured else{return}
             guard !frames.isEmpty else{completion([]);return}
             self.selectedFinalePreload(frames){Task{@MainActor [weak self] in
@@ -546,11 +631,13 @@ final class NativeBoardTextures {
                 return
             }
         }
-        let root=self.root
-        io.async { [weak self] in
-            let decoded=NativeSelectedFinaleRaster.decode(root:root,candidates:spec.candidates)
+        let root=self.root,lifetime=preparationLifetime,decode=selectedRasterDecoder
+        enqueuePreparation { [weak self] in
+            guard lifetime.isCurrent else{return}
+            let decoded=decode(root,spec.candidates)
+            guard lifetime.isCurrent else{return}
             Task { @MainActor [weak self] in
-                guard let self,self.selectedFinaleIsCurrent(key:spec.key,request:request) else{return}
+                guard lifetime.isCurrent,let self,self.selectedFinaleIsCurrent(key:spec.key,request:request) else{return}
                 guard let decoded else {
                     self.finishSelectedFinale(key:spec.key,request:request,texture:nil);return
                 }
@@ -596,24 +683,26 @@ final class NativeBoardTextures {
         textures = textures.filter { paths.contains($0.key) }
         magnetBoltRasterImages=magnetBoltRasterImages.filter{paths.contains($0.key)}
         logicalSizes = logicalSizes.filter { paths.contains($0.key) }
+        sheetFrameBodyBounds=sheetFrameBodyBounds.filter{paths.contains($0.key)}
         sheets = sheets.filter { paths.contains($0.key) };sourceSheetHandles=sourceSheetHandles.filter{paths.contains($0.key)}
     }
 
     func invalidatePendingPreparation() {
         guard !disposed else { return }
+        preparationLifetime.cancel();preparationLifetime=NativeArtworkPreparationLifetime()
         generation += 1; waiting.removeAll()
         cancelSelectedFinaleWaiters()
     }
 
     func dispose() {
         guard !disposed else { return }
-        disposed = true
+        disposed = true;preparationLifetime.cancel()
         sourceWildShimmerGradients.dispose()
         magnetBoltRasterImages.removeAll()
         pip=nil
         generation += 1
         waiting.removeAll(); sheets.removeAll();sourceSheetHandles.removeAll(); textures.removeAll(); logicalSizes.removeAll();sourceRasterPixels.removeAll();sourceRasterLogicalWidths.removeAll()
         pip=nil;cancelSelectedFinaleWaiters()
-        phaseScheduler.dispose();sheetBodyBounds.removeAll();sheetMotionBodyBounds.removeAll()
+        phaseScheduler.dispose();sheetBodyBounds.removeAll();sheetMotionBodyBounds.removeAll();sheetFrameBodyBounds.removeAll()
     }
 }

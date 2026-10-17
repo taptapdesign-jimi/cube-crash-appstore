@@ -32,11 +32,11 @@ public enum NativeJourneyContent {
         case 6: return ["wild-star","bee","flower","honey","mushroom"]
         case 7...10: return ["wild-star","bee","flower","honey","mushroom","tnt","barell"]
         case 11: return ["fish","wild-juice"]
-        case 12...20: return ["fish","wild-juice","beach-ball","bottle","wild-star"]
-        case 21: return ["wild-star","kanta"]
-        case 22: return ["wild-star","kanta","robo-cube"]
-        case 23: return ["wild-star","kanta","robo-cube","spaceship"]
-        case 24...30: return ["wild-star","kanta","robo-cube","spaceship","laser-gun"]
+        case 12...20: return ["fish","wild-juice","beach-ball","bottle"]
+        case 21: return ["kanta"]
+        case 22: return ["kanta","robo-cube"]
+        case 23: return ["kanta","robo-cube","spaceship"]
+        case 24...30: return ["kanta","robo-cube","spaceship","laser-gun"]
         default: return []
         }
     }

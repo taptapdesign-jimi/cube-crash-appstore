@@ -17,7 +17,7 @@ final class NativeFishIdleOwner:UIView {
     init(resourceRoot:URL,mediaPolicy:NativeFishMediaPolicy? = nil,preferOriginalSVG:Bool=false,minimumPaintInterval:Double=1/30,svgPlaybackRate:Double=1) {
         self.minimumPaintInterval=minimumPaintInterval;self.svgPlaybackRate=svgPlaybackRate
         self.preferOriginalSVG=preferOriginalSVG
-        self.mediaPolicy=mediaPolicy ?? .shared;self.resourceRoot=resourceRoot;svgResources=NativeFishSVGResourceLease(resourceRoot:resourceRoot);super.init(frame:.zero)
+        self.mediaPolicy=mediaPolicy ?? .shared;self.resourceRoot=resourceRoot;svgResources=NativeFishSVGResourceLease(resourceRoot:resourceRoot,measureBodyBounds:preferOriginalSVG);super.init(frame:.zero)
         isOpaque=false;backgroundColor = .clear;isUserInteractionEnabled=false;clipsToBounds=true
         accessibilityIdentifier="native-fish-authored-foreground"
     }
@@ -52,6 +52,8 @@ final class NativeFishIdleOwner:UIView {
     var selectedSVGFrameCount:Int {svgResources.decodedFrameCount}
     var pendingSVGRequests:Int {svgResources.pendingRequestCount}
     var activeMediaCount:Int {owners.count}
+    /// Optional original-SVG body receipt in this owner's UIKit coordinates.
+    func currentBodyFrame(tileID:String)->CGRect? {owners[tileID]?.currentBodyFrame(in:self)}
     func presentation(tileID:String)->NativeFishIdlePresentation? {owners[tileID]}
     private func retireMedia() {Array(owners.values).forEach {$0.dispose()};owners.removeAll()}
     func dispose() {guard !disposed else {return};disposed=true;onPrepared=nil;onMediaReady=nil;retireMedia();svgResources.dispose();generation=nil;removeFromSuperview()}

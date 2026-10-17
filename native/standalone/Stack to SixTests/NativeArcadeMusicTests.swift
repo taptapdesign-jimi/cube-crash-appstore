@@ -1,4 +1,6 @@
 import XCTest
+import UIKit
+import AVFAudio
 @testable import Stack_to_Six
 
 @MainActor
@@ -19,6 +21,20 @@ final class NativeArcadeMusicTests:XCTestCase {
     private final class Scheduler:NativeMusicScheduler {
         var jobs:[Job]=[]
         func after(_ seconds:Double,_ callback:@escaping ()->Void)->any NativeMusicCancellation {let job=Job(seconds,callback);jobs.append(job);return job}
+    }
+    func testForegroundRecoversMissingInterruptionEndForCurrentArcadeLayer() {
+        let transport=Transport(),scheduler=Scheduler(),owner=NativeArcadeMusicOwner(transport:transport,scheduler:scheduler)
+        defer{owner.dispose()}
+        owner.enterRound(generation:7)
+        NotificationCenter.default.post(name:AVAudioSession.interruptionNotification,object:nil,userInfo:[AVAudioSessionInterruptionTypeKey:AVAudioSession.InterruptionType.began.rawValue])
+        NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+        let count=transport.commands.count
+        NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+        XCTAssertTrue(transport.commands.dropFirst(count).contains{$0.op=="resume"})
+        owner.apply(enabled:false)
+        let muted=transport.commands.count
+        NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+        XCTAssertEqual(transport.commands.count,muted)
     }
     func testFirstMergeWaitsForActualNextBarAndInheritsNativePhase() {
         let transport=Transport(),scheduler=Scheduler(),owner=NativeArcadeMusicOwner(transport:transport,scheduler:scheduler)

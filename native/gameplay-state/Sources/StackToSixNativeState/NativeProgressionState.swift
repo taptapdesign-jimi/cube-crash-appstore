@@ -32,22 +32,44 @@ public struct NativeProgressionState: Codable, Equatable, Sendable {
     public var viewedJourneyBoards: Set<Int> = []
     public var boardStats: [Int: NativeBoardStats] = [:]
     public var arcadeStats = NativeArcadeStats()
+    public var arcadeVariantStats: [String: NativeArcadeStats] = [:]
+    public func arcadeStats(for variant: NativeArcadeVariant) -> NativeArcadeStats {
+        variant == .endurance ? arcadeStats : (arcadeVariantStats[variant.rawValue] ?? NativeArcadeStats())
+    }
+    public mutating func resetArcadeStats(for variant: NativeArcadeVariant) {
+        if variant == .endurance { arcadeStats = .init() } else { arcadeVariantStats.removeValue(forKey: variant.rawValue) }
+    }
+    private mutating func setArcadeStats(_ stats: NativeArcadeStats, for variant: NativeArcadeVariant) {
+        if variant == .endurance { arcadeStats = stats } else { arcadeVariantStats[variant.rawValue] = stats }
+    }
     public var highestUnlockedJourneyBoard = 1
     public var lastOpenedJourneyBoard: Int?
     public var firstPlayTutorialComplete = false
     public var unlockedSpecialDice: Set<String> = []
+    public private(set) var wildStarUnlocked = false
     public init() {}
-    private enum CodingKeys:String,CodingKey {case completedJourneyBoards,viewedJourneyBoards,boardStats,arcadeStats,highestUnlockedJourneyBoard,lastOpenedJourneyBoard,firstPlayTutorialComplete,unlockedSpecialDice}
+    private enum CodingKeys:String,CodingKey {case completedJourneyBoards,viewedJourneyBoards,boardStats,arcadeStats,arcadeVariantStats,highestUnlockedJourneyBoard,lastOpenedJourneyBoard,firstPlayTutorialComplete,unlockedSpecialDice,wildStarUnlocked}
     public init(from decoder:Decoder) throws {
         let fields=try decoder.container(keyedBy:CodingKeys.self)
         completedJourneyBoards=try fields.decode(Set<Int>.self,forKey:.completedJourneyBoards)
         viewedJourneyBoards=try fields.decode(Set<Int>.self,forKey:.viewedJourneyBoards)
         boardStats=try fields.decode([Int:NativeBoardStats].self,forKey:.boardStats)
         arcadeStats=try fields.decode(NativeArcadeStats.self,forKey:.arcadeStats)
+        arcadeVariantStats=try fields.decodeIfPresent([String:NativeArcadeStats].self,forKey:.arcadeVariantStats) ?? [:]
         highestUnlockedJourneyBoard=try fields.decode(Int.self,forKey:.highestUnlockedJourneyBoard)
         lastOpenedJourneyBoard=try fields.decodeIfPresent(Int.self,forKey:.lastOpenedJourneyBoard)
         firstPlayTutorialComplete=try fields.decode(Bool.self,forKey:.firstPlayTutorialComplete)
         unlockedSpecialDice=try fields.decodeIfPresent(Set<String>.self,forKey:.unlockedSpecialDice) ?? []
+        wildStarUnlocked=try fields.decodeIfPresent(Bool.self,forKey:.wildStarUnlocked) ?? false
+    }
+    /// Same durable Forest evidence used by Backpack. Default interim Unit1,
+    /// tutorial completion, Arcade progress and other Worlds do not grant Star.
+    /// The optional latch preserves legacy evidence across later World changes.
+    public var hasUnlockedWildStar:Bool {
+        wildStarUnlocked || completedJourneyBoards.contains(where:{(1...10).contains($0)}) ||
+        boardStats.contains(where:{(1...10).contains($0.key) && $0.value.timesPlayed>0}) ||
+        lastOpenedJourneyBoard.map{(1...10).contains($0)} == true ||
+        (2...10).contains(highestUnlockedJourneyBoard)
     }
     public func interimBoard(world: Int) -> Int? {
         guard (1...3).contains(world) else { return nil }
@@ -61,29 +83,37 @@ public struct NativeProgressionState: Codable, Equatable, Sendable {
         (1...30).contains(board) && (completedJourneyBoards.contains(board) || interimBoard(world: (board - 1) / 10 + 1) == board)
     }
     public mutating func markViewed(board: Int) { if (1...30).contains(board) { viewedJourneyBoards.insert(board) } }
-    public mutating func beginAttempt(mode: NativeRunMode, board: Int, now: TimeInterval = Date().timeIntervalSince1970) {
+    public mutating func beginAttempt(mode: NativeRunMode, board: Int, arcadeVariant: NativeArcadeVariant = .endurance, now: TimeInterval = Date().timeIntervalSince1970) {
         guard board >= 1 else { return }
         if mode == .journey {
             guard isPlayable(board: board) else { return }
+            wildStarUnlocked = hasUnlockedWildStar || (1...10).contains(board)
             lastOpenedJourneyBoard = board
             var stats = boardStats[board] ?? NativeBoardStats()
             stats.timesPlayed += 1; stats.lastPlayed = now; boardStats[board] = stats
         } else {
-            arcadeStats.highestStageOpened = max(arcadeStats.highestStageOpened, board)
-            arcadeStats.lastPlayed = now
+            wildStarUnlocked = hasUnlockedWildStar
+            var stats = arcadeStats(for: arcadeVariant)
+            stats.highestStageOpened = max(stats.highestStageOpened, board)
+            stats.lastPlayed = now
+            setArcadeStats(stats, for: arcadeVariant)
         }
     }
     /// Called once by the result owner for a committed attempt, never from animation completion.
-    public mutating func finishAttempt(mode: NativeRunMode, board: Int, score: Int, longestCombo: Int, cubesCracked: Int, clean: Bool, now: TimeInterval = Date().timeIntervalSince1970) {
+    public mutating func finishAttempt(mode: NativeRunMode, board: Int, score: Int, longestCombo: Int, cubesCracked: Int, clean: Bool, arcadeVariant: NativeArcadeVariant = .endurance, now: TimeInterval = Date().timeIntervalSince1970) {
         guard board >= 1, score >= 0, longestCombo >= 0, cubesCracked >= 0 else { return }
         if mode == .arcade {
-            arcadeStats.highScore = max(arcadeStats.highScore, score)
-            arcadeStats.longestCombo = max(arcadeStats.longestCombo, longestCombo)
-            arcadeStats.cubesCracked += cubesCracked; arcadeStats.lastPlayed = now
-            if clean { arcadeStats.highestStageOpened = max(arcadeStats.highestStageOpened, board + 1) }
+            wildStarUnlocked = hasUnlockedWildStar
+            var stats = arcadeStats(for: arcadeVariant)
+            stats.highScore = max(stats.highScore, score)
+            stats.longestCombo = max(stats.longestCombo, longestCombo)
+            stats.cubesCracked += cubesCracked; stats.lastPlayed = now
+            if clean { stats.highestStageOpened = max(stats.highestStageOpened, board + 1) }
+            setArcadeStats(stats, for: arcadeVariant)
             return
         }
         guard (1...30).contains(board) else { return }
+        wildStarUnlocked = hasUnlockedWildStar || (1...10).contains(board)
         var stats = boardStats[board] ?? NativeBoardStats()
         stats.highScore = max(stats.highScore, score); stats.longestCombo = max(stats.longestCombo, longestCombo)
         stats.cubesCracked += cubesCracked; stats.lastPlayed = now; boardStats[board] = stats

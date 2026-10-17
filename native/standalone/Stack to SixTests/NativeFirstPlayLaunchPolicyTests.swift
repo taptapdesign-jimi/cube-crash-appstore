@@ -46,7 +46,21 @@ import StackToSixNativeState
         // Mounting Home reads the profile without resetting it. Original forced
         // Play entry makes a new demo; it must not borrow the old guide board.
         XCTAssertEqual(try store.load()?.arcadeRun,seed.arcadeRun)
-        let app=try XCTUnwrap(host.children.first as? NativeAppController);app.home.onActivate?(journey ? 0:1)
+        let app=try XCTUnwrap(host.children.first as? NativeAppController)
+        try await waitUntil { app.route == .home && app.home.isUserInteractionEnabled }
+        app.home.onActivate?(journey ? 0:1)
+        if !journey {
+            try await waitUntil { app.route == .arcadeHub && app.arcadeHub.hub.scrollView.isUserInteractionEnabled }
+            let endurance=try XCTUnwrap(app.arcadeHub.hub.worldUnits.first { $0.tag == 1 })
+            endurance.sendActions(for:.touchUpInside)
+            func findPlay(_ root:UIView)->UIButton? {
+                if let button=root as? UIButton,button.accessibilityIdentifier == "native.arcade-world-modal.play" { return button }
+                return root.subviews.lazy.compactMap { findPlay($0) }.first
+            }
+            let play=try XCTUnwrap(findPlay(app.arcadeHub))
+            try await waitUntil { play.isEnabled }
+            play.sendActions(for:.touchUpInside)
+        }
         try await waitUntil{app.children.contains{$0 is NativeGameplayViewController}}
         let game=try XCTUnwrap(app.children.first as? NativeGameplayViewController)
         XCTAssertEqual(game.engine.state.moves,50);XCTAssertEqual(game.engine.state.score,0)

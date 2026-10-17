@@ -7,6 +7,9 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
     let header=JimiV9NavigationHeader(frame:.zero),close=JimiV9PlainButton(type:.custom)
     let grid:UICollectionView
     private let title=UILabel()
+    private(set) var includesArcade=true
+    private var embedded=false
+    func useModalLayout(){embedded=true;header.isHidden=true;setNeedsLayout()}
     private(set) var sections:[NativeBackpackCatalog.Section]=[]
     var onClose:(()->Void)?,onDie:((NativeBackpackCatalog.Die)->Void)?
     init(frame:CGRect,assets:JimiV9Artwork) {
@@ -30,10 +33,10 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
         close.addTarget(self,action:#selector(closeTapped),for:.touchUpInside)
     }
     required init?(coder:NSCoder){fatalError("Use assets initializer")}
-    func apply(_ sections:[NativeBackpackCatalog.Section]) {self.sections=sections;grid.setContentOffset(CGPoint(x:0,y:-grid.contentInset.top),animated:false);grid.reloadData();setNeedsLayout();layoutIfNeeded()}
+    func apply(_ sections:[NativeBackpackCatalog.Section],includesArcade:Bool=true) {self.includesArcade=includesArcade;self.sections=sections;grid.setContentOffset(CGPoint(x:0,y:-grid.contentInset.top),animated:false);grid.reloadData();setNeedsLayout();layoutIfNeeded()}
     override func layoutSubviews() {
         super.layoutSubviews()
-        let row=JimiV9NavigationHeader.RowLayout(bounds:bounds,safeAreaTop:safeAreaInsets.top),height=row.top+66
+        let row=JimiV9NavigationHeader.RowLayout(bounds:bounds,safeAreaTop:safeAreaInsets.top),height=embedded ? 0:row.top+66
         header.bounds=CGRect(x:0,y:0,width:bounds.width,height:height);header.center=CGPoint(x:bounds.midX,y:height/2)
         title.frame=row.titleFrame
         close.frame=row.buttonFrame(x:22)
@@ -43,35 +46,38 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
             grid.contentInset.top=height
             grid.setContentOffset(CGPoint(x:previousOffset.x,y:previousOffset.y+previousTop-height),animated:false)
         }
-        grid.contentInset.bottom=safeAreaInsets.bottom+16
+        grid.contentInset.bottom=embedded ? 0:safeAreaInsets.bottom+16
+        if embedded,let layout=grid.collectionViewLayout as? UICollectionViewFlowLayout {layout.sectionInset=UIEdgeInsets(top:0,left:24,bottom:0,right:24);layout.minimumLineSpacing=16}
         if let layout=grid.collectionViewLayout as? UICollectionViewFlowLayout {
             let side=floor((bounds.width-84)/2)
             if layout.itemSize.width != side {layout.itemSize=CGSize(width:side,height:side);layout.headerReferenceSize=CGSize(width:bounds.width,height:100);layout.invalidateLayout()}
         }
     }
-    func numberOfSections(in collectionView:UICollectionView)->Int {sections.count+1}
-    func collectionView(_ collectionView:UICollectionView,numberOfItemsInSection section:Int)->Int {section==0 ? NativeBackpackCatalog.arcade.count:sections[section-1].dice.count}
+    func numberOfSections(in collectionView:UICollectionView)->Int {sections.count+(includesArcade ? 1:0)}
+    func collectionView(_ collectionView:UICollectionView,numberOfItemsInSection section:Int)->Int {includesArcade && section==0 ? NativeBackpackCatalog.arcade.count:sections[section-(includesArcade ? 1:0)].dice.count}
     func collectionView(_ collectionView:UICollectionView,cellForItemAt indexPath:IndexPath)->UICollectionViewCell {
         let cell=collectionView.dequeueReusableCell(withReuseIdentifier:"die",for:indexPath) as! NativeBackpackCell
-        let die=indexPath.section==0 ? NativeBackpackCatalog.arcade[indexPath.item]:sections[indexPath.section-1].dice[indexPath.item]
-        let unlocked=indexPath.section==0 || sections[indexPath.section-1].unlocked.contains(die.id)
-        cell.apply(die,unlocked:unlocked,right:indexPath.item%2==1,arcade:indexPath.section==0,assets:assets);return cell
+        let die=includesArcade && indexPath.section==0 ? NativeBackpackCatalog.arcade[indexPath.item]:sections[indexPath.section-(includesArcade ? 1:0)].dice[indexPath.item]
+        let unlocked=includesArcade && indexPath.section==0 || sections[indexPath.section-(includesArcade ? 1:0)].unlocked.contains(die.id)
+        cell.apply(die,unlocked:unlocked,right:indexPath.item%2==1,arcade:includesArcade && indexPath.section==0,assets:assets);return cell
     }
     func collectionView(_ collectionView:UICollectionView,viewForSupplementaryElementOfKind kind:String,at indexPath:IndexPath)->UICollectionReusableView {
         let header=collectionView.dequeueReusableSupplementaryView(ofKind:kind,withReuseIdentifier:"section",for:indexPath) as! NativeBackpackSectionHeader
-        if indexPath.section==0 {header.apply(title:"Arcade",detail:"Always ready to play! Unlock more dice in Journey for even more fun.",count:nil,assets:assets)}
-        else {let section=sections[indexPath.section-1];header.apply(title:section.title,detail:nil,count:"\(section.count) / \(section.dice.count)",assets:assets)}
+        if includesArcade && indexPath.section==0 {header.apply(title:"Arcade",detail:"Always ready to play! Unlock more dice in Journey for even more fun.",count:nil,assets:assets)}
+        else {let section=sections[indexPath.section-(includesArcade ? 1:0)];header.apply(title:section.title,detail:nil,count:"\(section.count) / \(section.dice.count)",assets:assets)}
         return header
     }
     func collectionView(_ collectionView:UICollectionView,layout collectionViewLayout:UICollectionViewLayout,sizeForItemAt indexPath:IndexPath)->CGSize {
-        let side=floor((bounds.width-64-(indexPath.section==0 ? 32:20))/CGFloat(indexPath.section==0 ? 3:2))
+        let columns:CGFloat=includesArcade && indexPath.section==0 ? 3:2
+        let side=floor((bounds.width-(embedded ? 48:64)-(columns-1)*(embedded ? 16:columns==3 ? 16:20))/columns)
         return CGSize(width:side,height:side)
     }
-    func collectionView(_ collectionView:UICollectionView,layout collectionViewLayout:UICollectionViewLayout,referenceSizeForHeaderInSection section:Int)->CGSize {CGSize(width:bounds.width,height:section==0 ? 156:100)}
+    func collectionView(_ collectionView:UICollectionView,layout collectionViewLayout:UICollectionViewLayout,referenceSizeForHeaderInSection section:Int)->CGSize {CGSize(width:bounds.width,height:embedded ? 0:includesArcade && section==0 ? 156:100)}
     func collectionView(_ collectionView:UICollectionView,didSelectItemAt indexPath:IndexPath) {
         guard isUserInteractionEnabled else{return}
-        let die=indexPath.section==0 ? NativeBackpackCatalog.arcade[indexPath.item]:sections[indexPath.section-1].dice[indexPath.item]
-        guard indexPath.section==0 || sections[indexPath.section-1].unlocked.contains(die.id) else{return}
+        let die=includesArcade && indexPath.section==0 ? NativeBackpackCatalog.arcade[indexPath.item]:sections[indexPath.section-(includesArcade ? 1:0)].dice[indexPath.item]
+        guard (includesArcade && indexPath.section==0) || sections[indexPath.section-(includesArcade ? 1:0)].unlocked.contains(die.id) else{return}
+        (collectionView.cellForItem(at:indexPath) as? NativeBackpackCell)?.playSelectionFeedback()
         onDie?(die)
     }
     func tracks(enter:Bool)->[(UIView,JimiV9Motion.Track)] {
@@ -127,13 +133,14 @@ private final class NativeBackpackCell:UICollectionViewCell {
         accessibilityIdentifier="native.backpack.die.\(item.id)";setNeedsLayout()
     }
     override func layoutSubviews(){super.layoutSubviews();let scale=contentView.bounds.width/(arcade ? 98:153);holder.bounds=CGRect(x:0,y:0,width:contentView.bounds.width+(die.tag==0 ? 2*scale:0),height:contentView.bounds.height);holder.center=CGPoint(x:contentView.bounds.midX,y:contentView.bounds.midY);let size=die.tag==0 ? CGSize(width:70*scale,height:80*scale):CGSize(width:artworkSize.width*scale,height:artworkSize.height*scale);die.bounds=CGRect(origin:.zero,size:size);die.center=CGPoint(x:contentView.bounds.midX-artworkOffset.x*scale,y:contentView.bounds.midY-artworkOffset.y*scale)}
-    override func prepareForReuse(){super.prepareForReuse();holder.image=nil;die.image=nil;layer.removeAllAnimations();layer.transform=CATransform3DIdentity;layer.opacity=1}
+    func playSelectionFeedback(){NativeHubBackpackFeedback.play(on:contentView)}
+    override func prepareForReuse(){super.prepareForReuse();holder.image=nil;die.image=nil;contentView.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey);layer.removeAllAnimations();layer.transform=CATransform3DIdentity;layer.opacity=1}
 }
 @MainActor
 private final class NativeBackpackSectionHeader:UICollectionReusableView {
     private let heading=UILabel(),detail=UILabel(),count=UILabel()
     override init(frame:CGRect){super.init(frame:frame);[heading,detail,count].forEach{addSubview($0)};detail.numberOfLines=2}
     required init?(coder:NSCoder){fatalError("Use frame")}
-    func apply(title:String,detail:String?,count:String?,assets:JimiV9Artwork){heading.text=title;heading.font=assets.font(size:28,weight:"ExtraBold");heading.textColor=NativeBackpackCell.ink;self.detail.text=detail;self.detail.font=assets.font(size:20,weight:"Medium");if let detail {let paragraph=NSMutableParagraphStyle();paragraph.minimumLineHeight=28;paragraph.maximumLineHeight=28;self.detail.attributedText=NSAttributedString(string:detail,attributes:[.paragraphStyle:paragraph,.font:assets.font(size:20,weight:"Medium"),.foregroundColor:NativeTextPalette.subtitle])};self.detail.textColor=UIColor(red:0.74,green:0.63,blue:0.58,alpha:1);self.count.text=count;self.count.font=assets.font(size:24,weight:"ExtraBold");self.count.textColor=UIColor(red:0.91,green:0.45,blue:0.29,alpha:1);self.count.textAlignment = .right}
+    func apply(title:String,detail:String?,count:String?,assets:JimiV9Artwork){heading.text=title;heading.font=assets.font(size:28,weight:"ExtraBold");heading.textColor=NativeBackpackCell.ink;self.detail.text=detail;self.detail.font=assets.font(size:20,weight:"Medium");if let detail {self.detail.attributedText=NativeModalTypography.attributedSubtitle(detail,font:assets.font(size:20,weight:"Medium"),alignment:.left)};self.detail.textColor=NativeTextPalette.subtitle;self.count.text=count;self.count.font=assets.font(size:24,weight:"ExtraBold");self.count.textColor=UIColor(red:232/255,green:116/255,blue:74/255,alpha:1);self.count.textAlignment = .right}
     override func layoutSubviews(){super.layoutSubviews();let top:CGFloat=detail.text == nil ? 40:32;heading.frame=CGRect(x:32,y:top,width:bounds.width-140,height:40);count.frame=CGRect(x:bounds.width-112,y:top,width:80,height:40);detail.frame=CGRect(x:32,y:top+48,width:bounds.width-64,height:56)}
 }

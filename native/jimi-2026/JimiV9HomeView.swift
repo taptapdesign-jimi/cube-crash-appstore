@@ -13,6 +13,32 @@ final class JimiV9PlainButton: UIButton {
         adjustsImageWhenHighlighted = false
         showsTouchWhenHighlighted = false
     }
+    /// UIKit rewrites its managed image alpha during layout/state updates.
+    /// Keep authored modal artwork opacity separate from the button/paper alpha.
+    var artworkOpacity:CGFloat? {
+        didSet {if let artworkOpacity {imageView?.alpha=artworkOpacity};setNeedsLayout()}
+    }
+    private weak var tapFeedbackArtwork:UIView?
+    private var artworkContactStarted=false
+    func enableArtworkTapFeedback(on artwork:UIView?=nil) {
+        tapFeedbackArtwork=artwork
+        removeTarget(self,action:#selector(artworkContactBegan),for:.touchDown)
+        removeTarget(self,action:#selector(artworkContactCancelled),for:[.touchCancel,.touchUpOutside])
+        addTarget(self,action:#selector(artworkContactBegan),for:.touchDown)
+        addTarget(self,action:#selector(artworkContactCancelled),for:[.touchCancel,.touchUpOutside])
+    }
+    @objc private func artworkContactBegan() {
+        guard isEnabled,isUserInteractionEnabled,!isHidden else{return}
+        artworkContactStarted=true
+        NativeHubBackpackFeedback.play(on:tapFeedbackArtwork ?? imageView ?? self)
+    }
+    @objc private func artworkContactCancelled() {artworkContactStarted=false}
+    func playArtworkTapFeedback() {
+        // A long press may finish its bounce before release. Never replay it
+        // behind the modal exit; programmatic/backdrop dismissal still gets feedback.
+        if artworkContactStarted {artworkContactStarted=false;return}
+        NativeHubBackpackFeedback.play(on:tapFeedbackArtwork ?? imageView ?? self)
+    }
     private var ctaSoftShadow: CALayer?
     private let ctaShadowCaster = CALayer()
     private let ctaShadowMask = CAShapeLayer()
@@ -43,6 +69,7 @@ final class JimiV9PlainButton: UIButton {
     }
     override func layoutSubviews() {
         super.layoutSubviews()
+        if let artworkOpacity {imageView?.alpha=artworkOpacity}
         guard let soft = ctaSoftShadow else{return}
         CATransaction.begin();CATransaction.setDisableActions(true)
         let radius = min(40,bounds.height/2)

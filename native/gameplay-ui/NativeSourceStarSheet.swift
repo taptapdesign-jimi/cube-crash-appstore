@@ -64,6 +64,10 @@ import UIKit
     /// The Star spec explicitly animates during actual pointer drag. Registry
     /// pressure never changes this sheet's clock or ownership.
     func pointerStateChanged(){refreshCurrentPresentation()}
+    /// Follow parent SKActions after evaluation even when the idle clock is
+    /// suspended for board exit. Zero alpha hides the projection without
+    /// retiring its resource/lifetime owner.
+    func synchronizeHostPose(){guard isCurrent else{return};_ = foreground?.sync()}
     /// SpriteKit combines visible/renderable into isHidden. A Source static
     /// repaint must let this same owner reassert render suppression immediately,
     /// before publication or the next renderer frame, without advancing phase.

@@ -42,6 +42,20 @@ final class NativeKantaPresentationTests: XCTestCase {
         idle.dispose();idle.tick(1,globalX:40,viewportCenter:195);XCTAssertEqual(idle.bubblePoolCount,0)
         textures.dispose()
     }
+    func testClankNameplateFitsPhoneWidthAndRetainsLetterAnimation() throws {
+        let owner=NativeKantaFinalePresentation(resourceRoot:root,viewport:CGSize(width:390,height:844),random:{0.5})
+        defer {owner.dispose()}
+        let field=try XCTUnwrap(owner.subviews.compactMap{$0 as? NativeSplashGlyphField}.first)
+        field.layoutIfNeeded()
+        let container=try XCTUnwrap(field.subviews.first)
+        let letters=container.subviews.compactMap{$0 as? UILabel}
+        XCTAssertEqual(letters.compactMap(\.text).joined(),"CLANK-CLANK")
+        XCTAssertLessThanOrEqual(container.frame.width,350)
+        field.paint(seconds:0.6)
+        XCTAssertTrue(letters.contains{$0.alpha>0})
+        field.layoutIfNeeded()
+        XCTAssertLessThanOrEqual(container.frame.width,350)
+    }
     func testFiniteKantaReceiptsFadeAndDisposedClockStayOnce() async {
         let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),controller=UIViewController()
         window.rootViewController=controller;window.makeKeyAndVisible()

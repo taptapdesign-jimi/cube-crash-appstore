@@ -3,7 +3,7 @@ import StackToSixGameplay
 
 /// Ports app-core-board-build/open + randVal. Randomness is injected as logical seed, never rendering time.
 public enum NativeBoardFactory {
-    public static func make(mode: NativeRunMode, board: Int, columns: Int = 5, rows: Int = 9, generation: UInt64 = 1, seed: UInt64 = 1, tutorial: Bool = false) -> NativeBoardState {
+    public static func make(mode: NativeRunMode, board: Int, columns: Int = 5, rows: Int = 9, generation: UInt64 = 1, seed: UInt64 = 1, tutorial: Bool = false, arcadeVariant: NativeArcadeVariant = .endurance) -> NativeBoardState {
         precondition(columns > 0 && rows > 0 && columns * rows <= 4096)
         var rng = seed == 0 ? UInt64(1) : seed
         func roll() -> Double {
@@ -23,12 +23,14 @@ public enum NativeBoardFactory {
         } else {
             var ids = Array(tiles.indices)
             for index in stride(from:ids.count-1,through:1,by:-1) { ids.swapAt(index,Int(roll()*Double(index+1))) }
-            let bias = mode == .journey ? NativeJourneyContent.smallValueBias(board:board) : 0
+            // Smooth introductory difficulty: 80/65/50/35% small-value draws,
+            // then the exact existing random policy from round five onward.
+            let bias = mode == .journey ? NativeJourneyContent.smallValueBias(board:board) : arcadeVariant.initialSmallValueBias(round:board)
             for index in ids.prefix(max(1,Int((Double(tiles.count)*0.30).rounded(.toNearestOrAwayFromZero)))) {
                 let pool = bias > 0 && roll() < bias ? [1,2,3] : [1,1,1,2,2,3,3,4,5]
                 tiles[index].locked=false; tiles[index].value=pool[Int(roll()*Double(pool.count))];tiles[index].alpha=1
             }
         }
-        return NativeBoardState(columns:columns,rows:rows,tiles:tiles,mode:mode,board:max(1,board),stage:max(1,board),generation:generation,rngState:rng)
+        return NativeBoardState(columns:columns,rows:rows,tiles:tiles,mode:mode,board:max(1,board),stage:max(1,board),generation:generation,rngState:rng,arcadeVariant:mode == .arcade ? arcadeVariant:nil)
     }
 }

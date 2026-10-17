@@ -17,6 +17,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     let backButton = JimiV9PlainButton(type: .custom)
     let backpackButton = JimiV9PlainButton(type: .custom)
     private let content = UIView()
+    private let arcade: Bool
     private let title = UILabel()
     private(set) var worldUnits: [UIButton] = []
     private var counts: [Int: UILabel] = [:]
@@ -57,7 +58,8 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
 
     func bannerWidth(for worldID: Int) -> CGFloat { banners[worldID]?.bounds.width ?? 0 }
 
-    init(frame: CGRect, assets: JimiV9Artwork) {
+    init(frame: CGRect, assets: JimiV9Artwork, arcade: Bool = false) {
+        self.arcade = arcade
         super.init(frame: frame)
         navigationTarget.isAccessibilityElement = false
         navigationTarget.addTarget(self,action:#selector(back),for:.touchUpInside)
@@ -70,10 +72,10 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         scrollView.canCancelContentTouches = true
         scrollView.delegate = self
         addSubview(scrollView); scrollView.addSubview(content)
-        let paths = ["assets/journey assets/forest/forest world/1Forest main.png",
+        let paths = arcade ? ["assets/arcade/endourance.png", "assets/arcade/pure dice.png", "assets/arcade/slow burn.png"] : ["assets/journey assets/forest/forest world/1Forest main.png",
                      "assets/journey assets/robo/robo world/robo-main.png",
                      "assets/journey assets/beach/Beacj world/beach-main.png"]
-        let names = ["Forest", "Area 55", "Beach"]
+        let names = arcade ? ["Endurance", "Pure Dice", "Slow Burn"] : ["Forest", "Area 55", "Beach"]
         let cloudPaths = ["oblak-forest1", "oblak-forest2", "oblak+srednji", "oblak mali ljevo", "oblak mali desno", "oblak veliki ljevo dole"]
         let clouds: [(Int, CGFloat, CGFloat, CGFloat, CGFloat)] = [
             (5,-70,-6,272,0.78),(1,-92,58,188,0.74),(5,100,6,248,0.76),(2,200,138,166,0.72),
@@ -84,7 +86,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             let cloud = UIImageView(image: image)
             cloud.contentMode = .scaleAspectFit; cloud.alpha = alpha
             let ratio = (image?.size.height ?? 1) / (image?.size.width ?? 1)
-            let rect = CGRect(x: x, y: y, width: width, height: width*ratio)
+            let rect = CGRect(x: x + (arcade ? CGFloat.random(in: -12...12) : 0), y: y, width: width, height: width*ratio)
             cloudViews.append((cloud, rect)); content.addSubview(cloud)
         }
         for index in 0..<3 {
@@ -122,7 +124,8 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             bannerRevealShells[id] = revealShell
             banner.isUserInteractionEnabled = false
             banners[id] = banner; flagViews[id] = flag
-            let artwork = UIImageView(image: assets.image(paths[index], densityAware: id == 1))
+            revealShell.isHidden = arcade
+            let artwork = UIImageView(image: assets.image(paths[index], densityAware: arcade || id == 1))
             artwork.frame = CGRect(x: 0, y: 0, width: 273, height: 190)
             artwork.contentMode = .scaleAspectFit; tilt.addSubview(artwork)
             artworkViews[id] = artwork
@@ -130,7 +133,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         }
         header.backgroundColor = UIColor(red: 243/255, green: 238/255, blue: 232/255, alpha: 0.8)
         addSubview(header)
-        backButton.setImage(assets.image("assets/chevron-back.png"), for: .normal)
+        backButton.setImage(assets.image(arcade ? "assets/close-icon.png" : "assets/chevron-back.png"), for: .normal)
         backButton.imageView?.contentMode = .scaleAspectFit
         backButton.imageEdgeInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
         backButton.accessibilityLabel = "Back to slider"; backButton.accessibilityIdentifier = "native.hub.back"
@@ -140,7 +143,8 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         backpackButton.imageEdgeInsets = UIEdgeInsets(top: 4, left: 0, bottom: 4, right: 0)
         backpackButton.accessibilityLabel = "Backpack"; backpackButton.accessibilityIdentifier = "native.hub.backpack"
         backpackButton.addTarget(self, action: #selector(backpack), for: .touchUpInside)
-        title.text = "Journey"; title.font = assets.font(size: 32, weight: "ExtraBold")
+        backpackButton.isHidden = arcade
+        title.text = arcade ? "Arcade" : "Journey"; title.font = assets.font(size: 32, weight: "ExtraBold")
         title.textColor = UIColor(red: 173/255, green: 135/255, blue: 117/255, alpha: 1)
         title.textAlignment = .center
         [backButton, title, backpackButton].forEach { header.addSubview($0) }
@@ -168,14 +172,14 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         let width = bounds.width, top = safeAreaInsets.top
         scrollView.frame = bounds
         let hubHeight = top + 747 + 128 - min(bounds.height*0.08, 68) - min(bounds.height*0.062, 53) + safeAreaInsets.bottom
-        content.frame = CGRect(x: 0, y: 0, width: width, height: max(bounds.height, hubHeight))
+        content.frame = CGRect(x: 0, y: 0, width: width, height: max(bounds.height, arcade ? top + 930 + safeAreaInsets.bottom : hubHeight))
         scrollView.contentSize = content.bounds.size
-        let buttonWidth = min(width*0.676, 273), buttonHeight = min(width*0.468, 190)
-        let visualSize = min(width*0.65, 254), flagWidth = min(width*0.385, 150)
+        let buttonWidth = arcade ? min(width*0.82,330) : min(width*0.676, 273), buttonHeight = arcade ? min(width*0.60,240) : min(width*0.468, 190)
+        let visualSize = arcade ? min(width*0.82, 330) : min(width*0.65, 254), flagWidth = min(width*0.385, 150)
         let flagHeight = flagWidth*49/105
         for (index, unit) in worldUnits.enumerated() {
             let id = worldIDs[index]
-            let y: CGFloat = [118,323,557][index]
+            let y: CGFloat = arcade ? [140,390,640][index] : [118,323,557][index]
             let originalX: CGFloat = id == 3 ? width+8-buttonWidth : (id == 1 ? -2 : -6)
             let x: CGFloat = id == 3 ? width-16-buttonWidth : 16
             let rect = CGRect(x: x, y: top+y, width: buttonWidth, height: buttonHeight)
@@ -186,7 +190,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             unit.layer.position = CGPoint(x: rect.minX + rect.width * unit.layer.anchorPoint.x,
                                           y: rect.minY + rect.height * unit.layer.anchorPoint.y)
             floats[id]?.bounds = CGRect(x: 0, y: 0, width: visualSize, height: visualSize)
-            floats[id]?.center = CGPoint(x: buttonWidth/2, y: buttonHeight*0.48)
+            floats[id]?.center = CGPoint(x: arcade ? (id == 3 ? buttonWidth-visualSize/2 : visualSize/2) : buttonWidth/2, y: buttonHeight*0.48)
             tilts[id]?.bounds = CGRect(x: 0, y: 0, width: visualSize, height: visualSize)
             tilts[id]?.layer.anchorPoint = CGPoint(x: 0.5, y: 0.54)
             tilts[id]?.layer.position = CGPoint(x: visualSize*0.5, y: visualSize*0.54)
@@ -208,7 +212,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             }
             var overflow = rect
             for (cloud, authored) in cloudViews where cloudWorldID(authored.minY) == id {
-                let cloudRect = authored.offsetBy(dx: x-originalX, dy: top+82)
+                let cloudRect = authored.offsetBy(dx: x-originalX, dy: top+82 + (arcade ? y - [118,323,557][index] : 0))
                 cloud.frame = cloudRect.offsetBy(dx: -rect.minX, dy: -rect.minY)
                 overflow = overflow.union(cloudRect)
             }
@@ -311,6 +315,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             addLoop(item.0.layer, keyPath: "transform", values: transforms([CATransform3DIdentity,cloudPeak,CATransform3DIdentity]),
                     times: [0,0.5,1], duration: duration)
         }
+        guard !arcade else { return } // Arcade has no progress flags to animate.
         let angles: [CGFloat] = [0,1,-1.7,2.5,-0.65,-2.1,1.25,0]
         let ys: [CGFloat] = [0,-1.3,1.7,-2.1,0.8,1.9,-1.45,0]
         let flagValues = zip(angles,ys).map { angle,y in

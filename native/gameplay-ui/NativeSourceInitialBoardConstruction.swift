@@ -36,7 +36,7 @@ import StackToSixGameplay
         textures=preparedTextures ?? NativeBoardTextures(root:root);self.service=service;self.generation=generation;self.random=random
     }
     static func make(root:URL,service:NativeSourceAnimationClockService,mode:NativeRunMode,board:Int,
-        columns:Int=5,rows:Int=9,generation:UInt64=1,gameplaySeed:UInt64=1,tutorialDemo:Bool=false,
+        columns:Int=5,rows:Int=9,generation:UInt64=1,gameplaySeed:UInt64=1,tutorialDemo:Bool=false,arcadeVariant:NativeArcadeVariant = .endurance,
         preparedTextures:NativeBoardTextures?=nil,random:@escaping()->Double) -> NativeSourceInitialBoardConstruction? {
         guard service.sourceFrameTransportAdmissionOpen else{return nil}
         let owner=NativeSourceInitialBoardConstruction(root:root,service:service,generation:generation,preparedTextures:preparedTextures,random:random)
@@ -45,7 +45,7 @@ import StackToSixGameplay
         let required=NativeBoardTextures.sourceInitialFoundationPaths
         guard required.allSatisfy({preparedTextures != nil ? owner.textures.sourceCachedTexture(candidates:[$0]) != nil:owner.textures.texture($0,densityAware:false) != nil}) else{owner.dispose();return nil}
         let recipe=NativeSourceInitialBoardRecipe.capture(mode:mode,board:board,columns:columns,rows:rows,
-            generation:generation,gameplaySeed:gameplaySeed,tutorialDemo:tutorialDemo,random:random,
+            generation:generation,gameplaySeed:gameplaySeed,tutorialDemo:tutorialDemo,arcadeVariant:arcadeVariant,random:random,
             constructHolder:{[owner] holder in owner.construct(holder)},openTile:{[owner] opening in owner.open(opening)})
         guard let recipe,owner.phase == .building else{owner.dispose();return nil}
         owner.recipe=recipe

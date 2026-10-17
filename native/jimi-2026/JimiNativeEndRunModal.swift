@@ -12,6 +12,22 @@ final class JimiNativeModalTransformView: UIView {
 /// Matrix interpolation cannot recover that rotation from the collapsed endpoint.
 @MainActor
 enum JimiNativeModalV10 {
+    /// One shared Native modal tint; retain the original hue at 50percent opacity.
+    static var backdropColor:UIColor {UIColor(red:220/255,green:183/255,blue:163/255,alpha:0.5)}
+
+    /// Authored Exit Game idle, shared by Backpack paper planes.
+    static func startIdle(on target:UIView,key:String) {
+        guard !UIAccessibility.isReduceMotionEnabled,target.layer.animation(forKey:key)==nil else{return}
+        func pose(_ y:CGFloat,_ z:CGFloat,_ scale:CGFloat)->NSValue {
+            NSValue(caTransform3D:CATransform3DScale(CATransform3DMakeTranslation(0,y,z),scale,scale,scale))
+        }
+        let animation=CAKeyframeAnimation(keyPath:"transform")
+        animation.duration=6.8;animation.repeatCount = .infinity
+        animation.keyTimes=[0,0.18,0.38,0.58,0.76,0.84,0.89,0.94,1]
+        animation.values=[pose(0,0,1),pose(-3,3,1.003),pose(0,0,1),pose(-3.75,4,1.004),pose(0,0,1),pose(-4,8,1.015),pose(1,0,0.995),pose(-1,3,1.006),pose(0,0,1)]
+        target.layer.add(animation,forKey:key)
+    }
+
     /// Shared Exit Game / High Score / Backpack entrance planes and timing.
     static func enter(card:UIView,flip:UIView,key:String) {
         func pose(_ y:CGFloat,_ z:CGFloat,_ rx:CGFloat,_ ry:CGFloat,_ scale:CGFloat,_ rz:CGFloat=0)->CATransform3D {
@@ -212,7 +228,7 @@ final class JimiNativeEndRunModal: UIViewController {
         super.viewDidLoad();view.backgroundColor = .clear
         var camera = CATransform3DIdentity;camera.m34 = -1/920;view.layer.sublayerTransform = camera
         idle.layer.isDoubleSided = false
-        backdrop.backgroundColor = UIColor(red:220/255,green:183/255,blue:163/255,alpha:0.52)
+        backdrop.backgroundColor = JimiNativeModalV10.backdropColor
         backdrop.alpha = 0;backdrop.addTarget(self,action:#selector(requestClose),for:.touchUpInside);view.addSubview(backdrop)
         view.addSubview(card);card.addSubview(flip);flip.addSubview(idle);idle.addSubview(paper)
         card.layer.anchorPoint = CGPoint(x:0.5,y:0.55);flip.layer.anchorPoint = CGPoint(x:0.5,y:1);idle.layer.anchorPoint = CGPoint(x:0.5,y:0.52)
@@ -223,9 +239,7 @@ final class JimiNativeEndRunModal: UIViewController {
         let ink = UIColor(red:173/255,green:134/255,blue:117/255,alpha:1)
         heading.text = model.title;heading.font = assets.font(size:32,weight:"ExtraBold");heading.textColor = ink;heading.textAlignment = .center
         subtitle.text = model.subtitle;subtitle.font = assets.font(size:20,weight:"Medium");subtitle.textColor = NativeTextPalette.subtitle;subtitle.textAlignment = .center;subtitle.numberOfLines = 0
-        let subtitleParagraph = NSMutableParagraphStyle();subtitleParagraph.alignment = .center
-        subtitleParagraph.minimumLineHeight = 26;subtitleParagraph.maximumLineHeight = 26
-        subtitle.attributedText = NSAttributedString(string:model.subtitle,attributes:[.font:subtitle.font as Any,.foregroundColor:subtitle.textColor as Any,.paragraphStyle:subtitleParagraph])
+        subtitle.attributedText=NativeModalTypography.attributedSubtitle(model.subtitle,font:subtitle.font)
         idle.addSubview(heading);idle.addSubview(subtitle)
         for (i,button) in buttons.enumerated() {
             button.tag = i;button.setTitle(i == 0 ? model.restartLabel : model.exitLabel,for:.normal)
@@ -235,8 +249,8 @@ final class JimiNativeEndRunModal: UIViewController {
             button.addTarget(self,action:#selector(requestButton(_:)),for:.touchUpInside);idle.addSubview(button)
         }
         close.setBackgroundImage(paper.image,for:.normal);close.layer.cornerRadius = 26;close.clipsToBounds = true
-        close.setImage(assets.image("assets/close-icon.png"),for:.normal);close.imageView?.contentMode = .scaleAspectFit
-        close.imageEdgeInsets = UIEdgeInsets(top:12.5,left:12.5,bottom:12.5,right:12.5)
+        close.setImage(assets.image("assets/close-icon.png"),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback()
+        close.imageEdgeInsets = UIEdgeInsets(top:14,left:14,bottom:14,right:14)
         close.accessibilityLabel = "Close "+model.title;close.accessibilityIdentifier = "native.end-run.close"
         close.addTarget(self,action:#selector(requestClose),for:.touchUpInside);idle.addSubview(close)
         close.isHidden = !dismissalAllowed;backdrop.isUserInteractionEnabled=dismissalAllowed
@@ -250,7 +264,7 @@ final class JimiNativeEndRunModal: UIViewController {
         flip.bounds = card.bounds;flip.center = CGPoint(x:width/2,y:height)
         idle.bounds = card.bounds;idle.center = CGPoint(x:width/2,y:height*0.52);JimiNativeModalV10.paperLayout(paper,bounds:idle.bounds)
         heading.frame = CGRect(x:24,y:52,width:width-48,height:32)
-        subtitle.frame = CGRect(x:24,y:92,width:width-48,height:52)
+        subtitle.frame = CGRect(x:24,y:96,width:width-48,height:52)
         for (i,button) in buttons.enumerated() {button.bounds = CGRect(x:0,y:0,width:249,height:64);button.center = CGPoint(x:width/2,y:216+CGFloat(i)*80)}
         close.frame = CGRect(x:width-42,y:-10,width:52,height:52)
     }
@@ -273,10 +287,7 @@ final class JimiNativeEndRunModal: UIViewController {
     private func completeEnter() {
         guard !disposed,!closing,!ready else{return};ready = true;view.isUserInteractionEnabled = true;onReady?()
         guard dismissalAllowed,!UIAccessibility.isReduceMotionEnabled else{return}
-        let a = CAKeyframeAnimation(keyPath:"transform");a.duration = 6.8;a.repeatCount = .infinity
-        a.keyTimes = [0,0.18,0.38,0.58,0.76,0.84,0.89,0.94,1]
-        a.values = [pose(0,0,0,0,1),pose(-3,3,0,0,1.003),pose(0,0,0,0,1),pose(-3.75,4,0,0,1.004),pose(0,0,0,0,1),pose(-4,8,0,0,1.015),pose(1,0,0,0,0.995),pose(-1,3,0,0,1.006),pose(0,0,0,0,1)].map{NSValue(caTransform3D:$0)}
-        idle.layer.add(a,forKey:"end-run-idle")
+        JimiNativeModalV10.startIdle(on:idle,key:"end-run-idle")
     }
     private func track(_ target:UIView,_ recipe:JimiV9Motion.Track,key:String) {
         guard !UIAccessibility.isReduceMotionEnabled else{return}
@@ -297,7 +308,7 @@ final class JimiNativeEndRunModal: UIViewController {
         track(sender,.init(tweens:[.init(begin:0,duration:0.26,from:.scale(0.84,y:4),to:.scale(1),ease:.backOut(2.1))]),key:"cta-release")
     }
     func actionRejected() {if !disposed,!closing {modalDrag?.cancel();clickedButton = nil;for button in buttons {releaseButton(button)};view.isUserInteractionEnabled = ready}}
-    private func request(_ action:String) {guard ready,!closing,!disposed else{return};if action == "close" {NativeHubBackpackFeedback.play(on:close.imageView ?? close)};view.isUserInteractionEnabled = false;onAction?(action)}
+    private func request(_ action:String) {guard ready,!closing,!disposed else{return};if action == "close" {close.playArtworkTapFeedback()};view.isUserInteractionEnabled = false;onAction?(action)}
     @objc private func requestClose() {guard dismissalAllowed else{return};request("close")}
     @objc private func requestButton(_ sender:UIButton) {clickedButton = sender.tag;request(sender.tag == 0 ? "restart" : "exit")}
     func closeFromOwner() {

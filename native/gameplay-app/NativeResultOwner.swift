@@ -234,7 +234,7 @@ final class NativeResultController:UIViewController {
             scoreLabel.attributedText=label
         } else {scoreLabel.text="Your score"}
         score.accessibilityIdentifier="native.result.score"
-        status.text="\(state.mode == .arcade ? String(format:"Round %02d",state.stage) : "Stage \((state.board-1)%10+1)") \(clean ? "cleared" : "not cleared")"
+        status.text="\(state.mode == .arcade ? String(format:"Round %02d",state.stage) : String(format:"Stage %02d",(state.board-1)%10+1)) \(clean ? "cleared" : "not cleared")"
         for (index,button) in buttons.enumerated() {
             button.setTitle(index == 0 ? (clean && interimJourney ? "Continue" : "Play Again") : "Exit",for:.normal)
             button.applyModalCTA(artwork:assets,primary:index == 0)

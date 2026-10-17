@@ -1,9 +1,9 @@
 import StackToSixGameplay
 
-/// Exact committed meter-reward policy from decideWildType + variant/Beach slot owners.
+/// Committed meter rewards; Native Forest-only plain Star eligibility is explicit.
 /// Additional random draws are requested only at the same source decision boundaries.
 public enum NativeWildRewardPolicy {
-    public static func choose(state:NativeBoardState,roll:Double,nextRoll:()->Double) -> NativeWildRewardChoice? {
+    public static func choose(state:NativeBoardState,roll:Double,plainStarUnlocked:Bool,nextRoll:()->Double) -> NativeWildRewardChoice? {
         let board = state.board,count = state.wildSpawnCount
         if state.mode == .journey && ((1...10).contains(board) || (21...30).contains(board)) {
             guard let reward = NativeJourneyContent.reward(board:board,wildSpawnCount:count,roll:roll,previous:state.lastWildDropType) else {return nil}
@@ -15,9 +15,18 @@ public enum NativeWildRewardPolicy {
         var core:NativeWildArchetype
         if intro {core = count > 0 && (state.lastWildDropType == .star || bounded < 0.60) ? .juice : .star}
         else {
-            let preferred:NativeWildArchetype = bounded < 0.5 ? .star : bounded < 0.6667 ? .juice : bounded < 0.8334 ? .magnet : .tnt
-            let allowed = allowedTypes(board:board)
-            core = allowed.contains(preferred) ? preferred : allowed[0]
+            let existing = allowedTypes(board:board)
+            let lockedArcade=state.mode == .arcade && !plainStarUnlocked
+            let filtered=lockedArcade ? existing.filter{$0 != .star}:existing
+            // Arcade01 previously had only Star in its generic board pool.
+            // Removing locked Star must still leave a usable meter reward.
+            let allowed:[NativeWildArchetype]=filtered.isEmpty ? [.juice,.magnet,.tnt]:filtered
+            if lockedArcade {
+                core=allowed[min(allowed.count-1,Int(bounded*Double(allowed.count)))]
+            }else{
+                let preferred:NativeWildArchetype = bounded < 0.5 ? .star : bounded < 0.6667 ? .juice : bounded < 0.8334 ? .magnet : .tnt
+                core=allowed.contains(preferred) ? preferred:allowed[0]
+            }
             if core == state.lastWildDropType && state.wildDropTypeStreak >= 2 {
                 let alternatives = NativeWildArchetype.allCases.compactMap { type -> NativeWildArchetype? in
                     let filtered = allowed.contains(type) ? type : allowed[0]
@@ -31,13 +40,12 @@ public enum NativeWildRewardPolicy {
             // decideWildType ran first (including any streak draw); Beach then overrides it
             // with its independent weighted slot. At an exact edge EPSILON selects next slot.
             let slotRoll = board == 12 && count == 0 ? nil : bound(nextRoll())
-            let slot = slotRoll.map {value in (0..<5).first {value+Double.ulpOfOne < Double($0+1)*0.2} ?? 4} ?? 1
+            let slot = slotRoll.map {value in (0..<4).first {value+Double.ulpOfOne < Double($0+1)*0.25} ?? 3} ?? 1
             switch slot {
             case 0:return NativeWildRewardChoice(.star,variant:"fish")
             case 1:return NativeWildRewardChoice(.juice)
             case 2:return NativeWildRewardChoice(.tnt,variant:"beach-ball")
-            case 3:return NativeWildRewardChoice(.magnet,variant:"bottle")
-            default:return NativeWildRewardChoice(.star)
+            default:return NativeWildRewardChoice(.magnet,variant:"bottle")
             }
         }
         if state.mode == .arcade && board <= 1 {

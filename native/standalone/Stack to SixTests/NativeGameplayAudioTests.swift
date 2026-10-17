@@ -1,5 +1,6 @@
 import XCTest
 import UIKit
+import AVFAudio
 import StackToSixGameplay
 @testable import Stack_to_Six
 
@@ -15,6 +16,55 @@ final class NativeGameplayAudioTests:XCTestCase {
         func finish(_ id:String,_ reason:NativeAudioCompletion){finishes.removeValue(forKey:id)?(reason)}
         func stopAll() {stops += 1;let callbacks=Array(finishes.values);finishes.removeAll();callbacks.forEach{$0(.stopped)}}
         func dispose() {disposals += 1;stopAll()}
+    }
+    func testForegroundRecoversMissingInterruptionEndWithoutReplayingContacts() {
+        let transport=Transport(),owner=NativeGameplayAudioOwner(root:URL(fileURLWithPath:"/unused"),enabled:true,transport:transport)
+        defer{owner.dispose()}
+        NotificationCenter.default.post(name:AVAudioSession.interruptionNotification,object:nil,userInfo:[AVAudioSessionInterruptionTypeKey:AVAudioSession.InterruptionType.began.rawValue])
+        owner.studioIntro(character:"lik-game",receipt:1,generation:1)
+        XCTAssertTrue(transport.cues.isEmpty)
+        NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+        NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+        XCTAssertTrue(transport.cues.isEmpty)
+        owner.studioIntro(character:"lik-game",receipt:1,generation:1)
+        XCTAssertTrue(transport.cues.isEmpty)
+        owner.studioIntro(character:"lik-game",receipt:2,generation:1)
+        XCTAssertEqual(transport.cues.first{$0.voice=="native-studio-smile"}?.gain,0.63)
+        owner.setEnabled(false)
+        NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+        let count=transport.cues.count
+        owner.studioIntro(character:"lik-game",receipt:3,generation:1)
+        XCTAssertEqual(transport.cues.count,count)
+    }
+    func testSFXActivatesIndependentlyAndRetriesAfterFailureBackgroundAndReset() {
+        var activations=0,activationSucceeds=false
+        let transport=NativeAVGameplayAudioTransport(root:URL(fileURLWithPath:"/unused"),activateSession:{activations += 1;return activationSucceeds})
+        defer{transport.dispose()}
+        let cue=NativeAudioCue(source:"assets/sound/bibis.wav",voice:"activation",gain:0.3)
+        var result:NativeAudioCompletion?
+        transport.play(cue){result=$0}
+        XCTAssertEqual(result,.unavailable);XCTAssertEqual(activations,1)
+        activationSucceeds=true
+        transport.play(cue);transport.play(cue)
+        XCTAssertEqual(activations,2)
+        transport.setSelectedPreparationForeground(false);transport.setSelectedPreparationForeground(true)
+        transport.play(cue);XCTAssertEqual(activations,3)
+        transport.setSelectedPreparationEnabled(false);transport.setSelectedPreparationEnabled(true)
+        transport.play(cue);XCTAssertEqual(activations,4)
+    }
+    func testJourneyEmittedFlipEventsUseAuthoredFamiliesAndBoardExitHasThreeTimedLayers() {
+        let transport=Transport(),owner=NativeGameplayAudioOwner(root:URL(fileURLWithPath:"/unused"),enabled:true,transport:transport)
+        defer{owner.dispose()}
+        for (index,pair) in [("card-entry-flip","flip"),("card-manual-flip","manualFlip"),("card-return-flip","returnFlip")].enumerated() {
+            transport.cues=[]
+            owner.routeFeedback(pair.0,receipt:UInt64(index+1),generation:1)
+            XCTAssertEqual(transport.cues,NativeAuthoredAudioCatalog.groups[pair.1])
+        }
+        transport.cues=[]
+        owner.routeFeedback("board-exit",receipt:4,generation:1,duration:0.78)
+        XCTAssertEqual(transport.cues.count,3)
+        XCTAssertEqual(transport.cues.map(\.source),NativeAuthoredAudioCatalog.groups["boardExit"]!.map(\.source))
+        XCTAssertTrue(transport.cues.allSatisfy{$0.stopAfter==0.78 && $0.fadeOut==0.05})
     }
     private func tile(_ archetype:NativeWildArchetype?=nil,variant:String?=nil)->NativeTile {
         NativeTile(id:"source",cell:.init(column:0,row:0),value:archetype == nil ? 3 : 6,archetype:archetype,variant:variant)
@@ -60,7 +110,7 @@ final class NativeGameplayAudioTests:XCTestCase {
         owner.dispose()
     }
     func testKantaFadeCapturesOnlyOriginalNativeVoiceIdentitiesAndDeferredGains() {
-        let transport=NativeAVGameplayAudioTransport(root:URL(fileURLWithPath:"/unused"))
+        let transport=NativeAVGameplayAudioTransport(root:URL(fileURLWithPath:"/unused"),activateSession:{true})
         transport.play(NativeAudioCue(source:"assets/sound/bibis.wav",voice:"kanta-merge6-bibis",gain:0.30))
         transport.play(NativeAudioCue(source:"assets/sound/walking.wav",voice:"kanta-walking-1",gain:0.18))
         let fade=transport.captureFade(["kanta-merge6-bibis","kanta-walking-1"])!
@@ -192,7 +242,7 @@ final class NativeGameplayAudioTests:XCTestCase {
         owner.dispose();XCTAssertEqual(releases,4)
     }
     func testNativeSaxReceiptEndsForUnavailableAndCancelledDeferredVoice() async throws {
-        let transport=NativeAVGameplayAudioTransport(root:URL(fileURLWithPath:"/unused"));var reasons:[NativeAudioCompletion]=[]
+        let transport=NativeAVGameplayAudioTransport(root:URL(fileURLWithPath:"/unused"),activateSession:{true});var reasons:[NativeAudioCompletion]=[]
         transport.play(.init(source:"assets/sound/missing.wav",voice:"unavailable",gain:0.1)){reasons.append($0)}
         try await Task.sleep(for:.milliseconds(50));XCTAssertEqual(reasons,[.unavailable])
         transport.play(.init(source:"assets/sound/missing.wav",voice:"delayed",gain:0.1,delay:2)){reasons.append($0)}
@@ -212,7 +262,7 @@ final class NativeGameplayAudioTests:XCTestCase {
         transport.stopAll();transport.dispose();XCTAssertEqual(endings,[.ended])
     }
     func testNativeTransportCancelsDeferredFileOpenAndBoundsPendingVoices() async throws {
-        let transport=NativeAVGameplayAudioTransport(root:URL(fileURLWithPath:"/unused"))
+        let transport=NativeAVGameplayAudioTransport(root:URL(fileURLWithPath:"/unused"),activateSession:{true})
         transport.play(.init(source:"assets/sound/unavailable.wav",voice:"delayed",gain:0.2,delay:2))
         XCTAssertEqual(transport.scheduledVoiceCount,1);XCTAssertEqual(transport.openedFileCount,0)
         transport.stopAll();try await Task.sleep(for:.milliseconds(40))

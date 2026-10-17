@@ -1,0 +1,6 @@
+interface:
+  display_name: "Stack to Six Render Style"
+  short_description: "Match the soft, creamy Stack to Six character style"
+  default_prompt: "Use $stack-to-six-render-style to review or correct this image against my character style references."
+policy:
+  allow_implicit_invocation: true

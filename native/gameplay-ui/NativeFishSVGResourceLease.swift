@@ -5,11 +5,12 @@ import Foundation
 @MainActor
 final class NativeFishSVGResourceLease {
     private let resourceRoot:URL
+    private let measureBodyBounds:Bool
     private var resources:NativeFishSVGFallbackResources?
     private var decode:Task<NativeFishSVGFallbackResources?,Never>?,delivery:Task<Void,Never>?
     private var waiters:[UUID:(NativeFishSVGFallbackResources?)->Void]=[:]
     private var epoch:UInt64=0,suspended=false,disposed=false,attempted=false
-    init(resourceRoot:URL){self.resourceRoot=resourceRoot}
+    init(resourceRoot:URL,measureBodyBounds:Bool=false){self.resourceRoot=resourceRoot;self.measureBodyBounds=measureBodyBounds}
     @discardableResult
     func request(_ completion:@escaping (NativeFishSVGFallbackResources?)->Void)->UUID? {
         guard !disposed else {return nil}
@@ -23,8 +24,8 @@ final class NativeFishSVGResourceLease {
     }
     private func beginIfNeeded() {
         guard !disposed,!suspended,decode==nil,!waiters.isEmpty else {return}
-        epoch+=1;let acceptedEpoch=epoch,root=resourceRoot
-        let task=Task.detached(priority:.userInitiated){try? NativeFishSVGFallbackResources.load(resourceRoot:root)}
+        epoch+=1;let acceptedEpoch=epoch,root=resourceRoot,measureBounds=measureBodyBounds
+        let task=Task.detached(priority:.userInitiated){try? NativeFishSVGFallbackResources.load(resourceRoot:root,measureBodyBounds:measureBounds)}
         decode=task
         delivery=Task { [weak self] in
             let resource=await task.value

@@ -84,6 +84,23 @@ Use `SKIP_NATIVE_BUNDLE_SYNC=true npm run build` when validating web code withou
 
 Native Area55 Unit beam policy (user request2026-10-14): `NativeWorldLayouts` caches ten independent three-point0.20→1.00→0.20 opacity profiles, shuffled distinct2.13–3.67s periods, randomized rise at28–42percent of the period and phase. Interim/unlocked card Units halve cached times/duration/phase for2× speed; locked number-only Units keep the base period. Existing child Core Animation owns visible playback; refresh/viewport geometry does not re-roll temporal profiles. `JimiNativeWorldView` removes child animations before replacement/eviction and retains existing viewport/background/park/Reduce Motion admission. Original beam artwork and Unit enter/exit geometry remain preserved; phone delivery/physical acceptance is tracked in CURRENT_HANDOFF.
 
+Native Wild Star availability (user decision2026-10-16): plain Star meter rewards
+are Forest-only in Journey. Native Beach/Area55 pools omit plain Star while their
+Star-archetype variants remain unchanged. Arcade eligibility derives from existing
+Forest Unit1 unlock evidence via NativeProgressionState.hasUnlockedWildStar,
+captured at engine construction. An additive optional wildStarUnlocked Bool latches
+legacy evidence before World changes; older saves default false, with no format-version
+change or reset. Existing saved tiles and
+scripted tutorial remain intact. See GAMEPLAY_KING_CONTRACT.md for exact scope.
+
+Native modal subtitle typography (user decision2026-10-17): `NativeModalTypography`
+is the shared rule for Score/Combo, End Run/confirmation, gameplay Backpack headers,
+main Backpack section subtitles, selected die descriptions and tutorial-sheet subtitles.
+Use the authored Combo ratio1.3 (20pt Medium →26pt line height), identical minimum/
+maximum line heights, no extra paragraph spacing and `NativeTextPalette.subtitle`
+(current #BD9788). Retain each owner’s alignment, wrapping, font size and measured
+content layout. Fullscreen reward/round/title typography remains separately owned.
+
 ## Current launch/preloader design
 
 - First-frame markup and fallback assets: `index.html`.

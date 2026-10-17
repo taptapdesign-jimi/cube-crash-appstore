@@ -1,4 +1,4 @@
-# Cube Crash Agent Instructions
+# iOS Stack to Six — Agent Instructions
 
 This repository is the **Stack to Six Native** development project on `main`
 (user decision 2026-10-07), targeting **100% native** gameplay and UI. Read
@@ -46,3 +46,46 @@ When the user asks to connect to the phone, observe or collect problems, reprodu
 The terms **standard enter**, **standard exit**, and **cjelina / Unit** always refer to that contract unless the user explicitly requests different motion.
 
 After a meaningful code, workflow, bundle, device-install, or product-decision change, update `CURRENT_HANDOFF.md` in the same task. Keep stable facts in `PROJECT_CONTEXT.md`; do not turn the handoff into a chat transcript.
+
+## Shared Native Simulator preview (user decision 2026-10-16)
+
+Keep one current Native app on the existing `Jimi 2026 QA iPhone 13` Simulator
+(`1018BE2D-491B-465F-8F75-3E5BEB38C22A`), bundle
+`com.taptapdesign.stacktosix.native`. After a Native implementation task and its
+required checks, refresh this same app from the complete current working tree,
+including other agents' saved changes: build the normal `Stack to Six` Debug
+scheme, verify the built bundle ID, install over the existing Simulator app,
+and launch it normally for user review. Do not leave a test runner as the final
+preview. Preserve app data; never uninstall/reset the retained Native app.
+Coordinate concurrent builds so the last preview includes the latest completed
+changes. Record actual build/install/launch evidence in `CURRENT_HANDOFF.md`.
+This standing preview request applies only to this Simulator; physical phone,
+preserved PWA and legacy shell retain their existing separate boundaries.
+
+## Persistent game art direction (user decision 2026-10-17)
+
+For new artwork, visual design, scene/character generation or render-style review,
+read and use [`game design/SKILL.md`](<game design/SKILL.md>) and its linked visual
+reference guide. Open the relevant PNG references, especially the recurring human
+and dog identity images, before generation. The library covers Home heroes,
+ordinary and Wild/Special dice, effects, and Forest/Beach/Area 55 Journey worlds.
+Keep `game design/` development-only and outside application resource/copy roots;
+see [`game design/PACKAGING.md`](<game design/PACKAGING.md>). Existing original
+assets remain protected. This routing does not authorize runtime asset changes.
+
+## ChatGPT Work project identity (user decision 2026-10-17)
+
+The shared development/design project is named **iOS Stack to Six**, with
+`/Users/user/cube-crash` as its primary local folder. Ready-to-paste project
+instructions and setup steps live in `game design/PROJECT_INSTRUCTIONS.md` and
+`game design/PROJECT_SETUP.md`. This project label does not rename the app target,
+bundle ID, repository path or preserved products.
+
+## Character illustration render style
+
+When the user includes **render style** in a request about character artwork,
+read and follow [`.agents/skills/stack-to-six-render-style/SKILL.md`](.agents/skills/stack-to-six-render-style/SKILL.md).
+It defines the accepted soft, light, creamy rendering and elongated cartoony
+limbs, with original project images as visual references. Distinguish review,
+prompt writing and actual image editing from the user's request. This phrase
+refers to illustration appearance, not runtime renderer performance.

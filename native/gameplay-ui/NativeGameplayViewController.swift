@@ -50,6 +50,7 @@ final class NativeGameplayViewController: UIViewController {
     var onHaptic: ((String) -> Void)?
     var beforeInitialBoardEntry: ((@escaping () -> Void) -> Void)?
     var onBoardEntry: ((TimeInterval,[TimeInterval]) -> Void)?
+    var onBoardExit: ((TimeInterval) -> Void)?
     var onBoardArtworkFailure:(()->Void)?
     var onSourcePresentationFailure:(()->Void)?
     struct SourcePresentationFailure:Equatable {
@@ -704,6 +705,7 @@ final class NativeGameplayViewController: UIViewController {
             let ready=self.firstBoardFrameWaiters;self.firstBoardFrameWaiters.removeAll();ready.forEach{$0()}
         }
         scene.onBoardEntry = { [weak self] duration,beats in self?.onBoardEntry?(duration,beats) }
+        scene.onBoardExit = { [weak self] duration in self?.onBoardExit?(duration) }
         scene.onHUDDrop = { [weak self] generation in
             guard let self,!self.disposed,self.engine.state.generation==generation else{return}
             self.revealJourneyBottomDecor()
@@ -755,7 +757,10 @@ final class NativeGameplayViewController: UIViewController {
         // direct authored media. Only its pointer or route lifecycle hides it.
         scene.onRenderingDemand = { [weak self,weak scene] active in
             guard let self, !self.disposed else { return }
-            let paused = !active || self.backgrounded || (self.explicitlySuspended && !self.exitingBoard)
+            // The Scene admits only its finite HUD contact branch while a
+            // foreground modal freezes gameplay. Do not override that receipt.
+            let paused = !active || self.backgrounded ||
+                (self.explicitlySuspended && !self.exitingBoard && scene?.hasActiveHUDTapFeedback != true)
             if paused {scene?.retireSourceRendererDragTransport()}
             self.spriteView.surfacePaused = paused
         }
@@ -1506,7 +1511,7 @@ final class NativeGameplayViewController: UIViewController {
         sourceTntGlyphScopes.removeAll();sourceTntGlyphOwnerIDs.removeAll();tntGlyphs.values.forEach { $0.removeFromSuperview() }; tntGlyphs.removeAll(); spriteView.presentGameplayScene(nil); spriteView.surfacePaused = true
         onSourceGuidedSnapBack=nil;onSourceTutorialRetired=nil;onSourceTutorialPrepared=nil
         onSourceBoardEntrySound=nil;onSourceBoardEntryCompleted=nil
-        onExit = nil; onStateChange = nil; onTerminal = nil; onGameplayEvent = nil; onHelp = nil; onScore = nil; onCombo = nil; onPointerState = nil; onHaptic = nil; onBoardEntry = nil; onGameplayReceipt = nil; onSpecialMoment = nil; onSpecialFadeCapture = nil
+        onExit = nil; onStateChange = nil; onTerminal = nil; onGameplayEvent = nil; onHelp = nil; onScore = nil; onCombo = nil; onPointerState = nil; onHaptic = nil; onBoardEntry = nil; onBoardExit = nil; onGameplayReceipt = nil; onSpecialMoment = nil; onSpecialFadeCapture = nil
     }
 }
 

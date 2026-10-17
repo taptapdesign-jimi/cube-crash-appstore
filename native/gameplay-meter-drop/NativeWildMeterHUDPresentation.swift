@@ -10,19 +10,36 @@ import UIKit
         weak var hudStage:SKNode?
         let sourceToNative:(CGPoint)->CGPoint
         var nodes:[UInt64:SKShapeNode]=[:]
+        private var birthPositions:[UInt64:CGPoint]=[:]
+        private var shakeCompensation=CGPoint.zero
+        func setCanvasShakeOffset(_ offset:CGPoint){
+            let next=CGPoint(x:-offset.x,y:-offset.y)
+            let delta=CGPoint(x:next.x-shakeCompensation.x,y:next.y-shakeCompensation.y)
+            shakeCompensation=next
+            for node in nodes.values {node.position=CGPoint(x:node.position.x+delta.x,y:node.position.y+delta.y)}
+        }
+        private func position(_ source:CGPoint)->CGPoint {
+            let p=sourceToNative(source)
+            return CGPoint(x:p.x+shakeCompensation.x,y:p.y+shakeCompensation.y)
+        }
         init(stage:SKNode,sourceToNative:@escaping(CGPoint)->CGPoint){hudStage=stage;self.sourceToNative=sourceToNative}
         func create(id:UInt64,x:Double,y:Double,radius:Double){
             guard let hudStage else{return}
             let bubble=SKShapeNode(circleOfRadius:CGFloat(radius))
             bubble.name="wild-meter-smoke";bubble.fillColor=SKColor(red:248/255,green:107/255,blue:60/255,alpha:0.5)
-            bubble.strokeColor = .clear;bubble.lineWidth=0;bubble.alpha=1;bubble.zPosition=2000
-            bubble.position=sourceToNative(.init(x:x,y:y));nodes[id]=bubble;hudStage.addChild(bubble)
+            bubble.strokeColor = .clear;bubble.lineWidth=0;bubble.alpha=0;bubble.zPosition=2000
+            bubble.position=position(.init(x:x,y:y));nodes[id]=bubble
+            birthPositions[id]=CGPoint(x:x,y:y);hudStage.addChild(bubble)
         }
         func paint(id:UInt64,_ pose:NativeWildMeterSmokePlan.Pose){
-            guard let bubble=nodes[id] else{return}
-            bubble.position=sourceToNative(.init(x:pose.x,y:pose.y));bubble.alpha=CGFloat(pose.alpha)
+            guard let bubble=nodes[id],let birth=birthPositions[id] else{return}
+            bubble.position=position(.init(x:pose.x,y:pose.y))
+            // Wall emission can precede a lazy/paused Source tween. Do not paint
+            // its stationary spawn row, including any zero-time initialization.
+            let moving=abs(pose.x-birth.x)>0.000001 || abs(pose.y-birth.y)>0.000001
+            bubble.alpha=moving ? CGFloat(pose.alpha):0
         }
-        func destroy(id:UInt64){nodes.removeValue(forKey:id)?.removeFromParent()}
+        func destroy(id:UInt64){birthPositions.removeValue(forKey:id);nodes.removeValue(forKey:id)?.removeFromParent()}
     }
     private let stage:SKNode,sourceToNative:(CGPoint)->CGPoint,nativeToSource:(CGPoint)->CGPoint
     private let current:()->Bool
@@ -122,6 +139,8 @@ import UIKit
         guard width>0 else{return CGMutablePath()}
         return CGPath(roundedRect:CGRect(x:left,y:-10,width:width,height:10),cornerWidth:5,cornerHeight:5,transform:nil)
     }
+    /// Cancel only the board canvas translation; HUD enter/exit still owns its parent.
+    func setCanvasShakeOffset(_ offset:CGPoint){guard !closed else{return};smokeResources.setCanvasShakeOffset(offset)}
     var activeSmokeCount:Int{smoke.activeBubbleCount}
     var fillPose:NativeWildMeterConsumptionPlan.Pose{.init(left:owner.left,width:owner.width)}
     var consumeActive:Bool{owner.consumeActive}

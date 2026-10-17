@@ -17,6 +17,19 @@ final class NativeScoreModalTests:XCTestCase {
         XCTAssertEqual(arcade.stats.last?.value,"04")
         XCTAssertEqual(arcade.stats.first?.value,9999.formatted())
     }
+    func testArcadeModalReadsItsExactVariantRecord() {
+        var progression = NativeProgressionState()
+        for (index, variant) in NativeArcadeVariant.allCases.enumerated() {
+            progression.finishAttempt(mode: .arcade, board: index + 2, score: (index + 1) * 1234, longestCombo: index + 3, cubesCracked: 0, clean: true, arcadeVariant: variant)
+        }
+        for (index, variant) in NativeArcadeVariant.allCases.enumerated() {
+            let state = NativeBoardFactory.make(mode: .arcade, board: 1, arcadeVariant: variant)
+            let score = NativeScoreModalModel(state: state, progression: progression, combo: false)
+            XCTAssertEqual(score.stats.first?.value, ((index + 1) * 1234).formatted())
+            XCTAssertEqual(score.stats.last?.value, String(format: "%02d", index + 3))
+            XCTAssertEqual(NativeScoreModalModel(state: state, progression: progression, combo: true).stats.first?.value, (index + 3).formatted())
+        }
+    }
     func testTutorialHudCannotPresentOrMutateTheLiveRun() throws {
         let state=NativeBoardFactory.make(mode:.arcade,board:1,tutorial:true)
         let engine=NativeGameplayEngine(state:state);XCTAssertTrue(engine.startTutorial().accepted)

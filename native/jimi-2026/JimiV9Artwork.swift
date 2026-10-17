@@ -3,7 +3,22 @@ import CoreText
 
 /// Shared semantic text colors for Native UI.
 enum NativeTextPalette {
-    static let subtitle = UIColor(red:188/255,green:160/255,blue:148/255,alpha:1)
+    static let subtitle = UIColor(red:189/255,green:151/255,blue:136/255,alpha:1) // #BD9788
+}
+
+/// Modal subtitles share Combo's 20pt / 26pt rhythm, including explicit newlines.
+enum NativeModalTypography {
+    static func subtitleParagraph(fontSize:CGFloat=20,alignment:NSTextAlignment = .center)->NSParagraphStyle {
+        let paragraph=NSMutableParagraphStyle()
+        paragraph.alignment=alignment
+        paragraph.minimumLineHeight=fontSize*1.3
+        paragraph.maximumLineHeight=fontSize*1.3
+        return paragraph
+    }
+    static func attributedSubtitle(_ text:String,font:UIFont,alignment:NSTextAlignment = .center)->NSAttributedString {
+        NSAttributedString(string:text,attributes:[.font:font,.foregroundColor:NativeTextPalette.subtitle,
+            .paragraphStyle:subtitleParagraph(fontSize:font.pointSize,alignment:alignment)])
+    }
 }
 
 /// Shared rectangular navigation surface; its existing parent owns all motion.

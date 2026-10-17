@@ -79,10 +79,10 @@ final class NativeTutorialOverlay:UIView {
         super.layoutSubviews()
         let small=bounds.width <= 428
         let subtitleFont=assets.font(size:small ? 18 : 20,weight:"Medium")
-        let measuredSpecialHeight=ceil(("Stack and merge dice to fill the bar and earn special dice." as NSString).boundingRect(with:CGSize(width:min(280,bounds.width-56),height:.greatestFiniteMagnitude),options:[.usesLineFragmentOrigin,.usesFontLeading],attributes:[.font:subtitleFont],context:nil).height)
+        let measuredSpecialHeight=ceil(("Stack and merge dice to fill the bar and earn special dice." as NSString).boundingRect(with:CGSize(width:min(280,bounds.width-56),height:.greatestFiniteMagnitude),options:[.usesLineFragmentOrigin,.usesFontLeading],attributes:[.font:subtitleFont,.paragraphStyle:NativeModalTypography.subtitleParagraph(fontSize:subtitleFont.pointSize)],context:nil).height)
         let subtitleHeight:CGFloat=specialBarVisible ? max(56,measuredSpecialHeight) : (step == 1 || step == 2 ? max(28,subtitleFont.lineHeight) : max(56,subtitleFont.lineHeight*2+2))
         let top:CGFloat=58,headingHeight:CGFloat=small ? 38.4 : 48
-        let height=max(178,top+headingHeight+8+subtitleHeight+(step == 3 || specialBarVisible ? 98 : 0)+62+safeAreaInsets.bottom)
+        let height=max(178,top+headingHeight+12+subtitleHeight+(step == 3 || specialBarVisible ? 98 : 0)+62+safeAreaInsets.bottom)
         sheet.bounds=CGRect(x:0,y:0,width:bounds.width,height:height)
         sheet.center=CGPoint(x:bounds.midX,y:bounds.maxY-height/2)
         // Keep the painted bottom below the viewport during the authored
@@ -90,7 +90,7 @@ final class NativeTutorialOverlay:UIView {
         sheetSurface.frame=CGRect(x:0,y:0,width:sheet.bounds.width,height:height+max(64,height*0.25))
         paper.frame=sheetSurface.bounds;paper.layer.cornerRadius=36;paper.layer.maskedCorners=sheetSurface.layer.maskedCorners
         heading.frame=CGRect(x:28,y:top,width:max(0,bounds.width-56),height:headingHeight)
-        subtitle.frame=CGRect(x:(bounds.width-min(280,bounds.width-56))/2,y:heading.frame.maxY+8,width:min(280,bounds.width-56),height:subtitleHeight)
+        subtitle.frame=CGRect(x:(bounds.width-min(280,bounds.width-56))/2,y:heading.frame.maxY+12,width:min(280,bounds.width-56),height:subtitleHeight)
         let width=min(bounds.width-56,bounds.width <= 428 || UIDevice.current.userInterfaceIdiom == .pad ? 249 : 310)
         button.frame=CGRect(x:(bounds.width-width)/2,y:subtitle.frame.maxY+34,width:width,height:64)
         sourceCTAVisual.bounds=button.bounds;sourceCTAVisual.center=CGPoint(x:button.bounds.midX,y:button.bounds.midY);sourceCTATitle.frame=sourceCTAVisual.bounds
@@ -109,7 +109,7 @@ final class NativeTutorialOverlay:UIView {
         let text=NSMutableAttributedString(string:copy.0,attributes:[.font:font,.foregroundColor:UIColor(red:173/255,green:135/255,blue:117/255,alpha:1)])
         let range=(copy.0 as NSString).range(of:copy.2)
         if range.location != NSNotFound {text.addAttribute(.foregroundColor,value:UIColor(red:233/255,green:122/255,blue:85/255,alpha:1),range:range)}
-        heading.attributedText=text;subtitle.font=assets.font(size:bounds.width <= 428 ? 18 : 20,weight:"Medium");subtitle.text=copy.1;subtitle.lineBreakMode = .byWordWrapping
+        heading.attributedText=text;subtitle.font=assets.font(size:bounds.width <= 428 ? 18 : 20,weight:"Medium");subtitle.attributedText=NativeModalTypography.attributedSubtitle(copy.1,font:subtitle.font);subtitle.lineBreakMode = .byWordWrapping
         button.isHidden=specialBarVisible ? false : (step != 3 || sourceCTA?.state == .hidden)
         button.setTitle(specialBarVisible ? "Continue":"Got it!",for:.normal)
         if sourceCTA != nil{button.isEnabled=sourceCTA?.enabled==true}

@@ -31,6 +31,13 @@ final class NativeGameplayChromeTests:XCTestCase {
             let scene=NativeBoardScene(engine:engine,resourceRoot:root,size:CGSize(width:390,height:844))
             defer {scene.dispose()}
             scene.layout(size:scene.size,insets:UIEdgeInsets(top:47,left:0,bottom:34,right:0))
+            let icon=try XCTUnwrap(scene.childNode(withName:"//native-game-help") as? SKSpriteNode)
+            let expectedIcon=mode == .arcade ? "assets/hud/crate - hud.png":"assets/nav/stats-nav.png"
+            let expectedImage=try XCTUnwrap(UIImage(contentsOfFile:root.appendingPathComponent(expectedIcon).path))
+            XCTAssertEqual(max(icon.size.width,icon.size.height),34,accuracy:0.001)
+            XCTAssertEqual(icon.size.width/icon.size.height,expectedImage.size.width/expectedImage.size.height,accuracy:0.001)
+            let texture=try XCTUnwrap(icon.texture)
+            XCTAssertEqual(texture.size().width/texture.size().height,expectedImage.size.width/expectedImage.size.height,accuracy:0.001)
             let round=try XCTUnwrap(scene.childNode(withName:"native-game-round-indicator"))
             XCTAssertEqual(round.isHidden,mode == .journey)
             XCTAssertEqual(round.position,CGPoint(x:195,y:43))
@@ -52,6 +59,40 @@ final class NativeGameplayChromeTests:XCTestCase {
             view.presentScene(nil);window.isHidden=true
         }
     }
+    func testIdleFrameExpiresComboValueAndMegaIconWithoutAnotherMove() throws {
+        let root=Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle")
+        for mode in [NativeRunMode.arcade,.journey] {
+            let a=NativeTile(id:"a",cell:NativeCell(column:0,row:0),value:1)
+            let b=NativeTile(id:"b",cell:NativeCell(column:1,row:0),value:1)
+            let spare=NativeTile(id:"spare",cell:NativeCell(column:2,row:0),value:2)
+            let engine=NativeGameplayEngine(state:NativeBoardState(tiles:[a,b,spare],mode:mode,combo:9))
+            XCTAssertTrue(engine.beginDrag(tileID:"a"))
+            XCTAssertTrue(engine.drop(target:b.cell,now:CACurrentMediaTime()-3).accepted)
+            XCTAssertEqual(engine.state.combo,10)
+            let scene=NativeBoardScene(engine:engine,resourceRoot:root,size:CGSize(width:390,height:844))
+            defer {scene.dispose()}
+            scene.layout(size:scene.size,insets:.zero)
+            let value=try XCTUnwrap(scene.childNode(withName:"//native-game-combo-value") as? SKLabelNode)
+            let icon=try XCTUnwrap(scene.childNode(withName:"//native-game-combo-art") as? SKSpriteNode)
+            XCTAssertEqual(value.text,"10")
+            let mega=icon.texture
+            let before=engine.state
+            let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+            let controller=UIViewController(),view=SKView(frame:window.bounds)
+            controller.view=view;window.rootViewController=controller;window.makeKeyAndVisible();view.presentScene(scene)
+            defer {view.presentScene(nil);window.isHidden=true}
+            scene.update(CACurrentMediaTime())
+            XCTAssertEqual(engine.state.combo,0);XCTAssertEqual(value.text,"0")
+            XCTAssertFalse(icon.texture === mega)
+            XCTAssertEqual(engine.state.score,before.score)
+            XCTAssertEqual(engine.state.earnedComboBonus,before.earnedComboBonus)
+            XCTAssertEqual(engine.state.longestCombo,before.longestCombo)
+            XCTAssertEqual(engine.state.tiles,before.tiles)
+            scene.update(CACurrentMediaTime())
+            XCTAssertEqual(value.text,"0")
+        }
+    }
+
     func testRoundIsHiddenBeforeFirstAnimatedPaintAndInactiveModeRetiresMotion() throws {
         let root=Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle")
         let round=NativeRoundIndicator(font:JimiV9Artwork(resourceRoot:root).font(size:18,weight:"SemiBold"))

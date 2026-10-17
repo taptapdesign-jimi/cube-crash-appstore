@@ -46,6 +46,7 @@ struct NativeBackpackCatalog {
             let legacy=progression.highestUnlockedJourneyBoard>1 && range.contains(progression.highestUnlockedJourneyBoard) ? progression.highestUnlockedJourneyBoard:nil
             reached=[reached,played,opened,legacy].compactMap{$0}.max()
             var eligible=reached.map{Set(NativeJourneyContent.rewardPool(board:$0))} ?? []
+            if title=="Forest",progression.hasUnlockedWildStar {eligible.insert("wild-star")}
             if title=="Forest",progression.unlockedSpecialDice.contains("flower") {eligible.insert("flower")}
             if title=="Beach",progression.unlockedSpecialDice.contains("juice") {eligible.insert("wild-juice")}
             return Section(title:title,dice:dice,unlocked:eligible)

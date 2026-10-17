@@ -88,6 +88,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     func tickSourcePlainStarSheet(deltaMilliseconds:Double,suspended:Bool) {
         guard !suspended else{return};sourceStarSheet?.tick(deltaMilliseconds:deltaMilliseconds)
     }
+    func synchronizeSourcePlainStarHostPose(){sourceStarSheet?.synchronizeHostPose()}
     private func retireSourceStarSheet(){
         let captured=sourceStarSheet;captured?.dispose()
         if sourceStarSheet === captured {
@@ -1677,6 +1678,40 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         let a=sprite.convert(CGPoint(x:(bounds.minX-sprite.anchorPoint.x)*size.width,y:(1-bounds.maxY-sprite.anchorPoint.y)*size.height),to:self)
         let b=sprite.convert(CGPoint(x:(bounds.maxX-sprite.anchorPoint.x)*size.width,y:(1-bounds.minY-sprite.anchorPoint.y)*size.height),to:self)
         return CGRect(x:min(a.x,b.x),y:min(a.y,b.y),width:abs(b.x-a.x),height:abs(b.y-a.y))
+    }
+    func collectionRearCanCenter(in destination:SKNode)->CGPoint? {
+        guard let kanta=kantaIdle,let center=kanta.rearBodyCenter else{return nil}
+        return kanta.convert(center,to:destination)
+    }
+    /// Flower shadow reads only the SVG translation plane, before its separate
+    /// squash/stretch and rotation children. No artwork pose is changed.
+    func collectionFlowerVerticalLift(in destination:SKNode)->CGFloat? {
+        guard variant=="flower",!flowerCanvas.isHidden else{return nil}
+        return flowerCanvas.convert(CGPoint(x:0,y:flowerRoot.position.y),to:destination).y
+            - flowerCanvas.convert(.zero,to:destination).y
+    }
+    /// Selected-preview shadow geometry follows the actual painted atlas frame.
+    /// Four-corner projection handles the authored rotation/scale hierarchy.
+    func collectionAnimatedBodyBounds(normalizedBounds:CGRect)->CGRect {
+        if let kanta=kantaIdle,let bounds=kanta.bodyBounds {
+            let points=[CGPoint(x:bounds.minX,y:bounds.minY),CGPoint(x:bounds.maxX,y:bounds.minY),
+                        CGPoint(x:bounds.minX,y:bounds.maxY),CGPoint(x:bounds.maxX,y:bounds.maxY)].map{kanta.convert($0,to:self)}
+            let xs=points.map(\.x),ys=points.map(\.y)
+            return CGRect(x:xs.min() ?? 0,y:ys.min() ?? 0,width:(xs.max() ?? 0)-(xs.min() ?? 0),height:(ys.max() ?? 0)-(ys.min() ?? 0))
+        }
+        let sprite = !flowerCanvas.isHidden ? flowerArt:!artwork.isHidden ? artwork:face
+        let bounds: CGRect
+        if sprite === artwork,let sheet=definition.idleSheet {
+            bounds=textures.frameSheetBodyBounds(sheet,frame:paintedFrame) ?? textures.firstSheetBodyBounds(sheet)
+        }else{bounds=normalizedBounds}
+        let size=collectionGeometrySize(sprite)
+        let points=[CGPoint(x:bounds.minX,y:bounds.minY),CGPoint(x:bounds.maxX,y:bounds.minY),
+                    CGPoint(x:bounds.minX,y:bounds.maxY),CGPoint(x:bounds.maxX,y:bounds.maxY)].map {point in
+            sprite.convert(CGPoint(x:(point.x-sprite.anchorPoint.x)*size.width,
+                y:(1-point.y-sprite.anchorPoint.y)*size.height),to:self)
+        }
+        let xs=points.map(\.x),ys=points.map(\.y)
+        return CGRect(x:xs.min() ?? 0,y:ys.min() ?? 0,width:(xs.max() ?? 0)-(xs.min() ?? 0),height:(ys.max() ?? 0)-(ys.min() ?? 0))
     }
     var onResourceReady: (() -> Void)?
 

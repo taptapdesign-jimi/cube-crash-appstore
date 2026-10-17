@@ -113,6 +113,24 @@ TNT and Wild Magnet gameplay archetypes respectively; Kanta retains canonical
 Wild Star gameplay. The per-board `wildSpawnCount` remains persisted across
 reloads.
 
+**Native Wild Star availability override (user decision2026-10-16):**
+Plain Wild Star (Star archetype with no visual variant) is a Forest-only Journey
+reward: boards1–10 retain their existing cumulative pool and Unit1 introduction;
+Beach11–20 and Area55 21–30 never select plain Star. This overrides plain-Star
+membership in the historical Area55/PWA description above for Native only.
+Fish, Bee, Kanta and Cubero retain Star gameplay and their original visuals.
+Forest Unit1 unlock uses the existing Backpack milestone (a real Forest attempt
+opened/played or durable Forest completion/legacy progress); the default unplayed
+interim1, other Worlds and tutorial completion alone grant nothing. Once unlocked,
+plain Star is eligible for normal Arena/Arcade rewards. Before unlock, Arcade
+normal pools exclude it and remain nonempty. Arcade01 authored Magnet → Bottle →
+Cubero → Barrel sequence and existing World-specific first rewards stay intact.
+Existing saved tiles, scripted tutorial demonstration, final-merge behavior and
+save format version are preserved. An additive optional wildStarUnlocked Bool
+latches existing Forest evidence before World changes; old saves decode without it.
+Restriction applies to future ordinary meter selection;
+no persisted tile is deleted/replaced. Preserved PWA source/oracle is unchanged.
+
 - User-requested Native carrier independence (2026-10-14): a reserved Journey backpack or Arcade crate drop owns its die through travel, landing and presentation handoff. Concurrent ordinary or Wild/Special merge-6 effects cannot capture its transform or cancel its bookkeeping. Explicit route/restart/generation retirement still cancels the obsolete owner; background/modal pause retains normal lifecycle ownership.
 
 ### 5.3 Clean board and final merge

@@ -40,7 +40,7 @@ import StackToSixNativeState
         let exit=try XCTUnwrap(button(modal.view,id:"native.end-run.exit"))
         try await wait("Exit modal ready"){modal.view.isUserInteractionEnabled && exit.isUserInteractionEnabled}
         exit.sendActions(for:.touchUpInside)
-        try await wait("Authored return to Home"){app.route == .home && !app.home.isHidden && app.home.isUserInteractionEnabled && first.parent == nil}
+        try await wait("Authored return to Arcade hub"){app.route == .arcadeHub && !app.arcadeHub.isHidden && app.arcadeHub.hub.scrollView.isUserInteractionEnabled && first.parent == nil}
         XCTAssertNil(first.sourceScope)
         let durable=try XCTUnwrap(store.load()?.arcadeRun)
         assertGameplay(durable,matches:beforeExit)
@@ -50,20 +50,26 @@ import StackToSixNativeState
         assertGameplay(try XCTUnwrap(store.load()?.arcadeRun),matches:beforeExit)
     }
     private func enterFromActualHome(_ app:NativeAppController,expected:NativeBoardState)async throws->NativeGameplayViewController {
-        // Select the actual Arcade slide, then release its actual CTA after
-        // Home reveal/selection admission. Hidden initial Home is not ready.
-        let slider=app.home.sliderTrack.layer
-        let selection=slider.animation(forKey:"native-slide-selection") != nil
-        print("[ArcadeRestoreEntry] Home generation=\(expected.generation) route=\(app.route) slide=\(app.home.selectedSlide) hidden=\(app.home.isHidden) interaction=\(app.home.isUserInteractionEnabled) window=\(app.home.window != nil) sliderSpeed=\(slider.speed) homeSpeed=\(app.home.layer.speed) sliderTime=\(slider.convertTime(CACurrentMediaTime(),from:nil)) selection=\(selection)")
-        if app.home.selectedSlide != 1 {
-            app.home.navigationButtonViews[1].sendActions(for:.touchUpInside)
-            try await wait("Arcade slide ready"){
-                app.home.selectedSlide == 1 && app.home.sliderTrack.layer.animation(forKey:"native-slide-selection") == nil
+        // First entry follows the actual Home CTA; return reuses the hub.
+        if app.route == .home {
+            if app.home.selectedSlide != 1 {
+                app.home.navigationButtonViews[1].sendActions(for:.touchUpInside)
+                try await wait("Arcade slide ready"){
+                    app.home.selectedSlide == 1 && app.home.sliderTrack.layer.animation(forKey:"native-slide-selection") == nil
+                }
             }
+            XCTAssertTrue(app.home.ctaView.isEnabled)
+            XCTAssertTrue(app.home.ctaView.isUserInteractionEnabled)
+            app.home.ctaView.sendActions(for:.touchUpInside)
         }
-        XCTAssertTrue(app.home.ctaView.isEnabled)
-        XCTAssertTrue(app.home.ctaView.isUserInteractionEnabled)
-        app.home.ctaView.sendActions(for:.touchUpInside)
+        try await wait("Arcade hub ready") {
+            app.route == .arcadeHub && !app.arcadeHub.isHidden && app.arcadeHub.hub.scrollView.isUserInteractionEnabled
+        }
+        let endurance = try XCTUnwrap(app.arcadeHub.hub.worldUnits.first { $0.tag == 1 })
+        endurance.sendActions(for:.touchUpInside)
+        let play = try XCTUnwrap(button(app.arcadeHub,id:"native.arcade-world-modal.play"))
+        try await wait("Endurance modal ready") { play.isEnabled }
+        play.sendActions(for:.touchUpInside)
         try await wait("Home Arcade controller mounted"){app.children.contains{$0 is NativeGameplayViewController}}
         let game=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first)
         try await wait("Authored round cue"){game.view.subviews.contains{$0 is NativeArcadeRoundPresentation}}

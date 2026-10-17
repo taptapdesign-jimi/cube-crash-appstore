@@ -14,13 +14,14 @@ final class NativeSplashGlyphField: UIView {
     let duration: TimeInterval
     private let roboNameplate:Bool
     private let compactLaser: Bool
+    private let fitToWidth:Bool
     private var exitRotationsCaptured:Bool
     init(artwork: JimiV9Artwork,text: String,colors: [UIColor],splitIndex: Double,
-         letterColors: [UIColor]? = nil,letterOpacityRange: ClosedRange<Double>? = nil,compactLaser: Bool = false,neonGlow: Bool = false,deferExitRotationCapture:Bool = false,sourcePlan:NativeSourceSplashGlyphPlan? = nil,
+         letterColors: [UIColor]? = nil,letterOpacityRange: ClosedRange<Double>? = nil,compactLaser: Bool = false,fitToWidth:Bool = false,neonGlow: Bool = false,deferExitRotationCapture:Bool = false,sourcePlan:NativeSourceSplashGlyphPlan? = nil,
          random: () -> Double = { Double.random(in: 0..<1) }) {
         let letters = Array(text)
         roboNameplate = text == "BIBI - RIBI"
-        self.compactLaser = compactLaser
+        self.compactLaser = compactLaser;self.fitToWidth = fitToWidth
         exitRotationsCaptured = sourcePlan == nil && !deferExitRotationCapture
         exitStart = compactLaser ? .infinity : 0.3+Double(max(0,letters.count-1))*0.05+0.54
         duration = compactLaser ? 0.04+Double(max(0,letters.count-1))*0.025+0.28 : exitStart+Double(max(0,letters.count-1))*0.06+0.60+0.05
@@ -83,6 +84,11 @@ final class NativeSplashGlyphField: UIView {
         let before:[CGFloat]=glyphs.map {glyph in glyph.index==0 ? 0:roboNameplate && glyph.label.text=="-" ? 3:-4.2}
         let after:[CGFloat]=glyphs.map {glyph in roboNameplate && glyph.label.text=="-" ? 7:0}
         let total = widths.reduce(0,+)+before.reduce(0,+)+after.reduce(0,+)
+        if fitToWidth {
+            let angle=atan2(container.transform.b,container.transform.a)
+            let scale=min(1,max(0,bounds.width-40)/max(1,total*1.12))
+            container.transform=CGAffineTransform(rotationAngle:angle).scaledBy(x:scale,y:scale)
+        }
         let height = glyphs.map { $0.label.font.lineHeight }.max() ?? 0
         container.bounds = CGRect(x: 0,y: 0,width: total,height: height); container.center = CGPoint(x: bounds.midX,y: bounds.midY)
         var x: CGFloat = 0

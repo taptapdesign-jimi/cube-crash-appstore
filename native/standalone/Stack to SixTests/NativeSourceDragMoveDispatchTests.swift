@@ -59,6 +59,59 @@ import StackToSixGameplay
             XCTAssertFalse(try XCTUnwrap(scene.finishDrag(at:target,now:1.1)).accepted)
         }
     }
+    func testDraggedStarProjectedArtworkStaysAboveActualTargetStroke() throws {
+        let fifo=NativeSourceMicrotaskFIFO(),tasks=NativeSourceMicrotaskAdapters(fifo:fifo)
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true)
+        service.sourceMicrotaskTasks=tasks
+        let context=NativeGameplaySourceContext(service:service,visualRandom:{0.5},sourceMicrotaskTasks:tasks)
+        let engine=NativeGameplayEngine(state:NativeBoardState(tiles:[
+            .init(id:"star",cell:.init(column:0,row:3),value:6,archetype:.star),
+            .init(id:"target",cell:.init(column:3,row:3),value:2)]))
+        let scene=NativeBoardScene(engine:engine,resourceRoot:Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle"),size:.init(width:390,height:844))
+        let scope=try XCTUnwrap(context.beginScene(engine:engine){scene.retireSourceAnimationBindings()})
+        defer{scene.dispose();context.dispose();service.dispose();fifo.dispose()}
+        XCTAssertTrue(scene.configureSourceMicrotaskBoundaries(scope:scope,fifo:fifo))
+        scene.layout(size:scene.size,insets:.zero)
+        XCTAssertTrue(scene.configureSourcePlainStarHalos(scope:scope))
+        let star=try XCTUnwrap(scene.sourceNativeTileNode("star"))
+        let layer=try XCTUnwrap(scene.childNode(withName:"ANIMATED_DICE_HUD_FOREGROUND"))
+        // Same real projection owner and depth topology used by the Star sheet.
+        // A colored marker isolates depth from asynchronous atlas preparation.
+        let art=SKSpriteNode(color:.green,size:.init(width:300,height:300));art.zPosition = -0.01
+        let projection=try XCTUnwrap(NativeSourceAnimatedDiceForeground(displayObject:art,host:star.visual,layer:layer,name:"drag-star-depth-proof",zPosition:art.zPosition,current:{true}))
+        defer{projection.dispose()}
+        let geometry=try XCTUnwrap(scene.boardGeometry),target=geometry.center(row:3,column:3)
+        XCTAssertTrue(scene.beginDrag(at:geometry.center(row:3,column:0)))
+        scene.moveDrag(to:target,now:1);XCTAssertTrue(projection.sync())
+        let hover=try XCTUnwrap(scene.childNode(withName:"//native-stack-hover"))
+        XCTAssertFalse(hover.isHidden)
+        func depth(_ node:SKNode)->CGFloat {
+            var result:CGFloat=0,cursor:SKNode?=node
+            while let current=cursor,current !== scene {result+=current.zPosition;cursor=current.parent}
+            return result
+        }
+        XCTAssertGreaterThan(depth(star),depth(hover),"Held wrapper already clears the stroke")
+        XCTAssertGreaterThan(depth(art),depth(hover),"Projected Star pixels must also clear the stroke")
+        XCTAssertGreaterThan(depth(hover),depth(try XCTUnwrap(scene.sourceNativeTileNode("target"))))
+        let renderer=SKView(frame:CGRect(origin:.zero,size:scene.size))
+        let crop=CGRect(x:target.x-geometry.tileSize/2,y:target.y-geometry.tileSize/2,width:geometry.tileSize,height:geometry.tileSize)
+        hover.removeAllActions();hover.alpha=1
+        let covered=try XCTUnwrap(renderer.texture(from:scene,crop:crop)).cgImage()
+        hover.isHidden=true
+        let absent=try XCTUnwrap(renderer.texture(from:scene,crop:crop)).cgImage()
+        XCTAssertEqual(covered.width,absent.width);XCTAssertEqual(covered.height,absent.height)
+        let coveredBytes=try XCTUnwrap(covered.dataProvider?.data) as Data
+        let absentBytes=try XCTUnwrap(absent.dataProvider?.data) as Data
+        XCTAssertEqual(coveredBytes,absentBytes,"Actual foreground pixels must completely cover the selector beneath them")
+        // Positive control: the previous depth really paints stroke over that art.
+        let fixedDepth=hover.zPosition;hover.zPosition=12000;hover.isHidden=false
+        let old=try XCTUnwrap(renderer.texture(from:scene,crop:crop)).cgImage()
+        let oldBytes=try XCTUnwrap(old.dataProvider?.data) as Data
+        XCTAssertNotEqual(oldBytes,absentBytes,"The old depth must reproduce the visible overlap")
+        print("[WildHoverDepth] oldOverpaintBytes=\(zip(oldBytes,absentBytes).filter{$0 != $1}.count) fixedOverpaintBytes=\(zip(coveredBytes,absentBytes).filter{$0 != $1}.count)")
+        hover.zPosition=fixedDepth
+        scene.cancelDrag();XCTAssertTrue(hover.isHidden)
+    }
     private func fixture()throws->(NativeBoardScene,NativeSourceAnimationClockService,CGPoint,CGPoint) {
         let state=NativeBoardState(columns:5,rows:9,tiles:[
             .init(id:"source",cell:.init(column:0,row:0),value:1),

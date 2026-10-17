@@ -150,6 +150,10 @@ final class NativeFishIdlePresentation:UIView {
             if let frame=self.displayedFrame {self.paint(frame,now:CACurrentMediaTime(),force:true)}
         }
     }
+    func currentBodyFrame(in target:UIView)->CGRect? {
+        guard !disposed,ready,let svgView,let body=svgView.currentBodyFrame else{return nil}
+        return svgView.convert(body,to:target)
+    }
     var mediaReady:Bool {ready && !disposed && (!failed || svgView != nil)}
     var usesOriginalSVGFallback:Bool {svgView != nil}
     var originalSVGFrame:Int? {svgView?.currentFrame}

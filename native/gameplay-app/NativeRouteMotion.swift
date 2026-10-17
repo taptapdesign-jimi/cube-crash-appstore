@@ -7,8 +7,21 @@ final class NativeRouteMotion {
     let hub: JimiV9HubView
     private var generation = 0
     private var animatedLayers: [CALayer] = []
-    private var baseOpacity: [ObjectIdentifier: Float] = [:]
-    private var baseAnchor: [ObjectIdentifier: CGPoint] = [:]
+    private final class LayerBase {
+        weak var layer:CALayer?
+        let opacity:Float,anchor:CGPoint
+        init(_ layer:CALayer){self.layer=layer;opacity=layer.opacity;anchor=layer.anchorPoint}
+    }
+    // Keep the original values for surviving hidden views, without retaining
+    // retired cells or trusting a recycled ObjectIdentifier's previous owner.
+    private var layerBases:[ObjectIdentifier:LayerBase]=[:]
+    var retainedLayerMetadataCount:Int {layerBases.count}
+    private func pruneRetiredLayerBases(){layerBases=layerBases.filter{$0.value.layer != nil}}
+    private func base(for layer:CALayer)->LayerBase {
+        let key=ObjectIdentifier(layer)
+        if let base=layerBases[key],base.layer === layer {return base}
+        let base=LayerBase(layer);layerBases[key]=base;return base
+    }
     init(home: JimiV9HomeView, hub: JimiV9HubView) {self.home = home;self.hub = hub}
     func homeTracks(enter: Bool) -> [(UIView, JimiV9Motion.Track)] {
         var parts: [(UIView, JimiV9Motion.Part)] = [(home.heroView, .hero), (home.logoImageView, .logo),
@@ -72,6 +85,7 @@ final class NativeRouteMotion {
     }
 
     func animate(_ entries: [(UIView, JimiV9Motion.Track)], completion: @escaping () -> Void) {
+        pruneRetiredLayerBases()
         generation += 1; let owner = generation
         // Banners are decorative continuations, not an extra 200ms input gate.
         // Install them outside the route completion transaction, with the same
@@ -160,10 +174,7 @@ final class NativeRouteMotion {
     private func installTracks(_ entries: [(UIView, JimiV9Motion.Track)], holdUntil: Double? = nil) {
         for (target, track) in entries {
             let layer = target.layer
-            let key = ObjectIdentifier(layer)
-            if baseOpacity[key] == nil { baseOpacity[key] = layer.opacity }
-            if baseAnchor[key] == nil { baseAnchor[key] = layer.anchorPoint }
-            let alpha = baseOpacity[key] ?? 1
+            let alpha=base(for:layer).opacity
             let oldAnchor = layer.anchorPoint
             layer.position.x += (track.anchorX-oldAnchor.x)*layer.bounds.width
             layer.position.y += (track.anchorY-oldAnchor.y)*layer.bounds.height
@@ -192,7 +203,8 @@ final class NativeRouteMotion {
     }
 
     private func restoreAnchor(_ layer: CALayer) {
-        guard let anchor = baseAnchor[ObjectIdentifier(layer)] else { return }
+        guard let base=layerBases[ObjectIdentifier(layer)],base.layer === layer else {return}
+        let anchor=base.anchor
         layer.position.x += (anchor.x-layer.anchorPoint.x)*layer.bounds.width
         layer.position.y += (anchor.y-layer.anchorPoint.y)*layer.bounds.height
         layer.anchorPoint = anchor
@@ -224,5 +236,6 @@ final class NativeRouteMotion {
             restoreAnchor(layer)
         }
         animatedLayers.removeAll()
+        pruneRetiredLayerBases()
     }
 }

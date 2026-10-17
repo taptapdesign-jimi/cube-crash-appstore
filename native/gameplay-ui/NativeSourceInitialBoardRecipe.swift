@@ -21,14 +21,14 @@ public struct NativeSourceInitialBoardRecipe: Equatable, Sendable {
         candidate.columns == state.columns && candidate.rows == state.rows &&
         candidate.generation == state.generation && candidate.mode == state.mode &&
         candidate.board == state.board && candidate.revision == state.revision && candidate.terminal == nil &&
-        candidate.tiles == state.tiles
+        candidate.effectiveArcadeVariant == state.effectiveArcadeVariant && candidate.tiles == state.tiles
     }
 
     /// No board-entry/idle/preload draw is hidden here. v9 createTile consumes
     /// every row-major rotG draw before openRandomTiles starts the shuffle.
     public static func capture(mode: NativeRunMode, board: Int, columns: Int = 5,
         rows: Int = 9, generation: UInt64 = 1, gameplaySeed: UInt64 = 1,
-        tutorialDemo: Bool = false, random: () -> Double,
+        tutorialDemo: Bool = false, arcadeVariant: NativeArcadeVariant = .endurance, random: () -> Double,
         constructHolder: ((Holder) -> Bool)? = nil, openTile: ((Opening) -> Bool)? = nil) -> Self? {
         guard (columns == 5 || columns == 7), rows == 9, board > 0 else { return nil }
         var holders: [Holder] = [], tiles: [NativeTile] = [], openings: [Opening] = []
@@ -68,7 +68,7 @@ public struct NativeSourceInitialBoardRecipe: Equatable, Sendable {
                 indices.swapAt(index,Int(draw*Double(index+1)))
             }
             let stage=(board-1)%10+1
-            let bias=mode == .journey ? (stage<=3 ? 0.75:stage<=6 ? 0.4:0):0
+            let bias=mode == .journey ? (stage<=3 ? 0.75:stage<=6 ? 0.4:0):arcadeVariant.initialSmallValueBias(round:board)
             for index in indices.prefix(Int((Double(tiles.count)*0.30).rounded(.toNearestOrAwayFromZero))) {
                 var small=false
                 if bias>0 {
@@ -81,7 +81,7 @@ public struct NativeSourceInitialBoardRecipe: Equatable, Sendable {
             }
         }
         return .init(state:.init(columns:columns,rows:rows,tiles:tiles,mode:mode,board:board,
-            stage:board,generation:generation,rngState:gameplaySeed),holders:holders,openings:openings)
+            stage:board,generation:generation,rngState:gameplaySeed,arcadeVariant:mode == .arcade ? arcadeVariant:nil),holders:holders,openings:openings)
     }
     /// Validated Native save projection into original ordinary restore. Source
     /// reconstructs occupied cells only, row-major; no opening/shuffle draws.

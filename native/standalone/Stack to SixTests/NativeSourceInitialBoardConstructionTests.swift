@@ -22,6 +22,18 @@ import StackToSixNativeState
         }
         func dispose(){counter.onDraw=nil;scene.dispose();construction.dispose();service.dispose()}
     }
+    func testArcadeVariantsUseActualSourceRecipeAndNormalRoundsKeepDrawIdentity() throws {
+        for round in [1,4,5,10] {
+            let normal=Counter(),pure=Counter()
+            let a=try XCTUnwrap(NativeSourceInitialBoardRecipe.capture(mode:.arcade,board:round,random:{normal.next()}))
+            let b=try XCTUnwrap(NativeSourceInitialBoardRecipe.capture(mode:.arcade,board:round,arcadeVariant:.pureDice,random:{pure.next()}))
+            XCTAssertEqual(b.state.effectiveArcadeVariant,.pureDice)
+            XCTAssertEqual(a.holders,b.holders)
+            XCTAssertFalse(b.state.tiles.contains(where: \.isWild))
+            if round>=5 {XCTAssertEqual(a.openings,b.openings);XCTAssertEqual(normal.count,pure.count)}
+            else {XCTAssertEqual(pure.count,normal.count+b.openings.count)}
+        }
+    }
     func testExactSameObjectsAndTextureOwnerReachSceneWithOriginalTiltAndHiddenBase() throws {
         let f=try Fixture();defer{f.dispose()}
         let recipe=try XCTUnwrap(f.construction.recipe)

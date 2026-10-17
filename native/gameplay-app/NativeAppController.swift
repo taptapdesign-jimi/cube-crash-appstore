@@ -16,6 +16,7 @@ struct NativeAppServices {
     var makeGameplay: (Int?, @escaping () -> Void) throws -> UIViewController
     var prepareGameplayEntry:(Int?,@escaping(Bool)->Void)->Void = {_,completion in completion(true)}
     var cancelGameplayEntry:()->Void = {}
+    var selectArcadeVariant:(NativeArcadeVariant)throws->Void = {_ in}
     var flush: () throws -> Void
     var ambient: (Int, CGRect, [Int]) -> [[String:Any]]? = {_,_,_ in nil}
     var bees: ([Int]) -> [[String:Any]]? = {_ in nil}
@@ -26,7 +27,7 @@ struct NativeAppServices {
 
 @MainActor
 final class NativeAppController: UIViewController {
-    enum Route: Equatable {case home, hub, settings, backpack, world(Int), gameplay}
+    enum Route: Equatable {case home, hub, arcadeHub, settings, backpack, world(Int), gameplay}
     private let services: NativeAppServices
     private let artwork: JimiV9Artwork
     private let resourceRoot:URL
@@ -34,6 +35,7 @@ final class NativeAppController: UIViewController {
     private(set) var route = Route.home
     private(set) var home: JimiV9HomeView!
     private(set) var hub: JimiV9HubView!
+    private(set) var arcadeHub: NativeArcadeHubView!
     private(set) var settingsView: JimiNativeSettingsView!
     private(set) var world: JimiNativeWorldView?
     private var gameplay: UIViewController?
@@ -98,7 +100,8 @@ final class NativeAppController: UIViewController {
         home = JimiV9HomeView(frame:view.bounds,assets:artwork)
         hub = JimiV9HubView(frame:view.bounds,assets:artwork)
         settingsView = JimiNativeSettingsView(frame:view.bounds,assets:artwork)
-        for surface in [home as UIView,hub as UIView,settingsView as UIView] {
+        arcadeHub = NativeArcadeHubView(frame:view.bounds,assets:artwork)
+        for surface in [home as UIView,hub as UIView,arcadeHub as UIView,settingsView as UIView] {
             surface.autoresizingMask = [.flexibleWidth,.flexibleHeight];surface.isHidden = true;view.addSubview(surface)
         }
         motion = NativeRouteMotion(home:home,hub:hub)
@@ -107,7 +110,7 @@ final class NativeAppController: UIViewController {
         home.onActivate = { [weak self] index in
             guard let self else{return}
             self.homeJourneyTutorial = index == 0 && self.services.requiresTutorial()
-            self.navigate(self.homeJourneyTutorial ? .gameplay : index == 0 ? .hub : index == 1 ? .gameplay : .settings)
+            self.navigate(self.homeJourneyTutorial ? .gameplay : index == 0 ? .hub : index == 1 ? .arcadeHub : .settings)
         }
         home.onSlideSelected = { [weak self] index in self?.selectSlide(index) }
         home.onPanBegan = { [weak self] in
@@ -115,6 +118,16 @@ final class NativeAppController: UIViewController {
             self.motion.cancel();self.home.pauseHeroIdle();return true
         }
         home.onPanEnded = { [weak self] index,_ in self?.selectSlide(index,feedback:"tab-swipe") }
+        arcadeHub.onClose = {[weak self] in self?.navigate(.home,interrupt:true)}
+        arcadeHub.onPlay = {[weak self] identifier in
+            guard let self,!self.disposed,!self.suspended,!self.transitioning,self.route == .arcadeHub,
+                  let variant=NativeArcadeVariant(rawValue:identifier) else{return}
+            do {try self.services.selectArcadeVariant(variant)} catch {self.showFault(error);return}
+            self.transitioning=true;self.arcadeHub.setContentInteractionEnabled(false);self.arcadeHub.suspend()
+            self.prepareGameplayLaunch(boardID:nil,exit:{[weak self] done in
+                guard let self else{return};self.motion.animate(self.arcadeHub.tracks(enter:false),completion:done)
+            })
+        }
         hub.onBack = { [weak self] in self?.navigate(.home,interrupt:true) }
         hub.onWorld = { [weak self] id in self?.navigate(.world(id)) }
         settingsView.onBack = { [weak self] in self?.navigate(.home) }
@@ -189,7 +202,7 @@ final class NativeAppController: UIViewController {
             if let button {NativeHubBackpackFeedback.play(on:button.imageView ?? button)}
         }
 
-        home.stopHeroIdle(preservePaintedPose:true);hub.stopIdle()
+        home.stopHeroIdle(preservePaintedPose:true);hub.stopIdle();arcadeHub.suspend()
         home.isUserInteractionEnabled = false;hub.setContentInteractionEnabled(false);settingsView.isUserInteractionEnabled = false
         // v9 starts the exact destination preparation under the Hub exit.
         // Resource readiness never replaces that exit's completion receipt.
@@ -212,6 +225,7 @@ final class NativeAppController: UIViewController {
         case .hub:
             let id:Int? = {if case .world(let id) = next{return id};return nil}()
             motion.animate(motion.hubTracks(enter:false,selectedWorldID:id),completion:complete)
+        case .arcadeHub:motion.animate(arcadeHub.tracks(enter:false),completion:complete)
         case .settings:motion.animate(settingsView.tracks(enter:false),completion:complete)
         case .world:world?.exit(completion:complete)
         case .gameplay:break
@@ -221,7 +235,7 @@ final class NativeAppController: UIViewController {
         guard !suspended else {deferredReveal = next;return}
         if route == .backpack || next == .backpack {motion.cancel()}
         home.isUserInteractionEnabled=false
-        home.isHidden = true;hub.isHidden = true;settingsView.isHidden = true;world?.isHidden = true
+        home.isHidden = true;hub.isHidden = true;arcadeHub.hide();settingsView.isHidden = true;world?.isHidden = true
         backpackView?.isHidden=true
         route = next;onRoute?(next);fault.isHidden = true
         let owner = generation
@@ -235,6 +249,7 @@ final class NativeAppController: UIViewController {
             self.backpackView?.isUserInteractionEnabled = self.route == .backpack
             if self.route == .home {self.home.startHeroIdle()}
             if self.route == .hub {self.hub.startIdle()}
+            if self.route == .arcadeHub {self.arcadeHub.setContentInteractionEnabled(true);self.arcadeHub.resume()}
         }
         switch next {
         case .backpack:
@@ -261,6 +276,9 @@ final class NativeAppController: UIViewController {
             })
             hub.isHidden = false;hub.isUserInteractionEnabled = true
             motion.animate(motion.hubTracks(enter:true),completion:admitted)
+        case .arcadeHub:
+            arcadeHub.present()
+            motion.animate(arcadeHub.tracks(enter:true),completion:admitted)
         case .settings:
             settingsView.isHidden = false;applySettings();settingsView.layoutIfNeeded()
             motion.animate(settingsView.tracks(enter:true),completion:admitted)
@@ -347,7 +365,7 @@ final class NativeAppController: UIViewController {
                   self.gameplayLaunchPreparation === lease else{return}
             guard ready else{
                 self.cancelGameplayLaunchPreparation();self.generation+=1
-                self.reveal(boardID.map{.world(($0-1)/10+1)} ?? .home)
+                self.reveal(boardID.map{.world(($0-1)/10+1)} ?? .arcadeHub)
                 self.showFault(NativeAppError.resources("The stage artwork could not be prepared."));return
             }
             lease.ready=true;self.commitGameplayLaunch(lease)
@@ -380,7 +398,7 @@ final class NativeAppController: UIViewController {
     private func mountPreparedGameplay(boardID:Int?) {
         cancelGameplayReturnPreparation()
         do {
-            returnRoute = boardID.map { .world(($0-1)/10+1) } ?? .home
+            returnRoute = boardID.map { .world(($0-1)/10+1) } ?? .arcadeHub
             let controller = try services.makeGameplay(boardID) { [weak self] in self?.returnFromGameplay() }
             let outgoing=boardID != nil && world?.isHidden==false ? world:nil
             let owner=generation
@@ -393,7 +411,7 @@ final class NativeAppController: UIViewController {
             }
             addChild(controller);controller.view.frame = view.bounds;controller.view.autoresizingMask = [.flexibleWidth,.flexibleHeight]
             view.addSubview(controller.view);controller.didMove(toParent:self);gameplay = controller
-            home.isHidden = true;hub.isHidden = true;settingsView.isHidden = true
+            home.isHidden = true;hub.isHidden = true;arcadeHub.hide();settingsView.isHidden = true
             if outgoing==nil || !(controller is NativeGameplayViewController) {world?.park();world?.isHidden = true}
             route = .gameplay;transitioning = false;onRoute?(.gameplay)
         } catch {
@@ -534,7 +552,7 @@ final class NativeAppController: UIViewController {
     private func suspend() {
         suspended = true;motion.suspend();backpackDetail?.setForeground(false)
         if let launch=gameplayLaunchPreparation {
-            deferredReveal=launch.board.map{.world(($0-1)/10+1)} ?? .home
+            deferredReveal=launch.board.map{.world(($0-1)/10+1)} ?? .arcadeHub
             generation+=1;transitioning=false
         }
         cancelGameplayLaunchPreparation()
@@ -542,7 +560,7 @@ final class NativeAppController: UIViewController {
         cancelWorldEntryPreparation()
         cancelGameplayReturnPreparation()
         backpack?.setActive(false,generation:generation)
-        home.pauseHeroIdle();hub.stopIdle();world?.setActive(false)
+        home.pauseHeroIdle();hub.stopIdle();arcadeHub.suspend();world?.setActive(false)
         do {try services.flush()} catch {showFault(error)}
     }
     private func resume() {
@@ -552,6 +570,7 @@ final class NativeAppController: UIViewController {
         guard !transitioning else{return}
         if route == .home {home.startHeroIdle()}
         if route == .hub {hub.startIdle()}
+        if route == .arcadeHub {arcadeHub.resume()}
         backpack?.setActive(route == .hub,generation:generation)
         if case .world = route {world?.setActive(true)}
     }
@@ -567,6 +586,7 @@ final class NativeAppController: UIViewController {
         cancelGameplayLaunchPreparation()
         cancelWorldEntryPreparation()
         generation += 1;transitioning = true;suspended = true;deferredReveal = nil
+        arcadeHub?.hide();arcadeHub?.onClose=nil;arcadeHub?.onPlay=nil
         motion?.cancel();home?.stopHeroIdle(preservePaintedPose:false);hub?.stopIdle()
         retireBackpackDetail();backpackView?.onClose=nil;backpackView?.onDie=nil;backpackView?.removeFromSuperview();backpackView=nil
         backpack?.dispose();backpack=nil;hub?.onBackpack=nil

@@ -26,6 +26,15 @@ final class NativeFishSVGFallbackView:UIView {
         if frameIndex != pose.frame {frameIndex=pose.frame;image.contents=resources.frames[pose.frame]}
         image.setAffineTransform(transform);CATransaction.commit()
     }
+    /// The currently painted original body, without independently owned bubbles.
+    /// Per-frame alpha metadata was measured once by the resource decode owner.
+    var currentBodyFrame:CGRect? {
+        guard let resources,let frameIndex,resources.frameBodyBounds.indices.contains(frameIndex) else{return nil}
+        let alpha=resources.frameBodyBounds[frameIndex]
+        let local=CGRect(x:alpha.minX*128,y:alpha.minY*128,width:alpha.width*128,height:alpha.height*128)
+        let painted=local.applying(currentTransform).intersection(bounds)
+        return painted.isNull || painted.isEmpty ? nil:painted
+    }
     var currentFrame:Int? {frameIndex}
     var currentTransform:CGAffineTransform {image.affineTransform()}
     func dispose() {resources=nil;image.contents=nil;frameIndex=nil;image.removeFromSuperlayer();removeFromSuperview()}

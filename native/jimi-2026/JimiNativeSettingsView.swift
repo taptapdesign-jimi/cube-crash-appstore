@@ -244,7 +244,7 @@ final class JimiNativePrivacyController: UIViewController {
         view.backgroundColor = .clear
         var camera = CATransform3DIdentity;camera.m34 = -1/920;view.layer.sublayerTransform = camera
         idle.layer.isDoubleSided = false
-        backdrop.backgroundColor = UIColor(red:220/255,green:183/255,blue:163/255,alpha:0.52)
+        backdrop.backgroundColor = JimiNativeModalV10.backdropColor
         backdrop.addTarget(self,action:#selector(closeSheet),for:.touchUpInside); view.addSubview(backdrop)
         card.alpha = 0;backdrop.alpha = 0
         view.addSubview(card);card.addSubview(flip);flip.addSubview(idle);idle.addSubview(paper)
@@ -272,8 +272,8 @@ final class JimiNativePrivacyController: UIViewController {
         idle.addSubview(copy)
         close.backgroundColor = UIColor(red:1,green:250/255,blue:244/255,alpha:1);close.layer.cornerRadius = 26
         close.setBackgroundImage(paper.image,for:.normal);close.clipsToBounds = true
-        close.setImage(assets.image("assets/close-icon.png"),for:.normal);close.imageView?.contentMode = .scaleAspectFit
-        close.imageEdgeInsets = UIEdgeInsets(top:12.5,left:12.5,bottom:12.5,right:12.5)
+        close.setImage(assets.image("assets/close-icon.png"),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback()
+        close.imageEdgeInsets = UIEdgeInsets(top:14,left:14,bottom:14,right:14)
         close.accessibilityLabel = "Close Privacy Policy";close.accessibilityIdentifier = "native.settings.privacy.close"
         close.addTarget(self,action:#selector(closeSheet),for:.touchUpInside);idle.addSubview(close)
         modalDrag = JimiNativeModalDrag(target:card,idle:idle,viewport:view,canDrag:{[weak self] in guard let self else{return false};return !self.closing && self.card.layer.animation(forKey:"privacy-enter") == nil},onDismiss:{[weak self] in self?.closeSheet()})
@@ -318,7 +318,7 @@ final class JimiNativePrivacyController: UIViewController {
         idle.layer.add(float,forKey:"privacy-idle")
     }
     @objc private func closeSheet() {
-        guard !closing else{return};NativeHubBackpackFeedback.play(on:close.imageView ?? close);modalDrag?.cancel(preservePose:true);closing = true;view.isUserInteractionEnabled = false
+        guard !closing else{return};close.playArtworkTapFeedback();modalDrag?.cancel(preservePose:true);closing = true;view.isUserInteractionEnabled = false
         guard !UIAccessibility.isReduceMotionEnabled else{dismiss(animated:false);return}
         let releaseY = card.layer.presentation()?.transform.m42 ?? card.layer.transform.m42
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.dismiss(animated:false)}

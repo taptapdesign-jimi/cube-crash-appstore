@@ -17,6 +17,7 @@ final class NativeFishSVGFallbackTests:XCTestCase {
         let resources=try NativeFishSVGFallbackResources.load(resourceRoot:root)
         XCTAssertEqual(gold.samples.count,179);XCTAssertEqual(gold.width,16128);XCTAssertEqual(gold.height,224)
         XCTAssertEqual(resources.frames.count,72);XCTAssertEqual(resources.duration,1.125)
+        XCTAssertTrue(resources.frameBodyBounds.isEmpty,"Default board resources do not perform collection shadow measurement")
         let view=NativeFishSVGFallbackView(resources:resources),scale:CGFloat=128.0/224
         defer {view.dispose()}
         for sample in gold.samples {
@@ -49,6 +50,33 @@ final class NativeFishSVGFallbackTests:XCTestCase {
         XCTAssertEqual(Set(gold.samples.map(\.frame)).count,72)
         view.dispose();XCTAssertNil(view.currentFrame)
     }
+    func testBodyReceiptUsesCachedOriginalFrameAlphaAndCurrentSMILTransform() throws {
+        let resources=try NativeFishSVGFallbackResources.load(resourceRoot:root,measureBodyBounds:true)
+        XCTAssertEqual(resources.frameBodyBounds.count,72)
+        for index in [0,17,36,71] {
+            let independent=NativeArtworkAlphaBounds.measure(UIImage(cgImage:resources.frames[index]))
+            let cached=resources.frameBodyBounds[index]
+            XCTAssertEqual(cached.minX,independent.minX,accuracy:1.0/224)
+            XCTAssertEqual(cached.minY,independent.minY,accuracy:1.0/224)
+            XCTAssertEqual(cached.width,independent.width,accuracy:1.0/224)
+            XCTAssertEqual(cached.height,independent.height,accuracy:1.0/224)
+        }
+        let view=NativeFishSVGFallbackView(resources:resources)
+        defer {view.dispose()}
+        var bottoms:[CGFloat]=[]
+        for seconds in [0.0,0.28,0.56,0.84] {
+            view.paint(seconds:seconds)
+            let frame=try XCTUnwrap(view.currentFrame),alpha=resources.frameBodyBounds[frame]
+            let original=CGRect(x:alpha.minX*128,y:alpha.minY*128,width:alpha.width*128,height:alpha.height*128)
+            let expected=original.applying(view.currentTransform).intersection(view.bounds)
+            let receipt=try XCTUnwrap(view.currentBodyFrame)
+            XCTAssertEqual(receipt,expected)
+            XCTAssertTrue(view.bounds.contains(receipt))
+            bottoms.append(receipt.maxY)
+        }
+        XCTAssertGreaterThan((bottoms.max() ?? 0)-(bottoms.min() ?? 0),0.5,"Actual SMIL body motion must change the shadow anchor")
+        view.dispose();XCTAssertNil(view.currentBodyFrame)
+    }
     func testSelectedResourceLeaseSharesOneOriginalDecodeAndCancelsStaleSuspendedRequests() async throws {
         let lease=NativeFishSVGResourceLease(resourceRoot:root)
         defer {lease.dispose()}
@@ -67,7 +95,7 @@ final class NativeFishSVGFallbackTests:XCTestCase {
     }
     func testOriginalFallbackMirrorsNativePoseWithoutVideoAndRetiresItsGenerationOnDragBackgroundRestart() async throws {
         let policy=NativeFishMediaPolicy();policy.recordVideoSourceError()
-        let host=NativeFishIdleOwner(resourceRoot:root,mediaPolicy:policy)
+        let host=NativeFishIdleOwner(resourceRoot:root,mediaPolicy:policy,preferOriginalSVG:true)
         let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),controller=UIViewController()
         window.rootViewController=controller;window.makeKeyAndVisible();controller.view.addSubview(host);host.frame=window.bounds
         defer {host.dispose();window.isHidden=true}
@@ -80,6 +108,9 @@ final class NativeFishSVGFallbackTests:XCTestCase {
         let owner=try XCTUnwrap(host.presentation(tileID:"f"))
         XCTAssertTrue(owner.mediaReady);XCTAssertTrue(owner.usesOriginalSVGFallback);XCTAssertFalse(owner.isHidden)
         XCTAssertEqual(owner.playbackRate,0);XCTAssertEqual(owner.retainedItemCount,0);XCTAssertEqual(host.selectedSVGFrameCount,72)
+        let body=try XCTUnwrap(host.currentBodyFrame(tileID:"f"))
+        XCTAssertGreaterThan(body.width,0);XCTAssertGreaterThan(body.height,0)
+        XCTAssertLessThan(body.width,NativeFishIdlePresentation.logicalMediaSize.width)
         host.paint(["f":frame(dragging:true)],generation:1,force:true);XCTAssertTrue(owner.isHidden)
         host.paint(["f":frame()],generation:1,force:true);XCTAssertFalse(owner.isHidden)
         // Paint from the accepted board clock before suspension. Foreground
@@ -95,6 +126,7 @@ final class NativeFishSVGFallbackTests:XCTestCase {
         host.paint(["f":frame()],generation:1,force:true,now:acceptedTime+0.1)
         XCTAssertGreaterThan(try XCTUnwrap(owner.originalSVGFrame),acceptedSVGFrame)
         host.paint([:],generation:2,force:true);XCTAssertEqual(host.activeMediaCount,0);XCTAssertFalse(owner.mediaReady)
+        XCTAssertNil(host.currentBodyFrame(tileID:"f"));XCTAssertNil(owner.currentBodyFrame(in:host))
         host.dispose();XCTAssertEqual(host.selectedSVGFrameCount,0)
     }
     func testRetiredSuspendedFallbackCannotDecodeOrFinishIntoTheNextGeneration() async throws {

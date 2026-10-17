@@ -123,7 +123,10 @@ nonisolated final class NativeMeterActualSceneBindingTests:XCTestCase {
     @MainActor func testActualLiveSourceStarSheetPreservesBaseSuppressionThroughFourthAndAsyncSkinPaint()async throws {
         try await runActualSourcePlainStarMeter(scenario:.staticRepaint)
     }
-    private enum SourceStarMeterScenario {case ordinary,suspended,retirePending,staticRepaint}
+    @MainActor func testActualStarProjectionFollowsBoardExitWithoutAdvancingIdle()async throws {
+        try await runActualSourcePlainStarMeter(scenario:.boardExit)
+    }
+    private enum SourceStarMeterScenario {case ordinary,suspended,retirePending,staticRepaint,boardExit}
     @MainActor private func runActualSourcePlainStarMeter(scenario:SourceStarMeterScenario)async throws {
 
         let root=try XCTUnwrap(Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle"))
@@ -234,6 +237,27 @@ nonisolated final class NativeMeterActualSceneBindingTests:XCTestCase {
             XCTAssertTrue(node.sourcePlainStarArtworkSprite === artwork)
         }
         let orbitCount=node.sourceLiveStarHaloCount
+        if scenario == .boardExit {
+            let projection=try XCTUnwrap(scene.childNode(withName:"//wild-star-artwork-foreground"))
+            let elapsed=node.sourcePlainStarArtworkElapsedMilliseconds
+            let finished=expectation(description:"Wild board popout")
+            scene.animateExit {XCTAssertTrue($0);finished.fulfill()}
+            var followedShrink=false
+            for _ in 0..<150 {
+                if node.xScale>0.01 && node.xScale<0.8 {
+                    followedShrink=true
+                    XCTAssertLessThan(abs(projection.xScale),0.85)
+                    XCTAssertEqual(projection.alpha,node.alpha,accuracy:0.01)
+                    break
+                }
+                try await Task.sleep(for:.milliseconds(5))
+            }
+            XCTAssertTrue(followedShrink,"Projected Star must shrink during its own board-exit slot")
+            await fulfillment(of:[finished],timeout:5)
+            try await Task.sleep(for:.milliseconds(40))
+            XCTAssertTrue(projection.isHidden || projection.alpha<0.001)
+            XCTAssertEqual(node.sourcePlainStarArtworkElapsedMilliseconds,elapsed)
+        }
         NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
         NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
         XCTAssertTrue(node.sourcePlainStarArtworkSprite === artwork)

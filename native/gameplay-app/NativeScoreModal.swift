@@ -10,13 +10,14 @@ struct NativeScoreModalModel {
     init(state:NativeBoardState,progression:NativeProgressionState,combo:Bool) {
         let arcade = state.mode == .arcade
         let board = progression.boardStats[state.board] ?? NativeBoardStats()
-        let value = combo ? (arcade ? progression.arcadeStats.longestCombo : board.longestCombo)
-            : (arcade ? progression.arcadeStats.highScore : board.highScore)
+        let arcadeStats = progression.arcadeStats(for: state.effectiveArcadeVariant)
+        let value = combo ? (arcade ? arcadeStats.longestCombo : board.longestCombo)
+            : (arcade ? arcadeStats.highScore : board.highScore)
         title = combo ? "Combo" : "High Score"
         subtitle = combo ? "Stack and merge quickly\nto boost your score." : "Your best score so far."
         var rows = [Stat(value:value.formatted(),label:combo ? "Longest combo" : "High score",
             icon:combo ? "assets/combo-icon.png" : "assets/highscore-icon.png")]
-        if arcade && !combo {rows.append(.init(value:String(format:"%02d",max(1,progression.arcadeStats.highestStageOpened)),
+        if arcade && !combo {rows.append(.init(value:String(format:"%02d",max(1,arcadeStats.highestStageOpened)),
             label:"Rounds cleared",icon:"assets/clean-board.png"))}
         stats = rows
     }
@@ -37,7 +38,7 @@ final class NativeScoreModal:UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad();view.backgroundColor = .clear
         var camera=CATransform3DIdentity;camera.m34 = -1/920;view.layer.sublayerTransform=camera
-        backdrop.backgroundColor=UIColor(red:220/255,green:183/255,blue:163/255,alpha:0.52);backdrop.alpha=0
+        backdrop.backgroundColor=JimiNativeModalV10.backdropColor;backdrop.alpha=0
         backdrop.addTarget(self,action:#selector(requestClose),for:.touchUpInside);view.addSubview(backdrop)
         view.addSubview(card);card.addSubview(flip);flip.addSubview(idle);idle.addSubview(paper)
         card.layer.anchorPoint=CGPoint(x:0.5,y:0.55);flip.layer.anchorPoint=CGPoint(x:0.5,y:1);idle.layer.anchorPoint=CGPoint(x:0.5,y:0.52)
@@ -47,9 +48,7 @@ final class NativeScoreModal:UIViewController {
         idle.layer.shadowOpacity=0.8;idle.layer.shadowOffset=CGSize(width:0,height:13);idle.layer.shadowRadius=16.8
         heading.text=model.title;heading.font=assets.font(size:32,weight:"ExtraBold");heading.textAlignment = .center
         heading.textColor=UIColor(red:173/255,green:135/255,blue:117/255,alpha:1)
-        let paragraph=NSMutableParagraphStyle();paragraph.alignment = .center;paragraph.minimumLineHeight=26;paragraph.maximumLineHeight=26
-        subtitle.attributedText=NSAttributedString(string:model.subtitle,attributes:[.font:assets.font(size:20,weight:"Medium"),
-            .foregroundColor:NativeTextPalette.subtitle,.paragraphStyle:paragraph]);subtitle.numberOfLines=0
+        subtitle.attributedText=NativeModalTypography.attributedSubtitle(model.subtitle,font:assets.font(size:20,weight:"Medium"));subtitle.numberOfLines=0
         idle.addSubview(heading);idle.addSubview(subtitle)
         for (index,stat) in model.stats.enumerated() {
             if index>0 {let divider=UIView();divider.backgroundColor=UIColor(red:249/255,green:242/255,blue:233/255,alpha:1);idle.addSubview(divider);statTracks.append(divider)}
@@ -61,8 +60,8 @@ final class NativeScoreModal:UIViewController {
             row.addSubview(icon);row.addSubview(value);row.addSubview(label);idle.addSubview(row);rows.append(row);statTracks.append(row)
         }
         close.setBackgroundImage(paper.image,for:.normal);close.layer.cornerRadius=26;close.clipsToBounds=true
-        close.setImage(assets.image("assets/close-icon.png"),for:.normal);close.imageView?.contentMode = .scaleAspectFit
-        close.imageEdgeInsets=UIEdgeInsets(top:12.5,left:12.5,bottom:12.5,right:12.5);close.accessibilityIdentifier="native.score-modal.close"
+        close.setImage(assets.image("assets/close-icon.png"),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback()
+        close.imageEdgeInsets=UIEdgeInsets(top:14,left:14,bottom:14,right:14);close.accessibilityIdentifier="native.score-modal.close"
         close.addTarget(self,action:#selector(requestClose),for:.touchUpInside);idle.addSubview(close)
         drag=JimiNativeModalDrag(target:card,idle:idle,viewport:view,canDrag:{[weak self] in self?.ready == true && self?.closing == false},onDismiss:{[weak self] in self?.requestClose()})
         view.isUserInteractionEnabled=false
@@ -70,11 +69,11 @@ final class NativeScoreModal:UIViewController {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews();backdrop.frame=view.bounds
         let width=min(390,max(0,view.bounds.width-48)),subtitleHeight:CGFloat=model.stats.count == 1 && model.title == "Combo" ? 52 : 26
-        let statsY:CGFloat=28+38.4+8+subtitleHeight+24,height=statsY+CGFloat(rows.count)*112+CGFloat(max(0,rows.count-1))*18+40
+        let statsY:CGFloat=28+38.4+12+subtitleHeight+24,height=statsY+CGFloat(rows.count)*112+CGFloat(max(0,rows.count-1))*18+40
         card.bounds=CGRect(x:0,y:0,width:width,height:height);card.center=CGPoint(x:view.bounds.midX,y:view.bounds.midY+height*0.05)
         flip.bounds=card.bounds;flip.center=CGPoint(x:width/2,y:height);idle.bounds=card.bounds;idle.center=CGPoint(x:width/2,y:height*0.52)
         JimiNativeModalV10.paperLayout(paper,bounds:idle.bounds)
-        heading.frame=CGRect(x:width*0.1,y:28,width:width*0.8,height:38.4);subtitle.frame=CGRect(x:width*0.1,y:heading.frame.maxY+8,width:width*0.8,height:subtitleHeight)
+        heading.frame=CGRect(x:width*0.1,y:28,width:width*0.8,height:38.4);subtitle.frame=CGRect(x:width*0.1,y:heading.frame.maxY+12,width:width*0.8,height:subtitleHeight)
         var y=statsY
         for track in statTracks {let h:CGFloat=rows.contains(where:{$0 === track}) ? 112 : 2
             if h==2 {y += 8};track.frame=CGRect(x:width*0.1,y:y,width:width*0.8,height:h);y += h+(h==2 ? 8 : 0)}
@@ -105,7 +104,7 @@ final class NativeScoreModal:UIViewController {
         }
     }
     @objc func requestClose() {
-        guard ready,!disposed,!closing else{return};NativeHubBackpackFeedback.play(on:close.imageView ?? close);closing=true;view.isUserInteractionEnabled=false;drag?.cancel(preservePose:true)
+        guard ready,!disposed,!closing else{return};close.playArtworkTapFeedback();closing=true;view.isUserInteractionEnabled=false;drag?.cancel(preservePose:true)
         if UIAccessibility.isReduceMotionEnabled {finishClose();return}
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.finishClose()};animateStats(enter:false)
         JimiNativeModalV10.exit(card,flip:false,releaseY:card.layer.presentation()?.transform.m42 ?? 0,key:"score.exit")

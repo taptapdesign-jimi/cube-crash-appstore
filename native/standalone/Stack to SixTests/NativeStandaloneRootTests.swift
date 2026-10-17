@@ -1676,7 +1676,7 @@ import StackToSixNativeState
         game.onExit?();try await wait{game.presentedViewController is JimiNativeEndRunModal}
         let modal=try XCTUnwrap(game.presentedViewController as? JimiNativeEndRunModal)
         try await wait{modal.view.isUserInteractionEnabled};modal.buttons[1].sendActions(for:.touchUpInside)
-        try await wait{app.route == .home && !app.home.isHidden && game.parent==nil}
+        try await wait{app.route == .arcadeHub && !app.arcadeHub.isHidden && game.parent==nil}
         let saved=try XCTUnwrap(store.load()),run=try XCTUnwrap(saved.arcadeRun)
         XCTAssertEqual(run.board,2);XCTAssertEqual(run.generation,oldGeneration+1);XCTAssertEqual(run.moves,moves-1)
         XCTAssertEqual(run.score,game.engine.state.score);XCTAssertNil(saved.pendingArcadeRound)

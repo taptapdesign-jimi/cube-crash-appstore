@@ -4,10 +4,26 @@ import UIKit
 
 @MainActor
 final class NativeHubBackpackFeedbackTests:XCTestCase {
+    func testModalLongPressReleaseDoesNotReplayAndCancelledContactCanRetap() async throws {
+        let button=JimiV9PlainButton(type:.custom);button.setImage(UIImage(),for:.normal)
+        button.enableArtworkTapFeedback();button.enableArtworkTapFeedback()
+        button.sendActions(for:.touchDown)
+        let layer=try XCTUnwrap(button.imageView).layer
+        let start=try XCTUnwrap(layer.animation(forKey:NativeHubBackpackFeedback.animationKey)).beginTime
+        try await Task.sleep(for:.milliseconds(260))
+        button.playArtworkTapFeedback()
+        if let animation=layer.animation(forKey:NativeHubBackpackFeedback.animationKey) {XCTAssertEqual(animation.beginTime,start)}
+        button.sendActions(for:.touchDown)
+        let second=try XCTUnwrap(layer.animation(forKey:NativeHubBackpackFeedback.animationKey)).beginTime
+        XCTAssertGreaterThan(second,start)
+        button.sendActions(for:.touchCancel)
+        button.playArtworkTapFeedback()
+        XCTAssertGreaterThanOrEqual(try XCTUnwrap(layer.animation(forKey:NativeHubBackpackFeedback.animationKey)).beginTime,second)
+    }
     func testExactSourceContactEndpointsAndOvershoot() {
         XCTAssertEqual(NativeHubBackpackFeedback.scale(at:0),1)
-        XCTAssertEqual(NativeHubBackpackFeedback.scale(at:0.077),0.92,accuracy:0.00000001)
-        XCTAssertEqual(NativeHubBackpackFeedback.scale(at:0.154),1.06,accuracy:0.00000001)
+        XCTAssertEqual(NativeHubBackpackFeedback.scale(at:0.077),0.896,accuracy:0.00000001)
+        XCTAssertEqual(NativeHubBackpackFeedback.scale(at:0.154),1.078,accuracy:0.00000001)
         XCTAssertEqual(NativeHubBackpackFeedback.scale(at:0.22),1,accuracy:0.00000001)
         XCTAssertGreaterThan(NativeHubBackpackFeedback.ease(0.5),1)
     }

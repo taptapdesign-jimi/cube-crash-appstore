@@ -156,12 +156,12 @@ final class NativeArcadeMusicOwner {
     func dispose() {guard !disposed else{return};disposed=true;invalidate();retireAll();for observer in observers {NotificationCenter.default.removeObserver(observer)};observers.removeAll()}
     private func notification(_ notice:Notification) {
         if notice.name==UIApplication.willResignActiveNotification {setForeground(false)}
-        else if notice.name==UIApplication.didBecomeActiveNotification {setForeground(true)}
+        else if notice.name==UIApplication.didBecomeActiveNotification {interrupted=false;setForeground(true)}
         else if notice.name==AVAudioSession.interruptionNotification {
             guard let raw=notice.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,let type=AVAudioSession.InterruptionType(rawValue:raw) else{return}
             interrupted=type == .began
             if interrupted {invalidate();discardNonCurrent();for layer in prepared {command(layer,"pause")}}
             else if foreground,enabled,admitted {switchLayer(requested,duration:0.42)}
-        } else {invalidate();retireAll();if foreground,enabled,admitted,!interrupted {switchLayer(requested,duration:0.42)}}
+        } else {interrupted=false;invalidate();retireAll();if foreground,enabled,admitted {switchLayer(requested,duration:0.42)}}
     }
 }

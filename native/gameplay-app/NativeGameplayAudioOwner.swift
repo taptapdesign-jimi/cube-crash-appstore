@@ -102,7 +102,7 @@ final class NativeGameplayAudioOwner {
         guard admit("studio-intro",receipt:receipt,generation:generation) else{return}
         let selections:[String:[String]]=["lik-gitara":["guitar1","guitar2"],"lik-laptop":["chair"],"lik-nogomet":["nogomet"],"lik-board":["kokcice"],"lik-slikanje":["camera"],"lik-cvijet":["watering"],"lik-pas-SVG":["nala1","nala2","nala3"],"lik-speceraj":["paperbag"]]
         func cue(_ key:String,_ gain:Double=0.42,_ delay:Double=0){transport.play(NativeAudioCue(source:"assets/sound/logo transitions/\(key).wav",voice:"native-studio-\(key)",gain:gain,delay:delay))}
-        if ["lik-speceraj","lik-game","lik-pas-SVG","pas-novine","lik-laptop"].contains(character){cue("smile",0.504)}
+        if ["lik-speceraj","lik-game","lik-pas-SVG","pas-novine","lik-laptop"].contains(character){cue("smile",0.63)}
         if ["lik-pas-SVG","pas-novine","lik-speceraj"].contains(character){cue(["nala1","nala2","nala3"].randomElement()!)}
         if character == "lik-game" {cue("gamer",0.6);cue("gemer2");return}
         if character == "lik-kauc" {cue("sleepy2",0.336);cue("sleepy1",0.336,1.44);return}
@@ -193,7 +193,7 @@ final class NativeGameplayAudioOwner {
     }
     func routeFeedback(_ kind:String,receipt:UInt64,generation:UInt64,duration:Double?=nil) {
         guard admit("route",receipt:receipt,generation:generation) else{return}
-        let mapping=["cta":"cta","card-tap":"cardTap","tab":"tab","back":"back","close":"back","swipe":"swipe","exit-modal":"exitModal","card-flip":"flip","manual-flip":"manualFlip","return-flip":"returnFlip","home-enter":"homeEnter","home-exit":"homeExit","hub-exit":"hubExit","board-enter":"boardEnter","board-exit":"boardExit","backpack":"backpack","crate":"crate","area55-start":"area55Start","forest-transition":"forestTransition"]
+        let mapping=["cta":"cta","card-tap":"cardTap","tab":"tab","back":"back","close":"back","swipe":"swipe","exit-modal":"exitModal","card-flip":"flip","card-entry-flip":"flip","card-manual-flip":"manualFlip","card-return-flip":"returnFlip","manual-flip":"manualFlip","return-flip":"returnFlip","home-enter":"homeEnter","home-exit":"homeExit","hub-exit":"hubExit","board-enter":"boardEnter","board-exit":"boardExit","backpack":"backpack","crate":"crate","area55-start":"area55Start","forest-transition":"forestTransition"]
         if let group=mapping[kind] {if group=="boardEnter" || group=="boardExit" {sourceBoardEntryOwner=nil};play(group,duration:duration)}
     }
     /// Board Transition has its own voice identities and contact receipts. The
@@ -373,11 +373,11 @@ final class NativeGameplayAudioOwner {
     func dispose() {guard !disposed else{return};disposed=true;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;meterCarrierVoices.removeAll();transport.dispose();for observer in observers {NotificationCenter.default.removeObserver(observer)};observers.removeAll();receipts.removeAll()}
     private func notification(name:String,interruption:UInt?) {
         if name==UIApplication.willResignActiveNotification.rawValue {setForeground(false)}
-        else if name==UIApplication.didBecomeActiveNotification.rawValue {setForeground(true)}
+        else if name==UIApplication.didBecomeActiveNotification.rawValue {interrupted=false;setForeground(true)}
         else if name==AVAudioSession.interruptionNotification.rawValue {
             guard let raw=interruption,let type=AVAudioSession.InterruptionType(rawValue:raw) else{return}
             interrupted=type == .began;transport.setSelectedPreparationForeground(foreground && !interrupted);if interrupted {sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll()}
-        } else {sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.setSelectedPreparationEnabled(false);transport.stopAll();transport.setSelectedPreparationEnabled(enabled)}
+        } else {interrupted=false;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.setSelectedPreparationEnabled(false);transport.stopAll();transport.setSelectedPreparationEnabled(enabled);transport.setSelectedPreparationForeground(foreground)}
     }
 }
 
@@ -401,6 +401,8 @@ final class NativeAVGameplayAudioTransport:NSObject,NativeGameplayAudioTransport
     private var voices:[String:Voice]=[:]
     private var disposed=false
     private var controlEpoch:UInt64=1
+    private var sessionActivated=false
+    private let activateSession:()->Bool
     private let maximumVoices=32
     // Includes logically retired players awaiting their exact worker stop.
     private let maximumControlVoices=64
@@ -416,18 +418,25 @@ final class NativeAVGameplayAudioTransport:NSObject,NativeGameplayAudioTransport
         selectedPreparation.beginGeneration(generation)
         return selectedPreparation.prepare(sources:canonical,requestID:capture,generation:generation)
     }
-    func setSelectedPreparationEnabled(_ enabled:Bool) {selectedPreparation.setEnabled(enabled);if !enabled {stopAll()}}
-    func setSelectedPreparationForeground(_ foreground:Bool) {selectedPreparation.setForeground(foreground);if !foreground {stopAll()}}
+    func setSelectedPreparationEnabled(_ enabled:Bool) {selectedPreparation.setEnabled(enabled);if !enabled {sessionActivated=false;stopAll()}}
+    func setSelectedPreparationForeground(_ foreground:Bool) {selectedPreparation.setForeground(foreground);if !foreground {sessionActivated=false;stopAll()}}
     var scheduledVoiceCount:Int {voices.count}
     func scheduledGain(for id:String)->Double? {voices[id]?.gain}
     var openedFileCount:Int {voices.values.filter{$0.started}.count}
     func capturedCompletionReceipt(for id:String)->NativeSelectedAudioFile.Completion? {voices[id]?.completionReceipt}
     var onError:((String)->Void)?
-    init(root:URL,preparation:NativeSelectedAudioPreparation<NativeSelectedAudioFile>?=nil) {self.root=root;self.injectedPreparation=preparation;super.init()}
+    init(root:URL,preparation:NativeSelectedAudioPreparation<NativeSelectedAudioFile>?=nil,activateSession:@escaping ()->Bool={
+        do {let session=AVAudioSession.sharedInstance();try session.setCategory(JimiNativeMusic.sessionCategory);try session.setActive(true);return true}
+        catch {return false}
+    }) {self.root=root;self.injectedPreparation=preparation;self.activateSession=activateSession;super.init()}
     func play(_ cue:NativeAudioCue){play(cue,completion:nil)}
     func play(_ cue:NativeAudioCue,onFinished:@escaping (NativeAudioCompletion)->Void){play(cue,completion:onFinished)}
     private func play(_ cue:NativeAudioCue,completion:((NativeAudioCompletion)->Void)?) {
         guard !disposed,NativeSelectedAudioFile.canonicalPath(cue.source) != nil,cue.gain.isFinite,cue.rate.isFinite,cue.delay.isFinite,cue.rate>0,cue.delay>=0 else{completion?(.unavailable);return}
+        // SFX must recover with Music OFF as well as on a cold launch. Activation
+        // is retried after a failed attempt and invalidated by background/reset.
+        if !sessionActivated {sessionActivated=activateSession()}
+        guard sessionActivated else {onError?("Cannot activate Native SFX session");completion?(.unavailable);return}
         stop(cue.voice)
         guard voices.count<maximumVoices else {onError?("Native SFX voice limit reached");completion?(.unavailable);return}
         let voice=Voice();voice.gain=max(0,min(1,cue.gain));voice.onFinished=completion;voices[cue.voice]=voice

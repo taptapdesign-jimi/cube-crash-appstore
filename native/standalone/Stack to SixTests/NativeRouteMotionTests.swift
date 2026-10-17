@@ -1,0 +1,58 @@
+import XCTest
+import UIKit
+@testable import Stack_to_Six
+
+@MainActor
+final class NativeRouteMotionTests:XCTestCase {
+    private final class WeakLayer {weak var value:CALayer?;init(_ value:CALayer){self.value=value}}
+    private func owner()->NativeRouteMotion {
+        let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        return NativeRouteMotion(home:JimiV9HomeView(frame:.zero,assets:assets),hub:JimiV9HubView(frame:.zero,assets:assets))
+    }
+    func testCancellationKeepsPaintedModelAndOriginalLiveLayerBaseAcrossHiddenReentry() {
+        let motion=owner(),target=UIView(frame:CGRect(x:20,y:30,width:100,height:80))
+        let anchor=CGPoint(x:0.3,y:0.7)
+        target.layer.anchorPoint=anchor;target.layer.opacity=0.42
+        let exit=JimiV9Motion.Track(tweens:[.init(begin:0,duration:0.2,from:.scale(1),to:.scale(0,y:18,opacity:0),ease:.powerIn(2))],anchorX:0.5,anchorY:0.54)
+        motion.animate([(target,exit)]){}
+        // An unmounted layer has no presentation tree, so its authored model
+        // endpoint is the deterministic painted-pose fallback for cancellation.
+        let painted=target.layer.transform
+        motion.cancel()
+        XCTAssertTrue(CATransform3DEqualToTransform(target.layer.transform,painted))
+        XCTAssertEqual(target.layer.opacity,0)
+        XCTAssertEqual(target.layer.anchorPoint,anchor)
+        XCTAssertEqual(motion.retainedLayerMetadataCount,1)
+        let enter=JimiV9Motion.Track(tweens:[.init(begin:0,duration:0.2,from:.scale(0,opacity:0),to:.scale(1),ease:.powerOut(2))])
+        motion.animate([(target,enter)]){}
+        XCTAssertEqual(target.layer.opacity,0.42,accuracy:0.00001,"A surviving hidden target keeps its original alpha, not its collapsed zero")
+        motion.cancel()
+        XCTAssertEqual(target.layer.anchorPoint,anchor)
+        XCTAssertEqual(motion.retainedLayerMetadataCount,1)
+    }
+    func testRetiredDynamicLayersReleaseAndMetadataStaysBoundedAcrossChurn() async {
+        let motion=owner()
+        let track=JimiV9Motion.Track(tweens:[.init(begin:0,duration:0.01,from:.scale(1),to:.scale(0,opacity:0),ease:.powerIn(2))])
+        for _ in 0..<6 {
+            var retired:[WeakLayer]=[]
+            autoreleasepool {
+                for _ in 0..<16 {
+                    let target=UIView(frame:CGRect(x:0,y:0,width:80,height:80))
+                    retired.append(WeakLayer(target.layer))
+                    motion.animate([(target,track)]){}
+                    motion.cancel()
+                }
+                CATransaction.flush()
+            }
+            // Cancelled Core Animation completion blocks release their captured
+            // route targets on the main run loop, without a persistent ticker.
+            let deadline=Date().addingTimeInterval(2)
+            while retired.contains(where:{$0.value != nil}),Date()<deadline {
+                try? await Task.sleep(for:.milliseconds(10))
+            }
+            XCTAssertTrue(retired.allSatisfy{$0.value == nil},"Route ownership must not retain retired cells/layers")
+            motion.cancel()
+            XCTAssertEqual(motion.retainedLayerMetadataCount,0,"Dead metadata is pruned at an existing cancellation boundary")
+        }
+    }
+}

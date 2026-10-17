@@ -42,6 +42,10 @@ final class NativeHUDCloseNode:SKNode {
             node.xScale=base.x*value;node.yScale=base.y*value
         },.run { [weak self] in self?.xScale=base.x;self?.yScale=base.y;self?.onTapFinished?() }]),withKey:"hud-tap-bounce")
     }
+    func cancelTapBounce() {
+        removeAction(forKey:"hud-tap-bounce")
+        if let base=tapBase {xScale=base.x;yScale=base.y}
+    }
     var hitRect:CGRect {
         let circle=CGRect(x:position.x-22,y:position.y-22,width:44,height:44)
         let sourceLongWrapper=CGRect(x:0,y:position.y-32,width:104,height:68)

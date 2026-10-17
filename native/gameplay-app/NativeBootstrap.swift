@@ -156,6 +156,10 @@ final class NativeBootstrap {
                 return try self.makeGameplay(board: board, exit: exit)
             },
             flush: { [weak self] in try self?.flush() })
+        services.selectArcadeVariant = {[weak self] variant in
+            guard let self else{throw CancellationError()}
+            self.cancelGameplayEntryPreparation();self.envelope.activeArcadeVariant=variant
+        }
         services.journeyProgression = { [weak self] in self?.envelope.progression ?? NativeProgressionState() }
         services.developerAction = { [weak self] action, presenter in
             try self?.openDeveloperAction(action, presenter: presenter)
@@ -333,7 +337,7 @@ final class NativeBootstrap {
             }
             guard let construction=NativeSourceInitialBoardConstruction.make(root:root,service:sourceContext.service,
                 mode:mode,board:boardNumber,columns:UIDevice.current.userInterfaceIdiom == .pad ? 7:5,
-                generation:generation,tutorialDemo:needsTutorial,preparedTextures:preparedTextures,random:{[sourceContext] in sourceContext.smokeSession.nextVisualRandom()}),
+                generation:generation,tutorialDemo:needsTutorial,arcadeVariant:envelope.activeArcadeVariant,preparedTextures:preparedTextures,random:{[sourceContext] in sourceContext.smokeSession.nextVisualRandom()}),
                 let recipe=construction.recipe else{throw NativeSaveError.invalidState(["source-initial-constructor-not-admitted"])}
             sourceConstruction=construction
             return recipe.state
@@ -345,7 +349,7 @@ final class NativeBootstrap {
         if consumedPending, let pending = envelope.pendingArcadeRound {
             state = try freshForInitialEntry(boardNumber:pending.round,generation:freshEntry?.generation ?? ((envelope.arcadeRun?.generation ?? 0)+1))
             state?.score = pending.score
-            state?.wildMeter = 0.25
+            state?.wildMeter = envelope.activeArcadeVariant == .pureDice ? 0 : envelope.activeArcadeVariant == .slowBurn ? (pending.meterProgress ?? 0.25) : 0.25
             envelope.pendingArcadeRound = nil
         }
         // A pending next round carries score into a newly constructed board.
@@ -370,9 +374,12 @@ final class NativeBootstrap {
                 let recipe=construction.recipe else{throw NativeSaveError.invalidState(["source-regular-resume-constructor-not-admitted"])}
             sourceConstruction=construction;initial=recipe.state
         }
-        initial.bestScore = mode == .arcade ? envelope.progression.arcadeStats.highScore : envelope.progression.boardStats[number]?.highScore ?? 0
+        initial.bestScore = mode == .arcade ? envelope.progression.arcadeStats(for:envelope.activeArcadeVariant).highScore : envelope.progression.boardStats[number]?.highScore ?? 0
+        // Progression cannot change Worlds while this engine owns its run.
+        // Forest entry records the existing unlock evidence for later Arcade entry.
+        let plainStarUnlocked=envelope.progression.hasUnlockedWildStar
         let engine = NativeGameplayEngine(state: initial, rewardPicker: { state, roll, nextRoll in
-            NativeWildRewardPolicy.choose(state:state,roll:roll,nextRoll:nextRoll)
+            NativeWildRewardPolicy.choose(state:state,roll:roll,plainStarUnlocked:plainStarUnlocked,nextRoll:nextRoll)
         }, sourceMathRandom:sourceLogicalMathRandomEnabled && (!sourceTutorialEarnedMeterEnabled || needsTutorial ||
             (sourceConstruction != nil && (sourceFreshOrdinaryPresentationEnabled || sourceRestoredOrdinaryPresentationEnabled))) ? sourceContext.mathRandom:nil)
         if needsTutorial,engine.state.tutorial == nil {
@@ -525,7 +532,7 @@ final class NativeBootstrap {
         audio?.stop();audio?.beginGeneration(initial.generation)
         haptics.cancelSequences();failHapticGeneration=nil;ordinarySixHapticContact=nil;specialHapticTargetCounts.removeAll()
         lastReturnBoard = mode == .journey ? number : nil
-        if !resumed || consumedPending { envelope.progression.beginAttempt(mode: mode, board: number) }
+        if !resumed || consumedPending { envelope.progression.beginAttempt(mode: mode, board: number,arcadeVariant:envelope.activeArcadeVariant) }
         gameplay.onStateChange = { [weak self] state in self?.record(state);self?.tutorialOwner?.refresh(state) }
         gameplay.onSourceGuidedSnapBack={ [weak self] node in self?.tutorialOwner?.sourceSnapBackCompleted(node) }
         gameplay.onGameplayEvent = { [weak self] event in self?.tutorialOwner?.gameplayEvent(event) }
@@ -558,6 +565,11 @@ final class NativeBootstrap {
             guard let self,let state=self.gameplay?.engine.state else{return};self.audioReceipt &+= 1
             if moment == "wild-drop" {self.audio?.routeFeedback(variant ?? "backpack",receipt:self.audioReceipt,generation:state.generation)}
             else {self.audio?.specialMoment(variant:variant ?? "tnt",moment:moment,index:index,receipt:self.audioReceipt,generation:state.generation)}
+        }
+        gameplay.onBoardExit = { [weak self,weak gameplay] duration in
+            guard let self,let gameplay,self.gameplay === gameplay,!self.disposed else{return}
+            self.audioReceipt &+= 1
+            self.audio?.routeFeedback("board-exit",receipt:self.audioReceipt,generation:gameplay.engine.state.generation,duration:duration)
         }
         gameplay.onBoardEntry = { [weak self] duration,beats in
             guard let self,let state=self.gameplay?.engine.state else{return};self.audioReceipt &+= 1
@@ -650,8 +662,8 @@ final class NativeBootstrap {
     private func fresh(mode: NativeRunMode, board: Int, generation: UInt64,tutorial:Bool=false) -> NativeBoardState {
         var state=NativeBoardFactory.make(mode: mode, board: board,
             columns: UIDevice.current.userInterfaceIdiom == .pad ? 7 : 5,
-            generation: generation, seed: UInt64.random(in: 1...UInt64.max),tutorial:tutorial)
-        state.bestScore = mode == .arcade ? envelope.progression.arcadeStats.highScore : envelope.progression.boardStats[board]?.highScore ?? 0
+            generation: generation, seed: UInt64.random(in: 1...UInt64.max),tutorial:tutorial,arcadeVariant:envelope.activeArcadeVariant)
+        state.bestScore = mode == .arcade ? envelope.progression.arcadeStats(for:envelope.activeArcadeVariant).highScore : envelope.progression.boardStats[board]?.highScore ?? 0
         return state
     }
     /// Caller supplies genuine Source marker/terminal/prepare observers. This
@@ -1160,7 +1172,7 @@ final class NativeBootstrap {
         audio?.beginGeneration(gameplay.engine.state.generation)
         if old.mode == .arcade {arcadeMusic?.enterRound(generation:gameplay.engine.state.generation,immediate:true)}
         else {soundtrack?.setJourneyGameplay()}
-        envelope.progression.beginAttempt(mode: old.mode, board: gameplay.engine.state.board)
+        envelope.progression.beginAttempt(mode: old.mode, board: gameplay.engine.state.board,arcadeVariant:envelope.activeArcadeVariant)
         let entry=old.mode == .arcade && !tutorial ? gameplay.prepareNextBoardEntry():nil
         gameplay.setSuspended(false)
         if entry == nil {gameplay.refreshFromEngine()}
@@ -1294,11 +1306,11 @@ final class NativeBootstrap {
         let state = gameplay.engine.state
         var next = envelope
         next.progression.finishAttempt(mode: state.mode, board: state.board, score: score,
-            longestCombo: state.longestCombo, cubesCracked: state.cubesCracked, clean: clean)
+            longestCombo: state.longestCombo, cubesCracked: state.cubesCracked, clean: clean,arcadeVariant:state.effectiveArcadeVariant)
         if state.mode == .journey { next.journeyRuns.removeValue(forKey: state.board); next.journeyRunSavedAt.removeValue(forKey: state.board) }
         else {
             next.arcadeRun = nil; next.arcadeRunSavedAt = nil
-            if clean { next.pendingArcadeRound = .init(round:state.board+1,score:score,ownerID:"native-\(state.generation)-\(state.revision)") }
+            if clean { next.pendingArcadeRound = .init(round:state.board+1,score:score,ownerID:"native-\(state.generation)-\(state.revision)",meterProgress:state.effectiveArcadeVariant == .slowBurn ? state.wildMeter:nil) }
         }
         next.savedAt = Date().timeIntervalSince1970
         try store.save(next); envelope = next; attemptCommitted = true;committedScore=score
@@ -1318,7 +1330,7 @@ final class NativeBootstrap {
             guard let self,let sheet,!self.disposed,self.tutorialComplete === sheet,self.gameplay?.engine.state.generation==generation else{return}
             do {
                 var next=self.envelope;next.progression.firstPlayTutorialComplete=true
-                next.progression.boardStats.removeValue(forKey:gameplay.engine.state.board);next.progression.arcadeStats=NativeArcadeStats()
+                next.progression.boardStats.removeValue(forKey:gameplay.engine.state.board);next.progression.resetArcadeStats(for:next.activeArcadeVariant)
                 next.journeyRuns.removeValue(forKey:gameplay.engine.state.board);next.journeyRunSavedAt.removeValue(forKey:gameplay.engine.state.board)
                 next.arcadeRun=nil;next.arcadeRunSavedAt=nil;next.pendingArcadeRound=nil;next.savedAt=Date().timeIntervalSince1970
                 try self.store.save(next);self.envelope=next;self.attemptCommitted=true
@@ -1338,7 +1350,7 @@ final class NativeBootstrap {
                 let state=self.fresh(mode:.arcade,board:1,generation:generation+1)
                 gameplay.engine.restart(state:state);self.attemptCommitted=false;self.committedScore=nil
                 self.audio?.beginGeneration(state.generation);self.arcadeMusic?.enterRound(generation:state.generation,immediate:true)
-                self.envelope.progression.beginAttempt(mode:.arcade,board:1);self.record(state);_ = self.saveCurrent()
+                self.envelope.progression.beginAttempt(mode:.arcade,board:1,arcadeVariant:self.envelope.activeArcadeVariant);self.record(state);_ = self.saveCurrent()
                 let boardEntry=gameplay.prepareNextBoardEntry()
                 if boardEntry == nil {gameplay.refreshFromEngine()}
                 self.mountArcadeEntry(gameplay,onPresented:release) {
@@ -1372,11 +1384,11 @@ final class NativeBootstrap {
             return
         }
         var state = fresh(mode: .arcade, board: pending.round, generation: gameplay.engine.state.generation + 1)
-        state.score = pending.score; state.wildMeter = 0.25
+        state.score = pending.score; state.wildMeter = envelope.activeArcadeVariant == .pureDice ? 0 : envelope.activeArcadeVariant == .slowBurn ? (pending.meterProgress ?? 0.25) : 0.25
         gameplay.engine.restart(state: state); attemptCommitted = false
         audio?.beginGeneration(gameplay.engine.state.generation)
         arcadeMusic?.enterRound(generation:gameplay.engine.state.generation)
-        envelope.pendingArcadeRound = nil; envelope.progression.beginAttempt(mode:.arcade,board:pending.round)
+        envelope.pendingArcadeRound = nil; envelope.progression.beginAttempt(mode:.arcade,board:pending.round,arcadeVariant:envelope.activeArcadeVariant)
         gameplay.setSuspended(false); gameplay.refreshFromEngine(); record(gameplay.engine.state)
         _ = saveCurrent()
     }
@@ -1628,7 +1640,7 @@ final class NativeBootstrap {
             }
         }
         if action == .reset, values.contains("arcade") {
-            next.arcadeRun = nil; next.pendingArcadeRound = nil; next.arcadeRunSavedAt = nil; next.progression.arcadeStats = .init()
+            next.arcadeRun = nil; next.pendingArcadeRound = nil; next.arcadeRunSavedAt = nil; next.progression.resetArcadeStats(for:next.activeArcadeVariant)
         }
         next.progression.highestUnlockedJourneyBoard = max(1,next.progression.completedJourneyBoards.max() ?? 1)
         next.savedAt = Date().timeIntervalSince1970

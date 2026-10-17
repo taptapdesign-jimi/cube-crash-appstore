@@ -111,7 +111,7 @@ final class JimiNativeMusic: NSObject {
             case "pause": pause(voice)
             case "resume":
                 voice.node.volume = Float(min(1, max(0, number(body, "volume"))))
-                if !voice.playing { try start(voice, at: voice.position) }
+                if !voice.playing || !engine.isRunning || !voice.node.isPlaying { try start(voice, at: voice.currentTime) }
             case "seek": try start(voice, at: number(body, "position"))
             case "state": break // Read-only phase receipt for Swift soundtrack scheduling.
             case "volume":
@@ -144,6 +144,9 @@ final class JimiNativeMusic: NSObject {
     }
     private func start(_ voice: Voice, at position: Double) throws {
         guard UIApplication.shared.applicationState == .active else { throw failure("App inactive") }
+        let session=AVAudioSession.sharedInstance()
+        try session.setCategory(Self.sessionCategory)
+        try session.setActive(true)
         pause(voice)
         var start = max(0, position)
         if start >= voice.loopEnd {

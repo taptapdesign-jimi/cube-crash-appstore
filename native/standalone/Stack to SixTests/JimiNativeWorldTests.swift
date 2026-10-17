@@ -85,6 +85,43 @@ final class JimiNativeWorldTests: XCTestCase {
         XCTAssertTrue(labels(card).contains{$0.text=="Area 05"})
         XCTAssertFalse(labels(card).contains{$0.text=="Area 55 05"})
     }
+    func testCardBackKeepsStatsClearOfCTAOnNarrowPhones() async throws {
+        var projection=fixture(),units=fixture()["units"] as! [[String:Any]]
+        units[0]["stats"]=[["label":"Score","value":"1,234"],["label":"Combo","value":"12"]]
+        units[0]["parts"]=[["asset":"assets/colelctibles/Forest/common/01.png","role":"card","x":0,"y":0,"width":90,"height":133,"rotation":0,"opacity":1,"zIndex":2]]
+        projection["units"]=units
+        let unit=try XCTUnwrap(JimiNativeWorldSnapshot(projection)?.units.first)
+        let resources=JimiNativeWorldResources(root:root)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),host=UIViewController()
+        window.rootViewController=host;window.makeKeyAndVisible()
+        defer {window.isHidden=true}
+        for width:CGFloat in [320,360,390] {
+            window.frame=CGRect(x:0,y:0,width:width,height:844)
+            host.view.frame=window.bounds
+            let card=JimiNativeWorldCardView(unit:unit,assets:art,resources:resources)
+            defer {card.cleanup();card.removeFromSuperview()}
+            card.frame=CGRect(x:0,y:0,width:width,height:844);host.view.addSubview(card)
+            card.enter(from:CGRect(x:30,y:400,width:90,height:120))
+            card.setNeedsLayout();card.layoutIfNeeded()
+            try await settle(0.7)
+            let screenshot=UIGraphicsImageRenderer(bounds:card.bounds).image{_ in card.drawHierarchy(in:card.bounds,afterScreenUpdates:true)}
+            try screenshot.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-card-back-\(Int(width)).png"))
+            let attachment=XCTAttachment(image:screenshot);attachment.name="native-card-back-\(Int(width))";attachment.lifetime = .keepAlways;add(attachment)
+            let cta=try XCTUnwrap(descendant(card,"native.world.card.play"))
+            let back=try XCTUnwrap(cta.superview)
+            let stats=try XCTUnwrap(back.subviews.compactMap{$0 as? UIStackView}.first{$0.axis == .vertical})
+            XCTAssertGreaterThanOrEqual(cta.frame.minY-stats.frame.maxY,15,"Stats/CTA gap at \(width)")
+            XCTAssertEqual(back.bounds.maxY-cta.frame.maxY,40,accuracy:0.1)
+            for row in stats.arrangedSubviews {
+                for label in row.subviews.compactMap({$0 as? UILabel}) {
+                    XCTAssertGreaterThanOrEqual(label.font.pointSize,16)
+                    XCTAssertGreaterThanOrEqual(label.bounds.width,label.intrinsicContentSize.width,"Unclipped stat label at \(width)")
+                    let rect=label.convert(label.bounds,to:back)
+                    XCTAssertLessThan(rect.maxY,cta.frame.minY-15)
+                }
+            }
+        }
+    }
     func testPhysicalBackTargetDuringEnterAndPreemptedCardReceipt() async throws {
         for worldID in 1...3 {
             var data = fixture(); data["worldID"] = worldID
@@ -258,6 +295,24 @@ final class JimiNativeWorldTests: XCTestCase {
         let last = try XCTUnwrap(poses.last)
         XCTAssertEqual(scale(last)*min(card.bounds.width-64,390),destination.width,accuracy:0.01,"Land at the source card's exact size")
     }
+    func testModalCoachHasNoShimmerAndRetiresOnCleanup() throws {
+        let overlay=UIView(frame:CGRect(x:0,y:0,width:390,height:844)),impact=UIView()
+        let resources=JimiNativeWorldResources(root:root)
+        let effects=JimiNativeWorldCardEffects(impact:impact,overlay:overlay,assets:art,resources:resources,boardID:1)
+        defer{effects.cleanup();resources.cleanup()}
+        effects.layout();effects.present()
+        XCTAssertNotNil(impact.layer.animation(forKey:"modal.coach.impact"))
+        func check(_ layer:CALayer) {
+            XCTAssertFalse(layer is CAGradientLayer,"Journey modal must not attach a white or holographic shimmer")
+            XCTAssertFalse((layer.animationKeys() ?? []).contains{$0.contains("holo") || $0.contains("common")})
+            (layer.sublayers ?? []).forEach(check)
+        }
+        check(overlay.layer)
+        effects.setActive(false);XCTAssertNil(impact.layer.animation(forKey:"modal.coach.impact"))
+        effects.setActive(true);XCTAssertNotNil(impact.layer.animation(forKey:"modal.coach.impact"))
+        effects.cleanup();effects.cleanup();XCTAssertTrue(overlay.subviews.isEmpty)
+    }
+
     func testCloseDuringFlipIsAcceptedAndCleanupRetiresOldCompletion() async throws {
         let unit = try XCTUnwrap(JimiNativeWorldSnapshot(fixture())).units[0]
         let card = JimiNativeWorldCardView(unit:unit,assets:art,resources:JimiNativeWorldResources(root:root))

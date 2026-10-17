@@ -336,9 +336,11 @@ private final class NativeArcadeDisplayTarget: NSObject {
 final class NativeArcadeThumbShadow: UIView {
     private let imageView = UIImageView()
     private var preparedSize = CGSize.zero
+    private let alphaGain:CGFloat
     private static let padding: CGFloat = 30
 
-    override init(frame: CGRect) {
+    init(frame: CGRect = .zero,alphaGain:CGFloat=1) {
+        self.alphaGain=alphaGain
         super.init(frame: frame)
         isOpaque = false
         backgroundColor = .clear
@@ -352,12 +354,12 @@ final class NativeArcadeThumbShadow: UIView {
         imageView.frame = bounds.insetBy(dx: -Self.padding,dy: -Self.padding)
         guard bounds.width > 0,bounds.height > 0,preparedSize != bounds.size else { return }
         preparedSize = bounds.size
-        imageView.image = Self.makeShadow(size: bounds.size)
+        imageView.image = Self.makeShadow(size: bounds.size,alphaGain:alphaGain)
     }
 
     /// PWA radial-gradient plus blur(10px). Prepare once per layout size;
     /// the existing finite clock animates only the cached image's parent.
-    private static func makeShadow(size: CGSize) -> UIImage? {
+    private static func makeShadow(size: CGSize,alphaGain:CGFloat) -> UIImage? {
         let canvas = CGSize(width: size.width+padding*2,height: size.height+padding*2)
         let format = UIGraphicsImageRendererFormat(); format.scale = 1; format.opaque = false
         let image = UIGraphicsImageRenderer(size: canvas,format: format).image { renderer in
@@ -373,7 +375,11 @@ final class NativeArcadeThumbShadow: UIView {
                 endCenter: .zero,endRadius: 1,options: [])
         }
         guard let input = CIImage(image: image) else { return nil }
-        let output = input.applyingFilter("CIGaussianBlur",parameters: [kCIInputRadiusKey: 10])
+        let blurred = input.applyingFilter("CIGaussianBlur",parameters: [kCIInputRadiusKey: 10])
+        // Apply gain after blur so thin ellipses retain the requested increase
+        // without clipping gradient stops before their blur has attenuated them.
+        let output = alphaGain==1 ? blurred:blurred.applyingFilter("CIColorMatrix",parameters:[
+            "inputAVector":CIVector(x:0,y:0,z:0,w:alphaGain)])
         guard let rendered = CIContext(options: [.useSoftwareRenderer: true,.cacheIntermediates: false])
             .createCGImage(output,from: input.extent) else { return nil }
         return UIImage(cgImage: rendered)

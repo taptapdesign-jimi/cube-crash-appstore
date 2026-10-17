@@ -25,10 +25,13 @@ import StackToSixGameplay
         let original=ghosts(scene)
         XCTAssertEqual(original.count,44)
         let identities=Set(original.map(ObjectIdentifier.init))
+        let authored=NativeBoardTextures(root:NativeTestResources.root)
+        let expected=try XCTUnwrap(authored.texture("assets/ghost-placeholder.png"))
+        XCTAssertEqual(original.first?.texture?.size(),expected.size(),"Ghosts must use the original outline asset, not a faint locked tile")
         for _ in 0..<12 {scene.synchronize()}
         XCTAssertEqual(Set(ghosts(scene).map(ObjectIdentifier.init)),identities)
         XCTAssertEqual(ghosts(scene).count,44)
-        for node in ghosts(scene) {XCTAssertEqual(node.alpha,CGFloat(Float(0.08)),accuracy:1e-7);XCTAssertFalse(node.isHidden)}
+        for node in ghosts(scene) {XCTAssertEqual(node.alpha,CGFloat(1),accuracy:1e-7);XCTAssertFalse(node.isHidden)}
     }
     func testActualOccupiedToggleRetainsDetachedGhostWithoutAddingExitTargets()throws {
         let scene=makeScene();defer{scene.dispose()}
@@ -56,7 +59,7 @@ import StackToSixGameplay
         XCTAssertEqual(node.position.y,geometry.center(row:0,column:1).y,accuracy:1e-4)
         XCTAssertEqual(node.size.width,geometry.tileSize,accuracy:1e-4)
         XCTAssertEqual(node.xScale,1);XCTAssertEqual(node.yScale,1);XCTAssertEqual(node.zRotation,0)
-        XCTAssertEqual(node.alpha,CGFloat(Float(0.08)),accuracy:1e-7)
+        XCTAssertEqual(node.alpha,CGFloat(1),accuracy:1e-7)
         retained=nil
         scene.dispose()
         XCTAssertNil(node.parent);XCTAssertEqual(ghosts(scene).count,0)

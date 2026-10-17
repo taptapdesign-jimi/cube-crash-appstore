@@ -2,6 +2,7 @@ import XCTest
 import ImageIO
 import CoreGraphics
 import UIKit
+import SpriteKit
 import StackToSixGameplay
 @testable import Stack_to_Six
 nonisolated final class NativeSelectedFinaleRasterTests:XCTestCase {
@@ -239,5 +240,115 @@ nonisolated final class NativeSelectedFinaleRasterTests:XCTestCase {
   XCTAssertFalse(next === previous);XCTAssertEqual(next.generation,2)
   try await wait{next.readyFamilies.contains("honey")}
   XCTAssertEqual(next.selected,["honey"]);XCTAssertTrue(previous.pendingFamilies.isEmpty)
+ }
+}
+
+@MainActor final class NativeQueuedArtworkLifetimeTests:XCTestCase {
+ private nonisolated final class DecodeCount:@unchecked Sendable {
+  private let lock=NSLock();private var value=0
+  var count:Int {lock.lock();defer{lock.unlock()};return value}
+  func record(){lock.lock();value+=1;lock.unlock()}
+ }
+ func testDisposedQueuedRasterSkipsDecoderAndReleasesTextureOwner() {
+  var jobs:[@Sendable ()->Void]=[]
+  let decodes=DecodeCount();var completions=0
+  var textures:NativeBoardTextures?=NativeBoardTextures(root:NativeTestResources.root,
+   preparationQueue:{jobs.append($0)},selectedRasterDecoder:{_,_ in decodes.record();return nil})
+  weak var released=textures
+  textures?.prepareSelectedFinaleAsset(.init(["assets/tile.png"])) {texture in XCTAssertNil(texture);completions+=1}
+  XCTAssertEqual(jobs.count,1)
+  textures?.dispose();textures=nil
+  XCTAssertNil(released,"A retired queued job must not retain the texture owner")
+  XCTAssertEqual(completions,1)
+  jobs.removeFirst()()
+  XCTAssertEqual(decodes.count,0,"Retirement must reject work before expensive decoding")
+  XCTAssertEqual(completions,1)
+ }
+ func testInvalidatedQueuedRasterSkipsOldDecodeAndAdmitsReplacementGeneration() async {
+  var jobs:[@Sendable ()->Void]=[]
+  let decodes=DecodeCount();var oldCompletions=0
+  let textures=NativeBoardTextures(root:NativeTestResources.root,
+   preparationQueue:{jobs.append($0)},selectedRasterDecoder:{_,_ in decodes.record();return nil})
+  defer{textures.dispose()}
+  textures.prepareSelectedFinaleAsset(.init(["assets/tile.png"])) {_ in oldCompletions+=1}
+  textures.invalidatePendingPreparation()
+  XCTAssertEqual(oldCompletions,1)
+  let replacement=expectation(description:"Replacement generation decoder settles")
+  textures.prepareSelectedFinaleAsset(.init(["assets/tile.png"])) {texture in XCTAssertNil(texture);replacement.fulfill()}
+  XCTAssertEqual(jobs.count,2)
+  jobs.removeFirst()();XCTAssertEqual(decodes.count,0)
+  jobs.removeFirst()();XCTAssertEqual(decodes.count,1)
+  await fulfillment(of:[replacement],timeout:2)
+  XCTAssertEqual(oldCompletions,1)
+ }
+}
+
+nonisolated final class NativeSheetFrameAlphaBoundsTests:XCTestCase {
+ func testSingleAtlasTraversalMatchesIndependentCroppedFrameMeasurements()throws {
+  let width=8,height=8,cell=CGSize(width:4,height:4)
+  var pixels=[UInt8](repeating:0,count:width*height*4)
+  // Deliberately different silhouettes in every atlas cell, including edges.
+  for (x,y) in [(0,0),(2,2),(7,0),(4,3),(1,4),(1,7),(4,4),(7,7)] {pixels[(y*width+x)*4+3]=255}
+  pixels[(7*width+1)*4+3]=9 // Included faint edge.
+  pixels[(7*width+3)*4+3]=8 // Excluded edge at the exact threshold.
+  let data=Data(pixels)
+  let image=try XCTUnwrap(CGImage(width:width,height:height,bitsPerComponent:8,bitsPerPixel:32,bytesPerRow:width*4,
+   space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGBitmapInfo(rawValue:CGImageAlphaInfo.premultipliedLast.rawValue),
+   provider:try XCTUnwrap(CGDataProvider(data:data as CFData)),decode:nil,shouldInterpolate:false,intent:.defaultIntent))
+  let frames=try XCTUnwrap(NativeArtworkAlphaBounds.measureFrames(image,cell:cell,columns:2,frameCount:4))
+  XCTAssertEqual(frames.count,4)
+  for index in 0..<4 {
+   let cropped=try XCTUnwrap(image.cropping(to:CGRect(x:(index%2)*4,y:(index/2)*4,width:4,height:4)))
+   XCTAssertEqual(frames[index],NativeArtworkAlphaBounds.measure(UIImage(cgImage:cropped)),"Frame \(index) must keep source top-down normalized bounds")
+  }
+  XCTAssertNil(NativeArtworkAlphaBounds.measureFrames(image,cell:cell,columns:2,frameCount:4,current:{false}))
+ }
+}
+
+@MainActor final class NativeSelectedAnimatedBodyBoundsTests:XCTestCase {
+ func testCachedSheetUpgradesSelectedMetadataWithoutReplacingFrameTexturesAndPurgesIt() async throws {
+  let textures=NativeBoardTextures(root:NativeTestResources.root)
+  defer{textures.dispose()}
+  var initial:[SKTexture]=[],selected:[SKTexture]=[]
+  let first=expectation(description:"Original Ball sheet")
+  textures.prepare(.ball){initial=$0;first.fulfill()}
+  await fulfillment(of:[first],timeout:15)
+  XCTAssertEqual(initial.count,84)
+  XCTAssertNil(textures.frameSheetBodyBounds(.ball,frame:0),"Default board preparation must not collect selected-only metadata")
+  let legacyBounds=textures.firstSheetBodyBounds(.ball)
+  let upgrade=expectation(description:"Selected per-frame metadata")
+  textures.prepare(.ball,includeFrameBodyBounds:true){selected=$0;upgrade.fulfill()}
+  await fulfillment(of:[upgrade],timeout:15)
+  XCTAssertEqual(selected.count,84)
+  for index in initial.indices {XCTAssertTrue(initial[index] === selected[index])}
+  XCTAssertEqual(textures.firstSheetBodyBounds(.ball),legacyBounds,"Shadow metadata cannot change modal sizing")
+  XCTAssertNotNil(textures.frameSheetBodyBounds(.ball,frame:83))
+  let bottoms=(0..<84).compactMap{textures.frameSheetBodyBounds(.ball,frame:$0)?.maxY}
+  XCTAssertGreaterThan(Set(bottoms).count,1,"Internal jump frames must have different silhouette positions")
+  let union=try XCTUnwrap(textures.animatedSheetBodyBounds(.ball)),authored=NativeDiceSheet.ballMotionBounds
+  XCTAssertEqual(union.minX,authored.minX,accuracy:1e-7);XCTAssertEqual(union.maxX,authored.maxX,accuracy:1e-7)
+  XCTAssertEqual(union.minY,authored.minY,accuracy:1e-7);XCTAssertEqual(union.maxY,authored.maxY,accuracy:1e-7)
+  textures.purgeUnused(retaining:[])
+  XCTAssertNil(textures.frameSheetBodyBounds(.ball,frame:0))
+ }
+ func testKantaBodyBoundsFollowCanMotionAndExcludeOtherChildren()throws {
+  let textures=NativeBoardTextures(root:NativeTestResources.root)
+  let idle=NativeKantaDiceIdle(textures:textures,size:CGSize(width:96,height:128),random:{0.5})
+  defer{idle.dispose();textures.dispose()}
+  let initial=try XCTUnwrap(idle.bodyBounds)
+  let effect=SKSpriteNode(color:.cyan,size:CGSize(width:900,height:900));effect.position=CGPoint(x:1000,y:1000);idle.addChild(effect)
+  XCTAssertEqual(idle.bodyBounds,initial,"Non-body effects cannot resize a collection shadow")
+  for _ in 0..<5 {idle.tick(0.1,globalX:0,viewportCenter:100)}
+  XCTAssertNotEqual(try XCTUnwrap(idle.bodyBounds),initial,"Actual front/rear can transforms must reach shadow geometry")
+  idle.dispose();XCTAssertNil(idle.bodyBounds)
+ }
+ func testAnimatedBodyBoundsProjectsAllFourRotatedCorners()throws {
+  let textures=NativeBoardTextures(root:NativeTestResources.root)
+  let node=NativeDiceNode(id:"rotated-preview",value:3,kind:"regular",variant:nil,depth:1,locked:false,textures:textures)
+  defer{node.dispose();textures.dispose()}
+  node.visual.zRotation = .pi/4
+  let bounds=node.collectionAnimatedBodyBounds(normalizedBounds:CGRect(x:0,y:0,width:1,height:1))
+  XCTAssertEqual(bounds.width,128*sqrt(2),accuracy:0.001)
+  XCTAssertEqual(bounds.height,128*sqrt(2),accuracy:0.001)
  }
 }

@@ -25,9 +25,10 @@ nonisolated struct NativeFishSVGFallbackResources:@unchecked Sendable {
     }
     enum ResourceError:Error {case unsupportedOriginalSVG,undecodableOriginalStrip}
     let frames:[CGImage]
+    let frameBodyBounds:[CGRect]
     let translate:Track,rotate:Track,scale:Track,discrete:Track
     let duration:Double,viewBox:CGRect,pivot:CGPoint
-    static func load(resourceRoot:URL)throws->Self {
+    static func load(resourceRoot:URL,measureBodyBounds:Bool=false)throws->Self {
         let data=try Data(contentsOf:resourceRoot.appendingPathComponent("assets/shop/fish/fish.svg"))
         try Task.checkCancellation()
         let parsed=NativeFishSVGMetadata(),parser=XMLParser(data:data);parser.delegate=parsed
@@ -40,13 +41,22 @@ nonisolated struct NativeFishSVGFallbackResources:@unchecked Sendable {
               let encoded=parsed.imageURI,encoded.hasPrefix("data:image/webp;base64,"),
               let bytes=Data(base64Encoded:String(encoded.dropFirst("data:image/webp;base64,".count))),
               let source=CGImageSourceCreateWithData(bytes as CFData,nil),let strip=CGImageSourceCreateImageAtIndex(source,0,[kCGImageSourceShouldCacheImmediately:true] as CFDictionary),strip.width==16128,strip.height==224 else {throw ResourceError.unsupportedOriginalSVG}
+        // Measure all original cells in one cancellable CPU strip traversal.
+        // Keep rectangles only; visible playback never rasterizes/readbacks.
+        var frameBodyBounds:[CGRect]=[]
+        if measureBodyBounds {
+            guard let measured=NativeArtworkAlphaBounds.measureFrames(strip,cell:CGSize(width:224,height:224),columns:72,frameCount:72,current:{!Task.isCancelled}) else {
+                try Task.checkCancellation();throw ResourceError.undecodableOriginalStrip
+            }
+            frameBodyBounds=measured
+        }
         var frames:[CGImage]=[]
         for i in 0..<72 {
             try Task.checkCancellation()
             guard discrete.values[i]==[-Double(i)*224,0],let frame=strip.cropping(to:CGRect(x:i*224,y:0,width:224,height:224)) else {throw ResourceError.undecodableOriginalStrip}
             frames.append(frame)
         }
-        return Self(frames:frames,translate:translate,rotate:rotate,scale:scale,discrete:discrete,duration:translate.duration,viewBox:parsed.viewBox!,pivot:parsed.pivot!)
+        return Self(frames:frames,frameBodyBounds:frameBodyBounds,translate:translate,rotate:rotate,scale:scale,discrete:discrete,duration:translate.duration,viewBox:parsed.viewBox!,pivot:parsed.pivot!)
     }
     func sample(seconds:Double)->Pose {
         let elapsed=max(0,seconds),unit=elapsed.truncatingRemainder(dividingBy:duration)/duration

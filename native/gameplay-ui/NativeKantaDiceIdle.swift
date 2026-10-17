@@ -91,5 +91,24 @@ final class NativeKantaDiceIdle: SKNode {
         else {elapsed=0;pendingDouble=0;nextBubble=0.25}
         paint()
     }
+    /// Selected-preview rear shadow anchor, excluding transient bubbles.
+    var rearBodyCenter:CGPoint? {
+        guard !disposed,assetReady,!rear.isHidden,rear.alpha>0.001 else{return nil}
+        return rear.convert(CGPoint(x:0,y:height*0.35),to:self)
+    }
+    /// Authored can bodies only; transient bubbles never widen the shadow.
+    var bodyBounds:CGRect? {
+        guard !disposed,assetReady else{return nil}
+        var result=CGRect.null
+        for (sprite,size) in [(front,CGSize(width:width,height:height)),
+                              (rear,CGSize(width:width*0.7,height:height*0.7))] where !sprite.isHidden && sprite.alpha>0.001 {
+            for point in [CGPoint(x:0,y:0),CGPoint(x:1,y:0),CGPoint(x:0,y:1),CGPoint(x:1,y:1)] {
+                let projected=sprite.convert(CGPoint(x:(point.x-sprite.anchorPoint.x)*size.width,
+                    y:(point.y-sprite.anchorPoint.y)*size.height),to:self)
+                result=result.union(CGRect(origin:projected,size:.zero))
+            }
+        }
+        return result.isNull ? nil:result
+    }
     func dispose() {guard !disposed else {return};disposed=true;bubbles.removeAll();removeAllChildren();removeFromParent()}
 }
