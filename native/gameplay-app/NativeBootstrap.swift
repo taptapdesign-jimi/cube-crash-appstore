@@ -135,6 +135,7 @@ final class NativeBootstrap {
         } catch { showError(error.localizedDescription) }
     }
     private func mount(in host: UIViewController) {
+        envelope.discardUntouchedLayouts()
         errorLabel.removeFromSuperview()
         var services = NativeAppServices(
             settings: { [weak self] in self?.settings() ?? [:] },
@@ -177,7 +178,7 @@ final class NativeBootstrap {
             guard let self,self.envelope.progression.firstPlayTutorialComplete else{return false}
             var selected=self.envelope
             selected.activeArcadeVariant=variant
-            if selected.pendingArcadeRound != nil {return true}
+            if selected.pendingArcadeRound != nil {return false}
             guard let board=selected.arcadeRun?.board else{return false}
             return selected.resumedRun(mode:.arcade,board:board) != nil
         }
@@ -262,7 +263,7 @@ final class NativeBootstrap {
         var isRestart:Bool {if case .restart=self{return true};return false}
         var consumesPendingArcade:Bool {if case .arcadeContinuation=self{return true};return false}
         var alreadyAnnouncedArcade:Bool {consumesPendingArcade}
-        var skipsBoardAnnouncement:Bool {if case .restart(_,let origin)=self{return origin.skipsBoardAnnouncement};return isJourneyContinuation}
+        var skipsBoardAnnouncement:Bool {if case .restart(_,let origin)=self{return origin.skipsBoardAnnouncement};return false}
         var keepsGameplayChromeVisible:Bool {if case .restart(_, .exitMenu)=self{return true};return consumesPendingArcade}
         var carriedJourneyScore:Int? {if case .journeyContinuation(_,let score)=self{return score};return nil}
     }
@@ -358,7 +359,7 @@ final class NativeBootstrap {
         if consumedPending, let pending = envelope.pendingArcadeRound {
             state = try freshForInitialEntry(boardNumber:pending.round,generation:freshEntry?.generation ?? ((envelope.arcadeRun?.generation ?? 0)+1))
             state?.score = pending.score
-            state?.wildMeter = envelope.activeArcadeVariant == .pureDice ? 0 : envelope.activeArcadeVariant == .slowBurn ? (pending.meterProgress ?? 0.25) : 0.25
+            state?.wildMeter = envelope.activeArcadeVariant == .pureDice ? 0 : (pending.meterProgress ?? 0.25)
             envelope.pendingArcadeRound = nil
         }
         // A pending next round carries score into a newly constructed board.
@@ -953,9 +954,7 @@ final class NativeBootstrap {
             guard state.mode == .arcade,sourcePreparedArcadeSaveGeneration==state.generation else{return false}
         }
         let previous=envelope,now=Date().timeIntervalSince1970
-        if state.mode == .journey {envelope.journeyRuns[state.board]=state;envelope.journeyRunSavedAt[state.board]=now}
-        else {envelope.arcadeRun=state;envelope.arcadeRunSavedAt=now}
-        if preparedArcadeEntry {envelope.pendingArcadeRound=nil}
+        envelope.recordPlayableRun(state,now:now)
         envelope.savedAt=now
         do {
             try store.save(envelope)
@@ -975,9 +974,7 @@ final class NativeBootstrap {
             guard engine.state.generation==state.generation,!engine.hasUnsavableSourceGameplayState else{return}
         }
         let now = Date().timeIntervalSince1970
-        if state.mode == .journey {
-            envelope.journeyRuns[state.board] = state; envelope.journeyRunSavedAt[state.board] = now
-        } else { envelope.arcadeRun = state; envelope.arcadeRunSavedAt = now }
+        envelope.recordPlayableRun(state,now:now)
     }
     private func installTutorial(_ gameplay:NativeGameplayViewController) {
         tutorialOwner?.dispose();tutorialOwner=nil
@@ -1393,7 +1390,7 @@ final class NativeBootstrap {
             return
         }
         var state = fresh(mode: .arcade, board: pending.round, generation: gameplay.engine.state.generation + 1)
-        state.score = pending.score; state.wildMeter = envelope.activeArcadeVariant == .pureDice ? 0 : envelope.activeArcadeVariant == .slowBurn ? (pending.meterProgress ?? 0.25) : 0.25
+        state.score = pending.score; state.wildMeter = envelope.activeArcadeVariant == .pureDice ? 0 : (pending.meterProgress ?? 0.25)
         gameplay.engine.restart(state: state); attemptCommitted = false
         audio?.beginGeneration(gameplay.engine.state.generation)
         arcadeMusic?.enterRound(generation:gameplay.engine.state.generation)
@@ -1638,10 +1635,11 @@ final class NativeBootstrap {
             switch action {
             case .show: next.progression.completedJourneyBoards.insert(board)
             case .hide:
-                if next.progression.isPlayable(board: board) {
-                    next.progression.completedJourneyBoards.remove(board); next.progression.viewedJourneyBoards.remove(board)
-                    next.progression.boardStats.removeValue(forKey: board)
-                }
+                next.progression.completedJourneyBoards.remove(board); next.progression.viewedJourneyBoards.remove(board)
+                next.progression.boardStats.removeValue(forKey: board)
+                if next.progression.lastOpenedJourneyBoard == board {next.progression.lastOpenedJourneyBoard=nil}
+                if board == 3 {next.progression.unlockedSpecialDice.remove("flower")}
+                if board == 12 {next.progression.unlockedSpecialDice.remove("juice")}
             case .reset:
                 next.progression.boardStats.removeValue(forKey: board); next.journeyRuns.removeValue(forKey: board)
                 next.journeyRunSavedAt.removeValue(forKey: board)
@@ -1652,6 +1650,9 @@ final class NativeBootstrap {
             next.arcadeRun = nil; next.pendingArcadeRound = nil; next.arcadeRunSavedAt = nil; next.progression.resetArcadeStats(for:next.activeArcadeVariant)
         }
         next.progression.highestUnlockedJourneyBoard = max(1,next.progression.completedJourneyBoards.max() ?? 1)
+        if action == .hide,values.compactMap(Int.init).contains(where:{(1...10).contains($0)}) {
+            next.progression.reconcileDeveloperWildStarUnlock()
+        }
         next.savedAt = Date().timeIntervalSince1970
         try store.save(next); envelope = next
     }

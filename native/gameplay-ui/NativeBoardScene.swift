@@ -9152,9 +9152,11 @@ final class NativeBoardScene: SKScene {
                 // Original CC mutation already happened in Core. Do NOT route
                 // through Raw consume/redraw/save/resolver per arriving star.
                 guard self.sourceHUDStarFeedback?.scoreChanged()==true else{self.onPresentationFailure?("source_hud_star_feedback_frame_unbound");return}
-            },onRetired:{ _ in
-                guard current() else{return} // no Source save/redraw is scheduled by job cleanup itself.
-            })),current(),sourceHUDStarOwner==nil else{scales.dispose();scaleClock.dispose();return false}
+                self.releaseFinalDirectIfReady();self.publishPendingTerminal()
+            },onRetired:{ [weak self] _ in
+                guard let self,current() else{return}
+                self.releaseFinalDirectIfReady();self.publishPendingTerminal()
+            }),coinAnimations:prepared.coinAnimations),current(),sourceHUDStarOwner==nil else{scales.dispose();scaleClock.dispose();return false}
         let feedback=NativeSourceHUDStarFeedback(current:current,schedule:{callback in
             guard current(),let frame=scope.service.requestSourceAnimationFrame(ownerID:"source-hud-star-feedback",generation:generation,callback:callback) else{return nil}
             return{frame.cancel()}
@@ -9218,7 +9220,7 @@ final class NativeBoardScene: SKScene {
         let plans = NativeHUDStarMotion.batch(origins: origins,target: target)
         for (receipt,plan) in zip(receipts,plans) {
             hudStarIDs.insert(receipt.id)
-            let star = SKSpriteNode(texture: textures.texture("assets/small-star.png"))
+            let star = SKSpriteNode(texture: textures.texture("assets/hud/coin-hud.png"))
             star.size = CGSize(width: plan.size,height: plan.size)
             let origin = plan.points[0]; star.position = CGPoint(x: origin.x,y: size.height-origin.y)
             hudStarFlights.addChild(star);hudStarNodes[receipt.id]=star

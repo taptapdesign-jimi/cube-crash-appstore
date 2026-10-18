@@ -16,13 +16,13 @@ enum JimiNativeModalV10 {
     static var backdropColor:UIColor {UIColor(red:220/255,green:183/255,blue:163/255,alpha:0.5)}
 
     /// Authored Exit Game idle, shared by Backpack paper planes.
-    static func startIdle(on target:UIView,key:String) {
+    static func startIdle(on target:UIView,key:String,drift:CGFloat=0,amplitude:CGFloat=1,duration:Double=6.8,depth:Bool=true) {
         guard !UIAccessibility.isReduceMotionEnabled,target.layer.animation(forKey:key)==nil else{return}
         func pose(_ y:CGFloat,_ z:CGFloat,_ scale:CGFloat)->NSValue {
-            NSValue(caTransform3D:CATransform3DScale(CATransform3DMakeTranslation(0,y,z),scale,scale,scale))
+            NSValue(caTransform3D:CATransform3DScale(CATransform3DMakeTranslation(drift*y/4,y*amplitude,depth ? z:0),scale,scale,depth ? scale:1))
         }
         let animation=CAKeyframeAnimation(keyPath:"transform")
-        animation.duration=6.8;animation.repeatCount = .infinity
+        animation.duration=duration;animation.repeatCount = .infinity
         animation.keyTimes=[0,0.18,0.38,0.58,0.76,0.84,0.89,0.94,1]
         animation.values=[pose(0,0,1),pose(-3,3,1.003),pose(0,0,1),pose(-3.75,4,1.004),pose(0,0,1),pose(-4,8,1.015),pose(1,0,0.995),pose(-1,3,1.006),pose(0,0,1)]
         target.layer.add(animation,forKey:key)

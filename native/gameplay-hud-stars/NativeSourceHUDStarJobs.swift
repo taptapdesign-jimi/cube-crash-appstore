@@ -29,13 +29,14 @@ import Foundation
         init(id:UUID,ids:[String]){self.id=id;self.ids=ids}
     }
     private let hooks:Hooks
+    private let readableCoins:Bool
     private var jobs:[UUID:Job]=[:],order:[UUID]=[]
     private var cadence:Cancel?,emptyWall:Cancel?
     private(set) var containerMounted=false
     private(set) var disposed=false
     var jobCount:Int{jobs.count}
     var liveStarIDs:[String]{order.compactMap{jobs[$0]}.flatMap{$0.flights.filter(\.alive).map(\.id)}}
-    init(hooks:Hooks){self.hooks=hooks}
+    init(hooks:Hooks,readableCoins:Bool=false){self.hooks=hooks;self.readableCoins=readableCoins}
     private func current(_ job:Job)->Bool {
         guard !disposed,jobs[job.id] === job,!job.retired else{return false}
         let valid=hooks.current()
@@ -61,10 +62,11 @@ import Foundation
             cadence=release
         }
         let sizes=NativeSourceHUDStarPlan.sizeOrder(random:random);guard current(job) else{retire(job);return false}
-        var previous=0.0,maxEnd=0.0
+        var previous=0.0,previousCoinEnd=0.0,maxEnd=0.0
         for (ordinal,id) in ids.enumerated() {
             guard current(job) else{retire(job);return false}
-            let plan=NativeSourceHUDStarPlan.construct(ordinal:ordinal,sizes:sizes,origin:origin,target:target,textureWidth:textureWidth,previousArrival:&previous,random:random)
+            let sourcePlan=NativeSourceHUDStarPlan.construct(ordinal:ordinal,sizes:sizes,origin:origin,target:target,textureWidth:textureWidth,previousArrival:&previous,random:random)
+            let plan=readableCoins ? sourcePlan.readableCoin(ordinal:ordinal,previousEnd:&previousCoinEnd):sourcePlan
             guard current(job) else{retire(job);return false}
             let flight=Flight(id:id,plan:plan);job.flights.append(flight);maxEnd=max(maxEnd,plan.end)
             guard hooks.mountStar(id,plan),current(job),flight.alive else{retire(job);return false}

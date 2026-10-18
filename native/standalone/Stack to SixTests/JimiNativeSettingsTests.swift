@@ -93,6 +93,27 @@ final class JimiNativeSettingsTests: XCTestCase {
         XCTAssertEqual(releases,1); XCTAssertNil(content.parent)
     }
 
+    func testDeveloperHideAllRevokesEveryWorldBackpackUnlockDurably() throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer {try? FileManager.default.removeItem(at:directory)}
+        let store=NativeSaveStore(directory:directory)
+        var profile=NativeSaveEnvelope()
+        profile.progression.completedJourneyBoards=Set(1...30)
+        profile.progression.beginAttempt(mode:.journey,board:1)
+        profile.progression.beginAttempt(mode:.journey,board:24)
+        profile.progression.highestUnlockedJourneyBoard=30
+        profile.progression.unlockedSpecialDice=["flower","juice"]
+        try store.save(profile)
+        let owner=try NativeBootstrap(root:root,store:store,showStudioIntro:false)
+        defer {owner.dispose()}
+        try owner.applyDeveloperProgress(.hide,values:Set((1...30).map(String.init)))
+        let saved=try XCTUnwrap(store.load())
+        XCTAssertEqual(NativeBackpackCatalog.sections(saved.progression).map(\.count),[0,0,0])
+        XCTAssertFalse(saved.progression.hasUnlockedWildStar)
+        XCTAssertNil(saved.progression.lastOpenedJourneyBoard)
+        XCTAssertEqual((1...3).compactMap{saved.progression.interimBoard(world:$0)},[1,11,21])
+    }
+
     func testDeveloperProgressCommitsOnlySelectedStagesAndExplicitArcadeReset() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("native-dev-test-\(UUID().uuidString)")
         let store = NativeSaveStore(directory: directory)

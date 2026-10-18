@@ -1,0 +1,43 @@
+{
+  "cell": 128,
+  "columns": 10,
+  "fps": 60,
+  "variants": [
+    {
+      "name": "coin-upright-0",
+      "frames": 30,
+      "duration": 0.5,
+      "sourceSHA256": "2813cfdc3a9c534d13712e53cf58584f46c9bdb18cca6060edf459e0efb4df27"
+    },
+    {
+      "name": "coin-left-35",
+      "frames": 30,
+      "duration": 0.5,
+      "sourceSHA256": "c58fb9916c1d2f5902f88eba25a03f5d20da77f80366cab9cb875c8c4bd3db6f"
+    },
+    {
+      "name": "coin-right-35",
+      "frames": 30,
+      "duration": 0.5,
+      "sourceSHA256": "60b8b8dd87b0298d1ca0d65840cf078f93d9ba809056c7fadd592954ee69438f"
+    },
+    {
+      "name": "coin-back-forth-diagonal-15",
+      "frames": 120,
+      "duration": 2,
+      "sourceSHA256": "f286016fde2b932f43dd76e5b5b11ce0f23c4412465ba84fb8b054be61066992"
+    },
+    {
+      "name": "coin-back-forth-left-50",
+      "frames": 120,
+      "duration": 2,
+      "sourceSHA256": "feb0a49304904cf65a82503dae5ea444591a718a5695cf8fcad95eda3907705d"
+    },
+    {
+      "name": "coin-back-forth-right-50",
+      "frames": 120,
+      "duration": 2,
+      "sourceSHA256": "a00b432254992967781ceb1ab0d6120c324c792479a080f97db3acc84083d180"
+    }
+  ]
+}

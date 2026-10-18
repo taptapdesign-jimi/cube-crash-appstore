@@ -35,6 +35,7 @@ final class NativeArcadeVariantPersistenceTests: XCTestCase {
         for (index, variant) in NativeArcadeVariant.allCases.enumerated() {
             envelope.activeArcadeVariant = variant
             envelope.arcadeRun = NativeBoardFactory.make(mode: .arcade, board: index + 1, arcadeVariant: variant)
+            envelope.arcadeRun?.moves = 49
             envelope.pendingArcadeRound = .init(round: index + 2, score: index * 100, meterProgress: Double(index))
             envelope.arcadeRunSavedAt = 1000
             envelope.progression.finishAttempt(mode: .arcade, board: index + 1, score: (index + 1) * 100, longestCombo: 2, cubesCracked: 4, clean: true, arcadeVariant: variant, now: 1000)

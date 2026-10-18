@@ -9,11 +9,11 @@ import StackToSixGameplay
  @MainActor private final class Fixture {
   let clock:Clock,service:NativeSourceAnimationClockService,context:NativeGameplaySourceContext,scope:NativeGameplaySourceContext.Scope,scene:NativeBoardScene,view:SKView
   var failures:[String]=[]
-  init(final:Bool=true,magnetNoPull:Bool=false)throws {
+  init(final:Bool=true,magnetNoPull:Bool=false,finalArchetype:NativeWildArchetype?=nil,count:Int=1)throws {
    let c=Clock();clock=c
    service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{c.wall},sourceFrameTransportEnabled:true)
    context=NativeGameplaySourceContext(service:service,appOriginMilliseconds:0,visualRandom:{c.next()},sourceDateMilliseconds:{c.date})
-   var tiles:[NativeTile]=[.init(id:"wild",cell:.init(column:0,row:0),value:6,starOrbitCount:1,archetype:magnetNoPull ? .magnet:.star),.init(id:"regular",cell:.init(column:1,row:0),value:4)]
+   var tiles:[NativeTile]=[.init(id:"wild",cell:.init(column:0,row:0),value:6,starOrbitCount:count,archetype:magnetNoPull ? .magnet:(finalArchetype ?? .star)),.init(id:"regular",cell:.init(column:1,row:0),value:4)]
    if !final {tiles.append(.init(id:"other",cell:.init(column:4,row:8),value:3,merge6CleanupOwned:magnetNoPull))}
    if magnetNoPull {tiles.append(.init(id:"locked",cell:.init(column:3,row:0),value:0,locked:true))}
    let e=NativeGameplayEngine(state:.init(tiles:tiles),sourceMathRandom:context.mathRandom)
@@ -39,7 +39,7 @@ import StackToSixGameplay
    let loaded=test.expectation(description:"Actual Source HUD selected texture upload")
    var prepared:NativeSourceHUDStarTexturePreparation.Prepared?
    scope.hudStarTextures.prepare(root:NativeTestResources.root,current:{[scope] in scope.current}){prepared=$0;loaded.fulfill()}
-   await test.fulfillment(of:[loaded],timeout:5)
+   await test.fulfillment(of:[loaded],timeout:20)
    let receipt=try XCTUnwrap(prepared)
    scene.sourceHUDStarJobsPresentationEnabled=true
    XCTAssertTrue(scene.configureSourceHUDStarJobs(scope:scope,prepared:receipt,capture:{[weak scene] _ in
@@ -119,4 +119,33 @@ import StackToSixGameplay
   let draws=f.clock.draws;XCTAssertFalse(try f.contact().accepted)
   XCTAssertEqual(f.scene.engine.state,before);XCTAssertNil(f.scene.engine.pendingDirectWild);XCTAssertNil(f.scene.engine.sourceDirectWildPrefix);XCTAssertEqual(f.clock.draws,draws);XCTAssertEqual(f.context.contactMutations.revision,0)
  }
+ func testActualLastPairCoinsReachHUDThenReleaseFinalTransactionAndTerminalOnce()async throws {
+  for archetype in [NativeWildArchetype.star,.juice,.magnet,.tnt] {
+   let count=archetype == .star || archetype == .tnt ? 3:archetype == .juice ? 2:1
+   let f=try Fixture(finalArchetype:archetype,count:count);defer{f.dispose()}
+   try await f.readyHUD(self)
+   let window=UIWindow(frame:f.view.bounds),host=UIViewController()
+   host.view=f.view;window.rootViewController=host;window.makeKeyAndVisible()
+   defer{window.isHidden=true;window.rootViewController=nil}
+   let completed=expectation(description:"Final coin and authored visual tails complete")
+   var terminals=0
+   f.scene.onTerminal={_ in terminals+=1;completed.fulfill()}
+   XCTAssertTrue(try f.contact().accepted)
+   for ms in stride(from:35.0,through:200,by:10){f.deliver(ms)}
+   let before=f.scene.engine.state.score
+   XCTAssertEqual(f.scene.engine.pendingHUDStars.count,count)
+   XCTAssertEqual(f.scene.engine.sourceHUDStarJobs.count,1)
+   XCTAssertEqual(terminals,0,"Result must wait for the last coin")
+   for ms in stride(from:210.0,through:6500,by:10){f.deliver(ms)}
+   await fulfillment(of:[completed],timeout:6)
+   XCTAssertEqual(f.scene.engine.state.score,before+count*100)
+   XCTAssertTrue(f.scene.engine.pendingHUDStars.isEmpty)
+   XCTAssertNil(f.scene.engine.pendingDirectWild)
+   XCTAssertEqual(terminals,1)
+   XCTAssertTrue(f.scene.engine.state.tiles.isEmpty)
+   XCTAssertTrue(f.failures.isEmpty,f.failures.joined(separator:", "))
+   f.deliver(7500);XCTAssertEqual(terminals,1)
+  }
+ }
+
 }

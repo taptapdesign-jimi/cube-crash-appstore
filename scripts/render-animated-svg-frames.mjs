@@ -171,6 +171,7 @@ try {
   console.log(JSON.stringify({ inputPath, outputDirectory, width, height, fps, durationSeconds, frameCount }));
 } finally {
   try { socket?.close(); } catch {}
-  chrome.kill('SIGTERM');
-  await rm(workDirectory, { recursive: true, force: true });
+  const stopped = new Promise((resolve) => chrome.once('exit', resolve));
+  if (chrome.exitCode === null && chrome.signalCode === null) { chrome.kill('SIGTERM'); await stopped; }
+  await rm(workDirectory, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 }

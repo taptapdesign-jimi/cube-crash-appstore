@@ -194,8 +194,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         // transparent image envelopes may interleave vertically.
         let arcadeGap = (arcadeBottom-arcadeTop-buttonWidth*ratios.reduce(0,+))/2
         let flagWidth = min(width*0.385,150)
-        content.frame = CGRect(x:0,y:0,width:width,height:arcade ? bounds.height : max(bounds.height,hubHeight))
-        scrollView.contentSize = content.bounds.size
+        var contentHeight = arcade ? bounds.height : max(bounds.height,hubHeight)
         var arcadeY = arcadeTop
         let flagHeight = flagWidth*49/105
         for (index, unit) in worldUnits.enumerated() {
@@ -206,6 +205,11 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             let originalX: CGFloat = id == 3 ? width+8-buttonWidth : (id == 1 ? -2 : -6)
             let x: CGFloat = id == 3 ? width-16-buttonWidth : 16
             let rect = CGRect(x: x, y: top+y, width: buttonWidth, height: buttonHeight)
+            if arcade,index == worldUnits.count-1 {
+                // Scroll extent belongs to authored layout, never the animated
+                // Unit frame (the exit model is already collapsed to zero).
+                contentHeight = max(bounds.height,rect.maxY+20+safeAreaInsets.bottom)
+            }
             unit.bounds = CGRect(origin: .zero, size: rect.size)
             // Route exit uses a54% vertical pivot. Relayout must preserve the
             // same untransformed rectangle, not recenter that shifted anchor
@@ -249,10 +253,10 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             }
             visualBounds[id] = overflow.insetBy(dx: -12, dy: -12)
         }
-        if arcade,let last=worldUnits.last {
-            content.frame.size.height = max(bounds.height,last.frame.maxY+20+safeAreaInsets.bottom)
-            scrollView.contentSize = content.bounds.size
-        }
+        // Publish only the final extent. A temporary viewport-height content
+        // size would clamp a bottom-scrolled Hub before its exit even starts.
+        content.frame = CGRect(x:0,y:0,width:width,height:contentHeight)
+        scrollView.contentSize = content.bounds.size
         let headerTop=row.top
         // Header is a route-motion target with a top-center animation pivot.
         // frame is undefined under its collapsed model transform; retain the

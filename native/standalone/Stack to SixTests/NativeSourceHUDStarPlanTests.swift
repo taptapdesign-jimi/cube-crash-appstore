@@ -36,4 +36,18 @@ nonisolated final class NativeSourceHUDStarPlanTests:XCTestCase {
         }
         XCTAssertGreaterThan(comparisons,10000)
     }
+    func testReadableCoinsKeepCapturedGeometryAndIncreaseDurationSizeAndSpacing() {
+        var previous=0.0,previousCoinEnd=0.0
+        for ordinal in 0..<3 {
+            let original=NativeSourceHUDStarPlan.construct(ordinal:ordinal,sizes:[56,42,30],origin:.init(x:195,y:430),target:.init(x:37,y:76),textureWidth:28,previousArrival:&previous,random:{0.5})
+            let priorEnd=previousCoinEnd
+            let coin=original.readableCoin(ordinal:ordinal,previousEnd:&previousCoinEnd)
+            XCTAssertEqual(coin.points,original.points);XCTAssertEqual(coin.rotation,original.rotation)
+            XCTAssertEqual(coin.size,original.size*1.2,accuracy:1e-10)
+            XCTAssertGreaterThanOrEqual(coin.duration,original.duration*1.25)
+            XCTAssertEqual(coin.delay-original.delay,Double(ordinal)*0.12,accuracy:1e-10)
+            if ordinal>0 {XCTAssertGreaterThanOrEqual(coin.end-priorEnd,0.24-1e-10)}
+        }
+    }
+
 }

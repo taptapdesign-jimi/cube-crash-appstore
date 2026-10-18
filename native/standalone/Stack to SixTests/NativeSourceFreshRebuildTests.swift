@@ -7,9 +7,9 @@ import StackToSixNativeState
 
 @MainActor final class NativeSourceFreshRebuildTests:XCTestCase {
     private var observeTransitionPaint:(()->Void)?
-    private func wait(_ predicate:()->Bool)async throws {
+    private func wait(file:StaticString = #filePath,line:UInt = #line,_ predicate:()->Bool)async throws {
         let deadline=Date().addingTimeInterval(35)
-        while !predicate(){observeTransitionPaint?();guard Date()<deadline else{XCTFail("Actual fresh rebuild boundary timed out");throw CancellationError()};try await Task.sleep(for:.milliseconds(20))}
+        while !predicate(){observeTransitionPaint?();guard Date()<deadline else{XCTFail("Actual fresh rebuild boundary timed out",file:file,line:line);throw CancellationError()};try await Task.sleep(for:.milliseconds(20))}
     }
     private func button(_ root:UIView,id:String)->UIButton? {
         if let value=root as? UIButton,value.accessibilityIdentifier==id{return value}
@@ -203,7 +203,7 @@ import StackToSixNativeState
         let tiles=(0..<30).map { index in
             NativeTile(id:"sustained-\(index)",cell:.init(column:index%5,row:index/5),value:1+index%5)
         }
-        seed.arcadeRun = .init(tiles:tiles,mode:.arcade,board:3,stage:3,generation:9,moves:90,score:123)
+        seed.arcadeRun = .init(tiles:tiles,mode:.arcade,board:3,stage:3,generation:9,moves:90,maxMoves:100,score:123)
         seed.arcadeRun?.wildMeter=0.95
         seed.arcadeRunSavedAt=Date().timeIntervalSince1970
         try store.save(seed)
@@ -296,6 +296,74 @@ import StackToSixNativeState
     func testActualArcadeRoundOneToTwoKeepsUpperAndLowerHUDVisibleThroughoutCueAndEntry()async throws {
         try await exerciseContinuation(board:nil,arcadeRound:1,verifyChrome:true)
     }
+    func testJourneyPlayRequiresFirstCommittedMoveForContinue()async throws {
+        try await exerciseFirstMovePersistence(board:11,variant:.endurance)
+    }
+    func testAllArcadeVariantsRequireFirstCommittedMoveForContinue()async throws {
+        for variant in NativeArcadeVariant.allCases {try await exerciseFirstMovePersistence(board:nil,variant:variant)}
+    }
+    func testActualExitWithoutMoveKeepsJourneyAndArcadeAsPlay()async throws {
+        try await exerciseFirstMovePersistence(board:11,variant:.endurance,exitWithoutMove:true)
+        try await exerciseFirstMovePersistence(board:nil,variant:.endurance,exitWithoutMove:true)
+    }
+    private func exerciseFirstMovePersistence(board:Int?,variant:NativeArcadeVariant,exitWithoutMove:Bool=false)async throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-first-move-"+UUID().uuidString)
+        let store=NativeSaveStore(directory:directory)
+        var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
+        seed.progression.firstPlayTutorialComplete=true;seed.progression.completedJourneyBoards=Set(1...30)
+        seed.activeArcadeVariant=variant
+        try store.save(seed)
+        let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:{0.1},completeNativeGameplayEnabled:true)
+        let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
+        defer{host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
+        host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
+        try await wait{!app.home.isHidden}
+        if let board {
+            app.navigate(.world(2),interrupt:true)
+            try await wait{if app.children.contains(where:{$0 is NativeGameplayViewController}){return true};app.world?.onRequest?("play",board);return false}
+        } else {app.navigate(.gameplay,interrupt:true)}
+        try await wait{app.children.compactMap{$0 as? NativeGameplayViewController}.first?.boardScene?.completedSourceBoardEntry != nil}
+        let game=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first)
+        let scene=try XCTUnwrap(game.boardScene),number=board ?? 1
+        try await wait{game.beforeSourceGameplayAdmission==nil && !game.engine.hasUnsavableSourceGameplayState}
+        func lifecycleSave(){
+            NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+            NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+        }
+        lifecycleSave()
+        let untouched=try XCTUnwrap(store.load())
+        XCTAssertNil(board==nil ? untouched.arcadeRun:untouched.journeyRuns[number])
+        XCTAssertNil(untouched.resumedRun(mode:board==nil ? .arcade:.journey,board:number))
+        if exitWithoutMove {
+            game.onExit?()
+            try await wait{game.presentedViewController is JimiNativeEndRunModal}
+            let modal=try XCTUnwrap(game.presentedViewController as? JimiNativeEndRunModal)
+            let exit=try XCTUnwrap(button(modal.view,id:"native.end-run.exit"))
+            try await wait{modal.view.isUserInteractionEnabled && exit.isUserInteractionEnabled}
+            exit.sendActions(for:.touchUpInside)
+            try await wait{game.parent==nil}
+            let exited=try XCTUnwrap(store.load())
+            XCTAssertNil(board==nil ? exited.arcadeRun:exited.journeyRuns[number])
+            XCTAssertNil(exited.resumedRun(mode:board==nil ? .arcade:.journey,board:number))
+            return
+        }
+        let candidates=game.engine.state.tiles.filter{!$0.locked && !$0.isWild && $0.value>0}
+        let pair=try XCTUnwrap(candidates.enumerated().flatMap{i,a in candidates.dropFirst(i+1).filter{a.value+$0.value<6}.map{(a,$0)}}.first)
+        let geometry=try XCTUnwrap(scene.boardGeometry)
+        let from=geometry.center(row:pair.0.cell.row,column:pair.0.cell.column),to=geometry.center(row:pair.1.cell.row,column:pair.1.cell.column)
+        // Pickup and snap-back cannot admit Continue.
+        XCTAssertTrue(scene.beginDrag(at:from));_ = scene.finishDrag(at:from,now:CACurrentMediaTime())
+        try await Task.sleep(for:.milliseconds(600));lifecycleSave()
+        XCTAssertNil(try store.load()?.resumedRun(mode:board==nil ? .arcade:.journey,board:number))
+        XCTAssertTrue(scene.beginDrag(at:from));scene.moveDrag(to:to,now:CACurrentMediaTime())
+        XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:to,now:CACurrentMediaTime())).accepted)
+        try await wait{game.engine.state.moves==49 && game.engine.pendingOrdinaryStack==nil && !game.engine.hasUnsavableSourceGameplayState}
+        lifecycleSave()
+        try await wait{(try? store.load()?.resumedRun(mode:board==nil ? .arcade:.journey,board:number)) != nil}
+        let restored=try XCTUnwrap(store.load()?.resumedRun(mode:board==nil ? .arcade:.journey,board:number))
+        XCTAssertEqual(restored.moves,49);XCTAssertEqual(restored.tiles,game.engine.state.tiles)
+    }
     private func exerciseContinuation(board:Int?,arcadeRound:Int=3,verifyChrome:Bool=false)async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-fresh-continue-"+UUID().uuidString)
         let store=NativeSaveStore(directory:directory),number=board ?? arcadeRound
@@ -352,7 +420,9 @@ import StackToSixNativeState
             try await wait{(try? store.load()?.progression.completedJourneyBoards.contains(reward.board)) == true}
             // The real card input performs reveal and queued collection, using
             // its resource and animation owners rather than a result callback.
-            reward.activate();reward.activate()
+            reward.activate()
+            try await wait{reward.phase == "unlocked"}
+            reward.activate()
         }
         try await wait{old.presentedViewController is NativeResultController}
         let result=try XCTUnwrap(old.presentedViewController as? NativeResultController)
@@ -373,7 +443,10 @@ import StackToSixNativeState
         }
         try await wait{app.children.compactMap{$0 as? NativeGameplayViewController}.first.map{$0 !== old}==true}
         let fresh=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first)
-        if board != nil {XCTAssertFalse(containsAnnouncement(fresh),"Clean Play Again must enter dice/HUD directly")}
+        if board != nil {
+            try await wait{fresh.children.contains{$0 is NativeThemedBoardTransitionController}}
+            XCTAssertNil(fresh.boardScene?.completedSourceBoardEntry,"Continue must show the transition before revealing the next board")
+        }
         XCTAssertTrue(try XCTUnwrap(fresh.sourceInitialConstruction).borrowedPreparedFoundation)
         XCTAssertEqual(fresh.engine.state.generation,oldGeneration+1)
         XCTAssertEqual(fresh.engine.state.board,number+1);XCTAssertEqual(fresh.engine.state.score,carriedScore)
@@ -394,21 +467,26 @@ import StackToSixNativeState
             NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
             NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
         }
-        try await wait{(try? store.load()).map{board==nil ? $0.arcadeRun?.board==number+1:$0.journeyRuns[number+1]?.board==number+1}==true}
         let durable=try XCTUnwrap(store.load())
-        XCTAssertNil(durable.pendingArcadeRound);XCTAssertEqual(app.route,.gameplay)
-        let run=try XCTUnwrap(board==nil ? durable.arcadeRun:durable.journeyRuns[number+1])
-        XCTAssertEqual(run.board,number+1);XCTAssertEqual(run.score,carriedScore)
-        XCTAssertEqual(run.generation,fresh.engine.state.generation)
-        XCTAssertTrue(run.validationIssues().isEmpty)
-        if board != nil {XCTAssertTrue(durable.progression.completedJourneyBoards.contains(number))}
+        XCTAssertEqual(app.route,.gameplay)
+        XCTAssertNil(durable.resumedRun(mode:saved.mode,board:number+1))
+        if board != nil {
+            XCTAssertNil(durable.journeyRuns[number+1])
+            XCTAssertTrue(durable.progression.completedJourneyBoards.contains(number))
+        } else {
+            XCTAssertNil(durable.arcadeRun)
+            XCTAssertEqual(durable.pendingArcadeRound?.round,number+1)
+            XCTAssertEqual(durable.pendingArcadeRound?.score,carriedScore)
+        }
     }
+
     private func exerciseRestart(board:Int?,disposeAtPreparation:Bool=false,warmupOnly:Bool=false,pauseWarmup:Bool=false,backgroundWarmup:Bool=false)async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-fresh-rebuild-"+UUID().uuidString)
         let store=NativeSaveStore(directory:directory)
         var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
         seed.progression.firstPlayTutorialComplete=true;seed.progression.completedJourneyBoards=Set(1..<21)
-        let saved=NativeBoardFactory.make(mode:board==nil ? .arcade:.journey,board:board ?? 4,generation:9,seed:17)
+        var saved=NativeBoardFactory.make(mode:board==nil ? .arcade:.journey,board:board ?? 4,generation:9,seed:17)
+        saved.moves=49
         if let board {seed.journeyRuns[board]=saved;seed.journeyRunSavedAt[board]=Date().timeIntervalSince1970}
         else if !warmupOnly {seed.arcadeRun=saved;seed.arcadeRunSavedAt=Date().timeIntervalSince1970}
         try store.save(seed)
@@ -511,6 +589,7 @@ import StackToSixNativeState
         XCTAssertEqual(app.route,.gameplay);XCTAssertTrue(app.children.contains{$0 === fresh})
         let durable=try XCTUnwrap(store.load())
         XCTAssertTrue(durable.progression.firstPlayTutorialComplete)
-        if let board {XCTAssertEqual(durable.journeyRuns[board]?.board,board)}
+        if let board {XCTAssertNil(durable.journeyRuns[board])}
+        else {XCTAssertNil(durable.arcadeRun)}
     }
 }

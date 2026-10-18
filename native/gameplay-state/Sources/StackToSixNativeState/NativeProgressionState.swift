@@ -71,6 +71,11 @@ public struct NativeProgressionState: Codable, Equatable, Sendable {
         lastOpenedJourneyBoard.map{(1...10).contains($0)} == true ||
         (2...10).contains(highestUnlockedJourneyBoard)
     }
+    /// DEV card removal revokes the latch too; normal progression never does.
+    public mutating func reconcileDeveloperWildStarUnlock() {
+        wildStarUnlocked = false
+        wildStarUnlocked = hasUnlockedWildStar
+    }
     public func interimBoard(world: Int) -> Int? {
         guard (1...3).contains(world) else { return nil }
         let range = ((world - 1) * 10 + 1)...(world * 10)

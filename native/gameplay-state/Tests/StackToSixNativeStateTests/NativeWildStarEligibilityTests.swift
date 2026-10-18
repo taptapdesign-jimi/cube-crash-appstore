@@ -61,7 +61,7 @@ final class NativeWildStarEligibilityTests:XCTestCase {
     func testExistingPlainStarsInOtherWorldSavesRemainUsableWithoutSchemaMigration() throws {
         for board in [11,21] {
             let tile=NativeTile(id:"existing-star",cell:.init(column:0,row:0),value:6,starOrbitCount:3,archetype:.star)
-            let run=NativeBoardState(tiles:[tile],mode:.journey,board:board,rngState:123)
+            let run=NativeBoardState(tiles:[tile],mode:.journey,board:board,moves:49,rngState:123)
             var envelope=NativeSaveEnvelope(journeyRuns:[board:run]);envelope.savedAt=1000
             let loaded=try JSONDecoder().decode(NativeSaveEnvelope.self,from:JSONEncoder().encode(envelope))
             try loaded.validate()

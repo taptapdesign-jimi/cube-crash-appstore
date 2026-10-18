@@ -896,7 +896,7 @@ public final class NativeGameplayEngine {
         let initialRandomChoices = randomChoices
         let initialComboTime = comboLastMutationTime
         let initialComboWindow = comboWindow
-        let hudStars = captureHUDStars(source:source,destination:destination,starOrbitCapture:committingDirectWild ? pendingDirectWild?.sourceStarOrbitCapture:nil)
+        let hudStars = captureHUDStars(source:source,destination:destination,starOrbitCapture:committingDirectWild ? pendingDirectWild?.sourceStarOrbitCapture:nil,finalMerge:final.isFinalMerge)
         expireCombo(now: now)
         let oldCombo = state.combo
         let isMagnet = source.gameplayArchetype == .magnet || destination.gameplayArchetype == .magnet
@@ -2043,17 +2043,26 @@ public final class NativeGameplayEngine {
         return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.spawned,tileIDs:[tile.id],value:value,reason:"tutorial_final_chance")],resolution:resolve())
     }
 
-    private func captureHUDStars(source: NativeTile, destination: NativeTile,starOrbitCapture:NativeSourceStarOrbitCapture?=nil) -> [NativeHUDStarReceipt] {
-        guard let wild = [source,destination].first(where: { $0.isWild }) else { return [] }
+    private func captureHUDStars(source: NativeTile, destination: NativeTile,starOrbitCapture:NativeSourceStarOrbitCapture?=nil,finalMerge:Bool=false) -> [NativeHUDStarReceipt] {
+        guard let wild = [source,destination].first(where: { $0.isWild }) else {
+            return finalMerge ? prepareHUDStars(count:1,origin:destination.cell,variant:nil):[]
+        }
         let count: Int
-        // Source reads the saved core special, preserving legacy BeachBall Juice provenance.
-        if wild.archetype == .star {
+        // Final TNT gameplay, including legacy variant provenance, earns three
+        // HUD coins without entering the nonfinal target/respawn graph.
+        if finalMerge && NativeSpecialDiceRegistry.finale(source:source,destination:destination,gameplay:true) == .tnt {
+            if wild.archetype == .juice {_ = nextRandom()} // retain legacy reward-selection draw
+            count=3
+        }
+        // Nonfinal Source keeps its saved core-special reward provenance.
+        else if wild.archetype == .star {
             if wild.variant==nil,let capture=starOrbitCapture,capture.tileID==wild.id,capture.generation==state.generation {
-                count=max(0,min(3,capture.savedPositions))
+                count=finalMerge ? wild.effectiveStarDropCount:max(0,min(3,capture.savedPositions))
                 if count==0 {return []} // Original missing texture poses skips HUD call.
             } else {count = wild.effectiveStarDropCount}
         }
         else if wild.archetype == .juice { count = 1+Int(nextRandom()*3) }
+        else if finalMerge {count=1}
         else { return [] }
         return prepareHUDStars(count:count,origin:destination.cell,variant:wild.variant)
     }

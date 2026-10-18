@@ -116,6 +116,8 @@ final class NativeArcadeWorldModal: UIView {
     private let play = JimiV9PlainButton(type:.custom), assets: JimiV9Artwork
     private let modeIndex: Int
     private let idle = UIView(), tilt = UIView()
+    private let cloudStage=UIView()
+    private var clouds:[UIImageView]=[]
     private(set) var modalDrag:JimiNativeModalDrag?
     private var foreground = true, entered = false
     private var closing = false, disposed = false
@@ -151,8 +153,8 @@ final class NativeArcadeWorldModal: UIView {
             "Get one lucky Special die\nto help you per round.",
             "Special dice take longer to drop onto your board."
         ][index],font:assets.font(size:19,weight:"Medium"))
-        art.image = assets.image(["assets/arcade/endourance.png","assets/arcade/pure dice.png","assets/arcade/slow burn.png"][index],densityAware:true)
-        art.contentMode = .scaleAspectFit
+        art.image = assets.image(["assets/arcade/endourance2.png","assets/arcade/pure dice2.png","assets/arcade/slow burn2.png"][index],densityAware:true)
+        art.contentMode = .scaleAspectFit;art.layer.zPosition=1
         play.setTitle(continuing ? "Continue":"Play",for:.normal); play.applyModalCTA(artwork:assets)
         play.addTarget(self,action:#selector(pressPlay),for:[.touchDown,.touchDragEnter])
         play.addTarget(self,action:#selector(releasePlay),for:[.touchUpOutside,.touchDragExit,.touchCancel])
@@ -163,6 +165,15 @@ final class NativeArcadeWorldModal: UIView {
         close.imageView?.contentMode = .scaleAspectFit; close.artworkOpacity = 0.8; close.imageEdgeInsets = UIEdgeInsets(top:14,left:14,bottom:14,right:14)
         close.accessibilityLabel = "Close"; close.accessibilityIdentifier = "native.arcade-world-modal.close"; close.enableArtworkTapFeedback()
         close.addTarget(self,action:#selector(dismissSheet),for:.touchUpInside)
+        cloudStage.isUserInteractionEnabled=false;cloudStage.accessibilityElementsHidden=true
+        cloudStage.accessibilityIdentifier="native.arcade-world-modal.clouds"
+        idle.addSubview(cloudStage)
+        for (ordinal,name) in ["oblak veliki ljevo dole","oblak-forest2","oblak veliki ljevo dole","oblak+srednji","oblak-forest1"].enumerated() {
+            let cloud=UIImageView(image:assets.image("assets/board transition/\(name).png",densityAware:true))
+            cloud.contentMode = .scaleAspectFit;cloud.alpha=[0.78,0.74,0.76,0.72,0.72][ordinal]
+            cloud.accessibilityIdentifier="native.arcade-world-modal.cloud.\(ordinal)"
+            cloudStage.addSubview(cloud);clouds.append(cloud)
+        }
         [heading,subtitle,art,play,close].forEach { idle.addSubview($0) }
         modalDrag=JimiNativeModalDrag(target:card,idle:idle,viewport:self,canDrag:{[weak self] in
             guard let self else{return false}
@@ -198,6 +209,37 @@ final class NativeArcadeWorldModal: UIView {
         let artworkHeight = min(scaledArtworkHeight,max(0,availableHeight-artworkY-footerHeight))
         art.bounds=CGRect(x:0,y:0,width:artworkHeight*aspect,height:artworkHeight)
         art.center=CGPoint(x:w/2,y:artworkY+artworkHeight/2)
+        // Connected cloud bank borrows the main Arcade Hub's shapes, relative
+        // widths and opacity. Overlap is intentional, on one stable2D plane.
+        // Extra room accommodates two local offsets without resizing/reflowing.
+        cloudStage.frame=CGRect(x:12-50,y:artworkY-8,width:w-24+50,height:artworkHeight+56)
+        let cw=cloudStage.bounds.width-50,ch=cloudStage.bounds.height-40
+        let bank:[(CGFloat,CGFloat,CGFloat)]=[(0.33,0.30,272),(0.18,0.56,188),
+            (0.67,0.34,248),(0.82,0.60,166),(0.50,0.72,184)]
+        for (index,cloud) in clouds.enumerated() {
+            let (x,y,authoredWidth)=bank[index]
+            let ratio=(cloud.image?.size.height ?? 1)/max(1,cloud.image?.size.width ?? 1)
+            let preferred=(art.bounds.width+20)*authoredWidth/390*1.20
+            let width=max(0,min(preferred,cw-20,(ch-20)/max(0.001,ratio)))
+            let height=width*ratio
+            cloud.bounds=CGRect(x:0,y:0,width:width,height:height)
+            let minX=width/2+10,maxX=cw-width/2-10
+            let minY=height/2+10,maxY=ch-height/2-10
+            var center=CGPoint(x:min(maxX,max(minX,cw*x)),y:min(maxY,max(minY,ch*y)))
+            // Distinct connected banks: Endurance lower, Pure Dice left,
+            // Slow Burn right. Bias30% of remaining safe room, preserving size.
+            switch modeIndex {
+            case 0:center.y += (maxY-center.y)*0.30
+            case 1:center.x += (minX-center.x)*0.30
+            default:center.x += (maxX-center.x)*0.30
+            }
+            // Fixed per-mode selections stay stable through layout/resume.
+            let lowered=[0,2,1][modeIndex],leftward=[3,4,2][modeIndex]
+            if index == lowered { center.y += 40 }
+            center.x += 50
+            if index == leftward { center.x -= 50 }
+            cloud.center=center
+        }
         let playY=artworkY+artworkHeight+32
         play.bounds=CGRect(x:0,y:0,width:ctaWidth,height:64)
         play.center=CGPoint(x:w/2,y:playY+32)
@@ -226,6 +268,18 @@ final class NativeArcadeWorldModal: UIView {
         ready=true
         JimiNativeModalV10.startIdle(on:idle,key:"arcade.modal.idle")
         JimiNativeModalV10.startIdle(on:art,key:"arcade.modal.art.idle")
+        refreshCloudIdle(reducedMotion:UIAccessibility.isReduceMotionEnabled)
+    }
+    /// Same visible modal owner handles preference changes and foreground reentry.
+    func refreshCloudIdle(reducedMotion:Bool) {
+        guard entered,foreground,!closing,!disposed else{return}
+        if reducedMotion {freezeClouds();return}
+        let periods:[Double]=[7.3,6.8,7.1,6.7,6.4],amplitudes:[CGFloat]=[1.25,-1,1.25,-1.25,1.25]
+        let drifts:[CGFloat]=[-8,-7,-7,7,-8]
+        for (index,cloud) in clouds.enumerated() {
+            JimiNativeModalV10.startIdle(on:cloud,key:"arcade.modal.cloud.idle",drift:drifts[index],
+                amplitude:amplitudes[index],duration:periods[index],depth:false)
+        }
     }
     func settle() {setForeground(false)}
     func setForeground(_ active:Bool) {
@@ -242,7 +296,8 @@ final class NativeArcadeWorldModal: UIView {
     }
     func dispose() {
         guard !disposed else { return }; modalDrag?.dispose();modalDrag=nil;disposed = true; onFinish = nil
-        for target in [self,card,flip,tilt,idle,art,backdrop,close,play] { target.layer.removeAllAnimations() }
+        for target in [self,card,flip,tilt,idle,art,backdrop,close,play]+clouds { target.layer.removeAllAnimations() }
+        clouds.forEach{$0.image=nil}
         removeFromSuperview()
     }
     private func finish(_ play: Bool) {
@@ -256,6 +311,7 @@ final class NativeArcadeWorldModal: UIView {
         CATransaction.begin();CATransaction.setDisableActions(true)
         idle.layer.transform=idlePose;art.layer.transform=artPose
         idle.layer.removeAllAnimations();art.layer.removeAllAnimations()
+        freezeClouds()
         if !play {close.playArtworkTapFeedback()}
         if UIAccessibility.isReduceMotionEnabled {
             if play {exitAcceptedPlay()}
@@ -271,6 +327,12 @@ final class NativeArcadeWorldModal: UIView {
         card.layer.opacity = 0; card.layer.add(fade,forKey:"arcade.modal.fade")
         CATransaction.commit()
         UIView.animate(withDuration:0.2) { self.backdrop.alpha = 0 }
+    }
+    private func freezeClouds() {
+        for cloud in clouds {
+            cloud.layer.transform=cloud.layer.presentation()?.transform ?? cloud.layer.transform
+            cloud.layer.removeAllAnimations()
+        }
     }
     @objc private func dismissSheet() { finish(false) }
     private func animatePlay(pressed:Bool) {

@@ -102,12 +102,12 @@ final class NativeHapticRuntime {
         func emit(_ output:Output) {
             switch output {
             case .stackContact:
-                // Keep one subtle, discrete contact. The former soft waveform
-                // at 0.15 was below the reported perceptible stack response.
+                // One discrete light contact, raised after the reported missing
+                // physical response at 0.35; merge-six keeps its own waveform.
                 let generator=stackGenerator ?? makeStackGenerator()
                 stackGenerator=generator
                 generator.prepare()
-                generator.impactOccurred(intensity:0.35)
+                generator.impactOccurred(intensity:0.7)
             case .selection:selection.selectionChanged()
             case .notification(let kind):notification.notificationOccurred(kind == "error" ? .error:kind == "warning" ? .warning:.success)
             case .impact(let kind):

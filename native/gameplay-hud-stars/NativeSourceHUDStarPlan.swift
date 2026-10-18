@@ -6,7 +6,7 @@ nonisolated struct NativeSourceHUDStarPlan {
     let points:[CGPoint],delay:Double,duration:Double,size:Double,rotation:Double,textureWidth:Double
     var end:Double {delay+duration}
     var sourceDuration:Double {Self.round7(duration)}
-    struct Pose {let point:CGPoint,scale:Double,rotation:Double,arrived:Bool}
+    struct Pose {let point:CGPoint,scale:Double,rotation:Double,arrived:Bool,elapsed:Double}
     static func sizeOrder(random:()->Double)->[Double] {
         var sizes:[Double]=[56,42,30]
         // Literal JSC stable insertion-sort for this exact immutable length3.
@@ -44,6 +44,15 @@ nonisolated struct NativeSourceHUDStarPlan {
         let rotation=(12+random()*20)*direction*Double.pi/180
         return Self(points:points,delay:delay,duration:duration,size:size,rotation:rotation,textureWidth:textureWidth)
     }
+    /// User-authored coin readability adjustment; preserves the captured path,
+    /// rotation and random stream. Arrival spacing is owned by the same job.
+    func readableCoin(ordinal:Int,previousEnd:inout Double)->Self {
+        let launch=delay+Double(ordinal)*0.12
+        let flight=max(duration*1.25,previousEnd+0.24-launch)
+        previousEnd=launch+flight
+        return Self(points:points,delay:launch,duration:flight,size:size*1.20,
+            rotation:rotation,textureWidth:textureWidth)
+    }
     static func round7(_ x:Double)->Double {(x*1e7).rounded()/1e7}
     static func round6(_ x:Double)->Double {(x*1e6).rounded()/1e6}
     static func pathProgress(_ raw:Double)->Double {
@@ -66,6 +75,6 @@ nonisolated struct NativeSourceHUDStarPlan {
         }
         let rotationDuration=Self.round7(duration*0.98),q=min(1,max(0,localSeconds/rotationDuration))
         let rotated=Self.round6(rotation*(-(cos(Double.pi*q)-1)/2))
-        return Pose(point:point,scale:scale,rotation:rotated,arrived:t>=0.98)
+        return Pose(point:point,scale:scale,rotation:rotated,arrived:t>=0.98,elapsed:localSeconds)
     }
 }

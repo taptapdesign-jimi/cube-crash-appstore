@@ -22,6 +22,8 @@ import StackToSixGameplay
     private let service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner,engine:NativeGameplayEngine,generation:UInt64
     private let bindings:Bindings
     private let container=SKNode()
+    private let coinAnimations:[NativeHUDCoinAnimation],selectCoinVariant:()->Int
+    private var coinVariants:[String:Int]=[:]
     private var sprites:[String:SKSpriteNode]=[:],roots:[UUID:FlightRoot]=[:],jobCaptures:[UUID:NativeSourceHUDStarJob]=[:]
     private var disposed=false
     private(set) var selectedAssetsReady:Bool
@@ -33,16 +35,17 @@ import StackToSixGameplay
     var capturedJobs:[NativeSourceHUDStarJob]{Array(jobCaptures.values)}
     var starIDs:[String]{jobs.liveStarIDs}
     var mountedContainer:SKNode?{jobs.containerMounted ? container:nil}
-    private lazy var jobs=NativeSourceHUDStarJobs(hooks:.init(current:{[weak self] in self?.current() ?? false},acquireCadence:{[weak self] in self?.acquireFlightCadence()},mountContainer:{[weak self] in self?.mountContainer() ?? false},removeContainer:{[weak self] in self?.container.removeFromParent()},mountStar:{[weak self] id,plan in self?.mountStar(id,plan) ?? false},paintStar:{[weak self] id,pose in self?.paint(id,pose)},removeStar:{[weak self] id in self?.sprites.removeValue(forKey:id)?.removeFromParent()},timeline:{[weak self] plan,update,complete in self?.timeline(plan,update,complete)},wall:{[weak self] delay,elapsed in
+    private lazy var jobs=NativeSourceHUDStarJobs(hooks:.init(current:{[weak self] in self?.current() ?? false},acquireCadence:{[weak self] in self?.acquireFlightCadence()},mountContainer:{[weak self] in self?.mountContainer() ?? false},removeContainer:{[weak self] in self?.container.removeFromParent()},mountStar:{[weak self] id,plan in self?.mountStar(id,plan) ?? false},paintStar:{[weak self] id,pose in self?.paint(id,pose)},removeStar:{[weak self] id in self?.coinVariants.removeValue(forKey:id);self?.sprites.removeValue(forKey:id)?.removeFromParent()},timeline:{[weak self] plan,update,complete in self?.timeline(plan,update,complete)},wall:{[weak self] delay,elapsed in
         guard let self else{return{}}
         let token=self.timeouts.schedule(sourceID:"source-hud-star-wall:\(UUID().uuidString)",generation:self.generation,delayMilliseconds:Int(delay.rounded(.towardZero)),elapsed:elapsed)
         return{[weak self] in _=self?.timeouts.cancel(token)}
-    },arrive:{[weak self] id in self?.arrive(id)},retire:{[weak self] uuid,_ in self?.retire(uuid)}))
+    },arrive:{[weak self] id in self?.arrive(id)},retire:{[weak self] uuid,_ in self?.retire(uuid)}),readableCoins:true)
     /// selectedAssetsReady is an actual captured SKTexture.preload completion,
     /// never inferred from tile creation, an image object or a elapsed timer.
-    init?(stage:SKNode,viewportHeight:CGFloat,texture:SKTexture,pixelSize:CGSize,selectedAssetsReady:Bool,service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner,engine:NativeGameplayEngine,bindings:Bindings) {
+    init?(stage:SKNode,viewportHeight:CGFloat,texture:SKTexture,pixelSize:CGSize,selectedAssetsReady:Bool,service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner,engine:NativeGameplayEngine,bindings:Bindings,coinAnimations:[NativeHUDCoinAnimation]=[],selectCoinVariant:@escaping()->Int={Int.random(in:0..<6)}) {
         guard selectedAssetsReady,pixelSize.width>0,pixelSize.height>0,pixelSize.width.isFinite,pixelSize.height.isFinite,viewportHeight>0,viewportHeight.isFinite else{return nil}
         self.stage=stage;height=viewportHeight;self.texture=texture;self.pixelSize=pixelSize;self.selectedAssetsReady=selectedAssetsReady
+        self.coinAnimations=coinAnimations.count==6 ? coinAnimations:[];self.selectCoinVariant=selectCoinVariant
         self.service=service;self.timeouts=timeouts;self.engine=engine;generation=engine.state.generation;self.bindings=bindings
         container.name="source-protected-hud-star-container";container.zPosition=999999;container.isUserInteractionEnabled=false
     }
@@ -63,13 +66,22 @@ import StackToSixGameplay
     }
     private func mountStar(_ id:String,_ plan:NativeSourceHUDStarPlan)->Bool {
         guard current(),sprites[id]==nil,container.parent === stage else{return false}
-        let star=SKSpriteNode(texture:texture,size:pixelSize);star.name="source-hud-star:\(id)";star.anchorPoint = .init(x:0.5,y:0.5)
+        let selected=coinAnimations.isEmpty ? nil:selectCoinVariant()
+        guard current() else{return false}
+        let variant=selected.map{min(5,max(0,$0))}
+        if let variant {coinVariants[id]=variant}
+        let initial=variant.map{coinAnimations[$0].texture(at:0)} ?? texture
+        let star=SKSpriteNode(texture:initial,size:pixelSize);star.name="source-hud-star:\(id)";star.anchorPoint = .init(x:0.5,y:0.5)
         star.position = .init(x:plan.points[0].x,y:height-plan.points[0].y);star.setScale(plan.size/plan.textureWidth)
         sprites[id]=star;container.addChild(star)
         return current() && sprites[id] === star && star.parent === container
     }
     private func paint(_ id:String,_ pose:NativeSourceHUDStarPlan.Pose) {
         guard current(),let star=sprites[id],star.parent === container else{return}
+        if let variant=coinVariants[id] {
+            let frame=coinAnimations[variant].texture(at:pose.elapsed)
+            if star.texture !== frame {star.texture=frame}
+        }
         star.position = .init(x:pose.point.x,y:height-pose.point.y);star.setScale(pose.scale);star.zRotation = -pose.rotation
     }
     private func timeline(_ plan:NativeSourceHUDStarPlan,_ update:@escaping(Double)->Void,_ complete:@escaping()->Void)->NativeSourceHUDStarJobs.Cancel? {
@@ -103,7 +115,7 @@ import StackToSixGameplay
     }
     func dispose() {
         guard !disposed else{return};disposed=true;jobs.dispose()
-        sprites.values.forEach{$0.removeFromParent()};sprites.removeAll();container.removeFromParent()
+        sprites.values.forEach{$0.removeFromParent()};sprites.removeAll();coinVariants.removeAll();container.removeFromParent()
         let remaining=jobCaptures;jobCaptures.removeAll()
         for capture in remaining.values {_=engine.retireSourceHUDStarJob(job:capture)}
         roots.removeAll();selectedAssetsReady=false

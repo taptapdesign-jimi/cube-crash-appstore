@@ -1,7 +1,7 @@
 import SpriteKit
 import UIKit
 
-/// App-lived cached Source small-star texture. Upload is performed by the
+/// App-lived cached merge-six HUD coin texture. Upload is performed by the
 /// existing guarded selected-asset host, with original bytes and no all-artwork
 /// warmup. Sprite/job lifetime does not invalidate this reusable app cache.
 @MainActor final class NativeSourceHUDStarTexturePreparation {
@@ -9,6 +9,7 @@ import UIKit
         fileprivate weak var owner:NativeSourceHUDStarTexturePreparation?
         fileprivate let epoch:UInt64
         let texture:SKTexture,pixelSize:CGSize
+        fileprivate(set) var coinAnimations:[NativeHUDCoinAnimation]=[]
         fileprivate init(owner:NativeSourceHUDStarTexturePreparation,epoch:UInt64,texture:SKTexture,pixelSize:CGSize){self.owner=owner;self.epoch=epoch;self.texture=texture;self.pixelSize=pixelSize}
         var current:Bool{owner?.accepts(self)==true}
     }
@@ -17,8 +18,8 @@ import UIKit
     private var host:NativeBoardTextures?,root:URL?,prepared:Prepared?,epoch:UInt64=0,disposed=false
     private var waiting:[Request:Waiter]=[:],order:[Request]=[],loading=false
     func accepts(_ receipt:Prepared)->Bool {!disposed && receipt.owner === self && receipt.epoch==epoch && prepared === receipt}
-    /// Literal standard TNT bonusParticleTextures contains the one original
-    /// small-star texture. Its selection still consumes one shared Math draw.
+    /// Standard TNT HUD bonus selection shares the one prepared coin texture.
+    /// Its selection still consumes one shared Math draw.
     func selectStandardTntBonusParticle(random:()->Double,current:()->Bool)->Prepared? {
         guard !disposed,let prepared,accepts(prepared),current(),!disposed,accepts(prepared) else{return nil}
         let captured=epoch,roll=random()
@@ -34,13 +35,32 @@ import UIKit
         guard !loading else{return request};loading=true
         if host==nil {self.root=root;host=NativeBoardTextures(root:root)}
         guard let host else{finish(nil);return request};let captured=epoch
-        host.prepareSelectedFinaleAsset(.init(["./assets/small-star.png"])) {[weak self,weak host] texture in
+        host.prepareSelectedFinaleAsset(.init(["./assets/hud/coin-hud.png"])) {[weak self,weak host] texture in
             guard let self,!self.disposed,self.epoch==captured,self.host === host,self.loading else{return}
-            guard let host,let texture,let size=host.logicalSize("assets/small-star.png"),size.width>0,size.height>0 else{self.finish(nil);return}
+            guard let host,let texture,let size=host.logicalSize("assets/hud/coin-hud.png"),size.width>0,size.height>0 else{self.finish(nil);return}
             let receipt=Prepared(owner:self,epoch:captured,texture:texture,pixelSize:size)
-            self.prepared=receipt;self.finish(receipt)
+            self.prepareCoinAnimations(receipt, index:0, captured:captured)
         }
         return request
+    }
+    private func prepareCoinAnimations(_ receipt:Prepared,index:Int,captured:UInt64) {
+        guard !disposed,epoch==captured,loading,let host else{return}
+        guard index<NativeHUDCoinAnimation.names.count else{
+            prepared=receipt;finish(receipt);return
+        }
+        let name=NativeHUDCoinAnimation.names[index]
+        let path="assets/hud/native-coin-animation/\(name).webp"
+        host.prepareSelectedFinaleAsset(.init([path])) {[weak self,weak host] atlas in
+            guard let self,!self.disposed,self.epoch==captured,self.loading,self.host === host else{return}
+            guard let atlas,let size=host?.logicalSize(path),size == CGSize(width:1280,height:index<3 ? 384:1536) else{
+                // A failed derived resource keeps genuine reward delivery on the
+                // original coin, with no partially admitted animation library.
+                receipt.coinAnimations=[];self.host?.dispose();self.host=nil
+                self.prepared=receipt;self.finish(receipt);return
+            }
+            receipt.coinAnimations.append(.slice(atlas,frameCount:index<3 ? 30:120))
+            self.prepareCoinAnimations(receipt,index:index+1,captured:captured)
+        }
     }
     private func deliver(_ request:Request,_ receipt:Prepared?) {
         guard let waiter=waiting[request] else{return}

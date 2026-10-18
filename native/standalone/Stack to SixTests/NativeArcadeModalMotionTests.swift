@@ -130,4 +130,97 @@ final class NativeArcadeModalMotionTests: XCTestCase {
         }
         assertNoAnimations(modal)
     }
+    func testFiveClusteredCloudsBehindEachIllustrationMovePauseResumeAndRetireWithoutRetention() async throws {
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible();host.loadViewIfNeeded()
+        defer{window.isHidden=true}
+        let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        for index in 0..<3 {
+            weak var retired:NativeArcadeWorldModal?
+            do {
+                let modal=NativeArcadeWorldModal(frame:window.bounds,assets:assets,index:index)
+                retired=modal;host.view.addSubview(modal);modal.reveal()
+                try await wait{modal.accessibilityValue == "ready"}
+                let stage=try XCTUnwrap(descendant(modal,id:"native.arcade-world-modal.clouds"))
+                let art=try XCTUnwrap(descendant(modal,id:"native.arcade-world-modal.art"))
+                let parent=try XCTUnwrap(stage.superview)
+                XCTAssertTrue(parent === art.superview)
+                XCTAssertLessThan(try XCTUnwrap(parent.subviews.firstIndex(of:stage)),try XCTUnwrap(parent.subviews.firstIndex(of:art)))
+                let clouds=stage.subviews.compactMap{$0 as? UIImageView}
+                XCTAssertEqual(clouds.count,5);XCTAssertEqual(Set(clouds.map{$0.bounds.width}).count,5)
+                for (ordinal,cloud) in clouds.enumerated() {
+                    XCTAssertLessThanOrEqual(cloud.bounds.width,(art.bounds.width+20)*[272.0,188,248,166,184][ordinal]/390*1.2+0.001)
+                }
+                let meanX=clouds.reduce(CGFloat.zero){$0+$1.center.x-50}/5
+                let meanY=clouds.reduce(CGFloat.zero){$0+$1.center.y}/5
+                switch index {
+                case 0:XCTAssertGreaterThan(meanY,(stage.bounds.height-40)/2)
+                case 1:XCTAssertLessThan(meanX,(stage.bounds.width-50)/2)
+                default:XCTAssertGreaterThan(meanX,(stage.bounds.width-50)/2)
+                }
+                XCTAssertLessThan(stage.layer.zPosition,art.layer.zPosition)
+                let envelopes=try clouds.map { item -> CGRect in
+                    let animation=try XCTUnwrap(item.layer.animation(forKey:"arcade.modal.cloud.idle") as? CAKeyframeAnimation)
+                    return try XCTUnwrap(animation.values).reduce(CGRect.null) { bounds,value in
+                        let pose=(value as! NSValue).caTransform3DValue
+                        XCTAssertEqual(pose.m43,0);XCTAssertEqual(pose.m33,1)
+                        let rect=CGRect(x:-item.bounds.width/2,y:-item.bounds.height/2,width:item.bounds.width,height:item.bounds.height)
+                            .applying(CGAffineTransform(a:pose.m11,b:pose.m12,c:pose.m21,d:pose.m22,tx:pose.m41,ty:pose.m42))
+                            .offsetBy(dx:item.center.x,dy:item.center.y)
+                        return bounds.union(rect)
+                    }
+                }
+                for envelope in envelopes {XCTAssertTrue(stage.bounds.contains(envelope))}
+                var connected:Set<Int>=[0]
+                for _ in clouds.indices {
+                    for candidate in clouds.indices where !connected.contains(candidate) {
+                        if connected.contains(where:{clouds[$0].frame.insetBy(dx:12,dy:12).intersects(clouds[candidate].frame.insetBy(dx:12,dy:12))}) {
+                            connected.insert(candidate)
+                        }
+                    }
+                }
+                XCTAssertEqual(connected.count,5,"Five clouds stay one connected bank throughout bounded motion")
+                XCTAssertFalse(stage.isUserInteractionEnabled)
+                let originalIdle=try XCTUnwrap(art.layer.animation(forKey:"arcade.modal.art.idle") as? CAKeyframeAnimation)
+                XCTAssertEqual(originalIdle.duration,6.8)
+                for value in try XCTUnwrap(originalIdle.values) {
+                    XCTAssertEqual(try XCTUnwrap(value as? NSValue).caTransform3DValue.m41,0)
+                }
+                for cloud in clouds {
+                    XCTAssertNotNil(cloud.image);XCTAssertTrue(stage.bounds.contains(cloud.frame))
+                    XCTAssertEqual(cloud.layer.animationKeys(),["arcade.modal.cloud.idle"])
+                }
+                let cloud=try XCTUnwrap(clouds.first)
+                let initial=try XCTUnwrap(cloud.layer.presentation()).transform
+                try await Task.sleep(for:.milliseconds(180))
+                let moving=try XCTUnwrap(cloud.layer.presentation()).transform
+                XCTAssertEqual(moving.m43,0);XCTAssertEqual(moving.m33,1)
+                XCTAssertGreaterThan(abs(moving.m41-initial.m41)+abs(moving.m42-initial.m42),0.01)
+                modal.setForeground(false)
+                try await Task.sleep(for:.milliseconds(40))
+                let held=try XCTUnwrap(cloud.layer.presentation()).transform
+                try await Task.sleep(for:.milliseconds(130))
+                let paused=try XCTUnwrap(cloud.layer.presentation()).transform
+                XCTAssertEqual(held.m41,paused.m41,accuracy:0.001);XCTAssertEqual(held.m42,paused.m42,accuracy:0.001)
+                modal.setForeground(true)
+                for item in clouds {XCTAssertEqual(item.layer.animationKeys(),["arcade.modal.cloud.idle"])}
+                modal.refreshCloudIdle(reducedMotion:true)
+                for item in clouds {XCTAssertNil(item.layer.animationKeys())}
+                modal.setForeground(false);modal.refreshCloudIdle(reducedMotion:false)
+                for item in clouds {XCTAssertNil(item.layer.animationKeys())}
+                modal.setForeground(true)
+                for item in clouds {XCTAssertEqual(item.layer.animationKeys(),["arcade.modal.cloud.idle"])}
+                let close=try XCTUnwrap(descendant(modal,id:"native.arcade-world-modal.close") as? UIButton)
+                close.sendActions(for:.touchUpInside)
+                for item in clouds {XCTAssertNil(item.layer.animationKeys())}
+                modal.setForeground(false);modal.setForeground(true)
+                for item in clouds {XCTAssertNil(item.layer.animationKeys())}
+                modal.dispose();modal.dispose()
+                for item in clouds {XCTAssertNil(item.image);XCTAssertNil(item.layer.animationKeys())}
+            }
+            try await wait{retired == nil} // drain UIKit/Core Animation completion and autorelease ownership
+            XCTAssertNil(retired,"Retired clouds must not retain their modal")
+        }
+    }
+
 }

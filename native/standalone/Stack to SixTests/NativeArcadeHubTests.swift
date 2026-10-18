@@ -7,6 +7,51 @@ final class NativeArcadeHubTests: XCTestCase {
     private func make() -> NativeArcadeHubView {
         NativeArcadeHubView(frame:CGRect(x:0,y:0,width:375,height:812),assets:JimiV9Artwork(resourceRoot:NativeTestResources.root))
     }
+    func testBottomScrolledModalPlayKeepsScrollGeometryThroughExit() async throws {
+        func find(_ root:UIView,_ id:String)->UIView? {
+            if root.accessibilityIdentifier==id{return root}
+            return root.subviews.lazy.compactMap{find($0,id)}.first
+        }
+        func wait(_ condition:()->Bool) async throws {
+            let deadline=Date().addingTimeInterval(4)
+            while !condition(),Date()<deadline {try await Task.sleep(for:.milliseconds(10))}
+            XCTAssertTrue(condition())
+        }
+        for size in [CGSize(width:390,height:844),CGSize(width:320,height:568)] {
+            for index in [2,0,1] {
+                let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+                let host=UIViewController(),window=UIWindow(frame:CGRect(origin:.zero,size:size))
+                window.rootViewController=host;window.makeKeyAndVisible();host.loadViewIfNeeded()
+                let view=NativeArcadeHubView(frame:host.view.bounds,assets:assets)
+                host.view.addSubview(view);view.present();view.layoutIfNeeded();view.hub.layoutIfNeeded()
+                let motion=NativeRouteMotion(home:JimiV9HomeView(frame:view.bounds,assets:assets),hub:view.hub)
+                defer{motion.cancel();view.hide();window.isHidden=true}
+                let scroll=view.hub.scrollView,height=scroll.contentSize.height
+                let bottom=max(0,height-scroll.bounds.height)
+                XCTAssertGreaterThan(bottom,1,"The regression must start at a genuinely scrollable bottom")
+                scroll.setContentOffset(CGPoint(x:0,y:bottom),animated:false)
+                let offset=scroll.contentOffset
+                var played=false,finished=false
+                view.onPlay={_ in
+                    played=true;view.setContentInteractionEnabled(false);view.suspend()
+                    motion.animate(view.tracks(enter:false)){finished=true}
+                    view.hub.setNeedsLayout();view.hub.layoutIfNeeded()
+                }
+                view.hub.onWorld?(view.hub.worldIDs[index])
+                try await wait{(find(view,"native.arcade-world-modal.play") as? UIButton)?.isEnabled==true}
+                let play=try XCTUnwrap(find(view,"native.arcade-world-modal.play") as? UIButton)
+                play.sendActions(for:.touchUpInside)
+                try await wait{played}
+                for _ in 0..<8 {
+                    view.hub.setNeedsLayout();view.hub.layoutIfNeeded();scroll.layoutIfNeeded()
+                    XCTAssertEqual(scroll.contentSize.height,height,accuracy:0.01,"Route model collapse must not shrink scroll content")
+                    XCTAssertEqual(scroll.contentOffset.y,offset.y,accuracy:0.01,"Bottom must not re-clamp before the authored exit")
+                    try await Task.sleep(for:.milliseconds(20))
+                }
+                try await wait{finished}
+            }
+        }
+    }
     func testWorldSelectionUsesMatchingModalAndCleanupRejectsStalePlay() {
         let view = make(); view.present(); view.layoutIfNeeded()
         for (index,title) in ["Endurance","One Lucky Drop","Slow Burn"].enumerated() {

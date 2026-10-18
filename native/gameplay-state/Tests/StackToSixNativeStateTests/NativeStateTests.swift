@@ -8,7 +8,7 @@ final class NativeStateTests: XCTestCase {
         for variant in ["fish","kanta","cubero"] {for count in 1...3 {
             let store=NativeSaveStore(directory:try temporary())
             var envelope=NativeSaveEnvelope();envelope.savedAt=1000
-            envelope.journeyRuns[11] = .init(tiles:[.init(id:"special",cell:.init(column:0,row:0),value:6,starOrbitCount:count,archetype:.star,variant:variant)],board:11,rngState:873)
+            envelope.journeyRuns[11] = .init(tiles:[.init(id:"special",cell:.init(column:0,row:0),value:6,starOrbitCount:count,archetype:.star,variant:variant)],board:11,moves:49,rngState:873)
             envelope.journeyRunSavedAt[11]=1000
             XCTAssertTrue(try store.save(envelope))
             let loaded=try XCTUnwrap(store.load())
@@ -63,6 +63,7 @@ final class NativeStateTests: XCTestCase {
         original.settings.gameSoundsEnabled=true;original.settings.musicEnabled=false
         original.progression.completedJourneyBoards=[1];original.progression.viewedJourneyBoards=[1]
         original.journeyRuns[2]=NativeBoardFactory.make(mode:.journey,board:2)
+        original.journeyRuns[2]?.moves=49
         var payload=try XCTUnwrap(JSONSerialization.jsonObject(with:JSONEncoder().encode(original)) as? [String:Any])
         for key in ["journeyRunSavedAt","arcadeRunSavedAt","pendingArcadeRound"] {payload.removeValue(forKey:key)}
         var oldProgression=try XCTUnwrap(payload["progression"] as? [String:Any]);oldProgression.removeValue(forKey:"unlockedSpecialDice");payload["progression"]=oldProgression
@@ -173,7 +174,7 @@ final class NativeStateTests: XCTestCase {
         let dir=try temporary(),store=NativeSaveStore(directory:dir)
         var envelope=NativeSaveEnvelope()
         var board=NativeBoardFactory.make(mode:.journey,board:3)
-        board.combo=7;board.earnedComboBonus=725;board.wildSpawnCount=5
+        board.moves=49;board.combo=7;board.earnedComboBonus=725;board.wildSpawnCount=5
         envelope.journeyRuns[3]=board;envelope.savedAt=1000
         try store.save(envelope)
         envelope.settings.musicEnabled=false;try store.save(envelope)

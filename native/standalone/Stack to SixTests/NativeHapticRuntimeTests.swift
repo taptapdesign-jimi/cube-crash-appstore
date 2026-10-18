@@ -16,7 +16,7 @@ final class NativeHapticRuntimeTests:XCTestCase {
         let actuator=NativeHapticRuntime.Actuator(makeStackGenerator:{creations += 1;return generator})
         actuator.emit(.stackContact);actuator.emit(.stackContact)
         XCTAssertEqual(creations,1)
-        XCTAssertEqual(generator.calls,["prepare","impact:0.35","prepare","impact:0.35"])
+        XCTAssertEqual(generator.calls,["prepare","impact:0.7","prepare","impact:0.7"])
     }
     func testEachGentleStackContactPreservesSettingsForegroundAndFinaleBudget() {
         var enabled=true,active=true,outputs:[NativeHapticRuntime.Output]=[]

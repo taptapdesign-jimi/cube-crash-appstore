@@ -1,0 +1,50 @@
+{
+  "fps": 60,
+  "embeddedFramePixels": 192,
+  "webpQuality": 90,
+  "originalsDevelopmentOnly": "game design/source-masters/hud-coins",
+  "files": [
+    {
+      "file": "coin-back-forth-diagonal-15.svg",
+      "originalBytes": 10449551,
+      "optimizedBytes": 298693,
+      "originalSHA256": "47145eb6a0f575539fb4c579da8485d0fd1b59ee8eedc323ac865d2af9e5a838",
+      "optimizedSHA256": "f286016fde2b932f43dd76e5b5b11ce0f23c4412465ba84fb8b054be61066992"
+    },
+    {
+      "file": "coin-back-forth-left-50.svg",
+      "originalBytes": 10449569,
+      "optimizedBytes": 298711,
+      "originalSHA256": "79fe7d842a9f3a2c229d8079c8bfe5a92a24f5e1a6d816d75d0b0d43a297021d",
+      "optimizedSHA256": "feb0a49304904cf65a82503dae5ea444591a718a5695cf8fcad95eda3907705d"
+    },
+    {
+      "file": "coin-back-forth-right-50.svg",
+      "originalBytes": 10449551,
+      "optimizedBytes": 298693,
+      "originalSHA256": "e5daa66fd5f921406c7245e8dbddea100fa12eb3ba41ae0fb0dad4d8afced25a",
+      "optimizedSHA256": "a00b432254992967781ceb1ab0d6120c324c792479a080f97db3acc84083d180"
+    },
+    {
+      "file": "coin-left-35.svg",
+      "originalBytes": 10448843,
+      "optimizedBytes": 297985,
+      "originalSHA256": "0d994d02952711cf0e636e000ea488cb7d3f2d8f2cec56106c21421ad08dda48",
+      "optimizedSHA256": "c58fb9916c1d2f5902f88eba25a03f5d20da77f80366cab9cb875c8c4bd3db6f"
+    },
+    {
+      "file": "coin-right-35.svg",
+      "originalBytes": 10448838,
+      "optimizedBytes": 297980,
+      "originalSHA256": "8fe8ddb2ea593dcf6a82e87a8426857c82475c224768382a1fd67d520c3f1dcd",
+      "optimizedSHA256": "60b8b8dd87b0298d1ca0d65840cf078f93d9ba809056c7fadd592954ee69438f"
+    },
+    {
+      "file": "coin-upright-0.svg",
+      "originalBytes": 10448834,
+      "optimizedBytes": 297976,
+      "originalSHA256": "00b0ce01cf1524c2f12c34f61de7d1ba079d9013966b21179db67c431b3d7937",
+      "optimizedSHA256": "2813cfdc3a9c534d13712e53cf58584f46c9bdb18cca6060edf459e0efb4df27"
+    }
+  ]
+}

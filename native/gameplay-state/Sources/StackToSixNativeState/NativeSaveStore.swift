@@ -119,10 +119,39 @@ public struct NativeSaveEnvelope: Codable, Equatable, Sendable {
         if board.tiles.contains(where: { $0.pendingRemoval || $0.transientSpawn || $0.magnetOwned || $0.resolutionOwned || $0.merge6CleanupOwned || (!$0.isWild && $0.value == 6) || ($0.isWild && $0.value != 6) || ($0.value == 0 && !$0.locked) || (!$0.locked && (!$0.visible || $0.alpha <= 0.01)) }) { issues.append("transient-or-incoherent-save") }
         return issues
     }
+    /// Entry/preparation is not a played attempt. Only committed move accounting
+    /// authorizes a resumable layout; Arcade progression survives as metadata.
+    public static func hasRecordedMove(_ state:NativeBoardState)->Bool {state.moves < state.maxMoves}
+    public mutating func recordPlayableRun(_ state:NativeBoardState,now:TimeInterval) {
+        let played=Self.hasRecordedMove(state)
+        if state.mode == .journey {
+            journeyRuns[state.board]=played ? state:nil
+            journeyRunSavedAt[state.board]=played ? now:nil
+        } else {
+            arcadeRun=played ? state:nil
+            arcadeRunSavedAt=played ? now:nil
+            pendingArcadeRound=played ? nil:.init(round:state.board,score:state.score,meterProgress:state.wildMeter)
+        }
+    }
+    /// Discard legacy entry-only layouts without losing earned Arcade progression.
+    public mutating func discardUntouchedLayouts() {
+        for board in Array(journeyRuns.keys) where journeyRuns[board].map({!Self.hasRecordedMove($0)}) == true {
+            journeyRuns[board]=nil;journeyRunSavedAt[board]=nil
+        }
+        let selected=activeArcadeVariant
+        for variant in NativeArcadeVariant.allCases {
+            activeArcadeVariant=variant
+            if let run=arcadeRun,!Self.hasRecordedMove(run) {
+                if pendingArcadeRound==nil {pendingArcadeRound = .init(round:run.board,score:run.score,meterProgress:run.wildMeter)}
+                arcadeRun=nil;arcadeRunSavedAt=nil
+            }
+        }
+        activeArcadeVariant=selected
+    }
     public func resumedRun(mode: NativeRunMode, board: Int, now: TimeInterval = Date().timeIntervalSince1970) -> NativeBoardState? {
         let timestamp = mode == .journey ? (journeyRunSavedAt[board] ?? savedAt) : (arcadeRunSavedAt ?? savedAt)
         guard now - timestamp < 7 * 24 * 60 * 60, now >= timestamp - 60 else { return nil }
-        guard var run = mode == .journey ? journeyRuns[board] : arcadeRun, run.board == board else { return nil }
+        guard var run = mode == .journey ? journeyRuns[board] : arcadeRun, run.board == board, Self.hasRecordedMove(run) else { return nil }
         run.combo = 0 // Earned current-attempt reward survives; live timing streak does not.
         run.generation &+= 1; run.revision &+= 1
         return run
